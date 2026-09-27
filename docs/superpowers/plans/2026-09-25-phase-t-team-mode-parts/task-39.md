@@ -45,7 +45,10 @@ and another owner's row both produce `httpx` problem `agent_not_found` with the 
 
 **(c) Revocation is a per-replica sweep plus the leader's fast path.** Every replica runs task
 11's `Feed`, so every replica's `delegation.Cache` drops a revoked delegation within one poll (10
-s, `task-11.md:568-570`). Each replica's relay keeps a registry of its own open sockets and, every
+s, `task-11.md:568-570`). That holds only because each replica's `Feed.Refresh` reads task 10's
+`DelegationsInUse` every tick: a cache filled by `Adopt` alone would neither hold the delegations
+of launches this replica did not serve — so this sweep would close their sockets at once as if
+revoked — nor poll their orgs at all (review S02-C1, fix batch b03). Each replica's relay keeps a registry of its own open sockets and, every
 `SweepEvery` (10 s), closes each socket whose delegation is gone from its cache or past expiry, or
 whose owner's membership no longer grants `VerbSessionsOwn` (read **uncached**, one Hub call per
 distinct owner and project per sweep, so the membership cache's 60 s TTL does not stack on top).

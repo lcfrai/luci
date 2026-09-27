@@ -3601,3 +3601,53 @@ and meant "Fleet".
 **Unverified, round 2:** still planned text only. The line numbers above were re-derived by grep
 after this round's edits; any later edit moves them, so grep the quoted heading or sentence rather
 than trust the range.
+
+## Fix batch b03 (2026-09-28): S02-C1
+
+**S02-C1 (Critical) — fixed at the root, not at the symptom.** The defect was not that `Adopt`
+forgot a step. It was that two maps which must describe the *fleet* — `Feed.cursor` and the
+`Cache` — were one replica's memory, filled only by whichever replica happened to serve the
+launch. Both are now read from the one state the replicas share, Fleet's own store.
+
+| Change | Where |
+|---|---|
+| `Feed` holds task 10's `InUse`; `NewFeed(hub, team, in, cache, rev, leader, now)` | `task-11.md:632,640-644` |
+| `Feed.Refresh` — every tick, both replicas: read `DelegationsInUse`, add unknown orgs head-first, fetch unknown delegations under themselves | `task-11.md:969-1000` |
+| `Feed.Resolve` — the read-through the outbox asks on a cache miss | `task-11.md:1002-1012` |
+| `delegation.Source`, `NewClient(cache, src, now)`, and `Ctx`'s one lookup before it refuses | `task-11.md:470-509` |
+| `Cache.Known(id)` — a delegation waiting for its sweep is read once, not once a tick | `task-11.md:444-452` |
+| `Rebuild(ctx, *Feed, *HubState)` — reads the Feed's own store and clients, so rebuild and refresh cannot be pointed at two different ones | `task-11.md:846-853` |
+| Why, in prose, including the outbox and the sweep consequences the finding named | `task-11.md:1031-1046` |
+| `Adopt` is the serving replica's fast path, not the only path | `task-11.md:941-945` |
+| `Sweep` now covers the whole fleet, stated | `task-11.md:713-717` |
+| Test harness: `memInUse`, and `NewClient(cache, nil, clk.Now)` for the cache-only tests | `task-11.md:1244-1248` |
+| Three test rows, the first of them the two-`Feed` test the finding asked for | `task-11.md:1264-1266` |
+| `TestASecondFeedSeesADelegationAdoptedOnTheFirst`, complete: one `memInUse`, one fake Hub, A adopts and is follower, B is leader and holds the outbox; B resolves the key with no poll, B calls `Revoke(Revoked)` within 60 s, A calls nothing | `task-11.md:1313-1360` |
+| The boundary, written down: `Refresh` tracks what the store calls in use, which is safe only because task 20 writes the agent row and that launch's first outbox row in one transaction (`task-20.md:395-400`) | `task-11.md:1391-1397` |
+| `fleetd` builds the feed *before* the outbox and passes it as the `Client`'s `Source`; `NewFeed` takes `delegation.StoreInUse{S: st}`; `rebuild` is `Rebuild(c, feed, state)` | `task-12.md:869-882` |
+| `readFeed` refreshes before it polls, and logs rather than stops when the store read fails | `task-12.md:892-895,911-914` |
+| The two-replica narrative, and the provides list | `task-12.md:38-46`, `:100` |
+| Task 39's "every replica's `Cache` drops a revoked delegation within one poll" now has a reason, and the spurious-close hazard a per-replica cache would have created is named | `task-39.md:45-52` |
+
+**Why `Refresh` and not a new `delegation_use` row.** The finding offered either. `DelegationsInUse`
+already exists, is already shared, and is already the thing `Rebuild` trusts after a leader change
+(`task-11.md:846-853`); a second row would be a second truth to keep in step with the agent rows.
+The cost is one store query per replica per 10 s tick and no Hub call when nothing changed
+(`TestRefreshReadsOnlyTheDelegationsItDoesNotKnow`).
+
+**Deliberately not fixed here.** The Hub, not Fleet's store, stays the authority on whether a
+delegation is live: `Refresh` re-reads every unknown id under itself, so a revoked or lapsed one is
+acted on rather than resurrected (`TestResolveNeverInventsALapsedDelegation`). What a *terminal*
+write does when its own delegation has just been revoked is S02-I1's, untouched: `Resolve` returns
+"none", `Classify` still calls that Permanent, and the row still dies. b03 only makes
+`ErrNoDelegation` mean "shared state has none either" instead of "this replica has not heard yet",
+which is the precondition I1's fix needs.
+
+**Observed while here, recorded not charged.** The complete 60 s test builds
+`hubclient.NewFake(hubclient.WithClock(clk.Now))` (`task-11.md:1276`) while the paragraph above it
+requires `hubclient.FakeTeamProject(t)`, never a bare `NewFake` (`:1238`), and task 08's signature
+takes no options and returns two values (`task-08.md:377`). It pre-dates b03; the new test uses
+`FakeTeamProject`. Whoever closes S02-I1 or the b01 fake work should reconcile that one line.
+
+**Unverified, b03:** planned text only — no Go compiles, nothing runs. Line numbers were
+re-derived by grep after these edits; grep the quoted name rather than trust a range.

@@ -1039,7 +1039,11 @@ that org or hold a cache entry to sweep, so a revocation would wait for the next
 rather than the 60 s §2.4 item 4 promises. So the org set and the delegation set are read from
 **Fleet's own store** — `DelegationsInUse`, which task 10 already shares between the replicas —
 by `Refresh`, at the top of every tick, on both replicas, and by `Resolve` on a cache miss in the
-outbox. `Adopt` stays as the serving replica's fast path, not as the only path.
+outbox. `Adopt` stays as the serving replica's fast path, not as the only path. Tasks 19, 20 and
+39 read this same `Cache` to decide whether a delegation is live (`task-19.md:225`,
+`task-20.md:133`, `task-39.md:174`); task 39's socket sweep closes a socket whose delegation is
+"gone from its cache" (`task-39.md:45-49`), which without `Refresh` would close every socket of
+every launch this replica did not serve.
 `TestASecondFeedSeesADelegationAdoptedOnTheFirst` is the two-`Feed` test that pins it.
 
 **The two adapters to task 10's store, complete.** Task 10 is built first and cannot import

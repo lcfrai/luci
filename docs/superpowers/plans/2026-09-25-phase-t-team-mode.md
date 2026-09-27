@@ -564,11 +564,14 @@ an idempotency key (the Hub's contract §10.6 shape) and marks it sent; after 10
 failure Fleet pauses negotiation (threads stop advancing; workers keep running) and resumes on
 recovery (§2.2 item 3). `cp/internal/fleet/delegation`: Fleet's workload-identity token source,
 a delegation cache keyed by owner and project, `X-Panacea-Delegation` on every call; `feed.go`
+refreshes the tracked orgs and live delegations from Fleet's own store every tick, so both
+replicas hold what either one adopted rather than only the launches they served, and it
 consumes task 08's per-org subscription and, on a revoked or lapsed delegation, calls a
 `Revoker` interface (stop sessions, close sockets, withdraw leases, mark cards *ended: access
 removed*) within 60 seconds; `rebuild.go` reloads Hub-owned state into memory at start (Fleet
 persists no Hub record, `ADR-H1:467-474`). Tests on task 08's fake: a Hub outage of 11 minutes
-pauses negotiation and loses no write; a revocation reaches the `Revoker` inside 60 s of fake time.
+pauses negotiation and loses no write; a revocation reaches the `Revoker` inside 60 s of fake time,
+on the replica that did **not** serve the launch, proven with two `Feed`s over one store.
 
 **12 — `cmd/fleetd` chassis.** `cp/cmd/fleetd/{main.go,config.go}` (every `PANACEA_APP_FLEET_*`
 variable parsed once, a bad value fails start with its name) and `cp/internal/fleet/server`:
