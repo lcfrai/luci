@@ -107,7 +107,10 @@ it is Fleet, not the broker, that mints (S6.5, `:290`; task 20).
 **Files (all UNVERIFIED until the `feat/env` merge, except `entra`):**
 - `control-plane/internal/entra/entra.go`, `verify.go` — `Config.AppCallers`, `Claims.AppOnly`; the
   app-only branch beside `:117-121` (modified; built on `feat/env`)
-- `control-plane/internal/entra/verify_test.go` — the app-only cases (modified)
+- `control-plane/internal/entra/appcaller_test.go` — the app-only cases (**new**, and task 05
+  writes it first: `task-05.md:107`, `:790`. The built package has no `verify_test.go`; its test
+  files are `entra_test.go` and `testkey_test.go`, so an earlier "modify `verify_test.go`" here
+  named a file that does not exist — repair-gaps.md gap 2, closed in fix batch b02 round 1, I4)
 - `control-plane/cmd/broker/delegated.go` — `Principal`, `principalOf`, `DelegationSource`, the
   60-second `delegationCache`, `hubDelegations` (new)
 - `control-plane/cmd/broker/control.go` — `GET /v1/sandboxes/{id}/control` (new)
@@ -236,7 +239,8 @@ Alice's desktop token, and Fleet's app-only token. Two delegations: `dl-alice` (
 | `TestFleetMachineRoutesAreThree` | under `dl-alice`: `POST /v1/machines/default` → 200/201 for Alice's machine; `POST /v1/machines`, `…/sleep`, `DELETE …` → 403 `forbidden` | a Fleet that can delete a person's disk |
 | `TestBrokerDoesNotMintForFleet` | the fake keysmith records a mint for Alice's desktop create and **none** for Fleet's, and Fleet's pod mounts an `emptyDir` at `/run/panacea/gateway` | two live keys for one session |
 
-In `control-plane/internal/entra/verify_test.go`: `TestAppCallerAdmitted` (no `scp`, listed `azp`, role
+In `control-plane/internal/entra/appcaller_test.go` (task 05 writes it, `task-05.md:700`; this part
+consumes it): `TestAppCallerAdmitted` (no `scp`, listed `azp`, role
 held → `Claims.AppOnly`), `TestAppCallerNeedsBothFacts` (each of the two missing → the existing
 `ErrClient` or `ErrScope`), `TestDelegatedTokenUnchanged` (every existing case still passes; kills a
 branch that skips the `scp` check for every token when `AppCallers` is set).

@@ -192,7 +192,9 @@ expiry of 24 hours. Nothing about a solo project changes.
    Hub admits no `Hub.Gateway` token, and §7.25 says so.
 10. **The broker reads one route, as itself.** *(Fix batch b02, S02-C5.)* A `Hub.DelegationReader`
    token (rule 1) reaches `GET /v1/delegations/{delegationId}` and **nothing else**: every other
-   path is 403 `forbidden`, `details.required = "fleet"`, checked before the route runs. It
+   path is 403 `forbidden`, `details.required = "fleet"`, checked before the route runs — **rule
+   2's two exempt routes included**, which the gate must test by role and not by "is this token
+   app-only", or a pod-level component reads the org feed (route 78) as a second Fleet. It
    carries no `X-Panacea-Delegation` (one that does is 400 `bad_request`), and it may read **any**
    delegation of the org enrolled for its `tid`, revoked or expired included, because knowing a
    delegation has lapsed is exactly what it is for. It is never a principal, no `hub.org_id` is
@@ -270,7 +272,7 @@ in backticks, so task 03 appends the constants in this order and names these key
 | `text_refused` | 422 | a free-text field fails a bound or the hygiene check (Phase T task 02) | `field`, `rule` |
 | `glob_refused` | 422 | a path or glob is empty, absolute, has `..` or `\`, a bad segment, is whole-repo, or exceeds 200 characters | `field`, `index`, `rule` |
 | `breadth_exceeded` | 422 | a glob set exceeds 20 globs, or one glob matches more than 10% of tracked files | `field`, `index` |
-| `principal_not_found` | 404 | route 88: the `(tid, oid)` asked about is not provisioned as a user of the caller's org (§7.28) | — |
+| `principal_not_found` | 404 | route 88: the `(tid, oid)` asked about has never signed in, or is in a tenant this Hub does not serve (§7.28 rule 4). A user provisioned in **another** org is 200 with three false flags, never this | — |
 ```
 
 `principal_not_found` is fix batch b02's (S02-C2). It is appended **last**, after the scope's
@@ -895,7 +897,8 @@ Expected: `MISSING` lines for every field, `NO 5.10`, `NO R12`, `REPLACED ROWS N
 `NO 5.10 RULE 10`, `RULE 9 NOT RESERVED`, `ROUTE 47 HAS NO ownerTid`, `NO PRINCIPAL READ EVENT`,
 `NO BROKER READ EVENT`, and `result: FAIL`. That is the failing test. `NO MODE ROUTE`,
 `NO ROW 87` and `NO MODE EVENT` kill the b01 mutant "§7.4's mode amendment dropped", which would
-leave `projects.mode` with a column and no writer (review X-C1). The eight b02 lines kill its
+leave `projects.mode` with a column and no writer (review X-C1). The **nine** new b02 lines
+(`NO ROW 88` through `NO BROKER READ EVENT`), and the modified `NOT 15 TEAM SECTIONS`, kill its
 twin: §5.10 and §7.28 written without the two reads nobody owned, which would leave every Fleet
 route unable to authorise (S02-C2) and the broker unable to name a pod's owner (S02-C5).
 `RULE 9 NOT RESERVED` kills a third: the broker written as rule 9, which silently renumbers the

@@ -288,7 +288,12 @@ helpers (`get[T]`, `post[Req, Res]`, `patch[Req, Res]`, `del`), with the path bu
 
 **`GET /v1/orgs/{orgId}/changes?after=<seq | latest>&kinds=<comma list>&limit=<1–500, default 200>`**
 
-- **Caller**: Fleet's workload identity only, **with no delegation** (task 05's one exempt route).
+- **Caller**: Fleet's workload identity only, **with no delegation** — the first of §5.10 rule 2's
+  **two** exempt routes since b02 (route 88 is the second; `task-05.md:37-42`). "Fleet's" means
+  `c.AppRole == hubapi.AppRoleFleet`, **not merely `AppOnly`**: since b02 a second app-only
+  identity exists, and task 06's `delegationHeader` arms refuse the broker's
+  `Hub.DelegationReader` token 403 `forbidden`, `required: "fleet"`, before this route runs
+  (b02 round 1, C2 — without that narrowing a pod-level component reads the whole org feed).
   A desktop token is 403 `forbidden`, `required: "fleet"`; Fleet naming a delegation is 400
   `bad_request`, `details.field = "X-Panacea-Delegation"`, because the feed is not an owner's act.
 - **`orgId`** must be the org enrolled for Fleet's token `tid`; anything else is 404
@@ -432,10 +437,12 @@ const (
 //	Broker          hubclient.Hub     // the sandbox broker (app-only, Hub.DelegationReader,
 //	                                  // §5.10 rule 10): route 47 and nothing else (b02, S02-C5)
 //	OtherOrgProjectID string          // a project of a SECOND org, and OtherOrgAuditor, a user
-//	OtherOrgAuditor func() hubclient.Hub // with Hub.Auditor there and nothing here. Without a
-//	                                  // second org the principal rows cannot be written at all:
-//	                                  // "the flags are the project's org" has no other witness
-//	                                  // (b02, S02-C2 and review S02-I6)
+//	OtherOrgAuditor func() hubclient.Hub // with Hub.Auditor there and nothing here. The second
+//	                                  // org is what witnesses the NEGATIVE half — a flag never
+//	                                  // crossing an org (S02-I6) — and route 88's other-org 404.
+//	                                  // The positive half is Env.Auditor, whose standing is in
+//	                                  // ProjectID's own org, because Fleet cannot ask about a
+//	                                  // project outside its own (b02, S02-C2; round 1, I2)
 //	RemoveMember    func(userID string) // Admin removing a member of T, as Teams.RemoveMember
 //	AppendEvent     func(projectID, kind string) // test-only: one audit event of kind on
 //	                                  // projectID, flags from the kind, no route (b01 r2, I-5).
@@ -489,7 +496,7 @@ drift silently (the real Hub has tasks 06 and 07's own tests).
 | `team/mode-waits-for-the-audit-gate` (b01) | `ShutTeamModeGate()`; `Admin.SetProjectMode(SoloProjectID, team)` → 503, `details.reason = "audit_not_streaming"`; `CreateDelegation` on it → 409 `not_team_project` (skipped on the real Hub: its gate is start-up configuration; task 06's `TestProjectModeWaitsForTheAuditGate` covers it) | the fake writes the mode with the gate shut |
 | `team/delegation-needs-a-team-project` (b01) | `Member.CreateDelegation` on `SoloProjectID` → 409 `conflict`, `details.reason = "not_team_project"` | the fake delegates on any project, so no fake test needs route 87 |
 | `team/principal-org-is-the-projects` (b02) | `Fleet.Principal(Member.TID, Member.OID, ProjectID)` with no `WithDelegation` → 200, `OrgID == ProjectOrgID`, `Role == "member"`; the same for `Admin` → `Role == "admin"`; a provisioned user of the org who is on no team of `ProjectID` → 200, `Role == ""`, three false flags | the fake answers the **caller's** org, which is review S02-I6's hole: an org-A auditor then passes on an org-B project |
-| `team/principal-flags-are-the-projects-org` (b02) | a user with `Auditor` in org A, asked about a project of org B → `Auditor == false` and `Role == ""`; asked about a project of org A they may see → `Auditor == true` | the flag read off the user, not off the (user, org) pair |
+| `team/principal-flags-are-the-projects-org` (b02; second clause rewritten, b02 round 1, I2) | both halves asked by `Fleet` about `ProjectID`, because another org's project is 404 `route_not_found` for Fleet (§7.28 rule 4) and no Fleet identity exists in the second org: `Fleet.Principal(OtherOrgAuditor().TID, OtherOrgAuditor().OID, ProjectID)` → 200, `Role == ""`, `Auditor == false` and all three flags false, though that user holds `Hub.Auditor` in their own org; `Fleet.Principal(Auditor.TID, Auditor.OID, ProjectID)` → 200, `Role == ""`, `Auditor == true`, the same standing held **in the project's own org** | the flag read off the user, not off the (user, org) pair — the negative half alone passes against a Hub that answers every flag false |
 | `team/principal-needs-no-delegation` (b02) | `Fleet.Principal` under `WithDelegation` → 400; `Member.Principal` → 403 `required: "fleet"`; an unprovisioned `(tid, oid)` → 404 `principal_not_found`; a made-up `pj-…`, and a real one of another org → 404 `route_not_found` in both cases, the same code and the same details | the fake answers `principal_not_found` for an unknown project, which tells Fleet whether a project exists |
 | `team/broker-reads-any-delegation` (b02) | `Broker.Delegation(dl)` for Member's, Admin's, a revoked one and an expired one → 200 each, `OwnerTID`/`OwnerOID` set and equal to that owner's; `Member.Delegation(own)` and `Fleet.Delegation(own)` → 200 with both fields empty | the broker refused a revoked delegation, so task 20's cleanup cannot find the pods to delete; or the two fields served to Fleet |
 | `team/broker-reaches-one-route` (b02) | every other `Team` method on the broker view → 403 `forbidden`, `required: "fleet"`, `Broker.OrgChanges` included; `Broker.Delegation` of another **org's** delegation → 404 `route_not_found` | the broker admitted as a second Fleet, which would give a pod-level component the whole team API |
@@ -635,8 +642,9 @@ git commit -F .superpowers/sdd/team/msg/t08.txt -- control-plane/internal/hub
 4. `team-feed/revocation-within-one-poll` passes on both implementations: the scope's "a revoked
    delegation appears on the feed within one poll".
 5. (b02, S02-C2) `team/principal-org-is-the-projects` passes on both implementations, and
-   `Env` carries a `Broker` view and a second org whose project the conformance rows name — without
-   the second org, rows 2 and 5 cannot be written at all. `hubclient.Team.Principal` exists, so
+   `Env` carries a `Broker` view and a second org whose user and project the conformance rows name
+   — without the second org, `team/principal-flags-are-the-projects-org` has no cross-org half and
+   `team/principal-needs-no-delegation` no other-org project to be answered 404 about. `hubclient.Team.Principal` exists, so
    task 12's `hubMembership` compiles against the real interface rather than a proposal.
 
 #### What this task does not claim

@@ -950,8 +950,12 @@ delegation; the Hub records lease changes but does not second-guess them) and en
    `grep -c 'SELECT' control-plane/internal/hub/store/principals.go` prints `1` — the project's
    org, the role and the three flags come from one statement, so no code path can answer the
    caller's org by mistake.
-8. (b02, S02-C5) `TestBrokerReachesOnlyRoute47`, `TestBrokerReadsARevokedDelegation` and
-   `TestFleetSeesNoOwnerTidOnRoute47` pass, and
+8. (b02, S02-C5) `TestBrokerReachesOnlyRoute47`, `TestBrokerReadsARevokedDelegation`,
+   `TestBrokerWithAHeaderIs400`, `TestAnUngatedAppRoleIsRefused` and
+   `TestFleetSeesNoOwnerTidOnRoute47` pass — the first four are the gate, and
+   `TestBrokerReachesOnlyRoute47` must include `GET /v1/orgs/{org}/changes` in the routes it
+   proves 403, because route 78's exemption is where an ungated broker would land (b02 round 1,
+   C2) — and
    `grep -n 'ownerTid' control-plane/internal/hub/server/delegations.go` shows it set inside the
    broker branch only. Gap S17-1 (`task-17.md:397-409`) is then closed, and task 17's tests can
    leave their `DelegationSource` fake for the real Hub.
