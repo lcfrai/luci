@@ -439,3 +439,224 @@ GRANT UPDATE (status, response), DELETE                        ON idempotency_ke
 -- audit_heads. audit_heads moves only inside audit_append and is locked only through
 -- lock_audit_head, both SECURITY DEFINER and both task 07b's (M11, A19).
 -- A later migration that adds a table grants on it explicitly: there are no default privileges.
+
+-- 0001_init.sql, continued (task 07b): the guards and the owner functions. Appended after
+-- task 07a's grants; the EXECUTE grants for the functions are with the functions.
+-- ── append-only tables ───────────────────────────────────────────────────────
+CREATE FUNCTION forbid_change() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  RAISE EXCEPTION 'hub: % is append-only', TG_TABLE_NAME USING ERRCODE = 'insufficient_privilege';
+END $$;
+
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['design_approvals', 'design_approval_blobs', 'session_links',
+                           'release_deployments', 'evidence', 'audit_events'] LOOP
+    EXECUTE format('CREATE TRIGGER %I BEFORE UPDATE OR DELETE ON hub.%I
+                    FOR EACH ROW EXECUTE FUNCTION hub.forbid_change()', t || '_append_only', t);
+    EXECUTE format('CREATE TRIGGER %I BEFORE TRUNCATE ON hub.%I
+                    FOR EACH STATEMENT EXECUTE FUNCTION hub.forbid_change()', t || '_no_truncate', t);
+  END LOOP;
+END $$;
+
+-- ── a brief revision changes once, by erasure, and only inside hub.erase_brief ─
+CREATE FUNCTION guard_revision() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'hub: brief revisions are never deleted' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF current_user <> 'hub_owner'
+     OR OLD.canonical IS NULL OR NEW.canonical IS NOT NULL OR NEW.erased_at IS NULL
+     OR (NEW.org_id, NEW.brief_id, NEW.revision, NEW.project_id, NEW.scope, NEW.branch_ref,
+         NEW.status, NEW.digest, NEW.saved_at, NEW.saved_by)
+        IS DISTINCT FROM
+        (OLD.org_id, OLD.brief_id, OLD.revision, OLD.project_id, OLD.scope, OLD.branch_ref,
+         OLD.status, OLD.digest, OLD.saved_at, OLD.saved_by)
+  THEN
+    RAISE EXCEPTION 'hub: a brief revision is immutable' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER brief_revisions_guard BEFORE UPDATE OR DELETE ON brief_revisions
+  FOR EACH ROW EXECUTE FUNCTION guard_revision();
+CREATE TRIGGER brief_revisions_no_truncate BEFORE TRUNCATE ON brief_revisions
+  FOR EACH STATEMENT EXECUTE FUNCTION forbid_change();
+
+-- ── a head moves forward one revision at a time, onto a revision that exists ──
+CREATE FUNCTION guard_brief() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'hub: briefs are archived, never deleted' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF (NEW.id, NEW.org_id, NEW.project_id, NEW.scope, NEW.created_at, NEW.created_by)
+       IS DISTINCT FROM (OLD.id, OLD.org_id, OLD.project_id, OLD.scope, OLD.created_at, OLD.created_by)
+     OR NEW.head_revision NOT IN (OLD.head_revision, OLD.head_revision + 1)
+     OR NEW.latest_complete_revision < OLD.latest_complete_revision
+     OR (OLD.archived_at IS NOT NULL AND (NEW.archived_at IS DISTINCT FROM OLD.archived_at
+                                          OR NEW.head_revision <> OLD.head_revision
+                                          OR NEW.branch_ref <> OLD.branch_ref))
+     OR (OLD.erased_at IS NOT NULL AND NEW.erased_at IS DISTINCT FROM OLD.erased_at)
+     OR (NEW.head_revision <> OLD.head_revision AND NOT EXISTS
+           (SELECT 1 FROM hub.brief_revisions r WHERE r.brief_id = NEW.id AND r.revision = NEW.head_revision))
+  THEN
+    RAISE EXCEPTION 'hub: illegal change to brief %', OLD.id USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER briefs_guard BEFORE UPDATE OR DELETE ON briefs
+  FOR EACH ROW EXECUTE FUNCTION guard_brief();
+
+-- ── a release's pin and identity never change; only a reserved release moves ─
+CREATE FUNCTION guard_release() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    RAISE EXCEPTION 'hub: releases are never deleted' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  IF (NEW.id, NEW.org_id, NEW.project_id, NEW.kind, NEW.panacea_project,
+      NEW.branch_ref, NEW.commit_sha, NEW.source_deployment_id, NEW.source_release_id,
+      NEW.pin_reason, NEW.pin_brief_id, NEW.pin_brief_revision, NEW.pin_brief_digest,
+      NEW.pin_head_revision_at_ship, NEW.design_key, NEW.reserved_at, NEW.reserved_by, NEW.expires_at)
+     IS DISTINCT FROM
+     (OLD.id, OLD.org_id, OLD.project_id, OLD.kind, OLD.panacea_project,
+      OLD.branch_ref, OLD.commit_sha, OLD.source_deployment_id, OLD.source_release_id,
+      OLD.pin_reason, OLD.pin_brief_id, OLD.pin_brief_revision, OLD.pin_brief_digest,
+      OLD.pin_head_revision_at_ship, OLD.design_key, OLD.reserved_at, OLD.reserved_by, OLD.expires_at)
+  THEN
+    RAISE EXCEPTION 'hub: a release''s pin never changes' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  -- the environment is written once (HA7-1, task 00): a value never changes or returns
+  -- to NULL; NULL -> a value only while reserved or confirmed (the join is confirmed-only)
+  IF NEW.environment IS DISTINCT FROM OLD.environment AND
+     (OLD.environment IS NOT NULL OR OLD.state NOT IN ('reserved', 'confirmed')) THEN
+    RAISE EXCEPTION 'hub: release %''s environment is set once', OLD.id USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  -- a non-reserved release takes no change but that one
+  IF OLD.state <> 'reserved' AND
+     (NEW.state, NEW.pipeline_run, NEW.confirmed_at, NEW.abandoned_at, NEW.abandon_reason,
+      NEW.abandon_message, NEW.expired_at)
+     IS DISTINCT FROM
+     (OLD.state, OLD.pipeline_run, OLD.confirmed_at, OLD.abandoned_at, OLD.abandon_reason,
+      OLD.abandon_message, OLD.expired_at)
+  THEN
+    RAISE EXCEPTION 'hub: release % is %, not reserved', OLD.id, OLD.state USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER releases_guard BEFORE UPDATE OR DELETE ON releases
+  FOR EACH ROW EXECUTE FUNCTION guard_release();
+
+-- ── the audit chain: gapless, in order, and it advances its own head ─────────
+-- M11 (review), A19: SECURITY DEFINER, so the head moves only here. hub_app holds no UPDATE
+-- on audit_heads (grants above), so a compromised Hub cannot move a head by a direct
+-- UPDATE. As the owner this function is not bound by row-level security, so it checks the
+-- org itself, FIRST, before it locks anything: without that check an org-A session could
+-- lock, and for a moment move, org B's head. WITH CHECK would still refuse the row, but only
+-- after BEFORE triggers have run. TestAuditAppendChecksTheOrgFirst pins the check: with B's
+-- head held by another session, the check returns 42501 at once, where a trigger without it
+-- blocks on that lock.
+CREATE FUNCTION audit_append() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+DECLARE h hub.audit_heads%ROWTYPE;
+BEGIN
+  IF NEW.org_id IS DISTINCT FROM current_setting('hub.org_id', true) THEN
+    RAISE EXCEPTION 'hub: audit event for org %, not this session''s', NEW.org_id
+      USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  SELECT * INTO h FROM hub.audit_heads WHERE org_id = NEW.org_id FOR UPDATE;
+  IF NOT FOUND OR NEW.seq <> h.seq + 1 OR NEW.prev_hash <> h.hash THEN
+    RAISE EXCEPTION 'hub: audit event % out of order', NEW.seq USING ERRCODE = 'serialization_failure';
+  END IF;
+  UPDATE hub.audit_heads SET seq = NEW.seq, hash = NEW.hash WHERE org_id = NEW.org_id;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER audit_events_append BEFORE INSERT ON audit_events
+  FOR EACH ROW EXECUTE FUNCTION audit_append();
+
+-- ── the five functions hub_app calls that run as the owner (contract §10.4; ─────
+-- ── the contract's three, and A18's org_ids and A19's lock_audit_head) ──────────
+CREATE FUNCTION ensure_org(p_tenant uuid, p_name text, p_id text) RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+DECLARE v_id text;
+BEGIN
+  INSERT INTO orgs (id, entra_tenant_id, display_name) VALUES (p_id, p_tenant, p_name)
+  ON CONFLICT (entra_tenant_id) DO UPDATE SET display_name = EXCLUDED.display_name
+  RETURNING id INTO v_id;
+  INSERT INTO audit_heads (org_id) VALUES (v_id) ON CONFLICT (org_id) DO NOTHING;
+  RETURN v_id;
+END $$;
+
+CREATE FUNCTION resolve_principal(p_tenant uuid, p_oid uuid, p_name text, p_email text,
+                                  p_new_user_id text)
+RETURNS TABLE (org_id text, user_id text, created boolean)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+DECLARE v_org text; v_user text; v_name text := left(p_name, 256); v_email text := lower(left(p_email, 254));
+BEGIN
+  SELECT o.id INTO v_org FROM orgs o WHERE o.entra_tenant_id = p_tenant;
+  IF v_org IS NULL THEN RETURN; END IF;
+  INSERT INTO users (id, org_id, entra_oid, display_name, email)
+  VALUES (p_new_user_id, v_org, p_oid, v_name, v_email)
+  ON CONFLICT ON CONSTRAINT users_org_id_entra_oid_key DO NOTHING
+  RETURNING users.id INTO v_user;
+  IF v_user IS NOT NULL THEN
+    RETURN QUERY SELECT v_org, v_user, true; RETURN;
+  END IF;
+  UPDATE users u SET display_name = v_name, email = v_email, last_seen_at = now()
+   WHERE u.org_id = v_org AND u.entra_oid = p_oid
+     AND (u.display_name IS DISTINCT FROM v_name OR u.email IS DISTINCT FROM v_email
+          OR u.last_seen_at < now() - interval '1 hour');
+  SELECT u.id INTO v_user FROM users u WHERE u.org_id = v_org AND u.entra_oid = p_oid;
+  RETURN QUERY SELECT v_org, v_user, false;
+END $$;
+
+CREATE FUNCTION erase_brief(p_brief text) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+DECLARE v_org text := current_setting('hub.org_id', true); v_n integer;
+BEGIN
+  IF v_org IS NULL OR NOT EXISTS (SELECT 1 FROM briefs b WHERE b.id = p_brief AND b.org_id = v_org) THEN
+    RAISE EXCEPTION 'hub: no brief % in this org', p_brief USING ERRCODE = 'no_data_found';
+  END IF;
+  UPDATE brief_revisions SET canonical = NULL, erased_at = now()
+   WHERE brief_id = p_brief AND canonical IS NOT NULL;
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  UPDATE briefs SET archived_at = coalesce(archived_at, now()),
+                    erased_at   = coalesce(erased_at, now()),
+                    updated_at  = now()
+   WHERE id = p_brief;
+  -- I6 (review), A17: idempotency_keys is NOT touched. No stored response holds brief text:
+  -- route 26 stores its reply with every content null and rebuilds content on replay from
+  -- these rows (tasks 14, 19), so a replay after this call answers content null, as /v1/refs
+  -- does. A purge here would delete the replays of approvals, evidence, releases, co-batched
+  -- briefs and this erase itself (re-review b06 N1), and turn their retries into second writes.
+  RETURN v_n;
+END $$;
+
+-- M11 (review), A19: the org's write lock (contract §10.6's first statement after set_config).
+-- SELECT … FOR UPDATE needs UPDATE privilege on at least one column of the table
+-- (TestTheHeadLockNeedsTheFunction pins it), so with hub_app's UPDATE on audit_heads
+-- revoked the lock is taken here, as the owner, and only on the session's org: there is no
+-- parameter to name another. The row lock belongs to the calling transaction.
+CREATE FUNCTION lock_audit_head() RETURNS TABLE (seq bigint, hash bytea)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+DECLARE v_org text := current_setting('hub.org_id', true);
+BEGIN
+  RETURN QUERY SELECT h.seq, h.hash FROM audit_heads h WHERE h.org_id = v_org FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'hub: no audit head for org %', v_org USING ERRCODE = 'no_data_found';
+  END IF;
+END $$;
+
+-- M10 (review), A18: the org ids, and nothing else, for the two callers that must visit
+-- every org before any hub.org_id is set: the janitor (task 24) and hub verify (tasks 20,
+-- 27), both on hub_app's connection. With orgs under row-level security, a plain SELECT
+-- there sees no org at all, and the janitor would sweep nothing and hub verify would pass
+-- on an empty walk. No name and no tenant id leaves this function.
+CREATE FUNCTION org_ids() RETURNS SETOF text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+  SELECT id FROM orgs ORDER BY id
+$$;
+
+REVOKE ALL ON FUNCTION ensure_org(uuid, text, text), resolve_principal(uuid, uuid, text, text, text),
+                       erase_brief(text), lock_audit_head(), org_ids() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION ensure_org(uuid, text, text), resolve_principal(uuid, uuid, text, text, text),
+                          erase_brief(text), lock_audit_head(), org_ids() TO hub_app;
