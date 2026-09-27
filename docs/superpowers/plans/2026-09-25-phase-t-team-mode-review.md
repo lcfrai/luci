@@ -3616,18 +3616,18 @@ was round 1's M1. Grep the quoted name, not the range.
 | Change | Where |
 |---|---|
 | `Feed` holds task 10's `InUse`; `NewFeed(hub, team, in, cache, rev, leader, now)` | `task-11.md:664,676-680` |
-| `Feed.Refresh` — every tick, both replicas: read `DelegationsInUse`, add unknown orgs head-first, fetch unknown delegations under themselves | `task-11.md:1025-1064` |
-| `Feed.Resolve` — the read-through the outbox asks on a cache miss | `task-11.md:1085-1137` |
+| `Feed.Refresh` — every tick, both replicas: read `DelegationsInUse`, add unknown orgs head-first, fetch unknown delegations under themselves | `task-11.md:1036-1075` |
+| `Feed.Resolve` — the read-through the outbox asks on a cache miss | `task-11.md:1096-1148` |
 | `delegation.Source`, `NewClient(cache, src, now)`, and `Ctx`'s one lookup before it refuses | `task-11.md:498-525` |
 | `Cache.Known(id)` — a delegation waiting for its sweep is read once, not once a tick | `task-11.md:460-467` |
-| `Rebuild(ctx, *Feed, *HubState)` — reads the Feed's own store and clients, so rebuild and refresh cannot be pointed at two different ones | `task-11.md:902-910` |
-| Why, in prose, including the outbox and the sweep consequences the finding named | `task-11.md:1157-1184` |
-| `Adopt` is the serving replica's fast path, not the only path | `task-11.md:1000-1002`, `:1179` |
+| `Rebuild(ctx, *Feed, *HubState)` — reads the Feed's own store and clients, so rebuild and refresh cannot be pointed at two different ones | `task-11.md:908-916` |
+| Why, in prose, including the outbox and the sweep consequences the finding named | `task-11.md:1175-1202` |
+| `Adopt` is the serving replica's fast path, not the only path | `task-11.md:1006-1008`, `:1197` |
 | `Sweep` now covers the whole fleet, stated | `task-11.md:750-754` |
-| Test harness: `memInUse`, and `NewClient(cache, nil, clk.Now)` for the cache-only tests | `task-11.md:1389-1396` |
-| The two-`Feed` test's row (round 1's M1: the old range named `TestRebuildPersistsNothing`, which is not b03's) | `task-11.md:1413` |
-| `TestASecondFeedSeesADelegationAdoptedOnTheFirst`, complete: one `memInUse`, one fake Hub, A adopts and is follower, B is leader and holds the outbox; B resolves the key with no poll, B calls `Revoke(Revoked)` within 60 s, A calls nothing | `task-11.md:1468-1515` |
-| The boundary, written down: task 20 writes the agent row and that launch's first outbox row in one transaction (`task-20.md:395-400`) | `task-11.md:1554-1559` |
+| Test harness: `memInUse`, and `NewClient(cache, nil, clk.Now)` for the cache-only tests | `task-11.md:1407-1414` |
+| The two-`Feed` test's row (round 1's M1: the old range named `TestRebuildPersistsNothing`, which is not b03's) | `task-11.md:1431` |
+| `TestASecondFeedSeesADelegationAdoptedOnTheFirst`, complete: one `memInUse`, one fake Hub, A adopts and is follower, B is leader and holds the outbox; B resolves the key with no poll, B calls `Revoke(Revoked)` within 60 s, A calls nothing | `task-11.md:1486-1533` |
+| The boundary, written down: task 20 writes the agent row and that launch's first outbox row in one transaction (`task-20.md:395-400`) | `task-11.md:1572-1577` |
 | `fleetd` builds the feed *before* the outbox and passes it as the `Client`'s `Source`; `NewFeed` takes `delegation.StoreInUse{S: st}`; `rebuild` is `Rebuild(c, feed, state)` | `task-12.md:878-894` |
 | `readFeed` refreshes before it polls, and logs rather than stops when the store read fails | `task-12.md:904-907,923-926` |
 | The two-replica narrative, and the provides list | `task-12.md:38-55`, `:109` |
@@ -3635,7 +3635,7 @@ was round 1's M1. Grep the quoted name, not the range.
 
 **Why `Refresh` and not a new `delegation_use` row.** The finding offered either. `DelegationsInUse`
 already exists, is already shared, and is already the thing `Rebuild` trusts after a leader change
-(`task-11.md:902-910`); a second row would be a second truth to keep in step with the agent rows.
+(`task-11.md:908-916`); a second row would be a second truth to keep in step with the agent rows.
 The cost is one store query per replica per 10 s tick and no Hub call when nothing changed
 (`TestRefreshReadsOnlyTheDelegationsItDoesNotKnow`).
 
@@ -3650,8 +3650,8 @@ write does when its own delegation has just been revoked is S02-I1's, untouched:
 which is the precondition I1's fix needs.
 
 **Observed while here, recorded not charged.** The complete 60 s test builds
-`hubclient.NewFake(hubclient.WithClock(clk.Now))` (`task-11.md:1431`) while the paragraph above it
-requires `hubclient.FakeTeamProject(t)`, never a bare `NewFake` (`:1383`), and task 08's signature
+`hubclient.NewFake(hubclient.WithClock(clk.Now))` (`task-11.md:1449`) while the paragraph above it
+requires `hubclient.FakeTeamProject(t)`, never a bare `NewFake` (`:1401`), and task 08's signature
 takes no options and returns two values (`task-08.md:377`). It pre-dates b03; the new test uses
 `FakeTeamProject`. Whoever closes S02-I1 or the b01 fake work should reconcile that one line.
 
@@ -3675,27 +3675,27 @@ outage delivers a backlog whose agents have all ended. So the two callers now ta
 
 | Finding | Fix | Where |
 |---|---|---|
-| **C1** an ended agent's last write, and any restart backlog, still dead-letters on the replica that never cached the delegation | `Store.DelegationForKey` — the latest agent row on a key, **ended rows included** — with the index that serves it, the `StoreInUse` adapter and three store test rows; `Feed.Resolve` reads it instead of `DelegationsInUse` | `task-10.md:101-108`, `:258-261`, `:480-482`; `task-11.md:855-862`, `:1085-1137`, `:1275-1281`, `:1416` |
+| **C1** an ended agent's last write, and any restart backlog, still dead-letters on the replica that never cached the delegation | `Store.DelegationForKey` — the latest agent row on a key, **ended rows included** — with the index that serves it, the `StoreInUse` adapter and three store test rows; `Feed.Resolve` reads it instead of `DelegationsInUse` | `task-10.md:101-108`, `:258-261`, `:480-482`; `task-11.md:861-868`, `:1096-1148`, `:1293-1299`, `:1434` |
 | **C2** `Ctx`'s `Source` error was dead-lettered while its comment promised a retry | `outbox.ErrTransientLocal` added to `Classify`'s transient set; `delegation.ErrResolveUnavailable` wraps it and every `Resolve` failure wraps that. The sentinel lives in `outbox` because `delegation` imports `outbox` (`Sender` takes an `outbox.Item`) and the reverse would cycle | `task-11.md:240-266`, `:408-417`, `:498-516`, `:529-540` (`Ctx`'s comment now matches what `Classify` does) |
-| **I1** `Resolve` ran a whole `Refresh`, so the 500 ms delivery tick could reach `Revoke`/`Resume` | `Resolve` is now two reads and a `Put`: one store row, at most one Hub read of that one id, no `rebuildDelegations`, no `f.act`. A 401 is a miss, not an act | `task-11.md:1085-1137` |
-| **I2** `Refresh`'s tracked-check and `SetCursor` were check-then-act on two goroutines | `SetCursorIfAbsent` tests and assigns under one lock, and **both** `Refresh` and `Adopt` use it — the race has two orders and the first pass fixed only one (see the correction below). `SetCursor` is now Rebuild's alone, and its comment says why that reason does not travel | `task-11.md:809-833`, `:1017-1022`, `:1061-1066`, `:1432` |
-| **M1** four b03 citations one line short, one naming the wrong row | every "Where" in the b03 table re-derived after the round-2 edits, with the two-`Feed` test's row given its own line (`:1413`) instead of a range ending on `TestRebuildPersistsNothing` | `review.md:3612-3635` |
-| **M2** nothing pruned `Feed.cursor`, so the poll list grew with every org either replica ever served | `pruneOrgs` drops a cursor when the in-use read no longer lists the org **and** the cache holds no entry for it; the cache clause is what protects the window between `Adopt` and task 20's commit, and is why task 39's socket sweep is unaffected | `task-11.md:1062-1083`, `task-39.md:51-53` |
+| **I1** `Resolve` ran a whole `Refresh`, so the 500 ms delivery tick could reach `Revoke`/`Resume` | `Resolve` is now two reads and a `Put`: one store row, at most one Hub read of that one id, no `rebuildDelegations`, no `f.act`. A 401 is a miss, not an act | `task-11.md:1096-1148` |
+| **I2** `Refresh`'s tracked-check and `SetCursor` were check-then-act on two goroutines | `SetCursorIfAbsent` tests and assigns under one lock, and **both** `Refresh` and `Adopt` use it — the race has two orders and the first pass fixed only one (see the correction below). `SetCursor` is now Rebuild's alone, and its comment says why that reason does not travel | `task-11.md:809-833`, `:1017-1022`, `:1061-1066`, `:1439` |
+| **M1** four b03 citations one line short, one naming the wrong row | every "Where" in the b03 table re-derived after the round-2 edits, with the two-`Feed` test's row given its own line (`:1431`) instead of a range ending on `TestRebuildPersistsNothing` | `review.md:3612-3635` |
+| **M2** nothing pruned `Feed.cursor`, so the poll list grew with every org either replica ever served | `pruneOrgs` drops a cursor when the in-use read no longer lists the org **and** the cache holds no entry for it; the cache clause is what protects the window between `Adopt` and task 20's commit, and is why task 39's socket sweep is unaffected | `task-11.md:1077-1094`, `task-39.md:51-53` |
 
-**Restated, by grep, not by assumption.** `task-11.md:1157-1184` (which read each caller takes and
-why), `:1546-1566` (the "does not claim" bullet that was carrying the `Revoker`'s claim and the
+**Restated, by grep, not by assumption.** `task-11.md:1175-1202` (which read each caller takes and
+why), `:1564-1584` (the "does not claim" bullet that was carrying the `Revoker`'s claim and the
 `Source`'s in one sentence, now three bullets), `task-12.md:42-55` and `:885-887` (the two paths,
 and why sharing one `*Feed` between two goroutines is safe only while `Resolve` is a read),
 `task-12.md:109` (Consumes), `task-39.md:51-53`, and the plan body's task 11 summary
 (`2026-09-25-phase-t-team-mode.md:561-578`), whose 11-minute scope test now says "ended agents and
 all" — the case it was silently failing.
 
-**Six test rows added, one corrected** (`task-11.md:1416-1421`, `:1411`):
+**Six test rows added, one corrected** (`task-11.md:1434-1439`, `:1433`):
 `TestAnEndedAgentsLastWriteResolvesOnTheOtherReplica`, `TestARestartBacklogOfEndedAgentsDelivers`,
 `TestAStoreFailureInResolveLeavesTheRowPending`, `TestResolveNeverCallsTheRevoker`,
 `TestRefreshPrunesAnOrgItNoLongerNeeds`, `TestConcurrentFirstTrackKeepsTheOlderCursor`; and
 `TestResolveNeverInventsALapsedDelegation` no longer asserts a `Revoker` call, because `Resolve`
-no longer makes one. `memInUse` (`task-11.md:1389-1396`) now serves both of task 10's reads as
+no longer makes one. `memInUse` (`task-11.md:1407-1414`) now serves both of task 10's reads as
 task 10 defines them, counts them separately, and can fail one on demand.
 
 **One correction, found re-checking this batch's own work.** I2's first pass put
@@ -3708,7 +3708,7 @@ the two heads was still skipped — the same hole entered from the other side, a
 `TestConcurrentFirstTrackKeepsTheOlderCursor` already asserted the older cursor wins, so the part's
 code and its own test disagreed. Fixed at the root: `Adopt` uses `SetCursorIfAbsent` too
 (`task-11.md:1017-1022`), `SetCursor`'s comment says it is `Rebuild`'s alone and why
-(`:809-813`), and the test runs both orders (`:1432`). Unrelated but adjacent: `review.md:875`
+(`:809-813`), and the test runs both orders (`:1439`). Unrelated but adjacent: `review.md:875`
 separately asks `Rebuild` to keep an existing cursor on leader acquisition — that finding is not
 b03's and `Rebuild` is deliberately untouched here.
 
@@ -3716,8 +3716,8 @@ b03's and `Rebuild` is deliberately untouched here.
 delegation has just been revoked resolves to nothing, `Classify` calls that Permanent, and the row
 dies. What b03 round 1 could not honestly claim, round 2 can: `ErrNoDelegation` now means "no
 agent row on this key names a live delegation", which is the precondition I1's fix needs. Round
-1's own note stands too — the complete 60 s test still builds a bare `NewFake` (`task-11.md:1431`)
-against the paragraph at `:1383`; it pre-dates b03 and belongs to S02-I1 or the b01 fake work.
+1's own note stands too — the complete 60 s test still builds a bare `NewFake` (`task-11.md:1449`)
+against the paragraph at `:1401`; it pre-dates b03 and belongs to S02-I1 or the b01 fake work.
 
 **Unverified, b03 round 2:** planned text only. No Go compiled, no test run, no control plane,
 container or image started, in line with this stream's worktree rules. Every line number above was
