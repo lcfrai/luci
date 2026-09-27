@@ -916,7 +916,7 @@ seconds. A leaver disabled in Entra but not removed is caught by the 24-hour del
 daily account-state check at renewal; which Graph read KPMG's tenant permits is **UNVERIFIED**
 (§14.1), so the part ships the check behind an interface with a fake and names the read to confirm.
 Tests: removal to stopped session under 60 s of fake time; a lapsed delegation pauses sessions and
-withdraws leases.
+withdraws leases. **Fix batch b01 (I-A):** its world turns P `team` through route 87 before it opens a delegation, on a Hub with the dev flag beside sink `fake` — since b01 a delegation exists only on a team project.
 
 **45 — Hub delta: audit to Sentinel.** Extends Hub task 27's audit route and chain: every audit
 event streams to Sentinel (Log Analytics, phase 8 task 04's workspace) and the chain head is

@@ -314,7 +314,7 @@ b01, route 46 answers 409 `conflict` `not_team_project` on a solo project
 Route 87 is behind the audit gate, so this harness is started with
 `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` **and** `PANACEA_APP_HUB_AUDIT_SINK=fake`, with
 `PANACEA_APP_HUB_ENV=local` — task 06's `teamWorld` rule (`task-06.md:552-558`,
-`task-45.md:65-69`), so that task 45's gate swap leaves this suite green. S stays `solo`: no row
+`task-45.md:65-74`), so that task 45's gate swap leaves this suite green. S stays `solo`: no row
 below puts a delegation on it (route 46 would refuse), and it is the contrast that proves removal
 touches team projects only — the out-of-scope rule at the end of this part. The second team, U,
 whose project `TestRemovalRevokesOnlyThatTeamsProjects` uses, needs route 87 as well. Reuse task

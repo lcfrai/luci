@@ -711,7 +711,7 @@ delegation only exists on a **team** project (route 46 is 409 `not_team_project`
 `task-06.md:134-138`). It therefore reuses task 06's `teamWorld` — P turned team by Grace
 through route 87, on a Hub started with `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` **and**
 `PANACEA_APP_HUB_AUDIT_SINK=fake` in `PANACEA_APP_HUB_ENV=local` (`task-06.md:552-558`,
-`task-45.md:65-69`) — rather than minting its own project. The other `hub ·` rows are desktop
+`task-45.md:65-74`) — rather than minting its own project. The other `hub ·` rows are desktop
 writes and need no delegation, so a solo project still serves them.
 
 | File · test | What it proves | The mutant it kills |
