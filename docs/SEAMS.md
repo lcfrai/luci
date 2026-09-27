@@ -142,16 +142,21 @@ The Go tests in the manifest's SX.10 entry prove the argv, the resolution and th
 25's `o2.resume` is the end-to-end proof of identity and the store, and the owner's step-18
 observation in its results document the proof that the agent remembers. Task 25's results
 document, `docs/verification/2026-09-27-phase-2-results.md`, records `o2.resume` as **FAILED** —
-*"timed out after 15000 ms waiting for the resumed session"*, cause unattributed — and the step-18
+*"timed out after 15000 ms waiting for the resumed session"*, caused by finding F2: a timed-out
+host-git read answered that check's own resume create (`POST /v1/sessions`) with a 500, so the
+control plane never made the forked session. The 10 s `git config` bound, not resume, lost this
+seam its only end-to-end proof. It records the step-18
 observation as PENDING OWNER (OD-12), so neither proves anything here yet. Three runs have now
 failed it, all recorded there and none claimed, in three different places: run 1 downstream of a
 create cancelled half-made (finding F1), not on resume itself; the diagnostic run in the resume
 UI, with no `Resume` menu item within 30 s (open observation OO-1); and the document's own run one
-step further on, where the `⋯` menu opened, the `Resume` item was clicked, and no resumed session
-reached the control plane within 15 s. That last run did measure the steps before the fork — a
-UUID `--session-id` on the source, its transcript written into the persisted store, and the source
-destroyed — but the fork itself was never reached, and OO-1's own symptom did not recur. So
-nothing here is evidence that resume works, and the failure is open against the step after the UI.
+step further on, where the `⋯` menu opened, the `Resume` item was clicked, and the create it made
+was refused (F2), so no resumed session reached the control plane within 15 s. That last run did
+measure the steps before the fork — a UUID `--session-id` on the source, its transcript written
+into the persisted store, and the source destroyed — but the fork itself was never reached, and
+OO-1's own symptom did not recur. So nothing here is evidence that resume works. Three runs, three
+causes, none of them resume itself: the seam is untested end to end rather than known broken, and
+the cheapest way to close it is to fix F2's 10 s bound and re-run `o2.resume`.
 **This is a Phase 8 seam as well as a resume one**: a
 Kata pod's home is an `emptyDir` (`docs/verification/2026-09-17-phase-1-results.md:67`), which
 dies with the pod exactly as a container's home did, so Phase 8 must carry the fix's persistence
