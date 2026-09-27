@@ -30,11 +30,11 @@ Every earlier task proves its piece against fakes of its neighbours. This task i
 git log --oneline -1                                                   # record the commit the run is on
 docker version --format '{{.Server.Version}}'                          # Docker Desktop is up
 test -f docs/verification/2026-09-25-phase-6-litellm-probe.md && echo ok  # task 18's record exists
-grep -E '^\| *P0[1-9]|^\| *P1[0-2]' docs/verification/2026-09-25-phase-6-litellm-probe.md   # read every probe verdict
+grep -E '^\| *P[0-9]' docs/verification/2026-09-25-phase-6-litellm-probe.md   # read every probe verdict: P01-P16 and P06b
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8730/v1/healthz   # expect 000: nothing on the control plane's port
 ```
 
-Read task 18's verdicts before starting. A FAIL on P02 (key expiry), P05 (key `max_budget`), P06 (no prompt text stored) or P11 (delete effective at once) changes what items 5, 6 and 7 can show; the record says which, up front. A FAIL on P06, P13 or P14 is an owner blocker, and this task does not start until the owner answers (task 18, step 9).
+Read task 18's verdicts before starting. A FAIL on P02 (key expiry), P05 (key `max_budget`), P06 (no prompt text stored) or P11 (delete effective at once) changes what items 5, 6 and 7 can show; the record says which, up front. A FAIL on **P06, P06b, P13 or P14** is an owner blocker, and this task does not start until the owner answers (task 18, step 9). The four are task 18's own exit-3 set (`task-18.md:5`, `:44`); `P06b` is review M-6's failure-path ZDR probe and gates this task exactly as P06 does, because a prompt LiteLLM has already written is a prompt no later part of this phase can make it forget.
 
 - [ ] **Step 2: Bring up the local stack on the fake upstream**
 
@@ -262,13 +262,15 @@ In a new session `S5` on a Global project, send one message and see it answered.
 docker exec "$SB" sh -c 'cp /run/panacea/gateway/token /tmp/t && rm /run/panacea/gateway/token'
 ```
 
-Send a second message and record, verbatim, what the CLI shows and how long it takes (expect about 20 s, then a failure naming `apiKeyHelper`). Then put it back the way the launcher does, a write and a rename, so the CLI never reads a half-written file:
+**Wait out the fragment's helper TTL before the second message, or this step observes nothing** (re-review b07-1, Important 2). The fragment sets `CLAUDE_CODE_API_KEY_HELPER_TTL_MS` to `120000` (`task-14.md:191`, `:253`), and the docs task 14 quotes call it a **refresh interval** — the CLI re-runs the helper after it, and until then keeps using the key the helper last returned (`task-14.md:7`; that the CLI caches rather than re-reads is **UNVERIFIED**, and is half of what U8 asks). Message 1 ran the helper; inside the next two minutes message 2 is answered from the cached key, the helper is never invoked, the missing file is never noticed, and any number recorded from it is measured from nothing. So note the clock when message 1 is **answered**, and send message 2 no sooner than **2 min 15 s** after it — the TTL plus a margin. Time it from the answer, not from the `rm`.
+
+Send the second message and record, verbatim, what the CLI shows and how long it takes (expect about 20 s, then a failure naming `apiKeyHelper`). **If message 2 is answered instead**, that is not a pass and not a finding: the CLI's cache had not expired. Record the interval actually waited, wait another two minutes and repeat, up to three times. Each answered attempt is itself the first reading of U8's TTL question — it puts a **lower** bound on how long the CLI holds a helper's key — so record every interval and its outcome, whichever way it ends. Three answered attempts (over 6 minutes past a 2-minute TTL) is a finding against task 14 decision (d) in its own right: the CLI's cache outlives the fragment's TTL, the value in the fragment does not bound anything, and the `helper TTL + propagation < Grace` inequality (`task-14.md:195`) is pinned to a number the CLI ignores. Then put the file back the way the launcher does, a write and a rename, so the CLI never reads a half-written file:
 
 ```
 docker exec "$SB" sh -c 'cp /tmp/t /run/panacea/gateway/token.tmp && mv /run/panacea/gateway/token.tmp /run/panacea/gateway/token && rm /tmp/t'
 ```
 
-Send a third message. **Item 11 observed** when the third message is answered, `S5` is still the same session with its history intact, and the gatekeeper logged a `200` for it on the same token. If the third message fails too, the session did not recover: record it as a **finding against task 14 decision (d)**, because the phase then needs the wait to cover the whole retry budget after all, or a failure marker the helper can exit on — and say which, with the CLI's own words as the evidence. Record the second message's wait as the measured lower bound on the CLI's helper timeout: a failure at about 20 s means the CLI let the helper run its full wait, which is the **UNVERIFIED** point in decision (d) and task 25's U21.
+Send a third message. **Item 11 observed** when the third message is answered, `S5` is still the same session with its history intact, and the gatekeeper logged a `200` for it on the same token. If the third message fails too, the session did not recover: record it as a **finding against task 14 decision (d)**, because the phase then needs the wait to cover the whole retry budget after all, or a failure marker the helper can exit on — and say which, with the CLI's own words as the evidence. Record the second message's wait as the measured lower bound on the CLI's helper timeout: a failure at about 20 s means the CLI let the helper run its full wait, which is the **UNVERIFIED** point in decision (d) and task 25's **U8** (the CLI's helper timeout and its recovery, `task-25.md:116`; U21 is the managed-settings precedence row, which item 10 proves).
 
 - [ ] **Step 12: Optional, one real Global call**
 
@@ -285,7 +287,7 @@ Run on: <date and time, with zone> by <role, not a name>
 Commit: <git log --oneline -1>
 Claude Code: <claude --version, from the sandbox image>
 Sandbox image: <image id>    LiteLLM image: <digest from compose.yaml>
-Task 18 verdicts relied on: <P01 … P12, each PASS / FAIL / UNKNOWN>
+Task 18 verdicts relied on: <P01 … P16 and P06b, each PASS / FAIL / UNKNOWN; the four blockers P06, P06b, P13, P14 first>
 
 | # | Item | Result | Evidence (step) |
 |---|---|---|---|
@@ -299,7 +301,7 @@ Task 18 verdicts relied on: <P01 … P12, each PASS / FAIL / UNKNOWN>
 | 8 | /v1/models and HEAD /api/hello seen and answered | … | step 8 |
 | 9 | From a sandbox, only the gatekeeper is reachable (backend names exit 6) | … | step 8 |
 | 10 | A hostile .claude/settings.json (marker `loaded`) moves no request, export or hook call off the gatekeeper | … | step 10a |
-| 11 | A helper failure costs one request: the token removed fails the next message, restored the one after is answered in the same session; helper wait measured <n> s | … | step 11a |
+| 11 | A helper failure costs one request: the token removed **and the fragment's 2-minute helper TTL waited out**, the next message fails, restored the one after is answered in the same session; helper wait measured <n> s; cache intervals waited before message 2 failed `<n s, …>` (U8's lower bound on the CLI's key cache) | … | step 11a |
 | — | Task 21's routes on the real stack: unclassified `GET` (`effectiveRoute` null, `usageState` ok), classify `PATCH` | observed / not observed | step 4 |
 | — | One real Global call | run / not run: no key provided | step 12 |
 
