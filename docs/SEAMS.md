@@ -22,9 +22,9 @@ Named by Phase 2 task 26 on 2026-09-26. The close-out ran task 26 **before** tas
 (`docs/superpowers/RESUME.md`, "Phase 2 close-out"), so the end-to-end proof on Docker that these
 seams sit in — task 25's results document under `docs/verification/` — did not exist yet when they
 were named. Task 25 has since run, and its results document is
-`docs/verification/2026-09-27-phase-2-results.md`. Its run stopped at `setup`, on a timed-out
-host-git read (that document's finding F2), so `o2.resume` did not run and nothing in it is cited
-here as proof of a seam. SX.10 still rests on the Go tests its manifest entry names.
+`docs/verification/2026-09-27-phase-2-results.md`. Its run drove all nineteen checks, 10 PASS and
+9 FAIL, and `o2.resume` is one of the failures, so nothing in it is cited here as proof of a seam.
+SX.10 still rests on the Go tests its manifest entry names.
 
 ## Rules that bind every phase
 
@@ -60,7 +60,7 @@ forgets it, and each is already enforced where cited.
 | SX.7 | all | `desktop/src/api/problems.ts:13,37` — `ProblemKind`, `classify` | Switch over `ProblemKind` at its call site with a declared return type and its own sentences | Add a `default:` to that switch, or a shared `sentenceFor` | seams.test.ts `SX.7` |
 | SX.8 | all | `desktop/src/hooks/heartbeat.ts` — `BEAT_MS`, `beatDelayStyle()`, `useHeartbeat()` | Use them for anything that breathes or ticks | Build a third clock; subscribe a row per list item to the 1 Hz tick | seams.test.ts `SX.8` |
 | SX.9 | 3 (`--drift`); unowned (`--need`) | `desktop/src/styles/tokens.css:75,77` | Use the token the day the status can be derived, and update task 24's audit assertion in the same change | Invent a second amber or purple | designsystem.test.ts *defines --drift and references it nowhere* |
-| SX.10 | 8; every phase that resumes | Claude Code started with `--session-id <uuid>`, and a resume forked from that UUID with `--resume <uuid> --fork-session` (`control-plane/internal/harness/argv.go:115,118`); the cockpit's id resolved to Claude's by `sessionResolveResume` (`api/sessions.go:1069`); the conversation store persisted by `sessionMounts`'s mount of `conversationStore` at `sessionConversationDir` (`api/sessions.go:58,346`), whose mount point the image makes as `dev` (`RUN mkdir -p /home/dev/.claude/projects`, `images/sandbox/Dockerfile:32`) | Carry the store's persistence into Kata pods, whose home is an `emptyDir` (see note, and S8.8) | Hand the cockpit's session id to `claude --resume`; resume without `--fork-session`; parse agent output to learn Claude's | seams.test.ts `SX.10`; task 25 `o2.resume` — NOT RUN in `docs/verification/2026-09-27-phase-2-results.md` (the run stopped at `setup`), so not proof |
+| SX.10 | 8; every phase that resumes | Claude Code started with `--session-id <uuid>`, and a resume forked from that UUID with `--resume <uuid> --fork-session` (`control-plane/internal/harness/argv.go:115,118`); the cockpit's id resolved to Claude's by `sessionResolveResume` (`api/sessions.go:1069`); the conversation store persisted by `sessionMounts`'s mount of `conversationStore` at `sessionConversationDir` (`api/sessions.go:58,346`), whose mount point the image makes as `dev` (`RUN mkdir -p /home/dev/.claude/projects`, `images/sandbox/Dockerfile:32`) | Carry the store's persistence into Kata pods, whose home is an `emptyDir` (see note, and S8.8) | Hand the cockpit's session id to `claude --resume`; resume without `--fork-session`; parse agent output to learn Claude's | seams.test.ts `SX.10`; task 25 `o2.resume` — **FAILED** in `docs/verification/2026-09-27-phase-2-results.md` (*"timed out after 15000 ms waiting for the resumed session"*, cause unattributed), so not proof |
 | S3.1 | 3 | `control-plane/internal/project` — read-only by design (`project.go:1-6`) | Put worktree lifecycle and every git write in a new package | Widen `project`'s whitelist of `for-each-ref`, `rev-parse`, `worktree list` | `TestEveryGitCommandIsReadOnly` (`project_test.go:429`) |
 | S3.2 | 3, 4 | `control-plane/internal/worktree/worktree.go:32` `Provider.Path(ctx, worktreeID)` | Make every worktree it creates resolve through it; session create does (`sessions.go:805`), and so does restart (`:1501`) | Resolve paths a second way | seams.test.ts `S3.2` |
 | S3.3 | 3 | `PATCH /v1/projects/{projectId}/worktrees/{worktreeId}` (`catalog.go:33`); `Worktree.ready?` (`types.ts:85`); `setWorktreeReady` (`client.ts:315`) | Gate merge on `ready` | Derive readiness any other way (known defect 9) | seams.test.ts `S3.3` |
@@ -141,14 +141,18 @@ Claude Code with `--session-id <uuid>`, resumes from that UUID as a fork (`--res
 The Go tests in the manifest's SX.10 entry prove the argv, the resolution and the mount. Task
 25's `o2.resume` is the end-to-end proof of identity and the store, and the owner's step-18
 observation in its results document the proof that the agent remembers. Task 25's results
-document, `docs/verification/2026-09-27-phase-2-results.md`, records `o2.resume` as NOT RUN — the
-run stopped at `setup` — and the step-18 observation as PENDING OWNER (OD-12), so neither proves
-anything here yet. Two earlier runs the same day, both recorded there and neither claimed, failed `o2.resume` in
-two different places: run 1 failed it downstream of a create cancelled half-made (finding F1),
-not on resume itself, while the diagnostic run got through every mechanical step — the
-`--session-id` minted, the transcript seeded, the source session destroyed — and then failed in
-the resume UI, with no `Resume` menu item within 30 s (open observation OO-1 in that document).
-So nothing here is evidence that resume works, and one observation is open against the UI step. **This is a Phase 8 seam as well as a resume one**: a
+document, `docs/verification/2026-09-27-phase-2-results.md`, records `o2.resume` as **FAILED** —
+*"timed out after 15000 ms waiting for the resumed session"*, cause unattributed — and the step-18
+observation as PENDING OWNER (OD-12), so neither proves anything here yet. Three runs have now
+failed it, all recorded there and none claimed, in three different places: run 1 downstream of a
+create cancelled half-made (finding F1), not on resume itself; the diagnostic run in the resume
+UI, with no `Resume` menu item within 30 s (open observation OO-1); and the document's own run one
+step further on, where the `⋯` menu opened, the `Resume` item was clicked, and no resumed session
+reached the control plane within 15 s. That last run did measure the steps before the fork — a
+UUID `--session-id` on the source, its transcript written into the persisted store, and the source
+destroyed — but the fork itself was never reached, and OO-1's own symptom did not recur. So
+nothing here is evidence that resume works, and the failure is open against the step after the UI.
+**This is a Phase 8 seam as well as a resume one**: a
 Kata pod's home is an `emptyDir` (`docs/verification/2026-09-17-phase-1-results.md:67`), which
 dies with the pod exactly as a container's home did, so Phase 8 must carry the fix's persistence
 into pods — or resume breaks again on the first cloud machine.
