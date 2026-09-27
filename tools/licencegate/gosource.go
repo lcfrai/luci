@@ -36,12 +36,21 @@ type goTarget struct {
 // (github.com/Microsoft/go-winio, "which Windows builds need":
 // docs/superpowers/plans/phase-2-parts/task-05.md:1428), and linux/amd64,
 // sandboxd in the sandbox image (images/sandbox/Dockerfile:1, :8) and the
-// ubuntu CI agent. Each is listed with cgo off and on: a cross listing turns
-// cgo off by default and a native one turns it on where a C compiler is
-// found, so without both the set would still depend on the host, and a
-// module reached only from a cgo file must not pass unseen. GoDeps lists
-// every root under every one and unions the modules, so the enforced set is
-// the same on any host.
+// ubuntu CI agent.
+//
+// Each is listed with cgo off AND on, and the "on" half is deliberately a
+// superset of what ships (fix round 2, review m4): the one linux binary we
+// build is CGO_ENABLED=0 (images/sandbox/Dockerfile:8, read 2026-09-28), so
+// no shipped build today reaches a cgo-only file. The cgo listings are here
+// for host independence, not for a build we make: a cross listing turns cgo
+// off by default and a native one turns it on wherever a C compiler is
+// found, so listing one setting would make the enforced set depend on the
+// machine the gate ran on, and a module reached only from a cgo file would
+// pass unseen the day a build turns cgo on. GoDeps lists every root under
+// every target and unions the modules, so the enforced set is the same on
+// any host. The cost of the superset is a licence checked that need not
+// have been, which fails closed; the cost of dropping it is a licence not
+// checked, which does not.
 var goTargets = []goTarget{
 	{"windows/amd64", []string{"GOOS=windows", "GOARCH=amd64", "CGO_ENABLED=0"}},
 	{"windows/amd64 cgo", []string{"GOOS=windows", "GOARCH=amd64", "CGO_ENABLED=1"}},

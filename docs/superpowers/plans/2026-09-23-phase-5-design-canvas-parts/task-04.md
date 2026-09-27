@@ -278,7 +278,13 @@ type Runner func(dir string, env []string, name string, args ...string) ([]byte,
 // sandboxd in the sandbox image, which links github.com/creack/pty), each
 // with CGO_ENABLED=0 and =1, the modules unioned by path@version. Listed
 // under the host's environment alone, ubuntu CI never saw go-winio and a
-// Windows run never saw creack/pty. A module replaced by a denied module
+// Windows run never saw creack/pty. The CGO_ENABLED=1 halves are knowingly
+// a superset of what ships (fix round 2, review m4): the one linux binary we
+// build is CGO_ENABLED=0 (images/sandbox/Dockerfile:8, read 2026-09-28), so
+// they guard no build we make today. They are kept because a cross listing
+// turns cgo off and a native one turns it on where a C compiler is found, so
+// one setting would make the enforced set depend on the host; the cost is a
+// licence checked that need not be, which fails closed. A module replaced by a denied module
 // path (Replace.Version set) fails as denied (fix round 1, review M3).
 // It runs from the repository root, keeping each package's .Module (not the standard
 // library, .Standard true; not first party by the structural rule in gate.go),
@@ -501,6 +507,8 @@ enforced ecosystems alone, so a missing report is visible, never silent.
 | `TestShippedImports_cssAndURLForms` row (fix round 1) | a bare `@import "open-props"` beside a directory `src/open-props/` names the package `open-props` | a CSS resolver that takes a directory (T1), which drops the package unchecked |
 | `TestNpmDeps_redactedPath` rows (fix round 1, third mutation run) | a node under no known place, its UUID directory alone in its parent, is read from the filesystem at its real path; on Windows, a printed path moved to a drive the machine does not have is an error naming that drive, never the node read from a known place on another drive | a fallback that refuses every path outside a known place (F1, which the look-alike row also kills, but only through its error text); a place matched without its volume (U3) |
 | `TestMain_repoWithMPL` (added by task 04) | the real runner on `testdata/repo-with-mpl`: exit 1 and `FAIL npm mpl-fixture 1.0.0 MPL-2.0 — …`; skipped where `npm` is not on PATH | the spec's done-when, as a test and not only an acceptance command |
+| `TestExecRunner_env` (fix round 2, review m1) | `GOOS=plan9` is passed and `GOARCH` is not, and `go env` prints `plan9 arm`: the passed name wins over the inherited `linux`, the unpassed one still arrives from the process's own environment; skipped where the host's own `GOARCH` is `arm` | `cmd.Env = env` (survivor S1), which drops the process's environment, so every `go list` runs under a bare child |
+| `TestNewRestorer_theCanonSpellingOfALinkTarget` (fix round 2, review m2; Windows only) | a lockfile `"resolved"` holding an 8.3 element (`GetShortPathName`, skipped where the volume makes none) → the restorer also knows the target's canon spelling, which is the one npm prints; the fallback is made to fail by two sibling UUID directories, so only the place can answer | the second `npmPlace` deleted (survivor S2), which leaves the printed path to a filesystem guess that refuses |
 
 ## Steps
 
