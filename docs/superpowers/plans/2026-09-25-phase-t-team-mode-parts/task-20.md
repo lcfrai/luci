@@ -59,8 +59,9 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
    `panacea-control/v1/`, so no replica stores them and task 39 can recompute the attach token. The
    gateway key is minted per session (worker) or per turn (Orchestrator) and sent down the stream with
    `Streams.Send` (task 16 step 6b), never `Push`, so it never touches Postgres.
-7. **The tags are the mint request's fields.** `Owner{TID, OID}` is the delegation owner's (Gap S17-1:
-   the Hub's delegation answer must carry them), `TeamID` and `ProjectID` from the delegation's project,
+7. **The tags are the mint request's fields.** `Owner{TID, OID}` is the delegation owner's (Gap S17-1,
+   **closed by fix batch b02**: route 47's answer to the broker carries `ownerTid` and `ownerOid`,
+   `task-01.md:395-400`), `TeamID` and `ProjectID` from the delegation's project,
    `AgentID` the `ag-…`, `SessionClass` the class, `PodAddr` the broker's recorded source (task 17
    decision 9), and for a peer-triggered Orchestrator turn `Counterpart`, the other owner, which phase
    6's `MintRequest` does not have yet (*Gap S20-2*). Route is not sent: keysmith decides it from the
@@ -534,7 +535,8 @@ Expected: no output. Decision 8's "no path in this file constructs a Global rout
 - **Gap S20-2 — the counterpart tag.** Phase 6's `MintRequest` has no counterpart
   (phase 6 `task-03.md:31`); this task adds `Counterpart` as a phase 6 delta the skeleton's delta table does not
   list for task 20, and `Counterparts` needs a producer (task 26's scheduler knows a turn's events; task
-  37 owns the per-counterpart budget). Owner `tid`/`oid` for the tags depend on Gap S17-1.
+  37 owns the per-counterpart budget). Owner `tid`/`oid` for the tags came from Gap S17-1, which fix
+  batch b02 closed in tasks 01 and 06; they are no longer a dependency on an unwritten route.
 - **Gap S20-3 — a worker's worktree in the cloud.** The broker requires a machine and the worker needs
   its lane mounted from it; the machine-agent worktree call (phase 8 tasks 24b–25) is not wired here, and
   task 21's `CreateAgentRequest` carries no machine or mount (`task-21.md:104-115`).

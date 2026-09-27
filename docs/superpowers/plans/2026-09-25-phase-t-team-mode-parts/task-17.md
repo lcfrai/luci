@@ -1,7 +1,8 @@
 ### Task 17: Phase 8 delta — the broker's second caller, the control relay, pod source addresses
 
 **Slice:** TM1-α. **Focused time:** 3 h. **dependsOn:** 16 (`sandboxd`'s `/control`), P8-17 (the broker's
-chassis), P8-18 (its sandbox routes and attach relay). **Seams:** consumes ST.3 (delegation) and
+chassis), P8-18 (its sandbox routes and attach relay), **06** (route 47's broker caller and its
+`ownerTid`/`ownerOid`; added by fix batch b02, review S02-C5, which closed gap S17-1). **Seams:** consumes ST.3 (delegation) and
 P8-D4; leaves P8-D12 unchanged.
 
 **Built after the sync-merge of `feat/env`.** The broker does not exist yet: `control-plane/cmd/`
@@ -47,11 +48,13 @@ it is Fleet, not the broker, that mints (S6.5, `:290`; task 20).
 3. **The broker verifies the delegation against the Hub, as itself.** It calls `GET
    /v1/delegations/{id}` with its own workload-identity token and caches the answer by id for at most
    `PANACEA_APP_BROKER_DELEGATION_TTL` (default and maximum 60 s). A revoked answer is cached as
-   revoked. A Hub error with no cached answer is `503 delegation_unverifiable`: **fail closed**. This
-   needs two things task 01 does not give (*Gap S17-1*): the broker as a caller of route 47
-   (`task-01.md:260` lists the owner and Fleet only), and the owner's `tid`/`oid` in the answer,
-   because the broker's owner label is `sandbox.OwnerLabelValue(tid, oid)` and task 01's delegation
-   carries `ownerUserId` (`u-…`, `:323`).
+   revoked. A Hub error with no cached answer is `503 delegation_unverifiable`: **fail closed**. The
+   two things this needs, task 01 now gives (*Gap S17-1*, **closed by fix batch b02**): the broker
+   is a third caller of route 47 (`task-01.md:308`, ADR-H1 §5.10 rules 1 and 10) and the answer to
+   **that caller alone** carries `ownerTid` and `ownerOid` (`:395-400`), which is what
+   `sandbox.OwnerLabelValue(tid, oid)` takes — task 01's delegation record otherwise names the
+   owner as `ownerUserId` (`u-…`) and no label can be built from it. The broker reads revoked and
+   expired delegations too, which is what decision 11's restricted `DELETE` needs.
 4. **`ownerOf` becomes `principalOf`, still the only place a request becomes an owner.** It returns
    the owner from the token for a desktop, and from the verified delegation for Fleet, plus `via` and
    the `dl-…`. Every route calls it; no route reads an owner, a project or a class from a body.
@@ -179,7 +182,7 @@ type Delegation struct {
 	ID        string
 	ProjectID string
 	Class     string
-	OwnerTID  string // Gap S17-1: task 01's record carries ownerUserId only
+	OwnerTID  string // §7.13, served to the broker alone (b02 closed gap S17-1)
 	OwnerOID  string
 	ExpiresAt time.Time
 	RevokedAt *time.Time
@@ -391,13 +394,20 @@ lower number means a row was not written, not that it was skipped: none of them 
 - That the pod's `status.podIP` is the address the gatekeeper sees. That is phase 6 task 24's probe
   P03 (`2026-09-25-phase-6-gateway.md:276`); if it fails, seam S6.10's client certificate replaces the
   annotation.
-- **Gap S17-1 — the broker as a Hub caller.** Task 01's route 47, `GET /v1/delegations/{id}`, admits
-  "its owner (desk), or Fleet under it" (`task-01.md:260`) and its record names the owner as
-  `ownerUserId` (`:323`). The broker needs to be a third caller of that one route (app-only, role
-  `Hub.DelegationReader`) and needs `ownerTid` and `ownerOid` in the answer to it. Without that the
-  broker would have to trust Fleet's statement of whom it acts for, which is the thing P8-D4 exists to
-  prevent. Task 01 (contract) and task 06 (the route) should add both; this task's tests run on a
-  `DelegationSource` fake until they do.
+- **Gap S17-1 — the broker as a Hub caller. CLOSED by fix batch b02** (review S02-C5, 2026-09-28).
+  The broker is now a caller nobody has to invent. Task 01 carries it: **§5.10 rule 1** admits a
+  second app-only identity (`azp` = `PANACEA_APP_HUB_BROKER_CLIENT_ID`, role
+  `Hub.DelegationReader`); **rule 10** holds it to route 47 and nothing else, on any delegation of
+  its own org, revoked or expired included, with no delegation header; **row 47** of §7.0 names it
+  as a third caller; and **§7.13** gives that caller alone `ownerTid` and `ownerOid`
+  (`task-01.md:143-152`, `:193-204`, `:308`, `:395-400`; line numbers read 2026-09-28). Task 06
+  builds the branch and the three tests
+  (`TestBrokerReachesOnlyRoute47`, `TestBrokerReadsARevokedDelegation`,
+  `TestFleetSeesNoOwnerTidOnRoute47`); task 08 gives the fake an `AsBroker()` view and two
+  conformance rows. **Consequence for this part:** `06` is in `dependsOn`, `Delegation.OwnerTID`
+  and `OwnerOID` are fields the real Hub serves, and the `DelegationSource` fake is kept for the
+  unit tests only, no longer as a stand-in for an unbuilt route. The broker still never takes
+  Fleet's word for an owner, which is what P8-D4 exists for.
 - **Gap S17-2 — P8-1 assumes the broker mints.** Phase 6's ask P8-1 has the broker mint for every
   cloud session. Decision 7 skips it for Fleet's sandboxes and moves delivery to the control stream
   (task 16 step 6b). Phase 6's plan names S6.5 ("Fleet as a mint caller") but not the delivery path;

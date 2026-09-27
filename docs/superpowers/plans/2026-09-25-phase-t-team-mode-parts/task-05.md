@@ -870,8 +870,10 @@ built test that sends one to prove it is ignored.
 4. **Multi-tenant Fleet is unplanned.** `fleetd`'s token cache is keyed on scope alone (Not
    claimed, last item); a Fleet that serves two customer tenants needs a token per tenant.
 5. *Resolved in task 01:* §5.10 rule 1 now reads "a token with no `scp`" (`task-01.md:121`).
-   Still open: `task-66.md:143`'s rule 9 ("the gateway caller") says "a token whose `idtyp` is
-   `app`"; it should read "a token with no `scp`", or the Hub and its contract disagree.
+   Still open: `task-66.md:143`'s gateway-caller rule says "a token whose `idtyp` is
+   `app`"; it should read "a token with no `scp`", or the Hub and its contract disagree. That rule
+   stays **§5.10 rule 9**: fix batch b02 left rule 9 reserved and empty for task 66 and gave the
+   broker rule 10 (`task-01.md:189-204`), so no drafted text of task 66's renumbers.
 6. Task 07's `Principal.Auditor` must be false under a delegation, as `OrgAdmin` is (decision e);
    its part says only "from the token's `Hub.Auditor` app role".
 7. Decision (c)'s order answers a revoked **and** expired delegation `delegation_expired`, so a

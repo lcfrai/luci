@@ -373,8 +373,10 @@ accepted. That is the scope's *"a bundle that fails verify is dropped and report
 `DisallowUnknownFields`; for kind `lane`, `lane.owner` must equal `mirror.OwnerHash` of the delegation's
 owner, so one owner's delegation can never write into another owner's lane namespace. The broker
 computes it from the owner the verified delegation names, in `model.Owner`'s spelling (task 09);
-that the delegation answer carries that spelling is task 17's gap S17-1 (`task-17.md:51-54`),
-**UNVERIFIED** until task 05 answers it. The broker: checks the delegation's project is `{projectId}` and that
+that the delegation answer carries that spelling was task 17's gap S17-1 (`task-17.md:48-57`),
+**closed by fix batch b02**: `ownerTid` and `ownerOid` are in route 47's answer to the broker
+(`task-01.md:395-400`), built by task 06. What stays **UNVERIFIED** is only that the two ids match
+`model.Owner`'s spelling character for character, which task 09's type settles at merge. The broker: checks the delegation's project is `{projectId}` and that
 `machine` is the delegation owner's (`403 forbidden` otherwise, never `404`, so a guess learns
 nothing); asks that machine's `machined` for the bundle (kind `lane`: the lane runner's `Bundle` op
 over `basis`; kind `base`: the project repository's one-branch bundle); spools at most
@@ -462,4 +464,5 @@ a commit to a tier-M `cf-…` on the other member's Desk, measured, not promised
 2. Task 22's `verbs.Conflict` and ST.1's `check` answer need a `mergeable` boolean.
 3. The skeleton's file map has no row for `mirror/sender.go`, `00NN_mirror.sql` or the broker's
   `mirrorbundles.go`.
-4. Task 17's gap S17-1 (the owner's ids in the delegation answer) is now needed by this route too.
+4. Task 17's gap S17-1 (the owner's ids in the delegation answer) is needed by this route too, and
+   fix batch b02 closed it in tasks 01 and 06; this route inherits the answer, adding no caller.

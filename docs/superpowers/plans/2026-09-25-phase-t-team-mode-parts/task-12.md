@@ -2,7 +2,10 @@
 
 **Slice:** TM1-α. **Focused time:** 3 hours. **dependsOn:** 10 (Fleet's `Store` and its `pgx`
 pool), 11 (the outbox `Deliverer`, the delegation `Feed`, `Rebuild`), P8-16 (`internal/entra`,
-**built** on `feat/env` at `1772f25`). **Seams:** none defined; it hosts ST.1's control streams
+**built** on `feat/env` at `1772f25`), and — added by fix batch b02, review S02-C2 — **01** (the
+contract §7.28 and row 88), **06** (route 88 on the Hub) and **08**
+(`hubclient.Team.Principal`). Those three are what `Membership` reads; before b02 they were a gap
+this part raised and no task owned, so `go run ./cmd/fleetd` could not build. **Seams:** none defined; it hosts ST.1's control streams
 (task 19) and every Fleet route that follows.
 
 **Fleet is a network service, so nothing here is phase 2's loopback chassis** (§7.4, global
@@ -44,14 +47,23 @@ process serves. `/readyz` answers 200 only when a Postgres ping and a Hub `GET /
 replica that cannot reach the Hub is not ready, but it is alive, so the kubelet does not restart
 it in a Hub outage (the outbox's pause, task 11, is the designed behaviour there).
 
-**The Hub has no route yet that tells Fleet a principal's role.** Task 01's team table
-(`task-01.md:231-267`) gives Fleet the per-org feed and delegated reads, but no way to resolve an
-Entra `(tid, oid)` to a Hub user and their team role, and `hubapi.User` carries no `tid`/`oid`
-(`hubapi/types.go:95-99`). This part therefore consumes a `Membership` interface and states the
-Hub read it needs, `GET /v1/principals?tid=&oid=&projectId=` (Fleet, **no
-delegation**, metadata only: user id, team role, `orgAdmin`, `auditor`, `compliance`), as a
-**skeleton gap** for task 01 and 08 to add. Until it lands, `hubMembership` is written against the
-proposed `hubclient.Team.Principal` method and the tests run on a fake `Membership`.
+**The Hub read that tells Fleet a principal's role. Owned since fix batch b02** (review S02-C2).
+`hubapi.User` carries no `tid`/`oid` (`hubapi/types.go:95-99`), so Fleet cannot resolve an Entra
+`(tid, oid)` to a Hub user and their team role on its own. This part raised that as a skeleton gap
+and named the read it needed; b02 made it a route nobody has to invent:
+
+- **task 01** writes it — contract **§7.28**, **row 88**, `GET /v1/principals?tid=&oid=&projectId=`,
+  Fleet with **no delegation** (§5.10 rule 2's second and last exemption), metadata only: user id,
+  the **project's** `orgId`, team role, `orgAdmin`, `auditor`, `compliance`;
+- **task 06** builds it on the Hub, in one store statement that resolves the project first;
+- **task 08** gives it a client method, `hubclient.Team.Principal(ctx, tid, oid, projectID)`, and
+  five conformance rows.
+
+`hubMembership` is therefore written against a **real** interface, not a proposal, and `Member`
+carries the project's `OrgID` from §7.28's answer. The `Membership` fake stays, for the unit tests
+that must not reach a Hub. Two rules of §7.28 this part leans on, and must not re-derive: `orgId`
+is the **project's** org, never the caller's; and the three org flags are that org's, so a user
+with `Hub.Auditor` in another org arrives here with all three false and `role` `""`.
 
 **Files:**
 - `control-plane/cmd/fleetd/config.go` — `Config`, `loadConfig`, the variable table (new)
@@ -75,7 +87,7 @@ proposed `hubclient.Team.Principal` method and the tests run on a fake `Membersh
   - Hub, built — `hubapi.CodeUnauthenticated`, `hubapi.CodeForbidden` (`hubapi/codes.go:20-22`): Fleet answers auth failures with the Hub's two codes, so the desktop switches on one set; `hubapi.Role` (`types.go:20-25`); `hubclient.New(baseURL, scope, tokens, httpClient)` (`hubclient/client.go:21`, a stub until Hub tasks 33–34)
   - task 10 — `pgstore.Open(ctx, dsn string) (*pgstore.Store, error)` and `(*pgstore.Store).Pool() *pgxpool.Pool`, `pgstore.Migrate(ctx, pool) error`
   - task 11 — `outbox.New`, `(*Deliverer).RunOnce`, `(*Deliverer).Janitor`; `delegation.NewCache`, `NewClient`, `NewFeed`, `Rebuild`, `(*Feed).Poll`, `Sweep`, `Reset`, `Orgs`, `FeedKinds`, `PollEvery`
-  - task 08 (proposed, see the gap above) — `hubclient.Team.Principal(ctx, tid, oid, projectID string) (hubapi.Principal, error)` over `GET /v1/principals`
+  - task 08 — `hubclient.Team.Principal(ctx, tid, oid, projectID string) (hubapi.Principal, error)` over `GET /v1/principals` (route 88, contract §7.28). **No longer proposed:** fix batch b02 gave it to tasks 01, 06 and 08, which this part now depends on. `hubapi.Principal` carries `UserID`, `OrgID` (the project's), `ProjectID`, `Role`, `OrgAdmin`, `Auditor`, `Compliance`
 
 **`control-plane/cmd/fleetd/config.go`, complete:**
 
@@ -933,7 +945,10 @@ func serve(ctx context.Context, log *slog.Logger, addr string, h http.Handler) i
 	return 0
 }
 
-// hubMembership is server.Membership over the proposed Hub read (the gap above).
+// hubMembership is server.Membership over route 88, contract §7.28 (fix batch
+// b02: tasks 01, 06 and 08 own it, so this is no longer a proposal). p.OrgID is
+// the PROJECT's org, never this caller's, and Member carries it unchanged: every
+// org-level grant in authorize is bound to it.
 type hubMembership struct{ hub hubclient.Team }
 
 func (m hubMembership) Lookup(ctx context.Context, tid, oid, project string) (server.Member, error) {
@@ -1174,10 +1189,12 @@ before step 2: compile failures naming `loadConfig`, `newAssertionSource`, `New`
   `feat(fleetd): config read once, the workload-identity token source`.
 
 - [ ] **Step 4: Write `main.go`** as above. It compiles only once tasks 10 and 11 are merged
-  (`pgstore`, `outbox`, `delegation`) and task 08's `hubclient.Team` carries `Principal`; if task
-  08 has not added `Principal` yet, stop here and raise the gap rather than stub it. Run `go build
-  ./cmd/fleetd/`. Expected: no output. Commit: `feat(fleetd): wiring, the feed reader, the outbox
-  and feed singletons`.
+  (`pgstore`, `outbox`, `delegation`) and task 08's `hubclient.Team` carries `Principal` — which
+  since fix batch b02 is task 08's own acceptance item 5, not a gap to raise. If `Principal` is
+  missing, the fault is in task 08 and the fix belongs there; **never stub it here**, because a
+  stubbed `Membership` is an authorisation bypass wearing a TODO. Run `go build ./cmd/fleetd/`.
+  Expected: no output. Commit: `feat(fleetd): wiring, the feed reader, the outbox and feed
+  singletons`.
 
 - [ ] **Step 5: Acceptance**
 

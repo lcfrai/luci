@@ -36,7 +36,7 @@ fields, so a body that sends one gets 400 `bad_request`.
 | routes 47, 52, 55, 59 (reads) | the desktop, or Fleet under a delegation listing the read | the team strip is visible to every project role (§3.4 row 1) |
 | route 87 (a project's mode, fix batch b01) | the **desktop** of the project's team `admin` only; no route name | turning a project to team is a human act, one way, behind the audit gate |
 | route 88 (the principal read, fix batch b02) | **Fleet, with no delegation** — §5.10 rule 2's second and last exemption (`task-01.md`, amendment (b)). A desktop token is 403 `forbidden`, `required: "fleet"`; a Fleet token carrying the header is 400 `bad_request` | it is what tells Fleet *who a caller is*, so it is called before a delegation is in hand. Without it no Fleet route authorises at all (task 12's `Membership`, review S02-C2) |
-| route 47, third caller (fix batch b02) | also **the broker**, app-only, role `Hub.DelegationReader`, §5.10 rule 9: no delegation header, any delegation of its own org, revoked or expired included, and **no other route** | the broker must derive a pod's owner label itself rather than take Fleet's word for it (`task-17.md:47-54`, gap S17-1, review S02-C5) |
+| route 47, third caller (fix batch b02) | also **the broker**, app-only, role `Hub.DelegationReader`, §5.10 rule 10: no delegation header, any delegation of its own org, revoked or expired included, and **no other route** | the broker must derive a pod's owner label itself rather than take Fleet's word for it (`task-17.md:47-54`, gap S17-1, review S02-C5) |
 
 **Files:**
 - `control-plane/internal/hub/server/delegations.go` + `delegations_integration_test.go` (new)

@@ -144,7 +144,7 @@ expiry of 24 hours. Nothing about a solo project changes.
    cases: its `azp` equals `PANACEA_APP_HUB_FLEET_CLIENT_ID` **and** its `roles` contain
    `Hub.Fleet` (**Fleet**, rules 2 to 7); or its `azp` equals
    `PANACEA_APP_HUB_BROKER_CLIENT_ID` **and** its `roles` contain `Hub.DelegationReader` (**the
-   broker**, rule 9). Neither variable may be empty for the case it gates, neither client id may
+   broker**, rule 10). Neither variable may be empty for the case it gates, neither client id may
    equal the other, and neither token may carry the other's role: a token bearing both is
    refused. Any other app-only token is refused, as before. *(Replaces `:369`, "A token with no
    `scp` … is rejected: the Hub is delegated-only", for these two identities.)*
@@ -185,8 +185,12 @@ expiry of 24 hours. Nothing about a solo project changes.
 8. **`devissuer` issues client-credentials tokens.** For the offline stack (§5.7), `devissuer` gains
    `grant_type=client_credentials` for one configured client, minting the app-only token of rule 1,
    so the Hub's offline proof exercises this path without Entra. It mints the broker's token of
-   rule 9 the same way, under a second configured client.
-9. **The broker reads one route, as itself.** *(Fix batch b02, S02-C5.)* A `Hub.DelegationReader`
+   rule 10 the same way, under a second configured client.
+9. **Reserved: the gateway caller.** Phase T task 66 writes this rule, and has already drafted its
+   text (`task-66.md:144-152`) and its `auth.go` hunk against the number 9. Fix batch b02 left it
+   empty rather than renumber a drafted rule, and took 10 for the broker. Until task 66 lands, the
+   Hub admits no `Hub.Gateway` token, and §7.25 says so.
+10. **The broker reads one route, as itself.** *(Fix batch b02, S02-C5.)* A `Hub.DelegationReader`
    token (rule 1) reaches `GET /v1/delegations/{delegationId}` and **nothing else**: every other
    path is 403 `forbidden`, `details.required = "fleet"`, checked before the route runs. It
    carries no `X-Panacea-Delegation` (one that does is 400 `bad_request`), and it may read **any**
@@ -290,7 +294,7 @@ S02-C5; task 06 reads both):
 | `PANACEA_APP_HUB_FLEET_CLIENT_ID` | `""` (Fleet disabled) | Fleet's workload-identity client id. Empty refuses every app-only token, as before this amendment |
 | `PANACEA_APP_HUB_DELEGATION_TTL` | `24h` | a delegation's life from creation or renewal; a Go duration, at most `24h` |
 | `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED` | `false` | `true` lets route 87 make a team project while the audit is not streamed out of the Hub. A start-up error unless `ENV` is `local` or `dev`. Development only: the audit then stays where an owner-role credential can rewrite it (T5) |
-| `PANACEA_APP_HUB_BROKER_CLIENT_ID` | `""` (the broker disabled) | the sandbox broker's workload-identity client id (§5.10 rules 1 and 9). Empty refuses every `Hub.DelegationReader` token. A start-up error if it equals `PANACEA_APP_HUB_FLEET_CLIENT_ID` |
+| `PANACEA_APP_HUB_BROKER_CLIENT_ID` | `""` (the broker disabled) | the sandbox broker's workload-identity client id (§5.10 rules 1 and 10). Empty refuses every `Hub.DelegationReader` token. A start-up error if it equals `PANACEA_APP_HUB_FLEET_CLIENT_ID` |
 ```
 
 - [ ] **Step 5: Contract §7.0 — rows 46 to 79 and 87, and the delegable route names**
@@ -305,7 +309,7 @@ token. The **route name** is what a delegation lists; a route with no name canno
 | # | Method | Path | Caller and role | Route name | Task | Section |
 |---|---|---|---|---|---|---|
 | 46 | POST | `/v1/delegations` | desk, M of the body's project | — | T06 | §7.13 |
-| 47 | GET | `/v1/delegations/{delegationId}` | its owner (desk), or Fleet under it, or **the broker** (app-only, role `Hub.DelegationReader`, §5.10 rule 9, any delegation of its org; b02) | `delegations.read` | T06 | §7.13 |
+| 47 | GET | `/v1/delegations/{delegationId}` | its owner (desk), or Fleet under it, or **the broker** (app-only, role `Hub.DelegationReader`, §5.10 rule 10, any delegation of its org; b02) | `delegations.read` | T06 | §7.13 |
 | 48 | POST | `/v1/delegations/{delegationId}/renew` | its owner (desk) | — | T06 | §7.13 |
 | 49 | DELETE | `/v1/delegations/{delegationId}` | its owner, or A of its project (desk) | — | T06 | §7.13 |
 | 50 | POST | `/v1/projects/{projectId}/tasks` | Fleet·O | `tasks.create` | T06 | §7.14 |
@@ -392,7 +396,7 @@ only for an id reused with a different body and a lease `seq` out of order.
   "renewedAt": null, "revokedAt": null, "revokedReason": null }
 ```
 
-**Route 47's answer to the broker only** (fix batch b02, S02-C5; §5.10 rule 9) carries two more
+**Route 47's answer to the broker only** (fix batch b02, S02-C5; §5.10 rule 10) carries two more
 fields, `"ownerTid"` and `"ownerOid"`, the owner's Entra tenant and object ids as the Hub holds
 them for that user. No other caller sees them: the owner's own desktop and Fleet get the record
 above, byte for byte, so nothing a member or Fleet can read gains a field. They are what lets the
@@ -569,7 +573,9 @@ Route 79 moves `route`: any M may raise it to `au`; only a token whose `roles` c
 replacing any earlier post for that day. **Its caller is open:** it is the gateway's own
 workload identity, a **fourth** caller (after the desktop, Fleet and the broker) that §5.10 does
 not admit. This contract fixes the record only; the caller rule is Phase T task 66's to write, as
-a §5.10 **rule 10** (rule 9 is the broker's, fix batch b02), before any code calls the route.
+§5.10 **rule 9**, which fix batch b02 left reserved and empty for it; the broker took rule 10
+instead, so no drafted text of task 66's renumbers. Until task 66 lands, no `Hub.Gateway` token is
+admitted at all.
 `GET …/usage?from=&to=` serves an A every row of the project, an M their own.
 
 **§7.26 Fleet's feed.** `GET /v1/orgs/{orgId}/changes?after=&kinds=`, Fleet only, no delegation.
@@ -686,7 +692,7 @@ tells a member nothing they can act on. They are audited all the same because th
 requires every cross-owner directive to be auditable **with its cause**, and these two reads are
 the cause every other Fleet and broker act cites. `principal.read`'s `actorUserId` is the user
 asked about, not Fleet: no Fleet identity is ever a principal (§5.10 rule 3).
-`delegation.read_by_broker` has **no** actor — the broker is not a principal either (rule 9) — so
+`delegation.read_by_broker` has **no** actor — the broker is not a principal either (rule 10) — so
 its `actorUserId` is `""`, the shape §3.6 already allows. Neither is `v: 2`: `v: 2` marks a
 delegated **write** (rule 4), and neither of these is delegated or a write.
 
@@ -862,7 +868,8 @@ grep -qE '^\| 88 \| GET \| `/v1/principals' "$C" || { echo "NO ROW 88"; fail=1; 
 printf '%s\n' "$P" | grep -qF "the *project's* org" || { echo "7.28 DOES NOT PIN THE PROJECT ORG"; fail=1; }
 printf '%s\n' "$P" | grep -qF '`principal_not_found`' || { echo "7.28 HAS NO NOT-FOUND CODE"; fail=1; }
 grep -qF 'Hub.DelegationReader' "$A" || { echo "NO BROKER ROLE IN 5.10"; fail=1; }
-[ "$(grep -c '^9\. \*\*The broker reads one route' "$A")" = 1 ] || { echo "NO 5.10 RULE 9"; fail=1; }
+[ "$(grep -c '^10\. \*\*The broker reads one route' "$A")" = 1 ] || { echo "NO 5.10 RULE 10"; fail=1; }
+[ "$(grep -c '^9\. \*\*Reserved: the gateway caller' "$A")" = 1 ] || { echo "RULE 9 NOT RESERVED"; fail=1; }
 D=$(awk '/^### 7\.13 /,/^### 7\.14 /' "$C")
 printf '%s\n' "$D" | grep -qF '"ownerTid"' || { echo "ROUTE 47 HAS NO ownerTid"; fail=1; }
 printf '%s\n' "$E" | grep -qF '| `principal.read` |' || { echo "NO PRINCIPAL READ EVENT"; fail=1; }
@@ -885,12 +892,14 @@ Run it **now, before Steps 2 to 10 are written into the two documents**:
 Expected: `MISSING` lines for every field, `NO 5.10`, `NO R12`, `REPLACED ROWS NOT MARKED`,
 `NOT 15 TEAM SECTIONS`, `NO MODE ROUTE`, `NO ROW 87`, `NO MODE EVENT`, `NO ROW 88`,
 `7.28 DOES NOT PIN THE PROJECT ORG`, `7.28 HAS NO NOT-FOUND CODE`, `NO BROKER ROLE IN 5.10`,
-`NO 5.10 RULE 9`, `ROUTE 47 HAS NO ownerTid`, `NO PRINCIPAL READ EVENT`, `NO BROKER READ EVENT`,
-and `result: FAIL`. That is the failing test. `NO MODE ROUTE`, `NO ROW 87` and `NO MODE EVENT`
-kill the b01 mutant "§7.4's mode amendment dropped", which would leave `projects.mode` with a
-column and no writer (review X-C1). The seven b02 lines kill its twin: §5.10 and §7.28 written
-without the two reads nobody owned, which would leave every Fleet route unable to authorise
-(S02-C2) and the broker unable to name a pod's owner (S02-C5).
+`NO 5.10 RULE 10`, `RULE 9 NOT RESERVED`, `ROUTE 47 HAS NO ownerTid`, `NO PRINCIPAL READ EVENT`,
+`NO BROKER READ EVENT`, and `result: FAIL`. That is the failing test. `NO MODE ROUTE`,
+`NO ROW 87` and `NO MODE EVENT` kill the b01 mutant "§7.4's mode amendment dropped", which would
+leave `projects.mode` with a column and no writer (review X-C1). The eight b02 lines kill its
+twin: §5.10 and §7.28 written without the two reads nobody owned, which would leave every Fleet
+route unable to authorise (S02-C2) and the broker unable to name a pod's owner (S02-C5).
+`RULE 9 NOT RESERVED` kills a third: the broker written as rule 9, which silently renumbers the
+gateway rule task 66 has already drafted.
 
 - [ ] **Step 12: Write Steps 2 to 10 into the documents, then run the check to green**
 

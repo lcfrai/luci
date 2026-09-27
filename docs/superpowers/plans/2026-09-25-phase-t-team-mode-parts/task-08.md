@@ -87,7 +87,7 @@ approximated.
 type Team interface {
 	// Desktop: routes 46, 48, 49. Route 47 (Delegation) also Fleet, under the
 	// delegation it reads (delegations.read, task-06.md's route 47), and also the
-	// broker as itself (app-only, Hub.DelegationReader, ADR-H1 §5.10 rule 9; fix
+	// broker as itself (app-only, Hub.DelegationReader, ADR-H1 §5.10 rule 10; fix
 	// batch b02, S02-C5). Only the broker's answer carries OwnerTID and OwnerOID;
 	// both are omitempty, so a member's and Fleet's answers are unchanged.
 	CreateDelegation(ctx context.Context, req hubapi.CreateDelegationRequest) (hubapi.Delegation, error)
@@ -331,7 +331,7 @@ var (
 // FakeBroker is the sandbox broker's workload identity (fix batch b02, S02-C5).
 // Like Fleet it is never a user and never provisioned, but it names no delegation
 // and reaches route 47 alone: every other method answers 403 forbidden,
-// required "fleet" (ADR-H1 §5.10 rule 9).
+// required "fleet" (ADR-H1 §5.10 rule 10).
 var FakeBroker = FakeUser{ID: "broker", DisplayName: "Broker"}
 
 // AsFleet returns a view acting as Fleet.
@@ -388,7 +388,7 @@ guarded by the existing `mu`.
 |---|---|---|
 | Fleet names a delegation | a Fleet view with no `WithDelegation` gets 401 `delegation_required` on every method but `OrgChanges` and `Principal`; with one on either of those two, 400 | task 01 §5.10 rule 2, both exemptions (b02) |
 | the principal read is the project's | `Principal` answers the **project's** `orgId`, its role for that user, and the three flags as held in that org: a user with `Auditor` in another org gets three false flags and `role` `""` | contract §7.28 rules 1 to 3 (b02) |
-| the broker reads one route | a broker view reaches `Delegation` only, on any delegation of its org whatever its state, and gets `OwnerTID`/`OwnerOID`; every other method → 403 `required: "fleet"` | §5.10 rule 9 (b02) |
+| the broker reads one route | a broker view reaches `Delegation` only, on any delegation of its org whatever its state, and gets `OwnerTID`/`OwnerOID`; every other method → 403 `required: "fleet"` | §5.10 rule 10 (b02) |
 | a live delegation | revoked → 401 `delegation_revoked`; past `expiresAt` → 401 `delegation_expired`; unknown → 401 `delegation_revoked`, `reason: unknown` | `task-01.md:118-124`, `:207-210` |
 | the route is listed | a method whose route name the delegation lacks → 403 `forbidden` | rule 2 |
 | a desktop never names one | a desktop view with `WithDelegation` → 403 `required: "fleet"` | rule 2 |
@@ -430,7 +430,7 @@ const (
 //	Fleet           hubclient.Hub     // Fleet's workload identity; its delegation comes from ctx
 //	Auditor         hubclient.Hub     // an org auditor in no team
 //	Broker          hubclient.Hub     // the sandbox broker (app-only, Hub.DelegationReader,
-//	                                  // §5.10 rule 9): route 47 and nothing else (b02, S02-C5)
+//	                                  // §5.10 rule 10): route 47 and nothing else (b02, S02-C5)
 //	OtherOrgProjectID string          // a project of a SECOND org, and OtherOrgAuditor, a user
 //	OtherOrgAuditor func() hubclient.Hub // with Hub.Auditor there and nothing here. Without a
 //	                                  // second org the principal rows cannot be written at all:
