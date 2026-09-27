@@ -1,6 +1,6 @@
 ### Task 23: Local end-to-end proof with unmodified Claude Code
 
-Every earlier task proves its piece against fakes of its neighbours. This task is the one place where the **real, unmodified `claude` CLI** in the sandbox image talks to the real gatekeeper, keysmith and LiteLLM, on Docker Desktop, with zero cloud spend. It writes no code. It produces one record, `docs/verification/2026-09-25-phase-6-local-e2e.md`, in which each of ten items is **observed** or **not observed**, with the exact command and its output, and nothing is written from memory or expectation.
+Every earlier task proves its piece against fakes of its neighbours. This task is the one place where the **real, unmodified `claude` CLI** in the sandbox image talks to the real gatekeeper, keysmith and LiteLLM, on Docker Desktop, with zero cloud spend. It writes no code. It produces one record, `docs/verification/2026-09-25-phase-6-local-e2e.md`, in which each of eleven items is **observed** or **not observed**, with the exact command and its output, and nothing is written from memory or expectation.
 
 **The one thing this task must not get wrong is the difference between "passed" and "observed".** A screenshot is not evidence (`CLAUDE.md`, working agreements), and neither is a green test elsewhere. An item is *observed* only when the record holds the command that was run and what it printed. An item that could not be run is *not observed*, with the reason, and the phase closes with it listed (task 25). A result that contradicts an earlier task's assumption is recorded as found, with the task it breaks, and is **not** fixed inside this task.
 
@@ -252,6 +252,24 @@ curl -s http://127.0.0.1:8730/v1/projects/<P2>/inference
 
 **Item 5 observed** when `S2`'s CLI shows a refusal after a small number of calls, **and** `S3` records `gatewayError` carrying `budget_exhausted` for the project dimension, **and** the cockpit's panel for P2 shows the *"Budget reached."* sentence (task 22). Each of the three is recorded on its own line; any one alone is "partly observed". Restore the defaults afterwards (`docker compose up -d --wait --force-recreate keysmith` with the variables unset).
 
+- [ ] **Step 11a: Item 11, a failed helper costs one request, not the session (review M-5)**
+
+`panacea token` waits 20 s for the file; `gatewayclient` spends up to about 61 s on a retried mint (task 14 decision (d), task 15 decision (f)). A session whose mint needs a full second attempt therefore fails its **first** request, and the plan accepts that on one condition the docs do not state: that the CLI recovers by itself on the next message. This step observes it without waiting for a slow mint — the file is taken away and put back, which is the same thing from the CLI's side.
+
+In a new session `S5` on a Global project, send one message and see it answered. Then, on the host, with `SB` the sandbox container:
+
+```
+docker exec "$SB" sh -c 'cp /run/panacea/gateway/token /tmp/t && rm /run/panacea/gateway/token'
+```
+
+Send a second message and record, verbatim, what the CLI shows and how long it takes (expect about 20 s, then a failure naming `apiKeyHelper`). Then put it back the way the launcher does, a write and a rename, so the CLI never reads a half-written file:
+
+```
+docker exec "$SB" sh -c 'cp /tmp/t /run/panacea/gateway/token.tmp && mv /run/panacea/gateway/token.tmp /run/panacea/gateway/token && rm /tmp/t'
+```
+
+Send a third message. **Item 11 observed** when the third message is answered, `S5` is still the same session with its history intact, and the gatekeeper logged a `200` for it on the same token. If the third message fails too, the session did not recover: record it as a **finding against task 14 decision (d)**, because the phase then needs the wait to cover the whole retry budget after all, or a failure marker the helper can exit on — and say which, with the CLI's own words as the evidence. Record the second message's wait as the measured lower bound on the CLI's helper timeout: a failure at about 20 s means the CLI let the helper run its full wait, which is the **UNVERIFIED** point in decision (d) and task 25's U21.
+
 - [ ] **Step 12: Optional, one real Global call**
 
 Only if a developer has put their own key in `secrets/anthropic_api_key`: restart with `PANACEA_APP_GATEWAY_LOCAL_UPSTREAM=anthropic`, run one short prompt in a new session on a Global project, and record the reply's first five words and the gatekeeper line. Otherwise record **not run: no key provided** (decision (d)). This is the only step that spends money, and the only one that touches the real Anthropic API; it proves nothing about Bedrock.
@@ -281,6 +299,7 @@ Task 18 verdicts relied on: <P01 … P12, each PASS / FAIL / UNKNOWN>
 | 8 | /v1/models and HEAD /api/hello seen and answered | … | step 8 |
 | 9 | From a sandbox, only the gatekeeper is reachable (backend names exit 6) | … | step 8 |
 | 10 | A hostile .claude/settings.json (marker `loaded`) moves no request, export or hook call off the gatekeeper | … | step 10a |
+| 11 | A helper failure costs one request: the token removed fails the next message, restored the one after is answered in the same session; helper wait measured <n> s | … | step 11a |
 | — | Task 21's routes on the real stack: unclassified `GET` (`effectiveRoute` null, `usageState` ok), classify `PATCH` | observed / not observed | step 4 |
 | — | One real Global call | run / not run: no key provided | step 12 |
 
