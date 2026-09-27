@@ -3678,7 +3678,7 @@ outage delivers a backlog whose agents have all ended. So the two callers now ta
 | **C1** an ended agent's last write, and any restart backlog, still dead-letters on the replica that never cached the delegation | `Store.DelegationForKey` — the latest agent row on a key, **ended rows included** — with the index that serves it, the `StoreInUse` adapter and three store test rows; `Feed.Resolve` reads it instead of `DelegationsInUse` | `task-10.md:101-108`, `:258-261`, `:480-482`; `task-11.md:855-862`, `:1085-1137`, `:1275-1281`, `:1416` |
 | **C2** `Ctx`'s `Source` error was dead-lettered while its comment promised a retry | `outbox.ErrTransientLocal` added to `Classify`'s transient set; `delegation.ErrResolveUnavailable` wraps it and every `Resolve` failure wraps that. The sentinel lives in `outbox` because `delegation` imports `outbox` (`Sender` takes an `outbox.Item`) and the reverse would cycle | `task-11.md:240-266`, `:408-417`, `:498-516`, `:529-540` (`Ctx`'s comment now matches what `Classify` does) |
 | **I1** `Resolve` ran a whole `Refresh`, so the 500 ms delivery tick could reach `Revoke`/`Resume` | `Resolve` is now two reads and a `Put`: one store row, at most one Hub read of that one id, no `rebuildDelegations`, no `f.act`. A 401 is a miss, not an act | `task-11.md:1085-1137` |
-| **I2** `Refresh`'s tracked-check and `SetCursor` were check-then-act on two goroutines | `SetCursorIfAbsent` tests and assigns under one lock; `Refresh` uses it. `SetCursor` stays unconditional for `Rebuild` and `Adopt`, which read the head before the state. And I1's fix removes the second goroutine entirely | `task-11.md:816-826`, `:1049-1055` |
+| **I2** `Refresh`'s tracked-check and `SetCursor` were check-then-act on two goroutines | `SetCursorIfAbsent` tests and assigns under one lock, and **both** `Refresh` and `Adopt` use it — the race has two orders and the first pass fixed only one (see the correction below). `SetCursor` is now Rebuild's alone, and its comment says why that reason does not travel | `task-11.md:809-833`, `:1017-1022`, `:1061-1066`, `:1432` |
 | **M1** four b03 citations one line short, one naming the wrong row | every "Where" in the b03 table re-derived after the round-2 edits, with the two-`Feed` test's row given its own line (`:1413`) instead of a range ending on `TestRebuildPersistsNothing` | `review.md:3612-3635` |
 | **M2** nothing pruned `Feed.cursor`, so the poll list grew with every org either replica ever served | `pruneOrgs` drops a cursor when the in-use read no longer lists the org **and** the cache holds no entry for it; the cache clause is what protects the window between `Adopt` and task 20's commit, and is why task 39's socket sweep is unaffected | `task-11.md:1062-1083`, `task-39.md:51-53` |
 
@@ -3697,6 +3697,20 @@ all" — the case it was silently failing.
 `TestResolveNeverInventsALapsedDelegation` no longer asserts a `Revoker` call, because `Resolve`
 no longer makes one. `memInUse` (`task-11.md:1389-1396`) now serves both of task 10's reads as
 task 10 defines them, counts them separately, and can fail one on demand.
+
+**One correction, found re-checking this batch's own work.** I2's first pass put
+`SetCursorIfAbsent` in `Refresh` and left `Adopt` on the unconditional `SetCursor`, justified by
+"`Adopt` reads the head before the state". That justification is `Rebuild`'s and does not travel:
+`Rebuild` re-reads the **whole** org state after its head, so a forward jump skips only what the
+re-read has already applied, while `Adopt` reads **one** delegation record and re-reads nothing. So
+with `Refresh` tracking the org first and `Adopt`'s racing write landing second, every event between
+the two heads was still skipped — the same hole entered from the other side, and
+`TestConcurrentFirstTrackKeepsTheOlderCursor` already asserted the older cursor wins, so the part's
+code and its own test disagreed. Fixed at the root: `Adopt` uses `SetCursorIfAbsent` too
+(`task-11.md:1017-1022`), `SetCursor`'s comment says it is `Rebuild`'s alone and why
+(`:809-813`), and the test runs both orders (`:1432`). Unrelated but adjacent: `review.md:875`
+separately asks `Rebuild` to keep an existing cursor on leader acquisition — that finding is not
+b03's and `Rebuild` is deliberately untouched here.
 
 **Still open, and named rather than hidden.** S02-I1 is untouched: a *terminal* write whose own
 delegation has just been revoked resolves to nothing, `Classify` calls that Permanent, and the row
