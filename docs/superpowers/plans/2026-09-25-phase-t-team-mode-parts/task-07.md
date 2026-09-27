@@ -45,7 +45,7 @@ on record.
 **Interfaces:**
 - Consumes:
   - from task 01: rows 60 to 71, §7.18 to §7.22, the §8 rows `thread.opened` to
-    `human_message.appended` (`task-01.md:497-504`), and §5.2's org *auditor* (`:541-545`).
+    `human_message.appended` (`task-01.md:557-564`), and §5.2's org *auditor* (`:587-591`).
   - from task 03: `Thread`, `CreateThreadRequest`, `PatchThreadRequest`, `Message`,
     `AppendMessageRequest`, `MessageKind`, `Resolution`, `Escalation`, `CreateEscalationRequest`,
     `AnswerEscalationRequest`, `Directive`, `AppendDirectiveRequest`, `DirectiveKind`, `Rung`,

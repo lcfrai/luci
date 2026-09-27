@@ -221,7 +221,7 @@ can name a client's matter.
 | `human_message.erased` | human message id | `{"by","reason"}`; `by` is `owner` or `org_admin` | fleet, without `reason` |
 | `message.erased` | message id | `{"threadId","reason"}` | fleet, without `reason` |
 
-`note.created` is task 01's row (`task-01.md:563`), feed `yes`: every member's desktop and Fleet
+`note.created` is task 01's row (`task-01.md:565`), feed `yes`: every member's desktop and Fleet
 learn that a note exists, and read its words through route 73. A second erasure emits a second
 event with the same `subject`, so an attempt always leaves a trace.
 
