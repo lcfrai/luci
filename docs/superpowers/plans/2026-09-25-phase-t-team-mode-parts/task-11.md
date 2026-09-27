@@ -236,11 +236,21 @@ const (
 // including 422 idempotency_mismatch, which means Fleet re-marshalled a body.
 // An error that is not a Hub answer at all (ErrNoDelegation, a bad Op) is a
 // local bug and permanent too: retrying it forever would pause the org.
+//
+// ErrTransientLocal is the one exception, and it is the rule's point: Fleet
+// failing to look something up — a Postgres blip, a Hub read timing out —
+// is not the Hub refusing the row. It says nothing about the row, so the row
+// must survive it. It lives here, not in delegation, because delegation
+// imports outbox (Sender takes an outbox.Item) and the reverse would cycle;
+// delegation.ErrResolveUnavailable wraps it.
+var ErrTransientLocal = errors.New("outbox: a local failure, which says nothing about the row")
+
 func Classify(err error) Class {
 	if err == nil {
 		return Delivered
 	}
-	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, hubclient.ErrUnavailable) {
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, hubclient.ErrUnavailable) ||
+		errors.Is(err, ErrTransientLocal) {
 		return Transient
 	}
 	var he *hubclient.Error
@@ -398,6 +408,12 @@ func FromHub(d hubapi.Delegation) Delegation {
 var (
 	ErrNoDelegation      = errors.New("delegation: no live delegation for this owner, project and class")
 	ErrRouteNotDelegated = errors.New("delegation: the live delegation does not list this route")
+	// ErrResolveUnavailable is every Source failure: the store read failed, or
+	// the Hub read of the one id did. It wraps outbox.ErrTransientLocal, so
+	// outbox.Classify calls it Transient and the row waits instead of dying.
+	// "Not found" is NOT one of these — that is (false, nil), then
+	// ErrNoDelegation, which is permanent on purpose.
+	ErrResolveUnavailable = fmt.Errorf("%w: delegation source unavailable", outbox.ErrTransientLocal)
 )
 
 // Cache holds live delegations in memory only (Fleet persists no Hub record).
@@ -472,6 +488,13 @@ func (c *Cache) Expired(now time.Time) []Delegation {
 // its first Hub write is (both are in task 20's one transaction), so the
 // outbox never has to wait a poll tick to learn it. *Feed implements it; a
 // nil Source is memory only, which is what the cache-only tests construct.
+//
+// A Source is a READ. It never acts: no Revoker, no Resume, no cursor move.
+// The delivery goroutine must not be able to destroy a sandbox, and the feed
+// goroutine is the only writer of the poll cursor.
+//
+// Every failure it returns wraps ErrResolveUnavailable, because a Source
+// failure is Fleet's, never the Hub's verdict on the row: see Classify.
 type Source interface {
 	Resolve(ctx context.Context, k Key) (Delegation, bool, error)
 }
@@ -495,8 +518,10 @@ func (c *Client) Ctx(ctx context.Context, k Key, route string) (context.Context,
 	d, ok := c.cache.Get(k, c.now())
 	if !ok && c.src != nil {
 		var err error
+		// The error is already wrapped in ErrResolveUnavailable, which
+		// Classify calls Transient: the row retries, it does not die.
 		if d, ok, err = c.src.Resolve(ctx, k); err != nil {
-			return ctx, err // transport: the row retries, it does not die
+			return ctx, err
 		}
 	}
 	if !ok {

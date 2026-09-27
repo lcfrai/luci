@@ -94,8 +94,18 @@ type Store interface {
 	Agents(ctx context.Context, org, project string) ([]model.Agent, error)
 	Leases(ctx context.Context, org, project string) ([]model.Lease, error)
 	// DelegationsInUse is every dl-… a live agent was started under, with its key
-	// fields, for task 11's rebuild (task-11.md:761-769).
+	// fields, for task 11's rebuild and refresh (task-11.md:761-769). It is the
+	// set the feed ACTS on, so it stays live-only: a delegation no live agent
+	// runs under has nothing to stop and must never be resumed.
 	DelegationsInUse(ctx context.Context) ([]DelegationUse, error)
+	// DelegationForKey answers the outbox's question, which is not the feed's:
+	// "which dl-… did the work queued for this (org, owner, project, class) go
+	// out under?" It is the most recently started agent row with that key,
+	// ENDED ROWS INCLUDED — `agents.end` is enqueued at the moment the agent
+	// ends, and a restart delivers a backlog whose agents are all ended, so a
+	// live-only read would dead-letter both (task-11.md:1004-1021). Not found
+	// is (DelegationUse{}, false, nil), never an error.
+	DelegationForKey(ctx context.Context, org, owner, project string, class model.Class) (DelegationUse, bool, error)
 
 	// The outbox queue (task 11's outbox.Queue, task-11.md:184-195).
 	OutboxHeads(ctx context.Context, now time.Time, limit int) ([]OutboxRow, error)
@@ -245,6 +255,10 @@ CREATE TABLE fleet.agents (
   CHECK ((status = 'ended') = (ended_at IS NOT NULL))
 );
 CREATE INDEX agents_by_project ON fleet.agents (org_id, project_id) WHERE status <> 'ended';
+-- DelegationForKey: the latest agent row on a delegation key, ended ones included,
+-- so no partial predicate here. ORDER BY started_at DESC LIMIT 1 rides this index.
+CREATE INDEX agents_by_delegation_key
+  ON fleet.agents (org_id, owner, project_id, class, started_at DESC);
 
 CREATE TABLE fleet.leases (
   org_id        text        NOT NULL,
@@ -463,6 +477,9 @@ whole run, saying so, when it is unset**.
 | `TxRollsBackAll` | a `Tx` that puts an agent, appends an outbox row and then returns an error leaves neither | memstore mutating in place |
 | `AgentStatusAndEnd` | `SetStatus(waiting, human)` then `EndAgent(lapsed)`; `Agents` omits ended ones; `Agent` still finds it with `Exit = lapsed` | ended agents listed as live |
 | `DelegationsInUseLiveOnly` | two live agents under one `dl-…`, one ended under another; the result is the one live `dl-…` once | ended agents keep a delegation "in use", so rebuild renews a dead one |
+| `DelegationForKeyIncludesEndedAgents` | the same fixture: `DelegationForKey` of the ended agent's key answers its `dl-…`, `true` — the read the outbox uses is **not** the read the feed acts on | one live-only read serving both, so an ended agent's `agents.end` dead-letters on the other replica (task-11.md:1004-1021) |
+| `DelegationForKeyIsTheLatestAgent` | two agents on one key, started 10 min apart under `dl-1` then `dl-2`, the later one ended; the answer is `dl-2` | a first-row-wins read that sends a renewed key's backlog under the superseded `dl-…` |
+| `DelegationForKeyMissIsNotAnError` | a key with no agent row → `(DelegationUse{}, false, nil)` | a `sql.ErrNoRows` escaping as an error, which task 11 would classify transient and retry forever |
 | `PolicyVersionsAppendOnly` | `PutPolicy` v1, v2; `CurrentPolicy` is v2; `PutPolicy` v2 again → `ErrConflict`; project `""` and `pj-…` are separate scopes | versions overwritten |
 | `CounterpartWindow` | 3 turns at t−70 min, t−30, t−10; `CounterpartTurns(since t−60 min)` = 2 | a count with no window |
 | `EventKindChecked` | `AppendEvent` with kind `turn.begin` → error | a wire event queued as a model event |
