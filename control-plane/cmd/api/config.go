@@ -78,6 +78,35 @@ const (
 	defaultIdleAfter    = 90 * time.Second
 	defaultReapInterval = 30 * time.Second
 	minReapInterval     = 5 * time.Second
+
+	// cockpitAttachRetryBudget is the cockpit's RETRY_BUDGET_MS
+	// (desktop/src/api/attachRegistry.ts): the total time an attach ladder
+	// climbs before it gives up and writes the pane terminal. It is restated
+	// here because task 25's F3 fix coupled the two ends, and nothing else in
+	// either tree says so.
+	//
+	// The coupling. Since sandboxd exits with its process, the sandbox stops
+	// answering /attach the instant the session ends, so the handshake fails
+	// (409 sandbox_not_running) instead of opening and closing. The ladder's
+	// clock is therefore stamped once and never reset, and it runs out. If the
+	// record still says `running` when it does, the pane lands in `failed` —
+	// terminal, no exit reason, and no Restart offered, because Restart is the
+	// answer to `exited`. A session that merely finished presents as an attach
+	// failure. What moves the record to `exited` is the reaper's own sweep, so
+	// the sweep has to get there first.
+	cockpitAttachRetryBudget = 60 * time.Second
+
+	// maxReapInterval keeps the sweep inside that budget. The margin carries
+	// the cockpit's session poll and the render that follows it; a quarter of
+	// the budget is far more than either needs and leaves the number round.
+	//
+	// It does NOT survive a missed sweep — 2 x 45s is past 60s, and so is
+	// 2 x the 30s default — and that hole closes only when the relay marks the
+	// session exited on the Exit frame instead of waiting for the sweep
+	// (task 25 handoff #2). This bound removes the configurations where EVERY
+	// normal exit lands in `failed`, which is what PANACEA_APP_REAP_INTERVAL=2m
+	// did before it existed.
+	maxReapInterval = 45 * time.Second
 )
 
 // backendScoped is contract §4's three backend-specific variables and the one
@@ -238,6 +267,18 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	if cfg.ReapInterval < minReapInterval {
 		cfg.Warnings = append(cfg.Warnings, fmt.Sprintf("%s=%v is below the %v minimum; sweeping every %v instead", envReapInterval, cfg.ReapInterval, minReapInterval, minReapInterval))
 		cfg.ReapInterval = minReapInterval
+	}
+	// The other end, and it is new with task 25's F3 fix: a sweep slower than
+	// this lets the cockpit's attach ladder give up before the record says
+	// exited, and an ordinary end-of-session is presented as a failed attach
+	// with no reason and no Restart. Clamped and warned, like the minimum —
+	// refusing to start would take an operator's tuning as a fatal error, and
+	// the sweep is a background cadence, not a promise to them.
+	if cfg.ReapInterval > maxReapInterval {
+		cfg.Warnings = append(cfg.Warnings, fmt.Sprintf(
+			"%s=%v is above the %v maximum; sweeping every %v instead, because a session that ends is reported by the sweep and the cockpit gives up on an attach after %v",
+			envReapInterval, cfg.ReapInterval, maxReapInterval, maxReapInterval, cockpitAttachRetryBudget))
+		cfg.ReapInterval = maxReapInterval
 	}
 
 	// Contract §4 makes an unknown log level a warning, not an exit: a typo

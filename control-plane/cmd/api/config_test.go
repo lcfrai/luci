@@ -229,6 +229,50 @@ func TestReapIntervalIsClampedRatherThanTrusted(t *testing.T) {
 	}
 }
 
+// The other end of the same clamp, and it is task 25's F3 fix that made it
+// necessary. The sandbox now stops answering /attach the instant its process
+// ends, so the cockpit's attach ladder is no longer reset by a socket that
+// opens and closes: it climbs once and gives up after RETRY_BUDGET_MS. If the
+// record does not say `exited` by then, the pane lands terminal `failed` — no
+// exit reason, and no Restart offered, because Restart is the answer to
+// `exited` — on a session that merely finished normally.
+//
+// The sweep is what writes `exited`. PANACEA_APP_REAP_INTERVAL=2m was accepted
+// before this, and it makes that failure the outcome of EVERY session that
+// ends.
+func TestReapIntervalCannotOutrunTheCockpitsAttachBudget(t *testing.T) {
+	t.Parallel()
+	for _, v := range []string{"60s", "2m", "1h"} {
+		cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_REAP_INTERVAL": v}))
+		if err != nil {
+			t.Fatalf("PANACEA_APP_REAP_INTERVAL=%q: %v", v, err)
+		}
+		if cfg.ReapInterval != maxReapInterval {
+			t.Errorf("PANACEA_APP_REAP_INTERVAL=%q gave %v, want the %v maximum: a sweep slower than "+
+				"the cockpit's %v attach budget turns every normal exit into a failed attach",
+				v, cfg.ReapInterval, maxReapInterval, cockpitAttachRetryBudget)
+		}
+		if len(cfg.Warnings) != 1 || !strings.Contains(cfg.Warnings[0], "PANACEA_APP_REAP_INTERVAL") {
+			t.Errorf("PANACEA_APP_REAP_INTERVAL=%q clamped silently; warnings were %v", v, cfg.Warnings)
+		}
+	}
+	// A bound, not a rewrite: what the operator asked for is kept whenever it
+	// is inside the budget. The 45s case above already pins the boundary
+	// itself, so this one pins the default an operator who set nothing gets.
+	cfg, err := loadConfig(env(nil))
+	if err != nil {
+		t.Fatalf("loadConfig with nothing set: %v", err)
+	}
+	if cfg.ReapInterval != defaultReapInterval {
+		t.Errorf("ReapInterval = %v with nothing set, want the %v default", cfg.ReapInterval, defaultReapInterval)
+	}
+	// The maximum has to leave the default alone, or the clamp is the
+	// configuration rather than a guard on it.
+	if defaultReapInterval > maxReapInterval {
+		t.Errorf("the default (%v) is past the maximum (%v)", defaultReapInterval, maxReapInterval)
+	}
+}
+
 func TestIdleWindowsAndSizesRejectNonsenseRatherThanDefaulting(t *testing.T) {
 	t.Parallel()
 	// 0 is meaningful for both idle variables: IDLE_AFTER=0 disables idle
