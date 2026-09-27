@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -161,18 +162,30 @@ func TestMain_repoWithMPL(t *testing.T) {
 	}
 }
 
-// TestExecRunner_env: the real runner sets env over the process's own, the
+// TestExecRunner_env: the real runner sets env OVER the process's own, the
 // later value winning, or GoDeps's targets would all list the host's
 // platform (fix round 1, review I2). go is on PATH wherever go test runs.
+//
+// Both halves of "over" are asserted (fix round 2, review m1 / mutant S1,
+// "cmd.Env = env"): GOOS is passed and must win over the inherited "linux",
+// and GOARCH is NOT passed and must still arrive from the process's own
+// environment. A runner that replaced the environment instead of adding to
+// it would print the host's default GOARCH, or fail to start a process with
+// no environment at all; either way this test is red. GOARCH=arm is the
+// discriminator because plan9/arm is a real pair go env accepts and "arm" is
+// the host's own value only on a 32-bit arm machine, which skips.
 func TestExecRunner_env(t *testing.T) {
+	if runtime.GOARCH == "arm" {
+		t.Skip("the host's GOARCH is arm: an inherited arm cannot be told from the default")
+	}
 	t.Setenv("GOOS", "linux") // the host's own value, which env must override
-	t.Setenv("GOARCH", "amd64")
-	out, err := execRunner(t.TempDir(), []string{"GOOS=plan9", "GOARCH=arm"}, "go", "env", "GOOS", "GOARCH")
+	t.Setenv("GOARCH", "arm") // never passed: it must be inherited
+	out, err := execRunner(t.TempDir(), []string{"GOOS=plan9"}, "go", "env", "GOOS", "GOARCH")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := strings.Fields(string(out)); len(got) != 2 || got[0] != "plan9" || got[1] != "arm" {
-		t.Errorf("go env GOOS GOARCH under GOOS=plan9 GOARCH=arm printed %q", out)
+		t.Errorf("go env GOOS GOARCH with only GOOS=plan9 passed printed %q; want plan9 arm (the passed name wins, the unpassed one is inherited)", out)
 	}
 }
 
