@@ -134,28 +134,46 @@ is in `modules/aks` (task 06), because it needs the cluster id.
 
 | Run | Asserts | Mutant it kills |
 |---|---|---|
-| `workspace_has_no_shared_key_auth` | `local_authentication_enabled == false` | shared-key ingestion left on (the default) |
-| `workspace_has_a_daily_cap` | `daily_quota_gb == var.daily_quota_gb` and the variable rejects `-1` (`expect_failures`) | an uncapped workspace |
+| `workspace_has_no_shared_key_auth` | `local_authentication_enabled == false`, the name and SKU, and (as built) `daily_quota_gb == var.daily_quota_gb` and `retention_in_days == var.retention_days` | shared-key ingestion left on (the default); a cap or a retention that never reaches the workspace |
+| `workspace_has_a_daily_cap` | the variable rejects `-1`: `daily_quota_gb = -1` → `expect_failures = [var.daily_quota_gb]` | an uncapped workspace |
 | `retention_below_30_is_rejected` | `retention_days = 7` → `expect_failures = [var.retention_days]` | the validation dropped |
-| `sandbox_stdout_is_never_collected` | `jsondecode(…extension[0].extension_json).dataCollectionSettings.namespaces` contains `panacea-sandboxes`, and `namespaceFilteringMode == "Exclude"` | the filter mode flipped to Include, or the namespace list emptied |
+| `sandbox_stdout_is_never_collected` | `jsondecode(…extension[0].extension_json).dataCollectionSettings.namespaces` contains `panacea-sandboxes`, `tolist(…namespaces) == var.excluded_log_namespaces`, `namespaceFilteringMode == "Exclude"` and `enableContainerLogV2 == true` | the filter mode flipped to Include, or the namespace list emptied |
 | `removing_the_sandbox_exclusion_is_rejected` | `excluded_log_namespaces = ["kube-system"]` → `expect_failures` | the validation dropped |
 | `dcr_sends_to_this_workspace` | the single `log_analytics` destination's `workspace_resource_id` equals `azurerm_log_analytics_workspace.this.id` (mock id) | a DCR pointed at nothing, which collects nothing (Panacea's gap) |
 | `budget_warns_at_four_points` | four notifications: thresholds 50/80/100 `Actual` and 100 `Forecasted` | the forecast alert dropped (it is the one that fires before the money is spent) |
 | `budget_is_subscription_scoped` | the budget is `azurerm_consumption_budget_subscription` and its `subscription_id` is the data source's `id` | a resource-group budget that misses the node resource group |
 | `no_recipients_is_rejected` | `alert_emails = []` → `expect_failures` | an alert that alerts nobody |
 
+Three notes from building it:
+
+- **`expect_failures` and `assert` cannot share a run.** A run that expects a variable validation
+  to fail never reaches its asserts, so the cap's *wiring* assert lives on the happy-path run
+  (`workspace_has_no_shared_key_auth`) and `workspace_has_a_daily_cap` is only the `-1` rejection.
+  The count stays at nine runs.
+- **`jsondecode` returns a tuple**, not a `list(string)`, so comparing the decoded `namespaces`
+  to `var.excluded_log_namespaces` needs `tolist(…)`; without it the assert fails with
+  "LHS and RHS values are of different types".
+- The provider's block collections are read through `one(…)` (`destinations[0].log_analytics`,
+  `data_flow`, `time_period`) so the assert does not depend on whether the schema is a list or
+  a set.
+
 #### Steps
 
-- [ ] **Step 1:** Variables and tests; validate fails.
-- [ ] **Step 2:** Workspace, DCR, action group, budget, running tests after each.
-- [ ] **Step 3:** Outputs, fmt, guards, commit.
+- [x] **Step 1:** Variables and tests; validate fails.
+- [x] **Step 2:** Workspace, DCR, action group, budget, running tests after each.
+- [x] **Step 3:** Outputs, fmt, guards, commit.
 
 #### Acceptance
 
 ```bash
 bash infra/scripts/validate.sh infra/terraform/modules/observability
-# validate: OK   infra/terraform/modules/observability     (Success! 9 passed, 0 failed.)
+# validate: OK   infra/terraform/modules/observability
+# validate: 1 ok, 0 failed                            (exit 0)
 ```
+
+`validate.sh` prints a step's own output only when that step fails, so `Success! 9 passed,
+0 failed.` is not on stdout on a green run; the nine runs are enumerated in the red run's
+output instead.
 
 #### What this task does not claim
 
