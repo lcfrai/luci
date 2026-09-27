@@ -448,7 +448,9 @@ func CopyGeneratedHooks(ctx context.Context, m gitx.Machine, projectTop, cloneTo
 
 // firstMissing is the first component of <cloneTop>/<rel> that fs.Exists answers absent. When
 // every component exists (the copy then refuses its existing destination and copies nothing),
-// it is m.Join(cloneTop, rel), the path the take-back named before review m-4.
+// it is m.Join(cloneTop, rel), the path the take-back named before review m-4. An Exists error
+// is returned, never read as absent: that would name an existing, tracked parent as made, and
+// the take-back would remove it (fix round 1, TestCopyHooksStopsWhenExistsCannotAnswer).
 func firstMissing(ctx context.Context, fsys gitx.MachineFS, m gitx.Machine, cloneTop, rel string) (string, error) {
 	p := cloneTop
 	for _, seg := range relSegments(rel) {

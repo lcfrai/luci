@@ -316,7 +316,9 @@ func CopyableHooksPath(v string) bool
 // run here after it. made is the first component of <cloneTop>/<rel> that FSOf(m).Exists
 // answered absent before the copy (<cloneTop>/<rel> when all exist), so the take-back, like
 // LocalFS's own cleanup of a copy that failed, removes the parents the copy created as well
-// (fix round 1, review m-4). Locally that is LocalFS, the same os calls as before the split.
+// (fix round 1, review m-4). An Exists error ends the call with that error before the copy:
+// read as "absent", it would name an existing, tracked parent as made. Locally that is
+// LocalFS, the same os calls as before the split.
 func CopyGeneratedHooks(ctx context.Context, m gitx.Machine, projectTop, cloneTop, rel string) (int, error)
 
 // RemoveTree deletes a directory tree that git wrote: the root refusal, then os.RemoveAll, with
@@ -619,6 +621,7 @@ Real git through `gitxtest` wherever the claim is about git; a fake `Source` for
 | `TestCreateKeepsAnIDClashErrExists` (fix round 1) | a Store whose Add first files a lane under the new lane's ID and another name → ErrExists, not ErrNameTaken | every ErrExists read as a name clash, so a WorktreeID collision tells the user to pick another name |
 | `TestCreateHoldsANamePerProject` (fix round 1) | the hold of I-1's rows on `ui` in project A; `ui` in project B meanwhile → created, nil | a hold that takes a name in every project |
 | `TestCreateRefusesAnIndexedNameBeforeItClones` (fix round 1) | `ui` created; `ui` again, through a recording Runner → ErrNameTaken and no `clone` call | step 3 checking an explicit name against the holds only, so step 7's map still answers ErrNameTaken but after a whole clone |
+| `TestCopyHooksStopsWhenExistsCannotAnswer` (fix round 1) | a lane whose tracked `tools/README` exists; the package `CopyGeneratedHooks` of `tools/hooks` over a MachineFS whose Exists fails on `<lane>/tools` → 0 and that error; `tools/README` intact, `tools/hooks` absent | an Exists failure read as "absent", so the take-back of an unignored copy removes a tracked parent |
 | `TestCreateCleansUpWhenTheCallerCancels` (fix round 1, review m-8) | a Runner that cancels Create's ctx and fails the clone after it made Path → the clone's error, Path absent. A coverage row: it passes on the built code | the cleanup under the caller's ctx, which LocalFS refuses, leaving the half-made clone |
 | `TestCreateHandsTheRunnerACopyOfNoFilterEnv` (fix round 1, review m-9; not parallel) | a Runner that writes into each clone's `Call.Env` after it ran; two creates → `NoFilterEnv` unchanged, and the second clone's Env is the seven keys whole. A coverage row | the package's NoFilterEnv handed to the Runner, so one Runner's write strips LFS protection from every later clone |
 | `TestRemoveTreeDeletesReadOnlyObjects` | a real clone with every object file forced to 0o444 → RemoveTree succeeds and the path is gone. A regression pin: it passes with no walk (carried t01-D6) | none; RemoveTree's red first is the row below |
