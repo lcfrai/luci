@@ -247,6 +247,32 @@ func TestNewFailsWithoutAttachTokenOrOptOut(t *testing.T) {
 	}
 }
 
+// F3's seam. The entrypoint learns that the process it exists to run has ended
+// through Done and through nothing else; before it existed, main held only the
+// http.Handler and served until something killed it, leaving a container Up
+// around a process that was gone
+// (docs/verification/2026-09-27-phase-2-results.md, finding F3).
+func TestDoneClosesWhenTheProcessExitsAndCarriesItsReason(t *testing.T) {
+	s, err := server.New(server.Config{
+		Command:     "/bin/sh",
+		Args:        []string{"-c", "exit 0"},
+		AttachToken: testToken,
+	})
+	if err != nil {
+		t.Fatalf("server.New: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+
+	select {
+	case <-s.Done():
+	case <-time.After(8 * time.Second):
+		t.Fatal("Done() was not closed within 8s of the process exiting; the entrypoint would serve for ever (F3)")
+	}
+	if s.ExitReason() == "" {
+		t.Error("ExitReason() is empty after the process exited; the daemon's last log line would say nothing")
+	}
+}
+
 func TestNewAllowsNoTokenWhenExplicitlyUnauthenticated(t *testing.T) {
 	srv := newServer(t, server.Config{Command: "/bin/sh", AllowUnauthenticated: true})
 	c, ctx := dial(t, srv, "") // no Authorization header at all

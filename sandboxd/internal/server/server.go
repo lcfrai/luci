@@ -91,10 +91,21 @@ func New(cfg Config) (*Server, error) {
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.mux.ServeHTTP(w, r) }
 
-// Close stops the underlying process. The entrypoint holds only the
-// http.Handler New returns, which erases *Server — so in practice only tests,
-// which call New directly, can reach this.
+// Close stops the underlying process. In practice only tests reach this: the
+// entrypoint's way out is Done, below, and a container that exits.
 func (s *Server) Close() error { return s.h.Close() }
+
+// Done closes when the process this sandbox exists to run has ended. The
+// entrypoint waits on it and then exits, which is F3's fix: PID 1 returning is
+// what stops the container, and a stopped container is the only channel the
+// control plane has for "the process ended" (Go contract §5.3 rule 3). Before
+// it, a shell that ran `exit` left sandboxd serving an /attach that could only
+// answer with an Exit frame and a close, for as long as anything kept asking.
+func (s *Server) Done() <-chan struct{} { return s.h.Done() }
+
+// ExitReason describes why the process ended, for the entrypoint's last log
+// line. Empty until Done is closed.
+func (s *Server) ExitReason() string { return s.h.ExitReason() }
 
 // authorised checks the bearer token. New guarantees AttachToken is non-empty
 // here unless AllowUnauthenticated was set, so an empty token at this point
