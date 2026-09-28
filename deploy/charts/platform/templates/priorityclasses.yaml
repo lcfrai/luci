@@ -1,0 +1,62 @@
+{{/*
+The scheduling ladder, carried from Panacea's lesson (survey 1.4): a burst of sessions can
+never preempt login. None is globalDefault - an unlabelled pod stays at 0, below every
+class here except the balloon.
+
+  panacea-platform-critical  1000000  Hub, broker, Traefik, cert-manager
+  panacea-machine             100000  machine pods - they anchor a user's sessions (P8-D6)
+  panacea-session              10000  session pods
+  panacea-balloon                -10  warm-capacity balloons (task 12)
+
+The balloon's -10 is a FLOOR, not a free choice (review m10). The cluster autoscaler treats
+a pod whose priority is BELOW --expendable-pods-priority-cutoff (default -10) as
+expendable: a Pending one triggers no scale-up, and a node holding only such pods counts as
+empty at scale-down. A preempted balloon must stay Pending AND ask for a node, or the warm
+pool never refills, so the value must be >= -10. It sits exactly on the cutoff, so the
+ladder has no room below it: any "make balloons even lower" edit silently turns the warm
+pool off. AKS does not expose the cutoff in auto_scaler_profile (task 06), so the default
+is the one in force. Both statements are training knowledge, UNVERIFIED here; task 32's
+P06 (d) proves it on a real cluster.
+*/}}
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: panacea-platform-critical
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+value: 1000000
+preemptionPolicy: PreemptLowerPriority
+description: Hub, broker, edge and cert-manager. Preempts sessions before it goes Pending.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: panacea-machine
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+value: 100000
+preemptionPolicy: PreemptLowerPriority
+description: A user's machine pod. It anchors that user's sessions, so it outranks them.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: panacea-session
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+value: 10000
+preemptionPolicy: PreemptLowerPriority
+description: A session pod. Above the balloons it evicts, below the machine it belongs to.
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: panacea-balloon
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+value: -10
+preemptionPolicy: Never
+description: >-
+  Warm-capacity balloon. Evicted first, never evicts anything. -10 is a floor, not a
+  choice: below the cluster autoscaler's default expendable cutoff a preempted balloon
+  triggers no scale-up and the warm pool stops refilling.

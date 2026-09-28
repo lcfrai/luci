@@ -1,0 +1,54 @@
+{{/*
+A ceiling for the whole `panacea-sandboxes` namespace, not a per-user limit - the broker
+enforces per-user limits (task 17).
+
+The LimitRange carries `max` AND `default` AND `defaultRequest`. Without the last two, a
+container LimitRange with only `max` gives an unsized container `default = max` and
+`defaultRequest = default`, and LimitRanger defaults init containers too (training
+knowledge of Kubernetes, UNVERIFIED here): one unsized container would ask for the session
+ceiling, take most of a node, and sit Pending while counting against the quota (review I4).
+Setting both to the same value also keeps a defaulted container at `requests == limits`,
+as Kata needs.
+
+The default is a backstop, not a sizing policy: every pod this repo renders and every pod
+the broker creates sizes every container itself, and task 13's netpolcover case
+`every_sandbox_container_is_sized` fails the build if one in this namespace does not.
+*/}}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: sandboxes
+  namespace: {{ .Values.namespaces.sandboxes }}
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+spec:
+  hard:
+    requests.cpu: {{ .Values.sandboxes.quota.requestsCpu | quote }}
+    requests.memory: {{ .Values.sandboxes.quota.requestsMemory | quote }}
+    pods: {{ .Values.sandboxes.quota.pods | quote }}
+    persistentvolumeclaims: {{ .Values.sandboxes.quota.persistentVolumeClaims | quote }}
+    requests.storage: {{ .Values.sandboxes.quota.requestsStorage | quote }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: sandboxes
+  namespace: {{ .Values.namespaces.sandboxes }}
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+spec:
+  limits:
+    # The largest single container the cluster admits, derived from the sandbox SKU: the
+    # largest session that fits beside a machine pod on an empty node. It must equal the
+    # broker's PANACEA_APP_BROKER_MAX_CPU_MILLIS / _MAX_MEMORY_MIB (task 17). Arithmetic
+    # for Standard_D8s_v5, UNVERIFIED; task 32's P07 measures and rewrites all three places.
+    - type: Container
+      max:
+        cpu: {{ .Values.sandboxes.limitRange.maxCpu | quote }}
+        memory: {{ .Values.sandboxes.limitRange.maxMemory | quote }}
+      default:
+        cpu: {{ .Values.sandboxes.limitRange.defaultCpu | quote }}
+        memory: {{ .Values.sandboxes.limitRange.defaultMemory | quote }}
+      defaultRequest:
+        cpu: {{ .Values.sandboxes.limitRange.defaultCpu | quote }}
+        memory: {{ .Values.sandboxes.limitRange.defaultMemory | quote }}

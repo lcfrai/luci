@@ -1,0 +1,105 @@
+{{/*
+The only allows this chart lays down, all in `panacea-sandboxes`. Kata isolates a
+sandbox's kernel; it does nothing for its network or its API access (survey G-4). Standard
+networking.k8s.io/v1, enforced by Cilium.
+
+No rule allows a sandbox to reach another pod, so sandbox-to-sandbox and sandbox-to-Hub or
+-broker traffic is denied by `default-deny`.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: {{ .Values.namespaces.sandboxes }}
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: session-ingress-from-broker
+  namespace: {{ .Values.namespaces.sandboxes }}
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      panacea-app/component: sandbox
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.namespaces.broker }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: broker
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: machine-ingress-from-broker
+  namespace: {{ .Values.namespaces.sandboxes }}
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      panacea-app/component: machine
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.namespaces.broker }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: broker
+      ports:
+        - protocol: TCP
+          port: 8081
+---
+{{/*
+Sessions, machines and balloons may reach the internet, and nothing else: the Azure
+metadata endpoint (an agent would read the node's identity token), the Azure host's DNS
+and wire server, the three RFC 1918 blocks, and each foundation CIDR outside them.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: egress-internet
+  namespace: {{ .Values.namespaces.sandboxes }}
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              {{- include "platform.egressExcept" . | nindent 14 }}

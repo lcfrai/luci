@@ -1,0 +1,27 @@
+{{/*
+`default-deny` in each of the five namespaces: every pod, both directions, no rules.
+
+This chart lays allows only in `panacea-sandboxes`. Every other chart that puts a pod in a
+denied namespace brings its own allows: cert-manager and edge in `panacea-edge` (task 13),
+broker and hub in theirs (task 29). Because helm-unittest renders one chart at a time and
+cannot see across charts, `deploy/tests/netpolcover` (task 13) renders this chart with the
+others and fails if any workload in a denied namespace lacks an allow in a direction it
+needs, or if a `pre-install` hook's allow does not exist before the hook runs (review C1:
+without it, `panacea-edge` was silently sealed).
+*/}}
+{{- $all := list .Values.namespaces.hub .Values.namespaces.broker .Values.namespaces.sandboxes .Values.namespaces.edge .Values.namespaces.identity -}}
+{{- range $ns := $all }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: {{ $ns }}
+  labels:
+    {{- include "platform.labels" $ | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+{{- end }}

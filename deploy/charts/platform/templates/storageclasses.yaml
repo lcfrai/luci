@@ -1,0 +1,46 @@
+{{/*
+Machine disks are NOT backed up in v1, and nothing here says they are (review m13, seam
+S8-D6.1). This chart renders no VolumeSnapshotClass and schedules no snapshot.
+
+A machine's disk is the only copy of its worktrees, of every lane's unpushed commits and
+of its conversation store (OD-10's cloud store, task 20); on a cloud machine the lane
+fetch-back is local to that same disk, so nothing reaches the laptop or a git host until
+it is pushed (OD-4). The disk's own redundancy is the storage SKU's, which covers a failed
+disk or a zone but not a logical loss: an explicit machine delete, which `reclaimPolicy:
+Delete` makes final, or a broker defect that deletes a claim. Snapshots are not added here
+because they collide with OD-10: Forget DELETES a transcript, and a disk snapshot would
+keep a forgotten one for its whole retention. Whether to accept that window is the owner's
+call. Task 06's snapshot_controller_enabled stays on so the seam lands with no cluster
+update.
+*/}}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.storage.machineDisk.name }}
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+provisioner: disk.csi.azure.com
+parameters:
+  skuName: {{ .Values.storage.machineDisk.skuName }}
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+{{- if .Values.storage.nfsFallback.enabled }}
+---
+{{/*
+P8-D6's fallback, off unless task 32 finds RWO sharing fails under Kata.
+*/}}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ .Values.storage.nfsFallback.name }}
+  labels:
+    {{- include "platform.labels" . | nindent 4 }}
+provisioner: file.csi.azure.com
+parameters:
+  protocol: nfs
+  skuName: Premium_LRS
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+{{- end }}

@@ -1,0 +1,24 @@
+{{/*
+Five namespaces, every one under Pod Security `restricted`.
+
+`panacea-app/edge-routes: "true"` is the label task 13's Gateway admits routes from. Only
+the three namespaces that must be reachable from a browser carry it: the Hub, the broker,
+and `panacea-identity` (our Keycloak, whose `auth.<zone>` the system browser reaches,
+OD-30). `panacea-sandboxes` never does, so a route created there is never attached to the
+edge.
+*/}}
+{{- $edgeRoutes := list .Values.namespaces.hub .Values.namespaces.broker .Values.namespaces.identity -}}
+{{- $all := list .Values.namespaces.hub .Values.namespaces.broker .Values.namespaces.sandboxes .Values.namespaces.edge .Values.namespaces.identity -}}
+{{- range $ns := $all }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "platform.labels" $ | nindent 4 }}
+    {{- include "platform.podSecurityLabels" $ | nindent 4 }}
+    {{- if has $ns $edgeRoutes }}
+    panacea-app/edge-routes: "true"
+    {{- end }}
+{{- end }}
