@@ -347,3 +347,34 @@ nothing, it has simply stopped being in force. Those chains stay inside the rows
 | **OD-32** | — | Phase 8 tasks 01–10, 28 and 30 |
 | **OD-33** | OD-19, OD-21, OD-24 | Phase 6's two new tasks: the AU-residency canary and the rebuilt image |
 | **OD-34** | OD-11 | Phase 5 tasks 05, 06, 10, 11 and 12 |
+
+## Backwards audit: which rows would not pass the gate
+
+Read-only pass over all 35 rows, 2026-09-28. **Nothing was deleted, renumbered or rewritten.** Every
+`OD` id is cited across the programme, and a renumber has already cost this program one sweep. The
+only purpose is that a future reader knows the register is **not uniform**: some rows are decisions
+and some are notes that were written down in a decision round because that is when they came up.
+
+**Six rows read more like a note than a decision.**
+
+| Id | Limb it misses | Why |
+|---|---|---|
+| **OD-7** (backup repo) | expensive to undo; a real fork | A second remote and a PAT path. It reverses with `git remote remove`, and no alternative was given up. Useful to know, not a decision |
+| **OD-9** (Ctrl chords) | expensive to undo; a real fork | "Match VS Code, plus a toggle" is the obvious call, and it reverses by flipping the very setting the row adds |
+| **OD-10** (Forget deletes the transcript) | a real fork | *Forget* deleting what it forgot is the only answer the word allows. The row has since grown a build note — its second half is status from 2026-09-24, not decision |
+| **OD-12** (batch the hands-on session) | expensive to undo | A scheduling call the owner reverses any evening by sitting down at the machine. It stays because it defines what "unverified" means in every report |
+| **OD-28** (Commit Mono, Segoe UI Variable) | expensive to undo; not derivable | Two font tokens, reversible in one file. Worth writing down once so nobody re-litigates it — which is not the same as earning a row |
+| **OD-35** (no scope cut) | not derivable | A refusal to change course already implied by OD-26 and OD-29. Its real content is the *rejected* list in its second half, which is evidence for future readers, not a decision |
+
+**Two structural observations, which matter more than the six rows.**
+
+1. **Rows carry status as well as decisions.** OD-10, OD-30 and OD-31 have been amended in place
+   with what was later built or re-decided ("**Built 2026-09-24**", "**Amended the same evening**").
+   Good for a reader who lands on the row; bad for one who wants the decision alone. Going forward an
+   amendment keeps its bold date marker, so the decision stays the first sentence of the Answer cell.
+2. **The order is arrival, not structure.** OD-29 sits after OD-31 and OD-30 in the work-layer table
+   because that is when it was asked. **The frontier table above is the reading order**; the
+   numbering is an id and nothing more.
+
+**Not audited:** whether any decision was *correctly* answered. This pass judged form only — would
+the question have earned a row — and changed no row.
