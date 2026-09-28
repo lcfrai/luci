@@ -350,8 +350,8 @@ token. The **route name** is what a delegation lists; a route with no name canno
 
 Row 87 is fix batch b01's (X-C1); row 88 is fix batch b02's (S02-C2). Rows 80 to 86 are left to
 the later tasks that add them, and **all seven are already spoken for**, which is why b02 took 88:
-80 is task 14's `POST /v1/orgs/{orgId}/policy-versions` in a new §7.27 (`task-14.md:751`, contract
-row at `task-14.md:771`), 81 to 83
+80 is task 14's `POST /v1/orgs/{orgId}/policy-versions` in a new §7.27 (`task-14.md:797`, contract
+row at `task-14.md:817`), 81 to 83
 are task 46's erasure routes (`task-46.md:109-110`), and 84 to 86 are task 49's land approvals
 (`task-49.md:137,150,156`). **Two later parts also say "route 80" for something else** —
 `task-66.md:56` (the gateway reading an org ceiling) and `task-52.md:1188` (a proposed

@@ -50,7 +50,7 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
    Orchestrator", `:296`), and the answer says `orchestrator: "awaiting-delegation"`. Who creates that
    delegation is *Gap S20-1*.
 5. **The policy is read, never composed, here.** `policy.Store.Effective(ctx, org, project, class)`
-   (task 14, `task-14.md:360`) returns the rendered file, version and digest; the file goes into the
+   (task 14, `task-14.md:407`) returns the rendered file, version and digest; the file goes into the
    spec's policy field (task 15), the digest into `PANACEA_APP_POLICY_SHA256` (task 13's `EnvDigest`,
    `task-13.md:133`), and both into the `agents.start` body's `policy` (`task-01.md:361-371`). A render
    error fails the launch with `409 policy_invalid` before any sandbox exists.

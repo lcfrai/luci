@@ -67,7 +67,7 @@ exactly, so a later role added to `id-hub` fails the plan.
   list, and it is closed — a seventh must add itself here: task 06's `teamWorld`, task 08's
   real-Hub conformance `newEnv`, task 43's Z5 harness, task 33's cluster Hub, **task 44's leaver
   world** (`task-44.md:310-321`) and **task 14's `TestFleetCannotRecordAPolicyVersion`**, which
-  reuses `teamWorld` (`task-14.md:707-715`); the last two are fix batch b01 round 3, re-review
+  reuses `teamWorld` (`task-14.md:930-936`, the row itself at `:965`); the last two are fix batch b01 round 3, re-review
   I-A, the rest round 2's I-4. So the swap leaves them green. This task's Step 5 proves it: after
   the swap it runs `go test -tags integration ./internal/hub/...`, which is every one of those Go
   suites, and they pass. Task 33's cluster Hub is not a Go suite; its `05-team-mode.sh` sets the
