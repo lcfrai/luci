@@ -55,15 +55,41 @@ states the link", which is met literally. The implementer disclosed it; I accept
 
 ## 2. No cited line of the register moved
 
-(in progress) Notes so far, all run through `claudezsh` against the real tree:
-- `a109bf3e`'s register is exactly 266 lines. The working file's `head -266` `cmp`s equal to it
-  (both sha256 `0702ec3c…4b864`). The working file equals `HEAD` equals `cdfa6b95`: 430 lines.
-- Against the parent `a5a60ee3` (398 lines): in-place changes at 270, 303-305, 316 and 331 only;
-  one line inserted at 359; parent 359-398 `cmp` equal to working 360-399; 400-430 appended.
-- Inbound `owner-decisions.md:N[-M]` anchors: main tree (`git grep`) highest end line 188
-  (`2026-09-25-identity-keycloak-broker.md:571`, `:186-188`); worktrees (`grep -r`, 216 hits)
-  highest 222 (phase-6 `task-26.md:3`, `task-27.md:3`, `progress.md:560`, all `:203-222`).
-- Re-opened ten citing sites; two mismatches found are 07-register-review-2 M3's, pre-existing.
+**Holds.** Every inbound line anchor lands in lines 1-266, and those 266 lines are byte-identical
+to `a109bf3e`. All of this ran through `claudezsh` against the real tree.
+
+- **The identity.** `a109bf3e`'s register is exactly 266 lines. The working file's `head -266`
+  `cmp`s equal to it, and both hash to sha256 `0702ec3c…4b864`. The working file equals `HEAD`
+  equals `cdfa6b95`, 430 lines.
+- **What moved, against the parent `a5a60ee3` (398 lines).** Text changed in place at 270, 303-305,
+  316 and 331. One line was inserted at 359. Parent 359-398 `cmp`s equal to working 360-399. Lines
+  400-430 are appended. This matches the report's §6 exactly.
+- **The inbound anchors.** In the main tree (`git grep`, plus `grep -r` over `.superpowers/` and
+  `RESUME.md`) no `owner-decisions.md:N[-M]` ends later than 188. Across all ten worktrees
+  (`grep -r`, 216 hits) the latest is 222: phase-6 `task-26.md:3`, `task-27.md:3` and
+  `.superpowers/sdd/p6/progress.md:560`, all `:203-222`. Nothing cites 267 or later by number. The
+  bare `:NNN` forms in `07-register-*.md` stay inside 1-266 too.
+- **The report's own anchors past 266** (`:303`, `:316`, `:331`, `:359`, `:390`, `:401-430`,
+  `:411-425`, `:427-430`) were checked against the new file, and all land.
+
+**Eleven citing sites re-opened:**
+
+| Citing site | Cites | Register line now | |
+|---|---|---|---|
+| phase-6 `task-26.md:3` | `:203-222` | `:203` is the OD-33 heading and `:223` OD-34's: the range is OD-33 exactly | ✔ |
+| `CONTEXT.md:47` | `:13` | OD-2 | ✔ |
+| `CONTEXT.md:171` | `:14,16` | OD-3, OD-5 | ✔ |
+| `CONTEXT.md:242-243` | `:152`, `:140` | OD-24, OD-19 | ✔ |
+| `CONTEXT.md:255` | `:127` | OD-16 | ✔ |
+| `08-context-report.md:255` | `:172` | "Q4: the Desk frame is in W1." | ✔ |
+| team `task-52.md:64` | `:164` | OD-27 | ✔ |
+| team `task-51.md:48` | `:165` | OD-28 | ✔ |
+| phase-5 plan `:10` | `:84-100` | `:84` is the OD-11 heading | ✔ |
+| `2026-09-25-identity-keycloak-broker.md:4` | `:166`, for OD-30 | OD-31 | ✘ pre-existing |
+| `…identity-keycloak-broker.md:571`, main and team | `:186-188` | the OD-32 to OD-35 preamble | ✘ pre-existing |
+
+The two ✘ are `07-register-review-2.md` M3's (`:140-144`). They are byte-identical at `a109bf3e`,
+so this work did not cause them, and they are not this round's to fix.
 
 ## 3. CONTEXT.md: I1, I2 and I4, and the cited lines
 
