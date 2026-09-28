@@ -1520,6 +1520,41 @@ type Static map[string]string
 func (s Static) Path(ctx context.Context, worktreeID string) (string, error)
 ```
 
+**AMENDED by X-3 (2026-09-28), from X-1 review O-1.** Seam point 1 still holds, and
+`*project.Scanner` now adds one condition to it: **the path it answers is the project's primary
+worktree, or one the project's OWN `<project>/.git/worktrees` registers**, compared on real
+locations; otherwise `Path` fails with an error wrapping `project.ErrNotRegistered`. *Was: any
+existing directory `git worktree list` named.*
+
+- Why. `Scanner.Worktrees` runs `git worktree list --porcelain` in the primary worktree, and phase
+  2 mounts that worktree read-WRITE with its `.git` included. One agent-written line in
+  `<primary>/.git/commondir` makes git list ANOTHER repository's worktrees — measured at the git
+  level — and a create on one of those used to mount it read-write. R4 rule 6: the host never
+  trusts anything a sandbox can write.
+- Why the registry and not the projects directory. `.git/commondir` is inside the read-WRITE mount;
+  `.git/worktrees` is the one thing in there a session mounts READ-ONLY (§5.1 step 5), and a
+  session on a LINKED worktree mounts no part of the project's `.git` at all. So the registry is
+  the one account of this project's worktrees no phase-2 sandbox can write. **Confining to
+  `PANACEA_APP_PROJECTS_DIR` instead — the cheaper guard — would refuse the e2e fixture's own
+  worktree**, because `desktop/e2e/fixture.sh` puts linked worktrees outside the projects root on
+  purpose: a linked worktree's `.git` is a file, and one inside the root would enumerate as a
+  second project. The registry costs that nothing, and it is stricter besides — a foreign
+  repository INSIDE the projects root is refused too.
+- **`ErrNotRegistered` is NOT 404 `worktree_not_found`** (§3.10's table): the id exists and the rail
+  listed it, so `worktreeId resolves to nothing` would be a wrong fact. It is a 500 with the
+  reason in the log until somebody rules on a wire code for it.
+- `worktree.Static` is unchanged: it is the operator's own map, not git's answer.
+- Retired by R4 rules 1–2 in phase 3, which stop mounting the project repository at all.
+
+**`internal/hostpath` is the one implementation of "a sandbox can write this" (X-3).**
+`hostpath.Confine(root, path)` is the worktree gate above. `hostpath.ResolveOutside(root, path)`
+is the other direction, for the two global git files of §5.1 step 5: it resolves component by
+component, following every link and restarting at each target, and refuses as soon as any STEP of
+that walk IS the projects directory. Each step is compared by FILE IDENTITY (`os.SameFile`), not
+by name — measured on Windows, one directory answers to both `C:\Users\AU-DEV~1\…` and
+`C:\Users\au-dev-dmackie1\…`, and an agent writes the link target, so it writes whichever form a
+name check misses. `root == ""` (no projects directory) confines nothing.
+
 ### 2.11 `internal/project` — read-only enumeration
 
 ```go
@@ -2450,7 +2485,18 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    error, or an answer that is not `true`/`false`/`input` and `lf`/`crlf`, fails the create or
    restart with 500 before step 4 and before the restart's destroy. A primary worktree, one whose
    `.git` is a directory, also gets a **read-only** mount of its `<worktree>/.git/worktrees` at
-   `/home/dev/work/.git/worktrees`, made on the host when absent. Every linked worktree's `gitdir`
+   `/home/dev/work/.git/worktrees`, made on the host when absent. AMENDED by X-3 (2026-09-28,
+   review O-2; was "made on the host when absent" with nothing said about what is already there):
+   `.git/worktrees` is **Lstatted before it is made**, and a link there fails the create with 500
+   naming the path to delete. `os.MkdirAll` Stats, which follows a link and answers nil for a
+   directory, so an agent — which writes this worktree — could aim `.git/worktrees` at any
+   directory on the host and have it bind-mounted into its own sandbox. It fails the create rather
+   than mounting nothing, because mounting nothing hands the sandbox's git back the prune this
+   mount exists to refuse. The resolved source must also stay inside the worktree
+   (`hostpath.Confine`). **Residue, not closed:** the agent can swap the directory for a link
+   between that check and Docker's mount, and a fork on the same worktree runs while the check is
+   happening. No check closes a check-then-mount race; R4 rule 1 does, by never mounting the
+   project repository (phase 3). Every linked worktree's `gitdir`
    there names a host path, so the sandbox's git calls each one prunable. The mount stops a
    `git worktree prune`, `repair`, `move`, `remove` or `add` in the sandbox from changing the
    host's metadata; no git setting stops an explicit prune. The refused prune still **exits 0**
@@ -2489,7 +2535,17 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    does (measured with git 2.53: read against the worktree's top from a subdirectory, at command
    scope too). One that leaves the repository (`..`, or a Windows drive- or root-relative path)
    names a file no sandbox can see, so it still fails the create, and the 500 says to make it
-   absolute or a path inside the repository. A path that is a **regular file** on
+   absolute or a path inside the repository. AMENDED by X-3 (2026-09-28, review m-5; was "following
+   a link as git does" with no condition on where the link goes): an absolute answer is resolved
+   through `hostpath.ResolveOutside(Deps.ProjectsDir, …)`, and if ANY step of that resolution is
+   the projects directory itself the create fails with 500, naming the fix — set the key to a path
+   outside the projects directory. A step there is the agent's to swap: a dotfile manager links
+   `~/.config/git/ignore` into a dotfiles repository, and if that repository is under the projects
+   directory an agent running in it points the file at `~/.ssh/id_rsa`. Both ends of that chain are
+   outside the projects directory, so checking the named path or the resolved path mounts the key.
+   It is **not** downgraded to `/dev/null`: without the host's excludes every agent's `git add -A`
+   commits what the host ignores, which is the leak this pair exists to close, so the quiet option
+   leaks more and more often than the attack it closes. A path that is a **regular file** on
    the host, following a link as git does, is mounted from the file it resolves to, so what a
    Docker host does with a link as a mount source never matters (dotfile managers link
    `~/.config/git/ignore`), **read-only** at `/etc/panacea-app/git/ignore` or
