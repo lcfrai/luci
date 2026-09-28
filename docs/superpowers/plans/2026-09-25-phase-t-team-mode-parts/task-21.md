@@ -58,6 +58,10 @@ session on a team project). The desktop's `types.ts` gains the field in task 52,
 - `control-plane/internal/api/catalog.go` — `isolationFor` maps `fleetbe.Kind` to `"microvm"` (modify)
 - `control-plane/internal/registry/session.go` — `Delegation` and `DelegationExpiresAt`, persisted,
   never on the wire (modify)
+- `control-plane/internal/registry/teamdelegations.go` — the per-project orchestrator delegation
+  record and its store (new; b07, S02-C7/S03-C1)
+- `control-plane/internal/api/teamrelay.go` + `teamrelay_test.go` — the four `/api/team/*` human
+  relays of step 6 (new; b07, G33-1/S04-I8)
 - `control-plane/internal/api/teammode.go` + `teammode_test.go` — `hubTeamProjects` and the
   `POST /v1/projects/{projectId}/team-mode` route (new; fix batch b01, X-C1)
 
@@ -66,7 +70,9 @@ session on a team project). The desktop's `types.ts` gains the field in task 52,
   declared in this package so `backend.go` is not touched); `fleetbe.Launch`, `fleetbe.WithLaunch`;
   `fleetbe.FleetEndpoint(agID)`; `fleetbe.Error`; `api.TeamLauncher`, `api.TeamProjects` (with
   `MakeTeam`, b01); the local team-mode route (task 33's E5 and task 56's Share call it); the
-  `teamScope` field of `sessionJSON`.
+  `teamScope` field of `sessionJSON`; `api.TeamLauncher.EnsureOrchestratorDelegation` and the
+  registry's `TeamDelegations` record (b07); the four `/api/team/*` human relays (b07; task 33's E3
+  calls them, task 52 extends them).
 - Consumes: `backend.Backend`, `backend.Spec`, `backend.Sandbox` and the sentinels (phase 2,
   built); `backend.ReadyWaiter` (phase 8 task 22, planned); `hubclient.TokenSource` (built) and
   task 08's `hubclient.Team` methods `CreateDelegation`, `RenewDelegation`, `RevokeDelegation`,
@@ -567,7 +573,46 @@ Before b07 this line said the desktop never asks for one, which left task 20's d
 *"Runs in Panacea's cloud; your teammates' agents see this agent's task and files."* No other
 catalogue change.
 
-- [ ] **Step 6: Acceptance**
+- [ ] **Step 6: `teamrelay.go` — the four human routes (b07, G33-1/S04-I8)**
+
+Hub routes 65, 66, 68 and 70 accept **only the owner's own desktop** (`task-07.md:144-147`,
+`:182-184`), and the desktop's own team client is task 52's, in TM1. So until b07 nothing before
+task 33 let a human answer a decide or speak to their Orchestrator, task 33's E3 could only be
+BLOCKED, and the review consolidated that into X-C2. This task owns them, because it already holds
+the Hub team client and `a.relayHub` on the local control plane. Task 52 extends these four; it does
+not replace them.
+
+Four routes on the local control plane, each a **relay**: it adds the caller's own stored token, it
+adds nothing else, and it passes the Hub's status, code and `details` back through `a.relayHub`.
+No route takes an owner, an org or an agent's owner from the body — the Hub resolves the caller from
+the token, which is why one person cannot read or answer another's (task 07's own check, not ours).
+
+```jsonc
+// GET  /api/team/escalations?project=pj-…            → Hub route 66, the caller's own
+{ "escalations": [ { "id": "es-…", "kind": "inform" | "decide", "question": Text,
+    "options": [ { "label": Text, "consequence": Text } ], "default": 0, "deadline": "…",
+    "evidence": { … } | null, "answer": null | { "choice": 1, "answeredAt": "…" } } ] }
+// POST /api/team/escalations/{es}/answer  { "choice": 1 }         → Hub route 65
+// POST /api/team/human-messages  { "projectId": "pj-…", "toAgentId": "ag-…", "text": "…" } → route 70
+// GET  /api/team/directives?project=pj-…               → Hub route 68, the caller's own
+{ "directives": [ { "id": "dv-…", "toAgentId": "ag-…", "kind": "pause" | "resume" | "narrow" |
+    "wait-for" | "rebase" | "free", "params": { … } | null, "origin": "human" | "fleet",
+    "issuedAt": "…", "state": "issued" | "in-force" | "spent", "approvedBy": "es-…" | null } ] }
+```
+
+`GET /api/team/directives`'s shape is written out here because it was the one of the four task 33
+left implicit (S04-I8). `text` on route 70 is the human's own words and is **not** parsed, trimmed
+of meaning or interpreted here: it is a body this process forwards. All four are refused `404` when
+`a.team == nil` (no `PANACEA_APP_FLEET_URL`), so a solo build does not grow a team surface.
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestRelaysCarryNoIdentityFromTheBody` | an `ownerUserId`, `orgId` or `asUser` key in any of the four bodies is a `400 bad_request`, and the forwarded body never gains one | a relay that lets the caller name whose escalations to list, which is the cross-owner channel OD-16 gives the Orchestrator alone |
+| `TestRelayPassesTheHubsRefusal` | the Hub's `403 forbidden` on another person's `es-…` reaches the client with the Hub's own code and `details` | a relay that rewrites a refusal as `backend_unavailable`, hiding the one check that keeps the two humans apart |
+| `TestDirectivesShapeIsComplete` | a golden Hub body round-trips every field above, `params` and `approvedBy` included | a shape that drops `origin` or `approvedBy`, so task 33's M4 cannot tell a Fleet turn from a human one |
+| `TestTeamRoutesAreAbsentWithoutFleet` | all four → 404 with `a.team == nil` | a team surface on a solo install |
+
+- [ ] **Step 7: Acceptance**
 
 ```bash
 cd control-plane && go vet ./... && go test ./internal/backend/fleetbe/... ./internal/api/... -count=1
@@ -580,7 +625,7 @@ leak guard, which must print nothing:
 cd control-plane && grep -rn "AttachToken" internal/backend/fleetbe/*.go | grep -v _test | grep -v ValidateSpec
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add control-plane/internal/backend/fleetbe control-plane/internal/api/teamlaunch.go \
