@@ -123,6 +123,55 @@ gitx ~1110 s). Three p3 runs were already VOIDED by host-kill artifacts under lo
 fragility as the `vitest` forks-pool worker timing out after 60 s on an idle host. They start once
 the F5 diagnostic in `w1yw8vduj` has its answer, because F5 only reproduces on a quiet host.
 
+## 0d. SUPERSEDES 0c — every stream live, 2026-09-28 16:30
+
+Nine workflows running, all in session `56a311e8-…`. **Resume each with `resumeFromRunId` and the
+same args**; they all cache-resume correctly (verified across two usage stops today).
+
+| Task | Run | Script | Args |
+|---|---|---|---|
+| `wrjek55n0` | `wf_0906a1dd-444` | SS `phase2-finish-wf_0906a1dd-444.js` | none |
+| `whdyswpk3` | `wf_37eaca67-742` | SS `decisions-and-work-plan-wf_37eaca67-742.js` | none |
+| `wpj0dpvxz` | `wf_484551ac-ab6` | SS `team-planfix-continue-wf_484551ac-ab6.js` | none |
+| `wn4g4dv3j` | `wf_db8975b8-5a9` | WS `build-stream-continue.js` | `{"stream":"env","hold":["21","21b","24b","25","25b","26","32","33"]}` |
+| `whcgoid8s` | `wf_d6da5566-ba9` | WS `build-stream-continue.js` | `{"stream":"p7"}` |
+| `wb23s35g3` | `wf_18320e57-798` | WS `build-stream-continue.js` | `{"stream":"p5"}` |
+| `way0zvvut` | `wf_73e0823f-780` | WS `build-stream-continue.js` | `{"stream":"hub"}` |
+| `w9lw6pdf6` | `wf_b06641ca-c04` | WS `build-stream-continue.js` | `{"stream":"p4"}` |
+| `w3g2vgwni` | `wf_f63fb5fa-410` | WS `build-stream-continue.js` | `{"stream":"p3"}` |
+
+**`build-stream-continue.js` is the script every build stream now uses.** It runs NO gate and NO
+triage, so it cannot re-merge a moved `feat/phase-2-cockpit` into a half-finished fix round and
+cannot regroup batch ids. Its first agent reads `<scratchpad>/stream-survey.json` plus the stream's
+own ledger and review verdicts, returns the in-flight unit and the ordered remaining tasks, and the
+second agent FINISHES that unit rather than restarting it. Pass only `{stream, hold}`; approvals are
+re-derived from disk.
+
+**Three builds are deliberately NOT started, each behind its own plan edit:**
+- **p6 build** — `decisions-and-work-plan` is adding OD-33's two compliance tasks to its plan now.
+  Its plan fix is otherwise COMPLETE (b05–b08 all closed at 0 Critical; 41 residual findings
+  carried into `carried/` across 17 task files; task 08a held on env's `oidcauth`).
+- **work build** — its plan fix (20 Criticals) is running in `whdyswpk3`.
+- **team build** — its plan fix is running in `wpj0dpvxz`.
+Start each the moment its plan work lands, with `build-stream-continue.js` and `{stream}`.
+
+**Owner decisions OD-32 to OD-35 were taken today** (`docs/superpowers/planning/2026-09-23-owner-decisions.md`),
+answering the open-source adoption research in `docs/superpowers/planning/2026-09-28-oss-adoption/`:
+OpenTofu replaces Terraform and OpenBao replaces Vault (BUSL-1.1 is forbidden; the azurerm provider
+is MPL-2.0 and does not move); phase 6 keeps LiteLLM and gains two compliance tasks; the canvas
+keeps its own op-log over Yjs; and the full plan is built with no scope cut. The research's honest
+headline: open source removes about 7 of ~433 unbuilt tasks.
+
+**Marketing deliverables** are in `docs/marketing/`: `panacea-app-ai-sdlc.pdf` (what an AI-enabled
+SDLC is, with an honest status page) and `panacea-ai-sdlc.pdf` (the executive investment brief,
+"AI SDLC - Panacea", no status by design). Re-render either with
+`node docs/marketing/_assets/render.mjs`.
+
+**Host warning, unchanged and now more relevant:** nine concurrent streams is the heaviest load this
+machine has carried. `exit 0xc0000142`, `link.exe 0xc000013a` and vitest forks-worker timeouts are
+host artifacts under load, not code defects; `build-stream-continue.js` rule 6 tells every agent to
+re-run once and record rather than "fix" a phantom.
+
 ## 1. What was running at shutdown (7 workflows)
 
 | Stream | Worktree / branch | Last run id | Script | args |
