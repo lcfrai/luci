@@ -51,7 +51,7 @@ What was missing, and is what you build: nothing **wrote** the field from a surf
 a canvas revision, exactly as `task-02.md:264` already has it, and there is no per-frame key to
 point at. A frame is a locator inside the revision. **Do not invent a second key form.**
 
-**Four decisions, made here.**
+**Six decisions, made here.**
 
 1. **The match is the exact key.** An approval of `design:cv-…@12` does not close an issue whose
    revision implements `@11`. The approval's digest covers the revision that was reviewed, and a
