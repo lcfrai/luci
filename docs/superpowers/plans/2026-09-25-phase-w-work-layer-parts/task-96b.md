@@ -39,12 +39,27 @@ nothing else to the chrome. A second panel, a second store or a second issue vie
   `task-140.md:472`) send `implements: []`, so the Design hop rendered empty for every real user.
 - `desktop/src/components/work/DesignPicker.tsx` (new) and its test: `implements`'s writer, built on
   task 42's `Picker` exactly as `CriterionPicker` is (`task-42.md:124-160`), listing the project's
-  canvases and their revisions. It follows task 47's decision 3 unchanged: **adding or removing a
+  canvases and their revisions. **Where that list comes from, said rather than assumed:** phase 5
+  owns canvases, and no phase 5 read is cited anywhere in this plan, so until phase 5 is
+  sync-merged the picker is a **typed-key field with validation** — the same
+  `design:cv-…@<rev>` form task 81b's `ValidateImplements` enforces, checked client-side before the
+  revision is written, with the already-implemented keys listed as chips to remove. When phase 5
+  merges, its canvas list replaces the free-typed half and the validation stays; that swap is a
+  *later* row, not a W2 liberty, and the part says so rather than naming a route it has not read.
+  It follows task 47's decision 3 unchanged: **adding or removing a
   key writes a new revision, never a patch**, so the digest and the thread stay honest. It is the
   only writer this plan has; if it is cut, say so in the return and the field stays `[]`.
 - `desktop/src/components/issue/IssueView.tsx` ⚑ (task 46's file): the new block, under *Serves*
 - `desktop/src/api/work.ts` ⚑ (task 37's file): `listIssuesForDesign(designKey)` over task 81b's
-  read route, through task 16's relay
+  read route, through task 16's relay; **and the seventh cause on the closed union** —
+  `MoveCause` at `task-37.md:99-100` gains `"design_approved"`. Without it the desktop cannot type
+  the fact the new hop produces.
+- `desktop/src/work/hold.ts` ⚑ (task 41's file): `PHRASE` at `task-41.md:260-267` is
+  `Readonly<Record<MoveCause, …>>`, exhaustive over that union, and is read at `:274` as
+  `PHRASE[move.cause](move)`. It gains `design_approved: (m) => \`design approved by ${m.byName}\``
+  — no commit to slice, which is the one thing every other landing phrase has. Without this pair
+  the file does not compile, and if it did the call would be `undefined(...)` at runtime on exactly
+  the Design hop. **Not task 28's glyph set**: `GlyphKey` is keyed on state (`task-28.md:104`).
 - `desktop/src/components/work/work.css` ⚑ (task 41's file): the group, on existing tokens only
 
 **Rules it must not break.**
@@ -74,6 +89,13 @@ nothing else to the chrome. A second panel, a second store or a second issue vie
 6. With phase 5 absent from the tree, the new component still builds and its test runs against the
    fixtures in SW.8. *Mutant:* a hard import of `src/design/` that breaks the desktop build until
    phase 5 merges.
+7. A `MoveFact` with cause `design_approved` renders *"design approved by …"* on the issue's fact
+   line, and `PHRASE` is exhaustive over `MoveCause` at compile time. *Mutant:* the union widened
+   and the map not, which is `undefined(...)` at runtime on the Design hop — the one fact this
+   whole slice exists to show.
+8. `DesignPicker` refuses `brief:ab-…`, a bare `cv-…` and a canvas key with no `@<rev>`, and accepts
+   `design:cv-…@11`. *Mutant:* a free-text field, which writes a key the Hub then 400s at
+   `implements_key_form` after the reader has left the view.
 
 **Acceptance (the owner's eyes, not a screenshot).** Open a canvas with two approved revisions and
 three issues; the *Issues* group shows the issues of the open revision, each row opening the one
