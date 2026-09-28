@@ -15,6 +15,10 @@ Written 2026-09-29.
   git-ignored (`:5-6`); it was read by grep only, as instructed.
 - **Task 09's mutation round** is "running" in the ledger's last line (`progress.md:562`); its
   result lives in a scratchpad outside the tree and was not read. No re-review of 09 exists.
+- **No brief has reached a real session.** The binary runs the interim Materialiser that writes
+  nothing (section 4); what `contextwrite` writes is known from its code, tests and goldens only.
+  Whether Claude Code reads `.claude/CLAUDE.md` is marked UNVERIFIED in the code itself
+  (`contextwrite/materialise.go:47`, deferred to task 23).
 - _(more added per section)_
 
 ---
@@ -265,7 +269,113 @@ text" (`:161-165`, `:185-195`).
 
 ## 4. `claudemd` (task 05) and the Materialiser (task 09)
 
-_(pending)_
+Paths: `p4/control-plane/internal/claudemd/render.go` (443 lines), `…/discover/inherit.go` (334),
+`…/contextwrite/materialise.go` (588) and `…/contextwrite/inspect.go` (241).
+
+**What the running binary writes today: nothing.** `cmd/api` runs `materialiserUntilTask14`,
+which "writes nothing" and logs once at start-up *"sessions inherit no brief until phase 4 task 14
+wires contextwrite"* (`p4/control-plane/cmd/api/materialiser_interim.go:12-25`); it returns `""`,
+or `none:declined` when the person declined (`:27-36`). No file outside the phase 4 packages
+imports `discover`, `claudemd`, `provenance`, `discoverhub` or `contextwrite` (`git grep` of
+`control-plane` and `sandboxd` at `ca737d92`). Everything below is what the built, tested,
+**unwired** `contextwrite` would write once task 14 lands.
+
+**Which file, and when.** `CLAUDE.md` at the worktree root — "the name is the contract with Claude
+Code; not configurable" — or `.claude/CLAUDE.md` when git tracks `CLAUDE.md`, marked "UNVERIFIED
+that the CLI reads it (task 23)" (`materialise.go:45-48`). Git tracking both refuses the start,
+`tracked_elsewhere` (`:100-109`, message `:342`). The file is on disk "before the harness process
+starts" — on create before the conversation store's `MkdirAll`, on restart before the old sandbox's
+destroy (`:3-9`).
+
+**Which revision.** `discoverhub.Inheritable`: "the latest complete branch revision, else the latest
+complete project revision, else none" (`discoverhub/read.go:77-87`), read under a 5-second Hub
+budget (`materialise.go:81-87`, `:136-146`). The session's `contextRef` is the key written, `""`
+when there was nothing, `none:declined` when the person started without it (`:207-213`,
+`:218-223`, `:254`).
+
+**The bytes today** (`Render`, `render.go:62-111`), in order:
+
+1. `<!-- panacea:discover:begin brief=<briefId> rev=<n> -->` (`:79`) — the id and number, not the
+   literal key string.
+2. `# <title>`: `Project brief`, or `Branch brief — <branch>` from the revision's own `branchRef`,
+   never a current project or branch name (`inherit.go:26-30`, `:171-182`).
+3. Two fixed lines (`:81-82`): *"Written by Discover in Panacea App. Every session started on this
+   branch reads it first."* and *"Change it in Discover, not here: this block is regenerated and
+   your edits inside it will be lost."*
+4. With no section: *"No question in this brief has an answer."* (`:84-86`).
+5. Per section: `## <heading>`; an origin line — `_Inherited from the project brief._`, or
+   `_Set on this branch, replacing the project brief: <old text on one line>_`, or nothing for a
+   branch-only answer (`:87-95`, origins `inherit.go:32-38`); then `- <text>` per criterion for
+   `done`, else the answer's text (`:96-102`).
+6. `---`, then `Brief <id>, revision <n>.` plus ` Inherits project brief <id>, revision <n>.` when a
+   project revision is pinned (`:105-108`); then `<!-- panacea:discover:end -->` (`:109`).
+
+- **Headings** (`inherit.go:75-87`): `What this is for`, `Who it is for`, `What must not break`,
+  `Definition of done`, `Out of scope`, always in that order; then follow-ups, project first, then
+  branch, in the order added, each headed by its prompt minus a final `?` (`:105-108`, `:286-333`).
+- **Which answers appear** (`Resolve`, `inherit.go:89-103`): only settled, non-skipped answers; a
+  `model_drafted` answer never; a skipped branch answer shows the project's; a skipped project
+  answer with no branch answer is left out; every revision passed must be complete.
+- **A project key marks every section inherited.** With no branch revision, "every section
+  OriginProject" (`inherit.go:91`), so each carries `_Inherited from the project brief._`
+  (`claudemd/testdata/golden-project.md:8`, `:13`, `:18`, `:23`, `:29`).
+- **Never in the block:** a timestamp — "a timestamp would rewrite the file on every materialise"
+  (`render.go:5-8`); the `change` record (`content.go:209-210`); criterion ids and digests (items
+  print as `- <text>`, `render.go:98`); author, source, help, options, `because`, `savedBy`.
+- **Neutralised:** every interpolated string has CR/CRLF made LF and each `<!--` written `<!-\-`
+  (`render.go:47-54`), so a block holds exactly two `<!--`, its own markers (`:65-70`).
+
+**No inline cap.** Nothing limits the block or the file: no length check in `Render`, and a grep of
+`contextwrite`, `claudemd` and `inherit.go` (non-test) for `LimitReader`, `KiB`, `MiB`, `1 <<` finds
+only `maxDiffCells` (`render.go:354`). The bounds that exist are upstream: 4000 runes per answer,
+300 per prompt, help or option (`discover/ops.go:93-96`); 64 KiB per canonical revision envelope
+(`hub/hubapi/envelope.go:31`, used at `discoverhub/write.go:49`). The one "400" is `DiffLines`' cap
+on the hand-edit view's output lines (`render.go:348-363`), not on the block.
+
+**The goldens that pin the block** (`claudemd/testdata/`, `.gitattributes` = `* -text`):
+
+| Golden | Lines / bytes | Test | Shows |
+|---|---|---|---|
+| `golden-branch.md` | 37 / 1237 | `TestResolveBranchOverProjectGolden` (`render_test.go:105`) | a branch over a project: four overrides, one inherited, three criteria |
+| `golden-project.md` | 36 / 856 | `TestResolveProjectAloneGolden` (`:111`) | a project key alone, all five sections |
+| `golden-neutralised.md` | 30 / 812 | `TestRenderNeutralisesCommentOpeners` (`:320`) | `<!--` and a forged end marker in the title, an override note, answers, a criterion and a follow-up's heading |
+
+The branch golden's failure message reads "fix the renderer, never the golden" (`render_test.go:107`).
+
+**Merge, Strip, Inspect** (`render.go`). Everything outside the two markers "belongs to the person
+and is never touched" (`:24-25`).
+- `Merge(existing, block)` replaces the one block, or appends it after a blank line; any other
+  marker shape (a begin with no end, a stray or early end, two ends, two begins) returns the file
+  unchanged with `ErrUnterminatedBlock` or `ErrDuplicateBlock`, because "the guess would delete
+  somebody's writing" (`:165-177`, `:189-210`). It writes in the file's own line ending, CRLF when
+  the first line ending is CRLF (`:178-188`).
+- `Strip` removes the block, the line ending after it, and — when the block is last — the blank
+  line `Merge` put before it (`:212-244`).
+- `Inspect` finds the block and reads its marker, "exactly `BeginPrefix + " brief=" + id + " rev=" +
+  n + " -->"`", with the id passing `discover.MarkerSafe` (non-empty, no white space, no `<` or `>`,
+  `inherit.go:235-251`) and `n` a decimal with no leading zero (`render.go:258-267`, `:281-320`).
+  "Its only use is the drift check … NOTHING reads brief text back out of a file as a source"
+  (`:266-267`). `SameText` is that check's only comparison, blind to CRLF and a lost final line
+  ending (`:322-333`).
+
+**The Materialiser's three rules** (`materialise.go:3-20`): the ordering rule (above); the commit
+rule — "the managed block is never committed (phase 3's 3-D6)": written only to a file git does not
+track, whose path is added to the clone's `info/exclude`, and a tracked file "is never opened for
+writing, not even to strip a block from it"; the link rule — "nothing below the worktree is
+followed" (`confine.go`, task 09's fix round). Before each write it adds `/CLAUDE.md` (or
+`/.claude/CLAUDE.md`) and the temp file's `/.CLAUDE-*.md` to `info/exclude`, then checks git really
+ignores the target, since a `.gitignore` `!CLAUDE.md` outranks `info/exclude` (`:169-184`). It
+writes only when the bytes changed, with `statepath.WriteAtomic(…, Shared)`, and removes a file a
+strip leaves holding only white space (`:185-191`).
+
+**The drift check's seven states** (`inspect.go:18-47`): `absent` (no block, nothing to inherit),
+`pending` (no block yet, the next start writes one), `current`, `superseded` (the block names
+another key; also a right key whose pinned project revision was since erased), `edited` (right
+key, other text; `diff` holds `DiffLines`), `stale` (a block, but nothing should be inherited now),
+`broken` (the next start is refused `block_broken`). An `Inspection` also carries `markerKey`,
+`expectedKey`, `diff`, `committed` (tracked files holding a block: repository text, never written),
+`excluded` and `altTracked` (`:49-81`). The marker's key is rebuilt as `"brief:" + id + "@" + n`
+and checked with `provenance.Parse` (`:218-228`).
 
 ## 5. The interview as shipped
 
