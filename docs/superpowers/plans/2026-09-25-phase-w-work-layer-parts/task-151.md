@@ -6,7 +6,7 @@ name taken from it is read from `…-scopes/tasks-141-160.md:418-458` and is **U
 its part). Reads task 15's SW.6 rules (`task-15.md:167-292`: `ValidateImportBatch`, the `MaxImport*`
 limits, `validImportURL`), task 03's `ImportItem` and `Priority` (`task-03.md:128-138`, `:543-552`),
 task 02's `MaxIssueTitleChars` (200 code points) and `MaxIssueDescriptionBytes` (16 KiB,
-`task-02.md:210-211`), task 143's `TrackerConnection` (scope `tasks-141-160.md:150-152`, no part)
+`task-02.md:221-222`), task 143's `TrackerConnection` (scope `tasks-141-160.md:150-152`, no part)
 and task 169's `TrackerTarget` (`task-169.md:160-164`), which names the Azure Boards target
 `{organisation, project, areaPath}`.
 
@@ -337,7 +337,7 @@ func tidyLines(s string) string {
 
 // CutRunes returns s unchanged if it has at most n code points, else its first
 // n-2 code points and cutMark, trimmed: exactly n or fewer, the cut shown.
-// Titles use n = hubapi.MaxIssueTitleChars (200, task-02.md:210).
+// Titles use n = hubapi.MaxIssueTitleChars (200, task-02.md:221).
 func CutRunes(s string, n int) string {
 	if utf8.RuneCountInString(s) <= n {
 		return s
@@ -368,7 +368,7 @@ func CutBytes(s string, n int) string {
 `CutRunes` counts code points, as Postgres `char_length` and task 02's rule do; a title of 200
 code points passes untouched and one of 201 becomes its first 198 plus the mark, 200 in all (`" …"` is two code
 points and four bytes). An empty title after sanitising stays empty and SW.6 refuses it by name
-(`task-02.md:251`); the engine reports it in the run.
+(`task-02.md:272`); the engine reports it in the run.
 
 #### Interfaces — complete: `worksync/boards.go`
 

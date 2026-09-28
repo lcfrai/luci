@@ -581,7 +581,7 @@ the words after in sans, the house split (`voice.split`, 02 C3).
 
 ```ts
 // Decision 3: a criterion link. The brief key is the Hub's grammar; a criterionId is any 1-128
-// characters (task-02.md:212, :270), so it is percent-encoded and decoded back exactly.
+// characters (task-02.md:223, :270), so it is percent-encoded and decoded back exactly.
 const CRITERION_PREFIX = "panacea://criterion/";
 const BRIEF_KEY = /^brief:bf-[0-9a-f]{16}@[1-9][0-9]{0,8}$/;
 

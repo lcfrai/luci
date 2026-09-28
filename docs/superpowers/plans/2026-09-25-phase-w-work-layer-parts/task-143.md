@@ -21,7 +21,7 @@ status in a trailing comment, `:20-24` the style; no status map), `hubapi/keys.g
 secret, no certificate, no storage account, no Key Vault access in v1"*).
 
 **Read in this branch's parts, not yet code, so UNVERIFIED until merge:** task 02's prefix block
-(`task-02.md:138-163`: prefixes without a dash, `PrefixRequest = "rq"`, `PrefixLoop = "lp"`,
+(`task-02.md:149-174`: prefixes without a dash, `PrefixRequest = "rq"`, `PrefixLoop = "lp"`,
 `WorkPrefixes`), task 03's import sources (`task-03.md:242-243`), task 15's `ImportSources`
 (`task-15.md:175-177`: *"W5 (task 150) appends"*), task 04's `Work` interface (`task-04.md:153-233`)
 and task 114's embed pattern and stubs (`task-114.md:35-75`, `:798-956`).

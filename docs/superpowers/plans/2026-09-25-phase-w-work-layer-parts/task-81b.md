@@ -18,8 +18,8 @@ is sync-merged here**, and rule H2 gives that phase's file the win on any confli
 
 **Read this before anything else: the wire is already done.** `implements` is not missing.
 `IssueRevisionContent.Implements []string` — a list of `design:…` keys — is declared at
-`task-02.md:243`, is part of the canonical bytes every revision digest covers, appears in all three
-golden vectors (`task-02.md:430`, `:479`, `:520`, the middle one carrying
+`task-02.md:264`, is part of the canonical bytes every revision digest covers, appears in all three
+golden vectors (`task-02.md:458`, `:507`, `:548`, the middle one carrying
 `design:cv-7c01d2e3f4a5b6c7@11`), is on the API type at `task-03.md:424`, and has its field-name row
 at `task-03.md:738`. **So this task adds no wire field and reopens no golden vector.** If you find
 yourself editing `workcanonical.go`, stop: you have misread the task.
@@ -43,7 +43,7 @@ What was missing, and is what you build: nothing **wrote** the field from a surf
 (`P5:359`), so 05's *frame* reads as phase 5's **`Page`** — and its design key
 `design:<canvasId>@<rev>` names a **canvas revision, not a subset** (`P5:232`, decision P5-H:
 *"subsets need a second key form"*). So `implements` names
-a canvas revision, exactly as `task-02.md:243` already has it, and there is no per-frame key to
+a canvas revision, exactly as `task-02.md:264` already has it, and there is no per-frame key to
 point at. A frame is a locator inside the revision. **Do not invent a second key form.**
 
 **Four decisions, made here.**

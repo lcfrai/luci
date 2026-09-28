@@ -716,7 +716,7 @@ func (s *Server) createFiledIssue(ctx context.Context, tx *Tx, projectID, id, au
 }
 
 // filedTitle is the PR title, trimmed and cut to task 02's 200 code points
-// (ErrIssueTitle, task-02.md:216); an empty one becomes "Pull request #N".
+// (ErrIssueTitle, task-02.md:228); an empty one becomes "Pull request #N".
 func filedTitle(pr *HostPR) string {
 	t := []rune(strings.TrimSpace(pr.Title))
 	if len(t) > 200 {

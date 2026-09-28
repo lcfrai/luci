@@ -38,7 +38,7 @@ digested revision (05 §3.6; `L-34`), and an agent's managed block names the exa
    fromRevision})` over task 16's `RestoreIssueRevision` row (`task-16.md:137`); the union member
    is a gap for task 56. Its inverse, for `U`, is `restore` of the head it replaced.
 3. **Removing a criterion is a revision, not a patch.** `serves` lives in the revision content
-   (`IssueRevisionContent`, `task-02.md:239-243`), so removal is `revise` with the head as
+   (`IssueRevisionContent`, `task-02.md:260-264`), so removal is `revise` with the head as
    `baseRevision` and the shorter `serves`; a stale base is the Hub's 409 `revision_conflict`, which
    task 56 keeps and re-offers.
 4. **Who read which revision is local fact only.** *dylan · agent 1 read @3* comes from the

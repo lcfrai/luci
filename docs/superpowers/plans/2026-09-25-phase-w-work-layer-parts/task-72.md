@@ -18,9 +18,9 @@ every W2 method in one interface, `WorkPlan`, declared standalone here and embed
 untagged embedded struct, so decision (a) is seen by task 03's tests), `:361` (`decodeInto`);
 `codes.go:35` (`CodeBriefExists`, reused for a feature's ref); `keys.go:172` (`ValidBranchRef`).
 **Read in this branch's parts, not yet code, so UNVERIFIED until merge:** task 02's `workids.go`
-(`task-02.md:146-161`: `PrefixFeature`, `PrefixCycle`, `PrefixLabel`, `PrefixTemplate`,
+(`task-02.md:157-172`: `PrefixFeature`, `PrefixCycle`, `PrefixLabel`, `PrefixTemplate`,
 `PrefixView`, `PrefixDraft`; none for a closure proposal), `AuthoredText` and `Serve`
-(`task-02.md:226-235`), `TestIssueRevisionGoldenVectors` (`task-02.md:736`); task 03's `work.go`
+(`task-02.md:239-256`), `TestIssueRevisionGoldenVectors` (`task-02.md:812`); task 03's `work.go`
 (`IssueState` and its lists `task-03.md:98-122`, `Priority` `:128`, `IssueHead` `:282-303`,
 `Label` `:339-344`, `TeamPolicy` `:348-355`, `CreateLabelRequest` `:499-502`,
 `PutTeamPolicyRequest` `:504-508`) and `work_test.go` (`workExamples` `:644-660`); task 04's
@@ -1048,7 +1048,7 @@ var workPlanExamples = []struct {
 }
 ```
 
-The `Serve` example's keys are task 02's (`task-02.md:226-235`) and are **UNVERIFIED** until merge;
+The `Serve` example's keys are task 02's (`task-02.md:239-256`) and are **UNVERIFIED** until merge;
 step 1 corrects them to the merged names.
 
 Block T2, `types_test.go`'s four styles over the W2 types.

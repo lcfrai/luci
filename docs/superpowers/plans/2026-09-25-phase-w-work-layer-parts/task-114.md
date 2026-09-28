@@ -25,7 +25,7 @@ method style), `:101` (`type Hub interface`), `:113` (`Error`). The contract
 
 **Read in this branch's parts, not yet code, so UNVERIFIED until merge:** task 02's
 `hubapi/workids.go` (`PrefixInitiative = "in"`, `PrefixMilestone = "ml"`, `PrefixTemplate = "tp"`,
-`task-02.md:146-157`); task 02's `AuthoredText` (`task-02.md:226-229`); task 04's
+`task-02.md:157-168`); task 02's `AuthoredText` (`task-02.md:239-242`); task 04's
 `hubclient/work.go` (`type Work interface { WorkIssues }`, `task-04.md:153-233`, whose comment
 already names `WorkRoadmap (task 114)`) and `workNotInFakeYet` (`task-04.md:1101`); task 72's
 `Feature`, `FeatureState` and `Template` (scope `tasks-61-80.md:398-406`, part not yet written);

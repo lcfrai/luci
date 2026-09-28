@@ -184,7 +184,7 @@ func (s *Service) ProposeIssues(ctx context.Context, projectID string, req Propo
 		}
 		done[it.Key] = true
 		out.Proposals = append(out.Proposals, ProposedIssue{Criterion: c,
-			Title:       hubapi.AuthoredText{Text: title, Author: hubapi.AuthorAgent}, // task-02.md:226-229
+			Title:       hubapi.AuthoredText{Text: title, Author: hubapi.AuthorAgent}, // task-02.md:239-242
 			Description: hubapi.AuthoredText{Text: strings.TrimSpace(it.Description), Author: hubapi.AuthorAgent},
 			Serves:      []hubapi.Serve{{BriefKey: c.BriefKey, CriterionID: c.ID}}})
 	}
@@ -376,7 +376,7 @@ export interface WorkProposalsClient {
 ```
 
 `Why` is task 136's desktop type (`{kind, key}`, **UNVERIFIED** until its part); `Serve` and
-`AuthoredText` are task 37's mirrors of `task-02.md:226-235`. `WorkClient` extends
+`AuthoredText` are task 37's mirrors of `task-02.md:239-256`. `WorkClient` extends
 `WorkProposalsClient`.
 
 #### Interfaces — complete: `desktop/src/work/proposals.ts`

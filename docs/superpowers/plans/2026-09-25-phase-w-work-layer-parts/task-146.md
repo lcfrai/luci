@@ -180,7 +180,7 @@ too, as `state_reason` does on an issue (`task-14.md` decision 3). No text colum
 `UPDATE` grant: `quote`, `answers`, the requester's email and name are written once, by `INSERT`,
 and changed only by `erase_request`, which is what task 145's grant test must hold. The 16 KiB cap
 on `quote` is the second layer behind `hubapi.MaxRequestQuoteBytes`, which **equals** task 02's
-`MaxIssueDescriptionBytes` (`task-02.md:211`): accept copies the quote into a description byte for
+`MaxIssueDescriptionBytes` (`task-02.md:222`): accept copies the quote into a description byte for
 byte, so a quote the description would refuse must never be stored.
 
 #### `hubapi/work_intake.go`, the part this task needs (requirement on task 143; complete)

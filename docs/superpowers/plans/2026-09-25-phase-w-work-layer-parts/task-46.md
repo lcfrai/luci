@@ -87,7 +87,7 @@ row keys `S`, `P`, `A` and `L` to open these pickers beside the row, and `I` to 
    fields below it. The alias goes in `badge` as mono text, the route in `route`.
 7. **The author class gets its own small mark here.** SW.12's `MarkKind` is `selected`,
    `needs_you` and `thread_node` (`task-29.md:145`); none says who wrote a text. The title is an
-   `AuthoredText` (`task-02.md:224-229`), so the head needs the class now, and tasks 47, 49 and 51
+   `AuthoredText` (`task-02.md:237-242`), so the head needs the class now, and tasks 47, 49 and 51
    need it next. `AuthorClass.tsx` draws two shapes of our own (a solid bar for a person, an open
    bracket for an agent) in `currentColor` with the word beside them. If task 29's owner lifts it
    into `MarkGlyph`, the three callers change one import (a gap, named below).

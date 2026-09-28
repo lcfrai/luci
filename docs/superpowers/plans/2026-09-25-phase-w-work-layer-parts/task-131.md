@@ -219,7 +219,7 @@ type PinnedCriterion struct {
 type IssueFacts struct {
 	Alias  string
 	Title  string
-	Serves []hubapi.Serve // the head revision's, SW.1 (task-02.md:232)
+	Serves []hubapi.Serve // the head revision's, SW.1 (task-02.md:252)
 }
 
 type Deps struct {

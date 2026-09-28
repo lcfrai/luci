@@ -27,7 +27,7 @@ one by its number without the mouse.
 
 **Decisions made here, so nobody re-derives them:**
 
-1. **An alias is formatted, never parsed.** Task 02 forbids an alias parser (`task-02.md:176-178`)
+1. **An alias is formatted, never parsed.** Task 02 forbids an alias parser (`task-02.md:187-189`)
    and task 14's Hub search formats each readable alias and compares it (`task-14.md:270-276`).
    The desktop does the same: the index keeps `(projectId, number)` and formats `KEY-n` from the
    project's **current** key (task 57's `scope()`), never from a stored alias string. So after EP
@@ -387,7 +387,7 @@ without `title`; the spread adds it as the Hub's wire does (decision 4's gap).
 ~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
 # expected: exit 0
 ~/.claude/tools/claudezsh/claudezsh 'grep -rnF "split(\"-\")" desktop/src/work desktop/src/components/work'
-# expected: no output (no alias parser, task-02.md:176-178; a review still reads search.ts for one)
+# expected: no output (no alias parser, task-02.md:187-189; a review still reads search.ts for one)
 ```
 
 #### What this task does NOT claim

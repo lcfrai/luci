@@ -138,7 +138,7 @@ GRANT EXECUTE ON FUNCTION erase_issue(text) TO hub_app;
 ```
 
 The title cap is 1024 bytes because task 02's title limit is 200 characters (`ErrIssueTitle`,
-`task-02.md:216`, `MaxIssueTitleChars`), and 200 characters of UTF-8 are at most 800 bytes; the `CHECK` is the
+`task-02.md:228`, `MaxIssueTitleChars`), and 200 characters of UTF-8 are at most 800 bytes; the `CHECK` is the
 second layer, never the answer a person sees. `CREATE OR REPLACE` keeps the function's owner and
 `SECURITY DEFINER`; the `REVOKE`/`GRANT` pair is repeated because a reader of this section should
 not need task 07's to know who may call it. Task 06's `TestWorkGrantsAreExactlyTheList` gains
@@ -268,9 +268,9 @@ code lands; this task adds its two kinds to whichever it is. `IssueErasedData` i
 set, a project the caller can read → else 404 `project_not_found`. Then:
 
 1. **The alias first, by formatting, never by parsing.** Task 02 forbids an alias parser (*"No
-   parser for an alias exists or may be written"*, `task-02.md:176-178`). So `q` is not split: the
+   parser for an alias exists or may be written"*, `task-02.md:187-189`). So `q` is not split: the
    query **formats** each readable issue's alias from `project_keys` now, `k.key || '-' ||
-   i.number`, exactly as `DisplayAlias` does (`task-02.md:179-181`), and compares it with `q`
+   i.number`, exactly as `DisplayAlias` does (`task-02.md:190-192`), and compares it with `q`
    (`IssuesByAlias`). A hit goes first; two teams may both use `EP`, so there can be more than one,
    newest first. The comparison is case-sensitive, as the alias is written; `ep-142` is a title
    search. A key that moved (`EP` → `PAY`) finds the issue under `PAY-142` and not `EP-142`.

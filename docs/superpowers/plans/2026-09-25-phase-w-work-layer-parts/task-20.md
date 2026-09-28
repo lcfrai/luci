@@ -44,7 +44,7 @@ element for percentages, bars and "N of M". Plain counts (*"4 issues"*), clock t
   `makeIssueRevision`, `makeServe`, `makeCriterion`, `makeComment`, `makeLabel`,
   `makeTeamPolicy`, `makeWorkEvent`; `workScenario()`; `WORK_STATES`, `PROOF_WORDS`.
 - Consumes: `FIXED_NOW`, `FIXED_NOW_ISO` from `fixtures.ts`; task 03's JSON field names
-  (`task-03.md:279-398`) and task 02's (`task-02.md:226-244`), mirrored by hand here.
+  (`task-03.md:279-398`) and task 02's (`task-02.md:239-265`), mirrored by hand here.
 - Required by: every desktop surface task of W1-W5 (tasks 26 onward), task 37 (which replaces the
   local mirror types with imports from `src/api/work.ts` and whose typecheck proves they agree).
 

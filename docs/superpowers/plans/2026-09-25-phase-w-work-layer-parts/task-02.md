@@ -13,6 +13,17 @@ the work layer mints, **the key** `issue:is-…@r` in the Hub's grammar, and **t
 issue revision, computed by the same one function the Hub uses for briefs (hub-contract §3.4: *"No
 TypeScript implementation exists or may be written"*). Nothing here stores or serves an issue.
 
+**One field here carries the whole of *done means proven*.** A `serves` pair gains `check`: the
+command the platform runs at the issue's landed commit to observe that criterion, without which
+task 23's observer has nothing to run and task 23b's runner has nothing to run it on, and an issue
+closes only when a person presses Record (`proven_self_attested`, the weaker word). It is in
+**this** task, not in task 23, for one reason: it is part of the `issue-revision` canonical form
+and therefore part of every digest and key, and SW.1 freezes at WS0 (skeleton `:366`). It is
+`omitempty`, so v1, v2 and v3 of the golden vectors do not move a byte; v4 is new and pins it.
+**Who may set it is not decided here**: the authority rule is SW.3's (task 07) — a `check` is set
+by a team member with the brief's write verb, never carried in by intake or by a `text·A` revision
+— and this file only bounds its length.
+
 **Anchors, re-read on 2026-09-25 at `feat/hub` `9f2fa31`** (paths under
 `control-plane/internal/hub/hubapi/`; the scope read `48351f8`, and every anchor still holds):
 `keys.go:15-27` (the `Prefix*` const block), `:31-35` (`ValidID`), `:47-52` (`KeyKind`),
@@ -70,7 +81,7 @@ the sync base, else as task 09 names. This task makes no claim about them.
 | `workids_test.go` | new |
 | `workcanonical.go` | new: `AuthoredText`, `Serve`, `IssueRevisionContent`, `IssueRevisionEnvelope`, `IssueRevisionDigest`, `ParseIssueRevisionEnvelope`, `ValidateIssueRevisionContent` |
 | `workcanonical_test.go` | new |
-| `testdata/issue-revision/v1.json`, `v2.json`, `v3.json` | new: the golden vectors |
+| `testdata/issue-revision/v1.json`, `v2.json`, `v3.json`, `v4.json` | new: the golden vectors |
 
 No other file changes; `git diff --stat` after the task lists exactly these ten.
 
@@ -210,6 +221,7 @@ const (
 	MaxIssueTitleChars       = 200      // code points, as Postgres char_length counts them
 	MaxIssueDescriptionBytes = 16 << 10 // UTF-8 bytes, as Postgres octet_length counts them
 	MaxCriterionIDChars      = 128      // contract §7.10's criterionId rule
+	MaxCheckBytes            = 1000     // UTF-8 bytes; the same 1000 task 23's CheckRun allows
 )
 
 var (
@@ -219,6 +231,7 @@ var (
 	ErrIssueList        = errors.New("hubapi: serves and implements are arrays, never null")
 	ErrCriterionID      = errors.New("hubapi: a criterionId is 1 to 128 characters")
 	ErrServesRepeat     = errors.New("hubapi: a serves pair appears twice")
+	ErrCheck            = errors.New("hubapi: a serves check is at most 1000 bytes")
 )
 
 // AuthoredText is a text with its author class. The class travels with the
@@ -229,9 +242,17 @@ type AuthoredText struct {
 }
 
 // Serve joins an issue revision to one brief criterion: the thread's link.
+//
+// Check is the command the platform runs at this issue's landed commit to
+// observe that criterion (task 23's Observer, task 23b's runner). Empty means
+// the criterion has no check and can only be proven by a person's Record —
+// proven_self_attested, the weaker word. It is omitempty, so every revision
+// written without one encodes to the bytes it encoded to before this field
+// existed: golden vectors v1-v3 do not move.
 type Serve struct {
 	BriefKey    string `json:"briefKey"`    // brief:bf-…@n
 	CriterionID string `json:"criterionId"` // the criterion's id in that revision
+	Check       string `json:"check,omitempty"` // `sh -c` text, 0 to MaxCheckBytes bytes
 }
 
 // IssueRevisionContent is what one issue revision fixes. Serves and Implements
@@ -270,10 +291,17 @@ func ValidateIssueRevisionContent(c IssueRevisionContent) error {
 		if n := utf8.RuneCountInString(s.CriterionID); n < 1 || n > MaxCriterionIDChars {
 			return &FieldError{at + ".criterionId", ErrCriterionID}
 		}
-		if seen[s] {
+		if len(s.Check) > MaxCheckBytes {
+			return &FieldError{at + ".check", ErrCheck}
+		}
+		// The repeat key is the PAIR, with Check zeroed. Keying on s itself
+		// would let the same criterion appear twice with two commands, which
+		// is two checks for one proof and no rule for which wins.
+		pair := Serve{BriefKey: s.BriefKey, CriterionID: s.CriterionID}
+		if seen[pair] {
 			return &FieldError{at, ErrServesRepeat}
 		}
-		seen[s] = true
+		seen[pair] = true
 	}
 	for i, k := range c.Implements {
 		if _, err := ParseDesignKey(k); err != nil {
@@ -526,6 +554,54 @@ see because both carry a pair. `testdata/issue-revision/v3.json`:
 }
 ```
 
+**v4**: v1 again at revision 4, with a `check` on its one `serves` pair — the vector that pins the
+field `done means proven` needs (task 23's observer, task 23b's runner). 439 bytes,
+`sha256:4d024b95762536a8a4d32c7b12a2191eb44716d511c5bbb58f8c044ca61cb9f7`, computed on 2026-09-28
+by the same method, which reproduced v1's 402 bytes and `a77f7648…4ab6` first. `check` sorts
+between `briefKey` and `criterionId`, so it sits **inside** the serve object, not after it.
+It exists to kill two mutants v1-v3 cannot see: a `check` dropped from the canonical bytes (the
+digest would still be v1's at revision 4), and a `check` written outside the serve object.
+`testdata/issue-revision/v4.json`:
+
+```json
+{
+  "envelope": {
+    "v": 1,
+    "kind": "issue-revision",
+    "issueId": "is-00000000000000c3",
+    "revision": 4,
+    "projectId": "pj-00000000000000b2",
+    "content": {
+      "title": {
+        "text": "Resume an upload after the connection drops",
+        "author": "H"
+      },
+      "description": {
+        "text": "Uploads over 40 MB restart from zero when the network drops.",
+        "author": "H"
+      },
+      "serves": [
+        {
+          "briefKey": "brief:bf-00000000000000a1@5",
+          "criterionId": "c-91e2a0b3c4d5e6f7",
+          "check": "npm test -- resume.spec.ts"
+        }
+      ],
+      "implements": []
+    }
+  },
+  "canonical": "{\"content\":{\"description\":{\"author\":\"H\",\"text\":\"Uploads over 40 MB restart from zero when the network drops.\"},\"implements\":[],\"serves\":[{\"briefKey\":\"brief:bf-00000000000000a1@5\",\"check\":\"npm test -- resume.spec.ts\",\"criterionId\":\"c-91e2a0b3c4d5e6f7\"}],\"title\":{\"author\":\"H\",\"text\":\"Resume an upload after the connection drops\"}},\"issueId\":\"is-00000000000000c3\",\"kind\":\"issue-revision\",\"projectId\":\"pj-00000000000000b2\",\"revision\":4,\"v\":1}",
+  "bytes": 439,
+  "digest": "sha256:4d024b95762536a8a4d32c7b12a2191eb44716d511c5bbb58f8c044ca61cb9f7"
+}
+```
+
+**v1, v2 and v3 are byte-identical to what they were before `check` existed**, because the field is
+`omitempty` and none of them carries one. That is the whole reason this field can be added at all:
+a revision digested before it still digests the same, so no stored `canonical` and no `issue:…@r`
+key moves. It is still an **SW.1 change** and still lands before WS0 (the canonical *form* gained a
+member and the vector set gained a file), which is why it is here in task 02 and not in task 23.
+
 To regenerate any file, the implementer runs the same method and **must** get these digests;
 a different digest is a bug in the regeneration, never a reason to change the file.
 
@@ -734,7 +810,7 @@ func loadIssueVector(t *testing.T, name string) (IssueRevisionEnvelope, issueVec
 // a kind of "issue", omitempty on serves or implements (v1's empty
 // implements vanishes), escapes other than the contract's (v2's TAB, U+0001, é).
 func TestIssueRevisionGoldenVectors(t *testing.T) {
-	for _, name := range []string{"v1", "v2", "v3"} {
+	for _, name := range []string{"v1", "v2", "v3", "v4"} {
 		env, want := loadIssueVector(t, name)
 		d, c, err := IssueRevisionDigest(env)
 		if err != nil {
@@ -755,7 +831,7 @@ func TestIssueRevisionGoldenVectors(t *testing.T) {
 // Mutant: a parser that serves content from anything but the stored bytes, or
 // that drops a field on the way back.
 func TestIssueRevisionParseRoundTrips(t *testing.T) {
-	for _, name := range []string{"v1", "v2", "v3"} {
+	for _, name := range []string{"v1", "v2", "v3", "v4"} {
 		env, want := loadIssueVector(t, name)
 		got, err := ParseIssueRevisionEnvelope([]byte(want.Canonical))
 		if err != nil {
@@ -810,6 +886,14 @@ func TestValidateIssueRevisionContent(t *testing.T) {
 		{"criterion empty", func(c *IssueRevisionContent) { c.Serves[0].CriterionID = "" }, "serves[0].criterionId"},
 		{"criterion 129", func(c *IssueRevisionContent) { c.Serves[0].CriterionID = strings.Repeat("c", 129) }, "serves[0].criterionId"},
 		{"serves repeat", func(c *IssueRevisionContent) { c.Serves = append(c.Serves, c.Serves[0]) }, "serves[1]"},
+		{"serves repeat, two checks", func(c *IssueRevisionContent) {
+			s := c.Serves[0]
+			s.Check = "go test ./..."
+			c.Serves = append(c.Serves, s)
+		}, "serves[1]"},
+		{"check 1000", func(c *IssueRevisionContent) { c.Serves[0].Check = strings.Repeat("a", 1000) }, ""},
+		{"check 1001", func(c *IssueRevisionContent) { c.Serves[0].Check = strings.Repeat("a", 1001) }, "serves[0].check"},
+		{"check empty", func(c *IssueRevisionContent) { c.Serves[0].Check = "" }, ""},
 		{"implements key", func(c *IssueRevisionContent) { c.Implements = []string{"design:x@1"} }, "implements[0]"},
 	}
 	for _, tc := range cases {
@@ -884,6 +968,10 @@ and every test in the two new files fail to compile until Step 3.
 | `omitempty` on the `serves` tag | `TestIssueRevisionGoldenVectors` (v3's `"serves":[]` vanishes; v1 and v2 cannot see it) |
 | `omitempty` on the `implements` tag | `TestIssueRevisionGoldenVectors` (v1's and v3's `"implements":[]` vanish) |
 | `kindIssueRevision = "issue"` | `TestIssueRevisionGoldenVectors` |
+| drop `check` from the canonical bytes, or write it outside the serve object | `TestIssueRevisionGoldenVectors` (v4: 439 bytes, and `check` sorts between `briefKey` and `criterionId`) |
+| `check` without `omitempty` | `TestIssueRevisionGoldenVectors` (v1, v2 and v3 would grow a `"check":""` and every digest would move) |
+| the repeat key as `seen[s]` rather than the pair | `TestValidateIssueRevisionContent` (the same pair twice with two different checks) |
+| `>= MaxCheckBytes` for the check limit | `TestValidateIssueRevisionContent` (a 1000-byte check is valid, 1001 is not) |
 | `> MaxIssueTitleChars` as `>= MaxIssueTitleChars` | `TestValidateIssueRevisionContent` (`title 200 é`) |
 | `len(c.Title.Text)` for the title count | `TestValidateIssueRevisionContent` (`title 200 é` is 400 bytes) |
 | drop the `bytes.Equal` check in the parser | `TestIssueRevisionEnvelopeRefuses` (`whitespace`) |

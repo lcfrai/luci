@@ -16,7 +16,7 @@ question.
 group is read from facts git and the Hub already hold. Each committed hunk has one tier-1 commit
 (P3-16: the commit blamed for most of its `+` lines, `task-16.md:164-168` at `94f954d`). That
 commit's `Panacea-Issue` trailers (SW.9, task 21) name its issues; each issue's head revision's
-`serves` (task 02, `hubapi.Serve{BriefKey, CriterionID}`, `task-02.md:231-235`, verified) names
+`serves` (task 02, `hubapi.Serve{BriefKey, CriterionID}`, `task-02.md:244-256`, verified) names
 its criteria. That is the whole chain, and every link of it can be shown on the hunk.
 
 **Two phase 3 deltas the scope did not name, and why they are needed.** The scope listed only

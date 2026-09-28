@@ -14,7 +14,7 @@ Three sentences from 05 fix the shape, and every decision below serves one of th
 comments on its own owner's behalf, and in team mode only its Orchestrator does"* (§2.1, §3.6);
 a proposal is a proposal until a person records it (§3.6 with hub-contract §7.10).
 
-**Anchors, checked on 2026-09-27.** Task 02's `workids.go` (`task-02.md:138-163`): twelve Work
+**Anchors, checked on 2026-09-27.** Task 02's `workids.go` (`task-02.md:149-174`): twelve Work
 prefixes `is ic ft ml cy in rq lb tp vw lp df`, declared there and not in `keys.go` because
 `TestPrefixesAndReasonsAreTheContracts` holds `keys.go` and contract §3.1 to ten each; the comment
 above them records that they are *"disjoint from §3.1's ten, the control plane's `s- p- b- w- m-`,

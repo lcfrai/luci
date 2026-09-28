@@ -372,7 +372,7 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | Seam | What is fixed | Defined in | Consumed by |
 |---|---|---|---|
 | **SW.0** | the W0 proposal: the `issue:` key case and the `c-` example | 01 | 02, 18 |
-| **SW.1** | the Work wire, W1: id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical form and golden vectors — which already carry `implements: [design:…]` (`task-02.md:243`, 04 §7.7) — every W1 type and request body | 02, 03 | 04-19, 24, 25, 37, 81b |
+| **SW.1** | the Work wire, W1: id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical form and golden vectors — which already carry `implements: [design:…]` (`task-02.md:264`, 04 §7.7) — every W1 type and request body | 02, 03 | 04-19, 24, 25, 37, 81b |
 | **SW.2** | `hubclient.Work` (W1 methods), `NewFake()`'s Work rules, the relay paths `/v1/hub/work/*` | 04, 05, 16 | 19, 21-25, 37, 55, 98 |
 | **SW.3** | who may write what: the authorisation rows and the guards (fact states, `done`, the sync principal) | 07 | 10, 22, 23, 99, 145, 150, 159 |
 | **SW.4** | the state move: `StateMove{to, cause, reason}`, the done rule's inputs and its result words | 10 | 22, 23, 48, 63-65, 71, 81b |

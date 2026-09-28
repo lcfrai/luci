@@ -114,7 +114,7 @@ adds one, a delta on sibling code under rule H2). A body over it is 400 `field: 
   - task 03: `ImportBatch`, `ImportItem`, `ImportResult`, `IssueRef`, `ExternalRef`,
     `ImportSourceLinear`, `ImportSourceCSV` (`task-03.md:240-244`, `:271-277`, `:398-411`, `:534-552`)
   - task 02: `ValidateIssueRevisionContent`, `IssueRevisionDigest`, `AuthorHuman`,
-    `MaxIssueTitleChars`, `MaxIssueDescriptionBytes` (`task-02.md:204-256`)
+    `MaxIssueTitleChars`, `MaxIssueDescriptionBytes` (`task-02.md:215-277`)
   - task 06: `issues`, `issue_labels`, `labels`, `issues_external_once` (`task-06.md:155-196`,
     `:236-256`); task 08: `NextIssueNumber`, `InsertIssue`, `InsertIssueRevision`,
     `MoveIssueHead`, `issueHead` (`task-08.md:205-263`, `:400-416`); task 11: the project's team

@@ -555,7 +555,7 @@ before leaving triage).
 **Appended by fix batch b01 (2026-09-28), review finding X-C1: `implements` is deliberately not a
 `RelationKind`.** The finding offered two shapes for the issue-to-design link — a new kind in this
 task's set, or a second `serves`-like field on the revision. It is the **field**, and the field
-already exists: `IssueRevisionContent.Implements []string` at `task-02.md:243`, in the canonical
+already exists: `IssueRevisionContent.Implements []string` at `task-02.md:264`, in the canonical
 bytes and all three golden vectors. This task's set stays exactly three write kinds (`blocks`,
 `duplicates`, `relates`) and two read-only inverses, and **no `implements` kind is added here**.
 

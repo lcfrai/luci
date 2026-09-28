@@ -1,7 +1,7 @@
 ### Task 49: the editor, part 1: one Markdown editor on `prosemirror-*` (MIT), author class kept
 
 Stream **WD3**, about 3 hours (an estimate, not a measurement). Depends on task 46 (`AuthorClass`,
-the issue view it mounts in). Uses SW.1's `AuthoredText` (`task-02.md:224-229`) and SW.16's
+the issue view it mounts in). Uses SW.1's `AuthoredText` (`task-02.md:237-242`) and SW.16's
 `mutate`. Task 50 adds the slash menu and tables on top of this part's schema, parser, serializer
 and shortcut table; task 51 reuses the editor for comments. **No second editor exists anywhere.**
 
@@ -26,7 +26,7 @@ never turn a person's text into something else on the way through (a serializer 
 **Decisions made here, so nobody re-derives them:**
 
 1. **The wire carries one class per field, so the span detail lives in the editor only.**
-   `AuthoredText` is `{text, author}` (`task-02.md:224-229`): one class for the whole description.
+   `AuthoredText` is `{text, author}` (`task-02.md:237-242`): one class for the whole description.
    A digested revision cannot hold spans without changing task 02's canonical form, which is the
    Hub-contract owner's call (a gap, named below). So: the editor keeps `AuthorSpan`s in memory,
    exactly, while mounted; on commit the field's class is **`A` if any agent span remains, else
@@ -999,7 +999,7 @@ one revision (task 47).
 #### Gaps found while writing this part
 
 1. **Per-passage authorship has no wire form.** `AuthoredText` is one class per field
-   (`task-02.md:224-229`); carrying spans means changing task 02's canonical `issue-revision` form
+   (`task-02.md:237-242`); carrying spans means changing task 02's canonical `issue-revision` form
    and its golden vectors, the Hub-contract owner's call. Until then a mixed text is `A`.
 2. **`Ctrl+Enter` is taken.** The scope's commit key is the cockpit's *New session* chord
    (`useKeyboardMap.ts:55`, `:208`); this part stops its propagation inside the editor, which task

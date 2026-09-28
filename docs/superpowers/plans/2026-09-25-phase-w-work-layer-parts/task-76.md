@@ -297,7 +297,7 @@ the transaction back and appends nothing.
    team (or an org label, task 78) → else 422 `label_unavailable`, `field: "labels[n]"`.
 7. The Hub's brief insert with `scope: branch`, `branchRef: ref`; its unique violation → 409
    `brief_exists`, `details.briefId` the live brief (the Hub's existing mapping). Then
-   `InsertFeature` with a new `ft-` (`ids.Wide(hubapi.PrefixFeature)`, `task-02.md:138-139`),
+   `InsertFeature` with a new `ft-` (`ids.Wide(hubapi.PrefixFeature)`, `task-02.md:149-150`),
    state `planned`.
 8. Events `brief.created {scope: "branch", branchRef}` then `feature.created`. 201 `Feature`.
 

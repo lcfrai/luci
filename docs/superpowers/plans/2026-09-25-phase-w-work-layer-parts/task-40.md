@@ -69,7 +69,7 @@ rule 3), §2.1 point 2; 07 D C1, D C3, D I10.
    no live agent gets no line and no dot, whoever it is assigned to: a teammate's issue shows the
    person and nothing else.
 8. **Identity is the `is-` id, everywhere.** React keys, `workSlice.cursor`, `workSlice.selection`
-   and `data-issue-id` are ids; the alias from `DisplayAlias` (SW.1, `task-02.md:43`) is printed and
+   and `data-issue-id` are ids; the alias from `DisplayAlias` (SW.1, `task-02.md:54`) is printed and
    nothing else. A project key change re-renders every alias and keeps focus and selection.
 9. **The meaning is built from observed facts only** (`OD-8`). `agentMeaning(status, exitReason,
    newestPath)`: `running` with a path is `editing <basename>`, `running` without one is `running`,

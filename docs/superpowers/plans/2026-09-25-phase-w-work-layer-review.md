@@ -382,7 +382,7 @@ separators=(",",":"), ensure_ascii=False)` + SHA-256): v1 402 bytes
 `0ef4698eec15b67a4c25b580545bf4a548586cf0dfe88e6ae70dc177fbe53f9f`. Canonical strings byte-equal.
 
 ### S01-C1 (Critical): `TestWorkPrefixesAreDisjoint` fails the moment Phase T task 03 reaches the sync base
-**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-02.md:610
+**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-02.md:686
 **Problem:** the test claims the Hub ten from `constValues(t, "keys.go", "Prefix")` **and** claims
 Phase T's twelve from a hard-coded `phaseTPrefixes` literal. Phase T task 03 appends those exact
 twelve to `keys.go` as `Prefix*` constants in a second `const` block
@@ -394,7 +394,7 @@ cf`, and the test emits twelve *"prefix is both the Hub's PrefixX and Phase T's"
 `len(owner) != 10+5+12+12` guard does **not** catch it (the map still ends at 39), so the failure
 reads as a prefix collision that does not exist. Both branches merge into `feat/hub`, so this is
 scheduled, not hypothetical. The acceptance line states the assumption and gets it wrong:
-*"TestPrefixesAndReasonsAreTheContracts still passes (ten, not twenty-two)"* (`task-02.md:902`).
+*"TestPrefixesAndReasonsAreTheContracts still passes (ten, not twenty-two)"* (`task-02.md:990`).
 **How to fix:** derive rather than duplicate. Read the Hub set once, then subtract before claiming
 Phase T's: `for _, p := range phaseTPrefixes { if _, taken := owner[p]; !taken { claim(p, "Phase
 T's") } }`; replace the `39` equality with `len(owner) >= 10+5+12` plus an explicit assertion that
@@ -402,7 +402,7 @@ no `WorkPrefixes` entry is already in `owner` before Phase W's loop; and change 
 comment to *"passes at whatever count the sync base carries"*.
 
 ### S01-I2 (Important): Phase W's twelve prefixes never reach hub-contract §3.1, so the Hub's own "a §3.1 row first" rule is bypassed
-**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-02.md:46
+**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-02.md:57
 **Problem:** decision (a) keeps the twelve out of `keys.go` and out of §3.1 *because*
 `TestPrefixesAndReasonsAreTheContracts` pins ten. Phase T faced the identical constraint and
 resolved it the other way: it adds its twelve to §3.1 and raises the count to 22
@@ -416,7 +416,7 @@ append them to `keys.go` with `prefixEntity` rows and the count raised, as Phase
 sequenced after Phase T task 03 in the sync order, or coordinated with it in one count change.
 
 ### S01-M3 (Minor): the Phase T prefix citation has drifted off its lines
-**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-02.md:605
+**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-02.md:681
 **Problem:** `phase-t-team-mode-parts/task-01.md:176-183` was right at the commit the part names
 (`af569a8`, confirmed with `git show`), but Phase T has moved it: at `feat/team-mode` head
 `4fbcf535` the twelve are at `:184-189` and `:176-183` is now the Step 4 heading and prose.
@@ -450,7 +450,7 @@ the §5.3 rows and the §7.x sections for W1 to the contract on the sync base, a
 later task and record it as a known divergence.
 
 ### S01-M4 (Minor): `ParseKey`'s switch is cited one line early
-**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-02.md:74
+**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-02.md:85
 **Problem:** the part says "Into `ParseKey`'s `switch` (`keys.go:97-102`)"; `:97` is
 `func ParseKey(s string) (KeyKind, error) {` and the switch runs `:98-103` with the two cases at
 `:99-102`.
@@ -716,7 +716,7 @@ the same one-additive-rule wording task 13 uses.
 
 Checked for task 14: H27 `:15`, `:31-39`, `:72` (`markerHits`), `:94` (route 45's row);
 `hubapi/types.go:565-567` `EraseRequest`; task-07.md:164 (the `erased_at` guard) and :273-303;
-task-02.md:176-181 (no alias parser) and :216. H27 `:118-126` is about dead tuples in
+task-02.md:187-192 (no alias parser) and :216. H27 `:118-126` is about dead tuples in
 **storage**, which the part paraphrases as "backups" at :401; the point holds either way.
 
 ## Task 15: the import route (SW.6)
@@ -1016,7 +1016,7 @@ Scope `tasks-21-40.md:19-56`. Coverage is complete: every named test in the scop
 red first with a named compiler error. Verified against the real trees: `sessions.go:951` and
 `:1637` are the two `backend.Spec{` sites; `backend.go:62` is `envReservedPrefix`; `ValidateSpec`
 returns `ErrUnsupported` on a reserved `Spec.Env` key (`backend.go:276-277`); `hubapi.ParseIssueKey`
-and `hubapi.IssueKey` are Phase W task 02's (`task-02.md:37`, `:108`, `:115`), so the call is real
+and `hubapi.IssueKey` are Phase W task 02's (`task-02.md:48`, `:119`, `:126`), so the call is real
 even though `hub`'s `keys.go` at `cafe1303` has only `ValidID` (`:32`) and `ParseKey` (`:96`).
 
 ### S03-I1 (Important): `Spec.IssueID` is a new environment input with no check at the boundary
@@ -1043,11 +1043,11 @@ there and let `TestValidIssueTrailerAgreesWithHubapi` pin all three. Add the red
 **Where:** `docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-21.md:60`
 **Problem:** "Phase 3 anchors were re-read in the `phase-3` worktree at `9935278`". That commit is
 real and is an ancestor of the phase 3 head, but the head is now `3676625a`, and the ranges have
-moved: the trailer const block the part cites as `task-02.md:305-342` is `:366-397` at head
+moved: the trailer const block the part cites as `task-02.md:333-370` is `:366-397` at head
 (`TrailerSession` `:366`, `TrailerBringIn` `:373`, `RecordSep`/`ValueSep` `:392-393`,
 `FieldSep` `:391`). The same ~57-line drift applies to the ⚑ citations in tasks 21, 22 and 23. The
 part does say "UNVERIFIED until merge" and names its commit, so this is honest, not wrong — but an
-implementer reading `task-02.md:305-342` at the sync base lands in `MachineFS`/`Locks`, not in the
+implementer reading `task-02.md:333-370` at the sync base lands in `MachineFS`/`Locks`, not in the
 trailers.
 **How to fix:** re-pin the three parts' ⚑ ranges at the phase 3 head, or replace line numbers with
 grep anchors (`grep -n "TrailerBringIn"`) that survive drift.
@@ -1141,7 +1141,7 @@ below is about what the part itself flags and what the plan then fails to own.
 **Where:** `docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-23.md:70-77`
 **Problem:** two inputs the observer needs have no owner anywhere in Phase W. Verified by grep over
 the skeleton, all eleven scope files and all 187 parts: `CheckRunner` occurs only inside
-`task-23.md`, and `Serve` (`task-02.md:232`) has no `check` field. `cmd/api` is wired
+`task-23.md`, and `Serve` (`task-02.md:252`) has no `check` field. `cmd/api` is wired
 `Runner: nil, Checks: nil` by the part's own step 4, so `Observer.Run` returns `ErrNoRunner` on
 every product path. Meanwhile the skeleton opens with the opposite claim — "turns `done` by itself
 only when the platform **observed** its own evidence at its own landed commit"
@@ -1236,7 +1236,7 @@ cases the owning task does not contain it. Verified by grep over every part:
 1. `hubapi.CauseStartUndone` — task 24 says plainly "task 10's cause list, which calls itself *the
    complete W1 set*, does not have it, so **SW.4 must gain it**". It is absent from
    `task-10.md:215-217`.
-2. `Serve.check` — task 23 needs it; `task-02.md:232`'s `Serve` has no such field, and task 02 says
+2. `Serve.check` — task 23 needs it; `task-02.md:252`'s `Serve` has no such field, and task 02 says
    nothing about adding one.
 3. `issueId` and `observed` on the Hub's evidence record — task 23's gap 4; `task-10.md` has no
    `issueId` outside the state route's path.
@@ -1975,7 +1975,7 @@ laundered to `H`) and 5 (`Ctrl+Enter` is the cockpit's *New session* chord, stop
 ### S05-I11 (Important): L-124 is claimed closed while the author class is lost on every reload
 **Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-49.md:28
 **Problem:** Decision 1 and gap 1 establish that `AuthoredText` carries one class per field
-(`task-02.md:224-229`), so `AuthorSpan`s live only in memory. After a commit and a remount,
+(`task-02.md:237-242`), so `AuthorSpan`s live only in memory. After a commit and a remount,
 `docFromAuthored` re-marks the **whole** field `text·A` whenever any agent span survived: the
 paragraphs the person wrote are then drawn with the agent gutter mark and read *text·A · agent*.
 The part's own rule 3 ("a person's edit inside it turns only the edited range `text·H`") therefore
@@ -2334,7 +2334,7 @@ usually gets wrong. Task 57's decision 3 fallback — the contract does not say 
 filter reads membership at write time or read time, so every resync re-lists and a project
 missing from the new list is dropped exactly as a removal is — is a genuine adversarial catch
 against the contract, not a restatement of it. Task 58's "an alias is formatted, never parsed"
-holds the `05 §3.6` line and is checked against `task-02.md:176-178` and `task-14.md:270-276`.
+holds the `05 §3.6` line and is checked against `task-02.md:187-189` and `task-14.md:270-276`.
 Two things about task 52's `Subscribe` tests worth naming beside S06-C1: they render
 `<Subscribe sub={…}/>` with a literal prop and never touch `useSubscription`, so the suite goes
 green on a replica that cannot supply a `cause` — the test does not defend the mutant its scope
@@ -2679,7 +2679,7 @@ expected output, and a "does not claim" section. Citations spot-checked against 
 held: `hubapi/types_test.go:213` (`jsonFields`) and `:361` (`decodeInto`), `codes.go:35`
 (`CodeBriefExists`), `keys.go:172` (`ValidBranchRef`) on `feat/hub` cafe1303; `task-03.md:282`
 (`IssueHead`), `:339` (`Label`), `:499-508` (`CreateLabelRequest`, `PutTeamPolicyRequest`),
-`:665` (`TestWorkFieldNamesMatchTheExamples`); `task-02.md:146-161` (the twelve prefixes);
+`:665` (`TestWorkFieldNamesMatchTheExamples`); `task-02.md:157-172` (the twelve prefixes);
 `task-06.md:156` (`CREATE TABLE issues`).
 
 ### S08-C1 (Critical): task 80's shared filter vectors do not decode into SW.18's `FilterGroup`
@@ -2847,7 +2847,7 @@ and the blocker rule).
   (`BriefHead` has no title), 760 (one live branch brief per `(project, branchRef)`) and 2229
   (§12.5 the janitor) all match. On `feat/hub` cafe1303, `hubapi/types_test.go:213` (`jsonFields`),
   `:361` (`decodeInto`), `codes.go:35` (`CodeBriefExists`) and `keys.go:172` (`ValidBranchRef`)
-  match. In this branch's parts, `task-02.md:146-161` (the twelve prefixes), `task-03.md:282`
+  match. In this branch's parts, `task-02.md:157-172` (the twelve prefixes), `task-03.md:282`
   (`IssueHead`), `:339` (`Label`), `:499-508` (`CreateLabelRequest`, `PutTeamPolicyRequest`), `:665`
   (`TestWorkFieldNamesMatchTheExamples`) and `task-06.md:156` (`CREATE TABLE issues`) match. The
   parts cite the contract by the short name `hub-contract.md`; the real path is
@@ -4408,7 +4408,7 @@ Covers SW.21 well and its ten decisions are the right kind of ruling: the route 
 (decision 1), the scope's `tracker` channel is refused with a reason (decision 3), `lr-` and `mc-`
 are dropped with reasons (decisions 4 and 6), and `HarnessAllow`+`TeamSkill` become
 `TeamAgentPolicy` (decision 5). Citations checked: task 02's prefix block really is dash-free
-(`task-02.md:144-163`), `task-146.md:193-202` really declares `member|form|email|teams`,
+(`task-02.md:155-174`), `task-146.md:193-202` really declares `member|form|email|teams`,
 `task-15.md:177` really is `var ImportSources = []string{ImportSourceLinear, ImportSourceCSV}` read
 at `:207` inside `ValidateImportBatch`. Security reads right: only three `Created*` types carry a
 secret, the webhook URL must be https with no userinfo, an agent-authored quote is refused, and
@@ -4654,7 +4654,7 @@ All ten parts exist and none is cut off mid-sentence (line counts 339-1490).
 
 ## Task 151 — Azure Boards, one way in
 
-Scope coverage: complete. All six scope tests appear (`TestBoardsReadsEveryBatch`, `TestBoardsPriority`, `TestBoardsDescriptionHoldsNoTag`, `TestBoardsStateIsUpstreamOnly`, `TestBoardsThrottleWaitsOnce`, `TestBoardsPlainHTTPLinkIsRefusedBySW6`), each with a named mutant. Citations checked and real: `task-03.md:543-552` (`ImportItem`), `task-02.md:210-211` (200 / 16 KiB), `task-169.md:160-164` (`TrackerTarget`), `task-15.md:265-274` (`validImportURL`), `control-plane/go.mod:53` (`golang.org/x/net v0.26.0 // indirect`), module path `github.com/kpmg-au-emu/panacea-app/control-plane`. Sizing 3 h is fair for three source files plus tests.
+Scope coverage: complete. All six scope tests appear (`TestBoardsReadsEveryBatch`, `TestBoardsPriority`, `TestBoardsDescriptionHoldsNoTag`, `TestBoardsStateIsUpstreamOnly`, `TestBoardsThrottleWaitsOnce`, `TestBoardsPlainHTTPLinkIsRefusedBySW6`), each with a named mutant. Citations checked and real: `task-03.md:543-552` (`ImportItem`), `task-02.md:221-222` (200 / 16 KiB), `task-169.md:160-164` (`TrackerTarget`), `task-15.md:265-274` (`validImportURL`), `control-plane/go.mod:53` (`golang.org/x/net v0.26.0 // indirect`), module path `github.com/kpmg-au-emu/panacea-app/control-plane`. Sizing 3 h is fair for three source files plus tests.
 
 ### S16-I1 (Important): task 151 declares `PullError`, `TokenFunc` and the four tracker codes that task 150 also declares in the same Go package
 **Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-151.md:110
@@ -5335,9 +5335,9 @@ All seven parts exist and none is cut off (task-181 295 lines, 182 375, 183 331,
 ## Task 181 — signed land commits for agent sessions (L-176)
 
 Scope coverage is good and the phase 3 citations check out against `.claude/worktrees/phase-3`:
-`task-02.md:110-122` is `Hardening`/`MachineHardening`, `task-09.md:93-95` is `Identity`,
+`task-02.md:121-133` is `Hardening`/`MachineHardening`, `task-09.md:93-95` is `Identity`,
 `task-09.md:121` is step 11's `commit-tree`, `task-04.md:85-107` is the closed reason list
-(`ReasonNoGitIdentity` inside it). H1's `commit.gpgSign=false` is real, at `task-02.md:539`
+(`ReasonNoGitIdentity` inside it). H1's `commit.gpgSign=false` is real, at `task-02.md:615`
 (the part cites `:526`, where the H1 section starts — close enough, not a defect). Hub citations
 check out too: `task-03.md:348-355` `TeamPolicy`, `:504-508` `PutTeamPolicyRequest`,
 `task-06.md:276` `team_work_policies`, `task-11.md:123` the full-replace PUT, `task-11.md:288`
@@ -5824,9 +5824,9 @@ below is post-fix, on `feat/work-layer`.
 | X-C1 | " | 81b and 96b close no parity row; the counts do not move; L-208 stays Figma's | `…-scopes/coverage.md:351-367` |
 
 **The finding was right about the hole and wrong about the wire.** `implements` is not missing:
-`IssueRevisionContent.Implements []string` (`design:…` keys) is declared at `task-02.md:243`, is
+`IssueRevisionContent.Implements []string` (`design:…` keys) is declared at `task-02.md:264`, is
 inside the canonical bytes every revision digest covers, is in all three golden vectors
-(`task-02.md:430`, `:479`, `:520`), and is on the API type at `task-03.md:424` with its field-name
+(`task-02.md:458`, `:507`, `:548`), and is on the API type at `task-03.md:424` with its field-name
 row at `task-03.md:738`. So **SW.1 is not reopened and task 05 is not reopened** under the WS0 rule.
 What was missing is everything that *uses* the field: no write path, no reverse read, no surface, no
 close path for 04 §7.7, no phase 5 delta row and no `P5-` id. That is what 81b and 96b build.
@@ -5835,7 +5835,7 @@ close path for 04 §7.7, no phase 5 delta row and no `P5-` id. That is what 81b 
 **`Page`** (`P5:359`; round 1 wrote *artboard* — wrong, see RR-M1), and its design key
 `design:<canvasId>@<rev>` names a **canvas revision, not a subset**
 (phase 5 plan `:232`, decision P5-H). So `implements` names a canvas revision — which is exactly the
-shape `task-02.md:243` already had — and there is no per-frame key to invent. The Design lens lists
+shape `task-02.md:264` already had — and there is no per-frame key to invent. The Design lens lists
 the canvas's issues; a frame is a locator inside the revision.
 
 **Owner fork, recorded not built (rule 8).** The owner may instead rule Design out of Phase W. Then
