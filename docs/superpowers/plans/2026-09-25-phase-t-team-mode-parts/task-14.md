@@ -99,7 +99,7 @@ same interface's `:151`), and route 80 in the contract's §7.0 team table (new /
 **Interfaces:**
 - Produces:
   - `policy.Store` with `NewStore(s store.Store, now func() time.Time) *Store`, `(*Store).Put(ctx, org, project string, author model.Owner, doc []byte) (store.PolicyLayer, bool, error)` (`bool` = created), `List(ctx, org, project) ([]store.PolicyLayer, error)`, `Activate(ctx, org, project, id, digest string) error`, `Layer(ctx, org, project, id string) (store.PolicyLayer, error)`, `Pending(ctx, before time.Time) ([]store.PolicyLayer, error)`, `Effective(ctx, org, project string, class model.Class) (store.PolicyVersion, error)`, `policy.LayerDigest(doc) (string, error)`, `policy.ErrNotPending`, `policy.ErrDigestMismatch`, `*policy.RefusedError{Project string; Err error}`
-  - Fleet routes: `GET`/`POST /v1/orgs/{org}/policy` and `POST /v1/orgs/{org}/policy/{pv}/activate` (`VerbOrgPolicy`), the same three under `/v1/projects/{p}/policy` (`VerbProjectPolicy`); codes `policy_refused` (422) and `not_audited` (409)
+  - Fleet routes: `GET`/`POST /v1/orgs/{org}/policy` and `POST /v1/orgs/{org}/policy/{pv}/activate` (`VerbOrgPolicy`), the same three under `/v1/projects/{p}/policy` (`VerbProjectPolicy`); codes `policy_refused` (422, `details.invariant`, from `Put` **and** from activation's re-validation) and `not_audited` (409, `details.reason` = `not_audited` or `digest_mismatch`)
   - `server.SweepPendingPolicy(ctx, *Server, *policy.Store, hubclient.OrgFeed)`, `server.PolicySweepEvery` (30 s), `server.PolicySweepGrace` (15 s)
   - Hub route 80, audit/feed kind `policy.versioned`, and route 78's optional `subject=` filter
 - Consumes:
@@ -655,14 +655,30 @@ func activatePolicy(w http.ResponseWriter, r *http.Request, log *slog.Logger, po
 	var ie *policy.InvariantError
 	switch err = activateOne(r.Context(), pol, hub, l); {
 	case err == nil, errors.Is(err, policy.ErrNotPending): // already active: idempotent
-	case errors.Is(err, ErrNotAudited), errors.Is(err, policy.ErrDigestMismatch):
+	case errors.Is(err, ErrNotAudited):
 		httpx.WriteProblem(w, http.StatusConflict, CodeNotAudited,
 			"The Hub has not audited this version. POST the audit body to /v1/orgs/{orgId}/policy-versions, then call this again.",
-			map[string]string{"id": id})
+			map[string]string{"id": id, "reason": "not_audited"})
+		return
+	case errors.Is(err, policy.ErrDigestMismatch):
+		// The Hub HAS audited this id, naming other bytes. Route 80's
+		// Idempotency-Key is the pv id, so re-POSTing the audit is 409 at the
+		// Hub too: "call this again" would be a remedy that cannot succeed.
+		// Same code and status, different details.reason, because the client
+		// keys on the code and the human reads the message.
+		httpx.WriteProblem(w, http.StatusConflict, CodeNotAudited,
+			"The Hub audited this version id against different bytes. That audit is immutable. Write a new version and activate that one.",
+			map[string]string{"id": id, "reason": "digest_mismatch"})
 		return
 	case errors.As(err, &re) && errors.As(err, &ie):
 		httpx.WriteProblem(w, http.StatusUnprocessableEntity, CodePolicyRefused, err.Error(), map[string]string{
 			"invariant": ie.Invariant, "class": string(ie.Class), "scope": string(ie.Scope), "project": re.Project})
+		return
+	case errors.As(err, &re): // ErrLayer, as putPolicy answers it: a PERMANENT
+		// refusal. Without this case it fell to default's 503 "Try again", and
+		// the sweep then re-asked a question whose answer cannot change.
+		httpx.WriteProblem(w, http.StatusUnprocessableEntity, CodePolicyRefused, err.Error(),
+			map[string]string{"invariant": "layer"})
 		return
 	default:
 		log.Error("policy activate", "id", id, "err", err)
@@ -707,6 +723,11 @@ func SweepPendingPolicy(ctx context.Context, s *Server, pol *policy.Store, hub h
 			case errors.Is(err, policy.ErrNotPending): // another replica got there first
 			case errors.Is(err, ErrNotAudited):
 				s.log.Warn("policy version unaudited", "id", l.ID, "pendingFor", time.Since(l.CreatedAt))
+			case errors.Is(err, policy.ErrDigestMismatch), errors.As(err, new(*policy.RefusedError)):
+				// PERMANENT: re-asking cannot change the answer. Logged at
+				// Error, not Warn, because only a NEW version clears it.
+				s.log.Error("policy version permanently refused", "id", l.ID, "org", l.Org,
+					"project", l.Project, "err", err)
 			default:
 				s.log.Warn("policy version not activated", "id", l.ID, "err", err)
 			}
@@ -747,7 +768,31 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 The first case sets both targets: `re` for the project the layer was rendered against, `ie`
 (reached through `RefusedError.Unwrap`) for the invariant. An `ErrLayer` refusal matches only the
-second case.
+second case. **Activation answers the same four shapes as `Put`, and for the same reasons** — its
+`switch` is `putPolicy`'s with the two Hub cases in front — which is why a layer that the envelope
+itself refuses is a 422 `policy_refused` `invariant: "layer"` at activation too, not the 503 that a
+missing case would have produced (b04 round 2, M-4).
+
+**The two 409s are one code and two `details.reason`s** (b04 round 2, M-3), because the difference
+changes what the admin must do next:
+
+| `details.reason` | Cause | The admin's remedy |
+|---|---|---|
+| `not_audited` | the Hub holds no `policy.versioned` for this id, or one naming another scope or seq | POST the audit body from the `audit` block, then call activate again |
+| `digest_mismatch` | the Hub audited **this id** against other bytes | write a NEW version; route 80's `Idempotency-Key` is the `pv` id, so re-POSTing the audit is 409 `conflict` at the Hub and "call this again" could never succeed |
+
+Both are permanent for *this* id in the second case and transient in the first, so the message,
+not the code, carries it. With S02-M6 still open the read-back shows only `pending`, so the
+activate response is the only place the admin learns which of the two happened — a reason the
+next batch should not lose when it closes S02-M6.
+
+**A permanently refused layer stays `Pending` and the sweep re-asks it.** That is deliberate and
+bounded: a terminal `refused` state would need a store column, a migration and a read path, and
+the case is near-unreachable (every stored layer passed `Put`'s validation, so only a validation
+rule that changed between `Put` and activation reaches it). What the sweep does instead is tell
+the truth about it — `s.log.Error("policy version permanently refused", …)` rather than the
+`Warn` it retries under — so a re-ask loop is visible rather than silent. `Pending` is capped at
+200 oldest-first (`:93`), so a stuck layer cannot starve the sweep either.
 
 #### The Hub delta: route 80, complete wire
 
@@ -911,7 +956,9 @@ writes and need no delegation, so a solo project still serves them.
 | server · `TestAnOversizedLayerIs413` | 64 KiB + 1 → 413, nothing stored | an unbounded read |
 | server · `TestPostCarriesTheAuditInstructions` | `audit.body` equals `{id, projectId: null, seq, digest}` of the new version, **and** `activate.path` ends `/policy/<that id>/activate` on the right scope | a client left to guess either call |
 | server · `TestAnOrgPolicyPostedBeforeAnyLaunchActivates` (b04, S02-C4's own) | a `*policy.Store` and a `fakeOrgFeed` holding the event, and **no** `delegation.Feed` and no delegation anywhere: `POST` the org layer, then the activate route → 200 `state: "active"`, and `Effective` renders it. The same run with only the sweep, no activate call → active within one tick | activation reachable only through an org task 11 already polls, which in TM1-α's order is none |
-| server · `TestActivateWithoutTheHubEventIs409` | the fake holds no event: activate → 409 `not_audited`, `details.id`, the row still pending; then plant the event and activate again → 200 `active` | a version going live on Fleet's word alone |
+| server · `TestActivateWithoutTheHubEventIs409` | the fake holds no event: activate → 409 `not_audited`, `details.id`, `details.reason = "not_audited"`, the row still pending; then plant the event and activate again → 200 `active` | a version going live on Fleet's word alone |
+| server · `TestADigestMismatchIsItsOwnReason` (b04 round 2, M-3) | the fake's event carries the right id, scope and seq but another `digest`: activate → 409 `not_audited` with `details.reason = "digest_mismatch"`, and the message does **not** tell the admin to POST the audit again | one 409 for both causes, whose remedy line is impossible in the digest case because route 80's `Idempotency-Key` is the `pv` id |
+| server · `TestAnEnvelopeRefusalAtActivationIs422` (b04 round 2, M-4) | a pending layer that `Activate`'s re-validation refuses with a bare `ErrLayer`: the activate route → 422 `policy_refused`, `details.invariant = "layer"` (never 503), and one sweep pass over it logs at `Error` and leaves it pending | a permanent refusal answered "Try again", which the sweep then re-asks forever |
 | server · `TestActivateRefusesAnEventNamingAnotherScope` | the fake's event carries the right id but `projectId` of another project, then the right project with `seq+1` → 409 both times, still pending | verifying the digest and nothing else, so a project layer activates under the org scope |
 | server · `TestThePendingSweepActivatesAfterAClientDies` | two layers pending, one younger than `PolicySweepGrace`; the fake holds both events; one sweep pass → only the older is active; a second pass after the clock moves → both, and a third pass makes no further store write | a sweep that fights a live client, or one that re-activates on every tick |
 | server · `TestASweepHubFailureLeavesThePending` | the fake returns an error: the pass logs, activates nothing, and the next pass with the fake healthy activates | a transport failure read as "no event", which would strand the layer |
