@@ -773,8 +773,8 @@ Routes 46 to 59: ten writes and four reads; three bare, eleven named. Route 87 i
 write, outside `everyTeamWrite` (it writes no team record; its own tests cover it). Route 88 is a
 bare **read**, also outside `everyTeamWrite`.
 
-**Route 88, the principal read (fix batch b02, S02-C2).** `getPrincipal` runs under `s.Read`, whose
-`resolveCaller` gives it delta 5's principal: the org of Fleet's `tid`, no user, no `Via`. It
+**Route 88, the principal read (fix batch b02, S02-C2).** `getPrincipal` runs under `s.Write`, not
+`s.Read` (the audited reads, below), and gets delta 5's principal: Fleet's `tid`'s org, no user. It
 refuses anything but Fleet (`c.AppOnly && c.AppRole == hubapi.AppRoleFleet`) with 403 `forbidden`,
 `details.required = "fleet"`. A Fleet token carrying `X-Panacea-Delegation` never reaches it: hunk
 (3)'s exempt-path case answers 400 `bad_request` first (b02 round 3). It requires all three of `tid`,
@@ -784,8 +784,8 @@ project first and answers **the project's** `orgId`, its team role for that user
 org flags **as held in the project's org** — never the caller's, which is the whole of review
 S02-I6's rule and is why it is one statement and not three. An unprovisioned `(tid, oid)` is 404
 `principal_not_found`; an unknown project, another org's project, or one the user may not see is
-404 `route_not_found`, the same answer, so the route cannot be used to probe. The read emits §8's
-`principal.read`, audit only, subject the `u-…`, `data = {"projectId"}`. Mutants killed by Step 2:
+404 `route_not_found`, the same answer, so the route cannot be used to probe. It `Emit`s §8's
+`principal.read`: audit only, subject the `u-…`, actor `""`, `data = {"projectId"}`. Mutants:
 `orgId` taken from the token's org rather than the project's (`TestPrincipalOrgIsTheProjects`);
 the flags read in the caller's org (`TestAnAuditorOfAnotherOrgHasNoFlagsHere`); `principal_not_found`
 answered for an unknown project, which tells Fleet a project exists.
@@ -797,9 +797,9 @@ and the answer carries `ownerTid` and `ownerOid` (§7.13). Every other path, and
 route, answers that token 403 `forbidden`, `required: "fleet"` — **the gate below, in this task's
 `auth.go` deltas, is what makes that true**; this handler is its only consumer and never its
 enforcement. The two extra fields are **omitted** for every other caller (`omitempty` on both, set
-only in the broker branch), so a member's or Fleet's answer is unchanged byte for byte. The read
-emits `delegation.read_by_broker`, audit only, with `actorUserId = ""` (the broker is not a
-principal). Mutants killed: the two fields returned to Fleet
+only in the broker branch), so a member's or Fleet's answer is unchanged byte for byte. For the
+broker alone the handler runs under `s.Write` (the audited reads, below), so its
+`delegation.read_by_broker` is written: audit only, `actorUserId = ""`. Mutants killed: the two fields returned to Fleet
 (`TestFleetSeesNoOwnerTidOnRoute47`); the broker admitted on route 52
 (`TestBrokerReachesOnlyRoute47`); a revoked delegation hidden from the broker
 (`TestBrokerReadsARevokedDelegation`), which would leave task 20's cleanup unable to find the pods
@@ -910,6 +910,23 @@ only `FleetFeed`; the exempt case setting `FleetFeed` alone. Both answer 401 `de
 And one row in task 05's `TestUserKeyIsPerDelegation` (`delegation_test.go`): `PrincipalRead` →
 `fleet/principals`, which kills that arm deleted (`fleet/`) or pointed at the feed (`fleet/feed`).
 
+**The audited reads run under `Write` (b02 round 3, found re-checking S02-C2 and S02-C5).** Hub
+task 14's `Read` appends no event of `fn`'s: `Emit` fills a pending list that only `Write` inserts
+(Hub `task-14.md:65-66`; `Read` is `:77-80`). Under `s.Read`, `principal.read` and
+`delegation.read_by_broker` were therefore never written, though task 01 audits both as the cause
+every Fleet and broker act cites (`task-01.md:694-696`). The Hub's own audited read, route 44, runs
+under `Write` for this reason (Hub `task-27.md:27-29`), and these two follow it: `getPrincipal`
+always, `getDelegation` only when `c.BrokerRead` (its owner's and Fleet's reads stay under
+`s.Read`, and emit nothing). Each event is then one v1 row from `auditRow(tx.P, …)`: no `Via`, no
+`DelegationID`, `actorUserId` `""` (`task-01.md:696-699`). That is why hunk (5)'s principal has no
+`Via`: with `ViaFleet` and no delegation, `check()` refuses the row and the read is 500. `Write`
+locks the org's audit head for these two GETs; neither is a hot path, since Fleet caches route 88's
+answer for 60 s (`task-01.md:628`) and the broker caches each delegation (`task-17.md:210-213`).
+Two more tests in Step 2: `TestPrincipalReadIsAudited` (`fleet("")` asks about Linus on P → one
+`principal.read`, subject Linus's `u-…`, `data` `{"projectId"}` = P, `actorUserId` `""`, `v: 1`)
+and `TestBrokerReadIsAudited` (the broker reads `DLLinusOrch` → one `delegation.read_by_broker`,
+`actorUserId` `""`, `v: 1`). Mutant: either handler left under `s.Read`, which writes no row.
+
 **The three reads** (routes 52, 55, 59) are what task 11's `rebuild.go` reloads after a Fleet
 restart. They are the Hub's usual page shape (`hubapi.Page[T]`, `?limit=` 1–200 and `?after=`,
 the built `hubapi.PageRequest`, `hub` worktree `hubapi/types.go:201-205`), run
@@ -999,8 +1016,11 @@ delegation; the Hub records lease changes but does not second-guess them) and en
    all, not 401), `TestPrincipalOrgIsTheProjects` and `TestAnAuditorOfAnotherOrgHasNoFlagsHere` pass, and
    `grep -c 'SELECT' control-plane/internal/hub/store/principals.go` prints `1` — the project's
    org, the role and the three flags come from one statement, so no code path can answer the
-   caller's org by mistake.
-8. (b02, S02-C5) `TestBrokerReachesOnlyRoute47`, `TestBrokerReadsARevokedDelegation`,
+   caller's org by mistake. `TestPrincipalReadIsAudited` passes and
+   `grep -n 's.Read(' control-plane/internal/hub/server/principals.go` prints nothing: the read
+   is audited, so it runs under `Write` (b02 round 3).
+8. (b02, S02-C5) `TestBrokerReadIsAudited` passes (b02 round 3: the broker's branch runs under
+   `Write`, so its event is written), and `TestBrokerReachesOnlyRoute47`, `TestBrokerReadsARevokedDelegation`,
    `TestBrokerWithAHeaderIs400`, `TestAnUngatedAppRoleIsRefused` and
    `TestFleetSeesNoOwnerTidOnRoute47` pass — the first four are the gate, and
    `TestBrokerReachesOnlyRoute47` must include `GET /v1/orgs/{org}/changes` in the routes it

@@ -693,10 +693,10 @@ audit row's new `fleet_feed` flag, task 04), `no` (audit only). `data` never hol
 check would swamp both feeds (route 88 runs once per Fleet request that misses the 60 s cache) and
 tells a member nothing they can act on. They are audited all the same because the stream lens
 requires every cross-owner directive to be auditable **with its cause**, and these two reads are
-the cause every other Fleet and broker act cites. `principal.read`'s `actorUserId` is the user
-asked about, not Fleet: no Fleet identity is ever a principal (§5.10 rule 3).
-`delegation.read_by_broker` has **no** actor — the broker is not a principal either (rule 10) — so
-its `actorUserId` is `""`, the shape §3.6 already allows. Neither is `v: 2`: `v: 2` marks a
+the cause every other Fleet and broker act cites. **Neither has an actor** (b02 round 3): no Fleet
+identity is ever a principal (§5.10 rule 3), nor is the broker (rule 10), and the user asked about
+did not act, so each `actorUserId` is `""`, the shape §3.6 allows; that user is `principal.read`'s
+subject. Task 06 runs both under `Write`, which appends them. Neither is `v: 2`: `v: 2` marks a
 delegated **write** (rule 4), and neither of these is delegated or a write.
 
 `project.mode_set` (fix batch b01, X-C1) is a desktop write by the team admin, so `v: 1` and no
