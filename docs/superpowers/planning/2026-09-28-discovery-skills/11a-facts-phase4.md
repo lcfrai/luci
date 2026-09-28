@@ -24,7 +24,12 @@ Written 2026-09-29.
   are blocked here anyway (`CLAUDE.md` §Working agreements).
 - **No model was called.** The follow-up's behaviour is from `assist.go` and its tests; the ledger
   notes the gateway's handling of `maxLength` is unverified until task 23 (`progress.md:362`).
-- _(more added per section)_
+- **Section 6 is a text scan.** Its test lists come from matching names and literals inside each
+  `func Test…` body; nothing was compiled or mutated to confirm a test would actually fail.
+- **Other worktrees were grepped, not read.** The Hub and phase-3 worktrees were searched for key
+  and criterion names only; the desktop in `p4` has no Discover code to scan.
+- **Line numbers are at `ca737d92`.** Task 09's fix round and mutation run were live on
+  `feat/phase-4-discover` when this was written; a later commit there can move them.
 
 ---
 
@@ -97,7 +102,8 @@ lines) and `ops.go` (556 lines).
 
 **It is a wire format.** `content.go:1-6`: "a revision is immutable and kept for ever - so this
 file is a WIRE FORMAT. Field names, JSON tags and the rule 'every slice marshals as [], never null'
-are part of every digest ever computed." `ContentVersion = 1`, the only version (`:17-19`). `Decode`
+are part of every digest ever computed." `ContentVersion = 1`, the only content format so far
+(`:17-19`). `Decode`
 refuses a missing or sub-1 `v` and any `v` above 1, and fills nil slices with `[]` (`:250-292`).
 
 **`Content`** (`:218-225`) — six fields, JSON names in brackets:
@@ -424,8 +430,9 @@ OF m' (G5)" (`:325-329`).
   configured), `model_failed`, `nothing_to_ask`, `already_asked`, `not_yet`. With no model the
   interview is the plain five questions (plan `:60-62`).
 
-**What the Discover lens tasks plan (all unbuilt).** The specification is
-`p4/prototype/phase-4-discover.html` (698 lines; `task-18.md:3-5`), whose state picker lists 15
+**What the Discover lens tasks plan (all unbuilt).** Task 18's part names
+`p4/prototype/phase-4-discover.html` (698 lines) as "the specification" (`task-18.md:3-5`); its
+state picker lists 15
 states: none, inherits, asking, born, followup, modeloff, drafted, superseded, projectmoved,
 writefailed, handedited, past, missing, unavailable, chips (`prototype/phase-4-discover.html:678`).
 - **18** — the lens itself: binding, asking, the brief born, the model paths, failures; prototype
@@ -559,24 +566,51 @@ does not count.
   `TestAModelThatSaysEnoughIsNothingToAsk`); `inherit_test.go` 2 (`TestMarkerSafe`,
   `TestResolveRefusesAMalformedRevision`); `claudemd/render_test.go` 3 (`TestInspectReadsTheMarker`,
   `TestRenderNeutralisesCommentOpeners`, `TestStrayEndMarkerIsBroken`).
-- **Tests that compute the expected block with `claudemd.Render`** follow a wording change without
-  an edit, but run against it: `contextwrite` 30 (`confine_test.go` 4, `gitcmd_test.go` 1,
+- **Tests that reach the block only through `claudemd`'s own functions and constants** (`Render`,
+  `Merge`, `Inspect`, `BeginPrefix`, `EndMarker`), not literals, follow a wording change without an
+  edit, but run against it: `contextwrite` 30 (`confine_test.go` 4, `gitcmd_test.go` 1,
   `inspect_test.go` 5, `materialise_test.go` 19, `mode_test.go` 1), `discoverhub/read_test.go` 3,
   and the rest of `claudemd`'s 20.
+
+### Outside the phase-4 tree (grep only)
+
+- **Hub worktree** (`feat/hub` at `cafe1303`): beyond the `hubapi` and `hubclient` that H0 brought
+  into `p4`, `control-plane/internal/hub/migrate/guards_integration_test.go` (20 tests) has 2 lines
+  naming brief keys. `p4` has no `hub/migrate` package.
+- **Phase-3 worktree** (`feat/phase-3-git` at `3676625a`): `control-plane/internal/briefref/briefref.go`
+  (35 lines) declares what phase 3 needs from `provenance` — a `Revision{Key, Digest, Criteria}`
+  with `Criterion{ID, Digest}` and a `Resolver` — and says "Phase 3 never parses a brief key" and
+  "No code, so no tests" (`:1-5`, `:10-29`). No phase-3 test names a brief key, `briefKey` or a
+  criterion (`git grep` of its test files).
 
 ### Summary
 
 | If this changed | Byte-exact goldens | Tests naming it (top-level) |
 |---|---|---|
 | Content model | `goldenJSON` (inline, `content_test.go:185-195`) | 76 in `discover` + 37 elsewhere + 4 helper files |
-| Key grammar | `ref-golden.json` | 4 + 4 (Hub) + 6 + 2 + 4 + 7 (`api`) + 1 (`cmd/api`) = 28 |
+| Key grammar | `ref-golden.json`; the three `.md` goldens too if the brief id's form changes (their marker lines hold `brief=bf-… rev=n`) | 4 + 4 (Hub) + 6 + 2 + 4 + 7 (`api`) + 1 (`cmd/api`) = 28 |
 | `Ref` | `ref-golden.json` | 27 + 11 + 1 = 39 |
-| Rendered block | `golden-branch.md`, `golden-project.md`, `golden-neutralised.md` | 3 golden + 9 wording + 9 marker-line + 13 prefix, overlapping; 33 more (`contextwrite` 30, `discoverhub` 3) re-derive it through `Render` |
+| Rendered block | `golden-branch.md`, `golden-project.md`, `golden-neutralised.md` | 3 golden, 9 wording, 9 marker-line, 13 prefix: 29 distinct once overlaps are removed; 33 more (`contextwrite` 30, `discoverhub` 3) re-derive it through `Render` |
 
 Four golden files in all (three `.md`, one `.json`) plus one inline golden constant.
 
 ---
 
-## Closing
+## Closing — the facts that bound a design today
 
-_(pending)_
+1. **Built is server-side and unwired.** Nine of 23 tasks approved, all Go; the running binary
+   still writes no brief (`materialiser_interim.go:12-25`), and no Discover screen exists.
+2. **The brief is a versioned wire format.** Content v1's field names and tags are inside every
+   stored digest (`content.go:1-6`); the five questions are a closed set with fixed wording and
+   four options each, and follow-ups come after them with no denominator.
+3. **The key grammar has two compiled copies** (`provenance/key.go:48-52` and the Hub's
+   `hub/hubapi/keys.go:56-59`) and one look-alike marker parser (`claudemd/render.go:281-307`);
+   the desktop parses no key.
+4. **The CLAUDE.md block has no size cap** and no timestamp; it is pinned byte for byte by three
+   goldens, and a project key renders every section as inherited.
+5. **Changing any of the four reaches tests by name:** content — 76 + 37; key grammar — 28; `Ref`
+   — 39; block — 3 goldens and 29 distinct named tests (the 3 golden tests among them), with 33
+   more re-deriving it.
+
+Fact sheet complete: six sections, every fact cited to a file in `p4/` at `ca737d92` unless the
+Hub or phase-3 worktree is named.
