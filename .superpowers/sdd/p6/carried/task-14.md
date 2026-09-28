@@ -46,10 +46,10 @@ Your half is item 1 of the fix; item 2 is optional and belongs to task 23.
 > - The same bound covers any repository-chosen command that the CLI runs by itself, with no model call. Example: a project `statusLine` command gets the session JSON, including `transcript_path`, on every refresh, and could post the transcript anywhere.
 >   - Training knowledge, **UNVERIFIED**: `statusLine` exists in project settings, and it receives `transcript_path`.
 >   - Whether `allowManagedHooksOnly` covers `statusLine` is also **UNVERIFIED**. The docs I remember tie the status line to `disableAllHooks`, not to `allowManagedHooksOnly`.
->   - This is the same class as R-1's hook route. It is not named in `task-14.md:537`, `task-25.md:84`, skeleton `:248` or S6.6 `:291`, which name only env keys, MCP and plugins.
+>   - This is the same class as R-1's hook route. It is not named in `task-14.md:537`, `task-25.md:84`, skeleton `:248` (now `:262`) or S6.6 `:291` (now `:307`), which name only env keys, MCP and plugins.
 > - Fix, about 15 minutes:
 >   1. In `:537`, name the class: "any repository-chosen command, from the Bash tool or from a settings key such as `statusLine`". Say that its bound is sandbox egress, which is open locally and belongs to phase 8 / P8-3 in the cloud (`task-19.md:895`). Do not credit it to task 17's wall.
 >   2. Optional: add `"statusLine": {...}` to item 10's hostile file, and add the door shape `POST /status-S4`. The result is then recorded, not assumed.
 
-Item 1 also edits `task-25.md:84`, skeleton `:248` and S6.6 at skeleton `:291`. Commit those
+Item 1 also edits `task-25.md:84`, skeleton `:262` and S6.6 at skeleton `:307`. Commit those
 by pathspec with your part.

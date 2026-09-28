@@ -27,9 +27,9 @@ Verbatim:
 >   2. Add a positive control per key: the same key and body, without the two control fields, must add exactly one request at `fakeanthropic-au` with status 200. If it does not, the result is UNKNOWN. This proves the key, the group and the route.
 >   3. A PASS then needs a status of 500 or more on the mocked call, meaning the mocked primary failed. That status is **UNVERIFIED**. A wrong guess costs an UNKNOWN, never a false PASS. Any other status with nothing recorded is UNKNOWN.
 >   4. Self-test changes: `p14 held` moves to status 500. Add `p14 rejected before routing` (400, no records) → UNKNOWN and `p14 control missed` → UNKNOWN, taking the count from 40 to 42. Add a step 6 mutant (the control check → `if False:`).
->   5. Restate the rule in the P14 row (`:32`) and in skeleton `:258`.
+>   5. Restate the rule in the P14 row (`:32`) and in skeleton `:258` (now `:272`).
 
-Note the second half of fix item 5: skeleton `:258` is a line in
+Note the second half of fix item 5: skeleton `:272` is a line in
 `docs/superpowers/plans/2026-09-25-phase-6-gateway.md`, so your commit touches the
 skeleton as well as `task-18.md`.
 

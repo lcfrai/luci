@@ -79,7 +79,7 @@ b06 and b07 have since closed the Minors. Nothing of the review itself is left o
 Neither is mine to answer; both are recorded, and the recommended option is planned behind a
 seam (rule 7).
 
-1. **Q5, already in the plan** (`2026-09-25-phase-6-gateway.md:331`): may a solo project go
+1. **Q5, already in the plan** (`2026-09-25-phase-6-gateway.md:345`): may a solo project go
    back to Global? Built with the design's rule behind one constant,
    `localProjectsAreSolo`.
 2. **New, recorded by this run** (`carried/plan-wide.md` item 5): who compares the AU prices

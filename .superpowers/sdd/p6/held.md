@@ -9,11 +9,11 @@ in this worktree.
 
 ## 08a — `cmd/keysmith` caller authentication — **HELD**
 
-**The plan's own dependency line** (`docs/superpowers/plans/2026-09-25-phase-6-gateway.md:169`):
+**The plan's own dependency line** (`docs/superpowers/plans/2026-09-25-phase-6-gateway.md:173`):
 task 08a depends on `03; **env 17 step 0 merged** (`internal/oidcauth`, cross-tree; OD-30
 review-1 M5)`. `task-08.md:11` repeats it, and `task-08.md:14` says 08a "runs in wave 3
 beside task 05 **once env 17 step 0 is merged**". The wave list puts it in wave 3 with the
-same parenthesis (skeleton `:196`).
+same parenthesis (skeleton `:204`).
 
 **What 08a needs from that stream** (`task-08.md:49`, verbatim): env task 17 step 0 is the
 rename of the built `control-plane/internal/entra`, giving
@@ -51,7 +51,7 @@ merge from `feat/env` once that step is merged there — not by copying the pack
 would fork the rename the ruling calls for. That merge is not this run's to make: rule 1
 forbids it here, and the main tree is running a live defect-fix wave.
 
-**Cost of the hold, from the plan's own schedule** (skeleton `:190`): 08a has **7 hours of
+**Cost of the hold, from the plan's own schedule** (skeleton `:198`): 08a has **7 hours of
 slack before it delays task 17**, and 08b — which depends on 08a — has 2.5 hours of slack
 before 17. Nothing else waits on it. So the hold is free until the env merge is more than
 about 7 focused hours away from wave 3.

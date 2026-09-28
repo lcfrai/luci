@@ -32,7 +32,7 @@ Global* control and left to `curl` H-1's route.
 
 Source: `.superpowers/sdd/p6/plan-rereview-b05-2.md:78-82`, "Minor 4".
 
-`2026-09-25-phase-6-gateway.md:115` cited `2026-09-18-phase-2-backend-and-cockpit.md:54-58`.
+`2026-09-25-phase-6-gateway.md:116` cited `2026-09-18-phase-2-backend-and-cockpit.md:54-58`.
 **Re-verified in this worktree 2026-09-28** (`sed -n '52,61p'`): `:53-54` is that plan's own
 trailer, naming Opus 5.5 — the other model — and the rule constraint 10 states is at
 `:59-60`, outside the cited range.

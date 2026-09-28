@@ -34,12 +34,12 @@ This is the row that guards the exact defect it was added for, so treat it first
 Source: `.superpowers/sdd/p6/plan-rereview-b06-2.md:143-148`, "Minor 5".
 The edit is in the skeleton, not in `task-09.md`; commit it by pathspec alongside your part.
 
-> **5. `2026-09-25-phase-6-gateway.md:238` — the skeleton's task 09 summary does not carry
+> **5. `2026-09-25-phase-6-gateway.md:238` (now `:248`) — the skeleton's task 09 summary does not carry
 > `RecordTimeout`.** It states `RecordKey` is "the same read and upsert for one key on demand ...
 > called immediately before every `/key/delete`", and task 07's summary at `:234` states the rule and
 > the report-and-proceed behaviour, but neither says the call bounds itself at 5 s — the whole of
 > round 1's Important 3. Every other cross-task invariant of this pair is in the skeleton, and M-1 was
-> raised because the skeleton and a part disagreed. One clause on `:238`.
+> raised because the skeleton and a part disagreed. One clause on `:238` (now `:248`).
 
 ---
 

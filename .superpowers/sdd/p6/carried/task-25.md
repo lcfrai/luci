@@ -15,7 +15,7 @@ Source: `.superpowers/sdd/p6/plan-rereview-b03-2.md:39-44`, finding `m-4`.
 `.superpowers/sdd/p6/carried/plan-wide.md`.)
 
 > **m-4. U21's last clause cannot be settled where the plan says it will be, plus one bookkeeping nit.**
-> - `task-25.md:127` assigns "a drop-in winning a top-level key over the base file" to task 23's item 10.
+> - `task-25.md:127` (now `:132`, U21) assigns "a drop-in winning a top-level key over the base file" to task 23's item 10.
 > - Phase 6 installs no base `managed-settings.json`. `task-14.md:532` installs one only if the drop-in alone is ignored, and even then it is the fragment itself. So item 10 has nothing to observe.
 > - Gap 6 (`task-14.md:548`) already makes the question moot by requiring the base file to set `true` itself.
 > - Fix: move that clause's "settled by" to S6.6.
