@@ -467,7 +467,10 @@ are mono.
 Hours are the plans' own convention, an engineer's estimate before review; **no fix round is
 included**, and on both ledgers most tasks have needed one (task 09's is open now, 11a §1). Test
 counts are 11a §6's text scan, not a compile: a test marked *runs* must pass unedited, which is
-unverified until it is run.
+unverified until it is run. `plan:` is phase 4's plan,
+`.claude/worktrees/phase-4/docs/superpowers/plans/2026-09-23-phase-4-discover.md`; `HP:` the Hub's,
+`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md`; `T:` the Hub plan's parts,
+`…/2026-09-23-phase-h-hub-parts/task-` (11b §2).
 
 ### 7.1 What does not change, which is most of the saving
 
@@ -530,6 +533,55 @@ Phase 4 new: **29 hours, nine tasks.**
 
 Hub new: **13.5 hours, four tasks.** No new Hub task stands in front of the brief's own S4: S4
 for briefs still opens after 06-20 (`HP:388-394`), and S4v follows it.
+
+### 7.4 Amended tasks, all unbuilt, and what each gains
+
+| Plan | Task | What changes | Hours added |
+|---|---|---|---|
+| Phase 4 | 14, wiring | wires the round store and the inheritance record | +0.5 |
+| Phase 4 | 15, client and wire types | `Ref.vocabulary` mirrored field for field; the new objects; `word_taken`, `key_unresolvable` | +1 |
+| Phase 4 | 16, slices and the loader | a `vocabularySlice`; one key source, `selectSessionInheritanceKeys` (§5.4) | +1 |
+| Phase 4 | 17, `ContextChip` | the *words moved since this session started* state (§5.2) | +0.5 |
+| Phase 4 | 19, the states that come apart | a departure's *project changed*; Undo writes `retire` or `withdraw` | +1 |
+| Phase 4 | 22, contract amendments | the Go, UI and provenance contract lines for all of the above | +1 |
+| Phase 4 | 23, end to end | a session inherits words: block, files and record re-derive byte for byte | +1 |
+| Hub | 44a, the contract made true | **A20**: the two kinds folded into the contract in the same pass that already moves its lines for A1-A19, so they are re-anchored once | +1.5 |
+| Hub | 14, the write transaction | `TestInFeedIsTheContractTable` gains the four event kinds | +0.25 |
+| Hub | 20, `/v1/refs` brief half | the per-key table answers `term:` and `decision:` `missing` until 48, as `design:` does until 22 (`T:20.md:29-36`) | +0.25 |
+| Hub | 27, audit and erasure | the two erase functions; its "Nothing else changes" sentence (`T:27.md:40-41`) names both kinds | +0.75 |
+| Hub | 34, the digest re-check | covers the two revision kinds | +0.5 |
+| Hub | 36, the poller | `Subscribe` prefixes gain `"term."` and `"decision."` | +0.25 |
+| Hub | 40, `hubFeed` | handlers for the two prefixes | +0.5 |
+| Hub | 43, the end-to-end proof | one word and one decision through the real Hub | +0.5 |
+| Hub | 44b, the contract made true to the build | folds in what 45-48 built | +0.25 |
+
+Phase 4 amended: **6 hours, seven tasks.** Hub amended: **4.75 hours, nine tasks.** Unchanged, and
+checked: phase 4's 11, 12, 13, 18, 20 and 21 (11 and 12 keep their scope because 32 carries the new
+routes; 21 stays one-shot, 06 §1.4); the Hub's 08, 16b and 22.
+
+### 7.5 Where it slots, and the total
+
+- **Phase 4's critical path** is Hub H0 → 07 → 08 → 09 → 11 → 12 → 14 → 23 (`plan:430`). 25, 26 and
+  28 can start now, beside 09's fix round; 27 and 30 once Hub 46 exists; 29 once 09's round closes.
+  The one task that joins the path is **32, between 12 and 14**, because 14 must wire the final
+  Materialiser rather than wire it twice: **about +3 hours on the critical path**, if 25-30 and
+  Hub 45-46 run beside it as their dependencies allow. If they do not, the path waits on them.
+- **The Hub's order**: 44a with A20 runs first, as planned → 45 → 46 (S0v) → 47 after 07b's round
+  closes → 48 after 20 (S4v). Hub 45 and 46 stand in front of phase 4's 26 and 27, and 44a
+  stands in front of everything, as it already does.
+- **The UI lane**: 24's prototype first, the owner's look, then 31 after 18; unmerged until the
+  owner has seen it running (`OD-1`).
+
+| | New | Amended | Total |
+|---|---|---|---|
+| Phase 4 | 29 h, nine tasks | 6 h, seven tasks | **35 h** |
+| Hub | 13.5 h, four tasks | 4.75 h, nine tasks | **18.25 h** |
+| `CONTEXT.md` | two entries, *Term* and *Decision record*, when the plans land | — | 0.5 h |
+| **All** | | | **about 54 hours before fix rounds** |
+
+Against the plans: phase 4's whole plan is 57 hours (11a §1), so this is about 60% more on phase
+4; the Hub's is 133.5 (`HP:449-460`), about 14% more. With one fix round a task, on the ledgers'
+record, expect roughly 70 hours: that multiplier is a judgement, not a measurement.
 
 ## 8. What it does not do, and the open owner questions
 
