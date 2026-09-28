@@ -286,7 +286,7 @@ path **UNVERIFIED until merge**, as Phase T does.
 | phase 6 | the per-session gateway token (plan still being written) | planned | the token carries the issue id | 135 |
 | Phase T | Fleet's task record, events and verbs (ST.1, ST.2; plan `:195-243`) | planned | `task.issueId`, two event kinds, three verbs | 98, 101 |
 | Phase T | its Desk rows `desktop/src/components/desk/team*.tsx` (TM task 54) | planned | nothing: they plug into SW.17, task 62's frame | 62 |
-| phase 5 | `control-plane/internal/designapi/{approve,approvals}.go` (P5 task 21; plan `:397`), `desktop/src/design/{DesignLens,DesignSide}.tsx` (P5 task 28; `:420`) | planned; read 2026-09-28, paths **UNVERIFIED until merge** | the canvas's list of the issues whose revision `implements` it; a design approval closes those issues (04 §7.7; 05 `:1082`, `:1305`) | 81b, 96b |
+| Phase H + phase 5 | `control-plane/internal/hub/server/approvals.go` ⚑ (**Hub task 22**; hub plan `:304`, `:425`) — the close's call site; `desktop/src/design/{DesignLens,DesignSide}.tsx` (P5 task 28; `:420`). Phase 5's `internal/designapi/approve.go` (P5-21; `:397`) is that route's **caller**, not the writer, and is untouched | Hub's built; phase 5 planned, read 2026-09-28, paths **UNVERIFIED until merge** | the approval write also lands the issues whose revision `implements` that exact key, in its own transaction (04 §7.7; 05 `:1082`, `:1305`); the canvas's list of those issues; the issue view's *Implements* and its picker | 81b, 96b |
 
 ### The desktop: `desktop/`
 
@@ -343,12 +343,12 @@ measured.
 | W0 | 01 | 1 | 2 | 0.25 |
 | W1 | 02-70 | 69 | 192 | 24 |
 | W1b | 71 | 1 | 3 | 0.375 |
-| W2 | 72-97, with 81b and 96b | 28 | 74.5 | 9.3 |
+| W2 | 72-97, with 81b and 96b | 28 | 76.5 | 9.6 |
 | W3 | 98-113 | 16 | 46 | 5.75 |
 | W4 | 114-142 | 29 | 79.5 | 9.9 |
 | W5 | 143-174 | 32 | 91 | 11.4 |
 | WL | 175-187 | 13 | 33 | 4.1 |
-| **All** | **01-187, 81b, 96b** | **189** | **521** | **65.1** |
+| **All** | **01-187, 81b, 96b** | **189** | **523** | **65.4** |
 
 **dependsOn** names this plan's tasks by number and sibling tasks by prefix: `H` the Hub plan
 (`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:396-446`), `P3-` phase 3

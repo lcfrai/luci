@@ -32,7 +32,16 @@ nothing else to the chrome. A second panel, a second store or a second issue vie
 - `desktop/src/design/DesignLens.tsx` ⚑ (same source): the group's empty and error states join the
   lens's seven existing states rather than inventing an eighth
 - `desktop/src/components/issue/Implements.tsx` (new) and `implements.test.tsx`: the design keys the
-  revision implements, beside task 47's `Serves.tsx`, each with *Open design*
+  revision implements, beside task 47's `Serves.tsx`, each with *Open design* — **and the writer**,
+  because without one the field is dead. Round 1 shipped a read-only block while all twelve write
+  sites in the plan (`task-07.md:414`, `task-08.md:144`, `task-09.md:112`, `task-20.md:250`,
+  `:323`, `:326`, `task-38.md:230`, `task-40.md:260`, `task-57.md:301`, `task-68.md:211`, `:282`,
+  `task-140.md:472`) send `implements: []`, so the Design hop rendered empty for every real user.
+- `desktop/src/components/work/DesignPicker.tsx` (new) and its test: `implements`'s writer, built on
+  task 42's `Picker` exactly as `CriterionPicker` is (`task-42.md:124-160`), listing the project's
+  canvases and their revisions. It follows task 47's decision 3 unchanged: **adding or removing a
+  key writes a new revision, never a patch**, so the digest and the thread stay honest. It is the
+  only writer this plan has; if it is cut, say so in the return and the field stays `[]`.
 - `desktop/src/components/issue/IssueView.tsx` ⚑ (task 46's file): the new block, under *Serves*
 - `desktop/src/api/work.ts` ⚑ (task 37's file): `listIssuesForDesign(designKey)` over task 81b's
   read route, through task 16's relay

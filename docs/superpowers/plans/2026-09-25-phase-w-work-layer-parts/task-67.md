@@ -365,8 +365,9 @@ That makes 9 cases: 6 in `SessionIssueChip.test.tsx`, 2 in `LaneCard.test.tsx`, 
 
 #### What this task does NOT claim
 
-- **Deploy's chip** (task 71), Design's `implements` (later, 05 §5.5), or proposed evidence under
-  each criterion (W3, task 104).
+- **Deploy's chip** (task 71), Design's `implements` (**task 96b**, W2 — no longer *later*; fix
+  batch b01 turned it into an in-plan task, 05 §5.5), or proposed evidence under each criterion
+  (W3, task 104).
 - **That P4-17 and P3-19 exist**: both are **UNVERIFIED until merge**; this task waits for them.
 - **External links** (`https://…/EP-142@3`): task 93. This task links inside the app only.
 - **Visual acceptance**: the owner's eyes; this part proves the order, the text and the call.
