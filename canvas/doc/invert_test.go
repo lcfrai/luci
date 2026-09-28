@@ -289,8 +289,13 @@ func (f *fuzzer) one(d *Doc) Op {
 			ParentID: page.ID, Order: f.order(), Styles: artboardStyles()}}
 	case 1, 2:
 		n := Node{ID: f.id("n"), Kind: KindFrame, Tag: "div", ParentID: node.ID, Order: f.order()}
-		if f.rng.Intn(2) == 0 {
+		switch f.rng.Intn(4) { // every kind, so the leaf kinds are undone too
+		case 1:
 			n.Kind, n.Tag, n.Text = KindText, "p", "lorem"
+		case 2:
+			n.Kind, n.Tag, n.SVG = KindSVG, "svg", "<svg/>"
+		case 3:
+			n.Kind, n.Tag, n.Asset, n.Alt = KindImage, "img", fuzzAsset, "a picture"
 		}
 		return Op{Kind: OpCreateNode, Node: &n}
 	case 3, 4:
@@ -305,6 +310,34 @@ func (f *fuzzer) one(d *Doc) Op {
 		}
 		if f.rng.Intn(4) == 0 {
 			op.Hidden = bp(f.rng.Intn(2) == 0)
+		}
+		if f.rng.Intn(4) == 0 {
+			op.Locked = bp(f.rng.Intn(2) == 0)
+		}
+		if f.rng.Intn(4) == 0 {
+			op.Attrs = map[string]*string{"aria-label": nil}
+			if f.rng.Intn(2) == 0 {
+				op.Attrs["aria-label"] = sp([]string{"Close", "Menu"}[f.rng.Intn(2)])
+			}
+		}
+		// The kind-bound fields, one at a time: on the wrong kind they are a
+		// refusal, which the loop asserts changes nothing, and on the right one
+		// they are the fields the inverse used never to be tried on.
+		if f.rng.Intn(3) == 0 {
+			switch f.rng.Intn(6) {
+			case 0:
+				op.Text = sp([]string{"", "lorem ipsum"}[f.rng.Intn(2)])
+			case 1:
+				op.SVG = sp(`<svg viewBox="0 0 1 1"/>`)
+			case 2:
+				op.Alt = sp([]string{"", "alt"}[f.rng.Intn(2)])
+			case 3:
+				op.Asset = sp(fuzzAsset)
+			case 4:
+				op.Tag = sp([]string{"div", "section", "p"}[f.rng.Intn(3)])
+			case 5:
+				op.X, op.Y = ip(f.rng.Intn(4000)), ip(f.rng.Intn(4000))
+			}
 		}
 		return op
 	case 5:
@@ -328,10 +361,18 @@ func (f *fuzzer) one(d *Doc) Op {
 	}
 }
 
+// fuzzAsset is the one registered asset the fuzzer's image nodes point at.
+var fuzzAsset = assetRef(7)
+
 func TestInverse_restores(t *testing.T) {
 	seed := time.Now().UnixNano()
 	f := &fuzzer{rng: rand.New(rand.NewSource(seed)), next: 1000}
 	d := seeded(t)
+	// tagChecker, not okChecker: a dialect that returns its input unchanged is
+	// the one dialect that cannot show an inverse being canonicalised twice.
+	c := &tagChecker{}
+	mustApply(t, d, []Op{{Kind: OpAddAsset,
+		AssetRecord: &Asset{Ref: fuzzAsset, MediaType: "image/webp", Size: 64}}}, c)
 	applied := 0
 
 	for i := 0; i < 2000; i++ {
@@ -340,7 +381,7 @@ func TestInverse_restores(t *testing.T) {
 		for j := range ops {
 			ops[j] = f.one(d)
 		}
-		ch, err := d.Apply(ops, agentAuthor(), testAt, "fuzz", okChecker{})
+		ch, err := d.Apply(ops, agentAuthor(), testAt, "fuzz", c)
 		if err != nil {
 			if !reflect.DeepEqual(content(d), before) {
 				t.Fatalf("seed %d, iteration %d: a refused batch changed the document", seed, i)
@@ -348,7 +389,7 @@ func TestInverse_restores(t *testing.T) {
 			continue
 		}
 		applied++
-		if _, err := d.Apply(ch.Inverse, testAuthor(), testAt, "undo", okChecker{}); err != nil {
+		if _, err := d.Apply(ch.Inverse, testAuthor(), testAt, "undo", c); err != nil {
 			t.Fatalf("seed %d, iteration %d: the inverse of %+v was refused: %v", seed, i, ops, err)
 		}
 		if got := content(d); !reflect.DeepEqual(got, before) {
