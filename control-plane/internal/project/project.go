@@ -315,9 +315,22 @@ func (s *Scanner) Branches(ctx context.Context, projectID string) ([]Branch, err
 //
 // Review 2, I-1: what this needs is the narrower fact, ExitedNonZero. A
 // confirmation whose pipes gitWaitDelay closed under it RAN — so Exited is
-// true — and is silent for os/exec's reason rather than git's, and a
-// confirmation this runner killed at its bound is silent the same way. Only
-// git reaching its own non-zero exit is git saying "HEAD resolves to nothing".
+// true — and is silent for os/exec's reason rather than git's. Only git
+// reaching its own non-zero exit is git saying "HEAD resolves to nothing".
+//
+// Review 3, I-1 corrects the second example round 2 gave here: a confirmation
+// THIS runner killed at its bound is NOT silent the same way on Windows. The
+// kill is TerminateProcess(…, 1), Process.Wait reports that status, and
+// Cmd.Wait prefers it over the context's error, so a killed confirmation is
+// an *exec.ExitError — ExitedNonZero is true for it. TimedOut is what
+// excludes it here, and only when this runner's own bound is what ended it.
+// A THIRD party's kill — AV, Task Manager, a reboot sweep — arrives as exit 1
+// with both streams empty and no deadline of ours, which is byte-for-byte an
+// unborn HEAD's answer, and is tolerated. That residual is review 3's m-5 and
+// is RECORDED as an owner question, not built: `git symbolic-ref -q HEAD`
+// answers the unborn case POSITIVELY (exit 0, refs/heads/main, on a
+// repository with no commits), so the tolerated silence could be replaced by
+// an answer that also names the branch.
 func (s *Scanner) head(ctx context.Context, dir string) (string, error) {
 	raw, err := s.git.Run(ctx, dir, "rev-parse", "--abbrev-ref", "HEAD")
 	if err == nil {

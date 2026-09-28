@@ -1655,12 +1655,34 @@ no deadline, no cancellation — so `GitError.Exited` carries whether git exited
 and the tolerance read both until the amendment below. Amended 2026-09-28 (F2/F4 review 2, I-1): `Exited` is
 derived from `cmd.ProcessState` and is the MESSAGE's fact — a process RAN — because
 `*exec.ExitError` is a different one, true only of a git that reached its own non-zero
-exit, so a git killed at its bound or one whose pipes outlived it was being reported as
-`no git process was started`. The tolerance needs that narrower fact and now reads
+exit. That round named the misreported shape as "a git killed at its bound or one whose
+pipes outlived it"; amended 2026-09-28 (F2/F4 review 3, I-1), which staged both: only the
+second half is real, and what this contract states is the FACT, not the example.
+`Cmd.Wait` prefers `Process.Wait`'s own error over the context's
+(`os/exec/exec.go:931-941`, go1.26.2), so an `*exec.ExitError` exists whenever the
+process's own exit gave `os/exec` a non-zero status to report — and on Windows the
+deadline kill is `TerminateProcess(…, 1)`, so an ordinary KILLED git is an `ExitError`
+and was always reported correctly, under both derivations. What the old derivation could
+not see is a git whose own exit reported nothing: one that exited 0 with a child holding
+its pipes, where `Cmd.Wait` falls through to `ErrWaitDelay` or to `ctx.Err()` — THAT was
+reported as `no git process was started`. The three host-git timeouts of 2026-09-27
+carried the context's error rather than an `ExitError`, so under the old derivation they
+WOULD have printed it; whether a process existed behind them is not in the record
+(`docs/verification/2026-09-27-phase-2-results.md:186`) and nothing here rests on it.
+The tolerance needs the narrower fact and now reads
 `GitError.ExitedNonZero`: a git whose pipes `gitWaitDelay` closed under it also ran and
 is also silent, and that silence is `os/exec`'s rather than git's answer. A `GitError`
 built by hand, in a test or anywhere else, says nothing about a repository unless it
-sets `ExitedNonZero`.
+sets `ExitedNonZero`. A killed git, however, DOES set it on this platform, so the
+tolerance still cannot tell a third-party kill from an unborn HEAD — recorded as an open
+question, not built (F2/F4 review 3, m-5; `git symbolic-ref -q HEAD` answers the unborn
+case positively and would replace the tolerated silence with an answer).
+Amended 2026-09-28 (F2/F4 review 3, m-1): that shape — a git that ran, ended by neither
+deadline nor cancellation, whose pipes `os/exec` gave up on — took no arm of
+`GitError.Error()`'s switch at all, so the operator read the mechanism with no runtime in
+it. It now takes an arm of its own, on `Exited` plus `errors.Is(err, exec.ErrWaitDelay)`
+alone: `its pipes outlived it past the 2s drain (git ran 3.986s)`. A git that failed on
+its own still takes no arm and still prints git's own sentence unchanged.
 Scanning is depth-1 under `root`: subdirectories of `root` that contain `.git`. Deeper
 recursion over a developer's whole disk is how a rail takes 40 seconds to paint.
 

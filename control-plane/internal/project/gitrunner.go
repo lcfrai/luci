@@ -90,12 +90,23 @@ type GitError struct {
 	//
 	// Review 2, I-1: this was derived from *exec.ExitError, which is true
 	// only when a process ran AND exited non-zero. A git that ran its whole
-	// bound and exited 0 with its pipes held is not one, and neither is a
-	// git that os/exec killed at a deadline and then reaped successfully —
-	// the shape 3 of the 4 timeouts on 2026-09-27 had. Both reported "no git
-	// process was started" about a process that certainly started, which
+	// bound and exited 0 with its pipes held is not one, so it reported "no
+	// git process was started" about a process that certainly started, which
 	// sends the operator to look at a process create instead of at the
 	// stall.
+	//
+	// Review 3, I-1 corrects the example round 2 gave for that, measured
+	// twice: an *exec.ExitError exists whenever Process.Wait itself reports
+	// a non-zero state, and Cmd.Wait PREFERS that error over the context's
+	// (os/exec/exec.go:931-941, go1.26.2). On Windows the deadline kill is
+	// TerminateProcess(…, 1), so an ordinary killed git IS an ExitError and
+	// was always reported correctly. What the old derivation could not see
+	// is a git whose own exit gave os/exec nothing to report — one that
+	// exited 0 with a child holding its pipes, where Cmd.Wait falls through
+	// to ErrWaitDelay or to ctx.Err(). The three host-git timeouts of
+	// 2026-09-27 carried the context's error rather than an ExitError, so
+	// under the old derivation they WOULD have printed it; whether a process
+	// existed behind them is not in the record (…phase-2-results.md:186).
 	Exited bool
 	// ExitedNonZero records that GIT ITSELF answered: os/exec returned an
 	// *exec.ExitError, so the process ran to its own end and reported a
@@ -157,6 +168,15 @@ func (e *GitError) Error() string {
 		fmt.Fprintf(&b, "timed out after the %s bound (%s): ", e.Timeout, e.ran())
 	case e.Canceled:
 		fmt.Fprintf(&b, "cancelled by the caller after %s%s: ", e.Elapsed.Round(time.Millisecond), e.aside())
+	// Review 3, m-1. The shape this round exists to fix — a git that RAN,
+	// was ended by neither deadline nor cancellation, and whose pipes
+	// os/exec gave up on — took no arm at all, so the operator read `exec:
+	// WaitDelay expired before I/O complete` with no runtime in it: the
+	// mechanism named and the duration missing. The arm is deliberately
+	// narrow, on ErrWaitDelay alone, so what an ordinary failing git prints
+	// is unchanged.
+	case e.Exited && errors.Is(e.Err, exec.ErrWaitDelay):
+		fmt.Fprintf(&b, "its pipes outlived it past the %s drain (%s): ", gitWaitDelay, e.ran())
 	case !e.Exited:
 		b.WriteString("no git process was started: ")
 	}
