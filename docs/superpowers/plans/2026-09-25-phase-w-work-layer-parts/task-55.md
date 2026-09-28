@@ -63,7 +63,7 @@ anywhere on the machine.
    the shape of task 57's `ProjectScope` (`task-57.md:95`), so task 57's `scope` and `admit` wrap it
    without a second list. Before task 57, the answer is taken as given.
 
-**Files** (the skeleton's file map lists `src/work/replica/{replica,…}.ts` for 55-58, `:304`; it
+**Files** (the skeleton's file map lists `src/work/replica/{replica,…}.ts` for 55-58, `:305`; it
 omits `hubDeps.ts` and `replicaMount.ts`, gaps named below):
 - `desktop/src/work/replica/replica.ts` — the types, `createReplica`, the `WorkReader` over it, `useWork` re-exported (new)
 - `desktop/src/work/replica/replica.test.ts` — load order, apply, the header, the re-fetch, renders (new)

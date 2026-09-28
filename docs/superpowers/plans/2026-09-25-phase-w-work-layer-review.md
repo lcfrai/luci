@@ -3171,28 +3171,28 @@ a session-lifetime `since` and record the consequence (the line repeats after a 
 **Problem:** the test row reads *"the emitted `--mono` still ends `monospace` and still begins
 `"Cascadia Mono"` (`tokens.css:152`)"*, and decision (a) emits the type stacks from a **preamble
 kept verbatim**. Task 27 — *"faces: Commit Mono bundled with its licence; Segoe UI Variable as the
-sans"* (`task-27.md:1`, skeleton `:427`, W1, before this task) — replaces that line under `OD-28`
+sans"* (`task-27.md:1`, skeleton `:428`, W1, before this task) — replaces that line under `OD-28`
 (*"Every id, path and time is set in Commit Mono"*, `2026-09-23-owner-decisions.md:165`). Task 95
-depends on 33 only (skeleton `:500`), so an implementer reading this part after 27 has merged
+depends on 33 only (skeleton `:502`), so an implementer reading this part after 27 has merged
 either fails the test or "fixes" it by emitting the pre-27 preamble, silently reverting the owner's
 font decision across every id, path and time in the app.
 **How to fix:** change the assertion to *the emitted `--mono` is byte-identical to the preamble's,
 whatever it is, and ends `monospace`* — the mutant is *the preamble is rewritten or dropped*, not a
-particular family — and add 27 to this task's `dependsOn` in both the part and skeleton `:500`.
+particular family — and add 27 to this task's `dependsOn` in both the part and skeleton `:502`.
 
 ### S10-I7 (Important): task 96 raises a skeleton gap for the two faces that task 27 already owns
 
 **Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-96.md:289
 **Problem:** correction 3 says *"OD-28's two faces are not in the tree, and this task does not
 install them … it belongs to no task in the skeleton that this agent can find. Raised as a skeleton
-gap."* Task 27 is that task, in W1, with the same title, and the skeleton lists it at `:427` with
+gap."* Task 27 is that task, in W1, with the same title, and the skeleton lists it at `:428` with
 seam SW.11 — the same seam tasks 95 and 96 extend. The correction as written sends the reader
 hunting for work that is planned, and its reasoning (*"it changes the metrics of every row"*) is
 the argument task 27 already answers. A false gap in a part is worse than a silent one: the next
 agent adds a duplicate font task.
 **How to fix:** replace correction 3 with a dependency note — *the faces land in task 27 (W1); this
 task emits whatever the preamble holds and asserts nothing about the family* — and cite
-`task-27.md` and skeleton `:427`.
+`task-27.md` and skeleton `:428`.
 
 ### S10-I8 (Important): the light ramp pushes `--field` and `--page` past 100 % lightness, where the clamp silently merges them
 
@@ -4792,7 +4792,7 @@ All ten parts exist and none is cut off: 161 (661 lines), 162 (505), 163 (422), 
 
 ## Task 161 — the Work MCP server, read-only mode, the connector allow-list
 
-Scope `tasks-161-180.md:29-83`; skeleton row `:581`. Coverage is complete: both halves (the
+Scope `tasks-161-180.md:29-83`; skeleton row `:584`. Coverage is complete: both halves (the
 `cmd/workmcp` binary and the Hub allow-list), all nine tools with the scope's names, the RFC 9728
 document, read-only as a route, the two layers against a fact state, `ConnectorFragment`, the
 matrix rows, and every mutant the scope named. The part correctly overrides the scope's *Entra
@@ -4830,7 +4830,7 @@ plus an allow, or name the behaviour (`allowed` event with the new name) and spl
 
 ## Tasks 162 and 163 — loops: the record, versions, triggers, the run log, *run now*, the triage loop
 
-Scopes `tasks-161-180.md:85-131` and `:132-178`; skeleton rows `:582`, `:583`. Coverage is
+Scopes `tasks-161-180.md:85-131` and `:132-178`; skeleton rows `:585`, `:586`. Coverage is
 complete and the hard parts are right: append-only versions in SQL and in Go, the `(loop, version,
 cause)` unique keys, the missed-window rule, `actor: null` with `data.author`, the owner-left
 pause, the fixed turn template with the instruction fetched as data by `panacea loop show`,
@@ -4849,7 +4849,7 @@ person-only match for `start`, and the pinned `@r`. Citations spot-checked and r
 `Ref = "lp-…#<run>"` on the queue (`:370`); `panacea loop show` returns `{loop, version, run,
 action, issue?, instruction}` and no bound (`task-163.md:173-220`); no Fleet or TM-24 delta in
 either part passes it to the spawned worker. `turnsPerDay` is enforced (`task-162.md:344`);
-`Levels` is not. So the skeleton row's *"within their grid"* (`:582`) and 05 §3.2's *"autonomy
+`Levels` is not. So the skeleton row's *"within their grid"* (`:585`) and 05 §3.2's *"autonomy
 bound"* are a save-time cap on a value nothing consumes: delete `Levels` from the wire and every
 test in both parts still passes.
 **How to fix:** either (a) carry it — add `levels` to `loop.show`'s result and name the TM-24
@@ -4899,7 +4899,7 @@ both depend on. A part that says its wire is complete must not add a load-bearin
 
 ## Task 164 — CI outside us: `panacea release`, the Azure Pipelines task, the GitHub Action
 
-Scope `tasks-161-180.md:179-224`; skeleton row `:584`. Coverage is complete and the two
+Scope `tasks-161-180.md:179-224`; skeleton row `:587`. Coverage is complete and the two
 deviations from the scope are both justified and declared: `.<environment>` appended to
 `pipelineRun` (because `(panaceaProject, pipelineRun)` is unique in the org) and
 `--panacea-project` made required (route 35's body requires it). Every Hub citation checks out
@@ -4925,7 +4925,7 @@ inlines an expression fails `go test`, not just a hand-run grep.
 
 ## Task 165 — the Teams app part 2: the Desk digest, ask your own Orchestrator
 
-Scope `tasks-161-180.md:225-264`; skeleton row `:585`. Coverage is complete and the OD-16 point
+Scope `tasks-161-180.md:225-264`; skeleton row `:588`. Coverage is complete and the OD-16 point
 is the sharp one and is right: the addressee is always the sender's own Orchestrator, the text is
 never read for a name, the project card's `askProject` is re-checked in full on submit
 (`TestASubmitForAnotherProjectIsRefused`), the reply goes only to the asker's own chat
@@ -4948,7 +4948,7 @@ note in gap 5 that the missing File map row covers it too.
 
 ## Task 166 — the per-team harness allow-list; team skills in the image or a library
 
-Scope `tasks-161-180.md:265-300`; skeleton row `:586`. Coverage is complete and the security work
+Scope `tasks-161-180.md:265-300`; skeleton row `:589`. Coverage is complete and the security work
 is the best in this section: the gate fails closed on a Hub outage (503, not open), unset means
 `["claude-code"]` and never *all*, the library must be 40 lower-case hex so a floating ref cannot
 be fetched, the staged copy is `0444`/`0555` outside the worktree, `filepath.IsLocal` kills path
@@ -4991,7 +4991,7 @@ any sandbox: `Stage` has no call site until TM-15 merges (gap 6)."*
 
 ## Task 167 — audit: person or agent, and whose agent; streaming to Microsoft Sentinel
 
-Scope `tasks-161-180.md:301-331`; skeleton row `:587`. Coverage is complete and then some: every
+Scope `tasks-161-180.md:301-331`; skeleton row `:590`. Coverage is complete and then some: every
 mutant the scope named has a row, plus four the scope did not (an oversize record stops rather
 than truncating, an edited canonical is caught as well as a broken link, the cursor never rewinds,
 and cursors are RLS-scoped per org). The exporter reading `audit_events` in-process rather than
@@ -5045,7 +5045,7 @@ backend saw no start; mutant: the locate failure read as *not gated*.
 
 ## Task 168 — `hubclient`'s W5 methods over HTTP, the relay rows, W5's Hub end to end
 
-Scope `tasks-161-180.md:332-364`; skeleton row `:588`. Coverage is complete: all 51 methods, both
+Scope `tasks-161-180.md:332-364`; skeleton row `:591`. Coverage is complete: all 51 methods, both
 route lists, the relay rows, the route audit, the conformance rows over HTTP, and an eleven-step
 end to end that hits every item the scope listed. The relay security rules are the strongest part
 and are each a test: Hub-facing ingress is 404 on all five paths, a Hub 409 passes through with
@@ -5086,7 +5086,7 @@ each falls in. Every other acceptance line in this section is mechanical.
 
 ## Task 169 — desktop W5 wire types and replica kinds
 
-Scope `tasks-161-180.md:365-387`; skeleton row `:589`. Coverage is complete: all nineteen types,
+Scope `tasks-161-180.md:365-387`; skeleton row `:592`. Coverage is complete: all nineteen types,
 the relay table, the feed/admin/signal kind lists, the replica, ops and visibility deltas. The
 tests are the right shape and several are better than the scope asked: the goldens are read from
 the Hub's `testdata` **by path** so a rename on either side fails, the relay rows are parsed out of
@@ -5101,7 +5101,7 @@ No finding of its own.
 
 ## Task 170 — requests in Triage: the quote, *important*, accept or link, the form and rules editors
 
-Scope `tasks-161-180.md:388-422`; skeleton row `:590`. Coverage is complete and every mutant the
+Scope `tasks-161-180.md:388-422`; skeleton row `:593`. Coverage is complete and every mutant the
 scope named has a test, plus five the scope did not (no number key acts on a request row, the row
 carries no quote text at all, the link sends the `is-` id and never the alias, reorder is one
 write carrying the version it read, `KEYMAP` is unchanged after the intake modules load). The

@@ -73,7 +73,7 @@ from an outage or a restored Hub without a blank screen, and keeps no text an er
    `serves` and `implements` hold keys, not words, and stay. The record is kept, so chips and links
    still resolve, as *erased*.
 
-**Files** (the skeleton's File map lists `src/work/replica/{…,visibility,…}.ts` for 55-58, `:304`;
+**Files** (the skeleton's File map lists `src/work/replica/{…,visibility,…}.ts` for 55-58, `:305`;
 it omits the two surface edits and `ResyncLine.tsx`, gaps named at the end):
 - `desktop/src/work/replica/visibility.ts` — `ProjectScope`, `classify`, `planForPage`,
   `healthAfterFailure`, `eraseHead`, `eraseRevision`, `eraseComment`, `resyncLine` (new)

@@ -104,7 +104,7 @@ it back.
     every project is forced AU in W1, `task-24.md:512-515`). `cost: null` reads *cost not metered in
     local mode* (`OD-27`). The chip has no bar, no `%` and no countdown.
 
-**Files** (the skeleton's File map lists `StartChip.tsx` for task 61, `:306`):
+**Files** (the skeleton's File map lists `StartChip.tsx` for task 61, `:307`):
 
 - `desktop/src/work/start/useStart.ts` — `startRule`, `firstSign`, `StartEntry`, the store,
   `useStart`, `useStartEntry` (new)
@@ -861,7 +861,7 @@ write that EP-160 needs is **UNVERIFIED** (task 55's replica over task 40's worl
 #### Gaps found while writing this part
 
 1. The scope's `StartResult {…, startState, createdAt}` is not task 24's wire; nothing is added to
-   `work.ts` (decision 1). The skeleton's file map (`:306`) lists only `StartChip.tsx` for task 61
+   `work.ts` (decision 1). The skeleton's file map (`:307`) lists only `StartChip.tsx` for task 61
    and omits `useStart.ts`, `register.ts` and the `IssueRow.tsx`/`WorkLens.tsx` edits.
 2. SW.10 has no read of *"has the agent written a file yet"* (`task-24.md:92-115`). Asking is the
    only way the desktop learns it; a read would let the chip say it before the press.

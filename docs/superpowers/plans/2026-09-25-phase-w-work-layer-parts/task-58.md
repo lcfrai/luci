@@ -62,7 +62,7 @@ one by its number without the mouse.
    `05-design.md:1103`) is timed over a 10,000-issue fixture with `performance.now()` and written
    to the test's output; no test fails on it (`OD-27`: a number is proof only when measured).
 
-**Files** (the skeleton's File map lists `src/work/replica/{…,search}.ts` for 55-58, `:304`; it
+**Files** (the skeleton's File map lists `src/work/replica/{…,search}.ts` for 55-58, `:305`; it
 omits `SearchField.tsx`, `OpenByNumber.tsx` and `searchVerbs.ts`, gaps named at the end):
 - `desktop/src/work/replica/search.ts` — `fold`, `tokens`, `createSearchIndex`, `SearchHit` (new)
 - `desktop/src/work/replica/search.test.ts` — ranking, folding, erase, key change, the budget (new)

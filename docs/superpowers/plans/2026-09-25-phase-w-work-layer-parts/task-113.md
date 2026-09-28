@@ -325,7 +325,7 @@ section says why.
 
 #### Gaps found while writing this part
 
-1. **The W3 surface list lives in the sweep**, by hand; the skeleton's file map (`:305-314`) should
+1. **The W3 surface list lives in the sweep**, by hand; the skeleton's file map (`:306-315`) should
    list the W3 desktop files (DelegateChip, AgentByline, ProposedEvidence, NegotiationRow,
    AgentTaskCard, StepFold, SessionLinks, the admin pair, AskAnswer, RiskFacts, RepoProposal) so
    the sweep can be checked against it.

@@ -73,7 +73,7 @@ on, without leaving the list and without marking anything seen.
    of the fact; for a hunk it is `commit:<sha>:<path>:<oldStart>`; both are stored verbatim
    (`task-51.md:158`).
 
-**Files** (the skeleton's File map lists `Peek.tsx` for task 60, `:306`; it omits `peek.ts`, gap 1):
+**Files** (the skeleton's File map lists `Peek.tsx` for task 60, `:307`; it omits `peek.ts`, gap 1):
 
 - `desktop/src/work/peek.ts` — `PeekKind`, `peekFor`, `spanFacts`, `personIssues`, `HunkSource` (new)
 - `desktop/src/work/peek.test.ts` — the pure choices (new)
@@ -781,7 +781,7 @@ task 20's `head(167, …)` revision serves it; if not, the test builds that revi
 
 #### Gaps found while writing this part
 
-1. The skeleton's file map (`:306`) lists `Peek.tsx` for task 60 but omits `src/work/peek.ts`,
+1. The skeleton's file map (`:307`) lists `Peek.tsx` for task 60 but omits `src/work/peek.ts`,
    `PeekPerson.tsx` and the edits to `WorkLens.tsx`, `IssueRow.tsx` and `BoardView.tsx`.
 2. Task 37's `IssueHead` has no `title` (`task-37.md:121-128`; task 58's gap 2); `Peek` takes
    `titleOf` until task 37 declares it.

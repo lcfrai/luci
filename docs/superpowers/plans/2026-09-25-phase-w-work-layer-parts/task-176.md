@@ -280,7 +280,7 @@ export function migrateAssignPreference(p: { get: () => Prefs; set: (next: Prefs
 ```
 
 The section heading is *Assign me*, under task 96's `Preferences.tsx`; there is no team-level
-control here (team automation is not this task). The Undo is task 56's (skeleton `:456`,
+control here (team automation is not this task). The Undo is task 56's (skeleton `:457`,
 SW.16's `mutate(op) → {undo}`, `:389`); rules are not a replica kind, so whether the section can use
 `mutate` or needs its own undo of the previous list is **UNVERIFIED** until task 56's part is read
 at the sync base.

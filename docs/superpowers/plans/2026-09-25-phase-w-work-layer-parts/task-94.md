@@ -3,7 +3,7 @@
 **Slice:** W2. **Size:** 2.5 focused hours (an estimate, not a measurement). **Stream:** WD2.
 **dependsOn:** 65 (the Desk's answers) and 81 (the digest builder), after a sync-merge of
 `feat/work-layer` (rule H1). **Seams:** consumes **SW.17** (task 62's `registerDeskRow(kind,
-section, render, rank)`, skeleton `:390`) and **SW.18**'s `DigestItem` and `Deferral` through task
+section, render, rank)`, skeleton `:391`) and **SW.18**'s `DigestItem` and `Deferral` through task
 83; adds **no** seam. It registers one new Desk row kind and binds one key.
 
 Three things that all say the same thing: **the Desk does not shout**. The digest is one line, not
@@ -24,7 +24,7 @@ In this tree, verified: `desktop/package.json` lists `@tauri-apps/plugin-opener`
 is not merged here; `docs/AGENTIC-UX.md:192` is AX §7 item 4, quoted above, word for word.
 
 In this branch's parts (**UNVERIFIED until merge**): task 62's Desk frame, its five fixed sections
-and `registerDeskRow` (SW.17, skeleton `:390`, scope `tasks-61-80.md:67`); task 65's *answer in
+and `registerDeskRow` (SW.17, skeleton `:391`, scope `tasks-61-80.md:67`); task 65's *answer in
 place* and reassign *decide* (`tasks-61-80.md:170`); task 66's one live region
 (`tasks-61-80.md:211`); task 81's `GET /v1/work/digest?since=`, its `DigestItem{subject, alias,
 title, cause, at, link}` and `DigestSettings{email: off·hourly·daily}` (`tasks-81-100.md:35-58`);

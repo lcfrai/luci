@@ -64,7 +64,7 @@ paints in the same frame, sends once with a key that survives retries, and on a 
    the one 1 Hz tick, `useHeartbeat()` (`hooks/heartbeat.ts:64`). A chip therefore lapses at the
    first beat after 6 s of unpaused time, up to one second late; that is recorded, not hidden.
 
-**Files** (the skeleton's File map lists `src/work/replica/{…,ops,undo,…}.ts` for 55-58, `:304`;
+**Files** (the skeleton's File map lists `src/work/replica/{…,ops,undo,…}.ts` for 55-58, `:305`;
 it omits `UndoChip.tsx` and the two `api/` deltas, gaps named in the return):
 - `desktop/src/work/replica/ops.ts` — `WorkOp`, `FieldPath`, `fieldsOf`, `readField`,
   `writeField`, `inverseOf`, `sendOp` (new)

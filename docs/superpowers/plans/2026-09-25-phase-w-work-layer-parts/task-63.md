@@ -81,7 +81,7 @@ nothing, and how long it has waited.
     (`task-40.md:162`), so once it boots, the Desk reads the replica with no change here. This task
     adds only the feed: `liveDeskInputs.events = () => replicaEvents()` (gap 2).
 
-**Files** (the skeleton's file map covers `desk/*` for tasks 62-65, `:311`; the scope names
+**Files** (the skeleton's file map covers `desk/*` for tasks 62-65, `:312`; the scope names
 `rows/IssueNeedRow.tsx` and `work/desk/needs.ts`, `tasks-61-80.md:103-105`):
 
 - `desktop/src/work/desk/needs.ts` — the four selectors, `since`, the words (new)
@@ -643,5 +643,5 @@ makes one row, the triage row (part 2's note on `urgentMine`).
    `AnswerBook` does (`task-65.md:818-823`), would show the key's answer too. Task 65 owns the book.
 6. Task 42's `snooze` writes `snoozedUntil` (`task-42.md:221-222`), but `IssueHead` has no such
    member, so a snoozed triage issue still makes a row on the next visit.
-7. The skeleton's file map (`:311`) has no `work/desk/needs.ts` or `rows/IssueNeedRow.tsx`; the
+7. The skeleton's file map (`:312`) has no `work/desk/needs.ts` or `rows/IssueNeedRow.tsx`; the
    scope names them (`tasks-61-80.md:103-105`).

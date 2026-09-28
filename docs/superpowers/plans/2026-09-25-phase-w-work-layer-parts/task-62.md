@@ -36,7 +36,7 @@ registered, ranked once when the reader arrives, and still while the reader is o
 **Decisions made here, so nobody re-derives them:**
 
 1. **SW.17 is this file's `deskModel.ts`, and it holds no JSX.** The scope allowed `.ts`
-   (`tasks-61-80.md:69-70`); the skeleton's file map says `deskModel.tsx` (`:311`, gap 1). Every
+   (`tasks-61-80.md:69-70`); the skeleton's file map says `deskModel.tsx` (`:312`, gap 1). Every
    row kind imports `registerDeskRow`, `registerDeskSource`, `DeskItem`, `DeskRank` and
    `DeskSnapshot` from `desktop/src/components/desk/deskModel`. Task 127 wrote `./deskFrame` and
    task 170 `../desk/registry` (`task-127.md:400`, `task-170.md:295`): both follow this path (gap 2).
@@ -413,7 +413,7 @@ export type { DeskItem, DeskRank, DeskSnapshot } from "./deskModel";
 ```
 
 `deskRows.tsx` has no JSX of its own in this task; it keeps the `.tsx` name because tasks 63-65 put
-row elements in it (the skeleton's name, `:311`). Its re-export lets a block write
+row elements in it (the skeleton's name, `:312`). Its re-export lets a block write
 `registerDeskRow(...)` after one import line of its own, as task 65's block does (`task-65.md:772`).
 
 #### Interfaces — complete: `desktop/src/components/desk/desk.css`
@@ -706,7 +706,7 @@ count is its own `span`; a screen reader reads *"FAILED 0"* from the two nodes. 
 
 #### Gaps found while writing this part
 
-1. The skeleton's file map (`:311`) names `deskModel.tsx`; this part writes `deskModel.ts`
+1. The skeleton's file map (`:312`) names `deskModel.tsx`; this part writes `deskModel.ts`
    (decision 1, as the scope allowed) and adds `Desk.test.tsx` and `deskModel.test.ts`.
 2. Three later parts import SW.17 from three paths: task 127 `./deskFrame` (`task-127.md:400`),
    task 170 `../desk/registry` (`task-170.md:295`), tasks 65 and 133 `./deskModel`. The path is

@@ -60,7 +60,7 @@ text will leave the product.
 - `desktop/src/components/intake/intake.css` ⚑ (task 170) — `.ik-trk-*`, `.ik-log-*` (modified)
 
 The three components mount under team settings (the File map's `src/components/{…,intake,…}`
-row, skeleton `:314`). Where team settings lives is task 11's and task 53's; if no *Team settings*
+row, skeleton `:315`). Where team settings lives is task 11's and task 53's; if no *Team settings*
 host exists when this lands, `TrackerList` mounts on the team's Triage header menu (gap 1).
 
 **What is on the tree today (verified 2026-09-26).** Parts exist for tasks 20, 42, 44, 169 and

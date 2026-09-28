@@ -546,7 +546,7 @@ frame; mutant: the second is swallowed), 6 in `a11y.floor.test.tsx`, and 1 in `S
 
 #### Gaps found while writing this part
 
-1. The skeleton's file map (`:312`) lists only `LiveRegion.tsx` for task 66; it omits
+1. The skeleton's file map (`:313`) lists only `LiveRegion.tsx` for task 66; it omits
    `Toasts.tsx`, `RailFooter.tsx`, `StatusDot.tsx`, `common.css`, `a11y.floor.test.tsx` and the
    grid and region edits in tasks 40-43, 46, 52, 61, 62 and 65's files.
 2. `RailFooter.tsx:19`'s `role="status"` is a third region on the tree today that the scope does

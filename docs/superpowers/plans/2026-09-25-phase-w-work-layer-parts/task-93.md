@@ -33,7 +33,7 @@ desktop/src desktop/src-tauri` finds nothing. `desktop/src/lib/` holds `ids.ts`,
 In this branch's parts (**UNVERIFIED until merge**): task 80's page `GET /p/issues/{issueId}[@{rev}]`,
 outside `/v1`, server-rendered, no script, with an *Open in Panacea* button pointing at
 `panacea://issue/…` (`tasks-61-80.md:673-681`); task 91's ad hoc list; task 83's types; task 46's
-issue head; SW.1's lengths (skeleton `:374`).
+issue head; SW.1's lengths (skeleton `:375`).
 
 **The licences of the two new dependencies are UNVERIFIED.** `tauri-plugin-deep-link` and
 `@tauri-apps/plugin-deep-link` are expected MIT OR Apache-2.0, like the rest of the Tauri plugin

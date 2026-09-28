@@ -3,7 +3,7 @@
 **Slice:** W1. **Size:** 3 focused hours beside the run itself (an estimate, not a measurement).
 **Stream:** WD2 with WH (the last W1 task; it runs on the merged W1 tree). **Depends on** tasks
 01-69. **Seams:** none. Creates `docs/verification/2026-09-25-phase-w-results.md`, which tasks 97,
-113, 142, 174 and 187 append to in task order (the skeleton's *Proof and documents* table, `:322`).
+113, 142, 174 and 187 append to in task order (the skeleton's *Proof and documents* table, `:323`).
 
 `OD-27` is the rule: **proof per criterion, no prediction.** A parity row this section marks closed
 carries the command that was run, an excerpt of what it printed or what a person saw, and the
@@ -609,7 +609,7 @@ checks table. A timing line reading `not reached` is recorded as it is; it fails
    the skeleton's task 71 says it *closes* L-146. This part records the W1 half; task 71's part
    should say it closes the release half.
 4. **`docs/verification/phase-w/`** (the check, fixtures, SQL, CSV) and `desktop/e2e/` are not in
-   the skeleton's *Proof and documents* table (`:316-324`).
+   the skeleton's *Proof and documents* table (`:317-325`).
 5. **Task 113's `check-w3.sh`** duplicates `check-slice.sh`; the skeleton should name one check.
    Phase 2 task 25's `desktop/e2e/` harness is not built on this branch, so the budgets script's
    dependency on `playwright` lands with it or with this task, whichever merges first.

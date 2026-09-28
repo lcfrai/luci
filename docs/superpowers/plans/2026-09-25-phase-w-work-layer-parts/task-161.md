@@ -642,7 +642,7 @@ MCP half with task 159.
 
 #### Gaps found while writing this part
 
-1. **OD-30 is not in this tree's owner decisions**, and the skeleton row (`:581`), File map (`:257`)
+1. **OD-30 is not in this tree's owner decisions**, and the skeleton row (`:584`), File map (`:257`)
    and scope 161 still say *Entra OAuth* and `Hub.Access`. The ruling's findings row (main
    `2026-09-25-identity-keycloak-broker.md:601`) lists the skeleton lines to change; this part
    already follows it.

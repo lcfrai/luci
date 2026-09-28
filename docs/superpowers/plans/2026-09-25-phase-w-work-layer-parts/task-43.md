@@ -3,7 +3,7 @@
 Stream **WD1**, about 3 hours (an estimate, not a measurement). Depends on task 40 (the row parts)
 and task 41 (the hold model: a card never moves under the reader). Uses task 42's `serves` op and
 task 46's `handMove`, `FACT_WAITS_ON` and `DuplicateOfPicker` (`task-46.md:113-117`, `:247`,
-`:295-305`), which the skeleton's row does not name (a gap, named in the return); SW.4
+`:296-306`), which the skeleton's row does not name (a gap, named in the return); SW.4
 (`StateMove{to, cause, reason}`), SW.12, SW.13, SW.14 (`ThreadNode`, `useThreadLit`) and SW.16.
 
 Parity: closes **L-101**'s board (the list is task 40; the timeline is W4's) and **L-102**'s W1
