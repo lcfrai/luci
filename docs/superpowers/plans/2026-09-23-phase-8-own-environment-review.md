@@ -12,6 +12,26 @@ no way out, and the plan-on-PR pipeline carries the apply identity), plus ten Im
 Part paths below are relative to `docs/superpowers/plans/2026-09-23-phase-8-own-environment-parts/`
 unless they start with a repo directory. "Plan" means the top-level file.
 
+> **Read this before trusting any `terraform` in this file. It is a dated record, not a live
+> instruction, and it is deliberately NOT rewritten.** This review was written on 2026-09-23.
+> `OD-32`, decided 2026-09-28, makes the engine **OpenTofu** (MPL-2.0) and forbids HashiCorp
+> Terraform, which has been BUSL-1.1 since August 2023 and cannot ship to customers who run this
+> on their own cloud. Everything below that says `terraform` is one of four things, and none of
+> them may be edited to say `tofu`:
+> 1. **A probe reading.** "Terraform 1.15.8 in a scratch directory" is what was actually run.
+>    Rewriting it would manufacture evidence for a binary that has never run on this machine.
+>    Every such reading is **UNVERIFIED under OpenTofu 1.12.6** until someone re-runs it.
+> 2. **A path**, `infra/terraform/…`. A directory name is a path, not a licence.
+> 3. **A token OpenTofu keeps unchanged**: the `terraform { … }` block, `terraform_remote_state`,
+>    `.terraform.lock.hcl`, `.terraform/`, and the auto-loaded `terraform.tfvars` /
+>    `*.auto.tfvars` names.
+> 4. **A provider reference.** `hashicorp/azurerm` is Mozilla Public License 2.0 with no Change
+>    Date — verified from source on 2026-09-28 — so `OD-32` moves the engine and not the
+>    providers.
+>
+> The live statements of what the engine is are `OD-32` itself, the plan's `P8-D14`, and
+> `infra/terraform/README.md`. Where this review and those disagree, those win.
+
 ## How this review checked things
 
 - **Every Go, TypeScript and Terraform citation the plan makes into this repo was opened** for
