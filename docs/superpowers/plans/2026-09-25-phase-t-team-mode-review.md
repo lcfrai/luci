@@ -3915,6 +3915,7 @@ already fixed. S02-C3's **Where** is marked as the pre-b05 location for the same
 | M-5: b05's inserted clause left task 41's comment dangling | a clause spliced mid-sentence | `task-41.md:231-234` |
 | M-6: `range` over a section names an arbitrary one of two refused keys | map iteration order reaching the refusal message the allowlist was already sorted for | all three loops in `layerKeys` sorted (`task-13.md:507,516,531`, with the reason at `:503-505`), `maps` imported (`:290`), `TestTheRefusedKeyIsTheSameEveryTime` (`:784`), acceptance count 4 → 5 (`:863,868`) |
 | M-7: `TestTheInstructionsHoldNoTeammateText` asked for a marker string in "every key" the project layer may set | three of I14's five keys are a number and two booleans | names the two string-bearing keys (`task-41.md:671`) |
+| V-8 (found while re-verifying every cite of this batch, not raised by the re-review): `task-13.md:68` answered "what does the route reply" with `task-14.md:964`, a **test** row that asserts I10 and never mentions naming the refused key | a cite that lands on a real-but-different row, the same failure as I-3 | points at the contract: `task-14.md:463-472`, body shape `:484-485`, rewritten inside the same two lines so no b05 anchor below it moves |
 
 **One of S02-C3's asks is met by a different invariant, and this is the record of that.** The
 finding asked for `permissions.ask` **"(worker only)"**. I14 admits `ask` from a project layer in
