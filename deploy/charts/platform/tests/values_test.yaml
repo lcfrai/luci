@@ -1,0 +1,23 @@
+suite: values
+templates:
+  - templates/networkpolicy-sandboxes.yaml
+values:
+  - ./values-test.yaml
+tests:
+  # The four CIDRs come from task 03's foundation outputs, passed by the deploy pipeline.
+  # An empty one must stop the render, not render a policy with an empty `except` entry,
+  # which Kubernetes would reject at apply - or, worse, accept as a no-op allow.
+  # Mutant killed: a policy rendered with an empty `except` entry.
+  - it: empty_vnet_cidr_fails
+    set:
+      network.vnetCidr: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "network\\.vnetCidr"
+
+  - it: empty_pod_cidr_fails
+    set:
+      network.podCidr: ""
+    asserts:
+      - failedTemplate:
+          errorPattern: "network\\.podCidr"

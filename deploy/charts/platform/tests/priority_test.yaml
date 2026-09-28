@@ -1,0 +1,70 @@
+suite: priority
+templates:
+  - templates/priorityclasses.yaml
+values:
+  - ./values-test.yaml
+tests:
+  # Mutant killed: a balloon that preempts a session, or a globalDefault that silently
+  # prioritises everything in the cluster.
+  - it: ladder_is_ordered
+    asserts:
+      - hasDocuments:
+          count: 4
+      - equal:
+          path: value
+          value: 1000000
+        documentSelector:
+          path: metadata.name
+          value: panacea-platform-critical
+      - equal:
+          path: value
+          value: 100000
+        documentSelector:
+          path: metadata.name
+          value: panacea-machine
+      - equal:
+          path: value
+          value: 10000
+        documentSelector:
+          path: metadata.name
+          value: panacea-session
+      - equal:
+          path: value
+          value: -10
+        documentSelector:
+          path: metadata.name
+          value: panacea-balloon
+      - equal:
+          path: preemptionPolicy
+          value: Never
+        documentSelector:
+          path: metadata.name
+          value: panacea-balloon
+      - equal:
+          path: preemptionPolicy
+          value: PreemptLowerPriority
+        documentSelector:
+          path: metadata.name
+          value: panacea-session
+      # globalDefault is never set on any of the four: an unlabelled pod must stay at 0.
+      - notExists:
+          path: globalDefault
+
+  # The balloon's -10 is a FLOOR, not a free choice (review m10). The cluster autoscaler
+  # treats a pod below --expendable-pods-priority-cutoff (default -10) as expendable: a
+  # Pending one triggers no scale-up and a node holding only such pods counts as empty at
+  # scale-down. A preempted balloon must stay Pending AND ask for a node, or the warm pool
+  # never refills (task 12). AKS does not expose the cutoff in auto_scaler_profile (task 06),
+  # so the default is the one in force. Both statements are training knowledge, UNVERIFIED
+  # here; task 32's P06 (d) proves it on a real cluster.
+  # Mutant killed: -11 (or -100, -1000), under which the warm pool silently stops refilling.
+  - it: balloon_is_not_expendable
+    documentSelector:
+      path: metadata.name
+      value: panacea-balloon
+    asserts:
+      - isKind:
+          of: PriorityClass
+      - equal:
+          path: value
+          value: -10

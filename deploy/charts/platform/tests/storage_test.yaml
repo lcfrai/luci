@@ -1,0 +1,69 @@
+suite: storage
+templates:
+  - templates/storageclasses.yaml
+values:
+  - ./values-test.yaml
+tests:
+  # Mutant killed: `Immediate`, which provisions the disk in a zone the machine pod may
+  # never be schedulable in, so the machine never starts.
+  - it: machine_disk_waits_for_its_pod
+    documentSelector:
+      path: metadata.name
+      value: panacea-machine-disk
+    asserts:
+      - isKind:
+          of: StorageClass
+      - equal:
+          path: provisioner
+          value: disk.csi.azure.com
+      - equal:
+          path: volumeBindingMode
+          value: WaitForFirstConsumer
+      - equal:
+          path: reclaimPolicy
+          value: Delete
+      - equal:
+          path: allowVolumeExpansion
+          value: true
+      - equal:
+          path: parameters.skuName
+          value: Premium_ZRS
+
+  # Machine disks are NOT backed up in v1 and nothing here may say they are (review m13,
+  # seam S8-D6.1): with the fallback off this template renders exactly one document - the
+  # managed-disk class - so no VolumeSnapshotClass and no second class can hide in it.
+  # Mutant killed: the NFS fallback always present.
+  - it: nfs_only_when_enabled
+    asserts:
+      - hasDocuments:
+          count: 1
+      - equal:
+          path: metadata.name
+          value: panacea-machine-disk
+
+  # The other half of the same rule: turning the P8-D6 fallback on renders it, and nothing
+  # else changes. Two cases, not one, because helm-unittest renders a chart once per test.
+  - it: nfs_only_when_enabled_renders_when_on
+    set:
+      storage.nfsFallback.enabled: true
+    asserts:
+      - hasDocuments:
+          count: 2
+      - equal:
+          path: provisioner
+          value: file.csi.azure.com
+        documentSelector:
+          path: metadata.name
+          value: panacea-machine-nfs
+      - equal:
+          path: parameters.protocol
+          value: nfs
+        documentSelector:
+          path: metadata.name
+          value: panacea-machine-nfs
+      - equal:
+          path: parameters.skuName
+          value: Premium_LRS
+        documentSelector:
+          path: metadata.name
+          value: panacea-machine-nfs

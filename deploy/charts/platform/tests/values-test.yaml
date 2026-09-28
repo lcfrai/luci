@@ -1,0 +1,8 @@
+# Plausible foundation outputs, for `helm lint` and every helm-unittest suite.
+# These are NOT the deployed values: the deploy pipeline passes the real CIDRs from
+# task 03's foundation outputs. Nothing here is applied to Azure.
+network:
+  vnetCidr: 10.60.0.0/16
+  podCidr: 10.61.0.0/16
+  serviceCidr: 10.62.0.0/16
+  privateEndpointsCidr: 10.60.4.0/22

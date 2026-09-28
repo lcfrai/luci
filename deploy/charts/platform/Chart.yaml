@@ -1,0 +1,6 @@
+apiVersion: v2
+name: platform
+description: PanaceaApp cluster baseline - namespaces, Pod Security, priority classes, quotas, network policy, storage classes.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

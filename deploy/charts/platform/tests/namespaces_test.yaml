@@ -1,0 +1,73 @@
+suite: namespaces
+templates:
+  - templates/namespaces.yaml
+values:
+  - ./values-test.yaml
+tests:
+  # Mutant killed: enforce `baseline`, which admits a pod that keeps capabilities.
+  - it: sandboxes_enforce_restricted
+    documentSelector:
+      path: metadata.name
+      value: panacea-sandboxes
+    asserts:
+      - isKind:
+          of: Namespace
+      - equal:
+          path: metadata.labels["pod-security.kubernetes.io/enforce"]
+          value: restricted
+      - equal:
+          path: metadata.labels["pod-security.kubernetes.io/audit"]
+          value: restricted
+      - equal:
+          path: metadata.labels["pod-security.kubernetes.io/warn"]
+          value: restricted
+      - equal:
+          path: metadata.labels["pod-security.kubernetes.io/enforce-version"]
+          value: latest
+      # A route made in panacea-sandboxes must never attach to the edge (task 13's Gateway
+      # admits routes only from namespaces carrying this label).
+      - notExists:
+          path: metadata.labels["panacea-app/edge-routes"]
+
+  # Mutant killed: a namespace dropped, and its default-deny with it.
+  - it: five_namespaces
+    asserts:
+      - hasDocuments:
+          count: 5
+      - containsDocument:
+          kind: Namespace
+          apiVersion: v1
+          name: panacea-hub
+      - containsDocument:
+          kind: Namespace
+          apiVersion: v1
+          name: panacea-broker
+      - containsDocument:
+          kind: Namespace
+          apiVersion: v1
+          name: panacea-sandboxes
+      - containsDocument:
+          kind: Namespace
+          apiVersion: v1
+          name: panacea-edge
+      - containsDocument:
+          kind: Namespace
+          apiVersion: v1
+          name: panacea-identity
+
+  # Mutant killed: Keycloak in a namespace that admits a privileged pod, or one the Gateway
+  # cannot route to, so no browser ever reaches the realm (OD-30).
+  - it: identity_is_restricted_and_takes_edge_routes
+    documentSelector:
+      path: metadata.name
+      value: panacea-identity
+    asserts:
+      - equal:
+          path: metadata.labels["pod-security.kubernetes.io/enforce"]
+          value: restricted
+      - equal:
+          path: metadata.labels["panacea-app/edge-routes"]
+          value: "true"
+      - equal:
+          path: metadata.labels["app.kubernetes.io/part-of"]
+          value: panacea-app

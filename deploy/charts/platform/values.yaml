@@ -1,0 +1,47 @@
+# values.yaml - every key is required by values.schema.json (additionalProperties: false)
+namespaces:
+  hub: panacea-hub
+  broker: panacea-broker
+  sandboxes: panacea-sandboxes
+  edge: panacea-edge
+  identity: panacea-identity  # our Keycloak (OD-30, ruling section 9; task 29's keycloak chart)
+
+network:
+  # From foundation outputs, passed by the deploy pipeline. Empty fails the render.
+  vnetCidr: ""
+  podCidr: ""
+  serviceCidr: ""
+  privateEndpointsCidr: ""
+
+sandboxes:
+  # P8-D15. Must equal the broker's PANACEA_APP_RUNTIME_CLASS (task 29 passes both from one value).
+  runtimeClass: kata-vm-isolation
+  quota:                      # a ceiling for the whole namespace, not per user (the broker enforces per-user limits)
+    requestsCpu: "64"
+    requestsMemory: 128Gi
+    pods: "64"
+    persistentVolumeClaims: "64"
+    requestsStorage: 4Ti
+  limitRange:
+    # The largest single container the cluster will admit, DERIVED FROM THE SANDBOX SKU (b05
+    # re-review 2): the largest session that fits beside a machine pod on an empty node. It MUST
+    # equal the broker's PANACEA_APP_BROKER_MAX_CPU_MILLIS / _MAX_MEMORY_MIB (task 17); task 29's
+    # session_size_is_one_value holds them equal. Arithmetic for Standard_D8s_v5, UNVERIFIED;
+    # task 32's P07 measures and rewrites all three places.
+    maxCpu: 6000m
+    maxMemory: 20480Mi
+    # What an unsized container gets (review I4): one session, never the max. MUST equal the
+    # broker's PANACEA_APP_BROKER_SESSION_CPU_MILLIS / _MEMORY_MIB and warm.balloons (task 12);
+    # task 29's netpolcover case session_size_is_one_value holds all three equal per env.
+    defaultCpu: 2000m
+    defaultMemory: 4096Mi
+
+storage:
+  machineDisk:
+    name: panacea-machine-disk
+    skuName: Premium_ZRS      # zone-redundant: a machine's disk can re-attach in another zone
+  nfsFallback:                # P8-D6's fallback, off unless task 32 finds RWO sharing fails under Kata
+    enabled: false
+    name: panacea-machine-nfs
+
+warm: {}                      # task 12 fills this block

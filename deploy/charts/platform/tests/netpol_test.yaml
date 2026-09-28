@@ -1,0 +1,131 @@
+suite: netpol
+values:
+  - ./values-test.yaml
+tests:
+  # Mutant killed: a default-deny covering Ingress only, leaving egress wide open.
+  - it: every_namespace_denies_by_default
+    template: templates/networkpolicy-defaults.yaml
+    asserts:
+      - hasDocuments:
+          count: 5
+      - equal:
+          path: spec.podSelector
+          value: {}
+      - equal:
+          path: spec.policyTypes
+          value: [Ingress, Egress]
+      - equal:
+          path: metadata.name
+          value: default-deny
+      - isNull:
+          path: spec.ingress
+      - isNull:
+          path: spec.egress
+
+  # Mutant killed: IMDS reachable - an agent in a sandbox reads the node's identity token.
+  - it: imds_and_private_ranges_are_excluded
+    template: templates/networkpolicy-sandboxes.yaml
+    documentSelector:
+      path: metadata.name
+      value: egress-internet
+    asserts:
+      - equal:
+          path: spec.egress[0].to[0].ipBlock.cidr
+          value: 0.0.0.0/0
+      - contains:
+          path: spec.egress[0].to[0].ipBlock.except
+          content: 169.254.169.254/32
+      - contains:
+          path: spec.egress[0].to[0].ipBlock.except
+          content: 168.63.129.16/32
+      - contains:
+          path: spec.egress[0].to[0].ipBlock.except
+          content: 10.0.0.0/8
+      - contains:
+          path: spec.egress[0].to[0].ipBlock.except
+          content: 172.16.0.0/12
+      - contains:
+          path: spec.egress[0].to[0].ipBlock.except
+          content: 192.168.0.0/16
+
+  # Mutant killed: a `from: []`, which admits every pod in the cluster.
+  - it: sessions_accept_only_the_broker_on_8080
+    template: templates/networkpolicy-sandboxes.yaml
+    documentSelector:
+      path: metadata.name
+      value: session-ingress-from-broker
+    asserts:
+      - equal:
+          path: spec.podSelector.matchLabels["panacea-app/component"]
+          value: sandbox
+      - lengthEqual:
+          path: spec.ingress[0].from
+          count: 1
+      - equal:
+          path: spec.ingress[0].from[0].namespaceSelector.matchLabels["kubernetes.io/metadata.name"]
+          value: panacea-broker
+      - equal:
+          path: spec.ingress[0].from[0].podSelector.matchLabels["app.kubernetes.io/name"]
+          value: broker
+      - equal:
+          path: spec.ingress[0].ports
+          value:
+            - protocol: TCP
+              port: 8080
+
+  # Mutant killed: a machine agent reachable from a session pod.
+  - it: machines_accept_only_the_broker_on_8081
+    template: templates/networkpolicy-sandboxes.yaml
+    documentSelector:
+      path: metadata.name
+      value: machine-ingress-from-broker
+    asserts:
+      - equal:
+          path: spec.podSelector.matchLabels["panacea-app/component"]
+          value: machine
+      - lengthEqual:
+          path: spec.ingress[0].from
+          count: 1
+      - equal:
+          path: spec.ingress[0].from[0].namespaceSelector.matchLabels["kubernetes.io/metadata.name"]
+          value: panacea-broker
+      - equal:
+          path: spec.ingress[0].ports
+          value:
+            - protocol: TCP
+              port: 8081
+
+  # Mutant killed: a convenience rule that lets sessions talk to each other. The only egress
+  # `to` with a podSelector anywhere in panacea-sandboxes is allow-dns's kube-dns rule.
+  - it: no_sandbox_to_sandbox_allow
+    template: templates/networkpolicy-sandboxes.yaml
+    asserts:
+      - hasDocuments:
+          count: 4
+      - equal:
+          path: spec.egress[0].to[0].podSelector.matchLabels["k8s-app"]
+          value: kube-dns
+        documentSelector:
+          path: metadata.name
+          value: allow-dns
+      - lengthEqual:
+          path: spec.egress[0].to
+          count: 1
+        documentSelector:
+          path: metadata.name
+          value: allow-dns
+      - notExists:
+          path: spec.egress[0].to[0].podSelector
+        documentSelector:
+          path: metadata.name
+          value: egress-internet
+      - notExists:
+          path: spec.egress
+        documentSelector:
+          path: metadata.name
+          value: session-ingress-from-broker
+      - notExists:
+          path: spec.egress
+        documentSelector:
+          path: metadata.name
+          value: machine-ingress-from-broker
