@@ -5,43 +5,6 @@ is the **single record** of those answers. Every plan written after this date ci
 id (`OD-n`), and where an older document disagrees, **this file wins**. The answers are quoted
 where the owner wrote free text, because the words carry the intent.
 
-## What earns an OD
-
-Thirty-five decisions are on this page and until now nothing here said what a decision *is*. The
-three-part test below is adopted from the method surveyed in `2026-09-28-discovery-skills/` — the
-method only; none of that source's wording is used. A question earns an `OD` row when **all three**
-are true.
-
-1. **Expensive to undo.** Reversing it costs code, data or a re-plan, not a setting. This excludes
-   anything a toggle, a config value or a single-file edit walks back — those are notes, and a note
-   belongs in the plan it affects, next to the work.
-2. **Not derivable from the tree.** An agent reading the repo cold would guess wrong, or would not
-   know the question existed. This excludes restatements of what the code already says: where the
-   answer is legible from the source, the source is the record and a second copy of it rots.
-3. **A real fork.** Two defensible options existed and one was given up at a named cost. This
-   excludes the obvious call — if every alternative is worse for everyone, nothing was traded and a
-   future reader has nothing to weigh.
-
-All three, not two. Each limb removes a different kind of clutter, and a register that admits easy,
-obvious or already-legible calls stops being worth reading end to end — which is the only way a
-register is ever read. The test is deliberately harsh: most questions should fail it.
-
-**What the gate is not for.**
-
-- **It does not govern orchestrator rulings.** A ruling is the structural call an agent makes when
-  its inputs do not cover the case in front of it (`2026-09-25-identity-keycloak-broker.md` is one).
-  Rulings are made under authority this register already granted, and they are recorded where the
-  work is. A ruling that turns out to need the owner becomes a pending question, and then an `OD`.
-- **It does not create `docs/adr/`.** We have a register, with owner authority, that `CLAUDE.md`
-  says wins over anything older. A second decision store is the failure `PROGRAM.md` already paid
-  for once. We are adopting a test, not a second system.
-- **It is not retrospective.** Nothing already numbered is deleted or renumbered — every `OD` id is
-  cited across the programme. The backwards audit at the end of this file names the rows that would
-  not pass today and leaves every one of them in place.
-
-Dependency edges between decisions are recorded once, near the end of this file, under **The
-dependency frontier**.
-
 ## The decisions
 
 | Id | Question | Answer | Consequence |
@@ -301,6 +264,47 @@ requires log panes that never scroll-jump, and neither has any implementation in
   server-side.
 - `PROGRAM.md` → Phase 5, "Adapt Paperdesign": **superseded by OD-11.**
 - `PROGRAM.md` → open risk 4 (Paperdesign licence): **closed by OD-11.**
+
+## What earns an OD
+
+Thirty-five decisions are on this page and until now nothing here said what a decision *is*. The
+three-part test below is adopted from the method surveyed in `2026-09-28-discovery-skills/` — the
+method only; none of that source's wording is used. A question earns an `OD` row when **all three**
+are true.
+
+1. **Expensive to undo.** Reversing it costs code, data or a re-plan, not a setting. This excludes
+   anything a toggle, a config value or a single-file edit walks back — those are notes, and a note
+   belongs in the plan it affects, next to the work.
+2. **Not derivable from the tree.** An agent reading the repo cold would guess wrong, or would not
+   know the question existed. This excludes restatements of what the code already says: where the
+   answer is legible from the source, the source is the record and a second copy of it rots.
+3. **A real fork.** Two defensible options existed and one was given up at a named cost. This
+   excludes the obvious call — if every alternative is worse for everyone, nothing was traded and a
+   future reader has nothing to weigh.
+
+All three, not two. Each limb removes a different kind of clutter, and a register that admits easy,
+obvious or already-legible calls stops being worth reading end to end — which is the only way a
+register is ever read. The test is deliberately harsh: most questions should fail it.
+
+**What the gate is not for.**
+
+- **It does not govern orchestrator rulings.** A ruling is the structural call an agent makes when
+  its inputs do not cover the case in front of it (`2026-09-25-identity-keycloak-broker.md` is one).
+  Rulings are made under authority this register already granted, and they are recorded where the
+  work is. A ruling that turns out to need the owner becomes a pending question, and then an `OD`.
+- **It does not create `docs/adr/`.** We have a register, with owner authority, that `CLAUDE.md`
+  says wins over anything older. A second decision store is the failure `PROGRAM.md` already paid
+  for once. We are adopting a test, not a second system.
+- **It is not retrospective — and that claim is about ids, not lines.** Nothing already numbered is
+  deleted or renumbered, because every `OD` id is cited across the programme. Line anchors are the
+  separate hazard the id argument does not cover: 41 citations across 12 documents point into this
+  file by line range, and an insertion above the decision tables moves all of them silently, with no
+  broken link to notice. That is why this section sits here, after the decisions, rather than at the
+  top where it was first written. **Anything added to this file later goes below the tables too.**
+  The backwards audit at the end of this file names the rows that would not pass today and leaves
+  every one of them in place.
+
+The dependency frontier, immediately below, records the edges between decisions once.
 
 ## The dependency frontier
 

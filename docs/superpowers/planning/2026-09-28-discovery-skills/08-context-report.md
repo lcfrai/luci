@@ -35,7 +35,7 @@ The citations that carry the most weight, all resolved against the file on 2026-
 |---|---|
 | seam | `docs/SEAMS.md:1-11` — an id, a row, a test anchor; not any boundary |
 | lane, convergence | phase 3 plan `:28-35`, `:96-100`; `LaneView`/`QueueEntry`/`Convergence` in `…phase-3…parts/task-08.md:112-146` |
-| worktree | `OD-2` (`owner-decisions.md:50`) + phase 3 plan `:68-75` — a local clone, not a `git worktree` |
+| worktree | `OD-2` (`owner-decisions.md:13`) + phase 3 plan `:68-75` — a local clone, not a `git worktree` |
 | the Materialiser | `control-plane/internal/contextwrite/materialise.go:1-21` — the ordering rule is the definition |
 | brief, criterion | `control-plane/internal/discover/content.go:1-6`, `:57-59`, `:160-166` |
 | brief revision | `provenance/key.go:23-29`, verbatim from `hub-contract.md:120` |
