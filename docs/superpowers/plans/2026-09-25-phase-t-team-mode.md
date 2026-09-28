@@ -64,8 +64,10 @@ Four rules shape every task:
 1. **Agents see facts, not each other's words.** Files touched are observed by `machined` outside
    the sandbox. Workers never read a teammate's free text; Orchestrators read it only as data.
 2. **Turn origin governs authority.** When Fleet, not the owner, started an Orchestrator turn, the
-   Orchestrator may only pause, narrow or sequence its own workers; anything else becomes a
-   `decide` to its human (`05-design.md` §7.2).
+   Orchestrator may issue only the **typed** verbs at its own workers — pause, resume, narrow,
+   wait-for, rebase, none of which can make a worker do something new — and anything else (free
+   text) becomes a `decide` to its human (`05-design.md` §7.2). One definition, task 03's
+   `DirectiveKind.Typed()`, serves both Fleet's check and the Hub's (fix batch b07, G31-1).
 3. **Fleet holds no Hub record durably.** It rebuilds Hub-owned state from the Hub after a restart;
    its own schema holds Fleet state and the outbox of Hub-bound writes, nothing else
    (`05-design.md` §11.1, `ADR-H1:467-474`).
@@ -145,9 +147,11 @@ code onto this branch ahead of the merge.
 
 6. **Agents see facts, not words.** Activity is observed by `machined` outside the VM. A worker
    never receives a teammate's free text; an Orchestrator receives it only as quoted data.
-7. **Turn origin governs authority** (§7.2). In a Fleet-started turn an Orchestrator may only
-   pause, narrow or sequence its own workers; any other verb becomes a `decide`. The check is in
-   Fleet's verb handler, not in the prompt.
+7. **Turn origin governs authority** (§7.2). In a Fleet-started turn an Orchestrator may issue only
+   the five typed verbs at its own workers — pause, resume, narrow, wait-for, rebase; free text
+   becomes a `decide`. The check is in Fleet's verb handler (task 31), not in the prompt, and the
+   Hub re-checks it (task 07) against the **same** `DirectiveKind.Typed()`, so the two layers cannot
+   drift (b07, G31-1/S01-I9).
 8. **No git credential enters a sandbox.** Fetch uses the project's read-only credential (OD-22),
    held by the broker. Push and PR use the lane owner's own token, per act, in memory only, and stay
    human actions.

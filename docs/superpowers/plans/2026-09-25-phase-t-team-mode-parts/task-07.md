@@ -20,7 +20,8 @@ records exist.
 
 **The second thing is that the Hub re-checks the taint rule.** Fleet's verb handler is the first
 layer (§7.2, task 31); the Hub is the second (`task-01.md:417-421`). A directive whose `origin` is
-`fleet` and whose `kind` is not `pause`, `narrow` or `wait-for` must cite, in `approvedBy`, a
+`fleet` and whose `kind` is **not typed** — `DirectiveKind.Typed()` false, which today means `free`
+alone — must cite, in `approvedBy`, a
 `decide` escalation **of the same owner, answered by that owner**. Otherwise it is 403 `forbidden`,
 `required: "decide"`, and nothing is written. A compromised Fleet can still write in the owner's
 name (task 01's R12), but it cannot make a Fleet-started turn look approved without a human answer
@@ -203,20 +204,22 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/store"
 )
 
-// fleetTurnVerbs are the only directive kinds a Fleet-started turn may issue on its
-// own (§7.2): they pause, narrow or sequence the Orchestrator's own workers, and none
-// of them can make a worker do something new.
-var fleetTurnVerbs = map[hubapi.DirectiveKind]bool{
-	hubapi.DirectivePause:   true,
-	hubapi.DirectiveNarrow:  true,
-	hubapi.DirectiveWaitFor: true,
-}
+// There is no verb set here. The kinds a Fleet-started turn may issue on its own
+// are §7.2's five TYPED ones (pause, resume, narrow, wait-for, rebase), and the
+// single definition is task 03's DirectiveKind.Typed() (task-03.md:348-350),
+// which TaintAllows calls. Fix batch b07 (S01-I9, G31-1) deleted the local
+// fleetTurnVerbs map: it held three kinds, so a Fleet-turn resume or rebase that
+// task 31 issues and the design allows was refused 403 here, the outbox write
+// failed for good, and the protocol's commonest resolution (yield, then resume)
+// broke. Two copies of one rule drift; one copy cannot.
 
 // TaintAllows is the Hub's second copy of Fleet's verb check (task 31 holds the
-// first). A directive from a Fleet-started turn that is not one of the three needs
-// approvedBy to name a decide escalation of the same owner, answered by that owner.
+// first). A directive from a Fleet-started turn that is not typed — in practice
+// free — needs approvedBy to name a decide escalation of the same owner, answered
+// by that owner. It calls task 03's Typed() rather than a set of its own, so the
+// Hub and Fleet cannot disagree about which kinds are safe (b07, S01-I9/G31-1).
 func TaintAllows(ctx context.Context, tx *Tx, req hubapi.AppendDirectiveRequest) error {
-	if req.Origin == hubapi.TurnOriginHuman || fleetTurnVerbs[req.Kind] {
+	if req.Origin == hubapi.TurnOriginHuman || req.Kind.Typed() {
 		return nil
 	}
 	if req.ApprovedBy == "" {
@@ -290,11 +293,12 @@ func TestTaintAllows(t *testing.T) {
 		mutant                         string
 	}{
 		{"human free", "human", "free", "", 201, "origin ignored: every free directive needs a decide"},
-		{"fleet pause", "fleet", "pause", "", 201, "the three safe verbs not exempt"},
-		{"fleet narrow", "fleet", "narrow", "", 201, "narrow missing from the set"},
-		{"fleet wait-for", "fleet", "wait-for", "", 201, "wait-for missing from the set"},
-		{"fleet resume bare", "fleet", "resume", "", 403, "resume treated as safe: it restarts a paused worker"},
-		{"fleet rebase bare", "fleet", "rebase", "", 403, "rebase treated as safe"},
+		{"fleet pause", "fleet", "pause", "", 201, "the typed verbs not exempt"},
+		{"fleet narrow", "fleet", "narrow", "", 201, "narrow missing from Typed()"},
+		{"fleet wait-for", "fleet", "wait-for", "", 201, "wait-for missing from Typed()"},
+		// b07 (S01-I9, G31-1): 403 before, against §7.2, task 01 §7.20 and Typed().
+		{"fleet resume bare", "fleet", "resume", "", 201, "a three-verb set copied here, which refuses the yield-then-resume the protocol resolves with"},
+		{"fleet rebase bare", "fleet", "rebase", "", 201, "a three-verb set copied here, which refuses a rebase onto upstream"},
 		{"fleet free bare", "fleet", "free", "", 403, "the rule not applied at the Hub at all"},
 		{"fleet free answered", "fleet", "free", answered, 201, "a real approval refused"},
 		{"fleet free unanswered", "fleet", "free", unanswered, 403, "answered_at not checked"},

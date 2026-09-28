@@ -25,11 +25,12 @@ may be issued, and rung 1 of delivery. Three properties carry the injection fenc
 **(a) The five typed kinds pass in a Fleet-started turn, not three.** Design §7.2 item 2
 (`05-design.md:807-809`), the skeleton's scope, task 01's contract §7.20 (`task-01.md:449`: "The
 typed five (`pause`, `resume`, `narrow`, `wait-for`, `rebase`) pass") and task 03's
-`DirectiveKind.Typed()` (`task-03.md:348-350`) all say five. Task 07's Hub copy of the rule,
-`fleetTurnVerbs` (`task-07.md:205-209`), lists three and its table test expects `resume` and
-`rebase` from a Fleet turn to be 403 (`task-07.md:292-293`). Fleet follows the design. **Raised as
-gap G31-1**: until task 07 widens its set to `Typed()`, a Fleet-turn `resume` or `rebase` goes
-dead in the outbox with 403 `forbidden`, and this task's acceptance step 4 fails loudly on it.
+`DirectiveKind.Typed()` (`task-03.md:348-350`) all say five, and so does this task. Task 07 once
+held a second copy of the rule, a three-kind `fleetTurnVerbs` map whose table expected `resume` and
+`rebase` from a Fleet turn to be 403. That was **gap G31-1**, and fix batch b07 closed it at the
+root: task 07 deleted the map and calls `req.Kind.Typed()`, so there is now exactly one definition
+and this task's acceptance step 4 cannot be failed by the Hub layer disagreeing with Fleet's
+(`task-07.md:207-223`, `:292-297`).
 
 **(b) `narrow` never widens, in any turn.** A `narrow` whose globs are not each inside the
 worker's task scope is refused `glob_refused` with `details.reason = "outside_task_scope"`,
@@ -142,7 +143,8 @@ G31-3**: task 22's method is renamed `InForce`, its comment changed; its key and
   - task 11: `outbox.Enqueue`, `outbox.OpDirective` (`task-11.md:133`), whose target is task 07's
     route 67; task 02: `teamtext.New` with the 600 bound, `teamtext.ValidGlob`
     (`task-02.md:843`)
-- Requires of **task 07**: `fleetTurnVerbs` = the five typed kinds (G31-1); a decide's optional
+- Requires of **task 07**: `TaintAllows` exempting the five typed kinds through
+  `hubapi.DirectiveKind.Typed()`, **met by fix batch b07** (G31-1 closed); a decide's optional
   `evidence` object on route 64 (G31-2); route 67's body carrying task 01's `params`
   (`task-01.md:440-441`), which task 07's shape (`task-07.md:160-166`) omits (G31-5).
 - Requires of **task 10**: the tables below in both stores and the suite, and `OutboxMarkSent`
@@ -470,7 +472,7 @@ test sets, a recording `escalate` fake for `Decide`, and a fixed clock. The last
 | `TestFreeInFleetTurnIsADecideNotADirective` | origin `fleet`, `direct w1 free "…"` → result has `escalation`, no `directive`; `Decide` called once with row `free-directive-fleet-turn`, `evidence.text` = the text; no outbox `OpDirective`, no queue row | `free` in `fleetTurnPasses`; the gate skipped for `direct` |
 | `TestFreeInHumanTurnPasses` | origin `human` → `dv-…` issued, outbox payload `origin: "human"`, no decide | origin ignored: every `free` held |
 | `TestNoTurnIsAFleetTurn` | `CurrentTurn` ok=false, `free` → held | decision (c) inverted: a stray call treated as human |
-| `TestTheFiveTypedKindsPassInAFleetTurn` | each of `pause`, `resume`, `narrow` (inside), `wait-for`, `rebase` → issued | the Hub's three-verb set copied here (G31-1) |
+| `TestTheFiveTypedKindsPassInAFleetTurn` | each of `pause`, `resume`, `narrow` (inside), `wait-for`, `rebase` → issued; the set is read from `hubapi.DirectiveKind.Typed()`, never listed here | a verb set written out in this file, which is how G31-1 opened on task 07's side |
 | `TestNarrowOutsideScopeIsRefusedInEveryTurn` | scope `web/**`; `narrow api/**` → `glob_refused`, `details.reason = outside_task_scope`, in a `fleet` and a `human` turn; nothing written | `Within` returning true on a shared prefix (`web2/**` inside `web/**`); the check applied only in Fleet turns |
 | `TestWithinIsConservative` | `web/auth/**`⊂`web/**` true; `web2/x`⊂`web/**` false; `web/*.go`⊂`web/*.go` true; `web/a.go`⊂`web/*.go` false | prefix test without the `/`; a glob matcher used as containment |
 | `TestOnlyOwnWorkers` | `to` Grace's worker → `agent_not_owner`; `to` Linus's worker under his other Orchestrator → `agent_not_owner`; `to` an Orchestrator → `agent_not_owner` | the parent check dropped |
@@ -532,8 +534,10 @@ behavioural half).
 
 The Hub half: task 07's taint table (`task-07.md:283-300`, run by `-run TestTaint`) against this
 task's issued payloads (`go test -tags integration ./internal/hub/server/ -run TestTaint`). With
-task 07 as written, the `fleet resume` and `fleet rebase` rows fail: that is G31-1, and the fix
-is task 07's.
+task 07 **since fix batch b07** both rows expect 201 and pass, because `TaintAllows` and this task's
+verb handler read the same `DirectiveKind.Typed()`. Before b07 they failed, which was G31-1. If
+either row is 403 when this step runs, the map came back: check `task-07.md:207-215` for a local
+verb set before touching anything here.
 
 - [ ] **Step 8: Commit** with `git add` on each new file, then `git commit -F <msgfile> --
   <paths>`, the message ending with the plan's co-author line.
@@ -560,9 +564,12 @@ is task 07's.
 
 **Gaps against the skeleton and sibling parts, raised here:**
 
-- **G31-1.** Task 07's `fleetTurnVerbs` (`task-07.md:205-209`) holds three kinds and its table
-  expects `resume` and `rebase` from a Fleet turn to be 403 (`:292-293`); design §7.2, task 01
-  §7.20 and task 03's `Typed()` say five. Task 07 should use `req.Kind.Typed()`.
+- **G31-1. CLOSED by fix batch b07** (S01-I9 from task 07's side). It read: task 07's
+  `fleetTurnVerbs` holds three kinds and its table expects `resume` and `rebase` from a Fleet turn
+  to be 403, while design §7.2, task 01 §7.20 and task 03's `Typed()` say five. Task 07 now deletes
+  the map and calls `req.Kind.Typed()`, and its two table rows expect 201 (`task-07.md:207-223`,
+  `:292-297`). Nothing is needed here beyond the citation: this task's five-kind expectation was
+  always the right one. Task 33's E4 therefore checks a decided rule, not an open gap.
 - **G31-2.** Route 64 has no field for what a taint decide showed the human; this task needs an
   optional `evidence` object (decision e). Task 01 §7.19 and task 07's route 64 own it.
 - **G31-3.** Task 22's `Directives.Pending` (`task-22.md:155-158`) cannot be "undelivered" once

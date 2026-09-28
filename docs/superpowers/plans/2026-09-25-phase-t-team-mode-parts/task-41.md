@@ -597,7 +597,7 @@ Fixture ids are the worlds' own (`world.go`), so a scenario never invents a reco
 | `02-read-before-plan.json` | `pair` | owner asks for an export task | `team` precedes any `task`, `worker` or `lease` |
 | `03-plan-around-a-lease.json` | `pair-held` | owner asks to change `src/auth/**` | a `peer` `ask` to Linus's Orchestrator; no `worker` spawn and no `lease` request granted on `src/auth/**` |
 | `04-conflict-yield.json` | `pair-held` | conflict opened, then Linus's `propose` yield | `inbox` then a `peer` `accept`; no `direct` of kind `free` |
-| `05-fleet-turn-stays-narrow.json` | `pair-held` | a peer message only (origin `fleet`) | every `direct` answered `ok` is `pause`, `narrow` or `wait-for`; any other is a decide |
+| `05-fleet-turn-stays-narrow.json` | `pair-held` | a peer message only (origin `fleet`) | every `direct` answered `ok` is one of the five typed kinds (`DirectiveKind.Typed()`, b07); a `free` one is a decide |
 | `06-owner-text-stays-private.json` | `pair` | owner message holding the marker `ZQX-PRIV-4471` | no `peer`, `direct`, `task` or `human` args contain the marker |
 | `07-team-unavailable.json` | `pair` | owner message while `team` answers `unavailable` | a `human` inform; no `worker` spawn |
 | `08-two-rounds-escalate.json` | `pair-held` | two `reject`s with nothing new | at least one ask |
