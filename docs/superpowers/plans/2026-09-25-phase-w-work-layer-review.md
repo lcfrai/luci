@@ -6000,3 +6000,83 @@ written at `…-scopes/tasks-81-100.md:554-559`. Nothing else in the plan depend
 
 **Still unverified, and it has not changed.** Phase 5's paths and the Hub's `server/approvals.go`
 are read from plans on other branches. Nothing was executed: plan change only.
+
+## Fix batch b01, round 4 (2026-09-29)
+
+Round 3's re-review (`.superpowers/sdd/work/plan-rereview-b01-3.md`) found X-C1 **closed at the
+root** and left **2 Critical, 2 Important, 2 Minor** on the way round 3's own ruling was carried.
+All six are answered below. Every line number is post-fix on `feat/work-layer`.
+
+| Finding | Verdict | Change | File:line |
+|---|---|---|---|
+| RR3-C1 | Fixed | `closeIssuesForDesign` moves **only** issues whose head serves nothing; what it skips, and why skipping is not optional | `…-parts/task-81b.md:215-225` |
+| RR3-C1 | " | the scope's Files and Tests first carry the same filter; the stale `landed`/`waiting` sentence is gone | `…-scopes/tasks-81-100.md:589-592`, `:647-656` |
+| RR3-C1 | " | the scope's seam line: SW.4 is *an added `StateCause`, not an added done rule* | `…-scopes/tasks-81-100.md:562-564` |
+| RR3-C1 | " | the phase 5 delta row is qualified, in place, one line | `…-work-layer.md:289` |
+| RR3-C2 | **Ruled (rule 8)** | decision **2a**: `DesignLanding` is a read shape over Hub task 22's approval row, never a stored one; no `design_landings` table | `…-parts/task-81b.md:99-111`, `…-scopes/tasks-81-100.md:621-628` |
+| RR3-C2 | " | decision **2b**: no event kind is added; the chore path emits task 10's `EventIssueState`, the serving path emits nothing | `…-parts/task-81b.md:113-121` |
+| RR3-C2 | " | `DesignIssues{Design, Issues}` is the read route's envelope, so the projection has a producer and a consumer | `…-parts/task-81b.md:181-183`, route at `:261-265` |
+| RR3-C2 | " | test 2, tests 8-9 and (a2) assert what exists: same state, same event count, same fact count | `…-parts/task-81b.md:285-289`, `:308-317`, `:319-327` |
+| RR3-I1 | Fixed | `WorkDesign`, one standalone interface with one method, plus fake, HTTP stub and conformance row — **81b owns all four** | `…-parts/task-81b.md:238-253` |
+| RR3-I2 | Fixed, and re-run | `sumhours.py` regex `W[0-9][b]?` → `W[0-9][b]?|WL`; it now prints `WL 13 33.0` and `ALL 190 526.0` | `.superpowers/sdd/work/sumhours.py:14` |
+| RR3-M1 | Fixed | `DesignPicker.tsx` reaches the work-components row, with 96b | `…-work-layer.md:307` |
+| RR3-M2 | Fixed | the Goal says **design canvas**; the owner fork's undo instruction names the new word | `…-work-layer.md:7`, `…-scopes/tasks-81-100.md:555` |
+
+**RR3-C1 was the one that could not ship.** The close runs inside the approval's own transaction,
+and decision 5 gates both SQL guard arms on `NOT v_serves`. An unfiltered `closeIssuesForDesign`
+therefore raises `42501` on the first brief-serving issue it touches, aborting the approval, the
+design link and the snapshot — 422 `state_not_allowed` on a request that asked to move no issue at
+all. The filter is now in the file row an implementer builds from, not only in the decision ninety
+lines above it, and **test 8** is the mixed canvas (one `serves: []` chore, one serving issue, one
+200, nothing rolled back) that fails if the filter is dropped again.
+
+**RR3-C2 is a ruling, declared not inherited (rule 8).** Round 3 left a serving issue with three
+things the approval supposedly wrote and no way to write any of them. The ruling is that **it writes
+nothing, and nothing new is needed**: Hub task 22's approval row already records that the key was
+approved, by whom and when; the issue's `issue_implements` row, written by *its revision* under
+decision 4, already records that it implements that key; the join **is** the trace, and the read
+route returns it. So `DesignLanding` becomes a projection with no table, no RLS, no grants and no
+writer, and **test 9** greps `store/` to keep it that way. The alternative — a `design_landings`
+table in task 74's section — was rejected because it duplicates Hub 22's row, is a second source of
+truth decision 4 forbids for exactly this data, and goes stale the moment phase 5 approves without
+it. The event half falls out the same way: the chore path already emits task 10's existing
+`EventIssueState`, the serving path emits nothing, so no kind is invented, task 13's registry and
+task 72's W2 kinds are untouched, and **neither 13 nor 72 enters `dependsOn`** — which is the
+cheaper answer as well as the honest one.
+
+**RR3-I1, and why 81b owns the client method rather than handing it to 82.** 81b is not in task 82's
+`dependsOn`, and 82's text names no design route, so a hand-off row would leave the method unbuilt
+in whichever order the two tasks run — the same shape of hole round 2 caught for the missing writer.
+`WorkDesign` is task 72's `WorkPlan` pattern (`task-72.md:876-886`, `:1315`) at one method instead
+of forty-six: declared standalone, embedded into `Work` in the **same commit** as its fake and stub,
+so `var _ Hub = (*Fake)(nil)` never breaks between commits. That is how `task-04.md:162-164` says
+SW.2 grows — *"each an added interface"* — and it is why a method inside `WorkIssues` was never
+available to the implementer. `dependsOn` gains `04` for the freeze it obeys.
+
+**The hours do not move, and that is a claim with a reason.** 81b stays at 4 h: this round adds one
+interface, one fake method, one HTTP stub and one conformance row, and removes a landings table, its
+RLS, its grants and an event-kind registration. The scanner agrees with the stream table at
+`:344-351` slice by slice — W0 1/2, W1 70/195, W1b 1/3, W2 28/76.5, W3 16/46, W4 29/79.5, W5 32/91,
+WL 13/33, **ALL 190 / 526** — and that total is now **printed, not asserted**, which is the thing
+three rounds got wrong.
+
+**Citations.** The Goal fix is one word in place because inserting a footnote at skeleton `:7` would
+shift every `work-layer.md:N` citation in the tree; the skeleton is still **641 lines** and `:7`,
+`:289`, `:307`, `:308`, `:356` and `:366` are unmoved. The reasoning lives at
+`…-parts/task-81b.md:59-64` instead. The 81b/96b scope block grew from `529-687` to `529-713`; every
+inbound `tasks-81-100.md:N` citation in the plan tree still points at `N ≤ 486`, so **no plan
+citation moved**, and the owner fork is still at `:554-559`. `task-81b.md` and `task-96b.md` have no
+inbound `:N` citation. The stale ranges in the re-review reports under `.superpowers/` are dated
+records and are left as written.
+
+**The owner decision this batch still does not take.** Unchanged from round 3 and it is the only
+thing here that needs the owner: **is Design in Phase W at all?** The default taken, per rule 8, is
+the root-cause option — build the link, 7 h across 81b and 96b, both in W2, nothing in W1 waiting on
+them. Ruling Design out instead means striking *design canvas* from the Goal (skeleton `:7`) and
+deleting the two tasks, the phase 5 delta row (`:289`) and the `P5-` legend entry; the undo is
+written at `…-scopes/tasks-81-100.md:554-559`. Nothing else in the plan depends on the answer.
+
+**Still unverified, and it has not changed.** Phase 5's `src/design/` and `internal/designapi/`
+paths and Hub task 22's `server/approvals.go` and `store/approvals.go` are read from plans on other
+branches; those trees were not opened this round. Every `P5-` id is theirs. The only thing executed
+was `sumhours.py`; everything else is plan text.
