@@ -496,6 +496,41 @@ unverified until it is run.
 above lands once in the Hub worktree and is merged, never edited twice. `0001_init.sql` is **not**
 edited (11b §3.3).
 
+### 7.3 New tasks
+
+Each plan gets its new tasks as **a new section at its end**, with new part files, and its task
+table is not touched: phase 4's table is `plan:390-414` of 600 lines, the Hub's `HP:396-447` of 683,
+and a row inserted in either would move every cited line below it (rule of this program: new
+material goes at the end of a heavily cited file).
+
+**Phase 4**, ids continuing from 23:
+
+| # | Task | Depends on | Hours | Must come before |
+|---|---|---|---|---|
+| 24 | Prototype: the §6 states added to `prototype/phase-4-discover.html` (suggested, recorded, taken up, departure, project changed, refused, model off). The owner looks before 31's part is approved | — | 2 | 31 |
+| 25 | `discover`: `Term`, `Decision`, §2.2's field rules (and the reserved `panacea:discover:` sequence, refused as answers refuse it), the branch overlay, the set digest; pure | 06 | 3 | 26-30 |
+| 26 | `provenance`: the two key forms; `Ref.vocabulary`; `ref-golden.json` | 06, 25, Hub 45 | 2.5 | 12 |
+| 27 | `discoverhub`: the two list reads, the two batch writes, the heads' vocabulary for `Ref` | 07, 08, 25, Hub 46 | 3.5 | 29, 30, 32 |
+| 28 | `claudemd`: the new block and the two files' renderer; three goldens regenerated, three added | 05, 25 | 4 | 29 |
+| 29 | `contextwrite`: the three files in order, `/.panacea/discover/` excluded and confined, the inheritance record; `api`: `SessionID` | 09's fix round closed, 10, 27, 28 | 4 | 14 |
+| 30 | `discover` + `discoverhub`: the suggestion round, its local store and its five deaths (§4) | 04, 25, 27 | 3 | 32 |
+| 31 | Desktop: the lens's two areas (§6). UI: stays unmerged until the owner has looked (`OD-1`) | 16, 18, 24 looked at, 32 | 4 | 23 |
+| 32 | `discoverapi`: the relay routes for the two reads and two writes, the round's two routes, the per-session inheritance route beside task 12's `materialisations` | 11, 12, 27, 30 | 3 | 14, 15 |
+
+Phase 4 new: **29 hours, nine tasks.**
+
+**Hub**, ids continuing from 44b:
+
+| # | Task | Depends on | Hours | Must come before |
+|---|---|---|---|---|
+| 45 | `hubapi`: prefixes `te`, `dr`; the two forms and `KeyKind`s; the two envelopes and four golden vectors; the wire objects | 44a | 3 | 46, 47; phase 4's 26 |
+| 46 | `hubclient`: `Terms` and `Decisions`, the fake, the conformance and feed rows: **S0v**, phase 4 codes its vocabulary against the fake | 05, 45 | 3 | phase 4's 27 |
+| 47 | `sql/0002_terms_decisions.sql`: four tables, the guards, the RLS and grant twins, the word index, the composite keys, `hub.erase_term` and `hub.erase_decision`, a database test for each | 07b's fix round closed, 45 | 3.5 | 48 |
+| 48 | The server: the four routes, the resolver's two kinds, the four events, its own matrix rows (`rowsTask48` in `allRows`, the 16b pattern): **S4v (server side)** | 14, 16b, 20, 47 | 4 | phase 4's vocabulary on the real Hub |
+
+Hub new: **13.5 hours, four tasks.** No new Hub task stands in front of the brief's own S4: S4
+for briefs still opens after 06-20 (`HP:388-394`), and S4v follows it.
+
 ## 8. What it does not do, and the open owner questions
 
 (to be written)
