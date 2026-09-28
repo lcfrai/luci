@@ -31,6 +31,7 @@ import (
 	"time"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/deploy/binding"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/deploy/connection"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
@@ -187,6 +188,15 @@ type Deps struct {
 	// as fatal at startup - so "Connect to Panacea first." never answers a
 	// user's own attempt to connect.
 	DeployConnection *connection.Manager
+
+	// DeployBinding is the ONE resolver for this process: which deploy-target
+	// project deploys each local project, by repository. The watcher (task 07)
+	// and the read routes (tasks 09, 11, 12) hold this same pointer, so they
+	// cannot disagree about where a project ships.
+	//
+	// Like DeployConnection it is not validated by New: nil answers 409
+	// deploy_not_connected rather than removing the route.
+	DeployBinding *binding.Resolver
 }
 
 // GitIdentity is one person's commit identity: both fields, or neither.
@@ -357,6 +367,8 @@ func New(d Deps) (*API, error) {
 	// answers 404, and the cockpit reads a 404 as "this control plane is too
 	// old" rather than "this cockpit has no Panacea".
 	a.registerDeployConnection(guarded)
+	// The binding write, on the same terms and for the same reason.
+	a.registerDeployBinding(guarded)
 	// Task 12 added a.registerAttach(guarded) on the line above. One line, taking
 	// *routes, and in the SAME step that defines the method it names: a call
 	// added ahead of its definition leaves this file uncompilable for every

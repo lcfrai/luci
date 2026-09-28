@@ -60,16 +60,27 @@ type Binding struct {
 	//                                The fix is the Hub's share (Hub task 35's POST …/hub-link, task 42's screen;
 	//                                task 14 links to it, review M17); the next resolve after its project.* event
 	//                                picks the new id up (task 07 HubEvents)
-	// HubMiss says why HubProjectID is "". Three values, and readiness (task 09) gives each its
-	// own sentence:
+	// HubMiss says why HubProjectID is "". FOUR values (amended, carried b05-2 N-1 and N-2):
 	//   ""             — HubProjectID is set; or no Hub is configured; or the Hub has never
-	//                    answered for this key (a failure on the first read). Readiness tells the
-	//                    last two apart by the view's releasesState (no_hub | unavailable).
+	//                    answered for this key (a failure on the first read). The binding does
+	//                    NOT tell the last two apart and must not pretend to: the WATCHER does,
+	//                    because it knows whether a Hub is configured, and reports releasesState
+	//                    no_hub or unavailable (task 07). Task 09's readiness therefore takes
+	//                    that cause from the view's releasesState, NOT from HubMiss — the
+	//                    original text here said readiness told them apart, and it cannot.
 	//   "not_linked"   — the Hub answered: no project it lets this caller read has this key.
-	//   "key_spelling" — the Hub answered no, AND hubapi.HostOfRepoKey(RepoKey) is false: the key
-	//                    is in no form the Hub accepts, so no Hub project can ever hold it
-	//                    (HA7-6 is the Azure DevOps case; a GitHub EMU owner with "_" is another).
-	// A Hub error keeps the previous HubMiss together with the previous HubProjectID (step 3).
+	//   "key_spelling" — the key is in no form the Hub accepts, so no Hub project can ever hold
+	//                    it (HA7-6 is the Azure DevOps case; a GitHub EMU owner with "_" is
+	//                    another). Set two ways: the Hub answered no AND
+	//                    hubapi.HostOfRepoKey(RepoKey) is false; OR the Hub ANSWERED 400 with
+	//                    field "repo" (Hub task 17 route 13, task-17.md:23), which is the Hub
+	//                    itself refusing the key and outranks any local check.
+	//   "signed_out"   — the Hub refused for want of a session. It exists because this is the one
+	//                    cause the watcher cannot infer: a configured, reachable Hub that refuses
+	//                    a signed-out caller looks exactly like an outage, and the Ship bar would
+	//                    say "The Hub is not answering" instead of "Sign in first."
+	// A Hub error that is a BLIP keeps the previous HubMiss together with the previous
+	// HubProjectID (step 3). A 400 field: repo is not a blip; it is an answer.
 	// json:"-": HubMiss is never on the binding wire (below); TestHubKeyIsRepoKeyVerbatim pins it.
 	HubMiss      string `json:"-"`
 	Panacea      deploy.ProjectRef // "" unless Bound
@@ -91,6 +102,14 @@ type Config struct {
 	Remotes    Remotes
 	Deployer   deploy.Identity   // connection.Manager.Current()
 	Hub        HubProjects       // nil until the Hub is configured: HubProjectID stays ""
+	// AMENDED — the four seams the "Departures" section at the end of this part explains. Each
+	// carries a fact this package may NOT own: the spelling of a key, the Hub's rule for which
+	// spellings it accepts, what a hubclient error means, and the address a choice is scoped to.
+	ParseRemote      ParseRemote                // githost.ParseRemote(u).RepoKey(), through main.go
+	HubKeyAccepted   func(string) bool          // hubapi.HostOfRepoKey; REQUIRED when Hub is set
+	ClassifyHubError func(error) HubErrorClass  // nil = every failure is a blip
+	HubReadTimeout   time.Duration              // per lookup; 0 takes DefaultHubReadTimeout (5 s)
+	PanaceaOrigin    func() string              // connection.Manager.Status().Origin
 	ChoicesDir string            // statepath.Dir("deploy")
 	Now        func() time.Time
 	Log        *slog.Logger
@@ -105,6 +124,11 @@ func New(cfg Config) (*Resolver, error)
 // A Panacea or Hub failure returns the LAST good binding with State Unavailable and the
 // error — never a silently unbound project.
 func (r *Resolver) Resolve(ctx context.Context, projectID string) (Binding, error)
+
+// AMENDED (carried b09-2 I-1): every Hub lookup ResolveMany makes is bounded by
+// Config.HubReadTimeout, and the FIRST lookup that fails as a blip or signed-out settles the
+// cycle for every key left — a Hub that never answers costs one timeout per cycle, not one per
+// repository inside the watcher's 30 s budget.
 
 // ResolveMany computes the bindings of several local projects from ONE LocalProjects.Projects
 // read, ONE Deployer.Projects read and one HubProjects.ProjectForRepo per distinct RepoKey,
@@ -128,7 +152,17 @@ func (r *Resolver) Choose(ctx context.Context, projectID string, p deploy.Projec
 
 1. Local: `Projects` → the project's `Path`; `Remotes.OriginURL(Path)`; `""` → `NoOrigin`.
 2. `githost.ParseRemote(url)`; `ErrUnknownHost` → `UnknownHost`. `RepoKey := remote.RepoKey()`.
-3. Hub (when configured): `ProjectForRepo(RepoKey)` → `HubProjectID` or `""`. A Hub error keeps
+3. Hub (when configured): `ProjectForRepo(RepoKey)` → `HubProjectID` or `""`. A Hub error is first
+   CLASSIFIED (amended, carried b05-2 N-1 and N-2; `Config.ClassifyHubError`, wired in `main.go`
+   over `hubclient`'s own error type — this package never reads a status code or a problem body):
+   - `HubRefusedKey` — the Hub answered **`400 field: repo`** (Hub task 17, route 13,
+     `task-17.md:23`, passed back as `*hubclient.Error{Status, Problem}`, contract `:1325-1329`,
+     NOT as `ok == false`). This is an ANSWER: `HubProjectID ""`, `HubMiss "key_spelling"`, no
+     *"unreachable"* `Message`, and the cycle is not treated as failed. Without this row every Hub
+     lookup error is a blip, a refused key keeps `""` forever, and `key_spelling` is never set
+     against the real Hub — the survivor *"every Hub lookup error is a blip"*.
+   - `HubSignedOut` — the previous `HubProjectID` is kept and `HubMiss` becomes `"signed_out"`.
+   - `HubBlip` (the default, and what an unwired classifier gives) — keeps
    the previous `HubProjectID` **and the previous `HubMiss`** (a key that has never had an answer
    keeps `""`, so a first-read failure is never reported as `not_linked`), and sets `Unavailable`
    only if Panacea's side also failed; a Hub failure alone leaves the Panacea binding intact and is
@@ -271,3 +305,46 @@ go test ./control-plane/internal/deploy/binding/ ./control-plane/internal/api/ .
   character rule). If it refuses one, `TestHubKeyIsRepoKeyVerbatim`'s `_` case uses the direct
   `missCause` literal only, and the implementer says so.
 - Creating a Panacea project from the cockpit. Out of scope; the `NoMatch` sentence says where.
+
+#### Departures declared when this part was built (2026-09-28)
+
+The part's two hard dependencies are in **no tree**: `control-plane/internal/githost` and
+`control-plane/internal/hubapi`/`hubclient` do not exist in this worktree, in `main`, in the
+`phase-3` worktree (which has `gitx` and `lanes`, and no `ParseRemote` anywhere) or in the `hub`
+worktree. Evidence: `.superpowers/sdd/p7/t06-dep-probe.txt`.
+
+The part says this task "does not start until [phase 3 task 13] is merged". It was built anyway,
+because the thing that could not be built is **one function** — the spelling of a repository key —
+and the thing the task is actually for is **matching by that key**, which is phase 7's own. So
+every fact this package may not own enters through `Config`, and the stand-ins for them live only
+in `_test.go` files, which is the one place a fourth canonicaliser cannot be written by accident:
+
+| Seam | `main.go` wires it with | While it is missing |
+|---|---|---|
+| `Config.ParseRemote func(cloneURL string) (Remote, error)` | `githost.ParseRemote(u).RepoKey()`, mapping `githost.ErrUnknownHost` to `binding.ErrUnknownHost` | the resolver cannot be constructed: `New` requires it |
+| `Config.HubKeyAccepted func(repoKey string) bool` | `func(k string) bool { _, ok := hubapi.HostOfRepoKey(k); return ok }` | `New` **refuses** a `Hub` with no rule, so "not_linked" is never shown about a key the Hub could never hold |
+| `Config.ClassifyHubError func(error) HubErrorClass` | `hubclient`'s own error type: 400 `field: repo` → `HubRefusedKey`, `ErrSignedOut` → `HubSignedOut`, else `HubBlip` | every failure is a blip, which is the pre-amendment behaviour |
+| `HubProjects.ProjectForRepo` returns `(hubProjectID string, ok bool, err error)` | one line over `hubclient.Projects.ProjectForRepo`, taking `.ID` | — |
+| `Config.PanaceaOrigin func() string` | `connection.Manager.Status().Origin` | a choice is scoped to `""`, which is one scope, not the wrong one |
+
+Three further rulings taken at root cause and declared:
+
+1. **`NoRepoInfo` also covers a `repoUrl` phase 3 cannot parse.** The part's rule is "every project
+   had `RepoURL == ""`". A project whose `repoUrl` does not parse is Panacea not saying which
+   repository it deploys in a form this cockpit can use — not Panacea saying it deploys none — and
+   the part's own "does NOT claim" row warns that Panacea normalises clone URLs
+   (`clients/pipeline.go:174`). Falling to `NoMatch` would tell the user to create a project that
+   already exists. The rule built is: no project yielded a usable key → `NoRepoInfo`, all projects
+   as candidates.
+2. **A stored choice applies to `NoRepoInfo` as well as `Ambiguous`**, which `Choose`'s own doc
+   comment already implies and the state table did not say.
+3. **The Panacea read happens before the Hub read**, not after as steps 3 and 4 are numbered. A
+   Panacea failure then skips the Hub phase entirely, which keeps the previous Hub answer — the
+   behaviour step 3 asks for — and costs no Hub call during a Panacea outage. `Bound` shows the
+   Hub's sentence when it has none of its own; every other state's sentence wins over it.
+
+`TestHubBindsADOWithPhase3sKey` is **not written**: with both `githost` and `hubapi.ValidRepoKey`
+absent it could only test the stand-ins against each other, which is the survivor plan re-review
+b05 R-1 named ("a seed that restates one side's spelling"). HA7-6 stays open and belongs to the
+task that has both sides. `TestMissCauseRoutesOnTheHubsRule` pins the ROUTING with the plan's four
+literals; the rule's own cases belong to the Hub.
