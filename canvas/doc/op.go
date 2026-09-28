@@ -57,6 +57,14 @@ type Op struct {
 	Review      *ReviewRequest     `json:"review,omitempty"`
 	ReviewID    string             `json:"reviewId,omitempty"`
 	BriefKey    string             `json:"briefKey,omitempty"` // ≤ 64 bytes; never parsed here (plan G9)
+
+	// canonicalSVG marks an op Apply built itself for a Change's Inverse: its
+	// SVG came out of Checker.SVG already, and canonicalising a canonical form
+	// again is only safe if SVG is idempotent. It is unexported so no request
+	// from outside doc can set it and walk markup past the sanitiser, and so it
+	// does not cross JSON — an Inverse read back from the event stream has lost
+	// it, which is why the Checker contract below requires idempotence too.
+	canonicalSVG bool
 }
 
 // Checker validates what doc cannot without the dialect (task 07 implements
@@ -69,6 +77,12 @@ type Checker interface {
 	// with nodeID). Apply stores the returned string, and writes it back into the
 	// op it records in the Change, so the event stream, every desktop DocStore and
 	// a replay apply the same bytes.
+	//
+	// It must be idempotent: SVG(id, SVG(id, m)) == SVG(id, m). Prefixing ids is
+	// the obvious way to make it not so, and an inverse carries bytes that have
+	// been through it once already — in process Apply skips the second pass, but
+	// an Inverse that has crossed JSON cannot be told from a fresh request. Apply
+	// never hands it more than MaxSVGBytes. (task 07 pins both with a canary.)
 	SVG(nodeID, markup string) (canonical string, err error)
 }
 

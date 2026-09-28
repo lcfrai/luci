@@ -624,7 +624,7 @@ func (b *batch) deletePage(i int, op Op) error {
 	for _, art := range b.w.sortedChildren(p.ID) {
 		for _, n := range b.w.subtreeNodes(art.ID) {
 			node := n
-			inv = append(inv, Op{Kind: OpCreateNode, Node: &node})
+			inv = append(inv, Op{Kind: OpCreateNode, Node: &node, canonicalSVG: true})
 			delete(b.w.nodeMap(), n.ID)
 			delete(b.w.childMap(), n.ID)
 			b.deleted[n.ID] = true
@@ -671,7 +671,13 @@ func (b *batch) createNode(i int, op Op) error {
 		return opErrf(i, CodeExists, n.ID, "the node %s already exists", n.ID)
 	}
 	b.stamp(&n)
-	if n.Kind == KindSVG {
+	// op.canonicalSVG is an inverse Apply built from a stored node: those bytes
+	// are a Checker.SVG return value already, and a second pass would prefix the
+	// node id twice, so an undo would restore markup nobody ever wrote.
+	if n.Kind == KindSVG && !op.canonicalSVG {
+		if len(n.SVG) > MaxSVGBytes {
+			return opErrf(i, CodeLimit, n.ID, "the markup is over %d bytes", MaxSVGBytes)
+		}
 		canonical, err := b.c.SVG(n.ID, n.SVG)
 		if err != nil {
 			return opErrf(i, CodeInvalid, n.ID, "%s", err)
@@ -704,7 +710,7 @@ func (b *batch) createNode(i int, op Op) error {
 	if b.w.nodeCount() >= MaxNodes {
 		return opErrf(i, CodeLimit, n.ID, "a canvas holds at most %d nodes", MaxNodes)
 	}
-	if err := b.styles(n.ID, n.Styles); err != nil {
+	if err := b.styles(n.Styles); err != nil {
 		return opErrf(i, CodeStyle, n.ID, "%s", err)
 	}
 	if n.Kind == KindImage {
@@ -729,7 +735,7 @@ func (b *batch) createNode(i int, op Op) error {
 }
 
 // styles runs every declaration past the dialect.
-func (b *batch) styles(_ string, styles map[string]string) error {
+func (b *batch) styles(styles map[string]string) error {
 	for property, value := range styles {
 		if err := b.c.Style(property, value); err != nil {
 			return err
@@ -794,14 +800,21 @@ func (b *batch) setProps(i int, op Op) error {
 	setField(op.X, &n.X, &inv.X)
 	setField(op.Y, &n.Y, &inv.Y)
 	if op.SVG != nil {
-		canonical, err := b.c.SVG(op.NodeID, *op.SVG)
-		if err != nil {
-			return opErrf(i, CodeInvalid, op.NodeID, "%s", err)
+		if op.canonicalSVG {
+			n.SVG = *op.SVG // an inverse: already a Checker.SVG return value
+		} else {
+			if len(*op.SVG) > MaxSVGBytes {
+				return opErrf(i, CodeLimit, op.NodeID, "the markup is over %d bytes", MaxSVGBytes)
+			}
+			canonical, err := b.c.SVG(op.NodeID, *op.SVG)
+			if err != nil {
+				return opErrf(i, CodeInvalid, op.NodeID, "%s", err)
+			}
+			n.SVG = canonical
+			applied.SVG = &canonical
 		}
 		was := old.SVG
-		inv.SVG = &was
-		n.SVG = canonical
-		applied.SVG = &canonical
+		inv.SVG, inv.canonicalSVG = &was, true
 	}
 
 	if err := n.Validate(); err != nil {
@@ -907,7 +920,7 @@ func (b *batch) deleteNode(i int, op Op) error {
 	inv := make([]Op, 0, 8)
 	for _, s := range b.w.subtreeNodes(op.NodeID) {
 		node := s
-		inv = append(inv, Op{Kind: OpCreateNode, Node: &node})
+		inv = append(inv, Op{Kind: OpCreateNode, Node: &node, canonicalSVG: true})
 		delete(b.w.nodeMap(), s.ID)
 		delete(b.w.childMap(), s.ID)
 		b.deleted[s.ID] = true

@@ -178,6 +178,83 @@ func TestInverse_reverseOrder(t *testing.T) {
 	}
 }
 
+// TestInverse_svgBytesSurviveUndo pins the bytes, not the shape. Every inverse
+// Apply builds itself carries markup that already came out of Checker.SVG, so
+// a dialect that prefixes ids — the textbook canonicalisation, and what the
+// Checker contract says task 07 does — would prefix them a second time and hand
+// the human back different bytes than they deleted (review C1).
+func TestInverse_svgBytesSurviveUndo(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		op   Op
+	}{
+		{"delete_node", Op{Kind: OpDeleteNode, NodeID: tid("n", 3)}},
+		{"delete_page", Op{Kind: OpDeletePage, PageID: tid("pg", 2)}},
+		{"set_props", Op{Kind: OpSetProps, NodeID: tid("n", 3), SVG: sp(`<svg id="a"/>`)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &tagChecker{}
+			d := seeded(t)
+			mustApply(t, d, []Op{
+				{Kind: OpCreatePage, Page: &Page{ID: tid("pg", 2), Name: "Two", Order: "b"}},
+				{Kind: OpCreateNode, Node: &Node{ID: tid("n", 2), Kind: KindArtboard, Tag: "div",
+					ParentID: tid("pg", 2), Order: "V", Styles: artboardStyles()}},
+			}, okChecker{})
+			mustApply(t, d, []Op{{Kind: OpCreateNode, Node: &Node{ID: tid("n", 3), Kind: KindSVG,
+				Tag: "svg", ParentID: tid("n", 2), Order: "V", SVG: "<svg/>"}}}, c)
+
+			want, _ := d.Node(tid("n", 3))
+			ch := mustApply(t, d, []Op{tc.op}, c)
+			mustApply(t, d, ch.Inverse, c)
+
+			got, ok := d.Node(tid("n", 3))
+			if !ok {
+				t.Fatal("the inverse did not restore the svg node")
+			}
+			if got.SVG != want.SVG {
+				t.Fatalf("after the undo the canvas holds %q, want the %q it held before", got.SVG, want.SVG)
+			}
+		})
+	}
+}
+
+// TestInverse_setPropsNamesOnlyTheAttrsItSet is the Styles block of
+// TestInverse_setPropsNamesOnlyWhatItSet for the other map: an agent's
+// aria-label written through set_props must come back off on undo (review I2).
+func TestInverse_setPropsNamesOnlyTheAttrsItSet(t *testing.T) {
+	d := seeded(t)
+	mustApply(t, d, []Op{{Kind: OpCreateNode, Node: &Node{ID: tid("n", 2), Kind: KindFrame,
+		Tag: "input", ParentID: tid("n", 1), Order: "V"}}}, okChecker{})
+	mustApply(t, d, []Op{{Kind: OpSetProps, NodeID: tid("n", 2),
+		Attrs: map[string]*string{"placeholder": sp("Name"), "value": sp("old")}}}, okChecker{})
+
+	before := content(d)
+	ch := mustApply(t, d, []Op{{Kind: OpSetProps, NodeID: tid("n", 2),
+		Attrs: map[string]*string{"placeholder": sp("Email"), "type": sp("email"), "value": nil}}}, okChecker{})
+
+	if len(ch.Inverse) != 1 || ch.Inverse[0].Kind != OpSetProps {
+		t.Fatalf("Inverse = %+v, want one set_props", ch.Inverse)
+	}
+	inv := ch.Inverse[0]
+	if len(inv.Attrs) != 3 {
+		t.Fatalf("the inverse names %d attributes, want exactly the 3 the op named", len(inv.Attrs))
+	}
+	if inv.Attrs["type"] != nil {
+		t.Errorf("the inverse of an attribute that was absent must be a removal, got %q", *inv.Attrs["type"])
+	}
+	if inv.Attrs["placeholder"] == nil || *inv.Attrs["placeholder"] != "Name" {
+		t.Errorf("the inverse of placeholder = %v, want Name", inv.Attrs["placeholder"])
+	}
+	if inv.Attrs["value"] == nil || *inv.Attrs["value"] != "old" {
+		t.Errorf("the inverse of a removal = %v, want the old value", inv.Attrs["value"])
+	}
+
+	mustApply(t, d, ch.Inverse, okChecker{})
+	if !reflect.DeepEqual(content(d), before) {
+		t.Fatal("the inverse did not restore the node's attributes")
+	}
+}
+
 type fuzzer struct {
 	rng  *rand.Rand
 	next int

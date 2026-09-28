@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -406,6 +407,17 @@ func TestChange_artboards(t *testing.T) {
 	if !reflect.DeepEqual(ch.Artboards, want) {
 		t.Fatalf("Change.Artboards = %v, want both the source and the destination %v", ch.Artboards, want)
 	}
+
+	// Task 12 decides which artboards a batch claimed from this field, so every
+	// op that touches a node has to name one, not only move (review I3).
+	ch = mustApply(t, d, []Op{{Kind: OpSetProps, NodeID: tid("n", 3), Name: sp("Card")}}, okChecker{})
+	if !reflect.DeepEqual(ch.Artboards, []string{tid("n", 2)}) {
+		t.Fatalf("Change.Artboards after a set_props = %v, want the artboard the node sits in", ch.Artboards)
+	}
+	ch = mustApply(t, d, []Op{{Kind: OpCreateNode, Node: ptr(frame(4, tid("n", 1), "b"))}}, okChecker{})
+	if !reflect.DeepEqual(ch.Artboards, []string{tid("n", 1)}) {
+		t.Fatalf("Change.Artboards after a create_node = %v, want the artboard the new node sits in", ch.Artboards)
+	}
 }
 
 func TestPrepare_doesNotMutate(t *testing.T) {
@@ -659,6 +671,13 @@ func nodeRules() []rule {
 		{name: "set_props place on a non-artboard", code: CodeInvalid,
 			pre: []Op{{Kind: OpCreateNode, Node: ptr(frame(2, tid("n", 1), "V"))}},
 			ops: []Op{{Kind: OpSetProps, NodeID: tid("n", 2), X: ip(10)}}},
+		{name: "set_props attribute the tag may not keep", code: CodeInvalid,
+			pre: []Op{{Kind: OpCreateNode, Node: ptr(frame(2, tid("n", 1), "V"))}},
+			ops: []Op{{Kind: OpSetProps, NodeID: tid("n", 2), Attrs: map[string]*string{"href": sp("/x")}}}},
+		{name: "set_props input type not allowed", code: CodeInvalid,
+			pre: []Op{{Kind: OpCreateNode, Node: &Node{ID: tid("n", 2), Kind: KindFrame, Tag: "input",
+				ParentID: tid("n", 1), Order: "V"}}},
+			ops: []Op{{Kind: OpSetProps, NodeID: tid("n", 2), Attrs: map[string]*string{"type": sp("color")}}}},
 	}
 }
 
@@ -787,5 +806,75 @@ func TestApply_imageAssetMustBeRegistered(t *testing.T) {
 		testAuthor(), testAt, "swap", okChecker{})
 	if oe := opErr(t, err); oe.Code != CodeInvalid {
 		t.Fatalf("Code = %q, want %q: set_props may not point an image at bytes the canvas does not hold", oe.Code, CodeInvalid)
+	}
+}
+
+// TestPrepare_batchPreamble pins the four guards that stand between an
+// untrusted MCP request and the document, before any op is read: they are the
+// fail-closed boundary, and nothing else in the suite passes anything but a
+// well-formed preamble (review I4).
+func TestPrepare_batchPreamble(t *testing.T) {
+	ops := []Op{{Kind: OpReviewMark, BriefKey: "brief/D3"}}
+	for _, tc := range []struct {
+		name   string
+		author Author
+		at     string
+		label  string
+		c      Checker
+	}{
+		{"no dialect", testAuthor(), testAt, "x", nil},
+		{"author not valid", Author{Kind: AuthorSession, UserID: "local"}, testAt, "x", okChecker{}},
+		{"time not a doc time", testAuthor(), "2026-09-28", "x", okChecker{}},
+		{"label over the bound", testAuthor(), testAt, runes(MaxLabelRunes + 1), okChecker{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := seeded(t)
+			before := d.Document()
+			p, err := d.Prepare(ops, tc.author, tc.at, tc.label, tc.c)
+			if err == nil {
+				t.Fatalf("want a refusal, Prepare returned %+v", p.Change)
+			}
+			oe := opErr(t, err)
+			if oe.Code != CodeInvalid || oe.Index != 0 {
+				t.Fatalf("Code/Index = %q/%d, want %q at index 0", oe.Code, oe.Index, CodeInvalid)
+			}
+			if !reflect.DeepEqual(d.Document(), before) {
+				t.Error("a refused batch changed the document")
+			}
+		})
+	}
+}
+
+// TestApply_svgBoundBeforeTheChecker: MaxSVGBytes bounds what the sanitiser is
+// asked to parse, not only what is stored. Handing task 07's XML parser 100 MB
+// and bounding the result afterwards is no bound at all (review I5).
+func TestApply_svgBoundBeforeTheChecker(t *testing.T) {
+	big := "<svg>" + strings.Repeat("a", MaxSVGBytes) + "</svg>"
+	node := func(svg string) *Node {
+		return &Node{ID: tid("n", 2), Kind: KindSVG, Tag: "svg", ParentID: tid("n", 1), Order: "V", SVG: svg}
+	}
+	for _, tc := range []struct {
+		name string
+		pre  []Op
+		ops  []Op
+	}{
+		{"create_node", nil, []Op{{Kind: OpCreateNode, Node: node(big)}}},
+		{"set_props", []Op{{Kind: OpCreateNode, Node: node("<svg/>")}},
+			[]Op{{Kind: OpSetProps, NodeID: tid("n", 2), SVG: sp(big)}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := seeded(t)
+			if len(tc.pre) > 0 {
+				mustApply(t, d, tc.pre, okChecker{})
+			}
+			c := &tagChecker{}
+			_, err := d.Apply(tc.ops, testAuthor(), testAt, "huge", c)
+			if oe := opErr(t, err); oe.Code != CodeLimit {
+				t.Fatalf("Code = %q, want %q for %d bytes of markup", oe.Code, CodeLimit, len(big))
+			}
+			if len(c.seen) != 0 {
+				t.Fatalf("the dialect was handed %d bytes to parse before the bound was applied", len(big))
+			}
+		})
 	}
 }
