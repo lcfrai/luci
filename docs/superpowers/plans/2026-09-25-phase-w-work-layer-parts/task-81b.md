@@ -1,12 +1,17 @@
 ### Task 81b: `implements` — the write and read paths, and the design approval that closes a design issue
 
-W2, stream WH. Seams: **SW.1** (an added *use*, not an added field) and **SW.4** (an added
-`StateCause`, not an added done rule — decision 2). Depends on task 10 (the state move and the done
+W2, stream WH. Seams: **SW.1** (an added *use*, not an added field), **SW.2** (**one added
+interface**, `WorkDesign`, which is how task 04 says that seam grows — `task-04.md:162-164` — and
+never a method inside `WorkIssues`) and **SW.4** (an added
+`StateCause`, not an added done rule — decision 2). Depends on task 04 (the `Work` interface and
+the fake, whose freeze SW.2 states), task 10 (the state move and the done
 rule), task 23 (the evaluator), task 74 (the W2 migration), **Hub task 22** — which owns
 `control-plane/internal/hub/server/approvals.go` and `store/approvals.go`, the write this task hooks
 (hub plan `:304`, `:425`; hub contract §7.7, routes 30-32 at
 `.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-contract.md:592-594`) — and, for
-the phase-5 half of the approval record, **P5-21**. Write it `dependsOn: 10, 23, 74; H22; P5-21`.
+the phase-5 half of the approval record, **P5-21**. Write it `dependsOn: 04, 10, 23, 74; H22;
+P5-21`. **Not** task 13 and **not** task 72: decision 2b adds no event kind, so the registry those
+two own is untouched.
 
 Anchors, all read on 2026-09-28 unless marked. Phase W's own parts:
 `2026-09-25-phase-w-work-layer-parts/task-02.md` and `task-03.md` (cited `task-NN.md:N`). The
@@ -79,10 +84,34 @@ point at. A frame is a locator inside the revision. **Do not invent a second key
      (`task-10.md:56-60`, enforced at `:413-416`) — a design landing would lock the Merge lens out
      until a human reopened the issue. (b) `issue_proof_citations.land_commit` is `NOT NULL` 40-hex
      (`task-10.md:137`) and rule 3 requires the evidence's commit to equal the land commit
-     (`task-10.md:29-35`), so a `waiting` with no land commit is terminal, not waiting. So the
-     approval writes its `DesignLanding` record, its `issue_implements` rows and its event; the
-     state stays where it is; and **the Merge lens still owns the close, unchanged**. The approval
-     got the design in — it did not prove the brief, and it does not pretend to.
+     (`task-10.md:29-35`), so a `waiting` with no land commit is terminal, not waiting. So **this
+     path writes nothing at all against such an issue** — no state, no fact, no event, no row — and
+     **the Merge lens still owns the close, unchanged**. The approval got the design in — it did not
+     prove the brief, and it does not pretend to.
+
+   2a. **What records the approval against a serving issue, since this path writes nothing** — the
+   question round 3 left open, ruled here (rule 8). The record already exists and is **derived, not
+   written twice**: Hub task 22's approval row in `store/approvals.go` is the durable fact that this
+   design key was approved, by whom and when, and the issue's `issue_implements` row (written by its
+   revision, decision 4) is the durable fact that it implements that key. The join of the two **is**
+   the trace; nothing else is needed and a second table would be a second source of truth, which
+   decision 4 forbids for exactly this data. `DesignLanding{DesignKey, ApprovedBy, ApprovedAt}` is
+   therefore a **read shape over that approval row, never a stored record** — it is what the read
+   route returns beside the issues, and 96b renders it as the *Issues* group's approved-at line. It
+   has no table, no migration and no writer, and the Files section says so. The alternative — a
+   `design_landings` table in task 74's section — was rejected because it would duplicate Hub task
+   22's row, would need its own RLS, grants and backfill, and would go stale the moment phase 5's
+   approval path writes without it.
+
+   2b. **No new event kind, and none is needed.** `emitWork` refuses a kind the registry does not
+   pair with its `data` type (`task-13.md:73`), and W2's kinds are appended by task 72
+   (`task-13.md:250`) — so an invented kind here would be a dependency on 72 and a registry edit
+   this task does not want. It needs neither. The **chore** path moves state, so it emits task 10's
+   existing `EventIssueState` through the unmodified `server/work_states.go` write, with `who` = the
+   approver and `cause` = `design_approved`; that is the only event this task produces and it
+   registers nothing. The **serving** path emits no work event; the approval's own event is Hub task
+   22's, on the approval, where it belongs. **This task therefore adds no event kind, edits no
+   registry, and does not depend on task 13 or task 72.**
 
    **This is a ruling, declared not inherited (rule 8).** Round 1 ruled *an approval is a landing*;
    that is kept for the design chore and withdrawn for the mixed issue, because the two consequences
@@ -139,8 +168,12 @@ point at. A frame is a locator inside the revision. **Do not invent a second key
 - `control-plane/internal/hub/hubapi/work.go` ⚑ (task 03's file, modified additively):
   `ValidateImplements([]string) error`, which parses each entry through `hubapi/keys.go` and
   refuses anything that is not `design:cv-…@<rev>`; `DesignLanding{DesignKey, ApprovedBy,
-  ApprovedAt}` — a *landing* record, not an evidence record, because decision 2 makes it one;
-  `ImplementsRow{IssueID, Revision, DesignKey}`; the two codes this task needs
+  ApprovedAt}` — **a read shape only** (decision 2a): it is projected from Hub task 22's approval
+  row on the way out of the read route, it has no table, no migration, no RLS and no writer, and a
+  `store/` function that persists one is the mutant test 8 kills;
+  `ImplementsRow{IssueID, Revision, DesignKey}`; `DesignIssues{Design *DesignLanding, Issues
+  []IssueHead}`, the read route's envelope, whose `Design` is `nil` when the key names a canvas
+  revision the caller can read but nobody has approved; the two codes this task needs
   (`implements_key_form`, `design_not_approved`) if task 03 has not declared them
 - `control-plane/internal/hub/hubapi/work_implements_test.go` (new): the pure rules, no database
 - `control-plane/internal/hub/store/work_implements.go`, `server/work_implements.go` (new): the
@@ -172,9 +205,17 @@ point at. A frame is a locator inside the revision. **Do not invent a second key
   site)**: after the approval, the design link and the snapshot are written, and **inside the same
   transaction**, one call to the new `closeIssuesForDesign(ctx, tx, designKey, approver)`. Without
   this row the close has nowhere to be called from, which is how round 1 failed.
-- `control-plane/internal/hub/server/work_design_close.go` (new): `closeIssuesForDesign` — every
-  open issue whose **current** revision implements that exact key is moved `→ landed` with cause
-  `design_approved`, attributed to the approver, then handed to the unchanged done rule
+- `control-plane/internal/hub/server/work_design_close.go` (new): `closeIssuesForDesign` — it reads
+  every open issue whose **current** revision implements that exact key, and **moves only those
+  whose head serves nothing** (`serves: []`) `→ landed` with cause `design_approved`, attributed to
+  the approver, then handed to the unchanged done rule. **An issue whose head serves one or more
+  criteria is skipped, silently and by design** (decision 2): no move, no fact, no event, nothing
+  written against it by this path — its `issue_implements` row was written by the revision
+  (decision 4) and the approval it now joins is the Hub's own approval row (decision 2a). Skipping
+  is not optional bookkeeping: decision 5 gates both SQL guard arms on `NOT v_serves`, so attempting
+  the move raises `42501` → `ErrStateGuard` **inside the approval's transaction**, which would roll
+  the whole approval back. A canvas implemented by one chore and one brief-serving issue must
+  approve cleanly and close exactly the chore
 - `control-plane/internal/hub/migrate/sql/NNNN_work_w2.sql` ⚑ (task 74's file, a section appended
   before it is applied anywhere shared; the next free number instead if 74 has merged, rule H1):
   `issue_implements(issue_id, revision, design_key, canvas_id, canvas_rev)`, its RLS, its grants,
@@ -187,15 +228,34 @@ point at. A frame is a locator inside the revision. **Do not invent a second key
   `task-07.md:61`, table at `:502-520`): the two test rows decision 5 names
 - `control-plane/internal/hub/server/matrix_integration_test.go` ⚑: one authorisation-matrix row
   per new route, including the row that proves the sync principal is refused
-- `control-plane/internal/api/work.go` ⚑ (task 16's relay): the read route, passed through
-  untouched, problem and all (`task-16.md:25-32`)
+- `control-plane/internal/hub/hubclient/work.go` ⚑ (task 04's file): **`WorkDesign`, a new
+  standalone interface with exactly one method** —
+  `ListIssuesForDesign(ctx context.Context, designKey string) (hubapi.DesignIssues, error)` — and
+  one line appending it to `Work`. This is task 72's `WorkPlan` pattern
+  (`task-72.md:876-886`, `:1315`) at one method instead of forty-six, and it is how SW.2 is allowed
+  to grow: task 04 freezes the interface to *"an added interface"* per slice
+  (`task-04.md:162-164`), **not** a method appearing inside `WorkIssues`. Declaring it and embedding
+  it in the **same commit** as the fake and the client stub below is task 73's rule, so
+  `var _ Hub = (*Fake)(nil)` never breaks between commits
+- `control-plane/internal/hub/hubclient/fake_work_design.go` (new) and
+  `hubclient/methods_work_design.go` (new): the fake's in-memory answer and the HTTP method, the two
+  halves every other `Work` method has. **This task owns both**, rather than handing the method to
+  task 82: 81b is not in 82's `dependsOn` and 82's own text names no design route, so a hand-off
+  would leave the method unbuilt in whichever order the two run
+- `control-plane/internal/hub/hubclient/conformance/work_design.go` (new): one conformance row, run
+  against the fake and the real Hub, on task 05's pattern
+- `control-plane/internal/api/work.go` ⚑ (task 16's relay): one `WorkRoutes` row for the read route,
+  a thin call to `Deps.Work` (`task-16.md:21`) — which resolves to the `WorkDesign` method above —
+  passed through untouched, problem and all (`task-16.md:25-32`)
 
 **Routes.** Two, both added to task 07's list and its matrix in this task:
 
 ```
 // GET /v1/designs/design:cv-7c01…@11/issues     member of the project's team; 200
-// → the issues whose CURRENT revision implements exactly that key, newest first
-{ "issues": [ { "id": "is-0a1b…", "alias": "EP-142", "revision": 3, … IssueHead … } ] }
+// → the issues whose CURRENT revision implements exactly that key, newest first, and the
+//   approval projected from Hub task 22's row (decision 2a; "design": null when unapproved)
+{ "design": { "designKey": "design:cv-7c01…@11", "approvedBy": {…}, "approvedAt": "…" },
+  "issues": [ { "id": "is-0a1b…", "alias": "EP-142", "revision": 3, … IssueHead … } ] }
 // 404 design_not_found when the key is well formed but names no canvas the caller can read;
 // 400 implements_key_form when it is not design:cv-…@<rev>
 
@@ -215,17 +275,19 @@ not touch it, and the skeleton's delta row says so.
 
 1. An approval at `@12` leaves an issue implementing `@11` open. *Mutant:* matching on `canvas_id`
    closes it.
-2. An issue serving **one criterion with no evidence** is **unmoved** by the approval: the state it
-   was in before, `proof: ""`, `landCommit: ""`, its `issue_implements` row written and its event
-   appended. A forced move with cause `design_approved` on that head is `42501` at the guard →
+2. An issue serving **one criterion with no evidence** is **untouched** by the approval: same
+   state, `proof: ""`, `landCommit: ""`, **its event count and its fact count unchanged**, and the
+   `issue_implements` row it had from its revision still there and unrewritten. A forced move with
+   cause `design_approved` on that head is `42501` at the guard →
    422 `state_not_allowed` (decision 5). A second test: the same issue with
    `serves: []` and `notTiedReason: "chore"` is `done`, `no_criteria`, in the same write; and with
    the team's `stopAtLandedWithoutServes` on it stops at `landed`. *Mutants:* the approval closes
    the issue whatever it serves — i.e. fabricated proof; and the approval lands it at `landed` with
    `waiting`, which locks the Merge lens out of its own close (decision 2).
 2b. `DecideProof` is byte-identical to task 10's. *Mutant:* a `design_approval` branch inside it.
-3. The close is attributed to the approver on the **event's `who`**, appends exactly one event and
-   one state fact, and writes **no `issue_proofs` landing row** (decision 3: the row's
+3. The chore close is attributed to the approver on the **event's `who`**, appends exactly one
+   event — task 10's existing `EventIssueState`, no new kind and no registry edit (decision 2b) —
+   and one state fact, and writes **no `issue_proofs` landing row** (decision 3: the row's
    `landed_together` constraint cannot hold without a commit). *Mutant:* attributed to the Hub or to
    the sync principal; or an `issue_proofs` row with a NULL `land_commit`, which is a `23514`.
 4. The sync principal calling the approval path is refused by the authorisation row, not by a
@@ -236,15 +298,28 @@ not touch it, and the skeleton's delta row says so.
    an erase. *Mutant:* the index is written on create only.
 7. `GET …/issues` for a canvas of another team is 404, never 403 (the reason task 11 records at
    `task-11.md:31-35`). *Mutant:* 403, which leaks that the canvas exists.
+8. **The mixed canvas approves.** One canvas revision implemented by a `serves: []` chore *and* a
+   brief-serving issue: the approval returns 200, the approval row, the design link and the snapshot
+   are all committed, the chore is `done`/`no_criteria` and the serving issue is untouched.
+   *Mutant:* `closeIssuesForDesign` without the `serves` filter — the guard's `NOT v_serves` raises
+   `42501` inside the approval's own transaction, the whole approval rolls back and the route answers
+   422 `state_not_allowed` on a request that asked to move no issue. This is the test that pins
+   decision 2's filter to the file rather than to the prose.
+9. `grep` finds no `DesignLanding` write in `store/`, and the read route returns `"design": null`
+   for a readable but unapproved canvas revision. *Mutant:* a `design_landings` table, a second
+   source of truth beside Hub task 22's approval row (decision 2a).
 
 **Acceptance, per criterion (`OD-27`, no predictions).** (a) An issue whose revision implements an
 approved canvas revision and serves **no** criterion reads `done`, `no_criteria`, `landCommit: ""`
 with no click; the same issue under `stopAtLandedWithoutServes` reads `landed`. (a2) An issue that
-serves a criterion is in the same state after the approval as before it, with its `implements` row
-written and its approval event appended — the design is in, the brief is not proven, and the Merge
-lens closes it later with no reopen in the way. (b) No proof word outside task 10's six is written, and
-`DecideProof`'s source is unchanged. (c) The reverse read returns the issues of a
-canvas and nothing else. (d) No percentage, bar, ETA or "N of M" figure is produced by any of it.
+serves a criterion is **byte-identical** after the approval — same state, same event count, same
+fact count — and the approval against it is read, not written: the read route answers with that
+issue under a non-null `design`, so the Design lens shows *approved, and these issues implement it*
+while the issue itself waits for the Merge lens to close it with no reopen in the way. (a3) The
+canvas that carries both kinds approves in one 200 and nothing rolls back. (b) No proof word outside
+task 10's six is written, `DecideProof`'s source is unchanged, and **no event kind is added**.
+(c) The reverse read returns the issues of a canvas and nothing else. (d) No percentage, bar, ETA or
+"N of M" figure is produced by any of it.
 
 **Does not claim.** A per-frame key (P5-H). A revocation path — the Hub has none (`P5:195`), so an
 approval withdrawn is a phase 5 question, not this task's. A cross-project implement (the read is
