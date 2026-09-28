@@ -389,21 +389,21 @@ and `AGENT_ID`, so the runner's own environment cannot pick the path.
 | `dev deploy foundation`, where `.invalid` appears only after a `#` in `dev.tfvars` | ok | a guard that refuses a commented example |
 | deploy on `refs/heads/dev` consuming an `images` run whose source branch is `refs/pull/12/merge` (the `infra-plan` run from `refs/heads/dev`) | refused, naming `images` and its branch | a guard that checks only the `infra-plan` alias, so a PR-built `image-digests` naming an older digest in the environment's own registry passes both the guard and `helm-values.sh`'s registry check (plan re-review M-1) |
 
-`tf-stack_test.sh` puts a stub `terraform` on `PATH` that records its arguments, and a stub
+`tf-stack_test.sh` puts first on `PATH`, with `TOFU_BIN` unset, a stub named for the binary `tf-stack.sh` calls, `tofu` (OD-32), that records its arguments, and stops before the first case unless `command -v tofu` resolves to that stub, so a real engine on the host is never reached; beside it a stub `terraform` that records too and must have recorded **nothing** after every case; and a stub
 `estate-guard.sh` (found through `PANACEA_APP_ESTATE_GUARD`, default the real script beside it)
 that records its arguments and exits with a per-case status. Cases run with `TF_BUILD=True` and
-`BUILD_SOURCEBRANCH` set unless they say "workstation" (all four ADO variables unset):
+`BUILD_SOURCEBRANCH` set unless they say "workstation" (all four ADO variables unset). The first case is the control for the rest: a `tofu` stub that recorded nothing there fails the test, because a stub the script never calls lets every "recorded **nothing**" below pass either way:
 
 | Case | Expect | Mutant it kills |
 |---|---|---|
-| `plan foundation dev` | `init` received `-lockfile=readonly`, `plan` received `-lock=false` | a plan that tries to take a lease it cannot hold, or an `init` that fetches an unlisted provider |
-| `apply foundation dev` | `apply` received no `-lock=false` | an apply that races another apply |
+| `plan foundation dev` | the `tofu` stub recorded `init` then `plan`, and an empty record fails the test; `init` received `-lockfile=readonly`, `plan` received `-lock=false`; the `terraform` stub recorded nothing | a plan that tries to take a lease it cannot hold, or an `init` that fetches an unlisted provider; a `tf-stack.sh` that calls `terraform` (OD-32); a stub named for a binary the script never calls, under which every "recorded **nothing**" row below passes either way |
+| `apply foundation dev` | the `tofu` stub recorded an `apply`, and it received no `-lock=false` | an apply that races another apply, or one that never reached `tofu` and so received nothing at all |
 | `plan identity dev`, `plan bootstrap dev` | exit 1, naming the stack as owner-run or operator-run | the identity stack reached from a pipeline (review I8) |
-| `plan foundation dev`, `apply foundation dev`, and workstation `plan foundation dev`, each with the guard stub exiting 1 | exit 1, and the `terraform` stub recorded **nothing** | the workstation path, or any subcommand, reaching `terraform` without the guard (review I3) |
-| workstation `apply foundation dev`, the guard stub exiting 1 | exit 1, and the `terraform` stub recorded **nothing** | a `tf-stack.sh` that guards workstation `plan` but not workstation `apply` — the owner's `apply identity` and §4's workstation foundation apply (plan re-review b03 M-2) |
-| workstation `apply foundation dev`, the guard stub exiting 0, `foundation.tfplan` present from the `plan` just run | `apply` received `foundation.tfplan` and no other plan source; with no `foundation.tfplan` → exit 1 naming it, `terraform` recorded no `apply` | a workstation apply that re-plans and applies unreviewed changes, or reaches for a pipeline artefact |
+| `plan foundation dev`, `apply foundation dev`, and workstation `plan foundation dev`, each with the guard stub exiting 1 | exit 1, and the `tofu` stub recorded **nothing** | the workstation path, or any subcommand, reaching `tofu` without the guard (review I3) |
+| workstation `apply foundation dev`, the guard stub exiting 1 | exit 1, and the `tofu` stub recorded **nothing** | a `tf-stack.sh` that guards workstation `plan` but not workstation `apply` — the owner's `apply identity` and §4's workstation foundation apply (plan re-review b03 M-2) |
+| workstation `apply foundation dev`, the guard stub exiting 0, `foundation.tfplan` present from the `plan` just run | `apply` received `foundation.tfplan` and no other plan source; with no `foundation.tfplan` → exit 1 naming it, `tofu` recorded no `apply` | a workstation apply that re-plans and applies unreviewed changes, or reaches for a pipeline artefact |
 | `TF_BUILD` unset, `AGENT_ID` set, `plan identity dev` | exit 1, naming the stack as owner-run | a `tf-stack.sh` with its own `TF_BUILD`-only test, which lets an agent job run the owner-only stack while the guard (via `where.sh`) calls it a pipeline (plan re-review b03 I-2) |
-| `apply foundation dev` with the guard stub exiting 0 | the guard received `dev deploy foundation`, before the first `terraform` call | the guard called in `plan` mode on the write path, which skips the branch and consumed-resource rules |
+| `apply foundation dev` with the guard stub exiting 0 | the guard received `dev deploy foundation`, and only after it did the `tofu` stub record its first call | the guard called in `plan` mode on the write path, which skips the branch and consumed-resource rules |
 | workstation `plan identity dev` | the guard received `dev plan identity`, then `init` and `plan` ran; workstation `plan bootstrap dev` still exits 1 | the owner's identity run left outside the guard, or bootstrap's local-state run forced through the partial backend |
 
 `cluster-kinds_test.sh` checks the cluster identity's two custom roles, `infra/rbac/cluster-deployer.json`
@@ -518,7 +518,7 @@ And task 28's `lint.sh` now finds both files and passes its "starts with the est
   workstation `ok` case (M-1). For review m16: delete the placeholder rule → the `.invalid`
   deploy case; apply it on the pipeline path only → its workstation row; apply it in plan mode
   too → the `refs/pull` plan row; scan tfvars but not `deploy/values/` → the values row; match
-  before stripping comments → the comment-only row.
+  before stripping comments → the comment-only row. For OD-32: make `tf-stack.sh` call `terraform` for any one subcommand → the `terraform` stub's after-every-case check; name the test's own stub `terraform` again → the `command -v tofu` stop and the first case's control, the two that go red where every "recorded **nothing**" row would have stayed green.
 - [ ] **Step 3:** `infra/rbac/cluster-deployer.json`, `infra/rbac/sandboxes-deployer.json`,
   `infra/rbac/plan-reader.json`, `grant-pipeline-roles.sh` and its test, and
   `cluster-kinds_test.sh` (needs the charts of tasks 11–13, 26 and 29 to render).
