@@ -1,0 +1,458 @@
+<!doctype html>
+<!--
+  PanaceaApp — "The AI-enabled SDLC" showcase document.
+  House style: docs/marketing/_assets/kpmg-doc.css (copied from the KPMG Product Doc set).
+  Render: uv run python docs/marketing/_assets/render.py
+  Every page is <section class="page">. First page is the cover.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>PanaceaApp · The AI-enabled SDLC</title>
+<link rel="stylesheet" href="_assets/kpmg-doc.css"/>
+</head>
+<body>
+
+<!-- ============================ COVER ============================ -->
+<section class="page cover">
+  <div class="cov-body">
+    <div class="cov-top">
+      <img src="_assets/kpmg-logo-mark.png" alt="KPMG"/>
+      <div><b>PanaceaApp</b><span>Define · Design · Develop · Deploy</span></div>
+    </div>
+    <div class="cov-kicker">AI-enabled software delivery</div>
+    <h1>From nothing to a shipped application.</h1>
+    <p class="cov-sub">Most tools put AI inside one box of the lifecycle. PanaceaApp owns the whole
+    journey: a fleet of coding agents on isolated machines, and a single provenance thread that ties
+    the thing you shipped back to the thing you asked for.</p>
+    <div class="cov-rule"></div>
+    <div class="cov-meta">
+      <span>Document&nbsp; <b>PA-01-AI-SDLC</b></span>
+      <span>Version&nbsp; <b>1.0</b></span>
+      <span>Date&nbsp; <b>28 September 2026</b></span>
+      <span>Owner&nbsp; <b>KPMG Australia</b></span>
+    </div>
+    <div class="cov-foot">
+      <span>KPMG PanaceaApp · Enterprise AI software delivery</span>
+      <span class="cls">Confidential, KPMG and authorised recipients</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 1. THE THESIS ============================ -->
+<section class="page">
+  <div class="hd">
+    <div class="brand">
+      <img src="_assets/kpmg-logo-mark.png" alt="KPMG"/>
+      <div class="wm"><b>PanaceaApp</b><span>The AI-enabled SDLC</span></div>
+    </div>
+    <div class="doc-tag">PA-01-AI-SDLC<br/><b>v1.0 · 28 Sep 2026</b></div>
+  </div>
+
+  <p class="kicker">Section one</p>
+  <h1 class="doc-title">What an AI-enabled SDLC actually is</h1>
+  <p class="lede">The phrase is used loosely. Most of what it describes is a faster autocomplete
+  inside an unchanged lifecycle. Three things have to change before the lifecycle itself is
+  different, and all three are structural rather than cosmetic.</p>
+
+  <h2><span class="n">1</span>The category error</h2>
+  <p>Today's tooling drops an assistant into one box of the lifecycle, almost always the box marked
+  <em>write code</em>. Everything around it is untouched. A person still carries the requirement
+  into the design by reading it and retyping it, carries the design into the build the same way, and
+  reconstructs from memory, at release time, why any of it was built. The assistant is faster. The
+  lifecycle is identical, and every handoff is still a human copying context between tools that do
+  not know about each other.</p>
+  <p>That is worth something, and it is not a new SDLC. It is the old one with a better editor.</p>
+
+  <h2><span class="n">2</span>The three shifts</h2>
+  <div class="cards c3">
+    <div class="card"><h4>Work becomes parallel</h4><p>Not one conversation at a time. A fleet of
+    agents working simultaneously, each in its own isolated machine and its own branch, with one
+    place to watch them all.</p></div>
+    <div class="card cobalt"><h4>Context becomes an artifact</h4><p>The brief is a versioned object
+    with an identity, not a paragraph someone pasted. It is referenced, not retyped, and it survives
+    every handoff.</p></div>
+    <div class="card purple"><h4>Done becomes proven</h4><p>Each acceptance criterion carries its own
+    evidence. A criterion with no proof attached is not complete, whatever anybody predicts about
+    it.</p></div>
+  </div>
+
+  <div class="formula">
+    <div class="eq">Define <b>&rarr;</b> Design <b>&rarr;</b> Develop <b>&rarr;</b> Deploy</div>
+    <div class="cap">Four states of one project, joined by one thread</div>
+  </div>
+
+  <h2><span class="n">3</span>Why the whole journey, and not a better box</h2>
+  <p>The value is not in any single phase. It is in the seam between phases, which is exactly where
+  software delivery loses fidelity today and exactly where nobody has put anything. A platform that
+  owns Define through Deploy can make a guarantee no point tool can make: that the release you are
+  about to sign off can be traced, mechanically and without anyone's recollection, to the
+  requirement that asked for it.</p>
+
+  <div class="callout">
+    <span class="t">The bar this product is held to</span>
+    <p>Usability and iteration on powerful tools, not raw capability. A feature that is powerful but
+    takes a wall of configuration to reach has failed the bar and does not ship.</p>
+  </div>
+
+  <div class="footer">
+    <span>KPMG PanaceaApp · The AI-enabled SDLC</span>
+    <span class="cls">Confidential</span>
+  </div>
+</section>
+
+<!-- ============================ 2. ONE PROJECT, FOUR STATES ============================ -->
+<section class="page">
+  <div class="hd">
+    <div class="brand">
+      <img src="_assets/kpmg-logo-mark.png" alt="KPMG"/>
+      <div class="wm"><b>PanaceaApp</b><span>The AI-enabled SDLC</span></div>
+    </div>
+    <div class="doc-tag">PA-01-AI-SDLC<br/><b>v1.0 · 28 Sep 2026</b></div>
+  </div>
+
+  <p class="kicker">Section two</p>
+  <h1 class="doc-title">One project, four states</h1>
+  <p class="lede">The four phases are not four tools with integrations between them. They are four
+  states of the same project, and the same artifact is visible in all of them.</p>
+
+  <table>
+    <thead>
+      <tr><th style="width:18%">Phase</th><th style="width:29%">What the person does</th><th style="width:29%">What the agents do</th><th>What the thread carries</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Define</b></td>
+        <td>States the problem and the acceptance criteria, in their own words.</td>
+        <td>Interrogate the brief, surface what is missing, propose criteria that can be proven.</td>
+        <td>An immutable brief revision with its own key and digest.</td>
+      </tr>
+      <tr>
+        <td><b>Design</b></td>
+        <td>Judges what it should look and feel like, on a real canvas.</td>
+        <td>Edit real frames through a tool surface, not by describing changes in prose.</td>
+        <td>Every frame references the brief revision it serves.</td>
+      </tr>
+      <tr>
+        <td><b>Develop</b></td>
+        <td>Sets direction, reviews, and decides. Watches a fleet rather than a cursor.</td>
+        <td>Work in parallel, one isolated machine and one branch each, converging back.</td>
+        <td>Each branch carries the brief revision as context that agents cannot silently drop.</td>
+      </tr>
+      <tr>
+        <td><b>Deploy</b></td>
+        <td>Approves a release against evidence rather than a summary.</td>
+        <td>Assemble the release, attach the proof for each criterion, and ship it.</td>
+        <td>The release is pinned to the exact brief revision it satisfies.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2><span class="n">4</span>The shape of a session</h2>
+  <div class="steps">
+    <div class="step"><h4>A brief is written and frozen</h4><p>It gets an identity and a digest. Later
+    edits create a new revision; they never mutate the one already referenced.</p></div>
+    <div class="step"><h4>Machines come up</h4><p>One isolated microVM per session, warm, with the
+    project already checked out into its own working tree.</p></div>
+    <div class="step"><h4>Agents work in parallel</h4><p>Each in its own branch. Their terminals
+    stream into one cockpit, so the person supervises rather than waits.</p></div>
+    <div class="step"><h4>Work converges</h4><p>Branches merge back explicitly, with a compare and
+    swap on the reference so two agents can never quietly overwrite one another, and with an undo.</p></div>
+    <div class="step"><h4>The release carries its proof</h4><p>Each criterion from Define arrives at
+    Deploy with the evidence that discharges it, or it is visibly not done.</p></div>
+  </div>
+
+  <div class="footer">
+    <span>KPMG PanaceaApp · The AI-enabled SDLC</span>
+    <span class="cls">Confidential</span>
+  </div>
+</section>
+
+<!-- ============================ 3. THE THREAD ============================ -->
+<section class="page">
+  <div class="hd">
+    <div class="brand">
+      <img src="_assets/kpmg-logo-mark.png" alt="KPMG"/>
+      <div class="wm"><b>PanaceaApp</b><span>The AI-enabled SDLC</span></div>
+    </div>
+    <div class="doc-tag">PA-01-AI-SDLC<br/><b>v1.0 · 28 Sep 2026</b></div>
+  </div>
+
+  <p class="kicker">Section three</p>
+  <h1 class="doc-title">The provenance thread</h1>
+  <p class="lede">This is the spine of the product and the reason the four phases are worth owning
+  together. It is also the part that matters most to a regulated customer, because it converts
+  "we believe this is why we built it" into something a machine can check.</p>
+
+  <h2><span class="n">5</span>An identity, not a paragraph</h2>
+  <p>A brief revision is an immutable object with a key and a content digest. Nothing downstream
+  copies its text. Design frames, development branches and releases all reference it, so a change to
+  the requirement produces a new revision and leaves a visible gap wherever the old one is still
+  being relied on. The thread is therefore not documentation that goes stale. It is a structure that
+  breaks loudly when reality moves.</p>
+
+  <div class="formula">
+    <div class="eq">brief:<b>&lt;id&gt;</b>@<b>&lt;rev&gt;</b></div>
+    <div class="cap">Referenced in Design, carried into Develop, attached at Deploy</div>
+  </div>
+
+  <h2><span class="n">6</span>Done means proven</h2>
+  <p>Every acceptance criterion written in Define must arrive at Deploy with the evidence that
+  discharges it. Not a prediction that a test will pass, and not a summary of what was attempted:
+  the artifact itself, attached to the criterion, produced by a run that actually happened. A
+  criterion with nothing attached is reported as not done, which is a far more useful answer than an
+  optimistic one.</p>
+
+  <div class="cards">
+    <div class="card teal"><h4>What this buys an engineer</h4><p>No archaeology. The answer to
+    "why does this code exist" is a link, not an afternoon in a commit log.</p></div>
+    <div class="card pacific"><h4>What this buys an auditor</h4><p>Traceability from requirement to
+    release that was produced as a by-product of doing the work, rather than assembled afterwards
+    for the audit.</p></div>
+  </div>
+
+  <div class="callout stop">
+    <span class="t">The rule this creates</span>
+    <p>Any feature that breaks the thread is wrong, regardless of how good it is in isolation. That
+    constraint has already removed capable designs from this product, and it is the constraint that
+    makes the rest of it worth having.</p>
+  </div>
+
+  <div class="footer">
+    <span>KPMG PanaceaApp · The AI-enabled SDLC</span>
+    <span class="cls">Confidential</span>
+  </div>
+</section>
+
+<!-- ============================ 4. THE FLEET ============================ -->
+<section class="page">
+  <div class="hd">
+    <div class="brand">
+      <img src="_assets/kpmg-logo-mark.png" alt="KPMG"/>
+      <div class="wm"><b>PanaceaApp</b><span>The AI-enabled SDLC</span></div>
+    </div>
+    <div class="doc-tag">PA-01-AI-SDLC<br/><b>v1.0 · 28 Sep 2026</b></div>
+  </div>
+
+  <p class="kicker">Section four</p>
+  <h1 class="doc-title">A fleet, not a chat window</h1>
+  <p class="lede">The unit of work is a session on its own machine, and a person runs many at once.
+  The cockpit exists so that supervising ten of them costs less attention than driving one.</p>
+
+  <div class="metrics">
+    <div class="metric"><div class="v">1</div><div class="l">microVM per session</div></div>
+    <div class="metric"><div class="v">1</div><div class="l">working tree per agent</div></div>
+    <div class="metric"><div class="v">4</div><div class="l">phases, one project</div></div>
+    <div class="metric"><div class="v">0</div><div class="l">data retained by inference</div></div>
+  </div>
+
+  <h2><span class="n">7</span>Isolation that is real</h2>
+  <p>Each session runs in its own microVM with its own kernel, not a shared container runtime. An
+  agent is treated as untrusted code, because that is what it is: it writes files, runs commands and
+  follows instructions from text it was given. The host never executes anything the sandbox can
+  write, and no credential the customer cares about is ever placed inside one.</p>
+  <p>Warm pools keep this fast. Isolation of this strength costs seconds to start cold, so machines
+  are made ready before anybody asks for one.</p>
+
+  <h2><span class="n">8</span>Parallel work that converges</h2>
+  <p>Every agent gets its own working tree, so two agents cannot corrupt each other's state by
+  sharing a checkout. Work returns along explicit lanes, and a lane lands with a compare and swap on
+  the git reference, so a merge cannot silently discard a peer's result. Anything that lands can be
+  undone.</p>
+
+  <h2><span class="n">9</span>Teams, without agents talking past each other</h2>
+  <p>A project shared with a team shows each member's work, agents and focus. Agents are aware of
+  what other agents are doing as structured facts rather than as free text, and each person has one
+  orchestrator that negotiates with other people's orchestrators. Nobody's agent takes instructions
+  from somebody else's, which keeps a collaboration channel from becoming an injection channel.</p>
+
+  <div class="chips">
+    <span class="chip">Real PTYs over WebSocket</span>
+    <span class="chip">Unmodified agent CLIs</span>
+    <span class="chip">One heartbeat, no spinners</span>
+    <span class="chip">Local machine or cloud machine</span>
+  </div>
+
+  <div class="footer">
+    <span>KPMG PanaceaApp · The AI-enabled SDLC</span>
+    <span class="cls">Confidential</span>
+  </div>
+</section>
+
+<!-- ============================ 5. ENTERPRISE ============================ -->
+<section class="page">
+  <div class="hd">
+    <div class="brand">
+      <img src="_assets/kpmg-logo-mark.png" alt="KPMG"/>
+      <div class="wm"><b>PanaceaApp</b><span>The AI-enabled SDLC</span></div>
+    </div>
+    <div class="doc-tag">PA-01-AI-SDLC<br/><b>v1.0 · 28 Sep 2026</b></div>
+  </div>
+
+  <p class="kicker">Section five</p>
+  <h1 class="doc-title">Built for a regulated enterprise</h1>
+  <p class="lede">The wedge is not raw capability. It is that this can be run by an organisation that
+  has to answer for where its code, its data and its credentials went.</p>
+
+  <h2><span class="n">10</span>Where the work happens</h2>
+  <dl class="kv">
+    <dt>Isolation</dt><dd>One microVM per session, with its own kernel, on pod sandboxing. Read only
+    root, no host networking, explicit CPU and memory.</dd>
+    <dt>Hosting</dt><dd>The customer's own cloud tenancy. The platform is delivered into their
+    environment rather than their source being delivered into ours.</dd>
+    <dt>Identity</dt><dd>The person signs in as themselves, through the organisation's existing
+    directory, with no new registration to raise and nothing to click.</dd>
+    <dt>Credentials</dt><dd>Tokens are held by the operating system's credential store. A sandbox
+    receives a scoped, short lived, per session token and never an organisation key.</dd>
+    <dt>Audit</dt><dd>Append only. Brief revisions and the ledger are immutable by construction, not
+    by convention.</dd>
+  </dl>
+
+  <h2><span class="n">11</span>Where the data goes</h2>
+  <p>Inference runs through an organisation level gateway with zero data retention. No personal
+  subscriptions are used and no organisation key reaches a sandbox. Each project carries a data
+  classification set when it is created, and that classification decides the route: an Australian
+  data project is served in country, and a project that may not leave the country fails closed
+  rather than falling back.</p>
+
+  <div class="callout ok">
+    <span class="t">Fail closed, not fail quiet</span>
+    <p>A residency guarantee is only worth the test that proves it. The route is asserted on what
+    actually leaves the network, not on what the configuration says it should do, because a gateway
+    that ignores its own configuration on one endpoint is a real and observed failure mode.</p>
+  </div>
+
+  <h2><span class="n">12</span>What the platform is made of</h2>
+  <p>Third party components are permitted only under permissive licences. Copyleft and
+  source-available licences are excluded from the shipped product, and every dependency's licence is
+  verified from its own licence file rather than from a badge. This is enforced because the product
+  is delivered into customer tenancies, where a licence defect found late is a rewrite rather than a
+  conversation.</p>
+
+  <div class="footer">
+    <span>KPMG PanaceaApp · The AI-enabled SDLC</span>
+    <span class="cls">Confidential</span>
+  </div>
+</section>
+
+<!-- ============================ 6. STATUS ============================ -->
+<section class="page">
+  <div class="hd">
+    <div class="brand">
+      <img src="_assets/kpmg-logo-mark.png" alt="KPMG"/>
+      <div class="wm"><b>PanaceaApp</b><span>The AI-enabled SDLC</span></div>
+    </div>
+    <div class="doc-tag">PA-01-AI-SDLC<br/><b>v1.0 · 28 Sep 2026</b></div>
+  </div>
+
+  <p class="kicker">Section six</p>
+  <h1 class="doc-title">Where it is today</h1>
+  <p class="lede">This programme reports what it has proven and what it has not. The distinction is
+  the point of the product, so the document that describes the product should hold to it.</p>
+
+  <table>
+    <thead><tr><th style="width:30%">Capability</th><th style="width:20%">State</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>A real coding agent driven end to end through an isolated sandbox</td>
+          <td><span class="chip ok">Proven</span></td>
+          <td>A live session driven to completion against a container backend, with the terminal, resize, colour and exit status all carried faithfully.</td></tr>
+      <tr><td>The cockpit: many live sessions, one window</td>
+          <td><span class="chip warn">Partly proven</span></td>
+          <td>A nineteen check end to end harness run in full against a real control plane, real containers and the native window. Ten checks passed. Of the nine that did not, five were a defect in the test itself, three were one product defect since fixed, and one was a timeout since fixed. The run has not yet been repeated against those fixes.</td></tr>
+      <tr><td>Sessions survive detach, reload and a control plane restart</td>
+          <td><span class="chip ok">Proven</span></td>
+          <td>Twelve live sessions re-attached after a cockpit reload; sessions and their containers survived a control plane restart unaided.</td></tr>
+      <tr><td>Git inside a sandbox on the corporate network</td>
+          <td><span class="chip ok">Proven</span></td>
+          <td>Work committed from inside a sandbox as the configured identity, through the intercepting proxy, with the certificate bundle mounted.</td></tr>
+      <tr><td>Git lanes, worktrees and convergence</td>
+          <td><span class="chip warn">In build</span></td>
+          <td>Planned and under construction, with the security ruling that host git never runs anywhere a sandbox can write.</td></tr>
+      <tr><td>The Hub: briefs, approvals, ledger, releases</td>
+          <td><span class="chip warn">In build</span></td>
+          <td>Identity and schema landed; the ledger and release surfaces are in progress.</td></tr>
+      <tr><td>Define, Design and Deploy surfaces</td>
+          <td><span class="chip warn">In build</span></td>
+          <td>Planned in full, with adversarial plan review complete for each.</td></tr>
+      <tr><td>Cloud isolation on managed Kubernetes</td>
+          <td><span class="chip">Planned</span></td>
+          <td>Written and reviewed, deliberately never applied. It needs a real cluster, and nothing claims it works until it runs on one.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <span class="t">Not yet proven, and stated plainly</span>
+    <p>MicroVM isolation, cold start and the read only root have not been exercised on a real
+    cluster. The visual acceptance of the cockpit is the product owner's to give and has not been
+    given. Neither is claimed anywhere in this document.</p>
+  </div>
+
+  <div class="footer">
+    <span>KPMG PanaceaApp · The AI-enabled SDLC</span>
+    <span class="cls">Confidential</span>
+  </div>
+</section>
+
+<!-- ============================ 7. HOW IT IS BUILT ============================ -->
+<section class="page">
+  <div class="hd">
+    <div class="brand">
+      <img src="_assets/kpmg-logo-mark.png" alt="KPMG"/>
+      <div class="wm"><b>PanaceaApp</b><span>The AI-enabled SDLC</span></div>
+    </div>
+    <div class="doc-tag">PA-01-AI-SDLC<br/><b>v1.0 · 28 Sep 2026</b></div>
+  </div>
+
+  <p class="kicker">Section seven</p>
+  <h1 class="doc-title">The product is built the way it asks you to build</h1>
+  <p class="lede">PanaceaApp is being developed by the method it sells: agents working in parallel
+  under review gates, with evidence attached to every claim. That is the strongest available
+  argument that the method works, and it is also where its sharp edges were found.</p>
+
+  <h2><span class="n">13</span>Every task passes a gate</h2>
+  <p>A task is planned, then implemented, then reviewed by an independent agent that re-runs the
+  proofs itself rather than reading the report. The reviewer is instructed to attack the work: to
+  name the mutations it expects to survive the test suite and run them, and to check whether any
+  assertion was quietly weakened to make something pass. A task is complete when the evidence
+  survives that, not when the author says so.</p>
+
+  <h2><span class="n">14</span>What that catches, with one example</h2>
+  <p>An end to end run reported five failures that looked like a deep fault in how the product
+  reconnects to many concurrent sessions. An adversarial investigation found something else: a
+  single test scrolled the terminal using a gesture that moves a fixed five rows regardless of the
+  distance requested, a fact the same test file had measured and written down a hundred and seventy
+  lines earlier. That one failure then left a background loop running in a shared shell, and the four
+  failures after it were its wake.</p>
+  <p>The product was not at fault, and without the investigation the next weeks would have gone into
+  hardening a component that was never broken. A test that is wrong is more expensive than a test
+  that fails.</p>
+
+  <div class="callout">
+    <span class="t">The standing rule</span>
+    <p>Never re-run a red result until it goes green, and never loosen a bound to make something
+    pass. Every false pass this programme has caught is written down in the verification record with
+    what produced it, because each one would otherwise have shipped as proof of something that had
+    never been observed.</p>
+  </div>
+
+  <h2><span class="n">15</span>Where this goes next</h2>
+  <div class="cards">
+    <div class="card"><h4>Near term</h4><p>Close the cockpit, land it on the main line, and put it in
+    the product owner's hands to use for real work.</p></div>
+    <div class="card cobalt"><h4>Then</h4><p>Git convergence and the Hub, which together turn a fleet
+    of terminals into a delivery system with a memory.</p></div>
+    <div class="card purple"><h4>After that</h4><p>Define, Design and Deploy, closing the thread end
+    to end, and the cloud environment that carries it at scale.</p></div>
+    <div class="card teal"><h4>Throughout</h4><p>Team mode and the work layer, so that a project is
+    something a group runs together rather than a person runs alone.</p></div>
+  </div>
+
+  <div class="footer">
+    <span>KPMG PanaceaApp · The AI-enabled SDLC</span>
+    <span class="cls">Confidential</span>
+  </div>
+</section>
+
+</body>
+</html>
