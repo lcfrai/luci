@@ -249,7 +249,7 @@ role, because a project's access is exactly its team's membership (Hub contract 
 **no route name**, so no delegation can list it and Fleet is 403 before the handler runs (task 05);
 `RequireDesktop` is the second layer. Registered bare in `registerTeamPart1`. Its number is 87,
 the first one no part claims: task 01's §7.0 ends at 79 and 80 to 86 are taken by tasks 14, 46,
-49, 52, 61, 66 to 69 (`task-14.md:600` is route 80). Task 01 adds row 87 to §7.0.
+49, 52, 61, 66 to 69 (`task-14.md:771` is route 80's contract row). Task 01 adds row 87 to §7.0.
 
 ```jsonc
 // request: "team" is the only value; the move is one way

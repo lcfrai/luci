@@ -537,7 +537,8 @@ what Fleet's tests use. **Fix batch b02:** also `Team.Principal` over route 88 (
 task 12 was written against as a proposal and is now real; `hubapi.Principal`; an `AsBroker()`
 view and `Delegation`'s two broker-only fields (S02-C5); and five conformance rows, for which
 `Env` gains a **second org** — "the principal answer's flags are the project's org" has no other
-witness. Tests: the conformance suite, 38 team rows; a revoked delegation appears on the feed
+witness. Tests: the conformance suite, 39 team rows (b04's `team-feed/by-subject-reads-the-past`
+is the 39th); a revoked delegation appears on the feed
 within one poll. Does not deliver anything from Fleet (task 11).
 
 **09 — Fleet model and the `panacea` control wire v1.** `cp/internal/fleet/model` (`Class`

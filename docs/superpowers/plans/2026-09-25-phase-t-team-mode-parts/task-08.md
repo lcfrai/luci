@@ -643,8 +643,9 @@ git commit -F .superpowers/sdd/team/msg/t08.txt -- control-plane/internal/hub
 
 #### Acceptance
 
-1. Step 5's three commands pass as described; the conformance run lists 38 team rows (29, plus fix
-   batch b01's four, plus fix batch b02's five).
+1. Step 5's three commands pass as described; the conformance run lists 39 team rows (29, plus fix
+   batch b01's four, plus fix batch b02's five, plus fix batch b04's one —
+   `team-feed/by-subject-reads-the-past`). `grep -c '^| .team' task-08.md` is the same 39.
 2. `grep -c '^	[A-Z][A-Za-z]*(ctx' control-plane/internal/hub/hubclient/hubclient.go` rises by exactly
    29 (27 `Team` methods — `Principal` is b02's — plus `OrgChanges` and `OrgEvent`, b04's) over
    the merged Hub's count.
