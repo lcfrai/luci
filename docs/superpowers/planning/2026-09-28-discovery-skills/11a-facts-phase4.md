@@ -451,7 +451,129 @@ does replace a draft with a person's answer (`ops.go:164-168`).
 
 ## 6. What would have to change
 
-_(pending)_
+**How this list was made.** At `ca737d92`, a scan of every top-level `func Test…` body in
+`p4/control-plane` for the names and literals of each thing (the type, its functions, its string
+forms); a test that reaches them only through a helper is listed under the helper. Subtests are not
+counted. It is a text scan, not a compile: renaming a Go field would also break, at compile time,
+every file that builds that struct, listed per file below. Paths are under
+`p4/control-plane/internal/` unless they start `cmd/`.
+
+**Top-level tests per package today** (`grep -c '^func Test'`): `discover` 76 (assist 13, content
+15, inherit 12, ops 36) · `claudemd` 20 · `provenance` 31 (key 4, ref 27) · `discoverhub` 58
+(binding 10, digest 2, lifecycle 2, read 20, write 24) · `contextwrite` 60 (confine_internal 1,
+confine 6, gitcmd 7, inspect 6, materialise 39, mode 1) · `api/materialise_test.go` (task 10) 14.
+They agree with the ledger's counts for discover 76, claudemd 20, provenance 31 and discoverhub 58
+(`progress.md:418`, `:465`, `:528`); contextwrite's 60 is after 09's fix round, which the ledger
+does not count.
+
+### A. The content model (`discover.Content` and its parts)
+
+- **Byte pins of the wire format** — `discover/content_test.go`: `TestContentGoldenJSON` (`:197`)
+  against the inline `goldenJSON` — "A Go string, not a testdata file, so a checkout's line-ending
+  conversion cannot touch it" (`:183-195`); `TestContentMarshalsEverySliceAsAnArrayNeverNull`
+  (`:132`); `TestDecodeRejectsANewerVersion` (`:211`); `TestDecodeGivesEverySliceAValue` (`:231`);
+  `TestNewContentIsTheBaseSetOpenAndUnanswered` (`:246`). The five questions' wording and options
+  are pinned in `wantBase` (`:66-84`), read by `TestBaseQuestionsAreTheFiveInFileOrder` (`:86`),
+  `TestPromptPicksTheScopesWording` (`:113`) and `TestStepWalksTheClosedSetInOrder` (`:262`).
+- **The package itself:** all 76 `discover` tests build content through `NewContent` and `Apply`.
+- **Other packages, 37 tests and 4 helper files** naming a `discover` type or function:
+  `claudemd/render_test.go` 6 (`TestAllSkippedRendersTheKeyAndNoSection`,
+  `TestEveryResolvedIDReadsBack`, `TestEveryResolvedRevisionReadsBack`, `TestOverrideNoteIsOneLine`,
+  `TestRenderNeutralisesCommentOpeners`, `TestRenderWritesOnlyLF`); `provenance/ref_test.go` 9;
+  `discoverhub/binding_test.go` 1, `read_test.go` 6, `write_test.go` 15; helpers in
+  `discoverhub/fixtures_test.go` (`revision`, `save`, `document`, `doneAnswer` and 6 more),
+  `contextwrite/fakes_test.go` (`doc`, `inh`) and `contextwrite/inspect_test.go` (`withProject`).
+- **Not a content pin:** `TestLocalDigestMatchesTheHubsVector` (`discoverhub/digest_test.go:15-19`)
+  fixes the §3.4 *envelope* bytes and digest around a literal content `{"answers":[],"status":"open"}`;
+  it changes with the envelope, not with `Content`'s fields.
+- **Outside the tests:** every revision already stored. `content.go:4-6`: change field names or
+  tags "only by adding a new ContentVersion that every reader also understands".
+
+### B. The key grammar
+
+- `provenance/key_test.go` — all 4: `TestParseAcceptsTheHubsForms`, `TestParseRejects`,
+  `TestKeyStringNeverWritesANonKey`, `TestBriefKey`.
+- `hub/hubapi/keys_test.go` (the Hub's own copy) — 4: `TestBriefKeyRejectsEverythingOutsideTheGrammar`,
+  `TestBriefKeyRoundTrips`, `TestDesignKeyGrammar`, `TestParseKeyClassifies`; and
+  `hub/hubapi/types_test.go` holds 9 lines with brief-key literals.
+- `provenance/ref_test.go` — 6: `TestAnOpenRevisionIsEvaluated`,
+  `TestBuildRefusesASourceTheKeyDoesNotName`, `TestBuildTitlesAnOpenRevisionByTheOneRule`,
+  `TestDeclinedIsNoneWithAReason`, `TestEmptyIsNotAKeyButIsNone`, `TestSlotRefs`.
+- `discoverhub/read_test.go` — 2: `TestHubOffIsUnavailableNotMissing`,
+  `TestResolveNeverSendsLocalForms`; helper `key` in `fixtures_test.go`.
+- `contextwrite` — 4: `inspect_test.go` `TestInspectListsCommittedBesideTheTargetsState`,
+  `TestInspectStates`; `materialise_test.go` `TestNeverStripsATrackedFile`,
+  `TestWithoutBriefStripsAndDeclines`; helper `doc` in `fakes_test.go`.
+- `api` (task 10) — `materialise_test.go` 5 (`TestCreateStampsTheReturnedKeyNotTheRequested`,
+  `TestCreateWithoutBriefPassesTheFlag`, `TestRestartRefusalLeavesTheSandboxAlive`,
+  `TestRestartRestamps`, `TestRestartWithoutBriefPassesTheFlag`; helper `seed`); `sessions_test.go`
+  2 (`TestCreateWithoutBriefStartsDespiteAnUnknownProject`,
+  `TestRestartWithoutBriefStartsDespiteAnUnknownProject`), both on `none:declined`.
+- `cmd/api/materialiser_interim_test.go` — 1: `TestMaterialiserUntilTask14InheritsNothingAndSaysSoOnce`.
+- Golden: `provenance/testdata/ref-golden.json` holds `brief:bf-00000000000000a2@5` and its pin.
+- **Not affected:** phase 2's `contextRef` carriers name no brief-key literal —
+  `registry/filestore_test.go`, `registry/session_test.go`, `desktop/src/api/client.test.ts`,
+  `desktop/src/seams.test.ts`, `desktop/src/store/defaults.test.ts` (0 brief-key lines each).
+
+### C. `Ref`
+
+- `provenance/ref_test.go` — all 27. The byte pins: `TestRefGoldenJSON` (`:768`) against
+  `provenance/testdata/ref-golden.json` (102 lines, 3182 bytes, `.gitattributes` `* -text`), a Ref
+  "task 15 mirrors field for field" (`:766`); `TestReadingAndHeadJSON` (`:788`); and
+  `TestRefHasNoDenominator` (`:692`), `TestRefHoldsNoCriterionState` (`:665`), `TestSlotRefs` (`:735`)
+  on what a Ref must not hold.
+- `discoverhub/read_test.go` — 11: `TestABranchKeyWhosePinIsErasedKeepsOnlyItsOwnText`,
+  `TestAnExpiredPinIsFetchedAgain`, `TestCriterionStatesAreRecomputedOnACachedKey`,
+  `TestErasedIsNeverServedFromCache`, `TestHeadRefServesCriterionStatesBesideTheRef`,
+  `TestHubOffIsUnavailableNotMissing`, `TestResolveBatchesInTwoCallsAtMost`,
+  `TestResolveCachesOnlyResolved`, `TestResolveCarriesCachedKeysForTheirHeads`,
+  `TestResolveEvaluatesABranchKeyWhereItsBriefIsBoundNow`, `TestResolveNeverSendsLocalForms`;
+  helpers `resolutions`, `noMissingAndEveryPinInHand`, `wantAll`.
+- `discoverhub/lifecycle_test.go` — 1: `TestArchiveHeadLeavesKeysResolvable`.
+- Unbuilt: task 15's desktop wire types mirror the Ref (`ref_test.go:273`, `:766`); nothing exists
+  yet to change.
+
+### D. The rendered block
+
+- **The three goldens and their tests** (`claudemd/testdata/`, section 4): `golden-branch.md` —
+  `TestResolveBranchOverProjectGolden`; `golden-project.md` — `TestResolveProjectAloneGolden`;
+  `golden-neutralised.md` — `TestRenderNeutralisesCommentOpeners`.
+- **Other tests pinning literal wording or titles** — 9: `claudemd/render_test.go`
+  `TestAllSkippedRendersTheKeyAndNoSection`, `TestMergeReplacesOnlyTheManagedBlock`,
+  `TestOverrideNoteIsOneLine`, `TestRenderWritesOnlyLF`; `discover/inherit_test.go`
+  `TestTitleComesFromTheRevision`; `provenance/ref_test.go` `TestBuildBranchKeyShowsInheritedText`,
+  `TestBuildTitlesAnOpenRevisionByTheOneRule`, `TestBuildWithAnErasedPinHoldsNoInheritedText`;
+  `discoverhub/read_test.go` `TestRenameDoesNotLookLikeAHandEdit`. Headings are also pinned in
+  `inherit_test.go:329-332` (`"purpose|What this is for|override"`).
+- **The marker line** (`brief=<id> rev=<n>`, the end marker) — `claudemd/render_test.go` 5
+  (`TestAllSkippedRendersTheKeyAndNoSection`, `TestEveryResolvedIDReadsBack`,
+  `TestInspectReadsTheMarker`, `TestMergeAppendsAfterABlankLine`, `TestStrayEndMarkerIsBroken`;
+  helper `brokenFiles`); `contextwrite/inspect_test.go` 2 (helper `badMarker`),
+  `materialise_test.go` 1 (`TestWithoutBriefOverAStrayEndMarkerIsBlockBroken`), helper `beginOnly`
+  in `fakes_test.go`; `discover/ops_test.go` `TestAnswerCannotContainAMarker`.
+- **The reserved prefix `panacea:discover:`** — 13: `discover/ops_test.go` 6
+  (`TestAnswerCannotContainAMarker`, `TestApplyReturnsTheZeroContentOnAnyError`,
+  `TestBaseQuestionsFitTheCaps`, `TestUnchangedLongTextDoesNotBlockOtherOps`,
+  `TestUnchangedPromptsAndCriteriaDoNotBlockOtherOps`, `TestUnchangedReservedTextDoesNotBlockOtherOps`);
+  `assist_test.go` 2 (`TestAModelReplyHoldingTheReservedSequenceDegrades`,
+  `TestAModelThatSaysEnoughIsNothingToAsk`); `inherit_test.go` 2 (`TestMarkerSafe`,
+  `TestResolveRefusesAMalformedRevision`); `claudemd/render_test.go` 3 (`TestInspectReadsTheMarker`,
+  `TestRenderNeutralisesCommentOpeners`, `TestStrayEndMarkerIsBroken`).
+- **Tests that compute the expected block with `claudemd.Render`** follow a wording change without
+  an edit, but run against it: `contextwrite` 30 (`confine_test.go` 4, `gitcmd_test.go` 1,
+  `inspect_test.go` 5, `materialise_test.go` 19, `mode_test.go` 1), `discoverhub/read_test.go` 3,
+  and the rest of `claudemd`'s 20.
+
+### Summary
+
+| If this changed | Byte-exact goldens | Tests naming it (top-level) |
+|---|---|---|
+| Content model | `goldenJSON` (inline, `content_test.go:185-195`) | 76 in `discover` + 37 elsewhere + 4 helper files |
+| Key grammar | `ref-golden.json` | 4 + 4 (Hub) + 6 + 2 + 4 + 7 (`api`) + 1 (`cmd/api`) = 28 |
+| `Ref` | `ref-golden.json` | 27 + 11 + 1 = 39 |
+| Rendered block | `golden-branch.md`, `golden-project.md`, `golden-neutralised.md` | 3 golden + 9 wording + 9 marker-line + 13 prefix, overlapping; 33 more (`contextwrite` 30, `discoverhub` 3) re-derive it through `Render` |
+
+Four golden files in all (three `.md`, one `.json`) plus one inline golden constant.
 
 ---
 
