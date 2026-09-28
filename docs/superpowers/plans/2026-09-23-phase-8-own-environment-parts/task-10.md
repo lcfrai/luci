@@ -8,7 +8,7 @@ pods touch Azure in this phase: the **Hub** (Postgres, and Key Vault if HA-4 say
 identity at all**: the broker speaks only to the Kubernetes API with its service account, and
 sandboxes run with no service-account token (task 14).
 
-This stack also holds the **role allowlist**: the exact set of role names any Terraform stack in
+This stack also holds the **role allowlist**: the exact set of role names any OpenTofu stack in
 this repo **assigns**. Five of its seven lines are what the owner's ABAC condition on the **infra**
 identity should permit (owner input, survey §7.1 item 3): the roles the stacks that identity
 applies (`foundation`, `data`, `workloads`) assign to the pods' and the cluster's own identities.

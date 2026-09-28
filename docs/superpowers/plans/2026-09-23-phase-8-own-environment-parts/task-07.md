@@ -6,7 +6,7 @@ Firewall alternative to NAT (`modules/egress-firewall`, OQ-3), and the **invaria
 the plan** — not warn — when an input is wrong.
 
 Panacea's lessons applied here: the wildcard A record there is a manual step after Traefik gets an
-IP (survey §1.5 `:124-125`), so here **Terraform owns the IP and the records**; its firewall
+IP (survey §1.5 `:124-125`), so here **OpenTofu owns the IP and the records**; its firewall
 allowlists ACR's dedicated data endpoint rather than `*.blob.core.windows.net` (`:147`), so ours
 does too; and its region guard is a `check` that only warns (`P:deploy/firewall.tf:12-17`), so ours
 are **preconditions** on a `terraform_data` resource, which stop the plan.
@@ -71,9 +71,9 @@ variable "ci_agent_allowed_fqdns" {
     "rmprodbuilds.azureedge.net",
     "*.queue.core.windows.net",
     "server.pipe.aria.microsoft.com",
-    # Azure Resource Manager (terraform apply, az CLI)
+    # Azure Resource Manager (tofu apply, az CLI)
     "management.azure.com",
-    # Terraform and Helm, and the chart repositories the deploy pipeline builds from (task 13)
+    # OpenTofu and Helm, and the chart repositories the deploy pipeline builds from (task 13)
     "registry.terraform.io",
     "releases.hashicorp.com",
     "get.helm.sh",
@@ -451,7 +451,7 @@ simply never gets that far.
   `depends_on` on the NAT, NAT-IP and NSG associations (task 03, review m8), because
   `userAssignedNATGateway` needs each node subnet's NAT association at create time (from
   training knowledge). So the AKS call carries no `depends_on = [module.network]`; step 3 proves
-  the ordering with `terraform graph`.
+  the ordering with `tofu graph`.
 - `edge.tf`: `azurerm_public_ip.edge` — `pip-edge-panacea-app-${env}`, Standard, Static, zones;
   `azurerm_dns_zone.this`; one `azurerm_dns_a_record` per `edge_hostnames` entry with
   **`target_resource_id = azurerm_public_ip.edge.id`** (an alias record: it follows the IP) and
@@ -564,7 +564,7 @@ plan of the committed tfvars works.
 |---|---|---|
 | `default_route_goes_to_the_firewall` | one route `0.0.0.0/0`, `next_hop_type == "VirtualAppliance"`, next hop = the firewall's private IP (override_resource) | a route to `Internet` that bypasses the firewall |
 | `every_egress_subnet_is_routed` | four associations for the four `routed_subnet_ids` (system, apps, sandbox, agents); a map missing `agents` → `expect_failures = [var.routed_subnet_ids]` | the sandbox subnet left on the default route, or **the CI agents left with no route at all (C2)** |
-| `ci_agents_get_their_allowlist_from_their_subnet_only` | the CI rule's `destination_fqdns == var.ci_agent_allowed_fqdns`, HTTPS 443 only, `source_addresses == var.ci_agent_source_cidrs`; the CI HTTP rule's `destination_fqdns == var.ci_agent_allowed_http_fqdns`, `Http:80` only, the same source; the coding-agent rule does not contain `management.azure.com` | the CI list granted to the whole VNet, so a sandbox can reach Azure DevOps, the `*.queue.core.windows.net` wildcard, GitHub and the Terraform and Helm registries. (Re-review M5: it does **not** by itself keep Azure Resource Manager from a sandbox. Rule 2's `AzureKubernetesService` FQDN tag already admits `management.azure.com` from the nodes, and a sandbox pod leaves as its node's address — training knowledge of AKS's required egress, UNVERIFIED. What keeps ARM from a sandbox is that it holds no Azure credential: task 14's pod mounts no token, and IMDS is denied by task 11's `egress-internet`.) |
+| `ci_agents_get_their_allowlist_from_their_subnet_only` | the CI rule's `destination_fqdns == var.ci_agent_allowed_fqdns`, HTTPS 443 only, `source_addresses == var.ci_agent_source_cidrs`; the CI HTTP rule's `destination_fqdns == var.ci_agent_allowed_http_fqdns`, `Http:80` only, the same source; the coding-agent rule does not contain `management.azure.com` | the CI list granted to the whole VNet, so a sandbox can reach Azure DevOps, the `*.queue.core.windows.net` wildcard, GitHub and the OpenTofu and Helm registries. (Re-review M5: it does **not** by itself keep Azure Resource Manager from a sandbox. Rule 2's `AzureKubernetesService` FQDN tag already admits `management.azure.com` from the nodes, and a sandbox pod leaves as its node's address — training knowledge of AKS's required egress, UNVERIFIED. What keeps ARM from a sandbox is that it holds no Azure credential: task 14's pod mounts no token, and IMDS is denied by task 11's `egress-internet`.) |
 | `ci_http_takes_exact_hosts_only` | `ci_agent_allowed_http_fqdns = ["*.ubuntu.com"]` → `expect_failures = [var.ci_agent_allowed_http_fqdns]` | a wildcard allowed out in the clear (re-review M4) |
 | `acr_is_allowed_by_data_endpoint_not_blob_wildcard` | the ACR rule's FQDNs contain the data endpoints and no `*.blob.core.windows.net` | the wildcard that lets a sandbox exfiltrate to any storage account |
 | `acr_rule_names_our_registry_exactly` | with `acr_login_server = "acrpanaceaappdevk7q2.azurecr.io"` (task 05 `:79`'s name): the ACR rule's `destination_fqdns` contains that name, and `alltrue([for f in <the ACR rule's destination_fqdns> : !startswith(f, "*")])` | `*.azurecr.io` (every tenant's registry, and with it `<name>.<region>.data.azurecr.io`) put back in the rule beside the exact name (review I10) |
@@ -595,9 +595,9 @@ mock_provider "azurerm" {
 
 The reason is the module's `acr_login_server` validation (`endswith(…, ".azurecr.io")`, above).
 Foundation feeds it `module.registry.login_server`, a computed attribute. At plan the value is
-unknown, so the validation waits; at apply Terraform enforces it against whatever value the
+unknown, so the validation waits; at apply OpenTofu enforces it against whatever value the
 provider produced (Terraform 1.15.8 probe, plan re-review b04 round 1, finding 4). A bare mock
-gives a computed string a random 8-character value (Terraform's documented mock behaviour;
+gives a computed string a random 8-character value (OpenTofu's documented mock behaviour;
 training knowledge, not probed with azurerm, UNVERIFIED), which fails `endswith`. Without the
 default, every firewall-mode run that applies would stop at the validation:
 `firewall_mode_allowlists_its_own_address_on_the_api` (`command = apply`),
@@ -636,14 +636,14 @@ run) move with the grants to task 30's `grant-pipeline-roles_test.sh`.
   before any module is called (the preconditions need no module).
 - [ ] **Step 3:** Module calls, `edge.tf`, `grants.tf`, outputs; the remaining runs pass. Then
   prove the NAT ordering (review m8), which no mocked test can see: after `validate.sh` has run
-  `init -backend=false` in the stack, run `terraform -chdir=infra/terraform/stacks/foundation
+  `init -backend=false` in the stack, run `tofu -chdir=infra/terraform/stacks/foundation
   graph` with the ARM_* variables unset and `AZURE_CONFIG_DIR` an empty directory, as
   validate.sh does. Save the DOT output to the task report. Check with a short script that
   `module.aks`'s `azurerm_kubernetes_cluster` node reaches
   `module.network.azurerm_subnet_nat_gateway_association.this` by some path. The graph is reduced,
   so a direct edge need not exist. Mutant, on the `$TEMP` copy: delete the output's `depends_on`
   in `modules/network/outputs.tf`; the path must disappear. This is a by-hand proof, not CI.
-  validate.sh's command list is fixed (task 01), and `terraform graph` is not on it. That
+  validate.sh's command list is fixed (task 01), and `tofu graph` is not on it. That
   `graph` runs with no provider credentials, and that its reduced graph keeps paths through
   module outputs, are both UNVERIFIED until this step runs.
 - [ ] **Step 4:** `dev.tfvars`, `prod.tfvars`; the lock file for both platforms; guards (G2 proves

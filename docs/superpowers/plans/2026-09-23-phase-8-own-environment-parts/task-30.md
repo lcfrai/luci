@@ -17,7 +17,7 @@ guard and `guards.sh` included, can be edited by whoever opens the PR. **The gua
 not a security boundary.** The boundary is held in Azure and ADO, where a PR cannot reach:
 - PR builds run on the read-only **plan** connection.
 - The write connections carry ADO branch control and pipeline permissions. They are **infra**
-  (Terraform apply), **cluster** (Helm) and **image push** (task 27's `images.yml`).
+  (OpenTofu apply), **cluster** (Helm) and **image push** (task 27's `images.yml`).
 
 The plan's "Deploy identities" table lists every principal, what it holds and at what scope.
 
@@ -32,7 +32,7 @@ The plan's "Deploy identities" table lists every principal, what it holds and at
 - `infra/rbac/plan-reader.json` — the plan identity's custom role, `panacea-app-plan-reader`, which the owner creates (plan re-review M-2; new)
 - `infra/rbac/grant-pipeline-roles.sh`, `grant-pipeline-roles_test.sh` — the owner's script that grants the cluster and push identities their roles once `foundation` has made the cluster and the registry. It is the only place those grants are made (plan re-review I-2, I-3; new)
 - `pipelines/scripts/cluster-kinds_test.sh` — the two roles checked against what the charts render (new)
-- `pipelines/scripts/helm-values.sh`, `helm-values_test.sh` — Terraform outputs → `--set` flags (new)
+- `pipelines/scripts/helm-values.sh`, `helm-values_test.sh` — OpenTofu outputs → `--set` flags (new)
 - `pipelines/scripts/api-server-cidrs.sh`, `api-server-cidrs_test.sh` — the API server's addresses → `--set apiServer.cidrs=…` for a chart in `cidr` mode (review I3; new)
 - `pipelines/templates/tools.yml` — `kubelogin` (modify). No `psql`: no pipeline identity is a
   database administrator. The database bootstrap is a human step (task 31 §7, review I8)
@@ -104,7 +104,7 @@ Managed DevOps Pools are enabled in KPMG's ADO organisation is UNVERIFIED** (sur
 the fallback is a VMSS agent in the same subnet, Panacea's pattern (`P:deploy/ado-selfhosted-agent.tf`).
 
 **The agents' egress is not this module's** (review C2). Every subnet has default outbound
-access off (task 03), so the pool reaches `dev.azure.com`, the Terraform registry, the Helm repos
+access off (task 03), so the pool reaches `dev.azure.com`, the OpenTofu registry, the Helm repos
 and ARM only because `snet-agents` is one of `modules/network`'s four `egress_subnets`: NAT-associated
 in nat mode (task 03), routed through the firewall with `ci_agent_allowed_fqdns` from the agents
 subnet only in firewall mode (task 07). The API server's authorised ranges hold the environment's
@@ -139,7 +139,7 @@ nothing to that path and must not add a public IP of its own.
 #   - pipeline: ARM_SUBSCRIPTION_ID equals the pipeline variable PANACEA_APP_<ENV>_SUBSCRIPTION_ID,
 #     which must be set (catches the dev connection pointed at prod)
 #   - workstation: ARM_SUBSCRIPTION_ID equals `az account show --query id -o tsv`, so the
-#     subscription Terraform targets and the one the runbook's next `az` command hits agree
+#     subscription OpenTofu targets and the one the runbook's next `az` command hits agree
 #   - pipeline, deploy only: BUILD_SOURCEBRANCH is allowed for it:   dev  ← refs/heads/dev | refs/heads/main
 #                                                          prod ← refs/heads/main only
 #     (plan mode accepts any branch, refs/pull/* included: that is what PR validation is,
@@ -206,23 +206,23 @@ variable set) `tf-stack.sh` refuses either name. On a workstation it
 refuses `bootstrap` (local state, task 31 §2, which runs the guard itself) and runs `identity` for
 the owner, after the guard like every other path, so the owner's own identity run is fingerprinted
 too (review I3). Steps: tools → the estate guard → per stack,
-`tf-stack.sh plan <stack> <env>`. That runs `terraform init -lockfile=readonly
+`tf-stack.sh plan <stack> <env>`. That runs `tofu init -lockfile=readonly
 -backend-config=infra/terraform/backends/<env>.hcl -backend-config=storage_account_name=$(…)
 -backend-config=resource_group_name=$(…) -backend-config=key=<stack>.<env>.tfstate`, then
-`terraform plan -lock=false -var-file=<env>.tfvars -out=<stack>.tfplan -input=false`, then
-`terraform show -no-color` → artefacts **`plan-<stack>`** (binary plan and text).
+`tofu plan -lock=false -var-file=<env>.tfvars -out=<stack>.tfplan -input=false`, then
+`tofu show -no-color` → artefacts **`plan-<stack>`** (binary plan and text).
 - `-lockfile=readonly` fails `init` when a provider is not already in the committed lock file.
   This is the second half of guard G9: an implicit `hashicorp/external` cannot be fetched on the
   way in.
 - `-lock=false` is required because the plan identity can read the state blob but cannot take a
   lease on it.
-- A plan made without the lock is still safe to apply. `terraform apply <planfile>` refuses a plan
+- A plan made without the lock is still safe to apply. `tofu apply <planfile>` refuses a plan
   whose recorded state lineage or serial no longer matches (**from training knowledge,
   UNVERIFIED**). Task 31 §6 checks that refusal on purpose once.
 - **A workstation `apply <stack> <env>`** (the owner's `identity`, §4's workstation foundation
   pass) applies the `<stack>.tfplan` that the same workstation's `tf-stack.sh plan <stack> <env>`
   just wrote, and nothing else: it never re-plans, and never reads a pipeline artefact. No
-  `<stack>.tfplan` → exit 1 naming it, before `terraform apply` runs (plan re-review b03 M-2). The
+  `<stack>.tfplan` → exit 1 naming it, before `tofu apply` runs (plan re-review b03 M-2). The
   24 h age rule of stage 3 is the pipeline's; on a workstation, the stale-plan refusal above is the
   bound.
 
@@ -263,7 +263,7 @@ already does this for state), ACR admin user off.
 The azurerm 4.x provider registers resource providers when it starts, and that needs
 `*/register/action`, which Reader lacks. So every stack's `provider "azurerm"` block sets
 `resource_provider_registrations = "none"`, and task 31 §1 registers the providers by hand. **The
-attribute name is from training knowledge of azurerm 4.x, UNVERIFIED.** `terraform validate`
+attribute name is from training knowledge of azurerm 4.x, UNVERIFIED.** `tofu validate`
 first sees it in task 02's `bootstrap`, which rejects an unknown attribute.
 
 `pipelines/deploy.yml` — `trigger: none`, manual only; consumes an `infra-plan` run as a pipeline
@@ -274,20 +274,20 @@ an environment ticks `applyStacks` alone, and charts wait for the database boots
 1. **guard** — the estate guard on the plan connection, including the consumed-resource rule:
    the `infra-plan` run and the `images` run must both come from an allowed branch. It runs again
    inside every `tf-stack.sh` call of stage 3, on the infra connection, so the fingerprint is
-   read by the identity that writes **Terraform** (review I3). **Residual, stated** (plan
-   re-review b03 M-3): the writers that are not Terraform never run the guard — stage 4 (Helm on
+   read by the identity that writes **OpenTofu** (review I3). **Residual, stated** (plan
+   re-review b03 M-3): the writers that are not OpenTofu never run the guard — stage 4 (Helm on
    the cluster connection), stage 5, and `images.yml`'s `push` job (task 27). Their identities
    hold nothing at subscription scope (the plan's "Deploy identities"), so they could not read the
    tag. They rely on stage 1's read over the plan connection in the same run (the push job on
    none), on branch control of their connections, and on their scopes: each holds roles only on
    our cluster and our registry, both named from `stack-outputs` of our fingerprinted `foundation`
    run, and an ACR login server is globally unique. "Every path" in this plan means every
-   Terraform path and every owner or operator workstation section, not these three.
+   OpenTofu path and every owner or operator workstation section, not these three.
 2. **approve** — an ADO **Environment** `panacea-app-<env>` with an approval check (the owner).
 3. **apply** — on `$(PANACEA_APP_<ENV>_INFRA_SERVICE_CONNECTION)`. Per stack,
    `tf-stack.sh apply <stack> <env>` applies **the saved plan artefact** from the consumed run and
    nothing newer; a plan older than 24 h is refused. `apply` takes the state lock, which the infra
-   identity can do. Then **outputs**: `terraform output -json` per stack goes to the artefact
+   identity can do. Then **outputs**: `tofu output -json` per stack goes to the artefact
    `stack-outputs`, one file `<stack>.json` per stack (`helm-values.sh` here, and `render-sql.sh`
    in task 31 §7, read them by output name). So the cluster identity never needs to read state.
 4. **cluster** — on `$(PANACEA_APP_<ENV>_CLUSTER_SERVICE_CONNECTION)`: `az aks get-credentials`
@@ -370,7 +370,7 @@ and `AGENT_ID`, so the runner's own environment cannot pick the path.
 | **dev on `refs/heads/dev`, matching subscription, no `panacea-app-estate` tag** | refused, naming the missing tag and the subscription's last 4 characters | a guard with no positive fingerprint, so a Panacea subscription whose id was copied into the variable passes (review I3) |
 | dev, subscription tagged `panacea-app-estate=prod` | refused, naming both values | a guard that checks only that the tag exists |
 | dev, the tag read fails (stub `az` exits 1, as on a 403) | refused, naming the failed read | a guard that treats an unreadable tag as absent and carries on, or skips the check when `az` fails |
-| workstation (all four ADO variables unset), `az account show` returns a different id from `ARM_SUBSCRIPTION_ID` | refused, naming both ids' last 4 characters | Terraform and the runbook's next `az` command aimed at different subscriptions |
+| workstation (all four ADO variables unset), `az account show` returns a different id from `ARM_SUBSCRIPTION_ID` | refused, naming both ids' last 4 characters | OpenTofu and the runbook's next `az` command aimed at different subscriptions |
 | workstation, `ARM_SUBSCRIPTION_ID` unset | refused | azurerm left to pick up whatever subscription the operator's `az` has selected |
 | workstation, `az account show` equals `ARM_SUBSCRIPTION_ID`, tagged `dev`, `dev deploy` with **no stack** | ok, and the line names `workstation` | a guard that refuses every workstation run (every other workstation case is a refusal), or a tfvars rule that exits 1 under `set -u` when no stack is named, which stops every runbook section (plan re-review b03 M-1) |
 | **`TF_BUILD` unset, `BUILD_SOURCEBRANCH=refs/heads/dev`**, deploy consuming an `infra-plan` run whose source branch is `refs/pull/12/merge` | refused, naming the resource and its branch | a discriminator on `TF_BUILD` alone, which sends a deploy job lacking it down the workstation path and skips the consumed-resource rule (plan re-review b03 I-2) |
@@ -474,7 +474,7 @@ the owner runs the script again (task 31 §4a).
 | `dev`, an object id unset | exit 1 before any `az` call, naming the variable | a grant to an empty principal |
 | `dev`, the guard stub (`PANACEA_APP_ESTATE_GUARD`) exiting 1 | exit 1, and the `az` stub recorded no `role assignment` call | role assignments made in whatever subscription the owner's shell had selected, Panacea's included (review I3) |
 
-`helm-values_test.sh`: a fixture `terraform output -json` for each stack and a digests file →
+`helm-values_test.sh`: a fixture `tofu output -json` for each stack and a digests file →
 exactly the expected `--set` list per release (every id the charts need, nothing else; kills a
 chart deployed with an empty client id). `cert_manager_client_id` appears twice, as
 `cert-manager`'s `identity.clientId` and `edge`'s `certManagerIdentity.clientId`: kills an issuer

@@ -57,7 +57,7 @@ runs locally, so CI and laptop cannot disagree.
 | `pipelines/desktop.yml` | `desktop/**` | `ubuntu-latest` **and** `windows-latest` | `npm ci`, `npm run typecheck`, `npm test`; on Windows also `cargo clippy --manifest-path desktop/src-tauri/Cargo.toml -- -D warnings`; `npm run tauri build` on `main` only (Windows minutes, survey §6.2 `:515`) | PR; signing is phase 9 (`PROGRAM.md` open risk 3) |
 | `pipelines/licences.yml` | any `go.mod`/`go.sum`, `desktop/package*.json`, `desktop/src-tauri/Cargo.*`, `licences/**`, `pipelines/licences.yml` (a PR that narrows `allow.yaml` re-runs the three reports against it, plan re-review b08-1 "seen") | `ubuntu-latest` | Go: `go-licenses report` for each module; npm: the **production** dependency graph's licences; Cargo: `cargo deny check licenses`; each compared with `licences/allow.yaml` | PR — **OD-11 rule 3, applied repo-wide** |
 | `pipelines/secrets.yml` | all | `ubuntu-latest` | `gitleaks` over the PR's commits (`--log-opts=<base>..HEAD`), and over full history on `main` | PR |
-| `pipelines/infra.yml` | `infra/**`, `pipelines/**`, `azure-pipelines.yml`, `images/*.sh` (so `lint.sh` and `shellcheck` run on a PR that touches only the trees they check, plan re-review b08-1 "seen") | `ubuntu-latest` | `guards.sh`, then `validate.sh` **per directory as a job matrix** (both task 01's; task 10, which writes `role-allowlist.sh`, adds its step between the two in the same commit, so this task never calls a script that does not exist yet) (each `terraform test` takes minutes); `tflint` with the azurerm ruleset; `trivy config` (IaC misconfiguration) failing on HIGH; `shellcheck` over `infra/**/*.sh`, `images/*.sh`, `pipelines/scripts/*.sh` — **no Azure call, no credentials, safe on every PR** | PR |
+| `pipelines/infra.yml` | `infra/**`, `pipelines/**`, `azure-pipelines.yml`, `images/*.sh` (so `lint.sh` and `shellcheck` run on a PR that touches only the trees they check, plan re-review b08-1 "seen") | `ubuntu-latest` | `guards.sh`, then `validate.sh` **per directory as a job matrix** (both task 01's; task 10, which writes `role-allowlist.sh`, adds its step between the two in the same commit, so this task never calls a script that does not exist yet) (each `tofu test` takes minutes); `tflint` with the azurerm ruleset; `trivy config` (IaC misconfiguration) failing on HIGH; `shellcheck` over `infra/**/*.sh`, `images/*.sh`, `pipelines/scripts/*.sh` — **no Azure call, no credentials, safe on every PR** | PR |
 | `pipelines/charts.yml` | `deploy/**`, `licences/**`, `pipelines/charts.yml`, `pipelines/scripts/chart-licences*.sh`, `pipelines/scripts/testdata/chart-licences/**` (so a PR that edits only the gate or its fixtures re-runs it, plan re-review b08-1 issue 2) | `ubuntu-latest` | first, once: **`bash pipelines/scripts/chart-licences_test.sh`** (the eight fixture cases below, so a weakened script fails here), then **`bash pipelines/scripts/chart-licences.sh`** (every `deploy/charts/*/Chart.lock` dependency has a row in `licences/charts.yaml` whose licence is in `licences/allow.yaml`; review m6); then per chart: `helm dependency build`, `helm lint`, `helm unittest`, `helm template … \| kubeconform -strict -summary`. Task 13 later adds one cross-chart job: Go 1.23 and `go test ./deploy/tests/netpolcover/... -count=1` (every workload in a default-denied namespace has an allow in each direction it needs, and every `pre-install` hook's allow exists before the hook runs; the test runs `helm dependency build` itself) | PR |
 
 `images.yml` is task 27's; `infra-plan.yml` and `deploy.yml` are task 30's and are **not
@@ -69,9 +69,17 @@ registered** until the environment exists.
 # OD-11 rule 3: dependencies are MIT, Apache-2.0, BSD or ISC only — applied to every linked
 # dependency graph in this repository (Go modules, the desktop's production npm graph, Cargo)
 # and to every Helm chart dependency (each Chart.lock entry, recorded in licences/charts.yaml).
-# Tools that run in CI or at apply but are not shipped (terraform, helm, scanners) are not
-# dependencies. Terraform providers are tools too: MPL-2.0, run by Terraform as separate
+# Tools that run in CI or at apply but are not shipped (tofu, helm, scanners) are not
+# dependencies. OpenTofu providers are tools too: MPL-2.0, run by the engine as separate
 # processes, shipped in nothing, pinned by hash in each stack's .terraform.lock.hcl.
+#
+# OD-32: the IaC engine is OpenTofu (MPL-2.0), NOT HashiCorp Terraform, which has been BUSL-1.1
+# since August 2023 — BUSL is forbidden here for the same reason AGPL is, because customers run
+# this on their own cloud. The same ruling replaces HashiCorp Vault (BUSL-1.1 from 1.15) with
+# OpenBao (MPL-2.0); phase 8 uses Azure Key Vault, a service, so OpenBao is deferred.
+# hashicorp/terraform-provider-azurerm stays: its LICENSE is MPL-2.0, with no Change Date and
+# no BUSL heading (verified from source 2026-09-28). The providers did not move; only the
+# engine did. Rationale in full: infra/terraform/README.md.
 allowed:
   - MIT
   - Apache-2.0

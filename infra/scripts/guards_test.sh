@@ -165,8 +165,8 @@ EOF
   put "infra/terraform/README.md" <<'EOF'
 # infra/terraform (fixture)
 EOF
-  # Not Terraform: task 30 keeps custom role definitions as JSON under infra/rbac/, so only
-  # the two Terraform JSON forms (*.tf.json, *.tfvars.json) may fail G1, not every *.json.
+  # Not OpenTofu: task 30 keeps custom role definitions as JSON under infra/rbac/, so only
+  # the two OpenTofu JSON forms (*.tf.json, *.tfvars.json) may fail G1, not every *.json.
   put "infra/rbac/plan-reader.json" <<'EOF'
 {"Name": "panacea-app-plan-reader", "IsCustom": true}
 EOF

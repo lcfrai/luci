@@ -147,14 +147,14 @@ Resources (described; names from azurerm 4.81.0):
   by hand in task 31 §6a after the first prod apply (plan re-review I-4). The infra identity that
   applies this stack holds no `Microsoft.Authorization/locks/write`: Contributor excludes
   `Microsoft.Authorization/*/Write`, and Role Based Access Control Administrator grants role
-  assignments only (**training knowledge, UNVERIFIED**). A lock in Terraform would fail the first
+  assignments only (**training knowledge, UNVERIFIED**). A lock in OpenTofu would fail the first
   prod apply. Granting the infra identity lock rights would let it lift the lock as well, so the
   lock would guard only against accidents, never against the pipeline. An owner-held lock guards
   against both.
 
 **No database role is created here.** A Postgres role for an Entra principal is SQL
 (`pgaadauth_create_principal_with_oid`, by object id, run as a member of the admin group, review
-I9) and a grant is SQL; Terraform's
+I9) and a grant is SQL; OpenTofu's
 Postgres provider would need a network path and a token to the private server from the plan agent.
 Task 29 writes the SQL. A **human** member of the admin group runs it once per environment, as
 task 31 §7. No pipeline identity is in the admin group (the plan's "Deploy identities" table,

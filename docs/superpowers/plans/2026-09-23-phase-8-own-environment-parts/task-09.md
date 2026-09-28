@@ -26,7 +26,7 @@ is not written**. P8-D1's `identity` stack and task 30's refusal of it are left 
 - The owner stores that secret in our Key Vault as `keycloak-entra-idp-secret` (task 29 mounts it), and
   the Fleet and gateway client secrets as `keycloak-client-panacea-app-fleet` and
   `keycloak-client-panacea-app-gateway` (ruling §6), and Keycloak's bootstrap admin as
-  `keycloak-bootstrap-admin` (task 29's realm Job signs in with it). None is Terraform: the registration is IT's, and a
+  `keycloak-bootstrap-admin` (task 29's realm Job signs in with it). None is OpenTofu: the registration is IT's, and a
   secret value in state is a usable secret in state (P8-D11).
 
 **Files:**
