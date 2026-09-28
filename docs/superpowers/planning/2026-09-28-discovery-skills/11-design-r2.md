@@ -18,7 +18,81 @@ Inputs, in the order read: `11a-facts-phase4.md`, `11b-facts-hub.md`, `06-scepti
 
 ## 2. The two records
 
-(to be written)
+Two new kinds, each **its own Hub record**: a head plus immutable numbered revisions, the shape the
+brief already has (11b §1.4, `HC:742-815`). Neither is a field of brief content, and writing either
+never mints a brief revision. `HC` is the Hub contract,
+`.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-contract.md` at `cafe1303`.
+
+### 2.1 Ids and keys: two new forms beside the two that exist
+
+| | Term (one glossary entry) | Decision (one decision record) |
+|---|---|---|
+| Hub id | `te-` + 16 lowercase hex, `ids.Wide("te")` | `dr-` + 16 lowercase hex, `ids.Wide("dr")` |
+| Key | `term:te-<16 hex>@<n>` | `decision:dr-<16 hex>@<n>` |
+| Pattern | `^term:(te-[0-9a-f]{16})@([1-9][0-9]{0,8})$` | `^decision:(dr-[0-9a-f]{16})@([1-9][0-9]{0,8})$` |
+
+- **The brief's key does not change by a byte**, nor does `design:` (`HC:119-122`) or phase 4's
+  local `none:declined` (`key.go:23-29`). The grammar grows by two forms, which is what its `kind:`
+  prefix exists for (`PC:104-107`); phase W already plans a fourth, `issue:is-…@r`
+  (`.claude/worktrees/phase-4/docs/superpowers/planning/2026-09-25-linear-parity/04-internal-fit.md:45`).
+- `te-` and `dr-` are in neither the Hub's prefix table (`hubapi/keys.go:16-27`) nor the control
+  plane's `s-`, `p-`, `b-`, `w-`, `m-` (`HC:111`), and no `.md` or `.go` file in any worktree holds
+  a `te-` or `dr-` id (grep, 2026-09-29; the only other planned prefix it met is phase W's `is-`).
+- The illustration `term:tm-7f2a@2` in `10-decision-terms-beside-the-brief.md:14` is corrected:
+  `tm-` is the team prefix (`HC:107`), and an id is 16 hex, not 4 (11b §1.2).
+- Revisions are the Hub's, from 1, gapless per record, and 0 never appears in a key: the brief's
+  rule (`HC:124-125`) applied to both. A key names one immutable revision, so what a session was
+  given can always be read back; only the head moves.
+
+### 2.2 Fields
+
+Every text field passes the block's neutraliser and line-ending rule (`render.go:47-54`) and holds no
+line ending. The limits are round 1's (`05-design.md:243-248`), kept.
+
+| Term field | Rule |
+|---|---|
+| `word` | the one word the project uses for the thing; 1-64 code points; unique among the in-force terms of its scope, compared case-folded, **checked by the Hub at write** (§2.4) |
+| `is` | what the thing *is*, one or two sentences, 1-300 code points; never how it is built |
+| `avoid` | 0-8 words not to use for it, each 1-64 code points, distinct from `word` and each other |
+| `because` | 0-300 code points: why this word and not the avoided ones; the agent fills it, a person may leave it empty |
+
+| Decision field | Rule |
+|---|---|
+| `decision` | what was decided, one sentence, 1-300 code points: **the only field a person must write** |
+| `context` · `why` · `undo` | 0-300 each: why it came up; what it gave up; what reversing it would cost. The agent fills all three (§3) |
+| `rejected` | 0-3 alternatives, each 1-120 code points: the *over Y* of the Desk's *chose X over Y* |
+
+| Both kinds, every revision | Rule |
+|---|---|
+| `scope` | `project` (anchored to the `pj-` id), or `branch` (anchored to that branch's brief id, `bf-…`) |
+| `state` | a term: `in_force`, `retired`. A decision: `in_force`, `superseded`, `withdrawn` |
+| `overrides` | branch scope only: the key, revision pinned, of the project entry this branch departs from; else `null` |
+| `replacedBy` | on `retired` or `superseded`: the id of the record that took over; else `null` |
+| `settledIn` | the brief key where it settled (§2.5), or `null` when that was a session with no brief |
+| `author` | `person`, or `model_accepted` — the brief's own words, `content.go:63-65`. No `model_drafted` record exists: a draft is a proposal, which is process state (§4) |
+| `sessionId` | the control-plane session it was proposed in, verbatim, as a session link holds one (`HC:937-944`); else `null` |
+| `savedAt` · `savedBy` | the Hub's, as on a brief revision |
+
+A branch scope anchors to the branch **brief's** id, not to a ref name, so a renamed branch needs no
+new op: the brief's own `PATCH` rebind carries it (`HC:780-783`), and its archive retires nothing.
+
+### 2.3 Scope: the project's, and what a branch may do
+
+A term or a decision is the **project's** by default: one set, shared by every brief in the project,
+which is OD-36's scope ground (`owner-decisions.md:409`). A branch may do three things, each its own
+op (§2.4) and each its own record, so no one content object ever holds an entry and its dissent:
+
+- **Add** a branch-only word or decision: `scope: branch`, `overrides: null`.
+- **Depart** from a project entry: a branch record with `overrides: term:te-…@n` that either
+  defines the word differently (`in_force`) or sets it aside on this branch (`retired`). Pinning
+  `@n` means a later project revision never silently re-points it; the lens says the departure was
+  made against an older definition (§6).
+- **Promote** a branch entry to the project: a new revision of the **same** record with
+  `scope: project`, so its id and history survive. When it was a departure, the same batch retires
+  or supersedes the project entry it overrode, with `replacedBy` naming the promoted record.
+
+What a branch sees is computed by phase 4, never by the Hub (the Hub stores and resolves, 11b §1.4):
+the project's in-force entries, minus those a branch record overrides, plus the branch's own.
 
 ## 3. How a decision earns its record, without ceremony
 
