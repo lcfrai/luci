@@ -54,7 +54,8 @@ body{
 .hd{ display:flex; align-items:flex-start; justify-content:space-between;
      padding-bottom:9px; border-bottom:2px solid var(--kpmg); margin-bottom:14px; }
 .brand{ display:flex; align-items:center; gap:11px; }
-.brand img{ width:34px; height:34px; display:block; }
+/* The KPMG mark is 1182x475 (about 2.49:1). Never constrain both axes, or it squashes. */
+.brand img{ height:26px; width:auto; display:block; }
 .brand .wm{ line-height:1; }
 .brand .wm b{ font-size:17px; font-weight:800; letter-spacing:.02em; color:var(--kpmg); display:block; }
 .brand .wm span{ font-family:var(--mono); font-size:8.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--g3); }
@@ -75,7 +76,7 @@ body{
     radial-gradient(120% 90% at 0% 100%, rgba(114,19,234,.20), transparent 55%),
     linear-gradient(160deg,#071634 0%,#0b2559 55%,#00338D 130%); }
 .cover .cov-top{ display:flex; align-items:center; gap:14px; }
-.cover .cov-top img{ width:46px; height:46px; }
+.cover .cov-top img{ height:40px; width:auto; }
 .cover .cov-top b{ font-size:22px; font-weight:800; letter-spacing:.02em; }
 .cover .cov-top span{ display:block; font-family:var(--mono); font-size:9px; letter-spacing:.16em; text-transform:uppercase; color:#9db8e6; }
 .cover .cov-kicker{ margin-top:auto; font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--thread); }
