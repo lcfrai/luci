@@ -107,7 +107,7 @@ locals {
     product     = "panacea-app"
     environment = var.environment
     stack       = "x"
-    managed-by  = "terraform"
+    managed-by  = "opentofu"
   })
 }
 
@@ -340,7 +340,7 @@ EOF
   guards
   expect_only 3
   expect_line "guard G3: FAIL $TF/stacks/x/tests/x.tftest.hcl: no mock_provider \"azuread\""
-  # `terraform test` runs a root-level file too, and it needs the same mocks (review I2).
+  # `tofu test` runs a root-level file too, and it needs the same mocks (review I2).
   # kills: G3 reading only tests/ (a root-level file checked against stacks/, which requires
   # nothing)
   put "$TF/stacks/x/tests/x.tftest.hcl" < "$WORK/template/$TF/stacks/x/tests/x.tftest.hcl"
@@ -395,7 +395,7 @@ EOF
   guards
   expect_only 5
   expect_line "guard G5: FAIL $TF/stacks/x/backend.tf:"
-  # No backend.tf at all: `terraform init -backend-config=<file>` on a configuration with no
+  # No backend.tf at all: `tofu init -backend-config=<file>` on a configuration with no
   # backend block exits 0 with a warning and uses local state (review I3), so missing fails.
   # kills: G5 that checks only the backend.tf files that exist
   rm -f "$T/$TF/stacks/x/backend.tf"
@@ -510,7 +510,7 @@ case_g9_lockfile_provider_fails() {  # kills: G9 that reads only required_provid
   expect_line "guard G9: FAIL $TF/stacks/x/.terraform.lock.hcl:"
 }
 
-# The file-level block below is exactly what `terraform fmt` (1.15.8) leaves: it aligns the
+# The file-level block below is exactly what `tofu fmt` (1.15.8) leaves: it aligns the
 # `=` of consecutive attributes, so the short key sits under the long one with 13 spaces.
 # kills: G10 deleted; G10 reading only dev.tfvars; a single-space key pattern; G10 flagging
 # run-level variables; G10 reading only tests/ (a root-level *.tftest.hcl runs too, b04-2 M2)
@@ -559,7 +559,7 @@ run "private_api" {
 EOF
   guards
   expect_pass
-  # A root-level test file is run by `terraform test` as well, so G10 reads it too.
+  # A root-level test file is run by `tofu test` as well, so G10 reads it too.
   put "$TF/stacks/x/x.tftest.hcl" <<'EOF'
 mock_provider "azurerm" {}
 mock_provider "azuread" {}
@@ -579,7 +579,7 @@ EOF
   expect_line "guard G10: FAIL $TF/stacks/x/x.tftest.hcl: file-level variables key api_private"
 }
 
-# `terraform fmt` leaves a one-argument block on one line and `fmt -check` exits 0 (b04-2 I1,
+# `tofu fmt` leaves a one-argument block on one line and `fmt -check` exits 0 (b04-2 I1,
 # probe p1), so the key sits on the opener line. G10 refuses the layout outright.
 # kills: G10 that reads only the lines after `variables {`
 case_g10_one_line_file_level_variables_fails() {

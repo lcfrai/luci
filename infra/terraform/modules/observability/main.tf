@@ -35,7 +35,7 @@ resource "azurerm_log_analytics_workspace" "this" {
 }
 
 # UNVERIFIED: the extension's JSON keys, and kind = "Linux", are training knowledge of the
-# Container Insights DCR schema. Azure accepts or rejects them only at apply (task 31); terraform
+# Container Insights DCR schema. Azure accepts or rejects them only at apply (task 31); tofu
 # validate cannot see inside a JSON string, and no test here can either. kind is what Microsoft's
 # own Container Insights DCR carries and the nodes are AzureLinux; left unset, Azure may read the
 # rule as a kind that collects nothing while the association still succeeds.

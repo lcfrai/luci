@@ -8,9 +8,10 @@ sandboxd-linux
 *.tfstate
 *.tfstate.backup
 main/
-# Terraform, phase 8 task 01. Plans embed prior state (treat as sensitive); modules commit no
+# OpenTofu (OD-32; the .terraform* names are the engine's own and do not change), phase 8
+# task 01. Plans embed prior state (treat as sensitive); modules commit no
 # lock file (stacks do, guards.sh G7). The override names keep runbook §2's local-backend
-# backend_override.tf out of git: Terraform loads all four as overrides (guards.sh G1).
+# backend_override.tf out of git: the engine loads all four as overrides (guards.sh G1).
 *.tfplan
 crash*.log
 infra/terraform/modules/**/.terraform.lock.hcl

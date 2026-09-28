@@ -1,9 +1,17 @@
 # OD-11 rule 3: dependencies are MIT, Apache-2.0, BSD or ISC only — applied to every linked
 # dependency graph in this repository (Go modules, the desktop's production npm graph, Cargo)
 # and to every Helm chart dependency (each Chart.lock entry, recorded in licences/charts.yaml).
-# Tools that run in CI or at apply but are not shipped (terraform, helm, scanners) are not
-# dependencies. Terraform providers are tools too: MPL-2.0, run by Terraform as separate
+# Tools that run in CI or at apply but are not shipped (tofu, helm, scanners) are not
+# dependencies. OpenTofu providers are tools too: MPL-2.0, run by the engine as separate
 # processes, shipped in nothing, pinned by hash in each stack's .terraform.lock.hcl.
+#
+# OD-32: the IaC engine is OpenTofu (MPL-2.0), NOT HashiCorp Terraform, which has been BUSL-1.1
+# since August 2023 — BUSL is forbidden here for the same reason AGPL is, because customers run
+# this on their own cloud. The same ruling replaces HashiCorp Vault (BUSL-1.1 from 1.15) with
+# OpenBao (MPL-2.0); phase 8 uses Azure Key Vault, a service, so OpenBao is deferred.
+# hashicorp/terraform-provider-azurerm stays: its LICENSE is MPL-2.0, with no Change Date and
+# no BUSL heading (verified from source 2026-09-28). The providers did not move; only the
+# engine did. Rationale in full: infra/terraform/README.md.
 allowed:
   - MIT
   - Apache-2.0

@@ -28,6 +28,16 @@
 # Versions were chosen on 2026-09-25: the newest release, except govulncheck v1.1.4, the
 # newest golang.org/x/vuln whose go directive (1.22) builds on CI's Go 1.23; v1.2.0 and later
 # need Go 1.25. Terraform is 1.15.8 (P8-D14).
+#
+# OD-32 BLOCKER, open. The IaC engine is OpenTofu (MPL-2.0): HashiCorp Terraform has been
+# BUSL-1.1 since August 2023 and this product ships to customers' own clouds, so the two
+# `terraform` rows below must become `tofu` rows fetched from
+# https://github.com/opentofu/opentofu/releases (tofu_<version>_linux_amd64.zip and
+# tofu_<version>_windows_amd64.zip, member `tofu` / `tofu.exe`). They were NOT changed here
+# because a pin is a published SHA-256, the build that applied OD-32 was offline, and an
+# invented hash is worse than an open blocker. Until this moves, pipelines/infra.yml still
+# installs Terraform and infra/scripts/validate.sh — which runs `tofu` and refuses
+# TOFU_BIN=terraform — will not find an engine. See infra/terraform/README.md.
 
 # name                 platform      version kind          member                                               sha256                                                           url
 read -r -d '' PINS <<'PINS' || true

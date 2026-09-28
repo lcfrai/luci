@@ -3,7 +3,7 @@ locals {
     product     = "panacea-app"
     environment = var.environment
     stack       = "bootstrap"
-    managed-by  = "terraform"
+    managed-by  = "opentofu"
   })
 
   # The tfstate container's Resource Manager id: the account id + the container's path. Both

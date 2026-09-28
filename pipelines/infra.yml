@@ -3,7 +3,7 @@
 # Azure SDK variables and TF_CLI_ARGS*, and points AZURE_CONFIG_DIR at an empty directory (task 01).
 #   guards  lint_test, lint, the script tests, guards_test, guards.sh, shellcheck, tflint (azurerm
 #           ruleset, pinned), trivy config failing on HIGH (its bundled checks: --skip-check-update)
-#   validate.sh once per module or stack directory, as a job matrix: each terraform test takes
+#   validate.sh once per module or stack directory, as a job matrix: each tofu test takes
 #           minutes. The matrix is read from the tree (matrix.sh), so a new directory needs no edit.
 # Task 10 adds `bash infra/scripts/role-allowlist.sh` after guards.sh in the same commit that
 # writes it, so this file never calls a script that does not exist (lint.sh R7).
@@ -73,6 +73,12 @@ jobs:
     strategy:
       matrix: $[ dependencies.directories.outputs['dirs.legs'] ]
     steps:
+      # OD-32 BLOCKER, open: the engine is OpenTofu (MPL-2.0); HashiCorp Terraform is BUSL-1.1
+      # and forbidden. validate.sh already runs `tofu` and refuses TOFU_BIN=terraform, so this
+      # job cannot pass until the pin moves. Closing it needs the published OpenTofu SHA-256
+      # for linux-amd64 and windows-amd64 in pipelines/scripts/install-tool.sh, which the
+      # offline build that applied OD-32 could not fetch and would not invent. Then this reads
+      # `tools: [tofu]`. See infra/terraform/README.md, "The engine is OpenTofu, not Terraform".
       - template: templates/tools.yml
         parameters:
           tools: [terraform]

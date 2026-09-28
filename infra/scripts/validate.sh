@@ -1,23 +1,26 @@
 #!/usr/bin/env bash
-# infra/scripts/validate.sh — the ONLY Terraform commands this phase may run (the one exception
-# is task 07's by-hand `terraform graph` of the foundation stack: config only, review m8).
+# infra/scripts/validate.sh — the ONLY OpenTofu commands this phase may run (the one exception
+# is task 07's by-hand `tofu graph` of the foundation stack: config only, review m8).
 #
 #   infra/scripts/validate.sh                 every dir under modules/ and stacks/
 #   infra/scripts/validate.sh <dir> [<dir>…]  just these, relative to the repo root
 #
 # For each directory, in order, stopping that directory at the first failure:
-#   1. terraform fmt -check -recursive -diff
-#   2. stacks:  terraform init -backend=false -input=false -lockfile=readonly
-#      modules: terraform init -backend=false -input=false
-#   3. terraform validate -no-color
-#   4. if the directory has a *.tftest.hcl, in tests/ or at its root (terraform test runs both,
+#   1. tofu fmt -check -recursive -diff
+#   2. stacks:  tofu init -backend=false -input=false -lockfile=readonly
+#      modules: tofu init -backend=false -input=false
+#   3. tofu validate -no-color
+#   4. if the directory has a *.tftest.hcl, in tests/ or at its root (tofu test runs both,
 #      plan re-review b04-2 M2):
-#        modules: terraform test -no-color
-#        stacks:  terraform test -no-color -var-file=<env>.tfvars, once per <env>.tfvars in the
+#        modules: tofu test -no-color
+#        stacks:  tofu test -no-color -var-file=<env>.tfvars, once per <env>.tfvars in the
 #                 stack, so every committed tfvars file is proven to plan against mocks. The
 #                 test files supply only what tfvars may not hold (ids, as TF_VAR_* would).
 #                 A file-level `variables` block in a .tftest.hcl OVERRIDES -var-file
-#                 (Terraform 1.15.8 probe, review I1), so guards.sh G10 forbids a file-level
+#                 (Terraform 1.15.8 probe, review I1 — every "Terraform 1.15.8" observation in
+#                 this file predates OD-32 and was made on the old engine; the behaviour is
+#                 expected to carry to OpenTofu but has NOT been re-probed there), so
+#                 guards.sh G10 forbids a file-level
 #                 key that any <env>.tfvars in the stack sets, and a one-line file-level block
 #                 outright (fmt leaves one on one line, b04-2 I1); a run that needs an
 #                 environment-specific value sets it in that run's own `variables` block.
@@ -67,17 +70,37 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 AZURE_CONFIG_DIR="$(mktemp -d "$WORK/azure.XXXXXX")"
 if command -v cygpath > /dev/null 2>&1; then
-  AZURE_CONFIG_DIR="$(cygpath -w "$AZURE_CONFIG_DIR")"   # a native terraform.exe reads it
+  AZURE_CONFIG_DIR="$(cygpath -w "$AZURE_CONFIG_DIR")"   # a native tofu.exe reads it
 fi
 export AZURE_CONFIG_DIR
+# OpenTofu reads the TF_* environment variables for compatibility (training knowledge,
+# UNVERIFIED: no tofu binary on the build host to probe).
 export TF_IN_AUTOMATION=1 TF_INPUT=0
 LOG="$WORK/step.log"
 
+# --- the engine (OD-32) --------------------------------------------------------------------------
+# The engine is OpenTofu (MPL-2.0). HashiCorp Terraform is BUSL-1.1 and this product ships to
+# customers' own clouds, so the terraform binary may not be used here — see
+# infra/terraform/README.md, "The engine is OpenTofu, not Terraform".
+# TOFU_BIN exists so a pinned install can be named by path. It may not name terraform.
+TOFU="${TOFU_BIN:-tofu}"
+case "$(basename "$TOFU")" in
+  terraform|terraform.exe)
+    echo "validate: refusing TOFU_BIN=$TOFU: terraform is BUSL-1.1 and OD-32 forbids it" >&2
+    exit 2 ;;
+esac
+if ! command -v "$TOFU" > /dev/null 2>&1; then
+  echo "validate: '$TOFU' not found. OD-32 made OpenTofu the engine; install it (pin it in" >&2
+  echo "          pipelines/scripts/install-tool.sh and ask for it in the tools template), or" >&2
+  echo "          set TOFU_BIN to its path. Do not substitute terraform." >&2
+  exit 2
+fi
+
 # --- one directory -----------------------------------------------------------------------------
 STEP=""
-step() {   # step <name> <terraform args…>: run one step in $DIR, output to $LOG
+step() {   # step <name> <tofu args…>: run one step in $DIR, output to $LOG
   STEP="$1"; shift
-  terraform -chdir="$DIR" "$@" > "$LOG" 2>&1
+  "$TOFU" -chdir="$DIR" "$@" > "$LOG" 2>&1
 }
 has_tests() {
   compgen -G "$DIR/tests/*.tftest.hcl" > /dev/null || compgen -G "$DIR/*.tftest.hcl" > /dev/null

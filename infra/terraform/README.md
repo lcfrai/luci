@@ -5,9 +5,58 @@ environment** (`OD-5`). Nothing here targets Panacea: phase 1's root, which atta
 pool to Panacea's dev cluster, was retired in task 01; the pool is rewritten in `modules/aks`
 (task 06).
 
+## The engine is OpenTofu, not Terraform (`OD-32`)
+
+**Run `tofu`. Never run the `terraform` binary.** HashiCorp Terraform has been **BUSL-1.1 since August
+2023**, and this product is shipped to customers who run it on their own cloud, so BUSL is on
+the forbidden list exactly as AGPL is. **OpenTofu (MPL-2.0) is the fork we use.** The same
+ruling replaces HashiCorp Vault (BUSL-1.1 from 1.15) with **OpenBao** (MPL-2.0) — see
+"Secrets" below for why that clause changes nothing here.
+
+This section exists so that nobody, finding a directory named `terraform/` and a `terraform {}`
+block, helpfully switches back. The directory name is a path, not a licence.
+
+**What does NOT change, verified by reading this tree on 2026-09-28:**
+
+- **The providers.** `hashicorp/terraform-provider-azurerm` is **MPL-2.0**, with no Change Date
+  and no BUSL heading. Only the engine moved. Every `required_providers` entry here is the
+  unqualified `source = "hashicorp/azurerm"`, so it resolves through whichever registry the
+  engine defaults to and needs no edit.
+- **The language.** `.tf` syntax is compatible. The `terraform { … }` block keeps its name;
+  OpenTofu accepts it. So do the `terraform_remote_state` data source, the auto-loaded
+  `terraform.tfvars` / `*.auto.tfvars` names that G1 refuses, and `.terraform/` and
+  `.terraform.lock.hcl` (training knowledge, **UNVERIFIED here**: no `tofu` binary exists on
+  the build host, so nothing below was run).
+
+**What does change:** the CLI invocation (`terraform …` → `tofu …`) in every script, pipeline
+and runbook; the tool pinned and installed in CI; and the registry host recorded inside a lock
+file, which `tofu` writes as `registry.opentofu.org/…` where the old engine wrote
+`registry.terraform.io/…`.
+
+**Two items are NOT yet closed, because closing them needs evidence this host cannot produce.**
+Both are recorded rather than guessed, and neither may be closed by inventing a value:
+
+1. **The CI pin.** `pipelines/scripts/install-tool.sh` still pins Terraform 1.15.8. An OpenTofu
+   pin needs the published SHA-256 for `linux-amd64` and `windows-amd64`, which requires
+   network access this build has not got. Until it lands, `pipelines/infra.yml` still asks for
+   the Terraform pin and `validate.sh` will not find `tofu`.
+2. **The tracked lock file.** `stacks/bootstrap/.terraform.lock.hcl` still records
+   `registry.terraform.io/hashicorp/azurerm`. Regenerate it, do not hand-edit it:
+   `tofu providers lock -platform=windows_amd64 -platform=linux_amd64`.
+
+## Secrets: Azure Key Vault, not HashiCorp Vault, so OpenBao is deferred
+
+Every `vault` in this tree is **Azure Key Vault** — `azurerm_key_vault`, `modules/keyvault`, the
+`privatelink.vaultcore.azure.net` zone, and the `vault` private-endpoint subresource. Key Vault
+is an Azure service, not a HashiCorp dependency, and has no licence problem. **Phase 8 plans no
+HashiCorp Vault anywhere**, so `OD-32`'s Vault→OpenBao clause deletes nothing here; it binds the
+future, and the OSS research rates OpenBao "conditional — defer: only if Key Vault is
+insufficient". **Do not rename anything matching `key_vault` or `keyvault`** — those are Azure
+provider identifiers and renaming them breaks the plan.
+
 ## Layout
 
-Every Terraform task in phase 8 writes into exactly this:
+Every OpenTofu task in phase 8 writes into exactly this:
 
 ```
 infra/terraform/
@@ -44,7 +93,7 @@ endpoint on foundation's subnet, resolved by a record in foundation's `blob` zon
 ## Commands
 
 The only Terraform commands this phase runs are the ones `validate.sh` runs (the one exception
-is task 07's by-hand `terraform graph` of the foundation stack: config only).
+is task 07's by-hand `tofu graph` of the foundation stack: config only).
 
 ```bash
 bash infra/scripts/validate.sh                         # every dir under modules/ and stacks/
@@ -54,7 +103,7 @@ bash infra/scripts/guards_test.sh                      # one fixture per rule
 ```
 
 `validate.sh` runs, per directory: `fmt -check -recursive -diff`, `init -backend=false`
-(stacks add `-lockfile=readonly`), `validate`, and `terraform test` when the directory has a
+(stacks add `-lockfile=readonly`), `validate`, and `tofu test` when the directory has a
 `*.tftest.hcl` (in `tests/` or at its root). A stack's tests run once per `<env>.tfvars`, with
 `-var-file`, so every committed tfvars file is proven to plan against mocks. It never runs plan,
 apply, import, state or console, never passes `-backend-config`, scrubs `ARM_*`, the Azure SDK
@@ -90,7 +139,7 @@ scan; if either fails, `guards.sh` prints `guards: inventory failed (…)` or
 
 Why G10: a file-level `variables` block in a test file **overrides** `-var-file` (Terraform
 1.15.8), so a file-level `environment = "dev"` would quietly turn the `prod.tfvars` pass into a
-second dev pass. `terraform fmt` also leaves a one-argument block on one line, and a line-based
+second dev pass. `tofu fmt` also leaves a one-argument block on one line, and a line-based
 check cannot see a key on the opener line, so one-line file-level blocks are refused outright.
 
 ## Conventions (every later task assumes these)
@@ -99,7 +148,7 @@ check cannot see a key on the opener line, so one-line file-level blocks are ref
   `validation`. Nothing environment-specific (location, CIDRs, names) has a `default`:
   `<env>.tfvars` sets it. `environment` is validated against `["dev", "prod"]`.
 - **Tags.** Every stack has
-  `locals { tags = merge(var.tags, { product = "panacea-app", environment = var.environment, stack = "<stack>", managed-by = "terraform" }) }`.
+  `locals { tags = merge(var.tags, { product = "panacea-app", environment = var.environment, stack = "<stack>", managed-by = "opentofu" }) }`.
   Modules take `tags` as an input.
 - **Names.** `<kind>-panacea-app-<env>[-<qualifier>]`, e.g. `rg-panacea-app-dev`,
   `aks-panacea-app-dev`. Globally unique names (storage, ACR, Key Vault) drop the hyphens and
@@ -107,7 +156,7 @@ check cannot see a key on the opener line, so one-line file-level blocks are ref
   in `<env>.tfvars` (e.g. `stpanaceaappdevk7q2`). The suffix is chosen once per environment and
   never derived from an id.
 - **Lock files.** A stack's `.terraform.lock.hcl` is created with
-  `terraform providers lock -platform=windows_amd64 -platform=linux_amd64`, so the Linux CI
+  `tofu providers lock -platform=windows_amd64 -platform=linux_amd64`, so the Linux CI
   agent and the Windows laptop verify against the same committed file. Modules commit no lock
   file (git-ignored).
 - **Test variables.** A stack test's file-level `variables` block holds only what no
@@ -118,7 +167,7 @@ check cannot see a key on the opener line, so one-line file-level blocks are ref
 - **Providers.** Every stack's `provider "azurerm"` block sets `storage_use_azuread = true` and
   `resource_provider_registrations = "none"`: the read-only plan identity cannot register
   resource providers, so the owner registers them by hand (task 31 §1). The attribute name and
-  the value `"none"` were verified in task 02: `terraform validate` accepts both against
+  the value `"none"` were verified in task 02: `tofu validate` accepts both against
   azurerm 4.81.0, with no warning. Modules hold no provider blocks.
 - **Backends.** A stack's `backend.tf` is exactly `terraform { backend "azurerm" {} }`: partial
   configuration, completed by `backends/<env>.hcl` (task 02) at init time in the pipeline.

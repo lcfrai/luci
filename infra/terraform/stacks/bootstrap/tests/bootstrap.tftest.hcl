@@ -5,7 +5,7 @@
 # an `environment = "dev"` here would make the prod.tfvars pass a second dev pass.
 # environment, location, unique_suffix and state_public_network_access come from the
 # -var-file. Every run reads var.environment, never a literal "dev", so it holds under both
-# passes. A bare `terraform test` without -var-file stops at "No value for required
+# passes. A bare `tofu test` without -var-file stops at "No value for required
 # variable": intended, validate.sh is the only caller.
 #
 # The GUIDs are placeholders that name nobody (all zeros, all ones through all sixes, one
@@ -298,7 +298,7 @@ run "the_account_is_locked" {
   }
   # The part asks for notes saying why (task 02 review m2). can() is false for null notes too.
   assert {
-    condition     = can(regex("(?i)terraform state", azurerm_management_lock.state.notes))
+    condition     = can(regex("(?i)tofu state", azurerm_management_lock.state.notes))
     error_message = "The lock's notes do not say it guards the Terraform state; whoever meets the lock is told nothing."
   }
   # Fix round 2's predicted survivor LN1: a name hard-coded to one environment.
@@ -465,7 +465,7 @@ run "state_lives_in_its_own_tagged_group" {
   }
   assert {
     condition = alltrue([for t in [azurerm_resource_group.state.tags, azurerm_resource_group.product.tags, azurerm_storage_account.state.tags] : t == tomap({
-      cost-centre = "test", product = "panacea-app", environment = var.environment, stack = "bootstrap", managed-by = "terraform"
+      cost-centre = "test", product = "panacea-app", environment = var.environment, stack = "bootstrap", managed-by = "opentofu"
     })])
     error_message = "A bootstrap resource's tags are not var.tags under the stack's own four."
   }

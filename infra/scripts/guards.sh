@@ -214,12 +214,12 @@ done <<< "$LIST"
 # untracked, for the single local-state bootstrap apply, so only a TRACKED one fails.
 # JSON configuration is refused outright: G3, G5, G9 and G10 read HCL only, so a *.tf.json
 # would slip past four rules (task 01 review M3). The two JSON override names are left to the
-# tracked check. Other JSON (task 30's infra/rbac/*.json) is not Terraform, and passes.
+# tracked check. Other JSON (task 30's infra/rbac/*.json) is not OpenTofu configuration, and passes.
 begin 1
 for f in "${FILES[@]}"; do
   case "${f##*/}" in
     terraform.tfvars|terraform.tfvars.json|*.auto.tfvars|*.auto.tfvars.json)
-      fail "$f" "auto-loaded by terraform; name it <env>.tfvars and pass -var-file" ;;
+      fail "$f" "auto-loaded by tofu; name it <env>.tfvars and pass -var-file" ;;
     override.tf.json|*_override.tf.json) ;;
     *.tf.json|*.tfvars.json)
       fail "$f" "JSON configuration, which the other rules do not read; write it as HCL (.tf, .tfvars)" ;;
@@ -267,7 +267,7 @@ done
 end
 
 # --- G4: no kubernetes or helm provider, as a block or a source (P8-D3) -------------------------
-# Every Terraform-language file: *.tf, *.tfvars, *.hcl (tests and lock files too).
+# Every OpenTofu-language file: *.tf, *.tfvars, *.hcl (tests and lock files too).
 begin 4
 for f in "${K8S[@]}"; do fail "$f" "names the kubernetes or helm provider; charts deploy the cluster (P8-D3)"; done
 end
@@ -287,7 +287,7 @@ end
 
 # --- G6: no local-exec or remote-exec provisioner -----------------------------------------------
 begin 6
-for f in "${PROVS[@]}"; do fail "$f" "a local-exec or remote-exec provisioner is a script terraform cannot plan"; done
+for f in "${PROVS[@]}"; do fail "$f" "a local-exec or remote-exec provisioner is a script tofu cannot plan"; done
 end
 
 # --- G7: every stack has a .terraform.lock.hcl tracked by git ------------------------------------
@@ -297,7 +297,7 @@ for s in "${STACK_NAMES[@]}"; do
   if [ "$GIT_OK" != 1 ]; then
     fail "$f" "not inside a git work tree, so tracking cannot be checked"
   elif [ ! -f "$f" ]; then
-    fail "$f" "missing; create it with terraform providers lock (README) and commit it"
+    fail "$f" "missing; create it with tofu providers lock (README) and commit it"
   elif [ -z "${TRACKED[$f]:-}" ]; then
     fail "$f" "exists but is not tracked by git; commit it so every init verifies the same hashes"
   fi
@@ -315,8 +315,14 @@ end
 # A provider is a program that runs at plan time with the pipeline's token. An entry without a
 # source is inferred as hashicorp/<name>; a resource type with no entry at all shows up only in
 # the lock file, so both are read (review C3; task 30's init -lockfile=readonly is the partner).
+# OD-32: `tofu` writes registry.opentofu.org/… into a lock file where the old engine wrote
+# registry.terraform.io/…. Both hosts are stripped, because the tracked lock files still carry
+# the old host until someone regenerates them with `tofu providers lock` (README, blocker 2).
+# Narrow this to registry.opentofu.org once they have been, and a Terraform-written lock file
+# then fails G9 by itself.
 allowed() {
   local src="${1,,}"
+  src="${src#registry.opentofu.org/}"
   src="${src#registry.terraform.io/}"
   case " $ALLOWED " in *" $src "*) return 0 ;; esac
   return 1
@@ -340,7 +346,7 @@ end
 # `^  <key> *=`, any run of spaces). fmt also leaves a one-argument block on one line, with the
 # key on the opener (b04-2 I1), so a one-line file-level block fails outright: multi-line is
 # the only layout this rule reads. Every *.tftest.hcl under the stack counts, at any depth,
-# root-level included (b04-2 M2): terraform test runs both.
+# root-level included (b04-2 M2): tofu test runs both.
 stack_of() { local r="${1#"$STACKS"/}"; S="${r%%/*}"; [ "$1" != "$r" ]; }
 begin 10
 declare -A SETBY=()

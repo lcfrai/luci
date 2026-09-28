@@ -19,13 +19,13 @@ locals {
   node_subnets = { system = azurerm_subnet.system.id, apps = azurerm_subnet.apps.id, sandbox = azurerm_subnet.sandbox.id }
   # Review C2: every subnet has default_outbound_access_enabled = false, so a subnet missing here
   # has no internet at all. The Managed DevOps Pool's agents (task 30) must reach dev.azure.com,
-  # the Terraform registry and the Helm repos, and in prod they are the only path to the private
+  # the OpenTofu registry and the Helm repos, and in prod they are the only path to the private
   # API server, so agents is an egress subnet like the three node subnets.
   egress_subnets = merge(local.node_subnets, { agents = azurerm_subnet.agents.id })
 }
 
 # prevent_destroy (task 03 round 2, extending task 02 re-review I1): the endpoint subnet's own
-# prevent_destroy fires only when a plan replaces the subnet. Terraform replaces a dependent
+# prevent_destroy fires only when a plan replaces the subnet. OpenTofu replaces a dependent
 # only when its own arguments force it, so a VNet replace that leaves them alone (a location
 # change: a subnet takes no location) would plan no subnet replace and still take the subnet,
 # and the state account's endpoint in it, with the VNet. The same cost as the subnet's.
