@@ -746,3 +746,71 @@ inside the 0.25 h b07 already added to task 23 for it.
 key-cache behaviour and its recovery are UNVERIFIED and carried by U8; Secret propagation by U11.
 No probe in this plan has been run. No owner question was raised and no seam was drawn: all seven
 were the plan's own to fix.
+
+## Fix batch b08 (the route-file path split), 2026-09-28
+
+One Important that no triage round ever batched. It was recorded only as a passing note under
+"Notes: pre-existing, not counted against b04" in `.superpowers/sdd/p6/plan-rereview-b04-2.md:48-54`,
+in a re-review whose verdict was *Approved*, so it never entered the fix list in section 8 and no
+batch picked it up. Verified against the real part files today before anything was changed; the note
+was accurate.
+
+**The defect — the control plane wrote one route file and the gateway read another.** Task 23's
+step 3 exported `PANACEA_APP_GATEWAY_ROUTE_SOURCE=file:$PWD/deploy/local/gateway/projects/projects.json`
+and step 6 `cat`'d the same path, while task 17 creates the live route file at
+`deploy/local/gateway/state/projects.json` and mounts it into keysmith and the gatekeeper as
+`./state:/etc/panacea/state:ro`, read as `file:/etc/panacea/state/projects.json`
+(`task-17.md:39`, `:344`, `:347`, `:360`, `:363`, `:491-494`). Nothing anywhere in the plan creates a
+`projects/` subdirectory. Task 21's gap 3 named the same wrong path (`task-21.md:1052`), and task 25's
+gap register pointed at it (`task-25.md:82`).
+
+**Why it mattered.** As planned, task 23's end-to-end mint in step 5 could not work. The control
+plane would classify P1 and P2 into a file the stack never mounts; keysmith would answer
+`route_unknown` for both, and the raise in step 6 would never reach the gatekeeper. Steps 4 and 6
+read back only the control plane's own file, so neither could catch it. It would have surfaced only
+at task 23 — wave 10, the last task but one — with task 17 already built, reviewed and merged.
+
+**Why the plan drifted.** Task 21 is wave 6 and task 17 is wave 7, so when task 21 was written no
+mount existed and its gap 3 recorded the path it assumed. Task 17 then settled a different one and
+gap 3 was never reconciled; task 23 copied the assumption rather than the settled path.
+
+**The ruling: `state/projects.json`, not a third path.** It is the directory task 17 already mounts,
+reads, seeds and reports on, in eight places across the part; `state/` is git-ignored
+(`task-17.md:435`) while the checked-in
+seed stays at `deploy/local/gateway/projects.json` and `init.sh` copies the seed in once, so the
+live file and the seed do not collide; and task 21's decision (h) asks only that readers mount the
+**directory**, which `./state` satisfies. Choosing `projects/` instead would have meant a new
+directory, a new `.gitignore` entry and three edits to task 17 to buy nothing.
+
+**What changed, four files, one commit by pathspec:**
+
+- `task-23.md:62` and `:120` (was `:107`) now name `deploy/local/gateway/state/projects.json`.
+- `task-23.md:81` (was `:68`): the prose after step 3 states the path outright and cites task 17's
+  mount lines, instead of describing it as "the file inside the directory keysmith and the gatekeeper
+  mount".
+- `task-23.md:64-74`: a guard in step 3 that fails **at step 3** rather than at step 5. It checks the
+  exported file exists, then greps the directory `docker compose config` resolves for the bind
+  source. It is host-side on purpose: the gateway image is distroless and has no shell
+  (`task-17.md:384`), so `docker compose exec … sh` is not available to compare the two ends.
+- `task-21.md:1052`: gap 3 is marked settled by task 17 and names `state/projects.json`, with the
+  host variable spelled out. Its other two asks (the seed's shape, `File` comparing size as well as
+  modification time) are unchanged.
+- `task-17.md:39`: the mount is marked the contract with tasks 21 and 23 and names the host path
+  task 23 exports, so a later edit to task 17 cannot move it silently.
+- `task-25.md:82`: the gap-register row records the mount half closed by this batch.
+
+**Verified.** `grep -rn "gateway/projects/projects.json"` over `docs/superpowers/plans` returns
+nothing after the edit; `grep -rn "state/projects"` returns only task 17's five lines plus the new
+references in tasks 21, 23 and 25. **Unverified:** nothing here was executed. Phase 6 has no code —
+zero task reports exist — so no Go or npm suite was run, no control plane, container or image was
+started, and the main tree and sibling worktrees were not touched. Whether Docker Desktop on Windows
+propagates a host rename into a directory bind mount promptly is still task 21's own UNVERIFIED
+assumption, and task 23 step 6 is still the observation that settles it; this batch does not touch it.
+
+**Hours unchanged: 63.25 total, 24.25 critical path.** The step-3 guard is three commands inside a
+step that already runs six.
+
+**Still open, and not this batch's:** `plan-rereview-b07-2.md` carries one Important
+(`task-14.md:199` cites two different relations for the `REFRESH_AT` vs `Grace` guard) and five
+Minors. No owner question was raised and no seam was drawn here: which of two paths the plan meant
+is the plan's own to settle, and task 17 had already settled it.

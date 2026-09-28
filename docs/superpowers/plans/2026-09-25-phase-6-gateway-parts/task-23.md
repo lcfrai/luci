@@ -62,12 +62,16 @@ export PANACEA_APP_GATEWAY_CALLER_TOKEN_FILE="$PWD/deploy/local/gateway/secrets/
 export PANACEA_APP_GATEWAY_ROUTE_SOURCE="file:$PWD/deploy/local/gateway/state/projects.json"
 
 # Fail here, not at step 5: the file this writes must be the file the stack reads.
+# Both quote kinds, so run step 3 from a scratch script, not inline (task 17's step 7 does the same).
 route="${PANACEA_APP_GATEWAY_ROUTE_SOURCE#file:}"
-test -f "$route" || echo "FAIL: no route file at $route -- run deploy/local/gateway/init.sh"
-docker compose -f deploy/local/gateway/compose.yaml config \
-  | grep -qF "$(cd "$(dirname "$route")" && pwd)" \
-  && echo "route file OK: the stack mounts $(dirname "$route")" \
-  || echo "FAIL: the stack mounts some other directory; the control plane would write a file nothing reads"
+if [ ! -f "$route" ]; then
+  echo "FAIL: no route file at $route -- run deploy/local/gateway/init.sh"
+elif docker compose -f deploy/local/gateway/compose.yaml config \
+     | grep -qF "$(cd "$(dirname "$route")" && pwd)"; then
+  echo "route file OK: the stack mounts $(dirname "$route")"
+else
+  echo "FAIL: the stack mounts some other directory; the control plane would write a file nothing reads"
+fi
 
 ./bin/panacea-app-api &
 curl -s http://127.0.0.1:8730/v1/healthz        # expect "status":"ok"
