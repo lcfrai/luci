@@ -21,10 +21,12 @@ declaration. Line numbers are given only where the file is stable; prefer the na
 **Machine** — a host that can run sessions: `local` or `cloud`. It is the thing a person names and
 switches between, and the **local machine is a shipped product feature**, not a development
 stand-in — the Docker backend *is* that feature, and it is badged honestly with what it cannot do.
+A cloud machine is **claimed** from a warm pool at first sign-in, with no create form; sizing is
+asked only for a second machine or after an OOM.
 *Fixed by:* `desktop/src/store/types.ts` `Machine` / `MachineKind` / `MachineState` (UI contract §2,
 `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md:408-439`); `GET /v1/machines`
 (Go contract §3.4, `docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md:1866-1896`);
-`docs/PROGRAM.md:43-46`; `docs/FUNCTIONAL-SPEC.md:44-46`.
+`docs/PROGRAM.md:43-46` and `:119-122`; `docs/FUNCTIONAL-SPEC.md:44-46`.
 *Not «environment»* — an **Environment** is one deployed branch (`docs/FUNCTIONAL-SPEC.md:16`), so
 "spin up an environment" and "spin up a machine" are two different requests. Not «node», not «VM».
 
@@ -34,9 +36,9 @@ carries an absolute `path` on that machine, so the same project on two machines 
 read-only enumeration (Go contract §2.11); `docs/FUNCTIONAL-SPEC.md:11`.
 *Not «repo»* in any user-facing text, and not «workspace» — a workspace is nothing here.
 
-**Branch** — a git branch **and** the product's main unit of work: it carries its own brief, its own
-deployable environment and its own sub-rail of lenses. Most product sentences that say "branch"
-mean this object, not the git ref.
+**Branch** — the product's main unit of work, not just the git ref: it carries **its own brief, its
+own Environment and its own sub-rail of lenses**. Most product sentences that say "branch" mean this
+object.
 *Fixed by:* `Branch` in UI contract §2 (`…ui-contract.md:450-456`); `docs/FUNCTIONAL-SPEC.md:12`.
 
 **Worktree** — an isolated checkout of one branch that holds **many sessions** and outlives all of
@@ -50,8 +52,8 @@ cardinality in UI contract §2.1 (`…ui-contract.md:617-631`).
 whether `.git` is a file or a directory inside the sandbox. Never a synonym for «session».
 
 **Lane** — the same worktree seen **from the project repository**: the ref
-`refs/panacea/lanes/<worktree-id>` the control plane fetches its work back into, plus the queue row
-it lands from. A worktree is where an agent works; a lane is what converges.
+`refs/panacea/lanes/<worktree-id>` the control plane fetches its work back into, plus the
+landing-queue row it lands from. A worktree is where an agent works; a lane is what converges.
 *Fixed by:* phase 3 plan goal 3 (`…2026-09-23-phase-3-git-convergence.md:28-31`) and the lane syncer
 (`:96-100`); `LaneView` / `QueueEntry` in `internal/converge`
 (`.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence-parts/task-08.md:112-127`).
@@ -76,7 +78,7 @@ Fork both start a **new** session on a fork of the source's conversation.
 **Sandbox** — the ephemeral isolated machine **one running session** runs in: a Kata microVM in the
 cloud, a Docker container locally, behind one `Backend` interface. The user never sees the word;
 they see "isolated" and blast radius.
-*Fixed by:* `docs/FUNCTIONAL-SPEC.md:10`; the `Backend` interface (`docs/PROGRAM.md:35-46`);
+*Fixed by:* `docs/FUNCTIONAL-SPEC.md:10`; the `Backend` interface (`docs/PROGRAM.md:34-40`);
 `internal/backend` (Go contract §2.2).
 *Not «container»* — that is one of the two backends. Not «machine» — many sandboxes live on one.
 
@@ -88,12 +90,6 @@ reimplemented or wrapped.
 `internal/harness` — the catalogue and argv construction (Go contract §2.9); `docs/PROGRAM.md:129`.
 *Not «agent»* — the harness is the program, the agent is what is running in it. Not «tool», not
 «model»: a harness offers many models.
-
-**Agent** — one running instance of a harness doing work, with an owner. In team mode accountability
-and billing follow that owner, and no user steers another user's agent. A **sub-agent** is one an
-agent started; it is shown as nested steps and is never a cross-user channel.
-*Fixed by:* `docs/FUNCTIONAL-SPEC.md:14-15`; `OD-16`
-(`docs/superpowers/planning/2026-09-23-owner-decisions.md:164`).
 
 ---
 
@@ -126,7 +122,8 @@ what must be true, not how it is shown.
 **Provenance** — the binding of a thing (a session, a merge commit, an approved design, a release)
 to the **brief revision it was done against**. **The thread** is that binding shown end to end
 across Define → Design → Develop → Deploy: same artifact, one thread, shown throughout.
-*Fixed by:* `CLAUDE.md` §Product spine; `provenance-contract-draft.md` §2.1
+*Fixed by:* `CLAUDE.md` §Product spine; `provenance-contract-draft.md` §1.4 *The view every surface
+renders* (`:129`) and §2.4 *What `contextRef` now means* (`:215`)
 (`.claude/worktrees/phase-3/docs/superpowers/planning/2026-09-23-phases-4-5-7/`).
 *Not «traceability»* — that names a property; the thread is an object with records you can open.
 
@@ -145,6 +142,26 @@ brief because its records are written by other phases at other times.
 (`.claude/worktrees/phase-3/docs/superpowers/planning/2026-09-23-phases-4-5-7/`).
 *Not «audit log»* (phase 9 builds one, for a different purpose) and *not «history»* — a branch's
 landed history is phase 3's undo-able git record.
+
+**Design approval** — the Hub record that a design was approved, written by **one** call that fixes
+the design revision, the brief revision it was approved against and the snapshot of its files
+together, so an approval cannot exist apart from the thread it was approved on. Phase 5 uploads the
+snapshot first, then approves.
+*Fixed by:* Hub contract §7.7 *Design approvals — the design link* (`…hub-contract.md:872`).
+*Not «sign-off» and not «review»* — the review is the conversation; the approval is the record.
+
+**Release** — the Deploy end of the thread, and a **reservation**, never a link written afterwards:
+the Hub pins the brief revision and answers `reserved` **before** the deploy exists, phase 7 then
+calls Panacea, and the only thing written back is which run it became — `confirmed`, else
+`abandoned` or, unconfirmed, `expired`. If the pin fails, Ship does not happen.
+*Fixed by:* Hub contract §7.9 *Releases — reserve, deploy, confirm* (`…hub-contract.md:957`).
+*Not «deployment»* — a Deployment is what Panacea runs; the release is our pinned record of it.
+
+**Evidence** — one record saying a named **criterion** is `settled` or `contested` at one commit,
+with the sentence saying why. It is keyed by brief key + criterion id + criterion digest, so an
+edited criterion line does not inherit the old verdict.
+*Fixed by:* Hub contract §7.10 *Evidence — phase 3's H-2* (`…hub-contract.md:1060`).
+*Not «proof» and not «test result»* — a test result is one thing the `because` sentence may cite.
 
 **The Hub** — the server `control-plane/cmd/hub`: briefs, approvals, the provenance ledger, releases
 and teams — the shared state `OD-3` put server-side so a teammate sees the same thread. **The
@@ -171,7 +188,8 @@ the ordering rule and the on-disk write, and that ordering is the whole point.
 layouts, the palette. It is the application, not one screen of it.
 *Fixed by:* `docs/PROGRAM.md:78-81` (Phase 2 — The cockpit); the `types.ts` header comment, "The
 cockpit's domain model" (`…ui-contract.md:396`).
-*Not «dashboard»* — nothing is aggregated and `docs/AGENTIC-UX.md` bans counts outside the queue.
+*Not «dashboard»* — nothing is aggregated and `docs/AGENTIC-UX.md` bans counts outside the attention
+queue.
 Not «IDE», not «console».
 
 **The rail** — the left navigation, nesting **exactly four levels**: project → branch → worktree →
@@ -192,16 +210,31 @@ the sub-rail list, `docs/FUNCTIONAL-SPEC.md:51`.
 (`docs/PROGRAM.md`), invisible to the user; a lens is what the user switches between.
 *Open: rule 12 says "four lenses"; the type and the sub-rail carry six. See §Open questions.*
 
+**Queue** — **two senses, and they must be kept apart.**
+1. *The attention queue:* the one ranked list of what needs a human, and the only place in the
+   cockpit a count may appear. At 10–30 agents the interface's job is ranking and batching, not
+   display, so a pane is a cost (`docs/AGENTIC-UX.md:31` rule 4).
+2. *The landing queue:* the ready lanes of one branch in the order a human set them to land, each
+   row carrying its forecast — `QueueEntry` in `internal/converge`
+   (`.claude/worktrees/phase-3/…/task-08.md:119-127`). It belongs to convergence, not to attention.
+**Rule:** bare "the queue" means sense 1. Sense 2 is written **"the landing queue"**, never bare —
+"counts outside the queue are banned" is a statement about sense 1 only.
+
 ---
 
 ## Platform words
 
-**Warm pool** — sandboxes pre-provisioned and kept running so that a Kata cold start, which is
-seconds, never sits in front of a person. A cloud machine is **claimed** from one at first sign-in,
-with no create form; sizing is asked only for a second machine or after an OOM.
-*Fixed by:* `docs/PROGRAM.md:137` (open risk 1) and `:119-122` (phase 8);
-`docs/FUNCTIONAL-SPEC.md:46`.
-*Not «autoscaling»* — the pool is claimed from, not scaled into — and not «cache».
+**Authority** — what an agent may do without asking, **legislated in advance and never one number**:
+a grid of nine action classes (read · edit in own worktree · edit outside worktree · run tests ·
+install dependency · run migration · touch infra/config · commit · push · deploy) against four named
+levels — **ASK FIRST · PROPOSE AND WAIT · ACT AND TELL ME · FULL**. Never a slider. Defaults inherit
+project → branch → agent, the inherited value shown greyed in place, and the level moves at runtime
+in both directions: the agent may request elevation and must self-demote on uncertainty.
+*Fixed by:* `docs/AGENTIC-UX.md:37` rule 6 and §7 Autonomy and trust (`:177-183`);
+`docs/FUNCTIONAL-SPEC.md:52` (the Develop top bar).
+*Not «permission mode»* — `PermissionMode = "ask" | "bypass" | "plan"` (`…ui-contract.md:495`) is a
+per-session flag passed to one harness: three values, one axis, no inheritance and no action classes.
+Not «trust level», which names the calibration record, not the setting.
 
 **Data classification** — a property set when a **project is created** (and updatable afterwards)
 that decides two things: whether that project's inference goes **AU** (Bedrock, Sydney) or **Global**
@@ -212,9 +245,11 @@ that decides two things: whether that project's inference goes **AU** (Bedrock, 
 «tenancy», which is about isolation, not about data.
 
 **Orchestrator** — **two senses, and they must be kept apart.**
-1. *Product (`OD-16`):* each user's own **Orchestrator agent**, which runs their sub-agents and is
-   the **only** cross-user channel — orchestrators negotiate peer to peer and escalate to their own
-   human, either to inform or to ask for a decision.
+1. *Product (`OD-16`):* each user's own **Orchestrator agent**, which runs their **sub-agents** —
+   agents it started, shown as nested steps, never a cross-user channel — and is itself the **only**
+   cross-user channel: orchestrators negotiate peer to peer and escalate to their own human, either
+   to inform or to ask for a decision. Accountability and billing follow the owner, and no user
+   steers another user's agent (`docs/FUNCTIONAL-SPEC.md:14-15`).
 2. *Our process:* the workflow agent that dispatches build agents and holds the review gates while
    this repository is built.
 *Fixed by:* `OD-16` (`…owner-decisions.md:164`) for sense 1; `docs/superpowers/RESUME.md` for sense 2.
@@ -253,7 +288,9 @@ the ones that have actually caused confusion in this tree.
 | **seam**, for any boundary | *test boundary*, *interface*, *package edge* | `docs/SEAMS.md` owns "seam" as an id with a test anchor; borrowing it makes the manifest unfalsifiable |
 | **stream**, for PTY bytes | *the attach*, *PTY bytes* | "stream" is one line of our build work (`RESUME.md`) |
 | **the backend** / **the API**, for the server | *the Hub* or *the control plane* | two processes, two identities, two hosts (Hub contract §Words) |
-| **dashboard**, for the cockpit | *the cockpit* | nothing is aggregated; counts outside the queue are banned |
+| **dashboard**, for the cockpit | *the cockpit* | nothing is aggregated; counts outside the attention queue are banned |
+| **the queue**, bare, for landing | *the landing queue* | bare "the queue" is rule 4's attention queue |
+| **permission mode**, for authority | *authority* | `PermissionMode` is a three-value per-session harness flag |
 | **stage**, **step**, **tab**, for a lens | *lens* | lenses have no order and no completion state (`AGENTIC-UX.md` rule 12) |
 | **phase**, for a lens | *lens* (user) / *phase* (our build order) | `docs/PROGRAM.md` phases are invisible to the user |
 | **spec**, **PRD**, **requirements**, for a brief | *brief* | a brief is a Hub object with numbered immutable revisions |
@@ -276,7 +313,9 @@ the ones that have actually caused confusion in this tree.
    doubt; the **count in that sentence** is. Either rule 12's count is stale and should read six, or
    Files and Merge are something other than lenses and need their own word. This file states six
    because that is what the code and the sub-rail carry, and flags the conflict rather than
-   resolving it.
+   resolving it (§Adding a term, the exception). Note that the conflict is **already inside the
+   contract**: the `Lens` comment at `…ui-contract.md:564-565` lists six rows while citing rule 12,
+   so whichever way the owner rules, that comment needs the same edit.
 
 2. **Does `CLAUDE.md`'s "Define" mean the Discover lens?** `CLAUDE.md` names the journey
    **Define → Design → Develop → Deploy**; the lens, the phase and the package are all called
@@ -295,4 +334,7 @@ term means what any engineer would assume, leave it out: this file earns its pla
 enough to read in full.
 
 **When a definition and its cited file disagree, the file wins and this file is wrong** — fix it in
-the same commit that found it.
+the same commit that found it. **The one exception:** when two cited files disagree with *each
+other*, or a file disagrees with itself, no entry here can settle it — state what the code and the
+shipped surfaces carry, say so in the entry, and record the conflict under Open questions. That is
+why **Lens** states six against a rule that says four.

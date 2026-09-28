@@ -1,6 +1,6 @@
 # Panacea App
 
-An enterprise platform that takes a person from **nothing to a shipped application**, and owns the whole journey: **Define → Design → Develop → Deploy**. Each user gets isolated cloud machines that run coding agents in parallel, one git worktree per agent, streaming back to a single cockpit.
+An enterprise platform that takes a person from **nothing to a shipped application**, and owns the whole journey: **Define → Design → Develop → Deploy**. Each user gets isolated cloud machines that run coding agents in parallel, each session in its own sandbox on an isolated worktree, streaming back to a single cockpit.
 
 It starts as an app that builds apps. Treat it as a platform that may host more phases later — do not hard-code the assumption that there are exactly four.
 
