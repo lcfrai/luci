@@ -241,11 +241,27 @@ And in CI (task 28): `helm lint deploy/charts/platform -f <test values>` and
 ```bash
 helm lint deploy/charts/platform -f deploy/charts/platform/tests/values-test.yaml
 # 1 chart(s) linted, 0 chart(s) failed
-helm unittest deploy/charts/platform
+
+helm unittest --skip-schema-validation deploy/charts/platform
 # Charts:      1 passed, 1 total
 # Test Suites: 6 passed, 6 total
-# Tests:       13 passed, 13 total
+# Tests:       17 passed, 17 total
+
+bash deploy/charts/platform/tests/schema-gate.sh deploy/charts/platform
+# schema-gate: PASS
 ```
+
+**Why three commands, and why `--skip-schema-validation`** (measured against helm-unittest 1.1.2,
+2026-09-28). `values.schema.json` rejects an empty CIDR *before* any template renders, so
+helm-unittest reports it as a suite **error**, not as a failed template, and no assertion can catch
+it; a suite-level `skipSchemaValidation` key is silently ignored. Left as the part had it, the whole
+chart's `helm unittest` exits 1 for a rule that is working exactly as designed. So the schema gate
+moved to `tests/schema-gate.sh`, which requires `helm template` to fail — and to name the key — for
+each of the four CIDRs emptied in turn, and `values_test`'s two cases now prove the **second** gate,
+the `required` in `_helpers.tpl`. Both gates removed on a scratch copy turns `schema-gate.sh` red,
+so the script is not vacuous. `helm lint` still validates the schema, so a schema that stops
+matching its own `values.yaml` is caught by the first command. Task 28's `charts.yml` needs the
+`--skip-schema-validation` flag and the `schema-gate.sh` step added to its per-chart job.
 
 #### What this task does not claim
 

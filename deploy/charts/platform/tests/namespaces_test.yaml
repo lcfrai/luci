@@ -30,30 +30,39 @@ tests:
           path: metadata.labels["panacea-app/edge-routes"]
 
   # Mutant killed: a namespace dropped, and its default-deny with it.
+  # `containsDocument` in helm-unittest 1.1.2 asserts of EVERY rendered document, not of
+  # at least one, so five names cannot be checked that way. A documentSelector scopes the
+  # assert to the one document whose name matches, and fails with "document not found"
+  # when there is none - which is exactly the missing-namespace mutant.
   - it: five_namespaces
     asserts:
       - hasDocuments:
           count: 5
-      - containsDocument:
-          kind: Namespace
-          apiVersion: v1
-          name: panacea-hub
-      - containsDocument:
-          kind: Namespace
-          apiVersion: v1
-          name: panacea-broker
-      - containsDocument:
-          kind: Namespace
-          apiVersion: v1
-          name: panacea-sandboxes
-      - containsDocument:
-          kind: Namespace
-          apiVersion: v1
-          name: panacea-edge
-      - containsDocument:
-          kind: Namespace
-          apiVersion: v1
-          name: panacea-identity
+      - isKind:
+          of: Namespace
+        documentSelector:
+          path: metadata.name
+          value: panacea-hub
+      - isKind:
+          of: Namespace
+        documentSelector:
+          path: metadata.name
+          value: panacea-broker
+      - isKind:
+          of: Namespace
+        documentSelector:
+          path: metadata.name
+          value: panacea-sandboxes
+      - isKind:
+          of: Namespace
+        documentSelector:
+          path: metadata.name
+          value: panacea-edge
+      - isKind:
+          of: Namespace
+        documentSelector:
+          path: metadata.name
+          value: panacea-identity
 
   # Mutant killed: Keycloak in a namespace that admits a privileged pod, or one the Gateway
   # cannot route to, so no browser ever reaches the realm (OD-30).

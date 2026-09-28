@@ -1,4 +1,12 @@
 suite: values
+# This suite needs `helm unittest --skip-schema-validation`, and the reason matters.
+# values.schema.json rejects an empty CIDR BEFORE anything renders, so helm-unittest
+# reports it as a suite ERROR, not as a failed template, and no assertion can catch it
+# (a suite-level `skipSchemaValidation` key is silently ignored by 1.1.2 - measured).
+# The schema gate is therefore proved by `tests/schema-gate.sh`, which requires
+# `helm template` to FAIL on an empty CIDR; these two cases prove the second gate, the
+# `required` in `_helpers.tpl`, which is what stops a render that somehow reaches the
+# templates with an empty CIDR from emitting an empty `except` entry.
 templates:
   - templates/networkpolicy-sandboxes.yaml
 values:
