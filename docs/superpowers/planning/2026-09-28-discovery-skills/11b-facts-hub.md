@@ -599,4 +599,66 @@ opaque string, and reaches `Parse` in `key.go:56` and `ParseKey` in `hubapi/keys
 
 ## 5. Anything already planned that resembles a glossary or a decision record
 
-(Not started.)
+**Searched:** `docs/superpowers/plans/**` in the main tree and in each of the ten worktrees under
+`.claude/worktrees/` (`env`, `hub`, `phase-3`, `phase-4`, `phase-5`, `phase-6`, `phase-7`,
+`sandbox-git-fix`, `team`, `work`), case-insensitive, for *glossary*, *vocabulary*, *decision
+record / log / register*, the whole words *term* and *terms*, and the whole word *ADR*
+(2026-09-29). Files matching, per tree:
+
+| Tree (branch) | glossary | vocabulary | decision record/log/register | term(s) | ADR |
+|---|---|---|---|---|---|
+| main (`feat/phase-2-cockpit`) | 0 | 9 | 0 | 9 | 0 |
+| `env` (`feat/env`) | 0 | 10 | 0 | 11 | 14 |
+| `hub` (`feat/hub`) | 0 | 9 | 0 | 13 | 37 |
+| `phase-3` (`feat/phase-3-git`) | 0 | 11 | 0 | 10 | 0 |
+| `phase-4` (`feat/phase-4-discover`) | 0 | 9 | 0 | 14 | 46 |
+| `phase-5` (`feat/phase-5-canvas`) | 0 | 11 | 0 | 10 | 7 |
+| `phase-6` (`feat/phase-6-gateway`) | 0 | 9 | 0 | 16 | 2 |
+| `phase-7` (`feat/phase-7-deploy`) | 0 | 14 | 0 | 13 | 8 |
+| `sandbox-git-fix` (`fix/sandbox-git-ca`) | 0 | 9 | 0 | 9 | 0 |
+| `team` (`feat/team-mode`) | 0 | 13 | 1 | 18 | 53 |
+| `work` (`feat/work-layer`) | 0 | 26 | 0 | 35 | 27 |
+
+**No plan in any tree uses the word *glossary*.** The rest are read below, deduplicated: the older
+plans (phase 1, phase 2 and its parts, the 2026-09-18 phase 4 plan) are copied into most trees.
+
+### 5.1 Decision records
+
+- **The one hit for *decision record*** is a code comment, not a record kind:
+  `team/…/2026-09-25-phase-t-team-mode-parts/task-30.md:226`, "`// short: TM1-α has no forecast
+  (decision recorded under the gaps).`"
+- **Every ADR is the Hub's own.** Across all eleven trees' plans the only ADR identifier is
+  `ADR-H1` (628 occurrences of the form `ADR-<id>`, and no other id), and the only ADR file is
+  `docs/superpowers/adr/ADR-H1-hub-architecture.md`, present in the `hub`, `phase-4` and `team`
+  worktrees (directory listing). Bare *ADR* in other plans cites that ADR's sections and questions,
+  e.g. "the Hub's ADR" (`env/…/2026-09-23-phase-8-own-environment.md:28`), "ADR Q1 | an approval
+  needs a **complete** brief revision" (`phase-5/…/2026-09-23-phase-5-design-canvas.md:199`). This
+  agrees with `10-decision-terms-beside-the-brief.md:27-28`.
+- **Outside the plans**, the project already names its decision record: `CONTEXT.md:303`, under
+  *Words we do not use*: "**ADR directory** (`docs/adr/`) | *`OD-n`* in
+  `2026-09-23-owner-decisions.md` | one decision record, with owner authority". That register is
+  the project's own record of owner decisions, not a per-project Hub record.
+
+### 5.2 Things that resemble a glossary
+
+| Where | The line | What it is |
+|---|---|---|
+| `work/…/2026-09-25-phase-w-work-layer-parts/task-138.md:110-114` | "`// Term is one name the person may filter by, with the Hub id it stands for.`" `type Term struct { ID string; Name string }` | a **planned Go type named `Term`**: a name and an id, no definition |
+| same, `:116-120` | "`// Vocabulary is everything the prompt may carry about a team.`" `States, Labels, Members, Cycles, Features []Term` | a team's work-tracking vocabulary, per **team** |
+| same, `:34-36` | "**The prompt carries the team's vocabulary and the person's words, nothing else.** State names, label names, member display names, cycle names and feature names of the team" | its purpose: a natural-language filter prompt |
+| same, `:128-131`, `:397`, `:462-463` | `VocabularySource … Vocabulary(ctx, teamID)`; "HubVocabulary reads a team's vocabulary through the Hub relay"; "the vocabulary is names of states, labels, people, cycles, features and projects" | read **through** the Hub from existing records, not a stored kind |
+| `work/…/task-175.md:173`, `:210-212` | "`// RefKind is the kind of team vocabulary a copied field points at.`"; "PlanCopy … never invents vocabulary … Criteria and projects are always dropped, because each belongs to one team's thread" | copying settings between teams |
+| `work/…/task-81b.md:51-54` (also `…-review.md:5834`, `…-scopes/tasks-81-100.md:546`) | "**Vocabulary, settled — do not reopen it.** 05 says *frame*; phase 5's document model has no *frame* at all … so 05's *frame* reads as phase 5's **`Page`**" | a word settled inside a plan's prose |
+| `phase-7/…/2026-09-23-phase-7-deploy-parts/task-07.md:195` | "`#### Terms: cycle, poll, recheck (plan re-review b09-1, M-4)`" | a plan section defining its own words |
+| `CONTEXT.md:3-10` (not a plan) | "The nouns PanaceaApp uses whose meaning here is **not** the obvious one … Not a dictionary, not documentation, not a glossary of the domain" | the project's own word list for **this** repository, one file, with a rule for adding a term (`CONTEXT.md:328-340`) |
+
+### 5.3 Name collisions a designer will meet
+
+- **`Term`** is already a planned type name three times in the Work layer: `Term{ID, Name}`
+  (`task-138.md:111`), a search `Term` union of `person`, `label`, `alias`, `text`
+  (`work/…/task-91.md:142-146`), and `FilterTerm` (`work/…/task-72.md:640-644`).
+- **`tm-`** is the Hub's team prefix (`HC:107`, `hubapi/keys.go:19`), and the illustrative
+  `term:tm-7f2a@2` of `10-decision-terms-beside-the-brief.md:14` uses it.
+- Every other *term(s)* hit in the plans is a terminal (`TERM=dumb`, `term.write`), a filter or
+  search term, an inequality's term, or licence and retention terms (the distinct lines, read
+  2026-09-29). None is a project glossary.
