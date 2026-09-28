@@ -48,7 +48,7 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
    member's first team launch in a project its desktop calls route 46 — the only caller that may,
    since Fleet is 403 there — and sends the id as `CreateAgentRequest.OrchestratorDelegation`. This
    task resolves the delegation in that order: the request's field first, then task 11's cache for
-   that owner, project and class; either way it is re-read from the Hub and checked (S02-C6) before
+   that owner, project and class; either way it is re-read from the Hub and checked (S02-C6, b06) before
    anything is created, so the field is a hint and never an authority. Only if **both** are empty
    does the worker launch alone, which task 01 allows ("a worker the member launched with no
    Orchestrator", `:296`), and the answer says `orchestrator: "awaiting-delegation"`. That is now a
@@ -136,7 +136,8 @@ type Config struct {
 	Store       Store
 	Policies    Policies
 	Delegations *delegation.Cache // task 11
-	Hub         DelegationFetcher // a cache miss reads GET /v1/delegations/{id} as Fleet under it
+	Hub         DelegationFetcher // a cache miss reads GET /v1/delegations/{id} as Fleet under it;
+	// the answer is checked against the caller before use, and only then cached (b06, S02-C6)
 	Tokens      *Tokens
 	Streams     *control.Streams // task 19
 	ControlKey  []byte           // task 19 decision 6's key
@@ -181,6 +182,9 @@ type Launched struct {
 
 var (
 	ErrViewer          = errors.New("sessions: a viewer launches nothing")  // 403 role_forbids
+	// ErrDelegation is every delegation refusal: absent, expired, revoked, and
+	// (b06, S02-C6) one that is not this caller's own owner, org, project and
+	// class. S02-M19 splits the wire codes; the refusal is the same here.
 	ErrDelegation      = errors.New("sessions: no live delegation")        // 401 delegation_expired
 	ErrPolicyInvalid   = errors.New("sessions: the policy does not render") // 409 policy_invalid
 	ErrAlreadyExists   = errors.New("sessions: ref already launched")      // 409 already_exists
@@ -329,7 +333,10 @@ The harness: task 10's `memstore`, task 11's `delegation.Cache` holding `dl-a-w`
 `worker`) and `dl-a-o` (Alice, `pj-shop`, `orchestrator`), a fake broker that records every create
 and destroy and answers `source` with `10.244.3.17`, a fake keysmith (`Minter`) that records every
 `MintRequest` and answers with a route it is told to, a fake `RouteSource`, a fake `Streams` sink that
-records `Send`, and a settable clock. Principals: Alice as `member`, Vic as `viewer`.
+records `Send`, and a settable clock. The fake `DelegationFetcher` stands in for route 47 and so
+answers **any** id it holds, including another owner's, exactly as the Hub does for Fleet
+(`task-01.md:314`): Alice's `dl-a-w` and `dl-a-o`, and Bob's `dl-b-w` and `dl-b-o` on the same
+`pj-shop`. It records every read. Principals: Alice and Bob as `member`, Vic as `viewer`.
 
 | Test | What it checks | Mutant it kills |
 |---|---|---|
@@ -339,6 +346,8 @@ records `Send`, and a settable clock. Principals: Alice as `member`, Vic as `vie
 | `TestFirstWorkerLaunchCreatesTheOrchestrator` | with `dl-a-o` live, Alice's first worker launch creates her Orchestrator; `OrchestratorState == "created"`; the second worker launch says `"live"` | an Orchestrator only on explicit request |
 | `TestNoOrchestratorDelegationWorkerRunsAlone` | with `dl-a-o` absent from **both** the request field and the cache: the worker launches, no Orchestrator create, `"awaiting-delegation"` | creating an Orchestrator under a worker delegation |
 | `TestRequestOrchestratorDelegationBeatsTheCache` (b07) | `LaunchRequest.OrchestratorDelegation = dl-a-o` with task 11's cache empty for that key: the Orchestrator is created, `"created"`; the Hub read and the S02-C6 owner/project/class check still run on it | a cache-only lookup, which makes a member's first launch always `awaiting-delegation` (S02-C7) |
+| `TestLaunchUnderAnotherOwnersDelegationIsRefused` (b06) | Alice's `Launch` names Bob's `dl-b-w` on a **cold** cache: `ErrDelegation`, no agent row, no broker create, no mint, and the cache still has no entry for either owner's key — then the same launch with `dl-a-w` succeeds, proving the fetcher was reachable | a check written on the cache-hit path only, which lets Alice run as Bob on Bob's gateway budget (S02-C6) |
+| `TestARefusedDelegationIsNotCached` (b06) | after the refusal above, Bob's own `Launch` with `dl-b-w` succeeds and Alice's second attempt is refused again | `Put`-ing the fetched delegation before the check, which poisons the key for its real owner |
 | `TestRequestOrchestratorDelegationIsStillChecked` (b07) | the field naming Bob's `dl-b-o` on Alice's launch → `ErrDelegation`, no Orchestrator, nothing cached | trusting task 21's hint, which would hand the request field the authority route 46 exists to hold |
 | `TestAUProjectNeverMintsOnGlobal` | route source says `au`; fake keysmith answers `Route: global` → the key is revoked (`RevokeSession` recorded), nothing is `Send`-ed, the agent ends `failed` with `gateway_route_mismatch` | trusting keysmith's answer |
 | `TestAURouteDownFailsClosed` | route source errors → no broker create, no mint, launch fails; keysmith `503 route_unknown` after create → no token, no second mint with other parameters | a fallback of any kind |
@@ -384,6 +393,26 @@ func TestAUProjectNeverMintsOnGlobal(t *testing.T) {
 }
 ```
 
+And b06's, the one cross-owner test. It must start from a **cold** cache, because a check written
+on the cache-hit path alone passes every warm test and still admits Bob's id on the first launch
+after a restart:
+
+```go
+func TestLaunchUnderAnotherOwnersDelegationIsRefused(t *testing.T) {
+	h := newHarness(t)
+	h.cache.reset() // cold: no entry for Alice's key, none for Bob's
+	_, err := h.s.Launch(ctx, h.req(h.alice, model.ClassWorker, "dl-b-w")) // Bob's; route 47 answers it 200
+	if !errors.Is(err, ErrDelegation) || h.broker.creates() != 0 || h.store.count(t) != 0 ||
+		h.keysmith.mints() != 0 || h.cache.Known("dl-b-w") {
+		t.Fatalf("err %v, creates %d, rows %d, mints %d, cached %v; want a refusal that leaves nothing",
+			err, h.broker.creates(), h.store.count(t), h.keysmith.mints(), h.cache.Known("dl-b-w"))
+	}
+	if _, err := h.s.Launch(ctx, h.req(h.alice, model.ClassWorker, "dl-a-w")); err != nil {
+		t.Fatalf("Alice under her own: %v; the refusal must be the owner check, not a dead fetcher", err)
+	}
+}
+```
+
 - [ ] **Step 2: Implement `Launch` and `EnsureOrchestrator`**
 
 ```go
@@ -420,11 +449,65 @@ func (s *Sessions) Launch(ctx context.Context, r LaunchRequest) (Launched, error
 }
 ```
 
-`s.delegation` reads task 11's cache by `Key{OrgID, Owner, Project, Class}` and requires the cached
-id to equal `r.Delegation`; on a miss it calls `DelegationFetcher` (the delegation was created a moment
-ago by the owner's desktop, task 21, and the feed polls every 10 s, `task-11.md:568-570`) and `Put`s
-the answer. `orchestratorFor` calls `EnsureOrchestrator` when an `orchestrator`-class delegation for the
+`s.delegation` resolves the id the caller named and **checks what comes back against the caller**
+before anything is created or cached (fix batch b06, S02-C6). It reads task 11's cache by
+`Key{OrgID, Owner, Project, Class}` built from the principal, not from the request's id; on a miss,
+or on a hit under a different id, it calls `DelegationFetcher` (the delegation was created a moment
+ago by the owner's desktop, task 21, and the feed polls every 10 s, `task-11.md:568-570`). Both
+paths end at the same check, and only a delegation that passes it is `Put`:
+
+```go
+// delegation resolves id for this principal, project and class. The caller
+// names an id and the id proves nothing, so the answer is checked against the
+// caller before it is used or cached (b06, S02-C6). Route 47 answers "Fleet
+// under it" (task-01.md:314), so another owner's dl-… reads back 200.
+func (s *Sessions) delegation(ctx context.Context, p server.Principal, project string,
+	class model.Class, id string) (delegation.Delegation, error) {
+	want := delegation.Key{OrgID: p.OrgID, Owner: model.Owner(p.UserID),
+		ProjectID: project, Class: class}
+	if d, ok := s.cfg.Delegations.Get(want, s.cfg.Now()); ok && d.ID == id {
+		return d, nil // Get is false for an expired entry (task-11.md:438-445)
+	}
+	d, err := s.cfg.Hub.Delegation(ctx, model.Owner(p.UserID), id)
+	if err != nil {
+		return delegation.Delegation{}, err // 401 revoked/expired, 404, transport
+	}
+	if d.Key != want || !s.cfg.Now().Before(d.ExpiresAt) {
+		s.cfg.Log.Warn("delegation refused", "delegation", id, "by", p.UserID,
+			"project", project, "class", class, "owner", d.Key.Owner)
+		return delegation.Delegation{}, ErrDelegation // NOT cached: not this caller's
+	}
+	s.cfg.Delegations.Put(d)
+	return d, nil
+}
+```
+
+Four facts make that check the whole defence, and each is why a piece of it is there.
+
+1. **The Hub will not do it for us.** Route 47's callers are "its owner (desk), or Fleet under it,
+   or the broker" (`task-01.md:314`). Fleet reads under the very id it was handed, so Bob's `dl-…`
+   answers 200 to a request Alice made. The Hub is answering the question it was asked.
+2. **One `!=` covers all four.** `delegation.Key` is exactly `{OrgID, Owner, ProjectID, Class}`
+   (`task-11.md:386-391`), so the comparison is owner, org, project and class at once. The class
+   half is what stops a `worker` delegation creating an Orchestrator (decision 4, task 17 decision 5).
+3. **Liveness is the Hub's answer, never Fleet's store.** A revoked id answers `401
+   delegation_revoked`, one past `expiresAt` answers `401 delegation_expired`, and an unknown one
+   answers `delegation_revoked` with `reason: unknown` rather than a 404, so Fleet cannot probe for
+   ids (`task-08.md:407`, `task-11.md:949-961`). The clock check above covers only the window
+   between the Hub's read and this use.
+4. **A refused delegation is never `Put`.** Caching it would hand the next launch on the real
+   owner's key a poisoned entry, and turn one forged call into a lasting one.
+
+`dl-…` ids are not secrets and the check may not assume they are: they ride in every
+`X-Panacea-Delegation` header, in each v2 audit row's `delegationId` (contract §3.6, task 01), on
+the sandbox's own label (task 17 decision 6), and in Fleet's feed of `delegation.created` /
+`.renewed` / `.revoked`, whose `subject` **is** the id (`task-06.md:356-360`).
+
+`orchestratorFor` calls `EnsureOrchestrator` when an `orchestrator`-class delegation for the
 same key is live, and returns `("", "awaiting-delegation")` when it is not (decision 4).
+`EnsureOrchestrator`'s `dl` argument is decision 4's resolution order — the request's
+`OrchestratorDelegation` first, then the cache — and it is an **input to this same check**, never a
+result of it: `Launch` runs `s.delegation` on it with `Class: orchestrator` like any other id.
 `EnsureOrchestrator` is `Launch` with `Class: orchestrator`, `Command: "panacea-orchestrator"` (task
 15's PTY command), no args, and one extra branch: `store.ErrConflict` from `PutAgent` re-reads
 `Agents(org, project)` for the owner's live Orchestrator and returns it with `created == false`.
@@ -524,6 +607,14 @@ property is a concurrency property.
 
 Expected: no output. Decision 8's "no path in this file constructs a Global route", checked by text.
 
+```bash
+~/.claude/tools/claudezsh/claudezsh 'cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team/control-plane && grep -rn "Delegations.Put(" internal/fleet/sessions/ --include=*.go | grep -v _test.go | wc -l'
+```
+
+Expected: `1` (b06). One call site, the one inside `delegation` after the key comparison, is how
+"a delegation the caller does not own is never cached" stays true as this package grows; a second
+`Put` anywhere else is the defect S02-C6 described, back again.
+
 - [ ] **Step 6: Commit**, after `git add` of the new files: `git commit -F
   .superpowers/sdd/team/msg/t20.txt -- control-plane/internal/fleet/sessions
   control-plane/internal/fleet/store control-plane/cmd/fleetd control-plane/internal/backend/remotebe
@@ -545,7 +636,7 @@ Expected: no output. Decision 8's "no path in this file constructs a Global rout
   TM1-α has no Orchestrator. **Task 21 now owns it**: `EnsureOrchestratorDelegation` creates one per
   project on a member's first team launch, keeps it in the registry's `TeamDelegations` table, renews
   it on the same timer as the worker ones, and sends its id on `CreateAgentRequest`
-  (`task-21.md:411-421`, tests at `:479-483`). This task's side of the close is decision 4's
+  (`task-21.md:345-357`, `:413-431`, tests at `:492-496`). This task's side of the close is decision 4's
   resolution order and `LaunchRequest.OrchestratorDelegation`. It no longer blocks task 33; task 33's
   E2 is a check, not a gate on unplanned work.
 - **Gap S20-2 — the counterpart tag.** Phase 6's `MintRequest` has no counterpart
