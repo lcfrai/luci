@@ -320,11 +320,16 @@ Supersession is **not** a dependency edge and is not listed here — a supersede
 nothing, it has simply stopped being in force. Those chains stay inside the rows that record them
 (OD-30 over OD-6, OD-11 over the Paperdesign line, OD-19 over `CLAUDE.md`'s rotation rule).
 
+**The two columns mirror each other.** Every edge appears twice: once in the child's *Unblocked by*
+and once in the parent's *Unblocks*. Read forwards or backwards, the graph is the same — so "what
+does answering OD-5 release?" is answered by OD-5's own row and nothing else needs reading. Adding
+an edge means editing two cells.
+
 | Id | Unblocked by | Unblocks |
 |---|---|---|
-| **OD-1** | — | The phase 3, 4, 5 and 7 plans and builds; every "accepted as written" recommendation on file |
+| **OD-1** | — | The phase 3, 4, 5 and 7 plans and builds; OD-12, whose one hands-on session waits on those builds; every "accepted as written" recommendation on file |
 | **OD-3** | — | Phase H, with OD-5; phase 4's brief store, which needs it to exist first |
-| **OD-5** | — | Phase H; phase 8's growth from "Kata backend" to the product's own environment |
+| **OD-5** | — | OD-14 — team agents need an environment to run in, and `2026-09-24-team-collaboration/05-design.md:121` puts Fleet in "our environment (OD-5)"; Phase H; phase 8's growth from "Kata backend" to the product's own environment |
 | **OD-6** | — | The Credential Manager store that OD-30's silent relaunch reuses, and that holds OD-4's two host tokens |
 | **OD-8** | — | OD-10 (deletion by minted id is allowed); OD-20 (the canary that gates an image bump); every later phase's transcript adapter |
 | **OD-10** | OD-8 | Phase 3's worktree-removal verb, which calls the tested store-deletion seam |
@@ -334,9 +339,9 @@ nothing, it has simply stopped being in force. Those chains stay inside the rows
 | **OD-14** | OD-5 (an environment to run them in) | OD-15, OD-16, OD-17, OD-22, OD-23; the ADR-H1 and phase 8 re-scope |
 | **OD-15** | OD-14 | Phase T's awareness surfaces |
 | **OD-16** | OD-14 | Phase T's Orchestrator channel and its escalation design |
-| **OD-17** | OD-14, OD-15, OD-16 | Phase T's plan (with OD-29) and its build straight after the current wave |
+| **OD-17** | OD-14 | Phase T's plan (with OD-29) and its build straight after the current wave |
 | **OD-18** | OD-19 — Bedrock is reached across clouds through the gateway, so AWS's one advantage does not decide it | Phase 8 resuming unchanged on AKS with Kata |
-| **OD-19** | — | OD-21; OD-24's AU/Global switch; OD-33; phase 6's re-scope to the gateway; retires `/login` in every sandbox |
+| **OD-19** | — | OD-18 (the gateway is why AWS's one advantage does not decide the cloud); OD-21; OD-24's AU/Global switch; OD-33; phase 6's re-scope to the gateway; retires `/login` in every sandbox |
 | **OD-20** | OD-8 | The automated sandbox-image bump pipeline |
 | **OD-21** | OD-19 | OD-33 — both of its compliance tasks are defects in LiteLLM itself |
 | **OD-22** | OD-14 | Keeping lanes fresh while nobody is signed in |
@@ -346,11 +351,19 @@ nothing, it has simply stopped being in force. Those chains stay inside the rows
 | **OD-26** | OD-25 | Phase W's 187 tasks, which OD-35 then keeps in |
 | **OD-27** | — | `AGENTIC-UX.md`'s four one-line amendments (Q13) |
 | **OD-29** | OD-17, OD-25 | Phase T's 69 and phase W's ~165 part files — the frozen plans OD-35's refutation rests on |
-| **OD-30** | OD-6, OD-13 | The Hub's identity tasks; phase 7's `pnc_` key question; pending questions 5, 7 and 8 |
-| **OD-31** | Phase 2 merged to `main` and in the owner's hands | The paused work: the Hub, the environment, phases 3 to 7, team's plan fix, and the work plan's writing |
+| **OD-30** | OD-6 — the Credential Manager store, not the issuer, which OD-30 supersedes; OD-13 — the realm stays Panacea's while Panacea stays separate | The Hub's identity tasks; phase 7's `pnc_` key question; pending questions 5, 7 and 8 |
+| **OD-31** | Phase 2 merged to `main` and in the owner's hands | The paused work: the Hub, the environment, phases 3 to 7, team's plan fix, and the work plan's writing; OD-12, which cannot happen until the phases it orders are built |
 | **OD-32** | — | Phase 8 tasks 01–10, 28 and 30 |
 | **OD-33** | OD-19, OD-21, OD-24 | Phase 6's two new tasks: the AU-residency canary and the rebuilt image |
 | **OD-34** | OD-11 | Phase 5 tasks 05, 06, 10, 11 and 12 |
+
+**Considered and not recorded: OD-15, OD-16 → OD-17.** Team mode's plan plainly assumes both, but
+neither OD-15's nor OD-16's cell names OD-17, OD-17's cell names neither, and
+`2026-09-24-team-collaboration/05-design.md` cannot carry the edge because it is the artifact OD-17
+scheduled. The only remaining support was that all four were answered in the same round on
+2026-09-24, and round adjacency is not the bar this table states. Nothing is misordered by leaving
+it out — OD-17 still waits on OD-14 — and it is named here so the next reader does not re-add it
+without a citation.
 
 ## Backwards audit: which rows would not pass the gate
 
@@ -359,18 +372,19 @@ Read-only pass over all 35 rows, 2026-09-28. **Nothing was deleted, renumbered o
 only purpose is that a future reader knows the register is **not uniform**: some rows are decisions
 and some are notes that were written down in a decision round because that is when they came up.
 
-**Six rows read more like a note than a decision.**
+**Seven rows read more like a note than a decision.**
 
 | Id | Limb it misses | Why |
 |---|---|---|
 | **OD-7** (backup repo) | expensive to undo; a real fork | A second remote and a PAT path. It reverses with `git remote remove`, and no alternative was given up. Useful to know, not a decision |
 | **OD-9** (Ctrl chords) | expensive to undo; a real fork | "Match VS Code, plus a toggle" is the obvious call, and it reverses by flipping the very setting the row adds |
-| **OD-10** (Forget deletes the transcript) | a real fork | *Forget* deleting what it forgot is the only answer the word allows. The row has since grown a build note — its second half is status from 2026-09-24, not decision |
+| **OD-10** (Forget deletes the transcript) | a real fork, weakly — the note is the *second half* | The first claim to make here was that *Forget* deleting what it forgot is the only answer the word allows. The programme's own record does not support it that flatly: `contracts/2026-09-18-phase-2-go-contract.md:2266` says *"Before, the purge left every transcript the session wrote … named by nothing and kept forever"* — the alternative was in force and built, and reversing it cost a fix round, a 500-and-keep-the-record path and a seam handed to phase 3. What actually fails the gate is observation 1's distinction: the row's second half is 2026-09-24 build status, not decision |
 | **OD-12** (batch the hands-on session) | expensive to undo | A scheduling call the owner reverses any evening by sitting down at the machine. It stays because it defines what "unverified" means in every report |
+| **OD-27** (progress displays) | not derivable | `docs/AGENTIC-UX.md:77` already read *"No percentages, no bars, no completion ticks, no '2 of 4 met'"* and `:237` *"No percent-complete, progress bar, ETA, or 'N of M met' anywhere in the product"* — last touched `9f8c8c41`, 2026-09-17, eight days before the round. The row's own *"**Still** banned"* concedes it. Its non-derivable content is the four one-line `AGENTIC-UX.md` amendments, which is a note about a doc edit |
 | **OD-28** (Commit Mono, Segoe UI Variable) | expensive to undo; not derivable | Two font tokens, reversible in one file. Worth writing down once so nobody re-litigates it — which is not the same as earning a row |
 | **OD-35** (no scope cut) | not derivable | A refusal to change course already implied by OD-26 and OD-29. Its real content is the *rejected* list in its second half, which is evidence for future readers, not a decision |
 
-**Two structural observations, which matter more than the six rows.**
+**Two structural observations, which matter more than the seven rows.**
 
 1. **Rows carry status as well as decisions.** OD-10, OD-30 and OD-31 have been amended in place
    with what was later built or re-decided ("**Built 2026-09-24**", "**Amended the same evening**").

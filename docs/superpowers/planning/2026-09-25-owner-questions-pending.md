@@ -87,16 +87,17 @@ routed to the orchestrator; they are not questions for you.
 
 1. **Where does an owner answer go when it fails the three-part gate?** The register now carries a
    test for what earns an `OD` (expensive to undo · not derivable from the tree · a real fork), and
-   a backwards audit naming six existing rows that would not pass it. But the register is also the
+   a backwards audit naming seven existing rows that would not pass it. But the register is also the
    only record of what you said in a question round, and some answers are genuinely notes — OD-28
    chose two fonts, OD-7 recorded where the backup lives. Under a strict gate they have nowhere to
    live, and a second store is what the gate itself forbids.
    - (a) **Gate the register, tolerate the notes.** Every answer stays an `OD`; the audit section
-     tells a reader which rows are notes. Free, slightly diluted.
+     tells a reader which rows are notes. Free, and diluted by a fifth of the register on the
+     current count rather than a sixth.
    - (b) **Gate strictly.** A failing answer goes into the plan or task it governs and gets no
      number. Sharp register; an owner answer buried in a part file is not where anyone looks.
    - (c) **One register, two row kinds.** A `note` marker on the row itself, visible where the row
-     is, not only in an audit at the end. One pass over six rows, plus a convention each round.
+     is, not only in an audit at the end. One pass over seven rows, plus a convention each round.
    - No recommendation: this is the owner's call about their own record. Detail in
      `2026-09-28-discovery-skills/07-register-report.md` §5.
    - *Holds up:* nothing built. It holds up the next question round's write-up convention only.
