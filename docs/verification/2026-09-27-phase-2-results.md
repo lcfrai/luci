@@ -435,9 +435,9 @@ defaults instead of adding to them.
 **Guards on this document, and where each of them lives.** Step 20's anchored list is in
 `task-25.md`. The scripts that read this document against the run are in the git-ignored SDD
 workspace (`e2e-run4/step20/`) — **workspace evidence, which will not survive this branch**, the
-same caveat as the `Edg/…` string above. So the rules that need nothing but this document are
-**committed** instead, in `desktop/src/seams.test.ts` (*"the run document"*), where `npm test`
-runs them, **nine** rules: a paragraph, table row or list item that names one check and asserts a
+same caveat as the `Edg/…` string above. So **thirteen** rules that read nothing but this
+document are **committed** as well, in `desktop/src/seams.test.ts` (*"the run document"*), where
+`npm test` runs them: a paragraph, table row or list item that names one check and asserts a
 finding must agree with that check's row in *The checks*; F2's verbatim `err=` quote must name the
 worktree its attribution reads it for; a window that says it *excludes* or *includes* an instant
 must be right about it; anchor 4's derived start window must equal its thrown window minus the
@@ -446,28 +446,45 @@ disposition* row's Result and that section must agree **in both directions**, so
 *"Still unproven end to end"* cannot become *"Proven end to end"* while the section still names it;
 a NOT RUN row's *Observed* must be an em dash, and *The checks*' Summary must count its own rows;
 every headline count must equal that same tally, in the bare *"N PASS, M FAIL"* form **and** in the
-*"p/t PASS, f FAIL, n NOT RUN"* form that the *What was tested* row above uses; and every sentence
-outside **this** section that says whether resume's fork was reached must agree with every other —
-the *Carry disposition* row for open carry 2, item 8 of *What is still unproven* and F2's finding
-are two hundred lines apart and say it three times. This paragraph is the one place excluded,
-because documenting that rule means quoting both forms of the sentence; the test excludes it by
-heading, so renaming the heading fails the test rather than widening the scan. Of the last five,
-three are ports out of `tables-vs-run.mjs` (its rules 5a, 5b and 3) after the fifth review of task
-25 proved the gap: they need nothing but this document, they had stayed in the workspace, and
-flipping open carry 2's Result to *"Proven end to end"* passed the committed suite while the
-workspace script killed it. The Summary tally and the headline rule are **not** ports: they are
-workspace rules 2 and 4's shape re-based on a different oracle — *The checks*' own table instead of
-`results.jsonl` — which is exactly what lets them survive this branch. The fork rule was in neither
-place: the sixth review cut item 8 to say the fork had been reached and the store read there, and
-that cut walked through the committed suite **and** both workspace scripts, because it claims a
-proof without using the word *proven*. The two workspace scripts: `doc-vs-run.mjs` (every
-check in *The checks* matches the run's own line in `results.jsonl`, and no PASS is printed for a
+*"p/t PASS, f FAIL, n NOT RUN"* form that the *What was tested* row above uses; every count of
+checks, reds or findings this document spells out in words, four in its first paragraph and five
+after it, must equal that tally (the *Findings* table, for the defect count), and each must be
+found; every sentence outside **this** section that says whether resume's
+fork was reached must agree with every other, and all three must be found: the *Carry
+disposition* row for open carry 2, item 8 of *What is still unproven* and F2's finding, one per
+section; a verdict beside a check, in any table outside *The checks*, must be that check's verdict
+there, and every row of the Phase 1 table must carry a verdict; every red in *The checks* must name
+exactly one finding, and no green any; and a finding may say it landed only in a check that *The
+checks* attributes to it. This section is the one place the fork rule does not read, because
+documenting that rule means quoting both forms of the sentence; the test excludes it by heading, so
+renaming the heading fails the test rather than widening the scan.
+
+Of `tables-vs-run.mjs`'s **twelve** rules, the committed ones are its rules 3, 5a and 5b, ported as
+written; its rules 1 (with its Phase 1 verdict check), 2, 4, 6 and 7, re-based on a different oracle
+— *The checks*' own table instead of `results.jsonl`, which is exactly what lets them survive this
+branch; and its rule 11, which is the block rule. Its other four read the run's control-plane log,
+so they stay in the workspace only, as does `doc-vs-run.mjs`, which reads `results.jsonl`. The ports
+and re-bases each followed a review that proved the gap: the fifth review of task 25 flipped open
+carry 2's Result to *"Proven end to end"*, which passed the committed suite while the workspace
+script killed it; the seventh flipped two verdicts outside *The checks* to PASS, took the finding
+off one red and landed a finding in a check that passed, four cuts that each passed the committed
+suite and died only in `tables-vs-run.mjs`. The fork rule and the spelled-count rule were in
+neither place: the sixth review cut item 8 to say the fork had been reached and the store read
+there, and the seventh changed the first line's spelled-out count by one, and each cut walked
+through the committed suite **and** both workspace scripts, the first because it claims a proof
+without the word *proven*, the second because it writes its number in words. The two workspace
+scripts: `doc-vs-run.mjs` (every check in *The checks* matches the run's own line in
+`results.jsonl`, and no PASS is printed for a
 check the run did not pass); and `tables-vs-run.mjs`, **twelve** rules, which takes the run's
 control-plane log as a **required** third argument and exits 2 without it, because a guard that
 skips when its evidence is absent is not a guard. Four of its twelve read that log: an instant
 written to three decimals must be in it verbatim, F3's three counts and its percentage are
 recomputed from it, the *"exactly one `level=ERROR`"* claim above is recounted, and every quoted
 fragment of the six key names it matches — `time=`, `msg=`, `err=`, `method=`, `path=`, `level=` —
-must be a substring of it. Three classes stay **unguarded** and are named in that file rather than
-claimed shut: a fact read from `sessions-after.json`, a citation into the log by line number, and a
-paraphrase of which check performed an action.
+must be a substring of it. Five classes stay **unguarded** and are named in that file rather than
+claimed shut: a fact read from `sessions-after.json`, a citation into the log by line number, a
+paraphrase of which check performed an action, a reversal, in words no rule matches, of whether
+something was reached, and a verdict written in prose rather than in a table, anywhere but *What
+is still unproven*: the block rule reads *The checks*' verdict for a paragraph, never the
+paragraph's own word. The fork rule guards one statement of the fourth class, the one this
+document makes in three places, and no other.

@@ -840,8 +840,9 @@ describe("the named seams — docs/SEAMS.md", () => {
    *  workspace (`e2e-run4/step20/`), so a reader who reaches this branch from `main` finds the
    *  obligation and no artifact. Three review rounds named one class — a claim about causation
    *  or an instant, written OUTSIDE the one table a guard reads — and each round killed one
-   *  named mutant and left the class open. These four rules need nothing but the document, so
-   *  they survive the workspace they were measured in and run in `npm test`. */
+   *  named mutant and left the class open. Round 3 committed four rules here, and rounds 5 to 7
+   *  brought them to thirteen. Each needs nothing but the document, so they survive the
+   *  workspace they were measured in and run in `npm test`. */
   describe("the run document — docs/verification/2026-09-27-phase-2-results.md", () => {
     type Verdict = { result: string; tag: string | null };
     /** *The checks* is where a verdict and its finding are authoritative. Every other block in
@@ -969,11 +970,13 @@ describe("the named seams — docs/SEAMS.md", () => {
         .toBeLessThanOrEqual(1);
     });
 
-    /** Round 5's I-1. The paragraph above claims the rules that need nothing but this document
-     *  are committed; three of `tables-vs-run.mjs`'s eleven needed nothing but the document and
+    /** Round 5's I-1. The paragraph above claimed the rules that need nothing but this document
+     *  were committed; three of `tables-vs-run.mjs`'s eleven needed nothing but the document and
      *  stayed in the git-ignored workspace. One of them was the only guard anywhere on open
      *  carry 2's verdict: flipping its Result from "Still unproven end to end." to "Proven end
-     *  to end." passed this suite 15/15 while the workspace rule killed it. Ported below. */
+     *  to end." passed this suite 15/15 while the workspace rule killed it. Ported below.
+     *  Review 7 found the last three such rules (1, 6 and 7); they are re-based at the end of
+     *  this describe, and the paragraph now lists which workspace rules are committed. */
     const SECTION = (heading: string): { from: number; lines: string[] } => {
       const all = text(RESULTS).split("\n");
       const start = all.findIndex((l) => l.trim() === heading);
@@ -1064,7 +1067,7 @@ describe("the named seams — docs/SEAMS.md", () => {
     // be read as "19 PASS". Round 6's SU1 edited the one line in that `p/t` form — the
     // What-was-tested row — and passed this suite 19/19, killed only by workspace rule 2, which
     // does not survive this branch. So the `p/t` form is read here too, by the same tally.
-    it("every headline count in the document agrees with The checks' own rows", () => {
+    it("every headline count written in digits agrees with The checks' own rows", () => {
       const { lines } = SECTION("## The checks");
       let pass = 0, fail = 0, notRun = 0;
       for (const line of lines) {
@@ -1101,13 +1104,53 @@ describe("the named seams — docs/SEAMS.md", () => {
         .toBeGreaterThanOrEqual(1);
     });
 
+    // Review 7's Minor 6, SV3: the first line's spelled-out check count, changed by one, passed
+    // 20/20 and both workspace scripts, because the rule above reads digits and the document states
+    // the same tally in words: four times in its first paragraph and five times after it. Each
+    // phrase is read against The checks' own rows (the Findings table, for the defect count), and
+    // each must be found exactly once, so a paraphrase that drops its number is a red, not a skip.
+    // Not read: the Prerequisites' eight, Phase 1's twelve and the earlier runs' counts, which
+    // are other tallies.
+    it("every count the document spells out in words agrees with The checks' own rows", () => {
+      const verdicts = [...CHECKS().values()];
+      const reds = verdicts.filter((v) => v.result === "FAIL");
+      const carrying = (tag: string): number => reds.filter((v) => v.tag === tag).length;
+      const defects = SECTION("## Findings").lines.filter((l) => /^\|\s*F[1-9]\s*\|/.test(l)).length;
+      const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+        "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+        "eighteen", "nineteen", "twenty"];
+      const count = (w: string): number => (/^\d+$/.test(w) ? Number(w) : WORDS.indexOf(w.toLowerCase()));
+      const said: [RegExp, number[]][] = [
+        [/\bAll (\w+) checks ran\b/g, [verdicts.length]],
+        [/\bAll (\w+) ran, in file order\b/g, [verdicts.length]],
+        [/\b(\w+) reds, (\w+) product defects \(F1-F(\d+)\)/g, [reds.length, defects, defects]],
+        [/\b(\w+) of the (\w+) name a finding with a mechanism\b/g, [reds.length - carrying("F5"), reds.length]],
+        [/\bthe other (\w+) carry F5\b/g, [carrying("F5")]],
+        [/\b(\w+) reds stand as the result\b/g, [reds.length]],
+        [/## Findings (\w+) product defects\./g, [defects]],
+        [/\bit owns (\w+) of the (\w+) failures\b/g, [carrying("F3"), reds.length]],
+        [/\b(\w+) checks failed waiting for output\b/g, [carrying("F5")]],
+      ];
+      const doc = flat();
+      for (const [re, want] of said) {
+        const found = [...doc.matchAll(re)];
+        expect(found.length, `the document states /${re.source}/ exactly once`).toBe(1);
+        const m = found[0];
+        expect(m.slice(1).map(count), `the document says "${m[0]}"`).toEqual(want);
+      }
+    });
+
     // Round 6's Minor 1. SU2 — item 8's "the fork was never reached." → "the fork was reached,
     // and the store was readable there." — survived every guard in the repository AND both
     // workspace scripts: rule 5a matches the words `proven` and `PASS(ED)`, and that sentence
     // carries neither; the block rule fires on the check id, which the edit keeps. The *Carry
-    // disposition* row for OC 2 says "never reached" two hundred lines away and nothing compared
+    // disposition* row for OC 2 says "never reached" in another section, and nothing compared
     // them. This is that cross-check. It reads only this document, so it belongs here and not in
-    // the workspace, and it is a fourth class beside the three `tables-vs-run.mjs:172-179` names.
+    // the workspace. It guards ONE instance of a fourth class beside the three
+    // `tables-vs-run.mjs:172-179` names — a reversal, in words no rule matches, of whether
+    // something was reached — and no other: review 7's SV4 reversed item 6 that way and passed.
+    // Review 7's Minor 2, MF: F2's finding reversed without the word *reached* passed too,
+    // because the floor was two; all three statements are counted now, one per section.
     it("every statement about whether resume's fork was reached agrees with the others", () => {
       const inSection = (heading: string): ((n: number) => boolean) => {
         const { from, lines } = SECTION(heading);
@@ -1115,6 +1158,7 @@ describe("the named seams — docs/SEAMS.md", () => {
       };
       const unproven = inSection("## What is still unproven");
       const carry = inSection("## Carry disposition");
+      const findings = inSection("## Findings");
       // "## Reproducing this" is where the guards paragraph documents this very rule, and it has
       // to quote both forms of the sentence to do so. It is the one section excluded, by heading,
       // so a rename fails SECTION() loudly instead of silently widening or narrowing the scan.
@@ -1131,9 +1175,10 @@ describe("the named seams — docs/SEAMS.md", () => {
           at: `${RESULTS}:${i + 1}`, line: i + 1, reached, quote: line.trim().slice(0, 90),
         });
       });
-      expect(said.length, "the carry row and the unproven item both state it").toBeGreaterThanOrEqual(2);
+      expect(said.length, "the carry row, the unproven item and F2's finding each state it").toBe(3);
       expect(said.some((s) => unproven(s.line)), '"What is still unproven" must state it').toBe(true);
       expect(said.some((s) => carry(s.line)), '"Carry disposition" must state it').toBe(true);
+      expect(said.some((s) => findings(s.line)), "F2's finding must state it").toBe(true);
       const first = said[0] as (typeof said)[number];
       for (const s of said) {
         expect(
@@ -1142,6 +1187,116 @@ describe("the named seams — docs/SEAMS.md", () => {
             `was${first.reached ? "" : " not"}: ${JSON.stringify(s.quote)}`,
         ).toBe(first.reached);
       }
+    });
+
+    /** Every backticked token that is a check of *The checks*. `idsIn` wants a dot, so it cannot
+     *  see `setup`; the three rules below bind every check the table defines. */
+    const checksIn = (s: string, checks: Map<string, Verdict>): string[] =>
+      [...new Set([...s.matchAll(/`([^`]+)`/g)].map((m) => m[1]))].filter((id) => checks.has(id));
+
+    // Review 7's I-1, SV1 and SV2. RB 6's Carry disposition verdict "FAIL (`c6.load`, F5: …)" and
+    // What was tested's "`w.webview2` FAIL", each flipped to PASS, passed this suite 20/20: the
+    // block rule reads SV1's row but asserts The checks' own verdict and tag, never the row's own
+    // word, and skips SV2's row, which names no finding. Workspace rule 1 (`tables-vs-run.mjs:70-87`)
+    // killed both against `results.jsonl`; it is re-based here on *The checks*, with its Phase 1
+    // half (`:90-103`). A verdict lives in a row's LAST cell and binds the checks in its own `;`
+    // clause, because one row can carry two checks with opposite verdicts; a clause that names no
+    // check binds the row's other cells, which is the Phase 1 table's shape. A verdict written in
+    // PROSE is read by no rule here (the block rule reads The checks' word, not the paragraph's):
+    // a named, unguarded class, in the document's guards paragraph.
+    it("a verdict beside a check, in any table outside The checks, is that check's verdict there", () => {
+      const checks = CHECKS();
+      let inChecks = false;
+      let bound = 0;
+      text(RESULTS).split("\n").forEach((line, i) => {
+        if (line.startsWith("## ")) inChecks = line.trim() === "## The checks";
+        if (inChecks || !line.startsWith("|") || /^\|\s*-/.test(line)) return;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const rowIds = checksIn(cells.slice(0, -1).join(" "), checks);
+        for (const clause of (cells[cells.length - 1] ?? "").split(";")) {
+          const saysPass = /\bPASS(ED)?\b/.test(clause);
+          const saysFail = /\bFAIL(ED|S)?\b/.test(clause);
+          if (!saysPass && !saysFail) continue;
+          const named = checksIn(clause, checks);
+          for (const id of named.length > 0 ? named : rowIds) {
+            const truth = (checks.get(id) as Verdict).result;
+            bound++;
+            if (saysPass) expect(truth, `${RESULTS}:${i + 1}: says PASS beside \`${id}\``).toBe("PASS");
+            if (saysFail) expect(truth, `${RESULTS}:${i + 1}: says FAIL beside \`${id}\``).toBe("FAIL");
+          }
+        }
+      });
+      expect(bound, "24 rows outside The checks bind a verdict to a check 26 times").toBe(26);
+      const { from, lines } = SECTION("## Phase 1, re-proven");
+      let phase1 = 0;
+      lines.forEach((line, k) => {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line) || /Phase 1 row/.test(line)) return;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        phase1++;
+        expect(cells[cells.length - 1], `${RESULTS}:${from + k}: a Phase 1 row carries no verdict`)
+          .toMatch(/^(PASS|FAIL|NOT RUN)$/);
+      });
+      expect(phase1, "the Phase 1 table has phase-1-results.md:25-36's 12 rows").toBe(12);
+    });
+
+    // Review 7's MA: `d.detach`'s "— F5" → "— unattributed" passed 20/20 while the first
+    // paragraph still says every red is attributed. Workspace rule 6 (`tables-vs-run.mjs:201-223`),
+    // re-based on the table itself: *The checks* is where an attribution is authoritative, so every
+    // red there names exactly one finding and is never called unattributed, and no green names any.
+    it("every red in The checks names exactly one finding, and no green names any", () => {
+      const { from, lines } = SECTION("## The checks");
+      let rows = 0;
+      let reds = 0;
+      lines.forEach((line, k) => {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) return;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const id = /^`([^`]+)`$/.exec(cells[0] ?? "")?.[1];
+        const result = cells.find((c) => /^(PASS|FAIL|NOT RUN)$/.test(c));
+        if (id === undefined || result === undefined) return;
+        rows++;
+        const at = `${RESULTS}:${from + k}: \`${id}\``;
+        const rowTags = tags(cells[cells.length - 1] ?? "");
+        if (result === "FAIL") {
+          reds++;
+          expect(rowTags, `${at} FAILED, so its row must name exactly one finding`).toHaveLength(1);
+          expect(/unattributed/i.test(line), `${at}'s row calls its failure unattributed`).toBe(false);
+        } else if (result === "PASS") {
+          expect(rowTags, `${at} PASSED, so its row may carry no finding tag`).toEqual([]);
+        }
+      });
+      expect([rows, reds], "The checks' 19 rows, 9 of them red, each read").toEqual([19, 9]);
+    });
+
+    // Review 7's MC: F2's row + "It lands inside `d.cp-restart`, which passed anyway." names two
+    // checks, so the block rule skips the whole row, and it passed 20/20. Workspace rule 7
+    // (`tables-vs-run.mjs:225-242`), re-based: a finding may say it landed only in a check that
+    // *The checks* attributes to it. The trigger is the landing verb, not co-occurrence, because a
+    // finding row names green checks as contrast evidence (F5 names `p1.fidelity`) without one.
+    it("a finding says it landed only in a check The checks attributes to it", () => {
+      const checks = CHECKS();
+      const LANDED = /\b(?:lands?|landed|fired|fell)\s+(?:in|inside)\b|the check it broke|which it broke/i;
+      const { from, lines } = SECTION("## Findings");
+      let findings = 0;
+      let landings = 0;
+      lines.forEach((line, k) => {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) return;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const tag = /^(F[1-9])$/.exec((cells[0] ?? "").replace(/\*/g, ""))?.[1];
+        if (tag === undefined) return;
+        findings++;
+        for (const sentence of cells.join(" ").split(/(?<=[.!?])\s+/)) {
+          if (!LANDED.test(sentence)) continue;
+          for (const id of checksIn(sentence, checks)) {
+            const v = checks.get(id) as Verdict;
+            const truth = v.tag ?? (v.result === "PASS" ? "nothing: the run PASSED it" : "no finding");
+            landings++;
+            expect(v.tag, `${RESULTS}:${from + k}: ${tag} says it landed in \`${id}\`, which The checks attributes to ${truth}`)
+              .toBe(tag);
+          }
+        }
+      });
+      expect(findings, "the Findings table holds F1 to F5").toBe(5);
+      expect(landings, "F2's row says where it landed, and no other finding's row does").toBe(1);
     });
   });
 });
