@@ -27,22 +27,22 @@
 # (shellcheck, the two Go modules), the pin is the hash of a download made on 2026-09-25.
 # Versions were chosen on 2026-09-25: the newest release, except govulncheck v1.1.4, the
 # newest golang.org/x/vuln whose go directive (1.22) builds on CI's Go 1.23; v1.2.0 and later
-# need Go 1.25. Terraform is 1.15.8 (P8-D14).
+# need Go 1.25. OpenTofu is 1.12.6, chosen on 2026-09-28 as the newest stable release.
 #
-# OD-32 BLOCKER, open. The IaC engine is OpenTofu (MPL-2.0): HashiCorp Terraform has been
-# BUSL-1.1 since August 2023 and this product ships to customers' own clouds, so the two
-# `terraform` rows below must become `tofu` rows fetched from
-# https://github.com/opentofu/opentofu/releases (tofu_<version>_linux_amd64.zip and
-# tofu_<version>_windows_amd64.zip, member `tofu` / `tofu.exe`). They were NOT changed here
-# because a pin is a published SHA-256, the build that applied OD-32 was offline, and an
-# invented hash is worse than an open blocker. Until this moves, pipelines/infra.yml still
-# installs Terraform and infra/scripts/validate.sh — which runs `tofu` and refuses
-# TOFU_BIN=terraform — will not find an engine. See infra/terraform/README.md.
+# OD-32, applied and CLOSED on 2026-09-28. The IaC engine is OpenTofu (MPL-2.0), never
+# HashiCorp Terraform, which has been BUSL-1.1 since August 2023 and this product ships to
+# customers to run on their own clouds. The two `tofu` rows replace the `terraform` rows that
+# stood here. Both pins are the values published in
+# https://github.com/opentofu/opentofu/releases/download/v1.12.6/tofu_1.12.6_SHA256SUMS, and
+# both archives were downloaded and re-hashed on 2026-09-28: the sums matched and the member
+# is `tofu` / `tofu.exe` at the archive root, beside CHANGELOG.md, LICENSE and README.md.
+# The archive's LICENSE is MPL-2.0. Do not restore a `terraform` row: infra/scripts/validate.sh
+# refuses TOFU_BIN=terraform by design. See infra/terraform/README.md, "The engine is OpenTofu".
 
 # name                 platform      version kind          member                                               sha256                                                           url
 read -r -d '' PINS <<'PINS' || true
-terraform              linux-amd64   1.15.8  zip           terraform                                            d25ce7b6902013ad905db3d2eab0be4cd905887fe88b81a6171b8d5503c31f3d https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_linux_amd64.zip
-terraform              windows-amd64 1.15.8  zip           terraform.exe                                        2ff41d2129afb1982733c132c61a8d6ef038f879f3aeede7fc28b8b8b24acf02 https://releases.hashicorp.com/terraform/1.15.8/terraform_1.15.8_windows_amd64.zip
+tofu                   linux-amd64   1.12.6  zip           tofu                                                 5dc43da4f750f33873dc25e94587128709e819e544b7be9016b255316153c3a8 https://github.com/opentofu/opentofu/releases/download/v1.12.6/tofu_1.12.6_linux_amd64.zip
+tofu                   windows-amd64 1.12.6  zip           tofu.exe                                             0d1421721cf9ec24b41b698a9620dda218d47fa7e76ac3dc15cdbc13bd79b0bb https://github.com/opentofu/opentofu/releases/download/v1.12.6/tofu_1.12.6_windows_amd64.zip
 helm                   linux-amd64   4.3.0   tgz           linux-amd64/helm                                     86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb https://get.helm.sh/helm-v4.3.0-linux-amd64.tar.gz
 helm                   windows-amd64 4.3.0   zip           windows-amd64/helm.exe                               304ea163cce4d9ad14e189c01846c6a34de9cfdfe48536ae54b2e8ba7884e67c https://get.helm.sh/helm-v4.3.0-windows-amd64.zip
 helm-unittest          linux-amd64   1.1.2   helm-plugin   unittest                                             de03d6b7ba7683282064702d0b36fbbe812ab2a22691fa3a8b2ce57c2682609c https://github.com/helm-unittest/helm-unittest/releases/download/v1.1.2/helm-unittest-linux-amd64-1.1.2.tgz

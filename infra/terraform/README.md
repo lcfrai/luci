@@ -33,16 +33,23 @@ and runbook; the tool pinned and installed in CI; and the registry host recorded
 file, which `tofu` writes as `registry.opentofu.org/…` where the old engine wrote
 `registry.terraform.io/…`.
 
-**Two items are NOT yet closed, because closing them needs evidence this host cannot produce.**
-Both are recorded rather than guessed, and neither may be closed by inventing a value:
+**The CI pin is CLOSED, 2026-09-28.** `pipelines/scripts/install-tool.sh` pins OpenTofu 1.12.6
+for `linux-amd64` and `windows-amd64`, and `pipelines/infra.yml` asks for `tools: [tofu]`. Both
+SHA-256 values are the ones published in `tofu_1.12.6_SHA256SUMS` on the OpenTofu release, and
+both archives were downloaded and re-hashed here: the sums matched, the member is `tofu` /
+`tofu.exe` at the archive root, and the archive's own `LICENSE` is Mozilla Public License 2.0.
+`pipelines/scripts/lint.sh` passes 8 of 8, which is what checks that a requested tool has a pin
+(R2) and that every pin carries 64 hex digits (R6).
 
-1. **The CI pin.** `pipelines/scripts/install-tool.sh` still pins Terraform 1.15.8. An OpenTofu
-   pin needs the published SHA-256 for `linux-amd64` and `windows-amd64`, which requires
-   network access this build has not got. Until it lands, `pipelines/infra.yml` still asks for
-   the Terraform pin and `validate.sh` will not find `tofu`.
-2. **The tracked lock file.** `stacks/bootstrap/.terraform.lock.hcl` still records
-   `registry.terraform.io/hashicorp/azurerm`. Regenerate it, do not hand-edit it:
-   `tofu providers lock -platform=windows_amd64 -platform=linux_amd64`.
+**One item is NOT closed, because closing it needs a tool this host must not install.**
+It is recorded rather than guessed, and may not be closed by inventing a value:
+
+1. **The tracked lock file.** `stacks/bootstrap/.terraform.lock.hcl` still records
+   `registry.terraform.io/hashicorp/azurerm`. Regenerate it, do not hand-edit it — the hashes
+   are per-registry and per-archive, so a hand-written entry is a fabricated integrity check:
+   `tofu providers lock -platform=windows_amd64 -platform=linux_amd64`. Until then guard G9
+   strips both registry hosts; once the file is regenerated, narrow G9 to the OpenTofu host so
+   a Terraform-written lock file fails the guard by itself.
 
 ## Secrets: Azure Key Vault, not HashiCorp Vault, so OpenBao is deferred
 
