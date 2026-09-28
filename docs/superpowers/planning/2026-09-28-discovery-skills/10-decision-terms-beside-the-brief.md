@@ -1,9 +1,9 @@
 # Owner decision, 2026-09-28: terms and decisions sit BESIDE the brief, not inside it
 
-**Status: decided by the owner. To be folded into
-`docs/superpowers/planning/2026-09-23-owner-decisions.md` as OD-36** once the register edit now in
-flight has landed (the `od-register` chain of run `wf_a4e50f19-3d1` is editing that file, so this
-was written here instead of fighting it).
+**Status: decided by the owner, and recorded as OD-36** in
+`docs/superpowers/planning/2026-09-23-owner-decisions.md` (its last section, and a row in its
+dependency frontier). This note stays the full record, and the register's row points here. It was
+written here first because the `od-register` chain of run `wf_a4e50f19-3d1` was editing that file.
 
 ## What was decided
 

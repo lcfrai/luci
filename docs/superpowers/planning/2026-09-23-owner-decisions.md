@@ -267,7 +267,7 @@ requires log panes that never scroll-jump, and neither has any implementation in
 
 ## What earns an OD
 
-Thirty-five decisions are on this page and until now nothing here said what a decision *is*. The
+Thirty-five decisions were on this page before anything here said what a decision *is*. The
 three-part test below is adopted from the method surveyed in `2026-09-28-discovery-skills/` — the
 method only; none of that source's wording is used. A question earns an `OD` row when **all three**
 are true.
@@ -300,9 +300,9 @@ register is ever read. The test is deliberately harsh: most questions should fai
   separate hazard the id argument does not cover: 41 citations across 12 documents point into this
   file by line range, and an insertion above the decision tables moves all of them silently, with no
   broken link to notice. That is why this section sits here, after the decisions, rather than at the
-  top where it was first written. **Anything added to this file later goes below the tables too.**
-  The backwards audit at the end of this file names the rows that would not pass today and leaves
-  every one of them in place.
+  top where it was first written. **Anything added to this file later goes below the tables too**,
+  which is why OD-36 onwards sit in its last section. The backwards audit names the rows that would
+  not pass today and leaves every one of them in place.
 
 The dependency frontier, immediately below, records the edges between decisions once.
 
@@ -313,7 +313,7 @@ the five decision tables above, whose rows are already paragraph-length and woul
 
 **Only decisions with an edge appear.** An edge is recorded only where this file, or a document it
 names, states the link. A phase consequence restated from the row's own *Consequence* cell is not an
-edge. 29 of the 35 decisions carry at least one; **OD-2, OD-4, OD-7, OD-9, OD-28 and OD-35 carry
+edge. 30 of the 36 decisions carry at least one; **OD-2, OD-4, OD-7, OD-9, OD-28 and OD-35 carry
 none**, and that is the honest answer for them, not an omission.
 
 Supersession is **not** a dependency edge and is not listed here — a superseded decision blocks
@@ -328,7 +328,7 @@ an edge means editing two cells.
 | Id | Unblocked by | Unblocks |
 |---|---|---|
 | **OD-1** | — | The phase 3, 4, 5 and 7 plans and builds; OD-12, whose one hands-on session waits on those builds; every "accepted as written" recommendation on file |
-| **OD-3** | — | Phase H, with OD-5; phase 4's brief store, which needs it to exist first |
+| **OD-3** | — | Phase H, with OD-5; phase 4's brief store, which needs it to exist first; OD-36 — a glossary and a decision record can be Hub records beside the brief only because the brief is one |
 | **OD-5** | — | OD-14 — team agents need an environment to run in, and `2026-09-24-team-collaboration/05-design.md:121` puts Fleet in "our environment (OD-5)"; Phase H; phase 8's growth from "Kata backend" to the product's own environment |
 | **OD-6** | — | The Credential Manager store that OD-30's silent relaunch reuses, and that holds OD-4's two host tokens |
 | **OD-8** | — | OD-10 (deletion by minted id is allowed); OD-20 (the canary that gates an image bump); every later phase's transcript adapter |
@@ -356,6 +356,7 @@ an edge means editing two cells.
 | **OD-32** | — | Phase 8 tasks 01–10, 28 and 30 |
 | **OD-33** | OD-19, OD-21, OD-24 | Phase 6's two new tasks: the AU-residency canary and the rebuilt image |
 | **OD-34** | OD-11 | Phase 5 tasks 05, 06, 10, 11 and 12 |
+| **OD-36** | OD-3 — the brief is a shared Hub record with numbered revisions, so a term or a decision can be its own record that references one | Discover's design round 2, which must take `06-sceptic.md`'s findings as inputs; after it, the rework of phase 4 task 09 (the Materialiser), task 06 (`Ref`) and tasks 18 to 21 (the Discover lens) |
 
 **Considered and not recorded: OD-15, OD-16 → OD-17.** Team mode's plan plainly assumes both, but
 neither OD-15's nor OD-16's cell names OD-17, OD-17's cell names neither, and
@@ -396,3 +397,34 @@ and some are notes that were written down in a decision round because that is wh
 
 **Not audited:** whether any decision was *correctly* answered. This pass judged form only — would
 the question have earned a row — and changed no row.
+
+## The project glossary and decision record — 2026-09-28, OD-36
+
+Decided after the gate above existed, so it is recorded here, at the end of the file, where no cited
+line can move (see *What earns an OD*). Later decisions append below this one. The full record,
+with the design it rejected, is `2026-09-28-discovery-skills/10-decision-terms-beside-the-brief.md`.
+
+| Id | Question | Answer | Consequence |
+|---|---|---|---|
+| **OD-36** | Where Discover keeps a project's own words and its decisions: as fields inside the brief's content, or beside it (2026-09-28, from `2026-09-28-discovery-skills/`) | **Beside it.** Discover gains a **project glossary** and a **project decision record**, and each is **its own Hub record that references a brief revision**, not a field of brief content. The owner's note on deciding, as the decision note quotes it: *"we are still in build, so if you need to redo some work, it is what it is"*, which takes rework cost out of the choice. | Beside wins on three grounds that are not cost. **Lifecycle:** words change at a different rate from requirements, and a term inside the content would mint a brief revision per definition. **Scope:** a word such as *lane* belongs to the project, so ten briefs would hold ten copies free to disagree. **Supersede:** a better definition can replace an older one without touching the requirement. Both are Hub records beside the brief, which is possible only because OD-3 made the brief one. **What moves**, with the rework authorised: the Materialiser (phase 4 task 09) renders both into the per-branch `CLAUDE.md`; `Ref` (task 06) carries their digests, so a session's inheritance is provable; the Discover lens (tasks 18 to 21) shows a term as it settles and a decision as it is taken. **What does not move:** the brief content model, and the provenance key grammar, which the Hub contract owns. `05-design.md`'s in-content design is **not adopted** (`06-sceptic.md:383`, **Needs fixes**), and **a design round 2 is required before any of it is built**, carrying the sceptic's findings. |
+
+**How OD-36 passes the gate.** It is the first row admitted through the gate. The backwards audit
+above covered the 35 rows before it and does not include this one.
+
+1. **Expensive to undo.** Once built, reversing it moves data and three built parts: every term and
+   decision record would be folded back into brief content, each fold minting a brief revision, and
+   the Materialiser, `Ref` and the Discover lens would each change a second time. Before it is
+   built, reversing it re-plans design round 2. Neither is a setting.
+2. **Not derivable from the tree.** Nothing in the tree says where a project's vocabulary lives,
+   because Discover captures none today (the decision note's gap, checked twice), and the obvious
+   guess is the wrong one: `05-design.md`, a whole design round, put the terms inside the brief's
+   content. An agent reading cold has already guessed wrong once.
+3. **A real fork.** Inside the content was defensible — one object, one revision history, one thing
+   every surface cites — and `05-design.md` argued for it. Beside gives that up: a session's
+   inheritance becomes a brief revision *plus* term and decision digests, which is why `Ref` must
+   change, and built phase 4 code moves, at a cost the owner accepted.
+
+**Considered and not recorded: OD-5 → OD-36.** Both records live in the Hub, which OD-5 placed on
+our own environment. But OD-36 would read the same wherever the Hub ran: it depends on the brief
+being a shared record (OD-3), not on where that record is hosted. It is named here so the next
+reader does not add the edge without a citation.
