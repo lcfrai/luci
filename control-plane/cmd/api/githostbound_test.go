@@ -46,6 +46,20 @@ func TestHostConfigGitIsBoundedForACreateAndNotForAPoll(t *testing.T) {
 // to be made afterwards.
 const cockpitCreateTimeout = 150 * time.Second
 
+// createWorkReserve is what POST /v1/sessions still has to do once the three
+// host-config reads are done, and it is why those reads may not spend the
+// cockpit's whole window: the session record, then backend.Create — an image
+// inspect, a container create, a start and an endpoint publish, four Docker
+// API round trips on the same host whose PROCESS STARTS F2 measured at over
+// 2.8 s each. The ready wait is not in here: handleSessionCreate hands that to
+// watchSessionReady in a goroutine and answers the cockpit first.
+//
+// ARGUED, NOT MEASURED. The 2026-09-27 evidence records that the create
+// succeeded, not how long its Docker half took, so this is a floor under the
+// create's share rather than a measurement of it — and 20 s is what
+// githostconfig.go's own arithmetic has always claimed to leave.
+const createWorkReserve = 20 * time.Second
+
 // Review C-1. A READ's budget and ONE git's bound are two decisions and they
 // were one constant, so the four gits of a read shared
 // project.HostConfigTimeout and got 7.5 s each — below the 10 s F2 proved too
@@ -65,9 +79,14 @@ func TestAHostConfigReadsBudgetIsSizedFromTheReadAndNotFromOneGit(t *testing.T) 
 			hostConfigReadBudget, had, project.GitTimeout)
 	}
 	// And a create runs three reads in sequence before it makes a sandbox.
-	if total := 2*hostConfigReadBudget + hostIdentityReadBudget; total >= cockpitCreateTimeout {
-		t.Errorf("the three host-config reads of one create can take %s, which is not less than the %s the cockpit gives the whole create",
-			total, cockpitCreateTimeout)
+	//
+	// Review 2, m-2: "they fit" is not the property. Merely fitting let the
+	// budget reach 69 s with both suites green — three reads of 148 s inside a
+	// 150 s window, leaving the create itself two seconds — so what is asserted
+	// is the SHARE the reads may take, and the rest is named.
+	if total := 2*hostConfigReadBudget + hostIdentityReadBudget; total > cockpitCreateTimeout-createWorkReserve {
+		t.Errorf("the three host-config reads of one create can take %s, leaving the create's own work %s of the %s the cockpit allows: the reads are the PREAMBLE, and a create that is abandoned after them has done nothing a user can see",
+			total, cockpitCreateTimeout-total, cockpitCreateTimeout)
 	}
 }
 
@@ -90,6 +109,16 @@ func TestTheIdentityReadIsNotBoundedLikeAReadThatCanFailACreate(t *testing.T) {
 	// failure costs one poll and nobody is waiting.
 	if hostIdentityReadBudget > project.GitTimeout {
 		t.Errorf("the identity read waits %s for one git whose answer is thrown away on failure, longer than the %s a git nobody waits for gets",
+			hostIdentityReadBudget, project.GitTimeout)
+	}
+	// Review 2, m-5. Every assertion this constant had was an upper bound, so
+	// it could fall as far as it liked: at 1 ms the identity read always spends
+	// its budget, always fails and is always tolerated — an empty git identity
+	// in every sandbox, behind one warning, with the whole cmd/api suite green.
+	// It is ONE git, so it gets one git's bound; below that it is not a budget
+	// but a guarantee of failure.
+	if hostIdentityReadBudget < project.GitTimeout {
+		t.Errorf("the identity read has %s for a git that may take %s, so the read can only fail: every sandbox would get an empty identity behind one warning",
 			hostIdentityReadBudget, project.GitTimeout)
 	}
 }

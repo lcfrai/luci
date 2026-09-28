@@ -312,6 +312,12 @@ func (s *Scanner) Branches(ctx context.Context, projectID string) ([]Branch, err
 // GitError.Exited the tolerated case was "the confirmation said nothing" when
 // it had to be "git ran, and said nothing" — and F4 came back on exactly the
 // transient per-process stall this code was written for (review I-1).
+//
+// Review 2, I-1: what this needs is the narrower fact, ExitedNonZero. A
+// confirmation whose pipes gitWaitDelay closed under it RAN — so Exited is
+// true — and is silent for os/exec's reason rather than git's, and a
+// confirmation this runner killed at its bound is silent the same way. Only
+// git reaching its own non-zero exit is git saying "HEAD resolves to nothing".
 func (s *Scanner) head(ctx context.Context, dir string) (string, error) {
 	raw, err := s.git.Run(ctx, dir, "rev-parse", "--abbrev-ref", "HEAD")
 	if err == nil {
@@ -319,7 +325,7 @@ func (s *Scanner) head(ctx context.Context, dir string) (string, error) {
 	}
 	if _, confirm := s.git.Run(ctx, dir, "rev-parse", "--verify", "--quiet", "HEAD"); confirm != nil {
 		var ge *GitError
-		if errors.As(confirm, &ge) && ge.Exited && !ge.TimedOut && !ge.Canceled && ge.Output() == "" {
+		if errors.As(confirm, &ge) && ge.ExitedNonZero && !ge.TimedOut && !ge.Canceled && ge.Output() == "" {
 			return "", nil
 		}
 	}

@@ -84,10 +84,26 @@ type GitError struct {
 	// into a directory that is gone, a refused process create, an AV
 	// quarantine of git.exe — has empty streams and no context done, the
 	// same three facts as `rev-parse --verify --quiet HEAD` confirming an
-	// unborn HEAD. Only a git that exited can confirm anything about a
-	// repository, so callers that read git's SILENCE must read this too
-	// (review I-1).
+	// unborn HEAD (review I-1). It is what the MESSAGE reads, and it is
+	// taken from cmd.ProcessState, which os/exec sets from Process.Wait and
+	// leaves nil when the start itself failed.
+	//
+	// Review 2, I-1: this was derived from *exec.ExitError, which is true
+	// only when a process ran AND exited non-zero. A git that ran its whole
+	// bound and exited 0 with its pipes held is not one, and neither is a
+	// git that os/exec killed at a deadline and then reaped successfully —
+	// the shape 3 of the 4 timeouts on 2026-09-27 had. Both reported "no git
+	// process was started" about a process that certainly started, which
+	// sends the operator to look at a process create instead of at the
+	// stall.
 	Exited bool
+	// ExitedNonZero records that GIT ITSELF answered: os/exec returned an
+	// *exec.ExitError, so the process ran to its own end and reported a
+	// non-zero status. It is the narrower fact, and it is the one a caller
+	// that reads git's SILENCE needs: a git whose pipes were closed under it
+	// by gitWaitDelay also ran and is also silent, but its empty streams are
+	// os/exec's doing rather than git's answer.
+	ExitedNonZero bool
 	// TimedOut: a deadline ended this git, not git itself.
 	TimedOut bool
 	// Canceled: the caller gave up.
@@ -249,10 +265,17 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 
 	start := time.Now()
 	if err := cmd.Run(); err != nil {
-		// Whether a git process RAN, asked of os/exec: only a process that
-		// started and exited returns an *exec.ExitError. A start that was
-		// refused returns the syscall's error and no process, and its
-		// silence must not be read as git's answer (review I-1).
+		// Two facts, asked of os/exec separately because they are two
+		// (review 2, I-1). Whether a process RAN is cmd.ProcessState: nil
+		// only when the start was refused, and set by Process.Wait whatever
+		// ended the process afterwards. Whether GIT answered is the
+		// *exec.ExitError, which os/exec returns only for a process that
+		// reached its own exit with a non-zero status — Wait prefers
+		// Process.Wait's error, so a git killed at a deadline that then
+		// reaps cleanly, or one whose pipes outlive it, carries the
+		// context's or ErrWaitDelay's error instead and is no ExitError at
+		// all. A start that was refused is silent, and so is a git whose
+		// pipes were closed under it; neither silence is git's answer.
 		var exited *exec.ExitError
 		ge := &GitError{
 			Args:    args,
@@ -262,7 +285,9 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 			Stdout:  strings.TrimSpace(stdout.String()),
 			Timeout: timeout,
 			Elapsed: time.Since(start),
-			Exited:  errors.As(err, &exited),
+
+			Exited:        cmd.ProcessState != nil,
+			ExitedNonZero: errors.As(err, &exited),
 		}
 		// What ended this git, asked of the contexts rather than of the exit
 		// status, which on Windows is the killed process's own. The caller's

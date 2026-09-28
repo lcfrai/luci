@@ -79,6 +79,11 @@ func TestExecRunnerSaysWhenNoGitProcessEverStarted(t *testing.T) {
 	if ge.Exited {
 		t.Error("GitError.Exited is true, but no git process was created")
 	}
+	// Review 2, I-1. The two facts must BOTH be false here, and this is the
+	// one shape where they agree: nothing ran, so nothing answered.
+	if ge.ExitedNonZero {
+		t.Error("GitError.ExitedNonZero is true, but git never ran to answer anything")
+	}
 	if msg := ge.Error(); !strings.Contains(msg, "no git process was started") {
 		t.Errorf("error = %q, want it to say no process was started; "+
 			"otherwise the reader sees git's silence and reads it as git's answer", msg)

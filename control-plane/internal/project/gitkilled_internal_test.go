@@ -31,8 +31,11 @@ import (
 // nothing held the pipes, there is no hang to catch, and this skips rather
 // than passing on evidence it does not have.
 //
-// It is an internal test so it can read gitWaitDelay rather than restate it
-// (section 3D): changing the drain must not need an edit here to stay true.
+// It is an internal test because the kill it measures is this package's own.
+// Amended for review 2, m-1: it used to read gitWaitDelay into its limit rather
+// than restate it, which is the right instinct for a restatement (section 3D)
+// and the wrong one for an assertion — the constant then passed its own test at
+// any value. gitbounds_internal_test.go pins the constant itself.
 func TestExecRunnerKillsAGitThatWasStillRunning(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not on PATH; skipping the ExecRunner tests")
@@ -94,7 +97,13 @@ func killedGitAttempt(t *testing.T, bound time.Duration, attempt int) bool {
 	// The promise F2 is about: the handler is free at the bound plus the
 	// drain, even when git's pipes are held by a child the kill did not
 	// reach. Without cmd.WaitDelay this same call measured 25 s.
-	if limit := bound + gitWaitDelay + 4*time.Second; elapsed > limit {
+	//
+	// Review 2, m-1: the limit used to be written as bound + gitWaitDelay +
+	// 4 s, so the constant sat on both sides of its own assertion and 2 s →
+	// 30 s passed here. The number is unchanged and now belongs to the test: 6 s
+	// is the 2 s drain plus scheduling slack on a host whose process starts F2
+	// measured at over 2.8 s. Raising the constant past it is what this is for.
+	if limit := bound + 6*time.Second; elapsed > limit {
 		t.Errorf("Run returned after %s under a %s bound (limit %s): the bound is not a promise "+
 			"this runner can keep", elapsed, bound, limit)
 	}

@@ -1652,8 +1652,15 @@ above proves HEAD unborn; any other failure is returned rather than silently dro
 `IsHead`. Amended 2026-09-28 (F2/F4 review I-1): proving it takes a git that RAN, not
 only a git that was silent. A process that never started is silent too — empty streams,
 no deadline, no cancellation — so `GitError.Exited` carries whether git exited at all,
-and the tolerance reads both. A `GitError` built by hand, in a test or anywhere else,
-says nothing about a repository unless it sets `Exited`.
+and the tolerance read both until the amendment below. Amended 2026-09-28 (F2/F4 review 2, I-1): `Exited` is
+derived from `cmd.ProcessState` and is the MESSAGE's fact — a process RAN — because
+`*exec.ExitError` is a different one, true only of a git that reached its own non-zero
+exit, so a git killed at its bound or one whose pipes outlived it was being reported as
+`no git process was started`. The tolerance needs that narrower fact and now reads
+`GitError.ExitedNonZero`: a git whose pipes `gitWaitDelay` closed under it also ran and
+is also silent, and that silence is `os/exec`'s rather than git's answer. A `GitError`
+built by hand, in a test or anywhere else, says nothing about a repository unless it
+sets `ExitedNonZero`.
 Scanning is depth-1 under `root`: subdirectories of `root` that contain `.git`. Deeper
 recursion over a developer's whole disk is how a rail takes 40 seconds to paint.
 
