@@ -242,6 +242,23 @@ func TestReapIntervalIsClampedRatherThanTrusted(t *testing.T) {
 // ends.
 func TestReapIntervalCannotOutrunTheCockpitsAttachBudget(t *testing.T) {
 	t.Parallel()
+	// The relationship first, because the clamp below only pins the literal.
+	// maxReapInterval = 59s would keep every assertion in this test green while
+	// putting the sweep 1s inside a 60s budget, which is the configuration the
+	// clamp exists to remove. What the maximum has to hold is that one whole
+	// sweep, plus the cockpit's session poll and the render after it, fits
+	// inside the budget with room — and config.go's own comment names the room:
+	// "a quarter of the budget is far more than either needs".
+	//
+	// This is the only place either number is checkable: RETRY_BUDGET_MS lives
+	// in the other tree (desktop/src/api/attachRegistry.ts, the F5 chain's
+	// file), so cockpitAttachRetryBudget is this tree's transcription of it.
+	if margin := cockpitAttachRetryBudget - maxReapInterval; margin < cockpitAttachRetryBudget/4 {
+		t.Errorf("the %v maximum leaves %v of the cockpit's %v attach budget, less than the quarter "+
+			"config.go claims: a sweep that lands this close to the ladder's give-up turns a normal "+
+			"exit into a terminal failed pane",
+			maxReapInterval, margin, cockpitAttachRetryBudget)
+	}
 	for _, v := range []string{"60s", "2m", "1h"} {
 		cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_REAP_INTERVAL": v}))
 		if err != nil {
