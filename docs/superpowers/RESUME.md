@@ -7,12 +7,12 @@ It is the fastest correct path back. Last time, rebuilding state from transcript
 
 ```
 cd C:\Users\au-dev-dmackie1\Projects\PanaceaApp
-claude --resume 56a311e8-629e-4437-9e39-3cb2f503917f
+claude --resume 0d6a987b-7781-413a-b3f9-2e4af71a96cf
 ```
 
-(The session before it was `2ce0c1a9-63c3-42f2-bf4e-e6ba45d14fab`, which ended at about 18:10 on
-2026-09-27. A fresh session **cannot** `resumeFromRunId` another session's run, so every run id
-below from that session is dead; section 0b names the live one.)
+(Before it: `56a311e8-629e-4437-9e39-3cb2f503917f`, ended 00:20 on 2026-09-29, and `2ce0c1a9-…`.
+A fresh session **cannot** `resumeFromRunId` another session's run, so every run id from an ended
+session is dead; section 0e names the live ones, all idempotent, all relaunched FRESH.)
 
 Then type: **Continue — read docs/superpowers/RESUME.md**.
 (If that session id will not resume, run `claude --continue` in the same folder, or start a fresh
@@ -177,9 +177,9 @@ All six use WS `build-stream-continue.js`.
 
 **`build-stream-continue.js` is the script every build stream now uses.** It runs NO gate and NO
 triage, so it cannot re-merge a moved `feat/phase-2-cockpit` into a half-finished fix round and
-cannot regroup batch ids. Its first agent reads `<scratchpad>/stream-survey.json` plus the stream's
-own ledger and review verdicts, returns the in-flight unit and the ordered remaining tasks, and the
-second agent FINISHES that unit rather than restarting it. Pass only `{stream, hold}`; approvals are
+cannot regroup batch ids. Its first agent reads the stream's `baton.md` if one exists, then the survey,
+the stream's own ledger and its review verdicts, and returns the in-flight unit and the ordered
+remaining tasks; the second agent reads the baton too and FINISHES that unit. Pass only `{stream, hold}`; approvals are
 re-derived from disk.
 
 ### Before reconstructing a dead stream by hand, read its baton
@@ -217,6 +217,51 @@ SDLC is, with an honest status page) and `panacea-ai-sdlc.pdf` (the executive in
 machine has carried. `exit 0xc0000142`, `link.exe 0xc000013a` and vitest forks-worker timeouts are
 host artifacts under load, not code defects; `build-stream-continue.js` rule 6 tells every agent to
 re-run once and record rather than "fix" a phantom.
+
+## 0e. SUPERSEDES 0d — session `0d6a987b-…`, 2026-09-29 07:10
+
+**Session `56a311e8-…` ended at 00:20 on 2026-09-29 and killed every run.** State was rebuilt from
+its transcript, its journals and git at 06:45. Three runs now. All three are **idempotent** (each
+agent checks its own output file first), so after ANY stop, relaunch FRESH with the same script and
+args. Never `resumeFromRunId` across sessions.
+
+| Task | Run | Script (WS = `.superpowers/workflows/`) | Args | Load |
+|---|---|---|---|---|
+| `wg0dejqxt` | `wf_7b2b5f75-a5c` | WS `phase2-finish-2.js` | none | heavy; the critical path |
+| `wbftml1jn` | `wf_56d54bf9-5e6` | WS `plans-continue.js` | `{"workBatches":["b01","b02","b13"]}` | markdown |
+| `wkn5q8031` | `wf_41810c9f-5b0` | WS `discover-r2.js` | none | markdown |
+
+- **phase2-finish-2.** Harness chain: task 25 review 7 (fix round 6 was never reviewed), the F5 fix
+  round for review 6's 3 Importants, task 26 check and review 4. Security chain: X-3's FIRST
+  independent review, then the F2/F4 fix round for review 4's 2 Importants. Then the gate
+  (`SDD/phase2-finish-gate.md`). Scoped re-reviews may block only on a false green, a security hole
+  or a baseline regression, so they converge. One fix round per unit; a second only for a Critical.
+- **plans-continue.** od32 (env) and od33 (phase-6) fix rounds, each against a review with 1
+  Critical: od32's task-30 test stub is still named `terraform`, so four assertions pass vacuously;
+  od33's canary listens in plaintext on :4900 while the leak is TLS to :443, so a leaking image
+  prints CANARY PASS. team: batch state from disk, then the unfinished Critical batches (b06 was
+  mid-round-2 with 4 part files uncommitted). work: of Phase W's 14 Critical batches, **only b01, b02
+  and b13 this run** (the three that make the product wrong); the rest wait for the owner (0e.1).
+- **discover-r2.** OD-36 folded into the register without moving a cited line, and CONTEXT.md's
+  review-2 Importants; then two fact sheets (phase 4 as built, the Hub contract), design round 2,
+  and a sceptic, with one revision only for a Critical.
+
+**Still STOPPED since 2026-09-28 16:45**, restarting in this order once phase 2's gate has measured
+(they run Go `-race` and npm suites and would spoil it): hub, env, p3, p4, p7, p5, each with WS
+`build-stream-continue.js` and its args from section 0d. Their uncommitted WIP is the continuation's
+to finish: hub 3 files (t07 fix round), p7 3 files (t07 watcher), env 6 files (`backend/`,
+`sandbox/`). The survey is stale (09-28 00:05); each continuation's first agent re-derives state.
+
+**Main-tree hygiene, 06:55.** Two `control-plane/internal/api/*sandboxenv*_test.go` files showed
+` M` with content byte-identical to HEAD (an LF rewrite under `core.autocrlf=true`). `git add` of
+those two paths refreshed the stat cache and staged nothing. Disk 20 GB free (floor 15). Docker
+Desktop down. No orphan go, node or python processes.
+
+### 0e.1 Waiting on the owner
+- Phase W: run b03–b12 and b14 now (11 batches, roughly 1.5–2M output tokens), or just before Phase
+  W builds? Relaunch `plans-continue.js` with `{"workBatches":[...]}` either way; done ones skip.
+- Phase W b01: is the Design lens in Phase W at all? Default taken: build the link (81b, 96b, ~7 h).
+- Step 19, phase 2's end-to-end re-run, needs the machine for about an hour with nobody on it.
 
 ## 1. What was running at shutdown (7 workflows)
 
