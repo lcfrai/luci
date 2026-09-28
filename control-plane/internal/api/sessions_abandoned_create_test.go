@@ -12,6 +12,7 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
 )
 
@@ -150,6 +151,42 @@ func TestCreateFinishesAfterTheCockpitGivesUpOnIt(t *testing.T) {
 	}
 	if sessions[0].Endpoint == "" {
 		t.Error("the record carries no endpoint: the create's second write never happened")
+	}
+}
+
+// Part 1b: the budget F1 gave the detached create is EXACTLY the grace the
+// reaper spares a create with, and until now nothing held the two together.
+// sessions.go derives one from the other — the comment on sessionCreateContext
+// says "two numbers that must agree are derived from one function rather than
+// written down twice" — but making the budget `time.Hour + CreateGraceFor(...)`
+// left this package green.
+//
+// What fails when they drift: a create still running past the grace is one the
+// reaper's rule 2 has stopped sparing, so it marks the session `exited`
+// underneath a create that is still working, and the create then finishes onto
+// a terminal record — the state the two tests in sessions_terminal_write_test.go
+// exist for.
+func TestTheCreateBudgetIsExactlyTheReapersCreateGrace(t *testing.T) {
+	t.Parallel()
+	const readyTimeout = 7 * time.Second
+	st := sessionsMustStore(t)
+	env := sessionsNewEnvOverWith(t, t.TempDir(), st, st, func(d *Deps) {
+		d.ReadyTimeout = readyTimeout
+	})
+
+	ctx, cancel := env.api.sessionCreateContext(context.Background())
+	defer cancel()
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		t.Fatal("the create context has no deadline: a create nothing bounds outlives every rule that spares it")
+	}
+	want := reaper.CreateGraceFor(readyTimeout)
+	// The clock moves between the two calls, so the budget read back can be
+	// short by a scheduling hiccup and never long by anything.
+	if got := time.Until(deadline); got > want || got < want-time.Second {
+		t.Errorf("the create budget is %v for a %v ReadyTimeout; the reaper spares such a create for %v. "+
+			"A create outliving its grace is marked exited underneath itself",
+			got, readyTimeout, want)
 	}
 }
 
