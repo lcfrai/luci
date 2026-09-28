@@ -74,7 +74,7 @@ Seven rules shape every task. A task that breaks one is wrong however good it is
    land commit, for each criterion it serves; observed evidence (a watched test run's exit code at
    the landed commit) closes it with no click. A hand-set `done` needs a one-line reason and reads
    *done, not proven*. **No sync or integration token may write a fact state or `done`**, and an
-   authorisation row plus a test pins it (05 §3.3, §3.6).
+   authorisation row plus a test pins it (05 §3.3, §3.6); 23 and 23b build the observed half.
 3. **Three homes, never mixed** (05 §3.1). A decision or accountability fact is a Hub record; a fact
    about now (who is on an issue, which files, the live line) is Fleet or control-plane state,
    derived and never stored on the issue; a preference is the desktop's. **The desktop keeps no Hub
@@ -103,7 +103,7 @@ team mode's stream B; the desktop streams sit beside its stream F and **share on
 | Stream | Tasks | Starts after | Lands in |
 |---|---|---|---|
 | **WH, Hub deltas** | 02-17 (W1), then each slice's Hub tasks | Hub task 43 merged into `feat/hub`, synced here (rule H1) | `feat/work-layer`, merged into `feat/hub` by the orchestrator |
-| **WP, phases 3 and 4** | 18-19, 21-25 | phase 4 tasks 06, 09-10, 16-17; phase 3 tasks 05, 07-09 | `feat/work-layer`, each file's owner phase wins (rule H2) |
+| **WP, phases 3 and 4** | 18-19, 21-25, 23b | phase 4 tasks 06, 09-10, 16-17; phase 3 tasks 05, 07-09 | `feat/work-layer`, each file's owner phase wins (rule H2) |
 | **WD1, look and Work lens** | 20, 26-45 | task 01; the look needs no Hub | `feat/work-layer` |
 | **WD2, issue view, keys, replica, Desk** | 46-70 | tasks 05 and 20 (the fake is enough to start; task 16 brings the real relay) | `feat/work-layer` |
 | **W1b** | 71 | task 22 and phase 7 task 19 | `feat/work-layer` |
@@ -341,14 +341,14 @@ measured.
 | Slice | Ids | Tasks | Hours | Focused days |
 |---|---|---|---|---|
 | W0 | 01 | 1 | 2 | 0.25 |
-| W1 | 02-70 | 69 | 192 | 24 |
+| W1 | 02-70, with 23b | 70 | 195 | 24.4 |
 | W1b | 71 | 1 | 3 | 0.375 |
 | W2 | 72-97, with 81b and 96b | 28 | 76.5 | 9.6 |
 | W3 | 98-113 | 16 | 46 | 5.75 |
 | W4 | 114-142 | 29 | 79.5 | 9.9 |
 | W5 | 143-174 | 32 | 91 | 11.4 |
 | WL | 175-187 | 13 | 33 | 4.1 |
-| **All** | **01-187, 81b, 96b** | **189** | **523** | **65.4** |
+| **All** | **01-187, 23b, 81b, 96b** | **190** | **526** | **65.8** |
 
 **dependsOn** names this plan's tasks by number and sibling tasks by prefix: `H` the Hub plan
 (`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:396-446`), `P3-` phase 3
@@ -372,7 +372,7 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | Seam | What is fixed | Defined in | Consumed by |
 |---|---|---|---|
 | **SW.0** | the W0 proposal: the `issue:` key case and the `c-` example | 01 | 02, 18 |
-| **SW.1** | the Work wire, W1: id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical form and golden vectors — which already carry `implements: [design:…]` (`task-02.md:264`, 04 §7.7) — every W1 type and request body | 02, 03 | 04-19, 24, 25, 37, 81b |
+| **SW.1** | the Work wire, W1: id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical form and golden vectors — which already carry `implements: [design:…]` (`task-02.md:264`, 04 §7.7) and a `serves` pair's `check`, `omitempty`, with golden vector v4 (`task-02.md:255`, `:557`) — every W1 type and request body | 02, 03 | 04-19, 23, 24, 25, 37, 81b |
 | **SW.2** | `hubclient.Work` (W1 methods), `NewFake()`'s Work rules, the relay paths `/v1/hub/work/*` | 04, 05, 16 | 19, 21-25, 37, 55, 98 |
 | **SW.3** | who may write what: the authorisation rows and the guards (fact states, `done`, the sync principal) | 07 | 10, 22, 23, 99, 145, 150, 159 |
 | **SW.4** | the state move: `StateMove{to, cause, reason}`, the done rule's inputs and its result words | 10 | 22, 23, 48, 63-65, 71, 81b |
@@ -422,6 +422,7 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 21 | phase 3 delta: the `Panacea-Issue` trailer; the lane index names its issue; AU-only branch names | W1 | 0.375 (3 h) | 19; P3-05, P3-07, P3-08 | SW.9 |
 | 22 | phase 3 delta: the `started`, `in_review` and `landed` fact moves, written as the person | W1 | 0.375 (3 h) | 05, 21; P3-09 | SW.4 |
 | 23 | phase 3 delta: the done evaluator; observed evidence at the landed commit; *self-attested* | W1 | 0.375 (3 h) | 22; P3-15 | SW.4 |
+| 23b | the product `CheckRunner`: one bounded command in a check sandbox, exit code only | W1 | 0.375 (3 h) | 23; P3-24 | — |
 | 24 | control plane: Start from an issue, *Undo Start*, the data-class route | W1 | 0.375 (3 h) | 16, 19, 21 | SW.10 |
 | 25 | control plane: the Linear public-API and CSV import adapters | W1 | 0.375 (3 h) | 15, 16 | SW.6 |
 | 26 | tokens: 02 D2 step 1, `--t-fact`, the provisional `paper` block | W1 | 0.25 (2 h) | — | SW.11 |
@@ -485,7 +486,7 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 79 | estimates, due dates, rank, move with redirect, the resolved-blocker rule | W2 | 0.3 (2.5 h) | 74 | — |
 | 80 | views `vw-`, drafts `df-`, https links and the read-only page, CSV export | W2 | 0.375 (3 h) | 74 | — |
 | 81 | the digest builder and the outbound mail seam | W2 | 0.3 (2.5 h) | 13, 74 | — |
-| 81b | `implements`: the write and read paths, and the design approval that closes a design issue (04 §7.7) | W2 | 0.375 (3 h) | 10, 23, 74; P5-21 | SW.1, SW.4 |
+| 81b | `implements`: the write and read paths, and the design approval that closes a design issue (04 §7.7) | W2 | 0.5 (4 h) | 10, 23, 74; H22; P5-21 | SW.1, SW.4 |
 | 82 | `hubclient`'s W2 methods over HTTP, the relay rows, W2's Hub end to end | W2 | 0.375 (3 h) | 73, 75-81, 81b | SW.18 |
 | 83 | desktop W2 wire types and replica kinds | W2 | 0.3 (2.5 h) | 55, 73 | — |
 | 84 | custom states in team settings and on the row | W2 | 0.25 (2 h) | 83 | — |
@@ -501,7 +502,7 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 94 | the digest, defer with a reason (`H`), CSV export | W2 | 0.3 (2.5 h) | 65, 81 | — |
 | 95 | themes, part 1: `tokens.gen.ts` from three LCH seeds; `graphite` and `paper` generated (02 D2 step 5) | W2 | 0.375 (3 h) | 33 | SW.11 |
 | 96 | themes, part 2: the high-contrast pair; personal preferences | W2 | 0.3 (2.5 h) | 95 | — |
-| 96b | the Design lens's issue list; *implements* on the issue view | W2 | 0.25 (2 h) | 83, 81b; P5-27, P5-28 | SW.14, SW.16 |
+| 96b | the Design lens's issue list; *implements* on the issue view | W2 | 0.375 (3 h) | 83, 81b; P5-27, P5-28 | SW.14, SW.16 |
 | 97 | W2's proof and results | W2 | 0.3 (2.5 h) | 72-96, 81b, 96b | — |
 
 ### W3: agents on the work (ships with Phase T's TM1)
@@ -629,7 +630,7 @@ disagree, the row's id, dependsOn and seams win and the scope is corrected.
 | Scope file | Ids | Slices |
 |---|---|---|
 | `tasks-01-20.md` | 01-20 | W0, W1 (the Hub, phase 4 deltas, the test kit) |
-| `tasks-21-40.md` | 21-40 | W1 (phase 3 deltas, Start, import, the look, the Work lens) |
+| `tasks-21-40.md` | 21-40, 23b | W1 (phase 3 deltas, Start, import, the look, the Work lens) |
 | `tasks-41-60.md` | 41-60 | W1 (the lens, Triage, the issue view, the editor, keys, the replica, peek) |
 | `tasks-61-80.md` | 61-80 | W1, W1b, W2 (Start on the desktop, the Desk, the demo, *shipped*, W2's Hub) |
 | `tasks-81-100.md` | 81-100, 81b, 96b | W2, W3 (W2's Hub and desktop, W2's proof, W3's Hub) |

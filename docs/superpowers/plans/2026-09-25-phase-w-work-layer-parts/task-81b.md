@@ -28,8 +28,13 @@ yourself editing `workcanonical.go`, stop: you have misread the task.
 constant, `design_approved`, and one row in task 10's `MoveAllowed` table. That is an *added
 constant*, which the WS0 rule (skeleton `:366`) permits without reopening task 05 — but it is
 visible in three more places, and this task changes all three: task 04's fake (`task-04.md:876`,
-`:1009`, the two cause switches), task 03's `MoveCauses` list (`task-03.md:220`) and task 28's glyph
-set, which needs a word for the cause. The golden vectors' bytes do not move: no example carries
+`:1009`, the two cause switches), task 03's `MoveCauses` list (`task-03.md:220`, appended in
+`init()` — decision 6) and the **desktop's cause vocabulary**, which 96b widens: `task-37.md:99-100`'s
+closed `MoveCause` union and `task-41.md:260-267`'s `PHRASE` map, exhaustive over that union and
+read at `:274` as `PHRASE[move.cause](move)`, so the file does not compile until `design_approved`
+has a phrase. **Not task 28's glyph set** — `GlyphKey = IssueState | "done_not_proven"`
+(`task-28.md:104`) is keyed on state and priority, never on cause, so round 2's instruction to give
+it a word could not be carried out. The golden vectors' bytes do not move: no example carries
 this cause, and `StateMove.cause` is a string either way. If a reviewer reads *"one more cause"* as
 an SW.4 reopening, the answer is that SW.4 is the done **rule**, and the rule is untouched — see
 decision 2.
@@ -60,28 +65,74 @@ point at. A frame is a locator inside the revision. **Do not invent a second key
    and the phase 5 plan contains the string *criteri* **zero** times — a canvas revision does not
    record what it serves. So the only way to close by evidence is to *invent* citations, which is
    fabricating proof, the exact thing `OD-27` forbids. **Instead the approval does what a land
-   trailer does:** it moves the issue to `landed` with the new cause `design_approved`, and task
-   10's existing rule 6 then decides the word with no change at all —
-   - the issue serves no criterion (a `notTiedReason` design chore): task 10 rule 6's `no_criteria`
-     branch lands it **at `done` in the same write**, unless the team's `stopAtLandedWithoutServes`
-     holds it at `landed` (`task-10.md:52`, `TestNoCriteriaLandsAtDone` at `:462`). *This is the
-     case 04 §7.7 means by "a design approval can close a design issue", and it closes.*
-   - the issue serves criteria: it sits at `landed` with `proof: waiting` until each criterion gets
-     its own evidence (task 10 rule 5). The approval got the design in; it did not prove the brief.
+   trailer does — and only as far as a land trailer's own `no_criteria` shortcut already reaches:**
+   it moves the issue with the new cause `design_approved`, task 10's existing rule 6 decides the
+   word with no change at all, and it moves **only an issue whose current revision serves nothing**.
+   - **`serves: []`, a `notTiedReason` design chore.** Rule 6's `no_criteria` branch closes it **at
+     `done` in the same write**, unless the team's `stopAtLandedWithoutServes` holds it at `landed`
+     (`task-10.md:51-52`, `TestNoCriteriaLandsAtDone` at `:462`). *This is the case 04 §7.7 means by
+     "a design approval can close a design issue", and it is the only case that closes.*
+   - **`serves` non-empty: the approval moves no state at all.** Round 2 of this part had such an
+     issue sit at `landed` with `proof: waiting`; that state is unreachable, and the reason is
+     pinned here so nobody re-derives it. (a) Task 10 rule 7 makes the real merge's later
+     `land_trailer` **at a different commit** a 409 `state_conflict` on an already-`landed` issue
+     (`task-10.md:56-60`, enforced at `:413-416`) — a design landing would lock the Merge lens out
+     until a human reopened the issue. (b) `issue_proof_citations.land_commit` is `NOT NULL` 40-hex
+     (`task-10.md:137`) and rule 3 requires the evidence's commit to equal the land commit
+     (`task-10.md:29-35`), so a `waiting` with no land commit is terminal, not waiting. So the
+     approval writes its `DesignLanding` record, its `issue_implements` rows and its event; the
+     state stays where it is; and **the Merge lens still owns the close, unchanged**. The approval
+     got the design in — it did not prove the brief, and it does not pretend to.
 
-   Consequences, all of them wanted: no seventh `ProofWord` (the words are the existing
-   `no_criteria` and `waiting`); no synthesised `Cited` row; no "design criterion" class to invent;
-   and a mixed issue cannot close early because nothing about it changed.
+   **This is a ruling, declared not inherited (rule 8).** Round 1 ruled *an approval is a landing*;
+   that is kept for the design chore and withdrawn for the mixed issue, because the two consequences
+   above are task 10 rules, not preferences, and the alternatives — a tenth `design_landed` state,
+   or a carve-out in task 10 rules 3 and 7 — both reopen SW.4 for a case that no acceptance
+   criterion asks for. The narrow form reopens nothing.
+
+   Consequences, all of them wanted: no seventh `ProofWord` (the word is the existing
+   `no_criteria`); no synthesised `Cited` row; no "design criterion" class to invent; no second
+   landing to conflict with; and a mixed issue cannot close early because nothing about it moved.
 3. **`landCommit` stays `""`, and that empty string is the signal.** A design landing has no commit.
    `IssueHead.landCommit` is `""` and `state` is `landed` or `done` — **the pair
    (`landed`-or-beyond, `landCommit == ""`, a non-empty `implements`) is exactly a design-approved
    issue**, which is what 96b renders and what the `landCommit` field's *"`""` before landed"*
-   comment must be widened to say. No new field carries this. The move is written **as the
+   comment must be widened to say. No new field carries this. **And no `issue_proofs` landing row is
+   written by this path at all**: `issue_proofs_landed_together` requires `land_commit`, `landed_at`
+   and `landed_by` to be all-NULL or all-set (`task-10.md:123-124`), and a design close has no
+   commit, so writing the approver there is a `23514` the store does not map. The approver is
+   attributed on the **move event's `who`** — which is what the fact line renders — and nowhere
+   else; test 3 asserts exactly that and not an `issue_proofs` row. The move is written **as the
    approver**: only a human approves, and only through the chrome (`P5:115-117`, ADR-H1 R5), so
    rule 2 holds unbroken — no sync or integration principal reaches this path, and no reason string
    is required because the cause is not `hand`.
 4. **The index is derived, never authoritative.** `issue_implements` is a reverse index over the
    revisions; it is rebuildable from them, and the rebuild is a test, not an operator procedure.
+5. **The database guard is replaced too, and it is what pins decision 2's narrow form.** The plan
+   keeps two legality tables on purpose (SW.3): the Go `MoveAllowed` and the SQL
+   `guard_issue_state()`. Widening one is a 422 on the other. Task 74's W2 section therefore carries
+   task 10's function body line for line (`task-10.md:185-199`) with two arms widened, exactly as
+   task 145 does for task 144's causes (`task-145.md:441-449`):
+   `WHEN 'landed' THEN v_cause = 'land_trailer' OR (v_cause = 'design_approved' AND NOT v_serves)`
+   and, on the `done` arm, a third `OR (v_cause = 'design_approved' AND NOT v_serves)` beside the
+   existing `land_trailer` shortcut. **Both are gated on `NOT v_serves`**, so an issue that serves
+   a criterion cannot be moved by this cause even by a caller that ignores decision 2 — the database
+   is the pin, not the prose. Two consequences this task also owns: `task-07.md:70-71`'s published
+   set `hub.work_cause ∈ {six causes}` becomes seven; and `TestEachFactHasItsOneCause`
+   (`task-07.md:512`) says *"for each of `started`, `in_review`, `landed`: its cause → ok; each of
+   the other five causes → `42501`"*, which now asserts the opposite of acceptance (a) — its
+   `landed` row gains *"…except `design_approved` on a head that serves nothing"*, its "other five"
+   becomes "other six", and a new row `TestDesignApprovedOnlyWithoutServes` (cause `design_approved`
+   into `landed` and into `done`: head serves nothing → ok; head serves one criterion → `42501`)
+   sits beside `TestLandTrailerLandsAtDoneOnlyWithoutServes` (`task-07.md:513`), which it mirrors.
+   Task 07 forbids a later task *loosening* a rule its tests pin (`task-07.md:93-95`); this widens a
+   published set and rewrites the row that states it, in the open, which is the same thing task 145
+   was allowed to do.
+6. **The cause is appended in `init()`, not in the declaration.** `task-144.md:185` is the plan's
+   precedent and its reason: task 03's `MoveCauses` line stays untouched, so no W2 commit rewrites a
+   W1 declaration. The one thing that pattern does **not** carry is the count — `task-03.md:807`
+   pins `want["MoveCauses"]: 6` in `TestWorkValueListsAreSets`, and an unnamed append turns task 03's
+   suite red on a W2 commit. This task names it: 6 → 7.
 
 **Files:**
 
@@ -98,13 +149,20 @@ point at. A frame is a locator inside the revision. **Do not invent a second key
 - `control-plane/internal/hub/store/work_revisions.go` ⚑ (task 09's file): the revision write fills
   the index; restore (task 09's path) fills it too, which is decision 4's second test
 - `control-plane/internal/hub/hubapi/work_states.go` ⚑ (task 10's file, where `MoveAllowed` and
-  `DecideProof` live): **one** new case arm, and nothing else —
+  `DecideProof` live): **one** new case arm, and nothing else, mirroring `CauseLandTrailer` at
+  `task-10.md:277-279` —
   `case CauseDesignApproved: ok = to == StateLanded && in(from, StateTriage, StateBacklog,
-  StateTodo, StateStarted, StateInReview, StateLanded)`. It ends at `landed`, never at `done`, so no
-  existing arm is loosened and `DecideProof` is not edited at all. Terminal states
-  (`done`, `cancelled`, `duplicate`) are absent on purpose: a closed issue is not re-landed.
+  StateTodo, StateStarted, StateInReview)`. It ends at `landed`, never at `done`, so no
+  existing arm is loosened and `DecideProof` is not edited at all. `landed` and the terminal states
+  (`done`, `cancelled`, `duplicate`) are absent from `from` on purpose, and unlike the land-trailer
+  arm there is no same-commit repeat to admit: a landed or closed issue is not re-landed by an
+  approval, and a second approval of the same key is a 200 no-op above this table.
 - `control-plane/internal/hub/hubapi/work.go` ⚑ again: `CauseDesignApproved StateCause =
-  "design_approved"`, appended to `MoveCauses` (`task-03.md:220`)
+  "design_approved"`, appended in **`func init() { MoveCauses = append(MoveCauses,
+  CauseDesignApproved) }`** — task 144's pattern at `task-144.md:185`, which keeps task 03's
+  declaration at `task-03.md:220` untouched. `task-03.md:807`'s `want["MoveCauses"]` goes **6 → 7**
+  in `TestWorkValueListsAreSets`; this task edits that number, and task 144's three outside causes
+  count up from 7.
 - `control-plane/internal/hub/server/work_states.go` ⚑ (task 10's server half): the `landed` write
   accepts the new cause and leaves `land_commit` NULL; the `no_criteria` branch and the
   `stopAtLandedWithoutServes` switch run exactly as they do for a land trailer, uncopied
@@ -120,7 +178,13 @@ point at. A frame is a locator inside the revision. **Do not invent a second key
 - `control-plane/internal/hub/migrate/sql/NNNN_work_w2.sql` ⚑ (task 74's file, a section appended
   before it is applied anywhere shared; the next free number instead if 74 has merged, rule H1):
   `issue_implements(issue_id, revision, design_key, canvas_id, canvas_rev)`, its RLS, its grants,
-  and the named constraint `issue_implements_key_form`
+  the named constraint `issue_implements_key_form`, **and a `CREATE OR REPLACE FUNCTION
+  guard_issue_state()` block** — decision 5, task 145's precedent at `task-145.md:441-449`. Without
+  it the Go table admits the move and the database refuses it: the guard live after task 10
+  (`task-10.md:185-199`) reads `WHEN 'landed' THEN v_cause = 'land_trailer'`, so `design_approved`
+  raises `42501` → `ErrStateGuard` → 422 `state_not_allowed` on the only hop this task exists for.
+- `control-plane/internal/hub/migrate/work_guards_integration_test.go` ⚑ (task 07's file,
+  `task-07.md:61`, table at `:502-520`): the two test rows decision 5 names
 - `control-plane/internal/hub/server/matrix_integration_test.go` ⚑: one authorisation-matrix row
   per new route, including the row that proves the sync principal is refused
 - `control-plane/internal/api/work.go` ⚑ (task 16's relay): the read route, passed through
@@ -151,14 +215,19 @@ not touch it, and the skeleton's delta row says so.
 
 1. An approval at `@12` leaves an issue implementing `@11` open. *Mutant:* matching on `canvas_id`
    closes it.
-2. An issue serving **one criterion with no evidence** is `landed`, `proof: waiting`,
-   `landCommit: ""` after the approval — not `done`. A second test: the same issue with
+2. An issue serving **one criterion with no evidence** is **unmoved** by the approval: the state it
+   was in before, `proof: ""`, `landCommit: ""`, its `issue_implements` row written and its event
+   appended. A forced move with cause `design_approved` on that head is `42501` at the guard →
+   422 `state_not_allowed` (decision 5). A second test: the same issue with
    `serves: []` and `notTiedReason: "chore"` is `done`, `no_criteria`, in the same write; and with
-   the team's `stopAtLandedWithoutServes` on it stops at `landed`. *Mutant:* the approval closes the
-   issue whatever it serves — i.e. fabricated proof.
+   the team's `stopAtLandedWithoutServes` on it stops at `landed`. *Mutants:* the approval closes
+   the issue whatever it serves — i.e. fabricated proof; and the approval lands it at `landed` with
+   `waiting`, which locks the Merge lens out of its own close (decision 2).
 2b. `DecideProof` is byte-identical to task 10's. *Mutant:* a `design_approval` branch inside it.
-3. The close is attributed to the approver, and appends exactly one event and one state fact.
-   *Mutant:* attributed to the Hub, or to the sync principal.
+3. The close is attributed to the approver on the **event's `who`**, appends exactly one event and
+   one state fact, and writes **no `issue_proofs` landing row** (decision 3: the row's
+   `landed_together` constraint cannot hold without a commit). *Mutant:* attributed to the Hub or to
+   the sync principal; or an `issue_proofs` row with a NULL `land_commit`, which is a `23514`.
 4. The sync principal calling the approval path is refused by the authorisation row, not by a
    handler check. *Mutant:* the guard lives in one handler and the next route forgets it.
 5. A revision whose `implements` names a `brief:` key, a bare `cv-…`, or a canvas with no revision
@@ -171,8 +240,9 @@ not touch it, and the skeleton's delta row says so.
 **Acceptance, per criterion (`OD-27`, no predictions).** (a) An issue whose revision implements an
 approved canvas revision and serves **no** criterion reads `done`, `no_criteria`, `landCommit: ""`
 with no click; the same issue under `stopAtLandedWithoutServes` reads `landed`. (a2) An issue that
-serves a criterion reads `landed`, `waiting` — the design is in, the brief is not proven, and the
-Merge lens still owns the close. (b) No proof word outside task 10's six is ever written, and
+serves a criterion is in the same state after the approval as before it, with its `implements` row
+written and its approval event appended — the design is in, the brief is not proven, and the Merge
+lens closes it later with no reopen in the way. (b) No proof word outside task 10's six is written, and
 `DecideProof`'s source is unchanged. (c) The reverse read returns the issues of a
 canvas and nothing else. (d) No percentage, bar, ETA or "N of M" figure is produced by any of it.
 
