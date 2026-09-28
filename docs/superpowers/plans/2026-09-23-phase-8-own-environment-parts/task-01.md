@@ -7,14 +7,14 @@ the pool belongs in our own cluster (survey §3.1, `:342-344`). This task retire
 in its place the skeleton every later OpenTofu task writes into, plus the two scripts that make
 the rules mechanical rather than remembered.
 
-**Verified before this plan was written (2026-09-23, scratch directory, not this repo):**
-`tofu init -backend=false` downloads `hashicorp/azurerm` 4.81.0, `hashicorp/azuread` 3.9.0
-and `azure/azapi` 2.12.0 through the corporate network; and `tofu test` with
+**Verified before this plan was written (2026-09-23, scratch directory, not this repo), on Terraform 1.15.8 — the build laptop's engine that day (plan P8-D14, `:145`), before OD-32 — so this probe record keeps the binary it ran on:**
+`terraform init -backend=false` downloads `hashicorp/azurerm` 4.81.0, `hashicorp/azuread` 3.9.0
+and `azure/azapi` 2.12.0 from `registry.terraform.io` through the corporate network; and `terraform test` with
 `mock_provider "azurerm" {}` / `mock_provider "azuread" {}` passes a `command = plan` run, an
 `expect_failures = [var.name]` run and a `command = apply` run **with no Azure credential** — the
 basis for every OpenTofu test in this plan. The three runs took about **100 seconds** on the build
 laptop (provider start-up dominates), so `validate.sh` takes one directory at a time and a caller
-runs it per directory, in the background when a directory has many runs.
+runs it per directory, in the background when a directory has many runs. **UNVERIFIED under OpenTofu 1.12.6**, because no `tofu` binary has run on this host: that `tofu test` passes the same three runs in about the same time, and that the corporate proxy passes `registry.opentofu.org`, the host `tofu init` fetches from instead — an open risk (plan `:177-179`, `:737`). The first `validate.sh` run settles both: record what it prints, and how long it takes.
 
 **Files:**
 - `infra/terraform/kata.tf`, `providers.tf`, `variables.tf`, `dev.tfvars`, `.terraform.lock.hcl` — deleted with `git rm` (the pool is re-written in `modules/aks`, task 06)

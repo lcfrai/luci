@@ -174,9 +174,9 @@ message over this plan's first piece.
 `tofu fmt`, `tofu init -backend=false -input=false`, `tofu validate` and
 `tofu test` against mock providers, run by `infra/scripts/validate.sh`, plus one by-hand
 `tofu graph` in task 07 (configuration only: no backend, no credentials; review m8). Tasks 30–32 describe Azure-touching steps as **runbooks** and scripts
-that are written, linted and **not run**. Provider downloads from `registry.terraform.io` work from
-the build laptop (`tofu init -backend=false` in a scratch directory, 2026-09-23); if the proxy
-ever breaks them, stop — do not hand-edit a lock file.
+that are written, linted and **not run**. Provider downloads from `registry.terraform.io` worked from
+the build laptop (`terraform init -backend=false`, Terraform 1.15.8, in a scratch directory, 2026-09-23, before OD-32: a probe record keeps the binary it ran on). That is no evidence for `tofu`, which fetches from `registry.opentofu.org`: whether the KPMG proxy passes that host is **unknown**, an open risk (`:737`) and the first thing a workstation `validate.sh` will hit. If the proxy blocks it, or
+ever breaks provider downloads, stop — do not hand-edit a lock file.
 
 **OpenTofu style.** No `terraform.tfvars` anywhere (auto-loaded files are how Panacea pointed a bare
 `apply` at production, survey §1.1 `:46-51`). Only `<env>.tfvars`, holding no subscription id,
@@ -734,4 +734,5 @@ for the same code locations, each cited to `file:line` in its part.
   rail's machine states — stays unverified until the batched hands-on session (OD-12).
 - **Training-knowledge facts**, each flagged where used: the GA RuntimeClass name, the ingress-nginx
   retirement, Managed DevOps Pools' availability in KPMG's ADO organisation.
+- **That OpenTofu reaches its registry (OD-32).** Every provider download and test timing quoted here was taken on Terraform 1.15.8, which fetched from `registry.terraform.io` (task 01 `:10-17`, and `:177-179` above). `tofu` fetches from `registry.opentofu.org`, and whether the KPMG proxy passes that host is **unknown**: it is the first thing a workstation `validate.sh` will hit, and the CI pool reaches it only because task 07 `:77` allowlists it. No `tofu` binary has run on this host.
 
