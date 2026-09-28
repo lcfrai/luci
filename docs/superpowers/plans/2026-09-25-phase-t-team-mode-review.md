@@ -4001,3 +4001,114 @@ listed above.
 `h.keysmith.mints()` and `h.cache.reset()` accessors are named here for the first time and must be
 added with the harness. S02-M19 (distinct error codes for a Hub outage versus a wrong owner) is
 **not** in this batch: every refusal here is still `ErrDelegation` → `401 delegation_expired`.
+
+## Fix batch b02, round 3 (2026-09-29): re-review b02-2's Critical, and what re-checking found
+
+Read at `2911e0cd`. Commits `763c3054` (C1), `f8d36f16` (citations), `be180b32` (N1), `a1057bda`
+(N2), and this record. Scope as set: C1 only, with I1, I2 and the Minors carried. Three carried
+items sat on lines C1's edit rewrote, so they were corrected there, since no line is rewritten
+with a citation already known to be wrong. Re-checking S02-C2 and S02-C5 end to end then found
+three defects neither re-review named, all in b02's own work. Each is fixed and declared below,
+so the round-3 re-review can check it. Line numbers are `a1057bda`'s; grep the quoted phrase.
+
+### C1 — route 88 resolved no caller, so Fleet was 401 before `getPrincipal` ran
+
+| Change | File:line |
+|---|---|
+| Files entry: **five** deltas in task 05's `auth.go` and `delegation.go`; delta 2 says each exempt route sets its own flag; delta 5 is `Claims.PrincipalRead` and its arm | `parts/task-06.md:73-91`, from *"**five** deltas"*; `:78-81`; `:88-91` |
+| Hunk (3)'s exempt case sets `FleetFeed` and `PrincipalRead` | `parts/task-06.md:857-858`, from *"exactly one flag is set"* |
+| Hunk (5), `resolveCaller`'s fourth arm: the org of Fleet's `tid`, no user, **no `Via`** | `parts/task-06.md:882-891`, from *"(5) resolveCaller: route 88"* |
+| The sixth `Claims` field explained; `userKey` gains `fleet/principals`; `TestPrincipalReadResolvesACaller` and one `TestUserKeyIsPerDelegation` row, with their mutants | `parts/task-06.md:900-911`, from *"is the sixth"* |
+| Acceptance item 7 names the test; gap 1a says five and why the fifth exists | `parts/task-06.md:1063-1065`; `:1109-1116` |
+| Task 05's `Claims` comment states the rule C1 broke (each flag needs its own `resolveCaller` arm), amending `:243-246` as the finding asked | `parts/task-05.md:243-247`, from *"set only when AppOnly and no flag"* |
+| Task 05's ownership paragraph: five deltas, route 88's flag, both ranges re-derived | `parts/task-05.md:46`, `:48-57` |
+| Skeleton: the task table row and task 06's paragraph say five | `2026-09-25-phase-t-team-mode.md:326`, `:531-536` |
+
+**Ruling, declared: route 88's principal carries no `Via`.** The re-review sketched the feed's
+principal, `Via: hubapi.ViaFleet`. That is safe on the feed only because the feed writes no event
+(`parts/task-05.md:451-453`). Route 88 writes `principal.read`, a v1 event (`parts/task-01.md:699-700`),
+and `check()` refuses a `via` with no `delegationId` (`parts/task-03.md:1398`), so a `ViaFleet`
+principal would turn every principal read into a 500 once its event is written (N1). The rest of
+the arm is the re-review's: `store.FleetOrg` on the token's tenant, and a bucket of its own.
+
+**Also on route 88, fixed with C1**, because the text around the arm described the route wrongly:
+- The registration comment named `RequireFleetNoDelegation`, which exists nowhere, and said a
+  desktop token never reaches the handler. It does, and `getPrincipal` answers it 403
+  (`parts/task-06.md:748-751`).
+- The handler paragraph said `delegationHeader` cannot 400 a header on an exempt path. Hunk (3)'s
+  exempt case does exactly that, first (`parts/task-06.md:779-780`).
+- Step 7 never `git add`ed route 87's or route 88's new files, and `cmd/hub` sat outside the
+  pathspec, so a literal commit left both handlers and their stores on disk and off the branch
+  (`parts/task-06.md:1026-1038`, from *"The b01 and b02 files are named here too"*).
+
+### Carried items closed in passing, because C1 rewrote their lines
+
+| Re-review b02-2 item | Change | File:line |
+|---|---|---|
+| I2: three task 05 cites in the Files entry, one bolded **verified** | `AppCallers` is `task-05.md:166-175`, the one-caller configuration `:626-635`; the bold claim is gone | `parts/task-06.md:90-91`; task 05's own `(:622)` at `parts/task-05.md:49` |
+| Minor 1: the "kept unedited" range | `task-05.md:270-281` | `parts/task-06.md:824` |
+| Minor 2: the 403 cited as the 400 | `task-05.md:264-266` | `parts/task-06.md:847` |
+| Drift since round 2: route 78's 400 and row `team/principal-needs-no-delegation` | `task-08.md:305-306` and `:511` | `parts/task-06.md:851`, `parts/task-05.md:42` |
+
+**Still carried:** I1, since the b02 section's own tables (`:3497-3537`) keep their pre-round-1
+numbers (the rows above supersede them for C1's sites), and Minor 3 (repair gaps 3 and 4, which
+pre-date b02).
+
+### Found re-checking S02-C2 and S02-C5, and fixed (not in either re-review)
+
+1. **N2 (Critical, the same shape as C1): every gate case read `Claims.AppRole`, and nothing set
+   it.** Task 05's `appCaller` answers a bool, `entra.Claims` has only `AppOnly`, and task 06's
+   Files entry said `entra.go` did not change. Built literally, `AppRole` is `""` for every
+   app-only token, and hunk (3)'s third-role arm answers Fleet 403 on every route, the feed and
+   route 88 included. Fix: hunk (1). `entra.Claims.AppRole` is the `Role` of the `AppCaller` that
+   admitted the token, found by `azp`. `appCaller` returns it, and `Authenticate` copies it beside
+   `AppOnly`. It is never read off the token's `roles`: an Entra admin can grant one registration
+   both roles, and then the broker would be Fleet. `New` refuses two callers with one client id.
+   Test `TestAppRoleIsTheAdmittingCallers`; acceptance item 8. At `parts/task-06.md:76-77` and
+   `:92` (the Files entry), `:814-817` (the gate paragraph, four hunks), `:930-977` (from *"Where
+   `Claims.AppRole` comes from"*) and `:1071-1073`; task 05's range for the gate section is now
+   `task-06.md:813-977` (`parts/task-05.md:53`).
+2. **N1 (Important): the two audited reads were never audited.** `getPrincipal` and the broker's
+   branch of `getDelegation` ran under `s.Read` and emitted `principal.read` and
+   `delegation.read_by_broker`. Hub task 14's `Read` appends no event of `fn`'s (Hub
+   `task-14.md:65-66`, `:77-80`), so neither row was ever written, though task 01 audits both as
+   the cause every Fleet and broker act cites (`parts/task-01.md:694-696`). Fix: both run under
+   `Write`, as the Hub's own audited read, route 44, does (Hub `task-27.md:27-29`). That is
+   `getPrincipal` always and `getDelegation` for the broker only. Tests `TestPrincipalReadIsAudited`
+   and `TestBrokerReadIsAudited`; acceptance items 7 and 8. At `parts/task-06.md:776-777`,
+   `:787-788`, `:800-802` and `:913-928` (from *"The audited reads run under `Write`"*), plus
+   `:1068-1070` and `:1071-1073`. **Ruling, declared:** `principal.read`'s `actorUserId` is `""`,
+   as the broker event's is, not "the user asked about". `auditRow` takes the actor from `tx.P`,
+   which here holds no user, and that user did not act, so recording them as its actor would put
+   an act in their name. They stay the event's subject, and Fleet is still never the actor
+   (`parts/task-01.md:696-699`).
+3. **N3 (Important, citations): b02 moved task 05 down 18 lines, and 24 inbound citations never
+   followed.** b02's first pass and rounds 1 and 2 inserted 18 lines at `task-05.md:37-57` (22 by
+   `:875`). Twenty-four citations written before b02 (at `76ea0754`) still named the old lines. For
+   example, task 05 decision (d) was cited as `:49-53`, which is now the "`AppOnly` means Fleet"
+   paragraph. They were re-anchored by script, which diffed `76ea0754` against the tree over every
+   equal block, and each target was re-read by content: task 06 at `:25`, `:120-122`, `:569` and
+   `:742` (8 cites; the wrapped `:122` by hand); task 07 at `:44`, `:57`, `:445` and `:534` (6);
+   task 66 at `:1084`, `:1090`, `:1092`, `:1121`, `:1141`, `:1172`, `:1203` and `:1216` (8); task 68
+   at `:595` and `:611` (2). The script skipped lines rewritten after `76ea0754`.
+
+### Found, recorded, NOT fixed (not b02's, or not a defect)
+
+- `parts/task-05.md:138` cites `task-06.md:82` for `AgentOwnedBy`'s signature. The signature is at
+  `:119`, and b01's and b02's inserts moved it.
+- `parts/task-14.md:84` and `:845`, and this review's `:3776`, cite `task-01.md:699-700`/`:700`
+  for route 88's "second and last" exemption. Those lines are §8's "Neither is `v: 2`"; the phrase
+  is at `task-01.md:348` and `:592`. The cites are b04's.
+- This review's own eight pre-b02 cites into task 05 (`:686`, `:715`, `:720`, `:3142`, `:3433`)
+  record past findings and are left as written.
+- No test pins `isPrincipalPath`'s exactness as `TestIsFeedPathIsExact` pins the feed's. It is
+  bounded in the text only (`parts/task-06.md:80-81`).
+
+**Unverified.** All of it is planned text. No code exists on `feat/team-mode` for routes 47 or
+88, `appCaller`, or Hub task 14's `Read` and `Write`, which are planned, not built. I started no
+control plane, container or image. Every edit above `parts/task-06.md:881`, and every edit in
+tasks 01, 05, 07, 66, 68 and the skeleton, is in place, so no inbound citation moved. The only
+inbound cites past `:880` are this review's `:3510` and `:3532` (`task-06.md:876-880`,
+`:881-886`), which name acceptance items 7 and 8. Those were stale before this round and now sit
+at `:1063-1070` and `:1071-1081`: that is I1, carried. So is `:3571`'s `:813-887`, now `:813-977`.
+
