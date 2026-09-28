@@ -316,41 +316,70 @@ type TeamLauncher struct {
 	RenewBefore time.Duration
 }
 
-// routesFor is the class's route set of task 01 (task-01.md:274-283), which
-// task 06's route 46 enforces. The worker set is written out; the
-// Orchestrator's is "every route name" of task 01's team table, taken from
-// task 03's hubapi constant rather than copied, so a new route cannot be
-// missing here. If task 03 names that constant differently, task 03 wins.
-func routesFor(class string) []string {
-	if class == model.ClassOrchestrator {
-		return hubapi.OrchestratorRoutes()
+// routesFor is the class's route set of task 01 (task-01.md:365-374), which
+// task 06's route 46 enforces. Neither set is copied: both come from task 03's
+// ClassRoutes map (task-03.md:410-421), so a new route name cannot go missing here,
+// and the worker set cannot drift from the Hub's. classOf is the one place a
+// Fleet model.Class becomes a hubapi.DelegationClass.
+func classOf(c string) hubapi.DelegationClass {
+	if c == model.ClassOrchestrator {
+		return hubapi.DelegationClassOrchestrator
 	}
-	return []string{"delegations.read", "tasks.read", "agents.start", "agents.end",
-		"agents.read", "leases.events", "conflicts.create", "conflicts.update",
-		"conflicts.read", "policy.read"}
+	return hubapi.DelegationClassWorker
 }
 
+func routesFor(c hubapi.DelegationClass) []hubapi.RouteName { return hubapi.ClassRoutes[c] }
+
+// EnsureOrchestratorDelegation returns the owner's live orchestrator-class
+// delegation for this project, creating one if there is none (fix batch b07,
+// S02-C7/S03-C1: it closes task 20's Gap S20-1 and task 33's E2). It is
+// per PROJECT, not per session: one Orchestrator serves every session the
+// member runs there (task 20 decision 3's partial unique index), so a second
+// launch reuses it. Idempotent on the Hub's Key (owner, project, class), so
+// two replicas racing yield one delegation and two identical answers.
+// It is NOT revoked when a session is destroyed (S03-I2 revokes the worker
+// one); it lapses at 24 h if nothing renews it, and route 9's member removal
+// revokes it with the worker one (task-44.md:327).
+func (t *TeamLauncher) EnsureOrchestratorDelegation(ctx context.Context,
+	projectID string) (hubapi.Delegation, error)
+
 // Launch is called by the create handler for a team project, in place of
-// a.backend.Create. In order: create the delegation as the user; then
-// Create on fleetbe with the Launch on ctx. A Hub failure returns the Hub's
+// a.backend.Create. In order: EnsureOrchestratorDelegation, so the owner has
+// an Orchestrator delegation before Fleet is asked for anything; then create
+// the session's own worker delegation as the user; then Create on fleetbe
+// with the Launch on ctx, carrying BOTH ids (the worker's as Delegation, the
+// orchestrator's as OrchestratorDelegation, so task 20 decision 4 does not
+// depend on task 11's cache having caught up with a delegation created
+// seconds ago). A Hub failure returns the Hub's
 // *hubclient.Error unchanged, so the handler relays the Hub's code
 // (hubclient.Code), never a Fleet one. A Fleet failure after the delegation
-// exists revokes that delegation (best effort, logged), so no live
-// delegation outlives a launch that did not happen.
+// exists revokes THE WORKER delegation (best effort, logged), so no live
+// session delegation outlives a launch that did not happen. The orchestrator
+// one is not revoked: it is per project, a second launch reuses it, and on a
+// first launch it may already have been created by a parallel one.
 func (t *TeamLauncher) Launch(ctx context.Context, projectID, class, harness string,
 	spec backend.Spec) (backend.Sandbox, hubapi.Delegation, error)
 
 // RunRenewer renews every delegation the registry holds for a live team
-// session when Now() >= ExpiresAt - RenewBefore. Signed out
+// session, AND every per-project orchestrator delegation with at least one
+// live team session on that project (b07), when Now() >= ExpiresAt -
+// RenewBefore. Both kinds arrive through the same live() set, tagged by
+// Kind, so one timer covers them and the orchestrator one cannot be
+// forgotten. Signed out
 // (hubclient.ErrSignedOut): it stops renewing and logs once; the delegation
 // then lapses at 24 h and Fleet pauses the sessions (§2.4 item 4). That is
 // the design's intent, not a failure to fix here. A revoked delegation
 // (task 06 route 48: 409 conflict) is dropped from the set and never retried.
 func (t *TeamLauncher) RunRenewer(ctx context.Context, live func() []LiveDelegation)
 
-// LiveDelegation is what the renewer needs per session.
+// LiveDelegation is what the renewer needs per session, and (b07) per
+// project for the orchestrator one. Kind is "worker" or "orchestrator";
+// for an orchestrator row SessionID is empty and ProjectID is set, and the
+// row is present only while that project has at least one live team session.
 type LiveDelegation struct {
+	Kind       string
 	SessionID  string
+	ProjectID  string
 	Delegation string
 	ExpiresAt  time.Time
 }
@@ -368,6 +397,23 @@ it, and it is useless without Fleet's workload identity), but it is a Hub record
 no use for, and phase 2's rule is that the wire carries only what the cockpit renders. The
 expiry is kept beside it as `DelegationExpiresAt`. Both are restart-safe, so a control plane
 restarted at hour 23 renews on its first tick.
+
+**Where the ORCHESTRATOR delegation is kept (b07).** Not on a session: it outlives every session
+in its project. `registry` gains a second table, `TeamDelegations`, keyed `(projectID)` with
+`{Delegation, ExpiresAt, CreatedAt}`, persisted beside the sessions file and written through the
+same store. `EnsureOrchestratorDelegation` reads it, and on a miss **or** an expiry in the past
+calls `CreateDelegation` with `Class: hubapi.DelegationClassOrchestrator` and
+`routesFor(hubapi.DelegationClassOrchestrator)`, then writes the row. A stale row whose delegation
+the Hub has revoked (route 47 answers 404/409) is deleted and re-created once, so a member removed
+and re-added is not stuck on a dead id. This is restart-safe for the same reason the session one
+is, and it is why a second launch makes no Hub call.
+
+**How Fleet learns it.** `CreateAgentRequest` gains `OrchestratorDelegation string` (task 20's
+`CreateAgentRequest`, `task-20.md:166-170`, is the consumer). Task 20 decision 4 uses that id when
+it is set, and falls back to task 11's cache lookup when it is not (a non-team or replayed
+request), so an Orchestrator is created on the member's **first** launch rather than on the first
+launch after the change feed catches up. Fleet still re-reads the delegation from the Hub before
+using it (S02-C6's owner/project/class check), so the field is a hint, never an authority.
 
 **The mode, read and written (fix batch b01, X-C1; was a gap).** The field is task 03's
 `hubapi.Project.Mode` (Block 7; `hubapi/types.go:140-147` has none today, checked), and its one
@@ -429,7 +475,12 @@ every owner, the Orchestrator task 20 would create.
 | `TestLaunchCreatesDelegationThenAgent` | call order: `CreateDelegation` then Fleet `POST …/agents`; the agent body's `delegation` is the returned `dl-…` | calling Fleet first, or with a stale id |
 | `TestLaunchHubDownRelaysHubCode` | `CreateDelegation` returning `&hubclient.Error{Status: 503, Problem: {Error: "upstream_unavailable"}}` makes the handler answer **503 with the Hub's code**, and Fleet got no request | wrapping every failure as `backend_unavailable` |
 | `TestLaunchFleetFailRevokes` | Fleet `409 already_exists` after a created delegation calls `RevokeDelegation(dl)` once | a live delegation for a launch that never happened |
-| `TestWorkerAsksWorkerRoutes` | a worker launch's `CreateDelegationRequest.Routes` equals task 01's ten-name worker set exactly, and contains no `messages.*`, `directives.*` or `escalations.*` name | a worker delegation that can reach the cross-user channel (OD-16) |
+| `TestWorkerAsksWorkerRoutes` | a worker launch's `CreateDelegationRequest.Routes` equals `hubapi.ClassRoutes[hubapi.DelegationClassWorker]` exactly, and contains no `messages.*`, `directives.*` or `escalations.*` name | a worker delegation that can reach the cross-user channel (OD-16) |
+| `TestFirstLaunchCreatesOrchestratorDelegation` (b07) | on a team project with an empty `TeamDelegations`: **two** `CreateDelegation` calls in order, `orchestrator` then `worker`; the orchestrator's `Routes` equals `hubapi.ClassRoutes[hubapi.DelegationClassOrchestrator]`; the `CreateAgentRequest` carries both ids | the worker-only create of S02-C7/S03-C1, which leaves TM1-α with no Orchestrator |
+| `TestSecondLaunchReusesIt` (b07) | a second launch on the same project with a live row: **one** `CreateDelegation` call (the worker's), and the same `OrchestratorDelegation` id on the request | a fresh orchestrator delegation per launch, which task 20 decision 3's unique index then fights |
+| `TestExpiredOrchestratorRowIsReplaced` (b07) | a `TeamDelegations` row with `ExpiresAt` in the past → one orchestrator create, the row overwritten; a row the Hub answers 404 for → deleted and re-created **once**, not in a loop | a stale id used for ever, so every launch answers `awaiting-delegation` |
+| `TestRenewerRenewsTheOrchestratorOne` (b07) | `live()` returning one `Kind: "orchestrator"` row inside the window renews it once; with no live session on that project the row is absent and nothing is renewed | a renewer that walks sessions only, so the Orchestrator lapses at 24 h mid-run |
+| `TestLaunchFleetFailKeepsOrchestrator` (b07) | Fleet `409 already_exists` revokes the **worker** delegation and not the orchestrator one | a rollback that revokes a per-project delegation another live session is using |
 | `TestRenewerRenewsInWindow` | fake clock at `expiresAt − 59 min` renews once; at `− 61 min` does not | an off-by-sign window |
 | `TestRenewerStopsWhenSignedOut` | after one `ErrSignedOut`, no further calls for 3 ticks | a renew storm against a refused token |
 | `TestSessionJSONTeamScope` | the three rows of `teamScopeOf`, and a marshalled team session has `"teamScope":"team"` and no `delegation` key | leaking the delegation id, or labelling a local session `team` |
@@ -494,8 +545,12 @@ if a.team != nil {
 ```
 
 and `sessionJSON` gains a `TeamScope string` field tagged `json:"teamScope"`, filled by `teamScopeOf`. The launch class from the
-cockpit's New Session is always `worker`; the Orchestrator is Fleet's (task 20 creates it on the
-first team launch), so the desktop never asks for one. `a.relayHub` is Hub task 33's relay rule
+cockpit's New Session is always `worker`: the **sandbox** the cockpit gets is a worker. But the
+desktop does ask the Hub for the orchestrator **delegation** (b07, S02-C7/S03-C1), because route
+46 is desktop-only (`task-06.md:34`, `:165`, `:616`) and Fleet calling it is 403; `Launch` calls
+`EnsureOrchestratorDelegation` first, and task 20 then creates the Orchestrator pod under it.
+Before b07 this line said the desktop never asks for one, which left task 20's decision 4 answering
+`"awaiting-delegation"` for ever and task 33's E2 unmeetable. `a.relayHub` is Hub task 33's relay rule
 (`hubclient.Code`, `Status`), **UNVERIFIED until merge**; until then the hunk writes
 `httpx.WriteProblem(w, he.Status, he.Problem.Error, he.Problem.Message, he.Problem.Details)`.
 
