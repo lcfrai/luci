@@ -80,7 +80,7 @@ selects (task 32) is marked, and its warm floor (`min_count`) is costed at that 
 - [ ] **Step 1:** Check whether `docs/SEAMS.md` exists; update it and the manifest, or write the
   rows into the results document.
 - [ ] **Step 2:** `PROGRAM.md`; `cost-model.md`; `phase-8-results.md` with, per task, what was
-  proven where (Go test, `terraform test` against mocks, helm-unittest, script against canned
+  proven where (Go test, `tofu test` against mocks, helm-unittest, script against canned
   output) and every owner-gated row `NOT RUN`. One such row is task 24b's live Kata check: in
   the first cloud session, `echo x >> /home/dev/work/.git/config` and `git config x.y z` are
   both refused (a read-only `subPath` file mount enforced inside the microVM).

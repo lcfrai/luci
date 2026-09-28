@@ -8,7 +8,7 @@ default token, and every other sandbox. Task 14 fixes the pod spec; this chart m
 carries Panacea's scheduling lesson (survey §1.4, `:111`, `:114-117`): a priority ladder so a burst
 of sessions can never preempt login.
 
-Installed by the `deploy` pipeline before every other chart (task 30). Terraform never touches it
+Installed by the `deploy` pipeline before every other chart (task 30). OpenTofu never touches it
 (P8-D3).
 
 **Tooling.** Helm is not on the build laptop (`which helm` fails, 2026-09-23). Step 1 installs the

@@ -11,7 +11,7 @@ HA-5 "field by field"); nothing here sets a Hub variable that table does not lis
 - `deploy/charts/broker/{Chart.yaml,values.yaml,values.schema.json}`, `templates/{deployment,serviceaccount,rbac,service,httproute,pdb,networkpolicy}.yaml`, `tests/*_test.yaml` (new)
 - `deploy/charts/hub/{Chart.yaml,values.yaml,values.schema.json}`, `templates/{deployment,serviceaccount,migrate-job,service,httproute,pdb,networkpolicy}.yaml`, `tests/*_test.yaml` (new)
 - `deploy/sql/hub-principals.sql.tpl` — the Entra principals and grants for the Hub's two identities (new)
-- `pipelines/scripts/render-sql.sh`, `pipelines/scripts/render-sql_test.sh`, `pipelines/scripts/tests/fixtures/workloads-outputs.json` — fills the template's `{{…}}` placeholders from the `workloads` stack's `terraform output -json` file (the `stack-outputs` artefact), by output name, through the one mapping table below; refuses (exit 1, naming it) any placeholder left unfilled, any output missing, and any value that is not a plain identity name or a GUID (new; review I9, plan re-review b03 M-5)
+- `pipelines/scripts/render-sql.sh`, `pipelines/scripts/render-sql_test.sh`, `pipelines/scripts/tests/fixtures/workloads-outputs.json` — fills the template's `{{…}}` placeholders from the `workloads` stack's `tofu output -json` file (the `stack-outputs` artefact), by output name, through the one mapping table below; refuses (exit 1, naming it) any placeholder left unfilled, any output missing, and any value that is not a plain identity name or a GUID (new; review I9, plan re-review b03 M-5)
 - `deploy/charts/keycloak/{Chart.yaml,values.yaml,values.schema.json}`, `templates/{deployment,service,httproute,pdb,networkpolicy,secretproviderclass,serviceaccount,realm-job}.yaml`, `tests/*_test.yaml` (new; **OD-30**, ruling §9: our own Keycloak beside the two servers)
 - `deploy/values/dev/{platform,cert-manager,edge,broker,hub,keycloak}.yaml`, `deploy/values/prod/…` — per-environment values holding **no id** (new)
 - `deploy/tests/netpolcover/netpolcover_test.go` — add `broker` and `hub` to the rendered charts; delete `testdata/backends.yaml`, which stood in for them (modify, task 13)
@@ -381,7 +381,7 @@ with it.
 - [ ] **Step 3:** Templates; the SQL template and its render test (`pipelines/scripts/render-sql.sh`
   with a fixture, asserting the output text); `helm lint` for both.
 - [ ] **Step 4:** `deploy/values/{dev,prod}/*.yaml` with every non-id value; ids are left empty
-  and filled by `deploy` (task 30) from Terraform outputs.
+  and filled by `deploy` (task 30) from OpenTofu outputs.
 - [ ] **Step 5:** Add `broker`, `hub` and `keycloak` to `netpolcover`'s chart list and delete its
   `testdata/backends.yaml`; it must pass with the real charts, and `traefik_reaches_every_routed_backend`
   now checks both `HTTPRoute`s. Add the case `session_size_is_one_value` (review I4; b05

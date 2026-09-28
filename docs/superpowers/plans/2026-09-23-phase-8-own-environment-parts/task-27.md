@@ -112,5 +112,5 @@ registered, task 30). Until then only the scripts are verified.
   runs.
 - Licence scanning **of image contents**: OS packages (git, node, glibc) are not linked code; the
   OD-11 licence gate (task 28) covers the Go, npm and Cargo dependency graphs and the Helm chart
-  dependencies (`chart-licences.sh`), not Terraform providers or image contents. The SBOM makes the
+  dependencies (`chart-licences.sh`), not OpenTofu providers or image contents. The SBOM makes the
   image contents reviewable; it does not gate on them.

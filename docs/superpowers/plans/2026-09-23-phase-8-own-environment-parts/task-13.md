@@ -1,7 +1,7 @@
 ### Task 13: `deploy/charts/cert-manager` and `deploy/charts/edge` — cert-manager, then Traefik on the Gateway API and one Gateway
 
 The edge is where a user's token enters the environment, so it is small and fails closed: one
-public IP owned by Terraform (task 07), one Traefik deployment implementing the Kubernetes Gateway
+public IP owned by OpenTofu (task 07), one Traefik deployment implementing the Kubernetes Gateway
 API (P8-D9), one Gateway with one HTTPS listener, certificates from cert-manager over DNS-01 with a
 federated identity (no secret), and a source-range allowlist that is **required** (owner question
 Q3). HTTPRoutes are not here: the Hub and broker charts bring their own (task 29) into namespaces
@@ -134,7 +134,7 @@ webhook open to every pod. Three guards, each tested:
 
 **Where the values come from** (review I3). `apiServer.mode` and `webhookSourceCidrs` are non-id
 settings, committed per environment in `deploy/values/<env>/{cert-manager,edge,broker}.yaml`
-(task 29 step 4). `apiServer.cidrs` is looked up at deploy time, because Terraform does not export
+(task 29 step 4). `apiServer.cidrs` is looked up at deploy time, because OpenTofu does not export
 the API server's address and it can change: task 30's `pipelines/scripts/api-server-cidrs.sh`
 reads the addresses of `EndpointSlice`s labelled `kubernetes.io/service-name=kubernetes` in
 `default`, after `get-credentials`, and emits one `--set apiServer.cidrs={<ip>/32,…}` for each of
@@ -185,7 +185,7 @@ dependencies:
 #### Contract — `deploy/charts/edge/values.yaml` (complete)
 
 ```yaml
-# Everything empty here is passed by the deploy pipeline from Terraform outputs; the schema
+# Everything empty here is passed by the deploy pipeline from OpenTofu outputs; the schema
 # refuses an empty value, so a render with a missing input fails instead of half-working.
 zone: ""                         # foundation dns_zone_name
 edgeIp:
@@ -257,7 +257,7 @@ source for each: `service.beta.kubernetes.io/azure-pip-name: {{ .Values.edgeIp.n
 UNVERIFIED**; the test pins them and task 31's smoke proves the IP binds. `certManagerIdentity.clientId`
 feeds the `ClusterIssuer`'s `managedIdentity.clientID` only; the cert-manager service account and
 its `azure.workload.identity/client-id` annotation belong to the cert-manager release
-(`identity.clientId`), and the deploy pipeline passes the one Terraform output to both (task 10's
+(`identity.clientId`), and the deploy pipeline passes the one OpenTofu output to both (task 10's
 `helm_values`). The Traefik chart's `global.checkNewVersion` / `global.sendAnonymousUsage` key
 names are from training knowledge, UNVERIFIED; the test asserts the rendered arguments.
 
@@ -300,7 +300,7 @@ names are from training knowledge, UNVERIFIED; the test asserts the rendered arg
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `service_binds_the_terraform_ip` | the Traefik Service carries the pip-name and resource-group annotations from values | Azure allocating a fresh IP the A records do not point at |
+| `service_binds_the_tofu_ip` | the Traefik Service carries the pip-name and resource-group annotations from values | Azure allocating a fresh IP the A records do not point at |
 | `service_keeps_client_ips_and_the_allowlist` | `externalTrafficPolicy: Local`; `loadBalancerSourceRanges` equals `allowedSourceRanges` | `Cluster`, which SNATs clients so an allowlist sees only node IPs |
 | `empty_allowlist_does_not_render` | `allowedSourceRanges: []` → render fails with the schema message | an edge open to the internet by omission |
 | `idle_timeout_is_raised` | the tcp-idle-timeout annotation is `"30"` | attach sockets cut at 4 minutes of quiet |
