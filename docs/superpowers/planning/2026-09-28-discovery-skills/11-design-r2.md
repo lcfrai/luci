@@ -74,7 +74,7 @@ thing the finding was about.
   character. The bar held to is `CLAUDE.md`'s wall of configuration, not only the visual rules.
 - **3.2 Three mechanisms that do not transfer** (`06:205-220`).
   1. *Wait between rounds assumes a session.* **Changed.** A round is local process state that
-     carries its base, the brief key and both vocabulary digests. A round whose base moved is
+     carries its base, the brief key and both set digests. A round whose base moved is
      re-checked, never applied, and there is no `grill_round` op to guard; every write that follows
      is guarded by `baseRevision` and by the word index (§2.4, §4.3 item 2).
   2. *A stall detector needs an interlocutor.* **Changed.** There is no stall detector, no closed
@@ -91,7 +91,7 @@ thing the finding was about.
 - **4.1 `Also defined:` hands an agent a word with no way to its meaning** (`06:233-244`).
   *Changed.* The read route exists: two files under `.panacea/discover/` hold every entry in full,
   on disk before the harness starts; the block **always** names them; past its budget it lists the
-  remaining words and says where each is defined; and every stamp (the marker, `Ref.vocabulary`,
+  remaining words and says where each is defined; and every stamp (the marker, the `Ref`'s digests,
   the inheritance record) certifies the whole set, never the inline part (§5.1-5.3). No stamp stops
   being true at any entry count.
 - **4.2 A loose-file glossary is forbidden for the product and recommended for us**
@@ -338,7 +338,7 @@ round costs one gesture, not one review per row. No suggestion is ever raised as
 | It is ours, not the project's | a choice about how PanaceaApp itself is built | our own owner-decision register, never a product record |
 
 A **word** earns an entry when it is a noun specific to this project, defined by what it *is*, with
-one word chosen and the others listed; general programming vocabulary stays out even in a project
+one word chosen and the others listed; general programming words stay out even in a project
 full of it (`05-design.md:250-254`).
 
 **Few decisions is the normal outcome**, not a gap. A project with none shows no empty-state prompt,
@@ -374,7 +374,7 @@ answers use in a way specific to this project. Facts stay the assistant's job; t
 In the **control plane**, as phase 4's local process state: one file per brief,
 `<state>/discover/rounds/<briefId>.json`, written with the `statepath.WriteAtomic` the Materialiser
 already uses (`materialise.go:185-191`). It holds the base the round was computed against (the brief
-key and the branch's two vocabulary set digests, §5.2) and each suggestion with its fields and a
+key and the branch's two set digests, §5.2) and each suggestion with its fields and a
 state, `pending` or `dismissed`.
 
 It is **never** inside `discover.Content`, so no round mints a brief revision or moves a digest
@@ -385,7 +385,7 @@ audited. There is no `grill_round` op, no round counter and no `Grill{…}` stru
 
 1. **Acted on.** A recorded suggestion leaves the round, because it is now a Hub record. A
    dismissed one stays, marked, so the next round does not offer it again.
-2. **Its base moved.** When the brief head or either vocabulary digest differs from the round's
+2. **Its base moved.** When the brief head or either set digest differs from the round's
    base — a teammate revised something — the round is not shown as it was. Each pending suggestion
    is re-checked against the new base: dropped if its word is now in force or its decision now
    recorded, kept otherwise. A new model call happens only for a new complete revision. So a round
@@ -397,7 +397,7 @@ audited. There is no `grill_round` op, no round counter and no `Grill{…}` stru
    nothing, so "skipped everything" and "not back yet" never need telling apart, and nothing ever
    needs reopening (the sceptic's 3.2 item 2).
 5. **Another machine.** Round state is per machine. There the round is recomputed from the Hub's
-   current brief and vocabulary. A suggestion is derived, unconfirmed data, so nothing a person
+   current brief, terms and decisions. A suggestion is derived, unconfirmed data, so nothing a person
    said is lost; the one cost is that a suggestion dismissed on the first machine may be offered
    once more on the second (§8 records it as an owner question).
 
@@ -448,13 +448,14 @@ Everything else in the block's rules holds: the neutraliser, LF, no timestamp (`
 
 ### 5.2 What `Ref` carries, and what the session keeps
 
-- **`Ref` gains `vocabulary`: `{terms: "sha256:…", decisions: "sha256:…"}`**, the digests of the
-  set now in force for the brief's own scope (a branch key: the branch's overlay; a project key: the
-  project's). It is the third time-varying part of a `Ref`, beside `headRevision` and
+- **`Ref` gains `glossaryDigest` and `decisionsDigest`**, each `"sha256:…"`, the digests of the
+  two sets now in force for the brief's own scope (a branch key: the branch's overlay; a project
+  key: the project's). Not one member named *vocabulary*: the Work layer already uses that word for
+  a team's filter names (11b §5.2). They are the third time-varying part of a `Ref`, beside `headRevision` and
   `latestCompleteRevision` (`ref.go:71-72`), so `Ref` stays one brief key resolved and cacheable
   on the same terms; two sessions with one `contextRef` still share one `Ref`.
 - **A set digest** is `"sha256:"` + hex over a canonical envelope
-  `{"v":1,"kind":"vocabulary-set","scope":…,"items":[{"key","digest"},…]}`, items sorted by key:
+  `{"v":1,"kind":"term-set" or "decision-set","scope":…,"items":[{"key","digest"},…]}`, sorted by key:
   every entry the branch sees, never only the ones that fitted inline.
 - **The inheritance record**, new, phase 4's: one immutable entry per session start, written by the
   Materialiser beside the block, `{sessionId, start, contextRef, terms: {digest, keys},
@@ -465,7 +466,7 @@ Everything else in the block's rules holds: the neutraliser, LF, no timestamp (`
 **Why that is provable.** Every key in the record names an immutable revision that resolves for
 ever (an erased one still resolves `erased`, keeping key and digest, §2.6); the set digest
 recomputes from the keys; and the block and both files re-derive byte for byte from the keys and the
-brief, because `Render` is pure. Develop compares the record's digests with `Ref.vocabulary`: equal
+brief, because `Render` is pure. Develop compares the record's digests with the `Ref`'s two: equal
 is *current*; different is *the project's words moved since this session started*, derived the way
 the desktop already derives `superseded` from two numbers (`ref.go:75-76`).
 
@@ -480,7 +481,7 @@ Materialiser adds `/.panacea/discover/` to `info/exclude`, checks that git ignor
 link below the worktree, the same three rules as the block (`materialise.go:169-184`, `confine.go`).
 
 **So no stamp certifies a truncation** (the sceptic's 4.1). The marker, the files' first lines,
-`Ref.vocabulary` and the inheritance record all carry the digest of the **whole** set, and the whole
+the `Ref`'s two digests and the inheritance record all carry the digest of the **whole** set, and the whole
 set is on disk at the path the block names, before the harness starts. What the block holds inline
 is a convenience with its own name, never the thing certified. The drift check covers the files
 too: a missing file is `pending`, a hand-edited one `edited` (`inspect.go:18-47`); no new state.
@@ -500,7 +501,7 @@ Materialiser, `Ref` and the lens only (`owner-decisions.md:409`), and nothing be
 
 | Consumer (11b §4) | Under this design |
 |---|---|
-| Phase 5 built: `review_mark`, `op.go:25`, `:59`, `:94`, `apply.go:1128-1140` | unchanged: a design is reviewed against a brief key, never a vocabulary |
+| Phase 5 built: `review_mark`, `op.go:25`, `:59`, `:94`, `apply.go:1128-1140` | unchanged: a design is reviewed against a brief key, never a word or a decision |
 | `P5:90`, the brief from `discoverhub.Service` | unchanged |
 | `P5:183`, pin and mark | unchanged: a moved word or decision never supersedes an approval |
 | `P5:216`, one key-source selector | unchanged |
@@ -515,16 +516,16 @@ Materialiser, `Ref` and the lens only (`owner-decisions.md:409`), and nothing be
 | `P5T:28`, the Design lens chips | unchanged |
 | `P5T:30`, end to end | unchanged |
 | Phase 7 built: the watcher, `hubside.go`, `pins.go` | unchanged: reads no brief key and still none |
-| `P7:104`, Ship's body | unchanged: no vocabulary field (§8, owner question 3) |
+| `P7:104`, Ship's body | unchanged: no field for words or decisions (§8, owner question 3) |
 | `P7:156` and `P7:841` | unchanged |
 | `P7T:07`, `:08`, `:09`, `:10` | unchanged |
 | `P7T:13`, `selectReleasePinKeys` | unchanged; the pin-keys-are-opaque test holds |
 | `P7T:15`, `:17`, `:18`, pin cell, drawer, governance | unchanged |
-| `provenance.Ref`, `ref.go:78-103` | **changes**: `vocabulary` (§5.2) |
+| `provenance.Ref`, `ref.go:78-103` | **changes**: `glossaryDigest`, `decisionsDigest` (§5.2) |
 | The one loader, phase 4 task 16 | **one entry**: `selectSessionInheritanceKeys`, the keys of an inheritance record a person has opened, per `task-16.md:165-167`'s rule that a later lens adds one key source and changes nothing else |
 
 **Develop** is where the thread gains its hop: the Materialiser, the inheritance record and the
-session view that compares it with `Ref.vocabulary`. Phase 3's merge and evidence code keys to a
+session view that compares it with the `Ref`'s two digests. Phase 3's merge and evidence code keys to a
 criterion and never parses a key (11a §6), so it does not change either.
 
 ## 6. The Discover lens
@@ -608,7 +609,7 @@ unverified until it is run. `plan:` is phase 4's plan,
 | Built file (phase 4 tree unless marked) | Task that built it | What changes | Tests and goldens |
 |---|---|---|---|
 | `provenance/key.go` | 06, approved | two forms, two kinds; the "only copy" comment (`:47`) corrected | `key_test.go`'s 4 gain rows; the other 20 grammar tests *run* |
-| `provenance/ref.go` | 06 | `vocabulary`, the third time-varying part | `ref-golden.json` (102 lines) regenerated; `TestRefGoldenJSON`, `TestReadingAndHeadJSON` edited; `TestRefHasNoDenominator` must still pass; 36 more *run* |
+| `provenance/ref.go` | 06 | `glossaryDigest`, `decisionsDigest`, the third time-varying part | `ref-golden.json` (102 lines) regenerated; `TestRefGoldenJSON`, `TestReadingAndHeadJSON` edited; `TestRefHasNoDenominator` must still pass; 36 more *run* |
 | `claudemd/render.go` | 05, approved | new marker, the two fixed lines gone, two sections, the budget, the route line; `Inspect`'s marker parse | all 3 goldens regenerated; the 9 marker-line and 9 wording tests edited; the 13 reserved-prefix tests *run* (the prefix stays); 33 re-derive and *run*; 3 new goldens |
 | `contextwrite/materialise.go`, `inspect.go` | 09, **in fix** | three files in order, `/.panacea/discover/` excluded and confined, the inheritance record | of 60, the write-set and exclusion tests edited (about 8, a guess until run); new tests for the order, the confine and the record |
 | `api/materialiser.go` | 10, approved | `MaterialiseRequest.SessionID` | 2-3 of `materialise_test.go`'s 14 gain the assertion |
@@ -633,8 +634,8 @@ material goes at the end of a heavily cited file).
 |---|---|---|---|---|
 | 24 | Prototype: the §6 states added to `prototype/phase-4-discover.html` (suggested, recorded, taken up, departure, project changed, refused, model off). The owner looks before 31's part is approved | — | 2 | 31 |
 | 25 | `discover`: `Term`, `Decision`, §2.2's field rules (and the reserved `panacea:discover:` sequence, refused as answers refuse it), the branch overlay, the set digest; pure | 06 | 3 | 26-30 |
-| 26 | `provenance`: the two key forms; `Ref.vocabulary`; `ref-golden.json` | 06, 25, Hub 45 | 2.5 | 12 |
-| 27 | `discoverhub`: the two list reads, the two batch writes, the heads' vocabulary for `Ref` | 07, 08, 25, Hub 46 | 3.5 | 29, 30, 32 |
+| 26 | `provenance`: the two key forms; the `Ref`'s two digests; `ref-golden.json` | 06, 25, Hub 45 | 2.5 | 12 |
+| 27 | `discoverhub`: the two list reads, the two batch writes, the two set digests for `Ref` | 07, 08, 25, Hub 46 | 3.5 | 29, 30, 32 |
 | 28 | `claudemd`: the new block and the two files' renderer; three goldens regenerated, three added | 05, 25 | 4 | 29 |
 | 29 | `contextwrite`: the three files in order, `/.panacea/discover/` excluded and confined, the inheritance record; `api`: `SessionID` | 09's fix round closed, 10, 27, 28 | 4 | 14 |
 | 30 | `discover` + `discoverhub`: the suggestion round, its local store and its five deaths (§4) | 04, 25, 27 | 3 | 32 |
@@ -648,20 +649,20 @@ Phase 4 new: **29 hours, nine tasks.**
 | # | Task | Depends on | Hours | Must come before |
 |---|---|---|---|---|
 | 45 | `hubapi`: prefixes `te`, `dr`; the two forms and `KeyKind`s; the two envelopes and four golden vectors; the wire objects | 44a | 3 | 46, 47; phase 4's 26 |
-| 46 | `hubclient`: `Terms` and `Decisions`, the fake, the conformance and feed rows: **S0v**, phase 4 codes its vocabulary against the fake | 05, 45 | 3 | phase 4's 27 |
+| 46 | `hubclient`: `Terms` and `Decisions`, the fake, the conformance and feed rows: **S0g**, phase 4 codes its terms and decisions against the fake | 05, 45 | 3 | phase 4's 27 |
 | 47 | `sql/0002_terms_decisions.sql`: four tables, the guards, the RLS and grant twins, the word index, the composite keys, `hub.erase_term` and `hub.erase_decision`, a database test for each | 07b's fix round closed, 45 | 3.5 | 48 |
-| 48 | The server: the four routes, the resolver's two kinds, the four events, its own matrix rows (`rowsTask48` in `allRows`, the 16b pattern): **S4v (server side)** | 14, 16b, 20, 47 | 4 | phase 4's vocabulary on the real Hub |
+| 48 | The server: the four routes, the resolver's two kinds, the four events, its own matrix rows (`rowsTask48` in `allRows`, the 16b pattern): **S4g (server side)** | 14, 16b, 20, 47 | 4 | phase 4's terms and decisions on the real Hub |
 
 Hub new: **13.5 hours, four tasks.** No new Hub task stands in front of the brief's own S4: S4
-for briefs still opens after 06-20 (`HP:388-394`), and S4v follows it.
+for briefs still opens after 06-20 (`HP:388-394`), and S4g (g for glossary) follows it.
 
 ### 7.4 Amended tasks, all unbuilt, and what each gains
 
 | Plan | Task | What changes | Hours added |
 |---|---|---|---|
 | Phase 4 | 14, wiring | wires the round store and the inheritance record | +0.5 |
-| Phase 4 | 15, client and wire types | `Ref.vocabulary` mirrored field for field; the new objects; `word_taken`, `key_unresolvable` | +1 |
-| Phase 4 | 16, slices and the loader | a `vocabularySlice`; one key source, `selectSessionInheritanceKeys` (§5.4) | +1 |
+| Phase 4 | 15, client and wire types | the `Ref`'s two digests mirrored field for field; the new objects; `word_taken`, `key_unresolvable` | +1 |
+| Phase 4 | 16, slices and the loader | `discoverSlice` gains the two lists; one key source, `selectSessionInheritanceKeys` (§5.4) | +1 |
 | Phase 4 | 17, `ContextChip` | the *words moved since this session started* state (§5.2) | +0.5 |
 | Phase 4 | 19, the states that come apart | a departure's *project changed*; Undo writes `retire` or `withdraw` | +1 |
 | Phase 4 | 22, contract amendments | the Go, UI and provenance contract lines for all of the above | +1 |
@@ -687,8 +688,8 @@ routes; 21 stays one-shot, 06 §1.4); the Hub's 08, 16b and 22.
   The one task that joins the path is **32, between 12 and 14**, because 14 must wire the final
   Materialiser rather than wire it twice: **about +3 hours on the critical path**, if 25-30 and
   Hub 45-46 run beside it as their dependencies allow. If they do not, the path waits on them.
-- **The Hub's order**: 44a with A20 runs first, as planned → 45 → 46 (S0v) → 47 after 07b's round
-  closes → 48 after 20 (S4v). Hub 45 and 46 stand in front of phase 4's 26 and 27, and 44a
+- **The Hub's order**: 44a with A20 runs first, as planned → 45 → 46 (S0g) → 47 after 07b's round
+  closes → 48 after 20 (S4g). Hub 45 and 46 stand in front of phase 4's 26 and 27, and 44a
   stands in front of everything, as it already does.
 - **The UI lane**: 24's prototype first, the owner's look, then 31 after 18; unmerged until the
   owner has seen it running (`OD-1`).
