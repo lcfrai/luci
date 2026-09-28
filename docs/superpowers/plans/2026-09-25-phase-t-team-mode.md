@@ -333,7 +333,7 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 18 | The `panacea` verbs in the sandbox binary | TM1-α | 0.3 (2.5 h) | 16, P6-14 | ST.1 |
 | 19 | Fleet's control streams and verb dispatch | TM1-α | 0.375 (3 h) | 12, 17 | ST.1 |
 | 20 | Fleet sessions over the broker; `ag-…` ids; gateway tokens with team tags | TM1-α | 0.375 (3 h) | 11, 14, 15, 19, P6-15, P8-22 | S6.3, S8.1 |
-| 21 | `fleetbe` and the team launch on the local control plane | TM1-α | 0.4375 (3.5 h) | 06, 08, 20, H35 (b01) | S8.1, ST.3 |
+| 21 | `fleetbe` and the team launch on the local control plane | TM1-α | 0.5625 (4.5 h; b07 added the orchestrator delegation and the four human relays) | 06, 07 (b07: the four relays' Hub routes), 08, 20, H35 (b01) | S8.1, ST.3 |
 | 22 | Read verbs: `team`, `check`, `files`, `show`, filtered by class | TM1-α | 0.375 (3 h) | 19, 20 | ST.1 |
 | 23 | Lease engine: intent, right of way, breadth cap, request and release | TM1-α | 0.375 (3 h) | 10, 22 | ST.1 |
 | 24 | Task, worker and report verbs; intent leases at plan time | TM1-α | 0.3 (2.5 h) | 23 | ST.1 |
@@ -408,6 +408,14 @@ compare directly.
 task 11; Fleet tasks 22–31 test against task 08's fake and task 10's `memstore`, so they need no
 running Hub. Task 51 (the prototype) has no dependency and starts in wave 1, so the owner's review
 is not on the critical path. TM1 and TM2 waves follow the same rule from their dependsOn columns.
+
+**Wave 23, task 33, reads its entry conditions as checks** (fix batch b07, X-C2). Every condition
+E2 to E4 is now built by a task in an earlier wave — E2 and E3 by task 21 (wave 14), E4 by tasks 07
+(wave 7), 12 (wave 10) and 32 (wave 11) — so the gate verifies merged work. Before b07 those five
+conditions lived in other parts' gap lists and in no task's scope, which meant the gate could only
+answer BLOCKED and §12.0's "TM1 is re-planned" could never fire on evidence. The one condition that
+is still a human act is E6: the operator prepares each worker's clone by hand (task 20's Gap S20-3,
+open by decision, the lane mount being task 47's). E1 and E5 were always human or cross-phase acts.
 
 ---
 
@@ -531,6 +539,11 @@ human messages (append-only, owner writes, ≤ 2000). Read rules: escalations, d
 messages are readable by their owner and an org *auditor* only; thread messages by parties only
 (§3.4). Tests: Bob cannot read Alice's escalation; a directive `PATCH` is refused; an escalation
 answered by someone else is 403. Does not implement notes (task 46).
+**Fix batch b07 (G31-1, S01-I9):** the Hub's second copy of the taint rule holds no verb set of its
+own. `TaintAllows` calls task 03's `DirectiveKind.Typed()`, so the five typed kinds (pause, resume,
+narrow, wait-for, rebase) pass in a Fleet-started turn and only free text needs an answered decide.
+Two copies of one rule drifted — the Hub's held three kinds against Fleet's five — and a Fleet-turn
+`resume` died in the outbox on a 403. One definition cannot drift.
 
 **08 — Hub feed kinds, Fleet's subscription, and `hubclient`.** Extends the change feed (Hub task
 26) with a feed kind per new record and `GET /v1/orgs/{org}/changes?kinds=…` for Fleet's workload
@@ -598,6 +611,13 @@ request. **Fix batch b02 (S02-C2):** that Hub read is route 88, `GET /v1/princip
 every org-level grant is bound to it. Singleton loops (outbox delivery, deadline sweeper, feed consumer) take a Postgres
 advisory lock so two replicas never both run one. Tests: a viewer's launch is 403; a token for
 another audience is 401; two `fleetd` processes on one database run one feed consumer.
+**Fix batch b07 (G32-3, G32-4):** two more variables, because task 32's chart sets both and this
+binary read neither. `PANACEA_APP_FLEET_MIGRATE` is `start` (default, today's behaviour) or `job`,
+where a separate migration Job owns the schema, this process migrates nothing, and it refuses to
+serve a schema behind its code rather than failing on a DML-only role's permissions.
+`PANACEA_APP_FLEET_PG_AUTH` is `password` (default) or `entra`, where the pool's password is an
+Entra token refreshed from the same assertion source the Hub client uses. Both fail the start by
+name on any other value, so a chart typo is a named error, not a silent default.
 
 **13 — OD-23 mechanism, part 1: the policy layers.** `cp/internal/policy`: a policy is Claude Code
 managed settings, as JSON. `Render(layers Layers, class model.Class) (file []byte, digest string,
@@ -723,6 +743,16 @@ no token (phase 2's `sessionJSON` rule). **Fix batch b01 (X-C1):** `TeamProjects
 35's S-LINK); a launch never calls it, so no launch turns a project team behind Share's consent.
 On the Hub's 200, `MakeTeam` calls S-LINK's `Resolver.Invalidate(localProjectID)`, so the next
 `IsTeam` does not read the 5-minute cache's `solo` (b01 round 2).
+**Fix batch b07 (X-C2, S02-C7/S03-C1, G33-1/S04-I8)** adds two things this task alone can do,
+because route 46 and Hub routes 65/66/68/70 take the owner's own desktop token and refuse Fleet's.
+(1) The member's first team launch in a project creates the owner's **`orchestrator`-class
+delegation** as well as the session's worker one, keeps it per project in the registry's
+`TeamDelegations` record, renews both on one timer, and sends its id to Fleet on
+`CreateAgentRequest`; without it task 20 answered `awaiting-delegation` for ever and TM1-α had no
+Orchestrator at all. (2) Four **`/api/team/*` human relays** — list escalations, answer one, post a
+human message, list directives — each adding the caller's own token and nothing else, and refusing
+any owner named in a body. Task 52 extends both; it no longer has to exist first. Together they
+close task 33's E2 and E3.
 
 **22 — Read verbs.** `cp/internal/fleet/verbs/{team.go,check.go,files.go}`: `team` returns §5.1's
 table for every agent on the project, **filtered by the caller's class**: a worker gets owner,
@@ -868,6 +898,11 @@ file raises an approval dialog in an interactive worker (§5.3); whether an empt
 keeps project settings out (§4.1); the PTY round trip through `fleetbe`; a first G9 pass. The
 record states each observation, what was not observed, and the verdict. **If it fails, TM1 is
 re-planned before task 34 starts.** A screenshot is not evidence; the record says what ran.
+**Fix batch b07 (X-C2):** its entry conditions are checks on merged work, not waits on gaps. E2 and
+E3 verify task 21's orchestrator delegation and four human relays; E4 verifies task 07's `Typed()`
+taint rule and task 12's two new variables; E6 states TM1-α's one accepted manual step, the
+operator's worker clones (task 20's Gap S20-3, open by decision). Before b07 all five named gaps in
+other parts' gap lists that no task owned, so the gate could only answer BLOCKED.
 
 ### TM1
 
