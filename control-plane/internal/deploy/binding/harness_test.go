@@ -24,16 +24,16 @@ func classifyHubStub(err error) binding.HubErrorClass {
 }
 
 type harness struct {
-	locals   *fakeLocals
-	remotes  *fakeRemotes
-	fake     *deploytest.Fake
-	hub      *hubStub
-	dir      string
+	locals     *fakeLocals
+	remotes    *fakeRemotes
+	fake       *deploytest.Fake
+	hub        *hubStub
+	dir        string
 	origin     string
 	useHub     bool
 	hubTimeout time.Duration
 	accepted   func(string) bool
-	logs     io.Writer
+	logs       io.Writer
 }
 
 func newHarness(t *testing.T) *harness {
