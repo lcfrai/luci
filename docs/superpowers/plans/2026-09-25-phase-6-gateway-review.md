@@ -665,3 +665,84 @@ critical path, so the total is **63.25 h** and the critical path **24.25 h**
 figure. The Secret propagation delay, the CLI's helper timeout and its recovery after a failed
 helper are all UNVERIFIED and now carried by U11, U8 and task 23's item 11. No owner question was
 raised and no seam was drawn: both rulings are in the plan's own gift.
+
+## Fix batch b07, round 2 (re-review `plan-rereview-b07-1.md`), 2026-09-28
+
+All seven issues fixed at the root, in four commits by pathspec. Plan documents only: phase 6 has
+no code, nothing was built or run, no control plane, container or image was started, and the main
+tree and the sibling worktrees were not touched. Every anchor below was read in this worktree after
+the edit.
+
+- **Important 1 — P06b could PASS on a call LiteLLM never handled, closed.** `p06b` did
+  `_, k = key(master, …)` and threw the mint status away; `key()` returns `None` on any non-200
+  (`task-18.md:390`), and with `k` `None` the call carried no `authorization` header, so LiteLLM
+  refused it at auth **before routing**, its exception path never ran, both greps returned 0 and
+  `v_p06b(401, 0, 0)` read "PASS". The mint status is now carried out on the DATA line
+  (`task-18.md:588`) and the call is not made without a key. `v_p06b` gained P14's two guards on
+  P06b's side (`:202`): a non-200 mint is **FAIL** (the path was never exercised), a `0`, `401`
+  or `403` is **UNKNOWN** (the request never reached the router). Three self-test cases added —
+  `p06b no key`, `p06b unauthorised`, `p06b no record` — and three mutants, one per guard, each with
+  the exact failure line it must print (`:791`). The case count is **48**, counted in the tree, not
+  carried forward.
+- **Important 2 — task 23's item 11 observed nothing, closed.** The step sent message 2 straight
+  after removing the token file, but the fragment's `CLAUDE_CODE_API_KEY_HELPER_TTL_MS` is `120000`
+  (`task-14.md:191`, `:253`) and the docs task 14 quotes call that a **refresh interval**
+  (`task-14.md:7`), so within two minutes the CLI answers from the key it already holds and the
+  helper is never invoked. The step now times **2 min 15 s from the moment message 1 is answered**
+  (`task-23.md:265`), and names the answered-message-2 case as "the cache had not expired, wait and
+  repeat", up to three times — not a pass, not a finding, but **U8's first reading**: each answered
+  attempt lower-bounds how long the CLI holds a helper's key. Three answered attempts is a finding
+  in its own right, because the fragment's TTL would then bound nothing and the
+  `helper TTL + propagation < Grace` inequality (`task-14.md:195`) would be pinned to a number the
+  CLI ignores. Record row 11 carries the intervals (`task-23.md:304`).
+- **Important 3 — the wrong unverified row, closed.** The helper-timeout measurement went to
+  `U21`; U21 (`task-25.md:129`) is the managed-settings precedence row, proven by item 10. It now
+  goes to **U8** (`task-25.md:116`), the row that carries the CLI's helper timeout, its recovery and
+  item 11 by name. U8 also gains the question item 11 must answer first: whether the CLI keeps using
+  the last key for the whole TTL.
+- **Important 4 — task 23's gate did not hold the new blocker, closed.** `task-23.md:37` now reads
+  **"a FAIL on P06, P06b, P13 or P14"**, task 18's own exit-3 set (`task-18.md:5`, `:44`). Two more
+  places in the same part had the same shape and were widened with it: the read-every-verdict grep
+  (`:33`) matched `P01`–`P12` only, so it missed P13–P16 as well as P06b, and the record template's
+  "Task 18 verdicts relied on" line (`:290`) said `P01 … P12`.
+- **Minor 5 — "nine mutants" over a ten-row table, closed.** Ten (`task-14.md:514`), counted: 11
+  table lines less the header.
+- **Minor 6 — the vacuous `refreshAt > grace` guard, dropped, not patched.** Sourcing both terms
+  from a rendered config was not available: neither `REFRESH_AT` nor `Grace` is written into
+  anything this test can read — the fragment carries the helper TTL alone — so the assertion could
+  only ever compare two literals eleven lines apart in its own file. Deleted with the `refreshAt`
+  constant that existed only to feed it, and the relation recorded where both values live
+  (`task-14.md:199`): task 07 refuses `TTL <= Grace` at construction (`task-07.md:915-916`) and task
+  15 bounds `REFRESH_AT` to 1 m–55 m against the token's one-hour life (`task-15.md:1639`, `:1643`).
+  The TTL assertion, which does read the fragment from the tree, is untouched, and no mutant row
+  moved — none pinned the dropped guard.
+- **Minor 7 — P06b's flat `sleep 5`, closed with a poll.** It now polls `LiteLLM_SpendLogs` for the
+  call's record on **P06's own 90-second window** (`P06B_POLL_S`, `task-18.md:431`, driver
+  `:767`). One difference from P06 is stated rather than copied: an empty table is **not**
+  UNKNOWN here, because writing nothing is the outcome this probe wants, so the `pg_dump` runs
+  either way and the verdict says which PASS it is — a record written and clean, or no record inside
+  the window, which is **not proof of absence after it**. The poll decides *when* to search, never
+  *where*: the search is still a full dump of every table plus every line of stdout. Both limits are
+  recorded, in "does not claim" (`task-18.md:909`) and on task 25's P06b follow-up row (`:90`).
+- **Two summaries were stale and moved with the parts.** The skeleton's task 18 entry
+  (`2026-09-25-phase-6-gateway.md:262`) still described P06b's old guard alone; a skeleton that
+  disagrees with its part is how the missed gate of Important 4 came about in the first place.
+
+**Re-checked, the batch's own four findings.** **M-8** stands: `~> 5.70` at `task-20.md:178` and
+the old range nowhere in the plan. **M-4** stands: the three-term inequality is unchanged in both
+files that carry it, and the ruling (propagation out of the TTL, 30-second floor) still reads
+identically at `task-14.md:201`, `:565`, `2026-09-25-phase-6-gateway.md:252`, `:313` and
+`task-25.md:119` — Minor 6 removed a guard beside it, not a term of it. **M-5** stands: the
+20 s / 61 s choice is still stated the same way in all seven places, and its one assumption is now
+actually exercised by item 11 rather than assumed by it. **M-6** is closed here, not in b07: the
+probe can no longer report PASS on a call LiteLLM refused at auth, and the blocker it creates is
+honoured by the part that must stop for it.
+
+**Hours unchanged: 63.25 total, 24.25 critical path.** Nothing was added that costs a person time —
+P06b's poll and item 11's wait are idle minutes, up to 90 s and up to 8 min, and item 11's fits
+inside the 0.25 h b07 already added to task 23 for it.
+
+**Unverified, and said plainly.** Every figure here is a plan figure. The CLI's helper timeout, its
+key-cache behaviour and its recovery are UNVERIFIED and carried by U8; Secret propagation by U11.
+No probe in this plan has been run. No owner question was raised and no seam was drawn: all seven
+were the plan's own to fix.
