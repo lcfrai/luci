@@ -3746,23 +3746,23 @@ asks the Hub about that one id. No cursor, no ordering, no org poll set to be ou
 | Change | Where |
 |---|---|
 | The five-step order: `POST` → route 80 → **Fleet activate** → the sweep; and the b04 paragraph naming the cursor as the root | `task-14.md:53-84` |
-| `POST …/policy/{pv}/activate`, org and project, registered beside the four | `task-14.md:538-543`, and the Produces row `:101` |
-| `activateOne` — one Hub question about one id, verifying org, project, seq **and** digest before `Activate` | `task-14.md:615-637` |
-| `activatePolicy` — the admin is **told**: 200 active, 409 `not_audited`, 422 `policy_refused` with the invariant, 503 on a Hub failure | `task-14.md:639-676` |
-| `SweepPendingPolicy`, every replica, 30 s tick / 15 s grace — the path that needs no live client | `task-14.md:678-714` |
-| `policy.Store.Layer` (scoped by id) and `.Pending` (the sweep's fleet-wide read) | `task-14.md:302-321` |
-| `store.PendingPolicyLayers` and its partial index, in task 10's additions and in step 2 | `task-14.md:93`, `:968-974` |
-| The import edge to `internal/fleet/delegation` is **gone** from `server/policy.go`, with a comment saying why and step 5's grep behind it | `task-14.md:505-512` |
-| Route 78 gains `subject=`; why it is a parameter and not a new route; the two 400s | `task-14.md:783-800` |
+| `POST …/policy/{pv}/activate`, org and project, registered beside the four | `task-14.md:539-544`, and the Produces row `:102` |
+| `activateOne` — one Hub question about one id, verifying org, project, seq **and** digest before `Activate` | `task-14.md:616-638` |
+| `activatePolicy` — the admin is **told**: 200 active, 409 `not_audited` in two `details.reason`s, 422 `policy_refused` (invariant, **and** the bare envelope case), 503 only on a Hub failure | `task-14.md:640-693` |
+| `SweepPendingPolicy`, every replica, 30 s tick / 15 s grace — the path that needs no live client | `task-14.md:695-736` |
+| `policy.Store.Layer` (scoped by id) and `.Pending` (the sweep's fleet-wide read) | `task-14.md:303-322` |
+| `store.PendingPolicyLayers` and its partial index, in task 10's additions and in step 2 | `task-14.md:93`, `:1016-1022` |
+| The import edge to `internal/fleet/delegation` is **gone** from `server/policy.go`, with a comment saying why and step 5's grep behind it | `task-14.md:506-513` |
+| Route 78 gains `subject=`; why it is a parameter and not a new route; the two 400s | `task-14.md:829-846` |
 | `OrgFeed.OrgEvent` on task 08's interface, with the reason in the comment | `task-08.md:150-160` |
-| Route 78's existing no-delegation exemption covers `OrgEvent`; the fake's row and the method count | `task-08.md:334-336`, `:404`, `:420`, `:516`, `:649-650` |
-| `Activate`'s comment: its digest comes from the Hub's own event, never a body | `task-14.md:325-328` |
-| The `POST` answer now carries **both** follow-up calls | `task-14.md:579-587` |
-| Nine test rows, including the finding's `TestAnOrgPolicyPostedBeforeAnyLaunchActivates` on one store with no `delegation.Feed` and no delegation, plus one conformance row in task 08 | `task-14.md:902-903`, `:911-916`, `:921`, `:923`; `task-08.md:516` |
-| Step 3 appends **nothing** to `kinds`; step 4 lists the `subject=` work; step 5's grep now fails on `delegation.Feed` or `.Also(` | `task-14.md:976-994`, `:998-1005` |
+| Route 78's existing no-delegation exemption covers `OrgEvent`; the fake's row and the method count | `task-08.md:334-336`, `:404`, `:420`, `:516`, `:649-651` |
+| `Activate`'s comment: its digest comes from the Hub's own event, never a body | `task-14.md:326-329` |
+| The `POST` answer now carries **both** follow-up calls | `task-14.md:580-588` |
+| Eleven test rows (nine, plus round 2's two), including the finding's `TestAnOrgPolicyPostedBeforeAnyLaunchActivates` on one store with no `delegation.Feed` and no delegation, plus one conformance row in task 08 | `task-14.md:945-947`, `:958-964`, `:969`, `:971`; `task-08.md:516` |
+| Step 3 appends **nothing** to `kinds`; step 4 lists the `subject=` work; step 5's grep now fails on `delegation.Feed` or `.Also(` | `task-14.md:1024-1038`, `:1042-1055` |
 | Task 11's `Feed.Also` and `Orgs()` doc comments carry the two conditions, with the failure named | `task-11.md:682-692`, `:1159-1169` |
 | Task 11's prose and its "does not claim" bullet: a consumer triggered by a person does not belong on `Also` | `task-11.md:1180-1193`, `:1605-1610` |
-| Plan body: task 14's summary (which still said "through the outbox" and `policy.version`), its row, and task 11's boundary sentence | `2026-09-25-phase-t-team-mode.md:613-629`, `:325`, `:575-580` |
+| Plan body: task 14's summary (which still said "through the outbox" and `policy.version`), its row, and task 11's boundary sentence | `2026-09-25-phase-t-team-mode.md:614-630`, `:325`, `:576-581` |
 | Task 33: recorded, not resolved — no step in TM1-α posts a layer, so this admin path is never run end to end there | `task-33.md:288-296` |
 
 **Why the pull and not option (2).** The finding offered either. Option (2) — `Feed.Orgs()` also
@@ -3789,9 +3789,10 @@ another dependency on agent-shaped machinery, which is the defect's own family.
   `activateOne` now reads the Hub's record, so `recordedBy` is *available* where it was not
   before, which is the precondition M5's fix needs; comparing it with `Author` is still not done.
 - **S02-M6** (a re-validation refusal at activation is invisible in the `GET`) is untouched for
-  the sweep's path. The **route's** answer does now carry the invariant, so an admin who calls
-  activate sees the refusal; one who relies on the sweep still sees only `pending`. The "does not
-  claim" bullet says so (`task-14.md:1017-1022`).
+  the sweep's path. The **route's** answer does now carry the invariant, and since round 2 the
+  bare envelope refusal and the digest mismatch as well, so an admin who calls activate sees
+  which refusal it was; one who relies on the sweep still sees only `pending`, and gets it from
+  the sweep's log line instead. The "does not claim" bullet says so (`task-14.md:1065-1070`).
 - **S02-I11** (this part is two tasks and overruns its hours) is untouched and got slightly worse:
   the estimate is now 3.5 h, stated in the header with I11 named (`task-14.md:3-8`).
 - Task 33 posting no policy layer is **recorded**, not fixed: TM1-α as written verifies the
@@ -3801,4 +3802,39 @@ another dependency on agent-shaped machinery, which is the defect's own family.
 or image started, in line with this stream's worktree rules. Every line number above was derived
 by `grep -n` against the worktree after the b04 commits; ranges drift, so grep the quoted name.
 That the old consumer would have failed at runtime is reasoning about planned code and about task
-11's cursor rules as written, not a measurement.
+11's cursor rules as written, not a measurement. **The table above was re-derived a third time
+after round 2's edits** (below), which moved route 80's §7.27 by another 46 lines.
+
+### Fix batch b04, round 2 (2026-09-28): `plan-rereview-b04-1.md`
+
+The re-review confirmed S02-C4 resolved at the root (0 Critical) and raised 2 Important and 7
+Minor. All nine are answered here; two further stale citations the re-review did not find are
+answered with them.
+
+| # | Finding | What changed | Where |
+|---|---|---|---|
+| I-1 | acceptance criterion 1 still said 38 conformance rows; the table holds 39 | 39, with b04's row (`team-feed/by-subject-reads-the-past`) named and the table's own row count given as the check; the plan body's task 08 summary carried the same 38 | `task-08.md:646-648`; `2026-09-25-phase-t-team-mode.md:540-541` |
+| I-2 | two inbound citations into task 14 landed inside Go code after b04's ~134-line insert | both re-derived **after** round 2's edits: §7.27 is `task-14.md:797`, its contract row `:817` | `task-01.md:353-354`; `task-06.md:252` |
+| I-2+ | *not in the re-review*: `task-20.md` cited `task-14.md:360` for `Store.Effective`, which is `:407` | re-pointed | `task-20.md:53` |
+| I-2+ | *not in the re-review*: `task-45.md` cited `task-14.md:707-715` for the `teamWorld` reuse, now inside `SweepPendingPolicy` | re-pointed to the paragraph and the row | `task-45.md:70` |
+| M-1 | `OrgEvent` cited as `task-08.md:151-152` (that is `OrgChanges` and a blank line) | `:153-159`, with `OrgChanges` named at `:151` | `task-14.md:96` |
+| M-2 | `hubclient.OrgFeed` still described as `OrgChanges` alone | says task 11 consumes only `OrgChanges`, that the interface has a second method since b04, and that task 08's `Fake` implements both | `task-11.md:87` |
+| M-3 | `ErrDigestMismatch` answered with a remedy that cannot succeed (route 80's `Idempotency-Key` **is** the `pv` id) | same 409 code, two `details.reason`s (`not_audited`, `digest_mismatch`); the digest message says write a new version; a reason table in prose; one test row | `task-14.md:663-672`, `:776-782`, `:960` |
+| M-4 | `activatePolicy` lacked `putPolicy`'s bare `ErrLayer` case, so a permanent refusal answered 503 "Try again" and the sweep re-asked forever | the 422 case added, matching `putPolicy:562-565`; the sweep logs a permanent refusal at `Error`, not the `Warn` it retries under; why there is no terminal `refused` state, and the 200-row cap that bounds it | `task-14.md:677-682`, `:726-730`, `:789-795`, `:961` |
+| M-5 | `progress.md`'s batch table predates the Critical renumbering (b04 = S02-C6/C7/S03-C1; "b05 must check S20-1") | marked superseded and replaced with a corrected 13-batch copy of the authoritative list; S20-1 named as **b07**'s | `.superpowers/sdd/team/progress.md:60-79` (git-ignored) |
+| M-6 | repair-gaps gap 13 / S05-M6 (the fake has no member downgrade) still open in task 08 | **confirmed, not fixed**: `grep -n "member_set\|SetMemberRole" task-08.md` = 0 on 2026-09-28. It is S05-M6's, wider than this batch, and b04 neither caused nor worsened it; recorded so the next toucher of task 08 sees it | `review.md:2268` |
+| M-7 | the b04 return named commit `af3d1e0`; the tree holds `b069b29a` | **confirmed, traceability only**: file contents were correct. b04's five commits are `c73a1925`, `683fb595`, `e1ad857d`, `02b7cbbc`, `b069b29a` | — |
+
+**What round 2 did not change.** No new Hub route, no new exemption, no change to `activateOne`,
+the sweep's schedule or the pull itself: the two behaviour fixes (M-3, M-4) are both inside
+`activatePolicy`'s `switch` and the sweep's log arms. S02-M5, S02-M6 and S02-I11 stay open and
+stay named above.
+
+**The lesson this batch demonstrated three times.** After inserting into a part, grep **every**
+part for `<that part>.md:` and re-derive — and do it after the *last* edit to that part, not the
+first. b04 re-derived this file's 26 citations twice and still left four inbound ones stale in
+other parts, two of which the re-review also missed.
+
+**Unverified, round 2:** plan text only. No Go compiled, no test run, no control plane, container
+or image started; nothing outside `.claude/worktrees/team` read or written. Every line number in
+this section was derived by `grep -n`/`awk` after the round-2 commits.
