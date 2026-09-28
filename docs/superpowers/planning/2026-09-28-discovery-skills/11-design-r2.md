@@ -41,6 +41,51 @@ thing the finding was about.
   phase 3 keys to a criterion's id and digest remains the only provability mechanism. The interview
   gains no question at all (§4.1).
 
+### Section 2, cost
+
+- **2.1 Built code was priced as paper** (`06:92-127`). *Changed.* §7 prices each built file by
+  name, with the task that built it and the tests and goldens it moves (from 11a §6), and says what
+  the hours leave out: fix rounds. The largest of the four built surfaces, the content model (76 +
+  37 tests, the inline golden, wire format v1), is **not touched**, so no `ContentVersion` question
+  arises and `discover.Apply` gains no op: terms and decisions have their own ops, in the Hub's
+  batch route (§2.4). What does move in built code is new tasks (25-29 in phase 4, 45-46 in the
+  Hub), never a re-plan of an approved one.
+- **2.2 The key grammar is the Hub's** (`06:129-151`). *Changed.* The brief's form gains no
+  fragment and does not change by a byte (§2.1), so none of the 64 plan files that quote
+  `brief:bf-` moves. The two new forms **are** a Hub contract amendment and a change to both
+  parsers, and are priced as that: 44a's A20 for the contract, Hub 45 for `hubapi`, phase 4's 26
+  for `provenance`, the Hub's first and merged. This round opened the contract (11b reads it at
+  `cafe1303`), which round 1 did not. Who owns the grammar stays an open owner question (§8); the
+  design is the same under either answer, because both parsers change together.
+- **2.3 Re-anchoring the frozen plans was unpriced** (`06:153-170`). *No longer applies to phases W
+  and T*: nothing in this design lands in either. In the two plans it does touch, new tasks go in a
+  new section at each plan's end with new part files (§7.3), so neither task table moves. The
+  contract's in-place edits are confined to its four closed tables (prefixes, grammar, routes,
+  events), exactly where 44a is already editing for A1-A19, and ride on that pass (§7.4).
+
+### Section 3, the agent and our user
+
+- **3.1 Five pickable questions, not a chat window** (`06:176-203`). *Changed.* No question is
+  added to the interview. A round is at most three decisions and five words, made only after a
+  revision is complete, each with its recommended answer already filled in, one gesture each or
+  **Record all** for the round (§3.2, §4.1). Round 1's decision form, with three mandatory
+  checkboxes, a fourth conditional field and Save disabled until all four, is gone: the test is the
+  agent's (§3.1), the person's one mandatory field is one sentence, and Save is live from its first
+  character. The bar held to is `CLAUDE.md`'s wall of configuration, not only the visual rules.
+- **3.2 Three mechanisms that do not transfer** (`06:205-220`).
+  1. *Wait between rounds assumes a session.* **Changed.** A round is local process state that
+     carries its base, the brief key and both vocabulary digests. A round whose base moved is
+     re-checked, never applied, and there is no `grill_round` op to guard; every write that follows
+     is guarded by `baseRevision` and by the word index (§2.4, §4.3 item 2).
+  2. *A stall detector needs an interlocutor.* **Changed.** There is no stall detector, no closed
+     state and nothing to reopen; an untouched round dies of age without closing anything (§4.3
+     item 4).
+  3. *Model-proposed words stay invisible until per-row review.* **Changed in part.** A proposal
+     still reaches no agent until a person records it: a draft is never inherited, the brief's own
+     `4-D2` rule (`content.go:57-59`). But recording a whole round is one gesture, and suggestions
+     appear where the person already is. What remains is that throughput is bounded by the
+     person's presence: §8 records it, with an owner question about pre-authorising words.
+
 ## 2. The two records
 
 Two new kinds, each **its own Hub record**: a head plus immutable numbered revisions, the shape the
