@@ -50,8 +50,8 @@ variables {
 }
 
 # The cap's wiring is asserted here, on the happy path, because the run that proves -1 is refused
-# is a run Terraform expects to fail at variable validation: expect_failures and assert cannot
-# both be reached in one run (task 04 as built).
+# is a run the engine expects to fail at variable validation: expect_failures and assert cannot
+# both be reached in one run (task 04 as built, observed on Terraform 1.15.8 before OD-32).
 run "workspace_has_no_shared_key_auth" {
   command = plan
   assert {

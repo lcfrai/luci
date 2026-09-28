@@ -47,7 +47,7 @@ steps:
 
 `pipelines/scripts/install-tool.sh <name>` holds one row per tool — **version, URL, SHA-256** —
 and fails if the downloaded file's hash differs. The versions are chosen at implementation and
-recorded in the script; Terraform is **1.15.8** (P8-D14). The same script is what a developer
+recorded in the script; the engine is **OpenTofu 1.12.6** (P8-D14 as OD-32 supersedes it, `install-tool.sh:44-45`; it was Terraform 1.15.8 before OD-32). The same script is what a developer
 runs locally, so CI and laptop cannot disagree.
 
 #### The pipelines (triggers are `paths`-filtered on both `trigger:` for `main`/`dev` and `pr:` for every branch)
@@ -200,7 +200,7 @@ Departures from the text above, each for the root cause named:
   own path filter. Every file keeps its `pr:` block as the record that task 31's runbook copies
   into the policy; a definition connected to GitHub honours it as written.
 - **Tools: 15, not 14.** `tflint-ruleset-azurerm` has its own pin, so `tflint --init` (an unpinned
-  download) never runs; `pipelines/tflint.hcl` names the same version. Versions: terraform 1.15.8,
+  download) never runs; `pipelines/tflint.hcl` names the same version. Versions: terraform 1.15.8 (as built on 2026-09-25; OD-32 replaced that row with OpenTofu 1.12.6 in `148a21d1`, so read `install-tool.sh`, not this list, for the engine),
   helm 4.3.0, helm-unittest 1.1.2, kubeconform 0.8.0, kubelogin 0.2.20, gitleaks 8.30.1,
   govulncheck v1.1.4 (the newest `golang.org/x/vuln` that builds on Go 1.23), shellcheck 0.11.0,
   tflint 0.64.0 + azurerm ruleset 0.32.0, trivy 0.74.0, syft 1.52.0, go-licenses v2.0.1,

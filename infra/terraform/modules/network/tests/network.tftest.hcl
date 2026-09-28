@@ -418,16 +418,16 @@ run "the_state_path_refuses_destroy" {
     condition     = can(regex("lifecycle\\s*\\{[^}]*prevent_destroy\\s*=\\s*true\\b", try(regex("(?s)(?:^|\\n)resource\\s+\"azurerm_private_dns_zone\"\\s+\"this\"\\s*\\{(.*?)\\n\\}", replace(replace(replace(file("${path.module}/main.tf"), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))[0], "")))
     error_message = "azurerm_private_dns_zone.this has no lifecycle { prevent_destroy = true }: a replaced zone drops every endpoint record in it, the state account's included."
   }
-  # The VNet too (task 03 round 2). Terraform replaces a dependent only when its own planned
+  # The VNet too (task 03 round 2). OpenTofu replaces a dependent only when its own planned
   # arguments force it, so a VNet replace that leaves the subnet's arguments alone (a location
   # change: the subnet takes no location) plans no subnet replace, and the subnet's
   # prevent_destroy never fires. A mock plan cannot show this: it models no forced replace
-  # (probe t03r2/probe3: a group change planned clean past both prevent_destroys).
+  # (probe t03r2/probe3, run on Terraform 1.15.8 before OD-32: a group change planned clean past both prevent_destroys).
   assert {
     condition     = can(regex("lifecycle\\s*\\{[^}]*prevent_destroy\\s*=\\s*true\\b", try(regex("(?s)(?:^|\\n)resource\\s+\"azurerm_virtual_network\"\\s+\"this\"\\s*\\{(.*?)\\n\\}", replace(replace(replace(file("${path.module}/main.tf"), "\r", ""), "/(?s)/\\*.*?\\*\\//", ""), "/(?m)(#|\\/\\/).*$/", ""))[0], "")))
     error_message = "azurerm_virtual_network.this has no lifecycle { prevent_destroy = true }: a VNet replace that leaves the endpoint subnet's own arguments alone would take the state path with it."
   }
-  # The asserts above read main.tf's text, and Terraform merges an override file into the
+  # The asserts above read main.tf's text, and OpenTofu merges an override file into the
   # matching block argument by argument, lifecycle included, so one could undo all three
   # unseen (task 03 round-3 predicted survivor OV1). This module has no override file.
   assert {

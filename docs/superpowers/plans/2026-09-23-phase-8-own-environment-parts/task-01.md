@@ -186,7 +186,7 @@ every later task, whose acceptance command is `infra/scripts/validate.sh <its di
 - [ ] **Step 3: Write `guards.sh`.** Run `guards_test.sh` until `guards_test: 15 cases, 15 passed`.
 - [ ] **Step 4: Write `validate.sh`** to the contract above. Prove the credential scrub once, red
   first (review I3): in a scratch directory holding one `main.tf`, with `ARM_SUBSCRIPTION_ID`
-  exported and a stub `terraform` first on `PATH` that appends `AZURE_CONFIG_DIR=…`, the output
+  exported, `TOFU_BIN` unset, and a stub `tofu` (the binary `validate.sh` calls, OD-32) first on `PATH` that appends `AZURE_CONFIG_DIR=…`, the output
   of `ls -A "$AZURE_CONFIG_DIR"` and `ARM_SUBSCRIPTION_ID=…` to a log, run
   `validate.sh <scratch dir>`. The log must show an existing, empty directory that is not
   `~/.azure`, and an empty `ARM_SUBSCRIPTION_ID`; after the run the directory is gone. Run it

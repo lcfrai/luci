@@ -99,7 +99,7 @@ endpoint on foundation's subnet, resolved by a record in foundation's `blob` zon
 
 ## Commands
 
-The only Terraform commands this phase runs are the ones `validate.sh` runs (the one exception
+The only OpenTofu commands this phase runs are the ones `validate.sh` runs (the one exception
 is task 07's by-hand `tofu graph` of the foundation stack: config only).
 
 ```bash
@@ -133,7 +133,7 @@ scan; if either fails, `guards.sh` prints `guards: inventory failed (…)` or
 
 | Id | Rule |
 |---|---|
-| G1 | No `terraform.tfvars` or `*.auto.tfvars` (or their `.json` forms) anywhere; no `*.tf.json` or `*.tfvars.json` configuration at all (the other rules read HCL only; the two JSON override names are left to the next clause); and no override file (`override.tf`, `override.tf.json`, `*_override.tf`, `*_override.tf.json`) tracked by git. Runbook §2's local-backend `backend_override.tf` stays on disk, untracked. Outside a git work tree G1 fails. Non-Terraform JSON, such as `infra/rbac/*.json`, passes. |
+| G1 | No `terraform.tfvars` or `*.auto.tfvars` (or their `.json` forms) anywhere; no `*.tf.json` or `*.tfvars.json` configuration at all (the other rules read HCL only; the two JSON override names are left to the next clause); and no override file (`override.tf`, `override.tf.json`, `*_override.tf`, `*_override.tf.json`) tracked by git. Runbook §2's local-backend `backend_override.tf` stays on disk, untracked. Outside a git work tree G1 fails. JSON that is not OpenTofu configuration, such as `infra/rbac/*.json`, passes. |
 | G2 | No `*.tfvars` contains a GUID: ids arrive as `TF_VAR_*` / `ARM_*`. |
 | G3 | Every `*.tftest.hcl` (in `tests/` or at the module or stack root) has a `mock_provider` for every provider its module or stack requires. |
 | G4 | No `provider "kubernetes"` or `provider "helm"`, and no `hashicorp/kubernetes` or `hashicorp/helm` source (P8-D3: charts deploy the cluster). |
@@ -178,6 +178,6 @@ check cannot see a key on the opener line, so one-line file-level blocks are ref
   azurerm 4.81.0, with no warning. Modules hold no provider blocks.
 - **Backends.** A stack's `backend.tf` is exactly `terraform { backend "azurerm" {} }`: partial
   configuration, completed by `backends/<env>.hcl` (task 02) at init time in the pipeline.
-- **Line endings.** `.gitattributes` pins `eol=lf` for Terraform files and scripts.
+- **Line endings.** `.gitattributes` pins `eol=lf` for OpenTofu files (`*.tf`, `*.tfvars`, `*.hcl`, `*.tftest.hcl`) and scripts.
 - **Ids and secrets.** Subscription, tenant and object ids arrive as `TF_VAR_*` / `ARM_*`.
-  No secret is ever set in Terraform: identities are Entra-only.
+  No secret is ever set in OpenTofu configuration: identities are Entra-only.

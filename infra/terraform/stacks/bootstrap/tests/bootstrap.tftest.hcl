@@ -518,7 +518,7 @@ run "the_backend_file_names_this_container" {
 # its file is (the technique the backend run uses). Each line exactly once, whole, never
 # commented out. This pins the source, not what azurerm does with it. Block comments are
 # stripped before counting: a line regex reads a line inside /* */ as live (task 02 re-review
-# m3, RS2). Terraform's regex form takes the last / as its delimiter, hence the escaped \\/. One
+# m3, RS2). replace()'s regex form takes the last / as its delimiter, hence the escaped \\/. One
 # azurerm block only: with a second, aliased one, the lines could sit there while the default
 # provider, the one every resource uses, has neither (task 02 fix round 2, PA1).
 run "the_provider_is_entra_only_and_registers_nothing" {
