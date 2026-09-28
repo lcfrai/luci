@@ -103,6 +103,20 @@ type Deps struct {
 	// and one *project.Scanner satisfies this and Projects both.
 	Worktrees worktree.Provider
 
+	// ProjectsDir is the host directory the rail enumerates, and therefore the
+	// one region of this host a sandbox can write: project.Scanner.Path
+	// confines every worktree it resolves to it (X-3, X-1 review O-1). It is
+	// here so that the OTHER mount source — a file the host's own git config
+	// names — can refuse a path that is reached through it (X-1 review m-5).
+	// "" is an unconfigured projects directory: no worktree resolves through
+	// the scanner, the only provider is the operator's own static map, and
+	// nothing is refused.
+	//
+	// It is a path, not a Provider, because the question is about a region of
+	// the filesystem rather than about resolution, and because the resolver it
+	// guards never sees a worktree id at all.
+	ProjectsDir string
+
 	// Origin is the allowlist and the loopback Host guard, from task 9.
 	Origin *httpx.OriginPolicy
 
@@ -164,8 +178,11 @@ type Deps struct {
 	// GitGlobalFiles resolves the two files the HOST's git reads beyond its
 	// config, as its own system and global config name them: the global
 	// excludes file and the global attributes file, as host paths
-	// (gitfix-rereview I-A). Every one is mounted, so no worktree's config may
-	// name one (X-1). Sessions call it at
+	// (gitfix-rereview I-A). Every absolute one that is a file, and is not
+	// reached through the projects directory, is mounted, so no worktree's
+	// config may name one (X-1; AMENDED by X-3, was "Every one is mounted",
+	// which contradicted the sentence below it once X-1 review m-4 landed and
+	// is wrong again for X-1 review m-5). Sessions call it at
 	// every create and restart, and sessionEnv hands the sandbox's git the
 	// ones that exist, mounted read-only, a relative one inside the
 	// repository as it is, and /dev/null for the rest.

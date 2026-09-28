@@ -165,10 +165,13 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		Log:          log,
 		// Created per worktree, at the first session that needs it.
 		ConversationsDir: cfg.ConversationsDir,
-		GitIdentity:      gitIdentity,
-		GitLineEndings:   gitLineEndingsResolver(host),
-		GitGlobalFiles:   gitGlobalFilesResolver(host),
-		CABundle:         cfg.CABundle,
+		// The one region of this host a sandbox can write, so the one region a
+		// mount source may not be reached through (X-3).
+		ProjectsDir:    cfg.ProjectsDir,
+		GitIdentity:    gitIdentity,
+		GitLineEndings: gitLineEndingsResolver(host),
+		GitGlobalFiles: gitGlobalFilesResolver(host),
+		CABundle:       cfg.CABundle,
 	})
 	if err != nil {
 		return fmt.Errorf("build the HTTP surface: %w", err)

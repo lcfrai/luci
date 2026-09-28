@@ -18,6 +18,7 @@ import (
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hostpath"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
@@ -510,12 +511,19 @@ func (a *API) sessionGitGlobalFiles(ctx context.Context, worktreeID string) (ses
 	return sessionGitFiles{excludes: excludes, attributes: attributes}, nil
 }
 
-// sessionGitGlobalFile is hostPath, with any link resolved, when the host's
+// sessionGitGlobalFile is hostPath, with every link resolved, when the host's
 // git reads patterns from it, which is when it is a regular file (Stat,
 // following a link as git does), and "" otherwise, the way git itself treats
 // it. Nothing there: git skips the path silently. Something git cannot read,
 // or a directory: git reads no patterns from it and at most warns, so the
 // sandbox reads none either, and the cause goes to the log.
+//
+// An absolute path reached through the projects directory fails the create
+// (X-3). It is not downgraded to "no patterns", because that is the failure
+// this resolver exists to prevent: without the host's excludes an agent's
+// `git add -A` commits every file the host's git ignores, .claude/
+// settings.local.json among them. A quiet /dev/null would leak more, more
+// often, than the attack it was closing; the 500 names the one-line fix.
 //
 // A relative path is never mounted: git reads it against each repository's
 // top, so it names a file in the worktree, which the agent writes, and not
@@ -534,25 +542,43 @@ func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (sessionGit
 		}
 		return sessionGitFile{}, fmt.Errorf("the host's git config sets %s to %q, a relative path that leaves the repository, so no sandbox can read the file the host's git reads there: set it to an absolute path, or to a path inside the repository", key, hostPath)
 	}
-	info, err := os.Stat(hostPath)
+	// The mount's source is the file, not a link to it. Dotfile managers link
+	// ~/.config/git/ignore, and what a Docker host does with a link as a mount
+	// source (Docker Desktop's share would see a Windows target) is then never
+	// the question. Not measured with a link here.
+	//
+	// The walk is what makes that link safe to follow. It refuses as soon as
+	// any step of the resolution is inside the projects directory, because a
+	// step there is the agent's to swap: link ~/.config/git/ignore into a
+	// dotfiles repository under the projects directory, as a dotfile manager
+	// does, and an agent running in that repository points it at ~/.ssh/id_rsa
+	// instead. Both ends of that chain are outside the projects directory, so
+	// checking the named path or the resolved path lets the key through (X-1
+	// review m-5, and review-2 m-4's likelier case). R4 rule 6: the host never
+	// trusts anything a sandbox can write.
+	resolved, err := hostpath.ResolveOutside(a.deps.ProjectsDir, hostPath)
 	if err != nil {
+		if errors.Is(err, hostpath.ErrInside) {
+			return sessionGitFile{}, fmt.Errorf("the host's git config sets %s to %q, and reaching it passes through the projects directory, where an agent can swap it for a link to any file on this host, so it is not mounted: set it to a path outside the projects directory (%v)", key, hostPath, err)
+		}
 		if !errors.Is(err, fs.ErrNotExist) {
 			a.sessionLog().Warn("the host's git cannot read this file either, so the sandbox's git reads none",
 				"worktreeId", worktreeID, "key", key, "path", hostPath, "err", err)
 		}
 		return sessionGitFile{}, nil
 	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
+			a.sessionLog().Warn("the host's git cannot read this file either, so the sandbox's git reads none",
+				"worktreeId", worktreeID, "key", key, "path", resolved, "err", err)
+		}
+		return sessionGitFile{}, nil
+	}
 	if !info.Mode().IsRegular() {
 		return sessionGitFile{}, nil
 	}
-	// The mount's source is the file, not a link to it. Dotfile managers
-	// link ~/.config/git/ignore, and what a Docker host does with a link as
-	// a mount source (Docker Desktop's share would see a Windows target) is
-	// then never the question. Not measured with a link here.
-	if resolved, err := filepath.EvalSymlinks(hostPath); err == nil {
-		hostPath = resolved
-	}
-	return sessionGitFile{mount: hostPath}, nil
+	return sessionGitFile{mount: resolved}, nil
 }
 
 // sessionWorktreeAdmin returns the host path of a primary worktree's
@@ -579,6 +605,11 @@ func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (sessionGit
 // link against its own filesystem, where a target outside the mount does not
 // exist, and a directory or a mount made through it would land outside the
 // worktree.
+//
+// AMENDED by X-3 (review O-2; was "making the directory when there is none yet"
+// with nothing said about what is already there): .git/worktrees is Lstatted
+// too, and a link there fails the create. See below for why it fails rather
+// than mounting nothing, and for the race this does not close.
 func sessionWorktreeAdmin(worktreePath string) (string, error) {
 	gitDir := filepath.Join(worktreePath, ".git")
 	info, err := os.Lstat(gitDir)
@@ -592,8 +623,32 @@ func sessionWorktreeAdmin(worktreePath string) (string, error) {
 		return "", nil
 	}
 	admin := filepath.Join(gitDir, "worktrees")
+	// O-2 of the X-1 review: .git is Lstatted, .git/worktrees was not, and
+	// MkdirAll Stats — which follows a link and answers nil for a directory.
+	// So an agent that replaced .git/worktrees with a link to /etc got /etc
+	// bind-mounted into its own sandbox. The agent writes this directory, so
+	// the link is the agent's to plant, and the mount is the host's to refuse.
+	//
+	// It fails the create rather than mounting nothing: mounting nothing puts
+	// the sandbox's git back where the read-only bind was added to stop it,
+	// free to `git worktree prune` the HOST's metadata, and a session that
+	// quietly lost a safety control is worse than one that did not start.
+	if info, err := os.Lstat(admin); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("%s is a link, and the host will not mount what it points at: an agent in this worktree can aim it at any directory on this host, so delete it and let git make the directory again", admin)
+	} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return "", err
+	}
 	if err := os.MkdirAll(admin, 0o777); err != nil {
 		return "", err
+	}
+	// R4 rule 6 as the rule rather than as two Lstats: whatever is mounted has
+	// to be in the worktree it belongs to. The remaining hole is the race —
+	// the agent can swap the directory for a link between this check and
+	// Docker's mount, and a fork on the same worktree runs while it is live.
+	// No check closes that; R4 rule 1 does, by never mounting the project
+	// repository at all (phase 3). X-3 records it as the residue.
+	if _, err := hostpath.Confine(worktreePath, admin); err != nil {
+		return "", fmt.Errorf("%s does not stay inside the worktree, so it is not mounted: %w", admin, err)
 	}
 	return admin, nil
 }
