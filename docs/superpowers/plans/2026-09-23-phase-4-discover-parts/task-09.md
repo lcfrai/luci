@@ -17,8 +17,13 @@ types; `api` imports nothing of it).
 - `control-plane/internal/contextwrite/materialise.go` + `materialise_test.go` (new)
 - `control-plane/internal/contextwrite/inspect.go` + `inspect_test.go` (new)
 - `control-plane/internal/contextwrite/git.go` — the `Git` interface (new)
+- `control-plane/internal/contextwrite/gitcmd.go` + `gitcmd_test.go` — `NewGit`, the one `Git`,
+  over a `project.Runner`-shaped `Runner` (new; fix round 1, As built 10)
+- `control-plane/internal/contextwrite/confine.go`, `open_unix.go`, `open_other.go` +
+  `confine_test.go` — the link rule (new; fix round 1, As built 11)
 
-**Interfaces — complete source:**
+**Interfaces — declarations and their doc comments.** The code is authoritative where the
+wording of a comment differs (t09 review m6); the declarations match it exactly.
 
 ```go
 // control-plane/internal/contextwrite/materialise.go
@@ -121,7 +126,8 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     branch revision's pinned project revision missing) → hub_unavailable:
 //     a brief exists and the Hub cannot hand over what it builds on (t07
 //     review m3; As built 1).
-//     hubclient.ErrSignedOut (signin.ErrSignedOut is that value), a relayed
+//     hubclient.ErrSignedOut (entraauth.ErrSignedOut is that value,
+//     hubclient.go:137), a relayed
 //     401, or a relayed 403 tenant_not_enrolled → signed_out (a brief may
 //     exist and cannot be read: 4-D1 refuses; the owner's OQ-11, plan §10,
 //     recommended option, with Sign in first in task 20; review M10;
@@ -141,10 +147,15 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     Every new content is computed before anything is written, so a
 //     broken marker in either file writes nothing.
 //  6. The exclude line FIRST (review M13): whenever the target will hold a
-//     block, in a directory git manages, append "/CLAUDE.md" or
-//     "/.claude/CLAUDE.md" to the path Git.ExcludePath returns, if absent
+//     block, in a directory git manages, append to the path Git.ExcludePath
+//     returns, each if absent, the target's line ("/CLAUDE.md" or
+//     "/.claude/CLAUDE.md") and its temp file's ("/.CLAUDE-*.md" or
+//     "/.claude/.CLAUDE-*.md", "/" + statepath.TempPattern: the temp holds
+//     the whole brief until its rename, and a crash leaves it; review m2)
 //     (asked on every such start, the target's bytes unchanged included;
-//     As built 3).
+//     As built 3). Then ask Git.Ignored of the target (review m1): false (a
+//     .gitignore's "!CLAUDE.md" outranks info/exclude) → write_failed; an
+//     error → a plain error.
 //     A Git.ExcludePath error is a plain error (500, step 2's Git rule); a
 //     failed read or write of the exclude file → write_failed. Either way
 //     the target is not opened for writing, so no brief text lands in a
@@ -152,8 +163,9 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     untracked, un-excluded CLAUDE.md). A strip that lands no brief text
 //     needs no line. ErrNotARepo (step 2): no line, nothing to exclude from.
 //  7. Write only if the bytes changed, with statepath.WriteAtomic(..., Shared),
-//     the other candidate's strip before the target's write.
+//     the other candidate's strip before the target's write (review m7).
 //     A file left holding only whitespace after a strip is removed.
+//     Every write re-checks the link rule first (confine.go, As built 11).
 //     Any write error → write_failed. A failure here leaves step 6's line
 //     in place: it names a file that is absent or holds no new brief text,
 //     and step 6 would add it again next start anyway ("if absent").
@@ -167,35 +179,63 @@ func (m *Materialiser) Materialise(ctx context.Context, req api.MaterialiseReque
 // control-plane/internal/contextwrite/git.go
 package contextwrite
 
-// Git is the two read-only questions this package asks git. Task 14 wires it
-// over project.Runner (phase 2's read-only runner), each command run with
-// <dir> as its working directory (Run's dir argument; no -C is passed):
-//   Tracked:     git --icase-pathspecs ls-files -- <rel>
-//                (exit 0 either way: empty output = untracked, any output =
-//                tracked; review I7). --icase-pathspecs because a pathspec is
-//                case-sensitive even under core.ignorecase=true (the Windows
-//                default): plain `ls-files -- CLAUDE.md` prints nothing when
-//                the index holds claude.md, yet opening CLAUDE.md on NTFS or
-//                APFS opens that tracked file (re-review R-I1). Not the
-//                :(icase) pathspec magic: under GIT_LITERAL_PATHSPECS=1 that
-//                silently matches nothing ("untracked"), where the option
-//                fails with exit 128, which is a 500. On a case-sensitive
-//                Linux checkout a tracked claude.md now reads as tracked and
-//                moves the target to .claude/CLAUDE.md: the safe way.
-//   ExcludePath: git rev-parse --git-path info/exclude  (joined to dir if relative)
+// Git is the three questions this package asks git. None of them writes: no
+// git command here adds, commits or updates the index. They are not "safe"
+// merely for being read-only, though: the worktree is bind-mounted into the
+// sandbox read-write, .git/config included (api/sessions.go:343), so the
+// agent owns the repository's config, and host git applies it. NewGit
+// (gitcmd.go) is the one implementation, over project.Runner, and it disables
+// the config that turns these commands into a program start on the host
+// (core.fsmonitor, review I-1). Each command runs with <dir> as its working
+// directory (Run's dir argument; no -C is passed):
+//
+//	Tracked:     git -c core.fsmonitor=false --icase-pathspecs ls-files -- <rel>
+//	             (exit 0 either way: empty output = untracked, any output =
+//	             tracked; review I7). --icase-pathspecs: re-review R-I1, as
+//	             before (the code keeps the whole reason).
+//	ExcludePath: git -c core.fsmonitor=false rev-parse --git-path info/exclude
+//	             (joined to dir if relative).
+//	Ignored:     git -c core.fsmonitor=false check-ignore -v -- <rel>
+//	             asked after step 6 wrote its line (review m1): whether git
+//	             now ignores <rel>. -v prints the last pattern that matches,
+//	             a negation ("!CLAUDE.md" in a .gitignore, which outranks
+//	             info/exclude) included, and exits 0 whenever any pattern
+//	             matches; step 6's own line matches in a worktree that is the
+//	             repository's top level, so exit 1 (no pattern matches: the
+//	             worktree is a subdirectory) arrives as the runner's error, a
+//	             500. Without -v a negation exits 1 too, and "not ignored"
+//	             could not be told from a failure through the runner.
+//
 // NO exit code is read. project.ExecRunner.Run wraps a failure with %v
-// (gitrunner.go:74), which drops the *exec.ExitError, so "exit 1 means
-// untracked" cannot be seen through the runner, and --error-unmatch is not
-// used. The one error text parsed is "not a git repository", from either
-// command, which becomes ErrNotARepo; the plan knows it is a string match.
-// It never writes through git. The exclude FILE is written by this package
-// with statepath.WriteAtomic, which is a file write, not a git command.
+// (gitrunner.go:79-80), which drops the *exec.ExitError. The one error text
+// parsed is "not a git repository", from any of the three, which becomes
+// ErrNotARepo; the plan knows it is a string match. The exclude FILE is
+// written by this package with statepath.WriteAtomic, not by git.
 type Git interface {
 	Tracked(ctx context.Context, dir, rel string) (bool, error)
 	ExcludePath(ctx context.Context, dir string) (string, error)
+	Ignored(ctx context.Context, dir, rel string) (bool, error)
 }
 
 var ErrNotARepo = errors.New("contextwrite: not inside a git repository")
+```
+
+```go
+// control-plane/internal/contextwrite/gitcmd.go
+package contextwrite
+
+// Runner is project.Runner's one method. Task 14 passes project.NewExecRunner();
+// nothing here imports project.
+type Runner interface {
+	Run(ctx context.Context, dir string, args ...string) ([]byte, error)
+}
+
+// NewGit is Git over r, each question one command (git.go names them). Every
+// command starts with hardened, -c core.fsmonitor=false: a -c outranks every
+// config file and include (review I-1; TestNoGitQuestionStartsTheRepositorysFsmonitor
+// plants the hook over real git). UNVERIFIED beyond core.fsmonitor: that none
+// of the three starts any other program named by config.
+func NewGit(r Runner) Git
 ```
 
 ```go
@@ -294,7 +334,8 @@ func (m *Materialiser) Inspect(ctx context.Context, req api.MaterialiseRequest) 
 ```
 
 **Tests first** (a fake `Source`, a fake `Git` answering `Tracked` per path, `t.TempDir()`
-worktrees; the real `git ls-files` wiring is tested over real git in task 14):
+worktrees; the real `git` wiring, `NewGit`, is tested over real git in `gitcmd_test.go`, As
+built 10):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
@@ -325,6 +366,23 @@ worktrees; the real `git ls-files` wiring is tested over real git in task 14):
 | `TestAnErasedPinIsSupersededNotEdited` (re-review b06-2 R2-I1) — table | a block for `idA@6` rendered against a project revision (an "erased project audience" section), then `Source` answering the same key with its own text alone and `PinErased: true` → `superseded`, `MarkerKey == ExpectedKey`, `Diff` `[]`, and no byte of the erased text in the `Inspection`'s JSON; the next `Materialise` rewrites the block to the own-text render, and `Inspect` then says `current`. Control row, `PinErased: false` → `edited` | every worktree that materialised the key before the erasure called hand-edited, its diff showing the erased text on the desktop |
 | `TestInspectWithoutBriefExpectsNothing` | `WithoutBrief: true` over a block → `stale`, `ExpectedKey ""`, `Source` never called | an Inspect that asks the Hub for a start that will not |
 | `TestInspectReportsTheExcludeLine` (review M9) — table | both untracked → `Excluded: "/CLAUDE.md"`, `AltTracked: false`; `CLAUDE.md` untracked and `.claude/CLAUDE.md` tracked → `Excluded: "/CLAUDE.md"`, `AltTracked: true` (re-review b09 I-1); `CLAUDE.md` tracked → `"/.claude/CLAUDE.md"`, `AltTracked: false`; the fake `Git` answering `ErrNotARepo` → `""`, `AltTracked: false`; in every row the fake `Git.ExcludePath` is never called, and the fake `Git.Tracked` is called once per candidate | a view that says git stops listing a file in a directory git does not manage; an `Excluded` naming the other candidate; an `AltTracked` hard-wired false, which lets task 19 offer a commit that stops every start |
+
+Rows added by fix round 1 (t09 review):
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestEveryGitQuestionDisablesTheRepositorysFsmonitor` (I-1) | a recording `Runner`: the three argv are exactly `-c core.fsmonitor=false --icase-pathspecs ls-files -- CLAUDE.md`, `-c core.fsmonitor=false rev-parse --git-path info/exclude`, `-c core.fsmonitor=false check-ignore -v -- CLAUDE.md`, run with the worktree as `Run`'s dir; no other subcommand | the hardening dropped from any one command, rev-parse's included (which a real-git hook cannot catch: it reads no index) |
+| `TestNoGitQuestionStartsTheRepositorysFsmonitor` (I-1) | real git: `.git/config` sets `core.fsmonitor` to a script that writes a marker; a control `ls-files` without `-c` writes it (else skip: not observable); the three questions leave none | a host `git ls-files` that runs the agent's command outside the sandbox |
+| `TestGitQuestionsOverARealRepository` | real git (task 14's row, moved here with the adapter): untracked → false; `claude.md` committed → `Tracked(CLAUDE.md)` true; `ExcludePath` ends `.git/info/exclude`; `Ignored` true after `/CLAUDE.md`, false under a `.gitignore`'s `!CLAUDE.md`, an error from a subdirectory; a plain directory under `GIT_CEILING_DIRECTORIES` → `ErrNotARepo` from all three | a fake runner passing where real git does not |
+| `TestGitQuestionsReadTheirOutput`, `TestCheckIgnoreOutputIsRead`, `TestGitErrorsAreNotARepoOrReturned` | ls-files output → tracked; rev-parse output must be one path; check-ignore `-v` lines: a negation is not ignored, a Windows-drive source and a pattern holding a colon parse, anything else is an error; "not a git repository" → `ErrNotARepo`, any other error returned | a negation read as ignored; an error swallowed |
+| `TestRealGitNeverListsTheBrief` (m1, m2) | real git and `NewGit`: after a start, with a crash's temp file planted beside the target (both targets), `git status --porcelain --untracked-files=all` prints nothing; a committed `.gitignore` holding `!CLAUDE.md` → `write_failed`, `CLAUDE.md` absent | the brief or its temp committed by an agent's `git add -A` (3-D6) |
+| `TestAnExcludeLineGitDoesNotHonourWritesNoBlock`, `TestAnIgnoredErrorIsAPlainErrorAndWritesNoBlock`, `TestIgnoredIsAskedOnlyBeforeABlockIsWritten` (m1) | fake `Ignored` false → `write_failed`, the target absent or byte-identical, asked once of the target; an `Ignored` error → plain; strips, `WithoutBrief` and a start outside git never ask | the line trusted to take effect |
+| `TestTheTempFileIsExcludedBeforeItExists` (m2), `TestAnExcludeLineWithLeadingWhiteSpaceIsNotTheLine` (m8) | the temp line is present even when step 6 then refuses; `  /CLAUDE.md` is not the line, so `/CLAUDE.md` is appended | mutant S2 (`TrimSpace` match) |
+| `TestADocumentForAnotherKeyIsAPlainError` (m3) | `Inheritable.Key` naming another revision than `Document`'s key or its marker (`BriefID@Revision`) → plain error from `Materialise` and `Inspect`, nothing written | a stamp that names another revision than the file's marker |
+| `TestALinkedCandidateIsNeverFollowed`, `TestALinkedExcludePathIsNeverFollowed`, `TestInspectNeverFollowsALink` (I-2; skipped where `os.Symlink` is refused) | `CLAUDE.md` linking to an outside file holding a secret, and `.claude` linking to an outside directory (`CLAUDE.md` tracked and not), for a start with a brief, with nothing to inherit and without the brief; `.git` and the exclude file as links: `write_failed`, the link still a link, the outside file byte-identical with its mtime, the secret in no worktree file; `Inspect` a plain error | the host's key read into the worktree; a brief written into the person's `~/.claude/CLAUDE.md` |
+| `TestAnExcludePathOutsideTheWorktree` (I-2) | a common directory's exclude file is written; a missing git directory builds no tree (`write_failed`); an `info` that is a link → `write_failed`, the outside file byte-identical | a linked worktree refused; a planted `commondir` making a tree anywhere |
+| `TestALinkSwappedInAfterPlanningIsRefused` (I-2) | `.claude` replaced by a link inside `ExcludePath`, between the plan and the writes → `write_failed`, the outside file byte-identical | a write that trusts the plan's check |
+| `TestTheOtherCandidatesStripIsWrittenBeforeTheTarget` (m7) | `.claude` replaced by a file inside `ExcludePath`, so the other's strip fails at write time → `write_failed`, `CLAUDE.md` absent | mutant S1 (the target written first) |
 
 **Steps:**
 
@@ -396,3 +454,36 @@ user on this laptop (task 23 checks by reading the file from inside the sandbox)
    `Private`: `TestFileIsWorldReadable` skips on Windows, so this guard parses the package source and
    requires `statepath.Shared` at every call), and `TestAnUntrackedOtherCandidateIsNotCommitted`
    (M11b, `Committed` listing an untracked other candidate).
+
+**As built, fix round 1 (2026-09-27, t09 review I-1, I-2, m1-m8):**
+
+10. **The `Git` adapter lives here, not in task 14** (review I-1). `NewGit(r Runner) Git`
+    (`gitcmd.go`) over a `Runner` with `project.Runner`'s one method; every command starts
+    `-c core.fsmonitor=false`, because the agent owns `.git/config` and a repository-local
+    `core.fsmonitor` made host `ls-files` and `check-ignore` run its command (measured, git
+    2.53.0.windows.2). The hardening is pinned over real git with a planted hook. Task 14 passes
+    `contextwrite.NewGit(project runner)` and writes no `gitQuestions` of its own; its
+    `TestGitQuestionsReadsUntrackedAsFalse`, `TestGitQuestionsOverARealRepository` and
+    `TestGitQuestionsNeverWrites` rows are covered here. Its acceptance grep for `.ExitCode()`
+    still holds: no exit code is read.
+11. **The link rule** (review I-2, `confine.go`): every read and write below the worktree Lstats
+    each component; a directory must be a real directory (a symlink, a junction or another
+    reparse point is refused) and the file a regular file or absent, else `write_failed`
+    naming the path (`Inspect`: a plain error). A read opens the file and checks `os.SameFile`
+    against the Lstat; on Linux and macOS the open is `O_NOFOLLOW|O_NONBLOCK`. Every write
+    re-checks just before `WriteAtomic`. An exclude file outside the worktree (a linked worktree's
+    common directory) checks the file, its `info` directory and the git directory, which must
+    exist. **Residue, declared:** a directory swapped for a link between a write's check and
+    its rename (the restart path runs beside the live agent); only below `.claude` or `.git`,
+    since `CLAUDE.md`'s own directory is the mount's root. Go 1.24's `os.Root` would close it; go
+    1.23 stays. Also: a planted gitfile or `commondir` can steer `ExcludePath` to another existing
+    `info/exclude` on the host, which then gains the two fixed lines. UNVERIFIED: whether a
+    symlink made inside a Docker Desktop container on a Windows bind mount is one Win32 follows.
+12. **Step 6 asks `Ignored` and excludes the temp file** (m1, m2). `Git.Ignored` is
+    `check-ignore -v`, read as git.go says; false → `write_failed`. The second line is
+    `"/" + statepath.TempPattern(target)` in the target's directory (`statepath.TempPattern`,
+    exported for it). `Inspection.Excluded` still names the target's line only. The temp line
+    also hides a person's own `.CLAUDE-<anything>.md`, named here as its cost; the temp name
+    itself is not asked of `Ignored`.
+13. **The stamp must name the document** (m3): `Inheritable.Key` must equal `Document.Key` and
+    the marker's `BriefID@Revision`, else a plain error, in `Materialise` and `Inspect`.
