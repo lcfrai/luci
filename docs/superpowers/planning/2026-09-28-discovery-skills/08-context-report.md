@@ -115,3 +115,85 @@ one of the two words should go.
   tree directly. The file is under git, so it does have a revision — the commit.
 - **Nothing from aihero.dev is in this file.** The method (a project glossary, own nouns only,
   rejected synonyms named) is theirs; every sentence, every term and every citation is ours.
+
+---
+
+## 6. Fix round — 2026-09-28, against review `08-context-review.md`
+
+Commit `5bc068b8`, `CONTEXT.md` + `CLAUDE.md`, no product code, no test run, no container. The
+review's verdict was *true but incomplete*, so this round adds what was missing and repairs one
+sentence that the file itself forbids. Every citation added below was opened in the real tree before
+it was written; none was carried over from the review on trust.
+
+### The four Importants
+
+**I1 — `CLAUDE.md` line 3, fixed first because it was self-refuting.** It read "one **git worktree**
+per agent", which is the phrase `CONTEXT.md`'s own table bans (*git worktree* → *worktree*, `OD-2`)
+and the wrong cardinality (a worktree holds many sessions, UI contract §2.1) — four lines above the
+pointer telling the reader to go read that table. It now reads "each session in its own sandbox on
+an isolated worktree". That phrasing is true to both entries at once: a **sandbox** is per running
+session, a **worktree** is the isolated checkout many sessions share. Nothing else in `CLAUDE.md`
+moved — no heading, no rule, no decision — because every agent in every worktree reads it.
+"Streaming back to a single cockpit" was kept deliberately: the Stream entry already names it as
+product prose, not the noun.
+
+**I2 — `Authority` added**, in Platform words. Nine action classes × four named levels (ASK FIRST ·
+PROPOSE AND WAIT · ACT AND TELL ME · FULL), never a slider, inherited project → branch → agent with
+the inherited value shown greyed in place, and movable at runtime in both directions — the agent may
+request elevation and must self-demote on uncertainty. Cited to `docs/AGENTIC-UX.md:37` (rule 6) and
+§7 (`:177-183`), plus `docs/FUNCTIONAL-SPEC.md:52` for the Develop top bar. `PermissionMode`
+(`…ui-contract.md:495`) is named as the thing it is **not** — three values, one axis, no inheritance,
+no action classes — both in the entry and as a new row in the do-not-use table.
+
+**I3 — `Queue` split into its two senses**, using the Orchestrator entry's treatment. Sense 1 is the
+attention queue (`docs/AGENTIC-UX.md:31`, rule 4): one ranked list, the only place a count may
+appear. Sense 2 is the landing queue: `QueueEntry`, the ready lanes of one branch in human-set
+landing order with their forecasts (`…task-08.md:119-127`). Rule: bare "the queue" is sense 1; sense
+2 is always written "the landing queue". Three existing sentences that leaned on one sense without
+saying which were amended — the Lane entry ("the landing-queue row it lands from"), the cockpit entry
+and the *dashboard* table row ("counts outside the **attention** queue are banned").
+
+**I4 — `Design approval`, `Release` and `Evidence` defined.** Three of the five things the Hub entry
+lists as the Hub's contents had no entry. Each is now one sentence of the thing that is not obvious,
+cited to its own section of the Hub contract: the approval is written by **one** call that fixes
+design revision, brief revision and file snapshot together (§7.7, `:872`); the release is a
+**reservation taken before the deploy exists** — `reserved` → `confirmed`, else `abandoned` or
+`expired`, and if the pin fails Ship does not happen (§7.9, `:957`); evidence is a `settled` /
+`contested` verdict at one commit, keyed by brief key + criterion id + criterion digest so an edited
+criterion line does not inherit the old verdict (§7.10, `:1060`).
+
+### The Minors
+
+- **M1, `Agent` cut.** Its only sharp half — harness is the program, agent is what runs in it — was
+  already in the Harness entry and in the table. *Sub-agent* and the `OD-16` ownership rule
+  (accountability and billing follow the owner; no user steers another user's agent) moved into
+  Orchestrator sense 1, where the cross-user rule already lived.
+- **M2, `Warm pool` cut.** "Pre-provisioned and kept running" is the standard meaning. The product
+  behaviour that was not obvious — a cloud machine is **claimed**, no create form, sizing asked only
+  for a second machine or after an OOM — is now a clause in the Machine entry, with `PROGRAM.md`
+  `:119-122` added to that entry's citations.
+- **M3, `Branch` trimmed** to the load-bearing half: its own brief, its own Environment, its own
+  sub-rail.
+- **M4 and M5, both citations fixed.** Provenance cited `provenance-contract-draft.md` §2.1, which is
+  storage layout and the *ledger* entry's section; it now cites §1.4 *The view every surface renders*
+  (`:129`) and §2.4 *What `contextRef` now means* (`:215`). The `Backend` interface is
+  `docs/PROGRAM.md:34-40`; `:46` is the prose sentence the Machine entry already cites.
+- **M6, the closing rule now states the exception it already practises.** "When a definition and its
+  cited file disagree, the file wins" gains: when two cited files disagree with *each other*, or a
+  file disagrees with itself, state what the code and shipped surfaces carry, say so in the entry,
+  and record it under Open questions — which is why Lens states six against a rule that says four.
+- **M7, `The Desk`, not done and deliberately so.** It is the one surface noun in `AGENTIC-UX.md`
+  (`:85-87`, account-level, above projects, a surface you empty) with nothing in the phase 2
+  contracts to fix it. Adding an entry whose only citation is the UX document would define a word the
+  code has not yet met. Left for the phase that builds it; recorded here so it is not lost.
+
+Net effect on length: 298 → 340 lines. Five entries added, two removed, three trimmed.
+
+### Owner question added — the lens conflict is inside one contract
+
+The review's new fact is now in `CONTEXT.md` Open question 1 rather than being ruled on: the `Lens`
+type's own comment at `…ui-contract.md:564-565` lists **six** lens rows while citing rule 12, and
+rule 12 says **four**. The contract therefore contradicts itself, not merely the UX document. This is
+a judgement for the owner, and it has a consequence either way: whichever count is correct,
+`ui-contract.md:564-565` needs the same edit as `AGENTIC-UX.md:79`. No file was changed on the
+strength of a guess.
