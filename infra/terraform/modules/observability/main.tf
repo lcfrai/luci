@@ -34,13 +34,16 @@ resource "azurerm_log_analytics_workspace" "this" {
   tags                         = var.tags
 }
 
-# UNVERIFIED: the extension's JSON keys are training knowledge of the Container Insights DCR
-# schema. Azure accepts or rejects them only at apply (task 31); terraform validate cannot see
-# inside a JSON string, and no test here can either.
+# UNVERIFIED: the extension's JSON keys, and kind = "Linux", are training knowledge of the
+# Container Insights DCR schema. Azure accepts or rejects them only at apply (task 31); terraform
+# validate cannot see inside a JSON string, and no test here can either. kind is what Microsoft's
+# own Container Insights DCR carries and the nodes are AzureLinux; left unset, Azure may read the
+# rule as a kind that collects nothing while the association still succeeds.
 resource "azurerm_monitor_data_collection_rule" "container_insights" {
   name                = "dcr-ci-panacea-app-${var.environment}"
   location            = var.location
   resource_group_name = var.resource_group_name
+  kind                = "Linux"
   tags                = var.tags
 
   destinations {

@@ -7,9 +7,15 @@
 # naming nothing real (task 02's lesson, carried by task 03).
 mock_provider "azurerm" {
   override_during = plan
+  # local_authentication_enabled is mocked to Azure's OWN default, true, not to the value we want.
+  # An unset optional attribute is otherwise filled with its type's zero value — false — which is
+  # exactly what the security assert below looks for, so deleting main.tf's line left the suite
+  # green (review 1, C1). Mocking the unsafe default makes the assert read the configuration:
+  # config wins over a mock default, and a module that stops setting it fails.
   mock_resource "azurerm_log_analytics_workspace" {
     defaults = {
-      id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-panacea-app-dev/providers/Microsoft.OperationalInsights/workspaces/log-panacea-app-dev"
+      id                           = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-panacea-app-dev/providers/Microsoft.OperationalInsights/workspaces/log-panacea-app-dev"
+      local_authentication_enabled = true
     }
   }
   mock_resource "azurerm_monitor_data_collection_rule" {
@@ -101,6 +107,27 @@ run "sandbox_stdout_is_never_collected" {
     condition     = jsondecode(azurerm_monitor_data_collection_rule.container_insights.data_sources[0].extension[0].extension_json).dataCollectionSettings.enableContainerLogV2 == true
     error_message = "The DCR does not enable ContainerLogV2, whose schema carries the namespace the filter is applied to."
   }
+  # The default is pinned to a literal, not to var.excluded_log_namespaces: no run set that
+  # variable, so the old comparison was default == default and a default that quietly lost
+  # kube-system shipped green (review 1, I1). kube-system is CoreDNS, kube-proxy, metrics-server
+  # and the AMA agent's own stdout — enough to trip a 5 GB/day cap on its own.
+  assert {
+    condition     = tolist(jsondecode(azurerm_monitor_data_collection_rule.container_insights.data_sources[0].extension[0].extension_json).dataCollectionSettings.namespaces) == tolist(["kube-system", "panacea-sandboxes"])
+    error_message = "The default excluded namespaces are no longer exactly kube-system and panacea-sandboxes."
+  }
+}
+
+# I1's other half: a run whose input differs from the default, so a hard-coded namespace list in
+# main.tf (which the default pin above cannot see) fails here.
+run "the_excluded_namespaces_come_from_the_input" {
+  command = plan
+  variables {
+    excluded_log_namespaces = ["kube-system", "panacea-sandboxes", "gatekeeper-system"]
+  }
+  assert {
+    condition     = tolist(jsondecode(azurerm_monitor_data_collection_rule.container_insights.data_sources[0].extension[0].extension_json).dataCollectionSettings.namespaces) == tolist(["kube-system", "panacea-sandboxes", "gatekeeper-system"])
+    error_message = "var.excluded_log_namespaces does not reach the DCR's namespace filter: the list is hard-coded somewhere in main.tf."
+  }
 }
 
 run "removing_the_sandbox_exclusion_is_rejected" {
@@ -132,6 +159,14 @@ run "dcr_sends_to_this_workspace" {
   assert {
     condition     = toset(azurerm_monitor_data_collection_rule.container_insights.data_sources[0].extension[0].streams) == toset(one(azurerm_monitor_data_collection_rule.container_insights.data_flow).streams) && azurerm_monitor_data_collection_rule.container_insights.data_sources[0].extension[0].extension_name == "ContainerInsights"
     error_message = "The extension collects a different set of streams from the one the flow carries, or is not the ContainerInsights extension."
+  }
+  # kind = "Linux" is what Microsoft's own Container Insights DCR carries. UNVERIFIED against a
+  # real apply (task 31), like the extension JSON, but it validates in 4.81.0 and a DCR that
+  # Azure reads as the wrong kind is the same failure this module exists to close: it exists, the
+  # association succeeds, and nothing is collected (review 1, I3).
+  assert {
+    condition     = azurerm_monitor_data_collection_rule.container_insights.kind == "Linux"
+    error_message = "The DCR is not kind Linux; Container Insights on AzureLinux nodes is collected by the Linux agent."
   }
 }
 
@@ -173,4 +208,72 @@ run "no_recipients_is_rejected" {
     alert_emails = []
   }
   expect_failures = [var.alert_emails]
+}
+
+# Counting receivers proved only that there were as many as there were addresses, so a constant
+# address in main.tf's dynamic block left nine runs green (review 1, I2). Two addresses, and each
+# receiver is read by address and by the name it is paired with, so a constant, a dropped address
+# and a mis-paired name all fail. The budget's own contact_emails are read here too: its earlier
+# assert ran with a single address, where alert_emails[0] is indistinguishable from alert_emails.
+run "every_alert_address_reaches_the_action_group" {
+  command = plan
+  variables {
+    alert_emails = ["platform@example.invalid", "oncall@example.invalid"]
+  }
+  assert {
+    condition     = toset([for r in azurerm_monitor_action_group.platform.email_receiver : "${r.name}=${r.email_address}"]) == toset(["email-0=platform@example.invalid", "email-1=oncall@example.invalid"])
+    error_message = "The action group's receivers are not one per var.alert_emails address, named email-<index>: an alert that alerts nobody."
+  }
+  assert {
+    condition     = alltrue([for r in azurerm_monitor_action_group.platform.email_receiver : r.use_common_alert_schema])
+    error_message = "A receiver does not use the common alert schema, so its payload differs per alert type."
+  }
+  assert {
+    condition     = alltrue([for n in azurerm_consumption_budget_subscription.monthly.notification : toset(n.contact_emails) == toset(var.alert_emails)])
+    error_message = "A budget notification does not carry every alert address."
+  }
+}
+
+# Every value here differs from the file-level variables, so a name, region, group or tag set
+# frozen to dev's fails. Without it three names could be hard-coded to -dev and the DCR and action
+# group could drop tags with the suite green (review 1, M1); a prod estate would then carry
+# dcr-ci-panacea-app-dev and miss tag-based cost attribution.
+run "names_region_group_and_tags_come_from_the_inputs" {
+  command = plan
+  variables {
+    environment         = "prod"
+    location            = "australiasoutheast"
+    resource_group_name = "rg-panacea-app-prod"
+    tags                = { owner = "platform", stack = "foundation" }
+  }
+  assert {
+    condition     = azurerm_log_analytics_workspace.this.name == "log-panacea-app-prod" && azurerm_monitor_data_collection_rule.container_insights.name == "dcr-ci-panacea-app-prod" && azurerm_monitor_action_group.platform.name == "ag-panacea-app-prod" && azurerm_consumption_budget_subscription.monthly.name == "budget-panacea-app-prod"
+    error_message = "The workspace, DCR, action group or budget does not carry var.environment in its name."
+  }
+  assert {
+    condition     = alltrue([for r in [azurerm_log_analytics_workspace.this, azurerm_monitor_data_collection_rule.container_insights] : r.location == "australiasoutheast" && r.resource_group_name == "rg-panacea-app-prod"]) && azurerm_monitor_action_group.platform.resource_group_name == "rg-panacea-app-prod"
+    error_message = "The workspace, DCR or action group does not take var.location and var.resource_group_name."
+  }
+  assert {
+    condition     = alltrue([for r in [azurerm_log_analytics_workspace.this, azurerm_monitor_data_collection_rule.container_insights, azurerm_monitor_action_group.platform] : r.tags == tomap({ owner = "platform", stack = "foundation" })])
+    error_message = "The workspace, DCR or action group does not take var.tags, so tag-based cost attribution misses it."
+  }
+}
+
+run "a_budget_of_zero_is_rejected" {
+  command = plan
+  variables {
+    monthly_budget_amount = 0
+  }
+  expect_failures = [var.monthly_budget_amount]
+}
+
+# Azure rejects a mid-month start at apply; this rejects it at plan, where the message names the
+# variable (review 1, M4).
+run "a_mid_month_budget_start_is_rejected" {
+  command = plan
+  variables {
+    budget_start_date = "2026-11-15T00:00:00Z"
+  }
+  expect_failures = [var.budget_start_date]
 }
