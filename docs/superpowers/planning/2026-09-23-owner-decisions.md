@@ -5,6 +5,43 @@ is the **single record** of those answers. Every plan written after this date ci
 id (`OD-n`), and where an older document disagrees, **this file wins**. The answers are quoted
 where the owner wrote free text, because the words carry the intent.
 
+## What earns an OD
+
+Thirty-five decisions are on this page and until now nothing here said what a decision *is*. The
+three-part test below is adopted from the method surveyed in `2026-09-28-discovery-skills/` — the
+method only; none of that source's wording is used. A question earns an `OD` row when **all three**
+are true.
+
+1. **Expensive to undo.** Reversing it costs code, data or a re-plan, not a setting. This excludes
+   anything a toggle, a config value or a single-file edit walks back — those are notes, and a note
+   belongs in the plan it affects, next to the work.
+2. **Not derivable from the tree.** An agent reading the repo cold would guess wrong, or would not
+   know the question existed. This excludes restatements of what the code already says: where the
+   answer is legible from the source, the source is the record and a second copy of it rots.
+3. **A real fork.** Two defensible options existed and one was given up at a named cost. This
+   excludes the obvious call — if every alternative is worse for everyone, nothing was traded and a
+   future reader has nothing to weigh.
+
+All three, not two. Each limb removes a different kind of clutter, and a register that admits easy,
+obvious or already-legible calls stops being worth reading end to end — which is the only way a
+register is ever read. The test is deliberately harsh: most questions should fail it.
+
+**What the gate is not for.**
+
+- **It does not govern orchestrator rulings.** A ruling is the structural call an agent makes when
+  its inputs do not cover the case in front of it (`2026-09-25-identity-keycloak-broker.md` is one).
+  Rulings are made under authority this register already granted, and they are recorded where the
+  work is. A ruling that turns out to need the owner becomes a pending question, and then an `OD`.
+- **It does not create `docs/adr/`.** We have a register, with owner authority, that `CLAUDE.md`
+  says wins over anything older. A second decision store is the failure `PROGRAM.md` already paid
+  for once. We are adopting a test, not a second system.
+- **It is not retrospective.** Nothing already numbered is deleted or renumbered — every `OD` id is
+  cited across the programme. The backwards audit at the end of this file names the rows that would
+  not pass today and leaves every one of them in place.
+
+Dependency edges between decisions are recorded once, near the end of this file, under **The
+dependency frontier**.
+
 ## The decisions
 
 | Id | Question | Answer | Consequence |
@@ -264,3 +301,49 @@ requires log panes that never scroll-jump, and neither has any implementation in
   server-side.
 - `PROGRAM.md` → Phase 5, "Adapt Paperdesign": **superseded by OD-11.**
 - `PROGRAM.md` → open risk 4 (Paperdesign licence): **closed by OD-11.**
+
+## The dependency frontier
+
+What each decision waited on, and what it released. It is one table rather than two more columns on
+the five decision tables above, whose rows are already paragraph-length and would become unreadable.
+
+**Only decisions with an edge appear.** An edge is recorded only where this file, or a document it
+names, states the link. A phase consequence restated from the row's own *Consequence* cell is not an
+edge. 29 of the 35 decisions carry at least one; **OD-2, OD-4, OD-7, OD-9, OD-28 and OD-35 carry
+none**, and that is the honest answer for them, not an omission.
+
+Supersession is **not** a dependency edge and is not listed here — a superseded decision blocks
+nothing, it has simply stopped being in force. Those chains stay inside the rows that record them
+(OD-30 over OD-6, OD-11 over the Paperdesign line, OD-19 over `CLAUDE.md`'s rotation rule).
+
+| Id | Unblocked by | Unblocks |
+|---|---|---|
+| **OD-1** | — | The phase 3, 4, 5 and 7 plans and builds; every "accepted as written" recommendation on file |
+| **OD-3** | — | Phase H, with OD-5; phase 4's brief store, which needs it to exist first |
+| **OD-5** | — | Phase H; phase 8's growth from "Kata backend" to the product's own environment |
+| **OD-6** | — | The Credential Manager store that OD-30's silent relaunch reuses, and that holds OD-4's two host tokens |
+| **OD-8** | — | OD-10 (deletion by minted id is allowed); OD-20 (the canary that gates an image bump); every later phase's transcript adapter |
+| **OD-10** | OD-8 | Phase 3's worktree-removal verb, which calls the tested store-deletion seam |
+| **OD-11** | — | Phase 5's re-scope to a clean-room canvas; OD-34, whose tasks exist only under that scope |
+| **OD-12** | Phases 3–7 being built (OD-1, ordered by OD-31) | The verification of every owner-observed item, all of which stay unverified until that session happens |
+| **OD-13** | — | Phase 7 as an API client; OD-30's realm, which stays Panacea's until phase 8 runs its own |
+| **OD-14** | OD-5 (an environment to run them in) | OD-15, OD-16, OD-17, OD-22, OD-23; the ADR-H1 and phase 8 re-scope |
+| **OD-15** | OD-14 | Phase T's awareness surfaces |
+| **OD-16** | OD-14 | Phase T's Orchestrator channel and its escalation design |
+| **OD-17** | OD-14, OD-15, OD-16 | Phase T's plan (with OD-29) and its build straight after the current wave |
+| **OD-18** | OD-19 — Bedrock is reached across clouds through the gateway, so AWS's one advantage does not decide it | Phase 8 resuming unchanged on AKS with Kata |
+| **OD-19** | — | OD-21; OD-24's AU/Global switch; OD-33; phase 6's re-scope to the gateway; retires `/login` in every sandbox |
+| **OD-20** | OD-8 | The automated sandbox-image bump pipeline |
+| **OD-21** | OD-19 | OD-33 — both of its compliance tasks are defects in LiteLLM itself |
+| **OD-22** | OD-14 | Keeping lanes fresh while nobody is signed in |
+| **OD-23** | OD-14 | The control plane's per-org policy channel into every cloud sandbox at session start |
+| **OD-24** | OD-19 | OD-33's residency canary; phase 4's create flow; phase 7's release gates and scan selection |
+| **OD-25** | — | OD-26; OD-29's phase W half; phase W's streams beside phase T |
+| **OD-26** | OD-25 | Phase W's 187 tasks, which OD-35 then keeps in |
+| **OD-27** | — | `AGENTIC-UX.md`'s four one-line amendments (Q13) |
+| **OD-29** | OD-17, OD-25 | Phase T's 69 and phase W's ~165 part files — the frozen plans OD-35's refutation rests on |
+| **OD-30** | OD-6, OD-13 | The Hub's identity tasks; phase 7's `pnc_` key question; pending questions 5, 7 and 8 |
+| **OD-31** | Phase 2 merged to `main` and in the owner's hands | The paused work: the Hub, the environment, phases 3 to 7, team's plan fix, and the work plan's writing |
+| **OD-32** | — | Phase 8 tasks 01–10, 28 and 30 |
+| **OD-33** | OD-19, OD-21, OD-24 | Phase 6's two new tasks: the AU-residency canary and the rebuilt image |
+| **OD-34** | OD-11 | Phase 5 tasks 05, 06, 10, 11 and 12 |
