@@ -45,8 +45,8 @@ The citations that carry the most weight, all resolved against the file on 2026-
 | rail, lens, cockpit | UI contract `:396`, `:564-566`, `:617-631`; `AGENTIC-UX.md:79`; `FUNCTIONAL-SPEC.md:50-51` |
 | machine, sandbox | UI contract `:408-439`; Go contract `:1866-1896`; `PROGRAM.md:35-46` |
 | warm pool | `PROGRAM.md:137`, `:119-122`; `FUNCTIONAL-SPEC.md:46` |
-| data classification | `OD-24` `:189`, `OD-19` `:177` |
-| orchestrator | `OD-16` `:164` (product) vs `docs/superpowers/RESUME.md` (ours) |
+| data classification | `OD-24` `:152`, `OD-19` `:140` |
+| orchestrator | `OD-16` `:127` (product) vs `docs/superpowers/RESUME.md` (ours) |
 | stream | `docs/superpowers/RESUME.md:96-118`, `:176-184` |
 
 Twelve of the citations point into sibling worktrees (`phase-3`, `phase-4`, `hub`) because that work

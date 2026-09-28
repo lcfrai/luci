@@ -44,7 +44,7 @@ object.
 **Worktree** — an isolated checkout of one branch that holds **many sessions** and outlives all of
 them. Since `OD-2` it is a **local clone** of the project repository, not a `git worktree`; killing
 the last session on it does not remove it.
-*Fixed by:* `OD-2` (`docs/superpowers/planning/2026-09-23-owner-decisions.md:50`); phase 3 plan
+*Fixed by:* `OD-2` (`docs/superpowers/planning/2026-09-23-owner-decisions.md:13`); phase 3 plan
 "The model (OD-2)"
 (`.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence.md:68-75`);
 cardinality in UI contract §2.1 (`…ui-contract.md:617-631`).
@@ -168,7 +168,7 @@ and teams — the shared state `OD-3` put server-side so a teammate sees the sam
 control plane** is the *different*, local process `control-plane/cmd/api` that calls it as the user.
 *Fixed by:* Hub contract §Words
 (`.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-contract.md:9-11`); `OD-3` and
-`OD-5` (`…owner-decisions.md:51,53`).
+`OD-5` (`…owner-decisions.md:14,16`).
 *Not «the backend» and not «the API»* — both are ambiguous between two processes that run in
 different places under different identities.
 
@@ -239,8 +239,8 @@ Not «trust level», which names the calibration record, not the setting.
 **Data classification** — a property set when a **project is created** (and updatable afterwards)
 that decides two things: whether that project's inference goes **AU** (Bedrock, Sydney) or **Global**
 (the Anthropic API), and which security scans the deploy side requires.
-*Fixed by:* `OD-24` (`docs/superpowers/planning/2026-09-23-owner-decisions.md:189`) and `OD-19`
-(`:177`).
+*Fixed by:* `OD-24` (`docs/superpowers/planning/2026-09-23-owner-decisions.md:152`) and `OD-19`
+(`:140`).
 *Not «sensitivity label»* — that is a Microsoft Purview object we do not implement — and not
 «tenancy», which is about isolation, not about data.
 
@@ -252,7 +252,7 @@ that decides two things: whether that project's inference goes **AU** (Bedrock, 
    steers another user's agent (`docs/FUNCTIONAL-SPEC.md:14-15`).
 2. *Our process:* the workflow agent that dispatches build agents and holds the review gates while
    this repository is built.
-*Fixed by:* `OD-16` (`…owner-decisions.md:164`) for sense 1; `docs/superpowers/RESUME.md` for sense 2.
+*Fixed by:* `OD-16` (`…owner-decisions.md:127`) for sense 1; `docs/superpowers/RESUME.md` for sense 2.
 **Rule:** in product text, "Orchestrator" always means sense 1. Sense 2 is written **"the workflow
 orchestrator"**, never bare.
 
