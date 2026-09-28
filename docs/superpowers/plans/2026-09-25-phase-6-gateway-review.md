@@ -189,7 +189,7 @@ Line numbers are as of commit `85c0b69`. Hub contract lines are in `.claude/work
 
 **Mutants I expected to survive:** (1) task 04's "the last deployment wins", and (2) task 09's "delete `!ok`". Both did survive. The first is fixed by reordering the test. The second was an equivalent mutant, so its code and its row are removed.
 
-**Deferred:** none. **Owner question (new):** may a team `viewer` launch an agent? Ask P8-1 recommends `member` or `admin` only, and nothing in phase 6 depends on the answer.
+**Deferred:** none. **Owner questions (new), two.** (1) May a team `viewer` launch an agent? Ask P8-1 recommends `member` or `admin` only, and nothing in phase 6 depends on the answer. (2) **Who compares the AU prices with the AWS price list for `ap-southeast-2` before AU budgets are trusted?** `models.yaml`'s AU figures copy Global's (`task-02.md:706`, `:714`, `:722`, `:731`), while Bedrock's `au.` inference profiles are priced separately — by training knowledge, **UNVERIFIED**, about 10% higher — so AU budgets bite late until someone owns that check (`task-24.md:684`). Recorded here and in the ledger by re-review R-9 (`.superpowers/sdd/p6/plan-rereview-b02-1.md:47`), which found it had been raised on the fixer's return and written down nowhere.
 
 
 
@@ -199,7 +199,7 @@ Line numbers are as of commit `b8cbfa8`. Commits: `b3c260a` (task 14 and skeleto
 
 **I-4 (Important), a repository's settings can no longer move where prompts go through any door named here** (the endpoint, provider-switch and proxy keys; after round 2, telemetry export and project hooks too). Project MCP servers, plugins and any `env` key the fragment does not name stay open and are named in task 14's "does not claim" (re-review R-1).
 - `task-14.md:20`, decision (e): the fragment pins `env.ANTHROPIC_BASE_URL` = `http://gatekeeper.panacea-gateway.svc.cluster.local:4000` (`:439`), the one name for both modes. **The root cause is wider than the one key.** A provider switch with its own base URL and skip-auth flag is the same door, and so is `HTTP_PROXY` over the plain-`http` base URL. So the fragment also pins `CLAUDE_CODE_USE_BEDROCK`, `_VERTEX` and `_FOUNDRY` to `"0"`, and `NO_PROXY`/`no_proxy` to the gatekeeper host. All of that is **UNVERIFIED** (training knowledge). The ban on `ANTHROPIC_BASE_URL` and `CLAUDE_CODE_USE_BEDROCK` in the fragment is gone. The banned list now names the other providers' base URLs.
-- `task-14.md:246`, the new `TestTheFragmentPinsTheGatekeeperAsTheOnlyEndpoint`: host, port, no path (so no double-pathed `/v1/messages`), the switches, and the proxy bypass. The exact-keys test (`:227`) carries all eight `env` keys. Tests 11 → 12 and mutants 4 → 7 (`:479`). The fragment is 13 lines (step 8).
+- `task-14.md:246`, the new `TestTheFragmentPinsTheGatekeeperAsTheOnlyEndpoint`: host, port, no path (so no double-pathed `/v1/messages`), the switches, and the proxy bypass. The exact-keys test (`:227`) carries all eight `env` keys. Tests 11 → 12 and mutants 4 → 7 (`:479`). The fragment is 13 lines (step 8). **Superseded by round 2 below** (`:233`): the fragment is 15 lines and the mutants 7 → 9.
 - `task-14.md:521-523`, "does not claim": the list is not complete, and stopping a project's `env` from applying at all is seam S6.6's. Managed-over-project precedence, key by key, is **UNVERIFIED** until task 23's item 10 runs. `05-design.md:247`'s *"denies project `ANTHROPIC_*` env overrides"* is now named, and is done here for the endpoint keys. A project's `ANTHROPIC_API_KEY`/`AUTH_TOKEN` only breaks its own session: the request still goes to the pinned gatekeeper, which refuses it. Gap 5 is at `:531`.
 - `task-15.md:16`, decision (h): `gatewayclient.SandboxBaseURL` (`:1064`, interface `:37`). `NewLauncher` refuses any other `BaseURL` (`:1115`). `cmd/api` refuses any other `_BASE_URL` (`:1585`), and the default moves off `http://gatekeeper:4000` (`:44`). `TestNewLauncherRefusesAnyOtherBaseURL` is at `:380`. Tests 12 → 13, a config row, and mutants 9 → 11 (`:1682`).
 - `task-17.md:55` and `:345`: keysmith's `BASE_URL` is the pinned name. The gatekeeper's alias is at `:369`.
@@ -217,7 +217,7 @@ Line numbers are as of commit `b8cbfa8`. Commits: `b3c260a` (task 14 and skeleto
 - Skeleton P6-D1 (`:65`), the file map (`:143`) and task 17's summary (`:256`). `task-25.md:83` is marked closed in the plan, and U22 (`:128`) covers the Docker behaviours.
 
 **Verified in scratch, not in the repository** (`$TEMP/…/scratchpad/p6/b03`):
-- Task 14's `fragment_test.go` and fragment JSON, extracted from the part by `awk` and run in a throwaway module, give five of five passes. The fragment is 13 lines. Each of the three new fragment mutants (delete the base URL, append `/v1/messages`, set Bedrock to `"1"`) fails `TestTheFragmentIsExactlyTheGatewayKeys` and `TestTheFragmentPinsTheGatekeeperAsTheOnlyEndpoint`, and nothing else. `go test`, `go 1.23`.
+- Task 14's `fragment_test.go` and fragment JSON, extracted from the part by `awk` and run in a throwaway module, give five of five passes. The fragment is 13 lines — **superseded by round 2** (`:249`), where the same extraction gives 15. Each of the three new fragment mutants (delete the base URL, append `/v1/messages`, set Bedrock to `"1"`) fails `TestTheFragmentIsExactlyTheGatewayKeys` and `TestTheFragmentPinsTheGatekeeperAsTheOnlyEndpoint`, and nothing else. `go test`, `go 1.23`.
 - Task 17's network checker, copied verbatim into Python, was run against synthetic `docker compose config` shapes, 7 of 7 as intended: the new fake and anthropic shapes pass; the pre-I-6 shape fails with 13 errors; `litellm` on `gateway`, `internal` deleted, the alias deleted and `egress` outside anthropic mode each fail. That the real `compose config --format json` renders these shapes (a list as `{name: null}`, with `aliases` inside the mapping) is **UNVERIFIED**. Step 6's five proofs settle it.
 - Task 15's code, task 19's `fail` guard and task 23's steps were reasoned over the plan's text, not run, because none of these packages or charts exists on this branch yet.
 
@@ -288,6 +288,8 @@ Line numbers are as of commit `e254c44`. Commits: `780663c` (B04-1), `e254c44` (
 ## Fix batch b05 (I-9, I-3, I-2), 2026-09-26
 
 Commits `ef8ea2af` (skeleton), `f800c98a` (the four parts, written before the agent was killed and judged coherent before committing), `d52229db` (restatement), `9719998d` (id collision and the Hub `GET`).
+
+**This section's skeleton line numbers are stale and are not worth re-anchoring** (re-review b05 round 2, Minor 3; carried by the OD-31 convergence ruling). They predate round 2's insertion of cross-cutting constraint 10 at `2026-09-25-phase-6-gateway.md:115`, which moved everything below it by one, and b08 moved the ask block again. Read the anchors by their symbol, which does not drift: seam **S6.11**, asks **H-1**, **H-5**, **P8-6**, owner question **Q5**, and the task 21 and task 22 summaries. Verified 2026-09-28: `grep -n` puts S6.11 at `:300`, H-1 at `:305`, H-5 at `:309`, P8-6 at `:318`, Q5 at `:331`, task 21 at `:272`, task 22 at `:274`. In the table below, `task-21.md:1039` now lands on the Share bullet; the Hub-spend bullet it names is at `:1040`.
 
 **I-9 — no cloud path for the cockpit's spend figures.** Fixed at its root: the phase now names who reads usage in the cloud, and grants it nowhere until that reader exists.
 
@@ -775,7 +777,8 @@ mount existed and its gap 3 recorded the path it assumed. Task 17 then settled a
 gap 3 was never reconciled; task 23 copied the assumption rather than the settled path.
 
 **The ruling: `state/projects.json`, not a third path.** It is the directory task 17 already mounts,
-reads, seeds and reports on, in eight places across the part; `state/` is git-ignored
+reads, seeds and reports on, in **13** places across the part (`grep -c "state/projects" task-17.md`;
+this ruling first said eight — re-review b08, M-3); `state/` is git-ignored
 (`task-17.md:435`) while the checked-in
 seed stays at `deploy/local/gateway/projects.json` and `init.sh` copies the seed in once, so the
 live file and the seed do not collide; and task 21's decision (h) asks only that readers mount the
@@ -802,7 +805,8 @@ directory, a new `.gitignore` entry and three edits to task 17 to buy nothing.
 **Verified.** After the edit, `grep -rn "gateway/projects/projects.json"` over the whole
 `2026-09-25-phase-6-gateway-parts/` directory and the skeleton returns **nothing**; the only two
 matches left in `docs/superpowers/plans` are the quotation and this sentence, both in this section.
-`grep -rn "state/projects"` returns task 17's eight lines plus the new references in tasks 21, 23
+`grep -rn "state/projects"` returns task 17's **13** lines (`grep -c`, re-run by re-review b08 M-3;
+this sentence and the ruling above first said eight) plus the new references in tasks 21, 23
 and 25, and no other spelling. **Unverified:** nothing here was executed. Phase 6 has no code —
 zero task reports exist — so no Go or npm suite was run, no control plane, container or image was
 started, and the main tree and sibling worktrees were not touched. Whether Docker Desktop on Windows
