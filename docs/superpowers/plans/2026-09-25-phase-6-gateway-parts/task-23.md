@@ -59,13 +59,22 @@ export PANACEA_APP_PROJECTS_DIR=<a directory holding three throwaway git reposit
 export PANACEA_APP_GATEWAY_KEYSMITH_URL=http://127.0.0.1:4100
 unset PANACEA_APP_GATEWAY_BASE_URL PANACEA_APP_GATEWAY_NETWORK   # both pinned; any other value is refused (task 15 decision (h))
 export PANACEA_APP_GATEWAY_CALLER_TOKEN_FILE="$PWD/deploy/local/gateway/secrets/<task 17's control-plane token file>"
-export PANACEA_APP_GATEWAY_ROUTE_SOURCE="file:$PWD/deploy/local/gateway/projects/projects.json"
+export PANACEA_APP_GATEWAY_ROUTE_SOURCE="file:$PWD/deploy/local/gateway/state/projects.json"
+
+# Fail here, not at step 5: the file this writes must be the file the stack reads.
+route="${PANACEA_APP_GATEWAY_ROUTE_SOURCE#file:}"
+test -f "$route" || echo "FAIL: no route file at $route -- run deploy/local/gateway/init.sh"
+docker compose -f deploy/local/gateway/compose.yaml config \
+  | grep -qF "$(cd "$(dirname "$route")" && pwd)" \
+  && echo "route file OK: the stack mounts $(dirname "$route")" \
+  || echo "FAIL: the stack mounts some other directory; the control plane would write a file nothing reads"
+
 ./bin/panacea-app-api &
 curl -s http://127.0.0.1:8730/v1/healthz        # expect "status":"ok"
 curl -s http://127.0.0.1:8730/v1/projects       # note P1's and P2's ids
 ```
 
-The base URL a **sandbox** uses is `http://gatekeeper.panacea-gateway.svc.cluster.local:4000`, the gatekeeper's alias on the sandbox network `panacea-app-gateway` (task 17), not the host's `127.0.0.1:4000`. Task 14's fragment pins it and task 15 launches with the same value (review I-4). The route-source path is the file inside the directory keysmith and the gatekeeper mount (task 21's decision (h), task 21's gap 3).
+The base URL a **sandbox** uses is `http://gatekeeper.panacea-gateway.svc.cluster.local:4000`, the gatekeeper's alias on the sandbox network `panacea-app-gateway` (task 17), not the host's `127.0.0.1:4000`. Task 14's fragment pins it and task 15 launches with the same value (review I-4). **The route-source path is `state/projects.json`, the one file keysmith and the gatekeeper actually read.** Task 17 mounts `./state:/etc/panacea/state:ro` into both and gives them `_ROUTE_SOURCE=file:/etc/panacea/state/projects.json` (`task-17.md:39`, `:344`, `:347`, `:360`, `:363`); `init.sh` seeds it once from the checked-in `deploy/local/gateway/projects.json` (`:491-494`), and `state/` is git-ignored (`:435`). The control plane runs on the host, so it writes the same inode through the host path here — the directory mount, not a file mount, is what carries task 21's atomic rename across (task 21 decision (h)). Point it anywhere else and steps 5 and 6 cannot work: the mint would see `route_unknown` and the raise would never reach the gatekeeper.
 
 - [ ] **Step 4: Classify both projects**
 
@@ -104,7 +113,7 @@ In the cockpit, open the chip on P1, choose *Keep inference in Australia*, confi
 
 ```bash
 docker compose -f deploy/local/gateway/compose.yaml logs gatekeeper | grep '"session":"<S1>"' | tail -3
-cat deploy/local/gateway/projects/projects.json
+cat deploy/local/gateway/state/projects.json
 curl -s -X PATCH -d '{"dataClass":{"level":"public","residency":"any"}}' http://127.0.0.1:8730/v1/projects/<P1>/inference
 # expect {"error":"needs_compliance",...}: a class is not loosened from here (task 21, re-review B04-1)
 curl -s http://127.0.0.1:8730/v1/projects/<P1>/inference
