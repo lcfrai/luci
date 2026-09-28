@@ -94,6 +94,77 @@ op (§2.4) and each its own record, so no one content object ever holds an entry
 What a branch sees is computed by phase 4, never by the Hub (the Hub stores and resolves, 11b §1.4):
 the project's in-force entries, minus those a branch record overrides, plus the branch's own.
 
+### 2.4 Ops: one for every transition
+
+Every write goes through **one batch route per kind**, `POST /v1/projects/{projectId}/term-revisions`
+and `…/decision-revisions`, shaped exactly like `brief-revisions` (`HC:798-815`): 1-16 items, one
+transaction, all or nothing; each item names its `baseRevision`, `0` for a new record; the Hub
+mints the id and numbers the revision `baseRevision + 1`, never merges, and answers 409
+`revision_conflict` on a stale base. A retry carries the same `Idempotency-Key` (`HC:50-53`, `:814`).
+
+| Op | Transition | The item |
+|---|---|---|
+| `create` | nothing → `@1`, `in_force` | `baseRevision: 0` and the fields |
+| `revise` | `@n` → `@n+1`, same state | a better definition, or a rename: `word` changes, the id and its history stay |
+| `retire` (term) | `in_force` → `retired` | optional `replacedBy`: two words turned out to be one thing |
+| `supersede` (decision) | `in_force` → `superseded` | `replacedBy` required: the decision that replaced it, in this batch or earlier |
+| `withdraw` (decision) | `in_force` → `withdrawn` | it should never have been recorded; nothing replaced it |
+| `reinstate` | `retired` or `withdrawn` → `in_force` | the word check below runs again |
+| `depart` (branch) | a project `@n` → a new branch record | a `create` with `scope: branch` and `overrides: <that key>` |
+| `promote` (branch) | branch → project | a `revise` with `scope: project`; the batch also retires or supersedes the entry it overrode |
+| `erase` | any revision → no content | an owner function, not a route (§2.6) |
+
+**Write-time checks, in order**, each its own code: the grammar and §2.2's field rules (400);
+`settledIn`, `overrides` and `replacedBy` each name a non-erased record in **this** project, and
+`overrides` a project-scoped one (422 `key_unresolvable`, the design approval's code, `HC:887-897`);
+then **no other in-force term in the same scope has the same case-folded word** (409 `word_taken`),
+enforced by a unique index inside the write's transaction. So a collision is refused when it is
+written and never discovered when it is resolved. A departure is not a collision: it is another
+scope, and it names what it departs from.
+
+Two reads, both new rows in §7.0's closed table (`HC:557-607`): `GET /v1/projects/{projectId}/terms`
+and `…/decisions`, each the heads of one project, filterable to one branch brief, every revision's
+fields as §2.2 lists them. The resolver `GET /v1/refs` (row 27, `HC:589`) accepts `term:` and
+`decision:` keys among its 1-100 and answers `kind: "term"` or `"decision"`; a key outside the
+grammar stays `invalid` (`HC:836`).
+
+### 2.5 The reference to the brief revision it settled in
+
+`settledIn` says **where** a word or a decision settled, not what it depends on: it stays in force
+when the brief moves on, which is OD-36's lifecycle ground. Its three sources:
+
+- **The interview** (§4). A round that changes the brief saves the brief revision first and the
+  round's terms and decisions second, in their own batch, naming the revision just written; so a new
+  brief's head 0 never needs naming. A round that settles only words names the current head. If the
+  second batch fails, its proposals stay pending (§4) and are retried; each batch is all or nothing.
+- **A session**: its `contextRef` when that is a brief key; `null` when it is `""` or
+  `none:declined`, and the lens says *settled outside a brief* rather than inventing one.
+- **A person in the lens**: the head revision of the brief the lens is showing, or `null` at head 0.
+
+The Hub checks that a non-null `settledIn` resolves in this project and is not erased. It does
+**not** require the revision to be `complete`, because words settle while a brief is still open.
+
+### 2.6 Storage, digests, events and erasure
+
+- **Tables** `terms` + `term_revisions` and `decisions` + `decision_revisions`, in a new
+  `0002_terms_decisions.sql`, because a written migration is append-only (`ErrEdited`, 11b §3.3).
+  The revision tables are append-only, with the canonical-envelope and digest `CHECK` that only
+  `brief_revisions` and `audit_events` carry today; each head is a guarded state machine holding the
+  current word, scope and state for the unique index. `settledIn` and `overrides` are composite
+  foreign keys, `(org_id, brief_id, brief_revision)` as every brief reference is (11b §3.2), never a
+  key stored as text. Every list in `0001` that names tables one by one (RLS, grants, the
+  append-only array: 11b §3.4) gets its twin statement in `0002`.
+- **Digests**: two new canonical envelopes, `{"v":1,"kind":"term-revision",…}` and
+  `"decision-revision"`, members sorted as the brief's are (`discoverhub/digest.go:26-49`), digest
+  `"sha256:"` + hex; each gets golden vectors beside the brief's (§1.7 of 11b).
+- **Events**: `term.revised` and `decision.revised`
+  `{"key","revision","digest","state","scope"}`, one per changed record, and `term.erased`,
+  `decision.erased`. `data` never holds the text (`HC:1133-1134`).
+- **Erasure**: `hub.erase_term` and `hub.erase_decision`, owner functions shaped like
+  `hub.erase_brief` (`HC:1115-1127`): the text goes, the key, digest, number, `savedAt` and `savedBy`
+  stay, and the key resolves `erased`. Erasing a brief changes no term, as it changes no approval:
+  neither holds brief text.
+
 ## 3. How a decision earns its record, without ceremony
 
 (to be written)
