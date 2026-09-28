@@ -48,6 +48,23 @@ and `Read`. So a layer document is an envelope: `{"v":1,"all":{…},"worker":{�
 section. This is the "per-class policy files" the brief asks of phase 8: one rendered file per
 class, from one layer document per scope.
 
+**The two layers are not equally trusted, because their authors are not.** The org layer is written
+by an **org admin** (task 14, `VerbOrgPolicy`), the role already trusted with every sandbox in the
+org, so it stays a full Claude Code settings object. The project layer is written by a **team
+admin** (`task-12.md:315,339`), a role a project owner hands out — and a full settings object there
+is code execution in every *other* member's pods: `hooks` and `statusLine.command` are command
+lines, `allowManagedHooksOnly` (I3) makes each hook in this file a managed hook and therefore one
+that runs, `apiKeyHelper`, `otelHeadersHelper`, `awsAuthRefresh` and `awsCredentialExport` are
+command lines too, and `env` keys such as `BASH_ENV`, `NODE_OPTIONS` and `NODE_EXTRA_CA_CERTS`
+reach the harness process. The Orchestrator's pod is the worst of them: its control socket stamps
+its owner's session (task 16), so a command that runs there calls `panacea peer`, `direct` or
+`human` **as that member** — exactly what OD-16 ("no user steers another's agent") and §3.3 rule 1
+forbid, with none of task 12's role checks touched. So the project layer is a **tighten-only
+allowlist** (I14), and no layer of either scope may hand the orchestrator class a command-bearing
+key (I15). An org admin who wants a hook for the workers still has one: their own layer, audited as
+theirs. The refusal is an `*InvariantError`, not a bare `ErrLayer`, so task 14's route answers 422
+with `details.invariant` and the key an admin must remove (`task-14.md:954`).
+
 **The gateway fragment is copied and pinned, not imported.** It lives in
 `images/sandbox/managed-settings.gateway.json` (phase 6 task 14, **planned**, `phase-6-gateway.md:248`,
 **UNVERIFIED until merge**), outside the `control-plane` module, so `go:embed` cannot reach it. The
@@ -83,6 +100,11 @@ agent (task 58's `panacea-mirror` is a plain program), so its file only locks th
 | I10 | no `permissions.deny` or `permissions.ask` rule would match a `panacea` command | ✓ | ✓ | — | I1 would be dead otherwise: a deny outranks an allow |
 | I11 | `disableAllHooks` is absent or `false` | ✓ | ✓ | ✓ | I5 would be dead otherwise |
 | I12 | no **org or project** layer sets `env.ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `CLAUDE_CODE_USE_BEDROCK` or `CLAUDE_CODE_API_KEY_HELPER_TTL_MS` | ✓ | ✓ | ✓ | the first two outrank `apiKeyHelper` (`phase-6 …/task-14.md:9`); the route and the TTL are phase 6's (launch environment, and the fragment) |
+| I14 | a **project** layer sets only allowlisted keys — `permissions.deny`, `permissions.ask`, and the closed list `cleanupPeriodDays`, `disableBypassPermissionsMode`, `includeCoAuthoredBy` — and any other key is refused, naming it | ✓ | ✓ | ✓ | its author is a **team** admin (`task-12.md:315,339`), not every member's root: OD-16 |
+| I15 | no layer of either scope gives the **orchestrator** class a command-bearing key: `hooks`, `statusLine`, `mcpServers`, `enabledMcpjsonServers`, `aws*`, any `*Helper`, or an `env` key outside `orchestratorEnv` | — | ✓ | — | its socket stamps its owner's session (task 16), so a command there speaks as that member: OD-16, §3.3 rule 1 |
+
+**I13 is task 41's** (`claudeMd`, `task-41.md:18,289`); this task leaves the id free and numbers its
+two new invariants I14 and I15.
 
 **I7's `dontAsk` is UNVERIFIED.** It is the mode that refuses, rather than prompts for, any tool
 not pre-approved, which is what a headless turn needs; whether the pinned CLI version accepts the
@@ -426,6 +448,9 @@ func Render(layers Layers, class model.Class) (file []byte, digest string, err e
 			if err := forbiddenEnv(class, s, l.Scope); err != nil {
 				return nil, "", err
 			}
+			if err := layerKeys(class, s, l.Scope); err != nil {
+				return nil, "", err
+			}
 			doc = merge(doc, s)
 		}
 		if err := check(class, doc, l.Scope); err != nil {
@@ -449,6 +474,71 @@ func forbiddenEnv(class model.Class, section map[string]any, scope Scope) error 
 		}
 	}
 	return nil
+}
+```
+
+```go
+// projectKeys is I14's closed list: every key a project layer may set, in
+// any section, for any class. Sorted, because it is printed in the refusal.
+// Widening it is an owner decision, not a patch: each addition hands a team
+// admin a setting in every other member's pods.
+var projectKeys = []string{"cleanupPeriodDays", "disableBypassPermissionsMode", "includeCoAuthoredBy", "permissions"}
+
+// projectPermissionKeys is the tighten-only half: a project layer adds
+// rules that refuse or prompt, never one that allows, and never the mode.
+var projectPermissionKeys = []string{"ask", "deny"}
+
+// orchestratorEnv is the only env key any layer may name for the
+// orchestrator class; every other one reaches the harness process.
+var orchestratorEnv = []string{"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"}
+
+// layerKeys is I14 and I15, applied to one section of one layer before that
+// section is merged, so the refusal names the key its author must remove. It
+// runs after forbiddenEnv, so a platform env key keeps its own error (I12).
+func layerKeys(class model.Class, section map[string]any, scope Scope) error {
+	for k, v := range section {
+		if scope == ScopeProject {
+			if !slices.Contains(projectKeys, k) {
+				return &InvariantError{Invariant: "I14", Class: class, Scope: scope,
+					Detail: k + " is not a key a project layer may set; a team admin may set only " + strings.Join(projectKeys, ", ")}
+			}
+			if k == "permissions" {
+				sub, _ := v.(map[string]any)
+				for pk := range sub {
+					if !slices.Contains(projectPermissionKeys, pk) {
+						return &InvariantError{Invariant: "I14", Class: class, Scope: scope,
+							Detail: "permissions." + pk + " is not a key a project layer may set; it may tighten with " + strings.Join(projectPermissionKeys, " and ")}
+					}
+				}
+			}
+		}
+		if class == model.ClassOrchestrator && commandBearing(k) {
+			return &InvariantError{Invariant: "I15", Class: class, Scope: scope,
+				Detail: k + " carries a command, and no layer may run one in another member's Orchestrator"}
+		}
+	}
+	if class == model.ClassOrchestrator {
+		env, _ := section["env"].(map[string]any)
+		for k := range env {
+			if !slices.Contains(orchestratorEnv, k) {
+				return &InvariantError{Invariant: "I15", Class: class, Scope: scope,
+					Detail: "env." + k + " reaches the Orchestrator's process; a layer may name only " + strings.Join(orchestratorEnv, ", ")}
+			}
+		}
+	}
+	return nil
+}
+
+// commandBearing is I15's key set: each of these is, or holds, a command
+// line the harness runs (§7.3 line 837; phase-6 …/task-14.md:9-11). The
+// suffix and prefix rules are deliberate: a key the pinned CLI version adds
+// later, named like these, is refused before anyone reads its docs.
+func commandBearing(k string) bool {
+	switch k {
+	case "hooks", "statusLine", "mcpServers", "enabledMcpjsonServers":
+		return true
+	}
+	return strings.HasSuffix(k, "Helper") || strings.HasPrefix(k, "aws")
 }
 ```
 
@@ -667,20 +757,25 @@ returns a `Layer`; `render(t, class, org, project)` calls `Render` with the pinn
 |---|---|---|---|
 | `TestI1ADenyCannotRemoveThePanaceaRule` | project `{"v":1,"all":{"permissions":{"deny":["Bash(panacea *)"]}}}` | I10, project, worker | the skeleton's own example: a project layer that removes `Bash(panacea *)`; with arrays combining, this deny is the only way to try |
 | `TestI1IsPresentInEveryAgentClass` | none | the worker and orchestrator files contain `Bash(panacea *)` in `permissions.allow` | a default file edited to drop it (I1 would then fail at `ScopeGateway`) |
-| `TestI2AKeyHelperCannotBeReplaced` | org `{"v":1,"all":{"apiKeyHelper":"/bin/echo sk-ant"}}` | I2, org | scalar replacement letting a static key in |
+| `TestI2AKeyHelperCannotBeReplaced` | org `{"v":1,"all":{"apiKeyHelper":"/bin/echo sk-ant"}}`, rendered for the worker (for the orchestrator the same layer is I15, and for a project layer it is I14) | I2, org | scalar replacement letting a static key in |
 | `TestI2TheMirrorHasNoKeyHelper` | org `{"v":1,"mirror":{"apiKeyHelper":"/usr/local/bin/panacea token"}}` | I2, org, mirror | the gateway fragment merged into the mirror |
 | `TestI3AndI4CannotBeTurnedOff` | org `{"v":1,"all":{"allowManagedHooksOnly":false}}`; then `…PermissionRulesOnly":false` | I3; I4 | a boolean invariant checked for presence, not value |
 | `TestI5TheWorkerKeepsItsCheckHook` | `defaultsFS` swapped for an `fstest.MapFS` whose `worker.json` runs `panacea check` without `--hook` | I5, gateway | the hook dropped from `worker.json`, or task 18's `--hook` spelling lost |
-| `TestI6NonessentialTrafficStaysOff` | project `{"v":1,"all":{"env":{"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC":"0"}}}` | I6, project | `env` merged by replacement of the whole block, or the value not checked |
+| `TestI6NonessentialTrafficStaysOff` | org `{"v":1,"all":{"env":{"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC":"0"}}}`, rendered for the worker (the org scope, because I14 refuses any `env` from a project layer before I6 is reached) | I6, org | `env` merged by replacement of the whole block, or the value not checked |
 | `TestI7TheModeIsPinned` | org `{"v":1,"worker":{"permissions":{"defaultMode":"bypassPermissions"}}}` | I7, org, worker | a later layer's scalar winning over the pin |
 | `TestI8TheOrchestratorGetsNoOtherTool` | org `{"v":1,"all":{"permissions":{"allow":["Bash(npm test)"]}}}` | the **worker** renders; the **orchestrator** fails I8 | one invariant list for every class |
 | `TestI8TheOrchestratorGetsNoAskRule` | org `{"v":1,"orchestrator":{"permissions":{"ask":["Read"]}}}` | I8 | a headless turn that can stall on a prompt |
 | `TestI9ForceLoginIsRefused` | org `{"v":1,"all":{"forceLoginMethod":"console"}}`; then `forceLoginOrgUUID` | I9 twice | the key that blocks `apiKeyHelper` at startup (`phase-6 …/task-14.md:10`) |
 | `TestI10RuleFormsThatBlockTheChannel` | deny `Bash`, `Bash(*)`, `Bash(pan:*)`, `Bash(panacea check*)`, `Bash(*token)` each → I10; deny `Bash(rm:*)`, `Bash(curl *)`, `Read(./.env)` each → renders | as listed | a matcher that knows only the exact string |
 | `TestI11HooksCannotBeDisabled` | org `{"v":1,"all":{"disableAllHooks":true}}` | I11 | the check hook silently switched off |
-| `TestI12PlatformEnvIsRefused` | one render per key of I12 in a project `env` | I12, project, naming the key | a layer overriding the gateway route or TTL, or planting a key that outranks the helper |
+| `TestI12PlatformEnvIsRefused` | one render per key of I12 in a project `env` | I12, project, naming the key (I12 is checked before I14, so the platform key keeps its own error) | a layer overriding the gateway route or TTL, or planting a key that outranks the helper |
+| `TestAProjectLayerCannotAddAHook` | project `{"v":1,"worker":{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"/bin/sh -c id"}]}]}}}` | I14, project, worker, naming `hooks` | b05's hole: a team admin's hook running in every other member's worker, made managed by I3 |
+| `TestNoLayerMayAddAHookToTheOrchestrator` | org `{"v":1,"all":{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"/bin/sh -c id"}]}]}}}`, rendered for each class | the worker renders; the orchestrator fails I15, org, naming `hooks` | an org hook reaching the pod whose socket speaks as its owner (task 16) |
+| `TestAProjectLayerCannotSetACommandHelper` | project `{"v":1,"all":{…}}` once per key: `otelHeadersHelper`, `apiKeyHelper`, `statusLine`, `awsCredentialExport`, `awsAuthRefresh`, `mcpServers`, `enabledMcpjsonServers`, `env` | I14, project, naming the key | an allowlist written as a deny list, which the next CLI release outgrows |
+| `TestTheOrchestratorEnvIsAllowlisted` | org `{"v":1,"orchestrator":{"env":{"NODE_OPTIONS":"--require /tmp/x.js"}}}`; then `BASH_ENV`, `NODE_EXTRA_CA_CERTS` | I15, org, orchestrator, naming `env.<key>` | a code-execution env key checked only against I12's five |
+| `TestAProjectLayerMayStillTighten` | project `{"v":1,"all":{"permissions":{"deny":["Bash(curl *)"]}},"worker":{"permissions":{"ask":["Bash(git push:*)"]}}}` | renders for all three classes; the worker file holds both rules | an allowlist so tight the project layer has no use left |
 | `TestALayerMayAddAndTighten` | org: `permissions.deny ["Bash(curl *)"]`, `ask ["Bash(git push:*)"]`, `env {"FOO":"1"}` for `worker` | renders; the file has both rules, `FOO`, and every invariant | an over-eager check refusing a legitimate tightening |
-| `TestTheProjectLayerComesAfterTheOrg` | org `env {"X":"org"}`, project `env {"X":"project"}` | `X` is `project` | the layer order reversed |
+| `TestTheProjectLayerComesAfterTheOrg` | org `permissions.deny ["Bash(curl *)"]`, project `permissions.deny ["Bash(wget *)"]`, worker (an `env` pair cannot show the order any more: I14 refuses a project `env`) | both rules are present and the project's is the later element of the array | the layer order reversed |
 | `TestNullIsRefusedWithItsPath` | org `{"v":1,"all":{"permissions":{"deny":null}}}` | `ErrLayer`, message contains `$.all.permissions.deny` | null treated as "delete" |
 | `TestTheEnvelopeIsStrict` | `{"all":{}}` (no `v`), `{"v":2}`, `{"v":1,"workers":{}}`, `[]`, 64 KiB + 1 | each `ErrLayer` | an org typo silently ignored |
 | `TestRenderingIsDeterministic` | the same layers rendered 100 times, with the layer's keys written in two different orders | one digest | map iteration order leaking into the bytes |
@@ -755,10 +850,12 @@ cd control-plane
 go vet ./internal/policy/
 go test ./internal/policy/ -count=1 -v 2>&1 | grep -E "^(--- FAIL|--- SKIP|ok|FAIL)"
 go test ./internal/policy/ -run 'TestI[0-9]+' -count=1 -v 2>&1 | grep -c "^--- PASS"
+go test ./internal/policy/ -run 'TestAProjectLayer|TestNoLayerMay|TestTheOrchestratorEnv' -count=1 -v 2>&1 | grep -c "^--- PASS"
 ```
 
 Expected: `go vet` silent; `ok` and at most one `--- SKIP` (the pin, before phase 6 merges; none
-after, and task 33 requires none); the invariant tests count **at least 12**, one or more per id.
+after, and task 33 requires none); the invariant tests count **at least 12**, one or more per id;
+the I14/I15 tests, whose names say what they defend rather than an id, count **at least 4**.
 After phase 6 merges, re-run: the pin must pass, and if the TTL differs, change `gateway.json`,
 never the test.
 
@@ -771,6 +868,12 @@ never the test.
   function, and nothing an InfoSec reviewer would call a control set. `disableBypassPermissionsMode`,
   the tenant's 144 allow and 49 ask rules, and any deny list are for the org layer, by a human,
   through task 14's route.
+- That the **org** layer is constrained the way the project layer is. An org admin may still set
+  `hooks`, a `*Helper` and any `env` key (outside I12's five) for the worker and mirror classes:
+  they are the one role already trusted with every sandbox in the org, and task 14 stores the
+  version under their name and audits it as theirs. I14 bounds the **team** admin; I15 bounds
+  **both** scopes, and only for the orchestrator class. Narrowing the org layer too is an owner
+  decision, and the seam for it is `layerKeys`: one more branch on `scope`.
 - That I10's matcher is Claude Code's. It is a conservative approximation of the documented rule
   forms (exact, `prefix:*`, `*`); a rule form it does not know is not refused, and one it refuses
   may be one Claude Code would not match.
