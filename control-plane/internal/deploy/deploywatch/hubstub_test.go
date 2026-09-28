@@ -54,6 +54,19 @@ func (h *hubStub) add(projectID string, r deploywatch.Release) {
 	h.byProj[projectID] = append(h.byProj[projectID], r)
 }
 
+// confirm turns a reservation into a confirmed release with its run, the way
+// the Hub's confirm does.
+func (h *hubStub) confirm(projectID, releaseID, run string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for i := range h.byProj[projectID] {
+		if h.byProj[projectID][i].ID == releaseID {
+			h.byProj[projectID][i].State = "confirmed"
+			h.byProj[projectID][i].PipelineRun = run
+		}
+	}
+}
+
 func (h *hubStub) fail(err error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

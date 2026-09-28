@@ -172,6 +172,47 @@ func (d *deployerWrap) SameEnvironment(a, b string) bool {
 
 func discardLog() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
 
+// bindingsSpy is the REAL resolver, with two test affordances: it records which
+// ids each cycle asked for, and it can answer one id with a binding a test
+// wrote. The second exists because a HubMiss is only reachable through a live
+// Hub, which this tree does not have.
+type bindingsSpy struct {
+	inner    deploywatch.Bindings
+	mu       sync.Mutex
+	resolved []string
+	over     map[string]binding.Binding
+}
+
+func (s *bindingsSpy) ResolveMany(ctx context.Context, ids []string) (map[string]binding.Binding, error) {
+	s.mu.Lock()
+	s.resolved = append(s.resolved, ids...)
+	over := make(map[string]binding.Binding, len(s.over))
+	for k, v := range s.over {
+		over[k] = v
+	}
+	s.mu.Unlock()
+	out, err := s.inner.ResolveMany(ctx, ids)
+	if out == nil {
+		out = map[string]binding.Binding{}
+	}
+	for _, id := range ids {
+		if b, ok := over[id]; ok {
+			out[id] = b
+		}
+	}
+	return out, err
+}
+
+func (s *bindingsSpy) Cached(id string) (binding.Binding, bool) {
+	s.mu.Lock()
+	b, ok := s.over[id]
+	s.mu.Unlock()
+	if ok {
+		return b, true
+	}
+	return s.inner.Cached(id)
+}
+
 // harness holds everything one test needs and builds the watcher over the REAL
 // binding.Resolver, so the one-Projects-read-per-cycle claim is about the code
 // that ships and not about a stub.
@@ -185,8 +226,36 @@ type harness struct {
 	conn     *connStub
 	hub      *hubStub
 	res      *binding.Resolver
+	spy      *bindingsSpy
 	w        *deploywatch.Watcher
 	cfg      deploywatch.Config
+	// hubBindings are bindings seeded before the watcher is built, for the Hub
+	// facts the real resolver cannot reach in a tree with no Hub.
+	hubBindings []binding.Binding
+}
+
+func deployRef(ref string) deploy.ProjectRef { return deploy.ProjectRef(ref) }
+
+// overrideBinding makes the next resolve answer this id with b, and asks for
+// that resolve at once.
+func (h *harness) overrideBinding(id string, b binding.Binding) {
+	h.spy.mu.Lock()
+	h.spy.over[id] = b
+	h.spy.mu.Unlock()
+	h.w.Recheck(id)
+}
+
+// clearResolved forgets which ids have been resolved so far.
+func (h *harness) clearResolved() {
+	h.spy.mu.Lock()
+	h.spy.resolved = nil
+	h.spy.mu.Unlock()
+}
+
+func (h *harness) resolvedIDs() []string {
+	h.spy.mu.Lock()
+	defer h.spy.mu.Unlock()
+	return append([]string(nil), h.spy.resolved...)
 }
 
 func newHarness(t *testing.T) *harness {
@@ -234,10 +303,14 @@ func (h *harness) build(cfg deploywatch.Config) *deploywatch.Watcher {
 		h.t.Fatalf("binding.New: %v", err)
 	}
 	h.res = res
+	h.spy = &bindingsSpy{inner: res, over: map[string]binding.Binding{}}
+	for _, b := range h.hubBindings {
+		h.spy.over[b.ProjectID] = b
+	}
 	if cfg.Deployer == nil {
 		cfg.Deployer = h.deployer
 	}
-	cfg.Projects, cfg.Bindings, cfg.Connection = h.locals, res, h.conn
+	cfg.Projects, cfg.Bindings, cfg.Connection = h.locals, h.spy, h.conn
 	cfg.Now, cfg.Log = h.clock.now, discardLog()
 	w, err := deploywatch.New(cfg)
 	if err != nil {
