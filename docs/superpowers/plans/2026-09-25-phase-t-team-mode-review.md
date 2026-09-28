@@ -923,27 +923,27 @@ part's copy); `phase-6-gateway.md:248`; `05-design.md:241-248,835-838,453-456`. 
 reads well. What it lets a layer put in is too wide.
 
 ### S02-C3 (Critical): a project layer can run arbitrary commands in every other member's sandbox, the Orchestrator's included
-**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-13.md:413-434,455-516
+**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-13.md:413-434,455-516 *(the pre-b05 lines; **FIXED in b05**, whose record below carries the current anchors — those line numbers now hold the fix, not the defect)*
 **Problem:** a project layer is written by a **team admin** (task 14, `VerbProjectPolicy`), and `Render` merges any key of its `all` and class sections into the file mounted in **every** member's pods. `check` constrains only permissions, the mode, and a handful of scalars and env keys. `hooks` are allowed to grow (arrays combine), and `allowManagedHooksOnly` makes every hook in this file a managed hook that runs. The same holds for command-bearing settings such as `statusLine.command`, `otelHeadersHelper`, `awsAuthRefresh` and `awsCredentialExport`, and for `env` keys such as `BASH_ENV`, `NODE_OPTIONS`, `HTTPS_PROXY` and `NODE_EXTRA_CA_CERTS`. One admin therefore gets code execution inside Bob's worker and Bob's Orchestrator: Bob's gateway token (`panacea token`), his fetch credential, and his control socket, whose requests `sandboxd` stamps as Bob's session (task 16). They can call `panacea peer`, `direct` or `human` as Bob's Orchestrator, which breaks OD-16 ("no user steers another's agent") and §3.3 rule 1. I8 does not help: it checks `permissions.allow` only. A layer hook that exits 2 on `Bash(panacea …)` also defeats I1 without touching a rule.
 **How to fix:** make the project layer an **allowlist** of keys that can only tighten: `permissions.deny`, `permissions.ask` (worker only) and a closed list of non-command scalars, with every other key an `ErrLayer` naming it. Forbid `hooks`, `statusLine`, `*Helper`, `aws*`, `mcpServers`/`enabledMcpjsonServers` and any `env` key outside an allowlist in **both** layers for the Orchestrator class, and in the project layer for every class. Add `TestAProjectLayerCannotAddAHook`, `TestNoLayerMayAddAHookToTheOrchestrator` and `TestAProjectLayerCannotSetACommandHelper`. Record in the part that the org layer (org admin) remains fully trusted, and say so in the audit event.
 
 ### S02-I8 (Important): the project layer can loosen any org setting, so the org layer is not a floor
-**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-13.md:35-42,211-213,682-683
+**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-13.md:35-42,207-213,787-788 *(re-derived after b05; the test rows were `:682-683` when this was written)*
 **Problem:** `merge` lets a later scalar replace an earlier one, and the project layer comes after the org layer. An org's `disableBypassPermissionsMode`, a `sandbox.enabled: true`, `cleanupPeriodDays`, `includeCoAuthoredBy` or an org-set `env` value can be replaced by a team admin. `TestTheProjectLayerComesAfterTheOrg` asserts that this works. The skeleton says a later layer "may add rules and **tighten**" (skeleton line 556). OD-23 puts "our policies" into the sandbox; a team admin undoing the org's policy is not in its scope.
 **How to fix:** have `Render` refuse, as `*InvariantError{Invariant: "L1"}`, a project layer that replaces a scalar the org layer set with a different value, unless the key is on a named "project may override" list (empty by default). Change `TestTheProjectLayerComesAfterTheOrg` to a key the org did not set, and add `TestAProjectLayerCannotLoosenAnOrgScalar`.
 
 ### S02-I9 (Important): I10 probes four commands, so a deny can silently cut every other `panacea` verb
-**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-13.md:548-575
+**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-13.md:647-673 *(re-derived after b05; `probes` and `blocksPanacea` were `:548-575` when this was written)*
 **Problem:** `probes` holds `team`, `check`, `check --hook` and `token`. A layer deny such as `Bash(panacea peer:*)`, `Bash(panacea human *)`, `Bash(panacea report:*)` or `Bash(panacea lease *)` passes I10. The Orchestrator then cannot negotiate or escalate, and a worker cannot report or lease. OD-16's only cross-user channel is broken by a render that succeeded. The verb set is known (task 18's list).
 **How to fix:** derive `probes` from task 09's per-class verb table (one probe per verb, with a representative argument). Refuse any Bash deny or ask rule whose pattern starts with `panacea`. Add one `TestI10` row per verb family.
 
 ### S02-I10 (Important): the design's "deny project `ANTHROPIC_*` env overrides" is not built: I12 binds the layers, not the repository's own settings
-**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-13.md:85,441-452
+**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-13.md:104,469-480 *(re-derived after b05; I12's row was `:85` and `forbiddenEnv` `:441-452` when this was written)*
 **Problem:** `05-design.md:246` and `:838` require the managed file to stop a repository's `.claude/settings.json` from setting `ANTHROPIC_*` env. A teammate can commit that file, and the CLI reloads it mid-session (`:835-836`). I12 only stops an org or project **layer** from naming those keys. The rendered file sets none of them, so nothing outranks a repository-level `env.ANTHROPIC_BASE_URL` pointing the session, and its `apiKeyHelper` token, somewhere else. Whether managed `env` can lock a key is **UNVERIFIED** (the part says so), but the plan also has no fallback.
 **How to fix:** render `env.ANTHROPIC_BASE_URL` (and the Bedrock equivalents) into the managed file from the route task 20 chose, so the managed value wins key by key. That makes the digest per route, which is acceptable. Add a task 33 check that a repository `settings.json` override is ignored. If the managed file cannot lock `env`, record that egress policy (task 32) is the control and name its test.
 
 ### S02-M4 (Minor): the Orchestrator can be denied `Read` without an error
-**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-13.md:490-499,505-510
+**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-13.md:589-598,604-610 *(re-derived after b05; I8's and I10's class blocks were `:490-499,505-510` when this was written — those lines now hold `layerKeys`)*
 **Problem:** I10 looks only at `Bash` rules. A layer deny `Read` or `Read(**)` in the orchestrator section renders cleanly, and the runner's instructions (task 41) assume `Read`.
 **How to fix:** extend I8 to refuse a deny rule on `Read` for the Orchestrator class, with a test.
 
@@ -3862,28 +3862,30 @@ folded in.
 
 | Change | Where |
 |---|---|
-| **I14**: a project layer sets only `permissions.deny`, `permissions.ask` and three non-command scalars; any other key is an `*InvariantError` naming it | `task-13.md:103` |
-| **I15**: no layer of **either** scope gives the orchestrator class `hooks`, `statusLine`, `mcpServers`, `enabledMcpjsonServers`, `aws*`, a `*Helper`, or an unlisted `env` key | `task-13.md:104` |
-| I13 is task 41's (`claudeMd`), so the new ids are I14 and I15 — stated where a reader would otherwise reuse it | `task-13.md:106-107` |
-| Why the two authors differ, key by key, and the Orchestrator's socket as the reason its class is hardest | `task-13.md:51-66` |
-| `layerKeys` called in `Render`'s layer loop, per section, **before** `merge` | `task-13.md:451-453` |
-| `projectKeys`, `projectPermissionKeys`, `orchestratorEnv`, `layerKeys`, `commandBearing` — the allowlists sorted, because they are printed in the refusal | `task-13.md:481-541` |
-| The three tests the finding asked for, plus the orchestrator's `env` and the "a project layer is still useful" test | `task-13.md:772-776` |
-| Step 3's acceptance counts the I14/I15 tests separately (their names are not `TestI<n>`) | `task-13.md:853-858` |
-| Recorded decision: the **org** layer stays fully trusted for the worker and mirror classes, with `layerKeys`'s `scope` branch as the seam if the owner narrows it | `task-13.md:871-876` |
+| **I14**: a project layer sets only `permissions.deny`, `permissions.ask` and three non-command scalars; any other key is an `*InvariantError` naming it | `task-13.md:105` |
+| **I15**: no layer of **either** scope gives the orchestrator class `hooks`, `statusLine`, `mcpServers`, `enabledMcpjsonServers`, `aws*`, a `*Helper`, or an unlisted `env` key | `task-13.md:106` |
+| I13 is task 41's (`claudeMd`), so the new ids are I14 and I15 — stated where a reader would otherwise reuse it | `task-13.md:108-109` |
+| Why the two authors differ, key by key, and the Orchestrator's socket as the reason its class is hardest | `task-13.md:51-68` |
+| `layerKeys` called in `Render`'s layer loop, per section, **before** `merge` | `task-13.md:454-456` |
+| `projectKeys`, `projectPermissionKeys`, `orchestratorEnv`, `layerKeys`, `commandBearing` — the allowlists sorted, because they are printed in the refusal, and every loop over a section sorted for the same reason | `task-13.md:484-551` |
+| The three tests the finding asked for, plus the orchestrator's `env`, the "a project layer is still useful" test, and the deterministic-refusal test | `task-13.md:781-786` |
+| Step 3's acceptance counts the I14/I15 tests separately (their names are not `TestI<n>`) | `task-13.md:856-863` |
+| Recorded decision: the **org** layer stays fully trusted for the worker and mirror classes, with `layerKeys`'s `scope` branch as the seam if the owner narrows it | `task-13.md:881-886` |
 | The route re-implements none of it: 422 `details.invariant` = `I14`/`I15`; the audit event's scope is what tells an auditor which trust model admitted a version | `task-14.md:463-472` |
-| `TestATeamAdminCannotPostAHook`: the same body is 422 from the project route and 201 from the org route | `task-14.md:965` |
+| `TestATeamAdminCannotPostAHook`: the `all` body is 422 from the project route, and the same hook in a `worker` section is 201 from the org route | `task-14.md:965` |
+| `TestAnOrgAllSectionHookIsRefusedForTheOrchestrator`: an org `all` hook is 422 `I15` for the orchestrator class, because `validate` renders every class and `all` is merged into each | `task-14.md:966` |
 | The plan body's task 13 summary, which said only "a later layer may add rules and tighten" | `2026-09-25-phase-t-team-mode.md:608-615` |
 
 **Restated where the same fact appeared, because these rows contradicted the new rule:**
 
 | Restatement | Where |
 |---|---|
-| `TestI6NonessentialTrafficStaysOff` used a **project** `env` to prove I6; I14 now refuses that layer first, so the row is the org scope | `task-13.md:764` |
-| `TestTheProjectLayerComesAfterTheOrg` used a project `env` pair; it is now two `permissions.deny` rules, and the order shows in the array | `task-13.md:778` |
-| `TestI2AKeyHelperCannotBeReplaced` and `TestI12PlatformEnvIsRefused` say which class and which check fires first (I12 before I14) | `task-13.md:760,771` |
-| Task 41's `TestTheInstructionsHoldNoTeammateText` builds layers "in every allowed key"; the project layer's allowed keys are now I14's list | `task-41.md:667` |
-| Task 41's `TestI13RefusesALayerClaudeMd` asserts the **id**, and `claudeMd` is not on I14's allowlist either; both parts now pin `productOwned` (I13) **before** `layerKeys` (I14/I15), so the invariant that names the key wins | `task-41.md:231-235`, `task-13.md:495-499` |
+| `TestI6NonessentialTrafficStaysOff` used a **project** `env` to prove I6; I14 now refuses that layer first, so the row is the org scope | `task-13.md:773` |
+| `TestTheProjectLayerComesAfterTheOrg` used a project `env` pair; it is now two `permissions.deny` rules, and the order shows in the array | `task-13.md:788` |
+| `TestI2AKeyHelperCannotBeReplaced` and `TestI12PlatformEnvIsRefused` say which class and which check fires first (I12 before I14) | `task-13.md:769,780` |
+| Task 41's `TestTheInstructionsHoldNoTeammateText` builds layers "in every allowed key"; the project layer's are now I14's two **string-bearing** keys, `permissions.deny` and `permissions.ask` | `task-41.md:671` |
+| Task 41's `TestI13RefusesALayerClaudeMd` asserts the **id**, and `claudeMd` is not on I14's allowlist either; both the comment **and** the imperative an implementer follows now pin `productOwned` (I13) **before** `layerKeys` (I14/I15), so the invariant that names the key wins | `task-41.md:231-234,265-267`, `task-13.md:498-502` |
+| The plan body says an org admin's hook belongs in a `worker` section, not `all`, and task 13's prose says why | `2026-09-25-phase-t-team-mode.md:615-616`, `task-13.md:64-66` |
 
 **Two judgements, declared.**
 
@@ -3897,9 +3899,27 @@ folded in.
 **Not fixed here, and still open:** S02-I8 (a project layer can replace an org scalar — the
 allowlist shrinks its reach to `permissions.deny`/`ask` and three scalars, but does not make the
 org a floor), S02-I9 (I10's four probes), S02-I10 (repository `ANTHROPIC_*` env) and S02-M4 (a
-denied `Read` for the Orchestrator).
+denied `Read` for the Orchestrator). **b05 moved the lines each of those four cites**, so each
+finding's own **Where** has been re-derived in place above, with the pre-b05 range kept in an
+aside — otherwise a later fixer reads b05's new code at the old range and concludes the finding is
+already fixed. S02-C3's **Where** is marked as the pre-b05 location for the same reason.
+
+**Round 2 (2026-09-28), from `plan-rereview-b05-1.md`.** Seven issues, all fixed at the root:
+
+| Issue | Root cause | Fix |
+|---|---|---|
+| C-1: `TestATeamAdminCannotPostAHook`'s org half promised 201 for the **same** `all` hook body, which I15 refuses | the row was written as if `all` were a worker-only section; `validate` renders every class and merges `all` into each | org half is now the per-class `worker` body (`task-14.md:965`), with a second row holding the `all` body to its real 422 `I15` (`task-14.md:966`); task 13's prose and the plan body say an org hook belongs in `worker` (`task-13.md:64-66`, `2026-09-25-phase-t-team-mode.md:615-616`) |
+| I-2: the four open findings cited pre-b05 lines | the record listed them by name without re-deriving their anchors | each **Where** re-derived in place (`review.md:931,936,941,946`) |
+| I-3: six of this record's own line numbers were off by two | derived at `2d44bb0a`, three lines added at `5b7e7c69` after it | every number in this section re-derived after the **last** commit of the batch; the claim below now names the commit it was derived at |
+| M-4: task 41's imperative said only "beside `forbiddenEnv`" | the ordering lived in a comment, not in the line an implementer follows | `task-41.md:265-267` |
+| M-5: b05's inserted clause left task 41's comment dangling | a clause spliced mid-sentence | `task-41.md:231-234` |
+| M-6: `range` over a section names an arbitrary one of two refused keys | map iteration order reaching the refusal message the allowlist was already sorted for | all three loops in `layerKeys` sorted (`task-13.md:507,516,531`, with the reason at `:503-505`), `maps` imported (`:290`), `TestTheRefusedKeyIsTheSameEveryTime` (`:784`), acceptance count 4 → 5 (`:863,868`) |
+| M-7: `TestTheInstructionsHoldNoTeammateText` asked for a marker string in "every key" the project layer may set | three of I14's five keys are a number and two booleans | names the two string-bearing keys (`task-41.md:671`) |
 
 **Unverified:** plan text only. No Go compiled, no test run, no control plane, container or image
-started; nothing outside `.claude/worktrees/team` read or written. Every line number in this section
-was derived by `grep -n` after the b05 commits. Whether Claude Code honours `allowManagedHooksOnly`
+started; nothing outside `.claude/worktrees/team` read or written. Every line number in this
+section was re-derived by `grep -n`/`cat -n` against the working tree **after** round 2's last plan
+edit and before its commit; if a later batch edits `task-13.md`, `task-14.md`, `task-41.md` or the
+plan body above these anchors, they drift again and must be re-derived, which is why each open
+finding now also carries its pre-b05 range. Whether Claude Code honours `allowManagedHooksOnly`
 and a managed `env` at the pinned CLI version remains task 33's check, unchanged by this batch.

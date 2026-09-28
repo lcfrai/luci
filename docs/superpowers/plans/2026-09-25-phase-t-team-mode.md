@@ -612,8 +612,9 @@ is a *team* admin's (`task-12.md:339`): the project layer is a tighten-only allo
 refused by name (**I14**) — and no layer of either scope may give the **orchestrator** class a
 command-bearing key (`hooks`, `statusLine`, `mcpServers`, `aws*`, any `*Helper`) or an unlisted
 `env` key (**I15**), because that pod's socket speaks as its owner (OD-16; fix batch b05, S02-C3).
-The
-minimal defaults are those invariants and nothing else: **no drafted policy** (OD-23). Digest is
+An org admin's hook must sit in a `worker` section, not `all`, because `all` is rendered for the
+orchestrator class too. The minimal defaults are those invariants and nothing else: **no drafted
+policy** (OD-23). Digest is
 SHA-256 over the canonical bytes. Tests: each invariant has a mutant (a project layer that removes
 `Bash(panacea *)` must fail); rendering is deterministic. Which `env` keys a managed file can lock
 is **UNVERIFIED** (§7.3).
