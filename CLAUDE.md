@@ -12,7 +12,7 @@ cube.computer proved the agent-fleet cockpit. Nobody has done it for regulated e
 
 ## Product spine
 
-The four phases are states of one project, not four tools. The connective tissue is **provenance**: the spec written in Define is visibly referenced in Design, carried into Develop, and attached to the release in Deploy. Same artifact, one thread, shown throughout. Any feature that breaks that thread is wrong regardless of how good it is in isolation.
+The four phases are states of one project, not four tools. The connective tissue is **provenance**: the brief written in Define is visibly referenced in Design, carried into Develop, and attached to the release in Deploy. Same artifact, one thread, shown throughout. Any feature that breaks that thread is wrong regardless of how good it is in isolation.
 
 ## Architecture decisions already locked
 

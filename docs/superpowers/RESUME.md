@@ -185,7 +185,7 @@ re-derived from disk.
 ### Before reconstructing a dead stream by hand, read its baton
 
 From 2026-09-28, rule 13 of `build-stream-continue.js` makes every build agent keep a baton at
-`.claude/worktrees/<dir>/.superpowers/sdd/<stream>/baton.md`, written in its first ten tool calls and
+`.claude/worktrees/<dir>/.superpowers/sdd/<stream>/baton.md`, written as the agent's first Write and
 overwritten at every commit — so the version on disk when an agent was killed is current, which the
 survey run of 2026-09-28 had to reconstruct for seven streams by hand. It names the destination, what
 is DONE and committed with SHAs, the unit in flight, what is uncommitted and where, hazards, and one
