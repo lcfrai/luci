@@ -337,7 +337,158 @@ absent from it. "Unbuilt" is from §2.2. `T:` is `…/2026-09-23-phase-h-hub-par
 
 ## 3. The SQL schema as built
 
-(Not started.)
+`SQL` below is `.claude/worktrees/hub/control-plane/internal/hub/migrate/sql/0001_init.sql`
+(693 lines at `cafe1303`; not modified in the working tree). "applied by `hub migrate` as hub_owner,
+in one transaction" (`SQL:2`). Built by task 07a (tables, row-level security, grants) and 07b
+(guards and owner functions) (`PR:457`, `PR:463`); the ledger's acceptance count is "CREATE TABLE
+20, CREATE POLICY 2, SECURITY DEFINER 6, 40 PASS" (`PR:467`), and after fix round 1 "43 PASS"
+(`PR:484`).
+
+### 3.1 Types
+
+Nine enums, `SQL:5-14`: `team_role`, `invite_state`, `git_host`, `brief_scope`, `brief_status`
+(`open`, `complete`, `skipped`), `release_kind`, `release_state`, `pin_reason`, `verdict`
+(`settled`, `contested`). Every kind-specific vocabulary in the schema is one of these enums.
+
+### 3.2 The tables, and how each brief-referencing one points at a revision
+
+The 20 tables, in file order: `orgs` `:17`, `users` `:24`, `teams` `:41`, `team_members` `:52`,
+`team_invites` `:66`, `projects` `:88`, `project_remotes` `:101`, `briefs` `:115`,
+`brief_revisions` `:141`, `blobs` `:167`, `project_blobs` `:177`, `design_approvals` `:193`,
+`design_approval_blobs` `:220`, `session_links` `:230`, `releases` `:252`, `release_deployments`
+`:313`, `evidence` `:328`, `audit_heads` `:350`, `audit_events` `:356`, `idempotency_keys` `:376`.
+
+**The brief, worked through:**
+- `briefs.id` is checked in the database, `CHECK (id ~ '^bf-[0-9a-f]{16}$')` (`SQL:116`); the head
+  carries `head_revision` and `latest_complete_revision` (`SQL:121-122`, `:130`); one live project
+  brief per project and one live branch brief per `(project_id, branch_ref)` are **partial unique
+  indexes** (`SQL:136-139`).
+- `brief_revisions` stores `canonical bytea` — "contract §3.4's C; NULL exactly when erased"
+  (`SQL:149`) — and a 32-byte `digest` (`SQL:150`). Its keys are
+  `PRIMARY KEY (brief_id, revision)` (`SQL:154`), `UNIQUE (org_id, brief_id, revision)` "the target
+  of every revision link (I5)" (`SQL:155`) and `UNIQUE (org_id, brief_id, revision, digest)` "the
+  target of every digest-carrying link" (`SQL:156`).
+- `brief_revisions_canonical_hashes`: `CHECK (canonical IS NULL OR (octet_length(canonical) <= 65536
+  AND sha256(canonical) = digest))` (`SQL:161-162`). **The database itself proves that stored bytes
+  hash to their digest**; `brief_revisions_erased_iff_no_content` ties erasure to `canonical`
+  being null (`SQL:160`).
+
+**How the other kinds reference a brief revision, in the database:**
+
+| Table | Brief columns | Foreign key | Line |
+|---|---|---|---|
+| `design_approvals` | `brief_id`, `brief_revision`, `brief_digest` | `(org_id, brief_id, brief_revision, brief_digest) REFERENCES brief_revisions (org_id, brief_id, revision, digest)`: key **and digest** | `SQL:201-203`, `:214-215` |
+| `session_links` | `brief_id`, `brief_revision` | `(org_id, brief_id, brief_revision) REFERENCES brief_revisions (org_id, brief_id, revision)`: key, no digest | `SQL:235-236`, `:247-248` |
+| `releases` | `pin_brief_id`, `pin_brief_revision`, `pin_brief_digest`, `pin_head_revision_at_ship` | see 3.3 | `SQL:264-269` |
+
+- The design approval stores its key as text under the grammar, `CHECK (design_key ~
+  '^design:[a-z]{2,4}-[0-9a-f]{4,32}@[1-9][0-9]{0,8}$')` (`SQL:197`), and ties it to its parts,
+  `CHECK (design_key = 'design:' || canvas_id || '@' || design_revision)` (`SQL:211`). **No table
+  stores a brief key as text**: every brief reference is the pair `(brief_id, brief_revision)`, with
+  or without the digest (`SQL:201-203`, `:235-236`, `:266-268`, `:333-334`).
+- **The contract's DDL and the built DDL differ on the foreign keys.** The contract writes them
+  single-column, `team_id … REFERENCES teams (id)` (`HC:1510`, `HC:1522`, `HC:1541`) and
+  `REFERENCES brief_revisions (brief_id, revision, digest)` (`HC:1648`, `HC:1717`); the built file
+  carries `org_id` in every one (`SQL:133-134`, `:157-159`, `:214-215`, `:247-248`, `:300-301`,
+  `:344-345`), which is the plan's correction A16 (`HP:195`), not yet folded by 44a.
+
+### 3.3 Releases, evidence, audit and idempotency
+
+- **Releases.** The pin is four nullable columns (`SQL:264-269`) held whole by CHECKs: pinned iff
+  `pin_reason` is `ship_head` or `inherited`, and all four null together (`SQL:281-284`). Its foreign
+  key is `(org_id, pin_brief_id, pin_brief_revision, pin_brief_digest) REFERENCES brief_revisions
+  (org_id, brief_id, revision, digest)`, commented "a NULL pin or design_key skips its check (MATCH
+  SIMPLE); the CHECKs above keep the pin whole" (`SQL:299-301`). So a **nullable** brief reference is
+  already expressed once in the schema.
+- **Evidence.** `brief_id`, `brief_revision` (`SQL:333-334`), foreign key to
+  `brief_revisions (org_id, brief_id, revision)`, **no digest** (`SQL:344-345`); its own
+  `criterion_digest` (`SQL:336`); `because` 1-2,000 characters after trimming (`SQL:339`). The
+  contract says the evidence `briefKey` "is stored verbatim" (`HC:1071`); the table stores the pair
+  `(brief_id, brief_revision)`, not the text, while `repo_key` is commented "verbatim" (`SQL:332`).
+- **Audit.** `audit_events.kind` is `CHECK (kind ~ '^[a-z]+(_[a-z]+)*\.[a-z]+(_[a-z]+)*$')`
+  (`SQL:360`): a format, **not a list of kinds**; `feed boolean NOT NULL` is set per row
+  (`SQL:361`); `canonical` is "contract §3.6, with teamId (plan A10)" (`SQL:366`);
+  `audit_events_hash_chains CHECK (hash = sha256(prev_hash || canonical))` (`SQL:370`). The feed
+  indexes are by project and by team, `WHERE feed` (`SQL:373-374`).
+- **Idempotency.** `idempotency_keys` stores `request_sha256` and a `response` per `(user_id, key)`
+  (`SQL:376-389`). The plan's A17 makes route 26's stored reply hold every `content` null
+  (`HP:196`).
+
+### 3.4 Row-level security and grants: both are written as explicit lists
+
+- Row-level security is one loop over a **named array of 19 tables** (`SQL:397-400`), each given
+  `ENABLE ROW LEVEL SECURITY` and one policy `org_isolation … USING (org_id =
+  current_setting('hub.org_id', true)) WITH CHECK (…)` (`SQL:401-404`). `orgs` has its own policy
+  (`SQL:407-415`). Every table in the loop therefore carries an `org_id` column.
+- `GRANT SELECT ON ALL TABLES IN SCHEMA hub TO hub_app` (`SQL:419`) covers the tables that exist
+  when it runs. `GRANT INSERT` names **17 tables** one by one (`SQL:421-424`). `UPDATE` is granted
+  **per column** on seven tables, and `DELETE` on five (`SQL:426-436`).
+- "No UPDATE or DELETE on: orgs, users, brief_revisions, design_approvals, design_approval_blobs,
+  session_links, release_deployments, evidence, audit_events, audit_heads" (`SQL:437-440`).
+- "**A later migration that adds a table grants on it explicitly: there are no default
+  privileges**" (`SQL:441`).
+
+### 3.5 The guards
+
+| Guard | What it enforces | Line |
+|---|---|---|
+| `forbid_change()` on `design_approvals`, `design_approval_blobs`, `session_links`, `release_deployments`, `evidence`, `audit_events` | append-only: a trigger `<table>_append_only` refuses `UPDATE`/`DELETE`, `<table>_no_truncate` refuses `TRUNCATE`; the six tables are a **named array** | `SQL:446-461` |
+| `guard_revision()` | "a brief revision changes once, by erasure, and only inside hub.erase_brief": never deleted; an update only by `hub_owner`, only `canonical` to null with `erased_at` set, every other column unchanged | `SQL:463-484` |
+| `guard_revision_insert()` | "an archived brief takes no new revision" (fix round 1, m5), for the owner too | `SQL:486-503` |
+| `guard_brief()` | "a head moves forward one revision at a time, onto a revision that exists": identity columns frozen; `head_revision` only stays or steps by one; `latest_complete_revision` never falls; archived and erased freeze | `SQL:505-527` |
+
+| `guard_release()` | "a release's pin and identity never change; only a reserved release moves": 18 identity and pin columns frozen; `environment` set once; a non-reserved release takes no other change | `SQL:529-566` |
+| `audit_append()`, `SECURITY DEFINER` | runs only as `audit_events`' trigger (`TG_RELID` check, fix round 1 I1); refuses an event for another org **before** locking; requires `seq = head + 1` and `prev_hash = head.hash`; moves the head | `SQL:568-605` |
+
+### 3.6 The owner functions (`SECURITY DEFINER`)
+
+"The five functions hub_app calls that run as the owner (contract §10.4; the contract's three, and
+A18's org_ids and A19's lock_audit_head)" (`SQL:607-608`), plus `audit_append` above, six in all
+(`PR:484`: "SECURITY DEFINER 6"):
+
+| Function | Kind-specific? | Line |
+|---|---|---|
+| `ensure_org(p_tenant, p_name, p_id)` | no: org and its audit head | `SQL:609-618` |
+| `resolve_principal(…)` | no: users | `SQL:620-641` |
+| `erase_brief(p_brief)` | **yes, briefs only**: sets every revision's `canonical` null and `erased_at`, archives and marks the head; `idempotency_keys` "is NOT touched" (A17) | `SQL:643-663` |
+| `lock_audit_head()` | no: the session's org's write lock | `SQL:665-678` |
+| `org_ids()` | no: org ids for the janitor and `hub verify` | `SQL:680-688` |
+
+`EXECUTE` on the five is revoked from `PUBLIC` and granted to `hub_app` by name (`SQL:690-693`).
+
+### 3.7 What the schema holds that a new record kind would meet
+
+Each item is a fact about the file, not a proposal.
+
+- **Migrations are append-only by rule.** The runner reads `sql/NNNN_<name>.sql`, "from 1,
+  contiguous" (`migrate/migrate.go:23-25`), records each file's SHA-256 (`:28`), and refuses a changed
+  applied file: `ErrEdited` "an applied migration's text has changed; write a new migration
+  instead" (`:32`, checked at `:145`). The ledger adds: "a persistent database migrated at bab30e90
+  is ErrEdited (recreate it)" (`PR:472`). Only `0001_init.sql` exists (`sql/` listing).
+- **Five places in `0001_init.sql` name tables one by one**, so a table not named in them is
+  outside them: the row-level security array (`SQL:397-400`); the `INSERT` grant (`SQL:421-424`);
+  the per-column `UPDATE` and `DELETE` grants (`SQL:426-436`); the "No UPDATE or DELETE" comment
+  (`SQL:437-440`); the append-only array (`SQL:454-455`). A sixth, `SELECT ON ALL TABLES`, covers
+  only the tables that exist when it runs, and there are "no default privileges" (`SQL:419`,
+  `SQL:441`).
+- **Id prefixes are checked in the database**, per table: `^bf-` (`SQL:116`), `^ap-` (`SQL:194`),
+  `^ln-` (`SQL:231`), `^rl-` (`SQL:253`), `^ev-` (`SQL:329`).
+- **Three shapes of brief reference exist**, each a composite foreign key carrying `org_id` (plan
+  A16, `HP:195`): key and digest (`design_approvals`, `SQL:214-215`); key only (`session_links`,
+  `SQL:247-248`; `evidence`, `SQL:344-345`); nullable key and digest held whole by CHECKs
+  (`releases`, `SQL:281-284`, `SQL:299-301`). Their targets are `brief_revisions`' two UNIQUE
+  constraints (`SQL:155-156`).
+- **Two shapes of mutability exist**: append-only through `forbid_change` (`SQL:446-461`) and a
+  guarded state machine with frozen identity (`guard_brief`, `guard_release`, `SQL:505-566`). The
+  only versioned-and-immutable kind is `brief_revisions` under its head `briefs`, with
+  `guard_revision`, `guard_revision_insert` and `guard_brief` together (`SQL:463-527`).
+- **Canonical bytes and a digest CHECK exist for two tables only**: `brief_revisions`
+  (`SQL:161-162`) and `audit_events` (`SQL:370`).
+- **Erasure is one function for one kind**, `erase_brief` (`SQL:643-663`), and the contract's
+  reason no other table is touched is that "none of them holds brief text" (`HC:1122-1123`).
+- **Event kinds are not in the schema** beyond the format CHECK (`SQL:360`); whether an event is in
+  the feed is a per-row boolean the writer sets (`SQL:361`), and task 14's
+  `TestInFeedIsTheContractTable` is where the per-kind table is to be pinned (`T:14.md:213`).
 
 ## 4. Where the thread is consumed downstream
 
