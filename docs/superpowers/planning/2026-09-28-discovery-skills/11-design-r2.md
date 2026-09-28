@@ -464,7 +464,37 @@ are mono.
 
 ## 7. The cost
 
-(to be written)
+Hours are the plans' own convention, an engineer's estimate before review; **no fix round is
+included**, and on both ledgers most tasks have needed one (task 09's is open now, 11a §1). Test
+counts are 11a §6's text scan, not a compile: a test marked *runs* must pass unedited, which is
+unverified until it is run.
+
+### 7.1 What does not change, which is most of the saving
+
+- **The brief content model**: `discover/content.go` and every stored revision's digest; the inline
+  `goldenJSON`, the 76 `discover` tests and the 37 elsewhere that build content (11a §6 A). No
+  `ContentVersion` 2, no widened v1: the sceptic's shelf condition (06 §7) is met by not touching it.
+- **The brief's key**, and every one of the 64 plan files that quote `brief:bf-` (06 §2.2): no
+  fragment, no re-anchoring of phases W or T (06 §2.3).
+- **Phases 3, 5 and 7**, built or planned (§5.4), and phase 2 entirely: `MaterialiseResult`, the
+  session record and `contextRef` are untouched.
+
+### 7.2 Built code, tests and goldens that change
+
+| Built file (phase 4 tree unless marked) | Task that built it | What changes | Tests and goldens |
+|---|---|---|---|
+| `provenance/key.go` | 06, approved | two forms, two kinds; the "only copy" comment (`:47`) corrected | `key_test.go`'s 4 gain rows; the other 20 grammar tests *run* |
+| `provenance/ref.go` | 06 | `vocabulary`, the third time-varying part | `ref-golden.json` (102 lines) regenerated; `TestRefGoldenJSON`, `TestReadingAndHeadJSON` edited; `TestRefHasNoDenominator` must still pass; 36 more *run* |
+| `claudemd/render.go` | 05, approved | new marker, the two fixed lines gone, two sections, the budget, the route line; `Inspect`'s marker parse | all 3 goldens regenerated; the 9 marker-line and 9 wording tests edited; the 13 reserved-prefix tests *run* (the prefix stays); 33 re-derive and *run*; 3 new goldens |
+| `contextwrite/materialise.go`, `inspect.go` | 09, **in fix** | three files in order, `/.panacea/discover/` excluded and confined, the inheritance record | of 60, the write-set and exclusion tests edited (about 8, a guess until run); new tests for the order, the confine and the record |
+| `api/materialiser.go` | 10, approved | `MaterialiseRequest.SessionID` | 2-3 of `materialise_test.go`'s 14 gain the assertion |
+| `discoverhub/read.go` | 07, approved | `Ref`'s heads path reads the two lists | 11 `Ref`-path tests *run* against a fake that now serves lists |
+| Hub: `hubapi/keys.go`, `envelope.go`, the wire types | Hub 01-03, approved | prefixes `te`, `dr`; the forms; two envelopes; the objects | `keys_test.go`'s 4 gain rows; 4 new golden vectors beside `envelope_test.go`'s 1-4 |
+| Hub: `hubclient` interfaces, the fake, `conformance/feed.go` | Hub 04-05; 05 not approved | `Terms`, `Decisions`; two event kinds | new conformance rows, one `add("term.revised", …)` each |
+
+`hubapi` and `hubclient` reach the phase 4 tree by merge, as H0 did (11a §3), so each Hub change
+above lands once in the Hub worktree and is merged, never edited twice. `0001_init.sql` is **not**
+edited (11b §3.3).
 
 ## 8. What it does not do, and the open owner questions
 
