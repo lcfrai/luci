@@ -65,7 +65,7 @@ key (I15). An org admin who wants a hook for the workers still has one: their ow
 theirs — but it must sit in the **`worker`** section, not `all`, because `all` is merged for the
 orchestrator class too (`:446`) and I15 then refuses the whole layer for that class. The refusal is
 an `*InvariantError`, not a bare `ErrLayer`, so task 14's route answers 422 with
-`details.invariant` and the key an admin must remove (`task-14.md:964`).
+`details.invariant` and the key an admin must remove (`task-14.md:463-472`, body shape `:484-485`).
 
 **The gateway fragment is copied and pinned, not imported.** It lives in
 `images/sandbox/managed-settings.gateway.json` (phase 6 task 14, **planned**, `phase-6-gateway.md:248`,
