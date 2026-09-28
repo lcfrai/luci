@@ -1548,16 +1548,22 @@ existing directory `git worktree list` named.*
 
 **`internal/hostpath` is the one implementation of "a sandbox can write this" (X-3).** Three
 primitives, and each gate names which one it uses. `hostpath.Real(path)` answers a PLACE and not
-a name — the case the filesystem stores, 8.3 short names expanded, every link followed — and it
-is what `Scanner.registers` compares, so **the worktree gate above is the registry, not
-`Confine`**: `Confine` was that gate in the projects-directory fence this section replaced, and is
-not any more. `hostpath.Confine(root, path)` answers `Real(path)` when that is `root` or under it
+a name — the case the filesystem stores, 8.3 short names expanded, every link followed. **The
+worktree gate above is the registry, not `Confine`**: `Confine` was that gate in the
+projects-directory fence this section replaced, and is not any more. `Scanner.registers` compares
+worktree identity with `os.SameFile` (X-3 fix round m-2; a junction, an 8.3 short name or a
+letter-case variant each defeat a string compare of `Real` output, which is what it used before).
+`hostpath.Confine(root, path)` answers `Real(path)` when that is `root` or under it
 and `ErrOutside` otherwise (`root == ""` confines nothing); its one non-test caller is §5.1
-step 5's `.git/worktrees` admin directory, which must stay inside the worktree.
+step 5's `.git/worktrees` admin directory, which must stay inside the worktree. **`Confine` cannot
+catch a junction**: on Windows `EvalSymlinks` leaves a junction (a reparse point that is not a
+symlink) unresolved, so `Real` reads it as its own in-worktree location. §5.1 step 5's Lstat is
+therefore the load-bearing refusal, and it rejects any reparse point (`os.ModeSymlink |
+os.ModeIrregular`) — a symlink or a junction alike (X-3 fix round, review I-1).
 `hostpath.ResolveOutside(root, path)`
 is the other direction, for the two global git files of §5.1 step 5: it resolves component by
-component, following every link and restarting at each target, and refuses as soon as any STEP of
-that walk IS the projects directory. Each step is compared by FILE IDENTITY (`os.SameFile`), not
+component, following every link and junction (each a reparse point) and restarting at each target,
+and refuses as soon as any STEP of that walk IS the projects directory. Each step is compared by FILE IDENTITY (`os.SameFile`), not
 by name — measured on Windows, one directory answers to both `C:\Users\AU-DEV~1\…` and
 `C:\Users\au-dev-dmackie1\…`, and an agent writes the link target, so it writes whichever form a
 name check misses. `root == ""` (no projects directory) confines nothing.
@@ -2523,13 +2529,20 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    `.git` is a directory, also gets a **read-only** mount of its `<worktree>/.git/worktrees` at
    `/home/dev/work/.git/worktrees`, made on the host when absent. AMENDED by X-3 (2026-09-28,
    review O-2; was "made on the host when absent" with nothing said about what is already there):
-   `.git/worktrees` is **Lstatted before it is made**, and a link there fails the create with 500
-   naming the path to delete. `os.MkdirAll` Stats, which follows a link and answers nil for a
-   directory, so an agent — which writes this worktree — could aim `.git/worktrees` at any
-   directory on the host and have it bind-mounted into its own sandbox. It fails the create rather
+   `.git/worktrees` is **Lstatted before it is made**, and a reparse point there fails the create
+   with 500 naming the path to delete. `os.MkdirAll` Stats, which follows a link and answers nil
+   for a directory, so an agent — which writes this worktree — could aim `.git/worktrees` at any
+   directory on the host and have it bind-mounted into its own sandbox. AMENDED by the X-3 fix
+   round (review I-1): the Lstat rejects any reparse point (`os.ModeSymlink | os.ModeIrregular`),
+   not only a symlink, because a Windows **junction** (`mklink /J`, no privilege) is a reparse
+   point `os.Lstat` reports as irregular but not a symlink and `EvalSymlinks` does not resolve — so
+   the symlink-only check let a junction through, and `Confine` could not catch it either. This
+   Lstat is the load-bearing guard and is pinned by tests for the in-worktree symlink and the
+   junction (`sessions_x3_admin_pin_test.go`). It fails the create rather
    than mounting nothing, because mounting nothing hands the sandbox's git back the prune this
    mount exists to refuse. The resolved source must also stay inside the worktree
-   (`hostpath.Confine`). **Residue, not closed:** the agent can swap the directory for a link
+   (`hostpath.Confine`), a backstop only: it catches an out-of-worktree real directory, not a
+   junction. **Residue, not closed:** the agent can swap the directory for a link
    between that check and Docker's mount, and a fork on the same worktree runs while the check is
    happening. No check closes a check-then-mount race; R4 rule 1 does, by never mounting the
    project repository (phase 3). Every linked worktree's `gitdir`
@@ -2579,6 +2592,10 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    `~/.config/git/ignore` into a dotfiles repository, and if that repository is under the projects
    directory an agent running in it points the file at `~/.ssh/id_rsa`. Both ends of that chain are
    outside the projects directory, so checking the named path or the resolved path mounts the key.
+   AMENDED by the X-3 fix round (review I-1): the walk follows a Windows **junction** as well as a
+   symlink (both reparse points, `os.ModeSymlink | os.ModeIrregular`), because a junction is a hop
+   the agent can plant with no privilege and `EvalSymlinks` would not resolve it, so a symlink-only
+   walk would step past it and never land on the root.
    It is **not** downgraded to `/dev/null`: without the host's excludes every agent's `git add -A`
    commits what the host ignores, which is the leak this pair exists to close, so the quiet option
    leaks more and more often than the attack it closes. A path that is a **regular file** on

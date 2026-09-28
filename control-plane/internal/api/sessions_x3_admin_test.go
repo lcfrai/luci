@@ -36,10 +36,13 @@ func TestAWorktreeAdminLinkFailsTheCreateAndMountsNothing(t *testing.T) {
 	}
 }
 
-// The same refusal by the rule rather than by the Lstat: a .git/worktrees that
-// is a real directory but does not stay inside the worktree. Only a link can
-// make that true today, so this is the second half of the same guard — if the
-// Lstat is ever removed, Confine still refuses.
+// A second refusal, by Confine rather than by the Lstat: a .git/worktrees whose
+// real location leaves the worktree. AMENDED by the X-3 fix round (review I-1):
+// this pins Confine for the OUT-of-worktree case only and does NOT stand in for
+// the Lstat. An in-worktree symlink defeats Confine (its target is inside the
+// worktree) and a junction defeats it on Windows (EvalSymlinks does not resolve
+// one), so the Lstat is the load-bearing guard — pinned by the tests in
+// sessions_x3_admin_pin_test.go.
 func TestAWorktreeAdminThatLeavesTheWorktreeNamesTheWorktreeInTheRefusal(t *testing.T) {
 	env := sandboxEnvNew(t, func(*Deps) {})
 	admin := sandboxEnvPrimary(t, env.dir, false)

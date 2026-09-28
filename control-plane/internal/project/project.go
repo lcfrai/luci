@@ -17,7 +17,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hostpath"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
 )
 
@@ -480,11 +479,18 @@ func (s *Scanner) Path(ctx context.Context, worktreeID string) (string, error) {
 // another. A registry that cannot be read registers nothing, and the primary is
 // still resolvable: a project with no linked worktrees has no such directory.
 func (s *Scanner) registers(p Project, path string) bool {
-	real, err := hostpath.Real(path)
+	// os.SameFile compares by the operating system's own identity (device and
+	// inode, or volume serial and file index on Windows) — the check isRoot and
+	// resolve.go already use. A string compare of EvalSymlinks output (what this
+	// used before, X-3 review m-2) matches only when both sides normalise
+	// byte-identically, which a junction, an 8.3 short name or a different letter
+	// case can each defeat; os.Stat follows all three to the same file and
+	// SameFile then sees one identity.
+	target, err := os.Stat(path)
 	if err != nil {
 		return false
 	}
-	if primary, err := hostpath.Real(p.Path); err == nil && primary == real {
+	if primary, err := os.Stat(p.Path); err == nil && os.SameFile(primary, target) {
 		return true
 	}
 	admin := filepath.Join(p.Path, ".git", "worktrees")
@@ -500,7 +506,7 @@ func (s *Scanner) registers(p Project, path string) bool {
 			continue
 		}
 		wt := filepath.Dir(filepath.Clean(strings.TrimSpace(string(raw))))
-		if got, err := hostpath.Real(wt); err == nil && got == real {
+		if got, err := os.Stat(wt); err == nil && os.SameFile(got, target) {
 			return true
 		}
 	}

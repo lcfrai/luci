@@ -12,9 +12,9 @@ import (
 const maxLinkHops = 40
 
 // ResolveOutside resolves path the way the operating system does — component
-// by component, following every symlink and restarting at each target the way
-// POSIX does — and refuses as soon as ANY step of that walk IS the projects
-// directory. It answers the real location otherwise.
+// by component, following every symlink and junction and restarting at each
+// target the way POSIX does — and refuses as soon as ANY step of that walk IS
+// the projects directory. It answers the real location otherwise.
 //
 // Why every step and not the answer. X-1 review m-5: the host's own global git
 // config names an excludes file, and the host mounts it into every sandbox. A
@@ -59,7 +59,16 @@ func ResolveOutside(root, path string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if info.Mode()&os.ModeSymlink == 0 {
+		// A reparse point is followed whether it is a symlink or a junction. On
+		// Windows a junction (mklink /J, no privilege) is a reparse point that
+		// os.Lstat reports as os.ModeIrregular but NOT os.ModeSymlink, and one
+		// left as a plain component would let an agent tunnel a path INTO the
+		// projects directory without the walk ever landing on the root — the
+		// hop that the whole per-step check exists to catch. os.Readlink reads a
+		// junction's target too, so the same resolution handles both; an
+		// irregular file that is not a reparse point makes Readlink error below,
+		// which fails the resolution closed rather than trusting the step.
+		if info.Mode()&(os.ModeSymlink|os.ModeIrregular) == 0 {
 			continue
 		}
 		if hops++; hops > maxLinkHops {

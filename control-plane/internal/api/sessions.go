@@ -608,8 +608,17 @@ func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (sessionGit
 //
 // AMENDED by X-3 (review O-2; was "making the directory when there is none yet"
 // with nothing said about what is already there): .git/worktrees is Lstatted
-// too, and a link there fails the create. See below for why it fails rather
-// than mounting nothing, and for the race this does not close.
+// too, and a link OR A JUNCTION there fails the create. See below for why it
+// fails rather than mounting nothing, and for the race this does not close.
+//
+// AMENDED by the X-3 fix round (x3-rails-review I-1): the Lstat now refuses any
+// reparse point (os.ModeSymlink OR os.ModeIrregular), not only a symlink. On
+// Windows a junction (mklink /J, no privilege) is a reparse point that
+// os.Lstat reports as irregular but NOT a symlink, and filepath.EvalSymlinks
+// does not resolve it — so the old symlink-only Lstat let a junction through
+// and Confine below could not catch it either (it compares the junction's own
+// location, which is inside the worktree). The Lstat is the load-bearing guard
+// and is now pinned by tests for BOTH the in-worktree symlink and the junction.
 func sessionWorktreeAdmin(worktreePath string) (string, error) {
 	gitDir := filepath.Join(worktreePath, ".git")
 	info, err := os.Lstat(gitDir)
@@ -628,17 +637,21 @@ func sessionWorktreeAdmin(worktreePath string) (string, error) {
 	// So an agent that replaced .git/worktrees with a link to /etc got /etc
 	// bind-mounted into its own sandbox. The agent writes this directory, so
 	// the link is the agent's to plant, and the mount is the host's to refuse.
+	// A junction (a reparse point that is not a symlink) is the agent's to
+	// plant just the same and needs no privilege on Windows, so the mask below
+	// refuses os.ModeIrregular as well: Confine cannot back this up, because
+	// EvalSymlinks leaves a junction unresolved and reads it as in-worktree.
 	//
 	// It fails the create rather than mounting nothing: mounting nothing puts
 	// the sandbox's git back where the read-only bind was added to stop it,
 	// free to `git worktree prune` the HOST's metadata, and a session that
 	// quietly lost a safety control is worse than one that did not start.
-	if info, err := os.Lstat(admin); err == nil && info.Mode()&os.ModeSymlink != 0 {
-		return "", fmt.Errorf("%s is a link, and the host will not mount what it points at: an agent in this worktree can aim it at any directory on this host, so delete it and let git make the directory again", admin)
+	if info, err := os.Lstat(admin); err == nil && info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+		return "", fmt.Errorf("%s is a link or a junction, and the host will not mount what it points at: an agent in this worktree can aim it at any directory on this host, so delete it and let git make the directory again", admin)
 	} else if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return "", err
 	}
-	if err := os.MkdirAll(admin, 0o777); err != nil {
+	if err := os.MkdirAll(admin, 0o755); err != nil {
 		return "", err
 	}
 	// R4 rule 6 as the rule rather than as two Lstats: whatever is mounted has
