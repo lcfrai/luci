@@ -1,0 +1,137 @@
+{
+  "realm": "panacea-app",
+  "enabled": true,
+  "displayName": "PanaceaApp",
+  "sslRequired": "all",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "defaultSignatureAlgorithm": "RS256",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 86400,
+  "ssoSessionMaxLifespan": 86400,
+  "offlineSessionIdleTimeout": 2592000,
+  "offlineSessionMaxLifespanEnabled": true,
+  "offlineSessionMaxLifespan": 5184000,
+  "roles": {
+    "realm": [
+      { "name": "hub.org_admin", "description": "PanaceaApp org administrator (Hub); assigned by the realm admin" }
+    ]
+  },
+  "userProfile": {
+    "unmanagedAttributePolicy": "ADMIN_VIEW",
+    "attributes": [
+      { "name": "username", "permissions": { "view": ["admin", "user"], "edit": ["admin"] } },
+      { "name": "email", "permissions": { "view": ["admin", "user"], "edit": ["admin"] } },
+      { "name": "firstName", "permissions": { "view": ["admin", "user"], "edit": ["admin"] } },
+      { "name": "lastName", "permissions": { "view": ["admin", "user"], "edit": ["admin"] } },
+      { "name": "entra_oid", "permissions": { "view": ["admin"], "edit": ["admin"] },
+        "validations": { "length": { "max": 36 } } },
+      { "name": "entra_tid", "permissions": { "view": ["admin"], "edit": ["admin"] },
+        "validations": { "length": { "max": 36 } } }
+    ]
+  },
+  "clientScopes": [
+    { "name": "panacea-app-hub", "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [ { "name": "audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+        "config": { "included.custom.audience": "panacea-app-hub", "access.token.claim": "true", "id.token.claim": "false" } } ] },
+    { "name": "panacea-app-broker", "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [ { "name": "audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+        "config": { "included.custom.audience": "panacea-app-broker", "access.token.claim": "true", "id.token.claim": "false" } } ] },
+    { "name": "panacea-app-gateway", "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [ { "name": "audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+        "config": { "included.custom.audience": "panacea-app-gateway", "access.token.claim": "true", "id.token.claim": "false" } } ] },
+    { "name": "panacea-app-fleet", "protocol": "openid-connect",
+      "attributes": { "include.in.token.scope": "true", "display.on.consent.screen": "false" },
+      "protocolMappers": [ { "name": "audience", "protocol": "openid-connect", "protocolMapper": "oidc-audience-mapper",
+        "config": { "included.custom.audience": "panacea-app-fleet", "access.token.claim": "true", "id.token.claim": "false" } } ] }
+  ],
+  "clients": [
+    { "clientId": "panacea-app-desktop", "name": "PanaceaApp Desktop", "enabled": true, "protocol": "openid-connect",
+      "publicClient": true, "standardFlowEnabled": true, "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false, "serviceAccountsEnabled": false, "consentRequired": false,
+      "redirectUris": ["http://127.0.0.1/callback"], "webOrigins": [],
+      "attributes": { "pkce.code.challenge.method": "S256", "oauth2.device.authorization.grant.enabled": "false",
+        "client.offline.session.max.lifespan": "604800", "access.token.lifespan": "600" },
+      "authenticationFlowBindingOverrides": { "browser": "panacea-app desktop browser" },
+      "defaultClientScopes": ["basic", "profile", "email", "roles", "web-origins", "acr"],
+      "optionalClientScopes": ["offline_access", "panacea-app-hub", "panacea-app-broker", "panacea-app-gateway", "panacea-app-fleet"],
+      "protocolMappers": [
+        { "name": "oid", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": { "user.attribute": "entra_oid", "claim.name": "oid", "jsonType.label": "String",
+            "access.token.claim": "true", "id.token.claim": "true", "userinfo.token.claim": "false" } },
+        { "name": "tid", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": { "user.attribute": "entra_tid", "claim.name": "tid", "jsonType.label": "String",
+            "access.token.claim": "true", "id.token.claim": "true", "userinfo.token.claim": "false" } },
+        { "name": "roles", "protocol": "openid-connect", "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": { "claim.name": "roles", "multivalued": "true", "jsonType.label": "String",
+            "access.token.claim": "true", "id.token.claim": "false", "userinfo.token.claim": "false" } }
+      ] },
+    { "clientId": "panacea-app-fleet", "name": "PanaceaApp Fleet", "enabled": true, "protocol": "openid-connect",
+      "publicClient": false, "clientAuthenticatorType": "client-secret", "secret": "$(env:KC_FLEET_SECRET)",
+      "serviceAccountsEnabled": true, "standardFlowEnabled": false, "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false, "redirectUris": [], "webOrigins": [],
+      "defaultClientScopes": [], "optionalClientScopes": ["panacea-app-hub", "panacea-app-broker"] },
+    { "clientId": "panacea-app-gateway", "name": "PanaceaApp Gateway", "enabled": true, "protocol": "openid-connect",
+      "publicClient": false, "clientAuthenticatorType": "client-secret", "secret": "$(env:KC_GATEWAY_SECRET)",
+      "serviceAccountsEnabled": true, "standardFlowEnabled": false, "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false, "redirectUris": [], "webOrigins": [],
+      "defaultClientScopes": [], "optionalClientScopes": ["panacea-app-hub"] }
+  ],
+  "identityProviders": [
+    { "alias": "entra", "displayName": "Microsoft Entra ID", "providerId": "oidc", "enabled": true,
+      "trustEmail": true, "storeToken": false, "addReadTokenRoleOnCreate": false, "linkOnly": false,
+      "firstBrokerLoginFlowAlias": "panacea-app first broker login",
+      "config": {
+        "clientId": "$(env:PANACEA_APP_ENTRA_IDP_CLIENT_ID)",
+        "clientSecret": "$(env:KC_ENTRA_IDP_SECRET)",
+        "clientAuthMethod": "client_secret_post",
+        "authorizationUrl": "https://login.microsoftonline.com/$(env:PANACEA_APP_ENTRA_TENANT_ID)/oauth2/v2.0/authorize",
+        "tokenUrl": "https://login.microsoftonline.com/$(env:PANACEA_APP_ENTRA_TENANT_ID)/oauth2/v2.0/token",
+        "issuer": "https://login.microsoftonline.com/$(env:PANACEA_APP_ENTRA_TENANT_ID)/v2.0",
+        "jwksUrl": "https://login.microsoftonline.com/$(env:PANACEA_APP_ENTRA_TENANT_ID)/discovery/v2.0/keys",
+        "useJwksUrl": "true", "validateSignature": "true",
+        "defaultScope": "openid profile email", "syncMode": "IMPORT",
+        "loginHint": "true", "pkceEnabled": "false",
+        "filteredByClaim": "true", "claimFilterName": "tid",
+        "claimFilterValue": "$(env:PANACEA_APP_ENTRA_TENANT_ID)"
+      } }
+  ],
+  "identityProviderMappers": [
+    { "name": "email", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": { "claim": "email", "user.attribute": "email", "syncMode": "FORCE" } },
+    { "name": "firstName", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": { "claim": "given_name", "user.attribute": "firstName", "syncMode": "INHERIT" } },
+    { "name": "lastName", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": { "claim": "family_name", "user.attribute": "lastName", "syncMode": "INHERIT" } },
+    { "name": "username", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-username-idp-mapper",
+      "config": { "template": "${CLAIM.email}", "syncMode": "INHERIT" } },
+    { "name": "entra_oid", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": { "claim": "oid", "user.attribute": "entra_oid", "syncMode": "FORCE" } },
+    { "name": "entra_tid", "identityProviderAlias": "entra", "identityProviderMapper": "oidc-user-attribute-idp-mapper",
+      "config": { "claim": "tid", "user.attribute": "entra_tid", "syncMode": "FORCE" } }
+  ],
+  "authenticatorConfig": [
+    { "alias": "panacea-app entra redirector", "config": { "defaultProvider": "entra" } }
+  ],
+  "authenticationFlows": [
+    { "alias": "panacea-app desktop browser", "providerId": "basic-flow", "topLevel": true, "builtIn": false,
+      "authenticationExecutions": [
+        { "authenticator": "identity-provider-redirector", "authenticatorConfig": "panacea-app entra redirector",
+          "requirement": "REQUIRED", "priority": 10, "authenticatorFlow": false }
+      ] },
+    { "alias": "panacea-app first broker login", "providerId": "basic-flow", "topLevel": true, "builtIn": false,
+      "authenticationExecutions": [
+        { "authenticator": "idp-create-user-if-unique", "requirement": "ALTERNATIVE", "priority": 10, "authenticatorFlow": false },
+        { "flowAlias": "panacea-app handle existing account", "requirement": "ALTERNATIVE", "priority": 20, "authenticatorFlow": true }
+      ] },
+    { "alias": "panacea-app handle existing account", "providerId": "basic-flow", "topLevel": false, "builtIn": false,
+      "authenticationExecutions": [
+        { "authenticator": "idp-auto-link", "requirement": "REQUIRED", "priority": 10, "authenticatorFlow": false }
+      ] }
+  ]
+}
