@@ -65,10 +65,12 @@ func serveSession(serve func() error, shutdown func(context.Context) error,
 	// ONE deadline, not two timers. Shutdown used to get a linger-long context
 	// and then the wait below started a fresh linger, so a /healthz in flight —
 	// the one non-hijacked request that makes Shutdown block — cost 2 x linger,
-	// twice what exitLinger's own comment promises and twice what the container
-	// stop timeout was sized against. The deadline is computed once and the wait
-	// takes what is left of it, so the post-exit window is exactly linger no
-	// matter how long Shutdown takes.
+	// twice what exitLinger's own comment promises. (Twice what the CONTAINER
+	// was sized against is not a claim this tree can make: there is no container
+	// stop timeout — Destroy is ContainerRemove{Force: true} and nothing calls
+	// ContainerStop — so the only number this doubled is exitLinger's own.)
+	// The deadline is computed once and the wait takes what is left of it, so
+	// the post-exit window is exactly linger no matter how long Shutdown takes.
 	deadline := time.Now().Add(linger)
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()

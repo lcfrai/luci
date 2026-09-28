@@ -147,8 +147,9 @@ func TestServeSessionWaitsForTheExitFrameToLeave(t *testing.T) {
 //
 // What fails without it: exitLinger says two seconds and the comment above it
 // reasons about two seconds, but a health check landing at the wrong instant
-// makes it four — a container that takes twice as long to stop as the number
-// anything else is sized against.
+// makes it four — a container that stays up twice as long as the only number
+// sized for it. (Nothing else is sized against it: there is no container stop
+// timeout in this tree, since Destroy is ContainerRemove{Force: true}.)
 func TestTheLingerBoundsTheWholeWaitNotEachHalfOfIt(t *testing.T) {
 	t.Parallel()
 	const linger = 500 * time.Millisecond
@@ -176,8 +177,17 @@ func TestTheLingerBoundsTheWholeWaitNotEachHalfOfIt(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("serveSession did not return within 10s of the process exiting")
 	}
-	if elapsed := time.Since(start); elapsed >= 2*linger {
-		t.Errorf("the post-exit wait took %v, at or past 2 x the %v linger: "+
-			"shutdown's budget and the linger are two windows, not one", elapsed, linger)
+	// The bound is the property, not the regression. "Under 2 x linger" is the
+	// exact value the two-window bug produces (1.048 s against this 500 ms
+	// linger, measured), so it passes at 1.99 x and a half-regression — a
+	// shutdown given its own fraction of the window — would survive it. The
+	// code guarantees ONE linger: the deadline is computed once and the wait
+	// takes what is left of it, so elapsed is linger plus scheduling. The slack
+	// is half the linger, which is far more than a timer's coarseness on a busy
+	// host and still well under the 1 s the regression costs.
+	const slack = linger / 2
+	if elapsed := time.Since(start); elapsed >= linger+slack {
+		t.Errorf("the post-exit wait took %v, past the %v linger plus %v of slack: "+
+			"shutdown's budget and the linger are two windows, not one", elapsed, linger, slack)
 	}
 }
