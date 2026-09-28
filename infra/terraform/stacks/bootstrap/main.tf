@@ -125,5 +125,5 @@ resource "azurerm_management_lock" "state" {
   name       = "lock-panacea-app-${var.environment}-tfstate"
   scope      = azurerm_storage_account.state.id
   lock_level = "CanNotDelete"
-  notes      = "Holds the Terraform state of every stack in this environment. Versions and soft delete do not survive deleting the account itself, so it cannot be deleted while this lock stands. Remove the lock by hand, deliberately."
+  notes      = "Holds the OpenTofu state of every stack in this environment. Versions and soft delete do not survive deleting the account itself, so it cannot be deleted while this lock stands. Remove the lock by hand, deliberately."
 }

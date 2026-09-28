@@ -299,7 +299,7 @@ run "the_account_is_locked" {
   # The part asks for notes saying why (task 02 review m2). can() is false for null notes too.
   assert {
     condition     = can(regex("(?i)tofu state", azurerm_management_lock.state.notes))
-    error_message = "The lock's notes do not say it guards the Terraform state; whoever meets the lock is told nothing."
+    error_message = "The lock's notes do not say it guards the OpenTofu state; whoever meets the lock is told nothing."
   }
   # Fix round 2's predicted survivor LN1: a name hard-coded to one environment.
   assert {
