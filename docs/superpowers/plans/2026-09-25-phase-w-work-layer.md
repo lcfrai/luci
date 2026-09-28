@@ -107,7 +107,7 @@ team mode's stream B; the desktop streams sit beside its stream F and **share on
 | **WD1, look and Work lens** | 20, 26-45 | task 01; the look needs no Hub | `feat/work-layer` |
 | **WD2, issue view, keys, replica, Desk** | 46-70 | tasks 05 and 20 (the fake is enough to start; task 16 brings the real relay) | `feat/work-layer` |
 | **W1b** | 71 | task 22 and phase 7 task 19 | `feat/work-layer` |
-| **W2-W5** | 72-174 | the slice before, per the table | `feat/work-layer` |
+| **W2-W5** | 72-174, with 81b and 96b in W2 | the slice before, per the table | `feat/work-layer` |
 | **WL, the design's *later* rows** | 175-187 | W5's proof (task 174); nothing depends on WL | `feat/work-layer` |
 
 ---
@@ -243,7 +243,7 @@ move (rule H1). Where a slice adds to a W1 file, the later task is listed in the
 | `hubclient/conformance/work*.go` | Work conformance rows, run against the fake and the real Hub | new | 05; 73, 99, 115, 144 |
 | `hubclient/methods_work*.go` | the Work methods over HTTP, with the digest re-check | new | 16; 82, 100, 124, 168 |
 | `migrate/sql/NNNN_work_*.sql` | one migration per slice, **next free number at sync time**: tables, RLS, grants, guards | new | 06, 07; 74, 100, 116, 145 |
-| `store/work_*.go`, `server/work_*.go` | the store and routes, one pair per aggregate | new | 08-15; W2-W5 Hub tasks |
+| `store/work_*.go`, `server/work_*.go` | the store and routes, one pair per aggregate | new | 08-15; W2-W5 Hub tasks (81b's `work_implements.go` among them) |
 | `server/matrix_integration_test.go` ⚑ | authorisation-matrix rows for every Work route | modified | 07 and every WH route task |
 | `server/changes.go` ⚑ | the change feed carries Work kinds, filtered per caller | modified | 13 |
 | `server/erase.go` ⚑ | erase for issues, comments, requests and notes | modified | 14; 146 |
@@ -286,6 +286,7 @@ path **UNVERIFIED until merge**, as Phase T does.
 | phase 6 | the per-session gateway token (plan still being written) | planned | the token carries the issue id | 135 |
 | Phase T | Fleet's task record, events and verbs (ST.1, ST.2; plan `:195-243`) | planned | `task.issueId`, two event kinds, three verbs | 98, 101 |
 | Phase T | its Desk rows `desktop/src/components/desk/team*.tsx` (TM task 54) | planned | nothing: they plug into SW.17, task 62's frame | 62 |
+| phase 5 | `control-plane/internal/designapi/{approve,approvals}.go` (P5 task 21; plan `:397`), `desktop/src/design/{DesignLens,DesignSide}.tsx` (P5 task 28; `:420`) | planned; read 2026-09-28, paths **UNVERIFIED until merge** | the canvas's list of the issues whose revision `implements` it; a design approval closes those issues (04 §7.7; 05 `:1082`, `:1305`) | 81b, 96b |
 
 ### The desktop: `desktop/`
 
@@ -304,7 +305,7 @@ path **UNVERIFIED until merge**, as Phase T does.
 | `src/work/replica/{replica,ops,undo,visibility,search}.ts` | the in-memory Hub replica on `/v1/changes` | new | 55-58 |
 | `src/components/work/{WorkLens,CriterionGroup,IssueRow,AgentLine,HeldLine}.tsx`, `work.css` | the Work lens and its row | new | 40, 41 |
 | `src/components/work/{TriageView,BoardView,DisplayMenu,BulkBar,PlanSurface,Peek,StartChip,NewIssue,ImportDialog}.tsx` | Triage, board, display, bulk, Plan, peek, Start, create, import | new | 42-45, 60, 61, 68, 69 |
-| `src/components/issue/{IssueView,IssueHead,Revisions,Serves,Relations,IssueAgentLine,Comments,Attachments}.tsx` | the one issue view | new | 46-48, 51, 52 |
+| `src/components/issue/{IssueView,IssueHead,Revisions,Serves,Implements,Relations,IssueAgentLine,Comments,Attachments}.tsx` | the one issue view | new | 46-48, 51, 52; 96b |
 | `src/components/editor/*`, `desktop/package.json` ⚑ | the one Markdown editor on `prosemirror-*` (MIT) | new, modified | 49, 50; 92 |
 | `src/hooks/useKeyboardMap.ts` ⚑, `src/work/keys/{keymap,sequences}.ts`, `src/components/work/ShortcutSheet.tsx` | `keys.list`: `isCockpitChord` extended, `G`/`O`/`M` sequences, the `?` sheet | modified, new | 53, 54 |
 | `src/components/palette/commands.ts` ⚑, `CommandPalette.tsx` ⚑ | work verbs with chords; prefixes; opens beside a row | modified | 59 |
@@ -342,17 +343,17 @@ measured.
 | W0 | 01 | 1 | 2 | 0.25 |
 | W1 | 02-70 | 69 | 192 | 24 |
 | W1b | 71 | 1 | 3 | 0.375 |
-| W2 | 72-97 | 26 | 69.5 | 8.7 |
+| W2 | 72-97, with 81b and 96b | 28 | 74.5 | 9.3 |
 | W3 | 98-113 | 16 | 46 | 5.75 |
 | W4 | 114-142 | 29 | 79.5 | 9.9 |
 | W5 | 143-174 | 32 | 91 | 11.4 |
 | WL | 175-187 | 13 | 33 | 4.1 |
-| **All** | **01-187** | **187** | **516** | **64.5** |
+| **All** | **01-187, 81b, 96b** | **189** | **521** | **65.1** |
 
 **dependsOn** names this plan's tasks by number and sibling tasks by prefix: `H` the Hub plan
 (`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:396-446`), `P3-` phase 3
 (`.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence.md:591-614`),
-`P4-` phase 4 (`.claude/worktrees/phase-4/docs/superpowers/plans/2026-09-23-phase-4-discover.md:394-406`),
+`P4-` phase 4 (`.claude/worktrees/phase-4/docs/superpowers/plans/2026-09-23-phase-4-discover.md:394-406`), `P5-` phase 5 (`.claude/worktrees/phase-5/docs/superpowers/plans/2026-09-23-phase-5-design-canvas.md:442-472`, its task table read 2026-09-28),
 `P6-` phase 6 (its plan is still being written, so every `P6-` id is **UNVERIFIED**), `P7-` phase 7
 (`.claude/worktrees/phase-7/docs/superpowers/plans/2026-09-23-phase-7-deploy.md:645-647`) and `TM-`
 Phase T (`.claude/worktrees/team/docs/superpowers/plans/2026-09-25-phase-t-team-mode.md:281-406`).
@@ -371,10 +372,10 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | Seam | What is fixed | Defined in | Consumed by |
 |---|---|---|---|
 | **SW.0** | the W0 proposal: the `issue:` key case and the `c-` example | 01 | 02, 18 |
-| **SW.1** | the Work wire, W1: id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical form and golden vectors, every W1 type and request body | 02, 03 | 04-19, 24, 25, 37 |
+| **SW.1** | the Work wire, W1: id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical form and golden vectors — which already carry `implements: [design:…]` (`task-02.md:243`, 04 §7.7) — every W1 type and request body | 02, 03 | 04-19, 24, 25, 37, 81b |
 | **SW.2** | `hubclient.Work` (W1 methods), `NewFake()`'s Work rules, the relay paths `/v1/hub/work/*` | 04, 05, 16 | 19, 21-25, 37, 55, 98 |
 | **SW.3** | who may write what: the authorisation rows and the guards (fact states, `done`, the sync principal) | 07 | 10, 22, 23, 99, 145, 150, 159 |
-| **SW.4** | the state move: `StateMove{to, cause, reason}`, the done rule's inputs and its result words | 10 | 22, 23, 48, 63-65, 71 |
+| **SW.4** | the state move: `StateMove{to, cause, reason}`, the done rule's inputs and its result words | 10 | 22, 23, 48, 63-65, 71, 81b |
 | **SW.5** | the Work feed kinds and their metadata-only payloads | 13 | 55, 62, 98, 123, 156 |
 | **SW.6** | the import batch: one normalised item per external issue, idempotent by `(source, externalId)` | 15 | 25, 69, 150-153 |
 | **SW.7** | the managed block's issue section: what an agent is told, byte for byte | 19 | 24, 101 |
@@ -484,7 +485,8 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 79 | estimates, due dates, rank, move with redirect, the resolved-blocker rule | W2 | 0.3 (2.5 h) | 74 | — |
 | 80 | views `vw-`, drafts `df-`, https links and the read-only page, CSV export | W2 | 0.375 (3 h) | 74 | — |
 | 81 | the digest builder and the outbound mail seam | W2 | 0.3 (2.5 h) | 13, 74 | — |
-| 82 | `hubclient`'s W2 methods over HTTP, the relay rows, W2's Hub end to end | W2 | 0.375 (3 h) | 73, 75-81 | SW.18 |
+| 81b | `implements`: the write and read paths, and the design approval that closes a design issue (04 §7.7) | W2 | 0.375 (3 h) | 10, 23, 74; P5-21 | SW.1, SW.4 |
+| 82 | `hubclient`'s W2 methods over HTTP, the relay rows, W2's Hub end to end | W2 | 0.375 (3 h) | 73, 75-81, 81b | SW.18 |
 | 83 | desktop W2 wire types and replica kinds | W2 | 0.3 (2.5 h) | 55, 73 | — |
 | 84 | custom states in team settings and on the row | W2 | 0.25 (2 h) | 83 | — |
 | 85 | the features board and feature tabs; status beside the facts | W2 | 0.375 (3 h) | 83 | — |
@@ -499,7 +501,8 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 94 | the digest, defer with a reason (`H`), CSV export | W2 | 0.3 (2.5 h) | 65, 81 | — |
 | 95 | themes, part 1: `tokens.gen.ts` from three LCH seeds; `graphite` and `paper` generated (02 D2 step 5) | W2 | 0.375 (3 h) | 33 | SW.11 |
 | 96 | themes, part 2: the high-contrast pair; personal preferences | W2 | 0.3 (2.5 h) | 95 | — |
-| 97 | W2's proof and results | W2 | 0.3 (2.5 h) | 72-96 | — |
+| 96b | the Design lens's issue list; *implements* on the issue view | W2 | 0.25 (2 h) | 83, 81b; P5-27, P5-28 | SW.14, SW.16 |
+| 97 | W2's proof and results | W2 | 0.3 (2.5 h) | 72-96, 81b, 96b | — |
 
 ### W3: agents on the work (ships with Phase T's TM1)
 
@@ -629,7 +632,7 @@ disagree, the row's id, dependsOn and seams win and the scope is corrected.
 | `tasks-21-40.md` | 21-40 | W1 (phase 3 deltas, Start, import, the look, the Work lens) |
 | `tasks-41-60.md` | 41-60 | W1 (the lens, Triage, the issue view, the editor, keys, the replica, peek) |
 | `tasks-61-80.md` | 61-80 | W1, W1b, W2 (Start on the desktop, the Desk, the demo, *shipped*, W2's Hub) |
-| `tasks-81-100.md` | 81-100 | W2, W3 (W2's Hub and desktop, W2's proof, W3's Hub) |
+| `tasks-81-100.md` | 81-100, 81b, 96b | W2, W3 (W2's Hub and desktop, W2's proof, W3's Hub) |
 | `tasks-101-120.md` | 101-120 | W3, W4 (the verbs and Fleet on issues, W3's proof, W4's Hub) |
 | `tasks-121-140.md` | 121-140 | W4 (janitor, insights, the timeline, release, assists) |
 | `tasks-141-160.md` | 141-160 | W4, W5 (W4's proof; requests, sync, outside PRs, webhooks, the API) |
