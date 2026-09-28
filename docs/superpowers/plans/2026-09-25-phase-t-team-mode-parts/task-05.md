@@ -50,7 +50,7 @@ exactly one app caller (`:626-635`), so every `AppOnly` branch below is Fleet's 
 Task 06 adds the broker as a second one and route 88 as a second exempt route, and so owns, in
 these files, all five deltas that keep them apart: `Claims.AppRole` and `Claims.BrokerRead`,
 `isExemptPath`, `delegationHeader`'s role arms, `resolveCaller`'s broker branch, and
-`Claims.PrincipalRead` with its own arm (`task-06.md:73-91`, the Files entry; `task-06.md:813-911`,
+`Claims.PrincipalRead` with its own arm (`task-06.md:73-91`, the Files entry; `task-06.md:813-977`,
 the hunks; grep the heading **The gate that admits the broker** rather than trust the range).
 **Do not add a second `entra.AppCaller` here**, and do not copy an `AppOnly` check out of this
 file into a task that has one: without that gate the broker is refused 401 before any route and

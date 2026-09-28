@@ -73,8 +73,8 @@ fields, so a body that sends one gets 400 `bad_request`.
 - `control-plane/internal/hub/server/auth.go` + `delegation.go` (task 05's files): **five** deltas
   — this task adds the second app-only identity and the second exempt route, so it owns every
   check that until now read `AppOnly` and meant "Fleet" (modify; fix batch b02, rounds 1 to 3):
-  1. `Claims.AppRole`, the `Role` of the `entra.AppCaller` that matched, so a handler can tell
-     Fleet from the broker;
+  1. `Claims.AppRole`, copied from `entra.Claims.AppRole`: the `Role` of the `AppCaller` whose
+     `ClientID` is the token's `azp` (entra below), so a handler can tell Fleet from the broker;
   2. `isExemptPath` = `isFeedPath(r) || isPrincipalPath(r)` — task 05's route-78 matcher is kept
      under its own name, because route 78 sets `FleetFeed` and route 88 sets `PrincipalRead` (5),
      each read by its own `resolveCaller` arm — `isPrincipalPath` is `GET` and segments exactly
@@ -89,7 +89,7 @@ fields, so a body that sends one gets 400 `bad_request`.
      to the org of Fleet's `tid`, no user and no `Via`; without it route 88 fell to
      `resolveDelegated` with an empty id and was 401. Until this task runs, `AppOnly` means Fleet:
      task 05 configures one caller (`task-05.md:626-635`) in a list (`task-05.md:166-175`)
-- `control-plane/internal/entra/entra.go`: nothing — the list admits the broker as one more element
+- `control-plane/internal/entra/{entra,verify}.go`: `Claims.AppRole`, set by `appCaller` (modify; b02 r3)
 
 **Interfaces:**
 - Consumes:
@@ -811,10 +811,10 @@ line written as a bare `HandleFunc`, which answers Fleet 403 `required: "route"`
 delegation lists.
 
 **The gate that admits the broker, and admits it nowhere else (b02 round 1, C1 and C2).** Task 05
-wrote `delegationHeader` when `AppOnly` had one meaning; this task gives it a second, so the three
-named hunks below land in `auth.go` and `delegation.go` with it. Without hunk (3) the broker is 401
-`delegation_required` at step 3b, before route 47; without its `AppRoleFleet` narrowing it reads
-route 78, the org-wide feed; without hunk (5) (round 3) Fleet is 401 on route 88, its handler unrun.
+wrote `delegationHeader` when `AppOnly` had one meaning; this task gives it a second, so the four
+named hunks below land in task 05's files with it. Without hunk (3) the broker is 401 before route
+47, and without its `AppRoleFleet` narrowing it reads route 78, the org-wide feed; without hunk (5)
+Fleet is 401 on route 88; without hunk (1), which sets `AppRole`, Fleet is 403 on every route.
 
 ```go
 // (3) delegationHeader: the two app-only identities, told apart by role.
@@ -927,6 +927,55 @@ Two more tests in Step 2: `TestPrincipalReadIsAudited` (`fleet("")` asks about L
 and `TestBrokerReadIsAudited` (the broker reads `DLLinusOrch` → one `delegation.read_by_broker`,
 `actorUserId` `""`, `v: 1`). Mutant: either handler left under `s.Read`, which writes no row.
 
+**Where `Claims.AppRole` comes from (b02 round 3, found re-checking S02-C5).** Every gate case
+above reads `c.AppRole`, and until this round nothing set it: task 05's `appCaller` answers a
+bool, and this Files entry said `entra.go` changes not at all. Built literally, `AppRole` is `""`
+for every app-only token, so hunk (3)'s third-role arm answers Fleet 403 on every route. The role
+must come from the `AppCaller` that admitted the token, found by `azp`, never from the token's
+`roles`: an Entra admin can grant one registration both roles, and read off `roles` that broker
+would be Fleet.
+
+```go
+// (1) entra.go — Claims gains, after AppOnly:
+	AppRole string // the Role of the AppCaller that admitted an app-only token; "" otherwise
+
+// verify.go — task 05's first case (task-05.md:206-209) takes the role with the verdict:
+	appRole, appOnly := "", false
+	if len(scopes) == 0 {
+		appRole, appOnly = v.appCaller(p.Azp, p.Roles)
+	}
+	switch {
+	case appOnly: // empty on purpose: admitted (no scp, a listed azp, its role), so skip both below
+	case !v.clients[p.Azp]: // task 05's (task-05.md:210-211), unchanged
+		return Claims{}, fmt.Errorf("%w: azp is not an allowed client", ErrClient)
+	case !contains(scopes, v.scope): // task 05's (task-05.md:212-213), unchanged
+		return Claims{}, fmt.Errorf("%w: scp does not hold %s", ErrScope, v.scope)
+	}
+	// the returned Claims gains AppRole: appRole beside AppOnly: appOnly.
+
+// appCaller returns the Role of the AppCaller whose ClientID is azp, if roles hold it.
+func (v *JWKSValidator) appCaller(azp string, roles []string) (string, bool) {
+	for _, ac := range v.appCallers {
+		if ac.ClientID == azp && contains(roles, ac.Role) {
+			return ac.Role, true
+		}
+	}
+	return "", false
+}
+
+// server/auth.go — Authenticate, where task 05 copies entra.Claims.AppOnly:
+	c.AppRole = e.AppRole
+```
+
+`New` also refuses two `AppCaller`s with one `ClientID` (in task 05's loop, `task-05.md:187-199`),
+so the lookup has one answer; `cmd/hub` already refuses the broker's id equal to Fleet's
+(`task-06.md:65-66`). One more test, in task 05's `appcaller_test.go`:
+`TestAppRoleIsTheAdmittingCallers` — with Fleet
+and the broker configured, a broker token whose `roles` hold `Hub.DelegationReader` **and**
+`Hub.Fleet` → `AppRole == "Hub.DelegationReader"`; a Fleet token → `"Hub.Fleet"`; a delegated token
+→ `""`; two callers with one client id → `New` fails. Mutants: the role read off `roles` (that
+broker becomes Fleet and reads route 78); `AppRole` never copied (Fleet 403 everywhere).
+
 **The three reads** (routes 52, 55, 59) are what task 11's `rebuild.go` reloads after a Fleet
 restart. They are the Hub's usual page shape (`hubapi.Page[T]`, `?limit=` 1–200 and `?after=`,
 the built `hubapi.PageRequest`, `hub` worktree `hubapi/types.go:201-205`), run
@@ -1019,8 +1068,9 @@ delegation; the Hub records lease changes but does not second-guess them) and en
    caller's org by mistake. `TestPrincipalReadIsAudited` passes and
    `grep -n 's.Read(' control-plane/internal/hub/server/principals.go` prints nothing: the read
    is audited, so it runs under `Write` (b02 round 3).
-8. (b02, S02-C5) `TestBrokerReadIsAudited` passes (b02 round 3: the broker's branch runs under
-   `Write`, so its event is written), and `TestBrokerReachesOnlyRoute47`, `TestBrokerReadsARevokedDelegation`,
+8. (b02, S02-C5) `TestBrokerReadIsAudited` and `TestAppRoleIsTheAdmittingCallers` pass (b02 round
+   3: the broker's event is written; `AppRole` is the admitting caller's, by `azp`, never read off
+   `roles`), and `TestBrokerReachesOnlyRoute47`, `TestBrokerReadsARevokedDelegation`,
    `TestBrokerWithAHeaderIs400`, `TestAnUngatedAppRoleIsRefused` and
    `TestFleetSeesNoOwnerTidOnRoute47` pass — the first four are the gate, and
    `TestBrokerReachesOnlyRoute47` must include `GET /v1/orgs/{org}/changes` in the routes it
