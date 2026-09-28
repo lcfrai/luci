@@ -14,7 +14,32 @@ Inputs, in the order read: `11a-facts-phase4.md`, `11b-facts-hub.md`, `06-scepti
 
 ## 1. The sceptic's findings, answered by number
 
-(to be written)
+Each of `06-sceptic.md`'s sixteen findings in sections 1 to 5, then its sections 6 and 7. *Changed*
+means this design differs from round 1 on that point; *no longer applies* means OD-36 removed the
+thing the finding was about.
+
+### Section 1, redundancy
+
+- **1.1 The gap is real** (`06:22-29`). *Kept, and it is the whole of this design.* A project's
+  words and its decisions are captured nowhere today; §2 makes each its own Hub record. Nothing
+  else of round 1's wider scope is carried into this round.
+- **1.2 The criterion citation is not a gap** (`06:31-47`). *Changed: the `#c-` fragment is
+  dropped entirely.* A criterion is cited the way phase W already cites one, `{briefKey,
+  criterionId}` (`06:38`), and this design adds no criterion citation of any kind. A term or a
+  decision names the brief by `settledIn`, a whole brief key, never a fragment of one (§2.5). The
+  brief-to-work generator that round 1 made depend on the fragment is not part of this design.
+- **1.3 The premise under round 1's §5.1 is stale** (`06:49-58`). *Agreed, and used.* A new
+  `kind:` is the grammar's designed extension (`PC:104-107`) and phase W already plans
+  `issue:is-…@r`, so this design adds `term:` and `decision:` as two more forms (§2.1). The thread
+  survives for the reason it survives `issue:`: each new record **references** a brief key, so
+  the brief revision stays the anchor every surface cites.
+- **1.4 The rounds' reuse was overstated** (`06:60-70`). *Changed: no reuse is claimed.* Task 21
+  stays the one-shot import it is and is not amended (§7.4). The suggestion round is new code,
+  task 30 (3 h), and new screen states, task 31 (4 h), priced as new work (§7.3).
+- **1.5 The provability seed re-asks what `done` asks** (`06:72-86`). *Changed: dropped.* No
+  question is minted per criterion, the `done` question stays exactly as built, and the evidence
+  phase 3 keys to a criterion's id and digest remains the only provability mechanism. The interview
+  gains no question at all (§4.1).
 
 ## 2. The two records
 
