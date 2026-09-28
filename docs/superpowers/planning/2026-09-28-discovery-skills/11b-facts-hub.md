@@ -173,6 +173,22 @@ Every one of these carries a **brief key it was checked against**; none holds br
   encoded or digested by the Hub**: approvals, links, releases and evidence carry the brief's digest
   (`briefDigest`, `pin.briefDigest`) or a caller's digest (`reviewDigest`, `criterionDigest`), not one
   of their own (`HC:883`, `HC:912-914`, `HC:985`, `HC:1065`).
+- **As built (task 02), the code differs from §3.5 in two ways** (`hubapi/` below is
+  `.claude/worktrees/hub/control-plane/internal/hub/hubapi/`):
+  - The vectors are in `hubapi/envelope_test.go`, not `canonical_test.go`: vector 1 and 2 as the
+    contract gives them (`envelope_test.go:20-30`, `:62-77`), **plus vectors 3 and 4**, two
+    `audit-event` envelopes "plan correction A10's, with teamId" (`:17-18`, `:32-42`, `:92-116`).
+  - The audit envelope carries `teamId` (`envelope_test.go:35`), which `HC:206`'s field list does
+    not name. The ledger says §10 of the contract is stale on A17-A19 until task 44a (`PR:472`); the
+    same applies to A10 here.
+- The two envelope kinds are constants in code, `kindBrief = "brief-revision"` and
+  `kindAudit = "audit-event"` (`hubapi/envelope.go:50-51`), each with its own type
+  (`BriefEnvelope` `:129`, `AuditEnvelope` `:266`) and parser (`ParseBriefEnvelope` `:198`,
+  `ParseAuditEnvelope` `:337`).
+- An event kind has one grammar, `^[a-z]+(_[a-z]+)*\.[a-z]+(_[a-z]+)*$` (`hubapi/envelope.go:285`),
+  described as `audit_events.kind`'s CHECK (`:278`): exactly one dot, lowercase letters, single `_`
+  between words, **no digits** (`PR:288`). It is a format, not a list: the database does not
+  enumerate event kinds.
 
 ### 1.8 The client every phase codes against (§9.2)
 
@@ -226,7 +242,98 @@ Every one of these carries a **brief key it was checked against**; none holds br
 
 ## 2. The Hub plan
 
-(Not started.)
+`HP` below is `.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md` (683 lines);
+its parts are `2026-09-23-phase-h-hub-parts/task-NN.md` (48 files: 00-43 with 07, 16 and 44 each
+split into a and b). `PR` is the stream ledger `.claude/worktrees/hub/.superpowers/sdd/hub/progress.md`
+(523 lines).
+
+### 2.1 The task table
+
+- The table is `HP:396-447`; columns are `# | Task | Contract id | Depends on | Hours | Min?`
+  (`HP:398`). **`Min?` is not a build status**: ✓ marks a task inside "the minimum Hub", and `S7`
+  marks the credential pair phase 7 needs (`HP:383-386`). No column of the table records what is
+  built.
+- Each task has its part file and is sized for 1-3 hours, with six named exceptions (`HP:368-377`).
+- Four start lines: **S0** (code against the fake) after 44a, 00, 01-05; **S4** phase 4 integrates
+  after 06-20 server-side; **S5** phase 5 after S4 + 21-22; **S7** phase 7 after S5 + 23-24, 29, 39;
+  and S3 phase 3's shared evidence after S4 + 25, 29, 31, 39 (`HP:388-394`). S0's promise: "a later
+  change that is not an added method, field or route reopens task 00 and is announced. An added
+  method is additive only because siblings consume these interfaces and `NewFake()` and never
+  implement them" (`HP:390`).
+- Totals ≈ 133.5 engineer-hours, "5.5 h over ADR-H1's 16 engineer-days" (`HP:449-460`).
+
+### 2.2 What is built, per the ledger
+
+The Hub worktree's HEAD is `cafe1303` on `feat/hub`. At the time of reading it also held three
+**uncommitted** modifications: `control-plane/internal/hub/hubclient/conformance/feed.go`,
+`control-plane/internal/hub/migrate/schema_integration_test.go` and
+`docs/superpowers/plans/2026-09-23-phase-h-hub-parts/task-07a.md` (`git status --porcelain`,
+2026-09-29). `PR:493` names two uncommitted files; the third (`feed.go`) is newer than the ledger.
+
+| Task | Ledger state | Where |
+|---|---|---|
+| 01 `ids.Wide`, `hubapi` codes, keys, digests | built; **approved** | `PR:239`, `PR:254`, `PR:494` |
+| 02 `hubapi.Canonical`, envelopes, `ValidateContent`, golden vectors | built; **approved** | `PR:273`, `PR:280`, `PR:494-495` |
+| 03 `hubapi` wire types | built; **approved** | `PR:298`, `PR:312`, `PR:495` |
+| 04 `hubclient` interfaces; the fake, part 1 | built; approved only by a review "written outside the stream" | `PR:329`, `PR:366`, `PR:495-498` |
+| 05 the fake, part 2; the conformance suite (**S0**) | built; **not approved**, "CARRIED under lite"; its Important I1 (the feed's team branch) "STILL NOT CARRIED ANYWHERE" | `PR:402`, `PR:417`, `PR:499-504` |
+| 06 migrate runner, `roles.sql`, `hubtest` | built; **approved** | `PR:431`, `PR:447`, `PR:495` |
+| 07a + 07b `sql/0001_init.sql` | built (`bab30e90`, `97254f75`, `86332241`, `7ea11387`); fix round 1 code committed `67ef06ab`; **round not closed**: four mutants unresolved | `PR:469-471`, `PR:485`, `PR:505-508` |
+| 44a the contract made true before anyone builds | **unrun**, "out of order": the plan marks it first | `PR:518-521`, `HP:400` |
+| 00 the sibling asks | "documents only, absorbed by 44a, and was never dispatched" | `PR:522-523` |
+
+- "Remaining after 07: 44a, then 08 through 44b — 38 ids" (`PR:522`).
+- Consequence the ledger states for any reader of the contract: "`hub-contract.md` on feat/hub
+  therefore still carries the old repo-key regexes"; "The contract's §10 is stale on A17-A19 until
+  task 44a" (`PR:519-520`, `PR:472`).
+- Built Go packages today: `control-plane/internal/hub/{hubapi,hubclient,hubtest,migrate}`
+  (directory listing, 2026-09-29). No `server/`, `store/` or `cmd/hub` exists yet, so **no route of
+  §7.0 is served by a Hub process**; the only implementation of every route is `hubclient.NewFake()`.
+
+### 2.3 How the plan changes the contract, and what that means for line numbers
+
+- The plan found "**nineteen** places where the contract, as written, would fail when built"; "none
+  adds a Hub route"; they are folded into the contract "by **task 44a, which runs first**"
+  (`HP:164-170`). The rows are `HP:180-198` (A1-A19). 44a has not run (§2.2).
+- "Every `hub-contract.md:<n>` in this plan and its parts is the contract at `97f74c7`. Task 01 …
+  added nine lines to §7.4 at `caf18ae`, so a cited line past 716 is now 9 further down the file"
+  (`HP:172-176`). Since `97f74c7` the contract has had seven commits, `caf18ae3` through `5313a337`,
+  119 lines in and 23 out (`git log` and `git diff --stat 97f74c7 cafe1303` on the file), several of
+  them OD-30 edits to §6, §9.1 and §17. So "add 9" is the plan's rule for task 01's shift only.
+  **Every `HC:` line in this sheet was read from the file as it stands at `cafe1303`**, not derived.
+
+### 2.4 The unbuilt tasks that enumerate record kinds, key kinds or event kinds
+
+A task is listed when its part names the existing kinds one by one, so that a kind not yet named is
+absent from it. "Unbuilt" is from §2.2. `T:` is `…/2026-09-23-phase-h-hub-parts/task-`.
+
+| Task | What in it is per kind | Line |
+|---|---|---|
+| 44a | folds A1-A19 and the sibling asks into the contract; unrun | `HP:166-170`, `HP:400` |
+| 08 | `hub verify` runs "each registered check in order … (tasks 20 and 27 register them)" | `T:08.md:264-266` |
+| 14 | `TestInFeedIsTheContractTable`: "every kind of contract §8, row by row, with its column" | `T:14.md:213` |
+| 16b | the matrix harness: one `rowsTaskNN` per route task, "listed in allRows" | `T:16b.md:61-63` |
+| 20 | the resolver's per-key table: `invalid` via `hubapi.ParseKey`, then `brief:` rows, then `design:` "`missing` until task 22" | `T:20.md:29-36` |
+| 20 | registers the `revisions` check in `hub verify` | `T:20.md:15` |
+| 22 | "the design half" of `server/refs.go` and `store/refs.go` | `T:22.md:14`, `T:22.md:62` |
+| 26 | the feed's audit-only list: `auth.user_provisioned`, `auth.forbidden`, `blob.uploaded`, `blob.deleted`, `audit.read` | `T:26.md:35-37` |
+| 27 | erasure: `hub.erase_brief`; "**Nothing else changes**: approvals, releases, evidence and session links hold keys and digests, never brief text" | `T:27.md:34`, `T:27.md:40-41` |
+| 27 | registers the `audit` check in `hub verify` | `T:27.md:17` |
+| 34 | the digest re-check is for **brief revisions**: `VerifyRevision(r hubapi.BriefRevision)`; `Resolve` in batches of 100 | `T:34.md:6`, `T:34.md:32`, `T:34.md:52` |
+| 36 | the poller's `Subscribe` by kind prefix: `"brief."`, `"design."`, `"release."`, `"project."`, or `""` | `T:36.md:61-62` |
+| 40 | the desktop's `hubFeed` handlers by the same prefixes | `T:40.md:124` |
+| 43, 44b | the end-to-end proof over tasks 01-42; the contract made true to what was built | `HP:446-447` |
+
+### 2.5 Built code that names the existing kinds one by one
+
+| Built by task | File (under `.claude/worktrees/hub/control-plane/internal/hub/`) | Line |
+|---|---|---|
+| 01 | `hubapi/keys.go`: ten id prefixes; `KeyKind` `brief`, `design`; the two key regexes; `ParseKey` | `:16-27`, `:47-59`, `:95-104` |
+| 02 | `hubapi/envelope.go`: envelope kinds `brief-revision`, `audit-event` | `:50-51` |
+| 02 | `hubapi/envelope_test.go`: vectors 1-4 | `:20-42` |
+| 04, 05 | the fake emits each event kind by name: `brief.revised`, `design.approved`, `evidence.recorded` | `hubclient/fake_briefs.go:459`, `hubclient/fake_designs.go:258`, `hubclient/fake_feed.go:118` |
+| 05 | the conformance suite's feed rows name every in-feed kind, one `add("<kind>", …)` each, from `team.created` to `release.expired` | `hubclient/conformance/feed.go:221-303` at HEAD `cafe1303` (`git show`); the working-tree copy is uncommitted-modified (+7 lines) |
+| 07 | `migrate/sql/0001_init.sql` | §3 below |
 
 ## 3. The SQL schema as built
 
