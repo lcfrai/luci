@@ -38,6 +38,13 @@ const branchReadBudget = GitTimeout
 // 404 project_not_found without matching on message text.
 var ErrUnknownProject = errors.New("project: unknown project id")
 
+// ErrNotRegistered is returned when `git worktree list` named a directory the
+// project's own .git/worktrees does not register (X-3, X-1 review O-1). It is a
+// sentinel because the refusal is a fact about the path, not a failure of the
+// read, and task 10 must not map it to 404 worktree_not_found: the id exists
+// and the rail listed it.
+var ErrNotRegistered = errors.New("project: git named a worktree this project does not register")
+
 type Project struct {
 	ID   string `json:"id"`   // "p-" + first 8 hex of sha256(absolute path)
 	Name string `json:"name"` // the directory's base name
@@ -388,17 +395,18 @@ func (s *Scanner) parseWorktrees(p Project, out string) []Worktree {
 // whole resolution — one broken checkout under the root must not make every
 // other worktree unresolvable.
 //
-// The answer is CONFINED to the projects directory, because it is about to be
-// mounted read-WRITE and it came from git run in a directory the agent writes.
+// The answer must be one the PROJECT'S OWN REGISTRY names, because it is about
+// to be mounted read-WRITE and git's answer is not the host's (X-1 review O-1).
 // One agent-written line in <primary>/.git/commondir makes `git worktree list`
 // name another repository's worktrees instead of this one's — measured at the
-// git level, X-1 review O-1 — and phase 2 mounts the primary worktree with its
-// .git included, so writing that line needs nothing else. Verify asks only
-// whether the directory exists, and a link out of the root passes it, so the
-// check is on the REAL location (hostpath.Confine). Phase 3's R4 rule 6 is the
-// rule this belongs to: the host never trusts anything a sandbox can write.
-// R4 rules 1 and 2 retire the whole question by never mounting the project
-// repository; until then a merged phase 2 is live, and this is the gate.
+// git level — and phase 2 mounts the primary worktree with its .git included,
+// so writing that line needs nothing else. Verify asks only whether the
+// directory exists, so it passes every one of them.
+//
+// See registers. Phase 3's R4 rule 6 is the rule this belongs to: the host
+// never trusts anything a sandbox can write. R4 rules 1 and 2 retire the whole
+// question by never mounting the project repository; until then a merged phase
+// 2 is live, and this is the gate.
 func (s *Scanner) Path(ctx context.Context, worktreeID string) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
@@ -421,12 +429,61 @@ func (s *Scanner) Path(ctx context.Context, worktreeID string) (string, error) {
 				if err != nil {
 					return "", err
 				}
-				if _, err := hostpath.Confine(s.root, path); err != nil {
-					return "", fmt.Errorf("project: git named %q as a worktree of %s, and it is not in the projects directory, so it is not mounted: %w", w.Path, p.Name, err)
+				if !s.registers(p, path) {
+					return "", fmt.Errorf("%w: git named %q as a worktree of %s, and %s's own .git/worktrees does not register it", ErrNotRegistered, w.Path, p.Name, p.Name)
 				}
 				return path, nil
 			}
 		}
 	}
 	return "", fmt.Errorf("%w: %q", worktree.ErrUnknownID, worktreeID)
+}
+
+// registers reports whether path is p's primary worktree or one p's OWN
+// <project>/.git/worktrees registers. It reads that registry itself instead of
+// trusting the listing, and the difference is not a formality: `.git/commondir`
+// is in the read-WRITE mount of a primary worktree's session, so an agent
+// rewrites it and steers `git worktree list` at another repository, while
+// `.git/worktrees` is the one thing in there the session mounts READ-ONLY
+// (sessionWorktreeAdmin), and a session on a LINKED worktree mounts no part of
+// the project's .git at all. So the registry is the one account of this
+// project's worktrees that no phase-2 sandbox can write, and it is the one the
+// host asks.
+//
+// Confining to PANACEA_APP_PROJECTS_DIR instead — the guard RESUME.md names —
+// would refuse the e2e fixture's own worktree: `desktop/e2e/fixture.sh` puts
+// linked worktrees outside the projects root ON PURPOSE, because a linked
+// worktree's .git is a file and one inside the root would enumerate as a second
+// project. The registry costs that nothing and is stricter besides: a foreign
+// repository INSIDE the projects root is refused too.
+//
+// Every comparison is on the real location, so a link cannot dress one place as
+// another. A registry that cannot be read registers nothing, and the primary is
+// still resolvable: a project with no linked worktrees has no such directory.
+func (s *Scanner) registers(p Project, path string) bool {
+	real, err := hostpath.Real(path)
+	if err != nil {
+		return false
+	}
+	if primary, err := hostpath.Real(p.Path); err == nil && primary == real {
+		return true
+	}
+	admin := filepath.Join(p.Path, ".git", "worktrees")
+	entries, err := os.ReadDir(admin)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		// Each gitdir names the linked worktree's .git FILE, so its directory
+		// is the worktree. git writes it with a trailing newline.
+		raw, err := os.ReadFile(filepath.Join(admin, e.Name(), "gitdir"))
+		if err != nil {
+			continue
+		}
+		wt := filepath.Dir(filepath.Clean(strings.TrimSpace(string(raw))))
+		if got, err := hostpath.Real(wt); err == nil && got == real {
+			return true
+		}
+	}
+	return false
 }

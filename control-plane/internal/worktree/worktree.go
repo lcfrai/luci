@@ -13,10 +13,11 @@
 //
 // X-3 (2026-09-28) adds a condition to point 1 for ONE implementation, and the
 // three sentences above are unchanged so that the phase 3 and phase 4 copies
-// still match word for word: *project.Scanner also confines its answer to the
-// projects directory, because its answer comes from git run where an agent
-// writes (X-1 review O-1, Go contract §2.10). Static is not confined — it is
-// the operator's own map, not git's answer.
+// still match word for word: *project.Scanner answers only its project's
+// primary worktree or one that project's own .git/worktrees registers, because
+// the listing it used to trust comes from git run where an agent writes (X-1
+// review O-1, Go contract §2.10). Static is unchanged — it is the operator's
+// own map, not git's answer.
 package worktree
 
 import (

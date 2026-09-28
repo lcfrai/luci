@@ -1,18 +1,23 @@
 // Package hostpath decides whether a host path is one a sandbox can write.
 //
 // Phase 3's ruling R4 rule 6 is "the host never trusts anything a sandbox can
-// write". Phase 2 mounts two kinds of host path into a sandbox: a worktree,
-// read-WRITE, and a file the host's own git config names, read-only. Both
-// choices are made from something an agent can steer — `git worktree list`
-// runs in the agent-writable primary worktree (X-1 review O-1), and a link the
-// agent owns can be swapped between the config's file and its target (X-1
-// review m-5). This package is the ONE place that answers where the projects
-// directory begins and ends, so the two callers cannot disagree (§3D).
+// write". Phase 2 mounts host paths into a sandbox that were chosen from
+// something an agent can steer — a link the agent owns, swapped between the
+// host git config's file and its target (X-1 review m-5), or a directory that
+// is really somewhere else (X-1 review O-2). This package holds the three
+// primitives those checks share, so no caller invents its own idea of where a
+// path really is (§3D):
 //
-// The over-approximation it uses — "a sandbox can write exactly what is under
-// the projects root" — is sound only because Confine holds. Confine is what
-// keeps a mounted worktree under the root, and the root is what ResolveOutside
-// refuses to walk through. Loosen either and the other stops meaning anything.
+//   - Real: a place, not a name.
+//   - Confine: this path's real location must be inside that one.
+//   - ResolveOutside: no STEP of this resolution may be that directory.
+//
+// ResolveOutside's root is the projects directory. That is an
+// over-approximation of "a sandbox can write it" in one direction and an
+// UNDER-approximation in another: a linked worktree registered outside the
+// projects root is mounted read-write too, and a chain through one of those is
+// not refused. The X-1 reviewer named that residue when it sent m-5 here, and
+// R4 rule 1 closes it in phase 3 by not mounting the project repository at all.
 //
 // A root of "" is an unconfigured projects directory: there is nothing under
 // it, so nothing is refused.
@@ -52,13 +57,11 @@ func Real(p string) (string, error) {
 }
 
 // Confine answers with the real location of path and fails unless that
-// location is inside root. It is the gate every worktree mount passes: a
-// worktree id resolves through `git worktree list`, whose answer the agent
-// chooses, so the host checks the place rather than trusting the name (X-1
-// review O-1).
+// location is inside root. Its caller is O-2's `<worktree>/.git/worktrees`
+// mount: the source has to stay in the worktree it belongs to, and the agent
+// writes that worktree, so the host checks the place rather than the name.
 //
-// root "" confines nothing, because no projects directory is configured and
-// the only provider then is the operator's own static map.
+// root "" confines nothing.
 func Confine(root, path string) (string, error) {
 	real, err := Real(path)
 	if err != nil {
