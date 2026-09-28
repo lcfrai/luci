@@ -129,7 +129,62 @@ claims, and no line another document cites has moved. Two label-level nits are i
 
 ## 4. Findings
 
-(in progress)
+**Critical: none. Important: none. Minor: four.** Nothing below breaks a citation or misstates a
+decision.
+
+**M1. "hard rule 10" is not a name `AGENTIC-UX.md` uses.** `CONTEXT.md:215` labels `:245` "hard rule
+10". The document calls §10 *Anti-patterns* (`:232`), and "hard rule" appears nowhere in it. Bare
+"rule 10" is §4 rule 10 at `:77` (*"Replace progress with convergence"*), a different rule. That is
+the two-list collision I1 and M2 were fixed for. The line number is right, so a reader who opens it
+lands correctly. The label is review-2's own wording (`08-context-review-2.md:77`).
+*Fix, in place on `:215`:* "§10 item 10, `:245`", which is one character shorter.
+
+**M2. The approval-row sentence calls the row the decision.** `CONTEXT.md:234-235` says an approval
+row "is a person's decision on one action an agent asked for", and `:149` says "that is a decision
+under **Authority**". The cited line makes the row the thing a person decides:
+- `AGENTIC-UX.md:241` gives it "the ask, ≥12 lines of surrounding transcript, the consequence of
+  inaction, and a standing-policy option";
+- `:190` puts "standing policy on every approval row".
+
+"Never a Hub record" rests on the Hub contract having one approval kind (§7.7, `:872`), not on
+`:241`. The wording follows review-2's suggested fix, and it does part the two senses, which was
+the finding. *Fix, in place:* end `:234` at "is" and make `:235` read "one agent's ask waiting on a
+person's decision (`docs/AGENTIC-UX.md:241`), never a Hub record"; on `:149`, "an ask under".
+
+**M3. The new last section's shape will not survive OD-37.** Three sentences disagree about where
+the next decision goes:
+- the heading names OD-36's topic (`:401`, *The project glossary and decision record — 2026-09-28,
+  OD-36*);
+- `:304` says "OD-36 onwards sit in its last section";
+- `:404` says "Later decisions append below this one".
+
+If OD-37 is a new row in this table, the heading is wrong. If it gets its own section, `:304` is
+wrong. Also, *Considered and not recorded: OD-5 → OD-36* (`:427-430`) sits 68 lines below the
+frontier it annotates, while the other such paragraph (`:361-367`) sits directly under the table.
+None of these lines is cited. *Fix, in place:* retitle `:401` as a general section for decisions
+made after the gate, with OD-36 as its first row, or make `:304` say "are appended at the end of
+the file".
+
+**M4. Two small accuracy slips in the returns, neither changing a conclusion.**
+- `ce9621b0`'s body and `08-context-report.md:218` say "Every edit is in place". Two lines of the
+  Authority entry moved down one, as `08-context-report.md:239-240` says four lines later. Nothing
+  cites them.
+- `13-od36-register-report.md:16-17` finds no main-tree register anchor "above `:186`". Its
+  `grep -o "owner-decisions.md:[0-9]*"` reads only a range's first number. The latest is `:186-188`
+  (`2026-09-25-identity-keycloak-broker.md:571`), still far below 266.
+
+**On the implementer's five concerns.** (1) `CLAUDE.md:23`'s bare "approvals" is the I4 ambiguity
+in the file `CONTEXT.md` backs. It is outside this task's files, and the next `CLAUDE.md` edit
+should say "design approvals". (2) Below the tables is the register's own rule (`:303`), and
+`:303-305` and `:359` lead there. (3) The self-sourced OD-3 edge is accepted in §1. (4) The
+unverified items stand, and my grep in §1 supports the "no language" claim. (5) I staged only this
+file.
+
+**Forward note, not a finding.** The team-mode plan adds a third approval: a `la-` land approval,
+a Hub record written by a second member (`team` worktree, `…phase-t-team-mode-parts/task-49.md:15`,
+`:212`). It is shown on the merge lens, "not by her own queue" (`:360-362`), so it does not
+contradict `CONTEXT.md:234-235`. The Hub entry's "design approvals" (`:166`) will need it once team
+mode is built.
 
 ## 5. What I did not verify
 
