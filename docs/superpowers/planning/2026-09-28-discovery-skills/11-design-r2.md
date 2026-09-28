@@ -348,6 +348,64 @@ brief, because `Render` is pure. Develop compares the record's digests with `Ref
 is *current*; different is *the project's words moved since this session started*, derived the way
 the desktop already derives `superseded` from two numbers (`ref.go:75-76`).
 
+### 5.3 The read route: every definition, past any budget
+
+**The route is a file read, the one read every harness already has.** `.panacea/discover/terms.md`
+and `.panacea/discover/decisions.md` hold every entry the branch sees, in full, each under its key
+(`term:te-…@n`), with a first line naming the set digest the marker carries. `.panacea/` is already
+the product's untracked projection directory: phase 5 puts its handoff bundle at
+`.panacea/design/<canvasId>@<rev>/`, excluded through `.git/info/exclude` (`P5:231`, P5-G). The
+Materialiser adds `/.panacea/discover/` to `info/exclude`, checks that git ignores it, and follows no
+link below the worktree, the same three rules as the block (`materialise.go:169-184`, `confine.go`).
+
+**So no stamp certifies a truncation** (the sceptic's 4.1). The marker, the files' first lines,
+`Ref.vocabulary` and the inheritance record all carry the digest of the **whole** set, and the whole
+set is on disk at the path the block names, before the harness starts. What the block holds inline
+is a convenience with its own name, never the thing certified. The drift check covers the files
+too: a missing file is `pending`, a hand-edited one `edited` (`inspect.go:18-47`); no new state.
+
+**Why a file first and MCP second.** An MCP tool reaches only a harness the control plane has
+pointed at the sandbox's listener, and today that is Claude Code through `--mcp-config` from
+`harness.claudeArgv` (`P5:141-151`); the channel is phase 5's and unbuilt (11b §4.1). A file reaches
+every harness, in local mode and in the cloud, with nothing to configure. When phase 5's channel
+lands, `get_terms` and `get_decisions` join `get_brief` on it (`P5T:15.md:10-11`), answering at call
+time, as `get_brief` does, while the file stays what the session was **given**. The two answer
+different questions, and neither is required for the other.
+
+### 5.4 Every downstream consumer, one line each
+
+From 11b §4, in its order. **Design and Deploy change nothing**: OD-36's *What moves* names the
+Materialiser, `Ref` and the lens only (`owner-decisions.md:409`), and nothing below needs more.
+
+| Consumer (11b §4) | Under this design |
+|---|---|
+| Phase 5 built: `review_mark`, `op.go:25`, `:59`, `:94`, `apply.go:1128-1140` | unchanged: a design is reviewed against a brief key, never a vocabulary |
+| `P5:90`, the brief from `discoverhub.Service` | unchanged |
+| `P5:183`, pin and mark | unchanged: a moved word or decision never supersedes an approval |
+| `P5:216`, one key-source selector | unchanged |
+| `P5:323-325`, G9: only `provenance` parses a key | holds for `term:` and `decision:` as written |
+| `P5:534`, `design:` keys through `/v1/refs` | unchanged; the resolver also answers the two new kinds (§2.4) |
+| `P5T:08`, the review digest | unchanged |
+| `P5T:15`, MCP read tools | gains `get_terms` and `get_decisions` later, optional (§5.3) |
+| `P5T:20`, `Superseded` in `designapi` | unchanged |
+| `P5T:21`, approval | unchanged: the approval pins the brief key and digest only |
+| `P5T:22`, handoff and `LinkSession` | unchanged; a design agent's session inherits the words through the Materialiser like any other |
+| `P5T:27`, `selectDesignBriefKeys` | unchanged |
+| `P5T:28`, the Design lens chips | unchanged |
+| `P5T:30`, end to end | unchanged |
+| Phase 7 built: the watcher, `hubside.go`, `pins.go` | unchanged: reads no brief key and still none |
+| `P7:104`, Ship's body | unchanged: no vocabulary field (§8, owner question 3) |
+| `P7:156` and `P7:841` | unchanged |
+| `P7T:07`, `:08`, `:09`, `:10` | unchanged |
+| `P7T:13`, `selectReleasePinKeys` | unchanged; the pin-keys-are-opaque test holds |
+| `P7T:15`, `:17`, `:18`, pin cell, drawer, governance | unchanged |
+| `provenance.Ref`, `ref.go:78-103` | **changes**: `vocabulary` (§5.2) |
+| The one loader, phase 4 task 16 | **one entry**: `selectSessionInheritanceKeys`, the keys of an inheritance record a person has opened, per `task-16.md:165-167`'s rule that a later lens adds one key source and changes nothing else |
+
+**Develop** is where the thread gains its hop: the Materialiser, the inheritance record and the
+session view that compares it with `Ref.vocabulary`. Phase 3's merge and evidence code keys to a
+criterion and never parses a key (11a §6), so it does not change either.
+
 ## 6. The Discover lens
 
 (to be written)
