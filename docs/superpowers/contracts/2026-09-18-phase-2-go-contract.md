@@ -1546,8 +1546,15 @@ existing directory `git worktree list` named.*
 - `worktree.Static` is unchanged: it is the operator's own map, not git's answer.
 - Retired by R4 rules 1–2 in phase 3, which stop mounting the project repository at all.
 
-**`internal/hostpath` is the one implementation of "a sandbox can write this" (X-3).**
-`hostpath.Confine(root, path)` is the worktree gate above. `hostpath.ResolveOutside(root, path)`
+**`internal/hostpath` is the one implementation of "a sandbox can write this" (X-3).** Three
+primitives, and each gate names which one it uses. `hostpath.Real(path)` answers a PLACE and not
+a name — the case the filesystem stores, 8.3 short names expanded, every link followed — and it
+is what `Scanner.registers` compares, so **the worktree gate above is the registry, not
+`Confine`**: `Confine` was that gate in the projects-directory fence this section replaced, and is
+not any more. `hostpath.Confine(root, path)` answers `Real(path)` when that is `root` or under it
+and `ErrOutside` otherwise (`root == ""` confines nothing); its one non-test caller is §5.1
+step 5's `.git/worktrees` admin directory, which must stay inside the worktree.
+`hostpath.ResolveOutside(root, path)`
 is the other direction, for the two global git files of §5.1 step 5: it resolves component by
 component, following every link and restarting at each target, and refuses as soon as any STEP of
 that walk IS the projects directory. Each step is compared by FILE IDENTITY (`os.SameFile`), not

@@ -9,9 +9,14 @@ import (
 
 // gitGlobalFilesResolver is the production api.Deps.GitGlobalFiles: where the
 // host's git looks for its global excludes and attributes files, from the
-// host's own config and never a worktree's (hostGit; X-1). Whatever it names
-// is mounted into the sandbox, so a worktree's .git/config, which the agent
-// writes, must not be able to name it.
+// host's own config and never a worktree's (hostGit; X-1). What it names is a
+// CANDIDATE and not yet a mount, in two ways that have each been a defect. A
+// worktree's .git/config, which the agent writes, must not be able to name it
+// at all (X-1). And the session refuses the candidate outright when REACHING
+// it passes through the projects directory, because a link hop there is the
+// agent's to swap (X-3, X-1 review m-5) — it fails the create rather than
+// falling back, which is why this resolver still answers what the host's git
+// reads and leaves the ruling on that answer to the session.
 //
 // Each is one question to git's own parser, in the scope hostGit.scope finds:
 //
