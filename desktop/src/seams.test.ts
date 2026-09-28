@@ -1060,8 +1060,10 @@ describe("the named seams — docs/SEAMS.md", () => {
     // Round 2's MX1: the HEADLINE — "in full: 10 PASS, 9 FAIL, 0 NOT RUN" → "14 PASS, 5 FAIL" —
     // survived every guard until workspace rule 4, which compares against `results.jsonl` and so
     // stayed in the workspace. Against *The checks*' own tally it needs nothing but the document.
-    // The lookbehind rejects a count preceded by a slash or a digit; that is how the "10/19 PASS"
-    // form on the What-was-tested row stays workspace rule 2's alone.
+    // The lookbehind rejects a count preceded by a slash or a digit, because "10/19 PASS" must not
+    // be read as "19 PASS". Round 6's SU1 edited the one line in that `p/t` form — the
+    // What-was-tested row — and passed this suite 19/19, killed only by workspace rule 2, which
+    // does not survive this branch. So the `p/t` form is read here too, by the same tally.
     it("every headline count in the document agrees with The checks' own rows", () => {
       const { lines } = SECTION("## The checks");
       let pass = 0, fail = 0, notRun = 0;
@@ -1071,12 +1073,23 @@ describe("the named seams — docs/SEAMS.md", () => {
         const r = cells.find((c) => /^(PASS|FAIL|NOT RUN)$/.test(c));
         if (r === "PASS") pass++; else if (r === "FAIL") fail++; else if (r === "NOT RUN") notRun++;
       }
+      const total = pass + fail + notRun;
       const all = text(RESULTS).split("\n");
       let seen = 0;
+      let seenOfTotal = 0;
       all.forEach((line, i) => {
+        const at = `${RESULTS}:${i + 1}`;
+        // `p/t PASS, f FAIL, n NOT RUN` — workspace rule 2's regex (`tables-vs-run.mjs:42`), read
+        // against the table instead of `results.jsonl`, so the pass count carries its total too.
+        for (const m of line.matchAll(/(\d+)\/(\d+) PASS, (\d+) FAIL, (\d+) NOT RUN/g)) {
+          seenOfTotal++;
+          expect(
+            [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])],
+            `${at}: summary says "${m[0]}"`,
+          ).toEqual([pass, total, fail, notRun]);
+        }
         for (const m of line.matchAll(/(?<![\d/])(\d+) PASS, (\d+) FAIL(?:, (\d+) NOT RUN)?/g)) {
           seen++;
-          const at = `${RESULTS}:${i + 1}`;
           expect([Number(m[1]), Number(m[2])], `${at}: headline says "${m[0]}"`).toEqual([pass, fail]);
           if (m[3] !== undefined) {
             expect(Number(m[3]), `${at}: headline says "${m[0]}"`).toBe(notRun);
@@ -1084,6 +1097,51 @@ describe("the named seams — docs/SEAMS.md", () => {
         }
       });
       expect(seen, "the first line and the Summary both state the split").toBeGreaterThanOrEqual(2);
+      expect(seenOfTotal, "the What-was-tested row states it as p/t PASS, f FAIL, n NOT RUN")
+        .toBeGreaterThanOrEqual(1);
+    });
+
+    // Round 6's Minor 1. SU2 — item 8's "the fork was never reached." → "the fork was reached,
+    // and the store was readable there." — survived every guard in the repository AND both
+    // workspace scripts: rule 5a matches the words `proven` and `PASS(ED)`, and that sentence
+    // carries neither; the block rule fires on the check id, which the edit keeps. The *Carry
+    // disposition* row for OC 2 says "never reached" two hundred lines away and nothing compared
+    // them. This is that cross-check. It reads only this document, so it belongs here and not in
+    // the workspace, and it is a fourth class beside the three `tables-vs-run.mjs:172-179` names.
+    it("every statement about whether resume's fork was reached agrees with the others", () => {
+      const inSection = (heading: string): ((n: number) => boolean) => {
+        const { from, lines } = SECTION(heading);
+        return (n: number) => n >= from && n < from + lines.length;
+      };
+      const unproven = inSection("## What is still unproven");
+      const carry = inSection("## Carry disposition");
+      // "## Reproducing this" is where the guards paragraph documents this very rule, and it has
+      // to quote both forms of the sentence to do so. It is the one section excluded, by heading,
+      // so a rename fails SECTION() loudly instead of silently widening or narrowing the scan.
+      const guardsProse = inSection("## Reproducing this");
+      const said: { at: string; line: number; reached: boolean; quote: string }[] = [];
+      text(RESULTS).split("\n").forEach((raw, i) => {
+        const line = raw.replace(/[*_`]/g, ""); // "**never reached**" is "never reached"
+        if (guardsProse(i + 1)) return;
+        if (!/\bforks?\b/i.test(line) || !/\breached\b/i.test(line)) return;
+        // "never reached" and "not reached" are struck out first, so only an affirmative use
+        // leaves a `reached` behind — the same shape as rule 5a's `unproven`/`proven`.
+        const reached = /\breached\b/i.test(line.replace(/\b(?:never|not)\s+reached\b/gi, ""));
+        said.push({
+          at: `${RESULTS}:${i + 1}`, line: i + 1, reached, quote: line.trim().slice(0, 90),
+        });
+      });
+      expect(said.length, "the carry row and the unproven item both state it").toBeGreaterThanOrEqual(2);
+      expect(said.some((s) => unproven(s.line)), '"What is still unproven" must state it').toBe(true);
+      expect(said.some((s) => carry(s.line)), '"Carry disposition" must state it').toBe(true);
+      const first = said[0] as (typeof said)[number];
+      for (const s of said) {
+        expect(
+          s.reached,
+          `${s.at} says the fork WAS${s.reached ? "" : " NOT"} reached, but ${first.at} says it ` +
+            `was${first.reached ? "" : " not"}: ${JSON.stringify(s.quote)}`,
+        ).toBe(first.reached);
+      }
     });
   });
 });

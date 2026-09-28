@@ -437,7 +437,7 @@ defaults instead of adding to them.
 workspace (`e2e-run4/step20/`) — **workspace evidence, which will not survive this branch**, the
 same caveat as the `Edg/…` string above. So the rules that need nothing but this document are
 **committed** instead, in `desktop/src/seams.test.ts` (*"the run document"*), where `npm test`
-runs them, **eight** rules: a paragraph, table row or list item that names one check and asserts a
+runs them, **nine** rules: a paragraph, table row or list item that names one check and asserts a
 finding must agree with that check's row in *The checks*; F2's verbatim `err=` quote must name the
 worktree its attribution reads it for; a window that says it *excludes* or *includes* an instant
 must be right about it; anchor 4's derived start window must equal its thrown window minus the
@@ -445,10 +445,22 @@ check's own duration; *What is still unproven* may not assert that anything IS p
 disposition* row's Result and that section must agree **in both directions**, so open carry 2's
 *"Still unproven end to end"* cannot become *"Proven end to end"* while the section still names it;
 a NOT RUN row's *Observed* must be an em dash, and *The checks*' Summary must count its own rows;
-and every *"N PASS, M FAIL"* headline must equal that same tally. The last four were ported out of
-`tables-vs-run.mjs` after the fifth review of task 25 proved the gap: they need nothing but this
-document, they had stayed in the workspace, and flipping open carry 2's Result to *"Proven end to
-end"* passed the committed suite while the workspace script killed it. The two workspace scripts: `doc-vs-run.mjs` (every
+every headline count must equal that same tally, in the bare *"N PASS, M FAIL"* form **and** in the
+*"p/t PASS, f FAIL, n NOT RUN"* form that the *What was tested* row above uses; and every sentence
+outside **this** section that says whether resume's fork was reached must agree with every other —
+the *Carry disposition* row for open carry 2, item 8 of *What is still unproven* and F2's finding
+are two hundred lines apart and say it three times. This paragraph is the one place excluded,
+because documenting that rule means quoting both forms of the sentence; the test excludes it by
+heading, so renaming the heading fails the test rather than widening the scan. Of the last five,
+three are ports out of `tables-vs-run.mjs` (its rules 5a, 5b and 3) after the fifth review of task
+25 proved the gap: they need nothing but this document, they had stayed in the workspace, and
+flipping open carry 2's Result to *"Proven end to end"* passed the committed suite while the
+workspace script killed it. The Summary tally and the headline rule are **not** ports: they are
+workspace rules 2 and 4's shape re-based on a different oracle — *The checks*' own table instead of
+`results.jsonl` — which is exactly what lets them survive this branch. The fork rule was in neither
+place: the sixth review cut item 8 to say the fork had been reached and the store read there, and
+that cut walked through the committed suite **and** both workspace scripts, because it claims a
+proof without using the word *proven*. The two workspace scripts: `doc-vs-run.mjs` (every
 check in *The checks* matches the run's own line in `results.jsonl`, and no PASS is printed for a
 check the run did not pass); and `tables-vs-run.mjs`, **twelve** rules, which takes the run's
 control-plane log as a **required** third argument and exits 2 without it, because a guard that
