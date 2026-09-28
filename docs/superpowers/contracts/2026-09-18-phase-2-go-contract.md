@@ -1614,7 +1614,11 @@ failure `sessionGitIdentity` tolerates; and `project`'s `branchReadBudget`, one
 says so, in words a spent HTTP request does not produce.
 `Scanner.Branches` tolerates a failed current-branch read only when the confirmation
 above proves HEAD unborn; any other failure is returned rather than silently dropping
-`IsHead`.
+`IsHead`. Amended 2026-09-28 (F2/F4 review I-1): proving it takes a git that RAN, not
+only a git that was silent. A process that never started is silent too — empty streams,
+no deadline, no cancellation — so `GitError.Exited` carries whether git exited at all,
+and the tolerance reads both. A `GitError` built by hand, in a test or anywhere else,
+says nothing about a repository unless it sets `Exited`.
 Scanning is depth-1 under `root`: subdirectories of `root` that contain `.git`. Deeper
 recursion over a developer's whole disk is how a rail takes 40 seconds to paint.
 
@@ -1974,6 +1978,14 @@ Errors: 400 `bad_request` (no `worktreeId`), 400 `unknown_harness`, 400
 `unsupported_option`, 404 `worktree_not_found`, 409 `harness_unavailable`, 503
 `backend_unavailable`.
 
+AMENDED by the f1-f3 fix round (2026-09-28, review `SDD/f1-f3-review.md` I-4) — **two more, and
+both mean the session went away while its sandbox was being made.** Since F1 the create runs to
+completion on a detached context, so a `DELETE` landing in that window is no longer instant: the
+create finishes and finds a record it must not write to. It writes nothing, destroys the container
+it just made, and answers **409 `conflict`** ("The session was ended while its sandbox was being
+created.") or **404 `session_not_found`** when the record was purged outright. 201 is reserved for
+a create that produced a session someone can attach to — §5.3's exited invariant is the reason.
+
 AMENDED by the resume fix (2026-09-23) — a `resume` that cannot work is refused before
 anything is recorded or created, each with a sentence the user can act on: 404
 `session_not_found` (the source is no longer in the list), 400 `bad_request` (the
@@ -2149,6 +2161,13 @@ session that continues an old transcript, and conflating the two makes "restart"
 
 409 `conflict` if a restart is already in flight for that session.
 
+AMENDED by the f1-f3 fix round (2026-09-28, review `SDD/f1-f3-review.md` I-4): **409 `conflict`
+also when the session was ended while this restart's sandbox was being created**, and 404
+`session_not_found` when the record was purged in that window. Same rule as §3.9's, and this is
+the more exposed of the two paths because a restart runs on a record that was `exited` moments
+ago: the second write is refused, the new container is destroyed, and the 200 is not written —
+a restart that restarted nothing must not answer success carrying `status: "exited"`.
+
 AMENDED by the resume fix's round-1 fix round (resume-fix-review m4, 2026-09-24): also 409
 `conflict` when the worktree no longer resolves; `Build`'s own answers through
 `writeHarnessProblem` for a harness with a conversation (400 `unknown_harness`, 400
@@ -2307,7 +2326,7 @@ visible in one file.
 | `PANACEA_APP_ALLOWED_ORIGINS` | unset | Uses `httpx.DefaultOrigins()` (§2.12). When set it is a comma-separated list of **full origins** and **replaces** the defaults — it does not extend them, because an "extend" semantic makes it impossible to lock down. |
 | `PANACEA_APP_IDLE_AFTER` | `90s` | How long without relayed output before `running` becomes `idle`. A Go duration string. `0` disables idle derivation; status then goes straight from `running` to `exited`. |
 | `PANACEA_APP_IDLE_TIMEOUT` | `0` | How long a session may stay `idle` before its sandbox is destroyed. **`0` means never**, which is the default on purpose: an agent left thinking overnight must still be there in the morning. |
-| `PANACEA_APP_REAP_INTERVAL` | `30s` | How often the reaper sweeps. Minimum enforced value `5s`. |
+| `PANACEA_APP_REAP_INTERVAL` | `30s` | How often the reaper sweeps. Minimum enforced value `5s`. AMENDED by the f1-f3 fix round (2026-09-28): **maximum enforced value `45s`**, and a larger value is clamped with a warning rather than refused — the sweep is what writes `exited`, and a sweep slower than the cockpit's 60s attach budget turns every normal exit into a terminal `failed` pane. Why the cockpit's number bounds a server-side knob is §5.3. |
 | `PANACEA_APP_SESSION_CPU_MILLIS` | `2000` | `backend.Resources.CPUMillis`. |
 | `PANACEA_APP_SESSION_MEMORY_MIB` | `4096` | `backend.Resources.MemoryMiB`. |
 | `PANACEA_APP_DOCKER_HOST` | unset | Unset means `client.FromEnv`, i.e. `DOCKER_HOST`, i.e. `npipe:////./pipe/docker_engine` on Windows with Docker Desktop. |
@@ -2630,6 +2649,31 @@ That hole closes only when the relay marks the session exited on the Exit frame 
 the server's sweep cadence are one fact in two trees: `cmd/api/config.go`'s
 `cockpitAttachRetryBudget` restates `desktop/src/api/attachRegistry.ts`'s `RETRY_BUDGET_MS`, and
 neither can see the other at build time.
+
+AMENDED by the f1-f3 fix round 2 (2026-09-28, review `SDD/f1-f3-review.md` I-4). **The exited
+invariant above is now enforced against the one write that could break it.** Both writes that
+record the endpoint a create just produced — `POST /v1/sessions` step 6 and
+`POST /v1/sessions/{id}/restart` — carry the precondition `watchSessionReady` has had since task
+13: the record must still be `starting` and must still name the sandbox being made, or the write
+is discarded. Without it a detached create (F1 part 1, up to a whole create grace) overwrote
+whatever happened to the record meanwhile, and `exited` + an endpoint is permanent: `markExited`
+refuses an already-exited record, rule 3a leaves the record alone by design, and
+`handleSessionDelete`'s `alreadyTerminal` test — `exited` and no endpoint and no token — then
+never matches, so a purge re-issues `Destroy` on a container rule 3a already took and a daemon
+outage traps the record for ever. When the precondition fails the handler destroys the container
+it made rather than leaving it to rule 3a a sweep later, and answers 409 or 404 (§3.9, §3.14).
+This is the task-13 carry recorded at `progress.md:3139-3144`, answered at the gate it was
+deferred to.
+
+**Recorded for the owner, not built (f1-f3 review 2, M-10):** whether a cockpit budget is allowed
+to cap a server-side operator knob at all. The 45s maximum above removes the configurations where
+every normal exit lands in a terminal `failed` pane, and it warns rather than failing — but it also
+makes `PANACEA_APP_REAP_INTERVAL` unable to express "leave an ended session's container alone while
+I look at it", which is the one documented use of a long interval (`SDD/docker-daemon-lock.md`,
+`task-25.md`'s e2e runs at `24h`), and it is a value chosen against a number that lives in the
+desktop tree. The alternative is to let the operator have the long interval and mark the session
+`exited` from the relay's Exit frame instead (task 25 handoff #2), which removes the coupling
+rather than bounding it. Not decided here.
 
 AMENDED by the reaper-scope fix (2026-09-24, `task-25-26-reconcile.md` item 11). **Rule 4 destroyed
 other control planes' sandboxes.** Every control plane on a daemon sees every managed container,

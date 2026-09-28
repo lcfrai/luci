@@ -102,9 +102,14 @@ func TestExecRunnerSaysWhoseDeadlineEndedTheGit(t *testing.T) {
 		name string
 		ctx  context.Context
 		want string
+		// alsoWant is review M-5: naming the bound on EVERY timeout path is
+		// ruling (a), and deleting ", inside the %s bound" from the caller's
+		// message left both suites green. A cancellation is not a timeout and
+		// names no bound, so it wants nothing here.
+		alsoWant string
 	}{
-		{"the caller's deadline passed", expired, "the caller's deadline passed"},
-		{"the caller gave up", gaveUp, "cancelled by the caller"},
+		{"the caller's deadline passed", expired, "the caller's deadline passed", "inside the 42s bound"},
+		{"the caller gave up", gaveUp, "cancelled by the caller", ""},
 	} {
 		_, err := caller.Run(tc.ctx, t.TempDir(), "rev-parse", "--abbrev-ref", "HEAD")
 		var ge *project.GitError
@@ -114,8 +119,13 @@ func TestExecRunnerSaysWhoseDeadlineEndedTheGit(t *testing.T) {
 		if !ge.Caller {
 			t.Errorf("%s: GitError.Caller is false, so the message cannot say whose deadline it was", tc.name)
 		}
-		if msg := ge.Error(); !strings.Contains(msg, tc.want) {
+		msg := ge.Error()
+		if !strings.Contains(msg, tc.want) {
 			t.Errorf("%s: error = %q, want %q in it", tc.name, msg, tc.want)
+		}
+		if tc.alsoWant != "" && !strings.Contains(msg, tc.alsoWant) {
+			t.Errorf("%s: error = %q, want %q in it: a timeout that names no bound leaves the "+
+				"reader nothing to argue with", tc.name, msg, tc.alsoWant)
 		}
 	}
 
@@ -131,6 +141,27 @@ func TestExecRunnerSaysWhoseDeadlineEndedTheGit(t *testing.T) {
 	}
 	if msg := ge.Error(); !strings.Contains(msg, "timed out after the 1ns bound") {
 		t.Errorf("our own bound: error = %q, want the bound this runner set named", msg)
+	}
+}
+
+// Review M-4. The re-decided bounds were pinned only against each other —
+// HostConfigTimeout is asserted to be greater than GitTimeout and to be the
+// host runner's Timeout, both by reference to the constant itself — so 11 s
+// passes every assertion in both packages while the reason the number exists
+// evaporates. This pins it to what it is FOR.
+func TestHostConfigTimeoutOutlastsAStallThatTheGitTimeoutAlreadyLostTo(t *testing.T) {
+	// What the 2026-09-27 evidence shows: a host-git read that had 10 s and
+	// did not finish, seconds away from another that did. A bound sized to
+	// outlast that stall has to cover the stall AND the git's own work after
+	// it, and the only measured number for either is GitTimeout: the stall
+	// beat one of them, so the bound carries a second for the stall to grow
+	// into and a third for the work. Anything less re-runs the create into
+	// the failure this bound was separated from GitTimeout to escape.
+	if want := 3 * project.GitTimeout; project.HostConfigTimeout < want {
+		t.Errorf("HostConfigTimeout = %s, want at least %s (3 x GitTimeout = %s): a bound that only "+
+			"just exceeds the one a stall already beat is not a margin, and F2 cost the phase 2 proof "+
+			"its only end-to-end evidence that Resume forks a conversation",
+			project.HostConfigTimeout, want, project.GitTimeout)
 	}
 }
 

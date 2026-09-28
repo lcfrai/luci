@@ -81,6 +81,17 @@ func TestTheIdentityReadIsNotBoundedLikeAReadThatCanFailACreate(t *testing.T) {
 		t.Errorf("the identity read waits %s, as long as a read whose failure destroys the create (%s), for a value the create throws away on failure",
 			hostIdentityReadBudget, hostConfigReadBudget)
 	}
+	// Review M-4. Pinned only against the other budget, this number could be
+	// loosened most of the way back without a red: 29 s passed every bound
+	// test, one second under the per-git bound it was separated FROM. So pin
+	// it to what it IS — a read of ONE git, whose answer is discarded on
+	// failure, which also runs at startup before the control plane comes up.
+	// A read like that may not outlast the bound a POLLED git gets, where a
+	// failure costs one poll and nobody is waiting.
+	if hostIdentityReadBudget > project.GitTimeout {
+		t.Errorf("the identity read waits %s for one git whose answer is thrown away on failure, longer than the %s a git nobody waits for gets",
+			hostIdentityReadBudget, project.GitTimeout)
+	}
 }
 
 // deadlineRunner records the deadline each git is given.
