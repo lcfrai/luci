@@ -167,7 +167,62 @@ The Hub checks that a non-null `settledIn` resolves in this project and is not e
 
 ## 3. How a decision earns its record, without ceremony
 
-(to be written)
+### 3.1 The test belongs to the agent, and it is three limbs or nothing
+
+In our words (the upstream labels are never on-screen copy, 06 §6):
+
+1. **Costly to undo.** Reversing it later moves data, code or people; it is not a setting.
+2. **Surprising to a cold reader.** An agent or a teammate arriving without this conversation would
+   guess the other way.
+3. **A real fork.** A defensible alternative existed, and choosing this one gave something up.
+
+The **agent proposing** a decision applies the test, and proposes nothing unless all three hold.
+What it wrote for each limb becomes a field: `undo` for the first, `context` for the second, `why`
+and `rejected` for the third (§2.2). The person never sees a checkbox, the record carries no gate
+field, and the Hub checks lengths, never limbs: round 1's three booleans and `ErrGateNotMet` are gone.
+
+### 3.2 Where a proposal comes from, and the one gesture that records it
+
+| Source | Where the person meets it | The gesture |
+|---|---|---|
+| The Discover assistant, once the brief's answers settle (§4) | a suggestion row in the Discover lens, its recommended answer already filled in | **Record**; or pick the other answer, then Record |
+| The person | the lens's *Record a decision*: one field, the `decision` sentence | **Save**, enabled from the first character. The assistant then drafts `context`, `why` and `undo` as a suggested revision the person may take (`model_accepted`) or leave |
+| A working session, once the Desk exists | the Desk's *decided without you* row (`docs/AGENTIC-UX.md:114-119`), which already shows *chose X over Y*, *because* and *rejected* | when the agent judged all three limbs, the row gains one verb, **Accept and record**, beside *Accept*, *Do it the other way* and *Rewind to here*, which do not change |
+
+The third source is designed here and **not built by this design**: the Desk's row is in
+`AGENTIC-UX.md` and two planning notes, and in no phase plan and no code (grep of every worktree,
+2026-09-29). Until it exists, decisions come from the assistant and the person.
+
+A term is the same shape: the row shows the word, its one-line *is* and the avoided words, and
+**Use this word** records it.
+
+**Every gesture is optimistic, with an Undo window, never a confirm dialog**
+(`docs/DESIGN-SYSTEM.md:69`), and resolves in place (`AGENTIC-UX.md:147`). Undo, for five seconds,
+writes a `withdraw` or `retire` revision, as the brief's own Undo writes a `restore` revision (phase
+4 `task-19.md:7-9`, 11a §5): the record's history stays honest. When one round holds several
+suggestions, **Record all** writes them in one batch, the Desk's *approve pattern*
+(`AGENTIC-UX.md:109-110`). That is the answer to the sceptic's throughput point (§1, 3.2 item 3): a
+round costs one gesture, not one review per row. No suggestion is ever raised as a modal
+(`AGENTIC-UX.md:246`).
+
+### 3.3 The discard rule: what is not recorded, and where it goes instead
+
+| It fails | For example | Where it goes instead |
+|---|---|---|
+| Limb 1: cheap to undo | a table rather than a list on the settings page | it stays an ASSUMED row on the Desk, with its own verbs (`AGENTIC-UX.md:29`), and in the transcript |
+| Limb 2: anyone would guess it | the API returns JSON | nowhere: the code says it |
+| Limb 3: there was no fork | inference goes through the org's gateway (`OD-19` leaves no choice) | nowhere |
+| It is a requirement, not a choice | it must work on mobile | the brief: a criterion or a constraint, through the interview's existing ops |
+| It is *how*, not *what* | retry three times with a back-off | the code and its comments. A record that holds *how* becomes a second brief, and the thread then carries two descriptions (`05-design.md:250-254`, kept) |
+| It is ours, not the project's | a choice about how PanaceaApp itself is built | our own owner-decision register, never a product record |
+
+A **word** earns an entry when it is a noun specific to this project, defined by what it *is*, with
+one word chosen and the others listed; general programming vocabulary stays out even in a project
+full of it (`05-design.md:250-254`).
+
+**Few decisions is the normal outcome**, not a gap. A project with none shows no empty-state prompt,
+no count and no "0 decisions": counts live only in the queue (`AGENTIC-UX.md:245`), and the lens's
+decisions area is absent until the first one exists (§6).
 
 ## 4. The interview's rounds are process state
 
