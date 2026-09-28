@@ -5831,8 +5831,9 @@ row at `task-03.md:738`. So **SW.1 is not reopened and task 05 is not reopened**
 What was missing is everything that *uses* the field: no write path, no reverse read, no surface, no
 close path for 04 §7.7, no phase 5 delta row and no `P5-` id. That is what 81b and 96b build.
 
-**Vocabulary, settled rather than left open.** 05 says *frame*; phase 5's document model says
-**artboard**, and its design key `design:<canvasId>@<rev>` names a **canvas revision, not a subset**
+**Vocabulary, settled rather than left open.** 05 says *frame*; phase 5's document model word is
+**`Page`** (`P5:359`; round 1 wrote *artboard* — wrong, see RR-M1), and its design key
+`design:<canvasId>@<rev>` names a **canvas revision, not a subset**
 (phase 5 plan `:232`, decision P5-H). So `implements` names a canvas revision — which is exactly the
 shape `task-02.md:243` already had — and there is no per-frame key to invent. The Design lens lists
 the canvas's issues; a frame is a locator inside the revision.
