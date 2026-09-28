@@ -140,6 +140,10 @@ const (
 	envOutboxTick     = "PANACEA_APP_FLEET_OUTBOX_TICK"      // default 500ms; 100ms..5s
 	envLogLevel       = "PANACEA_APP_FLEET_LOG_LEVEL"        // debug|info|warn|error, default info
 	envDevInsecure    = "PANACEA_APP_FLEET_DEV_INSECURE"     // "1" only in the offline stack: http Hub and authority
+	// b07, gaps G32-3 and G32-4: task 32's chart sets both (task-32.md:217-218),
+	// and this file is the only reader of a PANACEA_APP_FLEET_* name.
+	envMigrate = "PANACEA_APP_FLEET_MIGRATE" // "start" (default) | "job": who runs the migrations
+	envPGAuth  = "PANACEA_APP_FLEET_PG_AUTH" // "password" (default) | "entra": how the pool authenticates
 )
 
 type Config struct {
@@ -159,6 +163,17 @@ type Config struct {
 	OutboxTick     time.Duration
 	LogLevel       string
 	DevInsecure    bool
+	// Migrate is "start" or "job" (b07, G32-3). "start": this process runs the
+	// migrations before serving, as it always has. "job": it does NOT migrate,
+	// and refuses to serve until the schema version it needs is present, so a
+	// DML-only serving role and a separate migration Job are possible. Any
+	// other value is a start error naming PANACEA_APP_FLEET_MIGRATE.
+	Migrate string
+	// PGAuth is "password" or "entra" (b07, G32-4). "entra": the pool takes its
+	// password from an Entra access token for the Postgres scope, refreshed
+	// before expiry, and PGDSN must carry no password (which it must not
+	// anyway). Any other value is a start error naming the variable.
+	PGAuth string
 }
 
 // loadConfig reads every variable once. Each error begins with the variable's
@@ -842,19 +857,34 @@ func run(ctx context.Context, getenv func(string) string, stderr io.Writer) int 
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	st, err := pgstore.Open(ctx, cfg.PGDSN)
+	// b07, G32-4: with PGAuth "entra" the pool's password is an Entra token for
+	// the Postgres scope, refreshed before expiry by the same assertion source
+	// the Hub client uses; with "password" Open behaves exactly as before. The
+	// HTTP client and assertion source therefore move ABOVE this line (they
+	// were built just below it); nothing else about them changes.
+	hc := &http.Client{Timeout: 10 * time.Second}
+	tokens := newAssertionSource(cfg, hc)
+
+	st, err := pgstore.Open(ctx, cfg.PGDSN, pgstore.WithEntraAuth(cfg.PGAuth == "entra", tokens))
 	if err != nil {
 		log.Error("postgres", "err", err)
 		return 1
 	}
 	defer st.Close()
-	if err := pgstore.Migrate(ctx, st.Pool()); err != nil {
+	// b07, G32-3: "job" means a separate migration Job owns the schema and this
+	// role may hold DML only, so migrating here would fail on permissions. It
+	// still refuses to serve an older schema than its code needs.
+	if cfg.Migrate == "job" {
+		if err := pgstore.RequireSchema(ctx, st.Pool()); err != nil {
+			log.Error("schema", "err", err) // "migrate=job and the schema is behind: run the Job"
+			return 1
+		}
+	} else if err := pgstore.Migrate(ctx, st.Pool()); err != nil {
 		log.Error("migrate", "err", err)
 		return 1
 	}
 
-	hc := &http.Client{Timeout: 10 * time.Second}
-	tokens := newAssertionSource(cfg, hc)
+	// hc and tokens are built above, before pgstore.Open (b07, G32-4).
 	hub := hubclient.New(cfg.HubURL, cfg.HubScope, tokens, hc)
 	validator, err := entra.New(entra.Config{AuthorityHost: cfg.Authority, TenantIDs: cfg.Tenants,
 		Audience: cfg.Audience, RequiredScope: cfg.RequiredScope, AllowedClients: cfg.DesktopClients,
@@ -1076,6 +1106,8 @@ the DSN set.
 |---|---|---|
 | config · `TestEveryRequiredVariableIsNamedWhenMissing` | empty env → one error naming each of the nine required variables | a required variable given a silent default |
 | config · `TestMembershipTTLOverSixtyFailsStart` | `61s` → an error beginning `PANACEA_APP_FLEET_MEMBERSHIP_TTL` | a clamp instead of a refusal |
+| config · `TestMigrateAndPGAuthDefaults` (b07, G32-3/G32-4) | both unset → `Migrate == "start"`, `PGAuth == "password"`; `"job"`/`"entra"` accepted; `"Job"`, `"entraid"` or any other value → an error beginning that variable's name | an unknown value silently falling back to the default, so a chart typo migrates with a DML-only role and the pod crash-loops with no name to fix |
+| `TestMigrateJobDoesNotMigrate` (b07) | `Migrate == "job"` with a schema at the needed version → `Migrate` never called, server serves; with an older schema → exit 1 and a log naming the Job | a `job` value that still migrates, which fails on the serving role's permissions |
 | config · `TestHTTPIsRefusedUnlessDevInsecure` | `http://hub` → error; with `DEV_INSECURE=1` → accepted | the scheme check dropped |
 | config · `TestAPasswordInTheDSNIsRefused` | `postgres://u:p@h/db` and `host=h password=p` → both refused; with `DEV_INSECURE=1` → accepted | only one DSN form checked |
 | config · `TestRunExitsTwoBeforeListening` | `run` with an empty env returns 2 and `net.Listen` on the default addr still succeeds | a config error logged and start continued |

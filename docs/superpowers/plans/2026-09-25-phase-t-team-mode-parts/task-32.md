@@ -493,9 +493,16 @@ CI job P8-28 pins, and this part's commit says which ran where.
   counterpart: control is inbound through the broker (decision a).
 - **G32-2.** Task 15 must label every sandbox pod `panacea-app/class: <Spec.Class>` and keep
   `panacea-app/component: sandbox` on the orchestrator class.
-- **G32-3.** Task 12 migrates on start with the serving pool (`task-12.md:819`); a DML-only role
-  cannot. It needs `fleetd migrate` and `PANACEA_APP_FLEET_MIGRATE`.
-- **G32-4.** Task 12 has no Entra switch for Postgres; the chart sets `PANACEA_APP_FLEET_PG_AUTH`.
+- **G32-3. CLOSED by fix batch b07.** It read: task 12 migrates on start with the serving pool, and
+  a DML-only role cannot. Task 12 now reads `PANACEA_APP_FLEET_MIGRATE` (`start` default, or `job`);
+  on `job` it runs no migration and refuses to serve a schema behind its code, naming the Job
+  (`task-12.md:144-147`, `:169-175`, the start path and two config tests). This chart's value is
+  therefore read by the binary it sets it on.
+- **G32-4. CLOSED by fix batch b07.** It read: task 12 has no Entra switch for Postgres. It now
+  reads `PANACEA_APP_FLEET_PG_AUTH` (`password` default, or `entra`), and on `entra` the pool's
+  password is an Entra token refreshed from the same assertion source the Hub client uses. Both
+  variables fail the start by name on any other value, so a typo in this chart is a named error and
+  not a silent default.
 - **Skeleton.** The file map's `deploy/charts/fleet/**` row does not list the platform, gateway,
   edge, `netpolcover`, `workloads`, `identity` and SQL files this task must touch; the deltas table
   lists only `deploy/charts/platform/templates/*` and the two Terraform modules for task 32.
