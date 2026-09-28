@@ -190,7 +190,78 @@ first op applied to it" (`content.go:227-237`).
 
 ## 3. The provenance key grammar and `Ref` (task 06)
 
-_(pending)_
+Package `p4/control-plane/internal/provenance`: `key.go` (109 lines), `ref.go` (444 lines). "The
+package is pure: no I/O, no clock, no Hub" (`key.go:5-6`); it "owns the key grammar … nothing else
+in the product may split a key" and owns `Ref`, "the one type Develop, Merge, Design and Deploy
+render" (`key.go:1-3`).
+
+**The three key forms** (`key.go:23-29`):
+
+| Form | Pattern | Example |
+|---|---|---|
+| brief | `^brief:(bf-[0-9a-f]{16})@([1-9][0-9]{0,8})$` | `brief:bf-00000000000000a2@5` |
+| design | `^design:([a-z]{2,4}-[0-9a-f]{4,32})@([1-9][0-9]{0,8})$` | (a canvas id, phase 5's) |
+| none | `^none:(declined)$` | `none:declined` = `provenance.Declined` (`:40-43`) |
+
+- brief and design are "the Hub's, verbatim (Hub contract §3.2, hub-contract.md:120-121 at hub
+  da8c7da)"; none "is local to the control plane and never reaches the Hub (P4-C)" (`:23-25`).
+- Revision: 1 to 9 digits, no leading zero (`:69-70`). A trailing line feed makes it not a key
+  (`:31-32`). `""` is not a key — `Parse("")` is `ErrInvalidKey` — but `NoneRef("")` answers
+  resolution `none`: no brief existed (`:54-55`, `ref.go:419-433`).
+- `Key` holds `Kind`, `ID`, `Revision`, `NoneReason` (`key.go:33-38`). `Key.String` writes `""` for
+  any key that would not parse back to itself (`:79-97`); `BriefKey(id, n)` panics on a bad id or
+  revision — "a programming error, not input (the Hub mints both)" (`:99-109`).
+
+**Which parsers compile the grammar.** Two compiled copies are in this tree, plus one look-alike:
+
+1. `provenance/key.go:48-52` — all three forms, commented "They are the grammar's only copy"
+   (`:47`). Its callers: `contextwrite/inspect.go:223`, `discoverhub/read.go:123`, `:241`, `:350`,
+   `discoverhub/write.go:581`, and `provenance` itself.
+2. `hub/hubapi/keys.go:56-59` — brief and design only, the Hub's own package (from Hub H0, merged
+   into this branch, ledger `progress.md:486`), with `ParseBriefKey` (`:69`), `ParseDesignKey`
+   (`:86`) and `ParseKey` (`:95-104`); used by the fake Hub (`hub/hubclient/fake_briefs.go:476`).
+3. Not the grammar: `claudemd/render.go:287-299` reads the managed-block marker's
+   `brief=<id> rev=<n>` with `discover.MarkerSafe` and a decimal check (section 4).
+
+The desktop has no key parser: "the desktop, which never parses a key (P5)" (`ref.go:405-406`);
+`git grep "brief:"` over non-test `desktop/src` finds nothing.
+
+**What `Ref` carries** (`ref.go:71-103`; every slice `[]`, never null, `:77`):
+
+- *Which revision:* `key`, `resolution`, `noneReason` (`""` \| `declined`), `present` (resolved or
+  erased), `briefId`, `revision`, `digest`, `scope`, `projectId` (the Hub's `pj-…`), `branchRef`,
+  `status` (the revision's content status — open revisions can be named by a history row).
+- *The heads, the only time-varying part:* `headRevision`, `latestCompleteRevision` (`:71-72`).
+- *The pin:* `inherits` = `InheritedRef{key, briefId, revision, digest, erased}` (`:61-69`).
+- *The text:* `title`, `headline` (the purpose section's body), `audience`, `constraints`,
+  `outOfScope`, `sections` (`[]discover.Section`), `criteria` (`[]{id, text, digest}`, `:43-47`).
+- *Saved:* `savedAt`, `savedBy` (a display name), `erasedAt`.
+
+Six resolutions (`ref.go:16-31`): `resolved`, `missing` (no such revision *or* one the caller
+cannot read — "indistinguishable on purpose"), `erased` (key, digest, savedAt, savedBy remain, no
+text; `:435-444`), `invalid`, `none`, `unavailable` (the Hub did not answer; never cached by the
+desktop). **Not in a Ref:** criterion state — it "MOVES", so it is a `CriterionReading{id, state,
+because}` served beside it (`:49-59`, `:73-74`); *superseded*, which the desktop derives from
+`revision < latestCompleteRevision` (`:75-76`); any denominator (`TestRefHasNoDenominator`,
+`ref_test.go:692`). Criterion state is `open` throughout phase 4 (`:57`); phase 3's evaluator fills
+it through the `Evaluate` seam, nil meaning every criterion is open (`:131-139`).
+
+**How the digests are built.**
+- *Revision digest* — `"sha256:"` + hex SHA-256 of the canonical §3.4 envelope
+  `{"v":1,"kind":"brief-revision","briefId","revision","projectId","scope","branchRef","content"}`,
+  members sorted, content canonicalised (`discoverhub/digest.go:26-49`). The Hub computes it; phase
+  4 builds the same bytes locally only because a branch revision in the same batch must pin the
+  project revision's digest before the Hub has computed it (`:10-16`);
+  `TestLocalEnvelopeIsTheHubsEnvelope` holds the two byte for byte (`:24`). `Ref.digest` is the
+  Hub's (`ref.go:203`).
+- *Criterion digest* — `"sha256:"` + hex SHA-256 of the text's UTF-8 bytes, "verbatim: not trimmed,
+  not case-folded, not JSON-quoted (P4-2)" (`ref.go:306-311`), computed by `Build` for each item
+  of the `done` section (`:291-304`).
+
+**`Build(key, src, head)`** (`ref.go:167-223`) resolves through `discover.Resolve` (section 4) and
+fills every field. Every error is `ErrBadSource` — "a caller fault (a 500), never the person's" —
+and the Ref returned beside it is `UnavailableRef(key)`, "never one key on another revision's
+text" (`:161-165`, `:185-195`).
 
 ## 4. `claudemd` (task 05) and the Materialiser (task 09)
 
