@@ -182,6 +182,17 @@ own ledger and review verdicts, returns the in-flight unit and the ordered remai
 second agent FINISHES that unit rather than restarting it. Pass only `{stream, hold}`; approvals are
 re-derived from disk.
 
+### Before reconstructing a dead stream by hand, read its baton
+
+From 2026-09-28, rule 13 of `build-stream-continue.js` makes every build agent keep a baton at
+`.claude/worktrees/<dir>/.superpowers/sdd/<stream>/baton.md`, written in its first ten tool calls and
+overwritten at every commit — so the version on disk when an agent was killed is current, which the
+survey run of 2026-09-28 had to reconstruct for seven streams by hand. It names the destination, what
+is DONE and committed with SHAs, the unit in flight, what is uncommitted and where, hazards, and one
+next action. It is git-ignored and never committed, so it survives only on that machine's disk.
+Convention: `docs/superpowers/AGENT-HANDOFF.md`. **Read it before the ledger, and believe the ledger
+over it where they disagree** — the baton is the dying agent's own account and may be a write behind.
+
 **Three builds are deliberately NOT started, each behind its own plan edit:**
 - **p6 build** — `decisions-and-work-plan` is adding OD-33's two compliance tasks to its plan now.
   Its plan fix is otherwise COMPLETE (b05–b08 all closed at 0 Critical; 41 residual findings
