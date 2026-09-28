@@ -139,6 +139,10 @@ func TestBranchesStillListsBranchesWhenHeadIsUnborn(t *testing.T) {
 		Args: []string{"rev-parse", "--verify", "--quiet", "HEAD"},
 		Dir:  dir,
 		Err:  errors.New("exit status 1"),
+		// A git that RAN and said nothing. Silence alone is not the
+		// confirmation: a git that never started is silent too, and the
+		// real-git test below is what keeps this fake honest (review I-1).
+		Exited: true,
 	}, "rev-parse", "--verify", "--quiet", "HEAD")
 
 	got, err := branchesOf(t, root, dir, g)

@@ -297,6 +297,13 @@ func (s *Scanner) Branches(ctx context.Context, projectID string) ([]Branch, err
 // does not resolve, and prints on every other failure — no repository, a
 // broken object store, a killed process. A confirmation that itself times out
 // confirms nothing, so the original failure is returned.
+//
+// A confirmation that NEVER RAN confirms nothing either, and that is the same
+// silence read from the other end: os/exec's, not git's. A refused process
+// create leaves both streams empty with neither context done, so without
+// GitError.Exited the tolerated case was "the confirmation said nothing" when
+// it had to be "git ran, and said nothing" — and F4 came back on exactly the
+// transient per-process stall this code was written for (review I-1).
 func (s *Scanner) head(ctx context.Context, dir string) (string, error) {
 	raw, err := s.git.Run(ctx, dir, "rev-parse", "--abbrev-ref", "HEAD")
 	if err == nil {
@@ -304,7 +311,7 @@ func (s *Scanner) head(ctx context.Context, dir string) (string, error) {
 	}
 	if _, confirm := s.git.Run(ctx, dir, "rev-parse", "--verify", "--quiet", "HEAD"); confirm != nil {
 		var ge *GitError
-		if errors.As(confirm, &ge) && !ge.TimedOut && !ge.Canceled && ge.Output() == "" {
+		if errors.As(confirm, &ge) && ge.Exited && !ge.TimedOut && !ge.Canceled && ge.Output() == "" {
 			return "", nil
 		}
 	}

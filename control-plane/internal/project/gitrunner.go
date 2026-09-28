@@ -69,8 +69,25 @@ type GitError struct {
 	// Timeout is the bound that was in force, named in the message so the
 	// reader knows which one to argue with.
 	Timeout time.Duration
-	// Elapsed is how long the git actually ran.
+	// Elapsed is how long the git actually ran. When a deadline ended it,
+	// that is measured to the DEADLINE and not to the end of cmd.Run, which
+	// also contains the gitWaitDelay drain: a bound that reports a git
+	// running longer than the bound itself contradicts the one sentence the
+	// reader is meant to act on (review M-1).
 	Elapsed time.Duration
+	// Drain is the time after the deadline that cmd.Wait spent on pipes a
+	// killed git's children still held. It is reported separately so the
+	// total is still visible without it reading as git's own runtime.
+	Drain time.Duration
+	// Exited records whether a git process RAN and exited, which is a
+	// different fact from what ENDED it. A git that never started — a chdir
+	// into a directory that is gone, a refused process create, an AV
+	// quarantine of git.exe — has empty streams and no context done, the
+	// same three facts as `rev-parse --verify --quiet HEAD` confirming an
+	// unborn HEAD. Only a git that exited can confirm anything about a
+	// repository, so callers that read git's SILENCE must read this too
+	// (review I-1).
+	Exited bool
 	// TimedOut: a deadline ended this git, not git itself.
 	TimedOut bool
 	// Canceled: the caller gave up.
@@ -87,16 +104,45 @@ func (e *GitError) Output() string {
 	return strings.TrimSpace(e.Stderr + "\n" + e.Stdout)
 }
 
+// ran is what the git DID, in the one clause an operator reads to decide
+// whether to argue with the bound: how long it ran before the deadline, the
+// pipe drain named separately when there was one, and "no git process was
+// started" when there was nothing to kill at all — silence that came from
+// os/exec rather than from git.
+func (e *GitError) ran() string {
+	if !e.Exited {
+		return "no git process was started"
+	}
+	if e.Drain > 0 {
+		return fmt.Sprintf("git ran %s, then %s waiting for its pipes",
+			e.Elapsed.Round(time.Millisecond), e.Drain.Round(time.Millisecond))
+	}
+	return fmt.Sprintf("git ran %s", e.Elapsed.Round(time.Millisecond))
+}
+
+// aside is ran() for the two messages that have already said how long the
+// caller waited: it adds nothing when the only fact left is that number
+// again, and speaks when there is a second fact — no process, or a drain.
+func (e *GitError) aside() string {
+	if e.Exited && e.Drain == 0 {
+		return ""
+	}
+	return " (" + e.ran() + ")"
+}
+
 func (e *GitError) Error() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "git %s in %s: ", strings.Join(e.Args, " "), e.Dir)
 	switch {
 	case e.TimedOut && e.Caller:
-		fmt.Fprintf(&b, "timed out: the caller's deadline passed after %s, inside the %s bound: ", e.Elapsed.Round(time.Millisecond), e.Timeout)
+		fmt.Fprintf(&b, "timed out: the caller's deadline passed after %s, inside the %s bound%s: ",
+			e.Elapsed.Round(time.Millisecond), e.Timeout, e.aside())
 	case e.TimedOut:
-		fmt.Fprintf(&b, "timed out after the %s bound (git ran %s): ", e.Timeout, e.Elapsed.Round(time.Millisecond))
+		fmt.Fprintf(&b, "timed out after the %s bound (%s): ", e.Timeout, e.ran())
 	case e.Canceled:
-		fmt.Fprintf(&b, "cancelled by the caller after %s: ", e.Elapsed.Round(time.Millisecond))
+		fmt.Fprintf(&b, "cancelled by the caller after %s%s: ", e.Elapsed.Round(time.Millisecond), e.aside())
+	case !e.Exited:
+		b.WriteString("no git process was started: ")
 	}
 	if e.Err != nil {
 		fmt.Fprintf(&b, "%v", e.Err)
@@ -108,6 +154,27 @@ func (e *GitError) Error() string {
 }
 
 func (e *GitError) Unwrap() error { return e.Err }
+
+// splitAtDeadline moves the gitWaitDelay drain out of Elapsed. The instant
+// the git was killed needs no second clock: it is the deadline itself, which
+// ctx knows exactly. Elapsed measured across cmd.Run instead made a 3 s bound
+// report "git ran 5.139s" — the bound and the number beside it contradicting
+// each other (review M-1). A git that never started has nothing to split.
+func (e *GitError) splitAtDeadline(ctx context.Context, start time.Time) {
+	dl, ok := ctx.Deadline()
+	if !ok || !e.Exited {
+		return
+	}
+	ran := dl.Sub(start)
+	if ran < 0 {
+		ran = 0
+	}
+	// Below a few milliseconds the "drain" is scheduling noise, not a kill
+	// that was refused, and naming it would be a false signal.
+	if drain := e.Elapsed - ran; drain >= 10*time.Millisecond {
+		e.Elapsed, e.Drain = ran, drain
+	}
+}
 
 // Is answers for the cause, which Err cannot: a killed git returns its own
 // exit status, so only this runner knows the deadline is what ended it.
@@ -182,6 +249,11 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 
 	start := time.Now()
 	if err := cmd.Run(); err != nil {
+		// Whether a git process RAN, asked of os/exec: only a process that
+		// started and exited returns an *exec.ExitError. A start that was
+		// refused returns the syscall's error and no process, and its
+		// silence must not be read as git's answer (review I-1).
+		var exited *exec.ExitError
 		ge := &GitError{
 			Args:    args,
 			Dir:     dir,
@@ -190,6 +262,7 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 			Stdout:  strings.TrimSpace(stdout.String()),
 			Timeout: timeout,
 			Elapsed: time.Since(start),
+			Exited:  errors.As(err, &exited),
 		}
 		// What ended this git, asked of the contexts rather than of the exit
 		// status, which on Windows is the killed process's own. The caller's
@@ -200,8 +273,10 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 			ge.Canceled, ge.Caller = true, true
 		case errors.Is(parent.Err(), context.DeadlineExceeded):
 			ge.TimedOut, ge.Caller = true, true
+			ge.splitAtDeadline(parent, start)
 		case errors.Is(ctx.Err(), context.DeadlineExceeded):
 			ge.TimedOut = true
+			ge.splitAtDeadline(ctx, start)
 		}
 		return nil, ge
 	}
