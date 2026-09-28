@@ -137,7 +137,12 @@ code onto this branch ahead of the merge.
    from the Hub.
 3. The owner comes from the token or the delegation, **never from a request body**. Only an
    owner's own agents write that owner's rows. Nobody writes another person's task, lease,
-   message, directive or escalation, whatever their role (§3.3 rule 5).
+   message, directive or escalation, whatever their role (§3.3 rule 5). **Fix batch b06
+   (S02-C6):** a `dl-…` *named in a request body* is a name, not proof of anything. Whoever
+   resolves one — task 20's `Launch` today — checks the delegation's own owner, org, project and
+   class against the authenticated caller before acting under it or caching it, because the Hub
+   makes the delegation's owner the principal (task 05) and route 47 hands Fleet any delegation it
+   presents (`task-01.md:314`). Otherwise naming someone else's id *is* becoming them.
 4. Records carry `ag-…` ids. No machine-local session id, host path, config key or URL reaches
    the Hub. Paths are repo-relative globs, validated server-side.
 5. Every free-text field is bounded (the limits in §3.3), hygiene-checked, and carries its author
@@ -214,7 +219,7 @@ twice and pinned by one set of golden fixtures that both modules' tests read.
 | `sbx/internal/panaceacli/*.go` | Every `panacea` verb but `token`, over the socket; the unavailable answer | 18 |
 | `cp/internal/fleet/control/{streams.go,dispatch.go}` | One control stream per sandbox through the broker; verb dispatch by class and owner | 19 |
 | `cp/internal/fleet/sessions/{sessions.go,tokens.go}` | Launch keyed by owner over the broker; `ag-…` ids; gateway tokens with their tags | 20 |
-| `cp/internal/backend/fleetbe/fleetbe.go`, `cp/internal/api/teamlaunch.go` | The desktop's `fleetbe` behind `backend.Backend`; the team launch that creates the delegation | 21 |
+| `cp/internal/backend/fleetbe/fleetbe.go`, `cp/internal/api/teamlaunch.go`, `cp/internal/api/teamrelay.go`, `cp/internal/registry/teamdelegations.go` | The desktop's `fleetbe` behind `backend.Backend`; the team launch that creates the worker **and** the per-project orchestrator delegation (b07); the four `/api/team/*` human relays (b07) | 21 |
 | `cp/internal/fleet/verbs/{team.go,check.go,files.go}` | Read verbs, filtered by class | 22 |
 | `cp/internal/fleet/leases/{leases.go,rightofway.go}`, `cp/internal/fleet/verbs/lease.go` | The lease engine | 23, 35 |
 | `cp/internal/fleet/verbs/{task.go,worker.go,report.go}` | Task, worker and report verbs | 24 |
@@ -233,7 +238,7 @@ twice and pinned by one set of golden fixtures that both modules' tests read.
 | `cp/internal/fleet/instructions/{orchestrator.md,worker-cloud.md}`, `cp/internal/fleet/eval/*`, `testdata/team-events/*.json` | The Orchestrator's instructions and the replay eval | 41 |
 | `cp/internal/fleet/g9/{corpus/*.txt,g9_test.go,run.go}` | G9's corpus and the scripted two-Orchestrator run | 42 |
 | `prototype/team-mode.html` | The owner-reviewed prototype of every team surface | 51 |
-| `cp/internal/api/team.go`, `desktop/src/api/team.ts`, `desktop/src/store/slices/teamSlice.ts`, `desktop/src/store/types.ts` | Team read models and actions on the local control plane; the desktop client | 52 |
+| `cp/internal/api/team.go`, `desktop/src/api/team.ts`, `desktop/src/store/slices/teamSlice.ts`, `desktop/src/store/types.ts` | Team read models and actions on the local control plane; the desktop client. It **extends** task 21's four `/api/team/*` relays (b07), which exist from TM1-α; it no longer introduces the first of them | 52 |
 | `desktop/src/components/team/*` | The team strip and click-in | 53 |
 | `desktop/src/components/desk/team*.tsx` | The four Desk row kinds | 54 |
 | `desktop/src/components/orchestrator/*` | The Orchestrator panel | 55 |
@@ -728,6 +733,14 @@ S6.3) with tags `tid`, `oid`, team, project, agent id, route and, for peer-trigg
 counterpart, and a fresh key per Orchestrator turn; an AU project with the AU route down fails
 closed (P6-D5). Tests on a fake broker and fake keysmith: a second Orchestrator launch returns the
 first; a viewer's launch is 403; an AU project never mints on Global.
+**Fix batch b06 (S02-C6):** the `dl-…` in a launch request is a **name, not a capability**. Fleet
+resolves it — task 11's cache keyed by the principal, else the Hub — and then checks the answer
+against the caller's own org, user, project and class, on the cache path and the Hub path alike;
+anything else is refused and, in particular, is never cached. Without it a cache miss let any
+member launch under any delegation id: task 05 makes the delegation's owner the principal, so the
+agent row, the pod's owner label and the gateway mint would all have carried the other person's
+identity and budget. Tests: `TestLaunchUnderAnotherOwnersDelegationIsRefused` on a cold cache, and
+`TestARefusedDelegationIsNotCached`.
 
 **21 — `fleetbe` and the team launch on the local control plane.** `cp/internal/backend/fleetbe`
 implements phase 2's `backend.Backend` (S8.1, unchanged) over Fleet's REST and attach routes, with

@@ -426,7 +426,9 @@ with this task's other wire shapes; task 20 decodes it into `LaunchRequest.Orche
 it is set, and falls back to task 11's cache lookup when it is not (a non-team or replayed
 request), so an Orchestrator is created on the member's **first** launch rather than on the first
 launch after the change feed catches up. Fleet still re-reads the delegation from the Hub before
-using it (S02-C6's owner/project/class check), so the field is a hint, never an authority.
+using it (S02-C6's owner, org, project and class check, landed in fix batch b06), so the field is a
+hint, never an authority: a `CreateAgentRequest` naming another member's `dl-…` is refused with
+`401 delegation_expired` and nothing is created.
 
 **The mode, read and written (fix batch b01, X-C1; was a gap).** The field is task 03's
 `hubapi.Project.Mode` (Block 7; `hubapi/types.go:140-147` has none today, checked), and its one

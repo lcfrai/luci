@@ -486,7 +486,10 @@ Four facts make that check the whole defence, and each is why a piece of it is t
 
 1. **The Hub will not do it for us.** Route 47's callers are "its owner (desk), or Fleet under it,
    or the broker" (`task-01.md:314`). Fleet reads under the very id it was handed, so Bob's `dl-…`
-   answers 200 to a request Alice made. The Hub is answering the question it was asked.
+   answers 200 to a request Alice made. The Hub is answering the question it was asked. Nor will
+   the broker: its `principalOf` takes the owner from the delegation Fleet presents and reads no
+   owner from a body (task 17 decision 4), so a pod created under Bob's `dl-…` is labelled Bob's.
+   This check is the only place the launching person and the delegation's owner ever meet.
 2. **One `!=` covers all four.** `delegation.Key` is exactly `{OrgID, Owner, ProjectID, Class}`
    (`task-11.md:386-391`), so the comparison is owner, org, project and class at once. The class
    half is what stops a `worker` delegation creating an Orchestrator (decision 4, task 17 decision 5).
