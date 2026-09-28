@@ -4,6 +4,8 @@ An enterprise platform that takes a person from **nothing to a shipped applicati
 
 It starts as an app that builds apps. Treat it as a platform that may host more phases later — do not hard-code the assumption that there are exactly four.
 
+**Read `CONTEXT.md` before using a project noun.** It fixes what *machine · worktree · lane · brief · seam · lens · stream · Orchestrator* and the rest mean here, each cited to the file that binds it, plus the words we do not use.
+
 ## Why this exists
 
 cube.computer proved the agent-fleet cockpit. Nobody has done it for regulated enterprise, on the customer's own cloud, with the journey in front of it. Our wedge is **usability and iteration on powerful tools** — not raw capability. If a feature is powerful but takes a wall of configuration to reach, it has failed our bar.
