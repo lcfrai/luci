@@ -354,16 +354,25 @@ stopped and resumed with `resumeFromRunId`. **Parallel runs resume from cache no
   it finishes**, and it writes only what is missing.
 - **X-1 is APPROVED** (x1-global-files-review-2). Close-out continues with the reconcile, 26, 25
   and the final review.
-- **QUEUED, SECURITY, before phase 2 merges to `main`: X-3**, from the X-1 review, with no owner
-  yet.
+- **DONE 2026-09-28, SECURITY: X-3**, from the X-1 review. Report `SDD/x3-rails-report.md`;
+  commits `bad09d78`, `dd30f806`, `b7df9015`, `1ec443ad`, `63d45880`.
   - **O-1 (Critical-class):** the rail scanner runs `git worktree list --porcelain` in the
     agent-writable primary worktree (`internal/project/project.go:282`). An agent-written
-    `.git/commondir` lists another repository's worktrees, and a create mounts one read-write. The
-    cheapest guard is to confine `Scanner.Path` results to ProjectsDir after EvalSymlinks.
+    `.git/commondir` lists another repository's worktrees, and a create mounts one read-write.
+    ~~The cheapest guard is to confine `Scanner.Path` results to ProjectsDir after EvalSymlinks.~~
+    **That guard is WRONG for this product and was built and then replaced.**
+    `desktop/e2e/fixture.sh:3` puts linked worktrees OUTSIDE the projects root on purpose — a
+    linked worktree's `.git` is a file, and one inside the root enumerates as a second project —
+    so the fence refuses the phase-2 proof's own worktree. `Scanner.Path` now answers only the
+    project's primary worktree or one the project's OWN `.git/worktrees` registers: that registry
+    is mounted READ-ONLY in a primary worktree's session and not at all in a linked one's, so it
+    is the account of this project's worktrees no phase-2 sandbox can write.
   - **m-5:** a host-owned `core.excludesFile` can name a file inside a project, which an agent can
     swap for a link to a secret. Under R4's rule, no bind-mount source may be a path a sandbox can
-    write.
-  - **O-2.**
+    write. **Closed:** every STEP of the resolution is checked, not the answer; the create fails
+    rather than falling back to `/dev/null`.
+  - **O-2. Closed apart from the race**, which is recorded: `.git/worktrees` is Lstatted before
+    `MkdirAll`, and the source must stay inside the worktree. R4 rule 1 closes the race in phase 3.
   - Run as: a ruling, then a fix, then an adversarial review, AFTER close-out's final review; fold
     in its findings too.
 
