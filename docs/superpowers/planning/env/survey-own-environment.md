@@ -517,20 +517,20 @@ own in-code estimates, marked with their file. Treat everything else as order of
 ---
 
 ## 7. What the owner must provide when the environment arrives
-
-### 7.1 Before the first `terraform plan`
+*This section is the owner's checklist for our environment, read when the subscription arrives, so it follows OD-32 (the engine is OpenTofu) and says `tofu`. The rest of this survey is a record of 2026-09-23: its Terraform and Vault references describe Panacea's estate or this repo as it then stood, and its recommendations are ruled on by the phase 8 plan (P8-D14, as OD-32 supersedes it).*
+### 7.1 Before the first `tofu plan`
 
 1. **A dedicated Azure subscription and its tenant id**, and the region. Recommendation:
    Australia East, for three availability zones (`P:deploy/environments/panacea-aue.env:22`).
 2. **vCPU quota for the Kata VM family** in that region: max Kata nodes × 8 vCPU for `D8s_v5`, plus
    the system and apps pools. Pod Sandboxing needs a nested-virtualisation Gen2 SKU
-   (`infra/terraform/kata.tf:1-3`).
+   (`infra/terraform/kata.tf:1-3` as surveyed; task 01 deleted that file in `5f499921`, so read it with `git show 5f499921^:infra/terraform/kata.tf`, and the rule now lives on `modules/aks`'s Kata pool, `docs/superpowers/plans/2026-09-23-phase-8-own-environment-parts/task-06.md:140`).
 3. **A deploy identity with role-assignment rights**, scoped by an ABAC condition to a role
    allowlist, so we never run `NO_RBAC_MODE` (`P:deploy/rbac-admin-identity.tf:5-11`). Owner on
    the subscription is the simpler alternative.
 4. **An ADO project and a workload-identity-federation service connection** to that subscription,
    plus paid parallel jobs, plus a VNet-injectable agent pool or the right to create one.
-5. **A Terraform state location** — or the right to create it in a `bootstrap` stack: a storage
+5. **An OpenTofu state location** — or the right to create it in a `bootstrap` stack: a storage
    account with versioning, soft delete and Entra-only data access. Panacea names this in its estate
    file (`P:deploy/environments/panacea-dev.env:70-72`).
 
