@@ -93,26 +93,39 @@ so this work did not cause them, and they are not this round's to fix.
 
 ## 3. CONTEXT.md: I1, I2 and I4, and the cited lines
 
-(in progress) Notes so far:
-- `CONTEXT.md` is 340 lines at parent, at `ce9621b0` and in the working tree (working == `ce9621b0`).
-- Text changed on lines 29, 60, 64, 149, 154-156, 166, 215-216, 233-237, 249-252, 323-324. In
-  233-237 two lines moved down one (`*Not «permission mode»*` 235→236, `per-session flag` 236→237);
-  disclosed at `08-context-report.md:237-240`.
-- Inbound `CONTEXT.md:N` anchors (`grep -r`, main tree incl. hidden dirs and all worktrees): 14, all
-  in this folder, at 3-10, 47, 107, 108-110, 125, 171, 216, 220, 228, 242-243, 255, 303, 328-340.
-  None falls in a moved line; each re-opened line still says what its citer says (216 is review-2's
-  record of the defect itself).
-- I1: `AGENTIC-UX.md:71` is §4 rule 4 ("One ranked queue … Fails if a count appears anywhere outside
-  the queue"); `:245` is §10 *Anti-patterns* item 10 ("No badge or count outside the queue"); `:31`
-  is §2 item 4's heading, its sentence at `:32`. The phrase "hard rule" appears nowhere in the doc.
-- I2: `CONTEXT.md:60` and `:64` now say "landing-queue row" / "landing queue"; `grep queue` finds no
-  other bare sense-2 use (`:192`, `:221`, `:291`, `:292` are sense 1 or the rule itself).
-- I4: `:166` "design approvals"; `:149` "not an *approval row*"; `:234-235` defines it, citing
-  `AGENTIC-UX.md:241` (§10 item 6, "No approval row without four things: the ask, …"). The Hub
-  contract's only approval heading is `:872` §7.7. Team plan `task-49.md:15` adds a `la-` land
-  approval as a Hub record (a member's, not an agent's, ask).
-- Minors M1 (`FUNCTIONAL-SPEC.md:15`), M3 (Hub `:966`, `:971`, `:984`, `:1015`), M4 (`:46`), M5
-  (`ui-contract.md:45`, `:64`; register `:172`) each re-opened and correct.
+**Holds.** I1, I2 and I4 are closed, each new citation lands on a line that says what the entry
+claims, and no line another document cites has moved. Two label-level nits are in §4 (M1, M2).
+
+| | Review-2 asked | Now | The cited lines | |
+|---|---|---|---|---|
+| I1 | `:71` for the ranked queue and counts; `:31` only for the pane sentence, without "rule" | `:214-216` | `AGENTIC-UX.md:71` is §4 rule 4, *"One ranked queue … Fails if a count appears anywhere outside the queue"*. `:245` is §10 item 10, *"No badge or count outside the queue"*. `:31` is §2 item 4's heading, its sentence at `:32`, now labelled §2 | ✔ |
+| I2 | "landing" on the two bare sense-2 uses | `:60`, `:64` | `grep queue CONTEXT.md` leaves `:192`, `:221`, `:291`, `:292`: sense 1 or the rule itself | ✔ |
+| I4 | "design approvals" in the Hub entry; one clause parting the approval row | `:166`, `:149`, `:234-235` | The Hub contract's only approval heading is §7.7 (`hub-contract.md:872`). `AGENTIC-UX.md:241` is §10 item 6, *"No approval row without four things: the ask, …"* | ✔ |
+
+- **The do-not-use row** at `:292` ("bare 'the queue' is rule 4's attention queue") now agrees with
+  the entry's §4 rule 4.
+- **The minors, re-opened.** M1: `FUNCTIONAL-SPEC.md:15` is the Sub-agent row, "Yes, as nested
+  steps". M2: `AGENTIC-UX.md:37` is §2 item 6. M3: Hub `:966` (the control plane, phase 7's client),
+  `:971` ("If step 1 fails, **Ship does not happen**"), `:984` (`no_brief`, `no_complete_revision`)
+  and `:1015` ("else none"). M4: `FUNCTIONAL-SPEC.md:46` (claimed from a warm pool). M5:
+  `ui-contract.md:45` and `:64` name the Desk, and register `:172` puts it in W1. M6: "trust level"
+  is now only in `08-context-report.md` and review-2 (main tree). All correct.
+- **Line positions.** `CONTEXT.md` is 340 lines at the parent, at `ce9621b0` and in the working tree
+  (working == `ce9621b0`). Text changed on 29, 60, 64, 149, 154-156, 166, 215-216, 233-237, 249-252
+  and 323-324. Inside 233-237 two lines moved down one (`*Not «permission mode»*` 235→236, `per-session
+  flag` 236→237), which `08-context-report.md:237-240` discloses.
+- **Inbound anchors.** `grep -r` for `CONTEXT.md:N` over the main tree, hidden directories included,
+  and every worktree finds 14, all in this folder: 3-10, 47, 107, 108-110, 125, 171, 216, 220, 228,
+  242-243, 255, 303 and 328-340. None is a moved line, and each still says what its citer says.
+  `:216` is review-2's record of the I1 defect, so its text changing is the fix.
+- **The other two edited files.** `08-context-report.md` §6 is 10 lines for 10 (`@@ -182,10 +182,10
+  @@`), and its only inbound anchors (`:38`, `:48`, `:49`) are above it. `10-…`'s status line is 4
+  for 4 at `:3-6`, so `11b-facts-hub.md`'s anchors into it (`:14`, `:27-28`, `:54`, `:61`) are
+  unmoved.
+- **I3's residual** is in Open question 2 at `:323-324`. `CLAUDE.md:5`, `:15` and `:27` do say
+  "phases" or "Design phase", and `:295` is the build-order row. The default taken is written in
+  `08-context-report.md:266-267`, not in `CONTEXT.md`. There is no room in place for it: `:325` is
+  the question's closing blank line, and `:328-340` is cited by `11b-facts-hub.md:653`. Acceptable.
 
 ## 4. Findings
 
