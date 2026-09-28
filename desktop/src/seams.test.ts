@@ -968,5 +968,122 @@ describe("the named seams — docs/SEAMS.md", () => {
       expect(Math.abs(secs(threwTo as string) - took - secs(toS as string)))
         .toBeLessThanOrEqual(1);
     });
+
+    /** Round 5's I-1. The paragraph above claims the rules that need nothing but this document
+     *  are committed; three of `tables-vs-run.mjs`'s eleven needed nothing but the document and
+     *  stayed in the git-ignored workspace. One of them was the only guard anywhere on open
+     *  carry 2's verdict: flipping its Result from "Still unproven end to end." to "Proven end
+     *  to end." passed this suite 15/15 while the workspace rule killed it. Ported below. */
+    const SECTION = (heading: string): { from: number; lines: string[] } => {
+      const all = text(RESULTS).split("\n");
+      const start = all.findIndex((l) => l.trim() === heading);
+      expect(start, `the document must have a "${heading}" section`).toBeGreaterThanOrEqual(0);
+      let end = all.findIndex((l, i) => i > start && l.startsWith("## "));
+      if (end < 0) end = all.length;
+      return { from: start + 2, lines: all.slice(start + 1, end) }; // from = 1-based line of [0]
+    };
+
+    // Workspace rule 5a (`tables-vs-run.mjs:126-143`), verbatim in effect: round 2's MX2 flipped
+    // an item of this section to "PROVEN end to end" and no guard read a numbered list.
+    it('"What is still unproven" never claims that something IS proven', () => {
+      const { from, lines } = SECTION("## What is still unproven");
+      expect(lines.filter((l) => /^\s*\d+\.\s/.test(l)).length).toBeGreaterThanOrEqual(5);
+      lines.forEach((line, k) => {
+        const at = `${RESULTS}:${from + k}`;
+        const quoted = JSON.stringify(line.trim().slice(0, 90));
+        // "unproven" has no word boundary before "proven", so only an affirmative use matches;
+        // "never proven" and "not proven" are struck out first.
+        const affirms = /\bproven\b/i.test(line.replace(/\b(?:never|not)\s+proven\b/gi, ""));
+        expect(affirms, `${at}: claims something IS proven: ${quoted}`).toBe(false);
+        expect(/\bPASS(ED)?\b/.test(line), `${at}: states a PASS verdict: ${quoted}`).toBe(false);
+      });
+    });
+
+    // Workspace rule 5b (`:145-166`), both directions — the round-3 fix. The one-way form fired
+    // only on a Result that still said "unproven", so deleting the word deleted the trigger.
+    it("a Carry disposition Result and \"What is still unproven\" agree, both ways", () => {
+      const secText = SECTION("## What is still unproven").lines.join(" ");
+      const { from, lines } = SECTION("## Carry disposition");
+      let read = 0;
+      lines.forEach((line, k) => {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) return;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        if (cells.length < 2) return;
+        const label = /^((?:OC|RB)\s+\d+)/.exec(cells[0] ?? "")?.[1];
+        if (label === undefined) return; // a row whose Carry is not an OC/RB id ("Phase 1 …")
+        const result = cells[cells.length - 1] ?? "";
+        const saysUnproven = /unproven/i.test(result);
+        const named = new RegExp(`\\b${label.replace(/\s+/g, "\\s+")}\\b`).test(secText);
+        read++;
+        expect(
+          saysUnproven,
+          `${RESULTS}:${from + k}: ${label}'s Result ${saysUnproven ? "says" : "does not say"} ` +
+            `unproven, but "What is still unproven" ${named ? "names" : "never names"} it: ` +
+            JSON.stringify(result.slice(0, 90)),
+        ).toBe(named);
+      });
+      expect(read, "the carry table is task 25's 26 rows copied; 22 carry an OC/RB label").toBe(22);
+    });
+
+    // Workspace rule 3 (`:60-67`): a NOT RUN row's *Observed* must be an em dash. This run has
+    // no NOT RUN row, so that half reads zero rows today and would be a guard on nothing. The
+    // tally below is the document-only half of workspace rule 2 and makes the rule bite now:
+    // *The checks*' own Summary line must count the rows in its own table. It is the tally, not
+    // `results.jsonl`, so it survives this branch.
+    it("The checks' Summary counts its own rows, and a NOT RUN row's Observed is an em dash", () => {
+      const tally = { PASS: 0, FAIL: 0, "NOT RUN": 0 };
+      for (const line of text(RESULTS).split("\n")) {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) continue;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const at = cells.findIndex((c) => /^(PASS|FAIL|NOT RUN)$/.test(c));
+        if (at < 0 || cells[at] !== "NOT RUN") continue;
+        const observed = cells[at + 1];
+        expect(observed, `a NOT RUN row's Observed must be an em dash: ${line.slice(0, 90)}`)
+          .toBe("—");
+      }
+      const { lines } = SECTION("## The checks");
+      for (const line of lines) {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) continue;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const result = cells.find((c) => /^(PASS|FAIL|NOT RUN)$/.test(c));
+        if (result !== undefined) tally[result as keyof typeof tally]++;
+      }
+      const total = tally.PASS + tally.FAIL + tally["NOT RUN"];
+      expect(total, "The checks must hold the 19 rows CHECKS() reads").toBe(19);
+      const sum = /Summary: (\d+) checks, (\d+) PASS, (\d+) FAIL, (\d+) NOT RUN/.exec(lines.join("\n"));
+      expect(sum, "The checks must carry a Summary line").not.toBeNull();
+      const [, t, p, f, n] = (sum as RegExpExecArray).map(Number);
+      expect([t, p, f, n], `Summary vs the table's own rows`)
+        .toEqual([total, tally.PASS, tally.FAIL, tally["NOT RUN"]]);
+    });
+
+    // Round 2's MX1: the HEADLINE — "in full: 10 PASS, 9 FAIL, 0 NOT RUN" → "14 PASS, 5 FAIL" —
+    // survived every guard until workspace rule 4, which compares against `results.jsonl` and so
+    // stayed in the workspace. Against *The checks*' own tally it needs nothing but the document.
+    // The lookbehind rejects a count preceded by a slash or a digit; that is how the "10/19 PASS"
+    // form on the What-was-tested row stays workspace rule 2's alone.
+    it("every headline count in the document agrees with The checks' own rows", () => {
+      const { lines } = SECTION("## The checks");
+      let pass = 0, fail = 0, notRun = 0;
+      for (const line of lines) {
+        if (!line.startsWith("|") || /^\|\s*-/.test(line)) continue;
+        const cells = line.split("|").slice(1, -1).map((c) => c.trim());
+        const r = cells.find((c) => /^(PASS|FAIL|NOT RUN)$/.test(c));
+        if (r === "PASS") pass++; else if (r === "FAIL") fail++; else if (r === "NOT RUN") notRun++;
+      }
+      const all = text(RESULTS).split("\n");
+      let seen = 0;
+      all.forEach((line, i) => {
+        for (const m of line.matchAll(/(?<![\d/])(\d+) PASS, (\d+) FAIL(?:, (\d+) NOT RUN)?/g)) {
+          seen++;
+          const at = `${RESULTS}:${i + 1}`;
+          expect([Number(m[1]), Number(m[2])], `${at}: headline says "${m[0]}"`).toEqual([pass, fail]);
+          if (m[3] !== undefined) {
+            expect(Number(m[3]), `${at}: headline says "${m[0]}"`).toBe(notRun);
+          }
+        }
+      });
+      expect(seen, "the first line and the Summary both state the split").toBeGreaterThanOrEqual(2);
+    });
   });
 });
