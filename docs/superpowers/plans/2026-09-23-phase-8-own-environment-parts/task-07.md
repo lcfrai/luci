@@ -74,8 +74,8 @@ variable "ci_agent_allowed_fqdns" {
     # Azure Resource Manager (tofu apply, az CLI)
     "management.azure.com",
     # OpenTofu and Helm, and the chart repositories the deploy pipeline builds from (task 13)
-    "registry.terraform.io",
-    "releases.hashicorp.com",
+    "registry.opentofu.org",                  # OD-32: tofu init resolves hashicorp/azurerm, hashicorp/azuread and azure/azapi here, and fetches their archives from github.com below, as install-tool.sh:44-45 fetches tofu itself (the registry half is training knowledge, UNVERIFIED; P22 sees the deny log either way)
+    # Not registry.terraform.io, which tofu never calls, nor releases.hashicorp.com, the BUSL engine's download host: an agent that cannot reach it cannot fetch the engine OD-32 forbids. Add neither back.
     "get.helm.sh",
     "charts.jetstack.io",
     "traefik.github.io",
