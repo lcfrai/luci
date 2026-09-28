@@ -83,18 +83,21 @@ LOG="$WORK/step.log"
 # customers' own clouds, so the terraform binary may not be used here — see
 # infra/terraform/README.md, "The engine is OpenTofu, not Terraform".
 # TOFU_BIN exists so a pinned install can be named by path. It may not name terraform.
+# The check itself runs below, AFTER the "nothing to validate yet" exit, so an empty tree still
+# exits 0 on a machine with no engine, as this script's contract says it does.
 TOFU="${TOFU_BIN:-tofu}"
-case "$(basename "$TOFU")" in
-  terraform|terraform.exe)
-    echo "validate: refusing TOFU_BIN=$TOFU: terraform is BUSL-1.1 and OD-32 forbids it" >&2
-    exit 2 ;;
-esac
-if ! command -v "$TOFU" > /dev/null 2>&1; then
+require_engine() {
+  case "$(basename "$TOFU")" in
+    terraform|terraform.exe)
+      echo "validate: refusing TOFU_BIN=$TOFU: terraform is BUSL-1.1 and OD-32 forbids it" >&2
+      exit 2 ;;
+  esac
+  command -v "$TOFU" > /dev/null 2>&1 && return 0
   echo "validate: '$TOFU' not found. OD-32 made OpenTofu the engine; install it (pin it in" >&2
   echo "          pipelines/scripts/install-tool.sh and ask for it in the tools template), or" >&2
   echo "          set TOFU_BIN to its path. Do not substitute terraform." >&2
   exit 2
-fi
+}
 
 # --- one directory -----------------------------------------------------------------------------
 STEP=""
@@ -142,6 +145,7 @@ if [ "${#DIRS[@]}" -eq 0 ]; then
   echo "validate: nothing to validate yet"
   exit 0
 fi
+require_engine
 
 ok=0 failed=0
 for DIR in "${DIRS[@]}"; do
