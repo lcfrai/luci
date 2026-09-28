@@ -605,7 +605,14 @@ token`; `allowManagedHooksOnly` and `allowManagedPermissionRulesOnly` are true; 
 `PreToolUse` hook on `Edit|Write|MultiEdit` runs `panacea check`; `env` sets
 `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`; `permissions.defaultMode` is pinned per class; the
 Orchestrator's allowed tools are `Bash(panacea *)` and `Read`; `forceLoginMethod` is absent. A
-later layer may add rules and tighten; an attempt to drop an invariant is an error naming it. The
+later layer may add rules and tighten; an attempt to drop an invariant is an error naming it. **The
+two layers are not equally trusted**, because the org layer is an org admin's and the project layer
+is a *team* admin's (`task-12.md:339`): the project layer is a tighten-only allowlist —
+`permissions.deny`, `permissions.ask` and a closed list of non-command scalars, every other key
+refused by name (**I14**) — and no layer of either scope may give the **orchestrator** class a
+command-bearing key (`hooks`, `statusLine`, `mcpServers`, `aws*`, any `*Helper`) or an unlisted
+`env` key (**I15**), because that pod's socket speaks as its owner (OD-16; fix batch b05, S02-C3).
+The
 minimal defaults are those invariants and nothing else: **no drafted policy** (OD-23). Digest is
 SHA-256 over the canonical bytes. Tests: each invariant has a mutant (a project layer that removes
 `Bash(panacea *)` must fail); rendering is deterministic. Which `env` keys a managed file can lock

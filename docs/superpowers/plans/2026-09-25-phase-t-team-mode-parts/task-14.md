@@ -460,6 +460,16 @@ default*, and the GET route shows it that way.
 `{org}` is the caller's org (task 12's `authorize` refuses another); `{p}` is a `pj-…` the caller
 is team *admin* of. The body of a `POST` is task 13's envelope itself, at most 64 KiB.
 
+**The two scopes are not equally trusted, and the record says which one a version is.** A project
+layer is a **team** admin's, so task 13 admits only a tighten-only allowlist from it (**I14**), and
+refuses a command-bearing key for the orchestrator class from **either** scope (**I15**); the org
+layer stays a full settings object, because an org admin is already trusted with every sandbox in
+the org. This route re-implements none of that: `Render` is what refuses, and the 422 carries
+`details.invariant` = `I14` or `I15` with the key its author must remove. The audit event carries
+the scope — `projectId` null for the org, a `pj-…` for a project — so an auditor reading
+`policy.versioned` can see which trust model a version was admitted under without reading its
+bytes, and `author` names the admin who wrote it in both scopes.
+
 ```jsonc
 // POST /v1/orgs/{org}/policy            VerbOrgPolicy (org admin)
 // POST /v1/projects/{p}/policy          VerbProjectPolicy (team admin)
@@ -952,6 +962,7 @@ writes and need no delegation, so a solo project still serves them.
 | server · `TestAMemberCannotReadOrWritePolicy` | a project *member*'s `GET` and `POST` → 403 `required: "policy.project"` | the routes registered under a broader verb |
 | server · `TestAnOrgAdminIsNotATeamAdmin` | org admin, team *member*: project `POST` → 403; org `POST` → 201 | org admin granted every project's layer |
 | server · `TestRefusalIsNamedPerInvariant` | a project layer breaking I10 → 422, `details` = `{invariant: I10, class: worker, scope: project, project: pj-…}` | an error string where the admin's client needs a field |
+| server · `TestATeamAdminCannotPostAHook` (b05, S02-C3) | `POST /v1/projects/{p}/policy` with `{"v":1,"all":{"hooks":{…}}}` → 422, `details.invariant = "I14"`, `message` naming `hooks`, and no row written; the **same** body to `POST /v1/orgs/{org}/policy` → 201 | this route validating the envelope but not the scope's trust, or a project refusal reported as a 500 |
 | server · `TestAnEnvelopeErrorIs422Layer` | `{"v":2}` → 422, `details.invariant = "layer"` | a malformed layer answered 500 |
 | server · `TestAnOversizedLayerIs413` | 64 KiB + 1 → 413, nothing stored | an unbounded read |
 | server · `TestPostCarriesTheAuditInstructions` | `audit.body` equals `{id, projectId: null, seq, digest}` of the new version, **and** `activate.path` ends `/policy/<that id>/activate` on the right scope | a client left to guess either call |
