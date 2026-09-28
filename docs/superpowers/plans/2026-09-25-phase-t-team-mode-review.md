@@ -3943,3 +3943,61 @@ by reading the cited line, not by trusting the history. If a later batch edits a
 above these anchors, they drift again and must be re-derived, which is why each open
 finding now also carries its pre-b05 range. Whether Claude Code honours `allowManagedHooksOnly`
 and a managed `env` at the pinned CLI version remains task 33's check, unchanged by this batch.
+
+## Fix batch b06 (2026-09-28): S02-C6
+
+**S02-C6 (Critical) — fixed at the root.** The root was not the missing `if` on the cache-miss
+path. It was that **an id the caller typed was treated as the caller's claim to it**. `Launch` took
+`r.Delegation` from a request body and Fleet then acted *under* it, and every layer downstream
+derives identity from that act and not from the person who signed in: task 05 makes the
+delegation's owner the Hub principal, task 17 decision 4's `principalOf` takes the broker's owner
+from the delegation Fleet presents and reads no owner from a body, and task 20 decision 7 puts the
+delegation owner's `tid`/`oid` in the mint. So one unchecked string turned Alice's prompt into
+Bob's session, on Bob's gateway budget, with Bob's owner label on the pod — and `dl-…` ids are not
+secrets: they ride in every `X-Panacea-Delegation` header, in each v2 audit row's `delegationId`,
+on the sandbox label, and as the `subject` of Fleet's `delegation.created` / `.renewed` /
+`.revoked` feed events (`task-06.md:356-360`).
+
+So resolution and **checking** became one function with one exit, rather than a comparison on the
+path that happened to have the answer already. Both paths end at `d.Key != want`, which is owner,
+org, project and class in a single comparison because `delegation.Key` is exactly those four
+fields (`task-11.md:386-391`), and only a delegation that passes is `Put`.
+
+| Change | Where |
+|---|---|
+| `s.delegation` rewritten as code, not prose: the cache key is built from the **principal**, a hit under a different id falls through to the Hub, and the same check ends both paths | `task-20.md:452-483`, from *"resolves the id the caller named and"* |
+| The refusal is logged with its cause (who, which id, whose it turned out to be) | `task-20.md:476-477`, from *"delegation refused"* |
+| Why this check is the only one there is: the Hub answers route 47 to "Fleet under it", and the broker's `principalOf` reads the owner from the presented delegation | `task-20.md:485-492`, from *"Four facts make that check"* |
+| One `!=` covers owner, org, project and class, because `delegation.Key` is exactly those four | `task-20.md:493-495` |
+| Liveness stays the Hub's answer (401 `delegation_revoked` / `_expired`, unknown → revoked, never 404) — Fleet's clock check covers only the read-to-use window | `task-20.md:496-500` |
+| A refused delegation is never cached, or one forged call poisons the real owner's key | `task-20.md:501-502`, from *"A refused delegation is never"* |
+| Why the check may not assume the id is unguessable, with the four places a `dl-…` is visible | `task-20.md:504-507`, from *"ids are not secrets"* |
+| `EnsureOrchestrator`'s `dl` is an **input** to this check, never a result of it | `task-20.md:511-513` |
+| `Config.Hub`'s comment, which described the fetch and stopped there | `task-20.md:139-140` |
+| `ErrDelegation`'s comment: it now names the cross-owner refusal, and points at S02-M19 for splitting the wire codes | `task-20.md:185-188`, from *"ErrDelegation is every"* |
+| Harness: the fake `DelegationFetcher` answers **any** id it holds, including Bob's, as route 47 does; Bob added as a second `member` | `task-20.md:336-339`, from *"stands in for route 47"* |
+| `TestLaunchUnderAnotherOwnersDelegationIsRefused` and `TestARefusedDelegationIsNotCached`, with the mutants they kill | `task-20.md:349-350` |
+| The first written in full, on a **cold** cache, because a hit-path-only check passes every warm test | `task-20.md:396-413`, from *"And b06's, the one cross-owner test"* |
+| Acceptance: exactly one `Delegations.Put(` call site in the package | `task-20.md:613-619`, from *"Expected: `1` (b06)"* |
+| Decision 4 tagged with the batch that landed the check it already referred to | `task-20.md:51` |
+
+**Restated where the same fact appears elsewhere:**
+
+| Restatement | Where |
+|---|---|
+| Global constraint 3 ("the owner comes from the token or the delegation, never from a request body") now says a `dl-…` *named in a body* is a name, not proof, and whoever resolves one checks it — so task 24's spawn path and any later resolver inherit the rule | `2026-09-25-phase-t-team-mode.md:140-145`, from *"a name, not proof of anything"* |
+| The plan body's task 20 paragraph gains the b06 rule and its two tests | `2026-09-25-phase-t-team-mode.md:736-743`, from *"a **name, not a capability**"* |
+| Task 21's "the field is a hint, never an authority" now names b06 and says what a `CreateAgentRequest` carrying another member's id gets | `task-21.md:429-431` |
+
+**Two citations in the finding were wrong, and the corrected ones are used above.** Route 47's row
+is `task-01.md:314`, not `:252` (`:252` is §3.6's audit-envelope text). The feed cite `task-06.md:235`
+is route 54's body; the delegation events are `task-06.md:356-360`, and their audience there is
+`fleet` — Fleet's feed, not the member feed. That narrows *how* Alice learns Bob's id but not the
+finding: the check may not rest on an id being unguessable, and the id is visible in the places
+listed above.
+
+**Unverified.** No code exists for task 20 yet, so the check is a plan change only; `wc -l` of the
+`Delegations.Put(` acceptance is written against a package that is not yet written. The fake's
+`h.keysmith.mints()` and `h.cache.reset()` accessors are named here for the first time and must be
+added with the harness. S02-M19 (distinct error codes for a Hub outage versus a wrong owner) is
+**not** in this batch: every refusal here is still `ErrDelegation` → `401 delegation_expired`.
