@@ -18,6 +18,19 @@ Hub contract §9.3). The watcher is one more, and it is the only thing that poll
 - C2's change poller (modified, **only if it has no listener**) — the `OnEvents` field (review M12)
 - `control-plane/cmd/api/config.go`, `main.go` (modified) — three interval variables and the cycle deadline (plan §6); start `Run`; `watcher.HubEvents` on the change poller
 
+#### The Hub stand-in (this tree has no `hubapi` and no `hubclient`)
+
+Verified 2026-09-28 in this worktree: `control-plane/internal` holds no `hubapi`, `hubclient` or
+`signin` package, and no `CursorSource`, `Panacea-Hub-Cursor` or `/v1/changes` poller. Phase H has
+not landed, so every `hubapi.X` below is a **declared stand-in** in `deploywatch`, exactly as task
+06 did for `HubProjects` (`binding/binding.go:57-63`, `binding/hub.go`): a narrow port whose
+fields mirror the Hub contract's wire, and a one-line adapter in `main.go` the day `hubclient`
+exists. The watcher's port keeps the shapes the Hub plan really has (carried b09-2 M-C):
+`ReleaseQuery{PanaceaProject, PipelineRun, State, Kind, Page PageRequest{After, Limit}}`,
+`Release.ReservedAt`/`.ExpiresAt` as RFC 3339 **strings**, `ReleasePage.Next *string`. Hub failures
+are classified by the same `binding.HubErrorClass` classifier `main.go` already wires for task 06,
+so phase 7 has one vocabulary for "the Hub did not answer", not two.
+
 #### Interfaces — complete
 
 ```go
@@ -61,7 +74,11 @@ type Config struct {
 	Interval, ActiveInterval, HistoryInterval time.Duration
 	// ReadTimeout is the Panacea client's per-attempt timeout (PANACEA_APP_PANACEA_TIMEOUT, 15 s);
 	// main.go passes the same value it gives panacea.Config.Timeout (t02). HubReadTimeout bounds one
-	// Hub read, applied by the watcher itself (zero = ReadTimeout). See "The cycle budget".
+	// Hub read, applied by the watcher itself. See "The cycle budget". Zero = the largest of 5 s
+	// and CycleDeadline − ReadTimeout − ActiveInterval, so that HubReadTimeout + ReadTimeout
+	// ≤ CycleDeadline − ActiveInterval holds at the defaults; New refuses a value above
+	// CycleDeadline − ReadTimeout, which could leave no room for one Panacea attempt
+	// (carried b09-2 I-1, point 3).
 	ReadTimeout, HubReadTimeout time.Duration
 	// CycleDeadline is one cycle's budget, every project's reads together (review M14; plan
 	// re-review b09-1, I-1). Zero = ReadTimeout + Interval (30 s at the defaults). New refuses a
@@ -131,8 +148,12 @@ type Snapshot struct {
 	// the branch with Environment.Name or .Branch (review C2).
 	BranchEnvs    map[string]string
 	// BranchEnvErrs is git branch → Panacea's refusal of EnvironmentFor for it: KindNotFound,
-	// KindRejected or KindForbidden (b02 round 2, R2). A branch is in BranchEnvs or here, never
-	// both. It does not stale the snapshot: the refusal is about one name, not about Panacea.
+	// KindRejected, KindForbidden or KindConflict (b02 round 2, R2; carried b02-2 M-5). A branch
+	// is in BranchEnvs or here, never both. It does not stale the snapshot: the refusal is about
+	// one name, not about Panacea. The three kinds that are NOT about one name are never in it:
+	// KindUnavailable and KindUnauthorized are the failure rule's, and KindNotConnected ends the
+	// Panacea phase too (no credential is not a fact about this branch). The 16-branch
+	// least-recently-wanted drop covers BOTH maps together: a dropped branch leaves both.
 	BranchEnvErrs map[string]*deploy.Error
 	Latest        *deploy.Deployment // nil = never deployed, or not yet read
 	Deployments   []deploy.Deployment
@@ -160,7 +181,12 @@ type Snapshot struct {
 
 // SettledBy reports whether d's release, if it has one, was final by at: d.CreatedAt + pinSettle
 // is before at (step 6, "Settled"; plan re-review b09-1, M-1). pinSettle is the longest
-// ExpiresAt − ReservedAt in s.Releases plus 5 min; 20 min when the page is empty. Step 6 asks it
+// ExpiresAt − ReservedAt in s.Releases plus 5 min; 20 min when the page is empty. Both are RFC
+// 3339 STRINGS on the Hub's wire and in its Go type, not time.Time (carried b09-2 M-C), so a row
+// whose pair does not parse, or whose ExpiresAt is not after its ReservedAt, contributes no
+// window; when no row contributes one the 20-minute default stands. The failure is always toward
+// unsettled — a longer wait costs one cycle of "pin not loaded", a shorter one caches a false nil
+// for the binding's life. Step 6 asks it
 // with Now() before a targeted read; task 08 rule 5b asks it with ReleasesAt. One helper, so the
 // watcher and the view can never disagree on which rows a page answers for.
 func (s Snapshot) SettledBy(d deploy.Deployment, at time.Time) bool
@@ -187,8 +213,15 @@ Three words, used only in these senses in this task and in every restatement of 
    `NotConnected` → poll nothing. `AwaitingApproval` or `TokenRejected` → poll nothing, and at
    each recheck (60 s) call `Connection.Check`, so the lens's *"this screen checks again on its
    own"* (prototype `phase-7-deploy.html:830-831`) is true without a desktop timer.
-1. **Binding.** A project is **due** when its cached binding is not `Bound`, when step 2 marked it
-   for re-resolve, or at its recheck (60 s); else it reads `Cached`. Once per cycle, after the
+1. **Binding.** A project is **due** when it has never been resolved, when step 2 or `HubEvents`
+   marked it for re-resolve, or at its recheck (60 s); else it reads `Cached`. A binding that is
+   not `Bound` is **not** due in every cycle (carried b09-2 M-A): an unbound project would
+   otherwise cost one `GET /api/v1/projects` and one Hub lookup every 3 s for as long as it stays
+   unbound, which is the normal rate times five. It is due at its recheck (60 s), or at once after
+   a mark — `Choose`, a new refusal (step 2), a `project.*` event, or a Ship that creates the
+   project. `ResolveMany` itself is a Hub call as well as a Panacea one, so it begins only with
+   `ReadTimeout + HubReadTimeout` of the budget left and runs under a context bounded by that
+   (carried b09-2 I-1, trigger 1). Once per cycle, after the
    connection gate and before any project's step 2, the watcher calls
    `Bindings.ResolveMany(ctx, <every due project>)` — **one** `Deployer.Projects` read however many
    local projects there are (review M16) — and no call at all when none is due. A `KindUnavailable`
@@ -236,8 +269,12 @@ Three words, used only in these senses in this task and in every restatement of 
    `HistoryInterval` passed. It is unpaginated and runs three enrichment passes including a dozen
    PipelineRun reads (`projects.go:1227-1253`), so it is never read every poll.
 5. **`Run`** for each tracked run whose build is not terminal. Terminal → untracked.
-   **`Scans(ctx, p, d.Environment, d.ID)`** for each environment's newest deployment `d` — the
-   deployment's own `Environment`, verbatim, never the card's name and never empty for a branch
+   **`Scans(ctx, p, d.Environment, d.ID)`** for the newest deployment `d` of each group of
+   `Deployments` **by the raw `Environment` string** — not by `SameEnvironment`, so that `""` is a
+   real group and the guard below is reachable rather than defensive (carried b03-2 m-3). The
+   group key is the word `Scans` is called with, so grouping by it is the only grouping that
+   cannot read one group's verdict under another's key. It is called with
+   the deployment's own `Environment`, verbatim, never the card's name and never empty for a branch
    row, because Panacea reads a missing `env` as production (review C3) — only when that
    deployment's `ID` or `Build` changed since the last read, cached by deployment id in
    `Snapshot.Scans` — so the environment strip's third fact (scans) costs one request per build,
@@ -248,21 +285,30 @@ Three words, used only in these senses in this task and in every restatement of 
    failure rule below. **Any other kind** (`KindNotFound` from the Fake's unseeded pair,
    `KindRejected` for Panacea's 400, `KindForbidden` for a token the project refuses) leaves `Snapshot.Scans[d.ID]` unset, so
    the fact reads `not_read`, does **not** set `Stale` or `LastError`, and does not end the cycle.
-   The read is not marked done, so it is retried on the next poll in which the deployment's `ID`
-   or `Build` changes or `HistoryInterval` passes. Panacea's handler itself has no 404 path — it
+   The failed attempt is **recorded** — the deployment's `ID`, its `Build` and the time — and only
+   a success marks the read done (carried b03-2 m-2). So the retry is on the next poll in which
+   the deployment's `ID` or `Build` has changed since that attempt, or `HistoryInterval` has
+   passed since it; with "done" as the only record an unmarked read would be retried in **every**
+   poll, 3 s apart while a run is tracked, which is the mutant the 15/30/45/61 s test pins. Panacea's handler itself has no 404 path — it
    answers 400 for an empty project name and 200 otherwise (`handlers/security_status.go:204-254`)
    — so live this path is taken only by a refusal, never by an unseeded or mangled `env` (that
    gets a 200 with `NOT_RUN` or empty rows).
 6. **Hub releases** — run in the cycle's **Hub phase**, after every project's Panacea reads (see
    "Order within a cycle"; plan re-review b09-1, I-1).
-   `Releases(HubProjectID, {PanaceaProject: <ref>, Limit: 200})` when the
+   `Releases(HubProjectID, {PanaceaProject: <ref>, Page: {Limit: 200}})` when the
    Deployments were re-read, a tracked run changed, a `release.*` event for this Hub project
    arrived through `HubEvents` since the last read (review M12), or `HistoryInterval` passed.
+   The `Binding.HubMiss` `"signed_out"` (task 06's `MissSignedOut`) is read **first**, whatever
+   `HubProjectID` holds → `ReleasesState "signed_out"`, and **`Releases` and `ReleasesAt` are both
+   kept** (carried b05-2 N-2, b11-2 I-1): a sign-out is not evidence that any release changed, so
+   the pins already read stay on the lens beside a sentence that sends the user to sign in, and
+   task 19 and task 08 rule 5b read a defined state rather than a cleared one. Then
    `Binding.HubProjectID == ""` → by `Binding.HubMiss` (task 06): `"not_linked"` →
    `ReleasesState "no_hub_project"`; `"key_spelling"` → `"hub_key_spelling"` (HA7-6, review I6);
    `""` → `"unavailable"`, because a configured Hub has not yet answered for this key (plan
-   re-review b05 R-4; `Releases == nil` is `"no_hub"` before this step); `signin.ErrSignedOut` →
-   `"signed_out"`; `hubclient.ErrUnavailable` → `"unavailable"`, **keeping the previous releases**.
+   re-review b05 R-4; `Releases == nil` is `"no_hub"` before this step). A `Releases` call that
+   fails signed-out → `"signed_out"` on the same terms; `hubclient.ErrUnavailable` →
+   `"unavailable"`, **keeping the previous releases**.
    A good read sets `ReleasesAt` and `ReleasesMore = page.Next != nil` (Hub contract §1 *Lists*,
    `:48-49` at 6b873d0: `limit` at most 200, `{"items","next"}`). A snapshot whose step 6 has not
    run yet has a zero `ReleasesState`; task 08 reads it as not loaded (rule 5b).
@@ -271,7 +317,10 @@ Three words, used only in these senses in this task and in every restatement of 
    view would call a real pin absent. While `ReleasesMore`, for each deployment `d` in
    `Deployments` that matches no release in the page by task 08 rule 5, has no `PinsByRun` entry,
    and is **settled**, newest first and **at most 20 per project per cycle**, the watcher reads
-   `Releases(HubProjectID, {PanaceaProject: <ref>, PipelineRun: d.ID, State: "confirmed", Limit: 1})`
+   `Releases(HubProjectID, {PanaceaProject: <ref>, PipelineRun: d.ID, State: "confirmed",
+   Kind: "run", Page: {Limit: 1}})` — `Kind` and the nested `Page` because the Hub's
+   `ReleaseQuery` has no `Limit` of its own and a zero `Page.Limit` means 50, not 200
+   (carried b09-2 M-C; Hub plan `phase-h-hub-parts/task-03.md:207-216`, `:470-517`)
    (§7.9 lists `pipelineRun=`; the review's option) and stores the `kind "run"` item, or `nil` for
    none, in `PinsByRun[d.ID]`. `pipelineRun=` and not `deploymentId=`: the join is written only by
    the reserver's own watcher (step 7), so a release whose reserver never saw the deployment has no
@@ -337,6 +386,14 @@ is **not** evidence about Panacea, and three rules keep the two apart:
    HubReadTimeout)` and begins only with `HubReadTimeout` left. So a Hub that does not answer ends
    as that read's own timeout, `hubclient.ErrUnavailable`: step 6's rule (`"unavailable"`, previous
    releases kept) — never a budget stop that hides a dead Hub, and never blamed on Panacea.
+2b. **The Hub failure rule** (carried b09-2 I-1, point 2). The first `hubclient.ErrUnavailable` in
+   a Hub phase ends that phase's remaining reads — page reads, targeted reads and joins — for
+   **every** project, exactly as `KindUnavailable` ends the Panacea phase, and for the same
+   reason: ten projects times one `HubReadTimeout` is ten times the budget spent learning one
+   fact. Each project whose page read was owed keeps its releases due and its previous
+   `Releases`, and takes `ReleasesState "unavailable"`. While the Hub is unavailable the whole
+   phase is retried at most once per `Interval` (15 s), not once per cycle (3 s), so a dead Hub
+   costs one read a poll interval. A good read clears it.
 3. **A budget stop is not a failure of any kind.** The cycle ends. Nothing is marked `Stale`, no
    `LastError` is set, `Connection.Observe` is not called. A project polled to the end this cycle
    keeps the fresh data it got. The project the stop came in the middle of discards this cycle's
@@ -346,6 +403,14 @@ is **not** evidence about Panacea, and three rules keep the two apart:
    polled to the end, so their data is published. The next cycle begins with what was stopped
    (the order below). One log line at Info per stop — the phase, the projects not reached, the
    budget left — so a budget set too small shows up in the log, never on the lens.
+   **Stops converge** (carried b09-2 I-1, point 4). A stop discards one poll's partial reads, so
+   nothing bounds how long a project can be stopped in a row unless the order gives way: after
+   **two** consecutive cycles in which a project was due and not polled to the end, it goes to the
+   **front** of the rotation — after the tracked runs, before every other project — so its next
+   poll has the whole budget ahead of it. A project polled to the end clears the count. This is
+   the option taken over the alternative of a new `staleReason` code (which would amend
+   `types.ts` and UI contract §2): a stop is latency, and a lens that says *"stale"* because this
+   cockpit's own budget was small would name Panacea for a fault Panacea does not have.
 
 **Order within a cycle.** The **Panacea phase** first: steps 0-1 once, then steps 2-5 and 8 for
 each due project — projects with a tracked run first, then the rest in rotation, beginning with
@@ -415,7 +480,7 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 
 | Test | Assertion | Mutant it kills |
 |---|---|---|
-| `TestOneProjectsReadPerCycle` | three local projects, each bound to its own Panacea project, over the real `binding.Resolver` and the fake → the fake's `Calls()` hold one `Projects` in the first cycle, none in the cycles up to 57 s (19 ticks at 3 s, polls at 15, 30 and 45 s), one in the cycle at 60 s (the recheck) — never three (review M16); with one project tracking a run, the same counts, so a count of cycles or polls is not the recheck (plan re-review b09-1, M-4) | calling `Resolve` per project, so N local projects make N `GET /api/v1/projects` per resolve |
+| `TestOneProjectsReadPerCycle` | three local projects, each bound to its own Panacea project, over the real `binding.Resolver` and the fake → the fake's `Calls()` hold one `Projects` in the first cycle, none in the cycles up to 57 s (19 ticks at 3 s, polls at 15, 30 and 45 s), one in the cycle at 60 s (the recheck) — never three (review M16); with one project tracking a run, the same counts, so a count of cycles or polls is not the recheck (plan re-review b09-1, M-4); and with a **fourth** local project whose binding stays `NoMatch`, the counts are unchanged — an unbound project is re-resolved at its recheck, not in every cycle (carried b09-2 M-A) | calling `Resolve` per project, so N local projects make N `GET /api/v1/projects` per resolve |
 | `TestEnvironmentsBeforeLatest` | the fake's `Calls()` for one cycle start `Environments`, then any `EnvironmentFor`, then `Latest` | reading `Latest` first, so a deleted project reads as "never deployed" |
 | `TestWantedBranchResolvedOnce` | `WantBranch(p, "feat/x")` with the fake seeded `feat/x → feat-x` and a row `feat-x`: the next poll (0 s) calls `EnvironmentFor(p,feat/x)` once and `BranchEnvs["feat/x"] == "feat-x"`; the polls at 15, 30 and 45 s make no such call, the poll at 60 s (the recheck) re-reads; with `Track(p, run)` so the project is polled every 3 s, still one call in the first 57 s and one at 60 s — the recheck is time, never a count of polls (plan re-review b09-1, M-4); a 17th wanted branch drops the least recently wanted | resolving by comparing `feat/x` with a row's `name`/`branch` (review C2), or one request per branch per cycle |
 | `TestRefusedBranchNotReaskedEveryCycle` | `WantBranch(p, "live-check/p7")` with the fake answering `EnvironmentFor` `KindNotFound` (*"Panacea could not read this branch name…"*): the poll at 0 s makes one such call, the polls at 15, 30 and 45 s none, the poll at 60 s one; `BranchEnvErrs["live-check/p7"]` carries the error, `BranchEnvs` lacks the branch, and `Stale == false` with `Latest` still read; the fake then answers `live-check-p7` → it moves to `BranchEnvs` and out of `BranchEnvErrs` (b02 round 2, R2) | a refused branch re-asked every 15 s, or one bad name staling the whole project |
@@ -423,14 +488,14 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestReleasesStateNamesKeySpelling` | a binding with `HubProjectID ""` and `HubMiss "key_spelling"` → `ReleasesState "hub_key_spelling"`; `HubMiss "not_linked"` → `"no_hub_project"`; `HubMiss ""` with a configured Hub → `"unavailable"`; none calls `Releases` (review I6; plan re-review b05 R-4) | a repository told it is *"not a shared project in the Hub yet"* above a Ship bar that names the real cause — two surfaces that disagree; a key the Hub never answered for (a first-read failure) shown as *"not a shared project"* |
 | `TestDeploymentsNotEveryCycle` | three polls with nothing changed → one `Deployments` call; `Latest.ID` changes → one more | reading the heavy list every 15 s |
 | `TestScansReadWithTheDeploymentsEnvironment` | a newest deployment `{ID: "d-feat", Environment: "feat-x"}`, with the fake seeded `SetScans(p, "feat-x", "d-feat", …)` → the fake's `Calls()` holds `Scans(engagement-portal,feat-x,d-feat)` and `Snapshot.Scans["d-feat"]` is that report (review C3) | passing `""` or the card's name, which on Panacea shows production's verdict as the branch release's |
-| `TestScansFailureIsNotStale` | a newest deployment `{ID:"d-feat", Environment:"feat-x"}` with **no** `SetScans` (the Fake answers `KindNotFound`) → `Snapshot.Scans` has no `"d-feat"`, `Stale` is `false`, `LastError` is `""`, and the same cycle still reads Hub releases; 61 s later → a second `Scans` call (re-review b03, M-2) | a scan read error that stales the whole project, or one cached as done so it is never retried |
-| `TestScansSkipsEmptyEnvironment` | a newest deployment `{ID:"d-old", Environment:""}` → `Calls()` holds no `Scans` for `d-old` and `Snapshot.Scans` has no `"d-old"` (re-review b03, M-1) | calling `Scans(p, "", id)`, which on Panacea stores production's verdict under a legacy release |
+| `TestScansFailureIsNotStale` | a newest deployment `{ID:"d-feat", Environment:"feat-x"}` with **no** `SetScans` (the Fake answers `KindNotFound`) → `Snapshot.Scans` has no `"d-feat"`, `Stale` is `false`, `LastError` is `""`, and the same cycle still reads Hub releases; at 15, 30 and 45 s of fake time still exactly one `Scans` call; at 61 s exactly two (re-review b03, M-2; carried b03-2 m-2) | a scan read error that stales the whole project, or one cached as done so it is never retried |
+| `TestScansSkipsEmptyEnvironment` | two deployments, `{ID:"d-feat", Environment:"feat-x"}` and the legacy `{ID:"d-old", Environment:""}`, so grouping by the raw `Environment` string makes `""` a real group whose newest row is `d-old` and the guard is reached (carried b03-2 m-3) → `Calls()` holds `Scans(…,feat-x,d-feat)` and **no** `Scans` for `d-old`, and `Snapshot.Scans` has no `"d-old"` (re-review b03, M-1) | calling `Scans(p, "", id)`, which on Panacea stores production's verdict under a legacy release |
 | `TestHistoryIntervalForcesRead` | 61 s of fake time with no change → a second `Deployments` | history that never refreshes when only `LiveReady` moved |
 | `TestTrackedRunDrivesActiveCadence` | `Track(p, run)`; the project is polled every 3 s until the fake advances the run to succeeded, then every 15 s | a run that stays on 3 s forever, or never gets it |
 | `TestUnavailableEndsCycleForAll` | two bound projects; the first `Environments` fails `KindUnavailable` → the second project saw **no** call this cycle; both `Stale`, one cursor bump | a cycle that stalls for N × timeout in an outage |
 | `TestEnvironmentsRefusedReResolves` | two bound projects, one good cycle; then A's `Environments` fails `KindNotFound` → in that cycle B is still read, A makes no `Latest` call, A is `Stale` with `LastError.Kind == KindNotFound` and its old `Environments` kept, `FetchedAt` the good cycle's. The resolver's `Deployer` is the fake wrapped so that `Projects` then omits A's project (the Fake has `AddProject` and no removal, t01:567) → the next tick (3 s, not 15 s) re-resolves A through `ResolveMany`, and A's binding is `NoMatch`, and A's snapshot holds no `Environments`, `Latest` or `Deployments`. Repeated with `KindForbidden`, and with a second Panacea project that now matches A's repository → `Bound` to it, and A's snapshot holds none of the first project's rows (review M13). A third case: A refused `KindForbidden` for good while `Projects` still lists it — over the 8 ticks (24 s) from the first refusal, the fake saw at most 2 `Projects` reads (the re-resolve the new refusal asked for, then none until the recheck at 60 s) and A's `Environments` once in the Nudged poll, then only in A's own polls, 15 s apart; A stays `Stale` with the refusal throughout (plan re-review b09-1, M-3) | a refusal read as Panacea down, ending every project's cycle; a deleted project drawn fresh (`Stale false`) or its rows kept after the binding moved; a re-resolve that waits for the recheck; a refusal for good that re-resolves every 3 s, five times the normal rate |
 | `TestCycleDeadlineCutsAHungRead` | `ReadTimeout` 20 ms, `ActiveInterval` 10 ms, `CycleDeadline` 50 ms of real time (the tests off the fake clock); two bound projects; the watcher's Reader is the fake wrapped so that project A's `Environments` blocks until its `ctx` is done and then returns `KindUnavailable`, Status 0 (what `do` returns for a cancelled transport). A's read began with a whole attempt left, so the cut is Panacea's failure: one cycle returns within 1 s; B saw no call; both `Stale`, `LastError.Kind == KindUnavailable`; one cursor bump. Then `Track(B, run)`: the next cycle's first call is B's `Environments`, before A's (review M14). `New` with `CycleDeadline` 25 ms (below `ReadTimeout + ActiveInterval`) → an error (plan re-review b09-1, I-1) | a cycle with no deadline, so one hung read holds the loop for `do`'s three attempts (about 46 s); a deadline per read, not per cycle, so ten projects' hangs add up; a fixed project order that puts a tracked run behind a hanging project every cycle; a budget no larger than one attempt |
-| `TestBudgetStopIsNotAnOutage` | `ReadTimeout` 20 ms, `CycleDeadline` 60 ms, real time; three bound projects A, B, C, one good cycle each; then each one's `Deployments` is due and the fake wrapped to take 22 ms (a third of the budget plus a little) and answer. The cycle polls A and B to the end and stops before C's first read (38 ms left is not below 20 ms, but after B, 16 ms is): **no** project is `Stale`, no `LastError`, `Connection.Observe` not called; A and B carry the new `Deployments` and moved `FetchedAt`; C's snapshot is exactly its previous one, and `ReleasesState` stays `"ok"` for all three. The next cycle's first call is the Hub page read owed to A (the phase the stop kept from running goes first), then C's first Panacea read, before A's or B's. A second case: every cycle's Panacea phase finishes with 10 ms left (below `HubReadTimeout` 20 ms) — the Hub page read owed is still made in the second cycle, which runs the Hub phase first. With the Hub fake wrapped to block until `ctx` is done, `HubReadTimeout` 20 ms → `ReleasesState "unavailable"`, previous releases kept, Panacea data fresh (plan re-review b09-1, I-1) | a cycle that runs out of budget reported as *"Panacea has not answered"* for every project, every cycle, under normal load; a stopped project's partial reads published as current; a Hub that never answers hidden behind budget stops; a slow Hub read spending the Panacea reads' budget |
+| `TestBudgetStopIsNotAnOutage` | `ReadTimeout` 20 ms, `ActiveInterval` 10 ms (stated, because `New` refuses a `CycleDeadline` below `ReadTimeout + ActiveInterval` and the 3 s default would refuse this config — carried b09-2 M-B), `HubReadTimeout` 20 ms, `CycleDeadline` 60 ms, real time; three bound projects A, B, C, one good cycle each; then each one's `Deployments` is due and the fake wrapped to take 18 ms and answer. The cycle polls A and B to the end and stops before C's first read (after A, 32 ms is left; after B, 14 ms, which is below `ReadTimeout`): **no** project is `Stale`, no `LastError`, `Connection.Observe` not called; A and B carry the new `Deployments` and moved `FetchedAt`; C's snapshot is exactly its previous one, and `ReleasesState` stays `"ok"` for all three. The next cycle's first call is the Hub page read owed to A (the phase the stop kept from running goes first), then C's first Panacea read, before A's or B's. A second case: every cycle's Panacea phase finishes with 10 ms left (below `HubReadTimeout` 20 ms) — the Hub page read owed is still made in the second cycle, which runs the Hub phase first. With the Hub fake wrapped to block until `ctx` is done, `HubReadTimeout` 20 ms → `ReleasesState "unavailable"`, previous releases kept, Panacea data fresh (plan re-review b09-1, I-1) | a cycle that runs out of budget reported as *"Panacea has not answered"* for every project, every cycle, under normal load; a stopped project's partial reads published as current; a Hub that never answers hidden behind budget stops; a slow Hub read spending the Panacea reads' budget |
 | `TestUnauthorizedObserved` | `KindUnauthorized` → `Connection.Observe` called with it; the cycle ends | a lens that keeps drawing "connected" while every read 401s |
 | `TestStaleKeepsLastData` | a good cycle, then a failing one → `Environments` unchanged, `Stale == true`, `FetchedAt` is the good cycle's time | clearing the lens during a blip |
 | `TestJoinOnlyOwnConfirmedRuns` | releases: mine confirmed, mine reserved, a teammate's confirmed, mine rollback — only the first is joined, and only once across three cycles | joining a teammate's release, a reservation, or a rollback (7P-4: a rollback has no deployment of its own) |
@@ -439,7 +504,8 @@ All with `deploytest.Fake`, `hubclient.NewFake()`, a fake clock, and `Run` drive
 | `TestLateConfirmedPinIsNotCachedAbsent` | the Hub fake holds 200 confirmed run releases plus `r-new`, `reserved` with a null `pipelineRun`, newest; `Deployments` holds `d-new`, created 1 min before the fake clock's now, whose Ship reserved `r-new` → `ReleasesMore == true`, and the cycle makes **no** targeted read for `d-new` (unsettled): `PinsByRun` has no `"d-new"`, so the view says *"pin not loaded"*. Then `r-new` is confirmed with `pipelineRun: d-new` and 200 more releases are reserved, pushing it off the page; at 21 min the cycle reads `PipelineRun: d-new` once and `PinsByRun["d-new"]` is `r-new`. A deployment created 21 min ago with no release gets one read and a cached `nil` (plan re-review b09-1, M-1) | a targeted read on a new deployment whose release is still `reserved`, caching `nil` for the binding's life, so a real pin reads *"no brief is recorded"* once 200 releases push it off the page |
 | `TestReleaseEventRefreshesReleases` | two bound projects with `HubProjectID` `pj-a` and `pj-b`, releases read at cycle 1; `HubEvents([{kind:"release.confirmed", projectId:"pj-a"}, {kind:"brief.revised", projectId:"pj-b"}, {kind:"release.abandoned", projectId:"pj-other"}])` at 5 s of fake time → the next tick (3 s later, not 15 s or 60 s) reads `Releases` for `pj-a` only; `HubEvents` itself made no call (the fake's `Calls()` unchanged until the tick) (review M12) | a teammate's rollback shown 60 s late; a `brief.*` event, or another project's, triggering release reads; a listener that reads the Hub on the poller's goroutine |
 | `TestProjectEventReResolvesUnshared` | three bound projects: `p-1` with `HubMiss "not_linked"`, `p-2` with `HubMiss "key_spelling"`, `p-3` with `HubProjectID "pj-c"`; the Hub fake then links `p-1`'s key to `pj-new`; `HubEvents([{kind:"project.created", projectId:"pj-new"}])` → the next tick's `ResolveMany` holds `p-1` only, and its binding has `HubProjectID "pj-new"`; `{kind:"project.remote_removed", projectId:"pj-c"}` → `p-3` only; `HubEvents` itself made no call (review M17) | a Share that leaves Ship off until the 60 s recheck; a `key_spelling` project re-resolved on every project event for nothing |
-| `TestHubDownKeepsReleases` | `hubclient` fake failing → `ReleasesState "unavailable"`, previous releases kept, Panacea data still fresh | the lens's pins vanishing when the Hub blips |
+| `TestHubDownKeepsReleases` | `hubclient` fake failing → `ReleasesState "unavailable"`, previous releases kept, Panacea data still fresh; with two bound projects the failing phase makes **one** Hub call, not one per project, and no second attempt until `Interval` has passed (carried b09-2 I-1, point 2) | the lens's pins vanishing when the Hub blips; one dead Hub costing one timeout per project per cycle |
+| `TestSignedOutKeepsReleases` | a good Hub cycle, then the binding carries `HubMiss "signed_out"` → `ReleasesState "signed_out"`, `Releases` and `ReleasesAt` **unchanged**, no `Releases` call made (carried b05-2 N-2, b11-2 I-1) | a sign-out drawn as an outage; a sign-out that empties the pins, so task 19 and task 08 rule 5b read a cleared state |
 | `TestOwnerProbe` | `AutoDeploy` → `KindForbidden` ⇒ `"no"`, including a `KindForbidden` whose `Message` is the scope sentence of task 03's `error-scope-owner-403.txt` — a real owner holding a restricted key (review I5); `KindConflict` ⇒ `"yes"`; success ⇒ `"yes"`; `KindUnavailable` ⇒ `"unknown"` | inferring owner from `/me` groups (7P-9) |
 | `TestCursorMonotonic` | the cursor never decreases across 50 random fake cycles, and is unchanged across two identical ones | a cursor that resets when a project unbinds, making the desktop miss a change |
 | `TestSessionsHeader` | `GET /v1/sessions` with the watcher as a `CursorSource` carries `Panacea-Deploy-Cursor`; `Access-Control-Expose-Headers` lists it | a header the webview cannot read |
