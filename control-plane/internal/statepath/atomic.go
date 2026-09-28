@@ -66,7 +66,7 @@ func WriteAtomic(path string, data []byte, mode Mode) error {
 	if err := os.MkdirAll(dir, mode.DirPerm()); err != nil {
 		return fmt.Errorf("statepath: create %s: %w", dir, err)
 	}
-	tmp, err := os.CreateTemp(dir, tempPattern(path))
+	tmp, err := os.CreateTemp(dir, TempPattern(path))
 	if err != nil {
 		return fmt.Errorf("statepath: temp file in %s: %w", dir, err)
 	}
@@ -123,10 +123,14 @@ var (
 	sleep  = time.Sleep
 )
 
-// tempPattern names the temp file after its target, so the debris a crash
+// TempPattern names the temp file after its target, so the debris a crash
 // leaves is recognisably that file's: sessions.json -> .sessions-*.json,
 // CLAUDE.md -> .CLAUDE-*.md. The leading dot keeps it out of a plain listing.
-func tempPattern(path string) string {
+// It is os.CreateTemp's pattern, whose "*" becomes digits, and it is also a
+// valid gitignore glob for every name that can replace it: contextwrite adds
+// "/" + TempPattern to a clone's info/exclude, so a temp file a crash leaves
+// in a worktree, holding the brief, is not committed (review t09 m2).
+func TempPattern(path string) string {
 	base := filepath.Base(path)
 	ext := filepath.Ext(base)
 	return "." + strings.TrimSuffix(base, ext) + "-*" + ext

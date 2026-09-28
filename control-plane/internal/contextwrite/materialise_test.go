@@ -171,17 +171,17 @@ func TestExcludeLineJoinsAFileWithNoFinalNewline(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(e.git.excludePath)
-	if string(b) != "*.log\n/CLAUDE.md\n" {
+	if string(b) != "*.log\n/CLAUDE.md\n/.CLAUDE-*.md\n" {
 		t.Fatalf("exclude = %q", b)
 	}
 }
 
 // A CRLF exclude file (an editor's re-save on Windows) already holding the
-// line is left alone: git ignores the trailing "\r", so the line is present,
-// and a second copy per start would grow the file (mutation P2).
+// lines is left alone: git ignores the trailing "\r", so the lines are
+// present, and a second copy per start would grow the file (mutation P2).
 func TestExcludeLineInACRLFFileIsFound(t *testing.T) {
 	e := newEnv(t)
-	const crlf = "*.log\r\n/CLAUDE.md\r\n"
+	const crlf = "*.log\r\n/CLAUDE.md\r\n/.CLAUDE-*.md\r\n"
 	if err := os.MkdirAll(filepath.Dir(e.git.excludePath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -830,7 +830,170 @@ func TestARelativeExcludePathIsJoinedToTheWorktree(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(e.dir, ".git", "info", "exclude"))
-	if err != nil || string(b) != "/CLAUDE.md\n" {
+	if err != nil || string(b) != "/CLAUDE.md\n/.CLAUDE-*.md\n" {
 		t.Fatalf("exclude = %q, %v", b, err)
+	}
+}
+
+// ── fix round 1 (review task-t09-review.md) ─────────────────────────────────
+
+// Review m1: the exclude line is asked to take effect. A .gitignore that
+// re-includes the file outranks info/exclude, and git would list the brief.
+func TestAnExcludeLineGitDoesNotHonourWritesNoBlock(t *testing.T) {
+	for _, row := range []struct {
+		name    string
+		tracked bool // CLAUDE.md tracked: the target is .claude/CLAUDE.md
+	}{{"CLAUDE.md", false}, {".claude/CLAUDE.md", true}} {
+		for _, handWritten := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/handWritten=%v", row.name, handWritten), func(t *testing.T) {
+				e := newEnv(t)
+				target := contextwrite.FileName
+				if row.tracked {
+					e.git.tracked[contextwrite.FileName] = true
+					target = contextwrite.AltFileName
+				}
+				e.git.notIgnored = map[string]bool{target: true}
+				const mine = "# Mine\n\nKeep this.\n"
+				if handWritten {
+					e.write(target, mine)
+					e.age(target)
+				}
+				e.src.set(inh(doc(idA, 6, "the brief")), nil)
+				_, err := e.materialise(e.req())
+				wantReason(t, err, api.BriefReasonWriteFailed)
+				if handWritten {
+					e.untouched(target, mine)
+				} else if got, ok := e.read(target); ok {
+					t.Fatalf("%s written: %q", target, got)
+				}
+				if got := e.git.ignoredAsked(); len(got) != 1 || got[0] != target {
+					t.Fatalf("Ignored asked of %q, want %q once", got, target)
+				}
+			})
+		}
+	}
+}
+
+func TestAnIgnoredErrorIsAPlainErrorAndWritesNoBlock(t *testing.T) {
+	e := newEnv(t)
+	e.git.ignoredErr = errors.New("git check-ignore: exploded")
+	e.src.set(inh(doc(idA, 6, "the brief")), nil)
+	_, err := e.materialise(e.req())
+	wantPlain(t, err)
+	if got, ok := e.read(contextwrite.FileName); ok {
+		t.Fatalf("CLAUDE.md written: %q", got)
+	}
+}
+
+// Ignored is a question about a file that will hold brief text: a strip, a
+// WithoutBrief and a start outside git never ask it.
+func TestIgnoredIsAskedOnlyBeforeABlockIsWritten(t *testing.T) {
+	e := newEnv(t)
+	e.write(contextwrite.FileName, block(idB, 2, "older"))
+	e.git.notIgnored = map[string]bool{contextwrite.FileName: true}
+	if _, err := e.materialise(e.req()); err != nil { // nothing to inherit: a strip
+		t.Fatal(err)
+	}
+	req := e.req()
+	req.WithoutBrief = true
+	if _, err := e.materialise(req); err != nil {
+		t.Fatal(err)
+	}
+	e.git.trackedErr = fmt.Errorf("git: %w", contextwrite.ErrNotARepo)
+	e.src.set(inh(doc(idA, 6, "x")), nil)
+	if _, err := e.materialise(e.req()); err != nil {
+		t.Fatal(err)
+	}
+	if got := e.git.ignoredAsked(); len(got) != 0 {
+		t.Fatalf("Ignored asked of %q", got)
+	}
+}
+
+// Review m2: WriteAtomic's temp file, which holds the whole brief until its
+// rename, is excluded too, before it exists; the line is the target's.
+func TestTheTempFileIsExcludedBeforeItExists(t *testing.T) {
+	for _, row := range []struct {
+		tracked  bool
+		wantLine string
+	}{{false, "/.CLAUDE-*.md"}, {true, "/.claude/.CLAUDE-*.md"}} {
+		e := newEnv(t)
+		e.git.tracked[contextwrite.FileName] = row.tracked
+		e.git.notIgnored = map[string]bool{contextwrite.FileName: true, contextwrite.AltFileName: true}
+		e.src.set(inh(doc(idA, 6, "x")), nil)
+		_, err := e.materialise(e.req()) // refused after step 6's lines, before any write
+		wantReason(t, err, api.BriefReasonWriteFailed)
+		if n := count(e.excludeLines(), row.wantLine); n != 1 {
+			t.Fatalf("exclude = %q, want one %s", e.excludeLines(), row.wantLine)
+		}
+	}
+}
+
+// Review m8: git reads "  /CLAUDE.md" as another pattern (leading white space
+// is part of it), so it is not the line, and the line is added.
+func TestAnExcludeLineWithLeadingWhiteSpaceIsNotTheLine(t *testing.T) {
+	e := newEnv(t)
+	writeFile(t, e.git.excludePath, "  /CLAUDE.md\n\t/.CLAUDE-*.md\n")
+	e.src.set(inh(doc(idA, 6, "x")), nil)
+	if _, err := e.materialise(e.req()); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(e.git.excludePath)
+	if string(b) != "  /CLAUDE.md\n\t/.CLAUDE-*.md\n/CLAUDE.md\n/.CLAUDE-*.md\n" {
+		t.Fatalf("exclude = %q", b)
+	}
+}
+
+// Review m3: the stamp is Source's key and the marker is the document's, so
+// a Source answering one key with another's document is a fault, not a start.
+func TestADocumentForAnotherKeyIsAPlainError(t *testing.T) {
+	for _, row := range []struct {
+		name string
+		in   func() discoverhub.Inheritable
+	}{
+		{"another revision", func() discoverhub.Inheritable {
+			return discoverhub.Inheritable{Key: doc(idA, 6, "").Key, Document: doc(idA, 7, "x")}
+		}},
+		{"a document whose Key disagrees with its own marker", func() discoverhub.Inheritable {
+			d := doc(idA, 7, "x")
+			d.Key = doc(idA, 6, "").Key
+			return discoverhub.Inheritable{Key: d.Key, Document: d}
+		}},
+	} {
+		t.Run(row.name, func(t *testing.T) {
+			e := newEnv(t)
+			e.src.set(row.in(), nil)
+			_, err := e.materialise(e.req())
+			wantPlain(t, err)
+			if got, ok := e.read(contextwrite.FileName); ok {
+				t.Fatalf("CLAUDE.md written: %q", got)
+			}
+			_, err = e.m.Inspect(context.Background(), e.req())
+			wantPlain(t, err)
+		})
+	}
+}
+
+// Review m1, mutant PB: git is asked on every start that writes a block, not
+// only on one whose step 6 added a line. A .gitignore holding !CLAUDE.md
+// committed after the first start outranks lines already present.
+func TestIgnoredIsAskedWhenTheLinesAreAlreadyPresent(t *testing.T) {
+	e := newEnv(t)
+	e.src.set(inh(doc(idA, 6, "the brief")), nil)
+	if _, err := e.materialise(e.req()); err != nil {
+		t.Fatal(err)
+	}
+	first, ok := e.read(contextwrite.FileName)
+	if !ok {
+		t.Fatal("the first start wrote no CLAUDE.md")
+	}
+	e.age(contextwrite.FileName)
+	e.git.notIgnored = map[string]bool{contextwrite.FileName: true}
+	e.git.reset()
+	e.src.set(inh(doc(idA, 7, "the next revision")), nil)
+	_, err := e.materialise(e.req())
+	wantReason(t, err, api.BriefReasonWriteFailed)
+	e.untouched(contextwrite.FileName, first)
+	if got := e.git.ignoredAsked(); len(got) != 1 || got[0] != contextwrite.FileName {
+		t.Fatalf("Ignored asked of %q, want CLAUDE.md once", got)
 	}
 }

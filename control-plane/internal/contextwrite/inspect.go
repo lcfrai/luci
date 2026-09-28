@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -124,7 +123,7 @@ func (m *Materialiser) Inspect(ctx context.Context, req api.MaterialiseRequest) 
 		}
 	}
 	target := c.abs(c.target)
-	content, _, err := readForInspect(target)
+	content, _, err := readForInspect(dir, target)
 	if err != nil {
 		return Inspection{}, err
 	}
@@ -143,7 +142,7 @@ func (m *Materialiser) Inspect(ctx context.Context, req api.MaterialiseRequest) 
 			continue
 		}
 		p := c.abs(rel)
-		content, ok, err := readForInspect(p)
+		content, ok, err := readForInspect(dir, p)
 		if err != nil {
 			return Inspection{}, err
 		}
@@ -166,16 +165,14 @@ func (m *Materialiser) Inspect(ctx context.Context, req api.MaterialiseRequest) 
 }
 
 // readForInspect is readCandidate with a plain error: Inspect refuses
-// nothing, it only reports.
-func readForInspect(path string) (string, bool, error) {
-	b, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return "", false, nil
-	}
+// nothing, it only reports. The link rule (confine.go) holds here too, so no
+// host file is read through a link into an Inspection's Diff.
+func readForInspect(dir, path string) (string, bool, error) {
+	s, ok, err := readChecked(dir, path)
 	if err != nil {
 		return "", false, fmt.Errorf("contextwrite: inspect: %w", err)
 	}
-	return string(b), true, nil
+	return s, ok, nil
 }
 
 // stateOf is the target's own state against what a start would write now.

@@ -14,6 +14,10 @@
 // opened for writing, not even to strip a block from it (review I3): a
 // tracked file that already holds a block is repository text, left
 // byte-identical and listed in Inspect's Committed (re-review R-M1).
+//
+// THE LINK RULE (confine.go, review I-2): nothing below the worktree is
+// followed. The sandbox writes that tree, links included, and the host
+// would resolve them against its own filesystem.
 package contextwrite
 
 import (
@@ -162,20 +166,26 @@ var _ api.Materialiser = (*Materialiser)(nil)
 //     claudemd.ErrUnterminatedBlock / ErrDuplicateBlock → block_broken.
 //     Every new content is computed before anything is written, so a
 //     broken marker in either file writes nothing.
-//  6. The exclude line FIRST (review M13): whenever the target will hold a
-//     block, in a directory git manages, append "/CLAUDE.md" or
-//     "/.claude/CLAUDE.md" to the path Git.ExcludePath returns, if absent
-//     (asked on every such start, the target's bytes unchanged included, so
-//     a line a person removed comes back before the next write needs it).
-//     A Git.ExcludePath error is a plain error (500, step 2's Git rule); a
+//  6. The exclude lines FIRST (review M13): whenever the target will hold a
+//     block, in a directory git manages, append to the path Git.ExcludePath
+//     returns, each if absent, the target's line ("/CLAUDE.md" or
+//     "/.claude/CLAUDE.md") and its temp file's ("/.CLAUDE-*.md" or
+//     "/.claude/.CLAUDE-*.md": statepath.WriteAtomic's temp holds the whole
+//     brief until its rename, and a crash leaves it; review m2). Asked on
+//     every such start, the target's bytes unchanged included, so a line a
+//     person removed comes back before the next write needs it. Then ask
+//     Git.Ignored of the target (review m1): a .gitignore's "!CLAUDE.md"
+//     outranks info/exclude, so false → write_failed, and an error → a plain
+//     error. A Git.ExcludePath error is a plain error (500, step 2's Git rule); a
 //     failed read or write of the exclude file → write_failed. Either way
 //     the target is not opened for writing, so no brief text lands in a
 //     file git would stage (3-D6: an agent's `git add -A` commits an
 //     untracked, un-excluded CLAUDE.md). A strip that lands no brief text
 //     needs no line. ErrNotARepo (step 2): no line, nothing to exclude from.
 //  7. Write only if the bytes changed, with statepath.WriteAtomic(..., Shared),
-//     the other candidate's strip before the target's write. A file left
-//     holding only white space after a strip is removed. Any write error →
+//     the other candidate's strip before the target's write (review m7). A
+//     file left holding only white space after a strip is removed. Every
+//     write re-checks the link rule (confine.go) first. Any write error →
 //     write_failed. A failure here leaves step 6's line in place: it names
 //     a file that is absent or holds no new brief text, and step 6 would add
 //     it again next start anyway ("if absent").
@@ -215,14 +225,14 @@ func (m *Materialiser) Materialise(ctx context.Context, req api.MaterialiseReque
 	// Step 5, something: every new content first, nothing written yet.
 	var writes []pending
 	if other := c.other(); c.strippable(other) {
-		w, err := planStrip(c.abs(other))
+		w, err := planStrip(dir, c.abs(other))
 		if err != nil {
 			return api.MaterialiseResult{}, err
 		}
 		writes = append(writes, w)
 	}
 	target := c.abs(c.target)
-	existing, _, err := readCandidate(target)
+	existing, _, err := readCandidate(dir, target)
 	if err != nil {
 		return api.MaterialiseResult{}, err
 	}
@@ -233,11 +243,11 @@ func (m *Materialiser) Materialise(ctx context.Context, req api.MaterialiseReque
 	writes = append(writes, pending{path: target, old: existing, new: merged})
 
 	if c.repo { // step 6
-		if err := m.ensureExcluded(ctx, dir, c.excludeLine()); err != nil {
+		if err := m.ensureExcluded(ctx, dir, c.target); err != nil {
 			return api.MaterialiseResult{}, err
 		}
 	}
-	if err := apply(writes); err != nil { // step 7
+	if err := apply(dir, writes); err != nil { // step 7
 		return api.MaterialiseResult{}, err
 	}
 	m.log.Info("contextwrite: brief materialised", "worktree", req.WorktreeID, "key", in.Key, "file", c.target)
@@ -353,12 +363,13 @@ func (c choice) other() string {
 
 func (c choice) abs(rel string) string { return filepath.Join(c.dir, filepath.FromSlash(rel)) }
 
-// excludeLine is step 6's line for the target, "" outside git.
+// excludeLine is step 6's line naming the target itself, "" outside git
+// (Inspection.Excluded); step 6 also adds the temp file's (excludeLines).
 func (c choice) excludeLine() string {
 	if !c.repo {
 		return ""
 	}
-	return "/" + c.target
+	return excludeLines(c.target)[0]
 }
 
 // ── step 4: what the session inherits, shared with Inspect ──────────────────
@@ -373,6 +384,13 @@ func (m *Materialiser) inherit(ctx context.Context, req api.MaterialiseRequest) 
 	defer cancel()
 	in, err := m.src.Inheritable(bctx, discoverhub.Target{ProjectID: req.ProjectID, BranchID: req.BranchID})
 	if err == nil {
+		// The stamp is in.Key and the file's marker is in.Document's
+		// BriefID@Revision (claudemd.Render): they must name one revision, or
+		// the session's provenance and its file disagree (review m3).
+		mk, _ := markerKey(claudemd.Marker{BriefID: in.Document.BriefID, Revision: in.Document.Revision})
+		if in.Key != "" && (in.Document.Key != in.Key || mk != in.Key) {
+			return discoverhub.Inheritable{}, fmt.Errorf("contextwrite: Source answered key %q with a document keyed %q whose marker names %q", in.Key, in.Document.Key, mk)
+		}
 		return in, nil
 	}
 	var he *hubclient.Error
@@ -413,23 +431,20 @@ type pending struct {
 	remove   bool // a strip left only white space: remove the file
 }
 
-// readCandidate reads a candidate; an absent file is "" and exists false.
-// Any other error, a directory where the file should be included, is
-// write_failed.
-func readCandidate(path string) (string, bool, error) {
-	b, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return "", false, nil
-	}
+// readCandidate reads a candidate under the link rule (confine.go); an
+// absent file is "" and exists false. Any other error - a link, a directory
+// where the file should be, a read the disk refused - is write_failed.
+func readCandidate(dir, path string) (string, bool, error) {
+	s, ok, err := readChecked(dir, path)
 	if err != nil {
 		return "", false, writeFailed(path, err)
 	}
-	return string(b), true, nil
+	return s, ok, nil
 }
 
 // planStrip is a strip of path's block, not yet written.
-func planStrip(path string) (pending, error) {
-	existing, ok, err := readCandidate(path)
+func planStrip(dir, path string) (pending, error) {
+	existing, ok, err := readCandidate(dir, path)
 	if err != nil || !ok {
 		return pending{path: path}, err
 	}
@@ -450,18 +465,25 @@ func (m *Materialiser) stripAll(c choice) error {
 		if !c.strippable(rel) {
 			continue
 		}
-		w, err := planStrip(c.abs(rel))
+		w, err := planStrip(c.dir, c.abs(rel))
 		if err != nil {
 			return err
 		}
 		writes = append(writes, w)
 	}
-	return apply(writes)
+	return apply(c.dir, writes)
 }
 
-// apply writes, in order, every pending whose bytes changed.
-func apply(writes []pending) error {
+// apply writes, in order, every pending whose bytes changed, each path
+// re-checked under the link rule first: git ran between the plan and now.
+func apply(dir string, writes []pending) error {
 	for _, w := range writes {
+		if !w.remove && w.new == w.old {
+			continue
+		}
+		if _, err := checkPath(dir, w.path); err != nil {
+			return writeFailed(w.path, err)
+		}
 		switch {
 		case w.remove:
 			if err := os.Remove(w.path); err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -478,9 +500,12 @@ func apply(writes []pending) error {
 
 // ── step 6: the exclude line ────────────────────────────────────────────────
 
-// ensureExcluded appends line to the clone's info/exclude when no line of
-// it is already exactly line (a trailing "\r" ignored: git ignores it too).
-func (m *Materialiser) ensureExcluded(ctx context.Context, dir, line string) error {
+// ensureExcluded is step 6: it appends target's exclude lines to the
+// clone's info/exclude, each unless a line of the file is already exactly it
+// (a trailing "\r" ignored: git ignores it too; leading white space is part
+// of a git pattern, so "  /CLAUDE.md" is another line, review m8), and then
+// asks git whether it now ignores target (review m1).
+func (m *Materialiser) ensureExcluded(ctx context.Context, dir, target string) error {
 	path, err := m.git.ExcludePath(ctx, dir)
 	if err != nil {
 		return fmt.Errorf("contextwrite: git rev-parse --git-path info/exclude: %w", err)
@@ -488,22 +513,57 @@ func (m *Materialiser) ensureExcluded(ctx context.Context, dir, line string) err
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(dir, path)
 	}
-	existing, _, err := readCandidate(path)
+	path = filepath.Clean(path)
+	existing, _, err := readCandidate(dir, path)
 	if err != nil {
 		return err
 	}
-	for _, l := range strings.Split(existing, "\n") {
-		if strings.TrimSuffix(l, "\r") == line {
-			return nil
+	var add string
+	for _, line := range excludeLines(target) {
+		if !hasLine(existing, line) {
+			add += line + "\n"
 		}
 	}
-	if existing != "" && !strings.HasSuffix(existing, "\n") {
-		existing += "\n"
+	if add != "" {
+		if existing != "" && !strings.HasSuffix(existing, "\n") {
+			existing += "\n"
+		}
+		if err := statepath.WriteAtomic(path, []byte(existing+add), statepath.Shared); err != nil {
+			return writeFailed(path, err)
+		}
 	}
-	if err := statepath.WriteAtomic(path, []byte(existing+line+"\n"), statepath.Shared); err != nil {
-		return writeFailed(path, err)
+	ignored, err := m.git.Ignored(ctx, dir, target)
+	if err != nil {
+		return fmt.Errorf("contextwrite: git check-ignore -v -- %s: %w", target, err)
+	}
+	if !ignored {
+		return &api.MaterialiseError{
+			Reason: api.BriefReasonWriteFailed,
+			Message: "Git would still list " + filepath.Join(dir, filepath.FromSlash(target)) +
+				" although info/exclude names it: a .gitignore rule re-includes it (a line starting with !), and a .gitignore outranks info/exclude. " +
+				"The brief is not written to a file an agent's git add would commit. Remove that rule, or start without the brief.",
+		}
 	}
 	return nil
+}
+
+// excludeLines are step 6's lines for target: the file, and the temp file
+// statepath.WriteAtomic writes beside it, which holds the whole brief until
+// its rename and is what a crash between the two leaves (review m2).
+// "CLAUDE.md" gives "/CLAUDE.md" and "/.CLAUDE-*.md"; ".claude/CLAUDE.md"
+// gives "/.claude/CLAUDE.md" and "/.claude/.CLAUDE-*.md".
+func excludeLines(target string) []string {
+	i := strings.LastIndex(target, "/") + 1
+	return []string{"/" + target, "/" + target[:i] + statepath.TempPattern(target[i:])}
+}
+
+func hasLine(content, line string) bool {
+	for _, l := range strings.Split(content, "\n") {
+		if strings.TrimSuffix(l, "\r") == line {
+			return true
+		}
+	}
+	return false
 }
 
 // ── refusals ────────────────────────────────────────────────────────────────

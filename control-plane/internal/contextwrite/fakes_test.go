@@ -28,15 +28,36 @@ const (
 	idP = "bf-00000000000000c7" // a project brief a branch brief pins
 )
 
-// fakeGit answers Tracked per rel path and records every question.
+// fakeGit answers Tracked per rel path and records every question. Ignored
+// answers true unless notIgnored names the path.
 type fakeGit struct {
 	mu           sync.Mutex
 	tracked      map[string]bool
 	trackedErr   error // returned by every Tracked call when set
 	excludePath  string
 	excludeErr   error
+	notIgnored   map[string]bool
+	ignoredErr   error
+	onExclude    func() // runs inside ExcludePath: between step 5's plan and step 7's writes
 	trackedCalls []string
 	excludeCalls int
+	ignoredCalls []string
+}
+
+func (g *fakeGit) Ignored(_ context.Context, _ string, rel string) (bool, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.ignoredCalls = append(g.ignoredCalls, rel)
+	if g.ignoredErr != nil {
+		return false, g.ignoredErr
+	}
+	return !g.notIgnored[rel], nil
+}
+
+func (g *fakeGit) ignoredAsked() []string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return append([]string(nil), g.ignoredCalls...)
 }
 
 func (g *fakeGit) Tracked(_ context.Context, _ string, rel string) (bool, error) {
@@ -55,6 +76,9 @@ func (g *fakeGit) ExcludePath(_ context.Context, dir string) (string, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	g.excludeCalls++
+	if g.onExclude != nil {
+		g.onExclude()
+	}
 	if g.excludeErr != nil {
 		return "", g.excludeErr
 	}
@@ -68,7 +92,7 @@ func (g *fakeGit) ExcludePath(_ context.Context, dir string) (string, error) {
 func (g *fakeGit) reset() {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	g.trackedCalls, g.excludeCalls = nil, 0
+	g.trackedCalls, g.excludeCalls, g.ignoredCalls = nil, 0, nil
 }
 
 // askedBothOnce: Tracked was asked of each candidate exactly once.
