@@ -138,6 +138,23 @@ Go and desktop suites and samples host load, and a noisy host makes that measure
 | `whdyswpk3` | `wf_37eaca67-742` | SS `decisions-and-work-plan-wf_37eaca67-742.js` | none | markdown only |
 | `wpj0dpvxz` | `wf_484551ac-ab6` | SS `team-planfix-continue-wf_484551ac-ab6.js` | none | markdown only |
 
+### A workflow can be stalled and still look alive. CHECK THE JOURNAL MTIME.
+
+This has now cost time three times in one day. A run that has gone idle (a usage stop, a sign-out,
+an agent that died) reports no failure and stays in the task list looking like it is working. The
+only reliable liveness signal is when its journal was last written:
+
+```
+cd ~/.claude/projects/C--Users-au-dev-dmackie1-Projects-PanaceaApp/<session>/subagents/workflows
+ls -l --time-style=+%H:%M wf_*/journal.jsonl
+```
+
+A journal older than about 20 minutes is stalled, not busy: agents write a line on start and on
+result, and no single agent should be silent that long under the 180 s watchdog. **Do not trust the
+task list, and do not assume a resume worked** --- re-check the mtime a minute or two after
+resuming, which is the step that was missed each time. The fix is always the same: `TaskStop`, wait
+about 25 s, then `Workflow` with the same `scriptPath` and `resumeFromRunId`.
+
 **Why phase 2 first, and why the rest can wait.** Every stream sync-merges from
 `feat/phase-2-cockpit`. Until phase 2 lands on `main`, work done in any other stream is work that
 must be re-merged afterwards. Phase 2's gate is therefore not one of nine jobs; it is the bottleneck
