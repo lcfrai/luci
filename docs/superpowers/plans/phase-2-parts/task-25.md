@@ -1045,41 +1045,32 @@ The rendered-change rate is recorded, not asserted, and that is deliberate. The 
 
 Insert above `await main();`:
 
+**The `c4.pinned` draft that stood here is deleted, not left to be copied** (F5 fix round, review
+round 5, I3). Four fix rounds changed what that check asserts and why, and a second copy that
+disagrees with the shipped one is exactly the hazard convention 3D exists for. Read the shipped
+check — `desktop/e2e/phase2.e2e.mjs`, `check("c4.pinned", …)`. What is different there, so a reader
+of this plan is not surprised by it:
+
+1. **It establishes its own preconditions** — an idle shell and 3,000 lines of scrollback — and
+   waits for that burst to reach the **screen**, not merely the wire. `stdoutOf` is the raw
+   transcript and says nothing about what xterm has parsed.
+2. **Step 0 proves the scrollback on the idle shell, before the first tick**, because under live
+   output "the wheel did nothing" and "the registry yanked the pane back" leave the same screen, and
+   a discriminator that answers yes to both files a harness red as a product one.
+3. **The endless loop is a monotone counter, and it is started inside the `try`**, so `Control+C`
+   runs on every path out. A timeout that leaves it running poisons every later check — that is how
+   one red presented as five in run 4.
+4. **There is no step 5.** A bottom viewport follows new output by itself, with nothing calling
+   `scrollToBottom`, so a step 5 here would pass under the registry's own named regression. That
+   half of the rule is pinned where it can fail: `desktop/src/api/attachRegistry.test.ts`.
+5. **`observed` carries measured numbers only.** `followed: true` and `pinnedSamples: 30` were both
+   deleted — a field that is true whenever the line is reached is a claim the results document
+   cannot check.
+
+`c6.load` below has also moved on in one respect: it now CREATES its second shell when no live one
+is there, instead of throwing `no second live shell`.
+
 ```js
-check("c4.pinned", "real-browser carry 4: the pinned-scroll rule holds against real xterm's asynchronous parse", async (h) => {
-  await flipTo(h, "Columns");
-  const id = ctx.sh;
-  await type(h.page, id, "while :; do echo \"TI\"\"CK $RANDOM\"; sleep 0.05; done");
-  await until("ticks arriving", () => /TICK \d+/.test(stdoutOf(h, id)), 5_000);
-  const centre = await h.page.$eval(`${paneOf(id)} .xterm`, (el) => {
-    const r = el.getBoundingClientRect();
-    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-  });
-  await h.page.mouse.move(centre.x, centre.y);
-
-  // Scrolled up: sample the viewport for three seconds of arriving output. It must not move.
-  await h.page.mouse.wheel(0, -900);
-  await sleep(300);
-  const grown = stdoutOf(h, id).length;
-  const pinned = await screen(h.page, id);
-  for (let i = 0; i < 30; i += 1) {
-    await sleep(100);
-    const now = await screen(h.page, id);
-    if (now.join("\n") !== pinned.join("\n")) throw new Error(`scrolled up, the viewport moved at sample ${i}`);
-  }
-  if (stdoutOf(h, id).length <= grown) throw new Error("no output arrived while pinned; the check proved nothing");
-
-  // At the bottom: the last tick on screen must keep changing.
-  await h.page.mouse.wheel(0, 1_000_000);
-  await sleep(300);
-  const lastTick = async () => (await screen(h.page, id)).filter((r) => /TICK \d+/.test(r)).at(-1);
-  const first = await lastTick();
-  await until("the viewport to follow new output", async () => (await lastTick()) !== first, 3_000);
-
-  await h.page.keyboard.press("Control+C");
-  return { pinnedSamples: 30, followed: true };
-});
-
 check("c6.load", "real-browser carry 6: 4,000 lines/s for 10 s — usability asserted, render rate measured", async (h) => {
   const id = ctx.sh;
   const other = ctx.created.find((x) => x !== id && x !== ctx.claude && socketsFor(h, x).at(-1)?.closed === null);
@@ -1129,7 +1120,12 @@ PANACEA_E2E_CP_LOG="$E2E_ROOT/control-plane.log" PANACEA_E2E_ONLY=c1.cap,c4.pinn
 
 **What you must see:** `c4.pinned` `"ok":true`. `c6.load` `"ok":true`, and its `observed` — five numbers — goes into the results document verbatim and into step 16 item 5, where the owner watches the same burst with those numbers beside them. `burstSeconds` near 10 means the render kept up with the generator; much more than 10 means output queued behind the renderer, which is a finding for the owner to weigh, not a failure this check invents.
 
-**What a `c4.pinned` failure means.** *Scrolled up, the viewport moved* is carry 4's failure and a `CLAUDE.md` rule broken: the measurement of "was the user at the bottom" is taken on the wrong side of xterm's parse. *The viewport to follow* timing out is the opposite failure — a user at the bottom is left behind by new output — and it is the same timing question answered wrongly in the other direction. Both belong to task 19. *No output arrived while pinned* is a harness failure: the loop did not start, and the sample proved nothing either way.
+**What a `c4.pinned` failure means.** **Exactly one of its reds is a product defect.** *The pinned rule failed: scrolled up, with this pane's scrollback proved at step 0, the viewport moved at sample N* is carry 4's failure and a `CLAUDE.md` rule broken: the measurement of "was the user at the bottom" is taken on the wrong side of xterm's parse. That one belongs to task 19. Every other red names a precondition this run could not establish, and **none of them is evidence about the registry**:
+
+- *The viewport to follow new output* timing out **is not the opposite defect, and this plan said it was until the F5 fix round corrected it.** xterm follows a bottom viewport by itself, with nothing in the registry calling `scrollToBottom` (`f5-evidence/r3-xterm.json`, probes p1/p4/p5), so that wait cannot fail for a registry defect — it fails when the shell or the host is too slow, and it is a precondition, reported as nothing else.
+- *This pane has no scrollback* means the wheel-up moved nothing on an idle shell with 3,000 lines behind it: the terminal, the tile size or the burst is wrong, not the pinned rule.
+- *On step 0's descent / step 4's descent / the cleanup's return …, 40 wheel-down events did not reach the bottom* is the wheel against a bottom that moved; each red names which descent it was, so they cannot be confused for one another.
+- *No output arrived while pinned* is a harness failure: the loop did not start, and the sample proved nothing either way.
 
 - [ ] **Step 13: Durability — detach past the grace, reload the app, restart the control plane** · AGENT-PROVABLE
 
