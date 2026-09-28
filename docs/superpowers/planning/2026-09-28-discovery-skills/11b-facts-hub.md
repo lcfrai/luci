@@ -492,7 +492,110 @@ Each item is a fact about the file, not a proposal.
 
 ## 4. Where the thread is consumed downstream
 
-(Not started.)
+Every line below reads, carries, digests or renders a **brief key** or a resolved `Ref`. These are
+the places a term or decision reference would reach if it travelled the same way. Nothing here
+says it should.
+
+### 4.1 Phase 5, the canvas (`.claude/worktrees/phase-5`, `feat/phase-5-canvas` at `22675f39`)
+
+`P5` below is `docs/superpowers/plans/2026-09-23-phase-5-design-canvas.md`; `P5T:` is its parts
+directory `…-parts/task-`. Phase 5 has built through task 06, ops including `review_mark`
+(`.superpowers/sdd/p5/progress.md:896`, fix round `:936`).
+
+**Built code:**
+
+| Line | What it does with a brief key |
+|---|---|
+| `canvas/doc/op.go:25` | `OpReviewMark` — "BriefKey. Changes no content; exists so a re-review has a new design revision to approve" |
+| `canvas/doc/op.go:59` | `BriefKey string json:"briefKey,omitempty"` — "≤ 64 bytes; never parsed here (plan G9)" |
+| `canvas/doc/op.go:94` | `MaxBriefKeyBytes = 64` |
+| `canvas/doc/apply.go:1128-1140` | `reviewMark` refuses an empty key and one over 64 bytes, then records the op; "The key is bounded and never parsed here" |
+
+**Planned (unbuilt) — the rules:**
+
+- `P5:90`: the brief comes from "`discoverhub.Service` (phase 4) ─ HeadRef/Binding ► /v1/refs,
+  …/briefs/for-branch".
+- `P5:183` (D3 option A, "Pin and mark"): "a brief edit never voids an approval; it shows as
+  `superseded`, and a human re-reviews" by appending a `review_mark`.
+- `P5:216` (S4-P5.1): "one key-source selector for the canvas's approved brief key and its branch's
+  head brief key, both verbatim from route 22".
+- `P5:323-325` (G9): "Only the `provenance` package (phase 4) parses a brief key … The desktop
+  compares keys for equality and never splits one. **No TypeScript digest exists.**"
+- `P5:534` (S5-P7.1): "`design:` keys resolve through the Hub's `/v1/refs` … phase 7's release
+  manifest renders the approved design key".
+
+**Planned (unbuilt) — the carriers:**
+
+| Part | Line | What carries or reads the brief key |
+|---|---|---|
+| 08 review digest | `P5T:08.md:12`, `:113`, `:129`, `:139-146` | the review digest covers "the brief key reviewed against": `ReviewEnvelope.BriefKey` "verbatim (never parsed, G9)"; `ReviewDigest(d, briefKey)`; vectors at `@5` and `@6` |
+| 15 MCP read tools, `get_brief` | `P5T:15.md:71`, `:76`, `:170` | `BriefKey` in two tool results; "never parses a brief key to work it out" |
+| 20a `designapi` | `P5T:20.md:265` | `Superseded(ctx, briefKey)` "via Resolve + heads" |
+| 21 approval | `P5T:21.md:51-56`, `:66`, `:152-159`, `:193-198`, `:290-296`, `:358`, `:372` | `SnapshotInput{BriefKey, BriefDigest}`; `ReviewDigest(Doc, BriefKey)`; `ManifestWant.BriefKey`; `Manifest.briefKey`/`briefDigest`; `HeadBriefKey` "verbatim"; `Approve` sends `briefKey`, `briefDigest`; re-review marks the head key |
+| 22 handoff | `P5T:22.md:47`, `:64`, `:73`, `:257-259`, `:302` | the bundle's `BriefKey` checked against the approval record; `LinkSession{…, briefKey: ContextRef, …}`, the **stamped** key, not the approval's |
+| 27 desktop data | `P5T:27.md:11`, `:25`, `:53`, `:155` | `selectDesignBriefKeys`, a key source for phase 4's single loader: "every loaded approval's briefKey and each ApprovalState's non-"" headBriefKey" |
+| 28 Design lens | `P5T:28.md:34`, `:96`, `:100-103` | the superseded bar (*Approved against brief rev 5 … moved to rev 6*); the header chip shows `headBriefKey` before approval and the approval's `briefKey` after |
+| 30 end to end | `P5T:30.md:108` | asserts `GET /v1/refs?key=design:…@n` |
+
+### 4.2 Phase 7, the deploy connector (`.claude/worktrees/phase-7`, `feat/phase-7-deploy` at `0477c5a4`)
+
+`P7` below is `docs/superpowers/plans/2026-09-23-phase-7-deploy.md`; `P7T:` is its parts directory
+`…-parts/task-`. Phase 7 has built tasks 01-06 and slices 1-2 of task 07, the watcher
+(`.superpowers/sdd/p7/progress.md:441`, `:501`, `:530`, `:683`, `:715`, `:802`, `:845`).
+
+**Built code reads no brief key.** The watcher's Hub types are "DECLARED STAND-INS" because
+"control-plane/internal holds no hubapi and no hubclient package" in that worktree
+(`control-plane/internal/deploy/deploywatch/hubside.go:8-14`), and "What phase 7 deliberately does
+NOT know: a Hub status code, a Hub problem body, or the Hub's key rule" (`:16-17`). Its `Release`
+stand-in has no brief or pin field (`:49-60`); its `Event` has `Kind` and `ProjectID` only
+(`:64-67`). `targetedPins` reads confirmed releases per deployment, to tell "no release" from "not in
+the page" (`deploywatch/pins.go:10-40`).
+
+**Planned (unbuilt):**
+
+| Part | Line | What carries or reads the brief key |
+|---|---|---|
+| plan | `P7:104` | Ship takes `{branchId, commit, designKey?, noCache?}`: no brief field; the Hub takes the pin |
+| plan | `P7:156` (Q2) | "releases shipped outside the cockpit read *"no brief is recorded for this release"*" |
+| plan | `P7:841` | phase 5's approved `design:` key is passed as `designKey` at reserve; "the Hub never infers one" |
+| 07 watcher | `P7T:07.md:344` | a release not yet read shows *"pin not loaded"*, never *"no brief is recorded"* |
+| 08 the view | `P7T:08.md:114`, `:130`, `:134`, `:225`, `:416` | `release: ReleasePin \| null`; `"briefKey": … \| null` "passed to phase 4's loader; NEVER parsed here or in the desktop (P5)"; `designKey`; "The view carries `briefKey` and nothing of the brief" |
+| 09 Ship | `P7T:09.md:339`, `:471` | reserve with `briefId: null` and `designKey`; `TestPinPreviewMatchesTheHubsPin` against `hubclient.NewFake()` |
+| 10 rollback | `P7T:10.md:148` | `briefId: null`, the source release's `designKey` |
+| 13 desktop data | `P7T:13.md:101`, `:105`, `:343`, `:361` | `briefKey: string \| null`; `selectReleasePinKeys`, "R6's key source for Deploy"; test "pin keys are opaque": no `split(`, `indexOf("@")` or regex on a key |
+| 15 pin cell | `P7T:15.md:58`, `:149-150` | `usePinRef(briefKey)`; the two states *"no brief is recorded for this release"* and *"pin not loaded"* |
+| 17 release drawer | `P7T:17.md:97-99`, `:112`, `:149`, `:237` | `usePinManifest(briefKey)`; the design key shown "verbatim in mono … Never resolved or parsed here (P5)"; `ShippedManifest` from phase 4 |
+| 18 governance | `P7T:18.md:116` | auto-deploy says every push release will read *"no brief is recorded"* |
+
+### 4.3 What both phases route through: phase 4's `Ref` and its one loader
+
+Both phases hand brief keys to phase 4 rather than resolving them (`P5T:27.md:11`, `P7T:08.md:130`,
+`P7T:13.md:343`). The two things they reach, in `.claude/worktrees/phase-4` (`feat/phase-4-discover`
+at `ca737d92`; its ledger's last build entry is task 09, the Materialiser, fix round 1,
+`.superpowers/sdd/p4/progress.md:538-545`):
+
+- **`provenance.Ref`, built** (`control-plane/internal/provenance/ref.go:78-103`): "one brief key,
+  resolved. Cacheable for ever EXCEPT headRevision and latestCompleteRevision" (`:71-72`). Every
+  field is a brief field (`BriefID`, `Revision`, `Digest`, `Scope`, `Status`, `Inherits`, `Title`,
+  `Headline`, `Sections`, `Criteria`, …). Its `Resolution` has six values, the Hub's four plus
+  `none` and `unavailable` (`:14-31`). `10-decision-terms-beside-the-brief.md:61` records the owner's
+  authorisation that `Ref` "carries term and decision digests"; `ref.go` has no such field today.
+- **The one loader, planned** (phase 4 task 16, `…/2026-09-23-phase-4-discover-parts/task-16.md`,
+  unbuilt): "A key source returns the keys a surface currently shows. The loader unions them. A
+  later lens adds ONE entry to keySources and changes nothing else (phase 5: bound and approved
+  design keys; phase 7: release pins)" (`task-16.md:165-167`); `type KeySource = (s:
+  CockpitState) => readonly string[]` (`:168`); `keySources = [selectSessionContextRefs]` (`:174`);
+  the loader collects "union of keySources" (`:243`). Phase 5's `selectDesignBriefKeys`
+  (`P5T:27.md:155`) and phase 7's `selectReleasePinKeys` (`P7T:13.md:343`) are those entries.
+
+### 4.4 The rule every consumer repeats
+
+Every consumer above states that it does not parse a key: phase 5 `P5:323-325`, `canvas/doc/op.go:59`,
+`P5T:15.md:76`, `P5T:28.md:103`; phase 7 `hubside.go:16-17`, `P7T:08.md:130`, `P7T:13.md:361`,
+`P7T:17.md:112`, `:237`. The one parser allowed is phase 4's `provenance` (`key.go:1-2`; `PC:415`),
+and the Hub's own `hubapi` (§1.1). A key whose grammar is new reaches every consumer only as an
+opaque string, and reaches `Parse` in `key.go:56` and `ParseKey` in `hubapi/keys.go:96` as
+`ErrInvalidKey` until each grammar is extended.
 
 ## 5. Anything already planned that resembles a glossary or a decision record
 
