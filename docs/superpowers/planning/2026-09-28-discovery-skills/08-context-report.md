@@ -197,3 +197,14 @@ rule 12 says **four**. The contract therefore contradicts itself, not merely the
 a judgement for the owner, and it has a consequence either way: whichever count is correct,
 `ui-contract.md:564-565` needs the same edit as `AGENTIC-UX.md:79`. No file was changed on the
 strength of a guess.
+
+### One correction to the review itself
+
+The review says Authority is "nine action classes × four levels". `AGENTIC-UX.md:179` states no
+count, and the row list it gives has **ten** members: read · edit in own worktree · edit outside
+worktree · run tests · install dependency · run migration · touch infra/config · commit · push ·
+deploy. The first draft of the entry copied "nine" from the review while listing all ten, which is
+exactly the drift `CONTEXT.md` exists to prevent. The count is gone from the entry — it now reads "a
+grid of action classes … against four named levels", which is what the source supports. Whether the
+grid should have nine rows or ten is a product question no file answers; it is not recorded as an
+owner question because nothing in the tree claims nine except the review.

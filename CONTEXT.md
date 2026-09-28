@@ -225,7 +225,7 @@ the sub-rail list, `docs/FUNCTIONAL-SPEC.md:51`.
 ## Platform words
 
 **Authority** — what an agent may do without asking, **legislated in advance and never one number**:
-a grid of nine action classes (read · edit in own worktree · edit outside worktree · run tests ·
+a grid of action classes (read · edit in own worktree · edit outside worktree · run tests ·
 install dependency · run migration · touch infra/config · commit · push · deploy) against four named
 levels — **ASK FIRST · PROPOSE AND WAIT · ACT AND TELL ME · FULL**. Never a slider. Defaults inherit
 project → branch → agent, the inherited value shown greyed in place, and the level moves at runtime
