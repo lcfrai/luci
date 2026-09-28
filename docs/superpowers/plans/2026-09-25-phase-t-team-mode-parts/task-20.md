@@ -44,11 +44,16 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
    yield one Orchestrator and two identical answers, with no lock.
 4. **The Orchestrator needs its own delegation.** A worker delegation covers worker routes only
    (`task-01.md:301-307`), and the broker lets only an `orchestrator` delegation create an
-   Orchestrator (task 17 decision 5). So a member's first team launch creates the Orchestrator **only
-   if** a live `orchestrator`-class delegation for that owner and project is in task 11's cache;
-   otherwise the worker launches alone, which task 01 allows ("a worker the member launched with no
-   Orchestrator", `:296`), and the answer says `orchestrator: "awaiting-delegation"`. Who creates that
-   delegation is *Gap S20-1*.
+   Orchestrator (task 17 decision 5). **Task 21 creates it** (fix batch b07, S02-C7/S03-C1): on a
+   member's first team launch in a project its desktop calls route 46 — the only caller that may,
+   since Fleet is 403 there — and sends the id as `CreateAgentRequest.OrchestratorDelegation`. This
+   task resolves the delegation in that order: the request's field first, then task 11's cache for
+   that owner, project and class; either way it is re-read from the Hub and checked (S02-C6) before
+   anything is created, so the field is a hint and never an authority. Only if **both** are empty
+   does the worker launch alone, which task 01 allows ("a worker the member launched with no
+   Orchestrator", `:296`), and the answer says `orchestrator: "awaiting-delegation"`. That is now a
+   real fallback for a replayed or non-desktop request, not the everyday case. *Gap S20-1 is closed
+   by b07; see the gaps section.*
 5. **The policy is read, never composed, here.** `policy.Store.Effective(ctx, org, project, class)`
    (task 14, `task-14.md:407`) returns the rendered file, version and digest; the file goes into the
    spec's policy field (task 15), the digest into `PANACEA_APP_POLICY_SHA256` (task 13's `EnvDigest`,
@@ -160,6 +165,10 @@ type LaunchRequest struct {
 	Parent     model.AgentID
 	Ref        string // task 21's laptop ref; "" when Fleet-spawned
 	Instance   string // task 21's instance id; "" when Fleet-spawned
+	// OrchestratorDelegation is the owner's per-project orchestrator-class
+	// delegation, decoded from task 21's CreateAgentRequest (b07, S02-C7).
+	// Decision 4 prefers it to task 11's cache and re-checks it either way.
+	OrchestratorDelegation string
 }
 
 // Launched is Launch's answer. Orchestrator is set on a worker launch: the
@@ -328,7 +337,9 @@ records `Send`, and a settable clock. Principals: Alice as `member`, Vic as `vie
 | `TestConcurrentOrchestratorLaunchesMakeOne` | 8 goroutines call `EnsureOrchestrator` at once on `memstore` (which enforces the same partial unique rule as `0003`): one row, one create | a check-then-insert race |
 | `TestViewersLaunchIs403` | Vic's `Launch` → `ErrViewer`; no row, no create, no Orchestrator; over HTTP `403 role_forbids` | relying on task 12's route check alone, or creating a viewer's Orchestrator |
 | `TestFirstWorkerLaunchCreatesTheOrchestrator` | with `dl-a-o` live, Alice's first worker launch creates her Orchestrator; `OrchestratorState == "created"`; the second worker launch says `"live"` | an Orchestrator only on explicit request |
-| `TestNoOrchestratorDelegationWorkerRunsAlone` | with `dl-a-o` absent: the worker launches, no Orchestrator create, `"awaiting-delegation"` | creating an Orchestrator under a worker delegation |
+| `TestNoOrchestratorDelegationWorkerRunsAlone` | with `dl-a-o` absent from **both** the request field and the cache: the worker launches, no Orchestrator create, `"awaiting-delegation"` | creating an Orchestrator under a worker delegation |
+| `TestRequestOrchestratorDelegationBeatsTheCache` (b07) | `LaunchRequest.OrchestratorDelegation = dl-a-o` with task 11's cache empty for that key: the Orchestrator is created, `"created"`; the Hub read and the S02-C6 owner/project/class check still run on it | a cache-only lookup, which makes a member's first launch always `awaiting-delegation` (S02-C7) |
+| `TestRequestOrchestratorDelegationIsStillChecked` (b07) | the field naming Bob's `dl-b-o` on Alice's launch → `ErrDelegation`, no Orchestrator, nothing cached | trusting task 21's hint, which would hand the request field the authority route 46 exists to hold |
 | `TestAUProjectNeverMintsOnGlobal` | route source says `au`; fake keysmith answers `Route: global` → the key is revoked (`RevokeSession` recorded), nothing is `Send`-ed, the agent ends `failed` with `gateway_route_mismatch` | trusting keysmith's answer |
 | `TestAURouteDownFailsClosed` | route source errors → no broker create, no mint, launch fails; keysmith `503 route_unknown` after create → no token, no second mint with other parameters | a fallback of any kind |
 | `TestMintCarriesTheTeamTags` | a worker's first `MintRequest` has `Owner{tid,oid}` of the delegation owner, `TeamID`, `ProjectID`, `AgentID` = the `ag-…`, `SessionClass: worker`, `PodAddr: 10.244.3.17`, `Counterpart: ""` | Fleet's own identity in the tags, or a missing field |
@@ -527,11 +538,16 @@ Expected: no output. Decision 8's "no path in this file constructs a Global rout
 - That `status: idle` after a ready pod is the agent's true state. Status beyond `starting` and `ended`
   comes from task 34's observed activity and the cloud hook's `Notification` (§3.3 agent row); this
   task sets only the two it knows.
-- **Gap S20-1 — the Orchestrator's delegation.** Task 21 creates a `worker` delegation per cockpit
-  launch (`task-21.md:489`); nothing in the skeleton or a written part creates the owner's
-  `orchestrator`-class delegation, which only the owner's desktop can (route 46 is desk-only,
-  `task-01.md:259`). Until task 21 (or task 52) creates and renews it on a member's first team launch,
-  decision 4's "awaiting-delegation" is the answer and TM1-α has no Orchestrator. **This blocks task 33.**
+- **Gap S20-1 — the Orchestrator's delegation. CLOSED by fix batch b07** (S02-C7 from this side,
+  S03-C1 from task 21's). It read: task 21 creates a `worker` delegation per cockpit launch and
+  nothing creates the owner's `orchestrator`-class one, which only the owner's desktop can (route 46
+  is desk-only, `task-06.md:34`), so decision 4's "awaiting-delegation" is the answer for ever and
+  TM1-α has no Orchestrator. **Task 21 now owns it**: `EnsureOrchestratorDelegation` creates one per
+  project on a member's first team launch, keeps it in the registry's `TeamDelegations` table, renews
+  it on the same timer as the worker ones, and sends its id on `CreateAgentRequest`
+  (`task-21.md:411-421`, tests at `:479-483`). This task's side of the close is decision 4's
+  resolution order and `LaunchRequest.OrchestratorDelegation`. It no longer blocks task 33; task 33's
+  E2 is a check, not a gate on unplanned work.
 - **Gap S20-2 — the counterpart tag.** Phase 6's `MintRequest` has no counterpart
   (phase 6 `task-03.md:31`); this task adds `Counterpart` as a phase 6 delta the skeleton's delta table does not
   list for task 20, and `Counterparts` needs a producer (task 26's scheduler knows a turn's events; task
@@ -539,4 +555,8 @@ Expected: no output. Decision 8's "no path in this file constructs a Global rout
   batch b02 closed in tasks 01 and 06; they are no longer a dependency on an unwritten route.
 - **Gap S20-3 — a worker's worktree in the cloud.** The broker requires a machine and the worker needs
   its lane mounted from it; the machine-agent worktree call (phase 8 tasks 24b–25) is not wired here, and
-  task 21's `CreateAgentRequest` carries no machine or mount (`task-21.md:104-115`).
+  task 21's `CreateAgentRequest` carries no machine or mount (`task-21.md:104-121`).
+  **Open, and deliberately so** (b07): it is TM1-α's one accepted manual step, not unplanned work.
+  Task 33's E6 states it as an operator precondition beside E5's other human acts, and the lane
+  mount is task 47's / phase 8 tasks 24b–25's. Nothing before task 33 is expected to close it, so it
+  is not a blocker on the replan gate; it is a named cost of running TM1-α by hand.

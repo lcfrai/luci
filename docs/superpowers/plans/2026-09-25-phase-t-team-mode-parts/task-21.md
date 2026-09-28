@@ -113,6 +113,12 @@ type CreateAgentRequest struct {
 	Args       []string `json:"args"`       // backend.Spec.Args; may hold the private opening prompt (OD-24)
 	Delegation string   `json:"delegation"` // dl-…, created by the user's own Hub call
 	Task       string   `json:"task"`       // tk-… or ""; a worker the user launches by hand has none
+	// OrchestratorDelegation is the owner's per-project orchestrator-class
+	// delegation (b07). Optional: empty falls back to task 11's cache, and
+	// Fleet re-reads and re-checks whichever it uses, so this is a hint that
+	// saves a feed round trip, never an authority. Ignored on an orchestrator
+	// launch (Class == model.ClassOrchestrator uses Delegation itself).
+	OrchestratorDelegation string `json:"orchestratorDelegation,omitempty"`
 }
 
 // AgentJSON is Fleet's answer about one agent, as the laptop may see it. It
@@ -408,8 +414,9 @@ the Hub has revoked (route 47 answers 404/409) is deleted and re-created once, s
 and re-added is not stuck on a dead id. This is restart-safe for the same reason the session one
 is, and it is why a second launch makes no Hub call.
 
-**How Fleet learns it.** `CreateAgentRequest` gains `OrchestratorDelegation string` (task 20's
-`CreateAgentRequest`, `task-20.md:166-170`, is the consumer). Task 20 decision 4 uses that id when
+**How Fleet learns it.** `CreateAgentRequest` gains `OrchestratorDelegation string` (defined above
+with this task's other wire shapes; task 20 decodes it into `LaunchRequest.OrchestratorDelegation`,
+`task-20.md:166-171`). Task 20 decision 4 (`task-20.md:45-55`) uses that id when
 it is set, and falls back to task 11's cache lookup when it is not (a non-team or replayed
 request), so an Orchestrator is created on the member's **first** launch rather than on the first
 launch after the change feed catches up. Fleet still re-reads the delegation from the Hub before
