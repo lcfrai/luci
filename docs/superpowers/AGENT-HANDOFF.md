@@ -80,7 +80,7 @@ reads as "the agent died before it got there".
 
 | Moment | What changes |
 |---|---|
-| Within the first ten tool calls | the whole file, destination first, from the resume step's findings |
+| Your FIRST Write of the task, before any other file | the whole file, destination first, from the resume step's findings |
 | Every commit | section 2 gains the SHA; section 4 loses the paths it covered |
 | Every unit started or finished | section 3 |
 | Anything that goes wrong once | section 5 |

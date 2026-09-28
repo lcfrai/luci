@@ -102,3 +102,76 @@ trigger) · `06-sceptic.md` (does not touch this item; it rejected the product-s
 the practice items) · `build-stream-continue.js:53` (stream workspace path) ·
 `build-stream-continue.js:71` (new rule 13, before `STREAM LENS` at `:72`) · `RESUME.md:185-194`
 (the new subsection).
+
+## Fix round 1 — the read half (2026-09-28)
+
+Closes both Importants and both Minors of `09-baton-review.md`. The reviewer's recommendation is
+taken as given: **take the read half now, defer the copy into the live scripts.** Nothing was copied
+into `phase2-finish-*`, `decisions-and-work-plan-*` or `team-planfix-continue-*`.
+
+### What changed in `.superpowers/workflows/build-stream-continue.js`, line by line
+
+The file is git-ignored (`.git/info/exclude:8`), so `git diff` cannot show this and the ledger below
+is the record. Before: 171 lines, 21,191 bytes, md5 `adc707a49eb018fdf25572f9e65f9100`. After: 174
+lines, 22,918 bytes. `diff` against a byte copy taken before the first edit reports exactly four
+hunks — `71c71`, `97a98,99`, `106c108,109`, `124c127` — four lines out, five lines in, nothing else
+moved.
+
+1. **`:71`, rule 13 — Minor 1 and Minor 2.** One sentence replaced. Was *"Write it within your first
+   ten tool calls, overwrite it at every commit and every unit boundary, and never commit it."* Now
+   the trigger is an ordinal — *"Your FIRST Write in this task is the baton, before any other
+   file"* — and the schedule regains the two dropped moments: *"the first time anything goes wrong,
+   and BEFORE starting any command you expect to run over about two minutes (a kill mid-suite must
+   not cost you the baton)."* An ordinal trigger also satisfies rule 3's *first file write within
+   about 10 tool calls* by construction. The rest of rule 13, including the six sections and the
+   pointer to this convention, is unchanged.
+2. **`:98-99`, new paragraph in the resume step — Important 1, read half.** Inserted between the
+   survey paragraph (`:96`) and `VERIFY, on disk, in the worktree:` (now `:100`). It tells the
+   resume agent to read `${SDDW}/baton.md` whole *before* the survey if it exists, because it is the
+   only source written from inside the run that died; to treat its SHAs, in-flight unit and
+   uncommitted paths as **leads to verify, not facts**; that **the ledger wins** on conflict (which
+   matches `RESUME.md` §0d and `AGENT-HANDOFF.md:40-41`); and to say so in `notes` when no baton
+   exists. No schema change — `RESUME_OUT` is byte-identical, so a resumed run returns the same
+   shape.
+3. **`:109`, new final line of the resume prompt — Important 2, the contradiction.** The read-only
+   sentence at `:94` now has a second carve-out beside the ledger's: the step writes the baton from
+   what it just established, *"These two files are the ONLY writes this step may make --- both are
+   git-ignored, so neither is a commit, and 'change no file' above stands for everything else."* It
+   says to write it **before returning**, and names the cost it avoids: the reconstruction this step
+   produces is what a whole survey run rebuilt by hand on 2026-09-28.
+4. **`:127` (was `:124`), the finish step's do-not-re-apply sentence — Important 1, read half.** The
+   baton is now the first thing read, ahead of the task report, the ledger tail and `git log`, with
+   what each of its sections answers (SHAs already in the branch, salvage on disk, what not to
+   retry), followed by *"Verify the baton's claims against git log before relying on one; the ledger
+   and the log win where they disagree."* The original re-apply warning that follows is untouched.
+
+Renumbering, for anyone holding the review's citations: rule 13 is still `:71` and the read-only
+sentence is still `:94`; the old `:106` is now `:108`, and the old `:124` is now `:127`.
+
+### How it was verified without a diff
+
+- `node --check .superpowers/workflows/build-stream-continue.js` exits **0**.
+- Byte copy taken before the first edit, then `diff` — four hunks, listed above, and no hunk outside
+  rule 13, the resume prompt and the finish prompt.
+- Read of the whole rules block after the edit: rules 1–13 each appear once, in order, none
+  renumbered; rule 7 still sits inside the `S.docker` ternary at `:64`; `RESUME_OUT`, `IMPL`,
+  `REVIEW`, `REVIEWER` and the build loop are untouched.
+- The template literal that the resume prompt lives in closes on its original backtick at `:109` —
+  checked by reading the line, because an escaped backtick would still pass `node --check`.
+
+### Convention change
+
+`docs/superpowers/AGENT-HANDOFF.md:83`, first row of the schedule: *"Within the first ten tool
+calls"* → *"Your FIRST Write of the task, before any other file"*. This one **is** in git. The other
+four rows, including *"Before any command over about two minutes"* at `:87`, were already correct;
+the drift was rule 13's, and it is now gone.
+
+### Still open for the owner
+
+**Should rule 13 be copied into `phase2-finish-*`, `decisions-and-work-plan-*` and
+`team-planfix-continue-*`?** Deferred, not decided: two of those runs are executing now, and editing
+a live run's script can void it. The cost of waiting is that those chains still die leaving nothing
+behind. Revisit when they finish.
+
+**Minor 3 stands unfixed** and is not this chain's to fix: the workflow scripts are git-ignored, so
+rule 13 survives a restart of this host but not a re-clone, and no review will ever see it in a diff.
