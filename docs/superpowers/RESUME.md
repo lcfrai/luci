@@ -123,22 +123,40 @@ gitx ~1110 s). Three p3 runs were already VOIDED by host-kill artifacts under lo
 fragility as the `vitest` forks-pool worker timing out after 60 s on an idle host. They start once
 the F5 diagnostic in `w1yw8vduj` has its answer, because F5 only reproduces on a quiet host.
 
-## 0d. SUPERSEDES 0c — every stream live, 2026-09-28 16:30
+## 0d. SUPERSEDES 0c — THREE AT A TIME, 2026-09-28 16:45
 
-Nine workflows running, all in session `56a311e8-…`. **Resume each with `resumeFromRunId` and the
-same args**; they all cache-resume correctly (verified across two usage stops today).
+**The owner's standing instruction: at most three workflows at once, focused on the thing being
+worked on.** Nine were running at 16:30 and that was too many for a host that kills freshly spawned
+processes under load. Six were stopped at 16:45. Keep to three.
 
-| Task | Run | Script | Args |
+**Running now.** Only ONE of these is CPU-heavy, deliberately, because phase 2's gate runs the full
+Go and desktop suites and samples host load, and a noisy host makes that measurement worthless.
+
+| Task | Run | Script | Args | Load |
+|---|---|---|---|---|
+| `wrjek55n0` | `wf_0906a1dd-444` | SS `phase2-finish-wf_0906a1dd-444.js` | none | heavy; the critical path |
+| `whdyswpk3` | `wf_37eaca67-742` | SS `decisions-and-work-plan-wf_37eaca67-742.js` | none | markdown only |
+| `wpj0dpvxz` | `wf_484551ac-ab6` | SS `team-planfix-continue-wf_484551ac-ab6.js` | none | markdown only |
+
+**Why phase 2 first, and why the rest can wait.** Every stream sync-merges from
+`feat/phase-2-cockpit`. Until phase 2 lands on `main`, work done in any other stream is work that
+must be re-merged afterwards. Phase 2's gate is therefore not one of nine jobs; it is the bottleneck
+all nine sit behind.
+
+**STOPPED at 16:45, resume in this order as slots free.** All six cache-resume; each stopped agent
+left work on disk, and `build-stream-continue.js` is written to finish an in-flight unit rather than
+restart it, so a stop costs only the agent that was mid-flight.
+
+| Order | Task (dead) | Run to resume | Args |
 |---|---|---|---|
-| `wrjek55n0` | `wf_0906a1dd-444` | SS `phase2-finish-wf_0906a1dd-444.js` | none |
-| `whdyswpk3` | `wf_37eaca67-742` | SS `decisions-and-work-plan-wf_37eaca67-742.js` | none |
-| `wpj0dpvxz` | `wf_484551ac-ab6` | SS `team-planfix-continue-wf_484551ac-ab6.js` | none |
-| `wn4g4dv3j` | `wf_db8975b8-5a9` | WS `build-stream-continue.js` | `{"stream":"env","hold":["21","21b","24b","25","25b","26","32","33"]}` |
-| `whcgoid8s` | `wf_d6da5566-ba9` | WS `build-stream-continue.js` | `{"stream":"p7"}` |
-| `wb23s35g3` | `wf_18320e57-798` | WS `build-stream-continue.js` | `{"stream":"p5"}` |
-| `way0zvvut` | `wf_73e0823f-780` | WS `build-stream-continue.js` | `{"stream":"hub"}` |
-| `w9lw6pdf6` | `wf_b06641ca-c04` | WS `build-stream-continue.js` | `{"stream":"p4"}` |
-| `w3g2vgwni` | `wf_f63fb5fa-410` | WS `build-stream-continue.js` | `{"stream":"p3"}` |
+| 1 | `way0zvvut` | `wf_73e0823f-780` | `{"stream":"hub"}` — most depended on; p4, p5, team and work all need Hub code |
+| 2 | `wn4g4dv3j` | `wf_db8975b8-5a9` | `{"stream":"env","hold":["21","21b","24b","25","25b","26","32","33"]}` — unblocks p6 task 08a |
+| 3 | `w3g2vgwni` | `wf_f63fb5fa-410` | `{"stream":"p3"}` — heaviest suites (lanes ~974 s, gitx ~1110 s); run it with the fewest neighbours |
+| 4 | `w9lw6pdf6` | `wf_b06641ca-c04` | `{"stream":"p4"}` |
+| 5 | `whcgoid8s` | `wf_d6da5566-ba9` | `{"stream":"p7"}` |
+| 6 | `wb23s35g3` | `wf_18320e57-798` | `{"stream":"p5"}` |
+
+All six use WS `build-stream-continue.js`.
 
 **`build-stream-continue.js` is the script every build stream now uses.** It runs NO gate and NO
 triage, so it cannot re-merge a moved `feat/phase-2-cockpit` into a half-finished fix round and
