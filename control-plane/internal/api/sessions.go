@@ -722,6 +722,12 @@ var sessionReadyDone func(sessionID string)
 // sessionErrMoved aborts a Store.Update whose precondition no longer holds.
 // Returning an error from mutate discards the change, which is exactly the
 // behaviour wanted: a watch whose sandbox has been replaced must write nothing.
+//
+// AMENDED by the f1-f3 fix round (review I-4): three writers use it now, not
+// one. The two second writes of a create — the ones that record the endpoint —
+// carry the same precondition, because since F1 they can land a whole create
+// grace after the caller went away, onto a record a DELETE has since taken
+// terminal. The message says "the watch" because that is where it started.
 var sessionErrMoved = errors.New("api: the session moved on while the watch was in flight")
 
 // sessionCreateRequest is the body of POST /v1/sessions, contract §3.9. Every
@@ -831,6 +837,58 @@ func (a *API) destroyAfterFailedCreate(sandboxID, sessionID string) {
 		a.sessionLog().Warn("could not destroy the sandbox of a create that failed; the reaper will reclaim it",
 			"sessionId", sessionID, "sandbox", sandboxID, "err", err)
 	}
+}
+
+// destroyAbandonedSandbox is destroyAfterFailedCreate's twin for a create that
+// SUCCEEDED and whose record moved on under it. Same best-effort shape, its own
+// log line, because "the create failed" and "the session was killed while it
+// ran" are different operational stories and an operator reads the difference.
+func (a *API) destroyAbandonedSandbox(sandboxID, sessionID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), sessionDestroyBudget)
+	defer cancel()
+	if err := a.deps.Backend.Destroy(ctx, sandboxID); err != nil && !errors.Is(err, backend.ErrNotFound) {
+		a.sessionLog().Warn("could not destroy the sandbox of a session that moved on mid-create; the reaper will reclaim it",
+			"sessionId", sessionID, "sandbox", sandboxID, "err", err)
+	}
+}
+
+// sessionMovedOnMidCreate answers the second write of a create or of a restart
+// — the write that records the endpoint the backend just handed back — when the
+// record no longer wants the container that create made. It reports whether it
+// answered the request.
+//
+// The record can move under a detached create three ways: a DELETE takes it
+// terminal, a DELETE ...?purge=true removes it, or another restart points it at
+// a different sandbox. F1 part 1 widened that window from the instant of the
+// caller's abort to the whole create grace, so it is an interleave a user
+// reaches by killing a session while it is starting.
+//
+// Two things follow, and they are the two watchSessionReady already does for
+// its own write. Write nothing: an endpoint on an `exited` record contradicts
+// Go contract §5.3, is permanent — markExited refuses an already-exited record
+// and rule 3a leaves the record alone by design — and defeats
+// handleSessionDelete's alreadyTerminal test, which is what stops a daemon
+// outage trapping a record that can never be purged. And destroy the container:
+// the reaper is the backstop, not the plan, and neither of its rules for this
+// shape runs sooner than a sweep away.
+func (a *API) sessionMovedOnMidCreate(w http.ResponseWriter, r *http.Request, err error, sandboxID, sessionID string) bool {
+	moved := errors.Is(err, sessionErrMoved)
+	gone := errors.Is(err, registry.ErrNotFound)
+	if !moved && !gone {
+		return false
+	}
+	a.destroyAbandonedSandbox(sandboxID, sessionID)
+	if gone {
+		httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeSessionNotFound,
+			"No session with that id.", map[string]string{"id": sessionID})
+		return true
+	}
+	// 409, not the 201 or the 200 the happy path writes: nothing the caller
+	// asked for is true any more, and the body would otherwise be a terminal
+	// record answering a verb that is supposed to have started something.
+	httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
+		"The session was ended while its sandbox was being created.", map[string]string{"id": sessionID})
+	return true
 }
 
 // handleSessionCreate is contract §5.1, in its order, and the order is the
@@ -1055,12 +1113,22 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	stored, err := a.deps.Store.Update(sessionID, func(sess *registry.Session) error {
+		// The precondition watchSessionReady's write has had since task 13, on
+		// the write it was missing from: this create's record must still be
+		// starting and must still name the sandbox this create is making.
+		// sessionMovedOnMidCreate says what happens when it is not.
+		if sess.SandboxID != sessionID || sess.Status != registry.StatusStarting {
+			return sessionErrMoved
+		}
 		sess.SandboxID = sb.ID
 		sess.SandboxRef = sb.Ref
 		sess.Endpoint = sb.Endpoint
 		return nil
 	})
 	if err != nil {
+		if a.sessionMovedOnMidCreate(w, r, err, sb.ID, sessionID) {
+			return
+		}
 		a.internal(w, r, "record the sandbox for session "+sessionID, err)
 		return
 	}
@@ -1746,16 +1814,19 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Second write, and it carries only what the create told us: the id and the
-	// token are already on the record. Mirrors create's own second write.
+	// token are already on the record. Mirrors create's own second write,
+	// precondition included — this path is the more exposed of the two, because
+	// it runs on a record that was `exited` moments before.
 	updated, err := a.deps.Store.Update(id, func(sess *registry.Session) error {
+		if sess.SandboxID != sandboxID || sess.Status != registry.StatusStarting {
+			return sessionErrMoved
+		}
 		sess.SandboxRef = sb.Ref
 		sess.Endpoint = sb.Endpoint
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, registry.ErrNotFound) {
-			httpx.WriteProblem(w, http.StatusNotFound, httpx.CodeSessionNotFound,
-				"No session with that id.", map[string]string{"id": id})
+		if a.sessionMovedOnMidCreate(w, r, err, sb.ID, id) {
 			return
 		}
 		a.internal(w, r, "record the restarted sandbox", err)
