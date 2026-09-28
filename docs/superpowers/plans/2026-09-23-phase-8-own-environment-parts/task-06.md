@@ -281,7 +281,7 @@ mock subnet ids and `outbound_type = "userAssignedNATGateway"`):
 | `version_must_be_a_minor` | `kubernetes_version = "1.33.2"` → `expect_failures` | a pinned patch that blocks the patch channel |
 | `sandbox_max_must_exceed_zero` | `sandbox_pool.max_count = 0` → `expect_failures` | a pool that can never run a session |
 
-`control-plane/internal/sandbox/pool_contract_test.go` (Go, reads files, no Terraform):
+`control-plane/internal/sandbox/pool_contract_test.go` (Go, reads files, no OpenTofu):
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
@@ -293,7 +293,7 @@ holding `go.work`, so it runs the same from `go test ./control-plane/...` at the
 
 #### Steps
 
-- [ ] **Step 1:** Variables, outputs skeleton and the Terraform tests; validate fails.
+- [ ] **Step 1:** Variables, outputs skeleton and the OpenTofu tests; validate fails.
 - [ ] **Step 2:** `identity.tf`, then the cluster, then `pools.tf`, then `diagnostics.tf`, running
   the tests after each.
 - [ ] **Step 3:** Write `pool_contract_test.go`; run
@@ -309,9 +309,9 @@ holding `go.work`, so it runs the same from `go test ./control-plane/...` at the
 bash infra/scripts/validate.sh infra/terraform/modules/aks
 # validate: OK   infra/terraform/modules/aks
 # validate: 1 ok, 0 failed                            (exit 0)
-#   validate.sh prints a step's own output only when that step fails, so terraform test's
+#   validate.sh prints a step's own output only when that step fails, so tofu test's
 #   "Success! 14 passed, 0 failed." is NOT on stdout on a green run (task 04 review 1, M3);
-#   run terraform test in the module directory to see the count.
+#   run tofu test in the module directory to see the count.
 go test ./control-plane/internal/sandbox/ -run 'TestSandboxPool' -race -count=1
 # ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox
 ```

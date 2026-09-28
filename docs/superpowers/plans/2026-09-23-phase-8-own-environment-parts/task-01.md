@@ -4,15 +4,15 @@
 (`infra/terraform/kata.tf:4-6`, `variables.tf:1-4`, and `dev.tfvars:4`, whose comment supplies the
 id from `az aks show -g rg-aks-panacea-dev -n aks-panacea-dev`). OD-5 makes that target obsolete:
 the pool belongs in our own cluster (survey §3.1, `:342-344`). This task retires the root and puts
-in its place the skeleton every later Terraform task writes into, plus the two scripts that make
+in its place the skeleton every later OpenTofu task writes into, plus the two scripts that make
 the rules mechanical rather than remembered.
 
 **Verified before this plan was written (2026-09-23, scratch directory, not this repo):**
-`terraform init -backend=false` downloads `hashicorp/azurerm` 4.81.0, `hashicorp/azuread` 3.9.0
-and `azure/azapi` 2.12.0 through the corporate network; and `terraform test` with
+`tofu init -backend=false` downloads `hashicorp/azurerm` 4.81.0, `hashicorp/azuread` 3.9.0
+and `azure/azapi` 2.12.0 through the corporate network; and `tofu test` with
 `mock_provider "azurerm" {}` / `mock_provider "azuread" {}` passes a `command = plan` run, an
 `expect_failures = [var.name]` run and a `command = apply` run **with no Azure credential** — the
-basis for every Terraform test in this plan. The three runs took about **100 seconds** on the build
+basis for every OpenTofu test in this plan. The three runs took about **100 seconds** on the build
 laptop (provider start-up dominates), so `validate.sh` takes one directory at a time and a caller
 runs it per directory, in the background when a directory has many runs.
 
@@ -23,7 +23,7 @@ runs it per directory, in the background when a directory has many runs.
 - `infra/scripts/guards.sh` — the ten repository rules as named checks (new)
 - `infra/scripts/guards_test.sh` — one fixture tree per rule, each a mutant guards.sh must kill (new)
 - `.gitattributes` — `eol=lf` for `*.tf`, `*.tfvars`, `*.hcl`, `*.tftest.hcl`, `*.sh`, `*.yaml`, `*.yml`, `*.tpl` (new)
-- `.gitignore` — adds `*.tfplan`, `crash*.log`, `infra/terraform/modules/**/.terraform.lock.hcl`, `override.tf`, `override.tf.json`, `*_override.tf`, `*_override.tf.json` (modify; the override lines keep runbook §2's local-backend file out of git, review I2; Terraform treats the bare names as override files too, plan re-review b04 round 1, finding 6)
+- `.gitignore` — adds `*.tfplan`, `crash*.log`, `infra/terraform/modules/**/.terraform.lock.hcl`, `override.tf`, `override.tf.json`, `*_override.tf`, `*_override.tf.json` (modify; the override lines keep runbook §2's local-backend file out of git, review I2; OpenTofu treats the bare names as override files too, plan re-review b04 round 1, finding 6)
 
 #### The layout (every later task writes into exactly this)
 
@@ -46,21 +46,21 @@ earlier stack never reads a later one.
 
 ```bash
 #!/usr/bin/env bash
-# infra/scripts/validate.sh — the ONLY Terraform commands this phase may run (the one exception
-# is task 07's by-hand `terraform graph` of the foundation stack: config only, review m8).
+# infra/scripts/validate.sh — the ONLY OpenTofu commands this phase may run (the one exception
+# is task 07's by-hand `tofu graph` of the foundation stack: config only, review m8).
 #
 #   infra/scripts/validate.sh                 every dir under modules/ and stacks/
 #   infra/scripts/validate.sh <dir> [<dir>…]  just these, relative to the repo root
 #
 # For each directory, in order, stopping that directory at the first failure:
-#   1. terraform fmt -check -recursive -diff
-#   2. stacks:  terraform init -backend=false -input=false -lockfile=readonly
-#      modules: terraform init -backend=false -input=false
-#   3. terraform validate -no-color
-#   4. if the directory has a *.tftest.hcl, in tests/ or at its root (terraform test runs both,
+#   1. tofu fmt -check -recursive -diff
+#   2. stacks:  tofu init -backend=false -input=false -lockfile=readonly
+#      modules: tofu init -backend=false -input=false
+#   3. tofu validate -no-color
+#   4. if the directory has a *.tftest.hcl, in tests/ or at its root (tofu test runs both,
 #      plan re-review b04-2 M2):
-#        modules: terraform test -no-color
-#        stacks:  terraform test -no-color -var-file=<env>.tfvars, once per <env>.tfvars in the
+#        modules: tofu test -no-color
+#        stacks:  tofu test -no-color -var-file=<env>.tfvars, once per <env>.tfvars in the
 #                 stack, so every committed tfvars file is proven to plan against mocks. The
 #                 test files supply only what tfvars may not hold (ids, as TF_VAR_* would).
 #                 A file-level `variables` block in a .tftest.hcl OVERRIDES -var-file
@@ -113,29 +113,29 @@ control on the write connections (task 30, and the plan's "Deploy identities" ta
 
 | Id | Rule | Why |
 |---|---|---|
-| G1 | No `terraform.tfvars` and no `*.auto.tfvars` anywhere (nor their `.json` forms, which Terraform auto-loads too); no `*.tf.json` or `*.tfvars.json` anywhere, the two JSON override names excepted; and no override file tracked by git (`git ls-files`): `override.tf`, `override.tf.json`, `*_override.tf` or `*_override.tf.json`, the four names Terraform loads as overrides. Outside a git work tree the tracked check cannot run, and G1 fails | auto-loaded tfvars is how a bare `apply` hit Panacea's production (survey §1.1, `:46-51`). An override file silently replaces the block it names, including `backend`: runbook §2 writes an uncommitted `backend_override.tf` for the one local-state bootstrap apply (review I2), and a tracked one would swap any stack's backend for local state. JSON configuration is refused because G3, G5, G9 and G10 read HCL only, so a `.tf.json` would slip past four rules; refusing it makes every rule cover every legal form (task 01 review M3). Other JSON under `infra/` is not Terraform (task 30's `infra/rbac/*.json` role definitions) and passes |
+| G1 | No `terraform.tfvars` and no `*.auto.tfvars` anywhere (nor their `.json` forms, which OpenTofu auto-loads too); no `*.tf.json` or `*.tfvars.json` anywhere, the two JSON override names excepted; and no override file tracked by git (`git ls-files`): `override.tf`, `override.tf.json`, `*_override.tf` or `*_override.tf.json`, the four names OpenTofu loads as overrides. Outside a git work tree the tracked check cannot run, and G1 fails | auto-loaded tfvars is how a bare `apply` hit Panacea's production (survey §1.1, `:46-51`). An override file silently replaces the block it names, including `backend`: runbook §2 writes an uncommitted `backend_override.tf` for the one local-state bootstrap apply (review I2), and a tracked one would swap any stack's backend for local state. JSON configuration is refused because G3, G5, G9 and G10 read HCL only, so a `.tf.json` would slip past four rules; refusing it makes every rule cover every legal form (task 01 review M3). Other JSON under `infra/` is not OpenTofu (task 30's `infra/rbac/*.json` role definitions) and passes |
 | G2 | No `*.tfvars` contains a GUID (`[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}`) | subscription, tenant and object ids arrive as `TF_VAR_*` / `ARM_*`, never in source |
-| G3 | Every `*.tftest.hcl` declares a `mock_provider` for **every** provider named in a `required_providers` block of any `.tf` in its directory (`versions.tf` by convention). Its directory is the parent of `tests/` for a file in `tests/`, and its own directory for a root-level file, which `terraform test` runs too (plan re-review b04-2 minor 2) | a test without a mock would call Azure |
+| G3 | Every `*.tftest.hcl` declares a `mock_provider` for **every** provider named in a `required_providers` block of any `.tf` in its directory (`versions.tf` by convention). Its directory is the parent of `tests/` for a file in `tests/`, and its own directory for a root-level file, which `tofu test` runs too (plan re-review b04-2 minor 2) | a test without a mock would call Azure |
 | G4 | No `provider "kubernetes"`, `provider "helm"`, and no `hashicorp/kubernetes` or `hashicorp/helm` source anywhere | P8-D3 |
-| G5 | Every `stacks/*/backend.tf` holds exactly `backend "azurerm" {}` with an empty body, and a stack with no `backend.tf` fails too | partial config only; no storage account name in source. Missing counts as a failure because `terraform init -backend-config=<file>` on a configuration with no backend block exits 0, with only a "Missing backend configuration" warning, and uses local state (Terraform 1.15.8 probe, task 01 review I3): the pipeline's init would succeed and an apply would leave state on the agent's disk |
-| G6 | No `provisioner "local-exec"` or `"remote-exec"` | a provisioner is a script Terraform cannot plan |
+| G5 | Every `stacks/*/backend.tf` holds exactly `backend "azurerm" {}` with an empty body, and a stack with no `backend.tf` fails too | partial config only; no storage account name in source. Missing counts as a failure because `tofu init -backend-config=<file>` on a configuration with no backend block exits 0, with only a "Missing backend configuration" warning, and uses local state (Terraform 1.15.8 probe, task 01 review I3): the pipeline's init would succeed and an apply would leave state on the agent's disk |
+| G6 | No `provisioner "local-exec"` or `"remote-exec"` | a provisioner is a script OpenTofu cannot plan |
 | G7 | Every `stacks/*/` has a `.terraform.lock.hcl` **tracked by git** (`git ls-files --error-unmatch`) | reproducible providers |
 | G8 | No attribute named `administrator_password`, `administrator_password_wo`, `client_secret` or `admin_password` in any `.tf` | P8-D10, P8-D11: there is no password to set |
-| G9 | Every `source =` inside a `required_providers` block, and every `provider "registry.terraform.io/<ns>/<name>"` in a `.terraform.lock.hcl`, is one of `hashicorp/azurerm`, `hashicorp/azuread`, `azure/azapi` | a provider is a program that runs at plan time with the pipeline's token: `data "external"` runs any command. A resource type used without a `required_providers` entry makes Terraform infer `hashicorp/<prefix>`, which only the lock file shows. The allowlist in G9 and `terraform init -lockfile=readonly` (task 30's `tf-stack.sh`) catch this together (review C3) |
-| G10 | In every `*.tftest.hcl` under `stacks/<x>/`, in `tests/` or at the stack root alike (`terraform test` runs both; plan re-review b04-2 minor 2), the file-level `variables { … }` block (the one outside any `run`) holds no key that any `stacks/<x>/*.tfvars` sets, and is not written on one line | a file-level `variables` block overrides `-var-file` (Terraform 1.15.8 probe: file `environment = "dev"`, `-var-file` `"prod"`, the run saw `"dev"`; review I1), so a file-level `environment` turns validate.sh's `prod.tfvars` run into a second dev run. Environment-specific values a run depends on go in that run's own `variables` block. `terraform fmt` puts a file-level block at column 0 and a run's at column 2, so G10 reads the lines between `^variables {` and `^}` for `^  <key> *=` (column 2, then **any** run of spaces before `=`), against every tfvars' `^<key> *=`. The `*` is load-bearing: `fmt` lines up the `=` of consecutive attributes, so a short key under a long one is written `  environment             = "dev"` (Terraform 1.15.8 probe, plan re-review b04 round 1, finding 2), and a single-space pattern would miss the very layout `fmt` produces. That is not the only layout `fmt -check` accepts: `fmt` leaves a one-argument block on one line, so `variables { environment = "dev" }` passes `fmt -check` (exit 0) with the key on the opener line, which "the lines between" leaves out (plan re-review b04-2 important 1, probe p1; re-probed in task 01 with Terraform 1.15.8). So G10 fails any file-level block written on one line (`^variables *\{.*=`), naming the file, whatever its key; the multi-line layout it reads is then the only legal one |
+| G9 | Every `source =` inside a `required_providers` block, and every `provider "registry.terraform.io/<ns>/<name>"` in a `.terraform.lock.hcl`, is one of `hashicorp/azurerm`, `hashicorp/azuread`, `azure/azapi` | a provider is a program that runs at plan time with the pipeline's token: `data "external"` runs any command. A resource type used without a `required_providers` entry makes OpenTofu infer `hashicorp/<prefix>`, which only the lock file shows. The allowlist in G9 and `tofu init -lockfile=readonly` (task 30's `tf-stack.sh`) catch this together (review C3) |
+| G10 | In every `*.tftest.hcl` under `stacks/<x>/`, in `tests/` or at the stack root alike (`tofu test` runs both; plan re-review b04-2 minor 2), the file-level `variables { … }` block (the one outside any `run`) holds no key that any `stacks/<x>/*.tfvars` sets, and is not written on one line | a file-level `variables` block overrides `-var-file` (Terraform 1.15.8 probe: file `environment = "dev"`, `-var-file` `"prod"`, the run saw `"dev"`; review I1), so a file-level `environment` turns validate.sh's `prod.tfvars` run into a second dev run. Environment-specific values a run depends on go in that run's own `variables` block. `tofu fmt` puts a file-level block at column 0 and a run's at column 2, so G10 reads the lines between `^variables {` and `^}` for `^  <key> *=` (column 2, then **any** run of spaces before `=`), against every tfvars' `^<key> *=`. The `*` is load-bearing: `fmt` lines up the `=` of consecutive attributes, so a short key under a long one is written `  environment             = "dev"` (Terraform 1.15.8 probe, plan re-review b04 round 1, finding 2), and a single-space pattern would miss the very layout `fmt` produces. That is not the only layout `fmt -check` accepts: `fmt` leaves a one-argument block on one line, so `variables { environment = "dev" }` passes `fmt -check` (exit 0) with the key on the opener line, which "the lines between" leaves out (plan re-review b04-2 important 1, probe p1; re-probed in task 01 with Terraform 1.15.8). So G10 fails any file-level block written on one line (`^variables *\{.*=`), naming the file, whatever its key; the multi-line layout it reads is then the only legal one |
 
 #### Conventions the README records (and later parts assume)
 
 - Every variable: `type`, `description`; closed sets get a `validation`. No `default` for anything
   environment-specific (location, CIDRs, names) — `<env>.tfvars` sets them.
 - `locals { tags = merge(var.tags, { product = "panacea-app", environment = var.environment,
-  stack = "<stack>", managed-by = "terraform" }) }` in every stack; modules take `tags` as input.
+  stack = "<stack>", managed-by = "opentofu" }) }` in every stack; modules take `tags` as input.
 - Names: `<kind>-panacea-app-<env>[-<qualifier>]`, e.g. `rg-panacea-app-dev`, `aks-panacea-app-dev`;
   globally unique names (storage, ACR, Key Vault) drop hyphens and append `var.unique_suffix`,
   four lowercase alphanumerics validated by `^[a-z0-9]{4}$` and set in `<env>.tfvars` (e.g.
   `stpanaceaappdevk7q2`). The suffix is chosen once per environment and never derived from an id.
 - Lock files for stacks are created with
-  `terraform providers lock -platform=windows_amd64 -platform=linux_amd64`, so the Linux CI agent
+  `tofu providers lock -platform=windows_amd64 -platform=linux_amd64`, so the Linux CI agent
   and the Windows laptop both verify against the committed file.
 - `environment` is validated against `["dev", "prod"]`.
 - A stack's `.tftest.hcl` file-level `variables` block holds only what no `<env>.tfvars` sets (ids,
@@ -155,7 +155,7 @@ A case may put stub commands first on guards.sh's `PATH` (the scanner-failure ca
 
 | Test (case name) | Asserts | Mutant it kills |
 |---|---|---|
-| `clean_tree_passes` | a tree with one conforming stack, one module and a non-Terraform `infra/rbac/plan-reader.json` → exit 0, `guards: 10 of 10 passed` | a guard that fails on everything, or a G1 JSON rule that refuses every `*.json` (task 30 keeps role definitions there) |
+| `clean_tree_passes` | a tree with one conforming stack, one module and a non-OpenTofu `infra/rbac/plan-reader.json` → exit 0, `guards: 10 of 10 passed` | a guard that fails on everything, or a G1 JSON rule that refuses every `*.json` (task 30 keeps role definitions there) |
 | `g1_terraform_tfvars_fails` | `stacks/x/terraform.tfvars` present → exit ≠ 0, `guard G1: FAIL` naming the path; then `stacks/x/dev.auto.tfvars` → `G1: FAIL`; then `stacks/x/extra.tf.json` and `stacks/x/prod.tfvars.json` → `G1: FAIL … JSON configuration` naming each (task 01 review M3) | G1 deleted, matching only `*.auto.tfvars` or only `terraform.tfvars`, without the JSON rule, or refusing only `*.tf.json` |
 | `g1_tracked_override_fails` | `stacks/x/backend_override.tf` holding `terraform { backend "local" {} }`, `git add`ed in the fixture repo → `G1: FAIL` naming the path; the same body as a tracked bare `stacks/y/override.tf` → `G1: FAIL` naming that path; the same files present but untracked → G1 ok; then the fixture's `.git` removed → `G1: FAIL infra: not inside a git work tree` and `G7: FAIL …/.terraform.lock.hcl: not inside a git work tree` (task 01 review M2) | G1 without the override check, G1 matching only `*_override.tf` (the bare `override.tf` is an override file too), one that fails on an untracked override (runbook §2 needs one on disk), or G1 or G7 passing when `git ls-files` fails |
 | `g2_guid_in_tfvars_fails` | `dev.tfvars` with `tenant_id = "00000000-0000-0000-0000-000000000000"` → `G2: FAIL`; then the same key holding an uppercase id, `"7A3F9C2E-1B4D-4E8A-9C6B-2D5E8F1A3B7C"` → `G2: FAIL` (the all-zero id has no hex letter, so it alone cannot kill the mutant on the right; task 01 found this) | G2 matching only lowercase hex |
@@ -165,9 +165,9 @@ A case may put stub commands first on guards.sh's `PATH` (the scanner-failure ca
 | `g6_local_exec_fails` | a `provisioner "local-exec"` → `G6: FAIL` | G6 deleted |
 | `g7_untracked_lock_fails` | a stack whose lock file exists but is not `git add`ed in the fixture repo → `G7: FAIL` | G7 that tests file existence instead of tracking |
 | `g8_client_secret_fails` | `client_secret = var.x` in a `.tf` → `G8: FAIL` | G8 that matches only `administrator_password` |
-| `g9_external_source_fails` | a module's `versions.tf` with `external = { source = "hashicorp/external" }` → `G9: FAIL` naming the path; then `external = { version = "~> 2.3" }` with no source (Terraform infers `hashicorp/external`) → `G9: FAIL`; then a one-line `required_providers { external = { source = "hashicorp/external" } }`, which `fmt -check` accepts → `G9: FAIL` (the last two added by task 01, whose mutation run found both survivors) | G9 deleted, checking stacks only (a module's providers flow into every stack that calls it), skipping an entry without a source, or reading only the spread-out layout |
+| `g9_external_source_fails` | a module's `versions.tf` with `external = { source = "hashicorp/external" }` → `G9: FAIL` naming the path; then `external = { version = "~> 2.3" }` with no source (OpenTofu infers `hashicorp/external`) → `G9: FAIL`; then a one-line `required_providers { external = { source = "hashicorp/external" } }`, which `fmt -check` accepts → `G9: FAIL` (the last two added by task 01, whose mutation run found both survivors) | G9 deleted, checking stacks only (a module's providers flow into every stack that calls it), skipping an entry without a source, or reading only the spread-out layout |
 | `g9_lockfile_provider_fails` | a clean `versions.tf`, and a stack's `.terraform.lock.hcl` holding `provider "registry.terraform.io/hashicorp/external"` → `G9: FAIL` | G9 that reads only `required_providers`, which an implicit `data "external"` never appears in |
-| `g10_tftest_file_level_tfvars_key_fails` | `stacks/x/dev.tfvars` sets `environment`; `stacks/x/prod.tfvars` sets `environment` and `api_private`; `stacks/x/tests/x.tftest.hcl` has a file-level `variables` block of **two keys of different lengths, laid out by `terraform fmt`**: `state_writer_object_ids = ["x"]` (not in any tfvars) then `  api_private             = false` (13 spaces before `=`, the alignment `fmt` wrote in the b04 round-1 probe; the implementer runs `terraform fmt` on the fixture once and commits what it leaves) → `G10: FAIL` naming the file and the key `api_private`, and not `state_writer_object_ids`; the same key moved inside a `run "…" { variables { … } }` block → G10 ok; then the same two-key file-level block in a root-level `stacks/x/x.tftest.hcl` → `G10: FAIL` naming that path (plan re-review b04-2 minor 2) | G10 deleted, G10 that reads only `dev.tfvars` (not every `*.tfvars`), G10 with a single-space key pattern (`^  <key> =`, which misses the `fmt` alignment; plan re-review b04 round 1, finding 2), one that also flags run-level `variables` (which the fix needs), or one that reads only `tests/` |
+| `g10_tftest_file_level_tfvars_key_fails` | `stacks/x/dev.tfvars` sets `environment`; `stacks/x/prod.tfvars` sets `environment` and `api_private`; `stacks/x/tests/x.tftest.hcl` has a file-level `variables` block of **two keys of different lengths, laid out by `tofu fmt`**: `state_writer_object_ids = ["x"]` (not in any tfvars) then `  api_private             = false` (13 spaces before `=`, the alignment `fmt` wrote in the b04 round-1 probe; the implementer runs `tofu fmt` on the fixture once and commits what it leaves) → `G10: FAIL` naming the file and the key `api_private`, and not `state_writer_object_ids`; the same key moved inside a `run "…" { variables { … } }` block → G10 ok; then the same two-key file-level block in a root-level `stacks/x/x.tftest.hcl` → `G10: FAIL` naming that path (plan re-review b04-2 minor 2) | G10 deleted, G10 that reads only `dev.tfvars` (not every `*.tfvars`), G10 with a single-space key pattern (`^  <key> =`, which misses the `fmt` alignment; plan re-review b04 round 1, finding 2), one that also flags run-level `variables` (which the fix needs), or one that reads only `tests/` |
 | `g10_one_line_file_level_variables_fails` | `stacks/x/tests/x.tftest.hcl` whose file-level block is `variables { api_private = false }` on one line (what `fmt` leaves, and `fmt -check` exits 0), with `api_private` set in `prod.tfvars` → `G10: FAIL` naming the file; the same one-line layout holding a key no tfvars sets (`state_writer_object_ids`) → `G10: FAIL` too; a one-line `variables { environment = "dev" }` inside a `run` block → G10 ok (plan re-review b04-2 important 1) | G10 that reads only the lines after `variables {`, or one that also flags a run's one-line block |
 | `scanner_failure_fails_closed` | a tree whose `dev.tfvars` holds a GUID (control: with the real `awk`, `expect_only 2`); then a stub `awk` first on guards.sh's `PATH` that exits 2 → exit 2, the line `guards: scanner failed (awk exit 2)`, and no `guard G` line and no `of 10 passed` line at all; then a stub `find` that exits 1 → exit 2 and `guards: inventory failed (find \| sort exit 1)`, again with no rule reported (task 01 review I1); then a stub `sort`, and then a stub `awk`, that each run the real command and then exit non-zero, so the output is complete and only the status says the read failed → the same two lines, no rule reported (fix round 1's two predicted survivors) | a scanner failure reported as ok (awk's exit status unread), the inventory's exit status unread, `sort`'s status ignored (only `find`'s read), or `awk`'s failure ignored whenever it printed something |
 
@@ -216,7 +216,7 @@ git check-attr eol -- infra/scripts/guards.sh
 
 #### What this task does not claim
 
-- That any Terraform is valid: there is none yet.
+- That any OpenTofu is valid: there is none yet.
 - That the phase 1 pool definition was ever applied (step 1 checks only for local state; a pool
   created by hand in Panacea's cluster would be invisible here, and is the owner's to remove).
 - That `shellcheck` passes: it is not installed on the build laptop; task 28's `infra` pipeline runs

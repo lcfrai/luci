@@ -61,10 +61,10 @@ Phases are now ordered by **how much can be proven without spending money**, whi
 | 5 | Design canvas — **clean-room, paper.design-class, with MCP** (`OD-11`) | No |
 | 6 | Capacity and credential rotation | Partly — engine is local, real limits need accounts |
 | 7 | Deploy connector | Needs the Panacea API, not Azure directly |
-| 8 | **Our own environment**: Kata backend + Terraform + warm pools + the Hub's hosting (`OD-5`) | **Yes** — the first real spend; written and planned before the owner provides the environment, never applied until then |
+| 8 | **Our own environment**: Kata backend + OpenTofu + warm pools + the Hub's hosting (`OD-5`) | **Yes** — the first real spend; written and planned before the owner provides the environment, never applied until then |
 | 9 | Enterprise hardening and distribution | Yes |
 
-The Kata work from Phase 1 (Terraform, the pod manager, the read-only-root volume fix) is already written and unit-tested. It sits dormant behind the backend interface until Phase 8 turns it on.
+The Kata work from Phase 1 (OpenTofu, the pod manager, the read-only-root volume fix) is already written and unit-tested. It sits dormant behind the backend interface until Phase 8 turns it on.
 
 ## Phases
 
@@ -116,10 +116,10 @@ Credential vault, per-user subscription registration, quota tracking from `anthr
 ### Phase 7 — Deploy connector
 Go client for `panacea-api`. Branch environments with arbitrary names, access control through EntraID groups, versions, rollback, auto-deploy, build and scan visibility.
 
-### Phase 8 — Our own environment: Kata backend, Terraform, warm pools, the Hub's hosting
+### Phase 8 — Our own environment: Kata backend, OpenTofu, warm pools, the Hub's hosting
 **Widened 2026-09-23 (`OD-5`)**: the owner is providing *"a whole new environment to run your own stuff"*, so this phase stands up the product's own environment — AKS with Kata, the Hub's hosting and database, identity configuration, networking — modelled on Panacea's live `deploy/main.tf` and written from scratch in this repo. Written and planned ahead; **never applied until the owner provides the environment**.
 
-The first real spend. Turns on the Kata work already written and unit-tested in Phase 1 — Terraform, the pod manager, the read-only-root volume fix — which sits dormant behind the backend interface until this phase flips it.
+The first real spend. Turns on the Kata work already written and unit-tested in Phase 1 — OpenTofu (`OD-32`: the engine is OpenTofu, MPL-2.0, never BUSL Terraform), the pod manager, the read-only-root volume fix — which sits dormant behind the backend interface until this phase flips it.
 
 ### Phase 9 — Enterprise hardening and distribution
 Audit trail, admin controls over permitted harnesses and models, signed MSI and update channel for the KPMG fleet, ISM evidence, optional customer-hosted tier.

@@ -1,9 +1,9 @@
-### Task 05: `modules/registry` and `modules/keyvault` — both in Terraform, both private
+### Task 05: `modules/registry` and `modules/keyvault` — both in OpenTofu, both private
 
 Panacea creates ACR and Key Vault with `az … create` in its deploy script and references them as
 `data` sources (survey §1.8, `:178-180`), pulls with the shared ACR admin credential because its
 deploy identity cannot assign `AcrPull` (`:207-209`), and so has a registry outside state and a
-secret in every node. Here both are Terraform resources, the admin user is off, and pulls are the
+secret in every node. Here both are OpenTofu resources, the admin user is off, and pulls are the
 kubelet identity's `AcrPull` (granted in task 07, where the kubelet identity is known).
 
 **Files:**
@@ -151,7 +151,7 @@ Resources: `azurerm_key_vault.this` — `kv-panacea-app-${env}-${suffix}` (≤ 2
 `network_acls { default_action = "Deny", bypass = "AzureServices", ip_rules = var.allowed_ip_ranges }`.
 `azurerm_private_endpoint.vault` — `subresource_names = ["vault"]`, DNS zone group.
 
-**What the vault holds in this phase:** nothing Terraform writes. It exists for what ADR-H1's Hub
+**What the vault holds in this phase:** nothing OpenTofu writes. It exists for what ADR-H1's Hub
 needs (HA-4) and for a KPMG-CA certificate if owner question Q2 is answered that way. Role
 assignments on it are task 10's.
 

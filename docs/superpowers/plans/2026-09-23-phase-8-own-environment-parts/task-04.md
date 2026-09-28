@@ -114,7 +114,7 @@ output "action_group_id" { value = azurerm_monitor_action_group.platform.id }
   enableContainerLogV2 = true } })`; one `log_analytics` destination (this workspace); one
   `data_flow` from those streams to it. **The extension's JSON keys are from training knowledge
   of the Container Insights DCR schema, UNVERIFIED** — the Azure side accepts or rejects them only
-  at apply (task 31); `terraform validate` cannot see inside a JSON string.
+  at apply (task 31); `tofu validate` cannot see inside a JSON string.
 - `azurerm_monitor_action_group.platform` — `short_name = "panacea"`, one `email_receiver` per
   address.
 - `data "azurerm_subscription" "current" {}` and

@@ -16,6 +16,20 @@ version pinned by task 28 (`scoop install helm@<pin>`; if scoop cannot reach Git
 proxy, stop and report — do not vendor a binary into the repo), plus the `helm-unittest` plugin
 (MIT) at its pinned version. `kubeconform` (Apache-2.0) runs in CI only.
 
+**Amended 2026-09-28, measured.** `scoop install helm@4.3.0` resolves the right manifest — the
+`main` bucket carries exactly the pinned 4.3.0 — but the download fails: `get.helm.sh` returns
+HTTP 403 with a Netskope block page (31798 bytes of interstitial HTML, not a zip), and
+`helm/helm`'s GitHub release `v4.3.0` attaches **only** `.asc` and `.sha256` signatures, never the
+binary. GitHub itself is reachable (HTTP 206 on a ranged GET). So the plan's stop condition —
+"scoop cannot reach GitHub" — is not the one that fires; the one that fires is "the vendor's own
+download host is category-blocked", and no amount of scoop retry fixes it.
+The resolution, and it is the same trust model task 28 already uses for its two Go tools:
+`GOWORK=off GOTOOLCHAIN=local GOFLAGS=-mod=readonly go install helm.sh/helm/v4/cmd/helm@v4.3.0`,
+built from the checksum-verified `proxy.golang.org` zip (HTTP 200). That is the pinned version from
+the pinned source, and it vendors nothing into the repo. CI (task 28, `ubuntu-latest`) is a
+different egress path and may still use `install-tool.sh`'s release download; if the hosted agent
+hits the same block, `install-tool.sh` needs the same Go-built row for helm.
+
 **Files:**
 - `deploy/charts/platform/Chart.yaml`, `values.yaml`, `values.schema.json` (new)
 - `deploy/charts/platform/templates/{_helpers.tpl,namespaces.yaml,priorityclasses.yaml,quota.yaml,networkpolicy-defaults.yaml,networkpolicy-sandboxes.yaml,storageclasses.yaml}` (new)
@@ -204,7 +218,10 @@ needs no grant, and leaving it on means the seam lands with no cluster update.
 | `priority_test` / `ladder_is_ordered` | balloon < session < machine < platform-critical; balloon `preemptionPolicy: Never`; none `globalDefault` | a balloon that preempts a session, or a global default that silently prioritises everything |
 | `priority_test` / `balloon_is_not_expendable` | `panacea-balloon`'s `value >= -10` (the autoscaler's default expendable cutoff), with that reason in the test's name and a comment (review m10) | `-11` (or `-100`, `-1000`), under which a preempted balloon never triggers scale-up and the warm pool silently stops refilling |
 | `storage_test` / `machine_disk_waits_for_its_pod` | `volumeBindingMode: WaitForFirstConsumer`, `provisioner: disk.csi.azure.com` | `Immediate`, which provisions the disk in a zone the pod may not schedule in |
-| `storage_test` / `nfs_only_when_enabled` | default values render no `panacea-machine-nfs`; `enabled: true` renders it | the fallback always present |
+| `storage_test` / `nfs_only_when_enabled` | default values render exactly one document, the managed-disk class, so no `panacea-machine-nfs` and no `VolumeSnapshotClass` | the fallback always present |
+| `storage_test` / `nfs_only_when_enabled_renders_when_on` | `enabled: true` renders `panacea-machine-nfs` on `file.csi.azure.com`, `protocol: nfs`, `Premium_LRS` | the flag ignored, so P8-D6's fallback cannot be turned on |
+| `quota_test` / `quota_caps_the_whole_namespace` | `ResourceQuota/sandboxes` hard limits equal the five `sandboxes.quota` values | a quota key renamed (`requests.storage` → `storage`), which Kubernetes silently ignores |
+| `values_test` / `empty_pod_cidr_fails` | `network.podCidr: ""` → the render fails naming `network.podCidr` | only `vnetCidr` guarded, so the other three still render an empty `except` entry |
 | `values_test` / `empty_vnet_cidr_fails` | `network.vnetCidr: ""` → the render fails with the schema's message | a policy rendered with an empty `except` entry |
 | `quota_test` / `limitrange_defaults_to_one_session` | `LimitRange/sandboxes` has one `Container` item whose `default` and `defaultRequest` both equal `{cpu: 2000m, memory: 4096Mi}` and whose `max` is `{cpu: 6000m, memory: 20480Mi}` with default values (review I4; b05 re-review 2) | a `max`-only LimitRange, under which an unsized container is defaulted to the max: most or all of a node, holding the quota |
 

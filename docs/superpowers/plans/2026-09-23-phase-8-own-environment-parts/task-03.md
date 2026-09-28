@@ -176,7 +176,7 @@ locals {
   node_subnets = { system = azurerm_subnet.system.id, apps = azurerm_subnet.apps.id, sandbox = azurerm_subnet.sandbox.id }
   # Review C2: every subnet has default_outbound_access_enabled = false, so a subnet missing here
   # has no internet at all. The Managed DevOps Pool's agents (task 30) must reach dev.azure.com,
-  # the Terraform registry and the Helm repos, and in prod they are the only path to the private
+  # the OpenTofu registry and the Helm repos, and in prod they are the only path to the private
   # API server, so agents is an egress subnet like the three node subnets.
   egress_subnets = merge(local.node_subnets, { agents = azurerm_subnet.agents.id })
 }
@@ -249,7 +249,7 @@ still holds another stack's endpoint (`InUseSubnetCannotBeDeleted`, training kno
 `lifecycle` argument, so the test pins it the way bootstrap pins its provider lines: it reads
 `main.tf` with `file()`, strips comments, and finds `prevent_destroy = true` inside the
 `lifecycle` block of each of the three resource blocks. As built (round 3), it also refuses any
-override file in the module: Terraform merges an override file's `lifecycle` into the block it
+override file in the module: OpenTofu merges an override file's `lifecycle` into the block it
 names, so one could set all three false without touching `main.tf`. **This is not a duplicate of
 guard G1** (round-3 review M3): G1 fails an override file **tracked by git**, and deliberately
 allows an untracked one (the runbook §2 `backend_override.tf`, which lives in `stacks/bootstrap`,
@@ -322,15 +322,15 @@ has to carry them, and it does.
 | `each_nsg_is_on_its_own_subnet` | `keys(azurerm_subnet_network_security_group_association.this) == ["apps", "private_endpoints", "sandbox", "system"]`, each joining its own NSG and subnet; the NSG names | the sandbox and apps NSGs swapped (AS1); the endpoint NSG left off (AS2) |
 | `four_privatelink_zones_all_linked_without_registration` | the zone map is exactly `acr`, `vault`, `postgres`, `blob` with their `privatelink.` names; four links, each `registration_enabled == false`, on this VNet and its own zone; `output.private_dns_zone_ids` has the four keys, **and each value is that zone's `id`** (round 4) | a missing Postgres zone, so the Hub's database would not resolve (Z1); VM registration (Z2); every link on one zone (Z3); a misnamed zone (Z4); a zone id missing from the output (O2); **the output giving each zone's `name` where its `id` belongs (ZID1, round-3 review I1)** |
 | `agents_subnet_is_delegated_to_devops_pools` | `azurerm_subnet.agents.delegation[0]` is `devops-pools` → `Microsoft.DevOpsInfrastructure/pools`; no other subnet is delegated | the delegation removed (G1) or pointed elsewhere (G2); its name changed (DN) |
-| `the_state_path_refuses_destroy` | reads `main.tf` with `file()`, strips `/* */`, `#` and `//` comments, and finds `prevent_destroy = true` inside the `lifecycle` block of `azurerm_subnet.private_endpoints`, of `azurerm_private_dns_zone.this` (carried from task 02 re-review I1) and of `azurerm_virtual_network.this` (round 2); and (round 3) that the module holds no `*override.tf` or `*override.tf.json` file, since Terraform merges an override file into its block argument by argument, `lifecycle` included, so one could undo all three unseen | either set false (PD1, PD2); the line commented out (PD3) or in a block comment (PD4); the protection moved from the zone to its link (PD5); the VNet's set false (PD6), removed (PD7), in a block comment (PD8) or commented out with `//` (PD9); a `main_override.tf` (OV1) or an `override.tf.json` (OV2) setting the VNet's `prevent_destroy = false` |
+| `the_state_path_refuses_destroy` | reads `main.tf` with `file()`, strips `/* */`, `#` and `//` comments, and finds `prevent_destroy = true` inside the `lifecycle` block of `azurerm_subnet.private_endpoints`, of `azurerm_private_dns_zone.this` (carried from task 02 re-review I1) and of `azurerm_virtual_network.this` (round 2); and (round 3) that the module holds no `*override.tf` or `*override.tf.json` file, since OpenTofu merges an override file into its block argument by argument, `lifecycle` included, so one could undo all three unseen | either set false (PD1, PD2); the line commented out (PD3) or in a block comment (PD4); the protection moved from the zone to its link (PD5); the VNet's set false (PD6), removed (PD7), in a block comment (PD8) or commented out with `//` (PD9); a `main_override.tf` (OV1) or an `override.tf.json` (OV2) setting the VNet's `prevent_destroy = false` |
 | `every_join_by_name_is_a_reference` | (round 3) reads every `.tf` file, comments stripped: six `azurerm_subnet` blocks, each `virtual_network_name = azurerm_virtual_network.this.name`; the one `private_dns_zone_name = azurerm_private_dns_zone.this[each.key].name`; `output "vnet_name"` is `azurerm_virtual_network.this.name`; no `.tf.json` file. A literal of equal value plans the same, so only the text shows the lost graph edge | a subnet naming its VNet by a literal: the endpoint subnet (ORD1), system (ORD1s), the firewall's (ORD1f), a seventh in another `.tf` file (MV1) or in a `.tf.json` (KS1); the link naming its zone by `each.value` (ORD2); `vnet_name` output as a literal (ORD3) |
 | `names_region_group_and_tags_come_from_the_inputs` | `environment = "prod"`, `location = "australiasoutheast"`, another group and two tags: every name carries `prod`; every located resource takes the region; every resource the group; every taggable one the tags; the VNet outputs | the region (L1), group (L3) or env (L4; L5 in an NSG's name) hard-coded; a resource left untagged (L2, L6); `vnet_id` giving the name (O5); the link name (LN) |
 | `firewall_subnet_takes_the_group_and_vnet_from_the_inputs` | `egress_mode = "firewall"`, `environment = "prod"`, another group: `azurerm_subnet.firewall[0]` is in that group and in `vnet-panacea-app-prod` (the run above is nat mode, where the firewall subnet does not exist) | the firewall subnet's group (FG1) or VNet (FV1) hard-coded to dev's (round 2's predicted survivors) |
 | `environment_must_be_dev_or_prod` / `egress_mode_must_be_nat_or_firewall` | `"test"`, `"none"` → `expect_failures` | a validation dropped (EV1, EG1) |
 
-**The outputs' `depends_on` (review m8) is not a `terraform test` assertion.** Under mocks a plan
+**The outputs' `depends_on` (review m8) is not a `tofu test` assertion.** Under mocks a plan
 has no ordering to observe, so no run above can see it. Task 07 proves it on the foundation stack
-with `terraform graph`, where `module.aks` is a real consumer; a dropped `depends_on` shows there
+with `tofu graph`, where `module.aks` is a real consumer; a dropped `depends_on` shows there
 as a missing path. Output-level `depends_on` rather than `depends_on = [module.network]` on the
 AKS call: a module-level `depends_on` makes every data source inside `module.aks` wait for the
 whole network module, private DNS zones included, and defers those reads to apply (from training
@@ -343,7 +343,7 @@ knowledge, UNVERIFIED). This way only the subnet ids carry the wait.
   test file that names undeclared resources; task 02 found the same).
 - [x] **Step 2:** Write `main.tf` resource by resource, running the tests after each, until all
   pass (as built: 27 runs, not ten).
-- [x] **Step 3:** Write `outputs.tf`; `terraform fmt`; guards; commit.
+- [x] **Step 3:** Write `outputs.tf`; `tofu fmt`; guards; commit.
 
 #### Acceptance
 
@@ -355,8 +355,8 @@ bash infra/scripts/guards.sh        # guards: 10 of 10 passed
 ```
 
 `validate.sh` sends each step's own output to its log and prints it only when the step fails, so
-`terraform test`'s `Success! 27 passed, 0 failed.` is **not** on stdout on a green run (task 04
-review 1, M3). Run `terraform test` in the module directory to see the count.
+`tofu test`'s `Success! 27 passed, 0 failed.` is **not** on stdout on a green run (task 04
+review 1, M3). Run `tofu test` in the module directory to see the count.
 
 #### What this task does not claim
 
@@ -366,7 +366,7 @@ review 1, M3). Run `terraform test` in the module directory to see the count.
 - That the `Microsoft.DevOpsInfrastructure/pools` delegation name is right.
 - That `prevent_destroy` blocks every path to losing the state endpoint: it refuses a planned
   destroy or replace of the three protected resources, and nothing else (a portal delete, or
-  a destroy of the resource group, is outside Terraform's plan).
+  a destroy of the resource group, is outside OpenTofu's plan).
 
 #### As built (2026-09-26; rounds 3 and 4, 2026-09-28)
 
@@ -378,7 +378,7 @@ subnet's comment; `312be719` this part as built; `099459f4` round 3's two killer
 text (I1, M1, M2, M3).
 
 **Departures from the part as first written. Each fixes a root cause:**
-1. Step 1's red is at `test`, not at `validate`. `terraform validate` passes a test file that
+1. Step 1's red is at `test`, not at `validate`. `tofu validate` passes a test file that
    names undeclared resources (task 02 found the same).
 2. `vnet_cidr`'s check is `cidrnetmask` plus a network-address round trip. The part's
    `cidrhost` check took `fd00::/16` and `10.40.1.0/16`.
@@ -392,7 +392,7 @@ text (I1, M1, M2, M3).
    `file()` run.
 7. **`prevent_destroy` on the VNet too (found in round 2; a ruling, declared).** The carried
    remedy said the subnet "also stops a VNet replace". That holds only when the replace changes
-   the subnet's own arguments: a new VNet name or group. Terraform replaces a dependent only
+   the subnet's own arguments: a new VNet name or group. OpenTofu replaces a dependent only
    when its own planned arguments force it (the reason `replace_triggered_by` exists; training
    knowledge). So a location change replaces the VNet, plans no subnet replace, and the
    subnet's `prevent_destroy` never fires. Whether Azure would then refuse to delete a VNet
@@ -402,11 +402,11 @@ text (I1, M1, M2, M3).
      probe (round 2, in a session temp directory that no longer exists; recorded in
      `.superpowers/sdd/env/task-03-report.md`) applied, then planned a group change. That change
      forces both protected resources, yet the plan came out clean.
-   - The probe also showed that `terraform test`'s teardown destroys mock state past
+   - The probe also showed that `tofu test`'s teardown destroys mock state past
      `prevent_destroy`, so the protection does not break the plan-only runs.
 8. **Two text pins more (round 3; each kills a predicted survivor).** Both are the class a plan
    cannot see, so each reads the module's text, as the `prevent_destroy` run does.
-   - An override file (OV1). `the_state_path_refuses_destroy` read only `main.tf`, and Terraform
+   - An override file (OV1). `the_state_path_refuses_destroy` read only `main.tf`, and OpenTofu
      merges `main_override.tf` or `override.tf.json` into the block it names, `lifecycle`
      included (training knowledge; OV1 and OV2 confirm the effect: each left every run green
      until the assert). The run now refuses any such file.
@@ -419,7 +419,7 @@ text (I1, M1, M2, M3).
      fails (verified by the round-3 reviewer, `out/S2_LOCALREF.log`), as does a legitimate
      seventh subnet against the `== 6` count. Both are deliberate edits to the run, and its
      messages now say so rather than diagnosing a lost edge. Only
-     `terraform graph` shows the order, and task 07 runs it on the foundation stack for the NAT
+     `tofu graph` shows the order, and task 07 runs it on the foundation stack for the NAT
      associations' paths (`parts/task-07.md:640-647`), not for these edges.
 9. **`private_dns_zone_ids`'s values are pinned, not only its keys (round 4; round-3 review
    I1).** The run asserted `keys(output.private_dns_zone_ids)` and nothing read the values, so
@@ -432,5 +432,5 @@ text (I1, M1, M2, M3).
    `subnet_ids`': `alltrue([for k, v in output.private_dns_zone_ids : v ==
    azurerm_private_dns_zone.this[k].id])`. Still 27 runs. The accepted survivors declared in
    `.superpowers/sdd/env/task-03-report.md` are unchanged and remain those two only: O4 (the
-   outputs' review-m8 `depends_on`, which task 07 proves with `terraform graph`) and P2 (the NAT
+   outputs' review-m8 `depends_on`, which task 07 proves with `tofu graph`) and P2 (the NAT
    gateway given zones, a choice rather than a defect).
