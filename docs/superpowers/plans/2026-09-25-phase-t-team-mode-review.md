@@ -3839,3 +3839,66 @@ other parts, two of which the re-review also missed.
 **Unverified, round 2:** plan text only. No Go compiled, no test run, no control plane, container
 or image started; nothing outside `.claude/worktrees/team` read or written. Every line number in
 this section was derived by `grep -n`/`awk` after the round-2 commits.
+
+## Fix batch b05 (2026-09-28): S02-C3
+
+**S02-C3 (Critical) — fixed at the root.** The root was not that `check` forgot `hooks`. It was
+that **one merge rule served two authors of different trust**. A layer was "a Claude Code settings
+object", and `Render` merged any key of it into every member's managed file, so the object written
+by a **team** admin (`task-12.md:315,339`, `VerbProjectPolicy: {admin: true}`) had the reach of the
+one written by an **org** admin. Every command-bearing key rode in on that: `hooks` (made managed,
+and therefore run, by I3), `statusLine.command`, `apiKeyHelper` / `otelHeadersHelper`,
+`awsAuthRefresh` / `awsCredentialExport`, `mcpServers`, and `env` keys such as `BASH_ENV`,
+`NODE_OPTIONS` and `NODE_EXTRA_CA_CERTS`. The worst pod was the Orchestrator's, because its control
+socket re-stamps a request as **its owner's** session (`task-16.md:50-51`): a command there calls
+`panacea peer`, `direct` or `human` as another member, with not one of task 12's role checks
+touched. That is OD-16's "No user steers another user's agent" (`owner-decisions.md:127`) broken by
+a render that succeeded.
+
+So trust became a property of the **scope**, checked before the merge, not a list of keys patched
+into the invariants after it. `layerKeys` runs on each section of each layer *before* that section
+is merged, so the refusal names the key its author must remove and nothing of the layer is ever
+folded in.
+
+| Change | Where |
+|---|---|
+| **I14**: a project layer sets only `permissions.deny`, `permissions.ask` and three non-command scalars; any other key is an `*InvariantError` naming it | `task-13.md:103` |
+| **I15**: no layer of **either** scope gives the orchestrator class `hooks`, `statusLine`, `mcpServers`, `enabledMcpjsonServers`, `aws*`, a `*Helper`, or an unlisted `env` key | `task-13.md:104` |
+| I13 is task 41's (`claudeMd`), so the new ids are I14 and I15 — stated where a reader would otherwise reuse it | `task-13.md:106-107` |
+| Why the two authors differ, key by key, and the Orchestrator's socket as the reason its class is hardest | `task-13.md:51-66` |
+| `layerKeys` called in `Render`'s layer loop, per section, **before** `merge` | `task-13.md:451-453` |
+| `projectKeys`, `projectPermissionKeys`, `orchestratorEnv`, `layerKeys`, `commandBearing` — the allowlists sorted, because they are printed in the refusal | `task-13.md:481-541` |
+| The three tests the finding asked for, plus the orchestrator's `env` and the "a project layer is still useful" test | `task-13.md:772-776` |
+| Step 3's acceptance counts the I14/I15 tests separately (their names are not `TestI<n>`) | `task-13.md:853-858` |
+| Recorded decision: the **org** layer stays fully trusted for the worker and mirror classes, with `layerKeys`'s `scope` branch as the seam if the owner narrows it | `task-13.md:871-876` |
+| The route re-implements none of it: 422 `details.invariant` = `I14`/`I15`; the audit event's scope is what tells an auditor which trust model admitted a version | `task-14.md:463-472` |
+| `TestATeamAdminCannotPostAHook`: the same body is 422 from the project route and 201 from the org route | `task-14.md:965` |
+| The plan body's task 13 summary, which said only "a later layer may add rules and tighten" | `2026-09-25-phase-t-team-mode.md:608-615` |
+
+**Restated where the same fact appeared, because these rows contradicted the new rule:**
+
+| Restatement | Where |
+|---|---|
+| `TestI6NonessentialTrafficStaysOff` used a **project** `env` to prove I6; I14 now refuses that layer first, so the row is the org scope | `task-13.md:764` |
+| `TestTheProjectLayerComesAfterTheOrg` used a project `env` pair; it is now two `permissions.deny` rules, and the order shows in the array | `task-13.md:778` |
+| `TestI2AKeyHelperCannotBeReplaced` and `TestI12PlatformEnvIsRefused` say which class and which check fires first (I12 before I14) | `task-13.md:760,771` |
+| Task 41's `TestTheInstructionsHoldNoTeammateText` builds layers "in every allowed key"; the project layer's allowed keys are now I14's list | `task-41.md:667` |
+
+**Two judgements, declared.**
+
+1. The refusal is an `*InvariantError` (I14/I15), not the bare `ErrLayer` the finding's wording
+   suggests. `ErrLayer` maps to 422 `details.invariant = "layer"` (`task-14.md:486-488`), which
+   tells an admin nothing; an `InvariantError` carries the invariant, class, scope and the key.
+2. The org layer is **not** narrowed. An org admin is the role already trusted with every sandbox
+   in the org, and task 14 stores the version under their name. Narrowing it is an owner decision;
+   the seam is one `scope` branch in `layerKeys`.
+
+**Not fixed here, and still open:** S02-I8 (a project layer can replace an org scalar — the
+allowlist shrinks its reach to `permissions.deny`/`ask` and three scalars, but does not make the
+org a floor), S02-I9 (I10's four probes), S02-I10 (repository `ANTHROPIC_*` env) and S02-M4 (a
+denied `Read` for the Orchestrator).
+
+**Unverified:** plan text only. No Go compiled, no test run, no control plane, container or image
+started; nothing outside `.claude/worktrees/team` read or written. Every line number in this section
+was derived by `grep -n` after the b05 commits. Whether Claude Code honours `allowManagedHooksOnly`
+and a managed `env` at the pinned CLI version remains task 33's check, unchanged by this batch.

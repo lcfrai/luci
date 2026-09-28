@@ -63,7 +63,7 @@ forbid, with none of task 12's role checks touched. So the project layer is a **
 allowlist** (I14), and no layer of either scope may hand the orchestrator class a command-bearing
 key (I15). An org admin who wants a hook for the workers still has one: their own layer, audited as
 theirs. The refusal is an `*InvariantError`, not a bare `ErrLayer`, so task 14's route answers 422
-with `details.invariant` and the key an admin must remove (`task-14.md:954`).
+with `details.invariant` and the key an admin must remove (`task-14.md:964`).
 
 **The gateway fragment is copied and pinned, not imported.** It lives in
 `images/sandbox/managed-settings.gateway.json` (phase 6 task 14, **planned**, `phase-6-gateway.md:248`,
