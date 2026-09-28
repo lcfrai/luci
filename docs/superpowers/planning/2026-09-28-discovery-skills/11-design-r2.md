@@ -285,7 +285,68 @@ it, and dies with the row. It never reaches the Hub until a person records it.
 
 ## 5. Closing the thread
 
-(to be written)
+### 5.1 What the Materialiser writes
+
+The Materialiser's one call (`materialise.go:196`) now writes **three files, in this order, all
+before the harness process starts**: `.panacea/discover/decisions.md`, `.panacea/discover/terms.md`
+(§5.3), and last the managed block. Last, so a block that names a set is never on disk before the
+files that hold it: the ordering rule (`materialise.go:3-20`) applied inside one call.
+
+What the branch sees is phase 4's overlay (§2.3), computed from the two list reads under the same
+5-second Hub budget as the brief (`materialise.go:81-87`). If the Hub does not answer, the start is
+refused `hub_unavailable` exactly as it is today: a session never starts on half its inheritance.
+
+**The block**, in order (today's order is 11a §4):
+
+1. The begin marker gains the two set digests and takes the two human lines the sceptic asked to
+   move (06 §7): `<!-- panacea:discover:begin brief=<id> rev=<n> terms=sha256:<hex>
+   decisions=sha256:<hex> ; written by Discover in Panacea App, and regenerated: change it there
+   -->`. The two fixed lines (`render.go:81-82`) are deleted, so every session stops paying for them.
+2. `# <title>`, and the brief's sections, unchanged.
+3. `## Decisions already taken`, only when there is one: per decision, `- <decision> Because:
+   <why>` and, for a branch record, an origin line in the style the brief's overrides already use
+   (`_Set on this branch, departing from the project's: <old decision>_`, cf. `render.go:87-95`).
+   `context`, `rejected` and `undo` are in the file, not the block.
+4. `## Words used here`, only when there is one: per term, `- **<word>**: <is> Not <avoid>, <avoid>.`
+   and the same origin line for a departure.
+5. `---`, today's footer (`render.go:105-108`), then **always** one line naming the read route:
+   `Every decision and every word, in full: .panacea/discover/decisions.md and
+   .panacea/discover/terms.md.` It is there when everything fitted too, so an agent never has to
+   know whether anything was left out to know where to look.
+6. The end marker, unchanged.
+
+**The inline budget.** Decisions get 4 KiB of the block and words 6 KiB, counted in rendered bytes,
+**whole entries only**: a definition is never cut. Order is fixed so the bytes are stable: a
+branch's own records first, then the project's; decisions oldest first, so adding one never
+reorders the rest; words case-folded alphabetically, then by id. Past a budget the section ends
+with `More in .panacea/discover/terms.md: <word>, <word>, …` — the remaining words by name, to 2
+KiB more — so the agent knows *which* words exist and where each is defined.
+
+Everything else in the block's rules holds: the neutraliser, LF, no timestamp (`render.go:5-8`,
+`:47-54`), untracked and excluded (`materialise.go:169-184`), written only when the bytes change.
+
+### 5.2 What `Ref` carries, and what the session keeps
+
+- **`Ref` gains `vocabulary`: `{terms: "sha256:…", decisions: "sha256:…"}`**, the digests of the
+  set now in force for the brief's own scope (a branch key: the branch's overlay; a project key: the
+  project's). It is the third time-varying part of a `Ref`, beside `headRevision` and
+  `latestCompleteRevision` (`ref.go:71-72`), so `Ref` stays one brief key resolved and cacheable
+  on the same terms; two sessions with one `contextRef` still share one `Ref`.
+- **A set digest** is `"sha256:"` + hex over a canonical envelope
+  `{"v":1,"kind":"vocabulary-set","scope":…,"items":[{"key","digest"},…]}`, items sorted by key:
+  every entry the branch sees, never only the ones that fitted inline.
+- **The inheritance record**, new, phase 4's: one immutable entry per session start, written by the
+  Materialiser beside the block, `{sessionId, start, contextRef, terms: {digest, keys},
+  decisions: {digest, keys}}`. `MaterialiseRequest` gains `SessionID` for it (`api/materialiser.go:25`,
+  phase 4's own seam from task 10); `MaterialiseResult` and the session record do not change, so
+  phase 2 carries `contextRef` exactly as before.
+
+**Why that is provable.** Every key in the record names an immutable revision that resolves for
+ever (an erased one still resolves `erased`, keeping key and digest, §2.6); the set digest
+recomputes from the keys; and the block and both files re-derive byte for byte from the keys and the
+brief, because `Render` is pure. Develop compares the record's digests with `Ref.vocabulary`: equal
+is *current*; different is *the project's words moved since this session started*, derived the way
+the desktop already derives `superseded` from two numbers (`ref.go:75-76`).
 
 ## 6. The Discover lens
 
