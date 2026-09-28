@@ -5849,8 +5849,8 @@ have broken this plan's ~1,678 cross-file `task-NN.md:LINE` citations.
 
 **Citations re-anchored.** Three rows were inserted into the skeleton — at old lines 288, 486 and
 501 — so every inbound citation below old line 289 is unmoved and every one above shifted by 1, 2 or
-3. They were found by `grep -rno "phase-w-work-layer\.md:[0-9]*"` over the parts, the scopes and this
-review, and rewritten by the shift function `new = old + (old≥289) + (old≥487) + (old≥502)`, ranges
+3. They were found by `grep -rno "phase-w-work-layer\.md:[0-9]*"` — **which was the wrong scan; round 2
+below replaces it** — and rewritten by the shift `new = old + (old≥289) + (old≥487) + (old≥502)`, ranges
 included, both ends. **24 citations in 5 files** moved: `task-109.md:794`, `task-39.md:603`,
 `task-62.md:4`, `task-97.md:8` and 20 in this file. `task-62.md:10` (`:100`) was below the first
 insert and is untouched; the skeleton cites itself nowhere (`grep -c` returns 0); nothing outside
@@ -5860,3 +5860,88 @@ insert and is untouched; the skeleton cites itself nowhere (`grep -c` returns 0)
 another branch, not from a built tree, and both parts mark them so. `P5-21`, `P5-27` and `P5-28` are
 ids from that plan's task table, read 2026-09-28; no phase 5 task is built. Nothing here was
 executed: this is a plan change only.
+
+## Fix batch b01, round 2 (2026-09-28) — RR-C1, RR-C2, RR-C3, RR-I1, RR-I2, RR-M1, RR-M2
+
+Round 1's re-review (`.superpowers/sdd/work/plan-rereview-b01-1.md`) returned **Needs fixes**: the
+hole was correctly diagnosed and the bookkeeping was clean, but the close path was not buildable and
+the citation re-anchor had used an incomplete scan. Both are fixed at the root here.
+
+### The close path: an approval is a landing, not a citation (RR-C1 + RR-C2)
+
+Round 1 closed a design issue by moving it to `done` with cause `observed`. Two independent walls:
+
+1. `MoveAllowed` allows an evidence cause only when `from == StateLanded` (`task-10.md:275-281`). A
+   design issue has no land commit, so it sits in `todo` or `started` and the Hub refuses the move
+   422 `state_not_allowed`.
+2. The done rule's input is `Cited{BriefKey, CriterionID, Cause, RecordedBy}` — **keyed on a brief
+   criterion**. An approval names a design key, and nothing in any phase maps one to the other:
+   phase 4's `Criterion` is `{ID, Text}` with no class, and the phase 5 plan contains the string
+   *criteri* **zero** times, so a canvas revision does not record what it serves. Round 1's *"one
+   design criterion and one code criterion"* test named a distinction that is not representable, and
+   its *"done, proven by approval `design:…@rev`"* was a seventh `ProofWord` that does not exist.
+
+Making that path work needs synthesised `Cited` rows — fabricated proof, which is what `OD-27`
+exists to forbid. So the design approval now does what a **land trailer** does: it moves the issue
+to `landed` with one new cause, `design_approved`, and **task 10's rule 6 decides the word with no
+edit at all**:
+
+- `serves: []` (a `notTiedReason` design chore) → task 10's `no_criteria` branch lands it **at
+  `done` in the same write**, unless the team's `stopAtLandedWithoutServes` holds it at `landed`
+  (`task-10.md:52`, `TestNoCriteriaLandsAtDone` at `:462`). *This is the case 04 §7.7 means by "a
+  design approval can close a design issue", and it closes.*
+- an issue that serves criteria → `landed`, `proof: waiting`, until each criterion gets its own
+  evidence. The approval got the design in; it did not prove the brief.
+
+What that buys: no seventh proof word, no synthesised citation, no invented criterion class, and
+`DecideProof` is byte-identical — a test in 81b now asserts exactly that. The new `MoveAllowed` arm
+ends at `landed`, **never** `done`, and omits the terminal states, so no existing arm is loosened.
+`landCommit` stays `""`; the pair (`landed`-or-beyond, empty `landCommit`, non-empty `implements`)
+**is** the design-approved issue, and no field was added to say so.
+
+The added `StateCause` is declared rather than discovered: the WS0 rule (skeleton `:366`) permits an
+added constant, and 81b now names the three other places the word must appear — task 04's two cause
+switches (`task-04.md:876`, `:1009`), `MoveCauses` (`task-03.md:220`) and task 28's glyph set.
+
+### The call site, and the writer (RR-I2 + RR-I1)
+
+The close ran *"inside the Hub's design-approval write"* with no file named. That write is **Hub task
+22's** `control-plane/internal/hub/server/approvals.go` (hub plan `:304`, `:425`; hub contract §7.7,
+routes 30-32). It is now in 81b's Files with `⚑`, `dependsOn` reads `10, 23, 74; H22; P5-21`, and
+the skeleton's delta row names the Hub file instead of phase 5's `internal/designapi/approve.go` —
+which is that route's **caller**, not the writer, and which 81b does not touch.
+
+`implements` also had no writer anywhere in 189 tasks: every one of the plan's twelve write sites
+sends `[]`, so round 1's read route, close path and *Issues* group rendered nothing for a real user.
+96b now builds `desktop/src/components/work/DesignPicker.tsx` on task 42's `Picker`, the same way
+`CriterionPicker` is built, under task 47's decision 3 — adding or removing a key writes a **new
+revision, never a patch**. If it is cut, the field stays `[]` and the Design hop stays dark; the
+part says so.
+
+### Citations: the other form, and the method b02/b03 must use (RR-C3)
+
+Round 1 scanned `grep -rno "phase-w-work-layer\.md:[0-9]*"` and fixed 24. The plan's **other**
+shorthand for its own skeleton is ``skeleton `:N` ``, and none of those moved — `task-161.md:645`
+and `task-164.md:7` were left pointing at a **different task's row**. **40 citations** are shifted
+here, across 18 parts and this review, each new target read on the skeleton first.
+
+**The corrected method, which supersedes the one above.** Scan **line-level, not by proximity**:
+every line that mentions the skeleton has all of its `` `:N` `` listed, then each is classified by
+hand. A 24-character proximity window misses `:4852`, where the citation follows a quoted phrase.
+Classification matters as much as the shift — three citations round 1's re-review called stale are
+not the skeleton's: `:2176`'s `:624`/`:590-592` are lines in `task-53.md`, `:2581`'s `:330-332` is
+phase 4's plan quoted out of skeleton line 280, and `:2905`'s `:487` already points at task 81's
+row. The scanner and the applied shift are kept at `.superpowers/sdd/work/cite-scan3.sh` and
+`cite-shift.sh`; **b02 and b03 run those, not the grep above.**
+
+### Minors and bookkeeping
+
+`P5:359` names `Page, Node, Token, Asset, Thread, ReviewRequest, Author, Document` — phase 5's model
+word is **`Page`**, not *artboard*; 81b and the scope both say so now (RR-M1). `task-67.md:368` no
+longer files Design's `implements` under *later* — it is task 96b (RR-M2). The added call site,
+cause constant and picker move W2 from 74.5 to **76.5 h** and All from 521 to **523 h** (9.6 and
+65.4 days); task and parity counts are unmoved, and the skeleton is still **640 lines**, so this
+round shifts no citation of its own.
+
+**Still unverified.** Phase 5's paths, and now the Hub's `server/approvals.go`, are read from plans
+on other branches, not from built trees. Nothing here was executed: plan change only.
