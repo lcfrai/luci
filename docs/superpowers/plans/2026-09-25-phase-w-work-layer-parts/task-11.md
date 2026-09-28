@@ -550,3 +550,23 @@ by, related, duplicate; the Desk cost-of-waiting half closes with task 63), **L-
 (the server half of the triage inbox and its actions; closed with task 42), **L-48** (priority
 before leaving triage).
 
+---
+
+**Appended by fix batch b01 (2026-09-28), review finding X-C1: `implements` is deliberately not a
+`RelationKind`.** The finding offered two shapes for the issue-to-design link — a new kind in this
+task's set, or a second `serves`-like field on the revision. It is the **field**, and the field
+already exists: `IssueRevisionContent.Implements []string` at `task-02.md:243`, in the canonical
+bytes and all three golden vectors. This task's set stays exactly three write kinds (`blocks`,
+`duplicates`, `relates`) and two read-only inverses, and **no `implements` kind is added here**.
+
+Three reasons, so nobody re-opens it. (1) A relation is **issue to issue**; `implements` points at a
+`design:cv-…@<rev>` key, which is not an issue and has no inverse row to write. (2) A relation is
+**mutable and undirected in time**; `implements` is part of the revision's **immutable, digested**
+content, which is what puts the issue on the provenance thread at all — a relation row would sit
+beside the digest and could disagree with it. (3) Decision 3 above scopes relations to one team
+through the issue's project; a canvas is reached through its own project's access, so the same rule
+cannot be reused unchanged.
+
+The write path, the reverse read (*which issues implement this canvas?*) and the design-approval
+close of 04 §7.7 are **task 81b**; the surfaces are **task 96b**.
+

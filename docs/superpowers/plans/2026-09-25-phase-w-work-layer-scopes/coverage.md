@@ -347,3 +347,21 @@ and phase 6 closes them.
 - **L-248** Public GraphQL API, the same one Linear's apps use (MATCH). 05 stop: *exists*; served by 16, closed by no Phase W task.
 - **L-255** AI spend limits at workspace, per-user and per-loop level, with usage by feature and user (EXCEED). 05 stop: *phase 6*; served by 135, closed by no Phase W task.
 - **L-257** Transparent AI pricing: provider token rates with no markup plus sandbox minutes (MATCH). 05 stop: *phase 6*; served by 135, closed by no Phase W task.
+
+## Tasks that close no row (added by fix batch b01, 2026-09-28)
+
+Review finding **X-C1** added tasks **81b** (the `implements` write and read paths, and the design
+approval that closes a design issue) and **96b** (the Design lens's issue list, and *implements* on
+the issue view). **Neither closes a parity row, and the counts above do not move**: 203 closed, 6
+served but never closed, 21 with no Phase W task, 27 gaps. Linear has no design canvas, so nothing
+in the 257 describes the link these two build. They exist for the provenance thread
+(`05-design.md:1082`, 04 §7.7), which `OD-26` does not measure and `CLAUDE.md` calls the spine.
+
+This is the first pair of Phase W tasks that close nothing, so the method above needs one line: a
+task may close no row, and that is recorded here rather than read as a drop. A row whose only
+closer was one of these would still be a gap; none is.
+
+**L-208** (*Figma: frame previews and an in-Figma plugin*, PARTIAL, 05 stop *phase 5*) stays in the
+Gaps list unchanged. It is about **Figma**; 81b and 96b are about **our own** canvas, and building
+ours closes nothing of Figma's. The same holds for **L-128** (auto-embeds, SKIP), whose reason line
+already says our own canvas frames embed natively.
