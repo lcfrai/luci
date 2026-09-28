@@ -510,7 +510,8 @@ case_g9_lockfile_provider_fails() {  # kills: G9 that reads only required_provid
   expect_line "guard G9: FAIL $TF/stacks/x/.terraform.lock.hcl:"
 }
 
-# The file-level block below is exactly what `tofu fmt` (1.15.8) leaves: it aligns the
+# The file-level block below is exactly what `fmt` leaves (observed on Terraform 1.15.8, before
+# OD-32 made the engine OpenTofu; the layout is fmt's, not the engine's): it aligns the
 # `=` of consecutive attributes, so the short key sits under the long one with 13 spaces.
 # kills: G10 deleted; G10 reading only dev.tfvars; a single-space key pattern; G10 flagging
 # run-level variables; G10 reading only tests/ (a root-level *.tftest.hcl runs too, b04-2 M2)
