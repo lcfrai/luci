@@ -83,7 +83,110 @@ the real one.
 
 ## 2. The brief content model (task 03)
 
-_(pending)_
+Package `p4/control-plane/internal/discover`. Paths below are relative to it: `content.go` (403
+lines) and `ops.go` (556 lines).
+
+**It is a wire format.** `content.go:1-6`: "a revision is immutable and kept for ever - so this
+file is a WIRE FORMAT. Field names, JSON tags and the rule 'every slice marshals as [], never null'
+are part of every digest ever computed." `ContentVersion = 1`, the only version (`:17-19`). `Decode`
+refuses a missing or sub-1 `v` and any `v` above 1, and fills nil slices with `[]` (`:250-292`).
+
+**`Content`** (`:218-225`) — six fields, JSON names in brackets:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `V` (`v`) | int | always 1 |
+| `Status` (`status`) | `open` \| `complete` | derived, never set by hand (`:40-47`); the Hub also accepts `skipped`, v1 never writes it (`:41`) |
+| `Questions` (`questions`) | `[]Question` | the five base questions plus any follow-ups |
+| `Answers` (`answers`) | `[]Answer` | at most one per question key |
+| `Inherits` (`inherits`) | `*Inherit` | branch: the project's latest complete revision when written, or null; project: always null (`:223`) |
+| `Change` (`change`) | `Change` | what produced this revision; "read by the history view and never rendered into CLAUDE.md" (`:209-210`) |
+
+- **`Question`** (`:70-78`): `key`, `projectPrompt`, `branchPrompt`, `help`, `options []string`,
+  `followUp bool`, `because` (a follow-up's reason; `""` on base questions). "The free-text escape
+  is always available and is not modelled here" (`:68-69`). `Prompt(scope)` picks the project
+  wording on a project brief, else the branch wording (`:83-88`).
+- **`Answer`** (`:168-177`): `key`, `text` (`""` exactly when skipped), `skipped`, `source`
+  (`picked` \| `typed` \| `drafted`, `:51-55`; `""` when skipped), `author` (`person` \|
+  `model_drafted` \| `model_accepted`, `:62-66`), `criteria` (the `done` key only, `[]` otherwise),
+  `draftedFrom` (the repo on-ramp's manifest and directory names, `[]` otherwise), `answeredAt`
+  (RFC 3339 UTC, three fractional digits, `:399-403`).
+- **Settled** (`:179-186`): skipped, or non-empty text whose author is `person` or `model_accepted`.
+  A `model_drafted` answer "is shown, marked, and NOT settled, so a revision holding one is never
+  complete and is never inherited, pinned or approved against" (`:57-59`).
+- **Status** (`ops.go:407-419`): `complete` exactly when there is at least one question and every
+  question has a settled answer. A content with no questions is never complete.
+- **`Inherit`** (`:190-193`): `{key: "brief:bf-…@n", digest}` — the pinned project revision (`4-D3`).
+- **Keys** (`:28-38`): five fixed — `purpose`, `audience`, `constraints`, `done`, `out_of_scope`; a
+  follow-up's key is `f-` + 8 hex, minted when it is added.
+
+**The ops** (`ops.go:15-25`) — nine, the wire shape of `POST …/brief/ops` (task 11, `:27-29`):
+
+| Op | Does | Where |
+|---|---|---|
+| `record` | a person's answer; source must be `picked` or `typed` | `:164-168` |
+| `edit` | replace a settled, non-skipped answer in place (always `typed`) | `:170-177` |
+| `skip` | per-question skip: `{skipped: true, author: person, text: ""}` | `:179-185` |
+| `accept` | `model_drafted` → `model_accepted`, text unchanged | `:187-196` |
+| `add_follow_up` | append a follow-up question; the server mints its `f-` key | `:198-218` |
+| `dismiss_follow_up` | remove a follow-up and its answer; base questions refuse | `:220-232` |
+| `restore` | an earlier revision's questions and answers come back (server fills them) | `:234-240` |
+| `reinherit` | branch only: move `Inherits` to the project's current pin (the `4-D3` fan-out) | `:242-246` |
+| `draft` | the repo on-ramp writes `model_drafted` answers, never over a settled one | `:248-260` |
+
+A tenth kind, `propose_follow_up`, is not a `discover` op: `discoverhub` expands it by asking the
+model and writes nothing unless a question is proposed
+(`p4/control-plane/internal/discoverhub/write.go:16-20`, `:124-125`).
+
+**Skip is per question and includes `done`.** Any key may be skipped; nothing guards `done`
+(`ops.go:179-185`). A skipped `done` has `criteria: []` and still completes the brief — pinned by
+`TestSkipIsSettledAndCompletesTheBrief` (`ops_test.go:101`, the `done` row at `:122-124`).
+
+**Criterion ids (R6).** `Criterion` is `{id: "c-" + 8 hex, text}` (`content.go:160-166`). Only the
+`done` answer carries criteria (`ops.go:277-290`). The text is split by `SplitCriteria` —
+newlines and semicolons, leading `- ` or `* ` stripped, empties dropped, no model call
+(`content.go:380-397`). Each new item keeps the id of an unused previous criterion with **exactly**
+the same text; every other item gets a fresh id never held before, so evidence never attaches to a
+different sentence (`ops.go:295-330`). A `done` answer that splits into zero items is refused
+(`ErrEmptyAnswer`, `ops.go:286-288`). Ids come from `Env.NewID` (`ids.New` in production; nil is a
+server fault), retried up to 8 times on a clash (`ops.go:49`, `:81-83`, `:332-340`).
+
+**Text rules on every string an op adds or changes** (`ops.go:449-534`):
+- line endings become LF (`toLF`, `:421-424`); an answer is also trimmed (`:271`);
+- a prompt, answer or criterion containing `panacea:discover:` — the managed-block marker prefix —
+  is refused with `ReservedTextError{Key}` (`:121-124`, `:523-527`); help and options are not checked
+  for it (`:462-469`);
+- an answer over **4000** code points, or a prompt, help or option over **300**, is refused with
+  `TooLongError{Key, Limit}` (`:93-96`, `:528-532`); criteria and `because` have no cap of their own.
+
+**`Apply` is pure** (`ops.go:126-159`): it never mutates its inputs, sets `V`, the scope's
+`Inherits`, `Change` and the derived `Status` on every result (`finish`, `:392-405`), and returns
+`ErrNoChange` — "the caller writes no revision" — when questions, answers (ignoring `answeredAt`)
+and `Inherits` are unchanged (`:536-556`). On any error the result is the zero `Content`.
+
+**How a revision is produced.** `discoverhub.Service.Apply`
+(`p4/control-plane/internal/discoverhub/write.go:111-181`, nine numbered steps): read the head
+content; run `discover.Apply` with `Env.Inherits` set to the project's latest complete revision now
+(branch scope only); `ErrNoChange` writes nothing; create the brief only once there is a change to
+write (`:115-118`); then one `WriteRevisions` call carrying `BaseRevision` — "the head the person
+saw" (`:25`, `:259`). A `revision_conflict` naming this brief goes back to the person unchanged
+(`:152-153`). A project revision that becomes complete fans `reinherit` out to every live branch
+brief whose head pins a different project key, open heads included (`:128-136`), in the same batch.
+The Hub assigns the number; the service predicts `BaseRevision + 1` only to compute the pin's
+digest before the write (`:263-270`) and checks the Hub's digest agrees after it (`:155-156`).
+`NewContent` — five questions, no answers, `open` — "is never written itself - revision 1 is the
+first op applied to it" (`content.go:227-237`).
+
+**What is immutable.**
+- A revision once written: "immutable and kept for ever" (`content.go:2-3`). An edit is a new
+  revision; `restore` writes a new revision holding an old one's questions and answers, with
+  `change.restores` naming the source (`content.go:214`, `ops.go:234-240`).
+- The content's field names, JSON tags and `[]`-not-null rule (`content.go:4-6`).
+- A criterion's id while its exact text survives (`content.go:160-162`).
+- The five base questions' wording and options, "word for word from the 2026-09-18 plan", in a
+  closed set: "'QUESTION 2 OF 5' is honest only because this list cannot grow mid-flow"
+  (`content.go:90-95`). Follow-ups are appended and shown without a denominator (`:92-93`,
+  `Step` sets `Ordinal` and `Total` to 0 for them, `:369-371`).
 
 ## 3. The provenance key grammar and `Ref` (task 06)
 
