@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hostpath"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
 )
 
@@ -386,6 +387,18 @@ func (s *Scanner) parseWorktrees(p Project, out string) []Worktree {
 // A project whose `git worktree list` fails is skipped rather than failing the
 // whole resolution — one broken checkout under the root must not make every
 // other worktree unresolvable.
+//
+// The answer is CONFINED to the projects directory, because it is about to be
+// mounted read-WRITE and it came from git run in a directory the agent writes.
+// One agent-written line in <primary>/.git/commondir makes `git worktree list`
+// name another repository's worktrees instead of this one's — measured at the
+// git level, X-1 review O-1 — and phase 2 mounts the primary worktree with its
+// .git included, so writing that line needs nothing else. Verify asks only
+// whether the directory exists, and a link out of the root passes it, so the
+// check is on the REAL location (hostpath.Confine). Phase 3's R4 rule 6 is the
+// rule this belongs to: the host never trusts anything a sandbox can write.
+// R4 rules 1 and 2 retire the whole question by never mounting the project
+// repository; until then a merged phase 2 is live, and this is the gate.
 func (s *Scanner) Path(ctx context.Context, worktreeID string) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
@@ -404,7 +417,14 @@ func (s *Scanner) Path(ctx context.Context, worktreeID string) (string, error) {
 		}
 		for _, w := range worktrees {
 			if w.ID == worktreeID {
-				return worktree.Verify(w.Path)
+				path, err := worktree.Verify(w.Path)
+				if err != nil {
+					return "", err
+				}
+				if _, err := hostpath.Confine(s.root, path); err != nil {
+					return "", fmt.Errorf("project: git named %q as a worktree of %s, and it is not in the projects directory, so it is not mounted: %w", w.Path, p.Name, err)
+				}
+				return path, nil
 			}
 		}
 	}

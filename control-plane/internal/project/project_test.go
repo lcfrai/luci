@@ -344,10 +344,15 @@ func TestWorktreesParsesPorcelainOutput(t *testing.T) {
 	}
 }
 
+// AMENDED by X-3 (X-1 review O-1): the linked worktree was in a SECOND temp
+// directory, outside the projects root, and that is now a refusal — the answer
+// is about to be mounted read-write and `git worktree list` runs where the
+// agent writes. The resolution this test is about is unchanged; only the
+// fixture moved under the root. project_x3_test.go pins both halves.
 func TestPathResolvesAWorktreeIdThroughTheProvider(t *testing.T) {
 	root := t.TempDir()
 	dir := makeRepo(t, root, "panacea")
-	linked := filepath.Join(t.TempDir(), "evidence-upload")
+	linked := filepath.Join(root, "worktrees", "evidence-upload")
 	if err := os.MkdirAll(linked, 0o750); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
