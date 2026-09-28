@@ -3883,6 +3883,7 @@ folded in.
 | `TestTheProjectLayerComesAfterTheOrg` used a project `env` pair; it is now two `permissions.deny` rules, and the order shows in the array | `task-13.md:778` |
 | `TestI2AKeyHelperCannotBeReplaced` and `TestI12PlatformEnvIsRefused` say which class and which check fires first (I12 before I14) | `task-13.md:760,771` |
 | Task 41's `TestTheInstructionsHoldNoTeammateText` builds layers "in every allowed key"; the project layer's allowed keys are now I14's list | `task-41.md:667` |
+| Task 41's `TestI13RefusesALayerClaudeMd` asserts the **id**, and `claudeMd` is not on I14's allowlist either; both parts now pin `productOwned` (I13) **before** `layerKeys` (I14/I15), so the invariant that names the key wins | `task-41.md:231-235`, `task-13.md:495-499` |
 
 **Two judgements, declared.**
 
