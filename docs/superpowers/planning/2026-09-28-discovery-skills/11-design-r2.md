@@ -408,7 +408,59 @@ criterion and never parses a key (11a §6), so it does not change either.
 
 ## 6. The Discover lens
 
-(to be written)
+The lens stays a view on a branch, not a stage: no order, no numbering, no completion state
+(`CONTEXT.md:204-211`; `AGENTIC-UX.md:79`, rule 12). The brief stays its subject. Words and
+decisions are two quiet areas **below** the brief, each **absent until its first entry exists**;
+*Add a word* and *Record a decision* sit in the lens header as plain text actions, so an empty
+project shows no empty panel and no prompt (§3.3).
+
+### 6.1 How a word shows as it settles
+
+1. **Suggested.** A suggestion from the round (§4) appears where the entry will live, marked with
+   the brief's own drafted glyph `◌` and *suggested from your answers*, in muted text: the same
+   mark task 21 gives a drafted answer (11a §5). Verbs: **Use this word**, **Change**, **Not this
+   one**. A decision's: **Record**, the alternatives as picks, **Not worth recording**.
+2. **Recorded.** On the gesture the row turns solid in place: the glyph goes, the text takes full
+   contrast, and the change **flashes and decays over about 600 ms, `opacity` and `background`
+   only** (`docs/DESIGN-SYSTEM.md:63`). That flash is the one motion here, and it explains
+   something: this row just became a record. Undo sits inline for five seconds (§3.2).
+3. **Taken up by the brief.** From the same moment every occurrence of the word in the brief's
+   answers on screen gains a dotted underline, faded in by the same flash. Hover or focus opens the
+   definition in a popover that changes no layout. The person sees the word join the brief's
+   language, which is the thing OD-36 exists for.
+4. **Its provenance.** Each entry carries, in secondary text, *settled at brief rev 4* as a link to
+   that revision's history row (or *settled outside a brief*), and its key in the licensed mono
+   (`term:te-…@2`, `DESIGN-SYSTEM.md:45`). A revised entry shows its newest words and a *History*
+   disclosure; retired, superseded and withdrawn entries are behind it, never mixed in.
+
+### 6.2 A branch's departures, and what the lens never shows
+
+- **A departure** reads *On this branch: <definition>* with *Project: <definition>* beneath in muted
+  text, the same shape as the brief's override note (`render.go:87-95`). When the project entry has
+  moved past the pinned revision, the entry takes task 19's *project changed* treatment (11a §5)
+  with **Keep this branch's** and **Use the project's**. No new visual state is invented.
+- **Promote** is a verb on a branch entry, never a prompt; archiving a branch asks nothing.
+- **No count anywhere**: no *12 words*, no *3 of 5*, no badge on the rail
+  (`AGENTIC-UX.md:237`, `:245`). **Nothing in this feature adds a queue item of its own**: the
+  suggestions wait in the lens, where the person already is when they appear, and the one
+  queue-bearing source is the Desk's row (§3.2), which is already a queue item.
+- **Colour**: the accent teal only on the verbs and focus (`DESIGN-SYSTEM.md:38`); *recorded* is
+  the normal state, so it is neutral, never a status colour (`:39`).
+
+### 6.3 Every state designed (`DESIGN-SYSTEM.md:90`)
+
+| State | What shows |
+|---|---|
+| Loading | the areas' skeleton rows under the one global heartbeat; never a spinner per row |
+| Empty | the area is absent; the header actions remain |
+| Sparse, dense | one row per entry; past 50 rows the list is virtualised |
+| Hub unavailable | the last list read, marked *not current*, verbs disabled with the reason, as `unavailable` is treated elsewhere |
+| Refused at write | inline on the row, cause and way out: *A teammate settled "lane" a minute ago.* **Use theirs** · **Depart on this branch** (`word_taken`); *This entry changed since you opened it.* **Show the new one** (`revision_conflict`) |
+| Model off | no suggestions; the header actions work without a model |
+
+Keyboard: the rows join the lens's traversal, `j`/`k` to move and `a` to take the suggested answer,
+as the Desk's rows do (`AGENTIC-UX.md:147`). Words and their definitions are sans; only keys and ids
+are mono.
 
 ## 7. The cost
 
