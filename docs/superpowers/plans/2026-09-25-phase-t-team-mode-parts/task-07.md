@@ -41,7 +41,7 @@ on record.
 - `control-plane/internal/hub/server/server.go`: `s.registerTeamPart2()` (modify: one line)
 - `control-plane/internal/hub/server/auth.go` (task 05): `Principal.Auditor bool` from a desktop
   token's `Hub.Auditor` app role, always false under a delegation (modify; task 05 leaves it to
-  this task, `task-05.md:851-852`)
+  this task, `task-05.md:869-870`)
 
 **Interfaces:**
 - Consumes:
@@ -54,7 +54,7 @@ on record.
     `teamtext.Text` on every text field; the `RouteName` constants (`task-03.md:384-393`). Task 03
     wins wherever a name here differs (`task-03.md:27-32`).
   - from task 05: `Principal.Via`, `Principal.Delegation`, and `Delegable(name, h)`, through which
-    every Fleet-reachable route here is registered (`task-05.md:49-53`, `:315-327`, `:837-839`).
+    every Fleet-reachable route here is registered (`task-05.md:67-71`, `:333-345`, `:855-857`).
   - from task 04: tables `threads`, `messages` (append-only), `escalations`, `directives`
     (append-only), `human_messages` (append-only, `tombstoned_at`), each keyed by `org_id` under
     RLS, with the database `CHECK` bounds that mirror task 02.
@@ -442,7 +442,7 @@ func privateOwner(p Principal) (owner string, all bool) {
 
 `Principal.Auditor` is read from a desktop token's `roles` claim (`Hub.Auditor`, task 01 §5.2)
 where Hub task 13 reads `Hub.OrgAdmin` for `OrgAdmin`, and task 05's `resolveDelegated` leaves it
-false exactly as it leaves `OrgAdmin` false (task 05 decision (e), `task-05.md:875-876`). So the
+false exactly as it leaves `OrgAdmin` false (task 05 decision (e), `task-05.md:897-898`). So the
 `p.Via == ""` term above is a second layer, not the only one. Its test is a plain unit test (no
 database) in `escalations_test.go`, written with Step 1's and run by the default `go test`:
 
@@ -531,7 +531,7 @@ git commit -F .superpowers/sdd/team/msg/t07.txt -- control-plane/internal/hub/se
 
 1. **The auditor principal.** §3.4 and task 01 §5.2 give reads to an org *auditor*, but neither
    task 05's scope nor task 43's ("*auditor* and *compliance*") says which task adds
-   `Principal.Auditor` before task 07 needs it. Task 05 leaves it here (`task-05.md:851-852`), so
+   `Principal.Auditor` before task 07 needs it. Task 05 leaves it here (`task-05.md:869-870`), so
    this part adds it; task 43 should only add its matrix rows. The skeleton's scope for 07 should
    say so.
 2. **Thread and escalation reads for rebuild.** Task 11's `rebuild.go` needs Fleet's open threads

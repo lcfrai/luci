@@ -22,7 +22,7 @@ adds no transaction machinery of its own.
 **The one thing this task must not get wrong is who the owner is.** A team write names no owner in
 its body. The owner is `tx.P.UserID`, and for a Fleet call task 05 has already made that the
 delegation's owner and set `tx.P.Via = hubapi.ViaFleet` (`"fleet"`, `task-03.md:361-362`) and
-`tx.P.DelegationID` (`task-05.md:386-391`). So every handler compares
+`tx.P.DelegationID` (`task-05.md:404-409`). So every handler compares
 record owners with `tx.P.UserID` and never reads a user id out of JSON. A request type that grew an
 `ownerUserId` or `actor` field would make task 01's acceptance grep fail, and `Decode` refuses unknown
 fields, so a body that sends one gets 400 `bad_request`.
@@ -117,9 +117,9 @@ fields, so a body that sends one gets 400 `bad_request`.
   - from task 05: `Principal.Via` (`""` or `"fleet"`), `Principal.DelegationID`,
     `Principal.Delegation` (a `DelegationView`: project, class, routes, expiry), the route-name
     check, the v2 audit write, and `store.AgentOwnedBy(ctx, tx, agentID, userID) (bool, error)`
-    (`task-05.md:115-121`, `:303-311`, `:506-510`); and `server.Delegable(name, h)`, which every
-    Fleet-reachable route here is registered through (task 05 decision (d), `task-05.md:49-53`,
-    `:837-839`). A route registered bare has no name, so Fleet calling it is 403.
+    (`task-05.md:133-139`, `:321-329`, `:524-528`); and `server.Delegable(name, h)`, which every
+    Fleet-reachable route here is registered through (task 05 decision (d), `task-05.md:67-71`,
+    `:855-857`). A route registered bare has no name, so Fleet calling it is 403.
   - from task 02: `teamtext.Bound`, `teamtext.Clean`, `teamtext.ValidGlob`, `teamtext.Author`.
 - Produces: the ten write and four read handlers below, plus route 87's write (`projects.mode`,
   the only writer) and `Server.teamModeGate` with `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED`, the
@@ -566,7 +566,7 @@ func TestRequireDesktopRefusesAnyDelegatedCaller(t *testing.T) {
 `TestTaskCreateRefusesAnotherOwnersAgent`, `TestConflictUpdateByEitherParty`).
 
 `DelegationView` is task 05's name for the loaded row on the principal, with `Class
-hubapi.DelegationClass` and `Routes []hubapi.RouteName` (`task-05.md:303-311`). `Forbidden` records an
+hubapi.DelegationClass` and `Routes []hubapi.RouteName` (`task-05.md:321-329`). `Forbidden` records an
 `auth.forbidden` event through the server's store; in a unit test with no store it must no-op on a
 nil store rather than panic. If Hub task 14's `Forbidden` does not already tolerate that, this test
 file constructs the errors through `Refuse(403, hubapi.CodeForbidden, …)` in a local helper instead.
@@ -739,7 +739,7 @@ The route registration, in full:
 // control-plane/internal/hub/server/delegations.go (excerpt)
 func (s *Server) registerTeamPart1() {
 	// Desktop only (routes 46, 48, 49): no route name, so Fleet is 403 here by
-	// construction (task-05.md:49-53), before RequireDesktop runs.
+	// construction (task-05.md:67-71), before RequireDesktop runs.
 	s.mux.HandleFunc("POST /v1/delegations", s.createDelegation)
 	s.mux.HandleFunc("POST /v1/delegations/{dl}/renew", s.renewDelegation)
 	s.mux.HandleFunc("DELETE /v1/delegations/{dl}", s.revokeDelegation)

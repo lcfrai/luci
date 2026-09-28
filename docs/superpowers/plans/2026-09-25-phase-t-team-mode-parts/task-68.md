@@ -592,7 +592,7 @@ with a direct Hub call and says so.
 
 **One hunk this part missed.** Naming a route is not enough. Task 05's `resolveDelegated` admits
 a Fleet call only when the name is in the delegation's routes **and** its class allows it
-(`task-05.md:397-401`), and task 06 refuses to create a delegation whose routes exceed its
+(`task-05.md:415-419`), and task 06 refuses to create a delegation whose routes exceed its
 class's set, `hubapi.ClassRoutes` (`task-03.md:406-419`). Without the hunk below, task 21 cannot
 create a delegation that lists `lands.record`, and every Fleet call to routes 82 and 83 is 403.
 `Fleet·O` in rows 82–83 is Fleet under an `orchestrator`-class delegation (`task-01.md:252-253`),
@@ -608,7 +608,7 @@ after `RoutePolicyRead,`:
 
 Routes 82 and 83 register through task 05's `Delegable(hubapi.RouteLandsRecord, …)` and
 `Delegable(hubapi.RouteLandsRead, …)` inside `registerLands()` (step 3); a route registered
-without it has no name, and Fleet calling it is 403 (`task-05.md:315-316`).
+without it has no name, and Fleet calling it is 403 (`task-05.md:333-334`).
 
 | Test (`hubapi/team_test.go`, `server/lands_test.go`) | Asserts | Mutant it kills |
 |---|---|---|

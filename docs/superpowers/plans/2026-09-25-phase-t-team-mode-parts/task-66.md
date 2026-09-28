@@ -1081,15 +1081,15 @@ rule 9 hunk above, and one closes gap 2.
 
 1. **No `idtyp`.** Task 05 admits an app-only token by *"no `scp`, a listed `azp`, the listed
    role; `idtyp` is not read"* (`task-05.md:29-31`), and `devissuer` writes no `idtyp`
-   (`task-05.md:571-572`). The built `entra.Claims` has `ClientID // azp` and `Roles`, and no
+   (`task-05.md:589-590`). The built `entra.Claims` has `ClientID // azp` and `Roles`, and no
    `idtyp` field (`entra.go:44-54` on `feat/env`, read 2026-09-25). `claims.Idtyp == "app"` never
    holds, offline or on Entra unless the optional claim is configured.
 2. **Authentication runs ahead of the mux.** Task 05's header rules run in `Authenticate`,
    *"Before the mux routes"* (`task-05.md:33`), so `r.Pattern` is `""` there and
    `gatewayRoutes[r.Pattern]` refuses all three routes. Task 05 carries the route by name in the
-   context instead: `Delegable(name, h)` and `RouteFrom(ctx)` (`task-05.md:315-327`).
+   context instead: `Delegable(name, h)` and `RouteFrom(ctx)` (`task-05.md:333-345`).
 3. **An app-only token without a header is 401.** `delegationHeader` answers
-   `delegation_required` to any app-only caller off the feed (`task-05.md:252-253`). The gateway
+   `delegation_required` to any app-only caller off the feed (`task-05.md:270-271`). The gateway
    never names a delegation, so it needs its own case ahead of that one.
 4. **Task 43's `DefaultTeamPolicy`** writes `Quotas{MemberDailyCents: 2500, ProjectDailyCents:
    20000}` as a literal (`task-43.md:195-198`). The numbers equal `DefaultQuotas`; the name is
@@ -1118,7 +1118,7 @@ names after `RoutePolicyRead`, `task-03.md:364-366`, `:395`):
 		Quotas:                   DefaultQuotas, // T66: one source for the default quotas
 ```
 
-`cmd/hub/serve.go`, task 05's `fleetCallers` (`task-05.md:608-616`) becomes:
+`cmd/hub/serve.go`, task 05's `fleetCallers` (`task-05.md:626-634`) becomes:
 
 ```go
 // appCallers is every app-only identity the Hub admits: Fleet (rule 1) and,
@@ -1138,7 +1138,7 @@ func appCallers(cfg Config) ([]entra.AppCaller, error) {
 
 `cfg.GatewayClientID` is `PANACEA_APP_HUB_GATEWAY_CLIENT_ID`, read beside task 05's Fleet id.
 
-`server/auth.go`, three hunks on task 05's additions (`task-05.md:219-277`):
+`server/auth.go`, three hunks on task 05's additions (`task-05.md:237-295`):
 
 ```go
 // Claims gains, after FleetFeed:
@@ -1169,7 +1169,7 @@ func appCallers(cfg Config) ([]entra.AppCaller, error) {
 ```
 
 `server/delegation.go`: `resolveCaller` gains `case c.Gateway: return s.resolveGateway(ctx, tx, c)`
-ahead of `case c.FleetFeed` (`task-05.md:352`), and:
+ahead of `case c.FleetFeed` (`task-05.md:370`), and:
 
 ```go
 // gatewayRoutes is rule 9's whole list, by contract §7.0 name, so a new route
@@ -1200,7 +1200,7 @@ func (s *Server) resolveGateway(ctx context.Context, tx pgx.Tx, c Claims) (Princ
 (`task-04.md:806-808`), so it serves the gateway unchanged. Route 80 registers as
 `Delegable(hubapi.RouteOrgQuotasRead, …)` and route 76 as `Delegable(hubapi.RouteUsageRollupsPost,
 …)`; route 74 is task 43's under `policy.read` (`task-43.md:254`). `Delegable` only names a route:
-Fleet still needs the name in its delegation and its class (`task-05.md:397-401`), and neither new
+Fleet still needs the name in its delegation and its class (`task-05.md:415-419`), and neither new
 name is in a class.
 
 **Names in this part's handlers.** `tx.P.Caller == CallerGateway` reads `tx.P.Via ==
@@ -1213,7 +1213,7 @@ contain `Hub.Gateway`."* The rest of rule 9 stands; its three routes are the nam
 `org_quotas.read` and `usage_rollups.post`.
 
 **`devissuer`** gains a `gateway` client, `Confidential: true`, whose `AppRoles` for the Hub API
-hold `Hub.Gateway` (task 05's `Client` fields, `task-05.md:538-559`). The file it is listed in is
+hold `Hub.Gateway` (task 05's `Client` fields, `task-05.md:556-577`). The file it is listed in is
 Hub tasks 11–12's, **UNVERIFIED until merge**.
 
 **Tests this reconciliation adds** (`server/gateway_test.go`, new; `cmd/hub/serve_test.go` and
