@@ -226,7 +226,62 @@ decisions area is absent until the first one exists (§6).
 
 ## 4. The interview's rounds are process state
 
-(to be written)
+### 4.1 What a round is here, and how small
+
+The built interview stays exactly as shipped: five closed questions and at most one follow-up
+(11a §5). **No question is added to it**, so none of round 1's 40 questions over 6 rounds survives.
+A round is something else: once a brief revision is `complete`, the Discover assistant makes **one
+suggestion round** from it, the method's frontier (01 §1): the decisions whose prerequisites the
+answers have now settled, each with a recommended answer and its alternatives, and the words the
+answers use in a way specific to this project. Facts stay the assistant's job; the person decides.
+
+- **At most three decisions and five words.** An empty frontier is the common answer, and it shows
+  nothing at all.
+- **At most one model call per complete revision**, shaped like the follow-up's: effort `medium`,
+  a 20-second budget, the project and branch names and the answers holding a person's words, never
+  file contents (`assist.go:15-20`, `:35-49`, `:182-185`). Its outcomes mirror the follow-up's six,
+  none an error: with no model configured there are no rounds, and the lens keeps *Add a word* and
+  *Record a decision*, which need no model.
+- **Labelled, never counted**: *Suggested from your answers*. No round number and no total
+  (`AGENTIC-UX.md:237`); the interview's one counter stays the literal *QUESTION n OF m* on a base
+  question (`content.go:325-329`), and a round has none.
+- A round **never gates the brief**: a revision is complete without one, and terms and decisions
+  never count toward completeness (kept from round 1, 00 §2).
+
+### 4.2 Where round state lives
+
+In the **control plane**, as phase 4's local process state: one file per brief,
+`<state>/discover/rounds/<briefId>.json`, written with the `statepath.WriteAtomic` the Materialiser
+already uses (`materialise.go:185-191`). It holds the base the round was computed against (the brief
+key and the branch's two vocabulary set digests, §5.2) and each suggestion with its fields and a
+state, `pending` or `dismissed`.
+
+It is **never** inside `discover.Content`, so no round mints a brief revision or moves a digest
+(the sceptic's 4.3), and **never** in the Hub, so nothing about a round is shared, numbered or
+audited. There is no `grill_round` op, no round counter and no `Grill{…}` struct anywhere.
+
+### 4.3 How it dies
+
+1. **Acted on.** A recorded suggestion leaves the round, because it is now a Hub record. A
+   dismissed one stays, marked, so the next round does not offer it again.
+2. **Its base moved.** When the brief head or either vocabulary digest differs from the round's
+   base — a teammate revised something — the round is not shown as it was. Each pending suggestion
+   is re-checked against the new base: dropped if its word is now in force or its decision now
+   recorded, kept otherwise. A new model call happens only for a new complete revision. So a round
+   is never applied against a stale base, and if two people race, the Hub's `baseRevision` and
+   `word_taken` checks (§2.4) refuse the loser at write, with a row that says why.
+3. **The brief is archived or erased.** The file is deleted.
+4. **Fourteen days untouched.** The file is deleted; the next visit to a complete revision may make
+   a fresh round. There is **no closed state and no stall detector**: an unanswered round closes
+   nothing, so "skipped everything" and "not back yet" never need telling apart, and nothing ever
+   needs reopening (the sceptic's 3.2 item 2).
+5. **Another machine.** Round state is per machine. There the round is recomputed from the Hub's
+   current brief and vocabulary. A suggestion is derived, unconfirmed data, so nothing a person
+   said is lost; the one cost is that a suggestion dismissed on the first machine may be offered
+   once more on the second (§8 records it as an owner question).
+
+**A session's proposal** (§3.2, third source) is the Desk row's own state, wherever the Desk keeps
+it, and dies with the row. It never reaches the Hub until a person records it.
 
 ## 5. Closing the thread
 
