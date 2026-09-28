@@ -7,11 +7,51 @@
 
 ## What could not be verified
 
-(Filled in as the sections are written.)
+1. **Nothing was compiled, run or tested for this sheet.** Every "built" is the stream ledgers'
+   word and the files on disk, not a run. The Hub's own ledger says task 07's fix round is not
+   closed, with four mutants unresolved (`PR:505-508`), and task 05 is not approved (`PR:499`).
+2. **No Hub process exists to check the contract against.** `cmd/hub`, `server/` and `store/` are
+   not in the Hub tree (§2.2), so every route and event fact in §1 is the contract's text and the
+   fake's behaviour, not a served answer.
+3. **The main tree has no copy of the Hub contract.** The task said one is in
+   `docs/superpowers/contracts/`; it is not (listing and `git ls-files`, 2026-09-29). Every `HC:`
+   line is the Hub worktree's file at `cafe1303`.
+4. **The Hub worktree had uncommitted edits while this was read** (`feed.go`,
+   `schema_integration_test.go`, `task-07a.md`, §2.2). Facts from those files are from `HEAD`
+   (`git show cafe1303:…`) where line numbers are given; another agent may be working in that tree.
+5. **The contract is known stale in places**, until task 44a folds A1-A19 (`PR:472`, `PR:518-521`):
+   the audit envelope's `teamId` (A10), the composite foreign keys (A16), erasure and replays
+   (A17), `orgs` and the head lock (A18, A19). Where the built code and the contract differ, both
+   are cited; this sheet does not say which is right.
+6. **Plans were searched by word, not read whole.** §5's counts are files matching; a plan that
+   describes a glossary or a decision record without any of the searched words would be missed.
+   §4's consumer lists are the grep hits for brief-key words in the phase 5 and phase 7 plans and
+   code, read line by line; a consumer that never names a brief key is not listed.
+7. **The provenance contract draft** (`PC`) was read only at the lines cited (`PC:83-107`,
+   `PC:415`). **ADR-H1** (816 lines), which wins over the contract where they disagree (`HC:3-5`),
+   was searched by word (*glossary*, *vocabulary*, *new record/kind*, *additive*, *ledger*, *v2*),
+   not read whole; only its versioning rule (`ADR-H1…:295-299`) is quoted. It holds no glossary or
+   vocabulary match.
 
 ## Trees read, and at which commit
 
-(Filled in as the sections are written.)
+| Tree | Branch | Commit read |
+|---|---|---|
+| main (`C:/Users/au-dev-dmackie1/Projects/PanaceaApp`) | `feat/phase-2-cockpit` | `492f3722` plus this file's own commits |
+| `.claude/worktrees/hub` | `feat/hub` | `cafe1303` (three files uncommitted-modified) |
+| `.claude/worktrees/phase-4` | `feat/phase-4-discover` | `ca737d92` |
+| `.claude/worktrees/phase-5` | `feat/phase-5-canvas` | `22675f39` |
+| `.claude/worktrees/phase-7` | `feat/phase-7-deploy` | `0477c5a4` |
+| `.claude/worktrees/phase-3` | `feat/phase-3-git` | `3676625a` (provenance draft only) |
+| `.claude/worktrees/env` | `feat/env` | `42397d8e` (plans searched only) |
+| `.claude/worktrees/phase-6` | `feat/phase-6-gateway` | `5c480f2d` (plans searched only) |
+| `.claude/worktrees/sandbox-git-fix` | `fix/sandbox-git-ca` | `4f6d698d` (plans searched only) |
+| `.claude/worktrees/team` | `feat/team-mode` | `2911e0cd` (plans searched only) |
+| `.claude/worktrees/work` | `feat/work-layer` | `ccbc8eb0` (plans searched only) |
+
+**Abbreviations used below:** `HC` the Hub contract; `HP` the Hub plan; `PR` the Hub stream
+ledger; `SQL` the built migration; `PC` the provenance contract draft; `P5`/`P5T` and `P7`/`P7T`
+the phase 5 and phase 7 plans and parts. Each is spelled out where it first appears.
 
 ## 1. The contract
 
@@ -28,6 +68,9 @@
 - Additive changes are not breaking: "a new optional request field, a new response field, a new
   route, a new error code, a new event kind". Consumers **must** ignore unknown response fields and
   unknown event kinds; the Hub **rejects** unknown request fields, 400 `bad_request` (`HC:32-35`).
+  The ADR's own statement of the rule: "a breaking change is `/v2` served beside `/v1` for one
+  release. Additive fields are not breaking, and every decoder on both sides tolerates them
+  **except** the Hub's own request decoding" (`.claude/worktrees/hub/docs/superpowers/adr/ADR-H1-hub-architecture.md:295-299`).
 - The control plane must send an `Idempotency-Key` "on every reserve, confirm, approval and
   revision write" (`HC:50-55`).
 
@@ -48,9 +91,14 @@
   prohibition **P5** is "Parsing a brief key outside the `provenance` package … One grammar, one
   owner" (`PC:415`).
 - **Ownership, as `10-decision-terms-beside-the-brief.md:54` states it:** "The provenance key
-  grammar, which the **Hub contract** owns". `CONTEXT.md:108-110` says phase 4's `key.go:23-29` is
-  "verbatim from the Hub contract". The contract's own sentence (`HC:116`) and `10`'s sentence name
-  different owners. This sheet records both and decides neither.
+  grammar, which the **Hub contract** owns". OD-36, now in the register, says the same under *What
+  does not move*: "the provenance key grammar, which the Hub contract owns"
+  (`docs/superpowers/planning/2026-09-23-owner-decisions.md:409`). `CONTEXT.md:108-110` says phase
+  4's `key.go:23-29` is "verbatim from the Hub contract". The contract's own sentence (`HC:116`) and
+  the provenance draft (`PC:104`) name phase 4's package; OD-36 and `10` name the contract. What
+  OD-36 lists under *What does not move* is "the brief content model, and the provenance key
+  grammar" (`:409`). This sheet records the disagreement about the owner and decides nothing (see
+  *Questions left open*).
 - **Two parsers compile the grammar today, one in each tree:**
   - Phase 4, `.claude/worktrees/phase-4/control-plane/internal/provenance/key.go`: "Package
     provenance owns the key grammar (contract P5): nothing else in the product may split a key"
@@ -662,3 +710,15 @@ plans (phase 1, phase 2 and its parts, the 2026-09-18 phase 4 plan) are copied i
 - Every other *term(s)* hit in the plans is a terminal (`TERM=dumb`, `term.write`), a filter or
   search term, an inequality's term, or licence and retention terms (the distinct lines, read
   2026-09-29). None is a project glossary.
+
+## Questions left open, with the default taken
+
+| # | Question | Whose | Default this sheet took |
+|---|---|---|---|
+| Q1 | Which document owns the key grammar: phase 4's `provenance` package (`HC:116`, `PC:104`, `key.go:1-2`) or the Hub contract (OD-36 at `owner-decisions.md:409`, `10-…:54`)? | the owner, since OD-36 carries the second wording | None. Both are cited in §1.1; nothing here depends on the answer, because OD-36 already fixes that the grammar does not move |
+| Q2 | The task placed a copy of the Hub contract in the main tree's `docs/superpowers/contracts/`; there is none. Is one meant to land there? | the workflow orchestrator | Read the Hub worktree's copy at `cafe1303` and cited it as `HC` throughout |
+
+---
+
+*End of fact sheet. Sections 1-5 were each committed as written; the verdict a designer needs is
+not this sheet's to give.*
