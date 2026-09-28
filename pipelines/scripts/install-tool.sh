@@ -29,7 +29,7 @@
 # newest golang.org/x/vuln whose go directive (1.22) builds on CI's Go 1.23; v1.2.0 and later
 # need Go 1.25. OpenTofu is 1.12.6, chosen on 2026-09-28 as the newest stable release.
 #
-# OD-32, applied and CLOSED on 2026-09-28. The IaC engine is OpenTofu (MPL-2.0), never
+# OD-32, applied 2026-09-28. This pin is closed; the bootstrap lock file is not (infra/terraform/README.md). The IaC engine is OpenTofu (MPL-2.0), never
 # HashiCorp Terraform, which has been BUSL-1.1 since August 2023 and this product ships to
 # customers to run on their own clouds. The two `tofu` rows replace the `terraform` rows that
 # stood here. Both pins are the values published in

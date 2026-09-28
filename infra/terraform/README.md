@@ -49,11 +49,11 @@ It is recorded rather than guessed, and may not be closed by inventing a value:
    are per-registry and per-archive, so a hand-written entry is a fabricated integrity check:
    `tofu providers lock -platform=windows_amd64 -platform=linux_amd64`. Until then guard G9
    strips both registry hosts; once the file is regenerated, narrow G9 to the OpenTofu host so
-   a Terraform-written lock file fails the guard by itself.
+   a Terraform-written lock file fails the guard by itself. **This is not cosmetic:** until the file is regenerated, the first `tofu init -lockfile=readonly` on this stack (`validate.sh`'s stack path, `infra/scripts/validate.sh:10,117`, and task 30's `tf-stack.sh`) is expected to fail, because the lock holds no `registry.opentofu.org/hashicorp/azurerm` entry (training knowledge of how OpenTofu keys a lock file, **UNVERIFIED**: no `tofu` binary has run here).
 
 ## Secrets: Azure Key Vault, not HashiCorp Vault, so OpenBao is deferred
 
-Every `vault` in this tree is **Azure Key Vault** — `azurerm_key_vault`, `modules/keyvault`, the
+Every `vault` identifier in this tree's `.tf` files is **Azure Key Vault** — `azurerm_key_vault`, `modules/keyvault`, the
 `privatelink.vaultcore.azure.net` zone, and the `vault` private-endpoint subresource. Key Vault
 is an Azure service, not a HashiCorp dependency, and has no licence problem. **Phase 8 plans no
 HashiCorp Vault anywhere**, so `OD-32`'s Vault→OpenBao clause deletes nothing here; it binds the
