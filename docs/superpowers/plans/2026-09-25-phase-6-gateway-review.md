@@ -799,9 +799,11 @@ directory, a new `.gitignore` entry and three edits to task 17 to buy nothing.
   task 23 exports, so a later edit to task 17 cannot move it silently.
 - `task-25.md:82`: the gap-register row records the mount half closed by this batch.
 
-**Verified.** `grep -rn "gateway/projects/projects.json"` over `docs/superpowers/plans` returns
-nothing after the edit; `grep -rn "state/projects"` returns only task 17's five lines plus the new
-references in tasks 21, 23 and 25. **Unverified:** nothing here was executed. Phase 6 has no code —
+**Verified.** After the edit, `grep -rn "gateway/projects/projects.json"` over the whole
+`2026-09-25-phase-6-gateway-parts/` directory and the skeleton returns **nothing**; the only two
+matches left in `docs/superpowers/plans` are the quotation and this sentence, both in this section.
+`grep -rn "state/projects"` returns task 17's eight lines plus the new references in tasks 21, 23
+and 25, and no other spelling. **Unverified:** nothing here was executed. Phase 6 has no code —
 zero task reports exist — so no Go or npm suite was run, no control plane, container or image was
 started, and the main tree and sibling worktrees were not touched. Whether Docker Desktop on Windows
 propagates a host rename into a directory bind mount promptly is still task 21's own UNVERIFIED
