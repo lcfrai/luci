@@ -67,7 +67,7 @@ Seven rules shape every task. A task that breaks one is wrong however good it is
 
 1. **The issue is on the thread.** An issue head `is-` is mutable; an issue revision
    `issue:is-…@r` is immutable and digested, and its `serves [{briefKey, criterionId}]` is what
-   joins it to Define. `EP-142` is a display alias from `project.key` and a number, **never a
+   joins it to Define, as its `implements [design:…]` joins it to Design (81b, 96b). `EP-142` is a display alias from `project.key` and a number, **never a
    key**, because an admin can change the project key (05 §3.6).
 2. **Done means proven.** `started`, `in_review`, `landed` and `done` are **facts**, written as the
    person whose act caused them. `done` needs the issue's **own** evidence, at or after its **own**
