@@ -1,6 +1,6 @@
 ### Task 25: Close the phase: `PROGRAM.md`, seams, asks, what stays unverified
 
-The phase is not closed when the code merges. It is closed when the programme document stops describing a phase that no longer exists, when every seam and ask this plan leaves is written where the next phase will find it, and when everything still **UNVERIFIED** is listed in one place instead of scattered across twenty-four parts. This task edits two documents and writes no code.
+The phase is not closed when the code merges. It is closed when the programme document stops describing a phase that no longer exists, when every seam and ask this plan leaves is written where the next phase will find it, and when everything still **UNVERIFIED** is listed in one place instead of scattered across twenty-six parts (OD-33 added tasks 26 and 27; the phase is **29 tasks**). This task edits two documents and writes no code.
 
 **The one thing this task must not get wrong is claiming acceptance.** An ask is a request of another phase; writing it down does not mean it was accepted. A seam is a place the next phase plugs in; listing it does not mean anyone has. Every line this task adds says which it is, and none says "agreed", "done" or "confirmed" about work outside this phase.
 
@@ -93,6 +93,9 @@ Read every part's "Gaps against the skeleton" section (`grep -n '^\*\*Gaps again
 | Whether "Budget reached" should name the dimension's real reach (a person's or team's budget stops every project) | task 22 gap 4 | **new owner question Q8** | wording only |
 | The top bar has no project name | task 22 gap 1 | **new owner question Q9** (phase 2 design) | the chip carries the name in its label |
 | A *Move back to Global* control, and the `canLowerRoute` field it needs, if the owner answers Q5 with the design's rule | task 22 gap 5 | **carried by Q5** | no new id: the skeleton's Q5 already asks it, and this row records where the answer lands |
+| No cloud equivalent of task 26's residency canary: nothing asserts an AU sandbox's egress at the firewall | task 26 gap 2 | follow-up inside phase 6 | task 24: a **P07** that captures an AU session's egress and fails on any request to `residency.LeakHost`; ask P8-3 owns the allowlist it reads |
+| A **Global** `count_tokens` is attributed to nobody while LiteLLM #42073 is open (the leaked call carries the deployment's key, not the session's), so task 09's rollup cannot see it | task 26 gap 3 | **owner question Q10** | wording: spend on Global is under-reported by whatever `count_tokens` costs; nothing in this phase can file it. Carried by seam S6.14 |
+| Task 27 builds an image and pushes it nowhere; a customer's AKS needs a registry, and the build is unsigned though upstream recommends cosign | task 27 gaps 2, 3 | **new ask P8-9** | "Phase 8's pipeline builds, signs and pushes the gateway image to the environment's registry; a customer-hosted tier pulls from theirs" |
 
 A later part's gap not in this table is added the same way. A gap whose fix has landed is written as *closed by `<commit>`*, not deleted, so the record shows it was found.
 
@@ -128,6 +131,10 @@ Append to the plan, after "Open risks", a section `## At close: what stays unver
 | U20 | The names of LiteLLM's request-body control fields (`proxy.ControlFields`), and whether LiteLLM honours a body fallback outside a key's model list | task 11 decision (f), task 07 decision (d) | task 18's P14 (two of the twenty-four names); the rest by reading the pinned image's request parameters |
 | U21 | A managed-settings `env` key outranking a project `.claude/settings.json`'s, key by key; the provider-switch names and `"0"` read as off; the CLI honouring `NO_PROXY`/`no_proxy` for its own requests; `CLAUDE_CODE_ENABLE_TELEMETRY` `"0"` making a project's `OTEL_*` keys inert; a managed `allowManagedHooksOnly: true` stopping a project `UserPromptSubmit` hook; a drop-in winning a top-level key over the base file | task 14 decision (e) (review I-4, re-review R-1) | task 23's item 10 |
 | U22 | Docker's embedded DNS answering the dotted alias `gatekeeper.panacea-gateway.svc.cluster.local`; an `internal: true` network having no route out; a container only on internal networks publishing no port (on Docker Desktop for Windows); whether a sandbox reaches a host-published `127.0.0.1` port (keysmith `:4100`) through `host.docker.internal` | task 17 (review I-6, re-review M-4) | task 17's step 7 acceptance and task 23's item 9 |
+| U23 | Whether the LiteLLM proxy starts at all without the `litellm-enterprise` distribution, and which install candidate (the MIT tree alone, or `[proxy]` with the distribution removed) ships | task 27 decision (e) | task 27's step 5, at the first build; a failure both ways is an owner finding, not a workaround |
+| U24 | Where upstream keeps proprietary code at `v1.102.1` — OD-33's "lines 75 and 150" is the audit's reading of `main`, not re-read against the pinned tag | task 27, OD-33 | task 27's step 1, which records the real lines, and any count above zero is the defect |
+| U25 | That refusing `count_tokens` on AU costs only an approximate `/context` figure. The protocol documentation says the CLI falls back to a character estimate (`06-platform.md:1057-1090`); nobody has watched a real AU session do it | task 26, task 11's per-route allowlist | task 23's item 12, the first AU session on the real CLI |
+| U26 | That the pinned image leaks at all *in our configuration*. #31149 and #42073 are read from the issue tracker, not reproduced here; task 26's rule is written as if it does, which is the safe direction | task 26, OD-33 | task 18's P17 |
 
 - [ ] **Step 8: Verify and commit**
 
