@@ -182,10 +182,10 @@ criterion line does not inherit the old verdict (§7.10, `:1060`).
   cited file disagree, the file wins" gains: when two cited files disagree with *each other*, or a
   file disagrees with itself, state what the code and shipped surfaces carry, say so in the entry,
   and record it under Open questions — which is why Lens states six against a rule that says four.
-- **M7, `The Desk`, not done and deliberately so.** It is the one surface noun in `AGENTIC-UX.md`
-  (`:85-87`, account-level, above projects, a surface you empty) with nothing in the phase 2
-  contracts to fix it. Adding an entry whose only citation is the UX document would define a word the
-  code has not yet met. Left for the phase that builds it; recorded here so it is not lost.
+- **M7, `The Desk`, not done and deliberately so.** It is a surface noun in `AGENTIC-UX.md` (`:85-87`,
+  account-level, above projects, a surface you empty). *Corrected in §7:* the UI contract does name
+  it (`…ui-contract.md:45`, and `:64` as a thing Group D does not build), and `owner-decisions.md:172`
+  puts the Desk frame in W1. Deferred until W1 builds the surface; recorded here so it is not lost.
 
 Net effect on length: 298 → 340 lines. Five entries added, two removed, three trimmed.
 
@@ -208,3 +208,66 @@ exactly the drift `CONTEXT.md` exists to prevent. The count is gone from the ent
 grid of action classes … against four named levels", which is what the source supports. Whether the
 grid should have nine rows or ten is a product question no file answers; it is not recorded as an
 owner question because nothing in the tree claims nine except the review.
+
+## 7. Fix round 2 — 2026-09-29, against review `08-context-review-2.md`
+
+**Verdict: done.** I1, I2 and I4 are fixed, M1 to M6 are fixed, and one owner question is
+recorded. I3 was already fixed in `6a96f641`: `CLAUDE.md:15` now says "the brief written in
+Define". This round changed `CONTEXT.md` and, for M5, §6 above. No product code was touched.
+
+**Every edit is in place.** `CONTEXT.md` is still 340 lines. Other documents cite it by line at
+`:47`, `:107`, `:108-110`, `:125`, `:171`, `:220`, `:228`, `:242-243`, `:255` and `:303`, and each of
+those lines still says what it said. Review-2's line numbers still matched the file. Before writing
+anything I opened each source line: `AGENTIC-UX.md` `:31`, `:37`, `:66`, `:71`, `:185`, `:189-190`,
+`:226`, `:241`, `:245`; `FUNCTIONAL-SPEC.md:14-15`, `:44-46`; `PROGRAM.md:119-122`;
+`ui-contract.md:45`, `:62-64`; Hub contract `:957-972`, `:984`, `:1015`.
+
+### The three open Importants
+
+- **I1, the Queue entry's citation (`:214-216`).** The sentence about the ranked list and counts
+  now cites `docs/AGENTIC-UX.md:71` (§4 rule 4, *"One ranked queue. No scattered badges."*) and hard
+  rule 10 at `:245`. `:31` stays only on the pane-is-a-cost sentence, labelled §2 rather than
+  "rule 4". The do-not-use row at `:292` says "rule 4's attention queue", which now matches.
+- **I2, two bare "the queue"s.** Lane (`:60`) now says "the landing-queue row" and Convergence
+  (`:64`) says "the landing queue".
+- **I4, "approval" with two senses.**
+  - The Hub entry (`:166`) now lists "design approvals". The Hub contract's only approval heading
+    is §7.7 *Design approvals*.
+  - The Design approval entry (`:149`) now says it is not an *approval row*.
+  - The Authority entry (`:234-235`) defines the approval row: a person's decision in the attention
+    queue on one action an agent asked for (`AGENTIC-UX.md:241`), never a Hub record. To fit it in
+    place, the entry's *Not «permission mode»* lines moved down one line, into the line M6 freed.
+    Nothing cites those lines.
+
+### The Minors
+
+- **M1 (`:249-252`):** `FUNCTIONAL-SPEC.md:15` now sits on "shown as nested steps", which its
+  Sub-agent row fixes. The ownership sentence rests on `OD-16`, which is already the entry's
+  *Fixed by*.
+- **M2 (`:233`):** `AGENTIC-UX.md:37` is now labelled "§2, item 6", not "rule 6".
+- **M3 (`:154-156`):**
+  - Release now says the Hub pins the revision "or `none`, with a reason" (`:984`, `:1015`).
+  - It says Ship does not happen without `reserved` (`:971`, "If step 1 fails").
+  - It says the control plane calls Panacea with phase 7's client (`:966`).
+- **M4 (`:29`):** `PROGRAM.md:119-122` is dropped. `FUNCTIONAL-SPEC.md:46` already fixes the claim
+  that a cloud machine is claimed from a warm pool.
+- **M5 (§6 above, edited in place):** the M7 bullet no longer says nothing in the phase 2 contracts
+  names the Desk. The UI contract names it at `:45` and `:64`, and `owner-decisions.md:172` puts
+  the Desk frame in W1. The corrected reason: deferred until W1 builds the surface.
+- **M6 (`:237`, removed):** nothing in the tree uses "trust level" except that line and the review,
+  so it failed the file's own bar for a rejected synonym.
+- **Skipped, the §6 nit:** Criterion and Evidence both state the digest-keying rule. Review-2 says
+  to leave it until a third entry repeats it.
+
+### I3's residual, recorded as an owner question
+
+Review-2 left one point to the owner: `CLAUDE.md` calls Define, Design, Develop and Deploy
+**phases** (`:5`, `:15`, `:27`), but the table at `:295` keeps that word for our build order. It
+is now part of Open question 2 (`:323-324`), edited in place. **Default taken:** `CONTEXT.md` keeps
+*phase* for build order, and `CLAUDE.md` is unchanged.
+
+### Not done
+
+- `CLAUDE.md:23` also lists "approvals" bare among the Hub's contents. `CLAUDE.md` is outside this
+  task's files, so the fix is left for the next edit that touches it.
+- No entry was added, so the length warning in review-2 §6 is not triggered.

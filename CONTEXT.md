@@ -26,7 +26,7 @@ asked only for a second machine or after an OOM.
 *Fixed by:* `desktop/src/store/types.ts` `Machine` / `MachineKind` / `MachineState` (UI contract §2,
 `docs/superpowers/contracts/2026-09-18-phase-2-ui-contract.md:408-439`); `GET /v1/machines`
 (Go contract §3.4, `docs/superpowers/contracts/2026-09-18-phase-2-go-contract.md:1866-1896`);
-`docs/PROGRAM.md:43-46` and `:119-122`; `docs/FUNCTIONAL-SPEC.md:44-46`.
+`docs/PROGRAM.md:43-46`; `docs/FUNCTIONAL-SPEC.md:44-46`.
 *Not «environment»* — an **Environment** is one deployed branch (`docs/FUNCTIONAL-SPEC.md:16`), so
 "spin up an environment" and "spin up a machine" are two different requests. Not «node», not «VM».
 
@@ -57,11 +57,11 @@ landing-queue row it lands from. A worktree is where an agent works; a lane is w
 *Fixed by:* phase 3 plan goal 3 (`…2026-09-23-phase-3-git-convergence.md:28-31`) and the lane syncer
 (`:96-100`); `LaneView` / `QueueEntry` in `internal/converge`
 (`.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence-parts/task-08.md:112-127`).
-*A "lane clone" is the on-disk clone; a "lane" unqualified is the ref and the queue row.*
+*A "lane clone" is the on-disk clone; a "lane" unqualified is the ref and the landing-queue row.*
 
 **Convergence** — landing several lanes into their branch **one at a time, in a human-set order**,
 each forecast against the branch *as it will be* after the lanes above it. It is the ordered whole,
-including the forecast, the queue, the land and the undo.
+including the forecast, the landing queue, the land and the undo.
 *Fixed by:* the `Convergence` struct — `GET …/convergence`'s body — (`…phase-3…parts/task-08.md:129-146`);
 phase 3 plan goal 4 (`:32-35`).
 *Not «merge»* — a **land** is one lane becoming one merge commit (`3-D4`); convergence is the
@@ -146,14 +146,14 @@ landed history is phase 3's undo-able git record.
 **Design approval** — the Hub record that a design was approved, written by **one** call that fixes
 the design revision, the brief revision it was approved against and the snapshot of its files
 together, so an approval cannot exist apart from the thread it was approved on. Phase 5 uploads the
-snapshot first, then approves.
+snapshot first, then approves. It is not an *approval row*: that is a decision under **Authority**.
 *Fixed by:* Hub contract §7.7 *Design approvals — the design link* (`…hub-contract.md:872`).
 *Not «sign-off» and not «review»* — the review is the conversation; the approval is the record.
 
 **Release** — the Deploy end of the thread, and a **reservation**, never a link written afterwards:
-the Hub pins the brief revision and answers `reserved` **before** the deploy exists, phase 7 then
-calls Panacea, and the only thing written back is which run it became — `confirmed`, else
-`abandoned` or, unconfirmed, `expired`. If the pin fails, Ship does not happen.
+the Hub pins the brief revision (or `none`, with a reason) and answers `reserved` **before** the
+deploy exists, or Ship does not happen. The control plane then calls Panacea with phase 7's client,
+and writes back only the run it became — `confirmed`, else `abandoned` or, unconfirmed, `expired`.
 *Fixed by:* Hub contract §7.9 *Releases — reserve, deploy, confirm* (`…hub-contract.md:957`).
 *Not «deployment»* — a Deployment is what Panacea runs; the release is our pinned record of it.
 
@@ -163,7 +163,7 @@ edited criterion line does not inherit the old verdict.
 *Fixed by:* Hub contract §7.10 *Evidence — phase 3's H-2* (`…hub-contract.md:1060`).
 *Not «proof» and not «test result»* — a test result is one thing the `because` sentence may cite.
 
-**The Hub** — the server `control-plane/cmd/hub`: briefs, approvals, the provenance ledger, releases
+**The Hub** — the server `control-plane/cmd/hub`: briefs, design approvals, the provenance ledger, releases
 and teams — the shared state `OD-3` put server-side so a teammate sees the same thread. **The
 control plane** is the *different*, local process `control-plane/cmd/api` that calls it as the user.
 *Fixed by:* Hub contract §Words
@@ -212,8 +212,8 @@ the sub-rail list, `docs/FUNCTIONAL-SPEC.md:51`.
 
 **Queue** — **two senses, and they must be kept apart.**
 1. *The attention queue:* the one ranked list of what needs a human, and the only place in the
-   cockpit a count may appear. At 10–30 agents the interface's job is ranking and batching, not
-   display, so a pane is a cost (`docs/AGENTIC-UX.md:31` rule 4).
+   cockpit a count may appear (`docs/AGENTIC-UX.md:71`, §4 rule 4; hard rule 10, `:245`). At 10–30
+   agents the interface's job is ranking and batching, not display, so a pane is a cost (§2, `:31`).
 2. *The landing queue:* the ready lanes of one branch in the order a human set them to land, each
    row carrying its forecast — `QueueEntry` in `internal/converge`
    (`.claude/worktrees/phase-3/…/task-08.md:119-127`). It belongs to convergence, not to attention.
@@ -230,11 +230,11 @@ install dependency · run migration · touch infra/config · commit · push · d
 levels — **ASK FIRST · PROPOSE AND WAIT · ACT AND TELL ME · FULL**. Never a slider. Defaults inherit
 project → branch → agent, the inherited value shown greyed in place, and the level moves at runtime
 in both directions: the agent may request elevation and must self-demote on uncertainty.
-*Fixed by:* `docs/AGENTIC-UX.md:37` rule 6 and §7 Autonomy and trust (`:177-183`);
-`docs/FUNCTIONAL-SPEC.md:52` (the Develop top bar).
+*Fixed by:* `docs/AGENTIC-UX.md:37` (§2, item 6) and §7 Autonomy and trust (`:177-183`);
+`docs/FUNCTIONAL-SPEC.md:52` (the Develop top bar). An **approval row** in the attention queue is a
+person's decision on one action an agent asked for (`docs/AGENTIC-UX.md:241`), never a Hub record.
 *Not «permission mode»* — `PermissionMode = "ask" | "bypass" | "plan"` (`…ui-contract.md:495`) is a
 per-session flag passed to one harness: three values, one axis, no inheritance and no action classes.
-Not «trust level», which names the calibration record, not the setting.
 
 **Data classification** — a property set when a **project is created** (and updatable afterwards)
 that decides two things: whether that project's inference goes **AU** (Bedrock, Sydney) or **Global**
@@ -246,10 +246,10 @@ that decides two things: whether that project's inference goes **AU** (Bedrock, 
 
 **Orchestrator** — **two senses, and they must be kept apart.**
 1. *Product (`OD-16`):* each user's own **Orchestrator agent**, which runs their **sub-agents** —
-   agents it started, shown as nested steps, never a cross-user channel — and is itself the **only**
-   cross-user channel: orchestrators negotiate peer to peer and escalate to their own human, either
-   to inform or to ask for a decision. Accountability and billing follow the owner, and no user
-   steers another user's agent (`docs/FUNCTIONAL-SPEC.md:14-15`).
+   agents it started, shown as nested steps (`docs/FUNCTIONAL-SPEC.md:15`), never a cross-user
+   channel — and is itself the **only** cross-user channel: orchestrators negotiate peer to peer and
+   escalate to their own human, either to inform or to ask for a decision. Accountability and
+   billing follow the owner, and no user steers another user's agent.
 2. *Our process:* the workflow agent that dispatches build agents and holds the review gates while
    this repository is built.
 *Fixed by:* `OD-16` (`…owner-decisions.md:127`) for sense 1; `docs/superpowers/RESUME.md` for sense 2.
@@ -320,8 +320,8 @@ the ones that have actually caused confusion in this tree.
 2. **Does `CLAUDE.md`'s "Define" mean the Discover lens?** `CLAUDE.md` names the journey
    **Define → Design → Develop → Deploy**; the lens, the phase and the package are all called
    **Discover** (`docs/PROGRAM.md` Phase 4, `internal/discover`). No entry above defines "Define"
-   because nothing in the tree fixes it. If the two are the same thing, one of the two words should
-   go.
+   because nothing in the tree fixes it. If they are the same thing, one word should go. `CLAUDE.md`
+   also calls the four **phases** (`:5`, `:15`, `:27`), which the table reserves for our build order.
 
 ---
 
