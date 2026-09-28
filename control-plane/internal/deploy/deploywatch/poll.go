@@ -19,19 +19,19 @@ const (
 // the end. A budget stop discards it whole: a project's partial reads are never
 // published as current.
 type draft struct {
-	envs         []deploy.Environment
-	branchEnv    map[string]string
-	branchErr    map[string]*deploy.Error
-	branchRead   []string
-	latest       *deploy.Deployment
-	latestRead   bool
-	deployments  []deploy.Deployment
-	deploysRead  bool
-	runs         map[string]deploy.RunProgress
-	untrack      []string
-	scans        map[string]deploy.ScanReport
-	scansDone    map[string]deploy.BuildState
-	scanFail     map[string]scanAttempt
+	envs          []deploy.Environment
+	branchEnv     map[string]string
+	branchErr     map[string]*deploy.Error
+	branchRead    []string
+	latest        *deploy.Deployment
+	latestRead    bool
+	deployments   []deploy.Deployment
+	deploysRead   bool
+	runs          map[string]deploy.RunProgress
+	untrack       []string
+	scans         map[string]deploy.ScanReport
+	scansDone     map[string]deploy.BuildState
+	scanFail      map[string]scanAttempt
 	owner         string
 	ownerProbed   bool
 	environsRead  bool
@@ -71,7 +71,7 @@ func (w *Watcher) pollProject(ctx context.Context, b budget, st *state) pollOutc
 	}
 	envs, err := w.cfg.Deployer.Environments(ctx, bnd.Panacea)
 	if err != nil {
-		if w.cycleEnding(err) {
+		if w.cycleEnding(st, err) {
 			return pollOutage
 		}
 		w.refused(st, err)
@@ -88,7 +88,7 @@ func (w *Watcher) pollProject(ctx context.Context, b budget, st *state) pollOutc
 	}
 	latest, ok, err := w.cfg.Deployer.Latest(ctx, bnd.Panacea)
 	if err != nil {
-		if w.cycleEnding(err) {
+		if w.cycleEnding(st, err) {
 			return pollOutage
 		}
 		w.refused(st, err)
@@ -114,19 +114,23 @@ func (w *Watcher) pollProject(ctx context.Context, b budget, st *state) pollOutc
 	return pollDone
 }
 
-// cycleEnding reports the two kinds that are about PANACEA rather than about
-// this project, and so end the cycle for every project. KindUnauthorized is
-// reported to the connection as well: a lens that keeps drawing "connected"
-// while every read 401s is the failure this catches.
-func (w *Watcher) cycleEnding(err error) bool {
+// cycleEnding reports the kinds that are about PANACEA rather than about this
+// project, and so end the cycle for every project. KindUnauthorized is reported
+// to the connection as well: a lens that keeps drawing "connected" while every
+// read 401s is the failure this catches. The project the failure came in keeps
+// its last data and says so, exactly as the ones never reached do.
+func (w *Watcher) cycleEnding(st *state, err error) bool {
 	switch deploy.KindOf(err) {
 	case deploy.KindUnauthorized:
 		w.cfg.Connection.Observe(err)
-		return true
 	case deploy.KindUnavailable, deploy.KindNotConnected:
-		return true
+	default:
+		return false
 	}
-	return false
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	st.snap.Stale, st.snap.LastError = true, asDeployError(err)
+	return true
 }
 
 // refused is step 2's rule: a refusal of THIS binding stales this project and

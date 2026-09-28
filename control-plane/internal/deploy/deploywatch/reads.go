@@ -31,7 +31,7 @@ func (w *Watcher) readBranches(ctx context.Context, b budget, st *state, bnd bin
 		}
 		name, err := w.cfg.Deployer.EnvironmentFor(ctx, bnd.Panacea, br)
 		if err != nil {
-			if w.cycleEnding(err) {
+			if w.cycleEnding(st, err) {
 				return pollOutage
 			}
 			// The refusal is about this ONE name: it does not stale the
@@ -73,7 +73,7 @@ func (w *Watcher) readDeployments(ctx context.Context, b budget, st *state, bnd 
 	}
 	list, err := w.cfg.Deployer.Deployments(ctx, bnd.Panacea)
 	if err != nil {
-		if w.cycleEnding(err) {
+		if w.cycleEnding(st, err) {
 			return pollOutage
 		}
 		w.refused(st, err)
@@ -127,7 +127,7 @@ func (w *Watcher) readRuns(ctx context.Context, b budget, st *state, bnd binding
 		}
 		p, err := w.cfg.Deployer.Run(ctx, bnd.Panacea, run)
 		if err != nil {
-			if w.cycleEnding(err) {
+			if w.cycleEnding(st, err) {
 				return pollOutage
 			}
 			// A run the target will not answer for is not a fact about the
@@ -189,7 +189,7 @@ func (w *Watcher) readScans(ctx context.Context, b budget, st *state, bnd bindin
 		}
 		r, err := w.cfg.Deployer.Scans(ctx, bnd.Panacea, wa.env, wa.id)
 		if err != nil {
-			if w.cycleEnding(err) {
+			if w.cycleEnding(st, err) {
 				return pollOutage
 			}
 			d.scanFail[wa.id] = scanAttempt{build: wa.build, at: now}

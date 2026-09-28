@@ -12,6 +12,7 @@ import "reflect"
 func (w *Watcher) publish() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	changed := false
 	for _, id := range w.order {
 		st := w.states[id]
 		if st == nil {
@@ -29,6 +30,12 @@ func (w *Watcher) publish() {
 		st.snap.Version++
 		st.lastPublished = st.snap.clone()
 		st.published = true
+		changed = true
+	}
+	// ONE bump a cycle, however many projects moved: the cursor says "something
+	// changed, come and read", and a desktop that re-read once per project
+	// would pay for the outage that moved them all.
+	if changed {
 		w.cursor.Add(1)
 	}
 }
