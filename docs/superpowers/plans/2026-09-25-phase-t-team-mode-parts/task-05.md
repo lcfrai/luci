@@ -39,22 +39,22 @@ task writes the first matcher, `isFeedPath`, and task 06 adds `isPrincipalPath` 
 `isExemptPath` wrapper over the pair): `GET` on a path whose segments are exactly `v1`,
 `orgs`, one id, `changes` (route 78, the feed), and `GET` on the single segment `v1`, `principals`
 (route 88, the principal read). On either, Fleet must send **no** header (400 `bad_request`,
-`field: "X-Panacea-Delegation"`, `task-08.md:298` for route 78 and `:500` for route 88; both
-re-derived by grep on 2026-09-28, the ranges before them were drifted), because neither is an owner's act: the
+`field: "X-Panacea-Delegation"`, `task-08.md:305-306` for route 78 and `:511` for route 88; both
+re-derived by grep on 2026-09-29, the ranges before them were drifted), because neither is an owner's act: the
 feed is per-org, and the principal read is what tells Fleet who an owner *is*, before any
 delegation is in hand. **These two and no others** — §5.10 rule 2 names them both, and a third
-needs a third amendment. Task 06 owns route 88 and this helper's second case.
+needs a third amendment. Task 06 owns route 88, this helper's second case and route 88's flag.
 
 **`AppOnly` means Fleet in this task, and stops meaning it in task 06.** This task configures
-exactly one app caller (`:622`), so every `AppOnly` branch below is Fleet's by construction. Task 06
-adds the broker as a second one and therefore owns, in this file, all four deltas that keep the two
-apart: `Claims.AppRole` and `Claims.BrokerRead`, `isExemptPath`, `delegationHeader`'s role arms and
-`resolveCaller`'s broker branch (`task-06.md:73-89` for the four-delta Files entry, `:813-887`
-for the two written-out hunks; grep the heading **The gate that admits the broker** rather than
-trust the range). **Do not add a second
-`entra.AppCaller` here**, and do not copy an `AppOnly` check out of this file into a task that has
-one: without that gate the broker is refused 401 `delegation_required` before any route, and is
-admitted as Fleet on route 78 (b02 round 1, C1 and C2).
+exactly one app caller (`:626-635`), so every `AppOnly` branch below is Fleet's by construction.
+Task 06 adds the broker as a second one and route 88 as a second exempt route, and so owns, in
+these files, all five deltas that keep them apart: `Claims.AppRole` and `Claims.BrokerRead`,
+`isExemptPath`, `delegationHeader`'s role arms, `resolveCaller`'s broker branch, and
+`Claims.PrincipalRead` with its own arm (`task-06.md:73-91`, the Files entry; `task-06.md:813-911`,
+the hunks; grep the heading **The gate that admits the broker** rather than trust the range).
+**Do not add a second `entra.AppCaller` here**, and do not copy an `AppOnly` check out of this
+file into a task that has one: without that gate the broker is refused 401 before any route and
+admitted as Fleet on route 78, and Fleet is 401 on route 88 (b02 round 1's C1 and C2, round 3's C1).
 
 **(c) The delegation is resolved where the principal is: the first statement of the
 transaction.** Hub task 14's `Write` and `Read` begin with `store.ResolvePrincipal`
@@ -240,11 +240,11 @@ func (v *JWKSValidator) appCaller(azp string, roles []string) bool {
 	// For an app-only token Name, Email and BindEmail are "" and OrgAdmin is
 	// false, whatever roles it holds: an app never administers an org.
 	AppOnly bool
-	// DelegationID is the X-Panacea-Delegation value, set only when AppOnly and
-	// FleetFeed is false. resolveCaller reads it; Read has no request.
+	// DelegationID: the X-Panacea-Delegation value, set only when AppOnly and no flag
+	// is (FleetFeed; task 06's BrokerRead, PrincipalRead). Read has no request, so each
+	// flag needs its own resolveCaller arm, or it falls to resolveDelegated as "" (401).
 	DelegationID string
-	// FleetFeed: AppOnly on the one exempt route (isFeedPath).
-	FleetFeed bool
+	FleetFeed    bool // AppOnly on route 78, the feed (isFeedPath)
 
 // Authenticate, step 3 gains a last sub-step, straight after Validate succeeds
 // and before step 4's limits (so step 4 can key on its result):
