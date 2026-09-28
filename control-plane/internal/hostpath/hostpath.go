@@ -35,9 +35,11 @@ import (
 // is, something the host was about to mount.
 var ErrInside = errors.New("hostpath: the path is one a sandbox can write")
 
-// ErrOutside is returned when a path that had to be inside the projects
-// directory is not.
-var ErrOutside = errors.New("hostpath: the path is outside the projects directory")
+// ErrOutside is returned when a path that had to be inside a given directory
+// is not. The directory is the caller's: O-2's is the worktree, not the
+// projects directory, so the sentence names no particular one and Confine's
+// wrapper says which it was.
+var ErrOutside = errors.New("hostpath: the path is outside the directory it has to be in")
 
 // Real is where a path actually is: absolute, cleaned, and with every symlink
 // and every symlinked directory component followed. Comparing anything else
@@ -72,10 +74,10 @@ func Confine(root, path string) (string, error) {
 	}
 	realRoot, err := Real(root)
 	if err != nil {
-		return "", fmt.Errorf("%w: the projects directory %q: %v", ErrOutside, root, err)
+		return "", fmt.Errorf("%w: %q cannot be resolved: %v", ErrOutside, root, err)
 	}
 	if !within(realRoot, real) {
-		return "", fmt.Errorf("%w: %q is really %q, and %q is the projects directory", ErrOutside, path, real, realRoot)
+		return "", fmt.Errorf("%w: %q is really %q, and it has to be inside %q", ErrOutside, path, real, realRoot)
 	}
 	return real, nil
 }
