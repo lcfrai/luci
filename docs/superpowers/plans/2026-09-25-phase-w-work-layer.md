@@ -4,7 +4,7 @@
 
 **Goal:** A team moves its backlog into PanaceaApp and never goes back. Issues are **Hub objects on
 the provenance thread**: each one points at the brief criteria it serves, so the chain reads
-brief → criterion → design frame → issue → session → land → evidence → release, in one place.
+brief → criterion → design canvas → issue → session → land → evidence → release, in one place.
 Everything Linear does that we price as MATCH, EXCEED or PARTIAL is built (W0 to W5, `OD-26`), in
 the design-language uplift (`02`, `05` §4.4) with Commit Mono and Segoe UI Variable (`OD-28`). An
 agent takes any row with `Shift+R`, shows a first sign of work within 10 seconds, and the issue
@@ -237,11 +237,11 @@ move (rule H1). Where a slice adds to a W1 file, the later task is listed in the
 | `hubapi/workcanonical.go`, `hubapi/testdata/issue-revision/*.json` | the `issue-revision` canonical kind; golden vectors | new | 02 |
 | `hubapi/work.go` | W1 wire types: issue head and revision, `serves`, states, thread state, relations, labels, policies, comments, subscriptions, imports | new | 03 |
 | `hubapi/work_plan.go`, `work_agents.go`, `work_roadmap.go`, `work_intake.go` | W2, W3, W4 and W5 wire types | new | 72, 99, 114, 143 |
-| `hubclient/work.go` | the `Work` interface, one sub-interface per slice | new | 04; 72, 99, 114, 143 |
+| `hubclient/work.go` | the `Work` interface, one sub-interface per slice | new | 04; 72, 81b, 99, 114, 143 |
 | `hubclient/hubclient.go` ⚑ | one line: `Hub` embeds `Work` (`hub-contract.md:1329`) | modified | 04 |
-| `hubclient/fake_work*.go` | the fake's Work rules, in memory | new | 04, 05; 73, 99, 115, 144 |
-| `hubclient/conformance/work*.go` | Work conformance rows, run against the fake and the real Hub | new | 05; 73, 99, 115, 144 |
-| `hubclient/methods_work*.go` | the Work methods over HTTP, with the digest re-check | new | 16; 82, 100, 124, 168 |
+| `hubclient/fake_work*.go` | the fake's Work rules, in memory | new | 04, 05; 73, 81b, 99, 115, 144 |
+| `hubclient/conformance/work*.go` | Work conformance rows, run against the fake and the real Hub | new | 05; 73, 81b, 99, 115, 144 |
+| `hubclient/methods_work*.go` | the Work methods over HTTP, with the digest re-check | new | 16; 82, 81b, 100, 124, 168 |
 | `migrate/sql/NNNN_work_*.sql` | one migration per slice, **next free number at sync time**: tables, RLS, grants, guards | new | 06, 07; 74, 100, 116, 145 |
 | `store/work_*.go`, `server/work_*.go` | the store and routes, one pair per aggregate | new | 08-15; W2-W5 Hub tasks (81b's `work_implements.go` among them) |
 | `server/matrix_integration_test.go` ⚑ | authorisation-matrix rows for every Work route | modified | 07 and every WH route task |
@@ -260,7 +260,7 @@ move (rule H1). Where a slice adds to a W1 file, the later task is listed in the
 
 | Path | Responsibility | Status | Task |
 |---|---|---|---|
-| `control-plane/internal/api/work.go` (+ test) | the `/v1/hub/work/*` relay (contract §4.3, §9.3 pattern) | new | 16; 82, 100, 124, 168 |
+| `control-plane/internal/api/work.go` (+ test) | the `/v1/hub/work/*` relay (contract §4.3, §9.3 pattern) | new | 16; 82, 81b, 100, 124, 168 |
 | `control-plane/internal/api/api.go` ⚑, `routes_audit_test.go` ⚑ | `Deps.Work`, `Deps.WorkStart`, `Deps.WorkImport`; registrations; catalog rows | modified | 16, 24, 25 |
 | `control-plane/cmd/api/{config,main}.go` ⚑ | wiring and `PANACEA_APP_WORK_*` variables | modified | 16, 24, 25 |
 | `control-plane/internal/workstart/{start,undo}.go`, `internal/api/workstart.go` | Start from an issue: bind, worktree, session, *Undo Start* until the first file write | new | 24 |
@@ -286,7 +286,7 @@ path **UNVERIFIED until merge**, as Phase T does.
 | phase 6 | the per-session gateway token (plan still being written) | planned | the token carries the issue id | 135 |
 | Phase T | Fleet's task record, events and verbs (ST.1, ST.2; plan `:195-243`) | planned | `task.issueId`, two event kinds, three verbs | 98, 101 |
 | Phase T | its Desk rows `desktop/src/components/desk/team*.tsx` (TM task 54) | planned | nothing: they plug into SW.17, task 62's frame | 62 |
-| Phase H + phase 5 | `control-plane/internal/hub/server/approvals.go` ⚑ (**Hub task 22**; hub plan `:304`, `:425`) — the close's call site; `desktop/src/design/{DesignLens,DesignSide}.tsx` (P5 task 28; `:420`). Phase 5's `internal/designapi/approve.go` (P5-21; `:397`) is that route's **caller**, not the writer, and is untouched | Hub's built; phase 5 planned, read 2026-09-28, paths **UNVERIFIED until merge** | the approval write also lands the issues whose revision `implements` that exact key, in its own transaction (04 §7.7; 05 `:1082`, `:1305`); the canvas's list of those issues; the issue view's *Implements* and its picker | 81b, 96b |
+| Phase H + phase 5 | `control-plane/internal/hub/server/approvals.go` ⚑ (**Hub task 22**; hub plan `:304`, `:425`) — the close's call site; `desktop/src/design/{DesignLens,DesignSide}.tsx` (P5 task 28; `:420`). Phase 5's `internal/designapi/approve.go` (P5-21; `:397`) is that route's **caller**, not the writer, and is untouched | Hub's built; phase 5 planned, read 2026-09-28, paths **UNVERIFIED until merge** | the approval write also lands, in its own transaction, the issues whose revision `implements` that exact key **and whose head serves no criterion** — an issue that serves one is untouched and the Merge lens still closes it (81b decision 2; the SQL guard's `NOT v_serves` makes an unfiltered close roll the whole approval back) (04 §7.7; 05 `:1082`, `:1305`); the canvas's list of those issues; the issue view's *Implements* and its picker | 81b, 96b |
 
 ### The desktop: `desktop/`
 
@@ -304,7 +304,7 @@ path **UNVERIFIED until merge**, as Phase T does.
 | `src/store/slices/workSlice.ts`, `src/store/types.ts` ⚑, `src/store/store.ts` ⚑ | the non-persisted Work view model; `Lens` gains `"work"` (`types.ts:173`) | new, modified | 37 |
 | `src/work/replica/{replica,ops,undo,visibility,search}.ts` | the in-memory Hub replica on `/v1/changes` | new | 55-58 |
 | `src/components/work/{WorkLens,CriterionGroup,IssueRow,AgentLine,HeldLine}.tsx`, `work.css` | the Work lens and its row | new | 40, 41 |
-| `src/components/work/{TriageView,BoardView,DisplayMenu,BulkBar,PlanSurface,Peek,StartChip,NewIssue,ImportDialog}.tsx` | Triage, board, display, bulk, Plan, peek, Start, create, import | new | 42-45, 60, 61, 68, 69 |
+| `src/components/work/{TriageView,BoardView,DisplayMenu,BulkBar,PlanSurface,Peek,StartChip,NewIssue,ImportDialog,DesignPicker}.tsx` | Triage, board, display, bulk, Plan, peek, Start, create, import; the `implements` field's only writer | new | 42-45, 60, 61, 68, 69; 96b |
 | `src/components/issue/{IssueView,IssueHead,Revisions,Serves,Implements,Relations,IssueAgentLine,Comments,Attachments}.tsx` | the one issue view | new | 46-48, 51, 52; 96b |
 | `src/components/editor/*`, `desktop/package.json` ⚑ | the one Markdown editor on `prosemirror-*` (MIT) | new, modified | 49, 50; 92 |
 | `src/hooks/useKeyboardMap.ts` ⚑, `src/work/keys/{keymap,sequences}.ts`, `src/components/work/ShortcutSheet.tsx` | `keys.list`: `isCockpitChord` extended, `G`/`O`/`M` sequences, the `?` sheet | modified, new | 53, 54 |

@@ -56,6 +56,13 @@ What was missing, and is what you build: nothing **wrote** the field from a surf
 a canvas revision, exactly as `task-02.md:264` already has it, and there is no per-frame key to
 point at. A frame is a locator inside the revision. **Do not invent a second key form.**
 
+**And the Goal sentence now says it too.** The skeleton's thread read *brief → criterion → design
+frame → issue → …* (`work-layer.md:7`), which named a hop this plan has ruled does not exist: there
+is no frame type, no frame key and no frame-level list anywhere in what 81b and 96b build. It reads
+*design canvas* from this batch on, the word the link actually joins — issue revision → canvas
+revision. The owner fork's undo instruction (`…-scopes/tasks-81-100.md:554-559`) names the new word.
+The thread is unchanged; only the sentence describing it stopped over-promising.
+
 **Six decisions, made here.**
 
 1. **The match is the exact key.** An approval of `design:cv-…@12` does not close an issue whose
