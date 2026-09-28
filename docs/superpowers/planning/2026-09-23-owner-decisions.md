@@ -177,6 +177,81 @@ The Linear design's other questions take their recommended answers under OD-1:
 - Q11: option B.
 - Q12: cross-team work comes in W4.
 
+## Licence and compliance — 2026-09-28, OD-32 to OD-35
+
+These four answer the open-source adoption research
+(`docs/superpowers/planning/2026-09-28-oss-adoption/`), which surveyed 180 candidates across seven
+domains, verified every licence from source, and had its recommendations attacked by a sceptic
+(`08-sceptic.md`, **Recommendation quality: Needs fixes** — it disproved most of the claimed
+savings). Its honest headline: open source removes about **7 of ~433 unbuilt tasks**, roughly
+1.6%. Three of the four decisions below are therefore about compliance, not speed.
+
+### OD-32 — the IaC engine is OpenTofu, and the secret store is OpenBao
+
+**HashiCorp Terraform has been BUSL-1.1 since August 2023**, which is on this program's forbidden
+list: we ship to customers' own clouds. **OpenTofu (MPL-2.0) replaces it.** The same ruling
+replaces **Vault with OpenBao**.
+
+- The **providers do not change**: `hashicorp/terraform-provider-azurerm` is MPL-2.0, with no
+  Change Date and no BUSL heading (verified 2026-09-28). Only the engine moves.
+- `.tf` syntax is compatible, so the 14 `.tf` files already in `env`'s `infra/` largely survive.
+  What changes is the CLI invocation, the lock file, the provider source addresses, every pipeline
+  and script that shells out, the plan text, and the tests that assert on either.
+- This blocks phase 8 tasks 01-10, 28 and 30. It was decided the moment it was found because the
+  cost grows with every further Terraform task written.
+
+### OD-33 — phase 6 keeps LiteLLM (OD-21 stands) and gains two compliance tasks
+
+Two defects were verified in LiteLLM itself, not in our configuration of it:
+
+1. **The AU-residency leak.** `/v1/messages/count_tokens` ignores a custom `api_base` and calls
+   `api.anthropic.com` with the deployment's own key (upstream issues #31149, open since
+   2026-06-24, and #42073; both verified open on 2026-09-28). **Claude Code calls that endpoint on
+   the hot path**, so an OD-19/OD-24 project classified *AU data only* silently reaches Global.
+   That makes the residency promise false. **New task: an AU-residency canary** that asserts no
+   request leaves for `api.anthropic.com` on an AU-only project. It can be written and made to
+   fail today, before any phase 6 code exists to argue with.
+2. **The image ships a file whose licence forbids distribution.** The stock `berriai/litellm`
+   Dockerfile copies `enterprise/` into the shipped image (lines 75 and 150), and that directory's
+   licence forbids copying, merging, publishing and distributing. We would publish that image into
+   a customer's own tenancy. **New task: rebuild the image from the MIT tree with `enterprise/`
+   removed, pinned by digest.**
+
+So phase 6 is 29 tasks, not 27. The research's claim that "18 of 27 become configuration" is
+measured against a hand-built gateway we were never going to build; it is not a saving.
+
+### OD-34 — the canvas keeps its own op-log and authority model
+
+Phase 5 tasks 05, 06, 10, 11 and 12 build an op-log plus authority document model with `Apply`,
+`ifRevision` and per-author undo. The research recommended Yjs instead. **We keep ours.**
+
+- The op-log gives per-author undo and `ifRevision`, which a plain CRDT does not.
+- Yjs would force a runtime choice we do not want: Go owning the document through `ygo` (about 55
+  stars) or a Node Hocuspocus sidecar inside every Kata image.
+- Tasks 04, 07, 08 and 09 — the licence gate, the dialect, canonical HTML and JSX — were ours
+  under either answer, so nothing there was ever at risk.
+
+The phase 5 build does **not** pause. This decision closes the fork; do not re-open it without new
+evidence.
+
+### OD-35 — build the full plan; no scope cut
+
+Asked whether to cut scope with about 53 of ~486 tasks approved, the owner chose to **keep
+building the full plan**. Phase W's 187 tasks and Phase T's 69 stay in. The two large "fold-in"
+recommendations were in any case refuted: Phase T carries 1,009 cross-file citations across 65 of
+69 part files and Phase W 1,678 across 187, so those plans are frozen, not "still a document", and
+a fold-in is a rewrite rather than a plan edit.
+
+**Also rejected, so nobody researches them again:** `@floating-ui` (the code it would replace is
+~15 lines inside a 55-line `Popover.tsx`), `coreos/go-oidc` for Hub task 10 (phase 8 already built
+`internal/entra` — stdlib-only RS256 and JWKS with tenant-confusion tests — to save half an hour),
+`goose` (it records a version, not the SHA-256 of the migration text, which is the requirement),
+`cmdk` and `tinykeys` (`CommandPalette.tsx` and `useKeyboardMap.ts` are already built and tested),
+and the `@xterm/*` addons for now (`addon-webgl` 0.19.0 is 29 months old and peer-depends on
+`@xterm/xterm ^5` while we are on `^6`). The one survivor worth taking later is list
+virtualisation (TanStack Virtual, MIT): `DESIGN-SYSTEM.md:90` requires it above 50 rows and `:65`
+requires log panes that never scroll-jump, and neither has any implementation in the tree today.
+
 ## Where the older documents now disagree, and what wins
 
 - `CLAUDE.md` → "Design canvas: adopt `Projects/Paperdesign`": **superseded by OD-11.**
