@@ -19,6 +19,11 @@ Written 2026-09-29.
   nothing (section 4); what `contextwrite` writes is known from its code, tests and goldens only.
   Whether Claude Code reads `.claude/CLAUDE.md` is marked UNVERIFIED in the code itself
   (`contextwrite/materialise.go:47`, deferred to task 23).
+- **The prototype was not opened.** Its 15 states are read from its `ORDER` array
+  (`prototype/phase-4-discover.html:678`); how each looks was not seen, and headless screenshots
+  are blocked here anyway (`CLAUDE.md` §Working agreements).
+- **No model was called.** The follow-up's behaviour is from `assist.go` and its tests; the ledger
+  notes the gateway's handling of `maxLength` is unverified until task 23 (`progress.md:362`).
 - _(more added per section)_
 
 ---
@@ -379,7 +384,70 @@ and checked with `provenance.Parse` (`:218-228`).
 
 ## 5. The interview as shipped
 
-_(pending)_
+**Shipped means server-side only.** The interview exists as Go data and logic in `discover`; no
+desktop screen asks it yet (section 1: tasks 18–21 unbuilt; the lens is phase 2's placeholder).
+
+**Five questions, a closed set, four options each** (`discover/content.go:95-158`), "word for word
+from the 2026-09-18 plan (:872-935)" (`:90-91`). The free-text escape "is always available and is
+not modelled here" (`:68-69`).
+
+| # | Key | Branch wording (project wording) | Help line | Options |
+|---|---|---|---|---|
+| 1 | `purpose` | What is this branch for? (…project for?) | One sentence. The first thing every agent here reads. | Add a capability we do not have yet · Fix something broken · Change how something works · Try an idea we might throw away |
+| 2 | `audience` | Who is this branch for? (…project for?) | Agents make different choices for an internal tool than a client-facing one. | Our own team · KPMG staff broadly · Client users · Nobody yet — a spike |
+| 3 | `constraints` | What must this branch not break? (…project never break?) | Agents will refuse work that violates this instead of guessing. | The published API · Existing data and migrations · The deployed environment · Nothing — it is isolated |
+| 4 | `done` | What has to be true before this branch can merge? (…before work here is finished?) | This becomes the definition of done, shown again at merge. | It has tests that pass · It does not break the published API · It works on mobile · Someone else has reviewed it |
+| 5 | `out_of_scope` | What is explicitly out of scope for this branch? (…for this project?) | Naming this is how you stop an agent widening the job while you are away. | Performance work · Visual design · Migrations and data changes · Nothing is off the table |
+
+**The flow's one counter.** `Content.Step` walks the questions in order and returns the first
+without a settled answer or a pending draft (`content.go:342-378`). Four step kinds: `question`,
+`follow_up`, `review` (only drafts remain) and `complete` (`:316-323`). `Total` is 5 on a
+`question` step and 0 on every other; "the only legal rendering of it is the literal 'QUESTION n
+OF m' (G5)" (`:325-329`).
+
+**The follow-up (task 04)** — `discover/assist.go`, 344 lines.
+- **When it is asked:** once per brief, after three base answers are settled, a skip counting
+  (`:51-53`, `:141-149`); the plan's lens sends `propose_follow_up` automatically after the third
+  settled answer (`task-18.md:142-144`). The server expands that op (`discoverhub/write.go:16-20`).
+- **Where it appears:** appended after the five base questions (`ops.go:217`), so the flow still
+  shows base question 4 and 5 first; the follow-up step comes after the fifth, with no
+  denominator, and the brief stays `open` until it is answered, skipped or dismissed — pinned by
+  `TestFollowUpsCarryNoDenominator` (`content_test.go:284-314`).
+- **What it is:** at most one question, ≤ 200 characters, help ≤ 200, up to 4 options of ≤ 120
+  each (`:55-66`); the model is told "Prefer false: every extra question costs the person time"
+  (`:92-102`). Its `because` is composed by the **server** — "Suggested because of your answer to
+  “<prompt>”." — never model prose (`:113-117`).
+- **What the model sees:** the project and branch names and the answers holding a person's words,
+  never file contents (`:15-20`, `:182-185`). One call, effort `medium`, 20-second budget
+  (`:35-49`, `:68-71`).
+- **Six outcomes, none an error** (`:22-33`): `proposed`, `model_off` (no key or base URL
+  configured), `model_failed`, `nothing_to_ask`, `already_asked`, `not_yet`. With no model the
+  interview is the plain five questions (plan `:60-62`).
+
+**What the Discover lens tasks plan (all unbuilt).** The specification is
+`p4/prototype/phase-4-discover.html` (698 lines; `task-18.md:3-5`), whose state picker lists 15
+states: none, inherits, asking, born, followup, modeloff, drafted, superseded, projectmoved,
+writefailed, handedited, past, missing, unavailable, chips (`prototype/phase-4-discover.html:678`).
+- **18** — the lens itself: binding, asking, the brief born, the model paths, failures; prototype
+  states 1–6 and 14 (`task-18.md:1-8`, states table `:122-140`). One question at a time, numbered
+  options `1`–`4`, free text always on screen, a settled list with per-answer *Edit*; on a branch
+  the skip control reads *Keep the project answer*, on a project *Skip this question* (`:133`);
+  a follow-up is marked *drafted by the model* with *Not relevant — skip* (`:135`).
+- **19** — the states where brief and inherited file "come apart": moved on, project changed,
+  undo, past revision, missing, erased, hand-edited; prototype states 8, 9, 11, 12, 13 plus
+  `erased` (`task-19.md:1-5`). *Undo* for five seconds writes a `restore` revision (`:7-9`).
+- **20** — the `409 brief_not_written` refusal on all six session-start paths, with *Retry* and a
+  deliberate *Start without the brief*; prototype state 10 (`task-20.md:1-20`); inline at the
+  control that started it, "not a modal and not a toast" (`:27-32`).
+- **21** — import a repository: a brief drafted from a mechanical scan, each answer marked `◌`
+  *drafted by the model* with its sources, *Accept* / *Change*, then *Keep refining the brief*,
+  *Open Design*, *Open Develop*; prototype state 7 (`task-21.md:1-14`, `:36-41`).
+
+**A plan-versus-code disagreement, recorded as found.** Task 21 sends `edit` for *Change* on a
+drafted answer (`task-21.md:38-39`, test row `:48`). The built `Apply` refuses `edit` on any answer
+that is not settled, a drafted one included (`ops.go:170-177`), pinned by
+`TestEditNeedsASettledTypedOrPickedAnswer` (`ops_test.go:74-82`, "none, skipped, drafted"). `record`
+does replace a draft with a person's answer (`ops.go:164-168`).
 
 ## 6. What would have to change
 
