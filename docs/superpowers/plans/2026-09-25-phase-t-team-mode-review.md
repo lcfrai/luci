@@ -3373,7 +3373,7 @@ written before they were; nothing to change.
 The review's two options were a new Hub delta task or a wider task 06. Task 06 was widened: the
 writer belongs beside route 46, which now reads the mode, and a new task would have changed the
 69-task list for one handler. **The route is 87, not 80:** the first b01 commit (`8d661b39`) said
-80, but task 14 already holds route 80 (`parts/task-14.md:600`), and 80 to 86 are claimed by
+80, but task 14 already holds route 80 (`parts/task-14.md:817`, re-derived b04 round 2), and 80 to 86 are claimed by
 tasks 14, 46, 49, 52, 61 and 66 to 69. Task 01's §7.0 ended at 79; 87 is the first free number.
 
 | Fix item (the review's "how to fix") | Where |
@@ -3538,7 +3538,7 @@ conformance. Neither was moot; both were live on 2026-09-28 (`grep` for "princip
 ### Two rulings this batch had to make, and declares
 
 1. **Row 88 and §7.28, not the row 80 and §7.27 the finding proposed.** Rows 80 to 86 and §7.27 are
-   all already claimed: 80 and §7.27 by task 14 (`task-14.md:620`), 81 to 83 by task 46
+   all already claimed: 80 and §7.27 by task 14 (`task-14.md:797`, re-derived b04 round 2), 81 to 83 by task 46
    (`task-46.md:109-110`), 84 to 86 by task 49 (`task-49.md:137,150,156`). Recorded in the note
    under §7.0's table (`task-01.md:349-357`).
 2. **The broker is §5.10 rule 10, and rule 9 is reserved.** The finding said "rule 9", but task 66
@@ -3550,7 +3550,7 @@ conformance. Neither was moot; both were live on 2026-09-28 (`grep` for "princip
 ### Found while fixing, recorded and NOT resolved (not this batch's findings)
 
 **Route 80 is claimed three times and §7.27 twice.** Task 14 takes `POST
-/v1/orgs/{orgId}/policy-versions` as row 80 in a new §7.27 (`task-14.md:620`); task 66 takes
+/v1/orgs/{orgId}/policy-versions` as row 80 in a new §7.27 (`task-14.md:797`, re-derived b04 round 2); task 66 takes
 `GET /v1/orgs/{orgId}/quotas` as row 80 in a §7.27 of its own (`task-66.md:156`) **and** row 81,
 which task 46 also takes (`task-46.md:109`); task 52 proposes row 80 for a third thing
 (`task-52.md:1188`). Whichever lands second must take a free row (89 onward) and say so. b02 only
@@ -3817,6 +3817,7 @@ answered with them.
 | I-2 | two inbound citations into task 14 landed inside Go code after b04's ~134-line insert | both re-derived **after** round 2's edits: §7.27 is `task-14.md:797`, its contract row `:817` | `task-01.md:353-354`; `task-06.md:252` |
 | I-2+ | *not in the re-review*: `task-20.md` cited `task-14.md:360` for `Store.Effective`, which is `:407` | re-pointed | `task-20.md:53` |
 | I-2+ | *not in the re-review*: `task-45.md` cited `task-14.md:707-715` for the `teamWorld` reuse, now inside `SweepPendingPolicy` | re-pointed to the paragraph and the row | `task-45.md:70` |
+| I-2+ | *not in the re-review*: three route-80 citations inside **this file's** earlier batch records still said `task-14.md:600`/`:620` | re-pointed to `:817`/`:797` and marked re-derived, so the b02 and b03 records do not send a reader into Go code | `review.md:3376`, `:3541`, `:3553` |
 | M-1 | `OrgEvent` cited as `task-08.md:151-152` (that is `OrgChanges` and a blank line) | `:153-159`, with `OrgChanges` named at `:151` | `task-14.md:96` |
 | M-2 | `hubclient.OrgFeed` still described as `OrgChanges` alone | says task 11 consumes only `OrgChanges`, that the interface has a second method since b04, and that task 08's `Fake` implements both | `task-11.md:87` |
 | M-3 | `ErrDigestMismatch` answered with a remedy that cannot succeed (route 80's `Idempotency-Key` **is** the `pv` id) | same 409 code, two `details.reason`s (`not_audited`, `digest_mismatch`); the digest message says write a new version; a reason table in prose; one test row | `task-14.md:663-672`, `:776-782`, `:960` |
