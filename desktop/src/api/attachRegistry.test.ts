@@ -516,6 +516,56 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
     expect(term.written).toEqual(["aaaabbbb", "ccdd"]);
   });
 
+  /** Review round 4, Minor 1, mutant MA: `flush()` re-arming unconditionally
+   *  (`entry.flushTimer = entry.destroyed ? null : setTimeout(…)`) survived all 67 tests. Every
+   *  timer assertion above is made either before the first flush ("arms no timer while nothing
+   *  is buffered", ":454") or inside the window, so none of them can see a pane that keeps a
+   *  100 ms timer for the rest of its life. That is the property `attachRegistry.ts:448-450`
+   *  states in prose — "the timer is armed only when something is buffered, so an idle session
+   *  costs nothing" — and the one `docs/DESIGN-SYSTEM.md` writes as ONE global heartbeat clock,
+   *  never a timer per row. Asserted AFTER the flush, which is the only place it is visible. */
+  it("holds no timer once the buffered output has gone out, however long the pane then idles", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+    socket().emitBinary(stdout("one line\n"));
+    expect(vi.getTimerCount()).toBe(1);
+
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(term.written).toEqual(["one line\n"]);
+    expect(vi.getTimerCount()).toBe(0);           // the flush disarmed, it did not re-arm
+
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS * 100);   // ten seconds of an idle pane
+    expect(vi.getTimerCount()).toBe(0);
+    expect(term.written).toEqual(["one line\n"]);       // and it wrote nothing more
+  });
+
+  /** Review round 4, Minor 1, mutant MB: caching the buffer the pinned decision reads
+   *  (`attachRegistry.ts:474`) survived all 67 tests, because every test above lives on ONE
+   *  buffer. Real xterm swaps `buffer.active` for a different object on the alternate screen —
+   *  `vim`, `htop`, `less`, an agent's own full-screen UI — and the alternate screen has no
+   *  scrollback, so it is pinned by construction. A cached normal buffer that the user had
+   *  parked mid-scroll then freezes a full-screen app's pane for as long as it runs. The
+   *  decision has to be read from the buffer that is active AT THE FLUSH. */
+  it("decides pinned from the buffer active at the flush, not the one active at the first", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    socket().acceptOpen();
+    socket().emitBinary(stdout("a\nb\nc\nd\ne\n"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(term.scrolledToBottom).toBe(1);
+
+    term.scrollUp(3);                     // the user parks the NORMAL buffer mid-scrollback
+    socket().emitBinary(stdout("f\n"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(term.scrolledToBottom).toBe(1);
+
+    // The session enters the alternate screen: a different buffer object, its own viewport, no
+    // scrollback to be parked in (viewportY === baseY === 0).
+    term.buffer.active = { viewportY: 0, baseY: 0 };
+    socket().emitBinary(stdout("full-screen frame\n"));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    expect(term.scrolledToBottom).toBe(2);   // pinned, read from the buffer now on screen
+  });
+
   it("ignores a frame from a socket the ladder has already superseded", () => {
     acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
     const stale = FakeWebSocket.instances[0];
