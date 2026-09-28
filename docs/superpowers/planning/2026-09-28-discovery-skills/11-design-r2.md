@@ -86,6 +86,57 @@ thing the finding was about.
      appear where the person already is. What remains is that throughput is bounded by the
      person's presence: §8 records it, with an owner question about pre-authorising words.
 
+### Section 4, the thread
+
+- **4.1 `Also defined:` hands an agent a word with no way to its meaning** (`06:233-244`).
+  *Changed.* The read route exists: two files under `.panacea/discover/` hold every entry in full,
+  on disk before the harness starts; the block **always** names them; past its budget it lists the
+  remaining words and says where each is defined; and every stamp (the marker, `Ref.vocabulary`,
+  the inheritance record) certifies the whole set, never the inline part (§5.1-5.3). No stamp stops
+  being true at any entry count.
+- **4.2 A loose-file glossary is forbidden for the product and recommended for us**
+  (`06:246-252`). *No longer applies to the product*, whose words are Hub records with numbered
+  revisions (`OD-3`, OD-36). The projected files are a rendering of stamped revisions, never a
+  source: nothing reads a definition back out of them, the rule `Inspect` already keeps for the
+  brief (`render.go:266-267`). **The sentence that distinguishes the two**: our own `CONTEXT.md`
+  is right for this repository because this repository has no Hub, so its revision is the git
+  commit and its citations are `file:line`; a product project has a Hub, so a loose file there
+  would be a second, unrevisioned source beside the record, which is the defect.
+- **4.3 Process state inside immutable content** (`06:254-260`). *Changed.* Round state is in
+  neither `Content` nor the Hub; it is the control plane's local process state (§4.2), and a brief
+  revision is minted by a brief change and by nothing else.
+
+### Section 5, contradictions an implementer would meet
+
+- **5.1 A branch's dissent was refused by `Apply`** (`06:268-282`). *No longer applies.* A
+  departure is its own record, `overrides` naming the project entry's pinned key, written through
+  the Hub's batch route rather than `discover.Apply`, so no single content object has to hold both.
+  What the branch sees is phase 4's overlay of two lists (§2.3).
+- **5.2 Retiring an inherited term had no op** (`06:284-290`). *Changed.* `depart` with `state:
+  retired` sets a project word aside on one branch; `retire` retires it for the project;
+  `reinstate` undoes either. §2.4 has an op for every transition.
+- **5.3 The id collision was resolve-time** (`06:292-296`). *Changed.* Ids are the Hub's
+  (`ids.Wide`), so two records cannot share one. The collision that matters is the **word**, and
+  the Hub refuses it at write, inside the transaction, by a unique index: 409 `word_taken` (§2.4).
+  A departure is another scope by construction, so it is never a collision.
+
+### Sections 6 and 7
+
+- **6, intellectual property** (`06:300-319`). The three limbs are written in our own words
+  (§3.1), and no limb label is ever on-screen copy: the lens shows the agent's own sentences in
+  `undo`, `context` and `why`, never a checklist. Nothing of the upstream text is in this document.
+  The upstream `LICENSE` file is **still unread** (`10-decision-terms-beside-the-brief.md:80-85`);
+  nothing here depends on it, because nothing was copied.
+- **7, the one change worth making now** (`06:323-343`). *Taken in.* The two human lines move into
+  the marker comment (§5.1 item 1) inside task 28, which regenerates the same three goldens anyway,
+  so the regeneration is paid once. If the owner wants it sooner it can still land alone first, at
+  the price of regenerating the goldens twice.
+- **7, the shelf conditions** (`06:345-351`). Of the three, *`ContentVersion = 2`* is moot, because
+  content does not change, and *drop the criterion fragment* is met (1.2 above). *Phase 4 ships
+  first* is **deliberately not met**: 29 and 32 land before phase 4's task 14, so that 14 wires the
+  final Materialiser once. The owner's note on OD-36 licenses exactly that: *"we are still in
+  build, so if you need to redo some work, it is what it is"* (`owner-decisions.md:409`).
+
 ## 2. The two records
 
 Two new kinds, each **its own Hub record**: a head plus immutable numbered revisions, the shape the
