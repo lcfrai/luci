@@ -30,14 +30,15 @@ listed in task 31's runbook.
 
 ```yaml
 # pipelines/templates/tools.yml — steps template. Every tool is downloaded from its release URL,
-# verified against the SHA-256 written here, and put on PATH. Nothing is `curl | sh`, nothing is
-# "latest": Panacea's run-time installs drifted (survey §5, :474-476).
+# verified against the SHA-256 pinned in pipelines/scripts/install-tool.sh, and put on PATH.
+# Nothing is `curl | sh`, nothing is "latest": Panacea's run-time installs drifted (survey §5,
+# :474-476). lint.sh R2 allows install-tool.sh to be called from this file only.
 parameters:
   - name: tools
     type: object
-    default: []        # any of: terraform, helm, helm-unittest, kubeconform, kubelogin,
-                       # gitleaks, govulncheck, shellcheck, tflint, trivy, syft,
-                       # go-licenses, cargo-deny, yq
+    default: []        # any of: tofu, helm, helm-unittest, kubeconform, kubelogin,
+                       # gitleaks, govulncheck, shellcheck, tflint, tflint-ruleset-azurerm,
+                       # trivy, syft, go-licenses, cargo-deny, yq
 steps:
   - ${{ each t in parameters.tools }}:
     - script: bash pipelines/scripts/install-tool.sh ${{ t }}
