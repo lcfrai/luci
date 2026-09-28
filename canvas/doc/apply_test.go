@@ -458,6 +458,25 @@ func TestApply_nodeCountLimit(t *testing.T) {
 	}
 }
 
+func TestApply_deleteKeepsThreadAnchor(t *testing.T) {
+	d := seeded(t)
+	mustApply(t, d, []Op{
+		{Kind: OpCreateNode, Node: ptr(frame(2, tid("n", 1), "V"))},
+		{Kind: OpCreateNode, Node: ptr(text(3, tid("n", 2), "V", "hi"))},
+	}, okChecker{})
+	mustApply(t, d, []Op{{Kind: OpCreateThread, Thread: oneThread(1, 3, "tighten this")}}, okChecker{})
+
+	mustApply(t, d, []Op{{Kind: OpDeleteNode, NodeID: tid("n", 2)}}, okChecker{})
+
+	th, ok := d.Thread(tid("th", 1))
+	if !ok {
+		t.Fatal("deleting the anchor deleted the thread: a comment outlives the node it was left on")
+	}
+	if th.NodeID != tid("n", 3) {
+		t.Fatalf("NodeID = %q, want %q kept so the cockpit can show it detached", th.NodeID, tid("n", 3))
+	}
+}
+
 // rule is one cell of the plan's refusal table.
 type rule struct {
 	name    string
