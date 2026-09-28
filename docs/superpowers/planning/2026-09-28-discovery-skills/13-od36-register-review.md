@@ -5,7 +5,15 @@ Reviewer: an independent, read-only review of `cdfa6b95` (OD-36 into
 residuals I1, I2 and I4, with the minors). The implementer's return is
 `13-od36-register-report.md`. I wrote only this file.
 
-**Verdict:** pending.
+**Verdict: Approved.** All three checks hold. Findings: no Critical, no Important, four Minor
+(§4), and none of them breaks a citation or misstates a decision.
+1. OD-36's row says what `10-…` decided, passes all three limbs of the gate, and its OD-3 edge is
+   written in both columns.
+2. The register's `head -266` `cmp`s equal to `a109bf3e`. No inbound anchor anywhere ends past line
+   222. Eleven citing sites were re-opened: nine land, and the two that miss were already recorded
+   by review-2 (M3).
+3. `CONTEXT.md`'s I1, I2 and I4 are closed with correct line numbers. The two lines that moved
+   inside the Authority entry are cited by nothing.
 
 ## 1. OD-36's row against the decision note, the gate and the frontier
 
@@ -23,7 +31,7 @@ limbs of the gate with evidence, and its one `OD` edge is written in both column
 | What does not move: the content model, the key grammar | `10-…:52-55` | ✔ |
 | `05-design.md` not adopted; design round 2 first | `10-…:66-76`; `06-sceptic.md:383` is `**Recommendation quality: Needs fixes**` | ✔ |
 
-- **Left out, rightly.** The queue-slot status (`10-…:74-76`), which backwards-audit observation 1
+- **Left out, rightly.** The queue-slot status (`10-…:75-76`), which backwards-audit observation 1
   (`:390-393`) says a row should not carry. The example key `term:tm-7f2a@2` (`10-…:14`), whose
   4-hex id does not match `bf-<16 hex>` at `CONTEXT.md:107`: its form is design round 2's to set.
 - **One addition the note does not make:** "possible only because OD-3 made the brief one". It is
@@ -38,7 +46,8 @@ limbs of the gate with evidence, and its one `OD` edge is written in both column
 
 1. **Expensive to undo** — names data (records folded back, each fold minting a revision), code
    (three parts), and a re-plan before build. "Three built parts" reads under "Once built": today
-   06 and 09 are built and 18 to 21 are not (`11a-facts-phase4.md` §1, not re-checked). ✔
+   06 is approved, 09 is in fix and 18 to 21 are unbuilt (`11a-facts-phase4.md:55`, `:58`, and its
+   rows for 11 to 23; review status, not code). ✔
 2. **Not derivable** — the evidence is a real wrong guess, `05-design.md`. Spot check:
    `glossary|vocabulary|decision record` over the phase-4 worktree's `control-plane/` hits only two
    `internal/harness` comments about permission-mode words. "Captures no language" survives. ✔
@@ -112,16 +121,16 @@ claims, and no line another document cites has moved. Two label-level nits are i
   is now only in `08-context-report.md` and review-2 (main tree). All correct.
 - **Line positions.** `CONTEXT.md` is 340 lines at the parent, at `ce9621b0` and in the working tree
   (working == `ce9621b0`). Text changed on 29, 60, 64, 149, 154-156, 166, 215-216, 233-237, 249-252
-  and 323-324. Inside 233-237 two lines moved down one (`*Not «permission mode»*` 235→236, `per-session
-  flag` 236→237), which `08-context-report.md:237-240` discloses.
+  and 323-324. Inside 233-237 two lines moved down one (`*Not «permission mode»*` 235→236 and
+  `per-session flag` 236→237), which `08-context-report.md:237-240` discloses.
 - **Inbound anchors.** `grep -r` for `CONTEXT.md:N` over the main tree, hidden directories included,
   and every worktree finds 14, all in this folder: 3-10, 47, 107, 108-110, 125, 171, 216, 220, 228,
   242-243, 255, 303 and 328-340. None is a moved line, and each still says what its citer says.
   `:216` is review-2's record of the I1 defect, so its text changing is the fix.
-- **The other two edited files.** `08-context-report.md` §6 is 10 lines for 10 (`@@ -182,10 +182,10
-  @@`), and its only inbound anchors (`:38`, `:48`, `:49`) are above it. `10-…`'s status line is 4
-  for 4 at `:3-6`, so `11b-facts-hub.md`'s anchors into it (`:14`, `:27-28`, `:54`, `:61`) are
-  unmoved.
+- **The other two edited files.** `08-context-report.md` §6 is 10 lines for 10
+  (`@@ -182,10 +182,10 @@`), and its only inbound anchors (`:38`, `:48`, `:49`) are above it.
+  `10-…`'s status line is 4 for 4 at `:3-6`, so `11b-facts-hub.md`'s anchors into it (`:14`,
+  `:27-28`, `:54`, `:61`) are unmoved.
 - **I3's residual** is in Open question 2 at `:323-324`. `CLAUDE.md:5`, `:15` and `:27` do say
   "phases" or "Design phase", and `:295` is the build-order row. The default taken is written in
   `08-context-report.md:266-267`, not in `CONTEXT.md`. There is no room in place for it: `:325` is
@@ -167,8 +176,7 @@ the file".
 
 **M4. Two small accuracy slips in the returns, neither changing a conclusion.**
 - `ce9621b0`'s body and `08-context-report.md:218` say "Every edit is in place". Two lines of the
-  Authority entry moved down one, as `08-context-report.md:239-240` says four lines later. Nothing
-  cites them.
+  Authority entry moved down one, as the same report says at `:239-240`. Nothing cites them.
 - `13-od36-register-report.md:16-17` finds no main-tree register anchor "above `:186`". Its
   `grep -o "owner-decisions.md:[0-9]*"` reads only a range's first number. The latest is `:186-188`
   (`2026-09-25-identity-keycloak-broker.md:571`), still far below 266.
@@ -182,10 +190,25 @@ file.
 
 **Forward note, not a finding.** The team-mode plan adds a third approval: a `la-` land approval,
 a Hub record written by a second member (`team` worktree, `…phase-t-team-mode-parts/task-49.md:15`,
-`:212`). It is shown on the merge lens, "not by her own queue" (`:360-362`), so it does not
-contradict `CONTEXT.md:234-235`. The Hub entry's "design approvals" (`:166`) will need it once team
-mode is built.
+`:135`, `:212`). It approves a member's land, not an agent's ask, so it does not contradict
+`CONTEXT.md:234-235`. It is shown on the merge lens (`:360-362`). The Hub entry's "design
+approvals" (`:166`) will need it once team mode is built.
 
 ## 5. What I did not verify
 
-(in progress)
+- **The owner's words.** Like the implementer, I took the quote from `10-…:34-35`. I did not see
+  the original message.
+- **Build status of phase 4.** "06 approved, 09 in fix, 18 to 21 unbuilt" is `11a-facts-phase4.md`
+  §1, which another run is still writing. I checked plan headings in the phase-4 worktree, not code.
+- **"Discover captures no language".** One grep over the phase-4 worktree's `control-plane/`. The
+  desktop half was not searched.
+- **Whether OD-36 is the right decision.** I judged form only — does the row say what was decided,
+  and does it pass the gate — as the register's own backwards audit does (`:398-399`).
+- **The worktrees' own copies of the register.** Their anchors were checked against the main tree's
+  file, not against each worktree's copy. Review-2 reasoned that they resolve against both
+  (`07-register-review-2.md:170-173`); I did not re-check each copy.
+- **Search scope.** The `trust level` search used ripgrep, which skips hidden directories such as
+  `.claude/worktrees/`, so it covers the main tree only. The anchor searches used `grep -r` and
+  include the worktrees.
+
+**Task quality: Approved**
