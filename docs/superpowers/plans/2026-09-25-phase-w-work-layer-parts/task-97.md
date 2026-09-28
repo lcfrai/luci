@@ -5,7 +5,7 @@ measurement). **Stream:** WD2 with WH (the last W2 task; it runs on the merged W
 **Depends on** tasks 72-96. **Seams:** none. Appends the **W2 section** to
 `docs/verification/2026-09-25-phase-w-results.md`, which task 70 created and tasks 113, 142, 174
 and 187 append to after this one, in task order (the skeleton's *Proof and documents* table,
-`2026-09-25-phase-w-work-layer.md:322`).
+`2026-09-25-phase-w-work-layer.md:323`).
 
 `OD-27` is the rule, and it is the whole task: **proof per criterion, no predictions.** A W2
 parity row this section marks closed carries the command that was run, an excerpt of what it

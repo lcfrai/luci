@@ -600,7 +600,7 @@ attributed, as: a `>` line with the words in quotation marks, then ` — the own
 Nothing here is paraphrased; a remark the implementer did not catch word for word is left out.
 ```
 
-The skeleton sizes are the task table's (`2026-09-25-phase-w-work-layer.md:440-445`). Writing the
+The skeleton sizes are the task table's (`2026-09-25-phase-w-work-layer.md:441-446`). Writing the
 resized sizes into the skeleton is not this task's: this file records them, and the plan's owner
 edits the table (a gap, named in the return).
 

@@ -791,7 +791,7 @@ L-158's *pause all* half is closed for team projects only; the local-mode half i
 #### Gaps found while writing this part
 
 1. **No settings surface is in the file map.** The skeleton gives `src/components/admin/*` to W5's
-   tasks 169-173 only (`2026-09-25-phase-w-work-layer.md:314`); this task needs the row too, and a
+   tasks 169-173 only (`2026-09-25-phase-w-work-layer.md:315`); this task needs the row too, and a
    named mount point for org and personal settings, which no W1 task builds.
 2. **Where guidance sits in an agent's context is undesigned.** TM-13 merges managed-settings JSON
    across org and project (Phase T plan `:546-557`); guidance is free text across org, team and

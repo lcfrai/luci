@@ -1,7 +1,7 @@
 ### Task 62: the Desk frame: five fixed sections, never live while open, the row-kind registry
 
 Stream **WD2**, about 3 hours (an estimate, not a measurement). Defines seam **SW.17**
-(`2026-09-25-phase-w-work-layer.md:390`). Depends on task 37 (the `Lens` edit and `workSlice`,
+(`2026-09-25-phase-w-work-layer.md:391`). Depends on task 37 (the `Lens` edit and `workSlice`,
 `task-37.md:530-624`). Uses task 40's `WorkReader` and `workSource()` (`task-40.md:140-170`), task
 20's fixtures and `expectNoPrediction` (`task-20.md:126-131`, `:299-330`), task 53's `registerVerb`,
 `isListKeyTarget` and the `focus.next`, `focus.prev` and `held.apply` rows (`task-53.md:168-177`,

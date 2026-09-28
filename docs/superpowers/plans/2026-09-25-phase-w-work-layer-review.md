@@ -119,7 +119,7 @@ be cited is a gap, not a discharge.
 
 ### X-C4 (Critical): three parity rows and the "W1 in the cloud" start line are gated on phase 8, which has no plan and no worktree
 
-**Where:** `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:367`
+**Where:** `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:368`
 **Problem:** The start-lines table's third row makes W1 in the cloud wait on *"phase 6 stream A and
 phase 8 stream C"*, and the Gaps list sends **L-164** (per-repo environments), **L-240** (data
 regions) and **L-242** (IP restrictions) to *phase 8*. `ls .claude/worktrees` returns
@@ -158,7 +158,7 @@ word that reads as coverage while the sentence it cites says the work has not be
 
 ### X-I2 (Important): SW.16's read half is owned by task 40, not 55-58, and neither of its two files is in the file map
 
-**Where:** `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:389`
+**Where:** `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:390`
 **Problem:** The seams table says SW.16 — *"the replica: `useWork(selector)`, `mutate(op) → {undo}`,
 `onRefused`, `search(q)`"* — is **defined in 55-58** and consumed by 40-69. The parts say otherwise.
 `task-40.md:111` creates `desktop/src/work/source.ts` holding `WorkReader`, `useWork`,
@@ -181,7 +181,7 @@ right once the read half is its own, and wrong the moment anyone "corrects" it b
 
 ### X-I3 (Important): SW.3 is frozen at task 07 and then amended by four later slices, and unlike SW.1 and SW.2 it has no re-open rule
 
-**Where:** `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:376`
+**Where:** `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:377`
 **Problem:** SW.3 fixes *"who may write what: the authorisation rows and the guards (fact states,
 `done`, the sync principal)"* in task 07, and lists consumers `10, 22, 23, 99, 145, 150, 159` —
 four of them in W3, W4 and W5. The **WS0** start line gives SW.1 and SW.2 an explicit amendment
@@ -203,7 +203,7 @@ have tasks 99, 145, 150 and 159 each state in their steps that they add a full c
 
 ### X-I4 (Important): the skeleton's sibling-state claims are stale, and task 135 ships with no dependency at all
 
-**Where:** `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:550`
+**Where:** `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:553`
 **Problem:** Task 135's `dependsOn` is *"24; P6 (UNVERIFIED id)"*, justified at line 356 by *"phase 6
 … its plan is still being written, so every `P6-` id is **UNVERIFIED**"*. That is no longer true:
 `.claude/worktrees/phase-6/docs/superpowers/plans/2026-09-25-phase-6-gateway.md` is on the tree, with
@@ -1240,7 +1240,7 @@ cases the owning task does not contain it. Verified by grep over every part:
    nothing about adding one.
 3. `issueId` and `observed` on the Hub's evidence record — task 23's gap 4; `task-10.md` has no
    `issueId` outside the state route's path.
-The skeleton freezes SW.1 and SW.2 at **WS0** (`2026-09-25-phase-w-work-layer.md:365`): "a later
+The skeleton freezes SW.1 and SW.2 at **WS0** (`2026-09-25-phase-w-work-layer.md:366`): "a later
 change that is not an added method, field or route reopens task 05 and is announced". `Serve.check`
 is an added field, but it changes the `issue-revision` canonical form and its golden vectors, which
 task 02 owns and WS0 freezes — so it is exactly the change that reopens task 05 if it arrives late.
@@ -1499,7 +1499,7 @@ Section verdict: Needs fixes
 
 Reviewer: adversarial plan review, read-only except this file.
 Scope file: `docs/superpowers/plans/2026-09-25-phase-w-work-layer-scopes/tasks-21-40.md:394-710`
-Skeleton: `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:431-440`
+Skeleton: `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:432-441`
 Parts read: `docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-31.md` .. `task-40.md`
 
 ---
@@ -1578,7 +1578,7 @@ state rather than a pass.
 
 ### S04-I2 (Important): the skeleton's dependency column omits shared files tasks 35 and 36 must find already written
 
-**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:435
+**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:436
 **Problem:** the skeleton gives task 35 the dependency `31` and task 36 the dependencies `29, 30`.
 Neither is enough for the part as written. Task 35's test
 `it("keeps grain on the shell only, with one forced-colours rule")` counts the single
@@ -1714,7 +1714,7 @@ next Sydney 09:00 is `2026-09-18T23:00:00.000Z`, the value the test pins.
 
 ### S05-I1 (Important): the part inverts the skeleton's dependsOn, which the conventions say wins
 **Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-42.md:4
-**Problem:** The skeleton row is `| 42 | … | 40 | — |` (`2026-09-25-phase-w-work-layer.md:442`), and
+**Problem:** The skeleton row is `| 42 | … | 40 | — |` (`2026-09-25-phase-w-work-layer.md:443`), and
 the scope's conventions say *the row's id, dependsOn and seams win*. This part instead declares it
 also depends on tasks 41 and **46** and imports `Picker`, `handMove`, `DuplicateOfPicker` and
 `PriorityPicker` from a task with a higher number, which is built later in task order. Tasks 43 and
@@ -2862,7 +2862,7 @@ Section verdict: Needs fixes
 
 Reviewer: adversarial plan review, read-only. Parts read one at a time in line ranges against
 their scope in `docs/superpowers/plans/2026-09-25-phase-w-work-layer-scopes/tasks-81-100.md` and
-the skeleton `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:486-495`.
+the skeleton `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:487-497`.
 
 Parts present: task-81 (375 lines), 82 (371), 83 (373), 84 (254), 85 (246), 86 (208), 87 (351),
 88 (293), 89 (301), 90 (251). None is missing.
@@ -2901,7 +2901,7 @@ Parts present: task-81 (375 lines), 82 (371), 83 (373), 84 (254), 85 (246), 86 (
 
 ### S09-I4 (Important): the skeleton makes task 81 depend on 13 and 74, but the part cannot start without task 72
 
-**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:486
+**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:487
 **Problem:** the row reads `| 81 | ... | 13, 74 | — |`. The part's Step 1 is "close the task 72 and 74 gaps first" and says plainly: "if they have not landed, this task waits rather than writing them in the wrong file" (task-81.md:288-292). `DigestSettings`, `Deferral`, `DigestItem` and the digest aggregate all live in task 72's `hubapi/work_plan.go`, and `Subscriptions`, `BuildDigest` and the route all take them. A scheduler reading the skeleton will start 81 the moment 13 and 74 are done and find it blocked. Task 82's row (`:487`, "73, 75-81") inherits the same slip.
 **How to fix:** change the row to `13, 72, 74`, and add the three types plus their four methods to task 72's own part and the two tables to task 74's, so the gap is closed where it lives rather than described in the consumer.
 
@@ -3471,7 +3471,7 @@ qualifier from task 103; write `Gate Enqueuer` and `Turn{…}` unqualified, and 
 anchors that task 109 declares them in this package.
 
 ### S11-I4 (Important): 103's `dependsOn` omits 109 and 104, yet it cannot be built without them
-**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:513
+**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:516
 **Problem:** the skeleton row gives `dependsOn: 100` and no seam. The part's `Mentions`
 struct takes task **109**'s `Gate`, `Origin`/`OriginMention` and `Refusals`, and its
 composer calls task 109's `WorkAgentSettingsApi.agentSwitch(orgId)`; its `work.ts` delta
@@ -3503,7 +3503,7 @@ and `criterion_gone` is a case the scope did not ask for and should have. `hub-c
 
 ### S11-I5 (Important): tasks 101, 104 (and 100) use Hub type names SW.19's owner does not declare
 **Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-104.md:357
-**Problem:** the skeleton makes **task 99** the owner of SW.19 (`…phase-w-work-layer.md:392`),
+**Problem:** the skeleton makes **task 99** the owner of SW.19 (`…phase-w-work-layer.md:393`),
 so 100-112 consume its names. Task 99 declares
 `AddAgentComment(… hubapi.AgentCommentInput) (hubapi.IssueComment, error)`,
 `ListEvidenceProposals(… hubapi.ProposalFilter) ([]hubapi.EvidenceProposal, error)` and
@@ -4701,7 +4701,7 @@ Scope coverage: complete and then some. The coordination-class rule (05 §3.4) i
 
 ### S16-I5 (Important): task 153 is two to three tasks in one, sized as three hours
 **Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-153.md:1
-**Problem:** the part is 1,359 lines and delivers a whole Jira adapter (pull, `cloudId` resolution, time-zone-floored JQL, an ADF converter, a priority table) — on its own the size of task 151, which is scoped at 3 h for Azure Boards alone — plus `comments.go` both ways, plus the comment halves of `boards.go` and `github.go`, plus three engine steps, plus a `hubapi` wire block, plus SQL for task 145's migration, plus five pure tests, five adapter tests and seven integration rows. The skeleton bills it 0.375 (3 h) (`2026-09-25-phase-w-work-layer.md:573`). The house rule is 1-3 focused hours.
+**Problem:** the part is 1,359 lines and delivers a whole Jira adapter (pull, `cloudId` resolution, time-zone-floored JQL, an ADF converter, a priority table) — on its own the size of task 151, which is scoped at 3 h for Azure Boards alone — plus `comments.go` both ways, plus the comment halves of `boards.go` and `github.go`, plus three engine steps, plus a `hubapi` wire block, plus SQL for task 145's migration, plus five pure tests, five adapter tests and seven integration rows. The skeleton bills it 0.375 (3 h) (`2026-09-25-phase-w-work-layer.md:576`). The house rule is 1-3 focused hours.
 **How to fix:** split into 153a (Jira one way in: `jira.go`, ADF, the priority table, its five tests) and 153b (two-way comments on all three: `comments.go`, the adapters' comment halves, the sink steps, the integration rows), and add the row to the skeleton's task table so the numbering stays true.
 
 ## Task 154 — host webhooks in, commit links, magic words
@@ -4724,7 +4724,7 @@ Scope coverage: complete, and the strongest single part in this section on the r
 
 ### S16-I7 (Important): task 155 is sized at 3 hours and delivers two streams, nine modified files and five test files
 **Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-155.md:1
-**Problem:** 1,490 lines covering, in one task: the parser appends; `work_linkback.go` with two host implementations and the autolink call; four separate deltas to `work_hooks.go`; two janitor statements and an autolink step; store appends; task 80's by-alias page; task 16's branch-name route; and three desktop files (`api/work.ts`, `IssueHead.tsx`, `palette/commands.ts`) — with four test files and ten integration rows. Its own step list runs to seven steps, two of which cross from Go into the desktop. The skeleton bills it 0.375 (3 h) (`2026-09-25-phase-w-work-layer.md:575`); the house rule is 1-3 focused hours, and a task this wide is what the 180-second watchdog and the spend limit punish.
+**Problem:** 1,490 lines covering, in one task: the parser appends; `work_linkback.go` with two host implementations and the autolink call; four separate deltas to `work_hooks.go`; two janitor statements and an autolink step; store appends; task 80's by-alias page; task 16's branch-name route; and three desktop files (`api/work.ts`, `IssueHead.tsx`, `palette/commands.ts`) — with four test files and ten integration rows. Its own step list runs to seven steps, two of which cross from Go into the desktop. The skeleton bills it 0.375 (3 h) (`2026-09-25-phase-w-work-layer.md:578`); the house rule is 1-3 focused hours, and a task this wide is what the 180-second watchdog and the spend limit punish.
 **How to fix:** split into 155a (host side: linkback, autolink, filing word, first push, the janitor steps) and 155b (the reader side: the by-alias page, the branch-name route, *Copy branch name* and the palette row), and add the row to the skeleton's table.
 
 ## Task 156 — outbound webhooks
@@ -4771,7 +4771,7 @@ Scope coverage: complete and exceeded. It is the only part in the section that n
 ### S16-I10 (Important): task 159 adds four `/v1` routes and never adds them to task 158's route table, so 158's drift test fails the moment 159 lands
 **Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-159.md:60
 **Problem:** task 158 decision 2 is explicit: *"`TestEveryV1PatternIsDocumented` fails on a pattern with no entry … Adding a route without its entry fails CI"* (`task-158.md:32-36`). Task 159 produces `POST /v1/apps`, `GET /v1/apps`, `GET /v1/apps/{appId}` and `POST /v1/apps/{appId}/decision` (`:71-73`) and its Files list holds no `cmd/hubopenapi/routes.go` and no `docs/api/*` (`:60-69`); its step 4 runs the neighbours but not `hubopenapi -check`. Task 160, which lands next, gets this right — `cmd/hubopenapi/routes.go` ⚑ is in its files (`task-160.md:82-83`) and step 5 regenerates (`:507`) — which shows the omission in 159 is an oversight, not a decision. Tasks 156 and 157 also add `/v1` routes but land before 158, so 158's own generation covers them; 159 is the first that does not.
-**How to fix:** add `cmd/hubopenapi/routes.go` ⚑ and the three regenerated `docs/api/` files to task 159's Files, copy task 160's step 5 as a step, and add `go run ./control-plane/cmd/hubopenapi -check` expecting `0` to its acceptance. Make 158 a dependency of 159 in the skeleton (`2026-09-25-phase-w-work-layer.md:579`), as task 160's gap 5 asks for 160.
+**How to fix:** add `cmd/hubopenapi/routes.go` ⚑ and the three regenerated `docs/api/` files to task 159's Files, copy task 160's step 5 as a step, and add `go run ./control-plane/cmd/hubopenapi -check` expecting `0` to its acceptance. Make 158 a dependency of 159 in the skeleton (`2026-09-25-phase-w-work-layer.md:582`), as task 160's gap 5 asks for 160.
 
 ## Task 160 — keys and limits
 
@@ -5117,7 +5117,7 @@ per CLAUDE.md. No finding of its own.
 
 ### S17-M9 (Minor): task 168 is not three hours of work, and two others are close
 
-**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:588
+**Where:** docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:591
 **Problem:** the skeleton prices 168 at 0.375 (3 h). The part is 1059 lines and contains: 51
 client methods and a two-list route table, the deletion of the stub, `methods_work.go`'s edits,
 the whole `intakeCalls()` relay, the route audit, `agentpolicy.go` plus its `main.go` wiring, the
@@ -5327,7 +5327,7 @@ Section verdict: Needs fixes
 
 Reviewer: adversarial plan review, read-only. Parts read one at a time against
 `docs/superpowers/plans/2026-09-25-phase-w-work-layer-scopes/tasks-181-187.md` and the skeleton
-`docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:609-615`.
+`docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:612-618`.
 
 All seven parts exist and none is cut off (task-181 295 lines, 182 375, 183 331, 184 456, 185 447,
 186 335, 187 474).
@@ -5545,7 +5545,7 @@ a new `Sweep` step with its own lock reasoning, a `passHandovers` skip, two rout
 fake, a conformance row, a desktop segmented control and `dutyLine`'s five cases — 19 named
 tests across three suites. The same under-budgeting sits on 182 (S19-I3).
 **How to fix:** either raise the estimate to 4 h in both the part and the skeleton row
-(`2026-09-25-phase-w-work-layer.md:612`), or split the desktop half (the choice, `dutyLine`,
+(`2026-09-25-phase-w-work-layer.md:615`), or split the desktop half (the choice, `dutyLine`,
 part 3's four tests) into its own task depending on this one.
 
 ## Task 185 — Entra group to team mapping (L-238)
@@ -5732,7 +5732,7 @@ dynamic client registration.
 
 ### ID-I2 (Important): third-party apps are realm clients, not Entra OAuth apps
 **Where:** `scopes/tasks-141-160.md:162`, `:196-200`, `:746-760`; `scopes/tasks-161-180.md:623-625`
-(task 178's connector); `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:579`
+(task 178's connector); `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:582`
 **Problem:** Task 159's `App.entraClientId` and manifest `entraClientId`, "Entra OAuth apps", the
 `AppClients` hook on `entra.Validator` and "App-only tokens (`roles` with no `scp`) stay refused"
 all assume Entra issues the app's token. Under OD-30 an app that acts as a person gets a realm
@@ -5759,7 +5759,7 @@ Panacea's realm and phase 8's realm file, marked UNVERIFIED. The cookie rules (n
 accepts it, CSP, CSRF) stand.
 
 ### ID-I4 (Important): group mapping cites a Hub API registration that no longer exists
-**Where:** `scopes/tasks-181-187.md:239-249`; `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:613`
+**Where:** `scopes/tasks-181-187.md:239-249`; `docs/superpowers/plans/2026-09-25-phase-w-work-layer.md:616`
 **Problem:** Task 185 reasons from "the Hub API registration has `groupMembershipClaims: None`".
 OD-30 makes no Hub API registration (ruling §1); the realm token carries no `groups` (ruling §4).
 Ruling §4 adds no groups mapper and says Hub membership is the Hub's own; ruling §11's work row
@@ -5801,3 +5801,62 @@ access is a personal access token (ruling §7); no Work task relied on an Entra 
 
 Section verdict: Needs fixes
 **Plan quality: Needs fixes**
+
+---
+
+# Fix batch b01 (2026-09-28)
+
+One finding, **X-C1**, fixed at its root: the link is built, not the Goal struck. Every line number
+below is post-fix, on `feat/work-layer`.
+
+| Finding | Verdict | Change | File:line |
+|---|---|---|---|
+| X-C1 | Fixed, and narrower than written | phase 5 row in *Deltas on sibling code* | `2026-09-25-phase-w-work-layer.md:289` |
+| X-C1 | " | task **81b**, the `implements` write and read paths and the design-approval close (W2, WH, 3 h) | `…-work-layer.md:488` |
+| X-C1 | " | task **96b**, the Design lens's issue list and *implements* on the issue view (W2, 2 h) | `…-work-layer.md:504` |
+| X-C1 | " | `P5-` added to the `dependsOn` legend, cited against phase 5's task table | `…-work-layer.md:356` |
+| X-C1 | " | SW.1 records that `implements` is already in the wire; SW.4 gains 81b | `…-work-layer.md:375`, `:378` |
+| X-C1 | " | totals 187 → 189 tasks, 516 → 521 h; W2 26 → 28 tasks; streams and scope-file rows | `…-work-layer.md:110`, `:346`, `:351`, `:635` |
+| X-C1 | " | file map: `work_implements.go`, and `Implements.tsx` in the issue view | `…-work-layer.md:246`, `:308` |
+| X-C1 | " | the two scope paragraphs, the vocabulary ruling and the owner fork | `…-scopes/tasks-81-100.md:529-623` |
+| X-C1 | " | the two parts | `…-parts/task-81b.md`, `…-parts/task-96b.md` |
+| X-C1 | " | why `implements` is **not** a `RelationKind` | `…-parts/task-11.md:555-572` |
+| X-C1 | " | 81b and 96b close no parity row; the counts do not move; L-208 stays Figma's | `…-scopes/coverage.md:351-367` |
+
+**The finding was right about the hole and wrong about the wire.** `implements` is not missing:
+`IssueRevisionContent.Implements []string` (`design:…` keys) is declared at `task-02.md:243`, is
+inside the canonical bytes every revision digest covers, is in all three golden vectors
+(`task-02.md:430`, `:479`, `:520`), and is on the API type at `task-03.md:424` with its field-name
+row at `task-03.md:738`. So **SW.1 is not reopened and task 05 is not reopened** under the WS0 rule.
+What was missing is everything that *uses* the field: no write path, no reverse read, no surface, no
+close path for 04 §7.7, no phase 5 delta row and no `P5-` id. That is what 81b and 96b build.
+
+**Vocabulary, settled rather than left open.** 05 says *frame*; phase 5's document model says
+**artboard**, and its design key `design:<canvasId>@<rev>` names a **canvas revision, not a subset**
+(phase 5 plan `:232`, decision P5-H). So `implements` names a canvas revision — which is exactly the
+shape `task-02.md:243` already had — and there is no per-frame key to invent. The Design lens lists
+the canvas's issues; a frame is a locator inside the revision.
+
+**Owner fork, recorded not built (rule 8).** The owner may instead rule Design out of Phase W. Then
+strike *design frame* from the Goal (`…-work-layer.md:7`) and delete the two tasks, the phase 5 delta
+row and the `P5-` legend entry. The default taken is the root-cause option, because `CLAUDE.md`
+calls the thread the product spine, the Goal names the hop, and 04 §7.7 already sizes the work —
+*"about 0.5 day, later"* (05 `:1305`). W2 **is** that *later*; nothing in W1 needs it. The 5 h here
+is 1 h over 04's estimate, and like every size in this plan it is an estimate, not a measurement.
+
+**Ids.** `81b` and `96b` are letter-suffixed, as the Hub plan's `H07b` is. Renumbering 72-187 would
+have broken this plan's ~1,678 cross-file `task-NN.md:LINE` citations.
+
+**Citations re-anchored.** Three rows were inserted into the skeleton — at old lines 288, 486 and
+501 — so every inbound citation below old line 289 is unmoved and every one above shifted by 1, 2 or
+3. They were found by `grep -rno "phase-w-work-layer\.md:[0-9]*"` over the parts, the scopes and this
+review, and rewritten by the shift function `new = old + (old≥289) + (old≥487) + (old≥502)`, ranges
+included, both ends. **24 citations in 5 files** moved: `task-109.md:794`, `task-39.md:603`,
+`task-62.md:4`, `task-97.md:8` and 20 in this file. `task-62.md:10` (`:100`) was below the first
+insert and is untouched; the skeleton cites itself nowhere (`grep -c` returns 0); nothing outside
+`docs/superpowers/plans/` cites it.
+
+**Unverified.** Phase 5's `internal/designapi/` and `src/design/` paths are read from its plan on
+another branch, not from a built tree, and both parts mark them so. `P5-21`, `P5-27` and `P5-28` are
+ids from that plan's task table, read 2026-09-28; no phase 5 task is built. Nothing here was
+executed: this is a plan change only.
