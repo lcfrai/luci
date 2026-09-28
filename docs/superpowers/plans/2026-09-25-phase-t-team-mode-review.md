@@ -3874,7 +3874,7 @@ folded in.
 | The route re-implements none of it: 422 `details.invariant` = `I14`/`I15`; the audit event's scope is what tells an auditor which trust model admitted a version | `task-14.md:463-472` |
 | `TestATeamAdminCannotPostAHook`: the `all` body is 422 from the project route, and the same hook in a `worker` section is 201 from the org route | `task-14.md:965` |
 | `TestAnOrgAllSectionHookIsRefusedForTheOrchestrator`: an org `all` hook is 422 `I15` for the orchestrator class, because `validate` renders every class and `all` is merged into each | `task-14.md:966` |
-| The plan body's task 13 summary, which said only "a later layer may add rules and tighten" | `2026-09-25-phase-t-team-mode.md:608-615` |
+| The plan body's task 13 summary, which said only "a later layer may add rules and tighten" | `2026-09-25-phase-t-team-mode.md:632-638`, from *"**The two layers are not equally trusted**"* |
 
 **Restated where the same fact appeared, because these rows contradicted the new rule:**
 
@@ -3885,7 +3885,7 @@ folded in.
 | `TestI2AKeyHelperCannotBeReplaced` and `TestI12PlatformEnvIsRefused` say which class and which check fires first (I12 before I14) | `task-13.md:769,780` |
 | Task 41's `TestTheInstructionsHoldNoTeammateText` builds layers "in every allowed key"; the project layer's are now I14's two **string-bearing** keys, `permissions.deny` and `permissions.ask` | `task-41.md:671` |
 | Task 41's `TestI13RefusesALayerClaudeMd` asserts the **id**, and `claudeMd` is not on I14's allowlist either; both the comment **and** the imperative an implementer follows now pin `productOwned` (I13) **before** `layerKeys` (I14/I15), so the invariant that names the key wins | `task-41.md:231-234,265-267`, `task-13.md:498-502` |
-| The plan body says an org admin's hook belongs in a `worker` section, not `all`, and task 13's prose says why | `2026-09-25-phase-t-team-mode.md:615-616`, `task-13.md:64-66` |
+| The plan body says an org admin's hook belongs in a `worker` section, not `all`, and task 13's prose says why | `2026-09-25-phase-t-team-mode.md:639-640`, from *"An org admin's hook must sit in a `worker` section"*; `task-13.md:64-66` |
 
 **Two judgements, declared.**
 
@@ -3916,10 +3916,29 @@ already fixed. S02-C3's **Where** is marked as the pre-b05 location for the same
 | M-6: `range` over a section names an arbitrary one of two refused keys | map iteration order reaching the refusal message the allowlist was already sorted for | all three loops in `layerKeys` sorted (`task-13.md:507,516,531`, with the reason at `:503-505`), `maps` imported (`:290`), `TestTheRefusedKeyIsTheSameEveryTime` (`:784`), acceptance count 4 → 5 (`:863,868`) |
 | M-7: `TestTheInstructionsHoldNoTeammateText` asked for a marker string in "every key" the project layer may set | three of I14's five keys are a number and two booleans | names the two string-bearing keys (`task-41.md:671`) |
 
+**One of S02-C3's asks is met by a different invariant, and this is the record of that.** The
+finding asked for `permissions.ask` **"(worker only)"**. I14 admits `ask` from a project layer in
+any section; the orchestrator half is **I8**, which requires that class's `permissions.ask` to be
+empty whatever scope wrote it (`task-13.md:100,595-597`, `TestI8TheOrchestratorGetsNoAskRule` at
+`:776`). Splitting the rule that way is deliberate: the class constraint belongs with the class, so
+it holds for the org layer too, which a project-scope allowlist would not have covered.
+
+**The two plan-body anchors had already drifted when round 2 re-checked them, and that is why they
+now carry their text.** b07 (`c0d41bb4`, `4b480a7d`, `0fffb4d3`) added lines to the plan body
+**above** task 13's summary after b05 wrote `:608-615`, so the record pointed at `fleetd`'s
+environment variables instead. Re-derived to `:632-638` and `:639-640`. A line number alone cannot
+survive a sibling batch editing the same file above it, so every anchor this batch holds in a file
+another batch also edits — the plan body's two — is now written as *line + the phrase to grep*. The
+line is the fast path; the phrase is what makes the drift recoverable rather than silent.
+
 **Unverified:** plan text only. No Go compiled, no test run, no control plane, container or image
 started; nothing outside `.claude/worktrees/team` read or written. Every line number in this
-section was re-derived by `grep -n`/`cat -n` against the working tree **after** round 2's last plan
-edit and before its commit; if a later batch edits `task-13.md`, `task-14.md`, `task-41.md` or the
-plan body above these anchors, they drift again and must be re-derived, which is why each open
+section was re-derived by `grep -n`/`cat -n` against the working tree at **`0fffb4d3`** (round 2's
+own fixes are `82c9945e`, `76159609`, `590a8f6e`, and the commit carrying this paragraph); the
+`task-13.md` and `task-14.md` anchors are b05's own and no later batch has touched those two files;
+`task-41.md` was touched once since, by `4edfcd5f`, which replaced one line at `:600` and changed
+no line count, so its anchors stand; the plan body's two are re-derived as above. Each was checked
+by reading the cited line, not by trusting the history. If a later batch edits any of the four
+above these anchors, they drift again and must be re-derived, which is why each open
 finding now also carries its pre-b05 range. Whether Claude Code honours `allowManagedHooksOnly`
 and a managed `env` at the pinned CLI version remains task 33's check, unchanged by this batch.
