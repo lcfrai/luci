@@ -138,6 +138,75 @@ async function createShell(title) {
   return s;
 }
 
+/** A prompt is not the last thing on the wire. MEASURED in the first run of this patch: after
+ *  Control+C this shell's redraw ends `…\x1b[00m$ \x1b[K` — an erase-to-end-of-line AFTER the
+ *  prompt — so `/\$ $/` on the raw transcript is false at an idle prompt and every untilPrompt
+ *  reports "busy" on a shell nobody is using (SDD/e2e-run4 has no such tail, which is why two
+ *  rounds of measurement against a recorded transcript could not see this). Trailing terminal
+ *  control sequences are stripped before the test; nothing else is. */
+const TRAILING_CONTROL = /(?:\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*(?:\x07|\x1b\\))+$/;
+const endsAtPrompt = (s) => /\$ $/.test(s.replace(TRAILING_CONTROL, ""));
+
+/** `ctx.sh` is shared by design (:127). A foreground command left running by an earlier check
+ *  swallows every keystroke a later one sends — the tty still echoes them, so the pane looks
+ *  fine and the check dies on its own marker instead. That is how one red presented as five
+ *  (F5, run 4). No `m` flag: the property is that the transcript ENDS at a prompt. With `m` a
+ *  stale "…$ \r\n" left by an empty Enter matches while the shell is busy (measured). */
+async function untilPrompt(h, id, ms = 5_000) {
+  try {
+    await until(`${id} back at a prompt`, () => endsAtPrompt(stdoutOf(h, id)), ms);
+  } catch {
+    // The tail is the evidence, and without it "busy" is an assertion about another check.
+    // Measured, round 3: the first run of this guard fired on a shell nobody had typed into.
+    throw new Error(`${id} is busy: an earlier check left a foreground command running (transcript tail ${JSON.stringify(stdoutOf(h, id).slice(-120))})`);
+  }
+}
+
+/** Walk the viewport back to the bottom BY THE GESTURE A USER HAS — the wheel — and assert it
+ *  arrived. `.xterm-viewport` has no scroll extent at all (probe 2: scrollTop 0,
+ *  scrollHeight === clientHeight at every sample), so `scrollTop = scrollHeight` moves nothing
+ *  and the wheel is the ONLY descent that exists (M5).
+ *
+ *  `expect` is the screen the pane was showing before the wheel-up, and when it is given it IS
+ *  the target: "at the bottom" then means the bottom it was at. Without it the target is the
+ *  weaker pair — the screen stopped changing AND the bottom row ends in `$` — which a wheel
+ *  that moves nothing also satisfies whenever the parked view happens to end in a prompt
+ *  (review round 3, Minor 1). Both sides are read from `screen()`: `stdoutOf` is the RAW
+ *  transcript, and a raw row and a rendered row never compare equal at a prompt (measured,
+ *  f5-evidence/r2-predicates.txt).
+ *
+ *  The CALLER must leave the shell idle first — under live output the bottom recedes as fast as
+ *  the wheel climbs, which is what §3.3 proved. */
+async function untilAtBottom(h, id, { expect: target = null, maxEvents = 40, ms = 10_000 } = {}) {
+  const centre = await h.page.$eval(`${paneOf(id)} .xterm`, (el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  });
+  await h.page.mouse.move(centre.x, centre.y);
+  // Both sides drop empty rows: xterm renders a different number of blank row divs at different
+  // scroll positions, so a raw row-for-row comparison can never be true even at the same bottom.
+  const want = target === null ? null : target.filter((r) => r !== "").join("\n");
+  const deadline = Date.now() + ms;
+  let previous = null;
+  for (let events = 0; events < maxEvents; events += 1) {
+    const rows = await screen(h.page, id);
+    const nonEmpty = rows.filter((r) => r !== "");
+    const key = nonEmpty.join("\n");
+    const arrived = want === null
+      ? key === previous && /\$$/.test(nonEmpty.at(-1) ?? "")
+      : key === want;
+    if (arrived) return events;
+    if (Date.now() > deadline) throw new Error(`timed out after ${ms} ms walking ${id}'s viewport back to the bottom`);
+    previous = key;
+    await h.page.mouse.wheel(0, 900);
+    await sleep(100);
+  }
+  const tail = (s) => (s ?? "").split("\n").slice(-2);
+  throw new Error(`${id}: ${maxEvents} wheel-down events did not reach the bottom it was at`
+    + ` (rows want/got ${(want ?? "").split("\n").length}/${(previous ?? "").split("\n").length},`
+    + ` want tail ${JSON.stringify(tail(want))}, got tail ${JSON.stringify(tail(previous))})`);
+}
+
 const CHECKS = [];
 /** `closes` names the carry or row the check is evidence for, so step 19's table can be
  *  built from this script's output rather than from memory. `always` runs even under
@@ -565,41 +634,137 @@ check("c5.resize", "real-browser carry 5: a tile resize reflows the terminal, an
 check("c4.pinned", "real-browser carry 4: the pinned-scroll rule holds against real xterm's asynchronous parse", async (h) => {
   await flipTo(h, "Columns");
   const id = ctx.sh;
-  await type(h.page, id, "while :; do echo \"TI\"\"CK $RANDOM\"; sleep 0.05; done");
-  await until("ticks arriving", () => /TICK \d+/.test(stdoutOf(h, id)), 5_000);
+  // This check's OWN preconditions, established here and never inherited: an idle shell, and
+  // 3,000 lines of scrollback to scroll into. Run 4 inherited c1.flip's, so under
+  // PANACEA_E2E_ONLY=c4.pinned the wheel-up is a no-op on a 54-row terminal
+  // (f5-evidence/p1-c4.jsonl line 4: rowCount 54, scrollHeight === clientHeight) and the red
+  // reads as "the pinned rule failed against real xterm", which it is not.
+  await untilPrompt(h, id);
+  await type(h.page, id, "seq -f 'PAD%g' 1 3000");
+  await until("this check's own scrollback", () => stdoutOf(h, id).includes("PAD3000"), 20_000);
+  await untilPrompt(h, id);
+
   const centre = await h.page.$eval(`${paneOf(id)} .xterm`, (el) => {
     const r = el.getBoundingClientRect();
     return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
   });
   await h.page.mouse.move(centre.x, centre.y);
 
-  // Scrolled up: sample the viewport for three seconds of arriving output. It must not move.
+  // 0. The scrollback precondition, PROVED — here, on the idle shell, before one tick arrives,
+  //    because this is the only moment at which it is decidable. Under live output "the wheel
+  //    did nothing" and "the registry yanked the pane back" leave the SAME screen: both sit at
+  //    the bottom with the newest rows on it, so no screen and no transcript sample can tell
+  //    them apart (review round 4, C1 — a discriminator that answers yes in both cases files a
+  //    product defect as harness litter). Proved here instead, and it only gets stronger once
+  //    the ticks start: scrollback grows, it never shrinks. After this, step 2's single red can
+  //    mean exactly one thing.
+  const settledBottom = await screen(h.page, id);
   await h.page.mouse.wheel(0, -900);
   await sleep(300);
-  const grown = stdoutOf(h, id).length;
-  const pinned = await screen(h.page, id);
-  for (let i = 0; i < 30; i += 1) {
-    await sleep(100);
-    const now = await screen(h.page, id);
-    if (now.join("\n") !== pinned.join("\n")) throw new Error(`scrolled up, the viewport moved at sample ${i}`);
+  if ((await screen(h.page, id)).join("\n") === settledBottom.join("\n")) {
+    throw new Error("the wheel-up moved nothing on an idle shell with 3,000 lines behind it: this pane has no scrollback, which is not a pinned-rule failure");
   }
-  if (stdoutOf(h, id).length <= grown) throw new Error("no output arrived while pinned; the check proved nothing");
+  const scrollbackDescentEvents = await untilAtBottom(h, id, { expect: settledBottom });
 
-  // At the bottom: the last tick on screen must keep changing.
-  await h.page.mouse.wheel(0, 1_000_000);
-  await sleep(300);
-  const lastTick = async () => (await screen(h.page, id)).filter((r) => /TICK \d+/.test(r)).at(-1);
-  const first = await lastTick();
-  await until("the viewport to follow new output", async () => (await lastTick()) !== first, 3_000);
+  // A monotone counter, not $RANDOM: step 1 decides "the viewport is following" by comparing the
+  // newest TICK row against the one before it, so two ticks that draw the same number read as a
+  // viewport that did not move. One collision in 32,768 draws over a few hundred ticks is a
+  // percent-level event (review round 4, Minor 2) and the counter costs nothing. The "TI""CK"
+  // split keeps the shell's echo of the command line itself out of every /TICK \d+/ match.
+  await type(h.page, id, "i=1; while :; do echo \"TI\"\"CK $i\"; i=$((i+1)); sleep 0.05; done");
+  await until("ticks arriving", () => /TICK \d+/.test(stdoutOf(h, id)), 5_000);
 
-  await h.page.keyboard.press("Control+C");
-  return { pinnedSamples: 30, followed: true };
+  let observed = null;
+  let failure = null;
+  try {
+    // 1. A PRECONDITION of step 2, and reported as nothing else: at the bottom, where typing
+    //    the command left it, the pane must be seeing the ticks. It is NOT evidence about the
+    //    registry — xterm follows a bottom viewport by itself, with nothing calling
+    //    scrollToBottom (f5-evidence/r3-xterm.json, p1/p4/p5) — so it cannot fail for a
+    //    registry defect and it is not exported as an observation. Same reasoning that deleted
+    //    step 5 (review round 4, I1).
+    const lastTick = async () => (await screen(h.page, id)).filter((r) => /TICK \d+/.test(r)).at(-1);
+    const atStart = await lastTick();
+    await until("the viewport to follow new output", async () => (await lastTick()) !== atStart, 3_000);
+
+    // 2. Scrolled up: sample the viewport for three seconds of arriving output. It must not
+    //    move. Step 0 already proved this pane has scrollback, so this red needs no
+    //    discriminator and gets none: a viewport that moves here is the registry yanking a pane
+    //    the user scrolled away from — attachRegistry.ts:477's `if (pinned)`, dropped.
+    await h.page.mouse.wheel(0, -900);
+    await sleep(300);
+    const grown = stdoutOf(h, id).length;
+    const frozen = await screen(h.page, id);
+    for (let i = 0; i < 30; i += 1) {
+      await sleep(100);
+      const now = await screen(h.page, id);
+      if (now.join("\n") === frozen.join("\n")) continue;
+      throw new Error(`the pinned rule failed: scrolled up, with this pane's scrollback proved at step 0, the viewport moved at sample ${i}`);
+    }
+    if (stdoutOf(h, id).length <= grown) throw new Error("no output arrived while pinned; the check proved nothing");
+
+    // 3. Stop the output. THIS is the repair: the bottom stops receding, so a descent can reach
+    //    it. It was never the wheel that was broken — it was the moving target.
+    await h.page.keyboard.press("Control+C");
+    await untilPrompt(h, id);
+
+    // 4. Against an idle shell: scroll up, then walk back down BY THE WHEEL to exactly the
+    //    screen the pane was showing. With nothing arriving, screen-to-screen is decidable, so
+    //    the wheel-up's own effect is asserted before the descent is trusted.
+    const bottom = await screen(h.page, id);
+    await h.page.mouse.wheel(0, -900);
+    await sleep(300);
+    if ((await screen(h.page, id)).join("\n") === bottom.join("\n")) {
+      throw new Error("the wheel-up did not move the viewport; the descent would prove nothing");
+    }
+    const descentEvents = await untilAtBottom(h, id, { expect: bottom });
+
+    // There is no step 5, and that is a measurement, not an omission. "Output follows again
+    // once the user scrolls back down" cannot fail in a browser: with the viewport at the
+    // bottom, xterm follows new output ITSELF, with nothing calling scrollToBottom at all
+    // (f5-evidence/r3-xterm.json, p1/p4/p5 — the terminal alone, no registry). A step 5 here
+    // would pass under the registry's own named regression. The falsifiable half of that rule
+    // is step 2 — a pinned pane must NOT be yanked — and the other half is pinned where it can
+    // fail: desktop/src/api/attachRegistry.test.ts, "output scrolls again once the user has
+    // scrolled back down", which kills the latched-unpinned mutant.
+    //
+    // Everything exported below is a number this run measured. `followed: true` was dropped for
+    // the reason step 5 was (review round 4, I1): a field that is true whenever the check
+    // reaches this line is a claim the results document cannot check.
+    observed = { scrollbackDescentEvents, pinnedSamples: 30, descentEvents,
+      refollow: "pinned in attachRegistry.test.ts; not falsifiable in a browser (f5-evidence/r3-xterm.json)" };
+  } catch (error) {
+    failure = error;
+  }
+
+  // Cleanup, and it must NEVER replace the failure it is cleaning up after: a throw from a
+  // `finally` discards the pending exception, which is F5's own shape (:593 threw past :595 and
+  // the cause vanished). It appends instead, and only speaks for itself when nothing is pending.
+  try {
+    await h.page.keyboard.press("Control+C");
+    await untilPrompt(h, id);
+    await untilAtBottom(h, id);
+  } catch (error) {
+    if (!failure) throw error;
+    failure.message += ` — and ${id} could not be returned to an idle prompt at the bottom: ${error.message}`;
+  }
+  if (failure) throw failure;
+  return observed;
 });
 
 check("c6.load", "real-browser carry 6: 4,000 lines/s for 10 s — usability asserted, render rate measured", async (h) => {
   const id = ctx.sh;
-  const other = ctx.created.find((x) => x !== id && x !== ctx.claude && socketsFor(h, x).at(-1)?.closed === null);
-  if (other === undefined) throw new Error("no second live shell to echo into");
+  await untilPrompt(h, id);
+  let other = ctx.created.find((x) => x !== id && x !== ctx.claude && socketsFor(h, x).at(-1)?.closed === null);
+  if (other === undefined) {
+    // Its own precondition, not one inherited from whichever earlier check happened to leave a
+    // live shell behind. Under PANACEA_E2E_ONLY=c6.load there is none, and "no second live
+    // shell to echo into" is a harness red that reads like a product red.
+    const echo = await createShell("e2e-load-echo");
+    await until("the echo pane", () => h.page.$(paneOf(echo.id)), 10_000);
+    await untilPrompt(h, echo.id, 30_000);
+    other = echo.id;
+  }
 
   await h.page.evaluate((sel) => {
     const rows = document.querySelector(`${sel} .xterm-rows`);
@@ -662,6 +827,7 @@ const containerOf = (sessionId) =>
 check("d.detach", "durability: a pane unmounted past the grace re-attaches, and the replay carries the transcript", async (h) => {
   await flipTo(h, "Columns");
   const id = ctx.sh;
+  await untilPrompt(h, id);
   await type(h.page, id, "echo \"DETACH\"\"MARK\"");
   await until("DETACHMARK", () => stdoutOf(h, id).includes("DETACHMARK"));
   const socketsBefore = socketsFor(h, id).length;
@@ -728,6 +894,7 @@ check("d.cp-restart", "durability: the control plane restarts; sessions and cont
 check("c10.retry", "real-browser carry 10 + carry 9's overlay: Retry attach after a genuine failure; the strip lets the pointer through", async (h) => {
   await flipTo(h, "Columns");
   const id = ctx.sh;
+  await untilPrompt(h, id);
   await type(h.page, id, "echo \"RETRY\"\"MARK\"");
   await until("RETRYMARK", () => stdoutOf(h, id).includes("RETRYMARK"));
   await tagTerm(h, id);
