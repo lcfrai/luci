@@ -228,11 +228,10 @@ const ScopeProduct Scope = "product"
 // project layer may set one, in any section (I13).
 var productKeys = []string{"claudeMd"}
 
-// productOwned is I13's first half, called beside forbiddenEnv — and
-// BEFORE task 13's layerKeys (b05), so a project layer's claudeMd is
-// refused as I13, naming the key, not as I14's "not on the allowlist" —
-// for each
-// section of an org or project layer.
+// productOwned is I13's first half, called for each section of an org or
+// project layer: beside forbiddenEnv, and BEFORE task 13's layerKeys (b05),
+// so a project layer's claudeMd is refused as I13, naming the key, rather
+// than as I14's "not on the allowlist".
 func productOwned(class model.Class, section map[string]any, scope Scope) error {
 	for _, k := range productKeys {
 		if _, has := section[k]; has {
@@ -263,7 +262,9 @@ func productExact(class model.Class, doc map[string]any) error {
 }
 ```
 
-In `Render`, inside the layer loop, beside `forbiddenEnv`:
+In `Render`, inside the layer loop, **immediately after `forbiddenEnv` and before task 13's
+`layerKeys`** — placed after `layerKeys`, `TestI13RefusesALayerClaudeMd`'s project-layer half fails
+with I14, because `claudeMd` is not on I14's allowlist and the allowlist would answer first:
 
 ```go
 			if err := productOwned(class, s, l.Scope); err != nil {
@@ -667,7 +668,7 @@ session that reads peer text before its own typed state plans on the wrong pictu
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestScriptedSequenceScoresExactly` | `04-conflict-yield` driven by `Scripted{Turns: [[], [inbox, peer accept th-…e1, direct {kind: free} with no `to`, which Fleet refuses `bad_request`]]}` gives exactly `Score{Pass: false, Checks: [read ✓ "seq 1", settle ✓ "seq 2", order ✓, free-text ✗ "seq 3", widen ✓, asks ✓ "0", informs ✓ "0"]}`, compared as a whole struct | a scorer that skips `mustNot`, compares `Order` by last match, or counts a refused call as an ask |
-| `TestTheInstructionsHoldNoTeammateText` | `Render` for the orchestrator and worker classes in both worlds, with org and project layers holding the marker `ZQX-TEAM-9120` in every key its scope may set (for the project layer, task 13's I14 allowlist; for the org layer, every key I15 still leaves the orchestrator class), yields a `claudeMd` byte-equal to `Orchestrator()` / `WorkerCloud()`; neither text contains `{{`, `%`, `${` or `<!--`; the package exports no function with a parameter (checked by `go/parser` over the package files) | a template parameter added "to personalise" the text; a merge that lets a layer's string reach `claudeMd` |
+| `TestTheInstructionsHoldNoTeammateText` | `Render` for the orchestrator and worker classes in both worlds, with org and project layers holding the marker `ZQX-TEAM-9120` in every key its scope may set **that can carry a string** — for the project layer that is `permissions.deny` and `permissions.ask` only, because I14's other three allowlisted keys are a number and two booleans (`task-13.md:488,492`); for the org layer, every string-bearing key I15 still leaves the orchestrator class — yields a `claudeMd` byte-equal to `Orchestrator()` / `WorkerCloud()`; neither text contains `{{`, `%`, `${` or `<!--`; the package exports no function with a parameter (checked by `go/parser` over the package files) | a template parameter added "to personalise" the text; a merge that lets a layer's string reach `claudeMd` |
 | `TestI13RefusesALayerClaudeMd` | an org layer `{"v":1,"all":{"claudeMd":"x"}}` and a project layer `{"v":1,"orchestrator":{"claudeMd":"x"}}` each → `*InvariantError{Invariant: "I13"}` naming its scope | the check only on the `orchestrator` section, or only on org |
 | `TestI13TheRenderCarriesTheProductText` | worker `claudeMd` = `WorkerCloud()`; orchestrator = `Orchestrator()`; mirror has no `claudeMd` | the product layer applied before the org layer, or to the mirror |
 | `TestTheTextNamesOnlyOrchestratorVerbs` | every `` `panacea <verb>` `` in `orchestrator.md` satisfies `model.ClassMay(model.ClassOrchestrator, verb)`, and `seed`, `inbox`, `team`, `peer`, `human` all appear | the text naming a worker-only verb, or dropping `seed` (task 40 relies on it) |

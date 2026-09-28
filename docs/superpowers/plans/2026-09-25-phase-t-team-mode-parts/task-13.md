@@ -63,7 +63,7 @@ forbid, with none of task 12's role checks touched. So the project layer is a **
 allowlist** (I14), and no layer of either scope may hand the orchestrator class a command-bearing
 key (I15). An org admin who wants a hook for the workers still has one: their own layer, audited as
 theirs — but it must sit in the **`worker`** section, not `all`, because `all` is merged for the
-orchestrator class too (`:443`) and I15 then refuses the whole layer for that class. The refusal is
+orchestrator class too (`:446`) and I15 then refuses the whole layer for that class. The refusal is
 an `*InvariantError`, not a bare `ErrLayer`, so task 14's route answers 422 with
 `details.invariant` and the key an admin must remove (`task-14.md:964`).
 
