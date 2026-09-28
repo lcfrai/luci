@@ -228,7 +228,10 @@ const ScopeProduct Scope = "product"
 // project layer may set one, in any section (I13).
 var productKeys = []string{"claudeMd"}
 
-// productOwned is I13's first half, called beside forbiddenEnv for each
+// productOwned is I13's first half, called beside forbiddenEnv — and
+// BEFORE task 13's layerKeys (b05), so a project layer's claudeMd is
+// refused as I13, naming the key, not as I14's "not on the allowlist" —
+// for each
 // section of an org or project layer.
 func productOwned(class model.Class, section map[string]any, scope Scope) error {
 	for _, k := range productKeys {

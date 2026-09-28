@@ -494,7 +494,9 @@ var orchestratorEnv = []string{"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"}
 
 // layerKeys is I14 and I15, applied to one section of one layer before that
 // section is merged, so the refusal names the key its author must remove. It
-// runs after forbiddenEnv, so a platform env key keeps its own error (I12).
+// runs after forbiddenEnv, so a platform env key keeps its own error (I12),
+// and after task 41's productOwned, so claudeMd keeps I13: the invariant
+// that names the key beats the allowlist that only knows it is not listed.
 func layerKeys(class model.Class, section map[string]any, scope Scope) error {
 	for k, v := range section {
 		if scope == ScopeProject {
