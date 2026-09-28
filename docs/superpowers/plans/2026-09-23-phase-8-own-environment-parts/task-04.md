@@ -103,7 +103,9 @@ output "action_group_id" { value = azurerm_monitor_action_group.platform.id }
 - `azurerm_log_analytics_workspace.this` — `log-panacea-app-${env}`, `sku = "PerGB2018"`,
   `retention_in_days`, `daily_quota_gb`, **`local_authentication_enabled = false`** (4.81.0's
   name; `local_authentication_disabled` is deprecated in this version).
-- `azurerm_monitor_data_collection_rule.container_insights` — `dcr-ci-panacea-app-${env}`; one
+- `azurerm_monitor_data_collection_rule.container_insights` — `dcr-ci-panacea-app-${env}`,
+  `kind = "Linux"` (fix round, review 1 I3: Microsoft's own Container Insights DCR carries it and
+  the nodes are AzureLinux; **UNVERIFIED** like the extension JSON below, true at apply only); one
   `data_sources.extension` named `ContainerInsightsExtension`, `extension_name = "ContainerInsights"`,
   streams `Microsoft-ContainerLogV2`, `Microsoft-KubeEvents`, `Microsoft-KubePodInventory`,
   `Microsoft-KubeNodeInventory`, `Microsoft-InsightsMetrics`, and
@@ -143,8 +145,22 @@ is in `modules/aks` (task 06), because it needs the cluster id.
 | `budget_warns_at_four_points` | four notifications: thresholds 50/80/100 `Actual` and 100 `Forecasted` | the forecast alert dropped (it is the one that fires before the money is spent) |
 | `budget_is_subscription_scoped` | the budget is `azurerm_consumption_budget_subscription` and its `subscription_id` is the data source's `id` | a resource-group budget that misses the node resource group |
 | `no_recipients_is_rejected` | `alert_emails = []` → `expect_failures` | an alert that alerts nobody |
+| `the_excluded_namespaces_come_from_the_input` (fix round) | a three-namespace input, and the decoded list equals that literal | the namespace list hard-coded in `main.tf`, so the variable reaches nothing |
+| `every_alert_address_reaches_the_action_group` (fix round) | two addresses; each receiver read by `name=email_address`, `use_common_alert_schema`, and the budget's `contact_emails` | a constant receiver address, a mis-paired receiver name, a budget that mails only the first address |
+| `names_region_group_and_tags_come_from_the_inputs` (fix round) | prod environment, `australiasoutheast`, a prod group and a real tag map: the four names, the two locations, the three groups, the three tag maps | three names frozen to `-dev`; the DCR or action group shipping untagged, so tag-based cost attribution misses them |
+| `a_budget_of_zero_is_rejected` (fix round) | `monthly_budget_amount = 0` → `expect_failures` | the validation dropped |
+| `a_mid_month_budget_start_is_rejected` (fix round) | `budget_start_date = "2026-11-15T00:00:00Z"` → `expect_failures` | the validation dropped |
 
-Three notes from building it:
+Fourteen runs after the fix round (review 1: C1, I1, I2, I3, M1, M4).
+
+Four notes from building it:
+
+- **A mock default is a value the assert may be reading instead of the configuration.** An unset
+  optional attribute is filled with its type's zero value, so
+  `local_authentication_enabled == false` passed with the line deleted from `main.tf` (review 1,
+  C1). The mock now sets the attribute to Azure's own default, `true`; configuration wins over a
+  mock default, so the assert reads what the module sets and a module that stops setting it
+  fails. Any `== false` assert on a security attribute needs the same treatment.
 
 - **`expect_failures` and `assert` cannot share a run.** A run that expects a variable validation
   to fail never reaches its asserts, so the cap's *wiring* assert lives on the happy-path run
@@ -171,13 +187,19 @@ bash infra/scripts/validate.sh infra/terraform/modules/observability
 # validate: 1 ok, 0 failed                            (exit 0)
 ```
 
-`validate.sh` prints a step's own output only when that step fails, so `Success! 9 passed,
-0 failed.` is not on stdout on a green run; the nine runs are enumerated in the red run's
-output instead.
+`validate.sh` prints a step's own output only when that step fails, so `Success! 14 passed,
+0 failed.` is not on stdout on a green run; the runs are enumerated in a red run's output
+instead.
 
 #### What this task does not claim
 
-- That the DCR's extension JSON is what Azure accepts (above).
+- That the DCR's extension JSON, or `kind = "Linux"`, is what Azure accepts (above). `kind`
+  validates in 4.81.0 and nothing offline can say more; task 31 is the first place it is true or
+  false. If Container Insights collects nothing there, `kind` is the first thing to check.
+- That the alert rules an operator would want exist. The action group is built and wired to the
+  budget, but **no alert rule uses it**, so nothing announces that the daily cap has tripped and
+  stopped ingestion for the day — `kube-audit-admin` included. Review 1 M5: a plan-level gap,
+  nearest owner task 32 (measurement), not a deviation from this part.
 - That the daily cap is large enough: the dev value (`5`, set in task 07) is a guess until task 32
   measures a day of kube-audit-admin.
 - That Log Analytics needs no private link: dev uses public ingestion with Entra-authenticated

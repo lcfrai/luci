@@ -350,9 +350,13 @@ knowledge, UNVERIFIED). This way only the subnet ids carry the wait.
 ```bash
 bash infra/scripts/validate.sh infra/terraform/modules/network
 # validate: OK   infra/terraform/modules/network
-# validate: 1 ok, 0 failed          (terraform test: Success! 27 passed, 0 failed.)
+# validate: 1 ok, 0 failed                            (exit 0)
 bash infra/scripts/guards.sh        # guards: 10 of 10 passed
 ```
+
+`validate.sh` sends each step's own output to its log and prints it only when the step fails, so
+`terraform test`'s `Success! 27 passed, 0 failed.` is **not** on stdout on a green run (task 04
+review 1, M3). Run `terraform test` in the module directory to see the count.
 
 #### What this task does not claim
 

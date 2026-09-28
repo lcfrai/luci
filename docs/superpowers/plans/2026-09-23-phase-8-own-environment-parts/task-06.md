@@ -307,7 +307,11 @@ holding `go.work`, so it runs the same from `go test ./control-plane/...` at the
 
 ```bash
 bash infra/scripts/validate.sh infra/terraform/modules/aks
-# validate: OK   infra/terraform/modules/aks          (Success! 14 passed, 0 failed.)
+# validate: OK   infra/terraform/modules/aks
+# validate: 1 ok, 0 failed                            (exit 0)
+#   validate.sh prints a step's own output only when that step fails, so terraform test's
+#   "Success! 14 passed, 0 failed." is NOT on stdout on a green run (task 04 review 1, M3);
+#   run terraform test in the module directory to see the count.
 go test ./control-plane/internal/sandbox/ -run 'TestSandboxPool' -race -count=1
 # ok  	github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox
 ```
