@@ -62,8 +62,10 @@ its owner's session (task 16), so a command that runs there calls `panacea peer`
 forbid, with none of task 12's role checks touched. So the project layer is a **tighten-only
 allowlist** (I14), and no layer of either scope may hand the orchestrator class a command-bearing
 key (I15). An org admin who wants a hook for the workers still has one: their own layer, audited as
-theirs. The refusal is an `*InvariantError`, not a bare `ErrLayer`, so task 14's route answers 422
-with `details.invariant` and the key an admin must remove (`task-14.md:964`).
+theirs — but it must sit in the **`worker`** section, not `all`, because `all` is merged for the
+orchestrator class too (`:443`) and I15 then refuses the whole layer for that class. The refusal is
+an `*InvariantError`, not a bare `ErrLayer`, so task 14's route answers 422 with
+`details.invariant` and the key an admin must remove (`task-14.md:964`).
 
 **The gateway fragment is copied and pinned, not imported.** It lives in
 `images/sandbox/managed-settings.gateway.json` (phase 6 task 14, **planned**, `phase-6-gateway.md:248`,
@@ -285,6 +287,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"slices"
 	"strings"
 
@@ -497,8 +500,12 @@ var orchestratorEnv = []string{"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"}
 // runs after forbiddenEnv, so a platform env key keeps its own error (I12),
 // and after task 41's productOwned, so claudeMd keeps I13: the invariant
 // that names the key beats the allowlist that only knows it is not listed.
+// Every loop here walks its keys in sorted order: a layer with two refused
+// keys must name the same one on every POST, or an admin fixes one key and
+// meets a different 422 with no change of their own.
 func layerKeys(class model.Class, section map[string]any, scope Scope) error {
-	for k, v := range section {
+	for _, k := range slices.Sorted(maps.Keys(section)) {
+		v := section[k]
 		if scope == ScopeProject {
 			if !slices.Contains(projectKeys, k) {
 				return &InvariantError{Invariant: "I14", Class: class, Scope: scope,
@@ -506,7 +513,7 @@ func layerKeys(class model.Class, section map[string]any, scope Scope) error {
 			}
 			if k == "permissions" {
 				sub, _ := v.(map[string]any)
-				for pk := range sub {
+				for _, pk := range slices.Sorted(maps.Keys(sub)) {
 					if !slices.Contains(projectPermissionKeys, pk) {
 						return &InvariantError{Invariant: "I14", Class: class, Scope: scope,
 							Detail: "permissions." + pk + " is not a key a project layer may set; it may tighten with " + strings.Join(projectPermissionKeys, " and ")}
@@ -521,7 +528,7 @@ func layerKeys(class model.Class, section map[string]any, scope Scope) error {
 	}
 	if class == model.ClassOrchestrator {
 		env, _ := section["env"].(map[string]any)
-		for k := range env {
+		for _, k := range slices.Sorted(maps.Keys(env)) {
 			if !slices.Contains(orchestratorEnv, k) {
 				return &InvariantError{Invariant: "I15", Class: class, Scope: scope,
 					Detail: "env." + k + " reaches the Orchestrator's process; a layer may name only " + strings.Join(orchestratorEnv, ", ")}
@@ -774,6 +781,7 @@ returns a `Layer`; `render(t, class, org, project)` calls `Render` with the pinn
 | `TestAProjectLayerCannotAddAHook` | project `{"v":1,"worker":{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"/bin/sh -c id"}]}]}}}` | I14, project, worker, naming `hooks` | b05's hole: a team admin's hook running in every other member's worker, made managed by I3 |
 | `TestNoLayerMayAddAHookToTheOrchestrator` | org `{"v":1,"all":{"hooks":{"PreToolUse":[{"matcher":"*","hooks":[{"type":"command","command":"/bin/sh -c id"}]}]}}}`, rendered for each class | the worker renders; the orchestrator fails I15, org, naming `hooks` | an org hook reaching the pod whose socket speaks as its owner (task 16) |
 | `TestAProjectLayerCannotSetACommandHelper` | project `{"v":1,"all":{…}}` once per key: `otelHeadersHelper`, `apiKeyHelper`, `statusLine`, `awsCredentialExport`, `awsAuthRefresh`, `mcpServers`, `enabledMcpjsonServers`, `env` | I14, project, naming the key | an allowlist written as a deny list, which the next CLI release outgrows |
+| `TestTheRefusedKeyIsTheSameEveryTime` (b05 round 2) | project `{"v":1,"all":{"statusLine":{…},"mcpServers":{…}}}` (two refused keys), rendered 50 times | I14 every time, and the **same** key named — the first in sorted order, `mcpServers` | `range` over the section's map, which names an arbitrary one of the two, so an admin who removes the named key meets a different 422 with no change of their own |
 | `TestTheOrchestratorEnvIsAllowlisted` | org `{"v":1,"orchestrator":{"env":{"NODE_OPTIONS":"--require /tmp/x.js"}}}`; then `BASH_ENV`, `NODE_EXTRA_CA_CERTS` | I15, org, orchestrator, naming `env.<key>` | a code-execution env key checked only against I12's five |
 | `TestAProjectLayerMayStillTighten` | project `{"v":1,"all":{"permissions":{"deny":["Bash(curl *)"]}},"worker":{"permissions":{"ask":["Bash(git push:*)"]}}}` | renders for all three classes; the worker file holds both rules | an allowlist so tight the project layer has no use left |
 | `TestALayerMayAddAndTighten` | org: `permissions.deny ["Bash(curl *)"]`, `ask ["Bash(git push:*)"]`, `env {"FOO":"1"}` for `worker` | renders; the file has both rules, `FOO`, and every invariant | an over-eager check refusing a legitimate tightening |
@@ -852,12 +860,12 @@ cd control-plane
 go vet ./internal/policy/
 go test ./internal/policy/ -count=1 -v 2>&1 | grep -E "^(--- FAIL|--- SKIP|ok|FAIL)"
 go test ./internal/policy/ -run 'TestI[0-9]+' -count=1 -v 2>&1 | grep -c "^--- PASS"
-go test ./internal/policy/ -run 'TestAProjectLayer|TestNoLayerMay|TestTheOrchestratorEnv' -count=1 -v 2>&1 | grep -c "^--- PASS"
+go test ./internal/policy/ -run 'TestAProjectLayer|TestNoLayerMay|TestTheOrchestratorEnv|TestTheRefusedKey' -count=1 -v 2>&1 | grep -c "^--- PASS"
 ```
 
 Expected: `go vet` silent; `ok` and at most one `--- SKIP` (the pin, before phase 6 merges; none
 after, and task 33 requires none); the invariant tests count **at least 12**, one or more per id;
-the I14/I15 tests, whose names say what they defend rather than an id, count **at least 4**.
+the I14/I15 tests, whose names say what they defend rather than an id, count **at least 5**.
 After phase 6 merges, re-run: the pin must pass, and if the TTL differs, change `gateway.json`,
 never the test.
 
