@@ -165,8 +165,8 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		Log:          log,
 		// Created per worktree, at the first session that needs it.
 		ConversationsDir: cfg.ConversationsDir,
-		// The one region of this host a sandbox can write, so the one region a
-		// mount source may not be reached through (X-3).
+		// Where every project is, so the region a global git file may not be
+		// reached through (X-3). See Deps.ProjectsDir for what it is not.
 		ProjectsDir:    cfg.ProjectsDir,
 		GitIdentity:    gitIdentity,
 		GitLineEndings: gitLineEndingsResolver(host),

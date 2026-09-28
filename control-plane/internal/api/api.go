@@ -103,18 +103,21 @@ type Deps struct {
 	// and one *project.Scanner satisfies this and Projects both.
 	Worktrees worktree.Provider
 
-	// ProjectsDir is the host directory the rail enumerates, and therefore the
-	// one region of this host a sandbox can write: project.Scanner.Path
-	// confines every worktree it resolves to it (X-3, X-1 review O-1). It is
-	// here so that the OTHER mount source — a file the host's own git config
-	// names — can refuse a path that is reached through it (X-1 review m-5).
-	// "" is an unconfigured projects directory: no worktree resolves through
-	// the scanner, the only provider is the operator's own static map, and
-	// nothing is refused.
+	// ProjectsDir is the host directory the rail enumerates. It is here so that
+	// a file the host's own git config names can be refused when reaching it
+	// passes through a project (X-3, X-1 review m-5): every project is under
+	// this directory, and a session mounts its worktree read-write, so a link
+	// hop there is the agent's to swap.
 	//
 	// It is a path, not a Provider, because the question is about a region of
 	// the filesystem rather than about resolution, and because the resolver it
 	// guards never sees a worktree id at all.
+	//
+	// It is not the whole of "a sandbox can write it": a linked worktree the
+	// project registers may sit OUTSIDE this directory, and it is mounted
+	// read-write too (desktop/e2e/fixture.sh puts one there on purpose). That
+	// residue is the X-1 reviewer's, recorded in X-3, and R4 rule 1 closes it in
+	// phase 3. "" is an unconfigured projects directory and refuses nothing.
 	ProjectsDir string
 
 	// Origin is the allowlist and the loopback Host guard, from task 9.
