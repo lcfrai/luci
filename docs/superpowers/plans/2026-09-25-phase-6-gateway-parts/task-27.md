@@ -26,7 +26,7 @@
 - `images/litellm/THIRD-PARTY-NOTICES.md` — LiteLLM's MIT notice (new)
 - `.gitignore` — `images/litellm/IMAGE_ID`: one line, `sha256:<64 hex>`, the local image ID `build.sh` writes; never a registry digest, never committed (modified)
 - `docs/verification/2026-09-28-phase-6-litellm-image.md` — one row per build: date, source commit, image ID, the two licence hashes, layer-test verdict, stock-image control verdict, who built it (new)
-- Amended, not written here: `task-17.md`, `task-18.md`, `task-19.md` (the amendments table below)
+- Amended, not written here: `task-17.md`, `task-18.md`, `task-19.md`, `task-23.md` (the amendments table below)
 
 **Interfaces:**
 - Produces:
@@ -43,6 +43,7 @@
 | `task-17.md` | Compose's `litellm` service (`task-17.md:304`) becomes `image: panacea-app/litellm:v1.102.1-mit` with `pull_policy: never`: built by `images/litellm/build.sh`, outside compose, so compose can neither build nor pull it, and no registry could serve a stand-in under that name. Step 5's LiteLLM pull (`:536-540`) goes; its `command -v litellm python3` check runs against our tag instead. `compose_test.sh`'s digest rule (`:156-159`) exempts services with a `build` today; it gains one named exemption, `litellm`, valid only while its image matches `^panacea-app/litellm:v[0-9]+\.[0-9]+\.[0-9]+-mit$` and its `pull_policy` is `never` (kills a tag that could be pulled), and one check that no rendered image in either mode contains `berriai/litellm` (kills the stock image coming back). Which bytes run is checked where a verdict is recorded — task 18's header, task 26's canary, task 23's record compare the running container's image with `IMAGE_ID` — not in `init.sh`, which `compose_test.sh` runs on a copy with no image built | Task 17's pin is "by digest" today, with no statement of **which** image. That is how the stock image gets in. A local build has an image ID and no registry digest (review I3), so compose names the tag and the recorders check the ID |
 | `task-19.md` | The chart cannot read a local file and needs a digest a registry serves, which only ask **P8-9**'s push produces; that value arrives as `--set`, like every digest in the chart (`task-19.md:240`). What task 19 **can** do today, and does: the fixture's LiteLLM image (`:52`) becomes `fixture.azurecr.io/panacea-app/litellm@$(d 1)`; `gw.image` (`:259-265`) takes an optional `repo`, and the LiteLLM call (`:403`) passes `"/panacea-app/litellm@"`, so a value naming any other repository fails the render with `images.litellm must be task 27's image (…/panacea-app/litellm@sha256:<64 hex>)`; `values.yaml`'s comment (`:193`) names that shape and P8-9; the tag-only mutant (`:844`) moves to our repository, and a second mutant, `ghcr.io/berriai/litellm@$(d 1)`, must fail on the repository. The render test is buildable in wave 7; a deploy is **blocked on P8-9** | The chart is what a customer's tenancy actually runs, and a `--set` from a pipeline must not be able to put the stock image back |
 | `task-18.md` | The probe header (`task-18.md:699`) reads `{{index .RepoDigests 0}}`, which an unpushed local build does not have, so it fails on our image (review I3). It becomes `image <.Id> revision <org.opencontainers.image.revision label>`, the ID must equal `images/litellm/IMAGE_ID`, and a run against any other image is void (exit 2). The interface line (`:44`), the example header (`:802`) and the record's `Image:` line (`:825`) follow | "What the pinned LiteLLM does" is only evidence if the pin is ours |
+| `task-23.md` | The record's header reads `LiteLLM image: <digest from compose.yaml>` (`task-23.md:302`); compose now names a tag, and a local build has no registry digest. It becomes `LiteLLM image: <image ID of the running litellm> (source <LITELLM_REF>)`, and a run whose ID differs from `images/litellm/IMAGE_ID` is not recorded as a pass | The end-to-end record is the one run with a real CLI, so it has to name the bytes that ran |
 
 **Tests, and the mutant each kills.** `layers_test.sh` is the whole suite but for row 7, which the Dockerfile's source stage enforces; each other row is one assertion in it, and the stock-image control (step 4) is what proves the suite can fail at all.
 
@@ -134,9 +135,9 @@ Run `build.sh`. It builds and tags `panacea-app/litellm:v1.102.1-mit`, runs `lay
 | Starts, candidate (ii) only | `[proxy]` is needed, and the enterprise distribution can be removed after | Ship it, and assertion 2 is doing real work — say so |
 | Does not start either way | The proxy is not separable from the enterprise distribution | **Stop.** Record it, raise it to the owner as decision (f) describes, and leave `IMAGE_ID` unwritten. Tasks 17, 19 and 18 then have no image, which is the correct blocked state, not a reason to use the stock one |
 
-- [ ] **Step 6: Make the three amendments**
+- [ ] **Step 6: Make the four amendments**
 
-Edit `task-17.md`, `task-19.md` and `task-18.md` as the amendments table says, each with a one-line note naming task 27 and OD-33.
+Edit `task-17.md`, `task-19.md`, `task-18.md` and `task-23.md` as the amendments table says, each with a one-line note naming task 27 and OD-33.
 
 - [ ] **Step 7: Verify and commit**
 
@@ -149,7 +150,7 @@ git check-ignore -q images/litellm/IMAGE_ID > /tmp/p6t27i.out 2>&1; echo "exit=$
 grep -rc 'berriai/litellm' deploy/local/gateway/compose.yaml deploy/charts/gateway/values.yaml   # expect 0 0 once tasks 17 and 19 exist; in wave 1 both files are absent, and their own tests carry the check
 grep -c 'v1.102.1' docs/verification/2026-09-28-phase-6-litellm-image.md   # expect at least 1
 git add images/litellm docs/verification/2026-09-28-phase-6-litellm-image.md .gitignore
-git commit -F <message file> -- images/litellm docs/verification/2026-09-28-phase-6-litellm-image.md .gitignore docs/superpowers/plans/2026-09-25-phase-6-gateway-parts/task-17.md docs/superpowers/plans/2026-09-25-phase-6-gateway-parts/task-18.md docs/superpowers/plans/2026-09-25-phase-6-gateway-parts/task-19.md
+git commit -F <message file> -- images/litellm docs/verification/2026-09-28-phase-6-litellm-image.md .gitignore docs/superpowers/plans/2026-09-25-phase-6-gateway-parts/task-17.md docs/superpowers/plans/2026-09-25-phase-6-gateway-parts/task-18.md docs/superpowers/plans/2026-09-25-phase-6-gateway-parts/task-19.md docs/superpowers/plans/2026-09-25-phase-6-gateway-parts/task-23.md
 ```
 
 Exit codes are read from a file, never through a pipe. Message: `build(gateway): LiteLLM v1.102.1 rebuilt from the MIT tree, enterprise/ gone, and a layer test that fails on the stock image (phase 6 task 27, OD-33)`, a body carrying the source commit, the image ID, the two licence hashes, both verdicts from step 4 and step 5, and the attribution line.
