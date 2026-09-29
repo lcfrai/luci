@@ -46,7 +46,70 @@ _TBD — one row per candidate: licence, deploy, AU, isolation, PTY, warm start,
 
 ## 4. Candidates in detail
 
-_TBD — one subsection each._
+Facts marked *(upstream)* are the vendor's or project's own claim, read on 2026-09-30 and not
+measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
+
+### 4.1 AKS Pod Sandboxing (Kata) + `kubernetes-sigs/agent-sandbox` — **ADOPT (the recommendation)**
+
+- **What it is.** Two third-party pieces that together are the whole sandbox layer. **AKS Pod
+  Sandboxing** is Microsoft's managed Kata Containers: a node pool created with
+  `--workload-runtime KataVmIsolation` on Azure Linux ships Kata pre-installed and registers the
+  `kata-vm-isolation` RuntimeClass, so every pod gets its own Hyper-V-backed microVM and kernel.
+  **agent-sandbox** (Kubernetes SIG Apps) adds the lifecycle we were going to write:
+  `Sandbox` (a stateful singleton pod with stable identity, persistent storage, scheduled
+  deletion, pause and resume), `SandboxTemplate`, `SandboxWarmPool` (pre-created sandboxes; has a
+  scale subresource, so a plain HPA drives it) and `SandboxClaim` (adopt one from the pool). It
+  ships a **Go SDK** (`sigs.k8s.io/agent-sandbox/clients/go/sandbox`) and an optional
+  `sandbox-router` reverse proxy.
+- **Licence.** Apache-2.0. AKS is an Azure service.
+- **Maturity.** 4,086 stars; **v1.0.4 released 2026-09-24**; pushed 2026-09-29. Upstream ships
+  two AKS-specific examples, `kata-aks-sandbox` and a per-owner `kata-aks` warm pool, last edited
+  2026-08-14. Recent releases add warm-pool refill shaping (`replenish-delay`, `max-refill-rate`).
+- **Deploy.** Our AKS cluster in **Australia East**; later the same manifests into a customer's AKS.
+  Kata pool rules: Azure Linux, a Gen2 VM size with nested virtualisation (Dsv5 class), Kubernetes
+  ≥ 1.27. Install is two `kubectl apply` manifests or the Helm chart.
+- **Enterprise fit.** Entra through AKS Entra RBAC; audit through AKS diagnostic logs to Log
+  Analytics; residency is wherever the cluster is. Egress default-deny with an allowlist is
+  ordinary Kubernetes: Cilium network policy plus the Azure Firewall already in the phase 8 plan.
+- **Against the bar.** M1 yes (any image; our `sandboxd` owns the PTY). M2 yes (Kata microVM). M3
+  yes: the control plane in the cluster dials the pod IP directly, or goes through `sandbox-router`
+  (`kubectl port-forward` cannot enter a Kata guest). M4 yes: *(upstream)* claims from a
+  `kata-aks-warmpool` become Ready "in a couple of seconds". M5 yes. M6 yes. M7 yes. M8 yes
+  (a PVC per sandbox or per user; pause and resume). S1 yes (Go SDK). S5 no memory snapshot.
+- **Gaps.** (1) A warm pod already runs when it is claimed, so per-session env (the attach token,
+  the per-session gateway token) cannot be set at pod creation: `sandboxd` needs a **late-bind**
+  call. This is true of every warm-pool option in this study. (2) Claim latency on our image is
+  unmeasured. (3) Defender for Containers cannot assess Kata pods (already a recorded compliance
+  gap). (4) AKS node auto-provisioning (Karpenter) does not support Kata, so the Kata pool scales
+  with the cluster autoscaler. (5) The upstream router example runs with authentication off.
+- **Integration effort: 6 days** (range 5 to 8), itemised in section 5.
+- **Verdict: adopt.** It is the only candidate that meets all eight musts today with a permissive
+  licence, and it reuses what is built: `katabe` already speaks Kubernetes and has compiled
+  against the `Backend` seam since phase 2.
+
+### 4.2 Azure Container Apps dynamic sessions (custom container pools) — **REFERENCE**
+
+- **What it is.** Microsoft's managed sandbox pool. Each session is a container in its own
+  **Hyper-V sandbox**, allocated from a pool of ready sessions in *(upstream)* milliseconds.
+  Microsoft lists "AI agents, and development environments" and "a cloud-based shell" as uses.
+- **Licence / deploy.** An Azure service (a `Microsoft.App/sessionPools` resource in a
+  workload-profiles environment). Regions include **Australia East and Australia Southeast**.
+- **API.** ARM for the pool. Data plane: every request carries an Entra token (audience
+  `https://dynamicsessions.io`, role *Azure ContainerApps Session Executor*) and an `identifier`;
+  the path is forwarded to the container's target port. `getSession`, `listSessions`,
+  `stopSession`. Lifecycle `Timed` (idle cooldown 300 to 3,600 s) or `OnContainerExit`
+  (`maxAlivePeriodInSeconds`; Microsoft's own REST example uses 86,400, i.e. 24 hours).
+- **Billing.** Custom container pools run on dedicated **E16** instances (Dedicated plan, plus the
+  plan management fee); the node count follows active plus ready sessions.
+- **Why not.** M7 fails: egress is a pool-wide on/off toggle, and a Microsoft Q&A answer
+  (2025-01-17) confirms no CIDR or FQDN allowlist for session pools on their own. M8 fails: the
+  2026-01-01 API has no volume or disk, so every session starts empty. M3 unverified: the docs
+  describe HTTP requests only and say nothing about WebSocket. S2 weak: env and secrets are
+  pool-wide, so per-session tokens need the same late-bind.
+- **Integration effort:** 3 to 5 days if WebSocket works through the pool endpoint, plus 2 for a
+  reverse-dial fallback, plus whatever the egress gap costs to close.
+- **Verdict: reference.** The best whole product on paper and the lowest operations burden;
+  re-test it when Microsoft ships per-pool egress rules and volumes.
 
 ## 5. Recommendation
 
