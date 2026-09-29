@@ -1543,6 +1543,19 @@ existing directory `git worktree list` named.*
 - **`ErrNotRegistered` is NOT 404 `worktree_not_found`** (§3.10's table): the id exists and the rail
   listed it, so `worktreeId resolves to nothing` would be a wrong fact. It is a 500 with the
   reason in the log until somebody rules on a wire code for it.
+- **AMENDED by X-3 review 3 (I-A, I-B).** Two conditions were added to the compare. (I-A) The
+  per-entry check in `registers` compares each registered worktree with the listed one by
+  `os.SameFile`, and is now pinned by a test with a project that HAS a registered linked worktree
+  plus a steered unregistered entry — the two earlier attack tests used an EMPTY registry, so a
+  compare reduced to "the entry exists" passed them. (I-B) `registers` proves the registry NAMES
+  the location, but `os.Stat` follows THROUGH whatever sits there now, and a nested linked
+  worktree's directory entry lives inside the primary's read-WRITE mount, so an agent can swap it
+  for a symlink or a junction. `Path` now runs `hostpath.ConfineToMount(p.Path, answer)` after
+  `registers` and returns the path it checked: it Lstats the answer and every component of it
+  inside the project and refuses any reparse point (`os.ModeSymlink | os.ModeIrregular`). A
+  worktree registered OUTSIDE the project — the e2e fixture's layout — is host-owned and returned
+  unchecked. Measured: a drvfs relative symlink an agent writes in its Linux mount surfaces to the
+  host as a followed symlink, so this is a live class, not defence in depth alone.
 - `worktree.Static` is unchanged: it is the operator's own map, not git's answer.
 - Retired by R4 rules 1–2 in phase 3, which stop mounting the project repository at all.
 
@@ -1567,6 +1580,12 @@ and refuses as soon as any STEP of that walk IS the projects directory. Each ste
 by name — measured on Windows, one directory answers to both `C:\Users\AU-DEV~1\…` and
 `C:\Users\au-dev-dmackie1\…`, and an agent writes the link target, so it writes whichever form a
 name check misses. `root == ""` (no projects directory) confines nothing.
+**`hostpath.ConfineToMount(base, target)`** (X-3 review 3 I-B) is the fourth: it Lstats `target`
+and each component of it that lies inside `base` — a worktree the host mounts read-WRITE — and
+returns `ErrReparsePoint` for a symlink or a junction there, or `target`'s cleaned absolute path
+otherwise. It starts refusing only once the walk has passed THROUGH `base` (found by identity, so a
+link cannot spoof the boundary); a component at or above `base`, and a `target` outside it, is
+host-owned and left alone. `base == ""` refuses nothing.
 
 ### 2.11 `internal/project` — read-only enumeration
 
@@ -2536,7 +2555,11 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    error, or an answer that is not `true`/`false`/`input` and `lf`/`crlf`, fails the create or
    restart with 500 before step 4 and before the restart's destroy. A primary worktree, one whose
    `.git` is a directory, also gets a **read-only** mount of its `<worktree>/.git/worktrees` at
-   `/home/dev/work/.git/worktrees`, made on the host when absent. AMENDED by X-3 (2026-09-28,
+   `/home/dev/work/.git/worktrees`, made on the host when absent. AMENDED by X-3 review 3 (m-D):
+   `.git` itself is Lstatted, and a `.git` that is a reparse point (a symlink or a junction) fails
+   the create with 500, the same mask `.git/worktrees` uses below — the host would otherwise follow
+   a link the agent can aim anywhere to decide what to overmount. A `.git` that is a regular FILE (a
+   linked worktree) still gets no such mount and the create proceeds. AMENDED by X-3 (2026-09-28,
    review O-2; was "made on the host when absent" with nothing said about what is already there):
    `.git/worktrees` is **Lstatted before it is made**, and a reparse point there fails the create
    with 500 naming the path to delete. `os.MkdirAll` Stats, which follows a link and answers nil
@@ -2605,6 +2628,16 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    symlink (both reparse points, `os.ModeSymlink | os.ModeIrregular`), because a junction is a hop
    the agent can plant with no privilege and `EvalSymlinks` would not resolve it, so a symlink-only
    walk would step past it and never land on the root.
+   AMENDED by X-3 review 3 (I-C): the value's ORIGIN is checked too, not only its path. `--includes`
+   is on by design, so the file that SETS `core.excludesFile` may be one an `[include]` in the
+   host's config pulled in, and under m-5's own premise — a dotfiles repository that is also a
+   project — that file can live inside a project and name any host file, one whose own path m-5
+   passes. cmd/api reads the origin of each ABSOLUTE value with git's own `--show-origin` (folded
+   into the scoped `--get`, so the git count is unchanged, and following includes to the file that
+   actually set it), returns it in `GitGlobalFiles.Origins`, and the session runs each origin
+   through the same `hostpath.ResolveOutside` walk, failing the create on `ErrInside`. A relative
+   value names a file in each repository, not a host file, and an unset value's origin is git's
+   command line: neither carries an origin to check.
    It is **not** downgraded to `/dev/null`: without the host's excludes every agent's `git add -A`
    commits what the host ignores, which is the leak this pair exists to close, so the quiet option
    leaks more and more often than the attack it closes. A path that is a **regular file** on
