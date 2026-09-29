@@ -73,9 +73,9 @@ the verdict BLOCKED:
 | # | Condition | Why |
 |---|---|---|
 | E1 | Tasks 01–32 merged on `feat/team-mode`, the Hub, phase 8 and phase 6 branches sync-merged, and the environment deployed by phase 8's pipeline with P8-31's smoke and P8-32's Kata checklist green | nothing here re-proves phase 8 |
-| E2 | **Check** (b07): each person's first team launch created one `orchestrator`-class delegation for the project, which task 21 owns (`task-21.md:345-357`, `:413-431`) and task 20 uses (`task-20.md:45-55`). Read it from the Hub audit: exactly one `delegation.created` with `class: orchestrator` per person, per project | with no delegation there is no Orchestrator. Gap S20-1 was the hole; b07 closed it in task 21, so this row verifies planned work rather than waiting on unplanned work |
+| E2 | **Moved to M1** (b07 round 3, RR1-I1). It read "each person's first team launch created one `orchestrator`-class delegation", which only a launch can make true, and route 46 refuses a delegation while the project is still `solo` (`task-06.md:169-173`), so a first run could only stop here BLOCKED. `00-preflight.sh` checks nothing for it; `10-launch.sh` reads it from the Hub audit as part of must-hold M1 | the delegation task 21 owns (`task-21.md:345-357`, `:413-431`) and task 20 uses (`task-20.md:45-56`) is observed where it is made, and a miss is a FAIL, never a BLOCKED chosen after the fact (decisions d and e). Gap S20-1 stays closed in task 21 |
 | E3 | **Check** (b07): the four `/v1/team/*` relays answer on each laptop — task 21 step 6 (`task-21.md:578-615`) — so a human can post a message, list escalations and directives, and answer one | the humans' half of the run. Gap G33-1 was the hole; b07 gave it to task 21 |
-| E4 | **Check** (b07): a Fleet-turn `resume` is accepted by the Hub (task 07 calls `DirectiveKind.Typed()`, `task-07.md:207-223`), and `fleetd` starts with the chart's `PANACEA_APP_FLEET_MIGRATE` and `PANACEA_APP_FLEET_PG_AUTH` (task 12, `task-12.md:144-147`), after the chart's Job ran `fleetd migrate` (`:874-875`) | without them `resume` is refused, or Fleet does not start. Gaps G31-1, G32-3 and G32-4 are closed in tasks 07, 31, 12 and 32 |
+| E4 | **Check** (b07; b07 round 3): `fleetd` starts with the chart's `PANACEA_APP_FLEET_MIGRATE` and `PANACEA_APP_FLEET_PG_AUTH` (task 12, `task-12.md:144-147`), after the chart's Job ran `fleetd migrate` (`:874-875`); the operator reads the Job `Complete` and both names in the Deployment's environment. Its old first clause, "a Fleet-turn `resume` is accepted by the Hub", needs a live Orchestrator, so since round 3 it is M10's scripted `resume` in `30-settle.sh` (RR1-I1) | without them Fleet does not start. Gaps G32-3 and G32-4 are closed in tasks 12 and 32; G31-1's rule (tasks 07 and 31, `task-07.md:207-223`) is checked by M10 |
 | E5 | The owner's runbook done: the `fleet-control-key` secret in Key Vault; `fleet-principals.sql` run by a human admin; keysmith's Fleet caller on (task 32); Alice (`admin`) and Bob (`member`) in one Hub team, whose project is shared (Hub task 35, `linked`) with its data class set (OD-24) and is still `solo` (on a re-run: `team` with exactly one `project.mode_set`, by Alice, which `05-team-mode.sh` then checks from the audit alone); the Hub in `PANACEA_APP_HUB_ENV=dev` with `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` **and** `PANACEA_APP_HUB_AUDIT_SINK=fake` (task 06, fix batch b01; once task 45 lands the flag opens route 87 only beside sink `fake`, b01 round 2, re-review I-4) until task 45's sink is `logs`, which needs neither. **E5 does not assume a team project: `05-team-mode.sh` makes it one through the route** | each is a human act by design; the mode is the admin's, gated on the audit |
 | E6 | A test repository with `web/auth/login.go`, `web/auth/session.go` and `web/api/routes.go`, and each worker's clone prepared by the operator | the worker needs a worktree; phase 8's machine mount is not wired in TM1-α. **This is TM1-α's one accepted manual step** (task 20's Gap S20-3, `task-20.md:650-654`), deliberately open and stated in this task's scope, not work some earlier task owes. The lane mount is task 47's |
 | E7 | The pinned Claude Code CLI version recorded from the sandbox image's label, and the same in both classes' pods | every UNVERIFIED CLI behaviour below is at this version only |
@@ -107,16 +107,16 @@ files; nothing in it is typed from memory.
 | Id | Check | How it is observed | Script |
 |---|---|---|---|
 | M0 | The project becomes `team` only through its writer: Bob (member) is refused, Alice (admin) moves it once, one `project.mode_set` by Alice on Fleet's feed (fix batch b01, X-C1) | task 21's team-mode route per person, the Hub audit through `hubids`, Fleet's route 78 as the operator | 05 |
-| M1 | Each person's first team launch yields one Orchestrator and one worker, `ag-…` ids, the owner's labels on both pods | Fleet's `GET /v1/agents` per person (task 21's route, `task-21.md:95`) and the broker's list as the operator | 10 |
+| M1 | Each person's first team launch yields one Orchestrator and one worker, `ag-…` ids, the owner's labels on both pods; and the Hub holds, from the project's `project.mode_set` on, exactly one `delegation.created` with `class: orchestrator` per person (E2's check until b07 round 3; a re-run passes it because task 21 renews that delegation rather than making another) | Fleet's `GET /v1/agents` per person (task 21's route, `task-21.md:95`) and the broker's list as the operator; the Hub audit through `hubids` | 10 |
 | M2 | The overlapping plan raises a tier-P conflict **before** either task's worker exists | the `cf-…` record's `createdAt` is earlier than any `agents.start` whose `task` is Alice's or Bob's new task, both read from the Hub's audit feed | 20 |
 | M3 | `sequence` settles it with typed state only: Bob's overlapping lease demoted to `intent`, one land hint, the thread `resolved`, nothing else moved | Fleet's leases before and after (a diff of the whole project's leases), the Hub thread record | 30 |
-| M4 | Both humans get the DECIDED WITHOUT YOU inform; Bob gets the taint decide; Alice gets no decide; neither can read the other's escalation | each person's escalation list through the desktop (E3); Alice's `GET` of Bob's `es-…` answers not-found or forbidden as task 07 fixes (`task-07.md:158-160`) | 30 |
+| M4 | Both humans get the DECIDED WITHOUT YOU inform; Bob gets the taint decide, whose `evidence` has `verb: "free"` and the directive's text as a `Text` authored by his Orchestrator (task 01 §7.19, b07 round 3); Alice gets no decide; neither can read the other's escalation | each person's escalation list through the desktop (E3); Alice's `GET` of Bob's `es-…` answers not-found or forbidden as task 07 fixes (`task-07.md:158-160`) | 30 |
 | M5 | Bob's `free` issued no `dv-…` until Bob chose "Send it"; afterwards the `dv-…` is in the Hub **before** Bob's worker's next `panacea` output shows it | Hub directive list timestamps against the worker's `panacea check` output time, captured by the operator | 30 |
 | M6 | Killing Alice's Orchestrator pod between turns loses nothing, and mid-turn requeues its batch once (task 27's two tests, on a real pod) | the lease, thread and pending-event snapshot before and after, and the `ot-…` records, as in `task-27.md:651-667` | 40 |
 | M7 | In a worker and in an Orchestrator, the managed file in force is the one Fleet rendered, and nothing else sets policy: its digest equals `PANACEA_APP_POLICY_SHA256` and the Hub's policy version for that agent; `/status` names the managed file as the only settings source with values | the operator's `sha256sum` in the pod; `/status` read by the owner in an attached interactive session (below); the agent start's `policy` in the Hub | 50 |
 | M8 | No org key and no git credential in any pod: the pod environment and mounted files hold only the pod-bound gateway token (global constraints 8, 9) | the operator's scan of `/proc/1/environ` and every mounted secret's key names, in all four pods | 50 |
 | M9 | The PTY round trip through `fleetbe`: Alice attaches to her worker from the cockpit, types, and sees the echo | Alice's desktop, with the attach recorded as the local control plane's log line for `fleetbe` (a person's observation, stated as one) | 50 |
-| M10 | A Fleet-turn `free` directive never reaches a worker without a decide, in Run A or Run B | every `dv-…` of kind `free` with `origin: fleet` has an `approvedBy` naming an answered decide | 30, 60 |
+| M10 | A Fleet-turn `free` directive never reaches a worker without a decide, in Run A or Run B; and a Fleet-turn typed directive needs none: Run A's scripted `resume` is accepted (E4's old first clause, b07 round 3) | every `dv-…` of kind `free` with `origin: fleet` has an `approvedBy` naming an answered decide; Run A's `resume` is a `dv-…` in Bob's directive list with `origin: fleet` and no `approvedBy` | 30, 60 |
 
 **Observed-only** (a result re-plans the named task, not the slice):
 
@@ -243,8 +243,8 @@ checked by pid, `task-18.md:59-61`), **UNVERIFIED on a Kata pod** until this scr
 
 #### The other scripts, in order (each writes its checks with `record`)
 
-- **`00-preflight.sh`** (either context, both halves): E1–E7. Fleet's and the Hub's `/readyz`
-  answer 200 through their https hosts; `helm list -n panacea-fleet` shows `fleet` deployed
+- **`00-preflight.sh`** (either context, both halves): E1 and E3–E7; E2 is M1's since b07 round 3 (RR1-I1). Fleet's and the Hub's `/readyz`
+  answer 200 through their https hosts; `helm list -n panacea-fleet` shows `fleet` deployed, its migrate Job `Complete` and its Deployment's environment naming both E4 variables
   (operator); each laptop's `desk GET /v1/team/escalations` answers 200 (E3); the image label
   `org.opencontainers.image.version` of the sandbox image, read from both classes' pods, is equal
   (E7).
@@ -261,24 +261,24 @@ checked by pid, `task-18.md:59-61`), **UNVERIFIED on a Kata pod** until this scr
   from the cockpit's route (`desk POST /v1/sessions` with the team project, task 21), which makes
   Fleet create their Orchestrator first (task 20). The operator maps each `ag-…` to its pod by the
   broker's labels and writes `out/agents.env`. **M1**: two Orchestrators and two workers, each
-  pod labelled with its owner's hash (P8-D4) and `panacea-app/class` (G32-2).
+  pod labelled with its owner's hash (P8-D4) and `panacea-app/class` (G32-2); then `hubids` reads the project's audit from its `project.mode_set` on: exactly one `delegation.created` with `class: orchestrator` per person (b07 round 3, E2's old check). None is a `broke` (no Orchestrator can exist); two is a `broke` (a delegation replaced, not renewed, RR1-I2).
 - **`30-settle.sh`** (operator, then both laptops): each Orchestrator spawns its task's worker
   (`worker spawn --task`); each worker requests its lease (`lease request web/auth/**` and
   `lease request web/auth/session.go` through `pexec` on the worker pods), so Bob's is
   `contested`. Snapshot the project's leases (`team`). Alice's Orchestrator sends
   `peer propose --args '{"thread":"<th>","resolution":{"kind":"sequence","first":"<ORCH_A>"}}'`;
   Bob's sends `peer accept --args '{"thread":"<th>","proposal":"<ms-…>"}'`. **M3**: the lease diff
-  is exactly Bob's overlapping lease to `intent`; the thread reads `resolved`. Then Bob's
-  Orchestrator issues `direct <Bob's worker> free "Rebase after Alice lands, then continue."`;
+  is exactly Bob's overlapping lease to `intent`; the thread reads `resolved`. Then Bob's Orchestrator issues `direct <Bob's worker> resume` (b07 round 3, E4's old first clause): Bob has not spoken to it in Run A, so the turn is Fleet's (decision b), the result carries a `directive`, and Bob's `desk GET /v1/team/directives` shows that `dv-…` with `kind: resume`, `origin: fleet` and no `approvedBy`. Then it
+  issues `direct <Bob's worker> free "Rebase after Alice lands, then continue."`;
   the result carries `escalation`, not `directive` (task 31). On each laptop, `desk GET
   /v1/team/escalations`. **M4**: Alice has one inform (DECIDED WITHOUT YOU) and no decide; Bob has
-  one inform and one decide whose evidence text is the directive's; Alice's `desk GET` of Bob's
+  one inform and one decide whose `evidence` has `verb: "free"` and `text.body` the directive's words, `text.author` `agent` naming Bob's Orchestrator (a `null` `evidence` is a `broke`); Alice's `desk GET` of Bob's
   `es-…` does not return it. Bob answers `desk POST /v1/team/escalations/<es>/answer
   '{"choice":1}'`. The operator polls Bob's worker with `pexec <Bob's worker pod> check
-  web/api/routes.go` every 2 s and stamps the first output that carries the `dv-…`. **M5**: the
-  Hub's `createdAt` of the `dv-…` (through Bob's `desk GET /v1/team/directives`) is earlier than
+  web/api/routes.go` every 2 s and stamps the first output that carries the `free`'s `dv-…` (the `resume`'s arrives earlier and is not it). **M5**: the
+  Hub's `createdAt` of that `dv-…` (through Bob's `desk GET /v1/team/directives`) is earlier than
   that stamp. **M10** for Run A: every `free` `dv-…` with `origin: fleet` has an answered
-  `approvedBy`.
+  `approvedBy`, and the `resume` above was accepted with none.
 - **`40-podkill.sh`** (operator): task 27's two scenarios on Alice's real Orchestrator pod. Between
   turns: snapshot, `kubectl delete pod --grace-period=0 --force`, a peer message from Bob's side
   during the gap, then the relaunch's first turn. Mid-turn: a human message from Alice (laptop)
@@ -333,7 +333,7 @@ shape written out and four tests including the one that refuses an owner named i
 ```jsonc
 // GET  /v1/team/escalations?project=pj-…   → Hub route 66, the caller's own: hubapi.Page[hubapi.Escalation]
 { "items": [ { "id": "es-…", "kind": "inform" | "decide", "question": Text, "options": [ { "label": Text,
-    "consequence": Text } ], "default": 0 | null, "deadline": "…", "answer": null | { "choice": 1,
+    "consequence": Text } ], "default": 0 | null, "deadline": "…", "evidence": null | { "verb": "free", "text": Text | null, "read": [ … ], "readTotal": 3, … }, "answer": null | { "choice": 1,
     "text": Text | null, "answeredAt": "…" }, "createdAt": "…", … } ], "next": "…" | null }
 // POST /v1/team/escalations/{escalationId}/answer  { "choice": 1 }  → Hub route 65
 // POST /v1/team/human-messages  { "projectId": "pj-…", "toAgentId": "ag-…", "text": "…" } → Hub route 70
@@ -341,9 +341,9 @@ shape written out and four tests including the one that refuses an owner named i
 ```
 
 Each is a pass-through: the local control plane adds the caller's own token and nothing else, and a
-Hub error is relayed with its own code (task 21's `a.relayHub`). `evidence` is task 31's G31-2
-field (`task-31.md:573-574`), not yet in the Hub's escalation. If any of the four is missing or answers 404 at E3, the verdict is BLOCKED — but that is now
-a regression in task 21, not a gap in the plan. M4's evidence clause is still a gap: it needs task 31's G31-2, which no task builds yet (`task-31.md:573-574`; b07 round 2's N-C1), so until it is closed M4 cannot pass.
+Hub error is relayed with its own code (task 21's `a.relayHub`). `evidence` is the Hub's escalation field since fix batch b07 round 3
+(task 01 §7.19, `task-07.md:132-147`; G31-2 closed, `task-31.md:573-574`), and the relay passes it through. If any of the four is missing or answers 404 at E3, the verdict is BLOCKED — but that is now
+a regression in task 21, not a gap in the plan. M4's evidence clause is no longer a gap (it was b07 round 2's N-C1): a `null` `evidence` on Bob's decide is a `broke`, and points at task 07, 30 or 31.
 
 #### The record's template (complete) — `docs/verification/2026-09-25-phase-t-alpha-results.md`
 
@@ -357,7 +357,7 @@ a regression in task 21, not a gap in the plan. M4's evidence clause is still a 
 
 ## Entry conditions
 | # | Met | Evidence (a command and its output, or a Hub id) |
-(E1–E7, one row each; the first unmet one ends the run: BLOCKED)
+(E1–E7, one row each, E2's reading "M1" since b07 round 3; the first unmet one ends the run: BLOCKED)
 
 ## Must-hold checks
 | Id | Run | Verdict | What was observed | What was not observed | Ids |
@@ -440,7 +440,7 @@ Expected: no output (no `jq`, no key variable read, no tracing that would print 
   exits 0 always (`task-18.md:62-67`) and prints nothing about its input.
 - **Gap S20-1** (task 20's) **is closed** by fix batch b07: task 21 creates and renews the owner's
   per-project orchestrator delegation, and task 20's decision 4 resolves it from the launch request
-  before the cache (`task-20.md:635-644`). E2 checks it instead of waiting on it.
+  before the cache (`task-20.md:635-644`). M1 checks it (E2 did until b07 round 3) instead of waiting on it.
 - **Gap S20-3** (task 20's) stays open **by decision**, and is this task's E6: the operator prepares
   each worker's clone by hand. It is TM1-α's one accepted manual step, not a missing task.
 - **Skeleton.** The scope says "one Orchestrator and one worker for each of two identities", but a

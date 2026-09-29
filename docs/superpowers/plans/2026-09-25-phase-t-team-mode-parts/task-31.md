@@ -28,7 +28,7 @@ typed five (`pause`, `resume`, `narrow`, `wait-for`, `rebase`) pass") and task 0
 `DirectiveKind.Typed()` (`task-03.md:348-350`) all say five, and so does this task. Task 07 once
 held a second copy of the rule, a three-kind `fleetTurnVerbs` map whose table expected `resume` and
 `rebase` from a Fleet turn to be 403. That was **gap G31-1**, and fix batch b07 closed it at the
-root: task 07 deleted the map and calls `req.Kind.Typed()`, so there is now exactly one definition
+root: task 07 deleted the map and calls `req.Kind.Typed()`, and since b07 round 3 (RR1-m3) this task's gate calls it too (`fleetTurnPasses`, `:254-258`), so there is now exactly one definition
 and this task's acceptance step 4 cannot be failed by the Hub layer disagreeing with Fleet's
 (`task-07.md:207-223`, `:296-302`).
 

@@ -67,7 +67,7 @@ Four rules shape every task:
    Orchestrator may issue only the **typed** verbs at its own workers — pause, resume, narrow,
    wait-for, rebase, none of which can make a worker do something new — and anything else (free
    text) becomes a `decide` to its human (`05-design.md` §7.2). One definition, task 03's
-   `DirectiveKind.Typed()`, serves both Fleet's check and the Hub's (fix batch b07, G31-1).
+   `DirectiveKind.Typed()`, serves both Fleet's check and the Hub's (fix batch b07, G31-1; task 31's gate calls it since round 3, and only task 42's G9 counter keeps its own list, on purpose).
 3. **Fleet holds no Hub record durably.** It rebuilds Hub-owned state from the Hub after a restart;
    its own schema holds Fleet state and the outbox of Hub-bound writes, nothing else
    (`05-design.md` §11.1, `ADR-H1:467-474`).
@@ -416,7 +416,7 @@ is not on the critical path. TM1 and TM2 waves follow the same rule from their d
 
 **Wave 23, task 33, reads its entry conditions as checks** (fix batch b07, X-C2). Every condition
 E2 to E4 is now built by a task in an earlier wave — E2 and E3 by task 21 (wave 14), E4 by tasks 07
-(wave 7), 12 (wave 10) and 32 (wave 11) — so the gate verifies merged work. Before b07 those five
+(wave 7), 12 (wave 10) and 32 (wave 11) — so the gate verifies merged work; since b07 round 3 (RR1-I1) the two facts only a launch can make true are must-hold checks, not entry conditions: E2's orchestrator delegation is read by M1 and E4's Fleet-turn `resume` is scripted under M10, so the preflight checks E1 and E3–E7 before anything launches. Before b07 those five
 conditions lived in other parts' gap lists and in no task's scope, which meant the gate could only
 answer BLOCKED and §12.0's "TM1 is re-planned" could never fire on evidence. The one condition that
 is still a human act is E6: the operator prepares each worker's clone by hand (task 20's Gap S20-3,
@@ -765,7 +765,7 @@ delegation** as well as the session's worker one, keeps it per project in the re
 Orchestrator at all. (2) Four **`/v1/team/*` human relays** — list escalations, answer one, post a
 human message, list directives — each adding the caller's own token and nothing else, passing the Hub's page through unchanged, and refusing
 any owner named in a body. Task 52 extends both; it no longer has to exist first. Together they
-close task 33's E2 and E3.
+close task 33's E2 (M1's check since b07 round 3) and E3.
 
 **22 — Read verbs.** `cp/internal/fleet/verbs/{team.go,check.go,files.go}`: `team` returns §5.1's
 table for every agent on the project, **filtered by the caller's class**: a worker gets owner,
@@ -913,7 +913,7 @@ record states each observation, what was not observed, and the verdict. **If it 
 re-planned before task 34 starts.** A screenshot is not evidence; the record says what ran.
 **Fix batch b07 (X-C2):** its entry conditions are checks on merged work, not waits on gaps. E2 and
 E3 verify task 21's orchestrator delegation and four human relays; E4 verifies task 07's `Typed()`
-taint rule and task 12's two new variables; E6 states TM1-α's one accepted manual step, the
+taint rule and task 12's two new variables (since b07 round 3, E2 is M1's check and E4's `resume` is M10's, because only a launch makes them true; the preflight keeps E4's two variables); E6 states TM1-α's one accepted manual step, the
 operator's worker clones (task 20's Gap S20-3, open by decision). Before b07 all five named gaps in
 other parts' gap lists that no task owned, so the gate could only answer BLOCKED.
 
