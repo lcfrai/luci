@@ -6093,18 +6093,18 @@ b01 round 3's `3438314d` swept in. Every line number below is post-fix on `feat/
 |---|---|---|
 | (a) the field | `Serve.Check`, `omitempty`, 0-1000 bytes, `ErrCheck`; the repeat key is the pair; v1-v3 unmoved, golden vector **v4** pins it | `…-parts/task-02.md:244-256`, `:294-304`, `:557-563` |
 | (a) the field | SW.1's seam row names it; the scope's `Serve` shape carries it | `…-work-layer.md:375`; `…-scopes/tasks-01-20.md:92-93` |
-| (a) the rule, S03-I5 | **SW.3's check rule**: a check is added or changed only in a person's own revision (a person principal; title and description `H`); carried-through checks pass; restore is exempt | `…-parts/task-07.md:588-613` |
+| (a) the rule, S03-I5 | **SW.3's check rule**: a check is added or changed only in a person's own revision (a person principal; title and description `H`); carried-through checks pass; restore is exempt | `…-parts/task-07.md:588-614` |
 | (a) the rule | decided once, `hubapi.ValidateCheckChange(base, next, byPerson)`, matched on the pair, six-row table test; task 02 is 3 h, not 2.5 | `…-parts/task-02.md:1020-1058`, `:3`, `:23-25`; `…-work-layer.md:403` |
-| (a) the rule | called at every revision write: the fake's create and edit, the Hub's create (before the number is taken) and edit (not restore); conformance row **W-26** holds both | `…-parts/task-04.md:1719-1732`, `task-08.md:499-506`, `task-09.md:357-368`, `task-05.md:2257-2266` |
-| (b) the runner | new task **23b**: `sandboxd`'s `/check/v1/run` (exit code only, `OD-8`), `evidence.SandboxRunner`, a check sandbox per run, `backend.Backend` unchanged | `…-parts/task-23b.md:50-66`, `:123-136`, `:157-202` |
-| (b) the runner | the role is `SANDBOXD_ROLE`, because `ValidateSpec` refuses any `PANACEA_APP_*` key from a caller (`backend.go:275-279`); the session is `/bin/sleep infinity`; bounds 10 and 30 minutes as task 23's `Check.Timeout`; no network claim it cannot keep; the product test is `-tags docker` | `…-parts/task-23b.md:25-33`, `:68-93`, `:285`, `:299-302`, `:326-354` |
-| the writer | decision 5 and `CheckLine.tsx` on task 47's `ServeRow`: the one W1 writer of `Serve.Check`; seven tests, one that every other pair keeps its check | `…-parts/task-23b.md:95-113`, `:204-269`, `:307-324` |
-| the writer | the desktop `Serve` carries `check?`; three writers keep it (the `serves` op, the Desk repoint, the provenance mirror's comment) | `…-parts/task-37.md:108-109`, `task-20.md:175`, `task-42.md:223`, `task-65.md:939`, `task-18.md:98` |
+| (a) the rule | called at every revision write: the fake's create and edit, the Hub's create (before the number is taken) and edit (not restore); conformance row **W-02.1** (was W-26; round 2, N-I5) holds both | `…-parts/task-04.md:1719-1734`, `task-08.md:499-522`, `task-09.md:357-370`, `task-05.md:2257-2279` |
+| (b) the runner | new task **23b**: `sandboxd`'s `/check/v1/run` (exit code only, `OD-8`), `evidence.SandboxRunner`, a check sandbox per run, `backend.Backend` unchanged | `…-parts/task-23b.md:50-66`, `:145-162`, `:185-263` |
+| (b) the runner | the role is `SANDBOXD_ROLE`, because `ValidateSpec` refuses any `PANACEA_APP_*` key from a caller (`backend.go:275-279`); the session is `/bin/sleep infinity`; bounds 10 and 30 minutes as task 23's `Check.Timeout`; no network claim it cannot keep; the product test is `-tags docker` | `…-parts/task-23b.md:25-33`, `:68-97`, `:360`, `:380-383`, `:420-465` |
+| the writer | decision 5 and `CheckLine.tsx` on task 47's `ServeRow`: the one W1 writer of `Serve.Check`; seven tests, one that every other pair keeps its check | `…-parts/task-23b.md:99-117`, `:279-344`, `:400-418` |
+| the writer | the desktop `Serve` carries `check?`; three writers keep it (the `serves` op, the Desk repoint, the provenance mirror's comment; round 2: the repoint now drops it, a new pair, N-M6) | `…-parts/task-37.md:108-109`, `task-20.md:175`, `task-42.md:223`, `task-65.md:939`, `task-18.md:98` |
 | task 23 | reads each check off the revision it evaluates — **no `Checks` field** (the killed fixer's `checksFromServes` was defined nowhere); `Runner` nil until 23b; the AfterLand bound is per check run | `…-parts/task-23.md:64-77`, `:325-326`, `:428-440`, `:454`, `:496`, `:579-581`, `:594-609` |
-| skeleton `:11`, `:74` | unchanged and now true: 23 and 23b build the observed half (`:77`); 23b's row is 4 h and depends on 23, 47 and P3-24 | `…-work-layer.md:77`, `:106`, `:425` |
+| skeleton `:11`, `:74` | unchanged and now true: 23 and 23b build the observed half (`:77`); 23b's row is 4 h (5 h after round 2) and depends on 23, 47 and P3-24 | `…-work-layer.md:77`, `:106`, `:425` |
 | skeleton file map | the cmd/api row lists 22, 23 and 23b; the evidence row names `sandboxd` and 23b; the issue components row names `CheckLine` | `…-work-layer.md:265`, `:283`, `:308` |
-| totals | W1 195 → **196.5 h** (24.6 d), All 526 → **527.5 h** (65.9 d), WS0 about 14 h; `sumhours.py` prints `W1 70 196.5`, `ALL 190 527.5` | `…-work-layer.md:344`, `:351`, `:366` |
-| scope | the 23b block the file map promised, appended; task 23's block no longer calls the check a post-WS0 field or the runner UNVERIFIED | `…-scopes/tasks-21-40.md:742-767`, `:117-122`, `:131-135` |
+| totals | W1 195 → **196.5 h** (24.6 d), All 526 → **527.5 h** (65.9 d), WS0 about 14 h; `sumhours.py` prints `W1 70 196.5`, `ALL 190 527.5` (round 2: 197.5 and 528.5) | `…-work-layer.md:344`, `:351`, `:366` |
+| scope | the 23b block the file map promised, appended; task 23's block no longer calls the check a post-WS0 field or the runner UNVERIFIED | `…-scopes/tasks-21-40.md:742-768`, `:117-122`, `:131-135` |
 | coverage L-8 | 23b under *serves*; a section on why the row now builds what it claims, and why the defer option was not taken | `…-scopes/coverage.md:51`, `:369-382` |
 | citations | the 23b row at `:425` left 22 skeleton citations one row early; all shifted in place, each target read first | this file `:2905`, `:3174-3195`, `:4795-5104`; `…-parts/task-161.md:645`, `task-164.md:7`, `task-176.md:283`, `task-39.md:603` |
 | citations, older | four misses from b01's inserts on the same lines: `:2905` was task **82**'s row, not 81's; `:2548` and `:3352` wrap "skeleton" onto the line before; task 62's file map was `:313` for `:312` | this file `:2548`, `:2905`, `:3352`; `…-parts/task-62.md:718` |
@@ -6130,7 +6130,7 @@ and v4 before WS0, and restore the deferral text task 23 carried before `84bd25f
 4. **Who may set a check is enforced where revisions are written, not where checks run.** S03-I5
    asked for an observer-side gate. A write-side refusal is the root cause: the Hub never stores a
    check a person did not write, so the observer never meets one, and one function in `hubapi`
-   keeps the fake and the Hub from disagreeing (W-26). Not in a trigger: task 07's guards read the
+   keeps the fake and the Hub from disagreeing (W-02.1, was W-26). Not in a trigger: task 07's guards read the
    index, and `issue_serves` has no check column.
 
 **What b02 found in its own committed round.** Read against the tree, `013f9dd9`'s task 23b could
@@ -6285,3 +6285,32 @@ the test named there fails if it is not. Slack's workspace id form, `auth.test` 
 `url_verification` shapes, and Key Vault's secret-name rule are from public documentation,
 recalled, not fetched. The two uncommitted hunks in this worktree (`task-47.md`, the skeleton) are
 b02 round 2's and were never staged.
+
+## Fix batch b02, round 2 (2026-09-29) — N-I1 to N-I5, N-M1 to N-M8
+
+Round 2 answers re-review 1 of round 1 (`.superpowers/sdd/work/plan-rereview-b02-1.md`: 0
+Critical, 5 Important, 8 Minor), which found S03-C1's field, rule, runner and writer in place but
+the product path still broken in three places. The commits are `d8979d83`, `cb0145cc`,
+`d356a596`, `1f3ed112`, `c492f1ee` and this section's. The killed round-2 fixer's uncommitted,
+line-neutral WIP (`task-47.md:7`, `:403`, `:413-414`; skeleton `:449`) was read, kept and committed
+in `d8979d83`. Every line number below is post-fix on `feat/work-layer`.
+
+| Finding | Change | File:line |
+|---|---|---|
+| N-I1 (I) | `Serves`' list `T` returns unless task 41's `isBareListKey(e)` holds (no Ctrl, Meta or Alt, and not a text target), the gate task 41's own `N` uses (`task-41.md:332`, `:345`); imported; task 41 a dependency | `…-parts/task-47.md:414`, `:403`, `:3-7`; skeleton `:449`; `…-scopes/tasks-41-60.md:234` |
+| N-I1 (I) | the missing test: user-event types `npm test` into the check line inside the list → the field reads `npm test`, no picker. It sits in 23b, not 47: 47 builds first and its list has no field. Rule 3, the Files row, the step 3 lead and the count (8) restated | `…-parts/task-23b.md:415`, `:113-115`, `:166`, `:403`, `:460`, `:335` |
+| N-I2 (I) | decision 6: `Reaper.Hold(id, max)`; rule 4 skips a held id; the runner holds from before `Create` until its deferred `Destroy` returns, at most `MaxCheckHold` (35 min); in memory, so a restart holds nothing; a nil `Hold` refuses every run (`ErrNoHold`) | `…-parts/task-23b.md:119-135`, `:244-255`, `:265-277`, `:159-162`, `:65-66`, `:180-181` |
+| N-I2 (I) | tests: `TestCheckSandboxIsHeldFromBeforeCreateUntilDestroy`, the reaper's `TestSweepSparesAHeldSandboxUntilReleaseOrItsBound`, the docker twin `TestObservedCheckOutlivesTheReaperInTheProduct`; acceptance runs `reaper` and `cmd/api` | `…-parts/task-23b.md:385`, `:390-398`, `:446-449`, `:454` |
+| N-I2 (I) | 23b 4 → 5 h; W1 196.5 → **197.5 h** (24.7 d); All 527.5 → **528.5 h** (66.1 d); the file map names `reaper.go` | skeleton `:425`, `:344`, `:351`, `:265`; `…-parts/task-23b.md:4-5`; `…-scopes/tasks-21-40.md:746-768` |
+| N-I3 (I) | frame 4 sets EP-142's check after `T` and before Start, `node --test test/resume.test.mjs`, and records the check line; frame 8 waits for it; an addendum says why this check, what project P must hold, and why typed | `…-parts/task-70.md:231-233`, `:242`, `:617-637` |
+| N-I4 (I, security) | `byPerson` is `store.WriterIsPerson(ctx, tx)`: the transaction's `hub.work_actor_kind`, true only unset or `person`, never a literal; W5's app and key prologues set `app` and `key` before the handler (`task-159.md:170-172`, `task-160.md:296-300`); clause 3 of SW.3's check rule names the mechanism | `…-parts/task-08.md:501-522`, `task-09.md:362-364`, `task-07.md:604-606` |
+| N-I4 (I, security) | `TestAnAppCannotSetACheck` (count 14 → 15) and `TestAKeyCannotSetACheck` (17 → 18); the fake's W1 `true` says where the Hub's comes from | `…-parts/task-159.md:341-354`, `task-160.md:570-581`, `task-04.md:1731-1734` |
+| N-I5 (I) | the check row is `W-02.1` in its own slice, `WorkRowsCheck`, run by `TestCheckRowsOnTheFake` and task 16's `RunWork`; `WorkRowsW1` stays 25 in order; task 73 unchanged | `…-parts/task-05.md:2257-2279`; restated `task-04.md:1733`, `task-07.md:611`, `:613`, `task-09.md:369`, `task-23b.md:478`; this file `:6098`, `:6133` |
+| N-M1 | four phase 3 citations restored to what `1682bb28`'s own diff shows they were | `…-scopes/tasks-181-187.md:41`, `:47`; this file `:5338`, `:5340` |
+| N-M2 | the `/check/v1/` route is shown wrapped in the bearer check (sandboxd authorises per handler, `server.go:105`, `:167`); its test moves to `server_test.go` | `…-parts/task-23b.md:151-156`, `:212-224`, `:363-367` |
+| N-M3 | the bundle is the raw body and the rest headers (P3-24's `fetch` shape), capped by `MaxBundleBytes`, gitrunner's `1 << 30`; a test on each side | `…-parts/task-23b.md:80-83`, `:185-210`, `:356`, `:384` |
+| N-M4 | every runner field's source named (`cfg.Resources()`, `ids.New("chk")`, `ids.Token`, `cfg.CABundle`, `rp.Hold`); `RanAtMS` dropped | `…-parts/task-23b.md:420-438`, `:62-64`, `:200-206`, `:358` |
+| N-M5 | with `PANACEA_APP_CA_BUNDLE` set, the check sandbox gets what a lane gets: one read-only mount and `NODE_EXTRA_CA_CERTS`; Kata's refusal of a mount stated | `…-parts/task-23b.md:83-86`, `:232-243`, `:380`, `:473-475`, `:481`; `task-23.md:344` |
+| N-M6 | the Desk repoint drops the old criterion's check, as task 43's drag does (`task-43.md:217`) | `…-parts/task-65.md:939`; this file `:6102` |
+| N-M7 | task 70 depends on 01-69 and 23b, and step 7 runs 23b's acceptance | `…-parts/task-70.md:5`, `:553`; skeleton `:472`; `…-scopes/tasks-61-80.md:354` |
+| N-M8 | no plan change: a declared ruling the re-review accepts, carried to the owner (below) | — |
