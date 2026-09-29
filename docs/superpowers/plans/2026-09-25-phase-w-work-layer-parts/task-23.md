@@ -61,20 +61,20 @@ that person (the control plane's one Hub client, as task 22 explains).
    Hub's evidence body needs `issueId` and `observed` (additive, allowed after WS0), in task 10 or
    a new WH task. The part's return names it; nothing here invents a second store.
 
-**A fifth input the Hub does not have: the check.** The observer needs a command per criterion
-("`npm test -- resume.spec.ts`"). SW.1's `Serve{briefKey, criterionId}` (task 02) has no field for
-it, and neither does phase 4's criterion. This part takes checks as a **parameter**
-(`[]Check`, one per criterion id) and does not say where they are authored. Adding
-`check` to a `serves` pair changes the `issue-revision` canonical form and its golden vectors, so it
-must land in task 02 **before WS0 freezes SW.1**, or it reopens task 05; the return raises it.
+**A fifth input, and it is in the wire: the check.** The observer needs a command per criterion
+("`npm test -- resume.spec.ts`"). SW.1's `Serve` carries it — `check`, `omitempty`, at most 1000
+bytes, with golden vector v4 (`task-02.md:255`, `:557`) — added by **task 02** rather than here,
+because it is part of the `issue-revision` canonical form and SW.1 freezes at WS0. This part reads
+it off the head revision the Closer evaluates (no `Checks` field, so no wiring can leave it nil)
+and does not decide who may author one: that rule is SW.3's, task 07, and task 02 names it.
 
 **And one the tree does not have: a runner that runs a command and reports its exit.**
 `backend.Backend` (`backend.go:337-345`, built) creates and destroys sandboxes but reports no exit
 code; P3-24's `sandboxd` git runner has five git operations and no "run" (P3 `task-24.md:138-196`).
 So `CheckRunner` is an interface here, with a test double that clones on the host into
-`t.TempDir()`; **the product implementation is not in this task and no task in the skeleton
-builds it** (a gap, raised). Until one exists, `Observer.Runner` is nil, `Run` returns
-`ErrNoRunner`, nothing is observed, and an issue closes only on a person's Record.
+`t.TempDir()`; **the product implementation is task 23b's**, which depends on this task and runs
+the check through `sandboxd` in a check sandbox of its own. This task lands with `Runner` nil, so
+`Run` returns `ErrNoRunner` and nothing is observed until 23b turns it on.
 
 **Trust, stated plainly.** In local mode the observer runs in the person's own control plane, and
 the Hub records the resulting `evidence_observed` move as that person's. The Hub cannot tell a
@@ -322,8 +322,8 @@ so that is a handful of `git log` calls per event (an estimate, not a measuremen
 // evidence/observe.go
 package evidence
 
-// Check is one criterion's check: a command the platform runs at a landed commit. Where a check
-// is authored is not this task's (SW.1 has no field for it; the return raises it).
+// Check is one criterion's check: a serves pair's Serve.Check (SW.1, task 02) on the head revision,
+// run at the landed commit. Who may author one is SW.3's (task 07), never this task's.
 type Check struct {
 	CriterionID string
 	Command     string        // run as `sh -c <Command>` in the fresh clone's root; 1-1000 bytes
@@ -362,7 +362,7 @@ var ErrNoRunner = errors.New("evidence: no check runner is configured")
 // Observer watches checks run and records exit 0 as observed evidence.
 type Observer struct {
 	Machine gitx.Machine
-	Runner  CheckRunner // nil until a product runner exists (see the gap above)
+	Runner  CheckRunner // nil until task 23b's SandboxRunner is wired in cmd/api
 	Store   Store
 	Scratch string // an OwnedRoot directory for bundles; each is removed after its run
 	// Identity is the lander's git identity for the project, as Lander.Identity (P3-09).
@@ -427,8 +427,8 @@ type DoneMover interface {
 
 // Closer evaluates and closes. Hub is the control plane's one Hub client (Deps.Work): every
 // move is the signed-in person's. Resolver turns a serves pair's brief key into the criterion's
-// digest (phase 4's resolver, P3's briefref seam). Checks gives the checks for an issue's
-// criteria; nil means none (the gap above). A Closer never fails the act that called it.
+// digest (phase 4's resolver, P3's briefref seam). Its checks are the evaluated revision's own
+// Serve.Check values (AfterLand step 3), not a field. A Closer never fails the act that called it.
 type Closer struct {
 	Hub interface {
 		IssueReader
@@ -437,7 +437,7 @@ type Closer struct {
 	Evaluator *Evaluator
 	Observer  *Observer
 	Resolver  briefref.Resolver
-	Checks    func(ctx context.Context, issueID string) []Check
+	// no Checks field: a nil one would switch observation off with every test still green
 	Log       *slog.Logger // metadata only: issue id, word, cause, code
 }
 
@@ -451,7 +451,7 @@ type Scope struct {
 //     merge (a later land of the same issue owns it then);
 //  2. served = resolve every serves pair of the head revision (a pair the resolver cannot
 //     answer is open: the issue waits, it is never proven by a guess);
-//  3. for each served criterion with a Check: Observer.Run at head.LandCommit; collect Records;
+//  3. per served pair with a non-empty Serve.Check: Observer.Run at head.LandCommit; collect Records;
 //  4. done = Evaluator.IssueDone(…, IssueDoneInput{…, Fresh: those Records});
 //  5. send(done).
 func (c *Closer) AfterLand(ctx context.Context, sc Scope, issueIDs []string)
@@ -493,7 +493,7 @@ built and pinned now.
 ```
 
 `AfterLand` runs checks, and a check may take minutes. It therefore runs on a goroutine with
-`context.WithoutCancel(r.Context())` and its own 35-minute bound, and the land's 201 never waits
+`context.WithoutCancel(r.Context())` and a 35-minute bound per check run, and the land's 201 never waits
 for it. `AfterRecord` runs no check and is synchronous within task 22's 3-second Hub bound.
 `scopeOf` fills `Scope` from the handler's resolved project and branch; its spelling follows P3's
 merged handlers (**UNVERIFIED until merge**).
@@ -577,8 +577,8 @@ In `issuedone_test.go` (the Closer on `hubclient.NewFake().As(lander)`) and
 Run: `go test ./control-plane/internal/evidence/... ./control-plane/internal/api/... -race -count=1 -run 'EmptyServes|Record|LandResponse|Closer'`
 Expected: FAIL, `undefined: evidence.Closer`. Write the Closer, the `GitDeps` field, the two route
 calls and the `cmd/api` wiring (`Closer{Hub: deps.Work, Evaluator: git.Evaluator, Observer:
-&evidence.Observer{…, Runner: nil}, Resolver: git.Resolver, Checks: nil, Log: log}`: no runner and no
-checks exist yet, both gaps). Re-run. Expected: `ok`.
+&evidence.Observer{…, Runner: nil}, Resolver: git.Resolver, Log: log}`: no checks to wire, as
+each is its pair's `Serve.Check`, and `Runner` stays nil until 23b). Re-run. Expected: `ok`.
 
 - [ ] **Step 5: Acceptance, then commit**
 
@@ -591,10 +591,10 @@ Commit with `git commit -F <msgfile> -- <the paths above>`.
 
 #### What this task does not claim
 
-- **Not that anything is observed in the product yet.** No `CheckRunner` exists outside the test
-  file, and no field names a criterion's check (both gaps, raised). Until both land, the demo's
-  no-click `done` (05 §5.3) is shown only by `TestObservedExitZeroClosesWithNoClick`, on the host
-  test double, and the product closes an issue only on a person's Record.
+- **Not that anything is observed in the product yet.** The runner here is the test double; the
+  product one is **task 23b**, which depends on this task. Until 23b lands, the demo's no-click
+  `done` (05 §5.3) is shown only by `TestObservedExitZeroClosesWithNoClick`, on the host double,
+  and the product closes an issue only on a Record — which is what 23b exists to end.
 - **Not the citation on a shared store across events** (gap 4). On a Hub-backed store, a citation
   made at land is used at land; a later Record cannot find it again until the Hub's evidence body
   carries `issueId` and `observed`.
@@ -603,7 +603,7 @@ Commit with `git commit -F <msgfile> -- <the paths above>`.
 - **Not the *done, not proven* glyph** (tasks 28, 48), a hand-set `done` (task 10's server rule),
   W3's proposed evidence (task 104), or reopening a `done` issue whose land is later reverted: the
   evaluator reads `waiting` after a revert, and no move is sent back.
-- **Not which runner the sandbox uses in local mode** (P3-24's runner or the phase 1 Docker
-  sandbox, **UNVERIFIED**).
+- **Not the product runner itself**: task 23b owns it, and rules how it runs (through `sandboxd`,
+  in a check sandbox of its own, with `backend.Backend` unchanged).
 - Design: 05 §3.3, §2.1 point 4, §5.3 row 7. Parity: closes the W1 part of **L-8** (`done` is a
-  fact) with task 22; with the two gaps closed it is what makes 05 §5.3's no-click `done` true.
+  fact) with task 22; with task 23b's runner it is what makes 05 §5.3's no-click `done` true.
