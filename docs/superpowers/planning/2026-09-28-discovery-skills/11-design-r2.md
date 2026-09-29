@@ -47,7 +47,7 @@ critical path (§7.5).
 content model and its 113 tests, the brief's key and the 64 plan files that quote it, the
 interview's questions, and phases 2, 3, 5 and 7.
 
-**What the owner is asked** (§8.2): six questions, each with its default already taken, none of
+**What the owner is asked** (§8.2): seven questions, each with its default already taken, none of
 which blocks the build. Q2 is the one whose other answer changes the design's shape: whether two
 new key forms break OD-36's *the grammar does not move*. The default reads it as *no existing form
 changes*.
@@ -809,11 +809,12 @@ record, expect roughly 70 hours: that multiplier is a judgement, not a measureme
 | # | Question | Default taken, and what the other answer costs |
 |---|---|---|
 | Q1 | Who owns the key grammar: phase 4's `provenance` (`HC:116`, `PC:104`, `key.go:1-2`) or the Hub contract (OD-36, `owner-decisions.md:409`; `10:54`)? (11b Q1) | **No answer needed to build.** Both parsers change together, the Hub's first (45 before 26), and the contract's text changes in 44a as A20. The design is the same either way |
-| Q2 | OD-36 says the key grammar "does not move". Does adding two **new** forms break that? | **Taken: no.** "Does not move" is read as *no existing form changes*, and the brief's does not by a byte; a new `kind:` is the grammar's designed extension (`PC:104-107`), as phase W's `issue:` already is. If the owner meant *no new form at all*, terms and decisions are cited by a `{kind, id, revision}` struct in phase W's style instead: §2.1 changes, the resolver answers them by a new route rather than `/v1/refs`, and Hub 45 and phase 4's 26 shrink by about 1.5 h |
+| Q2 | OD-36 says the key grammar "does not move". Does adding two **new** forms break that? | **Taken: no.** "Does not move" is read as *no existing form changes*, and the brief's does not by a byte; a new `kind:` is the grammar's designed extension (`PC:104-107`), as phase W's planned `issue:` is. If the owner meant *no new form at all*, terms and decisions are cited by a `{kind, id, revision}` struct in phase W's style instead: §2.1 changes, the resolver answers them by a new route rather than `/v1/refs`, and Hub 45 and phase 4's 26 shrink by about 1.5 h |
 | Q3 | Should a release pin the decisions in force at Ship? | **No.** OD-36's *What moves* names the Materialiser, `Ref` and the lens only, and a session's inheritance is already provable through Develop. Yes costs one pin member in Hub 23 and lines in phase 7's 08 and 17: about 3 h |
 | Q4 | May Authority pre-authorise the assistant to record **words** (never decisions) on a branch without asking? | **No**: every record is a person's gesture, `author` `person` or `model_accepted`. Yes costs a new `author` value, one Authority action class and its lens state: about 3 h |
 | Q5 | Should rounds and dismissals be shared through the Hub? | **No**, local only; the cost is that a dismissed suggestion may be offered once more on another machine. Yes is a mutable Hub kind for process state, which is what §4 exists to avoid |
 | Q6 | The product's words for `CONTEXT.md`. `CONTEXT.md:303` already calls our own register "one decision record", and `CONTEXT.md:149` calls an approval row "a decision under Authority" | **Term** and **Project decision**, each with a *Not «…»* line: not «vocabulary» (the Work layer's team names, 11b §5.2), not «ADR», and not an approval row. The Work layer's planned Go type `Term` (`task-138.md:111`) is another package and is left alone |
+| Q7 | Should a session started without the brief (`none:declined`) still inherit the project's words and decisions? | **No** (§5.1): declining the brief declines everything Discover writes, so the label *started without the brief* stays true. Yes needs a block with no brief in its marker, a new `Inspect` state and a golden: about 3 h |
 
 ### 8.3 What this design did not verify
 
@@ -827,6 +828,10 @@ record, expect roughly 70 hours: that multiplier is a judgement, not a measureme
   uncommitted-modified in the Hub worktree today (11b §2.2).
 - The round's limits (three decisions, five words, fourteen days) and the inline budgets (4 and 6
   KiB) are judgements, not measurements: the prototype (task 24) is where the owner tests them.
+- Four rules were added in the last pass, after §7 was priced: the later-project-word shadow
+  (§2.3), the cross-scope word check (§2.4), the erase routes (§2.6) and *no brief key, no
+  inheritance* (§5.1). Only the erase routes moved an hour (Hub 48, +0.5 h, with Hub 27's -0.5 h);
+  that the other three fit inside Hub 48 and phase 4's 25, 29 and 31 as priced is a judgement.
 
 ## Closing
 
