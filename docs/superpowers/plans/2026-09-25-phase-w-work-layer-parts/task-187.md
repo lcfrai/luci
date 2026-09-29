@@ -87,7 +87,7 @@ is a real name from the closing part's mutant table (parts 175-186 are all writt
 | Row | 05 §1 | Its closer | WL's clause, and its test |
 |---|---|---|---|
 | L-50 (PARTIAL) | `:164` | 114, 121, 134 (W4) | the *later* part, a rotation synced from PagerDuty or Opsgenie: 184's `TestAnOutageKeepsDuty` and `TestANonMemberAddsNobody` |
-| L-80 | `:204` | 157, 165 (W5, Teams) | *Slack next*: 182's `TestNoCustomerTextLeaves` |
+| L-80 | `:204` | 157, 165 (W5, Teams) | *Slack next*: 182's `TestNoCustomerTextLeaves`, which must insert its Slack binding itself: no route writes one yet (182's *Feed bindings*, a gap returned), so the clause is run and proven safe, and no user can reach it |
 | L-97 | `:231` | 157 (W5, Teams) | *Slack next*: 182's `TestUnlinkedSubscribeRefused` |
 | L-137 | `:289` | 157 (W5, Teams) | *Slack next*: 182's `TestThreadReplyAttributed` |
 

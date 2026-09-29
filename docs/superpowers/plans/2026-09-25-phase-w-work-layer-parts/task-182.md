@@ -293,7 +293,7 @@ without it. Golden payloads in `testdata/` are marked **UNVERIFIED** in a header
 | `TestUnlinkedChannelWritesNothing` | the same shortcut in an unlinked channel → the ephemeral sentence and no row | intake guessing a team |
 | `TestRetriedEventNoDouble` | a thread reply delivered twice with one `event_id` → one `RequestMessage` | a double sync |
 | `TestThreadReplyAttributed` | a reply by a linked Slack user after accept → one `ic-` comment by that person, `text·H`; by an unlinked user → a request message only, with the Slack display name | an unsynced thread; a comment with no Hub author |
-| `TestNoCustomerTextLeaves` | an issue titled `ZZ-TITLE-CANARY` with a comment `ZZ-BODY-CANARY`: every recorded outbound body (feed, sink, unfurl, digest; a fake Slack server records them) contains neither canary | a text leak |
+| `TestNoCustomerTextLeaves` | an issue titled `ZZ-TITLE-CANARY` with a comment `ZZ-BODY-CANARY`: every recorded outbound body (feed, sink, unfurl, digest; a fake Slack server records them) contains neither canary; the feed's Slack binding is inserted as the owner, since no route writes one (*Feed bindings*) | a text leak |
 | `TestUnlinkedSubscribeRefused` | *Subscribe* from an unlinked Slack user → the ephemeral *Link your Slack account first* and no subscription row | "acts as the installer" |
 | `TestDispatchHasNoStateVerb` (`interact_test.go`) | `Dispatch`'s keys are exactly `send_to_panacea`, `open`, `subscribe` | a fact written from chat |
 | `TestOneDigestAcrossProviders` | a person due on Teams and Slack in one window → exactly one `PostDigest` across the two fakes; the next after 15 minutes | a per-provider budget |
@@ -366,8 +366,8 @@ go test -tags integration ./control-plane/internal/hub/teams/... -count=1
 - Design: 05 §1 rows L-206, L-80, L-97, L-137 (*"Teams first, Slack next"*), §3.5 (requests),
   §3.6 (no integration writes a fact); the Desk digest as §4.2 and L-116 place it;
   `docs/AGENTIC-UX.md:243` (one notification per person per 15 minutes). Parity: closes
-  **L-206**, and the *Slack next* clause of **L-80**, **L-97** and **L-137**, whose W5 verdicts
-  Teams already meets (tasks 157, 165).
+  **L-206**, and the *Slack next* clause of **L-97** and **L-137**, whose W5 verdicts Teams already meets (task 157);
+  **L-80**'s *Slack next* clause (Teams: tasks 157, 165) is proven safe by `TestNoCustomerTextLeaves` and reachable by no user until a route writes a Slack feed binding (*Feed bindings*: a gap, returned).
 
 **Interfaces:**
 - Produces:
@@ -422,7 +422,7 @@ through that channel's `slack_channel_links` row, under the binding's org and te
 and install are not there to be read, so no binding posts into another org's workspace, and
 unlinking a channel stops its posts. No route in this part writes a Slack binding (the
 `SlackChannelLink` comment says a link *carries* them, and names no route): a gap for the return, and
-whichever route it is refuses 404 unless the channel link is the binding's team's.
+whichever route it is refuses 404 unless the channel link is the binding's team's. Until one exists, L-80's *Slack next* clause has a proof and no user path (`task-187.md:90` says so).
 
 **Inside one org** a team admin can still link any channel of the org's workspace by its id. Task
 157 links a Teams channel by a pairing code shown in that channel instead (decision 1,
