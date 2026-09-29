@@ -1,12 +1,28 @@
 # 03 · Define: the brief, the interview, the spec — adopt, do not build
 
-**Date:** 2026-09-30 · **Status:** in progress (skeleton; sections land one commit at a time)
+**Date:** 2026-09-30 · **Status:** complete
 **Question:** which existing product or project can stand in for Define (phase 4, Discover, and the
 OD-36 glossary and decision record) so that we build glue, not the capability?
 
 ## 1. Answer
 
-_Pending: filled once the candidates below are assessed._
+**Adopt GitHub Spec Kit** (MIT, GitHub's own organisation, v1.0.13 on 2026-09-29) **as the Define engine.**
+It runs as a Define session in the cockpit's existing sandboxed Claude Code pane, with one Panacea preset
+that carries the brief's five sections and the aihero `grill-me` and `grill-with-docs` skills (MIT) for the
+glossary and decisions. The built provenance thread stays (Hub brief revisions, `brief:bf-…@n` keys, the
+Materialiser) and is pointed at the spec Spec Kit writes.
+
+- **Integration: about 8 stream-days, about 5 calendar days on two parallel streams.**
+- **Replaces** 13 of phase 4's unbuilt tasks (04, 13, 18, 19, 21, and OD-36's 24, 25, 27-32) and most of the
+  Hub's OD-36 share: **about 72 of the about 109 hours left**, before fix rounds.
+- **Still ours:** 7.5 days of glue (section 6) plus ten kept thread tasks.
+- **No buy.** No commercial product passes both AU residency and "brief in our Hub": Kiro has no AU region,
+  ChatPRD is blocked by the KPMG proxy, and Confluence moves the brief out of the Hub. Taskmaster's
+  Commons Clause is a restricted licence.
+- **Owner calls:** three, all customer-visible, none about money (section 7).
+
+**First step:** G1, the vendored `specify-cli` and the `panacea` preset in `images/sandbox/Dockerfile`
+(1 day).
 
 ## 2. What Define has to do (the bar every candidate is scored against)
 
