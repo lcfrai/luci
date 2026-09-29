@@ -185,6 +185,54 @@ attention queue 2.5, host landing glue 1.5, AI first-pass review 0.5).
 6. PR review comments sent back to the lane's agent in one click — the best idea in Orca and
    vibe-kanban, and cheap once item 2 exists.
 
+**Why the hooks keep `OD-8`, stated so a reviewer can check it.** `OD-8` protects three things:
+the CLI stays unmodified, nothing guesses meaning from the terminal stream, and nothing depends
+silently on undocumented internals. HTTP hooks are documented, delivered out-of-band as typed JSON,
+and configured rather than patched in. The amended rule's guards still apply by analogy: pin the CLI
+version, canary the payload, and let the attention queue **degrade** to `starting / running / idle /
+exited` when no hook arrives — no feature may *require* it. When team mode's `OD-23` policy mount
+(phase T tasks 13–15) lands, the hook entries move into its non-overridable layer instead of being
+baked into the image.
+
+## 7. Calls only the owner can make
+
+1. **Land on the host for v1 (customer-visible).** Review and merge happen on the GitHub or Azure
+   DevOps pull-request page, linked from the cockpit, instead of in the in-app merge lens the owner
+   reviewed in `prototype/phase-3-convergence.html`. The cockpit shows each lane's PR, checks and
+   queue position. **Recommend yes**; the in-app lens can return later on top of the same PRs.
+2. **GitHub Enterprise Cloud as the stated requirement for queued landing on private GitHub
+   repositories (money, for customers).** Customers on GitHub Team still land, serially through
+   auto-merge. KPMG's own EMU estate is believed to be Enterprise Cloud already (not verified here).
+3. **AI first-pass review on every lane PR (money).** It spends gateway tokens per PR. **Recommend
+   opt-in per project**, default off.
+
+One adjacent call is flagged, not made here: **Coder Premium as a buy for the environment (phase
+8)**. It is priced "annually per user", with "AI Premium" at custom pricing. It belongs to the
+environment study.
+
+## 8. What this study could not verify
+
+- **GitHub's merge queue on GHE.com data-residency tenants.** Assumed at parity with github.com; not
+  confirmed on a GHE.com page.
+- **The brief trailer surviving each host's merge.** GitHub: the "pull request title and
+  description" default under a merge queue with squash. ADO: `mergeCommitMessage` under
+  auto-complete. One test per host before first ship.
+- **Hooks under a customer's managed policy inside the sandbox.** A sandbox signs in through the
+  gateway, not claude.ai, so server-delivered settings may not apply at all; whether a
+  `strictPluginOnlyCustomization`-style policy would strip image-baked managed hooks is untested.
+  The canary covers it.
+- **Azure DevOps.** No merge queue was found, native or in the marketplace; that is absence of
+  evidence, not proof. The Australian organisation geography is standard ADO, not re-checked today.
+- **Vendor pricing and terms.** Conductor's prices come from third-party reviews; Coder's plan
+  contents come from a summary of its pricing page (it listed audit logs and HA under Community,
+  which differs from earlier Coder plans); Orca's enterprise terms are "talk to us".
+- **Coverage gaps.** The GitHub API rate-limited this run after 12 calls, so `kbwo/ccmanager`,
+  `slopus/happy`, `manaflow-ai/cmux` and `siteboon/claudecodeui` were not assessed. **docs.warp.dev is
+  blocked by the KPMG proxy** (redirects to the acceptable-use policy). One survey page returned
+  HTTP 429. `kubecoder.com` returned a headline only.
+- **Nothing was installed or run.** Every capability claim above is from upstream documentation, the
+  GitHub API or our own tree; none is a hands-on result.
+
 ## 7. Calls only the owner can make
 
 ## 8. What this study could not verify
