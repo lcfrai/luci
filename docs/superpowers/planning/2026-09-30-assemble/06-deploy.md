@@ -259,7 +259,23 @@ stores them. Test with the exact versions before any Enforce flip.
 
 ## 4. Side by side
 
-*(pending)*
+N1 preview per branch · N2 promote · N3 rollback · N4 release carries brief and evidence.
+"Days" is engineer-days to reach N1-N4 **from today**, with Panacea's existing API counted as done.
+
+| Candidate | Licence | Runs where | Entra SSO | AU-only possible | N1 | N2 | N3 | N4 | Days | Verdict |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Panacea** (API, Portal, Chains, Kyverno) | ours | its own AKS | yes, Keycloak | yes | yes | yes, `P/promote` | yes | evidence yes, **brief no** | **5** (section 5) | **adopt** |
+| Coolify | Apache-2.0 | any VM, Docker | OIDC in an RC | yes | GitHub only | no | yes | no | 5-8 and still no N4 | reject |
+| Dokploy | Apache-2.0 core, **source-available** enterprise | VM, Swarm | paid only | yes | yes | no | yes | no | 5-8 plus a contract | reject |
+| Azure Container Apps + Actions or ADO | Azure service | customer subscription | yes, built in | yes | yes, labels | yes, traffic split | yes | no | 3-5 for a second `Deployer` | **integrate later** (customer tenancy) |
+| Argo CD + Kargo | Apache-2.0 | AKS | yes | yes | yes | yes | yes | no brief | 10+ | reference |
+| Backstage | Apache-2.0 | already Panacea's Portal | yes | yes | shown | shown | shown | no | 0.5 for links | **integrate by link** |
+| Port | proprietary | SaaS, EU or US | yes | **no** | no | no | no | no | n/a | reject |
+| cosign + in-toto + Kyverno | Apache-2.0 (in-toto short notice) | wherever we sign | n/a | yes | n/a | n/a | n/a | **yes** | ~1 (inside the 5) | **adopt** |
+| Tekton Chains | Apache-2.0 | already in Panacea | n/a | yes | n/a | n/a | n/a | build yes, brief only with the ask | 0 | use as is |
+| GitHub attestations | GitHub service | GitHub Enterprise Cloud | yes | depends on the GitHub region | n/a | n/a | n/a | yes, GitHub only | 1 | reference |
+| Octopus Deploy | proprietary, per project | cloud or self-hosted | yes | self-hosted yes | via targets | yes, lifecycles | yes | work items, no brief | 10+ | reference, buy on demand |
+| Harness | proprietary | SaaS or self-managed | yes | self-managed | yes | yes | yes | SLSA, SaaS only | 15+ | reject |
 
 ## 5. Recommendation
 
