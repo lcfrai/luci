@@ -228,7 +228,7 @@ CREATE TABLE slack_events_seen (          -- Slack retries: one row per event_id
   event_id text PRIMARY KEY, seen_at timestamptz NOT NULL DEFAULT now()
 );
 -- Row-level security (task 06's policy text), the grants, slack_install_org and the feed-binding
--- rule are this file's second half: *The org line*, at the end of this part.
+-- rule are this file's second half: *The org line*, below; the janitor's two indexes its third (*One team per channel, and pruning*).
 ```
 
 **How each inbound call runs** (every one but step 1's: buffer the raw body, find the install's org by `team_id`
@@ -258,7 +258,7 @@ signing secret under the install's `slack.SecretNames`, `Verify`, then decode; a
    or an unreadable issue, no unfurl at all (an unfurl could confirm an issue exists).
 
 **How each outbound post runs** (all through `SlackPoster`, one `chat.postMessage` or
-`chat.unfurl` call to `https://slack.com/api/…` with the bot token read by ref, 10 s timeout; the
+`chat.unfurl` call to `https://slack.com/api/…` with the bot token read under its install's `slack.SecretNames`, 10 s timeout; the
 Hub's egress to slack.com through phase 8's allowlist is **UNVERIFIED**):
 
 - **Feeds.** Task 157's feed step, re-pointed at `chat.Post`, walks every binding; a `slack`
@@ -321,8 +321,8 @@ without it. Golden payloads in `testdata/` are marked **UNVERIFIED** in a header
 - [ ] **Step 4: The store and the migration, then the inbound routes, tests first.** Write the
   integration rows for the shortcut, the thread, dedup, unlinked and unknown workspace, and
   `TestChannelLinkCrossOrgRefused`, `TestSlackTablesOrgIsolated` and round 2's rows at the end; expected FAIL (404 on the
-  route, and no such table). Implement `events.go`, `interact.go`, `server/work_slack.go` and
-  `store/work_slack.go` and the migration, both halves (*The org line*), and the janitor step. Re-run with
+  route, and no such table). Implement `events.go`, `interact.go`, `server/work_slack.go`, `store/work_slack.go`, `SlackPoster.WorkspaceOf` (the install's one Slack call; the rest of `feeds.go` is Step 5's),
+  the migration's three parts (*The org line*; the janitor's indexes) and the janitor step. Re-run with
   `-tags integration`. Expected: `ok`.
 - [ ] **Step 5: Outbound, tests first.** The canary, the digest, the unfurl and the sink rows
   against a fake Slack server (`httptest.Server`, recording bodies). Implement `feeds.go`,
@@ -513,11 +513,12 @@ rejects unknown fields, `hub-contract.md:2076`, so a body naming a ref is 400):
 2. `slackTeamId` matches `^T[0-9A-Z]{1,31}$` (Slack's form, **UNVERIFIED**), else 400 `field:
    slackTeamId`, before any name is made; `slack_installs_team_id_form` holds the same in the table.
 3. `Secrets.Secret` reads the two secrets `SecretNames(orgId, slackTeamId)` names. Either absent → 422
-   `slack_secrets_missing`, whose body says which of the two names is missing (both are the
+   `slack_secrets_missing`, whose `details` names the missing name or names (each is the
    caller's own org's), and nothing is read from or written to `slack_installs`.
 4. `SlackPoster.WorkspaceOf` calls Slack's `auth.test` with the bot token (Slack's documentation,
-   **UNVERIFIED**); its `team_id` must equal `slackTeamId`, else 422 `slack_token_wrong_workspace`,
-   nothing written; Slack unreachable, or `ok: false`, → 502 `slack_unreachable`, nothing written.
+   **UNVERIFIED**); its `team_id` must equal `slackTeamId`, else 422 `slack_token_wrong_workspace`;
+   `ok: false` (a revoked or wrong token) → 422 `slack_token_invalid`; Slack unreachable → 502
+   `slack_unreachable`; nothing is written in any of the three.
    A signing secret has no such check: the first event that fails `Verify` is 401.
 5. `PutInstall` inserts `(org_id, slack_team_id, installed_by)` with `ON CONFLICT (slack_team_id)
    DO NOTHING`, and reads a conflict back under row-level security: visible is this org's own
@@ -593,7 +594,15 @@ since another org's install is 404 before it (*The org line*).
 step in `server/janitor.go` ⚑ calls `PruneSlack` once per org in the janitor's pass, with
 `hub.org_id` set as for every step (§12.5, `hub-contract.md:2232-2233`), so row-level security
 holds for it too: it deletes that org's `slack_events_seen` rows older than 24 h and its
-`slack_link_nonces` rows past `expires_at`, and nothing else. `DELETE` is already granted.
+`slack_link_nonces` rows past `expires_at`, and nothing else. `DELETE` is already granted. Each
+delete reads an index, as the contract's own janitor does (`idempotency_keys_janitor`,
+`hub-contract.md:1792`), so a 60-second pass never scans a table:
+
+```sql
+-- migrate/sql/NNNN_work_wl_slack.sql, third part: the janitor's indexes.
+CREATE INDEX slack_events_seen_janitor ON slack_events_seen (org_id, seen_at);
+CREATE INDEX slack_link_nonces_janitor ON slack_link_nonces (org_id, expires_at);
+```
 
 ```go
 // store/work_slack.go — the janitor's, and the link's refusal.
