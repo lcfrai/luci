@@ -4339,11 +4339,11 @@ reconcile when it widens the answer route.
 ## Fix batch b07, round 3 (2026-09-29): N-C1, re-review b07-1's three Importants, and the batch's own three re-checked
 
 Input: `.superpowers/sdd/team/plan-rereview-b07-1.md` (1 Critical, 3 Important, 7 Minor), read at
-`47cf3eb7`. Round 3 is b07's last (OD-31). Seven commits by pathspec: `60781aeb` (N-C1, the Hub
+`47cf3eb7`. Round 3 is b07's last (OD-31). Six fix commits by pathspec, then this record's own: `60781aeb` (N-C1, the Hub
 half: tasks 01, 03, 04, 07, 08), `31d66e1b` (N-C1, Fleet's half: tasks 30, 31; RR1-m3), `70dc2f00`
 (RR1-I1, and N-C1 in task 33; the plan body), `be583b3f` (RR1-I2, RR1-I3, RR1-m1, RR1-m2, RR1-m7;
 tasks 20, 21; the estimate), `76bceac2` (RR1-m6), `64c0818b` (G31-5, and three defects found
-re-reading round 3's own edits), and this record's. Every line number below was read in the tree
+re-reading round 3's own edits); then `6e77aefd` and later, this record. Every line number below was read in the tree
 after the last of them.
 
 ### The re-review's Critical and Importants
