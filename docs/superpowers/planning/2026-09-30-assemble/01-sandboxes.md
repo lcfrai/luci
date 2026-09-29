@@ -396,7 +396,38 @@ pay-as-you-go, Linux. No discount, reservation or KPMG agreement is applied.
 
 ## 7. What this study could not verify
 
-_TBD_
+Nothing was installed, deployed or run. Every capability claim is from documentation, a
+project README, a vendor page or the GitHub API, read on 2026-09-30.
+
+**Would change the recommendation if wrong (checked by the day-1 and day-7 steps):**
+
+1. Claim latency on AKS with our image. "A couple of seconds" is upstream's claim on its own image.
+2. Nested-virt Dsv5 capacity and quota in Australia East for our subscription.
+3. That a pooled `Sandbox` can carry a PVC template and that pause and resume work on Kata. The
+   README claims persistent storage and pause/resume in general, not on Kata specifically.
+4. That the agent-sandbox Go SDK's pod-IP connectivity and the router's scoped tokens behave as
+   the v1.0.2 release notes describe.
+
+**Recorded, not load-bearing:**
+
+- ACA dynamic sessions: WebSocket through the pool endpoint; whether a VNet environment's UDR
+  and firewall apply to session egress; the ceiling on `maxAlivePeriodInSeconds`; custom-container
+  CPU and memory limits.
+- ACI: standby-pool claim latency; the billing meter for waiting standby groups; per-group
+  CPU and memory limits in Australia East; the explicit-proxy egress design.
+- Northflank: microVM isolation on Azure BYOC; the BYOC fee; Entra SSO and audit export.
+- Runloop: what runs in our account on an Azure VPC deploy; AU regions.
+- Modal: residency of control-plane metadata, images and logs; Entra SSO.
+- Coder: the Tasks deprecation line in its v2.35 docs; whether OpenTofu can replace Terraform in
+  its provisioner; whether a Premium licence changes the AGPL position of the core (a legal
+  question, not answered here).
+- Ona's acquisition by OpenAI: press reports only, no primary source read.
+- Prices: vendor list prices from their own pages or third-party summaries; Azure prices from the
+  Retail Prices API; no quote obtained.
+- The phase 8 machine-pod simplification in section 5 is a proposal; it needs a plan edit and
+  the usual adversarial review before anyone builds it.
+- The corporate proxy blocked nothing in this study; the GitHub API rate limit cut off one
+  release-notes call, read instead from the GitHub releases page.
 
 ## 8. Sources
 
