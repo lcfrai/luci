@@ -204,8 +204,13 @@ from an abandoned one.** §6.2 (11:795-802), Q8 (11:995).
   although every marker, file, `Ref` and inheritance entry compares them for ever. §7.2 adds
   vectors for the revision envelopes only (11:860). A §3.5-style vector pins them (HC:176-197).
   Also, name the value of their `"scope":…` member.
+- **The two revision envelopes are written only as `{"v":1,"kind":"term-revision",…}`**
+  (11:415-417). §3.4 lists every member of the brief's envelope (HC:144-155). §18 should do the
+  same: which of `word`, `is`, `avoid`, `because`, `scope`, `state`, `overrides`, `replacedBy`,
+  `settledIn`, `author` and `sessionId` each digest covers. The digest certifies exactly those
+  members, and the golden vectors cannot be written until they are named.
 
-**M9. Five smaller gaps.**
+**M9. Six smaller gaps.**
 - **(a) Which object carries the sets.** `Inspect` holds an `Inheritable`, not a `Ref` (p4
   `inspect.go:119-124`, `:179`). So "compares … with the `Ref`'s current two" (11:704-705) should
   read "with the two a start would write now". The sets reach the Materialiser only through its
@@ -226,6 +231,12 @@ from an abandoned one.** §6.2 (11:795-802), Q8 (11:995).
   under a digest that describes no moment the Hub held. **Fix:** note the feed position before and
   after the read, and re-read when it moved.
 - **(e) One avoided word.** "Phase 3's merge" (11:753, :801): `CONTEXT.md:300` says *land*.
+- **(f) Task 12 changes in four routes, not one.** §7.4 amends only `materialisations` (11:912).
+  But task 12's two `provenance` routes return a `Ref`, which now carries the set digests. That
+  means list reads, where each route's audit line promises "One Hub head read." Its `refs` route
+  "reads through an in-memory cache of immutable revisions" (phase 4's `task-12.md:128-131`), and
+  the set digests are neither immutable nor cached. List all four under task 32, with their new
+  audit lines.
 
 ## 3. What held up
 
