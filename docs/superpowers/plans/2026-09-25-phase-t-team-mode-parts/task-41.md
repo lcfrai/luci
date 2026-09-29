@@ -685,7 +685,7 @@ session that reads peer text before its own typed state plans on the wrong pictu
 | `TestClaudeDriverDiscardsOutput` (`linux && liveeval`) | a `/bin/sh` fake `claude` that prints prose and exits 0 leaves the log empty and the score unchanged; a missing managed file → `ErrNoManagedFile` before any child starts | a driver that parses stdout into records; a live run without the product text |
 
 `TestScriptedSequenceScoresExactly` and `TestTheInstructionsHoldNoTeammateText` are the scope
-paragraph's two (`2026-09-25-phase-t-team-mode.md:871-872`) and are written first. Every test but
+paragraph's two (`2026-09-25-phase-t-team-mode.md:1001-1002`) and are written first. Every test but
 the last runs with no network and no model.
 
 #### Steps

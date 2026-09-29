@@ -134,9 +134,9 @@ minutes behind the gateway; the owner's own line from task 37 stays exact.
   - P6-07: `Service.mint`, `Deps.Budgets`, `Deps.Spent`, `BudgetExhaustedError`
     (`task-07.md:827-846` there);
   - P6-09: `usage.Store.Sum`, `usage.Reader`, `keysmith.key_spend` (`task-09.md:436-450` there);
-  - task 20: the mint's `Counterpart` field (`task-20.md:237-241`);
+  - task 20: the mint's `Counterpart` field (`task-20.md:251-255`);
   - task 52: `TeamReader`'s project mapping and Hub client, phase 2's problem bodies
-    (`task-52.md:614-619`).
+    (`task-52.md:626-631`).
 
 #### The contract text (the words the Hub's docs gain)
 
@@ -944,7 +944,7 @@ name; counterparts by cost, descending, then name.
 unchanged: 422 with `reason: "above_org_ceiling"` and
 `ceilingCents`, 409 `conflict` on a stale revision, 403 for a non-admin. The local control plane
 checks nothing the Hub checks (`task-52.md:42-43`). A solo project answers `GET` with an empty,
-`team: false` body and `PUT` with `409 not_team_project`, task 52's rule (`task-52.md:618-619`).
+`team: false` body and `PUT` with `409 not_team_project`, task 52's rule (`task-52.md:628-629`).
 
 #### The tests, first (each names the mutant it kills)
 
@@ -1057,7 +1057,7 @@ tests prove only the number keysmith sends.
 #### Gaps against the skeleton and the siblings, raised here and not resolved alone
 
 1. **Currency.** Task 37's owner line says *"A$0.50"* (`task-37.md:51-52`) and task 52's `Spend`
-   says *"Australia/Sydney day, in cents"* (`task-52.md:576`). This task fixes US cents and the
+   says *"Australia/Sydney day, in cents"* (`task-52.md:579`). This task fixes US cents and the
    UTC day (decisions a, c); tasks 37, 52 and 56 should say `US$` and UTC.
 2. **Task 43 is not on disk.** Its route-75 handler must create every team policy with
    `hubapi.DefaultQuotas` and accept this task's ceiling hunk; its name is assumed.

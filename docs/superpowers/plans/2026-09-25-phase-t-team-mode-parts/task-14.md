@@ -1036,7 +1036,7 @@ Expected before step 2: compile failures naming `NewStore`, `RegisterPolicy`,
 - [ ] **Step 3: Write `policy/store.go`, then `server/policy.go`, then the two `main.go` lines**
   `pol := policy.NewStore(st, time.Now); server.RegisterPolicy(srv, pol, hub)` after `server.New`,
   and `go server.SweepPendingPolicy(ctx, srv, pol, hub)` beside the other background loops. `hub`
-  is the `hubclient` Fleet view `main.go` already builds for the feed (`task-12.md:878-894`);
+  is the `hubclient` Fleet view `main.go` already builds for the feed (`task-12.md:908-924`);
   **nothing is appended to `kinds`** — activation does not ride the feed (b04). Run step 1's
   command. Expected: `ok` twice. Commit:
   `feat(fleet): OD-23 versions and routes; a version is live only once the Hub audits it`.

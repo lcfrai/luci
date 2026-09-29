@@ -118,7 +118,7 @@ func (a *API) registerOrchestrator(mux *routes)
 The attach route is phase 2's local attach shape with one difference: instead of dialling a
 sandbox with a stored secret (`api/attach.go:127-140`), it dials `fleetbe.AttachAgent` with the
 user's bearer and hands both sockets to `internal/proxy`, which relays the frames unchanged
-(`task-21.md:474-478`: *"the proxy relays them without knowing the backend"*). The origin check
+(`task-21.md:540-544`: *"the proxy relays them without knowing the backend"*). The origin check
 and the loopback-only rule of phase 2's handler apply before any Fleet call.
 
 #### `desktop/src/api/orchestrator.ts` (complete surface)

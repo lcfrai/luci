@@ -51,10 +51,10 @@ Global constraint 2). Option 0, the default, is "Do not send it"; option 1 is "S
 owner chooses option 1, Fleet re-runs the held verb as the same Orchestrator with
 `approvedBy: es-…`, and the verb validates again from scratch, because the world moved. Only a
 **decide the owner answered with option 1** releases a held action; the Hub's `TaintAllows`
-proves only that a decide was answered (`task-07.md:232-237`), so the choice check is Fleet's.
+proves only that a decide was answered (`task-07.md:239-244`), so the choice check is Fleet's.
 
 **(e) What the decide shows lives in the Hub.** What the human was shown is an accountability
-fact, so it is a Hub record (Global constraint 1). Route 64's body (`task-07.md:127-133`) has no
+fact, so it is a Hub record (Global constraint 1). Route 64's body (`task-07.md:132-138`) has no
 field for it, so this task **requires of task 07** an optional `evidence` object on a decide:
 `{"verb", "toAgentId"?, "task"?, "text"?, "read": [≤ 100 ids], "readTotal"}`. `text` is the
 `free` directive's own text (≤ 600, `text·A`), which the `dv-…` would carry anyway; **a held
@@ -146,7 +146,7 @@ G31-3**: task 22's method is renamed `InForce`, its comment changed; its key and
 - Requires of **task 07**: `TaintAllows` exempting the five typed kinds through
   `hubapi.DirectiveKind.Typed()`, **met by fix batch b07** (G31-1 closed); a decide's optional
   `evidence` object on route 64 (G31-2); route 67's body carrying task 01's `params`
-  (`task-01.md:440-441`), which task 07's shape (`task-07.md:160-166`) omits (G31-5).
+  (`task-01.md:440-441`), which task 07's shape (`task-07.md:161-167`) omits (G31-5).
 - Requires of **task 10**: the tables below in both stores and the suite, and `OutboxMarkSent`
   setting `directive_queue.hub_at = at WHERE outbox_id = id` in the same transaction.
 - Requires of **task 30**: `Effect{Kind: "send-held"}` and, in `OnAnswered`, `Held.Release(ctx,
@@ -215,7 +215,7 @@ type DirectResult struct {
 `direct` is registered with `control.OwnArgs("to")` (task 19), so a `to` that is another owner's
 agent, or no agent, is `agent_not_owner` before the handler runs. The handler adds the parent
 check: `to` must be a worker whose `Parent` is the caller (task 07's route 67 rule,
-`task-07.md:169-171`); a worker of the same owner under another Orchestrator is `agent_not_owner`
+`task-07.md:174-176`); a worker of the same owner under another Orchestrator is `agent_not_owner`
 too, so one of a person's Orchestrators cannot steer another's.
 
 **`taint.go`, the table and the judgement, complete.**
@@ -532,7 +532,7 @@ cd /c/Users/au-dev-dmackie1/Projects/PanaceaApp/.claude/worktrees/team && grep -
 Expected: no output. The verb has no approval field (`TestApprovalCannotComeFromArgs` is the
 behavioural half).
 
-The Hub half: task 07's taint table (`task-07.md:283-300`, run by `-run TestTaint`) against this
+The Hub half: task 07's taint table (`task-07.md:290-308`, run by `-run TestTaint`) against this
 task's issued payloads (`go test -tags integration ./internal/hub/server/ -run TestTaint`). With
 task 07 **since fix batch b07** both rows expect 201 and pass, because `TaintAllows` and this task's
 verb handler read the same `DirectiveKind.Typed()`. Before b07 they failed, which was G31-1. If
@@ -553,7 +553,7 @@ verb set before touching anything here.
 - **That `Within` is glob containment.** It is a conservative subset test; it refuses some
   narrows that are inside the scope and passes none that are not.
 - **That the Hub proves the choice.** The Hub checks that `approvedBy` names an answered decide of
-  the same owner; only Fleet checks it was option 1 (`task-07.md:232-237`).
+  the same owner; only Fleet checks it was option 1 (`task-07.md:239-244`).
 - **That origin `human` is true.** Fleet asserts it from the batch (task 26); the Hub records it.
   A compromised Fleet can claim `human` (task 01's R12).
 - **That the read list is complete evidence.** It lists ids the session was handed by `inbox` and
@@ -576,7 +576,7 @@ verb set before touching anything here.
   piggyback drains before the handler; this task makes it `InForce`.
 - **G31-4.** Task 30's `Effect.Kind` list (`task-30.md:334-335`) has no `send-held`, and
   `OnAnswered` has no hook to release a held act.
-- **G31-5.** Task 07's route 67 body (`task-07.md:160-166`) omits task 01's `params`
+- **G31-5.** Task 07's route 67 body (`task-07.md:165-171`) omits task 01's `params`
   (`task-01.md:440-441`), so a `narrow`'s globs and a `wait-for`'s lease have no Hub field. This
   task sends `params` per task 01.
 - **Skeleton.** The scope paragraph lists "a new task … or abandoning the task" but not a new

@@ -12,12 +12,12 @@ field for field (`types.ts:3-5`: *"Renaming a field here breaks at runtime, not 
 the names are binding."*). This task keeps both rules. It adds:
 
 1. **One Fleet route for live facts**, `GET /v1/projects/{p}/team` on `fleetd`, under task 12's
-   `VerbTeamRead` (`task-12.md:272`, *"the strip and task cards"*; viewer and up). Its body,
+   `VerbTeamRead` (`task-12.md:319`, *"the strip and task cards"*; viewer and up). Its body,
    `verbs.TeamHuman`, is the third sibling of task 22's `TeamWorker` and `TeamOrchestrator`, built
    from the **same** `verbs.Sources` (`task-22.md:77-88`; task 22 lists 52 under "Required by",
    `task-22.md:60`), so the three views cannot disagree about who holds what.
 2. **Two Fleet routes for the caller's own threads**, under `VerbThreadRead` (own only,
-   `task-12.md:299`): the open-thread list as typed state, and one thread's messages. Fleet reads
+   `task-12.md:346`): the open-thread list as typed state, and one thread's messages. Fleet reads
    them from the Hub's route 63 as Fleet·O under the caller's own Orchestrator delegation, the
    only principal route 63 admits for a participant's owner (`task-01.md:274`), and relays them.
 3. **The local routes** in `control-plane/internal/api/team.go`, which read those three Fleet
@@ -106,8 +106,8 @@ gateway a session happened to call. Task 56 renders it.
 **Interfaces:**
 - Consumes: task 22's `verbs.Sources`, `BriefRef`, `LeaseView`, `Quoted` (`task-22.md:77-246`);
   task 24's `Report` (`task-24.md:117-125`) through a new `Sources.Reports` reader; task 12's
-  `Server.Route`, `Principal`, `VerbTeamRead`, `VerbThreadRead` (`task-12.md:269-328`, `:522`);
-  task 21's `fleetbe.Backend` and `TeamProjects` (`task-21.md:295-317`); task 08's `hubclient.Team`
+  `Server.Route`, `Principal`, `VerbTeamRead`, `VerbThreadRead` (`task-12.md:316-375`, `:569`);
+  task 21's `fleetbe.Backend` and `TeamProjects` (`task-21.md:307-329`); task 08's `hubclient.Team`
   reads and writes (`task-08.md:80-122`); task 03's record types (`task-03.md:477-952`); task 02's
   `teamtext.Text` wire shape (`task-02.md:242-250`).
 - Produces: ST.8 as written below, verbatim; the fixtures; `teamSlice` for 53–56.
@@ -183,7 +183,7 @@ under a working agent. An agent whose status is `ended` is not listed; `starting
 #### The Fleet side: `server/desk.go` (complete)
 
 Three routes, each registered through task 12's `Server.Route`, so Entra runs per request and the
-verb table (`task-12.md:296-299`) decides who may call. None takes a body; none reads an owner from
+verb table (`task-12.md:343-346`) decides who may call. None takes a body; none reads an owner from
 anything but the `Principal`.
 
 | Route | Verb | 200 body | Refusals |
@@ -234,7 +234,7 @@ package fleetbe
 
 // Team, Threads and ThreadMessages call the three desk routes as the signed-in
 // user, through the same do() helper and error mapping as the rest of fleetbe
-// (task-21.md:464-470). projectID is the Hub's pj-… id.
+// (task-21.md:530-536). projectID is the Hub's pj-… id.
 func (b *Backend) Team(ctx context.Context, projectID string) (verbs.TeamHuman, error)
 func (b *Backend) Threads(ctx context.Context, projectID string) ([]server.DeskThread, error)
 func (b *Backend) ThreadMessages(ctx context.Context, projectID, threadID string,
@@ -720,7 +720,7 @@ func (a *API) registerTeam(mux *routes) // the ten routes above that task 21 doe
 
 `TeamReader.Projects` is typed `HubProjects`; task 21's `TeamProjects` stays as it is. Every Hub
 error is relayed with its own status and code (`hubclient.Code`), and every `fleetbe` error by
-its sentinel (`task-21.md:418`), as `teamlaunch.go` does.
+its sentinel (`task-21.md:479`), as `teamlaunch.go` does.
 
 #### `api/teamassemble.go` (complete surface; every function pure)
 
@@ -1192,8 +1192,8 @@ git commit -F <msgfile> -- control-plane/internal/api control-plane/internal/fle
   `fleetbe/team.go`; the three are required because only Fleet holds activity, presence and open
   thread state.
 - **G52-4.** No task maps the cockpit's project id (`p-…`, `types.ts:10`) to the Hub's `pj-…`
-  (since b01, task 21 resolves it through Hub task 35's S-LINK `Resolver`, `task-21.md:381-391`).
-- **G52-5.** Task 12's `Member.UserID` comment says `us-…` (`task-12.md:312`) where the Hub's
+  (since b01, task 21 resolves it through Hub task 35's S-LINK `Resolver`, `task-21.md:442-452`).
+- **G52-5.** Task 12's `Member.UserID` comment says `us-…` (`task-12.md:359`) where the Hub's
   prefix is `u` (`.claude/worktrees/hub/control-plane/internal/hub/hubapi/keys.go:18`, checked).
 - **G52-6.** `TeamSettings.dataClass` is phase 6's `{level, residency}` (task 56's request,
   `task-56.md:171-173`), but the Hub's team policy holds `dataClass` as a bare string (task 03,

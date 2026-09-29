@@ -52,7 +52,7 @@ Fleet row `(project, conflict, first, second)`; when the first side's task is `d
 becomes phase 3's land event; the row and the restore are unchanged.
 
 **(d) DECIDED WITHOUT YOU is an `inform` escalation written by Fleet.** It is task 07's route
-64 with `fromAgentId: ""` (Fleet for itself, `task-07.md:123-125`), `kind: "inform"`, under each
+64 with `fromAgentId: ""` (Fleet for itself, `task-07.md:128-130`), `kind: "inform"`, under each
 owner's own delegation, one per human. Its `question` is a product template filled from typed
 fields only (the resolution kind, the other owner's display name, globs or paths, the conflict
 id), never from a message's text. §6.5's "act; Fleet informs" rows are this same item.

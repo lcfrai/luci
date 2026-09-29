@@ -7,7 +7,7 @@ A person who leaves a team must stop acting on it, and so must every agent that 
 (`05-design.md` §2.4 item 4, `:174-181`). Task 11 built Fleet's half: a `delegation.revoked` on
 the feed, or a lapse on the clock, reaches one `Revoker` within 60 seconds (`task-11.md:47-56`).
 Tasks 20 and 39 built two of the effects: sandboxes destroyed and agents ended `access_removed`
-(`task-20.md:73-80`), sockets closed (`task-39.md:330-334`). Three pieces are missing, and this task
+(`task-20.md:79-86`), sockets closed (`task-39.md:330-334`). Three pieces are missing, and this task
 builds them, then proves the whole chain against the **real Hub**:
 
 1. **The Hub revokes a leaver's delegations.** Removing a member from a team (Hub task 15's
@@ -17,7 +17,7 @@ builds them, then proves the whole chain against the **real Hub**:
    real Hub "until task 44" (`task-08.md:287-290`); this task removes the skip.
 2. **Leases are withdrawn.** No part implements the lease effect of a revocation or a lapse: task
    23's `Engine` has `EndAgent` (`task-23.md:143`) and no `Revoker`. This task adds a four-method
-   adapter and joins it to task 12's fan-out (`task-12.md:976-999`).
+   adapter and joins it to task 12's fan-out (`task-12.md:1052-1075`).
 3. **A leaver still in the team but disabled in Entra is caught.** The 24-hour lapse catches them
    by itself, since only their own desktop renews (`task-06.md:132-141`). This task adds a check
    at every renewal and a daily sweep, both behind an `AccountState` interface with a fake, and
@@ -68,7 +68,7 @@ poll + one fan-out call (`task-11.md:565-567`), asserted as ≤ 60 s.
     `team-feed/member-removed-revokes` (`task-08.md:372`).
   - task 11: `delegation.Revoker`, `Reason` (`Revoked`, `Lapsed`), `Feed`, `Cache`, `Sweep`,
     `PollEvery` (`task-11.md:565-600`).
-  - task 12: the `fanout` (`task-12.md:976-999`); task 20: `Sessions.Revoke`/`Resume`; task 23:
+  - task 12: the `fanout` (`task-12.md:1052-1075`); task 20: `Sessions.Revoke`/`Resume`; task 23:
     `Engine.EndAgent` (`task-23.md:143`); task 39: `Relay.Revoke`/`Resume`.
   - Hub task 14: `Tx`, `Emit`, `Event`; Hub task 15: `RemoveMember`, the member role change.
 - Produces: `store.RevokeForLeaver`, `store.RevokeForAccount`, `store.LiveOwners`;
@@ -291,13 +291,13 @@ func (r Revoker) Revoke(ctx context.Context, d delegation.Delegation, why delega
 func (r Revoker) Resume(context.Context, delegation.Delegation) error { return nil }
 ```
 
-`cmd/fleetd/main.go` (task 12), after the line at `task-12.md:850`:
+`cmd/fleetd/main.go` (task 12), after the line at `task-12.md:911`:
 
 ```go
 	revokers.add(leases.Revoker{Engine: leaseEngine, Store: st})
 ```
 
-The fan-out tries every effect whichever fails (`task-12.md:984-991`), so a lease error does not
+The fan-out tries every effect whichever fails (`task-12.md:1060-1067`), so a lease error does not
 stop the sessions half, and the feed retries the whole act (`task-11.md:693-700`).
 
 #### Tests first

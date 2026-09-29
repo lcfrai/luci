@@ -1109,7 +1109,7 @@ func (f *Feed) pruneOrgs(live map[string]bool) {
 //
 //  1. It reads ForKey, not DelegationsInUse. That set is live-agents-only
 //     (task-10.md:96-100), but Stop ends the agent and enqueues agents.end in
-//     one breath (task-20.md:188, :340) and a restart delivers a backlog whose
+//     one breath (task-20.md:201, :360) and a restart delivers a backlog whose
 //     agents have all ended, so the row's delegation is routinely one no live
 //     agent runs under. The agent row survives the end and carries the dl-…
 //     (task-10.md:247), so ForKey answers where the in-use set cannot.
@@ -1222,14 +1222,14 @@ of every tick on both replicas, and by `Resolve` on a cache miss in the outbox.
 delegation with no live agent has nothing to stop and must never be resumed (`task-10.md:479`).
 `Resolve` reads `DelegationForKey`, which includes **ended** agent rows, because the rows it is
 resolving for are routinely an ended agent's: `Stop` ends the agent and enqueues `agents.end` in
-one breath (`task-20.md:188`, and `:340` for the revocation that does it to every agent of a
+one breath (`task-20.md:201`, and `:360` for the revocation that does it to every agent of a
 delegation at once), and a restart after a Hub outage delivers a backlog whose
 agents have all ended while the queue waited. Had `Resolve` shared the live-only read, a launch's
 **last** write would still dead-letter on the other replica, and the §2.2 scope test — an 11-minute
 Hub outage loses no write — would fail for exactly the case the outage creates. `Adopt` stays as
 the serving replica's fast path, not as the only path. Tasks 19, 20 and
 39 read this same `Cache` to decide whether a delegation is live (`task-19.md:225`,
-`task-20.md:133`, `task-39.md:174`); task 39's socket sweep closes a socket whose delegation is
+`task-20.md:138`, `task-39.md:174`); task 39's socket sweep closes a socket whose delegation is
 "gone from its cache" (`task-39.md:45-49`), which without `Refresh` would close every socket of
 every launch this replica did not serve.
 `TestASecondFeedSeesADelegationAdoptedOnTheFirst` is the two-`Feed` test that pins it.

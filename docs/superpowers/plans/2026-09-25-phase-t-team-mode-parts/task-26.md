@@ -578,7 +578,7 @@ func (s *Scheduler) TryBegin(ctx context.Context, orch model.AgentID) (bool, err
 }
 
 // TurnRecord is the ot-… body of task 07's route 69, POST …/turns
-// (task-07.md:175-180): id, orchestratorAgentId, origin, consumed ≤ 200,
+// (task-07.md:180-185): id, orchestratorAgentId, origin, consumed ≤ 200,
 // issued ≤ 100, tokens. Exit, Reply and ReplyTruncated are this task's
 // additions to that body, and Tokens optional; see "Requires of task 07".
 type TurnRecord struct {

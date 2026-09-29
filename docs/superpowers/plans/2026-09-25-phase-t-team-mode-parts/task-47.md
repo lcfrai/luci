@@ -49,7 +49,7 @@ the skeleton says (gap 1). Its rows are P01–P16 and P20–P22; this task adds 
   `SandboxSpec.Route`; the broker stamps `panacea-app/route` on every session pod (modify,
   **UNVERIFIED until merge**)
 - `cp/internal/fleet/sessions/sessions.go` (task 20): sets `Route` on the spec it already builds
-  (`task-20.md:270-284`) (modify: one field)
+  (`task-20.md:284-298`) (modify: one field)
 - `infra/terraform/modules/aks/*` (phase 8 task 06, planned): `advanced_networking` with
   `security_enabled = true` (modify, **UNVERIFIED until merge**)
 - `infra/scripts/guards.sh`, `guards_test.sh` (phase 8 task 01, built): G11, and the summary's
@@ -62,7 +62,7 @@ the skeleton says (gap 1). Its rows are P01–P16 and P20–P22; this task adds 
 - Consumes: phase 8 task 11's `networkpolicy-sandboxes.yaml`, its labels
   `panacea-app/component: sandbox | machine | balloon` (`task-11.md:147-159`); task 17's broker
   labels and the `panacea-app/source-addr` annotation (`task-17.md:70-87`); task 20's `route`
-  (`task-20.md:284`); task 32's (this plan) allow from sandbox pods to the gateway's service port
+  (`task-20.md:298`); task 32's (this plan) allow from sandbox pods to the gateway's service port
   and the Orchestrator class's egress, which stay as task 32 writes them; phase 8 task 32's
   `proving_test.sh` style (`task-32.md:48-54`).
 - Produces: the pod label `panacea-app/route: global | au`; `SandboxSpec.Route`; G11; the values
@@ -214,7 +214,7 @@ as remembered, **UNVERIFIED**; P28 checks it.
 The label is set by the broker from the spec, never by a caller-supplied label map: this task
 makes task 17's `WithLabels` (`task-17.md:325`) refuse the key `panacea-app/route`, so Fleet cannot
 spell `global` for an AU project by a second path. Fleet sets `Route` from the value it already
-reads through `gwire.RouteSource` before every create (`task-20.md:284`), and a route source error
+reads through `gwire.RouteSource` before every create (`task-20.md:298`), and a route source error
 still means no create. **A solo AU project's sessions still get `global` egress** until remotebe
 sends `Route` (gap 2).
 
@@ -410,7 +410,7 @@ pods in `panacea-sandboxes` (`task-32.md:6-9`).
 
 1. **Path.** The skeleton's `infra/smoke/kata/*` for phase 8 task 32 is `infra/smoke/proving/*` and
    `docs/verification/phase-8-kata-proving.md` (`task-32.md:17-19`, read on `feat/env` at
-   `9ef70c3`). The file map row (`2026-09-25-phase-t-team-mode.md:270`) should say so.
+   `9ef70c3`). The file map row (`2026-09-25-phase-t-team-mode.md:279`) should say so.
 2. **Solo AU projects.** `05-design.md` §2.5 gives the allowlist to "AU projects"; this task
    reaches team projects (Fleet always sends `Route`). A solo AU project gets it only when
    phase 6's `remotebe` path sends `SandboxSpec.Route`; no task in this plan or phase 6's (as far

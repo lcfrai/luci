@@ -314,7 +314,7 @@ directives, if task 04 has one, gains `'build-on'`.
 CLI, task 31's `DirectArgs` gains `Ref string` for this kind only). Task 31's handler admits it,
 from either turn origin, iff an applied `Outcome.BuildOn` has `Worker == To` and `Ref == Ref`
 and the caller is `Outcome.BuildOn.Builder`; otherwise `bad_request`. It is typed, so it passes
-the taint rule the way `narrow` does (`task-31.md:473`). The worker's instructions (task 41's
+the taint rule the way `narrow` does (`task-31.md:475`). The worker's instructions (task 41's
 `worker-cloud.md`) gain one fixed paragraph: *merge the named ref into your branch with `git
 merge --no-ff`, run the project's checks, and report* — the worker's own act in its own clone.
 

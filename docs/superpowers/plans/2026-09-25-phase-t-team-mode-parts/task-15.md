@@ -4,7 +4,7 @@
 ST.4), P8-14 (**built**: `control-plane/internal/sandbox/manager.go` on `feat/env`, `09ae70a`),
 P8-15 (**planned**: machine volumes, `phase-8 …/task-15.md`). Built here after `feat/env`'s
 sync-merge into `feat/team-mode`. **Seams:** consumes ST.4; produces `Spec.Class` and
-`Spec.PolicyFile`, which task 20 fills (`task-20.md:252-282`).
+`Spec.PolicyFile`, which task 20 fills (`task-20.md:266-296`).
 
 **This reopens built phase 8 task 14, as the design says it must.** `05-design.md` §11.2 names it
 *task 14b* (line 1145): *"an `orchestrator` class with no machine disk and no affinity, its own
@@ -27,7 +27,7 @@ not the one file is deliberate: the image's rootfs is read-only (`manager.go:337
 not cover. The fragment is not lost: task 13 renders it into the file (layer 2).
 
 **The Secret is `<pod>-policy`, beside the attach Secret, with the same lifecycle.** Task 20
-already writes against that name (`task-20.md:275-279`). Phase 8's `Create` treats the attach
+already writes against that name (`task-20.md:289-293`). Phase 8's `Create` treats the attach
 Secret as the id's claim and orders *Secret, Pod, owner reference* (`manager.go:352-363`); the
 policy Secret joins that order second, is deleted with the attach Secret when a pod create is
 refused, gets the same owner reference to the pod, and is deleted by `Delete`. A policy is not a
@@ -45,7 +45,7 @@ Secret and referenced like the attach token (`manager.go:218-223`), so neither t
 spec — the three task 16's `sandboxd` reads (`task-16.md:1072-1074`); and
 `PANACEA_APP_POLICY_SHA256`, which the manager computes itself from `PolicyFile`, so the file and
 its digest cannot disagree at the source. Task 20's spec builder puts four of these in `Env`
-(`task-20.md:258-265`); they would be refused, and that is recorded as a gap: task 20 sets the
+(`task-20.md:272-279`); they would be refused, and that is recorded as a gap: task 20 sets the
 fields instead.
 
 **The digest travels beside the file, and `sandboxd` checks one against the other before the

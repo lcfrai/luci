@@ -108,7 +108,7 @@ task 44's (task 23 assigns the transition there); this task builds Fleet's half.
 - Requires of **task 20**: a way to map a sample's `(projectId, worktreeId)` to the worker `ag-…`
   on it, and each live worker's machine id: `sessions.Lanes(ctx, org, project) ([]Lane, error)`
   with `Lane{Agent, Owner, Machine, Worktree}` (G35-1; it follows task 20's own gap S20-3,
-  `task-20.md:538-540`).
+  `task-20.md:650-652`).
 - Requires of **task 44**: the Hub route that records an admin's release and its feed kind
   `lease.admin_released` (G35-3).
 
@@ -346,7 +346,7 @@ Expected: no output: activity and presence are in memory only (global constraint
 
 - **G35-1.** Fleet cannot map a sample's `(projectId, worktreeId)` to a worker, or a worker to its
   machine, without task 20 recording both; task 20's own gap S20-3 says the worker's worktree is
-  not wired in TM1-α (`task-20.md:538-540`).
+  not wired in TM1-α (`task-20.md:650-652`).
 - **G35-2.** The skeleton lists no event kind for bulk; this task adds `lease.bulk` to task 09's
   model, and task 41's instructions must say what an Orchestrator does with it.
 - **G35-3.** The skeleton gives the admin's release to task 35, task 23 gives the transition to

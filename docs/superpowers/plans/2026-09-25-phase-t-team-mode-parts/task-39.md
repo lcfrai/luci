@@ -30,11 +30,11 @@ And, per global constraints, the route joins the Z5 role matrix (§3.4, §7.4 it
 Five decisions the scope left open, made here so nobody re-derives them.
 
 **(a) The route has no `{p}`, so the handler resolves the agent before it authorises.** Task 21
-fixed the path as `GET /v1/agents/{ag}/attach` (`task-21.md:92`). Task 12's `authorize` looks up
-membership by `r.PathValue("p")` (`task-12.md:419-420`), which is empty here. This task adds
+fixed the path as `GET /v1/agents/{ag}/attach` (`task-21.md:98`). Task 12's `authorize` looks up
+membership by `r.PathValue("p")` (`task-12.md:466-467`), which is empty here. This task adds
 `Server.RouteAgent`: it reads `{ag}` from task 10's agent rows, and runs task 12's `authorize` with
 that agent's project in place of `{p}`, then requires `agent.Owner == principal.UserID`. The verb
-is `VerbSessionsOwn` (`task-12.md:1076`: viewer no, member own, admin own, auditor no), so the
+is `VerbSessionsOwn` (`task-12.md:1154`: viewer no, member own, admin own, auditor no), so the
 route sits in the matrix like every other.
 
 **(b) Not yours and not there are one answer: `404 agent_not_found`.** The owner check runs
@@ -104,7 +104,7 @@ template typed under someone's hands.
 - Consumes, **written against these names; where the owning task spells one differently, it
   wins and this part is renamed mechanically**:
   - task 12: `entra.ClaimsFrom` (with the token's `exp`), `Server.authorize`, `Principal`,
-    `Allowed`, `VerbSessionsOwn`, `Membership.Lookup` (`task-12.md:321-442`);
+    `Allowed`, `VerbSessionsOwn`, `Membership.Lookup` (`task-12.md:368-489`);
   - task 11: `delegation.Cache.Get(Key, now)`, `Delegation`, `Key`, `Reason`, `Revoker`
     (`task-11.md:383-447`, `:572-585`);
   - task 10: `store.Store`'s agent read (`Agent(ctx, id) (model.Agent, error)`, with `Owner`,
@@ -153,7 +153,7 @@ const (
 	AttachedWithin = 30 * time.Second
 )
 
-// CodeAgentNotFound is task 21's 404 code (task-21.md:91-92), one answer for
+// CodeAgentNotFound is task 21's 404 code (task-21.md:97-98), one answer for
 // "not yours" and "not there" (decision b).
 const CodeAgentNotFound = "agent_not_found"
 
@@ -484,8 +484,8 @@ git commit -F <msgfile> -- control-plane/internal/fleet/relay control-plane/inte
   `fleetbe` (Go, no `Origin`). A browser client would need an explicit origin list; none exists.
 
 **Gaps against the skeleton, raised here and not resolved alone:**
-1. **Task 21's route has no `{p}`** (`task-21.md:92`) while task 12's `authorize` needs one
-   (`task-12.md:419-420`). Resolved here by `RouteAgent`, a new method on task 12's server; task
+1. **Task 21's route has no `{p}`** (`task-21.md:98`) while task 12's `authorize` needs one
+   (`task-12.md:466-467`). Resolved here by `RouteAgent`, a new method on task 12's server; task
    12's part should list it.
 2. **Task 11's `Revoker` runs on the leader only** (`task-11.md:591-593`); sockets are
    per-replica. Resolved here by a per-replica sweep over each replica's own `Cache`; tasks 20 and

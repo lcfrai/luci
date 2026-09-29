@@ -4,13 +4,13 @@
 morning and is **not** in the estimate. **dependsOn:** 58–68, every TM2 task; task 57's `proof`
 package and `teamproof` command (TM1's proof), whose shapes this task extends.
 
-TM2 is "one document" (skeleton `:377`): the record that shows the six things TM2 added work on
+TM2 is "one document" (skeleton `:386`): the record that shows the six things TM2 added work on
 the real environment, each with what was and was not observed. This task writes that record, the
 fixed run script two people follow, a collector that exports what the run left behind, and six
 verdicts in task 57's `proof` package, so every row says `PASS`, `FAIL` or `NOT RUN` with its
 evidence ids, computed from records, never from a screenshot (`CLAUDE.md`, working agreements).
 
-**The six items, as the verdict program reads them** (the skeleton's scope, `:1117-1121`):
+**The six items, as the verdict program reads them** (the skeleton's scope, `:1251-1255`):
 
 | # | Item | Read from | `PASS` when |
 |---|---|---|---|

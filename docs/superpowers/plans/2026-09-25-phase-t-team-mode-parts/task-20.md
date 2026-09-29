@@ -30,7 +30,7 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
 
 1. **`Launch` answers before the pod is ready.** The broker's create waits for `/healthz` for up to
    its `READY_TIMEOUT`, 120 s (phase 8 `task-22.md:94-95`). Task 21's `fleetbe` already expects Fleet to
-   answer first and polls for readiness (`task-21.md:236-238`). So `Launch` commits the row with status
+   answer first and polls for readiness (`task-21.md:248-250`). So `Launch` commits the row with status
    `starting` and returns `201`; a goroutine does the broker create, the address, the mint and the
    stream. A failure there ends the agent with `exitClass: failed` through the same outbox path, so
    the Hub's record is never left `starting` forever.
@@ -300,7 +300,7 @@ create happens (decision 8). A worker's `MachineMounts` (its worktree on the own
 task 24b's machine agent's to create and is **not** rendered in TM1-α (*Gap S20-3*); task 33's script
 prepares the clone.
 
-**Routes (task 21's wire, `task-21.md:85-92`), on task 12's server:**
+**Routes (task 21's wire, `task-21.md:91-98`), on task 12's server:**
 
 | Route | Verb (task 12) | Handler |
 |---|---|---|
@@ -309,7 +309,7 @@ prepares the clone.
 | `DELETE /v1/agents/{ag}` | `server.VerbSessionsOwn` | the caller's own agent only, else `404 agent_not_found`; `Stop(…, stopped)`; `204` |
 
 `AgentJSON` is built from `model.Agent` and holds no args, token, pod address or node (task 21's
-`TestAgentJSONHasNoArgs`, `task-21.md:137-140`, `:423`). `GET /v1/agents/{ag}/attach` stays task 39's.
+`TestAgentJSONHasNoArgs`, `task-21.md:149-152`, `:484`). `GET /v1/agents/{ag}/attach` stays task 39's.
 
 **Configuration** (task 12's `config.go`, a bad value fails start naming it):
 `PANACEA_APP_FLEET_INSTALL_ID` (32 lower-case hex), `PANACEA_APP_FLEET_GATEWAY_BASE_URL` (http(s), the
@@ -649,7 +649,7 @@ follows the key comparison (`TestAdoptRefusesAnotherOwnersDelegation`). A `Put` 
   batch b02 closed in tasks 01 and 06; they are no longer a dependency on an unwritten route.
 - **Gap S20-3 — a worker's worktree in the cloud.** The broker requires a machine and the worker needs
   its lane mounted from it; the machine-agent worktree call (phase 8 tasks 24b–25) is not wired here, and
-  task 21's `CreateAgentRequest` carries no machine or mount (`task-21.md:104-121`).
+  task 21's `CreateAgentRequest` carries no machine or mount (`task-21.md:110-127`).
   **Open, and deliberately so** (b07): it is TM1-α's one accepted manual step, not unplanned work.
   Task 33's E6 states it as an operator precondition beside E5's other human acts, and the lane
   mount is task 47's / phase 8 tasks 24b–25's. Nothing before task 33 is expected to close it, so it

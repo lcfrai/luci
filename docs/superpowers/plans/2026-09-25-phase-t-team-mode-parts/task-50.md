@@ -61,7 +61,7 @@ const TeamPointer = "Other people and their agents are working on this project a
 // there is nowhere to pass a teammate's words.
 type Options struct {
 	// Team is true for a session Fleet launched on a team project. A local
-	// session on a team project is "outside the team" (skeleton :641) and
+	// session on a team project is "outside the team" (skeleton :750) and
 	// renders the solo block, because it has no panacea verb to run.
 	Team bool
 }
@@ -84,7 +84,7 @@ section, and a heading would be product text the design did not write.
 
 In `render_test.go`, beside phase 4's own, with its helpers `branchBlock`, `resolve`, `b7` and
 `golden` (`render_test.go:100-130`, built). The first two are the scope paragraph's
-(`2026-09-25-phase-t-team-mode.md:954-955`).
+(`2026-09-25-phase-t-team-mode.md:1086-1087`).
 
 ```go
 func TestTeamRenderHasThePointerOnceAndIsDeterministic(t *testing.T) {
@@ -206,7 +206,7 @@ TM1 measures it as a rate (C6, `05-design.md:596-597`), in task 57.
 
 1. **"A team project" for the renderer.** The skeleton says "for a team project"; this part renders
    the paragraph only for a **Fleet-launched** session on one, because a local session on a team
-   project is *outside the team* (skeleton `:641`) and has no `panacea` verb, so the paragraph would
+   project is *outside the team* (skeleton `:750`) and has no `panacea` verb, so the paragraph would
    tell it to report `blocked` for nothing.
 2. **The Materialiser is unbuilt.** No non-test caller of `claudemd.Render` exists on
    `feat/phase-4-discover` at `f700613` (checked by grep). Phase 4's `contextwrite` task must take

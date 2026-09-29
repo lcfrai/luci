@@ -388,7 +388,7 @@ mirror_not_running`, `502 machine_unavailable`, `503 delegation_unverifiable`. `
 mirror; the `Sender` answers `""` for it, and no pair is asked, because nothing new reached the
 mirror. An agent that moved its branch **back** (`reset --hard HEAD~2`) therefore leaves the
 mirror's lane ref on the discarded commits until its next commit; phase 3's step 3b fix
-(`task-07.md:180-190`) is not repeated here, and the part says so in its non-claims.
+(`task-07.md:185-195`) is not repeated here, and the part says so in its non-claims.
 
 - [ ] **Step 1: Write the failing tests**
 

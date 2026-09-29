@@ -109,7 +109,7 @@ because piggyback has just delivered everything.
 - Consumes, **written against these names; where the owning task spells one differently, it
   wins and this part is renamed mechanically**:
   - task 31: `directive.Service.Issue`'s post-write hook (the ladder is called after the `dv-…`
-    is in the outbox, `task-31.md:121-125`), `Drain` (rung 1, unchanged);
+    is in the outbox, `task-31.md:122-126`), `Drain` (rung 1, unchanged);
   - task 19: `control.Caller` and dispatch; the upstream frame path (`task-19.md`);
   - task 17: the broker's attach relay under a delegation, reached through a one-method
     `AttachDialer` that `cmd/fleetd` implements with the same dialer task 39 uses;

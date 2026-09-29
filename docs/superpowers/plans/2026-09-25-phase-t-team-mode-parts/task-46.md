@@ -63,7 +63,7 @@ typed the words. Nobody may tombstone another person's record but an org admin.
   - from task 04: tables `notes` (immutable), `messages` and `human_messages` (append-only), each
     with a nullable `text` and `tombstoned_at timestamptz NULL`, under RLS, with task 04's guard
     trigger that refuses any `UPDATE` by `hub_app` (**task 04's part is not yet written**; the
-    column names are the skeleton's, `2026-09-25-phase-t-team-mode.md:460`).
+    column names are the skeleton's, `2026-09-25-phase-t-team-mode.md:485`).
   - from task 07: `RequireDesktop`, `RequireFleet`, the `team2World` fixture, route 70's handler.
   - from Hub task 27: `hubapi.EraseRequest` (`hubapi/types.go:565-567`, built), `markerHits`
     (`task-27.md:72`), the org-admin check and the feed's reason-stripping (`:76`).
@@ -291,7 +291,7 @@ row is task 30's, and this task only feeds it the note id.
 | `TestFleetCannotWriteANote` | Fleet·O under Linus's delegation `POST`s route 72 → 403 `required: "desktop"` | an Orchestrator writing notes that other Orchestrators then quote as a person's |
 | `TestAReplayAfterEraseHasNoWords` | route 72 with `Idempotency-Key: k1`; erase; `k1` again → 201, `Idempotent-Replay: true`, `text: null`, `tombstonedAt` set; same for route 70 | the stored-reply leak (Hub review I6) on the team routes |
 
-The first two are the scope paragraph's (`2026-09-25-phase-t-team-mode.md:915-917`) and are written
+The first two are the scope paragraph's (`2026-09-25-phase-t-team-mode.md:1047-1049`) and are written
 first. Every Hub test is an integration test (`//go:build integration`) on Hub task 06's harness
 and task 07's `team2World`, plus **Ada** (org admin, `Hub.OrgAdmin`, Hub task 11's
 `dev-tenant.json`) and **Xavier** (org 2). The three Fleet tests run on task 08's `hubclient` fake

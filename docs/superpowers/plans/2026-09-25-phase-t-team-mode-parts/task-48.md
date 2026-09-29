@@ -7,7 +7,7 @@ repository while nobody is signed in, **read-only, per project**; every push sti
 signed-in person's own credential (`2026-09-23-owner-decisions.md:150`). Three things need it: the
 slow-timer fetch that keeps lanes fresh (phase 3 task 12, `task-12.md:16-17`), a typed `rebase`
 directive (task 31), and the Orchestrator's view of `origin` (tasks 22, 25). Phase 3 today fetches
-**on the laptop**, with the machine's own git credential helper (`task-12.md:4-10`), which is
+**on the laptop**, with the machine's own git credential helper (`task-12.md:4-13`), which is
 exactly the case where nobody is there. This task is a delta on `feat/phase-3-git` (worktree
 `.claude/worktrees/phase-3`, read at `9935278`) and on phase 8's broker; **none of the files it
 extends is built** on either branch (phase 3 has no `remote`, `credstore` or `githost` code;
@@ -30,7 +30,7 @@ included (`05-design.md:1059-1062`).
 **Where it runs.** The broker holds the credential's source material and mints a token per fetch;
 the fetch itself runs in `machined` through phase 8 task 21's `POST /v1/git` with the header in
 `Env`, host-scoped exactly as phase 3's `PushEnv` scopes a push's (`task-13.md:168-175`; phase 8
-`task-21.md:173-202`). So in the cloud the phase 3 `remote.Fetcher` runs **in the broker**, over
+`task-21.md:185-214`). So in the cloud the phase 3 `remote.Fetcher` runs **in the broker**, over
 the remote `gitx.Machine` of each machine, and `machined` never stores a token. The lane mirror
 (task 59) is the only other caller. **No credential enters a session sandbox** (global rule 8).
 
@@ -57,10 +57,10 @@ the remote `gitx.Machine` of each machine, and `machined` never stores a token. 
   identity Read on one repository (new)
 
 **Interfaces:**
-- Consumes: phase 3's `remote.Auth`, `Fetcher`, `Push` (`task-12.md:28-126`), `credstore.Credential`,
+- Consumes: phase 3's `remote.Auth`, `Fetcher`, `Push` (`task-12.md:31-162`), `credstore.Credential`,
   `Store`, `Chain` and `githost.Remote`, `ParseRemote`, `GitAuthHeader` (`task-13.md:28-175`),
   `githost.Host` (`task-14.md:57-66`); phase 8 task 21's `POST /v1/git` and its credential-`Env`
-  rule (`task-21.md:92`, `:198-202`); task 17's delegation check for Fleet on broker routes.
+  rule (`task-21.md:98`, `:210-214`); task 17's delegation check for Fleet on broker routes.
 - Produces: `credstore.SourceProjectFetch`; `githost.Binding`, `FetchSource`, `GitHubApp`,
   `AzureDevOpsIdentity`, `FetchEnv`, `ProveAccess`; `remote.FetchOnly`, `ErrReadOnlyAuth`,
   `Fetcher.Authorize`; the broker's `FetchCredential`, two routes and audit line.
@@ -282,7 +282,7 @@ be confirmed. Sign in again, or ask the repository's admin."*
 
 #### Tests to write first
 
-The first two are the scope paragraph's (`2026-09-25-phase-t-team-mode.md:939-940`).
+The first two are the scope paragraph's (`2026-09-25-phase-t-team-mode.md:1071-1072`).
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|

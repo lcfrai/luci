@@ -97,7 +97,7 @@ would pass as a desktop token and dodge decision (b). The two lists are disjoint
 not start.
 
 **(i) `devissuer`'s grant checks the form, not the assertion.** Fleet sends a workload-identity
-client assertion (`task-12.md:723-729`). Offline there is no kubelet and no federated credential,
+client assertion (`task-12.md:770-776`). Offline there is no kubelet and no federated credential,
 so `devissuer` requires `client_assertion_type` to be the JWT-bearer URN and `client_assertion`
 to be non-empty, and verifies nothing else about it. That is the whole difference from Entra; it
 joins contract §6.4's list beside Hub task 12's spent-refresh rule (Hub `task-12.md:90-92`), and
@@ -539,7 +539,7 @@ no check of its own: the envelope's `check()` is the one rule (`task-03.md:1394-
 
 **`devissuer`, the client-credentials grant (decision i; ADR-H1 §5.10 rule 8).** Hub task 11's
 `Client` (`task-11.md:92-95`) gains three fields; the grant is a third row of Hub task 12's
-`/token` table (`task-12.md:71-74`).
+`/token` table (`task-12.md:103-106`).
 
 ```go
 // control-plane/internal/devissuer/config.go — Client, complete after this task
@@ -711,7 +711,7 @@ implementer uses whatever names the merged `tx.go` has (**UNVERIFIED until merge
 | `TestAppOnlyClaimsCarryNoAdmin` (`auth_test.go`) | a fake validator's `AppOnly` claims with `roles` ∋ `Hub.OrgAdmin` → `server.Claims.OrgAdmin` false, `Name`, `Email`, `BindEmail` "" | `OrgAdmin` read from an app token's roles |
 | `TestAppTokenFromTheGrant` (`token_test.go`) | the grant → 200 with no `refresh_token`, `id_token` or `scope`; the token validates under `entra.New(… AppCallers: [{fleet, Hub.Fleet}])` with `AppOnly`; its payload has no `scp`, `name`, `email`, `idtyp` | `scp` written into an app token (the Hub then answers 401 `client`), or `idtyp` written |
 | `TestAppGrantRefusals` | a public client → `unauthorized_client`; an unknown one → `invalid_client`; no assertion, or another assertion type → `invalid_client`; `scope` `…/Hub.Access` or an unknown API → `invalid_scope`; the unenrolled tenant (no service principal) → `unauthorized_client`; the Fleet client on `authorization_code` → `unauthorized_client` | the assertion check removed; a public client given an app token |
-| `TestFleetdsFormIsAccepted` | the exact `url.Values` of `task-12.md:723-729` → 200 | the two forms drifting apart |
+| `TestFleetdsFormIsAccepted` | the exact `url.Values` of `task-12.md:770-776` → 200 | the two forms drifting apart |
 | `TestEnvNamesFleet` | `Env()`'s last line is `PANACEA_APP_HUB_FLEET_CLIENT_ID=77777777-…`; with no confidential client the line is absent | a devstack whose Hub refuses Fleet |
 | `TestFleetClientIDIsChecked` (`config_test.go`) | `""` → `fleetCallers` nil; a non-GUID → the error names the variable; a value in `ALLOWED_CLIENTS` → the error names both | `serve` passing an `AppCaller` with an empty id |
 
@@ -866,13 +866,13 @@ built test that sends one to prove it is ignored.
 - **That the Hub caches nothing.** It does not: every request re-reads the delegation in its
   own transaction, so a revocation holds from the next request. What is not claimed is how soon
   Fleet *stops trying*; that is its feed poll (task 08) and task 44's end-to-end proof.
-- **`Principal.Auditor`.** Not added here; task 07 adds it (`task-07.md:40-41`), and must read it
+- **`Principal.Auditor`.** Not added here; task 07 adds it (`task-07.md:42-44`), and must read it
   only for a desktop token, as `OrgAdmin` is here (Gaps).
 - **The broker's admission.** Only the shared `entra` field is this task's; task 17 builds the
   broker's header rules and cache on it.
 - **That Fleet serves more than one tenant.** The Hub admits any enrolled tenant's Fleet token,
   and the dev file gives Fleet a service principal in two; `fleetd` caches one token per scope
-  (`task-12.md:714`, `:755`), so it acts for one tenant.
+  (`task-12.md:761`, `:802`), so it acts for one tenant.
 
 #### Gaps (raised in this task's return)
 

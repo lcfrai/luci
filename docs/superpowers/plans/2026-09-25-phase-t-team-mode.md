@@ -636,7 +636,7 @@ token`; `allowManagedHooksOnly` and `allowManagedPermissionRulesOnly` are true; 
 Orchestrator's allowed tools are `Bash(panacea *)` and `Read`; `forceLoginMethod` is absent. A
 later layer may add rules and tighten; an attempt to drop an invariant is an error naming it. **The
 two layers are not equally trusted**, because the org layer is an org admin's and the project layer
-is a *team* admin's (`task-12.md:339`): the project layer is a tighten-only allowlist —
+is a *team* admin's (`task-12.md:354`): the project layer is a tighten-only allowlist —
 `permissions.deny`, `permissions.ask` and a closed list of non-command scalars, every other key
 refused by name (**I14**) — and no layer of either scope may give the **orchestrator** class a
 command-bearing key (`hooks`, `statusLine`, `mcpServers`, `aws*`, any `*Helper`) or an unlisted

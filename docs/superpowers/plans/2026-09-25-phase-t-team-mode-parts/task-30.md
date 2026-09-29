@@ -92,8 +92,8 @@ choice do", out of the service.
   - task 23: `leases.Contested`, `leases.RightOfWay`, `leases.Side`, `Engine.Live`
   - task 26: `turns.Queue.Enqueue` with `escalation.answered`; `turns.Scheduler.CurrentTurn`
     (a `human ask`'s origin); `RecordIssued` for each `es-…`
-  - task 11: `outbox.Enqueue`, `OpEscalation`; task 07's route 64 body (`task-07.md:127-142`)
-    and route 65's answer shape (`:144-151`), read from task 08's feed kind
+  - task 11: `outbox.Enqueue`, `OpEscalation`; task 07's route 64 body (`task-07.md:132-147`)
+    and route 65's answer shape (`:149-156`), read from task 08's feed kind
     `escalation.answered` (**UNVERIFIED** that task 08 names it so; the feed row is task 01's
     event of that name)
   - task 01 §7.24's team policy: `escalationFloors`, `messageBudgets.threadDeadlineMinutes`
@@ -323,7 +323,7 @@ import (
 )
 
 const (
-	MinDecideDeadline = 30 * time.Minute // §6.5; the Hub refuses less (task-07.md:140-142)
+	MinDecideDeadline = 30 * time.Minute // §6.5; the Hub refuses less (task-07.md:145-147)
 	MaxDecideDeadline = 24 * time.Hour
 	MaxAskOptions     = 3                // + Fleet's option 0 = route 64's maximum of 4
 )
@@ -432,7 +432,7 @@ A choice applies as follows, in `OnAnswered`, each in one transaction with its o
 
 Every answer enqueues `escalation.answered` (task 26) for the asking Orchestrator, or for each
 participant's Orchestrator when Fleet asked, so the next turn sees the answer through `panacea
-inbox`'s escalation list. An answer after the deadline (task 07 accepts it, `task-07.md:148-150`)
+inbox`'s escalation list. An answer after the deadline (task 07 accepts it, `task-07.md:153-155`)
 is applied the same way when its effect is still possible, and otherwise recorded with an inform
 saying what already happened.
 

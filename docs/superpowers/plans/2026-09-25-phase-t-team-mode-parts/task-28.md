@@ -120,7 +120,7 @@ appending are neither a message's schema nor a limit.
   `storetest.Suite`.
 
 **`messages.go`, the types, complete.** The JSON is the `peer` verb's `args` on the ST.1 wire and,
-field for field, task 07's route 62 `fields` (`task-07.md:99-111`), so Fleet forwards typed
+field for field, task 07's route 62 `fields` (`task-07.md:104-116`), so Fleet forwards typed
 fields without re-shaping them.
 
 ```go

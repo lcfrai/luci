@@ -51,7 +51,7 @@ class, from one layer document per scope.
 **The two layers are not equally trusted, because their authors are not.** The org layer is written
 by an **org admin** (task 14, `VerbOrgPolicy`), the role already trusted with every sandbox in the
 org, so it stays a full Claude Code settings object. The project layer is written by a **team
-admin** (`task-12.md:315,339`), a role a project owner hands out — and a full settings object there
+admin** (`task-12.md:330,354`), a role a project owner hands out — and a full settings object there
 is code execution in every *other* member's pods: `hooks` and `statusLine.command` are command
 lines, `allowManagedHooksOnly` (I3) makes each hook in this file a managed hook and therefore one
 that runs, `apiKeyHelper`, `otelHeadersHelper`, `awsAuthRefresh` and `awsCredentialExport` are
@@ -102,7 +102,7 @@ agent (task 58's `panacea-mirror` is a plain program), so its file only locks th
 | I10 | no `permissions.deny` or `permissions.ask` rule would match a `panacea` command | ✓ | ✓ | — | I1 would be dead otherwise: a deny outranks an allow |
 | I11 | `disableAllHooks` is absent or `false` | ✓ | ✓ | ✓ | I5 would be dead otherwise |
 | I12 | no **org or project** layer sets `env.ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `CLAUDE_CODE_USE_BEDROCK` or `CLAUDE_CODE_API_KEY_HELPER_TTL_MS` | ✓ | ✓ | ✓ | the first two outrank `apiKeyHelper` (`phase-6 …/task-14.md:9`); the route and the TTL are phase 6's (launch environment, and the fragment) |
-| I14 | a **project** layer sets only allowlisted keys — `permissions.deny`, `permissions.ask`, and the closed list `cleanupPeriodDays`, `disableBypassPermissionsMode`, `includeCoAuthoredBy` — and any other key is refused, naming it | ✓ | ✓ | ✓ | its author is a **team** admin (`task-12.md:315,339`), not every member's root: OD-16 |
+| I14 | a **project** layer sets only allowlisted keys — `permissions.deny`, `permissions.ask`, and the closed list `cleanupPeriodDays`, `disableBypassPermissionsMode`, `includeCoAuthoredBy` — and any other key is refused, naming it | ✓ | ✓ | ✓ | its author is a **team** admin (`task-12.md:330,354`), not every member's root: OD-16 |
 | I15 | no layer of either scope gives the **orchestrator** class a command-bearing key: `hooks`, `statusLine`, `mcpServers`, `enabledMcpjsonServers`, `aws*`, any `*Helper`, or an `env` key outside `orchestratorEnv` | — | ✓ | — | its socket stamps its owner's session (task 16), so a command there speaks as that member: OD-16, §3.3 rule 1 |
 
 **I13 is task 41's** (`claudeMd`, `task-41.md:18,289`); this task leaves the id free and numbers its

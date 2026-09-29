@@ -13,7 +13,7 @@ project that is not enough: a release carries several people's work, and `05-des
 asks that the thread reach the release **with its people**. So a team release lists, per lane
 landed into it, the person whose agent made it, the `tk-…` task it served and that task's brief
 section. Phase 7, which calls Panacea's API, reads the list from the release; phase 7 has no plan
-on disk yet (skeleton `:1113-1114`), so this part defines **the Hub side only**.
+on disk yet (skeleton `:1247-1248`), so this part defines **the Hub side only**.
 
 Hub tasks 23 and 24 are planned, not built: the `Release` type exists (`hubapi/types.go:459-481`
 on `feat/hub`, checked), and `server/releases.go` and `store/releases.go` are task 23's new files

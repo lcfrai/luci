@@ -11,7 +11,7 @@ audit streamed to Log Analytics and Sentinel" (`ADR-H1:162-163`), and deferred t
 (`ADR-H1` §5.9 item 4, `:587-588`: "the chain head exported to Log Analytics hourly … phase 8's
 DCR"). The team-mode design brings that later forward: audit leaves the building **before team mode
 reaches anyone but the owner** (`05-design.md` §11.1, `:1132`), and the skeleton makes it part of
-the gate before the first real teammate (skeleton `:1029`).
+the gate before the first real teammate (skeleton `:1163`).
 
 This task builds three things:
 
@@ -728,7 +728,7 @@ bash infra/scripts/role-allowlist.sh
 2. **The skeleton lists task 45 as a Hub delta only**, but the stream needs a collection endpoint,
    two custom tables, a collection rule, Sentinel onboarding and two roles, none of which phase 8
    plans. This part carries them as a phase 8 delta on task 04's module and task 10's stack; the
-   skeleton's file map (`:261`) should name them.
+   skeleton's file map (`:270`) should name them.
 3. **`azapi` is a new provider** for phase 8, which pins azurerm alone (phase 8 `task-04.md:18`).
    If azurerm 4.81.0 can declare a custom table's columns, use that instead; either way it is a
    phase 8 owner call.

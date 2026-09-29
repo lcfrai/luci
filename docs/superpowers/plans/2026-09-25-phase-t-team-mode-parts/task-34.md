@@ -15,18 +15,18 @@ blob at `HEAD`, and the last commit's sha, subject and paths. Nothing it samples
 *read*: git does not know, and §3.3's activity row forbids "files read".
 
 **Built after the sync-merge of `feat/phase-3-git` and `feat/env`.** None of the extended code
-exists: phase 3 has no `converge` or `gitx` package yet (`task-07.md:19-26` and `task-02.md:19` of
+exists: phase 3 has no `converge` or `gitx` package yet (`task-07.md:19-27` and `task-02.md:19` of
 `.claude/worktrees/phase-3/docs/superpowers/plans/2026-09-23-phase-3-git-convergence-parts/`, plan
 only), and `control-plane/cmd/` on `feat/env` holds `api` only (read 2026-09-25). Every path below
 is **UNVERIFIED until merge**.
 
 **Why the hardening is this task's first concern.** Phase 3 lets the agent write its clone's
 `.git/config` and `.git/hooks` (R4.2), and `machined` holds the whole disk and the user's host
-token (P8-21, `.claude/worktrees/env/…/task-21.md:89-98`). A `git status` that obeyed the clone's
+token (P8-21, `.claude/worktrees/env/…/task-21.md:100-109`). A `git status` that obeyed the clone's
 `core.fsmonitor`, a `post-index-change` hook, a `diff.external` or a filter driver would run the
 agent's code in the machine pod, every five seconds. So every call goes through phase 3's
 `gitx.Exec` with §HGH's H1 prefix and H3's `Clone` refusal list, exactly as P8-21 runs every
-other clone call (`task-21.md:100-105`), and adds the four switches a *read* needs: `--no-ext-diff`,
+other clone call (`task-21.md:111-116`), and adds the four switches a *read* needs: `--no-ext-diff`,
 `--no-textconv`, `GIT_OPTIONAL_LOCKS=0` (status never rewrites the agent's index, so it runs no
 index hook and races no agent `git add`), and `-c core.untrackedCache=false`. Command-line `-c`
 outranks every config file, including one reached through `include.path`.
@@ -83,9 +83,9 @@ which can quote a path the hygiene would have refused.
 - Consumes:
   - P3-02: `gitx.Runner`, `gitx.Call{Dir, Args, Class, Scope, Env}`, `gitx.Read`, `gitx.Clone`,
     `*gitx.UntrustedConfig`, `gitx.MachineHardening` (as P8-21 names them,
-    `.claude/worktrees/env/…/task-21.md:31-52`, `:100-105`)
+    `.claude/worktrees/env/…/task-21.md:31-52`, `:111-116`)
   - P3-07: `converge.ParseStatus` over `PorcelainV2Z` and the `PathChange.Status` vocabulary
-    (`task-07.md:217-223` of phase 3)
+    (`task-07.md:224-230` of phase 3)
   - P8-20: `machineapi.DirLanes`, the `lanes/<projectId>/<worktreeId>` layout (`task-20.md:40-45`),
     the bearer check on every route
   - task 02: `teamtext.ValidPath`, `teamtext.Clean`, `teamtext.MaxPath` (200)

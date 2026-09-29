@@ -38,7 +38,7 @@ suite exists to catch.
 
 The skeleton's file map names `store/{store.go,memstore.go,pgstore.go}`; this part puts the two
 implementations in sub-packages, because task 12 imports `pgstore.Open` and `pgstore.Migrate` by
-that package name (`task-12.md:76`), and a `memstore` sub-package keeps `pgx` out of every test
+that package name (`task-12.md:108`), and a `memstore` sub-package keeps `pgx` out of every test
 binary that only needs memory.
 
 **The `pgx` pin.** The Hub pins `github.com/jackc/pgx/v5 v5.7.5`
@@ -396,7 +396,7 @@ UNVERIFIED** until task 32 writes the chart and the database identity.
 ```go
 // control-plane/internal/fleet/store/pgstore/pgstore.go (excerpts)
 
-// Open connects and pings. Task 12 calls it once at start (task-12.md:76).
+// Open connects and pings. Task 12 calls it once at start (task-12.md:108).
 func Open(ctx context.Context, dsn string) (*Store, error)
 
 func (s *Store) Pool() *pgxpool.Pool
@@ -457,7 +457,7 @@ passes on memory fails the same way it would on Postgres.
 `storetest.Run(t *testing.T, open func(t *testing.T) store.Store)` runs every row as
 `t.Run("<row>")` on a fresh store. `memstore_test.go` calls it with `memstore.New`;
 `pgstore_test.go` calls it with a fresh schema per row on the database named by
-`PANACEA_APP_FLEET_TEST_PG_DSN` (the variable task 12 reuses, `task-12.md:1023`), and **skips the
+`PANACEA_APP_FLEET_TEST_PG_DSN` (the variable task 12 reuses, `task-12.md:1101`), and **skips the
 whole run, saying so, when it is unset**.
 
 | Row | Asserts | Mutant it kills |
@@ -594,7 +594,7 @@ git commit -F .superpowers/sdd/team/msg/t10.txt -- control-plane/internal/fleet/
 - **Not row-level security.** Fleet's schema has one tenant, Fleet; every method takes an org,
   and no request reaches SQL without one. Hub-style RLS is not added (**a decision**, reversible
   by one migration).
-- **Not the runtime role or the Azure Postgres token flow** (task 32; `task-12.md:1212`).
+- **Not the runtime role or the Azure Postgres token flow** (task 32; `task-12.md:1294`).
 - **Not the thread working state**, which task 28's migration owns.
 - **Not a server.** Nothing here listens; task 12 opens it.
 

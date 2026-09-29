@@ -26,8 +26,8 @@ stream is refused and logged as a security event, because it can only mean a bro
 1. **One replica holds every stream.** Task 16's `sandboxd` keeps only the newest `/control`
    connection (its decision 1), so two replicas each holding a stream to one sandbox would supersede
    each other forever. The stream manager is a task 12 singleton, `server.NewSingleton(pool,
-   "streams", log)` (`task-12.md:70`); failover is the singleton's (`retry` and `check` 5 s,
-   `task-12.md:589`). Sharding by agent is a later change behind the same `Streams` type, not a TM1-α
+   "streams", log)` (`task-12.md:102`); failover is the singleton's (`retry` and `check` 5 s,
+   `task-12.md:636`). Sharding by agent is a later change behind the same `Streams` type, not a TM1-α
    one: a team of two people is a handful of sockets.
 2. **`Push` is durable and callable on any replica.** Task 26's scheduler claims a turn on whichever
    replica wins `ClaimTurn` and then pushes `turn.begin` (`task-26.md:509-511`). So `Push` writes a row

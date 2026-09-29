@@ -83,7 +83,7 @@ handed to the lane owner's `machined` as a bundle of `refs/heads/<branch>` only,
   and this part is renamed mechanically**:
   - phase 3 task 08: `ForecastQueue`, `Forecast`, `UndoneLand`, `CarriedUndone`, the fixed-identity
     forecast commit (`task-08.md:24-97`);
-  - phase 3 task 07: `LaneObservation`, `MergeTreeArgs`, `ParseMergeTree` (`task-07.md:225-283`);
+  - phase 3 task 07: `LaneObservation`, `MergeTreeArgs`, `ParseMergeTree` (`task-07.md:232-290`);
   - phase 3 task 24: `FetchLane`'s six steps, `BundleRefused`, `MaxBundleBytes`
     (`task-24.md:704-781`);
   - phase 3 task 02: `gitx.Exec`, `gitx.Machine`, `Call`, `Scope`, `Hardening`, the classes `Read`
@@ -123,7 +123,7 @@ type Lane struct {
 type Forecast struct { /* … task 08's fields, byte for byte … */ }
 type UndoneLand struct { /* … */ }
 
-// MergeTreeArgs and ParseMergeTree: moved from converge unchanged (task-07.md:268-283).
+// MergeTreeArgs and ParseMergeTree: moved from converge unchanged (task-07.md:275-290).
 var MergeTreeArgs = []string{"merge-tree", "--write-tree", "--name-only", "-z"}
 
 func ParseMergeTree(stdout []byte, exitCode int) (tree string, conflicted []string, err error)

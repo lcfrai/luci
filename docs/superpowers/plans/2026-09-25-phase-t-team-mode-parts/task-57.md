@@ -3,7 +3,7 @@
 **Slice:** TM1. **Focused time:** 3 h of writing and wiring, plus the run itself, which is two
 people's afternoon and is **not** in the estimate. **dependsOn:** 33–56, every TM1 task; task 33's
 pass (TM1-α), without which TM1 was re-planned and this part is re-read against the new plan.
-**Holds:** the 3-day G9 contingency (`05-design.md` §12.1 stream G; the skeleton, `:882`).
+**Holds:** the 3-day G9 contingency (`05-design.md` §12.1 stream G; the skeleton, `:1012`).
 
 TM1 is done only on the real environment, with two real people (`05-design.md` §12.1). This task
 writes the record those two people fill, the collector that exports what the run left behind, and

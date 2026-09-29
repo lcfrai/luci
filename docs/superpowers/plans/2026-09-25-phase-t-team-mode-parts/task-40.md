@@ -62,7 +62,7 @@ origin `human`, `Mode: resume` on the current uuid (or `new` if there has never 
 `Until = now + DiveMax` (2 h). The claim is what makes Fleet's scheduler start nothing while the
 owner is inside (`task-26.md:565-566`), so team events queue exactly as they do behind any turn,
 and `CurrentTurn` returns the DIVE's `TurnRef` with origin `human`, which is the hook task 31
-left for this (`task-31.md:41-44`). Rotation is never due inside a DIVE: the owner dives into the
+left for this (`task-31.md:42-45`). Rotation is never due inside a DIVE: the owner dives into the
 conversation they can see, not a fresh one.
 
 **(f) The runner hands its own PTY to the interactive child, and reads nothing.** The runner is
@@ -127,7 +127,7 @@ e); neither can live in the pod.
   - task 39: `Server.RouteAgent`, the 404 fold, the owner check (`task-39.md`);
   - task 22: the team view (`TeamResult`); task 28: `Store.OpenThreads` (`task-28.md:397`);
     task 30: the owner's policy rows; task 07: the human messages read (`hm-…`);
-  - task 31: `CurrentTurn`'s origin drives the directive's `origin` (`task-31.md:132-133`).
+  - task 31: `CurrentTurn`'s origin drives the directive's `origin` (`task-31.md:133-134`).
 
 #### `control-plane/internal/fleet/turns/rotate.go` (complete)
 
@@ -361,8 +361,8 @@ record's `consumed` is empty (a DIVE consumes no event; the queued ones run afte
 of task 07**: route 69 accepts a second write to the same `ot-…` id when the first carried
 `dive-started` (a revision, not a new record), or the start is its own `ot-…` and the end another;
 this part prefers the first and lists it. Every directive issued inside a DIVE is `origin: human`,
-because `CurrentTurn` returns the DIVE's claim (`task-31.md:41-44`) and task 31's gate lets a
-human-origin `free` pass (`task-31.md:471`).
+because `CurrentTurn` returns the DIVE's claim (`task-31.md:42-45`) and task 31's gate lets a
+human-origin `free` pass (`task-31.md:473`).
 
 #### The routes, `server/dive.go`
 

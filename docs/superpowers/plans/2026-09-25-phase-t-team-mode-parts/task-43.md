@@ -78,7 +78,7 @@ rewritten: one ratchet for solo and team projects.
     `RoutePolicyRead`, `AppRoleAuditor`, `AppRoleCompliance` (`task-03.md:279-285`, `:365-366`,
     `:388`, `:890-924`).
   - task 06: `RequireDesktop`, `RequireFleet` (`task-06.md:355-376`), `teamWorld`, `everyTeamWrite`
-    (`:461-473`, `:555-556`); task 07: `newTeam2World`, Audrey (`task-07.md:311-316`).
+    (`:461-473`, `:555-556`); task 07: `newTeam2World`, Audrey (`task-07.md:319-324`).
   - Hub task 16b: `row`, `column`, `fixture`, `allRows`, `TestEveryRouteHasAMatrixRow`,
     `disableGoAuthz`, `server.Patterns()`; Hub task 14: `Principal`, `Tx`, `Refuse`, `Forbidden`,
     `Emit`.
@@ -462,7 +462,7 @@ to `dev-tenant.json`) and Xavier (org 2).
 | `TestTheXColumnHoldsWithoutGoChecks` (Hub 16b's, extended) | every team row's `tcX` cell is 404 or `empty` with `disableGoAuthz` on; no 500 | a tenancy line held by Go alone on a team route |
 
 `TestAMemberLoweringTheRouteIs403` and `TestAFloorThatRemovesAskingIsRefused` are the scope's
-(`2026-09-25-phase-t-team-mode.md:895`) and are written first, with the matrix.
+(`2026-09-25-phase-t-team-mode.md:1025`) and are written first, with the matrix.
 
 #### Fleet reads the policy
 

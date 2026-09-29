@@ -85,7 +85,7 @@ saying the time is the honest answer, and a spinner per row is forbidden anyway.
     `PutQuotasRequest`, `GET`/`PUT /v1/projects/{projectId}/team/quotas`, `details.reason =
     "above_org_ceiling"` with `details.ceilingCents` (`task-66.md`, *api/teamquotas.go* and the
     route-75 hunk);
-  - task 52: `createTeamClient`, its `send` through `createTransport` (`task-52.md:945-980`),
+  - task 52: `createTeamClient`, its `send` through `createTransport` (`task-52.md:960-996`),
     `ProjectId` (`store/types.ts`);
   - task 56: `SpendLine(props: { settings })` and its `usd(cents)` helper over phase 6's
     `formatUsd` (`task-56.md:305-319`; `formatUsd` is phase 6 task 22's, **UNVERIFIED until

@@ -88,7 +88,7 @@ tier, paths, line ranges and the two agents, and no time estimate. The decision 
     (**not yet written; required of task 34**, see the gaps);
   - task 06: route 57's `paths[].lines`, `≤ 20` ranges, `1 ≤ start ≤ end` (`task-06.md:286-288`);
   - task 12: `server.NewSingleton(pool, name, log)` and `(*Singleton).Run`
-    (`task-12.md:70`, `:588-597`);
+    (`task-12.md:102`, `:635-644`);
   - task 10: `store.Store.Tx` (`task-10.md:90-91`).
 
 #### `tierh.go` (complete)

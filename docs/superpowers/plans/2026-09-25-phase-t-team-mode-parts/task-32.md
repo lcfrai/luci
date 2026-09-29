@@ -73,7 +73,7 @@ serving process only verifies the schema is at head when `PANACEA_APP_FLEET_MIGR
 (gap G32-3).
 
 **(f) Fleet calls the Hub and the broker at their https URLs.** `PANACEA_APP_FLEET_HUB_URL` and
-`_BROKER_URL` must be `https` (`task-12.md:97`, `task-19.md:504`), and in the cluster TLS ends at
+`_BROKER_URL` must be `https` (`task-12.md:129`, `task-19.md:504`), and in the cluster TLS ends at
 Traefik, so Fleet goes through the edge like the desktop, with the same token checks. Its policy
 allows egress to Traefik's pods on the edge's HTTPS container port **and** to 443 outside the
 private ranges; which one a pod actually takes depends on how `hub.<zone>` resolves inside the
@@ -92,7 +92,7 @@ cluster, **UNVERIFIED**, and task 33 records it. Keysmith is plain http inside i
   sandbox policies (modified; P8-11's files)
 - `deploy/charts/gateway/templates/networkpolicy.yaml` — keysmith admits Fleet's pods on 4100;
   `deploy/charts/gateway/values.yaml` — keysmith's Fleet caller entry on (modified; P6-19's files;
-  task 20 left the entry off, `task-20.md:489-491`)
+  task 20 left the entry off, `task-20.md:587-589`)
 - `deploy/charts/edge/templates/networkpolicy*.yaml` — Traefik admits `panacea-fleet` pods on its
   HTTPS port (modified; P8-13's file, **UNVERIFIED** name until merge)
 - `deploy/tests/netpolcover/netpolcover_test.go` — add `fleet` to the rendered charts; two cases
@@ -108,7 +108,7 @@ cluster, **UNVERIFIED**, and task 33 records it. Keysmith is plain http inside i
 **Interfaces:**
 - Produces:
   - the chart `fleet`, values below, and the environment `fleetd` reads (task 12's table,
-    `task-12.md:93-111`, plus tasks 19 and 20's additions)
+    `task-12.md:125-147`, plus tasks 19 and 20's additions)
   - pod labels other charts select on: `app.kubernetes.io/name: fleet`,
     `app.kubernetes.io/component: server` (serving) and `migrate` (the Job)
   - the platform's `sandbox-egress-gateway` and `orchestrator-egress` policies, and the
@@ -129,7 +129,7 @@ cluster, **UNVERIFIED**, and task 33 records it. Keysmith is plain http inside i
 - Requires of **tasks 10 and 12**: an Entra token for Postgres per connection (pgx `BeforeConnect`
   with the workload identity), switched by `PANACEA_APP_FLEET_PG_AUTH=entra`, as the Hub's
   `PANACEA_APP_HUB_DB_AUTH=entra` (`task-29.md:155`). Task 12 leaves the flow **UNVERIFIED** and
-  names tasks 10 and 32 (`task-12.md:1214`); this chart sets the variable and task 12 must read it
+  names tasks 10 and 32 (`task-12.md:1294`); this chart sets the variable and task 12 must read it
   (G32-4).
 
 #### Contract — `deploy/charts/fleet/values.yaml` (complete)
@@ -205,7 +205,7 @@ session burst); `topologySpreadConstraints` over `topology.kubernetes.io/zone`, 
 `whenUnsatisfiable: ScheduleAnyway`; `terminationGracePeriodSeconds: 30`;
 `automountServiceAccountToken: false`; non-root, read-only root, all capabilities dropped,
 `RuntimeDefault` seccomp (`restricted` Pod Security, `task-11.md:93-99`); requests equal limits
-from `resources`. Liveness `/healthz`, readiness `/readyz` on 8080 (`task-12.md:40-45`). Volumes:
+from `resources`. Liveness `/healthz`, readiness `/readyz` on 8080 (`task-12.md:61-66`). Volumes:
 the CSI secret (`/run/panacea/fleet/control-key`, read-only) and a projected service-account
 token with `audience: <gatewayService.keysmithAudience>`, `expirationSeconds: 3600`
 (`/run/panacea/fleet/keysmith/token`). The environment, every variable literal:

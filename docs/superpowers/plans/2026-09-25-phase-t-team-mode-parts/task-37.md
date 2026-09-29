@@ -100,7 +100,7 @@ turn: the digest. The turn input is still `Input(n)`; the Orchestrator reads wha
   - `budget.Split`, consumed by task 56's spend line;
   - routes `GET`/`PUT /v1/projects/{p}/orchestrator/budget`, `POST /v1/projects/{p}/pause`,
     `POST /v1/projects/{p}/resume`, `GET /v1/projects/{p}/spend`, each through task 12's
-    `Server.Route` under `VerbSessionsOwn` (`task-12.md:520-527`, `:1076`), so each joins Z5.
+    `Server.Route` under `VerbSessionsOwn` (`task-12.md:567-574`, `:1154`), so each joins Z5.
 - Consumes, **written against these names; where the owning task spells one differently, it
   wins and this part is renamed mechanically**:
   - task 26: `turns.Queued`, `turns.Ready`, `turns.Immediate`, `turns.MaxBatch`,
@@ -464,7 +464,7 @@ hour"*) and, when it applies, the fact (*"this hour's budget is used"*); nothing
 #### The routes, `server/budget.go`
 
 All four are registered with `s.Route(pattern, VerbSessionsOwn, h)`, so each is `member`/`admin`,
-own only (`task-12.md:1076`), joins the Z5 matrix, and takes the owner **from the token**, never
+own only (`task-12.md:1154`), joins the Z5 matrix, and takes the owner **from the token**, never
 the body (global constraint 3).
 
 ```jsonc
@@ -684,7 +684,7 @@ git commit -F <msgfile> -- control-plane/internal/fleet/budget control-plane/int
    Until then the gate uses `DefaultTurnsPerHour`, which is the ceiling's maximum, so the owner's
    own lower setting still binds.
 4. **Task 31 has no human-origin issuer.** Its `Issue` takes an Orchestrator `control.Caller`
-   (`task-31.md:121-125`); a human `pause` has no Orchestrator call behind it. Required of task 31:
+   (`task-31.md:122-126`); a human `pause` has no Orchestrator call behind it. Required of task 31:
    `IssueHuman(ctx, owner, worker, kind)` for `pause` and `resume` only, writing the `dv-…` with
    origin `human` through the same outbox path. Task 09 also lacks `EventThreadResolved` and
    `EventSequenceGo` (`task-09.md:213-221`), which tasks 26 and 37 use.

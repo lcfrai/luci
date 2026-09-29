@@ -281,7 +281,7 @@ button stays enabled: the server's refusal names the reason, and task 19's banne
 
 #### Tests to write first
 
-The first three are the scope paragraph's (`2026-09-25-phase-t-team-mode.md:947-949`). The
+The first three are the scope paragraph's (`2026-09-25-phase-t-team-mode.md:1079-1081`). The
 `converge` tests run on phase 3's `gitxtest` repositories; the Hub tests are integration tests on
 task 07's `team2World`.
 

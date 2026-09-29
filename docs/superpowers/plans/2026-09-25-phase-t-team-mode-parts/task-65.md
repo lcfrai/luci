@@ -78,7 +78,7 @@ approver's (gap 2).
 
 **(e) The version a card shows is the one its pod started with.** `digests.json` gains
 `"claudeCode": "<the label>"`. The deploy passes it to Fleet as `PANACEA_APP_FLEET_CLAUDE_VERSION`,
-and task 20's `LaunchRequest.Version` (`task-20.md:154`) is read from that config at each launch,
+and task 20's `LaunchRequest.Version` (`task-20.md:161`) is read from that config at each launch,
 so the Hub's agent record carries the version of the digest that pod was created from. A Restart is
 a new pod and a new record.
 
@@ -555,7 +555,7 @@ status,time` (phase 6 `parts/task-12.md:208`, the `request` line at `:874`), whi
 by test. The gate identity must be able to read those logs (gap 1).
 
 **Fleet, the launch version and the mirror image** (`cmd/fleetd/config.go`, task 12's block at
-`task-12.md:95-130`, two constants, two fields, two checks):
+`task-12.md:127-177`, two constants, two fields, two checks):
 
 ```go
 	envClaudeVersion = "PANACEA_APP_FLEET_CLAUDE_VERSION" // required: MAJOR.MINOR.PATCH, image-digests' claudeCode
@@ -577,7 +577,7 @@ by test. The gate identity must be able to read those logs (gap 1).
 
 `internal/fleet/sessions/sessions.go` (task 20): `Config` gains `ClaudeCodeVersion string`, set
 from the above by `fleetd`'s wiring; `Launch` gains one line before the agent record is built
-(`task-20.md:391`), so a caller cannot choose the version a record shows:
+(`task-20.md:432`), so a caller cannot choose the version a record shows:
 
 ```go
 	if r.Harness == "claude-code" {

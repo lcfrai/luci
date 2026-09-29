@@ -223,8 +223,8 @@ git commit -F <msgfile> -- desktop/src/components/desk desktop/src/main.tsx
 
 **Gaps (for the skeleton's owner).**
 - **G54-1.** Task 54 depends on phase W task 62's Desk frame (SW.17), which the skeleton's row
-  (`2026-09-25-phase-t-team-mode.md:372`, dependsOn `52, 53`) does not list, and which sits
-  uneasily with OD-25 as the skeleton reads it (*"Nothing here waits on W"*, `:102`). Either
+  (`2026-09-25-phase-t-team-mode.md:381`, dependsOn `52, 53`) does not list, and which sits
+  uneasily with OD-25 as the skeleton reads it (*"Nothing here waits on W"*, `:104`). Either
   dependsOn gains `W-62`, or the frame moves into this plan; W's plan says the former
   (`2026-09-25-phase-w-work-layer.md:100-101`, *"team mode adds rows to the frame task 62
   builds, never a second Desk"*).

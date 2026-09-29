@@ -555,7 +555,7 @@ kind `CHECK`s hold for an erased row. The per-kind `fields` keys, and `accept`·
 database can bound each label (80) and consequence (200) without parsing JSON; both texts are the
 question's author's, so they carry no author columns of their own (`task-03.md:765-769`). A
 question Fleet raises for itself is `agent` text naming **no** agent, the one place an agent text's
-`x_agent` is `NULL` (`task-07.md:125`: `fromAgentId` is `""` then), so its triple is checked by
+`x_agent` is `NULL` (`task-07.md:130`: `fromAgentId` is `""` then), so its triple is checked by
 hand rather than through `text_ok`. `directives.read_ids` is task 03's `read`, renamed because a
 bare `read` column reads like a verb in every query.
 
