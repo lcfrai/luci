@@ -38,7 +38,69 @@ withdraws the points they answer:
 
 ### 2.1 Critical
 
+None. Both round-1 Criticals are closed at the root (§1), and nothing below stops a plan edit.
+
 ### 2.2 Important
+
+**I1. No route reads a past revision of a term or a decision, yet four parts of the design
+render one.** This is a consequence of C1's fix. §2.4 (11:376-382), §5.1 (11:614-622), §5.2
+(11:674-677), §6.1-6.2 (11:780-788).
+- **What reads a pinned revision today.** A brief's branch revision pins a project revision, and
+  the block prints that pinned text in its override note, `s.Replaced` (p4 `claudemd/render.go:92-93`).
+  `discoverhub` fetches it "by its key, in one /v1/refs call" (p4 `discoverhub/read.go:572-605`).
+  The brief has two reads for this: `/v1/refs` for a past revision's text, and
+  `/v1/briefs/{id}/revisions` for its history (HC:790-796).
+- **What the design leaves.** It has six new routes: two lists, "each the heads of one project",
+  two batch writes and two erasures (11:376-380). "The resolver `GET /v1/refs` … does not change:
+  no struct reaches it" (11:380-382). Nothing else reads revision *n* of a record.
+- **Where the design needs such a read:**
+  - A departure's origin line prints `<old decision>`, and a *not here* line prints
+    `<the project's decision>` (11:614-622). Both name the revision the departure pins (11:279-284).
+  - A departure shows *Project: <definition>* once the project entry has moved past its pin
+    (11:786-788).
+  - The *History* disclosure (11:780-782).
+  - The claim that "every struct in the record names an immutable revision that reads back for
+    ever", and that the block "re-derive[s] byte for byte" (11:674-677).
+- **What fails if the lists are built as heads**, which is how 11:378 reads:
+  - The Materialiser cannot print a departure's origin line from its pin. If it prints the head's
+    text instead, the digests no longer cover that text. The overlay drops the overridden project
+    entry from the branch's set (11:296-297). So when the project revises that entry, the rendered
+    text moves but the marker's two digests do not. `Inspect` then renders, compares, and calls
+    the block `edited` (p4 `inspect.go:208-215`). That is round 1's I2 again, for every branch
+    that departs.
+  - After any revise, what a session was given can no longer be read back, so §5.2's provability
+    claim fails.
+- **What it costs if the lists hold every revision** ("every revision's fields", 11:379): every
+  session start reads the whole history of every record in the project, to the last page, inside
+  the 5-second budget (11:590-594). It needs only the heads, plus the few revisions that
+  departures pin.
+- **Fix.**
+  - Say the lists return heads, and state their order: "Order is stated per route" (HC:48-49).
+  - Add one read per kind to §18: a record's revisions with their fields, or a `?revision=` on
+    one record.
+  - Have the Materialiser read the pinned revisions of the entries a branch overrides, one call
+    per kind.
+  - Price it at about 2 h across Hub 46 and 48b and phase 4's 27. This is part of what the struct
+    costs, so Q2's "about 3 h more" for key forms (11:989) should shrink by the same amount.
+
+**I2. An erased term's word survives in its head, and the scan test that would catch it cannot
+see it.** §2.6 (11:404-434).
+- **The head keeps a copy.** "Each head is a guarded state machine holding the current folded
+  word, scope and state for the unique index" (11:407-408). Erasure empties every revision and
+  takes the head out of force (11:331). "The text goes; the id, digest, number, `savedAt` and
+  `savedBy` stay" (11:424-425). Nothing clears the head's folded word, and the function erasure
+  is modelled on, `hub.erase_brief`, has no head text to clear (HC:1115-1127).
+- **The test is blind to it.** `markerHits` matches `strpos(col::text, marker) > 0`, and the
+  marker is `ZQX-MATTER-4471` (`T:27.md:72`). That match is case-sensitive, but the head holds
+  the folded copy, `zqx-matter-4471`. So task 27's scan, extended to "a term and a decision
+  holding its marker" (11:431-434), passes while the word is still in `terms`.
+- **Why it makes the product wrong.** Erasure exists because "a definition can hold client text
+  just as an answer can" (11:424). A word can be a client's codename. An org admin who erases it
+  for a client is told the text is gone, and it is not.
+- **Fix.**
+  - `hub.erase_term` sets the head's folded word to `null`, and task 47's database test checks it.
+  - Task 27's scan also searches for `FoldWord(marker)`, and puts the marker in `word`.
+  - About 0.25 h, in Hub 47 and 48b.
 
 ### 2.3 Minor
 
