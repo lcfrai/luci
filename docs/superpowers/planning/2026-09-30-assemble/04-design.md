@@ -34,7 +34,50 @@ planned), which pins the call to the project's own file.
 
 ## 3. Candidates
 
-_Pending._
+Glasses (local catalogue and the lcfr.ai MCP, both snapshot `2026-09-29T04:25Z`) holds exactly one
+whole product for this capability: **Onlook**. Searches for penpot, excalidraw, tldraw, grapesjs,
+plasmic, webstudio, whiteboard, "design canvas mcp" and "figma alternative open source" returned
+nothing. Every other candidate below came from the web. Licences are from the project's own
+`LICENSE`, README or npm `license` field, read 2026-09-30, unless marked.
+
+### 3.1 Penpot + its official MCP server — ADOPT (the recommendation)
+
+| | |
+|---|---|
+| **What it does** | Open-source design and prototyping tool: boards, components and variants, CSS flex and grid layout, prototyping, comments, version history, native design tokens, plugins, real-time multiplayer. The **official MCP server** (in `penpot/penpot` under `mcp/` since the separate repo was archived in Feb 2026) lets an agent run Plugin-API code in an open file. Tools: `execute_code`, `high_level_overview`, `penpot_api_info`, `export_shape`, `import_image`. The Plugin API's `generateMarkup({type:'html'})` and `generateStyle({type:'css'})` turn shapes into HTML and CSS |
+| **Licence** | **MPL-2.0** (repo page; the Helm chart repo is MPL-2.0 too). Allowed. File-level copyleft only: running it unmodified carries no source duty, and hosting it as SaaS is not distribution at all. If we patch a Penpot file and ship it into a customer tenancy, that one file's source goes with it. Our glue is separate code and stays ours |
+| **Deploys** | Self-host: official Helm chart (`helm repo add penpot https://helm.penpot.app/`), Docker Compose, OpenShift. Parts: frontend (nginx), backend (JVM), exporter (headless Chromium), `penpot-mcp` (its own container since 2.17, proxied at `<public-uri>/mcp/stream`), PostgreSQL, Valkey/Redis, object storage (filesystem or S3). Here that means AKS in Australia East with Azure Database for PostgreSQL and a PVC for objects |
+| **Enterprise fit** | **SSO:** generic OIDC (`enable-login-with-oidc`, `PENPOT_OIDC_BASE_URI=https://<keycloak>/realms/<realm>/`), so it sits behind our Keycloak broker to Entra (`OD-30`). Password login and self-registration can be switched off, and roles map from `PENPOT_OIDC_ROLES`. **Integration surface:** RPC API with access tokens, outbound webhooks (file created/updated, comment added). **Telemetry:** opt-in, off by default. **Residency:** wherever we run it, so Australia East now and the customer's own cloud later |
+| **Maturity** | ~60.5k stars (GitHub page, read 2026-09-30). Backed by a company (Kaleidos). 2.18.0 is the current release, with 2.19.0 on `develop`. The MCP work is being hardened fast: the 2.16–2.18 changelog adds multi-instance scaling over Redis, a concurrency limiter, tenant-prefixed channels and a security fix (*"MCP tokens being usable as API access tokens"*). Paid support is on offer: Private Server $50,000/yr; cloud Enterprise $25/member/month (penpot.app/pricing) |
+| **Gaps against us** | 1. **The MCP needs an open tab.** *"The MCP plugin runs inside your Penpot browser tab"*, and when the tab freezes, *"MCP fails fast"*. So an agent needs a live tab: either the human's Design lens or a headless runner we host. 2. The repo's multi-user doc still says *"under development … for testing purposes only"*, even though the self-host compose ships it. 3. Frames are **vector shapes with a CSS layout model, not live HTML**. HTML/CSS comes out through `generateMarkup`/`generateStyle`. HTML goes in only through a community plugin (`HTML TO DESIGN`). 4. Token export is **in Tokens Studio format, not DTCG 2025.10**; staff acknowledged this on 2026-05-05. A converter is needed. 5. The UI is Penpot's own, not our design system, which customers will see. 6. Penpot has no idea of a brief, so the provenance wiring is ours |
+| **Integration** | **~8 engineer-days in total. It is usable after about 4:** deploy, SSO, embed in the lens, and agents working through the human's open tab. Breakdown in §6 |
+| **Verdict** | **Adopt** |
+
+### 3.2 OpenPencil — REFERENCE, the named fallback
+
+| | |
+|---|---|
+| **What it does** | MIT design editor that opens `.fig` and `.pen` files. Built on Skia CanvasKit, Yoga (flex plus grid), Vue 3 and **Tauri v2**, the same desktop shell as ours. It has **100+ MCP tools over stdio and HTTP that work headlessly on files**. It imports HTML, CSS and Tailwind (`openpencil import page.html --css …`) and exports JSX/Tailwind, HTML and Storybook stories. It runs Figma Plugin API scripts via `eval`, and supports components, variants, token extraction and lint. Multiplayer is peer-to-peer over WebRTC plus Yjs |
+| **Licence** | MIT (README; npm `@open-pencil/cli`, `@open-pencil/core`, `@open-pencil/mcp`, all 0.15.1) |
+| **Deploys** | There is no server: a desktop app, a PWA and a CLI/MCP that runs in any container. An agent in our sandbox edits a design file inside its own worktree, and git carries it |
+| **Enterprise fit** | No accounts, no SSO, no audit and no server-side authority. Multiplayer relies on public WebRTC signalling (Trystero), with no TURN setup for a corporate network. The built-in AI is bring-your-own-key to public providers, so it would have to be pointed at LiteLLM or switched off |
+| **Maturity** | ~8.7k stars (GitHub page). First npm publish was 2026-03-01; 0.15.1 shipped 2026-09-18. Pre-1.0: *"Usable today, with some rough edges"*. The copyright holder is one named person plus contributors, and no company backing was found. It reads and writes Figma's proprietary `.fig` by reverse engineering, so any Figma release could break that |
+| **Gaps** | T2 (no enterprise-grade multiplayer), T6 (no identity or audit), and maturity |
+| **Integration** | ~6 days to embed its Vue SDK in the lens and run its MCP headless in sandboxes. Multiplayer and authority would still be ours to build |
+| **Verdict** | **Reference.** It has the best agent ergonomics found (headless, HTML in and out, files in git) and the weakest enterprise shell. Revisit at 1.0, or sooner if Penpot fails the day-1 runner spike (§6) |
+
+### 3.3 Figma Enterprise + the Figma MCP server — BUY, as an optional adapter only
+
+| | |
+|---|---|
+| **What it does** | The industry-standard design tool, multiplayer included. Its remote MCP server has 18 read tools and 11 write tools. The write tools include `use_figma` (*"General-purpose create, edit, and inspect"*, running Plugin API JavaScript) and `generate_figma_design`, which captures a running UI as editable layers (the 2026-02-17 "Claude Code to Figma" launch). Code Connect maps frames to production components, and `get_design_context` returns code |
+| **Licence / price basis** | Commercial SaaS, priced per seat per month and billed annually. Enterprise: Full $90 (includes 4,250 AI credits), Dev $35, Collab $5 (figma.com/pricing, read 2026-09-30). **Agents can only write through a Full seat**; a Dev seat is read-only. MCP limits per Enterprise seat: 600 calls a day and 20 a minute, with write tools exempt. Secondary sources say `use_figma` is *free in beta, planned to become usage-billed* |
+| **Deploys** | SaaS only. Australian data hosting exists on Enterprise **but with holes**: comments, plugins, file names, fonts, thumbnails, Dev Mode/Code Connect code and AI chats stay outside the region. Edits may sit in the US for up to 30 days, and beta features and Weave tools are out of scope (help.figma.com, "Enable localized file hosting") |
+| **Enterprise fit** | SAML SSO direct to Entra (not through our broker), SCIM, and Governance+ with IP allowlist and network restrictions. But it cannot run in a customer's cloud, and each customer must buy seats. **Only clients in Figma's MCP catalogue may connect.** Our relay is not in that catalogue, so keeping the credential in the control plane needs Figma's agreement. The alternative puts a user's account-wide Figma token inside an untrusted sandbox |
+| **Maturity** | The most mature candidate |
+| **Gaps** | T5 (SaaS, with gaps in residency), T6 (bypasses our broker; catalogue rule), T7 (per-seat cost, with usage billing coming), T3 (vector, not HTML) |
+| **Integration** | ~3 days as a second adapter behind the same design seam (link to a brief, snapshot via the REST images endpoint, handoff), **once the catalogue question has an answer** |
+| **Verdict** | **Buy, but only as an optional adapter** for customers who already own Figma. Not the default |
 
 ## 4. Comparison table
 
