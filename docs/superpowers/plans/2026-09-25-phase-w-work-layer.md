@@ -262,7 +262,7 @@ move (rule H1). Where a slice adds to a W1 file, the later task is listed in the
 |---|---|---|---|
 | `control-plane/internal/api/work.go` (+ test) | the `/v1/hub/work/*` relay (contract §4.3, §9.3 pattern) | new | 16; 82, 81b, 100, 124, 168 |
 | `control-plane/internal/api/api.go` ⚑, `routes_audit_test.go` ⚑ | `Deps.Work`, `Deps.WorkStart`, `Deps.WorkImport`; registrations; catalog rows | modified | 16, 24, 25 |
-| `control-plane/cmd/api/{config,main}.go` ⚑ | wiring and `PANACEA_APP_WORK_*` variables | modified | 16, 22, 23, 23b, 24, 25 |
+| `control-plane/cmd/api/{config,main}.go` ⚑, `internal/reaper/reaper.go` ⚑ | wiring and `PANACEA_APP_WORK_*` variables; the reaper's `Hold` on a running check (23b) | modified | 16, 22, 23, 23b, 24, 25 |
 | `control-plane/internal/workstart/{start,undo}.go`, `internal/api/workstart.go` | Start from an issue: bind, worktree, session, *Undo Start* until the first file write | new | 24 |
 | `control-plane/internal/workimport/{linear,csv,batch}.go`, `internal/api/workimport.go` | the Linear public-API pager and the CSV parser, both producing SW.6's batch | new | 25 |
 | `control-plane/cmd/panacea-release/`, `integrations/{azure-pipelines-task,github-action}/` | the release CLI and the two CI wrappers | new | 164 |
@@ -341,14 +341,14 @@ measured.
 | Slice | Ids | Tasks | Hours | Focused days |
 |---|---|---|---|---|
 | W0 | 01 | 1 | 2 | 0.25 |
-| W1 | 02-70, with 23b | 70 | 196.5 | 24.6 |
+| W1 | 02-70, with 23b | 70 | 197.5 | 24.7 |
 | W1b | 71 | 1 | 3 | 0.375 |
 | W2 | 72-97, with 81b and 96b | 28 | 76.5 | 9.6 |
 | W3 | 98-113 | 16 | 46 | 5.75 |
 | W4 | 114-142 | 29 | 79.5 | 9.9 |
 | W5 | 143-174 | 32 | 91 | 11.4 |
 | WL | 175-187 | 13 | 33 | 4.1 |
-| **All** | **01-187, 23b, 81b, 96b** | **190** | **527.5** | **65.9** |
+| **All** | **01-187, 23b, 81b, 96b** | **190** | **528.5** | **66.1** |
 
 **dependsOn** names this plan's tasks by number and sibling tasks by prefix: `H` the Hub plan
 (`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:396-446`), `P3-` phase 3
@@ -422,7 +422,7 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 21 | phase 3 delta: the `Panacea-Issue` trailer; the lane index names its issue; AU-only branch names | W1 | 0.375 (3 h) | 19; P3-05, P3-07, P3-08 | SW.9 |
 | 22 | phase 3 delta: the `started`, `in_review` and `landed` fact moves, written as the person | W1 | 0.375 (3 h) | 05, 21; P3-09 | SW.4 |
 | 23 | phase 3 delta: the done evaluator; observed evidence at the landed commit; *self-attested* | W1 | 0.375 (3 h) | 22; P3-15 | SW.4 |
-| 23b | a criterion's check, end to end: the product `CheckRunner` (one bounded command in a check sandbox, exit code only) and the check line a person sets it on | W1 | 0.5 (4 h) | 23, 47; P3-24 | — |
+| 23b | a criterion's check, end to end: the product `CheckRunner` (one bounded command in a check sandbox, exit code only) and the check line a person sets it on | W1 | 0.625 (5 h) | 23, 47; P3-24 | — |
 | 24 | control plane: Start from an issue, *Undo Start*, the data-class route | W1 | 0.375 (3 h) | 16, 19, 21 | SW.10 |
 | 25 | control plane: the Linear public-API and CSV import adapters | W1 | 0.375 (3 h) | 15, 16 | SW.6 |
 | 26 | tokens: 02 D2 step 1, `--t-fact`, the provisional `paper` block | W1 | 0.25 (2 h) | — | SW.11 |

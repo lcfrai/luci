@@ -341,7 +341,7 @@ type Observation struct {
 // CheckRun is one run a CheckRunner performs. Bundle is a host path to a git bundle holding
 // Ref, which names Commit; the runner copies it into a sandbox, clones it fresh there, checks
 // out Commit detached, runs `sh -c Command` with stdout and stderr discarded, and reports the
-// exit code. It never mounts a lane, a project or any host directory but the bundle, read-only.
+// exit code. It mounts no lane, no project and no host path but the operator's CA bundle, read-only.
 type CheckRun struct {
 	Bundle  string
 	Ref     string

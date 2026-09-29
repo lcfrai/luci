@@ -743,25 +743,26 @@ decides):
 sandbox, exit code only) and the check line a person sets it on.** Added by fix batch b02 (review
 finding S03-C1) and placed here, after the gaps, so that no line above moves; its skeleton row is
 `2026-09-25-phase-w-work-layer.md:425` and its part is `task-23b.md`. Stream WP, no seam of its own
-(it fills task 23's `CheckRunner`; SW.4 reads the result unchanged), 4 h. Depends on 23, 47 and
+(it fills task 23's `CheckRunner`; SW.4 reads the result unchanged), 5 h. Depends on 23, 47 and
 P3-24. **Why:** task 23 wires `Runner: nil`, so without this task `Observer.Run` returns
 `ErrNoRunner` on every product path and nothing in W1 writes `Serve.Check`; `done means proven`
 (`OD-27`, rule 2) would hold only in a test double. **Runner:** `evidence.SandboxRunner` creates a
 check sandbox through `backend.Backend` (unchanged, seven methods) with `SANDBOXD_ROLE=check` (never
-a `PANACEA_APP_*` key, which `ValidateSpec` refuses), an idle `/bin/sleep infinity` session, no host
-mount and no credential; hands it the landed commit's bundle over a new `sandboxd` route
-`/check/v1/run` (behind the server's bearer check, beside P3-24's `/git/v1/`); gets back
-`{exitCode, timedOut, ranAtMs}` and no output (`OD-8`); destroys the sandbox on every path. Bounds:
+a `PANACEA_APP_*` key, which `ValidateSpec` refuses), an idle `/bin/sleep infinity` session, no
+credential and no host mount but a lane's read-only CA bundle; sends it the landed commit's bundle
+as the body of a new, bearer-wrapped `sandboxd` route `/check/v1/run` (beside P3-24's `/git/v1/`);
+gets back `{exitCode, timedOut}` and no output (`OD-8`); holds the sandbox against the reaper's
+rule 4 while it runs (`Reaper.Hold`, 35 minutes at most) and destroys it on every path. Bounds:
 10 minutes by default, 30 at most (task 23's `Check.Timeout`), clamped in both processes. **Check
 line:** `CheckLine.tsx` on task 47's `ServeRow` shows the command in Commit Mono and lets a member
 set, edit or clear it on the head revision; each is one `revise` (task 47's decision 3), the
-1000-byte cap is counted in UTF-8 bytes, and every other pair keeps its check. **Who may set one**
-is SW.3's rule (task 07's addendum), decided by task 02's `ValidateCheckChange`. **Tests first:**
-`TestRunRefusedWithoutTheCheckRole`, `TestRunReportsOnlyTheExitCode` (kills output plumbed back),
-`TestRunTimeoutIs124AndNotZero`, `TestCheckSandboxIsDestroyedOnEveryPath`,
-`TestCheckSpecCarriesNoHostMountAndNoAgent` (the `Spec` passes `ValidateSpec`), the check line's
-seven, and `TestObservedExitZeroClosesWithNoClickInTheProduct` behind `-tags docker`, whose run is
-recorded because a skip is not a pass. It does **not** claim a check on Kata (phase 8 stream C), a
-check needing a secret or a service, or a sandbox without a network. Parity: serves **L-8** with 22
-and 23, and makes 05 §5.3's no-click `done` true in the product.
+1000-byte cap is counted in UTF-8 bytes, every other pair keeps its check, and the list's `T` skips
+the field. **Who may set one** is SW.3's rule (task 07's addendum), decided by task 02's
+`ValidateCheckChange`. **Tests first:** `TestRunRefusedWithoutTheCheckRole`,
+`TestRunReportsOnlyTheExitCode` (kills output plumbed back), `TestCheckRouteRefusedWithoutTheToken`,
+`TestCheckSandboxIsHeldFromBeforeCreateUntilDestroy`, `TestSweepSparesAHeldSandboxUntilReleaseOrItsBound`,
+the check line's eight, and two `-tags docker` product tests (the no-click `done`; a check that
+outlives the reaper), whose run is recorded because a skip is not a pass. It does **not** claim a
+check on Kata (phase 8 stream C), a check needing a secret or a service, or a sandbox without a
+network. Parity: serves **L-8** with 22 and 23, and makes 05 §5.3's no-click `done` true in the product.
 

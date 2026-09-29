@@ -1,11 +1,11 @@
 ### Task 23b: a criterion's check, end to end — the product `CheckRunner` (one bounded command in a check sandbox, exit code only) and the check line a person sets it on
 
 W1, stream WP. **No new seam**: this task fills the `CheckRunner` interface task 23 declares, and
-SW.4's done rule reads the result without changing. About 4 hours (an estimate, not a
-measurement): 3 for the runner, 1 for the check line. Depends on task 23 (the interface, `Check`,
-`Observation`, `Observer`, `ErrNoRunner`), task 47 (the issue view's `Serves.tsx`, whose
-`ServeRow` carries the line) and **P3-24** (`sandboxd`, the in-sandbox runner) sync-merged. Write
-it `dependsOn: 23, 47; P3-24`.
+SW.4's done rule reads the result without changing. About 5 hours (an estimate, not a
+measurement): 3 for the runner, 1 for the reaper's hold on a running check, 1 for the check line.
+Depends on task 23 (the interface, `Check`, `Observation`, `Observer`, `ErrNoRunner`), task 47 (the
+issue view's `Serves.tsx`, whose `ServeRow` carries the line) and **P3-24** (`sandboxd`, the
+in-sandbox runner) sync-merged. Write it `dependsOn: 23, 47; P3-24`.
 
 **Why this task exists, in one sentence.** Without it `Observer.Runner` is nil on every product
 path, `Run` returns `ErrNoRunner`, nothing is ever observed, and an issue closes only when a person
@@ -60,10 +60,10 @@ recorded so nobody re-derives them:
    takes lane work **as a bundle** (P3 `task-24.md:1`), on an authenticated listener the control
    plane already talks to. The check is one more route on that listener, not a second protocol.
 3. **Only the exit code crosses the boundary** (`OD-8`). The operation's reply is
-   `{exitCode, ranAt, timedOut}` and there is no field for output, so no later caller can start
+   `{exitCode, timedOut}` and there is no field for output, so no later caller can start
    deriving meaning from bytes: the plumbing does not exist.
-4. **`Backend` stays seven methods**, so the registry, the reaper and both backends are untouched by
-   a W1 task, and the Kata path (`OD-1`) needs nothing extra when phase 8 stream C lands.
+4. **`Backend` stays seven methods**, so the registry and both backends are untouched (the reaper
+   gains one hook, decision 6), and the Kata path (`OD-1`) needs nothing extra when phase 8 stream C lands.
 
 **Decision 2: the check runs in its own sandbox, and an agent's sandbox never offers the
 operation.** The runner creates a short-lived **check sandbox** from the project's image with no
@@ -78,12 +78,16 @@ harness. This is what makes *observed* evidence evidence: the command ran on the
 a machine with nothing else in it, not in the lane where the work was done.
 
 **Decision 3: the bundle is the only input, and it is read-only.** Task 23's `Observer` bundles the
-landed commit out of the project and hands the bundle to the runner; the runner puts that one file
-into the check sandbox and nothing else — no host mount, no credentials, no gateway token. The
-network is any sandbox's, not less: `backend.Spec` has no network field and `dockerbe` uses the
-default bridge, and cutting it would change `Backend` (decision 1). So a check reaches what a lane
-sandbox reaches and holds no credential to use there; a check that needs a secret or a service to
-pass cannot run here, and that is stated, not worked around.
+landed commit out of the project and hands the bundle to the runner; the runner sends that one file
+as the request's body, never inside JSON (P3-24's `fetch` shape, one cap: `MaxBundleBytes`), and the
+check sandbox gets nothing else — no credentials, no gateway token, and no host mount but the one
+every lane sandbox gets: the operator's CA bundle (`PANACEA_APP_CA_BUNDLE`), read-only, at the path
+and under the variable `sessionMounts` and `sessionEnv` use (`api/sessions.go:296`, `:341-343`,
+`:434-436`), and only when one is set, so a check on a TLS-intercepting network trusts what a lane
+trusts. The network is any sandbox's, not less: `backend.Spec` has no network field and `dockerbe`
+uses the default bridge, and cutting it would change `Backend` (decision 1). So a check reaches what
+a lane sandbox reaches and holds no credential to use there; a check that needs a secret or a
+service to pass cannot run here, and that is stated, not worked around.
 
 **Decision 4: every bound is the runner's, not the check's.** One command, `sh -c`, 10 minutes by
 default and never more than 30 — task 23's `Check.Timeout` rule, applied here and again in
@@ -112,6 +116,24 @@ reversible. `Escape` abandons it; an empty line clears the check. Four rules com
 4. **Who may set one is SW.3's rule, not this line's**: the line is offered on the head to the
    person viewing it, and the Hub's revision write enforces who may add or change a check.
 
+**Decision 6: a running check's sandbox is held against the reaper, and only while it runs.**
+Phase 2's reaper, under its rule 4, destroys any sandbox stamped with this instance's
+`LabelInstance` whose `LabelSandboxID` no registry session holds, once it is older than
+`CreateGrace` (`reaper/reaper.go:471-527`; `dockerbe` stamps both labels, `docker.go:290-291`).
+`CreateGrace` is `CreateGraceFor(cfg.ReadyTimeout)` (`cmd/api/main.go:246`), twice the 60-second
+ready timeout by default (`reaper.go:102-106`, `backend/dial.go:24`), and a sweep runs every 30 s
+(`cmd/api/config.go:78`). A check sandbox has no registry record, and must not have one (it is
+not a session, and a record would put it on the session rail), so without a hold every check that
+runs past about two minutes is destroyed mid-run: `RunCheck` errors, nothing is recorded, and the
+issue closes only on a Record — S03-C1's failure again, for every real check. So the reaper gains
+`Hold(sandboxID, max) (release func())`, and rule 4 skips an id that is held. The runner takes the
+hold **before** `Create` and releases it after its deferred `Destroy` returns, on every path, with
+`max` = `MaxCheckHold`, 35 minutes (task 23's per-run `AfterLand` bound): a stuck run cannot pin a
+sandbox past it. The set is in memory, so after a crash or a restart nothing is held and a leftover
+check sandbox is reaped exactly as before. The runner **refuses to run without a hold**
+(`ErrNoHold`, before any `Create`), so a wiring slip is a logged error that records nothing, never
+a sandbox reaped mid-check. `reaper.go` is a built phase 2 file: a ⚑ delta, like `cmd/api/main.go`.
+
 **What *observed* does and does not mean, restated so the words stay honest.** In local mode this
 runner is the person's own control plane, and the Hub records the move as that person's. The Hub
 cannot tell a watched run from a claimed one. What *observed* adds is that no human typed the
@@ -127,13 +149,17 @@ same on both backends.
   inside `sandboxd/internal/gitrunner`: that package stays git-only, so nothing widens the five
   ops (P3 `task-24.md:67`)
 - `sandboxd/internal/server/server.go` ⚑ (P3 `task-24.md:71-72`) — in `New`, `s.check =
-  checkrunner.New(os.Getenv("SANDBOXD_ROLE"))`, read once at start, and one
-  `s.mux.HandleFunc("/check/v1/", s.check)` beside `/git/v1/` and `/attach` at `server.go:85`,
-  behind the same bearer check (modified)
+  checkrunner.New(os.Getenv("SANDBOXD_ROLE"))`, read once at start, and one `/check/v1/` route
+  beside `/git/v1/` and `/attach` at `server.go:85`, **wrapped** in the bearer check: sandboxd
+  authorises inside each handler (`authorised`, `:105`; `attach` calls it first, `:167`), not on
+  the mux, so a bare `HandleFunc("/check/v1/", s.check)` would be open (modified)
+- `sandboxd/internal/server/server_test.go` ⚑ — `TestCheckRouteRefusedWithoutTheToken` (modified)
 - `control-plane/internal/evidence/sandboxcheck.go` + `sandboxcheck_test.go` — `SandboxRunner`,
   which satisfies task 23's `CheckRunner` (`task-23.md:355-357`) (new)
+- `control-plane/internal/reaper/reaper.go` ⚑ + `reaper_test.go` ⚑ (phase 2's) — `Reaper.Hold`,
+  and rule 4 skips a held id (decision 6) (modified)
 - `control-plane/cmd/api/main.go` — task 23 step 4's `Runner: nil` becomes the real runner
-  (`task-23.md:579-581`) (modified)
+  (`task-23.md:579-581`), holding through the one reaper `serve` builds (`main.go:102`) (modified)
 - `desktop/src/components/issue/CheckLine.tsx` + `CheckLine.test.tsx` — the check line, `MAX_CHECK_BYTES`,
   `checkBytes`, `withCheck` (new)
 - `desktop/src/components/issue/Serves.tsx` ⚑ + `Serves.test.tsx` ⚑ (task 47's) — `ServeRow` gains
@@ -147,31 +173,54 @@ same on both backends.
   desktop's `CheckLine`, the one writer of `Serve.Check` in W1
 - Consumes: task 23 — `evidence.CheckRun`, `CheckRunner`, `Observer.Runner`; phase 1 —
   `backend.Backend` (`Create`, `Get`, `Destroy`), `backend.Spec`, `backend.Sandbox.Endpoint`,
-  `backend.Resources`; P3-24 — `sandboxd`'s server, its bearer auth and its bundle handling;
+  `backend.Resources`; phase 2 — `reaper.Reaper` (gains `Hold`), `ids.New`, `ids.Token`,
+  `Config.CABundle`; P3-24 — `sandboxd`'s server, its bearer auth and its bundle handling;
   task 47 — `Serves`, `ServeRow`, its `write`; task 37 — `Serve` with `check?: string`; task 56 —
   `mutate`'s `revise` op; task 20 — `makeServe`, `expectNoPrediction`
-- Amends: nothing. No seam changes, no wire field is added to SW.1-SW.21, no golden vector moves
+- Amends: no seam. No wire field is added to SW.1-SW.21 and no golden vector moves; phase 2's
+  `reaper.Reaper` gains one method, `Hold`, and rule 4 skips a held id; with nothing held it is phase 2's
 
 #### Interfaces — complete
 
 ```go
-// sandboxd/internal/checkrunner/wire.go — POST /check/v1/run. Decoded with
-// DisallowUnknownFields; a body past MaxJSONBytes, an unknown field or trailing data is 400.
+// sandboxd/internal/checkrunner/wire.go — POST /check/v1/run. RunRequest travels as headers,
+// since the body is the bundle (P3-24's fetch shape, P3 task-24.md:176-178): X-Panacea-Ref,
+// X-Panacea-Commit, X-Panacea-Timeout-Ms, and X-Panacea-Command, the command's UTF-8 bytes in
+// standard base64, because a header value is not UTF-8-safe. The body, Content-Type
+// application/x-git-bundle, is read through http.MaxBytesReader(MaxBundleBytes) into a spool
+// file; past the cap the answer is 413 too_large and nothing runs. A header missing, repeated
+// or malformed is 400. The bundle is the ONLY input. The goldens spell RunRequest as this JSON.
 type RunRequest struct {
-	Bundle    []byte `json:"bundle"`    // the git bundle, base64 in JSON; the ONLY input
 	Ref       string `json:"ref"`       // the ref the bundle holds
 	Commit    string `json:"commit"`    // 40 hex; checked out detached
-	Command   string `json:"command"`   // run as `sh -c Command`; 1 to 1000 bytes
+	Command   string `json:"command"`   // run as `sh -c Command`; 1 to 1000 bytes once decoded
 	TimeoutMS int64  `json:"timeoutMs"` // clamped to [1000, 1800000] here, not trusted
 }
 
 // RunResponse has no field for output, and that is the point: nothing downstream can start
 // deriving meaning from the process's bytes, because the bytes never leave the sandbox (OD-8).
+// Nor a clock: the Observer stamps Observation.RanAt from its own (task-23.md:333-339).
 type RunResponse struct {
-	ExitCode int   `json:"exitCode"` // 124 when the timeout fired (coreutils' convention)
-	TimedOut bool  `json:"timedOut"`
-	RanAtMS  int64 `json:"ranAtMs"` // the sandbox's clock, for the Record's because line
+	ExitCode int  `json:"exitCode"` // 124 when the timeout fired (coreutils' convention)
+	TimedOut bool `json:"timedOut"`
 }
+
+// limits.go. One cap for any bundle entering a sandbox: P3-24's, not a second number.
+const MaxBundleBytes = gitrunner.MaxBundleBytes // 1 << 30 (P3 task-24.md:349); UNVERIFIED until merge
+```
+
+```go
+// sandboxd/internal/server/server.go, in New, beside /attach (:85). Server gains
+// `check http.Handler`. The route carries its own bearer check, as attach does (:167).
+s.check = checkrunner.New(os.Getenv("SANDBOXD_ROLE")) // read once, at start
+s.mux.HandleFunc("/check/v1/", func(w http.ResponseWriter, r *http.Request) {
+	if !s.authorised(r) {
+		slog.Warn("rejected unauthenticated check", "remote", r.RemoteAddr)
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	s.check.ServeHTTP(w, r)
+})
 ```
 
 ```go
@@ -180,18 +229,30 @@ package evidence
 
 // SandboxRunner runs one check in a sandbox of its own: created from the project's image with
 // Env {"SANDBOXD_ROLE": "check"}, Command "/bin/sleep", Args ["infinity"] and no agent process,
-// given the bundle and nothing else, destroyed on every path. The timeout sent is CheckRun's,
-// zero as 10 minutes and anything above 30 as 30 (task 23's Check.Timeout rule). It is the
-// product CheckRunner; task 23's hostRunner stays a test double.
+// given the bundle and nothing else, destroyed on every path. With CABundle set it adds what a
+// lane sandbox gets and nothing more: one read-only Mount of it at /etc/panacea-app/ca-bundle.pem
+// and NODE_EXTRA_CA_CERTS naming that path (api/sessions.go:296, :341-343, :434-436). The
+// timeout sent is CheckRun's, zero as 10 minutes and anything above 30 as 30 (task 23's
+// Check.Timeout rule). It is the product CheckRunner; task 23's hostRunner stays a test double.
 type SandboxRunner struct {
 	Backend   backend.Backend
 	Image     string            // the check image; the project's sandbox image by default
-	Resources backend.Resources
+	Resources backend.Resources // ValidateSpec refuses a zero (backend.go:280-282)
 	NewID     func() string     // sandbox ids; must satisfy backend.Spec.ID's pattern
 	Token     func() string     // a fresh attach token per check, never reused
-	Dial      func(ctx context.Context, endpoint string) *http.Client // nil means the default
-	Now       func() time.Time
+	CABundle  string            // the host path of PANACEA_APP_CA_BUNDLE; "" means none
+	// Hold is the reaper's (reaper.Reaper.Hold, decision 6): taken before Create, released after
+	// Destroy. nil refuses every run with ErrNoHold, before Create.
+	Hold func(sandboxID string, max time.Duration) (release func())
+	Dial func(ctx context.Context, endpoint string) *http.Client // nil means the default
+	Now  func() time.Time                                          // nil means time.Now
 }
+
+// MaxCheckHold bounds a hold: task 23's per-run AfterLand bound, the 30-minute cap plus the
+// sandbox's create and destroy. A run still going past it has its sandbox reaped.
+const MaxCheckHold = 35 * time.Minute
+
+var ErrNoHold = errors.New("evidence: no reaper hold is wired, so a check sandbox would be reaped mid-run")
 
 // RunCheck satisfies CheckRunner. A timeout is (124, nil); a runner that could not run at all
 // is (0, err) — including ErrCheckUnsupported, which a backend with no reachable endpoint
@@ -199,6 +260,20 @@ type SandboxRunner struct {
 func (r *SandboxRunner) RunCheck(ctx context.Context, run CheckRun) (exitCode int, err error)
 
 var ErrCheckUnsupported = errors.New("evidence: this backend cannot run a check")
+```
+
+```go
+// control-plane/internal/reaper/reaper.go ⚑ (phase 2's). Reaper gains holdMu sync.Mutex and
+// held map[string]time.Time (sandbox id → when its hold lapses), made in New.
+
+// Hold keeps rule 4 off one sandbox id until release is called or max has passed, whichever is
+// first. A caller that creates a sandbox no registry record names holds it from before
+// backend.Create until its Destroy returns. The set is in memory: a restart holds nothing.
+// release is idempotent.
+func (r *Reaper) Hold(sandboxID string, max time.Duration) (release func())
+
+// Rule 4, after the tracked check (reaper.go:501-506), before the grace:
+//	if id != "" && r.held(id, now) { continue } // a check in flight (task 23b), not an orphan
 ```
 
 ```tsx
@@ -278,15 +353,21 @@ In `sandboxd/internal/checkrunner/runner_test.go` (no Docker; the handler is ser
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestRunRefusedWithoutTheCheckRole` | `checkrunner.New("")` and `New("agent")` → 403 `role_not_check`, and no process is started; `New("check")` → 200 | the `sh -c` verb reachable from a lane sandbox an agent is sitting in |
-| `TestRunRefusedWithoutTheToken` | the bearer check is the server's existing one, exercised on `/check/v1/` too | a second, weaker door beside `/git/v1/` |
+| `TestRunTakesTheBundleAsTheBody` | the bundle is the raw body and the rest is four headers; with `MaxBundleBytes` at 1 KiB (a `newWithLimits` seam, as P3-24's), a 2 KiB body → 413 `too_large` and no process starts; a missing `X-Panacea-Commit` or a command header that is not base64 → 400 | a bundle inside JSON, where `MaxJSONBytes` (8 MiB) refuses a real repository's history or the whole bundle sits in memory |
 | `TestRunChecksOutTheCommitNotTheTip` | a bundle with two commits and a command that reads a file added at the tip → asked for the parent, the exit is non-zero | a runner that checks out the bundle's ref |
-| `TestRunReportsOnlyTheExitCode` | the response's JSON keys are exactly `exitCode`, `timedOut`, `ranAtMs`, for a command that writes to both stdout and stderr | output plumbed back, which a later caller would read (`OD-8`) |
-| `TestRunTimeoutIs124AndNotZero` | `sleep 5` with `timeoutMs: 1000` → `{124, timedOut: true}` in under 3 s, and the process group is gone | a timeout that returns 0 and is recorded as proof |
-| `TestRunClampsTheTimeout` | `timeoutMs: 0` and `timeoutMs: 86400000` → the 1-second floor and the 30-minute cap, not the caller's number | a check that holds a sandbox for a day |
+| `TestRunReportsOnlyTheExitCode` | the response's JSON keys are exactly `exitCode` and `timedOut`, for a command that writes to both stdout and stderr | output plumbed back, which a later caller would read (`OD-8`) |
+| `TestRunTimeoutIs124AndNotZero` | `sleep 5` with `X-Panacea-Timeout-Ms: 1000` → `{124, timedOut: true}` in under 3 s, and the process group is gone | a timeout that returns 0 and is recorded as proof |
+| `TestRunClampsTheTimeout` | a timeout header of `0` and of `86400000` → the 1-second floor and the 30-minute cap, not the caller's number | a check that holds a sandbox for a day |
 | `TestRunRejectsASecondRun` | a second POST while one is running → 409; the route is one check per sandbox, ever | a sandbox reused between checks, which is no longer a fresh clone |
 
-Run: `go test ./sandboxd/... -race -count=1 -run 'Run'`. Expected: FAIL, `undefined:
-checkrunner.New`. Write the package and the one `HandleFunc`; re-run. Expected: `ok`.
+And in `sandboxd/internal/server/server_test.go` ⚑, because `checkrunner`'s own `httptest` rig
+cannot see `server.go`: `TestCheckRouteRefusedWithoutTheToken` — `New` with an attach token and
+`SANDBOXD_ROLE=check` (`t.Setenv`): `POST /check/v1/run` with no `Authorization`, or a wrong bearer,
+→ 401 and no check starts; with the right bearer → not 401. It kills the route mounted bare, a
+second, weaker door beside `/git/v1/`.
+
+Run: `go test ./sandboxd/... -race -count=1 -run 'Run|CheckRoute'`. Expected: FAIL, `undefined:
+checkrunner.New`. Write the package and the wrapped route; re-run. Expected: `ok`.
 
 - [ ] **Step 2: `SandboxRunner` in the control plane, tests first**
 
@@ -296,13 +377,25 @@ records its `Spec` and an `httptest` stand-in for `sandboxd`:
 | Test | Asserts | Mutant it kills |
 |---|---|---|
 | `TestCheckSandboxIsDestroyedOnEveryPath` | exit 0, exit 1, a timeout, a dial failure and a panic in the client → `Destroy` called exactly once in each, with the id `Create` returned | a leaked sandbox, and a `defer` skipped on the error path |
-| `TestCheckSpecCarriesNoHostMountAndNoAgent` | the recorded `Spec` passes `backend.ValidateSpec`, and has `Mounts == nil`, `Env` exactly `{"SANDBOXD_ROLE": "check"}`, `Command == "/bin/sleep"`, `Args == ["infinity"]` | a check running beside the agent or reading the host; a role key `ValidateSpec` refuses, so `Create` fails on both backends |
+| `TestCheckSpecCarriesNoAgentAndOnlyTheCABundle` | the recorded `Spec` passes `backend.ValidateSpec`, and has `Command == "/bin/sleep"`, `Args == ["infinity"]`, the runner's `Resources`; with no `CABundle`, `Mounts == nil` and `Env` exactly `{"SANDBOXD_ROLE": "check"}`; with one, exactly one `Mount`, read-only at `/etc/panacea-app/ca-bundle.pem`, and `NODE_EXTRA_CA_CERTS` naming it | a check beside the agent or reading the host; a role key `ValidateSpec` refuses; a check on an intercepting network that cannot fetch what a lane can |
 | `TestCheckTokenIsFreshPerRun` | two runs → two different `AttachToken`s, and neither is logged | a shared token that outlives its sandbox |
 | `TestCheckUnsupportedIsNotAFailedCheck` | `Sandbox.Endpoint == ""` → `(0, ErrCheckUnsupported)` and, through `Observer.Run`, **no Record** | an unreachable sandbox read as a failing check, which would look like a verdict |
-| `TestRunCheckPassesTheClampedTimeout` | `CheckRun.Timeout` of 90 minutes → `timeoutMs` 1800000 on the wire; of zero → 600000 | the cap living only in the sandbox; a zero sent as the 1-second floor, so every product check times out |
+| `TestRunCheckPassesTheClampedTimeout` | `CheckRun.Timeout` of 90 minutes → `X-Panacea-Timeout-Ms: 1800000`; of zero → 600000 | the cap living only in the sandbox; a zero sent as the 1-second floor, so every product check times out |
+| `TestRunCheckSpeaksTheWireShape` | the stand-in sees one `POST /check/v1/run` with the bearer, the four headers (the command header decodes to the command's bytes) and a body byte-equal to `CheckRun.Bundle`'s file; its 413 → `(0, err)` | a host and a sandbox that disagree on the shape, which only a Docker run would show |
+| `TestCheckSandboxIsHeldFromBeforeCreateUntilDestroy` | a recording `Hold`: taken with `MaxCheckHold` before `Create` sees the id, released only after `Destroy` returns, once, on exit 0, an error and a panic; a nil `Hold` → `(0, ErrNoHold)` and no `Create` | a check sandbox the reaper destroys mid-run (decision 6); a hold that leaks; a runner wired without one |
 
 Run: `go test ./control-plane/internal/evidence/... -race -count=1 -run 'Check'`. Expected: FAIL,
 `undefined: evidence.SandboxRunner`. Write `sandboxcheck.go`; re-run. Expected: `ok`.
+
+Then the hold, in phase 2's `control-plane/internal/reaper/reaper_test.go` ⚑, beside
+`TestSweepSparesAnOrphanYoungEnoughToBeMidCreate` (`:493`) and on its fake backend and clock:
+`TestSweepSparesAHeldSandboxUntilReleaseOrItsBound` — a sandbox of this instance, sandbox id
+`chk-1`, no record, created 10 minutes ago (past `CreateGrace`): held for 35 minutes, a sweep
+leaves it; after `release`, the next sweep destroys it (*"no session record"*); held for 1 minute
+with the clock moved 2, destroyed; a new `Reaper` (a restart) holds nothing, destroyed. It kills
+rule 4 ignoring the hold, a hold that never lapses, and a hold that survives a restart. Run:
+`go test ./control-plane/internal/reaper/... -race -count=1`. Expected: FAIL, `r.Hold undefined`;
+write `Hold` and the rule 4 line; re-run. Expected: `ok`, every phase 2 reaper test still green.
 
 - [ ] **Step 3: the check line on the desktop, tests first**
 
@@ -327,8 +420,22 @@ Run: `npm --prefix desktop test -- CheckLine Serves`. Expected: FAIL on the miss
 - [ ] **Step 4: wire the runner, and turn task 23's fallback off**
 
 Replace task 23 step 4's `Observer{…, Runner: nil}` in `control-plane/cmd/api/main.go`
-(`task-23.md:579-581`) with `Runner: &evidence.SandboxRunner{Backend: be, Image: cfg.SandboxImage,
-…}`. Then, with a Docker daemon, one end-to-end test in
+(`task-23.md:579-581`) with the real runner. `serve` builds it after the reaper (`main.go:102`),
+whose `Hold` it takes, and every field has a named source, because `ValidateSpec` refuses a zero
+`Resources` (`backend.go:280-282`) and `Create` needs an id and a token:
+
+```go
+Runner: &evidence.SandboxRunner{
+	Backend: be, Image: cfg.SandboxImage, Resources: cfg.Resources(), // as api.Deps gets them (main.go:149-155)
+	NewID: func() string { return ids.New("chk") }, Token: ids.Token, // as sessions mint theirs (sessions.go:869-870)
+	CABundle: cfg.CABundle,                                           // as api.Deps.CABundle (main.go:164)
+	Hold: rp.Hold,                                                    // decision 6
+},
+```
+
+`ids.New("chk")` is `chk-` and 8 hex characters, inside `Spec.ID`'s pattern (`backend.go:182`),
+so the reaper's log names a check sandbox as one. A `serve` that forgets `Hold` runs no check at
+all (`ErrNoHold`, logged), never one reaped mid-run. Then, with a Docker daemon, end-to-end tests in
 `control-plane/internal/api/observed_test.go`: a project with one issue serving one criterion
 whose `Serve.Check` is `true`, a land, and the head reads `done · proven` with **no Record posted
 by anyone**. There is no real-daemon guard in the tree to copy — `dockerbe`'s tests run on a fake
@@ -336,12 +443,15 @@ by anyone**. There is no real-daemon guard in the tree to copy — `dockerbe`'s 
 carries the build tag `//go:build docker` and runs only with `-tags docker`, on a host with a
 Docker daemon and `panacea-app/sandbox:dev` built (`cmd/api/config.go:75`). Name it
 `TestObservedExitZeroClosesWithNoClickInTheProduct`: it is the one test that tells the demo's last
-frame (05 §5.3 row 7) from a test double.
+frame (05 §5.3 row 7) from a test double. Its twin, `TestObservedCheckOutlivesTheReaperInTheProduct`,
+runs a check of `sleep 8` beside a real `reaper.New` (this instance, `CreateGrace` 2 s) whose
+`Sweep` the test calls every second: the sandbox outlives six sweeps past its grace, the head
+reads `done · proven`, and no *"destroyed an orphan sandbox"* line names a `chk-` id.
 
 - [ ] **Step 5: Acceptance, then commit**
 
 ```bash
-~/.claude/tools/claudezsh/claudezsh 'go test ./control-plane/internal/evidence/... ./control-plane/internal/api/... ./control-plane/internal/backend/... -race -count=1'
+~/.claude/tools/claudezsh/claudezsh 'go test ./control-plane/internal/evidence/... ./control-plane/internal/api/... ./control-plane/internal/backend/... ./control-plane/internal/reaper/... ./control-plane/cmd/api/... -race -count=1'
 ~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- CheckLine Serves'
 ~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
 ```
@@ -361,13 +471,14 @@ The check line's look is the owner's eyes, not a self-report. Commit with `git c
   Kata pod; phase 8 stream C does. Until it has, a pod the runner cannot reach is a `RunCheck`
   error, which records nothing, so the issue there closes only on a person's Record — never a
   false *observed*. (`ErrCheckUnsupported` is for an empty `Endpoint`; `katabe` reports
-  `<podIP>:8080`, `backend.go:299-302`.)
+  `<podIP>:8080`, `backend.go:299-302`. With a CA bundle set, `katabe` refuses the mount with
+  `ErrUnsupported`, `backend.go:168-169`, as it refuses a lane's: phase 8 provides roots another way.)
 - **Not who may add or change a check.** That is SW.3's rule (task 07's addendum): only a
   person's own revision, never intake or a `text·A` one. Task 02's `ValidateCheckChange` decides
   it and every revision write calls it (the fake, task 04; the Hub, tasks 08 and 09; row W-26), so
   the check line needs no rule of its own and this task runs only what the Hub accepted.
 - **Not a check that needs a secret, a service or another repository**, and not a sandbox without
-  a network: it gets the bundle, a lane sandbox's network and nothing else (decision 3). A check
+  a network: it gets the bundle, a lane sandbox's network and CA bundle, and nothing else (decision 3). A check
   that cannot pass under that is a check this platform cannot observe, and the issue closes on a
   person's Record instead — `proven_self_attested` in solo mode, which is the honest word.
 - **Not more than one command per criterion**, no matrix, no caching, no retry, and no scheduling:
