@@ -362,6 +362,19 @@ for it after the owner switched to new usage. All three were stopped at 15:12 an
 - Then `phase2-branch-review.js`, the must-fix items, and `main`. Owner Q2 (the struct, or key forms)
   is still open; the default is the struct.
 
+### 0e.8 THE PIVOT, 2026-09-30 09:50: ASSEMBLE THE TOOL FROM THIRD-PARTY SOLUTIONS, IN DAYS
+- **The owner's direction:** "focus on using third party solutions ... I need this tool ASAP, not
+  in weeks". Orca is the owner's pick for the cockpit. Panacea is the Deploy step and the strong
+  default, but Coolify plus Supabase "enhanced with snippets from Panacea" is fine if it is the
+  better fully-fledged answer. OD-13 is relaxed: Panacea snippets may be reused. Q2 was decided by
+  the orchestrator as the struct (technical choices are delegated).
+- **Running:** `w5vmr5pxp`, run `wf_3d3efc48-9ed`, WS `assemble-research.js`, no args. It has 9
+  capability clusters, each verified by a sceptic, then `docs/superpowers/planning/2026-09-30-assemble/00-plan.md`,
+  the assembly plan in days. It is idempotent and revises the first run's committed work (stopped at
+  09:47) rather than redoing it. After any stop, relaunch it FRESH.
+- **Every build stream stays paused until 00-plan.md lands**, so nothing is spent on tasks the plan
+  may replace. Phase 2's run 5 still needs an owner "go"; its script is ready (0e.7).
+
 ## 1. What was running at shutdown (7 workflows)
 
 | Stream | Worktree / branch | Last run id | Script | args |
