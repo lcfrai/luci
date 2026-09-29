@@ -858,29 +858,34 @@ material goes at the end of a heavily cited file).
 
 | # | Task | Depends on | Hours | Must come before |
 |---|---|---|---|---|
-| 24 | Prototype: the §6 states added to `prototype/phase-4-discover.html` (suggested, recorded, taken up, departure, project changed, refused, model off). The owner looks before 31's part is approved | — | 2 | 31 |
-| 25 | `discover`: `Term`, `Decision`, §2.2's field rules (and the reserved `panacea:discover:` sequence, refused as answers refuse it), the branch overlay with its later-project-word shadow (§2.3), the set digest; pure | 06 | 3 | 26-30 |
-| 26 | `provenance`: the two key forms; the `Ref`'s two digests; `ref-golden.json` | 06, 25, Hub 45 | 2.5 | 12 |
-| 27 | `discoverhub`: the two list reads, the two batch writes, the two set digests for `Ref` | 07, 08, 25, Hub 46 | 3.5 | 29, 30, 32 |
-| 28 | `claudemd`: the new block and the two files' renderer; three goldens regenerated, three added | 05, 25 | 4 | 29 |
-| 29 | `contextwrite`: the three files in order, `/.panacea/discover/` excluded and confined (a not-ignored answer refused `write_failed`, §5.3), both files removed wherever the block is stripped (§5.1), the inheritance record; `api`: `SessionID` | 09's fix round closed, 10, 27, 28 | 4 | 14 |
-| 30 | `discover` + `discoverhub`: the suggestion round, its local store and its five deaths (§4) | 04, 25, 27 | 3 | 32 |
-| 31 | Desktop: the lens's two areas (§6). UI: stays unmerged until the owner has looked (`OD-1`) | 16, 18, 24 looked at, 32 | 4 | 23 |
-| 32 | `discoverapi`: the relay routes for the two reads and two writes, the round's two routes, the per-session inheritance route beside task 12's `materialisations` | 11, 12, 27, 30 | 3 | 14, 15 |
+| 24 | Prototype: the §6 states added to `prototype/phase-4-discover.html` (suggested, recorded, taken up, departure, *not here*, project changed, refused, model off, *reaches sessions once complete*, *from archived branches*). The owner looks before 31's part is approved | — | 2.5 | 31 |
+| 25 | `discover`: `Term`, `Decision`, the branch overlay with its later-project-word shadow and its *not here* departures (§2.3), the set digest; pure. No copy of §2.2's rules: they are the Hub's one function (§2.4) | 06 | 2.5 | 26-30 |
+| 26 | `provenance`: the `Ref`'s two digests; `ref-golden.json`. No key form (§2.1), so no Hub task in front of it | 06, 25 | 1.5 | 12 |
+| 27 | `discoverhub`: the two list reads to the last page inside the budget (§5.1), the two batch writes, the two set digests for `Ref`, the preview through `RenderInherited`, and `TestResolveBatchesInTwoCallsAtMost`'s new bound | 07, 08, 25, 28, Hub 46 | 6 | 29, 30, 32 |
+| 28 | `claudemd`: `RenderInherited`, the new block and the two files' renderer, the *not here* and *Gave up:* lines; three goldens regenerated, three added | 05, 25 | 4.5 | 27, 29 |
+| 29 | `contextwrite`: the three files in order, `/.panacea/discover/` excluded and confined (a not-ignored answer refused `write_failed`, §5.3), both files removed wherever the block is stripped (§5.1), and `Inspect`'s set-digest classification (§5.3); `api`: `MaterialiseResult`'s two sets, and the create and restart handlers' append after the stamp (§5.2) | 09's fix round closed, 10, 27, 28 | 5.5 | 32, 14 |
+| 30 | `discover` + `discoverhub`: the suggestion round, its local store and its five deaths (§4); and the one-decision draft behind *Record a decision* (§3.2), under the round's model budget and outcomes | 04, 25, 27 | 3.5 | 32 |
+| 31 | Desktop: the lens's two areas (§6), with *not here*, *reaches sessions once complete* and *From archived branches*. UI: stays unmerged until the owner has looked (`OD-1`) | 16, 18, 24 looked at, 32 | 6.5 | 23 |
+| 32 | `discoverapi`: the relay routes for the two reads and two writes, the round's two routes, the per-session inheritance route beside task 12's `materialisations`, and that route's fresh render through `RenderInherited` with the two lists (§5.3, task 12's amendment) | 11, 12, 27, 29, 30 | 3.5 | 14, 15 |
 
-Phase 4 new: **29 hours, nine tasks.**
+Phase 4 new: **36 hours, nine tasks.** Hours are priced against the plan's own tasks for the same
+work: 27 against 07 and 08, 6 h for one kind (11a §1); 31 against 18 and 19, 6 h (`plan:409-410`).
 
 **Hub**, ids continuing from 44b:
 
 | # | Task | Depends on | Hours | Must come before |
 |---|---|---|---|---|
-| 45 | `hubapi`: prefixes `te`, `dr`; the two forms and `KeyKind`s; the two envelopes and four golden vectors; the wire objects | 44a | 3 | 46, 47; phase 4's 26 |
-| 46 | `hubclient`: `Terms` and `Decisions`, the fake, the conformance and feed rows: **S0g**, phase 4 codes its terms and decisions against the fake | 05, 45 | 3 | phase 4's 27 |
-| 47 | `sql/0002_terms_decisions.sql`: four tables, the guards, the RLS and grant twins, the word index, the composite keys, `hub.erase_term` and `hub.erase_decision`, a database test for each | 07b's fix round closed, 45 | 3.5 | 48 |
-| 48 | The server: the six routes (two reads, two batch writes, and the two erasures through 47's functions, §2.6), the write-time checks with the cross-scope word check (§2.4), the resolver's two kinds, the four events, its own matrix rows (`rowsTask48` in `allRows`, the 16b pattern): **S4g (server side)** | 14, 16b, 20, 47 | 4.5 | phase 4's terms and decisions on the real Hub |
+| 45 | `hubapi`: `discoverids.go` with `te` and `dr` and a test holding it to §18's prefix table; the two envelopes and four golden vectors; the wire objects and their body-test rows, anchored in §18; `FoldWord`; §2.2's field-rule function, the reserved `panacea:discover:` sequence among its rules | 44a | 3.5 | 46, 47 |
+| 46 | `hubclient`: `Terms` and `Decisions`; the fake, holding every observable rule of §2.4 (the ops, the two passes, the item references, the word check's three rules); the conformance and feed rows: **S0g**, phase 4 codes its terms and decisions against the fake | 05, 45 | 5 | phase 4's 27 |
+| 47 | `sql/0002_terms_decisions.sql`: four tables, the guards with `set_aside`, the RLS and grant twins, the folded-word index, §2.6's composite keys, `hub.erase_term` and `hub.erase_decision`, a database test for each | 07b's fix round closed, 45 | 4 | 48a |
+| 48a | The server's writes: the two batch routes with every op of §2.4, the item references and the two passes, the write-time checks and the word check's three rules, `word_taken` with the §4.2 code test reading §18, and the text-free reply with its rebuild (§2.6) | 14, 16b, 19, 47 | 6 | 48b |
+| 48b | The server's reads and erasures: the two lists with `archivedAt`; the two erase routes through 47's functions; `settled` on the brief's erase reply, a `pendingAmendment` until 44b; task 27's scan test with a term and a decision; the four events and the feed test reading §18; its own matrix rows (`rowsTask48` in `allRows`, the 16b pattern): **S4g (server side)** | 20, 27, 48a | 4 | phase 4's terms and decisions on the real Hub |
 
-Hub new: **14 hours, four tasks.** No new Hub task stands in front of the brief's own S4: S4
-for briefs still opens after 06-20 (`HP:388-394`), and S4g (g for glossary) follows it.
+Hub new: **22.5 hours, five tasks.** Hub 48 is split because, priced against the brief's own server
+side, tasks 18, 19 and 20 at 9 h for one kind (`HP:421-423`), its 4.5 h was half of what two kinds
+cost; 46 against task 04's fake, 3 h for part 1 alone (`HP:405`). No new Hub task stands in front
+of the brief's own S4: S4 for briefs still opens after 06-20 (`HP:388-394`), and S4g (g for
+glossary) follows it.
 
 ### 7.4 Amended tasks, all unbuilt, and what each gains
 
