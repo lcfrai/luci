@@ -240,7 +240,46 @@ from an abandoned one.** §6.2 (11:795-802), Q8 (11:995).
 
 ## 3. What held up
 
+- **The grammar does not move.** No key form is added anywhere in the design. `hubapi.ParseKey`,
+  `provenance.Parse` and `/v1/refs` are untouched. `te-` and `dr-` live in their own file, as
+  phase W's prefixes do (`work plan:236`), so the ten-check keeps its ten: it reads only §3.1 (hub
+  `hubapi/keys_test.go:740`).
+- **§18 is the contract's own way to amend.** The contract already appends §17 for OD-30, and its
+  tests read by section number (§1, I3). HC:32-35 counts a new route, field, code or event kind
+  as additive. A20 moves no line.
+- **One rule for the stamp.** *The set follows the stamp* is stated once and used the same way in
+  every place that depends on it. The rule not taken is Q9, with its cost.
+- **The handler writes after the stamp.** Both call sites were read, and every start goes through
+  one of them.
+- **A stored reply keeps no text.** It uses route 26's rebuild (`T:19.md:52-59`) for both kinds.
+  A brief's erasure names what settled in it, and erases nothing a person did not choose.
+- **No ceremony.** Every addition in this revision is a line or a verb, never a prompt, a count or
+  a queue item: *Reaches sessions once this brief is complete*, *From archived branches* with
+  **Promote**, and the refused rows.
+- **The sums are honest.** 36 + 6 + 22.5 + 4.5 + 0.5 = 69.5 h. The fix-round multiplier is
+  labelled a judgement (11:957-960). The four repricings are tied to the plans' own tasks.
+- **Round 1's review was wrong in three places, and the designer said so** (11:1078-1088). All
+  three corrections check against the tree (§1).
+
 ## 4. What this review did not verify
+
+1. **Nothing was compiled or run.** In particular, M2's failure depends on how task 47 declares
+   the foreign key. I2's failure depends on the scan's `strpos` (`T:27.md:72`), which is in a plan
+   part, not in built code.
+2. **The Hub's server-side tests that read the contract.** The authorisation harness (16b) and
+   Hub 14's feed test are plan parts, and their built code was not read. That they read §7.0 and
+   §8 by section, and so ignore §18, is taken from the design (11:1017-1018). A grep of the Hub's
+   `control-plane` found no test that reads §7.0.
+3. **M1's hours are the plans' own estimates** (`plan:390-414`, HP:400). The chain assumes the Hub
+   runs 44a, 45 and 46 first, as §7.5 orders (11:944). If the Hub stream keeps its queue order
+   (08 through 44b first, hub `.superpowers/sdd/hub/progress.md:522-523`), the path waits much
+   longer.
+4. **The count of 240 citations below HC:1126 is a floor.** It matches `hub-contract.md:NNN` in
+   `.md`, `.go` and `.ts` files only. `HC:` and `§`-only citations are not counted.
+5. **Phase 2's final gate is running in the main tree.** The `api/sessions.go` lines cited here
+   and in 11 §5.2 are phase 4's copy at `ca737d92`, and may move when phase 2 lands.
+6. **Q2, Q8 and Q9 are the owner's.** This review argues only that Q8's row should state the
+   default's cost (M7).
 
 ## Closing
 
