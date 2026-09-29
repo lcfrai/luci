@@ -192,25 +192,38 @@ brief already has (11b §1.4, `HC:742-815`). Neither is a field of brief content
 never mints a brief revision. `HC` is the Hub contract,
 `.claude/worktrees/hub/docs/superpowers/contracts/2026-09-23-hub-contract.md` at `cafe1303`.
 
-### 2.1 Ids and keys: two new forms beside the two that exist
+### 2.1 Ids, and how one revision is named: no new key form
 
 | | Term (one entry of the glossary) | Decision (one entry of the decision record) |
 |---|---|---|
 | Hub id | `te-` + 16 lowercase hex, `ids.Wide("te")` | `dr-` + 16 lowercase hex, `ids.Wide("dr")` |
-| Key | `term:te-<16 hex>@<n>` | `decision:dr-<16 hex>@<n>` |
-| Pattern | `^term:(te-[0-9a-f]{16})@([1-9][0-9]{0,8})$` | `^decision:(dr-[0-9a-f]{16})@([1-9][0-9]{0,8})$` |
+| One revision, named | `{"kind":"term","id":"te-<16 hex>","revision":<n>}` | `{"kind":"decision","id":"dr-<16 hex>","revision":<n>}` |
+| Where the prefix is written | `hubapi/discoverids.go`, new, and the contract's appended §18 (§7.4, A20) | the same |
 
-- **The brief's key does not change by a byte**, nor does `design:` (`HC:119-122`) or phase 4's
-  local `none:declined` (`key.go:23-29`). The grammar grows by two forms, which is what its `kind:`
-  prefix exists for (`PC:104-107`); phase W already plans a fourth, `issue:is-…@r`
-  (`.claude/worktrees/phase-4/docs/superpowers/planning/2026-09-25-linear-parity/04-internal-fit.md:45`).
+- **The key grammar does not move.** That is OD-36's *What does not move* read as written: "the
+  brief content model, and the provenance key grammar, which the Hub contract owns"
+  (`owner-decisions.md:409`), the grammar "two parsers compile" (`10:54-55`). No form joins the
+  contract's §3.2, `hubapi.ParseKey` and `provenance.Parse` do not change, `/v1/refs` answers no new
+  `kind`, and the brief's key, `design:` (`HC:119-122`) and phase 4's local `none:declined`
+  (`key.go:23-29`) stay as they are. A revision is named by the three-member struct above, the way
+  phase W names a criterion by `{briefKey, criterionId}` rather than by a key form: 06's shelf
+  clause (`06:348-351`). Two key forms, `term:te-…@n` and `decision:dr-…@n`, are the owner's
+  alternative, and the owner is asked before any task that would build either (§8.2, Q2).
+- **`kind` is always written**, even where a field's position implies it, so a struct read out of
+  context (an inheritance record, a set digest item, an event) names its record without a lookup.
+  Nothing joins the three members into one string and nothing parses one: the struct is a JSON
+  object on the wire and a composite key `(org_id, <kind>_id, revision)` in the Hub (§2.6).
 - `te-` and `dr-` are in neither the Hub's prefix table (`hubapi/keys.go:16-27`) nor the control
-  plane's `s-`, `p-`, `b-`, `w-`, `m-` (`HC:111`), and no `.md` or `.go` file in any worktree holds
-  a `te-` or `dr-` id (grep, 2026-09-29; the only other planned prefix it met is phase W's `is-`).
+  plane's `s-`, `p-`, `b-`, `w-`, `m-` (`HC:111`), nor phase W's twelve (`is-` … `df-`) and TM-05's
+  `nt-` (`work plan:185-187`, where `work plan` is
+  `.claude/worktrees/work/docs/superpowers/plans/2026-09-25-phase-w-work-layer.md`); no `.md` or
+  `.go` file in any worktree holds a `te-` or `dr-` id
+  (grep, 2026-09-29). They stay out of `keys.go`'s `Prefix` block, as phase W's stay out in
+  `hubapi/workids.go` (`work plan:236`), so the ten-check (`keys_test.go:756-758`) keeps its ten.
 - The illustration `term:tm-7f2a@2` in `10-decision-terms-beside-the-brief.md:14` is corrected:
-  `tm-` is the team prefix (`HC:107`), and an id is 16 hex, not 4 (11b §1.2).
-- Revisions are the Hub's, from 1, gapless per record, and 0 never appears in a key: the brief's
-  rule (`HC:124-125`) applied to both. A key names one immutable revision, so what a session was
+  `tm-` is the team prefix (`HC:107`), an id is 16 hex, not 4 (11b §1.2), and it is a struct.
+- Revisions are the Hub's, from 1, gapless per record, and 0 never appears in a struct: the brief's
+  rule (`HC:124-125`) applied to both. A struct names one immutable revision, so what a session was
   given can always be read back; only the head moves.
 
 ### 2.2 Fields
