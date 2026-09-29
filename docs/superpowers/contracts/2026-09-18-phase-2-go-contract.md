@@ -1565,7 +1565,11 @@ existing directory `git worktree list` named.*
   now runs `hostpath.ConfineToMounts(mounts, answer)`, where `mounts` is every directory a sandbox
   mounts read-write: the projects directory, each project's primary, every linked worktree each
   project REGISTERS (read from the registry, not the listing), and the conversation stores' root
-  (`Scanner.WithWritableDirs`, wired in `main.go`). A registry that exists and cannot be read, or
+  (`Scanner.WithWritableDirs`, wired in `main.go` by `newScanner`, which fails closed on a root that
+  is not absolute; AMENDED by X-3 review 5 C-1: dropping the call left every suite green, so
+  `newScanner`'s body and serve's call of it now each have a test that is red without the root,
+  the second a serve run whose session create must stop at resolve on the reparse point). A
+  registry that exists and cannot be read, or
   an entry that names no worktree, fails `Path`: the boundary would be incomplete. The component
   clause (a junction on the way, not only at the leaf) is now pinned by its own test; review 4's
   MUT-LEAF passed every earlier one.
@@ -3213,3 +3217,14 @@ session, and `docs/PROGRAM.md` names provenance as the thread that must not brea
    resolves into the projects directory, even when it sets neither key? The phase 2 host gits
    (config, var, rev-parse, for-each-ref, worktree list) run no hook, so no control-plane exploit
    was found; the user's own host git is exposed all the same.
+10. **The region a git-file origin is proved outside of (X-3 review 5, I-F; carried to phase 3, for
+   the owner, not built).** §5.1 step 5's origin check and m-5's walk run `hostpath.ResolveOutside`
+   against the projects directory alone, while §2.10's boundary (X-3 review 4 I-D) names two more
+   directories a sandbox writes: the conversation stores and a linked worktree outside the projects
+   directory. An origin, or a hop to the mounted value, in one of those is not refused. It needs a
+   non-default layout: the host's global git config includes a file there, or its excludes or
+   attributes file links into one. R4 rule 6 closes it in phase 3, as a check against the whole
+   sandbox-writable set, which R4 rules 1 and 5 reduce to host-created lane clones plus the
+   conversation stores. Should phase 2 close it now? That gives both walks the set
+   `readWriteMounts` builds, with a session test for an origin in a conversation store (about an
+   hour, by the review's estimate).

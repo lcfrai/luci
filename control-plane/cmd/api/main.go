@@ -120,11 +120,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		<-reaperDone
 	}()
 
-	gitRunner := project.NewExecRunner()
-	// The conversation stores are read-write mounts outside the projects
-	// directory, so a worktree location inside one is the agent's to swap
-	// (X-3 review 4 I-D).
-	scanner := project.NewScanner(cfg.ProjectsDir, gitRunner).WithWritableDirs(cfg.ConversationsDir)
+	scanner, err := newScanner(cfg, project.NewExecRunner())
+	if err != nil {
+		return err
+	}
 	// Contract §4: with no projects directory the provider is worktree.Static{},
 	// so every session create fails 404 worktree_not_found. That is correct and
 	// visible — no projects directory means no worktrees to work in.
@@ -229,6 +228,26 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	// The reaper is stopped and drained by the deferred function above, after
 	// the HTTP server has finished and before the backend is closed.
 	return nil
+}
+
+// newScanner is the projects directory's scanner, which serve hands the HTTP
+// surface as its project list and as the worktree.Provider every session
+// create resolves through. It is extracted from serve so that a test can see
+// what it is given (X-3 review 5 C-1); serve's CALL of it is pinned by running
+// serve (TestServeRefusesAWorktreeSwappedInsideAConversationStore).
+//
+// Every sandbox mounts its worktree's conversation store,
+// <ConversationsDir>/<owner>/<worktree id>, read-WRITE, and the stores are
+// outside the projects directory, so a worktree location inside one is the
+// agent's to swap for a junction (X-3 review 4 I-D). Path refuses that only
+// because the stores' root is named here. It FAILS CLOSED on a root that is
+// not absolute: which directories sandboxes write is then not known, and a
+// boundary with the stores missing from it is the hole, not a default.
+func newScanner(cfg Config, git project.Runner) (*project.Scanner, error) {
+	if !filepath.IsAbs(cfg.ConversationsDir) {
+		return nil, fmt.Errorf("the conversation stores' root %q is not absolute, so a worktree location inside a store cannot be refused: every sandbox mounts its store read-write", cfg.ConversationsDir)
+	}
+	return project.NewScanner(cfg.ProjectsDir, git).WithWritableDirs(cfg.ConversationsDir), nil
 }
 
 // reaperConfigFor is the Config-to-reaper.Config mapping, extracted from serve
