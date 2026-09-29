@@ -106,8 +106,8 @@ routed to the orchestrator; they are not questions for you.
 
 The design is `2026-09-28-discovery-skills/11-design-r2.md`: Q2, Q8 and Q9 are its §8.2 rows, and
 Q10 is new in its Revision 2 (§R2.4). Each default is taken, so an unanswered question is built as
-its default. **Q2 is the exception to "none of these blocks a build"**: ask it before Hub 44a, Hub
-45 or phase 4's task 26 starts, because its other answer, taken after they ship, rebuilds them.
+its default. **DECIDED 2026-09-30 by the orchestrator, under the owner's delegation of technical
+choices ("you're the pro"): Q2 is the struct, and Q8, Q9 and Q10 take their defaults. Nothing waits.**
 
 1. **Q2: are terms and decisions named by a struct `{kind, id, revision}`, or by two new key forms,
    `term:te-…@n` and `decision:dr-…@n`, given that OD-36 says the key grammar "does not move"?**
