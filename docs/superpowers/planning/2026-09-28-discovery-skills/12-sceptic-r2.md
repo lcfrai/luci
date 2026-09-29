@@ -180,7 +180,8 @@ for less work.** §7.1-7.5 (11:683-792).
     exactly zero list calls (one with evaluate). It cannot "run" (11:702) once the `Ref` path reads
     two lists.
   - **The Hub's contract-reading tests** (I3), and **task 12** (I2).
-- **Hours against the plans' own prices** (`HP:419-421`, 11a §1):
+- **Hours against the plans' own prices** (Hub tasks 04 and 18-20 at `HP:405`, `:421-423`; phase 4
+  at 11a §1):
   - **Hub 48, 4.5 h.** The brief's server side, for one kind whose content the Hub reads one field
     of, is tasks 18, 19 and 20: 9 h. Hub 48 prices six routes for two kinds, the write-time and
     cross-scope checks, the resolver, four events and the matrix rows.
@@ -243,7 +244,71 @@ for less work.** §7.1-7.5 (11:683-792).
 
 ### 2.3 Minor
 
-*pending*
+**M1. `overrides` is written as a brief foreign key.** 11:338-340 makes `settledIn` and `overrides`
+"composite foreign keys, `(org_id, brief_id, brief_revision)`". But `overrides` names "the project
+entry this branch departs from" (11:238): a term or decision revision, not a brief. Built as
+written, every departure is refused, or points at the wrong table. **Fix:** `overrides` references
+`(org_id, term_id, revision)` in `term_revisions`, and its decision twin.
+
+**M2. A batch item cannot name what its own batch creates, and item order is unstated.**
+- `supersede` requires `replacedBy` "in this batch or earlier" (11:285), but the Hub mints ids at
+  write (11:276-277), so an item cannot name a record created in the same call.
+- `promote` of a departure also retires the project entry in the same batch (11:289). Applied in
+  request order, the promote trips the design's own unique index: two in-force entries with one
+  word in project scope. §2.4 names no order. The brief's route locks heads "in `briefId` order"
+  (HC:808).
+- **Fix:** allow a reference to an earlier item by its index, or take two writes. Apply state exits
+  before entries.
+
+**M3. The one-entry-per-word rule has three holes.**
+- A departure is exempt from the word check (11:297-298), but `revise` may rename it (11:283). It
+  can then take another project word, giving two entries for one word on that branch.
+- No check compares a new word with the in-force terms' `avoid` lists. Rounds are per machine (Q5),
+  so two machines can record *lane, not track* and *track, not lane*, and the block hands the agent
+  both.
+- "Case-folded" names no fold, yet the Hub's unique index and phase 4's overlay and sort
+  (11:517-518) must agree.
+- **Fix:** check a departure's word against the other project words; refuse a word that is an
+  in-force term's `avoid`; name one fold, in one function.
+
+**M4. No page rule for the list reads.** HC's lists default to 50 items and stop at 200 behind a
+cursor (HC:48). §5.1 builds the overlay "from the two list reads" (11:484-485), and the digest
+covers "every entry the branch sees" (11:537). Nothing says the Materialiser reads to the last page
+before digesting, or that a budget expiry mid-list refuses the start. A default read digests the
+first 50 and certifies them as the whole set, which is 06 §4.1's truncation one layer down.
+**Fix:** one sentence in §5.1, and a task 27 test with 201 entries.
+
+**M5. `why` holds what a choice gave up, but the block prints it as the reason.** §2.2 defines
+`why` as "what it gave up" (11:231), filled from limb 3 (11:367-368). The block writes
+`- <decision> Because: <why>` (11:503-504), while the Desk puts the reason after *because*
+(`AGENTIC-UX.md:115-116`). An agent reads the cost as the reason, and no field holds why the chosen
+option won. **Fix:** rename the field `gaveUp` and add `because`, or render it as *Gave up:*.
+
+**M6. Task 26 cannot "start now".** §7.5 says "25, 26 and 28 can start now" (11:772-773), but §7.3
+makes 26 depend on Hub 45 (11:723), which waits on 44a, itself unrun (`progress.md:518-521`). 26
+must come before 12, which is on the critical path (`plan:430`). So the path also waits on
+44a → 45, not only on task 32's +3 h. **Fix:** restate 26's start and the critical-path claim.
+
+**M7. Words recorded while the brief is open reach no session.** §2.5 lets words settle in an open
+revision (11:329-330). §5.1 gives `""` nothing, reasoning that `""` "means no brief existed"
+(11:492-494). But `""` also means a brief with no complete revision: `Inheritable` ends "else none"
+(`read.go:77-80`). For the whole drafting period the lens shows words as recorded and no agent
+receives them. **Fix:** say *reaches sessions once the brief is complete* in the lens, or inherit
+the project's set whenever the project exists. Correct the reasoning either way.
+
+**M8. Four gaps an implementer would have to guess at.**
+- **The resolver's field.** `/v1/refs` answers `kind: "term"`, but a result carries only `revision`
+  (a `BriefRevision`) and `approval` (HC:822-828). Name the member that holds a term or decision.
+- **Refreshing the digests.** The set digests move on `term.*` and `decision.*` events from another
+  scope. The `Ref` is cached "for ever EXCEPT" its heads, per brief (`ref.go:70-72`), and the
+  desktop invalidates by `brief.*` (HC:1382-1385). Task 16's amendment (11:751) must say the slice
+  refreshes them per project.
+- **A second model call.** *Record a decision* makes the assistant draft `context`, `why` and `undo`
+  (11:376). That call has no budget, no outcomes and no task.
+- **Matching and filtering rounds.** §4.3 drops a pending decision "now recorded" (11:458), but a
+  decision has no key to match on: name the rule. The round's model input also omits the sets in
+  force (11:429-431). Filter proposals against them before showing, or a Record meets a 409 the
+  control plane could have avoided.
 
 ## 3. What held up
 
