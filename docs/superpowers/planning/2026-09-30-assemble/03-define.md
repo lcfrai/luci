@@ -170,7 +170,8 @@ the web, checked on the upstream page on 2026-09-30.
 - **Does.** `/gsd-new-project` interviews, runs research subagents, writes requirements with ids and a
   roadmap, and keeps `STATE.md` and `CONTEXT.md`. MIT, 10.0k stars, v1.7.0.
 - **Gaps.** A whole execution engine (phases, roadmap, state) that overlaps our Orchestrator and work layer;
-  the project moved repositories on 2026-06-26, a continuity risk. **Verdict: reference.**
+  the project moved repositories on 2026-06-26, a continuity risk. **Effort** about 10 stream-days, most
+  of it switching its execution half off. **Verdict: reference.**
 
 ### 4.8 The SaaS products — reject
 
