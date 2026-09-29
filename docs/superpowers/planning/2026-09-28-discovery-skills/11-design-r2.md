@@ -421,8 +421,8 @@ The Hub checks that a non-null `settledIn` resolves in this project and is not e
 - **Erasure**: `hub.erase_term` and `hub.erase_decision`, owner functions shaped like
   `hub.erase_brief` (`HC:1115-1127`), each reached the way the brief's is through row 45: `POST
   /v1/terms/{termId}/erase` and `POST /v1/decisions/{decisionId}/erase`, org admin only, with the
-  same `reason`, because a definition can hold client text just as an answer can. The text goes;
-  the id, digest, number, `savedAt` and `savedBy` stay, and the revision reads `erased` in its list.
+  same `reason`, because a definition can hold client text just as an answer can. The text goes,
+  and so does the head's folded word (§R2.2); the id, digest, number, `savedAt` and `savedBy` stay.
 - **No stored reply keeps the text.** A route-26 reply is stored whole for 24 hours in
   `idempotency_keys.response`, which is why A17 exists (`HP:196`; `HP:` and `T:` as §7 defines
   them). So the two batch routes store a text-free reply, and a replay rebuilds its revisions from
@@ -430,8 +430,8 @@ The Hub checks that a non-null `settledIn` resolves in this project and is not e
   `rebuildRevisions` under task 14's `WriteReplayable` (`T:19.md:52-59`), applied to both kinds.
   Task 27's `TestErasureKeepsKeyAndDigest`, whose `markerHits` already scans every `text`,
   `varchar`, `jsonb` and `bytea` column (`T:27.md:72`), gains a term and a decision holding its
-  marker, each written under an `Idempotency-Key`, erased, then found nowhere and replayed
-  text-free.
+  marker (a term's in `word` and `is`), each written under an `Idempotency-Key` and erased, then
+  found nowhere, as written or as `FoldWord(marker)` (§R2.2), and replayed text-free.
 - **A brief's erasure names what settled in it.** A term's `is` or a decision's `context` may have
   been drafted from the very answers a brief's erasure removes (§4.1), so "neither holds brief
   text" cannot be assumed. Erasing a brief still changes no term and no decision by itself, as it
@@ -1163,3 +1163,36 @@ Hub's and the Materialiser's part of this read, about 2 h, would not be built; t
 would still need a revision list, as the brief has one. So key forms now cost **about 1 h more**
 than the struct, not about 3 h. The struct stays the default, and Q2 is still asked before 44a, Hub
 45 or phase 4's 26 starts.
+
+### R2.2 Erasure takes the folded word too, and the scan looks for it (R2-I2)
+
+**The gap.** A term's head keeps a folded copy of its current word for rule 1's unique index
+(§2.6:407-408, §2.4:347-348). Erasure empties every revision (§2.6:421-425), and nothing emptied
+the head, so an erased client codename stayed in `terms`. Task 27's `markerHits` matches
+`strpos(col::text, marker) > 0` (`T:27.md:72`), which is case-sensitive, so the head's copy,
+`zqx-matter-4471`, is invisible to a scan for `ZQX-MATTER-4471`: the test would pass on the leak.
+
+**The fix, at the root: no copy of a word outlives its erasure.**
+- `hub.erase_term` sets the head's folded word to `null` in the statement that takes the head out
+  of force. In `0002` the column is nullable only on an erased head (one `CHECK` pairs it with the
+  head's erasure), and the head's guard allows that change inside the owner function alone. A
+  `null` never meets the unique index, so the erased word is free again, which is right: the Hub
+  no longer knows it.
+- A decision's head holds no text: no fold and no unique index on any field (§2.4 rule 1 is a
+  term's). So `hub.erase_decision` has no head column to clear, and the scan below proves that
+  rather than assuming it.
+- The events and the stored replies already hold no text (§2.6:418-434), and the scan covers every
+  other column, the audit rows' among them.
+
+**The tests that pin both.**
+1. **Hub 47's database test for `hub.erase_term`**: after erasure the head's folded word is
+   `null`, every revision's text is `null`, the head is out of force, and a new term with the same
+   word is accepted. A direct `UPDATE` of the column by `hub_app` is refused by the guard.
+2. **Hub 48b's extension of task 27's `TestErasureKeepsKeyAndDigest`**: the term holds the marker
+   in `word` and in `is`, and `markerHits` runs twice, for the marker and for
+   `hubapi.FoldWord(marker)`. **Before** erasure the folded scan finds exactly the head's column,
+   which proves the scan can see the copy, as the brief's case proves it can see a `bytea` column;
+   **after** erasure both scans are empty (§2.6:431-434, amended in place).
+
+**Price: about 0.25 h, in Hub 47** (the column's `CHECK`, the guard's case and the test). The scan's
+second marker is one more call inside 48b's existing scan item: no hours added there.
