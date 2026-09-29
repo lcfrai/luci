@@ -348,7 +348,7 @@ records `Send`, and a settable clock. `Config.Feed` is task 11's **real** `deleg
 | `TestRequestOrchestratorDelegationBeatsTheCache` (b07) | `LaunchRequest.OrchestratorDelegation = dl-a-o` with task 11's cache empty for that key: the Orchestrator is created, `"created"`; the Hub read and the S02-C6 owner/project/class check still run on it | a cache-only lookup, which makes a member's first launch always `awaiting-delegation` (S02-C7) |
 | `TestLaunchUnderAnotherOwnersDelegationIsRefused` (b06, b06 r2) | Alice's `Launch` names Bob's `dl-b-w` on a **cold** cache: `ErrDelegation`, no agent row, no broker create, no mint, `h.cache.Known("dl-b-w")` false, and the fake Hub's one read of `dl-b-w` carried Alice's user id in `ForFrom` (the Hub's audit row for it is task 06's test) — then the same launch with `dl-a-w` succeeds, proving the Hub was reachable | a check written on the cache-hit path only, which lets Alice run as Bob on Bob's gateway budget (S02-C6); a `Put` before the check, which `Known` sees; a read without `WithFor`, which leaves the org's audit trail blind to the attempt |
 | `TestARefusalLeavesTheOwnersDelegationAlone` (b06 r2; was `TestARefusedDelegationIsNotCached`) | **warm**: Bob launches under `dl-b-w` (one Hub read, then cached); Alice names `dl-b-w` → `ErrDelegation`; Bob's agent is still live (no destroy, no `RevokeSession`, not ended) and Bob's second launch succeeds from the cache, so `h.hub.readsFor("dl-b-w")` is exactly Bob's read then Alice's | a refusal that `Drop`s, revokes or ends anything under the id it was handed, which would let anyone who can see a `dl-…` take down its owner's sessions |
-| `TestRequestOrchestratorDelegationIsStillChecked` (b07) | the field naming Bob's `dl-b-o` on Alice's launch → `ErrDelegation`, no Orchestrator, nothing cached | trusting task 21's hint, which would hand the request field the authority route 46 exists to hold |
+| `TestRequestOrchestratorDelegationIsStillChecked` (b07; b07 round 3) | the field naming Bob's `dl-b-o` on Alice's launch → `ErrDelegation` before anything is created: no agent row (the worker's included), no broker create, no mint, no Orchestrator, nothing cached | trusting task 21's hint, which would hand the request field the authority route 46 exists to hold; the hint resolved after the worker's row is committed (RR1-m1), which cannot refuse the launch |
 | `TestAUProjectNeverMintsOnGlobal` | route source says `au`; fake keysmith answers `Route: global` → the key is revoked (`RevokeSession` recorded), nothing is `Send`-ed, the agent ends `failed` with `gateway_route_mismatch` | trusting keysmith's answer |
 | `TestAURouteDownFailsClosed` | route source errors → no broker create, no mint, launch fails; keysmith `503 route_unknown` after create → no token, no second mint with other parameters | a fallback of any kind |
 | `TestMintCarriesTheTeamTags` | a worker's first `MintRequest` has `Owner{tid,oid}` of the delegation owner, `TeamID`, `ProjectID`, `AgentID` = the `ag-…`, `SessionClass: worker`, `PodAddr: 10.244.3.17`, `Counterpart: ""` | Fleet's own identity in the tags, or a missing field |
@@ -421,9 +421,9 @@ func (s *Sessions) Launch(ctx context.Context, r LaunchRequest) (Launched, error
 	if p.Role != hubapi.RoleMember && p.Role != hubapi.RoleAdmin {
 		return Launched{}, ErrViewer // task 12 refused already; this is the second layer
 	}
-	d, err := s.delegation(ctx, p, r.Project, r.Class, r.Delegation)
+	d, od, err := s.delegations(ctx, p, r) // the session's, then decision 4's: both checked BEFORE anything is created (b07 r3)
 	if err != nil {
-		return Launched{}, ErrDelegation
+		return Launched{}, ErrDelegation // a named orchestrator hint that fails the check refuses the whole launch
 	}
 	pv, err := s.cfg.Policies.Effective(ctx, p.OrgID, r.Project, r.Class)
 	if err != nil {
@@ -442,7 +442,7 @@ func (s *Sessions) Launch(ctx context.Context, r LaunchRequest) (Launched, error
 	}
 	out := Launched{Agent: a}
 	if r.Class == model.ClassWorker && r.Parent == "" {
-		out.Orchestrator, out.OrchestratorState = s.orchestratorFor(ctx, p, r.Project)
+		out.Orchestrator, out.OrchestratorState = s.orchestratorFor(ctx, p, r.Project, od) // od zero: "awaiting-delegation"
 	}
 	go s.start(context.WithoutCancel(ctx), a, r, pv) // decision 1: answer first
 	return out, nil
@@ -506,11 +506,11 @@ Four facts make that check the whole defence, and each is why a piece of it is t
 the sandbox's own label (task 17 decision 6), and in Fleet's feed of `delegation.created` /
 `.renewed` / `.revoked`, whose `subject` **is** the id (`task-06.md:356-360`).
 
-`orchestratorFor` calls `EnsureOrchestrator` when an `orchestrator`-class delegation for the
-same key is live, and returns `("", "awaiting-delegation")` when it is not (decision 4).
-`EnsureOrchestrator`'s `dl` argument is decision 4's resolution order — the request's
-`OrchestratorDelegation` first, then the cache — and it is an **input to this same check**, never a
-result of it: `Launch` runs `s.delegation` on it with `Class: orchestrator` like any other id.
+`delegations` (b07 round 3, RR1-m1: the code block lagged decision 4, which resolves both before anything is created) runs `s.delegation` on `r.Delegation` exactly as `Launch` did before, then, only for a person's worker launch (`Class == worker`, no `Parent`), decision 4's orchestrator id —
+the request's `OrchestratorDelegation` first, then the cache's entry under the caller's own orchestrator key — through the same `s.delegation` with `Class: orchestrator`; `od` is zero when neither exists. Either check failing is `ErrDelegation` with no row, pod, mint or cache write.
+`orchestratorFor(ctx, p, project, od)` calls `EnsureOrchestrator` with `od.ID` when `od` is set and returns `("", "awaiting-delegation")` when it is zero.
+`EnsureOrchestrator`'s `dl` argument is therefore always an id **this same check** already passed, never a
+result of it, so no Orchestrator is created under an id `s.delegation` did not see.
 `EnsureOrchestrator` is `Launch` with `Class: orchestrator`, `Command: "panacea-orchestrator"` (task
 15's PTY command), no args, and one extra branch: `store.ErrConflict` from `PutAgent` re-reads
 `Agents(org, project)` for the owner's live Orchestrator and returns it with `created == false`.
@@ -637,11 +637,11 @@ follows the key comparison (`TestAdoptRefusesAnotherOwnersDelegation`). A `Put` 
   nothing creates the owner's `orchestrator`-class one, which only the owner's desktop can (route 46
   is desk-only, `task-06.md:34`), so decision 4's "awaiting-delegation" is the answer for ever and
   TM1-α has no Orchestrator. **Task 21 now owns it**: `EnsureOrchestratorDelegation` creates one per
-  project on a member's first team launch, keeps it in the registry's `TeamDelegations` table, renews
-  it on the same timer as the worker ones, and sends its id on `CreateAgentRequest`
+  owner and project on a member's first team launch, keeps it in the registry's `TeamDelegations` table, renews
+  it on every launch and, while the owner is signed in, on the renewer's timer (b07 round 3: a lapsed one is renewed, never replaced), and sends its id on `CreateAgentRequest`
   (`task-21.md:345-357`, `:413-431`, tests at `:494-498`, re-anchored in b06 r2: b06's `ce16125b` added two lines above them). This task's side of the close is decision 4's
-  resolution order and `LaunchRequest.OrchestratorDelegation`. It no longer blocks task 33; task 33's
-  E2 is a check, not a gate on unplanned work.
+  resolution order and `LaunchRequest.OrchestratorDelegation`, both checked before anything is created (b07 round 3, RR1-m1). It no longer blocks task 33; task 33's
+  M1 checks it (E2 did until b07 round 3); it is not a gate on unplanned work.
 - **Gap S20-2 — the counterpart tag.** Phase 6's `MintRequest` has no counterpart
   (phase 6 `task-03.md:31`); this task adds `Counterpart` as a phase 6 delta the skeleton's delta table does not
   list for task 20, and `Counterparts` needs a producer (task 26's scheduler knows a turn's events; task

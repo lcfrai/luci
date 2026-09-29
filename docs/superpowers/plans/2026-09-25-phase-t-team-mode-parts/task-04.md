@@ -1,6 +1,6 @@
 ### Task 04: Hub migration: team tables, RLS, append-only guards, tombstone columns
 
-**Slice:** TM1-α. **Size:** 3 focused hours. **dependsOn:** 03 (the JSON names the columns
+**Slice:** TM1-α. **Size:** 3.5 focused hours (b07 round 3 added piece 7b). **dependsOn:** 03 (the JSON names the columns
 mirror), Hub tasks 06 (the runner and `hubtest`), 07a (`0001_init.sql`'s tables, RLS loop and
 grants), 07b (`forbid_change`, the owner-function pattern). **Seam defined:** ST.2, in SQL.
 

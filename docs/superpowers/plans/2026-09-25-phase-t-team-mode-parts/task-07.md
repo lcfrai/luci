@@ -1,6 +1,6 @@
 ### Task 07: Hub routes, part 2: threads, messages, escalations, directives, turns, human messages
 
-**Slice TM1-α. Depends on: 06. About 3 hours. Seam: ST.2.**
+**Slice TM1-α. Depends on: 06. About 3.5 hours (b07 round 3 added route 64's evidence). Seam: ST.2.**
 
 This task gives the Hub the cross-user channel's records: rows 60 to 71 of task 01's §7.0 team
 table and its contract §7.18 to §7.22 (`task-01.md:249-260`, `:374-432`). **Task 01 is

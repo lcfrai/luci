@@ -321,10 +321,10 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 01 | ADR-H1 "delegated callers" amendment and the team-records contract | TM1-α | 0.375 (3 h) | Hub merge | ST.2, ST.3 |
 | 02 | `teamtext`: bounded text, author class, G3 hygiene, globs and breadth | TM1-α | 0.3 (2.5 h) | — | — |
 | 03 | Hub wire types for team records; id prefixes and codes | TM1-α | 0.3 (2.5 h) | 01, 02, H01–H03 | ST.2 |
-| 04 | Hub migration: team tables, RLS, append-only guards, tombstone columns | TM1-α | 0.375 (3 h) | 03, H06, H07a, H07b | ST.2 |
+| 04 | Hub migration: team tables, RLS, append-only guards, tombstone columns | TM1-α | 0.4375 (3.5 h; b07 round 3 added piece 7b, a decide's evidence) | 03, H06, H07a, H07b | ST.2 |
 | 05 | Hub delegated-caller authentication; `devissuer` client-credentials grant | TM1-α | 0.375 (3 h) | 04, H11–H13 | ST.3 |
 | 06 | Hub routes, part 1: delegations, tasks, agents, lease events, conflicts; route 87, a project's mode (b01); route 88, the principal read, route 47's broker caller and the five `auth.go`/`delegation.go` deltas that gate them (b02) | TM1-α | 0.5 (4 h) | 05, H14, H17 | ST.2, ST.3 |
-| 07 | Hub routes, part 2: threads, messages, escalations, directives, turns, human messages | TM1-α | 0.375 (3 h) | 06 | ST.2 |
+| 07 | Hub routes, part 2: threads, messages, escalations, directives, turns, human messages | TM1-α | 0.4375 (3.5 h; b07 round 3 added route 64's evidence) | 06 | ST.2 |
 | 08 | Hub feed kinds, Fleet's per-org subscription; `hubclient` team methods, fake, conformance | TM1-α | 0.375 (3 h) | 07, H26, H33, H34 | ST.2 |
 | 09 | Fleet model and the `panacea` control wire v1 | TM1-α | 0.3 (2.5 h) | 02 | ST.1 |
 | 10 | Fleet's Postgres schema and `Store` | TM1-α | 0.375 (3 h) | 09 | — |
@@ -338,7 +338,7 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 18 | The `panacea` verbs in the sandbox binary | TM1-α | 0.3 (2.5 h) | 16, P6-14 | ST.1 |
 | 19 | Fleet's control streams and verb dispatch | TM1-α | 0.375 (3 h) | 12, 17 | ST.1 |
 | 20 | Fleet sessions over the broker; `ag-…` ids; gateway tokens with team tags | TM1-α | 0.375 (3 h) | 11, 14, 15, 19, P6-15, P8-22 | S6.3, S8.1 |
-| 21 | `fleetbe` and the team launch on the local control plane | TM1-α | 0.5625 (4.5 h; b07 added the orchestrator delegation and the four human relays) | 06, 07 (b07: the four relays' Hub routes), 08, 20, H35 (b01) | S8.1, ST.3 |
+| 21 | `fleetbe` and the team launch on the local control plane | TM1-α | 0.625 (5 h; b07 added the orchestrator delegation and the four human relays; round 3 its renew-first, owner-keyed row) | 06, 07 (b07: the four relays' Hub routes), 08, 20, H35 (b01) | S8.1, ST.3 |
 | 22 | Read verbs: `team`, `check`, `files`, `show`, filtered by class | TM1-α | 0.375 (3 h) | 19, 20 | ST.1 |
 | 23 | Lease engine: intent, right of way, breadth cap, request and release | TM1-α | 0.375 (3 h) | 10, 22 | ST.1 |
 | 24 | Task, worker and report verbs; intent leases at plan time | TM1-α | 0.3 (2.5 h) | 23 | ST.1 |
@@ -400,7 +400,7 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 68 | Release attribution on a team project (phase 7's thread) | TM2 | 0.25 (2 h) | 61, H23, H24 | — |
 | 69 | TM2 proof | TM2 | 0.3 (2.5 h) | 58–68 | — |
 
-**Totals:** TM1-α 33 tasks, 98.5 hours (the rows' sum since b07; it read 95 from 09-25, the batches before b07 added 2.5 and b07 1), about 12 focused days; TM1 24 tasks, 65.5 hours, about 8;
+**Totals:** TM1-α 33 tasks, 100 hours (the rows' sum since b07 round 3; it read 95 from 09-25, the batches before b07 added 2.5, b07 1 and b07 round 3 1.5, in tasks 04, 07 and 21; its smaller edits to 01, 03, 08, 30, 31 and 33 sit inside those rows' rounding), about 12.5 focused days; TM1 24 tasks, 65.5 hours, about 8;
 TM2 12 tasks, 32.5 hours, about 4. These are this plan's own tasks only. They exclude the sibling plans' tasks they depend on and
 phase 6's gateway, and they are estimates, not measurements. The design's ≈ 95.5 and ≈ 16 focused
 days (`05-design.md` §12.1, §12.2) count those sibling streams too, so the two figures do not
@@ -759,8 +759,8 @@ On the Hub's 200, `MakeTeam` calls S-LINK's `Resolver.Invalidate(localProjectID)
 **Fix batch b07 (X-C2, S02-C7/S03-C1, G33-1/S04-I8)** adds two things this task alone can do,
 because route 46 and Hub routes 65 and 70 take only the owner's own desktop token (66 and 68 also admit Fleet·O, but show a person only their own rows).
 (1) The member's first team launch in a project creates the owner's **`orchestrator`-class
-delegation** as well as the session's worker one, keeps it per project in the registry's
-`TeamDelegations` record, renews both on one timer, and sends its id to Fleet on
+delegation** as well as the session's worker one, keeps it per owner and project in the registry's
+`TeamDelegations` record, renews it on every launch and, while the owner is signed in, on the renewer's timer (b07 round 3: a lapsed one is renewed, never replaced; a revoked or foreign one is replaced once), and sends its id to Fleet on
 `CreateAgentRequest`; without it task 20 answered `awaiting-delegation` for ever and TM1-α had no
 Orchestrator at all. (2) Four **`/v1/team/*` human relays** — list escalations, answer one, post a
 human message, list directives — each adding the caller's own token and nothing else, passing the Hub's page through unchanged, and refusing
