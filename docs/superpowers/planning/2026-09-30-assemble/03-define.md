@@ -277,8 +277,44 @@ not measured).
 
 ## 8. What this study could not verify
 
-_Pending._
+- **Nothing third-party was run** (the study's rule). That Spec Kit's interview works in our PTY pane, that
+  a preset can carry the five sections, that `specify init` works offline in our image, and that it suits
+  Claude Code 2.1.274 all rest on upstream documents, not on a run.
+- **`clarify`'s status.** It is on `main` as `templates/commands/clarify.md`, but the README's command list
+  omits it. Confirm it on the version we pin.
+- **The GitHub API was rate-limited** (0 calls left, the address is shared). Stars, releases and licences
+  were read from GitHub's HTML pages through a summarising fetch, not from `LICENSE` files. Release years
+  are inferred, because GitHub omits the current year.
+- **No telemetry** is what upstream pages say; the code was not read.
+- **Products not reachable or not priced.** ChatPRD is blocked by the KPMG proxy. BrainGrid and Tessl
+  publish no paid prices. Kiro's regions come from its data-protection page.
+- **Estimates.** Task hours are the plans' own. Glue days are this study's estimate, not a measurement;
+  the fix-round multiplier is the ledger's judgement.
+- **Hub readiness** is unchanged by this study: the real Hub is behind HA4-2.
 
 ## 9. Sources
 
-_Pending._
+Upstream pages, read 2026-09-30:
+
+- Spec Kit: <https://github.com/github/spec-kit>, its releases, `README.md`,
+  `templates/spec-template.md`, `templates/commands/clarify.md` and `templates/commands/specify.md` on
+  `main`; docs <https://github.github.io/spec-kit/> (air-gapped install, integrations, presets, community
+  extensions); PR #4504 (the assess bundle).
+- <https://github.com/mattpocock/skills> · <https://github.com/Fission-AI/OpenSpec> (and releases) ·
+  <https://github.com/bmad-code-org/BMAD-METHOD> (and releases) ·
+  <https://github.com/eyaltoledano/claude-task-master> · <https://github.com/open-gsd/gsd-core> and the
+  archived `gsd-build/get-shit-done` · <https://github.com/spec-kitty/spec-kitty> ·
+  <https://github.com/mbeacom/adrkit> · <https://github.com/yoshi1220/speckit-grill-me> ·
+  <https://github.com/pragya247/spec-kit-azure-devops> · <https://github.com/outline/outline>
+- Kiro: <https://kiro.dev/pricing/>, <https://kiro.dev/docs/specs/>,
+  <https://kiro.dev/docs/privacy-and-security/data-protection/> · Tessl: <https://tessl.io/> ·
+  Traycer: <https://traycer.ai/pricing> · BrainGrid: its comparison article on braingrid.ai ·
+  ChatPRD: `chatprd.ai` (blocked) · Atlassian data residency and Rovo: support.atlassian.com, atlassian.com
+- Comparisons used for orientation only: MarkTechPost (2026-05-08), `RSMuthu/SDD-comparison`.
+- Glasses: `.superpowers/glasses/gsearch.py` and `https://lcfr.ai/api/mcp`, catalogue of 2026-09-29.
+
+In this repository: `docs/superpowers/planning/2026-09-23-owner-decisions.md` (OD-3, OD-19, OD-24, OD-30,
+OD-36); `docs/superpowers/planning/2026-09-28-discovery-skills/00-summary.md` and `11-design-r2.md`
+§7; `.claude/worktrees/phase-4/docs/superpowers/plans/2026-09-23-phase-4-discover.md` §1, §2, §6;
+`.claude/worktrees/phase-4/control-plane/internal/discover/content.go`;
+`control-plane/internal/harness/argv.go`; `images/sandbox/Dockerfile`.
