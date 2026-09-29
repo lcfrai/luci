@@ -861,3 +861,21 @@ What it still owes, and to whom:
 
 Nothing in this file has been compiled, run or shown to the owner (§8.3).
 **Next: item 1**, a round-2 sceptic reading this file against `06-sceptic.md` and OD-36's row.
+
+## Revision 1
+
+**Status: in progress, 2026-09-29.** Answers `12-sceptic-r2.md` at `b1cc3895`. Line numbers in
+the table are this file after the revision; the sceptic's own `11:N` citations are this file at
+`bd9b6299`.
+
+| # | Finding | Answered at |
+|---|---|---|
+| C1 | Q2's default amends the key grammar OD-36 froze | *pending* |
+| C2 | a branch started under the project key gets a stamp that lies | *pending* |
+| I1 | the inheritance record has no session id on create | *pending* |
+| I2 | the drift check reads a project move as a hand-edit | *pending* |
+| I3 | A20 in a documents-only 44a turns the Hub's tests red | *pending* |
+| I4 | §7.2 misses five built changes; the total is near 66-70 h | *pending* |
+| I5 | erasure leaves text in stored replies and derived terms | *pending* |
+| I6 | four transitions have no op | *pending* |
+| I7 | a branch's own decisions leave the thread when it lands | *pending* |
