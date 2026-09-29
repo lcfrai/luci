@@ -168,9 +168,9 @@ same on both backends.
   `.iv-check*` rules (modified)
 
 **Interfaces:**
-- Produces: `evidence.SandboxRunner`, `evidence.ErrCheckUnsupported`; `sandboxd`'s `/check/v1/run`
-  route and its two wire types, consumed by task 23's `Observer` and by nothing else in W1; the
-  desktop's `CheckLine`, the one writer of `Serve.Check` in W1
+- Produces: `evidence.SandboxRunner`, `ErrCheckUnsupported`, `ErrNoHold`, `MaxCheckHold`; `sandboxd`'s
+  `/check/v1/run` route and its two wire types, consumed by task 23's `Observer` and by nothing else
+  in W1; `reaper.Reaper.Hold`; the desktop's `CheckLine`, the one writer of `Serve.Check` in W1
 - Consumes: task 23 — `evidence.CheckRun`, `CheckRunner`, `Observer.Runner`; phase 1 —
   `backend.Backend` (`Create`, `Get`, `Destroy`), `backend.Spec`, `backend.Sandbox.Endpoint`,
   `backend.Resources`; phase 2 — `reaper.Reaper` (gains `Hold`), `ids.New`, `ids.Token`,
