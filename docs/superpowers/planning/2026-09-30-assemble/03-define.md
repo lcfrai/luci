@@ -62,7 +62,69 @@ the web, checked on the upstream page on 2026-09-30.
 
 ## 4. Candidate assessments
 
-_Pending._
+### 4.1 GitHub Spec Kit — adopt
+
+- **Does.** Turns an idea into a spec through agent skills. `speckit-assess-*` (intake → research → define
+  → shape → decide) takes a raw idea to a go, clarify or stop decision under `.specify/assessments/`.
+  `speckit-specify` writes `specs/<n>-<name>/spec.md` plus a quality checklist, with at most three
+  `[NEEDS CLARIFICATION]` markers. `speckit-clarify` asks **up to five questions, exactly one at a time,
+  each with 2-5 options and a recommended one first**, and writes every answer into the spec under
+  `## Clarifications` / `### Session <date>`; its scan includes "Terminology & Consistency". Then `plan`,
+  `tasks`, `implement`, and `converge`, which checks the build against the spec until "Converged".
+- **Spec format.** User stories with priorities, **Given/When/Then** acceptance scenarios, edge cases,
+  functional requirements `FR-001…`, key entities, success criteria, assumptions (`templates/spec-template.md`).
+- **Licence.** MIT. **Deploys.** No server. A Python CLI (`uv tool install specify-cli`, or an offline wheel
+  bundle for air-gapped hosts) writes templates and skills into the repository; for Claude Code the
+  integration key is `claude` and it installs under `.claude/skills`. `specify init` uses bundled assets
+  and needs no network. **Presets** override templates, commands *and terminology*, stack by priority, and
+  install from a local directory (`specify preset add --dev <path>`) or a URL.
+- **Enterprise fit.** Nothing to sign in to and nothing to host: identity, audit and residency are those of
+  the session it runs in, which are already ours (Keycloak → Entra, the Hub, the gateway's AU path). It
+  adds no model endpoint: every model call is the agent's own, through LiteLLM. Upstream names no
+  telemetry (not verified by reading code). The community catalogue (130+ extensions, 70+ authors, "not
+  an audit or endorsement") must be switched off or self-hosted.
+- **Maturity.** 139.4k stars, GitHub's own organisation, v1.0.13 on 2026-09-29, releases every 1-3 days.
+- **Gaps.** N1 and N2 are covered. **N3 partly:** no glossary and no decision record of its own. **N4 not
+  at all:** files in git only, no sharing, no revision numbers, no provenance keys, which is exactly the
+  part we have built. **N7 risk:** a menu of slash commands is the wall of configuration our bar forbids,
+  so the cockpit must hide it behind one start. **Churn:** commands were renamed in the 1.0 line, so pin a
+  version and canary the sections we parse.
+- **Effort.** About 8 stream-days with the glue in section 6. **Verdict: adopt.**
+
+### 4.2 mattpocock/skills (aihero) — integrate, inside the Spec Kit preset
+
+- **Does.** `grill-me` interviews "until every branch of the design tree is resolved"; `grill-with-docs`
+  does the same while writing **`GLOSSARY.md` and ADRs**; `domain-modeling` sharpens the terms.
+- **Licence.** MIT, 272.1k stars. **Deploys, fit.** Skill files; no server, no calls of their own.
+- **Gaps.** No spec template or acceptance-criteria structure (Spec Kit supplies both). The 2026-09-28
+  study (`2026-09-28-discovery-skills/00-summary.md` §1) already judged these skill by skill; this study
+  adds only where they sit: inside our preset, so glossary and decisions land as **files**, not as a
+  transcript that OD-8 forbids us to depend on.
+- **Effort.** 1 day, inside G1. **Verdict: integrate.**
+
+### 4.3 OpenSpec — reference, the runner-up
+
+- **Does.** `openspec/specs/` is the source of truth; `openspec/changes/` holds a proposal, design and tasks
+  with ADDED/MODIFIED/REMOVED deltas, merged into the specs on archive. `/opsx:explore` is a thinking
+  partner, then `propose`, `apply`, `archive`. Works with 30+ tools.
+- **Licence.** MIT. **Deploys, fit.** An npm CLI plus commands in the agent; same fit as Spec Kit.
+- **Maturity.** 70.7k stars, v1.13.2 in September 2026, backed by Fission AI, a small company.
+- **Gaps.** The best brownfield model of the set, but its interview is an open-ended explore, not
+  Spec Kit's structured one-question-with-a-recommendation; no glossary, no decision record; smaller backer.
+- **Effort.** About 9 stream-days (the same glue plus an interview skill of our own). **Verdict: reference.**
+  Revisit if per-feature spec folders pile up in long-lived repositories.
+
+### 4.4 BMAD-METHOD — reference
+
+- **Does.** A set of agent personas across the lifecycle: brainstorming and a product brief, a PRD, UX,
+  architecture, epics and stories. v6 installs as skills or a Claude Code plugin.
+- **Licence.** MIT for the code; **"BMad" and "BMAD-METHOD" are trademarks of BMad Code, LLC**, so none of
+  our surfaces may carry the name. **Maturity.** 53.6k stars, v6.12.0 in September 2026.
+- **Gaps.** The richest from-nothing elicitation of the set, and the most ceremony: one comparison counts
+  21 agents. It fails N7, and its UX, architecture and story steps cross into Design and the work layer,
+  which breaks our phase boundaries.
+- **Effort.** About 12 stream-days, mostly trimming. **Verdict: reference.** Borrow its elicitation
+  techniques into the preset if clarify plus grill proves too thin.
 
 ## 5. Recommendation
 
