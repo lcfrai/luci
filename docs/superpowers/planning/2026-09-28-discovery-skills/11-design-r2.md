@@ -1104,3 +1104,62 @@ runs.
 2 Important, 9 Minor). Every line above this heading keeps its number: earlier sections change only
 in place, line for line, because Revision 1's table and both sceptic files cite them by line. New
 material that needs room is written below, in §R2.1 onward, and the section it amends points here.
+
+### R2.1 A past revision reads back: one revisions read per kind (R2-I1)
+
+**The gap.** Under the struct, `/v1/refs` answers no term or decision (§2.1:217-218), and §2.4's two
+lists serve heads. Yet four parts of the design print or compare a revision that may no longer be
+the head: the block's origin line under a departure (§5.1:614-622), the lens's *Project:* line and
+its *project changed* (§6.2:786-789), *History* (§6.1:780-782), and §5.2's claim that every struct
+reads back for ever (§5.2:674-677). A Materialiser that printed the head's text instead would move
+the rendered text without moving either digest, because the overlay drops the overridden entry from
+the branch's set (§2.3:296-297), and `Inspect` would call the block `edited`: round 1's I2 again.
+
+**The lists are heads, and say so** (§2.4:376-382, amended in place): each item is one head with
+its head revision's §2.2 fields and digest, ordered by id, under the contract's list rule
+(`HC:48-49`, "Order is stated per route"). That is all a set needs.
+
+**The read, one per kind, in §18.** `GET /v1/projects/{projectId}/term-revisions?id=<te-…>&id=…`
+and `…/decision-revisions?id=<dr-…>&id=…`: the batch write's own path (§2.4:307), read.
+- 1-100 `id` parameters, as `/v1/refs` takes 1-100 keys (`HC:817-818`). The answer is every
+  revision of each named record, with its §2.2 fields, `digest`, `savedAt`, `savedBy` and
+  `erasedAt`, ordered by id and then by revision, oldest first, and paged by the list rule. An
+  erased revision reads with its text `null` and keeps its id, number and digest (§2.6). An id that
+  names no record of this project yields no items, as `/v1/refs` answers `missing` without failing
+  the batch.
+- Role `V`, as the lists (§2.4:373-374). One shape serves the pin and the history: a record's
+  revisions are few, and a caller that wants revision *n* takes it from them.
+- The brief has two routes for this: `/v1/refs` for a past revision's text, and a history without
+  content (`HC:790-796`). A term or a decision has no key for `/v1/refs`, so its one read carries
+  the fields.
+
+**Who calls it.**
+1. **The Materialiser** (phase 4's 27). After both lists, for a branch key whose set holds a
+   departure, one call per kind naming the records its departures override, inside the same
+   5-second budget, and refused `hub_unavailable` as a list read is (§5.1:590-594). A project key,
+   or a branch with no departure, makes no call. The pinned revisions travel in `Inheritable` with
+   the two sets (§R2.3, M9a), so `Inspect`'s fresh render and task 12's `materialisations` print
+   the text a start printed.
+2. **The lens** (phase 4's 31, through two new relay routes in 32). *Project: <definition>* under a
+   departure is the pinned revision; *project changed* sets it beside the head, compared by fields
+   (§R2.3, M6); *History* is one record's revisions.
+3. **The desktop's loader** (task 16). An inheritance record's structs resolve from the lists when
+   they name the head, and through the relay when they do not.
+4. **Anyone holding a struct**, for ever. That is what makes §5.2's "reads back for ever" true.
+
+**Why the digests now hold.** A branch's block prints the pinned revision's text, and a revision is
+immutable. So when the project revises an entry the branch overrides, the branch's set digest, its
+block and its files stay as they were, and its sessions stay *current*, which is true; the lens, not
+the block, says *project changed*. A project key's set does move, and its sessions read
+*superseded* (§5.3), which is also true.
+
+**Price: about 2.75 h.** Hub 46 +0.5 (the client method and the fake's read), 48b +0.75 (the two
+server reads, with paging, erased rows and their matrix rows), phase 4's 27 +0.75 (the pinned read
+and its tests against the fake), 32 +0.5 (the two relays) and 16 +0.25 (the loader). The sceptic's
+about 2 h is the Hub's and the Materialiser's part; the desktop's 0.75 h is added here.
+
+**Q2, restated** (§8.2:989, amended in place). Key forms would read a pin through `/v1/refs`, so the
+Hub's and the Materialiser's part of this read, about 2 h, would not be built; the desktop's History
+would still need a revision list, as the brief has one. So key forms now cost **about 1 h more**
+than the struct, not about 3 h. The struct stays the default, and Q2 is still asked before 44a, Hub
+45 or phase 4's 26 starts.
