@@ -97,20 +97,22 @@ thing the finding was about.
   the hours leave out: fix rounds. The largest of the four built surfaces, the content model (76 +
   37 tests, the inline golden, wire format v1), is **not touched**, so no `ContentVersion` question
   arises and `discover.Apply` gains no op: terms and decisions have their own ops, in the Hub's
-  batch route (§2.4). What does move in built code is new tasks (25-29 in phase 4, 45-46 in the
-  Hub), never a re-plan of an approved one.
-- **2.2 The key grammar is the Hub's** (`06:129-151`). *Changed.* The brief's form gains no
-  fragment and does not change by a byte (§2.1), so none of the 64 plan files that quote
-  `brief:bf-` moves. The two new forms **are** a Hub contract amendment and a change to both
-  parsers, and are priced as that: 44a's A20 for the contract, Hub 45 for `hubapi`, phase 4's 26
-  for `provenance`, the Hub's first and merged. This round opened the contract (11b reads it at
-  `cafe1303`), which round 1 did not. Who owns the grammar stays an open owner question (§8); the
-  design is the same under either answer, because both parsers change together.
+  batch route (§2.4). What does move in built code is new tasks (25-29 and 32 in phase 4, 45-48b in
+  the Hub), never a re-plan of an approved one. Revision 1 adds the five built changes round 2
+  missed and reprices four tasks against the plans' own work (§7.2, §7.3).
+- **2.2 The key grammar is the Hub's** (`06:129-151`). *Changed, and settled in Revision 1.* The
+  brief's form gains no fragment and does not change by a byte (§2.1), so none of the 64 plan
+  files that quote `brief:bf-` moves. Terms and decisions add **no** key form either: one revision
+  is named by a `{kind, id, revision}` struct, 06's own alternative (`06:348-351`) and OD-36's *the
+  grammar does not move* read as written. Neither parser changes, and the contract gains an
+  appended §18 rather than grammar. Two key forms stay the owner's alternative, asked before any
+  task that would build them (§8.2, Q2).
 - **2.3 Re-anchoring the frozen plans was unpriced** (`06:153-170`). *No longer applies to phases W
   and T*: nothing in this design lands in either. In the two plans it does touch, new tasks go in a
-  new section at each plan's end with new part files (§7.3), so neither task table moves. The
-  contract's in-place edits are confined to its four closed tables (prefixes, grammar, routes,
-  events), exactly where 44a is already editing for A1-A19, and ride on that pass (§7.4).
+  new section at each plan's end with new part files (§7.3), so neither task table moves. The Hub
+  contract is **not** edited in place: A20 is an appended §18, after §17 at its end, so none of its
+  517 inbound citations moves, and no contract-reading test goes red before the code it checks
+  lands (§7.4).
 
 ### Section 3, the agent and our user
 
@@ -158,12 +160,15 @@ thing the finding was about.
 ### Section 5, contradictions an implementer would meet
 
 - **5.1 A branch's dissent was refused by `Apply`** (`06:268-282`). *No longer applies.* A
-  departure is its own record, `overrides` naming the project entry's pinned key, written through
-  the Hub's batch route rather than `discover.Apply`, so no single content object has to hold both.
-  What the branch sees is phase 4's overlay of two lists (§2.3).
-- **5.2 Retiring an inherited term had no op** (`06:284-290`). *Changed.* `depart` with `state:
-  retired` sets a project word aside on one branch; `retire` retires it for the project;
-  `reinstate` undoes either. §2.4 has an op for every transition.
+  departure is its own record, `overrides` naming the project entry's pinned revision, written
+  through the Hub's batch route rather than `discover.Apply`, so no single content object has to
+  hold both. What the branch sees is phase 4's overlay of two lists (§2.3). Since Revision 1 a
+  branch can also say *not here* to a project **decision**, which is this finding's own case: a
+  departure born `set_aside` (§2.3).
+- **5.2 Retiring an inherited term had no op** (`06:284-290`). *Changed.* A departure is born
+  `retired` for a word or `set_aside` for a decision, and sets the project's entry aside on one
+  branch; `retire` retires a word for the project. Undo writes `restore`, so every gesture has an
+  inverse, promote included (§2.4, Revision 1).
 - **5.3 The id collision was resolve-time** (`06:292-296`). *Changed.* Ids are the Hub's
   (`ids.Wide`), so two records cannot share one. The collision that matters is the **word**, and
   the Hub refuses it at write, inside the transaction, by a unique index: 409 `word_taken` (§2.4).
@@ -186,12 +191,10 @@ thing the finding was about.
   final Materialiser once. The owner's note on OD-36 licenses exactly that: *"we are still in
   build, so if you need to redo some work, it is what it is"* (`owner-decisions.md:409`). The
   third condition's last clause, *give terms and decisions the same shape* as `{briefKey,
-  criterionId}` (`06:348-349`), is **not met either**: each gets its own key form (§2.1), so this
-  design pays for a contract change and a two-parser edit, though not for the 64-file radius,
-  which came from the brief's own key changing. The reason is that a term or a decision is now a
-  record with immutable revisions, which the resolver, the set digests, the inheritance record and
-  the lens all name by one key, the way `design:` is named today and phase W plans to name
-  `issue:`. The struct is priced as §8.2's Q2, about 1.5 hours cheaper.
+  criterionId}` (`06:348-349`), is **met since Revision 1**: one revision is named by a `{kind, id,
+  revision}` struct (§2.1), so no key form is added and neither parser changes. Round 2 took two
+  key forms instead, and its sceptic showed that reading contradicts OD-36's row
+  (`12-sceptic-r2.md`, C1). Key forms are Q2's other answer (§8.2).
 
 ## 2. The two records
 
