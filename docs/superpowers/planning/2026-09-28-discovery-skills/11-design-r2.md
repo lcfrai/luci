@@ -247,8 +247,8 @@ line ending. The limits are round 1's (`05-design.md:243-248`), kept.
 | Both kinds, every revision | Rule |
 |---|---|
 | `scope` | `project` (anchored to the `pj-` id), or `branch` (anchored to that branch's brief id, `bf-…`) |
-| `state` | a term: `in_force`, `retired`. A decision: `in_force`, `superseded`, `withdrawn` |
-| `overrides` | branch scope only: the key, revision pinned, of the project entry this branch departs from; else `null` |
+| `state` | a term: `in_force`, `retired`. A decision: `in_force`, `superseded`, `withdrawn`, and `set_aside`, which only a departure holds: *not on this branch* |
+| `overrides` | branch scope only: the struct (§2.1), revision pinned, of the project entry of the same kind this branch departs from; else `null` |
 | `replacedBy` | on `retired` or `superseded`: the id of the record that took over; else `null` |
 | `settledIn` | the brief key where it settled (§2.5), or `null` when that was a session with no brief |
 | `author` | `person`, or `model_accepted` — the brief's own words, `content.go:63-65`. No `model_drafted` record exists: a draft is a proposal, which is process state (§4) |
@@ -265,13 +265,22 @@ which is OD-36's scope ground (`owner-decisions.md:409`). A branch may do three 
 op (§2.4) and each its own record, so no one content object ever holds an entry and its dissent:
 
 - **Add** a branch-only word or decision: `scope: branch`, `overrides: null`.
-- **Depart** from a project entry: a branch record with `overrides: term:te-…@n` that either
-  defines the word differently (`in_force`) or sets it aside on this branch (`retired`). Pinning
-  `@n` means a later project revision never silently re-points it; the lens says the departure was
-  made against an older definition (§6).
+- **Depart** from a project entry: a branch record whose `overrides` names that entry's revision
+  `n`, born in one of two states. `in_force` defines the word or the decision differently on this
+  branch. *Not here* is a term born `retired` or a decision born `set_aside`: the entry does not
+  apply on this branch and nothing replaces it, which is 06 §5.1's own case. Pinning `n` means a
+  later project revision never silently re-points it; the lens says the departure was made against
+  an older definition (§6).
 - **Promote** a branch entry to the project: a new revision of the **same** record with
   `scope: project`, so its id and history survive. When it was a departure, the same batch retires
-  or supersedes the project entry it overrode, with `replacedBy` naming the promoted record.
+  or supersedes the project entry it overrode, with `replacedBy` naming the promoted record. Only an
+  `in_force` entry is promoted: setting a project entry aside for the whole project is that
+  entry's own `retire` or `supersede` (§2.4), not the promotion of a *not here*.
+
+A branch record anchors to a brief that ends archived when its branch is deleted, landed or not
+(`HC:785-788`). An archived brief takes **no new** branch record: 409 `brief_archived`, as a write to
+the brief itself is (`HC:787`). **Promote** and `retire` of the records already anchored to it stay
+open, and that is how a landed branch's own decisions and words reach the project (§6.2).
 
 What a branch sees is computed by phase 4, never by the Hub (the Hub stores and resolves, 11b §1.4):
 the project's in-force entries, minus those a branch record overrides, plus the branch's own.
