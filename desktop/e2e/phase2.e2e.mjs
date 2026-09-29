@@ -723,11 +723,9 @@ check("c4.pinned", "real-browser carry 4: the pinned-scroll rule holds against r
     const grown = stdoutOf(h, id).length;
     const frozen = await screen(h.page, id);
     const pinnedFrom = Date.now();
-    let pinnedSamples = 0;
     for (let i = 0; i < 30; i += 1) {
       await sleep(100);
       const now = await screen(h.page, id);
-      pinnedSamples += 1;
       if (now.join("\n") === frozen.join("\n")) continue;
       throw new Error(`the pinned rule failed: scrolled up, with this pane's scrollback proved at step 0, the viewport moved at sample ${i}`);
     }
@@ -764,10 +762,13 @@ check("c4.pinned", "real-browser carry 4: the pinned-scroll rule holds against r
     // Everything exported below is a number this run measured. `followed: true` was dropped for
     // the reason step 5 was (review round 4, I1): a field that is true whenever the check
     // reaches this line is a claim the results document cannot check. `pinnedSamples: 30` was the
-    // same literal wearing a number and went the same way (review round 5, Minor 1): the count is
-    // the loop's own, and it now travels with the two figures that can vary — how long the pinned
-    // window actually took, and how many bytes arrived under it while the viewport did not move.
-    observed = { scrollbackDescentEvents, pinnedSamples, pinnedMs, pinnedGrowthBytes, descentEvents,
+    // same literal wearing a number (review round 5, Minor 1), and the counter that replaced it was
+    // the same constant counted instead of written: the loop runs 30 times or throws, so it read 30
+    // on every path that got here (review round 6, Minor 2). It went too. The window's length is
+    // pinned in source instead (desktop/src/e2eC4Pinned.test.ts, beside the reason it is 30 × 100
+    // ms), and what can vary travels here — how long the pinned window actually took, and how many
+    // bytes arrived under it while the viewport did not move.
+    observed = { scrollbackDescentEvents, pinnedMs, pinnedGrowthBytes, descentEvents,
       refollow: "pinned in attachRegistry.test.ts; not falsifiable in a browser (f5-evidence/r3-xterm.json)" };
   } catch (error) {
     failure = error;

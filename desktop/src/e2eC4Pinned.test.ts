@@ -8,6 +8,15 @@
 //       the loop still running in the shared shell — F5's own cascade;
 //   M1  `pinnedSamples: 30`, a literal that is true whenever the line is reached;
 //   M2  three descents, one error string.
+// F5 fix round 6 (SDD/f5-fix-review-6.md) added what none of those pinned:
+//   I1  the BOUNDS. The pinned window is the check's only product assertion, and cutting it from
+//       30 samples to 1 kept every test here green while turning a caught defect into a PASS
+//       (mutant MB). The window, step 1's follow wait and the descents' budget are pinned below,
+//       each beside the sentence that says why it is that number;
+//   M1  the settle's ORDER: `key === filling` was asserted, and a hoisted `filling = key` made it
+//       a tautology without breaking the match (mutant MA);
+//   M2  `pinnedSamples` went: the loop runs 30 times or throws, so the count was 30 on every path
+//       that exported it — the same constant, counted instead of written down.
 // Comments are stripped before every assertion: a rule that a comment can satisfy is not a rule.
 
 import { beforeAll, describe, expect, it } from "vitest";
@@ -50,8 +59,21 @@ describe("c4.pinned decides its screen questions on the screen", () => {
   it("samples that screen twice before trusting it, so a mid-parse screen cannot settle", () => {
     const at = body.indexOf("const settledBottom");
     const before = body.slice(0, at);
-    // Two identical samples: the same "nothing is moving any more" test untilAtBottom makes.
-    expect(before).toMatch(/key === \w+/);
+    const wait = before.match(/await until\(\s*"([^"]*screen[^"]*)",\s*async \(\) => \{([\s\S]{0,900}?)\}, *([\d_]+)\)/);
+    if (wait === null) throw new Error("no screen-level wait stands between the burst and settledBottom");
+    const probe = wait[2];
+    // Two identical samples: THIS probe's screen against the PREVIOUS probe's, which lives outside
+    // the closure — the same "nothing is moving any more" test untilAtBottom makes. Matching
+    // `key === x` is not that on its own: hoisting `x = key` above the comparison keeps the match
+    // and makes it a tautology (review 6, mutant MA). So the ORDER is the assertion: the
+    // comparison reads the old sample, and only after it is the old sample overwritten.
+    const compared = probe.match(/const settled = [^;]*\bkey === (\w+)/);
+    if (compared === null) throw new Error("the settle does not compare this sample against an earlier one");
+    const previous = compared[1];
+    expect(before.slice(0, before.indexOf(wait[0]))).toMatch(new RegExp(`\\blet ${previous} = null;`));
+    const readAt = probe.indexOf(compared[0]);
+    expect(probe.slice(0, readAt)).not.toMatch(new RegExp(`\\b${previous} = `));
+    expect(probe.indexOf(`${previous} = key;`)).toBeGreaterThan(readAt);
   });
 });
 
@@ -82,9 +104,71 @@ describe("c4.pinned exports only what the run measured", () => {
     expect(body.slice(start, end)).not.toMatch(/\b\w+:\s*(?:true|false|\d)/);
   });
 
-  it("counts the pinned samples instead of restating the loop bound", () => {
-    expect(body).toMatch(/pinnedSamples \+= 1/);
-    expect(body).toMatch(/observed = \{[^}]*\bpinnedSamples\b/);
+  it("exports no count the loop bound already fixes", () => {
+    // The pinned loop runs 30 times or throws, so a sample count is 30 on every path that reaches
+    // `observed`: round 5's deleted literal, counted instead of written down (review 6, Minor 2).
+    // The bound is pinned in source below; what varies travels as `pinnedMs` and `pinnedGrowthBytes`.
+    const start = body.indexOf("observed = {");
+    const fields = body.slice(start, body.indexOf("};", start));
+    expect(start).toBeGreaterThan(0);
+    expect(fields).toMatch(/\bpinnedMs\b/);
+    expect(fields).toMatch(/\bpinnedGrowthBytes\b/);
+    expect(body).not.toMatch(/\bpinnedSamples\b/);
+  });
+});
+
+describe("c4.pinned's bounds are its claim, so each is pinned beside the reason it is that number", () => {
+  it("samples the scrolled-up viewport 30 times, 100 ms apart, each against the frozen screen", () => {
+    // Why 30 × 100 ms. This loop is c4.pinned's ONLY product assertion, so its length IS the
+    // claim: "scrolled up, the viewport does not move while output arrives" holds for exactly as
+    // long as it is sampled. 100 ms is the registry's flush interval (FLUSH_INTERVAL_MS,
+    // attachRegistry.ts:17, one term.write per flush), so there is a sample per flush that could
+    // have moved the pane; 30 of them are the three seconds step 2 names, up to 60 ticks of the
+    // loop's 50 ms. A defect that is not instantaneous — a re-arming timer, a debounce, a rule that
+    // holds for two seconds and then yanks — is caught only inside that window: review 6's
+    // scenario 12 REDs at sample 18, and a one-sample window (mutant MB, `i < 1`) PASSES it. A
+    // shorter window is how a slow host buys a false green, so the change has to come through here.
+    const from = body.indexOf("const pinnedFrom");
+    const to = body.indexOf("const pinnedMs");
+    expect(from).toBeGreaterThan(0);
+    expect(to).toBeGreaterThan(from);
+    expect(body.slice(from, to)).toMatch(new RegExp([
+      String.raw`for \(let i = 0; i < 30; i \+= 1\) \{`,
+      String.raw`await sleep\(100\);`,
+      String.raw`const now = await screen\(h\.page, id\);`,
+      String.raw`if \(now\.join\("\\n"\) === frozen\.join\("\\n"\)\) continue;`,
+      String.raw`throw new Error\(\x60the pinned rule failed: `,
+    ].join(String.raw`\s*`)));
+    // A window with no output under it proves nothing either way, and without this red it PASSES.
+    expect(body.slice(to)).toMatch(/if \(pinnedGrowthBytes <= 0\) throw new Error\("no output arrived while pinned/);
+  });
+
+  it("gives step 1 three seconds to see the bottom viewport follow, before step 2 scrolls up", () => {
+    // Why step 1 is pinned at all: it is what makes step 2 falsifiable. A pane that has stopped
+    // drawing never moves either, and `pinnedGrowthBytes` counts the WIRE, so without a
+    // screen-level proof that the bottom viewport is drawing the ticks, step 2 passes on a dead
+    // pane. Why 3_000: xterm follows a bottom viewport by itself (f5-evidence/r3-xterm.json), so
+    // three seconds, up to 60 ticks, is headroom for a loaded host, and its red is a precondition
+    // (task-25.md's rubric), never a product result. Pinned so that the number is changed here,
+    // beside this sentence, and not wherever a slow host makes it red.
+    const follow = body.search(/await until\("the viewport to follow new output", async \(\) => \(await lastTick\(\)\) !== atStart, 3_000\);/);
+    expect(follow).toBeGreaterThan(0);
+    expect(follow).toBeLessThan(body.indexOf("const frozen"));
+  });
+
+  it("gives every descent 40 wheel events inside a 10 s deadline, and no call site moves either", () => {
+    // Why 40 and 10_000. One wheel event moves five rows at any delta (f5-diagnosis.md:109,
+    // measured). The longest walk here is back past the ticks that arrived under a scrolled-up
+    // viewport: about 65 rows after a three-second window (f5-diagnosis.md:10), 13 events — so 40
+    // is 200 rows of room. And 40 × 100 ms of sleep is 4 s inside a 10 s deadline, so a descent that
+    // cannot arrive ends in the COUNT red, the one that carries rows want/got and both tails, not in
+    // the bare timeout. Raise the count past the deadline and a stuck descent loses its tails;
+    // lower it below the rows a descent walks and a working wheel reads as a red.
+    expect(helper).toMatch(/\{ expect: target = null, maxEvents = 40, ms = 10_000, what = /);
+    expect(helper).toMatch(/for \(let events = 0; events < maxEvents; events \+= 1\)/);
+    const calls = stripped(source).match(/await untilAtBottom\([\s\S]*?\);/g) ?? [];
+    expect(calls.length).toBeGreaterThanOrEqual(3);
+    for (const call of calls) expect(call).not.toMatch(/\bmaxEvents\b|\bms\s*:/);
   });
 });
 

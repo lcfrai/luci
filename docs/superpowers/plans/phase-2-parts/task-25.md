@@ -1043,7 +1043,7 @@ The rendered-change rate is recorded, not asserted, and that is deliberate. The 
 
 `awk` is in the image because Debian treats `mawk` as required, which is why the generator is written in it rather than in a language the image may not carry.
 
-Insert above `await main();`:
+Both checks already stand in the harness, above `await main();`, and this plan carries a copy of neither. The two notes below say why, and what the shipped checks do that a reader of an older draft would not expect.
 
 **The `c4.pinned` draft that stood here is deleted, not left to be copied** (F5 fix round, review
 round 5, I3). Four fix rounds changed what that check asserts and why, and a second copy that
@@ -1065,67 +1065,48 @@ of this plan is not surprised by it:
    half of the rule is pinned where it can fail: `desktop/src/api/attachRegistry.test.ts`.
 5. **`observed` carries measured numbers only.** `followed: true` and `pinnedSamples: 30` were both
    deleted — a field that is true whenever the line is reached is a claim the results document
-   cannot check.
+   cannot check — and so was the counter that replaced the second, because the loop runs 30 times
+   or throws and the count read 30 on every path that exported it (F5 fix round 6, review 6
+   Minor 2). The window's length is pinned in source instead: `desktop/src/e2eC4Pinned.test.ts`
+   holds 30 samples × 100 ms, step 1's 3,000 ms follow wait and the descents' 40 events, each
+   beside the sentence that says why it is that number.
 
-`c6.load` below has also moved on in one respect: it now CREATES its second shell when no live one
-is there, instead of throwing `no second live shell`.
+**The `c6.load` draft that stood here is deleted for the same reason** (F5 fix round 6, review 6
+Minor 3). It still threw `no second live shell to echo into`, the line the shipped check replaced,
+and the note above it said the two differed "in one respect" when a diff finds three. Read the
+shipped check — `desktop/e2e/phase2.e2e.mjs`, `check("c6.load", …)`. From the two observers to the
+five returned numbers it matched the draft byte for byte (diffed before the deletion); before them
+it differs in these three places:
 
-```js
-check("c6.load", "real-browser carry 6: 4,000 lines/s for 10 s — usability asserted, render rate measured", async (h) => {
-  const id = ctx.sh;
-  const other = ctx.created.find((x) => x !== id && x !== ctx.claude && socketsFor(h, x).at(-1)?.closed === null);
-  if (other === undefined) throw new Error("no second live shell to echo into");
-
-  await h.page.evaluate((sel) => {
-    const rows = document.querySelector(`${sel} .xterm-rows`);
-    window.__e2eLoad = { mutations: 0, longest: 0, over200: 0 };
-    new MutationObserver(() => { window.__e2eLoad.mutations += 1; })
-      .observe(rows, { childList: true, subtree: true, characterData: true });
-    new PerformanceObserver((list) => {
-      for (const e of list.getEntries()) {
-        window.__e2eLoad.longest = Math.max(window.__e2eLoad.longest, e.duration);
-        if (e.duration > 200) window.__e2eLoad.over200 += 1;
-      }
-    }).observe({ type: "longtask" });
-  }, paneOf(id));
-
-  const started = Date.now();
-  await type(h.page, id, "awk 'BEGIN{for(i=1;i<=40000;i++){print \"RATE\" i; if(i%400==0) system(\"sleep 0.1\")}}'");
-  await sleep(4_000);   // mid-burst
-
-  const echoFrom = stdoutOf(h, other).length;
-  const typed = Date.now();
-  await type(h.page, other, "echo \"PI\"\"NG\"");
-  await until("the second pane's echo during the burst", () => stdoutOf(h, other).slice(echoFrom).includes("PING"), 2_000);
-  const echoMs = Date.now() - typed;
-
-  await until("RATE40000 on screen", async () => (await screen(h.page, id)).some((r) => r === "RATE40000"), 60_000);
-  const seconds = (Date.now() - started) / 1_000;
-  const load = await h.page.evaluate(() => window.__e2eLoad);
-  return {
-    burstSeconds: Number(seconds.toFixed(1)),
-    rowMutationsPerSecond: Number((load.mutations / seconds).toFixed(1)),
-    longestTaskMs: Math.round(load.longest),
-    tasksOver200ms: load.over200,
-    secondPaneEchoMs: echoMs,
-  };
-});
-```
+1. **It starts from an idle prompt** (`untilPrompt(h, id)`): a foreground command an earlier check
+   left running swallows every keystroke typed after it, which is how one red presented as five.
+2. **It CREATES its second shell when no live one is there**, instead of throwing: under
+   `PANACEA_E2E_ONLY=c6.load` there is none, and that throw was a harness red that read like a
+   product red.
+3. **It waits for the new shell before typing into it**: the pane within 10 s, then its prompt
+   within 30 s (`untilPrompt(h, echo.id, 30_000)`).
 
 ```bash
 PANACEA_E2E_CP_LOG="$E2E_ROOT/control-plane.log" PANACEA_E2E_ONLY=c1.cap,c4.pinned,c6.load npm run e2e
 ```
 
-`c1.cap` is included so `c6.load` has a second live shell to type into.
+`c1.cap` was included so `c6.load` had a second live shell to type into. `c6.load` now creates one when none is live, so it no longer depends on `c1.cap` for that.
 
 **What you must see:** `c4.pinned` `"ok":true`. `c6.load` `"ok":true`, and its `observed` — five numbers — goes into the results document verbatim and into step 16 item 5, where the owner watches the same burst with those numbers beside them. `burstSeconds` near 10 means the render kept up with the generator; much more than 10 means output queued behind the renderer, which is a finding for the owner to weigh, not a failure this check invents.
 
-**What a `c4.pinned` failure means.** **Exactly one of its reds is a product defect.** *The pinned rule failed: scrolled up, with this pane's scrollback proved at step 0, the viewport moved at sample N* is carry 4's failure and a `CLAUDE.md` rule broken: the measurement of "was the user at the bottom" is taken on the wrong side of xterm's parse. That one belongs to task 19. Every other red names a precondition this run could not establish, and **none of them is evidence about the registry**:
+**What a `c4.pinned` failure means.** **Two of its reds can be a product defect, and both belong to task 19.** This plan said exactly one until the F5 fix round 6 (review 6, I2):
+
+- *The pinned rule failed: scrolled up, with this pane's scrollback proved at step 0, the viewport moved at sample N* is carry 4's failure and a `CLAUDE.md` rule broken: the measurement of "was the user at the bottom" is taken on the wrong side of xterm's parse.
+- *Timed out after 20000 ms waiting for the burst to finish reaching the screen* means **the wire delivered and the terminal did not**: it fires only after both wire waits before it have passed (`PAD3000` in the transcript, and the transcript ending at a prompt). That can be the registry's `term.write` path, which is the outward shape F5's row gives (*typed input draws no output*, `docs/verification/2026-09-27-phase-2-results.md:189`), or a host too slow to parse 3,000 lines inside the bound, and nothing in this check tells the two apart. File it against task 19 with a `p1.fidelity` re-run beside it: that check's three screen waits (a red span, `╭─╮`, `TOPMARK` on row 0) ask the same wire-then-screen question of known output.
+
+The reds below name a precondition this run could not establish, and **none of them is evidence about the registry**:
 
 - *The viewport to follow new output* timing out **is not the opposite defect, and this plan said it was until the F5 fix round corrected it.** xterm follows a bottom viewport by itself, with nothing in the registry calling `scrollToBottom` (`f5-evidence/r3-xterm.json`, probes p1/p4/p5), so that wait cannot fail for a registry defect — it fails when the shell or the host is too slow, and it is a precondition, reported as nothing else.
-- *This pane has no scrollback* means the wheel-up moved nothing on an idle shell with 3,000 lines behind it: the terminal, the tile size or the burst is wrong, not the pinned rule.
+- *This pane has no scrollback* (step 0) and *the wheel-up did not move the viewport* (step 4) mean the wheel-up moved nothing on an idle shell with 3,000 lines behind it: the terminal, the tile size or the burst is wrong, not the pinned rule.
 - *On step 0's descent / step 4's descent / the cleanup's return …, 40 wheel-down events did not reach the bottom* is the wheel against a bottom that moved; each red names which descent it was, so they cannot be confused for one another.
 - *No output arrived while pinned* is a harness failure: the loop did not start, and the sample proved nothing either way.
+
+Its wire waits belong to neither list: *… is busy: an earlier check left a foreground command running*, *this check's own scrollback* and *ticks arriving* mean typed input drew nothing on the transcript inside the bound, which is a busy or slow shell or the path between the pane and the PTY. They are not evidence about the pinned rule, and this plan does not say which of those it was.
 
 - [ ] **Step 13: Durability — detach past the grace, reload the app, restart the control plane** · AGENT-PROVABLE
 

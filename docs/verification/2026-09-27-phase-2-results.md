@@ -143,7 +143,7 @@ is not. Phase 1's unproven item 5 is half closed by measurement, and the other h
 claimed.
 
 **Why no second run.** The plan runs step 19 once and never re-runs a red until it goes green
-(`task-25.md:1584`). Nine reds stand as the result.
+(`task-25.md:1566`). Nine reds stand as the result.
 
 ## Owner-observed
 
@@ -343,7 +343,7 @@ a root-cause fix each, not product choices.
    In this run it measured it, and `defect6` names `s-7ab0d23a` at 700×480.
 ## Carry disposition
 
-The table is task 25's (`task-25.md:1696-1723` — header `:1696`, 26 rows `:1698-1723`), copied;
+The table is task 25's (`task-25.md:1673-1700` — header `:1673`, 26 rows `:1675-1700`), copied;
 only *Result* is filled, from this run.
 
 | Carry | Source | Disposition in task 25 | Result |
