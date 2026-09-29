@@ -664,8 +664,9 @@ the desktop already derives `superseded` from two numbers (`ref.go:75-76`).
 ### 5.3 The read route: every definition, past any budget
 
 **The route is a file read, the one read every harness already has.** `.panacea/discover/terms.md`
-and `.panacea/discover/decisions.md` hold every entry the branch sees, in full, each under its key
-(`term:te-…@n`), with a first line naming the set digest the marker carries. `.panacea/` is already
+and `.panacea/discover/decisions.md` hold every entry of the session's set, in full, each under its
+id and revision (`te-3f2a91c07b1e4d2a`, rev 2), with a first line naming the set digest the marker
+carries. `.panacea/` is already
 the product's untracked projection directory: phase 5 puts its handoff bundle at
 `.panacea/design/<canvasId>@<rev>/`, excluded through `.git/info/exclude` (`P5:231`, P5-G). The
 Materialiser adds `/.panacea/discover/` to `info/exclude`, checks that git ignores it, and follows no
@@ -677,8 +678,21 @@ A *not ignored* answer, from a tracked file there or a `.gitignore` negation, re
 **So no stamp certifies a truncation** (the sceptic's 4.1). The marker, the files' first lines,
 the `Ref`'s two digests and the inheritance record all carry the digest of the **whole** set, and
 the whole set is on disk at the path the block names, before the harness starts. What the block holds inline
-is a convenience with its own name, never the thing certified. The drift check covers the files
-too: a missing file is `pending`, a hand-edited one `edited` (`inspect.go:18-47`); no new state.
+is a convenience with its own name, never the thing certified.
+
+**The drift check reads the set digests before the text** (the sceptic's I2). `Inspect` renders
+the marker's key and calls anything not `SameText` `edited` (`contextwrite/inspect.go:208-215`),
+on the rule that "a key's render depends on nothing but the key" (`:32`). Here the render also
+depends on both sets, which move whenever a teammate records a word, so a text comparison alone
+would show that new word as a person's deletion. So once the marker's key matches, `Inspect`
+compares the marker's two set digests with the `Ref`'s current two, and a mismatch is
+`StateSuperseded`: the block names another set, as a marker naming another key is (`:205-206`) and
+as `PinErased` already is (`:212-213`). Only when both match does it render and compare, so
+`edited` still means a person changed the block. The files take the same rule: missing is
+`pending`, a first line naming another set digest `superseded`, a hand edit `edited`
+(`inspect.go:18-47`); no new state. Task 12's `materialisations` route reports the same states for
+every worktree of the branch (`task-12.md:18`, `:131`), so its fresh render needs the two list
+reads, and task 12 is amended (§7.4).
 
 **Why a file first and MCP second.** An MCP tool reaches only a harness the control plane has
 pointed at the sandbox's listener, and today that is Claude Code through `--mcp-config` from
@@ -699,8 +713,8 @@ Materialiser, `Ref` and the lens only (`owner-decisions.md:409`), and nothing be
 | `P5:90`, the brief from `discoverhub.Service` | unchanged |
 | `P5:183`, pin and mark | unchanged: a moved word or decision never supersedes an approval |
 | `P5:216`, one key-source selector | unchanged |
-| `P5:323-325`, G9: only `provenance` parses a key | holds for `term:` and `decision:` as written |
-| `P5:534`, `design:` keys through `/v1/refs` | unchanged; the resolver also answers the two new kinds (§2.4) |
+| `P5:323-325`, G9: only `provenance` parses a key | holds: a term or a decision is a struct, never a key, so nothing new is parsed (§2.1) |
+| `P5:534`, `design:` keys through `/v1/refs` | unchanged; `/v1/refs` answers no new kind (§2.4) |
 | `P5T:08`, the review digest | unchanged |
 | `P5T:15`, MCP read tools | gains `get_terms` and `get_decisions` later, optional (§5.3) |
 | `P5T:20`, `Superseded` in `designapi` | unchanged |
@@ -716,7 +730,7 @@ Materialiser, `Ref` and the lens only (`owner-decisions.md:409`), and nothing be
 | `P7T:13`, `selectReleasePinKeys` | unchanged; the pin-keys-are-opaque test holds |
 | `P7T:15`, `:17`, `:18`, pin cell, drawer, governance | unchanged |
 | `provenance.Ref`, `ref.go:78-103` | **changes**: `glossaryDigest`, `decisionsDigest` (§5.2) |
-| The one loader, phase 4 task 16 | **one entry**: `selectSessionInheritanceKeys`, the keys of an inheritance record a person has opened, per `task-16.md:165-167`'s rule that a later lens adds one key source and changes nothing else |
+| The one loader, phase 4 task 16 | **no new key source**: a `KeySource` returns keys (`task-16.md:165-167`), and an inheritance record's entries are structs, which resolve from `discoverSlice`'s two lists (task 16's amendment, §7.4); its `contextRef` is a session's key as before |
 
 **Develop** is where the thread gains its hop: the Materialiser, the inheritance record and the
 session view that compares it with the `Ref`'s two digests. Phase 3's merge and evidence code keys
