@@ -9,7 +9,7 @@ them too.
 1. **Route 78, `GET /v1/orgs/{orgId}/changes?after=&kinds=&limit=`**: Fleet's per-org feed (task
    01 §7.26, `task-01.md:473-477`), beside the member feed Hub task 26 builds.
 2. **`hubclient`**: a `Team` interface with one method per route of tasks 06 and 07, an `OrgFeed`
-   interface, and two context helpers, `WithDelegation` and `WithIdempotencyKey`. The HTTP half is
+   interface, and three context helpers, `WithDelegation`, `WithIdempotencyKey` and `WithFor` (fix batch b06 round 2). The HTTP half is
    written on Hub tasks 33 and 34's transport.
 3. **The fake's team half and the conformance rows**: `fake_team*.go`, and two new conformance
    groups that run against the fake in the default `go test` and against the real Hub under Hub
@@ -42,7 +42,7 @@ approximated.
   fix batch b02). It holds no name, no mail address and no free text: §7.28 rule 5
 - `control-plane/internal/hub/hubclient/hubclient.go`: `Team`, `OrgFeed`, `Hub` (modify)
 - `control-plane/internal/hub/hubclient/context.go`: `WithDelegation`, `WithIdempotencyKey`,
-  `DelegationFrom`, `IdempotencyKeyFrom` (new)
+  `DelegationFrom`, `IdempotencyKeyFrom`, and `WithFor`/`ForFrom` (b06 round 2: see the HTTP client paragraph) (new)
 - `control-plane/internal/hub/hubclient/client_team.go`: the HTTP methods, route 87's
   `SetProjectMode` among them (new)
 - `control-plane/internal/hub/hubclient/fake_team.go`: delegations, tasks, agents, leases,
@@ -290,7 +290,7 @@ that fails the Hub's grammar (`^[A-Za-z0-9_-]{1,64}$`, `task-14.md:103`) is refu
 with a `bad_request` `*Error` before any network call, so a malformed outbox id never costs a
 round trip. The team methods in `client_team.go` are each one line over Hub task 34's generic
 helpers (`get[T]`, `post[Req, Res]`, `patch[Req, Res]`, `del`), with the path built by
-`url.PathEscape` on every id.
+`url.PathEscape` on every id. **`Delegation` alone** also sends `?for=` + `url.QueryEscape(ForFrom(ctx))` when the context carries one (fix batch b06 round 2): `WithFor(ctx, userID)` is a third key beside the two above, set only by task 11's `Adopt`, so the Hub can audit a Fleet read made for someone other than the delegation's owner (task 06, `delegation.named_by_another`).
 
 #### Route 78 — the wire
 
@@ -407,7 +407,7 @@ guarded by the existing `mu`.
 | a live delegation | revoked → 401 `delegation_revoked`; past `expiresAt` → 401 `delegation_expired`; unknown → 401 `delegation_revoked`, `reason: unknown` | `task-01.md:118-124`, `:207-210` |
 | the route is listed | a method whose route name the delegation lacks → 403 `forbidden` | rule 2 |
 | a desktop never names one | a desktop view with `WithDelegation` → 403 `required: "fleet"` | rule 2 |
-| the owner is the delegation's | every record's `ownerUserId` is the delegation owner; any body field naming one does not exist in the Go types | rule 3 |
+| the owner is the delegation's | every record's `ownerUserId` is the delegation owner; any body field naming one does not exist in the Go types. And (b06 round 2) Fleet's `Delegation` under `WithFor(u)`, `u` not that owner, appends one audit-only `delegation.named_by_another` to `TeamEvents()` (subject the id, `data` `{"projectId","ownerUserId","namedBy"}` with `namedBy` = `u`, actor `""`, both feed flags false); `u` equal to the owner appends nothing; a desktop or broker view sending `for` → 400 `bad_request` | rule 3; contract §7.13 and §8 (b06 r2) |
 | `ag-…` owner check | as task 06's `OwnedAgent` / `EitherAgent`, per route | rule 5 |
 | class route sets | `CreateDelegation` refuses a route outside the class set, 422 | `task-01.md:274-283` |
 | state machines | task, agent end, thread, conflict, lease `seq` and terminal states: the same 409s | tasks 06, 07 |
@@ -509,7 +509,7 @@ drift silently (the real Hub has tasks 06 and 07's own tests).
 | `team/principal-org-is-the-projects` (b02) | `Fleet.Principal(Member.TID, Member.OID, ProjectID)` with no `WithDelegation` → 200, `OrgID == ProjectOrgID`, `Role == "member"`; the same for `Admin` → `Role == "admin"`; a provisioned user of the org who is on no team of `ProjectID` → 200, `Role == ""`, three false flags | the fake answers the **caller's** org, which is review S02-I6's hole: an org-A auditor then passes on an org-B project |
 | `team/principal-flags-are-the-projects-org` (b02; second clause rewritten, b02 round 1, I2) | both halves asked by `Fleet` about `ProjectID`, because another org's project is 404 `route_not_found` for Fleet (§7.28 rule 4) and no Fleet identity exists in the second org: `Fleet.Principal(OtherOrgAuditor().TID, OtherOrgAuditor().OID, ProjectID)` → 200, `Role == ""`, `Auditor == false` and all three flags false, though that user holds `Hub.Auditor` in their own org; `Fleet.Principal(Auditor.TID, Auditor.OID, ProjectID)` → 200, `Role == ""`, `Auditor == true`, the same standing held **in the project's own org** | the flag read off the user, not off the (user, org) pair — the negative half alone passes against a Hub that answers every flag false |
 | `team/principal-needs-no-delegation` (b02) | `Fleet.Principal` under `WithDelegation` → 400; `Member.Principal` → 403 `required: "fleet"`; an unprovisioned `(tid, oid)` → 404 `principal_not_found`; a made-up `pj-…`, and a real one of another org → 404 `route_not_found` in both cases, the same code and the same details | the fake answers `principal_not_found` for an unknown project, which tells Fleet whether a project exists |
-| `team/broker-reads-any-delegation` (b02) | `Broker.Delegation(dl)` for Member's, Admin's, a revoked one and an expired one → 200 each, `OwnerTID`/`OwnerOID` set and equal to that owner's; `Member.Delegation(own)` and `Fleet.Delegation(own)` → 200 with both fields empty | the broker refused a revoked delegation, so task 20's cleanup cannot find the pods to delete; or the two fields served to Fleet |
+| `team/broker-reads-any-delegation` (b02) | `Broker.Delegation(dl)` for Member's, Admin's, a revoked one and an expired one → 200 each, `OwnerTID`/`OwnerOID` set and equal to that owner's; `Member.Delegation(own)` and `Fleet.Delegation(own)` → 200 with both fields empty. **Route 47's `for` (b06 round 2):** `Fleet.Delegation(Member's)` under `WithFor(Admin's user id)` → 200, the record unchanged, and exactly one new `delegation.named_by_another` (subject that id, `namedBy` Admin's id, `ownerUserId` Member's, `v: 1`, actor `""`, on neither feed); under `WithFor(Member's id)` → none; `Member.Delegation(own)` sending `for` → 400 `bad_request` | the broker refused a revoked delegation, so task 20's cleanup cannot find the pods to delete; or the two fields served to Fleet; or (b06 r2) a Fleet read for another person that the org's audit never shows, or a `for` a desktop may send to plant one |
 | `team/broker-reaches-one-route` (b02) | every other `Team` method on the broker view → 403 `forbidden`, `required: "fleet"`, `Broker.OrgChanges` included; `Broker.Delegation` of another **org's** delegation → 404 `route_not_found` | the broker admitted as a second Fleet, which would give a pod-level component the whole team API |
 | `team-feed/fleet-only-no-delegation` | `Fleet.OrgChanges` → 200; under `WithDelegation` → 400; `Member.OrgChanges` → 403 `fleet` | the delegation exemption applied to every route |
 | `team-feed/other-org-is-404` | `Fleet.OrgChanges` on a made-up `org-…` → 404 `route_not_found` | org taken from the path |

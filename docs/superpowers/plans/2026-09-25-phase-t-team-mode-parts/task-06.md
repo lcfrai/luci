@@ -916,7 +916,7 @@ task 14's `Read` appends no event of `fn`'s: `Emit` fills a pending list that on
 `delegation.read_by_broker` were therefore never written, though task 01 audits both as the cause
 every Fleet and broker act cites (`task-01.md:694-696`). The Hub's own audited read, route 44, runs
 under `Write` for this reason (Hub `task-27.md:27-29`), and these two follow it: `getPrincipal`
-always, `getDelegation` only when `c.BrokerRead` (its owner's and Fleet's reads stay under
+always, `getDelegation` when `c.BrokerRead` **or** when Fleet's read carries `?for=` (fix batch b06 round 2, below; its owner's reads, and Fleet's with no `for`, stay under
 `s.Read`, and emit nothing). Each event is then one v1 row from `auditRow(tx.P, …)`: no `Via`, no
 `DelegationID`, `actorUserId` `""` (`task-01.md:696-699`). That is why hunk (5)'s principal has no
 `Via`: with `ViaFleet` and no delegation, `check()` refuses the row and the read is 500. `Write`
@@ -925,7 +925,7 @@ answer for 60 s (`task-01.md:628`) and the broker caches each delegation (`task-
 Two more tests in Step 2: `TestPrincipalReadIsAudited` (`fleet("")` asks about Linus on P → one
 `principal.read`, subject Linus's `u-…`, `data` `{"projectId"}` = P, `actorUserId` `""`, `v: 1`)
 and `TestBrokerReadIsAudited` (the broker reads `DLLinusOrch` → one `delegation.read_by_broker`,
-`actorUserId` `""`, `v: 1`). Mutant: either handler left under `s.Read`, which writes no row.
+`actorUserId` `""`, `v: 1`). Mutant: either handler left under `s.Read`, which writes no row. **Route 47's `for` (fix batch b06 round 2, review S02-C6 re-review I3).** Fleet's launch read names the person it reads for, `?for=<u-…>` (task 11's `Adopt`, `task-08.md:293`); only a Fleet caller under a delegation may send it (anyone else, or a `for` that is not a user-id shape, is 400 `bad_request`). The answer is unchanged. When `for` is not the delegation's owner, the handler emits one `delegation.named_by_another`, subject the id, `data` `{"projectId","ownerUserId","namedBy"}`, audit only, and emits nothing when it is. Here `tx.P` is the owner (§5.10 rule 3), but the owner did not act, and a `v: 2` row would be a false record in their name. So this one event is v1 with actor `""`, like `principal.read`: an actor-less form of `Emit` (a `NoActor` flag set only here; **UNVERIFIED until merge**, so use Hub task 14's name for it). Fleet refuses on its own check; the Hub only records. Test: `TestFleetReadForAnotherIsAudited` (Fleet under `DLLinusOrch` with `for` = another member's id → 200 and one `delegation.named_by_another`, `namedBy` that id, `ownerUserId` Linus, `v: 1`, actor `""`; with `for` = Linus → none; a desktop sending `for` → 400). Mutants: the read left under `s.Read`; the row written as `v: 2` in the owner's name; `for` accepted from the desktop, which plants accusations.
 
 **Where `Claims.AppRole` comes from (b02 round 3, found re-checking S02-C5).** Every gate case
 above reads `c.AppRole`, and until this round nothing set it: task 05's `appCaller` answers a
@@ -1068,7 +1068,7 @@ delegation; the Hub records lease changes but does not second-guess them) and en
    caller's org by mistake. `TestPrincipalReadIsAudited` passes and
    `grep -n 's.Read(' control-plane/internal/hub/server/principals.go` prints nothing: the read
    is audited, so it runs under `Write` (b02 round 3).
-8. (b02, S02-C5) `TestBrokerReadIsAudited` and `TestAppRoleIsTheAdmittingCallers` pass (b02 round
+8. (b02, S02-C5; b06 round 2) `TestBrokerReadIsAudited`, `TestFleetReadForAnotherIsAudited` and `TestAppRoleIsTheAdmittingCallers` pass (b02 round
    3: the broker's event is written; `AppRole` is the admitting caller's, by `azp`, never read off
    `roles`), and `TestBrokerReachesOnlyRoute47`, `TestBrokerReadsARevokedDelegation`,
    `TestBrokerWithAHeaderIs400`, `TestAnUngatedAppRoleIsRefused` and

@@ -311,7 +311,7 @@ token. The **route name** is what a delegation lists; a route with no name canno
 | # | Method | Path | Caller and role | Route name | Task | Section |
 |---|---|---|---|---|---|---|
 | 46 | POST | `/v1/delegations` | desk, M of the body's project | — | T06 | §7.13 |
-| 47 | GET | `/v1/delegations/{delegationId}` | its owner (desk), or Fleet under it, or **the broker** (app-only, role `Hub.DelegationReader`, §5.10 rule 10, any delegation of its org; b02) | `delegations.read` | T06 | §7.13 |
+| 47 | GET | `/v1/delegations/{delegationId}` | its owner (desk), or Fleet under it (at launch with `?for=`, b06 round 2), or **the broker** (app-only, role `Hub.DelegationReader`, §5.10 rule 10, any delegation of its org; b02) | `delegations.read` | T06 | §7.13 |
 | 48 | POST | `/v1/delegations/{delegationId}/renew` | its owner (desk) | — | T06 | §7.13 |
 | 49 | DELETE | `/v1/delegations/{delegationId}` | its owner, or A of its project (desk) | — | T06 | §7.13 |
 | 50 | POST | `/v1/projects/{projectId}/tasks` | Fleet·O | `tasks.create` | T06 | §7.14 |
@@ -404,7 +404,7 @@ fields, `"ownerTid"` and `"ownerOid"`, the owner's Entra tenant and object ids a
 them for that user. No other caller sees them: the owner's own desktop and Fleet get the record
 above, byte for byte, so nothing a member or Fleet can read gains a field. They are what lets the
 broker build a pod's owner label itself instead of trusting Fleet's statement of it
-(`task-17.md:47-54`), and route 47 is the only route that serves them.
+(`task-17.md:47-54`), and route 47 is the only route that serves them. **Fleet's `?for=` (fix batch b06 round 2).** Fleet's launch read may carry `?for=<userId>`, the person the launch is for; no other caller may send it (400 `bad_request`). It changes nothing in the answer and admits or refuses nothing. When it is not the delegation's owner, the Hub appends §8's `delegation.named_by_another`. So a member who names someone else's `dl-…` shows in the org's audit, though Fleet refuses the launch itself.
 
 `class` is `orchestrator`·`worker`. `routes` is 1 to 25 distinct names from the class's set.
 `renew` sets `expiresAt = now + PANACEA_APP_HUB_DELEGATION_TTL` and `renewedAt = now`; a lapsed but
@@ -686,8 +686,8 @@ audit row's new `fleet_feed` flag, task 04), `no` (audit only). `data` never hol
 | `project.mode_set` | ✓ | ✓ | project id | `{"from","to"}` | yes |
 | `principal.read` | ✓ | ✓ | user id | `{"projectId"}` | no |
 | `delegation.read_by_broker` | ✓ | ✓ | delegation id | `{"projectId"}` | no |
+| `delegation.named_by_another` | ✓ | ✓ | delegation id | `{"projectId","ownerUserId","namedBy"}` | no |
 ```
-
 `principal.read` and `delegation.read_by_broker` are fix batch b02's (S02-C2, S02-C5). Both are
 **reads**, and both are `no`: audit only, on neither feed, because a feed row per authorisation
 check would swamp both feeds (route 88 runs once per Fleet request that misses the 60 s cache) and
@@ -697,7 +697,7 @@ the cause every other Fleet and broker act cites. **Neither has an actor** (b02 
 identity is ever a principal (§5.10 rule 3), nor is the broker (rule 10), and the user asked about
 did not act, so each `actorUserId` is `""`, the shape §3.6 allows; that user is `principal.read`'s
 subject. Task 06 runs both under `Write`, which appends them. Neither is `v: 2`: `v: 2` marks a
-delegated **write** (rule 4), and neither of these is delegated or a write.
+delegated **write** (rule 4), and neither of these is delegated or a write. `delegation.named_by_another` is fix batch b06 round 2's and follows the same rules: audit only, `v: 1`, actor `""`, written by task 06 under `Write` from route 47's `for` (§7.13). The delegation's owner is that request's principal (rule 3) but did not act; the person Fleet read for (`namedBy`) acted on Fleet, not on the Hub. It is the org's one record of a member naming another member's `dl-…`. Fleet refuses that launch, and no Fleet write could record it: every Fleet write goes under the caller's own delegation, which that caller chooses, or does not hold.
 
 `project.mode_set` (fix batch b01, X-C1) is a desktop write by the team admin, so `v: 1` and no
 delegation. It is `yes` so that it is the first row of a new team project on Fleet's feed (§7.26),
@@ -874,9 +874,9 @@ grep -qF 'Hub.DelegationReader' "$A" || { echo "NO BROKER ROLE IN 5.10"; fail=1;
 [ "$(grep -c '^10\. \*\*The broker reads one route' "$A")" = 1 ] || { echo "NO 5.10 RULE 10"; fail=1; }
 [ "$(grep -c '^9\. \*\*Reserved: the gateway caller' "$A")" = 1 ] || { echo "RULE 9 NOT RESERVED"; fail=1; }
 D=$(awk '/^### 7\.13 /,/^### 7\.14 /' "$C")
-printf '%s\n' "$D" | grep -qF '"ownerTid"' || { echo "ROUTE 47 HAS NO ownerTid"; fail=1; }
+printf '%s\n' "$D" | grep -qF '"ownerTid"' || { echo "ROUTE 47 HAS NO ownerTid"; fail=1; }; printf '%s\n' "$D" | grep -qF '?for=' || { echo "ROUTE 47 HAS NO for"; fail=1; }
 printf '%s\n' "$E" | grep -qF '| `principal.read` |' || { echo "NO PRINCIPAL READ EVENT"; fail=1; }
-printf '%s\n' "$E" | grep -qF '| `delegation.read_by_broker` |' || { echo "NO BROKER READ EVENT"; fail=1; }
+printf '%s\n' "$E" | grep -qF '| `delegation.read_by_broker` |' || { echo "NO BROKER READ EVENT"; fail=1; }; printf '%s\n' "$E" | grep -qF '| `delegation.named_by_another` |' || { echo "NO NAMED-BY-ANOTHER EVENT"; fail=1; }
 # fix batch b01 (X-C1): the one writer of projects.mode, in 7.4, 7.0 and 8
 M=$(awk '/^### 7\.4 /,/^### 7\.5 /' "$C")
 printf '%s\n' "$M" | grep -qF 'POST /v1/projects/{projectId}/mode' || { echo "NO MODE ROUTE"; fail=1; }
@@ -896,7 +896,7 @@ Expected: `MISSING` lines for every field, `NO 5.10`, `NO R12`, `REPLACED ROWS N
 `NOT 15 TEAM SECTIONS`, `NO MODE ROUTE`, `NO ROW 87`, `NO MODE EVENT`, `NO ROW 88`,
 `7.28 DOES NOT PIN THE PROJECT ORG`, `7.28 HAS NO NOT-FOUND CODE`, `NO BROKER ROLE IN 5.10`,
 `NO 5.10 RULE 10`, `RULE 9 NOT RESERVED`, `ROUTE 47 HAS NO ownerTid`, `NO PRINCIPAL READ EVENT`,
-`NO BROKER READ EVENT`, and `result: FAIL`. That is the failing test. `NO MODE ROUTE`,
+`NO BROKER READ EVENT`, `ROUTE 47 HAS NO for` and `NO NAMED-BY-ANOTHER EVENT` (b06 round 2: they kill §7.13 and §8 written without route 47's audited `for`, which leaves a member who names another's `dl-…` out of the org's audit), and `result: FAIL`. That is the failing test. `NO MODE ROUTE`,
 `NO ROW 87` and `NO MODE EVENT` kill the b01 mutant "§7.4's mode amendment dropped", which would
 leave `projects.mode` with a column and no writer (review X-C1). The **nine** new b02 lines
 (`NO ROW 88` through `NO BROKER READ EVENT`), and the modified `NOT 15 TEAM SECTIONS`, kill its
