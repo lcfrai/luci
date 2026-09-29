@@ -1223,7 +1223,7 @@ place, and §0:17-19 carries the figure.
 **R2-M2. An exit named a create that had not run.** §2.4:316-318 is amended in place.
 - Every id is minted before either pass, which resolving `{"item": i}` needs anyway (§2.4:313-315).
 - **The passes are total**: first every item whose record **leaves force** (in force before it, out
-  after it: a `retire`, `supersede` or `withdraw`, or a `restore` of an out-of-force revision), then
+  after it: a `retire`, `supersede` or `withdraw` of an in-force record, or such a `restore`), then
   **every other item**, each pass in request order. The old wording put a *not here* `depart`, and a
   `revise` of an out-of-force record, in neither pass.
 - `replacedBy` and `overrides` are foreign keys declared `DEFERRABLE INITIALLY DEFERRED` in `0002`,
@@ -1233,7 +1233,7 @@ place, and §0:17-19 carries the figure.
 - **Tests**: Hub 47's database test writes that batch in both orders; 46's conformance rows run it
   on the fake and the server. **Price: +0.25 h in Hub 47.**
 
-**R2-M3. Record all is two batches, and says so.** §3.2:479-481 is amended in place.
+**R2-M3. Record all is two batches, and says so.** §3.2:479-482 is amended in place.
 - **Words first, then decisions.** A word is the likelier refusal (`word_taken`, when a teammate
   records it first), and a refused words' batch sends no decisions' batch, so in that case nothing
   is recorded: every row stays suggested and the refusing row says why (§6.3).
@@ -1266,7 +1266,8 @@ and §2.4:360-363 are amended in place.
 **R2-M5. A *not here* departure has fields, one state for both kinds, an inverse and a verb.**
 §2.2:261, §2.3:281, §2.4:324, :326 and :328, and §6.2:794 are amended in place.
 - **Its fields are the pinned entry's, copied**, so §2.2's rules pass unchanged, and the departure's
-  own digest covers the text its block line prints (§5.1:618, :622).
+  own digest covers the text its block line prints (§5.1:618, :622). It never enters force, so the
+  word check (§2.4, rules 1-3), which guards what is in force, does not run on it.
 - **`set_aside` for both kinds.** A term's *not here* was born `retired`. But a departure retired
   later, as **Use the project's** does, is also `retired` with `overrides` set, so the overlay could
   not tell *the project's word does not apply here* from *use the project's word again*. A term now
@@ -1396,10 +1397,10 @@ critical path grows by about 28.5 hours before task 14 (M1), on the condition M1
 | I1 | No route reads a past revision of a term or a decision | **Root, §R2.1**: one revisions read per kind in §18, used by the Materialiser, the lens and the loader. In place: §2.4:373 and :376-382 (the lists are heads, ordered by id; eight routes), §2.1:237-238, §5.1:619, §5.2:675, §5.4:750, §6.1:782, §7.2:859, §7.3:882, :887, :897 and :900, §7.4:915, and Q2 at §8.2:989, now **about 1 h more** for key forms |
 | I2 | An erased term's folded word survives in its head, and the scan cannot see it | **Root, §R2.2**: `hub.erase_term` nulls it; the scan also searches for `FoldWord(marker)` and must find the head's copy before erasure. Pinned by Hub 47's database test and 48b's scan. In place: §2.6:424-425 and :433-434, §7.3:898 and :900 |
 | M1 | The critical path grows by about 24 h, not 3.5 | §R2.3: the chain and its hours, **about +28.5 h** at this revision's prices; 26 needs only 06, 31 only 32's part. In place: §7.5:936-943, §7.3:880-881 and :886, §0:17-19 |
-| M2 | An exit runs before the create it names | §R2.3: ids first, references checked at commit, total passes. §2.4:316-318, §7.3:898 |
+| M2 | An exit runs before the create it names | §R2.3: ids first, references checked at commit, total passes. §2.4:316-318, §7.3:897 and :898 |
 | M3 | **Record all** is two batches | §R2.3: words first, a refused words' batch sends no decisions, one Undo for both. §3.2:479-482, §7.3:886 |
-| M4 | The overlay three times, and a hole across scopes | §R2.3: `hubapi.Overlay`, the one copy; the shadow covers avoided words both ways. §2.3:296-297, §2.4:360-363, §7.2:860, §7.3:880 and :896 |
-| M5 | A *not here* has no fields and no verb | §R2.3: the pin's fields copied; `set_aside` for both kinds; its Undo; **Not on this branch**. §2.2:261, §2.3:281, §2.4:324, :326 and :328, §6.2:794 |
+| M4 | The overlay three times, and a hole across scopes | §R2.3: `hubapi.Overlay`, the one copy; the shadow covers avoided words both ways. §2.3:296-297, §2.4:360-363, §7.2:860, §7.3:880, :896 and :897 |
+| M5 | A *not here* has no fields and no verb | §R2.3: the pin's fields copied; `set_aside` for both kinds; its Undo; **Not on this branch**. §2.2:261, §2.3:281, §2.4:324, :326 and :328, §6.2:794, §7.3:886 and :898 |
 | M6 | A promote's Undo shows a false *project changed* | §R2.3: compared by fields and state. §6.2:787-789, §7.4:917 |
 | M7 | Q8 hides its cost; landed and abandoned look alike | §R2.3: the cost in Q8's row; the lens says it cannot tell. §8.2:995, §6.2:795 and :800-802 |
 | M8 | Four corrections to the contract edit | §R2.3: markers on four headings, never §8; `settled` on its line; every envelope member named; six vectors. §2.6:417, §5.2:652, §7.2:860, §7.3:896, §7.4:920 and :926 |
@@ -1417,8 +1418,9 @@ critical path grows by about 28.5 hours before task 14 (M1), on the condition M1
 **Still unverified.** Nothing was compiled or run. The deferred keys (M2) and `feedSeq` read in a
 page's own snapshot (M9d) are designs for tasks 47 and 48b, not tested SQL. That a heading marker
 leaves every contract-reading test green rests on the sceptic's reading of `contractSection`
-(hub `hubapi/keys_test.go:362-380`), and 44a's own test run is the proof. The hours are the plans'
-ratios, not time spent.
+(hub `hubapi/keys_test.go:362-380`), and 44a's own test run is the proof. Cutting 26's and 31's
+dependencies (M1) reads `plan:406`'s convention; the phase 4 stream confirms it when it writes
+their parts. The hours are the plans' ratios, not time spent.
 
 **Revision 2 complete.** Next: a short re-read of §R2.1, §R2.2 and §R2.3's M5, then the owner's Q2
 before 44a runs; Q2, Q8, Q9 and Q10 are filed in `2026-09-25-owner-questions-pending.md`.
