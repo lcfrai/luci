@@ -96,8 +96,9 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
   `kata-vm-isolation` RuntimeClass, so every pod gets its own Hyper-V-backed microVM and kernel.
   **agent-sandbox** (Kubernetes SIG Apps) adds the lifecycle we were going to write:
   `Sandbox` (a stateful singleton pod with stable identity, persistent storage, scheduled
-  deletion, pause and resume), `SandboxTemplate`, `SandboxWarmPool` (pre-created sandboxes; has a
-  scale subresource, so a plain HPA drives it) and `SandboxClaim` (adopt one from the pool). It
+  deletion, pause and resume), `SandboxTemplate`, `SandboxWarmPool` (pre-created sandboxes; per
+  the 2026-09-28 study it has a scale subresource, so a plain HPA drives it) and `SandboxClaim`
+  (adopt one from the pool). It
   ships a **Go SDK** (`sigs.k8s.io/agent-sandbox/clients/go/sandbox`) and an optional
   `sandbox-router` reverse proxy.
 - **Licence.** Apache-2.0. AKS is an Azure service.

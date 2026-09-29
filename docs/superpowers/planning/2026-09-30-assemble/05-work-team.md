@@ -1,6 +1,6 @@
 # 05 — Work layer and team collaboration: what to adopt instead of build
 
-**Date:** 2026-09-30. **Status:** research in progress, nothing adopted.
+**Date:** 2026-09-30. **Status:** research complete, nothing adopted or built.
 **Capability:** Phase W (work layer, 190 tasks, plan only) and much of Phase T (team mode, 69
 tasks, plan only): issues, projects, cycles, boards, Linear-class speed, presence, notifications,
 seeing each member work, agents taking issues.
@@ -8,7 +8,34 @@ seeing each member work, agents taking issues.
 
 ## The answer
 
-_Pending — filled in last._
+**Do not build a tracker. Integrate the two KPMG already runs — Azure DevOps Boards first, GitHub
+Issues/Projects beside it — behind one `tracker` interface, and make PanaceaApp the agent the
+work is handed to and the proof that closes it. Teams carries *inform* and *decide*.**
+
+- **Integration: ~16 engineer-days; first end-to-end demo on ADO in ~5 working days** with two
+  builders in parallel (§7).
+- **Replaces 127 of Phase W's 190 tasks outright**; 38 survive as the glue; 19 are not tracker
+  work and move to their owning phase; 6 wait for Phase T (§6).
+- **Phase T: products replace only ~5 of 69 tasks** (the human-delivery surfaces). The
+  Orchestrator core has no product anywhere. The tracker buys a fast team v1 instead, if the
+  owner accepts the order change (§8, call 4).
+- **No new spend.** No AGPL, no new SaaS processor, AU residency on both trackers (with one
+  Microsoft profile-data exception, §8).
+- **Four owner calls**, all customer-visible (§8).
+
+| Candidate | Verdict | One line |
+|---|---|---|
+| Azure DevOps Boards | **integrate (first)** | Entra-native, AU geography, `Done` enforceable by process rule, MIT MCP server |
+| GitHub Issues/Projects | **integrate (second)** | Issue fields GA, AU GHE.com, MIT MCP server; cannot restrict closing |
+| Jira Cloud | integrate (third, when a customer brings it) | AU residency, assignable remote agents (Preview); Data Center end of life 2029 |
+| Linear | reference; optional connector | The best agent-session model; **no AU region** |
+| Teams (first-party apps + our bot) | adopt + integrate | Where KPMG people already are; Agents SDK MIT |
+| Plane | reject | AGPL-3.0 community, closed-source commercial; a third tracker |
+| Huly, OpenProject, Taiga, GitLab CE, Vibe Kanban | reject | EPL / GPL / dormant / a third forge / sunsetting |
+| beads | reference | Agent-side claims and ready-work, worth reading for Phase T leases |
+| MCP Agent Mail | reject | MIT with an anti-Anthropic rider |
+| Liveblocks | reject | AGPL server, no AU residency |
+| Azure Web PubSub, NATS, Yjs | reference / later | Transport only; not needed for the first cut |
 
 ## 1. What Phase W and Phase T actually ask for
 
