@@ -20,16 +20,17 @@ func globalAsk(def, key string) string {
 }
 
 // globalOriginAsk is hostGit.valueWithOrigin's question (X-3 review 3 I-C): the
-// scoped --get the global-files resolver now reads WITH --show-origin.
+// scoped --get the global-files resolver reads WITH --show-origin, and with -z
+// so git writes the origin's name raw (X-3 review 4 I-C).
 func globalOriginAsk(scope, def, key string) string {
-	return strings.Join([]string{"config", "--show-origin", "--get", scope, "--includes", "--type=path", "--default", def, key}, " ")
+	return strings.Join([]string{"config", "-z", "--show-origin", "--get", scope, "--includes", "--type=path", "--default", def, key}, " ")
 }
 
-// fileOrigin and cmdOrigin build a --show-origin answer, `<origin>\t<value>`: a
-// value set in config file f, and one an unset key gets from git's --default,
-// whose origin git reports as the command line (no file).
-func fileOrigin(f, value string) string { return "file:" + f + "\t" + value + "\n" }
-func cmdOrigin(value string) string     { return "command line:\t" + value + "\n" }
+// fileOrigin and cmdOrigin build git's -z --show-origin answer, `<origin>` NUL
+// `<value>` NUL: a value set in config file f, and one an unset key gets from
+// git's --default, whose origin git reports as the command line (no file).
+func fileOrigin(f, value string) string { return "file:" + f + "\x00" + value + "\x00" }
+func cmdOrigin(value string) string     { return "command line:\x00" + value + "\x00" }
 
 // globalAnswers is answers with neither key set in the global scope.
 func globalAnswers(answers map[string]eolAnswer) map[string]eolAnswer {
@@ -76,15 +77,17 @@ func TestTheGlobalGitFilesAreTheHostGitsOwnAnswer(t *testing.T) {
 		// its origin is dropped even when git reports one: no provenance to check.
 		{"a relative core.excludesFile, an empty core.attributesFile", noXDG, globalAnswers(map[string]eolAnswer{
 			globalAsk("~/.config/git/ignore", "core.excludesFile"):       {out: fileOrigin("/host/.gitconfig", "my-ignore")},
-			globalAsk("~/.config/git/attributes", "core.attributesFile"): {out: "\n"},
+			globalAsk("~/.config/git/attributes", "core.attributesFile"): {out: fileOrigin("/host/.gitconfig", "")},
 		}), api.GitGlobalFiles{Excludes: "my-ignore", Attributes: ""}},
-		// The global scope sets excludes, so it is read from there; the system
-		// answer is scripted to lose. Its value is absolute, so its origin file
-		// is kept for the session to check (X-3 review 3 I-C).
+		// The global scope sets excludes, so it is read from there. No --system
+		// read of excludes is scripted, and an unscripted git errors
+		// (gitlineendings_test.go), so a read from the wrong scope fails the case.
+		// Its value is absolute, so its origin file is kept for the session to
+		// check (X-3 review 3 I-C).
 		{"excludes set in the global scope", noXDG, globalAnswers(map[string]eolAnswer{
 			hostProbe("core.excludesFile"):                              {out: "~/my-ignore\n"},
 			globalOriginAsk("--global", "~/.config/git/ignore", "core.excludesFile"): {out: fileOrigin("/host/.gitconfig", home+"/my-ignore")},
-			globalAsk("~/.config/git/attributes", "core.attributesFile"):             {out: "\n"},
+			globalAsk("~/.config/git/attributes", "core.attributesFile"):             {out: fileOrigin("/host/.gitconfig", "")},
 		}), api.GitGlobalFiles{Excludes: home + "/my-ignore", Origins: []string{"/host/.gitconfig"}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -115,7 +118,7 @@ func TestAGlobalGitFileTheHostsGitCannotReadIsAnError(t *testing.T) {
 	for name, answers := range map[string]map[string]eolAnswer{
 		"excludes": globalAnswers(map[string]eolAnswer{globalAsk("~/.config/git/ignore", "core.excludesFile"): {err: gitDied}}),
 		"attributes": globalAnswers(map[string]eolAnswer{
-			globalAsk("~/.config/git/ignore", "core.excludesFile"):       {out: "/x/ignore\n"},
+			globalAsk("~/.config/git/ignore", "core.excludesFile"):       {out: cmdOrigin("/x/ignore")},
 			globalAsk("~/.config/git/attributes", "core.attributesFile"): {err: gitDied},
 		}),
 		"excludes, in the probe": {hostProbe("core.excludesFile"): {err: gitDied}},

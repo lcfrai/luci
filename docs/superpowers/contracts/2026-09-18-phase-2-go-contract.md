@@ -2638,6 +2638,21 @@ Exactly one place: the `POST /v1/sessions` handler, in this order.
    through the same `hostpath.ResolveOutside` walk, failing the create on `ErrInside`. A relative
    value names a file in each repository, not a host file, and an unset value's origin is git's
    command line: neither carries an origin to check.
+   AMENDED by X-3 review 4 (I-C), **FAIL CLOSED**. The paragraph above claimed a complete provenance
+   check; it was not one. Without `-z` git C-quotes an origin name that holds a backslash, a quote,
+   a control byte or a non-ASCII byte (a Windows path, an include spelled `sub\x.inc`, a projects
+   directory under a name like Zoë), the quoted string resolved to nothing, and the session refused
+   only on `ErrInside`, so it logged the miss and mounted the value (measured: 201, the key mounted
+   as `core.excludesFile`). The read is now `git config -z --show-origin …`, whose record is
+   `<type>:<name>` NUL `<value>` NUL with the name raw (measured, git 2.53.0.windows.2), and the
+   parse accepts exactly one record whose type is `file` with a name, or `command line` with none
+   (the `--default` answer); any other answer fails the read and so the create. The session then
+   refuses every origin it cannot PROVE outside the projects directory: an empty or relative one,
+   `ErrInside`, any other walk error (gone, unresolvable), and a file with more than one name
+   (`hostpath.OneName`: a hard link needs no privilege on Windows, an in-place edit through the
+   in-project name shows through the host's, and the walk of the host's name passes it, measured).
+   This check covers the MOUNT promise only: an agent-writable global config steering the host's
+   own gits is open question 9 (§8).
    It is **not** downgraded to `/dev/null`: without the host's excludes every agent's `git add -A`
    commits what the host ignores, which is the leak this pair exists to close, so the quiet option
    leaks more and more often than the attack it closes. A path that is a **regular file** on
@@ -3168,3 +3183,11 @@ session, and `docs/PROGRAM.md` names provenance as the thread that must not brea
    request. At tens of sessions that is free. If the rail ever polls at 1 Hz with
    hundreds of sessions it is not, and the fix is an index in the registry rather than
    a cache in the API.
+9. **An agent-writable global git config (X-3 review 4, Q-1; for the owner, not built).** When
+   the host's own global git config, or a file it includes, lives in a project (a dotfiles
+   repository under the projects directory), an agent can set ANY host git setting, not only the
+   two keys a session mounts. §5.1 step 5 now refuses a create only when such a file sets a
+   mounted key. Should a create refuse whenever the global file itself, or any file it includes,
+   resolves into the projects directory, even when it sets neither key? The phase 2 host gits
+   (config, var, rev-parse, for-each-ref, worktree list) run no hook, so no control-plane exploit
+   was found; the user's own host git is exposed all the same.

@@ -181,8 +181,15 @@ func (h hostGit) value(ctx context.Context, key string, args ...string) (string,
 // include.path off, and the host's git follows it. An unset key answered by
 // --default has the origin "command line", which parseShowOrigin reports as no
 // file.
+//
+// -z (X-3 review 4 I-C): without it git C-quotes an origin name holding a
+// backslash, a double quote, a control byte or a non-ASCII byte — a Windows
+// path, an include spelled `sub\x.inc`, a projects directory under a name like
+// Zoë — and a quoted name resolves to nothing, so the provenance walk never
+// ran. With -z git writes the name raw and ends each field with a NUL, which
+// no path and no config value can hold, so there is no quoting to undo.
 func (h hostGit) valueWithOrigin(ctx context.Context, scope, key string, args ...string) (value, origin string, err error) {
-	full := append([]string{"config", "--show-origin", "--get", scope, "--includes"}, args...)
+	full := append([]string{"config", "-z", "--show-origin", "--get", scope, "--includes"}, args...)
 	out, err := h.git(ctx, append(full, key)...)
 	if err != nil {
 		return "", "", err
@@ -190,19 +197,26 @@ func (h hostGit) valueWithOrigin(ctx context.Context, scope, key string, args ..
 	return parseShowOrigin(string(out))
 }
 
-// parseShowOrigin splits `git config --show-origin` output, one `<origin>\t<value>`
-// line, into the value and — when git names a file as the origin — that file's
-// path. Other origins (git reports "command line" for a --default, "blob:…" for
-// a config blob) name no host file and return "".
+// parseShowOrigin reads `git config -z --show-origin --get` output: exactly one
+// record, `<origin type>:<origin name>` NUL `<value>` NUL (git's own format,
+// measured on git 2.53.0.windows.2), the value byte for byte. A "file" origin
+// returns its name; --default's answer, the origin "command line" with no name,
+// returns "" because no file set it. It FAILS CLOSED: any other shape or origin
+// type (a blob, standard input, a nameless file, a second record, the unquoted
+// form git prints without -z) is an error, and the error fails the create. An
+// origin this parse cannot name is an origin no walk checked, and under X-3's
+// premise the file behind it is the agent's.
 func parseShowOrigin(out string) (value, origin string, err error) {
-	line := strings.TrimRight(out, "\r\n")
-	tab := strings.IndexByte(line, '\t')
-	if tab < 0 {
-		return strings.TrimSpace(line), "", nil
+	fields := strings.Split(out, "\x00")
+	if len(fields) != 3 || fields[2] != "" {
+		return "", "", fmt.Errorf("git config -z --show-origin answered %q, which is not one <origin> NUL <value> NUL record, so where the value came from is not known", out)
 	}
-	src, value := line[:tab], strings.TrimSpace(line[tab+1:])
-	if f, ok := strings.CutPrefix(src, "file:"); ok {
-		origin = f
+	src, value := fields[0], fields[1]
+	if src == "command line:" {
+		return value, "", nil
 	}
-	return value, origin, nil
+	if f, ok := strings.CutPrefix(src, "file:"); ok && f != "" {
+		return value, f, nil
+	}
+	return "", "", fmt.Errorf("git config -z --show-origin named the origin %q, which is neither a file nor --default's command line, so where the value came from cannot be checked", src)
 }

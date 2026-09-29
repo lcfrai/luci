@@ -500,7 +500,7 @@ func (a *API) sessionGitGlobalFiles(ctx context.Context, worktreeID string) (ses
 	if err != nil {
 		return sessionGitFiles{}, err
 	}
-	if err := a.sessionGitConfigOrigins(worktreeID, files.Origins); err != nil {
+	if err := a.sessionGitConfigOrigins(files.Origins); err != nil {
 		return sessionGitFiles{}, err
 	}
 	excludes, err := a.sessionGitGlobalFile(worktreeID, "core.excludesFile", files.Excludes)
@@ -522,24 +522,31 @@ func (a *API) sessionGitGlobalFiles(ctx context.Context, worktreeID string) (ses
 // project — the [include]d file that sets core.excludesFile can live inside a
 // project and name any host file, and that file's own path is nowhere near the
 // projects directory. The origin is checked with the same walk m-5 uses, so a
-// link or a junction on the way to it is caught the same way.
+// link or a junction on the way to it is caught the same way, and then by its
+// link count, because a hard link is a second name that no walk of this one
+// can see (hostpath.OneName).
 //
-// A missing origin (fs.ErrNotExist) or one that will not resolve is not a
-// provenance failure: git already read the value, and if the file is gone the
-// named value is still the host's. It is logged, like the value's own case.
-func (a *API) sessionGitConfigOrigins(worktreeID string, origins []string) error {
+// It FAILS CLOSED (X-3 review 4 I-C): the create goes on only when every
+// origin is PROVED outside, and every other answer refuses — an origin that is
+// empty or not absolute, one the walk cannot follow to a file, one that is
+// gone, one whose link count cannot be read. git read that file an instant
+// ago, so a name that does not resolve now is a check that did not run.
+// Refusing only on ErrInside was the hole: git's C-quoted origin resolved to
+// nothing, was logged, and the value it set was mounted.
+func (a *API) sessionGitConfigOrigins(origins []string) error {
 	for _, origin := range origins {
-		if origin == "" {
-			continue
+		if !filepath.IsAbs(origin) {
+			return fmt.Errorf("the host's git reads a global-file setting from %q, which is not an absolute path, so where that file is cannot be checked and this session is not started", origin)
 		}
-		if _, err := hostpath.ResolveOutside(a.deps.ProjectsDir, origin); err != nil {
-			if errors.Is(err, hostpath.ErrInside) {
-				return fmt.Errorf("the host's git reads a global-file setting from %q, which is inside the projects directory where an agent can write it, so this session is not started: move that git config out of the projects directory (%v)", origin, err)
-			}
-			if !errors.Is(err, fs.ErrNotExist) {
-				a.sessionLog().Warn("a host git config origin could not be resolved; not treating it as a provenance failure",
-					"worktreeId", worktreeID, "origin", origin, "err", err)
-			}
+		resolved, err := hostpath.ResolveOutside(a.deps.ProjectsDir, origin)
+		if errors.Is(err, hostpath.ErrInside) {
+			return fmt.Errorf("the host's git reads a global-file setting from %q, which is inside the projects directory where an agent can write it, so this session is not started: move that git config out of the projects directory (%v)", origin, err)
+		}
+		if err != nil {
+			return fmt.Errorf("the host's git reads a global-file setting from %q, and that file cannot be followed to prove it is outside the projects directory, so this session is not started (%v)", origin, err)
+		}
+		if err := hostpath.OneName(resolved); err != nil {
+			return fmt.Errorf("the host's git reads a global-file setting from %q, which has another name, a hard link that may be inside the projects directory where an agent can write it, so this session is not started: make it a file of its own (%v)", origin, err)
 		}
 	}
 	return nil

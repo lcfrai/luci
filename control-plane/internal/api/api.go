@@ -245,9 +245,12 @@ type GitGlobalFiles struct {
 	Attributes string
 	// Origins are host config files a mounted value's provenance depends on:
 	// the file that SET an absolute Excludes or Attributes, read with git's own
-	// --show-origin so an [include] the host config pulls in is named as the
-	// real source. A session refuses the create when reaching one passes through
-	// the projects directory (X-3 review 3 I-C): --includes is on by design
+	// -z --show-origin so an [include] the host config pulls in is named as the
+	// real source, raw and never C-quoted (X-3 review 4 I-C). A session refuses
+	// the create unless every one is PROVED outside the projects directory — an
+	// origin that is not absolute, that the walk cannot follow, that is reached
+	// through the projects directory, or that has a second (hard-linked) name
+	// fails it (sessionGitConfigOrigins; X-3 review 3 I-C): --includes is on by design
 	// (X-1), so under m-5's own premise — a dotfiles repository that is also a
 	// project — the line that NAMES a host file can live inside a project even
 	// when the named file does not. m-5 guards the named file's path; this

@@ -22,8 +22,12 @@ import (
 //
 // Each is one question to git's own parser, in the scope hostGit.scope finds:
 //
-//	git config --get --global|--system --includes --type=path --default <git's default> core.excludesFile
-//	git config --get --global|--system --includes --type=path --default <git's default> core.attributesFile
+//	git config -z --show-origin --get --global|--system --includes --type=path --default <git's default> core.excludesFile
+//	git config -z --show-origin --get --global|--system --includes --type=path --default <git's default> core.attributesFile
+//
+// -z --show-origin pairs each value with the config file that set it, its name
+// raw (valueWithOrigin; X-3 review 3 and 4 I-C); an answer that is not one such
+// record is an error, which fails the create.
 //
 // --type=path expands "~/" and "%(prefix)/" as the host's git does, with the
 // HOME that git sees; Git for Windows sets HOME itself when it is unset. The

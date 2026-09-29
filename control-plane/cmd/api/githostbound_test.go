@@ -152,6 +152,10 @@ func hostConfigAnswer(args []string) ([]byte, error) {
 		return []byte(hostGitUnset + "\n"), nil
 	case strings.Contains(joined, "GIT_AUTHOR_IDENT"):
 		return []byte("Someone <someone@example.com> 1790156728 +1000\n"), nil
+	case strings.Contains(joined, "-z --show-origin"):
+		// The one -z record valueWithOrigin accepts (X-3 review 4 I-C), here
+		// --default's answer, so no origin file is named.
+		return []byte("command line:\x00false\x00"), nil
 	}
 	return []byte("false\n"), nil
 }
