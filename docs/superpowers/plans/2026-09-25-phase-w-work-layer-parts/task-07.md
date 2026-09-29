@@ -584,3 +584,30 @@ and that is reported as a skip, not a pass.
 **Parity rows served:** none closed alone. It pins 05 §3.6's authorisation rows behind **L-8**
 (fact states are facts) and **L-239** (every write attributed to a person), and the database half of
 skeleton rule 2 (*done means proven*; no sync token writes a fact).
+
+#### Addendum (fix batch b02, S03-C1): SW.3's check rule — who may add or change a `check`
+
+Appended so no line above moves. A serves pair's `check` (task 02, `Serve.Check`) is a shell
+command the platform runs and then attests to, as the lander, in an `evidence_observed` move
+(tasks 23, 23b). So it is **who may write what** in the sharpest sense, and SW.3 owns it:
+
+> **A `check` is added or changed only in a person's own revision**: the principal is a person
+> and the revision's title and description are both `H`. Only a member writes a revision at all:
+> this task's matrix rows give every issue write hub-contract's *write revisions* row, `M` (`:319-321`).
+> A check carried through unchanged passes whoever writes the revision; a restore is exempt.
+
+What it closes, each named so no later task re-derives it:
+1. **Not by an agent.** A `text·A` revision — W4's accepted edit proposals (task 141) and
+   proposed drafts (task 140), both of which keep `author: "A"` — cannot add or change one.
+2. **Not by intake.** SW.6's `ImportItem` has no serves (`task-03.md:543-552`); W5's intake
+   drafts write the pair alone (`task-170.md:171`).
+3. **Not by a sync or app principal.** Tasks 145, 150 and 159 write with `byPerson` false, the
+   same fact that sets `hub.work_actor_kind` to `integration` or `app` for a state move.
+
+**Where it is enforced.** Not in a trigger: decision 4 has the guards read the index, and
+`issue_serves` carries no check. It is Go, one function, task 02's `hubapi.ValidateCheckChange`,
+called at every revision write — the fake's (task 04's addendum), the Hub's create (task 08's
+addendum) and the Hub's edit (task 09's addendum) — and pinned for both by task 05's row W-26.
+Because the Hub refuses the revision, the observer never meets a check nobody on the team wrote:
+review finding S03-I5's two tests become W-26 and `TestValidateCheckChange`, where the rule is.
+Size unchanged here: this section states the rule; the code is task 02's.

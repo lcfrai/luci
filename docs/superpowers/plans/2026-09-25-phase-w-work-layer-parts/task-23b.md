@@ -361,9 +361,10 @@ The check line's look is the owner's eyes, not a self-report. Commit with `git c
   error, which records nothing, so the issue there closes only on a person's Record — never a
   false *observed*. (`ErrCheckUnsupported` is for an empty `Endpoint`; `katabe` reports
   `<podIP>:8080`, `backend.go:299-302`.)
-- **Not who may author a check.** The field is `Serve.Check` (task 02) and the authority is SW.3's
-  (task 07): a check is set by a team member with the brief's write verb, never carried in by
-  intake or by a `text·A` revision. This task runs what the revision holds; it does not judge it.
+- **Not who may add or change a check.** That is SW.3's rule (task 07's addendum): only a
+  person's own revision, never intake or a `text·A` one. Task 02's `ValidateCheckChange` decides
+  it and every revision write calls it (the fake, task 04; the Hub, tasks 08 and 09; row W-26), so
+  the check line needs no rule of its own and this task runs only what the Hub accepted.
 - **Not a check that needs a secret, a service or another repository**, and not a sandbox without
   a network: it gets the bundle, a lane sandbox's network and nothing else (decision 3). A check
   that cannot pass under that is a check this platform cannot observe, and the issue closes on a

@@ -2253,3 +2253,14 @@ scope's *"unsubscribe, then comment"* test is row W-19's manual-survives clause.
    branch yet (UNVERIFIED; Step 1 re-checks).
 4. Who erases blob bytes when an issue is erased is unowned: task 14 keeps digests, H05 keeps
    bytes, and no Phase W or Hub part names the retention rule.
+
+#### Addendum (fix batch b02, S03-C1): conformance row W-26
+
+Appended so no line above moves. One more row in `conformance/work.go`, beside W-04 and W-05, run
+against the fake here and against the Hub by task 16:
+
+| Row | Asserts | Mutant it kills |
+|---|---|---|
+| W-26 `check_is_a_persons_text` | an issue serving `c1` with no check; a revision whose `description.author` is `A` adding `check: "true"` → 422 `bad_request` naming `content.serves[0].check`, head unchanged; the same with both texts `H` → 201; then a title-`A` revision carrying that check unchanged → 201 | a fake that accepts what the Hub refuses (SW.3's check rule, task 07's addendum), or the reverse |
+
+Size unchanged: one row.

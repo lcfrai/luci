@@ -90,7 +90,7 @@ that **no parser for it exists or may be written** (05 §3.6: an admin can chang
 "title"; Description AuthoredText "description"; Serves []Serve "serves"; Implements []string
 "implements"}` where `AuthoredText{Text string "text"; Author string "author"}` takes `"H"` or
 `"A"` (05 §3.2, TM-05's `text·H`/`text·A`) and `Serve{BriefKey string "briefKey"; CriterionID
-string "criterionId"}` (the types themselves are declared once, here, and reused by task 03);
+string "criterionId"; Check string "check,omitempty"}` (b02: the part's golden vector v4 pins `check`; the types themselves are declared once, here, and reused by task 03);
 `IssueRevisionDigest(env) (Digest, []byte, error)` calls `hubapi.Canonical` and `DigestOf`, the
 one function the Hub writes with and `hubclient` verifies with (hub-contract §3.4: no TypeScript
 implementation). `ValidateIssueRevisionContent` enforces title ≤ 200 and description ≤ 16 KiB (04

@@ -1715,3 +1715,18 @@ revision; `fakeWorld` is not edited (i); and a sixth file, `client_work_stub.go`
 4. Task 16's part drafted `hubapi.Attachment`, a bodyless erase answering a head, and
    `RestoreIssueRevision(ctx, id, rev int)`; this part's signatures differ (its Step 2 takes them).
 5. H05's feed-append helper and evidence store are unnamed in its part (UNVERIFIED; Step 1).
+
+#### Addendum (fix batch b02, S03-C1): the fake refuses a check that is not a person's own text
+
+Appended so no line above moves. SW.3's check rule (task 07's addendum) is decided by task 02's
+`hubapi.ValidateCheckChange`; the fake calls it at both of its revision writes, before WS0, so
+every Work-backed handler built against `NewFake()` meets the rule the Hub enforces:
+- `CreateIssue`, after `w.checkServes` (`:484-486`): `if err := hubapi.ValidateCheckChange(
+  hubapi.IssueRevisionContent{}, content, true); err != nil { return zero, contentError("", err) }`
+- `WriteIssueRevision`, after `w.checkServes` (`:754-756`): the same call with the head
+  revision's content as `base` and `contentError("content", err)`, so the answer is 422 naming
+  `content.serves[i].check`
+- `RestoreIssueRevision` (`:821`) is not changed: a restore is exempt (task 02's addendum).
+
+`byPerson` is `true` because every fake principal is a person in W1. Task 05's row **W-26** holds
+the fake and the Hub to the same answer. Size unchanged: two calls.

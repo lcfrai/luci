@@ -341,14 +341,14 @@ measured.
 | Slice | Ids | Tasks | Hours | Focused days |
 |---|---|---|---|---|
 | W0 | 01 | 1 | 2 | 0.25 |
-| W1 | 02-70, with 23b | 70 | 196 | 24.5 |
+| W1 | 02-70, with 23b | 70 | 196.5 | 24.6 |
 | W1b | 71 | 1 | 3 | 0.375 |
 | W2 | 72-97, with 81b and 96b | 28 | 76.5 | 9.6 |
 | W3 | 98-113 | 16 | 46 | 5.75 |
 | W4 | 114-142 | 29 | 79.5 | 9.9 |
 | W5 | 143-174 | 32 | 91 | 11.4 |
 | WL | 175-187 | 13 | 33 | 4.1 |
-| **All** | **01-187, 23b, 81b, 96b** | **190** | **527** | **65.9** |
+| **All** | **01-187, 23b, 81b, 96b** | **190** | **527.5** | **65.9** |
 
 **dependsOn** names this plan's tasks by number and sibling tasks by prefix: `H` the Hub plan
 (`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:396-446`), `P3-` phase 3
@@ -363,7 +363,7 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 
 | Start line | After | Who can start | What they can do |
 |---|---|---|---|
-| **WS0, code against the Work fake** | 01-05 (about 13 h) | streams WP, WD1, WD2 | build every Work-backed handler and surface against `hubclient.Work` and `NewFake()`; SW.1 and SW.2 are frozen here, and a later change that is not an added method, field or route reopens task 05 and is announced |
+| **WS0, code against the Work fake** | 01-05 (about 14 h) | streams WP, WD1, WD2 | build every Work-backed handler and surface against `hubclient.Work` and `NewFake()`; SW.1 and SW.2 are frozen here, and a later change that is not an added method, field or route reopens task 05 and is announced |
 | **WS1, the real Hub** | 06-17 | task 70 | the local-mode demo against the local Hub stack through `devissuer` |
 | **W1 in the cloud** | 70, then phase 6 stream A and phase 8 stream C | the owner | the same demo on managed sessions; no Phase W task is needed for it |
 
@@ -400,7 +400,7 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | Id | Task | Slice | Focused days | dependsOn | Seams |
 |---|---|---|---|---|---|
 | 01 | W0 and the documents: the Hub-contract proposal; PROGRAM, FUNCTIONAL-SPEC, AGENTIC-UX's four amendments, 02's corrections | W0 | 0.25 (2 h) | — | SW.0 |
-| 02 | `hubapi`: Work id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical kind and golden vectors | W1 | 0.3 (2.5 h) | 01; H01-H03 | SW.1 |
+| 02 | `hubapi`: Work id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical kind and golden vectors; `ValidateCheckChange` | W1 | 0.375 (3 h) | 01; H01-H03 | SW.1 |
 | 03 | `hubapi`: the W1 wire types and request bodies | W1 | 0.375 (3 h) | 02 | SW.1 |
 | 04 | `hubclient.Work` and the fake, part 1: issues, revisions, numbers, the project key, states | W1 | 0.375 (3 h) | 03; H04-H05 | SW.2 |
 | 05 | the fake, part 2, and the Work conformance rows: relations, labels, policies, comments, subscriptions, imports, search, erase (**WS0**) | W1 | 0.375 (3 h) | 04 | SW.2 |

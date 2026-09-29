@@ -1,6 +1,6 @@
 ### Task 02: `hubapi`: Work id prefixes, the `issue:` key, `DisplayAlias`, the `issue-revision` canonical kind and golden vectors
 
-**Slice:** W1. **Size:** 2.5 focused hours (an estimate, not a measurement). **Stream:** WH.
+**Slice:** W1. **Size:** 3 focused hours, half an hour of it the addendum at the end (an estimate, not a measurement). **Stream:** WH.
 **dependsOn:** 01 (SW.0's grammar line); Hub tasks H01-H03 (`ids.Wide`, `hubapi.Canonical`,
 `DigestOf`, the wire types), sync-merged from `feat/hub` into `feat/work-layer` by the orchestrator
 first (rule H1). **Seams:** defines **SW.1**, first half (the id prefixes, the `issue:` key,
@@ -20,9 +20,9 @@ closes only when a person presses Record (`proven_self_attested`, the weaker wor
 **this** task, not in task 23, for one reason: it is part of the `issue-revision` canonical form
 and therefore part of every digest and key, and SW.1 freezes at WS0 (skeleton `:366`). It is
 `omitempty`, so v1, v2 and v3 of the golden vectors do not move a byte; v4 is new and pins it.
-**Who may set it is not decided here**: the authority rule is SW.3's (task 07) — a `check` is set
-by a team member with the brief's write verb, never carried in by intake or by a `text·A` revision
-— and this file only bounds its length.
+**Who may set it is SW.3's rule** (task 07's addendum): a person's own revision, never intake or
+a `text·A` one. It is **decided here, in one function**, `ValidateCheckChange` (the addendum at the
+end of this file), which the fake and the Hub both call; this file also bounds its length.
 
 **Anchors, re-read on 2026-09-25 at `feat/hub` `9f2fa31`** (paths under
 `control-plane/internal/hub/hubapi/`; the scope read `48351f8`, and every anchor still holds):
@@ -1016,3 +1016,43 @@ The 11 are `TestIssueKeyRoundTrips`, `TestIssueKeyRejectsEverythingOutsideTheGra
 **Parity rows served.** **L-3** (the display alias; closed with task 08 and the desktop rows),
 **L-34** (immutable, digested revisions; closed with tasks 09 and 47), **L-124** (the author class
 on every text; closed with tasks 03, 12 and the issue view).
+
+#### Addendum (fix batch b02, S03-C1): who may add or change a check — `ValidateCheckChange`
+
+Appended, not inserted, so no line above moves: about seventy citations point into this file.
+**SW.3 owns the rule** (task 07's addendum states it); this is the one function that decides it.
+It lives in `hubapi` so the fake (task 04) and the Hub (tasks 08 and 09) run the same Go, as they
+already share `ValidateIssueRevisionContent`, and it lands with SW.1, before WS0, because it
+changes what the fake accepts. It adds half an hour: this task is 3 hours, not 2.5 (skeleton row
+02). Every call site is one line in its own task; none of their sizes moves.
+
+```go
+// workcanonical.go, appended.
+var ErrCheckAuthority = errors.New("hubapi: a check is added or changed only in a person's own revision")
+
+// ValidateCheckChange refuses next when it adds or changes a serves check that base does not
+// hold — matched on the pair, so clearing a kept pair's check is a change — unless byPerson is
+// true and next's title and description are both AuthorHuman. base is the zero value for a new
+// issue. A pair whose check is byte-equal to base's passes whoever writes it, so an agent's
+// revision may carry a person's check through unchanged. A restore is not checked: it re-writes
+// a check that passed when its revision was written. Dropping a whole pair is not this rule's.
+func ValidateCheckChange(base, next IssueRevisionContent, byPerson bool) error
+```
+
+The error is `&FieldError{"serves[i].check", ErrCheckAuthority}` for the first changed pair in
+`next`'s order, so a route answers 422 `bad_request` naming `content.serves[i].check`, as it does
+for `ErrCheck`. Tests first, `TestValidateCheckChange` in `workcanonical_test.go`:
+
+| base | next | byPerson | want |
+|---|---|---|---|
+| zero | H and H, `c1` with `check: "true"` | true | nil |
+| zero | description `A`, the same pair | true | `serves[0].check`, `ErrCheckAuthority` |
+| `c1` with `x` | title `A`, `c1` with `x` | true | nil — carried through |
+| `c1` with `x` | title `A`, `c1` with `y`; then `c1` with none | true | `serves[0].check` both times |
+| `c1` with `x` | H and H, `c1` with `y` | false | `serves[0].check` — W5's sync and app principals |
+| `c1` with `x` | title `A`, `c1` dropped, `c2` with none | true | nil |
+
+Mutants it kills: matching on the whole `Serve` instead of the pair (a cleared check on a kept pair
+is no longer seen); `||` for `&&` in the author test; ignoring `byPerson`. Run: `go test
+./control-plane/internal/hub/hubapi/ -race -count=1 -run ValidateCheckChange`; expected `ok`. The
+acceptance count above (`:987-988`, 11) does not move: its `-run` pattern does not match this test.

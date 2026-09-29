@@ -495,3 +495,12 @@ tests are `--- SKIP`, which is not a pass.
 the alias; closed with tasks 40 and 46), **L-13** and **L-38** (priority and the one human
 assignee; closed with the issue view and the lens), **L-239** (every write's attributed event; the
 Hub's audit route already exists).
+
+#### Addendum (fix batch b02, S03-C1): the create route applies SW.3's check rule
+
+Appended so no line above moves. After `s.checkCreate` returns `content` (`:340-343`), and before
+`store.NextIssueNumber` so a refused create takes no number (W-01): `if err :=
+hubapi.ValidateCheckChange(hubapi.IssueRevisionContent{}, content, true); err != nil { return
+WriteResult{}, Refuse(422, hubapi.CodeBadRequest, err.Error(), fieldOf(err, "")) }`. `byPerson` is
+`true` because every W1 principal is a person (task 07's addendum says who passes `false`). The
+rule is task 07's; the function and its tests are task 02's. Size unchanged: one call.
