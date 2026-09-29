@@ -8,6 +8,13 @@ Method: `06-sceptic.md` first, then `11-design-r2.md` in ranges, then every cita
 leans on checked against the tree (main tree at `feat/phase-2-cockpit`, the `phase-4` and `hub`
 worktrees read-only). Line numbers below are the tree as read on 2026-09-29.
 
+Abbreviations: `11:N` is `11-design-r2.md` at `bd9b6299`; `HC`, `HP` and `PC` are the Hub
+contract, the Hub plan and the provenance contract draft, as 11b defines them; `p4` is
+`.claude/worktrees/phase-4/control-plane/internal/` at `ca737d92`; `hub` is `.claude/worktrees/hub/`
+at `cafe1303`; `work plan` and `phase-w review` are
+`.claude/worktrees/work/docs/superpowers/plans/2026-09-25-phase-w-work-layer.md` and its
+`-review.md`; `plan:N` is phase 4's plan, as 11 §7 defines it.
+
 ## 0. The verdict in one screen
 
 *pending*
@@ -110,11 +117,12 @@ id.** §5.2 (11:538-547), §7.1 (11:690-691), §7.2's `api/materialiser.go` row 
   that a failure after Materialise leaves "nothing behind but the brief block, which is
   git-excluded and stamps nothing" (`:972-973`, `:983-985`).
 - **What fails.** `MaterialiseRequest.SessionID` (11:545) has no value on create. Minting the id
-  earlier reorders phase 2's handler, which §7.1 says does not change. Five exits between `:963`
-  and `:1037` abort a create after Materialise: the conversation store, line endings, git files,
-  worktree admin and the record. Each would leave an inheritance entry for a session that never
-  existed, which is exactly the stamp the handler promises not to leave. An id collision
-  (`:1070-1079`) would append a failed start to another session's "immutable" record.
+  earlier reorders phase 2's handler, which §7.1 says does not change. Six exits after `:963` abort
+  a create before its record exists: the conversation store, line endings, git files, worktree
+  admin, the conversation carry and the record write itself (`:977-1081`). Each would leave an
+  inheritance entry for a session that never existed, which is exactly the stamp the handler
+  promises not to leave. An id collision (`:1070-1079`) would append a failed start to another
+  session's "immutable" record.
 - **Fix.** `MaterialiseResult` returns the two sets' keys and digests. The handler writes the entry
   after `Store.Create` succeeds, beside `contextRef`. That changes `MaterialiseResult` and the
   handler (task 10's code in phase 2's package), so strike "phase 2 entirely" from §7.1 and price
@@ -151,7 +159,7 @@ first.** §1 item 2.3 (11:103-105), 44a's A20 (11:756), the order (11:777-779).
   - the body test meets six routes that have no wire types.
 - **A second procedure.** Phase W already adds a Hub kind its own way: a proposal to the `feat/hub`
   owner (`work plan:167`, `:321`) and its task 02 appending `issue:` to `hubapi/keys.go` (`:235`).
-  Its review cites the same ten-check (`phase-w review:370-375`). Two streams will each raise that
+  Its review cites the same ten-check (`phase-w review:369-376`). Two streams will each raise that
   count to their own number.
 - **Not four tables.** The brief appears in twelve places in the contract (11b §1.9). The
   division-of-labour rule "It reads exactly one field of a revision's content: `status`"
@@ -312,11 +320,47 @@ the project's set whenever the project exists. Correct the reasoning either way.
 
 ## 3. What held up
 
-*pending*
+- **The central move is right, and it is OD-36's.** Terms and decisions are their own Hub records
+  beside the brief. `discover.Content`, its inline golden, every stored digest and the brief's key
+  do not change by a byte, so the 64 plan files that quote `brief:bf-` do not move (11:685-689).
+  Nothing in §2 to §6 writes brief content.
+- **The ceremony finding is fixed for real.** The three-limb test is the agent's. The person gets
+  one gesture, or **Record all**, with an optimistic Undo; there is no checkbox, gate field, count,
+  badge or queue item (§3.2, §6.2). I6 names the only two Undos that fail.
+- **The truncation finding is fixed for real.** The whole set is on disk before the harness starts.
+  The block always names the two files, and every digest covers the whole set, not the inline part
+  (11:569-573). M4 is the one place it can still slip.
+- **Rounds are process state.** They are in neither `Content` nor the Hub, and have no closed state
+  to reopen (11:448-450, :463-466).
+- **The plans' citations are protected.** New tasks go in a new section at each plan's end, and no
+  task-table row is inserted (11:712-715).
+- **The citations are honest.** About 45 of them were checked against the tree (commits named in
+  the header), and each points at what it claims. The issues above are what the design leaves out,
+  not what it misquotes. One source it leans on is looser than its code: `CONTEXT.md:131` glosses
+  `""` as "no brief existed", where `Inheritable` means "nothing complete" (M7).
 
 ## 4. What this review did not verify
 
-*pending*
+1. **Nothing was compiled or run.** Every test consequence above is read from source. Two examples:
+   - `TestResolveBatchesInTwoCallsAtMost` fails if the fake's `lists()` counts the new reads. If it
+     does not count them, the test passes and stops meaning its bound. Either way, someone must
+     decide.
+   - Whether the Hub's contract-reading tests go red at 44a follows from `keys_test.go:737-759`,
+     and was not run.
+2. **I4's hours are a judgement.** They come from the plans' own ratios, not from time spent.
+3. **The Hub's body test and its `pendingAmendment` ratchet** are known from the ledger
+   (`progress.md:316-319`), not from their source.
+4. **Built phase 5 and phase 7 code was not re-read.** §5.4's *unchanged* rows are taken from 11b
+   §4. In particular, whether any built consumer switches exhaustively on `/v1/refs`'s `kind` was
+   not checked. HC:32-35's additive rule does not list a new enum value.
+5. **The Hub worktree's three uncommitted files** (`feed.go`, `schema_integration_test.go`,
+   `task-07a.md`) were not read.
+6. **The count of 517 inbound citations is a floor.** It matches `hub-contract\.md:[0-9]+` only;
+   `HC:` and `§`-only citations are not counted.
+7. **The source was not rechecked.** aihero.dev was not fetched and its `LICENSE` is still unread.
+   Nothing here copies it.
+8. **This review argues Q2's default, and does not decide Q2.** What the owner meant in OD-36 is
+   the owner's to say.
 
 ## Working notes (deleted before the verdict)
 
