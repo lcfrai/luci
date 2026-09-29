@@ -1097,3 +1097,10 @@ not time spent.
 
 **Revision 1 complete.** Next: a re-read of it, C1 and C2 first, then the owner's Q2 before 44a
 runs.
+
+## Revision 2
+
+**Status: in progress, 2026-09-29.** Answers `12-sceptic-r2-round-2.md` at `2726d918` (0 Critical,
+2 Important, 9 Minor). Every line above this heading keeps its number: earlier sections change only
+in place, line for line, because Revision 1's table and both sceptic files cite them by line. New
+material that needs room is written below, in §R2.1 onward, and the section it amends points here.
