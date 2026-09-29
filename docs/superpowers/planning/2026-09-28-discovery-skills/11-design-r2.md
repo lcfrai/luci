@@ -587,7 +587,7 @@ The lens says so on each such entry (§6.2), so nothing is dropped silently. Thi
 beside the `Ref`, would need the owner's reading of OD-36's "`Ref` carries their digests", so it
 is not taken.
 
-Both lists are read **to their last page** (`?after=` until `next` is `null`, `HC:46-47`) before
+Both lists are read **to their last page** (`?after=` until `next` is `null`, `HC:48-49`) before
 anything is digested, inside the same 5-second Hub budget as the brief (`materialise.go:81-87`).
 If the Hub does not answer, or the budget ends mid-list, the start is refused `hub_unavailable`
 exactly as it is today. A session never starts on half its inheritance, and no digest ever covers
@@ -777,7 +777,8 @@ project shows no empty panel and no prompt (§3.3).
    language, which is the thing OD-36 exists for.
 4. **Its provenance.** Each entry carries, in secondary text, *settled at brief rev 4* as a link to
    that revision's history row (or *settled outside a brief*), and its id and revision in the
-   licensed mono (`te-3f2a91c07b1e4d2a` · rev 2, `DESIGN-SYSTEM.md:45`). A revised entry shows its newest words and a *History*
+   licensed mono (`te-3f2a91c07b1e4d2a` · rev 2, `DESIGN-SYSTEM.md:45`). A revised entry shows
+   its newest words and a *History*
    disclosure; retired, superseded and withdrawn entries are behind it, never mixed in.
 
 ### 6.2 A branch's departures, and what the lens never shows
