@@ -212,7 +212,7 @@ export const checkBytes = (s: string): number => new TextEncoder().encode(s).len
 
 /** The pair with its check set, or with no `check` key at all when `check` is "" (omitempty). */
 export function withCheck(s: Serve, check: string): Serve {
-  const { check: _old, ...pair } = s;
+  const pair: Serve = { briefKey: s.briefKey, criterionId: s.criterionId };  // only the pair being set
   return check === "" ? pair : { ...pair, check };
 }
 
