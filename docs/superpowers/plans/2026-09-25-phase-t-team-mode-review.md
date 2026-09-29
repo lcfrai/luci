@@ -4384,6 +4384,15 @@ after the last of them.
   `task-21.md:94`, `:132-141`), and the desktop adopts it into its row and revokes its own orphan.
   That is a wire field across tasks 12, 20 and 21, so it is named at `task-21.md:421` and left for
   the build or a later batch. TM1-α (one laptop each) cannot reach it.
+- **A second residual, new, Important (TM1), recorded and not built:** the Hub now keeps what a
+  taint decide showed, but TM1's cockpit does not show it. Task 52's `DecideItem` has no `evidence`
+  (`task-52.md:439-449`), and tasks 54 and 55 render nothing of a held act, so Bob would approve
+  "Fleet sends it in your name, exactly as shown" (`task-31.md:377`) without seeing the words.
+  TM1-α is not affected: its humans read the relay's JSON, which passes `evidence` through
+  (`task-21.md:596`). Fix direction: `DecideItem` (and its TypeScript mirror) gains `evidence`, and
+  task 55's panel shows `evidence.text` as the Orchestrator's quoted words, data never
+  instructions, with "after reading N teammate messages" from `readTotal`. It is desktop work behind
+  the owner-reviewed prototype (task 51), so it goes to the batch that owns tasks 52 and 55.
 - **G31-5: CLOSED** (task 31's own gap, UNVERIFIED before): route 67 shows and checks `params` as
   task 01 §7.20 fixes it (`task-07.md:166`, `:176`, `:349`). Run A's new `resume` sends `{}`; Run
   B's live Orchestrators may send a `narrow` or a `wait-for`.
@@ -4416,7 +4425,7 @@ after the last of them.
 
 **For any re-review of round 3.** Read `repair-gaps.md`: round 3 edited tasks 01, 03, 04, 07 and
 08 (its Hub range) and task 48 (b13's). Scope: N-C1 across its six tasks and task 31; RR1-I1 in
-task 33; RR1-I2 and RR1-I3 in task 21; RR1-m1 in task 20; RR1-m3 in task 31; G31-5; the residual.
+task 33; RR1-I2 and RR1-I3 in task 21; RR1-m1 in task 20; RR1-m3 in task 31; G31-5; the two residuals.
 
 **Unverified.** Plan text only; nothing built, run or started. That the local control plane keeps
 the `/v1/me` user id for `Owner` (`task-21.md:415`; if not, one `Me` call per launch). That
