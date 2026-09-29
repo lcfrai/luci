@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
 )
@@ -41,15 +42,21 @@ func gitGlobalFilesResolver(host hostGit) func(context.Context) (api.GitGlobalFi
 		// One budget for the whole read — this is the read with the most gits,
 		// four, and the one whose failure is on record (progress.md:6602).
 		err := host.read(ctx, hostConfigReadBudget, func(ctx context.Context) error {
-			excludes, err := gitGlobalFile(ctx, host, "core.excludesFile", "ignore")
+			excludes, exclOrigin, err := gitGlobalFile(ctx, host, "core.excludesFile", "ignore")
 			if err != nil {
 				return err
 			}
-			attributes, err := gitGlobalFile(ctx, host, "core.attributesFile", "attributes")
+			attributes, attrOrigin, err := gitGlobalFile(ctx, host, "core.attributesFile", "attributes")
 			if err != nil {
 				return err
 			}
-			out = api.GitGlobalFiles{Excludes: excludes, Attributes: attributes}
+			var origins []string
+			for _, o := range []string{exclOrigin, attrOrigin} {
+				if o != "" {
+					origins = append(origins, o)
+				}
+			}
+			out = api.GitGlobalFiles{Excludes: excludes, Attributes: attributes, Origins: origins}
 			return nil
 		})
 		if err != nil {
@@ -60,17 +67,31 @@ func gitGlobalFilesResolver(host hostGit) func(context.Context) (api.GitGlobalFi
 }
 
 // gitGlobalFile is the host path the host's own config sets for key, or its
-// default file <name> in git's per-user config directory.
-func gitGlobalFile(ctx context.Context, host hostGit, key, name string) (string, error) {
+// default file <name> in git's per-user config directory, AND — when that path
+// is absolute, so a host file would be mounted — the config file that set it, so
+// the session can check that file's provenance (X-3 review 3 I-C). The origin is
+// "" for a relative value (it names a file in each repository, not a host file)
+// and for an unset value (git reports its --default's origin as the command
+// line, not a file).
+func gitGlobalFile(ctx context.Context, host hostGit, key, name string) (value, origin string, err error) {
 	def := "~/.config/git/" + name
 	if xdg := host.getenv("XDG_CONFIG_HOME"); xdg != "" {
 		def = xdg + "/git/" + name
 	}
-	path, err := host.value(ctx, key, "--type=path", "--default", def)
+	scope, err := host.scope(ctx, key)
 	if err != nil {
-		return "", fmt.Errorf("read %s: %w", key, err)
+		return "", "", fmt.Errorf("read %s: %w", key, err)
+	}
+	value, origin, err = host.valueWithOrigin(ctx, scope, key, "--type=path", "--default", def)
+	if err != nil {
+		return "", "", fmt.Errorf("read %s: %w", key, err)
 	}
 	// An empty value is git reading no file at all (measured with
-	// `git -c core.excludesFile= check-ignore`), not a path.
-	return path, nil
+	// `git -c core.excludesFile= check-ignore`), not a path; a relative one
+	// names a file in each repository, not a host file. Neither mounts a host
+	// file, so neither carries a provenance the session must check.
+	if !filepath.IsAbs(value) {
+		return value, "", nil
+	}
+	return value, origin, nil
 }

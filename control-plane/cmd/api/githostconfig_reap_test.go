@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -63,7 +64,7 @@ func TestHostGitAnswersAfterAReaperRemovesItsDirectory(t *testing.T) {
 	if got, err := gitLineEndingsResolverWith(host, "crlf")(ctx); err != nil || got != eol {
 		t.Errorf("line endings after the reaper: %#v, %v; want %#v as before", got, err, eol)
 	}
-	if got, err := gitGlobalFilesResolver(host)(ctx); err != nil || got != files {
+	if got, err := gitGlobalFilesResolver(host)(ctx); err != nil || !reflect.DeepEqual(got, files) {
 		t.Errorf("global files after the reaper: %#v, %v; want %#v as before", got, err, files)
 	}
 	if got, err := gitIdentityResolver("", "", host)(ctx); err != nil || got != id {

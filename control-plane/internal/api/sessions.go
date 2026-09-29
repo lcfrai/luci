@@ -500,6 +500,9 @@ func (a *API) sessionGitGlobalFiles(ctx context.Context, worktreeID string) (ses
 	if err != nil {
 		return sessionGitFiles{}, err
 	}
+	if err := a.sessionGitConfigOrigins(worktreeID, files.Origins); err != nil {
+		return sessionGitFiles{}, err
+	}
 	excludes, err := a.sessionGitGlobalFile(worktreeID, "core.excludesFile", files.Excludes)
 	if err != nil {
 		return sessionGitFiles{}, err
@@ -509,6 +512,37 @@ func (a *API) sessionGitGlobalFiles(ctx context.Context, worktreeID string) (ses
 		return sessionGitFiles{}, err
 	}
 	return sessionGitFiles{excludes: excludes, attributes: attributes}, nil
+}
+
+// sessionGitConfigOrigins fails the create when a host config file that SET a
+// mounted global-file value is reached through the projects directory (X-3
+// review 3 I-C). sessionGitGlobalFile below refuses a NAMED file an agent can
+// swap (m-5); this refuses the LINE that names it. --includes is on by design
+// (X-1), so under m-5's own premise — a dotfiles repository that is also a
+// project — the [include]d file that sets core.excludesFile can live inside a
+// project and name any host file, and that file's own path is nowhere near the
+// projects directory. The origin is checked with the same walk m-5 uses, so a
+// link or a junction on the way to it is caught the same way.
+//
+// A missing origin (fs.ErrNotExist) or one that will not resolve is not a
+// provenance failure: git already read the value, and if the file is gone the
+// named value is still the host's. It is logged, like the value's own case.
+func (a *API) sessionGitConfigOrigins(worktreeID string, origins []string) error {
+	for _, origin := range origins {
+		if origin == "" {
+			continue
+		}
+		if _, err := hostpath.ResolveOutside(a.deps.ProjectsDir, origin); err != nil {
+			if errors.Is(err, hostpath.ErrInside) {
+				return fmt.Errorf("the host's git reads a global-file setting from %q, which is inside the projects directory where an agent can write it, so this session is not started: move that git config out of the projects directory (%v)", origin, err)
+			}
+			if !errors.Is(err, fs.ErrNotExist) {
+				a.sessionLog().Warn("a host git config origin could not be resolved; not treating it as a provenance failure",
+					"worktreeId", worktreeID, "origin", origin, "err", err)
+			}
+		}
+	}
+	return nil
 }
 
 // sessionGitGlobalFile is hostPath, with every link resolved, when the host's

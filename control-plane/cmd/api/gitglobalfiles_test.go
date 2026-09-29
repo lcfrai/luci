@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -13,10 +14,22 @@ import (
 )
 
 // globalAsk is the git question for key when the global scope does not set
-// it: the system scope's answer, with def as git's default.
+// it: the system scope's --show-origin answer, with def as git's default.
 func globalAsk(def, key string) string {
-	return hostAsk("--system", "--type=path", "--default", def, key)
+	return globalOriginAsk("--system", def, key)
 }
+
+// globalOriginAsk is hostGit.valueWithOrigin's question (X-3 review 3 I-C): the
+// scoped --get the global-files resolver now reads WITH --show-origin.
+func globalOriginAsk(scope, def, key string) string {
+	return strings.Join([]string{"config", "--show-origin", "--get", scope, "--includes", "--type=path", "--default", def, key}, " ")
+}
+
+// fileOrigin and cmdOrigin build a --show-origin answer, `<origin>\t<value>`: a
+// value set in config file f, and one an unset key gets from git's --default,
+// whose origin git reports as the command line (no file).
+func fileOrigin(f, value string) string { return "file:" + f + "\t" + value + "\n" }
+func cmdOrigin(value string) string     { return "command line:\t" + value + "\n" }
 
 // globalAnswers is answers with neither key set in the global scope.
 func globalAnswers(answers map[string]eolAnswer) map[string]eolAnswer {
@@ -47,8 +60,8 @@ func TestTheGlobalGitFilesAreTheHostGitsOwnAnswer(t *testing.T) {
 		want    api.GitGlobalFiles
 	}{
 		{"both unset, no XDG_CONFIG_HOME", noXDG, globalAnswers(map[string]eolAnswer{
-			globalAsk("~/.config/git/ignore", "core.excludesFile"):       {out: filepath.Join(home, "ignore") + "\n"},
-			globalAsk("~/.config/git/attributes", "core.attributesFile"): {out: filepath.Join(home, "attributes") + "\n"},
+			globalAsk("~/.config/git/ignore", "core.excludesFile"):       {out: cmdOrigin(filepath.Join(home, "ignore"))},
+			globalAsk("~/.config/git/attributes", "core.attributesFile"): {out: cmdOrigin(filepath.Join(home, "attributes"))},
 		}), api.GitGlobalFiles{Excludes: filepath.Join(home, "ignore"), Attributes: filepath.Join(home, "attributes")}},
 		{"XDG_CONFIG_HOME set", func(k string) string {
 			if k == "XDG_CONFIG_HOME" {
@@ -56,21 +69,23 @@ func TestTheGlobalGitFilesAreTheHostGitsOwnAnswer(t *testing.T) {
 			}
 			return ""
 		}, globalAnswers(map[string]eolAnswer{
-			globalAsk(xdg+"/git/ignore", "core.excludesFile"):       {out: xdg + "/git/ignore\n"},
-			globalAsk(xdg+"/git/attributes", "core.attributesFile"): {out: xdg + "/git/attributes\n"},
+			globalAsk(xdg+"/git/ignore", "core.excludesFile"):       {out: cmdOrigin(xdg + "/git/ignore")},
+			globalAsk(xdg+"/git/attributes", "core.attributesFile"): {out: cmdOrigin(xdg + "/git/attributes")},
 		}), api.GitGlobalFiles{Excludes: xdg + "/git/ignore", Attributes: xdg + "/git/attributes"}},
+		// A relative value names a file in each repository, not a host file, so
+		// its origin is dropped even when git reports one: no provenance to check.
 		{"a relative core.excludesFile, an empty core.attributesFile", noXDG, globalAnswers(map[string]eolAnswer{
-			globalAsk("~/.config/git/ignore", "core.excludesFile"):       {out: "my-ignore\n"},
+			globalAsk("~/.config/git/ignore", "core.excludesFile"):       {out: fileOrigin("/host/.gitconfig", "my-ignore")},
 			globalAsk("~/.config/git/attributes", "core.attributesFile"): {out: "\n"},
 		}), api.GitGlobalFiles{Excludes: "my-ignore", Attributes: ""}},
 		// The global scope sets excludes, so it is read from there; the system
-		// answer is scripted to lose.
+		// answer is scripted to lose. Its value is absolute, so its origin file
+		// is kept for the session to check (X-3 review 3 I-C).
 		{"excludes set in the global scope", noXDG, globalAnswers(map[string]eolAnswer{
-			hostProbe("core.excludesFile"): {out: "~/my-ignore\n"},
-			hostAsk("--global", "--type=path", "--default", "~/.config/git/ignore", "core.excludesFile"): {out: home + "/my-ignore\n"},
-			globalAsk("~/.config/git/ignore", "core.excludesFile"):                                       {out: "/system/loses\n"},
-			globalAsk("~/.config/git/attributes", "core.attributesFile"):                                 {out: "\n"},
-		}), api.GitGlobalFiles{Excludes: home + "/my-ignore"}},
+			hostProbe("core.excludesFile"):                              {out: "~/my-ignore\n"},
+			globalOriginAsk("--global", "~/.config/git/ignore", "core.excludesFile"): {out: fileOrigin("/host/.gitconfig", home+"/my-ignore")},
+			globalAsk("~/.config/git/attributes", "core.attributesFile"):             {out: "\n"},
+		}), api.GitGlobalFiles{Excludes: home + "/my-ignore", Origins: []string{"/host/.gitconfig"}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			host := &eolRunner{answers: tc.answers}
@@ -78,7 +93,7 @@ func TestTheGlobalGitFilesAreTheHostGitsOwnAnswer(t *testing.T) {
 			if err != nil {
 				t.Fatalf("resolve: %v", err)
 			}
-			if got != tc.want {
+			if !reflect.DeepEqual(got, tc.want) {
 				t.Errorf("global files = %#v, want %#v", got, tc.want)
 			}
 			if len(host.calls) != 4 {
@@ -113,7 +128,7 @@ func TestAGlobalGitFileTheHostsGitCannotReadIsAnError(t *testing.T) {
 			if err == nil {
 				t.Fatalf("resolve returned %#v and no error", got)
 			}
-			if got != (api.GitGlobalFiles{}) {
+			if !reflect.DeepEqual(got, api.GitGlobalFiles{}) {
 				t.Errorf("global files = %#v alongside an error, want none", got)
 			}
 			if !strings.Contains(err.Error(), "exit status 128") || !strings.Contains(err.Error(), "core."+name) {
@@ -200,4 +215,66 @@ func TestTheRealHostGitNamesItsGlobalFiles(t *testing.T) {
 		t.Fatalf("resolve: %v", err)
 	}
 	same("the default git reads", got.Excludes, filepath.Join(xdg, "git", "ignore"))
+}
+
+// X-3 review 3 I-C, with the real git. core.excludesFile is set by a config file
+// an [include] pulls in — the dotfiles-repository-that-is-a-project case — and it
+// names an absolute host file, so a host file would be mounted. --show-origin
+// follows the include to the file that actually set it, not the top-level file,
+// and the resolver reports that file as the value's origin so the session can
+// refuse a setting whose provenance a sandbox can write. Without the origin
+// plumbing Origins is empty here.
+func TestTheRealHostGitNamesTheOriginOfAnIncludedGlobalFileSetting(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not on PATH")
+	}
+	dir := t.TempDir()
+	global := filepath.Join(dir, "gitconfig-global")
+	included := filepath.Join(dir, "projects", "dotfiles", "gitconfig")
+	// An absolute host file, so the value is a mount candidate and its origin is
+	// kept; the value itself is outside any projects dir, so only the origin is
+	// what a provenance check would catch.
+	named := filepath.Join(dir, "home", "ignore")
+	for _, d := range []string{filepath.Dir(included), filepath.Dir(named)} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(named, []byte("*.log\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", global)
+	t.Setenv("GIT_CONFIG_COUNT", "")
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(dir, "xdg"))
+	t.Setenv("HOME", filepath.Join(dir, "home"))
+	for _, args := range [][]string{
+		{"config", "--file", included, "core.excludesFile", filepath.ToSlash(named)},
+		{"config", "--file", global, "include.path", filepath.ToSlash(included)},
+	} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+
+	host, err := newHostGit()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := gitGlobalFilesResolver(host)(context.Background())
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	if filepath.Clean(got.Excludes) != filepath.Clean(named) {
+		t.Fatalf("excludes = %q, want the host file the include set, %q", got.Excludes, named)
+	}
+	found := false
+	for _, o := range got.Origins {
+		if filepath.Clean(o) == filepath.Clean(included) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("Origins = %#v, want the included file %q that SET core.excludesFile", got.Origins, included)
+	}
 }

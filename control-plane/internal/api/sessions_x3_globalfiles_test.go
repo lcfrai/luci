@@ -75,6 +75,66 @@ func TestAGlobalGitFileReachedThroughTheProjectsDirectoryFailsTheCreate(t *testi
 	}
 }
 
+// X-3 review 3 I-C. m-5 refuses a NAMED file reached through the projects
+// directory; this refuses the provenance of the LINE that names it. --includes
+// is on (X-1), so under m-5's own premise a dotfiles repository that is also a
+// project holds the config file that SETS core.excludesFile, and it can name a
+// host file far from the projects directory — one m-5's own check on the named
+// path passes. The resolver reports that config file as the value's origin, and
+// a create whose origin sits inside the projects directory must fail before
+// anything is mounted.
+func TestAGlobalFileWhoseSettingComesFromInsideTheProjectsDirectoryFailsTheCreate(t *testing.T) {
+	base := t.TempDir()
+	// The excludes value is a host file OUTSIDE the projects directory, so the
+	// named-path check (m-5) would pass; only the origin catches this.
+	named := filepath.Join(t.TempDir(), "ignore")
+	if err := os.WriteFile(named, []byte("*.log\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The config file that SET it lives inside a project under the projects dir.
+	origin := filepath.Join(base, "dotfiles", ".gitconfig")
+	if err := os.MkdirAll(filepath.Dir(origin), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(origin, []byte("[core]\n\texcludesFile = "+filepath.ToSlash(named)+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	host := &sandboxEnvGlobalFiles{files: GitGlobalFiles{Excludes: named, Origins: []string{origin}}}
+	env := x3Env(t, base, func(d *Deps) { d.GitGlobalFiles = host.resolve })
+
+	rec := env.do(t, http.MethodPost, "/v1/sessions", sessionsCreateBody)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500: %s", rec.Code, rec.Body.String())
+	}
+	if n := sandboxEnvCreates(env); n != 0 {
+		t.Errorf("backend.Create was called %d times; a setting from inside the projects directory must fail the create", n)
+	}
+	if list, err := env.st.List(); err != nil || len(list) != 0 {
+		t.Errorf("the registry holds %#v (err %v), want nothing", list, err)
+	}
+}
+
+// The guard must not cost the normal case: an excludes value the host's own
+// ~/.gitconfig sets, that file OUTSIDE the projects directory, still mounts.
+func TestAGlobalFileSetOutsideTheProjectsDirectoryStillMounts(t *testing.T) {
+	base := t.TempDir()
+	named := filepath.Join(t.TempDir(), "ignore")
+	if err := os.WriteFile(named, []byte("*.log\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	origin := filepath.Join(t.TempDir(), ".gitconfig")
+	if err := os.WriteFile(origin, []byte("[core]\n\texcludesFile = "+filepath.ToSlash(named)+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	host := &sandboxEnvGlobalFiles{files: GitGlobalFiles{Excludes: named, Origins: []string{origin}}}
+	env := x3Env(t, base, func(d *Deps) { d.GitGlobalFiles = host.resolve })
+	spec := sandboxEnvCreate(t, env, sessionsCreateBody)
+
+	sandboxEnvWantGitFile(t, spec, "core.excludesFile", sessionGitExcludesPath, named, true)
+}
+
 // The case the guard must not cost, and the reason it walks rather than
 // refuses links outright: a dotfile manager's link chain that never touches
 // the projects directory still resolves, and the real file is what is mounted.

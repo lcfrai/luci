@@ -173,3 +173,36 @@ func (h hostGit) value(ctx context.Context, key string, args ...string) (string,
 	}
 	return h.config(ctx, scope, append(args, key)...)
 }
+
+// valueWithOrigin is key's value in scope AND the config file git took it from,
+// read together with --show-origin so a value an [include] pulled in is paired
+// with the file that actually set it, not the top-level file (X-3 review 3 I-C).
+// --includes is on for the same reason config() sets it: naming a scope turns
+// include.path off, and the host's git follows it. An unset key answered by
+// --default has the origin "command line", which parseShowOrigin reports as no
+// file.
+func (h hostGit) valueWithOrigin(ctx context.Context, scope, key string, args ...string) (value, origin string, err error) {
+	full := append([]string{"config", "--show-origin", "--get", scope, "--includes"}, args...)
+	out, err := h.git(ctx, append(full, key)...)
+	if err != nil {
+		return "", "", err
+	}
+	return parseShowOrigin(string(out))
+}
+
+// parseShowOrigin splits `git config --show-origin` output, one `<origin>\t<value>`
+// line, into the value and — when git names a file as the origin — that file's
+// path. Other origins (git reports "command line" for a --default, "blob:…" for
+// a config blob) name no host file and return "".
+func parseShowOrigin(out string) (value, origin string, err error) {
+	line := strings.TrimRight(out, "\r\n")
+	tab := strings.IndexByte(line, '\t')
+	if tab < 0 {
+		return strings.TrimSpace(line), "", nil
+	}
+	src, value := line[:tab], strings.TrimSpace(line[tab+1:])
+	if f, ok := strings.CutPrefix(src, "file:"); ok {
+		origin = f
+	}
+	return value, origin, nil
+}

@@ -243,6 +243,18 @@ type GitLineEndings struct {
 type GitGlobalFiles struct {
 	Excludes   string
 	Attributes string
+	// Origins are host config files a mounted value's provenance depends on:
+	// the file that SET an absolute Excludes or Attributes, read with git's own
+	// --show-origin so an [include] the host config pulls in is named as the
+	// real source. A session refuses the create when reaching one passes through
+	// the projects directory (X-3 review 3 I-C): --includes is on by design
+	// (X-1), so under m-5's own premise — a dotfiles repository that is also a
+	// project — the line that NAMES a host file can live inside a project even
+	// when the named file does not. m-5 guards the named file's path; this
+	// guards the provenance of the line that names it. Only an absolute value's
+	// origin is here: a relative value names a file in each repository, not a
+	// host file, and an unset value's origin is git's command line, not a file.
+	Origins []string
 }
 
 // route is one ServeMux pattern and the handler registered under it.
