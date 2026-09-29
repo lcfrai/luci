@@ -603,7 +603,7 @@ Commit with `git commit -F <msgfile> -- <the paths above>`.
 - **Not the *done, not proven* glyph** (tasks 28, 48), a hand-set `done` (task 10's server rule),
   W3's proposed evidence (task 104), or reopening a `done` issue whose land is later reverted: the
   evaluator reads `waiting` after a revert, and no move is sent back.
-- **Not the product runner itself**: task 23b owns it, and rules how it runs (through `sandboxd`,
-  in a check sandbox of its own, with `backend.Backend` unchanged).
+- **Not the product runner, nor where a check is typed**: task 23b owns both — the runner (through
+  `sandboxd`, in a check sandbox, `backend.Backend` unchanged) and the check line on a serves row.
 - Design: 05 §3.3, §2.1 point 4, §5.3 row 7. Parity: closes the W1 part of **L-8** (`done` is a
-  fact) with task 22; with task 23b's runner it is what makes 05 §5.3's no-click `done` true.
+  fact) with task 22; with task 23b it is what makes 05 §5.3's no-click `done` true.

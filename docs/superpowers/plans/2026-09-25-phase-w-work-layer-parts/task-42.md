@@ -220,7 +220,7 @@ export function TriageView(props: {
 // New here; task 56's WorkOp union must carry both (a gap, named in the return).
 /** PatchIssueRequest.snoozedUntil (task 11). "" clears it. */
 { kind: "snooze", issueId: string, until: string }                              // 4
-/** One new revision whose serves = head serves − remove + add (SW.1). Task 43 re-points with it. */
+/** One new revision whose serves = head serves − remove + add (SW.1), matched on {briefKey, criterionId}; a kept pair keeps its `check` (23b). Task 43 re-points with it. */
 { kind: "serves", issueId: string, add: readonly Serve[], remove: readonly Serve[] }   // T
 ```
 

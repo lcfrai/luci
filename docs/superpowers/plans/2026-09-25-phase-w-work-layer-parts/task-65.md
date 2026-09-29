@@ -936,7 +936,7 @@ function InformRowBound({ item }: { item: DeskItem<any> }): JSX.Element {
     if (!rec) return pk.no({ code: "not_in_replica", message: "The issue is not loaded. Open it and retry." });
     const serves = rec.revision.content.serves.map((s) =>
       s.briefKey === pk.p.briefKey && s.criterionId === pk.p.criterionId
-        ? { briefKey: c.briefKey, criterionId: c.criterionId } : s);
+        ? { ...s, briefKey: c.briefKey, criterionId: c.criterionId } : s); // keeps s.check (23b)
     stood(mutate({ kind: "revise", issueId, baseRev: rec.head.headRevision, patch: { serves } }))
       .then(() => pk.ok(c.criterionId), pk.no);
   };

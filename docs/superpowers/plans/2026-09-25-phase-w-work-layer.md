@@ -262,7 +262,7 @@ move (rule H1). Where a slice adds to a W1 file, the later task is listed in the
 |---|---|---|---|
 | `control-plane/internal/api/work.go` (+ test) | the `/v1/hub/work/*` relay (contract §4.3, §9.3 pattern) | new | 16; 82, 81b, 100, 124, 168 |
 | `control-plane/internal/api/api.go` ⚑, `routes_audit_test.go` ⚑ | `Deps.Work`, `Deps.WorkStart`, `Deps.WorkImport`; registrations; catalog rows | modified | 16, 24, 25 |
-| `control-plane/cmd/api/{config,main}.go` ⚑ | wiring and `PANACEA_APP_WORK_*` variables | modified | 16, 24, 25 |
+| `control-plane/cmd/api/{config,main}.go` ⚑ | wiring and `PANACEA_APP_WORK_*` variables | modified | 16, 22, 23, 23b, 24, 25 |
 | `control-plane/internal/workstart/{start,undo}.go`, `internal/api/workstart.go` | Start from an issue: bind, worktree, session, *Undo Start* until the first file write | new | 24 |
 | `control-plane/internal/workimport/{linear,csv,batch}.go`, `internal/api/workimport.go` | the Linear public-API pager and the CSV parser, both producing SW.6's batch | new | 25 |
 | `control-plane/cmd/panacea-release/`, `integrations/{azure-pipelines-task,github-action}/` | the release CLI and the two CI wrappers | new | 164 |
@@ -280,7 +280,7 @@ path **UNVERIFIED until merge**, as Phase T does.
 | phase 4 | `desktop/src/provenance/{loader.ts,ContextChip.tsx}` (P4 tasks 16-17; `:330-332`) | planned | the loader's second key source; the issue chip | 19, 67 |
 | phase 3 | `images/sandbox/githooks/` (P3 task 05; plan `:145`), `control-plane/internal/gitx` (`:135`) | planned | the `Panacea-Issue` trailer | 21 |
 | phase 3 | `control-plane/internal/converge` (P3 tasks 07-09; `:137`) | planned | the lane index names its issue; land trailers per issue; the fact moves | 21, 22 |
-| phase 3 | `control-plane/internal/evidence` (P3 task 15; `:142`) | planned | the done evaluator; observed evidence; *self-attested* | 23; 104 |
+| phase 3 | `control-plane/internal/evidence` (P3 task 15; `:142`); `sandboxd/internal/server/server.go` (built; P3 task 24 mounts `/git/v1/` there) and a new `sandboxd/internal/checkrunner/` | planned; `server.go` built | the done evaluator; observed evidence; *self-attested*; the product `CheckRunner` and `sandboxd`'s `/check/v1/run` | 23, 23b; 104 |
 | phase 3 | the Merge lens (P3 tasks 19-20; paths **UNVERIFIED**) | planned | lane rows name their issue; proposed evidence and *Record* | 67; 104 |
 | phase 7 | the manifest (P7 task 19) and its drawer (P7 task 17; paths **UNVERIFIED**) | planned | issues from `Panacea-Issue` trailers; *shipped to* | 71; 131 |
 | phase 6 | the per-session gateway token (plan still being written) | planned | the token carries the issue id | 135 |
@@ -305,7 +305,7 @@ path **UNVERIFIED until merge**, as Phase T does.
 | `src/work/replica/{replica,ops,undo,visibility,search}.ts` | the in-memory Hub replica on `/v1/changes` | new | 55-58 |
 | `src/components/work/{WorkLens,CriterionGroup,IssueRow,AgentLine,HeldLine}.tsx`, `work.css` | the Work lens and its row | new | 40, 41 |
 | `src/components/work/{TriageView,BoardView,DisplayMenu,BulkBar,PlanSurface,Peek,StartChip,NewIssue,ImportDialog,DesignPicker}.tsx` | Triage, board, display, bulk, Plan, peek, Start, create, import; the `implements` field's only writer | new | 42-45, 60, 61, 68, 69; 96b |
-| `src/components/issue/{IssueView,IssueHead,Revisions,Serves,Implements,Relations,IssueAgentLine,Comments,Attachments}.tsx` | the one issue view | new | 46-48, 51, 52; 96b |
+| `src/components/issue/{IssueView,IssueHead,Revisions,Serves,CheckLine,Implements,Relations,IssueAgentLine,Comments,Attachments}.tsx` | the one issue view; `CheckLine` is where a person sets a criterion's check | new | 46-48, 51, 52; 23b, 96b |
 | `src/components/editor/*`, `desktop/package.json` ⚑ | the one Markdown editor on `prosemirror-*` (MIT) | new, modified | 49, 50; 92 |
 | `src/hooks/useKeyboardMap.ts` ⚑, `src/work/keys/{keymap,sequences}.ts`, `src/components/work/ShortcutSheet.tsx` | `keys.list`: `isCockpitChord` extended, `G`/`O`/`M` sequences, the `?` sheet | modified, new | 53, 54 |
 | `src/components/palette/commands.ts` ⚑, `CommandPalette.tsx` ⚑ | work verbs with chords; prefixes; opens beside a row | modified | 59 |
@@ -341,14 +341,14 @@ measured.
 | Slice | Ids | Tasks | Hours | Focused days |
 |---|---|---|---|---|
 | W0 | 01 | 1 | 2 | 0.25 |
-| W1 | 02-70, with 23b | 70 | 195 | 24.4 |
+| W1 | 02-70, with 23b | 70 | 196 | 24.5 |
 | W1b | 71 | 1 | 3 | 0.375 |
 | W2 | 72-97, with 81b and 96b | 28 | 76.5 | 9.6 |
 | W3 | 98-113 | 16 | 46 | 5.75 |
 | W4 | 114-142 | 29 | 79.5 | 9.9 |
 | W5 | 143-174 | 32 | 91 | 11.4 |
 | WL | 175-187 | 13 | 33 | 4.1 |
-| **All** | **01-187, 23b, 81b, 96b** | **190** | **526** | **65.8** |
+| **All** | **01-187, 23b, 81b, 96b** | **190** | **527** | **65.9** |
 
 **dependsOn** names this plan's tasks by number and sibling tasks by prefix: `H` the Hub plan
 (`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:396-446`), `P3-` phase 3
@@ -422,7 +422,7 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 21 | phase 3 delta: the `Panacea-Issue` trailer; the lane index names its issue; AU-only branch names | W1 | 0.375 (3 h) | 19; P3-05, P3-07, P3-08 | SW.9 |
 | 22 | phase 3 delta: the `started`, `in_review` and `landed` fact moves, written as the person | W1 | 0.375 (3 h) | 05, 21; P3-09 | SW.4 |
 | 23 | phase 3 delta: the done evaluator; observed evidence at the landed commit; *self-attested* | W1 | 0.375 (3 h) | 22; P3-15 | SW.4 |
-| 23b | the product `CheckRunner`: one bounded command in a check sandbox, exit code only | W1 | 0.375 (3 h) | 23; P3-24 | — |
+| 23b | a criterion's check, end to end: the product `CheckRunner` (one bounded command in a check sandbox, exit code only) and the check line a person sets it on | W1 | 0.5 (4 h) | 23, 47; P3-24 | — |
 | 24 | control plane: Start from an issue, *Undo Start*, the data-class route | W1 | 0.375 (3 h) | 16, 19, 21 | SW.10 |
 | 25 | control plane: the Linear public-API and CSV import adapters | W1 | 0.375 (3 h) | 15, 16 | SW.6 |
 | 26 | tokens: 02 D2 step 1, `--t-fact`, the provisional `paper` block | W1 | 0.25 (2 h) | — | SW.11 |

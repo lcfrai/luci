@@ -1,15 +1,19 @@
-### Task 23b: the product `CheckRunner` — one bounded command in a check sandbox, exit code only
+### Task 23b: a criterion's check, end to end — the product `CheckRunner` (one bounded command in a check sandbox, exit code only) and the check line a person sets it on
 
 W1, stream WP. **No new seam**: this task fills the `CheckRunner` interface task 23 declares, and
-SW.4's done rule reads the result without changing. About 3 hours (an estimate, not a measurement).
-Depends on task 23 (the interface, `Check`, `Observation`, `Observer`, `ErrNoRunner`) and **P3-24**
-(`sandboxd`, the in-sandbox runner) sync-merged. Write it `dependsOn: 23; P3-24`.
+SW.4's done rule reads the result without changing. About 4 hours (an estimate, not a
+measurement): 3 for the runner, 1 for the check line. Depends on task 23 (the interface, `Check`,
+`Observation`, `Observer`, `ErrNoRunner`), task 47 (the issue view's `Serves.tsx`, whose
+`ServeRow` carries the line) and **P3-24** (`sandboxd`, the in-sandbox runner) sync-merged. Write
+it `dependsOn: 23, 47; P3-24`.
 
 **Why this task exists, in one sentence.** Without it `Observer.Runner` is nil on every product
 path, `Run` returns `ErrNoRunner`, nothing is ever observed, and an issue closes only when a person
 presses Record — `proven_self_attested`, the visibly weaker word — so rule 2 of this plan (*done
 means proven*, `OD-27`) and the demo's no-click `done` (05 §5.3 row 7) are true in a test double
-and false in the product.
+and false in the product. **And a runner alone is not enough**: before this task no surface in
+the plan writes `Serve.Check` (every serves write, task 42's `T` and task 47's picker, sends the
+pair alone), so the field would travel the wire empty for ever and there would be nothing to run.
 
 **Anchors, read in this worktree on 2026-09-28 unless marked.**
 - `backend.Backend` is seven methods — `Kind`, `Create`, `Get`, `List`, `Attach`, `Destroy`, `Close`
@@ -88,6 +92,26 @@ plus the sandbox's create and destroy — output discarded unread, and the sandb
 `defer` that runs on every path including a panic. A timeout is **not** exit 0, so it writes
 nothing, exactly like any other non-zero exit.
 
+**Decision 5: a check is set on its serves row, and setting one is a revision.** The one place a
+person writes `Serve.Check` is a **check line** under each row of task 47's `Serves` list: the
+command in Commit Mono (`.iv-fact`, `OD-28`: a command is a machine fact), or the words *No check
+— closes on a Record* when there is none. On the head revision a member presses **Set check** (or
+**Edit check**), types, and `Enter` writes a new revision exactly as task 47 removes a criterion
+(its decision 3): one `revise` op whose `serves` is the same list with that one pair's `check`
+replaced, so undo is task 56's inverse `revise`, and optimism is safe because the act is
+reversible. `Escape` abandons it; an empty line clears the check. Four rules come with it:
+1. **The cap is the Hub's**: 1000 **UTF-8 bytes** (`MaxCheckBytes`, task 02), counted with
+   `TextEncoder`, not `maxLength` (which counts UTF-16 units). Over it, `Enter` writes nothing
+   and the line says *Too long for a check (1000 bytes at most)*: a sentence, never a count.
+2. **Every other pair keeps its check.** The list is rewritten by identity, so a write that
+   touches one pair cannot drop another's command — the mutant a desktop `Serve` without `check`
+   would have built on every title edit. Task 37's `Serve` carries `check?: string` for this.
+3. **No new letter key.** The control is a button in the row's Tab order and the field takes only
+   `Enter` and `Escape`; a letter bound here would compete with the list's `T` and the global map
+   (tasks 53-54), for an act done once per criterion.
+4. **Who may set one is SW.3's rule, not this line's**: the line is offered on the head to the
+   person viewing it, and the Hub's revision write enforces who may add or change a check.
+
 **What *observed* does and does not mean, restated so the words stay honest.** In local mode this
 runner is the person's own control plane, and the Hub records the move as that person's. The Hub
 cannot tell a watched run from a claimed one. What *observed* adds is that no human typed the
@@ -110,13 +134,22 @@ same on both backends.
   which satisfies task 23's `CheckRunner` (`task-23.md:355-357`) (new)
 - `control-plane/cmd/api/main.go` — task 23 step 4's `Runner: nil` becomes the real runner
   (`task-23.md:579-581`) (modified)
+- `desktop/src/components/issue/CheckLine.tsx` + `CheckLine.test.tsx` — the check line, `MAX_CHECK_BYTES`,
+  `checkBytes`, `withCheck` (new)
+- `desktop/src/components/issue/Serves.tsx` ⚑ + `Serves.test.tsx` ⚑ (task 47's) — `ServeRow` gains
+  `onSetCheck` and renders `CheckLine`; one test that the other pairs' checks survive (modified)
+- `desktop/src/components/issue/issue.css` ⚑ (task 47 appends to it) — `.iv-serve` wraps, and three
+  `.iv-check*` rules (modified)
 
 **Interfaces:**
 - Produces: `evidence.SandboxRunner`, `evidence.ErrCheckUnsupported`; `sandboxd`'s `/check/v1/run`
-  route and its two wire types. Consumed by task 23's `Observer` and by nothing else in W1
+  route and its two wire types, consumed by task 23's `Observer` and by nothing else in W1; the
+  desktop's `CheckLine`, the one writer of `Serve.Check` in W1
 - Consumes: task 23 — `evidence.CheckRun`, `CheckRunner`, `Observer.Runner`; phase 1 —
   `backend.Backend` (`Create`, `Get`, `Destroy`), `backend.Spec`, `backend.Sandbox.Endpoint`,
-  `backend.Resources`; P3-24 — `sandboxd`'s server, its bearer auth and its bundle handling
+  `backend.Resources`; P3-24 — `sandboxd`'s server, its bearer auth and its bundle handling;
+  task 47 — `Serves`, `ServeRow`, its `write`; task 37 — `Serve` with `check?: string`; task 56 —
+  `mutate`'s `revise` op; task 20 — `makeServe`, `expectNoPrediction`
 - Amends: nothing. No seam changes, no wire field is added to SW.1-SW.21, no golden vector moves
 
 #### Interfaces — complete
@@ -168,6 +201,73 @@ func (r *SandboxRunner) RunCheck(ctx context.Context, run CheckRun) (exitCode in
 var ErrCheckUnsupported = errors.New("evidence: this backend cannot run a check")
 ```
 
+```tsx
+// desktop/src/components/issue/CheckLine.tsx
+import { useState, type JSX, type KeyboardEvent } from "react";
+import type { Serve } from "../../api/work";
+
+/** hubapi.MaxCheckBytes (task 02): the Hub counts UTF-8 bytes, so this does too. */
+export const MAX_CHECK_BYTES = 1000;
+export const checkBytes = (s: string): number => new TextEncoder().encode(s).length;
+
+/** The pair with its check set, or with no `check` key at all when `check` is "" (omitempty). */
+export function withCheck(s: Serve, check: string): Serve {
+  const { check: _old, ...pair } = s;
+  return check === "" ? pair : { ...pair, check };
+}
+
+/** One serves pair's check (decision 5). Read-only unless `canEdit` (the head revision). */
+export function CheckLine(props: { serve: Serve; canEdit: boolean; onSet(check: string): void }): JSX.Element {
+  const { serve, canEdit, onSet } = props;
+  const [draft, setDraft] = useState<string | null>(null);        // null: not editing
+  const next = draft === null ? "" : draft.trim();
+  const tooLong = checkBytes(next) > MAX_CHECK_BYTES;
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") { e.preventDefault(); setDraft(null); return; }
+    if (e.key !== "Enter" || tooLong) return;
+    e.preventDefault();
+    if (next !== (serve.check ?? "")) onSet(next);
+    setDraft(null);
+  };
+  if (draft !== null) {
+    return (
+      <span className="iv-check">
+        <input className="iv-check-input" value={draft} autoFocus spellCheck={false}
+          aria-label={`Check for criterion ${serve.criterionId}`} aria-invalid={tooLong}
+          onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} />
+        {tooLong ? <span className="iv-check-none" role="alert">Too long for a check (1000 bytes at most)</span> : null}
+      </span>
+    );
+  }
+  return (
+    <span className="iv-check">
+      {serve.check
+        ? <code className="iv-fact" data-fact="check">{serve.check}</code>
+        : <span className="iv-check-none">No check — closes on a Record</span>}
+      {canEdit ? (
+        <button type="button" className="iv-check-set" onClick={() => setDraft(serve.check ?? "")}>
+          {serve.check ? "Edit check" : "Set check"}
+        </button>
+      ) : null}
+    </span>
+  );
+}
+```
+
+In task 47's `Serves.tsx`, `ServeRow`'s props gain `onSetCheck(check: string): void`, its `<li>`
+renders `<CheckLine serve={serve} canEdit={canRemove} onSet={onSetCheck} />` after the two facts,
+and `Serves` passes `onSetCheck={(check) => write(serves.map((x) => (x === s ? withCheck(x, check)
+: x)))}`. Nothing else in task 47's file changes. The CSS, appended to `issue.css`:
+
+```css
+/* Task 23b: the check line. Mono is the command (a machine fact); the words stay sans. */
+.iv-serve { flex-wrap: wrap; }   /* task 47's row: the check line takes its own line under the pair */
+.iv-check { display: flex; align-items: baseline; gap: var(--s-2); flex-basis: 100%; }
+.iv-check-none, .iv-check-set { font-family: var(--sans); color: var(--ink-2); }
+.iv-check-input { font-family: var(--mono); font-size: var(--t-fact); inline-size: 100%;
+  border-radius: var(--r-sm); border: 0; box-shadow: 0 0 0 1px var(--ring); }
+```
+
 #### Steps
 
 - [ ] **Step 1: the `/check/v1/run` route in `sandboxd`, tests first**
@@ -204,7 +304,26 @@ records its `Spec` and an `httptest` stand-in for `sandboxd`:
 Run: `go test ./control-plane/internal/evidence/... -race -count=1 -run 'Check'`. Expected: FAIL,
 `undefined: evidence.SandboxRunner`. Write `sandboxcheck.go`; re-run. Expected: `ok`.
 
-- [ ] **Step 3: wire it, and turn task 23's fallback off**
+- [ ] **Step 3: the check line on the desktop, tests first**
+
+In `desktop/src/components/issue/CheckLine.test.tsx` (vitest and Testing Library, as task 47's
+tests; fixtures from `../../test/workFixtures`, `makeServe` taking `check`) and one test appended
+to task 47's `Serves.test.tsx`:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| shows the command as a mono fact | `makeServe({ check: "npm test -- resume.spec.ts" })` → `code[data-fact="check"]` holds exactly that text; no `check` → *No check — closes on a Record* | a check hidden, or shown in the sans as prose |
+| `Enter` writes the trimmed check, `Escape` writes nothing | *Set check*, type `  true  `, `Enter` → `onSet("true")` once; again with `Escape` → no call | an edit that writes on every keystroke, or that `Escape` cannot abandon |
+| over 1000 bytes is refused before any write | 334 × `€` (1002 bytes, 334 UTF-16 units) → `Enter` makes no call, `role="alert"` says *Too long for a check*; 333 × `€` (999 bytes) → one call | a `maxLength` or `.length` cap, which lets the Hub 422 a check the field accepted |
+| an empty line clears | on a pair with a check, clear the field, `Enter` → `onSet("")`; `withCheck(s, "")` has no `check` key | a cleared check sent as `check: ""` beside one that was never set |
+| no control off the head | `canEdit={false}` → no button, the command still shown | an edit offered on an old revision |
+| no prediction | `expectNoPrediction(container)` on every render above (task 20) | a *will pass* or a count beside the command |
+| (in `Serves.test.tsx`) setting one pair's check keeps the other's | revision with pairs `a` (`check: "x"`) and `b`; set `b` to `y` → one `revise` whose `serves` is `[a with "x", b with "y"]`; removing `b` → `[a with "x"]` | a writer that rebuilds pairs as `{briefKey, criterionId}` and drops every other check |
+
+Run: `npm --prefix desktop test -- CheckLine Serves`. Expected: FAIL on the missing module. Write
+`CheckLine.tsx`, the `ServeRow` change and the CSS; re-run. Expected: `Test Files 2 passed`.
+
+- [ ] **Step 4: wire the runner, and turn task 23's fallback off**
 
 Replace task 23 step 4's `Observer{…, Runner: nil}` in `control-plane/cmd/api/main.go`
 (`task-23.md:579-581`) with `Runner: &evidence.SandboxRunner{Backend: be, Image: cfg.SandboxImage,
@@ -218,16 +337,21 @@ Docker daemon and `panacea-app/sandbox:dev` built (`cmd/api/config.go:75`). Name
 `TestObservedExitZeroClosesWithNoClickInTheProduct`: it is the one test that tells the demo's last
 frame (05 §5.3 row 7) from a test double.
 
-- [ ] **Step 4: Acceptance, then commit**
+- [ ] **Step 5: Acceptance, then commit**
 
 ```bash
 ~/.claude/tools/claudezsh/claudezsh 'go test ./control-plane/internal/evidence/... ./control-plane/internal/api/... ./control-plane/internal/backend/... -race -count=1'
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop test -- CheckLine Serves'
+~/.claude/tools/claudezsh/claudezsh 'npm --prefix desktop run typecheck'
 ```
 
-Expected: one `ok` per package, no `FAIL`; and `go test ./sandboxd/... -race -count=1` prints `ok`
-in phase 3's module. Then `go test -tags docker ./control-plane/internal/api/... -race -count=1 -run
-InTheProduct` on a Docker host prints `ok`; record that it ran and where — not running it is not a
-pass, and `OD-27` says done means proven. Commit with `git commit -F <msgfile> -- <the paths above>`.
+Expected: one `ok` per Go package, no `FAIL`; `go test ./sandboxd/... -race -count=1` prints `ok`
+in phase 3's module; the desktop run prints `Test Files 2 passed` (7 tests are this task's, and
+task 47's four `Serves` tests stay green) and the typecheck exits 0. Then `go test -tags docker
+./control-plane/internal/api/... -race -count=1 -run InTheProduct` on a Docker host prints `ok`;
+record that it ran and where — not running it is not a pass, and `OD-27` says done means proven.
+The check line's look is the owner's eyes, not a self-report. Commit with `git commit -F <msgfile>
+-- <the paths above>`.
 
 #### What this task does not claim
 
@@ -246,5 +370,8 @@ pass, and `OD-27` says done means proven. Commit with `git commit -F <msgfile> -
   person's Record instead — `proven_self_attested` in solo mode, which is the honest word.
 - **Not more than one command per criterion**, no matrix, no caching, no retry, and no scheduling:
   a check runs when the Observer asks, once.
+- **Not a check proposed by an agent.** W3's records (SW.19, task 99) and its proposed evidence
+  (task 104) put evidence under a criterion for a person to Record; they write no `Serve.Check`,
+  and the check line is the only W1 writer of one (decision 5).
 - Design: 05 §3.3, §5.3 row 7. Parity: serves **L-8** with tasks 22 and 23; proof 70. It closes no
   row of its own — it is what makes task 23's claim true in the product.

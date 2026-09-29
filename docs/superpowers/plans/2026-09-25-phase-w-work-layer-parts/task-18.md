@@ -95,7 +95,7 @@ the project key and every alias with it).
 // control-plane/internal/provenance/ref.go ⚑
 
 // Serve is one pair of an issue revision's serves: the brief key and the
-// criterion of it the issue says it serves (05 §2.3). Mirrors hubapi.Serve.
+// criterion of it the issue says it serves (05 §2.3). hubapi.Serve's pair; not its Check.
 type Serve struct {
 	BriefKey    string `json:"briefKey"`
 	CriterionID string `json:"criterionId"`

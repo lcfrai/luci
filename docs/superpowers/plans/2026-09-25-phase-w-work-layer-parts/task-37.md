@@ -105,8 +105,8 @@ export type Digest = string;
 
 export interface User { id: string; displayName: string; email: string }
 export interface AuthoredText { text: string; author: "H" | "A" }
-/** One brief criterion an issue revision serves: the thread's link (task 02's `Serve`). */
-export interface Serve { briefKey: string; criterionId: string }
+/** One brief criterion an issue revision serves: the thread's link (task 02's `Serve`); `check`, absent when none, is the command that observes it (23b). */
+export interface Serve { briefKey: string; criterionId: string; check?: string }
 export type ServesEntry = Serve;
 export interface IssueRevisionContent {
   title: AuthoredText; description: AuthoredText; serves: Serve[]; implements: string[];

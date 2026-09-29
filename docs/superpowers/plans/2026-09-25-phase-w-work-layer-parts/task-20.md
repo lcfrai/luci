@@ -172,7 +172,7 @@ export type Priority = "none" | "urgent" | "high" | "medium" | "low";
 
 export interface User { id: string; displayName: string; email: string }
 export interface AuthoredText { text: string; author: "H" | "A" }
-export interface Serve { briefKey: string; criterionId: string }
+export interface Serve { briefKey: string; criterionId: string; check?: string }
 export interface Criterion { id: string; text: string; digest: string }
 export interface ThreadState { kind: "on_thread" | "project_level" | "not_tied"; reason: "" | "chore" | "spike" | "imported" | "support" }
 export interface Relation { kind: "blocks" | "duplicates" | "relates"; issueId: string }
