@@ -1061,3 +1061,39 @@ sceptic's own `11:N` citations are this file at `bd9b6299`. No other file was ed
 | I5 | Erasure keeps text in stored replies and in derived terms | **§2.6:426-441**: both batch routes store a text-free reply and rebuild on replay; task 27's scan test gains a term and a decision; a brief's erasure reply lists what settled in it, `settled`. Priced in Hub 48a and 48b (§7.3:899-900) |
 | I6 | Four transitions have no op, including 06 §5.1's *not here* for a decision | **§2.4:313-339**: a departure is born `in_force`, `retired` or `set_aside` (the `depart` row, :328); Undo writes `restore`, which skips rule 2 only; promote's Undo is one batch of restores, applied exits first. Also §2.2:261, §2.3:279-289, §3.2:474-478, §1:162-171 |
 | I7 | A branch's own decisions leave the thread when the branch lands | **§6.2:795-802**: the project's lens lists archived branches' in-force entries with **Promote**, and no prompt. §2.3:291-294 keeps promote and retire open on an archived brief; §2.4:379-380 serves `archivedAt`; §8.2:995 records Q8 with its default and cost |
+
+**The Minor findings**, each in a section already revised above:
+
+| # | Finding | Answered at |
+|---|---|---|
+| M1 | `overrides` written as a brief foreign key | §2.6:408-412: a revision of its own kind |
+| M2 | an item cannot name what its batch creates, and item order is unstated | §2.4:313-318: a reference by item index, and two passes, exits first |
+| M3 | three holes in one entry per word | §2.4:347-364: a departure's rename checked, the avoid rule, one fold in one function; the refusal designed at §6.3:818 |
+| M4 | no page rule for the list reads | §5.1:590-594: every page before any digest, a budget ending mid-list refused |
+| M5 | the block prints what a choice gave up as its reason | §5.1:614-619: *Gave up:*. The field keeps its name, `why` |
+| M6 | task 26 cannot start now | §7.3:881: under the struct no Hub task stands in front of 26; §7.5:936-943 names 44a as the path's first wait |
+| M7 | words recorded while the brief is open reach no session | §5.1:600-605 corrects the reasoning; §6.2:790-793 says so in the lens |
+| M8 | four gaps an implementer would guess at | the resolver's field is gone with C1 (§2.4:380-382); the digests' refresh at §5.2:647-651 and task 16 (§7.4:915); the second model call in task 30 (§7.3:885); matching and filtering at §4.1:518-525 and §4.3:548-555 |
+
+**Where this revision departs from the sceptic, and why.**
+- The sceptic said the struct also removes "a §3.1 prefix row for the ten-check" (its C1). It does
+  not: §3.1 is the Hub's id-prefix table (`HC:103-109`), which any new Hub entity touches whatever
+  its key. The ten-check keeps ten because the two prefixes live in their own file and in §18
+  (§2.1:227-233), as phase W's do, not because of the struct.
+- For I3 the sceptic offered pending amendments as an alternative. The ratchet covers a type ahead
+  of its contract text, not the reverse (`types_test.go:881-885`), so it is used only for
+  `settled`, the one case of that shape (§7.2:861).
+- For I7 the sceptic's fix lists entries at the land, in the merge lens. That changes phase 3,
+  which OD-36's *What moves* does not name, so the default lists them in the Discover lens after
+  the branch ends, and the land-time list is Q8.
+
+**Not changed.** `CONTEXT.md:131` still glosses `""` as "no brief existed". This revision could
+edit only this file, so the reasoning is corrected here (§5.1:601-603), and the `CONTEXT.md` line
+is left for whoever adds *Term* and *Project decision* there (Q6).
+
+**Still unverified.** Nothing was compiled or run. Every consequence for a test is read from
+source, §8.3:1013-1020 names the reads this revision leans on, and the hours are the plans' ratios,
+not time spent.
+
+**Revision 1 complete.** Next: a re-read of it, C1 and C2 first, then the owner's Q2 before 44a
+runs.
