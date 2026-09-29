@@ -792,14 +792,14 @@ project shows no empty panel and no prompt (§3.3).
   this brief is complete.* It states §5.1's rule where it applies. It is not a warning: no colour
   and no count, and it goes when the brief completes.
 - **Promote** is a verb on a branch entry, never a prompt; archiving a branch asks nothing.
-- **After a branch ends** (the sceptic's I7). A landed branch's own decisions and words are in no
-  session's set: their brief is archived (`HC:785-788`), and main's sessions get the project's
-  set (§5.1). So the lens on the project lists, beneath the project's own entries, the in-force
-  entries of its archived branch briefs, behind one disclosure, *From archived branches*, each
-  with its branch's name and **Promote** beside it, and one line: *Sessions get these once
-  promoted.* The disclosure is absent when there are none. There is no prompt, no queue item and
-  no count, and archiving still asks nothing. Asking at the land itself, in phase 3's merge, is the
-  owner's Q8 (§8.2).
+- **After a branch ends** (the sceptic's I7). A landed branch's own decisions and words reach no
+  session: their brief is archived (`HC:785-788`) and main's sessions get the project's set (§5.1).
+  So the project's lens lists its archived branch briefs' entries behind one disclosure, *From
+  archived branches*, each with its branch's name: an in-force one with **Promote**, a *not here*
+  one with the verbs of the project entry it set aside (§2.3). One line says *Sessions get these
+  once promoted.* The disclosure is absent when there are none; there is no prompt, no queue item
+  and no count, and archiving still asks nothing. Asking at the land itself, in phase 3's merge,
+  is the owner's Q8 (§8.2).
 - **No count anywhere**: no *12 words*, no *3 of 5*, no badge on the rail
   (`AGENTIC-UX.md:237`, `:245`). **Nothing in this feature adds a queue item of its own**: the
   suggestions wait in the lens, where the person already is when they appear, and the one
@@ -1060,7 +1060,7 @@ sceptic's own `11:N` citations are this file at `bd9b6299`. No other file was ed
 | I4 | §7.2 misses five changes to built code; the honest total is near 66-70 h, not 54 | **§7.1:835-848 and §7.2:850-866**: the handler, the preview, the call-count test, `Inspect`, the Hub's contract-reading tests, and `Document` kept by a new `RenderInherited`. **§7.3:879-906**: 27, 31, Hub 46 and 48 repriced against `plan:409-410`, `HP:405` and `:421-423`, Hub 48 split in two. **§7.5:950-964**: about 69.5 h before fix rounds, about 90 with one round a task, and where the 16 hours came from. Also §0:17-19 |
 | I5 | Erasure keeps text in stored replies and in derived terms | **§2.6:426-441**: both batch routes store a text-free reply and rebuild on replay; task 27's scan test gains a term and a decision; a brief's erasure reply lists what settled in it, `settled`. Priced in Hub 48a and 48b (§7.3:899-900) |
 | I6 | Four transitions have no op, including 06 §5.1's *not here* for a decision | **§2.4:313-339**: a departure is born `in_force`, `retired` or `set_aside` (the `depart` row, :328); Undo writes `restore`, which skips rule 2 only; promote's Undo is one batch of restores, applied exits first. Also §2.2:261, §2.3:279-289, §3.2:474-478, §1:162-171 |
-| I7 | A branch's own decisions leave the thread when the branch lands | **§6.2:795-802**: the project's lens lists archived branches' in-force entries with **Promote**, and no prompt. §2.3:291-294 keeps promote and retire open on an archived brief; §2.4:379-380 serves `archivedAt`; §8.2:995 records Q8 with its default and cost |
+| I7 | A branch's own decisions leave the thread when the branch lands | **§6.2:795-802**: the project's lens lists archived branches' entries, an in-force one with **Promote** and a *not here* one with the verbs of the entry it set aside, and no prompt. §2.3:291-294 keeps promote and retire open on an archived brief; §2.4:379-380 serves `archivedAt`; §8.2:995 records Q8 with its default and cost |
 
 **The Minor findings**, each in a section already revised above:
 
