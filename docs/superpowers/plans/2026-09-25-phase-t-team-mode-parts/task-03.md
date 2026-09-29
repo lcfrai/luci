@@ -664,7 +664,7 @@ type PatchConflictRequest struct {
 **Block 5, thread, message and escalation (contract §7.18–§7.19).** A message's `fields` is a flat
 union: every key is present on the wire, and only the kind's own keys carry a value (the table in
 contract §7.18); the rest are `null`, `[]` or `{}`. Task 07's handler refuses a request that sets a
-key its kind does not own.
+key its kind does not own. A decide's `evidence` (contract §7.19, fix batch b07 round 3, N-C1) is Block 5b's two types, at this part's end.
 
 ```go
 // ── §7.18 threads and messages ──────────────────────────────────────────────
@@ -754,16 +754,16 @@ type EscalationOptionRequest struct {
 	Label       string `json:"label"`       // ≤ 80
 	Consequence string `json:"consequence"` // ≤ 200
 }
-
 type CreateEscalationRequest struct {
-	ID          string                    `json:"id"`
-	FromAgentID *string                   `json:"fromAgentId,omitempty"` // absent when Fleet raises it
-	Kind        EscalationKind            `json:"kind"`
-	ThreadID    *string                   `json:"threadId,omitempty"`
-	Question    string                    `json:"question"`
-	Options     []EscalationOptionRequest `json:"options"`
-	Default     *int                      `json:"default,omitempty"` // required for decide
-	Deadline    string                    `json:"deadline"`
+	ID          string                     `json:"id"`
+	FromAgentID *string                    `json:"fromAgentId,omitempty"` // absent when Fleet raises it
+	Kind        EscalationKind             `json:"kind"`
+	ThreadID    *string                    `json:"threadId,omitempty"`
+	Question    string                     `json:"question"`
+	Options     []EscalationOptionRequest  `json:"options"`
+	Default     *int                       `json:"default,omitempty"` // required for decide
+	Deadline    string                     `json:"deadline"`
+	Evidence    *EscalationEvidenceRequest `json:"evidence,omitempty"` // a taint decide's only (Block 5b)
 }
 
 // EscalationOption: both texts are an agent's, so both carry their class.
@@ -777,20 +777,20 @@ type EscalationAnswer struct {
 	Text       *teamtext.Text `json:"text"`
 	AnsweredAt string         `json:"answeredAt"`
 }
-
 type Escalation struct {
-	ID          string             `json:"id"`
-	ProjectID   string             `json:"projectId"`
-	OwnerUserID string             `json:"ownerUserId"`
-	FromAgentID *string            `json:"fromAgentId"`
-	Kind        EscalationKind     `json:"kind"`
-	ThreadID    *string            `json:"threadId"`
-	Question    teamtext.Text      `json:"question"`
-	Options     []EscalationOption `json:"options"`
-	Default     *int               `json:"default"`
-	Deadline    string             `json:"deadline"`
-	Answer      *EscalationAnswer  `json:"answer"`
-	CreatedAt   string             `json:"createdAt"`
+	ID          string              `json:"id"`
+	ProjectID   string              `json:"projectId"`
+	OwnerUserID string              `json:"ownerUserId"`
+	FromAgentID *string             `json:"fromAgentId"`
+	Kind        EscalationKind      `json:"kind"`
+	ThreadID    *string             `json:"threadId"`
+	Question    teamtext.Text       `json:"question"`
+	Options     []EscalationOption  `json:"options"`
+	Default     *int                `json:"default"`
+	Deadline    string              `json:"deadline"`
+	Evidence    *EscalationEvidence `json:"evidence"` // null unless the taint rule wrote it
+	Answer      *EscalationAnswer   `json:"answer"`
+	CreatedAt   string              `json:"createdAt"`
 }
 
 type AnswerEscalationRequest struct {
@@ -1559,7 +1559,7 @@ diff is expected and is the only change to those ten lines.
 
 - [ ] **Step 6: Write `team.go`, then run the package to green**
 
-Write `team.go` as blocks 1 to 6 above, in order, one file, and Block 7 into `types.go` with its
+Write `team.go` as blocks 1 to 6 above, in order, one file, with Block 5b (this part's end) right after Block 5 and its test into `team_test.go`, and Block 7 into `types.go` with its
 one-key edit to `types_test.go`. Then, from `control-plane/`:
 
 ```bash
@@ -1621,3 +1621,69 @@ the `Co-Authored-By` line.
 - **That the desktop knows the new codes.** The desktop's Hub problem union (Hub task 38's
   `HubProblemCode`) is not touched here, and no Phase T part adds the sixteen to it: task 52's part
   does not name it (grep, 2026-09-25). A gap, raised in this task's return.
+
+**Block 5b, a decide's evidence (contract §7.19; fix batch b07 round 3, N-C1).** Written into
+`team.go` right after Block 5 (Step 6), and placed here only so that no citation into this part
+moves. `HeldVerb` is task 31's held acts, every `ActKind` its gate does not pass
+(`task-31.md:246-251`), and task 31's `TestHeldActsAreHubVerbs` pins the two lists together.
+`Escalation` and `CreateEscalationRequest` reach both types, so `TestTeamTypesNameOnlyContractKeys`
+holds `verb` and `readTotal` to task 01's §7.19 text, and `TestTeamResponsesNeverOmitAField` holds
+`Escalation.Evidence` to `null` when absent.
+
+```go
+// ── §7.19 a decide's evidence (b07 round 3) ─────────────────────────────────
+
+// HeldVerb is an act of a Fleet-started turn that the taint rule held (§7.2 item 2).
+type HeldVerb string
+
+const (
+	HeldFree        HeldVerb = "free"
+	HeldTaskCreate  HeldVerb = "task-create"
+	HeldScopeWiden  HeldVerb = "scope-widen"
+	HeldTaskAbandon HeldVerb = "task-abandon"
+	HeldWorkerSpawn HeldVerb = "worker-spawn"
+	HeldBuildOn     HeldVerb = "build-on"
+)
+
+var validHeldVerb = oneOf(HeldFree, HeldTaskCreate, HeldScopeWiden, HeldTaskAbandon,
+	HeldWorkerSpawn, HeldBuildOn)
+
+func (v HeldVerb) Valid() bool { return validHeldVerb(v) }
+
+// EscalationEvidenceRequest is what the held act showed the human. Text is the
+// free directive's own words, free only; never a spawn's opening prompt (OD-24).
+type EscalationEvidenceRequest struct {
+	Verb      HeldVerb `json:"verb"`
+	ToAgentID *string  `json:"toAgentId,omitempty"` // an agent of the owner
+	TaskID    *string  `json:"taskId,omitempty"`    // tk-…
+	Text      *string  `json:"text,omitempty"`      // ≤ 600; required for free, refused otherwise
+	Read      []string `json:"read"`                // ≤ 100 ms-/tk-/nt-/es- ids, as §7.20's
+	ReadTotal int      `json:"readTotal"`           // ≥ len(Read)
+}
+
+// EscalationEvidence is the record's: its text an agent's, authored by fromAgentId.
+type EscalationEvidence struct {
+	Verb      HeldVerb       `json:"verb"`
+	ToAgentID *string        `json:"toAgentId"`
+	TaskID    *string        `json:"taskId"`
+	Text      *teamtext.Text `json:"text"`
+	Read      []string       `json:"read"`
+	ReadTotal int            `json:"readTotal"`
+}
+```
+
+Its test, into `team_test.go`; it fails to compile before Block 5b exists:
+
+```go
+func TestEscalationEvidenceWire(t *testing.T) {
+	// mutants: omitempty on a record field; readTotal respelled; a typed kind as a held verb.
+	b, _ := json.Marshal(EscalationEvidence{Verb: HeldFree, Read: []string{"ms-1"}, ReadTotal: 3})
+	want := `{"verb":"free","toAgentId":null,"taskId":null,"text":null,"read":["ms-1"],"readTotal":3}`
+	if string(b) != want {
+		t.Errorf("got %s\nwant %s", b, want)
+	}
+	if HeldVerb("pause").Valid() || !HeldVerb(DirectiveFree).Valid() || !HeldBuildOn.Valid() {
+		t.Error("the typed five are never held; free and build-on are")
+	}
+}
+```

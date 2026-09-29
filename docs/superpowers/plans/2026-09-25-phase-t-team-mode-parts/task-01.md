@@ -500,11 +500,11 @@ the body plus `threadId`, `projectId`, `senderUserId` (the sender's owner), `cre
 
 **§7.19 Escalations.** `POST …/escalations`, body `{"id", "fromAgentId" ("" when Fleet raises it
 for itself), "kind": "inform"|"decide", "threadId"?, "question", "options", "default",
-"deadline"}`. `question` ≤ 300. `options`: 0 for `inform`, 2 to 4 for `decide`, each
+"deadline", "evidence"?}`. `question` ≤ 300. `options`: 0 for `inform`, 2 to 4 for `decide`, each
 `{"label" ≤ 80, "consequence" ≤ 200}`. `default` is an option index, required for `decide`, and is
 **Fleet's** choice, always the safe one (§6.5); `deadline` ≥ 30 minutes after now. The owner is the
-delegation's owner; `fromAgentId`, when set, is the owner's Orchestrator. The record adds
-`ownerUserId`, `answer` (`null` or `{"choice", "text": Text·human, "answeredAt"}`), `createdAt`.
+delegation's owner; `fromAgentId`, when set, is the owner's Orchestrator. **`evidence`** (fix batch b07 round 3, N-C1) is what a decide the taint rule wrote (§7.2 item 2) showed the human, so the Hub keeps it: `{"verb", "toAgentId"?, "taskId"?, "text"?, "read", "readTotal"}`, on a `decide` with a `fromAgentId` only (else 422 `bad_request`, `details.field = "evidence"`). `verb` is the held act, one of `free`·`task-create`·`scope-widen`·`task-abandon`·`worker-spawn`·`build-on`; `toAgentId` an agent of the owner (else 403 `agent_not_owner`); `taskId` a `tk-…` of the org; `text` ≤ 600, required for `free` and refused otherwise, stored as Text·agent whose author is the `fromAgentId` (never a spawn's opening prompt, OD-24); `read` ≤ 100 ids (`ms-`, `tk-`, `nt-`, `es-`), as §7.20's; `readTotal` ≥ their count. The record adds
+`ownerUserId`, `evidence` (`null`, or the body's with `text` a Text), `answer` (`null` or `{"choice", "text": Text·human, "answeredAt"}`), `createdAt`.
 `POST /v1/escalations/{escalationId}/answer`, body `{"choice", "text"?}`, `text` ≤ 300, **by the
 owner's own desktop token only**: anyone else, Fleet included, is 403 `forbidden`; a second answer
 is 409 `conflict`. Past its deadline with no answer, an escalation *reads* as defaulted; Fleet
@@ -881,7 +881,7 @@ printf '%s\n' "$E" | grep -qF '| `delegation.read_by_broker` |' || { echo "NO BR
 M=$(awk '/^### 7\.4 /,/^### 7\.5 /' "$C")
 printf '%s\n' "$M" | grep -qF 'POST /v1/projects/{projectId}/mode' || { echo "NO MODE ROUTE"; fail=1; }
 grep -qE '^\| 87 \| POST \| `/v1/projects/\{projectId\}/mode`' "$C" || { echo "NO ROW 87"; fail=1; }
-printf '%s\n' "$E" | grep -qF '| `project.mode_set` |' || { echo "NO MODE EVENT"; fail=1; }
+printf '%s\n' "$E" | grep -qF '| `project.mode_set` |' || { echo "NO MODE EVENT"; fail=1; }; V=$(awk '/^### 7\.19 /,/^### 7\.20 /' "$C"); printf '%s\n' "$V" | grep -qF '"readTotal"' && printf '%s\n' "$V" | grep -qF '"evidence"' || { echo "7.19 HAS NO DECIDE EVIDENCE"; fail=1; } # b07 round 3, N-C1
 echo "result: $([ "$fail" = 0 ] && echo PASS || echo FAIL)"
 exit "$fail"
 ```
@@ -896,7 +896,7 @@ Expected: `MISSING` lines for every field, `NO 5.10`, `NO R12`, `REPLACED ROWS N
 `NOT 15 TEAM SECTIONS`, `NO MODE ROUTE`, `NO ROW 87`, `NO MODE EVENT`, `NO ROW 88`,
 `7.28 DOES NOT PIN THE PROJECT ORG`, `7.28 HAS NO NOT-FOUND CODE`, `NO BROKER ROLE IN 5.10`,
 `NO 5.10 RULE 10`, `RULE 9 NOT RESERVED`, `ROUTE 47 HAS NO ownerTid`, `NO PRINCIPAL READ EVENT`,
-`NO BROKER READ EVENT`, `ROUTE 47 HAS NO for` and `NO NAMED-BY-ANOTHER EVENT` (b06 round 2: they kill §7.13 and §8 written without route 47's audited `for`, which leaves a member who names another's `dl-…` out of the org's audit), and `result: FAIL`. That is the failing test. `NO MODE ROUTE`,
+`NO BROKER READ EVENT`, `ROUTE 47 HAS NO for` and `NO NAMED-BY-ANOTHER EVENT` (b06 round 2: they kill §7.13 and §8 written without route 47's audited `for`, which leaves a member who names another's `dl-…` out of the org's audit), `7.19 HAS NO DECIDE EVIDENCE` (b07 round 3, N-C1: it kills §7.19 written without a decide's `evidence`, which leaves the Hub no record of what a held act showed the human and task 07 no body to validate), and `result: FAIL`. That is the failing test. `NO MODE ROUTE`,
 `NO ROW 87` and `NO MODE EVENT` kill the b01 mutant "§7.4's mode amendment dropped", which would
 leave `projects.mode` with a column and no writer (review X-C1). The **nine** new b02 lines
 (`NO ROW 88` through `NO BROKER READ EVENT`), and the modified `NOT 15 TEAM SECTIONS`, kill its

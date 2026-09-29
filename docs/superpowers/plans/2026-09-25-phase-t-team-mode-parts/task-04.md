@@ -553,11 +553,11 @@ kind `CHECK`s hold for an erased row. The per-kind `fields` keys, and `accept`·
 
 **Piece 7, escalations and directives.** An escalation's options are two parallel arrays, so the
 database can bound each label (80) and consequence (200) without parsing JSON; both texts are the
-question's author's, so they carry no author columns of their own (`task-03.md:765-769`). A
+question's author's, so they carry no author columns of their own (`task-03.md:769-773`). A
 question Fleet raises for itself is `agent` text naming **no** agent, the one place an agent text's
 `x_agent` is `NULL` (`task-07.md:130`: `fromAgentId` is `""` then), so its triple is checked by
 hand rather than through `text_ok`. `directives.read_ids` is task 03's `read`, renamed because a
-bare `read` column reads like a verb in every query.
+bare `read` column reads like a verb in every query. A decide's `evidence` (contract §7.19, fix batch b07 round 3, N-C1) is piece 7b, an `ALTER TABLE escalations` at this part's end, written right after this piece.
 
 ```sql
 -- ── §7.19 escalations: readable by the owner and an org auditor only ─────────
@@ -861,7 +861,7 @@ at the limit and one past it, in `é` (two bytes in UTF-8), so a byte count woul
 | `TestAppendOnlyHoldsForBothRoles` | for `messages`, `directives`, `human_messages`, `notes`, `lease_events`: as `hub_app`, `UPDATE` and `DELETE` → `42501` (no grant); as `hub_owner`, `UPDATE`, `DELETE` and `TRUNCATE` → `42501` **with the guard's own text** (`append-only`, `immutable`) | append-only by grants alone, which the owner role bypasses (G4's trigger layer missing) |
 | `TestNothingSetsATombstoneYet` | `messages`, `human_messages` and `notes` each have `tombstoned_at timestamptz` nullable; as `hub_owner`, `UPDATE … SET text_body = NULL, tombstoned_at = now()` → `42501`; an `INSERT` with `tombstoned_at` set and a body → `23514`; a human message with no body and no tombstone → `23514` | an erasure path opened before task 46 writes its checks; a row that is "erased" and still holds its words |
 | `TestAnEscalationIsAnsweredOnce` | a `decide` answered with choice 1 as `hub_app` → ok; answering it again → `42501`; as `hub_owner`, changing `question_body` of an unanswered one → `42501`; an `inform` acknowledged with `answer_choice` NULL → ok, with choice 0 → `23514`; a `decide` answered with choice 4 of 4 options → `23514`; an answer body with no author → `23514` | a second answer that rewrites what the human chose; the default rewritten after the fact |
-| `TestEscalationShapes` | an `inform` with an option → `23514`; a `decide` with 1 or 5 options, or no default, or default 4 of 4 → `23514`; label and consequence arrays of different lengths → `23514`; `question_agent` not `from_agent_id` → `23514`; Fleet's own (both NULL) → ok | an option count unchecked, so an Orchestrator offers the human one "choice" |
+| `TestEscalationShapes` | an `inform` with an option → `23514`; a `decide` with 1 or 5 options, or no default, or default 4 of 4 → `23514`; label and consequence arrays of different lengths → `23514`; `question_agent` not `from_agent_id` → `23514`; Fleet's own (both NULL) → ok. **Piece 7b** (b07 round 3, N-C1), on a `decide` from `agLO`: evidence with each `hubapi.HeldVerb` value (task 03 Block 5b) → ok, `pause` → `23514`; evidence on an `inform`, or on Fleet's own (`from_agent_id` NULL) → `23514`; `free` with no text, `worker-spawn` with text, a text of 601 `é` → `23514`; `evidence_text_agent` not `from_agent_id` → `23514`; `read_ids` of 101 or one `s-…`, or `read_total` below their count → `23514`; `evidence_to_agent` `agGO` → `23503` | an option count unchecked, so an Orchestrator offers the human one "choice"; the evidence unchecked, so the record of what a held act showed the human can hold a spawn's text or name a teammate's agent |
 | `TestAFleetFreeDirectiveNeedsAnApproval` | `origin` `fleet`, `kind` `free`, no `approved_by` → `23514`; with an escalation of Linus's → ok; `origin` `fleet`, `kind` `pause`, none → ok; `free` without text → `23514`; `pause` with text → `23514`; `read_ids` of 101, or one `s-…` → `23514` | the taint rule's database layer dropped (§7.20), leaving Fleet's verb handler the only check |
 | `TestDelegationShapes` | a `worker` listing `messages.append` → `23514`; 26 routes, or one repeated → `23514`; `expires_at` 24 h + 1 s after `created_at` → `23514`, exactly 24 h → ok; `revoked_at` without a reason → `23514` | a worker delegation that can speak across owners (OD-16); a delegation that outlives the TTL cap |
 | `TestConflictAndThreadShapes` | a conflict with `agent_a = agent_b` → `23514`; 51 paths → `23514`; a range `[5, 3]` or `[0, 2]` → `23514`; an absolute path → `23514`; `resolved` with no resolution → `23514`; a thread whose opener is not a participant, or with two equal participants, or `free` with a subject id, or `conflict` with an `ls-…` → `23514` | the shape checks dropped, so a malformed record reaches every reader |
@@ -902,7 +902,7 @@ at the limit and one past it, in `é` (two bytes in UTF-8), so a byte count woul
 - [ ] **Step 3: Write `team_schema_integration_test.go`, run it, watch it fail.** Every test fails
   with `42P01` (`relation "hub.agents" does not exist`) or its type's equivalent; that is the red run.
 
-- [ ] **Step 4: Write `sql/00NN_team.sql` as pieces 1 to 10, in order. Run to green:**
+- [ ] **Step 4: Write `sql/00NN_team.sql` as pieces 1 to 10, in order, piece 7b (this part's end) right after piece 7. Run to green:**
 
   ```bash
   ~/.claude/tools/claudezsh/claudezsh 'cd control-plane && go test -tags integration ./internal/hub/migrate/ -race -count=1 2>&1 | tail -n 1'
@@ -961,3 +961,45 @@ is why the pattern says `AppendOnlyHolds`).
 - **The writer of `projects.mode`.** The column, its grant and its one-way guard exist here; the
   one route that moves a project to `team` is task 06's route 87 (fix batch b01, X-C1), gated on
   the audit leaving the Hub. Task 43 only reads the mode (`task-43.md:256`).
+
+#### Piece 7b: a decide's evidence (fix batch b07 round 3, N-C1)
+
+Written into `00NN_team.sql` right after piece 7 (Step 4), and placed here only so that no citation
+into this part moves. It is task 03 Block 5b's `EscalationEvidence` in columns, bounded as the
+contract's §7.19 says. Its text is an agent's, and its author is the asking Orchestrator, so its
+triple is checked as `messages`' is against its sender. `guard_escalation_answer` needs no edit: its
+`to_jsonb` form freezes every column it does not name, these included, and the table-wide `INSERT`
+grant covers them.
+
+```sql
+-- ── §7.19 a decide's evidence: what an act the taint rule held showed the human ──
+ALTER TABLE escalations
+  ADD COLUMN evidence_verb        text        CHECK (evidence_verb IN ('free', 'task-create',
+                                    'scope-widen', 'task-abandon', 'worker-spawn', 'build-on')),
+  ADD COLUMN evidence_to_agent    text,
+  ADD COLUMN evidence_task_id     text,
+  ADD COLUMN evidence_text_body   text,
+  ADD COLUMN evidence_text_author text_author CHECK (evidence_text_author = 'agent'),
+  ADD COLUMN evidence_text_agent  text,
+  ADD COLUMN evidence_read_ids    text[]      CHECK (hub.ids_ok(evidence_read_ids, 100, '^(ms|tk|nt|es)-[0-9a-f]{16}$')),
+  ADD COLUMN evidence_read_total  integer     CHECK (evidence_read_total >= cardinality(evidence_read_ids)),
+  ADD CONSTRAINT escalations_evidence_to_fk   FOREIGN KEY (org_id, owner_user_id, evidence_to_agent)
+    REFERENCES agents (org_id, owner_user_id, id),
+  ADD CONSTRAINT escalations_evidence_task_fk FOREIGN KEY (org_id, evidence_task_id)
+    REFERENCES team_tasks (org_id, id),
+  -- all or none, and only on a decide that an Orchestrator's own act raised
+  ADD CHECK ((evidence_verb IS NULL) = (evidence_read_ids IS NULL)
+         AND (evidence_verb IS NULL) = (evidence_read_total IS NULL)),
+  ADD CHECK (evidence_verb IS NULL OR (kind = 'decide' AND from_agent_id IS NOT NULL)),
+  ADD CHECK (evidence_verb IS NOT NULL
+          OR (evidence_to_agent IS NULL AND evidence_task_id IS NULL AND evidence_text_body IS NULL)),
+  -- the text: required for free and refused otherwise; the asking Orchestrator's words
+  ADD CHECK (hub.text_ok(evidence_text_body, evidence_text_author, evidence_text_agent, 600)),
+  ADD CHECK ((evidence_text_body IS NULL) = (evidence_text_author IS NULL)),
+  ADD CHECK ((evidence_text_body IS NOT NULL) = (evidence_verb IS NOT DISTINCT FROM 'free')),
+  ADD CHECK (evidence_text_author IS NULL OR evidence_text_agent = from_agent_id);
+```
+
+The verb list is task 03's `HeldVerb` values, typed out because a `CHECK` cannot read Go; the
+`TestEscalationShapes` row above builds its inserts from `hubapi`'s constants, so a verb added in
+Go and not here fails that test.

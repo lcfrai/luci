@@ -48,7 +48,7 @@ on record.
   - from task 01: rows 60 to 71, §7.18 to §7.22, the §8 rows `thread.opened` to
     `human_message.appended` (`task-01.md:557-564`), and §5.2's org *auditor* (`:587-591`).
   - from task 03: `Thread`, `CreateThreadRequest`, `PatchThreadRequest`, `Message`,
-    `AppendMessageRequest`, `MessageKind`, `Resolution`, `Escalation`, `CreateEscalationRequest`,
+    `AppendMessageRequest`, `MessageKind`, `Resolution`, `Escalation`, `CreateEscalationRequest` (and Block 5b's `EscalationEvidence`, `EscalationEvidenceRequest`, `HeldVerb`; b07 round 3),
     `AnswerEscalationRequest`, `Directive`, `AppendDirectiveRequest`, `DirectiveKind`, `Rung`,
     `TurnOrigin`, `RecordTurnRequest`, `HumanMessage`, `CreateHumanMessageRequest`, and
     `teamtext.Text` on every text field; the `RouteName` constants (`task-03.md:384-393`). Task 03
@@ -132,19 +132,19 @@ escalation's **owner**, the human being asked. "Fleet for itself" (§6.5 "writte
 ```jsonc
 { "id": "es-…", "fromAgentId": "ag-…" | "",               // the owner's Orchestrator, or "" (Fleet)
   "kind": "inform" | "decide", "threadId": "th-…",        // optional; a thread with a participant of the owner's
-  "question": "…",                                        // ≤ 300
+  "question": "…", "default": 0,                          // ≤ 300; default: an option index, required for decide, refused for inform
   "options": [ { "label": "Pause my worker", "consequence": "Nothing is lost; it waits" } ],   // 0 for inform; 2–4 for decide
-  "default": 0,                                           // an option index; required for decide, refused for inform
-  "deadline": "…" }                                       // ≥ 30 min after tx.Now; required for decide
+  "deadline": "…",                                        // ≥ 30 min after tx.Now; required for decide
+  "evidence": { "verb": "free", "toAgentId": "ag-…", "taskId": "tk-…", "text": "…", "read": [ "ms-…" ], "readTotal": 1 } }   // optional; a taint decide's only (b07 round 3)
 // 201
 { "id": "es-…", "projectId": "pj-…", "ownerUserId": "u-…", "fromAgentId": "ag-…", "kind": "decide",
-  "threadId": "th-…", "question": Text, "options": [ { "label": Text, "consequence": Text } ],
-  "default": 0, "deadline": "…", "answer": null, "createdAt": "…" }
+  "threadId": "th-…", "question": Text, "options": [ { "label": Text, "consequence": Text } ], "default": 0, "deadline": "…",
+  "evidence": null | { "verb", "toAgentId": "ag-…" | null, "taskId": "tk-…" | null, "text": Text | null, "read", "readTotal" }, "answer": null, "createdAt": "…" }
 ```
 
 `label` ≤ 80, `consequence` ≤ 200, all `text·A`. The Hub checks that `deadline` is at least 30
 minutes out and that `default` is a valid index; **which option is safe is Fleet's judgment** (§6.5),
-and the Hub records it, it does not second-guess it.
+and the Hub records it, it does not second-guess it. **`evidence`** (task 01 §7.19, fix batch b07 round 3, N-C1: task 31's taint decide, which task 33's M4 reads back) is validated in the handler before the insert, in this order: on an `inform`, or with `fromAgentId` `""`, 422 `bad_request`, `details.field = "evidence"`; `verb` not a `hubapi.HeldVerb`, 422 `details.field = "evidence.verb"`; `toAgentId` not an agent of the owner, 403 `agent_not_owner` (`OwnedAgent`); `taskId` not a task of the org, 422 `details.field = "evidence.taskId"`; `text` through `teamtext` at 600 (`text_refused`), required for `free` and refused otherwise (`details.field = "evidence.text"`), stamped `agent` with `fromAgentId` as its author; `read` as route 67's (`details.field = "evidence.read"`); `readTotal` below `len(read)`, 422. It is stored in task 04's piece 7b columns and answered as the record's `evidence`, `null` when absent.
 
 **Route 65, `POST /v1/escalations/{es}/answer`**: **the owner's own desktop only**. Body
 `{ "choice": 1, "text": "…" }`; `choice` an option index (a `decide`) or absent (an `inform`, which
@@ -343,7 +343,7 @@ The three the scope paragraph names come first; the rest follow. Callers are tas
 | `TestMessagesAreAppendOnly` | no `PATCH`/`DELETE` route (405); `UPDATE messages` as `hub_app` fails | as for directives |
 | `TestMessageToAClosedThreadIs409` | after `resolved`, append → 409 `conflict` | state not read in the append's transaction |
 | `TestThreadMessagesReadByPartiesAndAuditorOnly` | route 63: `fleet(DLLinusOrch)` → 200; Linus's desktop → 403 `required: "fleet"`; Fleet under a third member's delegation → 403 `required: "party"`; Vera → 404; Audrey → 200 | the party check on the thread's project, not its participants |
-| `TestEscalationShape` | `inform` with options → 422; `decide` with 1 or 5 options → 422; `default` 4 of 4 → 422; `deadline` 29 min → 422; label 81 → 422 | option count unchecked, so an Orchestrator offers one "choice" |
+| `TestEscalationShape` | `inform` with options → 422; `decide` with 1 or 5 options → 422; `default` 4 of 4 → 422; `deadline` 29 min → 422; label 81 → 422. **`evidence`** (b07 round 3, N-C1): a `decide` from `AGLinusOrch` with `{"verb":"free","toAgentId":AGLinusWorker,"text":"Rebase after Alice lands.","read":["ms-…"],"readTotal":3}` → 201, and Linus's route 66 answers it back with `text` a `Text` of `author: "agent"`, `authorAgentId` `AGLinusOrch`; on an `inform`, or with `fromAgentId` `""` → 422 `details.field = "evidence"`; verb `pause` → 422; `free` with no text, `worker-spawn` with text, text 601 → 422; `read` of 101 → 422; `readTotal` 0 with one id → 422; `toAgentId` `AGGraceOrch` → 403 `agent_not_owner`; no `evidence` → the record's `evidence` is `null` | option count unchecked, so an Orchestrator offers one "choice"; `evidence` dropped by a strict decode or never stored, so task 31's decide is refused (400) or task 33's M4 reads nothing |
 | `TestEscalationFromIsTheOwnersOrchestratorOrFleet` | `fromAgentId` Grace's under `DLLinusOrch` → 403 `agent_not_owner`; `""` → 201 and the event's `fromAgentId` is `""` | `""` rejected, so Fleet cannot escalate for itself |
 | `TestEscalationAnswerAfterTheDeadline` | clock past `deadline`, answer → 200, `answeredAt > deadline` | late answers refused, so a human's choice is lost |
 | `TestDirectiveEndsAreOwnersAndParented` | `to` Grace's worker → 403 `agent_not_owner`; `to` a Linus worker of another Orchestrator → 422 `details.field = "toAgentId"`; `text` on `pause` → 422 | the parent check dropped, so one Orchestrator steers another's worker |

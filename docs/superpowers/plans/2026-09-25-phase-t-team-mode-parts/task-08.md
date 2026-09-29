@@ -412,7 +412,7 @@ guarded by the existing `mu`.
 | class route sets | `CreateDelegation` refuses a route outside the class set, 422 | `task-01.md:274-283` |
 | state machines | task, agent end, thread, conflict, lease `seq` and terminal states: the same 409s | tasks 06, 07 |
 | the taint rule | `AppendDirective` applies `TaintAllows`' table, over the fake's escalations | task 07 |
-| private reads | escalations, directives, human messages filtered to the caller's own; everyone's for `FakeAudrey`; thread messages to a party's owner through Fleet·O and to the auditor | task 07 |
+| private reads | escalations, directives, human messages filtered to the caller's own; everyone's for `FakeAudrey`; thread messages to a party's owner through Fleet·O and to the auditor. **A decide's evidence** (b07 round 3, N-C1): `CreateEscalation` keeps `Evidence` and answers it on the record and on `Escalations`, `text` a `Text` of `author: "agent"` naming `fromAgentId`, `null` when absent, and refuses it as route 64 does (422 on an `inform` or with no `fromAgentId`, a verb not a `HeldVerb`, a `text` off `free`; 403 `agent_not_owner` for another owner's `toAgentId`) | task 07 |
 | title redaction | `Tasks` returns `title` and `reason.why` only to a Fleet·O view | task 06 |
 | bounds and hygiene | `teamtext.Bound` and `Clean` on every text field, `ValidGlob` on every glob, the same 422 codes | task 02 |
 | idempotency | a repeated id with an equal body replays; with a different body, 409 `conflict` | `task-01.md:185-187` |
@@ -499,7 +499,7 @@ drift silently (the real Hub has tasks 06 and 07's own tests).
 | `team/participants-two-owners` | `CreateThread` with two Orchestrators of Member → 422 | participants unchecked |
 | `team/messages-by-parties` | Admin's thread with Member's: Fleet under a third member's delegation `Messages` → 403 `party`; `Auditor.Messages` → 200 | the thread read open to any Fleet·O |
 | `team/private-reads` | Member's escalation absent from `Admin.Escalations`, from Fleet under Admin's delegation, and present for `Auditor` | the filter missing from one of the four private reads |
-| `team/answer-by-owner-desktop-only` | `Admin.AnswerEscalation` of Member's → 403 `owner`; Fleet → 403 `desktop`; Member → 200; again → 409 | Fleet may answer, so an Orchestrator answers its own question |
+| `team/answer-by-owner-desktop-only` | `Admin.AnswerEscalation` of Member's → 403 `owner`; Fleet → 403 `desktop`; Member → 200; again → 409. **Evidence** (b07 round 3, N-C1): Fleet under Member's `orchestrator` delegation creates a decide from Member's Orchestrator with `Evidence{Verb: HeldFree, Text: "…", Read: 1 id, ReadTotal: 3}` → 201; `Member.Escalations` answers the same evidence, its `text` `author: "agent"` naming that Orchestrator; the same `Evidence` on an `inform` → 422 `details.field = "evidence"` | Fleet may answer, so an Orchestrator answers its own question; the fake drops or never checks `Evidence`, so task 31's tests pass on the fake and its decide is refused (or empty) on the real Hub |
 | `team/taint` | Fleet, `origin: fleet`, `kind: free`, no `approvedBy` → 403 `decide`; with Member's answered decide → 201; with Admin's → 403 | the fake skips `TaintAllows` |
 | `team/human-message-to-own-orchestrator` | `Member.WriteHumanMessage` to Admin's Orchestrator → `agent_not_owner`; `Fleet.WriteHumanMessage` → 403 `desktop` | Fleet can write a human message |
 | `team/turn-has-no-row` | `RecordTurn` twice with one id and key → equal; the event is in neither feed | turn events on the feed |
