@@ -30,7 +30,7 @@ held a second copy of the rule, a three-kind `fleetTurnVerbs` map whose table ex
 `rebase` from a Fleet turn to be 403. That was **gap G31-1**, and fix batch b07 closed it at the
 root: task 07 deleted the map and calls `req.Kind.Typed()`, so there is now exactly one definition
 and this task's acceptance step 4 cannot be failed by the Hub layer disagreeing with Fleet's
-(`task-07.md:207-223`, `:292-297`).
+(`task-07.md:207-223`, `:296-302`).
 
 **(b) `narrow` never widens, in any turn.** A `narrow` whose globs are not each inside the
 worker's task scope is refused `glob_refused` with `details.reason = "outside_task_scope"`,
@@ -568,7 +568,7 @@ verb set before touching anything here.
   `fleetTurnVerbs` holds three kinds and its table expects `resume` and `rebase` from a Fleet turn
   to be 403, while design §7.2, task 01 §7.20 and task 03's `Typed()` say five. Task 07 now deletes
   the map and calls `req.Kind.Typed()`, and its two table rows expect 201 (`task-07.md:207-223`,
-  `:292-297`). Nothing is needed here beyond the citation: this task's five-kind expectation was
+  `:296-302`). Nothing is needed here beyond the citation: this task's five-kind expectation was
   always the right one. Task 33's E4 therefore checks a decided rule, not an open gap.
 - **G31-2.** Route 64 has no field for what a taint decide showed the human; this task needs an
   optional `evidence` object (decision e). Task 01 §7.19 and task 07's route 64 own it.

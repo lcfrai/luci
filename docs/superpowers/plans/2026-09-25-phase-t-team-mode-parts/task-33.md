@@ -73,8 +73,8 @@ the verdict BLOCKED:
 | # | Condition | Why |
 |---|---|---|
 | E1 | Tasks 01–32 merged on `feat/team-mode`, the Hub, phase 8 and phase 6 branches sync-merged, and the environment deployed by phase 8's pipeline with P8-31's smoke and P8-32's Kata checklist green | nothing here re-proves phase 8 |
-| E2 | **Check** (b07): each person's first team launch created one `orchestrator`-class delegation for the project, which task 21 owns (`task-21.md:411-421`, step 4) and task 20 uses (`task-20.md:45-55`). Read it from the Hub audit: exactly one `delegation.created` with `class: orchestrator` per person, per project | with no delegation there is no Orchestrator. Gap S20-1 was the hole; b07 closed it in task 21, so this row verifies planned work rather than waiting on unplanned work |
-| E3 | **Check** (b07): the four `/api/team/*` relays answer on each laptop — task 21 step 6 (`task-21.md:570-600`) — so a human can post a message, list escalations and directives, and answer one | the humans' half of the run. Gap G33-1 was the hole; b07 gave it to task 21 |
+| E2 | **Check** (b07): each person's first team launch created one `orchestrator`-class delegation for the project, which task 21 owns (`task-21.md:345-357`, `:413-431`) and task 20 uses (`task-20.md:45-55`). Read it from the Hub audit: exactly one `delegation.created` with `class: orchestrator` per person, per project | with no delegation there is no Orchestrator. Gap S20-1 was the hole; b07 closed it in task 21, so this row verifies planned work rather than waiting on unplanned work |
+| E3 | **Check** (b07): the four `/v1/team/*` relays answer on each laptop — task 21 step 6 (`task-21.md:578-615`) — so a human can post a message, list escalations and directives, and answer one | the humans' half of the run. Gap G33-1 was the hole; b07 gave it to task 21 |
 | E4 | **Check** (b07): a Fleet-turn `resume` is accepted by the Hub (task 07 calls `DirectiveKind.Typed()`, `task-07.md:207-223`), and `fleetd` starts with the chart's `PANACEA_APP_FLEET_MIGRATE` and `PANACEA_APP_FLEET_PG_AUTH` (task 12, `task-12.md:144-147`) | without them `resume` is refused, or Fleet does not start. Gaps G31-1, G32-3 and G32-4 are closed in tasks 07, 31, 12 and 32 |
 | E5 | The owner's runbook done: the `fleet-control-key` secret in Key Vault; `fleet-principals.sql` run by a human admin; keysmith's Fleet caller on (task 32); Alice (`admin`) and Bob (`member`) in one Hub team, whose project is shared (Hub task 35, `linked`) with its data class set (OD-24) and is still `solo` (on a re-run: `team` with exactly one `project.mode_set`, by Alice, which `05-team-mode.sh` then checks from the audit alone); the Hub in `PANACEA_APP_HUB_ENV=dev` with `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` **and** `PANACEA_APP_HUB_AUDIT_SINK=fake` (task 06, fix batch b01; once task 45 lands the flag opens route 87 only beside sink `fake`, b01 round 2, re-review I-4) until task 45's sink is `logs`, which needs neither. **E5 does not assume a team project: `05-team-mode.sh` makes it one through the route** | each is a human act by design; the mode is the admin's, gated on the audit |
 | E6 | A test repository with `web/auth/login.go`, `web/auth/session.go` and `web/api/routes.go`, and each worker's clone prepared by the operator | the worker needs a worktree; phase 8's machine mount is not wired in TM1-α. **This is TM1-α's one accepted manual step** (task 20's Gap S20-3, `task-20.md:556-560`), deliberately open and stated in this task's scope, not work some earlier task owes. The lane mount is task 47's |
@@ -245,7 +245,7 @@ checked by pid, `task-18.md:59-61`), **UNVERIFIED on a Kata pod** until this scr
 
 - **`00-preflight.sh`** (either context, both halves): E1–E7. Fleet's and the Hub's `/readyz`
   answer 200 through their https hosts; `helm list -n panacea-fleet` shows `fleet` deployed
-  (operator); each laptop's `desk GET /api/team/escalations` answers 200 (E3); the image label
+  (operator); each laptop's `desk GET /v1/team/escalations` answers 200 (E3); the image label
   `org.opencontainers.image.version` of the sandbox image, read from both classes' pods, is equal
   (E7).
 - **`05-team-mode.sh`** (both laptops; fix batch b01, X-C1): **M0, the project becomes a team
@@ -258,7 +258,7 @@ checked by pid, `task-18.md:59-61`), **UNVERIFIED on a Kata pod** until this scr
   **not streamed** for this run (the dev-only flag), so no reader takes TM1-α's audit as T5-proof.
   A 503 `audit_not_streaming` here means E5's flag is off: BLOCKED, not `broke`.
 - **`10-launch.sh`** (laptop, then operator): each person launches one worker in the team project
-  from the cockpit's route (`desk POST /api/sessions` with the team project, task 21), which makes
+  from the cockpit's route (`desk POST /v1/sessions` with the team project, task 21), which makes
   Fleet create their Orchestrator first (task 20). The operator maps each `ag-…` to its pod by the
   broker's labels and writes `out/agents.env`. **M1**: two Orchestrators and two workers, each
   pod labelled with its owner's hash (P8-D4) and `panacea-app/class` (G32-2).
@@ -271,12 +271,12 @@ checked by pid, `task-18.md:59-61`), **UNVERIFIED on a Kata pod** until this scr
   is exactly Bob's overlapping lease to `intent`; the thread reads `resolved`. Then Bob's
   Orchestrator issues `direct <Bob's worker> free "Rebase after Alice lands, then continue."`;
   the result carries `escalation`, not `directive` (task 31). On each laptop, `desk GET
-  /api/team/escalations`. **M4**: Alice has one inform (DECIDED WITHOUT YOU) and no decide; Bob has
+  /v1/team/escalations`. **M4**: Alice has one inform (DECIDED WITHOUT YOU) and no decide; Bob has
   one inform and one decide whose evidence text is the directive's; Alice's `desk GET` of Bob's
-  `es-…` does not return it. Bob answers `desk POST /api/team/escalations/<es>/answer
+  `es-…` does not return it. Bob answers `desk POST /v1/team/escalations/<es>/answer
   '{"choice":1}'`. The operator polls Bob's worker with `pexec <Bob's worker pod> check
   web/api/routes.go` every 2 s and stamps the first output that carries the `dv-…`. **M5**: the
-  Hub's `createdAt` of the `dv-…` (through Bob's `desk GET /api/team/directives`) is earlier than
+  Hub's `createdAt` of the `dv-…` (through Bob's `desk GET /v1/team/directives`) is earlier than
   that stamp. **M10** for Run A: every `free` `dv-…` with `origin: fleet` has an answered
   `approvedBy`.
 - **`40-podkill.sh`** (operator): task 27's two scenarios on Alice's real Orchestrator pod. Between
@@ -309,7 +309,7 @@ checked by pid, `task-18.md:59-61`), **UNVERIFIED on a Kata pod** until this scr
   `/tmp/hook-input.json` (**requires of task 18**, gap G33-2). **O4**, **O5** likewise noted.
 - **`60-live.sh`** (laptops, then operator): Run B. New tasks on `web/billing/**` and
   `web/billing/invoice.go`; each person sends their own Orchestrator one message (`desk POST
-  /api/team/human-messages`) asking it to plan and start that task; the operator observes the
+  /v1/team/human-messages`) asking it to plan and start that task; the operator observes the
   conflict, thread and resolution the models reach, with every `panacea` call from the Hub's turn
   records (`ot-…` `issued`). Then **O8**: Alice sends her Orchestrator the ten lines of
   `infra/smoke/team/g9-first.txt`, one per message, asking it to pass each to Bob's Orchestrator
@@ -323,26 +323,26 @@ with G9's real corpus.
 #### G33-1: the four desktop calls TM1-α needs — **closed by fix batch b07, built by task 21 step 6**
 
 Hub routes 65 (answer) and 70 (human message) accept **only the owner's own desktop**
-(`task-07.md:144-147`, `:182-184`), and the desktop's team client is task 52's, in TM1. So nothing
+(`task-07.md:149-156`, `:187-190`), and the desktop's team client is task 52's, in TM1. So nothing
 before task 33 let Alice or Bob answer a decide or speak to their Orchestrator, and the scope's
 "one human gets a decide" could not be answered. **Task 21 now builds all four** as step 6, relays
 on the local control plane carrying the user's own stored token, with the `directives` response
 shape written out and four tests including the one that refuses an owner named in the body
-(`task-21.md:570-600`). Task 52 later extends them. The shapes this task runs against, unchanged:
+(`task-21.md:578-615`). Task 52 later widens the answer relay's `200` and keeps all four. The shapes this task runs against, every field as task 21 step 6 writes them:
 
 ```jsonc
-// GET  /api/team/escalations?project=pj-…            → Hub route 66, the caller's own
-{ "escalations": [ { "id": "es-…", "kind": "inform" | "decide", "question": Text,
-    "options": [ { "label": Text, "consequence": Text } ], "default": 0, "deadline": "…",
-    "evidence": { … } | null, "answer": null | { "choice": 1, "answeredAt": "…" } } ] }
-// POST /api/team/escalations/{es}/answer  { "choice": 1 }         → Hub route 65
-// POST /api/team/human-messages  { "projectId": "pj-…", "toAgentId": "ag-…", "text": "…" } → route 70
-// GET  /api/team/directives?project=pj-…               → Hub route 68, the caller's own
+// GET  /v1/team/escalations?project=pj-…   → Hub route 66, the caller's own: hubapi.Page[hubapi.Escalation]
+{ "items": [ { "id": "es-…", "kind": "inform" | "decide", "question": Text, "options": [ { "label": Text,
+    "consequence": Text } ], "default": 0 | null, "deadline": "…", "answer": null | { "choice": 1,
+    "text": Text | null, "answeredAt": "…" }, "createdAt": "…", … } ], "next": "…" | null }
+// POST /v1/team/escalations/{escalationId}/answer  { "choice": 1 }  → Hub route 65
+// POST /v1/team/human-messages  { "projectId": "pj-…", "toAgentId": "ag-…", "text": "…" } → Hub route 70
+// GET  /v1/team/directives?project=pj-…    → Hub route 68, the caller's own: hubapi.Page[hubapi.Directive]
 ```
 
 Each is a pass-through: the local control plane adds the caller's own token and nothing else, and a
 Hub error is relayed with its own code (task 21's `a.relayHub`). `evidence` is task 31's G31-2
-field. If any of the four is missing or answers 404 at E3, the verdict is BLOCKED — but that is now
+field (`task-31.md:573-574`), not yet in the Hub's escalation. If any of the four is missing or answers 404 at E3, the verdict is BLOCKED — but that is now
 a regression in task 21, not a gap in the plan.
 
 #### The record's template (complete) — `docs/verification/2026-09-25-phase-t-alpha-results.md`
@@ -435,12 +435,12 @@ Expected: no output (no `jq`, no key variable read, no tracing that would print 
 
 - **G33-1. CLOSED by fix batch b07** (X-C2, S04-I8). It read: no task before 52 gives the desktop
   the four team calls TM1-α's humans need, so this task is BLOCKED at E3. Task 21 step 6 builds
-  them (`task-21.md:570-600`); E3 is now a check that they answer, not a wait on unplanned work.
+  them (`task-21.md:578-615`); E3 is now a check that they answer, not a wait on unplanned work.
 - **G33-2.** Task 18's `check --hook` needs a trace switch to capture the hook's stdin for O3; it
   exits 0 always (`task-18.md:62-67`) and prints nothing about its input.
 - **Gap S20-1** (task 20's) **is closed** by fix batch b07: task 21 creates and renews the owner's
   per-project orchestrator delegation, and task 20's decision 4 resolves it from the launch request
-  before the cache (`task-20.md:530-540`). E2 checks it instead of waiting on it.
+  before the cache (`task-20.md:635-644`). E2 checks it instead of waiting on it.
 - **Gap S20-3** (task 20's) stays open **by decision**, and is this task's E6: the operator prepares
   each worker's clone by hand. It is TM1-α's one accepted manual step, not a missing task.
 - **Skeleton.** The scope says "one Orchestrator and one worker for each of two identities", but a

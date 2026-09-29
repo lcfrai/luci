@@ -496,7 +496,7 @@ CI job P8-28 pins, and this part's commit says which ran where.
 - **G32-3. CLOSED by fix batch b07.** It read: task 12 migrates on start with the serving pool, and
   a DML-only role cannot. Task 12 now reads `PANACEA_APP_FLEET_MIGRATE` (`start` default, or `job`);
   on `job` it runs no migration and refuses to serve a schema behind its code, naming the Job
-  (`task-12.md:144-147`, `:169-175`, the start path and two config tests). This chart's value is
+  (`task-12.md:144-147`, `:166-177`, the start path and two config tests). This chart's value is
   therefore read by the binary it sets it on.
 - **G32-4. CLOSED by fix batch b07.** It read: task 12 has no Entra switch for Postgres. It now
   reads `PANACEA_APP_FLEET_PG_AUTH` (`password` default, or `entra`), and on `entra` the pool's

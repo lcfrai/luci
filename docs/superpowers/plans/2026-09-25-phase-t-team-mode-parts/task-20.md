@@ -43,7 +43,7 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
    on `store.ErrConflict` it reads the winner and returns it. Two replicas launching at once therefore
    yield one Orchestrator and two identical answers, with no lock.
 4. **The Orchestrator needs its own delegation.** A worker delegation covers worker routes only
-   (`task-01.md:301-307`), and the broker lets only an `orchestrator` delegation create an
+   (`task-01.md:369-374`), and the broker lets only an `orchestrator` delegation create an
    Orchestrator (task 17 decision 5). **Task 21 creates it** (fix batch b07, S02-C7/S03-C1): on a
    member's first team launch in a project its desktop calls route 46 — the only caller that may,
    since Fleet is 403 there — and sends the id as `CreateAgentRequest.OrchestratorDelegation`. This
@@ -51,7 +51,7 @@ Neither exists on any branch on 2026-09-25; both are **UNVERIFIED until merge**.
    that owner, project and class; either way it is resolved (task 11's cache under the caller's own key, else `Adopt`'s Hub read) and checked against the caller (S02-C6, b06; b06 r2) before
    anything is created, so the field is a hint and never an authority. Only if **both** are empty
    does the worker launch alone, which task 01 allows ("a worker the member launched with no
-   Orchestrator", `:296`), and the answer says `orchestrator: "awaiting-delegation"`. That is now a
+   Orchestrator", `:369`), and the answer says `orchestrator: "awaiting-delegation"`. That is now a
    real fallback for a replayed or non-desktop request, not the everyday case. *Gap S20-1 is closed
    by b07; see the gaps section.*
 5. **The policy is read, never composed, here.** `policy.Store.Effective(ctx, org, project, class)`

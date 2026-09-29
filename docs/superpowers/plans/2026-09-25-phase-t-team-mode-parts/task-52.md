@@ -24,7 +24,7 @@ the names are binding."*). This task keeps both rules. It adds:
    routes through `fleetbe` and the Hub's own-only routes (66, 68, 71, 74) through task 08's
    `hubclient.Team` as the signed-in user, and **assemble** ST.8: the strip, a person's detail,
    the Desk's four row kinds, the Orchestrator conversation, a thread, and the project's team
-   settings. Six actions write, each to exactly one Hub route, as the user.
+   settings. Six actions write, each to exactly one Hub route, as the user. **Task 21 step 6 already serves four local team routes** (fix batch b07, G33-1), bare relays for TM1-α: `GET /v1/team/escalations`, `POST /v1/team/escalations/{escalationId}/answer`, `POST /v1/team/human-messages` and `GET /v1/team/directives` (`task-21.md:578-615`). This task keeps all four at their paths and registers none of them a second time (the mux panics on a duplicate pattern): the answer row of the route table below **is** task 21's route, whose `200` this task widens to `DecideItem` in `teamrelay.go`, and the ask route writes Hub route 70 through the same `hubclient.Team.WriteHumanMessage` as task 21's message relay. Neither reads an owner from a body.
 4. **The desktop client**: `desktop/src/api/team.ts`, `store/slices/teamSlice.ts`, and the team
    block of `store/types.ts`, field for field, with every `text·A` field typed as such.
 
@@ -94,7 +94,7 @@ gateway a session happened to call. Task 56 renders it.
 - `control-plane/internal/api/testdata/team-view/v1/{strip,person,desk,orchestrator,thread,settings}.json`
   — the golden ST.8 bodies both the Go and the desktop tests read (new)
 - `control-plane/internal/api/api.go` — `Deps.Team *TeamReader`; `registerTeam(mux)` when set
-  (modify, one anchored hunk beside the sessions registration)
+  (modify, one anchored hunk beside the sessions registration); `control-plane/internal/api/teamrelay.go` — task 21's answer relay, its `200` widened to `DecideItem` (modify, b07)
 - `desktop/src/store/types.ts` — the team block below, and `Session.teamScope` (task 21's field)
   (modify)
 - `desktop/src/api/team.ts`, `desktop/src/api/team.test.ts` (new)
@@ -639,7 +639,7 @@ routes with an empty, `team: false` body and the write routes with `409 not_team
 | `GET /v1/projects/{projectId}/orchestrator/threads/{threadId}` | Fleet `…/threads/{th}/messages` | `ThreadView` |
 | `GET /v1/projects/{projectId}/team/settings` | Hub 74 (data class, route, quota); Fleet `GET /v1/projects/{p}/spend` (task 37, `task-37.md:484`) | `TeamSettings` |
 | `POST /v1/projects/{projectId}/orchestrator/messages` | Hub 70, `toAgentId` = the viewer's own Orchestrator | `201 Created` |
-| `POST /v1/team/escalations/{escalationId}/answer` | Hub 65 | `200 DecideItem` answered; a second answer is the Hub's `409 conflict` (`task-01.md:436`), relayed |
+| `POST /v1/team/escalations/{escalationId}/answer` — task 21's route (step 6), widened here, not registered again | Hub 65 | `200 DecideItem` answered; a second answer is the Hub's `409 conflict` (`task-01.md:436`), relayed |
 | `POST /v1/team/decided/{escalationId}/undo` | Hub 70, the fixed Undo template | `201 Created`; `409 not_reversible` |
 | `POST /v1/projects/{projectId}/notes` | Hub 72 (task 46) | `201 Created` |
 | `POST /v1/projects/{projectId}/team/route/raise` | Hub 79, `{"route":"au"}` | `200 TeamSettings` |
@@ -715,7 +715,7 @@ type HubProjects interface {
 	HubProject(ctx context.Context, projectID string) (string, error)
 }
 
-func (a *API) registerTeam(mux *routes) // the eleven routes above; a no-op when Deps.Team is nil
+func (a *API) registerTeam(mux *routes) // the ten routes above that task 21 does not already register (not the answer route); a no-op when Deps.Team is nil
 ```
 
 `TeamReader.Projects` is typed `HubProjects`; task 21's `TeamProjects` stays as it is. Every Hub

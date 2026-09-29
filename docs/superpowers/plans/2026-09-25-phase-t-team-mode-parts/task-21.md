@@ -60,7 +60,7 @@ session on a team project). The desktop's `types.ts` gains the field in task 52,
   never on the wire (modify)
 - `control-plane/internal/registry/teamdelegations.go` — the per-project orchestrator delegation
   record and its store (new; b07, S02-C7/S03-C1)
-- `control-plane/internal/api/teamrelay.go` + `teamrelay_test.go` — the four `/api/team/*` human
+- `control-plane/internal/api/teamrelay.go` + `teamrelay_test.go` — the four `/v1/team/*` human
   relays of step 6 (new; b07, G33-1/S04-I8)
 - `control-plane/internal/api/teammode.go` + `teammode_test.go` — `hubTeamProjects` and the
   `POST /v1/projects/{projectId}/team-mode` route (new; fix batch b01, X-C1)
@@ -71,8 +71,8 @@ session on a team project). The desktop's `types.ts` gains the field in task 52,
   `fleetbe.FleetEndpoint(agID)`; `fleetbe.Error`; `api.TeamLauncher`, `api.TeamProjects` (with
   `MakeTeam`, b01); the local team-mode route (task 33's E5 and task 56's Share call it); the
   `teamScope` field of `sessionJSON`; `api.TeamLauncher.EnsureOrchestratorDelegation` and the
-  registry's `TeamDelegations` record (b07); the four `/api/team/*` human relays (b07; task 33's E3
-  calls them, task 52 extends them).
+  registry's `TeamDelegations` record (b07); the four `/v1/team/*` human relays (b07; task 33's E3
+  calls them, task 52 widens the answer relay's `200` and keeps all four).
 - Consumes: `backend.Backend`, `backend.Spec`, `backend.Sandbox` and the sentinels (phase 2,
   built); `backend.ReadyWaiter` (phase 8 task 22, planned); `hubclient.TokenSource` (built) and
   task 08's `hubclient.Team` methods `CreateDelegation`, `RenewDelegation`, `RevokeDelegation`,
@@ -422,7 +422,7 @@ is, and it is why a second launch makes no Hub call.
 
 **How Fleet learns it.** `CreateAgentRequest` gains `OrchestratorDelegation string` (defined above
 with this task's other wire shapes; task 20 decodes it into `LaunchRequest.OrchestratorDelegation`,
-`task-20.md:166-171`). Task 20 decision 4 (`task-20.md:45-55`) uses that id when
+`task-20.md:167-172`). Task 20 decision 4 (`task-20.md:45-55`) uses that id when
 it is set, and falls back to task 11's cache lookup when it is not (a non-team or replayed
 request), so an Orchestrator is created on the member's **first** launch rather than on the first
 launch after the change feed catches up. Fleet still resolves the delegation (task 11's cache under the member's own key, else `Adopt`'s Hub read) and checks it against the member before
@@ -577,33 +577,33 @@ catalogue change.
 
 - [ ] **Step 6: `teamrelay.go` — the four human routes (b07, G33-1/S04-I8)**
 
-Hub routes 65, 66, 68 and 70 accept **only the owner's own desktop** (`task-07.md:144-147`,
-`:182-184`), and the desktop's own team client is task 52's, in TM1. So until b07 nothing before
+Hub routes 65 and 70 accept **only the owner's own desktop**, and 66 and 68 show a person only their
+own rows (an org auditor excepted) (`task-07.md:149-160`, `:178`, `:187-190`); the desktop's own team client is task 52's, in TM1. So until b07 nothing before
 task 33 let a human answer a decide or speak to their Orchestrator, task 33's E3 could only be
 BLOCKED, and the review consolidated that into X-C2. This task owns them, because it already holds
-the Hub team client and `a.relayHub` on the local control plane. Task 52 extends these four; it does
-not replace them.
+the Hub team client and `a.relayHub` on the local control plane. Task 52 widens the answer relay's
+`200` to its `DecideItem` and keeps all four at their paths; it neither replaces nor re-registers them.
 
-Four routes on the local control plane, each a **relay**: it adds the caller's own stored token, it
-adds nothing else, and it passes the Hub's status, code and `details` back through `a.relayHub`.
+Four routes on the local control plane (`/v1` canonical, so `/api/v1/team/…` aliases each, go contract §7.5), each a **relay** over one task 08 `hubclient.Team` method (`Escalations`, `AnswerEscalation`, `WriteHumanMessage`, `Directives`, `task-08.md:139-145`): it adds the caller's own stored token, it
+adds nothing else, and it passes the Hub's status, code, `details` and body back through `a.relayHub`.
 No route takes an owner, an org or an agent's owner from the body — the Hub resolves the caller from
 the token, which is why one person cannot read or answer another's (task 07's own check, not ours).
 
 ```jsonc
-// GET  /api/team/escalations?project=pj-…            → Hub route 66, the caller's own
-{ "escalations": [ { "id": "es-…", "kind": "inform" | "decide", "question": Text,
-    "options": [ { "label": Text, "consequence": Text } ], "default": 0, "deadline": "…",
-    "evidence": { … } | null, "answer": null | { "choice": 1, "answeredAt": "…" } } ] }
-// POST /api/team/escalations/{es}/answer  { "choice": 1 }         → Hub route 65
-// POST /api/team/human-messages  { "projectId": "pj-…", "toAgentId": "ag-…", "text": "…" } → route 70
-// GET  /api/team/directives?project=pj-…               → Hub route 68, the caller's own
-{ "directives": [ { "id": "dv-…", "toAgentId": "ag-…", "kind": "pause" | "resume" | "narrow" |
-    "wait-for" | "rebase" | "free", "params": { … } | null, "origin": "human" | "fleet",
-    "issuedAt": "…", "state": "issued" | "in-force" | "spent", "approvedBy": "es-…" | null } ] }
+// GET  /v1/team/escalations?project=pj-…   → Hub route 66, the caller's own: hubapi.Page[hubapi.Escalation]
+{ "items": [ { "id": "es-…", "projectId": "pj-…", "ownerUserId": "u-…", "fromAgentId": "ag-…" | null, "kind": "inform" | "decide",
+    "threadId": "th-…" | null, "question": Text, "options": [ { "label": Text, "consequence": Text } ], "default": 0 | null,
+    "deadline": "…", "answer": null | { "choice": 1, "text": Text | null, "answeredAt": "…" }, "createdAt": "…" } ], "next": "…" | null }
+// POST /v1/team/escalations/{escalationId}/answer  { "choice": 1 }  → Hub route 65 → 200 the escalation, answered
+// POST /v1/team/human-messages  { "projectId": "pj-…", "toAgentId": "ag-…", "text": "…" } → Hub route 70 → 201
+// GET  /v1/team/directives?project=pj-…    → Hub route 68, the caller's own: hubapi.Page[hubapi.Directive]
+{ "items": [ { "id": "dv-…", "projectId": "pj-…", "ownerUserId": "u-…", "fromAgentId": "ag-…", "toAgentId": "ag-…",
+    "kind": "pause" | "resume" | "narrow" | "wait-for" | "rebase" | "free", "params": { "globs": [ … ], "leaseId": "…" | null },
+    "text": Text | null, "rung": "piggyback" | "inbox-socket" | "pty-nudge", "origin": "human" | "fleet", "read": [ … ], "approvedBy": "es-…" | null, "createdAt": "…" } ], "next": "…" | null }
 ```
 
-`GET /api/team/directives`'s shape is written out here because it was the one of the four task 33
-left implicit (S04-I8). `text` on route 70 is the human's own words and is **not** parsed, trimmed
+Both list bodies are the Hub's own page, `{"items","next"}` (`hubapi/types.go:195-199`, built), of task 03's `Escalation` (`task-03.md:781-794`) and `Directive` (`:826-840`), passed through unchanged; the directives shape is written out because task 33
+left it implicit (S04-I8). No `evidence` is in the escalation: it is task 31's G31-2 field (`task-31.md:573-574`). `text` on route 70 is the human's own words and is **not** parsed, trimmed
 of meaning or interpreted here: it is a body this process forwards. All four are refused `404` when
 `a.team == nil` (no `PANACEA_APP_FLEET_URL`), so a solo build does not grow a team surface.
 
@@ -611,13 +611,13 @@ of meaning or interpreted here: it is a body this process forwards. All four are
 |---|---|---|
 | `TestRelaysCarryNoIdentityFromTheBody` | an `ownerUserId`, `orgId` or `asUser` key in any of the four bodies is a `400 bad_request`, and the forwarded body never gains one | a relay that lets the caller name whose escalations to list, which is the cross-owner channel OD-16 gives the Orchestrator alone |
 | `TestRelayPassesTheHubsRefusal` | the Hub's `403 forbidden` on another person's `es-…` reaches the client with the Hub's own code and `details` | a relay that rewrites a refusal as `backend_unavailable`, hiding the one check that keeps the two humans apart |
-| `TestDirectivesShapeIsComplete` | a golden Hub body round-trips every field above, `params` and `approvedBy` included | a shape that drops `origin` or `approvedBy`, so task 33's M4 cannot tell a Fleet turn from a human one |
+| `TestDirectivesShapeIsComplete` | a golden `hubapi.Page[hubapi.Directive]` body (every field of task 03's `Directive`, and `next`) comes back byte for byte | a relay that re-shapes the page (drops `next`, `origin`, `approvedBy` or `createdAt`), so task 33's M5 and M10 cannot read it |
 | `TestTeamRoutesAreAbsentWithoutFleet` | all four → 404 with `a.team == nil` | a team surface on a solo install |
 
 - [ ] **Step 7: Acceptance**
 
 ```bash
-cd control-plane && go vet ./... && go test ./internal/backend/fleetbe/... ./internal/api/... -count=1
+cd control-plane && go vet ./... && go test ./internal/backend/fleetbe/... ./internal/api/... ./internal/registry/... -count=1
 ```
 
 Expected: `ok` for both packages, and every test named above listed under `-v`. Then the
@@ -630,11 +630,11 @@ cd control-plane && grep -rn "AttachToken" internal/backend/fleetbe/*.go | grep 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add control-plane/internal/backend/fleetbe control-plane/internal/api/teamlaunch.go \
-  control-plane/internal/api/teamlaunch_test.go
-git commit -F <msgfile> -- control-plane/internal/backend/fleetbe control-plane/internal/api/teamlaunch.go \
-  control-plane/internal/api/teamlaunch_test.go control-plane/internal/api/sessions.go \
-  control-plane/internal/api/catalog.go control-plane/internal/registry/session.go
+git add control-plane/internal/backend/fleetbe control-plane/internal/api/{teamlaunch,teamrelay,teammode}.go \
+  control-plane/internal/api/{teamlaunch,teamrelay,teammode}_test.go control-plane/internal/registry/teamdelegations.go
+git commit -F <msgfile> -- control-plane/internal/backend/fleetbe control-plane/internal/api/{teamlaunch,teamrelay,teammode}.go \
+  control-plane/internal/api/{teamlaunch,teamrelay,teammode}_test.go control-plane/internal/api/sessions.go \
+  control-plane/internal/api/catalog.go control-plane/internal/registry/session.go control-plane/internal/registry/teamdelegations.go
 ```
 
 **What this task does NOT claim.**

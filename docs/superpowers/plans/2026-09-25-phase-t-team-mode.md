@@ -219,7 +219,7 @@ twice and pinned by one set of golden fixtures that both modules' tests read.
 | `sbx/internal/panaceacli/*.go` | Every `panacea` verb but `token`, over the socket; the unavailable answer | 18 |
 | `cp/internal/fleet/control/{streams.go,dispatch.go}` | One control stream per sandbox through the broker; verb dispatch by class and owner | 19 |
 | `cp/internal/fleet/sessions/{sessions.go,tokens.go}` | Launch keyed by owner over the broker; `ag-…` ids; gateway tokens with their tags | 20 |
-| `cp/internal/backend/fleetbe/fleetbe.go`, `cp/internal/api/teamlaunch.go`, `cp/internal/api/teamrelay.go`, `cp/internal/registry/teamdelegations.go` | The desktop's `fleetbe` behind `backend.Backend`; the team launch that creates the worker **and** the per-project orchestrator delegation (b07); the four `/api/team/*` human relays (b07) | 21 |
+| `cp/internal/backend/fleetbe/fleetbe.go`, `cp/internal/api/teamlaunch.go`, `cp/internal/api/teamrelay.go`, `cp/internal/registry/teamdelegations.go` | The desktop's `fleetbe` behind `backend.Backend`; the team launch that creates the worker **and** the per-project orchestrator delegation (b07); the four `/v1/team/*` human relays (b07) | 21 |
 | `cp/internal/fleet/verbs/{team.go,check.go,files.go}` | Read verbs, filtered by class | 22 |
 | `cp/internal/fleet/leases/{leases.go,rightofway.go}`, `cp/internal/fleet/verbs/lease.go` | The lease engine | 23, 35 |
 | `cp/internal/fleet/verbs/{task.go,worker.go,report.go}` | Task, worker and report verbs | 24 |
@@ -238,7 +238,7 @@ twice and pinned by one set of golden fixtures that both modules' tests read.
 | `cp/internal/fleet/instructions/{orchestrator.md,worker-cloud.md}`, `cp/internal/fleet/eval/*`, `testdata/team-events/*.json` | The Orchestrator's instructions and the replay eval | 41 |
 | `cp/internal/fleet/g9/{corpus/*.txt,g9_test.go,run.go}` | G9's corpus and the scripted two-Orchestrator run | 42 |
 | `prototype/team-mode.html` | The owner-reviewed prototype of every team surface | 51 |
-| `cp/internal/api/team.go`, `desktop/src/api/team.ts`, `desktop/src/store/slices/teamSlice.ts`, `desktop/src/store/types.ts` | Team read models and actions on the local control plane; the desktop client. It **extends** task 21's four `/api/team/*` relays (b07), which exist from TM1-α; it no longer introduces the first of them | 52 |
+| `cp/internal/api/team.go`, `desktop/src/api/team.ts`, `desktop/src/store/slices/teamSlice.ts`, `desktop/src/store/types.ts` | Team read models and actions on the local control plane; the desktop client. It **extends** task 21's four `/v1/team/*` relays (b07), which exist from TM1-α: it widens the answer relay's `200` to `DecideItem` and registers none of the four again; it no longer introduces the first of them | 52 |
 | `desktop/src/components/team/*` | The team strip and click-in | 53 |
 | `desktop/src/components/desk/team*.tsx` | The four Desk row kinds | 54 |
 | `desktop/src/components/orchestrator/*` | The Orchestrator panel | 55 |
@@ -757,13 +757,13 @@ no token (phase 2's `sessionJSON` rule). **Fix batch b01 (X-C1):** `TeamProjects
 On the Hub's 200, `MakeTeam` calls S-LINK's `Resolver.Invalidate(localProjectID)`, so the next
 `IsTeam` does not read the 5-minute cache's `solo` (b01 round 2).
 **Fix batch b07 (X-C2, S02-C7/S03-C1, G33-1/S04-I8)** adds two things this task alone can do,
-because route 46 and Hub routes 65/66/68/70 take the owner's own desktop token and refuse Fleet's.
+because route 46 and Hub routes 65 and 70 take only the owner's own desktop token (66 and 68 also admit Fleet·O, but show a person only their own rows).
 (1) The member's first team launch in a project creates the owner's **`orchestrator`-class
 delegation** as well as the session's worker one, keeps it per project in the registry's
 `TeamDelegations` record, renews both on one timer, and sends its id to Fleet on
 `CreateAgentRequest`; without it task 20 answered `awaiting-delegation` for ever and TM1-α had no
-Orchestrator at all. (2) Four **`/api/team/*` human relays** — list escalations, answer one, post a
-human message, list directives — each adding the caller's own token and nothing else, and refusing
+Orchestrator at all. (2) Four **`/v1/team/*` human relays** — list escalations, answer one, post a
+human message, list directives — each adding the caller's own token and nothing else, passing the Hub's page through unchanged, and refusing
 any owner named in a body. Task 52 extends both; it no longer has to exist first. Together they
 close task 33's E2 and E3.
 

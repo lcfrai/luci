@@ -76,7 +76,7 @@ task 44's (task 23 assigns the transition there); this task builds Fleet's half.
   `task-22.md:71`) (modified; one line in `fleetd`'s wiring, none in task 22's logic)
 - `control-plane/cmd/fleetd/main.go` — start the poller on every replica, the expiry sweep on the
   deadline-sweeper singleton, the presence route (modified; task 12's file)
-- `control-plane/internal/api/presence.go` — the local control plane's `PUT /api/team/presence`
+- `control-plane/internal/api/presence.go` — the local control plane's `PUT /v1/team/presence`
   and its 30 s relay to Fleet with the user's own token (new; the desktop's one call is below)
 - `desktop/src/api/client.ts` — `putPresence(projectIds)` on project open and on the one global
   heartbeat tick (modified; one function)
@@ -270,7 +270,7 @@ func (p *Presence) Online(owner model.Owner) (projects []string, ok bool)
 may read the project, §3.4), body `{"projects": ["pj-…"]}`, at most 20 ids, each a project the
 principal is a member of (task 12's `Membership`, cached ≤ 60 s), else 403 naming the id; `204`.
 The owner is the token's principal, never a body field (global constraint 3). The local control
-plane's `PUT /api/team/presence` takes the same body from the desktop and relays it every 30 s
+plane's `PUT /v1/team/presence` takes the same body from the desktop and relays it every 30 s
 while the desktop keeps calling; the desktop calls it when the open project changes and on the one
 global heartbeat clock's 30 s tick (`CLAUDE.md` frontend rules), never on a timer of its own.
 Presence is shown by task 53's strip; this task only keeps it.
