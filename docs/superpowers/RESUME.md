@@ -294,6 +294,25 @@ for it after the owner switched to new usage. All three were stopped at 15:12 an
 - **The host is shared**: another Claude session runs Panacea-monorepo Go tests, and the CPU sits
   near 100%. Spawns stay at 0.3–0.7 s.
 
+### 0e.4 SUPERSEDES 0e.3 — 17:48, after a second usage stop (17:08)
+| Task | Run | Script (WS) | Args |
+|---|---|---|---|
+| `wev23xeeo` | `wf_be29be5e-473` | `phase2-finish-4.js` | none |
+| `w6ty8dwog` | `wf_acc5727b-139` | `plans-continue.js` | `{"chains":["team","work"],"teamBatches":["b07"],"workBatches":["b02","b13"]}` |
+
+- **Phase 2.** Approved: F1/F3, F5, F2/F4, task 26. Task 25 carries review 10's I-1 (guard wording),
+  which run 5's document agent fixes. X-3 round 4 landed, and review 4 found I-C (the origin check
+  fails open and mis-parses quoted names), I-D (a location inside a second writable mount goes
+  unchecked) and I-E (a false green). Round 5 fails closed, lifts the reviewer's attack tests,
+  then a scoped review: a new hole blocks only in the default layout; others carry to phase 3's R4.
+  Then gate 3 (`SDD/phase2-finish-gate-3.md`), then run 5 inline.
+- **Plans.** Discover design round 2 is DONE at 0 C; R3-I1 (erasure must reach branch copies) is
+  carried as a written requirement (`11-design-r2.md`, end). Phase T is paused after b07 by the
+  owner's just-in-time rule, with **b08–b13 unstarted** (relaunch with `teamBatches`). Phase W: b02's
+  and b13's re-reviews finish here; b03–b12 and b14 wait for Phase W's build.
+- **Owner Q2** (struct or key forms for terms and decisions) is unanswered, so the default is the
+  struct. It must be settled before Hub 44a.
+
 ## 1. What was running at shutdown (7 workflows)
 
 | Stream | Worktree / branch | Last run id | Script | args |
