@@ -1,6 +1,6 @@
 # 01 — Cloud agent machines: buy, adopt or integrate instead of build
 
-**Status:** IN PROGRESS (skeleton). Sections fill in one at a time.
+**Status:** COMPLETE, 2026-09-30. Desk research only: nothing installed or run (section 7).
 **Date:** 2026-09-30. **Capability:** isolated per-session sandboxes that run unmodified
 coding-agent CLIs (Claude Code, Codex, Gemini CLI) with a real PTY, warm pools, microVM-class
 isolation, on Azure or bought with an AU region, driven by API as a `Backend` of our Go control plane.
@@ -8,7 +8,24 @@ isolation, on Azure or bought with an AU region, driven by API as a `Backend` of
 
 ## 1. Answer first
 
-_TBD — the one recommendation, its integration days, and what it replaces._
+- **Adopt, do not buy:** AKS Pod Sandboxing (Kata microVMs, run by Microsoft) plus
+  `kubernetes-sigs/agent-sandbox` v1.0.4 (Apache-2.0: warm pool, claim, pause, resume,
+  persistent storage), driven by our existing `katabe` through agent-sandbox's Go SDK, in
+  Australia East.
+- **7 days** to the first real cloud session from the cockpit (range 5 to 9). 4 of them are this
+  option; 3 are glue any option needs (clone into the sandbox; control plane in the cloud behind
+  Keycloak).
+- **It replaces** the warm-capacity and machine-lifecycle work in phase 8 (2 tasks removed, 11
+  reduced: about 36 plan-days become about 14), most of the Kata hardening in phase 9, and the
+  capacity risk in `PROGRAM.md` (warm-pool sizing becomes configuration plus an HPA).
+- **No bought product fits.** Every SaaS fails on Azure, AU residency, customer-cloud deployment,
+  licence or isolation; the two credible "buy" options (Northflank BYOC, Runloop VPC deploy)
+  document microVMs on AWS, not Azure, and need weeks of procurement. Daytona is AGPL and frozen;
+  Coder is AGPL at its core; E2B has no Azure.
+- **Fallback:** ACI + standby pools (same Hyper-V isolation class, no cluster) if Kata nodes or
+  claim latency fail on day 1.
+- **Owner calls:** the subscription and a dev baseline of about US$2,000 a month at list price;
+  the warm-pool size; the idle policy; the isolation statement customers see.
 
 ## 2. What the capability must do (the bar every candidate is scored against)
 
@@ -431,4 +448,49 @@ project README, a vendor page or the GitHub API, read on 2026-09-30.
 
 ## 8. Sources
 
-_TBD_
+**In this repo (read-only):** `docs/superpowers/planning/2026-09-23-owner-decisions.md`
+(`OD-2`, `OD-4`, `OD-5`, `OD-8`, `OD-14`, `OD-18`–`OD-24`, `OD-30`); `docs/PROGRAM.md` (phases
+8 and 9, open risk 1); `control-plane/internal/backend/backend.go:337`;
+`control-plane/internal/backend/katabe/kata.go` (the dormant note); the phase 8 plan at
+`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment.md` (task table,
+lines 558–633); `docs/superpowers/planning/2026-09-28-oss-adoption/00-summary.md` (row 8 and the
+Daytona reject). GLASSES: `gsearch.py` offline and `https://lcfr.ai/api/mcp` `glasses_search`.
+
+**Kubernetes / AKS:** <https://github.com/kubernetes-sigs/agent-sandbox> (README, releases) ·
+<https://agent-sandbox.sigs.k8s.io/docs/use-cases/examples/kata-aks/> ·
+<https://pkg.go.dev/sigs.k8s.io/agent-sandbox/examples/kata-aks> ·
+<https://learn.microsoft.com/en-us/azure/aks/use-pod-sandboxing>
+
+**Azure Container Apps dynamic sessions:**
+<https://learn.microsoft.com/en-us/azure/container-apps/sessions> ·
+<https://learn.microsoft.com/en-us/azure/container-apps/sessions-custom-container> ·
+<https://learn.microsoft.com/en-us/azure/container-apps/session-pool> ·
+<https://learn.microsoft.com/en-us/azure/container-apps/sessions-usage> ·
+<https://learn.microsoft.com/en-us/rest/api/resource-manager/containerapps/container-apps-session-pools/create-or-update?view=rest-resource-manager-containerapps-2026-01-01> ·
+<https://learn.microsoft.com/en-us/answers/questions/2148110/with-session-pools-can-you-specify-a-custom-cidr-r> ·
+<https://learn.microsoft.com/en-us/azure/container-apps/billing>
+
+**Azure Container Instances:**
+<https://learn.microsoft.com/en-us/azure/container-instances/container-instances-overview> ·
+<https://learn.microsoft.com/en-us/azure/container-instances/container-instances-standby-pool-overview> ·
+<https://learn.microsoft.com/en-us/azure/container-instances/container-instances-standby-pool-create> ·
+<https://techcommunity.microsoft.com/blog/azurecompute/general-availability-standby-pools-for-azure-container-instances/4415378>
+
+**Prices:** <https://prices.azure.com/api/retail/prices> (Australia East, 2026-09-30).
+
+**Vendors:** <https://coder.com/pricing> ·
+<https://coder.com/docs/admin/templates/extending-templates/prebuilt-workspaces> ·
+<https://coder.com/docs/ai-coder/tasks> · <https://northflank.com/product/sandboxes> ·
+<https://northflank.com/docs/v1/application/sandboxes/deploy-sandboxes-in-your-cloud> ·
+<https://runloop.ai/deploy-to-vpc> · <https://docs.runloop.ai/docs/devboxes/overview> ·
+<https://modal.com/docs/guide/region-selection> ·
+<https://pkg.go.dev/github.com/modal-labs/libmodal/modal-go> · <https://docs.e2b.dev/byoc> ·
+<https://github.com/daytonaio/daytona> · <https://www.daytona.io/docs/en/regions/> ·
+<https://www.daytona.io/docs/en/runners/> ·
+<https://github.blog/changelog/2026-04-01-codespaces-is-now-generally-available-for-github-enterprise-with-data-residency/> ·
+<https://thenextweb.com/news/openai-acquires-ona-codex> (press) ·
+<https://cloud.morph.so/docs/developers>
+
+**GitHub API** (`api.github.com/repos/…`, 2026-09-30): `kubernetes-sigs/agent-sandbox`,
+`daytonaio/daytona`, `e2b-dev/runtime`, `e2b-dev/E2B`, `coder/coder`, `coder/agentapi`,
+`OpenHands/OpenHands`, `loft-sh/devpod`, `superradcompany/microsandbox`, `gitpod-io/gitpod`.
