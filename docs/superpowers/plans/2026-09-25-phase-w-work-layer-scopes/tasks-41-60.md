@@ -231,7 +231,7 @@ keeps @2 and @3 (kills an in-place rewrite); the author class is present as text
 head); `parseIssueLink("EP-142")` returns null (kills alias parsing); focusing a `serves` row lights
 its criterion and adds no selection ring (kills lit-as-selected); removing a criterion sends a
 revision write, and Undo returns it (kills a mutable field patch); opening at @3 shows the head line
-(kills silently showing the head); `expectNoPrediction` passes. Depends on 36, 46. Design: 05 §2.3
+(kills silently showing the head); `expectNoPrediction` passes. Depends on 36, 41, 46. Design: 05 §2.3
 (the thread), §3.6, §3.7 rule 1, §4.4 C2, §4.5 rules 1 and 4. Parity: closes L-34 and L-98's W1 part
 (the revision-pinned `panacea://` link); serves L-191 (task 19 writes the revision into the managed
 block; this view shows which one). Does not claim: the https Hub link and read-only page (L-98's W2

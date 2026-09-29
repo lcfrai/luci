@@ -106,9 +106,9 @@ reversible. `Escape` abandons it; an empty line clears the check. Four rules com
 2. **Every other pair keeps its check.** The list is rewritten by identity, so a write that
    touches one pair cannot drop another's command — the mutant a desktop `Serve` without `check`
    would have built on every title edit. Task 37's `Serve` carries `check?: string` for this.
-3. **No new letter key.** The control is a button in the row's Tab order and the field takes only
-   `Enter` and `Escape`; a letter bound here would compete with the list's `T` and the global map
-   (tasks 53-54), for an act done once per criterion.
+3. **No new letter key, and no list key in the field.** The control is a button in the row's Tab
+   order and the field takes only `Enter` and `Escape`; task 47's `T` skips a key typed in a field
+   (task 41's `isBareListKey`), and a letter bound here would compete with it and tasks 53-54's map.
 4. **Who may set one is SW.3's rule, not this line's**: the line is offered on the head to the
    person viewing it, and the Hub's revision write enforces who may add or change a check.
 
@@ -137,7 +137,7 @@ same on both backends.
 - `desktop/src/components/issue/CheckLine.tsx` + `CheckLine.test.tsx` — the check line, `MAX_CHECK_BYTES`,
   `checkBytes`, `withCheck` (new)
 - `desktop/src/components/issue/Serves.tsx` ⚑ + `Serves.test.tsx` ⚑ (task 47's) — `ServeRow` gains
-  `onSetCheck` and renders `CheckLine`; one test that the other pairs' checks survive (modified)
+  `onSetCheck` and renders `CheckLine`; two tests: other pairs keep their checks, a typed `t` stays (modified)
 - `desktop/src/components/issue/issue.css` ⚑ (task 47 appends to it) — `.iv-serve` wraps, and three
   `.iv-check*` rules (modified)
 
@@ -257,7 +257,7 @@ export function CheckLine(props: { serve: Serve; canEdit: boolean; onSet(check: 
 In task 47's `Serves.tsx`, `ServeRow`'s props gain `onSetCheck(check: string): void`, its `<li>`
 renders `<CheckLine serve={serve} canEdit={canRemove} onSet={onSetCheck} />` after the two facts,
 and `Serves` passes `onSetCheck={(check) => write(serves.map((x) => (x === s ? withCheck(x, check)
-: x)))}`. Nothing else in task 47's file changes. The CSS, appended to `issue.css`:
+: x)))}`. Nothing else in 47's file changes (its `T` already skips fields). The CSS, appended to `issue.css`:
 
 ```css
 /* Task 23b: the check line. Mono is the command (a machine fact); the words stay sans. */
@@ -307,7 +307,7 @@ Run: `go test ./control-plane/internal/evidence/... -race -count=1 -run 'Check'`
 - [ ] **Step 3: the check line on the desktop, tests first**
 
 In `desktop/src/components/issue/CheckLine.test.tsx` (vitest and Testing Library, as task 47's
-tests; fixtures from `../../test/workFixtures`, `makeServe` taking `check`) and one test appended
+tests; fixtures from `../../test/workFixtures`, `makeServe` taking `check`) and two tests appended
 to task 47's `Serves.test.tsx`:
 
 | Test | Asserts | Mutant it kills |
@@ -319,6 +319,7 @@ to task 47's `Serves.test.tsx`:
 | no control off the head | `canEdit={false}` → no button, the command still shown | an edit offered on an old revision |
 | no prediction | `expectNoPrediction(container)` on every render above (task 20) | a *will pass* or a count beside the command |
 | (in `Serves.test.tsx`) setting one pair's check keeps the other's | revision with pairs `a` (`check: "x"`) and `b`; set `b` to `y` → one `revise` whose `serves` is `[a with "x", b with "y"]`; removing `b` → `[a with "x"]` | a writer that rebuilds pairs as `{briefKey, criterionId}` and drops every other check |
+| (in `Serves.test.tsx`) a check typed in the list stays in the line | head revision with one pair; *Set check*, then user-event's `type` puts `npm test` in the field → it reads `npm test`, and no *Choose a criterion* dialog opens | task 47's `onKey` without task 41's `isBareListKey`: the first `t` is swallowed and the picker opens |
 
 Run: `npm --prefix desktop test -- CheckLine Serves`. Expected: FAIL on the missing module. Write
 `CheckLine.tsx`, the `ServeRow` change and the CSS; re-run. Expected: `Test Files 2 passed`.
@@ -346,7 +347,7 @@ frame (05 §5.3 row 7) from a test double.
 ```
 
 Expected: one `ok` per Go package, no `FAIL`; `go test ./sandboxd/... -race -count=1` prints `ok`
-in phase 3's module; the desktop run prints `Test Files 2 passed` (7 tests are this task's, and
+in phase 3's module; the desktop run prints `Test Files 2 passed` (8 tests are this task's, and
 task 47's four `Serves` tests stay green) and the typecheck exits 0. Then `go test -tags docker
 ./control-plane/internal/api/... -race -count=1 -run InTheProduct` on a Docker host prints `ok`;
 record that it ran and where — not running it is not a pass, and `OD-27` says done means proven.

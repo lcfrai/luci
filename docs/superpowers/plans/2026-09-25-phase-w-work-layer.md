@@ -446,7 +446,7 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 44 | display options and the bulk bar, with *Start N worktrees* and `confirm.inplace` | W1 | 0.375 (3 h) | 40 | — |
 | 45 | Plan (`G P`): Triage, Backlog, criteria with their issues, *My issues* | W1 | 0.375 (3 h) | 42 | — |
 | 46 | the issue view, part 1: head fields and their pickers | W1 | 0.375 (3 h) | 37, 39 | — |
-| 47 | the issue view, part 2: revisions, restore, `serves` with `thread.node`, revision-pinned links | W1 | 0.375 (3 h) | 36, 46 | — |
+| 47 | the issue view, part 2: revisions, restore, `serves` with `thread.node`, revision-pinned links | W1 | 0.375 (3 h) | 36, 41, 46 | — |
 | 48 | the issue view, part 3: relations, the live agent line, *done, not proven* and its reason | W1 | 0.3 (2.5 h) | 46 | — |
 | 49 | the editor, part 1: one Markdown editor on `prosemirror-*` (MIT), author class kept | W1 | 0.375 (3 h) | 46 | — |
 | 50 | the editor, part 2: the slash menu and tables | W1 | 0.375 (3 h) | 49 | — |

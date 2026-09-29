@@ -1,10 +1,10 @@
 ### Task 47: the issue view, part 2: revisions, restore, `serves` with `thread.node`, revision-pinned links
 
 Stream **WD3** (the issue view), about 3 hours (an estimate, not a measurement). Depends on task 36
-(SW.14: `ThreadNode`, `ThreadLine`, `useThreadLit`) and task 46 (the view's frame, `AuthorClass`,
-`issueData.ts`, `clock`). Uses SW.1 (the immutable, digested revision `issue:is-…@r` and its
-`serves [{briefKey, criterionId}]`), SW.2's relay reads of revisions (task 16), task 42's
-`CriterionPicker` and SW.16's `mutate`.
+(SW.14: `ThreadNode`, `ThreadLine`, `useThreadLit`), task 41 (`isBareListKey`, the list-key gate)
+and task 46 (the view's frame, `AuthorClass`, `issueData.ts`, `clock`). Uses SW.1 (the immutable,
+digested revision `issue:is-…@r` and its `serves [{briefKey, criterionId}]`), SW.2's relay reads of
+revisions (task 16), task 42's `CriterionPicker` and SW.16's `mutate`.
 
 An issue's text changes; what an agent was told must not. Every text change is a new, immutable,
 digested revision (05 §3.6; `L-34`), and an agent's managed block names the exact one it read
@@ -400,7 +400,7 @@ import { mutate } from "../../work/replica/ops";
 import { ThreadNode, ThreadTrace, useThreadLit } from "../thread";
 import { CriterionPicker } from "../work/CriterionPicker";
 import { useCriterion } from "./issueData";
-
+import { isBareListKey } from "../../work/listKeys"; // task 41: a key typed in a field is the field's
 /** The criteria this revision serves. Editable only on the head: removing or adding writes a
  *  new revision on top of it (decision 3). `play` is true on a drill-in (ThreadTrace, SW.14). */
 export function Serves(props: { issueId: string; revision: IssueRevision; isHead: boolean; play: boolean }): JSX.Element {
@@ -410,8 +410,8 @@ export function Serves(props: { issueId: string; revision: IssueRevision; isHead
   const write = (next: Serve[]) =>
     mutate({ kind: "revise", issueId, baseRev: revision.revision, patch: { serves: next } });
   const onKey = (e: KeyboardEvent<HTMLUListElement>) => {
-    // Keys fire only with focus in a list (05 §4.3); `T` is KeyT, no modifier (useKeyboardMap rule).
-    if (!isHead || e.code !== "KeyT" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    // List keys fire in the list, never in a field in it (05 §4.3; 23b's check line); `T` is KeyT, no modifier.
+    if (!isHead || e.code !== "KeyT" || e.shiftKey || !isBareListKey(e)) return;
     e.preventDefault();
     setAdding(true);
   };
