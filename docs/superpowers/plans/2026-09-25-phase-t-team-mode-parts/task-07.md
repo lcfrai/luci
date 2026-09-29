@@ -163,7 +163,7 @@ owner's. Everyone else in the project gets `200` and an empty list.
 
 ```jsonc
 { "id": "dv-…", "fromAgentId": "ag-…", "toAgentId": "ag-…",   // the owner's Orchestrator; the owner's worker
-  "kind": "pause" | "resume" | "narrow" | "wait-for" | "rebase" | "free",
+  "kind": "pause" | "resume" | "narrow" | "wait-for" | "rebase" | "free", "params": { "globs": [ "web/auth/**" ], "leaseId": null },   // task 01 §7.20 (G31-5)
   "text": "…",                                            // ≤ 600; required for free, refused otherwise
   "rung": "piggyback" | "inbox-socket" | "pty-nudge",
   "origin": "human" | "fleet",
@@ -173,7 +173,7 @@ owner's. Everyone else in the project gets `200` and an empty list.
 
 `to` must be a worker whose `parentAgentId` is `from`, so an Orchestrator directs only its own
 workers (§6.2, "neither side can move the other side's worker"). Both ends failing ownership is 403
-`agent_not_owner` with `details.agentId` naming the first that failed. Then the taint rule below.
+`agent_not_owner` with `details.agentId` naming the first that failed. `params` is task 03's `DirectiveParams` as task 01 §7.20 fixes it (b07 round 3, closing task 31's G31-5): non-empty `globs` on a `narrow` only, 1 to 20, each through `teamtext.ValidGlob` (`glob_refused`), and a non-null `leaseId` (an `ls-…`) on a `wait-for` only; either on another kind, or missing from its own, is 422 `details.field = "params"`. Whether a `narrow` stays inside the task's scope stays Fleet's check (§7.20). Then the taint rule below.
 
 **Route 68, `GET …/directives`**: as route 66, `directives.read`.
 
@@ -346,7 +346,7 @@ The three the scope paragraph names come first; the rest follow. Callers are tas
 | `TestEscalationShape` | `inform` with options → 422; `decide` with 1 or 5 options → 422; `default` 4 of 4 → 422; `deadline` 29 min → 422; label 81 → 422. **`evidence`** (b07 round 3, N-C1): a `decide` from `AGLinusOrch` with `{"verb":"free","toAgentId":AGLinusWorker,"text":"Rebase after Alice lands.","read":["ms-…"],"readTotal":3}` → 201, and Linus's route 66 answers it back with `text` a `Text` of `author: "agent"`, `authorAgentId` `AGLinusOrch`; on an `inform`, or with `fromAgentId` `""` → 422 `details.field = "evidence"`; verb `pause` → 422; `free` with no text, `worker-spawn` with text, text 601 → 422; `read` of 101 → 422; `readTotal` 0 with one id → 422; `toAgentId` `AGGraceOrch` → 403 `agent_not_owner`; no `evidence` → the record's `evidence` is `null` | option count unchecked, so an Orchestrator offers one "choice"; `evidence` dropped by a strict decode or never stored, so task 31's decide is refused (400) or task 33's M4 reads nothing |
 | `TestEscalationFromIsTheOwnersOrchestratorOrFleet` | `fromAgentId` Grace's under `DLLinusOrch` → 403 `agent_not_owner`; `""` → 201 and the event's `fromAgentId` is `""` | `""` rejected, so Fleet cannot escalate for itself |
 | `TestEscalationAnswerAfterTheDeadline` | clock past `deadline`, answer → 200, `answeredAt > deadline` | late answers refused, so a human's choice is lost |
-| `TestDirectiveEndsAreOwnersAndParented` | `to` Grace's worker → 403 `agent_not_owner`; `to` a Linus worker of another Orchestrator → 422 `details.field = "toAgentId"`; `text` on `pause` → 422 | the parent check dropped, so one Orchestrator steers another's worker |
+| `TestDirectiveEndsAreOwnersAndParented` | `to` Grace's worker → 403 `agent_not_owner`; `to` a Linus worker of another Orchestrator → 422 `details.field = "toAgentId"`; `text` on `pause` → 422. **`params`** (b07 round 3, G31-5): a `narrow` with `{"globs":["web/**"]}` → 201 and read back; a `narrow` with no globs, `globs` on a `pause`, a `leaseId` on a `narrow`, a `wait-for` with none → 422 `details.field = "params"`; `../x` → 422 `glob_refused` | the parent check dropped, so one Orchestrator steers another's worker; `params` stored unread, so a `narrow`'s globs and a `wait-for`'s lease are whatever Fleet sent |
 | `TestDirectiveReadsAreOwnersAndAuditors` | as `TestGraceCannotReadLinussEscalation`, route 68 | as there |
 | `TestTurnIsAnEventWithNoRow` | route 69 → 201; `SELECT count(*)` of every team table unchanged; one `orchestrator_turn.recorded`, absent from both feeds; no `Idempotency-Key` → 400 | a turns table added; the event in the feed |
 | `TestHumanMessageToOwnOrchestratorOnly` | Linus to `AGGraceOrch` → 403 `agent_not_owner`; to `AGLinusWorker` → 422; 2,001 runes → 422; Vera → 403; `fleet(DLLinusOrch)` → 403 `required: "desktop"` | Fleet allowed to write a human message, which would make a Fleet-started turn `human` |

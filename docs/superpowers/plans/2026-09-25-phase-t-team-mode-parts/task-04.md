@@ -982,7 +982,7 @@ ALTER TABLE escalations
   ADD COLUMN evidence_text_author text_author CHECK (evidence_text_author = 'agent'),
   ADD COLUMN evidence_text_agent  text,
   ADD COLUMN evidence_read_ids    text[]      CHECK (hub.ids_ok(evidence_read_ids, 100, '^(ms|tk|nt|es)-[0-9a-f]{16}$')),
-  ADD COLUMN evidence_read_total  integer     CHECK (evidence_read_total >= cardinality(evidence_read_ids)),
+  ADD COLUMN evidence_read_total  integer,
   ADD CONSTRAINT escalations_evidence_to_fk   FOREIGN KEY (org_id, owner_user_id, evidence_to_agent)
     REFERENCES agents (org_id, owner_user_id, id),
   ADD CONSTRAINT escalations_evidence_task_fk FOREIGN KEY (org_id, evidence_task_id)
@@ -990,6 +990,7 @@ ALTER TABLE escalations
   -- all or none, and only on a decide that an Orchestrator's own act raised
   ADD CHECK ((evidence_verb IS NULL) = (evidence_read_ids IS NULL)
          AND (evidence_verb IS NULL) = (evidence_read_total IS NULL)),
+  ADD CHECK (evidence_read_total IS NULL OR evidence_read_total >= cardinality(evidence_read_ids)),
   ADD CHECK (evidence_verb IS NULL OR (kind = 'decide' AND from_agent_id IS NOT NULL)),
   ADD CHECK (evidence_verb IS NOT NULL
           OR (evidence_to_agent IS NULL AND evidence_task_id IS NULL AND evidence_text_body IS NULL)),

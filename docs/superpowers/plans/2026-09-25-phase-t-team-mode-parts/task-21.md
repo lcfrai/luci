@@ -417,7 +417,7 @@ in its project. `registry` gains a second table, `TeamDelegations`, keyed `(owne
 with a row, `RenewDelegation(row.Delegation)` (route 48, `task-06.md:178-181`): 200 writes the Hub's `expiresAt` and keeps the id, a lapsed but unrevoked one included, whose `"lapsed": true` event is what makes task 11's feed resume the paused Orchestrator (`task-11.md:47-51`);
 409 (revoked: an admin's route 49, or a member removed and re-added, `task-44.md:327`) or 404 (not this owner's) deletes the row and falls through to one create; any other error (signed out, 5xx, the network) is returned as the Hub's and creates nothing, because a create beside a live delegation strands the Orchestrator under the old id (task 20 decision 3's index keeps it).
 With no row: `CreateDelegation` with `Class: hubapi.DelegationClassOrchestrator` and `routesFor(hubapi.DelegationClassOrchestrator)`, then the row is written.
-So a stale, revoked or foreign id never reaches Fleet as the hint (task 20 decision 4 refuses the whole launch on a refused hint), and every launch makes exactly one Hub call for it, the renew or the create.
+So a stale, revoked or foreign id never reaches Fleet as the hint (task 20 decision 4 refuses the whole launch on a refused hint), and every launch makes one Hub call for it, the renew or the create (two when a renew is refused and the create follows).
 This is restart-safe for the same reason the session one is. **Not covered (a residual, b07 round 3):** a member's second device, or a wiped registry, has no row, so it creates a second delegation while Fleet keeps the Orchestrator under the first; the review's round-3 record names it and its fix.
 
 **How Fleet learns it.** `CreateAgentRequest` gains `OrchestratorDelegation string` (defined above

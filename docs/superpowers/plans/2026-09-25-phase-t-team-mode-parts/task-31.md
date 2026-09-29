@@ -146,7 +146,7 @@ G31-3**: task 22's method is renamed `InForce`, its comment changed; its key and
 - Requires of **task 07**: `TaintAllows` exempting the five typed kinds through
   `hubapi.DirectiveKind.Typed()`, **met by fix batch b07** (G31-1 closed); a decide's optional
   `evidence` object on route 64 (G31-2, **met by b07 round 3**, with tasks 01, 03, 04, 08 and 30); route 67's body carrying task 01's `params`
-  (`task-01.md:440-441`), which task 07's shape (`task-07.md:161-167`) omits (G31-5).
+  (`task-01.md:517-518`), which task 07's shape now shows and validates (G31-5, **met by b07 round 3**, `task-07.md:166`, `:176`).
 - Requires of **task 10**: the tables below in both stores and the suite, and `OutboxMarkSent`
   setting `directive_queue.hub_at = at WHERE outbox_id = id` in the same transaction.
 - Requires of **task 30**: `Effect{Kind: "send-held"}` and, in `OnAnswered`, `Held.Release(ctx,
@@ -576,9 +576,9 @@ verb set before touching anything here.
   piggyback drains before the handler; this task makes it `InForce`.
 - **G31-4.** Task 30's `Effect.Kind` list (`task-30.md:334-335`) has no `send-held`, and
   `OnAnswered` has no hook to release a held act.
-- **G31-5.** Task 07's route 67 body (`task-07.md:165-171`) omits task 01's `params`
-  (`task-01.md:440-441`), so a `narrow`'s globs and a `wait-for`'s lease have no Hub field. This
-  task sends `params` per task 01.
+- **G31-5. CLOSED by fix batch b07 round 3.** It read: task 07's route 67 body (`task-07.md:165-171`) omitted task 01's `params`
+  (`task-01.md:517-518`; this cite read `:440-441`, stale), so a `narrow`'s globs and a `wait-for`'s lease had no documented Hub field. Task 07 now shows and validates it
+  (`task-07.md:166`, `:176`, test `:349`); this task sends `params` per task 01, as before.
 - **Skeleton.** The scope paragraph lists "a new task … or abandoning the task" but not a new
   worker; this task treats `worker spawn` in a Fleet turn as held too, because its opening prompt
   is the same channel as `free` (`task-24.md:130-135`). TM1 measures how many decides that costs.
