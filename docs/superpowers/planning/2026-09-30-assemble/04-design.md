@@ -150,6 +150,68 @@ nothing. Every other candidate below came from the web. Licences are from the pr
 - **Verdict: Reject.** The SaaS path puts customer designs outside the tenancy (region not
   verified).
 
+### 3.9 tldraw SDK — REJECT (buyable, but it does not remove the work)
+
+- **Does:** an infinite-canvas SDK for React (npm `tldraw` 5.4.2, 2026-09-10). It has an "agent
+  starter kit" in which a model creates, updates and deletes shapes from inside the browser using
+  direct provider keys. tldraw also mentions an MCP App that embeds a canvas in a chat. No MCP server
+  for outside agents is documented. HTML exists only as custom shapes we would write.
+- **Licence / price:** commercial (`SEE LICENSE IN LICENSE.md`). Production needs a licence key, on
+  *"value-based pricing"* through sales, with a 100-day trial (tldraw.dev/pricing). The licence lets
+  the software send *"usage data to tldraw for license compliance purposes"* and detect deployment
+  environments. You may not *"disable, change, or interfere with"* key enforcement.
+- **What buying changes:** `OD-11` rejected tldraw because of its commercial licence. Under
+  today's direction that alone would no longer rule it out. It stays rejected because it would
+  replace only the viewport (phase 5 task 25), which MIT Moveable/React Flow already cover. It would
+  also put phone-home key enforcement inside a regulated customer's tenancy.
+
+### 3.10 Excalidraw (+ MCP) — ADOPT for sketch mode only, optional
+
+- MIT; `@excalidraw/excalidraw` 0.18.1 (2026-04-20). MCP options: Excalidraw's own "Excalidraw MCP
+  App" (a chat widget) and the community `mcp-excalidraw-server` 2.0.0 (MIT, 2026-08-19, 26 tools,
+  live canvas sync).
+- Scenes are shapes, not HTML. Good for Define-phase whiteboarding and `OD-11`'s sketch mode, about
+  1 day. **It is not the canvas.**
+
+### 3.11 GrapesJS (+ Studio SDK) — REFERENCE
+
+- The core is BSD-3-Clause (npm `grapesjs` 0.23.6, 2026-08-25): an HTML-backed component tree
+  rendered in an iframe. It is a **page builder, not a multi-artboard infinite canvas**. Core has no
+  MCP and no multiplayer.
+- The Studio SDK is commercial (`@grapesjs/studio-sdk` 1.2.1, `SEE LICENSE IN LICENSE.md`).
+  Secondary sources give session-based pricing: free up to 1,000 sessions a month, Startup
+  $200/month, Business $2,000/month.
+- Canvas, MCP and multiplayer would still all be ours to build, so this is a build, not an
+  adoption. The 2026-09-28 study already took its component-API shape as a reference.
+
+### 3.12 Webstudio — REJECT (AGPL; not opened)
+
+- `LICENSE` is the GNU AGPL v3, and `@webstudio-is/sdk` 0.303.0 (2026-09-29) is
+  `AGPL-3.0-or-later`. It is a visual builder that works on real HTML/CSS, the closest functional
+  match to "real-HTML frames".
+- **What AGPL would force:** any modified version we host must offer its complete source to every
+  user who uses it over the network. Shipping it into a customer tenancy conveys it under AGPL. Glue
+  linked into it risks becoming part of the covered work. Its source was not opened, under the
+  clean-room rule.
+
+### 3.13 Prompt-to-app generators: v0, Lovable, Figma Make, Google Stitch, bolt.diy — REJECT as the canvas
+
+- These are SaaS generators that compete with our **Develop** phase rather than giving us a Design
+  canvas. Enterprise tiers exist: search summaries credit v0 with SAML SSO, audit logs and
+  "data residency controls", and Lovable with SAML/OIDC including Azure AD, SCIM and EU/US/APAC
+  regions. None of these was verified at a vendor page in this run.
+- None is a multi-artboard canvas that our fleet drives over MCP, and none runs in a customer's
+  tenancy. (bolt.diy is MIT, but it runs on StackBlitz WebContainers, whose commercial terms were
+  not checked here.)
+
+### 3.14 Element pickers for the running app: stagewise, React Grab
+
+- **stagewise** is `AGPL-3.0-only` (npm `stagewise` 0.12.0 and `@stagewise/toolbar` 0.6.3), so it is
+  restricted.
+- **React Grab** is MIT (0.2.0, 2026-08-16). You pick an element in a running React app and it
+  hands the element's source location to an agent. That is a one-day Develop-phase addition, not a
+  canvas.
+
 ## 4. Comparison table
 
 _Pending._
