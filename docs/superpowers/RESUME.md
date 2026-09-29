@@ -344,6 +344,24 @@ for it after the owner switched to new usage. All three were stopped at 15:12 an
   "go" in chat**, with `{"head":"11a7de4b9d226b2923dde4eb834a2b8a897b9cc6","gate":"…/phase2-finish-gate-3b.md"}`.
 - Then `phase2-branch-review.js`, then the must-fix items, then `main`.
 
+### 0e.7 PAUSED by the owner at 00:25 on 2026-09-30 ("I am going to bed"). NOTHING IS RUNNING.
+- The owner said **"go"** at 23:59 and run 5 started (task `wr73f0ywq`, run `wf_3b3fc644-f3d`). It
+  was stopped at step F (`tauri dev` starting) at the owner's request. Before that: Docker and the
+  lock, step 1 all PASS, the sandbox image REBUILT at HEAD (`panacea-app/sandbox:dev` `ebe36724`,
+  kept), steps 3-5 PASS, fixture, control plane and Vite up. The harness itself never ran: 0 checks.
+- Cleaned up by the orchestrator, PID by PID after reading each command line: the control plane
+  (`panacea-api.exe` 23240), Vite (`node` 23440) and their `start-cp.sh`/`start-vite.sh` shells. Ports
+  8730, 1420 and 9222 are free, the Docker lock is released, and no `panacea-app.managed` container
+  exists. Docker Desktop is left running (the owner's mentor and kind containers). The main tree is
+  clean at `75b2b0aa` (code = gated `11a7de4b`).
+- **To resume:** relaunch WS `phase2-e2e-run5.js` FRESH with
+  `{"head":"<HEAD>","gate":"C:/Users/au-dev-dmackie1/Projects/PanaceaApp/.superpowers/sdd/2026-09-18-phase-2-backend-and-cockpit/phase2-finish-gate-3b.md"}`.
+  The owner's "go" is on record, but a fresh session's run agent sees only the newest owner message,
+  so get a one-word go-ahead in chat first. The partial `SDD/task-25-run5-report.md` and
+  `scratchpad/t25r5` are a half run: re-run in full, never stitched. Step D finds the image current.
+- Then `phase2-branch-review.js`, the must-fix items, and `main`. Owner Q2 (the struct, or key forms)
+  is still open; the default is the struct.
+
 ## 1. What was running at shutdown (7 workflows)
 
 | Stream | Worktree / branch | Last run id | Script | args |
