@@ -139,6 +139,81 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
   Dsv5 capacity in Australia East). Same Hyper-V class of isolation, no cluster to run, but a
   weaker egress story and no fast disk.
 
+### 4.4 Coder (Community / Premium, self-hosted) — **REJECT** (reference for prebuild claims)
+
+- **What it is.** The best-known self-hosted cloud development environment. Workspaces are
+  Terraform templates (Kubernetes pods, VMs, containers); an in-workspace agent serves a
+  reconnecting PTY over WebSocket, SSH and port forwarding. **Prebuilt workspaces** keep
+  `instances` of a preset warm and hand one over on create ("ownership transfers from the
+  `prebuilds` user"), with cron-scheduled pool sizes. OIDC sign-in (Entra works), audit log, RBAC.
+- **Licence.** Core **AGPL-3.0**; the `enterprise/` directory is under `LICENSE.enterprise`
+  (commercial, licence-key enforced). **Prebuilt workspaces need a Premium licence** (Coder docs).
+  Premium is priced **annually per user**; an "AI Premium" tier is custom-priced.
+- **Maturity.** 16,759 stars; v2.36.6 on 2026-09-18; VC-backed vendor. `coder/agentapi` (MIT),
+  which drives Claude Code by reading the rendered terminal, was **archived** in September 2026;
+  Coder's v2.35 docs say Tasks leave new releases from v2.37 *(upstream, not re-verified)*.
+- **Deploy / fit.** Helm into our AKS, with Kata through the template's `runtime_class_name`, so
+  it does not remove the cluster, the Kata pool or the egress work. Residency is ours.
+- **Why not.** (1) AGPL core: restricted for anything we deploy into a customer tenancy, and
+  importing `codersdk` (Go, AGPL) into our control plane would pull it under AGPL, so we would
+  speak REST only. (2) A second control plane with its own users, templates and workspace model
+  sitting under ours; every session becomes a Terraform apply. (3) Its provisioner is Terraform,
+  BUSL-1.1 since 2023; OpenTofu substitution was not verified. (4) Procurement for Premium.
+- **Integration effort:** about 9 days plus procurement. **Verdict: reject**; borrow the
+  prebuild-claim and cron-sized-pool ideas.
+
+### 4.5 Northflank (managed, or BYOC into our Azure) — **REFERENCE** (the strongest "buy")
+
+- **What it is.** A PaaS with first-class sandboxes: Kata with Cloud Hypervisor, Firecracker or
+  gVisor; *(upstream)* microVM boot "in under a second"; volumes 4 GB to 64 TB; API, CLI and
+  GitOps. **BYOC** installs its data plane into our own AWS, GCP or **Azure** account: "your data
+  and compute stay inside your infrastructure, and you pay your cloud provider directly".
+- **Licence / price.** Commercial SaaS. Managed sandboxes $0.01667 per vCPU-hour and $0.00833 per
+  GB-hour; the BYOC platform fee is not published. SOC 2 Type 2 and HIPAA claimed.
+- **Gaps.** Its BYOC docs describe microVM node pools only for AWS ("bare-metal instances or
+  instance types that support nested virtualisation"); **microVM isolation on Azure BYOC is not
+  documented**, and where nested virtualisation is missing it falls back to gVisor. Its control
+  plane is Northflank's SaaS, not in AU. Entra SSO and audit export not verified. New vendor,
+  so KPMG procurement and a TSRA before first use.
+- **Integration effort:** about 8 days after procurement (a REST `Backend`, late-bind, clone,
+  control-plane placement). **Verdict: reference.** Revisit only if the owner prefers paying a
+  vendor to run the sandbox cluster over running AKS ourselves (section 6).
+
+### 4.6 Runloop (managed devboxes, or VPC deploy) — **REFERENCE**
+
+- **What it is.** MicroVM "devboxes" for coding agents: blueprints from Dockerfiles, *(upstream)*
+  "a few seconds" to first command, snapshot, suspend and resume, 10,000+ parallel sandboxes.
+- **Licence / price.** Commercial. $0.108 per CPU-hour and $0.0252 per GB-hour on the standard
+  tier; VPC deploy is Enterprise, custom-priced. SOC 2 Type II, HIPAA; SSO and audit logs listed.
+- **Gaps.** "VPC Deploy support for AWS, GCP and Azure" is on its site, but what runs in our
+  account, Azure's maturity and AU region support are not documented. SDKs are Python and
+  TypeScript (no Go). Procurement as for Northflank.
+- **Integration effort:** about 8 days after procurement. **Verdict: reference.**
+
+### 4.7 Modal (managed Sandboxes) — **REFERENCE** (fastest integration, wrong shape)
+
+- **What it is.** Serverless containers; Sandboxes on **gVisor**. The official **Go SDK**
+  (`libmodal/modal-go`) covers PTY, exec, encrypted port tunnels, volumes, filesystem snapshots,
+  OIDC identity tokens and region placement. Region pinning includes **`au`** and
+  `ap-melbourne`, at a 1.75x price multiplier for narrow regions. Enterprise: SSO, HIPAA BAA.
+- **Gaps.** gVisor is a user-space kernel, not hardware virtualisation (M2 partial). SaaS only:
+  it cannot be deployed into our or a customer's Azure tenancy (`OD-5`). Residency of images,
+  logs and control-plane metadata is not documented beyond compute pinning. Procurement.
+- **Integration effort:** about 4 days after procurement, the shortest of any candidate.
+  **Verdict: reference** — a demo fallback, not the product's home.
+
+### 4.8 E2B (managed, BYOC or self-host) — **REJECT for Azure**
+
+- **What it is.** Firecracker microVM sandboxes with PTY, Dockerfile templates, and pause and
+  resume that keeps memory. SDK Apache-2.0 (14,031 stars, `e2b@2.51.0` on 2026-09-18);
+  infrastructure open source as `e2b-dev/runtime` (formerly `e2b-dev/infra`, Apache-2.0, 1,642
+  stars, release `2026.30` on 2026-09-10).
+- **Why not.** BYOC is AWS and Google Cloud only ("Azure is not yet supported"). Self-hosting
+  marks GCP supported, AWS beta, Azure an unchecked roadmap item. Running it on Azure is a port of
+  Firecracker infrastructure onto nested-virt VMs: weeks, not days. No Go SDK.
+- **Integration effort:** 20+ days on Azure. **Verdict: reject**; reference its PTY and
+  pause/resume API shape.
+
 ## 5. Recommendation
 
 _TBD — solution, days, what it replaces (phases and task counts), glue we still build, risks._
