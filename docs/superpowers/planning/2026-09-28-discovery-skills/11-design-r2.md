@@ -1,8 +1,9 @@
 # 11 — Design round 2: the project glossary and the project decision record, beside the brief
 
-**Status: complete, 2026-09-29; not yet reviewed by a sceptic.** Round 1 (`05-design.md`) failed its sceptic
-(`06-sceptic.md`). The owner then decided `OD-36` (`10-decision-terms-beside-the-brief.md`): terms
-and decisions are their own Hub records that reference a brief revision. This round designs that.
+**Status: complete, 2026-09-29; not yet reviewed by a sceptic.** Round 1 (`05-design.md`) failed
+its sceptic (`06-sceptic.md`). The owner then decided `OD-36`
+(`10-decision-terms-beside-the-brief.md`): terms and decisions are their own Hub records that
+reference a brief revision. This round designs that.
 
 Inputs, in the order read: `11a-facts-phase4.md`, `11b-facts-hub.md`, `06-sceptic.md`,
 `10-decision-terms-beside-the-brief.md`, `00-summary.md`, `01-define-skills.md`,
@@ -315,10 +316,12 @@ grammar stays `invalid` (`HC:836`).
 `settledIn` says **where** a word or a decision settled, not what it depends on: it stays in force
 when the brief moves on, which is OD-36's lifecycle ground. Its three sources:
 
-- **The interview** (§4). A round that changes the brief saves the brief revision first and the
-  round's terms and decisions second, in their own batch, naming the revision just written; so a new
-  brief's head 0 never needs naming. A round that settles only words names the current head. If the
-  second batch fails, its proposals stay pending (§4) and are retried; each batch is all or nothing.
+- **The suggestion round** (§4): the complete revision the round was computed from, its base. A
+  round whose base moved is re-checked before it is shown (§4.3 item 2), so a recorded suggestion
+  never names a revision it was not checked against, and since a round exists only for a complete
+  revision, head 0 never needs naming. A round changes no brief text, so it never has a brief
+  revision to write first. If the batch is refused, its suggestions stay pending and the row says
+  why (§6.3); each batch is all or nothing.
 - **A session**: its `contextRef` when that is a brief key; `null` when it is `""` or
   `none:declined`, and the lens says *settled outside a brief* rather than inventing one.
 - **A person in the lens**: the head revision of the brief the lens is showing, or `null` at head 0.
@@ -346,8 +349,8 @@ The Hub checks that a non-null `settledIn` resolves in this project and is not e
   `hub.erase_brief` (`HC:1115-1127`), each reached the way the brief's is through row 45: `POST
   /v1/terms/{termId}/erase` and `POST /v1/decisions/{decisionId}/erase`, org admin only, with the
   same `reason`, because a definition can hold client text just as an answer can. The text goes,
-  the key, digest, number, `savedAt` and `savedBy` stay, and the key resolves `erased`. Erasing a brief changes no term, as it changes no approval:
-  neither holds brief text.
+  the key, digest, number, `savedAt` and `savedBy` stay, and the key resolves `erased`. Erasing a
+  brief changes no term, as it changes no approval: neither holds brief text.
 
 ## 3. How a decision earns its record, without ceremony
 
@@ -396,7 +399,7 @@ round costs one gesture, not one review per row. No suggestion is ever raised as
 | It fails | For example | Where it goes instead |
 |---|---|---|
 | Limb 1: cheap to undo | a table rather than a list on the settings page | it stays an ASSUMED row on the Desk, with its own verbs (`AGENTIC-UX.md:29`), and in the transcript |
-| Limb 2: anyone would guess it | the API returns JSON | nowhere: the code says it |
+| Limb 2: anyone would guess it | the service answers in JSON | nowhere: the code says it |
 | Limb 3: there was no fork | inference goes through the org's gateway (`OD-19` leaves no choice) | nowhere |
 | It is a requirement, not a choice | it must work on mobile | the brief: a criterion or a constraint, through the interview's existing ops |
 | It is *how*, not *what* | retry three times with a back-off | the code and its comments. A record that holds *how* becomes a second brief, and the thread then carries two descriptions (`05-design.md:250-254`, kept) |
@@ -524,9 +527,9 @@ Everything else in the block's rules holds: the neutraliser, LF, no timestamp (`
 - **`Ref` gains `glossaryDigest` and `decisionsDigest`**, each `"sha256:…"`, the digests of the
   two sets now in force for the brief's own scope (a branch key: the branch's overlay; a project
   key: the project's). Not one member named *vocabulary*: the Work layer already uses that word for
-  a team's filter names (11b §5.2). They are the third time-varying part of a `Ref`, beside `headRevision` and
-  `latestCompleteRevision` (`ref.go:71-72`), so `Ref` stays one brief key resolved and cacheable
-  on the same terms; two sessions with one `contextRef` still share one `Ref`.
+  a team's filter names (11b §5.2). They are the third time-varying part of a `Ref`, beside
+  `headRevision` and `latestCompleteRevision` (`ref.go:71-72`), so `Ref` stays one brief key
+  resolved and cacheable on the same terms; two sessions with one `contextRef` still share one `Ref`.
 - **A set digest** is `"sha256:"` + hex over a canonical envelope
   `{"v":1,"kind":"term-set" or "decision-set","scope":…,"items":[{"key","digest"},…]}`, sorted by key:
   every entry the branch sees, never only the ones that fitted inline.
@@ -562,8 +565,8 @@ A *not ignored* answer, from a tracked file there or a `.gitignore` negation, re
 (`materialise.go:176-181`).
 
 **So no stamp certifies a truncation** (the sceptic's 4.1). The marker, the files' first lines,
-the `Ref`'s two digests and the inheritance record all carry the digest of the **whole** set, and the whole
-set is on disk at the path the block names, before the harness starts. What the block holds inline
+the `Ref`'s two digests and the inheritance record all carry the digest of the **whole** set, and
+the whole set is on disk at the path the block names, before the harness starts. What the block holds inline
 is a convenience with its own name, never the thing certified. The drift check covers the files
 too: a missing file is `pending`, a hand-edited one `edited` (`inspect.go:18-47`); no new state.
 
@@ -606,8 +609,8 @@ Materialiser, `Ref` and the lens only (`owner-decisions.md:409`), and nothing be
 | The one loader, phase 4 task 16 | **one entry**: `selectSessionInheritanceKeys`, the keys of an inheritance record a person has opened, per `task-16.md:165-167`'s rule that a later lens adds one key source and changes nothing else |
 
 **Develop** is where the thread gains its hop: the Materialiser, the inheritance record and the
-session view that compares it with the `Ref`'s two digests. Phase 3's merge and evidence code keys to a
-criterion and never parses a key (11a §6), so it does not change either.
+session view that compares it with the `Ref`'s two digests. Phase 3's merge and evidence code keys
+to a criterion and never parses a key (11a §6), so it does not change either.
 
 ## 6. The Discover lens
 
@@ -658,7 +661,7 @@ project shows no empty panel and no prompt (§3.3).
 | Empty | the area is absent; the header actions remain |
 | Sparse, dense | one row per entry; past 50 rows the list is virtualised |
 | Hub unavailable | the last list read, marked *not current*, verbs disabled with the reason, as `unavailable` is treated elsewhere |
-| Refused at write | inline on the row, cause and way out: *A teammate settled "lane" a minute ago.* **Use theirs** · **Depart on this branch** (`word_taken`); *This entry changed since you opened it.* **Show the new one** (`revision_conflict`) |
+| Refused at write | inline on the row, cause and way out, naming who and never when (no relative time as a primary display, phase 4 `task-19.md:9-11`): *"lane" is already settled for this project, by <savedBy>.* **Use theirs** · **Depart on this branch** (`word_taken`); *This entry changed since you opened it.* **Show the new one** (`revision_conflict`) |
 | Model off | no suggestions; the header actions work without a model |
 
 Keyboard: the rows join the lens's traversal, `j`/`k` to move and `a` to take the suggested answer,
@@ -692,7 +695,7 @@ unverified until it is run. `plan:` is phase 4's plan,
 | `provenance/key.go` | 06, approved | two forms, two kinds; the "only copy" comment (`:47`) corrected | `key_test.go`'s 4 gain rows; the other 20 grammar tests *run* |
 | `provenance/ref.go` | 06 | `glossaryDigest`, `decisionsDigest`, the third time-varying part | `ref-golden.json` (102 lines) regenerated; `TestRefGoldenJSON`, `TestReadingAndHeadJSON` edited; `TestRefHasNoDenominator` must still pass; 36 more *run* |
 | `claudemd/render.go` | 05, approved | new marker, the two fixed lines gone, two sections, the budget, the route line; `Inspect`'s marker parse | all 3 goldens regenerated; the 9 marker-line and 9 wording tests edited; the 13 reserved-prefix tests *run* (the prefix stays); 33 re-derive and *run*; 3 new goldens |
-| `contextwrite/materialise.go`, `inspect.go` | 09, **in fix** | three files in order, `/.panacea/discover/` excluded and confined, the inheritance record | of 60, the write-set and exclusion tests edited (about 8, a guess until run); new tests for the order, the confine and the record |
+| `contextwrite/materialise.go`, `inspect.go` | 09, **in fix** | three files in order, `/.panacea/discover/` excluded and confined, both files removed on a start with no brief key, the inheritance record | of 60, the write-set and exclusion tests edited (about 8, a guess until run); new tests for the order, the confine and the record |
 | `api/materialiser.go` | 10, approved | `MaterialiseRequest.SessionID` | 2-3 of `materialise_test.go`'s 14 gain the assertion |
 | `discoverhub/read.go` | 07, approved | `Ref`'s heads path reads the two lists | 11 `Ref`-path tests *run* against a fake that now serves lists |
 | Hub: `hubapi/keys.go`, `envelope.go`, the wire types | Hub 01-03, approved | prefixes `te`, `dr`; the forms; two envelopes; the objects | `keys_test.go`'s 4 gain rows; 4 new golden vectors beside `envelope_test.go`'s 1-4 |
@@ -714,11 +717,11 @@ material goes at the end of a heavily cited file).
 | # | Task | Depends on | Hours | Must come before |
 |---|---|---|---|---|
 | 24 | Prototype: the §6 states added to `prototype/phase-4-discover.html` (suggested, recorded, taken up, departure, project changed, refused, model off). The owner looks before 31's part is approved | — | 2 | 31 |
-| 25 | `discover`: `Term`, `Decision`, §2.2's field rules (and the reserved `panacea:discover:` sequence, refused as answers refuse it), the branch overlay, the set digest; pure | 06 | 3 | 26-30 |
+| 25 | `discover`: `Term`, `Decision`, §2.2's field rules (and the reserved `panacea:discover:` sequence, refused as answers refuse it), the branch overlay with its later-project-word shadow (§2.3), the set digest; pure | 06 | 3 | 26-30 |
 | 26 | `provenance`: the two key forms; the `Ref`'s two digests; `ref-golden.json` | 06, 25, Hub 45 | 2.5 | 12 |
 | 27 | `discoverhub`: the two list reads, the two batch writes, the two set digests for `Ref` | 07, 08, 25, Hub 46 | 3.5 | 29, 30, 32 |
 | 28 | `claudemd`: the new block and the two files' renderer; three goldens regenerated, three added | 05, 25 | 4 | 29 |
-| 29 | `contextwrite`: the three files in order, `/.panacea/discover/` excluded and confined, the inheritance record; `api`: `SessionID` | 09's fix round closed, 10, 27, 28 | 4 | 14 |
+| 29 | `contextwrite`: the three files in order, `/.panacea/discover/` excluded and confined (a not-ignored answer refused `write_failed`, §5.3), both files removed wherever the block is stripped (§5.1), the inheritance record; `api`: `SessionID` | 09's fix round closed, 10, 27, 28 | 4 | 14 |
 | 30 | `discover` + `discoverhub`: the suggestion round, its local store and its five deaths (§4) | 04, 25, 27 | 3 | 32 |
 | 31 | Desktop: the lens's two areas (§6). UI: stays unmerged until the owner has looked (`OD-1`) | 16, 18, 24 looked at, 32 | 4 | 23 |
 | 32 | `discoverapi`: the relay routes for the two reads and two writes, the round's two routes, the per-session inheritance route beside task 12's `materialisations` | 11, 12, 27, 30 | 3 | 14, 15 |
@@ -732,7 +735,7 @@ Phase 4 new: **29 hours, nine tasks.**
 | 45 | `hubapi`: prefixes `te`, `dr`; the two forms and `KeyKind`s; the two envelopes and four golden vectors; the wire objects | 44a | 3 | 46, 47; phase 4's 26 |
 | 46 | `hubclient`: `Terms` and `Decisions`, the fake, the conformance and feed rows: **S0g**, phase 4 codes its terms and decisions against the fake | 05, 45 | 3 | phase 4's 27 |
 | 47 | `sql/0002_terms_decisions.sql`: four tables, the guards, the RLS and grant twins, the word index, the composite keys, `hub.erase_term` and `hub.erase_decision`, a database test for each | 07b's fix round closed, 45 | 3.5 | 48 |
-| 48 | The server: the six routes (two reads, two batch writes, and the two erasures through 47's functions, §2.6), the resolver's two kinds, the four events, its own matrix rows (`rowsTask48` in `allRows`, the 16b pattern): **S4g (server side)** | 14, 16b, 20, 47 | 4.5 | phase 4's terms and decisions on the real Hub |
+| 48 | The server: the six routes (two reads, two batch writes, and the two erasures through 47's functions, §2.6), the write-time checks with the cross-scope word check (§2.4), the resolver's two kinds, the four events, its own matrix rows (`rowsTask48` in `allRows`, the 16b pattern): **S4g (server side)** | 14, 16b, 20, 47 | 4.5 | phase 4's terms and decisions on the real Hub |
 
 Hub new: **14 hours, four tasks.** No new Hub task stands in front of the brief's own S4: S4
 for briefs still opens after 06-20 (`HP:388-394`), and S4g (g for glossary) follows it.
