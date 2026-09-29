@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -82,6 +83,11 @@ type Scanner struct {
 	root string
 	git  Runner
 
+	// writable is every directory outside root that a sandbox mounts
+	// read-WRITE and that holds no worktree: the conversation stores' root.
+	// Path confines a worktree location against it too (X-3 review 4 I-D).
+	writable []string
+
 	// names is the display-name cache behind ProjectName and BranchName. Those
 	// two satisfy Phase 4's Naming, which forbids an error return and takes no
 	// context, so they cannot shell out. Enumeration warms this as a side
@@ -101,6 +107,16 @@ func NewScanner(root string, git Runner) *Scanner {
 		root = filepath.Clean(root)
 	}
 	return &Scanner{root: root, git: git, names: map[string]string{}}
+}
+
+// WithWritableDirs records directories outside the projects directory that
+// sandboxes mount read-WRITE and that hold no worktree — main.go passes the
+// conversation stores' root, <ConversationsDir>/<owner>/<worktree id> being
+// mounted into each sandbox — so Path refuses a worktree location that an
+// agent could swap from inside one of them (X-3 review 4 I-D). It returns s.
+func (s *Scanner) WithWritableDirs(dirs ...string) *Scanner {
+	s.writable = append(s.writable, dirs...)
+	return s
 }
 
 // hashPath is the id derivation: absolute, cleaned, lowercased, sha256, first
@@ -453,16 +469,23 @@ func (s *Scanner) Path(ctx context.Context, worktreeID string) (string, error) {
 				}
 				// registers proves the project's host-owned .git/worktrees NAMES
 				// this location; it does not prove the location's own directory
-				// entry is host-owned. A NESTED linked worktree sits inside the
-				// primary's read-WRITE mount (this repo uses .claude/worktrees/),
-				// so its entry is the agent's to swap for a link or a junction, and
-				// Path hands the unresolved location straight to that mount (X-3
-				// review 3 I-B). ConfineToMount Lstats the answer and every
-				// component of it that lies inside the project, refusing a reparse
-				// point exactly as sessionWorktreeAdmin does. A worktree registered
-				// OUTSIDE the project — the e2e fixture's layout — is host-owned and
-				// returned unchecked.
-				checked, err := hostpath.ConfineToMount(p.Path, path)
+				// entry is host-owned. A NESTED linked worktree sits inside a
+				// read-WRITE mount (this repo uses .claude/worktrees/), so its entry
+				// is the agent's to swap for a link or a junction, and Path hands
+				// the unresolved location straight to the mount (X-3 review 3
+				// I-B). The mount is not only this project's primary: another
+				// project's tree, a linked worktree outside the projects directory
+				// and a conversation store are each mounted read-write by their
+				// own sessions (X-3 review 4 I-D). ConfineToMounts walks the answer
+				// and refuses a reparse point at any component inside ANY of them,
+				// exactly as sessionWorktreeAdmin's Lstat does. A location outside
+				// every one — the e2e fixture's linked worktree itself — is
+				// host-owned and is walked but not refused.
+				mounts, err := s.readWriteMounts(projects)
+				if err != nil {
+					return "", err
+				}
+				checked, err := hostpath.ConfineToMounts(mounts, path)
 				if err != nil {
 					return "", fmt.Errorf("project: the worktree %q of %s cannot be mounted: %w", w.Path, p.Name, err)
 				}
@@ -471,6 +494,46 @@ func (s *Scanner) Path(ctx context.Context, worktreeID string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("%w: %q", worktree.ErrUnknownID, worktreeID)
+}
+
+// readWriteMounts is every directory some sandbox mounts read-WRITE, the
+// boundary ConfineToMounts refuses a reparse point inside (X-3 review 4 I-D):
+// the projects directory, which holds every primary and anything Projects
+// skipped; each project's primary by its own name, whose identity is elsewhere
+// when the projects directory holds a junction to it; every linked worktree
+// each project REGISTERS, wherever it is; and WithWritableDirs' directories.
+// The registry, not the listing, for the reason registers gives: the listing
+// is the agent's to steer. It FAILS CLOSED: a registry that exists and cannot
+// be read, or an entry whose gitdir cannot be read, is an error, because which
+// directories that project's sessions write is then not known — `git worktree
+// prune` clears an entry git itself cannot place.
+func (s *Scanner) readWriteMounts(projects []Project) ([]string, error) {
+	mounts := append([]string{s.root}, s.writable...)
+	for _, p := range projects {
+		mounts = append(mounts, p.Path)
+		admin := filepath.Join(p.Path, ".git", "worktrees")
+		entries, err := os.ReadDir(admin)
+		if errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("project: %s's worktree registry %q cannot be read, so which directories its sessions write is not known: %w", p.Name, admin, err)
+		}
+		for _, e := range entries {
+			raw, err := os.ReadFile(filepath.Join(admin, e.Name(), "gitdir"))
+			if err != nil {
+				return nil, fmt.Errorf("project: %s's registry entry %q names no worktree, so which directory its sessions write is not known (git worktree prune clears it): %w", p.Name, e.Name(), err)
+			}
+			// git 2.48's worktree.useRelativePaths writes gitdir relative to its
+			// entry, and git reads it back from there.
+			gitdir := strings.TrimSpace(string(raw))
+			if !filepath.IsAbs(gitdir) {
+				gitdir = filepath.Join(admin, e.Name(), gitdir)
+			}
+			mounts = append(mounts, filepath.Dir(filepath.Clean(gitdir)))
+		}
+	}
+	return mounts, nil
 }
 
 // registers reports whether path is p's primary worktree or one p's OWN

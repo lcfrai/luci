@@ -1550,17 +1550,31 @@ existing directory `git worktree list` named.*
   compare reduced to "the entry exists" passed them. (I-B) `registers` proves the registry NAMES
   the location, but `os.Stat` follows THROUGH whatever sits there now, and a nested linked
   worktree's directory entry lives inside the primary's read-WRITE mount, so an agent can swap it
-  for a symlink or a junction. `Path` now runs `hostpath.ConfineToMount(p.Path, answer)` after
+  for a symlink or a junction. `Path` then ran `hostpath.ConfineToMount(p.Path, answer)` (review 4
+  replaced it with `ConfineToMounts`, next item) after
   `registers` and returns the path it checked: it Lstats the answer and every component of it
   inside the project and refuses any reparse point (`os.ModeSymlink | os.ModeIrregular`). A
   worktree registered OUTSIDE the project — the e2e fixture's layout — is host-owned and returned
   unchecked. Measured: a drvfs relative symlink an agent writes in its Linux mount surfaces to the
   host as a followed symlink, so this is a live class, not defence in depth alone.
+- **AMENDED by X-3 review 4 (I-D, I-E).** "A worktree registered OUTSIDE the project is host-owned"
+  was false. Every worktree a session runs on is mounted read-write, so a location registered
+  inside ANOTHER project's tree, or nested in a linked worktree that lives outside the projects
+  directory (the e2e layout plus host-side Claude Code's default `.claude/worktrees/`), is some
+  agent's to swap, and a boundary of the primary alone returned it unchecked (measured). `Path`
+  now runs `hostpath.ConfineToMounts(mounts, answer)`, where `mounts` is every directory a sandbox
+  mounts read-write: the projects directory, each project's primary, every linked worktree each
+  project REGISTERS (read from the registry, not the listing), and the conversation stores' root
+  (`Scanner.WithWritableDirs`, wired in `main.go`). A registry that exists and cannot be read, or
+  an entry that names no worktree, fails `Path`: the boundary would be incomplete. The component
+  clause (a junction on the way, not only at the leaf) is now pinned by its own test; review 4's
+  MUT-LEAF passed every earlier one.
 - `worktree.Static` is unchanged: it is the operator's own map, not git's answer.
 - Retired by R4 rules 1–2 in phase 3, which stop mounting the project repository at all.
 
-**`internal/hostpath` is the one implementation of "a sandbox can write this" (X-3).** Three
-primitives, and each gate names which one it uses. `hostpath.Real(path)` answers a PLACE and not
+**`internal/hostpath` is the one implementation of "a sandbox can write this" (X-3).** Five
+primitives (three at first; review 3 added the fourth and review 4 the fifth), and each gate names
+which one it uses. `hostpath.Real(path)` answers a PLACE and not
 a name — the case the filesystem stores, 8.3 short names expanded, every link followed. **The
 worktree gate above is the registry, not `Confine`**: `Confine` was that gate in the
 projects-directory fence this section replaced, and is not any more. `Scanner.registers` compares
@@ -1580,12 +1594,20 @@ and refuses as soon as any STEP of that walk IS the projects directory. Each ste
 by name — measured on Windows, one directory answers to both `C:\Users\AU-DEV~1\…` and
 `C:\Users\au-dev-dmackie1\…`, and an agent writes the link target, so it writes whichever form a
 name check misses. `root == ""` (no projects directory) confines nothing.
-**`hostpath.ConfineToMount(base, target)`** (X-3 review 3 I-B) is the fourth: it Lstats `target`
-and each component of it that lies inside `base` — a worktree the host mounts read-WRITE — and
-returns `ErrReparsePoint` for a symlink or a junction there, or `target`'s cleaned absolute path
-otherwise. It starts refusing only once the walk has passed THROUGH `base` (found by identity, so a
-link cannot spoof the boundary); a component at or above `base`, and a `target` outside it, is
-host-owned and left alone. `base == ""` refuses nothing.
+**`hostpath.ConfineToMounts(mounts, target)`** (X-3 review 3 I-B; AMENDED by review 4 I-D, was
+`ConfineToMount(base, target)` with the primary as the one base) is the fourth: it walks `target`
+component by component and returns `ErrReparsePoint` for a symlink or a junction at any component
+that lies inside ANY of `mounts` — every directory a sandbox mounts read-WRITE — or `target`'s
+cleaned absolute path otherwise. It refuses only once the walk has passed THROUGH a mount (found by
+identity, so no spelling can spoof the boundary). A component outside every mount is the host's
+own, and a link there is FOLLOWED, restarting at its target the way `ResolveOutside` does, so a
+host-made junction into a mount still lands the walk on the mount and the agent's junction beyond
+it is seen (a walk of the name as spelled passed it, measured). A mount that does not exist holds
+nothing and is skipped; one that cannot be read refuses. No mounts refuse nothing.
+**`hostpath.OneName(path)`** (X-3 review 4 I-C) is the fifth: `ErrHardLinked` when the file has more
+than one name, and an error when its link count cannot be read (Windows `NumberOfLinks`, Unix
+`st_nlink`, any other platform refuses). §5.1 step 5 runs it on each origin that `ResolveOutside`
+passed, because a hard link is a second name no walk of this one can see.
 
 ### 2.11 `internal/project` — read-only enumeration
 

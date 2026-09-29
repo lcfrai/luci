@@ -34,7 +34,7 @@ func x3ReparseJunction(t *testing.T, target, link string) {
 // directory still registers (both sides resolve to the outside directory). The
 // location sits inside the primary's read-WRITE mount, so the entry is the
 // agent's to swap, and Path used to hand the unresolved location to the mount.
-// Only ConfineToMount refuses it. Red-first: without the guard Path returns the
+// Only ConfineToMounts refuses it. Red-first: without the guard Path returns the
 // location and the mount follows it out of the worktree.
 func TestPathRefusesANestedWorktreeLocationSwappedForASymlink(t *testing.T) {
 	root := t.TempDir()

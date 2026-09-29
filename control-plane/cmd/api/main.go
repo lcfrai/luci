@@ -121,7 +121,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	}()
 
 	gitRunner := project.NewExecRunner()
-	scanner := project.NewScanner(cfg.ProjectsDir, gitRunner)
+	// The conversation stores are read-write mounts outside the projects
+	// directory, so a worktree location inside one is the agent's to swap
+	// (X-3 review 4 I-D).
+	scanner := project.NewScanner(cfg.ProjectsDir, gitRunner).WithWritableDirs(cfg.ConversationsDir)
 	// Contract §4: with no projects directory the provider is worktree.Static{},
 	// so every session create fails 404 worktree_not_found. That is correct and
 	// visible — no projects directory means no worktrees to work in.
