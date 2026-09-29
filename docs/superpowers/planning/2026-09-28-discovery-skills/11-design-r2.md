@@ -258,7 +258,7 @@ line ending. The limits are round 1's (`05-design.md:243-248`), kept.
 | Both kinds, every revision | Rule |
 |---|---|
 | `scope` | `project` (anchored to the `pj-` id), or `branch` (anchored to that branch's brief id, `bf-…`) |
-| `state` | a term: `in_force`, `retired`. A decision: `in_force`, `superseded`, `withdrawn`, and `set_aside`, which only a departure holds: *not on this branch* |
+| `state` | a term: `in_force`, `retired`. A decision: `in_force`, `superseded`, `withdrawn`. Either kind: `set_aside`, which only a *not here* departure holds: *not on this branch* (§R2.3, M5) |
 | `overrides` | branch scope only: the struct (§2.1), revision pinned, of the project entry of the same kind this branch departs from; else `null` |
 | `replacedBy` | on `retired` or `superseded`: the id of the record that took over; else `null` |
 | `settledIn` | the brief key where it settled (§2.5), or `null` when that was a session with no brief |
@@ -278,7 +278,7 @@ op (§2.4) and each its own record, so no one content object ever holds an entry
 - **Add** a branch-only word or decision: `scope: branch`, `overrides: null`.
 - **Depart** from a project entry: a branch record whose `overrides` names that entry's revision
   `n`, born in one of two states. `in_force` defines the word or the decision differently on this
-  branch. *Not here* is a term born `retired` or a decision born `set_aside`: the entry does not
+  branch. *Not here* is either kind born `set_aside`, with `n`'s fields (§R2.3, M5): the entry does not
   apply on this branch and nothing replaces it, which is 06 §5.1's own case. Pinning `n` means a
   later project revision never silently re-points it; the lens says the departure was made against
   an older definition (§6).
@@ -321,11 +321,11 @@ at commit (§R2.3, M2). So a promote that retires what it overrode never trips i
 |---|---|---|
 | `create` | nothing → `@1`, `in_force` | `baseRevision: 0` and the fields |
 | `revise` | `@n` → `@n+1`, same state | a better definition, or a rename: `word` changes, the id and its history stay |
-| `retire` (term) | `in_force` → `retired` | optional `replacedBy`: two words turned out to be one thing |
+| `retire` (term) | `in_force` or `set_aside` → `retired` | optional `replacedBy`: two words turned out to be one thing; from `set_aside`, the Undo of a *not here* (§R2.3, M5) |
 | `supersede` (decision) | `in_force` → `superseded` | `replacedBy` required: an earlier record, or an item of this batch |
-| `withdraw` (decision) | `in_force` → `withdrawn` | it should never have been recorded; nothing replaced it |
+| `withdraw` (decision) | `in_force` or `set_aside` → `withdrawn` | it should never have been recorded; nothing replaced it. From `set_aside`, the Undo of a *not here* |
 | `reinstate` | `retired` or `withdrawn` → `in_force` | the word check below runs again |
-| `depart` (branch) | a project entry's `@n` → a new branch record, born `in_force`, or *not here*: `retired` for a term, `set_aside` for a decision | `baseRevision: 0`, `scope: branch`, `overrides` naming `@n`, and the state it is born in |
+| `depart` (branch) | a project entry's `@n` → a new branch record, born `in_force`, or *not here*: `set_aside`, for either kind | `baseRevision: 0`, `scope: branch`, `overrides` naming `@n`, and the state it is born in; a *not here* carries `@n`'s fields, copied (§R2.3, M5) |
 | `promote` (branch) | an `in_force` branch record → project | a `revise` with `scope: project`; the batch also retires or supersedes the entry it overrode |
 | `restore` | `@n` → `@n+1`, holding the fields, scope and state of an earlier revision | `restores: <that revision>`; **what Undo writes**, below |
 | `erase` | every revision → no content, and the head leaves force, as an erased brief's head is archived | never an item of the batch route: the org admin's erase route, through an owner function (§2.6) |
@@ -414,7 +414,7 @@ The Hub checks that a non-null `settledIn` resolves in this project and is not e
   append-only array: 11b §3.4) gets its twin statement in `0002`.
 - **Digests**: two new canonical envelopes, `{"v":1,"kind":"term-revision",…}` and
   `"decision-revision"`, members sorted as the brief's are (`discoverhub/digest.go:26-49`), digest
-  `"sha256:"` + hex; each gets golden vectors beside the brief's (§1.7 of 11b).
+  `"sha256:"` + hex, members named in §R2.3 (M8); golden vectors beside the brief's (§1.7 of 11b).
 - **Events**: `term.revised` and `decision.revised`
   `{"kind","id","revision","digest","state","scope"}`, one per changed record, and `term.erased`,
   `decision.erased`. `data` never holds the text (`HC:1133-1134`).
@@ -515,7 +515,7 @@ answers use in a way specific to this project. Facts stay the assistant's job; t
 
 - **At most three decisions and five words.** An empty frontier is the common answer, and it shows
   nothing at all.
-- **At most one model call per complete revision**, shaped like the follow-up's: effort `medium`,
+- **At most one model call per complete revision** on a machine, like the follow-up's: effort `medium`,
   a 20-second budget, the project and branch names, the answers holding a person's words and the
   two sets in force, never file contents (`assist.go:15-20`, `:35-49`, `:182-185`). Before a round
   is shown, each proposal is checked against those sets with §2.4's word rules, and one that would
@@ -591,7 +591,7 @@ Both lists are read **to their last page** (`?after=` until `next` is `null`, `H
 anything is digested, inside the same 5-second Hub budget as the brief (`materialise.go:81-87`).
 If the Hub does not answer, or the budget ends mid-list, the start is refused `hub_unavailable`
 exactly as it is today. A session never starts on half its inheritance, and no digest ever covers
-a first page as if it were the set.
+a first page as if it were the set, nor pages a write fell between (§R2.3, M9d).
 
 **No brief key, no inheritance.** A start whose `contextRef` is `""` or `none:declined` gets no
 entry in any block and neither file: the Materialiser removes both files wherever it strips the
@@ -616,7 +616,7 @@ declines them too.
    branch record, an origin line in the style the brief's overrides already use (`_Set on this
    branch, departing from the project's: <old decision>_`, cf. `render.go:87-95`). A *not here*
    departure prints its origin line alone: `- _Not on this branch: <the project's decision>_`.
-   `context`, `rejected` and `undo` are in the file, not the block.
+   `context`, `rejected` and `undo` are in the file, not the block. Origin lines print the pin (§R2.1).
 4. `## Words used here`, only when there is one: per term, `- **<word>**: <is> Not <avoid>, <avoid>.`
    and the same origin line for a departure; a *not here* word prints
    `- _Not on this branch: **<word>**_`.
@@ -649,7 +649,7 @@ Everything else in the block's rules holds: the neutraliser, LF, no timestamp (`
   `latestCompleteRevision` (`ref.go:71-72`), and are refreshed the way those are, with one
   difference: a `term.*` or `decision.*` event invalidates the `Ref` of **every** brief in the
   event's project, because a project write moves every branch's overlay (task 16, §7.4).
-- **A set digest** is `"sha256:"` + hex over a canonical envelope
+- **A set digest** is `"sha256:"` + hex over a canonical envelope (every member: §R2.3, M8)
   `{"v":1,"kind":"term-set" or "decision-set","scope":…,"items":[{"kind","id","revision","digest"},…]}`,
   sorted by id: every entry of the set, never only the ones that fitted inline.
 - **The inheritance record**, new, phase 4's: one immutable entry per process start,
@@ -672,7 +672,7 @@ Everything else in the block's rules holds: the neutraliser, LF, no timestamp (`
   no harness starts. This changes task 10's handler in phase 2's package, priced in task 29 (§7.3).
 
 **Why that is provable.** Every struct in the record names an immutable revision that reads back
-for ever (an erased one still reads `erased`, keeping its id and digest, §2.6); the set digest
+for ever through §R2.1's read (an erased one keeps its id and digest, §2.6); the set digest
 recomputes from the structs; and the block and both files re-derive byte for byte from them and the
 brief, because `Render` is pure. Develop compares the record's digests with the `Ref`'s two: equal
 is *current*; different is *the project's words moved since this session started*, derived the way
@@ -702,7 +702,7 @@ the marker's key and calls anything not `SameText` `edited` (`contextwrite/inspe
 on the rule that "a key's render depends on nothing but the key" (`:32`). Here the render also
 depends on both sets, which move whenever a teammate records a word, so a text comparison alone
 would show that new word as a person's deletion. So once the marker's key matches, `Inspect`
-compares the marker's two set digests with the `Ref`'s current two, and a mismatch is
+compares the marker's two set digests with the two a start would write now, and a mismatch is
 `StateSuperseded`: the block names another set, as a marker naming another key is (`:205-206`) and
 as `PinErased` already is (`:212-213`). Only when both match does it render and compare, so
 `edited` still means a person changed the block. The files take the same rule: missing is
@@ -747,10 +747,10 @@ Materialiser, `Ref` and the lens only (`owner-decisions.md:409`), and nothing be
 | `P7T:13`, `selectReleasePinKeys` | unchanged; the pin-keys-are-opaque test holds |
 | `P7T:15`, `:17`, `:18`, pin cell, drawer, governance | unchanged |
 | `provenance.Ref`, `ref.go:78-103` | **changes**: `glossaryDigest`, `decisionsDigest` (§5.2) |
-| The one loader, phase 4 task 16 | **no new key source**: a `KeySource` returns keys (`task-16.md:165-167`), and an inheritance record's entries are structs, which resolve from `discoverSlice`'s two lists (task 16's amendment, §7.4); its `contextRef` is a session's key as before |
+| The one loader, phase 4 task 16 | **no new key source**: a `KeySource` returns keys (`task-16.md:165-167`), and an inheritance record's entries are structs, which resolve from `discoverSlice`'s two lists when they name a head, and through §R2.1's read when they do not (task 16's amendment, §7.4); its `contextRef` is a session's key as before |
 
 **Develop** is where the thread gains its hop: the Materialiser, the inheritance record and the
-session view that compares it with the `Ref`'s two digests. Phase 3's merge and evidence code keys
+session view that compares it with the `Ref`'s two digests. Phase 3's land and evidence code keys
 to a criterion and never parses a key (11a §6), so it does not change either.
 
 ## 6. The Discover lens
@@ -779,27 +779,27 @@ project shows no empty panel and no prompt (§3.3).
    that revision's history row (or *settled outside a brief*), and its id and revision in the
    licensed mono (`te-3f2a91c07b1e4d2a` · rev 2, `DESIGN-SYSTEM.md:45`). A revised entry shows
    its newest words and a *History*
-   disclosure; retired, superseded and withdrawn entries are behind it, never mixed in.
+   disclosure (§R2.1's read); retired, superseded and withdrawn entries are behind it, never mixed in.
 
 ### 6.2 A branch's departures, and what the lens never shows
 
 - **A departure** reads *On this branch: <definition>* with *Project: <definition>* beneath in muted
-  text, the same shape as the brief's override note (`render.go:87-95`). When the project entry has
-  moved past the pinned revision, the entry takes task 19's *project changed* treatment (11a §5)
-  with **Keep this branch's** and **Use the project's**. No new visual state is invented.
+  text, the same shape as the brief's override note (`render.go:87-95`). When the project's head
+  differs from the pin in its fields or state (§R2.3, M6), it takes task 19's *project changed*
+  treatment (11a §5), **Keep this branch's** and **Use the project's**; no new visual state.
 - **Not yet reaching sessions.** An entry on a branch whose brief has no complete revision, or on
   a project whose first brief is still open, carries one secondary line: *Reaches sessions once
   this brief is complete.* It states §5.1's rule where it applies. It is not a warning: no colour
   and no count, and it goes when the brief completes.
-- **Promote** is a verb on a branch entry, never a prompt; archiving a branch asks nothing.
-- **After a branch ends** (the sceptic's I7). A landed branch's own decisions and words reach no
+- **Promote** on a branch entry, **Not on this branch** on a project entry (§R2.3, M5): verbs, never prompts.
+- **After a branch ends** (the sceptic's I7). An ended branch's own decisions and words reach no
   session: their brief is archived (`HC:785-788`) and main's sessions get the project's set (§5.1).
   So the project's lens lists its archived branch briefs' entries behind one disclosure, *From
   archived branches*, each with its branch's name: an in-force one with **Promote**, a *not here*
   one with the verbs of the project entry it set aside (§2.3). One line says *Sessions get these
-  once promoted.* The disclosure is absent when there are none; there is no prompt, no queue item
-  and no count, and archiving still asks nothing. Asking at the land itself, in phase 3's merge,
-  is the owner's Q8 (§8.2).
+  once promoted. Whether each branch reached main is not recorded* (§R2.3, M7). Absent when there
+  are none: no prompt, no queue item, no count, and archiving still asks nothing. Asking at the land
+  itself, in phase 3's land step, is the owner's Q8 (§8.2).
 - **No count anywhere**: no *12 words*, no *3 of 5*, no badge on the rail
   (`AGENTIC-UX.md:237`, `:245`). **Nothing in this feature adds a queue item of its own**: the
   suggestions wait in the lens, where the person already is when they appear, and the one
@@ -856,8 +856,8 @@ unverified until it is run. `plan:` is phase 4's plan,
 | `contextwrite/materialise.go`, `inspect.go` | 09, **in fix** | three files in order, `/.panacea/discover/` excluded and confined, both files removed on a start with no brief key; `Inspect`'s **classification**, set digests before text (§5.3), not only its marker parse | of 60, the write-set and exclusion tests edited (about 8, a guess until run); new tests for the order, the confine, and a moved set read as `superseded`, never `edited` |
 | `api/materialiser.go` | 10, approved | `MaterialiseResult` gains the two sets; `MaterialiseRequest` does not change | 2-3 of `materialise_test.go`'s 14 gain the assertion |
 | `api/sessions.go`, phase 2's handler | phase 2; its `Materialise` call is 10's | create and restart append the inheritance entry after the record write (`:1037`, `:1817`); a failed append marks the session exited (§5.2) | new: an abort before the record leaves no entry; a failed append starts no harness |
-| `discoverhub/read.go` | 07, approved | `Ref`'s heads path reads the two lists to the last page; the preview (`:738`) renders through `RenderInherited` | 11 `Ref`-path tests *run* against a fake that serves lists; `TestResolveBatchesInTwoCallsAtMost` (`read_test.go:96-134`) is **edited**: its bound gains the lists' pages |
-| Hub: `hubapi`, the wire types | Hub 01-03, approved | new `discoverids.go`; two envelopes; the objects; `FoldWord` and the field-rule function (§2.4) | the ten-check untouched; a new §18 prefix test; 4 new golden vectors beside `envelope_test.go`'s 1-4 |
+| `discoverhub/read.go` | 07, approved | `Ref`'s heads path reads the two lists to the last page; `Inheritable` (`:79-86`) gains the two sets and the pinned revisions (§R2.1; §R2.3, M9a); the preview (`:738`) renders through `RenderInherited` | 11 `Ref`-path tests *run* against a fake that serves lists; `TestResolveBatchesInTwoCallsAtMost` (`read_test.go:96-134`) is **edited**: its bound gains the lists' pages; `binding_test.go:342`, a `reflect.DeepEqual` of a whole `Inheritable`, is **edited** |
+| Hub: `hubapi`, the wire types | Hub 01-03, approved | new `discoverids.go`; four envelopes, two revision and two set (§R2.3, M8); the objects; `FoldWord`, `Overlay` and the field-rule function (§2.4) | the ten-check untouched; a new §18 prefix test; 6 new golden vectors beside `envelope_test.go`'s 1-4 |
 | Hub: the contract-reading tests | Hub 01-03 | the body test gains rows anchored in §18; the §4.2 code test (`keys_test.go:530-551`) also reads §18's codes; `EraseResponse`'s `settled` is a `pendingAmendment` until 44b (`types_test.go:885`) | each extended in the commit of the code it checks (§7.4, A20) |
 | Hub: `hubclient` interfaces, the fake, `conformance/feed.go` | Hub 04-05; 05 not approved | `Terms`, `Decisions`; two event kinds | new conformance rows, one `add("term.revised", …)` each |
 
@@ -884,7 +884,7 @@ material goes at the end of a heavily cited file).
 | 29 | `contextwrite`: the three files in order, `/.panacea/discover/` excluded and confined (a not-ignored answer refused `write_failed`, §5.3), both files removed wherever the block is stripped (§5.1), and `Inspect`'s set-digest classification (§5.3); `api`: `MaterialiseResult`'s two sets, and the create and restart handlers' append after the stamp (§5.2) | 09's fix round closed, 10, 27, 28 | 5.5 | 32, 14 |
 | 30 | `discover` + `discoverhub`: the suggestion round, its local store and its five deaths (§4); and the one-decision draft behind *Record a decision* (§3.2), under the round's model budget and outcomes | 04, 25, 27 | 3.5 | 32 |
 | 31 | Desktop: the lens's two areas (§6), with *not here* and its verb, *reaches sessions once complete*, *From archived branches*, and **Record all**'s two batches (§R2.3, M3 and M5). UI: stays unmerged until the owner has looked (`OD-1`) | 16, 18, 24 looked at, 32's part: its wire shapes, not its code | 7 | 23 |
-| 32 | `discoverapi`: the relay routes for the two reads and two writes, the round's two routes, the per-session inheritance route beside task 12's `materialisations`, and that route's fresh render through `RenderInherited` with the two lists (§5.3, task 12's amendment) | 11, 12, 27, 29, 30 | 3.5 | 14, 15 |
+| 32 | `discoverapi`: the relay routes for the four reads (the two lists and the two revisions reads, §R2.1) and the two writes, the round's two routes, the per-session inheritance route, and task 12's four routes reworked with new audit lines: `refs`, the two `provenance` routes, and `materialisations`, whose fresh render goes through `RenderInherited` with the two lists and the pins (§5.3; §R2.3, M9f) | 11, 12, 27, 29, 30 | 5.5 | 14, 15 |
 
 Phase 4 new: **36 hours, nine tasks.** Hours are priced against the plan's own tasks for the same
 work: 27 against 07 and 08, 6 h for one kind (11a §1); 31 against 18 and 19, 6 h (`plan:409-410`).
@@ -909,21 +909,21 @@ glossary) follows it.
 
 | Plan | Task | What changes | Hours added |
 |---|---|---|---|
-| Phase 4 | 12, `materialisations` | **changes in behaviour**: its fresh render needs the two lists, and a moved set reads `superseded` (§5.3). Written by 32, which already sits between 12 and 14, so 12's part is built as approved and reworked once | 0 here; in 32 |
+| Phase 4 | 12, its four routes | **changes in behaviour**: `refs` and the two `provenance` routes serve the set digests, which need the two lists; `materialisations`' fresh render needs them too, and a moved set reads `superseded` (§5.3; §R2.3, M9f). Written by 32, which already sits between 12 and 14, so 12's part is built as approved and reworked once | 0 here; in 32 |
 | Phase 4 | 14, wiring | wires the round store and the handlers' inheritance append (§5.2) | +0.5 |
 | Phase 4 | 15, client and wire types | the `Ref`'s two digests mirrored field for field; the new objects and the struct; `word_taken`, `key_unresolvable`, `brief_archived` | +1 |
-| Phase 4 | 16, slices and the loader | `discoverSlice` gains the two lists; a `term.*` or `decision.*` event invalidates every brief's `Ref` in its project (§5.2); no new key source (§5.4) | +1 |
+| Phase 4 | 16, slices and the loader | `discoverSlice` gains the two lists; a struct naming no head resolves through §R2.1's read; a `term.*` or `decision.*` event invalidates every brief's `Ref` in its project (§5.2); no new key source (§5.4) | +1.25 |
 | Phase 4 | 17, `ContextChip` | the *words moved since this session started* state (§5.2) | +0.5 |
-| Phase 4 | 19, the states that come apart | a departure's *project changed*; Undo writes `restore`, or after a create `retire` or `withdraw` (§2.4) | +1 |
+| Phase 4 | 19, the states that come apart | a departure's *project changed*, compared by fields and state, never by number (§R2.3, M6); Undo writes `restore`, or after a create `retire` or `withdraw` (§2.4) | +1 |
 | Phase 4 | 22, contract amendments | the Go, UI and provenance contract lines for all of the above | +1 |
 | Phase 4 | 23, end to end | a session inherits words: block, files and record re-derive byte for byte; a branch whose brief is open gets the project's set | +1 |
-| Hub | 44a, the contract made true | **A20 is appended, never folded**: a new §18, *Amendment — OD-36, terms and decisions*, after §17 at the contract's end, holding the two prefixes, the six routes and their bodies, the codes, the events, the tables and functions, and §7.5's one-field rule read as brief content only. No line above it moves, so none of the contract's 517 inbound citations breaks (the sceptic's count), and no contract-reading test changes: each reads its section by number (`keys_test.go:371`), and none reads §18 until 45, 48a and 48b extend it beside their code | +2 |
+| Hub | 44a, the contract made true | **A20 is appended, never folded**: a new §18, *Amendment — OD-36, terms and decisions*, after §17 at the contract's end, holding the two prefixes, the eight routes and their bodies, the four envelopes member by member with six golden vectors, the codes, the events, the tables and functions, and §7.5's one-field rule read as brief content only; and it marks the headings of §3.1, §4.2, §7.0 and §10.2, never §8's (§R2.3, M8). No line above it moves, so none of the contract's 517 inbound citations breaks (the sceptic's count), and no contract-reading test changes: each reads its section by number (`keys_test.go:371`), and none reads §18 until 45, 48a and 48b extend it beside their code | +2.5 |
 | Hub | 27, audit and erasure | its "Nothing else changes" sentence (`T:27.md:40-41`) names both kinds; its scan test's term and decision, and `settled`, are 48b's | +0.25 |
 | Hub | 34, the digest re-check | covers the two revision kinds | +0.5 |
 | Hub | 36, the poller | `Subscribe` prefixes gain `"term."` and `"decision."` | +0.25 |
 | Hub | 40, `hubFeed` | handlers for the two prefixes | +0.5 |
 | Hub | 43, the end-to-end proof | one word and one decision through the real Hub | +0.5 |
-| Hub | 44b, the contract made true to the build | writes `settled` into §7.12 and deletes its `pendingAmendment`; checks §18 against what 45-48b built | +0.5 |
+| Hub | 44b, the contract made true to the build | writes `settled` into §7.12's reply on its own line, `HC:1126`, adding no line (§R2.3, M8), and deletes its `pendingAmendment`; checks §18 against what 45-48b built | +0.5 |
 
 Phase 4 amended: **6 hours, seven tasks**, and 12's change inside 32. Hub amended: **4.5 hours,
 seven tasks.** Round 2's amendments to Hub 14 and 20 are gone: 14's feed test takes the four kinds
@@ -992,7 +992,7 @@ source (§8.2, Q2). None of it is scope beyond OD-36.
 | Q5 | Should rounds and dismissals be shared through the Hub? | **No**, local only; the cost is that a dismissed suggestion may be offered once more on another machine. Yes is a mutable Hub kind for process state, which is what §4 exists to avoid |
 | Q6 | The product's words for `CONTEXT.md`. `CONTEXT.md:303` already calls our own register "one decision record", and `CONTEXT.md:149` calls an approval row "a decision under Authority" | **Term** and **Project decision**, each with a *Not «…»* line: not «vocabulary» (the Work layer's team names, 11b §5.2), not «ADR», and not an approval row. The Work layer's planned Go type `Term` (`task-138.md:111`) is another package and is left alone |
 | Q7 | Should a session started without the brief (`none:declined`) still inherit the project's words and decisions? | **No** (§5.1): declining the brief declines everything Discover writes, so the label *started without the brief* stays true. Yes needs a block with no brief in its marker, a new `Inspect` state and a golden: about 3 h |
-| Q8 | When a branch lands, should the product ask about the branch's own decisions and words at the land itself? | **No** (§6.2): once a branch ends, its in-force entries wait in the project's lens under *From archived branches*, with **Promote** beside each, and nothing asks. Yes puts that list in phase 3's land step, a phase 3 change that OD-36's *What moves* does not name: about 2 h and its tests. Promoting them all at the land without asking is not offered: it would change every other branch's set with no person's gesture (§8.1) |
+| Q8 | When a branch lands, should the product ask about the branch's own decisions and words at the land itself? | **No** (§6.2): once a branch ends, its in-force entries wait in the project's lens under *From archived branches*, with **Promote** beside each, and nothing asks. **The default's cost**: once the branch's work reaches main, main's code follows its departures while main's sessions are handed the project's entries, stamped *current*, until a person presses **Promote**, and nothing prompts them; and the lens cannot tell a branch that reached main from an abandoned one (§R2.3, M7). Yes puts that list in phase 3's land step, a phase 3 change that OD-36's *What moves* does not name: about 2 h and its tests. Promoting them all at the land without asking is not offered: it would change every other branch's set with no person's gesture (§8.1) |
 | Q9 | Should a branch's own entries reach its sessions before the branch's brief has a complete revision? | **No** (§5.1): the set follows the stamp, so a project key gives the project's set, and the lens says when a branch's entries will reach sessions. Yes serves the set digests per `(contextRef, branch)` beside the `Ref` rather than in it, which reads OD-36's "`Ref` carries their digests" loosely: about 3 h across phase 4's 26, 27, 29 and 17 |
 
 ### 8.3 What this design did not verify
@@ -1262,3 +1262,100 @@ and §2.4:360-363 are amended in place.
   one avoids the other, which is what the branch's term already says.
 - **Price: Hub 45 +1.25 h** (the function, both shadows, their table tests); **phase 4's 25 −1 h**.
   Nothing is counted back in Hub 46 or 48a, which still wire the call.
+
+**R2-M5. A *not here* departure has fields, one state for both kinds, an inverse and a verb.**
+§2.2:261, §2.3:281, §2.4:324, :326 and :328, and §6.2:794 are amended in place.
+- **Its fields are the pinned entry's, copied**, so §2.2's rules pass unchanged, and the departure's
+  own digest covers the text its block line prints (§5.1:618, :622).
+- **`set_aside` for both kinds.** A term's *not here* was born `retired`. But a departure retired
+  later, as **Use the project's** does, is also `retired` with `overrides` set, so the overlay could
+  not tell *the project's word does not apply here* from *use the project's word again*. A term now
+  takes `set_aside` too, and `hubapi.Overlay` subtracts an entry only for an `in_force` or
+  `set_aside` override (M4). A decision already had the state.
+- **Its inverse.** A *not here* is a create, so its Undo is `retire` or `withdraw` (§2.4:337-338),
+  which now also leave `set_aside`. Nothing enters force, so no word check runs.
+- **Its verb: Not on this branch**, on a project entry seen from a branch, beside **Depart on this
+  branch**, never a prompt. It writes one `depart` item born `set_aside`. The refused row (§6.3:818)
+  keeps **Depart on this branch**, which redefines the word.
+- **Price: +0.25 h in phase 4's 31** (the verb). The state is one more value in Hub 45's rules and
+  47's `CHECK`: no hours.
+
+**R2-M6. Undoing a promote no longer shows *project changed*.** §6.2:787-789 is amended in place.
+- *Project changed* shows when the project's head differs from the departure's pin **in its fields
+  or its state**, never because its number moved. A promote's Undo restores the project entry at
+  `@k+2` with `@k`'s fields and state, so nothing shows, which is true.
+- The lens reads the pin through §R2.1's relay: no hours beyond R2.1's. Re-pinning `overrides` on
+  Undo, the sceptic's other fix, is not taken: it writes a branch revision for a change nobody made.
+
+**R2-M7. Q8 states its cost, and the lens says what it cannot tell.** Q8 (§8.2:995) and
+§6.2:795-802 are amended in place.
+- **The default's cost, now in Q8's row**: once a branch's work reaches main, main's code follows the
+  branch's departures, but main's sessions are handed the project's entries, stamped *current*,
+  until a person opens *From archived branches* and presses **Promote**, and nothing prompts them.
+- **Landed or not: the lens cannot tell.** The archive route takes `{}` and records no reason
+  (`HC:785-788`), and phase 3's land is one lane into its branch (`CONTEXT.md:62-67`), so nothing
+  the product holds says whether an archived branch reached main. The disclosure's one line says so.
+  A label would need that record, which neither this design nor phase 3 writes. No hours.
+
+**R2-M8. Four corrections to the contract edit.** §2.6:417, §5.2:652, §7.2:860 and §7.4:920 and
+:926 are amended in place.
+1. **Heading markers.** §18 marks each section it amends on the heading's own line, as §17 does
+   ("— **amended by OD-30, see §17**", `HC:298`, `:367`, `:369`): "— **amended by OD-36, see §18**"
+   on §3.1, whose prefix table a new phase reads to choose prefixes (`work plan:185-187`), §4.2,
+   §7.0 and §10.2. §8's heading stays bare: `contractEventKinds` matches `\n## 8. Events\n` exactly
+   (hub `hubapi/envelope_test.go:560`). A marker moves no line; 44a runs the contract-reading tests
+   after writing them.
+2. **`settled` stays on its line.** 44b writes it into §7.12's reply on `HC:1126` itself, adding no
+   line, so none of the 1,259 lines below moves (240 inbound `hub-contract.md:NNN` citations, a floor).
+3. **The set envelopes**, member by member: `v`, `kind` (`"term-set"` or `"decision-set"`),
+   `projectId`, `scope` (`"project"` or `"branch"`, as the brief's, `HC:151`), `branchBriefId` (the
+   branch brief's id, or `""` for the project's set, as `branchRef` is `""`), and `items`, each
+   `{"digest","id","kind","revision"}`, sorted by id. Two golden vectors, one per kind, one of them
+   a branch's.
+4. **The revision envelopes**, member by member, as §3.4 lists the brief's (`HC:144-155`): `v`,
+   `kind` (`"term-revision"` or `"decision-revision"`), `termId` or `decisionId`, `revision`,
+   `projectId`, `scope`, `branchBriefId`, `state`, the text fields (`word`, `is`, `avoid`,
+   `because`; or `decision`, `context`, `why`, `undo`, `rejected`), `overrides` (a struct),
+   `replacedBy` (an id), `restores` (a number), `settledIn` (a brief key), `author` and
+   `sessionId`. The digest covers exactly these; `savedAt`, `savedBy` and `erasedAt` stay outside
+   it, as a brief revision's do. An empty member is written `null` or `[]`, never left out, so a
+   revision has one encoding. Four vectors, two per kind, as §3.5 has two.
+- 44a writes the six vectors as §3.5's were computed (`HC:178-179`), and 45 reproduces them. **Price:
+  44a +0.5 h** (the markers and the member lists), **45 +0.25 h** (the two set vectors).
+
+**R2-M9. Seven smaller gaps.**
+- **(a) What carries the sets.** `Inspect` holds an `Inheritable`, not a `Ref` (p4 `inspect.go:119-124`,
+  `:179`), and the sets reach the Materialiser only through its one `Source` method,
+  `Inheritable(ctx, Target)` (`materialise.go:51-53`). So `discoverhub.Inheritable` (`read.go:79-86`)
+  gains the two sets and the pinned revisions (§R2.1); §5.3:705 now reads "with the two a start
+  would write now"; §7.2:859's row names the change and `binding_test.go:342`, whose
+  `reflect.DeepEqual` of a whole `Inheritable` is edited. **+0.5 h in phase 4's 27.**
+- **(b) The one-call limit** is per machine and per round file: a fresh round after fourteen days
+  (§4.3:557-558) and a round recomputed on another machine (§4.3:561-564) each make one more call.
+  §4.1:518 says so in place.
+- **(c) Why a second case-insensitive rule.** The Hub indexes `lower(name)` for teams and projects
+  (hub `migrate/sql/0001_init.sql:50`, `:99`). A word uses `FoldWord` instead because its fold is
+  computed in Go and stored, so rule 1's index never depends on the database's collation or its
+  Unicode tables, and phase 4 sorts offline with the same function. The fake calls `FoldWord`,
+  never `strings.ToLower`, as `hubclient/fake_projects.go:159` does for names. §2.4:360 points here.
+- **(d) A paged read is made a snapshot.** Every page of both lists carries `feedSeq`, the org's feed
+  position (`GET /v1/changes`' sequence, `HC:1091-1100`), read in the same snapshot as the page; an
+  event is written in its change's transaction (`HC:1105-1107`), so an equal position on a list's
+  first and last page means no write landed between them. The Materialiser reads at the list rule's
+  largest page, so a set of up to 200 entries is one page and a snapshot by itself, and re-reads a
+  longer list while its first and last positions differ, inside the same budget; a budget spent
+  re-reading refuses `hub_unavailable`, as §5.1:590-594 already does. §5.1:594 points here.
+  **+0.25 h in Hub 48b, +0.25 h in phase 4's 27.**
+- **(e) One avoided word.** "Phase 3's merge" is now *land* (`CONTEXT.md:300`): §5.4:753, §6.2:802.
+- **(f) Task 12 changes in four routes, not one** (`task-12.md:15-18`), all reworked by 32, each with
+  a new audit line in place of today's (`task-12.md:128-131`):
+  - `refs`: its `Ref`s stay cached, but each brief's `Heads` entry gains the two set digests, which
+    are neither immutable nor cached: "Hub reads through an in-memory cache of immutable revisions,
+    and the two list reads per project named. Writes nothing."
+  - the two `provenance` routes: "One Hub head read and the two list reads", for the set the stamp
+    would name (§5.1).
+  - `materialisations`: "Reads each worktree's CLAUDE.md and its two `.panacea/discover/` files to
+    compare them with a fresh render, from the two list reads and the pinned revisions. Writes no
+    file."
+  - **+1.5 h in phase 4's 32**; §7.3:887 and §7.4:912 are amended in place.
+- **(g) `settledIn: null` is the owner's reading**, not the design's: Q10 (§R2.4).
