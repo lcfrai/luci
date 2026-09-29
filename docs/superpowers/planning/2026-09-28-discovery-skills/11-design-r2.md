@@ -1,7 +1,7 @@
 # 11 — Design round 2: the project glossary and the project decision record, beside the brief
 
-**Status: complete, 2026-09-29; reviewed by `12-sceptic-r2.md` (Needs fixes) and revised once:
-see Revision 1 at the end.** Round 1 (`05-design.md`) failed
+**Status: complete, 2026-09-29; reviewed by `12-sceptic-r2.md` and its re-read, revised twice:
+see Revisions 1 and 2 at the end.** Round 1 (`05-design.md`) failed
 its sceptic (`06-sceptic.md`). The owner then decided `OD-36`
 (`10-decision-terms-beside-the-brief.md`): terms and decisions are their own Hub records that
 reference a brief revision. This round designs that.
@@ -14,9 +14,9 @@ Inputs, in the order read: `11a-facts-phase4.md`, `11b-facts-hub.md`, `06-scepti
 
 **Terms and decisions become two new Hub record kinds beside the brief. Each names the brief
 revision it settled in, the Materialiser hands every session the whole set under one stamp, and
-the brief does not change by a byte.** The price is about 69.5 hours before fix rounds: 42 in
-phase 4, 27 in the Hub and 0.5 for `CONTEXT.md`, with one task, about 3.5 hours, joining phase 4's
-critical path (§7.5).
+the brief does not change by a byte.** The price is about 76.75 hours before fix rounds: 45.25 in
+phase 4, 31 in the Hub and 0.5 for `CONTEXT.md`; a chain of seven tasks, Hub 44a first, puts about
+28.5 hours on phase 4's critical path before task 14 (§7.5).
 
 1. **Two records** (§2). A **term** (`te-` id) is one word, what it *is*, the words to avoid and
    why. A **decision** (`dr-` id) is one sentence with its context, what it gave up, what undoing
@@ -55,10 +55,10 @@ model and its 113 tests, the key grammar and both its parsers, the brief's key a
 files that quote it, the interview's questions, phase 2's session record, and phases 3, 5 and 7.
 The Hub contract gains an appended §18 and moves no line (§7.4, A20).
 
-**What the owner is asked** (§8.2): nine questions, each with its default already taken. **Q2
+**What the owner is asked** (§8.2; Q10, §R2.4): ten questions, each with its default taken. **Q2
 must be asked before 44a, Hub 45 or phase 4's 26 starts**: whether terms and decisions are named
 by a struct, the default and OD-36's row read as written, or by two new key forms. Its other
-answer, taken after those tasks ship, rebuilds them. The other eight block nothing: an unanswered
+answer, taken after those tasks ship, rebuilds them. The other nine block nothing: an unanswered
 one is built as its default.
 
 ## 1. The sceptic's findings, answered by number
@@ -879,27 +879,27 @@ material goes at the end of a heavily cited file).
 | 24 | Prototype: the §6 states added to `prototype/phase-4-discover.html` (suggested, recorded, taken up, departure, *not here*, project changed, refused, model off, *reaches sessions once complete*, *from archived branches*). The owner looks before 31's part is approved | — | 2.5 | 31 |
 | 25 | `discover`: `Term`, `Decision`, a branch's set built by `hubapi.Overlay` (§2.3; §R2.3, M4), the set digest; pure. No copy of §2.2's rules or of the overlay: each is the Hub's one function (§2.4) | 06, Hub 45 | 1.5 | 27-30 |
 | 26 | `provenance`: the `Ref`'s two digests, two strings that need nothing of 25 (§R2.3, M1); `ref-golden.json`. No key form (§2.1), so no Hub task in front of it | 06 | 1.5 | 12 |
-| 27 | `discoverhub`: the two list reads to the last page inside the budget (§5.1), the two batch writes, the two set digests for `Ref`, the preview through `RenderInherited`, and `TestResolveBatchesInTwoCallsAtMost`'s new bound | 07, 08, 25, 28, Hub 46 | 6 | 29, 30, 32 |
+| 27 | `discoverhub`: the two list reads to the last page inside the budget, re-read while `feedSeq` moves (§5.1; §R2.3, M9d), the pinned revisions read (§R2.1), the two batch writes, the two set digests for `Ref`, `Inheritable`'s two sets and pins (M9a), the preview through `RenderInherited`, and `TestResolveBatchesInTwoCallsAtMost`'s new bound | 07, 08, 25, 28, Hub 46 | 7.5 | 29, 30, 32 |
 | 28 | `claudemd`: `RenderInherited`, the new block and the two files' renderer, the *not here* and *Gave up:* lines; three goldens regenerated, three added | 05, 25 | 4.5 | 27, 29 |
 | 29 | `contextwrite`: the three files in order, `/.panacea/discover/` excluded and confined (a not-ignored answer refused `write_failed`, §5.3), both files removed wherever the block is stripped (§5.1), and `Inspect`'s set-digest classification (§5.3); `api`: `MaterialiseResult`'s two sets, and the create and restart handlers' append after the stamp (§5.2) | 09's fix round closed, 10, 27, 28 | 5.5 | 32, 14 |
 | 30 | `discover` + `discoverhub`: the suggestion round, its local store and its five deaths (§4); and the one-decision draft behind *Record a decision* (§3.2), under the round's model budget and outcomes | 04, 25, 27 | 3.5 | 32 |
 | 31 | Desktop: the lens's two areas (§6), with *not here* and its verb, *reaches sessions once complete*, *From archived branches*, and **Record all**'s two batches (§R2.3, M3 and M5). UI: stays unmerged until the owner has looked (`OD-1`) | 16, 18, 24 looked at, 32's part: its wire shapes, not its code | 7 | 23 |
 | 32 | `discoverapi`: the relay routes for the four reads (the two lists and the two revisions reads, §R2.1) and the two writes, the round's two routes, the per-session inheritance route, and task 12's four routes reworked with new audit lines: `refs`, the two `provenance` routes, and `materialisations`, whose fresh render goes through `RenderInherited` with the two lists and the pins (§5.3; §R2.3, M9f) | 11, 12, 27, 29, 30 | 5.5 | 14, 15 |
 
-Phase 4 new: **36 hours, nine tasks.** Hours are priced against the plan's own tasks for the same
+Phase 4 new: **39 hours, nine tasks.** Hours are priced against the plan's own tasks for the same
 work: 27 against 07 and 08, 6 h for one kind (11a §1); 31 against 18 and 19, 6 h (`plan:409-410`).
 
 **Hub**, ids continuing from 44b:
 
 | # | Task | Depends on | Hours | Must come before |
 |---|---|---|---|---|
-| 45 | `hubapi`: `discoverids.go` with `te` and `dr` and a test holding it to §18's prefix table; the two envelopes and four golden vectors; the wire objects and their body-test rows, anchored in §18; `FoldWord`; §2.2's field-rule function, the reserved `panacea:discover:` sequence among its rules | 44a | 3.5 | 46, 47 |
-| 46 | `hubclient`: `Terms` and `Decisions`; the fake, holding every observable rule of §2.4 (the ops, the two passes, the item references, the word check's three rules); the conformance and feed rows: **S0g**, phase 4 codes its terms and decisions against the fake | 05, 45 | 5 | phase 4's 27 |
-| 47 | `sql/0002_terms_decisions.sql`: four tables, the guards with `set_aside`, the RLS and grant twins, the folded-word index, §2.6's composite keys, `hub.erase_term` and `hub.erase_decision`, a database test for each | 07b's fix round closed, 45 | 4 | 48a |
+| 45 | `hubapi`: `discoverids.go` with `te` and `dr` and a test holding it to §18's prefix table; the four envelopes and six golden vectors (§R2.3, M8); the wire objects and their body-test rows, anchored in §18; `FoldWord`; `Overlay` with both shadows (M4); §2.2's field-rule function, the reserved `panacea:discover:` sequence among its rules | 44a | 5 | 46, 47, phase 4's 25 |
+| 46 | `hubclient`: `Terms` and `Decisions`, with the two revisions reads (§R2.1); the fake, holding every observable rule of §2.4 (the ops, the two passes, the item references checked at the batch's end, the word check's three rules through `Overlay` and `FoldWord`, never `ToLower`) and serving `feedSeq`; the conformance and feed rows: **S0g**, phase 4 codes its terms and decisions against the fake | 05, 45 | 5.5 | phase 4's 27 |
+| 47 | `sql/0002_terms_decisions.sql`: four tables, the guards with `set_aside` for both kinds, the RLS and grant twins, the folded-word index, §2.6's composite keys with `replacedBy` and `overrides` checked at commit (§R2.3, M2), `hub.erase_term`, which nulls the folded word (§R2.2), and `hub.erase_decision`, a database test for each | 07b's fix round closed, 45 | 4.5 | 48a |
 | 48a | The server's writes: the two batch routes with every op of §2.4, the item references and the two passes, the write-time checks and the word check's three rules, `word_taken` with the §4.2 code test reading §18, and the text-free reply with its rebuild (§2.6) | 14, 16b, 19, 47 | 6 | 48b |
-| 48b | The server's reads and erasures: the two lists with `archivedAt`; the two erase routes through 47's functions; `settled` on the brief's erase reply, a `pendingAmendment` until 44b; task 27's scan test with a term and a decision; the four events and the feed test reading §18; its own matrix rows (`rowsTask48` in `allRows`, the 16b pattern): **S4g (server side)** | 20, 27, 48a | 4 | phase 4's terms and decisions on the real Hub |
+| 48b | The server's reads and erasures: the two lists with `archivedAt` and `feedSeq` (§R2.3, M9d), and the two revisions reads (§R2.1); the two erase routes through 47's functions; `settled` on the brief's erase reply, a `pendingAmendment` until 44b; task 27's scan test with a term and a decision, for the marker and its fold (§R2.2); the four events and the feed test reading §18; its own matrix rows (`rowsTask48` in `allRows`, the 16b pattern): **S4g (server side)** | 20, 27, 48a | 5 | phase 4's terms and decisions on the real Hub |
 
-Hub new: **22.5 hours, five tasks.** Hub 48 is split because, priced against the brief's own server
+Hub new: **26 hours, five tasks.** Hub 48 is split because, priced against the brief's own server
 side, tasks 18, 19 and 20 at 9 h for one kind (`HP:421-423`), its 4.5 h was half of what two kinds
 cost; 46 against task 04's fake, 3 h for part 1 alone (`HP:405`). No new Hub task stands in front
 of the brief's own S4: S4 for briefs still opens after 06-20 (`HP:388-394`), and S4g (g for
@@ -925,7 +925,7 @@ glossary) follows it.
 | Hub | 43, the end-to-end proof | one word and one decision through the real Hub | +0.5 |
 | Hub | 44b, the contract made true to the build | writes `settled` into §7.12's reply on its own line, `HC:1126`, adding no line (§R2.3, M8), and deletes its `pendingAmendment`; checks §18 against what 45-48b built | +0.5 |
 
-Phase 4 amended: **6 hours, seven tasks**, and 12's change inside 32. Hub amended: **4.5 hours,
+Phase 4 amended: **6.25 hours, seven tasks**, and 12's change inside 32. Hub amended: **5 hours,
 seven tasks.** Round 2's amendments to Hub 14 and 20 are gone: 14's feed test takes the four kinds
 in 48b, beside the code that emits them, and 20 has nothing to answer under the struct. Unchanged,
 and checked: phase 4's 11, 13, 18, 20 and 21 (11 keeps its scope because 32 carries the new
@@ -949,19 +949,19 @@ routes; 21 stays one-shot, 06 §1.4); the Hub's 08, 14, 16b, 20 and 22.
 
 | | New | Amended | Total |
 |---|---|---|---|
-| Phase 4 | 36 h, nine tasks | 6 h, seven tasks | **42 h** |
-| Hub | 22.5 h, five tasks | 4.5 h, seven tasks | **27 h** |
+| Phase 4 | 39 h, nine tasks | 6.25 h, seven tasks | **45.25 h** |
+| Hub | 26 h, five tasks | 5 h, seven tasks | **31 h** |
 | `CONTEXT.md` | two entries, *Term* and *Project decision* (§8.2, Q6), when the plans land | — | 0.5 h |
-| **All** | | | **about 69.5 hours before fix rounds** |
+| **All** | | | **about 76.75 hours before fix rounds** |
 
-Against the plans: phase 4's whole plan is 57 hours (11a §1), so this is about 74% more on phase
-4; the Hub's is 133.5 (`HP:449-460`), about 20% more. With one fix round a task, on the ledgers'
-record, expect roughly 90 hours: that multiplier is a judgement, not a measurement. Round 2
-priced about 54 hours, and this is about 16 more. The four tasks the sceptic repriced against the
-plans' own work (Hub 46 and 48, phase 4's 27 and 31) carry 12.5 of them, what the rules it found
-missing (I1, I2, I5, I6, I7) add elsewhere is about 6.5, and the struct takes about 3 back: the
-key forms in Hub 45 and phase 4's 26, the resolver rows in Hub 20 and 48, and task 16's key
-source (§8.2, Q2). None of it is scope beyond OD-36.
+Against the plans: phase 4's whole plan is 57 hours (11a §1), so this is about 79% more on phase
+4; the Hub's is 133.5 (`HP:449-460`), about 23% more. With one fix round a task, on the ledgers'
+record, expect roughly 100 hours: that multiplier is a judgement, not a measurement. Round 2
+priced about 54 hours; Revision 1 found 16 more, and Revision 2 about 7.25 (§R2.4). Of Revision 1's,
+the four tasks the sceptic repriced (Hub 46 and 48, phase 4's 27 and 31) carry 12.5, the rules it
+found missing (I1, I2, I5, I6, I7) about 6.5, and the struct took about 3 back: the key forms in
+Hub 45 and phase 4's 26, the resolver rows in Hub 20 and 48, and task 16's key source (§8.2, Q2),
+of which the revisions read returns about 2 (§R2.1). None of it is scope beyond OD-36.
 
 ## 8. What it does not do, and the open owner questions
 
@@ -981,7 +981,7 @@ source (§8.2, Q2). None of it is scope beyond OD-36.
 - **Not ours**: it replaces neither this repository's `CONTEXT.md` nor the owner-decision register.
 - **No count, badge or progress** anywhere, and no queue item of its own (§6.2).
 
-### 8.2 Open owner questions, each with the default taken
+### 8.2 Open owner questions, each with the default taken (Q10 is in §R2.4)
 
 | # | Question | Default taken, and what the other answer costs |
 |---|---|---|
@@ -1021,7 +1021,7 @@ source (§8.2, Q2). None of it is scope beyond OD-36.
 
 ## Closing
 
-**Complete as a design on 2026-09-29; reviewed and revised once.** It answers the sixteen findings of
+**Complete as a design on 2026-09-29; reviewed and revised twice.** It answers the sixteen findings of
 `06-sceptic.md` by number and its sections 6 and 7 besides (§1). It meets OD-36 as the register
 states it (`owner-decisions.md:409`): the brief content model does not move, the brief's key does
 not change by a byte, and terms and decisions are their own Hub records that reference a brief
@@ -1030,18 +1030,18 @@ it by file (§7.2), as the owner's note on OD-36 allows, rather than designing a
 
 What it still owes, and to whom:
 
-1. **Its sceptic, round 2**: done, `12-sceptic-r2.md` (Needs fixes), answered by Revision 1 below.
-   A re-read of Revision 1's sections, C1 and C2 first, is owed before any plan is edited: they
-   change §2.1, §5.1 and §5.2, which the rest of the design leans on.
-2. **The owner**: §0 and §8.2, about ten minutes, and **Q2 before 44a runs**. Every other question
-   has a default, so an unanswered one is built as its default.
+1. **Its sceptic, round 2**: done, `12-sceptic-r2.md` and its re-read `12-sceptic-r2-round-2.md`,
+   answered by Revisions 1 and 2 below. A short re-read of §R2.1, §R2.2 and §R2.3's M5 is owed
+   before any plan is edited: they add a read, change erasure and add a state the rest leans on.
+2. **The owner**: §0, §8.2 and Q10 (§R2.4), about ten minutes, and **Q2 before 44a runs**. Q2, Q8,
+   Q9 and Q10 are filed in `2026-09-25-owner-questions-pending.md`; an unanswered one is its default.
 3. **The plans**: the new tasks as a new section at the end of each plan (§7.3) and the amended
    unbuilt tasks (§7.4), with 44a's A20 first. Those edits belong to the phase 4 and Hub streams in
    their own worktrees, not to this file.
 4. **The owner's eyes on task 24's prototype** before task 31's part is approved (`OD-1`).
 
 Nothing in this file has been compiled, run or shown to the owner (§8.3).
-**Next: item 1**, a re-read of Revision 1 against `12-sceptic-r2.md`, C1 and C2 first.
+**Next: item 1**, a re-read of Revision 2 against `12-sceptic-r2-round-2.md`, §R2.1 first.
 
 ## Revision 1
 
@@ -1100,7 +1100,7 @@ runs.
 
 ## Revision 2
 
-**Status: in progress, 2026-09-29.** Answers `12-sceptic-r2-round-2.md` at `2726d918` (0 Critical,
+**Status: complete, 2026-09-29.** Answers `12-sceptic-r2-round-2.md` at `2726d918` (0 Critical,
 2 Important, 9 Minor). Every line above this heading keeps its number: earlier sections change only
 in place, line for line, because Revision 1's table and both sceptic files cite them by line. New
 material that needs room is written below, in §R2.1 onward, and the section it amends points here.
@@ -1359,3 +1359,66 @@ and §2.4:360-363 are amended in place.
     file."
   - **+1.5 h in phase 4's 32**; §7.3:887 and §7.4:912 are amended in place.
 - **(g) `settledIn: null` is the owner's reading**, not the design's: Q10 (§R2.4).
+
+### R2.4 Q10, the figures, and where each finding is answered
+
+**Q10, a tenth owner question** (R2-M9g), in §8.2's format; §8.2's heading (:984) points here.
+
+| # | Question | Default taken, and what the other answer costs |
+|---|---|---|
+| Q10 | OD-36 makes each record "its own Hub record that references a brief revision" (`owner-decisions.md:409`). May a term or a decision be recorded with `settledIn: null`, in a session with no brief key or in the lens at head 0? | **Taken: yes** (§2.5:395-397), so a word can be recorded before a project's first brief is saved, and a session without a brief key can still record one. **The default's cost**: such a record references no brief revision, so no brief's erasure lists it in `settled` (§2.6) and no release pin reaches it (Q3). **The other answer**, always a brief revision: `settledIn` is `NOT NULL` in `0002`, *Add a word* and *Record a decision* wait for the brief's first save, and a session without a brief key is refused with its reason: about 1 h across Hub 47 and 48a and phase 4's 31. Best asked before Hub 47 ships; after it, the other answer is one more migration |
+
+**The figures.** Every hour Revision 2 adds, by task; §0:17-19, §7.3:889 and :902, §7.4:928 and
+§7.5:950-964 carry the totals in place.
+
+| Task | Revision 1 | Revision 2 | Why |
+|---|---|---|---|
+| Phase 4's 25 | 2.5 | 1.5 | M4: the overlay moves into Hub 45 |
+| Phase 4's 27 | 6 | 7.5 | I1 +0.75, M9a +0.5, M9d +0.25 |
+| Phase 4's 31 | 6.5 | 7 | M3 +0.25, M5 +0.25 |
+| Phase 4's 32 | 3.5 | 5.5 | I1 +0.5, M9f +1.5 |
+| Phase 4's 16, amended | +1 | +1.25 | I1, the loader |
+| Hub 44a, amended | +2 | +2.5 | M8, the markers and the member lists |
+| Hub 45 | 3.5 | 5 | M4 +1.25, M8 +0.25 |
+| Hub 46 | 5 | 5.5 | I1 |
+| Hub 47 | 4 | 4.5 | I2 +0.25, M2 +0.25 |
+| Hub 48b | 4 | 5 | I1 +0.75, M9d +0.25 |
+| **All** | **69.5** | **76.75** | **+7.25**: phase 4 42 → 45.25, the Hub 27 → 31 |
+
+With one fix round a task, roughly 100 hours (the same judgement as §7.5:959). Separately, phase 4's
+critical path grows by about 28.5 hours before task 14 (M1), on the condition M1 states.
+
+**Where each finding is answered.** `§N:L` is this file after Revision 2; every line above the
+*Revision 2* heading keeps its number, so Revision 1's table and both sceptic files still resolve.
+
+| # | Finding | Answered at |
+|---|---|---|
+| I1 | No route reads a past revision of a term or a decision | **Root, §R2.1**: one revisions read per kind in §18, used by the Materialiser, the lens and the loader. In place: §2.4:373 and :376-382 (the lists are heads, ordered by id; eight routes), §2.1:237-238, §5.1:619, §5.2:675, §5.4:750, §6.1:782, §7.2:859, §7.3:882, :887, :897 and :900, §7.4:915, and Q2 at §8.2:989, now **about 1 h more** for key forms |
+| I2 | An erased term's folded word survives in its head, and the scan cannot see it | **Root, §R2.2**: `hub.erase_term` nulls it; the scan also searches for `FoldWord(marker)` and must find the head's copy before erasure. Pinned by Hub 47's database test and 48b's scan. In place: §2.6:424-425 and :433-434, §7.3:898 and :900 |
+| M1 | The critical path grows by about 24 h, not 3.5 | §R2.3: the chain and its hours, **about +28.5 h** at this revision's prices; 26 needs only 06, 31 only 32's part. In place: §7.5:936-943, §7.3:880-881 and :886, §0:17-19 |
+| M2 | An exit runs before the create it names | §R2.3: ids first, references checked at commit, total passes. §2.4:316-318, §7.3:898 |
+| M3 | **Record all** is two batches | §R2.3: words first, a refused words' batch sends no decisions, one Undo for both. §3.2:479-482, §7.3:886 |
+| M4 | The overlay three times, and a hole across scopes | §R2.3: `hubapi.Overlay`, the one copy; the shadow covers avoided words both ways. §2.3:296-297, §2.4:360-363, §7.2:860, §7.3:880 and :896 |
+| M5 | A *not here* has no fields and no verb | §R2.3: the pin's fields copied; `set_aside` for both kinds; its Undo; **Not on this branch**. §2.2:261, §2.3:281, §2.4:324, :326 and :328, §6.2:794 |
+| M6 | A promote's Undo shows a false *project changed* | §R2.3: compared by fields and state. §6.2:787-789, §7.4:917 |
+| M7 | Q8 hides its cost; landed and abandoned look alike | §R2.3: the cost in Q8's row; the lens says it cannot tell. §8.2:995, §6.2:795 and :800-802 |
+| M8 | Four corrections to the contract edit | §R2.3: markers on four headings, never §8; `settled` on its line; every envelope member named; six vectors. §2.6:417, §5.2:652, §7.2:860, §7.3:896, §7.4:920 and :926 |
+| M9 | Seven smaller gaps | §R2.3 (a)-(g): §5.3:705 and §7.2:859; §4.1:518; §2.4:360 and §7.3:897; §5.1:594 and §7.3:882, :897, :900; §5.4:753 and §6.2:802; §7.3:887 and §7.4:912; Q10 above, §8.2:984 and §0:58-61 |
+
+**Where this revision departs from the sceptic, and why.**
+- **M5 goes further.** Copying the fields was not enough: a term's *not here*, born `retired`, could
+  not be told from a retired departure, so both kinds take `set_aside`, and `retire` and `withdraw`
+  leave it, which also gives a decision's *not here* the Undo it lacked.
+- **M1: the Hub split is not taken**, because it saves half an hour (§R2.3), and two dependencies
+  the sceptic did not name are cut instead: 26 on 25, and 31 on 32's code.
+- **M6: the re-pin is not taken**: it writes a revision for a change nobody made.
+- **M7: no label is built**: the product records nothing that could fill it, so the lens says so.
+
+**Still unverified.** Nothing was compiled or run. The deferred keys (M2) and `feedSeq` read in a
+page's own snapshot (M9d) are designs for tasks 47 and 48b, not tested SQL. That a heading marker
+leaves every contract-reading test green rests on the sceptic's reading of `contractSection`
+(hub `hubapi/keys_test.go:362-380`), and 44a's own test run is the proof. The hours are the plans'
+ratios, not time spent.
+
+**Revision 2 complete.** Next: a short re-read of §R2.1, §R2.2 and §R2.3's M5, then the owner's Q2
+before 44a runs; Q2, Q8, Q9 and Q10 are filed in `2026-09-25-owner-questions-pending.md`.
