@@ -27,6 +27,23 @@ func TestPathRefusesALocationInsideADirectorySandboxesWrite(t *testing.T) {
 	wantPathRefused(t, project.NewScanner(root, g).WithWritableDirs(store), loc, "inside a conversation store")
 }
 
+// FAIL CLOSED on the projects directory as a whole, not only the projects it
+// lists: a directory there that is no project now (its .git gone, or never a
+// repository) may be what a running session mounts, and nothing under it is
+// proved host-owned. A registered location inside one, swapped for a
+// junction, is refused.
+func TestPathRefusesALocationAnywhereUnderTheProjectsDirectory(t *testing.T) {
+	root := t.TempDir()
+	app := makeRepo(t, root, "app")
+	loc := filepath.Join(root, "notes", "wt-app")
+	x3Register(t, app, loc)
+	x3ReparseJunction(t, outsideDir(t), loc)
+	g := newFakeGit()
+	g.reply(app, worktreePorcelain(app, loc), "worktree", "list", "--porcelain")
+
+	wantPathRefused(t, project.NewScanner(root, g), loc, "under the projects directory, in no project")
+}
+
 // FAIL CLOSED: a registry entry that names no worktree leaves unknown a
 // directory that project's sessions may write, so no location is confined
 // against a boundary known to be incomplete. Path fails, naming the fix.

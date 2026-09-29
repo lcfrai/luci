@@ -53,8 +53,12 @@ func TestAGlobalFileOriginTheWalkCannotFollowFailsTheCreate(t *testing.T) {
 	for name, origin := range map[string]string{
 		"the quoted form git prints without -z": `"` + strings.ReplaceAll(b2, `\`, `\\`) + `"`,
 		"a file that is gone":                   filepath.Join(t.TempDir(), "gone", ".gitconfig"),
-		"a relative name":                       "gitconfig-global",
-		"no name at all":                        "",
+		// Relative to what? git ran in a directory hostGit made and removed, so
+		// the walk would resolve the name against this process's directory
+		// instead, where sessions.go exists, outside the projects directory,
+		// with one name: only the absolute-path check refuses it.
+		"a relative name": "sessions.go",
+		"no name at all":  "",
 	} {
 		t.Run(name, func(t *testing.T) {
 			secret := secretFile(t)
