@@ -313,6 +313,23 @@ for it after the owner switched to new usage. All three were stopped at 15:12 an
 - **Owner Q2** (struct or key forms for terms and decisions) is unanswered, so the default is the
   struct. It must be settled before Hub 44a.
 
+### 0e.5 Added 20:05
+- **plans-continue DONE** (`w6ty8dwog`). Phase W: b02 and b13 are Approved, and b01 was carried at
+  0 C, so the three product-wrong batches are closed. Phase T: b07 is done at 0 C with 2 Importants
+  carried. RR2-I2 (the cockpit approves an Orchestrator's act without showing its words) had no
+  owner, so it is now gap G52-7 and G55-3 in tasks 52 and 55 (`feat/team-mode`).
+- **Phase 2**: X-3 rounds 5 and 6 landed (round 5's review raised a Critical, C-1, fixed in round 6).
+  Review 6 is running, then gate 3, then run 5 inline.
+- **Queued for when run 5 lands:** WS `phase2-branch-review.js` with
+  `{"head":"<gated HEAD>","gate":"<gate 3 file>","run5":"<run 5 report>"}`. It has four lenses
+  (security, Go lifecycle, desktop, contracts and test integrity), an adversarial refuter per lens,
+  and one synthesis, `SDD/phase2-branch-review.md`, which gives the verdict and the must-fix plan
+  for `main`. Nine agents.
+- **The managed policy re-pushed at 17:44 and 19:17** denies Read/Edit/Write on `//C:/Users/**`,
+  and allows `//C:/claude/**`. **It does not block this repo**: a fresh `claude -p` started here
+  Read, Wrote and Edited repo files at 20:05 (the Write rules are ignored; the Edit deny does not
+  match the working tree). Re-probe after any push before believing the rule text.
+
 ## 1. What was running at shutdown (7 workflows)
 
 | Stream | Worktree / branch | Last run id | Script | args |
