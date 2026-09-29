@@ -261,6 +261,12 @@ op (§2.4) and each its own record, so no one content object ever holds an entry
 
 What a branch sees is computed by phase 4, never by the Hub (the Hub stores and resolves, 11b §1.4):
 the project's in-force entries, minus those a branch record overrides, plus the branch's own.
+One more rule keeps that overlay to one entry per word. A project word written **after** a branch
+already defines the same word on its own is shadowed on that branch as if the branch had departed
+from it, and the lens gives the entry task 19's *project changed* treatment (§6.2): **Keep this
+branch's** makes the departure explicit, a `revise` that sets `overrides`; **Use the project's**
+retires the branch's record in favour of it. The Hub allows that project write, because refusing
+it would let one branch block the project's glossary.
 
 ### 2.4 Ops: one for every transition
 
@@ -280,7 +286,7 @@ mints the id and numbers the revision `baseRevision + 1`, never merges, and answ
 | `reinstate` | `retired` or `withdrawn` → `in_force` | the word check below runs again |
 | `depart` (branch) | a project `@n` → a new branch record | a `create` with `scope: branch` and `overrides: <that key>` |
 | `promote` (branch) | branch → project | a `revise` with `scope: project`; the batch also retires or supersedes the entry it overrode |
-| `erase` | any revision → no content | an owner function, not a route (§2.6) |
+| `erase` | every revision → no content, and the head leaves force, as an erased brief's head is archived | never an item of the batch route: the org admin's erase route, through an owner function (§2.6) |
 
 **Write-time checks, in order**, each its own code: the grammar and §2.2's field rules (400);
 `settledIn`, `overrides` and `replacedBy` each name a non-erased record in **this** project, and
@@ -288,9 +294,17 @@ mints the id and numbers the revision `baseRevision + 1`, never merges, and answ
 then **no other in-force term in the same scope has the same case-folded word** (409 `word_taken`),
 enforced by a unique index inside the write's transaction. So a collision is refused when it is
 written and never discovered when it is resolved. A departure is not a collision: it is another
-scope, and it names what it departs from.
+scope, and it names what it departs from. A branch record that departs from nothing is also checked
+against the project's in-force words, so a branch cannot hold a second meaning of a project word
+without saying that it departs: the 409 names the project entry, and the lens offers **Depart on
+this branch** (§6.3). If a project write of the same word races that check, the result is §2.3's
+later-project-word case, which the overlay already handles, so no lock is needed.
 
-Two reads, both new rows in §7.0's closed table (`HC:557-607`): `GET /v1/projects/{projectId}/terms`
+**Roles are the brief's** (`HC:581-588`): `V` for the two reads, `M` for the two batch writes
+(`HC:329`), and erasure the org admin's alone, as the brief's is (row 45, `HC:607`).
+
+Two reads, which with the two batch writes and the two erasures (§2.6) make six new rows in §7.0's
+closed table (`HC:557-607`): `GET /v1/projects/{projectId}/terms`
 and `…/decisions`, each the heads of one project, filterable to one branch brief, every revision's
 fields as §2.2 lists them. The resolver `GET /v1/refs` (row 27, `HC:589`) accepts `term:` and
 `decision:` keys among its 1-100 and answers `kind: "term"` or `"decision"`; a key outside the
@@ -329,8 +343,10 @@ The Hub checks that a non-null `settledIn` resolves in this project and is not e
   `{"key","revision","digest","state","scope"}`, one per changed record, and `term.erased`,
   `decision.erased`. `data` never holds the text (`HC:1133-1134`).
 - **Erasure**: `hub.erase_term` and `hub.erase_decision`, owner functions shaped like
-  `hub.erase_brief` (`HC:1115-1127`): the text goes, the key, digest, number, `savedAt` and `savedBy`
-  stay, and the key resolves `erased`. Erasing a brief changes no term, as it changes no approval:
+  `hub.erase_brief` (`HC:1115-1127`), each reached the way the brief's is through row 45: `POST
+  /v1/terms/{termId}/erase` and `POST /v1/decisions/{decisionId}/erase`, org admin only, with the
+  same `reason`, because a definition can hold client text just as an answer can. The text goes,
+  the key, digest, number, `savedAt` and `savedBy` stay, and the key resolves `erased`. Erasing a brief changes no term, as it changes no approval:
   neither holds brief text.
 
 ## 3. How a decision earns its record, without ceremony
@@ -703,9 +719,9 @@ Phase 4 new: **29 hours, nine tasks.**
 | 45 | `hubapi`: prefixes `te`, `dr`; the two forms and `KeyKind`s; the two envelopes and four golden vectors; the wire objects | 44a | 3 | 46, 47; phase 4's 26 |
 | 46 | `hubclient`: `Terms` and `Decisions`, the fake, the conformance and feed rows: **S0g**, phase 4 codes its terms and decisions against the fake | 05, 45 | 3 | phase 4's 27 |
 | 47 | `sql/0002_terms_decisions.sql`: four tables, the guards, the RLS and grant twins, the word index, the composite keys, `hub.erase_term` and `hub.erase_decision`, a database test for each | 07b's fix round closed, 45 | 3.5 | 48 |
-| 48 | The server: the four routes, the resolver's two kinds, the four events, its own matrix rows (`rowsTask48` in `allRows`, the 16b pattern): **S4g (server side)** | 14, 16b, 20, 47 | 4 | phase 4's terms and decisions on the real Hub |
+| 48 | The server: the six routes (two reads, two batch writes, and the two erasures through 47's functions, §2.6), the resolver's two kinds, the four events, its own matrix rows (`rowsTask48` in `allRows`, the 16b pattern): **S4g (server side)** | 14, 16b, 20, 47 | 4.5 | phase 4's terms and decisions on the real Hub |
 
-Hub new: **13.5 hours, four tasks.** No new Hub task stands in front of the brief's own S4: S4
+Hub new: **14 hours, four tasks.** No new Hub task stands in front of the brief's own S4: S4
 for briefs still opens after 06-20 (`HP:388-394`), and S4g (g for glossary) follows it.
 
 ### 7.4 Amended tasks, all unbuilt, and what each gains
@@ -722,14 +738,14 @@ for briefs still opens after 06-20 (`HP:388-394`), and S4g (g for glossary) foll
 | Hub | 44a, the contract made true | **A20**: the two kinds folded into the contract in the same pass that already moves its lines for A1-A19, so they are re-anchored once | +1.5 |
 | Hub | 14, the write transaction | `TestInFeedIsTheContractTable` gains the four event kinds | +0.25 |
 | Hub | 20, `/v1/refs` brief half | the per-key table answers `term:` and `decision:` `missing` until 48, as `design:` does until 22 (`T:20.md:29-36`) | +0.25 |
-| Hub | 27, audit and erasure | the two erase functions; its "Nothing else changes" sentence (`T:27.md:40-41`) names both kinds | +0.75 |
+| Hub | 27, audit and erasure | its "Nothing else changes" sentence (`T:27.md:40-41`) names both kinds, and its test erases a brief a term settled in and finds the term unchanged. The two functions are 47's and their routes 48's | +0.25 |
 | Hub | 34, the digest re-check | covers the two revision kinds | +0.5 |
 | Hub | 36, the poller | `Subscribe` prefixes gain `"term."` and `"decision."` | +0.25 |
 | Hub | 40, `hubFeed` | handlers for the two prefixes | +0.5 |
 | Hub | 43, the end-to-end proof | one word and one decision through the real Hub | +0.5 |
 | Hub | 44b, the contract made true to the build | folds in what 45-48 built | +0.25 |
 
-Phase 4 amended: **6 hours, seven tasks.** Hub amended: **4.75 hours, nine tasks.** Unchanged, and
+Phase 4 amended: **6 hours, seven tasks.** Hub amended: **4.25 hours, nine tasks.** Unchanged, and
 checked: phase 4's 11, 12, 13, 18, 20 and 21 (11 and 12 keep their scope because 32 carries the new
 routes; 21 stays one-shot, 06 §1.4); the Hub's 08, 16b and 22.
 
@@ -749,7 +765,7 @@ routes; 21 stays one-shot, 06 §1.4); the Hub's 08, 16b and 22.
 | | New | Amended | Total |
 |---|---|---|---|
 | Phase 4 | 29 h, nine tasks | 6 h, seven tasks | **35 h** |
-| Hub | 13.5 h, four tasks | 4.75 h, nine tasks | **18.25 h** |
+| Hub | 14 h, four tasks | 4.25 h, nine tasks | **18.25 h** |
 | `CONTEXT.md` | two entries, *Term* and *Project decision* (§8.2, Q6), when the plans land | — | 0.5 h |
 | **All** | | | **about 54 hours before fix rounds** |
 
