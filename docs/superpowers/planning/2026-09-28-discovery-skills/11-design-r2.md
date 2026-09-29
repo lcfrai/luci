@@ -77,14 +77,14 @@ thing the finding was about.
   criterionId}` (`06:38`), and this design adds no criterion citation of any kind. A term or a
   decision names the brief by `settledIn`, a whole brief key, never a fragment of one (§2.5). The
   brief-to-work generator that round 1 made depend on the fragment is not part of this design.
-- **1.3 The premise under round 1's §5.1 is stale** (`06:49-58`). *Agreed, and used.* A new
-  `kind:` is the grammar's designed extension (`PC:104-107`) and phase W already plans
-  `issue:is-…@r`, so this design adds `term:` and `decision:` as two more forms (§2.1). The thread
-  survives for the reason it survives `issue:`: each new record **references** a brief key, so
-  the brief revision stays the anchor every surface cites.
+- **1.3 The premise under round 1's §5.1 is stale** (`06:49-58`). *Agreed, and since Revision 1
+  no longer an argument for new forms.* A new `kind:` is the grammar's designed extension
+  (`PC:104-107`), but OD-36 ruled that the grammar does not move, so a revision is a struct and no
+  form is added (§2.1). The thread survives because each record **references** a brief key by
+  `settledIn`, so the brief revision stays the anchor every surface cites.
 - **1.4 The rounds' reuse was overstated** (`06:60-70`). *Changed: no reuse is claimed.* Task 21
   stays the one-shot import it is and is not amended (§7.4). The suggestion round is new code,
-  task 30 (3 h), and new screen states, task 31 (4 h), priced as new work (§7.3).
+  task 30 (3.5 h), and new screen states, task 31 (6.5 h), priced as new work (§7.3).
 - **1.5 The provability seed re-asks what `done` asks** (`06:72-86`). *Changed: dropped.* No
   question is minted per criterion, the `done` question stays exactly as built, and the evidence
   phase 3 keys to a criterion's id and digest remains the only provability mechanism. The interview
@@ -1052,12 +1052,12 @@ sceptic's own `11:N` citations are this file at `bd9b6299`. No other file was ed
 
 | # | Finding | Answered at |
 |---|---|---|
-| C1 | Q2's default adds two key forms to the grammar OD-36 froze, while §0 said no question blocks the build | **Root, §2.1:206-238**: one revision is named by a `{kind, id, revision}` struct, and no key form is added. Then §0:21-29 and :58-62 (Q2 asked before 44a, Hub 45 or phase 4's 26; "none of which blocks the build" deleted), §8.2:988-989 (Q1, and Q2 flipped with its cost), §2.4:376-382 (`/v1/refs` unchanged), §5.2:652-657 (set items and entries are structs), §5.4:733-734 and :750 (no new key source), §6.1:778-781, §7.3:881 and :896 (26 and Hub 45 shrink), §1:103-109 and :188-196 (06's shelf clause met) |
+| C1 | Q2's default adds two key forms to the grammar OD-36 froze, while §0 said no question blocks the build | **Root, §2.1:206-238**: one revision is named by a `{kind, id, revision}` struct, and no key form is added. Then §0:21-29 and :58-62 (Q2 asked before 44a, Hub 45 or phase 4's 26; "none of which blocks the build" deleted), §8.2:988-989 (Q1, and Q2 flipped with its cost), §2.4:376-382 (`/v1/refs` unchanged), §5.2:652-657 (set items and entries are structs), §5.4:733-734 and :750 (no new key source), §6.1:778-782, §7.3:881 and :896 (26 and Hub 45 shrink), §1:80-84, :103-109 and :188-196 (06's shelf clause met) |
 | C2 | Under a project key, §5.1's branch overlay and §5.2's one shared `Ref` cannot both hold | **Root, §5.1:578-588**, one rule: the set follows the stamp. A project key gives the project's set only, and a branch's own entries reach sessions from its brief's first complete revision. Then §5.2:643-651 (why one `contextRef` is one `Ref`), §6.2:790-793 (the lens says so on each entry), §0:43-45, and §8.2:996 (Q9: the rule not taken, and its cost) |
 | I1 | The inheritance record is written before its session exists, by a call with no session id | **§5.2:663-672**: `MaterialiseResult` returns the two sets, and the create and restart handlers append the entry after the record write (`api/sessions.go:1037`, `:1817`); a failed append marks the session exited. §7.1:847-848 strikes "phase 2 entirely"; §7.2:858 and task 29 (§7.3:884) price it |
 | I2 | The drift check calls a block `edited` whenever the project's words move | **§5.3:700-712**: set digests before text, a mismatch `superseded`. §7.2:856 lists `Inspect`'s classification; §7.4:912 takes task 12 out of *Unchanged*, its change written by 32 (§7.3:887) |
 | I3 | A20 in a documents-only 44a turns the Hub's contract-reading tests red; phase W adds kinds its own way | **§7.4:920**: A20 is an appended §18, never folded, so no test reads it until 45, 48a and 48b extend each one beside their code, and none of the contract's inbound citations moves. §2.1:227-233 keeps `te` and `dr` out of `keys.go`, as phase W keeps its prefixes in `workids.go`, so the ten-check keeps ten and no count needs agreeing with W0. §2.4:366-371 names the Hub the one owner of §2.2's rules and reads `HC:742-745` as brief content only. Also §7.2:861, §1:110-115 |
-| I4 | §7.2 misses five changes to built code; the honest total is near 66-70 h, not 54 | **§7.1:835-849 and §7.2:850-866**: the handler, the preview, the call-count test, `Inspect`, the Hub's contract-reading tests, and `Document` kept by a new `RenderInherited`. **§7.3:879-906**: 27, 31, Hub 46 and 48 repriced against `plan:409-410`, `HP:405` and `:421-423`, Hub 48 split in two. **§7.5:950-965**: about 69.5 h before fix rounds, about 90 with one round a task, and where the 16 hours came from. Also §0:17-19 |
+| I4 | §7.2 misses five changes to built code; the honest total is near 66-70 h, not 54 | **§7.1:835-848 and §7.2:850-866**: the handler, the preview, the call-count test, `Inspect`, the Hub's contract-reading tests, and `Document` kept by a new `RenderInherited`. **§7.3:879-906**: 27, 31, Hub 46 and 48 repriced against `plan:409-410`, `HP:405` and `:421-423`, Hub 48 split in two. **§7.5:950-964**: about 69.5 h before fix rounds, about 90 with one round a task, and where the 16 hours came from. Also §0:17-19 |
 | I5 | Erasure keeps text in stored replies and in derived terms | **§2.6:426-441**: both batch routes store a text-free reply and rebuild on replay; task 27's scan test gains a term and a decision; a brief's erasure reply lists what settled in it, `settled`. Priced in Hub 48a and 48b (§7.3:899-900) |
 | I6 | Four transitions have no op, including 06 §5.1's *not here* for a decision | **§2.4:313-339**: a departure is born `in_force`, `retired` or `set_aside` (the `depart` row, :328); Undo writes `restore`, which skips rule 2 only; promote's Undo is one batch of restores, applied exits first. Also §2.2:261, §2.3:279-289, §3.2:474-478, §1:162-171 |
 | I7 | A branch's own decisions leave the thread when the branch lands | **§6.2:795-802**: the project's lens lists archived branches' in-force entries with **Promote**, and no prompt. §2.3:291-294 keeps promote and retire open on an archived brief; §2.4:379-380 serves `archivedAt`; §8.2:995 records Q8 with its default and cost |
