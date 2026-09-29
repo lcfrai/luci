@@ -385,7 +385,9 @@ A term is the same shape: the row shows the word, its one-line *is* and the avoi
 writes a `withdraw` or `retire` revision, as the brief's own Undo writes a `restore` revision (phase
 4 `task-19.md:7-9`, 11a §5): the record's history stays honest. When one round holds several
 suggestions, **Record all** writes them in one batch, the Desk's *approve pattern*
-(`AGENTIC-UX.md:109-110`). That is the answer to the sceptic's throughput point (§1, 3.2 item 3): a
+(`AGENTIC-UX.md:109-110`). The batch is all or nothing (§2.4), so a refused one records nothing:
+the row that caused the refusal says why (§6.3), the rest stay suggested, and a second **Record
+all** takes them. That is the answer to the sceptic's throughput point (§1, 3.2 item 3): a
 round costs one gesture, not one review per row. No suggestion is ever raised as a modal
 (`AGENTIC-UX.md:246`).
 
@@ -480,6 +482,14 @@ What the branch sees is phase 4's overlay (§2.3), computed from the two list re
 5-second Hub budget as the brief (`materialise.go:81-87`). If the Hub does not answer, the start is
 refused `hub_unavailable` exactly as it is today: a session never starts on half its inheritance.
 
+**No brief key, no inheritance.** A start whose `contextRef` is `""` or `none:declined` gets no
+entry in any block and neither file: the Materialiser removes both files wherever it strips the
+block today, so a session labelled *started without the brief* finds no Discover text in a file
+this package writes (`materialise.go:110-113`, `:159`). Its inheritance record holds two empty
+sets. The thread starts at a brief key because `Ref`, which carries the set digests, is a brief
+key resolved. `""` means no brief existed (`CONTEXT.md:130-132`), so words without a brief happen
+only before a project's first brief is written; a person who declines the brief declines them too.
+
 **The block**, in order (today's order is 11a §4):
 
 1. The begin marker gains the two set digests and takes the two human lines the sceptic asked to
@@ -547,6 +557,9 @@ the product's untracked projection directory: phase 5 puts its handoff bundle at
 `.panacea/design/<canvasId>@<rev>/`, excluded through `.git/info/exclude` (`P5:231`, P5-G). The
 Materialiser adds `/.panacea/discover/` to `info/exclude`, checks that git ignores it, and follows no
 link below the worktree, the same three rules as the block (`materialise.go:169-184`, `confine.go`).
+A *not ignored* answer, from a tracked file there or a `.gitignore` negation, refuses the start
+`write_failed` before any of the three files is written, as the block's own check does
+(`materialise.go:176-181`).
 
 **So no stamp certifies a truncation** (the sceptic's 4.1). The marker, the files' first lines,
 the `Ref`'s two digests and the inheritance record all carry the digest of the **whole** set, and the whole
