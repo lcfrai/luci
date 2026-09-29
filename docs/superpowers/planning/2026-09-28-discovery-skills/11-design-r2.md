@@ -516,9 +516,12 @@ answers use in a way specific to this project. Facts stay the assistant's job; t
 - **At most three decisions and five words.** An empty frontier is the common answer, and it shows
   nothing at all.
 - **At most one model call per complete revision**, shaped like the follow-up's: effort `medium`,
-  a 20-second budget, the project and branch names and the answers holding a person's words, never
-  file contents (`assist.go:15-20`, `:35-49`, `:182-185`). Its outcomes mirror the follow-up's six,
-  none an error: with no model configured there are no rounds, and the lens keeps *Add a word* and
+  a 20-second budget, the project and branch names, the answers holding a person's words and the
+  two sets in force, never file contents (`assist.go:15-20`, `:35-49`, `:182-185`). Before a round
+  is shown, each proposal is checked against those sets with §2.4's word rules, and one that would
+  be refused is dropped, so a Record never meets a 409 the control plane could have seen. Its
+  outcomes mirror the follow-up's six, none an error: with no model configured there are no
+  rounds, and the lens keeps *Add a word* and
   *Record a decision*, which need no model.
 - **Labelled, never counted**: *Suggested from your answers*. No round number and no total
   (`AGENTIC-UX.md:237`); the interview's one counter stays the literal *QUESTION n OF m* on a base
@@ -545,7 +548,9 @@ audited. There is no `grill_round` op, no round counter and no `Grill{…}` stru
 2. **Its base moved.** When the brief head or either set digest differs from the round's
    base — a teammate revised something — the round is not shown as it was. Each pending suggestion
    is re-checked against the new base: dropped if its word is now in force or its decision now
-   recorded, kept otherwise. A new model call happens only for a new complete revision. So a round
+   recorded, kept otherwise. A decision has no word to match on, so it matches an in-force decision
+   whose `decision` sentence is equal under `hubapi.FoldWord` (§2.4). A new model call happens
+   only for a new complete revision. So a round
    is never applied against a stale base, and if two people race, the Hub's `baseRevision` and
    `word_taken` checks (§2.4) refuse the loser at write, with a row that says why.
 3. **The brief is archived or erased.** The file is deleted.
