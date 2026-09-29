@@ -550,7 +550,7 @@ The Phase 5 and Phase 8 seams, closing the array:
 ];
 ```
 
-**`S8.6`'s `absent` is safe under `codeOnly` for a reason worth checking rather than trusting.** `client.ts` has URL strings in it, and `codeOnly` blanks everything after a `//` — including the `//` inside `"http://127.0.0.1:8730"`. That can only *hide* a match, never create one, so the failure mode is a false green: an `Authorization` header written on the same line as a URL, after it. `client.ts:6-8` names the header in a comment, which is why the raw form is not used. Accept the narrow false-green over a permanent false red; the S8.6 row in `docs/SEAMS.md` says so.
+**`S8.6`'s `absent` is safe under `codeOnly` for a reason worth checking rather than trusting.** `client.ts` has URL strings in it, and `codeOnly` blanks everything after a `//` — including the `//` inside `"http://127.0.0.1:8730"`. That can only *hide* a match, never create one, so the failure mode is a false green: an `Authorization` header written on the same line as a URL, after it. `client.ts:6-8` names the header in a comment, which is why the raw form is not used. Accept the narrow false-green over a permanent false red; the S8.6 row in `docs/SEAMS.md` says so. AMENDED by task 26's round-4 check (2026-09-29): this paragraph describes the stripper as planned, and its premise no longer holds. Fix round 3 (`13affae7`) stopped `codeOnly` blanking after a `//` inside a string, and the round-4 check made the language's own lexer decide what a comment is (TypeScript's parser for a `.ts` file), so a `//` inside a string, a template, a regex literal or JSX text is kept. The false green described here is gone, and the S8.6 note in `docs/SEAMS.md` no longer accepts it.
 
 And the six tests, appended to the same file:
 

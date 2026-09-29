@@ -7,6 +7,7 @@
 // A seam that changes is not a failure to work around. Change the anchor here and the row
 // in docs/SEAMS.md in the same commit; the last test below fails until both agree.
 
+import ts from "typescript";
 import { beforeAll, describe, expect, it } from "vitest";
 
 // The files are collected with Vite's `import.meta.glob`, lazy and `?raw`, not read with node:fs,
@@ -59,60 +60,108 @@ const DOC = "docs/SEAMS.md";
 const RESULTS = "docs/verification/2026-09-27-phase-2-results.md";
 const FENCE = "`".repeat(3);
 
-/** Comments blanked, strings kept whole, newlines kept — for `absent` anchors and the tree rules.
+/** Comments blanked, literals kept whole, newlines kept — for `absent` anchors and the tree rules.
  *  Rounds 1 to 3 shared defects.test.tsx's one-line stripper, which blanks from any `//` to the
  *  end of the line, strings included. That is not safe here, and the claim that it was is what
  *  review 3's I1 disproved: `client.ts:30` is `DEFAULT_BASE_URL = "http://127.0.0.1:8730"`, so
  *  the URL's own `//` hid the rest of that line from S8.6's `absent` (mutant M-AUTH), and a
  *  `"ws://…"` hid a `new WebSocket(u)` beside it from S5.1 (mutant TS-U1). A hidden match is a
  *  silent pass, and this is the shared helper, so it reached every seam.
- *  So: walk the source once, skip over '…', "…" and backtick strings honouring \ escapes, and
- *  blank only the line and block comments found outside them. Go and TypeScript share both
- *  comment forms and all three quotes, so one function serves both; the one difference is the
- *  backtick — a raw string in Go, where a trailing \ is literal, a template literal in
- *  TypeScript, where \` is an escape — so `rel`'s extension picks. A quote that never closes
- *  ends at its line, as it does in both languages, so a stray apostrophe (a regex literal's,
- *  say) costs one line rather than the rest of the file.
+ *  Round 3 walked the source skipping quotes, and TypeScript has three more places where a `//`
+ *  or a `/*` is not a comment: a regex literal (`/^wss?:\/\//`, and `/\/*$/`, which blanked every
+ *  line down to the next `*` `/`), a template inside another's `${…}`, and JSX text. Which `/`
+ *  opens a regex, which `}` resumes a template and where JSX text runs are the grammar's to say,
+ *  so a walk that guesses them leaks by construction (task-26-report.md §9).
+ *  So a comment is what the language's own lexer calls one. A TypeScript or JavaScript file is
+ *  parsed by the `typescript` package that `npm run typecheck` already runs, and every string,
+ *  template piece, regex and JSX text the parser finds is kept whole. Go's literals are regular —
+ *  '…' and "…" with \ escapes, ending at their line if unclosed, and backtick raw strings, where
+ *  \ is literal — so one walk reads them exactly. Only a `//` or `/*` outside a literal is blanked.
+ *  Measured on every file a rule reads (task-26-report.md §9): the Go walk equals go/scanner's own
+ *  comments on all of them, and the parser strips every TypeScript file exactly as round 3's walk
+ *  did, so no result on today's tree moved; only the forms above did.
  *  defects.test.tsx still carries the naive version. It is outside task 26; carried to its
  *  owner in task-26-report.md's round 3 section, not fixed here. */
 function codeOnly(source: string, rel = ""): string {
-  const rawBacktick = rel.endsWith(".go");
+  const literalEnd = rel.endsWith(".go") ? goLiteralEnd(source) : tsLiteralEnd(source, rel);
   let out = "";
   let i = 0;
   while (i < source.length) {
-    const c = source[i];
-    if (c === "/" && source[i + 1] === "/") {
-      while (i < source.length && source[i] !== "\n") i++;
-      continue;
-    }
-    if (c === "/" && source[i + 1] === "*") {
-      const end = source.indexOf("*/", i + 2);
-      const stop = end === -1 ? source.length : end + 2;
+    const end = literalEnd(i);
+    if (end > i) {
+      out += source.slice(i, end);
+      i = end;
+    } else if (source.startsWith("//", i)) {
+      const newline = source.indexOf("\n", i);
+      i = newline === -1 ? source.length : newline;
+    } else if (source.startsWith("/*", i)) {
+      const close = source.indexOf("*/", i + 2);
+      const stop = close === -1 ? source.length : close + 2;
       out += source.slice(i, stop).replace(/[^\n]/g, " ");
       i = stop;
-      continue;
-    }
-    if (c !== "'" && c !== '"' && c !== "`") {
-      out += c;
+    } else {
+      out += source[i];
       i++;
-      continue;
-    }
-    const escapes = c !== "`" || !rawBacktick;
-    out += c;
-    i++;
-    while (i < source.length) {
-      const d = source[i];
-      if (escapes && d === "\\") {
-        out += source.slice(i, i + 2);
-        i += 2;
-        continue;
-      }
-      out += d;
-      i++;
-      if (d === c || (d === "\n" && c !== "`")) break;
     }
   }
   return out;
+}
+
+/** Go: at a quote the walk reaches, the index just past its literal; anywhere else, `i` itself. */
+function goLiteralEnd(source: string): (i: number) => number {
+  return (i) => {
+    const quote = source[i];
+    if (quote !== "'" && quote !== '"' && quote !== "`") return i;
+    let j = i + 1;
+    while (j < source.length) {
+      const c = source[j];
+      if (c === "\\" && quote !== "`") {
+        j += 2;
+        continue;
+      }
+      j++;
+      if (c === quote || (c === "\n" && quote !== "`")) break;
+    }
+    return Math.min(j, source.length);
+  };
+}
+
+const LITERAL_KINDS = new Set<ts.SyntaxKind>([
+  ts.SyntaxKind.StringLiteral,
+  ts.SyntaxKind.NoSubstitutionTemplateLiteral,
+  ts.SyntaxKind.TemplateHead,
+  ts.SyntaxKind.TemplateMiddle,
+  ts.SyntaxKind.TemplateTail,
+  ts.SyntaxKind.RegularExpressionLiteral,
+  ts.SyntaxKind.JsxText,
+]);
+/** TypeScript and JavaScript: the end of the literal the parser found starting at `i`, if any.
+ *  JSX text owns its leading whitespace, so it starts at its `pos`; every other literal at its
+ *  first character after trivia. */
+function tsLiteralEnd(source: string, rel: string): (i: number) => number {
+  const kind = /x$/.test(rel) ? ts.ScriptKind.TSX : /js$/.test(rel) ? ts.ScriptKind.JS : ts.ScriptKind.TS;
+  const file = ts.createSourceFile(rel || "x.ts", source, ts.ScriptTarget.Latest, false, kind);
+  const ends = new Map<number, number>();
+  const visit = (node: ts.Node): void => {
+    if (LITERAL_KINDS.has(node.kind)) {
+      ends.set(node.kind === ts.SyntaxKind.JsxText ? node.pos : node.getStart(file), node.end);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return (i) => ends.get(i) ?? i;
+}
+
+/** codeOnly of a loaded file, once per file. Two tree rules read the same desktop/src sources and
+ *  a parse is the costly part, so beforeAll strips every file a rule reads, under its timeout. */
+const CODE = new Map<string, string>();
+function code(rel: string): string {
+  let stripped = CODE.get(rel);
+  if (stripped === undefined) {
+    stripped = codeOnly(text(rel), rel);
+    CODE.set(rel, stripped);
+  }
+  return stripped;
 }
 
 /** Non-test sources under a directory — TypeScript, or Go for a control-plane rule —
@@ -628,6 +677,11 @@ describe("the named seams — docs/SEAMS.md", () => {
         if (load !== undefined) LOADED.set(rel, (await load()).replace(/\r\n/g, "\n"));
       }),
     );
+    // Stripped here rather than inside a test's default 5 s: codeOnly parses a TypeScript file.
+    for (const seam of SEAMS) {
+      for (const a of seam.anchors) if (a.absent !== undefined && LOADED.has(a.file)) code(a.file);
+      for (const rule of seam.trees ?? []) for (const f of sourcesUnder(rule.dir)) if (LOADED.has(f)) code(f);
+    }
   }, 120_000);
 
   it("names every seam once, with an id of the form the document uses", () => {
@@ -648,7 +702,7 @@ describe("the named seams — docs/SEAMS.md", () => {
         if (a.present !== undefined && !a.present.test(source)) {
           moved.push(`${seam.id} (${seam.name}): ${a.file} lost ${a.present}`);
         }
-        if (a.absent !== undefined && a.absent.test(codeOnly(source, a.file))) {
+        if (a.absent !== undefined && a.absent.test(code(a.file))) {
           moved.push(`${seam.id} (${seam.name}): ${a.file} gained ${a.absent}`);
         }
       }
@@ -741,12 +795,12 @@ describe("the named seams — docs/SEAMS.md", () => {
     expect(header(lines.slice(open + 1, close).join("\n") + "\n")).toBe(header(text(KATA)));
   });
 
-  it("codeOnly reads past a string's //, so every absent anchor and tree rule sees the whole line", () => {
+  it("codeOnly strips only what the language calls a comment, so every absent anchor and tree rule sees the whole line", () => {
     // Review 3's I1: the shared stripper blanked from any `//` to the end of the line, strings
     // included, so client.ts:30's own URL hid the rest of that line from S8.6's /Authorization/
     // (mutant M-AUTH) and a `"ws://…"` hid a `new WebSocket(u)` beside it from S5.1 (TS-U1).
     // A hidden match is a silent pass, so the blind spot reached all 32 seams. This pins the
-    // line S8.6 actually reads, and both languages' quoting, since one helper serves both.
+    // line S8.6 actually reads, and both languages' quoting.
     const client = "desktop/src/api/client.ts";
     const line = codeOnly(text(client), client).split("\n").find((l) => l.includes("DEFAULT_BASE_URL"));
     expect(line).toBe('export const DEFAULT_BASE_URL = "http://127.0.0.1:8730";');
@@ -758,6 +812,25 @@ describe("the named seams — docs/SEAMS.md", () => {
     expect(codeOnly("a := `C:\\` // gone\n", "x.go")).not.toContain("gone");
     // …and a template literal in TypeScript, where \` is an escape and does not close it.
     expect(codeOnly("const s = `a\\`b`; // gone\n", "x.ts")).not.toContain("gone");
+    // Round 3's walk knew quotes, and TypeScript has three more places where a `//` or a `/*` is
+    // not a comment (task-26-report.md §9). A regex literal: `/^wss?:\/\//` ends in `//`, and
+    // `/\/*$/` opens a `/*` that blanked every line down to the next `*/`.
+    const scheme = codeOnly("if (/^wss?:\\/\\//.test(u)) return new WebSocket(u); // gone\n", "x.ts");
+    expect(scheme).toContain("return new WebSocket(u);");
+    expect(scheme).not.toContain("gone");
+    const trim = codeOnly('const b = u.replace(/\\/*$/, "");\nconst h = { Authorization: "t" };\n/** gone */\n', "x.ts");
+    expect(trim).toContain('const h = { Authorization: "t" };');
+    expect(trim).not.toContain("gone");
+    // A template inside another's `${…}`, whose backticks a quote walk reads as the outer closing.
+    const nested = codeOnly("const u = `${`ws://h`}`; const s = new WebSocket(u); // gone\n", "x.ts");
+    expect(nested).toContain("const s = new WebSocket(u);");
+    expect(nested).not.toContain("gone");
+    // JSX text, which is neither code nor a string: a URL shown on screen.
+    const jsx = codeOnly("const e = <a>ws://h</a>; const s = new WebSocket(u); // gone\n", "x.tsx");
+    expect(jsx).toContain("const s = new WebSocket(u);");
+    expect(jsx).not.toContain("gone");
+    // And a `/` that divides opens nothing: the comment after it is still a comment.
+    expect(codeOnly("const r = a / b; // gone\n", "x.ts")).not.toContain("gone");
   });
 
   it("keeps every tree-wide tripwire", () => {
@@ -767,7 +840,7 @@ describe("the named seams — docs/SEAMS.md", () => {
         for (const file of sourcesUnder(rule.dir)) {
           if (rule.except.includes(file)) continue;
           if (rule.only !== undefined && !rule.only.includes(file)) continue;
-          if (rule.absent.test(codeOnly(text(file), file))) {
+          if (rule.absent.test(code(file))) {
             tripped.push(`${seam.id} (${seam.name}): ${file} matches ${rule.absent}`);
           }
         }
