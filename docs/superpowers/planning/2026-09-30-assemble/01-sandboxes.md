@@ -1,6 +1,8 @@
 # 01 — Cloud agent machines: buy, adopt or integrate instead of build
 
-**Status:** COMPLETE, 2026-09-30. Desk research only: nothing installed or run (section 7).
+**Status:** REVISING for the owner's second direction (relaunch, 2026-09-30); the first run
+(stopped 09:47) stands except where section 1a says otherwise. Desk research only: nothing
+installed or run (section 7).
 **Date:** 2026-09-30. **Capability:** isolated per-session sandboxes that run unmodified
 coding-agent CLIs (Claude Code, Codex, Gemini CLI) with a real PTY, warm pools, microVM-class
 isolation, on Azure or bought with an AU region, driven by API as a `Backend` of our Go control plane.
@@ -26,6 +28,12 @@ isolation, on Azure or bought with an AU region, driven by API as a `Backend` of
   claim latency fail on day 1.
 - **Owner calls:** the subscription and a dev baseline of about US$2,000 a month at list price;
   the warm-pool size; the idle policy; the isolation statement customers see.
+
+## 1a. Revised for the owner's second direction
+
+*In progress (relaunch). This section will say what changed from the first run and why:
+Panacea as the strong default judged on merit, Coolify and Supabase allowed, Orca as the
+cockpit, and Panacea snippets allowed with attribution.*
 
 ## 2. What the capability must do (the bar every candidate is scored against)
 
