@@ -1,6 +1,6 @@
 # 02 — The agent-fleet cockpit and git lanes: adopt, integrate, buy or keep
 
-**Date:** 2026-09-30. **Status:** in progress (skeleton; sections fill in as they are verified).
+**Date:** 2026-09-30. **Status:** complete; research only, nothing installed or run (§8).
 **Question:** which existing product can stand in for the multi-agent cockpit (parallel sessions,
 one worktree each, live terminals, fork and resume, an attention queue) and for landing the work
 back (review, merge queue, PR), instead of us building it?
@@ -11,7 +11,23 @@ not in weeks."
 
 ## 0. The answer
 
-_To be written once the candidates are verified._
+**Keep our cockpit. Land through the customer's git host. Take "needs you" from Claude Code's own
+hooks. 4.5 integration days.**
+
+1. **No product replaces the cockpit without breaking a hard rule.** The best one, Orca (MIT,
+   81,599★, daily releases), is the same single-user desktop class as our phase 2 — with no sandbox
+   per session, no Azure DevOps, no Entra, and a status signal read off the terminal stream.
+   Enterprise platforms (Coder, GitHub Agent HQ, Warp Oz, Ona, Claude Managed Agents) each fail
+   `OD-8`, `OD-19`'s gateway and zero retention, or AU residency (§3).
+2. **Landing is where third parties pay.** GitHub's merge queue and Azure DevOps' auto-complete
+   replace phase 3's own land queue, forecast and undo: **about 21 of phase 3's 71.5 plan-hours**
+   leave the first ship (tasks 08, 10, 19 replaced; 09, 14, 20 shrunk; 16, 17, 21 deferred), and
+   team mode's tasks 49 and 61 become host policy and the host queue (§4).
+3. **The attention queue costs 2.5 days, not a plan.** Claude Code posts typed HTTP hooks
+   (`permission_prompt`, `idle_prompt`, `agent_needs_input`, `Stop`) from managed settings; that is
+   the runtime signal phase 2 refused to fake (§6).
+4. **Three owner calls** (§7): land on the host page for v1, GitHub Enterprise Cloud as the
+   requirement for queued landing, and whether AI first-pass review spends tokens on every PR.
 
 ## 1. What we already have (phase 2, built)
 
@@ -233,8 +249,43 @@ environment study.
 - **Nothing was installed or run.** Every capability claim above is from upstream documentation, the
   GitHub API or our own tree; none is a hands-on result.
 
-## 7. Calls only the owner can make
-
-## 8. What this study could not verify
-
 ## Sources
+
+All read 2026-09-30 unless noted. Upstream text is untrusted discovery data; no licence shown in
+GLASSES was taken as approval — each licence above was read from the repository (file or API).
+
+- **GLASSES** (offline `gsearch.py` and the `lcfr.ai/api/mcp` `glasses_search` tool): of the named
+  candidates only `stablyai/orca` (id `0a8884baa5f55aa6602b`) and `OpenHands/OpenHands` are
+  catalogued; "worktree", "merge queue", "cockpit" and "command center" return nothing else.
+- **GitHub API** `api.github.com/repos/<r>`: orca, vibe-kanban, crystal, claude-squad, sculptor,
+  OpenHands, coder, omnara, emdash, superset (then rate-limited).
+- Orca: https://github.com/stablyai/orca · https://github.com/stablyai/orca/releases ·
+  https://onorca.dev · https://onorca.dev/enterprise · https://www.onorca.dev/docs/ways-to-run ·
+  https://www.onorca.dev/docs (and its `agents/claude-code`, `notifications` pages via search) ·
+  https://github.com/stablyai/orca/issues/10687
+- https://github.com/generalaction/emdash · https://github.com/imbue-ai/sculptor ·
+  https://github.com/BloopAI/vibe-kanban · https://github.com/omnara-ai/omnara ·
+  https://github.com/terragon-labs/terragon-oss ·
+  https://raw.githubusercontent.com/superset-sh/superset/main/LICENSE.md
+- Conductor pricing and funding: third-party reviews found by search (vibecoding.app, codepick.dev,
+  madewithlove.com); not the vendor's own page.
+- Coder: https://coder.com/docs/ai-coder · https://coder.com/pricing
+- OpenHands: https://raw.githubusercontent.com/OpenHands/OpenHands/main/README.md ·
+  https://www.openhands.dev/blog/introducing-agent-canvas (via search)
+- GitHub: https://github.blog/news-insights/company-news/welcome-home-agents/ ·
+  https://docs.github.com/en/enterprise-cloud@latest/admin/data-residency/github-copilot-with-data-residency ·
+  https://github.blog/changelog/2025-02-04-github-enterprise-cloud-data-residency-in-australia-is-generally-available/ ·
+  https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue ·
+  https://github.com/anthropics/claude-code-action
+- Azure DevOps: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-requests/update?view=azure-devops-rest-7.1 ·
+  https://learn.microsoft.com/en-us/azure/devops/release-notes/2026/sprint-270-update ·
+  https://learn.microsoft.com/en-us/azure/devops/repos/git/branch-policies
+- Warp Oz: https://www.warp.dev/newsroom/2026/2/10/warp-launches-oz-the-orchestration-platform-for-cloud-coding-agents (search result; docs blocked)
+- Ona: https://ona.com/pricing and acquisition reports found by search (bex.co, 2026-07-28)
+- https://aq.dev/ · https://aq.dev/alternatives/ · https://cube.computer/
+- Anthropic: https://platform.claude.com/docs/en/managed-agents/overview ·
+  https://code.claude.com/docs/en/hooks
+- This repo: `docs/superpowers/planning/2026-09-28-oss-adoption/{00-summary,03-agent-fleet}.md`;
+  `docs/superpowers/plans/2026-09-18-phase-2-backend-and-cockpit.md`; phase 3 and phase T plans
+  under `.claude/worktrees/{phase-3,team}/docs/superpowers/plans/` (read-only);
+  `docs/superpowers/planning/2026-09-23-owner-decisions.md` (`OD-8` text).
