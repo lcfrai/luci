@@ -300,4 +300,32 @@ region, a second tracker).
 
 ## 9. What was not verified
 
-_Pending._
+Nothing in this document has been installed, built or run. Integration days are estimates.
+
+**Read and confirmed on 2026-09-30:** licence files for `microsoft/azure-devops-mcp`,
+`github/github-mcp-server`, `microsoft/azure-devops-go-api`, `microsoft/Agents-for-js` (all
+MIT), `BloopAI/vibe-kanban` (Apache-2.0), `kaleidos-ventures/taiga-back` (MPL-2.0) and
+`Dicklesworthstone/mcp_agent_mail` (MIT plus a rider), via `raw.githubusercontent.com`; vendor
+pages for Linear's regions, Plane's editions and prices, the ADO remote MCP GA post, Agent HQ,
+Jira agents, Atlassian Data Center end of life, Teams connector retirement.
+
+**Not verified:**
+
+1. **The GitHub API was rate-limited** for this pass (the shared corporate egress IP had spent
+   the unauthenticated quota), so stars and last-push dates come from Glasses (observed
+   2026-09-29: Plane ~60k, beads ~27.5k) or the 2026-09-28 study (Huly, OpenProject, Taiga), not
+   re-read.
+2. **KPMG's own tenancy facts:** which geography KPMG's ADO organisation is in; whether KPMG's
+   GitHub EMU enterprise is on github.com or an AU GHE.com subdomain; whether KPMG runs Jira at
+   all; whether an ADO process administrator will add the `Done` rule and fields.
+3. **Whether our own platform can be an issue assignee on GitHub.** Agent HQ documents only
+   Copilot, Claude and Codex; a custom agent as assignee is not documented, so the GitHub trigger
+   is Start from our cockpit, a label, or a Projects field.
+4. **Jira's `rovo:agentConnector` is Preview** and was not tried.
+5. **Prices** for Linear Enterprise, Jira and Atlassian Guard come from vendor list pages or
+   third-party roundups, not quotes; KPMG's GitHub contract price is unknown.
+6. **Whether the ADO remote MCP server has gained Entra dynamic client registration since its
+   GA post**; the plan assumes the local server.
+7. **Whether ADO comment edit-in-place and GitHub comment edits stay inside each API's rate
+   limits at one update per session per state change** — expected yes, not measured.
+8. **Plane's agent features and its Helm chart** were not read; neither changes the verdict.
