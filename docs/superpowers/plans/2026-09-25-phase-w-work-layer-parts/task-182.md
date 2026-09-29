@@ -177,63 +177,63 @@ var Dispatch = map[string]Handler{
 
 ```go
 // server/work_slack.go — routes. The two Slack routes are authenticated by Slack's signature,
-// not by Entra; every other route here is Entra as usual.
+// not by Entra; every other route here is Entra as usual. Each one's org: *The org line*, at the end.
 //
 // POST /v1/integrations/slack/events          Slack signature; url_verification, event_callback
 // POST /v1/integrations/slack/interactivity   Slack signature; form-encoded `payload`
-// PUT  /v1/orgs/{orgId}/slack-installs/{slackTeamId}   org admin; {signingSecretRef, botTokenRef}
-// DELETE /v1/orgs/{orgId}/slack-installs/{slackTeamId} org admin; also stops every Slack post
-// PUT  /v1/teams/{teamId}/slack-channels/{channelId}   team admin; {slackTeamId} → SlackChannelLink
+// PUT  /v1/orgs/{orgId}/slack-installs/{slackTeamId}   org admin of {orgId}; {signingSecretRef, botTokenRef}
+// DELETE /v1/orgs/{orgId}/slack-installs/{slackTeamId} org admin of {orgId}; also stops every Slack post
+// PUT  /v1/teams/{teamId}/slack-channels/{channelId}   team admin; {slackTeamId} → SlackChannelLink; not an install of the caller's org → 404
 // DELETE /v1/teams/{teamId}/slack-channels/{channelId} team admin
-// GET  /v1/integrations/slack/link?n=<nonce>           Entra; the confirm page (HTML, no Slack text)
-// POST /v1/integrations/slack/link                     Entra; {nonce} → SlackPersonLink for the signed-in user
+// GET  /v1/integrations/slack/link?n=<nonce>           Entra; the confirm page (HTML, no Slack text); another org's nonce → 410
+// POST /v1/integrations/slack/link                     Entra; {nonce} → SlackPersonLink for the signed-in user; another org's nonce → 410
 // DELETE /v1/me/slack-links/{slackTeamId}              Entra; the person removes their own link
 ```
 
 ```sql
--- migrate/sql/NNNN_work_wl_slack.sql
-CREATE TABLE slack_installs (
-  org              text NOT NULL,
-  slack_team_id    text PRIMARY KEY,
-  signing_secret_ref text NOT NULL,
-  bot_token_ref    text NOT NULL,
-  installed_by     text NOT NULL,
-  installed_at     timestamptz NOT NULL DEFAULT now()
+-- migrate/sql/NNNN_work_wl_slack.sql. Every table is org-owned: each row's org_id is its install's.
+CREATE TABLE slack_installs (             -- the one binding of a Slack workspace to an org
+  org_id             text NOT NULL REFERENCES orgs (id),
+  slack_team_id      text PRIMARY KEY,    -- global: one workspace, one org (another org's PUT → 409)
+  signing_secret_ref text NOT NULL, bot_token_ref text NOT NULL,
+  installed_by       text NOT NULL, installed_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (org_id, slack_team_id),       -- the target of every key below (task 06 decision 2)
+  FOREIGN KEY (org_id, installed_by) REFERENCES users (org_id, id)
 );
-CREATE TABLE slack_channel_links (
-  slack_team_id text NOT NULL REFERENCES slack_installs(slack_team_id) ON DELETE CASCADE,
-  channel_id    text NOT NULL,
-  team_id       text NOT NULL,
-  linked_by     text NOT NULL,
-  linked_at     timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (slack_team_id, channel_id)
+CREATE TABLE slack_channel_links (        -- org_id is read from the install in the write's transaction
+  org_id        text NOT NULL, slack_team_id text NOT NULL,
+  channel_id    text NOT NULL, team_id       text NOT NULL,
+  linked_by     text NOT NULL, linked_at     timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (slack_team_id, channel_id),
+  FOREIGN KEY (org_id, slack_team_id) REFERENCES slack_installs (org_id, slack_team_id) ON DELETE CASCADE,
+  FOREIGN KEY (org_id, team_id)       REFERENCES teams (org_id, id),
+  FOREIGN KEY (org_id, linked_by)     REFERENCES users (org_id, id)
 );
-CREATE TABLE slack_person_links (
-  user_id       text NOT NULL,
-  slack_team_id text NOT NULL REFERENCES slack_installs(slack_team_id) ON DELETE CASCADE,
-  slack_user_id text NOT NULL,
+CREATE TABLE slack_person_links (         -- org_id is the redeemed nonce's, so its install's
+  org_id        text NOT NULL, user_id       text NOT NULL,
+  slack_team_id text NOT NULL, slack_user_id text NOT NULL,
   linked_at     timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (slack_team_id, slack_user_id),
-  UNIQUE (user_id, slack_team_id)
+  UNIQUE (user_id, slack_team_id),
+  FOREIGN KEY (org_id, slack_team_id) REFERENCES slack_installs (org_id, slack_team_id) ON DELETE CASCADE,
+  FOREIGN KEY (org_id, user_id)       REFERENCES users (org_id, id)
 );
 CREATE TABLE slack_link_nonces (          -- one-time, 10 minutes; only the hash is kept
-  nonce_hash    bytea PRIMARY KEY,
-  slack_team_id text NOT NULL,
-  slack_user_id text NOT NULL,
-  expires_at    timestamptz NOT NULL
+  org_id        text NOT NULL, nonce_hash    bytea PRIMARY KEY,   -- org_id: the minting install's
+  slack_team_id text NOT NULL, slack_user_id text NOT NULL, expires_at timestamptz NOT NULL,
+  FOREIGN KEY (org_id, slack_team_id) REFERENCES slack_installs (org_id, slack_team_id) ON DELETE CASCADE
 );
 CREATE TABLE slack_events_seen (          -- Slack retries: one row per event_id; pruned after 24 h
-  event_id text PRIMARY KEY,
-  seen_at  timestamptz NOT NULL DEFAULT now()
+  org_id   text NOT NULL REFERENCES orgs (id),  -- the install's: written after the org is set
+  event_id text PRIMARY KEY, seen_at timestamptz NOT NULL DEFAULT now()
 );
--- Row-level security follows task 06's pattern for org-owned tables (its policy text wins).
--- Feed bindings: task 157's binding table gains `provider text NOT NULL DEFAULT 'teams'` if it has
--- no provider column; a Slack binding's channel ref is the Slack channel id.
+-- Row-level security (task 06's policy text), the grants, slack_install_org and the feed-binding
+-- rule are this file's second half: *The org line*, at the end of this part.
 ```
 
-**How each inbound call runs** (every one: buffer the raw body, find the install by `team_id`,
-read its signing secret by ref, `Verify`, then decode; an unknown workspace is 401, not 404, so
-the route does not confirm which workspaces exist):
+**How each inbound call runs** (every one: buffer the raw body, find the install's org by `team_id`
+with `slack_install_org` and run the rest in that org's transaction (*The org line*), read its
+signing secret by ref, `Verify`, then decode; an unknown workspace is 401, not 404, so no install is confirmed):
 
 1. **`url_verification`** answers the `challenge` string as `text/plain` and writes nothing.
 2. **An event** inserts `event_id` into `slack_events_seen` first; a conflict answers 200 and does
@@ -252,7 +252,7 @@ the route does not confirm which workspaces exist):
    `text·H`, by that person; an unlinked author's stays a request message only, because a Hub
    comment needs a Hub author.
 5. **`subscribe`** requires a person link; unlinked, an ephemeral *Link your Slack account first*
-   with a button to the link page carrying a fresh nonce, and nothing is written.
+   with a button to the link page carrying a fresh nonce, whose row is the install's org's, and nothing else is written.
 6. **`link_shared`** for task 80's issue URLs calls `chat.unfurl` with the alias, the state word
    and the link, nothing else, for issues the **linked** sharer can read; for an unlinked sharer,
    or an unreadable issue, no unfurl at all (an unfurl could confirm an issue exists).
