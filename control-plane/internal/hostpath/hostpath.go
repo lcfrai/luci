@@ -43,9 +43,15 @@ var ErrOutside = errors.New("hostpath: the path is outside the directory it has 
 
 // Real is where a path actually is: absolute, cleaned, and with every symlink
 // and every symlinked directory component followed. Comparing anything else
-// compares names rather than places, and a link, a junction, a Windows short
-// name or a different letter case is then enough to dress one place as
-// another. The path must exist.
+// compares names rather than places, and a link, a Windows short name or a
+// different letter case is then enough to dress one place as another. The path
+// must exist.
+//
+// A junction is the exception (X-3 review 3 m-B): filepath.EvalSymlinks does NOT
+// resolve a Windows junction, so Real leaves one unresolved and cannot be relied
+// on to expose it. The reparse-point guards (sessionWorktreeAdmin's Lstat,
+// ResolveOutside and ConfineToMount) refuse a junction by its os.ModeIrregular
+// bit instead of resolving it, which is why they Lstat rather than lean on Real.
 func Real(p string) (string, error) {
 	abs, err := filepath.Abs(p)
 	if err != nil {

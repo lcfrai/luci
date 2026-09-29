@@ -78,3 +78,36 @@ func TestAWorktreeAdminJunctionFailsTheCreateAndMountsNothing(t *testing.T) {
 		t.Errorf("the registry holds %#v (err %v), want nothing", list, err)
 	}
 }
+
+// X-3 review 3 m-D. The .git Lstat now fails closed on a reparse point too, the
+// same mask .git/worktrees uses: a .git that is a symlink or a junction lets the
+// host follow a link an agent can aim anywhere to decide what to overmount. A
+// linked worktree's .git is a regular FILE and is unaffected — its own subtest in
+// TestAWorktreeWhoseGitIsNotADirectoryGetsNoMetadataMount still expects "". Red
+// without the mask at .git: the create used to proceed with no overmount.
+func TestAWorktreeWhoseGitIsAReparsePointFailsTheCreate(t *testing.T) {
+	for name, plant := range map[string]func(t *testing.T, link, target string){
+		"a symlink":  func(t *testing.T, link, target string) { x3Link(t, target, link) },
+		"a junction": func(t *testing.T, link, target string) { x3Junction(t, target, link) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			env := sandboxEnvNew(t, func(*Deps) {})
+			target := filepath.Join(t.TempDir(), "real-git-dir")
+			if err := os.MkdirAll(target, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			plant(t, filepath.Join(env.dir, ".git"), target)
+
+			rec := env.do(t, http.MethodPost, "/v1/sessions", sessionsCreateBody)
+			if rec.Code != http.StatusInternalServerError {
+				t.Fatalf("status = %d, want 500: %s", rec.Code, rec.Body.String())
+			}
+			if n := sandboxEnvCreates(env); n != 0 {
+				t.Errorf("backend.Create was called %d times; a .git that is %s must fail the create", n, name)
+			}
+			if list, err := env.st.List(); err != nil || len(list) != 0 {
+				t.Errorf("the registry holds %#v (err %v), want nothing", list, err)
+			}
+		})
+	}
+}

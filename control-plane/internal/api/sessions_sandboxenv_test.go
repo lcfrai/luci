@@ -549,16 +549,9 @@ func TestAWorktreeWhoseGitIsNotADirectoryGetsNoMetadataMount(t *testing.T) {
 			return filepath.Join(dir, ".git", "worktrees")
 		},
 		"no .git": func(t *testing.T, dir string) string { return filepath.Join(dir, ".git", "worktrees") },
-		"a .git that is a symlink to a directory": func(t *testing.T, dir string) string {
-			target := filepath.Join(dir, "real-git-dir")
-			if err := os.Mkdir(target, 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Symlink(target, filepath.Join(dir, ".git")); err != nil {
-				t.Skipf("this host cannot make a directory symlink: %v", err)
-			}
-			return filepath.Join(target, "worktrees")
-		},
+		// A .git that is a symlink or a junction no longer "gets no metadata
+		// mount": X-3 review 3 m-D fails the create for it. The pin moved to
+		// TestAWorktreeWhoseGitIsAReparsePointFailsTheCreate.
 	} {
 		t.Run(name, func(t *testing.T) {
 			env := sandboxEnvNew(t, nil)

@@ -36,13 +36,14 @@ func TestAWorktreeAdminLinkFailsTheCreateAndMountsNothing(t *testing.T) {
 	}
 }
 
-// A second refusal, by Confine rather than by the Lstat: a .git/worktrees whose
-// real location leaves the worktree. AMENDED by the X-3 fix round (review I-1):
-// this pins Confine for the OUT-of-worktree case only and does NOT stand in for
-// the Lstat. An in-worktree symlink defeats Confine (its target is inside the
-// worktree) and a junction defeats it on Windows (EvalSymlinks does not resolve
-// one), so the Lstat is the load-bearing guard — pinned by the tests in
-// sessions_x3_admin_pin_test.go.
+// A .git/worktrees that is a link OUT of the worktree is refused, and the
+// refusal names the path so the user can delete it. AMENDED by X-3 review 3
+// (m-A): this does NOT pin Confine, despite the earlier claim. The Lstat in
+// sessionWorktreeAdmin refuses ANY reparse point first, in or out of the
+// worktree, so Confine never runs for this symlink — MUT-B (Confine neutered)
+// leaves every admin test green. The Lstat is the load-bearing guard, pinned in
+// sessions_x3_admin_pin_test.go; Confine is a backstop for the recorded race
+// only. This test pins the refusal and its message.
 func TestAWorktreeAdminThatLeavesTheWorktreeNamesTheWorktreeInTheRefusal(t *testing.T) {
 	env := sandboxEnvNew(t, func(*Deps) {})
 	admin := sandboxEnvPrimary(t, env.dir, false)

@@ -617,8 +617,9 @@ func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (sessionGit
 
 // sessionWorktreeAdmin returns the host path of a primary worktree's
 // linked-worktree metadata, <worktree>/.git/worktrees, making the directory
-// when there is none yet, and "" for a worktree whose .git is not a
-// directory. A linked worktree's .git is a file, and has no such metadata.
+// when there is none yet, and "" for a worktree whose .git is a regular file. A
+// linked worktree's .git is a file, and has no such metadata. A .git that is a
+// reparse point (a symlink or a junction) fails the create instead (m-D).
 //
 // sessionMounts mounts it read-only over itself (I-1 of the sandbox git fix's
 // review). Each .git/worktrees/<id>/gitdir names a host path the sandbox
@@ -635,10 +636,13 @@ func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (sessionGit
 // while the session runs is covered too. Git makes the same directory itself
 // at the first `git worktree add`.
 //
-// Lstat, so a .git that is a symlink is not followed: the sandbox resolves the
-// link against its own filesystem, where a target outside the mount does not
-// exist, and a directory or a mount made through it would land outside the
-// worktree.
+// Lstat, so a .git that is a symlink OR A JUNCTION fails the create rather than
+// being followed to decide what to overmount (X-3 review 3 m-D): an agent in this
+// worktree can aim such a link at any directory on this host. A linked
+// worktree's .git is a regular FILE, not a reparse point, and still returns ""
+// (it has no admin metadata of its own). Reaching this needs the real .git moved
+// first — the recorded mv residue — so it is defence in depth, closed rather than
+// left as O-2's "mounting nothing" for .git itself.
 //
 // AMENDED by X-3 (review O-2; was "making the directory when there is none yet"
 // with nothing said about what is already there): .git/worktrees is Lstatted
@@ -661,6 +665,12 @@ func sessionWorktreeAdmin(worktreePath string) (string, error) {
 	}
 	if err != nil {
 		return "", err
+	}
+	// m-D: a .git that is a reparse point fails closed, the same mask this
+	// function applies to .git/worktrees below. A regular file (a linked
+	// worktree's .git) falls through to the "" return, unaffected.
+	if info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+		return "", fmt.Errorf("%s is a link or a junction, and the host will not follow it to decide what to mount: an agent in this worktree can aim it at any directory on this host, so delete it and let git write the real .git", gitDir)
 	}
 	if !info.IsDir() {
 		return "", nil
