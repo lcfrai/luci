@@ -62,9 +62,13 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
   ships a **Go SDK** (`sigs.k8s.io/agent-sandbox/clients/go/sandbox`) and an optional
   `sandbox-router` reverse proxy.
 - **Licence.** Apache-2.0. AKS is an Azure service.
-- **Maturity.** 4,086 stars; **v1.0.4 released 2026-09-24**; pushed 2026-09-29. Upstream ships
-  two AKS-specific examples, `kata-aks-sandbox` and a per-owner `kata-aks` warm pool, last edited
-  2026-08-14. Recent releases add warm-pool refill shaping (`replenish-delay`, `max-refill-rate`).
+- **Maturity.** 4,086 stars; v1.0.0 on 2026-08-28, then weekly patches to **v1.0.4
+  (2026-09-24)**; pushed 2026-09-29. The CRDs are **`v1beta1`** (1.0 removed `v1alpha1`), so the
+  API is stable-ish, not GA. Upstream ships three AKS examples, including a per-owner `kata-aks`
+  warm pool, last edited 2026-08-14. Recent releases add warm-pool refill shaping
+  (`replenish-delay`, `max-refill-rate`), Ed25519 scoped tokens on the router (v1.0.2), direct
+  in-cluster pod-IP connectivity in the Go SDK (v1.0.2) and an egress-control blueprint (v1.0.3).
+  Naming trap: upstream also ships a daemon called `sandboxd`; ours is a different program.
 - **Deploy.** Our AKS cluster in **Australia East**; later the same manifests into a customer's AKS.
   Kata pool rules: Azure Linux, a Gen2 VM size with nested virtualisation (Dsv5 class), Kubernetes
   ≥ 1.27. Install is two `kubectl apply` manifests or the Helm chart.
@@ -73,16 +77,21 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
   ordinary Kubernetes: Cilium network policy plus the Azure Firewall already in the phase 8 plan.
 - **Against the bar.** M1 yes (any image; our `sandboxd` owns the PTY). M2 yes (Kata microVM). M3
   yes: the control plane in the cluster dials the pod IP directly, or goes through `sandbox-router`
-  (`kubectl port-forward` cannot enter a Kata guest). M4 yes: *(upstream)* claims from a
-  `kata-aks-warmpool` become Ready "in a couple of seconds". M5 yes. M6 yes. M7 yes. M8 yes
+  (`kubectl port-forward` cannot enter a Kata guest). M4 yes: *(upstream, the v1.0.4 example
+  README)* the warm pool "adopts a pre-warmed Kata pod ... so the claim becomes Ready in a couple
+  of seconds". M5 yes. M6 yes. M7 yes. M8 yes
   (a PVC per sandbox or per user; pause and resume). S1 yes (Go SDK). S5 no memory snapshot.
 - **Gaps.** (1) A warm pod already runs when it is claimed, so per-session env (the attach token,
   the per-session gateway token) cannot be set at pod creation: `sandboxd` needs a **late-bind**
   call. This is true of every warm-pool option in this study. (2) Claim latency on our image is
   unmeasured. (3) Defender for Containers cannot assess Kata pods (already a recorded compliance
   gap). (4) AKS node auto-provisioning (Karpenter) does not support Kata, so the Kata pool scales
-  with the cluster autoscaler. (5) The upstream router example runs with authentication off.
-- **Integration effort: 6 days** (range 5 to 8), itemised in section 5.
+  with the cluster autoscaler. (5) The upstream router example sets
+  `ALLOW_UNAUTHENTICATED_ROUTER=true` ("an open proxy into your sandbox pods"); we either turn
+  its scoped tokens on or skip the router and dial pod IPs from an in-cluster control plane.
+- **Integration effort: 7 days** (range 5 to 9) to the first real cloud session from the
+  cockpit, itemised in section 5. Four of them are this option's; three are glue every option
+  needs.
 - **Verdict: adopt.** It is the only candidate that meets all eight musts today with a permissive
   licence, and it reuses what is built: `katabe` already speaks Kubernetes and has compiled
   against the `Backend` seam since phase 2.
@@ -106,8 +115,9 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
   2026-01-01 API has no volume or disk, so every session starts empty. M3 unverified: the docs
   describe HTTP requests only and say nothing about WebSocket. S2 weak: env and secrets are
   pool-wide, so per-session tokens need the same late-bind.
-- **Integration effort:** 3 to 5 days if WebSocket works through the pool endpoint, plus 2 for a
-  reverse-dial fallback, plus whatever the egress gap costs to close.
+- **Integration effort:** about 9 days: 4 for the pool, the `Backend`, late-bind and transcript
+  export (there is no disk), 2 for a reverse-dial fallback if WebSocket does not pass the pool
+  endpoint, 3 of shared glue; and the egress gap stays open.
 - **Verdict: reference.** The best whole product on paper and the lowest operations burden;
   re-test it when Microsoft ships per-pool egress rules and volumes.
 
@@ -133,8 +143,8 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
   snapshot or fork; per-region ACI core quotas need raising; standby groups are running groups,
   so they are billed while they wait (a reasonable reading of "provisioned and running"; the
   exact meter was not found).
-- **Integration effort: 5 days** — a new `acibe` over ARM (2), late-bind via config map (0.5),
-  the explicit-proxy egress (1), clone-in-sandbox (1, shared with every option), smoke (0.5).
+- **Integration effort: 7 days** — a new `acibe` over ARM (2), late-bind via config map (0.5),
+  the explicit-proxy egress (1), smoke (0.5), plus the 3 days of shared glue (section 5).
 - **Verdict: integrate only if the Kata spike in section 5 fails** (for example no nested-virt
   Dsv5 capacity in Australia East). Same Hyper-V class of isolation, no cluster to run, but a
   weaker egress story and no fast disk.
@@ -210,7 +220,7 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
   stars, release `2026.30` on 2026-09-10).
 - **Why not.** BYOC is AWS and Google Cloud only ("Azure is not yet supported"). Self-hosting
   marks GCP supported, AWS beta, Azure an unchecked roadmap item. Running it on Azure is a port of
-  Firecracker infrastructure onto nested-virt VMs: weeks, not days. No Go SDK.
+  Firecracker infrastructure onto nested-virt VMs: weeks, not days. No official Go SDK was found.
 - **Integration effort:** 20+ days on Azure. **Verdict: reject**; reference its PTY and
   pause/resume API shape.
 
