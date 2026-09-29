@@ -105,7 +105,7 @@ with `Hub.Auditor` in another org arrives here with all three false and `role` `
   - `feat/env` P8-16, built — `entra.Config`, `entra.New(cfg) (*JWKSValidator, error)`, `entra.Validator`, `entra.Claims{TenantID, ObjectID, ClientID, …}`, `entra.Middleware(v, next)`, `entra.ClaimsFrom(ctx)` (`internal/entra/entra.go:23-62,119`, `middleware.go:21,62`). **UNVERIFIED until merge** into `feat/team-mode`: the package is not on this branch today
   - phase 2, built — `httpx.WriteProblem(w, status, code, msg, details)` (`internal/httpx/problem.go:93`), `httpx.CodeInternal`
   - Hub, built — `hubapi.CodeUnauthenticated`, `hubapi.CodeForbidden` (`hubapi/codes.go:20-22`): Fleet answers auth failures with the Hub's two codes, so the desktop switches on one set; `hubapi.Role` (`types.go:20-25`); `hubclient.New(baseURL, scope, tokens, httpClient)` (`hubclient/client.go:21`, a stub until Hub tasks 33–34)
-  - task 10 — `pgstore.Open(ctx, dsn string) (*pgstore.Store, error)` and `(*pgstore.Store).Pool() *pgxpool.Pool`, `pgstore.Migrate(ctx, pool) error`
+  - task 10 — `pgstore.Open(ctx, dsn string, opts ...pgstore.Option) (*pgstore.Store, error)` with `pgstore.WithEntraAuth(on, tokens)`, and `(*pgstore.Store).Pool() *pgxpool.Pool`, `pgstore.Migrate(ctx, pool) error`, `pgstore.RequireSchema(ctx, pool) error` (the last two options and the check are b07's, G32-3/G32-4, `task-10.md:398-410`)
   - task 11 — `outbox.New`, `(*Deliverer).RunOnce`, `(*Deliverer).Janitor`; `delegation.NewCache`, `NewClient(cache, src, now)`, `NewFeed(hub, team, in, cache, rev, leader, now)`, `delegation.StoreInUse` (which now implements both of task 10's reads, `DelegationsInUse` and `DelegationForKey`), `Rebuild(ctx, *Feed, *HubState)`, `(*Feed).Poll`, `Refresh`, `Resolve`, `Sweep`, `Reset`, `Orgs`, `FeedKinds`, `PollEvery`
   - task 08 — `hubclient.Team.Principal(ctx, tid, oid, projectID string) (hubapi.Principal, error)` over `GET /v1/principals` (route 88, contract §7.28). **No longer proposed:** fix batch b02 gave it to tasks 01, 06 and 08, which this part now depends on. `hubapi.Principal` carries `UserID`, `OrgID` (the project's), `ProjectID`, `Role`, `OrgAdmin`, `Auditor`, `Compliance`
 
@@ -845,9 +845,9 @@ import (
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubclient"
 )
 
-func main() { os.Exit(run(context.Background(), os.Getenv, os.Stderr)) }
+func main() { os.Exit(run(context.Background(), os.Args[1:], os.Getenv, os.Stderr)) }
 
-func run(ctx context.Context, getenv func(string) string, stderr io.Writer) int {
+func run(ctx context.Context, args []string, getenv func(string) string, stderr io.Writer) int {
 	cfg, err := loadConfig(getenv)
 	if err != nil {
 		fmt.Fprintln(stderr, "fleetd: configuration:", err)
@@ -871,9 +871,9 @@ func run(ctx context.Context, getenv func(string) string, stderr io.Writer) int 
 		return 1
 	}
 	defer st.Close()
-	// b07, G32-3: "job" means a separate migration Job owns the schema and this
-	// role may hold DML only, so migrating here would fail on permissions. It
-	// still refuses to serve an older schema than its code needs.
+	// b07, G32-3: `fleetd migrate` is the chart's migration Job (task-32.md:246): it migrates, exits, never serves.
+	if len(args) == 1 && args[0] == "migrate" { if err := pgstore.Migrate(ctx, st.Pool()); err != nil { log.Error("migrate", "err", err); return 1 }; return 0 }
+	// Serving under "job": that Job owns the schema and this role may hold DML only, so it only checks the schema is at head.
 	if cfg.Migrate == "job" {
 		if err := pgstore.RequireSchema(ctx, st.Pool()); err != nil {
 			log.Error("schema", "err", err) // "migrate=job and the schema is behind: run the Job"
@@ -1107,7 +1107,7 @@ the DSN set.
 | config · `TestEveryRequiredVariableIsNamedWhenMissing` | empty env → one error naming each of the nine required variables | a required variable given a silent default |
 | config · `TestMembershipTTLOverSixtyFailsStart` | `61s` → an error beginning `PANACEA_APP_FLEET_MEMBERSHIP_TTL` | a clamp instead of a refusal |
 | config · `TestMigrateAndPGAuthDefaults` (b07, G32-3/G32-4) | both unset → `Migrate == "start"`, `PGAuth == "password"`; `"job"`/`"entra"` accepted; `"Job"`, `"entraid"` or any other value → an error beginning that variable's name | an unknown value silently falling back to the default, so a chart typo migrates with a DML-only role and the pod crash-loops with no name to fix |
-| `TestMigrateJobDoesNotMigrate` (b07) | `Migrate == "job"` with a schema at the needed version → `Migrate` never called, server serves; with an older schema → exit 1 and a log naming the Job | a `job` value that still migrates, which fails on the serving role's permissions |
+| `TestMigrateJobDoesNotMigrate` (b07) | `Migrate == "job"` with a schema at the needed version → `Migrate` never called, server serves; with an older schema → exit 1 and a log naming the Job; and `run(ctx, []string{"migrate"}, …)` on an empty schema applies every file once and returns 0 without binding `Addr` (G32-3's Job command) | a `job` value that still migrates, which fails on the serving role's permissions; a `migrate` argument ignored, so the Job serves for ever and the install never finishes |
 | config · `TestHTTPIsRefusedUnlessDevInsecure` | `http://hub` → error; with `DEV_INSECURE=1` → accepted | the scheme check dropped |
 | config · `TestAPasswordInTheDSNIsRefused` | `postgres://u:p@h/db` and `host=h password=p` → both refused; with `DEV_INSECURE=1` → accepted | only one DSN form checked |
 | config · `TestRunExitsTwoBeforeListening` | `run` with an empty env returns 2 and `net.Listen` on the default addr still succeeds | a config error logged and start continued |

@@ -67,10 +67,10 @@ endpoint), so no Hub role can read it and no Fleet role can read the Hub's. A `f
 identity (DDL, owner of the schema) runs a pre-install Job; the serving `fleet` identity gets DML
 only, and `INSERT, SELECT` alone on `policy_versions` (task 10's append-only grant,
 `task-10.md:375-378`). The roles are created once per environment by a human admin, as the Hub's
-are (P8-D10, `task-29.md:193`). **Requires of task 12** a `fleetd migrate` subcommand, and that the
-serving process only verifies the schema is at head when `PANACEA_APP_FLEET_MIGRATE=job`: task 12's
-`main.go` calls `pgstore.Migrate` on start (`task-12.md:819`), which a DML-only role cannot do
-(gap G32-3).
+are (P8-D10, `task-29.md:193`). **Task 12 provides both** (fix batch b07, gap G32-3 closed): a `fleetd migrate` subcommand, which migrates and exits, and
+`PANACEA_APP_FLEET_MIGRATE=job`, under which the serving process only checks that the schema is at head (`task-12.md:144-147`,
+`:874-881`). On `start` it would still migrate with the serving pool (`task-12.md:882`), which a DML-only role cannot do,
+so this chart sets `job`.
 
 **(f) Fleet calls the Hub and the broker at their https URLs.** `PANACEA_APP_FLEET_HUB_URL` and
 `_BROKER_URL` must be `https` (`task-12.md:129`, `task-19.md:504`), and in the cluster TLS ends at
@@ -121,8 +121,8 @@ cluster, **UNVERIFIED**, and task 33 records it. Keysmith is plain http inside i
   - P8-29's chart layout, its migrate-hook weights and its SQL renderer, as patterns
   - P6-19's gatekeeper and keysmith labels and ports (`:4000`, `:4100`)
   - task 12, 19, 20: every `PANACEA_APP_FLEET_*` variable
-- Requires of **task 12**: `fleetd migrate` and `PANACEA_APP_FLEET_MIGRATE` (`startup`, the
-  default for the offline stack, or `job`) (G32-3).
+- Requires of **task 12**, provided since b07: `fleetd migrate` and `PANACEA_APP_FLEET_MIGRATE` (`start`, the
+  default for the offline stack, or `job`) (G32-3, closed).
 - Requires of **task 15**: the `panacea-app/class` pod label (G32-2).
 - Requires of **task 19**: nothing new. `PANACEA_APP_FLEET_CONTROL_KEY_FILE` is a file this chart
   mounts from Key Vault through the Secrets Store CSI add-on (P8-D11), secret `fleet-control-key`.
@@ -243,8 +243,8 @@ object `controlKeySecret`, **no** `secretObjects` (the key is never synced into 
 Secret). `migrate-job.yaml` — the Hub's three hooks, renamed (`task-29.md:166-183`):
 `ServiceAccount/fleet-migrate` at weight `-10`, `NetworkPolicy/fleet-migrate-egress` at `-5`
 (kube-dns, the private-endpoint CIDR on 5432, 443 outside the private ranges for Entra), and
-`Job/fleet-migrate` at `0` running `["/fleetd", "migrate"]` with the migrate DSN and
-`backoffLimit: 0`.
+`Job/fleet-migrate` at `0` running `["/fleetd", "migrate"]` (task 12's subcommand, b07) with `backoffLimit: 0` and the Deployment's
+environment above, rendered from one `_helpers.tpl` block because `fleetd` reads every variable before it runs, except `PANACEA_APP_FLEET_PG_DSN`, which names `database.migrateUser`, and `PANACEA_APP_FLEET_CLIENT_ID`, which is `migrate.serviceAccount.clientId`.
 
 #### Contract — `deploy/charts/fleet/templates/networkpolicy.yaml` (complete)
 
@@ -413,7 +413,7 @@ helm-unittest suites in `deploy/charts/fleet/tests/` and the platform chart's `t
 | `fleet / no dev-insecure` | no rendered env name is `PANACEA_APP_FLEET_DEV_INSECURE` | the offline stack's switch reaching a cluster |
 | `fleet / every variable task 12 requires` | the env names equal the set in `tests/fleetd-env.txt`, which step 2 generates from `config.go`'s table | a variable renamed in `config.go`, so `fleetd` exits 2 on the cluster |
 | `fleet / workload identity on server and migrate` | both SAs carry their client-id annotation; both pod templates carry the `use` label; the `migrate` SA's id is not the server's | DDL rights on the serving identity (task 10's grant made moot) |
-| `fleet / migrate hooks exist before the Job` | weights `-10`, `-5`, `0`; hook policy selects `component: migrate` only | the Job's pod sealed on the first install (`task-29.md:176`) |
+| `fleet / migrate hooks exist before the Job` | weights `-10`, `-5`, `0`; hook policy selects `component: migrate` only; the Job's args are `["migrate"]` and its env names equal the server's, with `PG_DSN` and `CLIENT_ID` the migrate identity's (b07) | the Job's pod sealed on the first install (`task-29.md:176`); a Job that serves, or one `fleetd` exits 2 on for a missing variable |
 | `fleet / no path to a sandbox` | no egress rule of `fleet-server` names `panacea-sandboxes` | a direct Fleet-to-pod path around the broker |
 | `fleet / no path to a model` | no egress rule names `gatekeeper` or `litellm` | Fleet holding a gateway path it does not need |
 | `platform / orchestrators have no internet` | `egress-internet`'s selector has `NotIn [orchestrator]` on `panacea-app/class`; a pod labelled `orchestrator` matches no policy with a `0.0.0.0/0` rule | the selector left `{}` and an orchestrator-only allow added beside it (a union cannot subtract) |
@@ -497,7 +497,7 @@ CI job P8-28 pins, and this part's commit says which ran where.
   a DML-only role cannot. Task 12 now reads `PANACEA_APP_FLEET_MIGRATE` (`start` default, or `job`);
   on `job` it runs no migration and refuses to serve a schema behind its code, naming the Job
   (`task-12.md:144-147`, `:166-177`, the start path and two config tests). This chart's value is
-  therefore read by the binary it sets it on.
+  therefore read by the binary it sets it on. b07 round 2 finished it: the Job's `fleetd migrate` exists (`task-12.md:874-875`), and task 10 now defines the `pgstore.RequireSchema` and `pgstore.WithEntraAuth` that task 12 calls (`task-10.md:398-410`), where round 1 called functions no task defined.
 - **G32-4. CLOSED by fix batch b07.** It read: task 12 has no Entra switch for Postgres. It now
   reads `PANACEA_APP_FLEET_PG_AUTH` (`password` default, or `entra`), and on `entra` the pool's
   password is an Entra token refreshed from the same assertion source the Hub client uses. Both

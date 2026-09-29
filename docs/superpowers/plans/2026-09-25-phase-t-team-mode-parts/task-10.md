@@ -29,7 +29,7 @@ suite exists to catch.
 **Files:**
 - `control-plane/internal/fleet/store/store.go`: `Store`, `Tx`, the row types (new)
 - `control-plane/internal/fleet/store/memstore/memstore.go` (new)
-- `control-plane/internal/fleet/store/pgstore/pgstore.go`: `Open`, `Pool`, `Migrate`, the methods (new)
+- `control-plane/internal/fleet/store/pgstore/pgstore.go`: `Open`, `WithEntraAuth`, `Pool`, `Migrate`, `RequireSchema` (b07), the methods (new)
 - `control-plane/internal/fleet/store/pgstore/pgstore_test.go`: runs the suite on Postgres (new)
 - `control-plane/internal/fleet/store/memstore/memstore_test.go`: runs the suite in memory (new)
 - `control-plane/internal/fleet/store/storetest/suite.go`: `Run` and its rows (new)
@@ -54,9 +54,9 @@ task's tests rerun. `go 1.23` does not move.
   `TurnOrigin`).
 - Produces: `store.Store`, `store.Tx`, `store.OutboxRow`, `store.QueuedEvent`,
   `store.TurnClaim`, `store.DelegationUse`, `store.PolicyVersion`, `store.ErrNotFound`,
-  `store.ErrConflict`; `memstore.New`; `pgstore.Open`, `(*pgstore.Store).Pool`,
-  `pgstore.Migrate`; `storetest.Run`.
-- Required by: 11 (outbox, delegations in use), 12 (`Open`, `Migrate`, `Pool`), 14 (policy
+  `store.ErrConflict`; `memstore.New`; `pgstore.Open` with `pgstore.WithEntraAuth`, `(*pgstore.Store).Pool`,
+  `pgstore.Migrate`, `pgstore.RequireSchema` (b07, G32-3/G32-4); `storetest.Run`.
+- Required by: 11 (outbox, delegations in use), 12 (`Open`, `WithEntraAuth`, `Migrate`, `RequireSchema`, `Pool`), 14 (policy
   versions), 19 (agent lookup), 20 (agent rows), 22 (agents, leases), 23 (lease writes), 24, 25,
   26 (the queue and the claim), 35 (lease paths), 37 (counterpart counters); and tasks 19, 26, 28,
   29, which add their own tables in later migrations.
@@ -395,10 +395,10 @@ UNVERIFIED** until task 32 writes the chart and the database identity.
 
 ```go
 // control-plane/internal/fleet/store/pgstore/pgstore.go (excerpts)
-
-// Open connects and pings. Task 12 calls it once at start (task-12.md:108).
-func Open(ctx context.Context, dsn string) (*Store, error)
-
+// Open connects and pings. Task 12 calls it once at start (task-12.md:108). Its one Option, WithEntraAuth (b07, G32-4, the Hub's pattern, hub task-08.md:142-172): on, pgx's BeforeConnect sets each NEW
+// connection's password to ts.Token(ctx, DatabaseScope) and MaxConnLifetime is 45 min; off, Open is exactly as before. DatabaseScope = "https://ossrdbms-aad.database.windows.net/.default".
+func Open(ctx context.Context, dsn string, opts ...Option) (*Store, error)
+func WithEntraAuth(on bool, ts interface{ Token(context.Context, string) (string, error) }) Option // fleetd's assertion source is ts
 func (s *Store) Pool() *pgxpool.Pool
 
 // Migrate applies migrations/*.sql in name order, each in its own transaction,
@@ -407,7 +407,7 @@ func (s *Store) Pool() *pgxpool.Pool
 // which Migrate creates first. A file already applied is skipped by name; a file
 // whose recorded sha256 differs from the embedded one fails start, naming it.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error
-
+func RequireSchema(ctx context.Context, pool *pgxpool.Pool) error // b07, G32-3: Migrate's read-only half: nil only when every embedded file is in fleet.schema_migrations with its sha256, else an error naming the first missing or differing one; it writes nothing
 const claimSQL = `
 INSERT INTO fleet.turn_claims (orchestrator, org_id, turn_id, nonce, origin, event_ids,
   issued, mode, session_id, sandbox_id, began, until)
@@ -458,7 +458,7 @@ passes on memory fails the same way it would on Postgres.
 `t.Run("<row>")` on a fresh store. `memstore_test.go` calls it with `memstore.New`;
 `pgstore_test.go` calls it with a fresh schema per row on the database named by
 `PANACEA_APP_FLEET_TEST_PG_DSN` (the variable task 12 reuses, `task-12.md:1101`), and **skips the
-whole run, saying so, when it is unset**.
+whole run, saying so, when it is unset**. It also holds two pgstore-only tests (b07, G32-3/G32-4): `TestRequireSchemaNamesTheGap` (a fresh schema → an error naming `0001_fleet.sql`; after `Migrate` → nil; a tampered recorded sha256 → an error naming the file; mutant: a check of the row count alone) and `TestEntraAuthSetsEachPassword` (no database needed: over a fake token source, the pool config's `BeforeConnect` sets `Password` to a fresh `Token(ctx, DatabaseScope)` per connection and `MaxConnLifetime` is 45 min; off, `BeforeConnect` is nil; mutant: a token read once at `Open`, which expires under a long-lived pool).
 
 | Row | Asserts | Mutant it kills |
 |---|---|---|

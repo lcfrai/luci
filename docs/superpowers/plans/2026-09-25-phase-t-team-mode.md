@@ -619,7 +619,7 @@ another audience is 401; two `fleetd` processes on one database run one feed con
 **Fix batch b07 (G32-3, G32-4):** two more variables, because task 32's chart sets both and this
 binary read neither. `PANACEA_APP_FLEET_MIGRATE` is `start` (default, today's behaviour) or `job`,
 where a separate migration Job owns the schema, this process migrates nothing, and it refuses to
-serve a schema behind its code rather than failing on a DML-only role's permissions.
+serve a schema behind its code rather than failing on a DML-only role's permissions; that Job runs `fleetd migrate`, which migrates and exits (b07 round 2).
 `PANACEA_APP_FLEET_PG_AUTH` is `password` (default) or `entra`, where the pool's password is an
 Entra token refreshed from the same assertion source the Hub client uses. Both fail the start by
 name on any other value, so a chart typo is a named error, not a silent default.
