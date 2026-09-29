@@ -240,12 +240,58 @@ about 71 h left. The difference is **what arrives and how much risk is left**. T
 components with slots, CSS Grid, `margin`, theme modes, the pen tool, SVG/PDF export and custom
 fonts. Penpot ships all of those today. The plan's riskiest remaining work is the editor (tasks
 23–26 and 29), which the 2026-09-28 study calls *"the classic two weeks that became six"*, and
-that is exactly the part Penpot replaces. The plan also has a record of fix rounds, one example
-being task 04's three review rounds on a 4-hour estimate.
+that is exactly the part Penpot replaces. The plan also has a record of fix rounds: task 04, estimated at 4 h, went
+through two numbered fix rounds after review (`feat/phase-5-canvas` log).
 
 ## 5. Recommendation
 
-_Pending._
+**Adopt Penpot 2.18.x (MPL-2.0) as the Design phase's canvas.** Self-host it on our AKS in
+Australia East, together with its official MCP server. Embed it in the Design lens, send every
+agent's MCP traffic through our relay, and keep the brief binding, approval and handoff as our own
+code.
+
+**Integration: ~9 engineer-days in total. It is usable after ~3.5:** Penpot deployed, SSO through
+Keycloak, embedded in the lens, and agents designing through the human's open tab. With two
+streams in parallel, that is about 5 calendar days. (§3.1 and §4 said ~8; §6's line-by-line
+breakdown gives 9, and 9 is the figure to use.)
+
+**Why this one**
+
+1. **It is the only candidate that passes T2, T5, T6, T7 and T8 together.** It self-hosts in
+   Australia or in a customer's own cloud, signs in through our Keycloak broker to Entra, has a
+   licence we can deploy, has a real API and webhooks, and has mature multiplayer between people.
+2. **Agents already design in it over MCP by writing Plugin-API code.** That is the same model as
+   Figma's `use_figma`. Paper, the owner's reference, also needs a running app on the user's side
+   before its MCP answers, so the Penpot tab constraint is the benchmark's constraint too.
+3. **It removes the riskiest part of phase 5**, the document engine and the editor. It also ships
+   what phase 5 had left out: co-editing between people, components and variants, grid,
+   prototyping, comments, version history and native tokens.
+4. **No per-seat licence.** Paid support is optional: Private Server at $50,000/yr list.
+
+**What it replaces in our plan.** Phase 5 has 31 tasks and 85 planned hours
+(`.claude/worktrees/phase-5/docs/superpowers/plans/2026-09-23-phase-5-design-canvas.md:440-474`).
+
+| Fate | Tasks | Planned hours |
+|---|---|---|
+| **Replaced by Penpot** | 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15 (except `get_brief`), 16, 17 (except the server instructions), 23, 24, 25, 26, 29 — **18 tasks**. 05 and 06 are already built and become sunk cost | **~50.5 h**, of which ~45.5 h is unbuilt |
+| **Kept, re-pointed at Penpot** (they become the glue) | 18, 19 (relay), 20a, 20b (routes and wiring, smaller), 21 (approval), 22 (handoff), 27 (desktop data, smaller), 28 (lens chrome, smaller), 30 (end to end) — **9 tasks** | ~25.5 h at plan rates |
+| **Built, kept** | 01 (the WebView2 spike, kept as knowledge), 02, 03 (thin homes for the glue), 04 (the licence gate, needed unchanged) — **4 tasks** | ~9 h, already spent |
+
+It also **supersedes `OD-34`**, the canvas's own op-log and authority, because Penpot's backend
+becomes the authority. And it turns `OD-11`'s clean-room build into an adoption (see §7).
+
+**Risks and their answers**
+
+| Risk | Answer |
+|---|---|
+| The MCP only works while a Penpot tab is open and connected | Day 1 spike of the headless runner (§6 G5). If it fails, run agents only while the lens is open, as Paper does, and in the fallback order try either the community RPC-based MCP (`zcube/penpot-mcp-server`, MIT, 19 stars, needs no tab) or OpenPencil (§3.2) |
+| Upstream still labels multi-user MCP *"under development"* | Pin 2.18.x by image digest. Add a canary test that creates a board over MCP on every upgrade |
+| Frames are not live HTML | Fidelity to code comes from `generateMarkup`/`generateStyle` plus the Develop agent. Anyone expecting paper.design's live HTML will notice the difference (owner call 2) |
+| An untrusted agent's `execute_code` runs arbitrary JS | It runs only in the runner's Chromium, as a bot user limited to one project, in a pod whose only egress is Penpot. It never runs in the user's own tab when the user is away, and the sandbox never holds a key |
+| Tokens export in Tokens Studio format | A small converter to DTCG 2025.10 plus `tokens.css` in G6 |
+| A Clojure/JVM codebase we cannot easily patch | Treat it as a black box and take only upstream fixes. Any local patch to an MPL file ships with its source |
+| Relicensing upstream | MPL-2.0 today, and a relicence is not retroactive. Pin the version and let the licence gate record it |
+| Licence traps in its dependencies | Use **Valkey (BSD-3)**, not Redis ≥ 7.4 (RSALv2/SSPL, restricted). Store objects on a PVC, **not MinIO (AGPL-3.0)** |
 
 ## 6. What we still build (glue)
 
