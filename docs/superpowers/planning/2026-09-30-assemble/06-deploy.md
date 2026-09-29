@@ -246,7 +246,16 @@ v1.19.0 for signatures stored **only as v0.3 Sigstore bundle referrers**, which 
 stores them. Test with the exact versions before any Enforce flip.
 
 ### 3.8 Others checked
-*(pending)*
+
+| Candidate | What it is | Licence and price basis | Verdict and the one reason |
+|---|---|---|---|
+| **Octopus Deploy** | release management: promotion lifecycles, deployment freezes, ITSM change approvals (ServiceNow, Jira Service Management), SIEM audit streaming, Entra SSO, an Argo CD integration. An Australian company | proprietary; **per project**: Cloud Professional $4,330/yr up to 100 projects, Cloud Enterprise $24,600/yr, self-hosted Server Enterprise $15,600/yr ([pricing](https://octopus.com/pricing/overview)) | **reference, buy only on demand.** The one thing it has that Panacea lacks is a ServiceNow change ticket on promotion. If a customer mandates that, buy Server Enterprise and self-host it in their tenancy. Octopus Cloud's hosting region was not found |
+| **Harness** (CD, GitOps, Supply Chain Security) | a whole delivery suite with SLSA provenance | proprietary; modular, per service or developer; one third-party estimate is $450K-$650K/yr for 500 services | **reject.** It duplicates Panacea, and its SLSA Level 3 is "not possible in SMP", its self-managed edition ([Harness docs](https://developer.harness.io/docs/software-supply-chain-assurance/ssca-supported/)) |
+| **Northflank**, **Qovery** | bring-your-own-cloud PaaS that runs AKS in your subscription: preview environments per PR, release flows | proprietary; Northflank pay-as-you-go $0.01667/vCPU-hour; Qovery per plan | **reject.** A second platform whose control plane sits outside the customer's tenancy |
+| **Bunnyshell**, **Release**, **Okteto**, **Signadot** | preview environments as a service | proprietary SaaS | **reject.** Panacea already gives every branch an environment. Not examined in depth |
+| **Dokku**, **CapRover**, **Portainer**, **Rainbond**, **Openship**, **Uncloud**, **Appwrite** | the other GLASSES "deploy-service" entries: Docker PaaS or container managers | various (GLASSES shows MIT, Zlib, Apache-2.0, BSD-3-Clause; two unknown) | **reject** for the reasons in 3.1. Not examined further |
+| **GitHub Environments and Deployments API; ADO Environments** | a deployment record in the git host, with approvals | part of GitHub and Azure DevOps | **later, optional glue (about 1 day).** Write each Ship as a deployment in the repo's host, so a developer sees "deployed to preview, brief B" where they already work |
+| **`panacea-mcp` inside the sandbox** | lets an agent read its own preview's logs, pods and diagnosis, and fix a failing deploy itself | Panacea's own | **later.** Its token is a user's `pnc_` key with that user's role, and `panacea_api_request` can write. Agents are untrusted, so this waits for a read-only, per-session token, as phase 6 does for inference |
 
 ## 4. Side by side
 
