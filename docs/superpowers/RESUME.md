@@ -257,11 +257,21 @@ to finish: hub 3 files (t07 fix round), p7 3 files (t07 watcher), env 6 files (`
 those two paths refreshed the stat cache and staged nothing. Disk 20 GB free (floor 15). Docker
 Desktop down. No orphan go, node or python processes.
 
-### 0e.1 Waiting on the owner
-- Phase W: run b03–b12 and b14 now (11 batches, roughly 1.5–2M output tokens), or just before Phase
-  W builds? Relaunch `plans-continue.js` with `{"workBatches":[...]}` either way; done ones skip.
-- Phase W b01: is the Design lens in Phase W at all? Default taken: build the link (81b, 96b, ~7 h).
-- Step 19, phase 2's end-to-end re-run, needs the machine for about an hour with nobody on it.
+### 0e.1 Owner answers, 2026-09-29 07:15
+- **Phase W: b03–b12 and b14 run just before Phase W builds**, not now. Relaunch `plans-continue.js`
+  with `{"workBatches":[...]}` then; done batches skip. b02 still needs its round 2 (its fixer died on
+  the 13:23 sign-out, leaving task-47.md and the skeleton uncommitted): relaunch with `["b02"]`.
+- **Machine time: never ask.** Run phase 2's end-to-end re-run as soon as the gate allows.
+- Phase W b01's Design-lens question keeps its default (build the link): CLAUDE.md's thread rule.
+
+### 0e.2 Added 14:15
+- `discover-r2` DONE: OD-36 is in the register (`cdfa6b95`) and CONTEXT.md's Importants are fixed
+  (`ce9621b0`), both Approved. Design round 2 ended at 0 C / 2 I after one revision.
+- `discover-r2-fix` (task `wfuvw6m25`, run `wf_927d608b-77b`, WS `discover-r2-fix.js`, no args):
+  revision 2 for those two Importants, owner questions Q2/Q8/Q9 filed, a scoped sceptic round 3.
+- Queued for the moment phase 2's gate verdict lands: WS `phase2-e2e-run5.js` with
+  `{"head":"<gated HEAD>","gate":"<gate file>"}` (run 5 of the 19 checks, the results document,
+  a faithfulness review). Then the final whole-branch review, then `main`.
 
 ## 1. What was running at shutdown (7 workflows)
 
