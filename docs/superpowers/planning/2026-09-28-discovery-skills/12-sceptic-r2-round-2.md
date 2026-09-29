@@ -104,6 +104,67 @@ see it.** §2.6 (11:404-434).
 
 ### 2.3 Minor
 
+**M1. The critical path grows by about 24 hours, not 3.5.** §0 (11:17-19), §7.5 (11:936-943).
+This is round 1's M6, restated with numbers.
+- **Now.** The path is Hub H0 → 07 → 08 → 09 → 11 → 12 → 14 → 23 (`plan:430`). Before task 14,
+  what remains is 09's open fix round, then 11 (3 h) and 12 (2 h) (`plan:400-403`): about 5 h
+  plus one fix round.
+- **Under the design.** 14 now waits on 32, which waits on 29, 27 and 30 (11:884, :887). Here is
+  the longest chain the design's own dependencies allow:
+  - Hub 44a: 1.5 h, plus 2 h for A20 (HP:400, 11:920).
+  - Hub 45: 3.5 h.
+  - Phase 4's 25 (2.5 h), then 28 (4.5 h). Task 25 cannot "start now" (11:937): its overlay and
+    sort call `hubapi.FoldWord` (11:360-364, :630-632), and Hub 45 builds that function (11:896).
+    It reaches phase 4 only by merge (11:864).
+  - Phase 4's 27 (6 h), 29 (5.5 h) and 32 (3.5 h).
+  - That is about 29 h of work before 14, against about 5 h today.
+- **The condition cannot be met.** "If 25-30 and Hub 44a-46 run beside it" (11:941-942) cannot
+  hold: that chain is sequential by its own dependencies. And 32 carries seven routes plus task
+  12's rework in 3.5 h, where 11 and 12 together took 5 h for about as many.
+- **Fix.** State about +24 h on the critical path, before fix rounds, in §0 and §7.5. Or
+  shorten the chain: land `FoldWord` and the field-rule function as a small first Hub commit ahead
+  of the rest of 45, and let 25 start on it.
+
+**M2. The two passes run an exit before the create it names.** §2.4 (11:313-318, :325, :412).
+- `supersede` requires `replacedBy`, which may name "an item of this batch", and `retire` takes
+  one too. Both take a record out of force, so both run in the first pass. The item they name is
+  a `create`, which runs in the second pass.
+- `replacedBy` is a foreign key to the head (11:412). So the natural batch, *create "track",
+  retire "lane" in its favour*, names a head that does not exist yet when the retire applies.
+- **Fix.** Mint every id and insert every new head before the first pass, or make the key
+  `DEFERRABLE INITIALLY DEFERRED`. Say which in §2.4 and in task 47.
+
+**M3. Record all is two batches, not one.** §3.2 (11:479-482) says **Record all** "writes them in
+one batch" and that "the batch is all or nothing". But writes go through "one batch route per kind"
+(11:307-308), and a round holds both kinds (11:516).
+- The terms can therefore be recorded while the decisions are refused.
+- An Undo of the whole round spans two restore batches.
+- **Fix.** Say it makes two calls and in which order, what the rows show when only one call
+  succeeds, and that its Undo restores both.
+
+**M4. The third word rule needs the branch's view in the Hub, and it has a hole across scopes.**
+§2.3 (11:296-303), §2.4 (11:355-358).
+- Rule 3 checks "another in-force term on the same branch's view". But what a branch sees "is
+  computed by phase 4, never by the Hub" (11:296). So the overlay, including its
+  later-project-word shadow, is built three times: phase 4's 25 (11:880), the fake in Hub 46
+  (11:897) and the server in Hub 48a (11:899). The one-owner rule that §2.4 applies to §2.2's field
+  rules (11:366-371) is not applied to the overlay.
+- **The hole.** A project write is allowed so that one branch cannot block the project's words
+  (11:302-303). So a project word *track*, written while a branch term says *lane, not track*,
+  goes in. That branch's block then says both "use lane, not track" and "track: …".
+- **Fix.** Put the overlay in `hubapi` beside `FoldWord`, one function called from all three
+  places. Extend the later-project-word shadow to a project word that a branch term avoids, with
+  the same *project changed* treatment.
+
+**M5. A *not here* departure is one gesture, but §2.2 requires fields for it.** A term revision
+needs a `word` of 1-64 and an `is` of 1-300 code points (11:247-248). A decision revision needs a
+`decision` of 1-300 (11:254). The `depart` item lists only `baseRevision`, `scope`, `overrides` and
+the state it is born in (11:328). So as written, a *not here* departure is refused with 400 by the
+first write-time check (11:341). §6 also names no verb that creates one: §6.2 only describes how a
+departure reads, and the refused row offers **Depart on this branch** (11:818).
+- **Fix.** Say a *not here* departure copies the pinned entry's fields. Name its verb in §6.2,
+  for example **Not on this branch**, beside the project entry on a branch.
+
 ## 3. What held up
 
 ## 4. What this review did not verify
