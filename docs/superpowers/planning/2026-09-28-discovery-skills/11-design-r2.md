@@ -186,7 +186,7 @@ never mints a brief revision. `HC` is the Hub contract,
 
 ### 2.1 Ids and keys: two new forms beside the two that exist
 
-| | Term (one glossary entry) | Decision (one decision record) |
+| | Term (one entry of the glossary) | Decision (one entry of the decision record) |
 |---|---|---|
 | Hub id | `te-` + 16 lowercase hex, `ids.Wide("te")` | `dr-` + 16 lowercase hex, `ids.Wide("dr")` |
 | Key | `term:te-<16 hex>@<n>` | `decision:dr-<16 hex>@<n>` |
@@ -378,8 +378,8 @@ round costs one gesture, not one review per row. No suggestion is ever raised as
 | It is ours, not the project's | a choice about how PanaceaApp itself is built | our own owner-decision register, never a product record |
 
 A **word** earns an entry when it is a noun specific to this project, defined by what it *is*, with
-one word chosen and the others listed; general programming words stay out even in a project
-full of it (`05-design.md:250-254`).
+one word chosen and the others listed; general programming words stay out, however often a
+project uses them (`05-design.md:250-254`).
 
 **Few decisions is the normal outcome**, not a gap. A project with none shows no empty-state prompt,
 no count and no "0 decisions": counts live only in the queue (`AGENTIC-UX.md:245`), and the lens's
@@ -497,11 +497,16 @@ Everything else in the block's rules holds: the neutraliser, LF, no timestamp (`
 - **A set digest** is `"sha256:"` + hex over a canonical envelope
   `{"v":1,"kind":"term-set" or "decision-set","scope":…,"items":[{"key","digest"},…]}`, sorted by key:
   every entry the branch sees, never only the ones that fitted inline.
-- **The inheritance record**, new, phase 4's: one immutable entry per session start, written by the
-  Materialiser beside the block, `{sessionId, start, contextRef, terms: {digest, keys},
-  decisions: {digest, keys}}`. `MaterialiseRequest` gains `SessionID` for it (`api/materialiser.go:25`,
-  phase 4's own seam from task 10); `MaterialiseResult` and the session record do not change, so
-  phase 2 carries `contextRef` exactly as before.
+- **The inheritance record**, new, phase 4's: one immutable entry per process start, written by the
+  Materialiser in the same call as the block, `{sessionId, start, contextRef, terms: {digest, keys},
+  decisions: {digest, keys}}`. It is kept where `contextRef` is kept, in the control plane and not
+  the Hub (`contextRef` is the registry session record's, stamped at every create, restart, resume
+  and fork, `PC:182`): one file per session, `<state>/discover/inheritance/<sessionId>.json`, which
+  gains one entry per start through `statepath.WriteAtomic`, as §4.2's round file is written, and is
+  never otherwise rewritten. It is never in the worktree, where the agent it describes could edit
+  it. `MaterialiseRequest` gains `SessionID` for it (`api/materialiser.go:25`, phase 4's own
+  interface from task 10); `MaterialiseResult` and the session record do not change, so phase 2
+  carries `contextRef` exactly as before.
 
 **Why that is provable.** Every key in the record names an immutable revision that resolves for
 ever (an erased one still resolves `erased`, keeping key and digest, §2.6); the set digest
@@ -738,7 +743,7 @@ routes; 21 stays one-shot, 06 §1.4); the Hub's 08, 16b and 22.
 |---|---|---|---|
 | Phase 4 | 29 h, nine tasks | 6 h, seven tasks | **35 h** |
 | Hub | 13.5 h, four tasks | 4.75 h, nine tasks | **18.25 h** |
-| `CONTEXT.md` | two entries, *Term* and *Decision record*, when the plans land | — | 0.5 h |
+| `CONTEXT.md` | two entries, *Term* and *Project decision* (§8.2, Q6), when the plans land | — | 0.5 h |
 | **All** | | | **about 54 hours before fix rounds** |
 
 Against the plans: phase 4's whole plan is 57 hours (11a §1), so this is about 60% more on phase
