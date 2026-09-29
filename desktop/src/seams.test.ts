@@ -1179,11 +1179,12 @@ describe("the named seams — docs/SEAMS.md", () => {
 
     // Review 7's Minor 6, SV3: the first line's spelled-out check count, changed by one, passed
     // 20/20 and both workspace scripts, because the rule above reads digits and the document states
-    // the same tally in words: four times in its first paragraph and five times after it. Each
+    // the same tally in words: five times in its first paragraph and five times after it. Each
     // phrase is read against The checks' own rows (the Findings table, for the defect count), and
     // each must be found exactly once, so a paraphrase that drops its number is a red, not a skip.
-    // Not read: the Prerequisites' eight, Phase 1's twelve and the earlier runs' counts, which
-    // are other tallies.
+    // Review 9's I-2, RS1: the list had nine, and the first paragraph's fifth, "For those five",
+    // went unread, so "six" there passed; it is the tenth. Not read: the Prerequisites' eight,
+    // Phase 1's twelve and the earlier runs' counts, which are other tallies.
     it("every count the document spells out in words agrees with The checks' own rows", () => {
       const verdicts = [...CHECKS().values()];
       const reds = verdicts.filter((v) => v.result === "FAIL");
@@ -1199,6 +1200,7 @@ describe("the named seams — docs/SEAMS.md", () => {
         [/\b(\w+) reds, (\w+) product defects \(F1-F(\d+)\)/g, [reds.length, defects, defects]],
         [/\b(\w+) of the (\w+) name a finding with a mechanism\b/g, [reds.length - carrying("F5"), reds.length]],
         [/\bthe other (\w+) carry F5\b/g, [carrying("F5")]],
+        [/\bFor those (\w+), the finding names\b/g, [carrying("F5")]],
         [/\b(\w+) reds stand as the result\b/g, [reds.length]],
         [/## Findings (\w+) product defects\./g, [defects]],
         [/\bit owns (\w+) of the (\w+) failures\b/g, [carrying("F3"), reds.length]],
@@ -1272,12 +1274,17 @@ describe("the named seams — docs/SEAMS.md", () => {
     // block rule reads SV1's row but asserts The checks' own verdict and tag, never the row's own
     // word, and skips SV2's row, which names no finding. Workspace rule 1 (`tables-vs-run.mjs:70-87`)
     // killed both against `results.jsonl`; it is re-based here on *The checks*, with its Phase 1
-    // half (`:90-103`). A verdict lives in a row's LAST cell and binds the checks in its own `;`
-    // clause, because one row can carry two checks with opposite verdicts; a clause that names no
-    // check binds the row's other cells, which is the Phase 1 table's shape. A verdict written in
-    // PROSE is read by no rule here (the block rule reads The checks' word, not the paragraph's):
-    // a named, unguarded class, in the document's guards paragraph.
-    it("a verdict beside a check, in any table outside The checks, is that check's verdict there", () => {
+    // half (`:90-103`). It reads a row's LAST cell only, and only an upper-case PASS or FAIL there,
+    // which binds the checks in its own `;` clause, because one row can carry two checks with
+    // opposite verdicts; a clause that names no check binds the row's other cells, which is the
+    // Phase 1 table's shape. Read by no rule here, and named as one unguarded class in the
+    // document's guards paragraph: a verdict written in PROSE (the block rule reads The checks'
+    // word, not the paragraph's), in any other cell of a row, or in lower case. Review 9's RC1
+    // (F5's row, cell 3 of 4, `c5.resize` PASSED -> FAILED) and RV1 (RB 8's last cell, `setup`
+    // passed -> failed) survive, as named. Reading more does not converge: RC1's clause names seven
+    // checks, four PASS and three FAIL, and F5's last cell asks a hypothetical, so the binding would
+    // have to be per sentence, which is the design declined for prose.
+    it("an upper-case PASS or FAIL in the last cell of any table row outside The checks is that check's verdict there", () => {
       const checks = CHECKS();
       let inChecks = false;
       let bound = 0;
@@ -1345,6 +1352,8 @@ describe("the named seams — docs/SEAMS.md", () => {
     // (`tables-vs-run.mjs:225-242`), re-based: a finding may say it landed only in a check that
     // *The checks* attributes to it. The trigger is the landing verb, not co-occurrence, because a
     // finding row names green checks as contrast evidence (F5 names `p1.fidelity`) without one.
+    // The trigger is a verb list, so a landing in any other verb is read by no rule: review 9's
+    // MC2 (MC with "It shows up inside") passes, named as the guards paragraph's sixth class.
     it("a finding says it landed only in a check The checks attributes to it", () => {
       const checks = CHECKS();
       const LANDED = /\b(?:lands?|landed|fired|fell)\s+(?:in|inside)\b|the check it broke|which it broke/i;

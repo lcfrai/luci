@@ -438,7 +438,8 @@ workspace (`e2e-run4/step20/`) — **workspace evidence, which will not survive 
 same caveat as the `Edg/…` string above. So **thirteen** rules that read nothing but this
 document are **committed** as well, in `desktop/src/seams.test.ts` (*"the run document"*), where
 `npm test` runs them: a paragraph, table row or list item that names one check and asserts a
-finding must agree with that check's row in *The checks*; F2's verbatim `err=` quote must name the
+finding must attribute the same finding as that check's row in *The checks*, to a check that
+failed; F2's verbatim `err=` quote must name the
 worktree its attribution reads it for; a window that says it *excludes* or *includes* an instant
 must be right about it; anchor 4's derived start window must equal its thrown window minus the
 check's own duration; *What is still unproven* may not assert that anything IS proven; a *Carry
@@ -447,17 +448,17 @@ disposition* row's Result and that section must agree **in both directions**, so
 a NOT RUN row's *Observed* must be an em dash, and *The checks*' Summary must count its own rows;
 every headline count must equal that same tally, in the bare *"N PASS, M FAIL"* form **and** in the
 *"p/t PASS, f FAIL, n NOT RUN"* form that the *What was tested* row above uses; every count of
-checks, reds or findings this document spells out in words, four in its first paragraph and five
+checks, reds or findings this document spells out in words, five in its first paragraph and five
 after it, must equal that tally (the *Findings* table, for the defect count), and each must be
 found; every sentence outside **this** section that says whether resume's
 fork was reached must agree with every other, and all three must be found: the *Carry
 disposition* row for open carry 2, item 8 of *What is still unproven* and F2's finding, one per
-section; a verdict beside a check, in any table outside *The checks*, must be that check's verdict
-there, and every row of the Phase 1 table must carry a verdict; every red in *The checks* must name
-exactly one finding, and no green any; and a finding may say it landed only in a check that *The
-checks* attributes to it. This section is the one place the fork rule does not read, because
-documenting that rule means quoting both forms of the sentence; the test excludes it by heading, so
-renaming the heading fails the test rather than widening the scan.
+section; an upper-case PASS or FAIL in the last cell of a row, in any table outside *The checks*,
+must be that check's verdict there, and every row of the Phase 1 table must carry a verdict; every
+red in *The checks* must name exactly one finding, and no green any; and a finding may say it
+landed only in a check that *The checks* attributes to it. This section is the one place the fork
+rule does not read, because documenting that rule means quoting both forms of the sentence; the
+test excludes it by heading, so renaming the heading fails the test rather than widening the scan.
 
 Of `tables-vs-run.mjs`'s **twelve** rules, the committed ones are its rules 3, 5a and 5b, ported as
 written; its rules 1 (with its Phase 1 verdict check), 2, 4, 6 and 7, re-based on a different oracle
@@ -481,10 +482,16 @@ skips when its evidence is absent is not a guard. Four of its twelve read that l
 written to three decimals must be in it verbatim, F3's three counts and its percentage are
 recomputed from it, the *"exactly one `level=ERROR`"* claim above is recounted, and every quoted
 fragment of the six key names it matches — `time=`, `msg=`, `err=`, `method=`, `path=`, `level=` —
-must be a substring of it. Five classes stay **unguarded** and are named in that file rather than
+must be a substring of it. Six classes stay **unguarded** and are named in that file rather than
 claimed shut: a fact read from `sessions-after.json`, a citation into the log by line number, a
 paraphrase of which check performed an action, a reversal, in words no rule matches, of whether
-something was reached, and a verdict written in prose rather than in a table, anywhere but *What
-is still unproven*: the block rule reads *The checks*' verdict for a paragraph, never the
-paragraph's own word. The fork rule guards one statement of the fourth class, the one this
-document makes in three places, and no other.
+something was reached, a verdict outside *The checks* that is not an upper-case PASS or FAIL in a
+table row's last cell (one in prose anywhere but *What is still unproven*, in another cell of a
+row, or in lower case), and a landing written in a verb the landing rule does not list. The block
+rule reads *The checks*' verdict for a paragraph, never the paragraph's own word, and the
+last-cell rule reads a row's last cell, in upper case, and no other: the ninth review's RC1, an
+upper-case verdict in the third of a row's four cells, and its RV1, a lower-case one in a last
+cell, survive as named, as does its MC2, a landing in an unlisted verb. Reading more cells would
+not close the fifth class: one such cell names seven checks under both verdicts, and one last
+cell asks a hypothetical question in lower case. The fork rule guards one statement of the fourth
+class, the one this document makes in three places, and no other.
