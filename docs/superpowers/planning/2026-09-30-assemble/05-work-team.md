@@ -5,6 +5,19 @@
 tasks, plan only): issues, projects, cycles, boards, Linear-class speed, presence, notifications,
 seeing each member work, agents taking issues.
 **Owner direction (2026-09-30):** third-party first, the tool ASAP, days not weeks.
+**Second direction (2026-09-30, later):** Panacea is the strong default, the best fully-fledged
+solution wins, Coolify and Supabase allowed, Panacea snippets allowed with attribution (`OD-13`
+relaxed), Orca (`stablyai/orca`) is the cockpit direction. See §0.
+
+## 0. Revised for the owner's second direction
+
+*Relaunch in progress: this section is being filled in; §1-§9 below are the first run's work.*
+
+- What changed: (pending)
+- Panacea: (pending)
+- Supabase and Coolify: (pending)
+- Orca: (pending)
+- Net effect on days, tasks and owner calls: (pending)
 
 ## The answer
 
