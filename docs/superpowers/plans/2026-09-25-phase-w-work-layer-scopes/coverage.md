@@ -48,7 +48,7 @@ against the desktop tree (UNVERIFIED).
 | 5 | Private teams, invisible to non-members | MATCH | exists | **none** |  |
 | 6 | Private issue sharing with a non-member | SKIP | — | — | Same reason as L-4: no per-object grants in v1. A guest role is the later answer |
 | 7 | Copy team automations and templates to another team | MATCH | later | 175 |  |
-| 8 | Six fixed status categories with custom named statuses per team | EXCEED | W1 / W2 | 22, 23, 28, 46, 75, 84 · serves 03, 04, 10, 17 · proof 70 |  |
+| 8 | Six fixed status categories with custom named statuses per team | EXCEED | W1 / W2 | 22, 23, 28, 46, 75, 84 · serves 03, 04, 10, 17, 23b · proof 70 |  |
 | 9 | Default status for new issues | MATCH | W1 | 25, 68 · serves 03-05, 11, 17, 42 · proof 70 |  |
 | 10 | Reserved Duplicate status | MATCH | W1 | 42, 48 · serves 03, 05, 10, 11 · proof 70 |  |
 | 11 | Auto-close stale issues | EXCEED | W2 | 73, 77, 94 |  |
@@ -365,3 +365,18 @@ closer was one of these would still be a gap; none is.
 Gaps list unchanged. It is about **Figma**; 81b and 96b are about **our own** canvas, and building
 ours closes nothing of Figma's. The same holds for **L-128** (auto-embeds, SKIP), whose reason line
 already says our own canvas frames embed natively.
+
+## Task 23b, which serves a row it does not close (added by fix batch b02, 2026-09-29)
+
+Review finding **S03-C1** added task **23b**: the product `CheckRunner` and the check line a person
+sets a criterion's check on. It **serves L-8** and closes nothing alone, so the counts above do not
+move (203 closed, 6 served but never closed, 21 with no Phase W task, 27 gaps). L-8's closers are
+unchanged, but its EXCEED half — `done` is a fact, and observed evidence closes an issue with no
+click (`OD-27`, skeleton rule 2) — is true in the product only with 23b: before it, task 23 wired
+`Runner: nil` and nothing wrote `Serve.Check`, so the row claimed a capability the plan did not
+build. That is why the row names 23b under *serves*, and why the review's other option (defer the
+runner and re-word the row) was not taken: deferring contradicts `OD-27`.
+
+The same batch added no other task. Its other changes sit inside existing tasks (the `check` field
+and `ValidateCheckChange`, task 02; the rule's call sites, tasks 04, 05, 08 and 09; SW.3's
+statement, task 07) and move no row.

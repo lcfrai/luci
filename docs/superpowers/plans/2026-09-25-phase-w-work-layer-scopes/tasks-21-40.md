@@ -114,12 +114,12 @@ appends a Record as the lander, `verdict: settled`, `because` "<command>, exit 0
 at <time>", marked observed and citing the issue; any other exit writes nothing. After a land (task
 22's `Landed`) and after a person's Record (P3-15's `POST /v1/projects/{projectId}/evidence`),
 `IssueDone` runs for each landed issue serving that criterion, and a `proven*` or `no_criteria` word
-sends `StateMove{to: done, cause: evidence}` as that person. **Two inputs the Hub does not have
+sends `StateMove{to: done, cause: evidence}` as that person. **One input the Hub does not have
 yet:** hub-contract §7.10's evidence body (`hub-contract.md:1060-1083`) has no issue citation and no
-observed mark, and SW.1 has no field naming a criterion's check. This task assumes task 10 adds
-`issueId` and `observed` to the evidence record and task 03 adds `Check` to a `serves` entry, both
-added fields (allowed after WS0); a part that finds them absent raises it, it does not invent a
-store. **Tests first:** `TestIssueDoneIgnoresEvidenceBeforeLand` (kills a missing at-or-after
+observed mark; this task assumes task 10 adds `issueId` and `observed` (added fields, allowed after
+WS0), and a part that finds them absent raises it and invents no store. **The check is not such an
+input** (b02): it is task 02's `Serve.Check`, pinned by golden vector v4, and lands before WS0
+because it is in the canonical form; the part reads it off the evaluated revision. **Tests first:** `TestIssueDoneIgnoresEvidenceBeforeLand` (kills a missing at-or-after
 check); `TestIssueDoneIgnoresSiblingEvidence` (kills a rule without the citation);
 `TestObservedExitZeroClosesWithNoClick` (kills a rule that needs Record);
 `TestObservedNonZeroWritesNothing` (kills a failure recorded as evidence);
@@ -129,10 +129,10 @@ switch); `TestRevertedLandRetiresIssueEvidence` (kills bypassing the revert walk
 `TestObserverRunsInAFreshClone` (a lane holds an uncommitted file that makes the test pass → the check
 still fails; kills running in the lane). **Acceptance:** `go test ./control-plane/internal/evidence/...
 -race -count=1` prints `ok`. It does **not** claim the *done, not proven* glyph (tasks 28, 48), a
-hand-set `done` (task 10's server rule), W3's proposed evidence (task 104), or which runner the
-sandbox uses in local mode (P3-24's runner or the phase 1 Docker sandbox, **UNVERIFIED**). Design:
+hand-set `done` (task 10's server rule), W3's proposed evidence (task 104), the product runner or
+the line a check is typed on (both task 23b's, whose block is at the end of this file). Design:
 05 §3.3, §2.1 point 4, §5.3 row 7. Parity: closes the W1 part of **L-8** (`done` is a fact) with task
-22; it is what makes the demo's no-click `done` (05 §5.3) true.
+22; with task 23b it is what makes the demo's no-click `done` (05 §5.3) true.
 
 **24 — control plane: Start from an issue, *Undo Start*, the data-class route.** Stream WP, defines
 seam **SW.10**, 3 h. Depends on 16 (the relay, `Deps.Work`), 19 (`Session.IssueRef`, SW.7) and 21
@@ -738,4 +738,30 @@ decides):
 8. 02 C4 names `--s-1 … --s-8` but gives six values; task 26 declares six.
 9. The home of a project's data class is unverified (Phase T says the same); tasks 21 and 24 fail
    safe to AU when it is unknown.
+
+**23b — a criterion's check, end to end: the product `CheckRunner` (one bounded command in a check
+sandbox, exit code only) and the check line a person sets it on.** Added by fix batch b02 (review
+finding S03-C1) and placed here, after the gaps, so that no line above moves; its skeleton row is
+`2026-09-25-phase-w-work-layer.md:425` and its part is `task-23b.md`. Stream WP, no seam of its own
+(it fills task 23's `CheckRunner`; SW.4 reads the result unchanged), 4 h. Depends on 23, 47 and
+P3-24. **Why:** task 23 wires `Runner: nil`, so without this task `Observer.Run` returns
+`ErrNoRunner` on every product path and nothing in W1 writes `Serve.Check`; `done means proven`
+(`OD-27`, rule 2) would hold only in a test double. **Runner:** `evidence.SandboxRunner` creates a
+check sandbox through `backend.Backend` (unchanged, seven methods) with `SANDBOXD_ROLE=check` (never
+a `PANACEA_APP_*` key, which `ValidateSpec` refuses), an idle `/bin/sleep infinity` session, no host
+mount and no credential; hands it the landed commit's bundle over a new `sandboxd` route
+`/check/v1/run` (behind the server's bearer check, beside P3-24's `/git/v1/`); gets back
+`{exitCode, timedOut, ranAtMs}` and no output (`OD-8`); destroys the sandbox on every path. Bounds:
+10 minutes by default, 30 at most (task 23's `Check.Timeout`), clamped in both processes. **Check
+line:** `CheckLine.tsx` on task 47's `ServeRow` shows the command in Commit Mono and lets a member
+set, edit or clear it on the head revision; each is one `revise` (task 47's decision 3), the
+1000-byte cap is counted in UTF-8 bytes, and every other pair keeps its check. **Who may set one**
+is SW.3's rule (task 07's addendum), decided by task 02's `ValidateCheckChange`. **Tests first:**
+`TestRunRefusedWithoutTheCheckRole`, `TestRunReportsOnlyTheExitCode` (kills output plumbed back),
+`TestRunTimeoutIs124AndNotZero`, `TestCheckSandboxIsDestroyedOnEveryPath`,
+`TestCheckSpecCarriesNoHostMountAndNoAgent` (the `Spec` passes `ValidateSpec`), the check line's
+seven, and `TestObservedExitZeroClosesWithNoClickInTheProduct` behind `-tags docker`, whose run is
+recorded because a skip is not a pass. It does **not** claim a check on Kata (phase 8 stream C), a
+check needing a secret or a service, or a sandbox without a network. Parity: serves **L-8** with 22
+and 23, and makes 05 §5.3's no-click `done` true in the product.
 
