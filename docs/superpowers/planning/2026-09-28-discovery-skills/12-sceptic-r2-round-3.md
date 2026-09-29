@@ -146,6 +146,53 @@ None. The struct, the stamp rule and §18 hold, and nothing below stops a plan e
     M5's field rule and R2.2's `CHECK` (a `set_aside` head holds no folded word), for about the same
     hours.
 
+### 2.3 Minor
+
+**R3-M1. The set the block prints is not the view `Overlay` returns.** `hubapi.Overlay` returns "the
+project's in-force entries, minus each one an `in_force` or `set_aside` branch record overrides …,
+plus the branch's own `in_force` records" (11:1250-1251). The set is the overlay (11:580, :644), and
+task 25 builds it with `Overlay` (11:880). But the block prints *not here* lines (11:618, :622), and
+M5 relies on "the departure's own digest cover[ing] the text its block line prints" (11:1268-1269).
+That digest is in the set only if `set_aside` records are, and rule 3's view must leave them out
+(11:1269-1270).
+- **Fix:** say the set is `Overlay`'s view plus the branch's `set_aside` records, each an item of
+  the set digest, and that rule 3 reads the view alone.
+
+**R3-M2. *Project changed* compares "fields", and that word is wider than M6 needs.** It shows when
+the head differs from the pin "in its fields or its state" (11:787-788, :1285). §2.2's fields
+include `settledIn`, `author` and `sessionId` (11:264-266). The revision envelope also has
+`restores` (11:1320). A promote's Undo is a `restore` written by the person who pressed Undo, so
+compared member by member it differs from `@k`, and the false *project changed* comes back.
+- **Fix:** name what is compared: the text fields of §2.2's first two tables, plus `state`.
+
+**R3-M3. Task 26 "can start now", but Q2 is asked before it starts.** Task 26's row depends on 06
+alone, with "no Hub task in front of it" (11:881). It "can start now" (11:941, :1215). Yet Q2 "must
+be asked before 44a, Hub 45 or phase 4's 26 starts" (11:58-59, :1164-1165, `OQ:109-110`).
+§7.5:946 says only "before 44a runs".
+- **Fix:** add *Q2* to 26's *Depends on* cell, and say "before 44a, Hub 45 or 26" at 11:946.
+
+**R3-M4. The lists hold every head, so M9d's one-page case is about heads.** The lists return
+"heads only", in every state, "filterable to one branch brief" (11:378-380). "A set of up to 200
+entries is one page" (11:1346) is therefore about 200 heads: retired, superseded and withdrawn ones,
+and every branch's unless filtered. The filter is not described. A branch start needs the project's
+heads and one branch's.
+- **Fix:** say whether `?branchBriefId=` returns the project's heads with that branch's, and state
+  the one-page case in heads.
+
+**R3-M5. `reinstate` of an undone *not here* puts it in force.** An undone *not here* is `retired`
+or `withdrawn` with `overrides` set (11:324, :326). `reinstate` takes either to `in_force` (11:327).
+The result is an in-force departure that copies the project's entry. Under R3-I1's other fix, which
+takes the copy out, it becomes an entry with no text, which §2.2 refuses.
+- **Fix:** a record whose last state before its exit was `set_aside` reinstates to `set_aside`.
+  Or say that the lens does not offer **Reinstate** on it.
+
+**R3-M6. Q10's *Holds up* line reads as a block.** `OQ:162` says "Holds up: Hub task 47". That file
+defines *Holds up* as "what stays open, unwritten or unverified until it is answered" (`OQ:6-10`).
+But the design says the nine block nothing (11:61-62), and Q10's own row says the other answer after
+47 is "one more migration" (11:1370).
+- **Fix:** use Q9's shape: "Holds up: nothing built. Hub 47 builds the default; after it ships, the
+  other answer is one more migration." This is the reviser's file.
+
 <!-- Working notes (replaced as the review lands):
 - Round 2 read, lines 1-140: R2-I1 = no read of a past revision (fix: lists return heads, one
   revisions read per kind in §18, Materialiser reads pinned revisions, ~2 h across Hub 46, 48b and
