@@ -102,6 +102,16 @@ on our Azure, through our gateway, landing into Azure DevOps and GitHub". Coder 
 the enterprise edges and is worth a buy decision for the *environment*; GitHub comes closest on
 *landing*. Neither is a cockpit we can adopt without losing `OD-8`, `OD-19` or AU residency.
 
+### 3c. What we adopt instead — the parts of other products that do fit
+
+| Candidate | What it does for us | Licence / cost | Enterprise fit | Days | Verdict |
+|---|---|---|---|---|---|
+| **Claude Code's own hooks** (`type: "http"`) | The missing "needs you" signal (C5), from the harness itself: `Notification` with `notification_type` = `permission_prompt`, `idle_prompt`, `agent_needs_input`, `elicitation_dialog`, `agent_completed`; `PermissionRequest`; `Stop`; `SessionStart` (`source` = `startup`/`resume`/`fork`); `SessionEnd`. HTTP hooks POST JSON to a URL with `headers` and `allowedEnvVars`; hooks can ship in **managed settings**, which user and project settings cannot disable | Part of the CLI we already run; no new vendor | Out-of-band, typed, documented; no PTY bytes read, so it keeps `OD-8`. Other harnesses degrade to today's four statuses | 2.5 | **adopt** |
+| **GitHub pull requests + merge queue** | Review, ordering, CI-validated landing, revert (§4) | GitHub Enterprise Cloud for private repositories | Entra via EMU; audit log; GHE.com Australia | 1.5 (shared with ADO) | **adopt** |
+| **Azure DevOps pull requests + auto-complete + build validation** | The same on Azure Repos, serial rather than queued | Azure DevOps Basic (first five users free, then per user per month) | Entra-native; Australian organisation geography | (in the 1.5) | **adopt** |
+| **`anthropics/claude-code-action`** | An AI first-pass review on each lane PR, on our runner, through our gateway | **MIT** | Custom base URL, so LiteLLM and the AU path apply; GitHub only | 0.5 | **adopt** (opt-in per project) |
+| **Tauri notification plugin** (`tauri-apps/plugins-workspace`) | OS notification when a session starts waiting on you | MIT / Apache-2.0 | Desktop-local | (in the 2.5) | **adopt** |
+
 ## 4. Landing the work: pull requests and merge queues
 
 **The move:** a lane leaves the cockpit as a branch and a pull request on the customer's own git
@@ -123,7 +133,7 @@ fix round):**
 
 | Disposition | Tasks | Plan-hours | Why |
 |---|---|---|---|
-| **Keep as planned** — C6, the security model and provenance, which no product sells | 01, 02, 03, 04, 05, 06, 07, 11, 12, 13, 15, 18, 22, 23, 24 (15) | 42.5 | Real clones per worktree, the `Panacea-Session` trailer hook, the sandbox git runner and bundles, fetch-back under `refs/panacea/lanes/…`, push with the **user's** credential (the sandbox never holds one), branch verbs, evidence over ancestry, the proof |
+| **Keep as planned** — C6, the security model and provenance, which no product sells | 01, 02, 03, 04, 05, 06, 07, 11, 12, 13, 15, 18, 22, 23, 24 (15) | 43 | Real clones per worktree, the `Panacea-Session` trailer hook, the sandbox git runner and bundles, fetch-back under `refs/panacea/lanes/…`, push with the **user's** credential (the sandbox never holds one), branch verbs, evidence over ancestry, the proof |
 | **Replaced by the host** | 08 chained forecast and queue order · 10 landed history and exact undo · 19 merge lens part 1 (queue, forecasts, land, conflicts) (3) | 8.5 | GitHub's merge queue is the chained forecast, run for real by CI; ADO's auto-complete plus expiring build validation is the serial form; host "Revert" is the undo. A conflict goes back to the lane's agent as a task, not to a resolver we build |
 | **Shrunk** | 09 land → push lane branch, open PR, enqueue or set auto-complete, refresh clones after merge · 20 merge lens part 2 → a lane-to-PR strip (checks, queue position, merged) plus the evidence dialog · 14 githost grows by auto-merge, enqueue, auto-complete and `mergeCommitMessage` (3) | 11 → 7.5 | The host does the merge; we show its state |
 | **Deferred past first ship** | 16 files read model · 17 `OD-8` transcript adapter · 21 files lens (3) | 9 | Review happens in the host's PR diff for v1; the cross-lane files view and span back-links come back after |
