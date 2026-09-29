@@ -13,8 +13,8 @@ glossary and decisions. The built provenance thread stays (Hub brief revisions, 
 Materialiser) and is pointed at the spec Spec Kit writes.
 
 - **Integration: about 8 stream-days, about 5 calendar days on two parallel streams.**
-- **Replaces** 13 of phase 4's unbuilt tasks (04, 13, 18, 19, 21, and OD-36's 24, 25, 27-32) and most of the
-  Hub's OD-36 share: **about 72 of the about 109 hours left**, before fix rounds.
+- **Replaces** 12 of phase 4's 22 unbuilt tasks (13, 18, 19, 21, and OD-36's 24, 25, 27-32) and most of the
+  Hub's OD-36 share: **about 71 of the about 109 hours left**, before fix rounds.
 - **Still ours:** 7.5 days of glue (section 6) plus ten kept thread tasks.
 - **No buy.** No commercial product passes both AU residency and "brief in our Hub": Kiro has no AU region,
   ChatPRD is blocked by the KPMG proxy, and Confluence moves the brief out of the Hub. Taskmaster's
@@ -40,9 +40,12 @@ the provenance thread, which is ours by definition. N6-N7 are the conditions for
 | N6 | **Enterprise conditions.** Azure (OD-18); Entra through Keycloak (OD-30); model calls only through the LiteLLM gateway, zero retention, AU path on Bedrock Sydney (OD-19, OD-24); permissive licence for anything deployed into a tenancy; nothing that makes an untrusted agent more trusted | owner decisions file |
 | N7 | **Usability.** One obvious start, no wall of configuration; the whole Define step fits inside the cockpit the user already has | `CLAUDE.md` "Why this exists" |
 
-**What is already built and stays.** Nine of phase 4's tasks: the Go packages `modelclient`, `discover`,
+**What is already built.** Tasks 01-10: each part file carries an as-built record (the orchestrator's
+summary counts nine). They are `statepath.WriteAtomic` and the Go packages `modelclient`, `discover`,
 `claudemd`, `provenance`, `discoverhub` and `contextwrite` (about 17,000 lines with tests, in the phase-4
-worktree) and the `api` Materialiser seam (task 10). They cover N4 and N5, the provenance thread.
+worktree), plus the `api` Materialiser seam (task 10). They cover N4 and N5, the provenance thread, and
+they stay. Only task 04's model follow-up and the stepper side of task 03's ops lose their caller in
+the recommendation below. The content model stays as the brief's storage.
 
 **What is not built, and is the target of this study.** Tasks 11-23 (routes, repository analysis, wiring,
 all seven desktop tasks, contracts, end-to-end): **32.5 h** in the plan's own table. OD-36's design round 2:
@@ -219,8 +222,8 @@ the spec Spec Kit writes.**
   a release yesterday.
 - It adds no infrastructure: no server, no account, no new model endpoint. It runs inside the sandbox we
   already run, through the gateway, installed offline. N6 holds by construction.
-- It writes the spec in the form coding agents already read (about 60 integrations use this format), so
-  Develop sessions read `spec.md` directly as well as inheriting the brief.
+- It writes the spec as plain files that any coding agent reads (Spec Kit itself installs into about 60
+  agents), so Develop sessions read `spec.md` directly as well as inheriting the brief.
 - It keeps the spine: the Hub revision and its key stay ours, and they are the part already built.
 - Presets override templates, commands and terminology, so we fit it to our brief without forking it.
 
@@ -231,13 +234,13 @@ the spec Spec Kit writes.**
 
 | Replaced | Tasks | Hours |
 |---|---|---|
-| Phase 4, planned and unbuilt | 04 model follow-up, 13 repository analysis, 18 lens asking, 19 lens states, 21 import a repository | 12 |
+| Phase 4, planned and unbuilt | 13 repository analysis, 18 lens asking, 19 lens states, 21 import a repository | 10.5 |
 | Phase 4, OD-36 round 2 (`11-design-r2.md` §7.3) | 24 prototype, 25 term and decision model, 27 Hub reads and writes, 28 `RenderInherited`, 29 three files, 30 suggestion round, 31 lens areas, 32 relay routes | 37.5 |
 | Hub, OD-36 share | five new tasks and seven amendments, shrunk to one record kind (G4, about 8 h) | 31 → 8 |
-| **Total** | **13 phase 4 tasks, most of the Hub's OD-36 share** | **about 72 of the about 109 h left** |
+| **Total** | **12 of phase 4's 22 unbuilt tasks, most of the Hub's OD-36 share** | **about 71 of the about 109 h left** |
 
 **Kept** (unbuilt, still needed for the thread): 11 (trimmed to publish plus reads), 12, 14, 15, 16
-(trimmed), 17, 20, 22, 23 and 26, about 23.5 h. **Built and unchanged:** the nine tasks in section 2.
+(trimmed), 17, 20, 22, 23 and 26, about 23.5 h. **Built and kept:** tasks 01-10 (section 2).
 **OD-36 stands:** terms and decisions stay beside the brief. Only round 2's own mechanics (rounds,
 suggestion states, bespoke lens states) are not built.
 
@@ -298,6 +301,8 @@ not measured).
   Claude Code 2.1.274 all rest on upstream documents, not on a run.
 - **`clarify`'s status.** It is on `main` as `templates/commands/clarify.md`, but the README's command list
   omits it. Confirm it on the version we pin.
+- **File locations the glue parses.** `GLOSSARY.md` is named by the aihero catalogue; the ADR directory
+  (`docs/adr/` here) is an assumption until the vendored skill is read, and G1 may set both paths.
 - **The GitHub API was rate-limited** (0 calls left, the address is shared). Stars, releases and licences
   were read from GitHub's HTML pages through a summarising fetch, not from `LICENSE` files. Release years
   are inferred, because GitHub omits the current year.
