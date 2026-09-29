@@ -4,7 +4,7 @@ W5, stream WP, about 3 hours (an estimate, not a measurement). Depends on task 1
 per environment, `task-131.md:91-135`, and *shipped* on the issue), task 160 (API keys, `pak_…`,
 scope `tasks-141-160.md:776-807`; its part does not exist, so every key name here is its scope's
 and **UNVERIFIED**) and phase 7's P7-08 (the deploy view; whether it shows a release no Panacea
-deployment joined is **UNVERIFIED**, the skeleton's row `:587`). The Hub routes are the frozen
+deployment joined is **UNVERIFIED**, the skeleton's row `:588`). The Hub routes are the frozen
 contract's: route 35 (reserve) and route 38 (confirm), `hub-contract.md:597-600`, `:994-1041`, read
 on the hub worktree. Nothing in the Hub changes (rule H1).
 

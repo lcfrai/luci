@@ -715,7 +715,7 @@ count is its own `span`; a screen reader reads *"FAILED 0"* from the two nodes. 
    store as `snap.cockpit`, so TM-54's one `select` reads `snap.cockpit.teamDesk`.
 4. The skeleton names no entry to the Desk. Task 54 prints `G I` → `go.desk` and hands its runner
    here (`task-54.md:10`); the landing surface waits on task 39's review. Neither the skeleton's
-   task 62 row (`:462`) nor its file map (`:313`) says so.
+   task 62 row (`:464`) nor its file map (`:312`) says so.
 5. `WorkEvent` is task 20's fixture type, not `api/work`'s (`task-37.md:59-60`); tasks 62 and 65
    import it from `api/work`. Task 55's feed must export the production type, or task 37 must.
 6. Task 65 names `deskTime`, the Desk's `HH:MM` formatter, as task 62's (`task-65.md:813`). It is
