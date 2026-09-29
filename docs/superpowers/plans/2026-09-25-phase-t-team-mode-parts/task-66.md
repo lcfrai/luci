@@ -944,7 +944,7 @@ name; counterparts by cost, descending, then name.
 unchanged: 422 with `reason: "above_org_ceiling"` and
 `ceilingCents`, 409 `conflict` on a stale revision, 403 for a non-admin. The local control plane
 checks nothing the Hub checks (`task-52.md:42-43`). A solo project answers `GET` with an empty,
-`team: false` body and `PUT` with `409 not_team_project`, task 52's rule (`task-52.md:628-629`).
+`team: false` body and `PUT` with `409 not_team_project`, task 52's rule (`task-52.md:630-631`).
 
 #### The tests, first (each names the mutant it kills)
 
@@ -1057,8 +1057,8 @@ tests prove only the number keysmith sends.
 #### Gaps against the skeleton and the siblings, raised here and not resolved alone
 
 1. **Currency.** Task 37's owner line says *"A$0.50"* (`task-37.md:51-52`) and task 52's `Spend`
-   says *"Australia/Sydney day, in cents"* (`task-52.md:579`). This task fixes US cents and the
-   UTC day (decisions a, c); tasks 37, 52 and 56 should say `US$` and UTC.
+   said *"Australia/Sydney day, in cents"*, and now says the UTC day with no currency (`task-52.md:587-588`). This task fixes US cents and the
+   UTC day (decisions a, c); tasks 37 and 56 should say `US$` and UTC, and task 52 `US$`.
 2. **Task 43 is not on disk.** Its route-75 handler must create every team policy with
    `hubapi.DefaultQuotas` and accept this task's ceiling hunk; its name is assumed.
 3. **Token counts per key.** P6-09's sweep reads spend from LiteLLM's key info; whether that
