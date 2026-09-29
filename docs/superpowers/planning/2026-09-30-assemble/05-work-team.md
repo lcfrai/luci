@@ -182,7 +182,57 @@ subsystem.
 
 ## 6. Recommendation
 
-_Pending._
+**Bring your own tracker.** Azure DevOps Boards and GitHub Issues/Projects become the work
+layer's system of record, behind one `tracker` interface (the same shape as `OD-4`'s host
+interface in phase 3). PanaceaApp stops building a tracker and keeps only what no tracker has:
+the edge from an issue to the brief criterion it serves, the agent session that works it, and
+the proof that closes it. Teams carries notifications and escalations: the first-party ADO and
+GitHub Teams apps as-is, plus one small PanaceaApp bot for *inform* and *decide*.
+
+**Integration: about 16 engineer-days; first end-to-end demo on ADO in about 5; all of it in
+about 6-7 working days on three parallel lanes** (connectors; provenance and Start; lens and
+Teams). Itemised in §7. These are estimates; nothing here has been built or run.
+
+**Why this, over the alternatives:**
+
+1. **Zero adoption cost for the customer.** A KPMG team already has ADO and GitHub, already signs
+   in with Entra, already has the Teams apps. Phase W's own goal was *"a team moves its backlog
+   into PanaceaApp and never goes back"*; the fastest way to meet it is to not ask them to move.
+2. **It passes the hard constraints today.** AU residency: ADO's Australia geography, GitHub's
+   AU GHE.com. Customer's own cloud later: Azure DevOps Server and GitHub Enterprise Server take
+   the same connectors with a different base URL. No AGPL, no new SaaS processor, no new DPA.
+3. **Done means proven survives, and on ADO it is enforced by the tracker itself**: a process
+   rule restricts `Done` to PanaceaApp's proof identity (§2.1). On GitHub it degrades to a
+   `Proof` field only our app writes, and *done, not proven* in our cockpit.
+4. **"An agent takes an issue" is now a tracker-native gesture** (GitHub Agent HQ, Azure Boards →
+   Copilot, Jira agents, Linear delegation). We match the gesture — Start from the issue or from
+   our cockpit, a first sign of work within 10 seconds as one live status comment edited in
+   place, Linear's five activity kinds (§3.1) — and differ where they cannot: the agent runs in
+   **our Kata sandbox, through our LiteLLM gateway (Global or AU), on the customer's cloud**, and
+   the issue closes on **observed** evidence.
+5. **The plan already half-knew.** Phase W tasks 150-155 and 171 were tracker sync *into* our own
+   tracker. Inverting that — the tracker is the store, we are the agent and the proof — keeps those
+   tasks' work and deletes the tracker behind them.
+
+**What it replaces** (counted from the Phase W task tables; the day figures are the plan's):
+
+| Phase W, 190 tasks | Tasks | What happens |
+|---|---|---|
+| Replaced outright by the tracker | **127** | W1 02-08, 11-17, 25, 37-39, 41-60, 66-69; W2 all but 95, 96, 96b; W3 99, 100, 107, 113; W4 all but 131, 135; W5 143-149, 156, 158-163, 168-170, 172-174; WL 175-178, 182-184, 186-187 |
+| Survive, reshaped into the ~16 days of glue | **38** | W0 01; W1 09, 10, 18-24 with 23b, 36, 40, 61-65, 70; W1b 71; W2 96b; W3 98, 101, 103, 104, 108, 109; W4 131, 135; W5 150-155, 157, 165, 171 |
+| Not tracker work: move to their owning phase unchanged | **19** | W1 26-35 and W2 95-96 (design-language uplift, `OD-28`); W5 164, 166, 167; WL 179-181, 185 |
+| Wait for Phase T's negotiation | **6** | W3 102, 105, 106, 110, 111, 112 |
+
+**Phase T, 69 tasks: honestly, products replace little of it directly.** The tracker plus Teams
+take the human-delivery surfaces — the team strip becomes a view over tracker assignment and
+session state (53), Desk rows and escalation delivery move to Teams cards (parts of 30, 54), and
+tracker audit reaches Sentinel through Microsoft's own ADO and GitHub connectors (part of 45):
+**about 5 tasks**. The core — Fleet, the Orchestrator runner, leases, negotiation, the `OD-23`
+policy file, the lane mirror (**about 55 tasks**) — has no product anywhere. What the tracker
+*does* buy is a **fast team v1**: agents read teammates' in-progress issues and live status
+comments through the tracker's MCP server, the platform flags file overlap between sessions as an
+*inform* to both people, and the Orchestrator negotiation is built after. That is a scope change
+to `OD-16`, so it is an owner call (§8).
 
 ## 7. What we still build (glue)
 
