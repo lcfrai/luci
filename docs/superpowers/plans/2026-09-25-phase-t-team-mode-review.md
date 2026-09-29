@@ -4336,3 +4336,90 @@ scope is the Hub plan's constant (`hub task-08.md:163`), not re-checked against 
 relay's `?project=` should take the Hub's `pj-…` id (as written) or the cockpit's is for task 52 to
 reconcile when it widens the answer route.
 
+## Fix batch b07, round 3 (2026-09-29): N-C1, re-review b07-1's three Importants, and the batch's own three re-checked
+
+Input: `.superpowers/sdd/team/plan-rereview-b07-1.md` (1 Critical, 3 Important, 7 Minor), read at
+`47cf3eb7`. Round 3 is b07's last (OD-31). Seven commits by pathspec: `60781aeb` (N-C1, the Hub
+half: tasks 01, 03, 04, 07, 08), `31d66e1b` (N-C1, Fleet's half: tasks 30, 31; RR1-m3), `70dc2f00`
+(RR1-I1, and N-C1 in task 33; the plan body), `be583b3f` (RR1-I2, RR1-I3, RR1-m1, RR1-m2, RR1-m7;
+tasks 20, 21; the estimate), `76bceac2` (RR1-m6), `64c0818b` (G31-5, and three defects found
+re-reading round 3's own edits), and this record's. Every line number below was read in the tree
+after the last of them.
+
+### The re-review's Critical and Importants
+
+| Finding | What changed | Where (after round 3) |
+|---|---|---|
+| **N-C1** (Critical): no task could carry a decide's `evidence`, so M4 and M5 could not hold | One contract, six tasks. Task 01 §7.19 defines `evidence` on a `decide` with a `fromAgentId`: `verb` one of the six held acts, `toAgentId`, `taskId`, `text` ≤ 600 for `free` only (Text·agent, its author the `fromAgentId`), `read` ≤ 100 ids, `readTotal`; its check script fails without it. Task 03 types it (Block 5b: `HeldVerb`, `EscalationEvidenceRequest`, `EscalationEvidence`, a wire test). Task 04 stores it (piece 7b: eight columns, the text's author triple checked against `from_agent_id`). Task 07's route 64 validates, stores and answers it. Task 08's fake keeps and refuses it, with a conformance clause. Task 30's `DecideRequest.Evidence` carries it into the body. Task 31 fills it with `From` the held Orchestrator, and its `free` test now also runs the real `escalate.Service` against task 08's fake Hub, the check that would have caught N-C1. Task 33's M4 row states the evidence clause (RR1-m4) | task 01 `:503`, `:506-507`, `:884`, `:899`; task 03 `:667`, `:757-767`, `:780-794`, `:1562`, `:1625-1689`; task 04 `:3`, `:560`, `:864`, `:905`, `:965-1006`; task 07 `:3`, `:51`, `:133-142`, `:147`, `:346`; task 08 `:415`, `:502`; task 30 `:315-323`, `:346-347`, `:381-382`, `:496`; task 31 `:57-62`, `:147-148`, `:388-389`, `:472`, `:475`, `:486`, `:494`, `:573-574`; task 33 `:113`, `:274-275`, `:336`, `:344-346`; task 21 `:595-596`, `:605-606` |
+| **RR1-I1** (Important; X-C2's last clause) | E2 and E4's `resume` clause were post-launch facts in the pre-launch table. E2 is now must-hold M1: `10-launch.sh` reads the project's audit from its `project.mode_set` on, exactly one `delegation.created` with `class: orchestrator` per person, which a re-run passes because task 21 now renews that delegation (RR1-I2). The re-review's "since the run's start" was not taken: a re-run inside 24 h creates none, and would fail. E4's `resume` is scripted in `30-settle.sh` (Bob's Orchestrator, no turn claimed, so a Fleet turn, decision b) and checked under M10; E4 keeps the `fleetd` checks, which the preflight can make. The preflight checks E1 and E3–E7 | task 33 `:76`, `:78`, `:110`, `:119`, `:246-247`, `:264`, `:271-272`, `:278-281`, `:360`, `:443`; task 31 `:572`; task 20 `:643-644`; plan body `:417-419`, `:768`, `:914-916` |
+| **RR1-I2** (Important): a lapsed orchestrator delegation was replaced, not renewed, so the one Orchestrator stayed paused | `EnsureOrchestratorDelegation` renews before it ever creates: route 48 revives a lapsed, unrevoked delegation, and that renewal is what resumes the paused Orchestrator (`task-11.md:47-51`); it creates only on 409 or 404, and a transient error creates nothing. The renewer renews orchestrator rows while the owner is signed in, sessions or none, which restores the "or while signed in" that S03-C1's fix asked for (`:1194`) and round 1 dropped, as the design says (`05-design.md:163-166`, `:178`); `save` writes the Hub's new expiry back (S03-I3's save half). Tests renamed and extended | task 21 `:345-354`, `:375-385`, `:387-397`, `:413-421`, `:495-497`, `:651`; task 20 `:639-641`; plan body `:762-763` |
+| **RR1-I3** (Important): a revoked or foreign row blocked every team launch for up to 24 h | The row is keyed `(ownerUserID, projectID)`, `Owner` being the signed-in user's `u-…` from `GET /v1/me`, and it is renewed on every use, so a revoked (409) or foreign (404) id is replaced once and never reaches Fleet as the hint. The part's old recovery claim (route 47 answering 409, a test naming no call) is gone | task 21 `:327`, `:349-352`, `:393`, `:414-420`, `:496` |
+
+### The Minors
+
+| # | Fix | Where |
+|---|---|---|
+| RR1-m1 | Task 20's `Launch` resolves both delegations before its transaction (`s.delegations`), so a refused hint refuses the whole launch, as decision 4 and the test say; the prose defines `delegations` and `orchestratorFor`'s new argument, and the test asserts no row, pod or mint | task 20 `:424-427`, `:445`, `:509-513`, `:351` |
+| RR1-m2 | A per-(owner, project) mutex; the "idempotent on the Hub's Key" claim is gone; the first-launch test gains a concurrency clause | task 21 `:349`, `:416`, `:494` |
+| RR1-m3 | Fixed at the root, not in the wording: task 31's gate calls `hubapi.DirectiveKind(k).Typed()`, so "one definition" is true of the code. Task 42's list stays, on purpose, as G9's oracle (`task-42.md:287-288`) | task 31 `:31-33`, `:254-258`, `:305`; plan body `:70` |
+| RR1-m4 | Folded into N-C1 (M4's row now has the evidence clause the script had) | task 33 `:113` |
+| RR1-m5 | Corrected here: N-C1 made M4 and **M5** fail (M10 is vacuous in Run A when no `free` `dv-…` is issued), and its fix spans six tasks (01, 03, 04, 07, 08, 30) plus task 31's fill; task 31's closed G31-2 names all six | task 31 `:573-574` |
+| RR1-m6 | Task 48's phase 3 cites restored (`:4-10`, `:28-126`, read at `9935278`, the part's pin); its phase 8 cites, stale before b07, now name `feat/env` `42397d8e` (`:357-387`, `:222`, `:383-387`); task 66 cites `:630-631`, and `:587-588`, where task 52 now says the UTC day, so that gap asks only for `US$` | task 48 `:10`, `:33`, `:60`, `:63`; task 66 `:947`, `:1060-1061` |
+| RR1-m7 | "all three packages"; the relay struct's `hubclient.Team` handle is S03-I3's wiring (open, not b07's) | task 21 `:623` |
+
+### Re-checking the batch's own findings
+
+- **X-C2: CLOSED.** Every entry condition is now checkable before a launch (E1, E3, E4's `fleetd`
+  half, E7) or a stated human act (E5, E6), and each fact that only a launch makes true is a
+  must-hold check with a scripted step (M1's delegation, M4's evidence, M10's `resume`). No gate
+  check now depends on a field or route that no task builds; N-C1 was the last.
+- **S02-C7: CLOSED.** Task 21 owns S20-1, and task 20's code now resolves the hint before anything
+  is created (RR1-m1).
+- **S03-C1: CLOSED**, with RR1-I2 and RR1-I3 fixed inside its fix. **One residual, new, Important,
+  recorded and not built:** a member's second device, or a wiped registry, has no row, so its first
+  launch creates a second orchestrator delegation while Fleet keeps the Orchestrator under the first
+  (task 20 decision 3's index). When the first device stops renewing, that Orchestrator pauses, and
+  the second device's renewals never reach it. Fix direction: Fleet's launch answer names the `dl-…`
+  the owner's Orchestrator runs under (today `201 AgentJSON` carries no Orchestrator field,
+  `task-21.md:94`, `:132-141`), and the desktop adopts it into its row and revokes its own orphan.
+  That is a wire field across tasks 12, 20 and 21, so it is named at `task-21.md:421` and left for
+  the build or a later batch. TM1-α (one laptop each) cannot reach it.
+- **G31-5: CLOSED** (task 31's own gap, UNVERIFIED before): route 67 shows and checks `params` as
+  task 01 §7.20 fixes it (`task-07.md:166`, `:176`, `:349`). Run A's new `resume` sends `{}`; Run
+  B's live Orchestrators may send a `narrow` or a `wait-for`.
+- **S03-I3 stays open** (not b07's), less its save half, which RR1-I2 needed: no `api.go`,
+  `main.go` or `config.go` hunk wires `TeamLauncher`, its `Owner`, the renewer's `live` and `save`,
+  or the relays' `hubclient.Team`.
+
+### Found re-reading round 3's own edits, fixed in `64c0818b`
+
+- Piece 7b's `readTotal` bound was a column `CHECK` naming another column added in the same
+  `ALTER TABLE`; it is a table `CHECK` (task 04 `:993`).
+- Task 21 said every launch makes one Hub call for the orchestrator delegation; a refused renew
+  followed by a create makes two (task 21 `:420`).
+- Task 31 cited task 01's `params` at `:440-441`, which is the agent-role rule; it is `:517-518`
+  (task 31 `:149`, `:580`).
+
+### Citations
+
+- **Nothing moved but two structs, inside themselves.** Every edit replaced lines in place or
+  appended at a part's end, checked with `git diff --numstat` and `-U0` hunk headers before each
+  commit. The exception: task 03's `CreateEscalationRequest` and `Escalation` each lost the blank
+  line above them and gained one field, so their own lines moved up one (`:757-767`, `:780-794`);
+  nothing after `:794` moved. Their one live inbound cite, `task-21.md:605`, is re-anchored, and
+  task 04's `:556`, wrong before (`:765-769`), now reads `:769-773`. This review's records that cite
+  the old lines (`:369`, `:374`, `:2344`, `:2665`, `:4292`) say where a defect was when found, and
+  are left.
+- **Appended, not inserted:** task 03's Block 5b (`:1625-1689`) and task 04's piece 7b
+  (`:965-1006`), each named from the step that writes it (task 03 `:1562`, task 04 `:905`).
+- Every cite round 3 wrote was read in the tree; phase 3's and phase 8's at the commits named.
+
+**For any re-review of round 3.** Read `repair-gaps.md`: round 3 edited tasks 01, 03, 04, 07 and
+08 (its Hub range) and task 48 (b13's). Scope: N-C1 across its six tasks and task 31; RR1-I1 in
+task 33; RR1-I2 and RR1-I3 in task 21; RR1-m1 in task 20; RR1-m3 in task 31; G31-5; the residual.
+
+**Unverified.** Plan text only; nothing built, run or started. That the local control plane keeps
+the `/v1/me` user id for `Owner` (`task-21.md:415`; if not, one `Me` call per launch). That
+Postgres takes piece 7b as one `ALTER TABLE` is task 04 Step 4's test to show. That warm-pool
+pods let the preflight read E7 before a launch (the re-review's point, not b07's).
+
