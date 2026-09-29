@@ -6291,7 +6291,7 @@ b02 round 2's and were never staged.
 Round 2 answers re-review 1 of round 1 (`.superpowers/sdd/work/plan-rereview-b02-1.md`: 0
 Critical, 5 Important, 8 Minor), which found S03-C1's field, rule, runner and writer in place but
 the product path still broken in three places. The commits are `d8979d83`, `cb0145cc`,
-`d356a596`, `1f3ed112`, `c492f1ee` and this section's. The killed round-2 fixer's uncommitted,
+`d356a596`, `1f3ed112`, `c492f1ee`, `33031aa5` and this section's. The killed round-2 fixer's uncommitted,
 line-neutral WIP (`task-47.md:7`, `:403`, `:413-414`; skeleton `:449`) was read, kept and committed
 in `d8979d83`. Every line number below is post-fix on `feat/work-layer`.
 
