@@ -421,7 +421,7 @@ through that channel's `slack_channel_links` row, under the binding's org and te
 `SlackPoster` takes the bot token's ref from that row's install: no row, no post. Another org's link
 and install are not there to be read, so no binding posts into another org's workspace, and
 unlinking a channel stops its posts. No route in this part writes a Slack binding (the
-`SlackChannelLink` comment says a link *carries* them, and names none): a gap for the return, and
+`SlackChannelLink` comment says a link *carries* them, and names no route): a gap for the return, and
 whichever route it is refuses 404 unless the channel link is the binding's team's.
 
 **Inside one org** a team admin can still link any channel of the org's workspace by its id. Task
@@ -486,7 +486,7 @@ func InsertLinkNonce(ctx context.Context, tx pgx.Tx, orgID string, hash [32]byte
 // PeekLinkNonce (the GET page) and RedeemLinkNonce (the POST, which deletes it) answer
 // found=false for a used, an expired or another org's nonce; row-level security hides the last,
 // so a refused redeem cannot delete it.
-func PeekLinkNonce(ctx context.Context, q Querier, hash [32]byte, now time.Time) (n LinkNonce, found bool, err error)
+func PeekLinkNonce(ctx context.Context, tx pgx.Tx, hash [32]byte, now time.Time) (n LinkNonce, found bool, err error)
 func RedeemLinkNonce(ctx context.Context, tx pgx.Tx, hash [32]byte, now time.Time) (n LinkNonce, found bool, err error)
 
 // PutPersonLink inserts with n.OrgID, after the handler has checked it equals the principal's org.
