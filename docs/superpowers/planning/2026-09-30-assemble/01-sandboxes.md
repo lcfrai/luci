@@ -42,7 +42,29 @@ loop or a cockpit. It has to supply **a place to run our image, fast, isolated, 
 
 ## 3. Candidates at a glance
 
-_TBD — one row per candidate: licence, deploy, AU, isolation, PTY, warm start, verdict._
+"Days" means days to the first real cloud session from the cockpit, including the 3 days of glue
+every option needs (section 5). "+ proc." means a new-vendor procurement comes first.
+
+| Candidate | Licence | Deploys as | AU | Isolation | Stream into it | Warm start | Days | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| **AKS Pod Sandboxing + `agent-sandbox` 1.0** | Apache-2.0 + Azure service | Our AKS; a customer's AKS later | Australia East | Kata microVM on Hyper-V | Our `sandboxd` on the pod IP | `SandboxWarmPool`; "a couple of seconds" *(upstream)* | **7** | **adopt** |
+| ACI + standby pools | Azure service | ARM in any subscription | Yes | Hypervisor per container group | Our `sandboxd` on a private IP | Standby pool; latency unpublished | 7 | integrate (fallback only) |
+| ACA dynamic sessions (custom container) | Azure service | ARM in any subscription | East and Southeast | Hyper-V per session | HTTP through the pool endpoint; WebSocket undocumented | Ready sessions, "milliseconds" *(upstream)* | 9 | reference |
+| Northflank | Commercial | SaaS, or BYOC data plane in our Azure | BYOC in AU East | Kata / Firecracker / gVisor; microVM on Azure undocumented | REST API | "under a second" *(upstream)* | 8 + proc. | reference |
+| Runloop | Commercial | SaaS, or VPC deploy (Azure listed) | Not documented | microVM | Python / TS SDKs | "a few seconds" *(upstream)* | 8 + proc. | reference |
+| Modal | Commercial SaaS; open SDKs | SaaS only | `au` pin at 1.75x | gVisor (not hardware) | Go SDK: PTY, port tunnels | Fast *(upstream)* | 4 + proc. | reference |
+| Coder | **AGPL-3.0** core + commercial Premium | Helm on our AKS | Ours | Whatever the template runs | Reconnecting PTY over WebSocket | Prebuilds (Premium only) | 9 + proc. | reject |
+| E2B | Apache-2.0 SDK and runtime; SaaS | SaaS; BYOC AWS/GCP only | No Azure | Firecracker microVM | PTY API | Snapshot resume | 20+ | reject |
+| Daytona | **AGPL-3.0**, frozen June 2026; core now private | SaaS US / EU / India | No | Not assessed | PTY API | "under 90ms" *(upstream)* | — | reject |
+| GitHub Codespaces | Commercial | GitHub-hosted | Via GHE.com residency | VM per codespace | Through GitHub's tunnel | Prebuilt images only | — | reject |
+| Ona (ex-Gitpod) | Commercial; OpenAI-owned | SaaS + AWS/GCP runners | No Azure | VM | — | — | — | reject |
+| OpenHands runtime | MIT | Self-hosted Docker / remote | Ours | Container | Its own action server | — | — | reference |
+| DevPod | MPL-2.0, stalled since 2025 | Client-side launcher | — | Provider's | SSH | None | — | reject |
+
+**GLASSES coverage gap.** The catalogue (offline and its MCP server, both generated 2026-09-29)
+returns one entry for this capability, `daytonaio/daytona`, with licence "unknown" and no note
+that it is frozen. None of the adopt or fallback candidates is catalogued. Worth adding:
+`kubernetes-sigs/agent-sandbox`, `e2b-dev/runtime`, `coder/coder`, and the two Azure services.
 
 ## 4. Candidates in detail
 
