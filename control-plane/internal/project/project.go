@@ -17,6 +17,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hostpath"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
 )
 
@@ -450,7 +451,22 @@ func (s *Scanner) Path(ctx context.Context, worktreeID string) (string, error) {
 				if !s.registers(p, path) {
 					return "", fmt.Errorf("%w: git named %q as a worktree of %s, and %s's own .git/worktrees does not register it", ErrNotRegistered, w.Path, p.Name, p.Name)
 				}
-				return path, nil
+				// registers proves the project's host-owned .git/worktrees NAMES
+				// this location; it does not prove the location's own directory
+				// entry is host-owned. A NESTED linked worktree sits inside the
+				// primary's read-WRITE mount (this repo uses .claude/worktrees/),
+				// so its entry is the agent's to swap for a link or a junction, and
+				// Path hands the unresolved location straight to that mount (X-3
+				// review 3 I-B). ConfineToMount Lstats the answer and every
+				// component of it that lies inside the project, refusing a reparse
+				// point exactly as sessionWorktreeAdmin does. A worktree registered
+				// OUTSIDE the project — the e2e fixture's layout — is host-owned and
+				// returned unchecked.
+				checked, err := hostpath.ConfineToMount(p.Path, path)
+				if err != nil {
+					return "", fmt.Errorf("project: the worktree %q of %s cannot be mounted: %w", w.Path, p.Name, err)
+				}
+				return checked, nil
 			}
 		}
 	}
