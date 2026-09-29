@@ -79,6 +79,77 @@ nothing. Every other candidate below came from the web. Licences are from the pr
 | **Integration** | ~3 days as a second adapter behind the same design seam (link to a brief, snapshot via the REST images endpoint, handoff), **once the catalogue question has an answer** |
 | **Verdict** | **Buy, but only as an optional adapter** for customers who already own Figma. Not the default |
 
+### 3.4 paper.design — REFERENCE (the owner's benchmark)
+
+- **Does:** a canvas that is real HTML/CSS (*"Paper is built on HTML and CSS, which LLMs already
+  understand well"*). MCP can read and write, and frames export to React/Tailwind. A secondary review
+  counts 24 MCP tools.
+- **Licence / price:** commercial SaaS. Free (100 MCP calls/week), Pro $20/editor/month ($16 annual,
+  1M MCP calls/week), and Organizations at custom pricing with *"SAML / SSO"* and admin controls
+  (paper.design/pricing, read 2026-09-30).
+- **Deploys:** SaaS only. **The MCP server runs inside Paper Desktop on the user's machine**
+  (*"install and open Paper Desktop. That starts the MCP server"*, stdio via `paper mcp`), so it
+  cannot serve an agent in our cloud sandbox.
+- **Enterprise fit:** the pricing page says nothing about residency, self-hosting, SCIM or audit.
+- **Verdict: Reference.** Keep it as the bar for the Design lens. Note that its MCP also needs a
+  running app on the user's side, which is the same shape as Penpot's tab-bound MCP. The owner's
+  reference product lives with the constraint we are accepting.
+
+### 3.5 Onlook — REFERENCE (a Develop-phase idea, not a Design canvas)
+
+- **Does:** Apache-2.0 "Cursor for designers". It edits a running **Next.js + Tailwind** app on an
+  infinite canvas and writes changes straight back to code. It has real-time collaborative editing,
+  design branching and its own AI chat.
+- **Licence:** Apache-2.0 (Glasses record; the 2026-09-28 study read `LICENSE.md`).
+- **Deploys:** self-hosts via Docker Compose, but needs Supabase, an OpenRouter key and a
+  **CodeSandbox token for its dev containers** (docs.onlook.com/self-hosting/docker-compose). In
+  other words, customer code runs on CodeSandbox's cloud unless we write a provider (its
+  `code-provider` package ships `codesandbox` and `nodefs`).
+- **Maturity:** 26.8k stars (Glasses, 2026-09-29), YC W25. Its own checklist shows
+  `[ ] MCP (Model Context Protocol) setup and usage` still open, and no support for projects that
+  are not Next.js or not Tailwind.
+- **Gaps:** it is its own agent rather than a surface our fleet drives (no MCP), it locks in one
+  framework, and it documents no SSO.
+- **Verdict: Reference.** It is the right idea for *editing the running app* in Develop. Adopting
+  it would take ~10+ days (a sandbox provider on our control plane, Supabase, SSO, the gateway).
+
+### 3.6 pen.dev (formerly Pencil) — REJECT
+
+- **Does:** agentic infinite canvas. `.pen` is an open JSON schema kept in git. Offers MCP for
+  Claude Code, a headless CLI, and HTML/CSS/Tailwind export.
+- **Licence:** proprietary. npm `@pen.dev/cli` 0.3.9 is `UNLICENSED`, under an EULA.
+- **Deploys:** desktop app, IDE extension or CLI. **The CLI needs `pen login` and a connection to
+  `api.pen.dev`** (docs.pencil.dev/for-developers/pen-cli).
+- **Enterprise fit:** free today, *"may introduce paid features or plans later"*. No SSO,
+  residency or enterprise terms found.
+- **Verdict: Reject.** It phones home and has no enterprise terms. OpenPencil (MIT) can open
+  `.pen` files, which keeps the idea within reach.
+
+### 3.7 Builder.io Fusion — REJECT
+
+- **Does:** a SaaS visual editor plus agent that works on your real repo (GitHub, GitLab, Bitbucket,
+  Azure DevOps) and opens PRs. Builder Code MCP lives at `mcp.builder.io`.
+- **Licence / price:** commercial. Pro $24/user/month, Team $40, Enterprise custom (Azure DevOps
+  Enterprise, SSO, "Privacy mode"), per builder.io/pricing. SOC 2 Type II.
+- **Deploys:** SaaS. It runs your code in its own containers; private link reaches firewalled Git.
+  No residency region is stated.
+- **Verdict: Reject.** It is a competing Develop phase, not a canvas, and customer code leaves
+  the tenancy.
+
+### 3.8 Plasmic — REJECT (AGPL studio)
+
+- **Does:** a visual builder whose canvas ("arenas") renders **real React code components**, with
+  multiplayer, branching and codegen into your repo. On paper, a strong fit for "production
+  components as frames".
+- **Licence:** split. README: *"All content outside of `platform/` is licensed under the MIT
+  license"* and *"`platform/` is licensed under the AGPL"*. The Studio, the only part that is the
+  product, is AGPL. SaaS is commercial with SAML SSO.
+- **What AGPL would force:** self-hosting the Studio means any modified version must offer its
+  complete source to every user who reaches it over the network (§13). Shipping it into a customer
+  tenancy conveys AGPL code. Only the MIT SDKs are usable.
+- **Verdict: Reject.** The SaaS path puts customer designs outside the tenancy (region not
+  verified).
+
 ## 4. Comparison table
 
 _Pending._
