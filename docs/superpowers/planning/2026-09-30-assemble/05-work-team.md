@@ -158,7 +158,27 @@ Planka (fair-code since v2), Vikunja and Leantime (AGPL), Redmine (GPL-2.0).
 
 ## 5. Candidates — presence, notifications, team surfaces
 
-_Pending._
+KPMG's chat is Microsoft Teams; Slack is not assumed. Phase T's awareness facts (which session,
+which files, which lease) come from our control plane and Fleet, so a product can carry them but
+cannot produce them.
+
+| Candidate | What it does for us | Licence / price | Deploy / residency | Verdict | Days |
+|---|---|---|---|---|---|
+| **Azure Boards app for Teams** and **GitHub app for Teams** | Channel subscriptions on work items, issues, PRs, checks; threaded cards; create items from chat ([ADO](https://learn.microsoft.com/en-us/azure/devops/boards/integrations/boards-teams?view=azure-devops), [GitHub](https://docs.github.com/en/integrations/how-tos/teams/use-github-in-teams)) | First-party, included | Microsoft 365 tenant | **adopt as-is** — every tracker notification W1 62-65 would have built | 0 (config) |
+| **Our own Teams bot** on the **Microsoft 365 Agents SDK** | The `OD-16` escalations: *inform* as a card, *decide* as an Adaptive Card with `Action.Execute` buttons answered in Teams, proactive DMs | SDK **MIT** (`microsoft/Agents-for-js`, read 2026-09-30); Azure Bot Service, Teams channel | Bot registration in our Azure subscription; messages live in the user's M365 tenant | **integrate** — the Desk's NEEDS YOU row reaches people where they already are | 2-3 |
+| **Teams Workflows webhook** | One-way posts to a channel. Office 365 connector webhooks were **retired in May 2026** ([MS](https://devblogs.microsoft.com/microsoft365dev/retirement-of-office-365-connectors-within-microsoft-teams/)); Workflows cards post as the Flow bot | Included | M365 | reference — too thin for *decide*, fine for a digest | 0.5 |
+| **Microsoft Graph presence** | Teams availability (Available/Busy/Away) beside each person in the team strip | Included (`Presence.Read.All`, admin consent) | M365 | reference — nice, not needed for the first cut | 1 |
+| **Azure Web PubSub** | Managed WebSocket fan-out, groups, Entra auth; **Australia East available**; Standard ~$49/unit/month per 1,000 connections ([pricing](https://azure.microsoft.com/en-us/pricing/details/web-pubsub/)) | Commercial Azure service | Azure, AU East | reference — only if the Hub feed outgrows itself | 1-2 |
+| **NATS JetStream** | Subject-permissioned bus, durable inboxes, KV with TTL for leases, presence (earlier study #7) | Apache-2.0 | Self-host on AKS | **integrate when TM1-α is built**, as the earlier study said — not part of the fast cut | 2-4 |
+| **centrifuge / Centrifugo** | Presence and pub/sub | MIT (lib) | Self-host | reject for now: the sceptic's point stands, it is a **third real-time protocol** beside the PTY relay and the Hub feed (`08-sceptic.md` §2.4) | — |
+| **Liveblocks** | Presence, comments, notifications, CRDT rooms | Clients Apache-2.0; **server AGPL-3.0**; SaaS, self-host only as an Enterprise add-on ([data storage](https://liveblocks.io/docs/platform/data-storage)) | Their cloud; no AU residency found | reject — presence is not worth a US SaaS or an AGPL server | — |
+| **Yjs awareness** | Cursor and presence protocol for a shared document | MIT | Anywhere | reference — belongs to the design canvas (phase 5), not the work layer | — |
+
+**Seeing each member work, without building a surface first.** Three facts already exist outside
+Phase T once the connectors land: who is assigned to which issue (the tracker), which branch and
+PR it produced and whether checks pass (the git host), and what their sessions are doing now (our
+control plane, already built in phase 2). A team strip that joins those three is a view, not a
+subsystem.
 
 ## 6. Recommendation
 
