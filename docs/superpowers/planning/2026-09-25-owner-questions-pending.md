@@ -101,3 +101,63 @@ routed to the orchestrator; they are not questions for you.
    - No recommendation: this is the owner's call about their own record. Detail in
      `2026-09-28-discovery-skills/07-register-report.md` §5.
    - *Holds up:* nothing built. It holds up the next question round's write-up convention only.
+
+## From the Discover design round 2 (2026-09-29)
+
+The design is `2026-09-28-discovery-skills/11-design-r2.md`: Q2, Q8 and Q9 are its §8.2 rows, and
+Q10 is new in its Revision 2 (§R2.4). Each default is taken, so an unanswered question is built as
+its default. **Q2 is the exception to "none of these blocks a build"**: ask it before Hub 44a, Hub
+45 or phase 4's task 26 starts, because its other answer, taken after they ship, rebuilds them.
+
+1. **Q2: are terms and decisions named by a struct `{kind, id, revision}`, or by two new key forms,
+   `term:te-…@n` and `decision:dr-…@n`, given that OD-36 says the key grammar "does not move"?**
+   - Default taken: **the struct**, the plain reading of OD-36's row (`owner-decisions.md:409`),
+     of its note, which names the two parsers as the thing protected
+     (`10-decision-terms-beside-the-brief.md:54-55`), and of 06's shelf clause. Your record also
+     points the other way: the note sketches `term:tm-7f2a@2 -> brief:bf-9c1d@4` (`:14`), and the
+     provenance contract made `kind:` extensible.
+   - The struct costs one revisions read per kind, so a pinned past revision reads back: about 2 h
+     in Hub 46 and 48b and phase 4's 27. It moves no parser.
+   - Key forms cost about 3 h (§3.2 forms through the contract's §18, both parsers in Hub 45 and
+     phase 4's 26, `/v1/refs` rows in Hub 20 and 48b, and task 16's key source), but would read a
+     pin through `/v1/refs` and save that 2 h: **about 1 h more than the struct** in all.
+   - *Holds up:* **Hub 44a** (whether §18 writes key forms), **Hub 45** and **phase 4's task 26**
+     (whether the two parsers change), and, one way or the other, Hub 20, 46 and 48b and phase 4's
+     16 and 27 (the resolver rows under key forms; the revisions read under the struct).
+2. **Q8: when a branch lands, should the product ask about the branch's own decisions and words at
+   the land itself?**
+   - Default taken: **no**. Once a branch ends, its in-force entries wait in the project's Discover
+     lens under *From archived branches*, with **Promote** beside each, and nothing asks.
+   - The default's cost: once the branch's work reaches main, main's code follows the branch's
+     departures, but main's sessions are handed the project's entries, stamped *current*, until a
+     person presses **Promote**, and nothing prompts them. The lens also cannot tell a branch that
+     reached main from an abandoned one: nothing the product holds records which.
+   - Yes costs about 2 h and its tests: the list moves into phase 3's land step, a phase 3 change
+     that OD-36's *What moves* does not name. Promoting everything at the land without asking is
+     not offered: it would change every other branch's set with no person's gesture.
+   - *Holds up:* nothing built. Phase 4's task 31 builds the default's *From archived branches*
+     either way; a yes adds one phase 3 task beside its land step.
+3. **Q9: should a branch's own entries reach its sessions before the branch's brief has a complete
+   revision?**
+   - Default taken: **no**. The set follows the session's stamp: a branch whose brief has no
+     complete revision is stamped with the project's key, so its sessions get the project's set,
+     and the lens says *Reaches sessions once this brief is complete* on each such entry.
+   - The default's cost: words and decisions a branch records while its brief is still open reach
+     none of its sessions until the brief completes, exactly as its own answers do.
+   - Yes costs about 3 h across phase 4's 26, 27, 29 and 17: the set digests are served per
+     `(contextRef, branch)` beside the `Ref` rather than in it, which reads OD-36's "`Ref` carries
+     their digests" loosely.
+   - *Holds up:* nothing built. Phase 4's 26, 27, 29 and 17 build the default; a yes after they
+     ship reworks all four.
+4. **Q10 (new in Revision 2): may a term or a decision be recorded with no brief revision
+   (`settledIn: null`), in a session with no brief key or in the lens before a project's first
+   brief is saved, although OD-36 makes each "its own Hub record that references a brief revision"?**
+   - Default taken: **yes**, so a word can be recorded before the first brief exists, and a session
+     without a brief key can still record one.
+   - The default's cost: such a record references no brief revision, so no brief's erasure lists it
+     among what settled there, and no release pin reaches it.
+   - The other answer costs about 1 h across Hub 47 and 48a and phase 4's 31: `settledIn` becomes
+     required, *Add a word* and *Record a decision* wait for the brief's first save, and a session
+     without a brief key is refused with its reason.
+   - *Holds up:* Hub task 47, which writes the column. After it ships, the other answer is one more
+     migration.
