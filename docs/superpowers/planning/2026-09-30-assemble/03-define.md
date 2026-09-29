@@ -1,8 +1,13 @@
 # 03 · Define: the brief, the interview, the spec — adopt, do not build
 
-**Date:** 2026-09-30 · **Status:** complete
+**Date:** 2026-09-30 · **Status:** revising for the owner's second direction (relaunch, 2026-09-30)
 **Question:** which existing product or project can stand in for Define (phase 4, Discover, and the
 OD-36 glossary and decision record) so that we build glue, not the capability?
+
+## 0. Revised for the owner's second direction
+
+_In progress: Orca as the cockpit, Panacea as the strong default, Coolify and Supabase allowed. What
+changed and why lands here section by section._
 
 ## 1. Answer
 
