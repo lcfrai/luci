@@ -326,7 +326,8 @@ Why this and not a bought service:
 
 ### What it replaces in our plan
 
-- **Phase 8** (38 tasks, about 98.5 plan-days, 5 done). **Removed:** task 12 (warm capacity:
+- **Phase 8** (38 task files, about 98.5 plan-days by the plan's own estimates; the stream
+  reports 5 of 35 done). **Removed:** task 12 (warm capacity:
   balloons and pre-pull, 2 days) and task 19 (broker machines: wake, sleep, idle sleeper, caps,
   4 days), which become `SandboxWarmPool` and the `Sandbox` lifecycle. **Materially reduced:**
   14 (pod hardening, 2.5), 15 (machine volumes, 3), 23 (per-machine backends and reaper, 3.5)
@@ -367,7 +368,31 @@ Why this and not a bought service:
 
 ## 6. Calls only the owner can make
 
-_TBD_
+List prices below are from the Azure Retail Prices API on 2026-09-30, USD, Australia East,
+pay-as-you-go, Linux. No discount, reservation or KPMG agreement is applied.
+
+1. **The subscription and its spend (money).** Day 1 needs `OD-5`'s environment. A dev baseline
+   is about **US$2,000 a month**: 2 × D4s_v5 system nodes ($0.24/h each, about $350), 2 × D8s_v5
+   Kata nodes kept for the warm pool ($0.48/h each, about $700), Azure Firewall Standard
+   ($1.25/h, about $910, plus $0.016/GB). Not included: Log Analytics, ACR, disks, data transfer,
+   the AKS Standard tier. Azure Firewall Basic ($0.395/h) would cut about $620 of that for dev.
+   Each extra concurrent 2 vCPU / 4 GB session costs roughly **US$0.12 to 0.16 an hour**
+   (ACI list: $0.0486 per vCPU-hour, $0.00532 per GB-hour; AKS: about three such sessions on a
+   D8s_v5), so cost does not separate the adopt option from the fallback.
+2. **Warm-pool size (money against what users feel).** Each warm sandbox is a running microVM
+   waiting for a user. The recommendation starts with 3 per image during business hours and
+   scales down at night; a bigger pool is a faster first keystroke at a higher idle bill.
+3. **Idle policy (customer-visible).** How long an idle session keeps running before it is paused.
+   Pausing keeps the disk; resuming is a Kata cold boot of seconds rather than an instant attach.
+4. **What customers are told (customer-visible).** The isolation badge (seam S8.5) would say, in
+   substance, "each session runs in its own Hyper-V-isolated microVM in Australia East". The owner
+   should also approve how the known gap is disclosed: Microsoft Defender for Containers cannot
+   assess Kata pods.
+5. **Buy instead of run (money; not recommended now).** Paying a vendor to operate the sandbox
+   cluster (Northflank BYOC or Runloop VPC deploy) instead of running AKS ourselves. Against it
+   today: new-vendor procurement takes weeks, microVM isolation on Azure is undocumented for
+   both, and agent-sandbox costs nothing. Worth reopening only if running the cluster becomes the
+   bottleneck.
 
 ## 7. What this study could not verify
 
