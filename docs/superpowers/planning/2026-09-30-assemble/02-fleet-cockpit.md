@@ -145,7 +145,45 @@ sergi/go-diff adoptions now apply only to the deferred tasks 16 and 21.
 
 ## 5. Recommendation
 
+**Keep and extend our phase 2 cockpit. Switch to nothing. Land through the customer's git host —
+GitHub pull requests with the merge queue, Azure DevOps pull requests with auto-complete — and take
+the "needs you" signal from Claude Code's own HTTP hooks.** Integration: **4.5 days** (hooks and the
+attention queue 2.5, host landing glue 1.5, AI first-pass review 0.5).
+
+| | |
+|---|---|
+| **Replaces** | **Phase 3:** tasks 08, 10, 19 replaced (8.5 h); 09, 14, 20 shrunk (11 → 7.5 h); 16, 17, 21 deferred past first ship (9 h) — about **21 of 71.5 plan-hours**. **Team mode:** 49 (team land review) becomes host branch policy — path-scoped required reviewers or CODEOWNERS; 61 (team land queue over the mirror) becomes the host queue; 63 shrinks to a PR list filtered by author. **Phase 2:** closes the named `BLOCKED-ON-YOU` gap, which was never a planned task |
+| **Why** | (1) The cockpit is built and already does the one thing no ADE does — a sandbox per untrusted session. Orca is the best of its class, but re-seating it on our control plane is 12–18 days and loses sandboxes, the four-phase shell and Azure DevOps. (2) Landing is where a third party removes real risk: a concurrent land queue with compare-and-swap and exact undo is the hardest code in phase 3, and both hosts already run it in production under the customer's own policies, CI and audit. (3) The hooks are the "agent-runtime signal" phase 2 said it needed, typed and out-of-band, so `OD-8` holds |
+| **Risks** | Host-side landing changes the owner-approved phase 3 merge lens (§7). ADO has no queue, so many lanes land serially with rebuilds. Hook payloads can drift with CLI releases — pin the CLI in the image and canary it. A customer's managed policy could strip hooks (KPMG's own laptop policy strips settings-file hooks) — ship them in the image's managed settings and canary that too. The brief trailer must survive each host's merge — one test per host before first ship |
+
 ## 6. What we still build (the glue)
+
+**Do now — first ship**
+
+1. **Attention queue (2.5 d).** The sandbox image ships `managed-settings.json` with HTTP hooks for
+   `Notification`, `PermissionRequest` (observe only, no decision), `Stop`, `SessionStart` and
+   `SessionEnd`, posting to a loopback `sandboxd` endpoint with a per-session bearer
+   (`allowedEnvVars`). `sandboxd` relays the typed event on its existing channel; the control plane
+   adds `attention` to the session (`waiting_on_you` with a reason, `done`, cleared on next input);
+   the cockpit gets a "Needs you" queue ordered by wait time, a pane badge and an OS notification,
+   all on the one heartbeat clock. Other harnesses keep today's four statuses. Pin the CLI; a canary
+   asserts the hook schema.
+2. **Host landing glue (1.5 d)**, inside phase 3 task 14's `githost`: GitHub auto-merge and enqueue;
+   ADO `autoCompleteSetBy` with `completionOptions` (`mergeCommitMessage` carrying the brief
+   trailer, `mergeStrategy`, `deleteSourceBranch`); poll PR state on the existing tick; the
+   lane-to-PR strip in the merge lens; "send back to the agent" for a conflict or a failed check,
+   as a templated prompt typed into the session (input, never output parsing).
+3. **AI first-pass review (0.5 d):** a `claude-code-action` workflow template for GitHub and an
+   Azure Pipelines template that runs `claude -p` through the gateway. Opt-in per project.
+4. **Phase 3's kept core, as planned (not glue):** tasks 03 (finishing), 04–07, 11–13, 15, 18,
+   22–24 — about 36.5 plan-hours still to build. Nothing sells a credential-free sandbox whose work
+   is fetched back under `refs/panacea/lanes/…` with provenance, so this stays ours.
+
+**Later**
+
+5. Files read model, transcript adapter and files lens (phase 3 tasks 16, 17, 21).
+6. PR review comments sent back to the lane's agent in one click — the best idea in Orca and
+   vibe-kanban, and cheap once item 2 exists.
 
 ## 7. Calls only the owner can make
 
