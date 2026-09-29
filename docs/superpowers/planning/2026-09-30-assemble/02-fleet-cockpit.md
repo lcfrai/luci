@@ -1,15 +1,53 @@
 # 02 — The agent-fleet cockpit and git lanes: adopt, integrate, buy or keep
 
-**Date:** 2026-09-30. **Status:** complete; research only, nothing installed or run (§8).
+**Date:** 2026-09-30. **Status:** first run complete 09:43; **revision for the owner's second
+direction in progress** (§R, read it first — it overrides §0, §3a's Orca row and §5 where they
+differ). Research only, nothing installed or run (§8).
 **Question:** which existing product can stand in for the multi-agent cockpit (parallel sessions,
 one worktree each, live terminals, fork and resume, an attention queue) and for landing the work
 back (review, merge queue, PR), instead of us building it?
 **Owner direction (2026-09-30):** "focus on using third party solutions ... I need this tool ASAP,
 not in weeks."
 
+**Owner's second direction (2026-09-30):** Orca (`stablyai/orca`, MIT) is the owner's pick for the
+cockpit direction — verify it and plan how to use it, do not re-argue it. Panacea is the strong
+default; the best fully-fledged solution wins ("if we want to use Coolify plus Supabase, and enhance
+with snippets from Panacea, that is fine as well"). Snippets of Panacea source are now allowed, with
+attribution in the file header.
+
 ---
 
-## 0. The answer
+## R. Revised for the owner's second direction
+
+*Skeleton — filled in section by section during the relaunch.*
+
+### R1. What changed and why
+
+(pending)
+
+### R2. Orca, verified: source, licence, architecture, extension points
+
+(pending)
+
+### R3. How we use Orca, concretely
+
+(pending)
+
+### R4. What of phase 2 survives
+
+(pending)
+
+### R5. Panacea, Coolify and Supabase for this capability, on merit
+
+(pending)
+
+### R6. The revised recommendation
+
+(pending)
+
+---
+
+## 0. The answer (first run, 09:43 — superseded where §R differs)
 
 **Keep our cockpit. Land through the customer's git host. Take "needs you" from Claude Code's own
 hooks. 4.5 integration days.**
