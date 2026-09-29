@@ -1199,3 +1199,11 @@ git commit -F <msgfile> -- control-plane/internal/api control-plane/internal/fle
   `task-56.md:171-173`), but the Hub's team policy holds `dataClass` as a bare string (task 03,
   grammar only). `residency` then needs task 43's class table, **UNVERIFIED** until task 43 is
   written; until then `dataClass` is `null` and `route.required` is false.
+- **G52-7 (carried from fix batch b07's re-review 2, RR2-I2: a hole in the taint gate).**
+  `DecideItem` (`:438-449`) and its TS mirror (`:883`) carry no `evidence`, and this task has no
+  held-act read, so TM1's cockpit asks a person to approve an act "exactly as shown" without showing
+  its words (`task-31.md:370-377`; the panel `task-31.md:61-62` and `:440-441` promise). The human
+  gate is the defence against a teammate's text steering another owner's Orchestrator, so an
+  approval of unseen words makes it blind. Give both types `evidence` and add the held-act read;
+  task 55 shows it (G55-3). TM1-α is unaffected (`task-21.md:596`, `:605-606`). Recorded at
+  `2026-09-25-phase-t-team-mode-review.md:4387-4395`.

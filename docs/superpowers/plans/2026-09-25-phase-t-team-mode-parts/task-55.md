@@ -281,3 +281,7 @@ git commit -F <msgfile> -- desktop/src/components/orchestrator desktop/src/api/o
   Orchestrator is outside the laptop's registry by design (task 21).
 - **G55-2.** Task 40's `DiveState` lives in Fleet's `turns` package as read here
   (`task-40.md:324-330`); if task 40 moves it to `wire`, `DiveFleet`'s return type follows.
+- **G55-3 (carried from fix batch b07's re-review 2, RR2-I2).** A decide shows `evidence.text` as
+  the Orchestrator's quoted words, with "after reading N teammate messages" from `readTotal`, so a
+  person approves only words they can read. It needs task 52's G52-7 (the type field and the
+  held-act read). Recorded at `2026-09-25-phase-t-team-mode-review.md:4387-4395`.
