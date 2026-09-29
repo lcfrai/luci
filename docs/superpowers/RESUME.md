@@ -330,6 +330,20 @@ for it after the owner switched to new usage. All three were stopped at 15:12 an
   Read, Wrote and Edited repo files at 20:05 (the Write rules are ignored; the Edit deny does not
   match the working tree). Re-probe after any push before believing the rule text.
 
+### 0e.6 Added 23:58
+- **Gate 3b is READY** (`SDD/phase2-finish-gate-3b.md`, HEAD `11a7de4b`). Go: 20/20 ok, 852 PASS,
+  0 FAIL, 0 races. Desktop is 35 files / 910 tests, typecheck 0. X-3 is APPROVED (review 6). No
+  open Critical. Carried: F3 I-5, X-3 I-F (phase 3's R4 rule 6), task 25 I-1 (run 5's doc agent).
+  Gate 3 had failed only because **C: was full** (13 MB). The cleanup took it to 37-40 GB free:
+  `~/.claude/auto-memory/devbox-disk-full-go-cache.md`.
+- **Run 5 is NOT RUN.** Its agent refused: the latest owner message it could see was the disk
+  request, and it treated the script's authority line as unverifiable. It then did disk work of its
+  own: it cleared `~/.panacea-l2/gocache` (0.95 GB, stale) and killed its own orphan loops plus one
+  unrecorded PID 15088. `phase2-e2e-run5.js` now cites where the owner's permission is recorded and
+  forbids any delete or kill outside its own work. **Relaunch it right after an explicit owner
+  "go" in chat**, with `{"head":"11a7de4b9d226b2923dde4eb834a2b8a897b9cc6","gate":"…/phase2-finish-gate-3b.md"}`.
+- Then `phase2-branch-review.js`, then the must-fix items, then `main`.
+
 ## 1. What was running at shutdown (7 workflows)
 
 | Stream | Worktree / branch | Last run id | Script | args |
