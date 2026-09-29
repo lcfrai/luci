@@ -2,7 +2,7 @@
 
 **Slice:** W1. **Size:** 3 focused hours beside the run itself (an estimate, not a measurement).
 **Stream:** WD2 with WH (the last W1 task; it runs on the merged W1 tree). **Depends on** tasks
-01-69. **Seams:** none. Creates `docs/verification/2026-09-25-phase-w-results.md`, which tasks 97,
+01-69 and 23b. **Seams:** none. Creates `docs/verification/2026-09-25-phase-w-results.md`, which tasks 97,
 113, 142, 174 and 187 append to in task order (the skeleton's *Proof and documents* table, `:323`).
 
 `OD-27` is the rule: **proof per criterion, no prediction.** A parity row this section marks closed
@@ -228,9 +228,9 @@ predicted result. Nothing is read from an agent's terminal (OD-8).
    Record: the dialog's result line (created, existing, unmatched labels), verbatim.
 3. **Triage.** Open team T's Triage.
    Record: EP-142's row text, which must read *not tied · imported*.
-4. **Tie it.** Focus EP-142; press `T`; take the text-match suggestion for the resume criterion;
-   set priority; leave Triage.
-   Record: the suggestion's words, the *Undo* chip's text, EP-142's new `serves` line.
+4. **Tie it; set its check.** Focus EP-142; press `T`; take the text-match suggestion for the resume
+   criterion; set priority; leave Triage. Open EP-142; on that pair *Set check*, type `node --test test/resume.test.mjs`, `Enter`.
+   Record: the suggestion's words, the *Undo* chip's text, EP-142's new `serves` line and its check line.
 5. **Start.** `Shift+R` on EP-142. Start a stopwatch at the key press.
    Record: seconds to the first sign on the row (**measured**, this run only), the chip text
    (*Undo Start*), the lane's branch name, and that the assignee still reads Dylan.
@@ -239,7 +239,7 @@ predicted result. Nothing is read from an agent's terminal (OD-8).
 7. **Land.** Land the lane through phase 3's Merge lens (`confirm.inplace`).
    Record: the land commit's `Panacea-Issue:` trailer (`git log -1 --format=%B <sha>`); that the
    row flashed `landed` in place and kept its position in list and board; `Space` peek's first line.
-8. **Proven.** Wait for the watched resume test at the landed commit.
+8. **Proven.** Wait for frame 4's check, run by the platform at the landed commit.
    Record: the evidence id, and that EP-142 read `done` with no click, and at what time.
 9. **The Desk.** Open the Desk.
    Record: its whole text, which must end *"Nothing needs you. EP-142 landed and proven at 14:02."*
@@ -550,7 +550,7 @@ rows with the sample sha `0123abc`; `testdata/w1-missing-output.md` is the same 
 - [ ] **Step 5: run frames 2-10** of `w1-demo.md`, filling the run table with quoted
   observations. Shorten with `[cut]`, never `…`.
 - [ ] **Step 6: run the budgets** (frame 11) and paste the four lines into the budgets table.
-- [ ] **Step 7: run the suites** and each of tasks 01-69's acceptance commands that the rows table
+- [ ] **Step 7: run the suites** and each of tasks 01-69's and 23b's acceptance commands that the rows table
   cites; paste each result line beside its row.
 - [ ] **Step 8: show the owner** (frame 12) and record the words, or *not yet shown*. List what
   is still unproven.
@@ -613,3 +613,25 @@ checks table. A timing line reading `not reached` is recorded as it is; it fails
 5. **Task 113's `check-w3.sh`** duplicates `check-slice.sh`; the skeleton should name one check.
    Phase 2 task 25's `desktop/e2e/` harness is not built on this branch, so the budgets script's
    dependency on `playwright` lands with it or with this task, whichever merges first.
+
+#### Addendum (fix batch b02, round 2): the check frame 4 sets, and what it needs
+
+Task 23b's check line is W1's only writer of `Serve.Check` (`task-23b.md`, decision 5), and task
+23's Closer runs a check only for a pair whose `Serve.Check` is set (`task-23.md:454`). Before this
+round no frame set one, so EP-142 stayed `landed` and frames 8 and 9 could not happen. Frame 4 now
+sets it on the head revision, after `T` ties the pair, and records the check line's text.
+
+- **The check is `node --test test/resume.test.mjs`.** Node 20's built-in test runner is in the
+  sandbox image (`images/sandbox/Dockerfile:10`, `node:20-bookworm-slim`), so the check installs
+  nothing and needs no network, no credential and no CA bundle: it passes or fails on the landed
+  commit alone. Project P's repository must hold `test/resume.test.mjs`, failing before EP-142's
+  lane and passing after it. That repository is the person's: no task builds a demo repository
+  (task 69's gap 2 is the same absence for `first.landing`). **UNVERIFIED** until the run.
+- **If the lane does not make it pass**, the check exits non-zero, nothing is recorded, and frame
+  8 records *not reached* and that EP-142 still reads `landed`: an honest result, never a predicted one.
+- **Set before Start** (frame 5), so the agent reads the revision that carries the check and no
+  revision is written under a running lane.
+- **Typed, not pasted.** It is the first typed check the plan runs, so it also proves that task
+  47's list `T` leaves a key typed in the field to the field (`task-47.md:414`).
+- **`dependsOn` gains 23b** (the line and the runner): `:4-5` here, the skeleton's row 70, and the
+  scope's block (`tasks-61-80.md:354`). Size unchanged: one act inside an existing frame.

@@ -351,7 +351,7 @@ L-98's W1 half, L-101's list and board, L-102's W1 half, L-104, L-106, L-108, L-
 L-126, L-127's W1 half, L-146, L-181, L-191, L-198, L-200 and L-201's in-product halves, L-220's
 W1 half, L-221-L-229, L-234's W1 half; plus L-45 and L-117, which 05 §5.3 rows 4 and 12 moved
 from W2 into W1), the task that built it and what was observed, and what stays **UNVERIFIED** (the budgets, the cloud
-path, screen-reader use, `first.landing`'s starter repo). **Depends on** 01-69. **Design:** 05
+path, screen-reader use, `first.landing`'s starter repo). **Depends on** 01-69 and 23b. **Design:** 05
 §5.3 (the demo, revision 2), §4.6, §5.7. **Closes** nothing new; it proves W1's rows. **Does not
 claim** the cloud demo (the owner's, after phase 6 stream A and phase 8 stream C; skeleton *Start
 lines*), team mode, or any number as a measurement beyond the run it was taken in.

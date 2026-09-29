@@ -469,7 +469,7 @@ A sibling task is a dependency only once its branch is sync-merged here (rules H
 | 67 | issue chips in Develop and Merge | W1 | 0.25 (2 h) | 48; P4-17, P3-19 | — |
 | 68 | create an issue from any list, a Desk row, a span or a hunk | W1 | 0.3 (2.5 h) | 46, 53 | — |
 | 69 | the import dialog; `first.landing`'s rehearsal as the real issue EP-1 | W1 | 0.3 (2.5 h) | 25, 42 | — |
-| 70 | **W1's local-mode demo**, end to end, and its results | W1 | 0.375 (3 h) | 01-69 | — |
+| 70 | **W1's local-mode demo**, end to end, and its results | W1 | 0.375 (3 h) | 01-69, 23b | — |
 | 71 | shipped: issues in the release manifest; *shipped to production, 14:02* | W1b | 0.375 (3 h) | 22, 64; P7-17, P7-19 | — |
 
 ### W2: planning
