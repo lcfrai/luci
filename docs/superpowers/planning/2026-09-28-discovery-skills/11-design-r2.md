@@ -707,7 +707,45 @@ record, expect roughly 70 hours: that multiplier is a judgement, not a measureme
 
 ## 8. What it does not do, and the open owner questions
 
-(to be written)
+### 8.1 What it does not do
+
+- **The interview**: no new question, no change to the five or to the follow-up, no provability seed.
+- **The brief**: no field in its content, no fragment on its key, no revision minted by a word.
+- **Design and Deploy**: no approval or release pins a word or a decision (Q3 below).
+- **No record without a person**: the assistant suggests, a person records; no Authority rule
+  records on its own (Q4).
+- **No shared round state**: rounds and dismissals stay on one machine (Q5).
+- **No MCP tool now**: `get_terms` and `get_decisions` wait for phase 5's channel (§5.3).
+- **No session-sourced decisions yet**: *Accept and record* waits for the Desk's row, which no
+  plan builds (§3.2).
+- **No words from an imported repository**: task 21 stays as it is.
+- **No scope wider than a project**: no team or org glossary; a branch may add, depart and promote.
+- **Not ours**: it replaces neither this repository's `CONTEXT.md` nor the owner-decision register.
+- **No count, badge or progress** anywhere, and no queue item of its own (§6.2).
+
+### 8.2 Open owner questions, each with the default taken
+
+| # | Question | Default taken, and what the other answer costs |
+|---|---|---|
+| Q1 | Who owns the key grammar: phase 4's `provenance` (`HC:116`, `PC:104`, `key.go:1-2`) or the Hub contract (OD-36, `owner-decisions.md:409`; `10:54`)? (11b Q1) | **No answer needed to build.** Both parsers change together, the Hub's first (45 before 26), and the contract's text changes in 44a as A20. The design is the same either way |
+| Q2 | OD-36 says the key grammar "does not move". Does adding two **new** forms break that? | **Taken: no.** "Does not move" is read as *no existing form changes*, and the brief's does not by a byte; a new `kind:` is the grammar's designed extension (`PC:104-107`), as phase W's `issue:` already is. If the owner meant *no new form at all*, terms and decisions are cited by a `{kind, id, revision}` struct in phase W's style instead: §2.1 changes, the resolver answers them by a new route rather than `/v1/refs`, and Hub 45 and phase 4's 26 shrink by about 1.5 h |
+| Q3 | Should a release pin the decisions in force at Ship? | **No.** OD-36's *What moves* names the Materialiser, `Ref` and the lens only, and a session's inheritance is already provable through Develop. Yes costs one pin member in Hub 23 and lines in phase 7's 08 and 17: about 3 h |
+| Q4 | May Authority pre-authorise the assistant to record **words** (never decisions) on a branch without asking? | **No**: every record is a person's gesture, `author` `person` or `model_accepted`. Yes costs a new `author` value, one Authority action class and its lens state: about 3 h |
+| Q5 | Should rounds and dismissals be shared through the Hub? | **No**, local only; the cost is that a dismissed suggestion may be offered once more on another machine. Yes is a mutable Hub kind for process state, which is what §4 exists to avoid |
+| Q6 | The product's words for `CONTEXT.md`. `CONTEXT.md:303` already calls our own register "one decision record", and `CONTEXT.md:149` calls an approval row "a decision under Authority" | **Term** and **Project decision**, each with a *Not «…»* line: not «vocabulary» (the Work layer's team names, 11b §5.2), not «ADR», and not an approval row. The Work layer's planned Go type `Term` (`task-138.md:111`) is another package and is left alone |
+
+### 8.3 What this design did not verify
+
+- No code was compiled or run; test counts are 11a §6's text scan, and every *runs* in §7.2 is a
+  prediction. The hours are estimates before review.
+- The upstream `LICENSE` file is unread (§1, section 6).
+- Whether the harness reads `.claude/CLAUDE.md` is still phase 4's open item (task 23,
+  `materialise.go:45-48`); the route line names worktree-relative paths, so it reads the same from
+  either file, if either is read.
+- Which of the Hub's schema tests enumerate tables is unchecked: `schema_integration_test.go` is
+  uncommitted-modified in the Hub worktree today (11b §2.2).
+- The round's limits (three decisions, five words, fourteen days) and the inline budgets (4 and 6
+  KiB) are judgements, not measurements: the prototype (task 24) is where the owner tests them.
 
 ## Closing
 
