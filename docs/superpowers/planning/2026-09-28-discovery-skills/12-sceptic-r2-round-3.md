@@ -80,6 +80,72 @@ contract at `cafe1303`. `OQ:N` is `2026-09-25-owner-questions-pending.md`.
 - **No cited line moved.** `git diff -U0 2726d918 HEAD` on 11 shows every hunk above line 1100 as
   `-a,b +a,b`, and one insertion, `+1100,327`, which is Revision 2.
 
+## 2. Issues
+
+### 2.1 Critical
+
+None. The struct, the stamp rule and §18 hold, and nothing below stops a plan edit.
+
+### 2.2 Important
+
+**R3-I1. Erasing a project entry reaches no departure from it.** This is an erasure leak, and a false
+`edited` that shows the erased text. It is new: R2.1's pins and M5's copy make it together. Where:
+§2.3:280-281, §2.4:328, §2.6:421-425, §5.1:616-622, §R2.1, §R2.2.
+- **Why the departures survive.** A departure is "its own record" (11:275-276). Erasure is per
+  record: `POST /v1/terms/{termId}/erase`, and `hub.erase_term` empties that record and nulls its
+  own head's folded word (11:422-425, :1176-1180). The only erasure check on `overrides` runs at
+  write time (11:342). No text says that a later erasure of the pinned entry reaches the records
+  that pin it.
+- **(a) A *not here* keeps a verbatim copy.** M5 gives it "`@n`'s fields, copied" (11:281, :328,
+  :1268): a term's `word`, `is`, `avoid` and `because`, or a decision's five text fields. Round 2
+  asked for that copy, and it was wrong to. Take a project term *Falcon*, a client's codename, set
+  aside on branch X, which the org admin then erases:
+  - X's departure still holds the word and its definition, and its head still holds `falcon`.
+  - The lists and the revisions read serve them to every `V` caller.
+  - Every new session on X is handed them again: the block's `- _Not on this branch: **Falcon**_`
+    (11:622; a decision prints its text, :618) and `terms.md`, which holds "every entry of the
+    session's set, in full" (11:683-685). These are fresh files at each start, not only the stale
+    file that plan OQ-9 accepts for the brief (p4 `contextwrite/inspect.go:28-29`).
+  - The erase reply names none of it, though a brief's erasure names what settled in it
+    (`settled`, 11:435-441).
+  - The scan cannot catch it: 48b's term is erased alone (11:431-434, :1191-1195). So "no copy of
+    a word outlives its erasure" (11:1175) is asserted but not tested.
+- **(b) An erased pin gives a false `edited`.** Origin lines print the pin (11:619), and an erased
+  revision reads with its text `null` (11:1127-1128). No rule says what the Materialiser prints then.
+  The overlay subtracts the overridden entry from the branch's set (11:296-297), so its erasure
+  moves neither set digest. `Inspect` therefore passes the set check (11:704-708), renders, and finds
+  the text changed. It calls the block `edited`, with `DiffLines(render, text)` showing the erased
+  definition as a person's edit. R2.1's reason the digests hold, "a revision is immutable"
+  (11:1150-1151), fails at the one mutation the Hub allows.
+  - Phase 4 has already solved exactly this for the brief's own pin. `Inheritable.PinErased`
+    renders the branch's text alone (task 07's rule 7). `Inspect` reads `superseded` with an empty
+    Diff, "so the erased text is not shown" (p4 `contextwrite/inspect.go:22-29`, `:212-213`;
+    `discoverhub/read.go:82-86`, `:561-566`). The sets' pins get no such rule, and the lens's
+    *Project: <definition>* (11:786) has the same gap.
+- **Fix.**
+  1. **Erase what was copied.** `hub.erase_term` and `hub.erase_decision` also erase every
+     `set_aside` record whose `overrides` pins a revision of the erased record, in the same owner
+     function, with one `*.erased` event each. Its fields are that record's text by construction
+     (11:281), so this erases nothing a person did not choose (11:441).
+  2. **Name the rest.** The erase reply gains `departures`: the struct of every other record whose
+     `overrides` pins the erased one, as a brief's reply gains `settled`. An in-force departure is
+     the branch's own text, but its `word` is usually the same codename, so the admin chooses. It is
+     a `pendingAmendment` until 44b, as `settled` is.
+  3. **Apply rule 7 to the sets' pins.** `Inheritable` carries `PinErased` per pin (M9a already
+     carries the pins). A departure with an erased pin prints its own text without an origin line,
+     and `Inspect` reads `superseded` with an empty Diff. The lens shows *the project's entry was
+     erased* in place of *Project: …*.
+  4. **Tests.** Give 48b's marked term a *not here* and an in-force departure. After the term's
+     erasure, the scan finds the marker only in the in-force departure the reply names, and after
+     that one's erasure, nowhere. 29's `Inspect` test adds an erased pin, which reads `superseded`
+     with an empty Diff.
+  - **Price: about 1.75 h.** Hub 47 +0.5 and 48b +0.25; phase 4's 27, 28, 29 and 31 +0.25 each.
+    §0, §7.3-7.5 and §R2.4 then carry about 78.5 h.
+  - **Or take the copy back out.** A `set_aside` revision holds no text, §2.2's rules exempt it,
+    and its line prints the pin, as an origin line does. Rule 7 then covers it too. That changes
+    M5's field rule and R2.2's `CHECK` (a `set_aside` head holds no folded word), for about the same
+    hours.
+
 <!-- Working notes (replaced as the review lands):
 - Round 2 read, lines 1-140: R2-I1 = no read of a past revision (fix: lists return heads, one
   revisions read per kind in §18, Materialiser reads pinned revisions, ~2 h across Hub 46, 48b and
