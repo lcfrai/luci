@@ -122,7 +122,39 @@ system, and a customer who runs one can be served by the same connector shape la
 
 ## 4. Candidates — self-hosted trackers
 
-_Pending._
+The earlier library study (`2026-09-28-oss-adoption/01-work-layer.md` §3.1) already found that
+**no permissively licensed Linear-class tracker exists**. This pass asks the product question
+instead: would running one in our environment beat integrating the customer's own? It would not,
+for one reason that is independent of licence: **it gives a KPMG team a third tracker** beside the
+ADO and GitHub it already uses, and a customer a tracker nobody asked for.
+
+### 4.1 Plane — **reject as the default** (licence and a third tracker)
+
+| | |
+|---|---|
+| **Does** | The strongest open Linear clone: work items, cycles, modules, views, pages, intake, an MCP server. ~60k stars (Glasses, observed 2026-09-29). |
+| **Licence** | Two editions, and neither is permissive. **Community Edition: AGPL-3.0.** **Commercial and Airgapped Editions: closed source** ([editions](https://developers.plane.so/self-hosting/editions-and-versions)). |
+| **What AGPL-3.0 forces** | (1) If we **modify** Plane and people use it over a network, we must offer **those users the complete source of our modified version** under AGPL (§13). (2) Installing it **into a customer's tenancy is distribution**, with the same source obligation. (3) Our own services talking to an **unmodified** Plane over its API are not a derivative work and are not forced to AGPL. (4) Many enterprise legal policies ban AGPL outright; the licence rule here marks it RESTRICTED. The permissive-alternative answer is not another tracker: it is integrating the customer's. |
+| **Price** | Commercial: Pro **$6/seat/month** annual, Enterprise Grid by quote, same price cloud or self-hosted, **12 seats free per workspace** ([pricing](https://plane.so/pricing)). |
+| **Deploys** | Self-hosted Docker or Kubernetes, or Plane Cloud (no AU region found). |
+| **Enterprise fit** | OIDC and SAML SSO documented for self-host (so Keycloak/Entra works); audit and governance in Commercial. |
+| **Gaps** | A third tracker; no criterion concept; its agent story is its own, not our sandbox. |
+| **Integration** | 5-8 days (AKS deploy, Keycloak OIDC, backups, connector) plus running it forever. |
+
+### 4.2 The rest, one line each
+
+| Candidate | Licence (read) | Verdict | Why |
+|---|---|---|---|
+| **Huly** (`hcengineering/platform`) | **EPL-2.0** (read 2026-09-28): weak, file-level copyleft; modified EPL files we distribute must be published under EPL | reject | A heavy all-in-one (tracker, chat, docs, HR) that overlaps Teams; a third tracker; licence not on the allowed list |
+| **OpenProject** | **GPL-3.0** core plus a commercial Enterprise token | reject | Distributing a modified copy forces GPL source; mature on-prem, but a slow Rails UI and no agent model |
+| **Taiga** | **MPL-2.0** (read 2026-09-30) | reject | Allowed licence, but dormant: last push 2023-12-13 (earlier study) |
+| **GitLab CE** | MIT (CE only; epics and iterations are paid tiers) | reject | A third forge beside ADO and GitHub |
+| **Vibe Kanban** (`BloopAI/vibe-kanban`) | **Apache-2.0** (read 2026-09-30), 28.2k stars | reject | Kanban where each card runs an agent in its own worktree: our cockpit's shape. **The repository says it is sunsetting** |
+| **beads** (`gastownhall/beads`) | **MIT**, 27.5k stars | reference | A Dolt-backed graph issue tracker *for agents*: atomic `--claim`, ready-work detection, dependencies, MCP server, messaging. A per-repo agent scratchpad, not a team tracker for people; its claim model is worth reading for Phase T leases |
+| **MCP Agent Mail** (`Dicklesworthstone/mcp_agent_mail`) | "MIT **with OpenAI/Anthropic Rider**" (read 2026-09-30): prohibits use by Anthropic, OpenAI and anyone acting on their behalf | **reject (licence)** | Agent inboxes and file reservations are exactly Phase T's shape, but a field-of-use rider is not an open licence, and our agents are Claude Code |
+
+Also rejected on licence in the earlier study and not re-opened: Focalboard (AGPL source),
+Planka (fair-code since v2), Vikunja and Leantime (AGPL), Redmine (GPL-2.0).
 
 ## 5. Candidates — presence, notifications, team surfaces
 
