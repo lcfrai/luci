@@ -33,9 +33,9 @@ one: task 157's scope writes the Teams package as `hub/teams/` and task 165's as
   comment back into the Teams thread); Slack gets no post-back at all, so there is no echo loop to
   guard, and the test still checks a canary never leaves.
 - **Acts from Slack are the linked person's, or nothing.** A Slack user is a person only through
-  a `slack_person_links` row that person made on a Hub page behind Entra. Unlinked, a Slack user
-  can send a message to intake (the requester is then `kind: "slack"` with a display name) and
-  can do nothing else.
+  a `slack_person_links` row that person made on a Hub page behind Entra, in the install's org.
+  Unlinked, a Slack user can send a message to intake (the requester is then `kind: "slack"` with a
+  display name) and can do nothing else.
 - **No fact from chat.** Slack's actions are *Open* and *Subscribe* only. No state, assignee or
   priority action exists, and no act from Slack writes a fact state or `done` (SW.3).
 
@@ -43,7 +43,7 @@ one: task 157's scope writes the Teams package as `hub/teams/` and task 165's as
 secret references, the app's signing secret and its bot token, which an operator places in Key
 Vault: the `secret_ref` pattern task 144 proposes for webhook secrets
 (`tasks-141-160.md:241-245`; Key Vault access is itself a **proposed Hub-contract addition**,
-since `hub-contract.md:2083-2085` says the Hub has none in v1). Slack's OAuth install is not built.
+since `hub-contract.md:2083-2085` says the Hub has none in v1). Slack's OAuth install is not built. The install is the workspace's one org (*The org line*).
 
 **Files** (the File map has no row for chat; these follow its `hub/` layout and are proposals):
 - `control-plane/internal/hub/chat/poster.go` (+ test) — `Poster`, `Post`, the provider-neutral
@@ -301,7 +301,10 @@ without it. Golden payloads in `testdata/` are marked **UNVERIFIED** in a header
 | `TestUnfurlOnlyForReadable` | a link to an issue the linked sharer cannot read → no `chat.unfurl` call; an unlinked sharer → none | an unfurl confirming a hidden issue |
 | `TestUnknownWorkspace401` | a well-formed call with an unregistered `team_id` → 401, not 404 | a route that enumerates installs |
 | `TestLinkNonceOnce` | a nonce used twice → the second is 410 and writes nothing; one 11 minutes old → 410 | a replayable link |
-| matrix rows (`matrix_integration_test.go`) | a team `member` PUT of a channel link → 403; a non-admin install PUT → 403; `DELETE /v1/me/slack-links/…` removes only the caller's own | a missing matrix row |
+| `TestChannelLinkCrossOrgRefused` | orgs A and B enrolled, install `T_B` in B. A's team admin PUTs `/v1/teams/{A's team}/slack-channels/C1` with `{slackTeamId: "T_B"}` → 404 `slack_install_not_found`, and `slack_channel_links` holds no row, counted as the owner (`hubtest.OwnerConn`, which row-level security does not filter); the same with the Go check off (H16b's test-only hook) → 404, no row; then `T_B`'s shortcut in `C1` → the *not linked* ephemeral and no `rq-` in either org. Control: the same admin linking A's own install `T_A` succeeds with one row, so the test is red while the route is missing | the link's org taken from the team, the path or the body instead of the install; an install read outside row-level security |
+| `TestPersonLinkCrossOrgRefused` | an unlinked `T_B` user presses *Subscribe*, minting a nonce in org B; an org A user GETs its link page and POSTs it → 410 each, the body a used nonce gets, and no `slack_person_links` row (counted as the owner); the same with the Go check off. Control: the nonce is still there, and an org B user redeeming it gets the link, in org B | a redeem that checks the nonce and not its org; a person link that takes the signed-in user's org instead of the nonce's |
+| `TestSlackTablesOrgIsolated` | for each of the five tables, a row inserted in org B is invisible to `hub_app` with `hub.org_id` = A (task 116's `TestW4EveryTableHasRLS` form, `task-116.md:368`), and an insert whose `org_id` is not `hub.org_id` is `42501`; a channel link `(A, T_B, …)` inserted as the owner is `23503`; `slack_install_org('T_B')` answers B's id, an unknown id `NULL` | row-level security left as a comment; a single-column key to `slack_installs`, which H07a's `TestEveryForeignKeyCarriesTheOrg` fails too |
+| matrix rows (`matrix_integration_test.go`) | every Entra route above as every §5.3 column (`hub-contract.md:335-363`): a channel-link PUT or DELETE → `V` 403, `M` 403, `A` ✓, `O`, `N` and `X` 404; an install PUT or DELETE → `O` ✓, `V`, `M`, `A` and `N` 403, `X` 404; the link GET and POST → ✓ in the nonce's org, `X` 410; `DELETE /v1/me/slack-links/…` removes only the caller's own; the `X` column once more with the Go check off | a missing matrix row; an org line held by Go alone |
 | re-runs | task 157's and task 165's own tests pass unchanged after the re-pointing | a refactor that changes Teams |
 
 #### Steps
@@ -316,13 +319,17 @@ without it. Golden payloads in `testdata/` are marked **UNVERIFIED** in a header
   poster, `ClaimDigest` on the test database). Re-point task 157's feed step and task 165's digest
   step at `chat.Post`. Run their suites unchanged. Expected: `ok`, the same row count as before.
 - [ ] **Step 4: The store and the migration, then the inbound routes, tests first.** Write the
-  integration rows for the shortcut, the thread, dedup, unlinked and unknown workspace; expected
-  FAIL (404 on the route). Implement `events.go`, `interact.go`, `server/work_slack.go` and `store/work_slack.go`
-  and the migration. Re-run with `-tags integration`. Expected: `ok`.
+  integration rows for the shortcut, the thread, dedup, unlinked and unknown workspace, and
+  `TestChannelLinkCrossOrgRefused` and `TestSlackTablesOrgIsolated`; expected FAIL (404 on the
+  route, and no such table). Implement `events.go`, `interact.go`, `server/work_slack.go` and
+  `store/work_slack.go` and the migration, both halves (*The org line*). Re-run with
+  `-tags integration`. Expected: `ok`.
 - [ ] **Step 5: Outbound, tests first.** The canary, the digest, the unfurl and the sink rows
   against a fake Slack server (`httptest.Server`, recording bodies). Implement `feeds.go`,
   `unfurl.go`, `digest.go` and the `deliver.go` sink. Re-run. Expected: `ok`.
-- [ ] **Step 6: The person link page and the matrix rows.** Implement, then the whole acceptance.
+- [ ] **Step 6: The person link page and the matrix rows, tests first.** Write
+  `TestPersonLinkCrossOrgRefused` and the matrix rows; expected FAIL (404: the link routes do not
+  exist, so each control fails). Implement; re-run. Expected: `ok`. Then the whole acceptance.
 - [ ] **Step 7: Commit** (`git add` the new files, then `git commit -F <msgfile> -- <paths>`).
 
 #### Acceptance
@@ -330,8 +337,13 @@ without it. Golden payloads in `testdata/` are marked **UNVERIFIED** in a header
 ```bash
 go test ./control-plane/internal/hub/chat/... -race -count=1
 # expected: "ok" for chat and chat/slack
-go test -tags integration ./control-plane/internal/hub/server/... ./control-plane/internal/hub/webhooks/... -run 'Slack|Matrix|Deliver' -count=1
-# expected: "ok" per package, including TestNoCustomerTextLeaves and TestOneDigestAcrossProviders
+go test -tags integration ./control-plane/internal/hub/server/... ./control-plane/internal/hub/webhooks/... -count=1 \
+  -run 'Slack|Matrix|Deliver|Shortcut|Unlinked|Retried|ThreadReply|NoCustomerText|OneDigest|DigestCarries|Unfurl|UnknownWorkspace|LinkNonce|CrossOrg'
+# expected: "ok" per package; with -v, every server row of the table above reports --- PASS, among
+# them TestNoCustomerTextLeaves, TestOneDigestAcrossProviders and the three org rows
+go test -tags integration ./control-plane/internal/hub/migrate/... -run 'EveryForeignKey|CrossOrg|GrantsAreExactly' -count=1
+# expected: "ok": H07a's catalog tests read the Slack tables' keys and grants (task-06.md:475-479);
+# one red only because a Work table exists is task 06's Step 4 case (task-06.md:492-496)
 go test -tags integration ./control-plane/internal/hub/teams/... -count=1
 # expected: "ok": task 157's and 165's rows, unchanged, after the re-pointing
 ```
@@ -364,12 +376,121 @@ go test -tags integration ./control-plane/internal/hub/teams/... -count=1
   - `slack.Verify`, `slack.MaxSkew`, `slack.Dispatch`, `slack.SlackPoster`
   - SW.21 additions: `ChannelSlack`, `RequesterKindSlack`, `SlackInstall`, `SlackChannelLink`,
     `SlackPersonLink`, `DigestSettings.slack`
-  - the routes above; the five tables; webhook sink kind `slack`
+  - the routes above; the five tables, each org-owned, and `hub.slack_install_org`; the store's
+    org reads (*The org line*); webhook sink kind `slack`
 - Consumes:
+  - task 06 — the `org_isolation` policy text and decision 2's org-carrying keys; H07a — the
+    `UNIQUE (org_id, id)` of `teams` and `users`, and its catalog tests; H16b — the matrix, its `X`
+    column and its test-only hook
   - task 146 — the request create function and `Request`; task 147 — `Route`; task 143 —
     `RequestMessage`, `DigestSettings`; task 148 — the Entra page pattern of `work_forms.go`
-  - task 156 — SW.22's payload and `deliver.go`; task 157 — the binding record and the feed step;
+  - task 156 — SW.22's payload and `deliver.go`; task 157 — the binding record (task 145's
+    `work_teams_bindings`), the feed step and `hub.org_for_tenant`, the model for the org read;
     task 165 — the digest step and its per-person clock; task 80 — the https issue page; task 12 —
     subscriptions; task 144 — the `secret_ref` pattern
 - Amends: SW.21 gains two enum values and three types (additive); task 157's and 165's steps call
   `chat.Post` with their behaviour unchanged.
+
+#### The org line: every Slack row is its install's org's (fix batch b13, S19-C1)
+
+The install row is the only thing that binds a Slack workspace to an org. So every other Slack row
+takes its `org_id` **from the install, read inside the transaction that writes the row**, never
+from the path, the body or the team, and the line holds in three layers where the Hub contract
+asks for two (*"row-level security **and** Go"*, `hub-contract.md:2082`):
+
+1. **Go refuses first.** Each write reads the install's org in its own transaction and answers
+   before it writes anything (the table below).
+2. **Row-level security hides the rest.** Task 06's policy text is on all five tables, so another
+   org's install, link or nonce is not there to be read, even with the Go check off.
+3. **The keys make a crossed row unrepresentable.** Every foreign key carries `org_id` at its
+   target's position (task 06 decision 2, `task-06.md:19-24`), so a link whose org is not its
+   install's, its team's or its person's is a `23503`, whatever the handler does.
+
+| Route or step | Its org | Across orgs |
+|---|---|---|
+| the two Slack routes | `slack_install_org(team_id)`, then `set_config('hub.org_id', org, true)` as the transaction's first statement; the dedup row, the nonce, the request and its thread are that org's | no install: 401, before any transaction |
+| `PUT`, `DELETE …/slack-installs/{slackTeamId}` | the token's, which `{orgId}` must equal | another org's `{orgId}` → 404; a workspace installed in any other org → 409 `slack_workspace_taken`, since the key is global |
+| `PUT …/slack-channels/{channelId}` | `InstallOrg`, in the caller's transaction | no install of the caller's org by that id → 404 `slack_install_not_found`, nothing written |
+| `GET`, `POST /v1/integrations/slack/link` | the nonce's, which its install gave it; it must equal the token's | 410 with a used nonce's body, nothing written, the nonce kept for its own org |
+| the feed step, the digest | the binding's or the person's, per org as the janitor runs (`hub-contract.md:2232-2233`) | a Slack binding whose channel link is not its team's posts nothing |
+
+**Feed bindings.** Task 145's `work_teams_bindings` (`task-145.md:235-251`, the binding record task
+157 reads) has no provider column, so this migration adds one. A Slack binding's channel ref is
+`<slackTeamId>/<channelId>`, the prefix of a request's `channelRef`. The feed step resolves it
+through that channel's `slack_channel_links` row, under the binding's org and team, and
+`SlackPoster` takes the bot token's ref from that row's install: no row, no post. Another org's link
+and install are not there to be read, so no binding posts into another org's workspace, and
+unlinking a channel stops its posts. No route in this part writes a Slack binding (the
+`SlackChannelLink` comment says a link *carries* them, and names none): a gap for the return, and
+whichever route it is refuses 404 unless the channel link is the binding's team's.
+
+**Inside one org** a team admin can still link any channel of the org's workspace by its id. Task
+157 links a Teams channel by a pairing code shown in that channel instead (decision 1,
+`task-157.md:27-32`). That is a same-org question, not S19-C1's, and is returned as a gap.
+
+```sql
+-- migrate/sql/NNNN_work_wl_slack.sql, second half. Row-level security: task 06's text over exactly
+-- these tables (task-06.md:367-380). No FORCE, as task 06 and hub-contract.md:1914-1918: the owner
+-- runs slack_install_org before hub.org_id is set, and under FORCE a policy TO hub_app would hide
+-- every install from it (task-145.md:434-438 makes the same call for app_for_client).
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['slack_installs', 'slack_channel_links', 'slack_person_links',
+      'slack_link_nonces', 'slack_events_seen'] LOOP
+    EXECUTE format('ALTER TABLE hub.%I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('CREATE POLICY org_isolation ON hub.%I TO hub_app
+                    USING (org_id = current_setting(''hub.org_id'', true))
+                    WITH CHECK (org_id = current_setting(''hub.org_id'', true))', t);
+  END LOOP;
+END $$;
+
+-- Grants: task 06's shape (task-06.md:382-387), each explicit. A link is removed and made again,
+-- never edited; a nonce is deleted when it is used or has expired.
+GRANT SELECT, INSERT, DELETE ON slack_installs, slack_channel_links, slack_person_links,
+                                slack_link_nonces, slack_events_seen TO hub_app;
+GRANT UPDATE (signing_secret_ref, bot_token_ref) ON slack_installs TO hub_app;
+
+-- slack_install_org answers one workspace's org and nothing else, for the two Slack routes, which
+-- call it before they know the org (task 157's hub.org_for_tenant is the model, task-157.md:273-277).
+-- It is one more SECURITY DEFINER function for the contract's T3 residual (hub-contract.md:2071).
+CREATE FUNCTION slack_install_org(p_slack_team_id text) RETURNS text
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = hub, pg_temp AS $$
+  SELECT i.org_id FROM slack_installs i WHERE i.slack_team_id = p_slack_team_id
+$$;
+REVOKE ALL ON FUNCTION slack_install_org(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION slack_install_org(text) TO hub_app;
+
+-- The feed bindings' provider (above); task 06 decision 4's named CHECK.
+ALTER TABLE work_teams_bindings ADD COLUMN provider text NOT NULL DEFAULT 'teams'
+  CONSTRAINT work_teams_bindings_provider_known CHECK (provider IN ('teams', 'slack'));
+```
+
+```go
+// store/work_slack.go — the org reads. An org is an argument only where the Hub already holds it
+// from an install, a nonce or the token; no request body supplies one.
+
+// InboundOrg calls hub.slack_install_org before any org is set; found=false is the 401.
+func InboundOrg(ctx context.Context, q Querier, slackTeamID string) (orgID string, found bool, err error)
+
+// InstallOrg reads the install in tx, under row-level security, so another org's is not found
+// (404 slack_install_not_found); the handler also compares orgID with the principal's org.
+func InstallOrg(ctx context.Context, tx pgx.Tx, slackTeamID string) (orgID string, found bool, err error)
+
+// PutChannelLink inserts with InstallOrg's orgID; the org-carrying keys refuse any other.
+func PutChannelLink(ctx context.Context, tx pgx.Tx, orgID string, l hubapi.SlackChannelLink) (created bool, err error)
+
+// InsertLinkNonce runs in the inbound transaction, with InboundOrg's orgID.
+func InsertLinkNonce(ctx context.Context, tx pgx.Tx, orgID string, hash [32]byte, slackTeamID, slackUserID string, expires time.Time) error
+
+// PeekLinkNonce (the GET page) and RedeemLinkNonce (the POST, which deletes it) answer
+// found=false for a used, an expired or another org's nonce; row-level security hides the last,
+// so a refused redeem cannot delete it.
+func PeekLinkNonce(ctx context.Context, q Querier, hash [32]byte, now time.Time) (n LinkNonce, found bool, err error)
+func RedeemLinkNonce(ctx context.Context, tx pgx.Tx, hash [32]byte, now time.Time) (n LinkNonce, found bool, err error)
+
+// PutPersonLink inserts with n.OrgID, after the handler has checked it equals the principal's org.
+func PutPersonLink(ctx context.Context, tx pgx.Tx, n LinkNonce, userID string) error
+
+type LinkNonce struct{ OrgID, SlackTeamID, SlackUserID string }
+```
