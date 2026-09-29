@@ -263,7 +263,40 @@ for Phase T's Orchestrator bus when TM1-α is built.
 
 ## 8. Owner calls
 
-_Pending._
+Only these need the owner; everything else in this document is a technical call already made.
+
+1. **Retire `OD-26`'s own tracker (customer-visible).** PanaceaApp stops building Linear
+   parity-plus. Issues live in the customer's ADO or GitHub (Jira next); PanaceaApp shows a thin
+   Work lens grouped by criterion and deep-links into the tracker for editing, planning and
+   reporting. Backlog grooming happens at ADO/GitHub speed, not Linear speed.
+2. **How "done means proven" (`OD-27`) reads in someone else's tracker (customer-visible).** On
+   ADO, a process rule lets only PanaceaApp's proof identity move a work item to `Done`; that
+   adds one rule and two fields to the customer's process and needs a process administrator. On
+   GitHub, people can still close an issue; PanaceaApp shows it as *done, not proven* and our
+   `Proof` field stays empty.
+3. **A PanaceaApp Teams app in KPMG's tenant, then each customer's (customer-visible, IT
+   consent).** Custom Teams apps need tenant-admin approval. Without it, escalations fall back to
+   the cockpit's Desk and the first-party ADO/GitHub Teams apps.
+4. **Team mode v1 on the tracker, Orchestrator negotiation after (customer-visible, changes
+   `OD-16`'s order, not its end state).** v1: agents read teammates' in-progress issues and live
+   status through MCP; the platform detects file overlap and sends an *inform* to both people.
+   The Orchestrator-to-Orchestrator settlement follows as Phase T proper.
+
+**Money: no new spend is needed.** ADO and GitHub are already licensed (an ADO service
+principal may take one Basic seat, $6/month). A Jira customer pays for its own Atlassian Guard;
+a Linear customer for its own Linear. Buying Linear for KPMG is **not recommended** (no AU
+region, a second tracker).
+
+### Risks we accept with this recommendation
+
+| Risk | Why it is acceptable, or what contains it |
+|---|---|
+| The "Linear-class speed" wedge leaves the tracker | Our speed claim narrows to the agent loop: Start, a first sign in 10 s, a PR, proof. That is where cube.computer's lesson points anyway |
+| Microsoft and GitHub ship the same trigger (Agent HQ, Boards → Copilot) | The trigger was never the product. Ours runs in the customer's Kata sandbox, through the AU-capable gateway, and closes on observed evidence; theirs cannot say that. Watch it quarterly |
+| Residency is not total | ADO keeps profile data for users outside US/EU/UK in the US; GitHub AU residency needs a GHE.com enterprise (KPMG's is unverified). Work item and issue content stays in AU |
+| Customer processes vary | State categories (ADO) and open/closed (GitHub) avoid a mapping screen; a customer with exotic states gets a one-line override, not a wizard |
+| The Hub is 6/50 built | The edge is small; the control plane holds it until the Hub's route lands, then one migration |
+| Remote ADO MCP does not accept Claude Code yet | Ship the local ADO MCP server (MIT) in the sandbox image; agents are read-only on the tracker anyway |
 
 ## 9. What was not verified
 
