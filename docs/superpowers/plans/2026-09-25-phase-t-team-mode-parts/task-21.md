@@ -425,8 +425,8 @@ with this task's other wire shapes; task 20 decodes it into `LaunchRequest.Orche
 `task-20.md:166-171`). Task 20 decision 4 (`task-20.md:45-55`) uses that id when
 it is set, and falls back to task 11's cache lookup when it is not (a non-team or replayed
 request), so an Orchestrator is created on the member's **first** launch rather than on the first
-launch after the change feed catches up. Fleet still re-reads the delegation from the Hub before
-using it (S02-C6's owner, org, project and class check, landed in fix batch b06), so the field is a
+launch after the change feed catches up. Fleet still resolves the delegation (task 11's cache under the member's own key, else `Adopt`'s Hub read) and checks it against the member before
+using it (S02-C6's owner, org, project and class check, landed in fix batch b06; `Adopt`'s since b06 round 2, which the Hub also audits), so the field is a
 hint, never an authority: a `CreateAgentRequest` naming another member's `dl-…` is refused with
 `401 delegation_expired` and nothing is created.
 

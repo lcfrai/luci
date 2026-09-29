@@ -139,10 +139,10 @@ code onto this branch ahead of the merge.
    owner's own agents write that owner's rows. Nobody writes another person's task, lease,
    message, directive or escalation, whatever their role (§3.3 rule 5). **Fix batch b06
    (S02-C6):** a `dl-…` *named in a request body* is a name, not proof of anything. Whoever
-   resolves one — task 20's `Launch` today — checks the delegation's own owner, org, project and
-   class against the authenticated caller before acting under it or caching it, because the Hub
+   resolves one does it through task 11's `Feed.Adopt` (b06 round 2: task 20's `Launch` today, task 24's spawn next), which checks the delegation's own owner, org, project and
+   **acting** class against the authenticated caller before acting under it or caching it (a spawned worker acts under the `orchestrator` class; a worker delegation never covers an Orchestrator), because the Hub
    makes the delegation's owner the principal (task 05) and route 47 hands Fleet any delegation it
-   presents (`task-01.md:314`). Otherwise naming someone else's id *is* becoming them.
+   presents (`task-01.md:314`). Otherwise naming someone else's id *is* becoming them. The attempt is audited: `Adopt` names the caller in route 47's `for`, and the Hub records `delegation.named_by_another`.
 4. Records carry `ag-…` ids. No machine-local session id, host path, config key or URL reaches
    the Hub. Paths are repo-relative globs, validated server-side.
 5. Every free-text field is bounded (the limits in §3.3), hygiene-checked, and carries its author
@@ -528,7 +528,7 @@ third caller**, the broker (app-only, role `Hub.DelegationReader`, §5.10 rule 1
 nothing else, any delegation of its own org whatever its state, and to that caller alone the
 answer carries `ownerTid` and `ownerOid` — gap S17-1 closed, so task 17's broker derives a pod's
 owner label itself instead of taking Fleet's word. Both reads are audited (`principal.read`,
-`delegation.read_by_broker`), on neither feed. **The gate comes with the identity** (b02 rounds 1
+`delegation.read_by_broker`), on neither feed; since fix batch b06 round 2, so is a Fleet launch read of route 47 whose `?for=` is not the delegation's owner (`delegation.named_by_another`). **The gate comes with the identity** (b02 rounds 1
 and 3): this task, not task 05, owns the **five** deltas in task 05's files that keep the callers
 apart — `Claims.AppRole` and `Claims.BrokerRead`, `isExemptPath`, `delegationHeader`'s role arms,
 `resolveCaller`'s broker branch, and `Claims.PrincipalRead` with its own `resolveCaller` arm. Until
@@ -599,7 +599,7 @@ never destroy a sandbox, and a failure of it is transient, so one store blip kil
 poll set is therefore **orgs with a live agent**, never "orgs Fleet serves", and an org first
 tracked at a launch is polled from that launch's head: a consumer whose trigger is a person
 rather than an agent gets nothing from `Feed.Also` and must read the Hub directly, which is why
-task 14's policy activation does (fix batch b04, S02-C4).
+task 14's policy activation does (fix batch b04, S02-C4). `Feed.Adopt` is a launch's **only** resolver (fix batch b06 round 2): it reads the org's head, then the named record with the caller named in route 47's `for`, and checks that record against the caller's own org, owner, project and acting class before its one `Put`. Task 20 calls it, and so will task 24's spawn path.
 Tests on task 08's fake: a Hub outage of 11 minutes pauses negotiation and loses no write, ended
 agents and all; a revocation reaches the `Revoker` inside 60 s of fake time, on the replica that
 did **not** serve the launch, proven with two `Feed`s over one store.
@@ -734,13 +734,13 @@ counterpart, and a fresh key per Orchestrator turn; an AU project with the AU ro
 closed (P6-D5). Tests on a fake broker and fake keysmith: a second Orchestrator launch returns the
 first; a viewer's launch is 403; an AU project never mints on Global.
 **Fix batch b06 (S02-C6):** the `dl-…` in a launch request is a **name, not a capability**. Fleet
-resolves it — task 11's cache keyed by the principal, else the Hub — and then checks the answer
-against the caller's own org, user, project and class, on the cache path and the Hub path alike;
-anything else is refused and, in particular, is never cached. Without it a cache miss let any
+resolves it — task 11's cache keyed by the principal, else task 11's `Adopt` (b06 round 2: org head first, then the Hub's record) — and the answer is
+the caller's own org, user, project and acting class on both paths (an entry under the caller's key is the caller's by construction; `Adopt` checks before its one `Put`);
+anything else is refused, is never cached, drops or revokes nothing of the real owner's, and is audited by the Hub (`delegation.named_by_another`). Without it a cache miss let any
 member launch under any delegation id: task 05 makes the delegation's owner the principal, so the
 agent row, the pod's owner label and the gateway mint would all have carried the other person's
-identity and budget. Tests: `TestLaunchUnderAnotherOwnersDelegationIsRefused` on a cold cache, and
-`TestARefusedDelegationIsNotCached`.
+identity and budget. Tests: `TestLaunchUnderAnotherOwnersDelegationIsRefused` on a cold cache,
+`TestARefusalLeavesTheOwnersDelegationAlone` (b06 r2, replacing `TestARefusedDelegationIsNotCached`, which its own mutant passed), and task 11's `TestAdoptRefusesAnotherOwnersDelegation`.
 
 **21 — `fleetbe` and the team launch on the local control plane.** `cp/internal/backend/fleetbe`
 implements phase 2's `backend.Backend` (S8.1, unchanged) over Fleet's REST and attach routes, with
