@@ -166,6 +166,81 @@ first.** §1 item 2.3 (11:103-105), 44a's A20 (11:756), the order (11:777-779).
   - Name one owner for §2.2's rules.
   - Under C1's default, most of this disappears.
 
+**I4. The cost still leaves out built code, and the Hub hours are a third of what the plans priced
+for less work.** §7.1-7.5 (11:683-792).
+- **Built files and tests §7.2 does not list:**
+  - **`Document`.** `Render(doc discover.Document)` (`render.go:76`) renders from a `Document`,
+    "everything Render needs … produced by Resolve and by nothing else" (`discover/inherit.go:49-65`).
+    For the block to hold the sets, either `discover` changes (built by task 05, with 12
+    `inherit_test.go` tests), though §7.1 calls it untouched, or `Render`'s signature changes and
+    the 33 "re-derive and run" tests do not compile unedited.
+  - **The preview.** `discoverhub/read.go:738` renders a `Preview` block, a third render path.
+  - **The create handler.** `api/sessions.go`, per I1.
+  - **A call-count test.** `discoverhub/read_test.go:96-134` pins Resolve at two Hub calls and
+    exactly zero list calls (one with evaluate). It cannot "run" (11:702) once the `Ref` path reads
+    two lists.
+  - **The Hub's contract-reading tests** (I3), and **task 12** (I2).
+- **Hours against the plans' own prices** (`HP:419-421`, 11a §1):
+  - **Hub 48, 4.5 h.** The brief's server side, for one kind whose content the Hub reads one field
+    of, is tasks 18, 19 and 20: 9 h. Hub 48 prices six routes for two kinds, the write-time and
+    cross-scope checks, the resolver, four events and the matrix rows.
+  - **Hub 46, 3 h.** It must make the fake implement "every observable §7 rule" (HC:1352-1358),
+    including nine ops and the case-folded word check. The brief's fake part 1 alone was 3 h.
+  - **Phase 4's 31, 4 h.** It holds about the state set of tasks 18 and 19 together, which were 6 h.
+  - **Phase 4's 27, 3.5 h.** It reads and writes two kinds. Tasks 07 and 08 were 6 h for one.
+- **What that means.** Repricing these four, and adding I1, I2, I5's replay and the `Document`
+  change, lands near **66-70 h before fix rounds** rather than 54 h, and **85-90 h** with the one
+  round a task the ledgers show. That is a judgement from the plans' ratios, not a measurement.
+
+**I5. Erasure keeps the text it exists to remove.** §2.6 (11:348-353), Hub 27's amendment (11:759).
+- **Replays.** A17 (`HP:196`) exists because a stored reply holds text past an erasure. Route 26
+  "stores no text", a replay rebuilds its reply from `brief_revisions`, and task 27's
+  `TestErasureKeepsKeyAndDigest` scans every `text`, `jsonb` and `bytea` column. The two new batch
+  routes return revisions with their fields, and no task gives them a text-free reply. An erased
+  definition therefore survives 24 h in `idempotency_keys.response`, and for the whole life of that
+  day's backup. The design's own reason for erasure is that "a definition can hold client text just
+  as an answer can" (11:351).
+- **Brief erasure.** "Erasing a brief changes no term … neither holds brief text" (11:352-353) is
+  unsupported. The round is computed from "the answers holding a person's words" (11:430-431), and
+  the model writes `is`, `context` and `why` from them. Hub 27's new test pins the hole as intended
+  behaviour.
+- **Fix.**
+  - Give both routes route 26's text-free reply and rebuild, about 1.5 h on tasks 14's and 19's
+    pattern.
+  - Widen the scan test to term and decision text.
+  - Have a brief's erasure list the terms and decisions whose `settledIn` names it: one query on the
+    composite key (11:338-340).
+
+**I6. Four transitions the design needs have no op, including the one 06 §5.1 was about.** §2.3,
+§2.4, §3.2 (11:255-289, :386-389).
+- **A departure born `retired`.** "`depart` with `state: retired`" (11:156-157) is "a `create` with
+  `scope: branch`" (11:288), and `create` is "nothing → `@1`, `in_force`" (11:282). A create
+  followed by a retire needs the Hub-minted id inside the same batch, which an item cannot name.
+- **A decision set aside.** "Sets it aside on this branch (retired)" (11:255-256) exists for words
+  only. A decision is `in_force`, `superseded` or `withdrawn` (11:237), and `withdrawn` means "it
+  should never have been recorded" (11:286). A branch saying *not here* to a project decision, which
+  is 06 §5.1's own case, can still only replace it.
+- **Undo of *Use the project's*.** That verb retires the branch's record (11:268-269), so Undo is
+  `reinstate`, which re-runs the word check (11:287) against the project's in-force words
+  (11:298-300). The Undo is refused `409 word_taken` inside its own five-second window.
+- **Undo of `promote`.** No op returns a record to branch scope, and `reinstate` excludes
+  `superseded`. "§2.4 has an op for every transition" (11:158) fails for what Undo writes.
+- **Fix.** Let a departure be born `retired`, or `set_aside` for a decision. Make Undo a revision
+  that restores the prior fields, as the brief's Undo writes a `restore` revision
+  (`task-19.md:7-9`), exempt from the word check it already passed. Give `promote` an inverse or no
+  Undo, and say which.
+
+**I7. A branch's own decisions leave the thread when the branch lands.** §6.2 (11:650), §5.4.
+- **The facts.** "Archiving a branch asks nothing" (11:650), and nothing adds a queue item
+  (11:652-654). A branch record anchors to the branch brief (11:236), its archive "retires nothing"
+  (11:246), and branch deletion archives the brief (HC:785-788).
+- **What fails.** After a land, the branch's decisions are in force for a brief no session can
+  start on, and in no project set. Main's code embodies them, but every later session on main is
+  handed a set without them. That next agent is the *cold reader* of limb 2 (11:362-363) and may
+  undo the choice. §5.4 says phase 3's merge does not change, so nothing shows them at convergence.
+- **Fix.** At a land, the merge lens lists the branch's own decisions and departures with
+  **Promote** as a verb beside each, not a prompt. Or record Q8 with a default and its cost.
+
 ### 2.3 Minor
 
 *pending*
