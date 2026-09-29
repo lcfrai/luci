@@ -80,7 +80,7 @@ before 21, and make task 33's E5 run the route rather than assume the state. Tas
 so under TM1-α the route has to accept the `fake` sink behind a dev-only flag, and say so.
 
 ### X-C2 (Critical): task 33's replan gate has five entry conditions that no task from 01 to 32 builds
-**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-33.md:76
+**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-33.md:76 (pre-fix location; fixed by b07, the E table is now `:75-81`)
 **Problem:** Task 33 depends on 01-32 (`2026-09-25-phase-t-team-mode.md:344`), but its preflight
 stops BLOCKED on conditions that live in parts' gap lists, not in any task:
 E2, S20-1, the owner's `orchestrator` delegation, which "blocks task 33" (`task-20.md:529-533`);
@@ -1151,7 +1151,7 @@ Scope coverage: `Launch` through the broker, `ag-…` ids, start and end through
 **How to fix:** after either path, require `d.OwnerUserID == p.UserID`, `d.ProjectID == r.Project`, `d.OrgID == p.OrgID`, class covered (decision 4, task 17 decision 5), not revoked and not expired. Anything else is `ErrDelegation` and **is not cached**. Add `TestLaunchUnderAnotherOwnersDelegationIsRefused` (Alice names `dl-b-w` on a cold cache: no row, no create, no mint), which kills a check done only on the hit path.
 
 ### S02-C7 (Critical): Gap S20-1 has no owner, so TM1-α never has an Orchestrator
-**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-20.md:45-51,529-533
+**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-20.md:45-51,529-533 (pre-fix location; fixed by b07: decision 4 is now `:45-56`, the closed Gap S20-1 `:635-644`)
 **Problem:** an Orchestrator needs an `orchestrator`-class delegation, which only the owner's desktop can create (route 46). Task 21's `TeamLauncher` can make one (`routesFor`, `task-21.md:313-315`), but its create handler passes only `model.ClassWorker` (`:440`), and no other part or skeleton scope creates or renews one (grep, 2026-09-25). The part itself says "This blocks task 33". Without it, `peer`, the one scripted conflict, the counterpart tag and tasks 26 to 31 cannot run end to end.
 **How to fix:** assign it to task 21: on a member's first team launch in a project, create the `orchestrator` delegation (idempotent per `Key`) before the worker one, renew both on the same timer, and pass both ids to Fleet. Add task 21 to this task's consumers, and a task 21 test that the first launch creates two delegations and the second creates none. Record the resolution in the skeleton's scope 21.
 
@@ -1189,7 +1189,7 @@ Reviewer: adversarial plan reviewer, section 03. Parts read one at a time agains
 ## Task 21: fleetbe and the team launch
 
 ### S03-C1 (Critical): the owner's orchestrator-class delegation is never created, so Gap S20-1 stays open and TM1-alpha has no Orchestrator
-**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-21.md:447
+**Where:** docs/superpowers/plans/2026-09-25-phase-t-team-mode-parts/task-21.md:447 (pre-fix location; fixed by b07: the quoted line is rewritten at `:562-570`, the fix is `:345-356` and `:413-431`)
 **Problem:** Task 21 says the cockpit launch is always `worker` and "the Orchestrator is Fleet's (task 20 creates it on the first team launch), so the desktop never asks for one". Task 20 decision 4 (task-20.md:45-51) creates an Orchestrator **only if** a live `orchestrator`-class delegation for that owner and project exists, and route 46 is desktop-only (task-06.md:88, 104; Fleet calling it is 403). Task 20 names this as Gap S20-1 and says "Until task 21 (or task 52) creates and renews it ... **This blocks task 33**" (task-20.md:529-533); task 33 lists it as entry criterion E2 (task-33.md:76). Task 21 does not close it, and the design (§2.4 item 2, 05-design.md:163-166) says the launch creates the delegation for the session class, orchestrator or worker. `routesFor` has an orchestrator branch that nothing calls. Result: every team launch answers `orchestrator: "awaiting-delegation"`, no Orchestrator ever runs, and the scripted conflict of TM1-alpha cannot happen.
 **How to fix:** In `TeamLauncher.Launch`, on a team project with no live orchestrator delegation for (owner, project) in the registry, first create one (class `orchestrator`, `hubapi.ClassRoutes[DelegationClassOrchestrator]`), persist it per project (not per session, a new registry record or a `TeamDelegations` file), and have `RunRenewer` renew it while any team session on that project is live or while signed in. Say how Fleet learns it (task 11's cache via the change feed, or a new `orchestratorDelegation` field on `CreateAgentRequest`) and make task 20 agree. Tests: `TestFirstLaunchCreatesOrchestratorDelegation` (two `CreateDelegation` calls, orchestrator then worker; mutant: worker only), `TestSecondLaunchReusesIt` (one call; mutant: a fresh orchestrator delegation per launch), and a renewer row for it. Then mark S20-1 closed in task 20 and E2 met in task 33.
 
@@ -4238,4 +4238,101 @@ delegation_expired`), until S02-M19 splits the codes.
 **Unverified.** This is planned text only. I built, ran and started nothing. No Go code for tasks
 01, 06, 08, 11 or 20 exists on `feat/team-mode`, so every test and grep named above is written
 against packages that are not yet written.
+
+## Fix batch b07, round 2 (2026-09-29): X-C2, S02-C7, S03-C1 — round 1's record, its finish, and what re-checking found
+
+Round 1 landed seven commits on 09-28, 14:36 to 15:41 (`0256f915`, `4fb663b0`, `4edfcd5f`, `c0d41bb4`,
+`4b480a7d`, `6eb49101`, `0fffb4d3`). Its fixer was killed after 16:04, part-way through the citation
+sweep, with four parts uncommitted and no record written, so this section records both rounds.
+Round 2's commits are `cc134b7e` (the WIP finished and G33-1 re-checked), `99e92366` (the
+inbound-cite sweep), `7e64bbc1` (the b01 to b05 records), `04e35ba3` (G32-3 and G32-4 finished),
+`1eebd7b8` (N-C1 recorded, and the TM1-α total), and this record's. Every number below was read in
+the tree after the last of them. **Round 2 moved no line in any part**: every edit replaced text in
+place, and the WIP's six-line insert in task 52 was folded into its existing `:27`.
+
+**Hunks b06 swept in, claimed as b07's.** b06's pathspec commits carried two of round 1's
+uncommitted hunks: `a6798e8a` carried task 20's Gap S20-1 re-anchor (now `task-20.md:642`), and
+`ce16125b` carried the plan body's file-map rows for tasks 21 and 52 (now `:222`, `:241`, which
+round 2 edited again).
+
+### The three findings
+
+| Finding | What changed | Where (after round 2) |
+|---|---|---|
+| **S02-C7** (Critical): Gap S20-1 had no owner | Task 21 owns it. The first team launch in a project creates the owner's `orchestrator` delegation (route 46 is desktop-only), keeps it per project, renews it with the worker ones, and sends its id on `CreateAgentRequest`. Task 20 decision 4 resolves that id first, then task 11's cache, and checks it either way. Gap S20-1 is closed, with two task 20 tests | `task-20.md:45-56`, `:167-172`, `:348`, `:351`, `:635-644`; `task-21.md:123-127`, `:345-373` |
+| **S03-C1** (Critical): the orchestrator delegation was never created | `EnsureOrchestratorDelegation`, the registry's `TeamDelegations`, the renewer's per-project row, the rewritten cockpit-hunk text, five tests | `task-21.md:61-62`, `:73-75`, `:345-356`, `:375-397`, `:413-431`, `:494-498`, `:562-570`; plan body `:341` (row 21), `:759-768` (scope 21) |
+| **X-C2** (Critical): five gate conditions that no task built | E2 is S20-1, above. E3 is G33-1: task 21 step 6's four relays. E4 is G31-1 (task 07 calls `DirectiveKind.Typed()`, so there is one definition) and G32-3/G32-4 (task 12 reads both variables; round 2 added `fleetd migrate` and task 10's pgstore surface). E6 is S20-3, stated as TM1-α's one accepted manual step. The gate rows are checks now, and the wave note and scope 33 say so | E2 to E6 `task-33.md:76-80`; relays `task-21.md:578-615`, `task-33.md:323-346`, `:436-438`; G31-1 `task-07.md:207-223`, `:295-303`, `task-31.md:28-33`, `:537-539`, `:567-571`, `task-41.md:600`, plan body `:66-70`, `:155-159`, `:547-551`; G32-3/G32-4 `task-12.md:143-146`, `:166-176`, `:860-885`, `:1109-1110`, `task-10.md:398-410`, `:461`, `task-32.md:70-73`, `:246-247`, `:496-505`, plan body `:619-625`; S20-3 `task-20.md:650-656`; the gate, plan body `:417-423`, `:914-918` |
+
+Closed with them, because they are the same defects seen from other sections: **S04-I8** (the four
+relays, with the directives shape written out), **S01-I9** (task 07's second copy of the taint
+rule), and fix batch b05 round 2's open Important: `task-12.md:315,339` is now `:330,354` at
+`task-13.md:54` and `:105`, plan body `:639` and this review's `:3848`. The three findings' Where
+lines (`:83`, `:1154`, `:1192`) are marked as pre-fix locations, in place.
+
+### Re-checking round 1 found nine more, fixed in round 2
+
+| # | Defect in round 1's fix | Fix | Where |
+|---|---|---|---|
+| R2-1 (Important) | The four relays sat at `/api/team/*`, which is neither phase 2's canonical `/v1` nor its `/api/v1` alias (go contract §7.5, `api.go:386-391`); task 21's own b01 route is `/v1/…` | `/v1/team/*` everywhere, so `/api/v1/team/…` aliases each; task 35's `PUT /api/team/presence` follows | `task-21.md:63`, `:74`, `:587`, `:593-603`; `task-33.md:77`, `:248`, `:274`, `:276`, `:279`, `:312`, `:334-340`; `task-35.md:79`, `:273`; `task-52.md:27`; plan body `:222`, `:241`, `:765` |
+| R2-2 (Important) | The list bodies were `{"escalations": …}` and `{"directives": …}`, with an `issuedAt` and a `state` that no Hub type has, while the relay passes the Hub's body unchanged | The Hub's page, `{"items","next"}`, of task 03's `Escalation` and `Directive`; `TestDirectivesShapeIsComplete` checks the page byte for byte, and its mutant now names M5 and M10 | `task-21.md:593-608`, `:614`; `task-33.md:334-340` |
+| R2-3 (Minor) | "Routes 65, 66, 68 and 70 accept only the owner's own desktop" is wrong for 66 and 68, which Fleet·O reads too; the cites were route 64's and route 69's text | Said per route, with cites to routes 65, 66, 68 and 70 | `task-21.md:580-581`; `task-33.md:326`; plan body `:760` |
+| R2-4 (Important) | Task 21's commit step never added `teamrelay.go`, `teamdelegations.go` (b07) or `teammode.go` (b01, fixed in passing), so a literal build left them out; step 7 ran no registry tests | Both lists name every new file; step 7 runs `./internal/registry/...` | `task-21.md:620`, `:633-637` |
+| R2-5 (Important) | Task 52's note said it kept the relays' paths and added no second set, while its own table registered the answer route again (Go's mux panics on a duplicate pattern) | The answer row is task 21's route, widened to `DecideItem` in `teamrelay.go`; `registerTeam` registers the other ten | `task-52.md:27`, `:97`, `:642`, `:718`; `task-21.md:74-75`, `:584-585`; plan body `:241` |
+| R2-6 (Critical-shaped) | The chart's Job runs `["/fleetd", "migrate"]`, and fleetd had no subcommand, so under `job` nothing migrated and Fleet never became ready (E4 could only fail). Task 12 also called `pgstore.RequireSchema` and `pgstore.Open(…, WithEntraAuth(…))`, which task 10 did not define | `fleetd migrate` migrates and exits; task 10 defines both, after the Hub's pattern (`hub task-08.md:142-172`); the Job gets the Deployment's environment with the migrate identity's DSN user and client id | `task-12.md:108`, `:848-850`, `:874-875`, `:1110`; `task-10.md:32`, `:57-59`, `:398-410`, `:461`; `task-32.md:70-73`, `:124-125`, `:246-247`, `:416`, `:500`; `task-33.md:78`; plan body `:622` |
+| R2-7 (Important) | Task 33's `10-launch.sh` called `desk POST /api/sessions`, which matches no phase 2 route (sessions are `POST /v1/sessions`, go contract §3.9) | `/v1/sessions` | `task-33.md:261` |
+| R2-8 (Minor) | Cites in b07's own lines that were wrong when written, or moved by b06 before the WIP was committed | `task-20.md:530-540` → `:635-644` (`task-33.md:443`); `task-01.md:301-307`, `:296` → `:369-374`, `:369` (`task-20.md:46`, `:54`); `task-20.md:166-171` → `:167-172` (`task-21.md:425`); `task-21.md:576-613` → `:578-615` (`task-33.md:77`, `:331`, `:438`, `task-52.md:27`) | as listed |
+| R2-9 (Minor) | The plan body's TM1-α total said 95 hours; its rows sum to 98.5 (2.5 hours from earlier batches, 1 from b07's task 21) | Corrected, with the history | plan body `:403` |
+
+### Found, recorded, NOT fixed
+
+- **N-C1 (Critical-shaped, X-C2's own class).** Task 33's M4 (`30-settle.sh`, `task-33.md:274-276`)
+  checks that Bob's taint decide carries the directive's text as its evidence, and task 31
+  decision (e) sends it, but no task can carry it. Task 30's `DecideRequest` has no evidence field
+  (`task-30.md:342-352`); task 03's `CreateEscalationRequest` and `Escalation` have none
+  (`task-03.md:758-767`, `:781-794`); task 04's `escalations` has no column (`task-04.md:564-592`);
+  route 64's body has none (`task-07.md:132-142`); and the Hub refuses unknown fields
+  (`task-06.md:139`). So M4 is not observed, or, if a builder sends the field, the decide is refused
+  and M4 and M10 both fail. **Fix direction:** make task 31's G31-2 a scoped change of task 01
+  (§7.19), task 03 (an evidence type on both the request and the record), task 04 (the columns,
+  with the text's author triple checked as `question_*` is), task 07 (route 64 validates, stores and
+  returns it, with `TestEscalationShape` rows), task 08 (the fake and a conformance row) and task 30
+  (`DecideRequest.Evidence` into the body). It is recorded where the next fixer reads first
+  (`task-31.md:573-574`, `task-33.md:346`). Not fixed here: it is a contract change across six
+  tasks, four of them in the Hub range that repair-gaps.md covers, and it deserves its own scoped
+  fix and re-review. OD-31 allows b07 a round 3 for a Critical.
+- **G31-5** (task 31's own gap): route 67's documented body omits `params` (`task-07.md:164-172`),
+  though task 03's `AppendDirectiveRequest` carries it (`task-03.md:818`). Whether TM1-α issues a
+  `narrow` or a `wait-for` directive, and so needs it, is **UNVERIFIED** here.
+- **S03-I3 stays open** (not b07's): no `api.go` hunk registers task 21's relays or sets its team
+  field. Whoever fixes it should know that task 52 names `Deps.Team *TeamReader`
+  (`task-52.md:96`, `:702`) while task 21's hunks read `a.team` as the `TeamLauncher`.
+- **b06 round 2's `task-55.md:121` item was b07's drift**, not a missing phrase: the phrase is task
+  21 step 3 (`task-21.md:543-544`), and `99e92366` re-anchored the cite to `:540-544`.
+
+### Citations: what moved, and how every number above was found
+
+- **Round 2 moved no line.** Each edit was checked with `git diff --numstat` (additions equal to
+  deletions per file) before its commit.
+- **The inbound sweep (`99e92366`, `7e64bbc1`).** A script walked every citation into tasks 07, 12,
+  20, 21, 31, 32, 33, 52 and the plan body across the parts, the plan body and this review. For
+  each, `git blame` gave the commit that last wrote the citing line, and difflib's equal blocks
+  mapped the cited line from the target at that commit to the tree. A moved number was replaced
+  inside its own citation. That gave 142 re-anchors in 46 parts and the plan body, 17 of them bound
+  or checked by hand, and 55 in the b01 to b05 records, 10 by hand. Rejected by content as not
+  drift: bare cites that belong to ADR-H1, `manager.go`, `server.go`, the Hub plan, and phases 3, 6
+  and 8's own task files, and task 13's self-cite `:446`.
+- **Not swept:** this review's records of past findings, whose Where lines say where the defect
+  was when it was found, as fix batch b02 round 3 left its own; the b06 and later records, which
+  cite lines their own rounds rewrote in place; and other plans' citations into Phase T.
+- **Known blind spot:** a bare `:N` whose file is named only on an earlier line of a table is not
+  bound by the script. The rows found that way were read by hand, and others may remain.
+
+**For b07's re-review 1.** The reviewer must read `repair-gaps.md`: b07 edits tasks 07, 10 and 41
+and cites into 01, 03, 05, 06 and 08. Scope: S02-C7, S03-C1 and X-C2 (E2, E3, E4, E6) at the lines
+above; R2-1 to R2-9; a sample of the sweep; and N-C1, to confirm or refute it.
+
+**Unverified.** This is plan text only. Nothing was built, run or started. The Postgres Entra
+scope is the Hub plan's constant (`hub task-08.md:163`), not re-checked against Azure. Whether the
+relay's `?project=` should take the Hub's `pj-…` id (as written) or the cockpit's is for task 52 to
+reconcile when it widens the answer route.
 
