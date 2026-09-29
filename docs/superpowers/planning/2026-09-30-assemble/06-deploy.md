@@ -148,8 +148,10 @@ SLSA, in-toto, Tekton or Kyverno (searches for `gitops`, `argo cd`, `attestation
 - **Licence:** all Apache-2.0. Kargo is Apache-2.0 per Akuity; the commercial **Akuity Platform**
   hosts both (add-on packs of 10 Argo CD apps plus 10 Kargo stages at $99/month; enterprise is
   "contact sales", [pricing](https://akuity.io/pricing)).
-- **Deploy:** self-host on AKS, or Akuity's SaaS. AKS also ships a Microsoft-supported GitOps
-  extension, but that one is Flux, not Argo.
+- **Deploy:** self-host on AKS, or Akuity's SaaS. Since KubeCon Europe 2026 AKS also offers Argo
+  CD as a managed cluster extension (`microsoft.argocd`), **public preview**, with Entra SSO and
+  workload identity to ACR and Azure DevOps
+  ([announcement](https://techcommunity.microsoft.com/blog/azurearcblog/announcing-public-preview-of-argo-cd-extension-on-aks-and-azure-arc-enabled-kube/4504497)).
 - **Enterprise fit:** Argo CD has OIDC (Keycloak works), RBAC, audit events. CNCF graduated.
 - **Maturity:** Argo CD **3.5.3 on 2026-09-14**, quarterly minors
   ([endoflife.date](https://endoflife.date/argo-cd)). Kargo 3.7k stars, **v1.12.0-rc.2 on
@@ -203,7 +205,45 @@ SLSA, in-toto, Tekton or Kyverno (searches for `gitops`, `argo cd`, `attestation
 - **Verdict: reject.**
 
 ### 3.7 Attestations: SLSA, in-toto, Sigstore, Tekton Chains, GitHub and Azure signing
-*(pending)*
+
+**Already decided, not repeated here:** in-toto Statement v1 as the ledger's record format, and
+SLSA Provenance v1 as the release predicate (`2026-09-28-oss-adoption/05-hub-identity.md` §2,
+licence notes in `licence-hub-identity.md` D3 and D5: in-toto ships only the Apache-2.0 short
+notice; SLSA's only licence is the Community Specification License 1.0). The sceptic's point
+stands (`08-sceptic.md:370`): **those are formats, and nothing in the plan signs them.** This
+section is about who produces, signs, stores and checks the records.
+
+| Tool | Role | Licence | Maturity | Already in Panacea? | Verdict |
+|---|---|---|---|---|---|
+| **Tekton Chains** | produces signed **SLSA v1.0 build provenance** for every PipelineRun (`slsa/v2alpha3` and `v2alpha4` "correspond to the slsav1.0 spec"); stores to OCI, Tekton, Archivista and others; signs with `azurekms://` or `hashivault://`; transparency log can be off ([config](https://tekton.dev/docs/chains/config/)) | Apache-2.0 | v0.29.6 on 2026-09-24; 277 stars; Tekton is a CD Foundation project | **Yes**, as an Argo CD app, signing with Vault Transit key `panacea-release`, no public Sigstore | **use as is** |
+| **cosign** | signs and verifies images and **in-toto attestations with any predicate type**; KMS keys `azurekms://`, `hashivault://`, **`openbao://`**; stores signatures as OCI 1.1 referrers, which ACR implements ([key management](https://docs.sigstore.dev/cosign/key_management/overview/)) | Apache-2.0 | **v3.1.3 on 2026-08-06**, which fixes a verification bypass (GHSA-fx35-mq7g-6g98): pin at or above it | the key and `sign-release.yaml` exist; the task is unwired | **adopt** |
+| **Kyverno** | admission check: "this image carries a valid signature and an attestation of type X" (`ImageValidatingPolicy`) | Apache-2.0 | **v1.19.1 on 2026-09-10**; 8.2k stars; CNCF | **Yes, in Audit mode**, key `k8s://kyverno/panacea-cosign-pub` | **use as is; Enforce later** |
+| **Notation + Ratify** (AKS Image Integrity) | Microsoft's native signing and admission path with Azure Key Vault | Apache-2.0 | AKS Image Integrity is still **preview** | Gatekeeper is deployed; Notation is not | **reject**: Panacea's runbook says "One signer only". Two signers attach conflicting predicates |
+| **GitHub artifact attestations** (`actions/attest@v4`) | SLSA provenance plus **custom predicates** from a GitHub Actions run ([README](https://github.com/actions/attest)) | proprietary service; the action is open source | GA | no | **reference**: "private or internal repositories" need **GitHub Enterprise Cloud** and it is **not on GitHub Enterprise Server**. It does not help Azure DevOps (`OD-4`), so it cannot be the one path |
+| **GUAC**, **Archivista with Witness** | provenance graph and attestation store | Apache-2.0 | OpenSSF / in-toto projects | no | **reference**: the Hub is the ledger (`OD-3`). A second store duplicates it |
+
+**Three places the brief pin can live, cheapest first.**
+
+1. **In the Hub's release record, as a signed in-toto Statement.** Subject: the image digest
+   Panacea reports for the release. Predicate (ours): brief key, revision and sha256, the release
+   id, the `Panacea-Session` list, and the **sha256 of Panacea's evidence document** for that
+   release. The Hub signs it server-side with cosign and a Key Vault key (`azurekms://`), and later
+   an OpenBao Transit key (`OD-32`, `openbao://`). **Needs no Panacea change.**
+2. **On the image in ACR, as an OCI referrer.** The same Statement pushed with `cosign attest`. An
+   assessor with `cosign verify-attestation` sees the brief without our Hub. **Needs push rights to
+   Panacea's registry**, which is a Panacea change.
+3. **Inside Chains' signed SLSA provenance.** Chains records the PipelineRun's parameters, so if
+   `POST P/deploy` accepted one more field and passed it through, the brief pin would sit inside
+   provenance **signed by the platform key**, and Kyverno could enforce **"no brief, no prod"**. Today
+   `TriggerDeployOptions` has no such field (`models/models.go:2342-2372`: branch, commit, noCache
+   and ten scan modes). That is exactly the plan's **metadata ask** (R7, Q-P7-2, task 20).
+   That Chains records parameters is from its format documentation and **was not checked against
+   Panacea's pipeline**.
+
+**Known risk:** Kyverno issue
+[#17363](https://github.com/kyverno/kyverno/issues/17363) reports that KMS-key verification fails in
+v1.19.0 for signatures stored **only as v0.3 Sigstore bundle referrers**, which is how cosign v3
+stores them. Test with the exact versions before any Enforce flip.
 
 ### 3.8 Others checked
 *(pending)*
