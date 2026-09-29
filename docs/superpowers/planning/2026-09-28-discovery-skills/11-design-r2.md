@@ -473,8 +473,9 @@ A term is the same shape: the row shows the word, its one-line *is* and the avoi
 
 **Every gesture is optimistic, with an Undo window, never a confirm dialog**
 (`docs/DESIGN-SYSTEM.md:69`), and resolves in place (`AGENTIC-UX.md:147`). Undo, for five seconds,
-writes a `withdraw` or `retire` revision, as the brief's own Undo writes a `restore` revision (phase
-4 `task-19.md:7-9`, 11a §5): the record's history stays honest. When one round holds several
+writes a `restore` revision, as the brief's own Undo does (phase 4 `task-19.md:7-9`, 11a §5); after
+a first Record, which has no revision before it, it writes `withdraw` or `retire` (§2.4). Either
+way the record's history stays honest, and every gesture has an inverse. When one round holds several
 suggestions, **Record all** writes them in one batch, the Desk's *approve pattern*
 (`AGENTIC-UX.md:109-110`). The batch is all or nothing (§2.4), so a refused one records nothing:
 the row that caused the refusal says why (§6.3), the rest stay suggested, and a second **Record
@@ -808,7 +809,7 @@ project shows no empty panel and no prompt (§3.3).
 | Empty | the area is absent; the header actions remain |
 | Sparse, dense | one row per entry; past 50 rows the list is virtualised |
 | Hub unavailable | the last list read, marked *not current*, verbs disabled with the reason, as `unavailable` is treated elsewhere |
-| Refused at write | inline on the row, cause and way out, naming who and never when (no relative time as a primary display, phase 4 `task-19.md:9-11`): *"lane" is already settled for this project, by <savedBy>.* **Use theirs** · **Depart on this branch** (`word_taken`); *This entry changed since you opened it.* **Show the new one** (`revision_conflict`) |
+| Refused at write | inline on the row, cause and way out, naming who and never when (no relative time as a primary display, phase 4 `task-19.md:9-11`): *"lane" is already settled for this project, by <savedBy>.* **Use theirs** · **Depart on this branch** (`word_taken`, rules 1 and 2 of §2.4); *"track" is a word this project avoids, for "lane".* **Use "lane"** · **Change** (`word_taken`, rule 3); *This entry changed since you opened it.* **Show the new one** (`revision_conflict`) |
 | Model off | no suggestions; the header actions work without a model |
 
 Keyboard: the rows join the lens's traversal, `j`/`k` to move and `a` to take the suggested answer,
