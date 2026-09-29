@@ -4112,3 +4112,130 @@ inbound cites past `:880` are this review's `:3510` and `:3532` (`task-06.md:876
 `:881-886`), which name acceptance items 7 and 8. Those were stale before this round and now sit
 at `:1063-1070` and `:1071-1081`: that is I1, carried. So is `:3571`'s `:813-887`, now `:813-977`.
 
+## Fix batch b06, round 2 (2026-09-29): re-review b06-1's four Importants, and what re-checking S02-C6 found
+
+Input: `.superpowers/sdd/team/plan-rereview-b06-1.md` (0 Critical, 4 Important, 4 Minor), read at
+`3ef0c529`. Commits: `3704cc74` (task 11), `d3572184` (task 20), `53291889` (tasks 01, 06, 08) and
+`5c32bd5b` (the skeleton, tasks 01 and 21). Every edit is in place except one inserted table row in
+task 11 (see "Citations moved"). Each anchor carries a phrase to grep, as b05 learned.
+
+### Found re-checking S02-C6, and fixed first, because three of the Importants share its root
+
+**N1: nothing called `Adopt`, so a launch read the record before the org's head (Critical-shaped).**
+Task 11 documents `Feed.Adopt` as "task 20's entry at launch" (head first, record second).
+`pruneOrgs`' safety argument, and the paragraph on the window between `Adopt` and the agent row,
+both rest on that. But task 20 never called it, before b06 or after it: it resolved through its
+own `DelegationFetcher` and `Delegations.Put`. So on a replica that had not yet tracked the org,
+the org's cursor was first set by the next `Refresh`, from the head at *that* moment. A
+`delegation.revoked` committed between the launch's read and that head was therefore never
+polled. The launching replica also `Known`s the id, so `Refresh` never re-reads it. If that
+replica leads the feed, a revoked member's session runs until the delegation expires (up to
+24 h), and even then it is only `Lapsed`. That is the order `TestAdoptReadsTheHeadBeforeTheRecord`
+exists to forbid, reached on a path the test does not run. b06's own acceptance, "exactly one
+`Delegations.Put(` in `sessions`", pinned the bypass in place.
+
+Fix: `Adopt(ctx, want Key, id)` is now the one resolver. It reads the head of `want.OrgID`, then
+the record (with `WithFor`, I3). It then requires `d.Key == want` and a future `ExpiresAt`
+**before** its `Put`. Anything else is `ErrNoDelegation` and is not cached. S02-C6's check moved
+into `Adopt`, and task 20 calls it.
+
+| Change | Where |
+|---|---|
+| `Adopt` takes the caller's `Key`; the check before the `Put`; `WithFor` | `task-11.md:1010-1041`, from *"its only resolver (b06 round 2)"* |
+| New test `TestAdoptRefusesAnotherOwnersDelegation` | `task-11.md:1464` |
+| The two full tests pass a `Key` | `task-11.md:1489`; `:1532-1533`, from *"the launching caller's own key"* |
+| The window paragraph's stale `task-20.md:395-400` → `:435-442` (Launch's transaction); `Adopt` runs before it | `task-11.md:1614` |
+| `Config.Hub DelegationFetcher` → `Config.Feed Adopter`, and the interface | `task-20.md:139-140`, `:150-152` |
+| `s.delegation`: the fast path under the caller's key, else `Adopt`. `sessions` writes the cache nowhere | `task-20.md:452-483`, from *"calls task 11's `Feed.Adopt`"* |
+| `fleetd`: `Delegations` = task 12's cache, `Feed` = its feed | `task-20.md:584`, from *"so every launch resolves through"* |
+| Acceptance: exactly one `.Adopt(` and no `Delegations.Put(` in `sessions` | `task-20.md:613-619`, from *"Expected (b06 round 2)"* |
+| Consumes; the new test file `fakehub_test.go` | `task-20.md:322`; `:95` |
+
+### Round 1's re-review: the four Importants
+
+| Finding | Resolution | Where |
+|---|---|---|
+| **I1** `h.cache.reset()` cannot exist on task 11's `Cache` | Fixed. The cold test drops Alice's worker entry with the exported `Drop`: it is the only key a worker launch reads, and Bob's were never cached. The harness now names the fake keysmith's `mints()` beside `answerRoute` and `revoked`, and the fake Hub's `readsFor(id)` | `task-20.md:403`; `:335`, `:339` |
+| **I2** `TestARefusedDelegationIsNotCached` survives its own mutant, and the "poisoned key" reason is wrong | Fixed at the reason. Fact 4 now says a refusal writes nothing about the named delegation, because an entry is state that `Refresh` skips via `Known`, that `pruneOrgs` keeps a cursor for, and that `Sweep` hands to the `Revoker`. It also removes nothing: no `Drop` and no `Revoke`, or naming an id would disrupt its owner. The fact names b06's "poisoned" wording as wrong. The test is replaced by `TestARefusalLeavesTheOwnersDelegationAlone`. Warm, Bob's live agent and cached entry survive Alice's refusal, and his next launch makes no Hub read, so the test kills a `Drop` or `Revoke` on refusal. `Known` in the cold test kills the Put-before-check mutant, as does task 11's `TestAdoptRefusesAnotherOwnersDelegation` | `task-20.md:501-502`, from *"A refusal writes nothing"*; `:349-350` |
+| **I3** a refusal writes no audit row | Fixed by a declared ruling (next section): the Hub records it at route 47. The cold test asserts that the one read of `dl-b-w` carried Alice in `ForFrom` | tasks 01, 06, 08 (below); `task-20.md:349`, `:405-406`, `:487-492` |
+| **I4** the single-exit check collides with S02-I25's spawn exception | Fixed by naming the seam. The class in `want` is the **acting** class, which the caller derives from its own state and never from a body: `r.Class` for a person's launch, `orchestrator` for a worker the Orchestrator spawns (task 17 decision 5), never `worker` for an Orchestrator. The check is never loosened. The acceptance pins one `Adopt` call site, so S02-I25's `LaunchSpawned` has to go through `s.delegation`. S02-I25 itself stays open | `task-20.md:460-464`, from *"ACTING class"*; `:495`; `:617-619`; skeleton `:141-145` |
+
+### The ruling I3 needed, declared
+
+The re-review's fix, an outbox row on refusal, cannot be built. Every outbox item is delivered
+under the owner's own live delegation (`task-11.md:168-173`), and
+`TestEnqueueRefusesAWriteWithNoOwner` forbids a Fleet-in-its-own-name write. So the row would go
+under one of two delegations. Under the caller's, the caller chooses the delegation or holds none,
+so an attacker could suppress their own record. Under the victim's, it would be a false record in
+the victim's name. The record therefore belongs to the Hub, at the read Fleet has to make anyway.
+`Adopt` sends `?for=<caller>` on route 47, and only Fleet may send it (anyone else is 400). The
+answer does not change, and nothing is admitted or refused on it. When `for` is not the owner, the
+Hub appends `delegation.named_by_another`: audit only, `v: 1`, actor `""`, `data`
+`{"projectId","ownerUserId","namedBy"}`. It mirrors b02's `delegation.read_by_broker`.
+
+| Change | Where |
+|---|---|
+| Route 47's row; §7.13's `for` paragraph | `task-01.md:314`; `:407`, from *"Fleet's `?for=`"* |
+| §8's row, and its paragraph. The closing fence moved into the blank line after the row, so nothing below moved | `task-01.md:689`; `:700`, from *"is fix batch b06 round 2's"* |
+| Two acceptance checks, and their expected-failure text | `task-01.md:877`, `:879`, `:899` |
+| R12: a compromised Fleet can now also plant a false accusation | `task-01.md:222`, from *"plant a false"* |
+| `getDelegation` under `Write` when `for` is present; the actor-less event; `TestFleetReadForAnotherIsAudited`; acceptance item 8 | `task-06.md:919-920`; `:928`, from *"Route 47's `for`"*; `:1071` |
+| `WithFor`/`ForFrom`; the client sends `?for=` on `Delegation` alone | `task-08.md:12`, `:45`, `:293` |
+| The fake's rule, and route 47's conformance row | `task-08.md:410`, `:512`, both from *"b06 round 2"* |
+
+**Declined, with the reason: no rate limit.** The re-review asked for one, per caller and id. Fleet
+has no rate limit anywhere (`task-12.md:1292-1293`). A flood of refusals (one request, one Hub
+read and one audit row each) costs no more than a flood of the caller's own valid launches, each
+of which makes a sandbox. A per-caller limit belongs to Fleet's server, for every route. It is an
+owner-level gap, recorded here, and not a fix to this one path. Fact 4 says so (`task-20.md:502`).
+
+### The Minors
+
+| Finding | Resolution | Where |
+|---|---|---|
+| M1: two parts assert a Hub read the code does not make | Fixed: the delegation is "resolved (the caller's own cache key, else `Adopt`'s Hub read) and checked against the caller" | `task-20.md:51`; `task-21.md:428-429`; skeleton `:737-739` |
+| M2: `DelegationFetcher`'s `owner` argument does nothing | Moot at the root. The interface is gone, and `Adopter`'s `want` carries the owner, which is used both for the check and for `for` | `task-20.md:150-152` |
+| M3: the liveness paragraph states a guarantee repair gap 7 says is not held | Fixed: a delegation both revoked and past `expiresAt` answers `delegation_expired` | `task-20.md:497` |
+| M4: the defence runs after a Hub read whose auth path is untested (repair gap 3) | Not b06's to fix. Still open, and that read now also carries route 47's `for` | none |
+
+### Re-check of S02-C6 itself
+
+S02-C6 is still fixed at the root, and the fix now sits at one seam. Only `Adopt` resolves a named
+id. It compares the Hub's own record with the caller's `Key` (owner, org, project, acting class)
+and requires a future `ExpiresAt` before it caches anything. Revoked and expired are the Hub's
+401s. The cold test kills a check that runs only on the cache-hit path. One consequence: a launch
+in an org this replica does not yet track now reads route 78's head first, which is task 11's
+designed order. A route 78 outage therefore fails that launch, as `ErrDelegation` (`401
+delegation_expired`), until S02-M19 splits the codes.
+
+### Citations moved, and how they were found
+
+- **One insert.** Task 11's new test row at `:1464` moved every line from the old `:1464` to the old end (`:1639`) down by one. The
+  inbound cites were found with `grep -rnoE "task-11\.md:1(4[6-9][0-9]|5[0-9][0-9]|6[0-9][0-9])"`
+  over `docs/superpowers/` and the stream folder. The one live cite is task 11's own `:87`, which
+  was `:1482,1522` and is now `:1483,1523`. This review's b03 records (`:3629` with `:1486-1533`,
+  and `:3630` with `:1572-1577`) record their own time and were already stale, so they are left as
+  written.
+- **b06's own drift, fixed.** Round 1's `ce16125b` added 2 lines at `task-21.md:428-431`, so
+  `task-20.md:642`'s "tests at `:492-496`" now reads `:494-498`. The poll period's cite,
+  `task-11.md:568-570`, pointed at the outbox and now reads `:637`.
+- **b06's drift in b07's uncommitted files, NOT touched.** The same `ce16125b` moved
+  `task-21.md:576-613` to `:578-615`. b07's WIP cites the old range at `task-33.md:77`, `:331` and
+  `:438`, and at `task-52.md:31`. Editing those files would sweep b07's WIP into a b06 commit, the
+  defect the 09-29 status audit found in round 1. b07's finish must re-anchor them.
+
+### Found, recorded, NOT fixed
+
+- `task-55.md:121` cites `task-21.md:474-478` for *"the proxy relays them without knowing the
+  backend"*, and that phrase is nowhere in task 21. It is not drift from b06.
+- The three audit-only kinds (b02's `principal.read` and `delegation.read_by_broker`, and this
+  round's) are not in task 04's `team_event_kinds` (`task-04.md:243-255`). So their feed flags are
+  whatever the Go side writes, not what the database decides.
+- The actor-less `Emit` for `delegation.named_by_another` (`task-06.md:928`) is **UNVERIFIED**
+  against Hub task 14's API. Under a delegation, `tx.P` is the owner, and task 14 builds each row
+  from it.
+
+**Unverified.** This is planned text only. I built, ran and started nothing. No Go code for tasks
+01, 06, 08, 11 or 20 exists on `feat/team-mode`, so every test and grep named above is written
+against packages that are not yet written.
+
