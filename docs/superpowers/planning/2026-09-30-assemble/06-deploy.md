@@ -140,13 +140,67 @@ SLSA, in-toto, Tekton or Kyverno (searches for `gitops`, `argo cd`, `attestation
   own environment, where Panacea already does all of this.
 
 ### 3.4 Argo CD, Argo Rollouts and Kargo
-*(pending)*
+
+- **Does:** Argo CD syncs Kubernetes to what a git repo declares; its ApplicationSet pull-request
+  generator makes a preview per PR; Argo Rollouts adds canary and blue-green. **Kargo** (Akuity)
+  adds the missing promotion layer: *Freight* (an image digest, a git commit and config, bundled)
+  moves through *Stages* with verification at each step.
+- **Licence:** all Apache-2.0. Kargo is Apache-2.0 per Akuity; the commercial **Akuity Platform**
+  hosts both (add-on packs of 10 Argo CD apps plus 10 Kargo stages at $99/month; enterprise is
+  "contact sales", [pricing](https://akuity.io/pricing)).
+- **Deploy:** self-host on AKS, or Akuity's SaaS. AKS also ships a Microsoft-supported GitOps
+  extension, but that one is Flux, not Argo.
+- **Enterprise fit:** Argo CD has OIDC (Keycloak works), RBAC, audit events. CNCF graduated.
+- **Maturity:** Argo CD **3.5.3 on 2026-09-14**, quarterly minors
+  ([endoflife.date](https://endoflife.date/argo-cd)). Kargo 3.7k stars, **v1.12.0-rc.2 on
+  2026-09-28**, one company behind it.
+- **Already in the estate:** Panacea runs Argo CD for its **own** platform apps: 18 of them under
+  `kubernetes/argocd-apps/platform/`, Tekton Chains and Kyverno among them. But
+  **tenant apps are deliberately not GitOps**: `ADR-021` makes provisioning "imperative via
+  `panacea-api` + Tekton, **NOT** Kratix/GitOps" (`STATUS.md:6`).
+- **Gaps:** adopting it for tenant deploys reverses a Panacea architecture decision and needs a
+  GitOps repo per app, which is a wall of configuration the wedge forbids (`CLAUDE.md`). Kargo's
+  Freight is the right *idea* for a release record, but it knows nothing of a brief.
+- **Effort:** 10+ days to put tenant deploys on GitOps; 0 to keep Panacea's model.
+- **Verdict: reference.** Take Kargo's Freight as the model for our release manifest (digest, commit
+  and brief pin, promoted together). Use Argo CD for **our own** platform apps in phase 8, as
+  Panacea does. Do not use it for tenant deploys.
 
 ### 3.5 Backstage
-*(pending)*
+
+- **Does:** a developer-portal framework: software catalog, scaffolder (templates that create a
+  repo and pipeline), TechDocs, and plugins for Kubernetes, Argo CD, GitHub Actions and Azure DevOps.
+- **Licence:** Apache-2.0, CNCF incubating.
+- **Deploy:** self-host (a TypeScript app you build and run); hosted versions exist (Roadie,
+  Spotify Portal), with US and EU regions only as far as found.
+- **Maturity:** 34.5k stars; **v1.55.3 on 2026-09-29**
+  ([releases](https://github.com/backstage/backstage/releases)).
+- **Already in the estate, and this is the finding:** **the Panacea Portal is a Backstage app**
+  (`Projects/Panacea/backstage/`, using `plugin-catalog`, `plugin-scaffolder` and
+  `plugin-techdocs`), behind Keycloak OIDC. It already has the pages phase 7 would rebuild:
+  `/projects/:name/deploy`, `/environments`, `/access`, `/settings`, and components
+  `DeployPage`, `DeploymentStagePage`, `BuildLogsPanel`, `SecurityScansPanel`,
+  `SecurityScanReview` and `PreviewPolicyCard`
+  (`backstage/packages/app/src/plugins/`).
+- **Gaps:** a second UI beside the cockpit. It cannot show the brief thread unless we add a
+  plugin, which would be copying work into Panacea (`OD-13`).
+- **Effort:** deep links from the Deploy lens into those Portal pages: **about half a day**.
+- **Verdict: integrate by deep link.** Do not build a second Backstage. Do not rebuild the
+  Portal's drill-ins and governance screens in the desktop: link to them.
 
 ### 3.6 Port
-*(pending)*
+
+- **Does:** a commercial SaaS developer portal with a flexible data model ("blueprints"),
+  self-service actions and scorecards. It could model Brief → Release as entities.
+- **Licence:** proprietary SaaS. **$30/seat/month (Basic, up to 50 seats) or $40 (Standard, up
+  to 200)**, billed annually; Enterprise custom ([pricing](https://www.port.io/pricing)).
+- **Deploy:** SaaS in **EU (AWS eu-west-1) or US (us-east-1) only**
+  ([API regions](https://docs.port.io/api-reference/port-api/)). No Australian region found.
+- **Enterprise fit:** SSO, SCIM on Enterprise, PrivateLink. **Fails the AU-only option**
+  (`OD-24`) and "on the customer's own cloud" (`OD-5`).
+- **Gaps:** a third UI (after the cockpit and Panacea's Portal) holding data that belongs in the
+  Hub (`OD-3`).
+- **Verdict: reject.**
 
 ### 3.7 Attestations: SLSA, in-toto, Sigstore, Tekton Chains, GitHub and Azure signing
 *(pending)*
