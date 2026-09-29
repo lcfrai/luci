@@ -3384,10 +3384,10 @@ tasks 14, 46, 49, 52, 61 and 66 to 69. Task 01's §7.0 ended at 79; 87 is the fi
 | Task 45's sink fills the gate | `parts/task-45.md:61`, `TeamModeAllowed` `:396-400` (open for `logs`, or the flag beside `fake` only), tests `:631-632`, Gap 1 resolved `:719` |
 | `Mode` on `hubapi.Project` (task 03) | Block 7 in `types.go`, `parts/task-03.md:958`; `TestProjectModeWire` `:1182`; mutants 5 and 6 `:1582-1584` |
 | `hubclient.SetProjectMode` beside the fake's | `Team.SetProjectMode` `parts/task-08.md:92`; the fake keeps the route's rules instead of a direct setter `:321`; four conformance rows `:450-459`; Gap 1 resolved `:597` |
-| Name its caller | Task 21's local route `POST /v1/projects/{projectId}/team-mode` and `TeamProjects.MakeTeam`, `parts/task-21.md:297`, `:380`, tests `:437-452`; task 56's Share, decision (h) `parts/task-56.md:83`, tests `:223-225` |
+| Name its caller | Task 21's local route `POST /v1/projects/{projectId}/team-mode` and `TeamProjects.MakeTeam`, `parts/task-21.md:309`, `:441`, tests `:503-518`; task 56's Share, decision (h) `parts/task-56.md:83`, tests `:223-225` |
 | Task 33's E5 runs the route | E5 `parts/task-33.md:79`; must-hold M0 `:109`; script `05-team-mode.sh` `:87`, `:250` |
 | The contract carries it | task 01: §7.0 row 87 `:293`, §5.3 row `:619`, §7.4 amendment and §7.1 `Project` example `:515-527`, §8 `project.mode_set` `:569`, acceptance-script checks `:740`, `:754` |
-| Restatements fixed | task 04 decision (f) `:67`, kinds row `:255` (22 → 23 kinds, `:57`, `:868`), "does not claim" `:962`; task 43 Z5 row 87 `:401`; skeleton scopes 06 `:486`, 21 `:653`, 33 `:795`, 45 `:926`, 56 `:1032`; task list rows 06 `:317`, 21 `:332`, 45 `:363` |
+| Restatements fixed | task 04 decision (f) `:67`, kinds row `:255` (22 → 23 kinds, `:57`, `:868`), "does not claim" `:962`; task 43 Z5 row 87 `:401`; skeleton scopes 06 `:511`, 21 `:753`, 33 `:905`, 45 `:1041`, 56 `:1147`; task list rows 06 `:326`, 21 `:341`, 45 `:372` |
 
 Found while fixing, and fixed because the finding needs them:
 
@@ -3403,7 +3403,7 @@ Found while fixing, and fixed because the finding needs them:
 
 Declared ruling (not the owner's words): the product caller is Share, not the first team launch.
 A launch that turned a project team would skip the consent line `05-design.md` §9.5 puts at
-Share. `TestLaunchNeverMakesTeam` (`parts/task-21.md:437`) pins it.
+Share. `TestLaunchNeverMakesTeam` (`parts/task-21.md:503`) pins it.
 
 Owner question recorded: whether Share turns team mode on, or leaves it to an explicit
 **Turn on team agents** step. The plan builds "Share turns it on"; the admin-only button in the
@@ -3429,8 +3429,8 @@ round 2's last commit. Round 2's inserts had moved 19 of round 1's numbers above
 | Issue | Fix | Where |
 |---|---|---|
 | I-1 (Critical): the Hub's project reads never return `mode` | Task 06 modifies Hub task 17's `store/projects.go`: `mode` in the one project-row reader that routes 13 to 16 share, and in route 14's `RETURNING`. New real-Hub test `TestProjectReadsCarryMode`: after route 87, routes 13 (`?repo=` and `?teamId=`), 15 and 16 answer `"mode":"team"`; route 14 answers `"solo"`, never `""`. The conformance row reads the mode back through routes 15 and 13, so the fake and the Hub are held to it together | `parts/task-06.md:53-59` (Files), `:604` (test), `:695-699` (Step 4), `:680` (run line), `:814-817` (acceptance 6); `parts/task-08.md:450` (row), `:397` (`SoloRepoKey`); skeleton scope 06 `:492-495` |
-| I-2 (Important): `MakeTeam` leaves the S-LINK cache stale | `MakeTeam` calls `Resolver.Invalidate(localProjectID)` on the Hub's 200 only. `teammode_test.go` runs over the real `hublink.Resolver`, with the cache warmed before `MakeTeam`; the new `TestTeamModeFailureKeepsTheCache` pins "no invalidation on a refusal" | `parts/task-21.md:387-395`, `:74-75` (Consumes), `:440-448` (tests); `parts/task-56.md:88-90`; skeleton scope 21 `:656-658` |
-| I-3 (Important): about 240 inbound citations drifted | Two passes, by script, in commits of their own. **Pass 1** (`scratchpad/team/recite.py`, difflib from `8d661b39^` to the tree after both rounds): 252 citations on lines b01 did not write, in 42 parts; a bare `:N` after a `task-NN.md:` citation on the same line moves with it. Left alone, each listed and read: 11 by a hand list, citations of another plan's same-numbered file (Hub `task-04.md:99`, `:928`, `task-05.md:592`, `task-45.md:104`; env `task-34.md:29`; phase 3 `task-59.md:32`, `:85`, `:122`, `:142`; phase 6 `task-66.md:23`, `:30`), and 22 by a marker (a path or "phase N" / "P6-06" within 120 characters). Four fuzzy ranges read by hand: `task-06.md:66` and `:107` now cite `task-01.md:234-248`; `task-46.md:45` is unchanged; `task-52.md:1195` cited task 21's old mode gap, which b01 closed, so its parenthetical now says task 21 resolves the id through S-LINK (`task-21.md:381-391`). **Pass 2** (`recite2.py`, `git blame` bounded to b01, then `git diff -U0` from each writing commit to the tree): citations on lines b01 itself wrote whose target a later b01 commit moved. Three in parts (`task-06.md:81` twice, into task 04; `task-06.md:137`, into task 01) and 19 in round 1's table above; one of those, `TeamModeAllowed`, set by hand to `task-45.md:401-405` (round 1 had cited it one line early; round 3's insert moved it five more). Every part keeps its line count (edits in place only) | the re-review's examples: `task-39.md:33`, `:150`, `:481` and `task-48.md:63` now cite `task-21.md:92`; `task-20.md:289` cites `:85-92`; `task-06.md:66` cites `task-01.md:234-248` |
+| I-2 (Important): `MakeTeam` leaves the S-LINK cache stale | `MakeTeam` calls `Resolver.Invalidate(localProjectID)` on the Hub's 200 only. `teammode_test.go` runs over the real `hublink.Resolver`, with the cache warmed before `MakeTeam`; the new `TestTeamModeFailureKeepsTheCache` pins "no invalidation on a refusal" | `parts/task-21.md:448-456`, `:80-81` (Consumes), `:506-514` (tests); `parts/task-56.md:88-90`; skeleton scope 21 `:656-658` |
+| I-3 (Important): about 240 inbound citations drifted | Two passes, by script, in commits of their own. **Pass 1** (`scratchpad/team/recite.py`, difflib from `8d661b39^` to the tree after both rounds): 252 citations on lines b01 did not write, in 42 parts; a bare `:N` after a `task-NN.md:` citation on the same line moves with it. Left alone, each listed and read: 11 by a hand list, citations of another plan's same-numbered file (Hub `task-04.md:99`, `:928`, `task-05.md:592`, `task-45.md:104`; env `task-34.md:29`; phase 3 `task-59.md:32`, `:85`, `:122`, `:142`; phase 6 `task-66.md:23`, `:30`), and 22 by a marker (a path or "phase N" / "P6-06" within 120 characters). Four fuzzy ranges read by hand: `task-06.md:66` and `:107` now cite `task-01.md:234-248`; `task-46.md:45` is unchanged; `task-52.md:1195` cited task 21's old mode gap, which b01 closed, so its parenthetical now says task 21 resolves the id through S-LINK (`task-21.md:442-452`). **Pass 2** (`recite2.py`, `git blame` bounded to b01, then `git diff -U0` from each writing commit to the tree): citations on lines b01 itself wrote whose target a later b01 commit moved. Three in parts (`task-06.md:81` twice, into task 04; `task-06.md:137`, into task 01) and 19 in round 1's table above; one of those, `TeamModeAllowed`, set by hand to `task-45.md:401-405` (round 1 had cited it one line early; round 3's insert moved it five more). Every part keeps its line count (edits in place only) | the re-review's examples: `task-39.md:33`, `:150`, `:481` and `task-48.md:63` now cite `task-21.md:98`; `task-20.md:303` cites `:91-98`; `task-06.md:66` cites `task-01.md:234-248` |
 | I-4 (Important): the harnesses go red when task 45 lands | Every harness that turns a project team sets both `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` and `PANACEA_APP_HUB_AUDIT_SINK=fake`. Task 45's Step 5 and acceptance run `go test -tags integration ./internal/hub/...` after the gate swap. Task 45's contract edits carry the rule into task 01's §12.2 row and §7.4 gate sentence | `parts/task-06.md:552-557`; `parts/task-08.md:414-418`; `parts/task-43.md:406-409`; `parts/task-33.md:79`; `parts/task-45.md:65-74`, `:659-662`, `:674-676`, acceptance `:692-693` (round 3's insert moved the last three five lines down, and widened the list) |
 | I-5 (Important): `team-feed/team-projects-only` could not be set up | The fake gains `AppendEventForTest` and `Env` gains `AppendEvent` (on the real Hub: Hub task 14's `store.Append` under the head lock). The row writes the solo project's `task.created` that way, and the mode filter is still the thing tested. The clause stays as defence in depth | `parts/task-08.md:455` (row), `:332-336` (fake), `:402-408` (`Env`) |
 | I-6 (Minor): other fake suites need a team project | `hubclient.FakeTeamProject(t)`: Ada creates the team (so she is its admin, `fake_projects.go:223-224`) and turns the project team through `SetProjectMode`. Task 11's delegation tests start there | `parts/task-08.md:338-343`; `parts/task-11.md:1135-1140` |
@@ -3466,10 +3466,10 @@ every comparison matched. The parts themselves had none.
 
 | Issue | Fix | Where |
 |---|---|---|
-| I-A (Important): b01 made a delegation need a team project, and two suites that create delegations were never told | Task 44's test preamble now says P becomes `team` by **Grace calling route 87**, never by SQL, on a Hub started with `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` **and** `PANACEA_APP_HUB_AUDIT_SINK=fake` in `ENV=local`; S stays `solo` and takes no delegation; team U's project needs route 87 too. Task 14's `TestFleetCannotRecordAPolicyVersion` reuses task 06's `teamWorld` instead of minting a project (it already `dependsOn: 06`, skeleton `:325`), and the part says its other `hub ·` rows are desktop writes that need none. Task 45's harness list — the list its gate swap is proved against — now names six and is **declared closed**, so a seventh must add itself | `parts/task-44.md:310-321` and `:63`; `parts/task-14.md:709-715`; `parts/task-45.md:65-74` (list), `:675-676` (Step 5), `:693` (acceptance); skeleton scope 44 `2026-09-25-phase-t-team-mode.md:919` |
+| I-A (Important): b01 made a delegation need a team project, and two suites that create delegations were never told | Task 44's test preamble now says P becomes `team` by **Grace calling route 87**, never by SQL, on a Hub started with `PANACEA_APP_HUB_TEAM_MODE_UNSTREAMED=true` **and** `PANACEA_APP_HUB_AUDIT_SINK=fake` in `ENV=local`; S stays `solo` and takes no delegation; team U's project needs route 87 too. Task 14's `TestFleetCannotRecordAPolicyVersion` reuses task 06's `teamWorld` instead of minting a project (it already `dependsOn: 06`, skeleton `:334`), and the part says its other `hub ·` rows are desktop writes that need none. Task 45's harness list — the list its gate swap is proved against — now names six and is **declared closed**, so a seventh must add itself | `parts/task-44.md:310-321` and `:63`; `parts/task-14.md:709-715`; `parts/task-45.md:65-74` (list), `:675-676` (Step 5), `:693` (acceptance); skeleton scope 44 `2026-09-25-phase-t-team-mode.md:1034` |
 | I-B (Minor): route 78's filter was `project mode = 'team'`, two bare words, over a table with no `mode` | Written out as the join the plan means, over `audit_events a`: `((a.fleet_feed = true AND EXISTS (SELECT 1 FROM projects p WHERE p.id = a.project_id AND p.org_id = a.org_id AND p.mode = 'team')) OR a.kind = 'team.member_removed')`. Org-scoped because `projects` is unique on `(org_id, id)` (`hub task-07a.md:155`); the mode is task 04's column on `projects`, and `audit_events` carries only `project_id` (`hub task-07a.md:412-428`). Round 2's bracketing is kept unchanged, and the round-2 row above no longer paraphrases the SQL | `parts/task-08.md:527-542`; the round-2 row at `:3439` |
 | I-C (Minor): two citations re-anchored faithfully but pointing at the wrong section | `task-06.md:66` and `:107` now give one citation per item, in the order the prose names them: §7.13 to §7.17 `task-01.md:329-400`, rows 46 to 59 `:259-272`, the class route sets `:301-310`, the §8 rows `:541-574`. Each target was read before the number was written | `parts/task-06.md:65-67`, `:107` |
-| I-C, the same class elsewhere (found by grepping the shape, beyond what the re-review asked) | Thirteen more numbers in ten places, most pointing into §7.24 where §8 and §5.3 used to sit: task 06's §8 rows (`:487-496` → `:541-574`); task 07's, twice (`:497-504` → `:557-564`) and §5.2's org auditor (`:541-545` → `:587-591`); task 43's policy rows (`:531-532` → `:566-567`), §7.24 (`:475-497` → `:480-500`), routes 74/75/79 (`:285-290` → `:287-292`) and the §5.3 team table (`:547-597` → `:593-621`); task 44's `team.member_removed` (`:500` → `:512`); task 46's `note.created`, twice (`:563` → `:565`) and its two matrix rows (`:577` → `:617`, `:579` → `:620`). Each target was read before the number was written | `parts/task-06.md:317`; `parts/task-07.md:48`, `:251`; `parts/task-43.md:73-75`; `parts/task-44.md:63`; `parts/task-46.md:58-59`, `:224` |
+| I-C, the same class elsewhere (found by grepping the shape, beyond what the re-review asked) | Thirteen more numbers in ten places, most pointing into §7.24 where §8 and §5.3 used to sit: task 06's §8 rows (`:487-496` → `:541-574`); task 07's, twice (`:497-504` → `:557-564`) and §5.2's org auditor (`:541-545` → `:587-591`); task 43's policy rows (`:531-532` → `:566-567`), §7.24 (`:475-497` → `:480-500`), routes 74/75/79 (`:285-290` → `:287-292`) and the §5.3 team table (`:547-597` → `:593-621`); task 44's `team.member_removed` (`:500` → `:512`); task 46's `note.created`, twice (`:563` → `:565`) and its two matrix rows (`:577` → `:617`, `:579` → `:620`). Each target was read before the number was written | `parts/task-06.md:317`; `parts/task-07.md:49`, `:254`; `parts/task-43.md:73-75`; `parts/task-44.md:63`; `parts/task-46.md:58-59`, `:224` |
 
 S01-C1 and X-C1 were re-checked, not re-fixed: `parts/task-04.md` (963 lines) and `parts/task-05.md`
 (879 lines) exist, so S01-C1 stays a stale finding answered in writing; route 87 is still the one
@@ -3511,9 +3511,9 @@ conformance. Neither was moot; both were live on 2026-09-28 (`grep` for "princip
 | `Team.Principal`, no longer a proposal | `task-08.md:113-121` |
 | `hubapi.Principal` and its file | `task-08.md:39-42` |
 | Three conformance rows, and `Env` gains a **second org** without which they cannot be written | `task-08.md:491-493`, `:431-438` |
-| Task 12: `dependsOn` 01, 06, 08; the gap paragraph becomes the owned route | `task-12.md:3-8`, `:47-64` |
-| Task 12 Step 4 no longer says "stop here"; a stubbed `Membership` is named an authorisation bypass | `task-12.md:1192-1198` |
-| Skeleton: task 01, 06, 08 and 12 scopes, and 12's `dependsOn` row | `2026-09-25-phase-t-team-mode.md:429-437`, `:502-515`, `:529-534`, `:572-576`, `:323` |
+| Task 12: `dependsOn` 01, 06, 08; the gap paragraph becomes the owned route | `task-12.md:3-8`, `:65-84` |
+| Task 12 Step 4 no longer says "stop here"; a stubbed `Membership` is named an authorisation bypass | `task-12.md:1255-1261` |
+| Skeleton: task 01, 06, 08 and 12 scopes, and 12's `dependsOn` row | `2026-09-25-phase-t-team-mode.md:446-456`, `:521-539`, `:558-564`, `:613-617`, `:332` |
 
 ### S02-C5 — the broker as a caller of route 47
 
@@ -3532,8 +3532,8 @@ conformance. Neither was moot; both were live on 2026-09-28 (`grep` for "princip
 | Task 06 acceptance item 8 | `task-06.md:881-886` |
 | Task 08: `AsBroker()`, `FakeBroker`, two conformance rows, the `Broker` env view | `task-08.md:331-341`, `:494-495`, `:432-435` |
 | Task 17: gap S17-1 marked **CLOSED**, decision 3 restated, `dependsOn` gains 06 | `task-17.md:394-406`, `:48-57`, `:3-5` |
-| Tasks 20 and 60, which both leaned on S17-1 | `task-20.md:62-63`, `:537-538`; `task-60.md:376-379`, `:465-466` |
-| Skeleton: task 01, 06 and 17 scopes, and 17's `dependsOn` row | `2026-09-25-phase-t-team-mode.md:429-437`, `:502-515`, `:635-640`, `:328` |
+| Tasks 20 and 60, which both leaned on S17-1 | `task-20.md:67-68`, `:647-648`; `task-60.md:376-379`, `:465-466` |
+| Skeleton: task 01, 06 and 17 scopes, and 17's `dependsOn` row | `2026-09-25-phase-t-team-mode.md:446-456`, `:521-539`, `:699-704`, `:337` |
 
 ### Two rulings this batch had to make, and declares
 
@@ -3576,7 +3576,7 @@ and meant "Fleet".
 | I2 — the positive half had no runnable witness | both halves of `team/principal-flags-are-the-projects-org` ask about `ProjectID`; the true flag is `Env.Auditor`, whose standing is in the project's own org | `parts/task-08.md:499` |
 | I3 — the b02 citations were not this commit's | re-derived by grep after round 1's own edits, at every site that copied the drift | `parts/task-05.md`, `-06`, `-17`, `-20`, `-60`; §7.13's broker fields are `task-01.md:401-406` |
 | I4 — repair-gap 2 open in a part b02 amended | task 17 named `entra/verify_test.go`, which the built package has not; both citations now name `appcaller_test.go` | `parts/task-17.md:110-112`, `:242` |
-| Minor 1 — "five" `Team.Principal` rows | three (`:498-500`); the broker's two are `:501-502`; 38 altogether | `parts/task-12.md:60-62` |
+| Minor 1 — "five" `Team.Principal` rows | three (`:498-500`); the broker's two are `:501-502`; 38 altogether | `parts/task-12.md:78-80` |
 | Minor 2 — "eight" b02 acceptance lines | nine new, plus the modified `NOT 15 TEAM SECTIONS` | `parts/task-01.md:900` |
 | Minor 3 — bare `"Hub.DelegationReader"` literals | `hubapi.AppRoleDelegationReader` beside the three task 03 already defines | `parts/task-03.md:367-370` |
 | Minor 4 — "task 05's **one** exempt route" | two since b02 | `parts/task-08.md:291-292` |
@@ -3627,9 +3627,9 @@ was round 1's M1. Grep the quoted name, not the range.
 | Test harness: `memInUse`, and `NewClient(cache, nil, clk.Now)` for the cache-only tests | `task-11.md:1407-1414` |
 | The two-`Feed` test's row (round 1's M1: the old range named `TestRebuildPersistsNothing`, which is not b03's) | `task-11.md:1431` |
 | `TestASecondFeedSeesADelegationAdoptedOnTheFirst`, complete: one `memInUse`, one fake Hub, A adopts and is follower, B is leader and holds the outbox; B resolves the key with no poll, B calls `Revoke(Revoked)` within 60 s, A calls nothing | `task-11.md:1486-1533` |
-| The boundary, written down: task 20 writes the agent row and that launch's first outbox row in one transaction (`task-20.md:395-400`) | `task-11.md:1572-1577` |
-| `fleetd` builds the feed *before* the outbox and passes it as the `Client`'s `Source`; `NewFeed` takes `delegation.StoreInUse{S: st}`; `rebuild` is `Rebuild(c, feed, state)` | `task-12.md:878-894` |
-| `readFeed` refreshes before it polls, and logs rather than stops when the store read fails | `task-12.md:904-907,923-926` |
+| The boundary, written down: task 20 writes the agent row and that launch's first outbox row in one transaction (`task-20.md:435-440`) | `task-11.md:1572-1577` |
+| `fleetd` builds the feed *before* the outbox and passes it as the `Client`'s `Source`; `NewFeed` takes `delegation.StoreInUse{S: st}`; `rebuild` is `Rebuild(c, feed, state)` | `task-12.md:908-924` |
+| `readFeed` refreshes before it polls, and logs rather than stops when the store read fails | `task-12.md:934-937,953-956` |
 | The two-replica narrative, and the provides list | `task-12.md:38-55`, `:109` |
 | Task 39's "every replica's `Cache` drops a revoked delegation within one poll" now has a reason, and the spurious-close hazard a per-replica cache would have created is named | `task-39.md:46-57` |
 
@@ -3670,7 +3670,7 @@ and a delegation no live agent runs under has nothing to stop and must never be 
 (`task-10.md:479`, `DelegationsInUseLiveOnly`). b03 then handed that same read to the outbox's
 `Source`. But the outbox's question is not "what should I sweep", it is "what did this queued row
 go out under" — and that is routinely an **ended** agent's delegation, because `Stop` ends the
-agent and enqueues `agents.end` in one breath (`task-20.md:188`, `:340`) and a restart after an
+agent and enqueues `agents.end` in one breath (`task-20.md:201`, `:360`) and a restart after an
 outage delivers a backlog whose agents have all ended. So the two callers now take two reads.
 
 | Finding | Fix | Where |
@@ -3684,10 +3684,10 @@ outage delivers a backlog whose agents have all ended. So the two callers now ta
 
 **Restated, by grep, not by assumption.** `task-11.md:1175-1202` (which read each caller takes and
 why), `:1564-1584` (the "does not claim" bullet that was carrying the `Revoker`'s claim and the
-`Source`'s in one sentence, now three bullets), `task-12.md:42-55` and `:885-887` (the two paths,
+`Source`'s in one sentence, now three bullets), `task-12.md:42-55` and `:915-917` (the two paths,
 and why sharing one `*Feed` between two goroutines is safe only while `Resolve` is a read),
 `task-12.md:109` (Consumes), `task-39.md:51-53`, and the plan body's task 11 summary
-(`2026-09-25-phase-t-team-mode.md:561-578`), whose 11-minute scope test now says "ended agents and
+(`2026-09-25-phase-t-team-mode.md:584-605`), whose 11-minute scope test now says "ended agents and
 all" — the case it was silently failing. Task 10's three cross-references back into task 11
 (`task-10.md:97`, `:106`, `:480`) were re-pointed after the same shift. One stale citation is
 **not** b03's and is left alone, named here so the next reader does not re-find it:
@@ -3762,7 +3762,7 @@ asks the Hub about that one id. No cursor, no ordering, no org poll set to be ou
 | Step 3 appends **nothing** to `kinds`; step 4 lists the `subject=` work; step 5's grep now fails on `delegation.Feed` or `.Also(` | `task-14.md:1024-1038`, `:1042-1055` |
 | Task 11's `Feed.Also` and `Orgs()` doc comments carry the two conditions, with the failure named | `task-11.md:682-692`, `:1159-1169` |
 | Task 11's prose and its "does not claim" bullet: a consumer triggered by a person does not belong on `Also` | `task-11.md:1180-1193`, `:1605-1610` |
-| Plan body: task 14's summary (which still said "through the outbox" and `policy.version`), its row, and task 11's boundary sentence | `2026-09-25-phase-t-team-mode.md:614-630`, `:325`, `:576-581` |
+| Plan body: task 14's summary (which still said "through the outbox" and `policy.version`), its row, and task 11's boundary sentence | `2026-09-25-phase-t-team-mode.md:651-667`, `:334`, `:598-603` |
 | Task 33: recorded, not resolved — no step in TM1-α posts a layer, so this admin path is never run end to end there | `task-33.md:288-296` |
 
 **Why the pull and not option (2).** The finding offered either. Option (2) — `Feed.Orgs()` also
@@ -3813,9 +3813,9 @@ answered with them.
 
 | # | Finding | What changed | Where |
 |---|---|---|---|
-| I-1 | acceptance criterion 1 still said 38 conformance rows; the table holds 39 | 39, with b04's row (`team-feed/by-subject-reads-the-past`) named and the table's own row count given as the check; the plan body's task 08 summary carried the same 38 | `task-08.md:646-648`; `2026-09-25-phase-t-team-mode.md:540-541` |
+| I-1 | acceptance criterion 1 still said 38 conformance rows; the table holds 39 | 39, with b04's row (`team-feed/by-subject-reads-the-past`) named and the table's own row count given as the check; the plan body's task 08 summary carried the same 38 | `task-08.md:646-648`; `2026-09-25-phase-t-team-mode.md:562-563` |
 | I-2 | two inbound citations into task 14 landed inside Go code after b04's ~134-line insert | both re-derived **after** round 2's edits: §7.27 is `task-14.md:797`, its contract row `:817` | `task-01.md:353-354`; `task-06.md:252` |
-| I-2+ | *not in the re-review*: `task-20.md` cited `task-14.md:360` for `Store.Effective`, which is `:407` | re-pointed | `task-20.md:53` |
+| I-2+ | *not in the re-review*: `task-20.md` cited `task-14.md:360` for `Store.Effective`, which is `:407` | re-pointed | `task-20.md:58` |
 | I-2+ | *not in the re-review*: `task-45.md` cited `task-14.md:707-715` for the `teamWorld` reuse, now inside `SweepPendingPolicy` | re-pointed to the paragraph and the row | `task-45.md:70` |
 | I-2+ | *not in the re-review*: three route-80 citations inside **this file's** earlier batch records still said `task-14.md:600`/`:620` | re-pointed to `:817`/`:797` and marked re-derived, so the b02 and b03 records do not send a reader into Go code | `review.md:3376`, `:3541`, `:3553` |
 | M-1 | `OrgEvent` cited as `task-08.md:151-152` (that is `OrgChanges` and a blank line) | `:153-159`, with `OrgChanges` named at `:151` | `task-14.md:96` |
@@ -3845,7 +3845,7 @@ this section was derived by `grep -n`/`awk` after the round-2 commits.
 **S02-C3 (Critical) — fixed at the root.** The root was not that `check` forgot `hooks`. It was
 that **one merge rule served two authors of different trust**. A layer was "a Claude Code settings
 object", and `Render` merged any key of it into every member's managed file, so the object written
-by a **team** admin (`task-12.md:315,339`, `VerbProjectPolicy: {admin: true}`) had the reach of the
+by a **team** admin (`task-12.md:330,354`, `VerbProjectPolicy: {admin: true}`) had the reach of the
 one written by an **org** admin. Every command-bearing key rode in on that: `hooks` (made managed,
 and therefore run, by I3), `statusLine.command`, `apiKeyHelper` / `otelHeadersHelper`,
 `awsAuthRefresh` / `awsCredentialExport`, `mcpServers`, and `env` keys such as `BASH_ENV`,
@@ -3874,7 +3874,7 @@ folded in.
 | The route re-implements none of it: 422 `details.invariant` = `I14`/`I15`; the audit event's scope is what tells an auditor which trust model admitted a version | `task-14.md:463-472` |
 | `TestATeamAdminCannotPostAHook`: the `all` body is 422 from the project route, and the same hook in a `worker` section is 201 from the org route | `task-14.md:965` |
 | `TestAnOrgAllSectionHookIsRefusedForTheOrchestrator`: an org `all` hook is 422 `I15` for the orchestrator class, because `validate` renders every class and `all` is merged into each | `task-14.md:966` |
-| The plan body's task 13 summary, which said only "a later layer may add rules and tighten" | `2026-09-25-phase-t-team-mode.md:632-638`, from *"**The two layers are not equally trusted**"* |
+| The plan body's task 13 summary, which said only "a later layer may add rules and tighten" | `2026-09-25-phase-t-team-mode.md:637-643`, from *"**The two layers are not equally trusted**"* |
 
 **Restated where the same fact appeared, because these rows contradicted the new rule:**
 
@@ -3885,7 +3885,7 @@ folded in.
 | `TestI2AKeyHelperCannotBeReplaced` and `TestI12PlatformEnvIsRefused` say which class and which check fires first (I12 before I14) | `task-13.md:769,780` |
 | Task 41's `TestTheInstructionsHoldNoTeammateText` builds layers "in every allowed key"; the project layer's are now I14's two **string-bearing** keys, `permissions.deny` and `permissions.ask` | `task-41.md:671` |
 | Task 41's `TestI13RefusesALayerClaudeMd` asserts the **id**, and `claudeMd` is not on I14's allowlist either; both the comment **and** the imperative an implementer follows now pin `productOwned` (I13) **before** `layerKeys` (I14/I15), so the invariant that names the key wins | `task-41.md:231-234,265-267`, `task-13.md:498-502` |
-| The plan body says an org admin's hook belongs in a `worker` section, not `all`, and task 13's prose says why | `2026-09-25-phase-t-team-mode.md:639-640`, from *"An org admin's hook must sit in a `worker` section"*; `task-13.md:64-66` |
+| The plan body says an org admin's hook belongs in a `worker` section, not `all`, and task 13's prose says why | `2026-09-25-phase-t-team-mode.md:644-645`, from *"An org admin's hook must sit in a `worker` section"*; `task-13.md:64-66` |
 
 **Two judgements, declared.**
 
@@ -3908,7 +3908,7 @@ already fixed. S02-C3's **Where** is marked as the pre-b05 location for the same
 
 | Issue | Root cause | Fix |
 |---|---|---|
-| C-1: `TestATeamAdminCannotPostAHook`'s org half promised 201 for the **same** `all` hook body, which I15 refuses | the row was written as if `all` were a worker-only section; `validate` renders every class and merges `all` into each | org half is now the per-class `worker` body (`task-14.md:965`), with a second row holding the `all` body to its real 422 `I15` (`task-14.md:966`); task 13's prose and the plan body say an org hook belongs in `worker` (`task-13.md:64-66`, `2026-09-25-phase-t-team-mode.md:615-616`) |
+| C-1: `TestATeamAdminCannotPostAHook`'s org half promised 201 for the **same** `all` hook body, which I15 refuses | the row was written as if `all` were a worker-only section; `validate` renders every class and merges `all` into each | org half is now the per-class `worker` body (`task-14.md:965`), with a second row holding the `all` body to its real 422 `I15` (`task-14.md:966`); task 13's prose and the plan body say an org hook belongs in `worker` (`task-13.md:64-66`, `2026-09-25-phase-t-team-mode.md:644-645`) |
 | I-2: the four open findings cited pre-b05 lines | the record listed them by name without re-deriving their anchors | each **Where** re-derived in place (`review.md:931,936,941,946`) |
 | I-3: six of this record's own line numbers were off by two | derived at `2d44bb0a`, three lines added at `5b7e7c69` after it | every number in this section re-derived after the **last** commit of the batch; the claim below now names the commit it was derived at |
 | M-4: task 41's imperative said only "beside `forbiddenEnv`" | the ordering lived in a comment, not in the line an implementer follows | `task-41.md:265-267` |
