@@ -499,8 +499,24 @@ Hub's audit route already exists).
 #### Addendum (fix batch b02, S03-C1): the create route applies SW.3's check rule
 
 Appended so no line above moves. After `s.checkCreate` returns `content` (`:340-343`), and before
-`store.NextIssueNumber` so a refused create takes no number (W-01): `if err :=
-hubapi.ValidateCheckChange(hubapi.IssueRevisionContent{}, content, true); err != nil { return
-WriteResult{}, Refuse(422, hubapi.CodeBadRequest, err.Error(), fieldOf(err, "")) }`. `byPerson` is
-`true` because every W1 principal is a person (task 07's addendum says who passes `false`). The
-rule is task 07's; the function and its tests are task 02's. Size unchanged: one call.
+`store.NextIssueNumber` so a refused create takes no number (W-01): `byPerson, err :=
+store.WriterIsPerson(ctx, tx)` (an error returned as is), then `if err :=
+hubapi.ValidateCheckChange(hubapi.IssueRevisionContent{}, content, byPerson); err != nil { return
+WriteResult{}, Refuse(422, hubapi.CodeBadRequest, err.Error(), fieldOf(err, "")) }`. The rule is
+task 07's; the function and its tests are task 02's.
+
+**`byPerson` is read, never written as `true`** (fix batch b02, round 2; review N-I4). A literal
+would let every W5 principal that writes through this route as a person — an approved app
+(`task-159.md:157`), an API key (task 160 reuses `appAccess`) — add a check the lander's control
+plane then runs. `store.WriterIsPerson`, in `store/work_issues.go` beside `NextIssueNumber`, is one
+statement, `SELECT coalesce(current_setting('hub.work_actor_kind', true), '')`, true only for `''`
+or `person`. A person's own request sets no actor kind on a revision write; a principal that is
+not a person has its kind set by its prologue before the handler runs: an app `app`
+(`task-159.md:170-172`), a key `key` (`task-160.md:296-300`). So W1 is unchanged (its only
+principal is a person), and W5 edits neither this route nor task 09's, which reads the same
+function. Unset reads as a person on purpose: on these two routes only a person's own token sets
+no kind, and the W5 tests that catch a prologue forgetting its kind are named
+(`TestAnAppCannotSetACheck`, task 159; `TestAKeyCannotSetACheck`, task 160). One test here, in
+`work_issues_integration_test.go`: `TestWriterIsPersonReadsTheActorKind` — in a transaction,
+unset and `person` → true; `agent`, `janitor`, `integration`, `app`, `key` and `host`, each set
+with `set_config(…, true)` → false. Size unchanged: one call, one one-statement read, one test.

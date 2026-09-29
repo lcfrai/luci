@@ -2254,13 +2254,26 @@ scope's *"unsubscribe, then comment"* test is row W-19's manual-survives clause.
 4. Who erases blob bytes when an issue is erased is unowned: task 14 keeps digests, H05 keeps
    bytes, and no Phase W or Hub part names the retention rule.
 
-#### Addendum (fix batch b02, S03-C1): conformance row W-26
+#### Addendum (fix batch b02, S03-C1): conformance row W-02.1, in a slice of its own
 
-Appended so no line above moves. One more row in `conformance/work.go`, beside W-04 and W-05, run
-against the fake here and against the Hub by task 16:
+Appended so no line above moves. One row, in `conformance/work.go` but **not** in `WorkRowsW1`:
+its own slice, `var WorkRowsCheck = []WorkRow{{ID: "W-02.1", Name: "check_is_a_persons_text",
+Run: …}}`, run against the fake here by one added line in `work_fake_test.go`, `func
+TestCheckRowsOnTheFake(t *testing.T) { conformance.RunWork(t, workFakeEnv,
+conformance.WorkRowsCheck...) }`, and against the Hub by task 16's `RunWork`, with
+`WorkRowsCheck...` beside the default (task 16 names no `RunWork` yet: gap 2 above).
 
 | Row | Asserts | Mutant it kills |
 |---|---|---|
-| W-26 `check_is_a_persons_text` | an issue serving `c1` with no check; a revision whose `description.author` is `A` adding `check: "true"` → 422 `bad_request` naming `content.serves[0].check`, head unchanged; the same with both texts `H` → 201; then a title-`A` revision carrying that check unchanged → 201 | a fake that accepts what the Hub refuses (SW.3's check rule, task 07's addendum), or the reverse |
+| W-02.1 `check_is_a_persons_text` | an issue serving `c1` with no check; a revision whose `description.author` is `A` adding `check: "true"` → 422 `bad_request` naming `content.serves[0].check`, head unchanged; the same with both texts `H` → 201; then a title-`A` revision carrying that check unchanged → 201 | a fake that accepts what the Hub refuses (SW.3's check rule, task 07's addendum), or the reverse |
 
-Size unchanged: one row.
+**Why not `W-26`** (fix batch b02, round 2; review N-I5). Round 1 numbered this row `W-26` inside
+`WorkRowsW1`. Task 73 already owns `W-26` to `W-43` in `WorkRowsW2` (its `W-26` is the sub-state
+band rule, `task-73.md:100`, `:239`) and extends `TestWorkRowIDsAreInOrder` (`:1943-1951`) to both
+slices, and tasks 82 and 83 cite *"W-26 to W-43"*; a 26th W1 row would also make this task's
+acceptance print 26 where `:2200-2201` expect 25. So, as task 65 does (`task-65.md:1170-1172`),
+the row takes a task-scoped id: `W-02.1`, after task 02, whose `ValidateCheckChange` it holds the
+fake and the Hub to. `WorkRowsW1` stays 25 rows in order, the acceptance and its file list are
+unchanged, and task 73 needs no edit. This task's own check: `go test
+./control-plane/internal/hub/hubclient/conformance/ -race -count=1 -v -run TestCheckRowsOnTheFake
+2>&1 | grep -c -- '--- PASS: TestCheckRowsOnTheFake/work/W-02.1'` prints `1`. Size unchanged: one row.

@@ -359,10 +359,12 @@ Hub half of **L-191** (what the agent was told is recoverable byte for byte; clo
 Appended so no line above moves. In `writeIssueRevision`, after `checkServes` (`:238-240`) and
 only when `restoredFrom == 0` (a restore is exempt, task 02's addendum): read the head revision's
 content (`s.revisionOut(ctx, tx, head.ID, head.HeadRevision)`, already in this transaction) as
-`base`, then `if err := hubapi.ValidateCheckChange(base.Content, content, true); err != nil {
+`base`, then `byPerson, err := store.WriterIsPerson(ctx, tx)` (task 08's addendum: the
+transaction's `hub.work_actor_kind`, true only unset or `person`; never a literal `true`, review
+N-I4) and `if err := hubapi.ValidateCheckChange(base.Content, content, byPerson); err != nil {
 return hubapi.IssueRevision{}, Refuse(422, hubapi.CodeBadRequest, err.Error(), fieldOf(err,
-"content")) }`. `byPerson` is `true` because every W1 principal is a person. One test, beside
-`TestServesMustStayInTheProject`: `TestACheckIsAPersonsOwnText` — a revision with
-`description.author: "A"` adding a check → 422 naming `content.serves[0].check` and no
-`issue.revised` event; the same with both texts `H` → 201. The rule is task 07's addendum; task
-05's W-26 holds this route and the fake to the same answer. Size unchanged: one call, one test.
+"content")) }`. One test, beside `TestServesMustStayInTheProject`: `TestACheckIsAPersonsOwnText`
+— a revision with `description.author: "A"` adding a check → 422 naming `content.serves[0].check`
+and no `issue.revised` event; the same with both texts `H` → 201. The rule is task 07's addendum;
+task 05's row `W-02.1` (its slice `WorkRowsCheck`) holds this route and the fake to the same
+answer. Size unchanged: one call, one test.

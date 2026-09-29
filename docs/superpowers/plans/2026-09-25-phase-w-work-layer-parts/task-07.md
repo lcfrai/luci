@@ -601,13 +601,14 @@ What it closes, each named so no later task re-derives it:
    proposed drafts (task 140), both of which keep `author: "A"` — cannot add or change one.
 2. **Not by intake.** SW.6's `ImportItem` has no serves (`task-03.md:543-552`); W5's intake
    drafts write the pair alone (`task-170.md:171`).
-3. **Not by a sync or app principal.** Tasks 145, 150 and 159 write with `byPerson` false, the
-   same fact that sets `hub.work_actor_kind` to `integration` or `app` for a state move.
+3. **Not by a sync, app or key principal.** The create and edit routes read `byPerson` from the
+   transaction's `hub.work_actor_kind`, true only when it is unset or `person` (tasks 08, 09); W5's
+   app and key prologues set `app` and `key` (tasks 159, 160), and sync writes pair-less (task 150).
 
 **Where it is enforced.** Not in a trigger: decision 4 has the guards read the index, and
 `issue_serves` carries no check. It is Go, one function, task 02's `hubapi.ValidateCheckChange`,
 called at every revision write — the fake's (task 04's addendum), the Hub's create (task 08's
-addendum) and the Hub's edit (task 09's addendum) — and pinned for both by task 05's row W-26.
+addendum) and the Hub's edit (task 09's addendum) — and pinned for both by task 05's row W-02.1.
 Because the Hub refuses the revision, the observer never meets a check nobody on the team wrote:
-review finding S03-I5's two tests become W-26 and `TestValidateCheckChange`, where the rule is.
+review finding S03-I5's two tests become W-02.1 and `TestValidateCheckChange`, where the rule is.
 Size unchanged here: this section states the rule; the code is task 02's.

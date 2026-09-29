@@ -337,3 +337,18 @@ Expected: `14`, `2`, every package `ok`.
 4. `oidcauth` is env task 17's package (`feat/env`), so the hook is a proposal to a second owner
    the scope does not name.
 5. Whether Hub task 14's `Tx.Emit` has an audit-only flag for `app.*` kinds is **UNVERIFIED**.
+
+#### Addendum (fix batch b02, round 2; review N-I4): an app cannot set a check
+
+Appended so no line above moves. SW.3's check rule (task 07's addendum) lets only a person's own
+revision add or change a serves pair's `check`, the command the lander's control plane runs and
+attests to (tasks 23, 23b). This task gives a `work.write` app the create route as its person
+(`:157`), and until this round the create and edit routes passed a literal `true`. Tasks 08 and 09
+now read `byPerson` from the transaction's `hub.work_actor_kind` (`store.WriterIsPerson`, task
+08's addendum), which `appGate`'s transaction sets to `app` before the handler runs (`:170-172`),
+so this task writes no rule of its own; it proves the door is shut. One row joins the table above,
+and the acceptance's first count goes from `14` to `15`, its `-run` list gaining `AnAppCannotSetACheck`:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestAnAppCannotSetACheck` | a `work.write` app: create an issue serving `c1` with `check: "true"` → 422 `bad_request` naming `serves[0].check`, no number taken; a revision adding a check to Linus's issue → 422 naming `content.serves[0].check`, head unchanged; the same revision from Linus's desktop token → 201; the app's revision carrying that check unchanged → 201 | an app whose texts read `H` adding a command a team member's control plane runs in their name (review S03-I5's failure, through the door task 07 says is shut) |

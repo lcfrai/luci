@@ -566,3 +566,16 @@ Expected as commented: `5`, `17`, `3`, exit `0`, no match (exit `1`), every pack
 6. hub-contract §12.2 (`:2175`) must gain `PANACEA_APP_HUB_RATE_KEY`, `_RATE_KEY_WRITE`,
    `_RATE_APP`, `_RATE_APP_WRITE` and `PANACEA_APP_HUB_KEY_OWNER_IDLE`, and `:269`'s scope list
    `key` and `app`; both are in step 2's proposal, and neither is named by the scope.
+
+#### Addendum (fix batch b02, round 2; review N-I4): a key cannot set a check
+
+Appended so no line above moves. A key reaches the create and edit routes through task 159's
+`appAccess` (decision 4), and its prologue sets `hub.work_actor_kind = 'key'` before the handler
+(`:296-300`). Tasks 08 and 09 read `byPerson` from that setting (`store.WriterIsPerson`, task 08's
+addendum), so a key's revision cannot add or change a serves pair's `check` (SW.3's rule, task
+07's addendum). One row joins part 2's table, and the acceptance's second count goes from `17` to
+`18`, its `-run` list gaining `AKeyCannotSetACheck`:
+
+| Test | Asserts | Mutant it kills |
+|---|---|---|
+| `TestAKeyCannotSetACheck` | a personal key (it reaches `write` routes, decision 4): create an issue serving `c1` with `check: "true"` → 422 naming `serves[0].check`; a revision adding one → 422, head unchanged; the key's revision carrying an existing check unchanged → 201 | a leaked key adding a command every lander's control plane runs and attests to |

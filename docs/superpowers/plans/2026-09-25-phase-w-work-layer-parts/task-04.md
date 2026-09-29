@@ -1728,5 +1728,7 @@ every Work-backed handler built against `NewFake()` meets the rule the Hub enfor
   `content.serves[i].check`
 - `RestoreIssueRevision` (`:821`) is not changed: a restore is exempt (task 02's addendum).
 
-`byPerson` is `true` because every fake principal is a person in W1. Task 05's row **W-26** holds
-the fake and the Hub to the same answer. Size unchanged: two calls.
+`byPerson` is `true` because every fake principal is a person in W1; the Hub reads it from the
+transaction's actor kind (task 08's addendum), and a W5 fake principal that is not a person passes
+`false` here the same way. Task 05's row **W-02.1** (its own slice, `WorkRowsCheck`; not `W-26`,
+which is task 73's) holds the fake and the Hub to the same answer. Size unchanged: two calls.

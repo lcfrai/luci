@@ -475,7 +475,7 @@ The check line's look is the owner's eyes, not a self-report. Commit with `git c
   `ErrUnsupported`, `backend.go:168-169`, as it refuses a lane's: phase 8 provides roots another way.)
 - **Not who may add or change a check.** That is SW.3's rule (task 07's addendum): only a
   person's own revision, never intake or a `text·A` one. Task 02's `ValidateCheckChange` decides
-  it and every revision write calls it (the fake, task 04; the Hub, tasks 08 and 09; row W-26), so
+  it and every revision write calls it (the fake, task 04; the Hub, tasks 08 and 09; row W-02.1), so
   the check line needs no rule of its own and this task runs only what the Hub accepted.
 - **Not a check that needs a secret, a service or another repository**, and not a sandbox without
   a network: it gets the bundle, a lane sandbox's network and CA bundle, and nothing else (decision 3). A check
