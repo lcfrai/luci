@@ -230,7 +230,32 @@ control plane (G1-G4 with tasks 12, 14, 20, 22, 26) and desktop (G5 with tasks 1
 
 ## 6. What we still build (glue)
 
-_Pending._
+| # | Glue | Days |
+|---|---|---|
+| G1 | **Sandbox image and the `panacea` preset.** Add `python3` and a vendored `specify-cli` wheel bundle to `images/sandbox/Dockerfile` (the proxy already breaks Go module TLS there, so vendor as `sandboxd` does), or render `specify init --integration claude` in a build stage. The preset: the spec template gains the five brief sections (*Purpose, Audience, Must not break, Definition of done* as `SC-` lines, *Out of scope*) beside Spec Kit's own; `grill-me`, `grill-with-docs` and `domain-modeling` vendored with their MIT notice; our words through preset terminology; the community catalogue off. Pin both versions | 1 |
+| G2 | **Define session start.** A *Define* action creates a session with the built `OpeningPrompt`. `.specify/` and the Spec Kit skills are placed in the worktree and listed in `.git/info/exclude` by the built `contextwrite` exclude logic, so Panacea still writes no tracked file | 0.5 |
+| G3 | **Publish.** A control-plane route reads the **committed blobs** (spec, `GLOSSARY.md`, `docs/adr/*.md`) at the lane's head through host git, never the working file. It treats them as untrusted text: size caps, parse only, nothing executed. It maps the five sections onto the built `discover.Content` (answers `Author: model_accepted`, `DraftedFrom: ["<path>@<blob>"]`, criteria from the `SC-` lines, so phase 3 keeps its keys) and writes a revision through the built `discoverhub`; terms and decisions go as records beside it | 2 |
+| G4 | **One Hub record kind** for a term or a decision that references a brief revision (OD-36), instead of round 2's Hub tasks. Hub-stream work | 1 |
+| G5 | **Desktop.** The Define lens is the session pane that already exists, plus a read-only rendered view of the published spec, glossary and decisions, one **Publish brief** button, and one drift line when the branch's spec blob differs from the published one. Task 17's chip, definition of done and shipped manifest are unchanged | 2 |
+| G6 | **Canary and end-to-end.** A golden spec parsed in CI, pinned to the Spec Kit version; a scripted run from idea to published brief to a new session that inherits it and shows the chip. The real-model interview joins the owner's batched session (OD-12) and stays unverified until then | 1 |
+| | **Glue total** | **7.5** |
+
+The kept tasks (section 5, about 23.5 h) overlap G3 and G5, so the whole comes to **about 8 stream-days**.
+
+### Risks, and the answer to each
+
+1. **Upstream churn.** Commands were renamed inside the 1.0 line, and releases land every 1-3 days. Pin
+   the version; G6's canary fails on any change to a section we parse; upgrade on purpose.
+2. **Interview quality is the model's.** `clarify` stops at five questions a run; `grill-me` goes deeper.
+   Not measured: the first owner session is the test.
+3. **Two copies of the spec** (the branch's file and the Hub revision). The Hub revision is the one that
+   counts: Publish records the blob it read, and G5 shows drift.
+4. **An untrusted agent writes the text a person publishes.** Publish is the accept gesture, after the
+   person has seen the rendered spec; the route parses and never executes.
+5. **No model, no interview.** The prototype degraded to five plain questions. Here the preset's
+   template is filled by hand and published, since Publish needs no model; Develop needs the model anyway.
+6. **The Hub is not ready.** `discoverhub` runs against the Hub fake until HA4-2 lands. This
+   recommendation neither adds to nor removes that dependency.
 
 ## 7. Calls only the owner can make
 
