@@ -515,9 +515,11 @@ only before a project's first brief is written; a person who declines the brief 
 **The inline budget.** Decisions get 4 KiB of the block and words 6 KiB, counted in rendered bytes,
 **whole entries only**: a definition is never cut. Order is fixed so the bytes are stable: a
 branch's own records first, then the project's; decisions oldest first, so adding one never
-reorders the rest; words case-folded alphabetically, then by id. Past a budget the section ends
-with `More in .panacea/discover/terms.md: <word>, <word>, …` — the remaining words by name, to 2
-KiB more — so the agent knows *which* words exist and where each is defined.
+reorders the rest; words case-folded alphabetically, then by id. Past its budget the words section
+ends with `More in .panacea/discover/terms.md: <word>, <word>, …` — the remaining words by name, to
+2 KiB more — so the agent knows *which* words exist and where each is defined. The decisions
+section ends with `More in .panacea/discover/decisions.md.`, since a decision has no one-word name
+to list; few projects reach it, because few decisions is the normal outcome (§3.3).
 
 Everything else in the block's rules holds: the neutraliser, LF, no timestamp (`render.go:5-8`,
 `:47-54`), untracked and excluded (`materialise.go:169-184`), written only when the bytes change.
