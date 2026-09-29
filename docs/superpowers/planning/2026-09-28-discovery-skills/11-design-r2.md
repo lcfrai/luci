@@ -759,8 +759,8 @@ project shows no empty panel and no prompt (§3.3).
    definition in a popover that changes no layout. The person sees the word join the brief's
    language, which is the thing OD-36 exists for.
 4. **Its provenance.** Each entry carries, in secondary text, *settled at brief rev 4* as a link to
-   that revision's history row (or *settled outside a brief*), and its key in the licensed mono
-   (`term:te-…@2`, `DESIGN-SYSTEM.md:45`). A revised entry shows its newest words and a *History*
+   that revision's history row (or *settled outside a brief*), and its id and revision in the
+   licensed mono (`te-3f2a91c07b1e4d2a` · rev 2, `DESIGN-SYSTEM.md:45`). A revised entry shows its newest words and a *History*
    disclosure; retired, superseded and withdrawn entries are behind it, never mixed in.
 
 ### 6.2 A branch's departures, and what the lens never shows
@@ -769,7 +769,19 @@ project shows no empty panel and no prompt (§3.3).
   text, the same shape as the brief's override note (`render.go:87-95`). When the project entry has
   moved past the pinned revision, the entry takes task 19's *project changed* treatment (11a §5)
   with **Keep this branch's** and **Use the project's**. No new visual state is invented.
+- **Not yet reaching sessions.** An entry on a branch whose brief has no complete revision, or on
+  a project whose first brief is still open, carries one secondary line: *Reaches sessions once
+  this brief is complete.* It states §5.1's rule where it applies. It is not a warning: no colour
+  and no count, and it goes when the brief completes.
 - **Promote** is a verb on a branch entry, never a prompt; archiving a branch asks nothing.
+- **After a branch ends** (the sceptic's I7). A landed branch's own decisions and words are in no
+  session's set: their brief is archived (`HC:785-788`), and main's sessions get the project's
+  set (§5.1). So the lens on the project lists, beneath the project's own entries, the in-force
+  entries of its archived branch briefs, behind one disclosure, *From archived branches*, each
+  with its branch's name and **Promote** beside it, and one line: *Sessions get these once
+  promoted.* The disclosure is absent when there are none. There is no prompt, no queue item and
+  no count, and archiving still asks nothing. Asking at the land itself, in phase 3's merge, is the
+  owner's Q8 (§8.2).
 - **No count anywhere**: no *12 words*, no *3 of 5*, no badge on the rail
   (`AGENTIC-UX.md:237`, `:245`). **Nothing in this feature adds a queue item of its own**: the
   suggestions wait in the lens, where the person already is when they appear, and the one
