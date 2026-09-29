@@ -296,7 +296,74 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
 
 ## 5. Recommendation
 
-_TBD — solution, days, what it replaces (phases and task counts), glue we still build, risks._
+**Adopt AKS Pod Sandboxing (Microsoft-managed Kata) plus `kubernetes-sigs/agent-sandbox` v1.0.4
+(Apache-2.0) as the `katabe` backend, in Australia East. 7 days to the first real cloud session
+from the cockpit.**
+
+Why this and not a bought service:
+
+1. It is the only candidate that meets all eight musts today (section 2), with a permissive licence.
+2. Microsoft runs the hard part (the Kata runtime, the guest kernel, the hypervisor) and
+   Kubernetes SIG Apps maintains the lifecycle we were about to write (pool, claim, pause,
+   resume, persistent storage, scheduled deletion). We write glue only.
+3. It reuses what exists: `katabe` already targets Kubernetes behind the unchanged seven-method
+   `Backend`; phase 8 is already written for AKS; `OD-18` chose Azure for this reason.
+4. It goes into a customer's own AKS unchanged, which a SaaS (Modal, Runloop, Northflank's
+   control plane) cannot, and it needs no new-vendor procurement, which would cost weeks.
+
+### The 7 days
+
+| Day | Step | Whose |
+|---|---|---|
+| 0.5 | AKS in Australia East (Overlay + Cilium, Entra RBAC), an Azure Linux Kata pool on a nested-virt Dsv5 size with the cluster autoscaler, ACR. A scripted `az` runbook now; phase 8 task 06's OpenTofu module codifies it after | this option |
+| 0.5 | Install agent-sandbox v1.0.4; one `SandboxTemplate` (our image, `kata-vm-isolation`, explicit requests, no service-account token, seccomp, a PVC); one `SandboxWarmPool`; time 10 parallel claims. This is the spike the 2026-09-28 study asked for, shrunk because upstream ships the AKS manifests | this option |
+| 1 | `katabe`: `Create` = a `SandboxClaim` through the Go SDK; `Get`/`List` from `Sandbox` status; `Destroy` deletes the claim; `Attach` dials the pod IP with the token | this option |
+| 0.5 | `sandboxd` late-bind: a warm pod starts unbound; the first `POST /bind`, reachable only from the control plane by NetworkPolicy, sets the attach token, the per-session gateway token (`OD-19`) and the harness command, then starts the PTY | this option |
+| 1 | Egress default-deny; allow DNS, the LiteLLM gateway, the git hosts (`OD-4`) and package mirrors by FQDN (Cilium FQDN policy, or phase 8 task 07's Azure Firewall); ingress only from the control plane | this option |
+| 1.5 | Worktree into the sandbox (seam S8.3): clone inside it with a scoped credential (`OD-22` for fetch, the signed-in person's for push), fetch back under `refs/panacea/lanes/…` (`OD-2`, phase 3) | shared glue |
+| 1.5 | The control plane in the cluster behind the Keycloak broker (`OD-30`), and a thin `remotebe` so the desktop lists, creates and attaches cloud sessions (the first slice of phase 8 tasks 17, 18, 22) | shared glue |
+| 0.5 | Smoke: 10 parallel Claude Code sessions; attach, fork, resume, destroy; record claim p50/p95 and pool refill under a burst | this option |
+
+### What it replaces in our plan
+
+- **Phase 8** (38 tasks, about 98.5 plan-days, 5 done). **Removed:** task 12 (warm capacity:
+  balloons and pre-pull, 2 days) and task 19 (broker machines: wake, sleep, idle sleeper, caps,
+  4 days), which become `SandboxWarmPool` and the `Sandbox` lifecycle. **Materially reduced:**
+  14 (pod hardening, 2.5), 15 (machine volumes, 3), 23 (per-machine backends and reaper, 3.5)
+  and 32 (Kata proving checklist, 2). **Reduced further if** the plan's machine pod with a shared
+  disk becomes one `Sandbox` per session with its own retained PVC, which `OD-2`'s one clone per
+  worktree already implies: 20, 21, 21b, 24a, 24b, 25 and 25b (19 plan-days) shrink by about
+  half. In all, 13 tasks and about 36 plan-days become about 14. That last step is a plan edit
+  that needs its own review; the word "machine" and what the user sees do not change.
+- **The critical path.** The first cloud session needs only the 7-day slice above. The rest of
+  phase 8 (OpenTofu stacks 01–10, charts 11 and 13, identity and broker 16–18, 22, UI 26,
+  pipelines and runbooks 27–31, close-out 33) stays and follows, off the critical path.
+- **Phase 9** has no plan yet. The Kata runtime, guest kernel and hypervisor patching become
+  Microsoft's; what stays ours is admission policy (Kyverno, per the 2026-09-28 study), network
+  policy and the ISM evidence.
+- **Capacity.** `PROGRAM.md` open risk 1 (warm-pool sizing unproven) becomes a pool size, an HPA
+  on the pool's scale subresource and the cluster autoscaler on the Kata pool, measured by the
+  day-7 smoke instead of a hand-built pool controller.
+
+### What we still build (the glue)
+
+1. The `katabe` claim client and the `sandboxd` late-bind.
+2. Clone-in-sandbox and lane fetch-back with scoped git credentials.
+3. The in-cluster control plane behind Keycloak, and the thin `remotebe`.
+4. The egress allowlist, the ingress policy and the template hardening.
+5. The canary-gated image bump that tracks the latest Claude Code CLI (`OD-20`), rolling the
+   template and refilling the pool; and our own burst load driver (upstream has none).
+
+### Risks, and the rule that switches to the fallback
+
+- `katabe` has never run against Azure; Kata on AKS is new to us.
+- Nested-virt Dsv5 capacity and quota in Australia East are unconfirmed for our subscription.
+- The agent-sandbox CRDs are `v1beta1` and a month past 1.0; pin the version.
+- Defender for Containers cannot assess Kata pods (a recorded compliance gap); AKS
+  node auto-provisioning does not support Kata.
+- **Switch rule:** if day 1 cannot get Kata nodes in Australia East, or claim p95 stays above
+  about 5 seconds after tuning, move to **ACI + standby pools (4.3)**: same Hyper-V isolation
+  class, no cluster, about 2 extra days for a new `acibe`.
 
 ## 6. Calls only the owner can make
 
