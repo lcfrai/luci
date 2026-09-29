@@ -235,7 +235,7 @@ never mints a brief revision. `HC` is the Hub contract,
   `tm-` is the team prefix (`HC:107`), an id is 16 hex, not 4 (11b §1.2), and it is a struct.
 - Revisions are the Hub's, from 1, gapless per record, and 0 never appears in a struct: the brief's
   rule (`HC:124-125`) applied to both. A struct names one immutable revision, so what a session was
-  given can always be read back; only the head moves.
+  given can always be read back, by its kind's revisions read (§R2.1); only the head moves.
 
 ### 2.2 Fields
 
@@ -370,16 +370,16 @@ record's fields for meaning, and the record is not a brief: the contract's "It r
 field of a revision's content: `status`" (`HC:742-745`) is about brief content, which stays opaque.
 The contract's §18 says that in words (§7.4, A20).
 
-**Roles are the brief's** (`HC:581-588`): `V` for the two reads, `M` for the two batch writes
+**Roles are the brief's** (`HC:581-588`): `V` for the four reads, `M` for the two batch writes
 (`HC:329`), and erasure the org admin's alone, as the brief's is (row 45, `HC:607`).
 
-Two reads, which with the two batch writes and the two erasures (§2.6) make six new routes. They
-are written in the contract's appended §18, not as rows inserted in §7.0's closed table
-(`HC:557-607`, A20): `GET /v1/projects/{projectId}/terms` and `…/decisions`, each the heads of one
-project, filterable to one branch brief, every revision's fields as §2.2 lists them, and each branch
-head carrying its brief's `archivedAt`. A struct therefore resolves from its kind's list. The
-resolver `GET /v1/refs` (row 27, `HC:589`) does not change: no struct reaches it, and it answers no
-new `kind`.
+Four reads, which with the two batch writes and the two erasures (§2.6) make eight new routes, all
+in the contract's appended §18, not rows inserted in §7.0's closed table (`HC:557-607`, A20).
+`GET /v1/projects/{projectId}/terms` and `…/decisions` list heads only, ordered by id: each item is
+one record's head revision with its §2.2 fields and digest, filterable to one branch brief, and a
+branch head carries its brief's `archivedAt`. A past revision reads from `…/term-revisions` and
+`…/decision-revisions` (§R2.1). The resolver `GET /v1/refs` (row 27, `HC:589`) does not change: no
+struct reaches it, and it answers no new `kind`.
 
 ### 2.5 The reference to the brief revision it settled in
 
@@ -986,7 +986,7 @@ source (§8.2, Q2). None of it is scope beyond OD-36.
 | # | Question | Default taken, and what the other answer costs |
 |---|---|---|
 | Q1 | Who owns the key grammar: phase 4's `provenance` (`HC:116`, `PC:104`, `key.go:1-2`) or the Hub contract (OD-36, `owner-decisions.md:409`; `10:54`)? (11b Q1) | **No answer needed to build under Q2's default**, which adds no form, so neither parser changes. Under Q2's other answer both parsers change together, the Hub's first (45 before 26), and the design is the same whoever owns the grammar |
-| Q2 | OD-36 says the key grammar "does not move". Are terms and decisions named by a struct, or by two new key forms? **Asked before 44a, Hub 45 or phase 4's 26 starts**: the other answer, taken after they ship, rebuilds them | **Taken: the struct** `{kind, id, revision}` (§2.1), the plain reading of OD-36's row (`owner-decisions.md:409`), of its note, which names the two parsers as the thing protected (`10:54-55`), and of 06's shelf clause (`06:348-351`). The owner's record also points the other way: the note sketches `term:tm-7f2a@2 -> brief:bf-9c1d@4` (`10:14`) and `PC:104-107` made `kind:` extensible. Key forms `term:te-…@n` and `decision:dr-…@n` would add §3.2 forms through §18, both parsers (Hub 45, phase 4's 26), `/v1/refs` rows (Hub 20, 48b) and task 16's key source: about 3 h more |
+| Q2 | OD-36 says the key grammar "does not move". Are terms and decisions named by a struct, or by two new key forms? **Asked before 44a, Hub 45 or phase 4's 26 starts**: the other answer, taken after they ship, rebuilds them | **Taken: the struct** `{kind, id, revision}` (§2.1), the plain reading of OD-36's row (`owner-decisions.md:409`), of its note, which names the two parsers as the thing protected (`10:54-55`), and of 06's shelf clause (`06:348-351`). The owner's record also points the other way: the note sketches `term:tm-7f2a@2 -> brief:bf-9c1d@4` (`10:14`) and `PC:104-107` made `kind:` extensible. Key forms `term:te-…@n` and `decision:dr-…@n` would add §3.2 forms through §18, both parsers (Hub 45, phase 4's 26), `/v1/refs` rows (Hub 20, 48b) and task 16's key source, about 3 h, but would read a pinned revision through `/v1/refs`, so the struct's revisions read in Hub 46, 48b and phase 4's 27, about 2 h, would not be built (§R2.1): **about 1 h more** in all |
 | Q3 | Should a release pin the decisions in force at Ship? | **No.** OD-36's *What moves* names the Materialiser, `Ref` and the lens only, and a session's inheritance is already provable through Develop. Yes costs one pin member in Hub 23 and lines in phase 7's 08 and 17: about 3 h |
 | Q4 | May Authority pre-authorise the assistant to record **words** (never decisions) on a branch without asking? | **No**: every record is a person's gesture, `author` `person` or `model_accepted`. Yes costs a new `author` value, one Authority action class and its lens state: about 3 h |
 | Q5 | Should rounds and dismissals be shared through the Hub? | **No**, local only; the cost is that a dismissed suggestion may be offered once more on another machine. Yes is a mutable Hub kind for process state, which is what §4 exists to avoid |
