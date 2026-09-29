@@ -967,13 +967,15 @@ source (§8.2, Q2). None of it is scope beyond OD-36.
 
 | # | Question | Default taken, and what the other answer costs |
 |---|---|---|
-| Q1 | Who owns the key grammar: phase 4's `provenance` (`HC:116`, `PC:104`, `key.go:1-2`) or the Hub contract (OD-36, `owner-decisions.md:409`; `10:54`)? (11b Q1) | **No answer needed to build.** Both parsers change together, the Hub's first (45 before 26), and the contract's text changes in 44a as A20. The design is the same either way |
-| Q2 | OD-36 says the key grammar "does not move". Does adding two **new** forms break that? | **Taken: no.** "Does not move" is read as *no existing form changes*, and the brief's does not by a byte; a new `kind:` is the grammar's designed extension (`PC:104-107`), as phase W's planned `issue:` is. If the owner meant *no new form at all*, terms and decisions are cited by a `{kind, id, revision}` struct in phase W's style instead: §2.1 changes, the resolver answers them by a new route rather than `/v1/refs`, and Hub 45 and phase 4's 26 shrink by about 1.5 h |
+| Q1 | Who owns the key grammar: phase 4's `provenance` (`HC:116`, `PC:104`, `key.go:1-2`) or the Hub contract (OD-36, `owner-decisions.md:409`; `10:54`)? (11b Q1) | **No answer needed to build under Q2's default**, which adds no form, so neither parser changes. Under Q2's other answer both parsers change together, the Hub's first (45 before 26), and the design is the same whoever owns the grammar |
+| Q2 | OD-36 says the key grammar "does not move". Are terms and decisions named by a struct, or by two new key forms? **Asked before 44a, Hub 45 or phase 4's 26 starts**: the other answer, taken after they ship, rebuilds them | **Taken: the struct** `{kind, id, revision}` (§2.1), the plain reading of OD-36's row (`owner-decisions.md:409`), of its note, which names the two parsers as the thing protected (`10:54-55`), and of 06's shelf clause (`06:348-351`). The owner's record also points the other way: the note sketches `term:tm-7f2a@2 -> brief:bf-9c1d@4` (`10:14`) and `PC:104-107` made `kind:` extensible. Key forms `term:te-…@n` and `decision:dr-…@n` would add §3.2 forms through §18, both parsers (Hub 45, phase 4's 26), `/v1/refs` rows (Hub 20, 48b) and task 16's key source: about 3 h more |
 | Q3 | Should a release pin the decisions in force at Ship? | **No.** OD-36's *What moves* names the Materialiser, `Ref` and the lens only, and a session's inheritance is already provable through Develop. Yes costs one pin member in Hub 23 and lines in phase 7's 08 and 17: about 3 h |
 | Q4 | May Authority pre-authorise the assistant to record **words** (never decisions) on a branch without asking? | **No**: every record is a person's gesture, `author` `person` or `model_accepted`. Yes costs a new `author` value, one Authority action class and its lens state: about 3 h |
 | Q5 | Should rounds and dismissals be shared through the Hub? | **No**, local only; the cost is that a dismissed suggestion may be offered once more on another machine. Yes is a mutable Hub kind for process state, which is what §4 exists to avoid |
 | Q6 | The product's words for `CONTEXT.md`. `CONTEXT.md:303` already calls our own register "one decision record", and `CONTEXT.md:149` calls an approval row "a decision under Authority" | **Term** and **Project decision**, each with a *Not «…»* line: not «vocabulary» (the Work layer's team names, 11b §5.2), not «ADR», and not an approval row. The Work layer's planned Go type `Term` (`task-138.md:111`) is another package and is left alone |
 | Q7 | Should a session started without the brief (`none:declined`) still inherit the project's words and decisions? | **No** (§5.1): declining the brief declines everything Discover writes, so the label *started without the brief* stays true. Yes needs a block with no brief in its marker, a new `Inspect` state and a golden: about 3 h |
+| Q8 | When a branch lands, should the product ask about the branch's own decisions and words at the land itself? | **No** (§6.2): once a branch ends, its in-force entries wait in the project's lens under *From archived branches*, with **Promote** beside each, and nothing asks. Yes puts that list in phase 3's land step, a phase 3 change that OD-36's *What moves* does not name: about 2 h and its tests. Promoting them all at the land without asking is not offered: it would change every other branch's set with no person's gesture (§8.1) |
+| Q9 | Should a branch's own entries reach its sessions before the branch's brief has a complete revision? | **No** (§5.1): the set follows the stamp, so a project key gives the project's set, and the lens says when a branch's entries will reach sessions. Yes serves the set digests per `(contextRef, branch)` beside the `Ref` rather than in it, which reads OD-36's "`Ref` carries their digests" loosely: about 3 h across phase 4's 26, 27, 29 and 17 |
 
 ### 8.3 What this design did not verify
 
@@ -987,10 +989,17 @@ source (§8.2, Q2). None of it is scope beyond OD-36.
   uncommitted-modified in the Hub worktree today (11b §2.2).
 - The round's limits (three decisions, five words, fourteen days) and the inline budgets (4 and 6
   KiB) are judgements, not measurements: the prototype (task 24) is where the owner tests them.
-- Four rules were added in the last pass, after §7 was priced: the later-project-word shadow
-  (§2.3), the cross-scope word check (§2.4), the erase routes (§2.6) and *no brief key, no
-  inheritance* (§5.1). Only the erase routes moved an hour (Hub 48, +0.5 h, with Hub 27's -0.5 h);
-  that the other three fit inside Hub 48 and phase 4's 25, 29 and 31 as priced is a judgement.
+- Round 2's four late rules (the later-project-word shadow, the cross-scope word check, the erase
+  routes, *no brief key, no inheritance*) and this revision's rules are priced inside the repriced
+  tasks of §7.3; that they fit there is a judgement from the plans' ratios, not a measurement.
+- **Read from source, not run** (Revision 1): that `contractSection` finds a section by its number
+  alone, so §18 is invisible to every test until one is extended to read it (`keys_test.go:371`);
+  that the `pendingAmendment` ratchet covers a type ahead of its contract text and not the reverse
+  (`types_test.go:881-885`); and the create handler's order (`api/sessions.go:963-1103`).
+- Hub 14's `TestInFeedIsTheContractTable` is known from its plan part only, so that it reads the
+  event table by section, and so ignores §18 until 48b, is unverified.
+- `hubapi.FoldWord`'s choice of NFC and simple case folding is untried against the lens's search
+  and sort; the prototype (task 24) is where a mismatch would show.
 
 ## Closing
 
