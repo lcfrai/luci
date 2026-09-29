@@ -86,7 +86,39 @@ shape one layer up.
 
 ## 3. Candidates — SaaS trackers to buy
 
-_Pending._
+### 3.1 Linear — **reference now; optional connector later. Not the default.**
+
+| | |
+|---|---|
+| **Does** | The speed benchmark Phase W was written against: issues, cycles, projects, initiatives, triage, views, keyboard-first, real-time sync. GraphQL API, webhooks. |
+| **Agents** | The best agent model on the market. **Linear for Agents**: an agent is an app user you can @mention or **delegate** an issue to; Linear opens an `AgentSession` (states `pending`, `active`, `error`, `awaitingInput`, `complete`, `stale`) and the agent reports back as typed activities (thought, action, elicitation, response, error). It must answer within **10 seconds** or be marked unresponsive ([agent interaction docs](https://linear.app/developers/agent-interaction)) — the same bar as Phase W's "first sign of work within 10 seconds". |
+| **MCP** | Official remote server `https://mcp.linear.app/mcp`, OAuth 2.1 with dynamic client registration ([docs](https://linear.app/docs/mcp)). Works from Claude Code today. |
+| **Licence / price** | Commercial SaaS. Basic $10, Business **$16/user/month**; Enterprise (SAML, SCIM, audit log) custom, third-party estimates $20-30 (unverified). |
+| **Deploys** | SaaS only. **Regions: United States or European Union, chosen at workspace creation. No Australia** ([security page](https://linear.app/docs/security), read 2026-09-30). |
+| **Enterprise fit** | SOC 2 Type II, GDPR, HIPAA BAA. SAML/SCIM on Enterprise only. **Fails `OD-19`/`OD-24` for any project classified *AU data only*.** A second tracker for KPMG staff who already live in ADO and GitHub. |
+| **Maturity** | Venture-backed, large and fast-moving; no self-host, no customer-cloud option. |
+| **Gaps** | AU residency; runs outside the customer's cloud; KPMG does not own it. |
+| **Integration** | 2-3 days as a third connector (OAuth app + AgentSession webhook + activities). |
+
+**What to take from it now, free:** its agent-session contract. Our ADO and GitHub connectors
+should report an agent's work in the same five activity kinds on the work item, so the three
+trackers read alike and a Linear connector is a thin add later.
+
+### 3.2 Jira Cloud (Atlassian) — **integrate as the third connector, when a customer brings it**
+
+| | |
+|---|---|
+| **Does** | The enterprise incumbent: issues, sprints, boards, roadmaps (Premium), JQL, automation. REST, webhooks, Forge apps. |
+| **Agents** | You can **assign a work item to Claude, Cursor, Codex, GitHub Copilot or Jira's own coding agent** from the assignee menu, or @mention one ([support](https://support.atlassian.com/jira-software-cloud/docs/collaborate-on-work-items-with-ai-agents/)). **Our own platform can register as an assignable remote agent** through the Forge `rovo:agentConnector` module — **Preview** ([dev docs](https://developer.atlassian.com/platform/forge/remote-agents-in-jira/)). The Marketplace "Claude Agent for Jira" takes a direct Anthropic API key and a GitHub service account: that bypasses our gateway and sandbox, so it is **not** our path (`OD-19`). |
+| **Licence / price** | Commercial SaaS. Standard ~$7.53, Premium ~$13.53/user/month (Jan 2025 list); **SAML SSO with Entra needs Atlassian Guard**, ~$4/user/month extra across the whole Atlassian org (third-party figures, unverified). |
+| **Deploys** | SaaS. **AU data residency (AWS Sydney) on Standard, Premium and Enterprise.** **Data Center is closed to new customers since 2026-03-30 and reaches end of life 2029-03-28** ([Atlassian](https://www.atlassian.com/licensing/data-center-end-of-life)), so there is no customer-hosted Jira to plan for. |
+| **Enterprise fit** | Strong: Guard, audit log, residency. |
+| **Maturity** | Atlassian, the market default in AU regulated enterprise. KPMG's own use of Jira: **unverified**. |
+| **Gaps** | Speed; Guard cost; agent connector in Preview. |
+| **Integration** | 3-4 days behind the same tracker interface. |
+
+**Not assessed in depth, on purpose:** Shortcut, ClickUp, Monday dev, Asana. None is a KPMG
+system, and a customer who runs one can be served by the same connector shape later.
 
 ## 4. Candidates — self-hosted trackers
 
