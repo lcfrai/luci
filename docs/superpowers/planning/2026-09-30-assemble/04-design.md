@@ -1,10 +1,15 @@
 # 04 — Design: an agent-editable canvas. Adopt, integrate or buy instead of phase 5
 
-Status: IN PROGRESS (skeleton written 2026-09-30; sections fill in as research lands).
+Status: REVISING for the owner's second direction (relaunch, 2026-09-30). The first run wrote
+§2–§5 and was stopped at 09:47; §1a records what the second direction changed.
 
 Replaces, if adopted: phase 5, the canvas (31 tasks, 5 built).
 
 ## 1. The answer in one screen
+
+_Pending (written last, after §1a and §6)._
+
+## 1a. Revised for the owner's second direction
 
 _Pending._
 
