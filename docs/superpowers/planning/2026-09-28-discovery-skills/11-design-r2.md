@@ -10,7 +10,47 @@ Inputs, in the order read: `11a-facts-phase4.md`, `11b-facts-hub.md`, `06-scepti
 
 ## 0. The design in one screen
 
-(to be written)
+**Terms and decisions become two new Hub record kinds beside the brief. Each names the brief
+revision it settled in, the Materialiser hands every session the whole set under one stamp, and
+the brief does not change by a byte.** The price is about 54 hours before fix rounds: 35 in phase
+4, 18.25 in the Hub and 0.5 for `CONTEXT.md`, with one task, about 3 hours, joining phase 4's
+critical path (§7.5).
+
+1. **Two records** (§2). A **term**, `term:te-<16 hex>@<n>`, is one word, what it *is*, the words
+   to avoid and why. A **decision**, `decision:dr-<16 hex>@<n>`, is one sentence with its context,
+   what it gave up, what undoing it would cost and up to three rejected alternatives. Each is a head
+   plus immutable numbered revisions, written through its own batch route under `baseRevision`,
+   with an op for every transition. A project owns them; a branch may add its own, depart from the
+   project's (redefine a word or set it aside) and promote. `settledIn` names the brief key where
+   each settled, or `null` outside a brief. A duplicate word is refused when it is written.
+2. **One gesture** (§3). The agent proposing a decision applies three limbs (costly to undo,
+   surprising to a cold reader, a real fork) and proposes nothing that fails one. The person
+   records with **Record**, or **Record all** for a round: optimistic, with Undo, and no checkbox,
+   no gate field and no disabled Save. What fails a limb stays an ASSUMED row on the Desk, goes into
+   the brief or the code, or goes nowhere (§3.3).
+3. **Rounds are process state** (§4). Once a brief revision is complete, the assistant makes one
+   suggestion round of at most three decisions and five words, held in one local file in the
+   control plane's state: never in brief content, never in the Hub. It dies in five ways and has no
+   closed state, so nothing ever needs reopening.
+4. **The thread** (§5). Before the harness starts, the Materialiser writes
+   `.panacea/discover/decisions.md` and `terms.md` in full, then the managed block: whole entries
+   up to an inline budget, and always a line naming both files. The marker, both files, `Ref`'s new
+   `glossaryDigest` and `decisionsDigest`, and a per-start inheritance record certify the **whole**
+   set, so no stamp ever covers a truncation. Design and Deploy change nothing (§5.4).
+5. **The lens** (§6). A word shows *suggested* (the drafted glyph, muted), then *recorded* (one
+   flash of about 600 ms), then *taken up* (a dotted underline wherever the brief's answers use it),
+   and carries *settled at brief rev n*. No count, no badge and no queue item of its own.
+
+**What moves in built code** (§7.2): phase 4's `key.go`, `ref.go`, `render.go`, `materialise.go`,
+`inspect.go`, `api/materialiser.go` and `discoverhub/read.go`, and the Hub's `hubapi` and
+`hubclient`, each through a new task, never a re-plan of an approved one. **What does not**: the
+content model and its 113 tests, the brief's key and the 64 plan files that quote it, the
+interview's questions, and phases 2, 3, 5 and 7.
+
+**What the owner is asked** (§8.2): six questions, each with its default already taken, none of
+which blocks the build. Q2 is the one whose other answer changes the design's shape: whether two
+new key forms break OD-36's *the grammar does not move*. The default reads it as *no existing form
+changes*.
 
 ## 1. The sceptic's findings, answered by number
 
