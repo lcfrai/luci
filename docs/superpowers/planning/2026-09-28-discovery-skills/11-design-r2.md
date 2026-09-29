@@ -293,8 +293,8 @@ A branch record anchors to a brief that ends archived when its branch is deleted
 the brief itself is (`HC:787`). **Promote** and `retire` of the records already anchored to it stay
 open, and that is how a landed branch's own decisions and words reach the project (§6.2).
 
-What a branch sees is computed by phase 4, never by the Hub (the Hub stores and resolves, 11b §1.4):
-the project's in-force entries, minus those a branch record overrides, plus the branch's own.
+What a branch sees is one function beside `FoldWord`, `hubapi.Overlay` (§R2.3, M4): the project's
+in-force entries, minus those an in-force or set-aside departure overrides, plus the branch's own.
 One more rule keeps that overlay to one entry per word. A project word written **after** a branch
 already defines the same word on its own is shadowed on that branch as if the branch had departed
 from it, and the lens gives the entry task 19's *project changed* treatment (§6.2): **Keep this
@@ -313,9 +313,9 @@ mints the id and numbers the revision `baseRevision + 1`, never merges, and answ
 **Inside one batch.** An item may name a record that an earlier item of the same batch creates, by
 that item's index, `{"item": 0}`, wherever a struct or an id is due; the Hub puts in the id it
 mints, because no caller can know it. Heads are locked in id order, as the brief's are in `briefId`
-order (`HC:808`). Items apply in **two passes**: first every item that takes a record out of force,
-then every item that puts one in force or keeps it there, each pass in request order. So a promote
-that retires what it overrode never trips its own unique index.
+order (`HC:808`). Items apply in **two passes**: first every item whose record leaves force, then
+every other item, each in request order, with every id minted first and every reference checked
+at commit (§R2.3, M2). So a promote that retires what it overrode never trips its own unique index.
 
 | Op | Transition | The item |
 |---|---|---|
@@ -357,10 +357,10 @@ the word check, 409 `word_taken`, naming the entry it met. The word check is thr
    cannot record *lane, not track* and *track, not lane* (rounds are per machine, Q5). Retiring the
    other term in the same batch clears it, since exits apply first.
 
-**One fold, in one function**: `hubapi.FoldWord`, NFC and then Unicode simple case folding, from
-`golang.org/x/text`, already in both modules as an indirect dependency (the Hub tree's
+**One fold, in one function** (§R2.3, M9c): `hubapi.FoldWord`, NFC and then Unicode simple case
+folding, from `golang.org/x/text`, already in both modules as an indirect dependency (the Hub tree's
 `control-plane/go.mod:62`, phase 4's `:56`). The head stores its result for rule 1's index, rules
-2 and 3 compare with it, and phase 4's overlay and sort (§5.1) call the same function, which
+2 and 3 compare with it, and `hubapi.Overlay` and phase 4's sort (§5.1) call it too, which
 reaches phase 4 by merge with the rest of `hubapi` (§7.2).
 
 **One owner for §2.2's rules: the Hub.** They are one `hubapi` function beside the wire types. The
@@ -476,9 +476,9 @@ A term is the same shape: the row shows the word, its one-line *is* and the avoi
 writes a `restore` revision, as the brief's own Undo does (phase 4 `task-19.md:7-9`, 11a §5); after
 a first Record, which has no revision before it, it writes `withdraw` or `retire` (§2.4). Either
 way the record's history stays honest, and every gesture has an inverse. When one round holds several
-suggestions, **Record all** writes them in one batch, the Desk's *approve pattern*
-(`AGENTIC-UX.md:109-110`). The batch is all or nothing (§2.4), so a refused one records nothing:
-the row that caused the refusal says why (§6.3), the rest stay suggested, and a second **Record
+suggestions, **Record all** writes them in two batches, words then decisions (§R2.3, M3), each
+all or nothing (§2.4): the Desk's *approve pattern* (`AGENTIC-UX.md:109-110`). A refused one
+records nothing, the row that refused says why (§6.3), one Undo reverses both, and a second **Record
 all** takes them. That is the answer to the sceptic's throughput point (§1, 3.2 item 3): a
 round costs one gesture, not one review per row. No suggestion is ever raised as a modal
 (`AGENTIC-UX.md:246`).
@@ -877,13 +877,13 @@ material goes at the end of a heavily cited file).
 | # | Task | Depends on | Hours | Must come before |
 |---|---|---|---|---|
 | 24 | Prototype: the §6 states added to `prototype/phase-4-discover.html` (suggested, recorded, taken up, departure, *not here*, project changed, refused, model off, *reaches sessions once complete*, *from archived branches*). The owner looks before 31's part is approved | — | 2.5 | 31 |
-| 25 | `discover`: `Term`, `Decision`, the branch overlay with its later-project-word shadow and its *not here* departures (§2.3), the set digest; pure. No copy of §2.2's rules: they are the Hub's one function (§2.4) | 06 | 2.5 | 26-30 |
-| 26 | `provenance`: the `Ref`'s two digests; `ref-golden.json`. No key form (§2.1), so no Hub task in front of it | 06, 25 | 1.5 | 12 |
+| 25 | `discover`: `Term`, `Decision`, a branch's set built by `hubapi.Overlay` (§2.3; §R2.3, M4), the set digest; pure. No copy of §2.2's rules or of the overlay: each is the Hub's one function (§2.4) | 06, Hub 45 | 1.5 | 27-30 |
+| 26 | `provenance`: the `Ref`'s two digests, two strings that need nothing of 25 (§R2.3, M1); `ref-golden.json`. No key form (§2.1), so no Hub task in front of it | 06 | 1.5 | 12 |
 | 27 | `discoverhub`: the two list reads to the last page inside the budget (§5.1), the two batch writes, the two set digests for `Ref`, the preview through `RenderInherited`, and `TestResolveBatchesInTwoCallsAtMost`'s new bound | 07, 08, 25, 28, Hub 46 | 6 | 29, 30, 32 |
 | 28 | `claudemd`: `RenderInherited`, the new block and the two files' renderer, the *not here* and *Gave up:* lines; three goldens regenerated, three added | 05, 25 | 4.5 | 27, 29 |
 | 29 | `contextwrite`: the three files in order, `/.panacea/discover/` excluded and confined (a not-ignored answer refused `write_failed`, §5.3), both files removed wherever the block is stripped (§5.1), and `Inspect`'s set-digest classification (§5.3); `api`: `MaterialiseResult`'s two sets, and the create and restart handlers' append after the stamp (§5.2) | 09's fix round closed, 10, 27, 28 | 5.5 | 32, 14 |
 | 30 | `discover` + `discoverhub`: the suggestion round, its local store and its five deaths (§4); and the one-decision draft behind *Record a decision* (§3.2), under the round's model budget and outcomes | 04, 25, 27 | 3.5 | 32 |
-| 31 | Desktop: the lens's two areas (§6), with *not here*, *reaches sessions once complete* and *From archived branches*. UI: stays unmerged until the owner has looked (`OD-1`) | 16, 18, 24 looked at, 32 | 6.5 | 23 |
+| 31 | Desktop: the lens's two areas (§6), with *not here* and its verb, *reaches sessions once complete*, *From archived branches*, and **Record all**'s two batches (§R2.3, M3 and M5). UI: stays unmerged until the owner has looked (`OD-1`) | 16, 18, 24 looked at, 32's part: its wire shapes, not its code | 7 | 23 |
 | 32 | `discoverapi`: the relay routes for the two reads and two writes, the round's two routes, the per-session inheritance route beside task 12's `materialisations`, and that route's fresh render through `RenderInherited` with the two lists (§5.3, task 12's amendment) | 11, 12, 27, 29, 30 | 3.5 | 14, 15 |
 
 Phase 4 new: **36 hours, nine tasks.** Hours are priced against the plan's own tasks for the same
@@ -933,14 +933,14 @@ routes; 21 stays one-shot, 06 §1.4); the Hub's 08, 14, 16b, 20 and 22.
 
 ### 7.5 Where it slots, and the total
 
-- **Phase 4's critical path** is Hub H0 → 07 → 08 → 09 → 11 → 12 → 14 → 23 (`plan:430`). 25, 26 and
-  28 can start now, beside 09's fix round: 26 waits on no Hub task, because under the struct no
-  form is added (§2.1). 27 and 30 start once Hub 46 exists, and 46 waits on 45, which waits on 44a,
-  still unrun and out of order (the Hub worktree's `.superpowers/sdd/hub/progress.md:518-521`). 29
-  starts once 09's round closes and 27 is done. The one task that joins the path is **32, between
-  12 and 14**, because 14 must wire the final Materialiser rather than wire it twice: **about +3.5
-  hours on the critical path**, if 25-30 and Hub 44a-46 run beside it as their dependencies allow.
-  If they do not, the path waits on them, and 44a is the first it would wait on.
+- **Phase 4's critical path** is Hub H0 → 07 → 08 → 09 → 11 → 12 → 14 → 23 (`plan:430`): about 5 h
+  of work before 14 today, 09's fix round aside. Under this design it runs **Hub 44a (4 h) → Hub 45
+  (5) → 25 (1.5) → 28 (4.5) → 27 (7.5) → 29 (5.5) → 32 (5.5) → 14**, about 33.5 h before 14: **about
+  +28.5 hours on the critical path** before fix rounds (§R2.3, M1). 25 waits on 45 for `FoldWord`
+  and `Overlay`; 27 also on Hub 46, which is ready half an hour sooner; 14 on 32, so that it wires
+  the final Materialiser once. 26 waits on 06 alone and can start now. 31 codes against 32's part,
+  not its code, as 15 does against 11's and 12's (`plan:406`), so it stays off the path. All of it
+  assumes the Hub runs 44a, 45 and 46 next, which are unrun and out of its order (§R2.3, M1).
 - **The Hub's order**: 44a with A20 → 45 → 46 (S0g) → 47 after 07b's round closes → 48a after 19 →
   48b after 20 and 27 (S4g). Hub 45 and 46 stand in front of phase 4's 27, and 44a stands in
   front of everything, as it already does. **Q2 is asked before 44a runs** (§8.2).
@@ -1196,3 +1196,69 @@ the head, so an erased client codename stayed in `terms`. Task 27's `markerHits`
 
 **Price: about 0.25 h, in Hub 47** (the column's `CHECK`, the guard's case and the test). The scan's
 second marker is one more call inside 48b's existing scan item: no hours added there.
+
+### R2.3 The Minor findings
+
+**R2-M1. The critical path: about +28.5 hours before 14, not +3.5.** §7.5:936-943 is rewritten in
+place, and §0:17-19 carries the figure.
+- **The chain**, from §7.3's own dependencies at this revision's prices (§R2.4): Hub 44a, 4 h (its
+  1.5, `HP:400`, plus A20's 2.5) → Hub 45, 5 h → phase 4's 25, 1.5 h → 28, 4.5 h → 27, 7.5 h → 29,
+  5.5 h → 32, 5.5 h → 14. That is **about 33.5 hours of work before 14**, against about 5 today
+  (09's open fix round, then 11 at 3 h and 12 at 2 h, `plan:400-403`): **about +28.5 h** before fix
+  rounds, with a fix round likely on each of those seven tasks on top.
+- **Why each link holds.** 25 calls `hubapi.FoldWord` and `hubapi.Overlay` (M4), which Hub 45 builds
+  and which reach phase 4 only by merge (§7.2:864), so 25 cannot start now. 27 also waits on Hub
+  46's fake, but 44a → 45 → 46 is 14.5 h, half an hour less than 44a → 45 → 25 → 28. 29 needs 27's
+  reads and 28's renderer, 32 needs 29's classification, and 14 waits on 32 so that it wires the
+  final Materialiser once.
+- **Two links cut.** 26 adds two digest strings to `Ref` and uses nothing of 25, so its row depends
+  on 06 alone (§7.3:881) and it can start now. 31 codes against 32's part, not its code, as 15 does
+  against 11's and 12's (`plan:406`), so the lens's 7 h do not join the path after 32.
+- **Not taken:** the sceptic's first Hub commit of `FoldWord` and the field rules. 25 would start
+  sooner, but 27 would then wait on 44a → 45 → 46: half an hour saved, for one more task.
+- **The condition.** The chain assumes the Hub runs 44a, 45 and 46 next. They are unrun and out of
+  the Hub's order (its worktree's `.superpowers/sdd/hub/progress.md:518-521`); if the Hub keeps its
+  queue, 08 through 44b first (`:522-523`), the path waits on those too.
+
+**R2-M2. An exit named a create that had not run.** §2.4:316-318 is amended in place.
+- Every id is minted before either pass, which resolving `{"item": i}` needs anyway (§2.4:313-315).
+- **The passes are total**: first every item whose record **leaves force** (in force before it, out
+  after it: a `retire`, `supersede` or `withdraw`, or a `restore` of an out-of-force revision), then
+  **every other item**, each pass in request order. The old wording put a *not here* `depart`, and a
+  `revise` of an out-of-force record, in neither pass.
+- `replacedBy` and `overrides` are foreign keys declared `DEFERRABLE INITIALLY DEFERRED` in `0002`,
+  checked at commit, when every head and revision of the batch exists. So *create "track", retire
+  "lane" in its favour* applies in either request order. The unique index stays immediate: the
+  passes keep it satisfied. The fake (Hub 46) checks references at its batch's end, the same rule.
+- **Tests**: Hub 47's database test writes that batch in both orders; 46's conformance rows run it
+  on the fake and the server. **Price: +0.25 h in Hub 47.**
+
+**R2-M3. Record all is two batches, and says so.** §3.2:479-481 is amended in place.
+- **Words first, then decisions.** A word is the likelier refusal (`word_taken`, when a teammate
+  records it first), and a refused words' batch sends no decisions' batch, so in that case nothing
+  is recorded: every row stays suggested and the refusing row says why (§6.3).
+- **Only the decisions' batch refused**: the words show *recorded*, the decisions stay suggested,
+  the refusing row says why, and a second **Record all** takes what stayed suggested.
+- **One Undo**, inside the same five seconds, reverses both: the decisions' inverse batch first,
+  then the words'. Each is all or nothing, and a refused one leaves its rows recorded, saying why.
+- No cross-kind batch route: each kind's batch stays one transaction, as `brief-revisions`' is.
+  **Price: +0.25 h in phase 4's 31.**
+
+**R2-M4. The overlay is one function, and a word a branch avoids is shadowed too.** §2.3:296-297
+and §2.4:360-363 are amended in place.
+- **`hubapi.Overlay`**, beside `FoldWord` and the field rules (§2.4:366-371), returns a branch's
+  view: the project's in-force entries, minus each one an `in_force` or `set_aside` branch record
+  overrides (M5) and each one the shadow below covers, plus the branch's own `in_force` records.
+  It is the one copy: phase 4's 25 builds a set with it, and Hub 46's fake and 48a's server call it
+  for rule 3's *branch's view*. 25 no longer builds an overlay of its own.
+- **The shadow, extended.** A project term is shadowed on a branch when it conflicts with one of the
+  branch's own in-force terms under rule 1, 2 or 3: the same folded word, as §2.3:298-303 had, a
+  word the branch's term avoids, or an `avoid` naming the branch's word. A branch write of such a
+  pair is refused, so the conflict only comes from a later project write, which the Hub allows. The
+  block never says both "use lane, not track" and "track: …".
+- **The lens** gives each shadowed entry task 19's *project changed* treatment. **Use the project's**
+  retires the branch's term in its favour, as before. **Keep this branch's** is a `revise` setting
+  `overrides` when the words are the same, and a *not here* departure from the project's term when
+  one avoids the other, which is what the branch's term already says.
+- **Price: Hub 45 +1.25 h** (the function, both shadows, their table tests); **phase 4's 25 −1 h**.
+  Nothing is counted back in Hub 46 or 48a, which still wire the call.
