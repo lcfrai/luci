@@ -394,22 +394,40 @@ The Hub checks that a non-null `settledIn` resolves in this project and is not e
   `0002_terms_decisions.sql`, because a written migration is append-only (`ErrEdited`, 11b §3.3).
   The revision tables are append-only, with the canonical-envelope and digest `CHECK` that only
   `brief_revisions` and `audit_events` carry today; each head is a guarded state machine holding the
-  current word, scope and state for the unique index. `settledIn` and `overrides` are composite
-  foreign keys, `(org_id, brief_id, brief_revision)` as every brief reference is (11b §3.2), never a
-  key stored as text. Every list in `0001` that names tables one by one (RLS, grants, the
+  current folded word, scope and state for the unique index. Every reference is a composite
+  foreign key, never a key stored as text: `settledIn` is `(org_id, brief_id, brief_revision)`, as
+  every brief reference is (11b §3.2); `overrides` names a revision of its own kind,
+  `(org_id, term_id, revision)` in `term_revisions` and its twin in `decision_revisions`; and
+  `replacedBy` names a head, `(org_id, term_id)` or `(org_id, decision_id)`. Every list in `0001`
+  that names tables one by one (RLS, grants, the
   append-only array: 11b §3.4) gets its twin statement in `0002`.
 - **Digests**: two new canonical envelopes, `{"v":1,"kind":"term-revision",…}` and
   `"decision-revision"`, members sorted as the brief's are (`discoverhub/digest.go:26-49`), digest
   `"sha256:"` + hex; each gets golden vectors beside the brief's (§1.7 of 11b).
 - **Events**: `term.revised` and `decision.revised`
-  `{"key","revision","digest","state","scope"}`, one per changed record, and `term.erased`,
+  `{"kind","id","revision","digest","state","scope"}`, one per changed record, and `term.erased`,
   `decision.erased`. `data` never holds the text (`HC:1133-1134`).
 - **Erasure**: `hub.erase_term` and `hub.erase_decision`, owner functions shaped like
   `hub.erase_brief` (`HC:1115-1127`), each reached the way the brief's is through row 45: `POST
   /v1/terms/{termId}/erase` and `POST /v1/decisions/{decisionId}/erase`, org admin only, with the
-  same `reason`, because a definition can hold client text just as an answer can. The text goes,
-  the key, digest, number, `savedAt` and `savedBy` stay, and the key resolves `erased`. Erasing a
-  brief changes no term, as it changes no approval: neither holds brief text.
+  same `reason`, because a definition can hold client text just as an answer can. The text goes;
+  the id, digest, number, `savedAt` and `savedBy` stay, and the revision reads `erased` in its list.
+- **No stored reply keeps the text.** A route-26 reply is stored whole for 24 hours in
+  `idempotency_keys.response`, which is why A17 exists (`HP:196`; `HP:` and `T:` as §7 defines
+  them). So the two batch routes store a
+  text-free reply, and a replay rebuilds its revisions from `term_revisions` and
+  `decision_revisions`, an erased one with its text `null`: route 26's `rebuildRevisions` under task
+  14's `WriteReplayable` (`T:19.md:52-59`), applied to both kinds. Task 27's
+  `TestErasureKeepsKeyAndDigest`, whose `markerHits` already scans every `text`, `varchar`, `jsonb`
+  and `bytea` column (`T:27.md:72`), gains a term and a decision holding its marker, each written
+  under an `Idempotency-Key`, erased, then found nowhere and replayed text-free.
+- **A brief's erasure names what settled in it.** A term's `is` or a decision's `context` may have
+  been drafted from the very answers a brief's erasure removes (§4.1), so "neither holds brief
+  text" cannot be assumed. Erasing a brief still changes no term and no decision by itself, as it
+  changes no approval, because a word like *lane* is rarely client text. But its reply gains
+  `settled`: the struct of every term and decision revision whose `settledIn` names the erased
+  brief, one query on that composite key. The org admin who erased the brief then erases what
+  holds client words, through the two routes above. Nothing is erased that a person did not choose.
 
 ## 3. How a decision earns its record, without ceremony
 
