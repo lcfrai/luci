@@ -178,7 +178,55 @@ the web, checked on the upstream page on 2026-09-30.
 
 ## 5. Recommendation
 
-_Pending._
+**Adopt GitHub Spec Kit as the Define engine, run as a Define session in the cockpit we already have,
+with one Panacea preset that carries the brief's five sections and the aihero grilling and glossary
+skills. Keep the built provenance thread (Hub brief revisions, keys, the Materialiser) and point it at
+the spec Spec Kit writes.**
+
+**What the person does.**
+
+1. Presses **Define** on a project or branch and types the idea. The cockpit starts a Claude Code session
+   on that worktree with an opening prompt such as `/speckit-specify <idea>` (from nothing:
+   `/speckit-assess-intake` first). The phase 2 harness already takes an opening prompt
+   (`control-plane/internal/harness/argv.go`, `OpeningPrompt`).
+2. Answers the agent in the pane: one question at a time with a recommended answer (`clarify`), and
+   grilling for words and decisions (`grill-with-docs`).
+3. Reads the result, rendered: `specs/<n>-<name>/spec.md` with the five sections, `GLOSSARY.md`,
+   `docs/adr/*.md`.
+4. Presses **Publish brief**. The control plane writes a brief revision to the Hub through the built
+   `discoverhub`, with terms and decisions as records beside it (OD-36).
+5. Every later session on that branch inherits it through the built Materialiser and shows the chip.
+
+**Why this one.**
+
+- It covers N1-N3 with the best-maintained permissive option: MIT, GitHub's own organisation, 139.4k stars,
+  a release yesterday.
+- It adds no infrastructure: no server, no account, no new model endpoint. It runs inside the sandbox we
+  already run, through the gateway, installed offline. N6 holds by construction.
+- It writes the spec in the form coding agents already read (about 60 integrations use this format), so
+  Develop sessions read `spec.md` directly as well as inheriting the brief.
+- It keeps the spine: the Hub revision and its key stay ours, and they are the part already built.
+- Presets override templates, commands and terminology, so we fit it to our brief without forking it.
+
+**Runner-up: OpenSpec** (MIT), if brownfield change deltas turn out to matter more than the interview.
+**Not a buy:** no commercial product passes both AU residency and "brief in our Hub".
+
+**What it replaces**, in the plans' own hours before fix rounds:
+
+| Replaced | Tasks | Hours |
+|---|---|---|
+| Phase 4, planned and unbuilt | 04 model follow-up, 13 repository analysis, 18 lens asking, 19 lens states, 21 import a repository | 12 |
+| Phase 4, OD-36 round 2 (`11-design-r2.md` §7.3) | 24 prototype, 25 term and decision model, 27 Hub reads and writes, 28 `RenderInherited`, 29 three files, 30 suggestion round, 31 lens areas, 32 relay routes | 37.5 |
+| Hub, OD-36 share | five new tasks and seven amendments, shrunk to one record kind (G4, about 8 h) | 31 → 8 |
+| **Total** | **13 phase 4 tasks, most of the Hub's OD-36 share** | **about 72 of the about 109 h left** |
+
+**Kept** (unbuilt, still needed for the thread): 11 (trimmed to publish plus reads), 12, 14, 15, 16
+(trimmed), 17, 20, 22, 23 and 26, about 23.5 h. **Built and unchanged:** the nine tasks in section 2.
+**OD-36 stands:** terms and decisions stay beside the brief. Only round 2's own mechanics (rounds,
+suggestion states, bespoke lens states) are not built.
+
+**Integration: about 8 stream-days** (section 6), **about 5 calendar days on two parallel streams**:
+control plane (G1-G4 with tasks 12, 14, 20, 22, 26) and desktop (G5 with tasks 15-17).
 
 ## 6. What we still build (glue)
 
