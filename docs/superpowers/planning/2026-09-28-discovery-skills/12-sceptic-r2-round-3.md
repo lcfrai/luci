@@ -42,6 +42,44 @@ The Minors, most useful first:
 **Next:** one short fix round on R3-I1, then a re-read of that fix alone. The Minors are wording that
 a plan edit can carry, and none needs another round.
 
+## 1. Every prior finding: closed or open
+
+Method: round 2's file first, then `11-design-r2.md` at `a2c1de78` in ranges, then
+`git diff -U0 2726d918 HEAD` on 11, then the citations below against the tree. `11:N` is 11 at
+`a2c1de78`. `p4` is `.claude/worktrees/phase-4/control-plane/internal/` at `ca737d92`. `HC` is the Hub
+contract at `cafe1303`. `OQ:N` is `2026-09-25-owner-questions-pending.md`.
+
+| Finding | Verdict | Evidence |
+|---|---|---|
+| **R2-I1**, no read of a past revision | **CLOSED at the root** | The lists are heads, ordered by id (11:378-380). §18 gains one revisions read per kind (11:1122-1134), and the Materialiser, the lens and the loader all use it (11:1137-1148). Origin lines print the pin (11:619). Priced at 2.75 h (11:1156-1159). One case it does not reach, an erased pin, is new: R3-I1(b) |
+| **R2-I2**, the head keeps the folded word | **CLOSED as named** | `hub.erase_term` nulls the word under a `CHECK` and the guard (11:425, :1176-1180), and Hub 47 tests it. 48b scans for `FoldWord(marker)` too, and must find the head's copy before erasure (11:434, :1191-1195). But "no copy of a word outlives its erasure" (11:1175) is not yet true of other records: R3-I1(a) |
+| R2-M1, critical path | CLOSED | +28.5 h appears in §0 (11:17-19), §7.5 (11:936-943) and §R2.3. The chain sums to 33.5 h, and each link matches §7.3's dependencies (11:880-887, :896-900). One wording point remains: R3-M3 |
+| R2-M2, an exit before its create | CLOSED | Ids are minted first, the passes are total, the keys are deferred, the fake checks at the batch's end, and a test runs both orders (11:316-318, :897-898, :1224-1234) |
+| R2-M3, **Record all** | CLOSED | Two batches, words first; what shows when only one succeeds; one Undo for both (11:479-482, :1237-1245) |
+| R2-M4, the overlay and the hole | CLOSED | `hubapi.Overlay` is the one copy, and the shadow covers an avoided word both ways (11:296-297, :1249-1262). One point remains: R3-M1 |
+| R2-M5, *not here* | CLOSED as asked; **this round withdraws the copy** | Fields, `set_aside` for both kinds, the inverse and **Not on this branch** are all in (11:261, :281, :324-328, :794). The copy round 2 asked for causes R3-I1(a) |
+| R2-M6, a promote's Undo | CLOSED | Compared by fields and state, never by number (11:787-788, :1285-1289). One point remains: R3-M2 |
+| R2-M7, Q8's cost; landed or not | CLOSED | The cost is in Q8's row (11:995) and at `OQ:131-134`, and the lens says it cannot tell (11:799-800). A land is one lane into its branch (`CONTEXT.md:62-67`), so nothing records a branch reaching main |
+| R2-M8, the contract edit | CLOSED | Markers go on §3.1, §4.2, §7.0 and §10.2, never §8 (11:920, :1303-1308). `settled` stays on `HC:1126` (11:926). Both envelopes are listed member by member, with six vectors (11:1311-1325) |
+| R2-M9 (a)-(g) | CLOSED | (a) 11:705, :859. (b) :518. (c) :360, :1337-1341. (d) :594, :1342-1349. (e) :753, :802. (f) :887, :912, :1351-1361. (g) Q10, :1370. (d) is sound: the feed is the org's audit sequence, "gapless, in commit order", and each event is written under the org's audit lock (`HC:1098-1107`), so an equal position means no write landed between the pages |
+| Round 1's C1, C2, I1, I3, I6, I7 | CLOSED | As round 2 found (its §1), and nothing in Revision 2 re-opens them |
+| Round 1's I4, cost | CLOSED | It closes in full now: M9a, the revisions read and the path are all priced (11:1375-1387) |
+| Round 1's I2, false `edited` | CLOSED for a moved set | It comes back by one new route, an erased pin: R3-I1(b) |
+| Round 1's I5, erasure keeps text | CLOSED for replies and for a brief's erasure | It comes back by one new route, a *not here*'s copy: R3-I1(a) |
+
+**The restatements agree.**
+- **Hours.** Phase 4's new tasks sum to 39 (11:879-889) and its amended ones to 6.25 (:913-919,
+  :928). The Hub's sum to 26 (:896-902) and 5 (:920-928). So 45.25 + 31 + 0.5 = 76.75, the same in
+  §0, §7.5's table (:950-955) and §R2.4 (:1387). Each task's change in §R2.4 matches its reasons
+  (:1377-1386), and 45.25 / 57 and 31 / 133.5 are the 79% and 23% of :957-958.
+- **Q2.** Key forms cost about 1 h more: the same at 11:989, :1161-1165 and `OQ:119-123`. The file's
+  "about 2 h" is the Hub's and the Materialiser's part of R2.1's 2.75 h, which is what key forms
+  would save.
+- **Q10.** The same default, cost and deadline at 11:1370 and `OQ:152-163`. Filing it was right:
+  round 2's M9g said the reading is the owner's.
+- **No cited line moved.** `git diff -U0 2726d918 HEAD` on 11 shows every hunk above line 1100 as
+  `-a,b +a,b`, and one insertion, `+1100,327`, which is Revision 2.
+
 <!-- Working notes (replaced as the review lands):
 - Round 2 read, lines 1-140: R2-I1 = no read of a past revision (fix: lists return heads, one
   revisions read per kind in §18, Materialiser reads pinned revisions, ~2 h across Hub 46, 48b and
