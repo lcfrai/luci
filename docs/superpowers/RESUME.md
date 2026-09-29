@@ -273,6 +273,27 @@ Desktop down. No orphan go, node or python processes.
   `{"head":"<gated HEAD>","gate":"<gate file>"}` (run 5 of the 19 checks, the results document,
   a faithfulness review). Then the final whole-branch review, then `main`.
 
+### 0e.3 SUPERSEDES the table above — 15:17, after a usage stop and an account switch
+At about 14:45 every agent hit the old account's limit ("resets 6:20pm") and the runs sat waiting
+for it after the owner switched to new usage. All three were stopped at 15:12 and relaunched FRESH:
+
+| Task | Run | Script (WS) | Args |
+|---|---|---|---|
+| `w55uanadg` | `wf_60e48c16-82e` | `phase2-finish-3.js` | none |
+| `wgp7catwj` | `wf_def0b572-6d4` | `plans-continue.js` | `{"chains":["team","work"],"workBatches":["b02","b13"]}` |
+| `wmz72pud5` | `wf_39eb132f-47c` | `discover-r2-fix.js` | none |
+
+- **phase2-finish-3** replaces phase2-finish-2 (whose units finished: F5, F2/F4 and task 26
+  APPROVED). It runs the X-3 fix round (review 3: a false green plus two conditional holes) beside
+  the task 25 guard fix (review 9: two false greens), then gate 2 (`SDD/phase2-finish-gate-2.md`;
+  gate 1 at `e6f0a1d0` measured all three suites green before the stop), then, if gate 2 is
+  ready, runs `phase2-e2e-run5.js` inline. The owner's machine rule makes that automatic.
+- **plans-continue**: od32 is APPROVED and od33 carries 1 Important, so both are out of this run.
+  Team b07's round-2 record was salvage-committed on `feat/team-mode`. Work b02 inherits its dead
+  fixer's `task-47.md` and skeleton edits.
+- **The host is shared**: another Claude session runs Panacea-monorepo Go tests, and the CPU sits
+  near 100%. Spawns stay at 0.3–0.7 s.
+
 ## 1. What was running at shutdown (7 workflows)
 
 | Stream | Worktree / branch | Last run id | Script | args |
