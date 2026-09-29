@@ -111,6 +111,34 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
 - **Verdict: reference.** The best whole product on paper and the lowest operations burden;
   re-test it when Microsoft ships per-pool egress rules and volumes.
 
+### 4.3 Azure Container Instances + standby pools — **INTEGRATE only as the fallback**
+
+- **What it is.** Serverless container groups with no cluster. Microsoft: ACI "guarantees your
+  application is as isolated in a container as it would be in a VM" (hypervisor isolation per
+  container group). **Standby pools** (GA June 2025) keep `maxReadyCapacity` groups fully
+  provisioned and running from a *container group profile*, refill `Always`, zone-aware, and can
+  be placed on our subnets. **Config maps** can change a running group's configuration without a
+  restart, which is the late-bind channel for per-session tokens.
+- **Licence / deploy.** An Azure service in Australia East, in our subscription or a customer's.
+  Go access through the MIT-licensed Azure SDK for Go.
+- **Against the bar.** M1 yes (x64 images up to 15 GB; no privileged operations). M2 yes. M3 yes:
+  a control plane inside the VNet dials `sandboxd` on the group's private IP. M4 partly: claims
+  come from the pool, but Microsoft publishes no claim latency, and an empty pool falls back to a
+  cold create. M5 yes. M6 yes. M7 partly: inside a VNet, Microsoft says a NAT gateway is "the only
+  supported configuration for outbound connectivity", so an FQDN allowlist needs an NSG that only
+  permits an explicit proxy (Azure Firewall explicit-proxy mode or Envoy). M8 partly: Azure Files
+  (SMB) only, which is slow for git working trees; clone to local disk and keep only
+  `~/.claude` on the share. Groups can restart during platform maintenance and change IP.
+- **Gaps.** One image per profile (an image bump is a profile revision plus a pool update); no
+  snapshot or fork; per-region ACI core quotas need raising; standby groups are running groups,
+  so they are billed while they wait (a reasonable reading of "provisioned and running"; the
+  exact meter was not found).
+- **Integration effort: 5 days** — a new `acibe` over ARM (2), late-bind via config map (0.5),
+  the explicit-proxy egress (1), clone-in-sandbox (1, shared with every option), smoke (0.5).
+- **Verdict: integrate only if the Kata spike in section 5 fails** (for example no nested-virt
+  Dsv5 capacity in Australia East). Same Hyper-V class of isolation, no cluster to run, but a
+  weaker egress story and no fast disk.
+
 ## 5. Recommendation
 
 _TBD — solution, days, what it replaces (phases and task counts), glue we still build, risks._
