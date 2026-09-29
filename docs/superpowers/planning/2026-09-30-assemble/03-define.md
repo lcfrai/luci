@@ -259,7 +259,21 @@ The kept tasks (section 5, about 23.5 h) overlap G3 and G5, so the whole comes t
 
 ## 7. Calls only the owner can make
 
-_Pending._
+All three are about what customers see. **There is no money call:** every part is MIT or Apache-2.0 with
+no seats, and the interview's model tokens run on the existing gateway budget (cost per Define session
+not measured).
+
+1. **Define becomes a conversation, not a form.** Customers get an agent-led interview in a session pane,
+   and a brief that is a Spec Kit spec carrying our five sections, instead of the five-question stepper in
+   `prototype/phase-4-discover.html` that the owner reviewed. Under OD-1 the owner looks before it
+   merges. **Recommended: accept.** It is the change that removes most of the remaining build.
+2. **Spec files in customer repositories.** By default the branch commits `specs/<n>-<name>/spec.md`,
+   `GLOSSARY.md` and `docs/adr/`, the convention coding agents read; Spec Kit's own tooling stays
+   untracked. **Recommended: commit them.** A project setting can keep them untracked later.
+3. **Whose names are on screen.** Our words on buttons and in the preset's templates and terminology,
+   with Spec Kit credited in the licence notices. The commands a person may see typed in the pane keep
+   Spec Kit's `/speckit-*` names unless a preset can rename them (not verified). **Recommended: our
+   words wherever we control the surface.**
 
 ## 8. What this study could not verify
 
