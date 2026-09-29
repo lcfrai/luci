@@ -84,7 +84,7 @@ own (task 10), and task 01's table has no thread list route either.
   - `delegation.HubState`, `delegation.Rebuild(ctx, *Feed, *HubState)`, `delegation.Use`, `delegation.InUse`
 - Consumes:
   - task 10 — `store.Store` and its `Tx(ctx, func(store.Tx) error) error`; the outbox methods `OutboxHeads`, `OutboxMarkSent`, `OutboxMarkRetry`, `OutboxMarkDead`, `OutboxFailingSince`, `OutboxDeleteSentBefore`, `Tx.AppendOutbox(ctx, store.OutboxRow)`, `store.OutboxRow`, `Store.DelegationsInUse(ctx) ([]store.DelegationUse, error)` and `Store.DelegationForKey(ctx, org, owner, project string, class model.Class) (store.DelegationUse, bool, error)` — two reads because the feed and the outbox ask different questions, the first live-only, the second including ended agents (`task-10.md:90-128,160-179,205-212`). Task 10 is built first and does not import `outbox` (`task-10.md:562-567`), so **this task's `store.go` files convert**: `outbox.StoreQueue`, `outbox.TxAppender` and `delegation.StoreInUse`, below
-  - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed`, of which this task consumes only `OrgChanges(ctx, org, after string, kinds []string, limit int) (hubapi.ChangesPage, error)` (the per-org twin of the built `Feed.Changes`, `hubclient.go:96-99`; `hubapi.Event` and `hubapi.ChangesPage` are built, `hubapi/types.go:536-551`). Since fix batch b04 the interface has a **second** method, `OrgEvent(ctx, orgID, kind, subject string) (hubapi.Event, bool, error)`, the by-id read (`task-08.md:153-159`): task 14 uses it, task 11 does not, and task 11's tests take task 08's `hubclient.Fake` (`task-11.md:1482,1522`), which implements both, `Team.Delegation(ctx, id) (hubapi.Delegation, error)` (route 47, `delegations.read`), `Team.Tasks(ctx, projectID, hubapi.TaskQuery) (hubapi.Page[hubapi.Task], error)` (route 52; `TaskQuery{State []TaskState; hubapi.PageRequest}`, `task-08.md:101,137-139`, where task 08 names this change), `Team.Conflicts(ctx, projectID, hubapi.ConflictQuery) (hubapi.Page[hubapi.Conflict], error)` (route 59; `ConflictQuery{State string; hubapi.PageRequest}` from task 03), `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, and the fake's team half
+  - task 08 — `hubclient.Team` (one method per task 06–07 route), `hubclient.OrgFeed`, of which this task consumes only `OrgChanges(ctx, org, after string, kinds []string, limit int) (hubapi.ChangesPage, error)` (the per-org twin of the built `Feed.Changes`, `hubclient.go:96-99`; `hubapi.Event` and `hubapi.ChangesPage` are built, `hubapi/types.go:536-551`). Since fix batch b04 the interface has a **second** method, `OrgEvent(ctx, orgID, kind, subject string) (hubapi.Event, bool, error)`, the by-id read (`task-08.md:153-159`): task 14 uses it, task 11 does not, and task 11's tests take task 08's `hubclient.Fake` (`task-11.md:1483,1523`), which implements both, `Team.Delegation(ctx, id) (hubapi.Delegation, error)` (route 47, `delegations.read`), `Team.Tasks(ctx, projectID, hubapi.TaskQuery) (hubapi.Page[hubapi.Task], error)` (route 52; `TaskQuery{State []TaskState; hubapi.PageRequest}`, `task-08.md:101,137-139`, where task 08 names this change), `Team.Conflicts(ctx, projectID, hubapi.ConflictQuery) (hubapi.Page[hubapi.Conflict], error)` (route 59; `ConflictQuery{State string; hubapi.PageRequest}` from task 03), `hubclient.WithDelegation(ctx, dl string) context.Context`, `hubclient.WithIdempotencyKey(ctx, key string) context.Context`, `hubclient.WithFor(ctx, userID string) context.Context` and the fake's `ForFrom` record of it (b06 round 2: `Adopt`'s route 47 read names the person it reads for, `task-08.md:285-288`), and the fake's team half
   - task 09 — `model.Owner`, `model.Class`. **Assumed:** `model.Owner` is a string type holding the Hub user id (`us-…`), because every Hub team record names its owner that way (`task-06.md:105,111`); if task 09 makes it `(tid, oid)`, `FromHub` and the feed's decode are the two places that change
   - task 03 — `hubapi.Delegation` (`ID`, `OrgID`, `OwnerID`, `ProjectID`, `Class`, `Routes`, `ExpiresAt`, `RevokedAt`, as `task-06.md:105-107` shows the wire), the list types for tasks, threads and escalations, and the feed kinds `delegation.created`, `delegation.renewed`, `delegation.revoked`
   - task 01 — the delegable route names (`task-01.md:231-267`), the class route sets (`:273-279`), the one exempt route (`:26-29`), "first about" for Fleet-authored records (`:31-36`), and the codes `delegation_required`, `delegation_revoked`, `delegation_expired`
@@ -1007,17 +1007,17 @@ func rebuildProject(ctx context.Context, team hubclient.Team, s *HubState, proje
 	}
 }
 
-// Adopt is task 20's entry at launch; org comes from the caller's
-// authenticated membership (task 12), never from the request body. Head
-// first, record second, as in Rebuild. A launch never waits for the feed.
-// It is this replica's fast path only: the other replica learns the same
-// launch from Refresh, which reads the store the launch wrote.
-func (f *Feed) Adopt(ctx context.Context, org, id string) (Delegation, error) {
+// Adopt is task 20's entry at launch and its only resolver (b06 round 2):
+// want is the caller's authenticated membership (task 12) and ACTING class,
+// never a body's. Head first, record second, as in Rebuild; then the record
+// must BE want's, or it is ErrNoDelegation and nothing is cached (S02-C6). A
+// launch never waits for the feed; the other replica learns it from Refresh.
+func (f *Feed) Adopt(ctx context.Context, want Key, id string) (Delegation, error) {
 	f.mu.Lock()
-	_, tracked := f.cursor[org]
+	_, tracked := f.cursor[want.OrgID]
 	f.mu.Unlock()
 	if !tracked {
-		head, err := f.hub.OrgChanges(ctx, org, "latest", FeedKinds, 1)
+		head, err := f.hub.OrgChanges(ctx, want.OrgID, "latest", FeedKinds, 1)
 		if err != nil {
 			return Delegation{}, err
 		}
@@ -1026,15 +1026,15 @@ func (f *Feed) Adopt(ctx context.Context, org, id string) (Delegation, error) {
 		// the org in the gap. Adopt does NOT re-read the org's state after
 		// its head — it reads one delegation record — so overwriting a
 		// cursor Refresh set would skip every event between the two heads.
-		f.SetCursorIfAbsent(org, head.Next)
+		f.SetCursorIfAbsent(want.OrgID, head.Next)
 	}
-	hd, err := f.team.Delegation(hubclient.WithDelegation(ctx, id), id)
+	hd, err := f.team.Delegation(hubclient.WithFor(hubclient.WithDelegation(ctx, id), string(want.Owner)), id)
 	if err != nil {
-		return Delegation{}, err
+		return Delegation{}, err // 401 revoked/expired, transport: the Hub's own answer
 	}
-	d := FromHub(hd)
-	if d.Key.OrgID != org {
-		return Delegation{}, fmt.Errorf("delegation: %s is not in org %s", id, org)
+	d := FromHub(hd) // WithFor: the Hub audits a read for anyone but the owner (task 06, b06 r2)
+	if d.Key != want || !f.now().Before(d.ExpiresAt) { // owner, org, project, class: one !=
+		return Delegation{}, ErrNoDelegation // NOT cached: an id the caller names proves nothing
 	}
 	f.cache.Put(d)
 	return d, nil
@@ -1461,6 +1461,7 @@ those that exercise the read-through pass the `Feed`.
 | `TestLeaderChangeCannotLoseARevocation` | leader A reads `revoked` and dies before `Revoke`; follower B advanced its cursor; B takes the lock, `Reset` + `Rebuild` → one `Revoke(Revoked)` | revocation by event only |
 | `TestRebuildIsGapless` | a fake hook commits `delegation.revoked` after `OrgChanges(latest)` returns and before `Delegation(id)` returns; the next `Poll` applies it | reading the head **after** the state |
 | `TestAdoptReadsTheHeadBeforeTheRecord` | the same hook on `Adopt`; the next `Poll` revokes | `Adopt` in the other order (a 24-hour window) |
+| `TestAdoptRefusesAnotherOwnersDelegation` (b06 r2) | a cold `Feed`; `Adopt(Key{org-a, us-alice, pj-one, worker}, bob)` where `bob` is Bob's seeded `worker` id on `pj-one`, which the fake answers 200 as route 47 does for Fleet under it → `ErrNoDelegation`, `Known(bob)` false, `Get` of Bob's key false, and exactly one `delegation.named_by_another` in the fake's `TeamEvents()` with subject `bob` and `namedBy` `us-alice`; then Alice's own id → her delegation, cached, and no second event | a `Put` before the key check, or no check at all (S02-C6: Alice runs as Bob, on Bob's budget); a read without `WithFor`, which leaves the Hub nothing to audit |
 | `TestASecondFeedSeesADelegationAdoptedOnTheFirst` | below, and it is the S02-C1 test: two `Feed`s on one `memInUse` and one fake Hub, A follower, B leader; B never calls `Adopt`, yet B's `Client` resolves the key with no poll and B calls `Revoke(Revoked)` within 60 s of the Hub revoking it | `Adopt` as the only way an org or a delegation is learned: the replica that did not serve the launch dead-letters its every write and never sweeps its revocation |
 | `TestRefreshReadsOnlyTheDelegationsItDoesNotKnow` | one `Refresh`, then a second on the same `memInUse`: the fake saw exactly one `Delegation(dl-1)`; after `Drop`, a third makes one more | a per-tick re-read of every live delegation (one Hub call per agent per 10 s) |
 | `TestResolveNeverInventsALapsedDelegation` | `DelegationForKey` still answers a `dl-…` the Hub answers 401 `delegation_expired` for → `Ctx` is `ErrNoDelegation`, and that is `Classify` Permanent | a read-through that trusts Fleet's own store instead of the Hub's answer |
@@ -1485,7 +1486,7 @@ func TestRevocationReachesTheRevokerInsideSixtySeconds(t *testing.T) {
 	leader := &atomic.Bool{}
 	leader.Store(true)
 	f := NewFeed(hub, hub, &memInUse{}, NewCache(), rev, leader.Load, clk.Now)
-	if _, err := f.Adopt(ctx, "org-a", dl); err != nil {
+	if _, err := f.Adopt(ctx, Key{OrgID: "org-a", Owner: "us-alice", ProjectID: "pj-one", Class: "worker"}, dl); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1528,10 +1529,10 @@ func TestASecondFeedSeesADelegationAdoptedOnTheFirst(t *testing.T) {
 	revA, revB := &recRevoker{now: clk.Now}, &recRevoker{now: clk.Now}
 	a := NewFeed(hub, hub, shared, NewCache(), revA, func() bool { return false }, clk.Now)
 	b := NewFeed(hub, hub, shared, NewCache(), revB, func() bool { return true }, clk.Now)
-	if _, err := a.Adopt(ctx, "org-a", dl); err != nil {
+	k := Key{OrgID: "org-a", Owner: "us-alice", ProjectID: project, Class: "worker"}
+	if _, err := a.Adopt(ctx, k, dl); err != nil { // k: the launching caller's own key (b06 r2)
 		t.Fatal(err)
 	}
-	k := Key{OrgID: "org-a", Owner: "us-alice", ProjectID: project, Class: "worker"}
 	shared.add(Use{ID: dl, Key: k}) // task 20's agent row, its one transaction
 
 	// B delivers that launch's first write without waiting for a poll tick.
@@ -1610,7 +1611,7 @@ the two adapters are the only files that know task 10's types.
   read the Hub directly — that is what task 14 now does for OD-23 policy activation.
 - **The window between `Adopt` and the agent row cannot leak a write to the other replica**,
   because task 20 writes the agent row and that launch's first outbox row in **one** transaction
-  (`task-20.md:395-400`). If a later task ever enqueues a row before the agent row commits, this
+  (`task-20.md:435-442`; `Adopt` runs in its `s.delegation`, before that transaction, since b06 r2). If a later task ever enqueues a row before the agent row commits, this
   invariant breaks and the other replica is back to dead-lettering; pin it where that write is.
   `pruneOrgs` leans on the same window from the other side: it keeps an org whose cache still
   holds an entry, which is exactly what `Adopt` put there before the transaction committed.
