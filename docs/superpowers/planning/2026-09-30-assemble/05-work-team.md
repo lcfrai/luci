@@ -236,7 +236,30 @@ to `OD-16`, so it is an owner call (§8).
 
 ## 7. What we still build (glue)
 
-_Pending._
+Five pieces, three lanes. Days are one engineer's focused days, estimated, not measured.
+
+| # | Piece | Lane | Days | Built on | Surviving Phase W tasks it absorbs |
+|---|---|---|---|---|---|
+| 1 | **`tracker` interface + two connectors.** ADO: `microsoft/azure-devops-go-api` (**MIT**, read 2026-09-30), WIQL reads, field and state writes, one **live status comment edited in place** per session, a hyperlink back to the session, service hooks in the cloud and **polling in local mode** (`OD-20`: a laptop cannot take a webhook). GitHub: a GitHub App, `go-github`, webhooks, GraphQL for issue fields and Projects. State mapping by **ADO state categories** (Proposed, In Progress, Resolved, Completed, Removed) and GitHub open/closed, so no per-customer mapping screen | A | **7** (ADO 4, GitHub 3) | Phase 3's host-interface pattern (`OD-4`) | 150-155, 171 |
+| 2 | **The provenance edge and the proof.** A Hub record per linked issue: `{source, externalId, url, serves[{briefKey, criterionId}], implements[design:…]}`; **"create issues from the brief's criteria"** so the thread starts in Define; the done evaluator posts the observed evidence and sets ADO `Done` (through the process rule) or GitHub's `Proof` field. Stopgap: the control plane holds the edge until the Hub's routes land | B | **2.5** | Phase H (6/50 built), phase 3's land and evidence, phase 4's brief keys | 01, 09, 10, 18, 19, 21-23b, 71, 96b, 104, 131 |
+| 3 | **Start from an issue.** A control-plane route that opens a managed session on its own worktree with the issue text as spec-class text (`OD-8`: never parsed back), posts the first live status within 10 s, tags the gateway token with the issue id; `Shift+R` in the cockpit. Sandboxed agents get the **ADO local MCP server** (MIT) or **GitHub MCP server** (MIT) with a **read-only**, per-session token: the platform writes facts, agents do not | B | **2** | Phase 2's control plane (built), phase 6's per-session token | 24, 61, 98, 101, 103, 108, 109, 135 |
+| 4 | **The Work lens v0 and the team view.** Issues grouped by criterion (the plan's rule), one agent line, Start, and a deep link to the tracker for everything else; a team view that joins tracker assignee, branch and PR state, and live sessions, with files touched from each worktree's `git status` (mechanical, `OD-8`-safe) | C | **2.5** | Phase 2's desktop; the earlier study's headless primitives if the list grows | 20, 36, 40, 62-65, 70; Phase T 53 (view) |
+| 5 | **The Teams bot.** Microsoft 365 Agents SDK (**MIT**): *inform* cards, *decide* cards with `Action.Execute`, overlap warnings to both people, a digest at most every 15 minutes; plus configuring the first-party ADO and GitHub Teams apps for channel notifications | C | **2** | Azure Bot Service in our subscription | 157, 165; Phase T parts of 30, 54 |
+
+**Total: 16 days.** Lane A (connectors) 7, lane B (proof and Start) 4.5, lane C (lens, team view,
+Teams) 4.5. **Critical path: lane A's ADO half (4 days) beside lane B (4.5 days), so about 5
+working days with two builders in parallel, is the first end-to-end demo:** a brief criterion becomes an ADO work item; `Shift+R` starts a sandboxed
+agent; a PR lands; the watched test passes at the landed commit; the work item moves to `Done`
+by rule, with the evidence linked; an *inform* arrives in Teams.
+
+**Adopted as-is, zero build:** the ADO and GitHub Teams apps (notifications), the Microsoft
+Sentinel **Azure DevOps Audit Logs** and **GitHub Enterprise Audit Log** connectors
+([MS docs](https://learn.microsoft.com/en-us/azure/sentinel/data-connectors/github-enterprise-audit-log))
+for tracker audit, and the trackers' own boards, sprints, roadmaps, dashboards and search.
+
+**Next, not in the 16 days:** a Jira connector (3-4 days, §3.2) when a customer brings Jira; a
+Linear connector (2-3 days, §3.1) for a customer whose data class allows US or EU hosting; NATS
+for Phase T's Orchestrator bus when TM1-α is built.
 
 ## 8. Owner calls
 
