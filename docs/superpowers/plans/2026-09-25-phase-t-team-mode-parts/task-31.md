@@ -54,12 +54,12 @@ owner chooses option 1, Fleet re-runs the held verb as the same Orchestrator wit
 proves only that a decide was answered (`task-07.md:239-244`), so the choice check is Fleet's.
 
 **(e) What the decide shows lives in the Hub.** What the human was shown is an accountability
-fact, so it is a Hub record (Global constraint 1). Route 64's body (`task-07.md:132-138`) has no
-field for it, so this task **requires of task 07** an optional `evidence` object on a decide:
-`{"verb", "toAgentId"?, "task"?, "text"?, "read": [≤ 100 ids], "readTotal"}`. `text` is the
+fact, so it is a Hub record (Global constraint 1). Route 64's body carries it since fix batch b07 round 3 (N-C1: task 01 §7.19,
+`task-07.md:132-147`, task 03 Block 5b, task 04 piece 7b, task 30's `DecideRequest.Evidence`): an optional `evidence` on a decide,
+`{"verb", "toAgentId"?, "taskId"?, "text"?, "read": [≤ 100 ids], "readTotal"}`. `text` is the
 `free` directive's own text (≤ 600, `text·A`), which the `dv-…` would carry anyway; **a held
 spawn's opening prompt is never in it** (OD-24: opening prompts are private; `task-24.md:130-135`),
-and the owner reads it in their own panel from Fleet's held row. **Raised as gap G31-2.**
+and the owner reads it in their own panel from Fleet's held row. Gap G31-2, raised here, is closed.
 
 **(f) "Since its human last spoke" is a timestamp task 26 already sees.** When task 26 claims a
 batch whose origin is `human`, it stamps `fleet.orch_sessions.human_spoke_at` with the newest
@@ -145,7 +145,7 @@ G31-3**: task 22's method is renamed `InForce`, its comment changed; its key and
     (`task-02.md:843`)
 - Requires of **task 07**: `TaintAllows` exempting the five typed kinds through
   `hubapi.DirectiveKind.Typed()`, **met by fix batch b07** (G31-1 closed); a decide's optional
-  `evidence` object on route 64 (G31-2); route 67's body carrying task 01's `params`
+  `evidence` object on route 64 (G31-2, **met by b07 round 3**, with tasks 01, 03, 04, 08 and 30); route 67's body carrying task 01's `params`
   (`task-01.md:440-441`), which task 07's shape (`task-07.md:161-167`) omits (G31-5).
 - Requires of **task 10**: the tables below in both stores and the suite, and `OutboxMarkSent`
   setting `directive_queue.hub_at = at WHERE outbox_id = id` in the same transaction.
@@ -251,10 +251,10 @@ const (
 	ActBuildOn ActKind = "build-on" // task 62 calls Judge; task 30's locked row decides anyway
 )
 
-// fleetTurnPasses is §7.2 item 2's list, and nothing else. A kind absent here
-// is a decide in a Fleet-started turn.
-var fleetTurnPasses = map[ActKind]bool{
-	ActPause: true, ActResume: true, ActNarrow: true, ActWaitFor: true, ActRebase: true,
+// fleetTurnPasses is §7.2 item 2's list, read from task 03's one definition (b07 round 3,
+// RR1-m3): a typed DirectiveKind passes; free and every other act is a decide in a Fleet turn.
+func fleetTurnPasses(k ActKind) bool {
+	return hubapi.DirectiveKind(k).Typed() // the five ActKinds are their DirectiveKinds' strings
 }
 
 // rowOf is the §6.5 row each held kind is written under (task 30's Table).
@@ -302,7 +302,7 @@ func (g *Gate) Judge(ctx context.Context, c control.Caller, a Act) (Judgement, e
 	} else if ok {
 		origin = ref.Origin
 	}
-	if origin == turns.OriginHuman || fleetTurnPasses[a.Kind] {
+	if origin == turns.OriginHuman || fleetTurnPasses(a.Kind) {
 		return Judgement{Pass: true, Origin: origin}, nil
 	}
 	if es, ok := approvalFrom(ctx); ok { // only Release sets it; no frame can
@@ -385,8 +385,8 @@ var actName = map[ActKind]string{
 }
 ```
 
-The decide carries route 64's `evidence` (gap G31-2): `verb`, `toAgentId`, `task`, `text` for
-`free` only, `read` and `readTotal`. `Group` is empty (one decider, `Own`). `Release(org, es)`
+The decide carries route 64's `evidence` (task 01 §7.19; b07 round 3, N-C1): `DecideRequest.Evidence` is a `hubapi.EscalationEvidenceRequest` with `Verb` = `hubapi.HeldVerb(a.Kind)`, `ToAgentID` = `a.Worker` for `free` only (a spawn's worker is not the Hub's yet), `TaskID` = `a.Task` unless the act is `task-create`, `Text` = `a.Text` for `free` only, `Read` and `ReadTotal`; and `From` is `c.Agent`,
+the Orchestrator whose act is held, because the Hub stores the text as its words and refuses evidence without it (`task-07.md:147`). `Group` is empty (one decider, `Own`). `Release(org, es)`
 loads the held row, deletes it, and re-invokes its verb through the dispatcher's handler table as
 the same caller under `withApproval(ctx, es)`, an unexported context key of package
 `directive`; the verb's gate call reads it through `approvalFrom` and passes without a second
@@ -469,10 +469,10 @@ test sets, a recording `escalate` fake for `Decide`, and a fixed clock. The last
 
 | Test | Asserts | Mutant it kills |
 |---|---|---|
-| `TestFreeInFleetTurnIsADecideNotADirective` | origin `fleet`, `direct w1 free "…"` → result has `escalation`, no `directive`; `Decide` called once with row `free-directive-fleet-turn`, `evidence.text` = the text; no outbox `OpDirective`, no queue row | `free` in `fleetTurnPasses`; the gate skipped for `direct` |
+| `TestFreeInFleetTurnIsADecideNotADirective` | origin `fleet`, `direct w1 free "…"` → result has `escalation`, no `directive`; `Decide` called once with row `free-directive-fleet-turn`, `From` the calling Orchestrator, and `Evidence` = `{Verb: "free", ToAgentID: w1, Text: the text, Read, ReadTotal}`; no outbox `OpDirective`, no queue row. Then (b07 round 3, N-C1) the same call with the **real** `escalate.Service` in place of the recording fake, and the outbox run once: task 08's fake Hub answers route 64 with 201, and its `Escalations` returns that `evidence`, `text` authored by the Orchestrator | `fleetTurnPasses` answering true for `free`; the gate skipped for `direct`; an evidence field the Hub does not accept, which only the second half sees (N-C1) |
 | `TestFreeInHumanTurnPasses` | origin `human` → `dv-…` issued, outbox payload `origin: "human"`, no decide | origin ignored: every `free` held |
 | `TestNoTurnIsAFleetTurn` | `CurrentTurn` ok=false, `free` → held | decision (c) inverted: a stray call treated as human |
-| `TestTheFiveTypedKindsPassInAFleetTurn` | each of `pause`, `resume`, `narrow` (inside), `wait-for`, `rebase` → issued; the set is read from `hubapi.DirectiveKind.Typed()`, never listed here | a verb set written out in this file, which is how G31-1 opened on task 07's side |
+| `TestTheFiveTypedKindsPassInAFleetTurn`; `TestHeldActsAreHubVerbs` (b07 round 3) | each of `pause`, `resume`, `narrow` (inside), `wait-for`, `rebase` → issued; the set is read from `hubapi.DirectiveKind.Typed()`, never listed here. Every `ActKind` for which `fleetTurnPasses` is false is a valid `hubapi.HeldVerb` (task 03 Block 5b), and every `HeldVerb` is one of them | a verb set written out in this file, which is how G31-1 opened on task 07's side; a held act the Hub's `evidence` refuses, so its decide never reaches the human |
 | `TestNarrowOutsideScopeIsRefusedInEveryTurn` | scope `web/**`; `narrow api/**` → `glob_refused`, `details.reason = outside_task_scope`, in a `fleet` and a `human` turn; nothing written | `Within` returning true on a shared prefix (`web2/**` inside `web/**`); the check applied only in Fleet turns |
 | `TestWithinIsConservative` | `web/auth/**`⊂`web/**` true; `web2/x`⊂`web/**` false; `web/*.go`⊂`web/*.go` true; `web/a.go`⊂`web/*.go` false | prefix test without the `/`; a glob matcher used as containment |
 | `TestOnlyOwnWorkers` | `to` Grace's worker → `agent_not_owner`; `to` Linus's worker under his other Orchestrator → `agent_not_owner`; `to` an Orchestrator → `agent_not_owner` | the parent check dropped |
@@ -483,7 +483,7 @@ test sets, a recording `escalate` fake for `Decide`, and a fixed clock. The last
 | `TestAtMostEightPerResponse` | 10 due → 8, then 2, oldest first | unbounded frames |
 | `TestReleaseReplaysWithApproval` | answer option 1 → `Release` issues the `dv-…` with `approvedBy` = the `es-…`, origin `fleet`; answer option 0 → no directive, held row gone | the choice not checked (any answer releases) |
 | `TestApprovalCannotComeFromArgs` | `direct` with `{"approvedBy":"es-…"}` in args → `bad_request` (strict decode) | an args field feeding the gate |
-| `TestSpawnInFleetTurnHoldsWithoutThePrompt` | `worker spawn` in a Fleet turn → held; the `Decide` evidence has no `text` and no prompt bytes (marker grep, as task 22's) | the prompt copied into the Hub (OD-24) |
+| `TestSpawnInFleetTurnHoldsWithoutThePrompt` | `worker spawn` in a Fleet turn → held; the `Decide` evidence is `Verb: "worker-spawn"` with no `ToAgentID`, no `Text` and no prompt bytes (marker grep, as task 22's) | the prompt copied into the Hub (OD-24); a spawn's unborn worker named, which route 64 refuses |
 | `TestReadListIsSinceTheHumanSpoke` | reads at t1, human turn at t2, reads at t3 → `read` holds only t3's ids; 150 reads → 100 ids, `readTotal: 150` | reads from the session's start regardless; no cap |
 | `TestPauseForDefaultIsFromTheParent` | task 30's `PauseForDefault(w1, es)` → payload `fromAgentId` = w1's parent, `origin: "fleet"`, `approvedBy: es`, kind `pause` | Fleet writing the directive as itself |
 | `TestInForceShowsStandingStateWithoutText` | `pause`, then `narrow`, then `free`: `check`'s `directives` = pause and narrow, no `free`, no text | text leaking through `check`; the latest `resume` ignored |
@@ -491,7 +491,7 @@ test sets, a recording `escalate` fake for `Decide`, and a fixed clock. The last
 | `TestOutboxSentStampsHubAt` (storetest suite, both stores) | `OutboxMarkSent(ob)` sets `hub_at` on the queue row naming `ob`, in one transaction; a crash between is impossible because it is one statement pair in one `Tx` | the stamp done by a second, later call |
 
 Run: `cd control-plane && go test ./internal/fleet/directive/... ./internal/fleet/verbs/ -run
-'Direct|Free|Narrow|Within|Piggy|Ack|Release|Approval|Spawn|ReadList|Pause|InForce|Ended' -count=1`.
+'Direct|Free|Narrow|Within|Piggy|Ack|Release|Approval|Spawn|ReadList|Pause|InForce|Ended|Typed|Held' -count=1`.
 Expected: every test fails to compile (the package does not exist yet).
 
 - [ ] **Step 2: The wire.** Add `Response.Directives` and `wire.Directive` to both modules; add
@@ -569,9 +569,9 @@ verb set before touching anything here.
   to be 403, while design §7.2, task 01 §7.20 and task 03's `Typed()` say five. Task 07 now deletes
   the map and calls `req.Kind.Typed()`, and its two table rows expect 201 (`task-07.md:207-223`,
   `:296-302`). Nothing is needed here beyond the citation: this task's five-kind expectation was
-  always the right one. Task 33's E4 therefore checks a decided rule, not an open gap.
-- **G31-2.** Route 64 has no field for what a taint decide showed the human; this task needs an
-  optional `evidence` object (decision e). Task 01 §7.19 and task 07's route 64 own it. **Open, and it blocks TM1-α** (fix batch b07 round 2, new finding N-C1, recorded, not fixed): task 30's `DecideRequest` has no evidence field (`task-30.md:342-352`), no Hub type, column or route accepts one, and the Hub refuses unknown fields (`task-06.md:139`). So either the evidence never reaches the Hub and task 33's M4 check of it is not observed, or it is sent and route 64 refuses the decide, and M4 and M10 both fail. The fix spans tasks 01, 03, 04, 07 and 30.
+  always the right one. Task 33 checks the rule on the cluster as M10's scripted Fleet-turn `resume` (b07 round 3, RR1-I1), not as an entry condition.
+- **G31-2. CLOSED by fix batch b07 round 3** (N-C1). It read: route 64 has no field for what a taint decide showed the human, though this task
+  needs an optional `evidence` object (decision e); task 30's `DecideRequest` had none, no Hub type, column or route accepted one, and the Hub refuses unknown fields (`task-06.md:139`), so either M4 was not observed or route 64 refused the decide and M4 and M5 failed. Now task 01 §7.19 defines it, task 03 Block 5b types it (`HeldVerb` pinned to this task's held acts by `TestHeldActsAreHubVerbs`), task 04 piece 7b stores it with its text's author checked, task 07's route 64 validates and returns it (`task-07.md:132-147`), task 08's fake and conformance keep it, and task 30's `DecideRequest.Evidence` carries it (`task-30.md:346-347`). The six tasks each changed; this one only fills the field (`:388-389`).
 - **G31-3.** Task 22's `Directives.Pending` (`task-22.md:155-158`) cannot be "undelivered" once
   piggyback drains before the handler; this task makes it `InForce`.
 - **G31-4.** Task 30's `Effect.Kind` list (`task-30.md:334-335`) has no `send-held`, and

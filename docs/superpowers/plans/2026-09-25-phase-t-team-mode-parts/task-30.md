@@ -313,13 +313,13 @@ only adds asking.
 
 ```go
 package escalate
-
 import (
 	"context"
 	"time"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/model"
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/fleet/protocol"
+	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hub/hubapi"
 )
 
 const (
@@ -343,8 +343,8 @@ type DecideRequest struct {
 	Org, Project string
 	Owner        model.Owner
 	From         model.AgentID
-	Thread       string
-	Conflict     string
+	Thread, Conflict string
+	Evidence     *hubapi.EscalationEvidenceRequest // task 31's taint decides only (From set); nil otherwise (b07 r3)
 	Question     string   // ≤ 300; Fleet's template, or an Orchestrator's text·A
 	Options      []Option // option 0 is always the hold/default Fleet writes
 	Group        string   // decides that must agree share a group id (Both effects)
@@ -378,8 +378,8 @@ func (s *Service) Inform(ctx context.Context, c Caller, a InformArgs) (string, e
 // hold, then the caller's options; default 0; deadline Fleet's.
 func (s *Service) Ask(ctx context.Context, c Caller, a AskArgs) (AskResult, error)
 
-// Decide is the shared writer: bounds, G3, default 0, deadline, the
-// open-escalation row and the outbox item, in one transaction.
+// Decide is the shared writer: bounds, G3, default 0, deadline, the open-escalation row
+// and the outbox item, in one transaction; Evidence goes into route 64's body as given.
 func (s *Service) Decide(ctx context.Context, r DecideRequest) (string, error)
 
 // The four methods tasks 28 and 29 call through their interfaces.
@@ -493,7 +493,7 @@ user rows set per test), a recording `Pauser`, and a fixed clock. The cast is ta
 | `TestExpiredOrchestratorAskPausesNothing` | an Orchestrator's own ask expires: no pause, one `escalation.answered` event with `defaulted` | the thread default applied to a free ask |
 | `TestLateAnswerStillApplies` | Bob answers `go-second` after the default paused `wB`: the sequence applies and the inform says `wB` was already paused | a late answer dropped |
 | `TestFreeTextAnswersOffInTM1Alpha` | `FreeTextAnswers` is false for every owner with the TM1-α `Sources` | a default of true |
-| `TestInformHasNoOptions` | `human inform`: `kind: inform`, `options: []`, no `default`, no `deadline` in the body | an inform written as a decide |
+| `TestInformHasNoOptions`; `TestDecideCarriesTheEvidence` (b07 round 3, N-C1) | `human inform`: `kind: inform`, `options: []`, no `default`, no `deadline` in the body. A `Decide` from `oB` with `Evidence{Verb: "free", ToAgentID: wB, Text: "…", Read: [1 id], ReadTotal: 3}`: the outbox body's `evidence` equals it field for field; the same `Evidence` with `From` `""` → `bad_request`, nothing written | an inform written as a decide; `Evidence` dropped from the body, which route 64 then records as `null`, so task 33's M4 has nothing to read |
 
 - [ ] **Step 2: Run the tests and watch them fail**
 
