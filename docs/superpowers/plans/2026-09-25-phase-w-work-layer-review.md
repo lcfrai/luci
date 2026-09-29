@@ -6080,3 +6080,83 @@ written at `…-scopes/tasks-81-100.md:554-559`. Nothing else in the plan depend
 paths and Hub task 22's `server/approvals.go` and `store/approvals.go` are read from plans on other
 branches; those trees were not opened this round. Every `P5-` id is theirs. The only thing executed
 was `sumhours.py`; everything else is plan text.
+
+## Fix batch b02, round 1 (2026-09-28 to 2026-09-29)
+
+One finding, **S03-C1 (Critical)** at `:1139-1160`: nothing in the plan built a `CheckRunner` or a
+criterion's check, so observed evidence — `OD-27`, rule 2, W1's last demo frame — never ran in the
+product. Round 1 ran in three sittings (two were killed); the commits are `013f9dd9`, `1682bb28`,
+`84bd25f0`, `b6581580`, `3a3a1b66`, `c11bc563`, `b0155d6d` and `0dc7898b`, plus the 23b rows that
+b01 round 3's `3438314d` swept in. Every line number below is post-fix on `feat/work-layer`.
+
+| Part of the fix | Change | File:line |
+|---|---|---|
+| (a) the field | `Serve.Check`, `omitempty`, 0-1000 bytes, `ErrCheck`; the repeat key is the pair; v1-v3 unmoved, golden vector **v4** pins it | `…-parts/task-02.md:244-256`, `:294-304`, `:557-563` |
+| (a) the field | SW.1's seam row names it; the scope's `Serve` shape carries it | `…-work-layer.md:375`; `…-scopes/tasks-01-20.md:92-93` |
+| (a) the rule, S03-I5 | **SW.3's check rule**: a check is added or changed only in a person's own revision (a person principal; title and description `H`); carried-through checks pass; restore is exempt | `…-parts/task-07.md:588-613` |
+| (a) the rule | decided once, `hubapi.ValidateCheckChange(base, next, byPerson)`, matched on the pair, six-row table test; task 02 is 3 h, not 2.5 | `…-parts/task-02.md:1020-1058`, `:3`, `:23-25`; `…-work-layer.md:403` |
+| (a) the rule | called at every revision write: the fake's create and edit, the Hub's create (before the number is taken) and edit (not restore); conformance row **W-26** holds both | `…-parts/task-04.md:1719-1732`, `task-08.md:499-506`, `task-09.md:357-368`, `task-05.md:2257-2266` |
+| (b) the runner | new task **23b**: `sandboxd`'s `/check/v1/run` (exit code only, `OD-8`), `evidence.SandboxRunner`, a check sandbox per run, `backend.Backend` unchanged | `…-parts/task-23b.md:50-66`, `:123-136`, `:157-202` |
+| (b) the runner | the role is `SANDBOXD_ROLE`, because `ValidateSpec` refuses any `PANACEA_APP_*` key from a caller (`backend.go:275-279`); the session is `/bin/sleep infinity`; bounds 10 and 30 minutes as task 23's `Check.Timeout`; no network claim it cannot keep; the product test is `-tags docker` | `…-parts/task-23b.md:25-33`, `:68-93`, `:285`, `:299-302`, `:326-354` |
+| the writer | decision 5 and `CheckLine.tsx` on task 47's `ServeRow`: the one W1 writer of `Serve.Check`; seven tests, one that every other pair keeps its check | `…-parts/task-23b.md:95-113`, `:204-269`, `:307-324` |
+| the writer | the desktop `Serve` carries `check?`; three writers keep it (the `serves` op, the Desk repoint, the provenance mirror's comment) | `…-parts/task-37.md:108-109`, `task-20.md:175`, `task-42.md:223`, `task-65.md:939`, `task-18.md:98` |
+| task 23 | reads each check off the revision it evaluates — **no `Checks` field** (the killed fixer's `checksFromServes` was defined nowhere); `Runner` nil until 23b; the AfterLand bound is per check run | `…-parts/task-23.md:64-77`, `:325-326`, `:428-440`, `:454`, `:496`, `:579-581`, `:594-609` |
+| skeleton `:11`, `:74` | unchanged and now true: 23 and 23b build the observed half (`:77`); 23b's row is 4 h and depends on 23, 47 and P3-24 | `…-work-layer.md:77`, `:106`, `:425` |
+| skeleton file map | the cmd/api row lists 22, 23 and 23b; the evidence row names `sandboxd` and 23b; the issue components row names `CheckLine` | `…-work-layer.md:265`, `:283`, `:308` |
+| totals | W1 195 → **196.5 h** (24.6 d), All 526 → **527.5 h** (65.9 d), WS0 about 14 h; `sumhours.py` prints `W1 70 196.5`, `ALL 190 527.5` | `…-work-layer.md:344`, `:351`, `:366` |
+| scope | the 23b block the file map promised, appended; task 23's block no longer calls the check a post-WS0 field or the runner UNVERIFIED | `…-scopes/tasks-21-40.md:742-767`, `:117-122`, `:131-135` |
+| coverage L-8 | 23b under *serves*; a section on why the row now builds what it claims, and why the defer option was not taken | `…-scopes/coverage.md:51`, `:369-382` |
+| citations | the 23b row at `:425` left 22 skeleton citations one row early; all shifted in place, each target read first | this file `:2905`, `:3174-3195`, `:4795-5104`; `…-parts/task-161.md:645`, `task-164.md:7`, `task-176.md:283`, `task-39.md:603` |
+| citations, older | four misses from b01's inserts on the same lines: `:2905` was task **82**'s row, not 81's; `:2548` and `:3352` wrap "skeleton" onto the line before; task 62's file map was `:313` for `:312` | this file `:2548`, `:2905`, `:3352`; `…-parts/task-62.md:718` |
+
+**The owner fork, declared and not taken.** The finding offers *"if the owner defers both, say so
+in the skeleton … and re-word the L-8 parity row"*. Deferring contradicts `OD-27` (proof per
+criterion) and rule 2, and it would leave W1's headline demo true in one test double, so the
+root-cause option was built (rule 8). Its cost, stated: **one new task (23b, 4 h)**, **one SW.1
+change before WS0** (the `check` field, v4, and `ValidateCheckChange`, task 02 now 3 h), and
+**+1.5 h on W1**. The undo is small and named: delete 23b and its row (`:425`), drop `Serve.Check`
+and v4 before WS0, and restore the deferral text task 23 carried before `84bd25f0`.
+
+**Four rulings made here, each the root-cause option (rule 8).**
+1. **The runner goes through `sandboxd`, not `backend.Backend`** (23b decision 1): the only path that
+   works on `dockerbe` and on `katabe`, which has no exec client; only the exit code crosses.
+2. **The Closer has no `Checks` field.** The killed fixer's WIP wired `Checks: checksFromServes`, a
+   function defined nowhere, on a field typed to re-read the issue. A nil or wrong `Checks` is the
+   exact failure S03-C1 found — every test green, nothing observed — so the checks are read off the
+   revision the Closer evaluates, and there is nothing left to wire.
+3. **A check needs a writer, or the runner has nothing to run.** No W1 surface wrote `Serve.Check`,
+   and the desktop's `Serve` had no field for it, so a title edit could drop one. 23b owns the one
+   writer, on task 47's serves row, the same way b01 round 2 gave `implements` its only writer.
+4. **Who may set a check is enforced where revisions are written, not where checks run.** S03-I5
+   asked for an observer-side gate. A write-side refusal is the root cause: the Hub never stores a
+   check a person did not write, so the observer never meets one, and one function in `hubapi`
+   keeps the fake and the Hub from disagreeing (W-26). Not in a trigger: task 07's guards read the
+   index, and `issue_serves` has no check column.
+
+**What b02 found in its own committed round.** Read against the tree, `013f9dd9`'s task 23b could
+not have been built as written: its role key (`PANACEA_APP_ROLE`) is one `ValidateSpec` refuses, so
+`Create` fails on both backends; its timeouts (30 and 60 minutes) contradicted task 23's (10 and 30,
+and a 35-minute `AfterLand` bound); it promised a network-less sandbox `backend.Spec` cannot
+express; it said to copy a Docker test guard that does not exist; and it said `katabe` answers
+`ErrCheckUnsupported`, which it cannot, since it reports `<podIP>:8080`. All five are fixed in
+`b6581580`. That is the case for reading a part against the code it cites before calling it done.
+
+**Hours.** W1 195 → 196.5 h: +1 h for 23b's check line, +0.5 h for task 02's function. The call sites
+in tasks 04, 05, 07, 08 and 09 are one call, one row or one paragraph each and keep their sizes, a
+claim with its reason rather than a shrug. `sumhours.py` prints `W0 1 2.0`, `W1 70 196.5`,
+`W1b 1 3.0`, `W2 28 76.5`, `W3 16 46.0`, `W4 29 79.5`, `W5 32 91.0`, `WL 13 33.0`,
+`ALL 190 527.5`, equal to `:343-351` row by row. b01 round 4's printed `526` above is a dated record.
+
+**Citations.** Every addendum is appended after a file's last line and every other edit is in
+place, so the skeleton is still **641 lines** and no inbound citation to tasks 02, 04, 05, 07, 08,
+09, 18, 20, 23, 37, 42 or 65 moved; `task-23b.md` has no inbound line citation. The 22 shifted
+citations are listed in `0dc7898b`'s message with the scans that found them; the checker
+`.superpowers/sdd/work/b02-formA.py` now reports one difference only, `:2176`, whose `:590-592`
+and `:624` are `task-53.md` lines, not the skeleton's.
+
+**Still unverified.** Phase 3's `sandboxd` git runner (P3-24: `/git/v1/`, its bundle handling) and
+`evidence` package (P3-15) are read from phase 3's plan at `9935278`; no Kata pod has run a check.
+The phase 2 anchors were read in this worktree: `backend.go:62`, `:181-192`, `:242-245`,
+`:269-279`, `:299-302`, `:337-345`; `dockerbe/docker.go:235-236`; `images/sandbox/entrypoint.sh`;
+`sandboxd/internal/server/server.go:85`; `api/sessions.go:866`, `:1536`; `cmd/api/config.go:75`.
+Nothing was executed but `sumhours.py` and the citation scans; everything else is plan text.
