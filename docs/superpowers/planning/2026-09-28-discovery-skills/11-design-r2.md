@@ -624,28 +624,39 @@ Everything else in the block's rules holds: the neutraliser, LF, no timestamp (`
 ### 5.2 What `Ref` carries, and what the session keeps
 
 - **`Ref` gains `glossaryDigest` and `decisionsDigest`**, each `"sha256:…"`, the digests of the
-  two sets now in force for the brief's own scope (a branch key: the branch's overlay; a project
-  key: the project's). Not one member named *vocabulary*: the Work layer already uses that word for
-  a team's filter names (11b §5.2). They are the third time-varying part of a `Ref`, beside
-  `headRevision` and `latestCompleteRevision` (`ref.go:71-72`), so `Ref` stays one brief key
-  resolved and cacheable on the same terms; two sessions with one `contextRef` still share one `Ref`.
+  two sets now in force for the brief's own scope: a branch key, the branch's overlay; a project
+  key, the project's and never a branch's (§5.1). That rule is what makes *two sessions with one
+  `contextRef` share one `Ref`* true: every session stamped with a key was given that key's set.
+  Not one member named *vocabulary*: the Work layer already uses that word for a team's filter
+  names (11b §5.2). They are the third time-varying part of a `Ref`, beside `headRevision` and
+  `latestCompleteRevision` (`ref.go:71-72`), and are refreshed the way those are, with one
+  difference: a `term.*` or `decision.*` event invalidates the `Ref` of **every** brief in the
+  event's project, because a project write moves every branch's overlay (task 16, §7.4).
 - **A set digest** is `"sha256:"` + hex over a canonical envelope
-  `{"v":1,"kind":"term-set" or "decision-set","scope":…,"items":[{"key","digest"},…]}`, sorted by key:
-  every entry the branch sees, never only the ones that fitted inline.
-- **The inheritance record**, new, phase 4's: one immutable entry per process start, written by the
-  Materialiser in the same call as the block, `{sessionId, start, contextRef, terms: {digest, keys},
-  decisions: {digest, keys}}`. It is kept where `contextRef` is kept, in the control plane and not
-  the Hub (`contextRef` is the registry session record's, stamped at every create, restart, resume
-  and fork, `PC:182`): one file per session, `<state>/discover/inheritance/<sessionId>.json`, which
-  gains one entry per start through `statepath.WriteAtomic`, as §4.2's round file is written, and is
-  never otherwise rewritten. It is never in the worktree, where the agent it describes could edit
-  it. `MaterialiseRequest` gains `SessionID` for it (`api/materialiser.go:25`, phase 4's own
-  interface from task 10); `MaterialiseResult` and the session record do not change, so phase 2
-  carries `contextRef` exactly as before.
+  `{"v":1,"kind":"term-set" or "decision-set","scope":…,"items":[{"kind","id","revision","digest"},…]}`,
+  sorted by id: every entry of the set, never only the ones that fitted inline.
+- **The inheritance record**, new, phase 4's: one immutable entry per process start,
+  `{sessionId, start, contextRef, terms: {digest, entries}, decisions: {digest, entries}}`, where
+  `entries` are the structs (§2.1). It is kept where `contextRef` is kept, in the control plane and
+  not the Hub (`contextRef` is the registry session record's, stamped at every create, restart,
+  resume and fork, `PC:182`): one file per session, `<state>/discover/inheritance/<sessionId>.json`,
+  which gains one entry per start through `statepath.WriteAtomic`, as §4.2's round file is written,
+  and is never otherwise rewritten. It is never in the worktree, where the agent it describes could
+  edit it.
+- **The session handler writes it, after the stamp** (the sceptic's I1). Create mints its session
+  id only after Materialise (`api/sessions.go:963`, `:1005`), and six exits between them abort a
+  create before its record exists (`:977-1081`): a Materialiser-side write would record starts
+  that never happened, the stamp the handler promises not to leave (`:973-974`, `:985-986`). So
+  `MaterialiseResult` gains the two sets, each `{digest, entries}`, `MaterialiseRequest` does not
+  change, and the handler appends the entry only once the record write that stamps `contextRef`
+  has succeeded: after `Store.Create` on create (`:1037`), after the update that sets
+  `sess.ContextRef` on restart (`:1817`), and before the sandbox exists. A failed append is handled
+  as a failed sandbox create is (`:1103`): the session is marked exited with the reason, and
+  no harness starts. This changes task 10's handler in phase 2's package, priced in task 29 (§7.3).
 
-**Why that is provable.** Every key in the record names an immutable revision that resolves for
-ever (an erased one still resolves `erased`, keeping key and digest, §2.6); the set digest
-recomputes from the keys; and the block and both files re-derive byte for byte from the keys and the
+**Why that is provable.** Every struct in the record names an immutable revision that reads back
+for ever (an erased one still reads `erased`, keeping its id and digest, §2.6); the set digest
+recomputes from the structs; and the block and both files re-derive byte for byte from them and the
 brief, because `Render` is pure. Develop compares the record's digests with the `Ref`'s two: equal
 is *current*; different is *the project's words moved since this session started*, derived the way
 the desktop already derives `superseded` from two numbers (`ref.go:75-76`).
