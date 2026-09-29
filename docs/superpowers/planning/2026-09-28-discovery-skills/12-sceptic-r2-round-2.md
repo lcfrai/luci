@@ -165,6 +165,68 @@ departure reads, and the refused row offers **Depart on this branch** (11:818).
 - **Fix.** Say a *not here* departure copies the pinned entry's fields. Name its verb in §6.2,
   for example **Not on this branch**, beside the project entry on a branch.
 
+**M6. Undoing a promote leaves a false *project changed*.** A promote's Undo restores the project
+entry it retired (11:335-337). A `restore` is a new revision, `@n` → `@n+1` (11:330), so the project
+entry comes back at `@k+2`, with the same fields as `@k`. The restored departure still pins `@k`, and
+a departure whose project entry "has moved past the pinned revision" takes task 19's *project
+changed* treatment (11:786-789). So the person who pressed Undo is then asked to choose between
+**Keep this branch's** and **Use the project's**, although nothing changed.
+- **Fix.** Compare the pinned revision's fields rather than its number, or have the Undo batch
+  re-pin `overrides` to the restored revision.
+
+**M7. Q8's default does not state its sharpest cost, and the lens cannot tell a landed branch
+from an abandoned one.** §6.2 (11:795-802), Q8 (11:995).
+- **The cost.** After a land, main's code carries the branch's departures, but main's sessions
+  get the project's set (§5.1). When the branch redefined a project decision, or set it aside,
+  every agent on main is handed the project's entry instead, which main's code no longer follows.
+  The stamp reads *current*. This lasts until a person opens the disclosure and presses Promote,
+  and nothing prompts them to. Q8 prices the other answer at "about 2 h", but states the default's
+  cost only as "nothing asks".
+- **The label.** A branch brief is archived on branch deletion, "landed or not" (11:291; HC:785-788).
+  The archive route takes `{}` and records no reason. So *From archived branches* offers
+  **Promote** on the decisions of abandoned work, beside those of landed work, with nothing to
+  tell them apart.
+- **Fix.** Put the default's cost in Q8's row. Label each archived branch *landed* or *not
+  landed*, taken from phase 3's land record, or say the lens cannot tell.
+
+**M8. Three small corrections to the contract edit.** §7.4 (11:920, :926), §5.2 (11:652-654).
+- **Point from the old sections to §18.** §17's precedent marks each amended heading in place,
+  on the same line: "— **amended by OD-30, see §17**" (HC:298, :367, :369). §18 should do the same
+  for §3.1, whose prefix table a new phase reads to choose prefixes (`work plan:185-187`), and for
+  §4.2, §7.0 and §10.2. Without that, a reader of §3.1 never learns that `te-` and `dr-` are taken.
+  But leave §8's heading unchanged: `contractEventKinds` matches `\n## 8. Events\n` exactly
+  (hub `hubapi/envelope_test.go:560`).
+- **`settled`.** Task 44b folds `settled` into §7.12 "in place" (`task-44b.md`, step 1), at the
+  reply on HC:1126. If it adds a line, it moves the 1,259 lines below, which 240 inbound
+  `hub-contract.md:NNN` citations name (a floor, by grep of every worktree, 2026-09-29). Keep it
+  on that line.
+- **The two set envelopes** (`term-set` and `decision-set`, 11:652-654) get no golden vector,
+  although every marker, file, `Ref` and inheritance entry compares them for ever. §7.2 adds
+  vectors for the revision envelopes only (11:860). A §3.5-style vector pins them (HC:176-197).
+  Also, name the value of their `"scope":…` member.
+
+**M9. Five smaller gaps.**
+- **(a) Which object carries the sets.** `Inspect` holds an `Inheritable`, not a `Ref` (p4
+  `inspect.go:119-124`, `:179`). So "compares … with the `Ref`'s current two" (11:704-705) should
+  read "with the two a start would write now". The sets reach the Materialiser only through its
+  one `Source` method, `Inheritable(ctx, Target)` (p4 `materialise.go:51-53`). So
+  `discoverhub.Inheritable` (`read.go:79-86`) gains the two sets. §7.2's `read.go` row does not
+  list that change (11:859), and `binding_test.go:342` compares a whole `Inheritable` with
+  `reflect.DeepEqual`.
+- **(b) The one-call limit.** "At most one model call per complete revision" (11:518) is per
+  machine and per round file. A fresh round comes after fourteen days (11:557-558), and another
+  machine recomputes one (11:561-562). Say so.
+- **(c) A second case-insensitive rule.** The Hub already indexes `lower(name)` for teams and
+  projects (hub `migrate/sql/0001_init.sql:50`, `:99`), and the fake compares with
+  `strings.ToLower` (`hubclient/fake_projects.go:159`). Say why a word uses `FoldWord` instead: a
+  fold stored by Go does not depend on the database's collation. Also say that the fake calls
+  `FoldWord`, not `ToLower`.
+- **(d) A paged read is not a snapshot.** A batch that promotes one entry and retires another can
+  land between two page reads. The set then holds both in-force entries for one word, or neither,
+  under a digest that describes no moment the Hub held. **Fix:** note the feed position before and
+  after the read, and re-read when it moved.
+- **(e) One avoided word.** "Phase 3's merge" (11:753, :801): `CONTEXT.md:300` says *land*.
+
 ## 3. What held up
 
 ## 4. What this review did not verify
