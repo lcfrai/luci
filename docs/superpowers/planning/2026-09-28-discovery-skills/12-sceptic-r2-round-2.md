@@ -1,11 +1,41 @@
 # 12 — Sceptic, round 2 re-read: is design 11's Revision 1 closed at the root?
 
-**Status: in progress, 2026-09-29.** Reviews `11-design-r2.md` at `b8b9031e` (Revision 1).
-Read-only on every file except this one.
+**Status: complete, 2026-09-29.** Reviews `11-design-r2.md` at `b8b9031e` (Revision 1),
+against `12-sceptic-r2.md`. Read-only on every file except this one.
 
 ## 0. The verdict in one screen
 
-_(written last)_
+**Needs fixes: 0 Critical, 2 Important, 9 Minor.** Revision 1 closes both round-1 Criticals and
+six of the seven Importants at the root, and I4 in part. The struct keeps the grammar still, *the
+set follows the stamp* is one rule used everywhere, and §18 is the contract's own amendment
+pattern. Two things block a plan edit, and each is a short fix:
+
+1. **R2-I1, no read of a past revision.** Under the struct, `/v1/refs` answers no term or decision,
+   and the six new routes read only heads. Yet the block's origin line, the lens's *project
+   changed* and *History*, and §5.2's "reads back for ever" all need revision *n*. If the
+   Materialiser prints the head's text instead, a project revise brings back round 1's false
+   `edited`.
+   **Fix:** one revisions read per kind in §18, about 2 h.
+2. **R2-I2, erasure keeps a word.** The term's head holds the folded word for the unique index, and
+   nothing clears it. The scan test is case-sensitive and cannot see the folded copy.
+   **Fix:** clear it in `hub.erase_term` and scan for the folded marker, about 0.25 h.
+
+The Minors, most useful first:
+
+| # | Issue | Where it fails |
+|---|---|---|
+| R2-M1 | The critical path grows by about 24 h, not 3.5 h. Task 25 also waits on Hub 45 | §0, §7.5 |
+| R2-M2 | An exit item runs before the create it names | §2.4's two passes |
+| R2-M3 | **Record all** is two batches, not one | §3.2 |
+| R2-M4 | Rule 3 needs the overlay in three places, and has a hole across scopes | §2.3, §2.4 |
+| R2-M5 | A *not here* departure has no fields and no verb | §2.2, §6.2 |
+| R2-M6 | Undoing a promote shows a false *project changed* | §2.4, §6.2 |
+| R2-M7 | Q8 hides its cost; *landed* and *abandoned* look the same | §6.2, Q8 |
+| R2-M8 | Four corrections to the contract edit: heading markers, `settled`, and the envelopes' vectors and members | §7.4, A20 |
+| R2-M9 | Seven smaller gaps, among them task 12's four routes, a paged read that is not a snapshot, and `settledIn: null` decided without the owner | various |
+
+**Next:** one fix round on 11, R2-I1 first, because §5.1's render and §6.2's lens depend on it. Then
+the owner's Q2, before 44a runs.
 
 ## 1. Round 1's Criticals and Importants: closed at the root?
 
@@ -17,15 +47,15 @@ them. Line numbers are the tree as read on 2026-09-29.
 
 | Round 1 | Verdict | Evidence |
 |---|---|---|
-| **C1**, the grammar | **Closed at the root.** One consequence of the fix is new (I1 below) | The struct is the default (11:206-238). The only `term:` or `decision:` key forms left in the file are the owner's alternative (11:221) and Q2 (11:989). Q2 is asked before 44a, Hub 45 or phase 4's 26, and §0 no longer says no question blocks (11:58-62). By leaving `/v1/refs`, the struct also lost the one read of a past revision, and nothing replaces it |
+| **C1**, the grammar | **Closed at the root.** One consequence of the fix is new (R2-I1 below) | The struct is the default (11:206-238). The only `term:` or `decision:` key forms left in the file are the owner's alternative (11:221) and Q2 (11:989). Q2 is asked before 44a, Hub 45 or phase 4's 26, and §0 no longer says no question blocks (11:58-62). By leaving `/v1/refs`, the struct also lost the one read of a past revision, and nothing replaces it |
 | **C2**, the stamp | **Closed at the root** | One rule, *the set follows the stamp* (11:578-588), used the same way in §0 (11:43-45), §5.2 (11:643-646), the lens (11:790-793) and Q9 (11:996). It matches the built code: `Inheritable` carries one `Key` (p4 `discoverhub/read.go:79-86`), and the Materialiser stamps that key (p4 `contextwrite/materialise.go:385-393`) |
 | **I1**, the record before its session | **Closed** | The create order is Materialise `:963`, id `:1005`, `Store.Create` `:1037`, then sandbox `:1087-1106`. The restart order is Materialise `:1724`, the update that sets `ContextRef` `:1806-1826`, then sandbox `:1836` (p4 `api/sessions.go`). Resume and fork both go through create (`:909-939`), so the two call sites cover every start |
-| **I2**, false `edited` | **Closed as a rule.** One wording is left (M9a) | Set digests are compared before the text, and a mismatch reads `superseded` (11:700-712), placed where `stateOf` returns early today (p4 `inspect.go:202-207`). But the departure line re-opens I2 in a narrow case, through I1 below |
+| **I2**, false `edited` | **Closed as a rule.** One wording is left (R2-M9a) | Set digests are compared before the text, and a mismatch reads `superseded` (11:700-712), placed where `stateOf` returns early today (p4 `inspect.go:202-207`). But the departure line re-opens I2 in a narrow case, through R2-I1 below |
 | **I3**, A20 turns the Hub red | **Closed** | Every test that reads the contract finds its section by number: `contractSection` (hub `hubapi/keys_test.go:362-380`), the body test's rows (`types_test.go:896-941`) and §8's kinds (`envelope_test.go:553-566`). The contract already has one appended amendment, §17 for OD-30 (HC:2301), so §18 is the contract's own pattern. The designer's reading of `pendingAmendment` is right: it holds code that runs ahead of the text, and nothing else (`types_test.go:881-885`, `:961-968`) |
-| **I4**, cost | **Closed in part** | The five listed and the four repriced are in (11:850-906). The sums check: 36 + 6, 22.5 + 4.5, plus 0.5, makes 69.5. Still missing: the `Source`/`Inheritable` change (M9a), the read I1 needs, and a critical-path claim the design's own order cannot meet (M1) |
-| **I5**, erasure keeps text | **Closed for stored replies and for a brief's erasure** (11:426-441, against `T:19.md:52-59`). A new hole opened in the design's own head column (I2 below) | — |
-| **I6**, missing transitions | **Closed**: `depart` is born in one of three states, Undo writes `restore`, and a promote's Undo is one batch of restores (11:313-339) | One side effect: a false *project changed* (M6) |
-| **I7**, a landed branch's decisions | **Closed by an option round 1 offered**: Q8, with its default and cost (11:995), plus the lens's *From archived branches* (11:795-802) | Q8 does not state the default's sharpest cost (M7) |
+| **I4**, cost | **Closed in part** | The five listed and the four repriced are in (11:850-906). The sums check: 36 + 6, 22.5 + 4.5, plus 0.5, makes 69.5. Still missing: the `Source`/`Inheritable` change (R2-M9a), the read R2-I1 needs, and a critical-path claim the design's own order cannot meet (R2-M1) |
+| **I5**, erasure keeps text | **Closed for stored replies and for a brief's erasure** (11:426-441, against `T:19.md:52-59`). A new hole opened in the design's own head column (R2-I2 below) | — |
+| **I6**, missing transitions | **Closed**: `depart` is born in one of three states, Undo writes `restore`, and a promote's Undo is one batch of restores (11:313-339) | One side effect: a false *project changed* (R2-M6) |
+| **I7**, a landed branch's decisions | **Closed by an option round 1 offered**: Q8, with its default and cost (11:995), plus the lens's *From archived branches* (11:795-802) | Q8 does not state the default's sharpest cost (R2-M7) |
 
 The designer's three departures from round 1 (11:1078-1088) are **all right**, and this review
 withdraws the points they answer:
@@ -42,7 +72,7 @@ None. Both round-1 Criticals are closed at the root (§1), and nothing below sto
 
 ### 2.2 Important
 
-**I1. No route reads a past revision of a term or a decision, yet four parts of the design
+**R2-I1. No route reads a past revision of a term or a decision, yet four parts of the design
 render one.** This is a consequence of C1's fix. §2.4 (11:376-382), §5.1 (11:614-622), §5.2
 (11:674-677), §6.1-6.2 (11:780-788).
 - **What reads a pinned revision today.** A brief's branch revision pins a project revision, and
@@ -56,8 +86,9 @@ render one.** This is a consequence of C1's fix. §2.4 (11:376-382), §5.1 (11:6
 - **Where the design needs such a read:**
   - A departure's origin line prints `<old decision>`, and a *not here* line prints
     `<the project's decision>` (11:614-622). Both name the revision the departure pins (11:279-284).
-  - A departure shows *Project: <definition>* once the project entry has moved past its pin
-    (11:786-788).
+  - In the lens, a departure shows *Project: <definition>* beneath it. Once the project entry has
+    moved past the pin, it takes task 19's *project changed* treatment, which needs the pinned text
+    and the new text side by side (11:786-789).
   - The *History* disclosure (11:780-782).
   - The claim that "every struct in the record names an immutable revision that reads back for
     ever", and that the block "re-derive[s] byte for byte" (11:674-677).
@@ -66,8 +97,8 @@ render one.** This is a consequence of C1's fix. §2.4 (11:376-382), §5.1 (11:6
     text instead, the digests no longer cover that text. The overlay drops the overridden project
     entry from the branch's set (11:296-297). So when the project revises that entry, the rendered
     text moves but the marker's two digests do not. `Inspect` then renders, compares, and calls
-    the block `edited` (p4 `inspect.go:208-215`). That is round 1's I2 again, for every branch
-    that departs.
+    the block `edited` (p4 `inspect.go:208-215`). That is round 1's I2 again, on every branch
+    whose departure's project entry is later revised.
   - After any revise, what a session was given can no longer be read back, so §5.2's provability
     claim fails.
 - **What it costs if the lists hold every revision** ("every revision's fields", 11:379): every
@@ -81,9 +112,10 @@ render one.** This is a consequence of C1's fix. §2.4 (11:376-382), §5.1 (11:6
   - Have the Materialiser read the pinned revisions of the entries a branch overrides, one call
     per kind.
   - Price it at about 2 h across Hub 46 and 48b and phase 4's 27. This is part of what the struct
-    costs, so Q2's "about 3 h more" for key forms (11:989) should shrink by the same amount.
+    costs. Key forms would have read the pinned revision through `/v1/refs`, so Q2's "about 3 h
+    more" for them (11:989) shrinks to about 1 h. The owner should see that figure.
 
-**I2. An erased term's word survives in its head, and the scan test that would catch it cannot
+**R2-I2. An erased term's word survives in its head, and the scan test that would catch it cannot
 see it.** §2.6 (11:404-434).
 - **The head keeps a copy.** "Each head is a guarded state machine holding the current folded
   word, scope and state for the unique index" (11:407-408). Erasure empties every revision and
@@ -104,7 +136,7 @@ see it.** §2.6 (11:404-434).
 
 ### 2.3 Minor
 
-**M1. The critical path grows by about 24 hours, not 3.5.** §0 (11:17-19), §7.5 (11:936-943).
+**R2-M1. The critical path grows by about 24 hours, not 3.5.** §0 (11:17-19), §7.5 (11:936-943).
 This is round 1's M6, restated with numbers.
 - **Now.** The path is Hub H0 → 07 → 08 → 09 → 11 → 12 → 14 → 23 (`plan:430`). Before task 14,
   what remains is 09's open fix round, then 11 (3 h) and 12 (2 h) (`plan:400-403`): about 5 h
@@ -119,13 +151,14 @@ This is round 1's M6, restated with numbers.
   - Phase 4's 27 (6 h), 29 (5.5 h) and 32 (3.5 h).
   - That is about 29 h of work before 14, against about 5 h today.
 - **The condition cannot be met.** "If 25-30 and Hub 44a-46 run beside it" (11:941-942) cannot
-  hold: that chain is sequential by its own dependencies. And 32 carries seven routes plus task
-  12's rework in 3.5 h, where 11 and 12 together took 5 h for about as many.
+  hold: that chain is sequential by its own dependencies. And 32 carries seven routes, plus the
+  rework of task 12's four, in 3.5 h. The plan prices 11 and 12, the brief's routes, at 5 h
+  (`plan:402-403`).
 - **Fix.** State about +24 h on the critical path, before fix rounds, in §0 and §7.5. Or
   shorten the chain: land `FoldWord` and the field-rule function as a small first Hub commit ahead
   of the rest of 45, and let 25 start on it.
 
-**M2. The two passes run an exit before the create it names.** §2.4 (11:313-318, :325, :412).
+**R2-M2. The two passes run an exit before the create it names.** §2.4 (11:313-318, :325, :412).
 - `supersede` requires `replacedBy`, which may name "an item of this batch", and `retire` takes
   one too. Both take a record out of force, so both run in the first pass. The item they name is
   a `create`, which runs in the second pass.
@@ -134,7 +167,7 @@ This is round 1's M6, restated with numbers.
 - **Fix.** Mint every id and insert every new head before the first pass, or make the key
   `DEFERRABLE INITIALLY DEFERRED`. Say which in §2.4 and in task 47.
 
-**M3. Record all is two batches, not one.** §3.2 (11:479-482) says **Record all** "writes them in
+**R2-M3. Record all is two batches, not one.** §3.2 (11:479-482) says **Record all** "writes them in
 one batch" and that "the batch is all or nothing". But writes go through "one batch route per kind"
 (11:307-308), and a round holds both kinds (11:516).
 - The terms can therefore be recorded while the decisions are refused.
@@ -142,7 +175,7 @@ one batch" and that "the batch is all or nothing". But writes go through "one ba
 - **Fix.** Say it makes two calls and in which order, what the rows show when only one call
   succeeds, and that its Undo restores both.
 
-**M4. The third word rule needs the branch's view in the Hub, and it has a hole across scopes.**
+**R2-M4. The third word rule needs the branch's view in the Hub, and it has a hole across scopes.**
 §2.3 (11:296-303), §2.4 (11:355-358).
 - Rule 3 checks "another in-force term on the same branch's view". But what a branch sees "is
   computed by phase 4, never by the Hub" (11:296). So the overlay, including its
@@ -156,7 +189,7 @@ one batch" and that "the batch is all or nothing". But writes go through "one ba
   places. Extend the later-project-word shadow to a project word that a branch term avoids, with
   the same *project changed* treatment.
 
-**M5. A *not here* departure is one gesture, but §2.2 requires fields for it.** A term revision
+**R2-M5. A *not here* departure is one gesture, but §2.2 requires fields for it.** A term revision
 needs a `word` of 1-64 and an `is` of 1-300 code points (11:247-248). A decision revision needs a
 `decision` of 1-300 (11:254). The `depart` item lists only `baseRevision`, `scope`, `overrides` and
 the state it is born in (11:328). So as written, a *not here* departure is refused with 400 by the
@@ -165,7 +198,7 @@ departure reads, and the refused row offers **Depart on this branch** (11:818).
 - **Fix.** Say a *not here* departure copies the pinned entry's fields. Name its verb in §6.2,
   for example **Not on this branch**, beside the project entry on a branch.
 
-**M6. Undoing a promote leaves a false *project changed*.** A promote's Undo restores the project
+**R2-M6. Undoing a promote leaves a false *project changed*.** A promote's Undo restores the project
 entry it retired (11:335-337). A `restore` is a new revision, `@n` → `@n+1` (11:330), so the project
 entry comes back at `@k+2`, with the same fields as `@k`. The restored departure still pins `@k`, and
 a departure whose project entry "has moved past the pinned revision" takes task 19's *project
@@ -174,7 +207,7 @@ changed* treatment (11:786-789). So the person who pressed Undo is then asked to
 - **Fix.** Compare the pinned revision's fields rather than its number, or have the Undo batch
   re-pin `overrides` to the restored revision.
 
-**M7. Q8's default does not state its sharpest cost, and the lens cannot tell a landed branch
+**R2-M7. Q8's default does not state its sharpest cost, and the lens cannot tell a landed branch
 from an abandoned one.** §6.2 (11:795-802), Q8 (11:995).
 - **The cost.** After a land, main's code carries the branch's departures, but main's sessions
   get the project's set (§5.1). When the branch redefined a project decision, or set it aside,
@@ -189,14 +222,14 @@ from an abandoned one.** §6.2 (11:795-802), Q8 (11:995).
 - **Fix.** Put the default's cost in Q8's row. Label each archived branch *landed* or *not
   landed*, taken from phase 3's land record, or say the lens cannot tell.
 
-**M8. Three small corrections to the contract edit.** §7.4 (11:920, :926), §5.2 (11:652-654).
+**R2-M8. Four small corrections to the contract edit.** §7.4 (11:920, :926), §5.2 (11:652-654).
 - **Point from the old sections to §18.** §17's precedent marks each amended heading in place,
   on the same line: "— **amended by OD-30, see §17**" (HC:298, :367, :369). §18 should do the same
   for §3.1, whose prefix table a new phase reads to choose prefixes (`work plan:185-187`), and for
   §4.2, §7.0 and §10.2. Without that, a reader of §3.1 never learns that `te-` and `dr-` are taken.
   But leave §8's heading unchanged: `contractEventKinds` matches `\n## 8. Events\n` exactly
   (hub `hubapi/envelope_test.go:560`).
-- **`settled`.** Task 44b folds `settled` into §7.12 "in place" (`task-44b.md`, step 1), at the
+- **`settled`.** Task 44b folds `settled` into §7.12 "in place" (`task-44b.md`, item 1), at the
   reply on HC:1126. If it adds a line, it moves the 1,259 lines below, which 240 inbound
   `hub-contract.md:NNN` citations name (a floor, by grep of every worktree, 2026-09-29). Keep it
   on that line.
@@ -210,7 +243,7 @@ from an abandoned one.** §6.2 (11:795-802), Q8 (11:995).
   `settledIn`, `author` and `sessionId` each digest covers. The digest certifies exactly those
   members, and the golden vectors cannot be written until they are named.
 
-**M9. Six smaller gaps.**
+**R2-M9. Seven smaller gaps.**
 - **(a) Which object carries the sets.** `Inspect` holds an `Inheritable`, not a `Ref` (p4
   `inspect.go:119-124`, `:179`). So "compares … with the `Ref`'s current two" (11:704-705) should
   read "with the two a start would write now". The sets reach the Materialiser only through its
@@ -237,6 +270,11 @@ from an abandoned one.** §6.2 (11:795-802), Q8 (11:995).
   "reads through an in-memory cache of immutable revisions" (phase 4's `task-12.md:128-131`), and
   the set digests are neither immutable nor cached. List all four under task 32, with their new
   audit lines.
+- **(g) A reading of OD-36 made without a question.** OD-36 makes each record "its own Hub record
+  that references a brief revision" (`owner-decisions.md:409`). The design allows
+  `settledIn: null` for a session with no brief, and for a lens write at head 0 (11:264, :395-397).
+  No brief key reaches such a record, so it cannot be found from a release's pins either (Q3).
+  That may well be the right reading, but it is the owner's: add it to §8.2 with its default.
 
 ## 3. What held up
 
@@ -263,14 +301,14 @@ from an abandoned one.** §6.2 (11:795-802), Q8 (11:995).
 
 ## 4. What this review did not verify
 
-1. **Nothing was compiled or run.** In particular, M2's failure depends on how task 47 declares
-   the foreign key. I2's failure depends on the scan's `strpos` (`T:27.md:72`), which is in a plan
+1. **Nothing was compiled or run.** In particular, R2-M2's failure depends on how task 47 declares
+   the foreign key. R2-I2's failure depends on the scan's `strpos` (`T:27.md:72`), which is in a plan
    part, not in built code.
 2. **The Hub's server-side tests that read the contract.** The authorisation harness (16b) and
    Hub 14's feed test are plan parts, and their built code was not read. That they read §7.0 and
    §8 by section, and so ignore §18, is taken from the design (11:1017-1018). A grep of the Hub's
    `control-plane` found no test that reads §7.0.
-3. **M1's hours are the plans' own estimates** (`plan:390-414`, HP:400). The chain assumes the Hub
+3. **R2-M1's hours are the plans' own estimates** (`plan:390-414`, HP:400). The chain assumes the Hub
    runs 44a, 45 and 46 first, as §7.5 orders (11:944). If the Hub stream keeps its queue order
    (08 through 44b first, hub `.superpowers/sdd/hub/progress.md:522-523`), the path waits much
    longer.
@@ -279,29 +317,13 @@ from an abandoned one.** §6.2 (11:795-802), Q8 (11:995).
 5. **Phase 2's final gate is running in the main tree.** The `api/sessions.go` lines cited here
    and in 11 §5.2 are phase 4's copy at `ca737d92`, and may move when phase 2 lands.
 6. **Q2, Q8 and Q9 are the owner's.** This review argues only that Q8's row should state the
-   default's cost (M7).
+   default's cost (R2-M7).
 
 ## Closing
 
-## Working notes (deleted at the end)
+Complete on 2026-09-29. Sections 0 to 4 are written and committed, and the working notes are
+deleted. This file reviews `11-design-r2.md` at `b8b9031e`, and no other file was edited. Of the
+design's nine owner questions, this review argues only with Q8's wording (R2-M7). Q2 stays the first
+question, to be asked before 44a runs.
 
-- Read 12 (all) and 11:1-384. Leads: (a) two-pass order vs `{"item":0}` forward refs (11:313-318):
-  an exit item naming a create's id runs before that create; (b) rule 3 needs the branch's view in
-  the Hub, but 11:296 says the Hub never computes it; (c) is there any read of a pinned past
-  revision? the list is heads (11:378-380); (d) `settledIn: null` vs OD-36 "reference a brief
-  revision"; (e) phase 4 gets `hubapi.FoldWord` "by merge" (11:364): an ordering dependency.
-- Read 11:384-683. Leads: (f) Record all "one batch" (11:479) but one route per kind (11:307);
-  (g) handler writes inheritance on create+restart only (11:669-670); PC:182 stamps at resume and
-  fork too; (h) "reads back for ever" (11:674) needs a read of a pinned revision, and the list is
-  heads; (i) erase keeps the head's folded word? (11:408 vs :424); (j) "at most one model call per
-  complete revision" (11:518) vs 14-day re-round (11:557) and other machine (11:561).
-- Read 11:681-966. Leads: (k) rule 3 needs the overlay in the Hub AND the fake (46) AND phase 4
-  (25): three copies, against 11:296 and the one-owner rule; cross-scope avoid hole remains;
-  (l) 44b "writes `settled` into §7.12" (11:926): an in-place contract edit, vs "no line moves";
-  (m) is the body test section-scoped? (11:920 cites `keys_test.go:371`); (n) critical path:
-  44a→45→46→p4 27→29 (~20 h + 44a) vs 09→11→12; is +3.5 h credible?; (o) Undo of promote
-  restores the project entry at a new revision, so the departure shows a false *project changed*.
-- Verified: I1 closed (sessions.go:963/1005/1037/1103/1806-1817; resume and fork go through
-  create, :909-939). I3 closed: every contract-reading test reads its section by number
-  (`keys_test.go:362-380`, `types_test.go:896-941`); HC already has §17 appended for OD-30 (HC:2301),
-  so §18 is the contract's own amendment pattern. 44b folds in place by design (`task-44b.md`).
+**Design quality: Needs fixes**
