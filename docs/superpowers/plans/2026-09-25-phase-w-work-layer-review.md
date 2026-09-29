@@ -6213,3 +6213,75 @@ finding's table is `:203-211`). Everything added is below `:303`, which nothing 
 `:2071`, `:2082` and `:2232-2233` were read in the `feat/hub` worktree at `cafe1303`. The finding
 cites the org line as `:2081`; there it is `:2082`. H07a's and H16b's test names come from task 06's
 and task 116's parts, since no Hub test is built. Nothing was executed; this is plan text.
+
+## Fix batch b13, round 2 (2026-09-29)
+
+Re-review 1 of round 1 (`.superpowers/sdd/work/plan-rereview-b13-1.md`, git-ignored) closed
+**S19-C1** in all ten of its asks and found one new Important, **N-I1**: the install row that now
+carries every Slack row's org could be claimed by the wrong org, because the claim was first-come
+and its two secret refs were strings the claimant typed, which no part tied to an org. Eight
+Minors, N-M1 to N-M8. Commits `fa5e1475` (its message is wrong: *Erratum*, below), `27e368e9`,
+`b18bcef2` and the one that adds this section. Every line below is post-fix, in
+`…-parts/task-182.md` unless named.
+
+| Finding | Change | File:line |
+|---|---|---|
+| **N-I1** (Important): the org line could be claimed with another org's refs | no one types a ref: `slack.SecretNames(org, workspace)` derives both Key Vault names; the two ref columns and their `UPDATE` grant are gone; a named CHECK fixes the workspace id's form. The PUT takes no body, reads both secrets first (422 `slack_secrets_missing`, nothing read or written in `slack_installs`), checks the bot token's workspace with `auth.test` (422 `slack_token_wrong_workspace` or `slack_token_invalid`, 502 `slack_unreachable`), then inserts `ON CONFLICT DO NOTHING` and reads a conflict under RLS (200 its own, 409 another's) | `:42-46`, `:51`, `:85-90`, `:184`, `:197-198`, `:236`, `:261`, `:412`, `:421`, `:448-452`; *The install's secrets* `:498-583` (the order `:509-529`, the code `:535-561`) |
+| N-I1's tests, red first | `TestInstallReadsOnlyItsOrgsSecrets` as the re-review asked (A → 422, not 409; B's 201; the 409 only once both orgs' names are placed), plus a token of another workspace, a ref in the body and a malformed id; `TestSecretNamesAreTheOrgs`; `TestChannelLinkCrossOrgRefused`'s install clause is now the 422; the matrix's install ✓ needs the fixture's secrets and `auth.test`, and `X` with the Go check off writes no row of the fixture's org | `:565-566`, `:304`, `:307`; Steps `:317`, `:323-325`; acceptance `:341-343` |
+| **N-M1**: the Slack grants were asserted by nothing | `TestSlackGrantsAreExactlyTheList` over the grants and the function's `EXECUTE` (`task-145.md:784`'s form); `:345` says "keys" and points at it | `:567`, `:345`, `:448` |
+| **N-M2**: the 409 confirmed another org's install | the 409 is reachable only after the claimant's own secrets are read, so only where an operator placed secrets for it too | `:412`, `:523-529` |
+| **N-M3**: who registers was said two ways | an org admin registers; an operator places the secrets under the Hub's names | `:42-44`, `:357-358` |
+| N-M4: `url_verification` was refused by the org step | answered first, unverified by design, reading and writing nothing and echoing only a token-shaped challenge; `TestSlackURLVerification` | `:234`, `:238`, `:618` |
+| N-M5: re-linking a channel to another team was unspecified | 409 `slack_channel_linked`, naming no team; the same team, 200; `TestSlackChannelLinksOneTeam` | `:186`, `:480`, `:587-591`, `:616` |
+| N-M6: the matrix's link POST needs a nonce per cell | the POST's `body` mints a fresh nonce for a fresh Slack user per cell (`task-07.md:382`) | `:307` |
+| N-M7: L-80's Slack clause had a proof and no user path | said wherever the clause is claimed; the route is returned as a gap (ruling 5) | `:296`, `:369-370`, `:425`; `task-187.md:90`; `…-scopes/tasks-181-187.md:142-143` |
+| N-M8: nothing pruned `slack_events_seen` or the nonces | a janitor step calls `PruneSlack` once per org with `hub.org_id` set, over two indexes; `TestSlackPruneIsPerOrg` | `:63`, `:231`, `:449`, `:593-617` |
+| **S19-C1**, re-checked | still closed: the three layers, both red-first tests and the matrix stand, and nothing above weakens them | `:394-415`, `:304-307` |
+
+**Rulings, each the root-cause option, declared (none is an owner question).**
+1. **The Hub names the secrets** (N-I1), the re-review's first fix, over its equal (a typed ref
+   that must sit under the caller's org's prefix): nothing typed means nothing to parse, and the
+   name is a function of the row's key, so no later route can reopen it (`:573-576`). The prefix
+   rule is the fallback if the owner wants refs typed.
+2. **Task 145's decision 10, read for its intent**: an install stores neither a ref nor a version
+   (`:577-579`), so "never the secret in a column" holds more strictly. This supersedes round 1's
+   ruling 2 (*"the only `UPDATE` is on the install's two refs"*): no Slack table has an `UPDATE`
+   grant now (`:452`).
+3. **`auth.test`, beyond the finding's ask** (`:518-522`, `:580-583`): a claim needs a bot token
+   Slack says is that workspace's, so a mistyped workspace id cannot squat another org's. An
+   operator who files org B's real secrets under org A's names stays outside what the Hub can see.
+4. **`url_verification` is unverified by design** (N-M4): its body has no `team_id`, so no
+   install's secret can be chosen. The equal fix, a Request URL per workspace, would change the
+   route (`:182`) and every inbound call, which a Minor does not warrant.
+5. **N-M7 is named, not built.** A Slack feed-binding route would amend task 157's list route
+   (`task-157.md:283-285`), SW.21's `TeamsBinding` and SW.5's event registry (`task-157.md:305-308`),
+   three contracts outside this batch. The check it must make is already written (`:425`).
+
+**Returned, for the orchestrator.**
+- The Slack feed-binding route (N-M7), modelled on task 157's binding wire (`task-157.md:290-308`)
+  and refused 404 unless the channel link is the binding's team's (`:425`).
+- The same untied ref under task 150's tracker credential (`task-150.md:520`), the class re-review
+  1 ties to S19-I5: outside this part, not re-rated, not touched.
+
+**Citations.** In `task-182.md`, every hunk of `git diff -U0 e77d6dce` above `:497` is `-N,M
++N,M`, so review `:5403` (`:216`), `:5426` (`:238`), `:5441` (`:45`) and `task-187.md:79` (after
+`:291`; `:292` is `TestShortcutMakesOneRequest`) still land, and round 1's table above points at the
+lines it did (some now say more; where they speak of the install, this section wins). New text is
+appended at `:497-618`, which nothing cited. `task-187.md:90` and the scope's `:142-143` changed
+line for line, and nothing cites either by line (grep `task-187.md:[0-9]` and
+`tasks-181-187.md:[0-9]` over `docs/`). New citations were read against the tree: `task-145.md:96-100`,
+`:784`; `task-07.md:382`; `task-157.md:60`, `:283-285`, `:290-308`; `task-150.md:520`; and, in the
+`feat/hub` worktree at `cafe1303`, `hub-contract.md:1481` (the org id's form), `:1792`, `:2076`
+(`DecodeJSON`) and `:2232-2233`.
+
+**Erratum.** `fa5e1475` carries another agent's commit message (*"docs(register): OD-36, the project
+glossary and decision record sit beside the brief"*), read from a scratchpad file name two agents
+shared. Its content is this round's `task-182.md` change (N-I1, N-M1 to N-M6, N-M8). It was not
+amended; `27e368e9`'s message records the same.
+
+**Unverified.** Nothing was executed; this is plan text. That `ON CONFLICT DO NOTHING` skips a row
+the policy hides without an error (`:525-527`) is Postgres's documented behaviour, not run here;
+the test named there fails if it is not. Slack's workspace id form, `auth.test` and
+`url_verification` shapes, and Key Vault's secret-name rule are from public documentation,
+recalled, not fetched. The two uncommitted hunks in this worktree (`task-47.md`, the skeleton) are
+b02 round 2's and were never staged.
