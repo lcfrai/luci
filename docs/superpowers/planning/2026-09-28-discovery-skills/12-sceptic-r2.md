@@ -102,7 +102,69 @@ either the stamp never matches or a branch's departures are dropped.** §5.1 (11
 
 ### 2.2 Important
 
-*pending*
+**I1. The inheritance record is written before its session exists, by a call that has no session
+id.** §5.2 (11:538-547), §7.1 (11:690-691), §7.2's `api/materialiser.go` row (11:701).
+- **The built order.** Create calls Materialise "after the request validates … and before anything
+  is recorded or created" (`p4 api/materialiser.go:13-16`). `api/sessions.go:963` calls it; `:1005`
+  mints `sessionID := ids.New("s")` afterwards, under "3. Ids and the secret". The handler promises
+  that a failure after Materialise leaves "nothing behind but the brief block, which is
+  git-excluded and stamps nothing" (`:972-973`, `:983-985`).
+- **What fails.** `MaterialiseRequest.SessionID` (11:545) has no value on create. Minting the id
+  earlier reorders phase 2's handler, which §7.1 says does not change. Five exits between `:963`
+  and `:1037` abort a create after Materialise: the conversation store, line endings, git files,
+  worktree admin and the record. Each would leave an inheritance entry for a session that never
+  existed, which is exactly the stamp the handler promises not to leave. An id collision
+  (`:1070-1079`) would append a failed start to another session's "immutable" record.
+- **Fix.** `MaterialiseResult` returns the two sets' keys and digests. The handler writes the entry
+  after `Store.Create` succeeds, beside `contextRef`. That changes `MaterialiseResult` and the
+  handler (task 10's code in phase 2's package), so strike "phase 2 entirely" from §7.1 and price
+  the change in task 29.
+
+**I2. The drift check calls a block `edited` whenever the project's words move.** §5.3
+(11:572-573); §7.4 lists task 12 as "Unchanged, and checked" (11:766-768).
+- **The built rule.** When the marker names the right key, `p4 contextwrite/inspect.go:208-215`
+  renders the block and compares. Anything not `SameText` is `StateEdited`, with a diff. The rule
+  rests on "A key's render depends on nothing but the key" (`:32-35`). Its one exception,
+  `PinErased` (`discoverhub/read.go:82-86`, `inspect.go:22-30`), exists because this same false
+  `edited` was already found once in review (re-review b06-2 R2-I1).
+- **What fails.** Under the design the render also depends on both sets. A teammate records a
+  word, and every earlier block on the project now has the same key but other text: `edited`, with
+  a diff that shows the new word as if a person had deleted it. Task 19 shows that as
+  *hand-edited* (11a:443-445), and task 12's `materialisations` route reports it for every worktree
+  of the branch (`task-12.md:18`, `:131`). §5.3 says "no new state" and maps only the two files.
+- **Fix.** Compare the marker's two set digests before the text, and map a mismatch to
+  `superseded`, since the block names another set. List `inspect.go`'s classification in §7.2, not
+  only its marker parse. Take task 12 out of "Unchanged": its fresh render needs the two list reads.
+
+**I3. The Hub refuses a contract edit that lands without its code, and the design lands A20
+first.** §1 item 2.3 (11:103-105), 44a's A20 (11:756), the order (11:777-779).
+- **The Hub's tests read the contract file.** `hubapi/keys_test.go:737-759` parses §3.1 and wants
+  exactly ten prefixes there and in `keys.go`. `:530-551` parses §4.2's codes. The ledger names a
+  third: "task 44a must run the hubapi tests after its contract edits and delete each
+  pendingAmendment the body test names; the body test anchors on route lines verbatim"
+  (`hub .superpowers/sdd/hub/progress.md:319`).
+- **What fails at 44a.** 44a is "Documents only" (`task-44a.md:3-4`) and "IS STILL UNRUN and is out
+  of order" (`progress.md:518-521`). With A20 in it, the Hub goes red the moment it lands, and
+  stays red until Hub 45 and 48:
+  - §3.1 holds twelve entities and `keys.go` ten;
+  - §4.2 names `word_taken`, and no §7.3 task adds its constant;
+  - the body test meets six routes that have no wire types.
+- **A second procedure.** Phase W already adds a Hub kind its own way: a proposal to the `feat/hub`
+  owner (`work plan:167`, `:321`) and its task 02 appending `issue:` to `hubapi/keys.go` (`:235`).
+  Its review cites the same ten-check (`phase-w review:370-375`). Two streams will each raise that
+  count to their own number.
+- **Not four tables.** The brief appears in twelve places in the contract (11b §1.9). The
+  division-of-labour rule "It reads exactly one field of a revision's content: `status`"
+  (HC:742-745) is contradicted by §2.4, where the Hub checks §2.2's field rules, case-folds words
+  and runs a nine-op state machine. Task 25 builds the same field rules in `discover` (11:722), and
+  nothing holds the two copies equal.
+- **Fix.**
+  - Land A20 with the code that turns each test green: Hub 45 for §3.1 and §3.2, Hub 48 for §4.2
+    and §7.0. Or register pending amendments, as the body test's ratchet already does.
+  - Agree the prefix count with W0.
+  - Amend HC:742-745 in words.
+  - Name one owner for §2.2's rules.
+  - Under C1's default, most of this disappears.
 
 ### 2.3 Minor
 
