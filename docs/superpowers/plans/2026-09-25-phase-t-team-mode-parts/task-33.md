@@ -343,7 +343,7 @@ shape written out and four tests including the one that refuses an owner named i
 Each is a pass-through: the local control plane adds the caller's own token and nothing else, and a
 Hub error is relayed with its own code (task 21's `a.relayHub`). `evidence` is task 31's G31-2
 field (`task-31.md:573-574`), not yet in the Hub's escalation. If any of the four is missing or answers 404 at E3, the verdict is BLOCKED — but that is now
-a regression in task 21, not a gap in the plan.
+a regression in task 21, not a gap in the plan. M4's evidence clause is still a gap: it needs task 31's G31-2, which no task builds yet (`task-31.md:573-574`; b07 round 2's N-C1), so until it is closed M4 cannot pass.
 
 #### The record's template (complete) — `docs/verification/2026-09-25-phase-t-alpha-results.md`
 

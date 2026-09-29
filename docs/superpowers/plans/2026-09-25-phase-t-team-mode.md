@@ -400,7 +400,7 @@ fragment and **S6.3** the mint API (phase 6); **S6.2** budgets; **P8-D4** and **
 | 68 | Release attribution on a team project (phase 7's thread) | TM2 | 0.25 (2 h) | 61, H23, H24 | — |
 | 69 | TM2 proof | TM2 | 0.3 (2.5 h) | 58–68 | — |
 
-**Totals:** TM1-α 33 tasks, 95 hours, about 12 focused days; TM1 24 tasks, 65.5 hours, about 8;
+**Totals:** TM1-α 33 tasks, 98.5 hours (the rows' sum since b07; it read 95 from 09-25, the batches before b07 added 2.5 and b07 1), about 12 focused days; TM1 24 tasks, 65.5 hours, about 8;
 TM2 12 tasks, 32.5 hours, about 4. These are this plan's own tasks only. They exclude the sibling plans' tasks they depend on and
 phase 6's gateway, and they are estimates, not measurements. The design's ≈ 95.5 and ≈ 16 focused
 days (`05-design.md` §12.1, §12.2) count those sibling streams too, so the two figures do not

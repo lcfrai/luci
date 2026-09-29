@@ -571,7 +571,7 @@ verb set before touching anything here.
   `:296-302`). Nothing is needed here beyond the citation: this task's five-kind expectation was
   always the right one. Task 33's E4 therefore checks a decided rule, not an open gap.
 - **G31-2.** Route 64 has no field for what a taint decide showed the human; this task needs an
-  optional `evidence` object (decision e). Task 01 §7.19 and task 07's route 64 own it.
+  optional `evidence` object (decision e). Task 01 §7.19 and task 07's route 64 own it. **Open, and it blocks TM1-α** (fix batch b07 round 2, new finding N-C1, recorded, not fixed): task 30's `DecideRequest` has no evidence field (`task-30.md:342-352`), no Hub type, column or route accepts one, and the Hub refuses unknown fields (`task-06.md:139`). So either the evidence never reaches the Hub and task 33's M4 check of it is not observed, or it is sent and route 64 refuses the decide, and M4 and M10 both fail. The fix spans tasks 01, 03, 04, 07 and 30.
 - **G31-3.** Task 22's `Directives.Pending` (`task-22.md:155-158`) cannot be "undelivered" once
   piggyback drains before the handler; this task makes it `InForce`.
 - **G31-4.** Task 30's `Effect.Kind` list (`task-30.md:334-335`) has no `send-held`, and
