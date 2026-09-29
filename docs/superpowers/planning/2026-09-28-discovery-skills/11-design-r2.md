@@ -558,17 +558,34 @@ before the harness process starts**: `.panacea/discover/decisions.md`, `.panacea
 (§5.3), and last the managed block. Last, so a block that names a set is never on disk before the
 files that hold it: the ordering rule (`materialise.go:3-16`) applied inside one call.
 
-What the branch sees is phase 4's overlay (§2.3), computed from the two list reads under the same
-5-second Hub budget as the brief (`materialise.go:81-87`). If the Hub does not answer, the start is
-refused `hub_unavailable` exactly as it is today: a session never starts on half its inheritance.
+**The set follows the stamp: one brief key, one set** (the sceptic's C2). A session inherits the
+set of the brief its `contextRef` names, and nothing else. A **branch** brief key gives that
+branch's overlay (§2.3). A **project** brief key gives the project's in-force entries and nothing of
+any branch. A branch whose own brief has no complete revision is stamped with the project's key,
+because `Inheritable` is "the latest complete branch revision, else the latest complete project
+revision, else none" (`discoverhub/read.go:77-80`). So its sessions get the project's set, and its
+own entries reach sessions from its brief's first complete revision, exactly as its own answers do.
+The lens says so on each such entry (§6.2), so nothing is dropped silently. This rule is what keeps
+`Ref` one brief key resolved (§5.2). The other rule, set digests served per `(contextRef, branch)`
+beside the `Ref`, would need the owner's reading of OD-36's "`Ref` carries their digests", so it
+is not taken.
+
+Both lists are read **to their last page** (`?after=` until `next` is `null`, `HC:46-47`) before
+anything is digested, inside the same 5-second Hub budget as the brief (`materialise.go:81-87`).
+If the Hub does not answer, or the budget ends mid-list, the start is refused `hub_unavailable`
+exactly as it is today. A session never starts on half its inheritance, and no digest ever covers
+a first page as if it were the set.
 
 **No brief key, no inheritance.** A start whose `contextRef` is `""` or `none:declined` gets no
 entry in any block and neither file: the Materialiser removes both files wherever it strips the
 block today, so a session labelled *started without the brief* finds no Discover text in a file
 this package writes (`materialise.go:110-113`, `:159`). Its inheritance record holds two empty
 sets. The thread starts at a brief key because `Ref`, which carries the set digests, is a brief
-key resolved. `""` means no brief existed (`CONTEXT.md:130-132`), so words without a brief happen
-only before a project's first brief is written; a person who declines the brief declines them too.
+key resolved. `""` means **nothing complete to inherit**: `Inheritable` ends "else none", which
+covers a project whose first brief is still open as well as one with no brief at all
+(`CONTEXT.md:130-132` names only the second). So words recorded while the first brief is open
+reach sessions once it is complete, and the lens says so (§6.2); a person who declines the brief
+declines them too.
 
 **The block**, in order (today's order is 11a §4):
 
@@ -577,12 +594,15 @@ only before a project's first brief is written; a person who declines the brief 
    decisions=sha256:<hex> ; written by Discover in Panacea App, and regenerated: change it there
    -->`. The two fixed lines (`render.go:81-82`) are deleted, so every session stops paying for them.
 2. `# <title>`, and the brief's sections, unchanged.
-3. `## Decisions already taken`, only when there is one: per decision, `- <decision> Because:
-   <why>` and, for a branch record, an origin line in the style the brief's overrides already use
-   (`_Set on this branch, departing from the project's: <old decision>_`, cf. `render.go:87-95`).
+3. `## Decisions already taken`, only when there is one: per decision, `- <decision> Gave up:
+   <why>`, because `why` holds what the choice gave up (§2.2), never the reason it won; and, for a
+   branch record, an origin line in the style the brief's overrides already use (`_Set on this
+   branch, departing from the project's: <old decision>_`, cf. `render.go:87-95`). A *not here*
+   departure prints its origin line alone: `- _Not on this branch: <the project's decision>_`.
    `context`, `rejected` and `undo` are in the file, not the block.
 4. `## Words used here`, only when there is one: per term, `- **<word>**: <is> Not <avoid>, <avoid>.`
-   and the same origin line for a departure.
+   and the same origin line for a departure; a *not here* word prints
+   `- _Not on this branch: **<word>**_`.
 5. `---`, today's footer (`render.go:105-108`), then **always** one line naming the read route:
    `Every decision and every word, in full: .panacea/discover/decisions.md and
    .panacea/discover/terms.md.` It is there when everything fitted too, so an agent never has to
@@ -592,7 +612,7 @@ only before a project's first brief is written; a person who declines the brief 
 **The inline budget.** Decisions get 4 KiB of the block and words 6 KiB, counted in rendered bytes,
 **whole entries only**: a definition is never cut. Order is fixed so the bytes are stable: a
 branch's own records first, then the project's; decisions oldest first, so adding one never
-reorders the rest; words case-folded alphabetically, then by id. Past its budget the words section
+reorders the rest; words by `hubapi.FoldWord` (§2.4), then by id. Past its budget the words section
 ends with `More in .panacea/discover/terms.md: <word>, <word>, …` — the remaining words by name, to
 2 KiB more — so the agent knows *which* words exist and where each is defined. The decisions
 section ends with `More in .panacea/discover/decisions.md.`, since a decision has no one-word name
