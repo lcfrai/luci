@@ -5335,9 +5335,9 @@ All seven parts exist and none is cut off (task-181 295 lines, 182 375, 183 331,
 ## Task 181 — signed land commits for agent sessions (L-176)
 
 Scope coverage is good and the phase 3 citations check out against `.claude/worktrees/phase-3`:
-`task-02.md:121-133` is `Hardening`/`MachineHardening`, `task-09.md:93-95` is `Identity`,
+`task-02.md:110-122` is `Hardening`/`MachineHardening`, `task-09.md:93-95` is `Identity`,
 `task-09.md:121` is step 11's `commit-tree`, `task-04.md:85-107` is the closed reason list
-(`ReasonNoGitIdentity` inside it). H1's `commit.gpgSign=false` is real, at `task-02.md:615`
+(`ReasonNoGitIdentity` inside it). H1's `commit.gpgSign=false` is real, at `task-02.md:539`
 (the part cites `:526`, where the H1 section starts — close enough, not a defect). Hub citations
 check out too: `task-03.md:348-355` `TeamPolicy`, `:504-508` `PutTeamPolicyRequest`,
 `task-06.md:276` `team_work_policies`, `task-11.md:123` the full-replace PUT, `task-11.md:288`
