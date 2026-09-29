@@ -916,26 +916,34 @@ routes; 21 stays one-shot, 06 §1.4); the Hub's 08, 14, 16b, 20 and 22.
 ### 7.5 Where it slots, and the total
 
 - **Phase 4's critical path** is Hub H0 → 07 → 08 → 09 → 11 → 12 → 14 → 23 (`plan:430`). 25, 26 and
-  28 can start now, beside 09's fix round; 27 and 30 once Hub 46 exists; 29 once 09's round closes.
-  The one task that joins the path is **32, between 12 and 14**, because 14 must wire the final
-  Materialiser rather than wire it twice: **about +3 hours on the critical path**, if 25-30 and
-  Hub 45-46 run beside it as their dependencies allow. If they do not, the path waits on them.
-- **The Hub's order**: 44a with A20 runs first, as planned → 45 → 46 (S0g) → 47 after 07b's round
-  closes → 48 after 20 (S4g). Hub 45 and 46 stand in front of phase 4's 26 and 27, and 44a
-  stands in front of everything, as it already does.
+  28 can start now, beside 09's fix round: 26 waits on no Hub task, because under the struct no
+  form is added (§2.1). 27 and 30 start once Hub 46 exists, and 46 waits on 45, which waits on 44a,
+  still unrun and out of order (the Hub worktree's `.superpowers/sdd/hub/progress.md:518-521`). 29
+  starts once 09's round closes and 27 is done. The one task that joins the path is **32, between
+  12 and 14**, because 14 must wire the final Materialiser rather than wire it twice: **about +3.5
+  hours on the critical path**, if 25-30 and Hub 44a-46 run beside it as their dependencies allow.
+  If they do not, the path waits on them, and 44a is the first it would wait on.
+- **The Hub's order**: 44a with A20 → 45 → 46 (S0g) → 47 after 07b's round closes → 48a after 19 →
+  48b after 20 and 27 (S4g). Hub 45 and 46 stand in front of phase 4's 27, and 44a stands in
+  front of everything, as it already does. **Q2 is asked before 44a runs** (§8.2).
 - **The UI lane**: 24's prototype first, the owner's look, then 31 after 18; unmerged until the
   owner has seen it running (`OD-1`).
 
 | | New | Amended | Total |
 |---|---|---|---|
-| Phase 4 | 29 h, nine tasks | 6 h, seven tasks | **35 h** |
-| Hub | 14 h, four tasks | 4.25 h, nine tasks | **18.25 h** |
+| Phase 4 | 36 h, nine tasks | 6 h, seven tasks | **42 h** |
+| Hub | 22.5 h, five tasks | 4.5 h, seven tasks | **27 h** |
 | `CONTEXT.md` | two entries, *Term* and *Project decision* (§8.2, Q6), when the plans land | — | 0.5 h |
-| **All** | | | **about 54 hours before fix rounds** |
+| **All** | | | **about 69.5 hours before fix rounds** |
 
-Against the plans: phase 4's whole plan is 57 hours (11a §1), so this is about 60% more on phase
-4; the Hub's is 133.5 (`HP:449-460`), about 14% more. With one fix round a task, on the ledgers'
-record, expect roughly 70 hours: that multiplier is a judgement, not a measurement.
+Against the plans: phase 4's whole plan is 57 hours (11a §1), so this is about 74% more on phase
+4; the Hub's is 133.5 (`HP:449-460`), about 20% more. With one fix round a task, on the ledgers'
+record, expect roughly 90 hours: that multiplier is a judgement, not a measurement. Round 2
+priced about 54 hours, and this is about 16 more. The four tasks the sceptic repriced against the
+plans' own work (Hub 46 and 48, phase 4's 27 and 31) carry 12.5 of them, what the rules it found
+missing (I1, I2, I5, I6, I7) add elsewhere is about 6.5, and the struct takes about 3 back: the
+key forms in Hub 45 and phase 4's 26, the resolver rows in Hub 20 and 48, and task 16's key
+source (§8.2, Q2). None of it is scope beyond OD-36.
 
 ## 8. What it does not do, and the open owner questions
 
