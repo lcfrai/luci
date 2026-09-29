@@ -42,8 +42,9 @@ the owner's Q2, before 44a runs.
 Method: `12-sceptic-r2.md` first, then `11-design-r2.md` in ranges, then every citation below
 against the tree: the main tree at `feat/phase-2-cockpit`; `p4` is
 `.claude/worktrees/phase-4/control-plane/internal/` at `ca737d92`; `hub` is `.claude/worktrees/hub/`
-at `cafe1303`. `11:N` is `11-design-r2.md` at `b8b9031e`; `HC`, `HP` and `T:` are as 11 §7 defines
-them. Line numbers are the tree as read on 2026-09-29.
+at `cafe1303`, whose Go paths (`hubapi/`, `hubclient/`, `migrate/`) are under
+`control-plane/internal/hub/`. `11:N` is `11-design-r2.md` at `b8b9031e`; `HC`, `HP` and `T:` are
+as 11 §7 defines them. Line numbers are the tree as read on 2026-09-29.
 
 | Round 1 | Verdict | Evidence |
 |---|---|---|
