@@ -73,11 +73,15 @@ type GitError struct {
 	// that is measured to the DEADLINE and not to the end of cmd.Run, which
 	// also contains the gitWaitDelay drain: a bound that reports a git
 	// running longer than the bound itself contradicts the one sentence the
-	// reader is meant to act on (review M-1).
+	// reader is meant to act on (review M-1). When no context ended it and
+	// os/exec gave up on its pipes, the gitWaitDelay os/exec waited after it
+	// exited is not git's runtime either, and is taken out (review 4, I-1).
 	Elapsed time.Duration
-	// Drain is the time after the deadline that cmd.Wait spent on pipes a
-	// killed git's children still held. It is reported separately so the
-	// total is still visible without it reading as git's own runtime.
+	// Drain is the time cmd.Wait spent on pipes a git's children still held
+	// after the git itself was done: the time after the deadline for a
+	// killed git, and the whole gitWaitDelay for one that exited on its own.
+	// It is reported separately so the total is still visible without it
+	// reading as git's own runtime.
 	Drain time.Duration
 	// Exited records whether a git process RAN and exited, which is a
 	// different fact from what ENDED it. A git that never started — a chdir
@@ -132,10 +136,10 @@ func (e *GitError) Output() string {
 }
 
 // ran is what the git DID, in the one clause an operator reads to decide
-// whether to argue with the bound: how long it ran before the deadline, the
-// pipe drain named separately when there was one, and "no git process was
-// started" when there was nothing to kill at all — silence that came from
-// os/exec rather than from git.
+// whether to argue with the bound: how long it ran before the deadline or its
+// own exit, the pipe drain named separately when there was one, and "no git
+// process was started" when there was nothing to kill at all — silence that
+// came from os/exec rather than from git.
 func (e *GitError) ran() string {
 	if !e.Exited {
 		return "no git process was started"
@@ -174,9 +178,10 @@ func (e *GitError) Error() string {
 	// WaitDelay expired before I/O complete` with no runtime in it: the
 	// mechanism named and the duration missing. The arm is deliberately
 	// narrow, on ErrWaitDelay alone, so what an ordinary failing git prints
-	// is unchanged.
+	// is unchanged. Review 4, I-1: the drain is the struct's, set by
+	// recordCause, and ran() names it — once, beside git's own runtime.
 	case e.Exited && errors.Is(e.Err, exec.ErrWaitDelay):
-		fmt.Fprintf(&b, "its pipes outlived it past the %s drain (%s): ", gitWaitDelay, e.ran())
+		fmt.Fprintf(&b, "its pipes outlived it (%s): ", e.ran())
 	case !e.Exited:
 		b.WriteString("no git process was started: ")
 	}
@@ -209,6 +214,35 @@ func (e *GitError) splitAtDeadline(ctx context.Context, start time.Time) {
 	// that was refused, and naming it would be a false signal.
 	if drain := e.Elapsed - ran; drain >= 10*time.Millisecond {
 		e.Elapsed, e.Drain = ran, drain
+	}
+}
+
+// recordCause records what ended this git, asked of the contexts rather than
+// of the exit status, which on Windows is the killed process's own. The
+// caller's context is asked FIRST: the rail cancels a superseded poll, and
+// that is not this runner's bound being exceeded. parent is the caller's
+// context, ctx the one carrying this runner's bound, and start the instant
+// cmd.Run began. It is Run's, and a method only so that the decision can be
+// pinned without starting a git.
+func (e *GitError) recordCause(parent, ctx context.Context, start time.Time) {
+	switch {
+	case errors.Is(parent.Err(), context.Canceled):
+		e.Canceled, e.Caller = true, true
+	case errors.Is(parent.Err(), context.DeadlineExceeded):
+		e.TimedOut, e.Caller = true, true
+		e.splitAtDeadline(parent, start)
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		e.TimedOut = true
+		e.splitAtDeadline(ctx, start)
+	// Review 4, I-1. No context ended this git: it exited on its own, and a
+	// child it left behind held its pipes. With no context done, os/exec
+	// starts its WaitDelay timer the moment Process.Wait returns and gives up
+	// exactly that long later (os/exec/exec.go:991-993, go1.26.2), so that
+	// much of Elapsed was the drain, known exactly, and the rest was git.
+	// Left in, a 3.642 s git read "git ran 5.642s" beside the 2 s drain.
+	case errors.Is(e.Err, exec.ErrWaitDelay):
+		e.Drain = gitWaitDelay
+		e.Elapsed = max(e.Elapsed-gitWaitDelay, 0)
 	}
 }
 
@@ -309,20 +343,7 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 			Exited:        cmd.ProcessState != nil,
 			ExitedNonZero: errors.As(err, &exited),
 		}
-		// What ended this git, asked of the contexts rather than of the exit
-		// status, which on Windows is the killed process's own. The caller's
-		// context is asked FIRST: the rail cancels a superseded poll, and
-		// that is not this runner's bound being exceeded.
-		switch {
-		case errors.Is(parent.Err(), context.Canceled):
-			ge.Canceled, ge.Caller = true, true
-		case errors.Is(parent.Err(), context.DeadlineExceeded):
-			ge.TimedOut, ge.Caller = true, true
-			ge.splitAtDeadline(parent, start)
-		case errors.Is(ctx.Err(), context.DeadlineExceeded):
-			ge.TimedOut = true
-			ge.splitAtDeadline(ctx, start)
-		}
+		ge.recordCause(parent, ctx, start)
 		return nil, ge
 	}
 	return stdout.Bytes(), nil

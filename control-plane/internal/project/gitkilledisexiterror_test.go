@@ -29,6 +29,19 @@ func TestAProcessKilledAtItsDeadlineCarriesItsOwnExitError(t *testing.T) {
 
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestHelperSleepsPastItsDeadline", "-test.timeout=2m")
 	cmd.Env = append(os.Environ(), helperSleepEnv+"=1")
+	// Review 4, m-1. os/exec's own Cancel, with its answer kept. A host that
+	// refuses the kill (`exec: canceling Cmd: TerminateProcess: Access is
+	// denied.` is in the 2026-09-27 evidence) makes os/exec report ITS error
+	// instead of the process's: that is a kill this host did not stage, not a
+	// fact §2.11 got wrong. watchCtx calls this before it hands its result to
+	// Wait, so reading both after Run is not a race.
+	var killErr error
+	killed := false
+	cmd.Cancel = func() error {
+		killErr = cmd.Process.Kill()
+		killed = killErr == nil
+		return killErr
+	}
 	// Nil streams are os.DevNull, so os/exec opens no pipe and starts no
 	// copying goroutine: nothing here can reach the ErrWaitDelay path, and
 	// the only error under test is the one Process.Wait reported.
@@ -36,6 +49,17 @@ func TestAProcessKilledAtItsDeadlineCarriesItsOwnExitError(t *testing.T) {
 	err := cmd.Run()
 	elapsed := time.Since(start)
 
+	if killErr != nil && !errors.Is(killErr, os.ErrProcessDone) {
+		t.Skipf("this host refused the kill at the deadline (%v), so after %s there is no killed "+
+			"process to classify: os/exec reported its own error instead, %v", killErr, elapsed, err)
+	}
+	// And a helper that ended before its deadline was never killed: a fresh
+	// process the host kills at start (0xc0000142) exits non-zero too, and
+	// would pass the assertion below without a kill having been staged.
+	if !killed {
+		t.Fatalf("the helper ended on its own after %s (%v), before its 1 s deadline's kill: no kill "+
+			"was staged, so nothing here says what a killed process carries", elapsed, err)
+	}
 	if err == nil {
 		t.Fatalf("the helper returned nil after %s: it outlived its deadline unkilled, so there "+
 			"is no kill here to classify", elapsed)
@@ -60,5 +84,7 @@ func TestHelperSleepsPastItsDeadline(t *testing.T) {
 	if os.Getenv(helperSleepEnv) == "" {
 		t.Skip("helper process; run only by TestAProcessKilledAtItsDeadlineCarriesItsOwnExitError")
 	}
-	time.Sleep(90 * time.Second)
+	// Review 4, m-1: long enough to outlive its 1 s deadline many times over,
+	// short enough that a host refusing the kill costs seconds, not 90.
+	time.Sleep(15 * time.Second)
 }

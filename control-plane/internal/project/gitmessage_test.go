@@ -21,13 +21,23 @@ import (
 // pipes os/exec gave up on — took no arm of the switch at all, so what
 // reached the operator was `exec: WaitDelay expired before I/O complete` with
 // no runtime in it. The mechanism was named; the duration was not.
+//
+// Review 4, I-1 and I-2. This fixture's Elapsed used to be 3986ms, copied from
+// review 3's measurement, which is a runtime with the drain already inside it:
+// the pin asserted the defect. And the drain clause was asserted nowhere, so
+// the arm could name any number as the drain and stay green. Git's runtime and
+// the drain are now two numbers, as Run records them, and the one substring
+// below pins the arm's text, both numbers, and that the drain is named once.
 func TestGitErrorMessageNamesTheRuntimeOfAGitWhosePipesOutlivedIt(t *testing.T) {
 	ge := &project.GitError{
 		Args:    []string{"config", "--global", "--edit"},
 		Dir:     `C:\tmp\p`,
 		Err:     exec.ErrWaitDelay,
 		Timeout: 30 * time.Second,
-		Elapsed: 3986 * time.Millisecond,
+		// Git's own runtime, and the wait os/exec spent on its pipes after it
+		// exited. Neither is the other's copy, and neither is the bound.
+		Elapsed: 1986 * time.Millisecond,
+		Drain:   2 * time.Second,
 		// The fact the round split out: a process RAN. It exited 0, so git
 		// itself answered nothing and ExitedNonZero stays false.
 		Exited: true,
@@ -35,12 +45,12 @@ func TestGitErrorMessageNamesTheRuntimeOfAGitWhosePipesOutlivedIt(t *testing.T) 
 
 	msg := ge.Error()
 	if strings.Contains(msg, "no git process was started") {
-		t.Errorf("error = %q, but this git ran 3.986s: the operator is sent to look at a "+
+		t.Errorf("error = %q, but this git ran 1.986s: the operator is sent to look at a "+
 			"process create that did happen", msg)
 	}
-	if !strings.Contains(msg, "git ran 3.986s") {
-		t.Errorf("error = %q, want git's own runtime in it: an operator deciding whether to "+
-			"argue with the bound cannot read a duration that is not there", msg)
+	if want := "its pipes outlived it (git ran 1.986s, then 2s waiting for its pipes): "; !strings.Contains(msg, want) {
+		t.Errorf("error = %q, want %q: an operator deciding whether to argue with the bound "+
+			"needs git's own runtime, and the drain beside it as a second number", msg, want)
 	}
 	if !strings.Contains(msg, "WaitDelay expired") {
 		t.Errorf("error = %q, want os/exec's own sentence kept", msg)

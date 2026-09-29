@@ -85,4 +85,18 @@ func TestExecRunnerSaysGitRanWhenItExitedZeroWithItsPipesStillHeld(t *testing.T)
 		t.Errorf("error = %q, but git ran for %s: the operator is sent to look at a process "+
 			"create that did happen", msg, elapsed)
 	}
+	// Review 4, I-1. No context ended this git, so os/exec started its
+	// WaitDelay timer when git exited and gave up that long later
+	// (os/exec/exec.go:991-993, go1.26.2): cmd.Run's whole duration is git's
+	// runtime PLUS the drain, and the message printed the sum as "git ran".
+	// The drain is its own number, and the two together are no more than the
+	// time this Run took, so neither can be counted twice.
+	if ge.Drain <= 0 {
+		t.Errorf("Drain = %s after %s for a git whose pipes os/exec gave up on: the drain is "+
+			"still inside Elapsed (%s), reported as git's own runtime", ge.Drain, elapsed, ge.Elapsed)
+	}
+	if ge.Elapsed+ge.Drain > elapsed {
+		t.Errorf("Elapsed %s + Drain %s is more than the %s this Run took: a number is counted twice",
+			ge.Elapsed, ge.Drain, elapsed)
+	}
 }
