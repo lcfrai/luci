@@ -1076,7 +1076,7 @@ sceptic's own `11:N` citations are this file at `bd9b6299`. No other file was ed
 | M8 | four gaps an implementer would guess at | the resolver's field is gone with C1 (§2.4:380-382); the digests' refresh at §5.2:647-651 and task 16 (§7.4:915); the second model call in task 30 (§7.3:885); matching and filtering at §4.1:518-525 and §4.3:548-555 |
 
 **Where this revision departs from the sceptic, and why.**
-- The sceptic said the struct also removes "a §3.1 prefix row for the ten-check" (its C1). It does
+- The sceptic said the struct also means "no §3.1 prefix row for the ten-check" (its C1). It does
   not: §3.1 is the Hub's id-prefix table (`HC:103-109`), which any new Hub entity touches whatever
   its key. The ten-check keeps ten because the two prefixes live in their own file and in §18
   (§2.1:227-233), as phase W's do, not because of the struct.
