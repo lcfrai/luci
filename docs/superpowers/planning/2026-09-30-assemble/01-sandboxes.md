@@ -214,6 +214,54 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
 - **Integration effort:** 20+ days on Azure. **Verdict: reject**; reference its PTY and
   pause/resume API shape.
 
+### 4.9 Daytona — **REJECT**
+
+- The repository's own README: "As of June 2026, Daytona's core development has moved to a
+  private codebase"; the public repo (71,690 stars) is frozen at **v0.190.0 (2026-06-23)**,
+  AGPL-3.0, with no further fixes or security patches. Self-hosting therefore means running a
+  frozen AGPL codebase. The SaaS regions are US East, US West, EU Central, EU West and India;
+  **no AU region**. "Custom regions" (our own runners on Daytona's control plane) are
+  invite-only and experimental. **Verdict: reject** on licence, maintenance and residency. It is
+  the only entry the GLASSES catalogue returns for this capability, and that entry is stale.
+
+### 4.10 GitHub Codespaces — **REJECT**
+
+- Per-codespace VMs, now GA on GitHub Enterprise Cloud **with data residency in Australia**
+  (2026-04-01), organisation-owned codespaces only. But: GitHub repositories only, while `OD-4`
+  needs Azure DevOps too; KPMG's GitHub is an EMU on github.com, not a GHE.com data-residency
+  tenant; prebuilds speed the image, but there is no pool of running machines to claim; the
+  terminal arrives through GitHub's tunnel, not a socket we own; it cannot run in a customer's
+  cloud. **Verdict: reject.**
+
+### 4.11 Ona (formerly Gitpod) — **REJECT**
+
+- OpenAI announced its acquisition of Ona on 2026-06-11 to run Codex agents (several press
+  reports; no primary source read). Runners are AWS and GCP; no Azure runner. Gitpod Classic
+  (`gitpod-io/gitpod`, AGPL-3.0) last released 2022.11.3. **Verdict: reject**: no Azure, and
+  its roadmap now belongs to one model vendor.
+
+### 4.12 OpenHands runtime — **REFERENCE**
+
+- MIT core, 89,540 stars, v1.24.0 on 2026-09-25 (`OpenHands/OpenHands`). Its runtime is built
+  around OpenHands' own action-execution server for its own agent, with Docker and remote
+  runtimes; it is not a general place to run unmodified CLIs on a PTY. **Verdict: reference.**
+
+### 4.13 DevPod — **REJECT**
+
+- MPL-2.0, 15,248 stars, but the last release is v0.6.15 (2025-03-10) and the last push
+  2025-11-14. It is a client-side launcher for dev containers with no multi-tenant control plane
+  and no warm pool. **Verdict: reject.**
+
+### 4.14 Also looked at, briefly
+
+| Candidate | What it is | Why not |
+|---|---|---|
+| Morph Cloud | SaaS microVMs with snapshot, branch and restore *(upstream)* under 250 ms | SaaS; regions and residency not documented; not deployable in Azure |
+| `superradcompany/microsandbox` | Apache-2.0 libkrun microVMs on one KVM host; 8,478 stars; v0.7.4 on 2026-09-29 | A single-host runtime, not a pool or a service; a candidate for **local mode** later, not cloud |
+| Microsoft Dev Box | Managed Windows dev VMs | Retiring 2026–2028 (already ruled out in `CLAUDE.md`) |
+| AWS Bedrock AgentCore Runtime, Fly.io Machines | microVM-per-session services | Wrong cloud for `OD-18`, or no Azure; not researched further |
+| `coder/agentapi` | Chat API synthesised from a terminal screen | Archived; and reading the rendered screen is what `OD-8` rules out |
+
 ## 5. Recommendation
 
 _TBD — solution, days, what it replaces (phases and task counts), glue we still build, risks._
