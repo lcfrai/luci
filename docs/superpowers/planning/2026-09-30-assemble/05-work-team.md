@@ -49,7 +49,40 @@ the product; the tracker is not.
 
 ## 2. Candidates — trackers KPMG already runs
 
-_Pending._
+Both are already licensed, already Entra-backed and already the git hosts of `OD-4`. Neither
+needs procurement, a new DPA or a new login for a KPMG user.
+
+### 2.1 Azure DevOps Boards — **integrate (first connector)**
+
+| | |
+|---|---|
+| **Does** | Work items (epic/feature/story/task/bug), boards, backlogs, sprints, queries, dashboards, Delivery Plans, comments, @mentions, links to commits/PRs/builds. REST API, a Go client (`microsoft/azure-devops-go-api`), service hooks (webhooks) for created/updated/commented. |
+| **Agents** | **Azure Boards → GitHub Copilot is GA**, including custom agents, with Copilot activity shown on the board card ([MS blog](https://devblogs.microsoft.com/devops/github-copilot-for-azure-boards/), [sprint 269 notes](https://learn.microsoft.com/en-us/azure/devops/release-notes/2026/sprint-269-update)). It sends work to *GitHub's* agent, not to our sandboxes; our own trigger is a tag or field plus a service hook. |
+| **MCP** | `microsoft/azure-devops-mcp`, **MIT** (LICENSE.md read 2026-09-30). The **remote** server at `mcp.dev.azure.com` went **GA 2026-08-05**, Entra-authenticated, but Claude Code cannot connect yet: it needs Entra dynamic client registration ([GA post](https://devblogs.microsoft.com/devops/azure-devops-remote-mcp-server-ga/)). The local server works today. |
+| **Licence / price** | Commercial SaaS KPMG already pays for. Basic **$6/user/month after 5 free**; Stakeholder access free. |
+| **Deploys** | SaaS. **Australia is a selectable geography**; data is geo-replicated inside it ([data location](https://learn.microsoft.com/en-us/azure/devops/organizations/security/data-location?view=azure-devops)). Exception: **profile data of users outside US/EU/UK is stored in the US**. Azure DevOps Server exists for a customer who must host it. |
+| **Enterprise fit** | Entra-native, conditional access, audit streaming, service principals and managed identities as callers. **Done-means-proven is enforceable here**: an inherited-process rule can restrict the transition to `Done` to members of one group ([rule docs](https://learn.microsoft.com/en-us/azure/devops/organizations/settings/work/apply-rules-to-workflow-states?view=azure-devops)), so only PanaceaApp's proof identity can set it. |
+| **Maturity** | Microsoft first-party, the incumbent at KPMG. |
+| **Gaps** | Not Linear-class speed. No notion of a brief criterion (a custom field or link holds it). |
+| **Integration** | **3-4 days**: connector (read, write, comment, link), service hook receiver, Start-from-work-item, the Done rule and field. |
+
+### 2.2 GitHub Issues and Projects — **integrate (second connector)**
+
+| | |
+|---|---|
+| **Does** | Issues, **sub-issues, issue types, dependencies**, "relates to" (preview), **issue fields GA 2026-07-02** (typed org-level metadata) ([changelog](https://github.blog/changelog/2026-07-02-issue-fields-are-now-generally-available/)), Projects tables/boards/roadmaps, iterations, saved views. GraphQL + REST, webhooks, `go-github`. |
+| **Agents** | **Agent HQ**: assign an issue to Copilot, **Claude** or Codex from the Assignees menu; each opens a draft PR ([changelog 2026-02-04](https://github.blog/changelog/2026-02-04-claude-and-codex-are-now-available-in-public-preview-on-github/)). The documented third-party list is **only Claude and Codex**; registering *our own* agent as an assignee is not documented. Those agents run on GitHub's compute, outside our Kata sandbox and LiteLLM gateway. |
+| **MCP** | `github/github-mcp-server`, **MIT** (LICENSE read 2026-09-30), local or remote. |
+| **Licence / price** | Commercial SaaS KPMG already pays for (EMU per memory; Enterprise ~$21/user/month list, unverified for KPMG's contract). |
+| **Deploys** | SaaS. **GHE.com data residency in Australia is GA since 2025-02-04** ([changelog](https://github.blog/changelog/2025-02-04-github-enterprise-cloud-data-residency-in-australia-is-generally-available/)). Whether KPMG's EMU tenant is on github.com or an AU GHE.com subdomain is **unverified**. |
+| **Enterprise fit** | EMU with Entra OIDC, SCIM, audit-log streaming to Azure Event Hubs/Blob. **Cannot restrict who closes an issue**, so "proven" becomes an issue field only our app writes, and a close without proof reads *done, not proven* in our cockpit. |
+| **Gaps** | Projects are fast enough, not Linear-fast. No criterion concept (issue field or sub-issue link holds it). |
+| **Integration** | **3-4 days** (GitHub App, webhooks, GraphQL for Projects/fields, Start-from-issue), sharing the tracker interface with 2.1. |
+
+**Why these two first.** Every KPMG user already has them, both have an AU hosting answer, both
+speak Entra, both ship an MIT MCP server our sandboxed agents can use under a scoped token, and
+`OD-4` already puts both behind one host interface in phase 3. The tracker connector is the same
+shape one layer up.
 
 ## 3. Candidates — SaaS trackers to buy
 
