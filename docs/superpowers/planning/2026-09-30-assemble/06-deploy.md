@@ -68,14 +68,76 @@ product-specific part, and it is small.
 
 ## 3. Candidates
 
+**How to read this section.** Every product below except the signing tools would be a **second
+deploy platform beside Panacea**. For our own environment that adds work instead of removing it,
+so the useful question for each is narrower: does it give the cockpit something Panacea lacks, or
+a deploy target a customer can host before Panacea is lifted (`OD-13`)?
+
+**GLASSES coverage.** The catalogue (offline index and `lcfr.ai/api/mcp`, both searched
+2026-09-30) lists Coolify, Dokploy, Dokku, CapRover, Portainer, Appwrite, Rainbond, Openship and
+Uncloud as deploy services. It has **no entry** for Argo CD, Kargo, Backstage, Port, Sigstore,
+SLSA, in-toto, Tekton or Kyverno (searches for `gitops`, `argo cd`, `attestation`, `sigstore`,
+`backstage` and `developer portal` returned 0). Everything else here came from the web.
+
 ### 3.1 Coolify
-*(pending)*
+
+- **Does:** self-hosted PaaS (Heroku/Vercel-style) on your own servers over SSH and Docker: git
+  push to deploy, preview deployments per pull request, 280+ one-click services.
+- **Licence:** Apache-2.0 (GLASSES, upstream metadata). Permissive.
+- **Deploy:** self-host on any VM, so an Azure VM in Australia East works. **No Kubernetes**: the
+  v5 plan is Coolify's own Docker-based scaling, and Docker Swarm is deprecated
+  ([docs](https://coolify.io/docs/knowledge-base/docker/swarm)). So no Kata, no AKS.
+- **Enterprise fit:** OIDC login arrives in **v4.4-rc.1 (2026-08-19)**, not yet stable; structured
+  audit logging since v4.1.0; the only role split is Member read-only
+  ([changelog](https://coolify.io/changelog)). Git sources are GitHub, GitLab, Bitbucket and Gitea;
+  **Azure DevOps is not listed**, which fails `OD-4`. Preview deployments need the GitHub App.
+- **Maturity:** 62,365 stars (GLASSES, 2026-09-29); v4.3.9 on 2026-08-18; one company (coollabs).
+- **Gaps:** no scans, no posture gate, no evidence, no promotion model, no ADO, single-box design.
+- **Effort:** 5-8 days to stand up, secure and wire, and we would still own scans and evidence.
+- **Verdict: reject.** It is a good small-team PaaS and a useful reference for how simple a
+  preview-deploy screen can be. It is weaker than Panacea on every regulated-enterprise axis.
 
 ### 3.2 Dokploy
-*(pending)*
+
+- **Does:** the same class as Coolify, on Docker Swarm, with multi-server support and previews.
+- **Licence: split since 2026-01-21.** Core Apache-2.0; everything under `/proprietary` is under
+  a **Dokploy Source Available License**, and that is where **SSO/SAML, SCIM, custom roles, audit
+  logs and white-labelling** live ([LICENSE.MD](https://github.com/Dokploy/dokploy/blob/canary/LICENSE.MD),
+  [enterprise docs](https://docs.dokploy.com/docs/core/enterprise)). **RESTRICTED**: the parts an
+  enterprise needs are source-available, need a licence key, and cannot be shipped into a customer
+  tenancy under our permissive rule.
+- **Deploy:** self-host, or Dokploy's managed Enterprise Cloud (region not published).
+- **Enterprise fit:** only with the paid licence. Pricing is "contact sales".
+- **Maturity:** 37,564 stars (GLASSES); commercial backing by the Dokploy team.
+- **Gaps:** as Coolify, plus the licence.
+- **Effort:** as Coolify, plus a commercial negotiation.
+- **Verdict: reject** on licence and on fit.
 
 ### 3.3 Azure Container Apps with GitHub Actions or ADO Pipelines
-*(pending)*
+
+- **Does:** managed containers on Azure. **Revisions** are immutable snapshots; **labels** give a
+  revision its own stable URL, which is a preview per branch; **traffic splitting** is promotion
+  (blue-green, canary); re-activating an old revision is rollback; 100 inactive revisions kept
+  ([revisions](https://learn.microsoft.com/en-us/azure/container-apps/revisions), updated
+  2026-02-26; "deployment labels" mode is **preview**).
+- **Licence:** commercial Azure service. Billing is per vCPU-second, GiB-second and request, with
+  a monthly free grant of 180,000 vCPU-s, 360,000 GiB-s and 2 million requests per subscription
+  ([billing](https://learn.microsoft.com/en-us/azure/container-apps/billing)).
+- **Deploy:** in the customer's own subscription, Australia East and Southeast available. Build
+  with `azure/container-apps-deploy-action` (GitHub) or the `AzureContainerApps` task (ADO), so
+  both `OD-4` hosts work.
+- **Enterprise fit:** strong. Built-in Entra authentication per app, managed identity, private
+  VNet environments, Azure Activity Log for audit, Defender for Containers for image scanning.
+- **Maturity:** GA since 2022, Microsoft-backed.
+- **Gaps:** none of Panacea's posture engine, scan set or evidence document; it would need a
+  pipeline for scans (`OD-24`) and our own evidence. Running a second platform in our environment
+  duplicates Panacea.
+- **Effort:** 3-5 days for a second `deploy.Deployer` behind the existing conformance suite
+  (revision per commit, label per branch, traffic shift for promote, activate for rollback), plus
+  a scan pipeline template.
+- **Verdict: integrate later, not now.** It is the best answer to **"where does a customer's app
+  deploy before Panacea is lifted in"**, because the customer needs no cluster. Not needed for our
+  own environment, where Panacea already does all of this.
 
 ### 3.4 Argo CD, Argo Rollouts and Kargo
 *(pending)*
