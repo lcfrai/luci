@@ -85,7 +85,7 @@ func TestTheGlobalGitFilesAreTheHostGitsOwnAnswer(t *testing.T) {
 		// Its value is absolute, so its origin file is kept for the session to
 		// check (X-3 review 3 I-C).
 		{"excludes set in the global scope", noXDG, globalAnswers(map[string]eolAnswer{
-			hostProbe("core.excludesFile"):                              {out: "~/my-ignore\n"},
+			hostProbe("core.excludesFile"):                                           {out: "~/my-ignore\n"},
 			globalOriginAsk("--global", "~/.config/git/ignore", "core.excludesFile"): {out: fileOrigin("/host/.gitconfig", home+"/my-ignore")},
 			globalAsk("~/.config/git/attributes", "core.attributesFile"):             {out: fileOrigin("/host/.gitconfig", "")},
 		}), api.GitGlobalFiles{Excludes: home + "/my-ignore", Origins: []string{"/host/.gitconfig"}}},
