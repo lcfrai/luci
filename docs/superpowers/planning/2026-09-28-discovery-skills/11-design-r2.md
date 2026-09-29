@@ -299,39 +299,76 @@ transaction, all or nothing; each item names its `baseRevision`, `0` for a new r
 mints the id and numbers the revision `baseRevision + 1`, never merges, and answers 409
 `revision_conflict` on a stale base. A retry carries the same `Idempotency-Key` (`HC:50-53`, `:814`).
 
+**Inside one batch.** An item may name a record that an earlier item of the same batch creates, by
+that item's index, `{"item": 0}`, wherever a struct or an id is due; the Hub puts in the id it
+mints, because no caller can know it. Heads are locked in id order, as the brief's are in `briefId`
+order (`HC:808`). Items apply in **two passes**: first every item that takes a record out of force,
+then every item that puts one in force or keeps it there, each pass in request order. So a promote
+that retires what it overrode never trips its own unique index.
+
 | Op | Transition | The item |
 |---|---|---|
 | `create` | nothing → `@1`, `in_force` | `baseRevision: 0` and the fields |
 | `revise` | `@n` → `@n+1`, same state | a better definition, or a rename: `word` changes, the id and its history stay |
 | `retire` (term) | `in_force` → `retired` | optional `replacedBy`: two words turned out to be one thing |
-| `supersede` (decision) | `in_force` → `superseded` | `replacedBy` required: the decision that replaced it, in this batch or earlier |
+| `supersede` (decision) | `in_force` → `superseded` | `replacedBy` required: an earlier record, or an item of this batch |
 | `withdraw` (decision) | `in_force` → `withdrawn` | it should never have been recorded; nothing replaced it |
 | `reinstate` | `retired` or `withdrawn` → `in_force` | the word check below runs again |
-| `depart` (branch) | a project `@n` → a new branch record | a `create` with `scope: branch` and `overrides: <that key>` |
-| `promote` (branch) | branch → project | a `revise` with `scope: project`; the batch also retires or supersedes the entry it overrode |
+| `depart` (branch) | a project entry's `@n` → a new branch record, born `in_force`, or *not here*: `retired` for a term, `set_aside` for a decision | `baseRevision: 0`, `scope: branch`, `overrides` naming `@n`, and the state it is born in |
+| `promote` (branch) | an `in_force` branch record → project | a `revise` with `scope: project`; the batch also retires or supersedes the entry it overrode |
+| `restore` | `@n` → `@n+1`, holding the fields, scope and state of an earlier revision | `restores: <that revision>`; **what Undo writes**, below |
 | `erase` | every revision → no content, and the head leaves force, as an erased brief's head is archived | never an item of the batch route: the org admin's erase route, through an owner function (§2.6) |
 
-**Write-time checks, in order**, each its own code: the grammar and §2.2's field rules (400);
+**Undo** (§3.2) writes `restore`, as the brief's Undo writes a `restore` revision (phase 4
+`task-19.md:7-9`), so nothing is deleted and the history says what happened. It restores the
+revision before the gesture: *Use the project's* is undone by restoring the branch record, and a
+promote by one batch that restores the promoted record and the project entry it retired, applied
+exits first. So every gesture has an inverse. A `create` has no revision before it, so its Undo is
+`withdraw` or `retire`, which leave force and need no word check. `restore` skips rule 2 below,
+because the state it restores is one the Hub already held; no write skips rule 1.
+
+**Write-time checks, in order**, each its own code: the struct and §2.2's field rules (400);
 `settledIn`, `overrides` and `replacedBy` each name a non-erased record in **this** project, and
-`overrides` a project-scoped one (422 `key_unresolvable`, the design approval's code, `HC:887-897`);
-then **no other in-force term in the same scope has the same case-folded word** (409 `word_taken`),
-enforced by a unique index inside the write's transaction. So a collision is refused when it is
-written and never discovered when it is resolved. A departure is not a collision: it is another
-scope, and it names what it departs from. A branch record that departs from nothing is also checked
-against the project's in-force words, so a branch cannot hold a second meaning of a project word
-without saying that it departs: the 409 names the project entry, and the lens offers **Depart on
-this branch** (§6.3). If a project write of the same word races that check, the result is §2.3's
-later-project-word case, which the overlay already handles, so no lock is needed.
+`overrides` a project-scoped one of the same kind (422 `key_unresolvable`, the design approval's
+code, `HC:887-897`); a new branch record's brief is not archived (409 `brief_archived`, §2.3); then
+the word check, 409 `word_taken`, naming the entry it met. The word check is three rules:
+
+1. **One in-force entry per word in a scope**, by a unique index on the head's folded word inside
+   the write's transaction. A collision is refused when it is written, never found when resolved.
+2. **A branch word against the project's.** A branch record that departs from nothing is checked
+   against the project's in-force words, so a branch cannot hold a second meaning of a project word
+   without saying that it departs; the lens offers **Depart on this branch** (§6.3). A departure,
+   and a `revise` that renames one, is checked against every project word but the one it
+   overrides. If a project write of the same word races this rule, the result is §2.3's
+   later-project-word case, which the overlay already handles, so no lock is needed.
+3. **No word both used and avoided.** A `word` that another in-force term on the same branch's view
+   lists in `avoid`, or an `avoid` naming such a term's `word`, is refused. Two machines therefore
+   cannot record *lane, not track* and *track, not lane* (rounds are per machine, Q5). Retiring the
+   other term in the same batch clears it, since exits apply first.
+
+**One fold, in one function**: `hubapi.FoldWord`, NFC and then Unicode simple case folding, from
+`golang.org/x/text`, already in both modules as an indirect dependency (the Hub tree's
+`control-plane/go.mod:62`, phase 4's `:56`). The head
+stores its result for rule 1's index, rules 2 and 3 compare with it, and phase 4's overlay and sort
+(§5.1) call the same function, which reaches phase 4 by merge with the rest of `hubapi` (§7.2).
+
+**One owner for §2.2's rules: the Hub.** They are one `hubapi` function beside the wire types. The
+batch routes run it and refuse 400; phase 4's `discoverhub` runs the same function before it writes,
+and task 25 builds no copy, so the two sides cannot drift. This is the one place the Hub reads a
+record's fields for meaning, and the record is not a brief: the contract's "It reads exactly one
+field of a revision's content: `status`" (`HC:742-745`) is about brief content, which stays opaque.
+The contract's §18 says that in words (§7.4, A20).
 
 **Roles are the brief's** (`HC:581-588`): `V` for the two reads, `M` for the two batch writes
 (`HC:329`), and erasure the org admin's alone, as the brief's is (row 45, `HC:607`).
 
-Two reads, which with the two batch writes and the two erasures (§2.6) make six new rows in §7.0's
-closed table (`HC:557-607`): `GET /v1/projects/{projectId}/terms`
-and `…/decisions`, each the heads of one project, filterable to one branch brief, every revision's
-fields as §2.2 lists them. The resolver `GET /v1/refs` (row 27, `HC:589`) accepts `term:` and
-`decision:` keys among its 1-100 and answers `kind: "term"` or `"decision"`; a key outside the
-grammar stays `invalid` (`HC:836`).
+Two reads, which with the two batch writes and the two erasures (§2.6) make six new routes. They
+are written in the contract's appended §18, not as rows inserted in §7.0's closed table
+(`HC:557-607`, A20): `GET /v1/projects/{projectId}/terms` and `…/decisions`, each the heads of one
+project, filterable to one branch brief, every revision's fields as §2.2 lists them, and each branch
+head carrying its brief's `archivedAt`. A struct therefore resolves from its kind's list. The
+resolver `GET /v1/refs` (row 27, `HC:589`) does not change: no struct reaches it, and it answers no
+new `kind`.
 
 ### 2.5 The reference to the brief revision it settled in
 
