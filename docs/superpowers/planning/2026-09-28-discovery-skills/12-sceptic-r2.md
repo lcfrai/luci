@@ -44,7 +44,61 @@ which OD-36 then ruled out in so many words. Each of `06-sceptic.md`'s findings,
 
 ### 2.1 Critical
 
-*pending*
+**C1. Q2's default contradicts OD-36's own words, and the design builds on it while saying no
+question blocks the build.** §0 (11:51-54), §2.1 (11:195-214), Q2 (11:817), Hub 45, phase 4's 26,
+44a's A20.
+- **The owner's text.** OD-36, *What does not move*: "the brief content model, and the provenance
+  key grammar, which the Hub contract owns" (`owner-decisions.md:409`). The decision note, under
+  *What it does NOT change, and this is the point*: "The provenance key grammar, which the **Hub
+  contract** owns, two parsers compile, and 64 plan files across six worktrees quote" (`10:54-55`).
+- **What the design does.** It adds `term:` and `decision:` to the contract's §3.2 (A20), to both
+  parsers (Hub 45, phase 4's 26) and to the resolver (Hub 20, 48). It reads *does not move* as
+  *no existing form changes* (11:817). But the note names the two compiled parsers as the thing
+  protected, and the design edits both.
+- **Why it is still the owner's call, not a defect of reasoning.** The same note sketches
+  `term:tm-7f2a@2 -> brief:bf-9c1d@4` (`10:14`), and `PC:104-107` made `kind:` extensible. The
+  owner's record points both ways. The design was right to ask Q2. It was wrong to take the reading
+  that contradicts the register row as the default.
+- **What fails.** §0 calls Q2 "the one whose other answer changes the design's shape" and, in the
+  same paragraph, says none of the seven questions "blocks the build" (11:51-54). If the owner means
+  what the row says, then Hub 45, phase 4's 26, A20, the resolver rows in Hub 20 and 48, the set
+  digest's `{"key","digest"}` items (11:536), the inheritance record's `keys` (11:539-540), the
+  lens's key line (11:640-641) and task 16's key source are all rebuilt after they ship.
+- **The alternative is cheaper by the design's own count**: about 1.5 h (11:817). It also removes
+  most of I3: no §3.1 prefix row for the ten-check, no second `hubapi/keys.go` edit racing phase W,
+  and no new `kind` value in `/v1/refs`.
+- **Fix.** Make the struct `{kind, id, revision}` the default, since it is the plain reading of the
+  row and 06's shelf clause (06:348-351). Keep key forms as the owner's alternative. Put Q2 in front
+  of the owner before A20, Hub 45 or phase 4's 26 starts, and delete "none of which blocks the
+  build" from §0.
+
+**C2. Under a project key, §5.1's branch overlay and §5.2's shared `Ref` cannot both be true, so
+either the stamp never matches or a branch's departures are dropped.** §5.1 (11:484-486), §5.2
+(11:529-534, :552-554).
+- **The facts.** `Inheritable` is "the latest complete branch revision, else the latest complete
+  project revision, else none" (`p4 discoverhub/read.go:77-80`). A session on a branch whose own
+  brief has no complete revision is therefore stamped with the **project** key. §5.1 says what the
+  branch sees is its overlay. §5.2 says a project key's `Ref` carries "the project's" set digests,
+  and "two sessions with one contextRef still share one Ref" (11:533-534). A branch record can exist
+  before its brief is complete: it anchors to the branch brief's id (11:236), which exists from
+  `headRevision: 0` (HC:759), and `settledIn` may name an open revision (11:329-330).
+- **What fails, concretely.** Branch B's brief has two open revisions. On B, the project decision
+  *uploads go direct* was departed from with *uploads go through presigned URLs*. A session on B
+  starts under `brief:<project>@4`. There are two outcomes, and both are wrong:
+  - **The Materialiser writes B's overlay.** The inheritance record then holds the overlay's
+    digest, but the `Ref` for `@4` carries the project's. Develop shows *the project's words moved
+    since this session started* (11:552-554) for as long as the session lives, although nothing
+    moved. That is a false provenance claim.
+  - **It writes the project's set.** The agent on B is then handed *uploads go direct*, the
+    decision its branch departed from. That loses a decision on the Develop hop.
+- **One `Ref`, many sets.** A session on branch C under the same key gets C's overlay, so one
+  `Ref` stands for two different sets. "`Ref` stays one brief key resolved" (11:533) is false for
+  every project key used on more than one branch.
+- **Fix.** Choose one rule, write it down and price it:
+  - **Either** the set digests are keyed by `(contextRef, branch)` and served beside the `Ref`, not
+    inside it. OD-36's "`Ref` carries their digests" then needs the owner's reading.
+  - **Or** a project key inherits the project's set only, and the lens says a branch's own entries
+    reach sessions from its first complete revision.
 
 ### 2.2 Important
 
