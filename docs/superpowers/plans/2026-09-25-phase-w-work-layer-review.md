@@ -6160,3 +6160,56 @@ The phase 2 anchors were read in this worktree: `backend.go:62`, `:181-192`, `:2
 `:269-279`, `:299-302`, `:337-345`; `dockerbe/docker.go:235-236`; `images/sandbox/entrypoint.sh`;
 `sandboxd/internal/server/server.go:85`; `api/sessions.go:866`, `:1536`; `cmd/api/config.go:75`.
 Nothing was executed but `sumhours.py` and the citation scans; everything else is plan text.
+
+## Fix batch b13, round 1 (2026-09-29)
+
+One finding, **S19-C1 (Critical)** at `:5401-5422`: nothing bound a Slack workspace to an org, so a
+team admin in org A could link org B's channel by its workspace id, and Slack text and issue
+metadata would cross orgs both ways. Verified before the fix: `slack_channel_links`,
+`slack_person_links` and `slack_link_nonces` had no org column; the install had `org`, not the
+`org_id` task 06's policy compares, and no `REFERENCES orgs (id)`; every key to `slack_installs`
+was single-column, which H07a's `TestEveryForeignKeyCarriesTheOrg` refuses (`task-06.md:19-24`);
+the RLS was a comment, and no grant existed. Commits `bbcbfdb2`, `6a672422`, `786a8cf4` and the one
+that adds this section. Every line below is post-fix, in `…-parts/task-182.md` unless named.
+
+| Part of the fix | Change | File:line |
+|---|---|---|
+| the binding | the install is *the workspace's one org*: `org_id REFERENCES orgs (id)`, a global key (another org's PUT of the same workspace → 409 `slack_workspace_taken`), `UNIQUE (org_id, slack_team_id)` as every key's target | `:46`, `:195-202`, `:412` |
+| org on all three tables, and a fifth | `org_id` on `slack_channel_links`, `slack_person_links`, `slack_link_nonces` and `slack_events_seen`; every foreign key carries it, so a crossed row is a `23503` | `:203-229` |
+| taken from the install, inside the write's transaction | the channel link reads `InstallOrg` under RLS; a nonce takes the minting install's org and a person link the nonce's; the two Slack routes find the org with `slack_install_org` and run in that org's transaction | `:234-236`, `:255`, `:411-414`, `:473-495` |
+| refused 404 / 410 | a channel link to an install not of the caller's org → 404 `slack_install_not_found`, nothing written; another org's nonce → 410 with a used nonce's body, the nonce kept for its own org; `{orgId}` must be the caller's | `:180`, `:184-189`, `:411-415` |
+| task 06's RLS on all four, and the fifth | task 06's loop verbatim (`task-06.md:367-380`), no `FORCE`, so the owner can answer `slack_install_org` (`task-145.md:434-438`); grants in task 06's shape; the function itself | `:431-462` |
+| the outbound half | a Slack binding resolves through a channel link of its own org and team at post time and takes the bot token from that link's install; the provider column task 145's table lacks | `:417-425`, `:464-466` |
+| two tests red first, and a third | `TestChannelLinkCrossOrgRefused` (with the 409 squat case) and `TestPersonLinkCrossOrgRefused`, each again with the Go check off and each with a control, so a missing route cannot pass it; `TestSlackTablesOrgIsolated` for the schema layer; the matrix row runs all six §5.3 columns, `X` twice | `:304-307`, `:321-325`, `:330-332` |
+| acceptance | the server filter `'Slack\|Matrix\|Deliver'` matched none of the eleven named server tests; it now matches all fourteen; H07a's catalog tests run over the new keys and grants | `:340-346` |
+| restated | the data rule; the scope paragraph's two column lists | `:36-38`; `…-scopes/tasks-181-187.md:103-108` |
+| Produces, Consumes | `hub.slack_install_org`; task 06, H07a, H16b, task 145's table | `:379-390` |
+
+**Two rulings, each the root-cause option (rule 8).**
+1. **Five tables, not four.** `slack_events_seen` gains `org_id` and the policy as well: its row is
+   written only after the org is set, and the janitor prunes per org (`hub-contract.md:2232-2233`),
+   so without an org it would be the one Slack table outside the line. S19-I2 (which transaction
+   the insert runs in) is untouched.
+2. **The grants are written out.** The finding asks for the policy; task 06's pattern is the policy
+   *and* explicit grants (`task-06.md:382-387`), and without them `hub_app` reads nothing. A link is
+   deleted and made again, never updated, so the only `UPDATE` is on the install's two refs.
+
+**Found while fixing, not built (for the return).**
+- **Same-org channel proof.** A team admin can still link any channel of their own org's workspace
+  by id; task 157 links a Teams channel by a pairing code shown in it (decision 1,
+  `task-157.md:27-32`), and the part says Slack is *"never a second design"* (`:12`). Recorded at
+  `:427-429` as a same-org gap.
+- **No route writes a Slack binding.** The link's comment says a link *carries* them (`:95-96`) and
+  names no route; recorded at `:423-425`, with the check that route must make.
+
+**Citations.** Inbound citations to `task-182.md` were found with
+`grep -rn "task-182\|182\.md" --include=*.md --include=*.json --include=*.txt .`: this file's
+`:5403` (`:216`), `:5426` (`:238`), `:5441` (`:45`) and `task-187.md:79` (*after* `:291`). Lines
+1-303 were edited only in place (38 migration lines for 38, the rest line for line) and printed
+after each commit, so each still lands where it did; `:216` is and was inside the link tables (the
+finding's table is `:203-211`). Everything added is below `:303`, which nothing cites.
+
+**Unverified.** The Hub contract is not on this branch: `hub-contract.md:335-363`, `:1904-1932`,
+`:2071`, `:2082` and `:2232-2233` were read in the `feat/hub` worktree at `cafe1303`. The finding
+cites the org line as `:2081`; there it is `:2082`. H07a's and H16b's test names come from task 06's
+and task 116's parts, since no Hub test is built. Nothing was executed; this is plan text.
