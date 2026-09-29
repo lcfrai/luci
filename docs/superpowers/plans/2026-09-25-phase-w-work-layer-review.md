@@ -6314,3 +6314,69 @@ in `d8979d83`. Every line number below is post-fix on `feat/work-layer`.
 | N-M6 | the Desk repoint drops the old criterion's check, as task 43's drag does (`task-43.md:217`) | `…-parts/task-65.md:939`; this file `:6102` |
 | N-M7 | task 70 depends on 01-69 and 23b, and step 7 runs 23b's acceptance | `…-parts/task-70.md:5`, `:553`; skeleton `:472`; `…-scopes/tasks-61-80.md:354` |
 | N-M8 | no plan change: a declared ruling the re-review accepts, carried to the owner (below) | — |
+
+**S03-C1, re-checked against its own words.** The finding's failure was *"the no-click `done` …
+exists only in"* a test. After this round each of the re-review's three product breaks has a named
+fix and a test that fails without it: a person can type a check in the list (N-I1, `:415` of 23b);
+the check sandbox outlives the reaper for the whole run, bounded (N-I2, `:385`, `:390-398`, and the
+docker twin at `:446-449`); and the W1 demo writes the check it waits for (N-I3). Both S03-C1
+additions are W1 and land before WS0 freezes SW.1 (task 02 is in WS0, skeleton `:366`; 23b is W1,
+`:425`). S03-I5's third clause (N-I4) now has code and tests behind it, in W1 and W5. Task 23's
+anchors (`task-23.md:64-77`), skeleton `:11` and `:74-77`, and coverage `:51`, `:369-382` still
+read true and were not edited, bar `task-23.md:344`'s one-line CheckRun comment (N-M5).
+
+**Rulings made here, each the root-cause option (rule 8).**
+1. **The hold lives on the reaper, not in a `Spare` func on `reaper.Config`** (the re-review's
+   "one way"). The runner takes `rp.Hold`, so `serve` builds it after the reaper with no change of
+   order, and a runner wired without a hold **refuses to run** (`ErrNoHold`): the one wiring slip a
+   helper test cannot see (`main.go:221-225` says so of `reaperConfigFor`) cannot reap a check
+   mid-run; it runs none, and says so.
+2. **`byPerson` reads the transaction, and unset reads as a person.** A person's own token sets no
+   actor kind on a revision write; every W5 principal that writes these routes as a person sets its
+   kind in its prologue first. Default-deny on unset would need W1 to write `person` on every
+   revision, which W5's prologue would then have to undo: two writers of one setting. The W5 tests
+   that fail if a prologue forgets its kind are named in tasks 159 and 160.
+3. **No "sync twin" in task 145.** A sync principal never reaches tasks 08 and 09: it writes
+   revision 1 only, through task 15's `importOne`, which carries no serves (`task-150.md:30-31`,
+   `:189-190`); `integration` reading false is task 08's `TestWriterIsPersonReadsTheActorKind`.
+   The second door the re-review did not name, an API key (task 160), gets the twin instead.
+4. **The bundle is the body, not a named JSON cap** (N-M3 offered both): a full history is not
+   held in memory as base64, the cap is a status code, and it is the shape P3-24 already uses.
+5. **The CA bundle is passed, not stated as a limit** (N-M5 offered both): the check sandbox then
+   trusts exactly what a lane trusts, with no new credential, and the demo's check needs neither.
+
+**Owner questions carried** (none blocks the build; record them in the owner decisions' next pass).
+1. **OD-27, build or defer the observed path.** Built, as round 1 ruled. Its cost, restated for
+   round 2: one new task (23b, now **5 h**), one SW.1 change before WS0 (task 02's `check`, v4 and
+   `ValidateCheckChange`), and **+2.5 h on W1** against the pre-b02 plan (W1 195 → 197.5 h, All
+   526 → 528.5 h), plus one ⚑ delta to phase 2's built `reaper.go`.
+2. **A check sandbox's network** is a lane sandbox's, now with its CA bundle; no credential, no
+   gateway token. A network-less check sandbox changes `backend.Spec` and belongs to phase 8.
+3. **N-M8, the write verb.** The rule uses the issue's write verb, `M` (`task-07.md:595-596`), not
+   the brief's, and the command runs in the lander's name. Confirm, or name the verb.
+
+**Citations.** Moved lines, and how each was found: `task-23b.md` grew 378 → 490 lines; its only
+inbound line citations are round 1's table (`:6099-6101`, grep `task-23b\.md[^ ]*:[0-9]` over
+`docs/`, plus a line-level scan of every line naming 23b with a `` `:N` `` token), re-anchored
+there after locating each target by its heading or row. `task-07.md` gained one line inside its
+addendum (`:606`); `tasks-21-40.md`, `task-04.md`, `-05`, `-08`, `-09`, `-70`, `-159` and `-160`
+grew only at their ends; everything else changed line for line, so the skeleton is still **641
+lines**. The only inbound citations into the moved ranges were round 1's rows (grep of
+`task-0[4-9]\.md:` and `tasks-21-40\.md:7[4-6][0-9]` over `docs/`), all re-anchored. New citations
+were read against the tree: phase 2's `reaper.go:69`, `:102-106`, `:471-527`, `reaper_test.go:493`;
+`backend/dial.go:24`; `cmd/api/config.go:64`, `:78`, `:149`, `:221`; `cmd/api/main.go:102`,
+`:149-155`, `:164`, `:221-249`; `dockerbe/docker.go:290-291`; `api/sessions.go:296`, `:341-343`,
+`:434-436`, `:869-870`; `backend.go:168-169`, `:182`, `:280-282`; `sandboxd/internal/server/
+server.go:85`, `:105`, `:167`; `images/sandbox/Dockerfile:10`; `desktop/package.json:28`; P3
+`task-24.md:176-178`, `:349` and P3 `task-02.md` at `9935278`, `94f954d` and `3676625a`.
+
+**Hours.** `sumhours.py` prints `W0 1 2.0`, `W1 70 197.5`, `W1b 1 3.0`, `W2 28 76.5`, `W3 16 46.0`,
+`W4 29 79.5`, `W5 32 91.0`, `WL 13 33.0`, `ALL 190 528.5`, equal to skeleton `:343-351`. The other
+changes keep their tasks' sizes, each with its reason in its addendum: a demo act inside an
+existing frame (70), one read and one test (08, 09), one row (05), one test each (159, 160).
+
+**Still unverified.** Nothing was executed but `sumhours.py`, `git show` and the scans; this is plan
+text. Phase 3's `gitrunner.MaxBundleBytes` and its `fetch` headers are read from P3's plan at
+`9935278`, not built. user-event's `type` skipping a character whose `keydown` was prevented is its
+documented behaviour, not run here. Project P's `test/resume.test.mjs` is the person's to supply
+(no demo repository exists; task 69's gap 2). No Kata pod has run a check.
