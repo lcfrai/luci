@@ -104,7 +104,34 @@ the enterprise edges and is worth a buy decision for the *environment*; GitHub c
 
 ## 4. Landing the work: pull requests and merge queues
 
-_GitHub merge queue, Azure DevOps PRs and auto-complete, and what phase 3 still owns._
+**The move:** a lane leaves the cockpit as a branch and a pull request on the customer's own git
+host, and the host's review, policy, CI and merge machinery does the landing. We stop building our
+own land queue, chained forecast and undo. Both hosts are already in `OD-4`, so this adds no vendor.
+
+| | **GitHub** (github.com, or GHE.com in Australia) | **Azure DevOps** (Azure Repos) |
+|---|---|---|
+| Review | PR diff, inline comments, required reviews, CODEOWNERS | PR diff, inline comments, required reviewers, branch policies |
+| Ordering | **Merge queue**: FIFO, "temporary branches with a special prefix", a `merge_group` event for CI, build concurrency 1–100, group size 1–100, "Only merge non-failing pull requests". Private repositories need **GitHub Enterprise Cloud** | **No merge queue** — none native and none found in the marketplace (2026-09-30). Equivalent: **auto-complete** (a 2026 repo setting can turn it on for every new PR) plus a build-validation policy whose build expires when the target branch updates. Serial and correct; costs rebuilds |
+| Provenance | Brief key in the PR body; the repo's "pull request title and description" default carries it into the merge or squash commit (one test needed, §8) | `completionOptions.mergeCommitMessage` sets the merge commit message exactly, so the brief key rides as a trailer; `workItemRefs` links a Boards item |
+| Undo | "Revert" on a merged PR opens a revert PR | "Revert" on a completed PR opens a revert branch and PR |
+| API from Go | REST + GraphQL (auto-merge, enqueue) via `go-github` (BSD-3-Clause) | REST 7.1 (`autoCompleteSetBy`, `completionOptions`, `mergeStrategy` = `noFastForward`/`squash`/`rebase`/`rebaseMerge`) via `azure-devops-go-api` (MIT) — both already chosen in the 2026-09-28 study |
+| AI review before a human | `anthropics/claude-code-action` (**MIT**) runs on our runner and accepts a custom base URL, so it goes through LiteLLM (`OD-19`) | No official task; `claude -p` in an Azure Pipelines step through the same gateway (glue) |
+| Residency | GHE.com Australia is GA (2025-02-04) for code at rest. Copilot's in-region processing is US and EU only, so **do not use Copilot review** on AU projects | An Azure DevOps organisation can sit in Australia (standard ADO geography; not re-verified today) |
+
+**What this does to phase 3 (24 tasks, 71.5 plan-hours in its own table; 01–02 built, 03 in
+fix round):**
+
+| Disposition | Tasks | Plan-hours | Why |
+|---|---|---|---|
+| **Keep as planned** — C6, the security model and provenance, which no product sells | 01, 02, 03, 04, 05, 06, 07, 11, 12, 13, 15, 18, 22, 23, 24 (15) | 42.5 | Real clones per worktree, the `Panacea-Session` trailer hook, the sandbox git runner and bundles, fetch-back under `refs/panacea/lanes/…`, push with the **user's** credential (the sandbox never holds one), branch verbs, evidence over ancestry, the proof |
+| **Replaced by the host** | 08 chained forecast and queue order · 10 landed history and exact undo · 19 merge lens part 1 (queue, forecasts, land, conflicts) (3) | 8.5 | GitHub's merge queue is the chained forecast, run for real by CI; ADO's auto-complete plus expiring build validation is the serial form; host "Revert" is the undo. A conflict goes back to the lane's agent as a task, not to a resolver we build |
+| **Shrunk** | 09 land → push lane branch, open PR, enqueue or set auto-complete, refresh clones after merge · 20 merge lens part 2 → a lane-to-PR strip (checks, queue position, merged) plus the evidence dialog · 14 githost grows by auto-merge, enqueue, auto-complete and `mergeCommitMessage` (3) | 11 → 7.5 | The host does the merge; we show its state |
+| **Deferred past first ship** | 16 files read model · 17 `OD-8` transcript adapter · 21 files lens (3) | 9 | Review happens in the host's PR diff for v1; the cross-lane files view and span back-links come back after |
+
+**Net: about 21 of 71.5 plan-hours (29%) leave the first ship, and the hardest-to-get-right part
+of phase 3 — a correct concurrent land queue with compare-and-swap and exact undo — becomes a host
+feature that already has years of production behind it.** The prior study's go-gitdiff and
+sergi/go-diff adoptions now apply only to the deferred tasks 16 and 21.
 
 ## 5. Recommendation
 
