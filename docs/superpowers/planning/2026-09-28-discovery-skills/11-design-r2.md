@@ -175,7 +175,14 @@ thing the finding was about.
   content does not change, and *drop the criterion fragment* is met (1.2 above). *Phase 4 ships
   first* is **deliberately not met**: 29 and 32 land before phase 4's task 14, so that 14 wires the
   final Materialiser once. The owner's note on OD-36 licenses exactly that: *"we are still in
-  build, so if you need to redo some work, it is what it is"* (`owner-decisions.md:409`).
+  build, so if you need to redo some work, it is what it is"* (`owner-decisions.md:409`). The
+  third condition's last clause, *give terms and decisions the same shape* as `{briefKey,
+  criterionId}` (`06:348-349`), is **not met either**: each gets its own key form (§2.1), so this
+  design pays for a contract change and a two-parser edit, though not for the 64-file radius,
+  which came from the brief's own key changing. The reason is that a term or a decision is now a
+  record with immutable revisions, which the resolver, the set digests, the inheritance record and
+  the lens all name by one key, the way `design:` is named today and phase W plans to name
+  `issue:`. The struct is priced as §8.2's Q2, about 1.5 hours cheaper.
 
 ## 2. The two records
 
@@ -451,7 +458,7 @@ it, and dies with the row. It never reaches the Hub until a person records it.
 The Materialiser's one call (`materialise.go:196`) now writes **three files, in this order, all
 before the harness process starts**: `.panacea/discover/decisions.md`, `.panacea/discover/terms.md`
 (§5.3), and last the managed block. Last, so a block that names a set is never on disk before the
-files that hold it: the ordering rule (`materialise.go:3-20`) applied inside one call.
+files that hold it: the ordering rule (`materialise.go:3-16`) applied inside one call.
 
 What the branch sees is phase 4's overlay (§2.3), computed from the two list reads under the same
 5-second Hub budget as the brief (`materialise.go:81-87`). If the Hub does not answer, the start is
