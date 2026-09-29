@@ -359,9 +359,9 @@ the word check, 409 `word_taken`, naming the entry it met. The word check is thr
 
 **One fold, in one function**: `hubapi.FoldWord`, NFC and then Unicode simple case folding, from
 `golang.org/x/text`, already in both modules as an indirect dependency (the Hub tree's
-`control-plane/go.mod:62`, phase 4's `:56`). The head
-stores its result for rule 1's index, rules 2 and 3 compare with it, and phase 4's overlay and sort
-(§5.1) call the same function, which reaches phase 4 by merge with the rest of `hubapi` (§7.2).
+`control-plane/go.mod:62`, phase 4's `:56`). The head stores its result for rule 1's index, rules
+2 and 3 compare with it, and phase 4's overlay and sort (§5.1) call the same function, which
+reaches phase 4 by merge with the rest of `hubapi` (§7.2).
 
 **One owner for §2.2's rules: the Hub.** They are one `hubapi` function beside the wire types. The
 batch routes run it and refuse 400; phase 4's `discoverhub` runs the same function before it writes,
@@ -425,13 +425,13 @@ The Hub checks that a non-null `settledIn` resolves in this project and is not e
   the id, digest, number, `savedAt` and `savedBy` stay, and the revision reads `erased` in its list.
 - **No stored reply keeps the text.** A route-26 reply is stored whole for 24 hours in
   `idempotency_keys.response`, which is why A17 exists (`HP:196`; `HP:` and `T:` as §7 defines
-  them). So the two batch routes store a
-  text-free reply, and a replay rebuilds its revisions from `term_revisions` and
-  `decision_revisions`, an erased one with its text `null`: route 26's `rebuildRevisions` under task
-  14's `WriteReplayable` (`T:19.md:52-59`), applied to both kinds. Task 27's
-  `TestErasureKeepsKeyAndDigest`, whose `markerHits` already scans every `text`, `varchar`, `jsonb`
-  and `bytea` column (`T:27.md:72`), gains a term and a decision holding its marker, each written
-  under an `Idempotency-Key`, erased, then found nowhere and replayed text-free.
+  them). So the two batch routes store a text-free reply, and a replay rebuilds its revisions from
+  `term_revisions` and `decision_revisions`, an erased one with its text `null`: route 26's
+  `rebuildRevisions` under task 14's `WriteReplayable` (`T:19.md:52-59`), applied to both kinds.
+  Task 27's `TestErasureKeepsKeyAndDigest`, whose `markerHits` already scans every `text`,
+  `varchar`, `jsonb` and `bytea` column (`T:27.md:72`), gains a term and a decision holding its
+  marker, each written under an `Idempotency-Key`, erased, then found nowhere and replayed
+  text-free.
 - **A brief's erasure names what settled in it.** A term's `is` or a decision's `context` may have
   been drafted from the very answers a brief's erasure removes (§4.1), so "neither holds brief
   text" cannot be assumed. Erasing a brief still changes no term and no decision by itself, as it
@@ -1021,7 +1021,7 @@ source (§8.2, Q2). None of it is scope beyond OD-36.
 
 ## Closing
 
-**Complete as a design on 2026-09-29, and not yet reviewed.** It answers the sixteen findings of
+**Complete as a design on 2026-09-29; reviewed and revised once.** It answers the sixteen findings of
 `06-sceptic.md` by number and its sections 6 and 7 besides (§1). It meets OD-36 as the register
 states it (`owner-decisions.md:409`): the brief content model does not move, the brief's key does
 not change by a byte, and terms and decisions are their own Hub records that reference a brief
@@ -1030,18 +1030,18 @@ it by file (§7.2), as the owner's note on OD-36 allows, rather than designing a
 
 What it still owes, and to whom:
 
-1. **Its sceptic, round 2**, before any plan is edited. The places to push hardest: the two new key
-   forms (§2.1, Q2); the local round and inheritance files (§4.2, §5.2), which hold nothing a
-   person said but do live on one machine; and the one task joining phase 4's critical path (§7.5).
-2. **The owner**: §0 and §8.2, about ten minutes. Every question has a default, so an unanswered
-   one is built as its default.
+1. **Its sceptic, round 2**: done, `12-sceptic-r2.md` (Needs fixes), answered by Revision 1 below.
+   A re-read of Revision 1's sections, C1 and C2 first, is owed before any plan is edited: they
+   change §2.1, §5.1 and §5.2, which the rest of the design leans on.
+2. **The owner**: §0 and §8.2, about ten minutes, and **Q2 before 44a runs**. Every other question
+   has a default, so an unanswered one is built as its default.
 3. **The plans**: the new tasks as a new section at the end of each plan (§7.3) and the amended
    unbuilt tasks (§7.4), with 44a's A20 first. Those edits belong to the phase 4 and Hub streams in
    their own worktrees, not to this file.
 4. **The owner's eyes on task 24's prototype** before task 31's part is approved (`OD-1`).
 
 Nothing in this file has been compiled, run or shown to the owner (§8.3).
-**Next: item 1**, a round-2 sceptic reading this file against `06-sceptic.md` and OD-36's row.
+**Next: item 1**, a re-read of Revision 1 against `12-sceptic-r2.md`, C1 and C2 first.
 
 ## Revision 1
 
