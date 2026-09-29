@@ -214,7 +214,34 @@ nothing. Every other candidate below came from the web. Licences are from the pr
 
 ## 4. Comparison table
 
-_Pending._
+Scored against §2's tests. "Part" means it works with a stated limitation. Days are integration
+estimates for one engineer who knows this repo. Every figure here is unmeasured.
+
+| Candidate | T1 agents headless, parallel | T2 human multiplayer | T3 fidelity to code | T4 export to repo | T5 Azure / AU / customer cloud | T6 Keycloak→Entra, audit | T7 licence | T8 provenance hooks | Days | Verdict |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **Penpot + MCP** | Part: needs a live tab (lens or our runner) | **Yes** | Part: CSS flex/grid model, HTML/CSS via `generateMarkup`/`generateStyle` | Yes: PNG/SVG exporter, HTML/CSS, tokens (Tokens Studio format) | **Yes**: self-host on AKS | **Yes**: OIDC; webhooks | MPL-2.0 (allowed) | Yes: RPC API, webhooks, access tokens | **~8** (usable ~4) | **Adopt** |
+| OpenPencil | **Yes**: headless MCP on files | Part: P2P WebRTC, no server | Yes: HTML/Tailwind in and out | Yes: JSX, HTML, Storybook | Yes: no server needed | **No**: no accounts or audit | MIT | Part: files in git only | ~6 + multiplayer | Reference / fallback |
+| Figma + MCP | Yes (execution model not verified) | **Yes** | Part: vector; Code Connect | Yes: `get_design_context` | Part: SaaS, AU hosting with gaps; no customer cloud | Part: SAML direct, not our broker; MCP catalogue rule | Commercial, per seat | Yes: REST, webhooks | ~3 after catalogue answer | Buy, optional adapter |
+| paper.design | No: MCP in the user's desktop app | Yes | **Yes**: real HTML/CSS | Yes: React/Tailwind | No: SaaS, no residency stated | Part: SAML on the Org plan | Commercial | No API found | — | Reference |
+| Onlook | No: its own agent; MCP not built | Yes | **Yes**: the running app itself | Yes: writes code | Part: self-host, but CodeSandbox for dev containers | No SSO documented | Apache-2.0 | Part | ~10+ | Reference (Develop idea) |
+| pen.dev | Yes: headless CLI | No real-time found | Yes | Yes | No: login to `api.pen.dev` | No | Proprietary | Part: files in git | — | Reject |
+| Builder.io Fusion | Its own agent | Yes | Yes: real repo | Yes: PRs | No: SaaS, code runs in its containers | Part: SSO | Commercial | Part | — | Reject |
+| Plasmic | Not documented | Yes | Yes: real React components | Yes: codegen | Studio self-host is AGPL | Part: SAML (SaaS) | **AGPL** studio | Part | — | Reject |
+| tldraw SDK | Part: in-browser agent kit | Yes (tldraw sync) | No: shapes | No | Part: self-host with licence key | n/a | Commercial + telemetry | n/a | ~10+ (a build) | Reject |
+| Excalidraw | Yes: community MCP | Yes | No: shapes | No | Yes | n/a | MIT | n/a | ~1 | Sketch mode only |
+| GrapesJS | No MCP | No (core) | Yes: HTML | Yes | Yes | n/a | BSD-3 / commercial SDK | n/a | a build | Reference |
+| Webstudio | — | — | Yes | Yes | — | — | **AGPL** | — | — | Reject |
+| *Baseline: finish phase 5 as planned* | Yes: Go authority, 37 MCP tools | **Part: cross-person co-editing is v2**, outside the plan | **Yes**: real HTML | Yes | Yes | Yes | Ours | **Yes**, designed in | ~71 planned h left (~9 days); 35.5 h critical path | — |
+
+**The honest comparison with the baseline.** On the plan's own figures, finishing phase 5 costs
+about as many engineer-days as adopting Penpot: 85 h in total, about 14 h built (tasks 01–06),
+about 71 h left. The difference is **what arrives and how much risk is left**. The plan's
+"Out of this plan" list (`…-design-canvas.md:59-62`) leaves out cross-person live co-editing,
+components with slots, CSS Grid, `margin`, theme modes, the pen tool, SVG/PDF export and custom
+fonts. Penpot ships all of those today. The plan's riskiest remaining work is the editor (tasks
+23–26 and 29), which the 2026-09-28 study calls *"the classic two weeks that became six"*, and
+that is exactly the part Penpot replaces. The plan also has a record of fix rounds, one example
+being task 04's three review rounds on a 4-hour estimate.
 
 ## 5. Recommendation
 
