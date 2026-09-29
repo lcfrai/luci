@@ -891,26 +891,27 @@ glossary) follows it.
 
 | Plan | Task | What changes | Hours added |
 |---|---|---|---|
-| Phase 4 | 14, wiring | wires the round store and the inheritance record | +0.5 |
-| Phase 4 | 15, client and wire types | the `Ref`'s two digests mirrored field for field; the new objects; `word_taken`, `key_unresolvable` | +1 |
-| Phase 4 | 16, slices and the loader | `discoverSlice` gains the two lists; one key source, `selectSessionInheritanceKeys` (§5.4) | +1 |
+| Phase 4 | 12, `materialisations` | **changes in behaviour**: its fresh render needs the two lists, and a moved set reads `superseded` (§5.3). Written by 32, which already sits between 12 and 14, so 12's part is built as approved and reworked once | 0 here; in 32 |
+| Phase 4 | 14, wiring | wires the round store and the handlers' inheritance append (§5.2) | +0.5 |
+| Phase 4 | 15, client and wire types | the `Ref`'s two digests mirrored field for field; the new objects and the struct; `word_taken`, `key_unresolvable`, `brief_archived` | +1 |
+| Phase 4 | 16, slices and the loader | `discoverSlice` gains the two lists; a `term.*` or `decision.*` event invalidates every brief's `Ref` in its project (§5.2); no new key source (§5.4) | +1 |
 | Phase 4 | 17, `ContextChip` | the *words moved since this session started* state (§5.2) | +0.5 |
-| Phase 4 | 19, the states that come apart | a departure's *project changed*; Undo writes `retire` or `withdraw` | +1 |
+| Phase 4 | 19, the states that come apart | a departure's *project changed*; Undo writes `restore`, or after a create `retire` or `withdraw` (§2.4) | +1 |
 | Phase 4 | 22, contract amendments | the Go, UI and provenance contract lines for all of the above | +1 |
-| Phase 4 | 23, end to end | a session inherits words: block, files and record re-derive byte for byte | +1 |
-| Hub | 44a, the contract made true | **A20**: the two kinds folded into the contract in the same pass that already moves its lines for A1-A19, so they are re-anchored once | +1.5 |
-| Hub | 14, the write transaction | `TestInFeedIsTheContractTable` gains the four event kinds | +0.25 |
-| Hub | 20, `/v1/refs` brief half | the per-key table answers `term:` and `decision:` `missing` until 48, as `design:` does until 22 (`T:20.md:29-36`) | +0.25 |
-| Hub | 27, audit and erasure | its "Nothing else changes" sentence (`T:27.md:40-41`) names both kinds, and its test erases a brief a term settled in and finds the term unchanged. The two functions are 47's and their routes 48's | +0.25 |
+| Phase 4 | 23, end to end | a session inherits words: block, files and record re-derive byte for byte; a branch whose brief is open gets the project's set | +1 |
+| Hub | 44a, the contract made true | **A20 is appended, never folded**: a new §18, *Amendment — OD-36, terms and decisions*, after §17 at the contract's end, holding the two prefixes, the six routes and their bodies, the codes, the events, the tables and functions, and §7.5's one-field rule read as brief content only. No line above it moves, so none of the contract's 517 inbound citations breaks (the sceptic's count), and no contract-reading test changes: each reads its section by number (`keys_test.go:371`), and none reads §18 until 45, 48a and 48b extend it beside their code | +2 |
+| Hub | 27, audit and erasure | its "Nothing else changes" sentence (`T:27.md:40-41`) names both kinds; its scan test's term and decision, and `settled`, are 48b's | +0.25 |
 | Hub | 34, the digest re-check | covers the two revision kinds | +0.5 |
 | Hub | 36, the poller | `Subscribe` prefixes gain `"term."` and `"decision."` | +0.25 |
 | Hub | 40, `hubFeed` | handlers for the two prefixes | +0.5 |
 | Hub | 43, the end-to-end proof | one word and one decision through the real Hub | +0.5 |
-| Hub | 44b, the contract made true to the build | folds in what 45-48 built | +0.25 |
+| Hub | 44b, the contract made true to the build | writes `settled` into §7.12 and deletes its `pendingAmendment`; checks §18 against what 45-48b built | +0.5 |
 
-Phase 4 amended: **6 hours, seven tasks.** Hub amended: **4.25 hours, nine tasks.** Unchanged, and
-checked: phase 4's 11, 12, 13, 18, 20 and 21 (11 and 12 keep their scope because 32 carries the new
-routes; 21 stays one-shot, 06 §1.4); the Hub's 08, 16b and 22.
+Phase 4 amended: **6 hours, seven tasks**, and 12's change inside 32. Hub amended: **4.5 hours,
+seven tasks.** Round 2's amendments to Hub 14 and 20 are gone: 14's feed test takes the four kinds
+in 48b, beside the code that emits them, and 20 has nothing to answer under the struct. Unchanged,
+and checked: phase 4's 11, 13, 18, 20 and 21 (11 keeps its scope because 32 carries the new
+routes; 21 stays one-shot, 06 §1.4); the Hub's 08, 14, 16b, 20 and 22.
 
 ### 7.5 Where it slots, and the total
 
