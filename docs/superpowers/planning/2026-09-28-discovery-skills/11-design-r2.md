@@ -1424,3 +1424,22 @@ their parts. The hours are the plans' ratios, not time spent.
 
 **Revision 2 complete.** Next: a short re-read of §R2.1, §R2.2 and §R2.3's M5, then the owner's Q2
 before 44a runs; Q2, Q8, Q9 and Q10 are filed in `2026-09-25-owner-questions-pending.md`.
+
+## Status after sceptic round 3 (2026-09-29, orchestrator)
+
+**Design round 2 stands at 0 Critical, 1 Important, 6 Minor** (`12-sceptic-r2-round-3.md`).
+R2-I1 and R2-I2 are closed at the root, and every round-2 Minor is closed.
+
+**R3-I1 is CARRIED, not re-looped (OD-31). It is a requirement on the tasks that build erasure,
+not an option.** Erasing a project term or decision must reach every departure that pins it:
+(a) a *not here* departure's verbatim copy is erased with the entry it copies; (b) the erase reply
+lists the other departures that pin it; (c) phase 4's rule 7 (`PinErased`, task 07) applies to the
+sets' pins, so an erased pin never reads `edited` and never shows the erased text in a diff. The
+sceptic prices it at about 1.75 h (`12-sceptic-r2-round-3.md:17-29`). Whoever writes the part files
+for Hub 47 and 48b and for phase 4's erasure and Materialiser tasks folds it in, with a test that
+fails without it. The six Minors are wording, for the same writers.
+
+**Next.** The owner's rule (2026-09-29) is that plan work for tasks that build later is written just
+before they build, so these parts are written when the Hub and phase 4 streams restart after phase 2
+reaches `main`, before Hub 44a runs. **Owner question Q2 (the struct, or two new key forms) must be
+answered before Hub 44a, Hub 45 or phase 4 task 26 starts; the default is the struct.**
