@@ -126,6 +126,56 @@ the web, checked on the upstream page on 2026-09-30.
 - **Effort.** About 12 stream-days, mostly trimming. **Verdict: reference.** Borrow its elicitation
   techniques into the preset if clarify plus grill proves too thin.
 
+### 4.5 AWS Kiro — reject as a part, reference the format
+
+- **Does.** An agentic IDE, CLI and web app whose specs are `requirements.md` (user stories with acceptance
+  criteria in EARS notation), `design.md` and `tasks.md`, as feature specs or bugfix specs.
+- **Licence, price.** Proprietary. Free, Pro $20, Pro+ $40, Pro Max $100, Power $200 per user per month;
+  Enterprise adds SAML/SCIM through **AWS IAM Identity Center**, not our Keycloak.
+- **Residency: fails OD-24.** Individual data is stored in US East; enterprise data in the profile's
+  region; inference regions listed are US, Europe and GovCloud only, **no Australia**.
+- **Gaps.** It is its own agent and editor, not an unmodified CLI in our sandbox, on AWS not Azure: adopting
+  it replaces the cockpit, not Define. **Verdict: reject.** Its EARS sentence patterns are available to
+  Spec Kit as a community extension (`spec-kit-ears`) if acceptance criteria need a stricter grammar.
+
+### 4.6 Taskmaster — reject on licence
+
+- **Licence: MIT with Commons Clause, restricted.** The clause removes the right to sell the software or a
+  hosted service whose value comes substantially from it; a we-host SaaS (OD-5) that runs it for customers
+  is that service. A Commons Clause licence is not open source, so it fails our permissive rule outright.
+- **Gaps.** It only turns a PRD into dependent tasks, which is the work layer's step, not Define's.
+  Spec Kit's `tasks` and its bundled GitHub `taskstoissues` extension cover the same step under MIT.
+
+### 4.7 GSD (`open-gsd/gsd-core`) — reference
+
+- **Does.** `/gsd-new-project` interviews, runs research subagents, writes requirements with ids and a
+  roadmap, and keeps `STATE.md` and `CONTEXT.md`. MIT, 10.0k stars, v1.7.0.
+- **Gaps.** A whole execution engine (phases, roadmap, state) that overlaps our Orchestrator and work layer;
+  the project moved repositories on 2026-06-26, a continuity risk. **Verdict: reference.**
+
+### 4.8 The SaaS products — reject
+
+| Product | Why not |
+|---|---|
+| **Tessl** | Has pivoted to a skills registry and governance loops; SaaS; audit logs still "rolling out". No longer a Define product |
+| **Traycer** | A desktop planner with cloud sync ($16 per user per month, SOC 2 Type 2) that hands work to agents: a second cockpit, with no residency statement |
+| **ChatPRD** | SaaS only, for product managers. **The KPMG proxy blocks `chatprd.ai`** (302 to KPMG's acceptable-use policy page), so it cannot even be evaluated from here |
+| **BrainGrid** | SaaS planner that verifies a build against its acceptance criteria. The idea is right and is already ours: phase 3's criterion evaluator. No published price |
+| **Confluence + Rovo** | The one credible *buy*: AU data residency (Rovo included), SSO through Atlassian Guard, per-user licences. It moves the brief into a wiki outside the Hub and outside the customer's cloud, so the provenance key has nothing immutable to name. It breaks the spine |
+
+### 4.9 Small parts — reference
+
+- **adrkit** (Apache-2.0, 18 stars, v0.15.0): typed ADR front matter with an `affects` field, a validator
+  and an MCP server, plus Spec Kit commands to pull governing decisions into a plan and check it. The best
+  format for OD-36's decision record, but young and pinned to Spec Kit below 1.1. Add later, not now.
+- **speckit-grill-me** (MIT, 2 stars): shows the port of `grill-me` into Spec Kit works. Too small to depend
+  on; we build the same from the MIT original (G1).
+- **Spec Kitty** (MIT, 1.7k stars, 4.0.0rc2): worktrees, a kanban dashboard, multi-agent missions. It
+  duplicates phases 2 and 3. **Reject.**
+- **Spec Kit community integrations** for Azure DevOps (MIT, 15 stars, two commits), Jira, Linear,
+  Confluence and a requirement-to-test matrix (`spec-kit-trace`) exist. None is needed for Define; phase 3
+  owns the git hosts. Read their source before any use.
+
 ## 5. Recommendation
 
 _Pending._
