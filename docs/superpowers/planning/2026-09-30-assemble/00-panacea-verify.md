@@ -280,8 +280,74 @@ and job code own shipped apps. Nothing above adds a money or customer-visible ca
 
 ## 10. Not verified
 
-_Pending._
+Nothing was installed, built or run. Every Panacea fact is from source at `efc637879` on
+`finish-dev-outstanding`, which may differ from what dev runs.
+
+1. **The SAST false pass** is read from code, not run. It assumes `panacea/semgrep:1.86.0` is an
+   unmodified Semgrep 1.86.0 mirror.
+2. **What dev actually scans**: the platform baseline and team policies are SuperAdmin runtime
+   data (`security_policy.go:969`); dev may force more than the pipeline defaults.
+3. **Whether a legacy key can mint a `pnc_`**: traced to `RequirePortalGrant`, not through the
+   owner re-check (4.2).
+4. **Whether an admin-set step-up applies to stage approval** (S5).
+5. **Redis**: whether the Bitnami tag is mirrored or cached on Panacea's nodes, and what depends on
+   that Redis.
+6. **Loki and Tempo**: values files exist; no installer was found in this tree. Something outside
+   it may install them. The report's Kaniko mention was not confirmed (no executor pin found).
+7. **Orca's embedded browser cookie store** (S4): not checked in Orca's source.
+8. **The Semgrep Rules License text** came through Semgrep's pages via search: `semgrep.dev`
+   redirects to KPMG's acceptable-use page on this network, and the rules repo's `LICENSE` is a
+   one-line pointer.
+9. **Coolify**: from its raw source, release feed and docs index; the Entra page's wording is the
+   index summary; the 4.4-rc.1 notes are 06-deploy-verify's. Supabase Auth's Keycloak provider was
+   not checked.
+10. **Estimates are judged, not measured**: 2-3 Panacea days for P-3, 3-5 more days for C2's
+    per-app stacks, 0.5-1 day of cohesion glue.
+11. **Azure**: Defender for Flexible Server, storage, backup, Key Vault and Blob prices were not
+    fetched; our subscription's status was not checked.
+12. **Search budget**: WebSearch ran out mid-run (200 of 200 for the session); later checks used
+    WebFetch, raw files and the retail prices API only. The GitHub API refused the fifth call (its
+    limit is shared by this machine's address), so three licences were read from raw `LICENSE` files.
 
 ## 11. Sources
 
-_Pending._
+**Panacea, read-only** (`C:/Users/au-dev-dmackie1/Projects/Panacea`, `git show efc637879:<path>`):
+- API: `services/panacea-api/routes/routes.go` (`:548`, `:1017-1033`, `:1086-1088`, `:1424-1426`,
+  `:2720`, `:2858-2860`, `:2940-2944`, `:3008-3011`, `:3050-3052`, `:3226-3286`), `routes/mcp_wiring.go:38-44`,
+  `:106-114`; `middleware/auth.go:130-262`, `middleware/jwks.go:147-273`, `middleware/api_key.go:189`,
+  `:366-385`, `middleware/rbac.go:357-390`; `handlers/api_keys.go:33-163`, `handlers/apikeys.go:31-185`,
+  `handlers/stepup.go:262-274`, `handlers/branch_security.go:115-175`, `handlers/security_policy.go`,
+  `handlers/posture_scan_modes.go:30-37`, `handlers/agent_context.go:13-30`, `handlers/costs.go:1900-1908`;
+  `clients/pipeline.go:455-500`; `models/models.go:550-558`.
+- Pipelines: `pipelines/pipelines/build-deploy.yaml:87-256`, `:405-418`; `pipelines/tasks/sast-scan.yaml:20-230`.
+- Estate: `deploy/main.tf:504-1039` (helm releases, `:835-837`, `:960-966`), `deploy/object-storage-blob.tf:1-30`,
+  `deploy/portal/setup-keycloak.sh` (`:15`, `:139-142`, `:320-323`, `:484-509`),
+  `kubernetes/argocd-apps/{platform,data,ai,app-services}/*.yaml`, `kubernetes/helm-values/*-values.yaml`,
+  `services/panacea-cli/internal/auth/auth.go:48-68`, `docs/cutover/` (grep only).
+
+**This repository:** `00-panacea.md` (all 639 lines), `06-deploy.md:500-540`, `06-deploy-verify.md:209-258`,
+`07-platform-verify.md`; `.superpowers/sdd/identity/facts-panacea-keycloak.md:68-71`, `:144-154`; phase 8
+tasks 05, 08, 09, 11, 14, phase 6 tasks 04, 06, 09, 14 and Hub task 14 under `.claude/worktrees/{env,phase-6,hub}/docs/superpowers/plans/`.
+
+**Upstream source, raw files on 2026-09-30:**
+- Semgrep `v1.86.0`: `cli/src/semgrep/commands/scan.py:630-645`, `:721`; `cli/src/semgrep/util.py:65-67`;
+  `cli/src/semgrep/config_resolver.py`; `semgrep/semgrep-rules` `LICENSE`.
+- `hashicorp/vault-helm` `v0.28.1` `Chart.yaml`; `hashicorp/vault` `v1.17.2` `LICENSE`;
+  `bitnami/charts` `redis/19.5.0` `Chart.yaml`.
+- Coolify `v4.3.23` and `v4.x`: `database/seeders/OauthSettingSeeder.php`, `config/constants.php`, `LICENSE`;
+  `https://github.com/coollabsio/coolify/releases.atom`; `https://coolify.io/docs/llms.txt`.
+- Supabase `master`: `LICENSE`, `docker/docker-compose.yml`, `docker/.env.example:58-59`; `supabase/auth` `LICENSE`.
+- LiteLLM `main`: `litellm/proxy/spend_tracking/spend_management_endpoints.py:2440-2600`.
+- Keycloak, Backstage and CloudNativePG `LICENSE` files.
+- GitHub API: `minio/minio`, `GoogleContainerTools/kaniko`, `opengrep/opengrep` (repo), `Cisco-Talos/clamav` (licence).
+
+**Web, 2026-09-30:**
+[Supabase self-hosting](https://supabase.com/docs/guides/self-hosting) ·
+[Supabase regions](https://supabase.com/docs/guides/platform/regions) ·
+[Supabase pricing](https://supabase.com/pricing) ·
+[Coolify preview deployments](https://coolify.io/docs/applications/deployments/preview-deployments) ·
+[Bitnami catalogue change, bitnami/charts#35164](https://github.com/bitnami/charts/issues/35164) ·
+[Semgrep licensing](https://semgrep.dev/docs/licensing) and [Semgrep Rules License](https://semgrep.dev/legal/rules-license/) (via search) ·
+[Flexible Server overview](https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/overview) ·
+[Flexible Server Entra authentication](https://learn.microsoft.com/en-us/azure/postgresql/flexible-server/concepts-azure-ad-authentication) ·
+[Azure Retail Prices API](https://prices.azure.com/api/retail/prices) (Flexible Server, `australiaeast`).
