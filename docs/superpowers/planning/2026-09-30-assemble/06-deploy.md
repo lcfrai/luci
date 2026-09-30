@@ -32,13 +32,16 @@ in the Hub. About 6 engineer-days (3.5 with two people).**
    on AWS (3.10). Container Apps, Argo CD with Kargo, Octopus and the rest stay reference or reject.
 3. **The glue is four pieces** (§6): an Orca Deploy panel (1.5 days), a signed in-toto statement
    binding brief, sessions and Panacea's evidence digest (1 day, cosign with an Azure Key Vault
-   key), promotion through the stage ladder with the data class as its floor (0.75), and a proxy
+   key), promotion through the stage ladder with the data class deciding the rung a production
+   ship needs (0.75), and a proxy
    allowlist that keeps an agent's token off production (1), plus 13.5 hours of kept phase 7 tasks.
 4. **It removes 8 of phase 7's 20 tasks** (11-18, 21.5 plan-hours) and closes two needs the plan
    left open: promotion and a signature (§5).
-5. **Four owner calls** (§7): a *pilot* on secure-test until Panacea's DLP opens production; users
-   seeing Panacea's Portal through links; who pays for running apps and branching previews; and
-   Octopus only if a customer mandates ServiceNow tickets.
+5. **The regulated rungs wait on Panacea, not on us**: secure-test needs Chains signing live on
+   the estate, production needs DLP enforcing (§2a, P-4 and P-5).
+6. **Four owner calls** (§7): first releases as *pilots* holding no client data, on the innovation
+   rung, until those land; users seeing Panacea's Portal through links; who pays for running apps
+   and branching previews; and Octopus only if a customer mandates ServiceNow tickets.
 
 ## 1. What phase 7 has to do, restated as a need
 
@@ -76,7 +79,7 @@ Read from Panacea's source at `efc637879` (2026-09-30), read-only. Nothing was r
 | N1 ship | `POST P/deploy` starts a Tekton pipeline with scans; cancel | `routes.go:1286`, `:1291` |
 | N2 promote | `POST /api/v1/projects/{name}/promote` and `POST …/envs/{env}/stage/promote` | `routes/routes.go:1027`, `:2818` |
 | N2 gate | a posture-policy engine: platform baseline plus team/project tightening, per-check `block` or `ack`, fail-closed, gating **prod-deploy** | `STATUS.md:125-135`; `handlers/security_policy.go` |
-| N2 ladder *(second run)* | a **deployment-stage ladder**, innovation < secure-test < production, each a bundle of existing controls: scans per action, SSO, data-class ceiling (`none` < `synthetic` < `protected`), risk state, backup, and the approver (none, owner, SuperAdmin) | `handlers/deployment_stages.go:39-97`, bundles `:176-259` |
+| N2 ladder *(second run)* | a **deployment-stage ladder**, innovation < secure-test < production, each a bundle of existing controls: scans per action, SSO, data-class ceiling (`none` < `synthetic` < `protected`), risk state, backup, and the approver (none, owner, SuperAdmin). **Every branch starts on innovation**; raising a rung is a gated request, one rung at a time, and a direct raise is SuperAdmin break-glass. Climbing to **secure-test needs a Chains-signed release** (`sig-verify` blocks, checked at promotion only) and production also needs DLP enforcing | `handlers/deployment_stages.go:39-97`, bundles `:152-259`, promotion-only controls `:996-1007`, direct set `:1387-1441`; signature input `handlers/runtime_releases.go:140-152` |
 | N3 rollback | `POST P/deployments/{id}/rollback`, with warmth and cold-start seconds | `routes.go:1026`; `handlers/projects.go:1547` |
 | N4 evidence | **a per-release evidence document**: release identity (digest, commit, env, PipelineRun), the recorded scan verdicts for *that* release, signature and SBOM references "honestly absent when they did not" exist, ISM control states, and the audit chain verified at export | `GET /api/v1/projects/{name}/releases/{release}/evidence`, `routes.go:2720`, `handlers/evidence_export.go` |
 | N4 signing | **Tekton Chains**, deployed as an Argo CD app, signs each build's SLSA v1 provenance and image signature with a Vault Transit key (`panacea-release`); no public Sigstore, transparency log off. **Kyverno** verifies signatures at admission, in **Audit** mode | `kubernetes/argocd-apps/platform/tekton-chains.yaml`; `docs/runbooks/tekton-chains-signing.md`; `STATUS.md:135-138` |
@@ -109,8 +112,8 @@ or a **human** (a held act in the cockpit, or Panacea's Portal).
 | N1 watch and fix | run `:1290`, logs `:2288`, log SSE `:2283`, readiness SSE `:2286`, AI failure analysis `:2291`, pods and events `:1148-1155` | `panacea_logs`, `panacea_diagnose`, `panacea_events`, `panacea_pods_list`, `panacea_deploys_latest` | agent | none: this is the loop that lets an agent fix its own failed deploy |
 | N1 preview policy and access | previews `:1162`, preview policy `:1163-1164`, branch SSO and IP list `:1424-1426`, access `:1430-1431`, share links `:1440-1442`, reviewer comments `:2931-2939` | only through `panacea_api_request` `:578` | human (owner-level settings) | no named tool; these are settings screens the Portal already has |
 | N1 data per preview | none: opt-in by the project label `panacea.io/branch-database=true` (`handlers/preview_data.go:31-35`) | none | platform | **no route writes the label** after creation; `CreateProjectRequest.Labels` (`models/models.go:650`) passes labels through at create (`handlers/projects.go:360-374`), so it can plausibly be set then. Not tested |
-| N2 promote | env to env `POST P/promote` `:1027` (`handlers/projects.go:1643-1690`); stage ladder `GET/PUT P/envs/{env}/stage` `:2814-2816`, `POST …/stage/promote` `:2818`, `POST …/stage/approve` `:2860` (owner route; the production rung wants SuperAdmin, `deployment_stages.go:259`); project floor `PUT P/stage-floor` `:2862` (owner) | none named; `panacea_api_request` reaches them | **human only** | an agent's developer-capped token can call `P/promote`; see the allowlist in §6 |
-| N2 gate by data class (`OD-24`) | a promote **to production** runs the budget gate (`projects.go:1674`), the risk gate, then posture **and** stage (`projects.go:2894-2927`); the stage bundle holds the data-class ceiling | `panacea_security_status` | platform | **no route writes `panacea.io/data-classification`** (03-define G7 hands this step to us); production is **unreachable by construction until DLP label enforcement is live** for the project (`deployment_stages.go:46-59`, `STATUS.md:85-86`) |
+| N2 promote | env to env `POST P/promote` `:1027` (`handlers/projects.go:1643-1690`); stage ladder `GET/PUT P/envs/{env}/stage` `:2814-2816`, `POST …/stage/promote` `:2818`, `POST …/stage/approve` `:2860` (owner route; the production rung wants SuperAdmin, `deployment_stages.go:1563-1570`). `PUT P/stage-floor` `:2862` still answers but is **a no-op**: "every branch starts at innovation and no floor can be raised" (`deployment_stages.go:1600-1610`) | none named; `panacea_api_request` reaches them | **human only** | an agent's developer-capped token can call `P/promote` and request a rung; see the allowlist in §6 |
+| N2 gate by data class (`OD-24`) | a promote **to production** runs the budget gate (`projects.go:1674`), the risk gate, then posture **and** stage (`projects.go:2894-2927`); the stage bundle holds the data-class ceiling | `panacea_security_status` | platform | **no route writes `panacea.io/data-classification`** (03-define G7 hands this step to us); the **production rung is unreachable by construction until DLP label enforcement is live** for the project (`deployment_stages.go:46-59`, `STATUS.md:85-86`), and the secure-test rung needs a signed release (P-4) |
 | N3 rollback, redeploy | rollback `:1026` (`projects.go:1547`), redeploy `:1028`, cancel `:1291` | `panacea_rollback` `:439`, `panacea_redeploy` `:425` | agent on a preview; human on production | none |
 | N3 history | `GET P/deployments` `:1024`, `GET P/deploys/latest` `:1025` (`version`, `commit`, `branch`, `environment`, `failedStep`) | `panacea_deploys_list` | both | none |
 | N4 evidence | `GET P/releases/{release}/evidence` `:2720` (`handlers/evidence_export.go`) | only through `panacea_api_request` | both | **knows no brief**; signatures "honestly absent" while `sign-release.yaml` is unwired (`STATUS.md:135-138`) |
@@ -122,10 +125,10 @@ or a **human** (a held act in the cockpit, or Panacea's Portal).
 | # | Gap | Size | Who closes it |
 |---|---|---|---|
 | P-1 | The deploy request carries no brief pin | 0.5-1 day in Panacea: one optional field, passed to the PipelineRun as a parameter so Chains signs it | Panacea stream (the plan's metadata ask, task 20) |
-| P-2 | No route writes `panacea.io/data-classification` | about 0.5 day in Panacea: an owner-gated, audited `PUT` | Panacea stream; until then we set the **stage floor**, which is the part `OD-24` needs (scans) |
+| P-2 | No route writes `panacea.io/data-classification`, so Panacea cannot apply its own data-class ceiling to our projects | about 0.5 day in Panacea: an owner-gated, audited `PUT` | Panacea stream; until then **our control plane holds the class-to-rung rule at Ship** (§6, G3). A deploy started from Panacea's Portal skips that rule |
 | P-3 | Our realm token is not trusted, so a sandbox cannot get its own short-lived token | 1-2 days in Panacea (00-panacea §5.3, option 1) | Panacea stream; until then one pasted `pnc_` per user behind our proxy |
-| P-4 | Release signing is written but not wired; Kyverno verifies in Audit | Panacea's own backlog (`STATUS.md:135-138`) | Panacea stream; our Hub-side signature (§6) does not wait for it |
-| P-5 | An environment on the **production rung** cannot be reached until DLP enforces for the project. An environment with no rung set sits on **innovation** (`deployment_stages.go:500-518`), where a production deploy needs no scan at all | Panacea's DLP track 6p (`STATUS.md:87-89`) | Panacea stream; an owner call on what "production" means at first ship (§7) |
+| P-4 | Release signing: the in-pipeline signer is dormant and Chains signs out of band (`runtime_releases.go:140-147`); whether Chains signs on the estate today is unverified; Kyverno verifies in Audit | Panacea's own backlog (`STATUS.md:135-138`) | Panacea stream. Our Hub-side signature (§6) does not wait for it, **but the secure-test rung does**: it blocks on `sig-verify` |
+| P-5 | The **production rung** cannot be reached until DLP enforces for the project. Every branch starts on **innovation** (`deployment_stages.go:500-518`, `:1600-1610`), where only the platform baseline (a Trivy block, `:178-180`) gates a production deploy | Panacea's DLP track 6p (`STATUS.md:87-89`) | Panacea stream; an owner call on what "production" means at first ship (§7) |
 
 ## 3. Candidates
 
@@ -473,15 +476,17 @@ keeps an agent's token off production, and the data class handed to Panacea (03-
 
 **When it becomes usable.** Day 1: an agent in an Orca session deploys its branch to a preview,
 reads the logs and fixes a failed build, once the sandbox image carries `panacea-mcp` (01-sandboxes)
-and G4 is in. Day 3.5: a human ships the production branch from the Deploy panel, and the release
-card shows the brief it answers. Day 6: promotion through the ladder and the signed provenance
-record, exportable to an assessor.
+and G4 is in. Day 3.5: a human ships the production branch of a class-`none` project from the
+Deploy panel, and the release card shows the brief it answers. Day 6: promotion requests through
+the ladder and the signed provenance record, exportable to an assessor. The secure-test and
+production rungs open when Panacea's P-4 and P-5 land, with no further work of ours.
 
 **Risks, and what holds if they land.**
-- **Five Panacea-side gaps belong to the Panacea stream** (§2a, P-1 to P-5). None blocks the
-  first ship: the Hub-side signature does not need P-1 or P-4, the stage floor covers P-2's scan
-  part, the proxy covers P-3. What waits is admission-time "no brief, no prod" (P-1 plus P-4) and
-  production for protected data (P-5).
+- **Five Panacea-side gaps belong to the Panacea stream** (§2a, P-1 to P-5). None blocks a first
+  ship on the **innovation** rung: the Hub-side signature does not need P-1 or P-4, our Ship rule
+  stands in for P-2, the proxy covers P-3. What waits: the **secure-test** rung until Chains signs
+  on the estate (P-4, unverified today), the **production** rung until DLP enforces (P-5), and
+  admission-time "no brief, no prod" (P-1 plus P-4).
 - **The release record lives in the Hub** (`OD-3`), 6 of 50 tasks built. Until the Hub's release
   routes run (H5), tasks 09 and 19 run against its fake, and the control plane keeps the signed
   records in its own state file, migrated on arrival.
@@ -498,7 +503,7 @@ record, exportable to an assessor.
 |---|---|---|---|---|---|
 | G1 | **Orca Deploy panel**: the release card, the held acts (ship the production branch, request promotion, roll back), the preview link into Orca's per-worktree browser, deep links into the Portal's `/projects/:name/deploy`, `/environments`, `/access` and stage pages | Orca plugin panel, or our Orca fork (3.11) | replaces tasks 13-18 (17 h) and the first run's 0.5-day links | 1.5 | task 08's view; the cockpit cluster's panel-or-fork call |
 | G2 | **Signed release provenance**: one in-toto Statement v1 per release, DSSE-signed in the Hub with an Azure Key Vault key (`azurekms://`), `OD-32`'s OpenBao Transit key (`openbao://`) at the lift | Hub, called by task 09 on confirm | adds: nothing in the plan signed | 1 | Hub release record (fake until H5) |
-| G3 | **Promotion and the data class**: at bind, `PUT P/stage-floor` from the project's class (`none` to innovation, `synthetic` to secure-test, `protected` to production); a promotion request is `POST P/envs/{env}/stage/promote`, the card shows `GET P/envs/{env}/stage`'s per-rung checklist, approval stays in the Portal | control plane, next to task 10 | adds N2, which the plan left out; closes 03-define G7's hand-off | 0.75 | task 04's transport |
+| G3 | **Promotion and the data class**: the project's class sets the rung its production environment must be on before a production ship (`none` innovation, `synthetic` secure-test, `protected` production); Ship refuses below it, with the reason and a **Request promotion** act that calls `POST P/envs/{env}/stage/promote`; the card shows `GET P/envs/{env}/stage`'s per-rung checklist; approval stays in the Portal (owner, or SuperAdmin for production). When P-2 lands, the class is also written to Panacea so its own ceiling applies | control plane, next to task 10 | adds N2, which the plan left out; closes 03-define G7's hand-off | 0.75 | task 04's transport |
 | G4 | **The agent allowlist**: the sandbox's `panacea-mcp` talks to a control-plane proxy that holds the real token and forwards only the session's own project, and only the routes in the list below | control plane | adds the control that keeps an untrusted agent off production | 1 | 01-sandboxes' image and `/bind` |
 | — | Phase 7 tasks 07 (rest), 08, 09, 10, 19, 20, as planned | control plane | kept | 1.7 (13.5 h) | as the plan says |
 | | **Total** | | | **about 6** | |
@@ -521,8 +526,9 @@ loop needs (deployments, runs, logs and their SSE, pods, events, diagnose, secur
 on a **non-production** environment. It refuses everything else, among it `P/promote`, the stage
 and stage-floor routes, access and preview policy, custom domains, webhooks, env writes
 (`panacea_env_set`), token minting and every admin route. The reason is in §2a: a developer-capped
-token *can* call `P/promote`, and on an environment with no rung set a production deploy asks for
-no scan. Until P-3 the real token is the user's pasted `pnc_`, which never enters the sandbox;
+token *can* call `P/promote`, and on the innovation rung, where every branch starts, a production
+deploy is gated only by the platform baseline, a Trivy block. Until P-3 the real token is the
+user's pasted `pnc_`, which never enters the sandbox;
 after P-3 it is a per-session `scopeProject` + `scopeRole=deploy` token that expires in hours, and
 the allowlist stays, because that role can still promote.
 
@@ -534,13 +540,15 @@ egress IP on Panacea's edge allowlist. P-4 and P-5 are Panacea's own backlog.
 
 Business calls only: money, or what a customer sees. Everything technical above is decided.
 
-1. **What "production" means for a customer at first ship (customer-visible).** Panacea's ladder
-   puts protected data on the production rung, and that rung opens only when Panacea's DLP
-   enforcement is live for the project (P-5). **Recommend:** first customer releases go to the
-   **secure-test** rung (SSO enforced, enforced scans, synthetic data only) and are called a
-   *pilot*; production for protected data follows Panacea's DLP track. The alternative, leaving
-   production environments with no rung, is live today but asks for no scan on a production
-   deploy, which a regulated customer should not be offered.
+1. **What a customer may ship at first release, and what we call it (customer-visible).** Panacea's
+   ladder decides it, not us: every branch starts on **innovation** (a Trivy block only, SSO
+   optional, no sensitive data); **secure-test** (SSO enforced, six blocking scans, synthetic data)
+   opens once Chains signs on the estate (P-4); **production** (the full suite, protected data)
+   opens once DLP enforces (P-5). **Recommend:** first releases are **pilots that hold no client
+   data** (class `none`) on innovation, with SSO access set on them; a project classed `synthetic`
+   or `protected` ships to production when its rung opens, and G3 refuses it until then. The
+   alternative, classing a project `none` to ship client data early, must not be offered to a
+   regulated customer.
 2. **Whether users see Panacea's Portal (customer-visible).** v1 deep-links from the Orca panel into
    Panacea's Backstage pages for logs, scans, governance and approval, so users meet a second,
    Panacea-branded UI. **Recommend yes for v1.** The alternative is building those screens in
@@ -567,7 +575,8 @@ to **Orca**. What changed, and why:
 | Supabase | not examined | reject for deploy (3.10) | branching is hosted-only on AWS; Panacea already branches and redacts preview data |
 | The cockpit surface | a deep link from the Tauri Deploy lens | one Orca panel (G1); tasks 13-18 leave | Orca is the owner's cockpit |
 | Azure Container Apps | integrate later, for customer tenancies | reference, only if a customer refuses a cluster | Panacea is the strong default, and the customer-hosted tier is the lifted Panacea on AKS |
-| Promotion (N2) | noted as missing from the plan | built as G3 on Panacea's **stage ladder**, found this run | the ladder is `OD-24`'s "class decides the scans", already running |
+| Promotion (N2) | noted as missing from the plan | built as G3 on Panacea's **stage ladder**, found this run; the ladder's project floor route is a no-op now, so the class-to-rung rule sits in our Ship until P-2 | the ladder is `OD-24`'s "class decides the scans", already in Panacea's code |
+| What the first ship can reach | not examined | innovation now; secure-test after Chains signs (P-4); production after DLP (P-5) | read from the ladder's default bundles this run |
 | Data per preview | not examined | Panacea's copy-on-write database branching, found this run | the Supabase question made us look |
 | Agent tokens | "later" (3.8) | G4, the allowlist, in v1 | an agent in every Orca session can reach `P/promote` without it |
 | Days | 5 | about 6 | G3 and G4 are new; the Orca panel replaces 17 plan-hours of Tauri lens |
@@ -590,8 +599,11 @@ short reads of today's working tree; another session is working there, so lines 
 - **That `CreateProjectRequest.Labels` accepts `panacea.io/branch-database`** at create. The handler
   adds its own keys and filters nothing visible (`projects.go:360-374`); a filter further down was
   not looked for.
-- **That a pasted, unscoped `pnc_` can call the owner routes** G3 needs (`PUT P/stage-floor`). The
-  route is owner-gated and the token carries its user's role, so it should; untested.
+- **That a user's pasted, unscoped `pnc_` can request a stage promotion** (G3). The route is
+  developer-gated and the token carries its user's role, so it should; untested.
+- **That secure-test needs a Chains-signed release**: read from the default bundle (`sig-verify`
+  block, `deployment_stages.go:154-161`) and the promotion-only split (`:996-1007`); a SuperAdmin
+  can edit the bundles (`:144-146`), so the live ladder may differ from the defaults.
 - **That Chains copies PipelineRun parameters into its signed provenance** (P-1's premise), from
   Chains' format documentation, not Panacea's pipeline. Kyverno issue #17363 was not reproduced.
 - **Orca**: whether a plugin panel can reach our control plane, and how its per-worktree browser
@@ -605,7 +617,8 @@ short reads of today's working tree; another session is working there, so lines 
 
 **Panacea (read-only, 2026-09-30):** `services/panacea-api/routes/routes.go` (lines in §2a);
 `handlers/projects.go:360-374`, `:1547`, `:1643-1690`, `:2894-2927`; `handlers/deployment_stages.go:21-259`,
-`:500-518`, `:1262-1290`; `handlers/preview_data.go:27-35`; `clients/db_branch_ops.go:17-52`;
+`:500-518`, `:996-1035`, `:1262-1290`, `:1385-1454`, `:1540-1610`; `handlers/runtime_releases.go:135-152`;
+`handlers/preview_data.go:27-35`; `clients/db_branch_ops.go:17-52`;
 `clients/branch_data_ops.go:15-46`; `models/models.go:639-663`, `:2341-2372`; `STATUS.md:84-140`;
 `docs/runbooks/tekton-chains-signing.md`; `services/panacea-mcp/src/index.ts` (31 tool names).
 
