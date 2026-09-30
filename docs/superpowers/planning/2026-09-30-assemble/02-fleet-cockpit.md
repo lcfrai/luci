@@ -23,7 +23,21 @@ attribution in the file header.
 
 ### R1. What changed and why
 
-(pending)
+The first run (stopped 09:43) read Orca from its docs and the GitHub API only. This relaunch read
+its source (R2), which both confirms the owner's pick and corrects one first-run claim.
+
+| # | What | First run | Now | Why |
+|---|---|---|---|---|
+| 1 | The cockpit | Keep our Tauri cockpit; Orca **reference** | **Adopt Orca, unforked**; our control plane and Kata sandboxes become its backend through one recipe and one plugin (R3) | The owner's pick; the recipe seam and plugin API reach every v1 need |
+| 2 | Orca's gaps | "no sandbox per session, no Azure DevOps, no Entra" | A sandbox per lane through the recipe; **ADO PR creation exists** (a correction); Entra stays on our side (`panacea login`, the `wss://` route) | Source, not docs (R2) |
+| 3 | Attention queue | Build it from Claude Code's HTTP hooks, 2.5 days | **Orca's status store** runs the cockpit's queue; our hook relay moves to *later*, for the Hub and team mode (1.5 days) | Orca already ships it, with subagents, an inbox and notifications |
+| 4 | Landing | Host PRs, merge queue, ADO auto-complete | Unchanged, but driven by the control plane with the user's credential, plus a **Panacea PR preview** per lane | Orca's hosted review runs inside the sandbox, which holds no credential (R3) |
+| 5 | Phase 3 | ~21 of 71.5 plan-hours leave first ship | **28.5 of 71.5** (Orca takes the six desktop tasks); 09 and 24 reshaped | R6 |
+| 6 | Panacea | Not considered here | PR previews, `panacea-mcp`, the Forge session-id pattern (R5) | The second direction |
+| 7 | Days | 4.5 | **7.5**, 4.5 to first ship, beside 01's 8 | Switching costs 3 days more than keeping ours and buys a far more mature cockpit |
+
+**Unchanged:** every other candidate verdict in §3; landing through the host (§4); the owner calls
+on the host page, GitHub Enterprise Cloud and AI review (now §7, items 3, 6 and 7).
 
 ### R2. Orca, verified: source, licence, architecture, extension points
 
@@ -185,7 +199,40 @@ PR previews, and their cleanup when a PR completes, are unverified.
 
 ### R6. The revised recommendation
 
-(pending)
+**Adopt Orca as the cockpit, unforked. Run every lane in our Kata sandbox through one Panacea
+recipe, add one Panacea plugin, land through the customer's git host, and review the running app
+in a Panacea PR preview. Integration: 7.5 days, 4.5 of them to first ship** — on top of 01's 8 days
+for the sandbox, the recipe's JSON, the `wss://` route and the clone before bind (not counted twice).
+
+**What we still build (glue):**
+
+| When | Item | Days |
+|---|---|---|
+| First ship | **Orca rollout package**: one pinned version; Intune or winget install; `ORCA_TELEMETRY_DISABLED=1`; computer use and mobile off; the plugin preinstalled; a one-page Defender note for IT | 0.5 |
+| First ship | **`panacea login`**: PKCE through Keycloak (`OD-30`), Windows Credential Manager (`OD-6`), the local anchor clone for non-developers; the recipe scripts call it | 0.5 |
+| First ship | **Lane git endpoint** in the control plane: `git http-backend` behind session-token auth, a pre-receive hook that allows the lane branch only, stored under `refs/panacea/lanes/…` (`OD-2`) | 1.5 |
+| First ship | **Landing**: push the lane branch with the user's credential; open the PR with the brief trailer; GitHub auto-merge or enqueue; ADO auto-complete with `mergeCommitMessage`; poll PR state; "send back to the agent" as a typed prompt (`terminal:send`), never output parsing | 1.5 |
+| First ship | **Panacea PR preview and provenance**: previews on per project; the lane and brief key stamped the Forge way (R5); the preview URL on the lane | 0.5 |
+| Week 2 | **Panacea plugin**: a worktree panel (brief card; lane → PR → checks → preview → release strip) and commands (Open PR, Open preview in Orca's browser, Resume in a fresh sandbox, Fork into a new lane); falls back to a Hub page in a browser tab if the worker cannot fetch | 2 |
+| Week 2 | **Resume and fork** wired from phase 2's transcript store through the recipe | 0.5 |
+| Week 2 | **AI first-pass review** template, opt-in per project (§3c) | 0.5 |
+| Later | Claude Code HTTP hooks → `sandboxd` → Hub, for team mode and the Orchestrators (the first run's §6 item 1, minus the cockpit UI Orca now supplies) | 1.5 |
+
+**What it replaces:**
+
+| Plan | Disposition |
+|---|---|
+| **Phase 3** (24 tasks, 71.5 plan-hours) | **Replaced by Orca:** 06, 18, 19, 20, 21, 22 (6 tasks, 17 h) — the desktop wire types, merge lens, files lens and lifecycle-verb UI. **Replaced by the host:** 08, 10 (2 tasks, 5.5 h) — forecast, queue order, landed history and undo. **Deferred:** 16, 17 (6 h). **Reshaped:** 09 becomes the landing glue; 24's bundle RPC becomes the lane git endpoint (12 h of plan, now glue). **Kept as planned:** 01, 02, 03, 04, 05, 07, 11, 12, 13, 14, 15, 23 (12 tasks, 31 h) — clones, the trailer hook, credentials, `githost`, evidence, the proof. **28.5 of 71.5 plan-hours (40%) leave the first ship** |
+| **Phase 2** (built) | The Tauri Develop views retire (R4); the `BLOCKED-ON-YOU` gap closes through Orca's status store |
+| **Phase 8** | Tasks 22 (`remotebe`) and 26 (the cloud-machine view), 6 plan-hours, become the recipe (01 §1) |
+| **Team mode** (69 tasks) | 49 → host branch policy (required reviewers or CODEOWNERS); 61 → the host queue; 63 → a PR list filtered by author |
+
+**Risks.** Orca's recipes ("Experimental") and plugin API ("no compatibility promises") move
+daily: pin one Orca version in the image and on the desktop, and canary each upgrade — the guard
+`OD-8` already asks for. Every lane sandbox carries an Electron runtime and Xvfb (01 sizes it). The
+laptop needs a local anchor clone. ADO PR previews in Panacea are unverified (R5). This category
+loses products fast (Crystal, vibe-kanban and Terragon all stopped in 2026); MIT lets us fork Orca
+if Stably AI changes course.
 
 ---
 
