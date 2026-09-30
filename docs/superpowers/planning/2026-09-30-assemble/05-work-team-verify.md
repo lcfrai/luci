@@ -26,7 +26,7 @@ source. The Done rule does not work as written, and the identity it needs does n
 | # | Claim | At source (read 2026-09-30) | Holds? |
 |---|---|---|---|
 | 1 | Basic $6/user/month after 5 free; Stakeholder free | Pricing page: *"$6 per user per month"*, *"First 5 users free"*; Stakeholder can *"Create and edit work items"* and *"View backlog and boards"*. Also: *"GitHub Enterprise Cloud customers who manage users with Entra ID can access Azure DevOps without additional cost"* | **Yes.** A service identity can be a free Stakeholder |
-| 2 | `azure-devops-mcp` and `azure-devops-go-api` are MIT | Both `LICENSE` files: MIT, *"Copyright (c) Microsoft Corporation"* | **Yes.** But the Go client's newest release is `azuredevops/v7.1.0` (17 April; the releases page shows no year). It targets API 7.1, still the current GA version. Low activity: Panacea's snippets call REST with plain `net/http`, the safer base |
+| 2 | `azure-devops-mcp` and `azure-devops-go-api` are MIT | Both `LICENSE` files: MIT, *"Copyright (c) Microsoft Corporation"* | **Yes.** But the Go client's newest release is `azuredevops/v7.1.0` of **2023-04-17** (GitHub API). It targets API 7.1, still the current GA version. Low activity: Panacea's snippets call REST with plain `net/http`, the safer base |
 | 3 | Australia is a selectable geography | Data-location page (updated 2026-03-17) lists Australia; customer data *"includes source code, work items"* | **Yes** |
 | 4 | Profile data of users outside US/EU/UK is stored in the US | Same page: *"All other countries and regions"* → US | **Yes, and two more US items were missed.** *"Token data, such as personal access tokens and SSH keys, in a US datacenter"*: our only ADO path is a per-user PAT (identity ruling §7). And the remote MCP server *"runs instances in both Europe and the United States"* (pass-through, no storage) |
 | 5 | Remote MCP GA 2026-08-05; Claude Code cannot connect yet | GA post: Claude Code needs *"dynamic OAuth client registration or client ID Metadata documents in Microsoft Entra"*; until then *"continue using the local Azure DevOps MCP Server"* | **Yes.** For an AU-only project the local server stays the answer even after that lands (row 4) |
@@ -120,7 +120,37 @@ already ranks first.
 
 ## 5. The recommendation, part 4: Orca task sources and the ADO fork patch
 
-*(to be filled)*
+**Orca holds. "Start for GitHub and Jira for free" is unverified, and "a 2-day fork patch" does not
+survive `02-fleet-cockpit.md`'s own ruling.** Not re-argued: Orca is the owner's pick.
+
+| # | Claim | At source (read 2026-09-30) | Holds? |
+|---|---|---|---|
+| 1 | MIT, "Copyright 2026 Lovecast Inc." | `LICENSE` read. GitHub API: MIT, 81,654 stars, TypeScript, pushed 2026-09-30; releases `v1.4.216` (09-28) and `v1.4.217` (09-29) | **Yes.** It ships daily |
+| 2 | Browse PRs, issues and boards; open a worktree from any task | README: *"Browse PRs, issues, and project boards in-app — open a worktree from any task"*. GitHub docs page: a GitHub Projects view, *"create a worktree from any card"*; from an issue it *"opens the interactive workspace composer"* and *"links the issue"* | **Yes** |
+| 3 | Sources are GitHub, Linear and Jira; no ADO, no GitLab | GitHub docs page: *"browse, filter, and edit GitHub and GitLab issues"*. Jira page: *"Jira Cloud and self-hosted Server/Data Center"*. ADO: *"Azure DevOps and Gitea pull requests appear in the worktree sidebar"*; no ADO work items | **Mostly.** GitLab issues exist, and Jira Server/DC works; ADO work items do not |
+| 4 | No documented plugin point for another source | Plugin API v1 (02 §R2, read from source): panels, commands, events, `vmRecipes`, but a closed capability set, and *"scoped `net:fetch` and `process:exec` 'arrive in later phases'"*; hosted-review providers *"are built in, not pluggable"* | **Yes.** It is also why an ADO source cannot be a plugin today: a panel cannot call ADO |
+| 5 | Start for GitHub and Jira comes free | A task-linked worktree opens the composer. 02 §R3 makes a sandbox lane only through the *Run on: Panacea sandbox* recipe; the recipe inputs 02 read are the repo URL, ref and branch; and *"Orca's CLI cannot create a recipe workspace"* | **Unverified; probably not free.** Not checked: whether the composer offers our recipe for a task-linked workspace, and whether the issue link reaches the recipe's `create` script. Our live status comment, token tag and provenance edge all need that link. Budget 0.5 to 1 day after a day-1 spike |
+| 6 | An ADO Boards source as a fork patch, 2 days | 02 §R3 rules Orca *"unforked"*, because a fork means *"our own Windows code signing ..., a fresh Defender prevalence reset on every build we ship, and a daily rebase"*; it names this patch as the first fork candidate, *"offered upstream as a pull request first"* | **No.** The 2 days build the patch. Carrying it means shipping our own Orca build, which 02 rejects. Offer it upstream (the same 2 days, off the critical path) and ship nothing forked |
+
+**ADO Start without a fork: 1 day.** 02 §R3 already has the pattern, for fork: *"mark the fork ...,
+then create a workspace with 'Run on: Panacea sandbox'; the recipe's `create` picks up the pending
+fork"*. Start from a work item does the same:
+
+1. A Start button on the Hub's Work page, or a link on the work item, marks a pending start.
+2. The user creates a workspace with *Run on: Panacea sandbox*.
+3. The recipe's `create` claims the pending start, with its work item id.
+
+The same path covers GitHub and Jira if the spike in row 5 finds that the composer drops the link.
+
+**The Work lens moves too.** Researcher piece 4 puts it in *"Orca panels instead of Tauri views, the
+same 2.5 days"*. With no `net:fetch`, a panel cannot read the tracker or the Hub. 02 §R3's fallback
+applies: a Hub page in Orca's browser tab, which is also `08-whole-product.md`'s journey shell. The
+2.5 days stand, but they build a Hub web page, and the Hub is 6/50 built.
+
+**Maintenance of the other parts, from the GitHub API:** `azure-devops-mcp` `v2.10.0` (2026-09-09),
+`github-mcp-server` `v1.12.2` (2026-09-16) and `Agents-for-js` `v1.9` (2026-09-29) are active.
+`azure-devops-go-api`'s newest release is **`azuredevops/v7.1.0` of 2023-04-17**, last push
+2026-06-10: build on REST, as Panacea does (section 2 row 2).
 
 ## 6. The Teams surface: first-party apps plus a Microsoft 365 Agents SDK bot
 
