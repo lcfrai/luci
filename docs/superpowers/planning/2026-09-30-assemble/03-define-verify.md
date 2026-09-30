@@ -1,6 +1,6 @@
 # 03 — Define (the brief, the interview, the spec): the sceptic's verification
 
-**Status:** IN PROGRESS (skeleton). Sections are filled one at a time and committed after each.
+**Status:** complete.
 **Date:** 2026-09-30. **Verifies:** `03-define.md` (the researcher's recommendation).
 **Role:** sceptic. Try to refute the recommendation (GitHub Spec Kit as the Define engine, run
 as an Orca worktree session, with a Panacea preset) and its two best alternatives at source:
@@ -10,7 +10,24 @@ Desk research only: nothing installed or run.
 
 ## 0. Verdict first
 
-*(to be filled)*
+**UPHELD, with corrections: Spec Kit stays the Define engine, and the way it plugs into Orca
+changes.** Spec Kit's licence, maintenance and interview claims hold at source, most of them word
+for word. The report's Orca half contradicts `02-fleet-cockpit.md`'s source-read ruling, and it
+misses a gap in Publish. **Days: about 10 stream-days, not 8.** Still days, not weeks.
+
+| Candidate | Verdict | The deciding fact at source |
+|---|---|---|
+| **GitHub Spec Kit** (rec.) | **Upheld** | MIT (GitHub, Inc.); 139,453★; v1.0.13 on 09-29; `clarify` asks "EXACTLY ONE question at a time" with a recommended option; offline wheel. But `SC-` criteria are metrics that Forge's rule refuses (2.4) |
+| **OpenSpec** (runner-up) | **Upheld as reference** | MIT; weekly releases; two core maintainers; **telemetry on unless switched off** (missed) |
+| **Forge as a service** (Panacea default) | **Rejection upheld** | Its own `/v1/messages` loop; `SPEC.md` saved via `SaveFile` to its store; greenfield only; one platform-wide AI provider, so no per-project AU |
+| **aihero skills** (graft) | **Upheld, wrong files named** | The interview is `grilling`, which the report omits; the wrappers are person-invoked only |
+| **Forge rules** (graft) | **Upheld in part** | The testable rule is real, with eight verbs; **"access for every entity" is prompt text, not a validator rule** |
+| **Panacea data class** (graft) | **Upheld** | No writer anywhere, and **absent ⇒ `none` fails open**, so Deploy must gate on it |
+| **Orca as host** | **Rebuilt** | `orca worktree create` runs on the laptop, not in our sandbox; plugin API v1 exists, so no fork; no `net:fetch`, so Publish moves to a person-side page |
+
+**The sharpest defect:** the person reviews the **working copy** in Orca's editor, while Publish
+reads the **committed blob**. The untrusted agent controls both. Publish must render the exact
+pushed blob it will publish (2.5, item 3).
 
 ## 1. What was checked, and how
 
