@@ -61,6 +61,45 @@ already tied the same way (`OD-30`), so the dependency is not new.
 **Snippet rule:** a file that takes Panacea code opens with its source, e.g.
 `// Adapted from Panacea services/panacea-build/pkg/prcomment/client.go @ <commit>`.
 
+### 0.2 Supabase and Coolify, on merit
+
+Licences read from each repository's `LICENSE` on raw.githubusercontent.com, 2026-09-30.
+
+| Candidate | Does, for us | Licence | Deploy and residency | Gaps | Days | Verdict |
+|---|---|---|---|---|---|---|
+| **Supabase Realtime** | Presence per client with sync, join and leave events; Broadcast for fast messages (the docs warn that calling `track()` rapidly "will flood the channel"); Postgres Changes as a feed; private channels authorised by RLS | `supabase/realtime` **Apache-2.0**; `supabase/supabase` **Apache-2.0**; `supabase/auth` **MIT** | Self-host on AKS in Australia East (Compose is official, Kubernetes is a community chart), or Supabase Cloud in **Sydney, `ap-southeast-2`, on AWS**: a new processor, not Azure. Third-party auth takes asymmetric JWTs from an OIDC issuer with a `kid`, so Keycloak should fit (**not verified**) | A **third real-time protocol** beside the PTY relay and the Hub feed (`08-sceptic.md` §2.4) unless the Hub itself runs on Supabase; the facts it would carry (sessions, files, leases) still come from our control plane | 2-3 standalone; about 1 if the Hub is on Supabase | **reference** |
+| **Supabase as a tracker backend** | Tables, RLS, PostgREST and Realtime make a custom tracker quicker to write | as above | as above | Still Phase W's 190 tasks on a different backend; the answer is not to build a tracker | — | **reject** |
+| **Coolify** | A self-hosted PaaS whose one-click services could run an open tracker | **Apache-2.0** | Docker on a VM; no Kata, no AKS (`06-deploy.md` §3.1) | Hosting a tracker does not change its licence (Plane AGPL-3.0, Huly EPL-2.0) or make it less of a third tracker | — | **reject** for this capability |
+
+**Where Supabase would earn its place:** if the Hub itself moves to Supabase Postgres, Phase T's
+feed and presence come from Realtime for about a day, and Phase T's Hub route tasks (04, 06-08)
+shrink toward RLS tables and PostgREST. That is a Hub decision, not this capability's, and none
+of it is counted in the days here.
+
+### 0.3 Orca and the work layer
+
+Read 2026-09-30: Orca's `README.md` and `LICENSE` (**MIT**, "Copyright (c) 2026 Lovecast Inc.")
+on raw.githubusercontent.com; the docs pages `onorca.dev/docs/review/linear` and
+`/docs/notifications` through WebFetch. The GitHub API was rate-limited, so Orca's source tree was
+not read. Not re-argued: Orca is the owner's cockpit direction.
+
+- **Task sources:** *"Browse PRs, issues, and project boards in-app — open a worktree from any
+  task"* (README). The docs name **GitHub Issues, Linear and Jira**; **no Azure DevOps, no
+  GitLab**, and **no documented plugin point** for another source.
+- **Linear:** a personal API token pasted into settings; moving the issue to *In Progress* on
+  worktree creation is *"opt-in per team"*; the branch uses Linear's suggested name.
+- **Notifications:** fired when *"an agent transitions from working to idle"*: system alert,
+  sound, a chip on the worktree, a header bell with an unread count, and a phone app. **Single
+  user: no team view, no Slack, Teams or webhook.**
+- **Review:** comments on any diff line go back to the agent.
+
+| Our glue (§7) | With Orca as the desktop |
+|---|---|
+| 3. Start from an issue | GitHub and Jira: Orca's *open a worktree from any task* is the gesture. Our control-plane route still puts the session in our sandbox, posts the live status and tags the gateway token (how an Orca worktree reaches our sandbox is `02-fleet-cockpit.md` §R3). ADO: **we add an ADO Boards task source to Orca**, a WIQL list, the item view and *open a worktree*, as a fork patch offered upstream: **2 days** |
+| 4. Work lens v0 and team view | Orca panels instead of Tauri views, the same 2.5 days; the roster from Panacea's team API |
+| 5. Teams bot | Unchanged. Orca notifies *me* about *my* agents, on the desktop and the phone; the bot carries what crosses people (*inform*, *decide*, file overlap) |
+| Linear (§3.1) | Orca already speaks Linear, so a customer whose data class allows US or EU hosting gets it with no connector UI to build. **Off for AU-only projects**: Linear has no AU region |
+
 ## The answer
 
 **Do not build a tracker. Integrate the two KPMG already runs — Azure DevOps Boards first, GitHub
