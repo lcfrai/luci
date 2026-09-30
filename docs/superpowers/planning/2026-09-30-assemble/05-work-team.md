@@ -11,13 +11,30 @@ relaxed), Orca (`stablyai/orca`) is the cockpit direction. See §0.
 
 ## 0. Revised for the owner's second direction
 
-*Relaunch in progress: this section is being filled in; §1-§9 below are the first run's work.*
+**The answer stands; where the glue comes from changes.** Integrate Azure DevOps Boards and GitHub
+Issues/Projects, carry *inform* and *decide* in Teams, and build only the provenance glue. None of
+the options the second direction opens is a tracker: Panacea has no work items (§0.1), Coolify is a
+deploy PaaS, Supabase is a backend (§0.2). So the fully-fledged tracker is still the one KPMG
+already runs. What moves: the glue borrows Panacea's code and team model, Start and the Work lens
+land in Orca if Orca becomes the desktop (§0.3), and one collaboration surface comes whole from
+Panacea (preview comments).
 
-- What changed: (pending)
-- Panacea: (pending)
-- Supabase and Coolify: (pending)
-- Orca: (pending)
-- Net effect on days, tasks and owner calls: (pending)
+| # | What changed | First run | Now | Why |
+|---|---|---|---|---|
+| 1 | Team roster, members, invites, join requests, team budgets | Implied Hub and Phase T work (43, 44, 66, 67) | **Panacea's team API**: teams are Keycloak groups in the realm `OD-30` already signs us in through | Built and running; `routes.go:1897-2020` (§0.1) |
+| 2 | Connector code | Written fresh on `azure-devops-go-api` and `go-github` | **Panacea snippets**: the sticky comment upsert, the ADO Service Hooks and GitHub hook lifecycle, the ADO hook check | Production code, same APIs; `OD-13` relaxed for snippets |
+| 3 | Audit chain head (Phase T 45) | Sentinel connectors only | Plus **Panacea's signed chain head** (`audit_signed_head.go`) | The same property task 45 asks for |
+| 4 | Collaboration on the running app | Not covered | **Adopt Panacea's preview comments** plus *file as issue* (1 day) | A stakeholder's comment on a preview becomes a tracker item on the thread |
+| 5 | Start from an issue; the Work lens | Our Tauri desktop, `Shift+R` | **Orca's "open a worktree from any task"** for GitHub and Jira; we add an **ADO Boards source to Orca** (2 days) | Orca is the cockpit direction and has no ADO (§0.3) |
+| 6 | Presence and the team feed | The Hub feed; NATS later | Unchanged. **Supabase Realtime** only if the Hub itself moves to Supabase | Otherwise a third real-time protocol (§0.2) |
+| 7 | Integration days | 16 | **17**, or 15 if Orca does not replace the desktop | Snippets −1.5, Spec Kit −0.5, preview comments +1, Orca ADO source +2 (§7) |
+| 8 | Owner calls | 4 | **5**: call 1 now names `OD-35`; new call 5, *PanaceaApp teams are Panacea teams* | §8 |
+
+**Candidates added by this revision** (verdicts in §0.1-§0.3 and the table under *The answer*):
+Panacea's team API, snippets and preview comments (**integrate**); Orca's task sources (**adopt
+with the cockpit, extend with ADO**); Supabase Realtime (**reference**); Coolify (**reject** for
+this capability); Panacea's Backstage (**reject** for the work layer); Claude Code agent teams
+(**reference**). **No first-run verdict is reversed**; §2-§5 stand as written.
 
 ## The answer
 
