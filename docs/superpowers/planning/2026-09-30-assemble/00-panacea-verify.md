@@ -193,7 +193,39 @@ not checked here.
 
 ## 7. Days against our architecture
 
-_Pending._
+The report's 2 days (section 12 there) sit on top of 06-deploy's 6. Each item was set against the
+Go control plane's `Backend` seam, Orca or the Tauri desktop, Keycloak, LiteLLM and Azure.
+
+| # | Report | What our architecture adds, at source | Days |
+|---|---|---|---|
+| P1 | `panacea-mcp` bundle into the image, 0.25 | the download needs an authenticated caller (`routes.go:3010`, `authed`), so fetching it at image build puts a Panacea token in our pipeline. Copy `services/panacea-mcp` (KPMG code, P4's ledger) and build it instead | 0.25, holds |
+| P2 | bootstrap skill into the worktree, 0.25 | holds: Panacea's own design commits it in each repo (`handlers/agent_context.go:23`); `agent-context` is on G4's read list | 0.25, holds |
+| P3 | create the project from the cockpit, 0.5 | also: declare the scan posture from the data class, because a new project runs 3 checks (section 2, row 10); the call needs the user's unscoped token (section 4); a user with no Panacea team cannot create one (`authedGrant`; section 2, row 4), so the cockpit must say so; the job code is owner call 2 | **0.75-1** |
+| P4 | snippet ledger, 0.25 | holds; P1 adds one entry | 0.25 |
+| P5 | three asks, 0.25 | six now: PKCE client, egress IP, realm trust (2-3 days of theirs, section 4.1), a guard on legacy key minting (4.2), the SAST fix (section 2, row 11), `kc_idp_hint=entra` on oauth2-proxy's login URL (4.3) | **0.5** |
+| P6 | live proof on dev, 0.5 | runs from a KPMG network only until P5b lands: this machine's egress is on the edge list, our AKS's is not (section 2, row 8) | 0.5, holds for local mode |
+| G4 | 06-deploy's proxy, 1 | must match method and route and never hold a token the sandbox can read (4.2). A Go `httputil.ReverseProxy` with SSE flushing fits the control plane | 1, holds (06 counts it) |
+| — | cohesion glue (section 8) | Panacea's steps surfaced inside our cockpit: team-request state, the token connect with a deep link that returns, previews opened where the Keycloak session lives | **0.5-1**, new |
+| | **Total here** | | **about 3-3.75**, not 2 |
+
+**The shortened tasks.**
+- Phase 6 tasks 04, 06, 09 exist as named (LiteLLM admin client, budgets, usage rollup). The code
+  to copy targets whichever LiteLLM Panacea runs, `v1.63.11` or a `main-v1.40.0` build, still
+  unresolved (report section 6); ours will be current. The spend query it relies on,
+  `/spend/logs/v2`, still exists on LiteLLM `main` with no premium gate
+  (`spend_management_endpoints.py:2454-2464`). Shortening is plausible; per-call parameters were
+  not diffed.
+- Phase 8 task 09 (our own realm) deferred: holds, and it is a risk, not a saving: our sign-in's
+  uptime becomes Panacea's single-replica Keycloak 25.0.0, which had SSO outages on 2026-09-07 and
+  2026-09-21 (section 2, row 7).
+- Hub task 14 exists ("the one transaction shape — principal, org, audit lock, idempotency,
+  events"); copying `audit_pg.go`'s chain into it holds.
+
+**"Usable on day 1" holds for local mode on a KPMG network**: a sandbox with `panacea-mcp` behind
+G4 deploys a branch preview, reads logs and rolls back, once a project and a pasted token exist.
+Cloud mode waits on Panacea applying our egress address (P5b), which is another team's Terraform
+apply. Orca or Tauri makes no difference to these days: the PKCE client's redirect URIs must cover
+whichever shell signs in.
 
 ## 8. Corrected recommendation
 
