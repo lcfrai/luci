@@ -64,7 +64,7 @@ Paths are in `Projects/Panacea` (read-only; grep only), as of 2026-09-30. `00-pa
 - **Licence:** ours; `pgx` MIT; the database is an Azure service.
 - **Deploy:** Flexible Server in Australia East, private endpoint only, zone-redundant HA and geo-redundant backup to the paired region, as Panacea's `postgres-flexible.tf:255-285` already does; the Hub as one Deployment on our AKS beside the control plane.
 - **Enterprise fit:** Entra authentication, custom roles and row-level security are supported ([Azure docs](https://learn.microsoft.com/en-us/azure/postgresql/security/security-access-control)); the schema needs no superuser and no extension (`roles.sql` creates two `NOLOGIN` roles); an AU-only estate by construction; goes into a customer's subscription unchanged. Burstable B2ms is US$0.208 an hour (about US$152 a month) at list (Azure Retail Prices API, 2026-09-30).
-- **Maturity:** Microsoft-run. The Hub itself: tasks 01-07b merged, 24.5 of 133.5 plan-hours.
+- **Maturity:** Microsoft-run. The Hub itself: tasks 44a, 00 and 01-07b done, about 24.5 of its 133.5 plan-hours.
 - **Gaps:** the server routes (tasks 08, 13-27) and the client (28-42) are still to write: about **80 plan-hours** to the minimum Hub (S7), after 3.12 removes 5.
 - **Effort:** **about 10 engineer-days**; the plan's critical path with two engineers is about 5 working days (lane A, tasks 08 and 13-24, 41 hours).
 - **Why it wins:** the Hub's value is its domain rules (digest-checked revisions, the pin, the chain), and those are ours under every option; the store underneath is the part a product can take, and Azure's managed Postgres takes it with HA, point-in-time restore and Entra built in.
@@ -93,6 +93,56 @@ Paths are in `Projects/Panacea` (read-only; grep only), as of 2026-09-30. `00-pa
 #### 3.5 PostgREST over the built schema — **REFERENCE**
 
 - MIT, 27,691 stars, v16.4 of 2026-09-24. A REST API from a Postgres schema, JWT-authenticated. The thin sibling of 3.2: no Realtime, Storage or Studio to run. The same gaps as 3.2 for the Hub's rules (they become SQL functions), plus no rate limiting or Origin checks of its own. About 11-12 engineer-days. Useful later for read-only reporting over the ledger.
+
+#### 3.6 Realtime: keep the 5-second feed; NOTIFY, Electric and NATS later — **REFERENCE**
+
+- **What is planned already meets N3:** the Hub's change feed (task 26) and the control plane's poller (task 36), 4 plan-hours, deliver a teammate's approval within 5 seconds.
+- **The cheap upgrade:** Postgres `LISTEN`/`NOTIFY` pushed out as server-sent events from the Hub; `pgx` supports it; no new service. About half a day, when a surface needs sub-second.
+- **Electric** (Apache-2.0, 10,380 stars, released 2026-09-09): syncs "shapes" of Postgres tables to clients over HTTP, authorised by a proxy or a gatekeeper token ([auth guide](https://electric-sql.com/docs/guides/auth)); needs logical replication. It serves Phase W's client replica (the earlier study's TanStack DB pick), not the Hub now.
+- **NATS JetStream** (Apache-2.0, 20,810 stars): Phase T's bus, integrated when TM1-α is built (05-work-team).
+- **Supabase Realtime:** only if the Hub moved to Supabase, which 3.2 rejects.
+
+#### 3.7 Temporal — **REJECT (not needed)**
+
+MIT, 23,372 stars. A durable workflow engine. The Hub's only multi-step process is a release's reserve, then confirm or abandon, with a janitor (tasks 23-24, 6 plan-hours): a state machine in one table. Temporal would add a cluster of services and its own database to run and secure. Revisit only if team mode's managed sessions need durable orchestration.
+
+#### 3.8 A witness for the ledger: Azure confidential ledger — **REFERENCE (later)**; immudb — **REJECT**
+
+- **Why a witness:** the hash chain lets anyone detect an edited row, but an administrator who rewrites the whole chain is caught only by a copy of the head kept somewhere the Hub cannot write.
+- **Azure confidential ledger:** Microsoft-run, append-only, in hardware trusted execution environments; data replicates to the paired region, which for Australia East is Australia Southeast ([data residency](https://learn.microsoft.com/en-us/azure/confidential-ledger/data-residency)). Priced per ledger instance-hour; the pricing page publishes no figure (read 2026-09-30). About 1 day: a timer that appends the audit head, and a `hub verify` step that checks it.
+- **Cheaper equivalent:** the same head written to an Azure Blob container under a time-based immutability (WORM) policy. About half a day.
+- **immudb** relicensed to BUSL-1.1 (`2026-09-28-oss-adoption/05-hub-identity.md` §5): restricted.
+- **Not now:** 06-deploy's signed in-toto statement (G2, Key Vault key) already gives each release an external proof.
+
+#### 3.9 The git host as the Hub — **REJECT**
+
+Briefs as files, approvals as pull-request reviews, releases as tags. Two hosts to implement twice (`OD-4`), no record before a repository exists (Define comes first), and it reverses ADR-H1 after four sibling phases coded to `hubclient`.
+
+### 3B. Identity (Entra through Keycloak, decided)
+
+#### 3.10 Panacea's Keycloak realm — **ADOPT now**
+
+- **Does:** exactly `OD-30`: Entra brokered through Keycloak, zero clicks. **Licence:** Apache-2.0 (`keycloak/keycloak`, 37,059 stars, 26.7.4 of 2026-09-16). **Deploy:** Panacea's, `https://auth.<domain>/realms/panacea`.
+- **Enterprise fit:** Panacea's existing Entra registration, tenant-pinned, auto-link, group mappers; no new Entra registration and no IT ticket (ruling §1).
+- **Gaps:** the realm change (the client, K1-K4, four audience scopes, the `panacea-app-fleet` service client) is an ask of the Panacea stream, about half a day of theirs; Keycloak 25, one replica, sessions in memory, so a restart sends every user back through the browser; realm changes ride Panacea's deploys.
+- **Effort on our side:** none beyond the planned client code (Hub tasks 30-32, 10.5 plan-hours).
+- **Trade-off in one line:** it exists today; our sign-in shares Panacea's availability until 3.11.
+
+#### 3.11 Our own Keycloak, by the Keycloak Operator — **LATER (reference now)**
+
+- The operator's realm import applies the realm file the environment stream already wrote (`deploy/keycloak/realm/panacea-app.json`, task 09); its database on our Flexible Server; two replicas with Keycloak 26's persistent sessions.
+- **Catch:** a Keycloak on our own hostname needs its broker endpoint added as a redirect URI on the Entra registration, which is the IT ticket `OD-30` avoided (inferred from the ruling's §1; not asked of IT).
+- **When:** the customer-hosted tier (the customer's Entra, its realm), or sooner if the Panacea ask stalls. About 2 engineer-days; it replaces the Keycloak half of phase 8 task 29.
+
+#### 3.12 A real Keycloak in the local stack instead of `devissuer` — **ADOPT**
+
+- Hub tasks 11-12 (6 plan-hours) build `devissuer`, a local issuer that imitates Keycloak's layout. Keycloak runs in Docker in dev mode with `--import-realm`, from a dev copy of the same realm file; tests mint tokens through a test-only client in that dev realm.
+- **Gain:** every test runs against the real issuer (discovery, key rotation, refresh rotation, audience mappers) instead of an imitation of it, and a security-sensitive piece of test code is never written. **Cost:** about 1 hour of compose and a test helper; a start of seconds. Net: about **5 plan-hours saved**.
+- **Gap:** `tid` and `oid` for local users come from hard-coded attribute mappers in the dev realm, exactly as `devissuer` would fake them.
+
+#### 3.13 Other identity servers — **REJECT (`OD-30` decided)**
+
+Zitadel is AGPL-3.0 (Glasses, 2026-09-30): restricted. Authentik is MIT with an `authentik/enterprise/` carve-out (earlier study). Ory Hydra and Kratos and Dex are Apache-2.0 and clean, but replacing Keycloak reverses `OD-30` and the ruling's token profile. Entra directly stays the customer-hosted option (Panacea's BYO-Entra blueprint, `apothecary/docs/02-tenancy-and-identity.md`).
 
 ## 4. Side by side
 
