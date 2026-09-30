@@ -551,3 +551,45 @@ desktop stays frozen as the other fallback.
    07-verify §8). IT's request for the redirect URI and second secret goes in on day 0.
 5. **The mono face** (money): Commit Mono (free, OFL), recommended, or Berkeley Mono (about US$100
    once, DESIGN-SYSTEM).
+
+## 8. What this could not verify
+
+Nothing was installed, built, rendered or run. Every day figure is an estimate composed from other
+estimates.
+
+| Area | Not verified | How to close it |
+|---|---|---|
+| The whole | Whether the result *feels* like one app. Nothing was rendered, and headless screenshots are blocked on the corporate network | K14: the owner's eyes on a clickable shell prototype first, then on the pilot build |
+| Orca | That ⌘K can also open the Cmd+J palette; that `before-input-event` catches keys inside Penpot's frame (from knowledge); where the bell lives in the renderer (not located); that `visibleTaskProviders: []` removes all task chrome; the `@theme inline` block (shadows, radii); that the app-level view can be a second web view on one shared partition | The journey-bar spike on the first pin (02-verify §9 item 11) |
+| Penpot | That the injected stylesheet wins over the compiled `.default` and `.light` blocks, and which element carries the class; the font alias's effect on text inside designs; what the `onboarding`, `subscriptions` and `dashboard-templates-section` flags hide; that the OIDC-start round trip is silent and that its `invitation-token` joins the team | Inside 08-verify's 1-day Penpot wrap, plus this file's 0.75 |
+| Sign-in | The hand-off authenticator is a design, not code, and its fit with Keycloak 25 and 26 is unchecked. The Windows bridge's API and behaviour are from knowledge, not read today. Whether KPMG laptops hold a primary refresh token, and KPMG's Conditional Access policy, are unknown | A day-1 spike of each on a managed laptop |
+| Panacea share links | How a preview reads the share token (the bypass-token machinery was not traced); whether a 30-minute host scope suits the preview comments widget; the 50-link cap under per-person minting | A test on the dev estate |
+| The Desk | No plan exists. Its 3 days are this file's estimate | A plan, reviewed before build |
+| Harness theme | Whether the pinned Claude Code offers an ANSI-only theme, and how the sandbox image sets it | Read the CLI's settings for the pinned version |
+| Spec Kit | Whether the preset can rename `specs/<n>-<name>/spec.md` | Read the preset schema at v1.0.13 |
+| Teams | Whether a decide card and a Desk row can resolve each other both ways through the Agents SDK's `Action.Execute` | 05-verify's bot build |
+| Days | 12 new, 2 pulled in, 1 contingent, all estimated | Re-sum when the plans exist |
+
+## 9. Sources
+
+Read 2026-09-30, read-only. Nothing installed.
+
+- **This programme:** `CLAUDE.md`; `CONTEXT.md`; `docs/DESIGN-SYSTEM.md`; `docs/AGENTIC-UX.md`;
+  `docs/superpowers/planning/2026-09-23-owner-decisions.md` (`OD-12`);
+  `desktop/src/styles/tokens.css`. In this folder: `02-fleet-cockpit.md`, `03-define.md` and
+  `05-work-team.md`, and `00-`, `02-`, `03-`, `04-`, `05-`, `06-`, `07-` and `08-*-verify.md`, in
+  the sections cited.
+- **Orca** (`stablyai/orca` at `59b746ff`, through raw.githubusercontent.com and the GitHub tree
+  API): `src/renderer/src/assets/main.css`; `src/shared/global-settings-types.ts`;
+  `src/shared/notification-settings-types.ts`; `src/shared/plugins/plugin-command-actions.ts`;
+  `src/renderer/src/lib/plugin-command-execution.ts` and `app-command-dispatch.ts`;
+  `src/main/plugins/plugin-command-registry.ts`; `src/renderer/src/components/cmd-j/quick-actions.ts`
+  and `palette-results.ts`; `use-worktree-jump-palette-selection-actions.ts`.
+- **Penpot** (`penpot/penpot` at tag `2.18.0`): `frontend/src/app/main/ui/ds/colors.scss`,
+  `_borders.scss` and `typography.scss`; `frontend/resources/styles/common/refactor/themes.scss`,
+  `themes/default-theme.scss`, `color-defs.scss` and `design-tokens.scss`;
+  `backend/src/app/auth/oidc.clj`; `common/src/app/common/flags.cljc`.
+- **Panacea** (read-only): `services/panacea-api/routes/routes.go:1436-1444`;
+  `services/panacea-api/handlers/share_links.go`.
+- **Keycloak extension:** `p2-inc/keycloak-magic-link`, GitHub API metadata and `COPYING`
+  (Elastic License 2.0).
