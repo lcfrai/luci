@@ -516,3 +516,27 @@ Jira agents, Atlassian Data Center end of life, Teams connector retirement.
 7. **Whether ADO comment edit-in-place and GitHub comment edits stay inside each API's rate
    limits at one update per session per state change** — expected yes, not measured.
 8. **Plane's agent features and its Helm chart** were not read; neither changes the verdict.
+
+**Added on the relaunch (second direction), read and confirmed 2026-09-30:** Panacea's tracked
+files through `git grep`, read-only (every path cited in §0.1); `LICENSE` files for
+`supabase/realtime`, `supabase/supabase` (Apache-2.0), `supabase/auth` (MIT),
+`coollabsio/coolify` (Apache-2.0) and `stablyai/orca` (MIT) via raw.githubusercontent.com; Orca's
+README and its `docs/review/linear` and `docs/notifications` pages; Supabase's Presence and
+third-party-auth pages; Claude Code's agent-teams page.
+
+**Not verified on the relaunch:**
+
+9. **Orca's source was not read** (the GitHub API was rate-limited again): whether its task
+   drawer has an internal provider seam that makes the ADO source 2 days, and how it stores the
+   Linear token.
+10. **Panacea's team API as a PanaceaApp caller**: whether the `selfService` routes accept our
+    users' tokens or need a service token, and whether the realm can map group membership into
+    a claim for our client. Either way the roster is one call; the auth path is unconfirmed.
+11. **The snippets were read, not run**: the sticky-comment, hook-lifecycle and hook-check code
+    is quoted by path; its behaviour against ADO work-item comments, and OpenBao's transit API
+    for the signed head, are expected to match and were not tried.
+12. **Supabase with Keycloak tokens**: the docs ask for asymmetric JWTs with a `kid` from an OIDC
+    issuer; Keycloak's default signing should fit, not tried. The Sydney region comes from a
+    search summary of Supabase's regions page, not the page itself.
+13. **`00-panacea.md` was a skeleton** while this revision was written; §0.1 rests on this
+    agent's own read of Panacea and should be cross-checked against that inventory when it lands.
