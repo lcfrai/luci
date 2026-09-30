@@ -6,8 +6,9 @@ OD-36 glossary and decision record) so that we build glue, not the capability?
 
 ## 0. Revised for the owner's second direction
 
-The first run (stopped 09:47) stands at its core: **Spec Kit is still the Define engine**, because no
-Panacea service, Coolify or Supabase does the interview-to-spec step. Five things changed, and why:
+The first run (stopped 09:47) stands at its core: **Spec Kit is still the Define engine.** Panacea's one
+interview-to-spec step (Forge's) runs in Forge's own agent loop, outside our sandbox and without
+brownfield, glossary or decisions; Coolify and Supabase have none. Five things changed, and why:
 
 1. **The Define session is an Orca worktree.** Orca (MIT; the owner's cockpit pick, verified in
    `02-fleet-cockpit.md`) starts an agent in a new worktree with an opening prompt
