@@ -1,6 +1,6 @@
 # 03 · Define: the brief, the interview, the spec — adopt, do not build
 
-**Date:** 2026-09-30 · **Status:** revising for the owner's second direction (relaunch, 2026-09-30)
+**Date:** 2026-09-30 · **Status:** complete; revised for the owner's second direction (relaunch, section 0)
 **Question:** which existing product or project can stand in for Define (phase 4, Discover, and the
 OD-36 glossary and decision record) so that we build glue, not the capability?
 
@@ -429,16 +429,16 @@ The kept tasks (section 5, about 23.5 h) overlap G3 and G5, so the whole comes t
 9. **Panacea has no route that writes the data class** *(new)*. Define records it from day one; until
    Panacea gains a route, Deploy carries it to Panacea by an admin step (`06-deploy.md`).
 10. **Forge's rules can over-refuse** *(new)*. A 3-to-8 limit and a verb list suit web apps; a data pipeline
-    may need other verbs. The refusal names the fix, and the verb list is the preset's, so we tune it
-    from real briefs without a code change.
+    may need other verbs. The refusal names the fix, and the verb list is one table in G3 that we tune
+    from the first real briefs.
 
 ## 7. Calls only the owner can make
 
-All three are about what customers see. **There is no money call:** every part is MIT or Apache-2.0 with
-no seats, and the interview's model tokens run on the existing gateway budget (cost per Define session
-not measured).
+All four are about what customers see. **There is no money call:** every part is MIT or Apache-2.0 with
+no seats, Orca is MIT and Panacea is our own, and the interview's model tokens run on the existing
+gateway budget (cost per Define session not measured).
 
-1. **Define becomes a conversation, not a form.** Customers get an agent-led interview in a session pane,
+1. **Define becomes a conversation, not a form.** Customers get an agent-led interview in an Orca pane,
    and a brief that is a Spec Kit spec carrying our five sections, instead of the five-question stepper in
    `prototype/phase-4-discover.html` that the owner reviewed. Under OD-1 the owner looks before it
    merges. **Recommended: accept.** It is the change that removes most of the remaining build.
@@ -449,6 +449,12 @@ not measured).
    with Spec Kit credited in the licence notices. The commands a person may see typed in the pane keep
    Spec Kit's `/speckit-*` names unless a preset can rename them (not verified). **Recommended: our
    words wherever we control the surface.**
+4. **The data classes a customer picks from at creation** *(new)*. OD-24 requires one. Panacea's Deploy
+   enforces three ceilings, `none`, `synthetic` and `protected`; a Panacea team policy also carries
+   `OFFICIAL | PROTECTED`, the Australian Government's classification words. Customers see whichever set
+   we choose, and it decides their scans. **Recommended: Panacea's three ceilings, in plain words**
+   ("no sensitive data", "synthetic data only", "protected data"), because they are the ones Deploy's
+   stage ladder enforces.
 
 ## 8. What this study could not verify
 
@@ -468,6 +474,16 @@ not measured).
 - **Estimates.** Task hours are the plans' own. Glue days are this study's estimate, not a measurement;
   the fix-round multiplier is the ledger's judgement.
 - **Hub readiness** is unchanged by this study: the real Hub is behind HA4-2.
+- **Orca** *(relaunch)*. `--prompt`, the markdown editor, artifacts and orchestration come from Orca's
+  docs through a summarising fetch, not from a run or its code. The docs do not say whether the
+  markdown editor works on SSH or remote worktrees, and the cost of carrying fork changes across daily
+  releases is not measured.
+- **Panacea** *(relaunch)*. Read by grep only; Forge's rules were read, not run. "No route writes the
+  data-class annotation" rests on a grep of non-test Go in `services/panacea-api`, not on other
+  services or runbooks. How a PanaceaApp caller authenticates to Forge's or the risk API was not
+  checked; `00-panacea.md` was still a skeleton during this relaunch, so nothing here comes from it.
+- **Supabase** *(relaunch)*. The Sydney region and the Keycloak provider come from Supabase's docs
+  through search; self-hosting on AKS was not checked.
 
 ## 9. Sources
 
@@ -489,6 +505,17 @@ Upstream pages, read 2026-09-30:
   ChatPRD: `chatprd.ai` (blocked) · Atlassian data residency and Rovo: support.atlassian.com, atlassian.com
 - Comparisons used for orientation only: MarkTechPost (2026-05-08), `RSMuthu/SDD-comparison`.
 - Glasses: `.superpowers/glasses/gsearch.py` and `https://lcfr.ai/api/mcp`, catalogue of 2026-09-29.
+- *Relaunch:* Orca <https://github.com/stablyai/orca> and <https://www.onorca.dev/docs> (CLI reference,
+  CLI overview, orchestration, skills registry and MCP, worktrees, rich markdown editor) · Supabase
+  <https://supabase.com/docs/guides/platform/regions>,
+  <https://supabase.com/docs/guides/self-hosting/self-hosted-oauth>.
+- *Relaunch, Panacea, read-only* (`Projects/Panacea`): `services/forge-orchestrator/models/spec.go`,
+  `orchestrator/spec_tool.go`, `orchestrator/prompts.go`, `routes/routes.go`;
+  `services/panacea-api/handlers/deployment_stages.go`, `handlers/ai_governance_dlp.go`,
+  `models/models.go`, `routes/routes.go`; `services/panacea-mcp/src/index.ts`;
+  `backstage/packages/app/package.json` and `backstage/packages/backend/package.json`.
+- *Relaunch, this repository:* `02-fleet-cockpit.md` (Orca verified), `06-deploy.md` §3.1 (Coolify),
+  `01-sandboxes.md` (where the session runs).
 
 In this repository: `docs/superpowers/planning/2026-09-23-owner-decisions.md` (OD-3, OD-19, OD-24, OD-30,
 OD-36); `docs/superpowers/planning/2026-09-28-discovery-skills/00-summary.md` and `11-design-r2.md`
