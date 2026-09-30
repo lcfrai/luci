@@ -185,9 +185,16 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
   with the cluster autoscaler. (5) The upstream router example sets
   `ALLOW_UNAUTHENTICATED_ROUTER=true` ("an open proxy into your sandbox pods"); we either turn
   its scoped tokens on or skip the router and dial pod IPs from an in-cluster control plane.
-- **Integration effort: 7 days** (range 5 to 9) to the first real cloud session from the
-  cockpit, itemised in section 5. Four of them are this option's; three are glue every option
-  needs.
+  (6) *(revision)* Falco, Panacea's runtime detector, watches the node's kernel, so it cannot see
+  inside a Kata guest either (inferred from Kata's separate guest kernel; not verified).
+- **Under Orca and Panacea (revision).** Orca's pairing needs a route from the desktop, so the
+  router question in gap (5) becomes a requirement: one authenticated `wss://` path per sandbox
+  (the router with its scoped tokens, or our ingress), TLS at the edge, and the pairing code kept
+  out of every access log (Orca: "do not put it in proxy access logs"). The `SandboxTemplate`
+  takes Panacea's Forge pod security context, and the egress step takes its deny-egress policy
+  and package mirrors (4.15).
+- **Integration effort: 8 days** (range 6 to 10) to the first real cloud session from Orca,
+  itemised in section 5. 4.5 of them are this option's; 3.5 are glue every option needs.
 - **Verdict: adopt.** It is the only candidate that meets all eight musts today with a permissive
   licence, and it reuses what is built: `katabe` already speaks Kubernetes and has compiled
   against the `Backend` seam since phase 2.
@@ -239,8 +246,9 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
   snapshot or fork; per-region ACI core quotas need raising; standby groups are running groups,
   so they are billed while they wait (a reasonable reading of "provisioned and running"; the
   exact meter was not found).
-- **Integration effort: 7 days** — a new `acibe` over ARM (2), late-bind via config map (0.5),
-  the explicit-proxy egress (1), smoke (0.5), plus the 3 days of shared glue (section 5).
+- **Integration effort: 8 days** — a new `acibe` over ARM (2), late-bind via config map (0.5),
+  Orca's runtime in the image (0.5), the explicit-proxy egress (1), smoke (0.5), plus the 3.5
+  days of shared glue (section 5). *(Revision: was 7 before Orca.)*
 - **Verdict: integrate only if the Kata spike in section 5 fails** (for example no nested-virt
   Dsv5 capacity in Australia East). Same Hyper-V class of isolation, no cluster to run, but a
   weaker egress story and no fast disk.
@@ -306,7 +314,9 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
   it cannot be deployed into our or a customer's Azure tenancy (`OD-5`). Residency of images,
   logs and control-plane metadata is not documented beyond compute pinning. Procurement.
 - **Integration effort:** about 4 days after procurement, the shortest of any candidate.
-  **Verdict: reference** — a demo fallback, not the product's home.
+  **Verdict: reference** — a demo fallback, not the product's home. *(Revision: Orca already
+  lists Modal as a recipe provider, so an Orca-on-Modal demo is shorter still; it stays outside
+  Azure and our tenancy. See 4.17.)*
 
 ### 4.8 E2B (managed, BYOC or self-host) — **REJECT for Azure**
 
@@ -365,8 +375,71 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
 | Morph Cloud | SaaS microVMs with snapshot, branch and restore *(upstream)* under 250 ms | SaaS; regions and residency not documented; not deployable in Azure |
 | `superradcompany/microsandbox` | Apache-2.0 libkrun microVMs on one KVM host; 8,478 stars; v0.7.4 on 2026-09-29 | A single-host runtime, not a pool or a service; a candidate for **local mode** later, not cloud |
 | Microsoft Dev Box | Managed Windows dev VMs | Retiring 2026–2028 (already ruled out in `CLAUDE.md`) |
-| AWS Bedrock AgentCore Runtime, Fly.io Machines | microVM-per-session services | Wrong cloud for `OD-18`, or no Azure; not researched further |
+| AWS Bedrock AgentCore Runtime | microVM-per-session service | Wrong cloud for `OD-18`; not researched further (Fly.io Machines moved to 4.17: Orca supports it) |
 | `coder/agentapi` | Chat API synthesised from a terminal screen | Archived; and reading the rendered screen is what `OD-8` rules out |
+
+### 4.15 Panacea, the owner's platform — **INTEGRATE its code and services; REJECT as the host** *(added in revision)*
+
+- **What it has here, read-only in `Projects/Panacea` today.** No product for running agent CLIs.
+  - Forge's preview pods (`services/forge-orchestrator/preview/manager.go:81-236`): one pod per
+    Forge session for a Next or Vite dev server; UID 1001, read-only root, all capabilities
+    dropped, no privilege escalation, `RuntimeDefault` seccomp, `emptyDir` volumes, a pod cap and
+    a TTL reaper (`:581`). No `runtimeClassName` anywhere in the service: shared-kernel `runc`.
+  - The `preview-deny-egress` NetworkPolicy and an in-cluster npm and PyPI mirror (Verdaccio on
+    4873, proxpi on 5000) (`deploy/forge/deploy-forge-orchestrator.yaml:61-101`), so untrusted
+    AI-written code installs packages without the internet (ISM-1234).
+  - The tenant NetworkPolicy baseline (`services/panacea-api/clients/tenant_ensure.go:20-190`).
+  - The estate's Terraform (`deploy/*.tf`): Azure Firewall, private endpoints, CMK, diagnostics,
+    Defender and Sentinel. Its node pools are system, workload, build, CI and elastic; **none is
+    Kata** (no `workload_runtime` in `deploy/*.tf`). The live estate is in Australia Central
+    (`deploy/apply.sh:38`); a hardened Australia East estate is being cut over
+    (`deploy/environments/panacea-aue.env:3-22`).
+  - panacea-api's "TTL sandboxes" (`services/panacea-api/models/instance.go:70-87`) are expiring
+    copies of a *release*, a deploy concept (06), not a place to run an agent.
+- **As a sandbox host:** M2 no (no Kata pool), M4 no (no pool), M8 no (`emptyDir` only), S1 no
+  (neither panacea-api nor panacea-mcp exposes a sandbox to another product).
+- **Why not add a Kata pool to Panacea's cluster anyway:** `OD-5` (our environment first);
+  untrusted agents beside live tenant workloads during a cutover whose bar is "no lost features,
+  no data loss"; our uptime tied to Panacea's; and it is an edit in another session's repo.
+- **What we take**, attributed in each file's header (`OD-13` relaxed): the pod security context
+  into our `SandboxTemplate`; the deny-egress policy and mirror pattern into the egress step; the
+  tenant baseline into each user's namespace; the Firewall, private-endpoint, CMK and diagnostics
+  Terraform into phase 8's modules (tasks 03 to 07). **What we call:** the Keycloak realm brokering
+  Entra (`OD-30`), the LiteLLM gateway's per-session token (`OD-19`, `OD-21`), Trivy on the image.
+- **Effort:** inside the 8 days (section 5); it shortens phase 8 group A rather than adding days.
+  **Verdict: integrate** the code and services; **reject** as the host.
+
+### 4.16 Coolify and Supabase — **REJECT for this capability** *(added in revision)*
+
+- **Coolify** (Apache-2.0, 62.4k stars): "an open-source, self-hostable PaaS alternative to
+  Vercel, Heroku & Netlify" that runs Docker containers on our servers over SSH. No microVM (M2),
+  no warm pool (M4), no per-session sandbox API (S1). It is a deploy tool (06).
+- **Supabase** (Apache-2.0): Postgres, auth, storage, realtime and Deno edge functions. Nowhere to
+  run a CLI on a PTY. A candidate for the Hub's store, not for sandboxes.
+- **Trade-off in one line:** both host apps well; neither isolates an untrusted agent, so using
+  them here means building the sandbox layer ourselves on top of them.
+
+### 4.17 The SaaS sandboxes Orca already supports — **REFERENCE (demo only)** *(added in revision)*
+
+- Orca's recipe guide: providers "people wire today include Vercel Sandbox, Fly, Modal, plain SSH
+  hosts, and local Docker".
+- **Vercel Sandbox:** a Firecracker microVM per sandbox; 19 regions including **`syd1` (Sydney)**
+  (Vercel docs, updated 2026-09-22); snapshots, forks, persistent sandboxes, drives in beta;
+  commercial, usage-priced. **Modal:** 4.7. **Fly Machines:** Firecracker microVMs with a Sydney
+  region *(upstream, not re-verified)*; commercial.
+- **Why not:** none is Azure or our environment (`OD-18`, `OD-5`) or can go into a customer's
+  tenancy, and each is a new vendor holding client code (procurement, a TSRA, retention terms).
+- **Use, at most:** an internal demo on non-client code while Kata capacity is confirmed, and
+  only if the owner accepts it (section 6, call 6). About 1 day plus procurement.
+
+### 4.18 VMSS Flex + standby pools — **REFERENCE** *(added in revision)*
+
+- A full Azure VM per session from a scale set whose standby pool keeps VMs running or
+  deallocated (GA 2024-11-19). M2 yes (a whole VM), M8 yes (a managed disk each), and Orca's SSH
+  mode connects without exposing `orca serve`.
+- **Why not first:** an image bump is a VM image build, not a container tag (S4); one session per
+  VM; a deallocated standby VM still has to boot (latency not measured); claim and release are
+  ours to write, as with ACI. About 8 days. The natural home if a customer demands a VM per session.
 
 ## 5. Recommendation
 
