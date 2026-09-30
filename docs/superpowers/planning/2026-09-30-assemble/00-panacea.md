@@ -429,7 +429,38 @@ prod estate is mid-cutover, so we point at dev first, as the identity ruling doe
 
 ## 12. The glue we still build
 
-_(pending)_
+Only what no other cluster counts. 06-deploy's G1-G4 (the Orca Deploy panel, signed release
+provenance, promotion and the data class, the agent allowlist proxy) are **not** repeated here.
+
+| # | Glue | Uses | Days |
+|---|---|---|---|
+| P1 | **`panacea-mcp` in the sandbox image**: the single-file bundle from `GET /api/v1/mcp/download` (`routes.go:3010`), pinned by hash; at session bind write its MCP config with `PANACEA_API_URL` pointed at 06-deploy's G4 proxy, never the user's token | section 4.1 | 0.25 |
+| P2 | **Panacea's agent instructions into the worktree**: at bind, write the stable bootstrap skill from `GET P/agent-context/bootstrap` (`routes.go:1088`), which makes Claude Code fetch `GET P/agent-context` (the per-project skill plus Panacea's `LAUNCH.md` deploy contract in one call, "the LIVE-REFRESH mechanism for a Claude Code agent's platform instructions", `handlers/agent_context.go:13-26`); refresh on `/version` (`:1087`) | section 3 | 0.25 |
+| P3 | **Create the Panacea project from the cockpit.** Phase 7's binding (task 06) only finds a Panacea project by repository; add create-if-missing: `POST /api/v1/projects` (`routes.go:1017`) with `repoUrl`, `gitProvider`, `team`, `framework`, `defaultBranch`, `jobCode`, `enableDatabase`, `enableStorage` (`models/models.go:639-663`), after registering the user's git PAT once with `POST /api/v1/git/pats` (`routes.go:3020`, unscoped `pnc_` accepted). Without it, "nothing to a shipped app" sends the user to Panacea's portal first | sections 3, 5.3 | 0.5 |
+| P4 | **The snippet ledger.** One file listing every Panacea file we copy (source path, Panacea commit, our path), the header every copied file carries (`OD-13` relaxed), and a CI check that the header survives edits | all | 0.25 |
+| P5 | **The three Panacea asks, written and then checked**: (a) the `panacea-app-desktop` public PKCE client in `deploy/portal/setup-keycloak.sh` (ruling K1); (b) our AKS egress address in `edge_allowed_ip_ranges` (`deploy/main.tf:580-605`); (c) optional, the realm as a second trusted issuer with audience `panacea-api` (section 5.3), which removes the pasted token and lets us mint an 8-hour project-scoped `pnc_` per sandbox | section 5 | 0.25 |
+| P6 | **The live proof on Panacea dev**: one sandbox session creates a project, deploys a branch preview through `panacea-mcp`, opens it through the SSO gate, rolls back; and checks that PR previews still fire when the edge is IP-locked (inbound webhooks stop; `deploy/restrict-edge-allowlist.sh:17-20` moves git push to outbound polling) | sections 3, 8 | 0.5 |
+| | **Total** | | **2** |
+
+**Later, optional (1 day):** Forge's ship gates as a check the agent runs before `panacea_deploy`:
+the authorisation-first probe and its zero-tests trap (`orchestrator/authz_gate.go:3-62`, `:173-180`)
+and the verify stages (`orchestrator/verify.go`). Worth it once agents ship scaffolded apps.
+
+**Snippet ports that live inside existing tasks** (no new days; each shortens its task):
+
+| Panacea source | Into our task | What it saves |
+|---|---|---|
+| `services/panacea-api/handlers/llm_vkeys.go:209-400`, `handlers/budget_sync.go`, the `/spend/logs/v2` query in `handlers/costs.go:1905` | phase 6 tasks 04, 06, 09 | LiteLLM admin calls, allow-list, rate caps, budget sync, spend by team |
+| `deploy/portal/setup-keycloak.sh:113-635` (realm, clients, Entra IdP, first-broker-login, mappers) | phase 8 task 09, when it runs | the realm's proven settings, as the source for our realm-as-code JSON |
+| `clients/tenant_ensure.go:20-160`, `clients/pod_security.go:58-69` | phase 8 task 11 | the tenant NetworkPolicy baseline and PSA labels, incident notes included |
+| `services/forge-orchestrator/preview/manager.go:92-223`, `deploy/forge/deploy-forge-orchestrator.yaml:49-101` | phase 8 task 14 (01-sandboxes counts it) | pod security context, deny-egress policy, package mirrors |
+| `clients/audit_pg.go`, `clients/audit_signed_head.go` | Hub task 14 | the hash-chained audit write and the signed chain-head anchor that detects truncation |
+| `services/panacea-build/pkg/prcomment/client.go:54` and the hook lifecycle | 05-work-team | the one live PR comment per session (05 counts it) |
+
+**One naming clash to settle in code.** Phase 6 task 14 plans a sandbox binary called `panacea`
+(`panacea token`). Panacea already ships a CLI with that name (`services/panacea-cli/cmd/root.go:56`),
+and an agent may be given both. Rename ours before it ships.
+
 
 ## 13. Owner calls
 
