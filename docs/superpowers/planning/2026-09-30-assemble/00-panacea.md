@@ -348,7 +348,7 @@ the owner named Coolify plus Supabase, with Panacea snippets, as the allowed alt
 
 | Candidate | Licence | Deploys where | Enterprise fit (Entra SSO, audit, AU) | Maturity | Days | Verdict |
 |---|---|---|---|---|---|---|
-| **C1 Panacea**, API + `panacea-mcp` + the realm + snippets | KPMG's own code (its stack holds BUSL Vault and AGPL MinIO, Grafana, Loki, Tempo) | runs today on KPMG's Azure, `australiacentral` (`deploy/terraform.tfvars:25`), an Australia East rebuild in cutover | Entra via Keycloak; hash-chained audit on every route; AU yes; posture-gated scans | API v1.163.0, Portal v1.142.0 (`VERSIONS.md`, 2026-09-14); live dev estate | **2.5** here, beyond 06-deploy's 6 | **adopt** |
+| **C1 Panacea**, API + `panacea-mcp` + the realm + snippets | KPMG's own code (its stack holds BUSL Vault and AGPL MinIO, Grafana, Loki, Tempo) | runs today on KPMG's Azure, `australiacentral` (`deploy/terraform.tfvars:25`), an Australia East rebuild in cutover | Entra via Keycloak; hash-chained audit on every route; AU yes; posture-gated scans | API v1.163.0, Portal v1.142.0 (`VERSIONS.md`, 2026-09-14); live dev estate | **2** here (section 12), beyond 06-deploy's 6 | **adopt** |
 | **C2 Coolify + Supabase**, self-hosted, with Panacea snippets | both Apache-2.0; Supabase Auth MIT (GitHub API, 2026-09-30) | Coolify: Docker on Azure VMs, no AKS; Supabase: Docker Compose or a community Helm chart | Coolify OIDC only in a 4.4 RC (06-deploy 3.1), stable is v4.3.23 (2026-09-18); no Azure DevOps (fails `OD-4`); self-hosted Supabase is **one project per stack**, with no branching, managed PITR or management API ([Supabase docs](https://supabase.com/docs/guides/self-hosting)) | 62.4k and 110.9k stars; both active this week | 16-24 to approach C1 (06-deploy section 5) | **reject** for shipped apps |
 | **C3 Azure-native**: PostgreSQL Flexible Server, Blob, Key Vault, Container Apps or AKS | commercial (Azure consumption) | our subscription, Australia East | Entra-native, private endpoints, Defender, PITR, zone-redundant HA, AU yes | GA services | already in phase 8 (tasks 05, 08) | **buy**, for our own backend only |
 | **C4 Supabase for the Hub store** | Apache-2.0 | self-hosted on Azure, or Supabase Cloud in Sydney (AWS, fails `OD-18`) | REST, realtime and storage on day one, but its Auth duplicates Keycloak and self-hosted backups are ours | as C2 | 3-4 to replace the Hub's Postgres layer | **reference** |
@@ -381,7 +381,51 @@ contradicts `OD-5`. Use it only as a stopgap if our subscription is late (sectio
 
 ## 11. Recommendation
 
-_(pending)_
+**Adopt Panacea (C1) as the platform for everything PanaceaApp ships, and as its sign-in.** Call it
+through its REST API with the user's `pnc_` token from the control plane, and through
+`panacea-mcp` inside every sandbox (behind 06-deploy's allowlist proxy). Copy its proven code, with
+attribution, wherever we must run our own piece. Keep three things off Panacea, on merit.
+
+| Use Panacea for | How |
+|---|---|
+| Deploy, previews, promote, rollback, versions, branches, evidence | the section 3 routes; 06-deploy's recommendation (about 6 days) |
+| Each shipped app's backend: Postgres (branched per preview), storage, secrets, AI key, functions, app users, flags, jobs | automatic at project create and deploy (section 7); nothing to build |
+| Scans and the gate `OD-24` asks for | the posture engine and the 18 checks (section 8); we set the class, it runs the scans |
+| Sign-in (`OD-30`) and teams | the realm plus one public client (section 5.1); Panacea's team API (05-work-team) |
+| Agent know-how | `panacea-mcp`'s 31 tools and `P/skill-md` / `P/agent-context` fed to Claude Code (section 12) |
+
+| Keep off Panacea | Why | Instead |
+|---|---|---|
+| Agent sandboxes | `runc`, open or closed-to-model egress, admin-only, another team's cluster (section 9.3) | Kata on our AKS (01-sandboxes), hardened with Forge's pod spec, deny-egress policy and mirrors, copied |
+| Agent inference | in-cluster only, per-project keys, no Bedrock, Kelios terms unknown (section 6) | our LiteLLM (phase 6), with Panacea's key-minting and rate-cap code copied |
+| Our own shared state | `OD-5`; Panacea's dev estate; MinIO archived upstream (section 7) | Flexible Server, Blob and Key Vault in our subscription (phase 8 tasks 05, 08) |
+
+**Integration: 2 days of glue here** (section 12), on top of 06-deploy's 6, plus three small asks
+of the Panacea stream (one Keycloak client, one allowlist address, and optionally a second trusted
+issuer). **Usable on day 1** for an agent: a sandbox with `panacea-mcp` deploys its branch to a
+preview, reads the logs and rolls back.
+
+**What it replaces in our plan.**
+- **Phase 7 (20 tasks, 4 built): 8 tasks leave**, counted by 06-deploy (section 5 there).
+- **Phase 8 (35 tasks, 5 built): task 09 (our own realm as code, 2.5 h) is deferred**, because sign-in
+  stays on Panacea's realm, as the identity ruling already allows until phase 8 (ruling section 9).
+  Tasks 11 (platform chart, 3 h) and 14 (sandbox hardening, 2.5 h) are **shortened** by copying
+  `tenant_ensure.go`'s baseline, `pod_security.go` and Forge's pod spec.
+- **Phase 6 (29 tasks, plans only): none removed; tasks 04, 06 and 09 are shortened** by copying
+  `handlers/llm_vkeys.go` (mint, delete, allow-list, rate caps), `budget_sync.go` and the spend-log
+  queries in `handlers/costs.go`.
+- **Hub (50 tasks, 6 built): none removed here.** Task 14 (the hash-chained write) is shortened by
+  `clients/audit_pg.go` and `audit_signed_head.go`; teams (15, 16a) and evidence (25) are 05's and
+  06's to count.
+- **What never enters the plan:** a shipped-app backend, previews, scans and evidence. C2 would have
+  added 16-24 days of it.
+
+**Risks.** Shipped apps share Panacea's estate and incidents, including a Keycloak that logs everyone
+out on a pod move (section 5.1). Panacea's edge may be locked to KPMG egress (section 15), so our
+AKS egress address must be allowed. MinIO, Panacea's object store, is archived upstream (section 7):
+Panacea's problem, and a reason not to put our own state there. Scans default to warn. Panacea's
+prod estate is mid-cutover, so we point at dev first, as the identity ruling does.
+
 
 ## 12. The glue we still build
 
