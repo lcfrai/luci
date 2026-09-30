@@ -83,6 +83,11 @@ Inside the image, our own `sandboxd` owns the PTY and serves `/healthz` and a We
 but has never run against Azure. So a candidate does **not** have to supply a terminal UI, an agent
 loop or a cockpit. It has to supply **a place to run our image, fast, isolated, in AU, by API**.
 
+**Under Orca (section 1a) the bar rises in two places.** The image must also run Orca's headless
+runtime (an Electron AppImage under `xvfb`, glibc 2.31 or later), which rules out
+code-interpreter APIs more firmly still (M1). And the stream must reach the user's desktop, not
+only our control plane, through an authenticated `wss://` route to each sandbox (M3).
+
 | # | Must | Why it is hard-required |
 |---|---|---|
 | M1 | Runs an **arbitrary OCI image** (ours, with `sandboxd` and the unmodified CLIs) and a long-lived process with a **real PTY** | `OD-8`: nothing reads PTY bytes for meaning; the harness stays unmodified. A code-interpreter API is not enough |
@@ -104,17 +109,23 @@ loop or a cockpit. It has to supply **a place to run our image, fast, isolated, 
 
 ## 3. Candidates at a glance
 
-"Days" means days to the first real cloud session from the cockpit, including the 3 days of glue
-every option needs (section 5). "+ proc." means a new-vendor procurement comes first.
+"Days" means days to the first real cloud session from the cockpit, including the glue every
+option needs (section 5). "+ proc." means a new-vendor procurement comes first. **Revision:**
+under Orca the shared glue is 3.5 days, not 3, and every image carries Orca's runtime (+0.5), so
+add 1 day to each first-run figure; the two rows we would act on (AKS, ACI) show the new figure.
 
 | Candidate | Licence | Deploys as | AU | Isolation | Stream into it | Warm start | Days | Verdict |
 |---|---|---|---|---|---|---|---|---|
-| **AKS Pod Sandboxing + `agent-sandbox` 1.0** | Apache-2.0 + Azure service | Our AKS; a customer's AKS later | Australia East | Kata microVM on Hyper-V | Our `sandboxd` on the pod IP | `SandboxWarmPool`; "a couple of seconds" *(upstream)* | **7** | **adopt** |
-| ACI + standby pools | Azure service | ARM in any subscription | Yes | Hypervisor per container group | Our `sandboxd` on a private IP | Standby pool; latency unpublished | 7 | integrate (fallback only) |
+| **AKS Pod Sandboxing + `agent-sandbox` 1.0** | Apache-2.0 + Azure service | Our AKS; a customer's AKS later | Australia East | Kata microVM on Hyper-V | Our `sandboxd` on the pod IP; `orca serve` through a `wss://` route | `SandboxWarmPool`; "a couple of seconds" *(upstream)* | **8** | **adopt** |
+| ACI + standby pools | Azure service | ARM in any subscription | Yes | Hypervisor per container group | Our `sandboxd` on a private IP; `orca serve` the same way | Standby pool; latency unpublished | 8 | integrate (fallback only) |
 | ACA dynamic sessions (custom container) | Azure service | ARM in any subscription | East and Southeast | Hyper-V per session | HTTP through the pool endpoint; WebSocket undocumented | Ready sessions, "milliseconds" *(upstream)* | 9 | reference |
 | Northflank | Commercial | SaaS, or BYOC data plane in our Azure | BYOC in AU East | Kata / Firecracker / gVisor; microVM on Azure undocumented | REST API | "under a second" *(upstream)* | 8 + proc. | reference |
 | Runloop | Commercial | SaaS, or VPC deploy (Azure listed) | Not documented | microVM | Python / TS SDKs | "a few seconds" *(upstream)* | 8 + proc. | reference |
-| Modal | Commercial SaaS; open SDKs | SaaS only | `au` pin at 1.75x | gVisor (not hardware) | Go SDK: PTY, port tunnels | Fast *(upstream)* | 4 + proc. | reference |
+| Modal | Commercial SaaS; open SDKs | SaaS only | `au` pin at 1.75x | gVisor (not hardware) | Go SDK: PTY, port tunnels; an Orca recipe provider today | Fast *(upstream)* | 4 + proc. | reference |
+| Vercel Sandbox *(added in revision)* | Commercial SaaS | Vercel's cloud only | `syd1` (Sydney) | Firecracker microVM | Orca recipe provider today; TS / Python SDKs | Snapshots, persistent sandboxes | 1 + proc. (demo only) | reference |
+| Panacea: Forge preview pods on its AKS *(added)* | KPMG's own code | Panacea's estate (Australia Central; an Australia East estate in cutover) | Yes | Shared-kernel `runc`, well hardened; no Kata pool | Forge's own proxy and pod exec | None: a pod per session, capped, reaped on a TTL | — | integrate as snippets and services; reject as host |
+| Coolify (+ Supabase) *(added)* | Apache-2.0 | Self-hosted PaaS: Docker on our servers over SSH | Ours | Docker (shared kernel) | None built in | None | — | reject for this capability |
+| VMSS Flex + standby pools *(added)* | Azure service | ARM in any subscription | Yes | A full VM per session | SSH (Orca's SSH mode) or our `sandboxd` | Standby pool, running or deallocated | 8 | reference |
 | Coder | **AGPL-3.0** core + commercial Premium | Helm on our AKS | Ours | Whatever the template runs | Reconnecting PTY over WebSocket | Prebuilds (Premium only) | 9 + proc. | reject |
 | E2B | Apache-2.0 SDK and runtime; SaaS | SaaS; BYOC AWS/GCP only | No Azure | Firecracker microVM | PTY API | Snapshot resume | 20+ | reject |
 | Daytona | **AGPL-3.0**, frozen June 2026; core now private | SaaS US / EU / India | No | Not assessed | PTY API | "under 90ms" *(upstream)* | — | reject |
