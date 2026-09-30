@@ -472,7 +472,41 @@ record, exportable to an assessor.
 
 ## 6. The glue we still build
 
-*(pending)*
+| # | Glue | Where | Replaces or adds | Days | Needs first |
+|---|---|---|---|---|---|
+| G1 | **Orca Deploy panel**: the release card, the held acts (ship the production branch, request promotion, roll back), the preview link into Orca's per-worktree browser, deep links into the Portal's `/projects/:name/deploy`, `/environments`, `/access` and stage pages | Orca plugin panel, or our Orca fork (3.11) | replaces tasks 13-18 (17 h) and the first run's 0.5-day links | 1.5 | task 08's view; the cockpit cluster's panel-or-fork call |
+| G2 | **Signed release provenance**: one in-toto Statement v1 per release, DSSE-signed in the Hub with an Azure Key Vault key (`azurekms://`), `OD-32`'s OpenBao Transit key (`openbao://`) at the lift | Hub, called by task 09 on confirm | adds: nothing in the plan signed | 1 | Hub release record (fake until H5) |
+| G3 | **Promotion and the data class**: at bind, `PUT P/stage-floor` from the project's class (`none` to innovation, `synthetic` to secure-test, `protected` to production); a promotion request is `POST P/envs/{env}/stage/promote`, the card shows `GET P/envs/{env}/stage`'s per-rung checklist, approval stays in the Portal | control plane, next to task 10 | adds N2, which the plan left out; closes 03-define G7's hand-off | 0.75 | task 04's transport |
+| G4 | **The agent allowlist**: the sandbox's `panacea-mcp` talks to a control-plane proxy that holds the real token and forwards only the session's own project, and only the routes in the list below | control plane | adds the control that keeps an untrusted agent off production | 1 | 01-sandboxes' image and `/bind` |
+| — | Phase 7 tasks 07 (rest), 08, 09, 10, 19, 20, as planned | control plane | kept | 1.7 (13.5 h) | as the plan says |
+| | **Total** | | | **about 6** | |
+
+**G2's statement, field by field.** Subject: the image digest in Panacea's evidence document for
+the release. Predicate type: a URI we own. Predicate: the brief's key, revision and sha256 (the
+pin Define published); the release id; the Panacea project, deployment id, environment and
+commit; the sessions from the `Panacea-Session` trailers (task 19); the **sha256 of Panacea's
+evidence document** (`GET P/releases/{release}/evidence`), so the scans, SBOM and signature state
+Panacea recorded are bound in without being copied; the rung and the approver at promotion. An
+assessor checks it offline with `cosign verify-blob-attestation` and the public key, with no
+access to our Hub ([cosign attestation docs](https://docs.sigstore.dev/cosign/verifying/attestation/)).
+When Panacea takes P-1, the same pin also travels inside Chains' platform-signed SLSA provenance,
+and Kyverno can enforce "no brief, no prod" at admission; G2 stays as the record that also names
+the sessions and the evidence digest.
+
+**G4's allowlist, v1.** The proxy forwards, for the session's project only: every read the agent's
+loop needs (deployments, runs, logs and their SSE, pods, events, diagnose, security status,
+`agent-context`, `skill-md`); `POST P/deploy` for a **non-production** branch; rollback and cancel
+on a **non-production** environment. It refuses everything else, among it `P/promote`, the stage
+and stage-floor routes, access and preview policy, custom domains, webhooks, env writes
+(`panacea_env_set`), token minting and every admin route. The reason is in §2a: a developer-capped
+token *can* call `P/promote`, and on an environment with no rung set a production deploy asks for
+no scan. Until P-3 the real token is the user's pasted `pnc_`, which never enters the sandbox;
+after P-3 it is a per-session `scopeProject` + `scopeRole=deploy` token that expires in hours, and
+the allowlist stays, because that role can still promote.
+
+**Asks of the Panacea stream (not our days):** P-1 the brief-pin deploy parameter (0.5-1 day),
+P-2 a route that writes the data class (about 0.5), P-3 trust for our realm token (1-2), and our
+egress IP on Panacea's edge allowlist. P-4 and P-5 are Panacea's own backlog.
 
 ## 7. Calls only the owner can make
 
