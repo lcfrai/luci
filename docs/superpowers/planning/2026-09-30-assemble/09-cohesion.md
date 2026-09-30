@@ -490,3 +490,64 @@ Teams.
 **Before the build, not after it:** the owner reviews a clickable prototype of the shell (the bar,
 the Desk, one Hub page and the Develop frame), as the working agreements require (`CLAUDE.md`;
 08-verify §8).
+
+## 7. What it changes
+
+**No product pick changes.** Every cluster's corrected choice stands: Orca, Kata sandboxes, Spec
+Kit, Penpot, ADO Boards and GitHub, Teams, Panacea, our Hub and gateway. What changes is how
+several of them surface. Ten pieces of the plan, as written, cannot pass the owner's ask:
+
+| # | As planned | Why it fails the ask | What replaces it | New days |
+|---|---|---|---|---|
+| 1 | Orca under its own name, our pages in its browser tabs (02 §7 call 1; 08 §9 call 2) | Fails four of the five checks at source | The thin build (02-verify §8), already ruled | 0 (5 counted) |
+| 2 | Orca's inbox and status store as the attention queue (02 R1 row 3) | A second queue with counts. It cannot take tracker, Penpot or Panacea events, and it reads PTY bytes | The Desk as the one queue (§5.4); Orca's own surfaces off (§2 row 2); the hook relay moves to first ship | 3 + 1.5 + 0.5 + 0.25 |
+| 3 | Orca's task sources as Start for GitHub and Jira (05 §0.3) | A second tracker face, with pasted personal tokens | The Work page and the pending start (05-verify §5) | 0 |
+| 4 | Penpot as delivered: dashboard, login screen, onboarding, mint and purple chrome | Another product's face in the Design lens | The editor alone on the branch's file, the injected theme, the OIDC shim, flags off (§3.2, §4.1) | 0.75 |
+| 5 | Penpot and previews signed in by the embedded browser | A second Microsoft sign-in inside the frame | The realm hand-off (§4.1), share-link previews (§4.2), the Windows bridge as a pilot fallback | 1.5 + 0.25 |
+| 6 | 03-verify's preset, with its `AC-` section and Spec Kit's "spec" | Words that are not ours | The preset in our nouns (§5.5) | 0.25 |
+| 7 | Three type pairings across the surfaces | A different face on each surface | Geist Sans and Commit Mono everywhere (§3) | 0.25 |
+| 8 | A palette that reaches only Orca's own actions | Two palettes, or none on our pages | Plugin commands, alias actions, the chord caught on every surface (§5.3) | 1 |
+| 9 | The thread as a chip and a card only | Its records do not open from every view | The thread drawer (§5.2) | 1 |
+| 10 | Each product's words as shipped; five theme mappings, not 125 | Several vocabularies; Orca's chrome only half ours | The rename list, the CI scan and the copy review (§5.5); the generated theme files (§3.1); the terminal theme | 0.75 + 0.5 + 0.25 |
+
+**The days.**
+- **New, from the table: about 12 engineer-days (10 to 15).** That is 11.75 before rounding.
+  The Desk (3 days) is the largest piece, and no cluster had costed it.
+- **Pulled into the plan: 2 days.** Our own realm, which 07-verify §5 kept as a costed fallback
+  outside its total, now carries the hand-off (§4.1).
+- **Contingent: 1 day.** The Windows bridge, only if the realm hand-off is not ready for the pilot.
+- **Moved, not new:** 02 R6's hook relay (1.5 days) moves from "later" to first ship.
+- **So the one-app layer is about 23 engineer-days:** 08-verify §7.2's 9, plus 12 new, plus the
+  realm's 2. The whole-product sum moves from about 103 to **about 117**.
+- **Calendar:** with five builders, about 2 to 3 working days more before the first app. The Desk
+  and the hand-off sit on its path. The rest runs beside the other lanes.
+
+**Declared v1 exceptions.** Each is small, named, and put to the owner's eyes rather than hidden:
+1. **Reviewers on the host's PR page.** Authors never go there, because they land from the lane
+   card. A reviewer reads and answers comments on GitHub or Azure DevOps. Closing it later means
+   pulling review comments into the Desk and the lane card with reply in place: about 2 days,
+   after v1.
+2. **The first-run sign-in tab.** One system-browser tab showing our own page, once per laptop.
+3. **Penpot's font and radii** (Work Sans; 4/6/8/12), unless the font-alias spike passes or we take
+   an MPL-2.0 patch (§3.2).
+4. **"Connect deploy"**: one paste until Panacea's P-3 lands (00-verify S3).
+5. **Keycloak's stock error pages**, until our realm carries its theme (0.5 day, 07-verify C2).
+6. **Spec Kit's file paths** (`specs/<n>-<name>/spec.md`) in Orca's editor, if the preset cannot
+   rename them (not checked, §8).
+
+**If the thin build cannot hold** (KPMG IT blocks Orca's desktop, or Orca's seams break): the
+browser route (02-verify 5.3). The Hub is the shell in Edge, and each lane opens Orca's web
+client. It passes one name, one sign-in and one spine by construction, and sign-in is simpler
+there, because Edge already signs in with Windows and needs no hand-off. It loses Orca's
+cross-lane sidebar. Spike it for 0.5 day on day 1, as 02-verify already plans. Phase 2's Tauri
+desktop stays frozen as the other fallback.
+
+**Owner calls (customer-visible or money only):**
+1. **The app's name and icon** (customer-visible; 02-verify call 5).
+2. **Define, not Discover, and four lenses**, with Files and Merge inside Develop
+   (customer-visible; §5.1; `CONTEXT.md` open questions 1 and 2).
+3. **Accept the six declared exceptions for v1** (customer-visible), each with its closing step.
+4. **Our own realm for the hand-off** (customer-visible: sign-in moves off Panacea's dev estate;
+   07-verify §8). IT's request for the redirect URI and second secret goes in on day 0.
+5. **The mono face** (money): Commit Mono (free, OFL), recommended, or Berkeley Mono (about US$100
+   once, DESIGN-SYSTEM).
