@@ -130,7 +130,24 @@ its AI features sit in a tier whose price and name are both moving, and it saves
 
 ## 5. The "buy" candidates the verdict leans on, re-checked
 
-*(to be filled)*
+Three candidates carry the verdict: the two whose change would reopen "buy" (owner call 5 and
+risk 4) and the one self-hosted whole-SDLC product. All three were read at the vendor's own docs.
+
+| Candidate | Report's claim | At source (2026-09-30) | Result |
+|---|---|---|---|
+| **Claude Code self-hosted environments** | ZDR unavailable; no Bedrock, Foundry or gateway; GitHub only; control plane and transcript Anthropic-hosted; beta, Team and Enterprise, off by default | `code.claude.com/docs/en/self-hosted-environments`: every quote matches verbatim. Also: *"A runner serves one owner at a time"*, so *"The minimum fleet size is therefore the number of owners you expect to be active at once"*; sessions *"consume your organization's Claude Code usage"*; and *"the claude.ai interface continue[s] to run on Anthropic's infrastructure"* | **Holds.** Reject stands. The reopen trigger needs two more conditions than the report names: Azure DevOps repositories, and a way to start sessions from our shell rather than claude.ai's |
+| **GitHub Copilot cloud agent** | In-region inference US and EU only; Australia on the roadmap | GitHub docs, *"Copilot with data residency is currently available in the following regions: United States, European Union"*. No Australia. Enforcement adds *"a 10% increase on AI credits consumption"* | **Holds.** Reject stands; the quarterly re-check is right |
+| **GitLab Duo Agent Platform, external agents** | GA on Self-Managed; runs the unmodified Claude Code; "Yes, wholly in the customer's Azure, with self-hosted models" (report §5) | `docs.gitlab.com/user/duo_agent_platform/agents/external/`: external agents are *"Not available on GitLab Duo with self-hosted models"*. On Self-Managed, adding the Claude and Codex agents *"remains experimental"*. Creating a custom external agent there is an experiment behind `ai_catalog_create_third_party_flows`, *"disabled by default"*. Availability *"is controlled by a feature flag and enabled for verified customers"*. Tier: *"Premium, Ultimate"* | **Refuted in part.** Claude Code on GitLab cannot run wholly in a customer's Azure today. With self-hosted models, the external agent is not offered. With GitLab's gateway, inference leaves our route (B4). A custom agent pointed at our LiteLLM is an experiment. Reference stands, for a weaker reason |
+
+**Not re-fetched, and why that is safe.** Devin, Cursor, Factory, Replit, Lovable, v0, Bolt,
+Kiro, Jules, Ona and Codex each run **the vendor's own agent**. That fails B5 by design, and no
+fact-check of regions or gateways can reverse it. Their region and gateway details are the
+report's, unverified here.
+
+**The one-app ask does not revive a buy.** The only candidates that are one app by construction
+across several phases are the prompt-to-app builders and GitLab. The builders fail B1, B2, B4
+and B5. GitLab fails B7 (a third git host) and, per the row above, B4 for Claude Code. So the
+ask changes **how** we assemble (section 7). It does not change **whether** we assemble.
 
 ## 6. The days and the task counts, for our architecture
 
