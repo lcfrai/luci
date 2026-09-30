@@ -132,16 +132,16 @@ as one container beside it. That avoids the role rework entirely (not costed; §
 
 **Verdict: 19.2 engineer-days is close for what it counts. It misses one identity piece that
 our cockpit choice creates, and first use waits on two asks that no row owns.** Corrected:
-**about 20.5 engineer-days**, and first use is set by the subscription, DNS and the edge.
+**about 20.7 engineer-days**, and first use is set by the subscription, DNS and the edge.
 
 | Row | Research | Check against our architecture | Corrected |
 |---|---|---|---|
 | Hub | 10 days (about 81 plan-hours) | The listed tasks (08-10, 13-24, 28-35, 37-39) add up to **77.5 plan-hours** in the plan's table (`2026-09-23-phase-h-hub.md:410-442`). With P1's roughly 2 hours that is 79.5, so about 10 days. Under Orca, tasks 37-38 (the Tauri caller key, 7 hours) may drop, because sign-in moves to `panacea login` (02, `:151`, `:247`). The research flags this and does not count it | **10** (holds) |
 | Hub pages signed in | not counted | 02 and 08 make the Define, Design and Deploy lenses "Hub web pages, opened in Orca's browser tabs" (02 `:205`, 08 `:550`). The ruling's only human client, K1, is loopback-only. The Hub plan's sign-in is desktop-side (tasks 30-32, 41). Orca's browser tab has no Entra cookie, so the first Hub page would stop on Microsoft's sign-in inside Orca. Fix: a one-time ticket that `panacea login`'s token buys from the Hub, which the page swaps for an `HttpOnly` session cookie. No new realm client and zero clicks (our estimate) | **+1** |
-| Gateway | 8.2 days | The plan was written for this architecture: `apiKeyHelper = panacea token` from a mounted file (plan `:34`), pod binding, and `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1` with `drop_params` for AU (P6-D3, `:68`). Its own total is "70 focused hours, about 8.75 focused days" (`:198`). Add hash-locked Python dependencies to task 27's source build (G7), about 2 hours | **8.4** |
+| Gateway | 8.2 days | The plan was written for this architecture: `apiKeyHelper = panacea token` from a mounted file (plan `:34`), pod binding, and `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1` with `drop_params` for AU (P6-D3, `:68`). Its own total is "70 focused hours, about 8.75 focused days" (`:198`). Add hash-locked Python dependencies to task 27's source build (G7), about 2 hours, and `gatekeeper`'s rewrite of LiteLLM's own refusals (§6 C3), about 2 hours | **8.7** |
 | Environment | 1 day | The Azure resources fit in a day once the subscription exists. Two traps: Panacea's HA block cannot go on Burstable (§2 H3), and the Hub and gateway must be reachable from laptops (the desktop's `hubclient`, and local-mode agents, plan `:5`). That needs a public name under a zone someone owns, plus an edge allow-list like Panacea's. Neither is costed or owned | **1**, plus two asks (DNS delegation, edge allow-list) |
 | Realm | 0 ours | Holds as work. But it signs us in to Panacea's **dev** Keycloak 25, which gets no upstream fixes (§2 I4, I5) | **0**, plus one ask made required (below) |
-| **Total** | **19.2** | | **about 20.5** |
+| **Total** | **19.2** | | **about 20.7** |
 
 **Elapsed.** "Five engineers, about 6 working days" holds for the build lanes. It starts only
 once the subscription, a DNS name and the edge rule exist, so those three are the critical path.
@@ -154,7 +154,26 @@ either way, because it is the long pole if the Panacea ask stalls.
 
 ## 6. Cohesion: does the platform layer feel like one app?
 
-_Pending._
+The user's ask for this run: pulling from many places must still feel like one app. The
+platform layer is mostly invisible, which suits that. It shows through in six places, and the
+recommendation handles two of them.
+
+**Already right:** one person, one identity. The realm issues four audience scopes from one
+sign-in (K2), so the Hub, broker, gateway and fleet never ask a second time. The sandbox gets
+its key through `apiKeyHelper` from a mounted file (phase 6 plan `:34`), so the agent never
+shows a key prompt. Rejecting Supabase and Coolify also keeps two extra consoles out (§3).
+
+| # | Where a person could meet another product | Today's plan | Fix, and its cost |
+|---|---|---|---|
+| C1 | **A Hub page in an Orca tab asks them to sign in to Microsoft**, because the tab has no Entra cookie | not planned (§5) | The one-time ticket from `panacea login`'s token: single use, 60 seconds, bound to the caller, exchanged for an `HttpOnly` cookie. **About 1 day, counted in §5** |
+| C2 | **Keycloak's own pages**: stock-themed error and "page expired" screens. Panacea sets no `loginTheme` anywhere in `deploy/` | K1 skips the login page, but not the error pages | With Panacea's realm, a theme is a Panacea image change, so live with it for the pilot. With our own Keycloak (3.11), give the `panacea-app-desktop` client its own login theme in our design system (Keycloak sets themes per client; Keycloakify is MIT at source). About 0.5 day, inside 3.11 |
+| C3 | **The gateway's own refusals inside the agent's terminal.** Claude Code shows a 429 body "as is" and stops retrying on `x-should-retry: false` or a `retry-after` over 60 (gateway guide). A LiteLLM budget error would show LiteLLM's own wording (its exact text not checked) | The cockpit panel has our wording (plan `:286`); the terminal path is not specified | `gatekeeper` rewrites **LiteLLM-originated** refusals (budget, route, `count_tokens`) into one sentence in our voice, as a 429 with `x-should-retry: false` and `retry-after`. Upstream Anthropic errors pass through unmodified, which Claude Code's recovery needs. **About 2 hours, counted in §5** |
+| C4 | **Two spend numbers for one project**: agents through our gateway, and the hosted app through Panacea's (`team_id` = project, `llm_env_keys.go:100-110`) | The research keeps both gateways, correctly; no view joins them | The cockpit's project view shows one line with a "building / running" split, under the Hub's project name. About 0.5 day in 06's or 02's panel (not counted here) |
+| C5 | **Vendor consoles**: LiteLLM's admin UI, Keycloak's account console, Backstage | 3.16 keeps LiteLLM's UI for operators; §2 lists Backstage as "deep links" | Nothing user-facing links to them: LiteLLM's UI stays operator-only and unrouted from the edge, and Backstage templates are called through its API, never opened. Zero days; a rule for 02 and 06 |
+| C6 | **Pages we serve ourselves**: the loopback "you can close this tab" page (ruling §3) and the Hub pages | The loopback page text is specified; its look is not | Both use `docs/DESIGN-SYSTEM.md` tokens, so a Hub page in Orca and the sign-in tab look like the same product. Inside the Hub page tasks |
+
+**Net:** C1 and C3 are the two that would make a person feel they left the product. Together
+they cost about 1.25 days, and both are in §8.
 
 ## 7. Missed candidates
 
