@@ -32,7 +32,7 @@ Panacea (preview comments).
 | 7 | Integration days | 16 | **17**, or 15 if Orca does not replace the desktop | Snippets −1.5, Spec Kit −0.5, preview comments +1, Orca ADO source +2 (§7) |
 | 8 | Owner calls | 4 | **5**: call 1 now names `OD-35`; new call 5, *PanaceaApp teams are Panacea teams* | §8 |
 
-**Candidates added by this revision** (verdicts in §0.1-§0.3 and the table under *The answer*):
+**Candidates added by this revision** (verdicts in §0.1-§0.4 and the table under *The answer*):
 Panacea's team API, snippets and preview comments (**integrate**); Orca's task sources (**adopt
 with the cockpit, extend with ADO**); Supabase Realtime (**reference**); Coolify (**reject** for
 this capability); Panacea's Backstage (**reject** for the work layer); Claude Code agent teams
