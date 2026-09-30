@@ -86,11 +86,77 @@ Collection-tactic incident; leave it off.
 
 ### R3. How we use Orca, concretely
 
-(pending)
+**Ruling: Orca is the cockpit itself, unforked, with our control plane and Kata sandboxes as its
+execution backend, joined by one recipe and one plugin.** Not a fork, and not our Tauri cockpit
+borrowing its parts:
+
+- **Not a fork (for v1).** 24,200 source files and a release a day. The plugin API and recipes reach
+  every seam v1 needs. A fork means our own Windows code signing (Orca's builds are signed through
+  SignPath), a fresh Defender prevalence reset on every build we ship, and a daily rebase. Fork only
+  for a must-have that upstream refuses — first candidate: 05's Azure Boards task source, offered
+  upstream as a pull request first.
+- **Not borrowing parts.** Orca's value is the integrated whole (status store with subagents, inbox,
+  diff notes sent to the agent, hosted review, session history). Lifting pieces out of an
+  Electron/IPC codebase into Tauri is the 12–18-day path §3a priced, for less.
+
+**The flow, end to end** (sandbox side as in 01 §1a; the recipe seam verified in R2):
+
+| # | Step | Who | How |
+|---|---|---|---|
+| 1 | Sign in, once | `panacea login` (our Go CLI) | Auth-code + PKCE through the Keycloak realm brokering Entra (`OD-30`); token in Windows Credential Manager (`OD-6`); the recipe scripts reuse it silently |
+| 2 | Offer "Run on: Panacea sandbox" | the **Panacea plugin** | Contributes the recipe through `vmRecipes`; Orca merges plugin recipes with the repo's own (`listRecipes`), so **no `orca.yaml` lands in customer repos** |
+| 3 | Create a lane | recipe `create` (Windows script) | Calls the control plane's create-lane route (phase 3 task 04) with `ORCA_REPO_URL`, `ORCA_REPO_REF_HEAD`, the branch and the brief key. The control plane clones the lane onto the sandbox disk (task 03), claims a warm Kata sandbox (01), mints the per-session gateway token (`OD-19`) and points `origin` at the lane git endpoint; the sandbox starts `orca serve --project-root … --pairing-address wss://…/lanes/<id> --recipe-json`; the script prints `{pairingCode, projectRoot, userData.resourceId}` |
+| 4 | Work | Orca, upstream | Its runtime in the sandbox owns the terminals, end-to-end encrypted over our authenticated `wss://` route; it launches unmodified Claude Code (`ANTHROPIC_BASE_URL` = LiteLLM, AU or Global per project) and installs its hooks there, so the desktop shows working / waiting / done, the inbox and notifications. Diff notes sent to the agent work as upstream |
+| 5 | Hand in | Orca's Commit and Push | Push goes to the control plane's **lane git endpoint** (session-token auth, lane branch only); the sandbox never holds a git-host credential (phase 3 decisions 9–10) |
+| 6 | Land | plugin command + control plane | "Open PR" pushes the lane branch to GitHub or Azure DevOps **with the user's credential**, opens the PR with the brief trailer, and enables GitHub auto-merge / the merge queue or ADO auto-complete (`mergeCommitMessage` carries the trailer). Panacea deploys a PR preview (R5). Review and merge on the host page |
+| 7 | Suspend, resume, destroy | recipe scripts | agent-sandbox pause, resume and delete (01) |
+
+**Resume and fork stay ours.** Orca resumes only local workspaces and has no fork (R2). Phase 2's
+transcript store and fork (`--resume A --fork-session` into a new worktree) become two plugin
+commands — "Resume in a fresh sandbox" and "Fork into a new lane" — each a recipe create with a
+source session.
+
+**Gaps that remain, each with its fix:**
+- **Orca's own GitHub PR features stay dark inside a sandbox lane** (inline checks, "Fix broken
+  checks", "Merge when ready"): hosted review runs on the execution host
+  (`src/main/source-control/hosted-review-execution-host.ts`), and that host holds no GitHub
+  credential. The plugin's lane strip and the host page cover v1; lighting them up needs a
+  repo-scoped, one-hour GitHub App token in the sandbox (owner call, §7).
+- **Recipes are "Experimental" and run only from the desktop** ("Ephemeral VM recipes run on the
+  local desktop host in v1", `src/main/ipc/ephemeral-vm-recipe-context.ts`), and a project anchors on
+  a local clone on the laptop. `panacea login` can make that clone for non-developers.
+- **The plugin API is experimental**: panels are `srcdoc` frames with navigation blocked, and there is
+  no `net:fetch` capability yet. If the worker cannot reach the Hub, the lane strip is a Hub page in
+  Orca's built-in browser tab instead (spike on day 1).
+- **Orca reads OSC title events for its state dots.** Our code never consumes them; anything we build
+  on status (Hub, team mode) takes Claude Code's typed hooks through `sandboxd`. Treated as a
+  display detail inside the adopted cockpit; if `OD-8` must bind Orca too, the fix is a small
+  upstream setting that prefers hooks for hook-capable agents (0.5 day).
+- **Windows Defender for Endpoint** needs an alert-suppression rule and an ASR allowlist per tenant
+  (R2; owner call, §7). **Mobile** stays off: Orca Relay is US-hosted and needs an Orca sign-in.
+
+**Later, not first ship:** a browser-only cockpit. `orca serve` already serves a web client that
+expects a reverse-proxy path prefix (`vite.web.config.ts`: `base: './'`), which would remove the
+desktop install and the Defender work. It waits on recipes running from a remote runtime.
 
 ### R4. What of phase 2 survives
 
-(pending)
+**The backend survives; the Develop views of the Tauri desktop retire.**
+
+| Phase 2 piece (built) | Under Orca |
+|---|---|
+| Control plane: sessions API, `backend.Backend` (`dockerbe`, `katabe`), reaper, restart recovery | **Survives** — it becomes the lane and sandbox API the recipe calls |
+| Transcript store, resume, fork | **Survives** — two plugin commands; Orca has no remote resume and no fork |
+| Per-session gateway token wiring (`OD-19`) | **Survives** unchanged |
+| `sandboxd` | **Survives, smaller.** Ruling for 01 §1a: under an Orca lane, `orca serve` owns the PTY and `sandboxd` does **not** wrap it (two PTY owners would double-buffer for nothing). `sandboxd` keeps health, the Claude Code hook receiver for the Hub and team mode, and every session that is not Orca's (team mode's managed sessions, API runs) |
+| Attach relay `GET /v1/sessions/{id}/attach` | Kept for non-Orca sessions; Orca lanes stream over Orca's own encrypted channel through the `wss://` route |
+| Worktree catalog (read-only) | Superseded by the lane index (phase 3 task 03) |
+| Tauri Develop views: rail, sub-rail, Columns and Canvas layouts, session panes, split create, palette, keyboard map, heartbeat clock | **Retired** — Orca's sidebar, splits, quick open, agent dashboard and inbox replace them |
+| Status: four observed facts; `BLOCKED-ON-YOU` never built | **Superseded** by Orca's status store (R2) |
+| Tauri shell for the Define, Design and Deploy lenses | Not this study's ruling. Direction that keeps one app: those lenses become Hub web pages, opened in Orca's browser tabs from the plugin |
+
+**Net:** of phase 2's work, everything under `control-plane/` and `sandboxd/` carries on;
+`desktop/src/components/{develop,rail,subrail,palette}` stops being the product's Develop surface.
 
 ### R5. Panacea, Coolify and Supabase for this capability, on merit
 
