@@ -1,10 +1,17 @@
 # 06 — Deploy and release provenance: what to adopt instead of building phase 7
 
-**Status:** in progress, 2026-09-30. Research only: nothing was installed or run.
+**Status:** in progress, 2026-09-30, **second run** (relaunched to take the owner's second
+direction; the first run stopped at 09:47 with sections 1-4 written). Research only: nothing was
+installed or run, and nothing was written in `Projects/Panacea`.
 **Capability:** shipping the result — a preview environment per branch, promotion, rollback, and a
 release that carries its provenance (the brief it answers, the evidence).
 **Replaces (candidate):** phase 7, the Deploy connector, 20 tasks
 (`.claude/worktrees/phase-7/docs/superpowers/plans/2026-09-23-phase-7-deploy.md` §8).
+**Second direction (owner, 2026-09-30):** Panacea is the strong default and the best fully-fledged
+solution wins; Coolify plus Supabase enhanced with Panacea snippets is allowed; Panacea snippets may
+be copied with attribution (OD-13 relaxed); Orca is the cockpit. What that changed is in section 8.
+**Companion:** `00-panacea.md` §3-5 holds the full route and tool inventory with `file:line`; this
+file uses it and adds only what deploy needs.
 
 ---
 
@@ -62,9 +69,9 @@ product-specific part, and it is small.
   (`OD-13`). At the lift, `OD-32` swaps in OpenBao, which keeps a Transit engine, so the signing
   chain survives the move. This is inferred from OpenBao's feature list, not tested.
 
-## 2. What already exists: Panacea is the deploy platform
+## 2a. Each need mapped onto Panacea's routes and MCP tools
 
-*(pending)*
+*(pending, second run)*
 
 ## 3. Candidates
 
@@ -281,10 +288,22 @@ N1 preview per branch · N2 promote · N3 rollback · N4 release carries brief a
 
 *(pending)*
 
-## 6. Calls only the owner can make
+## 6. The glue we still build
 
 *(pending)*
 
-## 7. What this study did not verify
+## 7. Calls only the owner can make
+
+*(pending)*
+
+## 8. Revised for the owner's second direction
+
+*(pending)*
+
+## 9. What this study did not verify
+
+*(pending)*
+
+## 10. Sources
 
 *(pending)*
