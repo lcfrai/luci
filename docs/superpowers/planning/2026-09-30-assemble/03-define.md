@@ -241,6 +241,52 @@ from Orca's documentation.
   Confluence and a requirement-to-test matrix (`spec-kit-trace`) exist. None is needed for Define; phase 3
   owns the git hosts. Read their source before any use.
 
+### 4.10 Panacea — integrate its rules and its data class, not a service
+
+Read-only grep of `Projects/Panacea` on 2026-09-30. **Panacea has no brief, glossary or decision store**:
+nothing in `services/panacea-api/routes/routes.go`, and none of `panacea-mcp`'s tools (projects, deploys,
+env, logs, pods, security status, rollback) touches Define. It has three things Define should use.
+
+- **Forge's spec** (`services/forge-orchestrator`). Forge is Panacea's own app-building agent. On an empty
+  project its prompt runs a discovery "in this order": purpose, data, **access** ("for each entity, who
+  may read it and who may change it … BEFORE any screen"), routes with their auth decision, then
+  acceptance through a `write_spec` tool, one step at a time (`orchestrator/prompts.go:73-89`).
+  `models/spec.go` refuses a spec that cannot serve as an oracle: every route needs an auth decision from
+  a fixed set (`public`, `user`, `owner`, `project-role:<role>`), and there must be **3 to 8 criteria,
+  each testable** (a verb such as *can*, *cannot*, *shows*, *returns*, *refuses*, *persists*). Forge's
+  browser test then checks the running app against those criteria.
+  - **Gaps as a Define service.** Its agent loop is Forge's own, not the unmodified CLI in our sandbox;
+    the files land in Forge's session store (`SaveFile`), not in the worktree; greenfield web apps only;
+    criteria are numbered, not given stable ids; no glossary or decisions. Driving it would mean a chat
+    client for `/api/v1/forge/ws` in the cockpit and an import step: about 5 days, for less than
+    Spec Kit gives.
+  - **Verdict: integrate as snippets.** The access table goes into the preset's spec template
+    (routes optional, since not every app serves routes). The validator logic (`Validate`, the
+    testable-verb rule, the strict routes-table parse) goes into Publish, copied with attribution in the
+    file header. About 0.25 day in G1 and none extra in G3. **Trade-off:** Forge's spec is stricter and
+    tied to Panacea's own probes; Spec Kit's is richer and runs in the CLI we host, so take Spec Kit
+    and graft Forge's two rules.
+- **The data-class ceiling** (`services/panacea-api/handlers/deployment_stages.go:40-76`). Panacea's
+  stage ladder runs innovation → secure-test ("enforced scans + SSO + synthetic data + assessed risk")
+  → production ("approved risk + DLP"), against a declared ceiling of `none < synthetic < protected` in
+  the `panacea.io/data-classification` annotation. It is enforced today as an attestation; the DLP
+  gate in front of the AI gateway reads the same annotation (`handlers/ai_governance_dlp.go`). OD-24
+  says the class is set on creation and decides the scans. **Verdict: integrate.** Define asks for it
+  once, in these three words, with the residency path (AU or Global, OD-19) beside it; the project
+  record and the brief carry it; Deploy hands it to Panacea (G7). **Gap:** no non-test code in
+  `panacea-api` writes the annotation (grep); it is read in four places. So the hand-over is either a
+  new Panacea route (Panacea's owner) or an admin step, and it belongs to `06-deploy.md`. Panacea also
+  has a second vocabulary, a team policy's `OFFICIAL | PROTECTED` (`models/models.go:1098-1102`):
+  owner call 4.
+- **Risk requirements and the assessment document** (`routes.go:1175-1239`, team templates at
+  `1997-2020`). Per project: the team template's requirements, answers, a solution status, supporting
+  documents (ClamAV-scanned) and a generated assessment as DOCX or PDF. **Verdict: integrate next, not
+  first.** A Define session can later draft the answers from the spec for the person to confirm, which
+  is where the brief meets Deploy's secure-test gate. It is not on the path to the first shipped brief.
+- **Backstage** (`backstage/packages`): Scaffolder and TechDocs are installed; no ADR plugin.
+  **Reference.** TechDocs could show the spec to readers outside the cockpit later; today Orca renders
+  it and the Hub holds the revisions.
+
 ## 5. Recommendation
 
 **Adopt GitHub Spec Kit as the Define engine, run as a Define session in the cockpit we already have,
