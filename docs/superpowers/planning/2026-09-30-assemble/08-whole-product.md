@@ -62,7 +62,73 @@ _(pending)_
 
 ## 4. Candidates in detail
 
-_(pending)_
+Tests B1-B10 are section 2's. "Phases" names what the product covers end to end. Facts are dated
+2026-09-30 unless marked; sibling clusters are cited where they already verified a fact.
+
+### 4.1 OpenHands: Agent Canvas (MIT) and OpenHands Enterprise (source-available) - REFERENCE
+
+- **Does.** Agent Canvas is "the self-hosted developer control center for coding agents and
+  automations": it runs "OpenHands, Claude Code, Codex, Gemini, or any ACP-compatible agent across
+  local, remote, and cloud backends", one Docker sandbox per conversation if asked, plus
+  automations on a schedule or on Slack, GitHub and Linear events (`README.md`, read today).
+  OpenHands Enterprise is the multi-user server behind it, self-hosted "in your own Kubernetes
+  cluster".
+- **Licence.** Agent Canvas: **MIT** (`OpenHands/OpenHands`, API). The multi-user server is not:
+  `OpenHands/enterprise` and `OpenHands/OpenHands-Cloud` (the Helm charts) are **PolyForm Free
+  Trial 1.0.0**, "NOT an open source license. Usage is limited to 30 days per calendar year without
+  a commercial license". So the enterprise half is a **buy**, price by quote.
+- **Deploys.** Helm or Replicated into any Kubernetes; the chart bundles Keycloak, **LiteLLM (or
+  "your own LiteLLM instance")**, Postgres, Redis, ClickHouse and a `runtime-api` that gives each
+  sandbox a PVC with snapshots. Examples are EKS and GKE; AKS is not documented.
+- **Enterprise fit.** Sign-in through the bundled Keycloak with GitHub, GitLab or Bitbucket, or
+  "Enterprise SSO (SAML)", so Entra works through SAML. RBAC; audit is claimed, not read.
+  Residency is wherever we run it. **No Azure DevOps** in the chart's providers.
+- **Maturity.** 89,544 stars, v1.24.0 on 2026-09-25, pushed today; All Hands AI. Agent Canvas
+  carries a **beta** badge.
+- **Phases.** Develop, plus automations that reach into Define (issue decomposition). No Design,
+  no Deploy.
+- **Fails.** B5 (Claude Code runs behind an ACP adapter in OpenHands' chat, not as the unmodified
+  CLI in a live terminal), B7 (no Azure Repos), B8 for the server (PolyForm), B9 (a second
+  cockpit beside Orca). Passes B1, B2 and B4 because it self-hosts and takes our LiteLLM.
+- **Days.** 10-15 as a backend under our cockpit (02 §3b); 5-8 to stand the Enterprise chart up
+  on AKS, plus procurement.
+- **Verdict: reference.** The closest self-hostable Develop product, and the only one that takes
+  our gateway as is. Not adopted because the owner's cockpit is Orca and our sessions are the
+  unmodified CLI. Read its EventStream and automation design for team mode (as the 2026-09-28
+  study already said).
+
+### 4.2 Devin (Cognition) - REJECT
+
+- **Does.** An autonomous engineer with its own shell, browser and editor; Slack, Jira and Linear
+  triggers; pull requests.
+- **Licence and deploy.** Commercial. "Enterprise Cloud" (multi-tenant) or "Customer Dedicated
+  Deployment" (Cognition-hosted, single-tenant VPC reached by AWS PrivateLink or IPsec). In every
+  model **"The Brain ... always residing in Cognition's Cloud"**; only the Devbox moves. The docs
+  say "Cognition's Tenant is Hosted on Azure"; no region list, no Australia (docs.devin.ai).
+- **Enterprise fit.** SAML, OIDC, Okta and Entra SSO. "Devin is a compound AI system and does not
+  currently support third-party LLM API keys".
+- **Fails.** B1, B2, B4 (no gateway, no key of ours), B5 (its own agent only), B9.
+- **Verdict: reject.** Inference and planning never leave Cognition.
+
+### 4.3 GitHub: Copilot cloud agent, Agent HQ, Spark, Copilot Workspace - REJECT as the whole
+
+- **Workspace** ended: the technical preview was sunset on 2025-05-30 and folded into the coding
+  agent. **Spark** is gone: no new users or apps from 2026-08-04, shut down 2026-08-31, and GitHub
+  Models, which its `llm()` used, retired 2026-07-30 (GitHub docs and changelog).
+- **Copilot cloud agent** (the coding agent, renamed) takes an issue and opens a pull request from
+  GitHub Actions. **Self-hosted runners through Actions Runner Controller are supported** since
+  2025-10-28 (Docker-in-Docker mode, outbound to `api.githubcopilot.com`), with organisation runner
+  controls since 2026-04-03, so execution could sit on our AKS. Agent HQ adds Claude and Codex as
+  assignees (05 §2).
+- **Enterprise fit.** Entra through EMU or OIDC, audit, GHE.com with **Australian residency for
+  code at rest** (GA 2025-02-04). **Copilot's in-region inference is US and EU only**
+  (2026-04-13); Japan and Australia are "on the roadmap for later in 2026" (02 §3b found Australia
+  still unlisted today). Models are GitHub's; bring-your-own-key exists for the CLI and VS Code,
+  not found for the cloud agent.
+- **Fails.** B2 today, B4 (inference is GitHub's, not our gateway), B7 (GitHub repos only; Azure
+  Boards hands work to GitHub's agent), B9 (its own mission control).
+- **Verdict: reject as a whole product.** Its landing half (merge queue, auto-merge) is already
+  adopted by 02 §4. Re-check when Copilot lists Australia.
 
 ## 5. Which can run in a customer's own Azure tenancy
 
