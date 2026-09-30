@@ -86,7 +86,47 @@ Azure DevOps, but it wraps Claude Code in ACP, isolates with Sysbox, and is Poly
 
 ## 4. Alternative 2: Coder (workspaces, AI Gateway, Agent Firewall)
 
-*(to be filled)*
+**Verdict: "reference" holds.** The licence line is incomplete, the AI gate has moved at least
+once this year, and there is a concurrent-agent cap the report did not see. Coder could pass B6
+with a template of ours, but that only duplicates what 01 already adopted.
+
+**Licence at source** (GitHub API and raw files, read 2026-09-30):
+
+- `coder/coder` `LICENSE`: `spdx_id: AGPL-3.0`. Holds.
+- **Missed:** a second file at the repo root, `LICENSE.enterprise`, governs everything under
+  `enterprise/`: *"You may not move, change, disable, or circumvent the license key
+  functionality"* and *"This Enterprise Software may only be used in production, if you ... have
+  agreed to ... Coder's Terms of Service ... or other agreement"*. So the paid features ship in
+  the same tree under a source-available, licence-key licence. It is neither AGPL nor permissive.
+- **What each forces.** AGPL-3.0: a modified copy that users reach over a network must offer them
+  its source. The enterprise licence: an agreement with Coder before any production use. For a
+  customer tenancy that is Coder's commercial terms either way (as 02 §3b said).
+
+| # | Report's claim | At source | Result |
+|---|---|---|---|
+| 1 | AGPL-3.0 core plus commercial Premium | as above | **Holds**, with the `LICENSE.enterprise` detail |
+| 2 | AI Gateway and Agent Firewall are in the Premium "AI Governance add-on" | Docs today: *"AI Gateway is part of AI Governance, which is included with a Premium license."* The v2.35.3 docs (search summary) called it *"a separate, per-user license for Premium customers that is not included with a Premium subscription"*. The pricing page today ticks "AI Gateway" and "Agent Firewall" under **AI Premium** ("Custom") | **Paywalled either way. Which tier is unclear**, and the gate moved at least once in 2026 |
+| 3 | Helm on AKS; OIDC with Entra or Keycloak | Pricing page: *"SSO (OpenID Connect)"* on all three plans; *"OIDC group & role sync"* on Premium and AI Premium; *"SCIM is a Premium feature"*. The docs name Entra ID; Keycloak is plain OIDC and not named on the page read. v2.36.6 ships `ai-gateway_helm_2.36.6.tgz` | **Holds.** Sign-in through our realm works on the free tier; group and role sync is paid |
+| 4 | v2.36.6 on 2026-09-18, 16,761 stars | API: `v2.36.6` published 2026-09-18T16:10Z; 16,761 stars; pushed 2026-09-30; not archived | **Holds.** Active, one company behind it |
+| 5 | Tasks goes to extended support and leaves new releases at v2.37 | `/docs/ai-coder/tasks` now serves the Coder Agents page; no extended-support sentence found | **Unverified**, but consistent with Tasks being retired |
+| 6 | *(not checked)* Agent cap | Pricing: *"Up to 5"* active Coder Agents on Community and Premium, *"Unlimited"* only on AI Premium; its FAQ says AI Premium *"removes the concurrent-agent cap"* | **New gate.** It binds Coder's own agent. Claude Code inside a workspace is not named by it on the page read. A fleet of Coder Agents needs AI Premium, custom price |
+| 7 | *(not checked)* Isolation | Coder provisions whatever the Terraform template declares, so a Kubernetes template can set `runtimeClassName: kata-vm-isolation` | **Could pass B6 with our template.** This is our inference, not a Coder doc |
+
+**Price basis.** Premium is *"Annually per user"*; AI Premium is *"Custom"*. No dollar figure is
+published. A quote is needed before either can be priced.
+
+**Days, for our architecture.** The report's 8-12 (02) is for Coder as a `Backend` beside
+`dockerbe` and `katabe`: create a workspace from a Kata template through Coder's REST API, run
+`orca serve` in it, and expose the `wss://` pairing as a workspace app. That is the same work
+01 already costs for AKS Pod Sandboxing with `agent-sandbox` (about 10, 01-verify §0), plus a
+product to run, patch and license. Nothing is saved.
+
+**For the one-app ask:** Coder is only acceptable **headless**, behind our `Backend`. Its own
+dashboard in front of users would be a second cockpit (B9) and exactly the "separate app" the
+user rejects.
+
+**Trade-off in one line:** the best-governed workspace product on the list, and free for SSO, but
+its AI features sit in a tier whose price and name are both moving, and it saves no days over 01.
 
 ## 5. The "buy" candidates the verdict leans on, re-checked
 
