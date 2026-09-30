@@ -439,7 +439,7 @@ provenance, promotion and the data class, the agent allowlist proxy) are **not**
 | P3 | **Create the Panacea project from the cockpit.** Phase 7's binding (task 06) only finds a Panacea project by repository; add create-if-missing: `POST /api/v1/projects` (`routes.go:1017`) with `repoUrl`, `gitProvider`, `team`, `framework`, `defaultBranch`, `jobCode`, `enableDatabase`, `enableStorage` (`models/models.go:639-663`), after registering the user's git PAT once with `POST /api/v1/git/pats` (`routes.go:3020`, unscoped `pnc_` accepted). Without it, "nothing to a shipped app" sends the user to Panacea's portal first | sections 3, 5.3 | 0.5 |
 | P4 | **The snippet ledger.** One file listing every Panacea file we copy (source path, Panacea commit, our path), the header every copied file carries (`OD-13` relaxed), and a CI check that the header survives edits | all | 0.25 |
 | P5 | **The three Panacea asks, written and then checked**: (a) the `panacea-app-desktop` public PKCE client in `deploy/portal/setup-keycloak.sh` (ruling K1); (b) our AKS egress address in `edge_allowed_ip_ranges` (`deploy/main.tf:580-605`); (c) optional, the realm as a second trusted issuer with audience `panacea-api` (section 5.3), which removes the pasted token and lets us mint an 8-hour project-scoped `pnc_` per sandbox | section 5 | 0.25 |
-| P6 | **The live proof on Panacea dev**: one sandbox session creates a project, deploys a branch preview through `panacea-mcp`, opens it through the SSO gate, rolls back; and checks that PR previews still fire when the edge is IP-locked (inbound webhooks stop; `deploy/restrict-edge-allowlist.sh:17-20` moves git push to outbound polling) | sections 3, 8 | 0.5 |
+| P6 | **The live proof on Panacea dev**: one sandbox session creates a project, deploys a branch preview through `panacea-mcp`, opens it through the SSO gate, rolls back; and checks that PR previews still fire when the edge is IP-locked (inbound webhooks stop; `deploy/restrict-edge-allowlist.sh:20-22` moves git push to outbound polling) | sections 3, 8 | 0.5 |
 | | **Total** | | **2** |
 
 **Later, optional (1 day):** Forge's ship gates as a check the agent runs before `panacea_deploy`:
@@ -464,7 +464,28 @@ and an agent may be given both. Rename ours before it ships.
 
 ## 13. Owner calls
 
-_(pending)_
+Only money or what customers see. Everything else above is decided.
+
+1. **Customers' apps run on Panacea's estate (customer-visible).** Previews and releases live at
+   Panacea hosts (or a custom domain, `routes.go:1249-1252`). If Panacea's edge is locked to KPMG's
+   14 corporate egress addresses (`deploy/restrict-edge-allowlist.sh:3-4`), **nobody outside
+   KPMG's network can open them**. Fine for internal use and KPMG-hosted demos; a customer reviewing
+   a preview from their own office needs Panacea's edge policy to change, per host or per branch.
+   Call: is internal-network-only acceptable for the first customers?
+2. **Who pays for shipped apps (money).** Panacea bills each project to its owning team's month-end
+   statement, tagged with an engagement job code and phase (`models/models.go:652-660`), and meters
+   each project's AI spend (section 6). Call: which team and job code own the apps PanaceaApp
+   creates (one PanaceaApp team, or the user's own team per engagement)? P3 needs the answer.
+3. **A stopgap store, only if our subscription is late (money and `OD-5`).** If the Azure
+   subscription for our environment is not ready, the Hub can run as a Panacea project for a while
+   (C6, half a day), at the cost of setting `OD-5` aside for our shared state until the move. Our
+   recommendation is not to, unless the date forces it.
+4. **Later, before any customer-hosted tier (money).** Panacea's stack carries licences that do not
+   travel into a customer's tenancy as they are: Semgrep's registry rules are internal-use only,
+   Vault is BUSL-1.1, MinIO, Grafana, Loki and Tempo are AGPL-3.0, ClamAV is GPL-2.0 (sections 7-8).
+   `OD-32` already swaps Vault for OpenBao at the lift; the others need the same treatment then, or a
+   commercial licence (Semgrep, Grafana Enterprise; priced per contributor or per node).
+
 
 ## 14. Revised for the owner's second direction
 
