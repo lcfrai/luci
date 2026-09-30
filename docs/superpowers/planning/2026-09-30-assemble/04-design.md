@@ -11,7 +11,40 @@ _Pending (written last, after §1a and §6)._
 
 ## 1a. Revised for the owner's second direction
 
-_Pending._
+The second direction (Panacea is the strong default, the best fully-fledged solution wins, Coolify
+and Supabase allowed, Panacea snippets allowed with attribution, Orca is the cockpit) **leaves the
+canvas answer in place and changes where it runs, what it borrows, and how the lens looks.**
+
+**1. The canvas is still Penpot.** Panacea has no design canvas. Its only mention is a
+requirement line, *"G-05 | Visual design editor (drag-and-drop) | **P2** | Phase 2 — GrapesJS or
+custom"* (`Panacea/docs/architecture/AGENT-BUILDER-SPEC.md:113`), and it was never built. Coolify
+and Supabase have no canvas either. "Fully fledged" makes the case for Penpot stronger than
+finishing the phase 5 clean-room build: Penpot already ships the multiplayer, components, grid,
+prototyping, comments and version history that the plan left out (§4).
+
+**2. Where Penpot runs, judged on merit.** Three hosts were compared. All three are permissive.
+
+| Host | For | Against | Days to a running Penpot | Verdict |
+|---|---|---|---|---|
+| **Panacea project** (`docker-compose.yml` or a `components:` block, `launchdoc/LAUNCH.md:70`, `:1244`) | Gives us Trivy scans, signed images, backups, rollback, the Keycloak SSO gate, managed Postgres and cost attribution. The canvas would dogfood our Deploy step | OPA Gatekeeper *"writable root filesystems are rejected"* (`LAUNCH.md:173`), and all four Penpot containers ship `readOnlyRootFilesystem: false` (Helm chart 1.10.0 `values.yaml`). That means four wrapper images to redo on every Penpot upgrade. The redis add-on is `redis:7.4-alpine` (`clients/tenant_redis.go:70`), which is RSALv2/SSPL and restricted, so Valkey would be a hand-added component. The storage add-on is in-cluster MinIO (AGPL-3.0) everywhere except the dormant Aus East seam (`clients/managed_object_storage.go`, header). The outer SSO gate would also sit between our MCP relay and Penpot | ~2.5, plus upgrade friction | Named alternative |
+| **Coolify one-click Penpot** (`coollabsio/coolify` `templates/compose/penpot.yaml`) | The template exists and uses Valkey 8.1 (BSD-3) | It is pinned to **2.11.1** (*"Released on 13 Nov 2025"*), seven minor versions behind, and has **no MCP container** (MCP arrived in 2.17). Password login is on by default. It runs on a single Docker VM, and Coolify's own OIDC login is only in a release candidate (06-deploy §3.1). It would be a second platform with no net saving | ~1, after rewriting the compose | Reject |
+| **Upstream Helm chart** `penpot/penpot-helm` 1.10.0 (appVersion 2.18.0), on the AKS our control plane and sandboxes already need (01-sandboxes §1) | This is the shape its makers test. **The chart now includes the MCP server** (`mcp:` component, `penpotapp/mcp:2.18.0`, HTTP 4401 for AI clients, WebSocket 4402 for the plugin), and it installs the same way into a customer's AKS | We run Postgres, storage and backups ourselves, and that is where Panacea's snippets come in (point 3) | **~1** | **Chosen** |
+
+**The trade-off in one line:** Panacea would give Penpot governance evidence for free, but it forces
+four wrapper images per release and puts an SSO gate in the MCP path. The upstream chart runs
+Penpot the way it is tested, and Panacea stays our Deploy step for the customer's app (06-deploy).
+
+**3. The Panacea snippets we take** (`OD-13` relaxed: copy with attribution in the file header).
+All paths are in `Projects/Panacea`, read, not run:
+
+| Snippet | Source | Used for |
+|---|---|---|
+| Default-deny ingress, plus allow-same-namespace NetworkPolicies | `services/panacea-api/clients/tenant_ensure.go:96-126` | The Penpot namespace and the runner pods (G1, G5) |
+| Pod hardening: `RunAsNonRoot`, seccomp `RuntimeDefault`, `ReadOnlyRootFilesystem`, drop `ALL` | `services/forge-orchestrator/preview/manager.go:113-206` | The headless MCP runner pod, which executes agent-written JS (G5) |
+| S3Proxy on Azure Blob, with per-tenant HMAC-derived keys and the storage-account key kept server-side | `services/panacea-api/clients/managed_object_storage.go` (header) | Penpot's `s3` object backend on Blob, not a PVC or MinIO. S3Proxy is Apache-2.0, v4.1.1, 2026-09-10 (G1) |
+| A per-tenant database on Azure Database for PostgreSQL Flexible Server | `services/panacea-api/clients/managed_postgres.go` (header) | Penpot's database (G1) |
+| Project access groups in Keycloak (`findOrCreateGroup`, `AddProjectAccess`, `deriveRole`) | `services/panacea-api/clients/keycloak.go:174`, `:338`, `:1080` | Limiting Penpot sign-in to project groups through `PENPOT_OIDC_ROLES`, and the team roster (G2) |
+| The thin-client MCP stance: *"holds **no permission logic of its own**"*; every call forwards the caller's token | `services/panacea-mcp/README.md` | The relay forwards a per-session token and lets the server enforce it (G4) |
 
 ## 2. What the capability has to do
 
