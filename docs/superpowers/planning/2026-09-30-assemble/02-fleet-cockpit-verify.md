@@ -136,7 +136,42 @@ review before any customer tenancy.** The Kata boundary protects the cluster, no
 
 ## 4. Landing: GitHub merge queue and Azure DevOps auto-complete
 
-_To be written._
+**Landing through the host is upheld.** It is the strongest part of the recommendation: phase 3's
+concurrent land queue, forecast and undo become host features under the customer's own policy.
+
+| Claim | Verdict | At source |
+|---|---|---|
+| GitHub's merge queue needs Enterprise Cloud on private repos | **Holds** | Docs: "available in any public repository owned by an organization, or in private repositories owned by organizations using GitHub Enterprise Cloud"; Actions "**must** use the `merge_group` event" |
+| KPMG already has Enterprise Cloud | **Holds for github.com** | KPMG AU's GitHub is an EMU enterprise on **github.com** (org `kpmg-au-emu`, owner's memory note), and EMU is Enterprise Cloud. It stores code in the US, so AU residency means a separate GHE.com enterprise, which is the customer's call |
+| The queue works the same on GHE.com | **Plausible** | GHE.com's feature-overview page lists what is missing (Marketplace, macOS runners, gists and more) and does not list the merge queue or auto-merge. That is absence of a limit, not a statement of parity |
+| Price basis | **Holds** | github.com/pricing: Enterprise "$21 USD per user/month for the first 12 months"; Team "$4". The queue is the only reason to require Enterprise |
+| ADO auto-complete carries the brief trailer | **Holds** | REST 7.1 `PATCH …/pullrequests/{id}` updates `CompletionOptions` and `AutoCompleteSetBy.Id`; `mergeCommitMessage`: "If set, this will be used as the commit message of the merge commit"; "Auto-complete always waits for required policies"; scope `vso.code_write` |
+| ADO has no merge queue | **Holds (absence)** | Nothing in 2026 search results or release roundups. Copilot code review for Azure Repos is a limited preview (June 2026): Copilot, so not for AU projects |
+| An ADO organisation can sit in Australia | **Holds** | Learn, *Data locations for Azure DevOps*: Australia is a listed geography, and data stays in it |
+| Orca creates ADO PRs (the first run's correction) | **True, and moot for lanes** | Hosted review runs on the execution host (§2 row 4), which is the credential-less sandbox. Orca's ADO code only helps local workspaces |
+
+### 4.1 Panacea previews: GitHub yes, Azure DevOps no, and ADO pushes do something else
+
+- **GitHub: holds.** `selectPipeline` sends `pull_request_opened` to the preview pipeline and
+  `pull_request_closed` to cleanup (`webhook-receiver/pipeline/trigger.go:1469-1472`).
+  `providers/github.go:168-173` maps the PR actions.
+- **ADO: absent, not "unverified".** The receiver's ADO provider "Supports `git.push`" only
+  (`providers/azuredevops.go:108-116`). Worse for us, Panacea treats every ADO event as a Forge
+  agent ship: `selectsAgentPipeline` returns true for `event.Provider == "azuredevops"`
+  (`trigger.go:1512-1519`), and the production-branch and previews labels are "Skipped for Azure DevOps
+  (Forge agent) events, which are not governed by these" (`:441-447`). **So registering a customer ADO
+  repo in Panacea today would send every lane push to agent-deploy, not to a preview.** ADO previews
+  are a Panacea-side change. Until then, v1 previews are GitHub only.
+- **Session id: holds.** `X-Panacea-Session-Id` (`models/event.go:16`) is real and is what routes a
+  Forge ship to agent-deploy and back. Copying the pattern for the lane and brief key is sound.
+
+### 4.2 What this does to R6's landing claims
+
+- "Landing through the host hands phase 3's hardest code to production systems": **upheld**.
+- "Turns on the merge queue or auto-merge, or ADO auto-complete with `mergeCommitMessage`": **upheld**,
+  run from the laptop CLI with the user's stored token (3.2), not from the cloud control plane.
+- "Each lane's running app is reviewed in a Panacea PR preview": **GitHub only** for v1.
+- The trailer surviving a squash under the merge queue is still one test per host (researcher's §8).
 
 ## 5. Phase 2 (ours) as the alternative
 
