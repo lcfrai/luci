@@ -262,9 +262,25 @@ but it leaves the regulated half to us, at about 12-19 days.
 **Verdict: reference, upheld.** Revisit only if a customer refuses a cluster and accepts that we own
 the gate and the evidence.
 
-## 6. Orca as the surface deploy shows up in
+## 6. Orca as the surface deploy shows up in, and the one-app ask
 
-*(to be filled)*
+**06 §3.11 and G1 fail the user's ask as written.** The ask was that the product "all feels cohesive
+and a part of the same app". 02-verify §7 turned that into five checks (one name, one sign-in, one
+journey spine, one look, no leaving the app for a core step). 08-verify §7.1 made them rules R1 to
+R6 for every cluster. 02-verify ruled that Orca survives only as **the engine, shipped as our app**.
+Applied to Deploy, six changes follow:
+
+| 06 says | Breaks | At source | Deploy, corrected |
+|---|---|---|---|
+| The panel deep-links "into Panacea's Portal for logs, scans, governance and approval"; owner call 2: "users meet a second, Panacea-branded UI" | bar 5 / R1; bar 4 / R3; R5 | the Portal is a Backstage app with its own look and words (`backstage/`, 06 §3.5) | **Our Deploy page** on the journey bar's Deploy stop, in the shared Hub page shell (08-verify §7.2). It carries the log pane (task 12's SSE relay), scan verdicts and the rung checklist (task 17, G3), governance (tasks 11, 18) and **approve**, since `…/stage/approve` is an owner route (`routes.go:2860`). **The Portal leaves the user's path.** It stays an operator console for Panacea's SuperAdmins (production-rung approval, stage bundles). Owner call 2 is withdrawn. Cost: 1.65 days, already in §2.5's G1 |
+| "The preview opens in Orca's per-worktree browser", with silent SSO | bar 2, bar 5 | a lane's tab sends "HTTP(S), WebSocket, DNS, and loopback traffic … through the remote host", which is the untrusted sandbox (02-verify §7 bar 5). The preview sits behind Panacea's 14-IP edge allowlist (§2.3), which admits KPMG's network, not our sandbox egress. Electron's Chromium does not take part in WAM, so Entra device checks can fail (02-verify §7 bar 2, reasoned) | **Open previews in the app-level view on the laptop's network**, which is 02-verify's journey-bar view, not a lane tab. KPMG's egress passes the allowlist, and the realm session is the app's own. This amends 08-verify R1's "Previews open in Orca's browser pane" |
+| "A plugin panel if its sandbox can reach our control plane" | bar 3 | a plugin contributes right-sidebar panels only. A panel "blocks every navigation after its first document", and the v0 host API has no URL or browser method (02-verify §7 bar 3) | **Split in two.** (a) The lane's side panel is a small card: this lane's preview, its state, Ship preview, Roll back. (b) The Deploy page holds everything project-wide. The card hands off through 02's journey-bar deep link. Panels take Orca's 20 tokens "so panel documents can match the app" (`plugin-panel-design-token-css.ts:3-8`), so once 02's token CSS lands, the card is in our look |
+| "Until P-3, one pasted `pnc_` per user" | bar 2, bar 5 | minting a key needs an SSO browser session in Panacea's UI (`api_keys.go:112-116`) | For the pilot: a one-time **Connect deploy** step opens Panacea's key page inside our app-level view, on the same realm. Whether that needs no second sign-in is unverified. **P-3 moves to the front of the Panacea asks**, because it removes this step |
+| The release card shows "brief pin, sessions, evidence, signature" | R5, bar 4 | two signers: Chains with Vault Transit, and our Hub with Key Vault (§3). The rung names (innovation, secure-test, production) are Panacea's words | **One release record** in our words: the brief, the lane's sessions, the scans and **both** signatures, each with its key id. The rung names go into `CONTEXT.md` or are mapped to ours in the copy review (08-verify R5). `panacea_*` tool names are agent-facing only, which is fine |
+| "The loop that lets an agent fix its own failed deploy" (06 §2a) | one voice; `OD-19` | the deterministic `…/diagnose` is safe. `…/analyse` goes to Panacea's own LiteLLM (§2.5) | The page shows the deterministic diagnosis. **Fix it** hands the failure to the lane's agent through our gateway. Panacea's `/analyse` is not used in v1 |
+
+**Days:** no new Deploy days beyond §2.5's 8.5. The journey bar, the token bridge, the app-level view
+and the sign-in spike belong to 02's and 08's one-app layer, and are costed there once.
 
 ## 7. The corrected recommendation
 
