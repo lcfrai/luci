@@ -126,3 +126,109 @@ another file already carries them; "new" means section 7 adds them.
 **Never linked from any surface of ours:** Panacea's Portal, LiteLLM's admin UI, Keycloak's
 account console, Penpot's dashboard, and Orca's account, artifact-sharing and mobile screens
 (switched off, 02-verify §7).
+
+## 3. One design system across every surface
+
+**One source, generated outward.** `desktop/src/styles/tokens.css` (48 variables) and
+`docs/DESIGN-SYSTEM.md` are the only place a colour, radius, font or duration is decided. A small
+generator writes one mapping file per foreign surface from them: `orca-theme.css`,
+`penpot-theme.css`, the terminal theme, and later the Keycloak login theme. A test resolves every
+mapped variable and fails when it no longer equals its source token, so no surface drifts when a
+token changes.
+
+**One type pairing, decided first.** Three sources disagree today. `tokens.css` ships Segoe UI
+Variable and Cascadia Mono (`:151-152`), DESIGN-SYSTEM names Geist Sans plus one mono, and Orca
+already ships Geist. **Use Geist Sans (OFL) and Commit Mono (OFL) on every surface**, and change
+`--sans` and `--mono` to match. Berkeley Mono (about US$100 once, DESIGN-SYSTEM) is the paid
+alternative for the mono.
+
+### 3.1 Orca: chrome, panels, terminals
+
+Orca's dark theme is **125 custom properties** in `.dark` (`src/renderer/src/assets/main.css:265-404`
+at `59b746ff`), not the 20 its panels receive. They cover the shadcn set, a sidebar set, a
+worktree-sidebar set, status, diff and git colours, terminal pane titles and an `--orca-security-*`
+set. Most derive from about twelve of ours, so `orca-theme.css`, loaded after `main.css`, is one
+generated file. 02-verify §7 priced five mappings at 0.5 day; at 125 it is about 1.
+
+| Orca variable | Ours | Note |
+|---|---|---|
+| `--background`, `--sidebar`, `--worktree-sidebar` | `--page`, `--canvas` | Warm graphite, not Orca's `#0a0a0a` |
+| `--card`, `--popover`, `--editor-surface` | `--surface` | |
+| `--muted`, `--secondary`, `--input` | `--inset`, `--field` | |
+| `--foreground` and every `*-foreground` on a surface | `--ink`, `--ink-2` | `--ink-3` is the floor for readable text |
+| `--border`, `--sidebar-border`, `--worktree-sidebar-border` | `--line` | Hairlines carry structure |
+| `--primary`, `--ring`, `--sidebar-ring`, `--worktree-sidebar-ring` | `--accent`, `--accent-ring` | Teal only on interactive and current state |
+| `--accent`, `--sidebar-accent` | `--hover` | **The shadcn trap:** shadcn's `--accent` is a hover surface, ours is the teal. Map by meaning, never by name |
+| `--destructive`, `--status-success`, `--status-warning`, `--workspace-status-*` | `--fail`, `--run`, `--need`, `--idle` | Each status keeps a shape as well as a colour |
+| `--radius` | `--r-card` | Already 10px (`0.625rem`) |
+
+**Settings our build sets:** `theme: 'dark'` for v1 (our light ramp is derived later, not
+inverted); `appFontFamily` Geist; `terminalCustomThemes` generated from ours
+(`global-settings-types.ts:80`, `:87`, `:143`). The `.titlebar-logo` (`main.css:900`) shows our
+mark. Status dots stay static, one per row, in our colours and shapes. Orca's per-row animations
+are switched off in our file, so the only live motion in the frame beats on `--beat` (§3.3).
+
+**Panels inherit.** Orca hands plugin panels its allowlisted tokens "so panel documents can match
+the app" (`plugin-panel-design-token-css.ts:3-8`). Once our file lands, the lane card is ours with
+no further work.
+
+**What stays Orca's without a renderer patch:** layout, spacing, component shapes, its own
+transitions and shadows. That is accepted: they are the same shadcn family as ours. Tailwind v4
+exposes shadows and radii as theme variables, so those may be mappable too (the `@theme inline`
+block at `main.css:43` was not read).
+
+### 3.2 Penpot's editor
+
+At tag 2.18.0 Penpot's UI colour comes from about **42 semantic `--color-*` variables per
+theme**, declared under a global `.default` (dark) and `.light` class in
+`frontend/src/app/main/ui/ds/colors.scss` (84 declarations). The 339 component variables in
+`frontend/resources/styles/common/refactor/design-tokens.scss` point at them. So colour can be
+themed at runtime without touching a Penpot file:
+
+- **How:** our ingress serves `penpot-theme.css` from our own origin and adds one `<link>` to
+  Penpot's `index.html` (an nginx `sub_filter`, or a two-line wrapper image). The file redefines
+  the semantic variables for `.default` and `.light`: `--color-background-primary` to
+  `-quaternary` from `--page`, `--canvas`, `--surface`, `--inset`; `--color-foreground-primary`
+  and `-secondary` from `--ink`, `--ink-2`; `--color-accent-primary` from our teal (Penpot's own
+  dark accent is mint `#00d1b8`, its light accent purple); success, warning and error from
+  `--run`, `--need`, `--fail`. G10's CSP (04-verify 2.5) must allow that one stylesheet.
+- **Flags off.** These exist in `common/src/app/common/flags.cljc` at 2.18.0, but their effect
+  was not checked: `onboarding`, `dashboard-templates-section` and `subscriptions` (Penpot's
+  premium prompts). `telemetry` and `admin-console` are already off (04-verify §5).
+- **What cannot be themed at runtime:**
+  - **Radius:** Sass values compiled in (`$br-4`, `$br-6`, `$br-8`, `$br-12` in
+    `ds/_borders.scss`). These are near our 6/8/10/14, so accept them.
+  - **Font:** hard-coded as `font-family: "worksans", "vazirmatn", sans-serif` in
+    `ds/typography.scss`. The fallback is an `@font-face` in our file that serves Geist under the
+    family name `worksans`. That needs a spike: it must not change fonts inside designs, which
+    Penpot loads separately.
+  - **Icons, layout and motion** stay Penpot's. They sit inside our Design page, the way a
+    document sits inside an editor.
+  - **The canvas content** is the customer's design, and is never themed.
+- **If a file must change** (the radius, the main-menu logo, a word): Penpot is MPL-2.0, so we
+  may modify it. Every changed file that ships into a customer tenancy must have its source
+  available (MPL-2.0 §3.2), so publish the changed files in a public repository beside the image.
+  Injecting our own stylesheet changes no Penpot file, so it triggers no duty.
+
+### 3.3 Every other surface, and the clock
+
+| Surface | How it takes our tokens | What stays foreign |
+|---|---|---|
+| Hub pages: Desk, Work, Define, Design wrapper, Deploy, the thread drawer, the loopback page | `tokens.css` directly; shadcn/ui on Tailwind v4 (DESIGN-SYSTEM §Stack); the one page template (08-verify §7.2) | Nothing |
+| Claude Code in the terminal | The ANSI palette of Orca's custom terminal theme, generated from ours | The CLI's own layout, by design |
+| The preview | Not themed. It is the customer's app | The whole page, by design |
+| Keycloak pages | Stock until our own realm carries a Keycloakify theme (MIT, 07-verify C2) | Error pages, rarely seen |
+| Teams cards | Adaptive Cards take the Teams theme. Ours: the name, the words, one accent where the schema allows | Teams itself |
+| The git host's PR page | Not themed (reviewers only, the v1 exception) | The page |
+
+**One heartbeat.** `--beat` is 2400 ms, phase-aligned from a shared epoch (`tokens.css:139-142`).
+Orca's per-row animations are off (§3.1), so no second phase appears in the frame. Penpot's
+short UI transitions are not live indicators, so they stay. The house curve and durations
+(`--ease`, `--dur-*`) apply to every surface we render.
+
+**The fallback ladder**, where a product cannot be themed by variables:
+1. Inject our stylesheet at our own edge.
+2. Patch the file in our build. For MIT (Orca), keep the notice. For MPL-2.0 (Penpot), publish
+   the changed files.
+3. Keep it out of the person's path (the Portal).
+4. Declare it as an exception in §7, for the owner's eyes.
