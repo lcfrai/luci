@@ -123,11 +123,64 @@ and 15, plus the unlisted limits and costs in 2.4 and 2.6. None of them changes 
 
 ## 3. Alternative 1: Azure Container Instances + standby pools
 
-*(to be filled)*
+**Verdict: the FALLBACK ruling is upheld.** Two claims weaken: the late-bind and the claim call
+both rest on a preview API version, and the "+2 days to switch" is nearer 2 to 3.
+
+- **Licence:** an Azure service under Microsoft's product terms; nothing to ship. The Go access is
+  the Azure SDK for Go (the report says MIT; not re-read at source in this pass).
+- **Maintenance:** Standby pools went GA on 2025-06-03 (Microsoft Tech Community post, "General
+  Availability: Standby Pools for Azure Container Instances"). The overview page was updated
+  2026-01-13; its only listed limitation is "isn't yet available in the Azure portal".
+
+| # | Claim | Verdict | Evidence (Microsoft Learn) |
+|---|---|---|---|
+| 1 | Hypervisor isolation per container group | **Holds** | Overview (2026-07-26): "guarantees your application is as isolated in a container as it would be in a VM" |
+| 2 | Claim from a pool of running groups; empty pool falls back to a cold create | **Holds.** Add: a claim is an ARM `PUT containerGroups` carrying `standByPoolProfile`, and every documented example uses `api-version=2024-05-01-preview`. Each claim counts against the default create limits (100 per 5 minutes, 300 per hour; raisable) | Standby-pool request page (2025-11-17); quota page |
+| 3 | Claim latency | **Unpublished**, as the report says ("immediately pull one") | Standby-pool overview |
+| 4 | Config maps are the late-bind channel | **Holds, on a preview API.** Values land at `/mnt/configmap/<container>/<key>` with no restart, but every example is `2024-05-01-preview`. **Simpler:** reuse the same `POST /bind` to `sandboxd` on the group's private IP that the AKS design uses; no config map needed | Config-map page (2025-11-21) |
+| 5 | M7: in a VNet, "a NAT gateway ... is the only supported configuration for outbound connectivity" | **Quote holds**, but the same page lists "Integrate with Azure Firewall to identify outbound traffic" as a scenario. Microsoft contradicts itself; the report's explicit-proxy design is the safe reading. Ask Microsoft before relying on a UDR to a firewall | VNet concepts page (2026-07-26) |
+| 6 | M8: Azure Files only | **Holds** (plus `emptyDir`, secret and `gitRepo` volumes) | Overview |
+| 7 | Groups restart for maintenance and may change IP | **Holds** | Overview, "Considerations" |
+| 8 | x64 only, images up to 15 GB, no privileged operations | **Holds** | Overview |
+| 9 | Quota | **New detail:** defaults are 100 Standard cores and 100 container groups per region per subscription, both raisable. Standby groups are real groups, so they count (inferred). The 10-session smoke fits; team scale needs a quota request | Quota page (2026-07-26) |
+| 10 | Size | **Holds** for 2 vCPU / 4 GB. Maximum 31 vCPU / 240 GB, but "more than 4 vCPUs and 16 GB" can fail on regional capacity | Quota page |
+
+- **Paid tiers:** none gated. Per-second vCPU and GB billing; waiting standby groups are running
+  groups, so presumably billed (no standby meter published; the report says the same).
+- **Azure, AU, Entra:** Australia East; ARM under Azure RBAC and Entra; managed identity pulls
+  from ACR. Private-registry pulls other than ACR are unsupported in a VNet.
+- **Days:** 8 claimed from scratch. A new `acibe` on a preview API version with profile
+  revisions is 2 to 3 days, not 2; the explicit-proxy egress is 1 to 1.5; and the shared glue
+  grows exactly as it does for AKS (section 7). **About 10 to 11 from scratch.** The switch rule
+  holds in shape: after a failed Kata day 1, moving costs **2 to 3 days**, not 2.
 
 ## 4. Alternative 2: Azure Container Apps dynamic sessions (custom container)
 
-*(to be filled)*
+**Verdict: REFERENCE is upheld, and under Orca it is a firmer no.** Every failing must in the
+report is confirmed on Microsoft's current pages, and the Orca pairing path adds one more.
+
+- **Licence:** an Azure service; nothing to ship.
+- **Maintenance:** active. The custom-container page was updated 2026-05-10, and container
+  probes are new (they need `2025-02-02-preview` or later). The data-plane calls it documents
+  (`getSession`, `listSessions`, `stopSession`) are all on `api-version=2025-02-02-preview`.
+
+| # | Claim | Verdict | Evidence (Microsoft Learn) |
+|---|---|---|---|
+| 1 | A Hyper-V sandbox per session, sold for agents and dev environments | **Holds** | Custom-container page: "secure, sandboxed spaces with Hyper-V"; uses include "a cloud-based shell, AI agents, and development environments" |
+| 2 | Allocation from ready sessions is near-instant | **Holds (upstream)** | Session-pool page: "subsecond session allocation times" |
+| 3 | M7 fails: egress is on or off for the whole pool | **Holds** | `--network-status`: "`EgressDisabled` (default) and `EgressEnabled`"; no allowlist anywhere on the page |
+| 4 | M3 unverified: HTTP only, WebSocket undocumented | **Holds, and fails outright for Orca.** "You invoke or communicate with each session using HTTP requests"; the custom paths list `POST`, `GET`. Every data-plane call also carries an Entra bearer token. Orca's desktop dials the pairing address directly and sends no Entra token, so `orca serve` in a session is unreachable without a relay we would build | Session-pool page (2026-05-10); `sessions-usage` authentication (report) |
+| 5 | M8 fails: no volumes | **Holds.** No volume or storage setting on either page | Both pages |
+| 6 | S2 weak: env is pool-wide | **Holds, and it is a leak:** `--env-vars` is set at pool create, and Microsoft warns "Assume the code is malicious and has full access to the container, including its environment variables, secrets, and files". Per-session tokens cannot be pool secrets | Session-pool page |
+| 7 | Lifecycle `Timed` 300 to 3,600 s, or `OnContainerExit` with `maxAlivePeriodInSeconds` | **Holds.** The ceiling on `maxAlivePeriodInSeconds` is still not stated | Session-pool page |
+
+- **Paid tiers:** custom-container pools need a workload-profiles environment; the report's
+  "dedicated E16 instances" was not re-read here.
+- **Azure, AU, Entra:** Australia East per the report; the data plane is Entra-token based, which
+  suits a server caller and blocks Orca's desktop (row 4).
+- **Days:** the report's 9 excludes a relay for Orca's `wss://` pairing. With it, about 11, and
+  the M7 and M8 gaps stay open. Re-test when Microsoft ships per-pool egress rules, volumes and a
+  documented WebSocket path.
 
 ## 5. Panacea as parts (snippets and services), not host
 
