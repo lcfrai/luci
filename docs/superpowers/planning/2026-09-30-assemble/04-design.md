@@ -68,7 +68,8 @@ and Supabase have no canvas either. "Fully fledged" makes the case for Penpot st
 finishing the phase 5 clean-room build: Penpot already ships the multiplayer, components, grid,
 prototyping, comments and version history that the plan left out (§4).
 
-**2. Where Penpot runs, judged on merit.** Three hosts were compared. All three are permissive.
+**2. Where Penpot runs, judged on merit.** Three hosts were compared, and none raises a licence problem: Panacea is ours, Coolify is
+Apache-2.0, and the chart is MPL-2.0.
 
 | Host | For | Against | Days to a running Penpot | Verdict |
 |---|---|---|---|---|
@@ -170,7 +171,7 @@ nothing. Every other candidate below came from the web. Licences are from the pr
 | **Enterprise fit** | **SSO:** generic OIDC (`enable-login-with-oidc`, `PENPOT_OIDC_BASE_URI=https://<keycloak>/realms/<realm>/`), so it sits behind our Keycloak broker to Entra (`OD-30`). Password login and self-registration can be switched off, and roles map from `PENPOT_OIDC_ROLES`. **Integration surface:** RPC API with access tokens, outbound webhooks (file created/updated, comment added). **Telemetry:** off by default in Penpot's own config, but **on in the Helm chart** (`telemetryEnabled: true`, corrected in §1a), and G1 turns it off. **Residency:** wherever we run it, so Australia East now and the customer's own cloud later |
 | **Maturity** | ~60.5k stars (GitHub page, read 2026-09-30). Backed by a company (Kaleidos). 2.18.0 is the current release, with 2.19.0 on `develop`. The MCP work is being hardened fast: the 2.16–2.18 changelog adds multi-instance scaling over Redis, a concurrency limiter, tenant-prefixed channels and a security fix (*"MCP tokens being usable as API access tokens"*). Paid support is on offer: Private Server $50,000/yr; cloud Enterprise $25/member/month (penpot.app/pricing) |
 | **Gaps against us** | 1. **The MCP needs an open tab.** *"The MCP plugin runs inside your Penpot browser tab"*, and when the tab freezes, *"MCP fails fast"*. So an agent needs a live tab: either the human's Design lens or a headless runner we host. 2. The repo's multi-user doc still says *"under development … for testing purposes only"*, even though the self-host compose ships it. 3. Frames are **vector shapes with a CSS layout model, not live HTML**. HTML/CSS comes out through `generateMarkup`/`generateStyle`. HTML goes in only through a community plugin (`HTML TO DESIGN`). 4. Token export is **in Tokens Studio format, not DTCG 2025.10**; staff acknowledged this on 2026-05-05. A converter is needed. 5. The UI is Penpot's own, not our design system, which customers will see. 6. Penpot has no idea of a brief, so the provenance wiring is ours |
-| **Integration** | **~9 engineer-days in total. It is usable after about 3.5:** deploy, SSO, embed in the lens, and agents working through the human's open tab. Breakdown in §6 |
+| **Integration** | **~9 engineer-days in total. It is usable after about 3.5:** deploy, SSO, open in the cockpit's browser pane (Orca or Tauri, §1a), and agents working through the human's open tab. Breakdown in §6 |
 | **Verdict** | **Adopt** |
 
 ### 3.2 OpenPencil — REFERENCE, the named fallback
