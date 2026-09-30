@@ -381,7 +381,32 @@ Read-only, `Projects/Panacea` at `efc637879` (2026-09-30); 00-panacea holds the 
 
 ## 5. Which can run in a customer's own Azure tenancy
 
-_(pending)_
+The later customer-hosted tier (`OD-5`) needs the whole product inside the customer's Azure
+subscription, with nothing essential in a vendor's cloud.
+
+| Candidate | Runs wholly in the customer's Azure? | What stays with the vendor | Condition for a customer install |
+|---|---|---|---|
+| OpenHands Enterprise | **Yes** (Helm or Replicated on any Kubernetes; AKS not documented) | Nothing required; LiteLLM can be the customer's | A commercial licence (PolyForm Free Trial otherwise: 30 days a year) |
+| Coder | **Yes** (Helm on AKS) | Nothing required | Coder's commercial terms if modified or redistributed (AGPL-3.0) |
+| GitLab Self-Managed + Duo | **Yes** with self-hosted models; **no** with GitLab's AI gateway | GitLab's AI gateway in the shipped Claude Code example | Premium or Ultimate subscription |
+| Panacea | **Yes in principle** (it is Azure-native Terraform and Helm); a customer-hosted Panacea is the later `OD-13` lift, not built | Nothing | Its BUSL Vault and AGPL MinIO, Grafana, Loki, Tempo need swapping or clearing first (00 §7) |
+| Orca | **Yes** (desktop plus `orca serve` in the customer's sandboxes; relay, mobile and telemetry off) | Nothing required | MIT; none |
+| Copilot cloud agent | **Execution only** (runners through ARC on AKS) | Planning, inference, the control plane | GitHub Enterprise and Copilot seats |
+| Claude Code self-hosted environments | **Execution only** (runners) | Queue, session stream, transcript store, inference; no ZDR | Claude Team or Enterprise seats |
+| Cursor self-hosted workers | **Execution only** | Agent loop, planning, inference | Cursor Enterprise |
+| Devin Customer Dedicated | **No**: a Cognition-hosted single-tenant VPC (AWS PrivateLink or IPsec) | The Brain, always | Devin Enterprise |
+| Factory hybrid or airgapped | **Mostly** (Droid and inference ours) | Coordination and session content in hybrid; airgapped needs no Factory cloud "at runtime" | Factory Enterprise; not verified on Azure |
+| Replit | **Planned, not verified**: "direct deployment to customers' own Azure environments" (2025-07-08) | The IDE, agent and models | Replit Enterprise |
+| Lovable, bolt.new, v0, Jules, Kiro, Ona, Codex | **No** | Everything | — |
+| bolt.diy | **Yes** as code (MIT) | The WebContainer runtime is licensed per commercial use | A StackBlitz commercial licence |
+| Power Apps (Vibe, code apps) | In the customer's **Power Platform** tenant (Australian region), not their Azure subscription | Microsoft runs it as SaaS | Power Platform licences |
+
+**Reading.** Only four products can sit wholly in a customer's Azure: OpenHands Enterprise, Coder,
+GitLab with self-hosted models, and Orca. Orca is already the pick; the other three each replace
+something we keep (the agent, the cockpit or the git host). For the assembled product, the
+customer-hosted blockers are therefore ours to clear, not a vendor's: Panacea's restricted
+licences (00 §7), LiteLLM's `enterprise/` directory (the 2026-09-28 study, `OD-33`) and the
+Kata-capable node pool (01).
 
 ## 6. Revised for the owner's second direction
 
