@@ -318,7 +318,54 @@ page, and the table above has already priced it.
 
 ## 7. Corrected recommendation
 
-*(to be filled)*
+**Adopt GitHub Spec Kit v1.0.13 (MIT), pinned, as the Define engine. Render it into the sandbox
+image at build time with one `panacea` preset, and run it in the lane's sandbox through 02's
+Panacea recipe, not through `orca worktree create`.** Publish is a page on the person's side: it
+renders the exact pushed blob and writes the Hub revision through the built `discoverhub`. The
+built provenance thread stays as the report says.
+
+**The preset carries:**
+- the brief's five sections;
+- an **`AC-` acceptance section** under Forge's testable rule (3 to 8, the eight verb forms), and
+  an **access table** (who may read and who may change each entity, plus routes with Forge's four
+  auth shapes where the app serves routes);
+- the data class in Panacea's words (`none`, `synthetic`, `protected`);
+- the **`grilling` and `domain-modeling`** skills (MIT, pinned commit), called from the preset's
+  command override;
+- the bundled **`assess`** extension;
+- the **`git` and `agent-context`** extensions left off.
+
+**What changed from `03`, and why:**
+
+1. **Start** through the recipe, with a pending opening prompt on the create-lane route. The
+   report's command runs Claude Code on the laptop, outside the gateway token and the AU path
+   (2.5, item 1).
+2. **No Orca fork.** The chip goes in 02's plugin panel. Publish goes on a control-plane page
+   behind oauth2-proxy → Keycloak, opened in Orca's browser tab, because the plugin API has no
+   `net:fetch` and the sandbox terminal is off limits (2.5, item 2; section 6).
+3. **Publish shows what it publishes:** the pushed blob, not the working copy the agent also
+   controls (2.5, item 3).
+4. **Criteria get their own section.** Spec Kit's `SC-` lines are metrics that Forge's rule
+   refuses, so the definition of done moves to `AC-` and the `specify` command is overridden
+   (2.4 A).
+5. **No `specify` CLI at runtime.** Otherwise the agent could install community extensions into
+   its own skills (2.4 C). Also a test that `git` and `agent-context` are absent (2.4 B).
+6. **The right aihero files:** `grilling` plus the whole `domain-modeling` directory, and never
+   the setup skill, which edits `CLAUDE.md` (5.1).
+7. **The per-entity access check is new code,** not a Forge snippet. Forge's verb rule has eight
+   forms, not six (5.2).
+8. **The data-class hand-over fails open**, so Deploy must refuse to promote on a mismatch.
+   That gate is 06's (5.3).
+
+**Days: about 10 stream-days, not 8.** About 6 calendar days on two streams, after 02's
+first-ship pieces. **Replaces:** unchanged, about 71 of about 109 plan-hours before fix rounds.
+**Runner-up:** OpenSpec, unchanged; if it is ever used, set `OPENSPEC_TELEMETRY=0`. **Forge as a
+service:** rejected, now with source evidence (section 4). **No buy:** the report's reasoning
+stands. The SaaS rows were not re-verified here (section 8).
+
+**A new owner call (customer-visible):** under unforked Orca, the brief chip leaves each pane
+header and lives in the Panacea panel and on the Publish page. The recommendation is to accept
+that for v1, and to ask Orca upstream for a pane-header slot in the plugin API.
 
 ## 8. What this verification could not verify
 
