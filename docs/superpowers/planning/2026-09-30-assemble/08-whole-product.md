@@ -483,7 +483,38 @@ clusters count at about 180 tasks; phase 2's backend survives as the lane and sa
 
 ## 8. What we still build (glue)
 
-_(pending)_
+**8.1 The one piece only this cluster sees: a journey test (1.5 days).** Seven clusters integrate
+seven products; none of them owns the proof that the result is one product. A scripted run,
+nightly against the dev estate, and on every pinned-version bump:
+
+| Step | Exercises | Pass when |
+|---|---|---|
+| 1 | Create a project with a data class (03 G7) and its Panacea project (06) | Both exist and agree on the class |
+| 2 | Run the Spec Kit interview on a canned idea (03) | The Hub holds `brief:bf-…@1` |
+| 3 | Bind a Penpot frame to the brief (04 G7), if 04's headless-runner spike passed | The frame carries the brief key |
+| 4 | Open a lane through the control-plane route the Orca recipe calls (02 §R3; recipes run only from the desktop in v1), in a Kata sandbox (01), Claude Code through LiteLLM | The session starts and its gateway token is attributed to user, team and project |
+| 5 | Let the agent commit, push the lane, open the pull request (02 landing) | The PR carries the brief trailer |
+| 6 | Panacea builds the PR preview (06) | The preview URL answers 200 behind SSO |
+| 7 | Promote to the innovation rung and read `GET P/releases/{release}/evidence` (06) | 06's signed statement binds the brief key, the session ids and Panacea's evidence digest |
+
+Steps 2 and 3 reuse 03 G6's scripted Define run and 04 G9's MCP round trip; the new work is the
+chain and steps 4-7. Script about 1 day, CI wiring about 0.5. It is `OD-27` ("done means proven")
+applied to the whole product, and the tripwire for risk 1 in section 7. The Orca UI itself stays a
+manual check.
+
+**8.2 The glue the clusters already list** (not repeated here; 57.5 of the 59 days):
+01's 8 (4.5 option-specific plus 3.5 any option needs), 02's 7.5, 03's G1-G7 (7.5 days plus kept
+thread tasks, about 8 stream-days), 04's G1-G9 (9), 05's pieces 1-7 (17), 06's G1-G4 plus 13.5
+plan-hours of kept phase 7 tasks (6), 00's 2.
+
+**8.3 What stays ours whatever we adopt, and where each already lives in that glue.**
+
+| Ours | Where it is built |
+|---|---|
+| **The provenance thread** | Brief revisions and `brief:bf-…@n` keys in the Hub (built; 03); the brief trailer on commits and pull requests (02 landing); the brief bound to Penpot frames (04 G7); a signed in-toto statement at release (06 G2) |
+| **"Done means proven"** (`OD-27`) | Forge's verify, authorisation-first and browser-test gates, copied with attribution (00 §9.2); 05's Done rule on the tracker |
+| **KPMG compliance evidence** | Panacea's per-release evidence export plus our signed statement (06); Panacea's hash-chained audit and signed chain head (05 §0.1) |
+| **The journey shell** | Orca's Panacea plugin (02 §R6) and Hub pages opened in Orca's browser tabs for Define, Design and Deploy (02 §R4) |
 
 ## 9. Owner calls
 
