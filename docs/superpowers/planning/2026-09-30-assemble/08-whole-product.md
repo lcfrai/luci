@@ -486,7 +486,9 @@ Meanwhile each phase already has a better complete answer than any whole product
 | **Total** | | | **59** | **About 180 planned tasks replaced or handed to a product** |
 
 The task counts are the clusters' own, summed here and not re-derived; phase T's may overlap
-between 02 and 05. The gateway (phase 6, 29 tasks, `OD-21`) is costed by none of these clusters.
+between 02 and 05. **The gateway (phase 6, 29 tasks, `OD-21`) is costed by none of these
+clusters.** The first ship below assumes a minimal LiteLLM (one Global route, per-session virtual
+keys, the AU route after `OD-33`'s residency canary) is already up: a dependency, not a given.
 
 **The calendar, estimated from the clusters' own figures.** The long pole is 01's 8 days for the
 sandbox; 02's 4.5 first-ship days (Orca package, `panacea login`, the lane git endpoint, landing,
@@ -590,6 +592,7 @@ section 7 is composed from the clusters' own estimates, not measured.
 | GitLab | Whether an external agent can be pointed at our LiteLLM instead of GitLab's proxy; Kata `runtimeClassName` on the Kubernetes executor | A trial on a self-managed instance |
 | Power Apps | The region list and Vibe's GA status | Microsoft blog and secondary summaries |
 | Panacea | Forge's live state on dev; whether its Azure DevOps ship path is exercised | Read-only grep; nothing run |
+| The gateway | Days to a minimal LiteLLM for the first ship; no cluster here costs phase 6 | The phase 6 plan, re-costed against `OD-33` |
 
 ## 11. Sources
 
