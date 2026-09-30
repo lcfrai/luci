@@ -1,7 +1,7 @@
 # 08 - Whole products that already do most of it. The sceptic's verification
 
-**Status:** IN PROGRESS (relaunch after the 11:59 stop). Sections 1 and 3 written; the rest are
-filled one at a time and committed after each.
+**Status:** COMPLETE (2026-09-30). Relaunched after the 11:59 stop; section 3 is the first run's,
+kept as written.
 **Date:** 2026-09-30. **Verifies:** `08-whole-product.md` (the researcher's recommendation).
 **Role:** sceptic. Try to refute the recommendation ("buy no whole product, assemble the per-phase
 picks with Orca on top and Panacea underneath") and its two best alternatives at source: licence,
@@ -11,7 +11,37 @@ only: nothing installed or run.
 
 ## 0. Verdict first
 
-*(to be filled)*
+**UPHELD at the core, CORRECTED in four places.** "Assemble, and buy no whole product" survives at
+source. Four things do not: v1 as "several faces", the Hub as "built", Panacea as "the platform",
+and 59 days.
+
+- **Why the core survives:** no candidate passes. Anthropic's self-hosted environments: no ZDR,
+  no gateway, GitHub only, and the control plane stays Anthropic's (verbatim at source). Copilot
+  residency: the US and the EU only. GitLab's external agents: not offered with self-hosted
+  models, and experimental on Self-Managed. OpenHands Enterprise: PolyForm Free Trial, Sysbox
+  isolation, Claude Code behind ACP. Coder: AGPL-3.0 plus a source-available `enterprise/`, with
+  its AI tier moving. The rest run their own agent (B5).
+- **What does not survive:**
+  1. **"Customers see several faces in v1" (owner call 2).** The user asked for the opposite. The
+     premise that one app takes weeks is wrong too. Six rules make it one app: one window, one
+     sign-in, one look, one context, one vocabulary, all proven by the journey test. They cost
+     about 4 engineer-days, plus 0.5 in the journey test. The surfaces are already planned.
+     Orca is on the same Tailwind and shadcn stack as our design system, and it hands its live
+     tokens to our panels (7.1-7.2).
+  2. **The Hub is a schema, not a service.** Its routes and client are about 10 engineer-days
+     (07-platform). The gateway, 8.2 days, was costed by no cluster the report summed.
+  3. **Panacea is the deploy step and the sign-in, not "the platform".** v1 means the dev estate,
+     KPMG-network pilots and GitHub previews only. The Hub, the gateway and the environment are
+     ours (06-verify, 00-verify, 07-platform).
+  4. **59 engineer-days becomes about 99 (92-109).** The first app takes about 10-12 working days
+     with five builders, or about 4 weeks with two. Day 0 can decide the date (section 6).
+- **Alternatives:** OpenHands Enterprise stays reference, and it is a weaker fallback than the
+  report says. Its "no Azure DevOps" is wrong (ADO is supported). "Takes our LiteLLM as is" is
+  overstated. It isolates with Sysbox (section 3). Coder stays reference, and only headless
+  behind our `Backend` (section 4).
+- **Owner calls:** "several faces" is withdrawn. One fork decision replaces it: recommend upstream
+  Orca, with our surfaces matching it. New: staffing, about five builders if "ASAP" is the bar
+  (money).
 
 ## 1. What was checked, and how
 
@@ -25,14 +55,18 @@ All reads on 2026-09-30. Nothing installed, built, signed up for or run.
   faces ... Recommend: accept for v1"*) is tested against that sentence in section 2.
 - **The sibling sceptics**, for their corrected days and findings: `01-`, `02-`, `03-`, `04-` and
   `05-*-verify.md` (complete), and `00-`, `06-` and `07-*-verify.md` (being finished in parallel
-  while this was written, so their figures are as read at the time). Also `07-platform.md` §0-§3.2,
-  a cluster the report does not cite.
+  while this was written, so their figures are as read at the time). Also `07-platform.md` §0-§3.2
+  and its §5 day table, a cluster the report does not cite.
+- **Vendor docs and the GitHub API** (sections 4-5): Coder's licence files, releases, docs and
+  pricing page; Anthropic's self-hosted environments page; GitHub's Copilot data-residency page;
+  GitLab's external-agents page. URLs are in section 9.
 - **Orca at source:** the blobless clone at `59b746f` (2026-09-29) in this session's scratchpad,
   read with `git ls-tree` and `git show`: `src/shared/global-settings-types.ts`,
   `src/renderer/src/lib/document-theme.ts`, `src/shared/plugins/plugin-panel-shell.ts`,
-  `src/renderer/src/components/right-sidebar/plugin-panel-design-token-css.ts` and
-  `use-plugin-panel-theme-revision.ts`. The question was how far Orca lets our surfaces look like
-  one app.
+  `src/renderer/src/components/right-sidebar/plugin-panel-design-token-css.ts`,
+  `use-plugin-panel-theme-revision.ts`, `src/renderer/src/assets/main.css`, `package.json` and
+  `components.json`; and the file list of the browser pane (`src/renderer/src/components/browser-pane/`,
+  `src/main/browser/`). The question was how far Orca lets our surfaces look like one app.
 - **Our side, read-only:** `docs/DESIGN-SYSTEM.md` (the token layer and stack).
 - **OpenHands at source** (section 3): the raw `LICENSE` files of `OpenHands/OpenHands`,
   `OpenHands/enterprise` and `OpenHands/OpenHands-Cloud`; the chart README and `values.yaml`, and
@@ -40,8 +74,9 @@ All reads on 2026-09-30. Nothing installed, built, signed up for or run.
 
 ## 2. The recommendation: assemble, buy no whole product
 
-**Verdict: the core holds; three load-bearing parts do not.** "Assemble, buy none" survives every
-check. What fails is how the assembly is presented to users, what "the Hub" is today, and the days.
+**Verdict: the core holds; four load-bearing parts do not.** "Assemble, buy none" survives every
+check. What fails is how the assembly is presented to users, what "the Hub" is today, how much
+of the platform Panacea covers, and the days.
 
 | # | Report's claim | Test | Result |
 |---|---|---|---|
@@ -51,7 +86,7 @@ check. What fails is how the assembly is presented to users, what "the Hub" is t
 | 4 | The gateway is *"a dependency, not a given"*, costed by no cluster | 07-platform §0: our LiteLLM plus `keysmith` and `gatekeeper`, **8.2 engineer-days**. Panacea's LiteLLM cannot serve agents: no AU route, spend per project only, in-cluster | **Holds as a warning, now costed.** The total leaves it out |
 | 5 | Panacea "underneath" as the platform: deploy, the app's backend, sign-in, teams | 06-verify §2.2-2.4: evidence export, sanitised previews and `panacea-mcp` exist on the dev line only. Production is frozen mid-incident, and P-1 to P-3 queue behind the cutover freeze. The edge admits 14 KPMG `/32`s, so a shipped app opens only from KPMG's network. ADO pushes go to Forge, not to previews. 00-verify §2 adds: Keycloak 25.0.0 on one replica, a year-long owner-level `pnc_`, and a preview that shares the production database by default. 07-platform: the Hub, the gateway and the environment are ours, not Panacea's | **Holds for deploy and sign-in**, on the dev estate, for KPMG-network pilots. "The platform" overstates it |
 | 6 | Orca on top | 02-verify §0: upheld, with landing moved to the laptop CLI, an `OD-8` ruling on OSC status, and about 10.5 days | **Holds** |
-| 7 | 59 engineer-days; first app in about 9 working days with two builders; all glue in 12-13 | Section 6 | **Refuted.** About 99 engineer-days. The first app takes about 10 working days with five builders |
+| 7 | 59 engineer-days; first app in about 9 working days with two builders; all glue in 12-13 | Section 6 | **Refuted.** About 99 engineer-days. The first app takes about 10-12 working days with five builders, about 4 weeks with two |
 
 **What Orca's source says about one look.** Orca's defaults are shadcn's neutral greys
 (`main.css`: `--background: #fff`, `--primary: #171717`; dark `--background: #0a0a0a`), Geist,
@@ -66,7 +101,8 @@ bar unless that can be hidden (not verified).
 **What the ask leaves for the owner.** Owner call 2 is answered by the user: not accepted. The
 customer-visible call that remains is narrower. Whose palette: Orca's neutral one on our surfaces
 (no fork), or ours on a token-only Orca fork (02's fork costs: signing, a Defender prevalence reset
-per build, rebases)? And does Orca's name show in v1 (02 call 1)?
+per build, rebases)? And does Orca's name show in v1 (02 call 1)? One fork decision answers both
+(7.4, call 2).
 
 ## 3. Alternative 1: OpenHands Agent Canvas + OpenHands Enterprise
 
@@ -199,7 +235,7 @@ Estimates composed from estimates; nothing measured.
 
 - **First app end to end** (journey steps 1-7) needs these lanes at once: the sandbox (01, about
   10 from day 0), Orca's first ship (02, about 6.5), the minimum Hub (07: about 5 working days on
-  two engineers), a minimal gateway (07: 8.2), Deploy's first-ship glue (06: about 5 with two)
+  two engineers), a minimal gateway (07: 8.2), Deploy's first-ship glue (about 5 of 06's 8.5)
   and half the one-app layer. **With five builders that is about 10-12 working days. With the
   report's two, about 4 weeks** (about 42 engineer-days of first-ship lanes).
 - **All of it:** about 20 working days with five builders; about 10 weeks with two.
@@ -229,7 +265,7 @@ are engines behind our surfaces where they can be, and wrapped in our frame wher
 |---|---|---|---|
 | R1 | **One window.** Nothing in the main path opens another app or an outside browser | Define: Spec Kit in an Orca terminal, the brief as a Hub page in an Orca tab. Design: Penpot inside our Design page in an Orca tab. Develop: Orca. Deploy: our Deploy page and the plugin panel (06-verify's in-app Portal screens). Previews open in Orca's browser pane. Land and approve from the panel, through the laptop CLI (02-verify §0 item 1) | The host's PR page and Teams stay one click away, as escape hatches |
 | R2 | **One sign-in.** No second login screen after `panacea login` | Every embedded surface trusts the same realm: Hub pages, Penpot (`PENPOT_OIDC_*`, 04-verify 2.3 row 9) and Panacea's preview SSO. Orca's browser pane appears to persist its sessions (file names under `src/main/browser/` only; the code was not read), so the realm cookie should survive restarts | Zero-click Entra inside Orca's Chromium is unverified: a half-day spike |
-| R3 | **One look.** One token set and one typeface on every surface we render | Map our token layer onto the shadcn names Orca already hands its panels. Inside Orca, our pages take Orca's values (panels get them live). Geist on both. Our status vocabulary, the one heartbeat clock and tabular numerals everywhere. Load our terminal theme through Orca's custom terminal themes | Orca's chrome keeps its neutral palette unless the owner pays for a token-only fork (7.3, call 2) |
+| R3 | **One look.** One token set and one typeface on every surface we render | Map our token layer onto the shadcn names Orca already hands its panels. Inside Orca, our pages take Orca's values (panels get them live). Geist on both. Our status vocabulary, the one heartbeat clock and tabular numerals everywhere. Load our terminal theme through Orca's custom terminal themes | Orca's chrome keeps its neutral palette unless the owner pays for a token-only fork (7.4, call 2) |
 | R4 | **One context.** The project, the brief key and the phase rail (Define, Design, Develop, Deploy) sit in the same place on every page | One shared page shell for every Hub page. The plugin panel shows the same brief card. Every deep link carries the project and `brief:bf-…@n` | Penpot's own menus inside its frame |
 | R5 | **One vocabulary.** `CONTEXT.md` nouns on every surface we render | A copy review of our pages and panel against `CONTEXT.md` | Orca's own labels stay Orca's without a fork |
 | R6 | **Proven, not claimed.** The journey test fails if a step leaves Orca, asks for a second sign-in, or drops the brief key | Three assertions on the report's 8.1 steps. The look itself is the owner's eyes: headless screenshots are blocked on the corporate network | None |
