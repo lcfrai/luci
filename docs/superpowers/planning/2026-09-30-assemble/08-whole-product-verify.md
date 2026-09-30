@@ -249,6 +249,44 @@ are engines behind our surfaces where they can be, and wrapped in our frame wher
 Already costed elsewhere and not repeated: 06-verify's 1.4 days for in-app Deploy screens and its
 in-app approve, and 02-verify's landing through the laptop CLI.
 
+### 7.3 The layers, corrected
+
+| Layer | Pick | Change from the report |
+|---|---|---|
+| Develop cockpit, and the one window | Orca, upstream, with one Panacea plugin and one recipe | 02-verify: land through the laptop CLI; an `OD-8` ruling on OSC status; phase 2's desktop frozen as the fallback, not retired |
+| Sandboxes | AKS Pod Sandboxing plus `agent-sandbox`, Australia East | 01-verify: day 0 first; the `kata-vm-isolation` name fix; default-deny egress added |
+| Define | Spec Kit in an Orca terminal; the brief page in our shell | The pick is unchanged |
+| Design | Penpot 2.18 and its MCP server, inside our Design page | 04-verify: 13 days and one tab per user; wrapped per R1-R4 |
+| Work and team | ADO Boards and GitHub Issues behind our Work page; Teams for notifications that link back in | 05-verify: about 20 days |
+| Deploy | Panacea's API and `panacea-mcp` on the **dev estate**, for KPMG-network pilots; Portal screens brought in-app | 06-verify: GitHub previews only in v1; the edge allowlist |
+| Sign-in | Panacea's Keycloak realm, now | 00-verify: 25.0.0 on one replica, so a patch and a second replica go to the Panacea side |
+| Hub, gateway, environment | **Ours** (07-platform): the Go Hub on Flexible Server; our LiteLLM with `keysmith` and `gatekeeper`; our AKS in Australia East | New to the whole: 19.2 days |
+| One-app layer and journey test | Ours | About 6 days together |
+
+### 7.4 Owner calls, revised (money or customer-visible only)
+
+1. **No whole-product seats (money).** *Recommend: confirm.* Unchanged.
+2. **"Several faces in v1" is withdrawn.** The user has asked for one app. What is left is **one
+   fork decision (customer-visible)**. In v1, is it upstream Orca, with Orca's name and neutral
+   palette and our surfaces matching it? Or a thin fork: name, icon and token values only, at
+   02's costs (own code signing, a Defender prevalence reset per build, a rebase per release)?
+   *Recommend: upstream for v1.* Our pages take Orca's values, its neutral primary included, and
+   keep our status colours, because they carry state. Offer Orca an upstream pull request for
+   custom UI tokens (it already takes custom terminal themes). Decide the thin fork after the
+   first pilot. Our locked teal and warm graphite return when Orca's chrome can wear them.
+3. **Staffing (money, new).** *Recommend five builders if "ASAP" is the bar.* That means the first
+   app in about 10-12 working days and all of it in about 20. Two builders means about a month
+   to the first app.
+4. **Fallback if Orca's seams break (money, only if it fires).** *Recommend: note it.* Fork Orca
+   first (02). OpenHands Enterprise is a weaker fallback than the report says. It runs Claude
+   Code behind ACP, isolates with Sysbox, needs two Keycloaks and is PolyForm until bought: weeks,
+   once procurement counts (section 3).
+5. **GitLab only on customer demand (customer-visible).** *Recommend: unchanged.* Claude Code on
+   GitLab Self-Managed is experimental today (section 5).
+6. **Re-check "buy" quarterly (money, later).** *Recommend: unchanged, with more triggers.* For
+   Anthropic's self-hosted environments: ZDR, a gateway, **Azure DevOps repositories**, and
+   **sessions started from our shell**. For Copilot: Australia.
+
 ## 8. What could not be verified
 
 *(to be filled)*
