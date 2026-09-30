@@ -1,6 +1,6 @@
 # 07 Platform (shared state, identity, AI gateway, environment): the sceptic's verification
 
-**Status:** IN PROGRESS (2026-09-30). Skeleton; sections are filled one at a time.
+**Status:** COMPLETE (2026-09-30).
 **Date:** 2026-09-30. **Verifies:** `07-platform.md` (the researcher's recommendation).
 **Role:** sceptic. Try to refute the recommendation and its two best alternatives at source:
 licence, the vendor's own docs, paid-tier gates, maintenance, and whether the days fit OUR
@@ -9,7 +9,40 @@ Desk research only: nothing installed or run; nothing written in `Projects/Panac
 
 ## 0. Verdict first
 
-_Pending._
+**UPHELD, with corrections.** Each piece survives at source: Panacea's realm now; our LiteLLM
+from the MIT tree with `keysmith` and `gatekeeper`; the Go Hub on Flexible Server; our AKS
+from Panacea's Terraform under OpenTofu. No Supabase, no Coolify.
+
+- **Why it survives:**
+  - Every licence is as stated. Keycloak is Apache-2.0. LiteLLM is MIT, except `enterprise/`,
+    which needs a subscription "for the correct number of user seats" to run in production.
+    OpenTofu is MPL-2.0; Supabase and Coolify are Apache-2.0.
+  - Every Panacea line cited is at source.
+  - LiteLLM's paid tier holds exactly the features the plan builds for itself.
+  - The Hub schema needs no superuser and no extension.
+  - Panacea's gateway is weaker than stated: its pinned proxy serves no `/v1/messages` at all
+    (§2).
+- **What does not survive:**
+  1. **Sign-in is Panacea's dev Keycloak 25.** It runs one replica with in-memory sessions,
+     gets no upstream fixes, and had an SSO outage on 2026-09-21. "Keycloak 26, two replicas"
+     becomes a required ask, and IT's request for our own realm goes in on day 0 (§2, §8).
+  2. **Hub pages in Orca tabs need a sign-in no plan has** (the shell 02 and 08 chose).
+     Without it, Microsoft's sign-in appears inside Orca. A one-time ticket fixes it, about 1
+     day (§5, §6).
+  3. **3.18 drops Panacea's WAF_v2 edge, which laptop-reachable services need.** Keep it: about
+     US$381 a month at list (§7.2).
+  4. **19.2 days becomes about 20.7.** First use waits on the subscription, a DNS name and an
+     edge rule, and no row owns them (§5).
+  5. **The fallback host (3.4) costs about 2.5 to 3 days of glue, not 1.5** (§4).
+- **Missed:** Claude apps gateway, which Anthropic ships inside the `claude` binary. Reference
+  only: it has no service-token flow, so every sandbox would need a browser approval, and it
+  has no project budgets (§7.1).
+- **Cohesion (the user's ask):** one identity and `apiKeyHelper` already keep sign-in and keys
+  out of sight. Two leaks remain: a Microsoft sign-in inside an Orca tab, and LiteLLM's own
+  error text in the agent's terminal. Closing both costs about 1.25 days (§6).
+- **Alternatives:** Supabase stays reference. Studio sits behind one shared password, there is
+  no support to buy for self-hosting, and its Keycloak path issues a second token. Coolify
+  cannot sign in through Keycloak and has no Kubernetes target (§3).
 
 ## 1. What was checked, and how
 
@@ -41,6 +74,23 @@ _Working notes (relaunch after the 11:59 stop), filled as the read proceeds._
   records an SSO outage on 2026-09-21: the pod moved twice in 30 minutes, and each move logged
   every user out. No image tag is set, so "25.0.0" is the chart's default (the ruling's U-3
   says the same: "pod not inspected").
+
+**Method, in full** (all 2026-09-30; nothing installed, built or run):
+
+- **Licences at source:** the GitHub API for eight repositories (12:44, before the quota ran
+  out), then raw `LICENSE` files for the rest. I also read LiteLLM's two licence texts in full.
+- **Vendor docs, fetched:** LiteLLM's enterprise page and March security post; Claude Code's
+  gateway, gateway-compatibility, Claude apps gateway and spend-limit pages; Supabase's
+  self-hosting and auth-key pages; Coolify's OAuth page. Supabase's compose, `.env` and Envoy
+  files were read raw.
+- **Prices:** the Azure Retail Prices API for PostgreSQL B2ms and Application Gateway WAF v2 in
+  Australia East.
+- **Panacea (read-only):** each line 07 cites, plus the Keycloak release, the WAF file, the
+  LiteLLM network policy, access modes and the build manifest. The owner's memory note of
+  2026-09-28 was read for estate health.
+- **Ours (read-only):** the identity ruling; the Hub plan's task table, summed by hand; the
+  Hub's `roles.sql`, `0001_init.sql` and `canonical.go` on `feat/hub`; the phase 6 plan; the
+  02 and 08 studies for the Orca shell.
 
 ## 2. The recommendation, claim by claim
 
