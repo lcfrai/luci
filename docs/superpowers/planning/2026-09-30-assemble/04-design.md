@@ -393,7 +393,39 @@ becomes the authority. And it turns `OD-11`'s clean-room build into an adoption 
 
 ## 6. What we still build (glue)
 
-_Pending._
+Nine pieces, **9 engineer-days**. G1–G4 make the canvas usable, with agents designing through a
+human's open tab, after **3.5 days**. Days are for one engineer who knows this repo, and all of
+them are unmeasured.
+
+| # | What we build | Phase 5 task it re-points | Days | Panacea snippet (§1a pt 3) |
+|---|---|---|---|---|
+| **G1** | **Deploy.** Upstream chart 1.10.0 and images pinned by digest. Azure PostgreSQL Flexible Server, Valkey 8 (BSD-3), Blob through S3Proxy. Flags set for OIDC sign-in only, telemetry off, `apiSecretKey` from the vault. MCP runs with `PENPOT_MCP_REMOTE_MODE=true` (*"disables file system access"*) and multi-instance over Valkey (`PENPOT_MCP_REDIS_URI`). Default-deny NetworkPolicy | new (the plan's canvas ran in-process) | 1 | `tenant_ensure.go`, `managed_postgres.go`, `managed_object_storage.go` |
+| **G2** | **Identity and roster.** A `penpot` OIDC client in the Keycloak realm that brokers Entra (`OD-30`). `PENPOT_OIDC_ROLES` limits sign-in to project groups. One Penpot team per PanaceaApp project, with its roster synced from the Hub, and one bot user per project for the runner | new | 0.5 | `keycloak.go` groups |
+| **G3** | **Cockpit pane.** A deep link to the lane's file in Orca's per-worktree browser, or in the Tauri WebView. Silent SSO. The MCP plugin is connected when the file opens | 27 (dropped or smaller) | 0.5 | — |
+| **G4** | **MCP relay.** The sandbox's `--mcp-config` names only the relay. The relay holds the Penpot user token (the human's, or the runner bot's) and adds it to `/mcp?userToken=…`, so the sandbox never sees it. It pins every call to the project's file, adds our `get_brief` tool, and writes each call to the audit trail. `--allowedTools` limits the agent to what the relay exposes | 18, 19; 15's `get_brief`; 17's server instructions | 1.5 | `panacea-mcp` thin-client stance |
+| **G5** | **Headless runner.** One Chromium pod (Playwright) per active file, signed in as the project's bot user, with the file open, the MCP plugin connected and the tab kept active. Its only egress is Penpot, and it idles out. **Day 1 is a spike**: if it fails, agents work only while a human tab is open (Paper's model), and §5's fallbacks apply | new | 1.5 | `forge-orchestrator/preview/manager.go` hardening, NetworkPolicy |
+| **G6** | **Tokens.** Tokens Studio JSON to DTCG 2025.10 `tokens.json` and `tokens.css`, with a golden-file test | the token half of 09 | 0.5 | — |
+| **G7** | **Brief binding and approval.** A Hub record binds a Penpot file and a named version to a brief revision. The *file updated* webhook raises *changed after approval*. *Approve* saves a named version, exports a PNG per board and runs `generateMarkup`/`generateStyle` per board, then stores the bundle in the Hub under the brief revision. The approval panel is our own Penpot plugin; a Hub page beside the canvas is the fallback | 20a, 20b, 21, 28 | 2 | — |
+| **G8** | **Handoff.** The approved bundle goes into `design/` in the lane's worktree: manifest, HTML/CSS, PNG and tokens, plus the session link. Manifest paths are validated and no link is followed (the plan's review rules C2 and I1 carry over) | 22 | 1 | — |
+| **G9** | **End to end and canary.** On every upgrade, create a board over MCP and read it back, and assert the flags. The contract document. The licence gate (task 04, unchanged) records Penpot (MPL-2.0), Valkey (BSD-3) and S3Proxy (Apache-2.0) | 30 | 0.5 | — |
+| | **Total** | | **9** | |
+
+**Order and calendar.** Two streams:
+- **A:** G1, G2, G3, G4, then G9 (4 days).
+- **B:** starts on day 1 against A's Penpot: G5's spike first, then G6, G7 and G8 (5 days).
+
+That is **about 5–6 calendar days with two engineers**, with the usable milestone at the end of
+A's day 3.5.
+
+**What we no longer build**, because Penpot has it:
+- the document model, op log and authority (tasks 05–12, and `OD-34`)
+- the HTML dialect and canonical forms (07, 08)
+- the render bridge, renderer and editor (13, 23–26)
+- paste (29) and most of the MCP tool layer (14–17)
+- cross-person multiplayer, comments, version history, components with variants, CSS grid, the
+  pen tool, SVG/PDF export and custom fonts
+
+The plan left the last group out of v1 altogether (`…-design-canvas.md:59-62`).
 
 ## 7. Owner calls (money or customer-visible)
 
