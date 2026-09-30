@@ -72,7 +72,49 @@ table is the complete list, with the lines.
 
 ## 4. panacea-mcp: the tools
 
-_(pending)_
+**Two MCP surfaces exist. Only one works for us today.**
+
+**4.1 `services/panacea-mcp` (stdio, working).** A TypeScript MCP server (`src/index.ts`, 645 lines)
+that "holds no permission logic of its own. Every tool forwards your bearer token and the API
+enforces all RBAC" (`README.md:5-6`). It authenticates with a `pnc_` token in `PANACEA_TOKEN` and
+the base URL in `PANACEA_API_URL` (`README.md:122-127`). Distribution: a Docker image (`README.md:39-65`)
+or a single-file bundle from `GET /api/v1/mcp/download` (`routes.go:3010`, `mcpbundle/panacea-mcp.mjs`),
+which carries no credential (`README.md:93-94`). Mutating tools require `confirm: true`
+(`src/index.ts:402`). **31 tools**, grouped in the source (`group:` field), names at `src/index.ts:249-578`:
+
+| Group (count) | Tools | Who can use them |
+|---|---|---|
+| read (17) | `panacea_me`, `panacea_projects_list`, `panacea_project_get`, `panacea_deploys_list`, `panacea_deploys_latest`, `panacea_env_list`, `panacea_logs`, `panacea_pods_list`, `panacea_pod_describe`, `panacea_events`, `panacea_diagnose`, `panacea_quota`, `panacea_observability`, `panacea_health`, `panacea_security_status`, `panacea_databases_list`, `panacea_buckets_list` | any token; results auto-scope to the token's projects |
+| action (4) | `panacea_deploy` (`:404`, `POST P/deploy` with `branch`, `noCache`), `panacea_redeploy` (`:425`), `panacea_rollback` (`:439`), `panacea_env_set` (`:453`, with `sealed` for write-only secrets) | developer on the project; `confirm: true` |
+| admin (3) | `panacea_admin_projects`, `panacea_admin_metrics`, `panacea_admin_audit` | SuperAdmin token only |
+| kubectl (6) | `panacea_k8s_namespaces`, `_pods`, `_describe_pod`, `_pod_logs`, `_events`, `_quota` | SuperAdmin, read-only |
+| escape (1) | `panacea_api_request` (`:578`): any method and path the token allows; writes need `confirm` | the token's RBAC |
+
+**What it means for PanaceaApp.** Put `panacea-mcp` in every agent sandbox, launched with a
+**project-scoped, developer-capped, expiring `pnc_` token** (section 5), and an unmodified Claude
+Code can deploy, read logs, diagnose a failed build and roll back with no glue at all. There is no
+named tool for promote, previews, branches, code push or evidence; `panacea_api_request` reaches
+all of them (`P/promote`, `P/previews`, `P/code`, `P/releases/{release}/evidence`).
+
+**Gaps.** stdio only, so it runs inside the sandbox, not in our control plane; `confirm: true` is
+a speed bump the agent passes itself, so the real control is the token's scope and Panacea's
+posture gate; the escape hatch means "what the agent can do" is "what the token can do", which is
+the right model but must be sized by the token, not the tool list.
+
+**4.2 The API's own remote MCP endpoint (HERALD, A11; not usable yet).** `POST https://api.<domain>/mcp`
+(`routes/mcp_wiring.go:34-64`), an OAuth 2.1 protected resource with RFC 9728 metadata at
+`/.well-known/oauth-protected-resource`, authorisation server = the Keycloak realm, audience =
+the `/mcp` URI, scopes `mcp:discover` < `mcp:read` < `mcp:deploy` < `mcp:db:write` < `mcp:admin`
+(`mcp/catalogue.go:13-30`), every call audited with an argument digest (`mcp_wiring.go:225-254`),
+gated actions cleared by the same posture engine as a git push (`:66-80`). **But** only
+`mcp:discover` and `mcp:read` are published (`catalogue.go:35`), the catalogue holds three tools
+(`search_tools`, `describe_tool`, `list_projects`, `catalogue.go:61-90`), and the valid-token path
+needs manual client registration in Keycloak, labelled "GATED ... not LIVE" (`mcp_wiring.go:108-113`).
+It is the right long-term shape (a remote MCP our cockpit or a team agent calls with the user's own
+Keycloak token), and it is not there yet. One inconsistency to check: it names the authorisation
+server `https://sso.<domain>/realms/panacea` (`mcp_wiring.go:41`), while Keycloak's hostname is
+`https://auth.<domain>` (`deploy/main.tf:963-964`, via `.superpowers/sdd/identity/facts-panacea-keycloak.md` section 1).
+
 
 ## 5. Identity: the Keycloak realm, Entra brokering, and how another product calls in
 
