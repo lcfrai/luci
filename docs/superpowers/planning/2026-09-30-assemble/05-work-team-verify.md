@@ -1,6 +1,6 @@
 # 05 — Work layer and team collaboration: the sceptic's verification
 
-**Status:** IN PROGRESS (skeleton). Sections are filled one at a time and committed after each.
+**Status:** COMPLETE (2026-09-30).
 **Date:** 2026-09-30. **Verifies:** `05-work-team.md` (the researcher's recommendation).
 **Role:** sceptic. Try to refute the recommendation (no tracker of our own: Azure DevOps Boards
 first and GitHub Issues/Projects second behind one `tracker` interface, Teams through the
@@ -354,8 +354,79 @@ already runs, and pay for it with admin asks instead of engineering days.
 
 ## 10. What this verification could not verify
 
-*(to be filled)*
+**KPMG's tenancy facts, the hinges:**
+
+1. **The geography of KPMG's ADO organisation.** If it is not Australia, no KPMG tracker is
+   AU-resident today, and the AU answer becomes a new ADO organisation in Australia or Plane
+   Commercial in Australia East (section 7).
+2. **KPMG's ADO policies:** whether PAT creation is restricted, whether users already make
+   organisation-scoped PATs (global PATs stop working on 2026-12-01), and whether the tenant
+   allows a new ADO organisation.
+3. **Whether our Azure subscription sits in the Entra tenant behind KPMG's ADO organisation and
+   Teams.** The managed-identity paths in sections 2 and 6 depend on it: *"You can't add a managed
+   identity directly from another tenant."*
+4. **KPMG's GitHub host:** taken from a memory note of 2026-07-28 (`gh` on github.com, org
+   `kpmg-au-emu`). Not re-run today.
+
+**Product behaviour, read in docs and not tried:**
+
+5. ADO's two-condition standard rule (*state changes to Done* and *Linked = True*); which work
+   item types and processes KPMG's projects use; who holds *Bypass rules on work item updates*.
+6. GitHub issue-field write permission: "triage or greater" comes from a search summary. The docs
+   page names no restriction mechanism, and none was found.
+7. Orca: whether the workspace composer offers our recipe for a task-linked worktree, and whether
+   the task link reaches the recipe's `create` script or a plugin event. Only three source files'
+   imports were read; `02-fleet-cockpit.md` read the tree at `59b746ff`.
+8. Whether the local `azure-devops-mcp` server can point at a control-plane proxy (a base URL and
+   auth override). If it cannot, sandbox agents read the tracker through a small CLI instead.
+9. Jira's remote agents: the page carries no Preview label; GA was not confirmed in a changelog.
+10. Azure Bot identity types and SDK language support come from a search summary; Boards to
+    Copilot's GA status likewise.
+
+**Carried over from the researcher, still open:** Panacea's snippets were read, not run; OpenBao's
+transit API match for the signed head; LiteLLM key metadata for the issue tag (the gateway
+cluster); prices are list prices, not quotes.
 
 ## 11. Sources
 
-*(to be filled)*
+All read 2026-09-30.
+
+- **Microsoft Learn (Azure DevOps):**
+  [workflow rules](https://learn.microsoft.com/en-us/azure/devops/organizations/settings/work/apply-rules-to-workflow-states?view=azure-devops) ·
+  [data location](https://learn.microsoft.com/en-us/azure/devops/organizations/security/data-location?view=azure-devops) ·
+  [service hooks](https://learn.microsoft.com/en-us/azure/devops/service-hooks/overview?view=azure-devops) ·
+  [Web Hooks](https://learn.microsoft.com/en-us/azure/devops/service-hooks/services/webhooks?view=azure-devops) ·
+  [Work Items Update](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/work-items/update?view=azure-devops-rest-7.1) ·
+  [Comments Update](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/comments/update-work-item-comment?view=azure-devops-rest-7.1) ·
+  [permissions](https://learn.microsoft.com/en-us/azure/devops/organizations/security/permissions?view=azure-devops) ·
+  [PATs](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops) ·
+  [service principals and managed identities](https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/service-principal-managed-identity?view=azure-devops) ·
+  [Boards in Teams](https://learn.microsoft.com/en-us/azure/devops/boards/integrations/boards-teams?view=azure-devops)
+- **Microsoft, other:**
+  [ADO pricing](https://azure.microsoft.com/en-us/pricing/details/devops/azure-devops-services/) ·
+  [remote MCP GA](https://devblogs.microsoft.com/devops/azure-devops-remote-mcp-server-ga/) ·
+  [connector retirement](https://devblogs.microsoft.com/microsoft365dev/retirement-of-office-365-connectors-within-microsoft-teams/) ·
+  [sprint 269 notes](https://learn.microsoft.com/en-us/azure/devops/release-notes/2026/sprint-269-update) (search result only) ·
+  [Azure Bot quickstart](https://learn.microsoft.com/en-us/azure/bot-service/abs-quickstart?view=azure-bot-service-4.0) (search result only)
+- **GitHub:**
+  [issue fields GA](https://github.blog/changelog/2026-07-02-issue-fields-are-now-generally-available/) ·
+  [issue fields docs](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-and-managing-issue-fields) ·
+  [Claude and Codex](https://github.blog/changelog/2026-02-04-claude-and-codex-are-now-available-in-public-preview-on-github/) ·
+  [agent apps](https://docs.github.com/en/copilot/concepts/agents/agent-apps) ·
+  [AU residency GA](https://github.blog/changelog/2025-02-04-github-enterprise-cloud-data-residency-in-australia-is-generally-available/) ·
+  [about GHE.com](https://docs.github.com/en/enterprise-cloud@latest/admin/data-residency/about-github-enterprise-cloud-with-data-residency) ·
+  [GHE.com features](https://docs.github.com/en/enterprise-cloud@latest/admin/data-residency/feature-overview-for-github-enterprise-cloud-with-data-residency) ·
+  [GitHub in Teams](https://docs.github.com/en/integrations/how-tos/teams/use-github-in-teams) ·
+  [pricing](https://github.com/pricing)
+- **Orca:** [repository](https://github.com/stablyai/orca) (`LICENSE`, README, API) ·
+  [Linear](https://www.onorca.dev/docs/review/linear) · [GitHub](https://www.onorca.dev/docs/review/github) ·
+  [Jira](https://www.onorca.dev/docs/review/jira)
+- **Alternatives:** Linear [security](https://linear.app/docs/security), [pricing](https://linear.app/pricing),
+  [agent interaction](https://linear.app/developers/agent-interaction) · Plane
+  [pricing](https://plane.so/pricing), [editions](https://developers.plane.so/self-hosting/editions-and-versions) ·
+  Atlassian [remote agents in Jira](https://developer.atlassian.com/platform/forge/remote-agents-in-jira/) ·
+  Spec Kit [`taskstoissues.md`](https://github.com/github/spec-kit/blob/main/templates/commands/taskstoissues.md)
+- **GitHub API** (`/repos/<r>`, `/repos/<r>/releases`): `stablyai/orca`, `microsoft/azure-devops-go-api`,
+  `microsoft/azure-devops-mcp`, `github/github-mcp-server`, `microsoft/Agents-for-js`,
+  `makeplane/plane`, `supabase/supabase`, `supabase/realtime`, `coollabsio/coolify`.
+- **Panacea, read-only, at `eee94cd94`:** the files listed in section 1.
