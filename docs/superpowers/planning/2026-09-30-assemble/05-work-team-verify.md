@@ -154,7 +154,28 @@ applies: a Hub page in Orca's browser tab, which is also `08-whole-product.md`'s
 
 ## 6. The Teams surface: first-party apps plus a Microsoft 365 Agents SDK bot
 
-*(to be filled)*
+**Holds. The bot brings a runtime and an identity that the 2 days did not count.**
+
+| # | Claim | At source (read 2026-09-30) | Holds? |
+|---|---|---|---|
+| 1 | The Agents SDK is MIT | `microsoft/Agents-for-js` `LICENSE`: MIT. GitHub API: `v1.9` on 2026-09-29, TypeScript | **Yes,** and active |
+| 2 | The ADO and GitHub Teams apps carry tracker notifications as is, 0 days | Boards app page (updated 2026-05-08): channel subscriptions, create a work item from a message, link previews. But *"Azure Boards notifications aren't supported inside Teams chat or direct messages"*, subscriptions need a Project or Team Administrator, and it is *"only available on Azure DevOps Services"*. GitHub's page: *"an admin for your Teams workspace must have installed the GitHub app"* | **Yes, for channels.** Configuration only, but by an admin per channel, and never as a DM |
+| 3 | Office 365 connector webhooks retired in May 2026 | Microsoft's post (updated 2026-04-14): rollout *"completes: May 22, 2026"*; the replacement is Workflows webhooks | **Yes** |
+| 4 | Our bot on the Agents SDK and Azure Bot Service, 2 days | Multi-tenant bot creation ended after 2025-07-31; new bots are single-tenant or a user-assigned managed identity, and those types are supported in the C#, JavaScript and Python SDKs only (search summary of Microsoft's pages, not the pages themselves) | **Partly.** See below |
+| 5 | A custom Teams app needs tenant-admin approval (owner call 3) | Standard Teams behaviour, not re-read: an admin allows the custom app, and a proactive DM needs the app installed for that user (an admin setup policy can pre-install it) | **Yes,** as the researcher said |
+
+**Row 4, what the 2 days miss.**
+
+- **A second runtime.** There is no Go SDK, so the bot is a Node service beside our Go control
+  plane, to build, sign, deploy and patch.
+- **An identity.** A single-tenant bot needs an app registration: the IT ticket `OD-30` avoided.
+  A user-assigned managed identity in our subscription avoids IT, if the subscription sits in
+  KPMG's tenant (not verified; the same question as the ADO proof identity, section 2).
+- **Customers.** A single-tenant bot reaches another tenant's users only through the Teams store
+  or guest accounts. In the customer-hosted tier, each customer tenant runs its own bot instance.
+
+**Days: about 3, not 2.** The calendar waits on the Teams admin (owner call 3). Until then the Desk
+in the cockpit and the first-party channel apps carry *inform*; *decide* waits for the bot.
 
 ## 7. The integration days, against our architecture
 
