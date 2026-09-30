@@ -402,14 +402,17 @@ N1 preview per branch · N2 promote · N3 rollback · N4 release carries brief a
 
 | Candidate | Licence | Runs where | Entra SSO | AU-only possible | N1 | N2 | N3 | N4 | Days | Verdict |
 |---|---|---|---|---|---|---|---|---|---|---|
-| **Panacea** (API, Portal, Chains, Kyverno) | ours | its own AKS | yes, Keycloak | yes | yes | yes, `P/promote` | yes | evidence yes, **brief no** | **5** (section 5) | **adopt** |
+| **Panacea** (API, `panacea-mcp`, Portal, Chains, Kyverno) | ours | its own AKS | yes, Keycloak | yes | yes, with a database per preview | yes, `P/promote` and the stage ladder | yes | evidence yes, **brief with our glue** | **6** (§5) *(revised from 5)* | **adopt** |
 | Coolify | Apache-2.0 | any VM, Docker | OIDC in an RC | yes | GitHub only | no | yes | no | 5-8 and still no N4 | reject |
 | Dokploy | Apache-2.0 core, **source-available** enterprise | VM, Swarm | paid only | yes | yes | no | yes | no | 5-8 plus a contract | reject |
-| Azure Container Apps + Actions or ADO | Azure service | customer subscription | yes, built in | yes | yes, labels | yes, traffic split | yes | no | 3-5 for a second `Deployer` | **integrate later** (customer tenancy) |
+| **Coolify + Supabase + Panacea snippets** *(second run, 3.9)* | all permissive | Azure VMs, Docker | via oauth2-proxy | yes | yes, after 2 days of ADO work | after porting the posture engine | yes | after porting evidence | **16-24**, isolation still weaker | reject on merit |
+| Supabase for preview data *(3.10)* | Apache-2.0 | branching hosted only, AWS | plan-dependent | Sydney, not Azure | databases only | n/a | n/a | n/a | n/a | reject for deploy |
+| Orca as the surface *(3.11)* | MIT | the cockpit | via our sign-in | yes | the agent ships, the browser shows | a held act | a held act | shows the card | 1.5 (inside the 6) | **integrate** |
+| Azure Container Apps + Actions or ADO | Azure service | customer subscription | yes, built in | yes | yes, labels | yes, traffic split | yes | no | 3-5 for a second `Deployer` | reference *(revised)*: only if a customer refuses a cluster |
 | Argo CD + Kargo | Apache-2.0 | AKS | yes | yes | yes | yes | yes | no brief | 10+ | reference |
-| Backstage | Apache-2.0 | already Panacea's Portal | yes | yes | shown | shown | shown | no | 0.5 for links | **integrate by link** |
+| Backstage | Apache-2.0 | already Panacea's Portal | yes | yes | shown | shown, with the approve step | shown | no | 0.5 for links (inside G1) | **integrate by link** |
 | Port | proprietary | SaaS, EU or US | yes | **no** | no | no | no | no | n/a | reject |
-| cosign + in-toto + Kyverno | Apache-2.0 (in-toto short notice) | wherever we sign | n/a | yes | n/a | n/a | n/a | **yes** | ~1 (inside the 5) | **adopt** |
+| cosign + in-toto + Kyverno | Apache-2.0 (in-toto short notice) | wherever we sign | n/a | yes | n/a | n/a | n/a | **yes** | ~1 (inside the 6) | **adopt** |
 | Tekton Chains | Apache-2.0 | already in Panacea | n/a | yes | n/a | n/a | n/a | build yes, brief only with the ask | 0 | use as is |
 | GitHub attestations | GitHub service | GitHub Enterprise Cloud | yes | depends on the GitHub region | n/a | n/a | n/a | yes, GitHub only | 1 | reference |
 | Octopus Deploy | proprietary, per project | cloud or self-hosted | yes | self-hosted yes | via targets | yes, lifecycles | yes | work items, no brief | 10+ | reference, buy on demand |
@@ -417,7 +420,55 @@ N1 preview per branch · N2 promote · N3 rollback · N4 release carries brief a
 
 ## 5. Recommendation
 
-*(pending)*
+**Adopt Panacea as the deploy step, through `panacea-mcp` for agents and its API for the cockpit.
+Finish phase 7 as a thin connector cut down for Orca, and sign the brief-to-release link in the
+Hub with cosign and an Azure Key Vault key. About 6 engineer-days** (3.5 with two people: the
+control plane and the Orca panel run in parallel).
+
+**Why this one, on merit.** Panacea is the only candidate that already meets N1-N3 in full and
+most of N4, in our own Azure estate, behind Entra through Keycloak, with Azure DevOps and GitHub:
+per-branch previews with SSO, IP and share-link access; a database branched per preview and
+redacted before the app sees it; a stage ladder that turns `OD-24`'s data class into the scans a
+promotion needs; rollback with warmth; and an evidence export per release (§2, §2a). The best
+alternative the owner allowed, Coolify plus Supabase with Panacea snippets, needs 16-24 days of
+ported Panacea code to approach that and still isolates agent-written apps less well (3.9).
+Nothing else examined adds a need Panacea misses, except a ServiceNow change ticket (Octopus,
+3.8), which waits for a customer who mandates it.
+
+**What it replaces in the plan.** Phase 7, the Deploy connector (20 tasks, about 51 plan-hours):
+
+| Phase 7 tasks | What happens | Plan-hours |
+|---|---|---|
+| 01-06 | **built** on `feat/phase-7-deploy`, kept | 14 |
+| 07 watcher (part built), 08 view, 09 ship, 10 rollback, rebuild and cancel, 19 sessions in a release, 20 seams and live recipe | **kept**, finished as planned | 13.5 left |
+| 11 governance routes, 12 drill-in routes | **replaced** by Portal deep links and `panacea-mcp`'s read tools | 4.5 |
+| 13-18, the Tauri Deploy lens (data layer, frame, environment card, Ship bar, release drawer, governance panel) | **replaced** by one Orca Deploy panel (G1) and the Portal's own pages | 17 |
+
+So **8 of the 20 tasks (21.5 plan-hours) leave the plan**, and four pieces of glue arrive that the
+plan never had (§6): promotion through the stage ladder (the plan left `P/promote` out, so N2 was
+unmet), a signature on the brief-to-release link (nothing in the plan signed), the allowlist that
+keeps an agent's token off production, and the data class handed to Panacea (03-define G7).
+
+**When it becomes usable.** Day 1: an agent in an Orca session deploys its branch to a preview,
+reads the logs and fixes a failed build, once the sandbox image carries `panacea-mcp` (01-sandboxes)
+and G4 is in. Day 3.5: a human ships the production branch from the Deploy panel, and the release
+card shows the brief it answers. Day 6: promotion through the ladder and the signed provenance
+record, exportable to an assessor.
+
+**Risks, and what holds if they land.**
+- **Five Panacea-side gaps belong to the Panacea stream** (§2a, P-1 to P-5). None blocks the
+  first ship: the Hub-side signature does not need P-1 or P-4, the stage floor covers P-2's scan
+  part, the proxy covers P-3. What waits is admission-time "no brief, no prod" (P-1 plus P-4) and
+  production for protected data (P-5).
+- **The release record lives in the Hub** (`OD-3`), 6 of 50 tasks built. Until the Hub's release
+  routes run (H5), tasks 09 and 19 run against its fake, and the control plane keeps the signed
+  records in its own state file, migrated on arrival.
+- **Our customers' apps share Panacea's cluster and its incidents**, and its single Keycloak
+  replica logs everyone out on a pod move (00-panacea §5.1). That is the price of "running today".
+- **Sandboxes reach Panacea's API only once our egress IP is on Panacea's edge allowlist**
+  (01-sandboxes, `deploy/main.tf:580-602`), a request to the Panacea side.
+- **Orca's panel API is experimental**, and two clusters disagree on whether it exists (3.11);
+  the fork widget is the fallback at the same cost.
 
 ## 6. The glue we still build
 
