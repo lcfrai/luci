@@ -76,7 +76,60 @@ at the rebuild, which the report also missed).
 
 ## 4. C1 Panacea: the auth path from our control plane and sandboxes
 
-_Pending._
+Three callers reach Panacea in C1. Each was traced at source.
+
+| Caller | Presents | Accepted today? | Reach | Gap |
+|---|---|---|---|---|
+| Desktop or Orca, sign-in | realm auth-code + PKCE on a new public client `panacea-app-desktop` (P5a) | the client does not exist: `backstage` and `panacea-oauth2-proxy` are both confidential (`setup-keycloak.sh:139-142`, `:320-323`) | signs the user in to us | Keycloak 25.0.0, one replica (section 2, row 7) |
+| Our control plane to panacea-api | the user's pasted `pnc_` | yes (`middleware/api_key.go:189`, `AuthMethod: "api-key"`) | unscoped: everything the user can do on every project, up to 365 days. P3 needs unscoped (git PATs are `authedUnscoped`; project create is `authedGrant`) | a realm token is refused (`auth.go:245-251`) |
+| Sandbox `panacea-mcp` to our G4 proxy to panacea-api | nothing of Panacea's; the proxy adds the token | by design | only G4's allowlist | 4.2 |
+
+**4.1 P-3, "trust our realm token", is code, and 1-2 days is the low end.** `Auth()` trusts a
+JWT only behind `BACKEND_SECRET` (`auth.go:156-160`). The one verifier (`jwks.go:147-153`) is built
+for that transport: when the JWKS is unset or unreachable inside a grace window it falls back to an
+**unverified decode** (`jwks.go:225-259`), safe only because the shared secret already
+authenticated the caller. A directly presented realm token needs a new branch in `Auth()`, a strict
+verifier with no unverified fallback, Keycloak claim mapping (groups carry teams) and an audience
+mapper on our client. Minting then works, because the guard refuses only `AuthMethod == "api-key"`
+(`api_keys.go:112-116`) and `Auth()` stamps `sso` on every other identity (`auth.go:254-255`).
+Judged 2-3 days in Panacea with its security review. Not our days, but on the path to removing
+the paste (section 8).
+
+**4.2 An 8-hour scoped token is not an 8-hour bound (new).**
+- `scopeRole=deploy` is developer (`models/models.go:550-553`).
+- Developer can mint a legacy project key, `POST P/api-keys` (`routes.go:2942`). The handler has
+  no token-bootstrap guard (`handlers/apikeys.go:32-90`); `expiresIn` is days and `0` = never
+  (`:39`); expiry is checked only when set (`:178-179`).
+- A legacy key authenticates as a full project member with its scopes discarded (`auth.go:232-240`,
+  `project, _, valid`), bound to no person (`Username: "apikey:" + project`), so the owner
+  re-check that kills a `pnc_` when its owner leaves does not apply.
+
+So any holder of a developer-role token on a project, an agent included, can turn it into a
+credential that outlives the session, the user's membership and the token's scopes. Three
+consequences: the per-session token must never enter the sandbox, even after P-3; G4 (06-deploy
+§6, which already refuses "token minting" and stays after P-3) must match method and route, never
+a prefix on `P/`; and one more Panacea ask, small: guard legacy key minting as `api_keys.go:112-116`
+does, or retire the route. For the Panacea stream only: the `pnc_` mint guard keys on `AuthMethod`
+alone, which a legacy-key identity never carries, while `handlers/stepup.go:272` counts both as
+tokens; whether a legacy key can mint a `pnc_` was not traced to the end (it does pass
+`RequirePortalGrant`, `rbac.go:374-390`, holding `project-<name>`).
+
+**4.3 The other auth claims.**
+- Remote MCP: holds as reported, including the host mismatch: `https://sso.<domain>/realms/panacea`
+  (`mcp_wiring.go:41`) against `KC_HOSTNAME` `https://auth.<domain>` (`deploy/main.tf:963-964`).
+- `panacea-cli`: holds. Client `panacea-cli`, device flow (`internal/auth/auth.go:50`, `:67`); 0
+  matches in `setup-keycloak.sh`.
+- Preview sign-in (new): oauth2-proxy sends no `kc_idp_hint` (no match in `kubernetes/helm-values`,
+  `deploy/portal`, `deploy/*.tf`) and the realm script sets no redirector, so a browser without a
+  Keycloak session shows Keycloak's own login page before Entra. An embedded browser such as Orca's
+  normally keeps its own cookie store (not checked in Orca's source): the first preview opened
+  there shows that page and a Microsoft sign-in. Section 8 counts it as a seam.
+- Egress: only our control plane crosses Panacea's edge (sandboxes reach our proxy), so P5b is one
+  address, our AKS egress IP. Holds.
+
+**Net for auth.** Day 1 works with the pasted token and G4, as the report says. Zero clicks
+(`OD-30`) and a scoped token per session need **two** Panacea changes, not one: realm trust (2-3
+days, not 1-2) and a guard on legacy key minting.
 
 ## 5. Alternative: Coolify plus Supabase (the owner's named option)
 
