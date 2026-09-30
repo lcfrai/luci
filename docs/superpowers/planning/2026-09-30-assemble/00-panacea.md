@@ -174,7 +174,48 @@ Three ways through, ranked:
 
 ## 6. AI: the LiteLLM gateway and its token model
 
-_(pending)_
+**What runs.** LiteLLM in namespace `panacea-litellm`, service `litellm-proxy:4000`
+(`kubernetes/base/network-policies/allow-vvah-to-gateway.yaml:9`), deployed as the Argo CD app
+`kubernetes/argocd-apps/ai/litellm.yaml`. Version is ambiguous in the source: the Helm values pin
+`ghcr.io/berriai/litellm` `v1.63.11` (`kubernetes/helm-values/litellm-values.yaml:30-31`) while the
+custom image builds from `litellm-database:main-v1.40.0` (`deploy/images/litellm/Dockerfile:25`,
+`deploy/cloud-shell-deploy.sh:692`). Which one is live is unverified.
+
+**Upstreams.** Claude goes to **Kelios**, KPMG's internal endpoint `api.kelios.kpmg`, which holds
+the Anthropic credential (`deploy/set-kelios.sh:3-13`; `deploy/panacea-deploy.sh:2219`); GPT models go
+to Azure OpenAI or AI Foundry (`litellm-values.yaml:134-164`). **Bedrock was removed** from the
+default providers (`handlers/ai_settings.go:218`).
+
+**The token model: per project, never per user or per session.**
+- A LiteLLM **virtual key per project**, `team_id == project`, minted with the master key on first
+  use and persisted (`handlers/llm_vkeys.go:209` `generateLiteLLMKey`, `:458` `EnsureProjectLLMKey`),
+  with a model allow-list (`:79`) and rate caps (`:263-340`); optionally **per (project, env)** for
+  branch environments, still billing to the project (`clients/interfaces.go:758-778`).
+- Injected into the tenant app at deploy as `OPENAI_*` and `ANTHROPIC_*` env vars; the master key
+  and the Kelios key never leave LiteLLM (`llm_vkeys.go:777-797`).
+- A second mode routes through **panacea-api's own metered proxy**, `/ai/proxy/{project}/{mode}/v1/...`
+  (`routes.go:1763-1764`), with a per-project proxy token (`llm_vkeys.go:736-763`); fleet-wide switch
+  at `POST /api/v1/admin/llm/migrate-keys` (`routes.go:2094`).
+- API for a project: model `GET/PUT P/llm/model` (`routes.go:2391-2392`), usage `P/llm/usage`
+  (`:2389`), calls `P/ai-calls` (`:1540`), rate `P/llm-rate` (`:2871`), key rotate
+  `POST P/ai/key/regenerate` (`:2403`). A fail-closed AI governance pre-screen (PII redaction and
+  prompt-injection blocking) runs locally; external moderation is off by default (`STATUS.md:142-150`).
+
+**Gaps for our agents (why we do not route Claude Code through it).**
+1. **Both endpoints are in-cluster** (`litellm-proxy:4000`, `panacea-api.panacea-portal.svc.cluster.local`,
+   `llm_vkeys.go:744`). Our sandboxes run in our own environment (`OD-5`), so they cannot reach it.
+2. **Attribution stops at the project**: `team_id == project` and `user == project`
+   (`handlers/deploy_analysis.go:30-31`). `OD-19` needs user, team and project, per session.
+3. **No AU path**: `OD-19` AU = Bedrock Sydney; Panacea removed Bedrock. Global = the direct
+   Anthropic API; Panacea's Claude upstream is Kelios, whose retention terms are not in the repo.
+4. **Zero data retention is not asserted in config**: no `turn_off_message_logging` or
+   `store_prompts_in_spend_logs` setting exists in `deploy/` or `kubernetes/` (grep, 0 hits), so it
+   rests on LiteLLM's defaults and Kelios's terms (unverified).
+
+**Verdict.** Run our own LiteLLM (MIT core; phase 6, `OD-21`) and **copy Panacea's key-minting,
+allow-list and rate-cap code** into our broker, with attribution (`OD-13` relaxed). Use Panacea's
+gateway only for the apps Panacea hosts, where it already works with no glue.
+
 
 ## 7. Platform services: Backstage, Vault, Postgres, object storage
 
