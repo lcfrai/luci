@@ -395,12 +395,13 @@ Orca, the four desktop tasks (12 h) move into Orca's renderer; they do not disap
 
 | # | Glue | Days |
 |---|---|---|
-| G1 | **Sandbox image and the `panacea` preset.** Add `python3` and a vendored `specify-cli` wheel bundle to `images/sandbox/Dockerfile` (the proxy already breaks Go module TLS there, so vendor as `sandboxd` does), or render `specify init --integration claude` in a build stage. The preset: the spec template gains the five brief sections (*Purpose, Audience, Must not break, Definition of done* as `SC-` lines, *Out of scope*) beside Spec Kit's own; `grill-me`, `grill-with-docs` and `domain-modeling` vendored with their MIT notice; our words through preset terminology; the community catalogue off. Pin both versions | 1 |
-| G2 | **Define session start.** A *Define* action creates a session with the built `OpeningPrompt`. `.specify/` and the Spec Kit skills are placed in the worktree and listed in `.git/info/exclude` by the built `contextwrite` exclude logic, so Panacea still writes no tracked file | 0.5 |
-| G3 | **Publish.** A control-plane route reads the **committed blobs** (spec, `GLOSSARY.md`, `docs/adr/*.md`) at the lane's head through host git, never the working file. It treats them as untrusted text: size caps, parse only, nothing executed. It maps the five sections onto the built `discover.Content` (answers `Author: model_accepted`, `DraftedFrom: ["<path>@<blob>"]`, criteria from the `SC-` lines, so phase 3 keeps its keys) and writes a revision through the built `discoverhub`; terms and decisions go as records beside it | 2 |
+| G1 | **Sandbox image and the `panacea` preset.** Add `python3` and a vendored `specify-cli` wheel bundle to `images/sandbox/Dockerfile` (the proxy already breaks Go module TLS there, so vendor as `sandboxd` does), or render `specify init --integration claude` in a build stage. The preset: the spec template gains the five brief sections (*Purpose, Audience, Must not break, Definition of done* as `SC-` lines, *Out of scope*) beside Spec Kit's own; `grill-me`, `grill-with-docs` and `domain-modeling` vendored with their MIT notice; our words through preset terminology; the community catalogue off. Pin both versions. *Revised:* the template also gains **Forge's access table** (each entity: who may read, who may change; routes with their auth decision where the app serves routes) and its **testable-criteria rule** in the checklist, and the spec header states the **data class**, so the agent plans for it (for example, synthetic test data only) | 1.25 |
+| G2 | **Define session start.** *Revised:* a *Define* action calls `orca worktree create --name <n> --agent claude --prompt "/speckit-specify <idea>"`, or uses the built `OpeningPrompt` if `02` keeps our own shell. `.specify/` and the Spec Kit skills are placed in the worktree and listed in `.git/info/exclude` by the built `contextwrite` exclude logic, so Panacea still writes no tracked file | 0.25 |
+| G3 | **Publish.** A control-plane route reads the **committed blobs** (spec, `GLOSSARY.md`, `docs/adr/*.md`) at the lane's head through host git, never the working file. It treats them as untrusted text: size caps, parse only, nothing executed. It maps the five sections onto the built `discover.Content` (answers `Author: model_accepted`, `DraftedFrom: ["<path>@<blob>"]`, criteria from the `SC-` lines, so phase 3 keeps its keys) and writes a revision through the built `discoverhub`; terms and decisions go as records beside it. *Revised:* before writing, it applies **Forge's rules**, adapted from `services/forge-orchestrator/models/spec.go` with attribution in the file header: 3 to 8 criteria, each testable; an access decision for every entity; the strict routes-table parse. A refusal names the fix, as Forge's does | 2 |
 | G4 | **One Hub record kind** for a term or a decision that references a brief revision (OD-36), instead of round 2's Hub tasks. Hub-stream work | 1 |
-| G5 | **Desktop.** The Define lens is the session pane that already exists, plus a read-only rendered view of the published spec, glossary and decisions, one **Publish brief** button, and one drift line when the branch's spec blob differs from the published one. Task 17's chip, definition of done and shipped manifest are unchanged | 2 |
-| G6 | **Canary and end-to-end.** A golden spec parsed in CI, pinned to the Spec Kit version; a scripted run from idea to published brief to a new session that inherits it and shows the chip. The real-model interview joins the owner's batched session (OD-12) and stays unverified until then | 1 |
+| G5 | **Cockpit.** *Revised for Orca:* Orca's markdown editor is the read-and-correct view, so no rendered view of our own. In our Orca fork: one **Publish brief** button in Orca's window (never a command in the sandbox terminal), one drift line when the branch's spec blob differs from the published one or has uncommitted edits, and task 17's chip, definition of done and shipped manifest on the worktree header. Orca's artifact sharing is removed from the build | 1.5 |
+| G6 | **Canary and end-to-end.** A golden spec parsed in CI, pinned to the Spec Kit version; a scripted run from idea to published brief to a new session that inherits it and shows the chip. The real-model interview joins the owner's batched session (OD-12) and stays unverified until then. *Revised:* the scripted run starts through `orca worktree create` | 1 |
+| G7 | **Data class on creation (OD-24), new.** The create flow asks for the class in Panacea's words (`none`, `synthetic`, `protected`) and the AI path (AU or Global, OD-19). The project record and the brief carry it; the Materialiser writes it into `CLAUDE.md`. Deploy hands it to Panacea's `panacea.io/data-classification` annotation: that step is `06-deploy.md`'s, because no `panacea-api` route writes the annotation today | 0.5 |
 | | **Glue total** | **7.5** |
 
 The kept tasks (section 5, about 23.5 h) overlap G3 and G5, so the whole comes to **about 8 stream-days**.
@@ -418,7 +419,18 @@ The kept tasks (section 5, about 23.5 h) overlap G3 and G5, so the whole comes t
 5. **No model, no interview.** The prototype degraded to five plain questions. Here the preset's
    template is filled by hand and published, since Publish needs no model; Develop needs the model anyway.
 6. **The Hub is not ready.** `discoverhub` runs against the Hub fake until HA4-2 lands. This
-   recommendation neither adds to nor removes that dependency.
+   recommendation neither adds to nor removes that dependency. If the plan backs the Hub with Supabase
+   or Panacea's Postgres to get there sooner, Define is unchanged: it speaks only `hubapi`.
+7. **Orca has no plugin API** *(new)*. The Publish button, the drift line and the chip are changes in our
+   Orca fork, carried across Orca's daily releases. Keep them in one module and rebase on a fixed
+   cadence; `02-fleet-cockpit.md` owns the fork policy.
+8. **Orca's artifact sharing could put a spec on a public link** *(new)*. It is opt-in upstream; our build
+   removes it, and a test asserts the setting is absent.
+9. **Panacea has no route that writes the data class** *(new)*. Define records it from day one; until
+   Panacea gains a route, Deploy carries it to Panacea by an admin step (`06-deploy.md`).
+10. **Forge's rules can over-refuse** *(new)*. A 3-to-8 limit and a verb list suit web apps; a data pipeline
+    may need other verbs. The refusal names the fix, and the verb list is the preset's, so we tune it
+    from real briefs without a code change.
 
 ## 7. Calls only the owner can make
 
