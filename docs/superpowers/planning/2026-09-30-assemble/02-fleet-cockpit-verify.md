@@ -108,9 +108,16 @@ installs "a status-line hook that emits OSC title events Orca uses for state dot
 (`agents/claude-code.mdx:15`).
 
 `OD-8`'s rule is "no feature derives meaning from PTY bytes", and its reason is that a terminal
-stream "can be forged by anything the agent prints". An untrusted agent can print
-`ESC ] 9999 ; {…} BEL` and move its own row to done or waiting. The researcher calls this display
-only, but the attention queue is the reason Orca replaces `BLOCKED-ON-YOU` (R4). **So adopting Orca
+stream "can be forged by anything the agent prints". **That forgery works here.** The payload needs
+only a valid `state`, with no token or nonce: `normalizeAgentStatusObject`
+(`agent-status-types.ts:305-317`), reached from `parseAgentStatusPayload` (`:365`). So
+`ESC ] 9999 ; {"state":"waiting",…} BEL` printed from anywhere in the terminal sets the row. That
+includes a file the agent `cat`s, a test log, or a package's install script. The same payload also
+carries `interactivePrompt` and `lastAssistantMessage` text (`:330-337`) into the row. That row goes
+to every reader: the sidebar, the dashboard, `orca worktree ps` and mobile
+(`agent-status-store.md:21-22`); how each one renders the text was not checked. It is a spoofing
+channel into the cockpit, not a cosmetic glitch. The researcher calls this display only, but the attention queue is the reason
+Orca replaces `BLOCKED-ON-YOU` (R4). **So adopting Orca
 needs an owner ruling on `OD-8` before first ship, or an upstream option that turns OSC status off
 for hook-capable agents.** The researcher's 0.5 day for that option is a guess. Orca also resolves
 a row's terminal handle only through the OSC parse (`agent-status-store.md:353-355`), so the change
