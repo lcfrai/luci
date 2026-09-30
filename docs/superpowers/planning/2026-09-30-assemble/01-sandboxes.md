@@ -8,26 +8,34 @@ coding-agent CLIs (Claude Code, Codex, Gemini CLI) with a real PTY, warm pools, 
 isolation, on Azure or bought with an AU region, driven by API as a `Backend` of our Go control plane.
 **Owner direction (2026-09-30):** third-party first, the tool ASAP, days not weeks.
 
-## 1. Answer first
+## 1. Answer first (revised for the owner's second direction: section 1a says what changed)
 
 - **Adopt, do not buy:** AKS Pod Sandboxing (Kata microVMs, run by Microsoft) plus
   `kubernetes-sigs/agent-sandbox` v1.0.4 (Apache-2.0: warm pool, claim, pause, resume,
-  persistent storage), driven by our existing `katabe` through agent-sandbox's Go SDK, in
-  Australia East.
-- **7 days** to the first real cloud session from the cockpit (range 5 to 9). 4 of them are this
-  option; 3 are glue any option needs (clone into the sandbox; control plane in the cloud behind
-  Keycloak).
+  persistent storage), driven by our existing `katabe` through agent-sandbox's Go SDK, in **our
+  own AKS in Australia East** (`OD-5`). The cluster is stood up from Panacea's Terraform and the
+  sandbox hardened with Panacea's Forge pod spec, deny-egress policy and package mirrors, copied
+  with attribution. Fallback: ACI + standby pools if Kata nodes or claim latency fail on day 1.
+- **Orca reaches it through one recipe.** An `orca.yaml` environment recipe's `create` script asks
+  our control plane for a sandbox; at bind the sandbox starts `orca serve` and returns Orca's
+  pairing code. Orca then owns the terminal stream; nothing reads PTY bytes for meaning (`OD-8`).
+- **8 days** to the first real Claude Code session from Orca in a Kata microVM (range 6 to 10).
+  4.5 are this option; 3.5 are glue any option needs (clone onto the sandbox's disk, the control
+  plane in the cluster behind Keycloak, the `wss://` route, the recipe).
 - **It replaces** the warm-capacity and machine-lifecycle work in phase 8 (2 tasks removed, 11
-  reduced: about 36 plan-days become about 14), most of the Kata hardening in phase 9, and the
-  capacity risk in `PROGRAM.md` (warm-pool sizing becomes configuration plus an HPA).
-- **No bought product fits.** Every SaaS fails on Azure, AU residency, customer-cloud deployment,
-  licence or isolation; the two credible "buy" options (Northflank BYOC, Runloop VPC deploy)
-  document microVMs on AWS, not Azure, and need weeks of procurement. Daytona is AGPL and frozen;
-  Coder is AGPL at its core; E2B has no Azure.
-- **Fallback:** ACI + standby pools (same Hyper-V isolation class, no cluster) if Kata nodes or
-  claim latency fail on day 1.
-- **Owner calls:** the subscription and a dev baseline of about US$2,000 a month at list price;
-  the warm-pool size; the idle policy; the isolation statement customers see.
+  reduced: about 36 plan-hours become about 14), the Kata runtime work in phase 9, and the
+  capacity risk in `PROGRAM.md` (warm-pool sizing becomes configuration plus an HPA). If the
+  cockpit study (02) replaces our desktop with Orca, phase 8 tasks 22 (`remotebe`) and 26 (the
+  cockpit's cloud-machine view), 6 plan-hours, become the recipe too; the rest of group F
+  (23 to 25b) follows 02's lane ruling.
+- **Everything else, judged on merit.** Panacea is used, not hosted on: it has no agent-sandbox
+  product (Forge's preview pods are shared-kernel, preview-shaped, with no pool or disk).
+  Coolify and Supabase do not fit this capability. No bought product fits: each fails on Azure,
+  our tenancy, a customer's cloud, licence or isolation; the SaaS sandboxes Orca already supports
+  (Vercel Sandbox in Sydney, Modal `au`, Fly) are a same-day demo at most.
+
+**Owner calls (section 6):** the subscription and a dev baseline of about US$2,000 a month at list
+price; the warm-pool size; the idle policy; the isolation statement customers see.
 
 ## 1a. Revised for the owner's second direction
 
