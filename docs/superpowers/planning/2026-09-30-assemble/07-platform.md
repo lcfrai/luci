@@ -10,11 +10,11 @@ Scope: the Hub (shared briefs, approvals, provenance ledger, releases, realtime)
 
 **Keep the products the plans already chose, take Panacea's realm and two pieces of its code, and do not move the Hub to Supabase. About 19 engineer-days to first real use (about 6 working days with five engineers); about 1 of them is new glue.**
 
-1. **Sign-in: Panacea's Keycloak realm, now** (3.10). One realm change, an ask of the Panacea stream (the ruling's client, K1-K4 and four audience scopes). Our own Keycloak, run by the Keycloak Operator, waits for the customer-hosted tier (3.11).
+1. **Sign-in: Panacea's Keycloak realm, now** (3.10). One realm change, an ask of the Panacea stream (the ruling's client, K1-K4 and four audience scopes). Our own Keycloak, as the identity ruling's §9 already plans it, waits for the customer-hosted tier (3.11).
 2. **Gateway: our own LiteLLM, rebuilt from the MIT tree, with `keysmith` and `gatekeeper` as planned** (3.14). `keysmith` starts from Panacea's key-minting code. Panacea's gateway cannot serve agents: it has no AU route, attributes spend to the project only, and is in-cluster (§2). LiteLLM keeps pod binding, JWT auth, audit logs and key rotation for its paid tier, which is why our two services exist.
 3. **Hub: finish our Go Hub on Azure Database for PostgreSQL Flexible Server** (3.1). Tasks 01-07b are done (the schema, row-level security and the hash chain); a real Keycloak in the local stack replaces `devissuer` (3.12). Self-hosted Supabase would take about 13 days against 10 and add a dozen services. It lacks PITR, supports Kubernetes only through a community chart, and trusts Keycloak only by a pasted key list (3.2).
 4. **Environment: our AKS in Australia East, with Panacea's production Terraform copied into our OpenTofu modules** (3.18), and Azure Key Vault, Blob and Monitor (3.21). Coolify cannot host the sandboxes (3.20). Hosting the Hub on Panacea is the fallback only if the subscription is late (3.4).
-5. **What it replaces:** about 2.3 of about 27 engineer-days still planned across the Hub, phase 6 and phase 8 (§5). It is not "most of" them, because those plans already stand on the best third-party parts. What remains is our domain logic and the glue.
+5. **What it replaces:** about 2.1 of about 27 engineer-days still planned across the Hub, phase 6 and phase 8 (§5). It is not "most of" them, because those plans already stand on the best third-party parts. What remains is our domain logic and the glue.
 
 **Owner calls** (§7): the subscription and its fallback; which accounts back Global and AU, and carry zero retention; the budget defaults; sign-in resting on Panacea's Keycloak until our own; what customers are told about AU.
 
@@ -73,7 +73,7 @@ Paths are in `Projects/Panacea` (read-only; grep only), as of 2026-09-30. `00-pa
 - **Deploy:** Flexible Server in Australia East, private endpoint only, zone-redundant HA and geo-redundant backup to the paired region, as Panacea's `postgres-flexible.tf:255-285` already does; the Hub as one Deployment on our AKS beside the control plane.
 - **Enterprise fit:** Entra authentication, custom roles and row-level security are supported ([Azure docs](https://learn.microsoft.com/en-us/azure/postgresql/security/security-access-control)); the schema needs no superuser and no extension (`roles.sql` creates two `NOLOGIN` roles); an AU-only estate by construction; goes into a customer's subscription unchanged. Burstable B2ms is US$0.208 an hour (about US$152 a month) at list (Azure Retail Prices API, 2026-09-30).
 - **Maturity:** Microsoft-run. The Hub itself: tasks 44a, 00 and 01-07b done, about 24.5 of its 133.5 plan-hours.
-- **Gaps:** the server routes (tasks 08, 13-27) and the client (28-42) are still to write: about **80 plan-hours** to the minimum Hub (S7), after 3.12 removes 5.
+- **Gaps:** the server routes (tasks 08, 13-27) and the client (28-42) are still to write: about **81 plan-hours** to the minimum Hub (S7), after 3.12 removes about 4.
 - **Effort:** **about 10 engineer-days**; the plan's critical path with two engineers is about 5 working days (lane A, tasks 08 and 13-24, 41 hours).
 - **Why it wins:** the Hub's value is its domain rules (digest-checked revisions, the pin, the chain), and those are ours under every option; the store underneath is the part a product can take, and Azure's managed Postgres takes it with HA, point-in-time restore and Entra built in.
 
@@ -95,7 +95,7 @@ Paths are in `Projects/Panacea` (read-only; grep only), as of 2026-09-30. `00-pa
 
 - **Does:** `POST /api/v1/projects` with `enableDatabase: true` gives the Hub a namespace, TLS, DNS, a CloudNativePG database with backups and point-in-time revert, scans, rollback and logs (`00-panacea.md` §3, §7).
 - **Gaps:** the tenant role is `NOCREATEROLE` (`clients/db_roles_ensure.go:97-109`), so `hub_owner` and `hub_app` map onto Panacea's migrate and runtime roles with reworked grants; Panacea's runtime-role grants cover `public` only (`clients/db_roles_ops.go:113-124`), so the `hub` schema keeps its own, which needs checking; a serve-without-SSO posture exception; our control plane's egress IP on Panacea's edge allow-list; client briefs behind the production DLP gate.
-- **Effort:** about 1.5 engineer-days of hosting glue, against about 1.25 for 3.1 on an AKS we stand up anyway (01-sandboxes). The Hub's own 10 days are the same under both.
+- **Effort:** about 1.5 engineer-days of hosting glue, against about 1 for 3.1 on an AKS we stand up anyway (01-sandboxes; §6 P2). The Hub's own 10 days are the same under both.
 - **Trade-off in one line:** it saves the wait for a subscription, not work; it costs a shared failure domain for our system of record during Panacea's cutover.
 
 #### 3.5 PostgREST over the built schema — **REFERENCE**
@@ -136,16 +136,17 @@ Briefs as files, approvals as pull-request reviews, releases as tags. Two hosts 
 - **Effort on our side:** none beyond the planned client code (Hub tasks 30-32, 10.5 plan-hours).
 - **Trade-off in one line:** it exists today; our sign-in shares Panacea's availability until 3.11.
 
-#### 3.11 Our own Keycloak, by the Keycloak Operator — **LATER (reference now)**
+#### 3.11 Our own Keycloak, as the ruling already plans it — **LATER (reference now)**
 
-- The operator's realm import applies the realm file the environment stream already wrote (`deploy/keycloak/realm/panacea-app.json`, task 09); its database on our Flexible Server; two replicas with Keycloak 26's persistent sessions.
-- **Catch:** a Keycloak on our own hostname needs its broker endpoint added as a redirect URI on the Entra registration, which is the IT ticket `OD-30` avoided (inferred from the ruling's §1; not asked of IT).
-- **When:** the customer-hosted tier (the customer's Entra, its realm), or sooner if the Panacea ask stalls. About 2 engineer-days; it replaces the Keycloak half of phase 8 task 29.
+- The ruling's §9 plan stands: realm `panacea-app` from the file the environment stream already wrote (`deploy/keycloak/realm/panacea-app.json`, task 09, in keycloak-config-cli's format with nine `$(env:...)` placeholders), converged by a keycloak-config-cli Job (Apache-2.0) on every deploy; two replicas on Keycloak 26, pinned by digest; its database on our Flexible Server (tasks 08, 11, 29).
+- **Product choice inside it:** the Keycloak Operator (Apache-2.0, part of the Keycloak project) can run the server instead of a chart of our own; keycloak-config-cli still converges the realm, because a create-only import "would never land" a changed file (ruling §9).
+- **The one Entra ask:** IT adds one redirect URI and a second client secret on the same registration (ruling §9, IT request Part 2).
+- **When:** the customer-hosted tier (the customer's Entra, its realm), or sooner if the Panacea ask stalls. About 2 engineer-days (tasks 08, 29 and the IT ask); it is the Keycloak half of phase 8 task 29, deferred rather than removed.
 
 #### 3.12 A real Keycloak in the local stack instead of `devissuer` — **ADOPT**
 
-- Hub tasks 11-12 (6 plan-hours) build `devissuer`, a local issuer that imitates Keycloak's layout. Keycloak runs in Docker in dev mode with `--import-realm`, from a dev copy of the same realm file; tests mint tokens through a test-only client in that dev realm.
-- **Gain:** every test runs against the real issuer (discovery, key rotation, refresh rotation, audience mappers) instead of an imitation of it, and a security-sensitive piece of test code is never written. **Cost:** about 1 hour of compose and a test helper; a start of seconds. Net: about **5 plan-hours saved**.
+- Hub tasks 11-12 (6 plan-hours) build `devissuer`, a local issuer that imitates Keycloak's layout. Instead, Keycloak runs in Docker in dev mode, and a one-shot keycloak-config-cli container applies the realm file with dev values for its `$(env:...)` placeholders, the same tool the ruling uses in-cluster (§9); tests mint tokens through a test-only client and local users in that dev realm.
+- **Gain:** every test runs against the real issuer (discovery, key rotation, refresh rotation, audience mappers) instead of an imitation of it, and a security-sensitive piece of test code is never written. **Cost:** about 2 hours of compose, dev values and a token helper; a start of seconds. Net: about **4 plan-hours saved**.
 - **Gap:** `tid` and `oid` for local users come from hard-coded attribute mappers in the dev realm, exactly as `devissuer` would fake them.
 
 #### 3.13 Other identity servers — **REJECT (`OD-30` decided)**
@@ -230,8 +231,8 @@ Days are engineer-days still to do (section 3's rule). "Entra" means sign-in thr
 | 3.7 | Temporal | workflows | MIT | our AKS | n/a | 23,372 stars | n/a | reject |
 | 3.8 | Azure confidential ledger | ledger witness | Azure service | Australia East, pair Australia Southeast | Entra | GA | ~1 | reference (later) |
 | 3.10 | Panacea's Keycloak realm | sign-in | Apache-2.0 | Panacea's | brokers Entra | Keycloak 25.0.0 there; 26.7.4 upstream | **0 ours** (+0.5 Panacea's) | **adopt** |
-| 3.11 | Our own Keycloak (Operator) | sign-in, later | Apache-2.0 | our AKS | brokers Entra; needs a redirect URI (IT) | 37,059 stars | ~2 | later |
-| 3.12 | Keycloak dev container | test issuer | Apache-2.0 | laptop Docker | n/a | as above | saves ~0.6 | **adopt** |
+| 3.11 | Our own Keycloak (ruling §9; Operator optional) | sign-in, later | Apache-2.0 | our AKS | brokers Entra; one redirect URI and a secret (IT) | 37,059 stars | ~2 | later |
+| 3.12 | Keycloak dev container with keycloak-config-cli | test issuer | Apache-2.0 | laptop Docker | n/a | as above | saves ~0.5 | **adopt** |
 | 3.14 | LiteLLM, ours, MIT tree, Panacea's key code | gateway | MIT (`enterprise/` stripped) | our AKS, Australia East; Global = Anthropic API, AU = Bedrock Sydney | callers present realm tokens (`keysmith`) | 59,884 stars, v1.103.1 | **~8.2** | **adopt** |
 | 3.15 | Panacea's LiteLLM | gateway | MIT | Panacea in-cluster | none for agents | v1.63.11 or v1.40.0 | n/a | reject (take its code) |
 | 3.16 | LiteLLM Enterprise | gateway add-on | commercial | ours | admin-UI SSO | contact sales | ~0.5 | buy later |
@@ -259,7 +260,7 @@ Why this answer:
 
 | Days | Work | Whose | Plan tasks |
 |---|---|---|---|
-| 10 | The Hub to its minimum (S7), with `devissuer` replaced by a Keycloak dev container (3.12) | Hub stream | 08-10, 13-24, 28-35, 37-39: about 80 plan-hours |
+| 10 | The Hub to its minimum (S7), with `devissuer` replaced by a Keycloak dev container (3.12) | Hub stream | 08-10, 13-24, 28-35, 37-39: about 81 plan-hours |
 | 8.2 | The gateway | phase 6 | all 29; task 22 becomes an Orca panel if 02 rules so |
 | 1 | Environment glue for first use: one Flexible Server (databases `hub` and `litellm`, private endpoint), Key Vault, DNS and ingress for the Hub and the gateway, by a scripted runbook using Panacea's `.tf` values; codified afterwards in phase 8 tasks 05-08, 10 and 29 | environment stream | new runbook; then 05-08 at half their hours |
 | 0 | The realm change: about half a day of the Panacea stream's time, not ours | Panacea stream | an ask |
@@ -269,16 +270,16 @@ The total above is **about 19 engineer-days**. The elapsed time is set by lanes,
 
 ### What it replaces in our plan
 
-- **Hub** (50 tasks, 133.5 plan-hours): removes tasks 11-12 (`devissuer`, 6 hours) and adds about 1, so **net 5 hours**. Under Orca, tasks 32, 37-38 and 40-42 (about 22 plan-hours) may drop or move into Orca panels. That is 02's ruling, so it is not counted here.
+- **Hub** (50 tasks, 133.5 plan-hours): removes tasks 11-12 (`devissuer`, 6 hours) and adds about 2, so **net about 4 hours**. Under Orca, tasks 32, 37-38 and 40-42 (about 22 plan-hours) may drop or move into Orca panels. That is 02's ruling, so it is not counted here.
 - **Phase 6** (29 tasks, 8.85 plan-days): removes no task. Tasks 04 and 07 start from Panacea's code (about 0.3 days less), and task 22 moves to Orca if 02 so rules (0.4 days).
 - **Phase 8** (37 part files, 98.5 plan-hours, about 53 of them this capability's): tasks 05-08 start from Panacea's files (**about 6 hours less**). The Keycloak half of task 29 waits for our own Keycloak (about 1.5 hours less now). Task 09's realm file also seeds the dev container.
-- **Honest total:** about 2.3 engineer-days out of about 27 still to build across the three plans. **It does not replace most of the Hub, phase 6 or phase 8.** Those plans already stand on the best third-party parts. What remains is our domain logic and the glue between products, and 3.2, 3.4 and 3.20 show that swapping the substrate does not shrink it.
+- **Honest total:** about 2.1 engineer-days out of about 27 still to build across the three plans. **It does not replace most of the Hub, phase 6 or phase 8.** Those plans already stand on the best third-party parts. What remains is our domain logic and the glue between products, and 3.2, 3.4 and 3.20 show that swapping the substrate does not shrink it.
 
 ### Risks
 
 1. **Panacea's realm:** Keycloak 25 on one replica, so its outages are ours. The ask lands in another session's repo during a cutover. Mitigation: our own Keycloak (3.11) is about 2 days whenever it is needed, and the realm file already exists.
 2. **LiteLLM moves weekly** and has two verified defects (`OD-33`). Pin by digest, and run the canary first.
-3. **The Hub's 80 plan-hours are estimates.** Review has grown them before (review M4 added 6.5 hours).
+3. **The Hub's 81 plan-hours are estimates.** Review has grown them before (review M4 added 6.5 hours).
 4. **Copied Terraform is a fork.** Panacea's later fixes do not reach us. Record the source commit in each header, and re-diff at the Panacea lift.
 5. **A customer may forbid PaaS databases.** Then the Hub's Postgres moves to CloudNativePG on AKS (Panacea's tenant pattern, Apache-2.0) behind the same connection string, about 1 day.
 
@@ -288,13 +289,13 @@ New work that no plan holds today. Planned tasks kept as they are (the Hub's min
 
 | # | Glue | Where | Days | Needs first |
 |---|---|---|---|---|
-| P1 | **The Keycloak dev container**: a compose service in the Hub's local stack running Keycloak in dev mode with `--import-realm`; a dev copy of the realm file with a test-only client and `tid`/`oid` attribute mappers; a token helper for tests. Replaces Hub tasks 11-12 | `control-plane/cmd/hub` local stack, Hub test harness | 0.15 | environment task 09's realm file (built) |
+| P1 | **The Keycloak dev container**: Keycloak in dev mode in the Hub's local stack, and a one-shot keycloak-config-cli container that applies the realm file with dev values for its placeholders, plus a test-only client and local users carrying `tid` and `oid`; a token helper for tests. Replaces Hub tasks 11-12 | `control-plane/cmd/hub` local stack, Hub test harness | 0.25 | environment task 09's realm file (built) |
 | P2 | **The first-use environment runbook**: one Flexible Server (Burstable in dev; databases `hub` and `litellm`; private endpoint; Entra admin), Key Vault, DNS records and ingress for the Hub and the gateway, with values taken from Panacea's `postgres-flexible.tf` and `object-storage-blob.tf`; phase 8 tasks 05-08 codify it afterwards | `infra/scripts/`, then `infra/terraform/modules/` | 1 | the subscription; 01-sandboxes' AKS half-day |
 | P3 | **Attribution for every Panacea snippet**: a header naming the source path and Panacea commit in each copied `.tf` file and in keysmith's key code, and one `THIRD-PARTY.md` line each | wherever a snippet lands | inside the tasks | `OD-13` relaxed (done) |
 | P4 | **The realm ask, handed over as written**: the ruling's §10, "The Panacea asks, exact" (K1-K4, the `panacea-app-desktop` client, the four audience scopes, the `panacea-app-fleet` client), for the Panacea stream to apply; accepted by the Hub's task 43 real-tenant checklist | Panacea stream; Hub task 43 | 0 of ours (about 0.5 of theirs) | the Panacea stream's capacity during its cutover |
-| P5 | **Later, each on its trigger**: our own Keycloak by the Operator (2 days; a customer-hosted tier or a stalled P4), the ledger witness (0.5-1; an assessor asks), `NOTIFY` pushed as server-sent events (0.5; a surface needs sub-second), the Azure Blob `blobstore` with immutability (0.5; blob sizes) | our AKS | 3.5-4, not in the 19 | the trigger named |
+| P5 | **Later, each on its trigger**: our own Keycloak (3.11: 2 days; a customer-hosted tier or a stalled P4), the ledger witness (0.5-1; an assessor asks), `NOTIFY` pushed as server-sent events (0.5; a surface needs sub-second), the Azure Blob `blobstore` with immutability (0.5; blob sizes) | our AKS | 3.5-4, not in the 19 | the trigger named |
 
-**New glue for first use: about 1.15 days** (P1 and P2). Asks of the Panacea stream: the realm change (P4); recommended, not required, Keycloak 26 with two replicas, so that a pod move is not an outage. 06-deploy's P-3 (Panacea trusts our realm token) is that study's ask, not ours.
+**New glue for first use: about 1.25 days** (P1 and P2). In §5's 19 days, P1 is counted inside the Hub's 81 plan-hours and P2 is the environment row. Asks of the Panacea stream: the realm change (P4); recommended, not required, Keycloak 26 with two replicas, so that a pod move is not an outage. 06-deploy's P-3 (Panacea trusts our realm token) is that study's ask, not ours.
 
 ## 7. Owner calls
 
@@ -322,7 +323,7 @@ The first run (stopped at 09:47) left only this file's skeleton, so there was no
 | 2 | Supabase | not considered for the Hub | considered; **reference, not the Hub** (3.2); Supabase Cloud rejected (3.3) | allowed by the owner; loses on backups, Kubernetes support, Keycloak trust and the Hub's rules |
 | 3 | Coolify | not considered | **rejected** for the environment (3.20) | cannot host the sandboxes; a single VM for the system of record |
 | 4 | Panacea hosting the Hub | ruled out by `OD-5` | **the fallback host** (3.4) | "Panacea is fine to use majority of"; it saves the subscription wait, not work |
-| 5 | Identity | Panacea's realm until phase 8's own Keycloak (`OD-30`) | unchanged; our own Keycloak moves to the Operator and waits for the customer-hosted tier; `devissuer` gives way to a real Keycloak (3.12) | fewer custom parts, and the real issuer in tests |
+| 5 | Identity | Panacea's realm until phase 8's own Keycloak (`OD-30`) | unchanged; our own Keycloak keeps the ruling's §9 plan (the Operator is an option for running it) and waits for the customer-hosted tier; `devissuer` gives way to a real Keycloak (3.12) | fewer custom parts, and the real issuer in tests |
 | 6 | Gateway | LiteLLM with keysmith and gatekeeper (`OD-21`, `OD-33`) | unchanged; alternatives listed as reference only | `OD-21` is locked, and LiteLLM's paid tier is exactly what the two services build |
 | 7 | The cockpit | Hub tasks 41-42 are desktop surfaces | may become Orca panels (02's ruling) | Orca is the owner's pick |
 
@@ -335,7 +336,7 @@ Nothing was installed, deployed or run. Product claims come from documentation, 
 1. **Supabase with Keycloak:** the static-JWKS trust path and the `role` claim mapper are inferred from the self-hosted docs, not tried; 3.2's 13 days are our estimate.
 2. **The Hub as a Panacea project (3.4):** whether Panacea builds from a monorepo subdirectory (`control-plane/cmd/hub`), and whether the `hub` schema's grants survive Panacea's migrate and runtime roles, were not checked.
 3. **Flexible Server:** that `roles.sql` and `0001_init.sql` apply as the Entra administrator (two `NOLOGIN` roles, `SECURITY DEFINER` functions, row-level security) is supported by Azure's documentation but not run; the General Purpose price was not retrieved.
-4. **Estimates, not measurements:** all plan-hours are the plans' own; the savings in §5 (5, 6 and about 2.5 hours) and the 6 elapsed days are ours; the realm ask's half day is our guess at another team's work.
+4. **Estimates, not measurements:** all plan-hours are the plans' own; the savings in §5 (about 4, 6 and 2.5 hours) and the 6 elapsed days are ours; the realm ask's half day is our guess at another team's work.
 5. **Third-party figures:** LiteLLM Enterprise prices (guides, not LiteLLM), Bifrost's open-tier features (vendor pages), Claude in Foundry's regions (press reports), Azure confidential ledger's Australia East listing (a third-party guide; Microsoft's residency page confirms paired-region replication only) and its price (not published).
 6. **Not checked at all:** whether Keycloak events are enabled in Panacea's realm; AVM under OpenTofu; Kelios's API shape, retention terms, and support for `count_tokens` and streaming.
 7. **Source limits:** the GitHub API's unauthenticated quota ran out once mid-run (shared with sibling agents), so Bifrost's, Portkey's and Zitadel's figures are from the Glasses catalogue (observed 2026-09-29 to 30). Glasses is untrusted discovery data; no licence in it was taken as approval.
