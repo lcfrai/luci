@@ -318,7 +318,38 @@ this, and none of them is engineering.
   71.5 hours; kept 31 hours, 27 still to build). Phase 8 tasks 22 and 26 and team-mode tasks 49, 61
   and 63 were not re-read.
 
-## 7. Corrected recommendation
+## 7. Cohesion: does it feel like one app?
+
+**Not as the researcher ships it.** The user's one ask for this run: "even though we are pulling
+from a bunch of different areas, it still all feels cohesive and a part of the same app. I hate when
+it feels like they are all seperate apps merged into one." 02 ships Orca "under its own name"
+(02 §7 call 1) and joins Define, Design and Deploy as "Hub web pages, opened in Orca's browser tabs"
+(02 R4, last row). 08 recommends accepting "several products' faces" for v1 (08 §9 call 2). The
+user's words answer both calls: one app.
+
+**The bar, as five yes-or-no checks on the pilot build:**
+1. **One name and icon:** the user starts one thing.
+2. **One sign-in:** Entra once, zero clicks (`OD-30`), and no second prompt inside the app.
+3. **One journey spine:** Define, Design, Develop and Deploy reachable from every screen, with the
+   brief in view (the provenance thread, `CLAUDE.md`).
+4. **One look:** our tokens (`desktop/src/styles/tokens.css`, 48 variables) on every surface the
+   user works in.
+5. **No leaving the app for a core step:** hand-offs between phases are in-app links, both ways.
+
+**What unforked Orca allows, at source (`59b746ff`):**
+
+| Bar | Unforked Orca | At source |
+|---|---|---|
+| 1 | **No.** The name is in the build | `config/electron-builder.config.cjs`: `appId: 'com.stablyai.orca'` (77), `productName: 'Orca'` (175), `executableName: 'Orca'` (430), update feed `stablyai/orca` (679-682). "Orca" is on 789 of the 18,586 lines of `src/renderer/src/i18n/locales/en.json` (844 times). A plugin language pack is a separate locale the user must choose (`plugin:<key>/<locale>`, `plugin-language-pack-registry.ts:69-76`), not a rename |
+| 2 | **No, inside Orca's browser.** Each browser profile "has its own storage partition", and "Platform passkeys stored by the operating system are not available in Orca yet" (`browser/profiles.mdx:23,31`). Electron's embedded Chromium "does not participate in WAM", and Entra's device-compliance check then fails with "AADSTS53000 / AADSTS53003" (Cypress issue #33836, open since 2026-05-19) | Reasoned for Orca: its browser code was not read, and KPMG's Conditional Access policy is unknown |
+| 3 | **No.** A plugin contributes right-sidebar panels, commands, events, language packs, keybindings, VM recipes and agents, and nothing else (`plugin-manifest.ts:97-119`, `.strict()`): no top-level view, bar or menu. A panel blocks every navigation after its first document (`plugin-panel-navigation-guard.ts:23-40`), and the v0 host API has no URL or browser method (`plugin-host-api.ts:122` on). The `orca:` scheme is registered (builder config line 176), but the only consumers found are skill shares and settings, so the Hub cannot send the user to a lane | Deep links from file names and `skill-share-link.ts` only |
+| 4 | **Partly.** The chrome takes `system`, `dark` or `light` (`document-theme.ts:46-57`), a left-sidebar tint, the app font and terminal themes (`global-settings-types.ts:80-157`). Its palette is stock shadcn neutrals (`main.css`: `--primary: #171717`, dark `--background: #0a0a0a`), and panels are handed Orca's 20 tokens "so panel documents can match the app" (`plugin-panel-design-token-css.ts:3-8`) | Our teal accent, warm graphite and radius scale cannot reach Orca's chrome |
+| 5 | **No.** The browser pane is "a real Chromium window — address bar, history, devtools", and "Tabs are scoped to the worktree" (`browser/overview.mdx:7`). So Define, Design and Deploy would be web pages inside a code tool, swapped out when the worktree changes. Opened from a lane, a page's "HTTP(S), WebSocket, DNS, and loopback traffic still go through the remote host" (`:29`): it travels through the untrusted sandbox, whose egress would have to open to the Hub and Entra | The plugin can open that tab only by having its worker run `orca tab create --url` (`cli/reference.mdx:184`), which rests on the unsandboxed worker (§2 row 3) |
+
+**So "Orca under its own name, with Hub pages in its browser tabs" fails bars 1, 2, 3 and 5, and
+half of 4.** That is the "separate apps merged into one" the user described.
+
+## 8. Corrected recommendation
 
 **Upheld, with corrections. Adopt Orca (`stablyai/orca`, MIT) as the cockpit, unforked.**
 
@@ -366,7 +397,7 @@ for that job.
 Money is unchanged: GitHub Enterprise Cloud at US$21 per user per month, for queued landing on
 private repos.
 
-## 8. What this pass could not verify
+## 9. What this pass could not verify
 
 Nothing was installed, built or run. Every claim is from upstream source or docs, the GitHub API,
 vendor pages, or a read-only grep of Panacea and this repo.
