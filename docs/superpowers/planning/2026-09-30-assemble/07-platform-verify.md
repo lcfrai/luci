@@ -107,24 +107,47 @@ the user asked us to avoid, and one more reason against them.
 
 ## 4. Alternative 2: the Hub hosted as a Panacea project
 
-_Pending._
+**Verdict: it stays the fallback only, and it costs more than 1.5 days.** Every Panacea line
+3.4 cites is at source. The glue is larger than stated, and the failure domain is live today.
+
+| Check | What the source says | Effect on 3.4 |
+|---|---|---|
+| The routes | `POST /api/v1/databases` (`routes.go:1325`); realtime (`:2911-2912`); the Data API `rest/{table}`, where reads need membership and writes a developer (`:2915-2918`) | **holds** |
+| Roles | The tenant runtime role is `LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS` (`db_roles_ensure.go:100-101`). Its grants cover schema `public` only (`db_roles_ops.go:113-124`) | **holds**. The Hub cannot create `hub_owner` or `hub_app` there |
+| The size of that rework | `0001_init.sql` names `hub_app` 23 times and `hub_owner` 3 times. The migrate package's three integration test files hold 40 tests | **new**: the schema's grants must be templated onto Panacea's generated role names and re-proven. Otherwise the Panacea stream must create the roles for us, which is another ask during its cutover |
+| Builds from a subdirectory (3.4's open question, §9.2) | `panacea-build` resolves a build context per component (`manifest/types.go:79-84`, `:111-132`, "defaulted to `./<name>`") | **answered by reading**: `control-plane/cmd/hub` can be a component. Not run |
+| Serving without SSO | Namespace access modes include `panacea-sso`, `kpmg-sso` and `none` (`access_mode_inherit_test.go:25-83`). The Hub validates its own bearer tokens, so it needs `none` | **holds**: a posture exception |
+| The shared failure domain | Two recent production incidents. On 2026-09-21, Keycloak's pod moves logged everyone out (`main.tf` comment, §2 I2). And the owner's memory note of 2026-09-28 (not re-verified today) records every cert-manager renewal dead since mid-August. That was fixed by a hotfix which Argo CD "REVERTS" when it reconnects, and Keycloak's TLS secret there has no `Certificate`, so it never renews | **stronger than stated**: our system of record would share an estate that is actively firefighting |
+
+**Days.** 3.4 says about 1.5 engineer-days of hosting glue. Templating 26 role references and
+re-running 40 tests, plus the posture exception, the egress allow-list and the DSN wiring, come
+to **about 2.5 to 3 days** (our estimate). The Hub's own 10 days are unchanged under either
+host.
+
+**When it is right.** Only if the Azure subscription is late, as 3.4 says. Even then, the
+cheaper bridge may be Flexible Server in any KPMG subscription that exists today, with the Hub
+as one container beside it. That avoids the role rework entirely (not costed; §8).
 
 ## 5. The days, against our architecture
 
 _Pending._
 
-## 6. Missed candidates
+## 6. Cohesion: does the platform layer feel like one app?
 
 _Pending._
 
-## 7. The corrected recommendation
+## 7. Missed candidates
 
 _Pending._
 
-## 8. What I could not verify
+## 8. The corrected recommendation
 
 _Pending._
 
-## 9. Sources
+## 9. What I could not verify
+
+_Pending._
+
+## 10. Sources
 
 _Pending._
