@@ -484,12 +484,30 @@ Only money or what customers see. Everything else above is decided.
    travel into a customer's tenancy as they are: Semgrep's registry rules are internal-use only,
    Vault is BUSL-1.1, MinIO, Grafana, Loki and Tempo are AGPL-3.0, ClamAV is GPL-2.0 (sections 7-8).
    `OD-32` already swaps Vault for OpenBao at the lift; the others need the same treatment then, or a
-   commercial licence (Semgrep, Grafana Enterprise; priced per contributor or per node).
+   commercial licence (Semgrep is priced per contributor; Grafana Enterprise by quote; neither
+   price was checked today).
 
 
 ## 14. Revised for the owner's second direction
 
-_(pending)_
+**There was no earlier version to revise.** The first run of this research was stopped at 09:47
+before it wrote this file (no `00-panacea.md` in `git log --all` before this run's skeleton commit),
+so every section was written under the second direction. What that direction changed, against the
+position the repository held before today:
+
+| Before (the locked decisions and plans) | Now | Why |
+|---|---|---|
+| Panacea is **phase 7's API target only**; "copy no Panacea source" (`OD-13`) | Panacea is the **platform for everything shipped** (deploy, previews, the app's backend, scans, evidence), the **sign-in**, and the **team API**; its code is **copied with attribution** into our sandbox, gateway, environment and Hub tasks | the owner: Panacea is the strong default, snippets allowed |
+| Phase 8 builds **our own Keycloak realm** (task 09) | **deferred**: we stay on Panacea's realm with one new client | it already brokers Entra with no IT ticket; speed |
+| Coolify and Supabase never assessed | assessed on merit (section 10): **rejected** for shipped apps, Supabase a **reference** for the Hub store | the owner allowed them; they lose on ADO, isolation, previews with data, scans and evidence |
+| Forge's pod template was a pattern to read | its **code is copied** into our sandbox hardening; Forge itself is **not** used | its pods are `runc` and preview-shaped; its loop is admin-only and not Claude Code |
+| Panacea's LiteLLM lessons were read, not copied (phase 6 plan) | its key-minting, allow-list, rate-cap and budget code is **copied**; its gateway is still **not** used for agents | in-cluster only, per-project keys, no Bedrock AU path |
+
+**Unchanged on merit:** agent sandboxes on our own AKS with Kata (01-sandboxes), our own LiteLLM,
+and our own shared state on Flexible Server (`OD-5`). Panacea is the better answer for what it
+already runs, and not for what it was never built to run. **Orca** (the cockpit pick) is untouched
+by this file; 02-fleet-cockpit and 06-deploy place Panacea's previews and Deploy panel inside it.
+
 
 ## 15. What was not verified
 
