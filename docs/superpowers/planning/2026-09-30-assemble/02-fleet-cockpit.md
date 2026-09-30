@@ -27,7 +27,62 @@ attribution in the file header.
 
 ### R2. Orca, verified: source, licence, architecture, extension points
 
-(pending)
+Read from source: a blobless clone of `stablyai/orca` at `59b746ff` (2026-09-29); `package.json`
+1.4.214, Electron 43.7.5; `LICENSE` is **MIT**, "Copyright (c) 2026 Lovecast Inc." 30,735 files
+(`src/main` 10,279 · `src/renderer` 10,560 · `src/shared` 2,494 · `src/relay` 390 · `src/cli` 305 ·
+`mobile` 3,434 · `cloud` 527). Nothing was built or run.
+
+| Layer | What it is | Source |
+|---|---|---|
+| Desktop | Electron main + React renderer; a terminal daemon owns PTYs; hook server, git, hosted review, plugins | `src/main`, `src/renderer` |
+| Headless runtime | `orca serve` (same main, no window) or `orcad`; **serves a browser web client** (`/web-index.html`) plus the runtime RPC; each paired client gets a revocable token | `src/main/runtime/rpc/static-web-client-handler.ts`, `src/main/orcad` |
+| SSH relay | Installed on the remote on first connect (needs `node-pty`); owns remote PTYs as leases that survive the desktop closing; git and file providers run there | `src/relay`, docs `ssh.mdx` |
+| Mobile relay + push | Relay cells and a director on GCP (default `us-central1`, database `us-central1` only); push through APNs/FCM; its API and auth services are in a private repo (`stablyai/orca-cloud`); Relay pairing needs an Orca sign-in | `cloud/README.md`, `docs/reference/relay-regional-placement.md` |
+
+**Where agents run** (`ways-to-run.mdx`): local · SSH target · Remote Orca Server (beta) · **Cloud VM
+per workspace** (Settings → Experimental). A recipe's `create` script runs on the Orca host and
+prints one JSON object: *Orca-server mode* (`pairingCode`, `projectRoot`) or *SSH mode*
+(`connection.type: "ssh"`, a `target` with `host`, `port`, `username`, `identityFile`, `jumpHost`
+**or** `proxyCommand`, `portForwards`). Schema v2 `checkoutMode: provisioned-root` has the machine
+clone the workspace itself from `ORCA_REPO_URL` / `ORCA_REPO_REF_HEAD` / `ORCA_REPO_BRANCH`.
+`suspend`, `resume` and `destroy` read the lifecycle JSON on stdin.
+
+**Extension points.**
+1. **Plugin API v1** (`orca-plugin.json`; "EXPERIMENTAL: no compatibility promises until pluginApi
+   v1 freezes"). Contributes `panels` (sandboxed HTML frames in the right sidebar), `commands`
+   (global or per worktree), `events` (`worktree.created`, `worktree.removed`,
+   `agent.status.changed`), `vmRecipes`, `agents`, `keybindings`, `languagePacks`. Capabilities are
+   a closed set — `workspace:read`, `terminal:send`, `notifications:show`, `storage`, `secrets`,
+   `events:subscribe`, `settings:own`; scoped `net:fetch` and `process:exec` "arrive in later
+   phases". Workers are out-of-process Node; install trust, consent, kill list, audit log and a
+   private marketplace exist in `src/main/plugins`.
+2. **Recipes** in the repo's `orca.yaml` (`environmentRecipes`), or shipped by a plugin.
+3. **The `orca` CLI and skills**: `worktree create`, `worktree ps`, orchestration, automations.
+4. Hosted-review providers and the status store are built in, not pluggable.
+
+**Attention.** One status store per execution host, fed by HTTP posts from hooks Orca installs in
+the agent's own config, by **OSC title events** (for Claude Code "a status-line hook that emits OSC
+title events Orca uses for state dots"), by structured-session journals (its native chat), and by a
+cancel inferred from Ctrl+C. Rows carry working / waiting / blocked / done, subagents as children;
+an inbox with unread, an agent dashboard and mobile push sit on top. This is far ahead of ours.
+
+**Landing.** GitHub is deep: inline checks and comments, **Enable auto-merge**, **Merge when ready**
+into the merge queue, stacked PRs. GitLab and Bitbucket create reviews. **Azure DevOps PR creation
+exists** (PAT or bearer token from `ORCA_AZURE_DEVOPS_TOKEN` / `ORCA_AZURE_DEVOPS_ACCESS_TOKEN`,
+drafts supported) and ADO PR state shows in the sidebar and Checks — *this corrects §3a, which said
+"no Azure DevOps"*. No ADO auto-complete was found. "Fix with AI" and "Resolve with AI" hand
+failures to an agent through per-repo action recipes. Line attribution (AI vs human) is local only.
+
+**Resume and fork.** Session History resumes from on-disk transcripts (`claude --resume <id>`) **only
+from local workspaces**; a remote one gets "Copy resume command". No conversation fork was found.
+
+**Enterprise edges.** Telemetry goes to PostHog Cloud, US; `ORCA_TELEMETRY_DISABLED=1` turns it off.
+Account hot-swap and usage read personal subscriptions from `~/.claude` (unused under `OD-19`). No
+SSO or RBAC; the team-auth issue #10687 is open. **Orca's own `docs/reference/windows-edr-posture.md`
+reports six Microsoft Defender for Endpoint incidents in eight days on an enterprise Windows 11 /
+Intune tenant** (1.4.192): path exclusions do not stop them, an MDE alert-suppression rule and an
+ASR allowlist do, and each daily update resets file prevalence. Computer use reads as a
+Collection-tactic incident; leave it off.
 
 ### R3. How we use Orca, concretely
 
