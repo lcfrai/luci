@@ -227,14 +227,41 @@ Cloud mode waits on Panacea applying our egress address (P5b), which is another 
 apply. Orca or Tauri makes no difference to these days: the PKCE client's redirect URIs must cover
 whichever shell signs in.
 
-## 8. Corrected recommendation
+## 8. One app, not several: the seams a user would see
+
+The user's ask for this run: "even though we are pulling from a bunch of different areas, it
+still all feels cohesive and a part of the same app." I walked C1's first hour for a new KPMG
+user and listed each point where another product shows through.
+
+| # | Moment | What the user meets in C1 as reported | Fix | Who, days |
+|---|---|---|---|---|
+| S1 | Sign in | Microsoft's page only, when our client sends `kc_idp_hint=entra` (identity facts, section 8) | none needed | — |
+| S2 | First deploy, no team yet | Panacea refuses to mint a token or create a project until a Panacea team admin approves the person (`rbac.go:357-373`, `authedGrant`); the user has to find Panacea's Portal to ask | the cockpit reads the state, says what is pending and who approves, and sends the request through the team API 05-work-team uses. Approval stays a human act | us, in section 7's cohesion glue |
+| S3 | Connect | Panacea's Portal, Account, "Connect via MCP", mint, copy, paste into our app; again every 90 days by default (`api_keys.go:71-100`) | before P-3: one deep link to that exact page, and a paste field that validates the token, shows its expiry and warns before it lapses. After P-3: gone | us 0.25 (in the glue); Panacea P-3 |
+| S4 | Open a preview in Orca's browser | Keycloak's own page, then a second Microsoft sign-in, the first time per browser store (4.3) | Panacea: `kc_idp_hint=entra` on oauth2-proxy's login URL (config). Us, until then: open previews in the system browser, where the sign-in session already is | Panacea ask; us 0 |
+| S5 | Approve a promotion | 06-deploy keeps approval in Panacea's Portal | the approve route is an owner route callable with the approver's own token (`routes.go:2860`), so the Approve act can sit in our panel for the owner rungs. Production approval is a Panacea SuperAdmin's act (in-handler, `:2859`) and can stay in the Portal. Whether an admin-set step-up refuses token callers there was not traced (`handlers/stepup.go:262-274`) | us, inside 06-deploy's G1 and G3 |
+| S6 | Deep links | G1 links to Portal pages (deploy, environments, access, stages): a Backstage app with its own look | keep them as a secondary "Open in Panacea" link; every daily act (ship, preview, logs, roll back, request promotion) stays a button in our panel | 06-deploy G1, 0 |
+| S7 | Words and errors | raw Panacea errors reach the user (for example "cannot scope a token to ...", `api_keys.go:159`) | the control plane maps Panacea's errors to our copy, in `CONTEXT.md`'s nouns | us, in the glue |
+| S8 | Scan verdicts | a SAST "pass" that scanned nothing (section 2, row 11) would appear on our release card as ours | show only checks Panacea recorded as run; mark SAST not-run until Panacea's fix | us, 0 (G1 rendering) |
+
+**What keeps it one app.** Three rules: every daily act is a button in our cockpit backed by a
+Panacea route, never a trip to the Portal; Panacea appears only as the place the app runs, not as
+a second product to learn; and the brief-to-release thread is drawn by us (06-deploy G2), so
+provenance looks the same in every phase. Coolify plus Supabase would add two consoles and a
+second identity system (section 5); C3 adds none (section 6).
+
+**Net for cohesion.** C1 as reported leaves four seams in a new user's first hour (S2-S5). None
+needs another product. Two need Panacea asks (P-3 and `kc_idp_hint`); the rest are about a day of
+our glue, counted in section 7.
+
+## 9. Corrected recommendation
 
 _Pending._
 
-## 9. Not verified
+## 10. Not verified
 
 _Pending._
 
-## 10. Sources
+## 11. Sources
 
 _Pending._
