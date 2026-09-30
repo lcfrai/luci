@@ -120,8 +120,8 @@ nothing. Every other candidate below came from the web. Licences are from the pr
 |---|---|
 | **What it does** | Open-source design and prototyping tool: boards, components and variants, CSS flex and grid layout, prototyping, comments, version history, native design tokens, plugins, real-time multiplayer. The **official MCP server** (in `penpot/penpot` under `mcp/` since the separate repo was archived in Feb 2026) lets an agent run Plugin-API code in an open file. Tools: `execute_code`, `high_level_overview`, `penpot_api_info`, `export_shape`, `import_image`. The Plugin API's `generateMarkup({type:'html'})` and `generateStyle({type:'css'})` turn shapes into HTML and CSS |
 | **Licence** | **MPL-2.0** (repo page; the Helm chart repo is MPL-2.0 too). Allowed. File-level copyleft only: running it unmodified carries no source duty, and hosting it as SaaS is not distribution at all. If we patch a Penpot file and ship it into a customer tenancy, that one file's source goes with it. Our glue is separate code and stays ours |
-| **Deploys** | Self-host: official Helm chart (`helm repo add penpot https://helm.penpot.app/`), Docker Compose, OpenShift. Parts: frontend (nginx), backend (JVM), exporter (headless Chromium), `penpot-mcp` (its own container since 2.17, proxied at `<public-uri>/mcp/stream`), PostgreSQL, Valkey/Redis, object storage (filesystem or S3). Here that means AKS in Australia East with Azure Database for PostgreSQL and a PVC for objects |
-| **Enterprise fit** | **SSO:** generic OIDC (`enable-login-with-oidc`, `PENPOT_OIDC_BASE_URI=https://<keycloak>/realms/<realm>/`), so it sits behind our Keycloak broker to Entra (`OD-30`). Password login and self-registration can be switched off, and roles map from `PENPOT_OIDC_ROLES`. **Integration surface:** RPC API with access tokens, outbound webhooks (file created/updated, comment added). **Telemetry:** opt-in, off by default. **Residency:** wherever we run it, so Australia East now and the customer's own cloud later |
+| **Deploys** | Self-host: official Helm chart (`helm repo add penpot https://helm.penpot.app/`), Docker Compose, OpenShift. Parts: frontend (nginx), backend (JVM), exporter (headless Chromium), `penpot-mcp` (its own container since 2.17, proxied at `<public-uri>/mcp/stream`), PostgreSQL, Valkey/Redis, object storage (filesystem or S3). *Revised:* here that means the upstream Helm chart 1.10.0 (appVersion 2.18.0, with the `mcp` component built in) on our AKS in Australia East, backed by Azure Database for PostgreSQL Flexible Server, with objects on Azure Blob through S3Proxy (Panacea's pattern). A PVC is the fallback. §1a weighs Panacea and Coolify as hosts |
+| **Enterprise fit** | **SSO:** generic OIDC (`enable-login-with-oidc`, `PENPOT_OIDC_BASE_URI=https://<keycloak>/realms/<realm>/`), so it sits behind our Keycloak broker to Entra (`OD-30`). Password login and self-registration can be switched off, and roles map from `PENPOT_OIDC_ROLES`. **Integration surface:** RPC API with access tokens, outbound webhooks (file created/updated, comment added). **Telemetry:** off by default in Penpot's own config, but **on in the Helm chart** (`telemetryEnabled: true`, corrected in §1a), and G1 turns it off. **Residency:** wherever we run it, so Australia East now and the customer's own cloud later |
 | **Maturity** | ~60.5k stars (GitHub page, read 2026-09-30). Backed by a company (Kaleidos). 2.18.0 is the current release, with 2.19.0 on `develop`. The MCP work is being hardened fast: the 2.16–2.18 changelog adds multi-instance scaling over Redis, a concurrency limiter, tenant-prefixed channels and a security fix (*"MCP tokens being usable as API access tokens"*). Paid support is on offer: Private Server $50,000/yr; cloud Enterprise $25/member/month (penpot.app/pricing) |
 | **Gaps against us** | 1. **The MCP needs an open tab.** *"The MCP plugin runs inside your Penpot browser tab"*, and when the tab freezes, *"MCP fails fast"*. So an agent needs a live tab: either the human's Design lens or a headless runner we host. 2. The repo's multi-user doc still says *"under development … for testing purposes only"*, even though the self-host compose ships it. 3. Frames are **vector shapes with a CSS layout model, not live HTML**. HTML/CSS comes out through `generateMarkup`/`generateStyle`. HTML goes in only through a community plugin (`HTML TO DESIGN`). 4. Token export is **in Tokens Studio format, not DTCG 2025.10**; staff acknowledged this on 2026-05-05. A converter is needed. 5. The UI is Penpot's own, not our design system, which customers will see. 6. Penpot has no idea of a brief, so the provenance wiring is ours |
 | **Integration** | **~9 engineer-days in total. It is usable after about 3.5:** deploy, SSO, embed in the lens, and agents working through the human's open tab. Breakdown in §6 |
@@ -186,6 +186,9 @@ nothing. Every other candidate below came from the web. Licences are from the pr
   framework, and it documents no SSO.
 - **Verdict: Reference.** It is the right idea for *editing the running app* in Develop. Adopting
   it would take ~10+ days (a sandbox provider on our control plane, Supabase, SSO, the gateway).
+- *Revised (§1a):* Supabase is now allowed, so that one objection falls away. The others remain:
+  CodeSandbox dev containers, Next.js and Tailwind only, and no MCP. Orca's Design Mode already
+  covers clicking an element of the running app and handing it to an agent.
 
 ### 3.6 pen.dev (formerly Pencil) — REJECT
 
@@ -285,6 +288,18 @@ nothing. Every other candidate below came from the web. Licences are from the pr
 - **React Grab** is MIT (0.2.0, 2026-08-16). You pick an element in a running React app and it
   hands the element's source location to an agent. That is a one-day Develop-phase addition, not a
   canvas.
+- *Revised (§1a):* if Orca ships as the cockpit, its built-in Design Mode does this (HTML,
+  computed CSS, a cropped screenshot, and the source file and line where there is a source map),
+  so React Grab is not needed.
+
+### 3.15 Panacea, Coolify and Supabase as canvas candidates (added for the second direction)
+
+- **Panacea:** no canvas. The only mention is an unbuilt P2 requirement, *"Visual design editor
+  (drag-and-drop) … GrapesJS or custom"* (`AGENT-BUILDER-SPEC.md:113`). What it contributes here
+  is snippets, and it stays the Deploy step (§1a points 2 and 3).
+- **Coolify:** no canvas. It has a one-click Penpot template, but that is stale at 2.11.1 and
+  lacks MCP. Rejected as the host (§1a point 2).
+- **Supabase:** no canvas. Postgres, auth and realtime, none of which Penpot needs (§1a point 5).
 
 ## 4. Comparison table
 
