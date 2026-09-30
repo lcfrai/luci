@@ -235,7 +235,46 @@ when the first external laptop connects.
 
 ## 8. The corrected recommendation
 
-_Pending._
+**Upheld, with corrections.** Sign in through Panacea's realm now. Run our own LiteLLM, built
+from the MIT tree, with `keysmith` and `gatekeeper`. Finish the Go Hub on Flexible Server. Put
+it all in our own AKS in Australia East, built from Panacea's Terraform under OpenTofu. No
+Supabase, no Coolify. Everything survives at source. What changes:
+
+1. **Sign-in, named plainly.** It is Panacea's **dev** Keycloak 25: one replica, in-memory
+   sessions, no upstream fixes, and it logged everyone out on 2026-09-21 (§2 I2, I4, I5). Keep
+   it for the pilot, because it is the fastest path and needs no IT ticket. But:
+   - make "Keycloak 26, two replicas" a **required** ask, before anyone outside the build team
+     relies on it;
+   - file IT's request for our own realm (one redirect URI and a second secret, ruling §9) on
+     **day 0**, so 3.11's two days are ready if the Panacea ask stalls.
+2. **Gateway: as planned, plus two items.**
+   - Build task 27's image from a tagged commit with hash-locked Python dependencies. LiteLLM's
+     PyPI packages were backdoored on 2026-03-24 (§2 G7).
+   - `gatekeeper` rewrites LiteLLM's own refusals into our voice, as a 429 with
+     `x-should-retry: false` (§6 C3).
+   - Keep Claude apps gateway as the watched alternative (§7.1).
+3. **Hub: as planned, plus a sign-in for Hub pages.** The Define, Design and Deploy lenses
+   become Hub pages in Orca tabs, so add the one-time ticket that becomes a session cookie
+   (§5, §6 C1, about 1 day). Without it, the first page asks for a Microsoft sign-in inside Orca.
+4. **Environment: keep the edge.**
+   - Copy Panacea's `waf-appgw.tf` too; 3.18 dropped it. It is the AU-sovereign public edge that
+     laptop-reachable services need (§7.2).
+   - Drop its unconditional HA block for a Burstable dev server (§2 H3).
+   - Ask for a DNS name and the edge allow-list on day 0 (§5).
+5. **Fallback host (3.4):** about 2.5 to 3 days of glue, not 1.5 (§4).
+6. **Days:** about **20.7 engineer-days**, not 19.2. Five engineers still reach first use in
+   about 6 working days, counted from the day the subscription, DNS name and edge rule exist.
+7. **Cohesion rules for 02 and 06** (§6):
+   - nothing user-facing links to LiteLLM's UI, Keycloak's account console or Backstage;
+   - Hub pages and the loopback page use `docs/DESIGN-SYSTEM.md`;
+   - one project name carries agent and app spend (C4).
+
+**Owner calls, added to 07's §7:**
+
+- **(money)** The WAF_v2 edge: US$0.522 per hour fixed, about US$381 a month, plus capacity
+  units, at list.
+- **(customer-visible)** Accepting that pilot sign-in runs on Panacea's dev estate until
+  Keycloak 26 with two replicas, or our own realm, is in place.
 
 ## 9. What I could not verify
 
