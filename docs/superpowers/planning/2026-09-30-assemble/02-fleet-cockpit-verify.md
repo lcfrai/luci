@@ -409,6 +409,27 @@ cross-lane sidebar and inbox (5.3, cost 1).
   reviewer's comments still happens on the host page in v1, because Orca's hosted review is dark
   inside lanes (§2 row 4).
 
+**Where this differs from 08-verify** (its §7.4 call 2: "upstream for v1", with our pages taking
+Orca's values). Both keep Orca as the one window, and 08-verify's route is the right fallback. This
+pass recommends the thin build for v1 on four at-source grounds:
+1. **The name cannot change upstream** (bar 1). An app called Orca hosting pages from another
+   product is the case the user described.
+2. **Orca's browser pane is the wrong host for our phases.** It is per-worktree, with an address
+   bar, and from a lane its traffic goes through the sandbox (bar 5). Under 01-verify's
+   default-deny egress, a preview or Hub page opened from a lane cannot load unless the sandbox may
+   reach the Hub, Keycloak and Entra. If the owner picks upstream, open our pages only in the
+   anchor clone's worktree on the laptop, never in a lane's.
+3. **The sign-in spike (08-verify R2)** should be expected to fail wherever Conditional Access
+   checks device compliance (bar 2). The session hand-off avoids the question.
+4. **R3's fork costs are smaller than 08-verify carries over:** signing is needed anyway, prevalence
+   resets are fewer than upstream's daily ones, and the rebase happens per pin move (above).
+
+**Counted once:** this section's token file and session hand-off are 08-verify §7.2 items 2 and 4,
+and its Hub page shell (item 1) overlaps the journey bar's phase rail. For the whole product, the
+thin build adds about 3 days over 08-verify's layer (name and feed, the rename, the bar in the
+desktop, the defaults), plus about 0.5 per pin move. The OSC patch replaces the `OD-8` ruling or
+upstream request that both routes need.
+
 ## 8. Corrected recommendation
 
 **Upheld, with corrections. Adopt Orca (`stablyai/orca`, MIT) as the cockpit engine, and ship it as
@@ -463,7 +484,8 @@ for that job.
    PR events.
 5. **One app, not Orca under its own name** (customer-visible, new). This replaces 02's §7 call 1
    and answers 08's §9 call 2. The user's request settles the direction (§7). What is left for the
-   owner: the desktop's name and icon.
+   owner: the desktop's name and icon, and whether v1 uses this thin build (recommended) or
+   08-verify's upstream route, which keeps Orca's name (§7, "Where this differs").
 6. **Code signing** (money, new). Recommend Azure Artifact Signing, US$9.99 a month on Basic, if an
    Australian entity qualifies. Otherwise use an OV code-signing certificate in Key Vault, which
    KPMG may already hold. The Tauri fallback needs one either way (5.1).
