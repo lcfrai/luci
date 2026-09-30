@@ -284,7 +284,63 @@ and the sign-in spike belong to 02's and 08's one-app layer, and are costed ther
 
 ## 7. The corrected recommendation
 
-*(to be filled)*
+**Upheld, with corrections.** Panacea stays the deploy step:
+- **agents** reach it through `panacea-mcp`, behind our allowlist proxy;
+- **our control plane** reaches it through its API;
+- **v1 runs on the dev estate**, for pilots on KPMG's network;
+- **users work on our Deploy page**, never on Panacea's Portal;
+- **the Hub signs** the brief-to-release record.
+
+**About 8.5 engineer-days (7.5 to 9.5), about 5 with two people.**
+
+1. **Target `dev.panacea.kpmg` (`ado-gov/dev`) for v1.** Production runs `kpmg/main` (api
+   v1.108.16), which lacks the evidence export, D10 and `panacea-mcp` (§2.2). Those features reach
+   production with the Central→East cutover.
+2. **GitHub previews only in v1.** ADO pushes go to Forge's agent-deploy pipeline (02-verify §4.1).
+   API-started deploys from an ADO branch are plausible (`clients/pipeline.go:733`) but untested.
+3. **The glue, re-costed (§2.5):**
+
+   | Piece | Days |
+   |---|---|
+   | G1: the Deploy page plus a lane card, with logs, scans, governance and approve in-app | 2.75 |
+   | G2: the signed record, with the evidence bytes stored and no public log | 1.25 |
+   | G3: promotion by data class | 0.75 |
+   | G4: the allowlist proxy with body and lookup rules; `/analyse` refused | 1.5 |
+   | G5: creating the Panacea project with its labels | 0.75 |
+   | The kept phase 7 tasks | 1.7 |
+4. **The shape follows the one-app rules (§6).** The Portal is an operator console. Previews open in
+   the app-level view on the laptop's network. There is one release record in our words.
+5. **The Panacea-side asks, in order.** All of them queue behind the cutover freeze (§2.4), so date
+   each one against it:
+   1. P-3, which removes the Connect-deploy step.
+   2. P-1.
+   3. P-2.
+   4. A single dedicated egress IP for our proxy on the edge allowlist. It widens the whole edge
+      to that IP (§2.3).
+   5. Panacea's own items: P-4 (Chains signing live on the estate, and Kyverno moved up from
+      v1.12.5 before any Enforce flip) and P-5 (DLP).
+6. **The customer-hosted tier needs a priced swap list before any date is promised (§2.1):**
+   - Vault to OpenBao;
+   - MinIO to Azure Blob;
+   - Grafana to Azure Managed Grafana or Perses;
+   - Redis pinned at 7.2.x, or moved to Valkey;
+   - ClamAV kept as a separate program.
+
+**The alternatives:** Coolify plus Supabase plus snippets, **reject upheld** at 18-26 days (§4).
+Azure Container Apps, **reference upheld**, at about 12-19 days as a whole deploy step (§5).
+
+**Owner calls (money or customer-visible):**
+1. **Pilots on the dev estate** (customer-visible). Recommend: first releases are KPMG-network
+   pilots holding no client data (class `none`, the innovation rung) until the cutover and P-4/P-5
+   land. This merges 06's call 1.
+2. **Who can open a shipped app** (customer-visible, *new*). Recommend: KPMG's network only in v1,
+   because the edge allows 14 KPMG IPs and nothing else. A customer's own users need a second public
+   entrypoint. That is a Panacea edge change and a sovereignty call, since Front Door is global.
+3. **Who pays** for running apps and preview databases (06's call 3, unchanged). Key Vault adds
+   about US$5 a month (§3).
+4. **Octopus only on demand** (06's call 4, unchanged).
+
+06's call 2 (users see the Portal) is **withdrawn**: the user's one-app ask answers it.
 
 ## 8. What was not verified
 
