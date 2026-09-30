@@ -240,7 +240,49 @@ owner call 4 rather than implied to be SSO.
 
 ## 7. Are 8 days realistic for our architecture?
 
-*(to be filled)*
+**No. About 10 days (range 8 to 13), and the clock starts only when a subscription with Kata
+quota exists.** The report's day plan is the right plan; four of its steps are under-sized for
+what our code actually is today.
+
+**What our code is today** (read, not assumed):
+
+- The control plane is a single-user, loopback-only process: `defaultAddr = "127.0.0.1:8730"`
+  (`control-plane/cmd/api/config.go:74`), with `validateAddr` enforcing "contract §4's loopback
+  rule" (`:366`). It has no user authentication; the `Bearer` hits in its code are the sandbox
+  attach token. Moving it into the cluster is phase 8's **broker**: task 17 (`cmd/broker` with
+  realm-token authentication, 3 plan-hours) and task 18 (owner-scoped sandboxes and the attach
+  relay, 3.5). Only task 16 (`internal/entra`) is built, on `feat/env`.
+- `katabe` is dormant and fails every create today: it refuses the worktree mount and `WorkDir`
+  that every session sends (`katabe/kata.go:6-11`), and its RuntimeClass name is wrong (2.3 row 1).
+- `sandbox.Manager.List` returns every pod in the namespace; per-caller scoping is phase 8's
+  P8-D4, part of task 18.
+
+| Step (the report's order) | Report | Sceptic | Why the difference |
+|---|---|---|---|
+| AKS, Kata pool, ACR, firewall | 0.5 | 1 | Feature registration (`AllowBringYourOwnPublicIpAddress`), Azure Firewall with a UDR egress path, private ACR; Panacea's `.tf` is a pattern to adapt, not a module to call |
+| agent-sandbox, template, warm pool, timing | 0.5 | 0.5 | Upstream manifests. Our own NetworkPolicy is counted under egress |
+| `katabe` over claims | 1 | 1 | Fix the RuntimeClass constant; create `SandboxClaim`s through our client-go dynamic client. Taking the Go SDK instead adds about 0.5 for the go 1.26 and k8s 0.37 bump |
+| Image and late-bind (Orca runtime, `panacea-mcp`) | 1 | 1.5 | Orca in a Kata guest is unproven: AppImage extraction, Xvfb, an init as PID 1, Chromium's sandbox as UID 1001, Electron's memory inside a fixed-size pod VM |
+| Egress | 1 | 1.5 | Upstream's default opens the internet (2.3 row 8), so every rule is ours: default-deny policy, Firewall FQDN rules, Verdaccio and proxpi, the Panacea allowlist request |
+| Worktree into the sandbox (S8.3) | 1.5 | 1.5 | Holds, with a named mechanism: the control plane cannot mount a running pod's disk, so the clone goes in as a git bundle over `sandboxd`'s bind channel (phase 8's `machined` bundle design, task 21b) and lanes come back the same way |
+| Broker in the cluster behind Keycloak, plus the `wss://` route | 1.5 | 2 | Tasks 17 and 18 alone are 6.5 plan-hours; the ingress, TLS, per-sandbox WebSocket path, source-IP allowlist and log scrubbing (section 6) sit on top |
+| Orca recipe scripts | 0.5 | 0.5 | Windows is documented (PowerShell, or `.cmd` into Git Bash). `panacea login` is counted in 02, not here |
+| Smoke: 10 sessions, claim p50/p95, refill | 0.5 | 0.5 | Holds; add a timed clone and build (Kata IOPS, 2.6 item 5) |
+| **Total** | **8** | **10** | Range 8 to 13; the top end is Orca failing in Kata, or the Firewall UDR design |
+
+**Day 0, outside our control and in nobody's day count:**
+
+1. The subscription itself. Phase 8's plan says: "Until the subscription exists, everything here
+   is proven only by `tofu validate`", and the owner must tag it `panacea-app-estate=<env>`.
+2. Kata vCPU quota for the D-series v5 family in Australia East (phase 8 lists it as an owner
+   precondition).
+3. The `Microsoft.Network/AllowBringYourOwnPublicIpAddress` feature registration.
+4. Two requests to the Panacea side: our egress IP on `edge_allowed_ip_ranges`, and the
+   broker's client scope in Panacea's Keycloak realm (the identity ruling's `panacea-app-broker`).
+
+If KPMG takes a week to hand over a subscription, the first real session is about three weeks
+out, not eight days. That is the single biggest risk to "days, not weeks", and it is a business
+call (section 8).
 
 ## 8. Corrected recommendation
 
