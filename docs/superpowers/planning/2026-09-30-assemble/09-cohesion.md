@@ -232,3 +232,75 @@ short UI transitions are not live indicators, so they stay. The house curve and 
    the changed files.
 3. Keep it out of the person's path (the Portal).
 4. Declare it as an exception in §7, for the owner's eyes.
+
+## 4. One sign-in, one session
+
+**The rule:** Entra once, through the realm, with zero clicks (`OD-30`), and no second sign-in
+page anywhere in the frame. Today's plan covers two of the three places a person's session is
+needed. It misses the third.
+
+| # | Who needs a session | Where it comes from | Covered by |
+|---|---|---|---|
+| 1 | Our build of Orca, the plugin, the recipe scripts, the laptop CLI | `panacea login`: auth-code + PKCE through the realm, loopback, in the system browser, where Windows signs Entra in silently. The token lives in Windows Credential Manager (`OD-6`) | 02-verify §6 (1 day) |
+| 2 | Hub pages in the app-level view | A one-time ticket bought with that token: 60 seconds, single use, bound to the caller, exchanged for an `HttpOnly` Hub cookie | 07-verify §6 C1 (1 day) |
+| 3 | **Every other realm client inside the frame:** Penpot, previews behind oauth2-proxy, Panacea's key page | **A realm SSO session in the frame's own cookie store.** Electron's Chromium keeps its own store and does not use Windows sign-in, so the first of these shows Keycloak's page and then a Microsoft sign-in (00-verify 4.3 and S4; 02-verify §7 bar 2) | **Nobody. This section** |
+| 4 | Agents in sandboxes | A per-session gateway token through `apiKeyHelper`; Penpot bot keys held by the relay. Never a person's session | 01, 04, 07 (counted) |
+| 5 | Reviewers on the host's PR page | Their own GitHub or Azure DevOps sign-in, in their own browser | The v1 exception (§7) |
+
+### 4.1 The fix: hand the realm session into the frame
+
+1. **One partition.** Every web surface in the app-level view shares one Electron session
+   partition, so the Hub, Penpot and previews share one cookie store: one session, one sign-out.
+2. **The hand-off.** At start, our build loads the realm's authorisation endpoint in that
+   partition for a dedicated client, `panacea-frame`, carrying a one-time hand-off ticket from the
+   Hub (row 2's ticket kind, with audience "realm"). That client's browser flow is overridden to
+   begin with **our own small authenticator**. It checks the ticket's signature against the Hub's
+   keys, an expiry of 60 seconds or less, single use (Keycloak's single-use object store) and the
+   user. The realm then sets its own SSO cookie in the frame's store. No page renders.
+3. **Everything else is then standard SSO.** Penpot, oauth2-proxy previews and Panacea's pages
+   complete silently, because a realm session now exists in that store.
+4. **Penpot's own login screen never shows.** Penpot starts OIDC with `POST /api/auth/oidc`, which
+   answers `{redirect-uri}` (`backend/src/app/auth/oidc.clj:1011-1026`, routes `:1162-1171`, at
+   2.18.0). Our Design page makes that call and sends the frame to the answer. The same call
+   carries an `invitation-token`, so the first visit also accepts the team invitation, which
+   removes 04-verify 2.3 row 12's visible step.
+
+**Licence and cost.** The authenticator is our own code on Keycloak's SPI (Keycloak is
+Apache-2.0). `p2-inc/keycloak-magic-link` does this job but is **Elastic License 2.0** (its
+`COPYING`, read today), which is restricted: it forbids providing the software as a hosted or
+managed service and circumventing its licence-key functions, so we could not ship it into a
+customer tenancy. The authenticator is about **1.5 days** (code and tests 1; the client, the flow
+and the shell's call 0.5), plus a security review, because it turns a bearer ticket into a browser
+session. The Penpot shim is **0.25**.
+
+**Where it installs:** in a realm we can extend. On Panacea's dev Keycloak 25 it is a Panacea image
+change, queued behind the cutover freeze (06-verify §2.4). On our own realm (07-verify 3.11, about
+2 days, with IT's request filed on day 0) it is ours. **Recommend our own realm for it**, with
+Penpot's OIDC client in that same realm, and the pilot on §4.2's bridges until it exists.
+
+### 4.2 Until the hand-off exists
+
+- **Previews: a share link, and no realm session at all.** Panacea mints "scoped, expiring share
+  tokens" (`routes.go:1438-1442`): `POST /api/v1/projects/{name}/share-links {host, expiresIn}`,
+  any positive duration up to 30 days, at most 50 active per project
+  (`handlers/share_links.go:25`, `:52-58`). The control plane mints a 30-minute link per preview
+  per person, reuses it while the preview is open, and revokes it after. Only for data classes
+  `none` and `synthetic`: a `protected` preview waits for the realm session. About 0.25 day.
+- **Penpot and the key page: a Windows sign-in bridge.** On Windows, browsers get Entra single
+  sign-on from a primary-refresh-token cookie that Windows issues to them (Edge natively; Chrome
+  and Firefox through the same Windows API). Our build's main process could attach that cookie to
+  the frame's requests to `login.microsoftonline.com`, so Entra signs in silently and
+  device-compliant inside the frame. This is from knowledge, not read today. It is Windows only,
+  and a native module inside an app the EDR already scores, so it is a **pilot bridge: spike it
+  first, about 1 day**. It is never the design.
+- **If both fail:** the pilot shows one Microsoft sign-in inside the frame the first time Penpot
+  opens. That is a declared seam (§7), not an accepted state.
+
+**Sign-out is one act.** It deletes the Credential Manager token, clears the frame partition (Hub,
+realm and Penpot cookies) and calls the realm's end-session endpoint. **A lapsed realm session**
+re-runs the hand-off silently from the stored token. The person only signs in again if Windows
+itself asks.
+
+**What must never appear in the frame:** a Keycloak or Microsoft page on the normal path, Penpot's
+login screen, an Orca account prompt, a pasted Linear or Jira token (Orca's task sources are off),
+or a GitHub sign-in.
