@@ -160,7 +160,28 @@ desktop install and the Defender work. It waits on recipes running from a remote
 
 ### R5. Panacea, Coolify and Supabase for this capability, on merit
 
-(pending)
+Panacea was grepped read-only (`Projects/Panacea`, nothing run); `00-panacea.md` (in progress
+today) covers the full inventory.
+
+| Need in this capability | Best complete answer | Why, in one line |
+|---|---|---|
+| The cockpit | **Orca** (R3) | Panacea has no cockpit; Coolify and Supabase have none |
+| A sandbox per lane | **01's adopt** (AKS Pod Sandboxing + `agent-sandbox`) | Forge's preview pods are shared-kernel and preview-shaped (01 §1) |
+| See the running app for each lane | **Panacea PR previews** — `webhook-receiver` routes `pull_request_opened` to the preview pipeline and `pull_request_closed` to cleanup (`pipeline/trigger.go:1466-1481`), gated per project (`:453-462`) behind a fail-closed input check for fork PRs (`:402-421`); preview access by SSO, IP list or share link and a preview-comments widget (00 §3) | Already on Azure behind Keycloak with Trivy and Falco. Coolify's previews centre on its GitHub App (its docs cover no Azure DevOps), run on Docker hosts rather than AKS, and bring a second identity |
+| Land: review, order, merge, revert | **GitHub merge queue / ADO auto-complete** (§4) | Panacea has no pull-request or queue routes (`routes.go`: none) |
+| An agent deploys from inside its lane | **`panacea-mcp`** with a scoped `pnc_` token (00 §4) | Works with an unmodified agent today |
+| Session → deploy provenance | **Panacea's Forge pattern, copied with attribution**: every ship stamps `X-Panacea-Session-Id` (`webhook-receiver/models/event.go:16`), which routes to the agent pipeline and reports back (`trigger.go:1504-1525`) | Our lane and brief key ride the same way instead of a new mechanism |
+| Attention across devices and teammates | **Orca** for my own agents; **the Hub** for teammates (05) | Supabase Realtime could fan events out, but Orca already mirrors status to its clients and team state is the Hub's call |
+
+**The trade-off in one line:** Panacea is the better complete answer for everything after a lane
+becomes a pull request (preview, scan, deploy, promote, evidence); it has nothing for the cockpit or
+the lane mechanics, which Orca and our control plane cover. **Coolify** (Apache-2.0) and
+**Supabase** (Apache-2.0) are not used here.
+
+**One Panacea gap to close before promising it on Azure DevOps:** `panacea-api` subscribes ADO
+`git.push` and `git.pullrequest.created` only (`handlers/webhook_ado.go:42`), and the receiver's
+PR-event mapping was found only for GitHub (`webhook-receiver/providers/github.go:168-173`). So ADO
+PR previews, and their cleanup when a PR completes, are unverified.
 
 ### R6. The revised recommendation
 
