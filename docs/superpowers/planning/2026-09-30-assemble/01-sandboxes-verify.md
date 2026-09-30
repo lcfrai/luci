@@ -13,11 +13,113 @@ Desk research only: nothing installed or run.
 
 ## 1. What was checked, and how
 
-*(to be filled)*
+All reads on 2026-09-30. Nothing installed, deployed or run; no Azure subscription touched.
+
+- **The report under test:** `01-sandboxes.md`, all 710 lines.
+- **At source, GitHub API** (it answered this time, no 403): repo metadata, `/license` and
+  releases for `kubernetes-sigs/agent-sandbox`; licences for `kata-containers/kata-containers`,
+  `stablyai/orca`, `verdaccio/verdaccio`, `EpicWink/proxpi`; agent-sandbox's `go.mod` and CRD
+  types at tag `v1.0.4` (`api/v1beta1/sandbox_types.go`,
+  `extensions/api/v1beta1/{sandboxclaim,sandboxtemplate,sandboxwarmpool}_types.go`), its Go
+  SDK README and its AKS example page.
+- **Vendor docs:** Microsoft Learn `use-pod-sandboxing` and `considerations-pod-sandboxing`
+  (both updated 2026-09-18), the ACI standby-pool and ACA dynamic-sessions pages (sections 3
+  and 4), the Azure Retail Prices API (Australia East, Linux, pay-as-you-go).
+- **Our code:** `control-plane/internal/backend/katabe/kata.go`,
+  `control-plane/internal/sandbox/manager.go`, `control-plane/go.mod`, `infra/terraform/kata.tf`;
+  the phase 8 plan by grep.
+- **Panacea, read-only greps:** `services/forge-orchestrator/preview/manager.go`,
+  `deploy/forge/deploy-forge-orchestrator.yaml`, `deploy/*.tf`,
+  `docs/superpowers/plans/2026-06-04-magic-roadmap.md`.
 
 ## 2. The recommendation: AKS Pod Sandboxing (Kata) + `kubernetes-sigs/agent-sandbox`
 
-*(to be filled)*
+**Verdict: UPHELD, with six corrections:** 2.3 rows 1 (a bug in our own code), 5, 6, 8, 9
+and 15, plus the unlisted limits and costs in 2.4 and 2.6. None of them changes the choice.
+
+### 2.1 Licence at source
+
+- **agent-sandbox:** Apache-2.0. `GET /repos/kubernetes-sigs/agent-sandbox/license` returns
+  `LICENSE`, SPDX `Apache-2.0`, text "Apache License, Version 2.0, January 2004". Holds.
+- **AKS Pod Sandboxing:** an Azure feature with no fee of its own; it bills as the node VMs.
+  The Kata runtime inside it is `kata-containers/kata-containers`, Apache-2.0 (GitHub API).
+  Microsoft ships it on the node; we redistribute nothing.
+
+### 2.2 Maintenance
+
+- 4,087 stars, 538 forks, 202 open issues; created 2025-08-12; last push 2026-09-29.
+- Releases (GitHub API): v0.5.4 2026-07-30, v1.0.0 08-28, v1.0.1 09-03, v1.0.2 09-11, v1.0.3
+  09-17, v1.0.4 09-24. Weekly, as claimed.
+- **Stability signal the report understates:** v1.0.2, a patch release, carried two breaking
+  changes (the router's `authz.Authorizer` signature, and the router's move to the
+  `agent-sandbox-system` namespace). Pin the exact tag and read every release note on bump.
+- **AKS is a second-class platform upstream.** The flagship blueprints are GKE
+  (`openclaw-fleet-gke`, v1.0.3). The AKS example was last modified 2026-08-14 and already
+  disagrees with Microsoft: it creates the pool with `--workload-runtime KataMshvVmIsolation`,
+  while Microsoft's page (2026-09-18) says `KataVmIsolation`. Follow Microsoft.
+
+### 2.3 Claims checked against the vendor's own docs and source
+
+| # | Claim in `01-sandboxes.md` | Verdict | Evidence |
+|---|---|---|---|
+| 1 | A Hyper-V-backed Kata microVM per pod; `KataVmIsolation`; RuntimeClass `kata-vm-isolation` | **Holds** for Azure. **Our code is wrong:** `control-plane/internal/sandbox/manager.go:20` hardcodes `kata-mshv-vm-isolation` (test at `manager_test.go:33`; `infra/terraform/kata.tf:13` asserts the same). On a `KataVmIsolation` pool every `katabe` pod would fail to schedule | Microsoft: "`runtimeClassName: kata-vm-isolation`"; Hyper-V + Cloud Hypervisor + Azure Linux. Phase 8 decision P8-D15 already flags this as UNVERIFIED; it is now verified |
+| 2 | Nested-virt Dsv5 nodes | **Holds** | Microsoft: "a generation 2 VM size that supports nested virtualization"; upstream: "D-series v3/v4/v5 work; B-series ... do not". D8s_v5 is US$0.48/h in Australia East (Retail Prices API) |
+| 3 | Warm claim "Ready in a couple of seconds" | **Upstream claim only** | AKS example page. Not measured on our image |
+| 4 | `SandboxWarmPool` has a scale subresource, so an HPA drives it | **Holds** | `sandboxwarmpool_types.go:119`, `+kubebuilder:subresource:scale` |
+| 5 | "Pause and resume" | **Partly.** It is `operatingMode: Suspended`, which "terminates the backing Pod but retains the Sandbox object and its volumes". Resume is a new Kata boot plus a disk re-attach, not from the pool, no memory kept | `sandbox_types.go:297-300` |
+| 6 | M8: "a PVC per sandbox or per user" | **Partly.** A claim that brings its own volumes "forces a cold start because warm pool pods will not have these volumes". A warm claim gets the pool pod's own fresh, empty PVC; a per-user disk means a cold start | `sandboxclaim_types.go:134-135` |
+| 7 | Per-session env needs a late-bind | **Holds, and is stronger:** claim `env` "means the Sandbox will always be cold-started"; the template default is `envVarsInjectionPolicy: Disallowed` | `sandboxclaim_types.go:127-129`; `sandboxtemplate_types.go:130-132` |
+| 8 | M7: "Egress default-deny with an allowlist is ordinary Kubernetes" | **Does not hold as written.** Upstream's managed default is "Egress: Allow Public Internet only. Blocks internal IPs (RFC1918), Metadata Server", i.e. the internet is open. Its policy is "a restricted subset of the standard Kubernetes NetworkPolicySpec": IPs and ports, no FQDNs. An FQDN allowlist needs Azure Firewall application rules (costed) or ACNS FQDN filtering (a paid add-on, 2.4). The default ingress admits "only ... the Sandbox Router", so a pod-IP dial from our control plane needs an explicit ingress rule | `sandboxtemplate_types.go:84-113` (default at 105-106) |
+| 9 | "Go SDK" (S1) | **Holds, but it is the wrong tool.** The SDK lives in the root module: `go 1.26.0`, `k8s.io/* v0.37.0`, `controller-runtime v0.25.0`, OTel, gRPC. Ours is `go 1.23`, `k8s.io/* v0.31.1`. Its extras (`Run`, `Read`, `Write`) target upstream's own `sandboxd`, which we do not run | agent-sandbox `go.mod` at v1.0.4; `clients/go/README.md`; `control-plane/go.mod` |
+| 10 | Router scoped tokens (Ed25519, v1.0.2); SDK pod-IP connectivity (v1.0.2) | **Holds** | v1.0.2 notes: "Scoped-Token v2 Target Binding", `ConnectivityInClusterPodIP`. `ALLOW_UNAUTHENTICATED_ROUTER` is "demo-only" (example page) |
+| 11 | Defender for Containers cannot assess Kata pods | **Holds** | Microsoft limitations list |
+| 12 | Falco cannot see inside a Kata guest | **Holds as inference.** Third-party write-ups agree the host sees only the VMM process; no Falco primary doc found | cloudsecburrito.com "Runtime Security in Kata" |
+| 13 | Managed node auto-provisioning does not support Kata | **Holds** for managed NAP (`Azure/AKS#5843`, open since 2026-06-26). Self-hosted `karpenter-provider-azure` merged `workloadRuntime` on 2026-09-04 (PR 1721) | GitHub API |
+| 14 | `kubectl port-forward` cannot enter a Kata guest | **Holds** | Example page: "kubectl port-forward will not work for Kata pods" |
+| 15 | The template takes "Panacea's Forge security context: UID 1001, read-only root, drop ALL, seccomp" | **Mostly already done, one line is a no-op.** Our `manager.go:151-208` already sets UID 1001, non-root, read-only root, no escalation, drop ALL. Only `seccompProfile: RuntimeDefault` (Forge `manager.go:117-118`, `:205-206`) is missing, and inside Kata it likely does nothing: Kata's upstream default is `disable_guest_seccomp = true`, "seccomp is not applied within the guest" | kata-containers `src/runtime/Makefile:236`; `configuration-clh.toml.in:390-393`. AKS's own Kata build not checked |
+
+### 2.4 Paid-tier gates
+
+- **agent-sandbox:** none. Router, warm pool, SDKs and blueprints are all in the Apache-2.0 tree.
+- **AKS Pod Sandboxing:** no fee; the Kata node VMs are the cost. Density is worse than `runc`:
+  each pod VM's memory is fixed at its limit plus overhead (4Gi costs 374Mi more), and
+  fractional CPU limits round up to a whole vCPU (Microsoft considerations page).
+- **Paid items the report did not count:**
+  - **ACNS**, needed only for per-pod FQDN egress rules on Azure CNI powered by Cilium
+    (Kubernetes 1.29 or later). Priced "per node per hour"; Microsoft's page did not render the
+    figure; third-party write-ups say about US$0.025 a node-hour. Azure Firewall, already costed,
+    does FQDN rules for the whole cluster instead, so ACNS is optional.
+  - **AKS Standard tier** (the uptime SLA): US$0.10 per cluster-hour, about US$73 a month
+    (Retail Prices API, Australia East). The report says it is excluded; production needs it.
+  - **Defender for Containers** is billed per vCore and cannot assess Kata pods, so on the Kata
+    pool it buys node-level coverage only.
+
+### 2.5 Azure, AU region, Entra
+
+- **Azure, Australia East:** yes. Microsoft's page names no region restriction, and the D-series
+  v5 sizes are priced in `australiaeast`. Our quota: unverified (no subscription yet, section 7).
+- **Entra:** AKS's Entra integration covers operators (a standard AKS feature, not re-read here).
+  End users never touch AKS; they sign in to our control plane through Keycloak (`OD-30`). That
+  is glue, not something this product supplies.
+- **A customer's cloud:** the same manifests fit any AKS whose owner permits an Azure Linux Kata
+  pool and the two prerequisites in 2.6 (items 1 and 2).
+
+### 2.6 Limits the report did not list (Microsoft's page, 2026-09-18)
+
+1. **A subscription prerequisite:** `Microsoft.Network/AllowBringYourOwnPublicIpAddress` "must be
+   registered in your subscription ... required for Pod sandboxing workloads that use the Kata
+   runtime". In a KPMG-managed or customer subscription this is a platform-team request. It goes
+   on the day-0 checklist.
+2. **"You can't enable FIPS or Trusted Launch on a node pool that uses Pod sandboxing."** A
+   customer baseline or Azure Policy that mandates either needs an exemption for the Kata pool.
+   Panacea's `deploy/*.tf` sets neither (no `fips_enabled`, no `secure_boot`), so copying its
+   Terraform does not collide.
+3. No Arm64; Azure CLI 2.80.0 or later.
+4. The pod VM's memory is fixed when it starts (512Mi if no limit is set), with no ballooning.
+   Orca's Electron runtime (section 6) has to fit inside that fixed size.
+5. "Kata containers might not reach the IOPS performance limits that traditional containers can
+   reach on Azure Files and high-performance local SSD." Git-heavy agents write to the PVC, so
+   the day-8 smoke must time a clone and a build.
 
 ## 3. Alternative 1: Azure Container Instances + standby pools
 
