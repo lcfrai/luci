@@ -1,6 +1,7 @@
 # 08 - Whole products that already do most of it
 
-**Status:** IN PROGRESS (skeleton written first; sections fill in one at a time).
+**Status:** COMPLETE. First write, made under the owner's second direction (the first run, stopped
+at 09:47, left no file; section 6 says what that direction changed). Research only.
 **Date:** 2026-09-30. **Cluster:** 08-whole-product. **Feeds:** the assemble plan, alongside 00-06.
 **Question:** is there an end-to-end product that already covers most of Define -> Design ->
 Develop -> Deploy with parallel cloud agents for an enterprise, which we could build on
@@ -23,7 +24,36 @@ folder. Nothing installed or run. Every claim that could not be checked is marke
 
 ## 1. Answer first
 
-_(pending)_
+**Buy no whole product and build on none: assemble.** The fully-fledged PanaceaApp is Orca on top,
+Panacea underneath, unmodified agent CLIs in our Kata sandboxes between them, and the provenance
+thread in our Hub.
+
+1. **No end-to-end product passes the hard tests** (section 3). The vendors that offer "your
+   infrastructure" move only the *execution* there (Devin, Cursor, Anthropic's self-hosted
+   environments, GitHub's runners, Factory) and keep planning, inference or the session store in
+   their cloud. The app builders (Replit, Lovable, Bolt, v0, Jules, Kiro) host everything
+   themselves. GitHub Spark shut down on 2026-08-31 and Firebase Studio closes on 2027-03-22. The
+   three that self-host whole each replace something we keep: OpenHands Enterprise the agent and
+   the cockpit (and its server is PolyForm Free Trial, a buy), Coder the cockpit (AGPL-3.0),
+   GitLab the git host.
+2. **The whole is the per-phase picks** (section 7): Orca (02), AKS Pod Sandboxing (01), Spec Kit
+   (03), Penpot (04), Azure DevOps Boards and GitHub (05), and **Panacea as the platform** (00, 06):
+   deploy, the shipped app's backend, sign-in and teams.
+3. **Integration: about 59 engineer-days of glue** (57.5 counted by the clusters, 1.5 here). **First
+   app shipped end to end in about 9 working days** with two builders; all of it in about 12-13
+   working days on parallel lanes (estimates composed from the clusters' figures).
+4. **It replaces about 180 planned tasks** (phase 3: 8, phase 4: 12, phase 5: 18, phase 7: 8,
+   phase 8: 4, phase W: 127, phase T: 3), plus phase 2's Tauri Develop views. Counts are the
+   clusters' own.
+5. **New from this cluster.** Panacea's own **Forge** is the best-fitting whole product on
+   enterprise tests, and still not the base: a closed agent loop behind a platform-admin-only gate
+   (4.14); its gates are copied instead. **GitLab's Duo Agent Platform** is the only self-hosted
+   product that already runs the unmodified Claude Code, at the price of a third git host (4.12).
+   And **one journey test** (1.5 days, section 8) proves the seven products behave as one.
+
+**Owner calls (section 9):** confirm no whole-product seats (money); accept that customers see
+several products' faces in v1; note OpenHands Enterprise as the only whole-product fallback; GitLab
+only on customer demand; re-check "buy" quarterly as Anthropic and GitHub close their gaps.
 
 ## 2. The bar a whole product has to clear
 
