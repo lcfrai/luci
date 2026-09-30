@@ -30,11 +30,12 @@ and 59 days.
      shadcn stack as our design system. This cluster adds Penpot in our frame and one page
      template: about 2, plus 0.5 in the journey test (7.1-7.2).
   2. **The Hub is a schema, not a service.** Its routes and client are about 10 engineer-days
-     (07-platform). The gateway, 8.2 days, was costed by no cluster the report summed.
+     (07-platform). The gateway, about 8.4 days (07-verify §5), was costed by no cluster the
+     report summed.
   3. **Panacea is the deploy step and the sign-in, not "the platform".** v1 means the dev estate,
      KPMG-network pilots and GitHub previews only. The Hub, the gateway and the environment are
      ours (06-verify, 00-verify, 07-platform).
-  4. **59 engineer-days becomes about 102 (94-112).** The first app takes about 10-12 working days
+  4. **59 engineer-days becomes about 103 (95-114).** The first app takes about 10-12 working days
      with five builders, or about a month with two. Day 0 can decide the date (section 6).
 - **Alternatives:** OpenHands Enterprise stays reference, and it is a weaker fallback than the
   report says. Its "no Azure DevOps" is wrong (ADO is supported). "Takes our LiteLLM as is" is
@@ -86,10 +87,10 @@ of the platform Panacea covers, and the days.
 | 1 | No whole product passes B1-B10 | Sections 3-5 at source; the rest fail B5 by design | **Holds** |
 | 2 | Owner call 2 and risk 2: *"Customers see several products' faces ... accept for v1"*, because *"One UI of our own over all of them is weeks of build"* | The user's own words (section 1) reject it. The premise is also wrong. The one-app bar does not need one UI over every product. It needs six rules applied to surfaces the clusters already build (section 7). At Orca's source, plugin panels are handed Orca's live design tokens (`PANEL_DESIGN_TOKEN_ALLOWLIST`: `--background`, `--card`, `--primary`, `--accent`, `--border`, `--ring`, `--radius` and others) *"so panel documents can match the app"*. Both Orca and our design system are shadcn/ui on Tailwind with Geist | **Refuted.** It is a v1 requirement, about 9 engineer-days across 02, 06 and this cluster, 2.5 of them here (7.2). Not weeks |
 | 3 | The provenance thread lives in *"the Hub (built; 03)"* (report 8.3) | 07-platform §1 and 3.1: Hub tasks 01-07b are merged (schema, row-level security, the hash chain). The server routes (08, 13-27) and the client (28-42) are unwritten: about 81 plan-hours, about 10 engineer-days | **Refuted.** The thread's store is a schema, not yet a service. Journey steps 2, 5 and 7 all wait on it |
-| 4 | The gateway is *"a dependency, not a given"*, costed by no cluster | 07-platform §0: our LiteLLM plus `keysmith` and `gatekeeper`, **8.2 engineer-days**. Panacea's LiteLLM cannot serve agents: no AU route, spend per project only, in-cluster | **Holds as a warning, now costed.** The total leaves it out |
+| 4 | The gateway is *"a dependency, not a given"*, costed by no cluster | 07-platform §0: our LiteLLM plus `keysmith` and `gatekeeper`, **8.2 engineer-days** (8.4 in 07-verify §5). Panacea's LiteLLM cannot serve agents: no AU route, spend per project only, in-cluster | **Holds as a warning, now costed.** The total leaves it out |
 | 5 | Panacea "underneath" as the platform: deploy, the app's backend, sign-in, teams | 06-verify §2.2-2.4: evidence export, sanitised previews and `panacea-mcp` exist on the dev line only. Production is frozen mid-incident, and P-1 to P-3 queue behind the cutover freeze. The edge admits 14 KPMG `/32`s, so a shipped app opens only from KPMG's network. ADO pushes go to Forge, not to previews. 00-verify §2 adds: Keycloak 25.0.0 on one replica, a year-long owner-level `pnc_`, and a preview that shares the production database by default. 07-platform: the Hub, the gateway and the environment are ours, not Panacea's | **Holds for deploy and sign-in**, on the dev estate, for KPMG-network pilots. "The platform" overstates it |
 | 6 | Orca on top | 02-verify §0: upheld, with landing moved to the laptop CLI, an `OD-8` ruling or our OSC patch, and about 15.5 days, 5 of them to ship it as our app | **Holds, as our thin build**, not under Orca's name |
-| 7 | 59 engineer-days; first app in about 9 working days with two builders; all glue in 12-13 | Section 6 | **Refuted.** About 102 engineer-days. The first app takes about 10-12 working days with five builders, about a month with two |
+| 7 | 59 engineer-days; first app in about 9 working days with two builders; all glue in 12-13 | Section 6 | **Refuted.** About 103 engineer-days. The first app takes about 10-12 working days with five builders, about a month with two |
 
 **What Orca's source says about one look.** Orca's defaults are shadcn's neutral greys
 (`main.css`: `--background: #fff`, `--primary: #171717`; dark `--background: #0a0a0a`), Geist,
@@ -216,7 +217,7 @@ ask changes **how** we assemble (section 7). It does not change **whether** we a
 
 ## 6. The days and the task counts, for our architecture
 
-**59 engineer-days becomes about 102 (94 to 112).** The report sums the clusters' own figures.
+**59 engineer-days becomes about 103 (95 to 114).** The report sums the clusters' own figures.
 Each sibling sceptic has since corrected its cluster, and two whole layers were never in the sum.
 Estimates composed from estimates; nothing measured.
 
@@ -229,24 +230,27 @@ Estimates composed from estimates; nothing measured.
 | Work and team (05) | 17 | **20** (17-23) | 05-verify, complete |
 | Deploy (06) | 6 | **8.5** (7.5-9.5), including 1.4 to bring Portal screens in-app for the one-app ask | 06-verify §2.5, being finished |
 | Platform glue (00) | 2 | **2**, a floor | 00-verify's days are still pending; its §2 adds unsized glue (the preview shares the production database by default) |
-| Hub, gateway, environment (07) | 0 | **19.2** (Hub 10, gateway 8.2, environment 1) | 07-platform §0 and §5; its sceptic is still pending |
+| Hub, gateway, environment (07) | 0 | **20.5** (Hub 10, signed-in Hub pages 1, gateway 8.4, environment 1) | 07-verify §5, which corrects 07-platform's 19.2. Its +1 for signed-in Hub pages overlaps 02-verify's 0.5 in the Hub |
 | Journey test (this cluster) | 1.5 | **2**, with the one-app checks | section 7 |
 | One-app work, this cluster's share *(new)* | 0 | **2** (1.5-2.5): Penpot in our frame, the shared page template | 7.2; the rest of the one-app bar is inside 02's and 06's rows |
-| **Total** | **59** | **about 102** (94-112) | 00's 2 may overlap 07's gateway by up to 2 |
+| **Total** | **59** | **about 103** (95-114) | Rows may overlap by up to 2.5: 00's 2 with 07's gateway, and 02's session hand-off with 07's Hub pages |
 
 **The calendar does not survive either.**
 
 - **First app end to end** (journey steps 1-7) needs these lanes at once: the sandbox (01, about
   10 from day 0), Orca's first ship (02: about 6.5 calendar days, *only if* our build runs as its
   own stream from day 1; about 11.5 in series), the minimum Hub (07: about 5 working days on two
-  engineers), a minimal gateway (07: 8.2), Deploy's first-ship glue (about 5 of 06's 8.5) and the
-  shared page template (1). **With five builders that is about 10-12 working days. With the
-  report's two, about a month** (about 46 engineer-days of first-ship lanes).
+  engineers), a minimal gateway (07-verify: 8.4), signed-in Hub pages (1), Deploy's first-ship
+  glue (about 5 of 06's 8.5) and the shared page template (1). **With five builders that is about
+  10-12 working days. With the report's two, about a month** (about 47 engineer-days of
+  first-ship lanes).
 - **All of it:** about 20-21 working days with five builders; about 10 weeks with two.
 - **Day 0 can decide the date more than the build.** None of it is engineering: an Azure
   subscription, Kata quota and feature registration (01); a Defender suppression rule, an ASR
   allowlist and a code-signing route for our build (02); on Panacea's side, our egress on the edge allowlist, the realm
-  client, and P-1 to P-3 queued behind the cutover freeze (06-verify §2.4, 07); a Teams admin (05).
+  client, and P-1 to P-3 queued behind the cutover freeze (06-verify §2.4, 07); for our own Hub
+  and gateway, a DNS name, an edge allowlist and Keycloak 26 on two replicas (07-verify §5); a
+  Teams admin (05).
 
 **Task counts.** "About 180 planned tasks replaced" is the clusters' own sum. It is not re-derived
 here. Three notes: 02-verify freezes phase 2's Tauri desktop as the fallback rather than retiring
@@ -259,7 +263,7 @@ and a clear day 0. With two it is about a month to the first app. That is an own
 ## 7. Corrected recommendation
 
 **Assemble, and buy no whole product: upheld. But v1 ships as one app, not "several faces", and
-it costs about 102 engineer-days, not 59.** The one app is a desktop under our name: 02-verify's
+it costs about 103 engineer-days, not 59.** The one app is a desktop under our name: 02-verify's
 thin build of the pinned Orca. Every phase opens inside it, in our look, behind one sign-in, with
 the same project and brief in view. The third-party products are engines behind our surfaces where
 they can be (Spec Kit, the trackers, Panacea, LiteLLM). Where they cannot (Penpot's editor), our
@@ -302,8 +306,8 @@ report feared, and each piece is counted once.
 | Design | Penpot 2.18 and its MCP server, inside our Design page | 04-verify: 13 days and one tab per user; wrapped per R1-R4 |
 | Work and team | ADO Boards and GitHub Issues behind our Work page; Teams for notifications that link back in | 05-verify: about 20 days |
 | Deploy | Panacea's API and `panacea-mcp` on the **dev estate**, for KPMG-network pilots; Portal screens brought in-app | 06-verify: GitHub previews only in v1; the edge allowlist |
-| Sign-in | Panacea's Keycloak realm, now | 00-verify: 25.0.0 on one replica, so a patch and a second replica go to the Panacea side |
-| Hub, gateway, environment | **Ours** (07-platform): the Go Hub on Flexible Server; our LiteLLM with `keysmith` and `gatekeeper`; our AKS in Australia East | New to the whole: 19.2 days |
+| Sign-in | Panacea's Keycloak realm, now | 00-verify: 25.0.0 on one replica. 07-verify §5 makes Keycloak 26 on two replicas required before anyone outside the build team relies on it; otherwise our own Keycloak, about 2 days |
+| Hub, gateway, environment | **Ours** (07-platform): the Go Hub on Flexible Server; our LiteLLM with `keysmith` and `gatekeeper`; our AKS in Australia East | New to the whole: about 20.5 days (07-verify §5) |
 | One-app work and journey test | Ours | About 4 days here (2, plus the journey test's 2); the rest of the one-app bar sits in 02 and 06 (7.2) |
 
 ### 7.4 Owner calls, revised (money or customer-visible only)
@@ -340,7 +344,7 @@ estimates, and the calendar assumes the lanes run in parallel as the clusters de
 
 | Area | Not verified | How to close it |
 |---|---|---|
-| Sibling sceptics | 00-, 06- and 07-verify were unfinished when read. 00's days, 06's §3 onward and all of 07-verify's verdict may move the 102 | Re-sum section 6 when all three are complete |
+| Sibling sceptics | 00-, 06- and 07-verify were unfinished when read. 00's days, 06's §3 onward and all of 07-verify's verdict may move the 103 | Re-sum section 6 when all three are complete |
 | Orca, one window | The journey bar and its app-level view are 02-verify's design, not sized against Orca's layout code (its softest number). Whether the `panacea login` session hand-off keeps every Hub page and Penpot free of a second prompt | 02-verify's canary on the first pin, with R6's assertions |
 | Penpot in our frame | Whether an admin can set one default UI theme; whether its OIDC login stays silent inside a same-site frame; the header swap is 04-verify's reading of config, not a test | Part of the 1-day Penpot wrap |
 | The one-app work | The 2 days here and 02-verify's 5 are estimates. Whether it *feels* like one app is the owner's eyes: headless screenshots are blocked on the corporate network | The owner reviews a clickable prototype of the shared shell before build, as the working agreements require |
