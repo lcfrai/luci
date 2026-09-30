@@ -170,6 +170,42 @@ Tests B1-B10 are section 2's. "Phases" names what the product covers end to end.
   contract (claim, lease, owner lock, requeue) is a good check on our control plane's. Re-read
   when self-hosted environments accept ZDR and a gateway.
 
+### 4.6 The prompt-to-app builders: Replit, Lovable, Bolt, v0 - REJECT as the base
+
+These are the products that most literally take "a person from nothing to a shipped application",
+so they are the nearest thing to our whole journey. They are also all vendor-hosted.
+
+| Product | Journey it covers | Deploy and region | Enterprise fit | Licence | Fails |
+|---|---|---|---|---|---|
+| **Replit** (Agent 3) | Prompt, plan, build, database, auth, deploy, all in one hosted IDE | Replit's cloud; Enterprise lists "VPC peering", "single-tenant environments", "region selection" (review sites; regions not published). The Microsoft deal (2025-07-08) deploys to "Microsoft Azure's reliable infrastructure" today and calls "direct deployment to customers' own Azure environments" **planned**; an Azure Marketplace listing exists | SAML SSO, SOC 2 Type II | Commercial | B1 (not in our Azure yet), B2 (unpublished), B4, B5, B7, B9 |
+| **Lovable** | Prompt to full-stack app on Lovable Cloud (a Supabase backend), GitHub sync | Lovable's cloud; regions "Americas, Europe, and Asia Pacific", country regions on request for Enterprise; the region cannot change after enabling | OIDC and SAML with Entra, SCIM, audit logs kept 13 weeks, ZDR models by default (docs.lovable.dev) | Commercial; annual quote | B1, B4 (its models), B5, B7 (GitHub, GitLab, Bitbucket), B9 |
+| **Bolt** (bolt.new; bolt.diy) | Prompt to running app in the browser, deploy | bolt.new is StackBlitz's SaaS. **bolt.diy is MIT**, but it runs on the WebContainer API, which "requires licensing for production usage in a commercial, for-profit setting" | Not verified | MIT code plus a commercial runtime licence | B4, B5, B6 (runs in the user's browser tab), B8 without a WebContainer licence, B9 |
+| **v0** (Vercel) | Prompt to Next.js app, one-click deploy to Vercel, a v0 Platform API | Vercel's cloud (a Sydney function region exists); Vercel's bring-your-own-cloud is AWS only, private beta (July 2026 report) | SAML SSO, RBAC, audit, "data residency controls" (vendor summary, unverified); Team plan US$30 per user per month includes the API | Commercial | B1, B4, B5, B7, B9 |
+
+**Reading.** They win on usability for a first app, which is our wedge too. But every one of them
+is its own IDE, runs its own agent on its own models, and hosts the result on its own cloud.
+Building PanaceaApp on one would mean replacing Orca, the gateway, the sandboxes and Panacea at
+once, for a product none of whose code or data sits in our Azure. 04 §3.13 rejected the same
+four as a canvas.
+
+**Verdict: reject as the base; reference for the first-run experience** (a prompt box that ends
+at a live URL). Our version of that moment is Spec Kit's interview (03) handing to an Orca lane
+that deploys through Panacea.
+
+### 4.7 Factory (Droids) - REJECT, the most gateway-friendly SaaS
+
+- **Does.** Factory's own agent, Droid, in the CLI, IDE, Slack, CI and a web app.
+- **Deploys.** Three patterns (docs.factory.com): cloud-managed ("Factory doesn't broker model
+  access"), hybrid ("Droid operates entirely within your infrastructure"), and fully airgapped
+  ("Factory cloud is not reachable at runtime"). "LLM traffic goes through your gateways", so it
+  would take our LiteLLM. Factory's own cloud holds session content, Global or EU; identity is
+  WorkOS SSO. No Azure-specific or Australian option was found.
+- **Maturity.** US$150M Series C at US$1.5B, April 2026 (press).
+- **Fails.** B2 (session content in Factory's Global or EU cloud), B5 (Droid only, not the
+  unmodified CLIs), B9.
+- **Verdict: reject.** It passes B4 where Devin and Cursor fail, but it replaces the agent, which
+  is the one thing we do not replace.
+
 ## 5. Which can run in a customer's own Azure tenancy
 
 _(pending)_
