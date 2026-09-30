@@ -22,8 +22,9 @@ and landing through the host all survive at source.
   1. **The cloud control plane cannot push or open PRs "with the user's credential".** `OD-6`,
      `OD-22` and `OD-30` keep that credential on the laptop. Landing moves to the laptop CLI, which
      also makes `OD-2`'s "fetched back" literally true (3.2).
-  2. **Orca's attention queue reads PTY bytes** (an OSC 9999 parser). That is the feature we adopt it
-     for, so it is not "display only". It needs an `OD-8` ruling before first ship (2.1).
+  2. **Orca's attention queue reads PTY bytes** (an OSC 9999 parser that needs no token). So any
+     terminal output can forge a row's status and prompt text. That queue is the feature we adopt
+     Orca for, so this is not "display only". It needs an `OD-8` ruling before first ship (2.1).
   3. **Panacea's ADO previews do not exist.** Worse, Panacea routes every ADO push to its Forge
      agent-deploy pipeline, so v1 previews are GitHub only (4.1).
   4. **7.5 days becomes about 10.5; first ship moves from 4.5 to about 6.5.** A day-0 KPMG IT and SOC
@@ -351,8 +352,10 @@ machine's credential helper, the credential-store seam) now serve the laptop CLI
 for that job.
 
 **Owner calls, changed or new:**
-1. **`OD-8` and Orca's OSC status** (new). Recommend accepting it for display in the cockpit only, and
-   letting nothing we build (Hub, team mode, provenance) read it.
+1. **`OD-8` and Orca's OSC status** (new). Recommend accepting it for KPMG's own pilot, for display
+   only, and letting nothing we build (Hub, team mode, provenance) read it. Before a customer
+   tenancy, require the upstream hooks-only option or a small patch of our own. Any terminal output
+   can forge a status and its prompt text (2.1).
 2. **The Defender and ASR prerequisite** (the researcher's call 2). Unchanged, but ask on day 0.
 3. **Land from the laptop, or hand the token to the cloud** (new). Recommend the laptop: it keeps
    `OD-6` as written.
