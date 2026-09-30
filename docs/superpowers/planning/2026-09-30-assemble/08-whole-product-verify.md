@@ -218,7 +218,36 @@ and a clear day 0. With two it is about a month to the first app. That is an own
 
 ## 7. Corrected recommendation
 
-*(to be filled)*
+**Assemble, and buy no whole product: upheld. But v1 ships as one app, not "several faces", and
+it costs about 99 engineer-days, not 59.** Orca is the one window. Every phase opens inside it,
+in one look, behind one sign-in, carrying the same project and brief. The third-party products
+are engines behind our surfaces where they can be, and wrapped in our frame where they cannot.
+
+### 7.1 The one-app rules (every cluster's glue must meet them)
+
+| # | Rule | How, with the products already picked | Left over in v1 |
+|---|---|---|---|
+| R1 | **One window.** Nothing in the main path opens another app or an outside browser | Define: Spec Kit in an Orca terminal, the brief as a Hub page in an Orca tab. Design: Penpot inside our Design page in an Orca tab. Develop: Orca. Deploy: our Deploy page and the plugin panel (06-verify's in-app Portal screens). Previews open in Orca's browser pane. Land and approve from the panel, through the laptop CLI (02-verify §0 item 1) | The host's PR page and Teams stay one click away, as escape hatches |
+| R2 | **One sign-in.** No second login screen after `panacea login` | Every embedded surface trusts the same realm: Hub pages, Penpot (`PENPOT_OIDC_*`, 04-verify 2.3 row 9) and Panacea's preview SSO. Orca's browser pane appears to persist its sessions (file names under `src/main/browser/` only; the code was not read), so the realm cookie should survive restarts | Zero-click Entra inside Orca's Chromium is unverified: a half-day spike |
+| R3 | **One look.** One token set and one typeface on every surface we render | Map our token layer onto the shadcn names Orca already hands its panels. Inside Orca, our pages take Orca's values (panels get them live). Geist on both. Our status vocabulary, the one heartbeat clock and tabular numerals everywhere. Load our terminal theme through Orca's custom terminal themes | Orca's chrome keeps its neutral palette unless the owner pays for a token-only fork (7.3, call 2) |
+| R4 | **One context.** The project, the brief key and the phase rail (Define, Design, Develop, Deploy) sit in the same place on every page | One shared page shell for every Hub page. The plugin panel shows the same brief card. Every deep link carries the project and `brief:bf-…@n` | Penpot's own menus inside its frame |
+| R5 | **One vocabulary.** `CONTEXT.md` nouns on every surface we render | A copy review of our pages and panel against `CONTEXT.md` | Orca's own labels stay Orca's without a fork |
+| R6 | **Proven, not claimed.** The journey test fails if a step leaves Orca, asks for a second sign-in, or drops the brief key | Three assertions on the report's 8.1 steps. The look itself is the owner's eyes: headless screenshots are blocked on the corporate network | None |
+
+### 7.2 The one-app layer, costed: about 4 engineer-days, plus 0.5 in the journey test
+
+1. **Shared Hub page shell**: header, phase rail, brief card, and the empty, error and
+   unauthorised states: 1.5.
+2. **Token bridge**: our layer onto the shadcn names, Orca's values inside Orca, our terminal
+   theme, Geist: 0.5.
+3. **Penpot wrap**: Penpot same-site under our domain. Our ingress swaps its `X-Frame-Options
+   SAMEORIGIN` for `frame-ancestors` (04-verify 2.5 point 5). Silent OIDC, and our header around
+   the frame: 1.
+4. **Sign-in continuity**: the Orca browser-pane spike, then the fix: 0.5 to 1.
+5. **R6's assertions**: 0.5, counted in the journey test's 2.
+
+Already costed elsewhere and not repeated: 06-verify's 1.4 days for in-app Deploy screens and its
+in-app approve, and 02-verify's landing through the laptop CLI.
 
 ## 8. What could not be verified
 
