@@ -256,7 +256,27 @@ our glue, counted in section 7.
 
 ## 9. Corrected recommendation
 
-_Pending._
+**C1 survives, corrected.** Adopt Panacea for everything PanaceaApp ships and as its sign-in;
+keep agent sandboxes, agent inference and our own state off it, with C3 for the state, as the
+report says. What changes:
+
+| # | Report | Corrected |
+|---|---|---|
+| 1 | 2 days of glue on top of 06-deploy's 6 | **about 3-3.75** (section 7) |
+| 2 | "18 scan checks behind a posture gate"; scans "default to warn" | a new project runs **3** checks at warn. P3 declares the posture from the data class when it creates the project. SAST records a PASS without scanning when switched on: Panacea fixes the task (drop `--metrics=off` or bake the rules, and let a missing report reach ERROR) before any class above `none` relies on it; our release card shows SAST as not run until then |
+| 3 | realm trust (P-3) optional, 1-2 days | **required before the first customers**: it is the only fix for seam S3 and for `OD-30`'s zero clicks. 2-3 Panacea days. Day 1 runs on the pasted token |
+| 4 | "an 8-hour project-scoped `pnc_` per sandbox" | the per-session token stays in the control plane even after P-3; G4 matches method and route; Panacea guards or retires legacy key minting (4.2) |
+| 5 | Semgrep rules "fine inside KPMG" | restricted from the first external customer. Panacea moves SAST to Opengrep (LGPL-2.1) with baked rules before then |
+| 6 | three Panacea asks | six (section 7, P5). Plus one risk to raise with the Panacea stream: our sign-in rides on Keycloak 25.0.0 with one replica; a supported 26.x with at least two replicas and a shared cache is theirs to schedule (no plan found in their cutover docs) |
+| 7 | risks | add the withdrawn Bitnami Redis tag (section 3). MinIO is already on Panacea's path to Blob at the rebuild |
+| 8 | cohesion, not assessed | four seams in a new user's first hour; fixes in section 8, all in our cockpit or in Panacea config |
+
+**Alternatives.** Coolify plus Supabase: **reject upheld** (section 5), with two of the report's
+reasons corrected: Azure DevOps deploys do work, and the cockpit could create a Supabase stack
+through Coolify's API. C3 for our own state: **buy upheld**, Australia East only (section 6).
+
+**Owner calls: unchanged.** Internal-network-only previews for the first customers, and which team
+and job code own shipped apps. Nothing above adds a money or customer-visible call.
 
 ## 10. Not verified
 
