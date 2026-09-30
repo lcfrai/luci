@@ -156,13 +156,62 @@ R3). `03` read Orca's docs only, and it conflicts with that ruling in two places
    blocked from sandboxes. Risk 8's "a test asserts the setting is absent" becomes a check of the
    sandbox's Orca settings plus an egress test.
 
-## 3. Alternative 1
+## 3. Alternative 1: OpenSpec (the report's runner-up)
 
-*(to be filled)*
+**Verdict: UPHELD as reference and runner-up, with one fact the report missed: telemetry is on by
+default.**
 
-## 4. Alternative 2
+- **Licence at source:** MIT. `LICENSE` reads "Copyright (c) 2024 OpenSpec Contributors";
+  `package.json` says `"license": "MIT"`. Holds.
+- **Maintenance:** 70,691 stars. Releases v1.13.2 on 2026-09-23, v1.13.1 on 09-17, v1.13.0 on
+  09-09, so about weekly. `MAINTAINERS.md` names **two core maintainers plus a bot**
+  (`@alfred-openspec`). The repo sits under the `Fission-AI` organisation, but no company backing
+  is stated in the file. The report's "small company" is, if anything, generous: the bus factor
+  is two.
+- **Claims:** `/opsx:explore` ("a no-stakes thinking partner"), `/opsx:propose`, `apply` and
+  `archive`, with deltas archived under `openspec/changes/archive/`, and "30+ tools". All hold
+  (README:39-75, 150-158). There is still no structured one-question-with-a-recommendation interview
+  and no glossary or ADR, as the report says.
+- **Missed: telemetry is on unless switched off.** "OpenSpec collects anonymous usage stats … only
+  command names and version … unset means on", "Automatically disabled in CI". It is disabled by
+  `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1` (README:246-254). Its runtime dependencies name no
+  analytics SDK, so the call is plain `fetch` to an endpoint the README does not name. That is
+  fine in our sandbox once the image sets the variable and egress is closed. It is still one more
+  thing to prove than Spec Kit, which names no telemetry.
+- **Fit:** an npm CLI that needs Node ≥ 20.19.0. Our image is `node:20`, so it fits if the tag
+  resolves to 20.19 or later (not checked). No paid tier, and none is needed.
+- **Days:** the report's 9 stream-days are plausible, and the Orca and Publish corrections in 2.5
+  apply equally. **It does not overturn the recommendation.** Spec Kit has the structured `clarify`,
+  a larger maintainer base and GitHub behind it. OpenSpec wins only if change deltas in long-lived
+  repositories matter more than the interview.
 
-*(to be filled)*
+## 4. Alternative 2: Panacea Forge's spec as a Define service (the owner's default, on merit)
+
+**Verdict: the report's rejection is UPHELD, and strengthened at source.** Forge's rules are
+worth taking (section 5). Forge as a Define service is not.
+
+- **Licence:** KPMG's own. Snippets are allowed with attribution (OD-13 relaxed). No issue.
+- **Its own agent loop, confirmed.** `orchestrator.go` speaks the Anthropic Messages shape
+  (`/v1/messages`, `anthropic-version`, around `:690-731`) with its own tools (`write_spec`
+  at `:1548` and `:1777`, `create_file`). Its models are `claude-sonnet-4-6-global` and
+  `claude-opus-4-8-global` (`config.go:171-172`). So the unmodified CLI is not in our sandbox,
+  and `OD-8`'s harness contract does not apply.
+- **Files in Forge's store, confirmed.** `writeSpecTool` validates, then calls
+  `store.SaveFile(ctx, sessionID, "SPEC.md", …)` (`spec_tool.go:34-47`). Nothing lands in a
+  worktree.
+- **Greenfield only, confirmed.** The discovery runs only `if len(files) == 0`
+  (`prompts.go:72`). Otherwise it is build mode on Forge's own project. No path imports a
+  customer repository: the only clone is in `ship/`.
+- **Residency does not switch per project.** The AI provider comes from env or from one
+  platform-wide `platform_settings` row, `ai_providers` (`config.go:36-42, 300-306`), with
+  `-global` model names. `OD-19` wants AU or Global per project.
+- **Reaching it:** Forge accepts exactly one credential, "an `Authorization: Bearer
+  <BACKEND_SECRET>`" (`middleware.go:98-116`). Users come through panacea-api's forge proxy
+  (`routes.go:3106-3108`), which needs a user's `pnc_` token, since realm tokens are refused
+  (`00-panacea.md` §5.2). The report left this unchecked.
+- **Days:** "about 5 days" for a websocket chat client plus an import step is realistic. It would
+  still give a second chat surface, a second agent loop outside the sandbox, no brownfield and
+  no glossary or decisions. **Rejected on merit, not on origin.**
 
 ## 5. The parts grafted in: aihero skills, Forge's spec rules, Panacea's data class
 
