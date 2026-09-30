@@ -76,7 +76,63 @@ is not a one-line setting, and upstream may decline it.
 
 ## 3. The lane path: recipe, plugin, credential-free push
 
-_To be written._
+### 3.1 The recipe seam holds; four details change the flow in R3
+
+Source: `skill-guides/orca-per-workspace-env.md` and `docs/reference/headless-linux-server.md`.
+
+1. **Orca names the lane branch, after pairing.** In Orca-server mode the guide says "let Orca create
+   a linked worktree"; `provisioned-root` is "only ... direct SSH". So the control plane clones a
+   primary checkout to `projectRoot`, and Orca runs `git worktree add` inside it later. `create`
+   cannot know the branch, so the lane endpoint's hook must learn it from the plugin's
+   `worktree.created` event, not fix it at create time.
+2. **`create` gets less than R3 says.** It "runs locally from the repo root" with `ORCA_RECIPE_ID`
+   and `ORCA_VM_INSTANCE_ID`. `ORCA_REPO_URL` and its siblings belong to the SSH `provisioned-root`
+   contract. The repo URL comes from the laptop's anchor clone. The brief key has no field in Orca's
+   new-workspace dialog, so the plugin must hold a pending brief that `create` reads.
+3. **The warm pool saves the Kata boot, not Electron's start.** "Delete the runtime's user-data
+   directory before re-snapshotting, or every workspace from this image shares one pairing
+   identity." `orca serve` (Electron plus Xvfb) must start after the claim.
+4. **The pairing route holds, and Orca asks for more than we give it.** `--pairing-address` takes "a
+   complete reverse proxy URL such as `https://orca.example.com/runtime`". Orca's own advice: "Do not
+   forward the Orca port directly to the public internet. Prefer ... an authenticated tunnel." 01's
+   route is TLS plus a source-IP allowlist, which is short of that.
+
+### 3.2 Push to the lane endpoint holds; "the control plane pushes as the user" does not
+
+- **Holds.** Orca's Push is plain git: it "pushes the worktree's branch to `origin`, setting upstream
+  the first time". Force is a separate `--force-with-lease` action (`review/commit-push.mdx:19-21`),
+  so the hook must allow a lease-guarded rewrite of the lane's own branch, or an agent's rebase fails.
+- **Does not hold.** The lane endpoint and the sandboxes are in the cloud, so R3's "control plane"
+  that pushes and opens the PR is the cloud one. Four rules say it has no credential to do that:
+  `OD-6` keeps the GitHub and ADO tokens "in Windows Credential Manager"; `OD-30` keeps ADO "a
+  personal access token"; `OD-22` gives the cloud "a read-only credential" only, and "every push still
+  uses a signed-in person's own credential"; phase 3 task 13 has the Hub serve that store "over Windows
+  Credential Manager, per signed-in user". R6 prices landing at 1.5 days without this.
+- **The fix inside the rules: land from the laptop.** The plugin's Open PR command runs
+  `panacea lane land <lane>` on the laptop; the worker can spawn a process today (§2 row 3). The CLI
+  fetches the lane branch into the anchor clone under `refs/panacea/lanes/…` (so `OD-2`'s "fetched
+  back" holds as written), pushes through Git Credential Manager, then opens the PR and sets
+  auto-merge or auto-complete with the stored token. The cloud never holds a push credential.
+  **About 1 day more.** The other route, handing the token to the cloud per request or storing it
+  there, changes `OD-6`, so it is the owner's call.
+
+### 3.3 The plugin holds, and it can reach the Hub today
+
+`terminal:send` types "into a terminal you can see (always a specific terminal)"; panels are sandboxed
+frames. The worker is unsandboxed Node (§2 row 3), so the day-1 `net:fetch` spike is settled. The
+risk moves: Orca says scoped `net:fetch` and `process:exec` "arrive in later phases". When they do,
+the plugin must declare them, so the upgrade canary must run the plugin.
+
+### 3.4 New: the agent shares its sandbox with `orca serve`
+
+Orca starts the agent's PTY as its own child and, by default, as the same user. So the agent can read
+the runtime's user data, including the pairing offer ("a capability containing a device credential
+and E2EE material"). It can also kill the server and bind its port. The paired desktop then trusts
+whatever that endpoint sends: files, diffs, status rows, notifications and review actions. That is a
+far richer channel than phase 2's terminal bytes into xterm.js. Orca's remote model assumes the
+runtime host is the user's own machine. The only threat model in the tree is
+`agent-skill-sharing-threat-model.md`. **Not tested, and nobody has reviewed it. It needs a security
+review before any customer tenancy.** The Kata boundary protects the cluster, not the laptop.
 
 ## 4. Landing: GitHub merge queue and Azure DevOps auto-complete
 
