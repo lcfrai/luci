@@ -1,8 +1,8 @@
 # 02 — The agent-fleet cockpit and git lanes: adopt, integrate, buy or keep
 
-**Date:** 2026-09-30. **Status:** first run complete 09:43; **revision for the owner's second
-direction in progress** (§R, read it first — it overrides §0, §3a's Orca row and §5 where they
-differ). Research only, nothing installed or run (§8).
+**Date:** 2026-09-30. **Status:** first run 09:43; **revised for the owner's second direction**
+(§0 is the answer, §R says what changed and why; §3a–§8 are revised in place). Research only:
+Orca's source was read from a clone, nothing was installed, built or run (§8).
 **Question:** which existing product can stand in for the multi-agent cockpit (parallel sessions,
 one worktree each, live terminals, fork and resume, an attention queue) and for landing the work
 back (review, merge queue, PR), instead of us building it?
@@ -17,9 +17,39 @@ attribution in the file header.
 
 ---
 
-## R. Revised for the owner's second direction
+## 0. The answer (revised for the owner's second direction)
 
-*Skeleton — filled in section by section during the relaunch.*
+**Adopt Orca as the cockpit, unforked. Each lane runs in our Kata sandbox through one Panacea
+recipe; one Panacea plugin carries the brief and the lane's PR; landing goes through the customer's
+git host; the running app is reviewed in a Panacea PR preview. 7.5 integration days, 4.5 to first
+ship**, beside 01's 8 days for the sandbox itself.
+
+1. **Orca fits as the cockpit without a fork** (R2, R3). It is MIT, 81,599★, released daily, and its
+   source has the two seams we need: *per-workspace environment recipes* (a `create` script returns
+   a pairing code or SSH target; a plugin can ship the recipe, so customer repos stay untouched)
+   and a *plugin API* (panels, commands, `agent.status.changed`). Its attention queue, inbox, diff
+   notes to the agent and hosted review are far ahead of our phase 2. **Correction:** it does create
+   Azure DevOps PRs.
+2. **Our phase 2 backend survives; its Develop views retire** (R4). The control plane, the
+   `Backend` interface, `katabe`, the reaper, the transcript store (resume and fork, which Orca lacks
+   for remote work) and the gateway token carry on. Under Orca, `orca serve` owns the PTY and
+   `sandboxd` does not wrap it.
+3. **The sandbox still never holds a git credential.** Orca's Push lands in a lane-scoped git
+   endpoint on our control plane; the control plane pushes with the user's credential, opens the
+   PR, and sets GitHub's merge queue or ADO auto-complete (§4). The price: Orca's own GitHub PR
+   features stay dark inside lanes in v1 (owner call 5).
+4. **Panacea wins after the PR opens** (R5): its PR previews, preview access and comments,
+   `panacea-mcp` and the Forge session-id pattern. Coolify and Supabase are not used here.
+5. **Phase 3 loses 28.5 of its 71.5 plan-hours from first ship** (R6); team mode's tasks 49 and 61
+   become host policy and the host queue.
+
+**Owner calls** (§7): ship Orca under its own name; the Defender prerequisite on Windows; land on
+the host page; mobile off; keep the no-credential sandbox. Money: GitHub Enterprise Cloud for the
+queue; AI review per PR.
+
+---
+
+## R. Revised for the owner's second direction
 
 ### R1. What changed and why
 
@@ -236,27 +266,14 @@ if Stably AI changes course.
 
 ---
 
-## 0. The answer (first run, 09:43 — superseded where §R differs)
+## The first run's study (09:43), revised in place where §R changes it
 
-**Keep our cockpit. Land through the customer's git host. Take "needs you" from Claude Code's own
-hooks. 4.5 integration days.**
-
-1. **No product replaces the cockpit without breaking a hard rule.** The best one, Orca (MIT,
-   81,599★, daily releases), is the same single-user desktop class as our phase 2 — with no sandbox
-   per session, no Azure DevOps, no Entra, and a status signal read off the terminal stream.
-   The enterprise platforms either fail `OD-8`, `OD-19`'s gateway and zero retention, or AU
-   residency (GitHub Agent HQ, OpenHands, Warp Oz, Claude Managed Agents), or are an environment
-   rather than a cockpit (Coder, AGPL core — a buy question for phase 8; Ona, now being bought by
-   OpenAI) (§3).
-2. **Landing is where third parties pay.** GitHub's merge queue and Azure DevOps' auto-complete
-   replace phase 3's own land queue, forecast and undo: **about 21 of phase 3's 71.5 plan-hours**
-   leave the first ship (tasks 08, 10, 19 replaced; 09, 14, 20 shrunk; 16, 17, 21 deferred), and
-   team mode's tasks 49 and 61 become host policy and the host queue (§4).
-3. **The attention queue costs 2.5 days, not a plan.** Claude Code posts typed HTTP hooks
-   (`permission_prompt`, `idle_prompt`, `agent_needs_input`, `Stop`) from managed settings; that is
-   the runtime signal phase 2 refused to fake (§6).
-4. **Three owner calls** (§7): land on the host page for v1, GitHub Enterprise Cloud as the
-   requirement for queued landing, and whether AI first-pass review spends tokens on every PR.
+The first run answered "keep our cockpit, land through the host, take 'needs you' from Claude
+Code's hooks, 4.5 days". §0 replaces that answer. What still stands from it: the enterprise
+platforms in §3b each fail a hard rule (`OD-8`, `OD-19`'s gateway and zero retention, AU residency)
+or are an environment rather than a cockpit; landing through GitHub's merge queue and ADO
+auto-complete (§4); and the reasoning of §1–§2. Sections §3a, §3c and §4–§8 below are revised in
+place, each change marked **Revised**.
 
 ## 1. What we already have (phase 2, built)
 
