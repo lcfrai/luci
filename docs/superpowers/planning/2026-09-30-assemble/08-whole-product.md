@@ -542,8 +542,66 @@ Only money or what customers see. Recommendation first in each.
 
 ## 10. What this run could not verify
 
-_(pending)_
+Nothing was installed, signed up for or run. Every day figure is an estimate; the calendar in
+section 7 is composed from the clusters' own estimates, not measured.
+
+| Area | Not verified | Why, or how to close it |
+|---|---|---|
+| Blocked sites | `openhands.dev` (redirects to KPMG's acceptable-use page) and `docs.openhands.dev` (HTTP 403) | OpenHands facts come from its GitHub repositories instead |
+| GitHub API | Orca's stars and latest release | Rate-limited mid-run; figures are GLASSES' and 02's |
+| OpenHands | AKS install; the depth of audit and RBAC; price; that Azure DevOps is absent beyond the chart README | A vendor call and a trial install |
+| GitHub Copilot | Whether Australia joined Copilot data residency by today (02 found it unlisted); bring-your-own-key for the cloud agent | GitHub docs at decision time |
+| Cursor, Factory | Regions; Azure-specific support; Factory's airgapped control plane | Vendor docs behind sales |
+| Replit, Lovable, v0, Bolt | Replit's region list and whether own-Azure deploy shipped; Lovable's exact APAC region; v0's SSO and residency (secondary summaries); bolt.new's enterprise terms and the WebContainer price | Review sites and search summaries only |
+| Kiro, Jules | Whether Kiro's autonomous agent follows the profile regions; Jules' Enterprise terms | Review sites only for Jules |
+| Coder | That Tasks leaves at v2.37 (announced; the latest release is v2.36.6) | Coder's release notes when v2.37 ships |
+| Ona, Codex | The acquisition's close and price; the Agents API's US-only residency and no-ZDR claim | Press and secondary sources only |
+| GitLab | Whether an external agent can be pointed at our LiteLLM instead of GitLab's proxy; Kata `runtimeClassName` on the Kubernetes executor | A trial on a self-managed instance |
+| Power Apps | The region list and Vibe's GA status | Microsoft blog and secondary summaries |
+| Panacea | Forge's live state on dev; whether its Azure DevOps ship path is exercised | Read-only grep; nothing run |
 
 ## 11. Sources
 
-_(pending)_
+Read 2026-09-30. Vendor pages are primary unless marked; "search" means a search-result summary.
+
+- **OpenHands:** GitHub API `repos/OpenHands/OpenHands` (MIT, 89,544 stars, v1.24.0 on 2026-09-25)
+  and `orgs/OpenHands/repos`; `OpenHands/OpenHands` `README.md`; `LICENSE` of `OpenHands/enterprise`
+  and `OpenHands/OpenHands-Cloud` (PolyForm Free Trial 1.0.0); `OpenHands-Cloud` `README.md` and
+  `charts/openhands/README.md`.
+- **Devin:** <https://docs.devin.ai/enterprise/deployment/overview>, <https://docs.devin.ai/enterprise/vpc/overview>.
+- **GitHub:** <https://github.blog/changelog/2025-10-28-copilot-coding-agent-now-supports-self-hosted-runners/>,
+  <https://github.blog/changelog/2026-04-03-organization-runner-controls-for-copilot-cloud-agent/>,
+  <https://github.blog/changelog/2026-04-13-copilot-data-residency-in-us-eu-and-fedramp-compliance-now-available/>,
+  <https://github.blog/changelog/2026-02-19-model-picker-for-copilot-coding-agent-for-copilot-business-and-enterprise-users/>,
+  <https://github.blog/changelog/2026-06-17-copilot-cli-supports-enterprise-bring-your-own-key-byok-models/>,
+  <https://docs.github.com/en/copilot/how-tos/administer-copilot/manage-for-enterprise/manage-spark>,
+  <https://githubnext.com/projects/copilot-workspace/> (search).
+- **Cursor:** <https://cursor.com/docs/cloud-agent/self-hosted>, <https://cursor.com/changelog/03-25-26> (search).
+- **Anthropic:** <https://code.claude.com/docs/en/self-hosted-environments>,
+  <https://code.claude.com/docs/en/claude-code-on-the-web>; Managed Agents from 02 §3b.
+- **Replit:** <https://www.prnewswire.com/news-releases/replit-collaborates-with-microsoft-to-bring-vibe-coding-to-enterprise-customers-302499416.html>;
+  plan features from <https://www.superblocks.com/blog/replit-pricing> (search).
+- **Lovable:** <https://docs.lovable.dev/introduction/lovable-for-enterprise>, <https://docs.lovable.dev/integrations/cloud> (search).
+- **Bolt, v0:** <https://github.com/stackblitz-labs/bolt.diy> (search; GitHub API: MIT, 19,923 stars);
+  v0 from <https://vercel.com/blog/introducing-the-new-v0> and review sites (search).
+- **Factory:** <https://docs.factory.com/enterprise/network-and-deployment>; Series C from press (search).
+- **Kiro:** <https://kiro.dev/docs/enterprise/supported-regions/>; 03 §4.5.
+- **Google:** <https://firebase.google.com/docs/studio/migrating-project> (search);
+  <https://blog.google/innovation-and-ai/models-and-research/google-labs/jules/> and review sites (search).
+- **Coder:** GitHub API `repos/coder/coder` (AGPL-3.0, 16,761 stars, v2.36.6 on 2026-09-18);
+  <https://coder.com/changelog/coder-2-30>, <https://coder.com/docs/ai-coder/tasks> (search).
+- **Ona, Codex:** <https://siliconangle.com/2026/06/11/openai-acquires-ai-agent-orchestration-startup-ona/>,
+  <https://thenextweb.com/news/openai-acquires-ona-codex>,
+  <https://technspire.com/en/blog/openai-agents-api-us-only-residency-your-azure-options> (all search).
+- **GitLab:** <https://about.gitlab.com/blog/gitlab-duo-agent-platform-is-generally-available/>,
+  <https://docs.gitlab.com/user/duo_agent_platform/agents/external_examples/>.
+- **Power Apps:** <https://learn.microsoft.com/en-us/power-apps/vibe/overview>,
+  <https://www.microsoft.com/en-us/power-platform/blog/power-apps/generally-available-host-and-run-code-apps-in-power-apps/> (search).
+- **Panacea** (read-only, `efc637879`): `services/forge-orchestrator/ship/providers.go:14`, `:40-56`;
+  `services/forge-orchestrator/routes/routes.go:71-109`; `docs/architecture/FORGE-IMPLEMENTATION-SPEC.md`
+  §1.6, FR-004, FR-007.
+- **This programme:** `00-panacea.md` to `06-deploy.md` in this folder;
+  `docs/superpowers/planning/2026-09-28-oss-adoption/00-summary.md`;
+  `docs/superpowers/planning/2026-09-23-owner-decisions.md`.
+- **GLASSES** (untrusted discovery data): `gsearch.py "coding agent" --kind solution` returned seven
+  entries; only `stablyai/orca` (`0a8884baa5f55aa6602b`) is a whole-product candidate.
