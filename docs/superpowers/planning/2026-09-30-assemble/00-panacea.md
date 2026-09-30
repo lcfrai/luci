@@ -341,7 +341,43 @@ policy, package mirrors, tenant baseline), reject Panacea as the host of our san
 
 ## 10. Candidates side by side
 
-_(pending)_
+**The question.** Which whole product gives PanaceaApp the platform layer: somewhere to ship each
+app (deploy, previews, promote, rollback, scans, evidence), the app's backend (database, storage,
+secrets, AI key), sign-in, and a backend for our own shared state? Panacea is the strong default;
+the owner named Coolify plus Supabase, with Panacea snippets, as the allowed alternative.
+
+| Candidate | Licence | Deploys where | Enterprise fit (Entra SSO, audit, AU) | Maturity | Days | Verdict |
+|---|---|---|---|---|---|---|
+| **C1 Panacea**, API + `panacea-mcp` + the realm + snippets | KPMG's own code (its stack holds BUSL Vault and AGPL MinIO, Grafana, Loki, Tempo) | runs today on KPMG's Azure, `australiacentral` (`deploy/terraform.tfvars:25`), an Australia East rebuild in cutover | Entra via Keycloak; hash-chained audit on every route; AU yes; posture-gated scans | API v1.163.0, Portal v1.142.0 (`VERSIONS.md`, 2026-09-14); live dev estate | **2.5** here, beyond 06-deploy's 6 | **adopt** |
+| **C2 Coolify + Supabase**, self-hosted, with Panacea snippets | both Apache-2.0; Supabase Auth MIT (GitHub API, 2026-09-30) | Coolify: Docker on Azure VMs, no AKS; Supabase: Docker Compose or a community Helm chart | Coolify OIDC only in a 4.4 RC (06-deploy 3.1), stable is v4.3.23 (2026-09-18); no Azure DevOps (fails `OD-4`); self-hosted Supabase is **one project per stack**, with no branching, managed PITR or management API ([Supabase docs](https://supabase.com/docs/guides/self-hosting)) | 62.4k and 110.9k stars; both active this week | 16-24 to approach C1 (06-deploy section 5) | **reject** for shipped apps |
+| **C3 Azure-native**: PostgreSQL Flexible Server, Blob, Key Vault, Container Apps or AKS | commercial (Azure consumption) | our subscription, Australia East | Entra-native, private endpoints, Defender, PITR, zone-redundant HA, AU yes | GA services | already in phase 8 (tasks 05, 08) | **buy**, for our own backend only |
+| **C4 Supabase for the Hub store** | Apache-2.0 | self-hosted on Azure, or Supabase Cloud in Sydney (AWS, fails `OD-18`) | REST, realtime and storage on day one, but its Auth duplicates Keycloak and self-hosted backups are ours | as C2 | 3-4 to replace the Hub's Postgres layer | **reference** |
+| **C5 Appwrite** (GLASSES `6968183a54d9012013f1`) | BSD-3-Clause | self-hosted Docker | no Entra for its console; no scans, gate or evidence | 57.5k stars | not costed | **reject** |
+| **C6 The Hub as a Panacea project** | as C1 | Panacea's cluster | as C1, plus our shared state on another team's dev estate | as C1 | 0.5 | **reject** as the default (conflicts with `OD-5`) |
+
+**C1 on merit.** It is the only candidate that already does the whole shipped-app job in our
+regulated setting: per-branch previews with SSO and a branched database, a stage ladder with owner
+approval, rollback with warmth, 18 scan checks behind a monotone posture gate, a per-release
+evidence export, per-app Postgres, storage, secrets and an AI key, and Azure DevOps plus GitHub.
+Everything it lacks for us is small and named in section 12. **Trade-off: our shipped apps share
+Panacea's estate and its incidents; in exchange we build almost none of it.**
+
+**C2 on merit.** Coolify plus Supabase is a good small-team pair and a weaker enterprise one. For the
+apps we ship, every app would be its own Supabase stack of about a dozen containers, with no
+branch-per-preview database, no PITR and no API to create one from the cockpit, behind Coolify's
+Docker hosts with no Azure DevOps and no scans. Panacea snippets would have to supply the gate,
+scans and evidence: that is re-building Panacea on a weaker base. **Trade-off: permissive and
+portable to a customer's cloud, but 16-24 days to approach what C1 gives on day one.**
+
+**C3 and C4, for our own backend.** The phase 8 plan already puts the Hub on Flexible Server,
+Entra-only (`env` plan task 08) and secrets in Key Vault (task 05). Supabase would give REST and
+realtime for free, but the Hub's contract is its own Go API (`hubapi`) with row-level security
+and a hash-chained audit (Hub tasks 07a-14), so Supabase would replace little. **Keep C3.**
+
+**C6, the fastest store and the wrong one.** Creating the Hub as a Panacea project gives Postgres,
+storage, TLS and scans in half a day, but puts `OD-3`'s shared state on Panacea's dev estate and
+contradicts `OD-5`. Use it only as a stopgap if our subscription is late (section 13).
+
 
 ## 11. Recommendation
 
