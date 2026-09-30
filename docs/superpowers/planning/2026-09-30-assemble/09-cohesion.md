@@ -354,3 +354,72 @@ A lens is never marked done because its records exist.
 
 **Cost:** the chip and the card sit inside 02-verify's journey bar and 08-verify's template. The
 drawer, with every record linking to its source, is **about 1 day new**.
+
+### 5.3 One palette that reaches every capability
+
+**The palette is Orca's Cmd+J palette, bound to ⌘K as well.** At `59b746ff` plugin commands
+already appear in it. A selected action whose id starts with `plugin:` runs the plugin's command
+(`use-worktree-jump-palette-selection-actions.ts:193`), and `AppCommandSource` is
+`'plugin-keybinding' | 'plugin-palette'` (`lib/app-command-dispatch.ts:3`). So the Panacea
+plugin's `commands` land in the one palette with no fork. They can also take keybindings
+(`plugin:<key>/<commandId>`) and alias a closed list of built-in actions
+(`shared/plugins/plugin-command-actions.ts`).
+
+**What the plugin contributes, in our words:**
+
+| Capability | Commands |
+|---|---|
+| Desk | Open the Desk · Quiet for 30 minutes · Pause everything |
+| Define | Define from an idea, a repo or a ticket · Publish brief · Open the brief |
+| Design | Open the design · Ask for design approval |
+| Work | Start on a ticket · Open Work |
+| Develop | New lane on this branch · Fork this session · Land this lane |
+| Deploy | Ship a preview · Open the preview · Request promotion · Roll back |
+| Thread | Open the thread · Go to the session behind this |
+
+**Three pieces of glue make it one palette everywhere:**
+1. **Lens moves are built-in actions.** Our build adds `panacea.lens.*` and `panacea.desk.open`
+   to Orca's closed alias list, inside the journey-bar change, so the plugin can alias them.
+2. **The chord works on every surface.** Keys typed inside the app-level view, including inside
+   Penpot's frame, never reach Orca's renderer. Our build's main process catches ⌘K and Ctrl+K on
+   that view with Electron's `before-input-event` and opens the palette (from knowledge, not
+   tested). A Penpot shortcut on the same chord loses.
+3. **Coverage is a test.** A registry lists every person-facing action on every Hub page and in
+   the lane card. The build fails if any of them has no palette entry.
+
+**Cost: about 1 day new.** The commands are thin calls to routes each cluster already builds. The
+plugin worker can make them today, because it is unsandboxed (02-verify §2 row 3). When Orca ships
+a scoped `net:fetch`, the manifest declares it and the pin-move canary runs the palette.
+
+### 5.4 One attention queue: the Desk
+
+**Only the Desk ranks, counts and asks** (AGENTIC-UX rule 4; anti-pattern 10). Orca's bell,
+unread counts, Agents feed and per-agent notifications are off (§2 row 2). Orca's sidebar keeps
+one static status dot per row, in our colours and shapes, and no numbers. This also retires the
+queue 02 adopted from Orca, which reads OSC status out of PTY bytes that any terminal output can
+forge (02-verify 2.1). The Desk takes typed facts only (`OD-8`).
+
+| Source | How it reaches the Desk | Rows it makes (AGENTIC-UX's classes) |
+|---|---|---|
+| Agents in lanes | Claude Code's typed HTTP hooks, through `sandboxd`, to the Hub: 02 R6's "later" relay (1.5 days, counted), **moved to first ship** | NEEDS YOU (a permission prompt, a question), FAILED, DECIDED WITHOUT YOU, LANDED; RUNNING with its meaning and next lines |
+| Trackers (ADO, GitHub) | Service hooks and webhooks, or polling (05-verify §8), through the control plane | NEEDS YOU: a ticket handed to you, proof contested |
+| The git host | Review events on the lane's PR | NEEDS YOU: changes requested, with the host page as the one link out (v1) |
+| Penpot | Webhooks (`enable-webhooks`, 04-verify 2.3 row 10) | NEEDS YOU: a mention, an approval asked |
+| Panacea | The control plane's deploy and release polling | FAILED with the deterministic diagnosis (06-verify §6); NEEDS YOU for a promotion; LANDED when a preview or release is ready |
+| Teams (our bot) | Not a source: a mirror | A decide card **is** a NEEDS YOU row. Answering in Teams resolves the Desk row, and the reverse. One record, two doorways |
+
+**Answering.** Tracker, design and deploy rows are answered in place, through the routes behind
+them. An agent's permission prompt is answered in place once a typed answer can reach the harness
+(a hook that waits on the Hub is the likely route; not designed here). Until then, Enter dives
+into the lane's terminal at that prompt (AGENTIC-UX's DIVE).
+
+**Notifications are one digest.** At most one per person per 15 minutes, from the Hub, as one OS
+notification from our build or one Teams message. Never a toast per agent, and never a modal from
+a background session (AGENTIC-UX anti-patterns 8 and 11).
+
+**The Desk itself is costed by no cluster.** Every "Desk" in this folder is a mention, not a
+costed row, because 02 leaned on Orca's inbox. That inbox cannot take tracker, Penpot or Panacea
+events: Orca's status store is built in, not pluggable (02 R2). A v1 Desk on the shared page
+template (ingest, the four classes plus RUNNING, the rank reason, aging, a read cursor, in-place
+answers) is **about 3 days**. The source adapters are **1.5** and the Teams mirror **0.5**. All
+new.
