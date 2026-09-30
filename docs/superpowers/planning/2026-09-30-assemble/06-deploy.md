@@ -557,8 +557,68 @@ against it. If the lift happens, the connector's `deploy.Deployer` seam makes it
 
 ## 9. What this study did not verify
 
-*(pending)*
+Nothing was installed, built or run, here or in `Projects/Panacea`. Panacea was read by grep and
+short reads of today's working tree; another session is working there, so lines can move.
+
+- **Live state on Panacea's dev estate**, all of it: whether Tekton Chains signs builds today;
+  whether database branching and the D10 redaction pass run for any project; whether the stage
+  ladder is bound on any environment. The code and `STATUS.md` say they exist; nothing was observed.
+- **The production-promote gate** (`projects.go:2894-2927`) and the ladder's behaviour on an
+  unbound environment (`deployment_stages.go:500-518`) were read, not exercised.
+- **That `CreateProjectRequest.Labels` accepts `panacea.io/branch-database`** at create. The handler
+  adds its own keys and filters nothing visible (`projects.go:360-374`); a filter further down was
+  not looked for.
+- **That a pasted, unscoped `pnc_` can call the owner routes** G3 needs (`PUT P/stage-floor`). The
+  route is owner-gated and the token carries its user's role, so it should; untested.
+- **That Chains copies PipelineRun parameters into its signed provenance** (P-1's premise), from
+  Chains' format documentation, not Panacea's pipeline. Kyverno issue #17363 was not reproduced.
+- **Orca**: whether a plugin panel can reach our control plane, and how its per-worktree browser
+  handles a Keycloak sign-in (both from sibling clusters, 02 and 04, not checked here).
+- **The 16-24 days in 3.9** are estimates from the size of the Panacea code each row would port,
+  not from a build. The 6 days in §5 use the phase 7 plan's own hour rates for kept tasks.
+- **Supabase**: "branching N/A for self-hosted" is from its documentation via search; not tested.
+- Star counts and release dates are from the GitHub API on 2026-09-30.
 
 ## 10. Sources
 
-*(pending)*
+**Panacea (read-only, 2026-09-30):** `services/panacea-api/routes/routes.go` (lines in §2a);
+`handlers/projects.go:360-374`, `:1547`, `:1643-1690`, `:2894-2927`; `handlers/deployment_stages.go:21-259`,
+`:500-518`, `:1262-1290`; `handlers/preview_data.go:27-35`; `clients/db_branch_ops.go:17-52`;
+`clients/branch_data_ops.go:15-46`; `models/models.go:639-663`, `:2341-2372`; `STATUS.md:84-140`;
+`docs/runbooks/tekton-chains-signing.md`; `services/panacea-mcp/src/index.ts` (31 tool names).
+
+**PanaceaApp:** `00-panacea.md` §3-5; `01-sandboxes.md` (the image, `/bind`, the edge allowlist);
+`02-fleet-cockpit.md` §R2 (Orca from source); `03-define.md` §4.11, §4.12, G5, G7; `04-design.md`
+G3; `05-work-team.md`; the phase 7 plan (`.claude/worktrees/phase-7/docs/superpowers/plans/2026-09-23-phase-7-deploy.md`
+§4, §8, §9) and the `feat/phase-7-deploy` log; `2026-09-23-owner-decisions.md` (`OD-5`, `OD-13`,
+`OD-18`, `OD-19`, `OD-24`, `OD-30`, `OD-32`); `2026-09-28-oss-adoption/05-hub-identity.md` §2.
+
+**Web (2026-09-30):**
+[Coolify v4.4-rc.1](https://github.com/coollabsio/coolify/releases/tag/v4.4-rc.1) ·
+[Coolify changelog](https://coolify.io/changelog) ·
+[Coolify other git providers](https://coolify.io/docs/applications/ci-cd/other-providers) ·
+[Coolify Swarm note](https://coolify.io/docs/knowledge-base/docker/swarm) ·
+[Dokploy licence](https://github.com/Dokploy/dokploy/blob/canary/LICENSE.MD) ·
+[Dokploy enterprise](https://docs.dokploy.com/docs/core/enterprise) ·
+[Supabase branching](https://supabase.com/docs/guides/deployment/branching) ·
+[Container Apps revisions](https://learn.microsoft.com/en-us/azure/container-apps/revisions) ·
+[Container Apps billing](https://learn.microsoft.com/en-us/azure/container-apps/billing) ·
+[Argo CD on AKS preview](https://techcommunity.microsoft.com/blog/azurearcblog/announcing-public-preview-of-argo-cd-extension-on-aks-and-azure-arc-enabled-kube/4504497) ·
+[Argo CD releases](https://endoflife.date/argo-cd) ·
+[Akuity pricing](https://akuity.io/pricing) ·
+[Backstage releases](https://github.com/backstage/backstage/releases) ·
+[Port pricing](https://www.port.io/pricing) ·
+[Port API regions](https://docs.port.io/api-reference/port-api/) ·
+[Tekton Chains config](https://tekton.dev/docs/chains/config/) ·
+[cosign key management](https://docs.sigstore.dev/cosign/key_management/overview/) ·
+[cosign attestations](https://docs.sigstore.dev/cosign/verifying/attestation/) ·
+[Kyverno #17363](https://github.com/kyverno/kyverno/issues/17363) ·
+[actions/attest](https://github.com/actions/attest) ·
+[Octopus pricing](https://octopus.com/pricing/overview) ·
+[Harness supply-chain support](https://developer.harness.io/docs/software-supply-chain-assurance/ssca-supported/) ·
+GitHub API for `coollabsio/coolify`, `Dokploy/dokploy`, `supabase/supabase`, `stablyai/orca`,
+`sigstore/cosign`, `kyverno/kyverno`, `tektoncd/chains`.
+
+**GLASSES:** the offline index and `lcfr.ai/api/mcp` (first run, 2026-09-30): Coolify, Dokploy and
+seven other deploy services listed; no entry for Argo CD, Kargo, Backstage, Port, Sigstore, SLSA,
+in-toto, Tekton or Kyverno.
