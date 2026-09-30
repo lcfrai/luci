@@ -289,4 +289,37 @@ in-app approve, and 02-verify's landing through the laptop CLI.
 
 ## 8. What could not be verified
 
-*(to be filled)*
+Nothing was installed, signed up for or run. Every day figure is an estimate composed from other
+estimates, and the calendar assumes the lanes run in parallel as the clusters describe.
+
+| Area | Not verified | How to close it |
+|---|---|---|
+| Sibling sceptics | 00-, 06- and 07-verify were unfinished when read. 00's days, 06's §3 onward and all of 07-verify's verdict may move the 99 | Re-sum section 6 when all three are complete |
+| Orca, one window | Whether a browser-pane tab can hide its address bar; whether Entra is zero-click inside Orca's Chromium; how the pane persists sessions (file names only); whether Orca would take a custom-UI-token pull request | A half-day spike on the pinned build; ask upstream |
+| Penpot in our frame | Whether an admin can set one default UI theme; whether its OIDC login stays silent inside a same-site frame; the header swap is 04-verify's reading of config, not a test | Part of the 1-day Penpot wrap |
+| The one-app layer | The 4 days are this study's estimate. Whether it *feels* like one app is the owner's eyes: headless screenshots are blocked on the corporate network | The owner reviews a clickable prototype of the shared shell before build, as the working agreements require |
+| Coder | Which tier holds AI Gateway and Agent Firewall (the docs and the pricing page disagree); any price; whether the 5-agent cap reaches Claude Code inside a workspace; Tasks leaving at v2.37; an AKS-specific install page | A Coder quote and a release-notes check when v2.37 ships |
+| OpenHands | The GitHub API was rate-limited, so stars and release dates are the report's. `openhands.dev` and `docs.openhands.dev` are blocked (HTTP 403). Azure DevOps support comes from `values.yaml` and a search summary of a blog, not docs. Running on `kata-vm-isolation` instead of Sysbox is untested. Price is by quote | A vendor call and a trial on AKS |
+| GitLab | Whether a custom external agent pointed at our LiteLLM works on Self-Managed (an experiment, off by default); Kata's `runtimeClassName` on the Kubernetes executor | A trial on a self-managed instance, only if a customer brings GitLab |
+| Anthropic, GitHub | Read at the vendor's docs today; both change monthly | The quarterly re-check (7.4 call 6) |
+| The other rejects | Devin, Cursor, Factory, Replit, Lovable, v0, Bolt, Kiro, Jules, Ona and Codex were not re-fetched. Their region and gateway facts are the report's | Not needed: each fails B5 by design |
+| Task counts | "About 180 tasks replaced" was not re-derived | Each cluster's own task table |
+| Day 0 | No date exists for the subscription, Kata quota, the Defender rule, the Panacea-side asks or the Teams admin | Owner and IT; these can decide the date more than the build |
+
+## 9. Sources
+
+Read 2026-09-30. Vendor pages are primary unless marked "search".
+
+- **Coder:** GitHub API `repos/coder/coder`, `/license` and `/releases/latest`; raw
+  `LICENSE.enterprise` at `main`; <https://coder.com/docs/ai-coder/ai-gateway>,
+  <https://coder.com/docs/ai-coder/ai-governance>, <https://coder.com/pricing>,
+  <https://coder.com/docs/admin/users/oidc-auth>, <https://coder.com/docs/ai-coder/tasks>; the
+  v2.35.3 add-on wording (search).
+- **Anthropic:** <https://code.claude.com/docs/en/self-hosted-environments>.
+- **GitHub:** <https://docs.github.com/en/enterprise-cloud@latest/admin/data-residency/github-copilot-with-data-residency>.
+- **GitLab:** <https://docs.gitlab.com/user/duo_agent_platform/agents/external/>.
+- **OpenHands:** as listed in section 3.
+- **Orca:** the blobless clone at `59b746f`, files as listed in section 1, plus
+  `src/renderer/src/assets/main.css`, `package.json` and `components.json`.
+- **This programme:** `08-whole-product.md`; `01-` to `07-*-verify.md` and `07-platform.md` in
+  this folder; `docs/DESIGN-SYSTEM.md`.
