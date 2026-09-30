@@ -149,7 +149,31 @@ creation, as a label (`handlers/projects.go:360-374` passes labels through). Tha
 
 ### 2.5 Are 6 days realistic for our architecture?
 
-*(to be filled)*
+**No. About 8.5 (7.5 to 9.5), or about 5 with two people.** Each row was checked against our
+code (`feat/hub`, the phase 7 plan's task table at lines 636-655) and Panacea's source.
+
+| Glue | 06 says | At source | Corrected |
+|---|---|---|---|
+| G1 Orca Deploy panel | 1.5 | **The plugin route holds.** Panels are sandboxed frames, and the worker is unsandboxed Node that can reach our backend today (02-verify §3.3), so no fork is needed. **But the panel sends users into Panacea's Portal** for logs, scans, governance and approval. That fails the owner's ask that the product feel like one app (§6). Bringing those screens in-app is phase 7 tasks 11, 12, 17 and 18: **10 plan-hours**, about 1.4 days, not the "2-3 more days" in 06 §7. Add 0.25 for an in-app approve act: `POST …/stage/approve` is owner-gated (`routes.go:2860`), so an owner can approve from our panel with their own key | **about 2.75** |
+| G2 signed provenance | 1 | The Hub is Go and has no signing code (`git grep` on `feat/hub`: no sigstore, cosign, Key Vault or DSSE). **The evidence document is not stable.** Every export stamps `exportedAt` and `actor` (`evidence_export.go:135-137`, `:243`). Its audit-chain block carries `checked` and `lastId`, which grow with every audit row (`audit_integrity.go:40-52`). So the "sha256 of Panacea's evidence document" matches one fetch only. The Hub must **store the exact bytes it hashed**, which contradicts 06's "bound in without being copied", or no assessor can re-derive the digest | **about 1.25** |
+| G3 promotion by class | 0.75 | holds: `POST …/stage/promote` is developer-gated (`routes.go:2818`), so a user's key can request a rung. `GET …/stage` (`:2814`) feeds the checklist | 0.75 |
+| G4 agent allowlist | 1 | **Feasible as a drop-in.** `panacea-mcp` takes `PANACEA_API_URL` and `PANACEA_TOKEN` from env (`index.ts:32-35`), so the sandbox gets our proxy's address and a session token, never a `pnc_`. **But the rules are not path-only.** "Non-production branch" means reading the deploy body's branch and looking up the project's production branch. "Rollback on non-production" means resolving the deployment id to its environment. `panacea_api_request` must hit the same filter. SSE has to pass through unbuffered. **One route leaves our AI boundary.** `panacea_diagnose` is safe: it is deterministic, and its LLM enricher is nil in production (`diagnose.go:23-24`). But `POST …/pipelines/{run}/analyse` (`routes.go:2291`) sends build logs to **Panacea's own LiteLLM** (`deploy_analysis.go:499`), not our gateway. Panacea's `skill.md:152` tells agents to call it, and `panacea_api_request` reaches it. Its retention and AU path under `OD-19`/`OD-21` are unverified, so the proxy refuses it for `synthetic` and `protected` projects until that is checked | **about 1.5** |
+| G5 project creation *(missing from 06)* | 0 | Phase 7 binds an existing Panacea project by `repoUrl` and never creates one (§2.2, finding 3). "Nothing to a shipped application" needs our control plane to call `POST /api/v1/projects` with the labels (data class, `panacea.io/branch-database`), team and job code. Without it, every project starts with a hand-made step in the Portal | **about 0.75** |
+| Kept phase 7 tasks (07 rest, 08, 09, 10, 19, 20) | 1.7 | holds at the plan's own rates. They are control-plane tasks, not the Tauri lens. Tasks 09 and 19 run against the Hub fake until H5 | 1.7 |
+| **Total** | **about 6** | | **about 8.5** |
+
+**Day 1 is not "day 1" for a user.** Before an agent's first preview deploy, four things have to be
+true. Three sit on the Panacea side, and one is a Portal visit per user:
+1. Our proxy's egress IP is on Panacea's edge allowlist, which opens the whole edge to it (§2.3).
+2. The user has minted a `pnc_` key. Minting needs an SSO browser session in Panacea's UI
+   (`api_keys.go:112-116`).
+3. A Panacea project exists: either G5, or a hand-made step.
+4. The lane is on GitHub. An ADO push goes to Forge's agent-deploy pipeline, not to a preview
+   (02-verify §4.1). So the "Azure DevOps and GitHub" row in §2.2 holds for API-started deploys,
+   and **fails for webhook previews**.
+
+**Fallback cost.** If IT refuses Orca (02-verify §5.3), the fallback cockpit is phase 2's frozen
+Tauri desktop, which has no Deploy lens. Tasks 13-18 come back: 17 plan-hours, about 2.3 days.
 
 ## 3. The signing glue: cosign + in-toto Statement v1 + Azure Key Vault
 
