@@ -25,7 +25,36 @@ _(pending)_
 
 ## 2. The inventory at a glance
 
-_(pending)_
+`P` = `/api/v1/projects/{name}` on `https://api.<domain>`; lines are `services/panacea-api/routes/routes.go`.
+**Auth** for every row: `Authorization: Bearer pnc_...` (a user's token, optionally scoped to one
+project at `read` or `deploy`), checked against the project role shown, and audited (section 5).
+
+| Capability | Entry point | Role | Use it? | Main gap for us | Section |
+|---|---|---|---|---|---|
+| Create a project (namespace, quota, TLS, DNS, DB, storage) | `POST /api/v1/projects` `:1017` | a real grant | **yes** | phase 7 never calls it (P3) | 3 |
+| Push files as a commit, then deploy | `POST P/code` `:1033` | developer | yes, for small pushes | 10 MiB, 500 files | 3 |
+| Deploy a branch; watch; cancel | `POST P/deploy` `:1286`; `P/pipelines/{run}` `:1290`, stream `:2283` | developer | **yes** | none | 3 |
+| Versions, rollback, redeploy | `P/deployments` `:1024`; rollback `:1026`; redeploy `:1028` | developer | **yes** | none | 3 |
+| Promote (env to env; stage ladder with approval) | `P/promote` `:1027`; `P/envs/{env}/stage/*` `:2814-2860` | developer; approve owner | **yes** | two models; use the ladder (06 G3) | 3 |
+| Branches and per-branch previews, with SSO, IP list, share links, comments | `P/branches*` `:1170-1314`; `P/previews` `:1162`; access `:1424-1442`; comments `:2931-2939` | member to owner | **yes** | none | 3 |
+| Release evidence | `P/releases/{release}/evidence` `:2720` | member | **yes** | no brief in it (06 G2) | 3 |
+| Agent instructions | `P/agent-context` `:1086-1088`; `P/skill-md` `:1072-1073` | member | **yes** (P2) | none | 3, 12 |
+| MCP, stdio, 31 tools | `services/panacea-mcp` | the token's | **yes**, in every sandbox (P1) | no promote or preview tool; escape hatch covers them | 4.1 |
+| MCP, remote (`POST /mcp`) | `routes/mcp_wiring.go:60` | OAuth scopes | not yet | 3 read-only tools; client registration gated | 4.2 |
+| Keycloak realm brokering Entra | `https://auth.<domain>/realms/panacea` | n/a | **yes**, sign-in | one replica; needs our public client (P5a) | 5.1 |
+| A user's API token | `POST /api/v1/me/api-keys` `:3050` | SSO session only | **yes**, pasted once (7P-1) | a token cannot mint a token; realm tokens refused (P5c) | 5.3 |
+| Teams, members, invites, budgets | `/api/v1/teams/{name}/*` `:1927-1971` | team admin | yes (05-work-team) | teams are realm groups | 5 |
+| LiteLLM gateway | in-cluster `litellm-proxy:4000`; `P/llm/*` `:2389-2403` | developer | **for shipped apps only** | per-project keys, in-cluster, no Bedrock | 6 |
+| Per-app Postgres, branched per preview | `/api/v1/databases*` `:1325-1339`; `P/db/*` `:2301-2322` | developer | **yes**, for shipped apps | not for our Hub (`OD-5`) | 7 |
+| Data API, realtime, functions, app users, flags, jobs | `P/rest` `:2915`; `P/realtime` `:2911`; `P/functions` `:2905`; `P/auth/users` `:2947`; `P/flags` `:2415`; `P/jobs` `:1261` | developer | yes, for shipped apps | Panacea-shaped APIs | 7 |
+| Object storage | `/api/v1/buckets*` `:1361-1372`; `P/storage/*` `:2335-2344` | developer | yes, for shipped apps | MinIO archived upstream, AGPL | 7 |
+| Secrets (Vault) | `P/env/{environment}` `:1400-1403`; `P/connections` `:2660-2663` | developer | yes, for shipped apps | BUSL; seal events | 7 |
+| Backstage portal and 8 templates | `backstage/`; deep links | SSO | deep links; templates as starters | not embeddable | 7 |
+| Tekton build, 18 scan checks, posture gate | via `P/deploy`; `P/scans/run` `:2750`; `P/security-status` `:1043`; posture `:2742-2769` | owner to set | **yes** | defaults to warn | 8 |
+| Tenant namespace isolation | `clients/tenant_ensure.go` | n/a | **yes**, for shipped apps; **copy** for our cluster | shared kernel, open pod egress | 9.1 |
+| Forge agent loop | `/api/v1/forge/*` `:3066-3126` | platform admin, no API key | **no**; copy its gates later | admin-only; not Claude Code | 9.2 |
+| Forge preview pods | `forge-orchestrator/preview/manager.go` | n/a | **no** as a host; **copy** the spec | `runc`, closed egress | 9.3 |
+
 
 ## 3. Deploy, per-branch previews, promote, rollback, versions and branches
 
