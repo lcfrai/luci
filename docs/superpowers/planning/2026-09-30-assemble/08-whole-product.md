@@ -48,7 +48,8 @@ thread in our Hub.
 5. **New from this cluster.** Panacea's own **Forge** is the best-fitting whole product on
    enterprise tests, and still not the base: a closed agent loop behind a platform-admin-only gate
    (4.14); its gates are copied instead. **GitLab's Duo Agent Platform** is the only self-hosted
-   product that already runs the unmodified Claude Code, at the price of a third git host (4.12).
+   plan-to-deploy product that already runs the unmodified Claude Code on its issues and merge
+   requests, at the price of a third git host (4.12).
    And **one journey test** (1.5 days, section 8) proves the seven products behave as one.
 
 **Owner calls (section 9):** confirm no whole-product seats (money); accept that customers see
@@ -146,10 +147,10 @@ Tests B1-B10 are section 2's. "Phases" names what the product covers end to end.
   CLI in a live terminal), B7 (no Azure Repos), B8 for the server (PolyForm), B9 (a second
   cockpit beside Orca). Passes B1, B2 and B4 because it self-hosts and takes our LiteLLM.
 - **Days.** 10-15 as a backend under our cockpit (02 §3b); 5-8 to stand the Enterprise chart up
-  on AKS, plus procurement.
-- **Verdict: reference.** The closest self-hostable Develop product, and the only one that takes
-  our gateway as is. Not adopted because the owner's cockpit is Orca and our sessions are the
-  unmodified CLI. Read its EventStream and automation design for team mode (as the 2026-09-28
+  on AKS, plus procurement (this run's estimate).
+- **Verdict: reference.** The closest self-hostable Develop product, and it takes our LiteLLM as
+  is (its chart expects one). Not adopted because the owner's cockpit is Orca and our sessions are
+  the unmodified CLI. Read its EventStream and automation design for team mode (as the 2026-09-28
   study already said).
 
 ### 4.2 Devin (Cognition) - REJECT
@@ -174,7 +175,7 @@ Tests B1-B10 are section 2's. "Phases" names what the product covers end to end.
   GitHub Actions. **Self-hosted runners through Actions Runner Controller are supported** since
   2025-10-28 (Docker-in-Docker mode, outbound to `api.githubcopilot.com`), with organisation runner
   controls since 2026-04-03, so execution could sit on our AKS. Agent HQ adds Claude and Codex as
-  assignees (05 §2).
+  assignees (05 §2.2).
 - **Enterprise fit.** Entra through EMU or OIDC, audit, GHE.com with **Australian residency for
   code at rest** (GA 2025-02-04). **Copilot's in-region inference is US and EU only**
   (2026-04-13); Japan and Australia are "on the roadmap for later in 2026" (02 §3b found Australia
@@ -419,7 +420,7 @@ subscription, with nothing essential in a vendor's cloud.
 | OpenHands Enterprise | **Yes** (Helm or Replicated on any Kubernetes; AKS not documented) | Nothing required; LiteLLM can be the customer's | A commercial licence (PolyForm Free Trial otherwise: 30 days a year) |
 | Coder | **Yes** (Helm on AKS) | Nothing required | Coder's commercial terms if modified or redistributed (AGPL-3.0) |
 | GitLab Self-Managed + Duo | **Yes** with self-hosted models; **no** with GitLab's AI gateway | GitLab's AI gateway in the shipped Claude Code example | Premium or Ultimate subscription |
-| Panacea | **Yes in principle** (it is Azure-native Terraform and Helm); a customer-hosted Panacea is the later `OD-13` lift, not built | Nothing | Its BUSL Vault and AGPL MinIO, Grafana, Loki, Tempo need swapping or clearing first (00 §7) |
+| Panacea | **Yes in principle** (it is Azure-native Terraform and Helm); the customer-hosted tier is later (`OD-5`) and Panacea's lift into this repo comes last (`OD-13`), so neither is built | Nothing | Its BUSL Vault and AGPL MinIO, Grafana, Loki, Tempo need swapping or clearing first (00 §7) |
 | Orca | **Yes** (desktop plus `orca serve` in the customer's sandboxes; relay, mobile and telemetry off) | Nothing required | MIT; none |
 | Copilot cloud agent | **Execution only** (runners through ARC on AKS) | Planning, inference, the control plane | GitHub Enterprise and Copilot seats |
 | Claude Code self-hosted environments | **Execution only** (runners) | Queue, session stream, transcript store, inference; no ZDR | Claude Team or Enterprise seats |
