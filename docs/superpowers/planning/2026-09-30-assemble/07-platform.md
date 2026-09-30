@@ -8,7 +8,7 @@ Scope: the Hub (shared briefs, approvals, provenance ledger, releases, realtime)
 
 ## 0. The answer in one screen
 
-**Keep the products the plans already chose, take Panacea's realm and two pieces of its code, and do not move the Hub to Supabase. About 19 engineer-days to first real use (about 6 working days with five engineers); about 1 of them is new glue.**
+**Keep the products the plans already chose, take Panacea's realm and two pieces of its code, and do not move the Hub to Supabase. About 19 engineer-days to first real use (about 6 working days with five engineers); about 1.25 of them is new glue.**
 
 1. **Sign-in: Panacea's Keycloak realm, now** (3.10). One realm change, an ask of the Panacea stream (the ruling's client, K1-K4 and four audience scopes). Our own Keycloak, as the identity ruling's §9 already plans it, waits for the customer-hosted tier (3.11).
 2. **Gateway: our own LiteLLM, rebuilt from the MIT tree, with `keysmith` and `gatekeeper` as planned** (3.14). `keysmith` starts from Panacea's key-minting code. Panacea's gateway cannot serve agents: it has no AU route, attributes spend to the project only, and is in-cluster (§2). LiteLLM keeps pod binding, JWT auth, audit logs and key rotation for its paid tier, which is why our two services exist.
@@ -246,12 +246,12 @@ Days are engineer-days still to do (section 3's rule). "Entra" means sign-in thr
 
 ## 5. Recommendation
 
-**Sign in through Panacea's Keycloak realm now. Run our own LiteLLM gateway, rebuilt from the MIT tree and started from Panacea's key-minting code. Finish the Hub as the thin Go service it already is, on Azure Database for PostgreSQL Flexible Server. Put all of it in our own AKS in Australia East, built from Panacea's production Terraform under OpenTofu. Do not use Supabase or Coolify here. About 19 engineer-days to first real use: about 1 is new glue, and the rest is planned work that no product removes.**
+**Sign in through Panacea's Keycloak realm now. Run our own LiteLLM gateway, rebuilt from the MIT tree and started from Panacea's key-minting code. Finish the Hub as the thin Go service it already is, on Azure Database for PostgreSQL Flexible Server. Put all of it in our own AKS in Australia East, built from Panacea's production Terraform under OpenTofu. Do not use Supabase or Coolify here. About 19 engineer-days to first real use: about 1.25 is new glue, and the rest is planned work that no product removes.**
 
 Why this answer:
 
 1. **It is the most complete answer for every need.** Keycloak and LiteLLM are already decided, and Panacea already runs Keycloak. Azure's managed Postgres gives HA, point-in-time restore, geo-backup inside Australia and Entra auth. The Hub's domain rules exist in no product: digest-checked revisions, the release pin and the hash chain (the earlier study: nobody has open-sourced our product).
-2. **The allowed alternative loses on merit.** Self-hosted Supabase lacks backups, PITR and multiple projects. It runs on Kubernetes only through a community chart, and it trusts Keycloak only through a static key list. The Hub's rules would move into SQL or Deno: about 13 days against about 10, and a dozen services to patch. Coolify cannot host the sandboxes, so it would be a second platform to run.
+2. **The allowed alternative loses on merit.** Self-hosted Supabase has no managed backups or PITR and runs one project. It runs on Kubernetes only through a community chart, and it trusts Keycloak only through a static key list. The Hub's rules would move into SQL or Deno: about 13 days against about 10, and a dozen services to patch. Coolify cannot host the sandboxes, so it would be a second platform to run.
 3. **Panacea is used wherever it is the better complete answer.** We take its realm now (no new Entra work), and copy its hardened Terraform and its LiteLLM key code with attribution. Its gateway and its tenant database are not used, for the reasons in §2.
 4. **It keeps the customer-cloud path.** Every part goes into a customer's Azure subscription unchanged. The one runtime dependency on Panacea, the realm, is replaced by our own Keycloak (3.11) at the customer-hosted tier.
 5. **It keeps the provenance thread in one ledger we control**, the one 06-deploy's signed release statement (G2) writes to.
@@ -308,7 +308,7 @@ New work that no plan holds today. Planned tasks kept as they are (the Hub's min
 4. **Sign-in rests on Panacea until our own Keycloak (customer-visible).** While Panacea's single Keycloak pod is down, nobody can sign in or refresh a token. Access tokens last 10 minutes, so work stops within minutes of an outage; stored offline tokens survive a restart. Three ways to handle it:
    - accept it for the pilot;
    - wait for the Panacea stream to move to Keycloak 26 with two replicas;
-   - stand up our own Keycloak now (3.11), about 2 days plus an IT ticket for the Entra redirect URI.
+   - stand up our own Keycloak now (3.11), about 2 days plus an IT request for one redirect URI and a second client secret (ruling §9).
 5. **What customers are told about AU (customer-visible).** No screen may say "AU only" until the `count_tokens` canary (phase 6 task 26) passes. Global calls leave Australia by definition, and the isolation and data wording should say so.
 
 Not a call today: a LiteLLM Enterprise licence (3.16) waits until more than 5 operators need LiteLLM's own admin UI.
@@ -343,7 +343,7 @@ Nothing was installed, deployed or run. Product claims come from documentation, 
 
 ## Sources
 
-**Repository (read-only or ours):** `00-panacea.md` §3-10; `01-sandboxes.md` §4.15-4.16, §5, §6; `02-fleet-cockpit.md` §0; `03-define.md` 4.12; `05-work-team.md` §0.2; `06-deploy.md` §0, 3.1, 3.10, §6; `2026-09-23-owner-decisions.md` (`OD-3`, `OD-5`, `OD-13`, `OD-18`-`OD-24`, `OD-30`, `OD-32`-`OD-35`); `2026-09-25-identity-keycloak-broker.md` §1-6; `2026-09-28-oss-adoption/00-summary.md`, `05-hub-identity.md`, `licence-platform.md`; the plans `.claude/worktrees/hub/.../2026-09-23-phase-h-hub.md`, `.claude/worktrees/phase-6/.../2026-09-25-phase-6-gateway.md`, `.claude/worktrees/env/.../2026-09-23-phase-8-own-environment.md`; `control-plane/internal/hub/migrate/roles.sql` and `sql/0001_init.sql` on `feat/hub`; in `Projects/Panacea`: `deploy/postgres-flexible.tf`, `deploy/object-storage-blob.tf`, `deploy/*.tf` (ISM citations), `services/panacea-api/handlers/llm_vkeys.go`, `handlers/llm_env_keys.go`, `clients/db_roles_ensure.go`, `clients/db_roles_ops.go`.
+**Repository (read-only or ours):** `00-panacea.md` §3-10; `01-sandboxes.md` §4.15-4.16, §5, §6; `02-fleet-cockpit.md` §0; `03-define.md` 4.12; `05-work-team.md` §0.2; `06-deploy.md` §0, 3.1, 3.10, §6; `2026-09-23-owner-decisions.md` (`OD-3`, `OD-5`, `OD-13`, `OD-18`-`OD-24`, `OD-30`, `OD-32`-`OD-35`); `2026-09-25-identity-keycloak-broker.md` §1-6, §9-10; `2026-09-28-oss-adoption/00-summary.md`, `05-hub-identity.md`, `licence-platform.md`; the plans `.claude/worktrees/hub/.../2026-09-23-phase-h-hub.md`, `.claude/worktrees/phase-6/.../2026-09-25-phase-6-gateway.md`, `.claude/worktrees/env/.../2026-09-23-phase-8-own-environment.md`; `control-plane/internal/hub/migrate/roles.sql` and `sql/0001_init.sql` on `feat/hub`; in `Projects/Panacea`: `deploy/postgres-flexible.tf`, `deploy/object-storage-blob.tf`, `deploy/*.tf` (ISM citations), `services/panacea-api/handlers/llm_vkeys.go`, `handlers/llm_env_keys.go`, `clients/db_roles_ensure.go`, `clients/db_roles_ops.go`.
 
 **Web (read 2026-09-30):**
 [Supabase self-hosting](https://supabase.com/docs/guides/self-hosting) ·
@@ -362,4 +362,4 @@ Nothing was installed, deployed or run. Product claims come from documentation, 
 [Claude on Foundry and regions (InfoQ)](https://www.infoq.com/news/2026/07/claude-foundry-ga-europe/) ·
 [Azure Retail Prices API](https://prices.azure.com/api/retail/prices).
 
-**GitHub API (2026-09-30):** `supabase/supabase`, `supabase-community/supabase-kubernetes`, `PostgREST/postgrest`, `electric-sql/electric`, `nats-io/nats-server`, `temporalio/temporal`, `BerriAI/litellm`, `keycloak/keycloak`, `coollabsio/coolify`, `Azure/terraform-azurerm-avm-res-dbforpostgresql-flexibleserver` (repository and latest release). **Glasses:** offline `gsearch.py` and the MCP `glasses_search` for "llm gateway", "keycloak", "identity", "postgres", "realtime", "sync", "terraform", "supabase".
+**GitHub API (2026-09-30):** `supabase/supabase`, `supabase-community/supabase-kubernetes`, `PostgREST/postgrest`, `electric-sql/electric`, `nats-io/nats-server`, `temporalio/temporal`, `BerriAI/litellm`, `keycloak/keycloak`, `coollabsio/coolify`, `Azure/terraform-azurerm-avm-res-dbforpostgresql-flexibleserver` (repository metadata; latest release for LiteLLM, Keycloak, the Supabase chart, PostgREST, Electric and Coolify). **Glasses:** offline `gsearch.py` and the MCP `glasses_search` for "llm gateway", "keycloak", "identity", "postgres", "realtime", "sync", "terraform", "supabase".
