@@ -349,6 +349,47 @@ user's words answer both calls: one app.
 **So "Orca under its own name, with Hub pages in its browser tabs" fails bars 1, 2, 3 and 5, and
 half of 4.** That is the "separate apps merged into one" the user described.
 
+**What survives: Orca as the engine, shipped as our app.** MIT allows a renamed build if Stably's
+notice is kept and the Orca name is not used. Both stacks are Tailwind plus shadcn, so the change
+set is small and mostly configuration:
+
+| Change to our build of the pinned Orca | Bar | Also closes | Days |
+|---|---|---|---|
+| Name, app id, icon, KPMG signature and our update feed (the builder lines above) | 1 | §2 row 10: a real version lock (our feed, our pin). §2 row 12: a KPMG publisher that App Control can single out | 0.5 |
+| Rename at build time, not in source: a transform over the English catalog with an exclusion list (the `orca` CLI, `orca.yaml`, `orca-plugin.json`) | 1 | No rebase conflicts in `en.json` | 0.5 |
+| One CSS file mapping our tokens onto Orca's shadcn set: `--background` from `--page`, `--card` from `--surface`, `--foreground` from `--ink`, `--border` from `--line`, `--ring` from `--accent-ring`. `--radius` is already 10px, our `--r-card` (`tokens.css:112`) | 4 | Panels then inherit our palette through Orca's own token hand-off | 0.5 |
+| A journey bar: Define · Design · Develop · Deploy plus the brief chip, hosting Hub pages in one app-level view on the laptop's network, not in a worktree tab. The desktop hands the Hub a one-time session from `panacea login`, so Electron never meets Entra. Add a `lane` deep link on the registered scheme | 2, 3, 5 | Keeps the sandbox's egress shut to the Hub and Entra | 2, plus 0.5 in the Hub |
+| OSC status off for hook-capable agents | none | 2.1: the `OD-8` question becomes our patch, not an upstream request | 0.5 to 1 |
+| Telemetry, the mobile relay, "Share as artifact" (a public link "through your signed-in Orca account", `browser/overview.mdx:52`) and computer use off by default | 1 | No Orca account prompts. §2 row 7 | 0.25 |
+
+**About 5 days once, plus about 0.5 each time the pin moves.** These are this pass's estimates from
+the files named. The journey bar was not sized against Orca's layout code, so its 2 days is the
+softest number.
+
+**The researcher's three reasons not to fork (R3), re-weighed:**
+1. **"Our own Windows code signing":** needed anyway, because the Tauri fallback is unsigned today
+   (5.1). Azure Artifact Signing is "$9.99/month for up to 5,000 signatures" (Basic, Microsoft's
+   product page). That page states no country rule. One trade report says it is generally available
+   in the USA, Canada and Europe, so an Australian entity may need an OV certificate in Key Vault.
+2. **"A fresh Defender prevalence reset on every build":** upstream already resets it daily, under a
+   shared SignPath certificate (§2 rows 11 and 12). Our build resets it only when we move the pin,
+   under a publisher IT can allowlist. That shrinks the §6 day-0 ask; the MDE suppression rule stays.
+3. **"A daily rebase":** no. We pin anyway (§8 item 1), so the patch rebases when the pin moves,
+   inside the canary. It stays cheap only while it stays in the six places above. A feature built
+   inside Orca's renderer is the point where this becomes a real fork.
+
+**The browser route (5.3) passes bars 1 to 3 by construction:** the Hub is the shell, in Edge, and
+Orca's look shows only inside each lane. It stays the fallback, not the plan, because it drops Orca's
+cross-lane sidebar and inbox (5.3, cost 1).
+
+**Still open, owned elsewhere:**
+- **Two more faces:** Penpot's editor (04) and Panacea Portal pages (06). The journey bar is where
+  they appear. Whether each can take our tokens was not checked here.
+- **The git host's pull request page** stays a reviewer's surface. The author lands from the lane
+  strip (§8 item 4), which sets auto-merge or auto-complete, so landing needs no visit. Reading a
+  reviewer's comments still happens on the host page in v1, because Orca's hosted review is dark
+  inside lanes (§2 row 4).
+
 ## 8. Corrected recommendation
 
 **Upheld, with corrections. Adopt Orca (`stablyai/orca`, MIT) as the cockpit, unforked.**
