@@ -443,7 +443,10 @@ Only these need the owner; everything else in this document is a technical call 
 1. **Retire `OD-26`'s own tracker (customer-visible).** PanaceaApp stops building Linear
    parity-plus. Issues live in the customer's ADO or GitHub (Jira next); PanaceaApp shows a thin
    Work lens grouped by criterion and deep-links into the tracker for editing, planning and
-   reporting. Backlog grooming happens at ADO/GitHub speed, not Linear speed.
+   reporting. Backlog grooming happens at ADO/GitHub speed, not Linear speed. **This reverses
+   `OD-26` and, for Phase W, `OD-35`** (2026-09-28: *"build the full plan; no scope cut"*).
+   Today's "third party … ASAP" direction points this way but names neither, so it needs an
+   explicit yes.
 2. **How "done means proven" (`OD-27`) reads in someone else's tracker (customer-visible).** On
    ADO, a process rule lets only PanaceaApp's proof identity move a work item to `Done`; that
    adds one rule and two fields to the customer's process and needs a process administrator. On
@@ -456,11 +459,17 @@ Only these need the owner; everything else in this document is a technical call 
    `OD-16`'s order, not its end state).** v1: agents read teammates' in-progress issues and live
    status through MCP; the platform detects file overlap and sends an *inform* to both people.
    The Orchestrator-to-Orchestrator settlement follows as Phase T proper.
+5. **PanaceaApp teams are Panacea teams (customer-visible; added by the second direction).** One
+   team list across both products: joining, inviting, removing and creating a team go through
+   Panacea's existing flow, including its cost-centre-owner and SuperAdmin approval for a new
+   team (`team_create_approval.go`). The alternative is a second team model in the Hub, which the
+   lift-in (`OD-13`) would later have to merge.
 
 **Money: no new spend is needed.** ADO and GitHub are already licensed (an ADO service
-principal may take one Basic seat, $6/month). A Jira customer pays for its own Atlassian Guard;
-a Linear customer for its own Linear. Buying Linear for KPMG is **not recommended** (no AU
-region, a second tracker).
+principal may take one Basic seat, $6/month). Panacea's parts, Orca (MIT) and the Teams SDK (MIT)
+cost nothing new. A Jira customer pays for its own Atlassian Guard; a Linear customer for its own
+Linear. Buying Linear for KPMG is **not recommended** (no AU region, a second tracker), and
+Supabase Cloud is not needed (a new processor, on AWS).
 
 ### Risks we accept with this recommendation
 
@@ -472,6 +481,9 @@ region, a second tracker).
 | Customer processes vary | State categories (ADO) and open/closed (GitHub) avoid a mapping screen; a customer with exotic states gets a one-line override, not a wizard |
 | The Hub is 6/50 built | The edge is small; the control plane holds it until the Hub's route lands, then one migration |
 | Remote ADO MCP does not accept Claude Code yet | Ship the local ADO MCP server (MIT) in the sandbox image; agents are read-only on the tracker anyway |
+| PanaceaApp's teams depend on Panacea's API before the lift-in | Behind one small `roster` interface; sign-in already shares Panacea's realm (`OD-30`), so the dependency is not new |
+| Orca ships daily and our ADO source is a fork patch | Offer it upstream; keep it in one module. If upstream declines, the rebase cost per release is unknown |
+| Preview comments ride Panacea's shared parent-domain SSO cookie (`preview_comments.go:21-25`) | Works while previews are on Panacea's domain (phase 7); a customer-hosted estate needs the same domain arrangement |
 
 ## 9. What was not verified
 
