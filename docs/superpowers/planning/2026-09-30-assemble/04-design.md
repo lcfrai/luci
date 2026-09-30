@@ -382,7 +382,7 @@ becomes the authority. And it turns `OD-11`'s clean-room build into an adoption 
 |---|---|
 | The MCP only works while a Penpot tab is open and connected | Day 1 spike of the headless runner (§6 G5). If it fails, run agents only while the lens is open, as Paper does, and in the fallback order try either the community RPC-based MCP (`zcube/penpot-mcp-server`, MIT, 19 stars, needs no tab) or OpenPencil (§3.2) |
 | Upstream still labels multi-user MCP *"under development"* | Pin 2.18.x by image digest. Add a canary test that creates a board over MCP on every upgrade |
-| Frames are not live HTML | Fidelity to code comes from `generateMarkup`/`generateStyle` plus the Develop agent. Anyone expecting paper.design's live HTML will notice the difference (owner call 2) |
+| Frames are not live HTML | Fidelity to code comes from `generateMarkup`/`generateStyle` plus the Develop agent. Anyone expecting paper.design's live HTML will notice the difference (§7, owner call 3) |
 | An untrusted agent's `execute_code` runs arbitrary JS | It runs only in the runner's Chromium, as a bot user limited to one project, in a pod whose only egress is Penpot. It never runs in the user's own tab when the user is away, and the sandbox never holds a key |
 | Tokens export in Tokens Studio format | A small converter to DTCG 2025.10 plus `tokens.css` in G6 |
 | A Clojure/JVM codebase we cannot easily patch | Treat it as a black box and take only upstream fixes. Any local patch to an MPL file ships with its source |
@@ -442,7 +442,35 @@ relay and the runner.
 
 ## 8. What this study could not verify
 
-_Pending._
+Nothing was installed, built or run, here or in `Projects/Panacea`. Every figure for days is an
+estimate. Prices are list prices read on 2026-09-30.
+
+**The day-1 spike settles these, in this order:**
+1. Whether a headless Chromium tab keeps the MCP plugin connected for hours (G5). Upstream warns
+   that when a tab is frozen or suspended, MCP *"will reject tasks"*.
+2. How 2.18 issues the MCP `userToken`. The repo's multi-user page says it is *"hard-coded in the
+   plugin's source code for testing purposes"*, while the changelog implies Penpot issues the
+   token. Also whether the plugin connects without a pasted token.
+3. Which flags give OIDC-only sign-in, with password login and open registration off, while still
+   creating an account on a user's first SSO login.
+4. Whether the RPC API can add a team member without an e-mailed invitation (G2's roster sync).
+5. Whether Penpot's `s3` backend works against S3Proxy on Blob. If not, fall back to a PVC.
+
+**Later, before first ship:**
+1. How faithful `generateMarkup`/`generateStyle` output is on real screens. Also the webhook
+   payloads, their delivery guarantees, and the API for named versions (G7).
+2. Orca's embedded browser: OIDC sign-in, whether cookies persist, and background throttling. Its
+   docs are silent on all three. Also whether a Penpot plugin iframe can hold a Keycloak session
+   under third-party-cookie rules (G7's fallback exists for exactly this).
+3. `@penpot/plugin-types` 1.4.2, which our plugin would compile against, **declares no licence on
+   npm**. The licence gate needs a recorded exception for this compile-time-only package, or we
+   write the few types we need ourselves.
+4. The Panacea-project host was judged from Panacea's docs and source (`LAUNCH.md:173`, the chart
+   values), not from a deploy. Figma's MCP catalogue rule and its planned usage billing come from
+   secondary sources (§3.3).
+5. Whether running agent-written JS in the runner's Chromium sandbox is enough isolation for a
+   regulated customer, or whether the runner should sit in the Kata pool beside the agent
+   sandboxes (01-sandboxes).
 
 ## 9. Sources
 
