@@ -402,19 +402,23 @@ to `OD-16`, so it is an owner call (§8).
 
 ## 7. What we still build (glue)
 
-Five pieces, three lanes. Days are one engineer's focused days, estimated, not measured.
+Seven pieces, three lanes (revised for the second direction: pieces 1, 2 and 4 changed, 6 and 7
+are new). Days are one engineer's focused days, estimated, not measured.
 
 | # | Piece | Lane | Days | Built on | Surviving Phase W tasks it absorbs |
 |---|---|---|---|---|---|
-| 1 | **`tracker` interface + two connectors.** ADO: `microsoft/azure-devops-go-api` (**MIT**, read 2026-09-30), WIQL reads, field and state writes, one **live status comment edited in place** per session, a hyperlink back to the session, service hooks in the cloud and **polling in local mode** (`OD-20`: a laptop cannot take a webhook). GitHub: a GitHub App, `go-github`, webhooks, GraphQL for issue fields and Projects. State mapping by **ADO state categories** (Proposed, In Progress, Resolved, Completed, Removed) and GitHub open/closed, so no per-customer mapping screen | A | **7** (ADO 4, GitHub 3) | Phase 3's host-interface pattern (`OD-4`) | 150-155, 171 |
-| 2 | **The provenance edge and the proof.** A Hub record per linked issue: `{source, externalId, url, serves[{briefKey, criterionId}], implements[design:…]}`; **"create issues from the brief's criteria"** so the thread starts in Define; the done evaluator posts the observed evidence and sets ADO `Done` (through the process rule) or GitHub's `Proof` field. Stopgap: the control plane holds the edge until the Hub's routes land | B | **2.5** | Phase H (6/50 built), phase 3's land and evidence, phase 4's brief keys | 01, 09, 10, 18, 19, 21-23b, 71, 96b, 104, 131 |
-| 3 | **Start from an issue.** A control-plane route that opens a managed session on its own worktree with the issue text as spec-class text (`OD-8`: never parsed back), posts the first live status within 10 s, tags the gateway token with the issue id; `Shift+R` in the cockpit. Sandboxed agents get the **ADO local MCP server** (MIT) or **GitHub MCP server** (MIT) with a **read-only**, per-session token: the platform writes facts, agents do not | B | **2** | Phase 2's control plane (built), phase 6's per-session token | 24, 61, 98, 101, 103, 108, 109, 135 |
-| 4 | **The Work lens v0 and the team view.** Issues grouped by criterion (the plan's rule), one agent line, Start, and a deep link to the tracker for everything else; a team view that joins tracker assignee, branch and PR state, and live sessions, with files touched from each worktree's `git status` (mechanical, `OD-8`-safe) | C | **2.5** | Phase 2's desktop; the earlier study's headless primitives if the list grows | 20, 36, 40, 62-65, 70; Phase T 53 (view) |
-| 5 | **The Teams bot.** Microsoft 365 Agents SDK (**MIT**): *inform* cards, *decide* cards with `Action.Execute`, overlap warnings to both people, a digest at most every 15 minutes; plus configuring the first-party ADO and GitHub Teams apps for channel notifications | C | **2** | Azure Bot Service in our subscription | 157, 165; Phase T parts of 30, 54 |
+| 1 | **`tracker` interface + two connectors.** ADO: `microsoft/azure-devops-go-api` (**MIT**, read 2026-09-30), WIQL reads, field and state writes, one **live status comment edited in place** per session, a hyperlink back to the session, service hooks in the cloud and **polling in local mode** (`OD-20`: a laptop cannot take a webhook). GitHub: a GitHub App, `go-github`, webhooks, GraphQL for issue fields and Projects. State mapping by **ADO state categories** (Proposed, In Progress, Resolved, Completed, Removed) and GitHub open/closed, so no per-customer mapping screen | A | **5.5** (ADO 3, GitHub 2.5; was 7) | Phase 3's host-interface pattern (`OD-4`); **Panacea snippets** (§0.1): `prcomment` sticky upsert (GitHub half as is, ADO half as pattern), the hook lifecycle in `webhook.go` and `webhook_ado.go` with work-item event types, the receiver check in `webhook-receiver/providers/azuredevops.go` | 150-155, 171 |
+| 2 | **The provenance edge and the proof.** A Hub record per linked issue: `{source, externalId, url, serves[{briefKey, criterionId}], implements[design:…]}`; **"create issues from the brief's criteria"** so the thread starts in Define; the done evaluator posts the observed evidence and sets ADO `Done` (through the process rule) or GitHub's `Proof` field. Stopgap: the control plane holds the edge until the Hub's routes land | B | **2** (was 2.5) | Phase H (6/50 built), phase 3's land and evidence, phase 4's brief keys; on GitHub, **Spec Kit's `taskstoissues`** (MIT, adopted in `03-define.md`) creates the issues and we attach the edge; ADO creation stays ours | 01, 09, 10, 18, 19, 21-23b, 71, 96b, 104, 131 |
+| 3 | **Start from an issue.** A control-plane route that opens a managed session on its own worktree with the issue text as spec-class text (`OD-8`: never parsed back), posts the first live status within 10 s, tags the gateway token with the issue id; `Shift+R` in our cockpit, or Orca's *open a worktree from any task* for GitHub and Jira (§0.3). Sandboxed agents get the **ADO local MCP server** (MIT) or **GitHub MCP server** (MIT) with a **read-only**, per-session token: the platform writes facts, agents do not | B | **2** | Phase 2's control plane (built), phase 6's per-session token | 24, 61, 98, 101, 103, 108, 109, 135 |
+| 4 | **The Work lens v0 and the team view.** Issues grouped by criterion (the plan's rule), one agent line, Start, and a deep link to the tracker for everything else; a team view that joins tracker assignee, branch and PR state, and live sessions, with files touched from each worktree's `git status` (mechanical, `OD-8`-safe); **the roster from Panacea's team API** | C | **2.5** | Phase 2's desktop, or Orca panels if Orca is the desktop (§0.3); Panacea's `GET /api/v1/teams/{name}/members` | 20, 36, 40, 62-65, 70; Phase T 53 (view) |
+| 5 | **The Teams bot.** Microsoft 365 Agents SDK (**MIT**): *inform* cards, *decide* cards with `Action.Execute`, overlap warnings to both people, a digest at most every 15 minutes; plus configuring the first-party ADO and GitHub Teams apps for channel notifications | C | **2** | Azure Bot Service in our subscription; the dedupe from Panacea's `NotifyOnce` | 157, 165; Phase T parts of 30, 54 |
+| 6 | **Preview comment to issue (new).** Panacea's preview comments, adopted as is, emit `preview_comment` through a webhook channel; our receiver files it under the lane's work item or issue, with a link back to the pinned element and the thread's `serves` edge | B | **1** | Panacea `handlers/preview_comments.go` and `handlers/notifications.go`; piece 1's connectors | W5 intake, reshaped |
+| 7 | **ADO Boards source in Orca (new, only if Orca is the desktop).** A WIQL list, the work item view and *open a worktree* in Orca's task drawer, as a fork patch offered upstream | C | **2** | Orca (**MIT**); piece 1's ADO client | — |
 
-**Total: 16 days.** Lane A (connectors) 7, lane B (proof and Start) 4.5, lane C (lens, team view,
-Teams) 4.5. **Critical path: lane A's ADO half (4 days) beside lane B (4.5 days), so about 5
-working days with two builders in parallel, is the first end-to-end demo:** a brief criterion becomes an ADO work item; `Shift+R` starts a sandboxed
+**Total: 17 days** (15 without piece 7). Lane A (connectors) 5.5, lane B (proof, Start, preview
+comments) 5, lane C (lens, team view, Teams, Orca's ADO source) 6.5. **Critical path: lane A's ADO
+half (3 days) beside lane B's pieces 2 and 3 (4 days), so about 5 working days with two builders
+in parallel, is the first end-to-end demo:** a brief criterion becomes an ADO work item; `Shift+R` starts a sandboxed
 agent; a PR lands; the watched test passes at the landed commit; the work item moves to `Done`
 by rule, with the evidence linked; an *inform* arrives in Teams.
 
@@ -423,9 +427,14 @@ Sentinel **Azure DevOps Audit Logs** and **GitHub Enterprise Audit Log** connect
 ([MS docs](https://learn.microsoft.com/en-us/azure/sentinel/data-connectors/github-enterprise-audit-log))
 for tracker audit, and the trackers' own boards, sprints, roadmaps, dashboards and search.
 
-**Next, not in the 16 days:** a Jira connector (3-4 days, §3.2) when a customer brings Jira; a
-Linear connector (2-3 days, §3.1) for a customer whose data class allows US or EU hosting; NATS
-for Phase T's Orchestrator bus when TM1-α is built.
+**Also adopted as-is from Panacea (§0.1):** preview comments on every preview and staging page,
+and the team model (members, invites, join requests, team budgets) behind its API.
+
+**Next, not in the 17 days:** a Jira connector (3-4 days, §3.2) when a customer brings Jira, whose
+UI side Orca already has; a Linear connector (2-3 days, §3.1) for a customer whose data class
+allows US or EU hosting, again with Orca's UI already there; NATS for Phase T's Orchestrator bus
+when TM1-α is built; Supabase Realtime for the team feed only if the Hub moves to Supabase
+(§0.2).
 
 ## 8. Owner calls
 
