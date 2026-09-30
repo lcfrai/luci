@@ -320,6 +320,7 @@ estimates for one engineer who knows this repo. Every figure here is unmeasured.
 | Excalidraw | Yes: community MCP | Yes | No: shapes | No | Yes | n/a | MIT | n/a | ~1 | Sketch mode only |
 | GrapesJS | No MCP | No (core) | Yes: HTML | Yes | Yes | n/a | BSD-3 / commercial SDK | n/a | a build | Reference |
 | Webstudio | — | — | Yes | Yes | — | — | **AGPL** | — | — | Reject |
+| Panacea / Coolify / Supabase *(added, §3.15)* | None has a canvas | — | — | — | Hosts only: Panacea (governance for free, wrapper images), Coolify (stale Penpot 2.11.1 template, no MCP) | — | Ours / Apache-2.0 / Apache-2.0 | — | — | Not canvases: Panacea is a snippet source and the Deploy step |
 | *Baseline: finish phase 5 as planned* | Yes: Go authority, 37 MCP tools | **Part: cross-person co-editing is v2**, outside the plan | **Yes**: real HTML | Yes | Yes | Yes | Ours | **Yes**, designed in | ~71 planned h left (~9 days); 35.5 h critical path | — |
 
 **The honest comparison with the baseline.** On the plan's own figures, finishing phase 5 costs
@@ -334,13 +335,19 @@ through two numbered fix rounds after review (`feat/phase-5-canvas` log).
 
 ## 5. Recommendation
 
-**Adopt Penpot 2.18.x (MPL-2.0) as the Design phase's canvas.** Self-host it on our AKS in
-Australia East, together with its official MCP server. Embed it in the Design lens, send every
-agent's MCP traffic through our relay, and keep the brief binding, approval and handoff as our own
-code.
+**Adopt Penpot 2.18.x (MPL-2.0) as the Design phase's canvas.** *Revised for the second
+direction (§1a):*
+- Install it with the upstream Helm chart 1.10.0, which has its MCP server built in, on the AKS in
+  Australia East that our control plane and sandboxes run on.
+- Open it in the cockpit's browser pane: Orca's per-worktree Chromium, or the Tauri WebView if
+  Orca does not ship.
+- Send every agent's MCP traffic through our relay.
+- Keep the brief binding, approval and handoff as our own code. Borrow Panacea's snippets for
+  network policy, pod hardening, Blob storage and Postgres.
+- Panacea stays the Deploy step for the app that the design turns into.
 
 **Integration: ~9 engineer-days in total. It is usable after ~3.5:** Penpot deployed, SSO through
-Keycloak, embedded in the lens, and agents designing through the human's open tab. With two
+Keycloak, open in the cockpit, and agents designing through the human's open tab. With two
 streams in parallel, that is about 5 calendar days. (§3.1 and §4 said ~8; §6's line-by-line
 breakdown gives 9, and 9 is the figure to use.)
 
@@ -363,7 +370,7 @@ breakdown gives 9, and 9 is the figure to use.)
 | Fate | Tasks | Planned hours |
 |---|---|---|
 | **Replaced by Penpot** | 05, 06, 07, 08, 09, 10, 11, 12, 13, 14, 15 (except `get_brief`), 16, 17 (except the server instructions), 23, 24, 25, 26, 29 — **18 tasks**. 05 and 06 are already built and become sunk cost | **~50.5 h**, of which ~45.5 h is unbuilt |
-| **Kept, re-pointed at Penpot** (they become the glue) | 18, 19 (relay), 20a, 20b (routes and wiring, smaller), 21 (approval), 22 (handoff), 27 (desktop data, smaller), 28 (lens chrome, smaller), 30 (end to end) — **9 tasks** | ~25.5 h at plan rates |
+| **Kept, re-pointed at Penpot** (they become the glue) | 18, 19 (relay), 20a, 20b (routes and wiring, smaller), 21 (approval), 22 (handoff), 27 (desktop data: dropped if Orca ships, small if the cockpit is Tauri), 28 (lens chrome, which becomes our Penpot plugin panel, §1a point 4), 30 (end to end) — **9 tasks** | ~25.5 h at plan rates; §6 costs the glue at 9 days, because it also carries the deploy, SSO and runner work that the plan never had |
 | **Built, kept** | 01 (the WebView2 spike, kept as knowledge), 02, 03 (thin homes for the glue), 04 (the licence gate, needed unchanged) — **4 tasks** | ~9 h, already spent |
 
 It also **supersedes `OD-34`**, the canvas's own op-log and authority, because Penpot's backend
@@ -380,7 +387,9 @@ becomes the authority. And it turns `OD-11`'s clean-room build into an adoption 
 | Tokens export in Tokens Studio format | A small converter to DTCG 2025.10 plus `tokens.css` in G6 |
 | A Clojure/JVM codebase we cannot easily patch | Treat it as a black box and take only upstream fixes. Any local patch to an MPL file ships with its source |
 | Relicensing upstream | MPL-2.0 today, and a relicence is not retroactive. Pin the version and let the licence gate record it |
-| Licence traps in its dependencies | Use **Valkey (BSD-3)**, not Redis ≥ 7.4 (RSALv2/SSPL, restricted). Store objects on a PVC, **not MinIO (AGPL-3.0)** |
+| Licence traps in its dependencies | Use **Valkey (BSD-3)**, not Redis ≥ 7.4 (RSALv2/SSPL, restricted). That rules out Panacea's `redis:7.4-alpine` add-on too. Store objects on Azure Blob through **S3Proxy (Apache-2.0)**, or on a PVC, and **not in MinIO (AGPL-3.0)**, which is Panacea's in-cluster default |
+| The chart's defaults are unsafe (§1a point 6): telemetry on, a sample `apiSecretKey`, open registration and password login | G1 overrides all of them, and the key comes from the vault. The upgrade canary asserts the flags every time |
+| Orca's embedded browser may throttle or freeze a background Penpot tab (not verified), which Penpot warns makes MCP *"reject tasks"* | The lens tab serves only the human who is looking at it. Agents that work unattended go through the runner (G5) |
 
 ## 6. What we still build (glue)
 
