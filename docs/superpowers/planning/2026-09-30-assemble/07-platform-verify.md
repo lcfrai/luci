@@ -76,7 +76,34 @@ should be named, even though the plan's controls answer it (G7).
 
 ## 3. Alternative 1: Supabase, self-hosted (and Coolify)
 
-_Pending._
+**Verdict: the rejection holds (reference, not the Hub).** One stated reason is wrong, and four
+stronger ones were missed.
+
+| Check | What the source says | Effect on 3.2 / 3.20 |
+|---|---|---|
+| Licence | `supabase/supabase` Apache-2.0, `supabase/auth` MIT, PostgREST MIT, the chart Apache-2.0 (API). Realtime, Storage, Supavisor, postgres-meta and Logflare are Apache-2.0 (raw `LICENSE` files; the API was rate-limited by then) | **holds**: all permissive |
+| Self-hosting limits | The vendor page, verbatim: Docker is "the fastest and recommended way"; the Helm charts are "community-driven"; "branching, advanced metrics beyond logs, managed backups and PITR, analytics and vector buckets, ETL, and the platform management API are unavailable"; "Studio doesn't support multiple organizations or projects"; "Self-hosted Supabase is community-supported" | **holds** |
+| Trusting Keycloak | Keys are static values in `.env` (`JWT_SECRET`, `JWT_KEYS`, `JWT_JWKS`). No remote JWKS is described | Holds for trusting realm tokens as they are. **But "only by a pasted key list" is wrong.** Supabase Auth has a built-in `keycloak` provider (README `:436`, `:467`). That path makes it a third hop that issues its own JWT, so each user holds two sessions: Supabase's for data, and the realm's for the gateway and fleet (K2). That breaks the ruling's single token profile |
+| Operator console | Studio sits behind one shared `DASHBOARD_USERNAME` / `DASHBOARD_PASSWORD` (`docker/.env.example:58-59`), enforced by Envoy `basic_auth` filters (`lds.template.yaml:71`) | **new**: no SSO for operators. It fails the Entra rule unless we put oauth2-proxy in front |
+| What KPMG can buy | Self-hosting has no paid tier and is "community-supported" | **new**: no support contract is available for our system of record |
+| Maintenance | `supabase/supabase` was pushed on 2026-09-30 (110,907 stars). The Kubernetes chart is community-run (818 stars, `supabase-0.8.0` of 2026-09-05). The compose file pins PostgREST `v14.17`; upstream is `v16.4` | The AKS path rests on a community chart that lags upstream |
+| Services to run | The current compose file has 11 images. The API gateway is now `envoyproxy/envoy:v1.39.1`, kept under the alias `kong` | "About twelve" holds. "Behind Kong" is out of date |
+| Days (13 against 10) | `hubapi.Canonical` is RFC 8785 JCS (`canonical.go:14-21`). Postgres `jsonb` does not keep key order or the input's exact form (Postgres manual, JSON types; from knowledge, not fetched today), so a cast cannot reproduce the golden vectors. The org scope is a server-set `hub.org_id`, and the realm issues no org claim | **Plausible, and a floor**: a hand-written JCS in PL/pgSQL or Deno, plus a claim mapper or auth hook, are both new work |
+
+**Coolify (3.20) at source.** `LICENSE` is Apache-2.0; `v4.3.23` of 2026-09-18, 62,411
+stars (API, 12:44). Its dashboard signs in through GitHub, GitLab, Google, Azure, Bitbucket,
+Discord or Infomaniak, and through Authentik, Clerk or Zitadel by guide
+([coolify.io OAuth](https://coolify.io/docs/knowledge-base/oauth)). **Keycloak and generic
+OIDC are not listed.** So operators would reach Entra only through a new app registration,
+which is the IT ticket `OD-30` exists to avoid. On Kubernetes, a search summary of Coolify's
+own scalability page and its v5 milestone says support is "planned" with no date, and that v5
+builds its own Docker-based multi-server layer (a summary only; the page was not fetched). The
+rejection holds: no Kata, a second platform to run, and a dashboard outside our sign-in.
+
+**Cohesion (the user's ask).** Taking Supabase and Coolify would add three consoles a person
+could meet: Studio, Coolify's dashboard, and a Supabase-issued session beside the realm's.
+Each has its own look and its own sign-in. That is the "separate apps merged into one" result
+the user asked us to avoid, and one more reason against them.
 
 ## 4. Alternative 2: the Hub hosted as a Panacea project
 
