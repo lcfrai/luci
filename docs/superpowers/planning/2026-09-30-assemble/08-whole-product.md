@@ -410,7 +410,24 @@ Kata-capable node pool (01).
 
 ## 6. Revised for the owner's second direction
 
-_(pending)_
+**What the first run left.** Nothing to revise in place. The first run was stopped at 09:47 before
+it wrote this file: there is no `08-whole-product.md` in the tree and none in `git log --all` for
+this path. This run is the first write, made under the second direction from the start. The table
+records what that direction changed in the analysis, against what the first direction alone
+("third-party first, ASAP") would have concluded.
+
+| # | Question | First direction alone | Under the second direction | Why |
+|---|---|---|---|---|
+| 1 | Is there a whole product to build on? | No | **No, unchanged** | Every candidate fails at least three of B1-B8 (section 3) |
+| 2 | OpenHands Enterprise | A live **buy** for Develop and team mode's central agents: it self-hosts and takes our LiteLLM | **Reference** | With Orca as the cockpit it would be a second cockpit (B9), and its agent is not the unmodified CLI |
+| 3 | Coder Premium | A buy question for the environment | **Reference**, unchanged | 01 adopts AKS Pod Sandboxing; Orca is the cockpit |
+| 4 | Panacea | "The deploy step" (phase 7) | **The platform, judged as a whole product and adopted** (4.14): deploy, the app's backend, sign-in, teams; Forge examined and not adopted | Owner: "Panacea is fine to use majority of"; the best fully-fledged answer on merit |
+| 5 | Coolify plus Supabase | Not considered | **Rejected as the platform** (4.15) | 16-24 days of ported Panacea code to approach Panacea (06 §3.9) |
+| 6 | The glue | Written fresh | **Borrows Panacea code** with attribution (Forge gates, key minting, pod spec, audit chain) | `OD-13` relaxed for snippets |
+
+**Net.** The answer, "assemble, do not buy a whole product", is the same under both directions.
+The second direction settles *which* assembly: Orca on top, Panacea underneath, the unmodified
+CLIs in our Kata sandboxes between them, and the provenance thread in the Hub.
 
 ## 7. The recommendation
 
