@@ -184,11 +184,59 @@ report is confirmed on Microsoft's current pages, and the Orca pairing path adds
 
 ## 5. Panacea as parts (snippets and services), not host
 
-*(to be filled)*
+**Verdict: UPHELD.** Panacea has no agent sandbox to adopt; every fact the report cites was found
+where it says. One correction lowers the value of a snippet the report counts on.
+
+| # | Claim | Verdict | Evidence (read-only greps of `Projects/Panacea`) |
+|---|---|---|---|
+| 1 | Forge preview pods are shared-kernel `runc`, no Kata anywhere | **Holds.** No `runtimeClassName`, `kata` or `gvisor` in any Panacea source or `.tf`. Its own roadmap lists "Forge sandbox isolation (gVisor/Kata pool for untrusted AI-generated code) — L" as future work | `docs/superpowers/plans/2026-06-04-magic-roadmap.md:76` |
+| 2 | Forge hardening: UID 1001, read-only root, drop ALL, `RuntimeDefault` seccomp, `emptyDir`, TTL reaper | **Holds** | `preview/manager.go:114-118`, `:198-206`, `:217-219`, `:581-597` |
+| 3 | "Copy Forge's security context into our `SandboxTemplate`" | **Mostly already done.** Our `sandbox/manager.go:151-208` already carries UID 1001, non-root, read-only root, no escalation and drop ALL. The one missing line, seccomp, is likely a no-op inside Kata (2.3 row 15). The snippet worth taking is the egress pattern, not the pod spec | our `control-plane/internal/sandbox/manager.go` |
+| 4 | `preview-deny-egress` NetworkPolicy plus npm/PyPI mirrors (Verdaccio 4873, proxpi 5000) | **Holds** | `deploy/forge/deploy-forge-orchestrator.yaml:61-101` |
+| 5 | Mirror licences (the report left them unchecked) | **Both MIT.** `verdaccio/verdaccio`: MIT, 17,900 stars, pushed 2026-09-29. `EpicWink/proxpi`: MIT, 204 stars, pushed 2026-09-28, one maintainer: a small project to pin and watch | GitHub API |
+| 6 | Tenant NetworkPolicy baseline | **Holds** ("Tenant NetworkPolicy baseline (ISM-1234)", default deny plus same-namespace) | `clients/tenant_ensure.go:20`, `:83-126` |
+| 7 | No node pool has a workload runtime; no FIPS or Trusted Launch | **Holds** (no `workload_runtime`, `fips_enabled` or `secure_boot` in `deploy/*.tf`) | grep |
+| 8 | The edge admits only KPMG AU egress, so our egress IP must be added before `panacea-mcp` works | **Holds** | `deploy/main.tf:581`, `:602-605` (`loadBalancerSourceRanges = var.edge_allowed_ip_ranges`) |
+| 9 | panacea-api "TTL sandboxes" are release copies, not agent machines | **Holds** ("a TTL-bound test/demo copy of any release") | `models/instance.go:70-72`, `:87` |
+
+- **The trade-off line stands:** co-hosting on Panacea's estate saves the new subscription and
+  about US$1,250 a month at list, against `OD-5`, a cutover whose bar is no lost features, and a
+  cluster with no Kata pool. Our own AKS, built from Panacea's patterns, is the better whole answer.
+- **Coolify and Supabase:** reject for this capability holds. Neither runs a microVM, keeps a warm
+  pool or offers a sandbox API; both are Docker or Postgres platforms (not re-read at source).
 
 ## 6. Orca inside a sandbox
 
-*(to be filled)*
+Orca is the owner's pick and is not re-argued here. What was checked is only what the sandbox
+design assumes about it. Sources: Orca's `skill-guides/orca-per-workspace-env.md`, its
+`references/windows-scripts.md` and `docs/reference/headless-linux-server.md` (raw GitHub, `main`,
+2026-09-30); the GitHub API.
+
+- **Licence and maintenance:** MIT (GitHub API), 81,627 stars, pushed 2026-09-30; releases
+  v1.4.215 to v1.4.217 on 09-27, 09-28 and 09-29. Pin the runtime to the desktop's version, as
+  the report says.
+
+| # | Assumption in `01-sandboxes.md` | Verdict | Evidence |
+|---|---|---|---|
+| 1 | The recipe's `create` prints one JSON object with the pairing code | **Holds.** "`pairingCode` and `projectRoot` are required"; `resume` "must print fresh recipe JSON because the pairing may have changed" | env guide §7 |
+| 2 | The sandbox starts "`orca serve --json`" | **Wrong flag.** The verified invocation is `orca serve --port … --project-root … --pairing-address "$EXTERNAL_WSS_URL" --recipe-json`, and "There is no `--host` flag". The Linux CLI is `orca-ide`; a packaged start writes a bare `orca` into `~/.local/bin` | env guide, "The `orca serve` invocation"; headless doc |
+| 3 | Orca's runtime is Electron under Xvfb, glibc 2.31 or later | **Holds.** "Current Orca builds start Xvfb automatically ... but Xvfb must be installed first". In a container: extract the AppImage (no FUSE; "neither requires a privileged container") and run a real init as PID 1, which "reaps exited PTY" processes | headless doc |
+| 4 | A warm pod must not have run `orca serve` before its claim | **Holds.** "Never snapshot a machine on which the Orca runtime has already run"; two VMs from one such snapshot "emitted identical `deviceToken` and `pairedDeviceId`" | env guide §3 |
+| 5 | Chromium's sandbox needs a non-root user | **Holds.** As root it needs `--no-sandbox` ("This disables a security boundary"). Our pod runs as UID 1001 with `allowPrivilegeEscalation: false`, so the setuid helper cannot work; only the user-namespace sandbox can, if the Kata guest kernel allows it. Unproven | headless doc |
+| 6 | The pairing code must stay out of access logs | **Holds.** "A pairing offer is a capability containing a device credential and E2EE material ... do not put it in proxy access logs" | headless doc |
+| 7 | Pairing works through a per-sandbox reverse-proxy path | **Holds in principle.** "Reverse proxies must support WebSocket upgrade and route the advertised path" | headless doc |
+| 8 | Recipe scripts are "documented for macOS and Linux only" | **Wrong, in our favour.** `references/windows-scripts.md`: "A bare `.sh` will not execute there. Either require WSL or Git Bash ... through a `.cmd` file, or scaffold PowerShell equivalents." The residual risk is KPMG's script policy (PowerShell execution policy, WDAC), not checked | Windows reference |
+| 9 | "Orca documents no pairing revocation" | **Contradicted by 02.** The cockpit study read Orca's source: "each paired client gets a revocable token" (`02-fleet-cockpit.md:83`). Not re-read here (GitHub API rate limit) | 02 |
+| 10 | The upstream recipe CLI (PR 22574) closed unmerged | **Holds** (closed 2026-09-24, not merged) | GitHub API |
+
+**One design gap the report does not name: who authenticates the `wss://` route.** Orca's desktop
+dials the pairing address and presents Orca's own device credential, not a Keycloak token. The
+router's scoped tokens (a header) and its session cookies (for browsers) are not something
+Orca's client sends (inferred from the docs; not tested). So "one authenticated `wss://` route per
+sandbox" can only mean Orca's pairing credential plus what our edge adds: TLS, a source-IP
+allowlist to KPMG egress (Panacea's `edge_allowed_ip_ranges` pattern), an unguessable
+per-sandbox path, and no path or query logging. That is defensible, but it should be stated in
+owner call 4 rather than implied to be SSO.
 
 ## 7. Are 8 days realistic for our architecture?
 
