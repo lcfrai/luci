@@ -297,12 +297,14 @@ endpoint and the plugin.
 - **Tauri/React desktop.** It no longer hosts Define. The kept desktop tasks 15, 16, 17 and 20
   (12 h) are re-seated, not deleted. Task 20's six session-start paths now have to be re-expressed
   in the recipe's `create` result, which Orca displays. Not costed here; flagged.
-- **The page G5 needs has no owner.** The Hub API **refuses browser contexts by design**: Hub task
-  08's `TestOriginIsRefusedBeforeRouting` returns 403 to any `Origin`. So "a Hub web page" does
-  not exist in any plan. The cheapest sound home is a **control-plane page behind oauth2-proxy →
-  Keycloak (Panacea's own SSO chain)**, opened in Orca's browser tab. The shared shell for it is
-  about 1 day and serves Design's and Deploy's lenses too (02 R4). It is **not** counted above;
-  whoever seats the lenses owns it (02 or 08).
+- **The page G5 needs has no owner.** The Hub API **refuses browser contexts by design**. Hub task
+  08's `TestOriginIsRefusedBeforeRouting` returns 403 to any `Origin`, and task 32 guards the auth
+  routes the same way. The only browser page in any plan is the work layer's **read-only** page,
+  "a second HTTP surface with its own session" (work task 80, unbuilt, 4-5 h). **No plan has a
+  write page such as Publish.** The cheapest sound home is a **control-plane page behind
+  oauth2-proxy → Keycloak (Panacea's own SSO chain)**, opened in Orca's browser tab. Its shared
+  shell is about 1 day, and it serves Design's and Deploy's lenses too (02 R4). That day is **not**
+  counted above. Whoever seats the lenses owns it (02 or 08), and it can share task 80's session.
 - **Keycloak and LiteLLM.** Unchanged: the agent reaches the model only through the per-session
   gateway token that the recipe's sandbox holds. That holds only on the recipe path (item 1 in
   2.5).
