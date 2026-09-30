@@ -1,6 +1,7 @@
 # 08 - Whole products that already do most of it. The sceptic's verification
 
-**Status:** IN PROGRESS (skeleton). Sections are filled one at a time and committed after each.
+**Status:** IN PROGRESS (relaunch after the 11:59 stop). Sections 1 and 3 written; the rest are
+filled one at a time and committed after each.
 **Date:** 2026-09-30. **Verifies:** `08-whole-product.md` (the researcher's recommendation).
 **Role:** sceptic. Try to refute the recommendation ("buy no whole product, assemble the per-phase
 picks with Orca on top and Panacea underneath") and its two best alternatives at source: licence,
@@ -14,7 +15,28 @@ only: nothing installed or run.
 
 ## 1. What was checked, and how
 
-*(to be filled)*
+All reads on 2026-09-30. Nothing installed, built, signed up for or run.
+
+- **The report under test:** `08-whole-product.md`, all 641 lines, in four chunks.
+- **The user's own words**, relayed by the workflow harness with this run, and they outrank the
+  computed task: *"make sure that even though we are pulling from a bunch of different areas, it
+  still all feels cohesive and a part of the same app. I hate when it feels like they are all
+  seperate apps merged into one..."* The report's owner call 2 (*"Customers see several products'
+  faces ... Recommend: accept for v1"*) is tested against that sentence in section 2.
+- **The sibling sceptics**, for their corrected days and findings: `01-`, `02-`, `03-`, `04-` and
+  `05-*-verify.md` (complete), and `00-`, `06-` and `07-*-verify.md` (being finished in parallel
+  while this was written, so their figures are as read at the time). Also `07-platform.md` §0-§3.2,
+  a cluster the report does not cite.
+- **Orca at source:** the blobless clone at `59b746f` (2026-09-29) in this session's scratchpad,
+  read with `git ls-tree` and `git show`: `src/shared/global-settings-types.ts`,
+  `src/renderer/src/lib/document-theme.ts`, `src/shared/plugins/plugin-panel-shell.ts`,
+  `src/renderer/src/components/right-sidebar/plugin-panel-design-token-css.ts` and
+  `use-plugin-panel-theme-revision.ts`. The question was how far Orca lets our surfaces look like
+  one app.
+- **Our side, read-only:** `docs/DESIGN-SYSTEM.md` (the token layer and stack).
+- **OpenHands at source** (section 3): the raw `LICENSE` files of `OpenHands/OpenHands`,
+  `OpenHands/enterprise` and `OpenHands/OpenHands-Cloud`; the chart README and `values.yaml`, and
+  `charts/infra/values.yaml`, at `main`.
 
 ## 2. The recommendation: assemble, buy no whole product
 
