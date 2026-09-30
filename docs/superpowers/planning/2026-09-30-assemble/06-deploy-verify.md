@@ -235,9 +235,32 @@ Panacea already runs, with two more consoles, one shared Studio password and sti
 **Verdict: reject as the deploy step, upheld.** It stays the reference for how short the Deploy
 panel should feel.
 
-## 5. Alternative 2
+## 5. Alternative 2: Azure Container Apps behind a second `deploy.Deployer`
 
-*(to be filled)*
+Picked as the second-best because it is the only other candidate that is Azure-native, has an
+AU-only option and supports Entra without extra glue (06 §3.3, §4). Argo CD with Kargo needs 10+ days
+and reverses Panacea's ADR-021, so it ranks below. Sources: Microsoft Learn (revisions, updated
+2026-02-26; authentication, updated 2026-07-08; environments, updated 2026-02-27; billing, updated
+2026-03-25) and the Azure Retail Prices API, all read on 2026-09-30.
+
+| Claim (06 §3.3) | At source | Verdict |
+|---|---|---|
+| Revisions are immutable, a label gives a revision its own URL, 100 inactive revisions are kept, "deployment labels" is preview | verbatim: "A label provides a unique URL that you can use to route traffic to the revision". "By default, you have access to 100 inactive revisions". The mode table: "Deployment labels (preview)". Labels also work in multiple-revision mode, which is not preview | **holds.** A preview per branch works without the preview mode |
+| Traffic splitting is promotion; re-activating is rollback | "You can activate a revision at any time". Blue-green and percentage splits are documented | **holds** |
+| Built-in Entra authentication | Easy Auth lists Microsoft Entra ID **and "Any OpenID Connect provider"** | **holds, and better**: Keycloak can sit in front directly. The Entra path needs one Entra app registration per app, which is an IT ticket each time. The OIDC path through our realm needs none |
+| Billing, and a free grant of 180,000 vCPU-s, 360,000 GiB-s and 2M requests | verbatim on the billing page. Retail prices in Australia East: US$0.000034 per active vCPU-second, US$0.000004 per GiB-second, US$0.40 per million requests. **Dedicated plan management is US$0.10 an hour per environment** (about US$73 a month) | **holds.** Price basis: per second of allocation, plus requests |
+| Australia East and Southeast | meters exist in **Australia East, Southeast and Central** | **holds**, and wider than 06 says |
+| (missed) Isolation of agent-written apps | "A Container Apps environment is a secure boundary". Apps in one environment "share the same virtual network". Separate environments are needed to "never share the same compute resources". No VM-level isolation is documented for ordinary apps. Hyper-V is documented only for dynamic sessions | **one environment per project** is the boundary, at about US$73 a month each on the Dedicated plan. It is no stronger in kind than Panacea's |
+| 3-5 days for a second `Deployer` | the seam and its conformance suite exist on `feat/phase-7-deploy` (tasks 01-06). Revisions, labels and traffic are ARM resource properties (`properties.template`, `properties.configuration`), so any ARM client can drive them. The Go SDK itself was not read. **But 3-5 days buys N1 and N3 only.** N2's scan gate, the data-class ladder and N4's evidence are ours to build, at roughly the sizes 06 §3.9 prices for Coolify (scans 3-5, gate 4-6, evidence 2-3) | **about 12-19 days as a whole deploy step** |
+
+**Cohesion, the one thing it does best.** ACA has no user-facing console of its own, so every screen
+would be ours, which is exactly what the owner asked for. It loses anyway, because the regulated
+half (scans by data class, the ladder, evidence) would all be new code.
+
+**Trade-off in one line:** the cleanest Azure runtime, with Entra or Keycloak built in and AU-only,
+but it leaves the regulated half to us, at about 12-19 days.
+**Verdict: reference, upheld.** Revisit only if a customer refuses a cluster and accepts that we own
+the gate and the evidence.
 
 ## 6. Orca as the surface deploy shows up in
 
