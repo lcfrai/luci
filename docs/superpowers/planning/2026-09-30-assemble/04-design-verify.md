@@ -189,6 +189,47 @@ chosen.
 **What still holds:** the runner-in-Kata idea (hardened pod, egress to Penpot only) is the right
 containment, and G7's approval via the approver's own tab is sound (2.3 row 11).
 
+### 2.6 Fit with Azure, Entra, LiteLLM and our code
+
+| Constraint | Verdict | Evidence |
+|---|---|---|
+| Azure, AU, customer cloud (`OD-5`, `OD-18`, `OD-24`) | **Holds** | Self-hosted chart on AKS in Australia East. The only outbound calls we found are telemetry and the admin console's licence check, and both get switched off. Other browser-side egress (fonts, for example) is not verified. G10's CSP will show it |
+| Keycloak brokering Entra (`OD-30`) | **Holds** | Generic OIDC with a roles attribute (2.3 row 9). Bots are Keycloak-local users |
+| LiteLLM, zero retention (`OD-19`) | **Holds, n/a** | Penpot's MCP server calls no model. The agents call LiteLLM as they already do |
+| Go control plane `Backend` | **Fits, with new work** | A runner is `Backend.Create(Spec)` with a runner image. But `Spec` (`backend.go:181`) has no network-policy or MCP-config field, and `control-plane/` has no `--mcp-config` or `allowedTools` code today. Both are G4 and G5 work, not re-use |
+| Tauri/React desktop, or Orca | **Fits, as a top-level window** | Penpot sends `X-Frame-Options SAMEORIGIN` (2.5 point 5). `desktop/` embeds no external web content yet |
+| Untrusted agents, Kata | **Fits, if the runner is mandatory** | 2.5 point 4 |
+| Panacea as the host (second direction) | **The report's rejection holds** | Re-read, read-only: `services/panacea-api/launchdoc/LAUNCH.md:173` *"OPA Gatekeeper — writable root filesystems are rejected"*; `clients/tenant_redis.go:70` `panacea/redis:7.4-alpine`; `docs/architecture/AGENT-BUILDER-SPEC.md:113` G-05 *"GrapesJS or custom"*, P2, unbuilt. One nuance: emptyDir mounts might avoid wrapper images, if Panacea's pod spec allows them (not checked) |
+| Coolify as the host | **The report's rejection holds** | `coollabsio/coolify` `templates/compose/penpot.yaml`: `penpotapp/*:2.11.1 # Released on 13 Nov 2025`, no MCP service, `enable-login-with-password` by default |
+
+### 2.7 Are 9 days realistic for our architecture?
+
+**No. About 13 engineer-days.** The largest error is structural (one tab per user), not effort.
+Every figure is unmeasured, as in the report.
+
+| # | Glue | Report | Verified | Why it moves |
+|---|---|---|---|---|
+| G1 | Deploy | 1 | **1.5** | Five components, not four. Switch the admin console off. Add `enable-access-tokens`, `enable-webhooks`, `enable-login-with-oidc`, `enable-oidc-registration`, `disable-login-with-password`, `disable-registration`. Replace the OIDC `scopes`/`rolesAttribute` placeholders and the database password. S3Proxy on Blob is unverified |
+| G2 | Identity and roster | 0.5 | **1** | There is no add-member RPC, so each human accepts an invitation once. Bot identities are per lane, each with an MCP key |
+| G3 | Cockpit pane | 0.5 | 0.5 | Top-level window only, or swap the header at ingress |
+| G4 | MCP relay | 1.5 | **2** | Per-lane token routing, a file-id guard on `execute_code` and `export_shape`, and MCP config injection, which the control plane does not do today |
+| G5 | Headless runner | 1.5 | **2.5** | One per active lane. A new workload type, with a NetworkPolicy the `Spec` cannot express yet, *"Connect here"* automation, keep-alive and idle-out. It is now mandatory, so a failed spike blocks real data rather than just degrading |
+| G6 | Tokens | 0.5 | 0.5 | Smaller gap than stated (DTCG draft to 2025.10) |
+| G7 | Brief binding and approval | 2 | 2 | Holds: `saveVersion` plus `pin()` in the approver's tab, and team-level webhooks |
+| G8 | Handoff | 1 | 1 | Holds |
+| G9 | Canary | 0.5 | **0.75** | Also asserts that the admin console is off, the flag set, and that the CSP is present |
+| G10 | CSP and plugin allowlist *(new)* | — | **1** | 2.5 point 4 |
+| | **Total** | **9** | **~12.75** | |
+
+**Milestones, corrected:**
+- **Demo mode**, agents through a human's tab on non-sensitive files: after G1–G4, about 5 days
+  for one engineer. The report said 3.5.
+- **Real data:** after G5 and G10 as well. With two engineers (A: G1, G2, G3, G4, G10;
+  B: G5, then G6, G7, G8, G9) that is about day 6, and everything is done in about 7 calendar
+  days.
+- Still days, not weeks. It is also no longer cheaper than the baseline's own plan figure of
+  ~9 days to finish phase 5 (04-design §4). Penpot wins on what arrives, not on cost (§5).
+
 ## 3. Alternative 1: OpenPencil
 
 *(to be filled)*
