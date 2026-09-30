@@ -44,7 +44,7 @@ Relaunch, 2026-09-30, after the first run stopped at 09:47. The core answer stan
 | # | What | First run | Now | Why |
 |---|---|---|---|---|
 | 1 | How the cockpit reaches a cloud session | A thin `remotebe` in our desktop, over an in-cluster control plane | **Orca's per-workspace environment recipe** (`orca.yaml` → `environmentRecipes`). Its `create` script asks our control plane for a sandbox; at bind the sandbox starts Orca's headless runtime (`orca serve`) and hands back the pairing code; Orca streams terminals over its own end-to-end-encrypted WebSocket | The owner picked Orca. The recipe is Orca's documented seam for "a cloud sandbox, VM, or local Docker container" per worktree |
-| 2 | Days to the first cloud session | 7 (5 to 9) | **8 (6 to 10)** | +0.5 to package Orca's runtime into the image; +0.5 for an authenticated `wss://` route to each sandbox. The `remotebe` share of the old glue becomes a 0.5-day recipe |
+| 2 | Days to the first cloud session | 7 (5 to 9) | **8 (6 to 10)** | +0.5 to package Orca's runtime into the image; +0.5 for the Orca recipe. The `remotebe` share of the old glue becomes an authenticated `wss://` route to each sandbox |
 | 3 | Panacea | The model only (`OD-13` then forbade copying) | **Used where it is the better answer** (4.15): its hardened pod spec, deny-egress policy, package mirrors, tenant network baseline and Terraform are copied with attribution; its Keycloak realm, LiteLLM gateway and Trivy scans are called, not rebuilt. **It is not the sandbox host** | Owner: "Panacea is fine to use majority of"; snippets now allowed |
 | 4 | Coolify, Supabase | Not considered | **Not used for this capability** (4.16): neither runs untrusted code in a microVM, keeps a warm pool, or hands out a PTY | Allowed by the owner; on merit they belong to deploy (06) and the Hub, not here |
 | 5 | SaaS sandboxes Orca already supports | Modal: "reference, a demo fallback" | Vercel Sandbox (now in Sydney), Modal (`au`) and Fly: **reference, the fastest Orca demo, not the product** (4.17) | Orca wires them today; none is Azure or our environment (`OD-18`, `OD-5`) |
@@ -444,10 +444,12 @@ measured by us. GitHub numbers are from the GitHub API on 2026-09-30.
 ## 5. Recommendation
 
 **Adopt AKS Pod Sandboxing (Microsoft-managed Kata) plus `kubernetes-sigs/agent-sandbox` v1.0.4
-(Apache-2.0) as the `katabe` backend, in Australia East. 7 days to the first real cloud session
-from the cockpit.**
+(Apache-2.0) as the `katabe` backend, in our own AKS in Australia East, hardened with Panacea's
+code and reached from Orca through one environment recipe. 8 days to the first real Claude Code
+session from Orca in a Kata microVM (range 6 to 10).** *(Revised: was 7 days, reached from our
+own desktop through `remotebe`.)*
 
-Why this and not a bought service:
+Why this and not a bought service, and not Panacea's cluster:
 
 1. It is the only candidate that meets all eight musts today (section 2), with a permissive licence.
 2. Microsoft runs the hard part (the Kata runtime, the guest kernel, the hypervisor) and
@@ -456,34 +458,46 @@ Why this and not a bought service:
 3. It reuses what exists: `katabe` already targets Kubernetes behind the unchanged seven-method
    `Backend`; phase 8 is already written for AKS; `OD-18` chose Azure for this reason.
 4. It goes into a customer's own AKS unchanged, which a SaaS (Modal, Runloop, Northflank's
-   control plane) cannot, and it needs no new-vendor procurement, which would cost weeks.
+   control plane, Vercel Sandbox) cannot, and it needs no new-vendor procurement, which would
+   cost weeks.
+5. *(Revision)* Panacea has no sandbox to adopt (4.15), so the best complete answer is this one
+   built with Panacea's parts: its hardening, egress pattern, mirrors and Terraform are copied,
+   and its Keycloak realm, LiteLLM gateway and Trivy are called. Hosting on Panacea's cluster
+   would save about a day and US$1,250 a month, against `OD-5` and its cutover risk.
 
-### The 7 days
+### The 8 days *(revised: was 7)*
 
 | Day | Step | Whose |
 |---|---|---|
-| 0.5 | AKS in Australia East (Overlay + Cilium, Entra RBAC), an Azure Linux Kata pool on a nested-virt Dsv5 size with the cluster autoscaler, ACR. A scripted `az` runbook now; phase 8 task 06's OpenTofu module codifies it after | this option |
-| 0.5 | Install agent-sandbox v1.0.4; one `SandboxTemplate` (our image, `kata-vm-isolation`, explicit requests, no service-account token, seccomp, a PVC); one `SandboxWarmPool`; time 10 parallel claims. This is the spike the 2026-09-28 study asked for, shrunk because upstream ships the AKS manifests | this option |
+| 0.5 | AKS in Australia East (Overlay + Cilium, Entra RBAC), an Azure Linux Kata pool on a nested-virt Dsv5 size with the cluster autoscaler, ACR. A scripted `az` runbook now, taking the Firewall and private-endpoint settings from Panacea's `deploy/firewall.tf` and `deploy/private-endpoints.tf`; phase 8 task 06's OpenTofu module codifies it after | this option |
+| 0.5 | Install agent-sandbox v1.0.4; one `SandboxTemplate` (our image, `kata-vm-isolation`, explicit requests, no service-account token, Panacea's Forge security context: UID 1001, read-only root, drop ALL, seccomp; a PVC); one `SandboxWarmPool`; time 10 parallel claims. The spike the 2026-09-28 study asked for, shrunk because upstream ships the AKS manifests | this option |
 | 1 | `katabe`: `Create` = a `SandboxClaim` through the Go SDK; `Get`/`List` from `Sandbox` status; `Destroy` deletes the claim; `Attach` dials the pod IP with the token | this option |
-| 0.5 | `sandboxd` late-bind: a warm pod starts unbound; the first `POST /bind`, reachable only from the control plane by NetworkPolicy, sets the attach token, the per-session gateway token (`OD-19`) and the harness command, then starts the PTY | this option |
-| 1 | Egress default-deny; allow DNS, the LiteLLM gateway, the git hosts (`OD-4`) and package mirrors by FQDN (Cilium FQDN policy, or phase 8 task 07's Azure Firewall); ingress only from the control plane | this option |
-| 1.5 | Worktree into the sandbox (seam S8.3): clone inside it with a scoped credential (`OD-22` for fetch, the signed-in person's for push), fetch back under `refs/panacea/lanes/…` (`OD-2`, phase 3) | shared glue |
-| 1.5 | The control plane in the cluster behind the Keycloak broker (`OD-30`), and a thin `remotebe` so the desktop lists, creates and attaches cloud sessions (the first slice of phase 8 tasks 17, 18, 22) | shared glue |
-| 0.5 | Smoke: 10 parallel Claude Code sessions; attach, fork, resume, destroy; record claim p50/p95 and pool refill under a burst | this option |
+| 1 | Image and late-bind: add Orca's Linux AppImage and its `xvfb`/GTK libraries to the sandbox image (never run it at build time). A warm pod starts unbound; the first `POST /bind`, reachable only from the control plane by NetworkPolicy, sets the per-session gateway token (`OD-19`), then starts `orca serve --json` with this sandbox's pairing address (or, off Orca, `sandboxd`'s PTY) and returns the ready block | this option |
+| 1 | Egress default-deny; allow DNS, the LiteLLM gateway, the git hosts (`OD-4`) and an in-cluster npm/PyPI mirror on Panacea's Verdaccio + proxpi pattern; Cilium FQDN policy, or phase 8 task 07's Azure Firewall; ingress only from the control plane and the pairing route | this option |
+| 1.5 | Worktree into the sandbox (seam S8.3): the control plane's git runner clones onto the sandbox's PVC before bind with `OD-22`'s read-only credential, so none enters the sandbox; work comes back under `refs/panacea/lanes/…` (`OD-2`, phase 3); pushes use the signed-in person's credential, outside the sandbox | shared glue |
+| 1.5 | The control plane in the cluster behind the Keycloak broker (`OD-30`, Panacea's realm), plus one authenticated `wss://` route per sandbox for Orca's pairing: TLS at the edge, the pairing code never logged (the first slice of phase 8 tasks 17 and 18) | shared glue |
+| 0.5 | The Orca recipe: an `environmentRecipes` entry and `create`/`suspend`/`resume`/`destroy` scripts that call the control plane with the user's token and print Orca's JSON. It replaces the thin `remotebe`; counted here, so 02 should not count it again | shared glue |
+| 0.5 | Smoke: 10 parallel Claude Code sessions from Orca; pair, type, suspend, resume, destroy; record claim p50/p95 and pool refill under a burst | this option |
 
 ### What it replaces in our plan
 
-- **Phase 8** (38 task files, about 98.5 plan-days by the plan's own estimates; the stream
-  reports 5 of 35 done). **Removed:** task 12 (warm capacity:
-  balloons and pre-pull, 2 days) and task 19 (broker machines: wake, sleep, idle sleeper, caps,
-  4 days), which become `SandboxWarmPool` and the `Sandbox` lifecycle. **Materially reduced:**
-  14 (pod hardening, 2.5), 15 (machine volumes, 3), 23 (per-machine backends and reaper, 3.5)
-  and 32 (Kata proving checklist, 2). **Reduced further if** the plan's machine pod with a shared
-  disk becomes one `Sandbox` per session with its own retained PVC, which `OD-2`'s one clone per
-  worktree already implies: 20, 21, 21b, 24a, 24b, 25 and 25b (19 plan-days) shrink by about
-  half. In all, 13 tasks and about 36 plan-days become about 14. That last step is a plan edit
-  that needs its own review; the word "machine" and what the user sees do not change.
-- **The critical path.** The first cloud session needs only the 7-day slice above. The rest of
+- **Phase 8** (38 task files, about 98.5 plan-hours by the plan's own estimates, whose column is
+  `Hours`; the first run said "plan-days" in error; the stream reports 5 of 35 done).
+  **Removed:** task 12 (warm capacity: balloons and pre-pull, 2 hours) and task 19 (broker
+  machines: wake, sleep, idle sleeper, caps, 4 hours), which become `SandboxWarmPool` and the
+  `Sandbox` lifecycle. **Materially reduced:** 14 (pod hardening, 2.5), 15 (machine volumes, 3),
+  23 (per-machine backends and reaper, 3.5) and 32 (Kata proving checklist, 2). **Reduced
+  further if** the plan's machine pod with a shared disk becomes one `Sandbox` per session with
+  its own retained PVC, which `OD-2`'s one clone per worktree already implies: 20, 21, 21b, 24a,
+  24b, 25 and 25b (19 plan-hours) shrink by about half. In all, 13 tasks and about 36 plan-hours
+  become about 14. That last step is a plan edit that needs its own review; the word "machine"
+  and what the user sees do not change.
+- *(Revision)* **Under Orca**, if 02 replaces our desktop with it: task 22 (`remotebe`, 3) and
+  task 26 (the cockpit shows cloud machines, 3) become the recipe, and group F's other tasks
+  follow 02's lane ruling. **Under Panacea's Terraform**, group A (tasks 03 to 07, 14.5 hours)
+  starts from Panacea's `deploy/*.tf` instead of a blank file; it shrinks, by an amount not
+  estimated here.
+- **The critical path.** The first cloud session needs only the 8-day slice above. The rest of
   phase 8 (OpenTofu stacks 01–10, charts 11 and 13, identity and broker 16–18, 22, UI 26,
   pipelines and runbooks 27–31, close-out 33) stays and follows, off the critical path.
 - **Phase 9** has no plan yet. The Kata runtime, guest kernel and hypervisor patching become
@@ -491,16 +505,21 @@ Why this and not a bought service:
   policy and the ISM evidence.
 - **Capacity.** `PROGRAM.md` open risk 1 (warm-pool sizing unproven) becomes a pool size, an HPA
   on the pool's scale subresource and the cluster autoscaler on the Kata pool, measured by the
-  day-7 smoke instead of a hand-built pool controller.
+  day-8 smoke instead of a hand-built pool controller.
 
-### What we still build (the glue)
+### What we still build (the glue) *(revised)*
 
-1. The `katabe` claim client and the `sandboxd` late-bind.
-2. Clone-in-sandbox and lane fetch-back with scoped git credentials.
-3. The in-cluster control plane behind Keycloak, and the thin `remotebe`.
-4. The egress allowlist, the ingress policy and the template hardening.
-5. The canary-gated image bump that tracks the latest Claude Code CLI (`OD-20`), rolling the
-   template and refilling the pool; and our own burst load driver (upstream has none).
+1. The `katabe` claim client and the late-bind that starts `orca serve` (or `sandboxd`) with a
+   fresh identity and the per-session gateway token.
+2. The control plane's clone onto the sandbox's disk and the lane fetch-back; no git credential
+   inside the sandbox.
+3. The in-cluster control plane behind Keycloak, the per-sandbox `wss://` pairing route, and the
+   Orca recipe's four scripts (replacing `remotebe`).
+4. The egress allowlist with the npm/PyPI mirror, the ingress policy and the template
+   hardening, each starting from Panacea's code with attribution.
+5. The canary-gated image bump that tracks the latest Claude Code CLI (`OD-20`) **and pins
+   Orca's runtime to the desktop's version** (Orca releases almost daily, per 02), rolling the template and
+   refilling the pool; and our own burst load driver (upstream has none).
 
 ### Risks, and the rule that switches to the fallback
 
@@ -509,6 +528,15 @@ Why this and not a bought service:
 - The agent-sandbox CRDs are `v1beta1` and a month past 1.0; pin the version.
 - Defender for Containers cannot assess Kata pods (a recorded compliance gap); AKS
   node auto-provisioning does not support Kata.
+- *(Revision, Orca)* Orca's recipe guide documents bash scripts on macOS and Linux; how they run
+  on a Windows desktop is not documented. If they do not, the control plane opens Orca's
+  `orca://pair?code=…` link instead (Orca's remote-server mode), which costs the per-worktree
+  lifecycle buttons, not the session.
+- *(Revision, Orca)* Orca's runtime is Electron: its Chromium sandbox needs a non-root user and
+  may need user namespaces inside the Kata guest; `--no-sandbox` would be a downgrade inside the
+  microVM, not a breach of it. Its pairing has no documented revocation, so destroying the
+  sandbox is the revocation. The upstream CLI for recipe environments (PR 22574) was closed
+  unmerged on 2026-09-24; the desktop's recipe service is what we rely on.
 - **Switch rule:** if day 1 cannot get Kata nodes in Australia East, or claim p95 stays above
   about 5 seconds after tuning, move to **ACI + standby pools (4.3)**: same Hyper-V isolation
   class, no cluster, about 2 extra days for a new `acibe`.
