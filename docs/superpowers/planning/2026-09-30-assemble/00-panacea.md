@@ -15,8 +15,9 @@ solution wins ("Panacea is fine to use majority of, if we want to use Coolify pl
 enhance with snippets from Panacea, that is fine as well"). OD-13 relaxed: Panacea snippets may be
 copied with attribution in the file header. Orca is the cockpit pick (not re-argued here).
 
-**Method:** grep only, scoped per directory, in `Projects/Panacea` (read-only; nothing built, run
-or written there). Every claim below cites `path:line` in that repo as of today's working tree.
+**Method:** grep and short reads, scoped per directory, in `Projects/Panacea` (read-only; nothing
+built, run or written there). Every Panacea claim cites `path:line` in that repo at commit
+`efc637879`; other claims cite this repository, GLASSES or the web (section 16).
 
 ---
 
@@ -146,9 +147,11 @@ which carries no credential (`README.md:93-94`). Mutating tools require `confirm
 | kubectl (6) | `panacea_k8s_namespaces`, `_pods`, `_describe_pod`, `_pod_logs`, `_events`, `_quota` | SuperAdmin, read-only |
 | escape (1) | `panacea_api_request` (`:578`): any method and path the token allows; writes need `confirm` | the token's RBAC |
 
-**What it means for PanaceaApp.** Put `panacea-mcp` in every agent sandbox, launched with a
-**project-scoped, developer-capped, expiring `pnc_` token** (section 5), and an unmodified Claude
-Code can deploy, read logs, diagnose a failed build and roll back with no glue at all. There is no
+**What it means for PanaceaApp.** Put `panacea-mcp` in every agent sandbox, pointed at the
+control-plane proxy that holds the user's token and forwards only the session's own project
+(06-deploy G4); once Panacea trusts the realm (P5c), a **project-scoped, expiring `pnc_` per
+sandbox** can replace the proxy's token (section 5.3). Either way an unmodified Claude Code can
+deploy, read logs, diagnose a failed build and roll back with no further glue. There is no
 named tool for promote, previews, branches, code push or evidence; `panacea_api_request` reaches
 all of them (`P/promote`, `P/previews`, `P/code`, `P/releases/{release}/evidence`).
 
@@ -223,8 +226,8 @@ Three ways through, ranked:
    in Panacea (a second verifier config in `jwks.go`, plus tests), done by the Panacea stream, not us.
 2. **Until then: one pasted `pnc_` per user, and a control-plane proxy.** The user mints a token once
    in the portal (Account, Connect via MCP); phase 7 already stores it (7P-1, ruling section 8). The
-   sandbox's `panacea-mcp` points at a loopback proxy in our control plane that forwards only the
-   session's project routes. About 1 day of glue.
+   sandbox's `panacea-mcp` points at a proxy in our control plane that forwards only the
+   session's project routes. This is 06-deploy's G4 (1 day, counted there).
 3. Not recommended: minting legacy `panacea_` project keys per session (`apikeys.go:31-55`).
 
 
