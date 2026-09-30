@@ -276,11 +276,33 @@ The total above is **about 19 engineer-days**. The elapsed time is set by lanes,
 
 ## 6. Glue we still build
 
-_To be written._
+New work that no plan holds today. Planned tasks kept as they are (the Hub's minimum, phase 6) are in §5's table, not here.
+
+| # | Glue | Where | Days | Needs first |
+|---|---|---|---|---|
+| P1 | **The Keycloak dev container**: a compose service in the Hub's local stack running Keycloak in dev mode with `--import-realm`; a dev copy of the realm file with a test-only client and `tid`/`oid` attribute mappers; a token helper for tests. Replaces Hub tasks 11-12 | `control-plane/cmd/hub` local stack, Hub test harness | 0.15 | environment task 09's realm file (built) |
+| P2 | **The first-use environment runbook**: one Flexible Server (Burstable in dev; databases `hub` and `litellm`; private endpoint; Entra admin), Key Vault, DNS records and ingress for the Hub and the gateway, with values taken from Panacea's `postgres-flexible.tf` and `object-storage-blob.tf`; phase 8 tasks 05-08 codify it afterwards | `infra/scripts/`, then `infra/terraform/modules/` | 1 | the subscription; 01-sandboxes' AKS half-day |
+| P3 | **Attribution for every Panacea snippet**: a header naming the source path and Panacea commit in each copied `.tf` file and in keysmith's key code, and one `THIRD-PARTY.md` line each | wherever a snippet lands | inside the tasks | `OD-13` relaxed (done) |
+| P4 | **The realm ask, handed over as a block**: the ruling's K1-K4, the `panacea-app-desktop` client, the four audience scopes and the `panacea-app-fleet` client, for the Panacea stream to apply; accepted by the Hub's task 43 real-tenant checklist | Panacea stream; Hub task 43 | 0 of ours (about 0.5 of theirs) | the Panacea stream's capacity during its cutover |
+| P5 | **Later, each on its trigger**: our own Keycloak by the Operator (2 days; a customer-hosted tier or a stalled P4), the ledger witness (0.5-1; an assessor asks), `NOTIFY` pushed as server-sent events (0.5; a surface needs sub-second), the Azure Blob `blobstore` with immutability (0.5; blob sizes) | our AKS | 3.5-4, not in the 19 | the trigger named |
+
+**New glue for first use: about 1.15 days** (P1 and P2). Asks of the Panacea stream: the realm change (P4); recommended, not required, Keycloak 26 with two replicas, so that sessions survive a restart. 06-deploy's P-3 (Panacea trusts our realm token) is that study's ask, not ours.
 
 ## 7. Owner calls
 
-_To be written._
+1. **The subscription and its platform line items (money).** This adds to 01-sandboxes' call 1. A dev Flexible Server (Burstable B2ms) is US$0.208 an hour, about US$152 a month, plus US$0.138 per GB-month of storage (Azure Retail Prices API, Australia East, list, 2026-09-30). Key Vault and Blob are small, and Log Analytics is capped by task 04. Production adds zone-redundant HA (a second instance) and geo-backup; its General Purpose price was not retrieved. **If the subscription is late**, the fallback is hosting the Hub as a Panacea project (3.4). That sets `OD-5` aside for the Hub while it runs.
+2. **Which accounts back inference on day one (money, contract, customer-visible).**
+   - **Global:** `OD-19` names the direct Anthropic API with zero retention. That needs a KPMG Anthropic API organisation and a zero-retention agreement; neither is in the repo. KPMG's Kelios endpoint exists today as Panacea's Claude upstream, but its retention terms are not in the repo either.
+   - **AU:** an AWS account for Bedrock Sydney (phase 6 task 20).
+   - **The call:** which accounts pay, and which contract carries the zero-retention promise customers will be told.
+3. **The budget defaults (money).** `OD-24` turns budgets on by default. The per-person, per-project and per-team amounts are the owner's numbers (the fallbacks in phase 6's P6-D8).
+4. **Sign-in rests on Panacea until our own Keycloak (customer-visible).** A restart of Panacea's single Keycloak pod signs every user out, and a realm outage stops sign-in. Three ways to handle it:
+   - accept it for the pilot;
+   - wait for the Panacea stream to move to Keycloak 26 with two replicas;
+   - stand up our own Keycloak now (3.11), about 2 days plus an IT ticket for the Entra redirect URI.
+5. **What customers are told about AU (customer-visible).** No screen may say "AU only" until the `count_tokens` canary (phase 6 task 26) passes. Global calls leave Australia by definition, and the isolation and data wording should say so.
+
+Not a call today: a LiteLLM Enterprise licence (3.16) waits until more than 5 operators need LiteLLM's own admin UI.
 
 ## 8. Revised for the owner's second direction
 
