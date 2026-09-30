@@ -429,7 +429,16 @@ The plan left the last group out of v1 altogether (`…-design-canvas.md:59-62`)
 
 ## 7. Owner calls (money or customer-visible)
 
-_Pending._
+The technical choices are ours, and none of them is listed here. That includes the host (§1a), the
+relay and the runner.
+
+| # | Call | Why it is the owner's | Recommendation |
+|---|---|---|---|
+| 1 | **Withdraw `OD-11`'s clean-room build and `OD-34`'s op-log in favour of adopting Penpot (MPL-2.0).** `OD-11` rule 3 reads *"Dependencies are MIT, Apache-2.0, BSD or ISC only"*, and MPL-2.0 is not on that list. Today's constraints do list MPL-2.0 as allowed. Rule 1, never opening AGPL or GPL canvas source, is unaffected | It reverses a recorded owner decision, and it decides what customers get as their canvas | **Yes.** Penpot runs unmodified as its own service, and none of our code links it. MPL's file-level copyleft would bite only if we patched a Penpot file and shipped it into a customer tenancy (§3.1) |
+| 2 | **Customers see Penpot's own UI and name in the Design phase**, not our design system. Rebranding means patching MPL files, and MPL-2.0 *"does not grant any rights in the trademarks, service marks, or logos"* (§2.3) | Customer-visible | **Accept for v1**, shown as "Design, powered by Penpot". Our own surface is the plugin panel (G7) and the cockpit around it |
+| 3 | **Frames are vectors with a CSS flex/grid layout, not paper.design's live HTML** (T3) | Customer-visible, and it is the owner's own benchmark | **Accept.** HTML/CSS arrives at handoff through `generateMarkup`/`generateStyle`, and the Develop agent turns that into components. Revisit OpenPencil (§3.2) at its 1.0 |
+| 4 | **Paid support: Penpot Private Server at US$50,000 a year list** (penpot.app/pricing). The Azure running cost of Penpot and its runner is **not priced** here; it rides on 01-sandboxes' environment budget | Money | **Run unsupported in our own environment now.** Decide before the first install in a customer's tenancy, where a regulated customer will ask who supports the canvas |
+| 5 | **A Figma adapter for customers who already own Figma.** It needs Full seats for agents to write (Enterprise, US$90 a seat a month), and Figma's agreement to admit our relay to its MCP catalogue (§3.3) | Money, the customer's or ours, and customer-visible | **Not in v1.** Build it (~3 days) on the first customer who asks |
 
 ## 8. What this study could not verify
 
