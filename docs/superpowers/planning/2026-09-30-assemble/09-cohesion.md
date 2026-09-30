@@ -456,3 +456,37 @@ the product surfaces:
 
 **Cost: about 0.75 day new** (the scan 0.25, the copy review 0.25, the `CONTEXT.md` entries 0.25).
 The preset's wording is §2 row 6's 0.25.
+
+## 6. Cohesion acceptance criteria
+
+**How they run.** Walk one journey on the pilot build, from a cold start on a managed KPMG
+laptop, and check every criterion at every step. The automatable ones also run on every pin move
+of Orca or Penpot (02-verify §8 item 1). They extend 08-verify's R6 journey test and 02-verify's
+five checks, and replace neither.
+
+**The walk:** J1 open the app. J2 the Desk. J3 Define a new project from an idea and publish the
+brief. J4 Design: an agent drafts in Penpot, the person edits and approves. J5 Develop: start a
+lane from a ticket, work in it, fork a session. J6 land the lane. J7 Deploy: open the preview,
+ship, confirm the release. J8 come back the next morning to the Desk. J9 answer one decide card in
+Teams.
+
+| # | Criterion | Passes when | How it is tested |
+|---|---|---|---|
+| K1 | **One name** | No screen, window title, OS notification, installer or taskbar entry shows Orca, Penpot, Backstage, Keycloak, LiteLLM or Spec Kit, except the About screen's open-source notices | The CI scan (§5.5); a DOM text scan at each step; the installer by hand |
+| K2 | **One sign-in** | From a cold start, J1-J8 render no sign-in page: none from `login.microsoftonline.com`, the realm, Penpot or Panacea's Portal. No token is pasted after the one-time Connect step, and none once P-3 lands | Record the frame's navigations during the walk; any interactive login document fails |
+| K3 | **One frame** | Every step J1-J8 completes inside the window. The only exits are the first-run sign-in tab and a reviewer's host PR page | Count external opens during the walk: zero after first run |
+| K4 | **One spine** | Every screen shows the project, the branch and the brief revision key. Every Hub page carries `brief:bf-…@n` in its header, and the lane card shows it in Develop | A DOM assertion per step |
+| K5 | **The thread is whole** | From any screen, one click shows the same brief revision, design approval, sessions, lanes and PRs, and release, each opening its record. No `%`, bar, tick or "N of M" appears anywhere | Click through each record; scan text for `\d+ of \d+` and `%` |
+| K6 | **Lenses, not a pipeline** | Four equal lenses: unnumbered, no arrows, no ticks. Each opens from each other lens on a fresh project | Visit all twelve lens pairs |
+| K7 | **One palette** | ⌘K opens the same palette in Develop, on every Hub page and inside Penpot's editor, and every registered action is in it | The registry coverage test (§5.3); the chord pressed on each surface |
+| K8 | **One queue** | One synthetic event per source (a permission prompt, a ticket handed over, a Penpot mention, a failed deploy, changes requested, a Teams answer) each makes exactly one ranked Desk row. No count or badge appears anywhere else | Inject the six events; scan every surface for badges |
+| K9 | **One look** | Every surface we control renders our tokens: teal only on interactive or current state, warm graphite grounds, our status colours with shapes. None of Orca's `#0a0a0a` and `#171717`, Penpot's mint `#00d1b8` or its purple accent is visible | A computed-style probe of named elements per surface, then K14 |
+| K10 | **One vocabulary** | No banned word (§5.5) on any surface we control. Panacea's errors arrive in our copy | The CI scan; a forced Panacea error during J7 |
+| K11 | **One clock** | Every live indicator shares `--beat`'s phase. No spinner per row, and Orca's rows carry no animation of their own | Read animation names and delays from the DOM during an 8-lane run |
+| K12 | **Quiet by default** | At most one OS notification or Teams digest per person per 15 minutes in an 8-lane run. No toast per agent, no modal from a background session | Count them over a timed 30-minute run |
+| K13 | **Context survives** | Moving between lenses and back keeps the project, branch, brief revision and scroll position. A lane link from the Desk or a Teams card opens that exact lane | State assertions during the walk |
+| K14 | **The owner's eyes** | The owner walks J1-J9 and answers one question: "Does this feel like one app?" A no fails the build, whatever K1-K13 say | Hands-on, batched as `OD-12` sets. Until then every visual claim in this file stays unverified: headless screenshots are blocked on the corporate network, and "visual acceptance is the owner's eyes" (`CLAUDE.md`) |
+
+**Before the build, not after it:** the owner reviews a clickable prototype of the shell (the bar,
+the Desk, one Hub page and the Develop frame), as the working agreements require (`CLAUDE.md`;
+08-verify §8).
