@@ -520,12 +520,26 @@ environment study.
 - **Vendor pricing and terms.** Conductor's prices come from third-party reviews; Coder's plan
   contents come from a summary of its pricing page (it listed audit logs and HA under Community,
   which differs from earlier Coder plans); Orca's enterprise terms are "talk to us".
-- **Coverage gaps.** The GitHub API rate-limited this run after 12 calls, so `kbwo/ccmanager`,
-  `slopus/happy`, `manaflow-ai/cmux` and `siteboon/claudecodeui` were not assessed. **docs.warp.dev is
-  blocked by the KPMG proxy** (redirects to the acceptable-use policy). One survey page returned
-  HTTP 429. `kubecoder.com` returned a headline only.
+- **Coverage gaps (revised).** The first run's four unassessed tools had their licence files read
+  this run: `kbwo/ccmanager` (MIT, a terminal session manager) and `slopus/happy` (MIT, a phone and
+  web client for Claude Code) are reference at most; `manaflow-ai/cmux` (GPL-3.0-or-later, its server
+  BUSL-1.1) and `siteboon/claudecodeui` (AGPL-3.0) are rejected on licence. None was assessed further.
+  **docs.warp.dev is blocked by the KPMG proxy.** The GitHub API was rate-limited again this run, so
+  Orca's stars (81,599) and latest tag (v1.4.217) are the first run's readings; `package.json` at
+  HEAD says 1.4.214.
+- **Orca, end to end (revised).** Its source was read from a blobless clone at `59b746ff`; nothing
+  was built or run. Unverified: (a) Orca-server mode behind our authenticated `wss://` route with its
+  end-to-end-encrypted pairing (01 builds it); (b) how the sidebar behaves with many recipe lanes in
+  one project; (c) whether the plugin worker, plain Node with a scrubbed environment, can reach the
+  Hub while `net:fetch` is unreleased (day-1 spike); (d) Orca's Commit, Push and Source Control
+  against an `origin` that is our lane endpoint rather than GitHub or ADO; (e) whether a partial
+  clone is enough as the laptop's project anchor; (f) the Windows recipe scripts (Orca's
+  `windows-scripts.md` was not read); (g) Defender behaviour on KPMG's own tenant — the six incidents
+  are Orca's report from another enterprise tenant.
+- **Panacea (revised).** ADO PR previews and their cleanup are unverified (R5); Panacea was grepped,
+  not run.
 - **Nothing was installed or run.** Every capability claim above is from upstream documentation, the
-  GitHub API or our own tree; none is a hands-on result.
+  upstream source, the GitHub API or our own tree; none is a hands-on result.
 
 ## Sources
 
@@ -541,6 +555,26 @@ GLASSES was taken as approval — each licence above was read from the repositor
   https://onorca.dev · https://onorca.dev/enterprise · https://www.onorca.dev/docs/ways-to-run ·
   https://www.onorca.dev/docs (and its `agents/claude-code`, `notifications` pages via search) ·
   https://github.com/stablyai/orca/issues/10687
+- **Orca source (revised run)**, a blobless clone of https://github.com/stablyai/orca.git at
+  `59b746ff` (2026-09-29), files read with `git show`: `README.md`, `LICENSE`, `package.json`,
+  `docs/site/content/docs/{ways-to-run,remote-servers,ssh,mobile,notifications,telemetry}.mdx`,
+  `docs/site/content/docs/agents/{claude-code,session-history}.mdx`,
+  `docs/site/content/docs/review/{github,commit-push,attribution}.mdx`,
+  `docs/reference/{agent-status-store,relay-regional-placement,windows-edr-posture,headless-linux-server}.md`,
+  `skill-guides/orca-per-workspace-env.md` and its `ssh-host.md`, `docker-ssh.md` references,
+  `cloud/README.md`, `src/shared/plugins/{plugin-manifest,plugin-capabilities,plugin-extension-registry}.ts`,
+  `src/main/plugins/{plugin-worker-env,plugin-panel-navigation-guard,plugin-approved-vm-recipes}.ts`,
+  `src/main/ipc/ephemeral-vm-recipe-context.ts`, `src/main/azure-devops/{client,pull-request-creation}.ts`,
+  `src/main/source-control/hosted-review-execution-host.ts`,
+  `src/main/runtime/rpc/static-web-client-handler.ts`, `vite.web.config.ts`,
+  `examples/plugins/hello-orca/*`, `resources/plugins/launch/stablyai.orca-multipass-recipes/*`
+- Licence files: https://raw.githubusercontent.com/{kbwo/ccmanager,slopus/happy,manaflow-ai/cmux,siteboon/claudecodeui}/main/LICENSE
+- Panacea (read-only grep): `services/webhook-receiver/pipeline/trigger.go`,
+  `services/webhook-receiver/providers/github.go`, `services/webhook-receiver/models/event.go`,
+  `services/panacea-api/handlers/webhook_ado.go`, `services/panacea-api/routes/routes.go`; and this
+  folder's `00-panacea.md`, `01-sandboxes.md`, `05-work-team.md`
+- Coolify: https://coolify.io/docs/applications/deployments/preview-deployments ·
+  https://coolify.io/docs/applications/ci-cd/github/preview-deploy (via search)
 - https://github.com/generalaction/emdash · https://github.com/imbue-ai/sculptor ·
   https://github.com/BloopAI/vibe-kanban · https://github.com/omnara-ai/omnara ·
   https://github.com/terragon-labs/terragon-oss ·
