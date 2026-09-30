@@ -177,7 +177,34 @@ Tauri desktop, which has no Deploy lens. Tasks 13-18 come back: 17 plan-hours, a
 
 ## 3. The signing glue: cosign + in-toto Statement v1 + Azure Key Vault
 
-*(to be filled)*
+**The choice holds; three things about how G2 is built do not.** Sources: the GitHub API, raw source
+files, cosign's v3 flag reference, sigstore's KMS page and the Azure Retail Prices API, all read on
+2026-09-30. Panacea's pins were read with grep.
+
+| Claim (06 §3.7, G2) | At source | Verdict |
+|---|---|---|
+| cosign is Apache-2.0 | API `/license`: `spdx_id: Apache-2.0`, file `LICENSE` | **holds** |
+| v3.1.3 of 2026-08-06 fixes GHSA-fx35-mq7g-6g98, so pin at or above it | the release list's latest is v3.1.3 (2026-08-06T01:09Z). Its notes: "Verification bypass via public key in legacy bundle (GHSA-fx35-mq7g-6g98)", backported the same day as v2.6.5. It is a repository advisory: the global advisory API returns 404 | **holds** |
+| KMS keys `azurekms://`, `hashivault://`, `openbao://` | sigstore's KMS page lists `awskms`, `gcpkms`, `azurekms`, `hashivault`, `openbao`, `ovhcloud` and `k8s`: "Hashicorp Vault and OpenBao keys can be used" | **holds**, so `OD-32`'s OpenBao swap keeps the signer |
+| (auth, not in 06) | the page says `AZURE_TENANT_ID`, `AZURE_CLIENT_ID` and `AZURE_CLIENT_SECRET` "must be set". The code always builds `azidentity.NewDefaultAzureCredential` (`sigstore/pkg/signature/kms/azure/client.go:120`) | **better than documented**: AKS workload identity works, so the Hub holds no client secret |
+| An assessor checks it offline with `cosign verify-blob-attestation` | the v3 reference has `--digest` and `--digestAlg` "instead of providing a blob", `--key` taking a KMS URI or a public key, and `--type <URI>` | **holds**, with two conditions. The assessor needs the bundle file, and has to pass `--insecure-ignore-tlog`, because there is no log entry |
+| "No public Sigstore" | true of Chains' config (§2.2). For **our** signer, cosign v3 defaults `--use-signing-config` to true: "a TUF-provided signing config for the service URLs", which means the public-good instance unless we supply our own | **corrected.** G2 either signs in-process with the Go libraries (DSSE plus `sigstore/pkg/signature/kms/azure`), or passes a private signing config with no transparency-log service. Otherwise each release's entry is sent to a public log. Not tested |
+| The Statement binds "the sha256 of Panacea's evidence document" | the document is re-stamped at every export (§2.5, G2) | **corrected**: store the hashed bytes beside the Statement |
+| Kyverno v1.19.1 of 2026-09-10; `ImageValidatingPolicy`; the #17363 risk | upstream holds: v1.19.1 is the latest release. #17363 was **closed on 2026-09-29**, after that release. **Panacea runs Kyverno v1.12.5** (`kubernetes/argocd-apps/platform/kyverno.yaml:172`, chart 3.2.6), seven minors behind. Its check is a classic `ClusterPolicy` with `verifyImages` in Audit (`base/security-policies/verify-solution-image-signatures.yaml:37`, `:58`, `:102`) | **the version is wrong for our estate.** #17363 does not touch Panacea today. The "Enforce later" flip comes with an upgrade, and that is Panacea's work (P-4) |
+| Tekton Chains v0.29.6 of 2026-09-24, Apache-2.0 | v0.29.6 exists (2026-09-24T10:24Z; the API's "latest" marker still points at v0.29.0). `LICENSE` is Apache-2.0. **Panacea runs v0.23.0** (`tekton-chains.yaml:112`) | **holds upstream; six minors behind in Panacea** |
+| (price, not in 06) | Key Vault, Australia East **and** Australia Central, USD retail. An HSM-protected advanced (EC) key is **US$5 per key-month**, and advanced-key operations are **US$0.15 per 10,000**. A software key on Standard costs operations only. Managed HSM Standard B1 is **US$3.20 an hour** | **AU residency holds.** One Premium P-256 key costs about **US$5 a month**, well below the owner's money threshold |
+
+**What survives:** the format (in-toto Statement v1 in a DSSE envelope), the signer (a Key Vault key
+now, an OpenBao Transit key at the lift) and the offline check are all real and permissive. **G2
+costs 1.25 days, not 1**: the in-process signer, the private signing config, and the stored
+evidence bytes are each small, and none was in the estimate.
+
+**Formats a customer's assessor meets.** Two different signers sign two different things:
+- **Panacea's Chains** signs build provenance with Vault Transit.
+- **Our Hub** signs the brief-to-release Statement with Key Vault.
+
+So an assessor needs both public keys. That is fine if the release card says which key signed what.
+It is confusing if it does not. The card and the export must carry both key ids (§6).
 
 ## 4. Alternative 1: Coolify + Supabase + Panacea snippets
 
