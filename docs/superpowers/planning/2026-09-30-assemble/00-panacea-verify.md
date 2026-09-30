@@ -164,7 +164,32 @@ portability to any VM, matter at the customer-hosted tier, not for a we-host too
 
 ## 6. Alternative: C3 Azure-native managed services for our own state
 
-_Pending._
+C3 is not a rival to C1 for shipped apps; the report uses it for our own backend (the Hub), next
+to C1. Tested on Microsoft Learn (Flexible Server overview, updated 2026-09-05; Entra
+authentication concepts, updated 2026-09-06), the Azure Retail Prices API, and the phase 8 plan on
+the `env` worktree (`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment-parts/`).
+
+| Claim | At source | Verdict |
+|---|---|---|
+| Entra-native | three modes, one of them "Microsoft Entra authentication only"; the administrator "can be a Microsoft Entra user, Microsoft Entra group, service principal, or managed identity"; managed identities connect | **holds**. A managed identity needs no app registration, so no IT ticket; the Entra admin group is an owner input (task 08) |
+| PITR | "restore your server to any point within the backup retention period", 7 days by default, up to 35, on zone-redundant storage | **holds** |
+| Zone-redundant HA, AU | region table: **Australia East** has zone-redundant HA, same-zone HA and geo-redundant backup, with no deployment block; Australia Central (where Panacea's dev runs) has **no** zone-redundant HA | **holds for Australia East only**; our environment must stay there |
+| Private endpoints | "With virtual network integration, public access is denied"; task 08 plans a private endpoint | **holds**. The V6 SKU family (preview) does not support VNet integration, so pin v5 |
+| Already planned (tasks 05, 08) | task 05 "`modules/registry` and `modules/keyvault` ... both private"; task 08 "the Hub's database, Entra-only", Postgres 16, private endpoint, an Entra group as administrator, the Hub on its own managed identity | **holds**: no new days |
+| Price basis (report: "Azure consumption") | General Purpose Ddsv5 in `australiaeast`: **US$0.122 per vCore-hour**, so 2 vCores is US$0.244 an hour, about US$178 a month (retail API, `priceType` Consumption). Zone-redundant HA adds a standby of the same size. Storage, backup beyond the free allowance, Key Vault (per operation) and Blob (per GB and operation) were not priced | **holds**; about US$360 a month for a 2-vCore Hub with HA, before storage |
+| Defender | not checked | **unverified** |
+
+**Maintenance and backing.** GA, Microsoft-run, monthly patching in a chosen window (overview
+page). No licence question: the service is bought; the engine is community PostgreSQL.
+
+**Cohesion.** The best of the three: no console a user ever sees, so nothing in it can make the
+product feel like another app.
+
+**What could still refute it.** Only the subscription: C3 needs our own Azure subscription in
+Australia East, which is the report's owner call 3 (the C6 stopgap if it is late). Its status was
+not checked here.
+
+**Verdict: buy, upheld**, for our own state. It is a complement to C1, not an alternative to it.
 
 ## 7. Days against our architecture
 
