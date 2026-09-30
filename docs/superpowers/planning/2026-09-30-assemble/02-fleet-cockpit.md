@@ -399,32 +399,33 @@ own land queue, chained forecast and undo. Both hosts are already in `OD-4`, so 
 | Residency | GHE.com Australia is GA (2025-02-04) for code at rest. Copilot's in-region processing is US and EU only, so **do not use Copilot review** on AU projects | An Azure DevOps organisation can sit in Australia (standard ADO geography; not re-verified today) |
 
 **What this does to phase 3 (24 tasks, 71.5 plan-hours in its own table; 01–02 built, 03 in
-fix round):**
+fix round). Revised for Orca** — the first run kept the desktop tasks; Orca now takes them:
 
 | Disposition | Tasks | Plan-hours | Why |
 |---|---|---|---|
-| **Keep as planned** — C6, the security model and provenance, which no product sells | 01, 02, 03, 04, 05, 06, 07, 11, 12, 13, 15, 18, 22, 23, 24 (15) | 43 | Real clones per worktree, the `Panacea-Session` trailer hook, the sandbox git runner and bundles, fetch-back under `refs/panacea/lanes/…`, push with the **user's** credential (the sandbox never holds one), branch verbs, evidence over ancestry, the proof |
-| **Replaced by the host** | 08 chained forecast and queue order · 10 landed history and exact undo · 19 merge lens part 1 (queue, forecasts, land, conflicts) (3) | 8.5 | GitHub's merge queue is the chained forecast, run for real by CI; ADO's auto-complete plus expiring build validation is the serial form; host "Revert" is the undo. A conflict goes back to the lane's agent as a task, not to a resolver we build |
-| **Shrunk** | 09 land → push lane branch, open PR, enqueue or set auto-complete, refresh clones after merge · 20 merge lens part 2 → a lane-to-PR strip (checks, queue position, merged) plus the evidence dialog · 14 githost grows by auto-merge, enqueue, auto-complete and `mergeCommitMessage` (3) | 11 → 7.5 | The host does the merge; we show its state |
-| **Deferred past first ship** | 16 files read model · 17 `OD-8` transcript adapter · 21 files lens (3) | 9 | Review happens in the host's PR diff for v1; the cross-lane files view and span back-links come back after |
+| **Keep as planned** — C6, the security model and provenance, which no product sells | 01, 02, 03, 04, 05, 07, 11, 12, 13, 14, 15, 23 (12) | 31 | Real clones per lane (the recipe's `create` calls 04), the `Panacea-Session` trailer hook, push with the **user's** credential (the sandbox never holds one), `githost`, evidence over ancestry, the proof |
+| **Reshaped** | 09 land → the landing glue (push lane branch, open PR, enqueue or auto-complete, refresh) · 24 sandbox git runner and bundles → the lane git endpoint Orca's Push talks to (2) | 12 | Standard `git push` to a lane-scoped endpoint replaces a custom bundle RPC; the host does the merge |
+| **Replaced by Orca** *(new)* | 06 linked-worktree notice · 18 desktop wire types · 19 and 20 merge lens · 21 files lens · 22 lifecycle-verb UI (6) | 17 | Orca's worktree sidebar, diff viewer, Source Control panel and hosted review are the cockpit's UI now |
+| **Replaced by the host** | 08 chained forecast and queue order · 10 landed history and exact undo (2) | 5.5 | GitHub's merge queue is the chained forecast, run for real by CI; ADO's auto-complete plus expiring build validation is the serial form; host "Revert" is the undo. A conflict goes back to the lane's agent as a task |
+| **Deferred past first ship** | 16 files read model · 17 `OD-8` transcript adapter (2) | 6 | Review happens in Orca's diff and the host's PR for v1; the cross-lane files view comes back later |
 
-**Net: about 21 of 71.5 plan-hours (29%) leave the first ship, and the hardest-to-get-right part
-of phase 3 — a correct concurrent land queue with compare-and-swap and exact undo — becomes a host
-feature that already has years of production behind it.** The prior study's go-gitdiff and
-sergi/go-diff adoptions now apply only to the deferred tasks 16 and 21.
+**Net: 28.5 of 71.5 plan-hours (40%) leave the first ship, 12 more are reshaped into simpler glue,
+and the hardest part of phase 3 — a correct concurrent land queue with compare-and-swap and exact
+undo — becomes a host feature with years of production behind it.** The prior study's go-gitdiff
+and sergi/go-diff adoptions now apply only to the deferred task 16.
 
 ## 5. Recommendation
 
-**Keep and extend our phase 2 cockpit. Switch to nothing. Land through the customer's git host —
-GitHub pull requests with the merge queue, Azure DevOps pull requests with auto-complete — and take
-the "needs you" signal from Claude Code's own HTTP hooks.** Integration: **4.5 days** (hooks and the
-attention queue 2.5, host landing glue 1.5, AI first-pass review 0.5).
+**Revised: adopt Orca as the cockpit, unforked; land through the customer's git host — GitHub pull
+requests with the merge queue, Azure DevOps pull requests with auto-complete — and review each
+lane's running app in a Panacea PR preview.** Integration: **7.5 days, 4.5 to first ship** (R6
+itemises them). *First run: keep our cockpit, 4.5 days.*
 
 | | |
 |---|---|
-| **Replaces** | **Phase 3:** tasks 08, 10, 19 replaced (8.5 h); 09, 14, 20 shrunk (11 → 7.5 h); 16, 17, 21 deferred past first ship (9 h) — about **21 of 71.5 plan-hours**. **Team mode:** 49 (team land review) becomes host branch policy — path-scoped required reviewers or CODEOWNERS; 61 (team land queue over the mirror) becomes the host queue; 63 shrinks to a PR list filtered by author. **Phase 2:** closes the named `BLOCKED-ON-YOU` gap, which was never a planned task |
-| **Why** | (1) The cockpit is built and already does the one thing no ADE does — a sandbox per untrusted session. Orca is the best of its class, but re-seating it on our control plane is 12–18 days and loses sandboxes, the four-phase shell and Azure DevOps. (2) Landing is where a third party removes real risk: a concurrent land queue with compare-and-swap and exact undo is the hardest code in phase 3, and both hosts already run it in production under the customer's own policies, CI and audit. (3) The hooks are the "agent-runtime signal" phase 2 said it needed, typed and out-of-band, so `OD-8` holds |
-| **Risks** | Host-side landing changes the owner-approved phase 3 merge lens (§7). ADO has no queue, so many lanes land serially with rebuilds. Hook payloads can drift with CLI releases — pin the CLI in the image and canary it. A customer's managed policy could strip hooks (KPMG's own laptop policy strips settings-file hooks) — ship them in the image's managed settings and canary that too. The brief trailer must survive each host's merge — one test per host before first ship |
+| **Replaces** | **Phase 3:** 28.5 of 71.5 plan-hours leave the first ship (§4); 09 and 24 are reshaped. **Phase 2:** the Tauri Develop views retire; the `BLOCKED-ON-YOU` gap closes. **Phase 8:** tasks 22 and 26 become the recipe. **Team mode:** 49 becomes host branch policy (path-scoped required reviewers or CODEOWNERS); 61 becomes the host queue; 63 shrinks to a PR list filtered by author |
+| **Why** | (1) The owner picked Orca, and its source shows the seams: a recipe puts each lane in our sandbox, so the isolation model survives, and a plugin carries our thread. (2) Orca's attention queue, inbox, diff notes and hosted review are years ahead of phase 2's four statuses. (3) Landing is where a third party removes real risk: a concurrent land queue with compare-and-swap and exact undo is the hardest code in phase 3, and both hosts already run it under the customer's own policies, CI and audit |
+| **Risks** | Orca's recipe and plugin surfaces are experimental and change daily — pin and canary. Host-side landing changes the owner-approved phase 3 merge lens (§7). ADO has no queue, so lanes land serially with rebuilds. The brief trailer must survive each host's merge — one test per host before first ship. Windows Defender needs a suppression rule per tenant (§7) |
 
 ## 6. What we still build (the glue)
 
