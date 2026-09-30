@@ -58,8 +58,10 @@ is which estate runs that code.**
 | `kpmg/main` `bf958d0b2` (08-29) | what production runs: **api v1.108.16** (Panacea's 09-28 incident note) | 482 | **no** | **no** | **no** | **no** (no `services/panacea-mcp`) |
 
 Production, `panacea.kpmg`, has previews, share links, env promote, rollback and the stage
-routes. It has **no evidence export, no sanitised preview data and no MCP server**. Those arrive
-with the Central→East cutover, which is being built now (§2.4). So v1 targets **the dev estate**,
+routes. It has **no evidence export, no sanitised preview data and no MCP server**. Those reach
+production with the Central→East cutover, which is being built now (§2.4). The dev line cannot
+be pushed to production's GitHub remote: nine Argo CD apps self-heal from `kpmg/main` there
+(the owner's 09-21 note). So v1 targets **the dev estate**,
 or it waits for the cutover. That is an owner call (§7, call 1).
 
 **Finding 2: each claim, at source.**
@@ -124,8 +126,9 @@ creation, as a label (`handlers/projects.go:360-374` passes labels through). Tha
      failing since mid-August, from a CoreDNS SERVFAIL. A break-glass patch renewed all 18 certs.
      The fix is **not merged to `kpmg/main`**, so Argo CD reverts it when it reconnects, and Argo CD
      "can't sync anything on prod". RESUME: "prod stays code/doc only (off limits)".
-  2. **Functions are frozen** at tag `panacea-v2-freeze-2026-09-24` for the Central→East cutover:
-     12 slices, about 72.5 engineer-days, being built in parallel now. **P-1, P-2 and P-3 are new
+  2. **Functions are frozen** at tag `panacea-v2-freeze-2026-09-24` for the Central→East cutover. RESUME's table
+     runs from SL-0 to SL-12, all being built in parallel now. The owner's 09-24 note sizes the
+     plan at about 72.5 engineer-days. **P-1, P-2 and P-3 are new
      features, so they queue behind a freeze.** The 06 report treats them as "0.5-2 days in
      Panacea" with no date.
   3. **Tenant-isolation holes are still being found on dev.** This week's rounds found MinIO
