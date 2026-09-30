@@ -518,7 +518,27 @@ plan-hours of kept phase 7 tasks (6), 00's 2.
 
 ## 9. Owner calls
 
-_(pending)_
+Only money or what customers see. Recommendation first in each.
+
+1. **Buy no whole-product seats (money).** *Recommend: confirm.* No Devin, Cursor, Copilot,
+   Replit, Lovable, Factory or OpenHands licence becomes the product's base. The assembly's spend
+   is Azure (01: about US$2,000 a month for the dev baseline at list price) and optional support
+   (04: Penpot, about US$50k a year, before the first customer install).
+2. **Customers see several products' faces (customer-visible).** *Recommend: accept for v1.*
+   Orca's desktop, Penpot's editor, Panacea Portal pages by link, and the git host's pull request
+   pages, held together by our Orca plugin and Hub pages. One UI of our own over all of them is
+   weeks of build, which is what the owner's direction rules out.
+3. **The fallback if Orca's experimental seams break (money, only if it fires).** *Recommend:
+   note it, do not pre-approve.* First fork Orca (MIT, 02 §R6). The only whole-product fallback is
+   OpenHands Enterprise: a commercial licence by quote (PolyForm Free Trial otherwise), at the
+   cost of Claude Code running behind ACP in OpenHands' chat rather than in a live terminal.
+4. **Which git hosts a customer may bring (customer-visible).** *Recommend: Azure DevOps and
+   GitHub now (`OD-4`); GitLab only when a paying customer brings it.* GitLab's Duo Agent Platform
+   already runs Claude Code in its own runners, so a GitLab host adapter is a later, bounded job.
+5. **When to reopen "buy" (money, later).** *Recommend: re-check quarterly, no action now.* If
+   Anthropic's self-hosted environments accept ZDR and an LLM gateway, Claude Enterprise seats
+   with our own runners could replace much of the sandbox control plane: a per-seat price against
+   our own infrastructure and upkeep.
 
 ## 10. What this run could not verify
 
