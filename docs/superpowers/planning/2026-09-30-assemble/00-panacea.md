@@ -1,6 +1,7 @@
 # 00 - What Panacea already provides (inventory for PanaceaApp)
 
-**Status:** IN PROGRESS (skeleton written first; sections fill in one at a time).
+**Status:** COMPLETE, 2026-09-30. Research only: nothing was installed, built or run, and nothing
+was written in `Projects/Panacea`.
 **Date:** 2026-09-30. **Cluster:** 00-panacea. **Feeds:** every other cluster (01-06) and the plan.
 **Scope:** a read-only inventory of every Panacea capability PanaceaApp can call today instead of
 building or buying it: the entry point (panacea-api route with file:line, or panacea-mcp tool),
@@ -21,7 +22,33 @@ or written there). Every claim below cites `path:line` in that repo as of today'
 
 ## 1. Answer first
 
-_(pending)_
+**Adopt Panacea as the platform for everything PanaceaApp ships, and as its sign-in. Two days of
+glue here, on top of 06-deploy's six.** Panacea already runs, on KPMG's Azure in Australia, behind
+Entra through Keycloak, every piece a shipped app needs: project create, deploy, per-branch
+previews with SSO and a database branched per preview, promotion with an approval ladder,
+rollback with warmth, versions, 18 scan checks behind a posture gate that answers `OD-24`, a
+per-release evidence export, and per-app Postgres, storage, secrets and an AI key. It exposes all
+of it as a REST API and as `panacea-mcp`, 31 tools an unmodified Claude Code can use today.
+
+- **How we call it.** The control plane uses the user's `pnc_` token (pasted once, as phase 7
+  already does). Each sandbox runs `panacea-mcp` against a control-plane proxy that forwards only
+  its own project (06-deploy G4). Panacea's own agent-instructions endpoint teaches the agent the
+  deploy contract (P2). A realm access token is **refused** by Panacea's API today (section 5.2).
+- **What stays off Panacea, on merit.** Agent sandboxes (Forge's pods are `runc` and
+  preview-shaped: we copy their hardening into Kata on our AKS), agent inference (its LiteLLM is
+  in-cluster, per-project, without Bedrock: we copy its key-minting code into our gateway), and our
+  own shared state (`OD-5`; Flexible Server, as phase 8 plans).
+- **Coolify plus Supabase loses on merit** for shipped apps: no Azure DevOps, Docker hosts rather
+  than AKS, and self-hosted Supabase is one project per stack with no branching, PITR or management
+  API. Rebuilding Panacea's gate, scans and evidence on them is 16-24 days (06-deploy).
+- **What it replaces:** 8 of phase 7's 20 tasks (06-deploy's count); phase 8 task 09 (our own
+  realm) deferred; phase 6 tasks 04, 06, 09, phase 8 tasks 11, 14 and Hub task 14 shortened by
+  copied code; and a shipped-app backend that never enters the plan.
+- **Three small asks of the Panacea stream:** a public PKCE client in the realm, our egress address
+  on Panacea's edge allowlist, and optionally the realm as a second trusted issuer.
+- **Owner calls:** whether internal-network-only previews are acceptable for first customers, and
+  which team and job code pay for the apps we create (section 13).
+
 
 ## 2. The inventory at a glance
 
