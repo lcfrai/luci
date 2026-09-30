@@ -35,25 +35,30 @@ Panacea service, Coolify or Supabase does the interview-to-spec step. Five thing
 0.75 day. The brief gets stronger for regulated customers: access decided up front, criteria a
 browser can test, and the data class that Deploy enforces.
 
-## 1. Answer
+## 1. Answer (revised for the owner's second direction)
 
-**Adopt GitHub Spec Kit** (MIT, GitHub's own organisation, v1.0.13 on 2026-09-29) **as the Define engine.**
-It runs as a Define session in the cockpit's existing sandboxed Claude Code pane, with one Panacea preset
-that carries the brief's five sections and the aihero `grill-me` and `grill-with-docs` skills (MIT) for the
-glossary and decisions. The built provenance thread stays (Hub brief revisions, `brief:bf-…@n` keys, the
-Materialiser) and is pointed at the spec Spec Kit writes.
+**Adopt GitHub Spec Kit** (MIT, GitHub's own organisation, v1.0.13 on 2026-09-29) **as the Define engine,
+run as an Orca worktree session**: Claude Code in our sandbox, started with Spec Kit's command as the
+opening prompt. One Panacea preset carries the brief's five sections, **Panacea Forge's access table and
+testable-criteria rule**, the project's **data class in Panacea's vocabulary**, and the aihero `grill-me`
+and `grill-with-docs` skills (MIT) for the glossary and decisions. The built provenance thread stays (Hub
+brief revisions, `brief:bf-…@n` keys, the Materialiser) and is pointed at the spec Spec Kit writes.
 
-- **Integration: about 8 stream-days, about 5 calendar days on two parallel streams.**
+- **Integration: about 8 stream-days, about 5 calendar days on two parallel streams** (unchanged).
 - **Replaces** 12 of phase 4's 22 unbuilt tasks (13, 18, 19, 21, and OD-36's 24, 25, 27-32) and most of the
   Hub's OD-36 share: **about 71 of the about 109 hours left**, before fix rounds.
-- **Still ours:** 7.5 days of glue (section 6) plus ten kept thread tasks.
+- **Still ours:** 7.5 days of glue (section 6, G1-G7) plus ten kept thread tasks. The four desktop ones
+  (15, 16, 17, 20) move into Orca's renderer if `02-fleet-cockpit.md` re-seats the cockpit there.
+- **From Panacea:** Forge's spec rules as attributed snippets, and the data-class ceiling its Deploy
+  already enforces. Not Forge's agent loop, and no Panacea service for Define: grep finds no brief,
+  glossary or decision store in `services/panacea-api` or `panacea-mcp`.
 - **No buy.** No commercial product passes both AU residency and "brief in our Hub": Kiro has no AU region,
   ChatPRD is blocked by the KPMG proxy, and Confluence moves the brief out of the Hub. Taskmaster's
   Commons Clause is a restricted licence.
-- **Owner calls:** three, all customer-visible, none about money (section 7).
+- **Owner calls:** four, all customer-visible, none about money (section 7).
 
 **First step:** G1, the vendored `specify-cli` and the `panacea` preset in `images/sandbox/Dockerfile`
-(1 day).
+(1.25 days).
 
 ## 2. What Define has to do (the bar every candidate is scored against)
 
