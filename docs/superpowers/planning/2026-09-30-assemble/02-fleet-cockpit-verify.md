@@ -270,7 +270,48 @@ this, and none of them is engineering.
 
 ## 7. Corrected recommendation
 
-_To be written._
+**Upheld, with corrections. Adopt Orca (`stablyai/orca`, MIT) as the cockpit, unforked.**
+
+1. **Pin one version** on the desktop and in the sandbox image, and canary every upgrade. The canary
+   must run the plugin and a mixed-version pairing.
+2. **Each lane runs in our Kata sandbox** through one Panacea recipe, shipped by the Panacea plugin
+   under a namespaced id, because a repo's `orca.yaml` shadows a recipe with the same id (§2 row 2).
+3. **The sandbox holds no git-host credential.** Orca's Push goes to a lane-scoped endpoint on the
+   cloud control plane, and that endpoint allows a lease-guarded force on the lane branch.
+4. **Landing runs on the laptop, not in the cloud** (3.2). The plugin's Open PR command runs
+   `panacea lane land`, which does four things:
+   - fetches the lane back into the anchor clone under `refs/panacea/lanes/…`;
+   - pushes with the user's own stored credential (`OD-6`, `OD-22`, `OD-30`);
+   - opens the PR with the brief trailer;
+   - sets GitHub auto-merge or the merge queue, or ADO auto-complete with `mergeCommitMessage`.
+5. **Panacea PR previews are for GitHub lanes only in v1.** ADO previews wait for a Panacea-side
+   change, and until then no customer ADO repo is registered in Panacea (4.1).
+6. **Freeze phase 2's Tauri Develop views as the fallback cockpit; do not delete them** (5.1). The
+   control plane, `Backend` (plus `Suspend`/`Resume`), `katabe`, the transcript store and the
+   gateway token carry on as R4 says.
+7. **Two gates before first ship:** the owner rules on `OD-8` for Orca's OSC status (2.1), and KPMG IT
+   is asked **today** for the MDE suppression rule and ASR allowlist. The browser-only route (5.3) is
+   the fallback.
+8. **One gate before any customer tenancy:** a security review of the agent and `orca serve`
+   sharing one sandbox (3.4).
+
+**Days:** about **10.5 (9.5 to 12), 6.5 to first ship**, beside 01's ~10, plus the day-0 items (§6).
+
+**Replaces:** as R6 (arithmetic checked). One change: phase 3 tasks 12 and 13 (push through the
+machine's credential helper, the credential-store seam) now serve the laptop CLI. They were designed
+for that job.
+
+**Owner calls, changed or new:**
+1. **`OD-8` and Orca's OSC status** (new). Recommend accepting it for display in the cockpit only, and
+   letting nothing we build (Hub, team mode, provenance) read it.
+2. **The Defender and ASR prerequisite** (the researcher's call 2). Unchanged, but ask on day 0.
+3. **Land from the laptop, or hand the token to the cloud** (new). Recommend the laptop: it keeps
+   `OD-6` as written.
+4. **ADO previews in v1** (new). Recommend GitHub-only previews in v1, and ask Panacea for ADO
+   PR events.
+
+Money is unchanged: GitHub Enterprise Cloud at US$21 per user per month, for queued landing on
+private repos.
 
 ## 8. What this pass could not verify
 
