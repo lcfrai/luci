@@ -495,3 +495,14 @@ vendor pages, or a read-only grep of Panacea and this repo.
    `references/windows-scripts.md`; Emdash beyond its README and the API; the ADO Basic price.
 9. **What an ADO push does in Panacea today**: `selectsAgentPipeline` was read, but the agent-deploy
    pipeline it would start for a customer repo was not traced.
+10. **Sign-in inside Orca's browser (§7 bar 2).** Orca's browser code was not read for integrated
+    Windows auth or an Entra broker. The failure is reasoned from Electron's embedded Chromium and
+    one open third-party issue (Cypress #33836). KPMG's Conditional Access policy is unknown.
+11. **The one-app build's size (§7).** The journey bar was not sized against Orca's layout code, the
+    rename's exclusion list was not built, and whether all 844 "Orca" strings are user-visible was
+    not checked. The 5 days are an estimate. Artifact Signing for an Australian entity is unconfirmed:
+    Microsoft's page states no country rule, and the regional limit comes from one trade report.
+12. **The five checks themselves.** Nothing was rendered. Whether the build feels like one app is
+    the owner's eyes on the pilot build (`CLAUDE.md`: "Visual acceptance is the owner's eyes").
+13. **The other faces:** whether Penpot (04) and Panacea Portal pages (06) can take our tokens, and
+    whether Orca's web client (5.3) may be framed inside the Hub (its `frame-ancestors` policy).
