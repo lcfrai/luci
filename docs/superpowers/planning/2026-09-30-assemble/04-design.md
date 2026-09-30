@@ -1,13 +1,59 @@
 # 04 — Design: an agent-editable canvas. Adopt, integrate or buy instead of phase 5
 
-Status: REVISING for the owner's second direction (relaunch, 2026-09-30). The first run wrote
-§2–§5 and was stopped at 09:47; §1a records what the second direction changed.
+Status: COMPLETE. This is the relaunch for the owner's second direction, 2026-09-30. The first run
+wrote §2–§5 and was stopped at 09:47. §1a records what the second direction changed, and §3.1,
+§3.5, §3.14, §4 and §5 are revised in place. Research only: nothing was installed or run.
 
 Replaces, if adopted: phase 5, the canvas (31 tasks, 5 built).
 
 ## 1. The answer in one screen
 
-_Pending (written last, after §1a and §6)._
+**Adopt Penpot 2.18 (MPL-2.0) with its built-in MCP server. Self-host it with the upstream Helm
+chart on our AKS in Australia East. The glue is 9 engineer-days, and it is usable after 3.5.**
+
+1. **What it is, and why it wins.** Penpot is a mature open-source design tool (~60.5k stars,
+   backed by Kaleidos). It has real-time multiplayer, components and variants, a CSS flex/grid
+   layout, prototyping, comments, version history, tokens, OIDC sign-in, webhooks and an RPC API.
+   Its official MCP server lets an agent run Plugin-API code in an open file, and
+   `generateMarkup`/`generateStyle` turn boards into HTML and CSS. It is the **only** candidate
+   that passes all of these together: multiplayer; Azure, AU and a customer's own cloud; Keycloak
+   to Entra; an allowed licence; and provenance hooks (§4). The rest fall short:
+   - paper.design and Figma are SaaS only
+   - Plasmic and Webstudio are AGPL
+   - tldraw needs a commercial key that phones home
+   - OpenPencil (MIT) is the fallback, but it has no enterprise shell
+2. **Under the second direction (§1a).** Panacea, Coolify and Supabase have no canvas.
+   - **Panacea** gives snippets instead: network policy, pod hardening, Blob through S3Proxy,
+     managed Postgres and Keycloak groups. It stays the Deploy step. Hosting Penpot *as a Panacea
+     project* is the named alternative. It would give governance for free, but it needs four
+     wrapper images and puts an SSO gate in the MCP path.
+   - **Coolify's** Penpot template is stale: 2.11.1, with no MCP.
+   - **Orca:** the file opens in Orca's per-worktree Chromium, and our approval UI becomes a Penpot
+     plugin panel, so it works in any cockpit.
+3. **What it replaces.** It takes over phase 5's riskiest work: **18 of its 31 tasks**, about 50.5
+   of 85 plan hours. That covers the document model and authority (`OD-34`), the dialect, the
+   renderer, the editor and the MCP tool layer. Nine tasks are re-pointed as glue, and four built
+   tasks stay. **We still build G1–G9 (§6):**
+   - deploy
+   - SSO and roster
+   - the cockpit pane
+   - the MCP relay
+   - the headless runner
+   - the token converter
+   - brief binding and approval
+   - handoff
+   - the canary
+
+   That is about 5–6 calendar days with two engineers.
+4. **Owner calls (§7):**
+   - withdraw `OD-11`'s clean-room build and `OD-34` (MPL-2.0 is not on `OD-11`'s list)
+   - customers see Penpot's own UI
+   - frames are vectors, not live HTML
+   - paid support (US$50k a year) is decided before the first customer install
+   - a Figma adapter only when a customer asks
+5. **The biggest risk:** the MCP needs a live Penpot tab. The day-1 spike of a headless runner
+   decides whether agents can design unattended. If it fails, agents work only while a human's
+   tab is open, which is also how paper.design works (§5, §8).
 
 ## 1a. Revised for the owner's second direction
 
