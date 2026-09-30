@@ -95,22 +95,31 @@ ledger's one fix round per task.** Most of it is N1-N3 and the screens that show
 Spec Kit, Kiro, BMAD, Taskmaster, Tessl, Traycer, ChatPRD, OpenSpec or GSD, and zero matches for *spec*,
 *prd*, *requirements*, *glossary* or *decision record*. The nearest entries are off target and restricted:
 Outline (knowledge base, **BSL-1.1**) and Plane (issue tracker, **AGPL-3.0**). Everything below came from
-the web, checked on the upstream page on 2026-09-30.
+the web, checked on the upstream page on 2026-09-30. **The relaunch searched again:** still nothing for
+*specification*, *requirement*, *backstage* or *techdocs*; the catalogue lists Supabase (Apache-2.0,
+110.9k stars) as a whole product. The Panacea rows come from Panacea's source, read-only; the Orca row
+from Orca's documentation.
 
 | Candidate | What it is | Licence | Deploys as | Maturity | Verdict |
 |---|---|---|---|---|---|
 | **GitHub Spec Kit** | Spec-driven workflow as agent skills: idea assessment, `specify`, `clarify`, `plan`, `tasks`, `converge` | **MIT** | Python CLI + templates, installed into the sandbox; runs inside the Claude Code session we already host; offline wheel install | 139.4k stars; v1.0.13 on 2026-09-29, a release every 1-3 days; GitHub's own org | **Adopt** |
 | **mattpocock/skills** (aihero) | `grill-me`, `grill-with-docs` (writes `GLOSSARY.md` and ADRs), `domain-modeling`, `to-spec` | **MIT** | Skill files in the sandbox | 272.1k stars; assessed skill by skill on 2026-09-28 | **Integrate** (inside our Spec Kit preset) |
+| **Panacea Forge's spec** (`forge-orchestrator`) | A short discovery (purpose, data, access, routes, acceptance) and a validated `SPEC.md` that Forge's browser test grades against | KPMG's own; snippets allowed with attribution | Inside Panacea: Forge sessions API, Forge's own agent loop | Built and tested in Panacea (`spec_tool_test.go`) | **Integrate** (two rules as snippets, not the service) |
+| **Panacea data class and risk** (`panacea-api`) | A stage ladder with a data-class ceiling; a per-project risk questionnaire and a generated assessment document | KPMG's own | Panacea API, Keycloak `panacea` realm | Built; the ceiling is an attestation until DLP enforces | **Integrate** (data class now, risk questionnaire next) |
+| **Orca** (the cockpit pick) | A worktree plus an agent with an opening prompt; a rich markdown editor in the worktree | **MIT** | Electron desktop; `orca serve` | 81.6k stars, daily releases (`02-fleet-cockpit.md`) | **Integrate** (hosts the Define session) |
+| **Backstage** (in Panacea) | Scaffolder and TechDocs are installed; no ADR plugin | **Apache-2.0** | Panacea's Backstage | CNCF project | **Reference** |
+| **Supabase** | Postgres platform: REST, realtime, auth, storage | **Apache-2.0** | Self-host (Docker Compose) or Supabase Cloud, Sydney region | 110.9k stars | **Reference** (a Hub-store question) |
+| **Coolify** | Self-hosted deploy platform | **Apache-2.0** | Docker on a VM | `06-deploy.md` §3.1 | **Reject** for Define (no Define capability) |
 | **OpenSpec** (Fission AI) | Specs as source of truth plus change proposals with ADDED/MODIFIED/REMOVED deltas | **MIT** | npm CLI + slash commands in the agent | 70.7k stars; v1.13.2, September 2026; small start-up | **Reference** (runner-up, brownfield) |
 | **BMAD-METHOD** | A team of agent personas: analyst brief, PRD, UX, architecture, epics, stories | **MIT**; "BMad" is a trademark of BMad Code, LLC | Skills or Claude Code plugin in the agent | 53.6k stars; v6.12.0, September 2026 | **Reference** |
 | **adrkit** | Typed, validated ADRs; Spec Kit extension (`context`, `check`, `draft`) and an MCP server | **Apache-2.0** (schema CC0) | npm packages, Node 22+ | 18 stars; v0.15.0; pinned to Spec Kit <1.1 | **Reference** (optional add-on later) |
 | **speckit-grill-me** (yoshi1220) | `grill-me` ported into Spec Kit: rounds by frontier, then `docs/domain_knowledge/` | **MIT** | Spec Kit extension | 2 stars | **Reference** (we build the same from the MIT original) |
 | **GSD** (`open-gsd/gsd-core`) | New-project interview, research agents, requirements with ids, roadmap, phase execution | **MIT** | npm installer into the agent | 10.0k stars (old repo 64.4k, archived 2026-06-26); v1.7.0 | **Reference** |
-| **Spec Kitty** | Spec Kit derivative adding worktrees, a kanban dashboard and multi-agent missions | **MIT** | CLI + local dashboard | 1.7k stars; 4.0.0rc2 | **Reject** (duplicates our cockpit) |
+| **Spec Kitty** | Spec Kit derivative adding worktrees, a kanban dashboard and multi-agent missions | **MIT** | CLI + local dashboard | 1.7k stars; 4.0.0rc2 | **Reject** (duplicates the cockpit, now Orca) |
 | **Taskmaster** (`claude-task-master`) | PRD parsed into dependent tasks, complexity report, MCP | **MIT + Commons Clause: restricted** | npm CLI / MCP | 28.1k stars | **Reject** (licence) |
 | **AWS Kiro** | Agentic IDE, CLI and web with requirements/design/tasks specs (EARS) | Proprietary | AWS SaaS; $0-$200 per user per month; Enterprise SSO via IAM Identity Center | GA November 2025 | **Reject** as a part; **reference** the format |
 | **Tessl** | Now an "agent enablement platform": skills registry, governance loops | Proprietary | SaaS; free tier 1,000 credits a month | Pivoted away from specs | **Reject** |
-| **Traycer** | Desktop planning and task-tracking app that hands work to coding agents | Proprietary | Desktop app + cloud sync, $16 per user per month | SOC 2 Type 2 | **Reject** (a competing cockpit) |
+| **Traycer** | Desktop planning and task-tracking app that hands work to coding agents | Proprietary | Desktop app + cloud sync, $16 per user per month | SOC 2 Type 2 | **Reject** (a second cockpit beside Orca) |
 | **ChatPRD** | PRD writer for product managers | Proprietary | SaaS only | The KPMG proxy blocks it (302 to KPMG's acceptable-use policy) | **Reject** |
 | **BrainGrid** | SaaS planner that writes a spec with acceptance criteria and verifies the build | Proprietary | SaaS + MCP; price not published | Unverified | **Reject** |
 | **Confluence + Rovo** | Wiki with AI drafting; AU data residency, Rovo included | Proprietary | Atlassian Cloud; SSO through Atlassian Guard | Mature | **Reject** (a *buy* that moves the brief out of the Hub) |
