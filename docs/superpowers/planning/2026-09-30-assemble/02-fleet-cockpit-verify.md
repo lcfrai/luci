@@ -1,6 +1,6 @@
 # 02 — The agent-fleet cockpit and git lanes: the sceptic's verification
 
-**Status:** IN PROGRESS (skeleton, 2026-09-30).
+**Status:** COMPLETE (2026-09-30).
 **Date:** 2026-09-30. **Verifies:** `02-fleet-cockpit.md` (the researcher's recommendation).
 **Role:** sceptic. Try to refute the recommendation (Orca as the cockpit, lanes in our Kata
 sandbox through a recipe, landing through the git host) and its two best alternatives at source:
@@ -10,11 +10,53 @@ Desk research only: nothing installed or run.
 
 ## 0. Verdict first
 
-_To be written._
+**UPHELD, with corrections.** Orca as the cockpit, lanes in our Kata sandbox through a plugin recipe,
+and landing through the host all survive at source.
+
+- **Why it survives:** the `LICENSE` is MIT at source, with no copyleft in the tree. Orca is very
+  active (v1.4.217 on 2026-09-29, a release a day) and has no paid tier. Every seam the plan needs is
+  real: desktop-run recipes, plugin-shipped recipes, Push to any `origin`, and a pairing address
+  behind a proxy. GitHub's merge queue and ADO auto-complete hold as documented, and KPMG's GitHub is
+  already Enterprise Cloud (EMU on github.com).
+- **What does not survive:**
+  1. **The cloud control plane cannot push or open PRs "with the user's credential".** `OD-6`,
+     `OD-22` and `OD-30` keep that credential on the laptop. Landing moves to the laptop CLI, which
+     also makes `OD-2`'s "fetched back" literally true (3.2).
+  2. **Orca's attention queue reads PTY bytes** (an OSC 9999 parser). That is the feature we adopt it
+     for, so it is not "display only". It needs an `OD-8` ruling before first ship (2.1).
+  3. **Panacea's ADO previews do not exist.** Worse, Panacea routes every ADO push to its Forge
+     agent-deploy pipeline, so v1 previews are GitHub only (4.1).
+  4. **7.5 days becomes about 10.5; first ship moves from 4.5 to about 6.5.** A day-0 KPMG IT and SOC
+     change (MDE suppression rule, ASR allowlist) could outlast the build (§6).
+  5. **New risk:** the untrusted agent shares its sandbox, and by default its user, with
+     `orca serve`. That puts a rich channel into the laptop. It needs a security review before any
+     customer tenancy (3.4).
+- **In our favour:** the plugin worker is unsandboxed Node, so the Hub fetch works today (it is a
+  boundary Orca says will tighten).
+- **Alternatives:** freeze phase 2's desktop as the fallback; do not retire it (5.1). Emdash stays
+  reference: Apache-2.0 and an MSI, but no sandbox seam (5.2). Orca's browser client is the fallback
+  if IT says no (5.3).
 
 ## 1. What was checked, and how
 
-_To be written._
+All reads on 2026-09-30. Nothing installed, built or run.
+
+- **The report under test:** `02-fleet-cockpit.md`, all of it (609 lines).
+- **Orca at source:** the blobless clone at `59b746ff` in this session's scratchpad, blobs read with
+  `git show`. Files: the recipe, plugin, updater, hosted-review, Azure DevOps and OSC-status sources
+  cited above; `config/electron-builder.config.cjs`; the recipe skill guide; docs on headless
+  servers, remote servers, wire compatibility, the status store, EDR posture, telemetry, session
+  history, commit and push, and Claude Code.
+- **GitHub API:** Orca's `/license`, metadata, releases, issue #10687 and search counts; Emdash's
+  `/license`, metadata and releases. Also the releases feed and Emdash's README.
+- **Vendor pages:** onorca.dev/enterprise; the YC company page; GitHub merge-queue docs and pricing;
+  the GHE.com feature overview; ADO REST 7.1 PR update; ADO data locations. Searches covered Orca
+  pricing, an ADO merge queue, and ADO geographies.
+- **Our side, read-only:** `OD-2`, `OD-6`, `OD-8`, `OD-22` and `OD-30`; the phase 3 task table and
+  task 13; `control-plane/internal/backend/backend.go`; the desktop lens files and `tauri.conf.json`;
+  `01-sandboxes.md` and `01-sandboxes-verify.md` by grep.
+- **Panacea, read-only:** `webhook-receiver/pipeline/trigger.go`,
+  `providers/{github,azuredevops}.go`, `models/event.go` and `panacea-api/handlers/webhook_ado.go`.
 
 ## 2. Orca: licence, maintenance, and the claims at source
 
@@ -315,4 +357,25 @@ private repos.
 
 ## 8. What this pass could not verify
 
-_To be written._
+Nothing was installed, built or run. Every claim is from upstream source or docs, the GitHub API,
+vendor pages, or a read-only grep of Panacea and this repo.
+
+1. **Whether Orca runs on KPMG's standard fleet at all.** MDE, ASR and App Control policy are
+   unknown. The six incidents are Orca's report from another tenant. The Phren evidence is from this
+   dev laptop only.
+2. **An admin lock for Orca's version and settings.** Only `updater-setup.ts` and the NSIS config
+   were read; a policy mechanism elsewhere in the 30,735 files is not ruled out.
+3. **The shared-sandbox attack path (3.4)** is reasoned from Orca's architecture and its "full shell"
+   pairing model, not tested. Whether Orca can start PTYs as a second user was not searched.
+4. **Orca's browser client**: its parity with the desktop, plugins in serve mode, and behaviour
+   behind a path-prefixed proxy (5.3).
+5. **The upstream `OD-8` fix**: whether Stably would accept an OSC-off option for hook-capable agents,
+   and how large it is.
+6. **Resume and fork through a recipe**: whether `create` can start an agent command inside Orca's
+   terminal, and where Orca places the worktree path that Claude Code keys transcripts by.
+7. **GHE.com merge-queue parity** (no listed limit only), and **the trailer surviving** a squash under
+   the queue and ADO's `mergeCommitMessage` under auto-complete. That is one test per host.
+8. **Not re-read:** the researcher's phase 8 (22, 26) and team-mode (49, 61, 63) dispositions; Orca's
+   `references/windows-scripts.md`; Emdash beyond its README and the API; the ADO Basic price.
+9. **What an ADO push does in Panacea today**: `selectsAgentPipeline` was read, but the agent-deploy
+   pipeline it would start for a customer repo was not traced.
