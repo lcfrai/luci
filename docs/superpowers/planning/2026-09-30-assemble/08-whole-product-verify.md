@@ -40,7 +40,33 @@ All reads on 2026-09-30. Nothing installed, built, signed up for or run.
 
 ## 2. The recommendation: assemble, buy no whole product
 
-*(to be filled)*
+**Verdict: the core holds; three load-bearing parts do not.** "Assemble, buy none" survives every
+check. What fails is how the assembly is presented to users, what "the Hub" is today, and the days.
+
+| # | Report's claim | Test | Result |
+|---|---|---|---|
+| 1 | No whole product passes B1-B10 | Sections 3-5 at source; the rest fail B5 by design | **Holds** |
+| 2 | Owner call 2 and risk 2: *"Customers see several products' faces ... accept for v1"*, because *"One UI of our own over all of them is weeks of build"* | The user's own words (section 1) reject it. The premise is also wrong. The one-app bar does not need one UI over every product. It needs six rules applied to surfaces the clusters already build (section 7). At Orca's source, plugin panels are handed Orca's live design tokens (`PANEL_DESIGN_TOKEN_ALLOWLIST`: `--background`, `--card`, `--primary`, `--accent`, `--border`, `--ring`, `--radius` and others) *"so panel documents can match the app"*. Both Orca and our design system are shadcn/ui on Tailwind with Geist | **Refuted.** It is a v1 requirement, about 4.5 extra engineer-days (section 6), not weeks |
+| 3 | The provenance thread lives in *"the Hub (built; 03)"* (report 8.3) | 07-platform §1 and 3.1: Hub tasks 01-07b are merged (schema, row-level security, the hash chain). The server routes (08, 13-27) and the client (28-42) are unwritten: about 81 plan-hours, about 10 engineer-days | **Refuted.** The thread's store is a schema, not yet a service. Journey steps 2, 5 and 7 all wait on it |
+| 4 | The gateway is *"a dependency, not a given"*, costed by no cluster | 07-platform §0: our LiteLLM plus `keysmith` and `gatekeeper`, **8.2 engineer-days**. Panacea's LiteLLM cannot serve agents: no AU route, spend per project only, in-cluster | **Holds as a warning, now costed.** The total leaves it out |
+| 5 | Panacea "underneath" as the platform: deploy, the app's backend, sign-in, teams | 06-verify §2.2-2.4: evidence export, sanitised previews and `panacea-mcp` exist on the dev line only. Production is frozen mid-incident, and P-1 to P-3 queue behind the cutover freeze. The edge admits 14 KPMG `/32`s, so a shipped app opens only from KPMG's network. ADO pushes go to Forge, not to previews. 00-verify §2 adds: Keycloak 25.0.0 on one replica, a year-long owner-level `pnc_`, and a preview that shares the production database by default. 07-platform: the Hub, the gateway and the environment are ours, not Panacea's | **Holds for deploy and sign-in**, on the dev estate, for KPMG-network pilots. "The platform" overstates it |
+| 6 | Orca on top | 02-verify §0: upheld, with landing moved to the laptop CLI, an `OD-8` ruling on OSC status, and about 10.5 days | **Holds** |
+| 7 | 59 engineer-days; first app in about 9 working days with two builders; all glue in 12-13 | Section 6 | **Refuted.** About 99 engineer-days. The first app takes about 10 working days with five builders |
+
+**What Orca's source says about one look.** Orca's defaults are shadcn's neutral greys
+(`main.css`: `--background: #fff`, `--primary: #171717`; dark `--background: #0a0a0a`), Geist,
+and `--radius: 0.625rem`. Its only app-theme setting is `theme: 'system' | 'dark' | 'light'`, plus
+`appFontFamily` and custom terminal themes (`global-settings-types.ts:80-146`). There is no
+custom-CSS or accent setting. So **upstream Orca cannot wear our locked palette** (warm graphite,
+teal `#2fb3bd`). Our surfaces can match Orca instead: panels get its live values for free, and Hub
+pages map our token layer onto the same shadcn names. Its browser pane has its own address bar
+(`browser-pane/assemble-chrome/BrowserAddressBar.tsx`), so a Hub page in an Orca tab shows a URL
+bar unless that can be hidden (not verified).
+
+**What the ask leaves for the owner.** Owner call 2 is answered by the user: not accepted. The
+customer-visible call that remains is narrower. Whose palette: Orca's neutral one on our surfaces
+(no fork), or ours on a token-only Orca fork (02's fork costs: signing, a Defender prevalence reset
+per build, rebases)? And does Orca's name show in v1 (02 call 1)?
 
 ## 3. Alternative 1: OpenHands Agent Canvas + OpenHands Enterprise
 
