@@ -287,6 +287,44 @@ env, logs, pods, security status, rollback) touches Define. It has three things 
   **Reference.** TechDocs could show the spec to readers outside the cockpit later; today Orca renders
   it and the Hub holds the revisions.
 
+### 4.11 Orca — integrate, as the place the Define session runs
+
+Orca is the owner's cockpit pick; `02-fleet-cockpit.md` verifies it (MIT, 81.6k stars, v1.4.217 on
+2026-09-29, Stably AI). This section covers only what Define uses, from Orca's docs on 2026-09-30.
+
+- **Start.** `orca worktree create --name <n> --agent claude --prompt "<task>" --json` creates a
+  worktree and starts Claude Code with the task (CLI reference). The Define action is that call with
+  `/speckit-specify <idea>`, or `/speckit-assess-intake` from nothing. This replaces G2's session start.
+- **Read and edit.** The rich markdown editor edits worktree files in place: a rendered view with a
+  slash menu, tables and Mermaid, a raw Monaco toggle, and annotations on rendered text. So the person
+  reads `spec.md`, `GLOSSARY.md` and the ADRs rendered, and can correct them before Publish. This
+  replaces G5's read-only view.
+- **Hand-off to Develop.** Orca's orchestration (runs, tasks, workers on child worktrees, decision
+  gates) can turn Spec Kit's `tasks.md` into parallel worktrees, each inheriting the brief. That is
+  `02`'s and `05-work-team.md`'s step, named here so the thread is visible.
+- **Must stay off: artifacts.** Orca shares "HTML or Markdown as public view links through the signed-in
+  Orca account", opt-in under Settings → Artifacts. A spec is customer data; our build removes it.
+- **Where Publish lives.** On the person's side of the trust boundary: a button in Orca's window,
+  calling our control plane with the person's token. Never a command in the sandbox terminal, which
+  the agent can type into too. Orca documents **no plugin API**, so the button, the drift line and the
+  brief chip are changes in our Orca fork.
+- **Gaps.** No plugin API; the CLI needs the running Orca app; the docs do not say whether the markdown
+  editor works on SSH or remote worktrees, which is how our sandboxes would appear (`02` decides the
+  transport). **Effort for Define:** G2 0.25 day, G5 1.5 days. **Verdict: integrate.**
+
+### 4.12 Supabase and Coolify — reference and reject, for Define
+
+- **Supabase** (Apache-2.0, 110.9k stars). Postgres with REST, realtime, auth and storage. Self-hosts
+  with Docker Compose; Supabase Cloud has a Sydney region (`ap-southeast-2`); its Auth service takes
+  Keycloak as an OIDC provider, so sign-in stays Entra through Keycloak (OD-30). For Define it could
+  hold brief revisions, terms and decisions in three tables with row-level security, and push changes
+  to teammates live. **But Define reaches the Hub only through the built `discoverhub` client and the
+  `hubapi` contract**, so Supabase is a way to implement the Hub, not a Define choice. **Trade-off:**
+  Supabase gives REST, realtime and storage on day one; our Hub gives one audited API beside the
+  provenance ledger that Deploy's release record needs (`06-deploy.md`). **Verdict: reference.**
+- **Coolify** (Apache-2.0). A self-hosted deploy platform; `06-deploy.md` rejects it for Deploy (no
+  Kata, no AKS). It has no Define capability. **Verdict: reject.**
+
 ## 5. Recommendation
 
 **Adopt GitHub Spec Kit as the Define engine, run as a Define session in the cockpit we already have,
