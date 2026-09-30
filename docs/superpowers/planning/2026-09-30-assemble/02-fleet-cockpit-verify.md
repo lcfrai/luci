@@ -229,7 +229,44 @@ cleared the desktop by the end of week 1.
 
 ## 6. Integration days against our architecture
 
-_To be written._
+**7.5 days becomes about 10.5 (9.5 to 12), and first ship moves from 4.5 to about 6.5.** That is on
+top of 01's corrected ~10 days for the sandbox. Three day-0 items decide the date more than any of
+this, and none of them is engineering.
+
+| R6 item | R6 | Sceptic | Why |
+|---|---|---|---|
+| Orca rollout package | 0.5 | 0.5 | Holds as engineering. No admin lock on version or settings was found (§2 row 10), so "pinned", "telemetry off" and "computer use off" are defaults a user can change |
+| `panacea login` | 0.5 | 1 | No CLI and no PKCE code exist in the repo or the Hub worktree. Loopback PKCE, Credential Manager, refresh and the anchor clone are greenfield. The Keycloak client in Panacea's realm is an ask to the Panacea side (`OD-30`) |
+| Lane git endpoint | 1.5 | 2 | Plus learning the branch from `worktree.created` (3.1), a lease-guarded force (3.2), and serving a fresh base branch through `OD-22`'s read-only fetch |
+| Landing | 1.5 | 2.5 | Moves to the laptop CLI: fetch back, push, open PR, auto-merge or auto-complete (3.2). It is 2 if the CLI reuses phase 3 tasks 12 and 13's credential-helper code as planned |
+| Panacea preview and provenance | 0.5 | 0.5 | GitHub only. ADO needs a Panacea-side change (4.1) |
+| **First ship** | **4.5** | **6.5** | |
+| Panacea plugin | 2 | 2.5 | Plus the pending-brief step before `create` (3.1) |
+| Resume and fork | 0.5 | 1 | Claude Code keys transcripts by working directory, and Orca picks the worktree path. Starting `claude --resume … --fork-session` in Orca's terminal from `create` is unverified |
+| AI first-pass review | 0.5 | 0.5 | Holds |
+| **Total** | **7.5** | **10.5** | |
+
+**Day 0, not counted above, and started today:**
+1. **KPMG IT and SOC:** an MDE alert-suppression rule for Orca's process tree, an ASR allowlist for
+   `%LOCALAPPDATA%\Programs\orca\` and `…\Orca\daemon-host\`, and any App Control or AppLocker rule.
+   A publisher rule cannot target Orca (§2 row 12). This is a security team's decision and could
+   take longer than the build. **The owner said "not in weeks", so it needs asking now, with the
+   5.3 fallback ready.** On this dev laptop, per-user NSIS apps already run (Phren sits in
+   `%LOCALAPPDATA%\Programs\`), so an owner pilot looks possible here. That says nothing about the
+   standard fleet or a customer's.
+2. **The owner's `OD-8` ruling** on Orca's OSC status (2.1). Zero days if the owner accepts it for
+   display; otherwise an upstream change of unknown size and timing.
+3. **A security review of 3.4** before any customer tenancy; for KPMG's own pilot, the owner's call.
+
+**Architecture fit, checked:**
+- **Go `Backend`:** fits, with `Suspend` and `Resume` added (5.1).
+- **Keycloak:** fits for the Hub and the CLI, not for Orca's pairing (01 verify).
+- **LiteLLM:** unchanged; the gateway token goes into the sandbox env.
+- **Azure:** unchanged.
+- **Tauri:** frozen as the fallback, not deleted (5.1).
+- **"Replaces" arithmetic:** re-added from the phase 3 task table and correct (17 + 5.5 + 6 = 28.5 of
+  71.5 hours; kept 31 hours, 27 still to build). Phase 8 tasks 22 and 26 and team-mode tasks 49, 61
+  and 63 were not re-read.
 
 ## 7. Corrected recommendation
 
