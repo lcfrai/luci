@@ -215,7 +215,61 @@ worth taking (section 5). Forge as a Define service is not.
 
 ## 5. The parts grafted in: aihero skills, Forge's spec rules, Panacea's data class
 
-*(to be filled)*
+### 5.1 mattpocock/skills: UPHELD, but the report names the wrong files
+
+- **Licence:** MIT, "Copyright (c) 2026 Matt Pocock". **272,095 stars.** The last release is
+  v1.2.3 on 2026-08-06, while `main` keeps moving (the README notes the `CONTEXT.md` →
+  `GLOSSARY.md` rename). **Pin a commit, not a release.**
+- **The interview is a fourth skill the report does not list.** `grill-me` and `grill-with-docs`
+  are 7-line wrappers: "Call the Skill tool with "grilling"" / "…twice, for "grilling" and
+  "domain-modeling"". Vendor **`grilling`** (`skills/productivity/grilling`) and the whole
+  `domain-modeling` directory, since it points at sibling `GLOSSARY-FORMAT.md` and
+  `ADR-FORMAT.md`. Otherwise the vendored skills call a skill that is not there.
+- **Both wrappers are `disable-model-invocation: true`.** Only a person can type them, and a Spec
+  Kit command cannot chain into them. The preset's command override should call the
+  model-invocable `grilling` and `domain-modeling` directly. Otherwise "one Define start" becomes
+  two or three typed commands (N7).
+- **Two interview styles.** `grilling` asks "the whole frontier in one round" (numbered questions,
+  each with a recommended answer). `clarify` asks exactly one at a time. Both are defensible, but
+  pick one per step and say so in the preset.
+- **The paths the report left open are confirmed:** `GLOSSARY.md` at the root and `docs/adr/`,
+  created lazily (`domain-modeling` SKILL.md:16-40). A multi-context `GLOSSARY-MAP.md` layout also
+  exists, and Publish must refuse it or handle it. The ADR rule is OD-36's three tests word for
+  word: hard to reverse, surprising without context, a real trade-off.
+- **Do not vendor `setup-matt-pocock-skills`.** It adds an `## Agent skills` block to `CLAUDE.md`
+  (SKILL.md:24, 67-80), and the built Materialiser owns `CLAUDE.md`.
+
+### 5.2 Forge's rules as snippets: UPHELD in part. One of the "two rules" is not in Forge's code
+
+- **In the validator, and copyable** (`models/spec.go:36-117, 181-304`): 3 to 8 criteria, each at
+  least 20 characters and matching
+  `(?i)\b(can|cannot|shows|returns|refus\w*|persist\w*|appears|redirect\w*)\b`. That is **eight
+  verb forms, not the six the report lists.** Also copyable: the four auth shapes
+  (`public`, `user`, `owner`, `project-role:<role>`) and the strict routes-table parse.
+- **Not in the validator:** "an access decision for every entity". `SpecEntity` has only `Name`
+  and `Fields`. Access is checked **per route**. The who-may-read-and-change question exists only
+  as prompt text (`prompts.go:82-89`, "Answer this BEFORE any screen"). So Publish's per-entity
+  check is **new code**, small, not an adapted snippet.
+- **The copy must change.** `Validate` refuses a spec with no routes ("no routes declared"), and
+  the report makes routes optional. The auth shapes are a control only where Panacea parses
+  `routes.config.json` fail-closed and probes it (the prompt's own words). For any other app they
+  are a statement. **0.25 day → 0.5.**
+
+### 5.3 Panacea's data class: UPHELD. The gap is worse than "an admin step"
+
+- **Confirmed:** the ceiling `none < synthetic < protected` (`deployment_stages.go:62-69`), read
+  fail-closed on a read error (`:1193-1206`). A whole-repository `git grep` finds **no writer**
+  outside tests. Two comments claim the stage ladder writes it (`clients/branch_data_policy.go:84-86`,
+  `branch_data_ops.go:60-62`), but the handler only reads it, so the comments are stale. The team
+  label is a different key, `panacea.io/data-class` (OFFICIAL | PROTECTED), and it does have a
+  writer (`applyProjectPolicyPresets`).
+- **Missed: a missing hand-over fails open.** "Absent ⇒ DataClassNone … only ever makes a higher
+  stage EASIER to reach" (`:71-75`). If a brief says `protected` and the hand-over never happens,
+  Panacea treats the project as holding nothing sensitive. So G7's hand-over cannot be a
+  best-effort admin step. Deploy must **refuse to promote** a project whose Panacea annotation
+  differs from the brief's class. That is `06-deploy.md`'s gate, flagged here.
+- Also note: Production is unreachable in Panacea until DLP enforces (`:43-58`). Define's class
+  gates secure-test only, for now.
 
 ## 6. The integration days, against our architecture
 
