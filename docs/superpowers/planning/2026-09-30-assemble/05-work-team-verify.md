@@ -12,11 +12,68 @@ Desk research only: nothing installed or run.
 
 ## 0. Verdict first
 
-*(to be filled)*
+**UPHELD, with corrections.** Do not build a tracker: Azure DevOps Boards first, GitHub
+Issues/Projects behind the same `tracker` interface, Teams for *inform* and *decide*, Panacea's
+code and preview comments, Orca as the desktop.
+
+- **Why it survives:** every licence is what the researcher said, at source (MIT for
+  `azure-devops-mcp`, `azure-devops-go-api`, `github-mcp-server`, Orca and `Agents-for-js`).
+  Australia is a real ADO geography. Panacea really has no work items. And both alternatives fail
+  on merit: Linear has no AU region; Plane is a third tracker we would run forever.
+- **What does not survive:**
+  1. **The Done rule as written would block everyone.** ADO's group rule takes one condition and
+     lands on every project using the process. The fix is two fields and three standard rules,
+     which also need a PanaceaApp service identity that does not exist yet (section 2).
+  2. **GitHub is not AU-resident for KPMG.** Its EMU is on github.com, not GHE.com, and any
+     triager can set a Proof field by hand (section 3).
+  3. **Panacea's roster is admin-only.** `GET /teams/{name}/members` checks team-admin first, so a
+     member's `pnc_` token gets no roster (section 4).
+  4. **No Orca fork.** `02-fleet-cockpit.md` rules Orca unforked, and a plugin cannot call ADO (no
+     `net:fetch`). ADO Start goes through the recipe's pending-start path instead (section 5).
+  5. **17 days becomes about 20 (17 to 23),** plus day-0 admin asks on four fronts that nobody
+     counted (section 8).
+- **In our favour:** a managed identity can be a free ADO Stakeholder. Orca now also reads GitLab
+  issues and Jira Server/DC. Jira's remote agents page carries no Preview label.
+  `azure-devops-mcp` shipped `v2.10.0` on 2026-09-09.
+- **Alternatives:** Linear stays rejected as the default (no AU region). Plane Commercial stays
+  rejected as the default, but not for its licence: the commercial edition can be bought, has
+  OIDC on Pro+ self-hosted, and would be AU-resident on our AKS. It is the fallback if KPMG's ADO
+  organisation turns out not to be in Australia (section 7).
+- **One addition:** a PanaceaApp-administered ADO organisation in Australia, for v1 and for
+  anyone with no tracker (section 9).
 
 ## 1. What was checked, and how
 
-*(to be filled)*
+All reads on 2026-09-30. Nothing installed, built or run; no tenant, organisation or repository
+touched.
+
+- **The report under test:** `05-work-team.md`, all 549 lines.
+- **At source, GitHub:** `LICENSE` files on raw.githubusercontent.com for
+  `microsoft/azure-devops-mcp`, `microsoft/azure-devops-go-api`, `github/github-mcp-server`,
+  `stablyai/orca` and `microsoft/Agents-for-js`. Through the GitHub API (rate-limited by the shared
+  corporate IP for the first hour, then answered): repository metadata and the latest releases of
+  those five, and the licences of `makeplane/plane`, `supabase/supabase`, `supabase/realtime` and
+  `coollabsio/coolify`. Orca's README and the imports of three recipe source files. Spec Kit's
+  `templates/commands/taskstoissues.md`.
+- **Vendor docs:** Microsoft Learn on ADO workflow rules, data location, service hooks and Web
+  Hooks, the Work Items Update and Comments Update REST pages, the permissions reference, PATs and
+  their lifecycle API, service principals and managed identities, and the Boards app for Teams.
+  Also the ADO pricing page, the remote MCP GA post, and the Office 365 connector retirement post.
+  GitHub: the issue-fields, Agent HQ and AU-residency changelogs, the GHE.com docs, agent apps,
+  Teams integration and pricing. Orca's docs (`review/linear`, `review/github`, `review/jira`).
+  Linear's security, pricing and agent-interaction pages. Plane's pricing and editions pages.
+  Atlassian's remote-agents page.
+- **Panacea, read-only** (`git grep` and file reads at `eee94cd94`; nothing written, built or
+  run): `routes/routes.go`, `handlers/billing_team.go`, `me.go`, `team_onboarding.go`,
+  `team_create_approval.go`, `preview_comments.go`, `notifications.go`, `webhook_ado.go`,
+  `panacea-build/pkg/prcomment/client.go`, `webhook-receiver/providers/azuredevops.go` and
+  `clients/audit_signed_head.go`.
+- **Our own docs:** the owner decisions (`OD-4`, `-16`, `-20`, `-24`, `-26`, `-27`, `-30`, `-35`),
+  the identity ruling §7, `00-panacea.md` §5, `02-fleet-cockpit.md` §R2-§R3, `03-define.md`'s
+  Define flow, `08-whole-product.md`'s journey shell, the phase 3 plans (grep only), and this
+  device's memory note on KPMG's GitHub EMU (2026-07-28).
+- **Web searches** (summaries, marked where used): issue-field permissions, Boards to Copilot,
+  custom agents as GitHub assignees, and Azure Bot identity types.
 
 ## 2. The recommendation, part 1: Azure DevOps Boards as the first connector
 
