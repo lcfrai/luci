@@ -47,14 +47,52 @@ Paths are in `Projects/Panacea` (read-only; grep only), as of 2026-09-30. `00-pa
 | N1 blobs | object storage: MinIO chart 5.2.0 behind `s3proxy` (`kubernetes/argocd-apps/data/minio.yaml:22-23`); Azure Blob in `deploy/object-storage-blob.tf` (315 lines: private endpoint, workload identity through a federated credential, `:248-310`) | **No** as a service (MinIO is AGPL-3.0 and its upstream is archived) | the Blob Terraform is the useful part | **copy the Blob snippet** |
 | secrets | Vault, KV v2 at `secret/data/tenants/<project>/<env>` (`clients/vault.go:308-345`) | **No** | BUSL-1.1 (`OD-32`); Shamir-unsealed; reliability is on Panacea's own owner list | **reject**; Azure Key Vault now, OpenBao at the lift |
 | portal | Backstage (Apache-2.0), OIDC to the realm (`backstage/app-config.production.yaml:36-47`), 8 scaffolder templates (`:103-139`) | not a store | a portal, not a transactional ledger | **reference**: deep links and templates (03-define, 06-deploy) |
-| N7 environment | the live estate's Terraform, `deploy/*.tf`, 22 files: `postgres-flexible.tf` (475 lines: private endpoint only `:27`, zone-redundant HA `:32-34`, geo-redundant backup `:19-20`, customer-managed key `:49`), `firewall.tf` (272), `private-endpoints.tf` (96), `private-dns.tf` (80), `cmk.tf` (219), `aks-diagnostics.tf` (75), `defender-sentinel.tf` (113), `main.tf` (1,077) | **Yes, as code** | no Kata pool (01-sandboxes 4.15); the live estate is Australia Central, the hardened Australia East estate is mid-cutover; written for Terraform, but `.tf` runs on OpenTofu with the same MPL-2.0 azurerm provider (`OD-32`) | **copy with attribution** into phase 8's modules |
+| N7 environment | the live estate's Terraform, `deploy/*.tf`, 22 files: `postgres-flexible.tf` (475 lines: private endpoint only `:263`, zone-redundant HA `:268-270`, geo-redundant backup `:255-256`, customer-managed key `:285`), `firewall.tf` (272), `private-endpoints.tf` (96), `private-dns.tf` (80), `cmk.tf` (219), `aks-diagnostics.tf` (75), `defender-sentinel.tf` (113), `main.tf` (1,077) | **Yes, as code** | no Kata pool (01-sandboxes 4.15); the live estate is Australia Central, the hardened Australia East estate is mid-cutover; written for Terraform, but `.tf` runs on OpenTofu with the same MPL-2.0 azurerm provider (`OD-32`) | **copy with attribution** into phase 8's modules |
 | observability | Prometheus, Grafana, Loki, Tempo (Argo CD apps under `kubernetes/argocd-apps/`) | not needed | Grafana, Loki and Tempo are AGPL-3.0 | **reject** for our estate; Azure Monitor (managed Prometheus, Container Insights) instead |
 
 **Trade-off in one line:** Panacea meets sign-in today and hands us its best production Terraform and key-minting code; it cannot be the agents' gateway at all, and it can host the Hub only with a role rework, a posture exception and a shared failure domain.
 
 ## 3. Candidates
 
-_To be written._
+**How to read the effort figures.** Engineer-days of work still to do for this capability if the candidate is chosen (plan hours divided by 8, or our estimate where no plan exists), not elapsed time. Stars and releases are from the GitHub API on 2026-09-30 unless marked.
+
+### 3A. The Hub's store, realtime and ledger
+
+#### 3.1 Our Go Hub, finished, on Azure Database for PostgreSQL Flexible Server — **ADOPT (the substrate), keep the Hub**
+
+- **Does:** the Hub as planned (ADR-H1): one Go binary (`cmd/hub`) over the schema already merged (`0001_init.sql`: row-level security per org through `current_setting('hub.org_id')`, column-level grants, no `UPDATE` or `DELETE` on the ledger tables, a `SECURITY DEFINER` hash-chained `audit_append`), on a managed Postgres.
+- **Licence:** ours; `pgx` MIT; the database is an Azure service.
+- **Deploy:** Flexible Server in Australia East, private endpoint only, zone-redundant HA and geo-redundant backup to the paired region, as Panacea's `postgres-flexible.tf:255-285` already does; the Hub as one Deployment on our AKS beside the control plane.
+- **Enterprise fit:** Entra authentication, custom roles and row-level security are supported ([Azure docs](https://learn.microsoft.com/en-us/azure/postgresql/security/security-access-control)); the schema needs no superuser and no extension (`roles.sql` creates two `NOLOGIN` roles); an AU-only estate by construction; goes into a customer's subscription unchanged. Burstable B2ms is US$0.208 an hour (about US$152 a month) at list (Azure Retail Prices API, 2026-09-30).
+- **Maturity:** Microsoft-run. The Hub itself: tasks 01-07b merged, 24.5 of 133.5 plan-hours.
+- **Gaps:** the server routes (tasks 08, 13-27) and the client (28-42) are still to write: about **80 plan-hours** to the minimum Hub (S7), after 3.12 removes 5.
+- **Effort:** **about 10 engineer-days**; the plan's critical path with two engineers is about 5 working days (lane A, tasks 08 and 13-24, 41 hours).
+- **Why it wins:** the Hub's value is its domain rules (digest-checked revisions, the pin, the chain), and those are ours under every option; the store underneath is the part a product can take, and Azure's managed Postgres takes it with HA, point-in-time restore and Entra built in.
+
+#### 3.2 Supabase, self-hosted on our AKS — **REFERENCE (not the Hub)**
+
+- **Does:** Postgres plus Auth (GoTrue), PostgREST, Realtime, Storage, Edge Functions and Studio, behind Kong.
+- **Licence:** Apache-2.0 (`supabase/supabase`, 110,907 stars, pushed 2026-09-30); the community Kubernetes chart is Apache-2.0 (`supabase-community/supabase-kubernetes`, 818 stars, `supabase-0.8.0` of 2026-09-05).
+- **Deploy:** "The fastest and recommended way to self-host Supabase is to use Docker"; Kubernetes is community-maintained, not supported ([self-hosting docs](https://supabase.com/docs/guides/self-hosting)).
+- **Enterprise fit:** weak where we need it. Self-hosted, "branching, advanced metrics beyond logs, managed backups and PITR ... and the platform management API are unavailable"; it is "a single project", and support is community-only (same page). Its services read one **static** `JWT_JWKS` from the environment and the self-hosted docs describe no external issuer ([self-hosted auth keys](https://supabase.com/docs/guides/self-hosting/self-hosted-auth-keys)), so trusting Keycloak means pasting the realm's public keys in and re-pasting them at every key rotation, plus a `role` claim mapper. Storage speaks S3 or a file system; Azure Blob needs a gateway in between.
+- **Gaps against the Hub:** our row-level security keys on a setting the server sets, not on JWT claims; the digest re-check and canonical JSON (`hubapi.Canonical`, golden vectors) would move into PL/pgSQL or Deno; `hubclient` would be rewritten against PostgREST's error shape; about twelve more containers to run and patch.
+- **Effort:** about **13 engineer-days** to reach the same minimum (our estimate: roughly 21 plan-hours removed, 46 added for hardening, Keycloak trust, backups, the storage gateway and the RLS port), against 10 for 3.1.
+- **Trade-off in one line:** Supabase gives CRUD, realtime and storage for free, but the Hub is not CRUD; we would trade 21 hours of Go for 46 hours of glue and a dozen services.
+
+#### 3.3 Supabase Cloud (Sydney) — **REJECT**
+
+- Managed Supabase in `ap-southeast-2` on AWS (03-define 4.12). Not Azure (`OD-18`), a new processor holding client briefs, and it cannot go into a customer's own cloud (`OD-5`). Same Hub-shape gaps as 3.2.
+
+#### 3.4 The Hub hosted as a Panacea project — **REFERENCE (the fallback host)**
+
+- **Does:** `POST /api/v1/projects` with `enableDatabase: true` gives the Hub a namespace, TLS, DNS, a CloudNativePG database with backups and point-in-time revert, scans, rollback and logs (`00-panacea.md` §3, §7).
+- **Gaps:** the tenant role is `NOCREATEROLE` (`clients/db_roles_ensure.go:97-109`), so `hub_owner` and `hub_app` map onto Panacea's migrate and runtime roles with reworked grants; Panacea's runtime-role grants cover `public` only (`clients/db_roles_ops.go:113-124`), so the `hub` schema keeps its own, which needs checking; a serve-without-SSO posture exception; our control plane's egress IP on Panacea's edge allow-list; client briefs behind the production DLP gate.
+- **Effort:** about 1.5 engineer-days of hosting glue, against about 1.25 for 3.1 on an AKS we stand up anyway (01-sandboxes). The Hub's own 10 days are the same under both.
+- **Trade-off in one line:** it saves the wait for a subscription, not work; it costs a shared failure domain for our system of record during Panacea's cutover.
+
+#### 3.5 PostgREST over the built schema — **REFERENCE**
+
+- MIT, 27,691 stars, v16.4 of 2026-09-24. A REST API from a Postgres schema, JWT-authenticated. The thin sibling of 3.2: no Realtime, Storage or Studio to run. The same gaps as 3.2 for the Hub's rules (they become SQL functions), plus no rate limiting or Origin checks of its own. About 11-12 engineer-days. Useful later for read-only reporting over the ledger.
 
 ## 4. Side by side
 
