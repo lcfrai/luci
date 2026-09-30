@@ -1,6 +1,6 @@
 # 00 - What Panacea already provides: the sceptic's verification
 
-**Status:** IN PROGRESS (2026-09-30). Skeleton; sections fill in one at a time.
+**Status:** COMPLETE (2026-09-30). Sections 0-11.
 **Date:** 2026-09-30. **Verifies:** `00-panacea.md` (the researcher's recommendation).
 **Role:** sceptic. Try to refute the recommendation (C1, Panacea via REST + `panacea-mcp` + the
 Keycloak realm + copied snippets) and its two best alternatives (C3 Azure-native managed services
@@ -11,11 +11,43 @@ Desk research only: nothing installed or run; `Projects/Panacea` read only.
 
 ## 0. Verdict first
 
-_Pending._
+**Upheld, corrected.** Adopt Panacea (C1) for everything PanaceaApp ships and as its sign-in;
+keep agent sandboxes, agent inference and our own state off it. The inventory invents nothing:
+the routes, the 31 MCP tools, the token rules and the realm exist as cited. Five things are wrong
+or understated at source:
+
+1. **Scans.** A new project runs 3 checks at warn, not 18 (section 2, row 10). Switched on, SAST
+   records a PASS without scanning: Semgrep 1.86.0 refuses `--config auto` with `--metrics=off`,
+   and the task's fallback file hides the refusal (row 11).
+2. **Auth.** Realm trust (P-3) is new code in Panacea's `Auth()`, 2-3 days of theirs, and it is
+   required, not optional, for zero clicks and a one-app feel. Any developer-role token, a scoped
+   `deploy` `pnc_` included, can mint a legacy project key that never expires, ignores its scopes
+   and is bound to no person, so the per-session token must never enter the sandbox (section 4).
+3. **Licences.** Semgrep's registry rules are restricted from the first external customer, not at
+   a customer-hosted tier (section 3).
+4. **Panacea-side upkeep.** Our sign-in rides on Keycloak 25.0.0 with one replica; Redis pulls a
+   withdrawn Bitnami tag; MinIO is archived, with a Blob swap already planned at the rebuild.
+5. **Days.** About 3-3.75 of glue here, not 2, and six Panacea asks, not three (section 7).
+
+**Cohesion** (the user's ask): four seams in a new user's first hour, each with a named fix
+(section 8). **Alternatives:** Coolify plus Supabase, reject upheld with two of its reasons
+corrected (section 5); Azure-native state, buy upheld, Australia East only (section 6).
 
 ## 1. What was checked, and how
 
-_Pending._
+- **The report**: `00-panacea.md`, all 639 lines, read in four chunks.
+- **Panacea**: about 40 read-only `git show efc637879:<path>` and `git grep` calls; nothing was
+  written there. Every claim is cited `path:line`.
+- **Upstream source**: raw files at the pinned tags (Semgrep `v1.86.0`, `vault-helm` `v0.28.1`,
+  Vault `v1.17.2`, Bitnami `redis/19.5.0`, Coolify `v4.3.23` and `v4.x`, Supabase and LiteLLM on their
+  default branches) and 4 GitHub API calls for archived flags and licences.
+- **Vendor docs**: Supabase (self-hosting, regions, pricing), Coolify (docs index, previews),
+  Microsoft Learn (Flexible Server overview, Entra authentication), the Azure Retail Prices API, and
+  Bitnami's catalogue notice.
+- **Siblings**: 06-deploy-verify §4 for the shared Coolify and Supabase facts, and 06-deploy §6
+  for G4, so this file agrees with them or says where it differs.
+- **Cohesion**: C1's first hour walked for a new KPMG user (section 8), for the user's ask.
+- **Kept from the stopped run**: section 2, with rows 10 and 11 overturned by this run.
 
 ## 2. C1 Panacea: claims against source
 
