@@ -177,6 +177,36 @@ In-cluster only, spend by project alone, no Bedrock and so no AU route, retentio
 | Envoy AI Gateway | Apache-2.0 | Gateway API native, token rate limits, Bedrock with SigV4; no spend store |
 | Claude in Microsoft Foundry | Azure-billed, Anthropic-run | not an AU route today: Australia East is not a supported region, per third-party reports of July 2026 (not verified first-hand); `OD-19`'s AU stays Bedrock Sydney |
 
+### 3D. The environment (infrastructure as code on Azure)
+
+#### 3.18 Panacea's production Terraform, copied into our OpenTofu modules — **INTEGRATE**
+
+- **Does:** the KPMG-hardened estate code of §2: Postgres Flexible Server (private endpoint, zone-redundant HA, geo-redundant backup, customer-managed key), Blob with workload identity, Azure Firewall, private endpoints and DNS, CMK, AKS diagnostics, Defender and Sentinel.
+- **Licence:** KPMG's own code; copying is allowed now with attribution in each file's header (`OD-13` relaxed); the `azurerm` provider stays MPL-2.0 and unmodified (`OD-32`).
+- **Deploy:** under OpenTofu 1.12.6, the environment stream's pin (`148a21d1` on the env branch); `.tf` syntax carries over (`OD-32`).
+- **Enterprise fit:** it has already been hardened for Panacea's ISM work (its code cites ISM-1234 and ISM-1416); Australian regions; no BUSL.
+- **Gaps:** no Kata pool (01-sandboxes adds it); Panacea's variable and resource-group model differs from ours; drop what we do not run (the ADO self-hosted agent, the elastic and build pools, the WAF application gateway). Panacea's dev and prod estates once collided on a shared AKS name, so every copied name is re-derived from our own estate variables.
+- **Effort:** the environment stream has built the network and observability modules (tasks 03, 04). What remains in group A is tasks 05-08 (registry and Key Vault, AKS, the foundation stack with firewall and DNS, Postgres: 12 plan-hours); starting from Panacea's files halves them (our estimate): **about 6 plan-hours saved**.
+
+#### 3.19 Azure Verified Modules — **REFERENCE**
+
+- MIT, Microsoft-maintained modules for AKS, Postgres, Key Vault and networking (for example `Azure/terraform-azurerm-avm-res-dbforpostgresql-flexibleserver`, 8 stars, pushed 2026-09-21).
+- **OpenTofu:** AVM "does not have the bandwidth to prioritize OpenTofu support" and relies on OpenTofu's compatibility promise ([AVM discussion #1512](https://github.com/Azure/Azure-Verified-Modules/discussions/1512)); the AKS module declares Terraform `>= 1.11` (registry page). Each module also brings the `azapi` and a telemetry provider.
+- **Why not:** Panacea's code is already written against the plain `azurerm` provider and already hardened for KPMG; AVM would add a wrapper layer on an engine its maintainers do not test.
+
+#### 3.20 Coolify, with Supabase, as our environment — **REJECT**
+
+- Apache-2.0, 62,409 stars, v4.3.23 of 2026-09-18. Docker on our servers over SSH; no Kubernetes target, so no Kata (01-sandboxes 4.16); Azure DevOps is not a listed git source (06-deploy 3.1).
+- It could stand the Hub, Supabase, LiteLLM and a Keycloak up on one Azure VM in an afternoon. But the sandboxes need AKS regardless, so it is a second platform to run, and the system of record would sit on one VM with backups we script ourselves.
+- **Trade-off in one line:** the fastest demo host, and the wrong home for a system of record beside an AKS we must run anyway.
+
+#### 3.21 Azure's managed services for the rest of the substrate — **ADOPT**
+
+- **Key Vault:** secrets, the LiteLLM master key as a mounted file (phase 6 P6-D11 via the CSI driver) and the release-signing key (`azurekms://`, 06-deploy G2). OpenBao replaces it only at the Panacea lift (`OD-32`).
+- **Blob:** the Hub's `blobstore` keeps blobs in Postgres first (task 21) behind an interface built for Azure Blob (ADR-H1 §5.6); the Blob implementation, with immutability for evidence and design snapshots, is about half a day when sizes demand it.
+- **Azure Monitor:** Log Analytics with a daily cap and Container Insights (task 04, built), managed Prometheus; no AGPL Grafana stack of our own.
+- **Registry:** ACR Premium (task 05; 01-sandboxes' images).
+
 ## 4. Side by side
 
 _To be written._
