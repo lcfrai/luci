@@ -325,26 +325,30 @@ Orca is the owner's cockpit pick; `02-fleet-cockpit.md` verifies it (MIT, 81.6k 
 - **Coolify** (Apache-2.0). A self-hosted deploy platform; `06-deploy.md` rejects it for Deploy (no
   Kata, no AKS). It has no Define capability. **Verdict: reject.**
 
-## 5. Recommendation
+## 5. Recommendation (revised for the owner's second direction)
 
-**Adopt GitHub Spec Kit as the Define engine, run as a Define session in the cockpit we already have,
-with one Panacea preset that carries the brief's five sections and the aihero grilling and glossary
-skills. Keep the built provenance thread (Hub brief revisions, keys, the Materialiser) and point it at
-the spec Spec Kit writes.**
+**Adopt GitHub Spec Kit as the Define engine, run as an Orca worktree session on our sandbox, with one
+Panacea preset that carries the brief's five sections, Forge's access table and testable-criteria rule,
+the data class, and the aihero grilling and glossary skills. Keep the built provenance thread (Hub brief
+revisions, keys, the Materialiser) and point it at the spec Spec Kit writes.**
 
 **What the person does.**
 
-1. Presses **Define** on a project or branch and types the idea. The cockpit starts a Claude Code session
-   on that worktree with an opening prompt such as `/speckit-specify <idea>` (from nothing:
-   `/speckit-assess-intake` first). The phase 2 harness already takes an opening prompt
-   (`control-plane/internal/harness/argv.go`, `OpeningPrompt`).
-2. Answers the agent in the pane: one question at a time with a recommended answer (`clarify`), and
-   grilling for words and decisions (`grill-with-docs`).
-3. Reads the result, rendered: `specs/<n>-<name>/spec.md` with the five sections, `GLOSSARY.md`,
-   `docs/adr/*.md`.
-4. Presses **Publish brief**. The control plane writes a brief revision to the Hub through the built
-   `discoverhub`, with terms and decisions as records beside it (OD-36).
+1. Presses **Define** on a project or branch and types the idea; a new project also asks for its data
+   class (`none`, `synthetic` or `protected`) and AU or Global. The cockpit calls
+   `orca worktree create --name <n> --agent claude --prompt "/speckit-specify <idea>"` (from nothing:
+   `/speckit-assess-intake` first). If `02` keeps our own shell, the phase 2 harness already takes an
+   opening prompt (`control-plane/internal/harness/argv.go`, `OpeningPrompt`).
+2. Answers the agent in the pane: one question at a time with a recommended answer (`clarify`),
+   grilling for words and decisions (`grill-with-docs`), and Forge's access step: who may read and who
+   may change each thing the app stores.
+3. Reads and corrects the result in Orca's markdown editor: `specs/<n>-<name>/spec.md` with the five
+   sections and the access table, `GLOSSARY.md`, `docs/adr/*.md`.
+4. Presses **Publish brief** in Orca's window. The control plane checks Forge's two rules (3 to 8
+   testable criteria; an access decision for every entity), then writes a brief revision to the Hub
+   through the built `discoverhub`, with terms and decisions as records beside it (OD-36).
 5. Every later session on that branch inherits it through the built Materialiser and shows the chip.
+   Deploy reads the data class from the project.
 
 **Why this one.**
 
@@ -356,8 +360,15 @@ the spec Spec Kit writes.**
   agents), so Develop sessions read `spec.md` directly as well as inheriting the brief.
 - It keeps the spine: the Hub revision and its key stay ours, and they are the part already built.
 - Presets override templates, commands and terminology, so we fit it to our brief without forking it.
+- **It is the strongest brief for a regulated customer on offer:** Spec Kit's structure, plus Panacea's
+  two tested rules (access before interface; criteria a browser can check), plus the data class that
+  Panacea's Deploy already enforces. No other candidate has any of the three.
+- It uses Orca as the owner chose. Orca's own features start the session and render the files; the
+  only Orca changes are the Publish button, the drift line and the chip.
 
 **Runner-up: OpenSpec** (MIT), if brownfield change deltas turn out to matter more than the interview.
+**Panacea Forge as a service is not the runner-up:** it would add a second chat surface and a second
+agent loop, and still lack brownfield, the glossary and the decisions.
 **Not a buy:** no commercial product passes both AU residency and "brief in our Hub".
 
 **What it replaces**, in the plans' own hours before fix rounds:
@@ -375,7 +386,10 @@ the spec Spec Kit writes.**
 suggestion states, bespoke lens states) are not built.
 
 **Integration: about 8 stream-days** (section 6), **about 5 calendar days on two parallel streams**:
-control plane (G1-G4 with tasks 12, 14, 20, 22, 26) and desktop (G5 with tasks 15-17).
+control plane (G1-G4 and G7, with tasks 11, 12, 14, 22 and 26) and cockpit (G5, with the desktop tasks
+15, 16, 17 and 20); task 23 is G6. *Revised:* the first run put task 20 on the control plane, but the
+plan lists it as a desktop task. Orca removes no further phase 4 task: if `02` re-seats the cockpit on
+Orca, the four desktop tasks (12 h) move into Orca's renderer; they do not disappear.
 
 ## 6. What we still build (glue)
 
