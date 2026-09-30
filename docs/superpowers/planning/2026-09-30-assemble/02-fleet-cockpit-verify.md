@@ -466,7 +466,8 @@ our app: a thin build of the pinned upstream, not Orca under its own name, and n
 
 **Days:** about **15.5 (14 to 18)**: §6's 10.5 plus §7's 5, beside 01's ~10, plus the day-0 items
 (§6). **First ship stays at about 6.5 calendar days only if our build runs as its own stream from
-day 1.** Done in series, it is about 11.5.
+day 1.** Done in series, it is about 11.5. For the whole-product sum, count about 13.5: 2 of §7's 5
+days are 08-verify's one-app layer, which is counted there (§7, "Counted once").
 
 **Replaces:** as R6 (arithmetic checked). One change: phase 3 tasks 12 and 13 (push through the
 machine's credential helper, the credential-store seam) now serve the laptop CLI. They were designed
