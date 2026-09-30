@@ -208,7 +208,32 @@ It is confusing if it does not. The card and the export must carry both key ids 
 
 ## 4. Alternative 1: Coolify + Supabase + Panacea snippets
 
-*(to be filled)*
+**The rejection holds on merit, but two of its reasons are overstated and one is missing.** Sources:
+the GitHub API and the raw `LICENSE` files, Coolify's v4.4-rc.1 notes, and coolify.io's pricing and
+preview pages. For Supabase, its branching feature page and its self-hosting page. All were read on
+2026-09-30.
+
+| Claim (06 §3.1, 3.9, 3.10) | At source | Verdict |
+|---|---|---|
+| Coolify is Apache-2.0 | API `spdx_id: Apache-2.0`; `LICENSE` on `v4.x` is the Apache License 2.0 | **holds** |
+| Latest stable v4.3.23 (2026-09-18); OIDC only in `v4.4-rc.1` (2026-08-19) | release list: v4.3.23 on 2026-09-18T13:38Z, ten 4.3.x patches in September; `v4.4-rc.1` is `prerelease: true`. Its notes: "first-class OpenID Connect (OIDC) authentication, including discovery, JWKS … PKCE support, and identity linking", plus "automatically join OIDC users to the root team" | **holds.** Keycloak would work directly once 4.4 is stable. The role mapping is coarse (one team), which matters for a regulated tenancy |
+| 62,408 stars; one company | 62,409, pushed 2026-09-29, not archived | **holds.** A patch every few days is active, and a lot of churn to pin against |
+| Paid tiers | pricing page: self-hosted is "Free Forever … Full access to all features". Cloud is **US$5 a month for 2 servers, plus US$3 per extra server** | **holds: no gate.** Self-hosting gets only "Community support", which is a real gap for a KPMG service |
+| "Preview deployments per pull request need the GitHub App" | the preview page: "Manual repository webhooks can trigger previews, but automated pull-request comments require a GitHub App". Only GitHub's setup is documented | **overstated.** A webhook is enough on GitHub. **ADO still has no preview path**, so `OD-4` fails for previews, as 06 says |
+| Supabase is Apache-2.0; branching is hosted-only | API `spdx_id: Apache-2.0`, 110,908 stars, pushed 2026-09-30; `LICENSE` is Apache 2.0. supabase.com/features/branching: **"Available on self-hosted: N/A"** | **holds** |
+| (missed) Supabase's self-hosted console | self-hosting docs: "Access to Studio (Dashboard) is protected with **HTTP basic authentication**", one `DASHBOARD_PASSWORD` in `.env`. No SSO or SAML is documented for it | **a new fail for a regulated tenancy**: one shared password and no per-user audit. It needs oauth2-proxy in front, which is one more piece of glue |
+| "Would still isolate agent-written apps less well" | Coolify: each destination is one Docker network, and databases join it (Coolify's networking docs and discussions, via search). Panacea: namespaces, a default-deny NetworkPolicy, PSA baseline and quotas, on **runc** (§2.2) | **true in degree, not in kind.** Both run shipped apps on a shared kernel. Neither gives them a microVM. Running Kata under Coolify's Docker is **untested**: Coolify documents no per-app runtime setting, and a host-wide default would also wrap its own Traefik, which mounts the Docker socket |
+| 16-24 days of ported snippets | the rows follow the size of the Panacea code each would port (06 §9 says so). Four costs are left out: an oauth2-proxy for Studio, HA for a single Coolify instance, backups, and a support contract | **plausible as a floor; call it 18-26** |
+
+**What the stack would do to the "one app" ask.** Coolify's Laravel dashboard and Supabase Studio are
+two more consoles, each with its own look, next to Orca. Running both headless through their APIs
+is possible, but it is more of our glue, not less. Panacea's Portal is a single console, and §6 keeps
+users out of it.
+
+**Trade-off in one line:** permissive and quick to click through, but 18-26 days to reach what
+Panacea already runs, with two more consoles, one shared Studio password and still a shared kernel.
+**Verdict: reject as the deploy step, upheld.** It stays the reference for how short the Deploy
+panel should feel.
 
 ## 5. Alternative 2
 
