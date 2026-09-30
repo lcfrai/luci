@@ -1,6 +1,6 @@
 # 09 - Cohesion: the assembled product as one app
 
-**Status:** IN PROGRESS (2026-09-30), written and committed a section at a time.
+**Status:** COMPLETE (2026-09-30). Written and committed a section at a time; §0 was added last.
 **Date:** 2026-09-30. **Question:** how do Orca, Spec Kit, Penpot, the trackers, Teams, Panacea
 and our own Hub surface, so that a person meets one product and not several merged into one?
 **The owner, verbatim (2026-09-30):** *"Just make sure that even though we are pulling from a
@@ -15,6 +15,31 @@ cannot meet it changes (section 7). It is not excused.
 files, Orca at `59b746ff` (palette, plugin commands, settings, `main.css`), Panacea's share-link
 handler, one Keycloak extension's licence, and our `desktop/src/styles/tokens.css`. Nothing was
 installed, built or run. Section 8 lists what could not be verified.
+
+## 0. The answer
+
+**One window under our name, in our look, behind one sign-in, with one spine, one palette, one
+queue and one set of words. No product pick changes; ten pieces change how they surface. That
+costs about 12 new engineer-days (10 to 15), plus 2 pulled into the plan. The one-app layer comes
+to about 23 days, and the whole product to about 117.**
+
+1. **The shell** (§1): our build of the pinned Orca. A journey bar on every screen, Orca's
+   workspace as Develop, and one app-level view where every Hub page renders, Penpot's editor
+   included.
+2. **Surfacing** (§2): headless for Spec Kit, the trackers, Panacea, Keycloak and LiteLLM. Embedded
+   only for the frame, the terminal, Penpot's editor and the preview. Orca's own bell, feed and
+   task sources are off, and Panacea's Portal is out of the path.
+3. **One look** (§3): `tokens.css` generates a theme file for each foreign surface. Orca takes 125
+   mapped variables. Penpot's editor takes about 42 semantic colours from an injected stylesheet,
+   with no file changed. Its radius and font are compiled in: accept them, or patch under MPL-2.0.
+4. **One sign-in** (§4): the plan misses a realm session inside the frame, so Penpot and previews
+   would each ask for Microsoft. The fix is our own realm hand-off authenticator (1.5 days), with
+   share-link previews meanwhile. Penpot's login page is skipped via its own OIDC route.
+5. **One navigation** (§5): four equal lenses with no pipeline cues; the thread as records in
+   every view; Orca's Cmd+J palette carrying every capability's commands; the Desk as the one
+   queue, fed by agents, trackers, the git host, Penpot and Panacea. No cluster had costed the
+   Desk: about 3 days.
+6. **Proof** (§6): fourteen checks on one walk, with the owner's eyes as the last gate.
 
 ## 1. The one shell
 
