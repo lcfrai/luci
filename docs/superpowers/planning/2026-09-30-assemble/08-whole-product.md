@@ -130,6 +130,46 @@ Tests B1-B10 are section 2's. "Phases" names what the product covers end to end.
 - **Verdict: reject as a whole product.** Its landing half (merge queue, auto-merge) is already
   adopted by 02 §4. Re-check when Copilot lists Australia.
 
+### 4.4 Cursor cloud agents, self-hosted workers - REJECT
+
+- **Does.** Cursor's background agents, now "cloud agents", run tasks in parallel from the IDE,
+  web and Slack. **Self-hosted cloud agents are GA since 2026-03-25**; team worker pools and eight
+  more backends (Lambda, Cloudflare, Coder, Daytona, E2B, Modal, Namespace, Vercel) followed on
+  2026-09-02, and Kubernetes starts "from the anysphere/k8s-workers template".
+- **The split.** "Cursor runs the agent loop, inference, and planning"; the worker in our network
+  runs "file edits, terminal commands", tools and local MCP servers, and reaches out to
+  `api2.cursor.sh` (cursor.com/docs/cloud-agent/self-hosted). Team pools need the Enterprise plan.
+- **Enterprise fit.** SAML SSO with Entra, SCIM, privacy mode ("not used for training"). No region
+  statement on that page; no Azure DevOps named.
+- **Fails.** B2, B4 (inference is Cursor's), B5 (Cursor's agent, not the unmodified CLIs), B7, B9.
+- **Verdict: reject.** The same shape as Devin's: execution moves to us, the brain does not.
+
+### 4.5 Anthropic: Claude Code cloud sessions, self-hosted environments, Managed Agents - REJECT now
+
+- **Does.** Claude Code on the web runs cloud sessions in parallel ("each `--cloud` command
+  creates its own cloud session"), with diff review, PR creation, auto-fix of a PR's CI failures
+  and review comments, and teleport back to the terminal. **Self-hosted environments** (public
+  beta, Team and Enterprise, off by default) move execution onto runners in our network: a runner
+  polls `api.anthropic.com`, claims a session, clones, spawns a Claude Code child, locks to one
+  owner, and the session requeues after about 60 s without a poll.
+- **The limits, verbatim from the docs** (code.claude.com, read today):
+  - "Zero Data Retention: unavailable for organizations with Zero Data Retention enabled", and ZDR
+    organisations "can't use `/web-setup` or other cloud session features".
+  - "inference can't be routed through Amazon Bedrock, Google Cloud's Agent Platform, Microsoft
+    Foundry, or an LLM gateway in self-hosted environments".
+  - "repository cloning and pull request creation require GitHub"; other hosts can be uploaded as a
+    bundle "but the session can't push results back".
+  - "The control plane remains Anthropic-hosted", and "Anthropic stores the session transcript".
+- **Managed Agents** (beta since 2026-04): Anthropic's own harness with managed or self-hosted
+  sandboxes, US$0.08 a session-hour plus tokens, "Not currently eligible for Zero Data Retention"
+  (02 §3b).
+- **Fails.** B2 (no Bedrock Sydney path), B3 (claude.ai accounts, not our realm), B4 (no gateway,
+  no ZDR), B7 (GitHub only), B9 (claude.ai is its own cockpit).
+- **Verdict: reject now; reference the runner.** It is the same unmodified CLI we already run, so
+  what it sells is hosting, and hosting is exactly what `OD-5` and `OD-19` keep ours. Its runner
+  contract (claim, lease, owner lock, requeue) is a good check on our control plane's. Re-read
+  when self-hosted environments accept ZDR and a gateway.
+
 ## 5. Which can run in a customer's own Azure tenancy
 
 _(pending)_
