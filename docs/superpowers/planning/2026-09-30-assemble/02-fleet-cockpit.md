@@ -66,8 +66,9 @@ its source (R2), which both confirms the owner's pick and corrects one first-run
 | 6 | Panacea | Not considered here | PR previews, `panacea-mcp`, the Forge session-id pattern (R5) | The second direction |
 | 7 | Days | 4.5 | **7.5**, 4.5 to first ship, beside 01's 8 | Switching costs 3 days more than keeping ours and buys a far more mature cockpit |
 
-**Unchanged:** every other candidate verdict in §3; landing through the host (§4); the owner calls
-on the host page, GitHub Enterprise Cloud and AI review (now §7, items 3, 6 and 7).
+**Unchanged:** every other verdict in §3a and §3b; landing through the host (§4); the owner calls
+on the host page, GitHub Enterprise Cloud and AI review (now §7, items 3, 6 and 7). §3c's changes
+(hooks later, the Tauri notification plugin dropped, Panacea rows added) are marked **Revised**.
 
 ### R2. Orca, verified: source, licence, architecture, extension points
 
@@ -152,13 +153,17 @@ borrowing its parts:
 | 3 | Create a lane | recipe `create` (Windows script) | Calls the control plane's create-lane route (phase 3 task 04) with `ORCA_REPO_URL`, `ORCA_REPO_REF_HEAD`, the branch and the brief key. The control plane clones the lane onto the sandbox disk (task 03), claims a warm Kata sandbox (01), mints the per-session gateway token (`OD-19`) and points `origin` at the lane git endpoint; the sandbox starts `orca serve --project-root … --pairing-address wss://…/lanes/<id> --recipe-json`; the script prints `{pairingCode, projectRoot, userData.resourceId}` |
 | 4 | Work | Orca, upstream | Its runtime in the sandbox owns the terminals, end-to-end encrypted over our authenticated `wss://` route; it launches unmodified Claude Code (`ANTHROPIC_BASE_URL` = LiteLLM, AU or Global per project) and installs its hooks there, so the desktop shows working / waiting / done, the inbox and notifications. Diff notes sent to the agent work as upstream |
 | 5 | Hand in | Orca's Commit and Push | Push goes to the control plane's **lane git endpoint** (session-token auth, lane branch only); the sandbox never holds a git-host credential (phase 3 decisions 9–10) |
-| 6 | Land | plugin command + control plane | "Open PR" pushes the lane branch to GitHub or Azure DevOps **with the user's credential**, opens the PR with the brief trailer, and enables GitHub auto-merge / the merge queue or ADO auto-complete (`mergeCommitMessage` carries the trailer). Panacea deploys a PR preview (R5). Review and merge on the host page |
+| 6 | Land | plugin command + control plane | "Open PR" types `panacea lane pr` into the lane's terminal (`terminal:send`; the sandbox-side CLI holds only the session token), or is a button on the Hub page. The control plane then pushes the lane branch to GitHub or Azure DevOps **with the user's credential**, opens the PR with the brief trailer, and enables GitHub auto-merge / the merge queue or ADO auto-complete (`mergeCommitMessage` carries the trailer). Panacea deploys a PR preview (R5). Review and merge on the host page |
 | 7 | Suspend, resume, destroy | recipe scripts | agent-sandbox pause, resume and delete (01) |
 
 **Resume and fork stay ours.** Orca resumes only local workspaces and has no fork (R2). Phase 2's
-transcript store and fork (`--resume A --fork-session` into a new worktree) become two plugin
-commands — "Resume in a fresh sandbox" and "Fork into a new lane" — each a recipe create with a
-source session.
+transcript store follows the lane, so a lane resumed or re-created in a fresh sandbox finds its
+transcripts and `claude --resume` works there. **Fork is two steps**, because Orca's CLI cannot
+create a recipe workspace (its `vm` command has only `recipe doctor`): mark the fork
+(`panacea lane fork <session>`, a plugin command, or a Hub button), then create a workspace with
+"Run on: Panacea sandbox"; the recipe's `create` picks up the pending fork and starts
+`claude --resume A --fork-session` on a staged copy of the transcript. One step needs a plugin host
+method that creates workspaces — an upstream request.
 
 **Gaps that remain, each with its fix:**
 - **Orca's own GitHub PR features stay dark inside a sandbox lane** (inline checks, "Fix broken
@@ -190,7 +195,7 @@ desktop install and the Defender work. It waits on recipes running from a remote
 | Phase 2 piece (built) | Under Orca |
 |---|---|
 | Control plane: sessions API, `backend.Backend` (`dockerbe`, `katabe`), reaper, restart recovery | **Survives** — it becomes the lane and sandbox API the recipe calls |
-| Transcript store, resume, fork | **Survives** — two plugin commands; Orca has no remote resume and no fork |
+| Transcript store, resume, fork | **Survives** — the lane keeps its transcripts across sandboxes, and fork is the two-step flow in R3; Orca has no remote resume and no fork |
 | Per-session gateway token wiring (`OD-19`) | **Survives** unchanged |
 | `sandboxd` | **Survives, smaller.** Ruling for 01 §1a: under an Orca lane, `orca serve` owns the PTY and `sandboxd` does **not** wrap it (two PTY owners would double-buffer for nothing). `sandboxd` keeps health, the Claude Code hook receiver for the Hub and team mode, and every session that is not Orca's (team mode's managed sessions, API runs) |
 | Attach relay `GET /v1/sessions/{id}/attach` | Kept for non-Orca sessions; Orca lanes stream over Orca's own encrypted channel through the `wss://` route |
@@ -243,8 +248,8 @@ for the sandbox, the recipe's JSON, the `wss://` route and the clone before bind
 | First ship | **Lane git endpoint** in the control plane: `git http-backend` behind session-token auth, a pre-receive hook that allows the lane branch only, stored under `refs/panacea/lanes/…` (`OD-2`) | 1.5 |
 | First ship | **Landing**: push the lane branch with the user's credential; open the PR with the brief trailer; GitHub auto-merge or enqueue; ADO auto-complete with `mergeCommitMessage`; poll PR state; "send back to the agent" as a typed prompt (`terminal:send`), never output parsing | 1.5 |
 | First ship | **Panacea PR preview and provenance**: previews on per project; the lane and brief key stamped the Forge way (R5); the preview URL on the lane | 0.5 |
-| Week 2 | **Panacea plugin**: a worktree panel (brief card; lane → PR → checks → preview → release strip) and commands (Open PR, Open preview in Orca's browser, Resume in a fresh sandbox, Fork into a new lane); falls back to a Hub page in a browser tab if the worker cannot fetch | 2 |
-| Week 2 | **Resume and fork** wired from phase 2's transcript store through the recipe | 0.5 |
+| Week 2 | **Panacea plugin**: a worktree panel (brief card; lane → PR → checks → preview → release strip) and commands (Open PR, Open preview in Orca's browser, Fork) that type a `panacea lane …` command into the lane's terminal; the panel falls back to a Hub page in a browser tab if the worker cannot fetch | 2 |
+| Week 2 | **Resume and fork** wired from phase 2's transcript store through the recipe (the two-step fork, R3) | 0.5 |
 | Week 2 | **AI first-pass review** template, opt-in per project (§3c) | 0.5 |
 | Later | Claude Code HTTP hooks → `sandboxd` → Hub, for team mode and the Orchestrators (the first run's §6 item 1, minus the cockpit UI Orca now supplies) | 1.5 |
 
