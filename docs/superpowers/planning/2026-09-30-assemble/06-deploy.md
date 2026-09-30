@@ -113,6 +113,11 @@ deploy platform beside Panacea**. For our own environment that adds work instead
 so the useful question for each is narrower: does it give the cockpit something Panacea lacks, or
 a deploy target a customer can host before Panacea is lifted (`OD-13`)?
 
+*Revised for the second direction.* The owner allows **Coolify plus Supabase, enhanced with
+Panacea snippets**, as a whole alternative, judged on merit. 3.1 and 3.2 keep the product facts;
+**3.9 judges that stack as a whole deploy step**, 3.10 looks at Supabase for preview data, and
+3.11 says how deploy shows up in Orca. Verdicts changed in place are marked *(revised)*.
+
 **GLASSES coverage.** The catalogue (offline index and `lcfr.ai/api/mcp`, both searched
 2026-09-30) lists Coolify, Dokploy, Dokku, CapRover, Portainer, Appwrite, Rainbond, Openship and
 Uncloud as deploy services. It has **no entry** for Argo CD, Kargo, Backstage, Port, Sigstore,
@@ -131,11 +136,19 @@ SLSA, in-toto, Tekton or Kyverno (searches for `gitops`, `argo cd`, `attestation
   audit logging since v4.1.0; the only role split is Member read-only
   ([changelog](https://coolify.io/changelog)). Git sources are GitHub, GitLab, Bitbucket and Gitea;
   **Azure DevOps is not listed**, which fails `OD-4`. Preview deployments need the GitHub App.
-- **Maturity:** 62,365 stars (GLASSES, 2026-09-29); v4.3.9 on 2026-08-18; one company (coollabs).
-- **Gaps:** no scans, no posture gate, no evidence, no promotion model, no ADO, single-box design.
+- **Maturity:** 62,408 stars; latest stable **v4.3.23 on 2026-09-18**, and v4.4 (OIDC, a team
+  audit log, third-party secret managers) is **still a release candidate**, `v4.4-rc.1` of
+  2026-08-19 (GitHub API, 2026-09-30); one company (coollabs).
+- **Azure DevOps** *(second run)*: not a native source. The "other git providers" path is a deploy
+  key plus a webhook ([docs](https://coolify.io/docs/applications/ci-cd/other-providers)), which
+  auto-deploys on push; **preview deployments per pull request need the GitHub App**.
+- **Gaps:** no scans, no posture gate, no evidence, no promotion model, no ADO previews,
+  single-box design.
 - **Effort:** 5-8 days to stand up, secure and wire, and we would still own scans and evidence.
-- **Verdict: reject.** It is a good small-team PaaS and a useful reference for how simple a
-  preview-deploy screen can be. It is weaker than Panacea on every regulated-enterprise axis.
+- **Verdict: reject** *(confirmed on merit under the second direction, 3.9)*. It is a good
+  small-team PaaS and a useful reference for how simple a preview-deploy screen can be. It is
+  weaker than Panacea on every regulated-enterprise axis, and Panacea snippets do not close that
+  (3.9).
 
 ### 3.2 Dokploy
 
@@ -148,7 +161,8 @@ SLSA, in-toto, Tekton or Kyverno (searches for `gitops`, `argo cd`, `attestation
   tenancy under our permissive rule.
 - **Deploy:** self-host, or Dokploy's managed Enterprise Cloud (region not published).
 - **Enterprise fit:** only with the paid licence. Pricing is "contact sales".
-- **Maturity:** 37,564 stars (GLASSES); commercial backing by the Dokploy team.
+- **Maturity:** 37,578 stars; GitHub reports the licence as `NOASSERTION`, which fits the split
+  (API, 2026-09-30); commercial backing by the Dokploy team.
 - **Gaps:** as Coolify, plus the licence.
 - **Effort:** as Coolify, plus a commercial negotiation.
 - **Verdict: reject** on licence and on fit.
@@ -175,9 +189,13 @@ SLSA, in-toto, Tekton or Kyverno (searches for `gitops`, `argo cd`, `attestation
 - **Effort:** 3-5 days for a second `deploy.Deployer` behind the existing conformance suite
   (revision per commit, label per branch, traffic shift for promote, activate for rollback), plus
   a scan pipeline template.
-- **Verdict: integrate later, not now.** It is the best answer to **"where does a customer's app
-  deploy before Panacea is lifted in"**, because the customer needs no cluster. Not needed for our
-  own environment, where Panacea already does all of this.
+- **Verdict: reference** *(revised; the first run said "integrate later")*. The first run made it
+  the answer to "where does a customer's app deploy before Panacea is lifted in", because the
+  customer needs no cluster. Under the second direction Panacea is the deploy step, `OD-5` puts
+  customer hosting later, and the customer-hosted tier `CLAUDE.md` names is an **Azure Kubernetes
+  App**, which is the lifted Panacea. So ACA is not in the plan. Revisit it only if a customer
+  refuses a cluster: it would then be a second `deploy.Deployer` behind the existing conformance
+  suite, 3-5 days, with no scan gate and no evidence of its own.
 
 ### 3.4 Argo CD, Argo Rollouts and Kargo
 
@@ -296,6 +314,86 @@ stores them. Test with the exact versions before any Enforce flip.
 | **Dokku**, **CapRover**, **Portainer**, **Rainbond**, **Openship**, **Uncloud**, **Appwrite** | the other GLASSES "deploy-service" entries: Docker PaaS or container managers | various (GLASSES shows MIT, Zlib, Apache-2.0, BSD-3-Clause; two unknown) | **reject** for the reasons in 3.1. Not examined further |
 | **GitHub Environments and Deployments API; ADO Environments** | a deployment record in the git host, with approvals | part of GitHub and Azure DevOps | **later, optional glue (about 1 day).** Write each Ship as a deployment in the repo's host, so a developer sees "deployed to preview, brief B" where they already work |
 | **`panacea-mcp` inside the sandbox** | lets an agent read its own preview's logs, pods and diagnosis, and fix a failing deploy itself | Panacea's own | **later.** Its token is a user's `pnc_` key with that user's role, and `panacea_api_request` can write. Agents are untrusted, so this waits for a read-only, per-session token, as phase 6 does for inference |
+
+### 3.9 Coolify plus Supabase, enhanced with Panacea snippets, as the whole deploy step *(second run)*
+
+The owner's allowed alternative, judged as a complete answer rather than product by product.
+**The stack:** Coolify (Apache-2.0) on Azure VMs in Australia East deploys containers to Docker
+hosts; self-hosted Supabase (Apache-2.0) gives each app its database, auth and storage; attributed
+Panacea snippets fill what Coolify lacks. Every part is permissive, so licence is not the issue.
+
+| Need | Coolify and Supabase give | Panacea snippet to port | Days (estimate) |
+|---|---|---|---|
+| Entra sign-in | Coolify OIDC is **release-candidate only** (3.1) | oauth2-proxy in front, on Panacea's Keycloak chain | 1 |
+| Scans before promote | none | Panacea's scan tasks (`pipelines/tasks/*-scan.yaml`, 18 checks) rewritten as ADO and GitHub pipeline steps | 3-5 |
+| Promotion gated by data class | none | `handlers/security_policy.go` and `deployment_stages.go` lifted into a gate service in front of Coolify's API; both read Panacea's Kubernetes ConfigMaps, scan-result source and risk resolver, so each input is rewired | 4-6 |
+| Evidence per release | none | `handlers/evidence_export.go`, which reads Panacea's scan records and audit chain, rewired to Coolify's data | 2-3 |
+| SSO- or IP-gated previews | preview URLs, public by default | one oauth2-proxy per preview, as Panacea's branch security does | 1-2 |
+| Previews for Azure DevOps (`OD-4`) | GitHub App only | pipeline-driven previews through Coolify's API | 2 |
+| A database per preview | Supabase Branching is **hosted only** (3.10) | Panacea's branching is CloudNativePG on Kubernetes, so it does not port to Docker: `pg_dump` and restore per preview instead, and D10's redaction pass on top | 2-4 |
+| Signing | none | cosign in the pipeline, as in 3.7 | 1 |
+| Isolation of agent-written apps | containers on shared Docker hosts | **none portable**: Panacea's tenant namespaces, NetworkPolicies, quotas, Kyverno and Falco are Kubernetes controls | not closable |
+| **Total** | | | **16-24 days**, and weaker isolation at the end |
+
+**Where the stack wins.** A simpler first screen, 280+ one-click services, one VM to run, no
+cluster. For a small team shipping trusted code that is a good trade.
+
+**Where it loses, for our customer.** A regulated enterprise needs the half of deploy that Coolify
+does not have: scans gated by data class, evidence, SSO-gated previews, Azure DevOps previews and
+tenant isolation for code an untrusted agent wrote. Panacea has all of it running (§2, §2a).
+Porting it onto Coolify is rebuilding Panacea's deploy side on a platform that was not designed
+for it, at 3-4 times the days of using Panacea.
+
+**Trade-off in one line:** Coolify is quicker to click and cheaper to host on one VM; Panacea
+already has the regulated half, which Coolify would need 16-24 days of ported Panacea code to
+approach, on a weaker isolation model.
+
+**Verdict: reject as the deploy step.** Keep Coolify as the reference for how short a
+preview-deploy screen can be (the Orca panel, 3.11, should feel that short).
+
+### 3.10 Supabase, for preview data and the shipped app's backend *(second run)*
+
+- **Does:** a Postgres platform (auth, PostgREST, realtime, storage, edge functions). **Branching**
+  gives a pull request its own preview database.
+- **Licence:** Apache-2.0 (110,905 stars, pushed 2026-09-30, GitHub API).
+- **Deploy:** Supabase Cloud on AWS, Sydney region available (03-define §3); self-host with
+  Docker Compose. **Branching is "N/A" for self-hosted** and Git-based branching needs the Pro plan
+  and GitHub ([branching docs](https://supabase.com/docs/guides/deployment/branching)).
+- **Enterprise fit for this need:** preview databases only exist in the hosted, AWS-run service,
+  which misses `OD-18` (Azure) and puts customer data in a third-party SaaS.
+- **Gaps:** Panacea already branches a preview's database copy-on-write from production's backup
+  and redacts it before the app sees it (§2, `db_branch_ops.go`, `branch_data_ops.go`). Supabase
+  adds nothing to deploy that Panacea lacks.
+- **Verdict: reject for deploy.** Whether a shipped app is *built on* Supabase is a Develop-phase
+  template choice, and a Supabase app still deploys through Panacea like any other container.
+  03-define and 05-work-team hold Supabase as a reference for the Hub store.
+
+### 3.11 Orca, as the surface deploy shows up in *(second run; the pick is not re-argued)*
+
+Orca (`stablyai/orca`, **MIT**, 81,623 stars, pushed 2026-09-30) is the owner's cockpit. Its facts
+are 02-fleet-cockpit's (§R2, read from source at `59b746ff`); what matters here is where deploy
+plugs in. Phase 7 planned a Tauri Deploy lens (tasks 13-18, 17 plan-hours). In Orca it becomes
+three things, and only the third is built:
+
+1. **The agent deploys, with no UI.** In an Orca worktree session, an unmodified Claude Code
+   calls `panacea_deploy` for its branch's preview, reads `panacea_logs` and `panacea_diagnose`,
+   and fixes a failed build itself. `panacea-mcp` ships in the sandbox image (01-sandboxes, day 1
+   row) with a session token that reaches only an allowlist (§6, G4).
+2. **The preview opens in Orca's per-worktree browser** (04-design G3), with a silent Keycloak
+   sign-in when the preview's access mode is SSO.
+3. **One Deploy panel** (§6, G1): the release card (brief pin, sessions, evidence, signature),
+   the held human acts (ship the production branch, request promotion, roll back) through our
+   control plane, and deep links into Panacea's Portal for logs, scans, governance and approval.
+
+**Uncertain, and not ours to settle:** 02-fleet-cockpit found an experimental Plugin API v1 whose
+panels are sandboxed frames, with `net:fetch` "in later phases"; 03-define (§4.11, G5) found no
+documented plugin API and plans changes in an Orca fork. The Deploy panel is the same 1.5 days
+either way: a plugin panel if its sandbox can reach our control plane, otherwise a widget in the
+fork 03-define already needs. The cockpit cluster owns the choice.
+
+**Verdict: integrate.** Also relevant: Orca creates Azure DevOps pull requests (02 §R2), so a
+lane lands on the host before Panacea builds it, which is the order Panacea needs (it builds
+pushed commits only).
 
 ## 4. Side by side
 
