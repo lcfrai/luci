@@ -130,7 +130,27 @@ as one container beside it. That avoids the role rework entirely (not costed; §
 
 ## 5. The days, against our architecture
 
-_Pending._
+**Verdict: 19.2 engineer-days is close for what it counts. It misses one identity piece that
+our cockpit choice creates, and first use waits on two asks that no row owns.** Corrected:
+**about 20.5 engineer-days**, and first use is set by the subscription, DNS and the edge.
+
+| Row | Research | Check against our architecture | Corrected |
+|---|---|---|---|
+| Hub | 10 days (about 81 plan-hours) | The listed tasks (08-10, 13-24, 28-35, 37-39) add up to **77.5 plan-hours** in the plan's table (`2026-09-23-phase-h-hub.md:410-442`). With P1's roughly 2 hours that is 79.5, so about 10 days. Under Orca, tasks 37-38 (the Tauri caller key, 7 hours) may drop, because sign-in moves to `panacea login` (02, `:151`, `:247`). The research flags this and does not count it | **10** (holds) |
+| Hub pages signed in | not counted | 02 and 08 make the Define, Design and Deploy lenses "Hub web pages, opened in Orca's browser tabs" (02 `:205`, 08 `:550`). The ruling's only human client, K1, is loopback-only. The Hub plan's sign-in is desktop-side (tasks 30-32, 41). Orca's browser tab has no Entra cookie, so the first Hub page would stop on Microsoft's sign-in inside Orca. Fix: a one-time ticket that `panacea login`'s token buys from the Hub, which the page swaps for an `HttpOnly` session cookie. No new realm client and zero clicks (our estimate) | **+1** |
+| Gateway | 8.2 days | The plan was written for this architecture: `apiKeyHelper = panacea token` from a mounted file (plan `:34`), pod binding, and `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS=1` with `drop_params` for AU (P6-D3, `:68`). Its own total is "70 focused hours, about 8.75 focused days" (`:198`). Add hash-locked Python dependencies to task 27's source build (G7), about 2 hours | **8.4** |
+| Environment | 1 day | The Azure resources fit in a day once the subscription exists. Two traps: Panacea's HA block cannot go on Burstable (§2 H3), and the Hub and gateway must be reachable from laptops (the desktop's `hubclient`, and local-mode agents, plan `:5`). That needs a public name under a zone someone owns, plus an edge allow-list like Panacea's. Neither is costed or owned | **1**, plus two asks (DNS delegation, edge allow-list) |
+| Realm | 0 ours | Holds as work. But it signs us in to Panacea's **dev** Keycloak 25, which gets no upstream fixes (§2 I4, I5) | **0**, plus one ask made required (below) |
+| **Total** | **19.2** | | **about 20.5** |
+
+**Elapsed.** "Five engineers, about 6 working days" holds for the build lanes. It starts only
+once the subscription, a DNS name and the edge rule exist, so those three are the critical path.
+They should be asked for on day 0, not found on day 5.
+
+**One ask moves from "recommended" to "required before people outside the build team rely on
+it":** Keycloak 26 with two replicas on the realm we use. The alternative is our own Keycloak
+(3.11: about 2 days, plus IT's redirect URI and second secret). Start that IT request on day 0
+either way, because it is the long pole if the Panacea ask stalls.
 
 ## 6. Cohesion: does the platform layer feel like one app?
 
