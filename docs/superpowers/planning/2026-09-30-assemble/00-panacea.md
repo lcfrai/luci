@@ -289,7 +289,55 @@ so it cannot see inside a Kata guest (01-sandboxes 4.1).
 
 ## 9. Isolation: tenant namespaces, and Forge (agent loop and hardened preview pods)
 
-_(pending)_
+**9.1 Tenant namespace isolation** (`services/panacea-api/clients/tenant_ensure.go`, 1,011 lines;
+`clients/kubernetes.go`; `clients/pod_security.go`). One namespace per project environment, created
+by `POST /api/v1/projects` and by each branch deploy. What it guarantees:
+- **Pod Security Admission** `enforce=baseline`, `warn`/`audit=restricted`, stamped last so a caller's
+  labels cannot lower it (`pod_security.go:58-69`, `kubernetes.go:839-843`).
+- **NetworkPolicy baseline** (ISM-1234): default-deny-ingress, allow same namespace, allow Traefik on
+  the app ports, and `deny-metadata-egress` (all egress except link-local, so no IMDS)
+  (`tenant_ensure.go:20-63`, `:83-160`). **Egress is deliberately open at the pod layer** and governed
+  by the Azure Firewall route (`:45-50`, `:103-107`), after a deny-egress baseline broke every app's
+  database access (`:38-44`).
+- ResourceQuota per namespace; a sweeper that re-asserts drifted tenants and deletes stale branch
+  namespaces (`SweepEnsureTenants` `:577`, `sweepStaleBranchNamespaces` `:919`).
+- Runtime: `runc` on shared nodes (no RuntimeClass anywhere in the tenant path), Falco on the node.
+
+**For us:** the right isolation for the *apps we ship*, and a baseline worth copying for our own
+cluster (01-sandboxes 4.15 already takes it). It is not agent-sandbox isolation: shared kernel,
+open pod egress.
+
+**9.2 Forge, the agentic build loop** (`services/forge-orchestrator/`). Panacea's own in-house
+agent: an LLM tool loop (`orchestrator/orchestrator.go`, bounded tool round trips) that writes files,
+runs vetted commands in a preview pod, and must clear verify gates before it may ship: typecheck,
+build, boot, test (`orchestrator/verify.go`), **authorisation-first** (`authz_gate.go:3-62`: every route
+the code serves must be declared, and the probe is regenerated each turn), a browser test
+(`browsertest/`), design and contrast repair (`repair/`), scaffolds (`scaffold/`), and **ship** to
+Gitea or GitHub then trigger the Panacea build (`ship/`). Sessions have create, fork, cancel and
+visibility (`forge-orchestrator/routes/*.go:77-109`); the model is reached through `AI_PROVIDER_URL`
+(Kelios or Anthropic, `deploy/forge/deploy-forge-orchestrator.yaml:303-329`).
+- **Access:** only through `panacea-api` at `/api/v1/forge/*` (`routes.go:3066-3126`) behind
+  `authedAgent`: the agent-mode platform flag ON, a **platform-admin** caller, and **not an API key**
+  (`routes.go:3261-3273`, `middleware/agent_gate.go:41`). A product like ours cannot drive it.
+- **Overlap with us:** Forge is a closed agent loop; PanaceaApp runs unmodified Claude Code. We do
+  not adopt the loop. We **copy its gates** as checks our agents run before a session may ship
+  (authorisation-first, verify, browser test), with attribution.
+
+**9.3 Forge's hardened preview pods: could they host our agent sandboxes? No, but copy the spec.**
+`preview/manager.go:81-223`: one pod per session, UID 1001, `runAsNonRoot`, read-only root,
+`allowPrivilegeEscalation:false`, drop ALL capabilities, seccomp `RuntimeDefault`, `emptyDir` for
+`/tmp`, source and `node_modules`, 100m/256Mi requests and 500m/1Gi limits, a `maxPods` cap
+(`:82-88`) and TTL cleanup; **deny-all egress except DNS and the in-cluster npm and PyPI mirrors**
+(`preview-deny-egress`, `deploy/forge/deploy-forge-orchestrator.yaml:49-101`; Verdaccio 4873, proxpi
+5000, `manager.go:144-156`). Why not host Claude Code there:
+1. `runc`, shared kernel; the plan and 01-sandboxes require Kata microVMs for untrusted agents.
+2. Egress is closed to the model gateway and the git host, which an agent session needs.
+3. The image is a Next/Vite preview server; no PTY, no worktree, no warm pool, no persistent disk.
+4. It sits in Panacea's cluster, behind a platform-admin-only gate, in another session's repo.
+
+**Verdict, consistent with 01-sandboxes 4.15:** integrate the code (pod security context, deny-egress
+policy, package mirrors, tenant baseline), reject Panacea as the host of our sandboxes.
+
 
 ## 10. Candidates side by side
 
