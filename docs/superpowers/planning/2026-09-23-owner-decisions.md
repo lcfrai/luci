@@ -516,3 +516,196 @@ do, and the frontier's "30 of the 36" is that table's count before this section.
 **Considered and not recorded as decided:** the owner calls in `00-plan.md` §5 (staffing, the
 app's name and icon, code signing, Penpot under `OD-11`, the realm, and the rest). They are open,
 and each becomes an `OD` only when the owner answers it.
+
+## The owner's answers to the assemble calls — 2026-10-01, OD-42 to OD-52
+
+The owner answered `2026-09-30-assemble/00-plan.md` §5 on 2026-10-01. Calls 1 to 5 are quoted
+from the owner's message of that day. The answers to calls 6, 14, 15, 17 and the rest are the
+owner's words **as the orchestrator relayed them** to the agent that wrote this section; they
+are quoted as relayed. Recorded at the end of the file, below every table, so no cited line moves
+(see *What earns an OD*). The plan of record is updated to match (`00-plan.md` §5).
+
+**A note on the name.** From `OD-43` on, the product is called **Panacea**. In this programme's
+documents, "Panacea" on its own, "Panacea's API", "Panacea's realm" and `Projects/Panacea` still
+mean the running platform we deploy through (the Deploy step, `OD-39`), because rewriting every
+cited document would move their line anchors. "PanaceaApp" stays the repository's and the
+programme's name. Users never see either distinction: they see one product, Panacea.
+
+| Id | Question | Answer | Consequence |
+|---|---|---|---|
+| **OD-42** | Where our own platform runs: a new Azure subscription (about US$2,000 a month dev baseline and its lead time), or Panacea's (2026-10-01, `00-plan.md` §5 call 2) | **A new resource group inside Panacea's existing Azure subscription.** Owner: *"Don't worry, I will use our existing Panacea subscription, we will just make a seperate resource group."* | The Hub, the gateway, the sandbox cluster and our Keycloak live in **their own resource group**, on **their own AKS cluster**, Key Vault and Flexible Server, not on Panacea's AKS. So `OD-5`'s intent holds: an environment of our own, which untrusted agents never share with tenant workloads. What is shared is the subscription: its Kata vCPU quota in Australia East, its Azure Policy assignments, its feature registrations and its bill. No new subscription is requested, and the US$2,000 ask is withdrawn (the spend itself remains, on Panacea's bill). **Amends** `OD-5`'s "a whole new environment" to "a new resource group in Panacea's subscription". Our resource names must differ from every Panacea estate's, because a same-name collision has already sent a deploy to the wrong estate. |
+| **OD-43** | What the product is called: a new name, or Panacea (2026-10-01, `00-plan.md` §5 call 3) | **Panacea.** Owner: *"We will continue calling it Panacea. This is the evolved version of Panacea. We can deal with a new logo/icon later."* | Our Orca build ships as **Panacea**: the window title, the installer, the app id, the update feed and every user-facing string. The build-time rename (`00-plan.md` row 20) maps Orca's words to Panacea's, and the banned-word CI scan (row 101) refuses "Orca", "Penpot", "Spec Kit", "LiteLLM", "Keycloak" and "PanaceaApp" in user-facing text. The icon is **deferred** and does not block the build: the pilot ships with Panacea's current mark. The Deploy step is never named to users: they press Ship, not "deploy to Panacea". Settles the name that `OD-38`'s thin build left open. |
+| **OD-44** | How users sign in once the realm hand-off needs a realm we can extend: our own realm brokering Entra (IT adds a redirect URI and a secret), or Panacea's (2026-10-01, `00-plan.md` §5 call 5) | **Piggyback on Panacea.** Owner: *"Do we need that? Why would we not just piggy back off of Panacea?"* The mechanism is the orchestrator's ruling, told to the owner: **we run our own small Keycloak whose only identity provider is Panacea's existing realm** (Keycloak-to-Keycloak OIDC brokering), not Entra. | Panacea's realm stays the identity source, and Panacea changes no code: its realm gains **one** confidential client for our broker, with a browser-flow override that goes straight to its Entra provider (the shape `OD-30`'s ruling K1 already specifies). **Nothing new is registered in Entra, so there is no IT ticket**, and 07-platform-verify 3.11's "one redirect URI and a second secret" is no longer asked. Zero clicks survive the extra hop: our desktop client's flow override names `panacea`, our realm's one provider; Panacea's client names `entra`; `login_hint` is passed through; first-broker-login auto-links in both realms; Entra's device SSO does the rest. Our Keycloak is where the realm hand-off authenticator installs (`09-cohesion.md` §4.1), so Penpot never asks for a second sign-in, and where our Keycloakify theme lives. Once a person is signed in, our realm's refresh tokens keep them working through a Panacea realm outage; a fresh sign-in still needs Panacea's realm up. **Cost: equal, not cheaper.** 3.11's 2 days are tasks 08 and 29 (Keycloak 26 on two replicas, keycloak-config-cli, its database on our Flexible Server) and the IT ask. Here the same two tasks carry an upstream-Keycloak provider instead of an Entra one, plus claim pass-through for `tid`, `oid` and groups; the IT ask goes. **About 2 days either way (`00-plan.md` row 82); what changes is that no IT lead time sits on the path.** **Amends** `OD-30`: the desktop still signs in with auth-code + PKCE against a Keycloak realm, zero clicks, on Panacea's existing Entra registration, but that realm is ours and it brokers to Panacea's realm, which brokers to Entra. **Not closed by it:** Panacea's previews behind oauth2-proxy and Panacea's own pages authenticate against Panacea's realm, so our hand-off does not give them a session. Share-link previews (row 96) cover the pilot's `none` and `synthetic` classes; a `protected` preview in the frame needs a Panacea-side step, named in `00-plan.md` §1 named gaps. |
+| **OD-45** | The design canvas: `OD-11`'s clean-room build with `OD-34`'s op-log, or Penpot (MPL-2.0), with frames as vectors under a CSS flex and grid layout rather than live HTML (2026-10-01, `00-plan.md` §5 calls 6 and 6a) | **Penpot for v1.** Accepted as recommended: MPL-2.0, vector frames with CSS flex and grid, HTML through Penpot's markup export. **Revisit OpenPencil at its 1.0.** | Every Design row of `00-plan.md` §1.4 builds on Penpot 2.18 and its MCP server. **Relaxes** `OD-11`'s licence list: MPL-2.0 (file-level copyleft) is admitted for the canvas. **Withdraws for v1** `OD-11`'s clean-room build and `OD-34`'s op-log and authority model, whose tasks (phase 5 tasks 05, 06, 10, 11, 12) are not built. **Still in force:** never open, read or copy `Projects/Paperdesign`, `kgoedecke/doop` or any AGPL or GPL canvas source; no tldraw. A changed Penpot file is published under MPL-2.0. |
+| **OD-46** | AI inference: two fixed paths (Anthropic direct as Global, Bedrock Sydney as AU), or any provider behind the gateway (2026-10-01, `00-plan.md` §5 call 17) | **Any provider, managed by the owner in the app.** Owner: *"Give us the option for any. We should have a litellm backing, where I can manage the API endpoints and keys, so I can shuffle them around and no stick to one purely."* | The LiteLLM gateway fronts **any number of providers**: Anthropic direct, Amazon Bedrock in Sydney, KPMG Workbench (`api.workbench.kpmg`, `/anthropic`, authenticated with `Ocp-Apim-Subscription-Key`), and any other LiteLLM supports. The owner adds endpoints and keys, and moves routes between providers, **on an admin page inside Panacea** (`00-plan.md` row 104), never on LiteLLM's own UI (`OD-41`), and without a code change. **Kept from `OD-19`:** sandboxes get a scoped per-session token, never a provider key; usage is attributed per user, team and project; each project's data class still routes (an AU-class project goes only to a provider marked AU-resident). **Changed:** data retention and residency are **claims each provider carries and the app shows**, not properties of "the gateway"; a provider without a zero-retention agreement is labelled so and is not offered to a class that needs one. **Amends** `OD-19` (two named paths become any provider; "zero data retention" becomes a per-provider claim) and `OD-24`'s AU/Global switch (it selects a class of provider, not one of two accounts). `OD-33`'s residency canary runs per AU-marked provider. |
+| **OD-47** | Who pays, and how cost is attributed (2026-10-01, `00-plan.md` §5 call 14) | **Panacea's subscription and resource group, as today; Cost Centre, Job Code and Phase from day one.** Owner: *"We will use Panaceas Subscription and Resource Group as we currently do. But from day one, we will still need the Cost Centre, Job Code and Phase map through for costing like we have in Panacea"* | Shipped apps and preview databases deploy **through Panacea into Panacea's subscription and resource group**, exactly as Panacea does today. **Every project carries Cost Centre, Job Code and Phase from its creation**, captured in the app when the project is created (Define), stored in the Hub, passed to Panacea on deploy, and carried on our own usage. Panacea's pattern, reused under `OD-40`: job code and phase are free text of at most 10 characters (`handlers/project_billing_codes.go:13`), accepted at creation (`models/models.go:652-660`, `handlers/projects.go:606-629`) or later through `PUT /api/v1/projects/{name}/billing/codes` (`routes/routes.go:1257`), stored as the namespace annotations `panacea.io/billing-job-code` and `panacea.io/billing-phase` (`clients/kubernetes.go:84-88`, `:2337-2358`) and enriched onto the team's month-end statement (`handlers/billing_statement.go:39-60`). **Cost centre is per team in Panacea, not per project** (`handlers/billing.go:104`, `PUT /api/v1/teams/{name}/billing` at `routes/routes.go:1947`). So a project's cost centre defaults to its team's; where a person sets a different one, the Hub keeps it and our own costing uses it, and Panacea's statement shows the team's until Panacea carries a project-level cost centre (a new Panacea-side ask). Our own resources are shared (one AKS, one gateway), so attribution is by labels, not Azure tags: sandbox pods carry the three codes as labels, gateway keys carry them as LiteLLM key tags, and our statement has Panacea's shape (project, job code, phase, amount). `00-plan.md` row 105. **Settles** `00-plan.md` §5 call 14. |
+| **OD-48** | Where work lives: `OD-26`'s own tracker, or the teams' existing trackers (2026-10-01, `00-plan.md` §5 call 15) | **In the app, over a headless tracker.** Owner: *"Accept all, except ADO Boards, idk what that means."* The orchestrator explained that nobody opens Azure DevOps Boards: tasks are created, assigned, worked and closed **inside Panacea**, and ADO Boards and GitHub Issues are the storage and sync behind it. Recorded on those terms. | **Retires `OD-26`'s own tracker UI** in favour of in-app views (the Desk, the Work page, the team view) over ADO Boards and GitHub Issues run headless, so teams already on them see the same tasks. **Retires `OD-35` for Phase W**: the 127 of 190 Phase W tasks a tracker absorbs are not built. **Our own Azure DevOps organisation in the Australia geography**, which also gives a person starting from nothing a repository and a tracker. **The owner may veto** this in favour of tasks living only in the app; the Hub's task records would then be the store, and the tracker connectors (rows 45, 46) would become optional sync. |
+| **OD-49** | How strict the one-app rule is: may v1 keep the six declared exceptions, some of which send the user outside (2026-10-01, `00-plan.md` §5 call 8) | **Everything in the app.** Owner: *"remember that I want as much of it to be in app and feel like it is all in app, never does it feel seperate, or needing to go outside to do anything. Okay?"* | **Strengthens `OD-41`** (its lines are not edited; this row is its amending note). A user must never need to leave the app to do anything. Every exception and every surface that sends a user out is either **planned in the app with a costed row**, or kept only where it is **technically forced**, named with its reason and listed for the owner. Nothing outside is kept silently. The re-test of the six declared exceptions (`09-cohesion.md` §7) and of every row in `00-plan.md` §1 and `09-cohesion.md` §2 is in `00-plan.md` §5.2. Pulled in: reviewers' PR review (row 106), the shipped app's settings (row 107), team settings (row 108), production approval (row 109), tracker events in Teams (row 53), the owner's provider keys (row 104). Kept as forced: the first-run system-browser sign-in, the Azure DevOps personal access token, and "Connect deploy" until Panacea's P-3. |
+| **OD-50** | How far `OD-40`'s copying reaches: snippets, or whole Panacea services and Terraform stacks (2026-10-01, `00-plan.md` §5 call 20) | **Whole services and Terraform stacks, under the same ledger and attribution.** Accepted with the other calls (*"Accept all"*), including updating `CLAUDE.md`'s reuse section to match. | `services/panacea-mcp` may be copied whole into the sandbox image (row 68), and Panacea's production Terraform into our OpenTofu modules (row 78), each file with an attribution header and a snippet-ledger entry checked in CI (row 72). **Amends** `OD-40` (snippets become whole services and stacks) and so `OD-13`'s "no Panacea source is copied in now"; `OD-13`'s later lift and shift stands. `CLAUDE.md`'s reuse section is updated to match. This file's "Where the older documents now disagree" still reads "No Panacea source is copied now"; it is left unedited so no line moves, and this row wins over it. |
+| **OD-51** | Team mode's order: `OD-16`'s Orchestrator negotiation first, or v1 on the tracker (2026-10-01, `00-plan.md` §5 call 16) | **Team mode v1 on the tracker; the Orchestrator's negotiation after. PanaceaApp teams are Panacea teams.** Accepted as recommended (*"Accept all"*). | Team v1 is shared tasks, the Desk and Teams cards over the tracker (`05-work-team.md` §8). The per-user Orchestrators' negotiation (`OD-16`) comes after v1, when `feat/team-mode` resumes on its core. A team is Panacea's team, read through Panacea's team API, so roster, members and cost centre have one home. **Changes** `OD-16`'s order, not its design; **amends** `OD-14`'s team model to Panacea's teams. |
+| **OD-52** | If Kata fails on day 1 (no Kata nodes, or claim p95 over about 5 s): stop, or fall back to ACI with standby pools (2026-10-01, `00-plan.md` §5 call 19) | **Pre-approved fallback, pilot only.** Accepted as recommended (*"Accept all"*). | If day 1 fails the test, the KPMG pilot's sandboxes may run on Azure Container Instances with standby pools, and the isolation statement says ACI while they do. Back to Kata on AKS Pod Sandboxing before any customer. **Relaxes**, for the pilot and only on that trigger, `CLAUDE.md`'s locked isolation decision. |
+
+**How OD-42 passes the gate.**
+1. **Expensive to undo.** Moving the platform to another subscription later re-provisions the
+   cluster, Key Vault and Flexible Server, migrates the Hub's data and re-issues every endpoint.
+2. **Not derivable from the tree.** `OD-5`, phase 8 and `00-plan.md` day 0 all ask for a new
+   subscription. An agent would file that ask.
+3. **A real fork.** A subscription of our own isolates quota, policy and billing, at US$2,000 a
+   month in a new ask and its lead time. The owner gave up that isolation for speed.
+
+**How OD-43 passes the gate.**
+1. **Expensive to undo.** The name is in the app id, the installer and the update feed that every
+   pilot laptop carries. A rename after the pilot is a new install and a rebrand.
+2. **Not derivable from the tree.** The plan calls it "our name" and the repository is PanaceaApp.
+   An agent would invent a name or ship "PanaceaApp".
+3. **A real fork.** A new name keeps the product clear of the platform it deploys through. The
+   owner gave that up to present one evolved Panacea, and takes on the doc-level ambiguity this
+   section's note resolves.
+
+**How OD-44 passes the gate.**
+1. **Expensive to undo.** Users, federated links, sessions and every client's issuer sit in the
+   realm. Re-pointing our realm at Entra later re-links every user and needs the IT ticket then.
+2. **Not derivable from the tree.** `OD-30`, its ruling and 07-platform-verify 3.11 all have our
+   realm brokering Entra. An agent would file the IT request.
+3. **A real fork.** Brokering Entra directly makes our sign-in independent of Panacea's realm at
+   the cost of an IT ticket. Brokering Panacea's realm gives up that independence for no ticket.
+
+**How OD-45 passes the gate.**
+1. **Expensive to undo.** About 12.75 engineer-days of Design rows bind to Penpot, and going back
+   revives the clean-room editor and `OD-34`'s op-log.
+2. **Not derivable from the tree.** `OD-11` says clean-room and lists no MPL-2.0; `CLAUDE.md` says
+   "real-HTML frames". An agent would keep building the editor.
+3. **A real fork.** The clean-room canvas gave live HTML frames and our own authority model. Penpot
+   gives those up, with MPL-2.0 file duties, for a canvas that exists.
+
+**How OD-46 passes the gate.**
+1. **Expensive to undo.** Routes, keys, per-provider claims and the admin page become data and
+   code; narrowing back to two paths strands every project routed elsewhere.
+2. **Not derivable from the tree.** `OD-19` and `CLAUDE.md` name exactly two paths. An agent would
+   hard-code them.
+3. **A real fork.** Two fixed paths keep one retention and residency story. Any provider gives that
+   up, so each claim must be carried and shown per provider.
+
+**How OD-47 passes the gate.**
+1. **Expensive to undo.** Usage recorded without the three codes cannot be attributed later;
+   retrofitting them means re-attributing history by hand.
+2. **Not derivable from the tree.** Nothing in this repo carries a job code, and row 65 mentions
+   one only in passing. An agent would attribute by project and team alone.
+3. **A real fork.** Project-and-team attribution is simpler and needs nothing at creation. The
+   owner chose engagement codes from day one, at the cost of a required step and a Panacea-side
+   ask for a project-level cost centre.
+
+**How OD-48 passes the gate.**
+1. **Expensive to undo.** The connectors, the Work page and the tracker-backed Desk sources are
+   built over the trackers; going back to `OD-26`'s own tracker revives Phase W.
+2. **Not derivable from the tree.** `OD-26` and `OD-35` say build our own tracker, with 187 tasks
+   on file.
+3. **A real fork.** Our own tracker keeps all task data in our store. Headless trackers give that
+   up for teams' existing data, and the row keeps the owner's veto open.
+
+**How OD-49 passes the gate.**
+1. **Expensive to undo.** It adds about 10 engineer-days of in-app replacements (`00-plan.md`
+   §5.2) and removes declared exits; relaxing it later changes those surfaces again.
+2. **Not derivable from the tree.** `09-cohesion.md` §7 declares six v1 exceptions, two of which
+   send the user outside. An agent would keep them.
+3. **A real fork.** Declared exceptions were cheaper and faster to the first app. The owner gave
+   that up for an app that never sends anyone out.
+
+**How OD-50 passes the gate.**
+1. **Expensive to undo.** Once a whole service and a Terraform stack are copied, undoing it
+   rewrites them, as the ledger will list.
+2. **Not derivable from the tree.** `OD-40` says snippets and `CLAUDE.md` still says copy nothing.
+3. **A real fork.** Snippets kept drift from Panacea small. Whole copies give that up for speed.
+
+**How OD-51 passes the gate.**
+1. **Expensive to undo.** Team v1 binds to Panacea's teams and the tracker; the Orchestrator-first
+   order would re-plan `feat/team-mode`.
+2. **Not derivable from the tree.** `OD-16` orders the Orchestrator's negotiation first.
+3. **A real fork.** Orchestrator-first ships the differentiating cross-user channel sooner. The
+   tracker-first order gives that up for a team v1 that exists.
+
+**How OD-52 passes the gate.**
+1. **Expensive to undo.** If exercised, sandboxes, the recipe and the isolation statement move to
+   ACI and back.
+2. **Not derivable from the tree.** `CLAUDE.md` locks Kata from day one.
+3. **A real fork.** Holding the pilot until Kata works keeps the isolation promise. The fallback
+   gives it up for the pilot only, to keep the date.
+
+**Answered, not gated.** Settled owner answers that fail the gate, mostly because a setting or a
+single-file edit walks them back. They bind the plan (`00-plan.md` §5) without a row:
+- **Call 1, staffing and `OD-31`'s cap.** *"Lift it to 5 then."* Five builders; `OD-31`'s cap
+  becomes **five** parallel streams. Phase 2's close-out and merge to `main` stays the **first**
+  build step, as sequencing, not an owner gate (`OD-31`'s own amendment already removed the pause
+  for owner testing). **Amends** `OD-31`. Fails limb 1: the cap is a number the owner can move any
+  day.
+- **Call 4, code signing.** *"Sure, do that."* Azure Artifact Signing; an OV certificate in Key
+  Vault if the entity does not qualify. Fails limb 1: a signing route swaps without a code change.
+- **Calls 7, 9, 10, 11, 12, 13, 13a and 18**, accepted as recommended (*"Accept all"*): Penpot's
+  Work Sans and 4/6/8/12 radii for v1, with the font-alias spike (call 7); Define, not Discover,
+  and four lenses (call 9); Geist Sans and Commit Mono everywhere, which **amends** `OD-28`'s Segoe
+  UI Variable (call 10); Orca's OSC status accepted for the KPMG pilot as display only until row 23
+  lands, a pilot-only **relaxation** of `OD-8` (call 11); landing from the laptop, which keeps
+  `OD-6` (call 12); shipped apps on the KPMG network only in v1 and previews GitHub-only (call 13);
+  pilots on the dev estate with class `none` data (call 13a); and Define's four items (call 18).
+  Each fails limb 1 (a token, a label or a pilot setting) or limb 2 (already written in the plan's
+  cluster files, and contradicting no row).
+- **Call 8, the six declared exceptions.** Accepted with the rest, then re-tested under `OD-49`,
+  which wins where they differ.
+
+**What each answer supersedes, relaxes or amends.** The older rows are not edited; this table is
+the pointer from them.
+
+| Earlier decision | Changed by | How |
+|---|---|---|
+| **OD-5** (our own environment) | OD-42 | Amended: a new resource group and cluster in Panacea's subscription, not a new subscription. The own-environment intent holds |
+| **OD-6** (Credential Manager, the user is always themselves) | call 12 | Kept: landing stays on the laptop |
+| **OD-8** (no meaning from PTY bytes) | call 11 | Relaxed for the KPMG pilot, display only, until row 23's patch |
+| **OD-11** (clean-room canvas, licence list) | OD-45 | Relaxed: MPL-2.0 admitted; the clean-room build withdrawn for v1. The never-open-AGPL/GPL-source rule and no tldraw stand |
+| **OD-13** (no Panacea source copied now) | OD-50 | Amended through `OD-40`: whole services and stacks may be copied with attribution. The later lift stands |
+| **OD-14** (team model) | OD-51 | Amended: PanaceaApp teams are Panacea teams |
+| **OD-16** (Orchestrator negotiation) | OD-51 | Reordered: after team v1 on the tracker |
+| **OD-19** (two inference paths, zero retention) | OD-46 | Amended: any provider, managed in the app; retention and residency per provider, shown |
+| **OD-24** (AU/Global switch) | OD-46 | Amended: selects a class of provider |
+| **OD-26** (our own tracker) | OD-48 | Superseded: in-app views over a headless tracker, owner veto open |
+| **OD-28** (Segoe UI Variable) | call 10 | Amended: Geist Sans |
+| **OD-30** (Keycloak brokering Entra) | OD-44 | Amended: our Keycloak brokers Panacea's realm, which brokers Entra. No IT ticket, zero clicks, same Entra registration |
+| **OD-31** (four-stream cap) | call 1 | Amended: five streams; phase 2's merge first, as sequencing |
+| **OD-34** (canvas op-log) | OD-45 | Withdrawn for v1 |
+| **OD-35** (no scope cut) | OD-48 | Retired for Phase W |
+| **OD-40** (snippets) | OD-50 | Amended: whole services and Terraform stacks |
+| **OD-41** (one app) | OD-49 | Strengthened: never outside; forced exceptions named |
+| `CLAUDE.md` locked isolation | OD-52 | Relaxed for the pilot, on the day-1 trigger only |
+
+**Edges, for the dependency frontier.** The frontier table is not edited. Edges for these rows
+are recorded here, each twice; the rows for older decisions list only the edge this section adds,
+and carry into the frontier the next time it is rewritten in full.
+
+| Id | Unblocked by | Unblocks |
+|---|---|---|
+| **OD-5** | — | (adds) OD-42, which keeps its intent |
+| **OD-13** | — | (adds) OD-44 — Panacea's realm changes no code because Panacea stays separate |
+| **OD-19** | — | (adds) OD-46 |
+| **OD-30** | — | (adds) OD-44, which keeps its zero clicks and its registration |
+| **OD-37** | — | (adds) OD-45 — the canvas may be adopted; OD-48 — tracker work is absorbed |
+| **OD-39** | OD-37 | (adds) OD-47 — Panacea is the Deploy step, so its billing codes are the pattern |
+| **OD-40** | OD-37 | (adds) OD-50 |
+| **OD-41** | — | (adds) OD-43 — one name; OD-49 |
+| **OD-16** | OD-14 | (adds) OD-51 |
+| **OD-42** | OD-5 | Day 0 item 1 and rows 1 and 78 (`00-plan.md`) |
+| **OD-43** | OD-41 | Rows 19, 20 and 101 |
+| **OD-44** | OD-13, OD-30 | Rows 82, 83 and 95; the removal of IT's realm request from day 0 |
+| **OD-45** | OD-37 | The Design rows (`00-plan.md` §1.4); the retirement of phase 5 tasks 05, 06, 10, 11 and 12 |
+| **OD-46** | OD-19 | Rows 76, 76b, 77 and 104 |
+| **OD-47** | OD-39 | Rows 65, 84 and 105 |
+| **OD-48** | OD-37 | Rows 45 to 50 and 108; the retirement of Phase W's absorbed tasks |
+| **OD-49** | OD-41 | Rows 53 and 104 to 109; the forced-exception list (`00-plan.md` §5.2) |
+| **OD-50** | OD-40 | Rows 68 and 78; `CLAUDE.md`'s reuse section |
+| **OD-51** | OD-16 | `feat/team-mode`'s resume |
+| **OD-52** | — | Rows 1 to 9's fallback |
+
+**Counts:** the register now holds 52 decisions. OD-42 to OD-51 each carry a decision edge above;
+OD-52 carries only plan consequences. So 45 of the 52 carry at least one decision edge (the 35 of
+41 counted after OD-41, plus ten).
+
+**Still open, and not recorded as decided:** the "Later" list of `00-plan.md` §5 and the forced
+one-app exceptions of §5.2, which the owner may still choose to close at the cost named there.
