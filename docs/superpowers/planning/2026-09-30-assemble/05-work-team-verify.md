@@ -98,7 +98,25 @@ is not protected.**
 
 ## 4. The recommendation, part 3: Panacea's roster, snippets and preview comments
 
-*(to be filled)*
+**Every path the researcher cites exists** (read-only `git grep` and file reads at Panacea
+`eee94cd94`, 2026-09-30 11:03 +1000). **Two of the uses do not work as described:** the roster,
+and preview comment to issue.
+
+| # | Claim | At source | Holds? |
+|---|---|---|---|
+| 1 | Panacea has no work items | `git grep -i "workitem\|_apis/wit\|wiql"` over `services/`: no hits | **Yes** |
+| 2 | The roster: `GET /api/v1/teams/{name}/members` with the user's `pnc_` token | The route exists (`routes.go:1962`, `selfService`). Its handler opens with `h.authorizeTeamAdmin(w, r)` (`handlers/billing_team.go:530-533`): platform admins administer every team, *"everyone else administers exactly the teams whose configured TeamAdmins list matches their identity"* (`:94-104`). `GET /api/v1/me` returns only the caller's own groups (`me.go:44-51`) | **No, for most users.** A member who is not the team's admin gets no roster. The team view needs one Panacea-side change: a member-readable roster route, or a Keycloak role for our realm client that can read group members (a realm change, so a Panacea deploy, `00-panacea.md` §5.1) |
+| 3 | The sticky comment upsert ports, GitHub half as is | `prcomment/client.go:54` switches github, gitea and azuredevops. The GitHub list is `https://api.github.com/repos/%s/issues/%d/comments` (`:78-80`), with no `per_page` and no `Link` handling | **Ports with one fix.** GitHub returns 30 comments a page by default. On an issue that already has 30 or more comments the sticky is never found, and a new one is posted at every update. Keep the comment id in the edge record, or paginate. The ADO half is PR threads (`api-version=7.0`, `:186-209`), so work-item comments are new code, as the researcher said |
+| 4 | The hook lifecycle ports with work-item events | `webhook_ado.go:17-42`: Service Hooks REST, `publisherId=tfs`, `consumerId=webHooks`, create/list/delete matched on the delivery URL; the base URL can be overridden (Azure DevOps Server) | **Yes, as a pattern.** Its create call resolves repository GUIDs for `git.push` and `git.pullrequest.created`; work-item events take other publisher inputs |
+| 5 | The ADO hook check | `webhook-receiver/providers/azuredevops.go:31-75`: an empty secret is rejected; the Basic password is compared in constant time | **Yes.** ADO's Web Hooks page describes Basic authentication over HTTPS and no payload signature, so the `X-Azure-Signature` branch never runs for ADO; Basic is the check |
+| 6 | The signed audit chain head | `clients/audit_signed_head.go:10-18`: Vault-transit-signed head anchors, append-only | **Yes** (OpenBao's transit API match stays unverified) |
+| 7 | Preview comments as is, plus 1 day to file one as an issue | Element-pinned threads, a widget on the tenant subdomain, the shared parent-domain SSO cookie (`preview_comments.go:19-32`). The event is `Notify(project, "preview_comment", "<author> commented on <host> (PR #n)")` (`:481-495`). The webhook channel posts `{event, message, project}` with a plain `http.Post` and no signature (`notifications.go:294-305`) | **Partly.** The event carries no comment id, body, element or thread, and it is unsigned. The receiver must treat it as a hint, then read `GET /api/v1/projects/{name}/comments` (`routes.go:2932`, `authedProject`) with a member's `pnc_` and find the new comment. **About 1.5 days, not 1** |
+| 8 | SMTP is not configured; no Teams channel | `team_create_approval.go:17-18` says so; channel types are slack, email and webhook (`notifications.go:39, 218-223`) | **Yes** |
+
+**Trade-off, restated in one line:** Panacea's team model is the right one to reuse, because KPMG
+users already belong to it, but today it is an admin surface, not a directory; opening it to every
+member costs one Panacea change, the same kind as the realm-token trust `00-panacea.md` §5.3
+already ranks first.
 
 ## 5. The recommendation, part 4: Orca task sources and the ADO fork patch
 
