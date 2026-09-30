@@ -206,6 +206,60 @@ that deploys through Panacea.
 - **Verdict: reject.** It passes B4 where Devin and Cursor fail, but it replaces the agent, which
   is the one thing we do not replace.
 
+### 4.8 AWS Kiro (IDE, CLI, autonomous agent) - REJECT as the whole; its spec format is referenced
+
+- **Does.** Spec-driven development: requirements, design and tasks files (EARS notation), then
+  agents that build to them, in an IDE, a CLI and an autonomous agent. The nearest product to our
+  Define-to-Develop thread. 03 §4.5 already reviewed it for Define.
+- **Deploys.** AWS SaaS, US$0-200 per user per month (03). Kiro "stores data and performs
+  inference in the region where your Kiro profile is created": **US East (N. Virginia), Europe
+  (Frankfurt) and GovCloud only**. IAM Identity Center may sit in Sydney, the data may not
+  (kiro.dev/docs/enterprise/supported-regions). Entra works as an external IdP.
+- **Fails.** B1 (AWS only, no self-host), B2, B4 (its models), B5, B9.
+- **Verdict: reject.** Its spec layout is the reference 03 already takes through Spec Kit.
+
+### 4.9 Google: Jules, Firebase Studio - REJECT
+
+- **Jules** is Google's asynchronous coding agent: a task runs "in a secure Google Cloud VM" and
+  opens a pull request; GA at Google I/O on 2026-05-19, GitHub plus GitLab in beta (June 2026), an
+  Enterprise plan with dedicated VMs (press and review sites). Its own agent on Gemini; no
+  self-host; no Azure DevOps.
+- **Firebase Studio** is closing: sunset announced 2026-03-19, new workspaces and sign-ups off
+  from 2026-06-22, shut down 2027-03-22, with users sent to Google AI Studio and Antigravity
+  (firebase.google.com migration page).
+- **Fails.** B1, B2, B4, B5, B7, B9; Firebase Studio also fails "still exists".
+- **Verdict: reject both.**
+
+### 4.10 Coder (workspaces, AI Gateway, Agent Firewall) - REFERENCE; a buy question for phase 8, not here
+
+- **Does.** Self-hosted cloud workspaces on Kubernetes from Terraform templates; Claude Code
+  installs into a template; its own agent ("Coder Agents"); the **AI Governance add-on**
+  (Premium) with **AI Gateway** (was AI Bridge: central auth, audit and LLM access) and **Agent
+  Firewall** (was Agent Boundaries: runtime network and process limits), GA in v2.30 on
+  2026-02-03 (coder.com changelog). **Coder Tasks** went to a 12-month extended-support release
+  on 2026-06-02 and is announced to leave new releases from v2.37.
+- **Licence.** **AGPL-3.0** core (API) plus commercial Premium. Unmodified self-hosting is fine;
+  a modified copy served to users must publish its source; shipping it into a customer tenancy
+  needs Coder's commercial terms (02 §3b).
+- **Deploys.** Helm on AKS, in our region. OIDC with Entra or Keycloak, audit logs, HA.
+- **Maturity.** 16,761 stars, v2.36.6 on 2026-09-18, Coder Technologies.
+- **Phases.** Develop environments only. No Define, Design, landing or Deploy.
+- **Fails.** B8 unless bought; B9 (its dashboard is a second cockpit); its AI Gateway duplicates
+  `OD-21`'s LiteLLM.
+- **Verdict: reference.** The best-governed environment product on the list, but an environment,
+  not a whole product; 01 §4.4 rejected it for sandboxes against AKS Pod Sandboxing.
+
+### 4.11 Ona (formerly Gitpod) and OpenAI Codex - REJECT
+
+- **Ona** ran agents in sandboxed environments with enterprise runners in the customer's AWS or
+  GCP. **OpenAI announced it is acquiring Ona on 2026-06-11**, to give Codex self-hosted
+  sandboxes (SiliconANGLE, The Next Web; not closed at announcement; no primary source read).
+- **Codex cloud and the Agents API** are OpenAI's harness. Reports say the Agents API beta keeps
+  data in the **United States only** and does not support ZDR, even with a self-hosted sandbox
+  (secondary sources).
+- **Fails.** B1 (no Azure runners confirmed), B2, B4, B5 (Codex only), B7 unverified, B9.
+- **Verdict: reject.** A model vendor's harness, now owning the environment vendor.
+
 ## 5. Which can run in a customer's own Azure tenancy
 
 _(pending)_
