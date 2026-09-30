@@ -1,17 +1,20 @@
 # 02 — The agent-fleet cockpit and git lanes: the sceptic's verification
 
-**Status:** COMPLETE (2026-09-30).
+**Status:** COMPLETE (2026-09-30). The relaunch added §7, the one-app check, and carried it into
+§0, §8 and §9.
 **Date:** 2026-09-30. **Verifies:** `02-fleet-cockpit.md` (the researcher's recommendation).
 **Role:** sceptic. Try to refute the recommendation (Orca as the cockpit, lanes in our Kata
 sandbox through a recipe, landing through the git host) and its two best alternatives at source:
 licence, the vendor's own docs, paid-tier gates, maintenance, and whether the days fit OUR
-architecture (Go control plane `Backend`, Tauri/React desktop, Keycloak, LiteLLM, Azure).
+architecture (Go control plane `Backend`, Tauri/React desktop, Keycloak, LiteLLM, Azure). Then
+test it against the user's one ask: that the assembled parts feel like one app (§7).
 Desk research only: nothing installed or run.
 
 ## 0. Verdict first
 
 **UPHELD, with corrections.** Orca as the cockpit, lanes in our Kata sandbox through a plugin recipe,
-and landing through the host all survive at source.
+and landing through the host all survive at source. "Unforked, under its own name" does not: it
+fails the user's one-app ask, so Orca ships as our app from a thin build of the pinned upstream (§7).
 
 - **Why it survives:** the `LICENSE` is MIT at source, with no copyleft in the tree. Orca is very
   active (v1.4.217 on 2026-09-29, a release a day) and has no paid tier. Every seam the plan needs is
@@ -19,24 +22,32 @@ and landing through the host all survive at source.
   behind a proxy. GitHub's merge queue and ADO auto-complete hold as documented, and KPMG's GitHub is
   already Enterprise Cloud (EMU on github.com).
 - **What does not survive:**
-  1. **The cloud control plane cannot push or open PRs "with the user's credential".** `OD-6`,
+  1. **One app (§7).** Unforked Orca keeps its own name, palette and update feed. A plugin gets only
+     right-sidebar panels that cannot navigate. The Hub pages would sit in a per-worktree browser
+     pane where Entra's zero-click sign-in is not shown to work, and whose lane traffic runs through
+     the sandbox. Fix: our build (name, signature, feed, tokens, a journey bar with a session
+     hand-off, cloud features off), about 5 days. It also closes the version lock, the shared
+     certificate and the OSC problem below.
+  2. **The cloud control plane cannot push or open PRs "with the user's credential".** `OD-6`,
      `OD-22` and `OD-30` keep that credential on the laptop. Landing moves to the laptop CLI, which
      also makes `OD-2`'s "fetched back" literally true (3.2).
-  2. **Orca's attention queue reads PTY bytes** (an OSC 9999 parser that needs no token). So any
+  3. **Orca's attention queue reads PTY bytes** (an OSC 9999 parser that needs no token). So any
      terminal output can forge a row's status and prompt text. That queue is the feature we adopt
-     Orca for, so this is not "display only". It needs an `OD-8` ruling before first ship (2.1).
-  3. **Panacea's ADO previews do not exist.** Worse, Panacea routes every ADO push to its Forge
+     Orca for, so this is not "display only". It needs an `OD-8` ruling before first ship, or our
+     build's OSC patch (2.1, §7).
+  4. **Panacea's ADO previews do not exist.** Worse, Panacea routes every ADO push to its Forge
      agent-deploy pipeline, so v1 previews are GitHub only (4.1).
-  4. **7.5 days becomes about 10.5; first ship moves from 4.5 to about 6.5.** A day-0 KPMG IT and SOC
-     change (MDE suppression rule, ASR allowlist) could outlast the build (§6).
-  5. **New risk:** the untrusted agent shares its sandbox, and by default its user, with
+  5. **7.5 days becomes about 15.5: 10.5 for the corrections (§6) plus 5 for one app (§7).** First
+     ship moves from 4.5 to about 6.5 calendar days if our build runs as its own stream. A day-0
+     KPMG IT and SOC change (MDE suppression rule, ASR allowlist) could outlast the build (§6).
+  6. **New risk:** the untrusted agent shares its sandbox, and by default its user, with
      `orca serve`. That puts a rich channel into the laptop. It needs a security review before any
      customer tenancy (3.4).
 - **In our favour:** the plugin worker is unsandboxed Node, so the Hub fetch works today (it is a
   boundary Orca says will tighten).
 - **Alternatives:** freeze phase 2's desktop as the fallback; do not retire it (5.1). Emdash stays
   reference: Apache-2.0 and an MSI, but no sandbox seam (5.2). Orca's browser client is the fallback
-  if IT says no (5.3).
+  if IT says no (5.3), and the most cohesive one, because the Hub is its shell (§7).
 
 ## 1. What was checked, and how
 
@@ -58,6 +69,14 @@ All reads on 2026-09-30. Nothing installed, built or run.
   `01-sandboxes.md` and `01-sandboxes-verify.md` by grep.
 - **Panacea, read-only:** `webhook-receiver/pipeline/trigger.go`,
   `providers/{github,azuredevops}.go`, `models/event.go` and `panacea-api/handlers/webhook_ado.go`.
+- **Cohesion (§7), on the relaunch:** from the same clone, the browser docs (`overview.mdx`,
+  `profiles.mdx`), the CLI reference, `plugin-manifest.ts`, `plugin-host-api.ts`,
+  `plugin-panel-navigation-guard.ts`, `plugin-panel-shell.ts`, `plugin-panel-design-token-css.ts`,
+  `plugin-language-pack-registry.ts`, `document-theme.ts`, `global-settings-types.ts`, `main.css`,
+  `en.json` (counted, not read), `skill-share-link.ts` and the builder config's brand lines. Ours:
+  `desktop/src/styles/tokens.css`, `docs/DESIGN-SYSTEM.md`, and 08's §7 and §9. Web: Cypress issue
+  #33836 (Electron and Entra device compliance), Microsoft's Azure Artifact Signing page, and a
+  devclass report on where it is available.
 
 ## 2. Orca: licence, maintenance, and the claims at source
 
