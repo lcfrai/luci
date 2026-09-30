@@ -100,6 +100,33 @@ not read. Not re-argued: Orca is the owner's cockpit direction.
 | 5. Teams bot | Unchanged. Orca notifies *me* about *my* agents, on the desktop and the phone; the bot carries what crosses people (*inform*, *decide*, file overlap) |
 | Linear (§3.1) | Orca already speaks Linear, so a customer whose data class allows US or EU hosting gets it with no connector UI to build. **Off for AU-only projects**: Linear has no AU region |
 
+### 0.4 Phase T, revisited
+
+The first run found about 5 of Phase T's 69 tasks taken by products. Panacea's team model and code
+raise that to **about 8, 2 of them mostly**:
+
+| Phase T task | What takes it | How much |
+|---|---|---|
+| 45 Audit to Sentinel; the anchored chain head | Sentinel's ADO and GitHub audit connectors (§7) plus Panacea's signed chain head (`audit_signed_head.go`) | mostly |
+| 53 The team strip and click-in | A view over tracker assignee, git host state and central sessions; the roster from Panacea's team API | mostly (the UI stays ours) |
+| 44 Leavers, member removal, delegation revocation | Panacea's `DELETE /api/v1/teams/{name}/members/{userId}` and Keycloak; revoking delegations stays ours | part |
+| 43 Role-to-verb, *auditor* and *compliance*, team policy | Panacea's team-admin role and per-team security policy; the verbs stay ours | part |
+| 66, 67 Team and project quotas; the quotas view | Panacea's per-team budget and cost routes (`routes.go:1946-1961`), and LiteLLM's team budgets (the gateway's cluster) | part |
+| 30, 54 Escalation delivery; Desk rows | Teams cards (§5) | part |
+
+The core still has no product anywhere: Fleet, the Orchestrator runner, leases, negotiation, the
+`OD-23` policy mechanism and the lane mirror, **about 55 tasks**.
+
+**Claude Code agent teams: reference.** It is built into the CLI we run unmodified, and is
+*"experimental and disabled by default"* (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`): a lead and its
+teammates share a task list (pending, in progress, completed, with dependencies and file-locked
+claims) and per-agent JSON mailboxes under `~/.claude/teams/`
+([docs](https://code.claude.com/docs/en/agent-teams), read 2026-09-30). It cannot be Phase T's
+channel: *"one team per session"*, and teammates share one machine's files, so it spans neither
+Kata sandboxes nor people, and `OD-8` lets nothing require a harness's own files. Worth taking: its
+task states, and its `TaskCompleted` hook, which blocks completion on exit code 2, the same shape
+as done-means-proven.
+
 ## The answer
 
 **Do not build a tracker. Integrate the two KPMG already runs — Azure DevOps Boards first, GitHub
