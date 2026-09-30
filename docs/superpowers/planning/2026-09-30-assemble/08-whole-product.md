@@ -260,6 +260,43 @@ that deploys through Panacea.
 - **Fails.** B1 (no Azure runners confirmed), B2, B4, B5 (Codex only), B7 unverified, B9.
 - **Verdict: reject.** A model vendor's harness, now owning the environment vendor.
 
+### 4.12 GitLab Self-Managed with Duo Agent Platform (added by this run) - REFERENCE
+
+Not on the brief's list; added because it is the one **self-hostable whole-SDLC product** that
+already runs the unmodified Claude Code.
+
+- **Does.** Plan (issues, epics), code, merge requests, CI/CD, environments and review apps,
+  security scanning, audit. The Duo Agent Platform went **GA on 2026-01-15 (18.8) on GitLab.com,
+  Self-Managed and Dedicated**: a Planner agent, flows such as "Issue to Merge Request", an AI
+  Catalog, and **external agents "Claude Code from Anthropic and Codex CLI from OpenAI"**
+  (about.gitlab.com). The Claude Code example installs `@anthropic-ai/claude-code` from npm in a
+  CI job (`node:22-slim`), so it is the unmodified CLI, headless in a runner.
+- **Model path.** The example points Claude Code at
+  `https://cloud.gitlab.com/ai/v1/proxy/anthropic` with a GitLab-issued token, that is GitLab's
+  own AI gateway. Self-Managed "supports self-hosted models"; whether an external agent can be
+  pointed at our LiteLLM instead was not verified.
+- **Licence and price.** Premium or Ultimate (commercial EE; the CE core is MIT). Credits-based
+  AI: US$12 a user a month of GitLab Credits with Premium, US$24 with Ultimate.
+- **Fails.** B7 in the way that matters: it is a **third git host and tracker** beside the Azure
+  DevOps and GitHub that `OD-4` names and 05 keeps; B4 as shipped (GitLab's proxy); B9 (a live
+  terminal is not its model, so Orca still sits beside it). Passes B1, B2, B3, B6 (runners on our
+  AKS) and B8 as a buy.
+- **Days.** Weeks, not days: a GitLab estate, repository migration or mirroring, runners on AKS,
+  SSO, then the agent flows.
+- **Verdict: reference.** The right answer for a customer who already runs GitLab, and a later
+  host adapter for us (owner call 4, section 9). Not our base: moving KPMG's repositories and
+  boards is the opposite of days.
+
+### 4.13 Also considered, one line each
+
+| Candidate | Why it is not the whole product | Verdict |
+|---|---|---|
+| **Microsoft Power Apps (Vibe, code apps)** | Vibe went to public preview in April 2026; code apps are GA and the app-builder skill "can be used with ... GitHub Copilot CLI or Claude Code"; runs in the customer's own Power Platform tenant with Entra, DLP and **an Australian region** (Microsoft, press). Apps are Power Platform apps on Dataverse, not the customer's git repo on Panacea | **reference**: a possible later deploy target for internal apps, not the journey |
+| **Warp Oz** | Orchestrator stays in Warp's cloud; docs blocked by the KPMG proxy (02 §3b) | reject |
+| **AQ** (aq.dev) | Data plane in your cloud, control plane at aq.dev; GitHub only (02 §3b) | reference |
+| **cube.computer** | The product we set out to beat; vendor cloud, no SSO (02 §3b) | reference |
+| **Northflank, Qovery** | BYOC PaaS that runs in our Azure, with previews and sandboxes, but the control plane is theirs (01 §4.5, 06) | reference |
+
 ## 5. Which can run in a customer's own Azure tenancy
 
 _(pending)_
