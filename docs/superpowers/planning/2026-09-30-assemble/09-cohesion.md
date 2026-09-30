@@ -423,3 +423,36 @@ events: Orca's status store is built in, not pluggable (02 R2). A v1 Desk on the
 template (ingest, the four classes plus RUNNING, the rank reason, aging, a read cursor, in-place
 answers) is **about 3 days**. The source adapters are **1.5** and the Teams mirror **0.5**. All
 new.
+
+### 5.5 One vocabulary: our words on every surface
+
+`CONTEXT.md`'s nouns are the only nouns a person reads. Each product's own words are mapped where
+the product surfaces:
+
+| Product | Its word | Ours | Where the mapping happens |
+|---|---|---|---|
+| Orca | Orca | our name | Build-time rename over the English catalogue; the CLI, `orca.yaml` and `orca-plugin.json` excluded (02-verify §7) |
+| Orca | workspace | worktree | The same rename list (`CONTEXT.md`: a workspace is nothing here; 08-verify R5) |
+| Orca | repository, repo | project | The same list |
+| Orca | agent, in the agent picker | harness | The same list. "Agent" stays for what runs in it |
+| Orca | merge, "Merge when ready" | land | The same list. The host keeps "pull request" |
+| Spec Kit | spec, specify, feature | brief | The `panacea` preset's templates and command text (03 §5: presets override terminology) |
+| Spec Kit, and 03-verify's preset | `SC-`, `AC-`, acceptance criteria | criteria | The same preset. **A correction to 03-verify §7:** its `AC-` section contradicts `CONTEXT.md` ("not «acceptance criterion» abbreviated to «AC»") |
+| Penpot | Penpot | nothing | The main-menu logo and page title, by the injected stylesheet or an MPL-2.0 patch (§3.2). Design words (board, layer, component) stay: they are the canvas's own domain, not our nouns |
+| Panacea | innovation, secure-test, production | release rungs | Add them to `CONTEXT.md`, or map them, in the copy review (06-verify §6) |
+| Panacea | deployment; raw error strings | release; one sentence of ours | The control plane maps them (00-verify S7) |
+| Panacea | `none`, `synthetic`, `protected` | the three data classes | Add the values to `CONTEXT.md`'s Data classification entry |
+| ADO, GitHub | work item, issue | ticket | Our Work page and the Desk (AGENTIC-UX §9 item 7 already says "ticket"); add it to `CONTEXT.md` |
+| LiteLLM | its refusal text | one sentence of ours | `gatekeeper` (07-verify C3) |
+
+**Held by tests, not by care:**
+- **A banned-word scan in CI** over our build's catalogue, every Hub page's strings and the
+  preset. The list is `CONTEXT.md`'s "Words we do not use" plus Orca, Penpot, Backstage, Keycloak,
+  LiteLLM, spec, PRD, workspace and dashboard. They are allowed only in the About screen's
+  open-source notices, which MIT and MPL-2.0 require.
+- **A copy review** of each new page before merge.
+- **Not ours to rename:** the harness's own output in the terminal, and the canvas's design terms.
+  Both are tools doing their jobs, not product nouns.
+
+**Cost: about 0.75 day new** (the scan 0.25, the copy review 0.25, the `CONTEXT.md` entries 0.25).
+The preset's wording is §2 row 6's 0.25.
