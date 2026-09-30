@@ -36,6 +36,31 @@ with the cockpit, extend with ADO**); Supabase Realtime (**reference**); Coolify
 this capability); Panacea's Backstage (**reject** for the work layer); Claude Code agent teams
 (**reference**). **No first-run verdict is reversed**; §2-§5 stand as written.
 
+### 0.1 Panacea for this capability, on merit
+
+Read-only, `git grep` over Panacea's tracked files on 2026-09-30 (another session is working there,
+so paths are as of today's tree).
+
+| Panacea asset | What it does | Use for us | Verdict |
+|---|---|---|---|
+| Work items, boards, sprints | **None.** `git grep -i "workitem\|_apis/wit\|wiql"` over `services/` finds nothing | — | Panacea is not a tracker; ADO and GitHub stay |
+| **Team API** (`services/panacea-api/routes/routes.go:1897-2020`) | Teams are **Keycloak groups** (`handlers/team_onboarding.go:16-26`). Members list, add and remove; invite; join requests a team admin approves or denies; self-create gated by the cost-centre owner and a SuperAdmin (`handlers/team_create_approval.go`); per-team billing, cost, budget, git PATs, security and risk policy; project-to-owning-team RBAC (`routes.go:134-140`) | **The roster for Phase T and the team view**: `GET /api/v1/teams/{name}/members`, or a groups claim if the realm maps one for our client (not verified). The realm is Panacea's until phase 8 runs its own (`OD-30`) | **integrate (API), 0.5 day** |
+| **Sticky comment upsert** (`services/panacea-build/pkg/prcomment/client.go:54`) | Creates the bot's PR comment or **updates it in place**, for GitHub, Gitea and Azure DevOps | **The one live status comment per session** (§7 piece 1). GitHub issue and PR comments share one endpoint, so that half ports as is; ADO work-item comments are another endpoint, so that half keeps the pattern and auth | **snippet** |
+| **Hook lifecycle** (`handlers/webhook.go`, `handlers/webhook_ado.go:17-42`) | Creates, lists and deletes GitHub hooks and **ADO Service Hooks subscriptions** (publisher `tfs`, consumer `webHooks`), matched on the delivery URL | The tracker's subscriptions: the same API with work-item events (`workitem.created`, `workitem.updated`, `workitem.commented`) | **snippet** |
+| **ADO hook check** (`services/webhook-receiver/providers/azuredevops.go:31`) | HMAC header or Basic secret, constant-time, rejects an empty secret | The service hook receiver | **snippet** |
+| **Notifications** (`handlers/notifications.go:35-43, 247`) | Per-project channels (Slack, email, webhook); `NotifyOnce` dedupes across restarts. **No Teams channel**, and SMTP *"is not configured anywhere on this platform"* (`team_create_approval.go:17-18`) | The dedupe for the Teams digest; not the delivery path | **snippet**; our Teams bot stays |
+| **Preview comments** (`handlers/preview_comments.go:19-32`, `routes.go:542-546`) | Threaded comments **pinned to elements on preview and staging pages** by an embedded widget; reply, resolve; a `preview_comment` event on each | **Review on the running app**, already there because phase 7 deploys previews through Panacea. Glue: route the event through a webhook channel and *file it as an issue* under the lane's work item, keeping its `serves` edge | **adopt as-is + 1 day** |
+| **Audit chain** (`clients/audit_pg.go`, `clients/audit_signed_head.go:10-18`, `routes.go:454-473`) | Hash-chained `audit_logs` plus **signed chain-head anchors** through Vault transit, which catch a truncated tail | Phase T 45's *anchored chain head*. `OD-32` swaps Vault for OpenBao, whose transit API should match (not verified) | **snippet** |
+| **Backstage** (`backstage/packages/*/package.json`) | Catalog, scaffolder, TechDocs, API docs, OIDC sign-in. **No** notifications, signals, Azure DevOps, GitHub Issues or Jira plugins installed | A developer portal, not where a team works | **reject** for the work layer |
+| **panacea-mcp** (`services/panacea-mcp/src/index.ts`) | Deploy, rollback, logs, pods, env, projects, audit, health, plus a generic `panacea_api_request` | Agents read **deploy state** (phase 7's evidence). No team, issue or notification tools | reference |
+
+**Trade-off, in one line:** Panacea's team model costs nothing and is the one KPMG users already
+belong to, but it ties PanaceaApp's teams to Panacea's API until the lift-in (`OD-13`); sign-in is
+already tied the same way (`OD-30`), so the dependency is not new.
+
+**Snippet rule:** a file that takes Panacea code opens with its source, e.g.
+`// Adapted from Panacea services/panacea-build/pkg/prcomment/client.go @ <commit>`.
+
 ## The answer
 
 **Do not build a tracker. Integrate the two KPMG already runs — Azure DevOps Boards first, GitHub
