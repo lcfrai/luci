@@ -306,12 +306,51 @@ Not a call today: a LiteLLM Enterprise licence (3.16) waits until more than 5 op
 
 ## 8. Revised for the owner's second direction
 
-_To be written._
+The first run (stopped at 09:47) left only this file's skeleton, so there was no earlier answer or verdict to revise in place; every section was written under the second direction. What that direction changed, against the plans and the 2026-09-28 study:
+
+| # | Topic | Before | Now | Why |
+|---|---|---|---|---|
+| 1 | Panacea's code | read, never copied (`OD-13`; phase 6 plan: "Panacea's LiteLLM code is read for its lessons ... and nothing is copied") | **copied with attribution**: its Terraform into phase 8 tasks 05-08, its key code into keysmith's tasks 04 and 07 | the owner relaxed `OD-13` today |
+| 2 | Supabase | not considered for the Hub | considered; **reference, not the Hub** (3.2); Supabase Cloud rejected (3.3) | allowed by the owner; loses on backups, Kubernetes support, Keycloak trust and the Hub's rules |
+| 3 | Coolify | not considered | **rejected** for the environment (3.20) | cannot host the sandboxes; a single VM for the system of record |
+| 4 | Panacea hosting the Hub | ruled out by `OD-5` | **the fallback host** (3.4) | "Panacea is fine to use majority of"; it saves the subscription wait, not work |
+| 5 | Identity | Panacea's realm until phase 8's own Keycloak (`OD-30`) | unchanged; our own Keycloak moves to the Operator and waits for the customer-hosted tier; `devissuer` gives way to a real Keycloak (3.12) | fewer custom parts, and the real issuer in tests |
+| 6 | Gateway | LiteLLM with keysmith and gatekeeper (`OD-21`, `OD-33`) | unchanged; alternatives listed as reference only | `OD-21` is locked, and LiteLLM's paid tier is exactly what the two services build |
+| 7 | The cockpit | Hub tasks 41-42 are desktop surfaces | may become Orca panels (02's ruling) | Orca is the owner's pick |
+
+**For the sibling studies.** 03-define, 04-design, 05-work-team and 06-deploy each left "does the Hub move to Supabase?" to this study. The answer is **no**, so Supabase Realtime (05) and Onlook's Supabase dependency (04) stay reference, and 06-deploy's signed release statement lands in the Hub as planned.
 
 ## 9. What was not verified
 
-_To be written._
+Nothing was installed, deployed or run. Product claims come from documentation, vendor pages, the GitHub API and the Azure Retail Prices API, read on 2026-09-30.
+
+1. **Supabase with Keycloak:** the static-JWKS trust path and the `role` claim mapper are inferred from the self-hosted docs, not tried; 3.2's 13 days are our estimate.
+2. **The Hub as a Panacea project (3.4):** whether Panacea builds from a monorepo subdirectory (`control-plane/cmd/hub`), and whether the `hub` schema's grants survive Panacea's migrate and runtime roles, were not checked.
+3. **Flexible Server:** that `roles.sql` and `0001_init.sql` apply as the Entra administrator (two `NOLOGIN` roles, `SECURITY DEFINER` functions, row-level security) is supported by Azure's documentation but not run; the General Purpose price was not retrieved.
+4. **Estimates, not measurements:** all plan-hours are the plans' own; the savings in §5 (5, 6 and about 2.5 hours) and the 6 elapsed days are ours; the realm ask's half day is our guess at another team's work.
+5. **Third-party figures:** LiteLLM Enterprise prices (guides, not LiteLLM), Bifrost's open-tier features (vendor pages), Claude in Foundry's regions (press reports), Azure confidential ledger's Australia East listing (a third-party guide; Microsoft's residency page confirms paired-region replication only) and its price (not published).
+6. **Not checked at all:** whether Keycloak events are enabled in Panacea's realm; AVM under OpenTofu; Kelios's API shape, retention terms, and support for `count_tokens` and streaming.
+7. **Source limits:** the GitHub API's unauthenticated quota ran out once mid-run (shared with sibling agents), so Bifrost's, Portkey's and Zitadel's figures are from the Glasses catalogue (observed 2026-09-29 to 30). Glasses is untrusted discovery data; no licence in it was taken as approval.
 
 ## Sources
 
-_To be written._
+**Repository (read-only or ours):** `00-panacea.md` §3-10; `01-sandboxes.md` §4.15-4.16, §5, §6; `02-fleet-cockpit.md` §0; `03-define.md` 4.12; `05-work-team.md` §0.2; `06-deploy.md` §0, 3.1, 3.10, §6; `2026-09-23-owner-decisions.md` (`OD-3`, `OD-5`, `OD-13`, `OD-18`-`OD-24`, `OD-30`, `OD-32`-`OD-35`); `2026-09-25-identity-keycloak-broker.md` §1-6; `2026-09-28-oss-adoption/00-summary.md`, `05-hub-identity.md`, `licence-platform.md`; the plans `.claude/worktrees/hub/.../2026-09-23-phase-h-hub.md`, `.claude/worktrees/phase-6/.../2026-09-25-phase-6-gateway.md`, `.claude/worktrees/env/.../2026-09-23-phase-8-own-environment.md`; `control-plane/internal/hub/migrate/roles.sql` and `sql/0001_init.sql` on `feat/hub`; in `Projects/Panacea`: `deploy/postgres-flexible.tf`, `deploy/object-storage-blob.tf`, `deploy/*.tf` (ISM citations), `services/panacea-api/handlers/llm_vkeys.go`, `handlers/llm_env_keys.go`, `clients/db_roles_ensure.go`, `clients/db_roles_ops.go`.
+
+**Web (read 2026-09-30):**
+[Supabase self-hosting](https://supabase.com/docs/guides/self-hosting) ·
+[Supabase self-hosted auth keys](https://supabase.com/docs/guides/self-hosting/self-hosted-auth-keys) ·
+[supabase-kubernetes](https://github.com/supabase-community/supabase-kubernetes) ·
+[LiteLLM enterprise](https://docs.litellm.ai/docs/enterprise) ·
+[TrueFoundry on LiteLLM pricing](https://www.truefoundry.com/blog/litellm-pricing-guide) ·
+[Keycloak 26.7.3](https://www.keycloak.org/2026/08/keycloak-2673-released) ·
+[Azure PostgreSQL access control](https://learn.microsoft.com/en-us/azure/postgresql/security/security-access-control) ·
+[Azure confidential ledger data residency](https://learn.microsoft.com/en-us/azure/confidential-ledger/data-residency) ·
+[its pricing page](https://azure.microsoft.com/en-au/pricing/details/confidential-ledger/) ·
+[Electric auth guide](https://electric-sql.com/docs/guides/auth) ·
+[AVM on OpenTofu, discussion #1512](https://github.com/Azure/Azure-Verified-Modules/discussions/1512) ·
+[APIM `llm-token-limit`](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy) ·
+[Bifrost for Claude Code (vendor)](https://www.getmaxim.ai/articles/best-claude-code-gateway-for-enterprise-governance/) ·
+[Claude on Foundry and regions (InfoQ)](https://www.infoq.com/news/2026/07/claude-foundry-ga-europe/) ·
+[Azure Retail Prices API](https://prices.azure.com/api/retail/prices).
+
+**GitHub API (2026-09-30):** `supabase/supabase`, `supabase-community/supabase-kubernetes`, `PostgREST/postgrest`, `electric-sql/electric`, `nats-io/nats-server`, `temporalio/temporal`, `BerriAI/litellm`, `keycloak/keycloak`, `coollabsio/coolify`, `Azure/terraform-azurerm-avm-res-dbforpostgresql-flexibleserver` (repository and latest release). **Glasses:** offline `gsearch.py` and the MCP `glasses_search` for "llm gateway", "keycloak", "identity", "postgres", "realtime", "sync", "terraform", "supabase".
