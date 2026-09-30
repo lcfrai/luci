@@ -75,3 +75,54 @@ pages, Penpot's dashboard, Panacea's Portal, or a pasted token after the one-tim
 
 The name and icon are the owner's call (customer-visible, 02-verify call 5). This file writes
 "our name" until then.
+
+## 2. Surfacing: headless, embedded, or out of the path
+
+Each piece gets exactly one mode:
+- **Headless:** its engine runs behind our screens, through its API, CLI or MCP. The person never
+  sees its UI.
+- **Embedded:** its UI sits inside our frame, in our tokens, with our journey bar and chrome
+  around it. Every embed is justified under the table.
+- **Out:** it opens outside the frame. Allowed only where a row says so, and never for a daily
+  act of the person building.
+
+Default: headless for the trackers, Deploy and Define. Days are engineer-days. "Counted" means
+another file already carries them; "new" means section 7 adds them.
+
+| # | Piece (licence) | Mode | What the person meets | What it needs from the product | Days |
+|---|---|---|---|---|---|
+| 1 | **Orca** (MIT), the frame | **Embedded, as the frame itself**, rebuilt as ours | Develop: sidebar, terminals, editor, diff, in our look and words | Our thin build: name, build-time rename, token file, journey bar and app-level view, OSC off, cloud features off | 5, counted (02-verify §7); token file +0.5 new (§3) |
+| 2 | Orca's own attention surfaces: bell, unread counts, per-agent OS notifications, the experimental Agents feed, the dashboard pop-out | **Off** | Nothing. Their facts reach the Desk (§5.4) | Our build's defaults: `notifications.enabled: false`, `experimentalActivity: false`, `experimentalAgentDashboardPopout: false` (`global-settings-types.ts:312`, `:470`, `:472`); the bell hidden by the build | 0.25 new |
+| 3 | Orca's task sources: GitHub, GitLab, Linear, Jira | **Off** | Our Work page instead (row 9) | `visibleTaskProviders: []`, which "hides unused providers from Tasks chrome and sidebar shortcuts" (`:378-379`). Left on, they are a second tracker face that asks for a pasted personal token (05 §0.3) | 0 |
+| 4 | Orca's browser pane | **Embedded, Develop only**, for the lane's own dev server | A browser tab beside the terminal, in our look | Never used for our pages or previews: it is per-worktree, has an address bar, and routes through the sandbox (02-verify §7 bar 5) | 0 |
+| 5 | **Claude Code** and the other harnesses (unmodified, `OD-8`) | **Embedded**, as the terminal | The real CLI in a pane. That is the product's promise, not a seam (AGENTIC-UX §8) | Orca's custom terminal theme generated from our tokens; the CLI's own theme set to an ANSI-only option if the pinned version has one | 0.25 new |
+| 6 | **Spec Kit** + aihero skills (MIT) | **Headless**, inside the Define session | Questions one at a time in the terminal. The brief itself on our Define page, which renders the exact pushed blob, Publish and drift (03-verify §7) | The `panacea` preset in our nouns: *brief* and *criteria*, never *spec* or *AC* (§5.5) | 10, counted (03-verify); wording +0.25 new |
+| 7 | **Penpot 2.18** editor (MPL-2.0) | **Embedded**: the one product UI we embed | The editor, opened straight on the branch's file inside our Design page, with our bar and brief chip. Never Penpot's dashboard or login page | Same-site serving with `frame-ancestors` (04-verify 2.5 point 5); an injected theme file (§3); our OIDC-start shim (§4); flags off (§3) | 1, counted (08-verify §7.2); +0.75 new |
+| 8 | Penpot's MCP server, one headless runner per active lane file | **Headless**, agents only | The agent's edits arrive live in the person's editor, as a named bot | Runners, bots and the relay (04-verify §5) | 13, counted (04-verify) |
+| 9 | **Azure DevOps Boards**, **GitHub Issues/Projects** (Jira later) | **Headless**, behind our Work page | Tickets in one list, in our words. Start on a ticket opens a lane | The `tracker` interface; Start by a pending start plus the recipe (05-verify §5) | 20, counted (05-verify) |
+| 10 | **GitHub and Azure DevOps pull requests**, merge queue, auto-complete | **Headless for the author; out for reviewers in v1** | The author lands from the lane card (`panacea lane land` on the laptop, 02-verify §8 item 4). A reviewer reads and answers comments on the host's own PR page | Nothing for the author. The reviewer exception is declared in §7 and closed later by pulling review comments into the Desk | 0 now |
+| 11 | **Panacea's API and `panacea-mcp`** | **Headless**, behind our Deploy page and the lane card | Ship, preview, logs, scans, approve and roll back, as our buttons | The allowlist proxy (G4); our copy for Panacea's errors (00-verify S7) | 8.5, counted (06-verify) |
+| 12 | Panacea previews: the person's own running app | **Embedded**, in the app-level view | The app itself under our bar, with Ship and Roll back beside it. No address bar | A short-lived share link or the realm session (§4) | 0.25 new |
+| 13 | Panacea's Portal (Backstage) | **Out of the person's path** | Nothing. It is an operator console for Panacea's SuperAdmins (06-verify §6) | No link to it from any surface of ours (07-verify C5) | 0 |
+| 14 | Panacea's key page, "Connect deploy", until P-3 | **Embedded once**, in the app-level view | One step at the first deploy, then gone | The deep link and a validating paste field (00-verify S3) | 0.25, counted |
+| 15 | **Keycloak** (Apache-2.0) and **Entra** | **Headless** | Nothing on the normal path. Stock error pages remain until our own realm has a theme | The hand-off (§4); a Keycloakify theme later (07-verify C2) | §4; 0.5 later, counted |
+| 16 | **LiteLLM**, our gateway (MIT) | **Headless** | A refusal is one sentence of ours, in the terminal and on the Desk | `gatekeeper` rewrites LiteLLM's own refusals (07-verify C3). Its admin UI is never linked | counted (07-verify) |
+| 17 | **Teams**, with our Agents SDK bot (MIT) | **Out by nature**: a doorway back in | Our bot's cards, in our name and words, each linking to its exact Desk row or lane. The first-party Boards and GitHub channel apps carry tracker events only, never ours | Deep links into the frame (§5.3); decide cards mirror Desk rows both ways (§5.4) | 3, counted (05-verify); +0.5 new |
+| 18 | **The Hub** (ours) | n/a | Every page in the app-level view | The shared page template (08-verify §7.2) | counted |
+
+**The embeds, justified.** Each one is either the frame or something no headless form can give:
+1. **Orca** is the frame. Its integrated Develop whole is why it was adopted, and our build makes
+   it ours (row 1).
+2. **Claude Code in a terminal** is the promise: genuine CLI output (AGENTIC-UX §8). Wrapping it
+   would break `OD-8`.
+3. **Penpot's editor**: a person cannot design through a headless canvas, and an approval needs
+   the approver's own tab to save and pin the version (04-verify 2.3 row 11). Agents stay headless
+   (row 8).
+4. **The preview** is the customer's own product, the thing being built. It is not a vendor's
+   face.
+5. **Orca's browser pane** serves only the lane's own dev server, which is Develop's business.
+6. **Panacea's key page** is one step, and P-3 removes it.
+
+**Never linked from any surface of ours:** Panacea's Portal, LiteLLM's admin UI, Keycloak's
+account console, Penpot's dashboard, and Orca's account, artifact-sharing and mobile screens
+(switched off, 02-verify §7).
