@@ -33,7 +33,11 @@ file uses it and adds only what deploy needs.
 **The plan as written.** 20 tasks, **about 51 engineer-hours, "roughly 7 working days for one
 engineer, 4 for two"** (plan §8, line 666). It is already a thin client: it adds no Panacea
 endpoint and no new Go module. It uses 17 `panacea-api` routes and **deliberately leaves out
-`P/promote`** (plan line 480), so N2 is not in it today. Four of the 20 tasks are built.
+`P/promote`** (plan line 480), so N2 is not in it today. **Built so far** *(second run, from the
+branch's log)*: `feat/phase-7-deploy` holds tasks 01-06 (domain, transport, reads, acts, connection,
+binding: commits `70c66ecc`, `5940041c`, `fd953dd6`, `a1ecd4f8` and their fix rounds) and part of
+07, the watcher (`16f189db`, `db9cc518`, `0477c5a4`). That is about 14 of the 51 hours, not the
+"4 of 20" in the brief for this study. Nothing of it is merged.
 
 **What that means for this study.** Phase 7 is small because the deploy product already exists:
 it is Panacea. The question is not "which platform replaces a 20-task build" but **"what else
@@ -46,15 +50,17 @@ Read from Panacea's source at `efc637879` (2026-09-30), read-only. Nothing was r
 
 | Need | What Panacea already has | Where |
 |---|---|---|
-| N1 preview per branch | per-branch environments, per-branch auto-deploy, access posture (SSO, IP list, password, bypass tokens), URL prefix | plan §4 rows 4, 14-17 |
-| N1 ship | `POST P/deploy` starts a Tekton pipeline with scans; cancel | plan §4 rows 11-12 |
+| N1 preview per branch | per-branch environments, a preview policy, per-branch auto-deploy, access posture (SSO, IP list, share links), URL prefix | `routes/routes.go:1162-1164`, `:1308-1309`, `:1424-1442`, `:1313-1314` |
+| N1 data per preview *(second run)* | **copy-on-write database branching**: a preview branch gets its own CloudNativePG cluster recovered from production's backup, opt-in via `panacea.io/branch-database=true`, "honest degrade" to the shared DB; **sanitised data previews** (D10): a redaction pass before the app gets a connection string | `clients/db_branch_ops.go:17-41`; `clients/branch_data_ops.go:15-46`; `STATUS.md:91-95` |
+| N1 ship | `POST P/deploy` starts a Tekton pipeline with scans; cancel | `routes.go:1286`, `:1291` |
 | N2 promote | `POST /api/v1/projects/{name}/promote` and `POST …/envs/{env}/stage/promote` | `routes/routes.go:1027`, `:2818` |
-| N2 gate | a posture-policy engine: platform baseline plus team/project tightening, per-check `block` or `ack`, fail-closed, gating **prod-deploy** | `STATUS.md:128-135`; `handlers/security_policy.go` |
-| N3 rollback | `POST P/deployments/{id}/rollback`, with warmth and cold-start seconds | plan §4 row 13 |
+| N2 gate | a posture-policy engine: platform baseline plus team/project tightening, per-check `block` or `ack`, fail-closed, gating **prod-deploy** | `STATUS.md:125-135`; `handlers/security_policy.go` |
+| N2 ladder *(second run)* | a **deployment-stage ladder**, innovation < secure-test < production, each a bundle of existing controls: scans per action, SSO, data-class ceiling (`none` < `synthetic` < `protected`), risk state, backup, and the approver (none, owner, SuperAdmin) | `handlers/deployment_stages.go:39-97`, bundles `:176-259` |
+| N3 rollback | `POST P/deployments/{id}/rollback`, with warmth and cold-start seconds | `routes.go:1026`; `handlers/projects.go:1547` |
 | N4 evidence | **a per-release evidence document**: release identity (digest, commit, env, PipelineRun), the recorded scan verdicts for *that* release, signature and SBOM references "honestly absent when they did not" exist, ISM control states, and the audit chain verified at export | `GET /api/v1/projects/{name}/releases/{release}/evidence`, `routes.go:2720`, `handlers/evidence_export.go` |
 | N4 signing | **Tekton Chains**, deployed as an Argo CD app, signs each build's SLSA v1 provenance and image signature with a Vault Transit key (`panacea-release`); no public Sigstore, transparency log off. **Kyverno** verifies signatures at admission, in **Audit** mode | `kubernetes/argocd-apps/platform/tekton-chains.yaml`; `docs/runbooks/tekton-chains-signing.md`; `STATUS.md:135-138` |
 | Drill-in UI | **the Panacea Portal is a Backstage app** behind Keycloak OIDC | `backstage/`, `deploy/portal/deploy-portal.yaml` |
-| Agent access | **`panacea-mcp`**, a stdio MCP server with 25 named tools, among them `panacea_deploy`, `panacea_rollback`, `panacea_logs`, `panacea_diagnose` and `panacea_security_status`; mutating tools need `confirm: true` | `services/panacea-mcp/src/index.ts`, `README.md:144-202` |
+| Agent access | **`panacea-mcp`**, a stdio MCP server with **31 tools** (the first run said 25; the source has 31 `name: "panacea_…"` entries), among them `panacea_deploy`, `panacea_rollback`, `panacea_logs`, `panacea_diagnose`, `panacea_security_status` and the `panacea_api_request` escape hatch; mutating tools need `confirm: true` | `services/panacea-mcp/src/index.ts:249-578`; `00-panacea.md` §4.1 |
 
 **The one thing Panacea does not know is the brief.** Its release knows commit, digest, scans and
 signatures. Nothing in it records which Define artifact the release answers. That gap is the
@@ -71,7 +77,34 @@ product-specific part, and it is small.
 
 ## 2a. Each need mapped onto Panacea's routes and MCP tools
 
-*(pending, second run)*
+`P` = `/api/v1/projects/{name}`; lines are `services/panacea-api/routes/routes.go` unless named;
+tools are `services/panacea-mcp/src/index.ts`. Re-read in Panacea's tree on 2026-09-30 (grep only).
+**Who** says which side may act: the **agent** (untrusted, through `panacea-mcp` and a scoped token)
+or a **human** (a held act in the cockpit, or Panacea's Portal).
+
+| Need | `panacea-api` route | `panacea-mcp` tool | Who | Gap for us |
+|---|---|---|---|---|
+| N1 ship a branch | `POST P/deploy` `:1286` (developer + section-writable); `POST P/code` `:1033` pushes files and deploys; per-branch auto-deploy `:1308-1309` | `panacea_deploy` `:404` | agent for a preview; human for the production branch | Panacea builds only **pushed** commits (plan §8, `clients/pipeline.go:174`), so phase 3's push comes first; the request carries no brief (`models/models.go:2342-2372`) |
+| N1 watch and fix | run `:1290`, logs `:2288`, log SSE `:2283`, readiness SSE `:2286`, AI failure analysis `:2291`, pods and events `:1148-1155` | `panacea_logs`, `panacea_diagnose`, `panacea_events`, `panacea_pods_list`, `panacea_deploys_latest` | agent | none: this is the loop that lets an agent fix its own failed deploy |
+| N1 preview policy and access | previews `:1162`, preview policy `:1163-1164`, branch SSO and IP list `:1424-1426`, access `:1430-1431`, share links `:1440-1442`, reviewer comments `:2931-2939` | only through `panacea_api_request` `:578` | human (owner-level settings) | no named tool; these are settings screens the Portal already has |
+| N1 data per preview | none: opt-in by the project label `panacea.io/branch-database=true` (`handlers/preview_data.go:31-35`) | none | platform | **no route writes the label** after creation; `CreateProjectRequest.Labels` (`models/models.go:650`) passes labels through at create (`handlers/projects.go:360-374`), so it can plausibly be set then. Not tested |
+| N2 promote | env to env `POST P/promote` `:1027` (`handlers/projects.go:1643-1690`); stage ladder `GET/PUT P/envs/{env}/stage` `:2814-2816`, `POST …/stage/promote` `:2818`, `POST …/stage/approve` `:2860` (owner route; the production rung wants SuperAdmin, `deployment_stages.go:259`); project floor `PUT P/stage-floor` `:2862` (owner) | none named; `panacea_api_request` reaches them | **human only** | an agent's developer-capped token can call `P/promote`; see the allowlist in §6 |
+| N2 gate by data class (`OD-24`) | a promote **to production** runs the budget gate (`projects.go:1674`), the risk gate, then posture **and** stage (`projects.go:2894-2927`); the stage bundle holds the data-class ceiling | `panacea_security_status` | platform | **no route writes `panacea.io/data-classification`** (03-define G7 hands this step to us); production is **unreachable by construction until DLP label enforcement is live** for the project (`deployment_stages.go:46-59`, `STATUS.md:85-86`) |
+| N3 rollback, redeploy | rollback `:1026` (`projects.go:1547`), redeploy `:1028`, cancel `:1291` | `panacea_rollback` `:439`, `panacea_redeploy` `:425` | agent on a preview; human on production | none |
+| N3 history | `GET P/deployments` `:1024`, `GET P/deploys/latest` `:1025` (`version`, `commit`, `branch`, `environment`, `failedStep`) | `panacea_deploys_list` | both | none |
+| N4 evidence | `GET P/releases/{release}/evidence` `:2720` (`handlers/evidence_export.go`) | only through `panacea_api_request` | both | **knows no brief**; signatures "honestly absent" while `sign-release.yaml` is unwired (`STATUS.md:135-138`) |
+| N4 agent instructions | `GET P/agent-context` `:1086`, `GET P/skill-md` `:1072-1073`, `GET /api/v1/docs/agents` `:642` | — | agent | none: an agent learns how to deploy here from Panacea itself |
+| Identity for all of it | a `pnc_` token (`middleware/api_key.go:19`); minting needs the user's SSO session (`handlers/api_keys.go:112-116`) | `PANACEA_TOKEN` | — | our realm token is refused on REST (`middleware/auth.go:245-251`); 00-panacea §5.3 ranks the ways through |
+
+**Five gaps, and whose they are.**
+
+| # | Gap | Size | Who closes it |
+|---|---|---|---|
+| P-1 | The deploy request carries no brief pin | 0.5-1 day in Panacea: one optional field, passed to the PipelineRun as a parameter so Chains signs it | Panacea stream (the plan's metadata ask, task 20) |
+| P-2 | No route writes `panacea.io/data-classification` | about 0.5 day in Panacea: an owner-gated, audited `PUT` | Panacea stream; until then we set the **stage floor**, which is the part `OD-24` needs (scans) |
+| P-3 | Our realm token is not trusted, so a sandbox cannot get its own short-lived token | 1-2 days in Panacea (00-panacea §5.3, option 1) | Panacea stream; until then one pasted `pnc_` per user behind our proxy |
+| P-4 | Release signing is written but not wired; Kyverno verifies in Audit | Panacea's own backlog (`STATUS.md:135-138`) | Panacea stream; our Hub-side signature (§6) does not wait for it |
+| P-5 | An environment on the **production rung** cannot be reached until DLP enforces for the project. An environment with no rung set sits on **innovation** (`deployment_stages.go:500-518`), where a production deploy needs no scan at all | Panacea's DLP track 6p (`STATUS.md:87-89`) | Panacea stream; an owner call on what "production" means at first ship (§7) |
 
 ## 3. Candidates
 
