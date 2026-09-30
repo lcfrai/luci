@@ -319,7 +319,62 @@ report says.
 
 ## 5. The corrected recommendation
 
-*(to be filled)*
+**Adopt Penpot 2.18.x (MPL-2.0 core) as the Design canvas. The choice is upheld; the plan
+around it changes.**
+
+1. **Install:**
+   - Upstream chart 1.10.0 on AKS in Australia East, images pinned by digest.
+   - **Turn the admin console off**: remove `enable-admin-console` and disable `adminConsole`.
+   - Telemetry off; OIDC-only flags; `enable-access-tokens` and `enable-webhooks`; secrets
+     from the vault.
+   - Azure PostgreSQL Flexible Server, Valkey 8 (BSD-3), and Blob through S3Proxy, with Azure
+     Files as the fallback.
+   - Panacea's snippets as the report lists them.
+2. **Agents design only through runners.** Each concurrently active lane file gets:
+   - one Keycloak-local bot identity
+   - one MCP key
+   - one headless Chromium runner in the Kata pool, with egress to Penpot only
+
+   Agent code never runs in a person's tab on real data. The human-tab mode is for demos.
+3. **The relay** routes each lane to its bot's key. It wraps every `execute_code` and
+   `export_shape` in a file-id guard, and it logs each call to the audit trail. The sandbox
+   never holds a key.
+4. **G10, CSP at our ingress:** `connect-src` and `frame-src` limited to Penpot, the Hub and
+   our plugin origin. This blocks exfiltration by `fetch`, and it is our plugin allowlist
+   until Enterprise is bought. Spike it first.
+5. **People:**
+   - Penpot opens as a top-level window: Orca's per-worktree Chromium, or a Tauri WebView
+     window.
+   - Each person accepts a team invitation once.
+   - Approval is our Penpot plugin: `saveVersion` plus `pin()` in the approver's tab, and the
+     bundle goes to the Hub, as the report has it.
+6. **Days: ~13 engineer-days.**
+   - With two engineers, about 7 calendar days.
+   - Agents on real data from about day 6.
+   - Demo mode after about 5 engineer-days.
+7. **Fallbacks, if the runner spike fails:**
+   - First, the **OpenPencil CLI** inside the sandbox: headless on `.fig` files in the
+     worktree, MIT.
+   - Not `zcube/penpot-mcp-server`, which has no licence file.
+   - Degrading to "agents only while a human tab is open" is not acceptable for real data
+     (2.5).
+
+**The trade-off in one line:** Penpot is the only fully-fledged, multiplayer, self-hostable
+canvas today. The price is a browser-bound MCP, which means a runner per lane, and an open-core
+drift that will probably end in a licence purchase.
+
+**Owner calls, corrected (money or customer-visible):**
+
+| # | Call | Recommendation |
+|---|---|---|
+| A | **Penpot Enterprise for self-host.** The pricing page says *"$25/user/month"*, *"Starting at $950 / month"*; the enterprise page says *"$950 per month, regardless of team size"*. It holds the plugin allowlist, audit logs and identity governance a regulated customer will ask for. This replaces the report's call 4, which priced *"Private Server $50k"*, a cloud product | Run the free edition in our own environment now. **Get a written quote before the first customer install** |
+| B | **The closed admin console** (`penpot-nitrate`, licence `NOASSERTION`) is *"not required in this version, but it will be in a future release"* | Accept that Penpot is going open-core. Price it inside quote A. Until then the licence gate records it as "commercial, not deployed" |
+| C–F | The report's calls 1, 2, 3 and 5, unchanged: withdraw `OD-11`'s clean-room build and `OD-34`; customers see Penpot's UI; frames are vectors, not live HTML; a Figma adapter only on demand | As the report says |
+
+**Checked and not a contender:** Grida (`gridaco/grida`, Apache-2.0) is at v0.0.6 (July 2026),
+with components and instances *"not yet implemented"* and no MCP (third-party summaries, not
+opened). Glasses still holds no design canvas other than Onlook (searched "design canvas",
+"figma", "grida penpot").
 
 ## 6. What was not verified
 
