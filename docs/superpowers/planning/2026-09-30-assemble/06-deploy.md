@@ -510,11 +510,50 @@ egress IP on Panacea's edge allowlist. P-4 and P-5 are Panacea's own backlog.
 
 ## 7. Calls only the owner can make
 
-*(pending)*
+Business calls only: money, or what a customer sees. Everything technical above is decided.
+
+1. **What "production" means for a customer at first ship (customer-visible).** Panacea's ladder
+   puts protected data on the production rung, and that rung opens only when Panacea's DLP
+   enforcement is live for the project (P-5). **Recommend:** first customer releases go to the
+   **secure-test** rung (SSO enforced, enforced scans, synthetic data only) and are called a
+   *pilot*; production for protected data follows Panacea's DLP track. The alternative, leaving
+   production environments with no rung, is live today but asks for no scan on a production
+   deploy, which a regulated customer should not be offered.
+2. **Whether users see Panacea's Portal (customer-visible).** v1 deep-links from the Orca panel into
+   Panacea's Backstage pages for logs, scans, governance and approval, so users meet a second,
+   Panacea-branded UI. **Recommend yes for v1.** The alternative is building those screens in
+   Orca: tasks 12, 17 and 18 come back, about 2-3 more days.
+3. **Who pays to run shipped apps (money).** Every release is a Panacea project, billed through
+   Panacea's job code and team budget (`models/models.go:652-660`); a promotion pauses when the team
+   is over budget (`handlers/projects.go:1672-1676`). A database per preview needs point-in-time
+   recovery, which the shared database tier does not have (`clients/db_branch_ops.go:36-41`), so
+   branching previews costs the dedicated tier. **Decide:** the default job code and budget for a
+   PanaceaApp project, and whether previews of protected-data projects get the dedicated tier.
+4. **Later, only on demand (money):** if a customer mandates a ServiceNow change ticket per
+   promotion, buy Octopus Deploy Server Enterprise ($15,600 a year as listed, self-hosted, 3.8)
+   rather than build it.
 
 ## 8. Revised for the owner's second direction
 
-*(pending)*
+The first run (stopped 09:47) already made Panacea the deploy step. The second direction did not
+reverse that; it asked that the answer be **earned against the allowed alternative** and fitted
+to **Orca**. What changed, and why:
+
+| What | First run | Now | Why |
+|---|---|---|---|
+| The comparison | Coolify rejected on its own | Coolify **plus Supabase plus Panacea snippets** costed as a whole deploy step: 16-24 days, weaker isolation (3.9) | the owner allowed that stack; judged on merit it still loses |
+| Supabase | not examined | reject for deploy (3.10) | branching is hosted-only on AWS; Panacea already branches and redacts preview data |
+| The cockpit surface | a deep link from the Tauri Deploy lens | one Orca panel (G1); tasks 13-18 leave | Orca is the owner's cockpit |
+| Azure Container Apps | integrate later, for customer tenancies | reference, only if a customer refuses a cluster | Panacea is the strong default, and the customer-hosted tier is the lifted Panacea on AKS |
+| Promotion (N2) | noted as missing from the plan | built as G3 on Panacea's **stage ladder**, found this run | the ladder is `OD-24`'s "class decides the scans", already running |
+| Data per preview | not examined | Panacea's copy-on-write database branching, found this run | the Supabase question made us look |
+| Agent tokens | "later" (3.8) | G4, the allowlist, in v1 | an agent in every Orca session can reach `P/promote` without it |
+| Days | 5 | about 6 | G3 and G4 are new; the Orca panel replaces 17 plan-hours of Tauri lens |
+| Facts | 25 MCP tools; 4 of 20 tasks built | 31 tools; tasks 01-06 and part of 07 built | re-read from source and the branch log |
+
+**What the relaxed `OD-13` changes here: nothing we need to copy.** Deploy calls Panacea rather
+than copying it. The snippets priced in 3.9 are what Coolify would need, which is the argument
+against it. If the lift happens, the connector's `deploy.Deployer` seam makes it a swap.
 
 ## 9. What this study did not verify
 
