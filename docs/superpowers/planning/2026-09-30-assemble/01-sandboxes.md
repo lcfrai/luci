@@ -1,8 +1,8 @@
 # 01 — Cloud agent machines: buy, adopt or integrate instead of build
 
-**Status:** REVISING for the owner's second direction (relaunch, 2026-09-30); the first run
-(stopped 09:47) stands except where section 1a says otherwise. Desk research only: nothing
-installed or run (section 7).
+**Status:** COMPLETE, revised for the owner's second direction (relaunch, 2026-09-30). The first
+run (stopped 09:47) stands except where section 1a says otherwise; revised passages are marked
+*(revision)*. Desk research only: nothing installed or run (section 7).
 **Date:** 2026-09-30. **Capability:** isolated per-session sandboxes that run unmodified
 coding-agent CLIs (Claude Code, Codex, Gemini CLI) with a real PTY, warm pools, microVM-class
 isolation, on Azure or bought with an AU region, driven by API as a `Backend` of our Go control plane.
@@ -45,14 +45,15 @@ Relaunch, 2026-09-30, after the first run stopped at 09:47. The core answer stan
 |---|---|---|---|---|
 | 1 | How the cockpit reaches a cloud session | A thin `remotebe` in our desktop, over an in-cluster control plane | **Orca's per-workspace environment recipe** (`orca.yaml` → `environmentRecipes`). Its `create` script asks our control plane for a sandbox; at bind the sandbox starts Orca's headless runtime (`orca serve`) and hands back the pairing code; Orca streams terminals over its own end-to-end-encrypted WebSocket | The owner picked Orca. The recipe is Orca's documented seam for "a cloud sandbox, VM, or local Docker container" per worktree |
 | 2 | Days to the first cloud session | 7 (5 to 9) | **8 (6 to 10)** | +0.5 to package Orca's runtime into the image; +0.5 for the Orca recipe. The `remotebe` share of the old glue becomes an authenticated `wss://` route to each sandbox |
-| 3 | Panacea | The model only (`OD-13` then forbade copying) | **Used where it is the better answer** (4.15): its hardened pod spec, deny-egress policy, package mirrors, tenant network baseline and Terraform are copied with attribution; its Keycloak realm, LiteLLM gateway and Trivy scans are called, not rebuilt. **It is not the sandbox host** | Owner: "Panacea is fine to use majority of"; snippets now allowed |
+| 3 | Panacea | The model only (`OD-13` then forbade copying) | **Used where it is the better answer** (4.15): its hardened pod spec, deny-egress policy, package mirrors, tenant network baseline and Terraform are copied with attribution; its Keycloak realm, LiteLLM gateway and Trivy scans are called, not rebuilt; `panacea-mcp` ships in the image so an unmodified agent can deploy (00-panacea §4). **It is not the sandbox host** | Owner: "Panacea is fine to use majority of"; snippets now allowed |
 | 4 | Coolify, Supabase | Not considered | **Not used for this capability** (4.16): neither runs untrusted code in a microVM, keeps a warm pool, or hands out a PTY | Allowed by the owner; on merit they belong to deploy (06) and the Hub, not here |
 | 5 | SaaS sandboxes Orca already supports | Modal: "reference, a demo fallback" | Vercel Sandbox (now in Sydney), Modal (`au`) and Fly: **reference, the fastest Orca demo, not the product** (4.17) | Orca wires them today; none is Azure or our environment (`OD-18`, `OD-5`) |
 | 6 | A unit error | Phase 8 savings in "plan-days" | **Plan-hours.** The phase 8 task table's column is `Hours`; its 98.5 total is hours | The saving is 36 plan-hours to about 14, not 36 days |
 
 **Unchanged:** the adopt (AKS Pod Sandboxing + `agent-sandbox` 1.0 in Australia East), the ACI
 fallback and its switch rule, every reject (Daytona, Coder, E2B, Codespaces, Ona, DevPod), and
-owner calls 1 to 5.
+owner calls 1 to 5 (call 4 gains two disclosure lines; calls 6 and 7 are new options, both not
+recommended).
 
 **What Orca changes inside the sandbox:**
 
@@ -472,8 +473,8 @@ Why this and not a bought service, and not Panacea's cluster:
 | 0.5 | AKS in Australia East (Overlay + Cilium, Entra RBAC), an Azure Linux Kata pool on a nested-virt Dsv5 size with the cluster autoscaler, ACR. A scripted `az` runbook now, taking the Firewall and private-endpoint settings from Panacea's `deploy/firewall.tf` and `deploy/private-endpoints.tf`; phase 8 task 06's OpenTofu module codifies it after | this option |
 | 0.5 | Install agent-sandbox v1.0.4; one `SandboxTemplate` (our image, `kata-vm-isolation`, explicit requests, no service-account token, Panacea's Forge security context: UID 1001, read-only root, drop ALL, seccomp; a PVC); one `SandboxWarmPool`; time 10 parallel claims. The spike the 2026-09-28 study asked for, shrunk because upstream ships the AKS manifests | this option |
 | 1 | `katabe`: `Create` = a `SandboxClaim` through the Go SDK; `Get`/`List` from `Sandbox` status; `Destroy` deletes the claim; `Attach` dials the pod IP with the token | this option |
-| 1 | Image and late-bind: add Orca's Linux AppImage and its `xvfb`/GTK libraries to the sandbox image (never run it at build time). A warm pod starts unbound; the first `POST /bind`, reachable only from the control plane by NetworkPolicy, sets the per-session gateway token (`OD-19`), then starts `orca serve --json` with this sandbox's pairing address (or, off Orca, `sandboxd`'s PTY) and returns the ready block | this option |
-| 1 | Egress default-deny; allow DNS, the LiteLLM gateway, the git hosts (`OD-4`) and an in-cluster npm/PyPI mirror on Panacea's Verdaccio + proxpi pattern; Cilium FQDN policy, or phase 8 task 07's Azure Firewall; ingress only from the control plane and the pairing route | this option |
+| 1 | Image and late-bind: add Orca's Linux AppImage and its `xvfb`/GTK libraries to the sandbox image (never run it at build time), and Panacea's single-file `panacea-mcp` bundle (00-panacea §4). A warm pod starts unbound; the first `POST /bind`, reachable only from the control plane by NetworkPolicy, sets the per-session gateway token (`OD-19`) and the session's project-scoped, expiring `pnc_` token (minted as 00-panacea §5 says), then starts `orca serve --json` with this sandbox's pairing address (or, off Orca, `sandboxd`'s PTY) and returns the ready block | this option |
+| 1 | Egress default-deny; allow DNS, the LiteLLM gateway, the git hosts (`OD-4`), Panacea's API for `panacea-mcp` (Panacea's edge admits only KPMG AU corporate egress, `deploy/main.tf:580-602`, ISM-1416, so our cluster's egress IP must join `edge_allowed_ip_ranges`: a request to the Panacea side), and an in-cluster npm/PyPI mirror on Panacea's Verdaccio + proxpi pattern; Cilium FQDN policy, or phase 8 task 07's Azure Firewall; ingress only from the control plane and the pairing route | this option |
 | 1.5 | Worktree into the sandbox (seam S8.3): the control plane's git runner clones onto the sandbox's PVC before bind with `OD-22`'s read-only credential, so none enters the sandbox; work comes back under `refs/panacea/lanes/…` (`OD-2`, phase 3); pushes use the signed-in person's credential, outside the sandbox | shared glue |
 | 1.5 | The control plane in the cluster behind the Keycloak broker (`OD-30`, Panacea's realm), plus one authenticated `wss://` route per sandbox for Orca's pairing: TLS at the edge, the pairing code never logged (the first slice of phase 8 tasks 17 and 18) | shared glue |
 | 0.5 | The Orca recipe: an `environmentRecipes` entry and `create`/`suspend`/`resume`/`destroy` scripts that call the control plane with the user's token and print Orca's JSON. It replaces the thin `remotebe`; counted here, so 02 should not count it again | shared glue |
@@ -537,6 +538,9 @@ Why this and not a bought service, and not Panacea's cluster:
   microVM, not a breach of it. Its pairing has no documented revocation, so destroying the
   sandbox is the revocation. The upstream CLI for recipe environments (PR 22574) was closed
   unmerged on 2026-09-24; the desktop's recipe service is what we rely on.
+- *(Revision, Panacea)* Reaching Panacea from the sandbox (`panacea-mcp`, and Panacea's LiteLLM
+  if the gateway study picks it) needs our egress IP on Panacea's edge allowlist
+  (`deploy/main.tf:580-602`). Until then, day 8's smoke runs without `panacea-mcp`.
 - **Switch rule:** if day 1 cannot get Kata nodes in Australia East, or claim p95 stays above
   about 5 seconds after tuning, move to **ACI + standby pools (4.3)**: same Hyper-V isolation
   class, no cluster, about 2 extra days for a new `acibe`.
@@ -698,8 +702,9 @@ Panacea, read-only, `Projects/Panacea` working tree today:
 `deploy/forge/deploy-forge-orchestrator.yaml:61-101` ·
 `services/panacea-api/clients/tenant_ensure.go:20-190` ·
 `services/panacea-api/models/instance.go:70-87` · `services/panacea-api/routes/routes.go:83` ·
-`deploy/*.tf` (node pools, `firewall.tf`, `private-endpoints.tf`) · `deploy/apply.sh:38` ·
-`deploy/environments/panacea-aue.env:3-22`.
+`deploy/*.tf` (node pools, `firewall.tf`, `private-endpoints.tf`) · `deploy/main.tf:580-602`
+(the edge allowlist) · `deploy/apply.sh:38` · `deploy/environments/panacea-aue.env:3-22`.
+`00-panacea.md` §4 (`panacea-mcp` in every sandbox, a scoped `pnc_` token).
 This repo: the phase 8 task table's `Hours` column
 (`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment.md:558-633`);
 `OD-22` in the owner decisions (line 150); `02-fleet-cockpit.md` (Orca's figures, C6).
