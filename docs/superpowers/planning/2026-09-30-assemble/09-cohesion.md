@@ -215,7 +215,8 @@ themed at runtime without touching a Penpot file:
   the semantic variables for `.default` and `.light`: `--color-background-primary` to
   `-quaternary` from `--page`, `--canvas`, `--surface`, `--inset`; `--color-foreground-primary`
   and `-secondary` from `--ink`, `--ink-2`; `--color-accent-primary` from our teal (Penpot's own
-  dark accent is mint `#00d1b8`, its light accent purple); success, warning and error from
+  dark accent is mint `$mint-150` `#7efff5`, with `#00d1b8` in its selection tints, and its light
+  accent is purple `$purple-700` `#6911d4`); success, warning and error from
   `--run`, `--need`, `--fail`. G10's CSP (04-verify 2.5) must allow that one stylesheet.
 - **Flags off.** These exist in `common/src/app/common/flags.cljc` at 2.18.0, but their effect
   was not checked: `onboarding`, `dashboard-templates-section` and `subscriptions` (Penpot's
@@ -505,7 +506,7 @@ Teams.
 | K6 | **Lenses, not a pipeline** | Four equal lenses: unnumbered, no arrows, no ticks. Each opens from each other lens on a fresh project | Visit all twelve lens pairs |
 | K7 | **One palette** | ⌘K opens the same palette in Develop, on every Hub page and inside Penpot's editor, and every registered action is in it | The registry coverage test (§5.3); the chord pressed on each surface |
 | K8 | **One queue** | One synthetic event per source (a permission prompt, a ticket handed over, a Penpot mention, a failed deploy, changes requested, a Teams answer) each makes exactly one ranked Desk row. No count or badge appears anywhere else | Inject the six events; scan every surface for badges |
-| K9 | **One look** | Every surface we control renders our tokens: teal only on interactive or current state, warm graphite grounds, our status colours with shapes. None of Orca's `#0a0a0a` and `#171717`, Penpot's mint `#00d1b8` or its purple accent is visible | A computed-style probe of named elements per surface, then K14 |
+| K9 | **One look** | Every surface we control renders our tokens: teal only on interactive or current state, warm graphite grounds, our status colours with shapes. None of Orca's `#0a0a0a` and `#171717`, Penpot's mint `#7efff5` and `#00d1b8`, or its purple `#6911d4` is visible | A computed-style probe of named elements per surface, then K14 |
 | K10 | **One vocabulary** | No banned word (§5.5) on any surface we control. Panacea's errors arrive in our copy | The CI scan; a forced Panacea error during J7 |
 | K11 | **One clock** | Every live indicator shares `--beat`'s phase. No spinner per row, and Orca's rows carry no animation of their own | Read animation names and delays from the DOM during an 8-lane run |
 | K12 | **Quiet by default** | At most one OS notification or Teams digest per person per 15 minutes in an 8-lane run. No toast per agent, no modal from a background session | Count them over a timed 30-minute run |
