@@ -52,7 +52,7 @@ OpenTofu. GitHub API figures were read at 12:44 on 2026-09-30; Panacea is at `f0
 |---|---|---|---|
 | I1 | Keycloak is Apache-2.0, 26.7.4 of 2026-09-16 | API: `Apache-2.0`, 37,061 stars, `26.7.4` at 2026-09-16T14:44Z | **holds** |
 | I2 | Panacea runs Keycloak 25.0.0 on one replica (`main.tf:928`, `:954-957`) | `replicas: 1` and `--cache=local`. No image tag is set, so 25.0.0 is the chart default. The comment above records an SSO outage on 2026-09-21: two pod moves in 30 minutes, and each logged every user out | **holds, and has already failed once** |
-| I3 | Keycloak 26 persists user sessions by default | keycloak.org 26.0.0 notes: "In Keycloak 26, this feature is enabled by default" | **holds** |
+| I3 | Keycloak 26 persists user sessions by default | keycloak.org's 26.0.0 notes, as a search excerpt (page not fetched): "In Keycloak 26, this feature is enabled by default" | **holds** |
 | I4 | One realm change, no IT ticket | Holds per the ruling (K1-K4). But the issuer is Panacea's **dev** realm, `https://auth.dev.panacea.kpmg/realms/panacea` (ruling line 94), not production. The research never says so | **holds; name the estate** |
 | I5 | (not claimed) Is Keycloak 25 still patched? | `SECURITY.md`, "Supported Versions": fixes land "in the current `major.minor` release ... or ... the following". Longer support is only the Red Hat build (a paid subscription) | **new risk**: our sign-in rests on an IdP that gets no fixes |
 | G1 | LiteLLM: MIT root, `enterprise/` carve-out, GitHub `NOASSERTION` | Root `LICENSE`: `enterprise/` is under `enterprise/LICENSE`, and the rest is MIT. That licence allows production use only with a subscription "for the correct number of user seats"; dev and test copies are free | **holds**; the price basis is **per user seat** (the docs only say "deployment size") |
@@ -278,8 +278,94 @@ Supabase, no Coolify. Everything survives at source. What changes:
 
 ## 9. What I could not verify
 
-_Pending._
+1. **Nothing was installed, deployed or run**: not Keycloak, LiteLLM, Supabase, Coolify or
+   Claude apps gateway. Every capability here is from vendor pages, source files or the
+   GitHub API.
+2. **Panacea's live Keycloak version**: 25.0.0 is the chart default; the pod was not inspected
+   (the ruling's U-3 says the same).
+3. **The 2026-09-28 certificate findings** (§4) come from the owner's memory note, not a
+   re-check. Whether the dev estate behind `auth.dev.panacea.kpmg` shares that failure was
+   not checked.
+4. **LiteLLM's exact status code and wording for a budget refusal** (C3).
+5. **Claude apps gateway** is read from Anthropic's docs only. I did not test whether a
+   sandbox could reuse a device-flow session, and it should not.
+6. **Flexible Server**: the schema applied as the Entra administrator was not run (the same gap
+   as research §9.3). The General Purpose price was not retrieved: the Retail Prices API
+   ignored my product-name filter.
+7. **Estimates, not measurements**: the ticket sign-in (1 day), the fallback's 2.5 to 3 days,
+   the two 2-hour gateway items, and the 20.7 total are ours.
+8. **Coolify's Kubernetes status** is from a search summary; the page was not fetched. Its
+   Azure DevOps support (06-deploy's claim) was not re-checked.
+9. **Bedrock inside Australia**: which Claude models it serves in-region or through an `au.`
+   profile was not re-checked. AWS's inference-profile page now defers to per-model cards, so
+   the AU route still rests on phase 6 task 20.
+10. **The edge**: whether KPMG laptops could reach a private endpoint (ExpressRoute or VPN)
+    instead of a public WAF was not checked.
+11. **Not fetched today**: that Postgres `jsonb` does not keep key order (from knowledge), and
+    Keycloak 26's session-persistence default (a keycloak.org search excerpt).
+12. **Not re-verified, because they do not move the recommendation**: APIM, Bifrost, Portkey,
+    Envoy AI Gateway, Foundry's regions, AVM on OpenTofu, Azure confidential ledger, Electric,
+    NATS, Temporal and immudb.
+13. **Source limits**: the unauthenticated GitHub API quota ran out on the second batch, so
+    Supabase's component licences come from raw `LICENSE` files. The session's web-search
+    budget (200) also ran out, which is why item 9 was not searched.
 
 ## 10. Sources
 
-_Pending._
+**Research and plans (ours, read-only):** `07-platform.md` (all 365 lines);
+`02-fleet-cockpit.md` `:151`, `:178-179`, `:205`, `:247`, `:251`; `02-fleet-cockpit-verify.md`
+§0; `08-whole-product.md` `:510`, `:550`, `:562`; `2026-09-25-identity-keycloak-broker.md`
+lines 22-23, 94, 117, 121, 141, 483-503, 611. Hub plan
+`.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub.md:400-447`; on
+`feat/hub` at `cafe1303`: `migrate/roles.sql`, `migrate/sql/0001_init.sql`,
+`hubapi/canonical.go:14-21`. Phase 6 plan
+`.claude/worktrees/phase-6/docs/superpowers/plans/2026-09-25-phase-6-gateway.md` `:5`, `:34`,
+`:38`, `:68`, `:198`, `:286`.
+
+**Panacea at `f0a258d8e` (read-only, grep and `sed -n`):**
+
+- `deploy/main.tf:920-960`, `deploy/postgres-flexible.tf:253-290`, `deploy/versions.tf`,
+  `deploy/waf-appgw.tf:1-20`, and `deploy/*.tf` (the ISM counts);
+- `kubernetes/helm-values/litellm-values.yaml:26-34`,
+  `kubernetes/base/network-policies/allow-vvah-to-gateway.yaml:76-92`;
+- `services/panacea-api`: `routes/routes.go` `:1325`, `:1763-1764`, `:2911-2918`;
+  `handlers/llm_vkeys.go`; `handlers/llm_env_keys.go:100-110`;
+  `handlers/ai_settings.go:214-222`; `handlers/deploy_analysis.go:28-32`;
+  `clients/db_roles_ensure.go:95-110`; `clients/db_roles_ops.go:110-126`;
+  `clients/access_mode_inherit_test.go`;
+- `services/panacea-build/pkg/manifest/types.go:51-134`;
+- `backstage/packages/backend/src/index.ts:196-223`.
+
+**GitHub, 2026-09-30:**
+
+- **API (12:44):** `keycloak/keycloak`, `BerriAI/litellm`, `opentofu/opentofu`,
+  `coollabsio/coolify`, `supabase/supabase`, `supabase/auth`, `PostgREST/postgrest` and
+  `supabase-community/supabase-kubernetes`.
+- **Raw files:** the LiteLLM root `LICENSE` and `enterprise/LICENSE`; `keycloak/keycloak`
+  `SECURITY.md`; `supabase/auth` `README.md`; `supabase/supabase` `docker/.env.example`,
+  `docker/docker-compose.yml`, `docker/volumes/api/kong.yml` and
+  `docker/volumes/api/envoy/lds.template.yaml`.
+- **`LICENSE` of:** `supabase/realtime`, `supabase/storage`, `supabase/supavisor`,
+  `supabase/postgres-meta`, `Logflare/logflare`, `keycloakify/keycloakify`,
+  `adorsys/keycloak-config-cli` and `anthropics/claude-code`.
+
+**Web, 2026-09-30:**
+[LiteLLM enterprise](https://docs.litellm.ai/docs/enterprise) ·
+[LiteLLM security update, March 2026](https://docs.litellm.ai/blog/security-update-march-2026) ·
+[Claude Code: other LLM gateways](https://code.claude.com/docs/en/llm-gateway) ·
+[gateway compatibility guide](https://code.claude.com/docs/en/llm-gateway-protocol) ·
+[Claude apps gateway](https://code.claude.com/docs/en/claude-apps-gateway) ·
+[its spend limits](https://code.claude.com/docs/en/claude-apps-gateway-spend-limits) ·
+[Supabase self-hosting](https://supabase.com/docs/guides/self-hosting) ·
+[Supabase self-hosted auth keys](https://supabase.com/docs/guides/self-hosting/self-hosted-auth-keys) ·
+[Coolify OAuth](https://coolify.io/docs/knowledge-base/oauth) ·
+[AWS Bedrock inference profiles](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html) ·
+[Azure Retail Prices API](https://prices.azure.com/api/retail/prices) (PostgreSQL B2ms and
+Application Gateway WAF v2, Australia East).
+Search summaries only (not fetched):
+[Keycloak 26.0.0 release](https://www.keycloak.org/2024/10/keycloak-2600-released) (keycloak.org only) ·
+[Datadog Security Labs on the LiteLLM compromise](https://securitylabs.datadoghq.com/articles/litellm-compromised-pypi-teampcp-supply-chain-campaign/) ·
+[Coolify scalability](https://coolify.io/docs/knowledge-base/internal/scalability).
+
+**Memory (the owner's, read-only):** `panacea-prod-cert-renewal-coredns-servfail.md`
+(2026-09-28).
