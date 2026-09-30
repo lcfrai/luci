@@ -173,9 +173,59 @@ concurrent land queue, forecast and undo become host features under the customer
 - "Each lane's running app is reviewed in a Panacea PR preview": **GitHub only** for v1.
 - The trailer surviving a squash under the merge queue is still one test per host (researcher's §8).
 
-## 5. Phase 2 (ours) as the alternative
+## 5. The two best alternatives, tried the same way
 
-_To be written._
+### 5.1 Phase 2 (ours): the backend holds; freeze the desktop, do not delete it
+
+- **Claims hold at source.** `control-plane/internal/backend/backend.go:337-343` is the `Backend`
+  interface (`Create`, `Get`, `List`, `Attach`, `Destroy`), with `dockerbe` and `katabe` beside it;
+  `internal/{reaper,sandbox,worktree,proxy}` and `sandboxd/` exist; `MergeLens.tsx` and
+  `FilesLens.tsx` are 15-line placeholders. Note: there is no `Suspend` or `Resume` on the
+  interface, so Orca's `suspend` and `resume` scripts need 01's pause path added to it.
+- **As a cockpit, it loses on depth and wins on risk.** Orca has an inbox, subagents, diff notes and
+  a dashboard. Phase 2 has none of them, and matching them is 12 to 18 days (researcher's §3a).
+  But phase 2 avoids four of Orca's problems:
+  1. **`OD-8`:** its attention queue would come from Claude Code's typed hooks.
+  2. **EDR:** the Tauri desktop is a thin client with no local shells, PTY daemon or process scans,
+     so it should score far lower. Untested. It is also **unsigned today** (`tauri.conf.json` has no
+     signing config), so it needs a KPMG code-signing certificate either way.
+  3. **Trust:** the channel from the sandbox is terminal bytes only (3.4).
+  4. **Churn:** there are no daily upstream releases to track.
+- **Correction to R4.** "Retire the Tauri Develop views" should read **freeze them**: keep them
+  building in CI, but not as the product surface. Orca's repo is six months old, a 25-person
+  company makes it, and it says "no compatibility promises". The IT change (§6)
+  or an `OD-8` ruling could each stop the Orca desktop, and freezing costs almost nothing, because
+  the code is already built.
+- **Verdict: integrate** (the backend, as R4 says) plus **keep as the fallback cockpit**.
+
+### 5.2 Emdash (`generalaction/emdash`): still reference
+
+- **Licence: Apache-2.0**, from the API (`LICENSE.md`).
+- **Maintenance and install:** v1.2.7 on 2026-09-27, with weekly stable releases and a separate
+  canary channel; 5,882 stars, 97 open issues. It ships an **MSI**, which suits Intune better than
+  Orca's per-user `.exe`.
+- **Status:** it "installs marker-tagged entries in the agent's user-level config", which fits
+  `OD-8` better than Orca's OSC parse.
+- **Why it still loses:** remotes are "SSH/SFTP" machines you connect by hand. The README shows no
+  recipe seam that creates a sandbox per task, no plugin API and no Azure DevOps. A sandbox per lane
+  would need a fork. **Reference**, and the fallback if Stably AI changes course.
+
+### 5.3 Orca without the desktop: the fallback if IT says no
+
+`orca serve` also pairs a "browser client" (`ways-to-run.mdx`), and `--recipe-json` returns
+`pairing.webClientUrl`. Our control plane could start each lane itself, with no desktop recipe, and
+the Hub could link to each lane's web client behind oauth2-proxy and Keycloak. That puts SSO in
+front, as 01's verify wanted, and needs no Windows install, no Defender rule and no anchor clone.
+
+The costs:
+1. **One client per runtime** ("implicitly 1 client ↔ 1 server", #10687), so the fleet view becomes
+   a Hub page instead of Orca's sidebar.
+2. **Unknown parity:** the web client's features are undocumented, and plugins in serve mode are
+   unverified.
+
+**Not sized. Run a 0.5-day spike on day 1**: the web client behind a path-prefixed proxy (the
+researcher found `vite.web.config.ts` `base: './'`). Promote this route only if KPMG IT has not
+cleared the desktop by the end of week 1.
 
 ## 6. Integration days against our architecture
 
