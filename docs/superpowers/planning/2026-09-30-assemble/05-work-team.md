@@ -46,7 +46,7 @@ so paths are as of today's tree).
 | Panacea asset | What it does | Use for us | Verdict |
 |---|---|---|---|
 | Work items, boards, sprints | **None.** `git grep -i "workitem\|_apis/wit\|wiql"` over `services/` finds nothing | — | Panacea is not a tracker; ADO and GitHub stay |
-| **Team API** (`services/panacea-api/routes/routes.go:1897-2020`) | Teams are **Keycloak groups** (`handlers/team_onboarding.go:16-26`). Members list, add and remove; invite; join requests a team admin approves or denies; self-create gated by the cost-centre owner and a SuperAdmin (`handlers/team_create_approval.go`); per-team billing, cost, budget, git PATs, security and risk policy; project-to-owning-team RBAC (`routes.go:134-140`) | **The roster for Phase T and the team view**: `GET /api/v1/teams/{name}/members`, or a groups claim if the realm maps one for our client (not verified). The realm is Panacea's until phase 8 runs its own (`OD-30`) | **integrate (API), 0.5 day** |
+| **Team API** (`services/panacea-api/routes/routes.go:1897-2020`) | Teams are **Keycloak groups** (`handlers/team_onboarding.go:16-26`). Members list, add and remove; invite; join requests a team admin approves or denies; self-create gated by the cost-centre owner and a SuperAdmin (`handlers/team_create_approval.go`); per-team billing, cost, budget, git PATs, security and risk policy; project-to-owning-team RBAC (`routes.go:134-140`) | **The roster for Phase T and the team view**: `GET /api/v1/teams/{name}/members` with the user's `pnc_` token. Our realm token gets a 401 on Panacea's REST today, and the realm maps only the two admin groups into tokens (`00-panacea.md` §5.1-§5.2), so the clean path waits on the one Panacea change that inventory ranks first: trust our realm client's token | **integrate (API), 0.5 day** |
 | **Sticky comment upsert** (`services/panacea-build/pkg/prcomment/client.go:54`) | Creates the bot's PR comment or **updates it in place**, for GitHub, Gitea and Azure DevOps | **The one live status comment per session** (§7 piece 1). GitHub issue and PR comments share one endpoint (`/repos/{r}/issues/{n}/comments`, `client.go:78-85`), so that half ports as is, with its hard-coded `api.github.com` made a base URL for GHE.com; ADO work-item comments are another endpoint, so that half keeps the pattern and auth | **snippet** |
 | **Hook lifecycle** (`handlers/webhook.go`, `handlers/webhook_ado.go:17-42`) | Creates, lists and deletes GitHub hooks and **ADO Service Hooks subscriptions** (publisher `tfs`, consumer `webHooks`), matched on the delivery URL | The tracker's subscriptions: the same API with work-item events (`workitem.created`, `workitem.updated`, `workitem.commented`) | **snippet** |
 | **ADO hook check** (`services/webhook-receiver/providers/azuredevops.go:31`) | HMAC header or Basic secret, constant-time, rejects an empty secret | The service hook receiver | **snippet** |
@@ -463,7 +463,8 @@ Only these need the owner; everything else in this document is a technical call 
    team list across both products: joining, inviting, removing and creating a team go through
    Panacea's existing flow, including its cost-centre-owner and SuperAdmin approval for a new
    team (`team_create_approval.go`). The alternative is a second team model in the Hub, which the
-   lift-in (`OD-13`) would later have to merge.
+   lift-in (`OD-13`) would later have to merge. Until Panacea trusts our realm token
+   (`00-panacea.md` §5.3), each user mints one `pnc_` token in Panacea's portal for this.
 
 **Money: no new spend is needed.** ADO and GitHub are already licensed (an ADO service
 principal may take one Basic seat, $6/month). Panacea's parts, Orca (MIT) and the Teams SDK (MIT)
@@ -481,7 +482,7 @@ Supabase Cloud is not needed (a new processor, on AWS).
 | Customer processes vary | State categories (ADO) and open/closed (GitHub) avoid a mapping screen; a customer with exotic states gets a one-line override, not a wizard |
 | The Hub is 6/50 built | The edge is small; the control plane holds it until the Hub's route lands, then one migration |
 | Remote ADO MCP does not accept Claude Code yet | Ship the local ADO MCP server (MIT) in the sandbox image; agents are read-only on the tracker anyway |
-| PanaceaApp's teams depend on Panacea's API before the lift-in | Behind one small `roster` interface; sign-in already shares Panacea's realm (`OD-30`), so the dependency is not new |
+| PanaceaApp's teams depend on Panacea's API before the lift-in | Behind one small `roster` interface; sign-in already shares Panacea's realm (`OD-30`), so the dependency is not new. The call needs a user's `pnc_` token until Panacea trusts our realm token (`00-panacea.md` §5.3) |
 | Orca ships daily and our ADO source is a fork patch | Offer it upstream; keep it in one module. If upstream declines, the rebase cost per release is unknown |
 | Preview comments ride Panacea's shared parent-domain SSO cookie (`preview_comments.go:21-25`) | Works while previews are on Panacea's domain (phase 7); a customer-hosted estate needs the same domain arrangement |
 
@@ -531,14 +532,17 @@ third-party-auth pages; Claude Code's agent-teams page.
    Linear token.
 10. **Panacea's team API as a PanaceaApp caller**: the team routes run `selfService`, which is
     Panacea's `pnc_` API-key check (narrowed to the owner's live Keycloak groups), its SSO auth
-    and its audit (`routes.go:3162-3182, 3349-3355`), so a user's `pnc_` token works. Whether our
-    own Keycloak access token is accepted as a bearer, and whether the realm can put group
-    membership in a claim for our client, were not read.
+    and its audit (`routes.go:3162-3182, 3349-3355`), so a user's `pnc_` token works.
+    `00-panacea.md` §5.2 (read after §0.1 was written) confirms that a realm access token gets a
+    401 on Panacea's REST and that minting a `pnc_` needs the user's SSO session in Panacea's
+    portal. Until Panacea trusts our realm client's token, the roster call rides a `pnc_` the
+    user mints once; that flow was not tried.
 11. **The snippets were read, not run**: the sticky-comment, hook-lifecycle and hook-check code
     is quoted by path; its behaviour against ADO work-item comments, and OpenBao's transit API
     for the signed head, are expected to match and were not tried.
 12. **Supabase with Keycloak tokens**: the docs ask for asymmetric JWTs with a `kid` from an OIDC
     issuer; Keycloak's default signing should fit, not tried. The Sydney region comes from a
     search summary of Supabase's regions page, not the page itself.
-13. **`00-panacea.md` was a skeleton** while this revision was written; §0.1 rests on this
-    agent's own read of Panacea and should be cross-checked against that inventory when it lands.
+13. **`00-panacea.md` was a skeleton** while most of this revision was written; §0.1 rests on
+    this agent's own read of Panacea. A late cross-check against it (217 lines by then) agrees on
+    preview comments and corrected the token path (item 10); the rest was not re-compared.
