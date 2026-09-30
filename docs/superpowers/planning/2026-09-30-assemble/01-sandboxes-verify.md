@@ -1,6 +1,6 @@
 # 01 — Cloud agent machines: the sceptic's verification
 
-**Status:** IN PROGRESS (skeleton). Sections are filled one at a time and committed after each.
+**Status:** COMPLETE (2026-09-30).
 **Date:** 2026-09-30. **Verifies:** `01-sandboxes.md` (the researcher's recommendation).
 **Role:** sceptic. Try to refute the recommendation and its two best alternatives at source:
 licence, the vendor's own docs, paid-tier gates, maintenance, and whether the days fit OUR
@@ -9,25 +9,55 @@ Desk research only: nothing installed or run.
 
 ## 0. Verdict first
 
-*(to be filled)*
+**UPHELD, with corrections.** The adopt stands: AKS Pod Sandboxing plus
+`kubernetes-sigs/agent-sandbox` v1.0.4 as `katabe`, in our own AKS in Australia East.
+
+- **Why it survives:** agent-sandbox is Apache-2.0 at source and releases weekly (v1.0.4 on
+  2026-09-24). Pod Sandboxing is a documented Microsoft feature (page updated 2026-09-18, no
+  preview banner) on Hyper-V with Cloud Hypervisor. The warm pool, claim, suspend and an
+  HPA-ready scale subresource are all in the `v1beta1` CRDs. No alternative meets egress control,
+  a disk, and Orca's `wss://` pairing together.
+- **What does not survive:**
+  1. **8 days becomes about 10 (8 to 13), counted from day 0.** Day 0 is a subscription, Kata
+     quota, a feature registration and two requests to the Panacea side. Nobody has counted it,
+     and it decides the date more than any technical choice (section 7).
+  2. **Egress is not default-deny out of the box.** Upstream's default template policy allows
+     the public internet (2.3 row 8).
+  3. **Our own code fails on day 1.** `manager.go:20` hardcodes `kata-mshv-vm-isolation`;
+     Microsoft's name is `kata-vm-isolation` (2.3 row 1).
+  4. **Warm claims and per-user disks conflict.** A claim that brings its own env or volumes is
+     cold-started, so a warm session starts on an empty disk (2.3 rows 5 to 7).
+  5. **The Orca route is not SSO.** Orca's pairing credential authenticates it; our edge adds
+     TLS and a source-IP allowlist (section 6).
+- **In our favour:** Orca documents Windows recipe scripts; every Panacea fact checks out; the
+  mirror images (Verdaccio, proxpi) are MIT.
+- **Alternatives:** ACI + standby pools stays the fallback (2 to 3 days to switch; its claim and
+  config-map calls are documented only on `2024-05-01-preview`). ACA dynamic sessions stays
+  reference, and it fails Orca's pairing outright.
+- **Missed candidate:** `agent-substrate/substrate` (Apache-2.0, Google-backed, pre-1.0, set up
+  for GKE): reference (section 8).
 
 ## 1. What was checked, and how
 
 All reads on 2026-09-30. Nothing installed, deployed or run; no Azure subscription touched.
 
 - **The report under test:** `01-sandboxes.md`, all 710 lines.
-- **At source, GitHub API** (it answered this time, no 403): repo metadata, `/license` and
-  releases for `kubernetes-sigs/agent-sandbox`; licences for `kata-containers/kata-containers`,
+- **At source, GitHub API** (it answered for most of the pass; the unauthenticated rate limit
+  hit near the end, section 9): repo metadata, `/license` and releases for
+  `kubernetes-sigs/agent-sandbox`; licences for `kata-containers/kata-containers`,
   `stablyai/orca`, `verdaccio/verdaccio`, `EpicWink/proxpi`; agent-sandbox's `go.mod` and CRD
   types at tag `v1.0.4` (`api/v1beta1/sandbox_types.go`,
   `extensions/api/v1beta1/{sandboxclaim,sandboxtemplate,sandboxwarmpool}_types.go`), its Go
-  SDK README and its AKS example page.
+  SDK README and its AKS example page; Kata's `src/runtime` defaults; Orca's recipe guide,
+  Windows reference and headless-server doc; Agent Substrate's README and LICENSE.
 - **Vendor docs:** Microsoft Learn `use-pod-sandboxing` and `considerations-pod-sandboxing`
-  (both updated 2026-09-18), the ACI standby-pool and ACA dynamic-sessions pages (sections 3
-  and 4), the Azure Retail Prices API (Australia East, Linux, pay-as-you-go).
-- **Our code:** `control-plane/internal/backend/katabe/kata.go`,
-  `control-plane/internal/sandbox/manager.go`, `control-plane/go.mod`, `infra/terraform/kata.tf`;
-  the phase 8 plan by grep.
+  (both updated 2026-09-18), the ACI and ACA pages named in sections 3 and 4, and the Azure
+  Retail Prices API (Australia East, Linux, pay-as-you-go). Web searches for ACNS pricing,
+  managed node auto-provisioning and Falco on Kata.
+- **Our code and plans:** `control-plane/internal/backend/katabe/kata.go`,
+  `control-plane/internal/sandbox/manager.go`, `control-plane/cmd/api/config.go`,
+  `control-plane/go.mod`, `infra/terraform/kata.tf`; by grep, the phase 8 plan, the identity
+  ruling (`2026-09-25-identity-keycloak-broker.md`) and `02-fleet-cockpit.md`.
 - **Panacea, read-only greps:** `services/forge-orchestrator/preview/manager.go`,
   `deploy/forge/deploy-forge-orchestrator.yaml`, `deploy/*.tf`,
   `docs/superpowers/plans/2026-06-04-magic-roadmap.md`.
@@ -340,4 +370,35 @@ today, because it decides the date more than any technical choice here.
 
 ## 9. What could not be verified
 
-*(to be filled)*
+Nothing was installed, deployed or run. Every fact above is from source files, vendor pages or
+the GitHub and Azure Retail Prices APIs, read on 2026-09-30.
+
+**Would change the recommendation if wrong:**
+
+1. Claim latency on AKS with our image. "A couple of seconds" is upstream's figure on its own image.
+2. Kata-capable D-series v5 capacity and quota in Australia East, and the subscription's lead time.
+3. That Orca's runtime (Electron, Xvfb, Chromium's sandbox as UID 1001) runs inside a Kata pod VM
+   of fixed memory.
+4. Whether Orca's client can carry any extra credential to our edge, and how a pairing is revoked
+   (02 read "each paired client gets a revocable token" in Orca's source; not re-read here).
+
+**Recorded, not load-bearing:**
+
+- Whether AKS's own Kata build turns guest seccomp on (upstream's default is off).
+- Falco inside Kata: third-party write-ups only, no Falco primary doc.
+- The ACNS price in Australia East (Microsoft's pricing page did not render a figure).
+- Azure Firewall Standard now also has a "Standard Capacity Unit" meter (US$0.07 an hour each,
+  Retail Prices API). How many units a dev cluster draws was not checked, so the report's
+  US$910 a month for the firewall is a floor.
+- ACI: whether a GA API version carries `standByPoolProfile` and config maps; the meter for
+  waiting standby groups; whether a UDR to Azure Firewall is supported for VNet container groups;
+  claim latency.
+- ACA: WebSocket through the pool endpoint; UDR on session egress; the ceiling on
+  `maxAlivePeriodInSeconds`; the E16 billing claim.
+- The Azure SDK for Go licence (the report says MIT); Coolify and Supabase facts (not re-read).
+- Self-hosted Karpenter's Kata support: merged 2026-09-04 (PR 1721); the release carrying it was
+  not checked.
+- KPMG desktop script policy (PowerShell execution policy, WDAC) for Orca's recipe scripts.
+- Agent Substrate's stars, release cadence and any AKS support. The GitHub API hit its
+  unauthenticated rate limit late in this pass (shared egress address), so its README and
+  LICENSE were read from raw GitHub.
