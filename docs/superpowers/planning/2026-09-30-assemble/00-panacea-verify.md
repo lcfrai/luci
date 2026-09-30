@@ -133,7 +133,34 @@ days, not 1-2) and a guard on legacy key minting.
 
 ## 5. Alternative: Coolify plus Supabase (the owner's named option)
 
-_Pending._
+06-deploy-verify §4 already tested this pair as a deploy step and upheld the reject at 18-26
+days. This section agrees on the shared facts and adds what this cluster owns: sign-in, the
+shipped app's backend, and the cockpit's ability to create one. Read 2026-09-30 from Coolify's
+tag `v4.3.23` and branch `v4.x` (raw files), its release feed and docs index (`coolify.io/docs/llms.txt`),
+Supabase's self-hosting, regions and pricing pages, and `supabase/supabase` `docker/` on `master`.
+
+| Claim in `00-panacea.md` | At source | Verdict |
+|---|---|---|
+| Both Apache-2.0; Supabase Auth MIT | `LICENSE` files: Coolify (`v4.x`) and `supabase/supabase` Apache 2.0; `supabase/auth` MIT | **holds**; nothing restricted, portable to a customer's cloud |
+| Coolify stable is v4.3.23 (2026-09-18) | release feed: v4.3.23 at 2026-09-18, six 4.3.x releases in September; `config/constants.php:5` | **holds**; active, one company, community support only when self-hosted |
+| Coolify OIDC only in a 4.4 RC | at `v4.3.23` the OAuth seeder lists `azure`, `authentik`, `zitadel` and others but **no `oidc`** (`database/seeders/OauthSettingSeeder.php:19-28`); `oidc` exists on `v4.x` only (`:26`) | **holds for Keycloak.** Understated for Entra: direct Entra sign-in is stable, but it needs "an app registration, tenant ID, and client secret" (docs, Azure OAuth page), which is an IT ticket and a bypass of `OD-30`'s broker |
+| No Azure DevOps (fails `OD-4`) | any git host deploys by deploy key plus an authenticated deploy webhook (`/applications/sources/deploy-keys`, `/core/automation/deploy-webhooks`); previews come from GitHub and GitLab events only (preview page) | **overstated**: ADO deploys work from an ADO pipeline; ADO previews do not. Agrees with 06-deploy-verify |
+| Docker hosts rather than AKS | 0 mentions of Kubernetes in the docs index; "Docker Swarm (Deprecated)" (`llms.txt:81`) | **holds, and narrower**: single Docker hosts, with Swarm on its way out |
+| Self-hosted Supabase is one project per stack, with no branching, PITR or management API | self-hosting page: "runs as a single project"; unavailable: "branching, ..., managed backups and PITR, ..., and the platform management API". One stack is 11 services (`docker/docker-compose.yml`: studio, api-gw, auth, rest, realtime, storage, imgproxy, meta, functions, db, supavisor) | **holds** |
+| "No API to create one from the cockpit" (section 10) | Coolify's API has `create-service` (docs index `:938`), its CLI has `service create` for one-click templates (`:500`), and scheduled Postgres dumps to S3 exist (`/databases/backups`) | **wrong**: the cockpit can create a Supabase stack per app through Coolify's API. What it cannot get is a database branched per preview or a point-in-time restore |
+| (missed) Studio sign-in | `docker/.env.example:58-59`: one `DASHBOARD_USERNAME` and `DASHBOARD_PASSWORD` | a shared password, no SSO, no per-user audit (06-deploy-verify found the same) |
+| Supabase Cloud in Sydney fails `OD-18` | regions page: AWS only; Sydney is `ap-southeast-2` on AWS | **holds** |
+| Paid gates | Coolify self-hosted: none (06-deploy-verify, pricing page). Supabase: branching US$0.01344 per branch-hour on Pro (from US$25 a month), PITR US$100 a month per 7 days of retention, dashboard SSO on Team (from US$599 a month) | **holds**: every feature C1 already runs is, on Supabase, a Cloud feature, paid, and on AWS |
+| 16-24 days | 06-deploy-verify: a floor; 18-26 | **agree**, plus this cluster's share: each shipped app becomes its own 11-service stack on a Docker host, with backups, upgrades and key rotation ours. Judged 3-5 days more (an estimate, not measured) |
+
+**Cohesion, for the user's ask.** Headless, the pair could sit fully behind our own screens: both
+have APIs, and Coolify even ships an MCP (`/mcp/capabilities/*`). But run as products they add two
+consoles with two sign-ins (Coolify's own users or a separate Entra registration; Studio's shared
+password) and a second identity system for shipped apps (Supabase Auth beside Keycloak). Panacea
+has the same problem once (its Portal); this pair has it twice.
+
+**Verdict: reject upheld** for the platform layer. Its real strengths, permissive licences and
+portability to any VM, matter at the customer-hosted tier, not for a we-host tool needed now.
 
 ## 6. Alternative: C3 Azure-native managed services for our own state
 
