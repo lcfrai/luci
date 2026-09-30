@@ -46,6 +46,42 @@ All paths are in `Projects/Panacea`, read, not run:
 | Project access groups in Keycloak (`findOrCreateGroup`, `AddProjectAccess`, `deriveRole`) | `services/panacea-api/clients/keycloak.go:174`, `:338`, `:1080` | Limiting Penpot sign-in to project groups through `PENPOT_OIDC_ROLES`, and the team roster (G2) |
 | The thin-client MCP stance: *"holds **no permission logic of its own**"*; every call forwards the caller's token | `services/panacea-mcp/README.md` | The relay forwards a per-session token and lets the server enforce it (G4) |
 
+**4. Orca as the cockpit changes the lens, not the canvas.** Penpot is a web app, so any cockpit
+that can show a browser pane can host it. Orca's README describes *"a real Chromium window"* for its
+Design Mode, and its docs name a *"Per-worktree browser"* (onorca.dev/docs/browser/design-mode). The
+lane's Penpot file opens there. While it is open, that tab is also the live tab the Penpot MCP
+needs (§3.1, gap 1).
+- **Task 27** (desktop data for the Tauri lens) falls away if Orca ships.
+- **Task 28** (lens chrome) becomes a small **Penpot plugin panel of our own**: the bound brief,
+  *Approve this version*, and *changed after approval*. It then works the same in Orca, in the
+  Tauri shell or in a plain browser tab, whichever cockpit the owner ships.
+- **Orca's Design Mode** hands an agent a clicked element's HTML, computed CSS, a cropped
+  screenshot and, where a source map exists, the source file and line. That covers the "point at
+  the running app" idea in Develop, so React Grab (§3.14) and Onlook's editing of the running app
+  (§3.5) are not needed.
+
+**5. Supabase adds nothing to the canvas.** Penpot needs plain PostgreSQL and Valkey. The one
+candidate Supabase would unblock is Onlook, whose self-host needs Supabase. Onlook still fails
+without it: dev containers run on CodeSandbox, it is locked to Next.js and Tailwind, and it has no
+MCP. So it stays Reference. If the Hub moves to Supabase (the Define and Hub clusters decide that),
+the glue writes its bindings there instead, and the days do not change.
+
+**6. Corrections found in this pass.** The Helm chart's defaults are unsafe for a regulated
+tenancy. It ships `telemetryEnabled: true`, a sample `apiSecretKey` in plain text, and the flags
+`enable-registration enable-login-with-password disable-email-verification`.
+- §3.1 said telemetry was *"opt-in, off by default"*. That is true of Penpot's own config, but not
+  of the chart. G1 overrides all three settings.
+- The MCP server is now part of the chart, so it needs no separate install.
+- The repo's MCP multi-user page still says the pairing token *"is hard-coded in the plugin's
+  source code for testing purposes"* (`penpot/penpot` `mcp/docs/multi-user-mode.md`). The
+  2.16–2.18 changelog, however, fixes *"MCP tokens being usable as API access tokens"*, which
+  implies that Penpot now issues these tokens itself. The day-1 spike settles which is true (§8).
+
+**7. The days do not move: ~9 in total, usable after ~3.5 (§6).** The snippets save perhaps half
+a day across G1 and G5. The plugin panel costs about what the lens chrome did. Both figures are
+unmeasured. Sections §3.1, §3.5, §3.14, §4 and §5 below are revised in place to match; anything
+not mentioned here stands as the first run wrote it.
+
 ## 2. What the capability has to do
 
 The bar comes from the phase 5 plan's own goal
