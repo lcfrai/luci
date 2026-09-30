@@ -22,7 +22,45 @@ only: nothing installed or run.
 
 ## 3. Alternative 1: OpenHands Agent Canvas + OpenHands Enterprise
 
-*(to be filled)*
+**Verdict: the "reference" verdict holds, but for different reasons than the report gives, and it
+is a weaker fallback than owner call 3 implies.** One fail the report lists is wrong (Azure
+DevOps), one pass is overstated (LiteLLM), and one fail it missed is the one that matters most for
+untrusted agents (isolation).
+
+**Licence at source** (raw `LICENSE` files, read 2026-09-30):
+
+- `OpenHands/OpenHands` (Agent Canvas): *"The MIT License (MIT) ... Copyright © 2025 OpenHands
+  contributors"*. Holds.
+- `OpenHands/OpenHands-Cloud` (the Helm charts) and `OpenHands/enterprise` (the server): both
+  *"PolyForm Free Trial License 1.0.0"*, the second *"Copyright (c) 2026 All Hands AI"*. The
+  operative clause: *"Use of the software for more than 30 days per calendar year is not allowed
+  without a commercial license."* The chart README repeats it: *"This is **NOT** an open source
+  license."* Holds. **What it forces:** a commercial licence by quote before day 31 of any year,
+  for us and for every customer tenancy. No public price.
+
+**The claims, checked at source** (chart `charts/openhands/README.md` and `values.yaml` at `main`;
+Agent Canvas `README.md`; `openhands.dev` and `docs.openhands.dev` return HTTP 403 through the
+proxy, as the report found):
+
+| # | Report's claim | At source | Result |
+|---|---|---|---|
+| 1 | Runs *"OpenHands, Claude Code, Codex, Gemini, or any ACP-compatible agent"* | README line 10, verbatim; line 46: *"any agent with Agent-Client Protocol (ACP)"* | Holds. Claude Code is reached through ACP, so the session is an ACP client's chat, not the CLI's own TUI in a PTY. B5 fail holds |
+| 2 | Agent Canvas is beta | README badge *"status-beta"*; image `ghcr.io/openhands/agent-canvas:1.24.0` | Holds |
+| 3 | **"No Azure DevOps"**, fails B7 | `values.yaml:262-267`: an `azureDevOps:` block with `tenantId`, `organization` and an `azure-devops-app` secret; `values.yaml:31` wires `SaaSAzureDevOpsService`. OpenHands' blog (2026-07-22, per search; the page is 403 here) announces Entra sign-in, Azure Repos branches and pull requests, and Boards work items and PR comments as triggers | **Refuted.** Azure DevOps and GitHub are both supported, so B7 passes. The README simply does not document it |
+| 4 | **"Takes our LiteLLM as is"** | README: *"We recommend using the provided LiteLLM instance rather than bringing your own. The provided LiteLLM instance uses an admin key for automated user management ... Our automation relies on this admin key to create and delete users automatically."* It also creates a team `openhands` unless given one | **Overstated.** Our LiteLLM works only if OpenHands holds its admin key and provisions users in it; the tested path is a second, bundled LiteLLM. Under `OD-21` that is a trust decision, not a setting |
+| 5 | Sign-in through the bundled Keycloak; SAML for enterprise SSO | README: *"You'll need to set up GitHub, GitLab, and/or BitBucket as an auth provider"*, plus an `enterpriseSSO` SAML provider in **its own** Keycloak realm `allhands` | Holds. Our realm can sit in front as the SAML IdP, so `OD-30` is reachable, but that is two Keycloaks in the sign-in chain |
+| 6 | *(not checked by the report)* Sandbox isolation | `charts/infra/values.yaml:126-146`: *"a privileged DaemonSet installs the Sysbox container runtime on every node and registers the sysbox RuntimeClass, giving pods with runtimeClassName: sysbox-runc VM-like (user-namespace)"* isolation; the runtime-api's `RUNTIME_CLASS` is empty by default (`values.yaml:1073`); a device plugin exposes `/dev/kvm` and `/dev/fuse` to sandboxes | **New fail: B6.** The shipped isolation is Sysbox, a shared-kernel runtime, installed by a privileged node DaemonSet. Pointing `RUNTIME_CLASS` at AKS's `kata-vm-isolation` is untested and unsupported by any doc read |
+| 7 | AKS not documented | No `azure`/`aks` in the chart README; the only cloud examples are EKS/S3 and a GCS `us-central1` line; *"Ingress controller (recommended: Traefik)"* | Holds |
+| 8 | Maintenance | Chart app image `enterprise-server:1.67.0`; the README's install badges read *"Replicated Unstable"* and *"Replicated Beta"*, and Replicated is *"the preferred method"* | Active. The GitHub API was rate-limited this pass, so stars and release dates are the report's |
+
+**Days, for our architecture.** The report's 5-8 days to stand the chart up does not include
+running it on AKS with Kata instead of Sysbox (a spike, and possibly a support ticket), a second
+LiteLLM or an admin key into ours, or two Keycloaks. The 10-15 days as a backend under our cockpit
+(02) is unchanged. **As a fallback it replaces Orca and our sandbox API together**, so it is
+weeks, not days, once procurement is counted.
+
+**Trade-off in one line:** the most complete self-hostable Develop product, and it now reaches
+Azure DevOps, but it wraps Claude Code in ACP, isolates with Sysbox, and is PolyForm until bought.
 
 ## 4. Alternative 2: Coder (workspaces, AI Gateway, Agent Firewall)
 
