@@ -431,7 +431,55 @@ CLIs in our Kata sandboxes between them, and the provenance thread in the Hub.
 
 ## 7. The recommendation
 
-_(pending)_
+**Buy no whole product and build on none. The fully-fledged product is the assembly the per-phase
+clusters chose: Orca on top, Panacea underneath, unmodified agent CLIs in our Kata sandboxes
+between them, and the provenance thread in our Hub. About 59 engineer-days of glue in total; the
+first app shipped end to end in about 9 working days.**
+
+**Why.** No candidate passes the tests that make this product worth building (section 3): the
+commercial agents keep their planning, inference or control plane in their own cloud (B2, B4),
+the app builders host everything themselves (B1), and the three that self-host whole each replace
+something we keep (OpenHands the agent and the cockpit, Coder the cockpit, GitLab the git host).
+Meanwhile each phase already has a better complete answer than any whole product offers for it.
+
+| Layer | The pick | Cluster | Glue, engineer-days | What it replaces in our plan (the cluster's count) |
+|---|---|---|---|---|
+| Develop cockpit | Orca, unforked, with one Panacea plugin and one recipe | 02 §R6 | 7.5 (4.5 to first ship) | Phase 2's Tauri Develop views retire; phase 3: 8 of 24 tasks replaced, 2 deferred; phase T tasks 49, 61, 63 go to the git host |
+| Sandboxes | AKS Pod Sandboxing + `agent-sandbox`, Australia East | 01 §1 | 8 (6-10) | Phase 8: 2 tasks removed, 11 reduced (about 36 plan-hours to 14); tasks 22 and 26 become the recipe |
+| Define | GitHub Spec Kit, run as an Orca worktree | 03 §1 | 8 | Phase 4: 12 of 22 unbuilt tasks; most of the Hub's `OD-36` share |
+| Design | Penpot 2.18 with its MCP server, self-hosted | 04 §1 | 9 | Phase 5: 18 of 31 tasks |
+| Work and team | Azure DevOps Boards and GitHub Issues, Teams, Panacea's team API | 05 §0 | 17 | Phase W: 127 of 190 tasks |
+| Deploy | Panacea, through its API and `panacea-mcp` | 06 §0 | 6 | Phase 7: 8 of 20 tasks |
+| Platform and sign-in | Panacea's realm and app backend; our LiteLLM with Panacea's key code copied | 00 §11 | 2 | Phase 8 task 09 deferred; phase 6 tasks 04, 06, 09 and Hub task 14 shortened |
+| The whole journey | One end-to-end journey test (section 8) | this file | 1.5 | — |
+| **Total** | | | **59** | **About 180 planned tasks replaced or handed to a product** |
+
+The task counts are the clusters' own, summed here and not re-derived; phase T's may overlap
+between 02 and 05. The gateway (phase 6, 29 tasks, `OD-21`) is costed by none of these clusters.
+
+**The calendar, estimated from the clusters' own figures.** The long pole is 01's 8 days for the
+sandbox; 02's 4.5 first-ship days (Orca package, `panacea login`, the lane git endpoint, landing,
+the preview link) do not need the sandbox and run beside it, so **the first app ships end to end
+in about 9 working days with two builders**. 03 (about 5 calendar days on two streams), 04 (5-6
+on two), 05 (about 7 on three lanes) and 06 (3.5 on two) run in parallel, so **all of the glue
+lands in about 12-13 working days**, with the journey test running from day 9.
+
+**What it replaces, in one line:** the build of phases 3, 4, 5 and 7 and most of W, which the
+clusters count at about 180 tasks; phase 2's backend survives as the lane and sandbox API.
+
+**What we still build:** section 8. **Owner calls:** section 9.
+
+**Risks.**
+1. **Seven products, seven release trains.** Orca's recipes and plugin API are experimental, the
+   Penpot MCP needs a live tab (04), Panacea is mid-cutover and shared. Pin versions and canary
+   each upgrade (`OD-8`'s guard); the journey test is the tripwire.
+2. **The customer sees several faces** (Orca, Penpot, Panacea Portal links, the git host's pull
+   requests). The plugin and Hub pages carry one thread across them; they do not make one UI.
+3. **The thread is ours alone.** No vendor carries the brief-to-release link, so if the Hub
+   slips the product is a bundle, not a product.
+4. **The market moves monthly.** Two changes would reopen this study: Anthropic's self-hosted
+   environments accepting ZDR and a gateway (then a Claude Enterprise purchase could replace much
+   of our sandbox control plane), and Copilot listing Australia. Re-check quarterly.
 
 ## 8. What we still build (glue)
 
