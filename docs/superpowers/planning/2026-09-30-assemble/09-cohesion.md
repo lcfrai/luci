@@ -304,3 +304,53 @@ itself asks.
 **What must never appear in the frame:** a Keycloak or Microsoft page on the normal path, Penpot's
 login screen, an Orca account prompt, a pasted Linear or Jira token (Orca's task sources are off),
 or a GitHub sign-in.
+
+## 5. One navigation, one vocabulary
+
+### 5.1 The journey bar: one spine, four lenses, no pipeline
+
+| Slot | What it holds | Rule |
+|---|---|---|
+| Desk, Work | The two surfaces above a branch: the Desk (account level, the one queue, §5.4) and Work (a project's tickets and team strip) | The Desk is always the landing surface (AGENTIC-UX §5) |
+| Project ▸ branch | One context chip, with a picker on each half | One context line, never repeated breadcrumbs (AGENTIC-UX §9 item 8) |
+| Define · Design · Develop · Deploy | The four lenses on the current branch | Equal weight. No arrows, numbers, ticks, counts or "next" language. Any lens opens from any state (AGENTIC-UX §4 rule 12; §9 items 1 and 12). Only the current lens wears the accent |
+| The brief chip | `brief:bf-…@n`, shown as "Brief r4", plus a drift mark when the current session started on an older revision | Opens the thread (§5.2). Never a count |
+| ⌘K | The palette (§5.3) | The same palette on every surface |
+
+**Context follows the person.** Switching lens keeps the project, branch and brief revision.
+Choosing a worktree in Orca's sidebar moves the bar's branch, and choosing a branch in the bar
+opens its lanes in Develop. A `lane` deep link on the registered scheme (02-verify §7) lets the
+Desk, a Teams card or the thread land on the exact lane. Scroll and reading position persist per
+surface (AGENTIC-UX rule 11).
+
+**Two words the owner settles** (both customer-visible; `CONTEXT.md` open questions 1 and 2):
+- **Define or Discover.** The code and the phase say Discover; `CLAUDE.md` and every owner message
+  of 2026-09-30 say Define. One word must win everywhere. Recommend **Define**.
+- **Four lenses or six.** Under Orca, Files and Merge stop being lenses. They become Develop's own
+  explorer and source-control views, and landing is the lane card's Land button. So the bar
+  carries four, which is what rule 12 says. Recommend **four**, and edit the `Lens` type and
+  `CONTEXT.md` in the same change.
+
+### 5.2 The thread: one element, in every view
+
+**What it is:** the provenance thread drawn as records, never as progress (`CLAUDE.md` product
+spine; AGENTIC-UX rule 10). One component renders it everywhere: the brief card from the shared
+page template (08-verify §7.2), collapsed into the chip and expanded into a drawer.
+
+| Record, in thread order | What it shows | Opens |
+|---|---|---|
+| Brief revision | Settled answers; each criterion as settled, open or contested, with its evidence sentence | The Define page at that revision |
+| Design approval | The design revision, the brief revision it was approved against, the snapshot | The Design page at that version |
+| Sessions | Each session's `contextRef`, with a drift mark when it is older than the latest revision | The lane in Develop, at the span |
+| Lanes and pull requests | The lane, its PR, and the brief trailer on it | The lane card; the host PR page for a reviewer |
+| Release | Reserved, confirmed, abandoned or expired; the pinned brief; both signatures with key ids (06-verify §6) | The Deploy page's release record |
+
+**Where it shows:** the chip in the journey bar (every screen), the lane card in Orca's right
+panel (Develop), the header of every Hub page, the release record, the PR description (through
+the brief trailer), and one line on every Teams card. It is the same Hub data each time.
+
+**What it never shows:** a percentage, a bar, a tick or "N of M met" (AGENTIC-UX anti-pattern 2).
+A lens is never marked done because its records exist.
+
+**Cost:** the chip and the card sit inside 02-verify's journey bar and 08-verify's template. The
+drawer, with every record linking to its source, is **about 1 day new**.
