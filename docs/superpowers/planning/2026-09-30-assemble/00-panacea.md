@@ -352,7 +352,7 @@ the owner named Coolify plus Supabase, with Panacea snippets, as the allowed alt
 | **C2 Coolify + Supabase**, self-hosted, with Panacea snippets | both Apache-2.0; Supabase Auth MIT (GitHub API, 2026-09-30) | Coolify: Docker on Azure VMs, no AKS; Supabase: Docker Compose or a community Helm chart | Coolify OIDC only in a 4.4 RC (06-deploy 3.1), stable is v4.3.23 (2026-09-18); no Azure DevOps (fails `OD-4`); self-hosted Supabase is **one project per stack**, with no branching, managed PITR or management API ([Supabase docs](https://supabase.com/docs/guides/self-hosting)) | 62.4k and 110.9k stars; both active this week | 16-24 to approach C1 (06-deploy section 5) | **reject** for shipped apps |
 | **C3 Azure-native**: PostgreSQL Flexible Server, Blob, Key Vault, Container Apps or AKS | commercial (Azure consumption) | our subscription, Australia East | Entra-native, private endpoints, Defender, PITR, zone-redundant HA, AU yes | GA services | already in phase 8 (tasks 05, 08) | **buy**, for our own backend only |
 | **C4 Supabase for the Hub store** | Apache-2.0 | self-hosted on Azure, or Supabase Cloud in Sydney (AWS, fails `OD-18`) | REST, realtime and storage on day one, but its Auth duplicates Keycloak and self-hosted backups are ours | as C2 | 3-4 to replace the Hub's Postgres layer | **reference** |
-| **C5 Appwrite** (GLASSES `6968183a54d9012013f1`) | BSD-3-Clause | self-hosted Docker | no Entra for its console; no scans, gate or evidence | 57.5k stars | not costed | **reject** |
+| **C5 Appwrite** (GLASSES `6968183a54d9012013f1`) | BSD-3-Clause | self-hosted Docker | a BaaS with hosting, in the same class as C2; no scans, gate or evidence; console SSO with Entra not checked | 57.5k stars (GLASSES) | not costed | **reject** |
 | **C6 The Hub as a Panacea project** | as C1 | Panacea's cluster | as C1, plus our shared state on another team's dev estate | as C1 | 0.5 | **reject** as the default (conflicts with `OD-5`) |
 
 **C1 on merit.** It is the only candidate that already does the whole shipped-app job in our
@@ -511,7 +511,32 @@ by this file; 02-fleet-cockpit and 06-deploy place Panacea's previews and Deploy
 
 ## 15. What was not verified
 
-_(pending)_
+Nothing was run against a live Panacea estate, and nothing was built, installed or run anywhere.
+Every Panacea fact is from source, read-only, at commit `efc637879` on branch
+`finish-dev-outstanding` (another session's working branch, which may differ from what dev runs).
+
+1. **Whether Panacea's edge is IP-locked today, and on which estate.** The allowlist was applied on
+   2026-08-10 (`deploy/main.tf:587`), but `deploy/terraform.tfvars` on this branch carries no
+   address. If it is locked, our AKS egress address must be added (P5b), and customers outside
+   KPMG cannot open previews (owner call 1).
+2. **Which LiteLLM runs**: `v1.63.11` (Helm values) or an image built from `main-v1.40.0` (section 6).
+3. **Zero data retention on Panacea's AI path**: no prompt-logging setting in config; Kelios's
+   retention terms are not in the repo.
+4. **Whether `sign-release` signs on dev**, and whether Falco and trivy-operator are live there
+   (`STATUS.md` of 2026-08-10 says pending; the pipeline now has the task).
+5. **VVAH retired on 2026-09-23**: from the owner's notes, not checked in code.
+6. **The remote MCP's authorisation-server host**: `sso.<domain>` in `mcp_wiring.go:41` against
+   Keycloak's `auth.<domain>`; one of them is wrong, or a second host exists.
+7. **`panacea-cli`'s SSO login** asks Keycloak for a client `panacea-cli` (`services/panacea-cli/internal/auth/auth.go:50`, `:67`)
+   that `setup-keycloak.sh` never creates, and the API would refuse its token (section 5.2). Its
+   `--token pnc_` path is the one that works. Not tested.
+8. **PR previews behind a locked edge**: whether the outbound poller covers pull requests, not
+   only pushes (P6 proves it).
+9. **Estimates are estimates**: the Panacea-side second issuer (1-2 days), C4 (3-4 days) and the
+   glue in section 12 are judged from the code, not measured. C2's 16-24 days is 06-deploy's figure.
+10. **Coolify and Supabase facts** come from their docs, GLASSES and the GitHub API (stars,
+    licence, latest releases, MinIO's archived flag, all 2026-09-30); none was installed.
+
 
 ## 16. Sources
 
