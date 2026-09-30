@@ -474,4 +474,63 @@ estimate. Prices are list prices read on 2026-09-30.
 
 ## 9. Sources
 
-_Pending._
+All were read on 2026-09-30 unless marked otherwise. Glasses snapshot: `2026-09-29T04:25Z`.
+
+**Read in the relaunch (second direction)**
+- Penpot release: `api.github.com/repos/penpot/penpot/releases/latest`, which gives 2.18.0,
+  published 2026-09-23.
+- Penpot Helm chart: `raw.githubusercontent.com/penpot/penpot-helm/main/charts/penpot/values.yaml`
+  and `Chart.yaml` (chart 1.10.0, appVersion 2.18.0; `mcp:` component; `telemetryEnabled: true`;
+  `readOnlyRootFilesystem: false`).
+- Penpot MCP: `raw.githubusercontent.com/penpot/penpot/develop/mcp/README.md` and
+  `mcp/docs/multi-user-mode.md`.
+- Coolify's Penpot template: `raw.githubusercontent.com/coollabsio/coolify/v4.x/templates/compose/penpot.yaml`.
+- S3Proxy: `api.github.com/repos/gaul/s3proxy` and its latest release (Apache-2.0, 4.1.1,
+  2026-09-10).
+- Orca: `raw.githubusercontent.com/stablyai/orca/main/README.md` and
+  `onorca.dev/docs/browser/design-mode`.
+- `registry.npmjs.org/@penpot/plugin-types/latest` (1.4.2, no `license` field).
+
+**Panacea, read-only** (`Projects/Panacea` working tree, 2026-09-30):
+- `docs/architecture/AGENT-BUILDER-SPEC.md:113`
+- `services/panacea-api/launchdoc/LAUNCH.md:70`, `:173`, `:1244`
+- `services/panacea-api/routes/routes.go:1286`, `:1319-1320` (deploy, database and storage routes)
+- `services/panacea-api/clients/tenant_redis.go:70`, `managed_object_storage.go`,
+  `managed_postgres.go`, `tenant_ensure.go:96-126` and `keycloak.go:174`, `:338`, `:1080`
+- `services/forge-orchestrator/preview/manager.go:113-206`
+- `services/panacea-mcp/README.md`
+
+**This repo**
+- `.claude/worktrees/phase-5/docs/superpowers/plans/2026-09-23-phase-5-design-canvas.md:28-62`,
+  `:440-474`
+- `docs/superpowers/planning/2026-09-23-owner-decisions.md`: `OD-11` (lines 22 and 84-99),
+  `OD-13`, `OD-30` and `OD-34` (line 223)
+- The sibling studies `01-sandboxes.md` §1, `02-fleet-cockpit.md` and `06-deploy.md` §3.1
+- `2026-09-28-oss-adoption/00-summary.md`
+
+**Read in the first run** (§3; the dates and versions are given inline there)
+- Penpot:
+  - `github.com/penpot/penpot`: the README, `mcp/` and the 2.16–2.18 changelog
+  - `helm.penpot.app`
+  - help.penpot.app, OIDC configuration
+  - `penpot.app/pricing`
+  - `zcube/penpot-mcp-server`
+- Figma: `figma.com/pricing` and help.figma.com, *"Enable localized file hosting"*.
+- The other candidates' own pages:
+  - `paper.design/pricing`
+  - `docs.onlook.com/self-hosting/docker-compose`
+  - `docs.pencil.dev/for-developers/pen-cli`
+  - `builder.io/pricing`
+  - `tldraw.dev/pricing`
+- Licence files: the Plasmic README, Webstudio's `LICENSE`, and the OpenPencil README.
+- npm registry entries:
+  - `tldraw` 5.4.2
+  - `@excalidraw/excalidraw` 0.18.1 and `mcp-excalidraw-server` 2.0.0
+  - `grapesjs` 0.23.6 and `@grapesjs/studio-sdk` 1.2.1
+  - `@webstudio-is/sdk` 0.303.0
+  - `stagewise` 0.12.0 and `@stagewise/toolbar` 0.6.3
+  - `react-grab` 0.2.0
+  - `@open-pencil/*` 0.15.1
+  - `@pen.dev/cli` 0.3.9
+- Secondary search summaries: v0, Lovable and the GrapesJS Studio pricing. These are marked as
+  unverified in §3.
