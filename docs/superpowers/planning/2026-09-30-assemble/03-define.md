@@ -6,8 +6,34 @@ OD-36 glossary and decision record) so that we build glue, not the capability?
 
 ## 0. Revised for the owner's second direction
 
-_In progress: Orca as the cockpit, Panacea as the strong default, Coolify and Supabase allowed. What
-changed and why lands here section by section._
+The first run (stopped 09:47) stands at its core: **Spec Kit is still the Define engine**, because no
+Panacea service, Coolify or Supabase does the interview-to-spec step. Five things changed, and why:
+
+1. **The Define session is an Orca worktree.** Orca (MIT; the owner's cockpit pick, verified in
+   `02-fleet-cockpit.md`) starts an agent in a new worktree with an opening prompt
+   (`orca worktree create --name <n> --agent claude --prompt "<task>"`) and renders and edits the
+   markdown the interview writes (its rich markdown editor, with annotations on rendered text). That
+   absorbs most of G2 and G5: their glue falls from 2.5 to 1.75 days (section 4.11).
+2. **Panacea supplies two rules our spec lacked** (read-only look at `Projects/Panacea`). Forge's
+   `SPEC.md` (`services/forge-orchestrator/models/spec.go`) decides **access before interface** (who
+   may read and change each entity; every route carries an auth decision) and **refuses criteria a
+   browser cannot check** (3 to 8, each with a testable verb). Both go into the preset and into
+   Publish's validator, as snippets with attribution (OD-13 relaxed). Forge itself is not adopted:
+   its agent loop is not the unmodified CLI, and its files live in Forge's store, not in the worktree
+   (section 4.10).
+3. **The data class is set in Define, in Panacea's words.** OD-24 requires it on creation. Panacea's
+   stage ladder already enforces a ceiling of `none < synthetic < protected`, read from the
+   `panacea.io/data-classification` annotation (`services/panacea-api/handlers/deployment_stages.go`).
+   The project and brief record it, and Deploy carries it to Panacea: new glue G7, 0.5 day. Panacea's
+   risk questionnaire and assessment document are the next step, not the first (section 4.10).
+4. **Supabase and Coolify change nothing here.** Coolify is a deploy tool with no Define capability.
+   Supabase could back the Hub's records, but Define reaches the Hub only through the built
+   `discoverhub` client, so where the Hub keeps them is not decided here (section 4.12).
+5. **One new owner call** (section 7, call 4): which data classes a customer picks from at creation.
+
+**Net:** still **about 8 stream-days**. Orca saves 0.75 day; the Panacea rules and the data class add
+0.75 day. The brief gets stronger for regulated customers: access decided up front, criteria a
+browser can test, and the data class that Deploy enforces.
 
 ## 1. Answer
 
