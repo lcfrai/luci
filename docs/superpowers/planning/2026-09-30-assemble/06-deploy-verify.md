@@ -344,8 +344,76 @@ Azure Container Apps, **reference upheld**, at about 12-19 days as a whole deplo
 
 ## 8. What was not verified
 
-*(to be filled)*
+Nothing was installed, built or run. Panacea was read with grep and short reads while another
+session works there, so lines can move.
+- **Live state on either estate.** Whether Chains signs, whether database branching runs, and whether
+  any environment is bound to a rung: all of it comes from code and notes, none of it observed.
+- **The proxy path.** `panacea-mcp` behind our proxy: only its env handling was read. The same goes
+  for the in-process DSSE signer with a Key Vault key. Whether a key-based cosign v3 sign uploads
+  to a public log by default was read from the flag reference, not tested.
+- **The evidence document.** Only the `export` and `auditChain` blocks were checked for drift.
+- **Kyverno.** How #17363 was closed and in which release. Whether v1.12.5 verifies cosign v3's
+  bundle format. Kyverno's upstream support window.
+- **Coolify's isolation** came from its docs and discussions through search, not the page itself.
+  Kata under Coolify was not read at all.
+- **Supabase's feature matrix** did not render a self-hosted column for us. The branching feature
+  page says "N/A", and that is what we cite.
+- **Container Apps' Go SDK** was not read. "No VM isolation" means none is documented, not that
+  none exists.
+- **Orca.** The app-level view and the journey bar are 02-verify's design, not built. Whether
+  Connect deploy needs no second sign-in is untested.
+- **The days** are estimates at the phase 7 plan's own rates, not from a build.
+- **Tool limits.** The session's web-search budget (200) ran out mid-pass, so later checks used
+  WebFetch on known pages. The GitHub API rate limit meant cosign's and Coolify's release lists, and
+  the MinIO and silo repo facts, are the stopped run's captures from 11:40-11:55 today.
 
 ## 9. Sources
 
-*(to be filled)*
+**Panacea** (read-only, 2026-09-30; HEAD `eee94cd94` on `finish-dev-outstanding`; refs
+`ado-gov/dev` `ba17a82d3`, `ado-gov/main` `c9cf66e09`, `kpmg/main` `bf958d0b2`):
+- `services/panacea-api/`:
+  - `handlers/`: `evidence_export.go:40-57`, `:77-137`, `:225-249`; `audit_integrity.go:40-52`;
+    `diagnose.go:23-39`, `:151-154`; `deploy_analysis.go:21`, `:124`, `:499`; `api_keys.go:34-39`,
+    `:68-100`, `:112-116`, `:147-159`; `projects.go:360-374`; `deployment_stages.go:40-60`,
+    `:1600-1610`.
+  - `middleware/auth.go:147-200`.
+  - `routes/routes.go:1017`, `:1026-1027`, `:1151`, `:1286`, `:2291`, `:2811-2818`, `:2860`.
+  - `models/models.go:639-663`; `skilldoc/skill.md:152`, `:276`.
+- `services/panacea-mcp/`: `src/index.ts:32-35`, `:69-70`, `:344-353`; `README.md:151`.
+- `clients/`: `db_branch_ops.go:36-45`, `pipeline.go:733`, `repo_allowlist.go:11-43`,
+  `tenant_ensure.go`, `pod_security.go`.
+- `kubernetes/`: `argocd-apps/platform/kyverno.yaml:60-63`, `:172`; `…/tekton-chains.yaml:10`,
+  `:82-87`, `:112`; `…/keycloak.yaml`; `base/security-policies/verify-solution-image-signatures.yaml:17-126`;
+  `tekton-chains/chains-config.yaml:35-80`.
+- `deploy/main.tf:578-604`; `panacea-dev.env`, `panacea-sandbox.env`, `panacea-aue.env`;
+  `STATUS.md:131-140`; `docs/cutover/RESUME.md`; `git shortlog` since 2026-08-31.
+
+**PanaceaApp:** `06-deploy.md` (all 661 lines); `02-fleet-cockpit-verify.md` §3.3, §4.1, §5.3, §7,
+§8; `08-whole-product-verify.md` §7.1-7.2; on `feat/hub`, `control-plane/internal/hub/` (the file
+list, `hubapi/envelope.go`, `hubclient/conformance/releases.go`); the phase 7 plan's route and task
+tables (lines 471-478 and 636-655).
+
+**Web and APIs (2026-09-30):**
+- GitHub API: `sigstore/cosign` licence and releases; `kyverno/kyverno` latest release and issue
+  17363; `tektoncd/chains` releases; `coollabsio/coolify` repo, releases and tag `v4.4-rc.1`;
+  `supabase/supabase`; `minio/minio`; `pgsty/silo`; `advisories/GHSA-fx35-mq7g-6g98` (404).
+- Raw files: `sigstore/sigstore` `pkg/signature/kms/azure/client.go`; the `LICENSE` files of
+  `tektoncd/chains`, `coollabsio/coolify` (`v4.x`) and `supabase/supabase`.
+- [cosign KMS](https://docs.sigstore.dev/cosign/key_management/overview/) ·
+  [Coolify pricing](https://coolify.io/pricing) ·
+  [Coolify previews](https://coolify.io/docs/applications/ci-cd/github/preview-deploy) ·
+  [Supabase branching feature](https://supabase.com/features/branching) ·
+  [Supabase self-hosting](https://supabase.com/docs/guides/self-hosting/docker) ·
+  [Supabase branching docs](https://supabase.com/docs/guides/deployment/branching) ·
+  [ACA revisions](https://learn.microsoft.com/en-us/azure/container-apps/revisions) ·
+  [ACA authentication](https://learn.microsoft.com/en-us/azure/container-apps/authentication) ·
+  [ACA environments](https://learn.microsoft.com/en-us/azure/container-apps/environment) ·
+  [ACA billing](https://learn.microsoft.com/en-us/azure/container-apps/billing) ·
+  [Key Vault pricing](https://azure.microsoft.com/en-au/pricing/details/key-vault/) ·
+  [Azure Retail Prices API](https://prices.azure.com/api/retail/prices) (Key Vault and Container Apps
+  in Australia East, Southeast and Central).
+- cosign's `verify-blob-attestation` and `attest-blob` references, as the stopped run captured them.
+- Search-result summaries only (the pages were not opened), used as pointers:
+  [Coolify networking](https://coolify.io/docs/services/configuration/networking),
+  Coolify [discussion #5059](https://github.com/coollabsio/coolify/discussions/5059) and the
+  [GoReleaser cosign v3 note](https://goreleaser.com/blog/cosign-v3/).
