@@ -184,7 +184,7 @@ In-cluster only, spend by project alone, no Bedrock and so no AU route, retentio
 - **Does:** the KPMG-hardened estate code of §2: Postgres Flexible Server (private endpoint, zone-redundant HA, geo-redundant backup, customer-managed key), Blob with workload identity, Azure Firewall, private endpoints and DNS, CMK, AKS diagnostics, Defender and Sentinel.
 - **Licence:** KPMG's own code; copying is allowed now with attribution in each file's header (`OD-13` relaxed); the `azurerm` provider stays MPL-2.0 and unmodified (`OD-32`).
 - **Deploy:** under OpenTofu 1.12.6, the environment stream's pin (`148a21d1` on the env branch); `.tf` syntax carries over (`OD-32`).
-- **Enterprise fit:** it has already been hardened for Panacea's ISM work (its code cites ISM-1234 and ISM-1416); Australian regions; no BUSL.
+- **Enterprise fit:** it has already been hardened against the ISM (the `.tf` files cite controls such as ISM-0459 37 times, ISM-1416 and ISM-1277 12 times each; grep, 2026-09-30); Australian regions; no BUSL.
 - **Gaps:** no Kata pool (01-sandboxes adds it); Panacea's variable and resource-group model differs from ours; drop what we do not run (the ADO self-hosted agent, the elastic and build pools, the WAF application gateway). Panacea's dev and prod estates once collided on a shared AKS name, so every copied name is re-derived from our own estate variables.
 - **Effort:** the environment stream has built the network and observability modules (tasks 03, 04). What remains in group A is tasks 05-08 (registry and Key Vault, AKS, the foundation stack with firewall and DNS, Postgres: 12 plan-hours); starting from Panacea's files halves them (our estimate): **about 6 plan-hours saved**.
 
@@ -209,7 +209,31 @@ In-cluster only, spend by project alone, no Bedrock and so no AU route, retentio
 
 ## 4. Side by side
 
-_To be written._
+Days are engineer-days still to do (section 3's rule). "Entra" means sign-in through our Keycloak broker (`OD-30`).
+
+| # | Candidate | For | Licence | Deploy, residency | Entra | Maturity | Days | Verdict |
+|---|---|---|---|---|---|---|---|---|
+| 3.1 | Our Go Hub on Azure PG Flexible Server | Hub | ours; Azure service | our AKS + managed PG, Australia East, HA and geo backup inside Australia | validates realm tokens (`oidcauth`) | Azure GA; Hub 24.5 of 133.5 h done | **~10** | **adopt** |
+| 3.2 | Supabase, self-hosted | Hub store | Apache-2.0 | Docker official, Kubernetes community (chart 0.8.0, 818 stars) | only by pasting the realm's keys into a static JWKS | 110,907 stars; no PITR, no branching, one project, community support self-hosted | ~13 | reference |
+| 3.3 | Supabase Cloud | Hub store | commercial | AWS Sydney | third-party auth | GA | ~13 | reject |
+| 3.4 | Hub hosted as a Panacea project | Hub host | KPMG | Panacea's AKS (Australia Central; Australia East in cutover) | Panacea's realm | Panacea API v1.163.0 | ~1.5 (+10) | reference (fallback) |
+| 3.5 | PostgREST over the schema | Hub API | MIT | our AKS | JWT, static key or JWKS | 27,691 stars, v16.4 | ~11-12 | reference |
+| 3.6 | NOTIFY, Electric, NATS | realtime | ours; Apache-2.0; Apache-2.0 | our AKS | through the Hub or a proxy | Electric 10,380 stars; NATS 20,810 | 0.5-3 | reference (later) |
+| 3.7 | Temporal | workflows | MIT | our AKS | n/a | 23,372 stars | n/a | reject |
+| 3.8 | Azure confidential ledger | ledger witness | Azure service | Australia East, pair Australia Southeast | Entra | GA | ~1 | reference (later) |
+| 3.10 | Panacea's Keycloak realm | sign-in | Apache-2.0 | Panacea's | brokers Entra | Keycloak 25.0.0 there; 26.7.4 upstream | **0 ours** (+0.5 Panacea's) | **adopt** |
+| 3.11 | Our own Keycloak (Operator) | sign-in, later | Apache-2.0 | our AKS | brokers Entra; needs a redirect URI (IT) | 37,059 stars | ~2 | later |
+| 3.12 | Keycloak dev container | test issuer | Apache-2.0 | laptop Docker | n/a | as above | saves ~0.6 | **adopt** |
+| 3.14 | LiteLLM, ours, MIT tree, Panacea's key code | gateway | MIT (`enterprise/` stripped) | our AKS, Australia East; Global = Anthropic API, AU = Bedrock Sydney | callers present realm tokens (`keysmith`) | 59,884 stars, v1.103.1 | **~8.2** | **adopt** |
+| 3.15 | Panacea's LiteLLM | gateway | MIT | Panacea in-cluster | none for agents | v1.63.11 or v1.40.0 | n/a | reject (take its code) |
+| 3.16 | LiteLLM Enterprise | gateway add-on | commercial | ours | admin-UI SSO | contact sales | ~0.5 | buy later |
+| 3.17 | APIM AI gateway, Bifrost, Portkey, Envoy AI Gateway | gateway | Azure; Apache-2.0; MIT; Apache-2.0 | various | various | see 3.17 | n/a | reference |
+| 3.18 | Panacea's Terraform under OpenTofu | environment | KPMG, copied with attribution | our subscription, Australia East | Entra RBAC | live estate code | saves ~0.75 | **integrate** |
+| 3.19 | Azure Verified Modules | environment | MIT | n/a | n/a | OpenTofu not supported by AVM | n/a | reference |
+| 3.20 | Coolify (+ Supabase) | environment | Apache-2.0 | an Azure VM, Docker over SSH | not verified | 62,409 stars, v4.3.23 | ~1 (a demo) | reject |
+| 3.21 | Key Vault, Blob, Monitor, ACR | substrate | Azure services | Australia East | Entra | GA | inside phase 8 | **adopt** |
+
+**What the table says.** Every capability here already rests on a product the plans chose (Keycloak, LiteLLM, managed Postgres, OpenTofu, Azure's services). No whole product removes the Hub's domain rules or the gateway's two small services; the second direction's gains are Panacea's realm today, Panacea's code in two places, and a real Keycloak in tests.
 
 ## 5. Recommendation
 
