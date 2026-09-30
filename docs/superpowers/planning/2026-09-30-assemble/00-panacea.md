@@ -540,4 +540,41 @@ Every Panacea fact is from source, read-only, at commit `efc637879` on branch
 
 ## 16. Sources
 
-_(pending)_
+**Panacea, read-only** (`C:/Users/au-dev-dmackie1/Projects/Panacea`, commit `efc637879`):
+- API: `services/panacea-api/routes/routes.go` (route table `:627-3126`, wrappers `:3226-3355`),
+  `routes/mcp_wiring.go`, `mcp/catalogue.go`, `middleware/auth.go`, `middleware/api_key.go`,
+  `middleware/rbac.go:357-386`, `handlers/api_keys.go`, `handlers/apikeys.go`, `handlers/code_push.go`,
+  `handlers/projects.go:1547-1690`, `handlers/llm_vkeys.go`, `handlers/agent_context.go`,
+  `models/models.go:639-700`, `clients/interfaces.go:750-778`, `clients/tenant_ensure.go`,
+  `clients/pod_security.go`, `clients/kubernetes.go:830-860`, `clients/vault.go:300-345`,
+  `clients/db_branch_ops.go`, `clients/audit_signed_head.go`.
+- MCP and CLI: `services/panacea-mcp/src/index.ts`, `services/panacea-mcp/README.md`,
+  `services/panacea-cli/README.md`, `services/panacea-cli/internal/auth/auth.go`.
+- Forge: `services/forge-orchestrator/preview/manager.go`, `orchestrator/authz_gate.go`,
+  `orchestrator/verify.go`, `routes/*.go`, `ship/`, `deploy/forge/deploy-forge-orchestrator.yaml`.
+- Pipelines: `pipelines/pipelines/build-deploy.yaml`, `pipelines/tasks/*-scan.yaml`, `pipelines/triggers/`.
+- Estate: `deploy/main.tf`, `deploy/terraform.tfvars`, `deploy/portal/setup-keycloak.sh`,
+  `deploy/restrict-edge-allowlist.sh`, `deploy/set-kelios.sh`, `kubernetes/helm-values/litellm-values.yaml`,
+  `kubernetes/argocd-apps/{platform,data,ai,app-services}/`, `backstage/app-config.production.yaml`,
+  `backstage/packages/*/package.json`, `STATUS.md`, `VERSIONS.md`, `LAUNCH.md`.
+
+**This repository:** `.superpowers/sdd/identity/facts-panacea-keycloak.md`;
+`docs/superpowers/planning/2026-09-25-identity-keycloak-broker.md`;
+`docs/superpowers/planning/2026-09-28-oss-adoption/06-platform.md`; the plans under
+`.claude/worktrees/{phase-6,phase-7,env,hub}/docs/superpowers/plans/`; the sibling clusters
+`01-sandboxes.md`, `02-fleet-cockpit.md`, `03-define.md`, `05-work-team.md`, `06-deploy.md` in this folder.
+
+**GLASSES (untrusted discovery data):** offline index, searches `backend` and
+`supabase firebase pocketbase appwrite nhost convex platform paas heroku` (`--kind solution`), 2026-09-30:
+Supabase `2b5226bf08105545e1cf`, Coolify `d9575f3020769f3b284b`, Appwrite `6968183a54d9012013f1`,
+Dokploy `c0f70d661d1e7f729404`.
+
+**Web and GitHub API, 2026-09-30:**
+- [Supabase self-hosting guide](https://supabase.com/docs/guides/self-hosting) (single project; no branching, managed PITR or management API).
+- GitHub API: `supabase/supabase` (Apache-2.0), `supabase/auth` (MIT), `supabase/realtime`,
+  `supabase/storage`, `Logflare/logflare` (Apache-2.0), `coollabsio/coolify` (Apache-2.0, v4.3.23),
+  `minio/minio` (AGPL-3.0, `archived: true`).
+- [MinIO maintenance-mode commit](https://github.com/minio/minio/commit/27742d4) and
+  [issue #21714](https://github.com/minio/minio/issues/21714).
+- [Semgrep Rules License v1.0](https://semgrep.dev/legal/rules-license/) and [Semgrep licensing](https://semgrep.dev/docs/licensing).
+
