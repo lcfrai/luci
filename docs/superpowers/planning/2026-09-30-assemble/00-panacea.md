@@ -219,7 +219,25 @@ gateway only for the apps Panacea hosts, where it already works with no glue.
 
 ## 7. Platform services: Backstage, Vault, Postgres, object storage
 
-_(pending)_
+**Panacea is already a Supabase-class backend for the apps it hosts.** Per project it offers a
+database, a REST data API, realtime, functions, storage, app users, flags and jobs, each behind the
+same RBAC and audit as the deploy routes. That matters for the Coolify-plus-Supabase question in
+section 10: for the apps PanaceaApp ships, Panacea already *is* that pair, plus Entra SSO and scans.
+
+| Service | Entry point | What it holds or does | Licence of the component | Gaps for us |
+|---|---|---|---|---|
+| **Backstage** (the Panacea Portal) | `backstage/`; OIDC to Keycloak (`backstage/app-config.production.yaml:36-47`); proxies `panacea-api` (`:54-93`) | the web portal; custom plugins `agent` (Forge), `pages`, `risk`, `team` (`packages/app/src/plugins/`); the catalog holds **only 8 scaffolder templates** (`app-config.production.yaml:103-139`: nextjs-postgres, python-fastapi, node-express, rag-pipeline, ai-agent, static-site, static-html, multi-container; `templates/`), plus TechDocs | Apache-2.0 | no tenant Components in the catalog; a Backstage-issued identity we cannot mint. Use by **deep link** (06-deploy 3.5) and take the 8 templates as Develop starters |
+| **Vault** | indirect: env vars `P/env/{environment}` (`routes.go:1400-1403`, `sealed` flag); connections `P/connections` (`:2660-2663`) | KV v2 at `secret/data/tenants/<project>/<env>` and connection secrets at platform, team and tenant scope (`clients/vault.go:308-345`); Transit for release signing (`clients/vault_transit.go`); chart 0.28.1 (`kubernetes/argocd-apps/platform/vault.yaml:21-22`) | **BUSL-1.1** (restricted) | Shamir-unsealed; "Vault reliability" is on Panacea's owner list today (Panacea commit `efc637879`). Not our secrets store: ours is Azure Key Vault (06-platform study) |
+| **Postgres** | `POST /api/v1/databases` (`routes.go:1325`), per-project `P/services/database` (`:1319`); SQL `POST /api/v1/databases/{name}/query` (`:2295`); schema `P/db/schema`, `P/db/types` (`:2321-2322`) | CloudNativePG chart 0.21.2 (`argocd-apps/data/cloudnativepg.yaml:22-23`); shared or dedicated (`models/models.go:651`, upgrade `routes.go:1347`); backups, schedule, restore, PITR revert (`:1330-1357`); **copy-on-write DB branch per preview** (`clients/db_branch_ops.go:1-13`); pooling, HA, extensions incl. pgvector (`clients/db_*_ops.go`) | Apache-2.0 | none for tenant apps; it is in Panacea's cluster, so it is not our Hub's database unless the Hub is a Panacea project (section 10) |
+| **Data API, realtime** | `P/rest/{table}` (`routes.go:2915-2918`), `P/data-api` (`:1469-1470`); `P/realtime` connect, publish (`:2911-2912`) | PostgREST-style CRUD with row-level security, and a pub/sub channel | Panacea code | Panacea-shaped, not Supabase-API compatible |
+| **Object storage** | `/api/v1/buckets` (`routes.go:1361-1372`), presign (`:1367`), virus scan (`:1369`); per project `P/storage/{bucket}/*` incl. backup, snapshots, restore (`:2335-2344`) | MinIO chart 5.2.0 (`argocd-apps/data/minio.yaml:22-23`) behind `s3proxy`; ClamAV scan (`argocd-apps/app-services/clamav.yaml`) | **MinIO AGPL-3.0, and the upstream repo is archived** (GitHub API, 2026-09-30: `archived: true`); ClamAV GPL-2.0 | an unmaintained core dependency on Panacea's side; for our own storage use Azure Blob |
+| **Functions, app users, flags, jobs** | `P/functions` (`routes.go:2905-2908`, Knative Serving 1.13.0); `P/auth/users` (`:2947-2956`); `P/flags` (`:2415-2419`, Flagsmith); `P/jobs` (`:1261-1266`) | serverless functions, the app's own users in Keycloak, feature flags, cron jobs | Knative Apache-2.0; Flagsmith BSD-3 | app users are Keycloak users; a per-app OIDC client is still manual (`LAUNCH.md:1784`, `:1939`) |
+| **Also in the estate** | Argo CD apps under `kubernetes/argocd-apps/` | Postal (email), Gotenberg (PDF), Presidio 2.2.355 (PII), Redis chart 19.5.0, KEDA, Traefik, cert-manager, Prometheus, Grafana, Loki, Tempo, Uptime Kuma | mostly permissive; **Grafana, Loki, Tempo are AGPL-3.0** | licence flags only matter if this stack is ever shipped into a customer tenancy |
+
+**Versions.** API v1.163.0 and Portal v1.142.0 (`VERSIONS.md`, last changed 2026-09-14);
+`STATUS.md` is a snapshot last changed 2026-08-10 and already lags the code (it says there is no
+per-key regenerate route; `routes.go:2403` has one), so this study cites code over status files.
+
 
 ## 8. Builds and security: Tekton, Trivy, Falco and the other scanners
 
