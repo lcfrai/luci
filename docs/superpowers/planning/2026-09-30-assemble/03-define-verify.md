@@ -252,8 +252,8 @@ worth taking (section 5). Forge as a Define service is not.
   check is **new code**, small, not an adapted snippet.
 - **The copy must change.** `Validate` refuses a spec with no routes ("no routes declared"), and
   the report makes routes optional. The auth shapes are a control only where Panacea parses
-  `routes.config.json` fail-closed and probes it (the prompt's own words). For any other app they
-  are a statement. **0.25 day → 0.5.**
+  `routes.config.json` fail-closed and probes it (the comment at `prompts.go:76-81`). For any other
+  app they are a statement. **0.25 day → 0.5.**
 
 ### 5.3 Panacea's data class: UPHELD. The gap is worse than "an admin step"
 
@@ -273,7 +273,46 @@ worth taking (section 5). Forge as a Define service is not.
 
 ## 6. The integration days, against our architecture
 
-*(to be filled)*
+**Verdict: 8 stream-days is optimistic. About 10 is realistic.** That is still days, not weeks. It
+starts only after 02's first-ship pieces land: the recipe, the create-lane route, the lane git
+endpoint and the plugin.
+
+| # | Glue | `03` | Verified | What changes it |
+|---|---|---|---|---|
+| G1 | Sandbox image and `panacea` preset | 1.25 | **1.75** | Build-stage render, no CLI at runtime (2.4 C); install `assess`; an `AC-` section plus a `specify` command override (2.4 A); vendor `grilling` and the `domain-modeling` directory (5.1); a test that `git` and `agent-context` are absent (2.4 B) |
+| G2 | Define start | 0.25 | **0.75** | Goes through 02's recipe, with a pending opening prompt on the create-lane route. `orca worktree create` would run on the laptop (2.5, item 1) |
+| G3 | Publish route (Go, control plane) | 2 | **2.25** | Per-entity access check is new code (5.2); routes optional; reads the **pushed** blob from the lane git endpoint (2.5, item 3) |
+| G4 | One Hub record kind | 1 | 1 | Unchanged; behind HA4-2 as before |
+| G5 | Cockpit surface | 1.5 | **2.25** | Not fork changes. A page that renders the exact blob, with Publish, the drift line and the definition of done, plus the chip in 02's plugin panel (2.5, item 2) |
+| G6 | Canary and end-to-end | 1 | **1.25** | The canary also covers the overridden command file and the two absent extensions. The scripted run drives the create-lane route, since Orca's UI is not scriptable in CI |
+| G7 | Data class on creation | 0.5 | 0.5 | Unchanged here. 06's refuse-to-promote gate is extra, on 06 (5.3) |
+| | **Glue** | **7.5** | **9.75** | Plus the report's 0.5 for kept work outside the glue: **about 10 stream-days, about 6 calendar days on two streams** |
+
+**Where each piece lands in our architecture.**
+
+- **Go control plane.** G2 and G3 are routes on the lane API that 02 makes the recipe's backend.
+  The built `discoverhub` client and the Materialiser are reused as the report says. The built
+  `OpeningPrompt` (`harness/argv.go:121-123`, the prompt as the last argv) serves only non-Orca
+  sessions now, because under 02 `orca serve` launches the agent.
+- **Tauri/React desktop.** It no longer hosts Define. The kept desktop tasks 15, 16, 17 and 20
+  (12 h) are re-seated, not deleted. Task 20's six session-start paths now have to be re-expressed
+  in the recipe's `create` result, which Orca displays. Not costed here; flagged.
+- **The page G5 needs has no owner.** The Hub API **refuses browser contexts by design**: Hub task
+  08's `TestOriginIsRefusedBeforeRouting` returns 403 to any `Origin`. So "a Hub web page" does
+  not exist in any plan. The cheapest sound home is a **control-plane page behind oauth2-proxy →
+  Keycloak (Panacea's own SSO chain)**, opened in Orca's browser tab. The shared shell for it is
+  about 1 day and serves Design's and Deploy's lenses too (02 R4). It is **not** counted above;
+  whoever seats the lenses owns it (02 or 08).
+- **Keycloak and LiteLLM.** Unchanged: the agent reaches the model only through the per-session
+  gateway token that the recipe's sandbox holds. That holds only on the recipe path (item 1 in
+  2.5).
+- **Azure.** Nothing new: no server, no database and no endpoint is added for Define.
+
+**The hours it replaces.** The plan-hour arithmetic checks out against the phase 4 table: tasks
+11-23 sum to 32.5 h, and tasks 13, 18, 19 and 21 to 10.5 h. The source has one slip: `11-design-r2.md`
+§7.5 adds 45.25 h and 31 h to "about 76.75", which is 76.25. The difference is immaterial. The
+report's "about 71 of about 109 h" stands. Part of tasks 18 and 19 (the lens) comes back as G5's
+page, and the table above has already priced it.
 
 ## 7. Corrected recommendation
 
