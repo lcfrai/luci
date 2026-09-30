@@ -132,6 +132,63 @@ Desk research only: nothing installed or run.
 - **Why it matters:** Penpot is drifting to open-core. That is a real forward licence risk, and
   the licence line "MPL-2.0" no longer describes the whole deployment.
 
+### 2.5 Parallel agents and untrusted code: where the report's design breaks
+
+The report treats the tab as a liveness problem (keep it awake). At source it is also an
+identity, a routing and a security problem.
+
+**1. One connected tab per user. The key is per user, not per file.**
+- Issue #9923 (the 2.16.1 *"single-tab connection control"*): *"only one tab owns the MCP
+  session at any time"*. *"Connect here"* in another tab disconnects the rest. The MCP key is
+  checked *"at the profile level"*.
+- Issue #9493 (2.17.0 limiter): a *"per-connection (not global) queue"*, with a default of 5
+  concurrent tasks (`PENPOT_MCP_MAX_CONCURRENT_TASKS=5`).
+- **Consequence:** every agent holding a user's key writes into whichever single file that
+  user's one tab has open. G2's *"one bot user per project"* therefore serves one file at a
+  time, which contradicts G5's *"one Chromium pod per active file"*.
+- **Fix:** one bot identity, one MCP key and one runner per concurrently active lane file. The
+  bots are Keycloak-local users (not Entra accounts, so no IT ticket), and each joins the team
+  through the invitation flow (2.3 row 12).
+
+**2. Agents that share a bot share state.** The plugin keeps one `storage` object per tab
+across calls (*"stored attributes can be referenced in future calls"*, `ExecuteCodeTool.ts`).
+Two agents on one bot can read, and plant functions in, each other's `storage`. One bot per lane
+fixes this too.
+
+**3. "Pins every call to the project's file" (G4) cannot be done by routing alone.** The relay
+picks a *user* (the token), not a file. It must also wrap every `execute_code` in a guard
+(`penpot.currentFile.id === <lane file>`, else throw), and the runner must never navigate
+away. This is feasible, but it is new glue.
+
+**4. Agent code can send the design anywhere from the browser it runs in.**
+- The plugin runtime gives plugin code a `fetch` to any URL. `create-sandbox.ts` at 2.18.0:
+  `safeFetch` sets `credentials: 'omit'` and blanks `Authorization`, with no URL allowlist.
+- The MCP plugin runs the agent's code with `new Function(...)` inside that sandbox.
+- Penpot's nginx sends no Content-Security-Policy. `nginx-security-headers.conf` sets only
+  `nosniff`, `Referrer-Policy`, `Permissions-Policy` and `X-Frame-Options SAMEORIGIN`.
+- **So, in the report's "usable after 3.5 days" mode** (agents working through the human's open
+  tab), untrusted agent JavaScript runs:
+  - in the human's signed-in browser, as the human;
+  - with a route to post the file's contents anywhere that browser can reach. This bypasses the
+    sandbox's egress lock completely.
+  - Its edits are also recorded as the human's, which breaks provenance (agent versus person).
+- **Correction:** the headless runner is not the backup plan. **For any real data it is the
+  only acceptable mode.** The human-tab mode is for demos on non-sensitive files.
+- **Add G10, a compensating control we own:** a CSP at our ingress with `connect-src` limited to
+  Penpot's origin, the Hub and our plugin origin, and `frame-src` limited to our plugin origin.
+  That both blocks exfiltration by `fetch` and acts as the plugin allowlist that the free edition
+  lacks (2.4). It must not touch `script-src`, because SES and `new Function` need eval. It is
+  untested whether Penpot's own UI works under it (fonts, plugin manifests), so 1 day, with a
+  spike.
+
+**5. `X-Frame-Options SAMEORIGIN` limits G3.** A top-level window works: Orca's per-worktree
+Chromium, or a separate Tauri WebView window. An `<iframe>` inside our React cockpit is blocked
+unless our ingress swaps the header for `frame-ancestors`. This is small, but it has to be
+chosen.
+
+**What still holds:** the runner-in-Kata idea (hardened pod, egress to Penpot only) is the right
+containment, and G7's approval via the approver's own tab is sound (2.3 row 11).
+
 ## 3. Alternative 1: OpenPencil
 
 *(to be filled)*
