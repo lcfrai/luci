@@ -1,6 +1,6 @@
 # 04 — Design: an agent-editable canvas. The sceptic's verification
 
-**Status:** IN PROGRESS (skeleton). Sections are filled one at a time and committed after each.
+**Status:** COMPLETE. Desk research only; §6 lists what was not verified.
 **Date:** 2026-09-30. **Verifies:** `04-design.md` (the researcher's recommendation).
 **Role:** sceptic. Try to refute the recommendation and its two best alternatives at source:
 licence, the vendor's own docs, paid-tier gates, maintenance, and whether the days fit OUR
@@ -9,11 +9,70 @@ Desk research only: nothing installed or run.
 
 ## 0. Verdict first
 
-*(to be filled)*
+**Penpot is UPHELD as the canvas. The plan around it is not.** Budget ~13 engineer-days, not 9.
+Agents must work only through hardened runners, and a Penpot Enterprise quote goes to the owner
+before the first customer install.
+
+| Candidate | Licence at source | Claims | Paid gates | Azure / Entra | Days | Verdict |
+|---|---|---|---|---|---|---|
+| **Penpot 2.18 + MCP** | MPL-2.0 core, chart and MCP. **But** the admin console the chart enables by default is closed (`penpot-nitrate`, `NOASSERTION`) | Mostly hold. Refuted or corrected: roster sync, "four" containers (five), the Tokens Studio claim (it is the DTCG draft), the zcube fallback (no licence file) | **Yes.** Self-host Enterprise at $25/user/month from $950/month holds the plugin allowlist, audit logs and identity governance | Holds: AKS in AU, OIDC via Keycloak, no model calls | **~13** (report: 9) | **Upheld, corrected** |
+| OpenPencil | MIT | **Its MCP needs the running desktop app**; only the CLI is headless | None | No server, no identity | ~6 single-writer, 10+ to Penpot's bar | Reference / fallback, upheld |
+| Figma Enterprise + MCP | Commercial | Hold. The rate-limit exemption is narrower than stated; SAML *can* go through Keycloak | All of it | AU hosting with holes; no customer cloud | ~3, blocked on catalogue | Optional adapter, upheld |
+
+**The five corrections that matter:**
+1. **One MCP tab per user, and the key is per user** (issue #9923). One bot per project cannot
+   serve parallel lanes, so we need one bot, one key and one runner per active lane file (2.5).
+2. **Agent code can post the design anywhere from the tab it runs in.** Plugin code gets
+   `fetch` to any URL, and Penpot sends no CSP. So the report's "usable after 3.5 days, through
+   the human's tab" is for demos only. Real data needs the runner plus a CSP we own (2.5, G10).
+3. **Enterprise is where the governance lives.** Plugin allowlist and audit logs are paid
+   features on self-host. The report priced the wrong product (*"Private Server $50k"* is a
+   cloud offer) (2.4).
+4. **Open-core drift.** The chart's default admin console is closed source, and Penpot says it
+   *"will be"* required *"in a future release"*. Switch it off now (one flag) and put it in the
+   Enterprise quote (2.4).
+5. **Days: ~13 engineer-days**, about 7 calendar days with two engineers, and agents on real
+   data from about day 6. Still days, not weeks (2.7).
 
 ## 1. What was checked, and how
 
-*(to be filled)*
+All reads on 2026-09-30. Nothing installed, pulled or run; no Azure subscription touched.
+
+- **The report under test:** `04-design.md`, all 583 lines (§1–§9).
+- **Penpot, at source:**
+  - `raw.githubusercontent.com` at tag `2.18.0`: `LICENSE`, `CHANGES.md`, `mcp/README.md`,
+    `mcp/docs/multi-user-mode.md`, `mcp/package.json`, `ExecuteCodeTool.ts`,
+    `ExecuteCodeTaskHandler.ts`, `plugins/libs/plugins-runtime/src/lib/create-sandbox.ts`,
+    `plugins/libs/plugin-types/index.d.ts`, `plugins/LICENSE`,
+    `docker/images/docker-compose.yaml`, `docker/images/files/nginx-security-headers.conf`,
+    and in the backend `nitrate.clj`, `http/management.clj`, `rpc/commands/teams.clj`,
+    `teams_invitations.clj`, `files_snapshot.clj`.
+  - GitHub tree pages for the repo root, `docker/images`, `backend/src/app` and `mcp/`.
+  - The releases and commits Atom feeds.
+- **The chart:** `helm.penpot.app/index.yaml`; `penpot-helm` `Chart.yaml`, `values.yaml`,
+  `_helpers.tpl`, the admin-console and MCP templates, and `LICENSE`.
+- **Registry metadata:** the Docker Hub tag lists for `penpotapp/mcp`, `backend` and
+  `admin-console`. Also the OCI image config (labels, `CMD`, history) of `admin-console`, `mcp`
+  and `frontend` at 2.18.0, read through the registry API with an anonymous pull token and no
+  layer downloads.
+- **GitHub API** (unauthenticated; quota exhausted by other agents at first, used after the
+  reset): repo metadata for `penpot/penpot`, `open-pencil/open-pencil`,
+  `zcube/penpot-mcp-server` and `penpot/penpot-mcp`; `/license` for two of them; OpenPencil
+  releases; top contributors.
+- **Vendor docs:**
+  - Penpot: `penpot.app/pricing`, `penpot.app/pricing/self-host`,
+    `penpot.app/penpot-enterprise`, the help centre's Docker, configuration, integration and
+    design-token pages, and GitHub issues #9923 and #9493.
+  - Figma: `figma.com/pricing`, the developers MCP intro, the tools page and the rate-limits
+    page, and help.figma.com on localized hosting and custom SAML.
+  - OpenPencil: `README.md`, `LICENSE`, `package.json` and
+    `packages/docs/programmable/mcp-server.md`, plus npm `latest` for the three packages.
+- **npm:** `@penpot/plugin-types` `latest`, and the OpenPencil packages.
+- **Our code:** `control-plane/internal/backend/backend.go` (the `Backend` interface and
+  `Spec`), greps of `control-plane/` and `desktop/`.
+- **Panacea, read-only greps:** `services/panacea-api/launchdoc/LAUNCH.md`,
+  `services/panacea-api/clients/tenant_redis.go`, `docs/architecture/AGENT-BUILDER-SPEC.md`.
+- **Coolify:** `templates/compose/penpot.yaml` on `v4.x`. **Glasses:** three offline searches.
 
 ## 2. The recommendation: Penpot 2.18 + its built-in MCP server
 
