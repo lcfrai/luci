@@ -1,6 +1,7 @@
 # 06 — Deploy and release provenance: the sceptic's verification
 
-**Status:** IN PROGRESS (skeleton). Sections are filled one at a time and committed after each.
+**Status:** COMPLETE (2026-09-30). Sections 2.1-2.4 were written before the 11:59 usage-limit stop.
+The rest was finished by the continuation.
 **Date:** 2026-09-30. **Verifies:** `06-deploy.md` (the researcher's recommendation).
 **Role:** sceptic. Try to refute the recommendation and its two best alternatives at source:
 licence, the vendor's own docs, paid-tier gates, maintenance, and whether the days fit OUR
@@ -9,11 +10,55 @@ Desk research only: nothing installed or run. `Projects/Panacea` was read with g
 
 ## 0. Verdict first
 
-*(to be filled)*
+**UPHELD, with corrections.** Panacea stays the deploy step, and our Deploy page, not Panacea's
+Portal, is what users see. **About 8.5 engineer-days, not 6** (about 5 with two people).
+
+- **Why it survives:** Panacea is KPMG's own code, on AKS in Australia, behind Keycloak brokering
+  Entra. Every route and MCP tool the report cites is at the cited lines. It already has previews
+  per branch, a database branch per preview with redaction, a stage ladder that turns `OD-24`'s
+  data class into scans, rollback and an evidence export. The best alternative, Coolify plus
+  Supabase plus snippets, needs 18-26 days and adds two consoles. Azure Container Apps needs 12-19
+  and leaves the regulated half to us.
+- **What does not survive:**
+  1. **Dev line only.** Production (`kpmg/main`) has no evidence export, no D10 and no
+     `panacea-mcp`. v1 targets `dev.panacea.kpmg` (§2.2).
+  2. **Region and reach.** Both live estates are in Australia Central, which has no availability
+     zones. The edge admits 14 KPMG IPs, so a shipped app opens only from KPMG's network (§2.3).
+  3. **Panacea is frozen for the cutover and mid-incident in production.** Vault seals on restart,
+     and isolation holes are still being found. Every Panacea-side ask queues behind the freeze
+     (§2.4).
+  4. **The days.** The Portal deep links fail the user's one-app ask: 10 plan-hours of screens
+     come back in-app. The evidence document is re-stamped at every export, so the Hub stores the
+     bytes it hashed. The proxy allowlist needs body and lookup rules, and must refuse `/analyse`,
+     which goes to Panacea's own LiteLLM. Project creation was missing (§2.5).
+  5. **Signing.** The choice holds. But cosign v3 defaults to a TUF-provided signing config, so we
+     sign in-process or with a private config. And Panacea runs Kyverno v1.12.5 and Chains
+     v0.23.0, not the versions cited (§3).
+  6. **Licences.** Panacea deploys five restricted components, not one: Vault (BUSL), MinIO (AGPL,
+     archived upstream), Grafana (AGPL), ClamAV (GPL) and Redis 7.4 (RSAL/SSPL). None blocks v1.
+     All of them block the customer-hosted tier until swapped (§2.1).
+  7. **Webhook previews are GitHub only** (02-verify §4.1).
+- **One app (the user's ask):** 06's owner call 2, "users meet a second, Panacea-branded UI", is
+  **withdrawn**. Logs, scans, governance and approve move into our Deploy page. Previews open in the
+  app-level view on the laptop's network. One release record, in our words (§6).
+- **Alternatives:** Coolify plus Supabase plus snippets, **reject upheld**. Self-hosted Studio sits
+  behind one shared password, and Coolify, like Panacea, runs shipped apps on a shared kernel (§4).
+  Azure Container Apps, **reference upheld** (§5).
 
 ## 1. What was checked, and how
 
-*(to be filled)*
+All reads were on 2026-09-30. Nothing was installed, built or run, and nothing was written outside
+this file.
+- **The report under test:** `06-deploy.md`, all 661 lines, in four reads.
+- **Panacea at source, read-only:** `git show`, `git cat-file -e`, `git grep` and `grep` across
+  three refs (`ado-gov/dev`, `ado-gov/main`, `kpmg/main`), plus HEAD's working tree. The files and
+  lines are in §9.
+- **Our side:** the Hub package on `feat/hub`; the phase 7 plan's route and task tables;
+  02-verify §3-§8 and 08-verify §7 (the one-app rules), for consistency across clusters.
+- **Licences and releases:** the GitHub API for cosign, Kyverno, Chains, Coolify, Supabase, MinIO
+  and silo, rationed under its rate limit. Raw `LICENSE` and source files cover the rest.
+- **Vendor docs:** sigstore, Coolify, Supabase, Microsoft Learn, Azure pricing, and the Azure Retail
+  Prices API for Key Vault and Container Apps in three Australian regions.
 
 ## 2. The recommendation: Panacea as the deploy step
 
@@ -79,7 +124,7 @@ or it waits for the cutover. That is an owner call (§7, call 1).
 | P-3: our realm token is refused | `middleware/auth.go:147-200`: `pnc_` keys, a Backstage identity JWT behind `BACKEND_SECRET`, or asserted headers. No foreign bearer is accepted | **holds** |
 | "Until P-3, a user pastes an unscoped `pnc_`" | **scoped keys exist today**: `scopeProject` plus `scopeRole` = `read` or `deploy`; a 90-day default and a 365-day cap (`handlers/api_keys.go:34-39`, `:68-100`, `:147-159`). Minting one needs an SSO browser session (`:112-116`) | **corrected**: one project-scoped key per project is possible now. Project **creation** still needs an unscoped key |
 | Single Keycloak replica | `kubernetes/argocd-apps/platform/keycloak.yaml`: `replicas: 1` | **holds** |
-| GitHub and Azure DevOps sources | `clients/pipeline.go:733` (`github` or `azuredevops`), `handlers/webhook_ado.go`, `clients/gitpush/azuredevops.go` | **holds**. Two limits: a repo host allowlist, and a **shared platform PAT** that only reaches KPMG's own orgs. A customer-org repo needs a per-project token (`clients/repo_allowlist.go:11-43`) |
+| GitHub and Azure DevOps sources | `clients/pipeline.go:733` (`github` or `azuredevops`), `handlers/webhook_ado.go`, `clients/gitpush/azuredevops.go` | **holds**. Two limits: a repo host allowlist, and a **shared platform PAT** that only reaches KPMG's own orgs. A customer-org repo needs a per-project token (`clients/repo_allowlist.go:11-43`). **It holds for API-started deploys only: webhook previews are GitHub only**, because ADO events go to Forge's agent-deploy pipeline (02-verify §4.1; §2.5) |
 
 **Finding 3: something the glue never does.** Phase 7 **binds to an existing** Panacea project by
 `repoUrl` (plan lines 139 and 290). It never creates one. `POST /api/v1/projects` (`routes.go:1017`,
