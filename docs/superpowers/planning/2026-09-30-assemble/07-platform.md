@@ -144,6 +144,39 @@ Briefs as files, approvals as pull-request reviews, releases as tags. Two hosts 
 
 Zitadel is AGPL-3.0 (Glasses, 2026-09-30): restricted. Authentik is MIT with an `authentik/enterprise/` carve-out (earlier study). Ory Hydra and Kratos and Dex are Apache-2.0 and clean, but replacing Keycloak reverses `OD-30` and the ruling's token profile. Entra directly stays the customer-hosted option (Panacea's BYO-Entra blueprint, `apothecary/docs/02-tenancy-and-identity.md`).
 
+### 3C. The AI gateway (LiteLLM, decided)
+
+#### 3.14 LiteLLM, ours, rebuilt from the MIT tree, started from Panacea's key code — **ADOPT (as planned)**
+
+- **Does:** the endpoint every Claude Code session talks to: virtual keys with a lifetime, user and team ids and budgets; spend logs; the Global and AU model groups; the Anthropic `/v1/messages` format out to the Anthropic API or to Bedrock.
+- **Licence:** MIT at the root; `enterprise/` under the BerriAI Enterprise License, so GitHub reports `NOASSERTION` (59,884 stars; v1.103.1 of 2026-09-30, while the plan pins v1.102.1; it releases about weekly, so pin by digest, `OD-33`).
+- **Deploy:** our AKS in Australia East, the plan's `panacea-gateway` namespace, its database on our Flexible Server; `gatekeeper` and `keysmith` in front and beside it (phase 6 plan, P6-D1).
+- **Enterprise fit:** meets `OD-19` with the plan's two services. The features the plan builds itself are the ones LiteLLM keeps for its paid tier: "IP address-based access control lists", "JWT-based Authentication", "Audit Logs", SSO beyond 5 users, tag-based budgets, team-managed models, key rotation, secret managers ([enterprise docs](https://docs.litellm.ai/docs/enterprise), read 2026-09-30).
+- **Gaps:** the AU leak through `count_tokens` (task 26) and the `enterprise/` directory in the stock image (task 27), both `OD-33`.
+- **What Panacea adds (snippets, attribution in the header):** `generateLiteLLMKey` and `EnsureProjectLLMKey` (`handlers/llm_vkeys.go:209`, `:458`), the model allow-list (`:79`), rate caps (`:263-340`) and `team_id` = project (`handlers/llm_env_keys.go:100-110`) seed keysmith's tasks 04 and 07 (5.5 plan-hours) from working code; the plan's pitfall table (phase 6 plan §"What Panacea's LiteLLM taught") stays the checklist.
+- **Effort:** phase 6's **8.85 plan-days**, less about 0.3 for the copied code, less 0.4 if task 22's panel becomes an Orca panel (02's call): **about 8.2 engineer-days**.
+
+#### 3.15 Panacea's LiteLLM as the agents' gateway — **REJECT (take its code)**
+
+In-cluster only, spend by project alone, no Bedrock and so no AU route, retention not asserted in config, and a long-lived project token inside an untrusted sandbox (§2). It stays the gateway for apps Panacea hosts.
+
+#### 3.16 A LiteLLM Enterprise licence — **BUY LATER (an option)**
+
+- **Adds:** admin-UI SSO beyond 5 users, audit logs, key rotation, Azure Key Vault as a secret manager, tag budgets, team-managed models, global IP lists.
+- **Does not add:** a key bound to one pod, the `count_tokens` fix, or the person-project-team budget as specified; so `gatekeeper` and `keysmith` stay either way.
+- **Price basis:** "Pricing depends on your deployment size" (LiteLLM docs); third-party guides report Basic from about US$250 a month and Premium about US$30,000 a year ([TrueFoundry](https://www.truefoundry.com/blog/litellm-pricing-guide); not first-party).
+- **When:** more than 5 operators need LiteLLM's own admin UI, or an assessor wants gateway-side audit logs beyond ours. Taking it puts `enterprise/` code under BerriAI's terms in a customer's tenancy; the per-customer terms are unverified.
+
+#### 3.17 Other gateways — **REFERENCE (`OD-21` locked, no spike)**
+
+| Gateway | Licence and deploy | Note |
+|---|---|---|
+| Azure API Management AI gateway | Azure service, Australia East | v2 tiers pass the Anthropic Messages API through and meter it with `llm-token-limit` ([policy reference](https://learn.microsoft.com/en-us/azure/api-management/llm-token-limit-policy)); per-session keys, spend by person, team and project, and Bedrock's SigV4 would all be ours (the last not verified) |
+| Bifrost (`maximhq/bifrost`) | Apache-2.0, 8,451 stars (Glasses) | the vendor claims virtual keys, four-level budgets and Bedrock routing for Claude Code in the open tier, with clustering, guardrails, RBAC, vault and audit logs paid (vendor pages, not verified). The closest alternative on paper |
+| Portkey gateway | MIT, 13,112 stars | routing is open; budgets and virtual keys live in Portkey's commercial control plane |
+| Envoy AI Gateway | Apache-2.0 | Gateway API native, token rate limits, Bedrock with SigV4; no spend store |
+| Claude in Microsoft Foundry | Azure-billed, Anthropic-run | not an AU route today: Australia East is not a supported region, per third-party reports of July 2026 (not verified first-hand); `OD-19`'s AU stays Bedrock Sydney |
+
 ## 4. Side by side
 
 _To be written._
