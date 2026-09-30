@@ -230,9 +230,63 @@ Every figure is unmeasured, as in the report.
 - Still days, not weeks. It is also no longer cheaper than the baseline's own plan figure of
   ~9 days to finish phase 5 (04-design §4). Penpot wins on what arrives, not on cost (§5).
 
+### 2.8 Verdict on Penpot
+
+**UPHELD as the canvas, with the corrections in 2.3-2.7.** Nothing found beats it on
+multiplayer, self-hosting in AU, Keycloak-to-Entra sign-in, an MPL core and a real API all
+together. But three things in the report do not survive:
+- "No per-seat licence": a regulated tenancy wants the Enterprise tier (2.4).
+- "Usable after 3.5 days with agents through the human's tab": that is unsafe for real data
+  (2.5).
+- "9 days": the figure is about 13 (2.7).
+
+The closed admin console is a forward licence risk the report did not name (2.4).
+
 ## 3. Alternative 1: OpenPencil
 
-*(to be filled)*
+**Verdict: REFERENCE, the named fallback: UPHELD. One headline claim is refuted: its MCP
+server is not headless.**
+
+**Licence at source: MIT. Holds.**
+- `LICENSE`: *"MIT License / Copyright (c) 2026 Danila Poyarkov and OpenPencil
+  contributors"*. The GitHub API detects SPDX `MIT`.
+- npm `@open-pencil/cli`, `@open-pencil/core` and `@open-pencil/mcp` 0.15.1 are all `MIT`.
+- The collaboration dependencies are `trystero ^0.22.0` and `yjs ^13.6.32` (root
+  `package.json`).
+
+**Maintenance:**
+- 8,668 stars, 859 forks, 67 open issues. Created 2026-02-27, last push 2026-09-30.
+- Releases: v0.13.0 on 05-29, v0.14.0 on 08-11, v0.15.0 on 09-16, v0.15.1 on 09-18.
+- **Bus factor one.** `dannote` has 2,549 commits; the next contributor has 117. No company was
+  found.
+- README: *"Active development. Usable today, with some rough edges."*
+
+**Claims against its own docs:**
+
+| Claim in 04-design | At source | Result |
+|---|---|---|
+| *"100+ MCP tools over stdio and HTTP that work headlessly on files"* | `packages/docs/programmable/mcp-server.md`: the server lets tools *"read and modify designs **through the running app**"*, and *"Make sure the desktop app is open with a document loaded."* The README's *"headlessly"* line contradicts it; the detailed doc is explicit | **Refuted.** Headless-on-files is the **CLI** (`openpencil eval design.fig -c … -w` with the Figma Plugin API, plus `export`, `import`, `lint`), not the MCP. The MCP needs the running app, which is the same class of constraint as Penpot's tab |
+| HTML/CSS/Tailwind in; JSX, HTML, Storybook out | README: `openpencil import page.html --css styles.css -o page.fig`; `export -f jsx --style tailwind`, `-f html`, `-f storybook` | Holds |
+| P2P WebRTC multiplayer, no server | README: *"P2P via WebRTC, no server, no account"*; `trystero` in `package.json` | Holds. Public signalling is not acceptable in a regulated tenancy unless we replace the provider |
+| MCP security | Token auth *"enabled by default"*; CORS limited to `tauri://localhost`; file operations limited to `OPENPENCIL_MCP_ROOT`, *"reject symlink escapes"* | Better than stated |
+| Built-in AI is bring-your-own-key | README: OpenRouter, Anthropic, OpenAI … *"or compatible endpoints"* | Holds. It can point at LiteLLM |
+| Format risk | Its native save format is `.fig` (`save_file` *"to a `.fig` file"*; `packages/kiwi`, `packages/fig`), read by reverse engineering | Holds as a risk |
+
+**Paid tiers:** none. **Azure, AU, Entra:** there is no server and no identity. The CLI runs
+inside our sandbox on files in the lane's worktree, so residency is wherever the sandbox is, and
+no credential ever enters the sandbox. That is structurally the best fit for untrusted,
+parallel agents of anything examined.
+
+**Days for our architecture:** the report's ~6 cannot be spent as it describes, because the MCP
+is not headless. Agents would use the CLI from their shell instead (about 0.5 day in the sandbox
+image), and humans would edit through the desktop app or PWA as one writer at a time over git.
+That is about 6 days for a single-writer tool. Reaching Penpot's bar also needs:
+- a self-hosted Yjs provider in place of trystero, behind Keycloak
+- persistence and server authority
+- audit
+
+That is **10+ days**, on a pre-1.0, one-maintainer base. **Keep it as the fallback.** If Penpot's
+runner spike fails, the OpenPencil CLI is the headless agent path.
 
 ## 4. Alternative 2: Figma Enterprise + Figma MCP
 
