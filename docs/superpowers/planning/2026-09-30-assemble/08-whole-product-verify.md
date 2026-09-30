@@ -228,7 +228,7 @@ Estimates composed from estimates; nothing measured.
 | Define (03) | 8 | **10** stream-days | 03-verify, complete |
 | Design (04) | 9 | **13** | 04-verify, complete |
 | Work and team (05) | 17 | **20** (17-23) | 05-verify, complete |
-| Deploy (06) | 6 | **8.5** (7.5-9.5), including 1.4 to bring Portal screens in-app for the one-app ask | 06-verify §2.5, being finished |
+| Deploy (06) | 6 | **8.5** (7.5-9.5), including 1.65 for our Deploy page in place of the Portal (the one-app ask) | 06-verify §2.5 and §6-7 |
 | Platform glue (00) | 2 | **2**, a floor | 00-verify's days are still pending; its §2 adds unsized glue (the preview shares the production database by default) |
 | Hub, gateway, environment (07) | 0 | **20.5** (Hub 10, signed-in Hub pages 1, gateway 8.4, environment 1) | 07-verify §5, which corrects 07-platform's 19.2. Its +1 for signed-in Hub pages overlaps 02-verify's 0.5 in the Hub |
 | Journey test (this cluster) | 1.5 | **2**, with the one-app checks | section 7 |
@@ -247,8 +247,9 @@ Estimates composed from estimates; nothing measured.
 - **All of it:** about 20-21 working days with five builders; about 10 weeks with two.
 - **Day 0 can decide the date more than the build.** None of it is engineering: an Azure
   subscription, Kata quota and feature registration (01); a Defender suppression rule, an ASR
-  allowlist and a code-signing route for our build (02); on Panacea's side, our egress on the edge allowlist, the realm
-  client, and P-1 to P-3 queued behind the cutover freeze (06-verify §2.4, 07); for our own Hub
+  allowlist and a code-signing route for our build (02); on Panacea's side, our egress on the
+  edge allowlist, the realm client, and P-1 to P-3 queued behind the cutover freeze (06-verify
+  §2.4, 07); for our own Hub
   and gateway, a DNS name, an edge allowlist and Keycloak 26 on two replicas (07-verify §5); a
   Teams admin (05).
 
