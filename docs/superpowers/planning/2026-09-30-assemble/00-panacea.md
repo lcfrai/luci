@@ -118,7 +118,59 @@ server `https://sso.<domain>/realms/panacea` (`mcp_wiring.go:41`), while Keycloa
 
 ## 5. Identity: the Keycloak realm, Entra brokering, and how another product calls in
 
-_(pending)_
+The realm was surveyed in full on 2026-09-25 (`.superpowers/sdd/identity/facts-panacea-keycloak.md`)
+and ruled on in `2026-09-25-identity-keycloak-broker.md`. This section keeps only what an
+inventory needs and adds the token facts that survey did not cover.
+
+**5.1 The realm (usable now, one change needed).**
+- Realm `panacea` at `https://auth.<domain>/realms/panacea`, Keycloak 25.0.0 from chart
+  `codecentric/keycloakx` 2.4.4 (facts section 1). Defined imperatively by
+  `deploy/portal/setup-keycloak.sh` (`REALM="panacea"` at `:15`), re-run every deploy.
+- Clients: `backstage` (`:139`) and `panacea-oauth2-proxy` (`:320`), both confidential. **No public
+  PKCE client exists**; our desktop client `panacea-app-desktop` is one new block in that script
+  (facts section 9, ruling K1). It adds no Entra redirect URI, so **no IT ticket** (facts section 10).
+- Entra is brokered through IdP alias `entra` (`setup-keycloak.sh:395`), tenant-pinned with a `tid`
+  claim filter (`:509`), auto-link on first login, group mappers for `platform-admins` and
+  `panacea-admins` (facts section 3). `kc_idp_hint=entra` skips the Keycloak page (facts section 8).
+- **Gaps:** one replica with in-memory sessions (`deploy/main.tf:928`, `:954-957`), so a pod move
+  logs every user out; a shared blast radius with Panacea; and every realm change is a Panacea deploy.
+
+**5.2 How another product authenticates to panacea-api today** (`middleware/auth.go:130-262`,
+`middleware/api_key.go:19-350`).
+
+| Path | What the caller sends | Who it is for | Usable by PanaceaApp? |
+|---|---|---|---|
+| `pnc_` user token | `Authorization: Bearer pnc_...` (`api_key.go:19`) | programmatic callers, agents, the MCP server | **yes, the path to use** |
+| Backstage proxy | `Bearer <BACKEND_SECRET>` + `X-Backstage-Identity: <JWT>`, JWKS-verified, fail closed (`auth.go:156-186`) | the Panacea portal only | no: it is Panacea's shared internal secret |
+| Header assertion | `Bearer <BACKEND_SECRET>` + `X-Auth-Request-User/-Email/-Groups` (`auth.go:197-215`) | oauth2-proxy and platform scripts | no, same secret; logged at Warn as a forgeable path |
+| Legacy project key | `Bearer panacea_...` from `POST P/api-keys` (`routes.go:2942`, `handlers/apikeys.go:31-55`) | old partner scripts | avoid: expiry in days, `0` = never |
+| A realm access token | `Bearer <Keycloak JWT>` | us, ideally | **no**: 401 on REST (`auth.go:245-251`); one JWKS issuer at a time elsewhere (facts section 7) |
+
+**5.3 The `pnc_` token model** (`handlers/api_keys.go`, `middleware/api_key.go`).
+- Minted by `POST /api/v1/me/api-keys` (`routes.go:3050`), listed and revoked at `:3051-3052`, admin
+  revoke-all at `:3056`. Body: `name`, `expiresIn` (Go duration), and optional `scopeProject` plus
+  `scopeRole` = `read` or `deploy` (`api_keys.go:33-39`).
+- **Every token expires**: default 90 days, ceiling 365, refused above it (`api_keys.go:71-100`).
+- A scoped token is confined to one project at a capped role; the owner's live role is re-checked
+  on each request, so a token dies when its owner loses the project (`api_key.go:246-330`).
+- **A token cannot mint a token**: "API tokens cannot bootstrap new tokens — must be SSO-logged-in"
+  (`api_keys.go:112-116`). And minting needs a real grant (`RequirePortalGrant`, `rbac.go:357-386`).
+
+**Consequence.** PanaceaApp cannot, by itself, give each sandbox its own short-lived,
+project-scoped Panacea token: the minting call needs the user's SSO session in Panacea's portal.
+Three ways through, ranked:
+1. **Ask Panacea for one change: trust our realm client's access token** (audience `panacea-api`)
+   as a second issuer. Then the control plane, holding the user's realm token, mints a
+   `scopeProject` + `scopeRole=deploy` + `expiresIn=8h` token per sandbox and revokes it at session
+   end. The ruling listed this as "not asked of Panacea now" (`2026-09-25-identity-keycloak-broker.md:430-432`);
+   under the second direction it is the one Panacea-side change worth asking for. About 1-2 days
+   in Panacea (a second verifier config in `jwks.go`, plus tests), done by the Panacea stream, not us.
+2. **Until then: one pasted `pnc_` per user, and a control-plane proxy.** The user mints a token once
+   in the portal (Account, Connect via MCP); phase 7 already stores it (7P-1, ruling section 8). The
+   sandbox's `panacea-mcp` points at a loopback proxy in our control plane that forwards only the
+   session's project routes. About 1 day of glue.
+3. Not recommended: minting legacy `panacea_` project keys per session (`apikeys.go:31-55`).
+
 
 ## 6. AI: the LiteLLM gateway and its token model
 
