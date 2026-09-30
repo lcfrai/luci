@@ -32,10 +32,47 @@ _Working notes (relaunch after the 11:59 stop), filled as the read proceeds._
   `:954-957`), `NOCREATEROLE` (`clients/db_roles_ensure.go:97-109`), the key code
   (`handlers/llm_vkeys.go`), Bedrock removed (`handlers/ai_settings.go:218`); and whether
   Panacea's `.tf` uses anything OpenTofu lacks. In our repo: `roles.sql` on `feat/hub`.
+- **Relaunch 2** (after the cohesion step was added): re-read `07-platform.md` in three chunks
+  (1-125, 125-235, 235-365). Added to the test list: the user's request that the product feel
+  like one app, so each platform piece is also checked for a screen, sign-in or console of its
+  own that a user would meet (§6).
+- Panacea at `f0a258d8e` (2026-09-30), grep and `sed -n` only. `deploy/main.tf:928` is
+  `replicas: 1`, and `:954-957` start Keycloak with `--cache=local`. The comment above them
+  records an SSO outage on 2026-09-21: the pod moved twice in 30 minutes, and each move logged
+  every user out. No image tag is set, so "25.0.0" is the chart's default (the ruling's U-3
+  says the same: "pod not inspected").
 
 ## 2. The recommendation, claim by claim
 
-_Pending._
+The recommendation under test: Panacea's realm now; our LiteLLM from the MIT tree with
+`keysmith` and `gatekeeper`; the Go Hub on Flexible Server; our AKS from Panacea's `.tf` under
+OpenTofu. GitHub API figures were read at 12:44 on 2026-09-30; Panacea is at `f0a258d8e`.
+
+| # | Claim in `07-platform.md` | What the source says | Verdict |
+|---|---|---|---|
+| I1 | Keycloak is Apache-2.0, 26.7.4 of 2026-09-16 | API: `Apache-2.0`, 37,061 stars, `26.7.4` at 2026-09-16T14:44Z | **holds** |
+| I2 | Panacea runs Keycloak 25.0.0 on one replica (`main.tf:928`, `:954-957`) | `replicas: 1` and `--cache=local`. No image tag is set, so 25.0.0 is the chart default. The comment above records an SSO outage on 2026-09-21: two pod moves in 30 minutes, and each logged every user out | **holds, and has already failed once** |
+| I3 | Keycloak 26 persists user sessions by default | keycloak.org 26.0.0 notes: "In Keycloak 26, this feature is enabled by default" | **holds** |
+| I4 | One realm change, no IT ticket | Holds per the ruling (K1-K4). But the issuer is Panacea's **dev** realm, `https://auth.dev.panacea.kpmg/realms/panacea` (ruling line 94), not production. The research never says so | **holds; name the estate** |
+| I5 | (not claimed) Is Keycloak 25 still patched? | `SECURITY.md`, "Supported Versions": fixes land "in the current `major.minor` release ... or ... the following". Longer support is only the Red Hat build (a paid subscription) | **new risk**: our sign-in rests on an IdP that gets no fixes |
+| G1 | LiteLLM: MIT root, `enterprise/` carve-out, GitHub `NOASSERTION` | Root `LICENSE`: `enterprise/` is under `enterprise/LICENSE`, and the rest is MIT. That licence allows production use only with a subscription "for the correct number of user seats"; dev and test copies are free | **holds**; the price basis is **per user seat** (the docs only say "deployment size") |
+| G2 | v1.103.1 of 2026-09-30; the plan pins v1.102.1 | API: `v1.103.1` at 2026-09-30T00:59Z | **holds** |
+| G3 | The paid tier holds IP lists, JWT auth, audit logs, SSO over 5 users, tag budgets, team models, key rotation, secret managers | docs.litellm.ai/docs/enterprise lists each one ("SSO is free for up to 5 users"), plus per-model budgets per key. Virtual keys, users, teams and Prometheus are open source | **holds**. One wording error: §0 item 2 says the paid tier "keeps pod binding". No tier binds a key to a pod; 3.16 has it right |
+| G4 | Panacea's gateway cannot serve agents | Stronger at source. `allow-vvah-to-gateway.yaml:82` says Panacea's pinned proxy, v1.40.0, "serves no /v1/messages route at all". Claude Code speaks only the Messages format through `ANTHROPIC_BASE_URL` | **holds, stronger** |
+| G5 | The cited Panacea lines: `llm_vkeys.go` `:79`, `:209`, `:263-340`, `:458`; `llm_env_keys.go:100-110`; `ai_settings.go:218`; `deploy_analysis.go:30-31`; v1.63.11 and v1.40.0; no `turn_off_message_logging` | Each is at the cited line. The two versions are in `litellm-values.yaml:31` and the `main-v1.40.0` Dockerfile `FROM`. No `turn_off_message_logging` appears under `deploy/` or `kubernetes/` | **holds** |
+| G6 | Refusing `count_tokens` closes the AU leak (task 26) | Claude Code's gateway guide: token counting is "the only optional" endpoint; without it, Claude Code "falls back to a character-based estimate" | **holds**: the refusal costs only exact `/context` numbers |
+| G7 | (not claimed) Is the LiteLLM supply chain safe? | BerriAI's post of 2026-03-24: PyPI `litellm==1.82.7` and `1.82.8` were backdoored for about 40 minutes, through the Trivy step in its CI. The official Docker image was not affected. Images are cosign-signed from v1.83.0 | **new risk**, which the plan's build-from-source and digest pin already answer. Add: build from a tagged commit and lock the Python dependencies by hash |
+| H1 | The Hub schema needs no superuser and no extension | `roles.sql` is 11 lines: two `NOLOGIN` roles and one `GRANT`. `0001_init.sql` (693 lines) uses built-in `sha256()`, PL/pgSQL, `SECURITY DEFINER`, triggers and row-level security on `current_setting`. It has no `CREATE EXTENSION`, event trigger or `ALTER SYSTEM` | **holds** (read, not applied) |
+| H2 | Burstable B2ms costs US$0.208 an hour in Australia East | Retail Prices API: `B2ms vCore`, 0.208 USD per hour | **holds** |
+| H3 | Panacea's `postgres-flexible.tf` gives HA, PITR and geo-backup (`:255-285`) | Geo-backup is at `:255-256`, private endpoint only at `:263`, HA at `:268-271`. The HA block is unconditional and "Requires a General Purpose / Memory Optimized SKU" | **holds**, with one trap: P2's Burstable dev server cannot copy the file unchanged |
+| E1 | OpenTofu is MPL-2.0, v1.12.6 | API: `MPL-2.0`, `v1.12.6` at 2026-08-19 | **holds** |
+| E2 | Panacea's `.tf` runs on OpenTofu | 22 files. They use `required_version = ">= 1.6.0"`, `backend "azurerm"` and five `check` blocks, all in OpenTofu 1.6+. There is no `cloud` block, ephemeral resource, write-only argument or provider function | **holds** |
+| E3 | The ISM cites: ISM-0459 37 times, ISM-1416 and ISM-1277 12 each | Recounted: 37, 12, 12 | **holds** |
+
+**What survives:** every licence and version figure, and every Panacea line cited. **What
+changes:** sign-in rests on Panacea's *dev* Keycloak 25. That release is out of upstream
+support, and it has already logged everyone out once (I2, I4, I5). LiteLLM's March breach
+should be named, even though the plan's controls answer it (G7).
 
 ## 3. Alternative 1: Supabase, self-hosted (and Coolify)
 
