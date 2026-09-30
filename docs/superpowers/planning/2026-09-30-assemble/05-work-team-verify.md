@@ -253,7 +253,47 @@ gateway token's issue tag depends on LiteLLM key metadata (the gateway cluster, 
 
 ## 9. Corrected recommendation
 
-*(to be filled)*
+**Do not build a tracker. Azure DevOps Boards is the system of record, and the only one for AU-only
+projects; GitHub Issues/Projects sits behind the same `tracker` interface for projects classed
+Global. PanaceaApp is the agent the work is handed to and the proof that closes it.** Teams
+carries *inform* through the first-party channel apps now and *decide* through our bot once the
+Teams admin allows it. Panacea supplies the code snippets, the signed audit head and preview
+comments as they are, and the team model once it opens a member-readable roster. Orca stays
+unforked.
+
+What changes from the researcher's version:
+
+1. **Done-means-proven on ADO is two fields and three standard rules** (Proof required on Done for
+   linked items; Proof and Linked read-only to all but a PanaceaApp Proof group), not one
+   group-transition rule, which would block every person in every project on the process. Or a
+   dedicated inherited process. The cockpit still checks Proof against our evidence record.
+2. **A service identity in ADO:** a user-assigned managed identity in our subscription, added to
+   the organisation as a free Stakeholder. It writes Proof and posts the live status comment, so
+   the comment reads as PanaceaApp's and not the user's. Users keep their PATs (`OD-30`), now with
+   *Work Items (Read & write)* and organisation-scoped.
+3. **GitHub is not AU-resident for KPMG today** (its EMU is on github.com). GitHub's Proof field
+   is writable by any triager, so a hand-set value shows *claimed, not proven*.
+4. **Orca: no fork.** Start for ADO is the pending-start path through the *Run on: Panacea
+   sandbox* recipe (1 day); the ADO task source goes upstream as a PR. A day-1 spike checks whether
+   task-linked worktrees carry the issue link into the recipe. The Work lens is a Hub page in
+   Orca's browser tab.
+5. **Sandbox reads of ADO go through a control-plane proxy.** Nothing can mint a per-session ADO
+   token. The platform, not the agent, creates issues from the brief on both trackers: Spec Kit's
+   `taskstoissues` calls the GitHub MCP server's `issue_write`, which needs a write token in the
+   sandbox.
+6. **Days: about 20 (17 to 23), 18 without Orca.** The first ADO demo is about 5.5 working days
+   **in an ADO organisation we administer**. Otherwise it waits on the day-0 asks (section 8).
+
+**One addition, for the owner's call 1:** give PanaceaApp its own ADO organisation in the
+Australia geography, for v1 and for anyone who arrives with no tracker. We would hold every admin
+role the Done rule, the proof identity and the hooks need. Residency would be known, not assumed.
+And a person from nothing gets a repo and a tracker in one place. Whether KPMG's tenant allows a
+new organisation was not checked: Azure DevOps has a tenant policy that can restrict organisation
+creation. Nothing in 03, 06 or 08 provisions a repo for a person from nothing today, so that gap
+is the whole product's, not this cluster's.
+
+**Trade-off, in one line:** we trade the Linear-class tracker `OD-26` wanted for trackers KPMG
+already runs, and pay for it with admin asks instead of engineering days.
 
 ## 10. What this verification could not verify
 
