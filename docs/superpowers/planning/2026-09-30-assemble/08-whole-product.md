@@ -58,7 +58,32 @@ output the build uses. *Develop*: parallel agents in cloud sandboxes, each on it
 
 ## 3. The candidates at a glance
 
-_(pending)_
+"Fails" lists section 2's tests; "Days" is integration effort where a sibling or this run costed
+it. Detail and evidence are in section 4.
+
+| § | Candidate | Phases it covers | Licence | Deploys | Fails | Days | Verdict |
+|---|---|---|---|---|---|---|---|
+| 4.1 | OpenHands Agent Canvas + Enterprise | Develop, automations | MIT; server PolyForm Free Trial (buy) | Self-host on Kubernetes | B5, B7, B8 (server), B9 | 10-15 | reference |
+| 4.2 | Devin | Develop | Commercial | Cognition cloud; Devbox in a Cognition-run VPC | B1, B2, B4, B5, B9 | — | reject |
+| 4.3 | GitHub Copilot cloud agent, Agent HQ (Spark, Workspace retired) | Develop, landing | Commercial | GitHub SaaS; runners may be ours | B2, B4, B7, B9 | — | reject (landing already adopted, 02) |
+| 4.4 | Cursor cloud agents | Develop | Commercial | Cursor cloud; workers ours | B2, B4, B5, B7, B9 | — | reject |
+| 4.5 | Claude Code cloud sessions, self-hosted environments, Managed Agents | Develop, landing (GitHub) | Commercial | Anthropic control plane; runners ours | B2, B3, B4, B7, B9 | — | reject now |
+| 4.6 | Replit, Lovable, Bolt, v0 | Idea to hosted app | Commercial (bolt.diy MIT plus a WebContainer licence) | Vendor clouds | B1, B4, B5, B7, B9 | — | reject |
+| 4.7 | Factory | Develop | Commercial | Droid ours; sessions in Factory's Global or EU cloud | B2, B5, B9 | — | reject |
+| 4.8 | AWS Kiro | Define to Develop | Commercial | AWS SaaS: US, EU, GovCloud | B1, B2, B4, B5, B9 | — | reject |
+| 4.9 | Google Jules, Firebase Studio | Develop; prototype to deploy | Commercial | Google Cloud; Firebase Studio shuts 2027-03-22 | B1, B2, B4, B5, B7, B9 | — | reject |
+| 4.10 | Coder | Develop environments | AGPL-3.0 + Premium | Self-host on AKS | B8 unless bought, B9 | 8-12 (02) | reference |
+| 4.11 | Ona, OpenAI Codex | Develop | Commercial | AWS or GCP runners; Codex US only | B1, B2, B4, B5, B9 | — | reject |
+| 4.12 | GitLab Self-Managed + Duo Agent Platform | Plan to deploy | Commercial EE (CE MIT) | Self-host on Azure | B7 (a third host), B4 as shipped, B9 | weeks | reference |
+| 4.14 | **Panacea** (Forge not adopted) | Deploy, app backend, sign-in, teams | KPMG's own | KPMG's Azure, Australia | Forge: B5, B6 | 6 + 2 | **adopt as the platform** |
+| 4.15 | Coolify + Supabase + Panacea snippets | Deploy, app backend | Apache-2.0 | Docker on Azure VMs | B7; weak regulated half | 16-24 | reject |
+| 4.16 | **Orca** | The Develop cockpit | MIT | Desktop, `orca serve` in our sandboxes | No SSO (glue covers it) | 7.5 on top of 01's 8 | **adopt** |
+
+**The pattern.** Every commercial agent product that offers "your infrastructure" moves only the
+*execution* there: Devin's Devbox, Cursor's workers, Anthropic's runners, GitHub's runners,
+Factory's Droid. The planning loop, the inference, the session store or the control plane stays
+in the vendor's cloud, which is exactly what B2 and B4 forbid. The products that do self-host
+whole (OpenHands Enterprise, Coder, GitLab) replace either the agent, the cockpit or the git host.
 
 ## 4. Candidates in detail
 
