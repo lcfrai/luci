@@ -125,7 +125,9 @@ Desk research only: nothing installed or run.
 **What this forces:**
 - **Now:** G1 must remove the flag and disable the component. Otherwise the default install puts
   a closed image with no licence grant into our tenancy, and the licence gate (task 04) cannot
-  pass it.
+  pass it. This is one line. The chart's `penpot.adminConsoleEnabled` helper is `has
+  "enable-admin-console"` over `config.flags` (`_helpers.tpl:144-146`), so dropping the flag
+  drops the Deployment.
 - **Later:** once a release makes it mandatory, there are two ways on. KPMG accepts Kaleidos's
   terms for a closed component, which is allowed because KPMG can buy it, but it costs money and
   customers will see it. Or we stay on the last release that runs without it.
@@ -378,4 +380,38 @@ opened). Glasses still holds no design canvas other than Onlook (searched "desig
 
 ## 6. What was not verified
 
-*(to be filled)*
+Nothing was installed, pulled, built or run. Image facts come from registry metadata only
+(manifest and config JSON), not from pulling layers. Every figure for days is an estimate.
+
+**For the day-1 spike (in order):**
+1. Whether a headless Chromium keeps the MCP plugin connected for hours, and how many runners
+   one AKS node carries (RAM per Chromium). This was the report's first question and it is
+   still open. It now decides whether real-data agent work is possible at all (2.5).
+2. Whether G10's CSP (`connect-src`, `frame-src`) leaves Penpot's UI working: fonts, plugin
+   manifests, the WASM renderer, the MCP WebSocket. What Penpot's frontend loads from third
+   parties was not checked.
+3. Whether chart 1.10.0 runs cleanly without `enable-admin-console`. The template guard is read
+   (2.4); the nginx admin-console location template was not.
+4. Whether `readOnlyRootFilesystem: true` plus emptyDir mounts works for the five images. This
+   decides both our hardening and the Panacea-host nuance (2.6).
+5. Whether Penpot's S3 client works against S3Proxy on Blob (the report's question 5).
+
+**Before the first customer install:**
+1. Penpot Enterprise's real price basis (per user, or flat $950 a month; the vendor's pages
+   disagree), what it switches on in a self-hosted install, and the licence terms of
+   `penpot-nitrate`. None of this is published. Ask Kaleidos in writing.
+2. Whether the free edition's version history keeps pinned versions indefinitely. Enterprise
+   advertises "180-day version history". G7 pins approved versions, and the Hub keeps the
+   bundle regardless.
+3. Figma: whether `use_figma` counts against the 600-a-day limit, whether writing needs a Full
+   seat, and whether MCP traffic falls inside AU data residency.
+4. The OpenPencil CLI's `eval` fidelity on real screens, and whether its Figma Plugin API
+   subset is enough for agents. Only its docs were read.
+
+**Also not verified:**
+- The Panacea checks are three greps (`LAUNCH.md:173`, `tenant_redis.go:70`,
+  `AGENT-BUILDER-SPEC.md:113`), not a deploy.
+- Orca's embedded-browser behaviour is still unverified, as the report says.
+- The MCP package at tag 2.18.0 declares `"version": "2.17.0"`. The README says the plugin warns
+  on a version mismatch, but whether the 2.18.0 image shows that warning was not checked.
+- Grida was judged from third-party summaries only.
