@@ -110,6 +110,52 @@ keep sandbox egress closed to GitHub and PyPI. The commands call their helper sc
 runtime image altogether (not verified). The report offered the build-stage render as an option.
 Make it the rule.
 
+### 2.5 The Orca half: refuted as written, rebuilt on `02`'s ruling
+
+`02-fleet-cockpit.md` read Orca's **source** and ruled: **adopt Orca unforked**. Each lane runs
+in our Kata sandbox through one Panacea recipe, and one Panacea plugin carries the brief (02 §0,
+R3). `03` read Orca's docs only, and it conflicts with that ruling in two places.
+
+1. **The start command runs outside our sandbox.** `orca worktree create --agent claude --prompt`
+   is real: "`--agent` launches the selected agent in the first terminal. `--prompt` sends initial
+   work to that agent" (`cli/reference.mdx:98-113`). But the CLI "talks to a running Orca runtime",
+   and without a recipe it makes a worktree on that runtime's host, the laptop. A lane in our
+   sandbox is a recipe workspace. **"Orca's CLI cannot create a recipe workspace"** (02 R3, from
+   source). So the report's command runs Claude Code on the laptop, which has no per-session
+   gateway token and no AU path. Then "identity, audit and AU residency hold by construction" is
+   false for exactly the command the report names. **Fix:** Define starts through 02's recipe. The
+   create-lane route carries a *pending opening prompt*, which the sandbox hands to the agent: the
+   same two-step pattern 02 uses for fork. G2 goes from 0.25 to 0.75 day, and it waits on 02's
+   recipe.
+2. **"Orca documents no plugin API, so fork it" is wrong.** Plugin API v1 exists. It is
+   experimental, with panels, commands and events, and 02 rules out a fork for v1. But the plugin
+   API has **no `net:fetch` yet** (02 R3), so a plugin button cannot call our control plane. And
+   `03`'s own rule forbids sending Publish through the sandbox terminal. **Fix:** Publish, the drift
+   line and the definition of done go on a **Hub web page opened in Orca's browser tab**, which is
+   02 R4's direction for the Define lens. The plugin's sidebar panel shows the chip. Tasks 15, 16,
+   17 and 20 move to Hub web pages, not "into Orca's renderer". **Customer-visible change:**
+   unforked, there is no chip on each pane header (task 17's "chip on every pane header"). The
+   brief shows in the Panacea panel and on the Hub page instead.
+3. **Publish would accept text the person never saw. This is the sharpest gap.** In the report the
+   person reads the **working copy** in Orca's editor, and then Publish reads the **committed
+   blob**. The agent controls both. It can commit one text and leave another on screen. Also, under
+   02 the person's own corrections are working-copy edits in the sandbox, and they reach the lane
+   endpoint only after Orca's *Commit and Push*: a step the report's flow leaves out. **Fix:** the
+   Hub page renders **the exact pushed blob** it will publish, beside Publish, and says "edits not
+   pushed" when the working copy differs. The accept gesture then covers the published bytes.
+4. **Editing a remote lane: resolved, from the docs.** For a Remote Orca Server, "Terminals, agent
+   processes, files, worktrees, and session state live on the server computer", and you "use Orca
+   normally" (`remote-servers.mdx:101`). For SSH, "the editor, diff, and UI stay on your laptop"
+   (`ways-to-run.mdx:31`). The rich editor has annotations on rendered text (`markdown.mdx:23-25`).
+   This is documented, not run.
+5. **Artifact sharing cannot be "removed from our build", because there is no build of ours.**
+   "Share as artifact" publishes markdown "as a public view link through your signed-in Orca
+   account". It is off by default, and **"Agents and scripts can use `orca artifacts share`"**
+   (`markdown.mdx:52-54`). So the control has to hold against the agent too: no Orca account sign-in
+   on the laptop or on the sandbox's `orca serve`, the setting kept off, and egress to Orca's cloud
+   blocked from sandboxes. Risk 8's "a test asserts the setting is absent" becomes a check of the
+   sandbox's Orca settings plus an egress test.
+
 ## 3. Alternative 1
 
 *(to be filled)*
