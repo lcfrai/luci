@@ -159,7 +159,8 @@ SLSA, in-toto, Tekton or Kyverno (searches for `gitops`, `argo cd`, `attestation
 - **Enterprise fit:** OIDC login arrives in **v4.4-rc.1 (2026-08-19)**, not yet stable; structured
   audit logging since v4.1.0; the only role split is Member read-only
   ([changelog](https://coolify.io/changelog)). Git sources are GitHub, GitLab, Bitbucket and Gitea;
-  **Azure DevOps is not listed**, which fails `OD-4`. Preview deployments need the GitHub App.
+  **Azure DevOps is not a native source** (the next bullet), so `OD-4` holds only for push-deploys,
+  not previews. Preview deployments need the GitHub App.
 - **Maturity:** 62,408 stars; latest stable **v4.3.23 on 2026-09-18**, and v4.4 (OIDC, a team
   audit log, third-party secret managers) is **still a release candidate**, `v4.4-rc.1` of
   2026-08-19 (GitHub API, 2026-09-30); one company (coollabs).
@@ -365,7 +366,8 @@ cluster. For a small team shipping trusted code that is a good trade.
 
 **Where it loses, for our customer.** A regulated enterprise needs the half of deploy that Coolify
 does not have: scans gated by data class, evidence, SSO-gated previews, Azure DevOps previews and
-tenant isolation for code an untrusted agent wrote. Panacea has all of it running (§2, §2a).
+tenant isolation for code an untrusted agent wrote. Panacea has all of it in code and most of it
+live (§2, §2a; signing is the part whose live state is unverified).
 Porting it onto Coolify is rebuilding Panacea's deploy side on a platform that was not designed
 for it, at 3-4 times the days of using Panacea.
 
