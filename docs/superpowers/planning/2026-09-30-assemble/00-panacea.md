@@ -241,7 +241,51 @@ per-key regenerate route; `routes.go:2403` has one), so this study cites code ov
 
 ## 8. Builds and security: Tekton, Trivy, Falco and the other scanners
 
-_(pending)_
+**We never call Tekton directly.** `POST P/deploy` (or `P/code`, a git push through the webhook,
+or `P/promote`) starts it; we watch it through `P/pipelines/{run}` and its log stream (section 3).
+
+**The pipeline** (`pipelines/pipelines/build-deploy.yaml`, 2,517 lines; tasks at `:295-1685`, `finally`
+at `:1685-2503`): cancel-superseded, clone, detect, **secret-scan, sast-scan, iac-scan, sca-scan,
+model-scan**, risk-assess, build-plan, build (Cloud Native Buildpacks or Kaniko; `build-engine`
+"classic" or "buildkit", `:109-112`), **trivy-scan** (image), **license-scan**, db-migrate,
+data-api-declare, db-posture-scan, **sign-release**, deploy, deploy-checks, **dast-scan, nuclei-scan,
+schemathesis-scan**, report-live; then `record-gate-results`, **`mint-release`**, `launch-advisory`,
+report-failure, cleanup. Previews run `preview-deploy.yaml` (1,240 lines) and `preview-cleanup.yaml`.
+Triggers: a Tekton EventListener with GitHub push and PR triggers (`pipelines/triggers/`) and the
+`webhook-receiver` service for Azure DevOps and GitHub.
+
+**The scanners** (image pins from `pipelines/tasks/*-scan.yaml`, mirrored into Panacea's ACR):
+
+| Check | Tool and pin | Licence | Note |
+|---|---|---|---|
+| secrets | gitleaks v8.21.2 | MIT | |
+| SAST | Semgrep 1.86.0, `--config auto` (`sast-scan.yaml:118-123`) | engine LGPL-2.1; **registry rules under the Semgrep Rules License v1.0**, "internal business purposes" only, no offering as a service | fine inside KPMG; a blocker if PanaceaApp is sold with these rules. `--config auto` also fetches rules from semgrep.dev (the task's own sovereignty note, `:27-31`) |
+| SCA | OSV-Scanner v2.0.2 | Apache-2.0 | malicious-package detection |
+| IaC, licence, image CVE | Trivy 0.58.0 (+ cosign 2.4.1) | Apache-2.0 | |
+| models | modelscan 0.8.5 | Apache-2.0 | |
+| DAST | ZAP (weekly 2025-01), Nuclei v3.3.7, Schemathesis v3.39.5 | Apache-2.0, MIT, MIT | run against the deployed env |
+| DB posture | Panacea's own build image | Panacea | |
+| agentic SAST (VVAH) | `vvaharness:v1.1.0` | Panacea | owner notes say retired 2026-09-23 (not checked in code) |
+| uploads | ClamAV | GPL-2.0 | bucket virus scan |
+| runtime | Falco chart 4.17.2 (`argocd-apps/platform/falco.yaml`), trivy-operator, Kyverno 3.2.6 (signatures in **Audit**), Gatekeeper 3.17.1 | Apache-2.0 | watches the node kernel |
+
+**The gate.** Each scan has a tri-state mode (off, warn, block), and the default is warn
+(`build-deploy.yaml:413`). The posture engine (`handlers/security_policy.go`) is a platform baseline
+that teams and projects can tighten but not loosen, per check `block` or `ack`, fail-closed, gating
+**prod-deploy, serve-without-SSO, external-domain and apothecary-publish** (`STATUS.md:125-133`). Our
+entry points: run scans `POST P/scans/run` (owner, `routes.go:2750`), results `P/security-status`
+and `/{scan}` (`:1043-1044`), runtime `P/runtime-security` (`:1066`), posture and constraints
+(`:2742-2769`), risk assessment (`:1175-1239`), evidence (`:2720`).
+
+**This is `OD-24` already built.** "What security scans are needed from a deployment stand point"
+is the posture engine plus a data classification that picks the policy. PanaceaApp sets the
+classification and reads the verdicts; it does not run a scanner.
+
+**Gaps.** Scans default to warn, so a strict gate is a policy we set per project (owner role).
+`sign-release` was "not yet wired" at 2026-08-10 (`STATUS.md:135-137`) but is a task in the pipeline
+today (`build-deploy.yaml:1234`); whether dev signs now is unverified. Falco sees the node kernel,
+so it cannot see inside a Kata guest (01-sandboxes 4.1).
+
 
 ## 9. Isolation: tenant namespaces, and Forge (agent loop and hardened preview pods)
 
