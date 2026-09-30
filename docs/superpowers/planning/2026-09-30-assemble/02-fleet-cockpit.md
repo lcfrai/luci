@@ -429,32 +429,26 @@ itemises them). *First run: keep our cockpit, 4.5 days.*
 
 ## 6. What we still build (the glue)
 
-**Do now — first ship**
+**Revised: the itemised glue is R6's table (7.5 days, 4.5 to first ship).** What moved, item by
+item from the first run's list:
 
-1. **Attention queue (2.5 d).** The sandbox image ships `managed-settings.json` with HTTP hooks for
-   `Notification`, `PermissionRequest` (observe only, no decision), `Stop`, `SessionStart` and
-   `SessionEnd`, posting to a loopback `sandboxd` endpoint with a per-session bearer
-   (`allowedEnvVars`). `sandboxd` relays the typed event on its existing channel; the control plane
-   adds `attention` to the session (`waiting_on_you` with a reason, `done`, cleared on next input);
-   the cockpit gets a "Needs you" queue ordered by wait time, a pane badge and an OS notification,
-   all on the one heartbeat clock. Other harnesses keep today's four statuses. Pin the CLI; a canary
-   asserts the hook schema.
-2. **Host landing glue (1.5 d)**, inside phase 3 task 14's `githost`: GitHub auto-merge and enqueue;
-   ADO `autoCompleteSetBy` with `completionOptions` (`mergeCommitMessage` carrying the brief
-   trailer, `mergeStrategy`, `deleteSourceBranch`); poll PR state on the existing tick; the
-   lane-to-PR strip in the merge lens; "send back to the agent" for a conflict or a failed check,
-   as a templated prompt typed into the session (input, never output parsing).
-3. **AI first-pass review (0.5 d):** a `claude-code-action` workflow template for GitHub and an
+1. **Attention queue (was 2.5 d, first ship) → Orca's status store for the cockpit.** The hook
+   design below stays, trimmed to 1.5 days and moved to *later*: the sandbox image's
+   `managed-settings.json` posts `Notification`, `PermissionRequest` (observe only), `Stop`,
+   `SessionStart` and `SessionEnd` to `sandboxd`, which relays them to the control plane for the Hub
+   and team mode. The cockpit's "Needs you" queue, badges and OS notifications are Orca's.
+2. **Host landing glue (1.5 d, first ship) — unchanged in size, moved server-side.** GitHub
+   auto-merge and enqueue; ADO `autoCompleteSetBy` with `completionOptions` (`mergeCommitMessage`
+   carrying the brief trailer, `mergeStrategy`, `deleteSourceBranch`); PR state polled on the
+   existing tick. The lane-to-PR strip moves from the merge lens to the Panacea plugin; "send back
+   to the agent" is a templated prompt typed into the lane's terminal (`terminal:send`), never
+   output parsing.
+3. **AI first-pass review (0.5 d):** unchanged — a `claude-code-action` template for GitHub and an
    Azure Pipelines template that runs `claude -p` through the gateway. Opt-in per project.
-4. **Phase 3's kept core, as planned (not glue):** tasks 03 (finishing), 04–07, 11–13, 15, 18,
-   22–24 — about 36.5 plan-hours still to build. Nothing sells a credential-free sandbox whose work
-   is fetched back under `refs/panacea/lanes/…` with provenance, so this stays ours.
-
-**Later**
-
-5. Files read model, transcript adapter and files lens (phase 3 tasks 16, 17, 21).
-6. PR review comments sent back to the lane's agent in one click — the best idea in Orca and
-   vibe-kanban, and cheap once item 2 exists.
+4. **Phase 3's kept core (not glue):** the 12 kept tasks in §4, about 27 plan-hours still to build
+   after 01–02; plus the lane git endpoint that replaces task 24's bundles.
+5. **Later:** files read model and transcript adapter (16, 17); PR review comments sent back to the
+   lane's agent in one click, which Orca does natively once a lane holds a host token (§7, call 5).
 
 **Why the hooks keep `OD-8`, stated so a reviewer can check it.** `OD-8` protects three things:
 the CLI stays unmodified, nothing guesses meaning from the terminal stream, and nothing depends
@@ -465,17 +459,46 @@ exited` when no hook arrives — no feature may *require* it. When team mode's `
 (phase T tasks 13–15) lands, the hook entries move into its non-overridable layer instead of being
 baked into the image.
 
+**Revised — Orca and `OD-8`.** Orca itself installs hooks inside the lane and also reads OSC title
+events off the terminal for its state dots (R2). That is inside the adopted cockpit's display; none
+of our code reads it, and no Hub, team-mode or provenance feature depends on it. If the owner reads
+`OD-8` as binding the cockpit too, the fix is an upstream setting that makes hook-capable agents
+ignore OSC status (about 0.5 day, offered as a pull request).
+
 ## 7. Calls only the owner can make
 
-1. **Land on the host for v1 (customer-visible).** Review and merge happen on the GitHub or Azure
-   DevOps pull-request page, linked from the cockpit, instead of in the in-app merge lens the owner
-   reviewed in `prototype/phase-3-convergence.html`. The cockpit shows each lane's PR, checks and
-   queue position. **Recommend yes**; the in-app lens can return later on top of the same PRs.
-2. **GitHub Enterprise Cloud as the stated requirement for queued landing on private GitHub
-   repositories (money, for customers).** Customers on GitHub Team still land, serially through
-   auto-merge. KPMG's own EMU estate is believed to be Enterprise Cloud already (not verified here).
-3. **AI first-pass review on every lane PR (money).** It spends gateway tokens per PR. **Recommend
-   opt-in per project**, default off.
+**Revised.** Calls 1, 2, 4 and 5 are new with Orca; 3, 6 and 7 are the first run's.
+
+**Now — customer-visible:**
+
+1. **Ship Orca under its own name for v1.** Customers see the Orca app with a Panacea plugin, not a
+   KPMG-branded desktop. A branded fork means our own code signing, a Defender prevalence reset on
+   every build we ship, and a daily rebase against upstream. **Recommend upstream Orca for v1.**
+2. **A Windows prerequisite for KPMG IT and each customer's IT:** a Defender for Endpoint
+   alert-suppression rule and an ASR allowlist for Orca's process tree, with computer use off
+   (R2). Without it, users can expect incidents like the six in eight days Orca documents. **Recommend
+   accept, and ship a one-page IT note**; the browser-only path that would avoid it is not possible
+   yet (R3).
+3. **Land on the host for v1.** Review and merge happen on the GitHub or Azure DevOps pull-request
+   page and in the lane's Panacea preview, instead of in the in-app merge lens the owner reviewed in
+   `prototype/phase-3-convergence.html`. The plugin shows each lane's PR, checks, queue position and
+   preview. **Recommend yes**; an in-app lens can return later on top of the same PRs.
+4. **Mobile companion off in v1.** Orca's relay is Orca-hosted in the US (`us-central1` database)
+   and needs an Orca sign-in, which fails AU residency. Self-hosting its MIT relay on Azure is later
+   work (not sized; its Terraform targets GCP). **Recommend off.**
+5. **Keep "the sandbox never holds a git credential."** The price is that Orca's own GitHub PR
+   features (inline checks, "Fix broken checks", "Merge when ready") stay dark inside lanes. The
+   alternative lights them up with a repo-scoped, one-hour GitHub App token in each lane; Azure
+   DevOps has no per-repo token, so ADO lanes stay behind our endpoint either way. **Recommend keep
+   for v1.**
+
+**Money:**
+
+6. **GitHub Enterprise Cloud as the stated requirement for queued landing on private GitHub
+   repositories.** Customers on GitHub Team still land, serially through auto-merge. KPMG's own EMU
+   estate is believed to be Enterprise Cloud already (not verified here).
+7. **AI first-pass review on every lane PR.** It spends gateway tokens per PR. **Recommend opt-in
+   per project**, default off.
 
 One adjacent call is flagged, not made here: **Coder Premium as a buy for the environment (phase
 8)**. It is priced "annually per user", with "AI Premium" at custom pricing. It belongs to the
