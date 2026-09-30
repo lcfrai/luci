@@ -433,7 +433,9 @@ reader does not add the edge without a citation.
 
 Decided by the owner on 2026-09-30, after hearing the honest estimate for the bespoke plan (phase 2
 about a day from `main`; the whole platform about four weeks continuous, six to eight with stops,
-about 450 tasks left). Recorded at the end of the file, below every table, so no cited line moves
+about 450 tasks left). Those figures are the orchestrator's verbal estimate in that session and
+are not recorded in any file; the last recorded count is `OD-35`'s "about 53 of ~486 tasks"
+approved. Recorded at the end of the file, below every table, so no cited line moves
 (see *What earns an OD*). The plan of record these decisions produce is
 `2026-09-30-assemble/00-plan.md`. The owner's words are quoted from
 `2026-09-30-assemble/08-whole-product.md` (its "Direction" paragraph) and
@@ -441,10 +443,10 @@ about 450 tasks left). Recorded at the end of the file, below every table, so no
 
 | Id | Question | Answer | Consequence |
 |---|---|---|---|
-| **OD-37** | Keep building the bespoke plan (about 450 tasks), or assemble the tool from third-party solutions (2026-09-30) | **Assemble, as fast as possible.** Owner: *"focus on using third party solutions, and solving the main problem statement and building the tool. I need this tool ASAP, not in weeks."* | Every phase adopts an existing product where one is fully fledged, and we build only the glue and the product spine (the Hub, the provenance thread, the one-app layer). The research is `2026-09-30-assemble/00-` to `09-`; the plan of record is `00-plan.md` (about 119 engineer-days remaining). **Supersedes** `OD-35`'s method ("keep building the full plan"): the product's scope stands, but tasks a product absorbs are no longer built. **Relaxes** `OD-11`: the canvas may be adopted rather than built clean-room. `OD-11`'s licence floor (no AGPL or GPL canvas source) stands, and whether Penpot's MPL-2.0 sits inside it is an open owner call (`00-plan.md` §5 call 6), not decided here. `OD-26`'s own tracker is likewise an open call (§5 call 15). Technical picks within this direction are the orchestrator's; money and customer-visible calls go to the owner. |
-| **OD-38** | What the Develop cockpit is: phase 2's built Tauri desktop, or an adopted fleet cockpit (2026-09-30) | **Orca** (`stablyai/orca`, MIT), the owner's pick | Orca's workspace becomes Develop, and the phase 2 control plane and `sandboxd` become the lane and sandbox API its recipe calls (`02-fleet-cockpit.md` R4). Phase 2's Tauri Develop views stop being the product surface; they are **frozen as the fallback cockpit**, not deleted (`02-fleet-cockpit-verify.md` §5.1). Shipping Orca as our own thin build of the pinned upstream, not under Orca's name, is the orchestrator's ruling that follows from `OD-41` (`02-fleet-cockpit-verify.md` §7-8). |
+| **OD-37** | Keep building the bespoke plan (about 450 tasks), or assemble the tool from third-party solutions (2026-09-30) | **Assemble, as fast as possible.** Owner: *"focus on using third party solutions, and solving the main problem statement and building the tool. I need this tool ASAP, not in weeks."* | Every phase adopts an existing product where one is fully fledged, and we build only the glue and the product spine (the Hub, the provenance thread, the one-app layer). The research is `2026-09-30-assemble/00-` to `09-`; the plan of record is `00-plan.md` (about 118 engineer-days remaining). **Supersedes** `OD-35`'s method ("keep building the full plan") for the phases `00-plan.md` §4 re-plans: the product's scope stands, but tasks a product absorbs are no longer built. Phase W is not decided here: retiring `OD-26`'s tracker and, for Phase W, `OD-35` is open owner call 15. `OD-31`'s four-stream cap and its resume condition also stand until the owner answers `00-plan.md` §5 call 1. **Relaxes** `OD-11`: the canvas may be adopted rather than built clean-room. `OD-11`'s licence floor (no AGPL or GPL canvas source) stands, and whether Penpot's MPL-2.0 sits inside it is an open owner call (`00-plan.md` §5 call 6), not decided here. `OD-26`'s own tracker is likewise an open call (§5 call 15). Technical picks within this direction are the orchestrator's; money and customer-visible calls go to the owner. |
+| **OD-38** | What the Develop cockpit is: phase 2's built Tauri desktop, or an adopted fleet cockpit (2026-09-30) | **Orca** (`stablyai/orca`, MIT), the owner's pick | Orca's workspace becomes Develop, and the phase 2 control plane and `sandboxd` become the lane and sandbox API its recipe calls (`02-fleet-cockpit.md` R4). Phase 2's Tauri Develop views stop being the product surface; they are **frozen as the fallback cockpit**, not deleted (`02-fleet-cockpit-verify.md` §5.1). The thin build (Orca shipped under our name) is not part of the owner's pick: `02-fleet-cockpit-verify.md` §8 call 5 left it to the owner, and `08-whole-product-verify.md` §7.4 call 2 treats it as settled by the one-app ask (`OD-41`). It is recorded in `00-plan.md` §1.2. |
 | **OD-39** | Where the platform pieces come from: Panacea, or another stack (2026-09-30) | **Panacea is the strong default; Coolify plus Supabase is permitted.** Owner: *"Panacea is fine to use majority of, if we want to use Coolify plus Supabase, and enhance with snippets from Panacea, that is fine as well. As long as we get the best solution that is fully fledged."* | Panacea is the Deploy step (its API behind our control plane, `panacea-mcp` behind our allowlist proxy) and the default for the platform pieces it already runs. The best fully-fledged option wins each piece on merit. Under this, the research kept sandboxes, agent inference and our own state off Panacea, and rejected Coolify plus Supabase for the platform and the deploy step (`00-panacea-verify.md` §5, §9; `06-deploy-verify.md` §4). `OD-5` (our own environment) stands. |
-| **OD-40** | May Panacea source be copied into this repo before the lift (2026-09-30) | **Yes, as snippets, with attribution** (the same direction as OD-39: *"enhance with snippets from Panacea"*) | Panacea code may be copied where it saves work, each file carrying an attribution header and an entry in the snippet ledger, checked in CI (`00-plan.md` row 72). **Relaxes** `OD-13`'s "no Panacea source is copied in now", and `CLAUDE.md`'s "copy no Panacea source into this repo yet". `OD-13`'s later lift and shift of Panacea into this repo stands. |
+| **OD-40** | May Panacea source be copied into this repo before the lift (2026-09-30) | **Yes, as snippets, with attribution.** The owner's words (*"if we want to use Coolify plus Supabase, and enhance with snippets from Panacea, that is fine as well"*) are conditional on the Coolify-plus-Supabase path, which the research rejected. The general relaxation is the orchestrator's reading, as `08-whole-product.md:16-17` records it: *"OD-13 relaxed: Panacea snippets may be copied with attribution in the file header."* | Panacea code may be copied where it saves work, each file carrying an attribution header and an entry in the snippet ledger, checked in CI (`00-plan.md` row 72). **Relaxes** `OD-13`'s "no Panacea source is copied in now". `CLAUDE.md`'s "copy no Panacea source into this repo yet" and this file's "Where the older documents now disagree" still say the opposite until the owner updates them. Whether a whole service (`services/panacea-mcp`, row 68) or a Terraform tree (row 78) counts as a snippet is open owner call 20 (`00-plan.md` §5). `OD-13`'s later lift and shift of Panacea into this repo stands. |
 | **OD-41** | Whether v1 may show several products' faces, or must be one app (2026-09-30) | **One app.** Owner: *"Just make sure that even though we are pulling from a bunch of different areas, it still all feels cohesive and a part of the same app. I hate when it feels like they are all seperate apps merged into one..."* | A hard requirement on the whole plan, as binding as the licence rule. One shell under our name, one look, one sign-in, one navigation, one attention queue, one vocabulary; every adopted piece is headless behind our screens or embedded and themed inside our frame, never a link out. **Supersedes** `08-whole-product.md`'s recommendation that customers see several faces in v1 (withdrawn, `08-whole-product-verify.md` §7.4 call 2). The design is `09-cohesion.md`, and its acceptance walk (§6, K1 to K14, ending with the owner's eyes) is v1's gate. |
 
 **How OD-37 passes the gate.**
@@ -457,7 +459,7 @@ about 450 tasks left). Recorded at the end of the file, below every table, so no
    duties.
 
 **How OD-38 passes the gate.**
-1. **Expensive to undo.** The plugin, the recipe, the thin build and the lane path (about 15
+1. **Expensive to undo.** The plugin, the recipe, the thin build and the lane path (about 14.5
    engineer-days, `00-plan.md` §1.2) are written against Orca. Going back revives about 21k lines
    of frozen Tauri UI and its unbuilt tasks.
 2. **Not derivable from the tree.** The tree's cockpit is the Tauri desktop, built and tested. An
@@ -487,8 +489,11 @@ about 450 tasks left). Recorded at the end of the file, below every table, so no
    shapes how every product surfaces. Undoing it changes each cluster's surface.
 2. **Not derivable from the tree.** `08-whole-product.md`, a full research round, recommended
    several faces in v1. An agent has already guessed wrong once.
-3. **A real fork.** Several faces was about 14 engineer-days cheaper and faster to a first app.
-   One app gives that up for the usability wedge `CLAUDE.md` names.
+3. **A real fork.** Several faces was never costed on the corrected figures. What is costed is the
+   cohesion bar itself: `09-cohesion.md` adds about 14 engineer-days (about 12 new, plus the
+   realm's 2) over `08-whole-product-verify.md`'s 103, which already ships one shell (§7). One app
+   takes on that cost, and the 2 to 3 working days it adds before the first app, for the usability
+   wedge `CLAUDE.md` names.
 
 **Edges, for the dependency frontier.** The frontier table above is not edited, so that no line
 in it moves. Its edges for these rows are recorded here instead, and carry into it the next time
@@ -496,11 +501,17 @@ that table is rewritten in full:
 
 | Id | Unblocked by | Unblocks |
 |---|---|---|
-| **OD-37** | — | OD-38, OD-39, OD-40 (each names a piece of the assembly); `00-plan.md`; the resumption of the paused streams (`OD-31`) on the assembled plan |
-| **OD-38** | OD-37 | The thin build and the Panacea plugin (`00-plan.md` §1.2); the freeze of phase 2's Tauri Develop views |
+| **OD-37** | — | OD-38, OD-39, OD-40 (each names a piece of the assembly); `00-plan.md` |
+| **OD-38** | OD-37, OD-41 (the thin build) | The thin build and the Panacea plugin (`00-plan.md` §1.2); the freeze of phase 2's Tauri Develop views |
 | **OD-39** | OD-37 | The Deploy rows (`00-plan.md` §1.6) |
 | **OD-40** | OD-37 | The snippet ledger (`00-plan.md` row 72) and every copied Panacea file |
-| **OD-41** | — | `09-cohesion.md` and the one-app layer (`00-plan.md` §1.8); v1's acceptance walk |
+| **OD-41** | — | OD-38 (the thin build); `09-cohesion.md` and the one-app layer (`00-plan.md` §1.8); v1's acceptance walk |
+
+Every edge above appears twice, as the frontier requires. **Not an edge yet:** the paused streams
+(`OD-31`) resume on the assembled plan only when the owner answers `00-plan.md` §5 call 1, because
+`OD-31`'s own condition (phase 2 merged to `main`) and its four-stream cap still stand. **Counts:**
+the register now holds 41 decisions; OD-37 to OD-41 each carry at least one edge, so 35 of the 41
+do, and the frontier's "30 of the 36" is that table's count before this section.
 
 **Considered and not recorded as decided:** the owner calls in `00-plan.md` §5 (staffing, the
 app's name and icon, code signing, Penpot under `OD-11`, the realm, and the rest). They are open,
