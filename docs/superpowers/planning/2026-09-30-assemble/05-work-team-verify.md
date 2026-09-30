@@ -72,7 +72,29 @@ planned, and custom agents arrived in sprint 269. It is a competitor fact and ch
 
 ## 3. The recommendation, part 2: GitHub Issues and Projects as the second connector
 
-*(to be filled)*
+**Holds as the second connector. Its AU claim does not hold for KPMG today, and its Proof field
+is not protected.**
+
+| # | Claim | At source (read 2026-09-30) | Holds? |
+|---|---|---|---|
+| 1 | `github/github-mcp-server` is MIT | `LICENSE`: MIT, *"Copyright (c) 2025 GitHub"* | **Yes** |
+| 2 | Enterprise about $21/user/month list | Pricing page: *"$21 USD per user/month for the first 12 months"*; EMU and data residency are Enterprise-only | **Yes** (list price; KPMG's contract unknown) |
+| 3 | Issue fields GA 2026-07-02 | Changelog: GA *"July 2, 2026"* on *"Free, Team, Enterprise, and GitHub Enterprise Cloud with data residency"*, plus GHES 3.23. Types: single-select, text, number, date. Changes show in the timeline | **Yes** |
+| 4 | "Proven" becomes an issue field only our app writes | Org admins define fields. A search summary of GitHub's docs says people with triage access or greater set values; the docs page names no way to limit edits to a user, team or app | **No.** Any triager can type a Proof value. The cockpit must count Proof only when it matches our own evidence record, and show a hand-set value as *claimed, not proven* |
+| 5 | GHE.com data residency in Australia GA since 2025-02-04 | Changelog of that date. Docs: *"hosted on a dedicated subdomain of GHE.com"*, EMU required, regions *"EU ..., Australia, US, Japan"*; *"By default, GitHub stores data for GitHub.com in the USA"* | **Yes,** as a product fact |
+| 6 | Whether KPMG's EMU is on an AU GHE.com subdomain is unverified | This device's `gh` is signed in to **github.com** as an EMU account of the org `kpmg-au-emu` (memory note of 2026-07-28, not re-run today) | **Resolved against the claim.** KPMG AU's enterprise is on github.com, so its issues are US-hosted today. AU needs a new GHE.com enterprise and a migration: a KPMG IT programme, not ours |
+| 7 | Agent HQ assigns issues to Copilot, Claude or Codex; our own agent as an assignee is undocumented | Changelog 2026-02-04: *"for Copilot Pro+ and Copilot Enterprise customers"*. GitHub's *agent apps* doc (public preview): *"a GitHub App that a partner has configured to act as an agent"*, *"powered by your Copilot subscription"* | **Yes, and sharper.** A partner can now make an assignable agent, but it runs as Copilot, outside our sandbox and our gateway. Our trigger stays Start, a label or a Projects field |
+| 8 | Cannot restrict who closes an issue | GitHub's permission model: triage and above close, authors close their own. Not re-read | **Yes** |
+
+**What changes.**
+
+- *"AU residency on both trackers"* becomes: **AU residency on ADO; GitHub serves projects classed
+  Global until KPMG moves to GHE.com.** ADO-first is then a residency requirement for `OD-24`
+  AU-only projects, not a preference.
+- **Days: 2.5 is fair for the code,** because Panacea's comment upsert and hook lifecycle exist
+  (section 4). Day 0 adds one ask: an owner of `kpmg-au-emu` creates and installs the GitHub App
+  and the org-level Proof field (the memory note records this account as a member, not an owner).
+  Webhooks also need an edge rule for GitHub's hook ranges, or polling.
 
 ## 4. The recommendation, part 3: Panacea's roster, snippets and preview comments
 
