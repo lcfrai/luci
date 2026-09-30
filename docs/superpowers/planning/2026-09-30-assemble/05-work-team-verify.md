@@ -177,18 +177,58 @@ applies: a Hub page in Orca's browser tab, which is also `08-whole-product.md`'s
 **Days: about 3, not 2.** The calendar waits on the Teams admin (owner call 3). Until then the Desk
 in the cockpit and the first-party channel apps carry *inform*; *decide* waits for the bot.
 
-## 7. The integration days, against our architecture
+## 7. The two best alternatives, tested: Linear, and Plane on our own AKS
+
+Both would give PanaceaApp a tracker of its own, which is what `OD-26` asked for. **Neither
+survives as the default,** and one of the researcher's reasons for rejecting Plane is wrong.
+
+**Linear, bought as SaaS: rejected as the default, for residency. The researcher's verdict holds.**
+
+| Check | At source (read 2026-09-30) | Result |
+|---|---|---|
+| Licence and price | Commercial SaaS. Pricing page: Basic *"$10 per user/month"*, Business *"$16 per user/month"*, Enterprise custom; SCIM and the audit log are Enterprise-only | As claimed |
+| AU region | Security page: *"United States"* and *"European Union"*, chosen *"When creating a new workspace"*; the choice *"isn't self-serve to change later"* | **No AU region.** Fails `OD-24` for AU-only projects |
+| Agent model | Agent-interaction docs: six session states, five activity kinds; an agent must respond *"within 10 seconds to avoid the session being marked as unresponsive"*; triggered by @mention or delegation | As claimed. The best agent contract of the four trackers |
+| Fit | A third tracker for KPMG staff; a new US or EU processor; no customer-cloud option | **Reject as default.** Keep "adopt its session contract" |
+
+**Plane Commercial, self-hosted in Australia East: rejected as the default, but not for its licence.**
+
+| Check | At source (read 2026-09-30) | Result |
+|---|---|---|
+| Licence | GitHub API: `makeplane/plane` is **AGPL-3.0** (the Community edition). Editions page: Commercial and Airgapped are *"Closed-source"* | Community is RESTRICTED: serving a modified copy to users over a network forces us to offer them our source, and installing it in a customer tenancy is distribution. **Commercial is a product KPMG can buy, which the licence rule allows** |
+| Price | Pricing page: Pro *"$6/year"* per seat per month billed annually ($8 monthly), Business $13 annually; *"Pricing identical"* for cloud and self-hosted; 12 users free | About $6-13 per seat per month |
+| SSO | OIDC and SAML on *"Pro+ (self-hosted)"* | Keycloak brokering Entra fits |
+| Residency | Self-hosted on our AKS in Australia East: total. Plane Cloud names no AU region | **Better than GitHub is for KPMG today** (section 3 row 6) |
+| Maintenance | GitHub API: 60,125 stars, pushed 2026-09-29 | Active |
+| Fit | A third tracker; we run it (backups, upgrades, on-call); no criterion concept; how its AI features reach a model was not checked | **Reject as the default,** on product and operations grounds |
+
+Plane stays the fallback for one case: **an AU-only project where no AU-resident tracker exists**.
+That case turns on a fact nobody has checked: the geography of KPMG's ADO organisation. If it is
+not Australia, the AU answer is a new ADO organisation in Australia, or Plane Commercial in
+Australia East.
+
+**Also re-checked, one line each:**
+
+- **Jira Cloud (third connector).** The remote-agents page (`rovo:agentConnector`) says agents
+  *"can be assigned work items, @mentioned in comments"*, and carries no Preview label today (the
+  researcher read Preview). If it is GA, Jira is the one tracker where PanaceaApp can be a native
+  assignee. KPMG's own Jira use is still unverified. It stays "when a customer brings it".
+- **Coolify plus Supabase.** Apache-2.0 at source (`supabase/supabase`, `supabase/realtime`,
+  `coollabsio/coolify`, GitHub API). Neither is a tracker. Supabase would back a tracker we write,
+  which is Phase W again; Coolify runs Docker hosts, not Kata. The researcher's verdicts stand.
+
+## 8. The integration days, against our architecture
 
 *(to be filled)*
 
-## 8. Corrected recommendation
+## 9. Corrected recommendation
 
 *(to be filled)*
 
-## 9. What this verification could not verify
+## 10. What this verification could not verify
 
 *(to be filled)*
 
-## 10. Sources
+## 11. Sources
 
 *(to be filled)*
