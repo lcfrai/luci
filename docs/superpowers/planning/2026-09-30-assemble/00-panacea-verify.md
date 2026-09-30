@@ -34,22 +34,45 @@ source says what `00-panacea.md` says; "understated" means the source is worse f
 | 7 | Keycloak is one replica with in-memory sessions | `deploy/main.tf:928` (`replicas: 1`), `:954-957` (`--cache=local`), `:941-945` (every pod move logs everyone out), `:997-1005` (non-optimised start re-runs a ~5-minute Quarkus build on every fresh pod; dev SSO outage 2026-09-07); SSO outage 2026-09-21 (`:933`). Chart `keycloakx` 2.4.4 with no tag override (`:920-921`) is **Keycloak 25.0.0** (the chart's `appVersion`, fetched from codecentric's repo) | **understated**: 25.0.0 is two years old and out of community support; 25.0.6 (2024-09-19) fixed CVE-2024-8883 (open redirect) and CVE-2024-8698 (SAML signature bypass); Tenable flags 25.0.x below 26.0.6 as vulnerable |
 | 8 | The edge "may be" locked to 14 KPMG `/32`s | The Terraform **default** is those 14 addresses; "`[]` opens the edge to the internet" (`deploy/variables.tf:278-297`), applied by every `terraform apply` (`main.tf:580-606`). The cited `deploy/restrict-edge-allowlist.sh` is **not in commit `efc637879`** (on disk, untracked); its header says the edge is "no longer reachable from Cloud Shell (an Azure address, deliberately not on the allowlist)" | **understated**: locked is the declared state. Our AKS in Azure cannot reach the API or `panacea-mcp`'s target until Panacea adds our egress. This machine egresses as `24.239.148.12` (seen in a GitHub rate-limit reply), which is on the list, so local mode works from a KPMG network |
 | 9 | "A copy-on-write database per preview" | A three-mode policy, `seed`, `sanitised-clone`, `shared` (`clients/branch_data_policy.go:14-19`); the clone is a CloudNativePG point-in-time recovery from production's backup (`db_branch_ops.go:17-22`), refused at PROTECTED. **With nothing requested and no `panacea/seed.sql` in the repo, the preview shares the project's own database** (`branch_data_policy.go:47`, `:195-200`) | **understated**: an agent's preview writes to the app's production database by default. New glue (section 7) |
-| 10 | Scans default to warn | `pipelines/pipelines/build-deploy.yaml:413` ("default warn = record but never block") | **holds** |
-| 11 | "18 scan checks" | `STATUS.md:125` ("scan catalogue (18 checks"), a status file the report itself says lags the code | **holds as cited**; the count was not re-derived from code |
+| 10 | Scans default to warn | `build-deploy.yaml:413` describes the **secret scan only**. The pipeline defaults (`:137-249`) are `warn` for `checks-mode` and `secret-scan-mode`, `true` for `enable-trivy-scan` (`:87-99`), and **`off` for SAST, DAST, IaC, SCA, licence, model, DB posture, Nuclei and Schemathesis**. On an unconfigured project panacea-api appends no mode at all (`clients/pipeline.go:472-473`); only a team policy, a capability or a posture declaration turns a scan on (`:474-491`). The platform baseline is SuperAdmin runtime data (`handlers/security_policy.go:969`), so what dev enforces cannot be read from source | **wrong**: a new project runs 3 checks at warn, not 18. P3 must declare the posture when it creates the project (section 7) |
+| 11 | "18 scan checks" | `STATUS.md:125`. The SAST check cannot inspect anything as written: `semgrep scan --config auto --metrics=off` (`pipelines/tasks/sast-scan.yaml:122-124`, image `semgrep:1.86.0` at `:79`) is refused by Semgrep 1.86.0 before any output ("Cannot create auto config when metrics are off", `cli/src/semgrep/commands/scan.py:637-640`; `abort` is `sys.exit(2)`, `util.py:65-67`, fetched at tag `v1.86.0`). Step 1 then writes `{"results":[]}` and `SCANNED` (`:129-130`), so the ERROR branch (`:195-202`) is unreachable and the gate records **PASS** (`:216`) | **wrong in part**: switched on, SAST records a clean pass having scanned nothing. Read from code, not run. A Panacea-stream fix; until then the release evidence carries a false SAST pass |
 | 12 | Hash-chained audit on every route | `clients/audit_pg.go:42` (`row_hash = sha256(prev_hash ‖ canonical(row))`); every wrapper ends in `middleware.Audit` | **holds** |
 | 13 | Runs in `australiacentral` | `deploy/terraform.tfvars:24-28`: `rg-panacea-platform-dev`, `australiacentral`, `environment = "dev"` | **holds for dev**; AU residency yes |
 | 14 | Forge is platform-admin only, not callable with an API key | `routes.go:3261-3273` (`authedAgent`) | **holds** |
 | 15 | Promote with a stage ladder and owner approval | Routes exist (`:2814-2860`); 06-deploy §0 item 5 finds the regulated rungs wait on Panacea (secure-test needs Chains signing live, production needs DLP enforcing) | **holds for the innovation rung only** |
 
-**Net for C1:** the capability claims are accurate at source; nothing was invented. What the
-report understates is the price of reaching them from our architecture: a locked edge by
-default, a full-power year-long token per user, a team-approval step before that token exists,
-a preview that shares production data by default, and a sign-in on an unpatched single-replica
-Keycloak.
+**Net for C1:** the routes, tools and token rules exist as described; nothing was invented.
+Two claims are wrong: scans do not default to warn (3 checks run on a new project), and the
+SAST check passes without scanning when switched on. What the report understates is the price
+of reaching the rest from our architecture: a locked edge by default, a full-power year-long
+token per user, a team-approval step before that token exists, a preview that shares
+production data by default, and a sign-in on an unpatched single-replica Keycloak.
 
 ## 3. C1 Panacea: licences in the stack
 
-_Pending._
+C1 ships none of Panacea into a customer tenancy: Panacea runs on KPMG's estate and we call it
+(`OD-5`, we-host). So each licence is tested three ways: what our we-host use triggers now, what
+the snippets we copy carry, and what a customer-hosted tier would force. Pins read at
+`efc637879`; licences read at source on 2026-09-30.
+
+| Component | Pin at source | Licence at source | Forces now (we-host) | Forces at a customer-hosted tier |
+|---|---|---|---|---|
+| Panacea's own code (every snippet P4 copies) | no `LICENSE` at the repo root (`git ls-tree efc637879`) | none: KPMG proprietary | nothing: KPMG copies KPMG code. P4's ledger must still record any third-party origin inside a copied file (not checked file by file) | nothing |
+| Vault | chart 0.28.1 (`argocd-apps/platform/vault.yaml:21-22`, `deploy/main.tf:835-837`), no image override, so Vault **1.17.2** (chart `appVersion`, `hashicorp/vault-helm` tag `v0.28.1`) | **BUSL-1.1**, Licensed Work "Vault Version 1.15.0 or later"; production use allowed unless "offering the Licensed Work to third parties on a hosted or embedded basis in order to compete with HashiCorp's paid version(s)" (`hashicorp/vault` `LICENSE` at `v1.17.2`) | nothing while Panacea sells deploys, not secrets management | **restricted** by our policy; the grant turns on "compete", a legal call avoided by `OD-32`'s OpenBao (MPL-2.0) swap |
+| MinIO | chart 5.2.0 (`argocd-apps/data/minio.yaml:21-23`), no image override | **AGPL-3.0**; repository **archived**, last push 2026-04-24 (GitHub API) | nothing for an unmodified server behind `s3proxy`; the cost is no upstream fixes. **Missed by the report:** Panacea already has the swap, Azure Blob (ADLS Gen2) behind the same S3Proxy (`deploy/object-storage-blob.tf:1-22`, ADR-029), off on dev (`managed_object_storage_enabled` defaults false), on for the Australia East rebuild | **restricted**: AGPL §13 would force a source offer for any modified copy users reach over a network; moot once Blob replaces it |
+| Grafana | kube-prometheus-stack 61.3.0 (`argocd-apps/platform/observability.yaml:20-22`), `grafana.enabled: true` (`helm-values/prometheus-values.yaml:186-187`) | **AGPL-3.0** | nothing, unmodified | **restricted**, as MinIO; Grafana Enterprise is by quote |
+| Loki, Tempo | values files only (`helm-values/loki-values.yaml`, `tempo-values.yaml`); **no Argo CD app or Terraform release installs them** at this commit, and the cutover plan deletes their AUE overlays | AGPL-3.0 (upstream) | nothing: the report's "in the estate" is not shown by source | only if installed |
+| Redis | Bitnami chart 19.5.0 (`argocd-apps/data/redis.yaml:21-23`), no image override, so Redis **7.2.5** | BSD-3-Clause (Redis's 2024 RSALv2/SSPL change starts at 7.4) | licence fine. **Maintenance risk missed:** the chart pulls `docker.io/bitnami/redis:7.2.5-debian-12-r0`, and Bitnami moved versioned tags to the unmaintained `docker.io/bitnamilegacy` from 2025-08-28 (paid replacement: Bitnami Secure Images; bitnami/charts#35164). A fresh node pulling that tag fails unless it is mirrored; `redis-values.yaml` sets no mirror. What depends on this Redis was not traced (oauth2-proxy uses cookie sessions, `oauth2-proxy-entra-values.yaml:109-112`) | as now; a maintained image source first |
+| Semgrep | image `panacea/semgrep:1.86.0` (`pipelines/tasks/sast-scan.yaml:79`), `--config auto` (`:123`) | engine LGPL-2.1; registry rules under the **Semgrep Rules License v1.0**: use "only for your own internal business purposes", not distributed or made "available to others as a service" (Semgrep's licensing pages via search; `semgrep.dev` itself is blocked on this network) | **restricted from the first external customer**, not only at a customer-hosted tier: scanning a customer's app in our we-host SaaS with registry rules is offering them as a service. The report's "fine inside KPMG" holds only while every user is KPMG. Moot today, because the check aborts before it scans (section 2, row 11) | **restricted**; Opengrep (LGPL-2.1, active, GitHub API 2026-09-30) with rules baked into the image |
+| ClamAV | `argocd-apps/app-services/clamav.yaml` | GPL-2.0 (GitHub API) | nothing: GPL has no network clause | **restricted**: shipping its binary is distribution, with GPL's source duty |
+| Keycloak, Backstage, CloudNativePG | as the report's sections 5, 7 | Apache-2.0 (`LICENSE` files at source) | nothing | nothing |
+
+**Net for licences.** For we-host C1 the stack forces nothing we cannot live with, with one
+correction in timing: Semgrep's registry rules leave "internal business purposes" the day a
+non-KPMG customer's app is scanned, which is `OD-5`'s own model, so owner call 4 is early for
+everything except Semgrep. Two maintenance risks the report did not name sit on Panacea's side
+and ride into our shipped apps' uptime: the Bitnami Redis tag, and MinIO on dev (Blob replaces it
+at the rebuild, which the report also missed).
 
 ## 4. C1 Panacea: the auth path from our control plane and sandboxes
 
