@@ -77,6 +77,61 @@ Desk research only: nothing installed or run.
 | 14 | `penpot/penpot-mcp` archived Feb 2026 | README: *"archived on 2026-02-03"*; GitHub's `archived` flag is still false | Holds in substance |
 | 15 | Fallback `zcube/penpot-mcp-server` is MIT | `package.json` says MIT, but **the repo has no LICENSE file** (GitHub `/license`: Not Found). 19 stars, last push 2026-06-24, uses an account-wide access token | **Refuted as a clean fallback** |
 
+### 2.4 Paid tiers, and a closed component the report did not see
+
+**Two findings the report missed. Neither kills Penpot today; both change the owner calls.**
+
+**1. Penpot sells an Enterprise tier for self-hosted installs, and the governance sits there.**
+`penpot.app/pricing/self-host` (read 2026-09-30):
+- **Professional, free:** *"Unlimited users, teams, files"*, *"all design and prototyping
+  features"*, community support.
+- **Enterprise: "$25/user/month", "Starting at $950 / month".** It adds a centralised admin
+  console, multiple organisations, advanced permissions, *"Single Sign-On (SSO) & identity
+  governance"*, **"Plugins Allowlist, including Agentic AI"**, **"Audit logs"**, 180-day version
+  history and 180-day deleted-file recovery. Add-ons: SOC2/HIPAA support, air-gapped deployment.
+- Penpot's own pages disagree on the basis: `penpot.app/penpot-enterprise` says *"Enterprises
+  pay $950 per month, regardless of team size"*. Get a quote.
+- **What stays free:** generic OIDC sign-in (the env-configured provider is MPL code, 2.3 row 9),
+  MCP (*"AI Workflows with any Agent/LLM"* is on both plans), webhooks, access tokens,
+  multiplayer and every design feature. Our Keycloak-to-Entra path needs no purchase.
+- **What a regulated customer's security review will ask for, and only Enterprise has:**
+  - the plugin allowlist. The config guide documents no flag to restrict plugins, so any user
+    can load any plugin from any URL, and plugin code gets `fetch` to any URL (2.5).
+  - audit logs. The config guide documents no audit flag.
+- **The report's money call is priced against the wrong product.** "Private Server $50k year"
+  is on the *cloud* pricing page, *"For organizations that need dedicated infrastructure"*. It is
+  not support for our self-host. The self-host line item is Enterprise.
+- So 04-design §5 point 4, *"No per-seat licence"*, holds for a demo, not for a regulated
+  tenancy.
+
+**2. The Admin Console the chart enables by default is closed source.**
+- The OCI config of `penpotapp/admin-console:2.18.0` (registry metadata, nothing pulled) says:
+  - `org.opencontainers.image.licenses: NOASSERTION`
+  - `org.opencontainers.image.source: https://github.com/penpot/penpot-nitrate`
+  - title `penpot-nitrate`, workdir `/nitrate`
+- `github.com/penpot/penpot-nitrate` returns 404 to the public.
+- `penpot/penpot` at tag 2.18.0 has no source or Dockerfile for it. `docker/images/` holds only
+  backend, exporter, frontend, mcp, media-processor and storybook.
+- The MPL backend's client for it, `backend/src/app/nitrate.clj`, calls `admin-console-uri` with
+  a shared key. It models subscriptions of type `"unlimited" "professional" "enterprise"
+  "nitrate"` and runs a connectivity check with a `:licenses` field. This is the licensing and
+  organisations service.
+- **Chart 1.10.0 turns it on by default.** The `enable-admin-console` flag is set, and the
+  changelog says *"Admin Console component … enabled by default"*. The official compose at tag
+  2.18.0 runs it too.
+- **Penpot's Docker guide:** *"Enabling the Admin Console is not required in this version, but it
+  will be in a future release."*
+
+**What this forces:**
+- **Now:** G1 must remove the flag and disable the component. Otherwise the default install puts
+  a closed image with no licence grant into our tenancy, and the licence gate (task 04) cannot
+  pass it.
+- **Later:** once a release makes it mandatory, there are two ways on. KPMG accepts Kaleidos's
+  terms for a closed component, which is allowed because KPMG can buy it, but it costs money and
+  customers will see it. Or we stay on the last release that runs without it.
+- **Why it matters:** Penpot is drifting to open-core. That is a real forward licence risk, and
+  the licence line "MPL-2.0" no longer describes the whole deployment.
+
 ## 3. Alternative 1: OpenPencil
 
 *(to be filled)*
