@@ -45,7 +45,7 @@ All reads on 2026-09-30. Nothing installed, pulled or run; no Azure subscription
     `ExecuteCodeTaskHandler.ts`, `plugins/libs/plugins-runtime/src/lib/create-sandbox.ts`,
     `plugins/libs/plugin-types/index.d.ts`, `plugins/LICENSE`,
     `docker/images/docker-compose.yaml`, `docker/images/files/nginx-security-headers.conf`,
-    and in the backend `nitrate.clj`, `http/management.clj`, `rpc/commands/teams.clj`,
+    `frontend/resources/templates/index.mustache`, and in the backend `nitrate.clj`, `http/management.clj`, `rpc/commands/teams.clj`,
     `teams_invitations.clj`, `files_snapshot.clj`.
   - GitHub tree pages for the repo root, `docker/images`, `backend/src/app` and `mcp/`.
   - The releases and commits Atom feeds.
@@ -97,21 +97,22 @@ All reads on 2026-09-30. Nothing installed, pulled or run; no Azure subscription
 ### 2.2 Maintenance
 
 - **Releases** (`github.com/penpot/penpot/releases.atom`): 2.17.2 on 2026-08-27, 2.18.0 on
-  2026-09-23, 2.18.1-RC1 on 09-25, 2.19.0-RC1 on 09-28. Seven 2.18 release candidates in
-  two weeks. Holds.
+  2026-09-23, 2.18.1-RC1 on 09-25, 2.19.0-RC1 on 09-28. The feed also shows 2.18.0-RC2 to RC7
+  between 09-09 and 09-17. Holds.
 - **Commits:** ten on `develop` between 2026-09-28 15:00Z and 09-29 21:07Z, by six authors.
 - **Chart:** `helm.penpot.app/index.yaml` lists 1.10.0 (appVersion 2.18.0), created
   2026-09-23T12:16Z, and eight chart releases since 1.3.0 on 2026-06-11. Holds.
 - **Images:** Docker Hub `penpotapp/mcp:2.18.0` pushed 2026-09-23 (digest `sha256:9270da9f…`),
   `penpotapp/backend:2.18.0` the same day (`sha256:b89b3fae…`). Pinning by digest is possible.
-- **Stability signal the report understates:** the MCP layer is weeks old and still taking
-  security fixes. *"Add MCP server integration"* is a 2.15.0 changelog line (the report dates MCP
-  to 2.17; Coolify's 2.11.1 predates both). The changelog since then fixes a
+- **Stability signal the report understates:** the MCP layer is a few months old and still
+  taking security fixes. *"Add MCP server integration"* is a 2.15.0 changelog line (the report
+  dates MCP to 2.17; Coolify's 2.11.1 predates both; chart 1.3.0 for 2.16.0 shipped 2026-06-11).
+  The changelog since then fixes a
   *"ReplServer binding to all interfaces (0.0.0.0) … allowing unauthenticated RCE"* (2.15),
   *"MCP tokens being usable as API access tokens"*, *"webhook endpoints allowing unauthorized
   access via creator-id fallback"* and missing *"permission checks in WebSocket subscription
   handlers"* (all 2.18.0). That is a vendor fixing things fast, and also a component that had an
-  RCE four minor versions ago. Pin, canary, and read every changelog on bump.
+  RCE three minor versions ago. Pin, canary, and read every changelog on bump.
 - **Stars and backing:** 60,509 stars, 4,157 forks, 766 open issues, owner an Organization,
   last push 2026-09-29 (GitHub API). Top contributors `niwinz` 9,778 commits, `Alotor` 2,669,
   `superalex` 2,630: a staffed team, not one person. Holds.
@@ -124,7 +125,7 @@ All reads on 2026-09-30. Nothing installed, pulled or run; no Azure subscription
 | 2 | Unsafe defaults: `telemetryEnabled: true`, sample `apiSecretKey`, open registration + password login | All three in `values.yaml` lines 41-57. Also unlisted: default flags add `enable-mcp enable-admin-console`; `postgresql.password: "penpot"`; OIDC `scopes: "scope1 scope2"` (a placeholder) and `roles: "designer developer"` with an empty `rolesAttribute`, so role gating is off until set. The official compose at tag 2.18.0 also sets `PENPOT_TELEMETRY_ENABLED: "true"` | Holds, and wider than stated |
 | 3 | "All four Penpot containers ship `readOnlyRootFilesystem: false`" | **Five**: backend, frontend, exporter, mcp and the new `adminConsole` (lines 415, 558, 693, 831, 966) | Corrected: five, see 2.4 for the fifth |
 | 4 | The MCP needs an open, active tab | README at 2.18.0: *"Do not close the plugin's UI … keep the Penpot tab active … the MCP server will reject tasks until the tab wakes up"*. 2.18.0 fixes *"MCP integration hanging when the Penpot tab is backgrounded"* | Holds |
-| 5 | Agents run Plugin-API code (`execute_code`, `high_level_overview`, `penpot_api_info`, `export_shape`, `import_image`) | `mcp/packages/server/src/tools/` at 2.18.0 has those plus `ImportPenpotFileTool` and five dev tools (`CljsRepl`, `ReadTaigaIssue` …) that 2.18.0 disables in multi-user mode. The plugin runs the agent's code with `new Function(...)` and hands it `penpot`, `penpotUtils` and a persistent `storage` object | Holds; see 2.5 for what `new Function` in the tab means |
+| 5 | Agents run Plugin-API code (`execute_code`, `high_level_overview`, `penpot_api_info`, `export_shape`, `import_image`) | `mcp/packages/server/src/tools/` at 2.18.0 has those plus `ImportPenpotFileTool` and four dev tools (`CljCheckParentheses`, `CljsCompilerOutput`, `CljsRepl`, `ReadTaigaIssue`) that 2.18.0 disables in multi-user mode. The plugin runs the agent's code with `new Function(...)` and hands it `penpot`, `penpotUtils` and a persistent `storage` object | Holds; see 2.5 for what `new Function` in the tab means |
 | 6 | Multi-user MCP is *"under development … for testing purposes only"*; the token is *"hard-coded in the plugin"* | Both sentences still in `mcp/docs/multi-user-mode.md` at 2.18.0. But the shipped image's `CMD` is `node index.js --multi-user` (OCI config of `penpotapp/mcp:2.18.0`), and 2.16.1 added *"Show MCP key on Integrations page"*. So production runs the mode the doc calls testing-only, and the key is a per-user key Penpot issues. The doc is stale on the token | Label holds; the token worry is stale |
 | 7 | Remote mode and scale-out: `PENPOT_MCP_REMOTE_MODE`, `PENPOT_MCP_REDIS_URI` | README table: *"Enable remote mode (disables file system access)"*; Redis URI *"enabling multi-instance horizontal scaling … (multi-user mode only)"* | Holds |
 | 8 | `generateMarkup`/`generateStyle` give HTML and CSS | `plugin-types/index.d.ts`: `generateMarkup(shapes, { type?: 'html' \| 'svg' })`, `generateStyle(…{ type?: 'css' })`, `generateFontFaces`. No HTML import in the Plugin API (only `createShapeFromSvg`) | Holds |
@@ -200,8 +201,9 @@ identity, a routing and a security problem.
 
 **1. One connected tab per user. The key is per user, not per file.**
 - Issue #9923 (the 2.16.1 *"single-tab connection control"*): *"only one tab owns the MCP
-  session at any time"*. *"Connect here"* in another tab disconnects the rest. The MCP key is
-  checked *"at the profile level"*.
+  session at any time"*. *"Connect here"* in another tab disconnects the rest, with the state
+  *"coordinated across tabs via the broadcast channel"*. The MCP key is a per-user key shown
+  on the Integrations page (2.3 row 6), not a per-tab or per-file key.
 - Issue #9493 (2.17.0 limiter): a *"per-connection (not global) queue"*, with a default of 5
   concurrent tasks (`PENPOT_MCP_MAX_CONCURRENT_TASKS=5`).
 - **Consequence:** every agent holding a user's key writes into whichever single file that
@@ -225,8 +227,9 @@ away. This is feasible, but it is new glue.
 - The plugin runtime gives plugin code a `fetch` to any URL. `create-sandbox.ts` at 2.18.0:
   `safeFetch` sets `credentials: 'omit'` and blanks `Authorization`, with no URL allowlist.
 - The MCP plugin runs the agent's code with `new Function(...)` inside that sandbox.
-- Penpot's nginx sends no Content-Security-Policy. `nginx-security-headers.conf` sets only
-  `nosniff`, `Referrer-Policy`, `Permissions-Policy` and `X-Frame-Options SAMEORIGIN`.
+- Penpot sets no Content-Security-Policy at all. `nginx-security-headers.conf` sets only
+  `nosniff`, `Referrer-Policy`, `Permissions-Policy` and `X-Frame-Options SAMEORIGIN`, and
+  `frontend/resources/templates/index.mustache` has no CSP `<meta>` tag either.
 - **So, in the report's "usable after 3.5 days" mode** (agents working through the human's open
   tab), untrusted agent JavaScript runs:
   - in the human's signed-in browser, as the human;
@@ -254,7 +257,7 @@ containment, and G7's approval via the approver's own tab is sound (2.3 row 11).
 
 | Constraint | Verdict | Evidence |
 |---|---|---|
-| Azure, AU, customer cloud (`OD-5`, `OD-18`, `OD-24`) | **Holds** | Self-hosted chart on AKS in Australia East. The only outbound calls we found are telemetry and the admin console's licence check, and both get switched off. Other browser-side egress (fonts, for example) is not verified. G10's CSP will show it |
+| Azure, AU, customer cloud (`OD-5`, `OD-18`, `OD-24`) | **Holds** | Self-hosted chart on AKS in Australia East. The only phone-home paths we found are telemetry and the closed admin console, whose `connectivity` schema carries a `:licenses` field (what it calls out to is not visible). Both get switched off. Other browser-side egress (fonts, for example) is not verified. G10's CSP will show it |
 | Keycloak brokering Entra (`OD-30`) | **Holds** | Generic OIDC with a roles attribute (2.3 row 9). Bots are Keycloak-local users |
 | LiteLLM, zero retention (`OD-19`) | **Holds, n/a** | Penpot's MCP server calls no model. The agents call LiteLLM as they already do |
 | Go control plane `Backend` | **Fits, with new work** | A runner is `Backend.Create(Spec)` with a runner image. But `Spec` (`backend.go:181`) has no network-policy or MCP-config field, and `control-plane/` has no `--mcp-config` or `allowedTools` code today. Both are G4 and G5 work, not re-use |
@@ -385,7 +388,8 @@ around it changes.**
 
 1. **Install:**
    - Upstream chart 1.10.0 on AKS in Australia East, images pinned by digest.
-   - **Turn the admin console off**: remove `enable-admin-console` and disable `adminConsole`.
+   - **Turn the admin console off**: remove `enable-admin-console` from `config.flags`, which
+     drops its Deployment (2.4).
    - Telemetry off; OIDC-only flags; `enable-access-tokens` and `enable-webhooks`; secrets
      from the vault.
    - Azure PostgreSQL Flexible Server, Valkey 8 (BSD-3), and Blob through S3Proxy, with Azure
