@@ -290,7 +290,32 @@ runner spike fails, the OpenPencil CLI is the headless agent path.
 
 ## 4. Alternative 2: Figma Enterprise + Figma MCP
 
-*(to be filled)*
+**Verdict: BUY, as an optional adapter only: UPHELD. Two details are corrected, and one is
+unverified.**
+
+**Licence and price at source (figma.com/pricing, read 2026-09-30, billed annually). Holds.**
+- Commercial SaaS; there is no source licence to read.
+- Enterprise: Full *"$90/mo + 4,250 AI credits/mo"*, Dev *"$35/mo + 500"*, Collab *"$5/mo +
+  500"*.
+- Organization: Full $55, Dev $25, Collab $5. The pricing page states no usage billing.
+
+**Claims against Figma's own docs:**
+
+| Claim in 04-design | At source | Result |
+|---|---|---|
+| AU hosting exists on Enterprise, with holes | help.figma.com *"Enable localized file hosting"*: regions *"EU, Australia, India and Brazil"*, *"Available on the Enterprise plan"*. Not localised: *"Comments … Plugins … File names … Fonts … File preview thumbnails … Dev Mode / Code Connect code … AI chats"*. New edits may sit *"in the US for up to 30 days"*. Whether MCP traffic is in scope is not stated | Holds, and MCP scope is a new open question |
+| Only catalogued MCP clients may connect | developers.figma.com MCP intro: *"Only clients listed in the Figma MCP Catalog can connect to the Figma MCP Server."* Claude Code is catalogued | Holds. An unmodified Claude Code can connect, but only by holding the user's Figma OAuth grant inside the untrusted sandbox. Our relay is not catalogued |
+| `use_figma` runs Plugin-API JS, plus `generate_figma_design` | The tools page lists `use_figma` (*"general-purpose create, edit, and inspect"*, Plugin API JavaScript), `generate_figma_design`, `create_new_file`, `upload_assets`, `generate_diagram`, `add_code_connect_map`, and generative plugin and shader tools | Holds |
+| Enterprise limits of 600 calls a day and 20 a minute, *"with write tools exempt"* | Rate-limits page: Dev/Full on Enterprise *"Up to 600/day 20/min"*; View/Collab *"Up to 6/month"*. *"Exempt tools include: add_code_connect_map create_new_file whoami"*. `use_figma` is not named | **Partly holds.** If `use_figma` counts, one seat caps a busy agent at 600 calls a day. That is a fleet-scale ceiling |
+| *"Agents can write only through a Full seat"* | Not stated on the MCP pages read | **Unverified** |
+| *"SAML to Entra directly, not through our broker"* | help.figma.com *"Set up a custom SAML configuration"* for any IdP (entity ID, SSO URL, X.509) | **Corrected.** Keycloak can be the SAML IdP in front of Entra, so `OD-30` can be met |
+| No customer-cloud option | SaaS only | Holds |
+
+**Paid gates:** all of it is paid. AU residency and SCIM are Enterprise-only. **Maintenance:**
+the most mature candidate, vendor-run. **Days:** ~3 for a second adapter behind the design seam
+is plausible. The blocker is not effort: it is Figma admitting our relay to the catalogue, or
+accepting a user's Figma grant in the sandbox, and neither has a date. Keep it off v1, as the
+report says.
 
 ## 5. The corrected recommendation
 
