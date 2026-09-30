@@ -72,8 +72,8 @@ or it waits for the cutover. That is an owner call (§7, call 1).
 | DB branch per preview, with honest degrade | `db_branch_ops.go:36-45`: opt-in label; degrades to the shared DB on the shared tier, with no backup store, or **when the object store is unreachable**. The object store is MinIO (§2.1) | **holds**, but only on the dedicated tier, and it depends on MinIO |
 | 18-check scan catalogue and posture gate | real in code. But `STATUS.md:131-140`: *"LIVE (opt-in, defaults off/warn)"*. Falco and trivy-operator are *"pending ACR image/chart mirroring"*. VVAH was retired on 2026-09-23 | **overstated**: the gate exists, and its defaults do not block |
 | Kyverno verifies signatures | in **Audit** (`STATUS.md:136-138`). Gatekeeper's constraints are *"in DRYRUN on the dev cluster"* (`clients/pod_security.go` header) | **holds as audit only** |
-| Chains signs with `hashivault://panacea-release`, transparency off | `kubernetes/tekton-chains/chains-config.yaml:35-80`: `slsa/v2alpha4`, OCI storage, a KMS signer | **config holds**. The key lives in Vault, and the dev Vault is Shamir-sealed after every restart (§2.4) |
-| "Tenant namespace isolation" is better than Coolify's | `tenant_ensure.go` gives a default-deny NetworkPolicy baseline. `pod_security.go` enforces PSA **baseline** after a live pentest finding: a `hostNetwork` pod lifted the node's identity token. **No `runtimeClassName` anywhere** in Panacea's tracked Go, YAML or Terraform | **partly holds**: shipped apps get hardened containers on a shared kernel (runc), not microVMs |
+| Chains signs with `hashivault://panacea-release`, transparency off | `kubernetes/tekton-chains/chains-config.yaml:35-80`: `slsa/v2alpha4`, OCI storage, a KMS signer | **config holds**. The key lives in Vault, and `VAULT_AUTO_UNSEAL="false"` on both live estates (`panacea-dev.env:136`, `panacea-sandbox.env:78`; `"true"` only on East, `panacea-aue.env:139`). So Vault comes back sealed after a restart, and Chains cannot sign until someone unseals it by hand (§2.4) |
+| "Tenant namespace isolation" is better than Coolify's | `tenant_ensure.go` gives a default-deny NetworkPolicy baseline. `pod_security.go` enforces PSA **baseline**. It was added after live pentest finding #3: a tenant `hostNetwork` pod could reach the node's metadata endpoint and lift its identity token. **No `runtimeClassName` anywhere** in Panacea's tracked Go, YAML or Terraform | **partly holds**: shipped apps get hardened containers on a shared kernel (runc), not microVMs |
 | P-3: our realm token is refused | `middleware/auth.go:147-200`: `pnc_` keys, a Backstage identity JWT behind `BACKEND_SECRET`, or asserted headers. No foreign bearer is accepted | **holds** |
 | "Until P-3, a user pastes an unscoped `pnc_`" | **scoped keys exist today**: `scopeProject` plus `scopeRole` = `read` or `deploy`; a 90-day default and a 365-day cap (`handlers/api_keys.go:34-39`, `:68-100`, `:147-159`). Minting one needs an SSO browser session (`:112-116`) | **corrected**: one project-scoped key per project is possible now. Project **creation** still needs an unscoped key |
 | Single Keycloak replica | `kubernetes/argocd-apps/platform/keycloak.yaml`: `replicas: 1` | **holds** |
@@ -89,11 +89,60 @@ creation, as a label (`handlers/projects.go:360-374` passes labels through). Tha
 
 ### 2.3 Azure, Entra through Keycloak, AU residency
 
-*(to be filled)*
+- **Azure: holds.** Both estates run on AKS.
+- **Region: corrected.** The researcher says Australia East. Both live estates are in
+  **Australia Central**: `panacea-dev.env` sets `LOCATION="australiacentral"`, commented "ISM
+  sovereignty", and so does `panacea-sandbox.env`, the current production. Only the prepared
+  cutover target, `panacea-aue.env`, is `australiaeast`, commented "3 AZs (vs Central's none)".
+  **AU residency holds either way.** High availability does not: Central has no availability
+  zones.
+- **Entra through Keycloak: holds, with one limit.** Our desktop signs in against Panacea's dev
+  realm, `https://auth.dev.panacea.kpmg/realms/panacea` (identity ruling `:94`, `:104`). The same
+  realm's tokens are **not** accepted by Panacea's REST API (§2.2, P-3). Our control plane
+  therefore holds a `pnc_` key per user.
+- **Reachability: missed, and customer-visible.** Panacea's public edge is **one** Traefik load
+  balancer. Its source-IP allowlist holds **14 KPMG AU corporate egress /32s**, enforced in the
+  node NSG below HTTP, so it cannot tell one hostname from another (`deploy/main.tf:578-604`;
+  Panacea's 2026-08-10 and 08-11 notes). Everything behind it is covered: the Portal, **every
+  tenant app**, Pages and webhooks. The East estate keeps it: "D2 East clusters MATCH DEV
+  EXACTLY (public API + 14-IP allowlist…)".
+  1. **A shipped app opens only from KPMG's network.** That is fine for KPMG-staff pilots. For a
+     customer's own users it means a second public entrypoint, which is a Panacea edge change and
+     a sovereignty call (Front Door is global).
+  2. **Adding our egress IP (the researcher's risk 5) opens the whole edge to it,** tenant apps
+     included, not only the API.
 
 ### 2.4 Maintenance and live state
 
-*(to be filled)*
+- **Activity: very high, one person.** HEAD has 1,255 commits since 2026-08-31, and every one is
+  under the owner's name (`git shortlog`). The work is fast and agent-driven, and the bus factor
+  is one human. There is no product company behind it, which cuts both ways: we can change it,
+  and we must staff it.
+- **Live state.** Not observed by this study. The sources are Panacea's `docs/cutover/RESUME.md`
+  (2026-09-30 morning) and the owner's session notes (dated). They say more than `STATUS.md`:
+  1. **Production is mid-incident and frozen.** On 2026-09-28 every cert-manager renewal had been
+     failing since mid-August, from a CoreDNS SERVFAIL. A break-glass patch renewed all 18 certs.
+     The fix is **not merged to `kpmg/main`**, so Argo CD reverts it when it reconnects, and Argo CD
+     "can't sync anything on prod". RESUME: "prod stays code/doc only (off limits)".
+  2. **Functions are frozen** at tag `panacea-v2-freeze-2026-09-24` for the Central→East cutover:
+     12 slices, about 72.5 engineer-days, being built in parallel now. **P-1, P-2 and P-3 are new
+     features, so they queue behind a freeze.** The 06 report treats them as "0.5-2 days in
+     Panacea" with no date.
+  3. **Tenant-isolation holes are still being found on dev.** This week's rounds found MinIO
+     CVE-2026-41145 and -40344, which allow cross-tenant writes because Panacea's keys are
+     sha256 of the project name. They also found a "cross-tenant bucket takeover" in a fix, a
+     "cross-project token write via the Env Vars editor", and a host-ambiguity "lockout" class.
+     All were found, fixed or in round 3 by 06:35 today. That is diligent review. It is also not
+     yet "the regulated half, done".
+  4. **Vault seals on restart** on both live estates (§2.2). RESUME's infra stream exists to "make
+     sure Vault is consistently readable". Chains' signing key sits there, and so do tenant env
+     vars.
+  5. **Resilience gaps**, from the 2026-09-24 cutover dossier: "Keycloak/Vault/Flagsmith have NO
+     backup and MinIO holds all files + all DB backups on one disk." With a single Keycloak
+     replica, that is the sign-in for our desktop too, until phase 8.
+- **What survives:** none of this is a reason to pick another product. Coolify would start at
+  zero on every one of these axes (§4). It is a reason to **date** the Panacea-side asks against
+  the cutover, and to ship v1 as pilots on the dev estate.
 
 ### 2.5 Are 6 days realistic for our architecture?
 
