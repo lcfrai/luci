@@ -392,10 +392,16 @@ cross-lane sidebar and inbox (5.3, cost 1).
 
 ## 8. Corrected recommendation
 
-**Upheld, with corrections. Adopt Orca (`stablyai/orca`, MIT) as the cockpit, unforked.**
+**Upheld, with corrections. Adopt Orca (`stablyai/orca`, MIT) as the cockpit engine, and ship it as
+our app: a thin build of the pinned upstream, not Orca under its own name, and not a feature fork
+(§7).**
 
-1. **Pin one version** on the desktop and in the sandbox image, and canary every upgrade. The canary
-   must run the plugin and a mixed-version pairing.
+1. **One app, from one pinned build** (§7). Our name, icon, KPMG signature and update feed, with the
+   rename applied at build time; our tokens on Orca's shadcn variables; a journey bar (Define,
+   Design, Develop, Deploy and the brief chip) that hosts Hub pages in one app-level view, signed in
+   from `panacea login`; a lane deep link; Orca's cloud features off. The same version runs on the
+   desktop and in the sandbox image. Every pin move is a canary that runs the plugin, a
+   mixed-version pairing and the five checks in §7.
 2. **Each lane runs in our Kata sandbox** through one Panacea recipe, shipped by the Panacea plugin
    under a namespaced id, because a repo's `orca.yaml` shadows a recipe with the same id (§2 row 2).
 3. **The sandbox holds no git-host credential.** Orca's Push goes to a lane-scoped endpoint on the
@@ -411,13 +417,16 @@ cross-lane sidebar and inbox (5.3, cost 1).
 6. **Freeze phase 2's Tauri Develop views as the fallback cockpit; do not delete them** (5.1). The
    control plane, `Backend` (plus `Suspend`/`Resume`), `katabe`, the transcript store and the
    gateway token carry on as R4 says.
-7. **Two gates before first ship:** the owner rules on `OD-8` for Orca's OSC status (2.1), and KPMG IT
-   is asked **today** for the MDE suppression rule and ASR allowlist. The browser-only route (5.3) is
-   the fallback.
+7. **Two gates before first ship:** KPMG IT is asked **today** for the MDE suppression rule and ASR
+   allowlist, now for our KPMG-signed build, and a signing route is chosen (owner call 6). `OD-8`
+   (2.1) stops being a gate once our build's OSC patch lands; until then the owner's ruling stands.
+   The browser-only route (5.3) is the fallback.
 8. **One gate before any customer tenancy:** a security review of the agent and `orca serve`
    sharing one sandbox (3.4).
 
-**Days:** about **10.5 (9.5 to 12), 6.5 to first ship**, beside 01's ~10, plus the day-0 items (§6).
+**Days:** about **15.5 (14 to 18)**: §6's 10.5 plus §7's 5, beside 01's ~10, plus the day-0 items
+(§6). **First ship stays at about 6.5 calendar days only if our build runs as its own stream from
+day 1.** Done in series, it is about 11.5.
 
 **Replaces:** as R6 (arithmetic checked). One change: phase 3 tasks 12 and 13 (push through the
 machine's credential helper, the credential-store seam) now serve the laptop CLI. They were designed
@@ -426,17 +435,22 @@ for that job.
 **Owner calls, changed or new:**
 1. **`OD-8` and Orca's OSC status** (new). Recommend accepting it for KPMG's own pilot, for display
    only, and letting nothing we build (Hub, team mode, provenance) read it. Before a customer
-   tenancy, require an upstream hooks-only option. If upstream declines, that is the first real
-   reason to fork, with the signing and Defender costs R3 names. Any terminal output can forge a
-   status and its prompt text (2.1).
+   tenancy, our build turns OSC status off for hook-capable agents (§7), and we offer the change
+   upstream. Any terminal output can forge a status and its prompt text (2.1).
 2. **The Defender and ASR prerequisite** (the researcher's call 2). Unchanged, but ask on day 0.
 3. **Land from the laptop, or hand the token to the cloud** (new). Recommend the laptop: it keeps
    `OD-6` as written.
 4. **ADO previews in v1** (new). Recommend GitHub-only previews in v1, and ask Panacea for ADO
    PR events.
+5. **One app, not Orca under its own name** (customer-visible, new). This replaces 02's §7 call 1
+   and answers 08's §9 call 2. The user's request settles the direction (§7). What is left for the
+   owner: the desktop's name and icon.
+6. **Code signing** (money, new). Recommend Azure Artifact Signing, US$9.99 a month on Basic, if an
+   Australian entity qualifies. Otherwise use an OV code-signing certificate in Key Vault, which
+   KPMG may already hold. The Tauri fallback needs one either way (5.1).
 
-Money is unchanged: GitHub Enterprise Cloud at US$21 per user per month, for queued landing on
-private repos.
+Money: GitHub Enterprise Cloud at US$21 per user per month, for queued landing on private repos, as
+before, plus code signing (call 6).
 
 ## 9. What this pass could not verify
 
