@@ -369,8 +369,65 @@ that for v1, and to ask Orca upstream for a pane-header slot in the plugin API.
 
 ## 8. What this verification could not verify
 
-*(to be filled)*
+- **Nothing was run.** Four things are unproven:
+  - that `/speckit-specify <idea>`, passed as Claude Code 2.1.274's opening argv prompt, triggers
+    the skill;
+  - that Orca's own new-workspace flow can hand an agent and a prompt to a recipe workspace (if
+    it can, G2 shrinks);
+  - that the `sh` script variant lets the runtime image drop python3;
+  - that a preset override of the `specify` command survives a version bump cleanly.
+- **Orca's plugin capabilities** (no `net:fetch`, panels as `srcdoc` frames) and "the CLI cannot
+  create a recipe workspace" are `02`'s reading of Orca's source at `59b746ff`. They were not
+  re-read here. Orca's CLI, editor and artifact facts come from its docs source (`.mdx` at
+  `main`), not from a run.
+- **The GitHub API was rate-limited** (403 after one call). So this doc has no `pushed_at`,
+  open-issue or archived flags from the API. Stars come from the page counter and dates from the
+  Atom feeds.
+- **Telemetry:** for Spec Kit, only the dependency list and the entry module were read, not the
+  catalog or `self` submodules. OpenSpec's telemetry endpoint was not identified.
+- **Not re-verified:** the SaaS rejections (Kiro, Tessl, Traycer, ChatPRD, BrainGrid, Confluence),
+  Taskmaster's Commons Clause, and the GSD, Spec Kitty and adrkit rows. One exception, confirmed in
+  passing: BMAD's `LICENSE` is MIT, followed by a "TRADEMARK NOTICE" covering "BMad", "BMAD-METHOD"
+  "and all casings", as the report says.
+- **Panacea** was read-only, by reads and `git grep` of tracked files at the current checkout.
+  Another session is working there, and uncommitted work is invisible to this check. Forge's rules
+  were read, not run.
+- **Plan ownership of a browser page** rests on a grep of
+  `.claude/worktrees/*/docs/superpowers/plans/` only.
+- **Image facts not checked in the image:** which Node 20 minor the `node:20-bookworm-slim` tag
+  resolves to (OpenSpec needs 20.19 or later), and bookworm's python3 version (Spec Kit needs
+  3.11 or later).
+- **Days** are this review's estimate, like the report's. Neither is a measurement.
 
 ## 9. Sources
 
-*(to be filled)*
+Upstream, read 2026-09-30:
+
+- **Spec Kit** (`github/spec-kit`): `LICENSE` at `HEAD`; `releases.atom`; repo page (stars); at
+  `v1.0.13`: `README.md`, `pyproject.toml`, `CHANGELOG.md`, `templates/commands/specify.md`,
+  `templates/commands/clarify.md`, `templates/spec-template.md`, `src/specify_cli/__init__.py`;
+  <https://github.github.io/spec-kit/reference/presets.html>,
+  <https://github.github.io/spec-kit/installation.html>.
+- **OpenSpec** (`Fission-AI/OpenSpec`): `LICENSE`, `releases.atom`, repo page; at `v1.13.2`:
+  `README.md`, `package.json`, `MAINTAINERS.md`.
+- **mattpocock/skills:** `LICENSE`, `releases.atom`, repo page; on `main`: `README.md`,
+  `skills/productivity/grilling/SKILL.md`, `skills/productivity/grill-me/SKILL.md`,
+  `skills/engineering/{grill-with-docs,domain-modeling,setup-matt-pocock-skills}/SKILL.md`.
+- **BMAD-METHOD:** `LICENSE`, `releases.atom`, repo page.
+- **Orca** (`stablyai/orca`): `LICENSE`, `releases.atom`; on `main`:
+  `docs/site/content/docs/{meta.json,cli/reference.mdx,editing/meta.json,editing/markdown.mdx,ways-to-run.mdx,remote-servers.mdx}`.
+
+Panacea, read-only (`Projects/Panacea`):
+
+- `services/forge-orchestrator/{models/spec.go,orchestrator/spec_tool.go,orchestrator/prompts.go,routes/routes.go,middleware/middleware.go,config/config.go,orchestrator/orchestrator.go}`
+- `services/panacea-api/{handlers/deployment_stages.go,clients/branch_data_policy.go,clients/branch_data_ops.go,clients/interfaces.go,clients/kubernetes.go,models/models.go,routes/routes.go}`
+- the whole-repository `git grep data-classification`
+
+This repository:
+
+- `docs/superpowers/planning/2026-09-30-assemble/{03-define.md,02-fleet-cockpit.md,00-panacea.md}`
+- `docs/superpowers/planning/2026-09-28-discovery-skills/11-design-r2.md` §7.5
+- `.claude/worktrees/phase-4/docs/superpowers/plans/2026-09-23-phase-4-discover.md:402-414`
+- `.claude/worktrees/hub/docs/superpowers/plans/2026-09-23-phase-h-hub-parts/{task-08,task-32}.md`
+- `.claude/worktrees/work/docs/superpowers/plans/2026-09-25-phase-w-work-layer-parts/task-80.md`
+- `images/sandbox/Dockerfile`, `control-plane/internal/harness/argv.go`
