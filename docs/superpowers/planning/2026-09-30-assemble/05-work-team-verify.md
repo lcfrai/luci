@@ -219,7 +219,37 @@ Australia East.
 
 ## 8. The integration days, against our architecture
 
-*(to be filled)*
+**17 becomes about 20 engineer-days (17 to 23); 18 without Orca as the desktop.** Plus 2 optional
+days for the upstream ADO task-source pull request, off the critical path. Estimates, nothing run.
+
+| # | Piece (researcher §7) | Researcher | Verified | What changed |
+|---|---|---|---|---|
+| 1 | `tracker` interface + ADO and GitHub connectors | 5.5 | **6** | ADO +0.5: the two fields and three rules per work item type, scripted through the process REST API, and the proof identity's token (section 2). GitHub: the sticky-comment id is stored, not re-found (section 4 row 3) |
+| 2 | Provenance edge and proof | 2 | **2.5** | +0.5: the cockpit counts Proof only when it matches our evidence record, on both trackers (sections 2 and 3) |
+| 3 | Start from an issue; tracker MCP in the sandbox | 2 | **2.5** | +0.5 to 1: no per-session ADO token can be minted. Microsoft: the PAT API needs *"a Microsoft Entra access token from a user-delegated flow"*, and *"Service principals and managed identities can't create or manage PATs"*; under `OD-30` we hold no such token. So sandbox reads go through a control-plane proxy that holds the user's PAT. GitHub's read-only installation token works as planned |
+| 4 | Work lens v0 and team view | 2.5 | **2.5** | Built as a Hub page in Orca's browser tab, not an Orca panel (no `net:fetch`, section 5). The roster needs a Panacea change (section 4 row 2), done by the Panacea stream |
+| 5 | Teams bot | 2 | **3** | A Node service beside the Go control plane, its identity, the Teams manifest (section 6) |
+| 6 | Preview comment to issue | 1 | **1.5** | The event is an unsigned hint with no comment id; read the comment back from Panacea (section 4 row 7) |
+| 7 | ADO Boards source in Orca, as a fork patch | 2 | **1.5** | Replaced: the pending-start path (1) and the day-1 spike on task links (0.5), both without a fork. The patch itself goes upstream as a PR (2, optional) |
+| | **Total** | **17** | **19.5** | 18 without piece 7 |
+
+**The first end-to-end demo on ADO: about 5.5 working days with two builders,** lane A's ADO half
+(3.5) beside lane B's pieces 2 and 3 (5). That holds **only in an ADO organisation we administer**,
+with the Teams step carried by the first-party Boards app in a channel, not by our bot. Pointed at
+a KPMG team's existing organisation, it waits on the day-0 asks below. None of them is in anyone's
+day count.
+
+| Who | Ask | Avoidable for v1? |
+|---|---|---|
+| ADO administrators | Process: two fields and three rules per work item type. Organisation: add the proof managed identity as a Stakeholder. Project: hook subscriptions | Hooks, yes (poll). Fields and rules, only by running in our own organisation |
+| KPMG ADO policy owner | Confirm PAT creation is not restricted and users make organisation-scoped PATs: *"All existing global PATs stop working on December 1, 2026"* | No. The whole ADO path is PATs (`OD-30`) |
+| `kpmg-au-emu` owner | Create and install the GitHub App; create the org-level Proof field | No, for GitHub |
+| Teams administrator | Allow the custom app; the bot's identity | Yes: channel apps and the Desk carry *inform* until then |
+| Panacea stream | A member-readable roster route, beside the realm-token trust it already ranks first | Yes: team admins only, until then |
+
+**Fit with our architecture, the rest:** the connectors live in the control plane, not behind the
+sandbox `Backend` interface; local mode polls with the PAT from Credential Manager (`OD-6`); the
+gateway token's issue tag depends on LiteLLM key metadata (the gateway cluster, not checked here).
 
 ## 9. Corrected recommendation
 
