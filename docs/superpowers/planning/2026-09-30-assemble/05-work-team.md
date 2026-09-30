@@ -47,7 +47,7 @@ so paths are as of today's tree).
 |---|---|---|---|
 | Work items, boards, sprints | **None.** `git grep -i "workitem\|_apis/wit\|wiql"` over `services/` finds nothing | — | Panacea is not a tracker; ADO and GitHub stay |
 | **Team API** (`services/panacea-api/routes/routes.go:1897-2020`) | Teams are **Keycloak groups** (`handlers/team_onboarding.go:16-26`). Members list, add and remove; invite; join requests a team admin approves or denies; self-create gated by the cost-centre owner and a SuperAdmin (`handlers/team_create_approval.go`); per-team billing, cost, budget, git PATs, security and risk policy; project-to-owning-team RBAC (`routes.go:134-140`) | **The roster for Phase T and the team view**: `GET /api/v1/teams/{name}/members`, or a groups claim if the realm maps one for our client (not verified). The realm is Panacea's until phase 8 runs its own (`OD-30`) | **integrate (API), 0.5 day** |
-| **Sticky comment upsert** (`services/panacea-build/pkg/prcomment/client.go:54`) | Creates the bot's PR comment or **updates it in place**, for GitHub, Gitea and Azure DevOps | **The one live status comment per session** (§7 piece 1). GitHub issue and PR comments share one endpoint, so that half ports as is; ADO work-item comments are another endpoint, so that half keeps the pattern and auth | **snippet** |
+| **Sticky comment upsert** (`services/panacea-build/pkg/prcomment/client.go:54`) | Creates the bot's PR comment or **updates it in place**, for GitHub, Gitea and Azure DevOps | **The one live status comment per session** (§7 piece 1). GitHub issue and PR comments share one endpoint (`/repos/{r}/issues/{n}/comments`, `client.go:78-85`), so that half ports as is, with its hard-coded `api.github.com` made a base URL for GHE.com; ADO work-item comments are another endpoint, so that half keeps the pattern and auth | **snippet** |
 | **Hook lifecycle** (`handlers/webhook.go`, `handlers/webhook_ado.go:17-42`) | Creates, lists and deletes GitHub hooks and **ADO Service Hooks subscriptions** (publisher `tfs`, consumer `webHooks`), matched on the delivery URL | The tracker's subscriptions: the same API with work-item events (`workitem.created`, `workitem.updated`, `workitem.commented`) | **snippet** |
 | **ADO hook check** (`services/webhook-receiver/providers/azuredevops.go:31`) | HMAC header or Basic secret, constant-time, rejects an empty secret | The service hook receiver | **snippet** |
 | **Notifications** (`handlers/notifications.go:35-43, 247`) | Per-project channels (Slack, email, webhook); `NotifyOnce` dedupes across restarts. **No Teams channel**, and SMTP *"is not configured anywhere on this platform"* (`team_create_approval.go:17-18`) | The dedupe for the Teams digest; not the delivery path | **snippet**; our Teams bot stays |
@@ -529,9 +529,11 @@ third-party-auth pages; Claude Code's agent-teams page.
 9. **Orca's source was not read** (the GitHub API was rate-limited again): whether its task
    drawer has an internal provider seam that makes the ADO source 2 days, and how it stores the
    Linear token.
-10. **Panacea's team API as a PanaceaApp caller**: whether the `selfService` routes accept our
-    users' tokens or need a service token, and whether the realm can map group membership into
-    a claim for our client. Either way the roster is one call; the auth path is unconfirmed.
+10. **Panacea's team API as a PanaceaApp caller**: the team routes run `selfService`, which is
+    Panacea's `pnc_` API-key check (narrowed to the owner's live Keycloak groups), its SSO auth
+    and its audit (`routes.go:3162-3182, 3349-3355`), so a user's `pnc_` token works. Whether our
+    own Keycloak access token is accepted as a bearer, and whether the realm can put group
+    membership in a claim for our client, were not read.
 11. **The snippets were read, not run**: the sticky-comment, hook-lifecycle and hook-check code
     is quoted by path; its behaviour against ADO work-item comments, and OpenBao's transit API
     for the signed head, are expected to match and were not tried.
