@@ -283,6 +283,8 @@ env, logs, pods, security status, rollback) touches Define. It has three things 
   documents (ClamAV-scanned) and a generated assessment as DOCX or PDF. **Verdict: integrate next, not
   first.** A Define session can later draft the answers from the spec for the person to confirm, which
   is where the brief meets Deploy's secure-test gate. It is not on the path to the first shipped brief.
+  The call would use a user's `pnc_` token (`00-panacea.md` §5.2), since `panacea-api` refuses a
+  Keycloak realm token on REST today.
 - **Backstage** (`backstage/packages`): Scaffolder and TechDocs are installed; no ADR plugin.
   **Reference.** TechDocs could show the spec to readers outside the cockpit later; today Orca renders
   it and the Hub holds the revisions.
@@ -480,8 +482,9 @@ gateway budget (cost per Define session not measured).
   releases is not measured.
 - **Panacea** *(relaunch)*. Read by grep only; Forge's rules were read, not run. "No route writes the
   data-class annotation" rests on a grep of non-test Go in `services/panacea-api`, not on other
-  services or runbooks. How a PanaceaApp caller authenticates to Forge's or the risk API was not
-  checked; `00-panacea.md` was still a skeleton during this relaunch, so nothing here comes from it.
+  services or runbooks. For `panacea-api` (the risk module, later), `00-panacea.md` §5.2 names the
+  path: a user's `pnc_` token; a Keycloak realm token gets 401 on REST today. How a caller reaches
+  Forge's own API was not checked; this study uses no Forge endpoint.
 - **Supabase** *(relaunch)*. The Sydney region and the Keycloak provider come from Supabase's docs
   through search; self-hosting on AKS was not checked.
 
