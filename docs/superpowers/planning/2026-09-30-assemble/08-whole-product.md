@@ -297,6 +297,63 @@ already runs the unmodified Claude Code.
 | **cube.computer** | The product we set out to beat; vendor cloud, no SSO (02 §3b) | reference |
 | **Northflank, Qovery** | BYOC PaaS that runs in our Azure, with previews and sandboxes, but the control plane is theirs (01 §4.5, 06) | reference |
 
+### 4.14 Panacea, the owner's platform, judged as a whole product - ADOPT as the platform (not as the build engine)
+
+Read-only, `Projects/Panacea` at `efc637879` (2026-09-30); 00-panacea holds the inventory.
+
+- **What it already is.** A regulated deploy platform on KPMG's Azure (`australiacentral` today,
+  an Australia East rebuild in cutover, 00 §10): per-branch previews with SSO, a branched database
+  per preview, a stage ladder that turns the data class into required scans, rollback, a
+  per-release evidence export, 18 scan checks behind a posture gate, per-app Postgres, storage,
+  secrets and AI key, the Keycloak realm brokering Entra, a team API, and `panacea-mcp` with 31
+  tools an unmodified agent can call (00 §3-8, 06 §0, 05 §0.1).
+- **It also has its own prompt-to-app product: Forge** ("Agent Builder", `services/forge-orchestrator/`):
+  a chat and preview split view in the Portal, its own tool loop on Kelios or Anthropic, verify,
+  authorisation-first and browser-test gates, templates, fork, and "Ship It" to **Azure DevOps,
+  Gitea or GitHub** (`ship/providers.go:14`, `:40-56`) then Panacea's pipeline. On B1-B4 and B7
+  it is the best-fitting whole product in this study.
+- **Why Forge is still not the base.** It is a closed agent loop, not unmodified Claude Code (B5);
+  one chat per build, not a parallel fleet; its preview pods are `runc` with egress closed to the
+  gateway and git host (B6, 00 §9.3); and `/api/v1/forge/*` sits behind a platform-admin-only,
+  no-API-key gate, so "A product like ours cannot drive it" (00 §9.2). Its gates and spec rules
+  are copied instead (00 §9.2, 03 §0).
+- **Phases.** Deploy, whole; the shipped app's backend, whole; sign-in and teams. Not Define
+  (beyond Forge's one interview), Design, the cockpit or the sandboxes.
+- **Licence.** KPMG's own code; its stack carries BUSL Vault and AGPL MinIO, Grafana, Loki and
+  Tempo, which matters only if Panacea itself is shipped into a customer tenancy (00 §7).
+- **Days.** 6 for deploy (06 §0) plus 2 of platform glue (00 §11).
+- **Verdict: adopt as the platform.** The best complete answer after a lane becomes a pull
+  request (02 §R5, 06 §0). **Trade-off:** our shipped apps share Panacea's estate and its
+  incidents; in exchange we build almost none of the regulated half.
+
+### 4.15 Coolify plus Supabase, enhanced with Panacea snippets - REJECT as the platform
+
+- **Does.** Coolify (Apache-2.0) deploys containers with previews to Docker hosts; Supabase
+  (Apache-2.0) gives each app a database, auth, storage and realtime. Both permissive, both
+  active (00 §10: 62.4k and 110.9k stars).
+- **Against our need.** Coolify has no AKS target, OIDC only in a release candidate, and no Azure
+  DevOps (B7); self-hosted Supabase is one project per stack, with no branching, managed PITR or
+  management API; Supabase Branching is hosted only (06 §3.9-3.10, 00 §10).
+- **Days.** 16-24 of ported Panacea code (scans, posture, stage ladder, evidence, SSO previews,
+  ADO previews) to approach what Panacea gives on day one (06 §3.9).
+- **Verdict: reject as the platform.** Supabase stays a reference for the Hub's store (00 §10 C4).
+  **Trade-off:** permissive and portable to a customer's cloud, but weeks to match Panacea.
+
+### 4.16 Orca, the owner's cockpit pick - ADOPT (verified by 02, not re-argued)
+
+- **Does.** "The ADE for working with a fleet of parallel agents": any agent CLI, a worktree per
+  agent, live terminals, a status store with an inbox, hosted review, recipes that put a
+  workspace on a cloud machine, and a plugin API (02 §R2).
+- **Licence and maturity.** MIT (Lovecast Inc.); 80,872 stars in GLASSES, 81,599 in 02's first
+  run; `package.json` 1.4.214 at the 2026-09-29 commit 02 read; releases about daily. (The GitHub
+  API rate-limited this run before it could re-check.)
+- **Enterprise fit.** No SSO or RBAC (team auth is an open issue); telemetry to PostHog US unless
+  `ORCA_TELEMETRY_DISABLED=1`; Defender for Endpoint needs a suppression rule and an ASR
+  allowlist on managed Windows (02 §R2).
+- **Days.** 7.5, 4.5 of them to first ship, on top of 01's 8 for the sandbox (02 §R6).
+- **Verdict: adopt.** It is the cockpit half of the whole product; everything above either sits
+  under it (sandboxes, gateway, Panacea) or beside it (Spec Kit, Penpot, the tracker).
+
 ## 5. Which can run in a customer's own Azure tenancy
 
 _(pending)_
