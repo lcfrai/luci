@@ -177,7 +177,61 @@ they cost about 1.25 days, and both are in §8.
 
 ## 7. Missed candidates
 
-_Pending._
+### 7.1 Claude apps gateway (Anthropic's own) — **REFERENCE now; watch every Claude Code release**
+
+The biggest miss. 3.17 lists APIM, Bifrost, Portkey, Envoy and Foundry, but not the gateway
+Anthropic ships inside the `claude` binary itself (`claude gateway --config gateway.yaml`,
+Claude Code v2.1.195 or later; [its page](https://code.claude.com/docs/en/claude-apps-gateway)).
+
+- **What it does, per the vendor:** developers sign in through any OIDC IdP, "Okta, Microsoft
+  Entra ID, Google Workspace, Keycloak, or Dex". It routes to "Amazon Bedrock, Claude Platform on
+  AWS, Google Cloud's Agent Platform, Microsoft Foundry, or the Anthropic API, with failover".
+  It enforces model access and managed settings by IdP group, and caps spend per user and
+  group. It exports OTLP with user identity, and "doesn't log or store prompt or completion
+  content". It is "tested alongside each Claude Code release", so there is no header allow-list
+  to drift, which is a real weakness of a LiteLLM rebuilt from source.
+- **Licence and price:** it is part of Claude Code: "© Anthropic PBC. All rights reserved. Use
+  is subject to Anthropic's Commercial Terms of Service" (`LICENSE.md` at source). No separate
+  price is stated; inference is "billed per token to whoever owns the credential the gateway
+  forwards". It needs PostgreSQL 14 or later and Linux; there is no Helm chart and no admin UI.
+- **Why it cannot be our fleet's gateway today:**
+  1. "There is no service-token flow for unattended pipelines. Gateway sign-in always runs the
+     browser device flow." Each Kata sandbox is a new machine, so every session would need a
+     browser approval (fails zero clicks and C1's cohesion). The other way is to copy a user's
+     refreshable session into an untrusted sandbox, which fails `OD-19`'s scoped per-session
+     token and has no pod binding.
+  2. Spend-limit scopes are `user`, `rbac_group` and `organization`, and a group cap is "a
+     per-seat default ... not a shared pool" ([spend limits](https://code.claude.com/docs/en/claude-apps-gateway-spend-limits)).
+     There is no project budget and no per-project AU route, and `OD-24` needs both.
+  3. "One issuer per gateway", and `/login` accepts only a gateway on a private address.
+- **Trigger to revisit:** a service-token or token-exchange flow plus project-scoped policy in
+  Claude Code's release notes. Then it could replace LiteLLM and `keysmith`'s minting, leaving
+  `gatekeeper`'s pod binding. Do not run it beside LiteLLM for local-mode laptops: two gateways
+  means two spend ledgers (C4).
+- **Take now, free:** its refusal contract. That is a 429 `billing_error` with
+  `x-should-retry: false`, a `retry-after`, and a readable message shown "as is". `gatekeeper`
+  copies it for C3.
+
+### 7.2 The public edge: Panacea's `waf-appgw.tf` — **KEEP (3.18 drops it)**
+
+3.18 says to drop "the WAF application gateway". But §5 found that the Hub and gateway must be
+reachable from laptops. That file is "the public edge web-application firewall": a regional
+Application Gateway WAF_v2 with OWASP CRS 3.2 (ISM-1239/1240/1241/1245). It was chosen over
+Front Door "for AU sovereignty", because Front Door's points of presence "terminate offshore".
+It is gated by `var.waf_enabled` (default false). **Price basis (money, owner):** US$0.522 per
+gateway-hour fixed (about US$381 a month) plus US$0.0144 per capacity-unit-hour, list,
+Australia East (Retail Prices API, 2026-09-30). Copy it with the rest of 3.18, and enable it
+when the first external laptop connects.
+
+### 7.3 Smaller
+
+- **Claude Enterprise:** Claude Code's own page suggests it where no residency need exists. It
+  signs in per user, not per session, and has no AU route, so it fails `OD-19` for the same reason
+  as 7.1 (not examined further).
+- **Keycloakify** (MIT at source, `LICENSE`): the per-client login theme for C2, once the
+  realm is ours (3.11).
+- **Verified, not missed:** keycloak-config-cli, which 3.11 and 3.12 lean on, is Apache-2.0 at
+  source (`LICENSE.txt`).
 
 ## 8. The corrected recommendation
 
