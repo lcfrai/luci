@@ -1,8 +1,8 @@
 # 06 — Deploy and release provenance: what to adopt instead of building phase 7
 
-**Status:** in progress, 2026-09-30, **second run** (relaunched to take the owner's second
-direction; the first run stopped at 09:47 with sections 1-4 written). Research only: nothing was
-installed or run, and nothing was written in `Projects/Panacea`.
+**Status:** COMPLETE, 2026-09-30, **second run** (relaunched to take the owner's second
+direction; the first run stopped at 09:47 with sections 1-4 written, and those are revised in
+place). Research only: nothing was installed or run, and nothing was written in `Projects/Panacea`.
 **Capability:** shipping the result — a preview environment per branch, promotion, rollback, and a
 release that carries its provenance (the brief it answers, the evidence).
 **Replaces (candidate):** phase 7, the Deploy connector, 20 tasks
@@ -17,7 +17,28 @@ file uses it and adds only what deploy needs.
 
 ## 0. The answer
 
-*(written last)*
+**Panacea is the deploy step. Adopt it through `panacea-mcp` for agents and its API for the
+cockpit, finish phase 7 as a thin connector cut down for Orca, and sign the brief-to-release link
+in the Hub. About 6 engineer-days (3.5 with two people).**
+
+1. **Panacea already ships everything but the brief** (§2, §2a): previews per branch with SSO, IP
+   and share-link access; a database branched per preview and redacted first; a stage ladder
+   (innovation, secure-test, production) that turns `OD-24`'s data class into the scans a promotion
+   needs, with owner and SuperAdmin approval; rollback; an evidence export per release; 31 MCP
+   tools an unmodified agent can use to deploy and fix its own build.
+2. **The allowed alternative loses on merit** (3.9): Coolify plus Supabase would need 16-24 days of
+   ported Panacea code (scans, posture, stage ladder, evidence, SSO previews, Azure DevOps previews)
+   and would still isolate agent-written apps less well. Supabase's preview databases are hosted-only
+   on AWS (3.10). Container Apps, Argo CD with Kargo, Octopus and the rest stay reference or reject.
+3. **The glue is four pieces** (§6): an Orca Deploy panel (1.5 days), a signed in-toto statement
+   binding brief, sessions and Panacea's evidence digest (1 day, cosign with an Azure Key Vault
+   key), promotion through the stage ladder with the data class as its floor (0.75), and a proxy
+   allowlist that keeps an agent's token off production (1), plus 13.5 hours of kept phase 7 tasks.
+4. **It removes 8 of phase 7's 20 tasks** (11-18, 21.5 plan-hours) and closes two needs the plan
+   left open: promotion and a signature (§5).
+5. **Four owner calls** (§7): a *pilot* on secure-test until Panacea's DLP opens production; users
+   seeing Panacea's Portal through links; who pays for running apps and branching previews; and
+   Octopus only if a customer mandates ServiceNow tickets.
 
 ## 1. What phase 7 has to do, restated as a need
 
@@ -242,9 +263,10 @@ SLSA, in-toto, Tekton or Kyverno (searches for `gitops`, `argo cd`, `attestation
   `DeployPage`, `DeploymentStagePage`, `BuildLogsPanel`, `SecurityScansPanel`,
   `SecurityScanReview` and `PreviewPolicyCard`
   (`backstage/packages/app/src/plugins/`).
-- **Gaps:** a second UI beside the cockpit. It cannot show the brief thread unless we add a
-  plugin, which would be copying work into Panacea (`OD-13`).
-- **Effort:** deep links from the Deploy lens into those Portal pages: **about half a day**.
+- **Gaps:** a second UI beside the cockpit. It cannot show the brief thread unless someone adds
+  a plugin to Panacea's Portal, which is work in Panacea's tree, not ours.
+- **Effort:** deep links from the Deploy lens into those Portal pages: **about half a day**, now
+  inside G1, the Orca panel (§6).
 - **Verdict: integrate by deep link.** Do not build a second Backstage. Do not rebuild the
   Portal's drill-ins and governance screens in the desktop: link to them.
 
@@ -313,7 +335,7 @@ stores them. Test with the exact versions before any Enforce flip.
 | **Bunnyshell**, **Release**, **Okteto**, **Signadot** | preview environments as a service | proprietary SaaS | **reject.** Panacea already gives every branch an environment. Not examined in depth |
 | **Dokku**, **CapRover**, **Portainer**, **Rainbond**, **Openship**, **Uncloud**, **Appwrite** | the other GLASSES "deploy-service" entries: Docker PaaS or container managers | various (GLASSES shows MIT, Zlib, Apache-2.0, BSD-3-Clause; two unknown) | **reject** for the reasons in 3.1. Not examined further |
 | **GitHub Environments and Deployments API; ADO Environments** | a deployment record in the git host, with approvals | part of GitHub and Azure DevOps | **later, optional glue (about 1 day).** Write each Ship as a deployment in the repo's host, so a developer sees "deployed to preview, brief B" where they already work |
-| **`panacea-mcp` inside the sandbox** | lets an agent read its own preview's logs, pods and diagnosis, and fix a failing deploy itself | Panacea's own | **later.** Its token is a user's `pnc_` key with that user's role, and `panacea_api_request` can write. Agents are untrusted, so this waits for a read-only, per-session token, as phase 6 does for inference |
+| **`panacea-mcp` inside the sandbox** | lets an agent read its own preview's logs, pods and diagnosis, and fix a failing deploy itself | Panacea's own | **v1** *(revised; the first run said "later")*. Its token is a user's `pnc_` key with that user's role, and `panacea_api_request` can write, so the sandbox never holds that token: it talks to our proxy, which forwards only an allowlist (§6, G4). 01-sandboxes puts the bundle in the image |
 
 ### 3.9 Coolify plus Supabase, enhanced with Panacea snippets, as the whole deploy step *(second run)*
 
