@@ -177,7 +177,44 @@ ask changes **how** we assemble (section 7). It does not change **whether** we a
 
 ## 6. The days and the task counts, for our architecture
 
-*(to be filled)*
+**59 engineer-days becomes about 99 (92 to 109).** The report sums the clusters' own figures. Each
+sibling sceptic has since corrected its cluster, and two whole layers were never in the sum.
+Estimates composed from estimates; nothing measured.
+
+| Layer | Report | Corrected | Source of the correction |
+|---|---|---|---|
+| Develop cockpit (02) | 7.5 | **10.5** (9.5-12) | 02-verify §0, complete |
+| Sandboxes (01) | 8 | **10** (8-13), counted from day 0 | 01-verify §0, complete |
+| Define (03) | 8 | **10** stream-days | 03-verify, complete |
+| Design (04) | 9 | **13** | 04-verify, complete |
+| Work and team (05) | 17 | **20** (17-23) | 05-verify, complete |
+| Deploy (06) | 6 | **8.5** (7.5-9.5), including 1.4 to bring Portal screens in-app for the one-app ask | 06-verify §2.5, being finished |
+| Platform glue (00) | 2 | **2**, a floor | 00-verify's days are still pending; its §2 adds unsized glue (the preview shares the production database by default) |
+| Hub, gateway, environment (07) | 0 | **19.2** (Hub 10, gateway 8.2, environment 1) | 07-platform §0 and §5; its sceptic is still pending |
+| Journey test (this cluster) | 1.5 | **2**, with the one-app checks | section 7 |
+| One-app layer *(new)* | 0 | **4** (3.5-5) | section 7 |
+| **Total** | **59** | **about 99** (92-109) | 00's 2 may overlap 07's gateway by up to 2 |
+
+**The calendar does not survive either.**
+
+- **First app end to end** (journey steps 1-7) needs these lanes at once: the sandbox (01, about
+  10 from day 0), Orca's first ship (02, about 6.5), the minimum Hub (07: about 5 working days on
+  two engineers), a minimal gateway (07: 8.2), Deploy's first-ship glue (06: about 5 with two)
+  and half the one-app layer. **With five builders that is about 10-12 working days. With the
+  report's two, about 4 weeks** (about 42 engineer-days of first-ship lanes).
+- **All of it:** about 20 working days with five builders; about 10 weeks with two.
+- **Day 0 can decide the date more than the build.** None of it is engineering: an Azure
+  subscription, Kata quota and feature registration (01); a Defender suppression rule and an ASR
+  allowlist on managed Windows (02); on Panacea's side, our egress on the edge allowlist, the realm
+  client, and P-1 to P-3 queued behind the cutover freeze (06-verify §2.4, 07); a Teams admin (05).
+
+**Task counts.** "About 180 planned tasks replaced" is the clusters' own sum. It is not re-derived
+here. Three notes: 02-verify freezes phase 2's Tauri desktop as the fallback rather than retiring
+it; 07-platform finds the Hub, phase 6 and phase 8 plans lose only about 2.1 of about 27 days,
+because they already stand on third-party parts; and the one-app ask adds work but removes none.
+
+**Staffing is the lever, and it is money.** "Days, not weeks" holds only with about five builders
+and a clear day 0. With two it is about a month to the first app. That is an owner call (section 7).
 
 ## 7. Corrected recommendation
 
