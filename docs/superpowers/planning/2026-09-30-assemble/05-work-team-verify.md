@@ -30,8 +30,8 @@ code and preview comments, Orca as the desktop.
      member's `pnc_` token gets no roster (section 4).
   4. **No Orca fork.** `02-fleet-cockpit.md` rules Orca unforked, and a plugin cannot call ADO (no
      `net:fetch`). ADO Start goes through the recipe's pending-start path instead (section 5).
-  5. **17 days becomes about 20 (17 to 23),** plus day-0 admin asks on four fronts that nobody
-     counted (section 8).
+  5. **17 days becomes about 20 (17 to 23),** plus day-0 admin asks on four fronts (ADO, GitHub,
+     Teams, Panacea) that nobody counted (section 8).
 - **In our favour:** a managed identity can be a free ADO Stakeholder. Orca now also reads GitLab
   issues and Jira Server/DC. Jira's remote agents page carries no Preview label.
   `azure-devops-mcp` shipped `v2.10.0` on 2026-09-09.
@@ -252,7 +252,7 @@ survives as the default,** and one of the researcher's reasons for rejecting Pla
 
 | Check | At source (read 2026-09-30) | Result |
 |---|---|---|
-| Licence | GitHub API: `makeplane/plane` is **AGPL-3.0** (the Community edition). Editions page: Commercial and Airgapped are *"Closed-source"* | Community is RESTRICTED: serving a modified copy to users over a network forces us to offer them our source, and installing it in a customer tenancy is distribution. **Commercial is a product KPMG can buy, which the licence rule allows** |
+| Licence | GitHub API: `makeplane/plane` is **AGPL-3.0** (the Community edition). Editions page: Commercial and Airgapped are *"Closed-source"* | Community is RESTRICTED: serving a modified copy to users over a network forces us to offer them our source, and installing it in a customer tenancy is distribution. **Commercial is a product KPMG can buy, which the licence rule allows.** Its terms for installing into a customer's tenancy were not published on that page |
 | Price | Pricing page: Pro *"$6/year"* per seat per month billed annually ($8 monthly), Business $13 annually; *"Pricing identical"* for cloud and self-hosted; 12 users free | About $6-13 per seat per month |
 | SSO | OIDC and SAML on *"Pro+ (self-hosted)"* | Keycloak brokering Entra fits |
 | Residency | Self-hosted on our AKS in Australia East: total. Plane Cloud names no AU region | **Better than GitHub is for KPMG today** (section 3 row 6) |
@@ -346,8 +346,8 @@ Australia geography, for v1 and for anyone who arrives with no tracker. We would
 role the Done rule, the proof identity and the hooks need. Residency would be known, not assumed.
 And a person from nothing gets a repo and a tracker in one place. Whether KPMG's tenant allows a
 new organisation was not checked: Azure DevOps has a tenant policy that can restrict organisation
-creation. Nothing in 03, 06 or 08 provisions a repo for a person from nothing today, so that gap
-is the whole product's, not this cluster's.
+creation. A grep of 03, 06, 08 and the phase 3 plans found no step that provisions a repo for a
+person from nothing, so that gap is the whole product's, not this cluster's.
 
 **Trade-off, in one line:** we trade the Linear-class tracker `OD-26` wanted for trackers KPMG
 already runs, and pay for it with admin asks instead of engineering days.
