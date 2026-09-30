@@ -286,7 +286,57 @@ call (section 8).
 
 ## 8. Corrected recommendation
 
-*(to be filled)*
+**Adopt AKS Pod Sandboxing plus `kubernetes-sigs/agent-sandbox`, pinned at v1.0.4, as `katabe`,
+in our own AKS in Australia East. The choice stands; these corrections go into the build:**
+
+1. **RuntimeClass:** change `kata-mshv-vm-isolation` to `kata-vm-isolation`
+   (`control-plane/internal/sandbox/manager.go:20`, the test at `manager_test.go:33`, the comment
+   at `infra/terraform/kata.tf:13`), made configurable as P8-D15 already asks. Create the pool
+   with `--workload-runtime KataVmIsolation`, as Microsoft says, not the upstream example's
+   `KataMshvVmIsolation`.
+2. **No Go SDK.** Create `SandboxClaim`s and watch `Sandbox` status through our existing client-go
+   (dynamic client, `v0.31.1`). The SDK adds go 1.26, k8s 0.37, controller-runtime, OTel and gRPC
+   for helpers aimed at upstream's own `sandboxd`, which we do not run.
+3. **Egress is ours to write.** Set `networkPolicyManagement: Unmanaged` or supply the rules; the
+   upstream default opens the public internet. Default-deny in NetworkPolicy, FQDN allowlist in
+   Azure Firewall (already costed), ingress from the broker and the pairing route only. ACNS FQDN
+   policies are an optional paid alternative.
+4. **Late-bind is our `POST /bind`,** never claim `env` or claim volumes (both force cold starts).
+   The bind also carries the git bundle for the worktree (7, row 6).
+5. **Disks:** a warm claim gets a fresh, empty PVC. A returning user's disk comes back only by
+   resuming a `Suspended` Sandbox, which is a cold Kata boot plus a disk re-attach. Owner call 3
+   (idle policy) should say which the user gets, and the day-8 smoke should time a resume.
+6. **The `wss://` route** is authenticated by Orca's pairing credential plus our edge (TLS, a
+   KPMG-egress source allowlist, an unguessable path, no path or query logs), not by Keycloak.
+   Say so in owner call 4.
+7. **Evidence wording:** do not list seccomp as a control inside Kata until a pod shows it
+   (`grep Seccomp /proc/self/status`); upstream Kata disables guest seccomp by default. Keep the
+   Defender and Falco gaps in the disclosure.
+8. **Orca flags:** `orca serve --port … --project-root … --pairing-address … --recipe-json`, run
+   from an extracted AppImage under a real init; Windows recipe scripts in PowerShell or a `.cmd`
+   launcher into Git Bash.
+9. **Day 0 checklist** (section 7): subscription, D-series v5 Kata quota, the
+   `AllowBringYourOwnPublicIpAddress` registration, no FIPS or Trusted Launch policy on the Kata
+   pool, our egress IP on Panacea's edge, the broker scope in Panacea's realm.
+
+**Days: about 10 (8 to 13) from the day the subscription exists, not 8.** The fallback stands:
+**ACI + standby pools**, 2 to 3 days to switch, its claim and config-map calls on
+`2024-05-01-preview`. **ACA dynamic sessions** stays reference; under Orca it fails outright,
+because the desktop cannot present the Entra token the session endpoint needs.
+
+**A candidate the report missed, now reference:** `agent-substrate/substrate` (Apache-2.0 at
+source; Google-backed, "Agent Executor" builds on it; used by kagent, a CNCF sandbox project). It
+claims "sub-500ms resume" and "10x higher density" and runs gVisor or Cloud Hypervisor microVMs.
+But its README says "pre-1.0 ... APIs and behavior may still change significantly", its setup is
+GKE and GCS (`tools/setup-gcp`), and it is gVisor-first, which AKS does not offer as a managed
+runtime. Re-check it at 1.0 or when it documents AKS; its suspend and resume is the feature
+agent-sandbox lacks on AKS.
+
+**Owner calls that change** (business only): add **the subscription's lead time** as call 0.
+If it is more than a few days, the only way to "days, not weeks" is the report's option 7,
+co-hosting a Kata pool on Panacea's estate for a pilot, which reverses `OD-5` for its duration.
+The sceptic's view: keep option 7 not recommended, but put the lead time in front of the owner
+today, because it decides the date more than any technical choice here.
 
 ## 9. What could not be verified
 
