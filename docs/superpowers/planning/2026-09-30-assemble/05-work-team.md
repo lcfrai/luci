@@ -1,6 +1,8 @@
 # 05 — Work layer and team collaboration: what to adopt instead of build
 
-**Date:** 2026-09-30. **Status:** research complete, nothing adopted or built.
+**Date:** 2026-09-30. **Status:** first run complete (stopped 09:47); revised on relaunch for the
+owner's second direction (§0, which wins where it differs). Research only; nothing adopted, built
+or run.
 **Capability:** Phase W (work layer, 190 tasks, plan only) and much of Phase T (team mode, 69
 tasks, plan only): issues, projects, cycles, boards, Linear-class speed, presence, notifications,
 seeing each member work, agents taking issues.
@@ -127,25 +129,32 @@ Kata sandboxes nor people, and `OD-8` lets nothing require a harness's own files
 task states, and its `TaskCompleted` hook, which blocks completion on exit code 2, the same shape
 as done-means-proven.
 
-## The answer
+## The answer (revised for the second direction, §0)
 
 **Do not build a tracker. Integrate the two KPMG already runs — Azure DevOps Boards first, GitHub
 Issues/Projects beside it — behind one `tracker` interface, and make PanaceaApp the agent the
-work is handed to and the proof that closes it. Teams carries *inform* and *decide*.**
+work is handed to and the proof that closes it. Teams carries *inform* and *decide*. Panacea
+supplies the team roster and much of the connector code; Orca, as the desktop, supplies Start for
+GitHub and Jira, and we give it an ADO Boards source.**
 
-- **Integration: ~16 engineer-days; first end-to-end demo on ADO in ~5 working days** with two
-  builders in parallel (§7).
+- **Integration: ~17 engineer-days (15 if Orca does not replace the desktop); first end-to-end
+  demo on ADO in ~5 working days** with two builders in parallel (§7).
 - **Replaces 127 of Phase W's 190 tasks outright**; 38 survive as the glue; 19 are not tracker
   work and move to their owning phase; 6 wait for Phase T (§6).
-- **Phase T: products replace only ~5 of 69 tasks** (the human-delivery surfaces). The
+- **Phase T: about 8 of 69 tasks taken by products and Panacea, 2 of them mostly** (§0.4). The
   Orchestrator core has no product anywhere. The tracker buys a fast team v1 instead, if the
   owner accepts the order change (§8, call 4).
 - **No new spend.** No AGPL, no new SaaS processor, AU residency on both trackers (with one
   Microsoft profile-data exception, §8).
-- **Four owner calls**, all customer-visible (§8).
+- **Five owner calls**, all customer-visible (§8).
 
 | Candidate | Verdict | One line |
 |---|---|---|
+| Panacea: team API, snippets, preview comments | **integrate** (added 2026-09-30, §0.1) | Teams are Keycloak groups already; sticky comment upsert, ADO Service Hooks lifecycle, signed audit head; element-pinned preview comments. No tracker |
+| Orca's task sources (GitHub, Linear, Jira) | **adopt with the cockpit; extend with ADO** (added, §0.3) | *Open a worktree from any task*; no ADO and no plugin point, so a 2-day ADO Boards source |
+| Supabase Realtime | reference (added, §0.2) | Apache-2.0 presence and feed; a third real-time protocol unless the Hub moves to Supabase |
+| Coolify; Panacea's Backstage | reject for this capability (added, §0.1-§0.2) | A deploy PaaS; a developer portal with no work plugins |
+| Claude Code agent teams | reference (added, §0.4) | Experimental; one team per session on one machine |
 | Azure DevOps Boards | **integrate (first)** | Entra-native, AU geography, `Done` enforceable by process rule, MIT MCP server |
 | GitHub Issues/Projects | **integrate (second)** | Issue fields GA, AU GHE.com, MIT MCP server; cannot restrict closing |
 | Jira Cloud | integrate (third, when a customer brings it) | AU residency, assignable remote agents (Preview); Data Center end of life 2029 |
