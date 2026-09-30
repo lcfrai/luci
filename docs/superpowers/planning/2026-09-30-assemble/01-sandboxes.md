@@ -553,7 +553,8 @@ pay-as-you-go, Linux. No discount, reservation or KPMG agreement is applied.
    the AKS Standard tier. Azure Firewall Basic ($0.395/h) would cut about $620 of that for dev.
    Each extra concurrent 2 vCPU / 4 GB session costs roughly **US$0.12 to 0.16 an hour**
    (ACI list: $0.0486 per vCPU-hour, $0.00532 per GB-hour; AKS: about three such sessions on a
-   D8s_v5), so cost does not separate the adopt option from the fallback.
+   D8s_v5), so cost does not separate the adopt option from the fallback. *(Revision: Orca's
+   runtime, Electron under `xvfb`, adds memory to every sandbox; not measured, checked on day 8.)*
 2. **Warm-pool size (money against what users feel).** Each warm sandbox is a running microVM
    waiting for a user. The recommendation starts with 3 per image during business hours and
    scales down at night; a bigger pool is a faster first keystroke at a higher idle bill.
@@ -562,19 +563,35 @@ pay-as-you-go, Linux. No discount, reservation or KPMG agreement is applied.
 4. **What customers are told (customer-visible).** The isolation badge (seam S8.5) would say, in
    substance, "each session runs in its own Hyper-V-isolated microVM in Australia East". The owner
    should also approve how the known gap is disclosed: Microsoft Defender for Containers cannot
-   assess Kata pods.
-5. **Buy instead of run (money; not recommended now).** Paying a vendor to operate the sandbox
+   assess Kata pods, and *(revision)* Falco cannot see inside them either (inferred). Under Orca,
+   customers would also be told that the terminal travels from the sandbox to the person's
+   desktop over Orca's end-to-end-encrypted connection, through our TLS edge in Australia East.
+
+**Options offered, not recommended (the owner may still choose one):**
+
+5. **Buy instead of run (money).** Paying a vendor to operate the sandbox
    cluster (Northflank BYOC or Runloop VPC deploy) instead of running AKS ourselves. Against it
    today: new-vendor procurement takes weeks, microVM isolation on Azure is undocumented for
    both, and agent-sandbox costs nothing. Worth reopening only if running the cluster becomes the
    bottleneck.
+6. *(Revision)* **A same-day demo on a SaaS sandbox (money; customer-visible if client code is
+   used).** Orca already drives Vercel Sandbox (Sydney), Modal (`au`) and Fly, so an internal
+   demo on non-client code could run the day a vendor account exists, while Kata capacity is
+   confirmed. Against it: it sets aside `OD-18` and `OD-5` for as long as it runs, it is a new
+   vendor (procurement, a TSRA), and none of it carries into the product.
+7. *(Revision)* **Co-host on Panacea's estate (money).** A Kata pool and agent-sandbox in
+   Panacea's cluster instead of a new subscription saves about US$1,250 a month at list (system
+   nodes and firewall) and the wait for a subscription. Against it: it reverses `OD-5`, puts
+   untrusted agents beside live tenant workloads during Panacea's cutover, and is an edit in
+   another session's repo. Panacea's live estate is in Australia Central, whose nested-virt
+   capacity was not checked.
 
 ## 7. What this study could not verify
 
 Nothing was installed, deployed or run. Every capability claim is from documentation, a
 project README, a vendor page or the GitHub API, read on 2026-09-30.
 
-**Would change the recommendation if wrong (checked by the day-1 and day-7 steps):**
+**Would change the recommendation if wrong (checked by the day-1 and day-8 steps):**
 
 1. Claim latency on AKS with our image. "A couple of seconds" is upstream's claim on its own image.
 2. Nested-virt Dsv5 capacity and quota in Australia East for our subscription.
@@ -582,6 +599,11 @@ project README, a vendor page or the GitHub API, read on 2026-09-30.
    README claims persistent storage and pause/resume in general, not on Kata specifically.
 4. That the agent-sandbox Go SDK's pod-IP connectivity and the router's scoped tokens behave as
    the v1.0.2 release notes describe.
+5. *(Revision)* That `orca serve` runs inside a Kata pod: the AppImage under `xvfb`, non-root,
+   with its Chromium sandbox. Its docs cover an Ubuntu host, not a container or a microVM.
+6. *(Revision)* That Orca's recipe scripts run on our users' Windows desktops (documented for
+   macOS and Linux), and that its pairing works through a per-sandbox reverse-proxy path (its
+   docs accept "a complete reverse proxy URL such as https://orca.example.com/runtime").
 
 **Recorded, not load-bearing:**
 
@@ -603,6 +625,16 @@ project README, a vendor page or the GitHub API, read on 2026-09-30.
   the usual adversarial review before anyone builds it.
 - The corporate proxy blocked nothing in this study; the GitHub API rate limit cut off one
   release-notes call, read instead from the GitHub releases page.
+- *(Revision)* During the relaunch the GitHub API refused every call (HTTP 403, rate limit on
+  the shared egress address), so Orca's facts come from its docs and README pages, and its star
+  count and release cadence are the cockpit study's (02). agent-sandbox was not re-checked for a
+  release after v1.0.4.
+- *(Revision)* Panacea: nested-virt SKU capacity in Australia Central; whether Falco can observe
+  a Kata guest (inferred no); the licences of the Verdaccio and proxpi images its mirror uses
+  (not checked; both are third-party). `00-panacea.md` was still a skeleton when this revision
+  was written, so the Panacea facts here are this study's own greps (4.15).
+- *(Revision)* Vercel Sandbox's retention terms and SSO; Fly's Sydney region (not re-verified);
+  VMSS standby-pool claim latency and Australia East support.
 
 ## 8. Sources
 
@@ -652,3 +684,22 @@ Daytona reject). GLASSES: `gsearch.py` offline and `https://lcfr.ai/api/mcp` `gl
 **GitHub API** (`api.github.com/repos/…`, 2026-09-30): `kubernetes-sigs/agent-sandbox`,
 `daytonaio/daytona`, `e2b-dev/runtime`, `e2b-dev/E2B`, `coder/coder`, `coder/agentapi`,
 `OpenHands/OpenHands`, `loft-sh/devpod`, `superradcompany/microsandbox`, `gitpod-io/gitpod`.
+
+**Added in the revision (2026-09-30).**
+Orca: <https://www.onorca.dev/docs/ways-to-run> · <https://github.com/stablyai/orca> (README) ·
+<https://github.com/stablyai/orca/blob/main/skill-guides/orca-per-workspace-env.md> ·
+<https://github.com/stablyai/orca/blob/main/docs/reference/headless-linux-server.md> ·
+<https://github.com/stablyai/orca/pull/22574>.
+Others: <https://vercel.com/docs/sandbox/concepts/regions> ·
+<https://github.com/coollabsio/coolify> ·
+<https://techcommunity.microsoft.com/blog/azurecompute/general-availability-standby-pools-for-virtual-machine-scale-sets-with-flexible-/4287343>.
+Panacea, read-only, `Projects/Panacea` working tree today:
+`services/forge-orchestrator/preview/manager.go` (lines 1–250, 581) ·
+`deploy/forge/deploy-forge-orchestrator.yaml:61-101` ·
+`services/panacea-api/clients/tenant_ensure.go:20-190` ·
+`services/panacea-api/models/instance.go:70-87` · `services/panacea-api/routes/routes.go:83` ·
+`deploy/*.tf` (node pools, `firewall.tf`, `private-endpoints.tf`) · `deploy/apply.sh:38` ·
+`deploy/environments/panacea-aue.env:3-22`.
+This repo: the phase 8 task table's `Hours` column
+(`.claude/worktrees/env/docs/superpowers/plans/2026-09-23-phase-8-own-environment.md:558-633`);
+`OD-22` in the owner decisions (line 150); `02-fleet-cockpit.md` (Orca's figures, C6).
