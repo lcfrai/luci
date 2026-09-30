@@ -31,9 +31,38 @@ isolation, on Azure or bought with an AU region, driven by API as a `Backend` of
 
 ## 1a. Revised for the owner's second direction
 
-*In progress (relaunch). This section will say what changed from the first run and why:
-Panacea as the strong default judged on merit, Coolify and Supabase allowed, Orca as the
-cockpit, and Panacea snippets allowed with attribution.*
+Relaunch, 2026-09-30, after the first run stopped at 09:47. The core answer stands. What changed:
+
+| # | What | First run | Now | Why |
+|---|---|---|---|---|
+| 1 | How the cockpit reaches a cloud session | A thin `remotebe` in our desktop, over an in-cluster control plane | **Orca's per-workspace environment recipe** (`orca.yaml` → `environmentRecipes`). Its `create` script asks our control plane for a sandbox; at bind the sandbox starts Orca's headless runtime (`orca serve`) and hands back the pairing code; Orca streams terminals over its own end-to-end-encrypted WebSocket | The owner picked Orca. The recipe is Orca's documented seam for "a cloud sandbox, VM, or local Docker container" per worktree |
+| 2 | Days to the first cloud session | 7 (5 to 9) | **8 (6 to 10)** | +0.5 to package Orca's runtime into the image; +0.5 for an authenticated `wss://` route to each sandbox. The `remotebe` share of the old glue becomes a 0.5-day recipe |
+| 3 | Panacea | The model only (`OD-13` then forbade copying) | **Used where it is the better answer** (4.15): its hardened pod spec, deny-egress policy, package mirrors, tenant network baseline and Terraform are copied with attribution; its Keycloak realm, LiteLLM gateway and Trivy scans are called, not rebuilt. **It is not the sandbox host** | Owner: "Panacea is fine to use majority of"; snippets now allowed |
+| 4 | Coolify, Supabase | Not considered | **Not used for this capability** (4.16): neither runs untrusted code in a microVM, keeps a warm pool, or hands out a PTY | Allowed by the owner; on merit they belong to deploy (06) and the Hub, not here |
+| 5 | SaaS sandboxes Orca already supports | Modal: "reference, a demo fallback" | Vercel Sandbox (now in Sydney), Modal (`au`) and Fly: **reference, the fastest Orca demo, not the product** (4.17) | Orca wires them today; none is Azure or our environment (`OD-18`, `OD-5`) |
+| 6 | A unit error | Phase 8 savings in "plan-days" | **Plan-hours.** The phase 8 task table's column is `Hours`; its 98.5 total is hours | The saving is 36 plan-hours to about 14, not 36 days |
+
+**Unchanged:** the adopt (AKS Pod Sandboxing + `agent-sandbox` 1.0 in Australia East), the ACI
+fallback and its switch rule, every reject (Daytona, Coder, E2B, Codespaces, Ona, DevPod), and
+owner calls 1 to 5.
+
+**What Orca changes inside the sandbox:**
+
+- The image carries Orca's Linux AppImage plus its `xvfb` and GTK libraries beside the unmodified
+  CLIs, and `orca serve` owns the terminals of an Orca session. `sandboxd` stays in the image for
+  the paths that are not Orca (team mode's managed sessions); whether it also keeps the PTY under
+  Orca is the cockpit study's ruling (02, §R4), not this one.
+- A warm pod must not start `orca serve` before it is claimed. Orca's own guide: "Never snapshot
+  a machine on which the Orca runtime has already run" (the runtime's identity and pairing keys
+  are written on first start). The first run's late-bind is exactly where it starts.
+- No git credential enters the sandbox. Orca's recipe guide passes a `GH_TOKEN` into the
+  environment; we do not. The control plane clones onto the sandbox's disk before bind, and work
+  comes back under `refs/panacea/lanes/…` (`OD-2`).
+
+**The Panacea trade-off, in one line:** co-hosting on Panacea's estate would save the new
+subscription and about US$1,250 a month of baseline (system nodes and firewall), but puts untrusted
+agents beside live tenant workloads during its cutover, on a cluster with no Kata pool; our own
+AKS keeps `OD-5`, copies Panacea's Terraform, and costs about one more day.
 
 ## 2. What the capability must do (the bar every candidate is scored against)
 
