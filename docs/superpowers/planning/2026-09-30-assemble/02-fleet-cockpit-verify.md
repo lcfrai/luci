@@ -117,10 +117,10 @@ includes a file the agent `cat`s, a test log, or a package's install script. The
 carries `interactivePrompt` and `lastAssistantMessage` text (`:330-337`) into the row. That row goes
 to every reader: the sidebar, the dashboard, `orca worktree ps` and mobile
 (`agent-status-store.md:21-22`); how each one renders the text was not checked. It is a spoofing
-channel into the cockpit, not a cosmetic glitch. The researcher calls this display only, but the attention queue is the reason
-Orca replaces `BLOCKED-ON-YOU` (R4). **So adopting Orca
-needs an owner ruling on `OD-8` before first ship, or an upstream option that turns OSC status off
-for hook-capable agents.** The researcher's 0.5 day for that option is a guess. Orca also resolves
+channel into the cockpit, not a cosmetic glitch. The researcher calls this display only, but the
+attention queue is the reason Orca replaces `BLOCKED-ON-YOU` (R4). **So adopting Orca needs an
+owner ruling on `OD-8` before first ship, or an upstream option that turns OSC status off for
+hook-capable agents.** The researcher's 0.5 day for that option is a guess. Orca also resolves
 a row's terminal handle only through the OSC parse (`agent-status-store.md:353-355`), so the change
 is not a one-line setting, and upstream may decline it.
 
@@ -208,7 +208,7 @@ concurrent land queue, forecast and undo become host features under the customer
 - **ADO: absent, not "unverified".** The receiver's ADO provider "Supports `git.push`" only
   (`providers/azuredevops.go:108-116`). Worse for us, Panacea treats every ADO event as a Forge
   agent ship: `selectsAgentPipeline` returns true for `event.Provider == "azuredevops"`
-  (`trigger.go:1512-1519`), and the production-branch and previews labels are "Skipped for Azure DevOps
+  (`trigger.go:1504-1525`), and the production-branch and previews labels are "Skipped for Azure DevOps
   (Forge agent) events, which are not governed by these" (`:441-447`). **So registering a customer ADO
   repo in Panacea today would send every lane push to agent-deploy, not to a preview.** ADO previews
   are a Panacea-side change. Until then, v1 previews are GitHub only.
@@ -354,8 +354,9 @@ for that job.
 **Owner calls, changed or new:**
 1. **`OD-8` and Orca's OSC status** (new). Recommend accepting it for KPMG's own pilot, for display
    only, and letting nothing we build (Hub, team mode, provenance) read it. Before a customer
-   tenancy, require the upstream hooks-only option or a small patch of our own. Any terminal output
-   can forge a status and its prompt text (2.1).
+   tenancy, require an upstream hooks-only option. If upstream declines, that is the first real
+   reason to fork, with the signing and Defender costs R3 names. Any terminal output can forge a
+   status and its prompt text (2.1).
 2. **The Defender and ASR prerequisite** (the researcher's call 2). Unchanged, but ask on day 0.
 3. **Land from the laptop, or hand the token to the cloud** (new). Recommend the laptop: it keeps
    `OD-6` as written.
