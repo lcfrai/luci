@@ -818,4 +818,15 @@ func TestPanaceaKeysAndSessionLinksArePerProject(t *testing.T) {
 		"release_id", again["id"], "deployment_id", dep)), "23505", "the same Panacea deployment joined twice in one project")
 	wantCode(t, insert(a, false, "session_links", base(t, app, "session_links", a).with("session_id", sess)),
 		"23505", "the same session linked to the same design twice in one project")
+	// The Panacea name is part of both keys (D10): one Hub project may deploy to two Panacea
+	// projects, whose run and deployment ids are their own, so the same ids under another name
+	// in the same Hub project are allowed. A key that dropped the name would refuse these.
+	other := release(t, app, a, "panacea_project", "pp-x")
+	if err := move(t, app, a, other["id"], confirm); err != nil {
+		t.Errorf("confirm Panacea run %s under a second Panacea name in project %s: %v", run, a.Project, err)
+	}
+	if err := insert(a, false, "release_deployments", base(t, app, "release_deployments", a).with(
+		"release_id", other["id"], "panacea_project", "pp-x", "deployment_id", dep)); err != nil {
+		t.Errorf("join Panacea deployment %s under a second Panacea name in project %s: %v", dep, a.Project, err)
+	}
 }

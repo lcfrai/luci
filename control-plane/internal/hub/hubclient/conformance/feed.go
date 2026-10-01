@@ -124,9 +124,16 @@ func outsiderSeesNothing(t *testing.T, e Env) {
 	}
 	// Fix round 1 PS6-1: being in some team is not being in T. The outsider
 	// makes a team of its own, and still sees none of T's writes.
+	//
+	// Task 05 review-1 I1: the writes below are one project event AND one pair
+	// of team events, because "team_id is a team the caller is in" is a
+	// separate branch of the rule from the project one. Without an invite here,
+	// a Hub whose team branch checks only that the caller is in SOME team
+	// passes, and every team's invitee emails leak on route 43.
 	newTeam(t, e.Outsider)
 	cur := head(t, e.Outsider)
 	write(t, e.Member, p.ID, b.ID, 1, hubapi.StatusOpen)
+	revoke(t, e, invite(t, e, freshEmail(), hubapi.RoleViewer).ID)
 	for _, ev := range since(t, e.Outsider, cur) {
 		if str(ev.TeamID) == e.TeamID || str(ev.ProjectID) == p.ID {
 			t.Errorf("a member of another team sees T's %s about %s", ev.Kind, ev.Subject)

@@ -574,6 +574,12 @@ died before recording it here.
   `(project_id, panacea_project, pipeline_run)`, `release_deployments` gains `project_id NOT NULL`,
   links `(org_id, project_id, release_id)` to `releases (org_id, project_id, id)`, and its
   `UNIQUE` is `(project_id, panacea_project, deployment_id)`. Build departures for task 44b.
+  *Task 07 fix round 1 (review m1):* no database test held these keys (the review's RS-1 survived
+  40 PASS). `TestPanaceaKeysAndSessionLinksArePerProject` (schema_integration_test.go) now takes
+  each of the three keys in a second project of one org (allowed) and again in the first (`23505`).
+  It also takes the run and deployment keys under a second Panacea name in the first project
+  (allowed), so a key that drops `panacea_project` fails too (mutants PS-1 and PS-2 of the fix
+  round, which survived the first form of the test).
 - **Test departures:** `hub_app`'s grants are read from the ACLs (`aclexplode` of `relacl` and
   `attacl`), not `information_schema.column_privileges`, which also lists a table-level grant per
   column. The cross-org test derives one case per catalog key (41) and accepts a refusal by a key
