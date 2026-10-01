@@ -520,14 +520,13 @@ and each becomes an `OD` only when the owner answers it.
 ## The owner's answers to the assemble calls — 2026-10-01, OD-42 to OD-52
 
 The owner answered `2026-09-30-assemble/00-plan.md` §5 on 2026-10-01. Calls 1 to 5 are quoted
-from the owner's message of that day. The answers to calls 6, 14, 15, 17 and the rest, except
-call 20's, are the owner's own answers of the same day, given through the in-session question
-form; they are quoted as he wrote them, and each such row says so: *(question form, 2026-10-01)*.
-`OD-50` (call 20) keeps the source tag it was first recorded with until the owner confirms that
-source himself. The rows these answers carry (`00-plan.md` rows 104 to 109) wait on nothing
-(`00-plan.md` §5.3 item 1). Recorded at the end of the file, below every table, so no cited line
-moves (see *What earns an OD*). The plan of record is updated to match (`00-plan.md` §5), and
-both were corrected by a verify round the same day (`00-plan.md` §9).
+from the owner's message of that day. The answers to calls 6 to 20 are the owner's own answers
+of the same day, given through the in-session question form; they are quoted as he wrote them,
+and each such row says so: *(question form, 2026-10-01)*. The rows these answers carry
+(`00-plan.md` rows 104 to 109) wait on nothing (`00-plan.md` §5.3 item 1). Recorded at the end
+of the file, below every table, so no cited line moves (see *What earns an OD*). The plan of
+record is updated to match (`00-plan.md` §5), and both were corrected by a verify round the same
+day (`00-plan.md` §9).
 
 **A note on the name.** From `OD-43` on, the product is called **Panacea**. In this programme's
 documents, "Panacea" on its own, "Panacea's API", "Panacea's realm" and `Projects/Panacea` still
@@ -545,7 +544,7 @@ programme's name. Users never see either distinction: they see one product, Pana
 | **OD-47** | Who pays, and how cost is attributed (2026-10-01, `00-plan.md` §5 call 14) | **Panacea's subscription and resource group, as today; Cost Centre, Job Code and Phase mapped through from day one, as in Panacea.** Owner *(question form, 2026-10-01)*: *"We will use Panaceas Subscription and Resource Group as we currently do. But from day one, we will still need the Cost Centre, Job Code and Phase map through for costing like we have in Panacea"* | Shipped apps and preview databases deploy **through Panacea into Panacea's subscription and resource group**, exactly as Panacea does today. **Cost Centre, Job Code and Phase map through to costing from day one, on Panacea's model:** job code and phase are captured in the app when the project is created (Define) and editable later, optional as Panacea has them, stored in the Hub, passed to Panacea on create and on change, and carried on our own usage. Panacea's pattern, reused under `OD-40`: job code and phase are free text of at most 10 characters, optional (`handlers/project_billing_codes.go:13`, `:22`), accepted at creation (`models/models.go:652-660`, `handlers/projects.go:606-629`) or later through `PUT /api/v1/projects/{name}/billing/codes` (`routes/routes.go:1257`), stored as the namespace annotations `panacea.io/billing-job-code` and `panacea.io/billing-phase` (`clients/kubernetes.go:84-88`, `:2337-2358`) and enriched onto the team's month-end statement (`handlers/billing_statement.go:39-60`). **Cost centre is per team in Panacea, not per project** (`handlers/billing.go:104`, `PUT /api/v1/teams/{name}/billing` at `routes/routes.go:1947`), so a project's cost centre is its team's. Whether the codes become required at creation, and whether a project may carry its own cost centre (a change to Panacea's billing model, so a Panacea ask), are put to the owner as one question (`00-plan.md` §5.3); this row records neither. Our own resources are shared (one AKS, one gateway), so attribution is by our own metadata, not Azure tags: sandbox pods carry the three codes as **annotations**, as Panacea's namespaces do (free text such as "Ph 2" is not a valid Kubernetes label value), gateway keys carry them as LiteLLM key tags, and our statement has Panacea's shape (project, job code, phase, amount). `00-plan.md` row 105. **Settles** `00-plan.md` §5 call 14. |
 | **OD-48** | Where work lives: `OD-26`'s own tracker, or the teams' existing trackers (2026-10-01, `00-plan.md` §5 call 15) | **In the app, over a headless tracker.** Owner *(question form, 2026-10-01)*: *"Accept all, except ADO Boards, idk what that means."* The orchestrator explained that nobody opens Azure DevOps Boards: tasks are created, assigned, worked and closed **inside Panacea**, and ADO Boards and GitHub Issues are the storage and sync behind it. Recorded on those terms. | **Retires `OD-26`'s own tracker UI** in favour of in-app views (the Desk, the Work page, the team view) over ADO Boards and GitHub Issues run headless, so teams already on them see the same tasks. **Retires `OD-35` for Phase W, while the veto below is unused**: the 127 of 190 Phase W tasks a tracker absorbs are not built. **Our own Azure DevOps organisation in the Australia geography**, which also gives a person starting from nothing a repository and a tracker. **The owner may veto** this in favour of tasks living only in the app; the Hub's task records would then be the store, and the tracker connectors (rows 45, 46) would become optional sync. **The veto's cost** (`00-plan.md` §5.3, not in the total): about 4 days for a minimal task record kind with create, assign, state and close on the Work page, up to about 44 if it grows into Phase W's tracker (127 of its 190 tasks, of about 66 focused days, `2026-09-30-assemble/05-work-team.md:142`, `:176`). Used, no tracker absorbs those tasks, so the retirement of `OD-35` for Phase W lapses unless the owner also cuts them. |
 | **OD-49** | How strict the one-app rule is: may v1 keep the six declared exceptions, some of which send the user outside (2026-10-01, `00-plan.md` §5 call 8) | **Everything in the app.** Owner *(question form, 2026-10-01)*: *"remember that I want as much of it to be in app and feel like it is all in app, never does it feel seperate, or needing to go outside to do anything. Okay?"* | **Strengthens `OD-41`** (its lines are not edited; this row is its amending note). A user must never need to leave the app to do anything. Every exception and every surface that sends a user out is either **planned in the app with a costed row**, or kept only where it is **technically forced**, named with its reason and listed for the owner. Nothing outside is kept silently. The re-test of the six declared exceptions (`09-cohesion.md` §7) and of every row in `00-plan.md` §1 and `09-cohesion.md` §2 is in `00-plan.md` §5.2. Pulled in: reviewers' PR review (row 106), the shipped app's settings, its access, security, protection, domain, backup and tier among them (row 107), team settings and the join-request and new-team approvals (row 108), production approval (row 109), tracker events in Teams (row 53), the owner's provider keys (row 104). Kept as forced: the system-browser sign-in on first run and at least weekly after it, the Azure DevOps personal access token, "Connect deploy" in the system browser until Panacea's P-3, and, only if a platform admin arms Panacea's step-up gate, the gated acts on the Portal. |
-| **OD-50** | How far `OD-40`'s copying reaches: snippets, or whole Panacea services and Terraform stacks (2026-10-01, `00-plan.md` §5 call 20) | **Whole services and Terraform stacks, under the same ledger and attribution.** Accepted with the other calls (*"Accept all"*, as relayed, 2026-10-01), including updating `CLAUDE.md`'s reuse section to match. | `services/panacea-mcp` may be copied whole into the sandbox image (row 68), and Panacea's production Terraform into our OpenTofu modules (row 78), each file with an attribution header and a snippet-ledger entry checked in CI (row 72). **Amends** `OD-40` (snippets become whole services and stacks) and so `OD-13`'s "no Panacea source is copied in now"; `OD-13`'s later lift and shift stands. `CLAUDE.md`'s reuse section is updated to match. This file's "Where the older documents now disagree" still reads "No Panacea source is copied now"; it is left unedited so no line moves, and this row wins over it. |
+| **OD-50** | How far `OD-40`'s copying reaches: snippets, or whole Panacea services and Terraform stacks (2026-10-01, `00-plan.md` §5 call 20) | **Whole services and Terraform stacks, under the same ledger and attribution.** Accepted with the other calls (*"Accept all"*, question form, 2026-10-01), including updating `CLAUDE.md`'s reuse section to match. | `services/panacea-mcp` may be copied whole into the sandbox image (row 68), and Panacea's production Terraform into our OpenTofu modules (row 78), each file with an attribution header and a snippet-ledger entry checked in CI (row 72). **Amends** `OD-40` (snippets become whole services and stacks) and so `OD-13`'s "no Panacea source is copied in now"; `OD-13`'s later lift and shift stands. `CLAUDE.md`'s reuse section is updated to match. This file's "Where the older documents now disagree" still reads "No Panacea source is copied now"; it is left unedited so no line moves, and this row wins over it. |
 | **OD-51** | Team mode's order: `OD-16`'s Orchestrator negotiation first, or v1 on the tracker (2026-10-01, `00-plan.md` §5 call 16) | **Team mode v1 on the tracker; the Orchestrator's negotiation after. PanaceaApp teams are Panacea teams.** Accepted as recommended (*"Accept all"*, question form, 2026-10-01). | Team v1 is shared tasks, the Desk and Teams cards over the tracker (`05-work-team.md` §8). The per-user Orchestrators' negotiation (`OD-16`) comes after v1, when `feat/team-mode` resumes on its core. A team is Panacea's team, read through Panacea's team API, so roster, members and cost centre have one home. **Changes** `OD-16`'s order, not its design. **Adds** that a team is Panacea's team: `OD-14` places team agents and defines no team model. It **amends** the Hub ADR's "team membership lives in the Hub, managed by team admins" (ADR-H1 §6.6, `feat/hub:docs/superpowers/adr/ADR-H1-hub-architecture.md:634-639`), which now reads Panacea's team API. |
 | **OD-52** | If Kata fails on day 1 (no Kata nodes, or claim p95 over about 5 s): stop, or fall back to ACI with standby pools (2026-10-01, `00-plan.md` §5 call 19) | **Pre-approved fallback, pilot only.** Accepted as recommended (*"Accept all"*, question form, 2026-10-01). | If day 1 fails the test, the KPMG pilot's sandboxes may run on Azure Container Instances with standby pools, and the isolation statement says ACI while they do. Back to Kata on AKS Pod Sandboxing before any customer. **Relaxes**, for the pilot and only on that trigger, `CLAUDE.md`'s locked isolation decision. |
 
@@ -643,14 +642,12 @@ programme's name. Users never see either distinction: they see one product, Pana
    gives it up for the pilot only, to keep the date.
 
 **Answered, not gated (`note` rows, final).** Settled owner answers that fail the gate, mostly
-because a setting or a single-file edit walks them back. They bind the plan (`00-plan.md` §5)
-without a number. **Where such answers belong was an open owner question**, asked on 2026-09-28
-with options (a), (b) and (c) (`2026-09-25-owner-questions-pending.md`, the register-work item).
-**Closed 2026-10-01 as option (c), one register with a `note` marker on the row, by the
-orchestrator's bookkeeping ruling, which the owner may override.** This list is final in that
-form, each entry marked `note`; the seven older rows the backwards audit names keep that audit's
-table as their marker and are not edited. Calls 1 and 4 below are from the owner's own message;
-the others are his own answers through the in-session question form, 2026-10-01.
+because a setting or a single-file edit walks them back; they bind the plan (`00-plan.md` §5)
+without a number. Where they belong (asked 2026-09-28, `2026-09-25-owner-questions-pending.md`)
+is **closed 2026-10-01 as option (c), one register with a `note` marker on the row**, by the
+orchestrator's bookkeeping ruling, which the owner may override. This list is final in that form;
+the seven older rows the backwards audit names keep that audit's table as their marker, unedited.
+Calls 1 and 4 are from the owner's own message; the rest are his question-form answers, 2026-10-01.
 - `note` **Call 1, staffing and `OD-31`'s cap.** *"Lift it to 5 then."* Five builders; `OD-31`'s cap
   becomes **five** parallel streams. Phase 2's close-out and merge to `main` stays the **first**
   build step, as sequencing, not an owner gate (`OD-31`'s own amendment already removed the pause
@@ -727,11 +724,11 @@ OD-52 carries only plan consequences. So 45 of the 52 carry at least one decisio
 
 **Still open, and not recorded as decided:** the "Later" list of `00-plan.md` §5 and the forced
 one-app exceptions of §5.2, which the owner may still choose to close at the cost named there;
-and the questions of `00-plan.md` §5.3: the owner's own confirmation of call 20's source (`OD-50`;
-calls 6 to 19 are his own answers, through the in-session question form), whether cost codes are
-required at creation and a project may carry its own cost centre, where an answer that fails this
-register's gate is recorded, and the veto on `OD-48`, now sized. **Closed 2026-10-01 (second
-round), all but the "Later" list and call 20's source:** see the next section.
+and the questions of `00-plan.md` §5.3: the owner's own confirmation of calls 6 to 20, whether
+cost codes are required at creation and a project may carry its own cost centre, where an answer
+that fails this register's gate is recorded, and the veto on `OD-48`, now sized. **Closed
+2026-10-01 (second round), all but the "Later" list:** calls 6 to 20 are his own answers, through
+the in-session question form; for the rest, see the next section.
 
 ## Panacea first-class in the app, and the owner's second round — 2026-10-01, OD-53
 
@@ -781,10 +778,10 @@ moves (see *What earns an OD*). The plan of record follows (`00-plan.md` §5.2, 
   review, not changed.
 - **Connect deploy and the Portal's step-up acts, not accepted** (forced exceptions 3 and 4):
   superseded by `OD-53`, being scoped in the same file.
-- **Calls 6 to 19 are the owner's own answers** (`00-plan.md` §5.3 item 1), given through the
+- **Calls 6 to 20 are the owner's own answers** (`00-plan.md` §5.3 item 1), given through the
   in-session question form earlier the same day; the section above says so, and rows 104 to 109
-  wait on nothing. **Call 20's source** (`OD-50`) keeps its first tag until the owner confirms it
-  himself.
+  wait on nothing. Call 20 (`OD-50`) was first left on its old tag; the verify round of
+  `2026-09-30-assemble/10-panacea-in-app.md` (§7) corrected it.
 
 **The orchestrator's rulings**, technical or bookkeeping, recorded here because they close
 questions the section above put to the owner; he may override either.
@@ -825,5 +822,9 @@ twice; the rows for older decisions list only the edge this section adds.
 
 **Still open, and not recorded as decided:** `OD-53`'s technical shape and its cost, and the
 Azure DevOps authenticator's (both `10-panacea-in-app.md`, then the owner's sign-off on the
-cost); call 20's source (`OD-50`), for the owner to confirm; the day-1 Windows-native sign-in
-spike, which may remove the weekly tab; and the "Later" list of `00-plan.md` §5.3.
+cost); the day-1 Windows-native sign-in spike, which may remove the weekly tab; and the "Later"
+list of `00-plan.md` §5.3. **If the owner agrees `10-panacea-in-app.md` question 1,** our own
+Panacea runs in a resource group of its own in Panacea's subscription: that amends `OD-47`'s
+"Panacea's subscription and resource group, as today" and the "stand" in `OD-53`'s consequence
+(same subscription, bill and cost codes; a different resource group), and `OD-51`'s "one home"
+becomes two homes for a team until the merge (`10-panacea-in-app.md` question 2).

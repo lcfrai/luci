@@ -40,7 +40,8 @@ one block of Panacea realm configuration instead (day 0 item 3).**
 app, built as part of this: *"No API key, nothing. We will build our own Panacea as a part of
 this."* Every figure in this file is the plan before it, with Deploy as glue over Panacea's
 running API (section 1.6). Its shape and cost are pending `10-panacea-in-app.md` and the owner's
-sign-off on that cost.
+sign-off on that cost. That file's verify round also found two figures here wrong, each noted in
+place: section 3.3's calendar, which sits below its own floor, and section 5.2's Portal verdict.
 
 **The three percentages** (method and arithmetic in section 2):
 
@@ -79,10 +80,10 @@ disappear.
    restated for section 5.2 (section 3.4).
 4. **What still waits on the owner** (section 5.3): his sign-off on the cost of `OD-53`, once
    `10-panacea-in-app.md` scopes it, with the shapes that replace forced exceptions 2, 3 and 4,
-   which he did not accept (section 5.2); and his own confirmation of call 20's source (`OD-50`).
-   He accepted forced exception 1, the weekly sign-in tab. The rest of section 5.3 is closed:
-   calls 6 to 19 are his own answers, so rows 104 to 109 wait on nothing; cost codes follow
-   Panacea's model; one register with `note` rows; no veto on `OD-48`. The "Later" list stands.
+   which he did not accept (section 5.2). He accepted forced exception 1, the weekly sign-in
+   tab. The rest of section 5.3 is closed: calls 6 to 20 are his own answers, so rows 104 to 109
+   wait on nothing; cost codes follow Panacea's model; one register with `note` rows; no veto on
+   `OD-48`. The "Later" list stands.
 
 ## 1. The components
 
@@ -555,7 +556,10 @@ which is why 09 §7 adds 2 to 3 working days.
   and phase 2's merge (08-verify §6's 10-12, plus 09 §7's 2-3, plus 1 to 2 for rows 104 and 105,
   4.25 engineer-days on the first-app path split between B4 and B5). All of it in about 26 to 27
   working days (08-verify's 20-21 for 103 days, scaled to 132.275: 25.7 to 27.0). Five streams are
-  within `OD-31`'s cap, now five (call 1).
+  within `OD-31`'s cap, now five (call 1). **Since found low** (`10-panacea-in-app.md` §2.6): five
+  builders deliver at most five engineer-days a working day, so 132.275 days need at least 26.5,
+  and about 28 to 31 at 85 to 95% of a day each; and B5 below carries about 19.7 engineer-days of
+  first-app work, so 13 to 17 holds only if the first-app work is spread across all five.
 - **Two builders:** the first app in about 5.5 to 6.5 weeks (08-verify's "about a month", plus
   about 13.75 engineer-days on the first-ship path: rows 82, 89, 90, 91 and 95, 2 + 3 + 1.5 + 1.5 +
   1.5 = 9.5, and rows 104 and 105, 2.5 + 1.75 = 4.25; 13.75 / 2 = about 7 working days). All of it
@@ -608,19 +612,17 @@ each stream resumes, not in this change.
 ## 5. Owner calls
 
 **The owner answered every call on 2026-10-01.** Calls 1 to 5 are quoted from the owner's message;
-calls 6 to 19 are his own answers of the same day, given through the in-session question form,
-and quoted as he wrote them; rows 104 to 109 wait on nothing. Call 20's source (`OD-50`) stays as
-the register first recorded it until he confirms it himself (section 5.3 item 1). The
-register records each answer as an `OD`, or as a `note` entry in its "answered, not gated" list
-where the answer fails the three-part gate (`2026-09-23-owner-decisions.md`, the section after
-`OD-41`). **His second round, the same day** (section 10), answered sections 5.2 and 5.3: it
-accepts forced exception 1, does not accept 2, 3 and 4, closes section 5.3's questions but call
-20's source, and adds `OD-53`. What remains open is `OD-53`'s shape and cost
-(`10-panacea-in-app.md`), call 20's source, and section 5.3's "Later" list.
+calls 6 to 20 are his own answers of the same day, given through the in-session question form,
+and quoted as he wrote them; rows 104 to 109 wait on nothing. The register records each answer
+as an `OD`, or as a `note` entry in its "answered, not gated" list where the answer fails the
+three-part gate (`2026-09-23-owner-decisions.md`, the section after `OD-41`). **His second round,
+the same day** (section 10), answered sections 5.2 and 5.3: it accepts forced exception 1, does
+not accept 2, 3 and 4, closes section 5.3's questions, and adds `OD-53`. What remains open is
+`OD-53`'s shape and cost (`10-panacea-in-app.md`) and section 5.3's "Later" list.
 
 ### 5.1 Answered
 
-| # | Call | Answer, in the owner's words (calls 6 to 19 through the in-session question form, 2026-10-01; call 20 as the register first recorded it) | Recorded as |
+| # | Call | Answer, in the owner's words (calls 6 to 20 through the in-session question form, 2026-10-01) | Recorded as |
 |---|---|---|---|
 | 1 | Staffing, and `OD-31`'s four-stream cap | *"Lift it to 5 then."* Five builders; the cap is five. Phase 2's close-out and merge to `main` stays the first build step, as sequencing (section 3.2) | Answered, not gated; amends `OD-31` |
 | 2 | The Azure subscription and its US$2,000 a month ask | *"Don't worry, I will use our existing Panacea subscription, we will just make a seperate resource group."* Our own resource group and our own AKS, not Panacea's AKS, so `OD-5`'s own-environment intent holds; no new subscription | `OD-42` |
@@ -665,7 +667,7 @@ Every declared exception (09 §7) and every row of section 1 and of 09 §2 was r
 | Exception 5: Keycloak's stock error pages | **Closed for our realm**: our Keycloak carries our theme from day one (rows 82-83, `OD-44`). **Panacea's realm pages remain**, in the system browser only: on a Panacea realm error at sign-in (forced exception 1 below), and at Connect deploy once the realm session there has lapsed (forced exception 3, now superseded, below) | 0 |
 | Exceptions 3 and 6: Penpot's font and radii; Spec Kit's file paths | **Inside the app already.** They are look and wording, not a step outside; they stay as accepted in calls 7 and 8 | 0 |
 | 09 §2 row 17: Teams | **Passes.** An optional doorway back in; every card's act is also on the Desk, so no one has to use Teams | 0 |
-| 09 §2 rows 13, 15, 16: Panacea's Portal, Keycloak, LiteLLM | **Pass, with the exits named.** Headless and never linked. Rows 107-109 cover the Portal acts traced in Panacea's routes on 2026-10-01 (read for these groups, not exhaustively). What still needs the Portal is listed below: Connect deploy until P-3 (forced exception 3), and step-up-gated acts if a platform admin arms that gate (forced exception 4); both are now superseded (below) | 0 |
+| 09 §2 rows 13, 15, 16: Panacea's Portal, Keycloak, LiteLLM | **Pass, with the exits named.** Headless and never linked. Rows 107-109 cover the Portal acts traced in Panacea's routes on 2026-10-01 (read for these groups, not exhaustively). What still needs the Portal is listed below: Connect deploy until P-3 (forced exception 3), and step-up-gated acts if a platform admin arms that gate (forced exception 4); both are now superseded (below). **Since found not to hold** (`10-panacea-in-app.md` §1.4): the plan brings about 90 of Panacea's 357 user routes into the app, so about 28 engineer-days of in-app pages are owed under `OD-49` whatever the owner answers on `OD-53`'s cost; they are not yet in this file's total | 0 |
 
 Every other row of section 1 is headless behind our screens, embedded in our frame, or
 infrastructure with no user act (rows 1-9, 35, 56, 59, 67, 78-80).
@@ -748,18 +750,18 @@ them on 2026-10-01, second round (section 10): he accepted 1 and did not accept 
 **Questions for the owner, as asked, and how his second round (2026-10-01, section 10) closed
 them.** Items 2 and 3 were closed by the orchestrator's rulings, which the owner may override.
 
-1. **Confirm calls 6 to 20 in your own words.** **Closed for every call but 20.** Calls 6 to 19
+1. **Confirm calls 6 to 20 in your own words.** **Closed.** Calls 6 to 20
    are his own answers, given through the in-session question form earlier on 2026-10-01,
    and quoted as he wrote them: Penpot, *"Accept Penpot (Recommended)"*; inference, *"Give us the
    option for any. We should have a litellm backing, where I can manage the API endpoints and keys,
    so I can shuffle them around and no stick to one purely."*; who pays, *"We will use Panaceas
    Subscription and Resource Group as we currently do. But from day one, we will still need the
    Cost Centre, Job Code and Phase map through for costing like we have in Panacea"*; and the
-   rest of calls 6 to 19, *"Accept all, except ADO Boards, idk what that means. but remember that
+   rest of calls 6 to 20, *"Accept all, except ADO Boards, idk what that means. but remember that
    I want as much of it to be in app and feel like it is all in app, never does it feel seperate,
    or needing to go outside to do anything. Okay?"* Rows 104 to 109 (104 and 105 on the first
-   app's path) wait on nothing. **Still open: call 20's source** (`OD-50`, how far `OD-40`'s
-   copying reaches), which keeps the register's first tag until he confirms it himself.
+   app's path) wait on nothing. Call 20 (`OD-50`, how far `OD-40`'s copying reaches) was first
+   left on its old tag; `10-panacea-in-app.md`'s verify round (§7) corrected it.
 2. **Cost codes: required, and per project?** You asked for Cost Centre, Job Code and Phase to
    *"map through for costing like we have in Panacea"*. In Panacea the job code and phase are
    optional, and the cost centre is the team's (`handlers/project_billing_codes.go:22`,
@@ -783,7 +785,7 @@ them.** Items 2 and 3 were closed by the orchestrator's rulings, which the owner
    (second round), being scoped in `10-panacea-in-app.md` (section 10).
 
 **Open:** `OD-53`'s technical shape and its cost, and the Azure DevOps authenticator's, both in
-`10-panacea-in-app.md`, for the owner's sign-off on the cost; and call 20's source (item 1).
+`10-panacea-in-app.md`, for the owner's sign-off on the cost.
 **Pending the owner's sign-off:** `10-panacea-in-app.md` (2026-10-01) proposes both, with costs.
 
 **Later: before the first customer, not before the first app.** Penpot Enterprise quote (from
@@ -834,8 +836,6 @@ asks (04-design §7); the new icon (`OD-43`).
   not read.
 - **LiteLLM's `count_tokens` defect** (row 104): that the pinned LiteLLM still carries #31149 and
   #42073 is assumed from `OD-33` (verified open on 2026-09-28), not re-checked.
-- **Call 20's source** (`OD-50`, how far `OD-40`'s copying reaches) is still as the register
-  first recorded it, not confirmed by the owner himself (section 5.3 item 1).
 - **`OD-53`'s shape and cost** (section 10) are not scoped. No figure in this file carries them,
   and the Deploy rows (section 1.6) are the plan before it.
 - **Our CLI's name** (row 12): only that it must not be `panacea` is settled; the name itself is
@@ -913,7 +913,8 @@ Each finding was checked at source before it was applied. The total moves from 1
   billing Phase exception and points its lens questions to call 9.
 - Day 0 item 1's management-group caveat; section 6's range and named gaps; our CLI is not named
   `panacea`.
-- **The register:** an "as relayed" tag on each answer after call 5; `OD-44`'s consequence (K3
+- **The register:** an "as relayed" tag on each answer after call 5 (since replaced by
+  *(question form, 2026-10-01)*, section 10); `OD-44`'s consequence (K3
   and K4, ruling U-15 now permanent) and its third option in the gate; `OD-46`'s user trigger;
   `OD-48`'s veto, sized, with `OD-35`'s retirement conditional on it; `OD-51`'s amendment
   re-pointed from `OD-14` to the Hub ADR's membership rule; the "answered, not gated" list marked
@@ -945,10 +946,10 @@ Panacea's model, the reading of *"like we have in Panacea"*: job code and phase 
 centre from the team; row 105 is unchanged. Section 5.3 item 3, the register: option (c), one
 register with a `note` marker on the row; its "answered, not gated" list is final in that form.
 
-**A source corrected.** Calls 6 to 19 are the owner's own answers, given through the in-session
+**A source corrected.** Calls 6 to 20 are the owner's own answers, given through the in-session
 question form earlier the same day, and this file, the register and `CONTEXT.md` now say so; rows
-104 to 109 wait on nothing. Call 20's source (`OD-50`) stays as the register first recorded it
-until the owner confirms it himself (section 5.3 item 1).
+104 to 109 wait on nothing. Call 20 (`OD-50`) was first left on its old tag here;
+`10-panacea-in-app.md`'s verify round (§7) corrected it.
 
 **What this round does not change yet.** Every figure in sections 0 to 3 is the plan before
 `OD-53`. What it does to the Deploy rows (57 to 73, 107 and 109), to day 0 item 3's Panacea asks,
