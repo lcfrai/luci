@@ -208,7 +208,7 @@ state, and entry into any lens is legal from any state. The union shipped in cod
 the sub-rail list, `docs/FUNCTIONAL-SPEC.md:51`.
 *Not «tab», «stage» or «step»*, and *not «phase»* — a **phase** is our build order
 (`docs/PROGRAM.md`), invisible to the user; a lens is what the user switches between.
-*Open: rule 12 says "four lenses"; the type and the sub-rail carry six. See §Open questions.*
+*Answered as relayed, 2026-10-01: four lenses, Files and Merge inside Develop (`docs/superpowers/planning/2026-09-30-assemble/00-plan.md` §5 call 9). The type and the sub-rail still carry six until the shell is rebuilt. See §Open questions.*
 
 **Queue** — **two senses, and they must be kept apart.**
 1. *The attention queue:* the one ranked list of what needs a human, and the only place in the
@@ -237,10 +237,10 @@ person's decision on one action an agent asked for (`docs/AGENTIC-UX.md:241`), n
 per-session flag passed to one harness: three values, one axis, no inheritance and no action classes.
 
 **Data classification** — a property set when a **project is created** (and updatable afterwards)
-that decides two things: whether that project's inference goes **AU** (Bedrock, Sydney) or **Global**
-(the Anthropic API), and which security scans the deploy side requires.
+that decides two things: whether that project's inference may use only **AU**-resident providers (Bedrock
+in Sydney among them) or **any** provider, and which security scans the deploy side requires.
 *Fixed by:* `OD-24` (`docs/superpowers/planning/2026-09-23-owner-decisions.md:152`) and `OD-19`
-(`:140`).
+(`:140`), both amended by `OD-46` (two fixed paths become classes of provider).
 *Not «sensitivity label»* — that is a Microsoft Purview object we do not implement — and not
 «tenancy», which is about isolation, not about data.
 
@@ -292,7 +292,7 @@ the ones that have actually caused confusion in this tree.
 | **the queue**, bare, for landing | *the landing queue* | bare "the queue" is rule 4's attention queue |
 | **permission mode**, for authority | *authority* | `PermissionMode` is a three-value per-session harness flag |
 | **stage**, **step**, **tab**, for a lens | *lens* | lenses have no order and no completion state (`AGENTIC-UX.md` rule 12) |
-| **phase**, for a lens | *lens* (user) / *phase* (our build order) | `docs/PROGRAM.md` phases are invisible to the user |
+| **phase**, for a lens | *lens* (user) / *phase* (our build order) | `docs/PROGRAM.md` phases are invisible to the user. **One exception:** *Phase*, the billing tag beside Job Code and Cost Centre (`OD-47`): Panacea's free-text engagement phase, at most 10 characters, on a project. It is the one user-facing "Phase", and the banned-word scan allows it only as that field's label |
 | **spec**, **PRD**, **requirements**, for a brief | *brief* | a brief is a Hub object with numbered immutable revisions |
 | **git worktree**, for a worktree | *worktree* (a local clone, `OD-2`) | the mechanism changed and the word did not |
 | **agent**, for a harness | *harness* | the harness is the program; the agent is what runs in it |
@@ -306,7 +306,7 @@ the ones that have actually caused confusion in this tree.
 
 ## Open questions — the owner's call, not an agent's
 
-1. **How many lenses are there, four or six?** `docs/AGENTIC-UX.md:79` rule 12 says *"Four lenses"*
+1. **How many lenses are there, four or six?** *Answered as relayed, 2026-10-01: four, with Files and Merge inside Develop (`00-plan.md` §5 call 9); the text below is the question as it stood.* `docs/AGENTIC-UX.md:79` rule 12 says *"Four lenses"*
    (Discover, Design, Develop, Deploy) and forbids sequence. The shipped `Lens` type
    (`…ui-contract.md:564-566`) and the sub-rail (`docs/FUNCTIONAL-SPEC.md:51`) both carry **six**,
    adding Files and Merge. The *rule* — no order, no numbering, no completion state — is not in
@@ -317,7 +317,7 @@ the ones that have actually caused confusion in this tree.
    contract**: the `Lens` comment at `…ui-contract.md:564-565` lists six rows while citing rule 12,
    so whichever way the owner rules, that comment needs the same edit.
 
-2. **Does `CLAUDE.md`'s "Define" mean the Discover lens?** `CLAUDE.md` names the journey
+2. **Does `CLAUDE.md`'s "Define" mean the Discover lens?** *Answered as relayed, 2026-10-01: yes, and the word is Define, not Discover (`00-plan.md` §5 call 9).* `CLAUDE.md` names the journey
    **Define → Design → Develop → Deploy**; the lens, the phase and the package are all called
    **Discover** (`docs/PROGRAM.md` Phase 4, `internal/discover`). No entry above defines "Define"
    because nothing in the tree fixes it. If they are the same thing, one word should go. `CLAUDE.md`

@@ -11,8 +11,9 @@ use Coolify plus Supabase, and enhance with snippets from Panacea, that is fine 
 we get the best solution that is fully fledged."* Then, the same day, the one-app bar
 (`09-cohesion.md:6-8`). These are recorded as `OD-37` to `OD-41` in
 `2026-09-23-owner-decisions.md`. **The owner answered section 5 on 2026-10-01** (`OD-42` to
-`OD-52`, and an "answered, not gated" list), including the one-app rule restated: *"never does it
-feel seperate, or needing to go outside to do anything"* (`OD-49`). This version applies them.
+`OD-52`, and a provisional "answered, not gated" list), including the one-app rule restated:
+*"never does it feel seperate, or needing to go outside to do anything"* (`OD-49`). This version
+applies them, corrected by their verify round (section 9).
 **The product is called Panacea** (`OD-43`). Below, "Panacea" alone still means the running
 platform we deploy through, as the register's note on the name explains.
 **Precedence inside this folder:** `09-cohesion` > `08-whole-product-verify` > each cluster's
@@ -24,28 +25,29 @@ was installed or run. Section 6 lists what is not verified.
 ## 0. The answer
 
 **Assemble. We adopt a dozen products and build the glue and the product spine around them. The
-remaining work is about 130 engineer-days (118 to 147): the 118 of the first version plus about
-11.75 for the owner's answers of 2026-10-01, almost all of it in-app replacements for steps that
+remaining work is about 132 engineer-days (120 to 150): the 118 of the first version plus about
+14.25 for the owner's answers of 2026-10-01, almost all of it in-app replacements for steps that
 sent a user outside (`OD-49`), the in-app provider page (`OD-46`) and cost codes (`OD-47`). With
 five builders (`OD-31`'s cap is now five) that is the first app in about 13 to 17 working days
-and all of it in about 26; with two, about 5.5 to 6.5 weeks and about 13 weeks. The clock starts
-when the day-0 items clear. There is no new subscription to wait for (`OD-42`) and no IT ticket
-for sign-in (`OD-44`), so day 0 is shorter than it was.**
+and all of it in about 26 to 27; with two, about 5.5 to 6.5 weeks and about 13 weeks. The clock
+starts when the day-0 items clear. There is no new subscription to wait for (`OD-42`) and no IT
+ticket for sign-in (`OD-44`), so day 0 is shorter than it was; real users' sign-in now waits on
+one block of Panacea realm configuration instead (day 0 item 3).**
 
 **The three percentages** (method and arithmetic in section 2):
 
 | Measure | Figure |
 |---|---|
-| **Done** | **About 11%** (10 to 14). About 16.5 engineer-days of kept, built work, against 16.5 + 129.775 |
+| **Done** | **About 11%** (10 to 14). About 16.5 engineer-days of kept, built work, against 16.5 + 132.275 |
 | **From open source**, by capability (the headline) | **35%** of 110 capabilities. With Panacea (15%) and managed services (13%), **63%** come from something we adopt |
 | **We build ourselves**, by capability (the headline) | **37%** |
-| By remaining effort, for the same question | 40% of the 130 days is glue on adopted pieces (open source 24%, Panacea 5%, managed services 11%); **60%** is our own code |
+| By remaining effort, for the same question | 39% of the 132 days is glue on adopted pieces (open source 24%, Panacea 4%, managed services 11%); **61%** is our own code |
 
 Was, before the owner's answers: 12% done; 37% open source, 66% adopted, 34% ours by capability;
 44% glue and 56% ours by effort, of 118 days. All six new rows are ours: keeping the user inside
 the app is our code over other products' APIs.
 
-Every one of the 130 days is engineering work we do: code, configuration and proofs. "From open
+Every one of the 132 days is engineering work we do: code, configuration and proofs. "From open
 source" means the capability arrives already built and we connect it; it does not mean the days
 disappear.
 
@@ -61,12 +63,17 @@ disappear.
    layer (journey bar, app-level view, the Desk, the realm hand-off, the thread drawer, one
    palette, one vocabulary), the lane path (lane git endpoint, landing, the Panacea plugin), the
    gateway's `keysmith` and `gatekeeper`, every page where the brief is published, approved or
-   released, and the in-app pages that replace every outside step (`OD-49`): PR review, the
-   shipped app's settings, team settings, production approval, and the provider page.
+   released, and the in-app pages that replace every outside step that is not forced (`OD-49`):
+   PR review, the shipped app's settings, team settings and approvals, production approval, and
+   the provider page.
 3. **The acceptance gate** is 09-cohesion §6's journey walk, K1 to K14, ending with the owner's
-   eyes: *"Does this feel like one app?"* A no fails the build.
-4. **What still waits on the owner** (section 5): nothing on the first app's path. Three forced
-   one-app exceptions are listed for the owner's eyes (section 5.2), and the "Later" list stands.
+   eyes: *"Does this feel like one app?"* A no fails the build. K2's and K3's allowed exits are
+   restated for section 5.2 (section 3.4).
+4. **What still waits on the owner** (section 5.3): his own word on calls 6 to 20, which reached
+   this plan relayed, before rows 104 to 109 are built (rows 104 and 105 are on the first app's
+   path); whether cost codes are required at creation; where answers that fail the register's
+   gate are recorded; and the veto on `OD-48`, now sized. Four forced one-app exceptions, one of
+   them conditional, are listed for his eyes (section 5.2), and the "Later" list stands.
 
 ## 1. The components
 
@@ -92,8 +99,8 @@ note, 09 §7):
 - 09 §2 row 14 ("Connect deploy", 0.25 counted) sits inside 00-verify's cohesion glue (0.75).
 - Panacea snippets (tenant baseline, `audit_pg.go`, key-minting code, `deploy/*.tf`) shorten rows
   that already exist (00 §12). They are not rows of their own.
-- `panacea login` (row 12) and the Hub's client (row 74): Hub tasks 28, 30 and 31 build the
-  Credential Manager store, the PKCE exchange and the refresh (11 plan-hours,
+- Row 12's `login` (the cluster files' `panacea login`) and the Hub's client (row 74): Hub tasks
+  28, 30 and 31 build the Credential Manager store, the PKCE exchange and the refresh (11 plan-hours,
   `feat/hub:docs/superpowers/plans/2026-09-23-phase-h-hub.md:431-441`). Row 12 keeps only the CLI
   over them and the anchor clone, at 02's own 0.5 (02-fleet-cockpit.md:247). Row 74 drops Hub task
   38, the Tauri desktop half of the local caller key (3.5 h), which the frozen desktop no longer
@@ -129,7 +136,7 @@ name is Panacea** (`OD-43`); the icon is deferred and does not block rows 19-20.
 |---|---|---|---|---|---|---|---|---|
 | 10 | Fleet cockpit engine: parallel sessions, worktrees, terminals, diff, editor | Develop | Orca (`stablyai/orca`), pinned | MIT | OSS | 0 | | 02-verify §0, §8 item 1 |
 | 11 | Rollout package: pinned version, Intune, telemetry off, plugin preinstalled | Develop | Orca | MIT | OSS | 0.5 | | 02-verify §6 row 1 |
-| 12 | `panacea login`: the CLI over the Hub client's PKCE, Credential Manager and refresh (row 74), and the anchor clone | Platform | Ours | ours | Ours | | 0.5 | 02 §5 "First ship" (0.5); 02-verify §6 row 2's extra 0.5 is Hub tasks 28-31 |
+| 12 | Our CLI's `login` (the cluster files' `panacea login`; the binary is not named `panacea`, which Panacea's own CLI already is, `OD-43`): the CLI over the Hub client's PKCE, Credential Manager and refresh (row 74), and the anchor clone | Platform | Ours | ours | Ours | | 0.5 | 02 §5 "First ship" (0.5); 02-verify §6 row 2's extra 0.5 is Hub tasks 28-31 |
 | 13 | Lane git endpoint: session-token auth, lane-branch-only hook, lease-guarded force | Develop | Ours | ours | Ours | | 2 | 02-verify §6 row 3 |
 | 14 | Landing from the laptop: fetch back, push, PR with brief trailer, merge queue or auto-complete | Develop | GitHub and Azure DevOps pull requests | commercial | Managed | 2.5 | | 02-verify §6 row 4, §8 item 4 |
 | 15 | Panacea PR preview per lane, with the session and brief stamp (GitHub only in v1) | Deploy | Panacea's webhook-receiver previews | KPMG own | Panacea | 0.5 | | 02-verify §6 row 5 |
@@ -177,7 +184,7 @@ and grid, HTML through the markup export; OpenPencil revisited at its 1.0.
 | 43 | Penpot upgrade canary and end-to-end run | Design | Penpot | MPL-2.0 | OSS | 0.75 | | 04-verify §2.7 G9 |
 | 44 | CSP and plugin allowlist at our ingress | Design | Penpot behind our ingress | MPL-2.0 | OSS | 1 | | 04-verify §2.7 G10 |
 
-### 1.5 Work and team (05-work-team-verify §8): 21 days
+### 1.5 Work and team (05-work-team-verify §8): 21.5 days
 
 Tasks are created, assigned, worked and closed inside Panacea; ADO Boards and GitHub Issues are
 storage and sync behind it, never opened (`OD-48`, owner veto open for in-app-only tasks).
@@ -196,9 +203,9 @@ storage and sync behind it, never opened (`OD-48`, owner veto open for in-app-on
 | 54 | Preview comments on the running app, filed as a ticket | Develop | Panacea `preview_comments.go` | KPMG own | Panacea | 1.5 | | 05-verify §8 piece 6 |
 | 55 | Azure DevOps Start without a fork (pending start through the recipe) | Develop | Orca, unforked | MIT | OSS | 1.5 | | 05-verify §8 piece 7 |
 | 56 | Tracker audit into the SIEM | Platform | Microsoft Sentinel connectors | commercial | Managed | 0 | | 05-work-team §7 |
-| 108 | **Team settings in-app**: members, invitations, budget and the team's cost centre, over Panacea's team API (`GET`/`POST`/`DELETE /api/v1/teams/{name}/members`, `routes.go:1962-1971`; `PUT /api/v1/teams/{name}/billing`, `:1947`). Row 51 had no surface, which left Panacea's Portal as the only place to do it | Platform | Ours, over Panacea's team API | ours | Ours | | 1 | `OD-49`, `OD-51` |
+| 108 | **Team settings and approvals in-app**: members, invitations, budget and the team's cost centre, over Panacea's team API (`GET`/`POST`/`DELETE /api/v1/teams/{name}/members`, `routes.go:1962-1971`; `PUT /api/v1/teams/{name}/billing`, `:1947`); and the two approvals every new user waits on (00-verify S2), each a NEEDS YOU row on the Desk with the act in place: a team admin's join-request approval (`:1927-1929`) and a platform admin's new-team approval (`:1924-1926`). The requester sees what is pending and who approves. Row 51 had no surface, which left Panacea's Portal as the only place to do it | Platform | Ours, over Panacea's team API | ours | Ours | | 1.5 | `OD-49`, `OD-51` (1, plus 0.5 for the approvals and their Desk rows, this file's estimate) |
 
-### 1.6 Deploy (06-deploy-verify §2.5, 00-panacea-verify §7): 14.075 days
+### 1.6 Deploy (06-deploy-verify §2.5, 00-panacea-verify §7): 16.075 days
 
 Shipped apps and preview databases deploy through Panacea into Panacea's subscription and
 resource group, as today (`OD-47`).
@@ -222,8 +229,8 @@ resource group, as today (`OD-47`).
 | 71 | P6: live proof on Panacea dev (create, preview, SSO, rollback) | Deploy | Panacea dev estate | KPMG own | Panacea | 0.5 | | 00-verify §7 P6 |
 | 72 | P4: snippet ledger and attribution-header CI check | Platform | Ours | ours | Ours | | 0.25 | 00-verify §7 P4 |
 | 73 | Panacea's steps inside our cockpit: team-request state, Connect deploy, our error copy (preview sign-in is row 96) | Cohesion | Ours | ours | Ours | | 0.5 | 00-verify §7 "cohesion glue" (0.5-1), §8 |
-| 107 | **The shipped app's settings in-app**: environment variables and secrets per environment (`PUT`/`DELETE /api/v1/projects/{name}/env/...`, `routes.go:1401-1403`), feature flags (`:2415-2419`), app users and access mode, database and storage connection details, over Panacea's API, in the shared Hub page template. Row 58 had no surface, which left Panacea's Portal as the only place to do it | Deploy | Ours, over Panacea's API | ours | Ours | | 2.5 | `OD-49`; routes read 2026-10-01 |
-| 109 | **Production-rung approval in-app** for the Panacea admins who hold it, on our Deploy page. 06-verify §6 left it on Panacea's Portal as an operator act | Deploy | Ours, over Panacea's approval route | ours | Ours | | 0.5 | `OD-49`; 06-verify §6 |
+| 107 | **The shipped app's settings in-app**: environment variables and secrets per environment (`PUT`/`DELETE /api/v1/projects/{name}/env/...`, `routes.go:1401-1403`), feature flags (`:2415-2419`), app users and the branch access mode (`:1431`), database and storage connection details; and the settings only the Portal had: access bindings and ownership transfer (`:1408-1410`, owner), the IP allow-list and SSO enforcement (`:1415-1416`), deployment protection (`:1436`), the custom domain and its DNS check (`:1250-1252`), the backup policy, back-up-now and revert (`:1355-1357`), and the service tier (`:2455`, owner). Over Panacea's API, in the shared Hub page template. Rows 57 and 58 had no surface for these, which left Panacea's Portal as the only place to do any of it | Deploy | Ours, over Panacea's API | ours | Ours | | 4.5 | `OD-49`; routes read 2026-10-01 (2.5, plus 2 for the second group: access 0.5, security and protection 0.5, domain 0.5, backup 0.25, tier 0.25, this file's estimate) |
+| 109 | **Production-rung approval in-app** for the Panacea admins who hold it, on our Deploy page. 06-verify §6 left it on Panacea's Portal as an operator act. **Panacea's step-up gate (F4)** refuses every API-token caller on `prod-deploy` once a platform admin maps that action to an authentication context (`handlers/stepup.go:205-213`, `:271`; reached from the production deploy, `handlers/projects.go:2927`); it ships inert, and Panacea's own `deploy/f4-step-up.sh` declines to map `prod-deploy`. Our control plane calls with the user's `pnc_`, so an armed gate would send production ships to the Portal (section 5.2, forced exception 4) | Deploy | Ours, over Panacea's approval route | ours | Ours | | 0.5 | `OD-49`; 06-verify §6; 00-verify S5 left step-up untraced |
 
 ### 1.7 Platform (07-platform-verify §5): 26.95 days
 
@@ -236,17 +243,17 @@ AKS. No new subscription is requested.
 | 74 | The Hub: briefs, approvals, ledger, releases (routes and client): tasks 08-10, 13-24, 28-35, 37, 39 and P1 | Platform | Ours (Go, `cmd/hub`) | ours | Ours | | 9.5 | 07-verify §5 Hub (10), less task 38 (3.5 h) |
 | 75 | Signed-in Hub pages: one-time ticket to an `HttpOnly` cookie | Platform | Ours | ours | Ours | | 1 | 07-verify §5, §6 C1 |
 | 76 | AI gateway, LiteLLM glue: catalogue and generated config, admin client, capability probe, the MIT-tree image and its hash lock, its share of the local stack and chart | Platform | LiteLLM from the MIT tree | MIT | OSS | 1.9 | | phase 6 tasks 02, 04, 18, 27 (11.5 h) plus 17, 19 in part (5.75 h) and the 2 h hash lock, as 18-26% of 07-verify's 8.7 |
-| 76b | AI gateway, ours: `keysmith`, `gatekeeper` (routes, per-session keys, budgets, refusal rewrite), `panacea token`, the residency canary, the panel, the proofs | Platform | Ours | ours | Ours | | 6.8 | the rest of 07-verify §5 Gateway's 8.7 |
+| 76b | AI gateway, ours: `keysmith`, `gatekeeper` (routes, per-session keys, budgets, refusal rewrite), our CLI's `token` (the plans' `panacea token`, row 12), the residency canary, the panel, the proofs | Platform | Ours | ours | Ours | | 6.8 | the rest of 07-verify §5 Gateway's 8.7 |
 | 77 | Inference providers: any LiteLLM supports, among them the Anthropic API, Amazon Bedrock Sydney and KPMG Workbench (`/anthropic`, `Ocp-Apim-Subscription-Key`) | Platform | The providers the owner configures | commercial | Managed | 0 | | 07-platform §7 call 2; `OD-46` |
-| 104 | **The provider page, in-app**: the owner adds, tests, rotates and removes provider endpoints and keys, and moves routes between them without a code change; each provider carries its residency and retention claims, shown beside it, and an AU-class project is offered only AU-marked providers; the residency canary per AU-marked provider. Over LiteLLM's admin API with models and credentials stored in its database, never its own UI | Platform | Ours, over LiteLLM | ours | Ours | | 2.5 | `OD-46` (new work: page 1.5, routes and class gating 0.5, per-provider claims and canary 0.5) |
+| 104 | **The provider page, in-app**: the owner adds, tests, rotates and removes provider endpoints and keys, and moves routes between them without a code change; each provider carries its residency and retention claims, shown beside it, and an AU-class project is offered only AU-marked providers; `OD-33`'s leak canary for **every** provider with a custom endpoint, KPMG Workbench included, not only AU-marked ones, because LiteLLM's `count_tokens` defect ignores a custom `api_base` and calls `api.anthropic.com` with the deployment's own key; a provider that fails it is labelled so and offered to no project until the pinned LiteLLM fixes it. Over LiteLLM's admin API with models and credentials stored in its database, never its own UI | Platform | Ours, over LiteLLM | ours | Ours | | 2.5 | `OD-46` (new work: page 1.5, routes and class gating 0.5, per-provider claims and canary 0.5) |
 | 78 | Environment: its own resource group and AKS in Panacea's subscription, Flexible Server, Key Vault, DNS, ingress, OpenTofu from Panacea's `.tf` (copied whole, `OD-50`) | Platform | Azure | Azure; OpenTofu MPL-2.0 | Managed | 1 | | 07-verify §5 Environment; `OD-42` |
 | 79 | Our own state: Hub database, blobs, secrets | Platform | Azure Flexible Server, Blob, Key Vault | commercial | Managed | 0 | | 00-verify §6; 07-verify §2 |
 | 80 | Public AU edge WAF for the Hub and gateway | Platform | Azure Application Gateway WAF_v2 | commercial | Managed | 0 | | 07-verify §8 item 4 |
-| 81 | The identity source: Panacea's realm, brokering Entra, with one client for our broker | Platform | Panacea's dev Keycloak 25 realm | Apache-2.0 | Panacea | 0 | | 07-verify §5 Realm; `OD-44` |
-| 82 | Our small Keycloak, Keycloak 26 on two replicas, **whose only identity provider is Panacea's realm** (Keycloak-to-Keycloak OIDC): tasks 08 and 29, the realm file's provider block, chained provider hints, `tid`/`oid`/groups pass-through. No Entra change, so no IT request | Platform | Keycloak, keycloak-config-cli | Apache-2.0 | OSS | 2 | | 07-verify 3.11 (2 days, whose IT ask goes); `OD-44`: equal cost |
+| 81 | The identity source: Panacea's realm, brokering Entra, with one client for our broker plus the ruling's K3 and K4's user-profile items, which only Panacea's realm can carry (day 0 item 3) | Platform | Panacea's dev Keycloak 25 realm | Apache-2.0 | Panacea | 0 | | 07-verify §5 Realm; `OD-44` |
+| 82 | Our small Keycloak, Keycloak 26 on two replicas, **whose only identity provider is Panacea's realm** (Keycloak-to-Keycloak OIDC): tasks 08 and 29, the realm file's provider block, chained provider hints, `tid`/`oid` pass-through (no `groups`: the ruling's token profile leaves it out), the desktop client (K1), the four audience scopes (K2), the 7-day offline cap and `hub.org_admin`. No Entra change, so no IT request | Platform | Keycloak, keycloak-config-cli | Apache-2.0 | OSS | 2 | | 07-verify 3.11 (2 days, whose IT ask goes); `OD-44`: equal cost |
 | 83 | Keycloak login and error theme in our design system | Cohesion | Keycloakify | MIT | OSS | 0 | | 07-verify §6 C2 (inside row 82) |
 | 84 | One spend line per project (agent spend plus hosted-app spend) | Platform | Ours | ours | Ours | | 0.5 | 07-verify §6 C4 (outside every earlier total) |
-| 105 | **Cost Centre, Job Code and Phase from day one**: required at project creation in Define, stored in the Hub, sent to Panacea on create (row 65) and on change (`PUT /api/v1/projects/{name}/billing/codes`), the cost centre defaulted from the team's (Panacea keeps it per team); carried as labels on sandbox pods and tags on gateway keys; our statement in Panacea's shape (project, job code, phase, amount). Panacea's ≤10-character rule and validation reused under `OD-40` | Platform | Ours, on Panacea's pattern | ours | Ours | | 1.75 | `OD-47` (Hub fields and form 0.5, Panacea hand-off and edit 0.35, labels and key tags 0.4, statement 0.5) |
+| 105 | **Cost Centre, Job Code and Phase mapped through from day one**, as in Panacea: job code and phase captured at project creation in Define and editable later, optional as Panacea has them (`handlers/project_billing_codes.go:22`), stored in the Hub, sent to Panacea on create (row 65) and on change (`PUT /api/v1/projects/{name}/billing/codes`); the cost centre is the team's, as Panacea keeps it (`handlers/billing.go:104`); whether codes are required, and whether a project may carry its own cost centre, are open owner questions (section 5.3). Carried as **annotations** on sandbox pods, as Panacea carries them on namespaces (free text such as "Ph 2" cannot be a Kubernetes label value), and as tags on gateway keys; our statement in Panacea's shape (project, job code, phase, amount). Panacea's ≤10-character rule and validation reused under `OD-40` | Platform | Ours, on Panacea's pattern | ours | Ours | | 1.75 | `OD-47` (Hub fields and form 0.5, Panacea hand-off and edit 0.35, annotations and key tags 0.4, statement 0.5) |
 | 85 | Code signing for our desktop build | Platform | Azure Artifact Signing; an OV certificate in Key Vault if the entity does not qualify | commercial | Managed | 0 | | 02-verify §8 call 6; call 4 |
 
 ### 1.8 The one-app layer (08-whole-product-verify §7.2, 09-cohesion §7): 17.25 days
@@ -263,17 +270,22 @@ AKS. No new subscription is requested.
 | 93 | Orca's bell, feed, notifications and dashboard off | Cohesion | Orca, our build's defaults | MIT | OSS | 0.25 | | 09 §2 row 2 |
 | 94 | Penpot's editor themed and de-branded (stylesheet, OIDC-start shim, flags off) | Cohesion | Penpot | MPL-2.0 | OSS | 0.75 | | 09 §3.2, §7 row 4 |
 | 95 | Realm hand-off authenticator: one realm session inside the frame, installed in our Keycloak (row 82) | Cohesion | Ours, on Keycloak's SPI | ours | Ours | | 1.5 | 09 §4.1, §7 row 5; `OD-44` |
-| 96 | Share-link previews until the hand-off exists | Cohesion | Panacea's share-links API | KPMG own | Panacea | 0.25 | | 09 §4.2 |
+| 96 | Share-link previews, for classes `none` and `synthetic`. No end condition: the hand-off (row 95) never gives Panacea's previews a session (`OD-44`) | Cohesion | Panacea's share-links API | KPMG own | Panacea | 0.25 | | 09 §4.2 |
 | 97 | Spec Kit preset in our nouns (brief, criteria) | Cohesion | Spec Kit preset | MIT | OSS | 0.25 | | 09 §5.5, §7 row 6 |
 | 98 | One type pairing: Geist Sans and Commit Mono | Cohesion | Geist and Commit Mono (OFL fonts) | OFL | OSS | 0.25 | | 09 §3, §7 row 7 |
 | 99 | One palette across every surface | Cohesion | Orca's Cmd+J palette, through our plugin | MIT | OSS | 1 | | 09 §5.3, §7 row 8 |
 | 100 | The thread drawer | Cohesion | Ours | ours | Ours | | 1 | 09 §5.2, §7 row 9 |
-| 101 | One vocabulary: banned-word CI scan (refuses "Orca", "Penpot", "Spec Kit", "LiteLLM", "Keycloak" and "PanaceaApp" in user-facing text; the product is Panacea), copy review, `CONTEXT.md` entries | Cohesion | Ours | ours | Ours | | 0.75 | 09 §5.5, §7 row 10; `OD-43` |
+| 101 | One vocabulary: banned-word CI scan over 09 §5.5's list (`CONTEXT.md`'s "Words we do not use" plus Orca, Penpot, Backstage, Keycloak, LiteLLM, spec, PRD, workspace and dashboard), to which `OD-43` adds "PanaceaApp" and "Spec Kit"; one scoped exception, the billing **Phase** field (`OD-47`, `CONTEXT.md`); the product is Panacea. Copy review, `CONTEXT.md` entries | Cohesion | Ours | ours | Ours | | 0.75 | 09 §5.5, §7 row 10; `OD-43` |
 | 102 | Orca theme file, all 125 variables | Cohesion | Orca, themed by our generated CSS | MIT | OSS | 0.5 | | 09 §3.1, §7 row 10 |
 | 103 | Terminal theme from our tokens | Cohesion | Orca custom terminal theme | MIT | OSS | 0.25 | | 09 §2 row 5 |
 
-**Outside the total:** the Windows sign-in bridge (1 day, contingent on the hand-off not being
-ready, 09 §7); the upstream ADO task-source pull request (2 days, optional, 05-verify §8); the
+**Outside the total:** the Windows sign-in bridge (1 day, a day-1 spike, 09 §4.2), which is no
+longer a contingency on the hand-off: the hand-off sits in our realm and never reaches Panacea's
+pages (`OD-44`), so the bridge is the only route that could bring Panacea's key page and a
+`protected` preview into the frame before P-3, together with Panacea's `kc_idp_hint=entra` on the
+Portal's and oauth2-proxy's sign-in (section 5.2, forced exception 3); the owner's veto on `OD-48`
+if used (about 4 to 44 days, section 5.3); the upstream ADO task-source pull request (2 days,
+optional, 05-verify §8); the
 Tauri Deploy lens (2.3 days, only if IT refuses Orca, 06-verify §2.5); Forge's ship gates as a
 pre-deploy check (1 day, later, 00 §12); the image-bump canary pipeline (not costed, 01 §5 item 5); Hub tasks 25-27 and 36
 (evidence, the change feed, the audit route, the feed poller: 8 plan-hours, about 1 day, outside
@@ -289,15 +301,16 @@ pre-deploy check (1 day, later, 00 §12); the image-bump canary pipeline (not co
 - **A repo, and a tracker, for a person who starts from nothing.** No step in 03, 06, 08 or the
   phase 3 plans provisions one (05-verify §9); our own Australian ADO organisation (`OD-48`) is
   its home, and the provisioning step is not sized.
-- **A `protected` preview, and Panacea's own pages, inside the frame.** Previews behind Panacea's
-  oauth2-proxy sign in against Panacea's realm, not ours, so the realm hand-off (row 95) gives them
-  no session (`OD-44`). Share links (row 96) cover `none` and `synthetic`, the pilot's classes
-  (call 13a). A `protected` preview needs a Panacea-side step: Panacea's realm trusting ours as an
-  identity provider for the preview client, or the hand-off installed in Panacea's realm as well.
+- **A `protected` preview inside the frame.** Previews behind Panacea's oauth2-proxy sign in
+  against Panacea's realm, not ours, so the realm hand-off (row 95) gives them no session
+  (`OD-44`). Share links (row 96) cover `none` and `synthetic`, the pilot's classes (call 13a). A
+  `protected` preview needs a Panacea-side step: the hand-off installed in Panacea's realm as well
+  (a Panacea image change, behind the cutover freeze), or the Windows bridge with Panacea's
+  `kc_idp_hint=entra` on oauth2-proxy. **Not a remedy:** Panacea's realm trusting ours as an
+  identity provider. It would be a second identity provider in Panacea's realm, which breaks the
+  ruling's one-IdP invariant (a hint could then pick it,
+  `2026-09-25-identity-keycloak-broker.md:503-504`), and each realm would broker to the other.
   Needed before any `protected` release; not sized.
-- **Cost centre per project in Panacea.** Panacea keeps cost centre per team
-  (`handlers/billing.go:104`), so its statement shows the team's until it carries a project-level
-  one (a Panacea-side ask, day 0 item 3). Our own statement uses the project's (row 105).
 
 ### 1.9 The sum
 
@@ -307,17 +320,18 @@ pre-deploy check (1 day, later, 00 §12); the image-bump canary pipeline (not co
 | Cockpit | 17.5 | 15.5, less the 0.5 Hub hand-off counted in row 75, less row 12's 0.5 counted in row 74 = 14.5; plus row 106's 3 (`OD-49`) |
 | Define | 10.25 | 10; the rows sum to 10.25 (03-verify §6) |
 | Design | 12.75 | 13 rounded (04-verify §2.7) |
-| Work and team | 21 | 20 rounded (05-verify §8) = 19.5; plus row 53's 0.5 and row 108's 1 (`OD-49`) |
-| Deploy and Panacea | 14.075 | 8.5 + 2; 06-verify's pieces sum to 8.7, and 00-verify's unique rows add 2.375 (cohesion glue at 0.5, row 73) against 08-verify's "2, a floor" = 11.075; plus rows 107 (2.5) and 109 (0.5) (`OD-49`) |
+| Work and team | 21.5 | 20 rounded (05-verify §8) = 19.5; plus row 53's 0.5 and row 108's 1.5 (`OD-49`) |
+| Deploy and Panacea | 16.075 | 8.5 + 2; 06-verify's pieces sum to 8.7, and 00-verify's unique rows add 2.375 (cohesion glue at 0.5, row 73) against 08-verify's "2, a floor" = 11.075; plus rows 107 (4.5) and 109 (0.5) (`OD-49`) |
 | Platform | 26.95 | 08-verify's components 20.4 (Hub 10, pages 1, gateway 8.4, environment 1) + 0.3 (07-verify's final gateway is 8.7) + realm 2 + C4's 0.5 = 23.2, less Hub task 38's 0.5 = 22.7; plus rows 104 (2.5, `OD-46`) and 105 (1.75, `OD-47`). The realm stays 2 under `OD-44` |
 | One-app layer | 17.25 | 4 + 11.75, plus the hook relay's 1.5, which no total carried |
-| **Total** | **129.775, about 130** | 118.025 before the owner's answers, plus 11.75: rows 104 (2.5), 105 (1.75), 106 (3), 107 (2.5), 108 (1), 109 (0.5) and row 53's 0.5 |
+| **Total** | **132.275, about 132** | 118.025 before the owner's answers, plus 14.25: rows 104 (2.5), 105 (1.75), 106 (3), 107 (4.5), 108 (1.5), 109 (0.5) and row 53's 0.5 |
 
-**Range: about 118 to 147.** Before the answers it was about 108 to 132: 08-verify §6 puts its sum
+**Range: about 120 to 150.** Before the answers it was about 108 to 132: 08-verify §6 puts its sum
 at 95 to 114, 09 §7 puts the new work at 10 to 15, plus the realm's 2 (09 §7 "Pulled into the
-plan"), and this file's corrections add about 0.75 net over 09's 117.25. The answers' 11.75 is
-taken as 10 to 15 (the PR review view and the app settings pages are the least certain), which
-gives 118 to 147.
+plan"), and this file's corrections add about 0.75 net over 09's 117.25. The answers' 14.25 is
+taken as 12 to 18 (the PR review view and the app settings pages are the least certain), which
+gives 120 to 150. Verify round 1 of the answers added 2.5 of those days, all ours: the Portal-only
+settings and approvals that rows 107 and 108 first missed (section 9).
 
 **What the answers did not change in days.** No new subscription (`OD-42`) and the realm brokering
 Panacea's instead of Entra (`OD-44`, equal at 2 days) move no row. The rename to Panacea (`OD-43`)
@@ -328,8 +342,8 @@ views (`OD-48`) were already the plan's shape.
 
 ### 2.1 Percent done: about 11%
 
-**Method.** The plan's 130 days are net of what is built: every cluster costed only what is still
-to do (the inventory's key point, and 08-verify §6). So built code does not reduce the 130. It is
+**Method.** The plan's 132 days are net of what is built: every cluster costed only what is still
+to do (the inventory's key point, and 08-verify §6). So built code does not reduce the 132. It is
 work already banked on top of it. Done is therefore banked days over banked plus remaining. Banked
 days are the plan-hours of kept, built code tasks divided by 8, the convention this folder uses;
 documents-only tasks and spikes are left out. That is conservative: real effort ran higher, with
@@ -346,10 +360,10 @@ fix rounds and hundreds of commits per branch.
 | `feat/phase-3-git` | Tasks 02-03 (5.5 h): `gitx`, the lane index, clones. Task 01 is a spike | 0.7 |
 | **Total** | | **16.5** |
 
-**Arithmetic.** 16.5 / (16.5 + 129.775) = 16.5 / 146.275 = **11.3%, about 11%.** Valuing the
-phase 2 backend at half (2.5) gives 14 / 143.775 = 9.7%; at double (10), 21.5 / 151.275 = 14.2%.
+**Arithmetic.** 16.5 / (16.5 + 132.275) = 16.5 / 148.775 = **11.1%, about 11%.** Valuing the
+phase 2 backend at half (2.5) gives 14 / 146.275 = 9.6%; at double (10), 21.5 / 153.775 = 14.0%.
 Hence 10 to 14%. The phase 2 figure is the swing factor and is not sourced. Nothing was built
-between the two versions: done fell from 12.3% only because the remaining work grew by 11.75.
+between the two versions: done fell from 12.3% only because the remaining work grew by 14.25.
 
 **Built code being replaced, and not counted as done:**
 - Phase 2's Tauri Develop views, the whole `desktop/src` tree of 21,132 TypeScript lines, about
@@ -406,20 +420,22 @@ the other way: rows 27 and 55 (the pending start through Orca's recipe) are our 
 Orca's extension point, counted as Orca glue. As ours, open source is 33% (36/110) and ours 39%
 (43/110).
 
-**(ii) By remaining effort: 129.775 days.**
+**(ii) By remaining effort: 132.275 days.**
 
 | Where the days go | Days | Share |
 |---|---|---|
 | Glue on open-source pieces | 31.65 | **24%** |
-| Glue on Panacea | 5.875 | **5%** |
+| Glue on Panacea | 5.875 | **4%** |
 | Glue on managed services | 14.5 | **11%** |
-| **Glue on adopted pieces, together** | **52.025** | **40%** |
-| **Our own code** | **77.75** | **60%** |
-| Total | 129.775 | 100% |
+| **Glue on adopted pieces, together** | **52.025** | **39%** |
+| **Our own code** | **80.25** | **61%** |
+| Total | 132.275 | 100% |
 
-Arithmetic: 31.65/129.775 = 24.4%, 5.875/129.775 = 4.5%, 14.5/129.775 = 11.2%, 77.75/129.775 =
-59.9%; adopted 52.025/129.775 = 40.1%. The answers moved managed glue by row 53's 0.5 and our
-code by rows 104 to 109's 11.25 (66.5 + 11.25 = 77.75). Before: 27% / 5% / 12% / 56% of 118.025.
+Arithmetic: 31.65/132.275 = 23.9%, 5.875/132.275 = 4.4%, 14.5/132.275 = 11.0%, 80.25/132.275 =
+60.7%; adopted 52.025/132.275 = 39.3%. Rounded by largest remainder so the four add to 100
+(floors 23, 4, 10, 60 = 97; the three largest remainders, 0.96, 0.93 and 0.67, go to managed
+services, open source and ours). The answers moved managed glue by row 53's 0.5 and our code by
+rows 104 to 109's 13.75 (66.5 + 13.75 = 80.25). Before: 27% / 5% / 12% / 56% of 118.025.
 Open-source glue by product: Penpot 11.5, Orca 8.5 (rows 4, 8, 11, 19-21, 24, 27, 55, 93,
 99, 102, 103), Spec Kit 3.25, Keycloak 2, LiteLLM 1.9, mirrors 1.5, cosign 1.25, agent-sandbox with
 the smoke 1, claude-code-action 0.5, the fonts 0.25.
@@ -430,7 +446,7 @@ separates the LiteLLM tasks (02, 04, 18, 27: 11.5 h) and two mixed ones (17, 19:
 `keysmith`, `gatekeeper`, the token CLI, the panel and the proofs. With 07-verify's 2 h hash lock
 on the LiteLLM side, LiteLLM glue is 18 to 26% of the gateway's 8.7, 1.6 to 2.3 days; row 76 takes
 1.9 and row 76b the other 6.8. **Challenge it here:** with rows 27 and 55 counted as ours as well,
-our own code by effort is about 62% (80 / 129.775).
+our own code by effort is about 62% (82.5 / 132.275).
 
 **(iii) By size of software delivered: not measured.** The folder gives one size, Orca's 30,735
 files at `59b746ff` (02-fleet-cockpit.md:76). It gives none for Penpot, Keycloak, LiteLLM, Spec Kit
@@ -450,20 +466,41 @@ Asked on day 0, by the owner or the build lead, in this order of lead time:
    In that subscription: D-series v5 Kata vCPU quota in Australia East **with headroom beside
    Panacea's own pools** (the quota is per subscription, so it is shared), the
    `AllowBringYourOwnPublicIpAddress` registration (subscription-wide), and no FIPS or Trusted
-   Launch policy reaching the Kata pool, by an exemption scoped to our resource group if a
-   subscription-level assignment exists (01-verify §7 "Day 0", §8 item 9). Panacea's subscription
-   owners can do all of it, so this is days, not the week a new subscription risked.
+   Launch policy reaching the Kata pool, by an exemption scoped to our resource group (01-verify
+   §7 "Day 0", §8 item 9). Panacea's subscription owners can do all of it if any blocking policy
+   is assigned at subscription scope, so this is days, not the week a new subscription risked.
+   **If the blocking assignment sits at a KPMG management group** above the subscription
+   (`KPMGAU-MGT-GOVCYBERINNO`, `deploy/environments/panacea-dev.env:22`), the exemption is an ask
+   of KPMG cloud governance: exempting from an assignment needs rights on that assignment's own
+   scope (from knowledge, not checked).
 2. **KPMG IT and SOC:** an MDE suppression rule and an ASR allowlist for our signed build, and the
    code-signing route: Azure Artifact Signing, checking that the entity qualifies, else an OV
    certificate in Key Vault (call 4; 02-verify §6 "Day 0", §8 item 7).
-3. **Panacea's side:** our AKS egress IP on `edge_allowed_ip_ranges`; **one confidential client in
-   Panacea's realm for our Keycloak's broker**, with a browser-flow override straight to its
-   Entra provider and `tid`, `oid` and groups in its tokens (`OD-44`; this replaces the PKCE client,
-   K1-K4 and the four audience scopes, which now live in our realm); Keycloak 26 on two replicas
-   (still asked: Panacea's realm is the identity source, and a fresh sign-in needs it up); a
-   project-level cost centre (`OD-47`); and P-1 to P-3 queued behind the cutover freeze, **P-3
-   first**, because it removes "Connect deploy", a forced exception (section 5.2) (00-verify §7
-   P5; 06-verify §7 item 5; 07-verify §5).
+3. **Panacea's side:** our AKS egress IP on `edge_allowed_ip_ranges`. **One block in
+   `deploy/portal/setup-keycloak.sh`, through Panacea's own pipeline, for our Keycloak's broker**
+   (`OD-44`; ruling §10's shape):
+   - a confidential client for our broker, with the redirector-only browser flow straight to its
+     `entra` provider (K1's flow shape) and P1/P2 as dedicated mappers, so its tokens carry `oid`
+     and `tid` (K6);
+   - **the ruling's K3, unchanged**: "Pass `login_hint`" on the `entra` provider (off today),
+     M1/M2 importing `oid` and `tid` with `FORCE`, and the `email` mapper on `FORCE`;
+   - **K4's user-profile items**: `entra_oid`, `entra_tid` and `email` editable by admins only,
+     and no `ENABLED` unmanaged-attribute policy, in the same block and before K3.
+
+   These stay in Panacea's realm because only it sees Entra's tokens. Without them its tokens to
+   our broker carry no `oid` or `tid`, so every validator refuses them; `login_hint` is not
+   forwarded; and the email the Hub's invite match trusts stays user-editable. What moves to our
+   realm (row 82): the desktop client (K1), the four audience scopes (K2), the 7-day offline cap
+   and `hub.org_admin`. Also asked: Keycloak 26 on two replicas (Panacea's realm is the identity
+   source, and a fresh sign-in needs it up); `prod-deploy`, `serve-without-sso` and
+   `external-domain` left unmapped in F4's step-up map on the estates we use (section 5.2, forced
+   exception 4); and P-1 to P-3 queued behind the cutover freeze, **P-3 first**, because it
+   removes "Connect deploy", a forced exception (section 5.2) (00-verify §7 P5; 06-verify §7 item
+   5; 07-verify §5). **Stall risk:** real users' sign-in now waits on this block, and the plan has
+   no fallback for it. 07-verify §8's fallback, our realm brokering Entra with IT's redirect URI
+   and second secret filed on day 0, is withdrawn by `OD-44`. The build does not wait, because
+   `devissuer` runs the same flow (ruling §10). If the block stalls, that IT request (ruling §9)
+   is the only route left; its text stays drafted, not filed, and filing it is the owner's call.
 4. **No IT request for sign-in.** The redirect URI and second secret that our own realm needed are
    not asked: our Keycloak brokers Panacea's realm, not Entra (`OD-44`).
 5. **The rest:** a DNS name and edge allowlist for the Hub and gateway (07-verify §5); our own
@@ -490,8 +527,8 @@ journey bar on the first Orca pin, and Penpot's headless runner (09 §8; 04-veri
 |---|---|---|
 | **B1, sandboxes** (the long pole) | Rows 1-9 in 01-verify's order: cluster, agent-sandbox, `katabe`, image, egress, worktree, broker, recipe, smoke. About 10 days from the resource group. If day 1 has no Kata nodes or claim p95 is over about 5 s, the pre-approved pilot fallback is ACI with standby pools, with the isolation statement saying ACI, back to Kata before customers (`OD-52`) | Penpot's headless runners in the Kata pool (row 39), then Design stream B |
 | **B2, our Orca build** (its own stream from day 1) | Rows 19-24, 102-103, 93: identity as Panacea, rename, theme, journey bar and app-level view, OSC off, surfaces off. Then row 99 (the palette) | Design stream A (rows 34, 36-38, 44), then rows 87, 94, then the in-app PR review (row 106) |
-| **B3, the lane path** | Rows 11-18: rollout, `panacea login`, lane git endpoint, landing, Panacea preview; then the plugin, resume and fork, AI review | Define (rows 25-33), then the tracker Start (rows 48, 55) |
-| **B4, the Hub** | Row 74's minimum Hub (about 5 working days on two engineers, 08-verify §6), row 75, row 88, the cost codes' Hub side and creation form (row 105), then the Desk (rows 89-91) and the thread drawer (row 100) | The rest of the Hub, then the Work page (rows 47, 50), team settings (row 108) and Design's approval rows 41-42 |
+| **B3, the lane path** | Rows 11-18: rollout, our CLI's `login`, lane git endpoint, landing, Panacea preview; then the plugin, resume and fork, AI review | Define (rows 25-33), then the tracker Start (rows 48, 55) |
+| **B4, the Hub** | Row 74's minimum Hub (about 5 working days on two engineers, 08-verify §6), row 75, row 88, the cost codes' Hub side and creation form (row 105), then the Desk (rows 89-91) and the thread drawer (row 100) | The rest of the Hub, then the Work page (rows 47, 50), team settings and approvals (row 108) and Design's approval rows 41-42 |
 | **B5, gateway and Deploy** | Rows 76 and 76b's minimal gateway and the provider page (row 104), then Deploy's first-ship glue (about 5 of rows 61-73, with row 105's hand-off to Panacea), the realm brokering Panacea's (row 82) and the hand-off (row 95) | The rest of Deploy, the app settings and production approval (rows 107, 109), the tracker connectors (rows 45-46), the Teams bot (rows 52, 53, 92) |
 
 **Critical path.** Journey steps 2, 5 and 7 all wait on the Hub service (08-verify §2 row 3), and
@@ -501,14 +538,14 @@ which is why 09 §7 adds 2 to 3 working days.
 **Calendar.**
 - **Five builders:** the first app (journey steps 1-7) in about 13 to 17 working days after day 0
   and phase 2's merge (08-verify §6's 10-12, plus 09 §7's 2-3, plus 1 to 2 for rows 104 and 105,
-  4.25 engineer-days on the first-app path split between B4 and B5). All of it in about 26 working
-  days (08-verify's 20-21 for 103 days, scaled to 129.775: 25.2 to 26.5). Five streams are within
-  `OD-31`'s cap, now five (call 1).
+  4.25 engineer-days on the first-app path split between B4 and B5). All of it in about 26 to 27
+  working days (08-verify's 20-21 for 103 days, scaled to 132.275: 25.7 to 27.0). Five streams are
+  within `OD-31`'s cap, now five (call 1).
 - **Two builders:** the first app in about 5.5 to 6.5 weeks (08-verify's "about a month", plus
   about 13.75 engineer-days on the first-ship path: rows 82, 89, 90, 91 and 95, 2 + 3 + 1.5 + 1.5 +
   1.5 = 9.5, and rows 104 and 105, 2.5 + 1.75 = 4.25; 13.75 / 2 = about 7 working days). All of it
-  in about 13 weeks (129.775 / 2 = about 65 working days).
-- **Rows 106 to 109 and row 53 (7.5 days) sit after the first app**, in weeks 3-5: the first app's
+  in about 13 weeks (132.275 / 2 = about 66 working days).
+- **Rows 106 to 109 and row 53 (10 days) sit after the first app**, in weeks 3-5: the first app's
   journey has one author and a class-`none` pilot, so reviewers, app settings, team settings and
   production approval are needed before the pilot widens, not before its first walk.
 
@@ -518,6 +555,16 @@ which is why 09 §7 adds 2 to 3 working days.
 KPMG laptop, and check K1 to K14 at every step. K1 to K13 are automated inside row 86 and run on
 every Orca or Penpot pin move. **K14 is the owner's eyes, and a no fails the build whatever the
 others say.** Until that walk, every visual claim stays unverified (`OD-12`; `CLAUDE.md`).
+
+**K2 and K3, restated for section 5.2.** 09 §6 allows two exits, the first-run tab and a
+reviewer's host PR page. The reviewer's exit is gone (row 106), and section 5.2 names the forced
+ones, so the only allowed exits are now: the first-run sign-in tab and its weekly re-check; Azure
+DevOps' own page where a person creates the PAT; Connect deploy in the system browser until P-3;
+and, only if a platform admin arms Panacea's step-up gate, the gated acts on the Portal. K2's only
+allowed token pastes are the ADO PAT and Connect deploy's key, each on our page. K2 still counts
+any sign-in page inside the frame as a failure: had Connect deploy embedded Panacea's key page,
+as the previous version of this plan had it, K2 would fail at J7 for every new user (section
+5.2, forced exception 3).
 
 Other gates: a security review of the agent sharing a sandbox with `orca serve` before any
 customer tenancy (02-verify §8 item 8); a security review of the hand-off authenticator (09 §4.1);
@@ -544,20 +591,21 @@ each stream resumes, not in this change.
 ## 5. Owner calls
 
 **The owner answered every call on 2026-10-01.** Calls 1 to 5 are quoted from the owner's message;
-the rest are quoted as the orchestrator relayed them. The register records each as an `OD`, or in
-its "answered, not gated" list where the answer fails the three-part gate
+the rest are quoted as the orchestrator relayed them, and wait on his own confirmation before rows
+104 to 109 are built (section 5.3). The register records each as an `OD`, or in its provisional
+"answered, not gated" list where the answer fails the three-part gate
 (`2026-09-23-owner-decisions.md`, the section after `OD-41`). What remains open is section 5.2's
-forced exceptions, for the owner's eyes, and section 5.3's "Later" list.
+forced exceptions, for the owner's eyes, and section 5.3's questions and "Later" list.
 
 ### 5.1 Answered
 
-| # | Call | Answer, in the owner's words | Recorded as |
+| # | Call | Answer, in the owner's words (calls 6 to 20 as relayed, 2026-10-01) | Recorded as |
 |---|---|---|---|
 | 1 | Staffing, and `OD-31`'s four-stream cap | *"Lift it to 5 then."* Five builders; the cap is five. Phase 2's close-out and merge to `main` stays the first build step, as sequencing (section 3.2) | Answered, not gated; amends `OD-31` |
 | 2 | The Azure subscription and its US$2,000 a month ask | *"Don't worry, I will use our existing Panacea subscription, we will just make a seperate resource group."* Our own resource group and our own AKS, not Panacea's AKS, so `OD-5`'s own-environment intent holds; no new subscription | `OD-42` |
-| 3 | The app's name and icon | *"We will continue calling it Panacea. This is the evolved version of Panacea. We can deal with a new logo/icon later."* Rows 19, 20 and 101 updated; the icon does not block | `OD-43` |
+| 3 | The app's name and icon | *"We will continue calling it Panacea. This is the evolved version of Panacea. We can deal with a new logo/icon later."* Rows 19, 20 and 101 updated; the icon does not block; our CLI is not named `panacea`, which Panacea's own CLI already is (row 12) | `OD-43` |
 | 4 | Code signing | *"Sure, do that."* Azure Artifact Signing; an OV certificate in Key Vault if the entity does not qualify | Answered, not gated |
-| 5 | Our own realm for the hand-off | *"Do we need that? Why would we not just piggy back off of Panacea?"* We piggyback: our small Keycloak's only identity provider is Panacea's realm. No Entra change, no IT ticket, one sign-in. Equal cost, 2 days (row 82) | `OD-44`; amends `OD-30` |
+| 5 | Our own realm for the hand-off | *"Do we need that? Why would we not just piggy back off of Panacea?"* We piggyback: our small Keycloak's only identity provider is Panacea's realm. No Entra change, no IT ticket, one sign-in. Equal cost, 2 days (row 82). Panacea's realm keeps the ruling's K3 and K4's user-profile items (day 0 item 3) | `OD-44`; amends `OD-30` |
 | 6, 6a | Penpot as the canvas; frames as vectors with CSS flex and grid | Accepted: Penpot for v1, MPL-2.0 admitted, HTML through export; OpenPencil revisited at 1.0 | `OD-45`; relaxes `OD-11`, withdraws `OD-34` for v1 |
 | 7 | Penpot's radius and font | Accepted (*"Accept all"*) | Answered, not gated |
 | 8 | The six declared v1 exceptions | Accepted, then re-tested under the restated one-app rule (section 5.2), which wins | `OD-49` |
@@ -567,10 +615,10 @@ forced exceptions, for the owner's eyes, and section 5.3's "Later" list.
 | 12 | Land from the laptop | Accepted; `OD-6` unchanged | Answered, not gated |
 | 13a | Pilots on the dev estate | Accepted | Answered, not gated |
 | 13 | Who can open a shipped app | Accepted: KPMG network only in v1; previews GitHub-only | Answered, not gated |
-| 14 | Who pays | *"We will use Panaceas Subscription and Resource Group as we currently do. But from day one, we will still need the Cost Centre, Job Code and Phase map through for costing like we have in Panacea"* Row 105 | `OD-47` |
-| 15 | Work: retire `OD-26`'s tracker; own AU ADO organisation | *"Accept all, except ADO Boards, idk what that means."* Explained: nobody opens ADO Boards; tasks live and are worked inside Panacea, with ADO Boards and GitHub Issues as storage and sync behind it. Recorded on those terms, with the owner's veto open for tasks living only in the app | `OD-48` |
+| 14 | Who pays | *"We will use Panaceas Subscription and Resource Group as we currently do. But from day one, we will still need the Cost Centre, Job Code and Phase map through for costing like we have in Panacea"* Row 105, on Panacea's model: optional codes, the team's cost centre. Whether to go further is asked in section 5.3 | `OD-47` |
+| 15 | Work: retire `OD-26`'s tracker; own AU ADO organisation | *"Accept all, except ADO Boards, idk what that means."* Explained: nobody opens ADO Boards; tasks live and are worked inside Panacea, with ADO Boards and GitHub Issues as storage and sync behind it. Recorded on those terms, with the owner's veto open for tasks living only in the app, now sized (section 5.3) | `OD-48` |
 | 16 | Team mode v1 on the tracker; Panacea's teams | Accepted | `OD-51` |
-| 17 | Inference accounts | *"Give us the option for any. We should have a litellm backing, where I can manage the API endpoints and keys, so I can shuffle them around and no stick to one purely."* Row 104 | `OD-46`; amends `OD-19` |
+| 17 | Inference accounts | *"Give us the option for any. We should have a litellm backing, where I can manage the API endpoints and keys, so I can shuffle them around and no stick to one purely."* Row 104. `OD-19`'s user trigger stays, as a switch between provider classes | `OD-46`; amends `OD-19` |
 | 18 | Define's four items | Accepted | Answered, not gated |
 | 19 | The sandbox fallback | Accepted: ACI with standby pools for the pilot only, on the day-1 trigger | `OD-52` |
 | 20 | How far `OD-40`'s copying reaches | Accepted: whole services and Terraform stacks, with the ledger and attribution; `CLAUDE.md`'s reuse section updated | `OD-50` |
@@ -582,33 +630,38 @@ is all in app, never does it feel seperate, or needing to go outside to do anyth
 ### 5.2 The one-app re-test (`OD-49`)
 
 Every declared exception (09 §7) and every row of section 1 and of 09 §2 was re-tested against
-"never needing to go outside". **Pulled into the app: 10 engineer-days, five new rows (104 and 106
-to 109, 9.5) and row 53's 0.5.** The sixth new row, 105 (cost codes, 1.75), is `OD-47`'s.
+"never needing to go outside". **Pulled into the app: 12.5 engineer-days, five new rows (104 and
+106 to 109, 12) and row 53's 0.5.** The sixth new row, 105 (cost codes, 1.75), is `OD-47`'s.
 
 | Where a user went outside, or would have | Now | Days |
 |---|---|---|
 | Exception 1: reviewers on the host's PR page (09 §2 row 10) | **In-app PR review**, row 106 | 3 |
-| Row 51: team members, invitations, budget, cost centre had no surface but Panacea's Portal | **Team settings in-app**, row 108 | 1 |
-| Row 58: the shipped app's environment variables, secrets, flags, app users and connection details had no surface but Panacea's Portal | **App settings in-app**, row 107 | 2.5 |
+| Row 51: team members, invitations, budget, cost centre had no surface but Panacea's Portal; nor did approving a join request (team admin) or a new team (platform admin), which every new user waits on (00-verify S2) | **Team settings and approvals in-app**, row 108; each approval a NEEDS YOU row on the Desk | 1.5 |
+| Rows 57 and 58: the shipped app's environment variables, secrets, flags, app users and connection details, and its access bindings, ownership, IP allow-list, SSO enforcement, protection, custom domain, backups and tier had no surface but Panacea's Portal | **App settings in-app**, row 107 | 4.5 |
 | Production-rung approval on Panacea's Portal (06-verify §6) | **On our Deploy page**, row 109 | 0.5 |
 | Row 53: the first-party Boards and GitHub apps' Teams cards open ADO Boards or GitHub | **Our bot's cards** open the Desk; the first-party apps are not installed | 0.5 |
 | Provider endpoints and keys on LiteLLM's own UI | **The provider page**, row 104 (`OD-46`) | 2.5 |
-| Exception 5: Keycloak's stock error pages | **Closed**: our Keycloak carries our theme from day one (rows 82-83, `OD-44`) | 0 |
+| Exception 5: Keycloak's stock error pages | **Closed for our realm**: our Keycloak carries our theme from day one (rows 82-83, `OD-44`). **Panacea's realm pages remain**, in the system browser only: on a Panacea realm error at sign-in (forced exception 1 below), and at Connect deploy once the realm session there has lapsed (forced exception 3) | 0 |
 | Exceptions 3 and 6: Penpot's font and radii; Spec Kit's file paths | **Inside the app already.** They are look and wording, not a step outside; they stay as accepted in calls 7 and 8 | 0 |
 | 09 §2 row 17: Teams | **Passes.** An optional doorway back in; every card's act is also on the Desk, so no one has to use Teams | 0 |
-| 09 §2 rows 13, 15, 16: Panacea's Portal, Keycloak, LiteLLM | **Pass.** Headless, never linked; with rows 107-109 no user act needs the Portal | 0 |
+| 09 §2 rows 13, 15, 16: Panacea's Portal, Keycloak, LiteLLM | **Pass, with the exits named.** Headless and never linked. Rows 107-109 cover the Portal acts traced in Panacea's routes on 2026-10-01 (read for these groups, not exhaustively). What still needs the Portal is listed below: Connect deploy until P-3 (forced exception 3), and step-up-gated acts if a platform admin arms that gate (forced exception 4) | 0 |
 
 Every other row of section 1 is headless behind our screens, embedded in our frame, or
 infrastructure with no user act (rows 1-9, 35, 56, 59, 67, 78-80).
 
-**Kept, because they are technically forced. For the owner's eyes:**
+**Kept, because they are technically forced. For the owner's eyes** (numbered here as forced
+exceptions 1 to 4; 09 §7's own numbering is used only in the table above):
 
-1. **The first-run sign-in, in the system browser.** One tab, once per laptop, showing our own
-   "you can close this tab" page after Entra signs in silently; for a GitHub project, GitHub's
-   one-time App authorisation rides the same first run (not verified). **Why forced:** a native
-   app's OAuth sign-in must use the system browser (RFC 8252), and only there, or in Windows' own
-   account broker, does Entra get the device's single sign-on and satisfy Conditional Access's
-   device-compliance checks. Inside our frame it would be a password and MFA prompt, and fail
+1. **The sign-in, in the system browser: on first run, and again at least once a week.** One tab
+   each time, zero clicks, showing our own "you can close this tab" page after Entra signs in
+   silently. The weekly tab is the ruling's 7-day cap on the desktop client's offline session,
+   which cuts a leaver off within a week: when the silent refresh fails, the zero-click flow
+   re-checks the person against Entra (`2026-09-25-identity-keycloak-broker.md:374-379`, `:494`).
+   Lifting the cap would make the tab once per laptop and reopen that leaver window, so it stays.
+   For a GitHub project, GitHub's one-time App authorisation rides the first run (not verified).
+   **Why forced:** a native app's OAuth sign-in must use the system browser (RFC 8252), and only
+   there, or in Windows' own account broker, does Entra get the device's single sign-on and
+   satisfy Conditional Access's device-compliance checks. Inside our frame it would be a password and MFA prompt, and fail
    compliance. The in-app alternative, Windows' account broker with a token exchange into our realm,
    needs Keycloak's external-to-internal token exchange across two realms, a preview feature, and
    is not taken. If Panacea's realm errors during that sign-in, its stock page shows in the tab.
@@ -618,16 +671,71 @@ infrastructure with no user act (rows 1-9, 35, 56, 59, 67, 78-80).
    there, or through its API with a user-delegated Entra token for Azure DevOps, which needs
    consent on the Entra registration: the IT ticket that `OD-30` and `OD-44` avoid. **Closes if**
    the owner asks IT for that consent; an in-app token flow is then about 1 day (not in the total).
-3. **"Connect deploy", until Panacea's P-3.** One paste of a Panacea key, from Panacea's key page
-   embedded in our app-level view. **Why forced:** Panacea's API accepts only its own pasted key
-   today and refuses a realm token (00-verify §4, `auth.go:245-251`); trusting a realm token is
-   P-3, code in Panacea (2 to 3 of Panacea's days). Under `OD-44` our broker can hold the user's
-   token from Panacea's own realm, so P-3 becomes "trust your own realm's token". **Closes when**
-   P-3 lands; day 0 item 3 asks for it first.
+3. **"Connect deploy", in the system browser, until Panacea's P-3: once per person and at each
+   renewal** (a Panacea key lasts 90 days by default, 365 at most, 00-verify §2 row 5). Our app
+   opens Panacea's key page in the system browser; the person mints a key there, copies it, and
+   pastes it on our page, which validates it, shows its expiry and warns before it lapses. **Why
+   forced, and why outside the frame:** Panacea's API accepts only its own pasted key today and
+   refuses a realm token (00-verify §4, `auth.go:245-251`), and a key is minted only by a person
+   signed in to Panacea's Portal (`api_keys.go:112-116`). The Portal sits behind Panacea's realm,
+   and the realm hand-off (row 95) makes a session only in ours (`OD-44`), so inside our frame the
+   key page would show Panacea's Keycloak page and then a Microsoft password and MFA prompt, which
+   fails compliance (forced exception 1) and K2 at J7 for every new user. The system browser has
+   Entra's device sign-in, and the Panacea realm session that the sign-in tab leaves there while
+   it lasts (dev: 12 hours idle, 24 at most); after that, Panacea's own Keycloak page shows there
+   first. **Closes when** P-3 lands, code in Panacea (2 to 3 of Panacea's days); day 0 item 3 asks
+   for it first. Under `OD-44` our broker can hold the user's token from Panacea's own realm, so
+   P-3 becomes "trust your own realm's token". **Could move into the frame sooner** if the Windows
+   sign-in bridge's day-1 spike passes (1 day, outside the total) and Panacea sends
+   `kc_idp_hint=entra` on the Portal's sign-in (a Panacea change; whether config or code was not
+   traced).
+4. **Step-up-gated acts on the Portal, only if a platform admin arms Panacea's step-up gate.**
+   Panacea's F4 gate refuses every API-token caller on an action mapped to an authentication
+   context: "needs a fresh sign in, which an API token cannot provide. Run this action while
+   signed in to the portal" (`handlers/stepup.go:205-213`, `:271`). The mappable actions include
+   `prod-deploy` (a production ship, `handlers/projects.go:2927`), `serve-without-sso` (SSO
+   enforcement and access mode, row 107) and `external-domain` (the custom domain, row 107). Our
+   control plane calls with the user's `pnc_` (`middleware/api_key.go:189`), so a mapped action
+   would send that act to the Portal. **Why forced:** an API token can never satisfy an
+   authentication context, and after P-3 the realm token we would present still carries no Entra
+   `acrs` claim unless both realms map it through.
+   **Today it does not bite:** the gate ships inert, and Panacea's own `deploy/f4-step-up.sh`
+   declines to map `prod-deploy` because it "stops every production deploy that runs on a pnc_
+   API token"; the live map is runtime data and was not checked. **Closes if** Panacea keeps those
+   three actions unmapped on the estates we use (day 0 item 3 asks), or accepts after P-3 a realm
+   token whose `acrs` is mapped from Entra through both realms.
 
 ### 5.3 Still open
 
-**The owner's veto on `OD-48`:** tasks living only in the app, with the trackers as optional sync.
+**Questions for the owner, each with a recommendation:**
+
+1. **Confirm calls 6 to 20 in your own words.** They reached this plan as the orchestrator relayed
+   them; only calls 1 to 5 were read from your message. They carry rows 104 to 109 (about 14
+   days, rows 104 and 105 on the first app's path) and `OD-45` to `OD-52`. *Recommended:* one line
+   confirming them, or naming any that was relayed wrong. Rows 104 to 109 are not built before it.
+2. **Cost codes: required, and per project?** You asked for Cost Centre, Job Code and Phase to
+   *"map through for costing like we have in Panacea"*. In Panacea the job code and phase are
+   optional, and the cost centre is the team's (`handlers/project_billing_codes.go:22`,
+   `handlers/billing.go:104`). Making them required adds a step on the way from nothing to an app;
+   a project-level cost centre is also a change to Panacea's billing model, a Panacea ask.
+   *Recommended:* Panacea's model for v1 (optional codes, the team's cost centre), which row 105
+   builds; no Panacea ask until you say otherwise.
+3. **Where an answer that fails the register's gate is recorded.** Asked on 2026-09-28 and still
+   open (`2026-09-25-owner-questions-pending.md`, the register-work item): (a) every answer an
+   `OD`, the audit naming the notes; (b) a failing answer goes into the plan it governs, with no
+   number; (c) one register with a `note` marker on the row. The register's "answered, not gated"
+   list is provisional until you choose. *Recommended* (the 2026-09-28 write-up made none, as it is
+   your record): (c), which keeps one store and is closest to what the list already does.
+4. **The veto on `OD-48`, now sized:** tasks living only in the app, the Hub's records as the
+   store, the trackers as optional sync. From about 4 days for a minimal task record kind with
+   create, assign, state and close on the Work page (this file's estimate, on row 29's record kind
+   and row 50's page), up to about 44 days if it grows into Phase W's tracker (127 of its 190
+   tasks, of about 66 focused days, `05-work-team.md:142`, `:176`). Used, `OD-48`'s retirement of
+   `OD-35` for Phase W lapses: no tracker would absorb those tasks, so `OD-35`'s "build the full
+   plan" would bring Phase W back unless you also cut it. Not in the total. *Recommended:* no
+   veto: teams already on ADO Boards and GitHub Issues see the same tasks, and nobody opens either.
+5. **The four forced exceptions of section 5.2.** *Recommended:* accept them, with P-3 first in
+   Panacea's queue, because it removes forced exception 3 and opens one route to closing 4.
 
 **Later: before the first customer, not before the first app.** Penpot Enterprise quote (from
 US$950 a month) and its open-core admin console (04-verify §5 calls A-B); licence treatment of
@@ -643,28 +751,44 @@ asks (04-design §7); the new icon (`OD-43`).
 
 - **Nothing was installed, built or run** for this plan, and no test was run for the inventory.
   "Working" rests on committed tests and the plans' as-built records.
-- **Every day figure is an estimate composed from estimates.** The range is about 108 to 132.
+- **Every day figure is an estimate composed from estimates.** The range is about 120 to 150.
 - **The banked days** are plan-hours divided by 8, not measured effort. Phase 2's 5 is an
   assumption: its plan has no hour column.
 - **The capability view depends on row granularity** (section 2.2). A different cut moves it.
 - **The gateway's split** (rows 76 and 76b) applies the phase 6 plan's task hours to 07-verify's
   8.7; the two are not reconciled line by line.
 - **The named gaps** of section 1 (preview branch data, the class-mismatch refusal, a repo for a
-  person from nothing) are real work with no day figure.
+  person from nothing, a `protected` preview inside the frame) are real work with no day figure.
 - **The sum corrections in 1.9** (00's unique rows, 07's 8.7, the hook relay's 1.5, C4's 0.5, and
   verify round 1's rows 12, 73 and 74) are this file's reading of the verify documents. 08-verify
   and 09 did not have them.
 - **The calendar** assumes day 0 is clear and five builders share no bottleneck besides the Hub.
 - **Rows 104 to 109 are this file's estimates**, made on 2026-10-01 from Panacea's routes and the
   cluster files, with no cluster verify behind them. The PR review view (106) and the app settings
-  (107) are the least certain.
+  (107) are the least certain. Their verify round added 2.5 days to rows 107 and 108 for
+  Portal-only acts found in Panacea's routes; those routes were read for the groups named, not
+  exhaustively, so another Portal-only act may still exist.
 - **The Keycloak-to-Keycloak broker** (`OD-44`): chained provider hints, `login_hint` pass-through
-  and auto-link in both realms keeping zero clicks is from knowledge of Keycloak, not tried. The
+  and auto-link in both realms keeping zero clicks is from knowledge of Keycloak, not tried; so is
+  K3 and K4 in Panacea's realm carrying `oid`, `tid` and a trusted `email` through to ours. The
   day-1 spike of the realm hand-off (section 3.2) should cover it.
+- **Panacea's realm admins can become any of our users, permanently** (`OD-44`; ruling U-15).
+  They can set any user's `entra_oid` or `entra_tid`, or impersonate a user, in Panacea's realm,
+  and our realm imports those claims. The ruling bounded this trust "until phase 8"; under
+  `OD-44` it lasts as long as our realm brokers Panacea's. Nothing in our app can detect it.
 - **Shared-subscription limits** (`OD-42`): the Kata vCPU headroom beside Panacea's pools and any
-  subscription-level policy on the Kata pool are not checked.
+  policy on the Kata pool are not checked, nor is the scope of any blocking assignment. If it is a
+  management group's, the exemption is KPMG cloud governance's ask (day 0 item 1); that exempting
+  needs rights at the assignment's scope is from knowledge.
+- **Panacea's step-up map** (forced exception 4): whether `step_up_auth_contexts` maps
+  `prod-deploy`, `serve-without-sso` or `external-domain` on the estates we use is runtime data,
+  not read.
+- **LiteLLM's `count_tokens` defect** (row 104): that the pinned LiteLLM still carries #31149 and
+  #42073 is assumed from `OD-33` (verified open on 2026-09-28), not re-checked.
 - **The owner's words for calls 6 to 20** are quoted as relayed to the agent that wrote this
-  version, not read from the owner's own message.
+  version, not read from the owner's own message, and wait on his confirmation (section 5.3).
+- **Our CLI's name** (row 12): only that it must not be `panacea` is settled; the name itself is
+  row 12's to pick. No user needs to type it: the app, the recipe and the sandbox call it.
 - **Every visual claim** waits on K14, the owner's eyes (`OD-12`). Headless screenshots are
   blocked on the corporate network.
 - **Each cluster's own "not verified" section stands:** 00-verify §10, 01-verify §9, 02-verify §9,
@@ -678,10 +802,14 @@ asks (04-design §7); the new icon (`OD-43`).
   `08-whole-product-verify.md` §6-7, `09-cohesion.md` §0-7.
 - **The register:** `docs/superpowers/planning/2026-09-23-owner-decisions.md`, `OD-1` to `OD-52`.
 - **Panacea's source, read 2026-10-01** (`Projects/Panacea/services/panacea-api`):
-  `handlers/project_billing_codes.go`, `handlers/projects.go:606-629`, `models/models.go:652-660`,
-  `clients/kubernetes.go:84-88` and `:2337-2358`, `handlers/billing.go:104`,
-  `handlers/billing_statement.go:39-60`, `routes/routes.go` (`:1257`, `:1401-1403`, `:1947`,
-  `:1962-1971`, `:2415-2419`).
+  `handlers/project_billing_codes.go`, `handlers/projects.go:606-629` and `:2894-2927`,
+  `models/models.go:652-660`, `clients/kubernetes.go:84-88` and `:2337-2358`,
+  `handlers/billing.go:104`, `handlers/billing_statement.go:39-60`, `handlers/stepup.go:30-100`
+  and `:163-284`, `handlers/project_security.go:100-110`, `middleware/api_key.go:185-190`,
+  `routes/routes.go` (`:1246-1257`, `:1350-1357`, `:1398-1442`, `:1899-1971`, `:2410-2459`, the
+  route wrappers `:3226-3355`). Beside it: `deploy/f4-step-up.sh` (header),
+  `deploy/environments/panacea-dev.env:22`, `services/panacea-cli/cmd/root.go:56` and
+  `cmd/login.go:16-31`.
 - **The tree:** a read-only inventory on 2026-10-01 of every branch (`git worktree list`,
   `git ls-tree -r`, `git diff --name-status --numstat` against each merge-base with
   `feat/phase-2-cockpit`, `git log`), and the task-hour tables of the phase 3, 4, 7 and 8 plans and
@@ -702,3 +830,49 @@ citation fixes. **Not applied, with the reason:**
   row carries 0 days.
 - Rows 27 and 55 to Ours: they are recipe scripts on Orca's extension point; the effect of moving
   them is stated in section 2.2 instead.
+
+## 9. The owner's answers, verify round 1 (2026-10-01)
+
+A refuter re-checked the owner's answers as this file, the register and `CLAUDE.md` applied them.
+Its arithmetic held (110 rows, 38 / 17 / 14 / 41 by Kind; 129.775 days; 16.5 / 146.275 = 11.3%).
+Each finding was checked at source before it was applied. The total moves from 129.775 to
+132.275 days, all of the 2.5 in our own code; no row was added, so the capability view stands.
+**Applied in place:**
+- **Connect deploy opens Panacea's key page in the system browser** (forced exception 3). The
+  realm hand-off makes a session only in our realm, so in the frame that page would have shown
+  Panacea's Keycloak page and a Microsoft sign-in, failing compliance and K2 at J7. Row 96 has no
+  end condition; exception 5 is closed for our realm only; the Windows bridge's trigger is
+  corrected; "Panacea's realm trusting ours" is struck as a remedy (the one-IdP invariant).
+- **Day 0 item 3 asks Panacea for the ruling's K3 and K4's user-profile items** beside the broker
+  client, since only Panacea's realm sees Entra's tokens, and states the stall risk. `groups` is
+  dropped from the chain: the ruling's token profile leaves it out, and `OD-51` reads teams
+  through Panacea's team API.
+- **Rows 107 and 108 gain the Portal-only acts found in Panacea's routes:** access, security,
+  protection, domain, backup and tier settings; join-request and new-team approval as Desk rows
+  (+2.5 days). "No user act needs the Portal" is replaced by named exits.
+- **Forced exception 4:** Panacea's step-up gate refuses API-token callers on mapped actions; day
+  0 asks that they stay unmapped. Row 109 notes it.
+- **K2 and K3 restated** for the forced list (section 3.4). The sign-in tab is weekly, not once
+  (the 7-day leaver cap).
+- **Row 104's canary** covers every provider with a custom endpoint, not only AU-marked ones.
+- **Row 105:** codes optional and the cost centre the team's, as in Panacea, carried as
+  annotations, not labels. "Required" and a per-project cost centre go to the owner (section
+  5.3), and that Panacea ask leaves day 0.
+- **Row 101's list** is 09 §5.5's plus "PanaceaApp" and "Spec Kit". `CONTEXT.md` gains the
+  billing Phase exception and points its lens questions to call 9.
+- Day 0 item 1's management-group caveat; section 6's range and named gaps; our CLI is not named
+  `panacea`.
+- **The register:** an "as relayed" tag on each answer after call 5; `OD-44`'s consequence (K3
+  and K4, ruling U-15 now permanent) and its third option in the gate; `OD-46`'s user trigger;
+  `OD-48`'s veto, sized, with `OD-35`'s retirement conditional on it; `OD-51`'s amendment
+  re-pointed from `OD-14` to the Hub ADR's membership rule; the "answered, not gated" list marked
+  provisional. `CLAUDE.md` follows.
+
+**Not applied, with the reason:**
+- **"K4 unchanged" in Panacea's realm.** K4's offline-session switch (which K1's 7-day cap needs)
+  and `hub.org_admin` serve the desktop client and the Hub, which now live in our realm. Asked of
+  Panacea, the switch would only cap its other clients' offline sessions at 60 days (ruling
+  U-10). Only K4's user-profile items are asked.
+- **The Windows bridge as the planned path for Panacea's pages.** On its own it still shows
+  Panacea's Keycloak page in the frame without a Panacea change, and it is from knowledge, not
+  verified. It stays a day-1 spike that can bring Connect deploy into the frame.
