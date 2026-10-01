@@ -205,7 +205,14 @@ func (w *Watcher) resolvePhase(ctx context.Context, b budget, order []string) bo
 	if len(due) == 0 {
 		return false
 	}
-	span := w.cfg.ReadTimeout + w.cfg.HubReadTimeout
+	// ResolveMany is one Panacea read and, when a Hub is configured, one Hub
+	// lookup per repository key. With no Hub it is a Panacea read alone, and
+	// asking for the Hub's share of the budget as well would stop cycles that
+	// had the room for the work they were actually going to do.
+	span := w.cfg.ReadTimeout
+	if w.cfg.Releases != nil {
+		span += w.cfg.HubReadTimeout
+	}
 	if !b.canRead(span) {
 		w.logStop("binding", due, b)
 		w.markStopped(order)

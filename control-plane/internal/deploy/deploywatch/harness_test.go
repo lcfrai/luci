@@ -232,6 +232,8 @@ type harness struct {
 	// hubBindings are bindings seeded before the watcher is built, for the Hub
 	// facts the real resolver cannot reach in a tree with no Hub.
 	hubBindings []binding.Binding
+	// realTime takes the watcher off the fake clock, for the budget tests.
+	realTime bool
 }
 
 func deployRef(ref string) deploy.ProjectRef { return deploy.ProjectRef(ref) }
@@ -312,6 +314,11 @@ func (h *harness) build(cfg deploywatch.Config) *deploywatch.Watcher {
 	}
 	cfg.Projects, cfg.Bindings, cfg.Connection = h.locals, h.spy, h.conn
 	cfg.Now, cfg.Log = h.clock.now, discardLog()
+	if h.realTime {
+		// The budget tests are about wall-clock time: a fake clock cannot make
+		// a read take longer than the budget left.
+		cfg.Now = time.Now
+	}
 	w, err := deploywatch.New(cfg)
 	if err != nil {
 		h.t.Fatalf("deploywatch.New: %v", err)
