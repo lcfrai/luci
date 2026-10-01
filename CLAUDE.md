@@ -1,6 +1,6 @@
 # Panacea (repository: PanaceaApp)
 
-The product is called **Panacea**: the evolved version of Panacea (`OD-43`). In the planning docs, "Panacea" alone, "Panacea's API" and `Projects/Panacea` still mean the running platform we deploy through; users never see that distinction. The icon is deferred.
+The product is called **Panacea**: the evolved version of Panacea (`OD-43`). In the planning docs, "Panacea" alone, "Panacea's API" and `Projects/Panacea` still mean today's running Panacea platform, which our own Panacea is built from (`OD-53`); users never see that distinction. The icon is deferred.
 
 An enterprise platform that takes a person from **nothing to a shipped application**, and owns the whole journey: **Define → Design → Develop → Deploy**. Each user gets isolated cloud machines that run coding agents in parallel, each session in its own sandbox on an isolated worktree, streaming back to a single cockpit.
 
@@ -35,7 +35,7 @@ The four phases are states of one project, not four tools. The connective tissue
 
 ## Reuse from the Panacea monorepo
 
-`Projects/Panacea` is the model for how we run the web and deploy side, and the Deploy step's API. Since `OD-5` the product runs on **its own** environment (`OD-42`), not on Panacea's. Reuse Panacea rather than reinventing it: **Panacea source may be copied in, from snippets up to whole services and Terraform stacks** (`OD-40`, `OD-50`), each copied file carrying an attribution header and an entry in the snippet ledger, which CI checks. The later lift of all of Panacea into this repo still stands (`OD-13`). The places to start:
+`Projects/Panacea` is today's running Panacea platform, and the source our own Panacea is built from: deploying is first-class inside the app, with no external site and no API key (`OD-53`, which brings `OD-13`'s lift forward; its technical shape awaits the owner's sign-off on `docs/superpowers/planning/2026-09-30-assemble/10-panacea-in-app.md`). Since `OD-5` the product runs on **its own** environment (`OD-42`), not on Panacea's. Reuse Panacea rather than reinventing it: **Panacea source may be copied in, from snippets up to whole services and Terraform stacks** (`OD-40`, `OD-50`), each copied file carrying an attribution header and an entry in the snippet ledger, which CI checks. The places to start:
 
 - Sandbox pod template: `services/forge-orchestrator/preview/manager.go`
 - Deploy/branch/version control plane: `services/panacea-api/routes/routes.go` and `services/panacea-mcp`
@@ -43,7 +43,7 @@ The four phases are states of one project, not four tools. The connective tissue
 - SSO chain: oauth2-proxy → Keycloak (realm `panacea`) → Entra ID
 - Client BYO-Entra blueprint: `apothecary/docs/02-tenancy-and-identity.md` (design only, not built)
 
-**Gotcha:** two Terraform trees exist and they disagree. `deploy/main.tf` is the live cluster. The `terraform/` tree is aspirational and applying it against a live cluster can destroy it.
+**Gotcha:** in `Projects/Panacea`, two Terraform trees exist and they disagree. `deploy/main.tf` is Panacea's live cluster. The `terraform/` tree is aspirational and applying it against a live cluster can destroy it. When copying Panacea source, never copy its environment files, production Terraform values, or scripts that default to its live estates (`10-panacea-in-app.md` §0 item 2).
 
 ## Frontend rules
 
