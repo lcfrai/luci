@@ -784,6 +784,7 @@ them.** Items 2 and 3 were closed by the orchestrator's rulings, which the owner
 
 **Open:** `OD-53`'s technical shape and its cost, and the Azure DevOps authenticator's, both in
 `10-panacea-in-app.md`, for the owner's sign-off on the cost; and call 20's source (item 1).
+**Pending the owner's sign-off:** `10-panacea-in-app.md` (2026-10-01) proposes both, with costs.
 
 **Later: before the first customer, not before the first app.** Penpot Enterprise quote (from
 US$950 a month) and its open-core admin console (04-verify §5 calls A-B); licence treatment of
