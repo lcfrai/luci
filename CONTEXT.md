@@ -208,7 +208,7 @@ state, and entry into any lens is legal from any state. The union shipped in cod
 the sub-rail list, `docs/FUNCTIONAL-SPEC.md:51`.
 *Not «tab», «stage» or «step»*, and *not «phase»* — a **phase** is our build order
 (`docs/PROGRAM.md`), invisible to the user; a lens is what the user switches between.
-*Answered as relayed, 2026-10-01: four lenses, Files and Merge inside Develop (`docs/superpowers/planning/2026-09-30-assemble/00-plan.md` §5 call 9). The type and the sub-rail still carry six until the shell is rebuilt. See §Open questions.*
+*Answered by the owner, 2026-10-01, in his own answer through the in-session question form ("Accept all"): four lenses, Files and Merge inside Develop (`docs/superpowers/planning/2026-09-30-assemble/00-plan.md` §5 call 9). The type and the sub-rail still carry six until the shell is rebuilt. See §Open questions.*
 
 **Queue** — **two senses, and they must be kept apart.**
 1. *The attention queue:* the one ranked list of what needs a human, and the only place in the
@@ -306,7 +306,7 @@ the ones that have actually caused confusion in this tree.
 
 ## Open questions — the owner's call, not an agent's
 
-1. **How many lenses are there, four or six?** *Answered as relayed, 2026-10-01: four, with Files and Merge inside Develop (`00-plan.md` §5 call 9); the text below is the question as it stood.* `docs/AGENTIC-UX.md:79` rule 12 says *"Four lenses"*
+1. **How many lenses are there, four or six?** *Answered by the owner, 2026-10-01, through the in-session question form ("Accept all"): four, with Files and Merge inside Develop (`00-plan.md` §5 call 9); the text below is the question as it stood.* `docs/AGENTIC-UX.md:79` rule 12 says *"Four lenses"*
    (Discover, Design, Develop, Deploy) and forbids sequence. The shipped `Lens` type
    (`…ui-contract.md:564-566`) and the sub-rail (`docs/FUNCTIONAL-SPEC.md:51`) both carry **six**,
    adding Files and Merge. The *rule* — no order, no numbering, no completion state — is not in
@@ -317,7 +317,7 @@ the ones that have actually caused confusion in this tree.
    contract**: the `Lens` comment at `…ui-contract.md:564-565` lists six rows while citing rule 12,
    so whichever way the owner rules, that comment needs the same edit.
 
-2. **Does `CLAUDE.md`'s "Define" mean the Discover lens?** *Answered as relayed, 2026-10-01: yes, and the word is Define, not Discover (`00-plan.md` §5 call 9).* `CLAUDE.md` names the journey
+2. **Does `CLAUDE.md`'s "Define" mean the Discover lens?** *Answered by the owner, 2026-10-01, through the in-session question form ("Accept all"): yes, and the word is Define, not Discover (`00-plan.md` §5 call 9).* `CLAUDE.md` names the journey
    **Define → Design → Develop → Deploy**; the lens, the phase and the package are all called
    **Discover** (`docs/PROGRAM.md` Phase 4, `internal/discover`). No entry above defines "Define"
    because nothing in the tree fixes it. If they are the same thing, one word should go. `CLAUDE.md`

@@ -100,7 +100,7 @@ routed to the orchestrator; they are not questions for you.
      is, not only in an audit at the end. One pass over seven rows, plus a convention each round.
    - No recommendation: this is the owner's call about their own record. Detail in
      `2026-09-28-discovery-skills/07-register-report.md` §5.
-   - *Holds up:* nothing built. It holds up the next question round's write-up convention only. Asked again on 2026-10-01 (`2026-09-30-assemble/00-plan.md` §5.3, recommending (c)): the register's "answered, not gated" list of that day's answers is provisional until it is answered.
+   - *Holds up:* nothing built. It holds up the next question round's write-up convention only. Asked again on 2026-10-01 (`2026-09-30-assemble/00-plan.md` §5.3, recommending (c)): the register's "answered, not gated" list of that day's answers is provisional until it is answered. **Closed 2026-10-01 (second round) as (c)**, one register with a `note` marker on the row, by the orchestrator's bookkeeping ruling, which the owner may override; the list is final in that form (`2026-09-23-owner-decisions.md`, its last section).
 
 ## From the Discover design round 2 (2026-09-29)
 

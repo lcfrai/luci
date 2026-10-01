@@ -11,9 +11,11 @@ use Coolify plus Supabase, and enhance with snippets from Panacea, that is fine 
 we get the best solution that is fully fledged."* Then, the same day, the one-app bar
 (`09-cohesion.md:6-8`). These are recorded as `OD-37` to `OD-41` in
 `2026-09-23-owner-decisions.md`. **The owner answered section 5 on 2026-10-01** (`OD-42` to
-`OD-52`, and a provisional "answered, not gated" list), including the one-app rule restated:
-*"never does it feel seperate, or needing to go outside to do anything"* (`OD-49`). This version
-applies them, corrected by their verify round (section 9).
+`OD-52`, and the register's "answered, not gated" list of `note` entries), including the one-app
+rule restated: *"never does it feel seperate, or needing to go outside to do anything"*
+(`OD-49`). This version applies them, corrected by their verify round (section 9), and his second
+round the same day (section 10), which adds `OD-53`: Panacea first-class inside the app, its
+shape and cost pending `10-panacea-in-app.md`.
 **The product is called Panacea** (`OD-43`). Below, "Panacea" alone still means the running
 platform we deploy through, as the register's note on the name explains.
 **Precedence inside this folder:** `09-cohesion` > `08-whole-product-verify` > each cluster's
@@ -33,6 +35,12 @@ and all of it in about 26 to 27; with two, about 5.5 to 6.5 weeks and about 13 w
 starts when the day-0 items clear. There is no new subscription to wait for (`OD-42`) and no IT
 ticket for sign-in (`OD-44`), so day 0 is shorter than it was; real users' sign-in now waits on
 one block of Panacea realm configuration instead (day 0 item 3).**
+
+**Not in these figures: `OD-53`** (section 10). The owner wants Panacea first-class inside the
+app, built as part of this: *"No API key, nothing. We will build our own Panacea as a part of
+this."* Every figure in this file is the plan before it, with Deploy as glue over Panacea's
+running API (section 1.6). Its shape and cost are pending `10-panacea-in-app.md` and the owner's
+sign-off on that cost.
 
 **The three percentages** (method and arithmetic in section 2):
 
@@ -69,11 +77,12 @@ disappear.
 3. **The acceptance gate** is 09-cohesion §6's journey walk, K1 to K14, ending with the owner's
    eyes: *"Does this feel like one app?"* A no fails the build. K2's and K3's allowed exits are
    restated for section 5.2 (section 3.4).
-4. **What still waits on the owner** (section 5.3): his own word on calls 6 to 20, which reached
-   this plan relayed, before rows 104 to 109 are built (rows 104 and 105 are on the first app's
-   path); whether cost codes are required at creation; where answers that fail the register's
-   gate are recorded; and the veto on `OD-48`, now sized. Four forced one-app exceptions, one of
-   them conditional, are listed for his eyes (section 5.2), and the "Later" list stands.
+4. **What still waits on the owner** (section 5.3): his sign-off on the cost of `OD-53`, once
+   `10-panacea-in-app.md` scopes it, with the shapes that replace forced exceptions 2, 3 and 4,
+   which he did not accept (section 5.2); and his own confirmation of call 20's source (`OD-50`).
+   He accepted forced exception 1, the weekly sign-in tab. The rest of section 5.3 is closed:
+   calls 6 to 19 are his own answers, so rows 104 to 109 wait on nothing; cost codes follow
+   Panacea's model; one register with `note` rows; no veto on `OD-48`. The "Later" list stands.
 
 ## 1. The components
 
@@ -187,7 +196,7 @@ and grid, HTML through the markup export; OpenPencil revisited at its 1.0.
 ### 1.5 Work and team (05-work-team-verify §8): 21.5 days
 
 Tasks are created, assigned, worked and closed inside Panacea; ADO Boards and GitHub Issues are
-storage and sync behind it, never opened (`OD-48`, owner veto open for in-app-only tasks).
+storage and sync behind it, never opened (`OD-48`; the owner chose no veto, section 5.3 item 4).
 
 | # | Capability | Phase | Delivered by | Licence | Kind | Glue | Build | Citation |
 |---|---|---|---|---|---|---|---|---|
@@ -208,7 +217,10 @@ storage and sync behind it, never opened (`OD-48`, owner veto open for in-app-on
 ### 1.6 Deploy (06-deploy-verify §2.5, 00-panacea-verify §7): 16.075 days
 
 Shipped apps and preview databases deploy through Panacea into Panacea's subscription and
-resource group, as today (`OD-47`).
+resource group, as today (`OD-47`). **`OD-53` changes this cluster** (section 10): Panacea is
+first-class inside the app, with no external deploy site and no API key. The rows below are the
+plan before it, with Deploy as glue over Panacea's running API, until `10-panacea-in-app.md`
+re-plans them and the owner signs off its cost.
 
 | # | Capability | Phase | Delivered by | Licence | Kind | Glue | Build | Citation |
 |---|---|---|---|---|---|---|---|---|
@@ -253,7 +265,7 @@ AKS. No new subscription is requested.
 | 82 | Our small Keycloak, Keycloak 26 on two replicas, **whose only identity provider is Panacea's realm** (Keycloak-to-Keycloak OIDC): tasks 08 and 29, the realm file's provider block, chained provider hints, `tid`/`oid` pass-through (no `groups`: the ruling's token profile leaves it out), the desktop client (K1), the four audience scopes (K2), the 7-day offline cap and `hub.org_admin`. No Entra change, so no IT request | Platform | Keycloak, keycloak-config-cli | Apache-2.0 | OSS | 2 | | 07-verify 3.11 (2 days, whose IT ask goes); `OD-44`: equal cost |
 | 83 | Keycloak login and error theme in our design system | Cohesion | Keycloakify | MIT | OSS | 0 | | 07-verify §6 C2 (inside row 82) |
 | 84 | One spend line per project (agent spend plus hosted-app spend) | Platform | Ours | ours | Ours | | 0.5 | 07-verify §6 C4 (outside every earlier total) |
-| 105 | **Cost Centre, Job Code and Phase mapped through from day one**, as in Panacea: job code and phase captured at project creation in Define and editable later, optional as Panacea has them (`handlers/project_billing_codes.go:22`), stored in the Hub, sent to Panacea on create (row 65) and on change (`PUT /api/v1/projects/{name}/billing/codes`); the cost centre is the team's, as Panacea keeps it (`handlers/billing.go:104`); whether codes are required, and whether a project may carry its own cost centre, are open owner questions (section 5.3). Carried as **annotations** on sandbox pods, as Panacea carries them on namespaces (free text such as "Ph 2" cannot be a Kubernetes label value), and as tags on gateway keys; our statement in Panacea's shape (project, job code, phase, amount). Panacea's ≤10-character rule and validation reused under `OD-40` | Platform | Ours, on Panacea's pattern | ours | Ours | | 1.75 | `OD-47` (Hub fields and form 0.5, Panacea hand-off and edit 0.35, annotations and key tags 0.4, statement 0.5) |
+| 105 | **Cost Centre, Job Code and Phase mapped through from day one**, as in Panacea: job code and phase captured at project creation in Define and editable later, optional as Panacea has them (`handlers/project_billing_codes.go:22`), stored in the Hub, sent to Panacea on create (row 65) and on change (`PUT /api/v1/projects/{name}/billing/codes`); the cost centre is the team's, as Panacea keeps it (`handlers/billing.go:104`); codes stay optional and the cost centre the team's, which closes section 5.3 item 2 (the orchestrator's reading of *"like we have in Panacea"*, which the owner may override). Carried as **annotations** on sandbox pods, as Panacea carries them on namespaces (free text such as "Ph 2" cannot be a Kubernetes label value), and as tags on gateway keys; our statement in Panacea's shape (project, job code, phase, amount). Panacea's ≤10-character rule and validation reused under `OD-40` | Platform | Ours, on Panacea's pattern | ours | Ours | | 1.75 | `OD-47` (Hub fields and form 0.5, Panacea hand-off and edit 0.35, annotations and key tags 0.4, statement 0.5) |
 | 85 | Code signing for our desktop build | Platform | Azure Artifact Signing; an OV certificate in Key Vault if the entity does not qualify | commercial | Managed | 0 | | 02-verify §8 call 6; call 4 |
 
 ### 1.8 The one-app layer (08-whole-product-verify §7.2, 09-cohesion §7): 17.25 days
@@ -283,9 +295,10 @@ AKS. No new subscription is requested.
 longer a contingency on the hand-off: the hand-off sits in our realm and never reaches Panacea's
 pages (`OD-44`), so the bridge is the only route that could bring Panacea's key page and a
 `protected` preview into the frame before P-3, together with Panacea's `kc_idp_hint=entra` on the
-Portal's and oauth2-proxy's sign-in (section 5.2, forced exception 3); the owner's veto on `OD-48`
-if used (about 4 to 44 days, section 5.3); the upstream ADO task-source pull request (2 days,
-optional, 05-verify §8); the
+Portal's and oauth2-proxy's sign-in (section 5.2, forced exception 3, now superseded by `OD-53`;
+the spike stays as the Windows-native sign-in that may remove the weekly tab, forced exception 1);
+the owner's veto on `OD-48` (about 4 to 44 days), not used (section 5.3); the upstream ADO
+task-source pull request (2 days, optional, 05-verify §8); the
 Tauri Deploy lens (2.3 days, only if IT refuses Orca, 06-verify §2.5); Forge's ship gates as a
 pre-deploy check (1 day, later, 00 §12); the image-bump canary pipeline (not costed, 01 §5 item 5); Hub tasks 25-27 and 36
 (evidence, the change feed, the audit route, the feed poller: 8 plan-hours, about 1 day, outside
@@ -496,7 +509,8 @@ Asked on day 0, by the owner or the build lead, in this order of lead time:
    `external-domain` left unmapped in F4's step-up map on the estates we use (section 5.2, forced
    exception 4); and P-1 to P-3 queued behind the cutover freeze, **P-3 first**, because it
    removes "Connect deploy", a forced exception (section 5.2) (00-verify §7 P5; 06-verify §7 item
-   5; 07-verify §5). **Stall risk:** real users' sign-in now waits on this block, and the plan has
+   5; 07-verify §5). Forced exceptions 3 and 4 are now superseded by `OD-53` (section 10), so
+   which of these asks still stand is `10-panacea-in-app.md`'s to say. **Stall risk:** real users' sign-in now waits on this block, and the plan has
    no fallback for it. 07-verify §8's fallback, our realm brokering Entra with IT's redirect URI
    and second secret filed on day 0, is withdrawn by `OD-44`. The build does not wait, because
    `devissuer` runs the same flow (ruling §10). If the block stalls, that IT request (ruling §9)
@@ -518,8 +532,9 @@ review and X-3; about a day), as the assembly's base. That is sequencing, not an
 
 The owner reviews a clickable prototype of the shell: the bar, the Desk, one Hub page and the
 Develop frame (09 §6; 08-verify §8; `CLAUDE.md` working agreements). Day-1 spikes run beside it:
-the browser route (0.5), the realm hand-off and the Windows bridge on a managed laptop, the
-journey bar on the first Orca pin, and Penpot's headless runner (09 §8; 04-verify §5).
+the browser route (0.5), the realm hand-off and the Windows bridge on a managed laptop (the
+Windows-native sign-in, which may remove forced exception 1's weekly tab), the journey bar on the
+first Orca pin, and Penpot's headless runner (09 §8; 04-verify §5).
 
 ### 3.3 Five builders: what each starts on
 
@@ -564,7 +579,9 @@ and, only if a platform admin arms Panacea's step-up gate, the gated acts on the
 allowed token pastes are the ADO PAT and Connect deploy's key, each on our page. K2 still counts
 any sign-in page inside the frame as a failure: had Connect deploy embedded Panacea's key page,
 as the previous version of this plan had it, K2 would fail at J7 for every new user (section
-5.2, forced exception 3).
+5.2, forced exception 3). **Since the owner's second round (section 10), only the first of these
+exits is accepted.** The other three, and both token pastes, are superseded and being scoped in
+`10-panacea-in-app.md`; the gate's target is the sign-in tab alone.
 
 Other gates: a security review of the agent sharing a sandbox with `orca serve` before any
 customer tenancy (02-verify §8 item 8); a security review of the hand-off authenticator (09 §4.1);
@@ -591,22 +608,26 @@ each stream resumes, not in this change.
 ## 5. Owner calls
 
 **The owner answered every call on 2026-10-01.** Calls 1 to 5 are quoted from the owner's message;
-the rest are quoted as the orchestrator relayed them, and wait on his own confirmation before rows
-104 to 109 are built (section 5.3). The register records each as an `OD`, or in its provisional
-"answered, not gated" list where the answer fails the three-part gate
-(`2026-09-23-owner-decisions.md`, the section after `OD-41`). What remains open is section 5.2's
-forced exceptions, for the owner's eyes, and section 5.3's questions and "Later" list.
+calls 6 to 19 are his own answers of the same day, given through the in-session question form,
+and quoted as he wrote them; rows 104 to 109 wait on nothing. Call 20's source (`OD-50`) stays as
+the register first recorded it until he confirms it himself (section 5.3 item 1). The
+register records each answer as an `OD`, or as a `note` entry in its "answered, not gated" list
+where the answer fails the three-part gate (`2026-09-23-owner-decisions.md`, the section after
+`OD-41`). **His second round, the same day** (section 10), answered sections 5.2 and 5.3: it
+accepts forced exception 1, does not accept 2, 3 and 4, closes section 5.3's questions but call
+20's source, and adds `OD-53`. What remains open is `OD-53`'s shape and cost
+(`10-panacea-in-app.md`), call 20's source, and section 5.3's "Later" list.
 
 ### 5.1 Answered
 
-| # | Call | Answer, in the owner's words (calls 6 to 20 as relayed, 2026-10-01) | Recorded as |
+| # | Call | Answer, in the owner's words (calls 6 to 19 through the in-session question form, 2026-10-01; call 20 as the register first recorded it) | Recorded as |
 |---|---|---|---|
 | 1 | Staffing, and `OD-31`'s four-stream cap | *"Lift it to 5 then."* Five builders; the cap is five. Phase 2's close-out and merge to `main` stays the first build step, as sequencing (section 3.2) | Answered, not gated; amends `OD-31` |
 | 2 | The Azure subscription and its US$2,000 a month ask | *"Don't worry, I will use our existing Panacea subscription, we will just make a seperate resource group."* Our own resource group and our own AKS, not Panacea's AKS, so `OD-5`'s own-environment intent holds; no new subscription | `OD-42` |
 | 3 | The app's name and icon | *"We will continue calling it Panacea. This is the evolved version of Panacea. We can deal with a new logo/icon later."* Rows 19, 20 and 101 updated; the icon does not block; our CLI is not named `panacea`, which Panacea's own CLI already is (row 12) | `OD-43` |
 | 4 | Code signing | *"Sure, do that."* Azure Artifact Signing; an OV certificate in Key Vault if the entity does not qualify | Answered, not gated |
 | 5 | Our own realm for the hand-off | *"Do we need that? Why would we not just piggy back off of Panacea?"* We piggyback: our small Keycloak's only identity provider is Panacea's realm. No Entra change, no IT ticket, one sign-in. Equal cost, 2 days (row 82). Panacea's realm keeps the ruling's K3 and K4's user-profile items (day 0 item 3) | `OD-44`; amends `OD-30` |
-| 6, 6a | Penpot as the canvas; frames as vectors with CSS flex and grid | Accepted: Penpot for v1, MPL-2.0 admitted, HTML through export; OpenPencil revisited at 1.0 | `OD-45`; relaxes `OD-11`, withdraws `OD-34` for v1 |
+| 6, 6a | Penpot as the canvas; frames as vectors with CSS flex and grid | *"Accept Penpot (Recommended)"*: Penpot for v1, MPL-2.0 admitted, HTML through export; OpenPencil revisited at 1.0 | `OD-45`; relaxes `OD-11`, withdraws `OD-34` for v1 |
 | 7 | Penpot's radius and font | Accepted (*"Accept all"*) | Answered, not gated |
 | 8 | The six declared v1 exceptions | Accepted, then re-tested under the restated one-app rule (section 5.2), which wins | `OD-49` |
 | 9 | Define, not Discover; four lenses | Accepted | Answered, not gated |
@@ -615,8 +636,8 @@ forced exceptions, for the owner's eyes, and section 5.3's questions and "Later"
 | 12 | Land from the laptop | Accepted; `OD-6` unchanged | Answered, not gated |
 | 13a | Pilots on the dev estate | Accepted | Answered, not gated |
 | 13 | Who can open a shipped app | Accepted: KPMG network only in v1; previews GitHub-only | Answered, not gated |
-| 14 | Who pays | *"We will use Panaceas Subscription and Resource Group as we currently do. But from day one, we will still need the Cost Centre, Job Code and Phase map through for costing like we have in Panacea"* Row 105, on Panacea's model: optional codes, the team's cost centre. Whether to go further is asked in section 5.3 | `OD-47` |
-| 15 | Work: retire `OD-26`'s tracker; own AU ADO organisation | *"Accept all, except ADO Boards, idk what that means."* Explained: nobody opens ADO Boards; tasks live and are worked inside Panacea, with ADO Boards and GitHub Issues as storage and sync behind it. Recorded on those terms, with the owner's veto open for tasks living only in the app, now sized (section 5.3) | `OD-48` |
+| 14 | Who pays | *"We will use Panaceas Subscription and Resource Group as we currently do. But from day one, we will still need the Cost Centre, Job Code and Phase map through for costing like we have in Panacea"* Row 105, on Panacea's model: optional codes, the team's cost centre. Whether to go further was asked in section 5.3 item 2, and closed on Panacea's model | `OD-47` |
+| 15 | Work: retire `OD-26`'s tracker; own AU ADO organisation | *"Accept all, except ADO Boards, idk what that means."* Explained: nobody opens ADO Boards; tasks live and are worked inside Panacea, with ADO Boards and GitHub Issues as storage and sync behind it. Recorded on those terms. No veto: in the second round the owner chose *"Also in ADO/GitHub (Recommended)"* (section 5.3 item 4) | `OD-48` |
 | 16 | Team mode v1 on the tracker; Panacea's teams | Accepted | `OD-51` |
 | 17 | Inference accounts | *"Give us the option for any. We should have a litellm backing, where I can manage the API endpoints and keys, so I can shuffle them around and no stick to one purely."* Row 104. `OD-19`'s user trigger stays, as a switch between provider classes | `OD-46`; amends `OD-19` |
 | 18 | Define's four items | Accepted | Answered, not gated |
@@ -641,18 +662,22 @@ Every declared exception (09 §7) and every row of section 1 and of 09 §2 was r
 | Production-rung approval on Panacea's Portal (06-verify §6) | **On our Deploy page**, row 109 | 0.5 |
 | Row 53: the first-party Boards and GitHub apps' Teams cards open ADO Boards or GitHub | **Our bot's cards** open the Desk; the first-party apps are not installed | 0.5 |
 | Provider endpoints and keys on LiteLLM's own UI | **The provider page**, row 104 (`OD-46`) | 2.5 |
-| Exception 5: Keycloak's stock error pages | **Closed for our realm**: our Keycloak carries our theme from day one (rows 82-83, `OD-44`). **Panacea's realm pages remain**, in the system browser only: on a Panacea realm error at sign-in (forced exception 1 below), and at Connect deploy once the realm session there has lapsed (forced exception 3) | 0 |
+| Exception 5: Keycloak's stock error pages | **Closed for our realm**: our Keycloak carries our theme from day one (rows 82-83, `OD-44`). **Panacea's realm pages remain**, in the system browser only: on a Panacea realm error at sign-in (forced exception 1 below), and at Connect deploy once the realm session there has lapsed (forced exception 3, now superseded, below) | 0 |
 | Exceptions 3 and 6: Penpot's font and radii; Spec Kit's file paths | **Inside the app already.** They are look and wording, not a step outside; they stay as accepted in calls 7 and 8 | 0 |
 | 09 §2 row 17: Teams | **Passes.** An optional doorway back in; every card's act is also on the Desk, so no one has to use Teams | 0 |
-| 09 §2 rows 13, 15, 16: Panacea's Portal, Keycloak, LiteLLM | **Pass, with the exits named.** Headless and never linked. Rows 107-109 cover the Portal acts traced in Panacea's routes on 2026-10-01 (read for these groups, not exhaustively). What still needs the Portal is listed below: Connect deploy until P-3 (forced exception 3), and step-up-gated acts if a platform admin arms that gate (forced exception 4) | 0 |
+| 09 §2 rows 13, 15, 16: Panacea's Portal, Keycloak, LiteLLM | **Pass, with the exits named.** Headless and never linked. Rows 107-109 cover the Portal acts traced in Panacea's routes on 2026-10-01 (read for these groups, not exhaustively). What still needs the Portal is listed below: Connect deploy until P-3 (forced exception 3), and step-up-gated acts if a platform admin arms that gate (forced exception 4); both are now superseded (below) | 0 |
 
 Every other row of section 1 is headless behind our screens, embedded in our frame, or
 infrastructure with no user act (rows 1-9, 35, 56, 59, 67, 78-80).
 
 **Kept, because they are technically forced. For the owner's eyes** (numbered here as forced
-exceptions 1 to 4; 09 §7's own numbering is used only in the table above):
+exceptions 1 to 4; 09 §7's own numbering is used only in the table above). **The owner answered
+them on 2026-10-01, second round (section 10): he accepted 1 and did not accept 2, 3 and 4.**
 
-1. **The sign-in, in the system browser: on first run, and again at least once a week.** One tab
+1. **The sign-in, in the system browser: on first run, and again at least once a week.**
+   **Accepted by the owner** (2026-10-01, second round, through the in-session question form):
+   *"Accept weekly tab (Recommended)"*. The day-1 Windows-native sign-in spike (the Windows sign-in
+   bridge, section 3.2, 09 §4.2) stays, and may remove the tab if it passes. One tab
    each time, zero clicks, showing our own "you can close this tab" page after Entra signs in
    silently. The weekly tab is the ruling's 7-day cap on the desktop client's offline session,
    which cuts a leaver off within a week: when the silent refresh fails, the zero-click flow
@@ -666,13 +691,22 @@ exceptions 1 to 4; 09 §7's own numbering is used only in the table above):
    needs Keycloak's external-to-internal token exchange across two realms, a preview feature, and
    is not taken. If Panacea's realm errors during that sign-in, its stock page shows in the tab.
 2. **An Azure DevOps personal access token, pasted once per person** (and on renewal), for ADO
-   projects. The paste is in-app, on our page, with the scopes named and the expiry warned; the
+   projects. **Superseded by the owner's answers of 2026-10-01 (second round), being scoped in
+   `docs/superpowers/planning/2026-09-30-assemble/10-panacea-in-app.md`.** Owner: *"Instead, could
+   we build in an authenticator, because people would authenticate through EntraID, could we have
+   them SSO into Github or ADO, and that automatically connect?"* As it stood: the paste is in-app, on our page, with the scopes named and the expiry warned; the
    token is created on Azure DevOps' own page. **Why forced:** Microsoft lets a PAT be created only
    there, or through its API with a user-delegated Entra token for Azure DevOps, which needs
    consent on the Entra registration: the IT ticket that `OD-30` and `OD-44` avoid. **Closes if**
    the owner asks IT for that consent; an in-app token flow is then about 1 day (not in the total).
 3. **"Connect deploy", in the system browser, until Panacea's P-3: once per person and at each
-   renewal** (a Panacea key lasts 90 days by default, 365 at most, 00-verify §2 row 5). Our app
+   renewal** (a Panacea key lasts 90 days by default, 365 at most, 00-verify §2 row 5).
+   **Superseded by the owner's answers of 2026-10-01 (second round), being scoped in
+   `docs/superpowers/planning/2026-09-30-assemble/10-panacea-in-app.md`** (`OD-53`). Owner: *"Huh,
+   maybe you have the wrong idea. I want Panacea to be ingrained into this. I do not want Panacea
+   to be this external site that is used for Deployments. I want it to be first classed, inside
+   the app, so everything is done within the app. No API key, nothing. We will build our own
+   Panacea as a part of this."* As it stood: our app
    opens Panacea's key page in the system browser; the person mints a key there, copies it, and
    pastes it on our page, which validates it, shows its expiry and warns before it lapses. **Why
    forced, and why outside the frame:** Panacea's API accepts only its own pasted key today and
@@ -690,7 +724,11 @@ exceptions 1 to 4; 09 §7's own numbering is used only in the table above):
    `kc_idp_hint=entra` on the Portal's sign-in (a Panacea change; whether config or code was not
    traced).
 4. **Step-up-gated acts on the Portal, only if a platform admin arms Panacea's step-up gate.**
-   Panacea's F4 gate refuses every API-token caller on an action mapped to an authentication
+   **Superseded by the owner's answers of 2026-10-01 (second round), being scoped in
+   `docs/superpowers/planning/2026-09-30-assemble/10-panacea-in-app.md`** (`OD-53`). Owner, in the
+   same answer as exception 3: *"I do not want Panacea to be this external site that is used for
+   Deployments. I want it to be first classed, inside the app, so everything is done within the
+   app."* As it stood: Panacea's F4 gate refuses every API-token caller on an action mapped to an authentication
    context: "needs a fresh sign in, which an API token cannot provide. Run this action while
    signed in to the portal" (`handlers/stepup.go:205-213`, `:271`). The mappable actions include
    `prod-deploy` (a production ship, `handlers/projects.go:2927`), `serve-without-sso` (SSO
@@ -707,35 +745,45 @@ exceptions 1 to 4; 09 §7's own numbering is used only in the table above):
 
 ### 5.3 Still open
 
-**Questions for the owner, each with a recommendation:**
+**Questions for the owner, as asked, and how his second round (2026-10-01, section 10) closed
+them.** Items 2 and 3 were closed by the orchestrator's rulings, which the owner may override.
 
-1. **Confirm calls 6 to 20 in your own words.** They reached this plan as the orchestrator relayed
-   them; only calls 1 to 5 were read from your message. They carry rows 104 to 109 (about 14
-   days, rows 104 and 105 on the first app's path) and `OD-45` to `OD-52`. *Recommended:* one line
-   confirming them, or naming any that was relayed wrong. Rows 104 to 109 are not built before it.
+1. **Confirm calls 6 to 20 in your own words.** **Closed for every call but 20.** Calls 6 to 19
+   are his own answers, given through the in-session question form earlier on 2026-10-01,
+   and quoted as he wrote them: Penpot, *"Accept Penpot (Recommended)"*; inference, *"Give us the
+   option for any. We should have a litellm backing, where I can manage the API endpoints and keys,
+   so I can shuffle them around and no stick to one purely."*; who pays, *"We will use Panaceas
+   Subscription and Resource Group as we currently do. But from day one, we will still need the
+   Cost Centre, Job Code and Phase map through for costing like we have in Panacea"*; and the
+   rest of calls 6 to 19, *"Accept all, except ADO Boards, idk what that means. but remember that
+   I want as much of it to be in app and feel like it is all in app, never does it feel seperate,
+   or needing to go outside to do anything. Okay?"* Rows 104 to 109 (104 and 105 on the first
+   app's path) wait on nothing. **Still open: call 20's source** (`OD-50`, how far `OD-40`'s
+   copying reaches), which keeps the register's first tag until he confirms it himself.
 2. **Cost codes: required, and per project?** You asked for Cost Centre, Job Code and Phase to
    *"map through for costing like we have in Panacea"*. In Panacea the job code and phase are
    optional, and the cost centre is the team's (`handlers/project_billing_codes.go:22`,
-   `handlers/billing.go:104`). Making them required adds a step on the way from nothing to an app;
-   a project-level cost centre is also a change to Panacea's billing model, a Panacea ask.
-   *Recommended:* Panacea's model for v1 (optional codes, the team's cost centre), which row 105
-   builds; no Panacea ask until you say otherwise.
-3. **Where an answer that fails the register's gate is recorded.** Asked on 2026-09-28 and still
-   open (`2026-09-25-owner-questions-pending.md`, the register-work item): (a) every answer an
-   `OD`, the audit naming the notes; (b) a failing answer goes into the plan it governs, with no
-   number; (c) one register with a `note` marker on the row. The register's "answered, not gated"
-   list is provisional until you choose. *Recommended* (the 2026-09-28 write-up made none, as it is
-   your record): (c), which keeps one store and is closest to what the list already does.
-4. **The veto on `OD-48`, now sized:** tasks living only in the app, the Hub's records as the
-   store, the trackers as optional sync. From about 4 days for a minimal task record kind with
-   create, assign, state and close on the Work page (this file's estimate, on row 29's record kind
-   and row 50's page), up to about 44 days if it grows into Phase W's tracker (127 of its 190
-   tasks, of about 66 focused days, `05-work-team.md:142`, `:176`). Used, `OD-48`'s retirement of
-   `OD-35` for Phase W lapses: no tracker would absorb those tasks, so `OD-35`'s "build the full
-   plan" would bring Phase W back unless you also cut it. Not in the total. *Recommended:* no
-   veto: teams already on ADO Boards and GitHub Issues see the same tasks, and nobody opens either.
-5. **The four forced exceptions of section 5.2.** *Recommended:* accept them, with P-3 first in
-   Panacea's queue, because it removes forced exception 3 and opens one route to closing 4.
+   `handlers/billing.go:104`). **Closed: Panacea's model** (optional job code and phase, the cost
+   centre from the team), which row 105 builds, and no Panacea ask. It is the orchestrator's
+   reading of *"like we have in Panacea"*, a ruling the owner may override.
+3. **Where an answer that fails the register's gate is recorded.** Asked on 2026-09-28
+   (`2026-09-25-owner-questions-pending.md`, the register-work item): (a) every answer an `OD`,
+   the audit naming the notes; (b) a failing answer goes into the plan it governs, with no number;
+   (c) one register with a `note` marker on the row. **Closed: (c)**, the orchestrator's
+   bookkeeping ruling, which the owner may override. The register's "answered, not gated" list is
+   final in that form.
+4. **The veto on `OD-48`:** tasks living only in the app, the Hub's records as the store, the
+   trackers as optional sync, from about 4 days (this file's estimate) up to about 44 if it grew
+   into Phase W's tracker (`05-work-team.md:142`, `:176`). **Closed: no veto.** Asked whether tasks also live in ADO and GitHub, the owner chose
+   *"Also in ADO/GitHub (Recommended)"*. `OD-48`'s retirement of `OD-35` for Phase W stands
+   unconditionally, and those days are not spent.
+5. **The four forced exceptions of section 5.2.** **Answered.** Exception 1, the weekly sign-in
+   tab, accepted (*"Accept weekly tab (Recommended)"*), with the day-1 Windows-native sign-in spike
+   kept. Exceptions 2, 3 and 4 not accepted: superseded by the owner's answers of 2026-10-01
+   (second round), being scoped in `10-panacea-in-app.md` (section 10).
+
+**Open:** `OD-53`'s technical shape and its cost, and the Azure DevOps authenticator's, both in
+`10-panacea-in-app.md`, for the owner's sign-off on the cost; and call 20's source (item 1).
 
 **Later: before the first customer, not before the first app.** Penpot Enterprise quote (from
 US$950 a month) and its open-core admin console (04-verify §5 calls A-B); licence treatment of
@@ -780,13 +828,15 @@ asks (04-design §7); the new icon (`OD-43`).
   policy on the Kata pool are not checked, nor is the scope of any blocking assignment. If it is a
   management group's, the exemption is KPMG cloud governance's ask (day 0 item 1); that exempting
   needs rights at the assignment's scope is from knowledge.
-- **Panacea's step-up map** (forced exception 4): whether `step_up_auth_contexts` maps
+- **Panacea's step-up map** (forced exception 4, now superseded by `OD-53`): whether `step_up_auth_contexts` maps
   `prod-deploy`, `serve-without-sso` or `external-domain` on the estates we use is runtime data,
   not read.
 - **LiteLLM's `count_tokens` defect** (row 104): that the pinned LiteLLM still carries #31149 and
   #42073 is assumed from `OD-33` (verified open on 2026-09-28), not re-checked.
-- **The owner's words for calls 6 to 20** are quoted as relayed to the agent that wrote this
-  version, not read from the owner's own message, and wait on his confirmation (section 5.3).
+- **Call 20's source** (`OD-50`, how far `OD-40`'s copying reaches) is still as the register
+  first recorded it, not confirmed by the owner himself (section 5.3 item 1).
+- **`OD-53`'s shape and cost** (section 10) are not scoped. No figure in this file carries them,
+  and the Deploy rows (section 1.6) are the plan before it.
 - **Our CLI's name** (row 12): only that it must not be `panacea` is settled; the name itself is
   row 12's to pick. No user needs to type it: the app, the recipe and the sandbox call it.
 - **Every visual claim** waits on K14, the owner's eyes (`OD-12`). Headless screenshots are
@@ -800,7 +850,7 @@ asks (04-design §7); the new icon (`OD-43`).
   re-read at `01-sandboxes-verify.md` §7, `02-fleet-cockpit-verify.md` §6-8,
   `06-deploy-verify.md` §2.5, `07-platform-verify.md` §5, `00-panacea-verify.md` §7,
   `08-whole-product-verify.md` §6-7, `09-cohesion.md` §0-7.
-- **The register:** `docs/superpowers/planning/2026-09-23-owner-decisions.md`, `OD-1` to `OD-52`.
+- **The register:** `docs/superpowers/planning/2026-09-23-owner-decisions.md`, `OD-1` to `OD-53`.
 - **Panacea's source, read 2026-10-01** (`Projects/Panacea/services/panacea-api`):
   `handlers/project_billing_codes.go`, `handlers/projects.go:606-629` and `:2894-2927`,
   `models/models.go:652-660`, `clients/kubernetes.go:84-88` and `:2337-2358`,
@@ -876,3 +926,30 @@ Each finding was checked at source before it was applied. The total moves from 1
 - **The Windows bridge as the planned path for Panacea's pages.** On its own it still shows
   Panacea's Keycloak page in the frame without a Panacea change, and it is from knowledge, not
   verified. It stays a day-1 spike that can bring Connect deploy into the frame.
+
+## 10. The owner's second round (2026-10-01)
+
+The owner answered sections 5.2 and 5.3 himself, later the same day, through the in-session
+question form. His words, verbatim:
+
+| Question | The owner's answer | Applied |
+|---|---|---|
+| Connect deploy and Panacea's P-3 (forced exception 3) | *"Huh, maybe you have the wrong idea. I want Panacea to be ingrained into this. I do not want Panacea to be this external site that is used for Deployments. I want it to be first classed, inside the app, so everything is done within the app. No API key, nothing. We will build our own Panacea as a part of this."* | `OD-53`. Forced exceptions 3 and 4 superseded (section 5.2), being scoped in `10-panacea-in-app.md` |
+| The Azure DevOps personal access token, or IT's consent (forced exception 2) | *"Instead, could we build in an authenticator, because people would authenticate through EntraID, could we have them SSO into Github or ADO, and that automatically connect?"* | Forced exception 2 superseded, being scoped in `10-panacea-in-app.md`; not yet an `OD` |
+| Tasks also in ADO and GitHub? (section 5.3 item 4) | Chose *"Also in ADO/GitHub (Recommended)"* | No veto on `OD-48`: its retirement of `OD-35` for Phase W stands unconditionally |
+| The weekly zero-click sign-in tab (forced exception 1) | Chose *"Accept weekly tab (Recommended)"* | Accepted; the day-1 Windows-native sign-in spike stays (section 3.2) and may remove the tab |
+
+**The orchestrator's rulings, which the owner may override.** Section 5.3 item 2, cost codes:
+Panacea's model, the reading of *"like we have in Panacea"*: job code and phase optional, the cost
+centre from the team; row 105 is unchanged. Section 5.3 item 3, the register: option (c), one
+register with a `note` marker on the row; its "answered, not gated" list is final in that form.
+
+**A source corrected.** Calls 6 to 19 are the owner's own answers, given through the in-session
+question form earlier the same day, and this file, the register and `CONTEXT.md` now say so; rows
+104 to 109 wait on nothing. Call 20's source (`OD-50`) stays as the register first recorded it
+until the owner confirms it himself (section 5.3 item 1).
+
+**What this round does not change yet.** Every figure in sections 0 to 3 is the plan before
+`OD-53`. What it does to the Deploy rows (57 to 73, 107 and 109), to day 0 item 3's Panacea asks,
+to K2 and K3 and to the totals is pending `10-panacea-in-app.md` and the owner's sign-off on its
+cost. The register records `OD-53` and this round in its last section.
