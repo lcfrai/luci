@@ -1060,3 +1060,25 @@ func TestCloseClosesTheDockerClient(t *testing.T) {
 func TestBackendSatisfiesTheBackendInterface(t *testing.T) {
 	var _ backend.Backend = (*dockerbe.Backend)(nil)
 }
+
+// A machine mount is a sub-path of a cloud machine's disk, which a local
+// Docker daemon has no access to. Silently ignoring the field would start the
+// agent in an empty directory with no error anywhere — the same failure
+// katabe's mount refusal exists to prevent, from the other side.
+func TestCreateRejectsMachineMounts(t *testing.T) {
+	f := &fakeDocker{createID: "c0ffeecafe"}
+	b := newBackend(t, f)
+	spec := validSpec()
+	spec.Machine = "m-0123abcd"
+	spec.MachineMounts = []backend.MachineMount{{
+		MachinePath:   "lanes/p-1/w-2",
+		ContainerPath: "/home/dev/work",
+	}}
+
+	if _, err := b.Create(context.Background(), spec); !errors.Is(err, backend.ErrUnsupported) {
+		t.Fatalf("Create(with machine mounts) = %v, want an error wrapping ErrUnsupported", err)
+	}
+	if len(f.snapshotCreates()) != 0 {
+		t.Errorf("ContainerCreate was called despite a machine mount dockerbe cannot honour")
+	}
+}

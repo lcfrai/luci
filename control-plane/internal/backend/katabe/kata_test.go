@@ -223,14 +223,71 @@ func TestCreateRejectsMountsAndCreatesNoPod(t *testing.T) {
 	}
 }
 
-// sandbox.Spec carries no working directory, so honouring WorkDir is not
-// possible and ignoring it is a wrong-directory bug with no error anywhere.
-func TestCreateRejectsAWorkDir(t *testing.T) {
-	b := newBackend(t, fake.NewSimpleClientset(), 0, time.Second)
+// S8.3's Kata half: sandbox.Spec now carries a working directory, so WorkDir
+// is honoured instead of refused. Ignoring it would start the agent in the
+// image default (/home/dev) — a wrong-directory bug with no error anywhere.
+func TestCreateSetsTheWorkingDirectory(t *testing.T) {
 	spec := validSpec()
-	spec.WorkDir = "/work/panacea"
-	if _, err := b.Create(context.Background(), spec); !errors.Is(err, backend.ErrUnsupported) {
-		t.Fatalf("Create(with WorkDir) = %v, want an error wrapping ErrUnsupported", err)
+	spec.WorkDir = "/home/dev/work"
+
+	_, client, _, sb := runningSandbox(t, spec)
+
+	pod, err := client.CoreV1().Pods(namespace).Get(context.Background(), sb.Ref, metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Get %s: %v", sb.Ref, err)
+	}
+	if got := pod.Spec.Containers[0].WorkingDir; got != spec.WorkDir {
+		t.Fatalf("container workingDir = %q, want %q: katabe dropped Spec.WorkDir", got, spec.WorkDir)
+	}
+}
+
+// The machine mounts must reach the pod as sub-paths of the machine claim. A
+// katabe that accepted the field and dropped it would hand the agent an empty
+// worktree, which is exactly what the host-mount refusal exists to prevent.
+func TestCreatePassesMachineMountsThrough(t *testing.T) {
+	const owner = "0123456789abcdef0123456789abcdef"
+	client := fake.NewSimpleClientset()
+	b, err := katabe.New(katabe.Config{
+		Manager:      sandbox.NewManager(client, sandbox.Config{Namespace: namespace}),
+		ReadyTimeout: time.Millisecond,
+		Owner:        owner,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	t.Cleanup(func() { _ = b.Close() })
+
+	spec := validSpec()
+	spec.Machine = "m-0123abcd"
+	spec.MachineMounts = []backend.MachineMount{
+		{MachinePath: "lanes/p-1/w-2", ContainerPath: "/home/dev/work"},
+		{MachinePath: "conversations/p-1/w-2", ContainerPath: "/home/dev/.claude/projects", ReadOnly: true},
+	}
+
+	// The readiness wait cannot pass against a fake clientset that never runs
+	// the pod; Create leaves the pod in place for the reaper, which is what
+	// this test reads.
+	if _, err := b.Create(context.Background(), spec); err == nil {
+		t.Fatal("Create returned nil against a pod that never became Running")
+	}
+
+	pod, err := client.CoreV1().Pods(namespace).Get(context.Background(), sandbox.PodName(owner, spec.ID), metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Get %s: %v", sandbox.PodName(owner, spec.ID), err)
+	}
+	for _, want := range spec.MachineMounts {
+		found := false
+		for _, vm := range pod.Spec.Containers[0].VolumeMounts {
+			if vm.MountPath == want.ContainerPath {
+				found = true
+				if vm.SubPath != want.MachinePath || vm.ReadOnly != want.ReadOnly {
+					t.Errorf("mount at %s = subPath %q readOnly %v, want %q / %v", want.ContainerPath, vm.SubPath, vm.ReadOnly, want.MachinePath, want.ReadOnly)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("no volumeMount at %s: katabe dropped Spec.MachineMounts", want.ContainerPath)
+		}
 	}
 }
 

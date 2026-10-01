@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -75,6 +76,7 @@ const (
 	KubeLabelSessionID = "panacea-app/session-id"
 	KubeLabelComponent = "panacea-app/component" // "sandbox" (a session, this package), "machine" (task 19), "balloon" (task 12's chart)
 	KubeLabelOwner     = "panacea-app/owner"     // OwnerLabelValue(tid, oid); absent on the laptop
+	KubeLabelMachineID = "panacea-app/machine-id" // Spec.Machine; on session pods and, task 19, machine pods
 )
 
 // Kind names a backend implementation. It is persisted in the registry and
@@ -129,11 +131,31 @@ func (r Resources) KubeMemory() string { return strconv.Itoa(r.MemoryMiB) + "Mi"
 // and, when the operator set PANACEA_APP_CA_BUNDLE, the extra root certificates
 // a TLS-intercepting network needs, read-only. Kata ignores Mounts and returns
 // ErrUnsupported if any are set, because a host path on an AKS node is
-// meaningless — which makes the conversation store and the CA bundle two more
-// things Phase 8 must provide another way (contract §2.6).
+// meaningless (contract §2.6).
+//
+// MachineMount is the other way Phase 8 provides: the worktree and the
+// conversation store arrive as sub-paths of the machine's own disk, which
+// outlives the pod. The CA bundle is not a machine mount — it belongs to the
+// cluster, not to a user's disk — and is still open (task 32).
 type Mount struct {
 	HostPath      string
 	ContainerPath string
+	ReadOnly      bool
+}
+
+// MachineMount is a path on the sandbox's machine disk exposed inside the
+// sandbox. It is the cloud machine's answer to Mount: a Mount names a host
+// path, which on an AKS node is meaningless (katabe refuses it); a MachineMount
+// names a path relative to the root of the disk the machine owns (P8-D6), which
+// the pod mounts as a sub-path of that machine's claim.
+//
+// The two are never mixed in one Spec: a sandbox runs on exactly one machine.
+type MachineMount struct {
+	// MachinePath is slash-separated and relative to the machine disk's root:
+	// clean (path.Clean(p) == p), not ".", no ".." segment, no leading "/", and
+	// only [A-Za-z0-9._/-]. e.g. "lanes/p-1a2b3c4d/w-5e6f7a8b".
+	MachinePath   string
+	ContainerPath string // absolute container path, e.g. "/home/dev/work"
 	ReadOnly      bool
 }
 
@@ -150,6 +172,9 @@ type Spec struct {
 	Resources   Resources
 	WorkDir     string  // container-side working directory, "" leaves the image default
 	Mounts      []Mount // docker only
+
+	Machine       string         // the cloud machine this sandbox runs on, ^m-[0-9a-f]{8}$; "" on the local machine
+	MachineMounts []MachineMount // requires Machine; kata only
 }
 
 // EnvEntry is one environment variable, in order.
@@ -251,6 +276,74 @@ func ValidateSpec(spec Spec) error {
 		if !filepath.IsAbs(m.HostPath) {
 			return fmt.Errorf("spec.Mounts[%d].HostPath %q is not an absolute host path: %w", i, m.HostPath, ErrUnsupported)
 		}
+	}
+	return validateMachine(spec)
+}
+
+// machineIDPattern is the machine id a claim name is built from. Anything else
+// would put caller-chosen text into a PersistentVolumeClaim name.
+var machineIDPattern = regexp.MustCompile(`^m-[0-9a-f]{8}$`)
+
+// machinePathChars is the alphabet of a MachinePath. It is deliberately narrow:
+// a sub-path goes into a pod spec, and the shell-ish characters nobody needs in
+// a lane directory are the ones worth never having to reason about.
+var machinePathChars = regexp.MustCompile(`^[A-Za-z0-9._/-]+$`)
+
+// projectsSegment is the first segment no sandbox may mount: R4.1.
+const projectsSegment = "projects"
+
+// validateMachine is ValidateSpec's machine half. It runs on the laptop and in
+// the broker (task-18), which answers 400 bad_request, so neither side can
+// build a pod that mounts what R4.1 forbids.
+func validateMachine(spec Spec) error {
+	if spec.Machine != "" && !machineIDPattern.MatchString(spec.Machine) {
+		return fmt.Errorf("spec.Machine %q must match ^m-[0-9a-f]{8}$: it becomes a PersistentVolumeClaim name: %w", spec.Machine, ErrUnsupported)
+	}
+	if len(spec.MachineMounts) > 0 && spec.Machine == "" {
+		return fmt.Errorf("spec.MachineMounts requires spec.Machine: there is no disk to take a sub-path of: %w", ErrUnsupported)
+	}
+	if len(spec.Mounts) > 0 && len(spec.MachineMounts) > 0 {
+		return fmt.Errorf("spec.Mounts and spec.MachineMounts are both set: a sandbox runs on exactly one machine: %w", ErrUnsupported)
+	}
+	for i, m := range spec.MachineMounts {
+		if err := validateMachinePath(i, m.MachinePath); err != nil {
+			return err
+		}
+		if !strings.HasPrefix(m.ContainerPath, "/") {
+			return fmt.Errorf("spec.MachineMounts[%d].ContainerPath %q is not an absolute container path: %w", i, m.ContainerPath, ErrUnsupported)
+		}
+	}
+	return nil
+}
+
+// validateMachinePath rejects anything that is not a plain, relative, clean
+// sub-path of the machine disk, and then rejects the one clean sub-path that
+// is forbidden by policy rather than by shape.
+//
+// ".." is the whole attack: a sub-path that climbs out reaches another lane,
+// another project, or the machine agent's own state. path.Clean catches the
+// interior forms ("a/../b" cleans to "b"); the segment scan catches the leading
+// ones, which Clean leaves alone.
+func validateMachinePath(i int, p string) error {
+	const rules = `clean, relative, no ".." segment, and only [A-Za-z0-9._/-]`
+	if p == "" || p == "." || strings.HasPrefix(p, "/") || path.Clean(p) != p {
+		return fmt.Errorf("spec.MachineMounts[%d].MachinePath %q must be %s: %w", i, p, rules, ErrUnsupported)
+	}
+	if !machinePathChars.MatchString(p) {
+		return fmt.Errorf("spec.MachineMounts[%d].MachinePath %q must be %s: %w", i, p, rules, ErrUnsupported)
+	}
+	segments := strings.Split(p, "/")
+	for _, s := range segments {
+		if s == ".." {
+			return fmt.Errorf("spec.MachineMounts[%d].MachinePath %q must be %s: %w", i, p, rules, ErrUnsupported)
+		}
+	}
+	// R4.1: no sandbox mounts a project repository, because the host runs git
+	// in it. The first segment is compared whole, so "projectsx/a" is a
+	// perfectly ordinary directory and "lanes/p-1/projects" is not a project
+	// tree either — only the top-level "projects" is.
+	if segments[0] == projectsSegment {
+		return fmt.Errorf("spec.MachineMounts[%d].MachinePath %q is under %q: no sandbox mounts a project repository (R4.1): %w", i, p, projectsSegment, ErrUnsupported)
 	}
 	return nil
 }

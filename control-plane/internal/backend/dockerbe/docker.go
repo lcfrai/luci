@@ -147,6 +147,12 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 	if err := backend.ValidateSpec(spec); err != nil {
 		return backend.Sandbox{}, err
 	}
+	// A machine mount is a sub-path of a cloud machine's disk, which a local
+	// daemon cannot reach. Ignoring the field would start the agent in an empty
+	// directory with no error anywhere — the mirror of katabe's mount refusal.
+	if len(spec.MachineMounts) > 0 || spec.Machine != "" {
+		return backend.Sandbox{}, fmt.Errorf("dockerbe: sandbox %q is on machine %q with %d machine mount(s), which a local Docker daemon has no disk for: %w", spec.ID, spec.Machine, len(spec.MachineMounts), backend.ErrUnsupported)
+	}
 	name := namePrefix + spec.ID
 
 	// A name collision is how ErrAlreadyExists is detected: inspect the name

@@ -3,6 +3,7 @@ package backend_test
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
@@ -202,6 +203,100 @@ func TestSentinelErrorsAreDistinct(t *testing.T) {
 			if i != j && errors.Is(a, b) {
 				t.Errorf("sentinel %d and %d are not distinguishable: %v / %v", i, j, a, b)
 			}
+		}
+	}
+}
+
+// machineSpec is validSpec on a cloud machine with one worktree mount.
+func machineSpec() backend.Spec {
+	s := validSpec()
+	s.Machine = "m-0123abcd"
+	s.MachineMounts = []backend.MachineMount{{
+		MachinePath:   "lanes/p-1/w-2",
+		ContainerPath: "/home/dev/work",
+	}}
+	return s
+}
+
+// A machine mount is the cloud answer to Mount, so the validator that refuses
+// every host path must not refuse this too.
+func TestValidateSpecAcceptsAMachineMount(t *testing.T) {
+	if err := backend.ValidateSpec(machineSpec()); err != nil {
+		t.Fatalf("ValidateSpec(machine mount) = %v, want nil", err)
+	}
+}
+
+// Mounts of an unnamed disk: without a machine there is no claim to take the
+// sub-path of, so the pod would reference a PersistentVolumeClaim named after
+// the empty string.
+func TestValidateSpecRejectsMachineMountsWithoutAMachine(t *testing.T) {
+	spec := machineSpec()
+	spec.Machine = ""
+	if err := backend.ValidateSpec(spec); !errors.Is(err, backend.ErrUnsupported) {
+		t.Fatalf("ValidateSpec(mounts, no machine) = %v, want an error wrapping ErrUnsupported", err)
+	}
+}
+
+// ".." is the whole attack: a sub-path that climbs out of the owner's disk
+// reads another lane, another project, or the machine agent's own state.
+func TestValidateSpecRejectsEscapingMachinePaths(t *testing.T) {
+	for _, p := range []string{"../x", "a/../b", "/abs", ".", "a//b", "a/", "a b", ""} {
+		spec := machineSpec()
+		spec.MachineMounts[0].MachinePath = p
+		if err := backend.ValidateSpec(spec); !errors.Is(err, backend.ErrUnsupported) {
+			t.Errorf("ValidateSpec(MachinePath %q) = %v, want an error wrapping ErrUnsupported", p, err)
+		}
+	}
+}
+
+// A sandbox runs on exactly one machine. A Spec carrying both kinds of mount
+// is a sandbox "on two machines", and whichever backend received it would
+// honour one kind and silently drop the other.
+func TestValidateSpecRejectsHostAndMachineMountsTogether(t *testing.T) {
+	spec := machineSpec()
+	spec.Mounts = []backend.Mount{{HostPath: "/srv/worktree", ContainerPath: "/home/dev/work"}}
+	if err := backend.ValidateSpec(spec); !errors.Is(err, backend.ErrUnsupported) {
+		t.Fatalf("ValidateSpec(host and machine mounts) = %v, want an error wrapping ErrUnsupported", err)
+	}
+}
+
+// The machine id becomes a PersistentVolumeClaim name. Arbitrary text there is
+// a claim name nobody chose, at best not found and at worst somebody else's.
+func TestValidateSpecRejectsABadMachineID(t *testing.T) {
+	for _, id := range []string{"M-XYZ", "m-0123ABCD", "m-0123abc", "machine-1", "m-0123abcd/x"} {
+		spec := machineSpec()
+		spec.Machine = id
+		if err := backend.ValidateSpec(spec); !errors.Is(err, backend.ErrUnsupported) {
+			t.Errorf("ValidateSpec(Machine %q) = %v, want an error wrapping ErrUnsupported", id, err)
+		}
+	}
+}
+
+// R4.1 (phase 3 orchestrator-rulings.md; env R4 ruling 1): no sandbox mounts a
+// project repository, because the host runs git in it. ValidateSpec runs on the
+// laptop and in the broker, so neither side can build a pod that mounts one.
+//
+// The first segment is compared whole: a prefix match would refuse
+// "projectsx/a", and a check on the last segment would let "projects" through
+// while refusing the perfectly ordinary "lanes/p-1/projects".
+func TestValidateSpecRefusesAProjectMount(t *testing.T) {
+	for _, p := range []string{"projects", "projects/app", "projects/app/src"} {
+		spec := machineSpec()
+		spec.MachineMounts[0].MachinePath = p
+		err := backend.ValidateSpec(spec)
+		if !errors.Is(err, backend.ErrUnsupported) {
+			t.Errorf("ValidateSpec(MachinePath %q) = %v, want an error wrapping ErrUnsupported", p, err)
+			continue
+		}
+		if !strings.Contains(err.Error(), "R4.1") {
+			t.Errorf("ValidateSpec(MachinePath %q) = %v, want the message to name R4.1 so the reader can find the ruling", p, err)
+		}
+	}
+	for _, p := range []string{"projectsx/a", "lanes/p-1/projects"} {
+		spec := machineSpec()
+		spec.MachineMounts[0].MachinePath = p
+		if err := backend.ValidateSpec(spec); err != nil {
+			t.Errorf("ValidateSpec(MachinePath %q) = %v, want nil: only a whole first segment %q is a project repository", p, err, "projects")
 		}
 	}
 }
