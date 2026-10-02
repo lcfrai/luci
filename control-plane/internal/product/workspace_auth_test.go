@@ -77,11 +77,22 @@ func TestWorkspaceSignsIntoRealRemoteGatewayAndPinsCredential(t *testing.T) {
 	if strings.Contains(string(data), "remote-password") {
 		t.Fatal("Password was persisted")
 	}
+	// Remote expiry must not expire the desktop's independent local account.
+	for _, credential := range saved {
+		if err := remoteWorkspaceAPI(context.Background(), remote.URL, "POST", "/v1/auth/logout", credential.Token, map[string]string{}, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w = httptest.NewRecorder()
+	proxy.ServeHTTP(w, req)
+	if w.Code != 409 || !strings.Contains(w.Body.String(), "backing_sign_in_required") {
+		t.Fatalf("Expired backing must leave local Settings reachable: %d %s", w.Code, w.Body.String())
+	}
 	// A new SSH identity/host key cannot reuse the saved remote session.
 	s.mu.Lock()
 	tunnel.KnownHost += "changed"
 	s.mu.Unlock()
-	journeyRequest(t, proxy, "GET", "/v1/projects", nil, 401)
+	journeyRequest(t, proxy, "GET", "/v1/projects", nil, 409)
 }
 
 func TestRemoteWorkspaceCredentialsRejectUntrustedAddressAndRedirect(t *testing.T) {

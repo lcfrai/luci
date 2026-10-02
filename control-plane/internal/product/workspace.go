@@ -526,7 +526,7 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 			return
 		}
 		if token == "" {
-			problem(w, 401, "backing_sign_in_required", "Sign in to the selected backing in Settings.")
+			problem(w, 409, "backing_sign_in_required", "Sign in to the selected backing in Settings.")
 			return
 		}
 		if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
@@ -534,7 +534,7 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 				Ticket string `json:"ticket"`
 			}
 			if err := remoteWorkspaceAPI(r.Context(), address, "POST", "/v1/auth/socket-ticket", token, map[string]string{"path": path}, &ticket); err != nil || ticket.Ticket == "" {
-				problem(w, 401, "backing_sign_in_required", "Reconnect and sign in to this backing before opening a session.")
+				problem(w, 409, "backing_sign_in_required", "Reconnect and sign in to this backing before opening a session.")
 				return
 			}
 			clone := r.Clone(r.Context())
@@ -583,6 +583,21 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 			r.ContentLength = int64(len(data))
 		}
 		proxy.ModifyResponse = func(res *http.Response) error {
+			// The desktop still has a valid local session. A remote account
+			// expiry must leave Settings reachable rather than logging it out.
+			if res.StatusCode == http.StatusUnauthorized {
+				res.Body.Close()
+				data, _ := json.Marshal(map[string]string{"error": "backing_sign_in_required", "message": "Sign in to the selected backing in Settings."})
+				res.StatusCode = http.StatusConflict
+				res.Status = "409 Conflict"
+				res.Body = io.NopCloser(bytes.NewReader(data))
+				res.ContentLength = int64(len(data))
+				res.Header.Set("Content-Length", fmt.Sprint(len(data)))
+				res.Header.Set("Content-Type", "application/json")
+				res.Header.Set("Cache-Control", "no-store")
+				res.Header.Del("WWW-Authenticate")
+				return nil
+			}
 			if res.StatusCode >= 400 {
 				return nil
 			}
