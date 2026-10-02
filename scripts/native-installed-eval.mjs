@@ -88,8 +88,9 @@ function powershell(script) {
 function processes() {
   // Exact installed path, never a generic process name shared by other jobs.
   const encoded = Buffer.from(executable).toString("base64");
-  return JSON.parse(powershell(`$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded}')); @((Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $p -or $_.ExecutablePath -eq (Join-Path (Split-Path -Parent $p) 'luci-api.exe') }) | Select-Object ProcessId,ParentProcessId,ExecutablePath) | ConvertTo-Json -Compress -AsArray`));
+  return JSON.parse(powershell(`$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded}')); $ownedRows=@((Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $p -or $_.ExecutablePath -eq (Join-Path (Split-Path -Parent $p) 'luci-api.exe') }) | Select-Object ProcessId,ParentProcessId,ExecutablePath); ConvertTo-Json -InputObject $ownedRows -Compress`));
 }
+const readProjectJSON = (path) => JSON.parse(readFileSync(join(fixture.projectRoot, fixture.projectName, path), "utf8"));
 async function snapshot(name) {
   const png = await command("/screenshot", "GET", undefined);
   writeFileSync(join(evidence, `${mode}-${name}.png`), Buffer.from(png, "base64"));
@@ -178,7 +179,7 @@ try {
     await settings();
     await fill("Projects folder", fixture.projectRoot);
     await click("Save settings");
-    await bodyHas("Settings saved");
+    await until("projects folder persisted", () => JSON.parse(readFileSync(join(process.env.APPDATA, "ai.lcfr.luci", "sessions", "luci.json"), "utf8")).projectsDir === fixture.projectRoot);
     await click("Git identity, agent connection and runtime");
     // The existing candidate loads identity and runtime together. Wait for its
     // visible loaded state, so initial GET completion cannot replace typing.
@@ -186,7 +187,7 @@ try {
     await fill("Commit author name", "Native Acceptance");
     await fill("Commit author email", "native@example.invalid");
     await click("Save Git identity");
-    await bodyHas("Git identity saved");
+    await until("Git identity persisted", () => ["user.name", "user.email"].map((key) => execFileSync("git", ["config", "--global", "--get", key], { encoding: "utf8", windowsHide: true }).trim()).join("\n") === "Native Acceptance\nnative@example.invalid");
     result.checks.push("Projects folder and Git identity saved through the installed Settings UI");
     await click("New project");
     await fill("Project name", fixture.projectName);
@@ -195,7 +196,10 @@ try {
     await fill("Who it is for", "People using the installed Windows application.");
     await fill("What good looks like", "Brief and drawing survive a restart.\nGit records the actual saved work.");
     await click("Save brief");
-    await bodyHas("Saved as revision 1");
+    await until("brief revision persisted", () => {
+      const brief = readProjectJSON(".luci/state.json").brief;
+      return brief.revision === 1 && brief.purpose === fixture.purpose;
+    });
     result.checks.push("Created the project and saved brief revision 1 through the installed UI");
     await snapshot("brief");
     await click("Design");
@@ -226,7 +230,7 @@ try {
       await fill("New task", "Verify installed application persistence");
       await click("Add task");
       await click("Save implementation plan");
-      await bodyHas("Plan saved as revision 1");
+      await until("implementation plan persisted", () => readProjectJSON(".luci/plan.json").revision === 1);
       const plan = JSON.parse(readFileSync(join(fixture.projectRoot, fixture.projectName, ".luci", "plan.json"), "utf8"));
       assert.equal(plan.briefRevision, 1);
       assert.equal(plan.tasks[0].title, "Verify installed application persistence");
@@ -242,8 +246,8 @@ try {
     await click("Git");
     await fill("Commit message", fixture.commitMessage);
     await click("Commit changes");
-    await bodyHas("Changes committed");
     await bodyHas("Everything is committed");
+    await bodyHas(fixture.commitMessage);
     result.checks.push("Normal installed UI saved project settings, Git identity, brief, actual canvas rectangle and Git commit");
     await snapshot("git");
     if (!result.applicationVersion.startsWith("0.3.")) {
@@ -252,7 +256,7 @@ try {
       await fill("Variable name", "NATIVE_UAT_MESSAGE");
       await fill("Private value", fixture.privateValue);
       await click("Save runtime variable");
-      await bodyHas("Runtime configuration saved");
+      await bodyHas("NATIVE_UAT_MESSAGE");
       const value = await element("label", "Private value");
       assert.equal(await command(`/element/${value[elementKey]}/property/value`, "GET", undefined), "");
       assert.equal(await execute("return document.body.innerText.includes(arguments[0])", fixture.privateValue), false);
@@ -287,8 +291,14 @@ try {
 } finally {
   if (session) { try { await request(`/session/${session}`, "DELETE"); } catch {} }
   // Only exact installed fixture processes may be reaped after a failed test.
-  if (!result.passed) for (const owned of processes()) {
-    try { powershell(`Stop-Process -Id ${owned.ProcessId} -ErrorAction SilentlyContinue`); } catch {}
+  if (!result.passed) {
+    try {
+      for (const owned of processes()) {
+        try { powershell(`Stop-Process -Id ${owned.ProcessId} -ErrorAction SilentlyContinue`); } catch {}
+      }
+    } catch (cleanupError) {
+      result.cleanupError = cleanupError.message;
+    }
   }
   writeFileSync(join(evidence, `${mode}-result.json`), JSON.stringify(result, null, 2) + "\n");
   console.log(JSON.stringify(result));
