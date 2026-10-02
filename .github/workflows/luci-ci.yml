@@ -11,7 +11,11 @@ on:
         type: boolean
         default: false
       portable_only:
-        description: 'Diagnostic only: exercise the exact retained private v0.4.2-rc.3 Windows portable ZIP'
+        description: 'Diagnostic only: exercise the retained private ZIP or the pinned CI portable build'
+        type: boolean
+        default: false
+      portable_build:
+        description: 'With portable_only: reproduce the original CI portable build and full verification sequence'
         type: boolean
         default: false
       installer_run:
@@ -481,7 +485,7 @@ jobs:
       contents: write # GitHub requires push access to read unpublished drafts.
       actions: read
     runs-on: windows-2025
-    timeout-minutes: 15
+    timeout-minutes: 30
     defaults:
       run:
         shell: pwsh
@@ -489,10 +493,77 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Preserve diagnostic harness outside the product checkout
+        if: ${{ inputs.portable_build }}
+        run: |
+          $harness = Join-Path $env:RUNNER_TEMP 'luci-portable-diagnostic-harness'
+          New-Item -ItemType Directory -Path $harness -ErrorAction Stop | Out-Null
+          foreach ($name in @('portable-launcher-eval.mjs', 'verify-portable.mjs')) {
+            Copy-Item -LiteralPath (Join-Path scripts $name) -Destination (Join-Path $harness $name)
+          }
+          "LUCI_DIAGNOSTIC_HARNESS=$harness" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Restore the exact original CI merge checkout
+        if: ${{ inputs.portable_build }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 1361296677f6a107edd18934b11e1ba15cc4f12e
+          persist-credentials: false
+      - name: Verify clean equivalent source and retain build provenance
+        if: ${{ inputs.portable_build }}
+        run: |
+          $expectedCommit = '1361296677f6a107edd18934b11e1ba15cc4f12e'
+          $expectedTree = '5a8b0ade179b15fc6cdb388e7d36e95bfefe926f'
+          $commit = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0 -or $commit -ne $expectedCommit) { throw 'Incorrect original CI checkout' }
+          $tree = git rev-parse 'HEAD^{tree}'
+          if ($LASTEXITCODE -ne 0 -or $tree -ne $expectedTree) { throw 'CI source tree differs from final a39b release source' }
+          $changes = @(git status --porcelain=v1 --untracked-files=all)
+          if ($LASTEXITCODE -ne 0 -or $changes.Count -ne 0) { throw 'Product build input must be clean' }
+          $launcherSHA = (Get-FileHash -LiteralPath scripts/launch-windows.ps1 -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($launcherSHA -ne 'd95ecfd65274ecf712c339b24d2281e3bd2e701aaa333e36937b8fc1d5f68e55') { throw 'Original CRLF launcher checkout bytes were not preserved' }
+          $evidence = 'artifacts/package-eval/ci-build-diagnostic'
+          New-Item -ItemType Directory -Path $evidence -Force | Out-Null
+          $harnessFiles = @(foreach ($name in @('portable-launcher-eval.mjs', 'verify-portable.mjs')) {
+            @{name=$name;sha256=(Get-FileHash -LiteralPath (Join-Path $env:LUCI_DIAGNOSTIC_HARNESS $name) -Algorithm SHA256).Hash.ToLowerInvariant()}
+          })
+          @{scriptsCommit=$env:GITHUB_SHA;packageSourceCommit=$commit;packageSourceTree=$tree;equivalentReleaseSource='a39b6aa59aec06ec7dec7b4c764cc5e7f9d09e70';sourceDirty=$false;launcherSHA256=$launcherSHA;harnessFiles=$harnessFiles;buildMode='portable only, no native compilation'} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $evidence 'input-provenance.json')
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: ${{ inputs.portable_build }}
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            control-plane/go.sum
+            sandboxd/go.sum
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - name: Install the original locked desktop dependencies
+        if: ${{ inputs.portable_build }}
+        working-directory: desktop
+        run: npm ci
+      - name: Reproduce the original portable build without native compilation
+        if: ${{ inputs.portable_build }}
+        run: |
+          ./scripts/build-release.ps1 -Version $env:LUCI_VERSION
+          if ($LASTEXITCODE -ne 0) { throw 'Original portable build failed' }
+          $directory = "artifacts/releases/$env:LUCI_VERSION/luci-windows-amd64"
+          $evidence = 'artifacts/package-eval/ci-build-diagnostic'
+          $binarySHA = (Get-FileHash -LiteralPath (Join-Path $directory 'luci.exe') -Algorithm SHA256).Hash.ToLowerInvariant()
+          $launcherSHA = (Get-FileHash -LiteralPath (Join-Path $directory 'Start-Luci.ps1') -Algorithm SHA256).Hash.ToLowerInvariant()
+          $manifestPath = "artifacts/releases/$env:LUCI_VERSION/release-manifest.json"
+          Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $evidence 'release-manifest.json')
+          $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+          @{binarySHA256=$binarySHA;launcherSHA256=$launcherSHA;goVersion=(& go version);expectedBinarySHA256='abb8d24b49b2efcdfb2054850d4f291b7bfd125515d12c3b385a5cb06d6c1ed7';manifestSHA256=(Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash.ToLowerInvariant()} | ConvertTo-Json | Set-Content (Join-Path $evidence 'build-provenance.json')
+          if ($manifest.sourceCommit -ne '1361296677f6a107edd18934b11e1ba15cc4f12e' -or $manifest.sourceDirty -ne $false) { throw 'Built package provenance changed' }
+          if ($binarySHA -ne 'abb8d24b49b2efcdfb2054850d4f291b7bfd125515d12c3b385a5cb06d6c1ed7' -or $launcherSHA -ne 'd95ecfd65274ecf712c339b24d2281e3bd2e701aaa333e36937b8fc1d5f68e55') { throw 'Built binary or launcher differs from the two failed main-CI attempts' }
+      - name: Run the original full portable sequence with diagnostic capture
+        if: ${{ inputs.portable_build }}
+        run: |
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -Command '$PSVersionTable | ConvertTo-Json' | Set-Content artifacts/package-eval/ci-build-diagnostic/powershell-version.json
+          node (Join-Path $env:LUCI_DIAGNOSTIC_HARNESS 'verify-portable.mjs') "artifacts/releases/$env:LUCI_VERSION/luci-windows-amd64" artifacts/package-eval/ci-build-diagnostic
+          if ($LASTEXITCODE -ne 0) { throw 'Full portable acceptance failed; inspect bounded redacted launcher diagnostics' }
       - name: Download the independently pinned private portable package
+        if: ${{ !inputs.portable_build }}
         env:
           GH_TOKEN: ${{ github.token }}
           PORTABLE_RELEASE: ${{ inputs.installer_release }}
@@ -520,6 +591,7 @@ jobs:
           New-Item -ItemType Directory -Path artifacts/package-eval/portable-diagnostic -Force | Out-Null
           @{scriptsCommit=$env:GITHUB_SHA;packageSourceCommit=$expectedSource;packageRelease=$env:PORTABLE_RELEASE;packageSHA256=$expectedSHA;packageBytes=$expectedBytes} | ConvertTo-Json | Set-Content artifacts/package-eval/portable-diagnostic/input-provenance.json
       - name: Exercise the actual shipped launcher with diagnostic capture
+        if: ${{ !inputs.portable_build }}
         run: |
           & powershell.exe -NoLogo -NoProfile -NonInteractive -Command '$PSVersionTable | ConvertTo-Json' | Set-Content artifacts/package-eval/portable-diagnostic/powershell-version.json
           node scripts/portable-launcher-eval.mjs artifacts/diagnostic-portable/package artifacts/package-eval/portable-diagnostic
@@ -528,6 +600,10 @@ jobs:
         if: always()
         with:
           name: luci-portable-diagnostic-${{ github.run_id }}
-          path: artifacts/package-eval/portable-diagnostic/*.json
+          # Launcher/service log tails are bounded and secret-redacted inside
+          # launcher-results.json. Never upload the raw private fixture tree.
+          path: |
+            artifacts/package-eval/portable-diagnostic/*.json
+            artifacts/package-eval/ci-build-diagnostic/*.json
           if-no-files-found: warn
           retention-days: 14
