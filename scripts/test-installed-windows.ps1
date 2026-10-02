@@ -140,12 +140,23 @@ try {
   $uninstallers = @(Get-ChildItem -LiteralPath $installDir -File -Filter '*uninstall*.exe')
   if ($uninstallers.Count -ne 1) { throw 'Expected one installed NSIS uninstaller.' }
   Run-Installer $uninstallers[0].FullName @('/S')
-  $deadline = (Get-Date).AddSeconds(15)
-  while ((Test-Path -LiteralPath (Join-Path $installDir 'luci.exe')) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 200 }
-  foreach ($name in @('luci.exe','luci-api.exe','runtime','licenses','cloud')) {
-    if (Test-Path -LiteralPath (Join-Path $installDir $name)) { throw "Uninstall retained app files: $name" }
-  }
+  # The NSIS launcher may return before its copied uninstaller completes. The
+  # executable is removed before thousands of bundled resource files; wait for
+  # every owned resource root, not just the first deleted executable.
+  $uninstallTargets = @('luci.exe','luci-api.exe','runtime','licenses','cloud','docs')
+  $deadline = (Get-Date).AddSeconds(30)
+  do {
+    $remaining = @($uninstallTargets | Where-Object { Test-Path -LiteralPath (Join-Path $installDir $_) })
+    if ($remaining.Count -eq 0) { break }
+    Start-Sleep -Milliseconds 200
+  } while ((Get-Date) -lt $deadline)
   Assert-Preserved $before
+  if ($remaining.Count -gt 0) {
+    $receipt.remainingInstalledEntries = @(Get-ChildItem -LiteralPath $installDir -Recurse -Force | Select-Object -First 200 | ForEach-Object {
+      @{ path=$_.FullName.Substring($installDir.Length + 1); directory=$_.PSIsContainer; bytes=if ($_.PSIsContainer) { 0 } else { $_.Length } }
+    })
+    throw "Uninstall retained app resources after 30 seconds: $($remaining -join ', ')"
+  }
   $receipt.checks += 'Uninstall removed installed app/resources and preserved project, design, Git and identity data'
   $receipt.passed = $true
 } catch {
