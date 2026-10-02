@@ -112,13 +112,16 @@ try {
   const authorized = path.join(root, 'authorized_keys');
   await fs.copyFile(key + '.pub', authorized); await fs.chmod(authorized, 0o600);
   const sshPort = await freePort(), config = path.join(root, 'sshd_config');
-  await fs.writeFile(config, [`Port ${sshPort}`, 'ListenAddress 127.0.0.1', `HostKey ${hostKey}`, `PidFile ${path.join(root, 'sshd.pid')}`, `AuthorizedKeysFile ${authorized}`, 'PubkeyAuthentication yes', 'PasswordAuthentication no', 'KbdInteractiveAuthentication no', 'UsePAM no', 'StrictModes yes', 'PermitRootLogin no', `AllowUsers ${username}`, 'AllowTcpForwarding local', 'PermitOpen 127.0.0.1:8730 127.0.0.1:8000', 'AllowAgentForwarding no', 'X11Forwarding no', 'PermitTunnel no', 'GatewayPorts no', 'LogLevel ERROR', ''].join('\n'), { mode: 0o600 });
+  await fs.writeFile(config, [`Port ${sshPort}`, 'ListenAddress 127.0.0.1', `HostKey ${hostKey}`, `PidFile ${path.join(root, 'sshd.pid')}`, `AuthorizedKeysFile ${authorized}`, 'PubkeyAuthentication yes', 'PasswordAuthentication no', 'KbdInteractiveAuthentication no', 'UsePAM no', 'StrictModes yes', 'PermitRootLogin no', `AllowUsers ${username}`, 'AllowTcpForwarding local', 'PermitOpen 127.0.0.1:8730 127.0.0.1:8000', 'AllowAgentForwarding no', 'X11Forwarding no', 'PermitTunnel no', 'GatewayPorts no', 'LogLevel VERBOSE', ''].join('\n'), { mode: 0o600 });
   await exec(sshdBinary, ['-t', '-f', config]);
   const sshd = start(sshdBinary, ['-D', '-e', '-f', config], { PATH: process.env.PATH, HOME: os.homedir(), USER: username, LOGNAME: username, LANG: 'C.UTF-8' }, 'sshd');
   await until(async () => {
     if (sshd.exited) throw new Error(`Owned sshd exited: ${sshd.code}`);
     return new Promise((resolve) => { const socket = net.connect(sshPort, '127.0.0.1'); socket.setTimeout(500); socket.once('connect', () => { socket.destroy(); resolve(true); }); socket.once('error', () => resolve(false)); socket.once('timeout', () => { socket.destroy(); resolve(false); }); });
   }, 'Owned sshd did not listen');
+  const preflightKnownHosts = path.join(root, 'preflight-known-hosts');
+  await fs.writeFile(preflightKnownHosts, `[127.0.0.1]:${sshPort} ssh-ed25519 ${publicKey}\n`, { mode: 0o600 });
+  await exec('ssh', ['-p', String(sshPort), '-i', key, '-o', 'IdentitiesOnly=yes', '-o', 'StrictHostKeyChecking=yes', '-o', `UserKnownHostsFile=${preflightKnownHosts}`, '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', `${username}@127.0.0.1`, 'true'], { timeout: 15000 });
   pass('separate_real_services_and_ssh', 'Separate compiled control services, state, identities and projects; generated Ed25519 host/user keys; ordinary-user sshd listens only on loopback. No management service is running on8000.');
 
   stage = 'browser-first-run-existing-choice';
@@ -143,7 +146,13 @@ try {
   await page.getByRole('combobox', { name: 'Server fingerprint', exact: true }).selectOption(trustedFingerprint);
   await page.getByLabel('I compared this fingerprint with my server’s trusted console.').check();
   const tunnel = await clickResponse(trust, '/v1/setup/ssh/connect', 202);
-  await page.getByLabel('Remote username', { exact: true }).waitFor({ timeout: 45000 });
+  await until(async () => {
+    const current = (await api(local, 'GET', '/v1/setup/ssh/connections')).connections.find((item) => item.id === tunnel.id);
+    evidence.tunnel = current ? { status: current.status, message: current.message } : null;
+    if (current?.status === 'failed' || current?.status === 'stopped') throw new Error(`Real SSH tunnel ${current.status}: ${current.message}`);
+    return current?.status === 'connected';
+  }, 'Real SSH tunnel did not become connected', 45000);
+  await page.getByLabel('Remote username', { exact: true }).waitFor();
   assert.equal((await api(local, 'GET', '/v1/setup/ssh/connections')).connections.find((item) => item.id === tunnel.id)?.status, 'connected');
   pass('real_browser_host_verification', 'Visible onboarding choices lead to actual ssh-keyscan, independent host fingerprint comparison, explicit trust and a real pinned OpenSSH API tunnel; Luci readiness does not require Coolify.');
 
@@ -200,6 +209,12 @@ try {
   evidence.status = 'passed';
 } catch (error) {
   evidence.status = 'failed'; evidence.failure = { stage, message: sanitize(error.message) }; process.exitCode = 1;
+  if (page) {
+    try {
+      await page.screenshot({ path: path.join(output, 'failure.png'), fullPage: true });
+      await fs.writeFile(path.join(output, 'failure-visible-text.txt'), sanitize(await page.locator('body').innerText()).slice(0, 12000));
+    } catch {}
+  }
 } finally {
   if (browser) await browser.close().catch(() => {});
   for (const service of [local, remote]) if (service?.token && !service.proc.exited) { try { await api(service, 'POST', '/v1/setup/shutdown', {}); } catch {} }
