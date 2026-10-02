@@ -18,6 +18,10 @@ on:
         description: 'With portable_only: reproduce the original CI portable build and full verification sequence'
         type: boolean
         default: false
+      portable_probe:
+        description: 'With portable_only and retained ZIP: localize cold PowerShell host versus HTTP startup'
+        type: boolean
+        default: false
       installer_run:
         description: 'Optional completed run ID: test its existing Windows installer without rebuilding'
         type: string
@@ -493,6 +497,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Validate isolated diagnostic mode
+        if: ${{ inputs.portable_probe && inputs.portable_build }}
+        run: throw 'The startup probe uses the pinned private ZIP; do not combine portable_probe and portable_build'
       - name: Preserve diagnostic harness outside the product checkout
         if: ${{ inputs.portable_build }}
         run: |
@@ -589,6 +596,11 @@ jobs:
           if (-not (Test-Path -LiteralPath artifacts/diagnostic-portable/package/Start-Luci.ps1)) { throw 'Portable launcher missing from verified archive' }
           New-Item -ItemType Directory -Path artifacts/package-eval/portable-diagnostic -Force | Out-Null
           @{scriptsCommit=$env:GITHUB_SHA;packageSourceCommit=$expectedSource;packageRelease=$env:PORTABLE_RELEASE;packageSHA256=$expectedSHA;packageBytes=$expectedBytes} | ConvertTo-Json | Set-Content artifacts/package-eval/portable-diagnostic/input-provenance.json
+      - name: Locate cold PowerShell startup without running the app
+        if: ${{ inputs.portable_probe && !inputs.portable_build }}
+        run: |
+          node scripts/windows-powershell-probe.mjs artifacts/diagnostic-portable/package artifacts/package-eval/portable-diagnostic
+          if ($LASTEXITCODE -ne 0) { throw 'Diagnostic host/HTTP probe did not complete; subsequent acceptance is skipped' }
       - name: Exercise the actual shipped launcher with diagnostic capture
         if: ${{ !inputs.portable_build }}
         run: |
