@@ -984,7 +984,7 @@ func TestCreateMapsEveryHarnessFailureToItsOwnStatus(t *testing.T) {
 			wantStatus: http.StatusBadRequest, wantCode: "unknown_harness",
 		},
 		"not in the image": {
-			body:       `{"worktreeId":"w-4a77b1c9","harness":"codex"}`,
+			body:       `{"worktreeId":"w-4a77b1c9","harness":"gemini-cli"}`,
 			wantStatus: http.StatusConflict, wantCode: "harness_unavailable",
 		},
 		"option the harness cannot take": {

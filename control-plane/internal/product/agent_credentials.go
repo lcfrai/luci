@@ -4,21 +4,36 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
 )
 
 type AgentProvider struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Configured bool   `json:"configured"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Configured    bool   `json:"configured"`
+	AuthMode      string `json:"authMode,omitempty"`
+	Model         string `json:"model,omitempty"`
+	BaseURL       string `json:"baseUrl,omitempty"`
+	SignInCommand string `json:"signInCommand,omitempty"`
+}
+
+type LocalAgentConfig struct {
+	BaseURL string `json:"baseUrl,omitempty"`
+	Model   string `json:"model,omitempty"`
+	APIKey  string `json:"apiKey,omitempty"`
 }
 
 type agentCredentials struct {
-	AnthropicAPIKey string `json:"anthropicApiKey"`
+	AnthropicAPIKey string           `json:"anthropicApiKey"`
+	OpenAIAPIKey    string           `json:"openaiApiKey,omitempty"`
+	Local           LocalAgentConfig `json:"local,omitempty"`
 }
 
 func validAgentKey(key string) bool {
@@ -62,29 +77,45 @@ func (s *Server) initAgentCredentials() error {
 		return errors.New("cannot read saved agent credentials")
 	}
 	defer file.Close()
-	data, err := io.ReadAll(io.LimitReader(file, 16<<10+1))
-	if err != nil || len(data) > 16<<10 {
+	data, err := io.ReadAll(io.LimitReader(file, 32<<10+1))
+	if err != nil || len(data) > 32<<10 {
 		return errors.New("saved agent credentials exceed their limit or cannot be read")
 	}
 	var saved agentCredentials
-	if json.Unmarshal(data, &saved) != nil || !validAgentKey(saved.AnthropicAPIKey) {
+	if json.Unmarshal(data, &saved) != nil || !validAgentKey(saved.AnthropicAPIKey) || !validAgentKey(saved.OpenAIAPIKey) || !validLocalAgent(saved.Local) {
 		return errors.New("saved agent credentials are invalid")
 	}
 	s.agentAPIKey = saved.AnthropicAPIKey
+	s.agentOpenAIKey = saved.OpenAIAPIKey
+	s.agentLocal = saved.Local
 	return nil
 }
 
 func (s *Server) registerAgentCredentials(mux Registrar) {
 	mux.HandleFunc("GET /v1/setup/agents", s.getAgents)
 	mux.HandleFunc("POST /v1/setup/agents/anthropic", s.setAnthropicCredential)
+	mux.HandleFunc("POST /v1/setup/agents/openai", s.setOpenAICredential)
+	mux.HandleFunc("POST /v1/setup/agents/local", s.setLocalAgent)
 }
 
 func (s *Server) getAgents(w http.ResponseWriter, r *http.Request) {
-	configured := len(s.AgentEnvironment("claude-code")) > 0
-	writeJSON(w, 200, map[string]any{"providers": []AgentProvider{{ID: "anthropic", Name: "Claude Code", Configured: configured}}})
+	s.mu.RLock()
+	local := s.agentLocal
+	s.mu.RUnlock()
+	writeJSON(w, 200, map[string]any{"providers": []AgentProvider{
+		{ID: "anthropic", Name: "Claude Code", Configured: len(s.AgentEnvironment("claude-code")) > 0, AuthMode: "api-key"},
+		{ID: "openai", Name: "Codex", Configured: len(s.AgentEnvironment("codex")) > 0, AuthMode: "api-key-or-cli-sign-in", SignInCommand: "codex login --device-auth"},
+		{ID: "local", Name: "OpenCode · local or compatible model", Configured: len(s.AgentEnvironment("opencode")) > 0, AuthMode: "local", BaseURL: local.BaseURL, Model: local.Model},
+	}})
 }
 
 func (s *Server) setAnthropicCredential(w http.ResponseWriter, r *http.Request) {
+	s.setAgentKey(w, r, false)
+}
+func (s *Server) setOpenAICredential(w http.ResponseWriter, r *http.Request) {
+	s.setAgentKey(w, r, true)
+}
+func (s *Server) setAgentKey(w http.ResponseWriter, r *http.Request, openAI bool) {
 	var req struct {
 		APIKey string `json:"apiKey"`
 	}
@@ -101,13 +132,19 @@ func (s *Server) setAnthropicCredential(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	s.mu.Lock()
-	if req.APIKey == "" {
+	saved := agentCredentials{AnthropicAPIKey: s.agentAPIKey, OpenAIAPIKey: s.agentOpenAIKey, Local: s.agentLocal}
+	if openAI {
+		saved.OpenAIAPIKey = req.APIKey
+	} else {
+		saved.AnthropicAPIKey = req.APIKey
+	}
+	if saved.AnthropicAPIKey == "" && saved.OpenAIAPIKey == "" && saved.Local.BaseURL == "" {
 		err = os.Remove(path)
 		if errors.Is(err, os.ErrNotExist) {
 			err = nil
 		}
 	} else {
-		err = writePrivateAgentCredentials(path, agentCredentials{AnthropicAPIKey: req.APIKey})
+		err = writePrivateAgentCredentials(path, saved)
 	}
 	if err != nil {
 		s.mu.Unlock()
@@ -115,7 +152,7 @@ func (s *Server) setAnthropicCredential(w http.ResponseWriter, r *http.Request) 
 		problem(w, 500, "credential_save_failed", "Could not update the private agent credential file. Check access to Luci's state folder.")
 		return
 	}
-	s.agentAPIKey = req.APIKey
+	s.agentAPIKey, s.agentOpenAIKey = saved.AnthropicAPIKey, saved.OpenAIAPIKey
 	s.mu.Unlock()
 	s.getAgents(w, r)
 }
@@ -125,19 +162,103 @@ func (s *Server) setAnthropicCredential(w http.ResponseWriter, r *http.Request) 
 // a key applies to new/restarted sessions; existing containers retain their own
 // environment until stopped. Shells and unavailable harnesses get no secret.
 func (s *Server) AgentEnvironment(harness string) map[string]string {
-	if harness != "claude-code" {
-		return nil
-	}
 	s.mu.RLock()
-	key, root := s.agentAPIKey, s.config.ProjectsDir
+	key, openai, local, root := s.agentAPIKey, s.agentOpenAIKey, s.agentLocal, s.config.ProjectsDir
 	s.mu.RUnlock()
-	if key == "" {
-		return nil
-	}
 	if _, err := hostpath.ResolveOutside(root, s.stateDir); err != nil {
 		return nil
 	}
-	return map[string]string{"ANTHROPIC_API_KEY": key}
+	switch harness {
+	case "claude-code":
+		if key != "" {
+			return map[string]string{"ANTHROPIC_API_KEY": key}
+		}
+	case "codex":
+		// Codex supports an environment-backed custom provider, avoiding a
+		// key in argv, on stdin in a PTY, or in a project config file.
+		if openai != "" {
+			return map[string]string{"OPENAI_API_KEY": openai}
+		}
+	case "opencode":
+		if local.BaseURL == "" {
+			return nil
+		}
+		config := map[string]any{
+			"model": "luci-local/" + local.Model, "small_model": "luci-local/" + local.Model,
+			"enabled_providers": []string{"luci-local"}, "autoupdate": false, "share": "disabled",
+			"instructions": []string{"LUCI.md"},
+			"provider": map[string]any{"luci-local": map[string]any{
+				"npm": "@ai-sdk/openai-compatible", "name": "Luci configured model",
+				"options": map[string]any{"baseURL": local.BaseURL, "apiKey": "{env:OPENCODE_LOCAL_API_KEY}"},
+				"models":  map[string]any{local.Model: map[string]any{"name": local.Model}},
+			}},
+		}
+		data, _ := json.Marshal(config)
+		apiKey := local.APIKey
+		if apiKey == "" {
+			apiKey = "local-no-key"
+		}
+		return map[string]string{"OPENCODE_CONFIG_CONTENT": string(data), "OPENCODE_LOCAL_API_KEY": apiKey}
+	}
+	return nil
+}
+
+func validLocalAgent(c LocalAgentConfig) bool {
+	if c.BaseURL == "" && c.Model == "" && c.APIKey == "" {
+		return true
+	}
+	if len(c.BaseURL) > 2048 || len(c.Model) == 0 || len(c.Model) > 200 || strings.ContainsAny(c.Model, "\r\n\t ") {
+		return false
+	}
+	for _, char := range c.Model {
+		if char < 33 || char > 126 {
+			return false
+		}
+	}
+	if len(c.APIKey) > 8192 || strings.ContainsAny(c.APIKey, "\r\n\t ") {
+		return false
+	}
+	for _, char := range c.APIKey {
+		if char < 33 || char > 126 {
+			return false
+		}
+	}
+	u, err := url.Parse(c.BaseURL)
+	if err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return false
+	}
+	if u.Scheme == "https" {
+		return true
+	}
+	ip := net.ParseIP(u.Hostname())
+	return u.Scheme == "http" && (u.Hostname() == "localhost" || u.Hostname() == "host.docker.internal" || ip != nil && (ip.IsLoopback() || ip.IsPrivate()))
+}
+
+func (s *Server) setLocalAgent(w http.ResponseWriter, r *http.Request) {
+	var req LocalAgentConfig
+	if !readJSON(w, r, &req) {
+		return
+	}
+	if !validLocalAgent(req) {
+		problem(w, 400, "invalid_local_model", "Set a model ID and a compatible /v1 endpoint: HTTP on a local/private address or HTTPS. Empty all fields to disconnect.")
+		return
+	}
+	path, err := s.agentCredentialPath()
+	if err != nil {
+		problem(w, 409, "host_state_required", err.Error())
+		return
+	}
+	s.mu.Lock()
+	err = writePrivateAgentCredentials(path, agentCredentials{AnthropicAPIKey: s.agentAPIKey, OpenAIAPIKey: s.agentOpenAIKey, Local: req})
+	if err == nil {
+		s.agentLocal = req
+	}
+	s.mu.Unlock()
+	if err != nil {
+		problem(w, 500, "credential_save_failed", "Could not save the model connection in private Luci state.")
+		return
+	}
+	s.getAgents(w, r)
 }
 
 func writePrivateAgentCredentials(path string, value agentCredentials) error {

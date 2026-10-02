@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/management"
 )
 
 type CloudJob struct {
@@ -104,6 +106,11 @@ func (s *Server) createCloudJob(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		s.mu.Unlock()
 		problem(w, 404, "plan_not_found", "Generate a fresh cloud plan first.")
+		return
+	}
+	if _, policy, managed := management.ActorFromContext(r.Context()); managed && (!policy.AllowCloudProvisioning || plan.MonthlyBudgetUSD > policy.MonthlyBudgetUSD || (plan.Estimate.Monthly != nil && *plan.Estimate.Monthly > policy.MonthlyBudgetUSD)) {
+		s.mu.Unlock()
+		problem(w, 403, "budget_policy", "This saved plan exceeds the current control-plane provisioning or budget policy. Generate a new plan after reviewing the policy.")
 		return
 	}
 	for _, j := range s.jobs {

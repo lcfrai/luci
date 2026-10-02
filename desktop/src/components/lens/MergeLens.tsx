@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { productApi, errorText, type GitState } from "../../api/product";
 import { ProjectRequired, JourneyHeader } from "../journey/shared";
 import { useSetup } from "../setup/SetupProvider";
+import { ProjectDelivery } from "../journey/ProjectDelivery";
+import { ProjectBackup } from "../journey/ProjectBackup";
 
 export function MergeLens() {
   return (
@@ -142,6 +144,8 @@ export function ProjectGit({ projectId }: { projectId: string }) {
           </pre>
         </div>
       )}
+      {state && <ProjectDelivery projectId={projectId} git={state} />}
+      <ProjectBackup projectId={projectId} />
     </section>
   );
 }

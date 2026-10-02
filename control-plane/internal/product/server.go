@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-const Version = "0.3.0"
+const Version = "0.4.0"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -35,14 +35,16 @@ type Registrar interface {
 }
 type Runner func(context.Context, string, []string, string) (string, error)
 type Options struct {
-	CloudBundle  string
-	Shutdown     func()
-	RuntimeDir   string
-	StateDir     string
-	ProjectsDir  string
-	SandboxImage string
-	Configure    func(string) error
-	Runner       Runner
+	CloudBundle    string
+	Shutdown       func()
+	RuntimeDir     string
+	StateDir       string
+	ProjectsDir    string
+	SandboxImage   string
+	CheckMemoryMiB int
+	CheckCPUMillis int
+	Configure      func(string) error
+	Runner         Runner
 }
 
 type Server struct {
@@ -52,9 +54,14 @@ type Server struct {
 	workspaceCancel   context.CancelFunc
 	workspaceContext  context.Context
 	remoteStatus      *Status
+	workspaceAuth     map[string]workspaceCredential
 	previews          map[string]*workspacePreview
 	shutdown          func()
 	agentAPIKey       string
+	agentOpenAIKey    string
+	agentLocal        LocalAgentConfig
+	deliveryBusy      map[string]bool
+	projectChecks     map[string]*projectCheckJob
 	runtimeJob        RuntimeJob
 	authJobs          map[string]*ProviderLoginJob
 	runtimeDir        string
@@ -64,6 +71,8 @@ type Server struct {
 	runner            Runner
 	configure         func(string) error
 	sandboxImage      string
+	checkMemoryMiB    int
+	checkCPUMillis    int
 	configured        bool
 	checks            []Check
 	plans             map[string]CloudPlan
@@ -89,6 +98,14 @@ func New(opts Options) (*Server, error) {
 	}
 	if s.sandboxImage == "" {
 		s.sandboxImage = "luci/sandbox:dev"
+	}
+	s.checkMemoryMiB = opts.CheckMemoryMiB
+	if s.checkMemoryMiB <= 0 {
+		s.checkMemoryMiB = 4096
+	}
+	s.checkCPUMillis = opts.CheckCPUMillis
+	if s.checkCPUMillis <= 0 {
+		s.checkCPUMillis = 2000
 	}
 	data, err := os.ReadFile(filepath.Join(opts.StateDir, "luci.json"))
 	if err == nil {
@@ -156,6 +173,9 @@ func (s *Server) Register(mux Registrar) {
 	s.registerProviderLogin(mux)
 	s.registerWorkspace(mux)
 	s.registerPreviewProxy(mux)
+	s.registerDelivery(mux)
+	s.registerBackups(mux)
+	s.registerProjectWork(mux)
 }
 
 func (s *Server) projectRoot() string {

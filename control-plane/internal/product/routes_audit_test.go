@@ -26,21 +26,27 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
-	"GET /v1/setup/status":                        "Reads local setup or bounded remote setup status; no provisioning.",
-	"GET /v1/setup/cloud/jobs":                    "Reads cached provisioning history.",
-	"GET /v1/setup/cloud/login":                   "Reads cached explicit-login jobs.",
-	"GET /v1/setup/targets":                       "Reads saved connection descriptions without their tokens.",
-	"GET /v1/setup/ssh/connections":               "Reads already-created tunnels; cannot connect or accept a key.",
-	"GET /v1/setup/git/identity":                  "Two bounded git config --global --get calls from host-owned state.",
-	"GET /v1/setup/runtime/install":               "Reads cached image-build state; cannot run Docker.",
-	"GET /v1/setup/workspace/install":             "Reads cached explicit server-install jobs.",
-	"GET /v1/setup/agents":                        "Reports presence of the private agent credential without its value.",
-	"GET /v1/product/projects/{id}/brief":         "Reads canonical brief history without creating missing state.",
-	"GET /v1/product/projects/{id}/design":        "Reads canonical design history without creating missing state.",
-	"GET /v1/product/projects/{id}/design/export": "Renders an inert HTML response from saved design state.",
-	"GET /v1/product/projects/{id}/files":         "Reads contained regular files/directories; rejects credential paths.",
-	"GET /v1/product/projects/{id}/git":           "Bounded Git inspection with hooks, filters and optional writes disabled.",
-	"GET /v1/product/projects/{id}/releases":      "Reads saved release rows; never builds, deploys or opens a listener.",
+	"GET /v1/setup/status":                         "Reads local setup or bounded remote setup status; no provisioning.",
+	"GET /v1/setup/cloud/jobs":                     "Reads cached provisioning history.",
+	"GET /v1/setup/cloud/login":                    "Reads cached explicit-login jobs.",
+	"GET /v1/setup/targets":                        "Reads saved connection descriptions without their tokens.",
+	"GET /v1/setup/ssh/connections":                "Reads already-created tunnels; cannot connect or accept a key.",
+	"GET /v1/setup/git/identity":                   "Two bounded git config --global --get calls from host-owned state.",
+	"GET /v1/setup/runtime/install":                "Reads cached image-build state; cannot run Docker.",
+	"GET /v1/setup/workspace/install":              "Reads cached explicit server-install jobs.",
+	"GET /v1/setup/workspace/auth":                 "Reads the selected verified SSH backing identity with bounded GET requests; cannot bootstrap or sign in.",
+	"GET /v1/setup/github/login":                   "Reads cached explicit GitHub login jobs without running CLI commands.",
+	"GET /v1/setup/agents":                         "Reports presence of the private agent credential without its value.",
+	"GET /v1/product/projects/{id}/brief":          "Reads canonical brief history without creating missing state.",
+	"GET /v1/product/projects/{id}/design":         "Reads canonical design history without creating missing state.",
+	"GET /v1/product/projects/{id}/design/export":  "Renders an inert HTML response from saved design state.",
+	"GET /v1/product/projects/{id}/files":          "Reads contained regular files/directories; rejects credential paths.",
+	"GET /v1/product/projects/{id}/git":            "Bounded Git inspection with hooks, filters and optional writes disabled.",
+	"GET /v1/product/projects/{id}/releases":       "Reads saved release rows; never builds, deploys or opens a listener.",
+	"GET /v1/product/projects/{id}/plan":           "Reads canonical task progress; cannot start checks or complete tasks.",
+	"GET /v1/product/projects/{id}/checks":         "Reads saved bounded execution evidence and suggested command names; no commands execute.",
+	"GET /v1/product/projects/{id}/checks/{runId}": "Reads saved execution evidence without starting a process.",
+	"GET /v1/product/projects/{id}/git/delivery":   "Inspects current Git branch/commit and saved publication evidence; cannot create or push a repository.",
 }
 
 func auditTree(t *testing.T, root string) map[string]string {
@@ -94,12 +100,22 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 		if len(args) <= len(journeyGitFlags) || !reflect.DeepEqual(args[:len(journeyGitFlags)], journeyGitFlags) || dir != p.Path {
 			t.Fatalf("read route requested unsafe Git invocation: %v", args)
 		}
-		read := strings.Join(args[len(journeyGitFlags):], "\x00")
+		readArgs := args[len(journeyGitFlags):]
+		if len(readArgs) >= 4 && strings.HasPrefix(readArgs[0], "--git-dir=") {
+			expected := []string{"--git-dir=" + filepath.Join(p.Path, ".git"), "--work-tree=" + p.Path, "-c", "core.bare=false"}
+			if !reflect.DeepEqual(readArgs[:4], expected) {
+				t.Fatalf("read route requested an unowned Git worktree: %v", args)
+			}
+			readArgs = readArgs[4:]
+		}
+		read := strings.Join(readArgs, "\x00")
 		allowed := map[string]bool{
 			"config\x00--null\x00--name-only\x00--get-regexp\x00^filter\\.": true,
 			"symbolic-ref\x00--quiet\x00--short\x00HEAD":                    true,
 			"status\x00--porcelain=v1\x00-z\x00--untracked-files=normal":    true,
 			"log\x00-10\x00--format=%H%x00%s%x00":                           true,
+			"rev-parse\x00--verify\x00HEAD":                                 true,
+			"config\x00--get-all\x00remote.origin.url":                      true,
 		}
 		if !allowed[read] {
 			t.Fatalf("read route requested a new Git operation requiring audit: %v", args)
@@ -127,6 +143,12 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 				// Arbitrary application GETs are NOT classified as read-only.
 				// They require the server bridge marker and a separate origin.
 				status = 403
+			}
+			if pattern == "GET /v1/setup/workspace/auth" {
+				status = 409
+			}
+			if pattern == "GET /v1/product/projects/{id}/checks/{runId}" {
+				status = 404
 			}
 			journeyRequest(t, recorded, readMethod, path, nil, status)
 		}

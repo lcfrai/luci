@@ -33,6 +33,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/backend/katabe"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/instance"
+	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/reaper"
@@ -59,6 +60,16 @@ func run(getenv func(string) string, errOut io.Writer) int {
 	cfg.WebDir = getenv(envWebDir)
 	cfg.RuntimeDir = getenv(envRuntimeDir)
 	cfg.CloudBundle = getenv(envCloudBundle)
+	cfg.Worker = getenv(envWorker) == "1"
+	cfg.WorkerToken = getenv(envWorkerToken)
+	cfg.WorkerAddressFile = getenv(envWorkerAddressFile)
+	cfg.Backing = getenv(envBacking)
+	cfg.InstanceName = getenv(envInstanceName)
+	cfg.ManagedShutdownToken = getenv(envManagedShutdownToken)
+	if cfg.Worker && (len(cfg.WorkerToken) < 40 || !filepath.IsAbs(cfg.WorkerAddressFile) || !filepath.IsAbs(cfg.StateDir)) {
+		fmt.Fprintln(errOut, "luci: managed workers require a private token, state directory and address file")
+		return 2
+	}
 	log := slog.New(slog.NewTextHandler(errOut, &slog.HandlerOptions{Level: cfg.LogLevel}))
 	logWarnings(log, cfg.Warnings)
 
@@ -151,7 +162,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			cloudBundle = filepath.Join(filepath.Dir(exe), "cloud", "luci-cloud-linux-amd64.tar.gz")
 		}
 	}
-	productService, err := product.New(product.Options{CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, Configure: projects.configure, Shutdown: func() {
+	productService, err := product.New(product.Options{CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
 		if shutdownService != nil {
 			shutdownService()
 		}
@@ -220,8 +231,37 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		return fmt.Errorf("listen on %s: %w", cfg.Addr, err)
 	}
 
+	engine := productService.ProxyWorkspace(handler)
+	var control *management.Gateway
+	if cfg.Worker {
+		engine = management.WorkerHandler(cfg.WorkerToken, engine)
+		if err := management.WriteWorkerAddress(cfg.WorkerAddressFile, "http://"+ln.Addr().String()); err != nil {
+			_ = ln.Close()
+			return fmt.Errorf("publish owned worker address: %w", err)
+		}
+	} else {
+		root := cfg.StateDir
+		if root == "" {
+			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
+		}
+		control, err = management.New(management.Options{StateDir: root, InstanceName: cfg.InstanceName, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ()})
+		if err != nil {
+			_ = ln.Close()
+			return fmt.Errorf("initialise control-plane management: %w", err)
+		}
+		defer func() {
+			cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_ = control.Close(cleanup)
+		}()
+		engine = control.Handler()
+	}
 	srv := &http.Server{
-		Handler: withWeb(originPolicy.Middleware(productService.ProxyWorkspace(handler)), cfg),
+		Handler: withWeb(originPolicy.Middleware(withManagedShutdown(engine, cfg.ManagedShutdownToken, func() {
+			if shutdownService != nil {
+				shutdownService()
+			}
+		})), cfg),
 		// ReadHeaderTimeout and nothing else. A ReadTimeout or a WriteTimeout
 		// would kill /attach: the relay is a WebSocket that is idle for minutes
 		// and then streams for an hour, and both timeouts apply to it.
@@ -288,7 +328,7 @@ func newScanner(cfg Config, git project.Runner) (*project.Scanner, error) {
 	if !filepath.IsAbs(cfg.ConversationsDir) {
 		return nil, fmt.Errorf("the conversation stores' root %q is not absolute, so a worktree location inside a store cannot be refused: every sandbox mounts its store read-write", cfg.ConversationsDir)
 	}
-	return project.NewScanner(cfg.ProjectsDir, git).WithWritableDirs(cfg.ConversationsDir), nil
+	return project.NewScanner(cfg.ProjectsDir, git).WithProjectBoundary().WithWritableDirs(cfg.ConversationsDir), nil
 }
 
 // reaperConfigFor is the Config-to-reaper.Config mapping, extracted from serve

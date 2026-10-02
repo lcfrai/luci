@@ -285,7 +285,7 @@ func TestBuildRejectsAnUnknownHarness(t *testing.T) {
 }
 
 func TestBuildRejectsAHarnessThatIsNotInTheImage(t *testing.T) {
-	for _, id := range []harness.ID{harness.Codex, harness.OpenCode, harness.GeminiCLI} {
+	for _, id := range []harness.ID{harness.GeminiCLI} {
 		_, _, err := harness.Build(harness.Request{Harness: id})
 		if !errors.Is(err, harness.ErrUnavailable) {
 			t.Errorf("Build(%q) = %v, want an error wrapping ErrUnavailable", id, err)
@@ -299,7 +299,7 @@ func TestBuildRejectsAHarnessThatIsNotInTheImage(t *testing.T) {
 // sends the user to fix the wrong thing.
 func TestBuildChecksAvailabilityBeforeOptions(t *testing.T) {
 	_, _, err := harness.Build(harness.Request{
-		Harness: harness.Codex,
+		Harness: harness.GeminiCLI,
 		Effort:  harness.EffortHigh,
 		Model:   "nonsense",
 	})

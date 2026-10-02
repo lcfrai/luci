@@ -5,28 +5,28 @@ import { createProductClient } from "../../api/product";
 import { LocalTools } from "./LocalTools";
 
 it("saves a personal agent key only on explicit submission and clears it after success", async () => {
-  const fetcher = vi
-    .fn<typeof fetch>()
-    .mockImplementation(
-      async (url, init) =>
-        new Response(
-          JSON.stringify(
-            String(url).endsWith("/git/identity")
-              ? { name: "Eval", email: "eval@example.invalid" }
-              : String(url).endsWith("/runtime/install")
-                ? { id: "", status: "idle", message: "Not installed" }
-                : {
-                    providers: [
-                      {
-                        id: "anthropic",
-                        name: "Claude Code",
-                        configured: init?.method === "POST",
-                      },
-                    ],
-                  },
-          ),
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(
+    async (url, init) =>
+      new Response(
+        JSON.stringify(
+          String(url).endsWith("/git/identity")
+            ? { name: "Eval", email: "eval@example.invalid" }
+            : String(url).endsWith("/runtime/install")
+              ? { id: "", status: "idle", message: "Not installed" }
+              : {
+                  providers: [
+                    {
+                      id: "anthropic",
+                      name: "Claude Code",
+                      configured:
+                        init?.method === "POST" &&
+                        !!JSON.parse(init.body as string).apiKey,
+                    },
+                  ],
+                },
         ),
-    );
+      ),
+  );
   render(
     <LocalTools client={createProductClient("http://localhost", fetcher)} />,
   );

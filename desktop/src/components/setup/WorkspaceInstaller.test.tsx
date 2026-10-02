@@ -11,10 +11,16 @@ beforeEach(() => {
   resetCockpit();
 });
 it("requires installation consent and preserves the active workspace when verification fails", async () => {
-  const fetcher = vi
-    .fn<typeof fetch>()
-    .mockImplementation(async (url, init) =>
-      String(url).endsWith("/activate")
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) =>
+    String(url).includes("/workspace/auth")
+      ? new Response(
+          JSON.stringify({
+            authenticated: true,
+            bootstrapRequired: false,
+            message: "Signed in",
+          }),
+        )
+      : String(url).endsWith("/activate")
         ? new Response(
             JSON.stringify({
               error: "not_ready",
@@ -34,7 +40,7 @@ it("requires installation consent and preserves the active workspace when verifi
                 : { jobs: [] },
             ),
           ),
-    );
+  );
   const client = createProductClient("http://localhost", fetcher),
     reload = vi.fn();
   useCockpit.getState().selectProject("local-project");
@@ -99,4 +105,76 @@ it("detaches terminals and clears persisted machine-specific UI before restartin
   const persisted = JSON.parse(localStorage.getItem("luci.cockpit")!);
   expect(persisted.state.selection.projectId).toBeNull();
   expect(persisted.state.pinned).toEqual([]);
+});
+
+it("requires remote control-plane sign-in before activating a connected workspace", async () => {
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockImplementation(async (url, init) => {
+      if (String(url).endsWith("/activate"))
+        return new Response(
+          JSON.stringify({ workspace: { mode: "cloud", ready: true } }),
+        );
+      if (String(url).includes("/workspace/auth"))
+        return new Response(
+          JSON.stringify({
+            authenticated: init?.method === "POST",
+            bootstrapRequired: false,
+            message:
+              init?.method === "POST"
+                ? "Remote sign-in complete"
+                : "Remote sign-in required",
+          }),
+        );
+      return new Response(JSON.stringify({ jobs: [] }));
+    });
+  const switchWorkspace = vi.fn(async (action: () => Promise<unknown>) => {
+    await action();
+  });
+  render(
+    <WorkspaceInstaller
+      client={createProductClient("http://localhost", fetcher)}
+      connections={[
+        {
+          id: "ssh-2",
+          host: "server.example",
+          localUrl: "http://127.0.0.1:50999",
+          status: "connected",
+          message: "Connected",
+        },
+      ]}
+      switchWorkspace={switchWorkspace}
+    />,
+  );
+  await screen.findByText("Remote sign-in required");
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "Use this cloud workspace",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  await userEvent.type(screen.getByLabelText("Remote username"), "cloud-owner");
+  await userEvent.type(
+    screen.getByLabelText("Remote password"),
+    "remote-password",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Sign in to workspace" }),
+  );
+  await screen.findByText("Remote sign-in complete");
+  expect(switchWorkspace).not.toHaveBeenCalled();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Use this cloud workspace" }),
+  );
+  expect(switchWorkspace).toHaveBeenCalledOnce();
+  const post = fetcher.mock.calls.find(
+    ([url, init]) =>
+      String(url).endsWith("/workspace/auth") && init?.method === "POST",
+  );
+  expect(JSON.parse(post![1]!.body as string)).toEqual({
+    connectionId: "ssh-2",
+    username: "cloud-owner",
+    password: "remote-password",
+  });
 });

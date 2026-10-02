@@ -28,6 +28,7 @@ const port = listener.address().port;
 await new Promise((done) => listener.close(done));
 const origin = `http://127.0.0.1:${port}`;
 const image = `luci/sandbox:smoke-${randomUUID().replaceAll("-", "")}`;
+const providerProbeID = randomUUID();
 const output = createWriteStream(join(evidence, "control-plane.log"), { mode: 0o600 });
 const child = spawn(binary, [], {
   cwd: repository,
@@ -52,11 +53,13 @@ const result = { passed: false, startedAt: new Date().toISOString(), fixture, ch
 let session;
 let release;
 let project;
+let authToken;
+let userProjects;
 
 async function api(method, path, body, timeout = 30_000) {
   const response = await fetch(origin + path, {
     method, redirect: "error", signal: AbortSignal.timeout(timeout),
-    headers: body === undefined ? {} : { "Content-Type": "application/json" },
+    headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const text = await response.text();
@@ -99,7 +102,9 @@ function assertLoopbackPorts(info) {
 }
 
 async function proveShell(sessionID) {
-  const socket = new WebSocket(origin.replace("http:", "ws:") + `/v1/sessions/${sessionID}/attach`);
+  const path = `/v1/sessions/${sessionID}/attach`;
+  const { ticket } = await api("POST", "/v1/auth/socket-ticket", { path });
+  const socket = new WebSocket(origin.replace("http:", "ws:") + path + `?ticket=${encodeURIComponent(ticket)}`);
   socket.binaryType = "arraybuffer";
   const suffix = randomUUID().replaceAll("-", "");
   const marker = `LUCISMOKE_${suffix}`;
@@ -142,7 +147,14 @@ function cleanupOwned(label, value) {
 }
 
 try {
-  await until("Local service readiness", () => api("GET", "/v1/setup/status", undefined, 2000));
+  await until("Control plane readiness", () => api("GET", "/v1/control-plane/status", undefined, 2000));
+  const bootstrapToken = readFileSync(join(state, "control-plane", "bootstrap-token"), "utf8").trim();
+  const identity = await api("POST", "/v1/auth/bootstrap", { bootstrapToken, username: "runtime-owner", displayName: "Runtime Owner", password: randomUUID() + randomUUID() });
+  authToken = identity.token;
+  assert.ok(authToken && identity.user.id);
+  userProjects = projects; // The first owner uses the configured inline workspace.
+  await until("Authenticated private workspace readiness", () => api("GET", "/v1/setup/status", undefined, 35_000), 45_000);
+  await api("POST", "/v1/setup/git/identity", { name: "Luci Runtime Test", email: "runtime-test@example.invalid" });
   const install = await api("POST", "/v1/setup/runtime/install", {});
   assert.equal(install.image, image);
   const runtime = await until("Real sandbox image build", async () => {
@@ -154,8 +166,21 @@ try {
   }, 11 * 60_000);
   result.checks.push({ name: "real Docker image install", status: runtime.status });
 
+  // Real pinned providers speak only to a fixture API inside this container.
+  // Docker network=none makes accidental external model access impossible.
+  const providerProof = execFileSync("docker", ["run", "--rm", "--network", "none", "--read-only",
+    "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
+    "--tmpfs", "/tmp:rw,nosuid,nodev,size=536870912", "--label", `ai.lcfr.luci.provider-smoke=${providerProbeID}`,
+    "--mount", `type=bind,source=${join(repository, "scripts", "provider-smoke.py")},target=/provider-smoke.py,readonly`,
+    "--entrypoint", "/usr/bin/python3", image, "/provider-smoke.py"],
+    { encoding: "utf8", timeout: 180_000, maxBuffer: 8 * 1024 * 1024 });
+  writeFileSync(join(evidence, "provider-smoke.json"), providerProof, { mode: 0o600 });
+  const providerResult = JSON.parse(providerProof);
+  assert.equal(providerResult.passed, true);
+  result.checks.push({ name: "real Codex/OpenCode fixture completion and durable fork; isolated network", toolchains: providerResult.toolchains });
+
   project = await api("POST", "/v1/product/projects", { name: "runtime-proof" });
-  assert.ok(resolve(project.path).startsWith(projects + sep), "Project escaped the test root");
+  assert.ok(resolve(project.path).startsWith(userProjects + sep), "Project escaped the authenticated user's test root");
   const originalMode = statSync(project.path).mode & 0o777;
   assert.equal(originalMode, 0o700);
   await api("POST", `/v1/product/projects/${project.id}/brief`, { revision: 0, purpose: "Prove the actual Linux runtime", audience: "Release verification", constraints: "No model credentials or cloud resources", criteria: ["A real shell writes as its host user", "A committed preview answers HTTP"] });
@@ -253,6 +278,7 @@ try {
   process.exitCode = 1;
   console.error(error.stack);
 } finally {
+  cleanupOwned("ai.lcfr.luci.provider-smoke", providerProbeID);
   try { if (release && project) await api("POST", `/v1/product/projects/${project.id}/releases/${release.id}/stop`, undefined, 10_000); } catch {}
   try { if (session) await api("DELETE", `/v1/sessions/${session.id}`, undefined, 10_000); } catch {}
   for (const [label, value] of [["luci.session-id", session?.id], ["luci.release-id", release?.id]]) {

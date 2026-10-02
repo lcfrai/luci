@@ -4,6 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 import { CanvasLayout } from "./CanvasLayout";
 import { ColumnsLayout } from "./ColumnsLayout";
 import { EmptyDevelop } from "./EmptyDevelop";
+import { ProjectWork } from "../journey/ProjectWork";
 import {
   selectCanvasSessionIds,
   selectPaneSessionIds,
@@ -20,14 +21,7 @@ export function DevelopLens(): JSX.Element {
   const canvasIds = useCockpit(useShallow(selectCanvasSessionIds));
   const layout = useCockpit((s) => s.layout);
   const branch = useCockpit(selectSelectedBranch);
-
-  if (sessionIds.length === 0) {
-    return (
-      <div className="cols-empty">
-        <EmptyDevelop branch={branch} />
-      </div>
-    );
-  }
+  const projectId = useCockpit((s) => s.selection.projectId);
 
   /* Canvas renders the pinned working set (§3.7 selectCanvasSessionIds); Columns renders every
      session on the branch (§3.7 selectPaneSessionIds). The empty case above is decided on the
@@ -37,9 +31,20 @@ export function DevelopLens(): JSX.Element {
      `grep -cE '^[[:space:]]*<CanvasLayout'` and it counts the element only when the element
      STARTS A LINE, so collapsing this onto one line leaves that guard reading 0 against wired
      code (shared-shape rule 3). */
-  return layout === "canvas" ? (
-    <CanvasLayout sessionIds={canvasIds} />
-  ) : (
-    <ColumnsLayout sessionIds={sessionIds} />
+  return (
+    <div className="develop-workspace">
+      {projectId && <ProjectWork key={projectId} projectId={projectId} />}
+      <div className="develop-sessions">
+        {sessionIds.length === 0 ? (
+          <div className="cols-empty">
+            <EmptyDevelop branch={branch} />
+          </div>
+        ) : layout === "canvas" ? (
+          <CanvasLayout sessionIds={canvasIds} />
+        ) : (
+          <ColumnsLayout sessionIds={sessionIds} />
+        )}
+      </div>
+    </div>
   );
 }

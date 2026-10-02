@@ -3,9 +3,8 @@
 // The typed control-plane client — contract §4. One exported function per Go endpoint;
 // paths, field names and status codes are copied from the Go contract §3 and never re-derived.
 //
-// There is no Authorization header in this file and there is not meant to be one before
-// Phase 8 (contract §4.5, Go contract §3.16). The boundary on the desktop hop is a loopback
-// bind, a Host guard and an Origin allowlist, and all three live server-side.
+// Control-plane sign-in supplies a Bearer token. Browser WebSockets use one-use tickets.
+import { authHeaders, authToken, expireAuth } from "./authSession";
 
 import type {
   Branch,
@@ -58,14 +57,25 @@ export const CREATE_TIMEOUT_MS = 150_000;
  *  non_loopback_publish is NOT a "not running" state: the sandbox is running and published its
  *  port off loopback, so any exhaustive switch over this union must give it its own sentence. */
 export type ProblemCode =
-  | "invalid_json" | "bad_request" | "unknown_harness" | "unsupported_option"
-  | "worktree_not_found" | "project_not_found" | "session_not_found"
-  | "forbidden_origin" | "forbidden_host" | "conflict" | "sandbox_not_running"
-  | "harness_unavailable" | "upgrade_required" | "backend_unavailable" | "internal"
+  | "invalid_json"
+  | "bad_request"
+  | "unknown_harness"
+  | "unsupported_option"
+  | "worktree_not_found"
+  | "project_not_found"
+  | "session_not_found"
+  | "forbidden_origin"
+  | "forbidden_host"
+  | "conflict"
+  | "sandbox_not_running"
+  | "harness_unavailable"
+  | "upgrade_required"
+  | "backend_unavailable"
+  | "internal"
   | "non_loopback_publish"
   /* client-raised */
-  | "network_unavailable"   // fetch rejected: the control plane is not running
-  | "timeout";              // the request exceeded timeoutMs
+  | "network_unavailable" // fetch rejected: the control plane is not running
+  | "timeout"; // the request exceeded timeoutMs
 
 export interface Problem {
   error: ProblemCode;
@@ -81,7 +91,12 @@ export class ApiError extends Error {
   readonly status: number;
   readonly details: Record<string, string>;
 
-  constructor(code: ProblemCode, message: string, status: number, details?: Record<string, string>) {
+  constructor(
+    code: ProblemCode,
+    message: string,
+    status: number,
+    details?: Record<string, string>,
+  ) {
     super(message);
     this.name = "ApiError";
     this.code = code;
@@ -115,6 +130,8 @@ export interface CreateSessionRequest {
    *  Resume sends it in the source's own worktree and Fork in another (Go contract §3.9). */
   resume?: string;
   contextRef?: string;
+  /** Start only the official Codex account sign-in, without an implementation prompt. */
+  authOnly?: boolean;
 }
 
 export interface ListSessionsFilter {
@@ -161,7 +178,11 @@ export interface CockpitClient {
   listWorktrees(projectId: ProjectId, branchId?: BranchId): Promise<Worktree[]>;
   /** contract §10.2, shipped by task 10 as its adjudicated decision 2. Answers with the
    *  worktree object itself, not an envelope. */
-  setWorktreeReady(projectId: ProjectId, worktreeId: WorktreeId, ready: boolean): Promise<Worktree>;
+  setWorktreeReady(
+    projectId: ProjectId,
+    worktreeId: WorktreeId,
+    ready: boolean,
+  ): Promise<Worktree>;
   listHarnesses(): Promise<Harness[]>;
 
   createSession(req: CreateSessionRequest): Promise<Session>;
@@ -182,9 +203,13 @@ export interface CockpitClient {
    *  harness.supportsResume — branched from the source's conversation, as Resume is. A shell
    *  forks its configuration alone. Phase 2 cannot create a worktree (§10.3), so it is offered
    *  only when the branch already has another one. */
-  forkSession(source: Session, targetWorktreeId: WorktreeId, harness: Harness): Promise<Session>;
+  forkSession(
+    source: Session,
+    targetWorktreeId: WorktreeId,
+    harness: Harness,
+  ): Promise<Session>;
   attachUrl(session: Session): string;
-  openAttach(session: Session): WebSocket;
+  openAttach(session: Session): WebSocket | Promise<WebSocket>;
 }
 
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
@@ -194,8 +219,14 @@ type Method = "GET" | "POST" | "PATCH" | "DELETE";
  *  exactly why the explicit option is first. */
 function resolveBaseUrl(explicit?: string): string {
   const fromEnv: unknown = import.meta.env?.VITE_LUCI_API;
-  const runtimeUrl = typeof window === "undefined" ? undefined : window.__LUCI_API__;
-  const raw = explicit ?? runtimeUrl ?? (typeof fromEnv === "string" && fromEnv !== "" ? fromEnv : DEFAULT_BASE_URL);
+  const runtimeUrl =
+    typeof window === "undefined" ? undefined : window.__LUCI_API__;
+  const raw =
+    explicit ??
+    runtimeUrl ??
+    (typeof fromEnv === "string" && fromEnv !== ""
+      ? fromEnv
+      : DEFAULT_BASE_URL);
   return raw.endsWith("/") ? raw.slice(0, -1) : raw;
 }
 
@@ -227,7 +258,12 @@ function toProblem(reply: Reply): ApiError {
       // downstream must carry a `default` — task 19's reasonForCode is specified non-exhaustive
       // for exactly this reason.
       const problem = parsed as Problem;
-      return new ApiError(problem.error, problem.message, reply.status, problem.details);
+      return new ApiError(
+        problem.error,
+        problem.message,
+        reply.status,
+        problem.details,
+      );
     }
   } catch {
     // Not JSON: a proxy interposed, or the server died before it wrote a body.
@@ -264,9 +300,15 @@ export function createClient(opts?: ClientOptions): CockpitClient {
   // "TypeError: Illegal invocation" in a Chromium webview, and never in a test.
   const doFetch =
     opts?.fetch ??
-    ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> => globalThis.fetch(input, init));
+    ((input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
+      globalThis.fetch(input, init));
 
-  async function send(method: Method, route: string, body?: unknown, budgetMs = timeoutMs): Promise<Reply> {
+  async function send(
+    method: Method,
+    route: string,
+    body?: unknown,
+    budgetMs = timeoutMs,
+  ): Promise<Reply> {
     // KNOWN ASYMMETRY, harmless today and written down so it is found rather than discovered.
     // This concatenates, so a baseUrl carrying a path KEEPS it: "http://h/console" + "/v1/machines"
     // → "http://h/console/v1/machines". attachUrl resolves against the base instead and therefore
@@ -290,64 +332,108 @@ export function createClient(opts?: ClientOptions): CockpitClient {
       const res = await doFetch(url, {
         method,
         signal: controller.signal,
-        headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+        headers: authHeaders(
+          body === undefined
+            ? undefined
+            : { "Content-Type": "application/json" },
+        ),
         body: body === undefined ? undefined : JSON.stringify(body),
       });
+      if (res.status === 401) expireAuth();
       // The body is read HERE, while the timer is still armed. Returning the Response and
       // letting the caller read it would clear the timer in `finally` first, and a server
       // that sends its headers and then stalls mid-body would hang for ever with nothing
       // left to cancel it — a cockpit that silently stops updating and never says why.
       // Not `.catch(() => "")`: a read that fails IS the failure, and swallowing it here
       // would turn an abort into a successful empty reply.
-      const reply: Reply = { status: res.status, statusText: res.statusText, text: await res.text() };
+      const reply: Reply = {
+        status: res.status,
+        statusText: res.statusText,
+        text: await res.text(),
+      };
       if (!res.ok) throw toProblem(reply);
       return reply;
     } catch (cause) {
       if (cause instanceof ApiError) throw cause;
       if (timedOut) {
-        throw new ApiError("timeout", `The control plane did not answer ${method} ${url} within ${budgetMs} ms.`, 0);
+        throw new ApiError(
+          "timeout",
+          `The control plane did not answer ${method} ${url} within ${budgetMs} ms.`,
+          0,
+        );
       }
-      throw new ApiError("network_unavailable", `The control plane could not be reached at ${url}.`, 0, {
-        cause: String(cause),
-      });
+      throw new ApiError(
+        "network_unavailable",
+        `The control plane could not be reached at ${url}.`,
+        0,
+        {
+          cause: String(cause),
+        },
+      );
     } finally {
       if (timer !== undefined) clearTimeout(timer);
     }
   }
 
-  const get = async <T,>(route: string): Promise<T> => parseJson<T>(await send("GET", route));
-  const project = (id: ProjectId): string => `/v1/projects/${encodeURIComponent(id)}`;
+  const get = async <T>(route: string): Promise<T> =>
+    parseJson<T>(await send("GET", route));
+  const project = (id: ProjectId): string =>
+    `/v1/projects/${encodeURIComponent(id)}`;
 
   const makeSocket = opts?.webSocket ?? ((url: string) => new WebSocket(url));
-  const sessionPath = (id: SessionId): string => `/v1/sessions/${encodeURIComponent(id)}`;
+  const sessionPath = (id: SessionId): string =>
+    `/v1/sessions/${encodeURIComponent(id)}`;
   // A local const rather than a property read, so resumeSession and forkSession call it
   // without `this` — the returned object is a literal and has no stable receiver.
   const createSession = async (req: CreateSessionRequest): Promise<Session> =>
-    parseJson<Session>(await send("POST", "/v1/sessions", req, createTimeoutMs));
+    parseJson<Session>(
+      await send("POST", "/v1/sessions", req, createTimeoutMs),
+    );
 
   return {
     baseUrl,
     health: () => get<Health>("/v1/healthz"),
-    listMachines: async () => (await get<{ machines: Machine[] }>("/v1/machines")).machines,
-    listProjects: async () => (await get<{ projects: Project[] }>("/v1/projects")).projects,
+    listMachines: async () =>
+      (await get<{ machines: Machine[] }>("/v1/machines")).machines,
+    listProjects: async () =>
+      (await get<{ projects: Project[] }>("/v1/projects")).projects,
     listBranches: async (projectId) =>
-      (await get<{ branches: Branch[] }>(`${project(projectId)}/branches`)).branches,
+      (await get<{ branches: Branch[] }>(`${project(projectId)}/branches`))
+        .branches,
     listWorktrees: async (projectId, branchId) => {
-      const query = branchId === undefined ? "" : `?branchId=${encodeURIComponent(branchId)}`;
-      return (await get<{ worktrees: Worktree[] }>(`${project(projectId)}/worktrees${query}`)).worktrees;
+      const query =
+        branchId === undefined
+          ? ""
+          : `?branchId=${encodeURIComponent(branchId)}`;
+      return (
+        await get<{ worktrees: Worktree[] }>(
+          `${project(projectId)}/worktrees${query}`,
+        )
+      ).worktrees;
     },
     setWorktreeReady: async (projectId, worktreeId, ready) =>
       parseJson<Worktree>(
-        await send("PATCH", `${project(projectId)}/worktrees/${encodeURIComponent(worktreeId)}`, { ready }),
+        await send(
+          "PATCH",
+          `${project(projectId)}/worktrees/${encodeURIComponent(worktreeId)}`,
+          { ready },
+        ),
       ),
-    listHarnesses: async () => (await get<{ harnesses: Harness[] }>("/v1/harnesses")).harnesses,
+    listHarnesses: async () =>
+      (await get<{ harnesses: Harness[] }>("/v1/harnesses")).harnesses,
     createSession,
     listSessions: async (filter) => {
       const params = new URLSearchParams();
-      if (filter?.worktreeId !== undefined) params.append("worktreeId", filter.worktreeId);
-      for (const status of filter?.status ?? []) params.append("status", status);
+      if (filter?.worktreeId !== undefined)
+        params.append("worktreeId", filter.worktreeId);
+      for (const status of filter?.status ?? [])
+        params.append("status", status);
       const query = params.toString();
-      return (await get<{ sessions: Session[] }>(`/v1/sessions${query === "" ? "" : `?${query}`}`)).sessions;
+      return (
+        await get<{ sessions: Session[] }>(
+          `/v1/sessions${query === "" ? "" : `?${query}`}`,
+        )
+      ).sessions;
     },
     getSession: (id) => get<Session>(sessionPath(id)),
     renameSession: async (id, title) => {
@@ -355,14 +441,29 @@ export function createClient(opts?: ClientOptions): CockpitClient {
       if (trimmed === "") {
         // The server answers 400 for this too. Raising it here keeps task 22's optimistic
         // rename instant and costs the user no round trip to be told what we already knew.
-        throw new ApiError("bad_request", "A session title cannot be empty.", 0, { id });
+        throw new ApiError(
+          "bad_request",
+          "A session title cannot be empty.",
+          0,
+          { id },
+        );
       }
-      return parseJson<Session>(await send("PATCH", sessionPath(id), { title: trimmed }));
+      return parseJson<Session>(
+        await send("PATCH", sessionPath(id), { title: trimmed }),
+      );
     },
     // The same Docker work as a create, so the same budget (F1).
     restartSession: async (id) =>
-      parseJson<Session>(await send("POST", `${sessionPath(id)}/restart`, undefined, createTimeoutMs)),
-    killSession: async (id) => parseJson<Session>(await send("DELETE", sessionPath(id))),
+      parseJson<Session>(
+        await send(
+          "POST",
+          `${sessionPath(id)}/restart`,
+          undefined,
+          createTimeoutMs,
+        ),
+      ),
+    killSession: async (id) =>
+      parseJson<Session>(await send("DELETE", sessionPath(id))),
     purgeSession: async (id) => {
       // 204 and no body. A res.json() here throws SyntaxError out of a catch written for
       // ApiError, and the caller sees an exception with no code at all.
@@ -370,9 +471,14 @@ export function createClient(opts?: ClientOptions): CockpitClient {
     },
     resumeSession: async (from, harness) => {
       if (!harness.supportsResume) {
-        throw new ApiError("unsupported_option", `${harness.name} cannot resume a session.`, 0, {
-          harness: harness.id,
-        });
+        throw new ApiError(
+          "unsupported_option",
+          `${harness.name} cannot resume a session.`,
+          0,
+          {
+            harness: harness.id,
+          },
+        );
       }
       return createSession({
         worktreeId: from.worktreeId,
@@ -412,18 +518,44 @@ export function createClient(opts?: ClientOptions): CockpitClient {
         permissionMode: from.permissionMode,
         // No title: the server derives "harness name · worktree name", and the source's title
         // names the worktree the fork is NOT in.
-        openingPrompt: !carries && harness.supportsOpeningPrompt ? from.openingPrompt : undefined,
+        openingPrompt:
+          !carries && harness.supportsOpeningPrompt
+            ? from.openingPrompt
+            : undefined,
         resume: carries ? from.id : undefined,
         contextRef: from.contextRef,
       });
     },
     attachUrl: (session) => attachUrl(baseUrl, session),
     openAttach: (session) => {
-      const socket = makeSocket(attachUrl(baseUrl, session));
-      // Before returning, so no caller can read a frame as a Blob. The browser sends Origin
-      // on the handshake by itself; nothing is added by hand, and there is no token.
-      socket.binaryType = "arraybuffer";
-      return socket;
+      const open = (ticket?: string) => {
+        const url = new URL(attachUrl(baseUrl, session));
+        if (ticket) url.searchParams.set("ticket", ticket);
+        const socket = makeSocket(url.toString());
+        socket.binaryType = "arraybuffer";
+        return socket;
+      };
+      // Sync remains available to injectable clients without a signed-in session.
+      const token = authToken();
+      if (!token) return open();
+      return send("POST", "/v1/auth/socket-ticket", {
+        path: session.attachPath,
+      }).then((reply) => {
+        if (authToken() !== token)
+          throw new ApiError(
+            "conflict",
+            "The signed-in session changed before terminal attachment.",
+            409,
+          );
+        const value = JSON.parse(reply.text) as { ticket: string };
+        if (!value.ticket)
+          throw new ApiError(
+            "internal",
+            "No session attach ticket was returned.",
+            500,
+          );
+        return open(value.ticket);
+      });
     },
   };
 }

@@ -80,8 +80,9 @@ type Runner interface {
 
 // Scanner enumerates one root directory of repositories.
 type Scanner struct {
-	root string
-	git  Runner
+	root    string
+	git     Runner
+	bounded bool
 
 	// writable is every directory outside root that a sandbox mounts
 	// read-WRITE and that holds no worktree: the conversation stores' root.
@@ -245,6 +246,11 @@ func (s *Scanner) Projects(ctx context.Context) ([]Project, error) {
 		if _, err := os.Lstat(filepath.Join(dir, ".git")); err != nil {
 			continue
 		}
+		if s.bounded {
+			if _, _, err := boundedGitDirectory(s.root, dir); err != nil {
+				continue
+			}
+		}
 		p := Project{ID: ProjectID(dir), Name: name, Path: dir}
 		s.remember(p.ID, p.Name)
 		out = append(out, p)
@@ -376,7 +382,17 @@ func (s *Scanner) Worktrees(ctx context.Context, projectID string) ([]Worktree, 
 	if err != nil {
 		return nil, fmt.Errorf("project: list worktrees of %s: %w", p.Name, err)
 	}
-	return s.parseWorktrees(p, string(out)), nil
+	rows := s.parseWorktrees(p, string(out))
+	if s.bounded {
+		kept := rows[:0]
+		for _, row := range rows {
+			if _, _, err := boundedGitDirectory(s.root, row.Path); err == nil {
+				kept = append(kept, row)
+			}
+		}
+		rows = kept
+	}
+	return rows, nil
 }
 
 // parseWorktrees reads `git worktree list --porcelain`. Records are separated

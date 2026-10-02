@@ -5,6 +5,7 @@ import { createServer } from 'node:net';
 import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { randomUUID } from 'node:crypto';
 
 const packageDir = path.resolve(process.argv[2] || '');
 const evidence = path.resolve(process.argv[3] || `artifacts/package-eval/${Date.now()}`);
@@ -27,8 +28,12 @@ const base = `http://${address}`;
 const binary = path.join(packageDir, process.platform === 'win32' ? 'luci.exe' : 'luci');
 const checks = [], logs = [];
 let child;
+let token = '';
+const password = randomUUID() + randomUUID();
 async function request(method, route, body) {
-  const res = await fetch(base + route, { method, headers: body ? {'Content-Type':'application/json'} : {}, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(45000) });
+  const headers = body ? {'Content-Type':'application/json'} : {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(base + route, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(45000) });
   const value = await res.json();
   assert.ok(res.ok, `${method} ${route}: ${res.status} ${JSON.stringify(value)}`);
   return value;
@@ -40,7 +45,15 @@ async function start() {
   const until = Date.now() + 60000;
   while (Date.now() < until) {
     assert.equal(child.exitCode, null, 'Packaged service exited before readiness');
-    try {const status=await request('GET','/v1/setup/status');assert.equal(status.product,'Luci');assert.equal(status.version,'0.3.0');return status;} catch {}
+    try {
+      const control = await request('GET','/v1/control-plane/status');
+      assert.equal(control.product,'Luci');assert.equal(control.version,process.env.LUCI_VERSION || '0.4.0');
+      if (control.bootstrapRequired) {
+        const code = (await readFile(path.join(state,'control-plane/bootstrap-token'),'utf8')).trim();
+        token = (await request('POST','/v1/auth/bootstrap',{bootstrapToken:code,username:'package-owner',displayName:'Package Owner',password})).token;
+      }
+      return await request('GET','/v1/setup/status');
+    } catch {}
     await delay(300);
   }
   throw new Error('Packaged service did not become ready');
@@ -55,6 +68,9 @@ async function stop() {
 }
 try {
   await start();
+  const anonymous = await fetch(base+'/v1/product/projects');assert.equal(anonymous.status,401);
+  assert.equal((await request('GET','/v1/auth/me')).user.role,'super-admin');
+  checks.push('Created the first Super Admin and rejected unauthenticated project access');
   const page = await fetch(base + '/');
   assert.ok(page.ok);assert.match(await page.text(), /Luci/);
   checks.push('Started packaged service and served shipped web assets without Go or Node compilation');
@@ -63,6 +79,7 @@ try {
   const route = `/v1/product/projects/${encodeURIComponent(project.id)}`;
   await request('POST',route+'/brief',{revision:0,purpose:'Verify packaged Luci persistence',audience:'People using the download',constraints:'No cloud or model calls',criteria:['Survive service restart']});
   await request('POST',route+'/design',{revision:0,frames:[],scene:{elements:[{id:'eval-rectangle',type:'rectangle',x:20,y:20,width:120,height:80}],appState:{},files:{}}});
+  await request('POST',route+'/plan',{expectedRevision:0,tasks:[{id:'persist',title:'Verify full project persistence',status:'doing'}]});
   assert.match(await readFile(path.join(project.path,'LUCI.md'),'utf8'),/Verify packaged Luci/);
   checks.push('Created a real Git project, saved brief/design and generated LUCI.md');
   await stop();
@@ -71,6 +88,8 @@ try {
   assert.equal(restarted.config.projectsDir,projects);
   assert.equal((await request('GET',route+'/brief')).revision,1);
   const design = await request('GET',route+'/design');
+  assert.equal((await request('GET',route+'/plan')).tasks[0].title,'Verify full project persistence');
+  assert.equal((await request('GET','/v1/auth/me')).user.username,'package-owner');
   assert.equal(design.briefRevision,1);assert.equal(design.scene.elements[0].id,'eval-rectangle');
   checks.push('Recovered configured project, brief and drawing after a clean process restart');
   const foreign = await fetch(base+'/v1/product/projects',{method:'POST',headers:{Origin:'https://unrelated.example','Content-Type':'application/json'},body:JSON.stringify({name:'foreign'})});

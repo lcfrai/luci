@@ -519,8 +519,11 @@ const SEAMS: Seam[] = [
   },
   {
     id: "S8.6",
-    name: "no Authorization header on the desktop hop until Phase 8 adds its server half",
-    anchors: [{ file: "desktop/src/api/client.ts", absent: /Authorization/ }],
+    name: "authenticated desktop HTTP and single-use attachment tickets",
+    anchors: [
+      { file: "desktop/src/api/client.ts", present: /authHeaders/ },
+      { file: "desktop/src/api/client.ts", present: /\/v1\/auth\/socket-ticket/ },
+    ],
   },
   {
     id: "S8.7",
@@ -577,7 +580,9 @@ const SEAMS: Seam[] = [
       {
         dir: "control-plane",
         absent: /(?<!\)\s*\(\*?)\b\w+\.Conn\b/,
-        except: ["control-plane/internal/proxy/proxy.go", "control-plane/internal/api/attach.go"],
+        // Management tracks admitted network connections for expiry and revocation,
+        // while the worker's existing RelayHooked owns terminal frame transport.
+        except: ["control-plane/internal/proxy/proxy.go", "control-plane/internal/api/attach.go", "control-plane/internal/management/management.go", "control-plane/internal/management/sockets.go"],
       },
       // And by what a relay moves: messages. One whose connections are typed by a local interface
       // (fix round 2's predicted survivor G-X1, which survived the rule above) names the message
@@ -595,9 +600,13 @@ const SEAMS: Seam[] = [
         // Luci's verified SSH workspace proxy moves the entire existing HTTP/WebSocket API.
         // It preserves the one session byte relay inside the selected workspace service.
         // The isolated preview proxy relays application HTTP/WebSocket traffic, never agents.
+        // The authenticated management gateway routes a user to their isolated worker;
+        // it does not interpret terminal frames or replace the worker's byte relay.
         except: [
           "control-plane/internal/product/workspace.go",
           "control-plane/internal/product/preview_proxy.go",
+          "control-plane/internal/management/runtime.go",
+          "control-plane/internal/management/sockets.go",
         ],
       },
     ],

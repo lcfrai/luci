@@ -383,6 +383,7 @@ func (s *Server) stopTunnel(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]string{"status": "stopped"})
 }
 func (s *Server) Close() {
+	s.closeProjectChecks()
 	s.closeWorkspace()
 	s.closeProviderLogins()
 	s.mu.Lock()

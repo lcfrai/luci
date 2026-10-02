@@ -30,6 +30,7 @@ func workspaceTunnel(s *Server, remote string) *Tunnel {
 	tunnel := &Tunnel{ID: "tunnel-fixture", Host: "203.0.113.7", APIURL: remote, LocalURL: "http://127.0.0.1:53232", Status: "connected", KnownHostsPath: filepath.Join(s.stateDir, "fixture.known_hosts"), KnownHost: "203.0.113.7 ssh-ed25519 " + base64.StdEncoding.EncodeToString(key), Request: SSHRequest{Host: "203.0.113.7", Port: 22, User: "ubuntu"}}
 	s.mu.Lock()
 	s.tunnels[tunnel.ID] = tunnel
+	s.workspaceAuth[workspaceCredentialKey(*tunnel)] = workspaceCredential{Token: strings.Repeat("r", 43)}
 	s.mu.Unlock()
 	return tunnel
 }
@@ -39,7 +40,11 @@ func TestWorkspaceActivationRequiresMatchingRemoteAndPersistsPinnedSelection(t *
 	var probes atomic.Int32
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		probes.Add(1)
-		if r.URL.Path != "/v1/setup/status" || r.Method != "GET" {
+		if r.URL.Path == "/v1/auth/me" {
+			writeJSON(w, 200, map[string]any{"user": map[string]string{"id": "remote-owner", "role": "super-admin"}})
+			return
+		}
+		if (r.URL.Path != "/v1/control-plane/status" && r.URL.Path != "/v1/setup/status") || r.Method != "GET" {
 			t.Errorf("unexpected readiness request %s %s", r.Method, r.URL.Path)
 		}
 		version := "0.2.0"
@@ -205,10 +210,13 @@ func TestCloudWorkspaceProxiesProjectRequestsAndKeepsHostSetupLocal(t *testing.T
 		defer requestMu.Unlock()
 		upstreamCalls.Add(1)
 		lastMethod, lastPath, lastQuery, lastHost = r.Method, r.URL.Path, r.URL.RawQuery, r.Host
-		for _, name := range []string{"Origin", "Cookie", "Authorization", "Forwarded", "X-Forwarded-Host"} {
+		for _, name := range []string{"Origin", "Cookie", "Forwarded", "X-Forwarded-Host"} {
 			if r.Header.Get(name) != "" {
 				leakedHeader = true
 			}
+		}
+		if r.Header.Get("Authorization") != "Bearer "+strings.Repeat("r", 43) {
+			leakedHeader = true
 		}
 		if r.URL.Path == "/v1/setup/targets" {
 			if r.Method == "POST" {
@@ -288,6 +296,10 @@ func TestCloudWorkspaceProxiesProjectRequestsAndKeepsHostSetupLocal(t *testing.T
 
 func TestCloudWorkspaceProxyCarriesTerminalWebSocketFrames(t *testing.T) {
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/auth/socket-ticket" {
+			writeJSON(w, 200, map[string]string{"ticket": "remote-socket-ticket"})
+			return
+		}
 		if r.URL.Path != "/v1/sessions/session-fixture/attach" {
 			http.NotFound(w, r)
 			return
@@ -344,7 +356,7 @@ func TestCloudWorkspacePreviewAllocatesOnlyOnPostAndSeparatesAppOrigins(t *testi
 		}
 		appCalls.Add(1)
 		if strings.HasSuffix(r.URL.Path, "/socket") {
-			if r.Header.Get("X-Luci-Preview-Bridge") != "1" || r.Header.Get("Authorization") != "" || r.Header.Get("Origin") != "" {
+			if r.Header.Get("X-Luci-Preview-Bridge") != "1" || r.Header.Get("Authorization") != "Bearer "+strings.Repeat("r", 43) || r.Header.Get("Origin") != "" {
 				t.Error("preview WebSocket did not isolate browser credentials")
 			}
 			connection, err := websocket.Accept(w, r, nil)
@@ -413,7 +425,7 @@ func TestCloudWorkspacePreviewAllocatesOnlyOnPostAndSeparatesAppOrigins(t *testi
 		err = json.NewDecoder(res.Body).Decode(&app)
 		res.Body.Close()
 		parsed, _ := url.Parse(route.path)
-		if err != nil || res.StatusCode != 200 || app["method"] != route.method || app["path"] != releasePrefix+"release-first/preview"+parsed.Path || app["query"] != parsed.RawQuery || app["body"] != "app-payload" || app["cookie"] != "app-session=fixture" || app["authorization"] != "" || app["origin"] != "" || app["forwarded"] != "" || app["marker"] != "1" {
+		if err != nil || res.StatusCode != 200 || app["method"] != route.method || app["path"] != releasePrefix+"release-first/preview"+parsed.Path || app["query"] != parsed.RawQuery || app["body"] != "app-payload" || app["cookie"] != "app-session=fixture" || app["authorization"] != "Bearer "+strings.Repeat("r", 43) || app["origin"] != "" || app["forwarded"] != "" || app["marker"] != "1" {
 			t.Fatalf("isolated preview forwarding failed: %s %s: %#v (%v)", route.method, route.path, app, err)
 		}
 	}

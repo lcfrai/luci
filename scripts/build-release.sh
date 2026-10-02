@@ -4,10 +4,10 @@
 set -euo pipefail
 
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-version=${1:-0.3.0}
+version=${1:-0.4.0}
 selected=${2:-all}
 if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
-  printf '%s\n' 'Use a release version such as 0.3.0 or 0.3.0-rc.1.' >&2
+  printf '%s\n' 'Use a release version such as 0.4.0 or 0.4.0-rc.1.' >&2
   exit 2
 fi
 case "$selected" in all|linux-amd64|darwin-arm64) ;; *) printf '%s\n' 'Target must be all, linux-amd64 or darwin-arm64.' >&2; exit 2 ;; esac

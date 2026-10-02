@@ -28,9 +28,12 @@ async function launch() {
       let ready = false;
       for (let attempt = 0; attempt < 60; attempt += 1) {
         try {
-          const response = await fetch(`${runtime.apiUrl}/v1/setup/status`, {
-            signal: AbortSignal.timeout(1000),
-          });
+          const response = await fetch(
+            `${runtime.apiUrl}/v1/control-plane/status`,
+            {
+              signal: AbortSignal.timeout(1000),
+            },
+          );
           if (response.ok) {
             ready = true;
             break;
@@ -44,12 +47,19 @@ async function launch() {
         throw new Error(
           "Luci’s local service did not become ready. Check the local service or restart Luci.",
         );
+    } else if (!import.meta.env.DEV && !import.meta.env.VITE_LUCI_API) {
+      // Portable and remote web distributions are served by their own API.
+      // A fixed loopback default would target a different service or the viewer's PC.
+      window.__LUCI_API__ = window.location.origin;
     }
     // Resolve runtime configuration before either API singleton is constructed.
     const { default: App } = await import("./App");
+    const { AuthProvider } = await import("./components/auth/AuthProvider");
     root.render(
       <React.StrictMode>
-        <App />
+        <AuthProvider>
+          <App />
+        </AuthProvider>
       </React.StrictMode>,
     );
   } catch (error) {

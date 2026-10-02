@@ -55,11 +55,12 @@ type Element struct {
 }
 
 type journeyState struct {
-	Version         int      `json:"version"`
-	Brief           Brief    `json:"brief"`
-	Design          Design   `json:"design"`
-	BriefRevisions  []Brief  `json:"briefRevisions"`
-	DesignRevisions []Design `json:"designRevisions"`
+	Version         int          `json:"version"`
+	Brief           Brief        `json:"brief"`
+	Design          Design       `json:"design"`
+	BriefRevisions  []Brief      `json:"briefRevisions"`
+	DesignRevisions []Design     `json:"designRevisions"`
+	Plan            *ProjectPlan `json:"plan,omitempty"`
 }
 
 func readJourney(dir, projectID string) (journeyState, error) {
@@ -93,6 +94,9 @@ func readJourney(dir, projectID string) (journeyState, error) {
 	if state.Version != 1 || state.Brief.ProjectID != projectID || state.Design.ProjectID != projectID || state.Brief.Revision < 0 || state.Design.Revision < 0 {
 		return state, errors.New("project history has an unsupported version or belongs to another project")
 	}
+	if state.Plan != nil && (state.Plan.ProjectID != projectID || validatePlan(*state.Plan) != nil) {
+		return state, errors.New("project plan is invalid or belongs to another project")
+	}
 	if state.Brief.Criteria == nil {
 		state.Brief.Criteria = []string{}
 	}
@@ -120,7 +124,16 @@ func writeJourney(dir string, state journeyState) error {
 	if len(data) > 8<<20 {
 		return errors.New("project history exceeds the 8 MiB local-state limit")
 	}
-	return writeProjectAtomic(dir, ".luci/state.json", append(data, '\n'))
+	// Reject unsafe export paths before changing the canonical state.
+	for _, path := range []string{".luci/design.json", ".luci/plan.json"} {
+		if _, err := guardedProjectPath(dir, path, true); err != nil {
+			return err
+		}
+	}
+	if err := writeProjectAtomic(dir, ".luci/state.json", append(data, '\n')); err != nil {
+		return err
+	}
+	return writeJourneyContext(dir, state)
 }
 
 func (s *Server) getBrief(w http.ResponseWriter, r *http.Request) {

@@ -38,17 +38,19 @@ type CoolifyServer struct {
 // CoolifyGitApplication requires source accessible to the remote server. It does
 // not upload local source. Private repository authentication is a separate flow.
 type CoolifyGitApplication struct {
-	ProjectUUID string
-	ServerUUID  string
-	Environment string
-	Name        string
-	Repository  string
-	Branch      string
-	Commit      string
-	Dockerfile  string
-	Port        int
-	Domain      string
-	HealthPath  string
+	ProjectUUID    string
+	ServerUUID     string
+	Environment    string
+	Name           string
+	Repository     string
+	Branch         string
+	Commit         string
+	Dockerfile     string
+	Port           int
+	Domain         string
+	HealthPath     string
+	Source         string
+	PrivateKeyUUID string
 }
 
 type CoolifyDeployment struct {
@@ -280,7 +282,7 @@ func coolifyGitApplicationPayload(app CoolifyGitApplication) (map[string]any, er
 	if err != nil || (domain.Path != "" && domain.Path != "/") {
 		return nil, errors.New("provide the application's HTTPS domain without a path")
 	}
-	return map[string]any{
+	body := map[string]any{
 		"project_uuid": app.ProjectUUID, "server_uuid": app.ServerUUID,
 		"environment_name": app.Environment, "name": app.Name,
 		"git_repository": app.Repository, "git_branch": app.Branch, "git_commit_sha": app.Commit,
@@ -289,7 +291,19 @@ func coolifyGitApplicationPayload(app CoolifyGitApplication) (map[string]any, er
 		"instant_deploy": false, "is_auto_deploy_enabled": false,
 		"health_check_enabled": true, "health_check_path": app.HealthPath,
 		"force_domain_override": false,
-	}, nil
+	}
+	if app.Source != "" && app.Source != "public" && app.Source != "private" {
+		return nil, errors.New("choose public or private repository access")
+	}
+	if app.Source == "private" {
+		owner, name, err := githubDeploymentRepository(app.Repository)
+		if err != nil || !coolifyID.MatchString(app.PrivateKeyUUID) {
+			return nil, errors.New("private GitHub deployment requires its HTTPS repository and a Coolify private key UUID")
+		}
+		body["git_repository"] = "git@github.com:" + owner + "/" + name + ".git"
+		body["private_key_uuid"] = app.PrivateKeyUUID
+	}
+	return body, nil
 }
 
 func (c *CoolifyClient) CreateGitApplication(ctx context.Context, app CoolifyGitApplication) (string, error) {
@@ -300,7 +314,11 @@ func (c *CoolifyClient) CreateGitApplication(ctx context.Context, app CoolifyGit
 	var created struct {
 		UUID string `json:"uuid"`
 	}
-	if err := c.request(ctx, http.MethodPost, "/applications/public", nil, body, &created); err != nil {
+	endpoint := "/applications/public"
+	if app.Source == "private" {
+		endpoint = "/applications/private-deploy-key"
+	}
+	if err := c.request(ctx, http.MethodPost, endpoint, nil, body, &created); err != nil {
 		return "", err
 	}
 	if !coolifyID.MatchString(created.UUID) {
@@ -319,7 +337,57 @@ func (c *CoolifyClient) UpdateGitApplication(ctx context.Context, appUUID string
 	if err != nil {
 		return err
 	}
+	// v4.3.23's PATCH schema cannot change a deploy key. Reuse is allowed
+	// only for the same saved source/key by the release reservation layer.
+	delete(body, "private_key_uuid")
 	return c.request(ctx, http.MethodPatch, "/applications/"+appUUID, nil, body, nil)
+}
+
+type CoolifyPrivateKey struct {
+	UUID      string `json:"uuid"`
+	Name      string `json:"name"`
+	PublicKey string `json:"public_key"`
+}
+
+func (c *CoolifyClient) PrivateKeys(ctx context.Context) ([]CoolifyPrivateKey, error) {
+	var keys []CoolifyPrivateKey
+	err := c.request(ctx, http.MethodGet, "/security/keys", nil, nil, &keys)
+	return keys, err
+}
+func (c *CoolifyClient) CreatePrivateKey(ctx context.Context, name, key string) (string, error) {
+	var value struct {
+		UUID string `json:"uuid"`
+	}
+	err := c.request(ctx, http.MethodPost, "/security/keys", nil, map[string]string{"name": name, "description": "Luci read-only GitHub deployment access", "private_key": key}, &value)
+	if err != nil {
+		return "", err
+	}
+	if !coolifyID.MatchString(value.UUID) {
+		return "", errors.New("Coolify did not confirm the created private key; refresh this operation before retrying")
+	}
+	return value.UUID, nil
+}
+func (c *CoolifyClient) StopApplication(ctx context.Context, id string) error {
+	if !coolifyID.MatchString(id) {
+		return errors.New("invalid owned application ID")
+	}
+	return c.request(ctx, http.MethodPost, "/applications/"+id+"/stop", url.Values{"docker_cleanup": {"false"}}, nil, nil)
+}
+func (c *CoolifyClient) ApplicationStatus(ctx context.Context, id string) (string, error) {
+	if !coolifyID.MatchString(id) {
+		return "", errors.New("invalid owned application ID")
+	}
+	var value struct {
+		UUID   string `json:"uuid"`
+		Status string `json:"status"`
+	}
+	if err := c.request(ctx, http.MethodGet, "/applications/"+id, nil, nil, &value); err != nil {
+		return "", err
+	}
+	if value.UUID != id {
+		return "", errors.New("Coolify returned a different application")
+	}
+	return value.Status, nil
 }
 
 func (c *CoolifyClient) Deploy(ctx context.Context, resourceUUID string) (CoolifyDeployment, error) {

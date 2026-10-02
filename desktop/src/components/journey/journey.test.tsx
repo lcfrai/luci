@@ -73,6 +73,7 @@ it("reads actual file content and keeps the current folder when the server refus
 });
 
 it("refreshes Git only after a successful commit and never claims a failed commit succeeded", async () => {
+  vi.spyOn(productApi, "gitDelivery").mockResolvedValue({ branch: "main", head: "" });
   vi.spyOn(productApi, "git").mockResolvedValue({
     branch: "main",
     clean: false,

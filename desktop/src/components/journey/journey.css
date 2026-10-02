@@ -1,6 +1,162 @@
 @import "../../styles/tokens.css";
 @import "../setup/setup.css";
-.cloud-deploy-form { display: grid; gap: 18px; max-inline-size: 780px; padding-block: 24px; }
+.develop-workspace {
+  block-size: 100%;
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
+}
+.develop-sessions {
+  flex: 1;
+  min-block-size: 160px;
+  overflow: hidden;
+}
+.project-work {
+  flex: 0 1 auto;
+  max-block-size: 60%;
+  overflow: auto;
+  border-block-end: 1px solid var(--line-soft);
+  background: var(--surface);
+}
+.project-work > summary {
+  display: flex;
+  gap: 20px;
+  padding: 14px 20px;
+  cursor: pointer;
+  align-items: center;
+}
+.project-work > summary::before {
+  content: "+";
+  font: 14px var(--mono);
+  color: var(--accent);
+}
+.project-work[open] > summary::before {
+  content: "−";
+}
+.project-work > summary span {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.project-work-body {
+  padding: 0 20px 22px;
+}
+.project-work-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+  margin-block: 18px;
+}
+.project-work-facts h2 {
+  font-size: 15px;
+  font-weight: 550;
+}
+.project-work-facts h3 {
+  font-size: 12px;
+  font-weight: 550;
+}
+.project-work-facts p,
+.project-work-facts li {
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.project-plan,
+.project-checks {
+  border-block-start: 1px solid var(--line-soft);
+  padding-block: 18px;
+}
+.project-plan h2,
+.project-checks h2 {
+  font-size: 16px;
+  font-weight: 550;
+}
+.project-tasks,
+.check-commands,
+.check-runs {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.project-tasks li {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto auto auto;
+  gap: 8px;
+  align-items: end;
+}
+.project-tasks .sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.delivery-create {
+  margin-block: 18px;
+}
+.delivery-create > summary {
+  cursor: pointer;
+  margin-block-end: 12px;
+}
+.project-plan > .journey-actions {
+  margin-block: 16px;
+}
+.check-commands li {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+.check-commands code {
+  display: block;
+  overflow-wrap: anywhere;
+  color: var(--ink-2);
+  margin-block: 5px;
+}
+.check-command-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin-block: 16px;
+}
+.check-command-form .luci-field {
+  flex: 1;
+}
+.check-runs > li {
+  padding: 15px;
+  background: var(--field);
+  border-radius: var(--r-card);
+}
+.check-runs .journey-header {
+  margin-block-end: 14px;
+}
+.check-runs details {
+  padding-block: 7px;
+}
+@media (max-width: 850px) {
+  .project-work-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .project-work > summary {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+@media (max-width: 1100px) {
+  .project-tasks li {
+    grid-template-columns: minmax(150px, 1fr) minmax(130px, 1fr);
+  }
+}
+.cloud-deploy-form {
+  display: grid;
+  gap: 18px;
+  max-inline-size: 780px;
+  padding-block: 24px;
+}
 .journey-page {
   block-size: 100%;
   overflow: auto;

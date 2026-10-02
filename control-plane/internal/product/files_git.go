@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -149,11 +150,25 @@ var journeyGitFlags = []string{"--no-pager", "--no-optional-locks", "-c", "core.
 
 func (s *Server) journeyGit(ctx context.Context, dir string, args ...string) (string, error) {
 	all := append([]string{}, journeyGitFlags...)
+	// Managed projects have their own ordinary .git directory. Pin both Git
+	// paths so repository-local core.worktree/core.bare cannot redirect host
+	// reads or writes into another user's workspace. Identity/config probes
+	// and a not-yet-initialised restore directory deliberately have no .git.
+	gitDir := filepath.Join(dir, ".git")
+	if info, err := os.Lstat(gitDir); err == nil {
+		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return "", errors.New("project Git directory must be an ordinary directory")
+		}
+		if _, err := guardedProjectPath(dir, ".git", false); err != nil {
+			return "", err
+		}
+		all = append(all, "--git-dir="+gitDir, "--work-tree="+dir, "-c", "core.bare=false")
+	}
 	if len(args) > 0 && args[0] != "config" {
 		// Even `git status` may run a clean filter when it compares a tracked
 		// file to the index. Neutralize configured drivers before every command
 		// that can inspect the worktree, not only before staging a commit.
-		probe := append(append([]string{}, journeyGitFlags...), "config", "--null", "--name-only", "--get-regexp", `^filter\.`)
+		probe := append(append([]string{}, all...), "config", "--null", "--name-only", "--get-regexp", `^filter\.`)
 		filters, filterErr := s.runner(ctx, "git", probe, dir)
 		if filterErr != nil && strings.TrimSpace(filters) != "" {
 			return "", filterErr
@@ -318,7 +333,7 @@ func (s *Server) commitProject(w http.ResponseWriter, r *http.Request) {
 	for _, change := range changes {
 		// .luci is intentional provenance. Other credential names require a
 		// user's explicit handling in Git; the one-click commit never adds them.
-		if blockedProjectFile(change.Path) && change.Path != ".luci/state.json" {
+		if blockedProjectFile(change.Path) && change.Path != ".luci/state.json" && change.Path != ".luci/design.json" && change.Path != ".luci/plan.json" {
 			journeyError(w, 409, "sensitive_file", "Review the credential-like file in Git before committing: "+change.Path)
 			return
 		}

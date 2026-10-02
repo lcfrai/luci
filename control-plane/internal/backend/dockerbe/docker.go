@@ -231,6 +231,7 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 		// would delete the transcript `claude --resume` reads.
 		AutoRemove: false,
 		Binds:      binds,
+		ExtraHosts: []string{"host.docker.internal:host-gateway"},
 		Resources: container.Resources{
 			NanoCPUs: spec.Resources.NanoCPUs(),
 			Memory:   spec.Resources.MemoryBytes(),

@@ -3,17 +3,42 @@
 import type { JSX } from "react";
 import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
+import { useAuth } from "../auth/AuthProvider";
 import "./rail.css";
 
 export function RailFooter(): JSX.Element {
   const setup = useSetup();
+  const auth = useAuth();
   const lastError = useCockpit((s) => s.lastError);
 
   return (
     <div className="rail-footer">
       <div>
-        <button className="rail-settings" type="button" onClick={() => setup?.openSettings()}>Settings</button> <span className="rail-kbd">⌘K</span>
+        <button
+          className="rail-settings"
+          type="button"
+          onClick={() => setup?.openSettings()}
+        >
+          Settings
+        </button>{" "}
+        <span className="rail-kbd">⌘K</span>
       </div>
+      {auth && (
+        <div className="rail-account">
+          <button className="rail-settings" onClick={auth.openAccount}>
+            {auth.profile.user.displayName || auth.profile.user.username}
+          </button>
+          {Object.values(auth.profile.permissions).some(Boolean) &&
+            (auth.profile.permissions.manageUsers ||
+              auth.profile.permissions.manageBacking ||
+              auth.profile.permissions.managePolicy ||
+              auth.profile.permissions.inspectAudit) && (
+              <button className="rail-settings" onClick={auth.openAdmin}>
+                Admin
+              </button>
+            )}
+        </div>
+      )}
       {lastError === null ? null : (
         // The server's own sentence, verbatim. There are sixteen error codes and the cockpit
         // does not paraphrase any of them — non_loopback_publish in particular describes a

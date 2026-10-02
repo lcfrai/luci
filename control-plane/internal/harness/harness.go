@@ -61,7 +61,7 @@ type Descriptor struct {
 	Command string `json:"command"`
 
 	// Installed is whether images/sandbox/Dockerfile actually puts this binary
-	// in the sandbox image. Only Claude Code and the shell are, today.
+	// in the sandbox image. See its pinned npm installations.
 	Installed bool `json:"installed"`
 
 	// FlagsVerified is whether this package's argv was checked against the real
@@ -86,9 +86,7 @@ type Descriptor struct {
 
 	// freeTextModel is unexported on purpose: it changes no JSON and the
 	// cockpit has no use for it. Claude Code documents full model names as well
-	// as the three aliases, so pinning its list here would make the app stale
-	// the week a new model ships. The three unverified harnesses do not get
-	// that latitude — if one is ever enabled, an unlisted model is a typo.
+	// as aliases; Codex and OpenCode likewise accept provider model IDs.
 	freeTextModel bool
 }
 
@@ -103,7 +101,7 @@ func (d Descriptor) Available() bool { return d.Installed && d.FlagsVerified }
 // Conversation and keeps it on the session record, which is how it can later
 // supply Resume without ever reading what the CLI printed.
 type Request struct {
-	ProjectBrief  bool // instruct Claude to read LUCI.md as untrusted project context
+	ProjectBrief  bool // instruct the agent to read LUCI.md as untrusted project context
 	Harness       ID
 	Model         string
 	Effort        Effort
@@ -128,13 +126,11 @@ var (
 	ErrConversationID = errors.New("harness: conversation ids are not usable")
 )
 
-// unverifiedNote is one string because three descriptors say the same thing and
-// the cockpit renders it verbatim. It names the file to change, so the note is
+// The cockpit renders unverifiedNote verbatim. It names the file to change, so the note is
 // an instruction rather than an apology.
 const unverifiedNote = "Not installed in the sandbox image. Add it to images/sandbox/Dockerfile and verify its flags against `--help` before enabling."
 
-// catalogue is the single source of truth, in display order: the two harnesses
-// that work, then the three that do not, alphabetically. Never handed out
+// catalogue is the single source of truth, retaining the stable picker order. Never handed out
 // directly — see clone.
 var catalogue = []Descriptor{
 	{
@@ -176,12 +172,17 @@ var catalogue = []Descriptor{
 		SupportsResume:        false,
 	},
 	{
-		ID:            Codex,
-		Name:          "Codex",
-		Command:       "codex",
-		Installed:     false,
-		FlagsVerified: false,
-		Note:          unverifiedNote,
+		ID:                    Codex,
+		Name:                  "Codex",
+		Command:               "codex",
+		Installed:             true,
+		FlagsVerified:         true,
+		Models:                []Model{{ID: "default", Name: "Provider default"}},
+		DefaultModel:          "default",
+		PermissionModes:       []PermissionMode{PermissionAsk, PermissionBypass, PermissionPlan},
+		SupportsOpeningPrompt: true,
+		SupportsResume:        true,
+		freeTextModel:         true,
 	},
 	{
 		ID:            GeminiCLI,
@@ -192,14 +193,23 @@ var catalogue = []Descriptor{
 		Note:          unverifiedNote,
 	},
 	{
-		ID:            OpenCode,
-		Name:          "OpenCode",
-		Command:       "opencode",
-		Installed:     false,
-		FlagsVerified: false,
-		Note:          unverifiedNote,
+		ID:                    OpenCode,
+		Name:                  "OpenCode",
+		Command:               "opencode",
+		Installed:             true,
+		FlagsVerified:         true,
+		Models:                []Model{{ID: "default", Name: "Configured local model"}},
+		DefaultModel:          "default",
+		PermissionModes:       []PermissionMode{PermissionAsk, PermissionBypass, PermissionPlan},
+		SupportsOpeningPrompt: true,
+		SupportsResume:        true,
+		freeTextModel:         true,
 	},
 }
+
+// NativeState harnesses keep their own database/transcript formats in an
+// isolated durable home. Luci delegates continuation to the pinned CLI.
+func (d Descriptor) NativeState() bool { return d.ID == Codex || d.ID == OpenCode }
 
 // clone deep-copies the three slices a Descriptor carries. Without it a handler
 // that appends to Models poisons the package variable for every later request

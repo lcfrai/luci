@@ -1,4 +1,5 @@
 import { ApiError, DEFAULT_BASE_URL, type ProblemCode } from "./client";
+import { authHeaders, expireAuth } from "./authSession";
 
 export interface SetupConfig {
   projectsDir: string;
@@ -14,6 +15,41 @@ export interface SetupCheck {
   status: "unknown" | "ready" | "missing" | "error";
   message: string;
   action: string;
+}
+export interface AgentProvider {
+  id: string;
+  name: string;
+  configured: boolean;
+  authMode?: string;
+  model?: string;
+  baseUrl?: string;
+  signInCommand?: string;
+}
+export interface AgentConnections {
+  providers: AgentProvider[];
+}
+export interface GitHubAccount {
+  available: boolean;
+  signedIn: boolean;
+  login?: string;
+  message: string;
+  actionUrl?: string;
+}
+export interface GitPublication {
+  repository: string;
+  visibility?: "private" | "public";
+  status: string;
+  branch?: string;
+  commit?: string;
+  verified: boolean;
+  updatedAt: string;
+}
+export interface GitDelivery {
+  origin?: string;
+  branch: string;
+  head: string;
+  publication?: GitPublication;
+  message?: string;
 }
 export interface SetupStatus {
   product: string;
@@ -35,6 +71,13 @@ export interface Workspace {
   connectionId: string;
   host: string;
   ready: boolean;
+}
+export interface WorkspaceAuth {
+  authenticated: boolean;
+  user?: { id: string; username: string; displayName: string; role: string };
+  bootstrapRequired: boolean;
+  bootstrapTokenAvailable?: boolean;
+  message: string;
 }
 export interface WorkspaceInstall {
   id: string;
@@ -128,6 +171,43 @@ export interface GitState {
   log: { hash: string; subject: string }[];
   diff: string;
 }
+export interface ImplementationTask {
+  id: string;
+  title: string;
+  status: "todo" | "doing" | "done";
+}
+export interface ImplementationPlan {
+  projectId: string;
+  revision: number;
+  briefRevision: number;
+  tasks: ImplementationTask[];
+  updatedAt: string;
+}
+export interface CheckCommand {
+  label: string;
+  executable: string;
+  args: string[];
+}
+export interface CheckResult extends CheckCommand {
+  status: string;
+  exitCode?: number;
+  output: string;
+  truncated: boolean;
+}
+export interface CheckRun {
+  id: string;
+  projectId: string;
+  commit: string;
+  dirty: boolean;
+  execution?: "docker" | "host";
+  sourceDigest?: string;
+  sourceChanged?: boolean;
+  status: string;
+  commands: CheckResult[];
+  createdAt: string;
+  updatedAt: string;
+  message: string;
+}
 export interface Release {
   id: string;
   projectId: string;
@@ -186,6 +266,8 @@ export interface DNSResult {
   message: string;
 }
 export interface CloudReleaseRequest {
+  source?: "public" | "private";
+  privateKeyUuid?: string;
   targetId: string;
   repository: string;
   branch: string;
@@ -216,7 +298,7 @@ export class ProductApiError extends ApiError {
 }
 export interface ProviderLoginJob {
   id: string;
-  provider: "aws" | "azure";
+  provider: "aws" | "azure" | "github";
   status: string;
   message: string;
   verificationUrl?: string;
@@ -231,6 +313,50 @@ export function createProductClient(
     DEFAULT_BASE_URL,
   fetcher: typeof fetch = (...args) => globalThis.fetch(...args),
 ) {
+  async function transfer<T>(
+    path: string,
+    body: Blob | undefined,
+    read: (response: Response) => Promise<T>,
+  ): Promise<T> {
+    const controller = new AbortController(),
+      timer = setTimeout(() => controller.abort(), 120_000);
+    try {
+      const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
+        method: "POST",
+        signal: controller.signal,
+        headers: authHeaders({
+          "Content-Type": body ? "application/zip" : "application/json",
+        }),
+        body: body || "{}",
+      });
+      if (response.status === 401) expireAuth();
+      if (!response.ok) {
+        const problem = (await response
+          .json()
+          .catch(() => ({
+            message: `Request failed (${response.status}).`,
+          }))) as { error?: string; message?: string };
+        throw new ProductApiError(
+          (problem.error || "internal") as ProblemCode,
+          problem.message || "Project transfer failed.",
+          response.status,
+          problem,
+        );
+      }
+      return await read(response);
+    } catch (cause) {
+      if (cause instanceof ApiError) throw cause;
+      throw new ApiError(
+        controller.signal.aborted ? "timeout" : "network_unavailable",
+        controller.signal.aborted
+          ? "Project transfer timed out. Check the project list before retrying a restore."
+          : "The workspace service is unavailable. Retry when it reconnects.",
+        0,
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  }
   async function request<T>(
     path: string,
     body?: unknown,
@@ -243,12 +369,14 @@ export function createProductClient(
       const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
         method,
         signal: controller.signal,
-        headers:
+        headers: authHeaders(
           body === undefined
             ? undefined
             : { "Content-Type": "application/json" },
+        ),
         body: body === undefined ? undefined : JSON.stringify(body),
       });
+      if (response.status === 401) expireAuth();
       const raw = await response.text();
       let value: unknown;
       try {
@@ -262,8 +390,7 @@ export function createProductClient(
       }
       if (!response.ok) {
         const problem = value as
-          | { error?: string; message?: string }
-          | undefined;
+          { error?: string; message?: string } | undefined;
         throw new ProductApiError(
           (problem?.error || "internal") as ProblemCode,
           problem?.message || `Request failed (${response.status}).`,
@@ -297,14 +424,17 @@ export function createProductClient(
       request<CloudPlan>("/v1/setup/cloud/plan", input),
     gitIdentity: () =>
       request<{ name: string; email: string }>("/v1/setup/git/identity"),
-    agents: () =>
-      request<{
-        providers: { id: string; name: string; configured: boolean }[];
-      }>("/v1/setup/agents"),
+    agents: () => request<AgentConnections>("/v1/setup/agents"),
     saveAnthropicKey: (apiKey: string) =>
-      request<{
-        providers: { id: string; name: string; configured: boolean }[];
-      }>("/v1/setup/agents/anthropic", { apiKey }),
+      request<AgentConnections>("/v1/setup/agents/anthropic", { apiKey }),
+    saveOpenAIKey: (apiKey: string) =>
+      request<AgentConnections>("/v1/setup/agents/openai", { apiKey }),
+    saveLocalAgent: (baseUrl: string, model: string, apiKey?: string) =>
+      request<AgentConnections>("/v1/setup/agents/local", {
+        baseUrl,
+        model,
+        ...(apiKey ? { apiKey } : {}),
+      }),
     saveGitIdentity: (name: string, email: string) =>
       request<{ name: string; email: string }>("/v1/setup/git/identity", {
         name,
@@ -328,6 +458,23 @@ export function createProductClient(
       ),
     activateWorkspace: (connectionId: string) =>
       request<unknown>("/v1/setup/workspace/activate", { connectionId }),
+    workspaceAuth: (connectionId: string) =>
+      request<WorkspaceAuth>(
+        `/v1/setup/workspace/auth?connectionId=${encodeURIComponent(connectionId)}`,
+      ),
+    signInWorkspace: (input: {
+      connectionId: string;
+      username: string;
+      password: string;
+      bootstrapToken?: string;
+      displayName?: string;
+    }) => request<WorkspaceAuth>("/v1/setup/workspace/auth", input),
+    disconnectWorkspaceAuth: (connectionId: string) =>
+      request<WorkspaceAuth>(
+        `/v1/setup/workspace/auth?connectionId=${encodeURIComponent(connectionId)}`,
+        undefined,
+        "DELETE",
+      ),
     localWorkspace: () => request<unknown>("/v1/setup/workspace/local", {}),
     prepareWorkspacePreview: (projectId: string, releaseId: string) =>
       request<{ url: string }>("/v1/setup/workspace/preview", {
@@ -411,6 +558,67 @@ export function createProductClient(
     git: (id: string) => request<GitState>(`${project(id)}/git`),
     commit: (id: string, message: string) =>
       request<unknown>(`${project(id)}/git/commit`, { message }),
+    gitDelivery: (id: string) =>
+      request<GitDelivery>(`${project(id)}/git/delivery`),
+    gitRemote: (id: string, url: string) =>
+      request<GitPublication>(`${project(id)}/git/remote`, { url }),
+    githubCreate: (
+      id: string,
+      input: {
+        owner?: string;
+        name: string;
+        visibility: "private" | "public";
+        acknowledgePublic: boolean;
+      },
+    ) => request<GitPublication>(`${project(id)}/git/github`, input),
+    gitPush: (id: string, commit: string, branch: string) =>
+      request<GitPublication>(`${project(id)}/git/push`, { commit, branch }),
+    githubCheck: () => request<GitHubAccount>("/v1/setup/github/check", {}),
+    githubLogin: () => request<ProviderLoginJob>("/v1/setup/github/login", {}),
+    githubLogins: () =>
+      request<{ jobs: ProviderLoginJob[] }>("/v1/setup/github/login"),
+    backupProject: (id: string) =>
+      transfer(`${project(id)}/backups`, undefined, (response) =>
+        response.blob(),
+      ),
+    restoreProject: (name: string, archive: Blob) =>
+      transfer<{ id: string; name: string; path: string }>(
+        `/v1/product/projects/restore?name=${encodeURIComponent(name)}`,
+        archive,
+        (response) => response.json(),
+      ),
+    plan: (id: string) => request<ImplementationPlan>(`${project(id)}/plan`),
+    savePlan: (
+      id: string,
+      expectedRevision: number,
+      tasks: ImplementationTask[],
+    ) =>
+      request<ImplementationPlan>(`${project(id)}/plan`, {
+        expectedRevision,
+        tasks,
+      }),
+    checks: (id: string) =>
+      request<{ runs: CheckRun[]; suggested: CheckCommand[] }>(
+        `${project(id)}/checks`,
+      ),
+    runChecks: (
+      id: string,
+      commands: CheckCommand[],
+      acknowledgeHostExecution: boolean,
+      execution: "docker" | "host" = "docker",
+    ) =>
+      request<CheckRun>(`${project(id)}/checks`, {
+        commands,
+        acknowledgeHostExecution,
+        execution,
+      }),
+    checkRun: (id: string, runId: string) =>
+      request<CheckRun>(`${project(id)}/checks/${encodeURIComponent(runId)}`),
+    cancelChecks: (id: string, runId: string) =>
+      request<CheckRun>(
+        `${project(id)}/checks/${encodeURIComponent(runId)}/cancel`,
+        {},
+      ),
     releases: (id: string) =>
       request<{ releases: Release[] }>(`${project(id)}/releases`),
     release: (id: string, port: number, dockerfile: string) =>
@@ -431,6 +639,25 @@ export function createProductClient(
       request<Release>(
         `${project(id)}/releases/${encodeURIComponent(releaseId)}/refresh`,
         {},
+      ),
+    rollbackRelease: (id: string, releaseId: string) =>
+      request<Release>(
+        `${project(id)}/releases/${encodeURIComponent(releaseId)}/rollback`,
+        {},
+        "POST",
+        180_000,
+      ),
+    prepareDeployKey: (id: string, targetId: string, repository: string) =>
+      request<{
+        status: string;
+        privateKeyUuid?: string;
+        message: string;
+        publicKey?: string;
+      }>(
+        `${project(id)}/releases/deploy-key`,
+        { targetId, repository },
+        "POST",
+        180_000,
       ),
   };
 }

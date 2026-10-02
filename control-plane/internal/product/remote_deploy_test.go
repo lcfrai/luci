@@ -21,6 +21,9 @@ type cloudProviderFixture struct {
 	projects, applications, updates, deployments int
 	commit, status                               string
 	appFailure                                   bool
+	stops                                        int
+	appStatus                                    string
+	privateRepository, privateKey                string
 }
 
 func (f *cloudProviderFixture) handler(t *testing.T) http.HandlerFunc {
@@ -43,7 +46,7 @@ func (f *cloudProviderFixture) handler(t *testing.T) http.HandlerFunc {
 		case "POST /api/v1/projects":
 			f.projects++
 			_, _ = w.Write([]byte(`{"uuid":"remote-project"}`))
-		case "POST /api/v1/applications/public", "PATCH /api/v1/applications/remote-app":
+		case "POST /api/v1/applications/public", "POST /api/v1/applications/private-deploy-key", "PATCH /api/v1/applications/remote-app":
 			if f.appFailure {
 				w.WriteHeader(500)
 				_, _ = w.Write([]byte(testCoolifyToken))
@@ -56,6 +59,10 @@ func (f *cloudProviderFixture) handler(t *testing.T) http.HandlerFunc {
 				return
 			}
 			f.commit, _ = body["git_commit_sha"].(string)
+			if r.URL.Path == "/api/v1/applications/private-deploy-key" {
+				f.privateRepository, _ = body["git_repository"].(string)
+				f.privateKey, _ = body["private_key_uuid"].(string)
+			}
 			if r.Method == http.MethodPost {
 				f.applications++
 			} else {
@@ -67,6 +74,14 @@ func (f *cloudProviderFixture) handler(t *testing.T) http.HandlerFunc {
 			_, _ = w.Write([]byte(`{"deployments":[{"resource_uuid":"remote-app","deployment_uuid":"remote-deployment"}]}`))
 		case "GET /api/v1/deployments/remote-deployment":
 			_ = json.NewEncoder(w).Encode(map[string]string{"deployment_uuid": "remote-deployment", "status": f.status, "commit": f.commit})
+		case "POST /api/v1/applications/remote-app/stop":
+			if r.URL.Query().Get("docker_cleanup") != "false" {
+				t.Error("cloud stop requested destructive Docker cleanup")
+			}
+			f.stops++
+			_, _ = w.Write([]byte(`{"message":"Application stopping request queued."}`))
+		case "GET /api/v1/applications/remote-app":
+			_ = json.NewEncoder(w).Encode(map[string]string{"uuid": "remote-app", "status": f.appStatus})
 		default:
 			t.Errorf("unexpected remote operation: %s %s", r.Method, r.URL.Path)
 			w.WriteHeader(404)

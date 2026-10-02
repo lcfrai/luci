@@ -1,0 +1,85 @@
+@import "../../styles/tokens.css";
+@import "../journey/journey.css";
+.auth-screen {
+  display: grid;
+  place-items: center;
+  min-block-size: 100dvh;
+  padding: 30px;
+  background: var(--page);
+}
+.auth-card {
+  inline-size: min(100%, 490px);
+  background: var(--surface);
+  padding: 34px;
+  border-radius: var(--r-card);
+  box-shadow: var(--e-card);
+}
+.auth-card h1 {
+  font-size: 30px;
+  letter-spacing: -0.035em;
+}
+.auth-card .journey-form {
+  margin-block: 24px;
+}
+.auth-card small {
+  overflow-wrap: anywhere;
+}
+.admin-dialog {
+  max-inline-size: 1050px;
+  inline-size: calc(100vw - 60px);
+  max-block-size: calc(100dvh - 60px);
+  overflow: auto;
+  padding: 28px;
+  background: var(--surface);
+  border-radius: var(--r-card);
+  box-shadow: var(--e-raised);
+}
+.admin-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+.admin-section {
+  border-block-start: 1px solid var(--line-soft);
+  padding-block: 20px;
+}
+.admin-section h2 {
+  font-size: 17px;
+  font-weight: 550;
+}
+.admin-table {
+  border-collapse: collapse;
+  inline-size: 100%;
+  margin-block: 16px;
+}
+.admin-table td,
+.admin-table th {
+  border-block-end: 1px solid var(--line-soft);
+  padding: 10px;
+  text-align: start;
+  vertical-align: top;
+}
+.admin-table caption {
+  text-align: start;
+  margin-block-end: 10px;
+  color: var(--ink-3);
+}
+.admin-table td {
+  overflow-wrap: anywhere;
+}
+.admin-backing {
+  color: var(--ink-2);
+}
+@media (max-width: 800px) {
+  .admin-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .admin-table {
+    display: block;
+    overflow: auto;
+  }
+  .admin-dialog {
+    inline-size: calc(100vw - 24px);
+    padding: 20px;
+  }
+}

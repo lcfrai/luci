@@ -45,6 +45,12 @@ const (
 	envNamespace              = "LUCI_NAMESPACE"
 	envLogLevel               = "LUCI_LOG_LEVEL"
 	envHarnessAllowUnverified = "LUCI_HARNESS_ALLOW_UNVERIFIED"
+	envWorker                 = "LUCI_WORKER"
+	envWorkerToken            = "LUCI_WORKER_TOKEN"
+	envWorkerAddressFile      = "LUCI_WORKER_ADDRESS_FILE"
+	envBacking                = "LUCI_BACKING"
+	envInstanceName           = "LUCI_INSTANCE_NAME"
+	envManagedShutdownToken   = "LUCI_MANAGED_SHUTDOWN_TOKEN"
 
 	// envReadyTimeout is NOT in contract §4's table. Task 5 records it as a
 	// cross-task dependency of this task: dockerbe.Config.ReadyTimeout exists
@@ -135,15 +141,21 @@ var backendScoped = []struct {
 
 // Config is the whole of this process's configuration, parsed once at startup.
 type Config struct {
-	RuntimeDir      string
-	CloudBundle     string
-	WebDir          string
-	Addr            string
-	AllowPublicBind bool
-	Backend         string // "docker" or "kata"; validated here, mapped in main.go
-	SandboxImage    string
-	StateDir        string // "" means the statepath ladder decides
-	SessionsPath    string // the registry document, derived from StateDir
+	RuntimeDir           string
+	CloudBundle          string
+	WebDir               string
+	Worker               bool
+	WorkerToken          string
+	WorkerAddressFile    string
+	Backing              string
+	InstanceName         string
+	ManagedShutdownToken string
+	Addr                 string
+	AllowPublicBind      bool
+	Backend              string // "docker" or "kata"; validated here, mapped in main.go
+	SandboxImage         string
+	StateDir             string // "" means the statepath ladder decides
+	SessionsPath         string // the registry document, derived from StateDir
 	// InstancePath is the file this state directory's instance id is kept in
 	// (internal/instance), derived from StateDir beside the registry.
 	InstancePath string

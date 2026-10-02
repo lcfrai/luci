@@ -436,6 +436,9 @@ export interface Machine {
   limitations: string[];
   /** Present only when state === "error". Names the cause, e.g. Docker not running. */
   message?: string;
+  /** Effective per-session limits after the operator ceiling and user policy. */
+  sessionMemoryMiB?: number;
+  sessionCPUMillis?: number;
 }
 
 /* ── projects, branches, worktrees ─────────────────────────────────────────────────── */

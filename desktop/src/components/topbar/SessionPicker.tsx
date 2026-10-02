@@ -36,8 +36,9 @@ export function SessionPicker(props: {
   open: boolean;
   worktreeId: WorktreeId | null;
   onClose: () => void;
+  initialPrompt?: string;
 }): JSX.Element | null {
-  const { open, worktreeId, onClose } = props;
+  const { open, worktreeId, onClose, initialPrompt = "" } = props;
   const harnesses = useCockpit(useShallow((s) => s.harnesses));
   const inherited = useCockpit(useShallow(selectResolvedDefaults));
   const branchId = useCockpit((s) => s.selection.branchId);
@@ -53,9 +54,9 @@ export function SessionPicker(props: {
   useEffect(() => {
     if (!open) return;
     setDraft({});
-    setPrompt("");
+    setPrompt(initialPrompt);
     setTarget(worktreeId);
-  }, [open, worktreeId]);
+  }, [open, worktreeId, initialPrompt]);
 
   // Re-resolve rather than merge: the clamp in §3.6 is what keeps a stale branch default from
   // offering a model the chosen harness does not have.
@@ -65,7 +66,13 @@ export function SessionPicker(props: {
   if (!open || harness === undefined) return null;
 
   return (
-    <div ref={ref} role="dialog" aria-label="New session" tabIndex={-1} className="pop pick-panel">
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label="New session"
+      tabIndex={-1}
+      className="pop pick-panel"
+    >
       <div className="pick">
         <label className="pick-field">
           Harness
@@ -89,7 +96,9 @@ export function SessionPicker(props: {
             Model
             <select
               value={effective.model}
-              onChange={(event) => setDraft({ ...draft, model: event.target.value })}
+              onChange={(event) =>
+                setDraft({ ...draft, model: event.target.value })
+              }
             >
               {harness.models.map((model) => (
                 <option key={model.id} value={model.id}>
@@ -124,7 +133,10 @@ export function SessionPicker(props: {
             <select
               value={effective.permissionMode}
               onChange={(event) =>
-                setDraft({ ...draft, permissionMode: event.target.value as PermissionMode })
+                setDraft({
+                  ...draft,
+                  permissionMode: event.target.value as PermissionMode,
+                })
               }
             >
               {harness.permissionModes.map((mode) => (
@@ -138,7 +150,10 @@ export function SessionPicker(props: {
 
         <label className="pick-field">
           Worktree
-          <select value={target ?? ""} onChange={(event) => setTarget(event.target.value)}>
+          <select
+            value={target ?? ""}
+            onChange={(event) => setTarget(event.target.value)}
+          >
             {worktrees.map((worktree) => (
               <option key={worktree.id} value={worktree.id}>
                 {worktree.name}
@@ -159,7 +174,15 @@ export function SessionPicker(props: {
           </label>
         ) : null}
 
-        {harness.note === "" ? null : <p className="pick-note">{harness.note}</p>}
+        {harness.note === "" ? null : (
+          <p className="pick-note">{harness.note}</p>
+        )}
+        {initialPrompt && !harness.supportsOpeningPrompt && (
+          <p className="pick-note">
+            Choose a coding agent that accepts an opening prompt to use this
+            implementation handoff.
+          </p>
+        )}
 
         <div className="pick-actions">
           <button
@@ -177,11 +200,18 @@ export function SessionPicker(props: {
           <button
             type="button"
             className="top-split-main"
-            disabled={target === null || !harness.available}
+            disabled={
+              target === null ||
+              !harness.available ||
+              (!!initialPrompt && !harness.supportsOpeningPrompt)
+            }
             title={harness.available ? undefined : harness.note}
             onClick={() => {
               if (target !== null) {
-                void createSession(target, { overrides: draft, openingPrompt: prompt });
+                void createSession(target, {
+                  overrides: draft,
+                  openingPrompt: prompt,
+                });
               }
               onClose();
             }}

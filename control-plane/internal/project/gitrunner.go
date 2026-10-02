@@ -261,6 +261,9 @@ func (e *GitError) Is(target error) bool {
 // ExecRunner is the production Runner: the only place in the product that
 // starts a git process.
 type ExecRunner struct {
+	// ProjectsDir confines repository metadata and the working tree for managed
+	// API calls. Host-global configuration readers deliberately leave it empty.
+	ProjectsDir string
 	// Timeout overrides GitTimeout when non-zero. Tests use it; nothing else
 	// needs to.
 	Timeout time.Duration
@@ -299,7 +302,15 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "git", args...)
+	commandArgs := args
+	if r.ProjectsDir != "" {
+		var err error
+		commandArgs, err = boundedGitArgs(r.ProjectsDir, dir, args)
+		if err != nil {
+			return nil, err
+		}
+	}
+	cmd := exec.CommandContext(ctx, "git", commandArgs...)
 	cmd.Dir = dir
 	// The bound has to be real even when the kill is refused; see gitWaitDelay.
 	cmd.WaitDelay = gitWaitDelay
@@ -312,6 +323,9 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 		"GCM_INTERACTIVE=never",
 	)
 	cmd.Env = append(cmd.Env, r.Env...)
+	if r.ProjectsDir != "" {
+		cmd.Env = boundedGitEnvironment(cmd.Env)
+	}
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

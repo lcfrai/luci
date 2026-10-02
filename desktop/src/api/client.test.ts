@@ -45,10 +45,19 @@ const jsonReply = (status: number, body: string): Response =>
     headers: { "Content-Type": "application/json; charset=utf-8" },
   });
 
-const problemReply = (status: number, code: string, message: string, details?: unknown): Response =>
+const problemReply = (
+  status: number,
+  code: string,
+  message: string,
+  details?: unknown,
+): Response =>
   jsonReply(
     status,
-    JSON.stringify(details === undefined ? { error: code, message } : { error: code, message, details }),
+    JSON.stringify(
+      details === undefined
+        ? { error: code, message }
+        : { error: code, message, details },
+    ),
   );
 
 /** A fetch that never answers. The client's own timer is the only thing that can end it. */
@@ -67,23 +76,41 @@ const stallingBodyFetch = ((_input: RequestInfo | URL, init?: RequestInit) => {
   const body = new ReadableStream<Uint8Array>({
     start(controller) {
       init?.signal?.addEventListener("abort", () =>
-        controller.error(new DOMException("The operation was aborted.", "AbortError")),
+        controller.error(
+          new DOMException("The operation was aborted.", "AbortError"),
+        ),
       );
     },
   });
   return Promise.resolve(
-    new Response(body, { status: 200, headers: { "Content-Type": "application/json; charset=utf-8" } }),
+    new Response(body, {
+      status: 200,
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    }),
   );
 }) as unknown as typeof globalThis.fetch;
 
 /** Every member of the union, written out. The runtime assertion is thin; the real check is
  *  that this array compiles — a missing member is TS2322 under `npm run typecheck`. */
 const ALL_CODES: ProblemCode[] = [
-  "invalid_json", "bad_request", "unknown_harness", "unsupported_option",
-  "forbidden_origin", "forbidden_host", "project_not_found", "worktree_not_found",
-  "session_not_found", "conflict", "sandbox_not_running", "harness_unavailable",
-  "upgrade_required", "internal", "non_loopback_publish", "backend_unavailable",
-  "network_unavailable", "timeout",
+  "invalid_json",
+  "bad_request",
+  "unknown_harness",
+  "unsupported_option",
+  "forbidden_origin",
+  "forbidden_host",
+  "project_not_found",
+  "worktree_not_found",
+  "session_not_found",
+  "conflict",
+  "sandbox_not_running",
+  "harness_unavailable",
+  "upgrade_required",
+  "internal",
+  "non_loopback_publish",
+  "backend_unavailable",
+  "network_unavailable",
+  "timeout",
 ];
 
 describe("createClient — transport", () => {
@@ -102,7 +129,10 @@ describe("createClient — transport", () => {
   it("prefers an explicit baseUrl and never doubles the slash", async () => {
     const { fn, calls } = fetchStub([jsonReply(200, '{"machines":[]}')]);
 
-    await createClient({ fetch: fn, baseUrl: "http://127.0.0.1:9999/" }).listMachines();
+    await createClient({
+      fetch: fn,
+      baseUrl: "http://127.0.0.1:9999/",
+    }).listMachines();
 
     expect(calls[0].url).toBe("http://127.0.0.1:9999/v1/machines");
   });
@@ -110,7 +140,10 @@ describe("createClient — transport", () => {
   it("reads backendReady from the body, not from the status code", async () => {
     // The exact bytes task 10's handler writes when Docker is not running. HTTP is still 200.
     const { fn } = fetchStub([
-      jsonReply(200, '{"status":"ok","version":"0.2.0","backend":"docker","backendReady":false}'),
+      jsonReply(
+        200,
+        '{"status":"ok","version":"0.2.0","backend":"docker","backendReady":false}',
+      ),
     ]);
 
     const health = await createClient({ fetch: fn }).health();
@@ -122,7 +155,9 @@ describe("createClient — transport", () => {
   it("raises network_unavailable when fetch rejects", async () => {
     const { fn } = fetchStub([new TypeError("Failed to fetch")]);
 
-    const err = await createClient({ fetch: fn }).listMachines().catch((e: unknown) => e as ApiError);
+    const err = await createClient({ fetch: fn })
+      .listMachines()
+      .catch((e: unknown) => e as ApiError);
 
     expect(err).toBeInstanceOf(ApiError);
     expect((err as ApiError).code).toBe("network_unavailable");
@@ -156,8 +191,13 @@ describe("createClient — transport", () => {
     const client = createClient({ fetch: hangingFetch, timeoutMs: 0 });
 
     const outcome = await Promise.race([
-      client.listMachines().then(() => "resolved", (e: ApiError) => `rejected: ${e.code}`),
-      new Promise<string>((resolve) => setTimeout(() => resolve("still waiting"), 30)),
+      client.listMachines().then(
+        () => "resolved",
+        (e: ApiError) => `rejected: ${e.code}`,
+      ),
+      new Promise<string>((resolve) =>
+        setTimeout(() => resolve("still waiting"), 30),
+      ),
     ]);
 
     expect(outcome).toBe("still waiting");
@@ -167,10 +207,14 @@ describe("createClient — transport", () => {
 describe("createClient — the error shape", () => {
   it("turns a Problem body into an ApiError carrying its code, status and details", async () => {
     const { fn } = fetchStub([
-      problemReply(404, "session_not_found", "No session with id s-3f2a91c0.", { id: "s-3f2a91c0" }),
+      problemReply(404, "session_not_found", "No session with id s-3f2a91c0.", {
+        id: "s-3f2a91c0",
+      }),
     ]);
 
-    const err = await createClient({ fetch: fn }).listMachines().catch((e: unknown) => e as ApiError);
+    const err = await createClient({ fetch: fn })
+      .listMachines()
+      .catch((e: unknown) => e as ApiError);
 
     expect((err as ApiError).code).toBe("session_not_found");
     expect((err as ApiError).status).toBe(404);
@@ -179,9 +223,13 @@ describe("createClient — the error shape", () => {
   });
 
   it("turns a body that is not JSON into an internal ApiError carrying what arrived", async () => {
-    const { fn } = fetchStub([new Response("<html>502 Bad Gateway</html>", { status: 502 })]);
+    const { fn } = fetchStub([
+      new Response("<html>502 Bad Gateway</html>", { status: 502 }),
+    ]);
 
-    const err = await createClient({ fetch: fn }).listMachines().catch((e: unknown) => e as ApiError);
+    const err = await createClient({ fetch: fn })
+      .listMachines()
+      .catch((e: unknown) => e as ApiError);
 
     expect((err as ApiError).code).toBe("internal");
     expect((err as ApiError).status).toBe(502);
@@ -193,9 +241,13 @@ describe("createClient — the error shape", () => {
     // hand-built Response. Without a final fallback this is ApiError("internal", "", 502), and
     // task 20's "did not start" pane renders an empty string — the cockpit staying silent about
     // a failure, which is the one outcome this whole file exists to prevent.
-    const { fn } = fetchStub([new Response("", { status: 502, statusText: "" })]);
+    const { fn } = fetchStub([
+      new Response("", { status: 502, statusText: "" }),
+    ]);
 
-    const err = await createClient({ fetch: fn }).listMachines().catch((e: unknown) => e as ApiError);
+    const err = await createClient({ fetch: fn })
+      .listMachines()
+      .catch((e: unknown) => e as ApiError);
 
     expect((err as ApiError).code).toBe("internal");
     expect((err as ApiError).status).toBe(502);
@@ -205,14 +257,20 @@ describe("createClient — the error shape", () => {
   it("turns JSON that is not a Problem into an internal ApiError", async () => {
     const { fn } = fetchStub([jsonReply(500, '{"error":123}')]);
 
-    const err = await createClient({ fetch: fn }).listMachines().catch((e: unknown) => e as ApiError);
+    const err = await createClient({ fetch: fn })
+      .listMachines()
+      .catch((e: unknown) => e as ApiError);
 
     expect((err as ApiError).code).toBe("internal");
     expect((err as ApiError).status).toBe(500);
   });
 
   it("is an Error subclass, so task 19's `instanceof ApiError` holds", () => {
-    const err = new ApiError("backend_unavailable", "Docker is not running.", 503);
+    const err = new ApiError(
+      "backend_unavailable",
+      "Docker is not running.",
+      503,
+    );
 
     expect(err).toBeInstanceOf(Error);
     expect(err).toBeInstanceOf(ApiError);
@@ -246,7 +304,9 @@ describe("createClient — the catalogue reads", () => {
   it("returns an empty array for a machine with no projects — a state, not an error", async () => {
     const { fn } = fetchStub([jsonReply(200, '{"projects":[]}')]);
 
-    await expect(createClient({ fetch: fn }).listProjects()).resolves.toEqual([]);
+    await expect(createClient({ fetch: fn }).listProjects()).resolves.toEqual(
+      [],
+    );
   });
 
   it("unwraps the branches envelope and puts the project id in the path", async () => {
@@ -258,9 +318,13 @@ describe("createClient — the catalogue reads", () => {
       ),
     ]);
 
-    const branches = await createClient({ fetch: fn }).listBranches("p-8c1d0e42");
+    const branches = await createClient({ fetch: fn }).listBranches(
+      "p-8c1d0e42",
+    );
 
-    expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/projects/p-8c1d0e42/branches`);
+    expect(calls[0].url).toBe(
+      `${DEFAULT_BASE_URL}/v1/projects/p-8c1d0e42/branches`,
+    );
     expect(calls[0].init?.method).toBe("GET");
     expect(branches).toHaveLength(1);
     expect(branches[0].name).toBe("evidence-upload");
@@ -272,7 +336,9 @@ describe("createClient — the catalogue reads", () => {
   it("returns an empty array for a project with no branches", async () => {
     const { fn } = fetchStub([jsonReply(200, '{"branches":[]}')]);
 
-    await expect(createClient({ fetch: fn }).listBranches("p-8c1d0e42")).resolves.toEqual([]);
+    await expect(
+      createClient({ fetch: fn }).listBranches("p-8c1d0e42"),
+    ).resolves.toEqual([]);
   });
 
   it("leaves the harness arrays exactly as the server sent them", async () => {
@@ -306,7 +372,9 @@ describe("createClient — the catalogue reads", () => {
     await client.listWorktrees("p-8c1d0e42");
     await client.listWorktrees("p-8c1d0e42", "b-8c1d0e42-evidence-upload");
 
-    expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/projects/p-8c1d0e42/worktrees`);
+    expect(calls[0].url).toBe(
+      `${DEFAULT_BASE_URL}/v1/projects/p-8c1d0e42/worktrees`,
+    );
     expect(calls[1].url).toBe(
       `${DEFAULT_BASE_URL}/v1/projects/p-8c1d0e42/worktrees?branchId=b-8c1d0e42-evidence-upload`,
     );
@@ -321,9 +389,15 @@ describe("createClient — the catalogue reads", () => {
       ),
     ]);
 
-    const worktree = await createClient({ fetch: fn }).setWorktreeReady("p-8c1d0e42", "w-4a77b1c9", true);
+    const worktree = await createClient({ fetch: fn }).setWorktreeReady(
+      "p-8c1d0e42",
+      "w-4a77b1c9",
+      true,
+    );
 
-    expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/projects/p-8c1d0e42/worktrees/w-4a77b1c9`);
+    expect(calls[0].url).toBe(
+      `${DEFAULT_BASE_URL}/v1/projects/p-8c1d0e42/worktrees/w-4a77b1c9`,
+    );
     expect(calls[0].init?.method).toBe("PATCH");
     expect(calls[0].init?.body).toBe('{"ready":true}');
     // Adjudicated decision 2: the worktree itself, not an envelope.
@@ -371,17 +445,27 @@ const source: Session = aSession({
 });
 
 const sessionBody = (id: string, status: SessionStatus): string =>
-  JSON.stringify({ ...source, id, status, attachPath: `/v1/sessions/${id}/attach` });
+  JSON.stringify({
+    ...source,
+    id,
+    status,
+    attachPath: `/v1/sessions/${id}/attach`,
+  });
 
 describe("createClient — sessions", () => {
   it("accepts 201 from createSession and returns the body, not the Location header", async () => {
     const created = new Response(sessionBody("s-2", "starting") + "\n", {
       status: 201,
-      headers: { "Content-Type": "application/json; charset=utf-8", Location: "/v1/sessions/s-2" },
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        Location: "/v1/sessions/s-2",
+      },
     });
     const { fn, calls } = fetchStub([created]);
 
-    const session = await createClient({ fetch: fn }).createSession({ worktreeId: "w-1" });
+    const session = await createClient({ fetch: fn }).createSession({
+      worktreeId: "w-1",
+    });
 
     expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/sessions`);
     expect(calls[0].init?.method).toBe("POST");
@@ -390,7 +474,9 @@ describe("createClient — sessions", () => {
   });
 
   it("omits the fields the caller left undefined", async () => {
-    const { fn, calls } = fetchStub([jsonReply(201, sessionBody("s-2", "starting"))]);
+    const { fn, calls } = fetchStub([
+      jsonReply(201, sessionBody("s-2", "starting")),
+    ]);
 
     await createClient({ fetch: fn }).createSession({
       worktreeId: "w-1",
@@ -400,25 +486,41 @@ describe("createClient — sessions", () => {
 
     // JSON.stringify drops undefined. It matters: the Go side decodes `"title": null` into a
     // string field and answers 400, so an explicit null would break create for no reason.
-    expect(calls[0].init?.body).toBe('{"worktreeId":"w-1","harness":"claude-code"}');
-    expect(calls[0].init?.headers).toEqual({ "Content-Type": "application/json" });
+    expect(calls[0].init?.body).toBe(
+      '{"worktreeId":"w-1","harness":"claude-code"}',
+    );
+    expect(calls[0].init?.headers).toEqual({
+      "Content-Type": "application/json",
+    });
   });
 
   it("sends no query for an unfiltered list and repeats ?status= per value", async () => {
-    const { fn, calls } = fetchStub([jsonReply(200, '{"sessions":[]}'), jsonReply(200, '{"sessions":[]}')]);
+    const { fn, calls } = fetchStub([
+      jsonReply(200, '{"sessions":[]}'),
+      jsonReply(200, '{"sessions":[]}'),
+    ]);
     const client = createClient({ fetch: fn });
 
     await client.listSessions();
-    await client.listSessions({ worktreeId: "w-1", status: ["running", "idle"] });
+    await client.listSessions({
+      worktreeId: "w-1",
+      status: ["running", "idle"],
+    });
 
     expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/sessions`);
-    expect(calls[1].url).toBe(`${DEFAULT_BASE_URL}/v1/sessions?worktreeId=w-1&status=running&status=idle`);
+    expect(calls[1].url).toBe(
+      `${DEFAULT_BASE_URL}/v1/sessions?worktreeId=w-1&status=running&status=idle`,
+    );
   });
 
   it("maps a 404 from getSession to session_not_found", async () => {
-    const { fn } = fetchStub([problemReply(404, "session_not_found", "No session with id s-9.")]);
+    const { fn } = fetchStub([
+      problemReply(404, "session_not_found", "No session with id s-9."),
+    ]);
 
-    const err = await createClient({ fetch: fn }).getSession("s-9").catch((e: unknown) => e as ApiError);
+    const err = await createClient({ fetch: fn })
+      .getSession("s-9")
+      .catch((e: unknown) => e as ApiError);
 
     expect((err as ApiError).code).toBe("session_not_found");
     expect((err as ApiError).status).toBe(404);
@@ -427,9 +529,14 @@ describe("createClient — sessions", () => {
 
 describe("createClient — the lifecycle verbs", () => {
   it("trims a rename and patches the trimmed title", async () => {
-    const { fn, calls } = fetchStub([jsonReply(200, sessionBody("s-1", "running"))]);
+    const { fn, calls } = fetchStub([
+      jsonReply(200, sessionBody("s-1", "running")),
+    ]);
 
-    await createClient({ fetch: fn }).renameSession("s-1", "  evidence upload  ");
+    await createClient({ fetch: fn }).renameSession(
+      "s-1",
+      "  evidence upload  ",
+    );
 
     expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/sessions/s-1`);
     expect(calls[0].init?.method).toBe("PATCH");
@@ -456,7 +563,9 @@ describe("createClient — the lifecycle verbs", () => {
     const client = createClient({ fetch: fn });
 
     await client.restartSession("s-1");
-    const err = await client.restartSession("s-1").catch((e: unknown) => e as ApiError);
+    const err = await client
+      .restartSession("s-1")
+      .catch((e: unknown) => e as ApiError);
 
     expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/sessions/s-1/restart`);
     expect(calls[0].init?.method).toBe("POST");
@@ -479,7 +588,9 @@ describe("createClient — the lifecycle verbs", () => {
     // new Response(body, { status: 204 }) throws; 204 is a null-body status.
     const { fn, calls } = fetchStub([new Response(null, { status: 204 })]);
 
-    await expect(createClient({ fetch: fn }).purgeSession("s-1")).resolves.toBeUndefined();
+    await expect(
+      createClient({ fetch: fn }).purgeSession("s-1"),
+    ).resolves.toBeUndefined();
 
     expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/sessions/s-1?purge=true`);
     expect(calls[0].init?.method).toBe("DELETE");
@@ -488,11 +599,16 @@ describe("createClient — the lifecycle verbs", () => {
 
 describe("createClient — resume and fork are createSession in disguise", () => {
   it("resumes into a NEW session that carries the source id and no opening prompt", async () => {
-    const { fn, calls } = fetchStub([jsonReply(201, sessionBody("s-2", "starting"))]);
+    const { fn, calls } = fetchStub([
+      jsonReply(201, sessionBody("s-2", "starting")),
+    ]);
 
     await createClient({ fetch: fn }).resumeSession(source, claudeCode);
 
-    const sent = JSON.parse(String(calls[0].init?.body)) as Record<string, unknown>;
+    const sent = JSON.parse(String(calls[0].init?.body)) as Record<
+      string,
+      unknown
+    >;
     expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/sessions`);
     expect(sent.resume).toBe("s-1");
     expect(sent.worktreeId).toBe("w-1");
@@ -512,11 +628,16 @@ describe("createClient — resume and fork are createSession in disguise", () =>
   });
 
   it("forks the conversation into another worktree, as Resume does, and lets the server derive the title", async () => {
-    const { fn, calls } = fetchStub([jsonReply(201, sessionBody("s-3", "starting"))]);
+    const { fn, calls } = fetchStub([
+      jsonReply(201, sessionBody("s-3", "starting")),
+    ]);
 
     await createClient({ fetch: fn }).forkSession(source, "w-2", claudeCode);
 
-    const sent = JSON.parse(String(calls[0].init?.body)) as Record<string, unknown>;
+    const sent = JSON.parse(String(calls[0].init?.body)) as Record<
+      string,
+      unknown
+    >;
     expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/sessions`);
     expect(sent.worktreeId).toBe("w-2");
     // The source, named the way Resume names it: the control plane starts the CLI on a fork of
@@ -530,12 +651,17 @@ describe("createClient — resume and fork are createSession in disguise", () =>
   });
 
   it("forks a shell exactly as before: the configuration and the opening prompt, no conversation", async () => {
-    const { fn, calls } = fetchStub([jsonReply(201, sessionBody("s-4", "starting"))]);
+    const { fn, calls } = fetchStub([
+      jsonReply(201, sessionBody("s-4", "starting")),
+    ]);
     const shellSource: Session = { ...source, harness: "shell" };
 
     await createClient({ fetch: fn }).forkSession(shellSource, "w-2", shell);
 
-    const sent = JSON.parse(String(calls[0].init?.body)) as Record<string, unknown>;
+    const sent = JSON.parse(String(calls[0].init?.body)) as Record<
+      string,
+      unknown
+    >;
     expect(sent.worktreeId).toBe("w-2");
     expect(sent.harness).toBe("shell");
     expect(sent.resume).toBeUndefined();
@@ -556,21 +682,29 @@ describe("createClient — resume and fork are createSession in disguise", () =>
 
 describe("createClient — the attach socket", () => {
   it("builds ws:// from http:// and takes the path from the session", () => {
-    expect(attachUrl("http://127.0.0.1:8730", source)).toBe("ws://127.0.0.1:8730/v1/sessions/s-1/attach");
+    expect(attachUrl("http://127.0.0.1:8730", source)).toBe(
+      "ws://127.0.0.1:8730/v1/sessions/s-1/attach",
+    );
   });
 
   it("builds wss:// from https:// and discards a path carried by the base", () => {
-    expect(attachUrl("https://desk.example/console", source)).toBe("wss://desk.example/v1/sessions/s-1/attach");
+    expect(attachUrl("https://desk.example/console", source)).toBe(
+      "wss://desk.example/v1/sessions/s-1/attach",
+    );
   });
 
-  it("opens through the injected factory and sets binaryType before returning", () => {
+  it("opens through the injected factory and sets binaryType before returning", async () => {
     FakeWebSocket.reset();
-    const client = createClient({ webSocket: (url) => new FakeWebSocket(url) as unknown as WebSocket });
+    const client = createClient({
+      webSocket: (url) => new FakeWebSocket(url) as unknown as WebSocket,
+    });
 
-    const socket = client.openAttach(source);
+    const socket = await client.openAttach(source);
 
     expect(FakeWebSocket.instances).toHaveLength(1);
-    expect(FakeWebSocket.instances[0].url).toBe("ws://127.0.0.1:8730/v1/sessions/s-1/attach");
+    expect(FakeWebSocket.instances[0].url).toBe(
+      "ws://127.0.0.1:8730/v1/sessions/s-1/attach",
+    );
     expect(socket.binaryType).toBe("arraybuffer");
   });
 });
@@ -617,7 +751,10 @@ describe("createClient — the create budget", () => {
       const outcomes: string[] = [];
       const pending = createClient({ fetch: hangingFetch })
         .listMachines()
-        .then(() => outcomes.push("resolved"), (e: ApiError) => outcomes.push(e.code));
+        .then(
+          () => outcomes.push("resolved"),
+          (e: ApiError) => outcomes.push(e.code),
+        );
 
       await vi.advanceTimersByTimeAsync(DEFAULT_TIMEOUT_MS + 1);
       await pending;

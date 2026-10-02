@@ -1,6 +1,6 @@
 # Building and distributing Luci
 
-Luci 0.3.0 packages are release candidates. The workflow prepares downloadable build artifacts for review; it does not publish a GitHub release, upload to lcfr.ai, sign an installer, change repository visibility or provision cloud resources. A successful build proves the checks it ran, not the outstanding acceptance gates below.
+Luci 0.4.0 packages integrate the solution workflow and managed backing: local account bootstrap, roles and private user workspaces, saved plans, multiple model providers, command checks, Git delivery, project backups and deployment maintenance. CI produces portable downloads and the native Windows installer. A successful build proves the checks it ran; live AWS/Azure rollout still needs an account and a domain. Publication URLs and signing are separate distribution configuration.
 
 Luci's own code uses MIT. Include the root `LICENSE` and `NOTICE` with distributions; upstream components and bundled fonts retain their original grants. In particular, Luci's MIT choice does not replace dependencies' Apache-2.0 or other licence files.
 
@@ -19,7 +19,7 @@ The local service listens on loopback port 8730. Close the portable launch termi
 
 ## Downloading a CI candidate
 
-When this workflow has run in the repository that will distribute Luci, open **Actions → Luci build and release candidates**, select the desired successful commit and download its artifact. Artifact access follows the repository's permissions and requires GitHub sign-in; artifacts expire after 14 days. There is no public lcfr.ai download implied by this document.
+When this workflow has run in the repository that will distribute Luci, open **Actions Ã¢â€ â€™ Luci build and release candidates**, select the desired successful commit and download its artifact. Artifact access follows the repository's permissions and requires GitHub sign-in; artifacts expire after 14 days. There is no public lcfr.ai download implied by this document.
 
 Unpack GitHub's artifact wrapper first. Verify the inner archive or installer against its accompanying `SHA256SUMS`. For example, use `sha256sum -c SHA256SUMS` on Linux, `shasum -a 256 -c SHA256SUMS` on macOS, or compare `(Get-FileHash -Algorithm SHA256 -LiteralPath <download>).Hash` on Windows. Checksums detect changed bytes; they do not establish publisher identity. Current Windows candidates are unsigned and are intended for review.
 
@@ -32,9 +32,9 @@ Use Go 1.26.3, Node 22.18.0, Python 3.11 or newer, and the committed lockfiles. 
 On Windows:
 
 ```powershell
-./scripts/build-release.ps1 -Version 0.3.0
+./scripts/build-release.ps1 -Version 0.4.0
 # Also build the native Windows NSIS installer:
-./scripts/build-release.ps1 -Version 0.3.0 -Native
+./scripts/build-release.ps1 -Version 0.4.0 -Native
 ```
 
 Native Windows builds also need stable Rust with the MSVC target and the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/). Tauri receives the Cargo lock flag after its argument separator: `npm run tauri -- build --bundles nsis -- --locked`. The [NSIS distribution documentation](https://v2.tauri.app/distribute/windows-installer/) describes the installer and signing options.
@@ -42,21 +42,25 @@ Native Windows builds also need stable Rust with the MSVC target and the [Tauri 
 On Linux or macOS:
 
 ```bash
-bash scripts/build-release.sh 0.3.0 linux-amd64
-bash scripts/build-release.sh 0.3.0 darwin-arm64
+bash scripts/build-release.sh 0.4.0 linux-amd64
+bash scripts/build-release.sh 0.4.0 darwin-arm64
 ```
 
-Archives and their checksums are written under `artifacts/releases/0.3.0/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
+Archives and their checksums are written under `artifacts/releases/0.4.0/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
 
 `scripts/collect-licenses.py` inventories installed npm runtime packages, each bundled Excalidraw font family, the Go modules compiled into the service and sandbox, and the Go standard library. Native builds also inventory reachable Windows Cargo packages. It retains original files and source snapshot references with SHA-256 hashes in `licenses/manifest.json`; `MISSING-LICENSES.txt` lists missing grants. The default command fails when a component has no retained licence file. `--allow-missing` is diagnostic only and must not be used to make a distributable package pass. Updating a dependency can require a new version-specific snapshot in `third-party/licenses/manifest.json`.
 
 The inventory is deliberately broader than the final JavaScript bundle. Native candidates retain the Rust library notices and unmodified source archives for the included MPL-2.0 Rust crates, identified in the manifest. It is evidence for review, not a legal conclusion. Docker, provider CLIs, browsers/WebView, base images and a separately installed Coolify server have their own distribution and service terms; the client package does not grant rights to them. The root `LICENSE`, `NOTICE` and original dependency grants must accompany redistributed packages.
 
+## Local application outcomes
+
+The 0.4 integration batch passed 946 desktop tests and TypeScript validation. The production browser eval completed thirteen outcomes with no JavaScript or CSP errors: authenticated setup, owner policy/member creation, saved brief/design/plan, an explicitly approved host diagnostic, a Git commit, a real ZIP backup and restore, deployment controls, and member project isolation. The compiled-service eval separately proved seven management/project outcomes, including actual child supervision, password/account revocation and malicious Git worktree configuration confinement. These evals use private disposable state and do not make cloud or paid-model calls.
+
 ## Checks and remaining acceptance gates
 
 The workflow runs both Go module test suites and desktop tests, type checking and asset builds. Its Linux runtime job builds the actual sandbox image and runs the service as host UID 10123, different from the image's default UID 1001. A real shell WebSocket reads the brief, writes project files, and commits through Git. A separate conversation-bearing session starts without credentials or a prompt; a local probe running as the mapped user verifies writes to its API-created transcript mount without model inference. The job checks private directory modes, host file ownership, zero effective and bounding capabilities of the running sandbox, and `NoNewPrivs`. It then builds a preview from the committed Dockerfile, verifies HTTP health and provenance, and stops the owned container. The retained `luci-real-runtime-evidence-<commit>` artifact contains the result and process/shell logs.
 
-After that job passes, the workflow creates portable archives, starts the Linux/macOS packaged service with isolated state and checks its setup endpoint and web page. Windows CI builds the native NSIS candidate. These checks do not perform cloud account login, create billable resources, use model credits or certify a clean-machine installer journey. A workflow definition is not an execution result; inspect the successful run and its evidence at the candidate's exact commit.
+The verify job also runs the race detector on identity, project and check/deployment paths. The runtime job exercises the compiled multi-user control plane before Docker. Real Codex/OpenCode CLIs use a local deterministic API with container networking disabled; completion, tool execution and durable fork outcomes are recorded separately from real-model quality. After the runtime job passes, the workflow creates portable archives and exercises authenticated startup, persistence and isolated member workspaces on Linux/macOS. Windows CI builds the native NSIS candidate and runs the portable and multi-user acceptance scripts. These checks do not perform cloud account login, create billable resources, use model credits or certify a clean-machine installer journey. A workflow definition is not an execution result; inspect the successful run and its evidence at the candidate's exact commit.
 
 Before calling a candidate a public production release, retain evidence for these gates at the exact release commit:
 
@@ -69,7 +73,7 @@ Before calling a candidate a public production release, retain evidence for thes
 
 Recorded CI evidence: [run 36953123907](https://github.com/lcfrai/luci/actions/runs/36953123907) passed at source commit `4c117f6a088189f640ad946459f36c9072d344c1`. This includes the real Linux Docker journey, Linux and macOS package startup checks, strict licence inventories and the Windows native installer build. The Linux/macOS manifests identify that exact commit with `sourceDirty: false`; their inventories contain 317 and 318 components respectively, with zero missing licence grants. These results describe that source snapshot, not later package builds or a signed public release.
 
-Current verification limits: the development host's Docker engine remains unavailable; the real Docker evidence came from CI. Its shell and transcript probes used no model inference, so a model-backed agent journey remains a separate gate. A built Windows installer has not by itself passed a clean-host install/uninstall evaluation. No live AWS/Azure account, billable resource, real domain/TLS rollout or complete remote installation is implied by local provider/process adapters and HTTP/WebSocket fixtures.
+Current verification limits: the development host's Docker engine remains unavailable; the real Docker evidence came from CI. The provider CLI fixture can prove protocol, real tool execution and state isolation without paid inference. Actual model quality, subscription login and provider acceptance still require the userâ€™s chosen account/model. A built Windows installer has not by itself passed a clean-host install/uninstall evaluation. No live AWS/Azure account, billable resource, real domain/TLS rollout or complete remote installation is implied by local provider/process adapters and HTTP/WebSocket fixtures.
 
 ## Publishing after those gates
 

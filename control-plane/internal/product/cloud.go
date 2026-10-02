@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/management"
 )
 
 var slugPattern = regexp.MustCompile(`^[a-z][a-z0-9-]{1,39}$`)
@@ -102,6 +104,10 @@ func (s *Server) handleCloudPlan(w http.ResponseWriter, r *http.Request) {
 	req.SSHPublicKey = strings.TrimSpace(req.SSHPublicKey)
 	if err := validateCloud(req); err != nil {
 		problem(w, 400, "bad_request", err.Error())
+		return
+	}
+	if _, policy, managed := management.ActorFromContext(r.Context()); managed && req.MonthlyBudgetUSD > policy.MonthlyBudgetUSD {
+		problem(w, 403, "budget_policy", "This plan's budget exceeds the control-plane policy. Ask a Super Admin to update the budget policy.")
 		return
 	}
 	plan, err := s.buildCloudPlan(r.Context(), req)

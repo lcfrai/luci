@@ -3,6 +3,7 @@ import { productApi, errorText, type Release } from "../../api/product";
 import { ProjectRequired, JourneyHeader } from "../journey/shared";
 import { useSetup } from "../setup/SetupProvider";
 import { CloudDeployForm } from "../journey/CloudDeployForm";
+import { useAuth } from "../auth/AuthProvider";
 
 export function DeployLens() {
   return (
@@ -22,6 +23,8 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
   const alive = useRef(true),
     working = useRef(false);
   const setup = useSetup();
+  const auth = useAuth();
+  const manageBacking = !auth || auth.profile.permissions.manageBacking;
   const remotePreview = (release: Release) =>
     setup?.workspace?.mode === "cloud" &&
     release.target === "local" &&
@@ -46,6 +49,43 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
     }, 3000);
     return () => clearInterval(timer);
   }, [busy, projectId]);
+  const pendingCloud = releases
+    .filter(
+      (release) =>
+        release.target !== "local" &&
+        ["preparing", "queued", "deploying", "verifying", "stopping"].includes(
+          release.status,
+        ),
+    )
+    .map((release) => release.id)
+    .join(",");
+  useEffect(() => {
+    if (!pendingCloud || busy) return;
+    let cancelled = false,
+      checking = false;
+    const timer = setInterval(() => {
+      if (checking) return;
+      checking = true;
+      void Promise.all(
+        pendingCloud
+          .split(",")
+          .map((id) => productApi.refreshRelease(projectId, id)),
+      )
+        .then(() => {
+          if (!cancelled) return refresh();
+        })
+        .catch((cause) => {
+          if (!cancelled) setError(errorText(cause));
+        })
+        .finally(() => {
+          checking = false;
+        });
+    }, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [pendingCloud, busy, projectId]);
   async function operate(label: string, action: () => Promise<Release>) {
     if (working.current) return;
     working.current = true;
@@ -85,9 +125,11 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
         title="Bring it to life."
         subtitle="Build a local preview or ship to your own cloud. A release is ready only after its health check passes."
       >
-        <button className="luci-button" onClick={() => setup?.openCloud()}>
-          Cloud settings
-        </button>
+        {manageBacking && (
+          <button className="luci-button" onClick={() => setup?.openCloud()}>
+            Cloud settings
+          </button>
+        )}
       </JourneyHeader>
       <div className="journey-actions" aria-label="Deployment destination">
         <button
@@ -95,7 +137,9 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
           aria-pressed={mode === "local"}
           onClick={() => setMode("local")}
         >
-          {setup?.workspace?.mode === "cloud" ? "This workspace" : "On this machine"}
+          {setup?.workspace?.mode === "cloud"
+            ? "This workspace"
+            : "On this machine"}
         </button>
         <button
           className="luci-button"
@@ -148,6 +192,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
         <CloudDeployForm
           projectId={projectId}
           busy={busy}
+          canManageBacking={manageBacking}
           onSetup={() => setup?.openCloud()}
           onDeploy={(input) =>
             void operate("Submitting cloud deployment", () =>
@@ -184,7 +229,9 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
           <li key={release.id}>
             <div>
               <strong>
-                {release.target === "local" ? "Local preview" : "Cloud deployment"}
+                {release.target === "local"
+                  ? "Local preview"
+                  : "Cloud deployment"}
               </strong>
               <span
                 className={`setup-status setup-status-${release.status === "failed" ? "error" : release.status === "ready" ? "ready" : "unknown"}`}
@@ -214,7 +261,10 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
                         release.id,
                       );
                       const url = localUrl({ ...release, url: prepared.url });
-                      if (!url) throw new Error("Luci did not return a valid local preview address.");
+                      if (!url)
+                        throw new Error(
+                          "Luci did not return a valid local preview address.",
+                        );
                       if (alive.current) setPreview(url);
                       return release;
                     });
@@ -236,22 +286,48 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
                   Check deployment health
                 </button>
               )}
-              {release.target === "local" &&
-                release.status !== "stopped" &&
-                release.status !== "failed" && (
+              {!["stopped", "stopping", "failed", "cancelled"].includes(
+                release.status,
+              ) && (
+                <button
+                  className="luci-button"
+                  disabled={!!busy}
+                  onClick={() =>
+                    void operate(
+                      release.target === "local"
+                        ? "Stopping preview"
+                        : "Stopping cloud application",
+                      () => productApi.stopRelease(projectId, release.id),
+                    )
+                  }
+                >
+                  {release.target === "local"
+                    ? "Stop preview"
+                    : "Stop cloud application"}
+                </button>
+              )}
+              {release.target !== "local" &&
+                ["ready", "failed", "stopped"].includes(release.status) && (
                   <button
                     className="luci-button"
                     disabled={!!busy}
                     onClick={() =>
-                      void operate("Stopping preview", () =>
-                        productApi.stopRelease(projectId, release.id),
+                      void operate("Rebuilding the selected release", () =>
+                        productApi.rollbackRelease(projectId, release.id),
                       )
                     }
                   >
-                    Stop preview
+                    Roll back to this release
                   </button>
                 )}
             </div>
+            {release.target !== "local" && (
+              <small>
+                Rollback rebuilds this selected release’s exact commit and
+                historical brief. Provider progress and health must be checked
+                before it is ready.
+              </small>
+            )}
           </li>
         ))}
       </ul>

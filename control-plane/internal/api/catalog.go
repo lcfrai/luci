@@ -85,11 +85,13 @@ type machineJSON struct {
 	// The JSON field carries the full enum so the cockpit needs no change then.
 	State string `json:"state"`
 	// Message names the cause of an error state and is absent otherwise.
-	Message     string   `json:"message,omitempty"`
-	Backend     string   `json:"backend"`
-	Isolation   string   `json:"isolation"`
-	Default     bool     `json:"default"`
-	Limitations []string `json:"limitations"`
+	Message          string   `json:"message,omitempty"`
+	Backend          string   `json:"backend"`
+	Isolation        string   `json:"isolation"`
+	Default          bool     `json:"default"`
+	Limitations      []string `json:"limitations"`
+	SessionMemoryMiB int      `json:"sessionMemoryMiB"`
+	SessionCPUMillis int      `json:"sessionCPUMillis"`
 }
 
 // worktreeJSON is project.Worktree plus the two fields git cannot supply:
@@ -201,17 +203,20 @@ func limitationsFor(k backend.Kind) []string {
 }
 
 // handleMachines answers GET /v1/machines with the one machine Phase 2 has.
-func (a *API) handleMachines(w http.ResponseWriter, _ *http.Request) {
+func (a *API) handleMachines(w http.ResponseWriter, r *http.Request) {
 	kind := a.deps.Backend.Kind()
+	resources := a.sessionResources(r.Context())
 	m := machineJSON{
-		ID:          LocalMachineID,
-		Name:        "This PC",
-		Kind:        "local",
-		State:       "running",
-		Backend:     string(kind),
-		Isolation:   isolationFor(kind),
-		Default:     true,
-		Limitations: limitationsFor(kind),
+		ID:               LocalMachineID,
+		Name:             "This PC",
+		Kind:             "local",
+		State:            "running",
+		Backend:          string(kind),
+		Isolation:        isolationFor(kind),
+		Default:          true,
+		Limitations:      limitationsFor(kind),
+		SessionMemoryMiB: resources.MemoryMiB,
+		SessionCPUMillis: resources.CPUMillis,
 	}
 	if !a.deps.BackendReady() {
 		m.State = "error"

@@ -3,6 +3,7 @@ package harness
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 )
 
 // claudePermissionFlag maps the product's three-word vocabulary onto the CLI's
@@ -64,6 +65,10 @@ func Build(r Request) (command string, argv []string, err error) {
 	switch d.ID {
 	case ClaudeCode:
 		return d.Command, claudeArgv(r), nil
+	case Codex:
+		return d.Command, codexArgv(r), nil
+	case OpenCode:
+		return d.Command, openCodeArgv(r), nil
 	case Shell:
 		// -l gives a login shell, so /etc/profile and the image's PATH are in
 		// place. Nothing else: a terminal takes no options from this request,
@@ -76,6 +81,56 @@ func Build(r Request) (command string, argv []string, err error) {
 		// first request instead of by a container that starts and exits.
 		return "", nil, fmt.Errorf("%w: %q is available but has no argv builder", ErrUnavailable, d.ID)
 	}
+}
+
+// Flags verified against the installed upstream CLIs: @openai/codex 0.160.0
+// and opencode-ai 1.18.34. Each provider home contains only this Luci session's
+// history, so --last/--continue cannot select another user's conversation.
+func codexArgv(r Request) []string {
+	args := []string{"--no-alt-screen", "--no-daemon", "-c", `cli_auth_credentials_store="file"`}
+	if r.Resume != "" {
+		args = append(args, "fork", "--last")
+	}
+	if r.Model != "" && r.Model != "default" {
+		args = append(args, "--model", r.Model)
+	}
+	switch r.Permission {
+	case PermissionBypass:
+		args = append(args, "--dangerously-bypass-approvals-and-sandbox")
+	case PermissionPlan:
+		args = append(args, "--sandbox", "read-only", "--ask-for-approval", "on-request")
+	default:
+		args = append(args, "--sandbox", "workspace-write", "--ask-for-approval", "on-request")
+	}
+	if r.ProjectBrief {
+		// TOML string quoting is data, not command-line interpretation.
+		args = append(args, "-c", "developer_instructions="+strconv.Quote(ProjectBriefPrompt))
+	}
+	if r.OpeningPrompt != "" {
+		args = append(args, "--", r.OpeningPrompt)
+	}
+	return args
+}
+
+func openCodeArgv(r Request) []string {
+	args := []string{"--pure", "--hostname", "127.0.0.1"}
+	if r.Resume != "" {
+		args = append(args, "--continue", "--fork")
+	}
+	if r.Model != "" && r.Model != "default" {
+		args = append(args, "--model", r.Model)
+	}
+	if r.Permission == PermissionBypass {
+		args = append(args, "--agent", "build", "--auto")
+	} else if r.Permission == PermissionPlan {
+		args = append(args, "--agent", "plan")
+	} else {
+		args = append(args, "--agent", "build")
+	}
+	if r.OpeningPrompt != "" {
+		args = append(args, "--prompt", r.OpeningPrompt)
+	}
+	return args
 }
 
 func claudeArgv(r Request) []string {

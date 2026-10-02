@@ -21,6 +21,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/ids"
+	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/reaper"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 	"github.com/lcfrai/luci/control-plane/internal/worktree"
@@ -211,6 +212,9 @@ func sessionTranscriptState(store, conversation string) (written bool, err error
 // Any failure to delete comes back as the error, and the caller keeps the
 // record that names the file.
 func (a *API) sessionForgetTranscripts(sess registry.Session) error {
+	if nativeHarness(sess.Harness) {
+		return a.forgetNativeState(sess)
+	}
 	return errors.Join(a.sessionForgetStoreTranscripts(sess), a.sessionForgetCarried(sess))
 }
 
@@ -288,7 +292,7 @@ func (a *API) sessionForgetWorktreeStore(worktreeID string) error {
 // resuming is the only thing either is for; a shell has no conversation, and
 // mounting it one would only put transcripts in reach of a terminal.
 func sessionHasConversation(d harness.Descriptor) bool {
-	return d.Available() && d.SupportsResume
+	return d.Available() && d.SupportsResume && !d.NativeState()
 }
 
 // sessionCABundlePath is where Deps.CABundle appears inside every sandbox, and
@@ -862,6 +866,7 @@ type sessionCreateRequest struct {
 	Title          string `json:"title"`
 	Resume         string `json:"resume"`
 	ContextRef     string `json:"contextRef"`
+	AuthOnly       bool   `json:"authOnly"`
 }
 
 // registerSessions mounts the six verbs. Go 1.22's ServeMux matches on method
@@ -897,11 +902,25 @@ func (a *API) sessionImage() string {
 
 // sessionResources refuses a half-filled Resources: Kata sizes a guest VM from
 // both numbers and under-requesting either causes a guest OOM.
-func (a *API) sessionResources() backend.Resources {
+func (a *API) sessionResources(ctx context.Context) backend.Resources {
+	resources := backend.DefaultResources
 	if a.deps.Resources.CPUMillis > 0 && a.deps.Resources.MemoryMiB > 0 {
-		return a.deps.Resources
+		resources = a.deps.Resources
 	}
-	return backend.DefaultResources
+	if _, policy, ok := management.ActorFromContext(ctx); ok {
+		resources = clampSessionResources(resources, policy)
+	}
+	return resources
+}
+
+func clampSessionResources(resources backend.Resources, policy management.Policy) backend.Resources {
+	if policy.SessionMemoryMiB > 0 {
+		resources.MemoryMiB = min(resources.MemoryMiB, policy.SessionMemoryMiB)
+	}
+	if policy.SessionCPUMillis > 0 {
+		resources.CPUMillis = min(resources.CPUMillis, policy.SessionCPUMillis)
+	}
+	return resources
 }
 
 func (a *API) sessionReadyTimeout() time.Duration {
@@ -1049,6 +1068,10 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			"No harness with that id.", map[string]string{"harness": string(harnessID)})
 		return
 	}
+	if req.AuthOnly && (harnessID != harness.Codex || req.Resume != "" || req.OpeningPrompt != "") {
+		httpx.WriteProblem(w, 400, httpx.CodeConflict, "Device sign-in requires a fresh Codex session without an opening prompt.", nil)
+		return
+	}
 	model := strings.TrimSpace(req.Model)
 	if model == "" {
 		model = desc.DefaultModel
@@ -1067,9 +1090,16 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	// may be in this worktree (Resume) or another (Fork); step 3a is the
 	// difference.
 	resume := strings.TrimSpace(req.Resume)
+	if desc.NativeState() && resume != "" {
+		if !sessionRestarts.acquire(resume) {
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, "The source session is already changing; try after it stops.", nil)
+			return
+		}
+		defer sessionRestarts.release(resume)
+	}
 	var conversation, conversationStore string
 	var source sessionResumeSource
-	if sessionHasConversation(desc) {
+	if sessionHasConversation(desc) || desc.NativeState() {
 		if resume != "" {
 			var ok bool
 			if source, ok = a.sessionResolveResume(w, r, resume, harnessID); !ok {
@@ -1096,7 +1126,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		a.writeHarnessProblem(w, r, harnessID, desc, err)
 		return
 	}
-	if conversation != "" {
+	if conversation != "" && !desc.NativeState() {
 		if conversationStore, err = a.sessionConversationStore(req.WorktreeID); err != nil {
 			a.internal(w, r, "prepare the conversation store for worktree "+req.WorktreeID, err)
 			return
@@ -1127,6 +1157,14 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			sandboxEnv[key] = value
 		}
 	}
+	if harnessID == harness.OpenCode && sandboxEnv["OPENCODE_CONFIG_CONTENT"] == "" {
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, "Configure an explicit local or compatible model in Settings before starting OpenCode.", nil)
+		return
+	}
+	argv = nativeArgs(string(harnessID), argv, sandboxEnv, req.AuthOnly)
+	if a.deps.Backend.Kind() == backend.KindDocker {
+		nativeDockerEndpoint(sandboxEnv)
+	}
 
 	// 3. Ids and the secret.
 	sessionID := ids.New("s")
@@ -1137,7 +1175,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	// record's own. sessions_fork.go says why it is a staged copy.
 	var carried backend.Mount
 	var carriedConversation, staging string
-	if source.conversation != "" && source.worktreeID != req.WorktreeID {
+	if source.conversation != "" && source.worktreeID != req.WorktreeID && !desc.NativeState() {
 		if carried, staging, err = a.sessionCarry(source, sessionID, conversationStore); err != nil {
 			a.internal(w, r, "carry the conversation of session "+source.id+" into worktree "+req.WorktreeID, err)
 			return
@@ -1145,6 +1183,15 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		carriedConversation = source.conversation
 	}
 	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, carried, a.deps.CABundle, gitFiles)
+	if desc.NativeState() {
+		providerStore, err := a.prepareNativeState(req.WorktreeID, string(harnessID), conversation, source, false)
+		if err != nil {
+			a.internal(w, r, "prepare private provider state", err)
+			return
+		}
+		sandboxMounts = nativeMount(sandboxMounts, providerStore)
+		nativeEnvironment(string(harnessID), sandboxEnv, mode)
+	}
 
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
@@ -1221,7 +1268,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		Args:        argv,
 		Env:         sandboxEnv,
 		AttachToken: token,
-		Resources:   a.sessionResources(),
+		Resources:   a.sessionResources(r.Context()),
 		WorkDir:     sessionWorkDir,
 		Mounts:      sandboxMounts,
 	})
@@ -1341,6 +1388,11 @@ func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourc
 			details)
 		return sessionResumeSource{}, false
 	}
+	if nativeHarness(src.Harness) && src.Status != registry.StatusExited {
+		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict,
+			"Stop this provider session before resuming or forking it so its saved database can be copied consistently.", details)
+		return sessionResumeSource{}, false
+	}
 	conversation, found, err := a.sessionResumableConversation(src)
 	if err != nil {
 		a.internal(w, r, "find the conversation of the session to resume", err)
@@ -1368,6 +1420,9 @@ func (a *API) sessionResolveResume(w http.ResponseWriter, r *http.Request, sourc
 // CLI is left to judge: refusing on a failed look would make resume depend on
 // it, which OD-8 forbids.
 func (a *API) sessionResumableConversation(src registry.Session) (conversation string, found bool, err error) {
+	if nativeHarness(src.Harness) {
+		return a.nativeResumable(src)
+	}
 	store, err := a.sessionConversationStorePath(src.WorktreeID)
 	if err != nil {
 		return "", false, err
@@ -1772,7 +1827,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// its argv must fail while the old sandbox is still alive.
 	command, args, conversation := sess.Command, sess.Args, sess.ConversationID
 	var conversationStore string
-	if desc, known := harness.Lookup(harness.ID(sess.Harness)); known && sessionHasConversation(desc) {
+	if desc, known := harness.Lookup(harness.ID(sess.Harness)); known && (sessionHasConversation(desc) || desc.NativeState()) {
 		conversation = ids.UUID()
 		command, args, err = harness.Build(harness.Request{
 			ProjectBrief:  true,
@@ -1787,9 +1842,11 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 			a.writeHarnessProblem(w, r, desc.ID, desc, err)
 			return
 		}
-		if conversationStore, err = a.sessionConversationStore(sess.WorktreeID); err != nil {
-			a.internal(w, r, "prepare the conversation store for worktree "+sess.WorktreeID, err)
-			return
+		if !desc.NativeState() {
+			if conversationStore, err = a.sessionConversationStore(sess.WorktreeID); err != nil {
+				a.internal(w, r, "prepare the conversation store for worktree "+sess.WorktreeID, err)
+				return
+			}
 		}
 	}
 	// The environment is rebuilt like the mounts, and before the destroy like
@@ -1818,6 +1875,14 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 			sandboxEnv[key] = value
 		}
 	}
+	if sess.Harness == string(harness.OpenCode) && sandboxEnv["OPENCODE_CONFIG_CONTENT"] == "" {
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, "Configure an explicit local or compatible model in Settings before starting OpenCode.", nil)
+		return
+	}
+	args = nativeArgs(sess.Harness, args, sandboxEnv, false)
+	if a.deps.Backend.Kind() == backend.KindDocker {
+		nativeDockerEndpoint(sandboxEnv)
+	}
 	// No carried transcript: a restart starts clean, so even a fork's restart
 	// resumes nothing and needs no source to read.
 	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, backend.Mount{}, a.deps.CABundle, gitFiles)
@@ -1830,6 +1895,22 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 			a.writeBackendProblem(w, r, "destroy the old sandbox", err)
 			return
 		}
+	}
+	if nativeHarness(sess.Harness) {
+		source := sessionResumeSource{worktreeID: sess.WorktreeID, conversation: sess.ConversationID}
+		providerStore, err := a.prepareNativeState(sess.WorktreeID, sess.Harness, conversation, source, true)
+		if err != nil {
+			_, _ = a.deps.Store.Update(id, func(s *registry.Session) error {
+				s.Status = registry.StatusExited
+				s.ExitReason = "provider state could not be prepared after stopping"
+				s.Endpoint = ""
+				return nil
+			})
+			a.internal(w, r, "prepare private provider state for restart", err)
+			return
+		}
+		sandboxMounts = nativeMount(sandboxMounts, providerStore)
+		nativeEnvironment(sess.Harness, sandboxEnv, harness.PermissionMode(sess.PermissionMode))
 	}
 
 	// The conversation the restart leaves stays resumable. A restart clears the
@@ -1848,6 +1929,9 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// A plain append: sess is Get's clone and Update clones again on the way
 	// in, so nothing this appends into is shared with the store.
 	earlier := sess.EarlierConversationIDs
+	if nativeHarness(sess.Harness) && sess.ConversationID != "" {
+		earlier = append(earlier, sess.ConversationID)
+	}
 	if conversationStore != "" && sess.ConversationID != "" {
 		written, err := sessionTranscriptState(conversationStore, sess.ConversationID)
 		if err != nil {
@@ -1930,7 +2014,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		Args:        args,
 		Env:         sandboxEnv,
 		AttachToken: token,
-		Resources:   a.sessionResources(),
+		Resources:   a.sessionResources(r.Context()),
 		WorkDir:     sessionWorkDir,
 		Mounts:      sandboxMounts,
 	})
@@ -1978,6 +2062,13 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := sess.ID
+	if nativeHarness(sess.Harness) {
+		if !sessionRestarts.acquire(id) {
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, "The provider session is being restarted or copied; wait before stopping or forgetting it.", nil)
+			return
+		}
+		defer sessionRestarts.release(id)
+	}
 	ctx := r.Context()
 	purge := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("purge")), "true")
 

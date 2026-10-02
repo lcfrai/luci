@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   errorText,
   productApi,
@@ -11,12 +11,20 @@ export function CloudDeployForm({
   busy,
   onDeploy,
   onSetup,
+  canManageBacking = true,
 }: {
   projectId: string;
   busy: string;
   onDeploy(input: CloudReleaseRequest): void;
   onSetup(): void;
+  canManageBacking?: boolean;
 }) {
+  const alive = useRef(true),
+    preparing = useRef(false);
+  const [source, setSource] = useState<"public" | "private">("private"),
+    [privateKeyUuid, setPrivateKeyUuid] = useState("");
+  const [keyBusy, setKeyBusy] = useState(false),
+    [keyMessage, setKeyMessage] = useState("");
   const [targets, setTargets] = useState<DeploymentTarget[]>([]),
     [git, setGit] = useState<GitState | null>(null),
     [error, setError] = useState("");
@@ -26,31 +34,77 @@ export function CloudDeployForm({
     [port, setPort] = useState(3000),
     [healthPath, setHealthPath] = useState("/"),
     [dockerfile, setDockerfile] = useState("Dockerfile");
-  const load = async () => {
+  const load = async (initial = false) => {
     setError("");
     try {
-      const [t, g] = await Promise.all([
+      const [t, g, delivery] = await Promise.all([
         productApi.targets(),
         productApi.git(projectId),
+        productApi.gitDelivery(projectId),
       ]);
+      if (!alive.current) return;
+      if (initial) {
+        setRepository(delivery.origin || "");
+        setSource(
+          delivery.publication?.visibility === "public" ? "public" : "private",
+        );
+      }
       setTargets(t.targets);
       setGit(g);
     } catch (e) {
-      setError(errorText(e));
+      if (alive.current) setError(errorText(e));
     }
   };
   useEffect(() => {
-    void load();
+    alive.current = true;
+    void load(true);
+    return () => {
+      alive.current = false;
+    };
   }, [projectId]);
+  async function prepareAccess() {
+    if (preparing.current) return;
+    preparing.current = true;
+    setKeyBusy(true);
+    setError("");
+    setKeyMessage("");
+    try {
+      const result = await productApi.prepareDeployKey(
+        projectId,
+        targetId,
+        repository.trim(),
+      );
+      if (alive.current) {
+        setPrivateKeyUuid(
+          result.status === "ready" ? result.privateKeyUuid || "" : "",
+        );
+        setKeyMessage(result.message);
+      }
+    } catch (cause) {
+      if (alive.current) setError(errorText(cause));
+    } finally {
+      preparing.current = false;
+      if (alive.current) setKeyBusy(false);
+    }
+  }
   const head = git?.log[0]?.hash ?? "";
   return (
     <form
       className="cloud-deploy-form"
       onSubmit={(e) => {
         e.preventDefault();
-        if (git?.clean && head && targetId)
+        if (
+          git?.clean &&
+          head &&
+          targetId &&
+          (source === "public" || privateKeyUuid.trim())
+        )
           onDeploy({
             targetId,
+            source,
+            ...(source === "private"
+              ? { privateKeyUuid: privateKeyUuid.trim() }
+              : {}),
             repository,
             branch: git.branch,
             commit: head,
@@ -63,8 +117,8 @@ export function CloudDeployForm({
     >
       <h2>Ship to your cloud</h2>
       <p className="journey-muted">
-        Deploy a public HTTPS Git repository to a connected server. Luci checks
-        the deployed commit and HTTPS health before showing a ready release.
+        Deploy your reviewed repository to a connected server. Luci checks the
+        deployed commit and HTTPS health before showing a ready release.
       </p>
       {error && (
         <p className="journey-error" role="alert">
@@ -74,9 +128,13 @@ export function CloudDeployForm({
       {!targets.length && (
         <p>
           No deployment server connected yet.{" "}
-          <button type="button" className="luci-button" onClick={onSetup}>
-            Set up your cloud
-          </button>
+          {canManageBacking ? (
+            <button type="button" className="luci-button" onClick={onSetup}>
+              Set up your cloud
+            </button>
+          ) : (
+            "Ask your administrator to connect a deployment server."
+          )}
         </p>
       )}
       <label className="luci-field">
@@ -84,7 +142,11 @@ export function CloudDeployForm({
         <select
           required
           value={targetId}
-          onChange={(e) => setTargetId(e.target.value)}
+          onChange={(e) => {
+            setTargetId(e.target.value);
+            setPrivateKeyUuid("");
+            setKeyMessage("");
+          }}
         >
           <option value="">Choose your server</option>
           {targets.map((t) => (
@@ -96,12 +158,16 @@ export function CloudDeployForm({
       </label>
       <div className="setup-field-grid">
         <label className="luci-field">
-          Public repository URL
+          Repository URL · HTTPS
           <input
             required
             type="url"
             value={repository}
-            onChange={(e) => setRepository(e.target.value)}
+            onChange={(e) => {
+              setRepository(e.target.value);
+              setPrivateKeyUuid("");
+              setKeyMessage("");
+            }}
             placeholder="https://github.com/you/project"
           />
         </label>
@@ -143,6 +209,50 @@ export function CloudDeployForm({
           />
         </label>
       </div>
+      <label className="luci-field">
+        Repository access
+        <select
+          value={source}
+          disabled={!!busy || keyBusy}
+          onChange={(event) => setSource(event.target.value as typeof source)}
+        >
+          <option value="private">
+            Private repository · read-only deploy key
+          </option>
+          <option value="public">Public repository</option>
+        </select>
+      </label>
+      {source === "private" && (
+        <section className="setup-plan">
+          <p className="journey-muted">
+            Use your connected GitHub account to create a read-only repository
+            key and store its private half on this deployment server. This
+            permits source checkout; it does not push code.
+          </p>
+          <button
+            type="button"
+            className="luci-button"
+            disabled={!!busy || keyBusy || !targetId || !repository.trim()}
+            onClick={() => void prepareAccess()}
+          >
+            {keyBusy
+              ? "Preparing read-only access…"
+              : "Prepare read-only GitHub access"}
+          </button>
+          {keyMessage && <p role="status">{keyMessage}</p>}
+          <label className="luci-field">
+            Deployment server key ID
+            <input
+              value={privateKeyUuid}
+              onChange={(event) => setPrivateKeyUuid(event.target.value)}
+            />
+            <small>
+              Filled after preparing access. You may instead enter an existing
+              key ID configured on this server for another Git provider.
+            </small>
+          </label>
+        </section>
+      )}
       {git && (
         <p className={git.clean && head ? "journey-muted" : "journey-warning"}>
           {git.clean && head
@@ -153,7 +263,14 @@ export function CloudDeployForm({
       <div className="setup-actions">
         <button
           className="luci-button luci-primary"
-          disabled={!!busy || !targetId || !git?.clean || !head}
+          disabled={
+            !!busy ||
+            keyBusy ||
+            !targetId ||
+            !git?.clean ||
+            !head ||
+            (source === "private" && !privateKeyUuid.trim())
+          }
         >
           {busy || "Deploy to cloud"}
         </button>

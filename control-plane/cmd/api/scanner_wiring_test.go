@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lcfrai/luci/control-plane/internal/hostpath"
 	"github.com/lcfrai/luci/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/worktree"
 )
 
 // listingGit is a project.Runner double: `git worktree list --porcelain` in
@@ -61,6 +61,14 @@ func registerLinkedWorktree(t *testing.T, dir, wt string) {
 	if err := os.WriteFile(filepath.Join(entry, "gitdir"), []byte(body), 0o640); err != nil {
 		t.Fatal(err)
 	}
+	for path, value := range map[string]string{
+		filepath.Join(wt, ".git"):         "gitdir: " + filepath.ToSlash(entry) + "\n",
+		filepath.Join(entry, "commondir"): "../..\n",
+	} {
+		if err := os.WriteFile(path, []byte(value), 0o640); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 // porcelainOf is `git worktree list --porcelain` naming dirs, the primary
@@ -92,6 +100,9 @@ func TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore(t *testing.T)
 			if err != nil {
 				t.Fatalf("loadConfig: %v", err)
 			}
+			// Deliberately overlap the fixture store and project boundary so the
+			// junction guard remains exercised after outside worktrees are refused.
+			cfg.ConversationsDir = filepath.Join(projects, "fixture-conversations")
 			app := filepath.Join(projects, "app")
 			loc := filepath.Join(cfg.ConversationsDir, "local", "wt-app")
 			registerLinkedWorktree(t, app, loc)
@@ -119,8 +130,10 @@ func TestNewScannerRefusesAWorktreeSwappedInsideAConversationStore(t *testing.T)
 			makeJunction(t, target, swapped)
 
 			got, err := s.Path(context.Background(), id)
-			if !errors.Is(err, hostpath.ErrReparsePoint) || got != "" {
-				t.Fatalf("Path(%q) with %s a junction out of the store = %q, %v; want \"\" and hostpath.ErrReparsePoint", loc, swapped, got, err)
+			// Strict enumeration filters unsafe paths before they can become
+			// a mount candidate. The result is now an unknown worktree.
+			if !errors.Is(err, worktree.ErrUnknownID) || got != "" {
+				t.Fatalf("Path(%q) with %s a junction out of the store = %q, %v; want no mount and an unknown worktree", loc, swapped, got, err)
 			}
 		})
 	}

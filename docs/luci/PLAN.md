@@ -6,7 +6,8 @@ Luci takes a person from an idea to a running application in one app. Distributi
 
 ## Delivery decisions
 
-- Local is the default: desktop, one local Go service, durable files, Git and optional Docker. No account, cluster, database server or identity provider is needed to begin defining and designing a project.
+- Local is the default: desktop or packaged browser UI, one managed Go control plane, durable files, Git and Docker execution. The first owner creates a local account. No external identity provider, cluster or database server is required. The same product runs against a user-owned AWS/Azure backing.
+- The application is the end user's workspace. The backing owns management: account roles, private per-user runtime state, provider credentials, resource policy, execution and audit. Member, Admin and Super Admin are explicit roles. A member cannot modify backing configuration or run arbitrary host commands. Super Admin host execution is an optional, explicit trusted-operation policy, disabled by default.
 - Cloud workspaces are an explicit optional execution location: a matching Luci service runs on the selected SSH machine, storing its own projects and running its agent containers and previews. The desktop remains local and routes the existing journey through a pinned SSH connection. Switching execution location does not migrate files or copy credentials automatically.
 - Retain the working Tauri/React/xterm cockpit while evaluating whole-product reuse. A replacement earns adoption by lowering actual delivery/packaging cost and preserving local use. The old decision to freeze it for Orca is superseded.
 - Local use has no Luci licence or platform subscription fee. AWS/Azure are optional and start with the smallest viable single Linux server, persistent disk and HTTPS, allowing enough memory for the deployment service, builds and running apps. No mandatory EKS, AKS, NAT gateway, managed database or load balancer. AWS Lightsail is the first AWS target; Azure uses a small VM. Larger configurations are opt-in when the workload needs them.
@@ -21,7 +22,9 @@ Luci takes a person from an idea to a running application in one app. Distributi
 2. Implement setup readiness, durable local configuration and a real new-project flow. Make the desktop start its service.
 3. Deliver Define, Design, Develop, Files/Git and a local application preview as one usable journey. Keep real outcome errors visible.
 4. Deliver guided AWS/Azure template and execution paths, domain/TLS checks, cost acknowledgement, and cleanup.
-5. Package downloads with dependency checks, release/update metadata, source/attribution and an lcfr.ai download surface. Execute journey evals and the relevant test suites.
+5. Connect the whole solution workflow: versioned task plan and design context, Claude/Codex/local-model development, independently recorded command checks, GitHub creation/push, exact commit preview/deployment, project backup/restore and release maintenance.
+6. Add control-plane authentication, isolated user runtimes, role/policy enforcement, supervision and audit. Connect cloud backing authentication through verified SSH without copying local credentials.
+7. Package downloads with dependency checks, release/update metadata, source/attribution and an lcfr.ai download surface. Execute complete solution and administration outcome evals, then the relevant test suites.
 
 ## Outcome gates
 
@@ -30,11 +33,14 @@ Luci takes a person from an idea to a running application in one app. Distributi
 - The brief is visible through agent work and attached to a deployment record. A generated preview is verified before release success.
 - Cloud plans contain valid complete resources and removable names, no organisation defaults or embedded credentials. Provisioning requires explicit cost acceptance in the product.
 - UI is keyboard usable, readable in all states, and consistent across phases and embedded adapters.
+- Bootstrap creates one Super Admin; login survives the application journey, logout/revocation closes access, a member cannot read another user's project or credentials, and the last Super Admin cannot be disabled accidentally.
+- A saved plan/design is available to the development session. Command checks record execution location, source digest, exit code and bounded output. Source changes invalidate a passing result; manually completing a task never fabricates test evidence.
+- A created project can be published privately, pushed with exact remote commit verification, backed up and restored into a new project, previewed, deployed and maintained through the same application.
 - Unit checks cover risk-bearing persistence, path containment, process control and request validation. Integration evals prove the journey; no repeated review rounds.
 
 ## Constraints discovered
 
-The current host initially has Go and Node, Docker Desktop installed but stopped, and no Rust, AWS CLI or Azure CLI on PATH. Restore local services and locate available toolchains before declaring packaging or live integration verified. Glasses' local MCP initially needed its existing server started; reuse research runs alongside implementation.
+The current host has Go, Node, Rust/MSVC and authenticated GitHub. Docker Desktop cannot start because its existing inference socket is inaccessible; automatic approval review refused the repair. AWS/Azure accounts and domain configuration are absent. Docker execution is evaluated on a real Linux CI runner; installed native source/build and packaged service behavior are evaluated separately. Glasses MCP reuse research is active: keep the existing terminal/editor integrations and adopt maintained provider/Git/deployment tools where they reduce bespoke implementation.
 
 Live AWS/Azure acceptance and publication require the owner's account/domain/release configuration. Until those are available, generated plans and local/synthetic evals are labelled accordingly. Use current selected-region quotes with currency and exclusions; include storage, public addresses, traffic, backups, domain, tax and separately billed model usage. Incomplete prices remain unverified. The configured budget does not enforce a provider billing cap.
 

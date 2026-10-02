@@ -55,20 +55,20 @@ func TestShellIsAFirstClassAvailableHarness(t *testing.T) {
 // images/sandbox/Dockerfile installs @anthropic-ai/claude-code and nothing
 // else. Offering an enabled button for a binary that is not in the image
 // produces a usage error inside a terminal the user then has to read.
-func TestOnlyClaudeCodeAndTheShellAreAvailable(t *testing.T) {
+func TestPinnedVerifiedCLIsAndTheShellAreAvailable(t *testing.T) {
 	available := map[harness.ID]bool{}
 	for _, d := range harness.Catalogue() {
 		if d.Available() {
 			available[d.ID] = true
 		}
 	}
-	if len(available) != 2 || !available[harness.ClaudeCode] || !available[harness.Shell] {
-		t.Fatalf("available harnesses = %v, want exactly claude-code and shell", available)
+	if len(available) != 4 || !available[harness.ClaudeCode] || !available[harness.Shell] || !available[harness.Codex] || !available[harness.OpenCode] {
+		t.Fatalf("available harnesses = %v, want the pinned, verified CLIs and shell", available)
 	}
 }
 
 func TestUnverifiedHarnessesCarryANoteSayingWhy(t *testing.T) {
-	for _, id := range []harness.ID{harness.Codex, harness.OpenCode, harness.GeminiCLI} {
+	for _, id := range []harness.ID{harness.GeminiCLI} {
 		d, ok := harness.Lookup(id)
 		if !ok {
 			t.Fatalf("Lookup(%q) reported it is not in the catalogue", id)

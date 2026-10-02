@@ -20,6 +20,8 @@ import { CloudManager } from "./CloudManager";
 import { LocalTools } from "./LocalTools";
 import { ProviderSignIn } from "./ProviderSignIn";
 import { changeWorkspace } from "./workspace";
+import { ProjectRestore } from "../journey/ProjectBackup";
+import { useAuth } from "../auth/AuthProvider";
 import "./setup.css";
 
 interface Props {
@@ -39,6 +41,9 @@ export function SetupPanel({
   onProjectsChanged,
   client = productApi,
 }: Props) {
+  const auth = useAuth();
+  const manageBacking = !auth || auth.profile.permissions.manageBacking;
+  const allowProvision = !auth || auth.profile.policy.allowCloudProvisioning;
   const [status, setStatus] = useState(initialStatus);
   const [config, setConfig] = useState<SetupConfig | null>(
     initialStatus?.config ?? null,
@@ -133,7 +138,7 @@ export function SetupPanel({
   }
   const submitConfig = (event: FormEvent) => {
     event.preventDefault();
-    if (!config) return;
+    if (!config || !manageBacking) return;
     void run("Saving", async () => {
       receive(await client.configure(config));
       onProjectsChanged();
@@ -188,16 +193,18 @@ export function SetupPanel({
               ["project", "New project"],
               ["cloud", "Your cloud"],
             ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              aria-current={section === id ? "page" : undefined}
-              onClick={() => setSection(id)}
-            >
-              {label}
-            </button>
-          ))}
+          )
+            .filter(([id]) => id !== "cloud" || manageBacking)
+            .map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-current={section === id ? "page" : undefined}
+                onClick={() => setSection(id)}
+              >
+                {label}
+              </button>
+            ))}
         </nav>
         <div className="setup-content">
           {error && (
@@ -229,7 +236,7 @@ export function SetupPanel({
             <>
               {section === "local" && (
                 <>
-                  {status?.workspace?.mode === "cloud" && (
+                  {manageBacking && status?.workspace?.mode === "cloud" && (
                     <div className="workspace-current">
                       <h2>Working on {status.workspace.host}</h2>
                       <p className="journey-muted">
@@ -256,6 +263,7 @@ export function SetupPanel({
                       Projects folder
                       <input
                         value={config.projectsDir}
+                        readOnly={!manageBacking}
                         onChange={(event) =>
                           update({ projectsDir: event.target.value })
                         }
@@ -270,9 +278,13 @@ export function SetupPanel({
                     <div className="setup-actions">
                       <button
                         className="luci-button luci-primary"
-                        disabled={!!busy}
+                        disabled={!!busy || !manageBacking}
                       >
-                        {busy === "Saving" ? "Saving…" : "Save settings"}
+                        {busy === "Saving"
+                          ? "Saving…"
+                          : manageBacking
+                            ? "Save settings"
+                            : "Projects folder managed by administrator"}
                       </button>
                       <button
                         className="luci-button"
@@ -316,6 +328,7 @@ export function SetupPanel({
                   <LocalTools
                     client={client}
                     cloud={status?.workspace?.mode === "cloud"}
+                    onSessionStarted={onClose}
                   />
                   <button
                     className="luci-button"
@@ -327,218 +340,244 @@ export function SetupPanel({
                 </>
               )}
               {section === "project" && (
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void run("Creating project", async () => {
-                      const project = await client.createProject(
-                        name.trim(),
-                        remote.trim() || undefined,
-                      );
-                      onProjectsChanged();
-                      useCockpit.getState().selectProject(project.id);
-                      useCockpit.getState().setLens("discover");
-                      onClose();
-                    });
-                  }}
-                >
-                  <h2>Start with a name.</h2>
-                  <p className="journey-muted">
-                    Create a local Git project, or bring an existing one from an
-                    HTTPS repository.
-                  </p>
-                  <label className="luci-field">
-                    Project name
-                    <input
-                      value={name}
-                      onChange={(event) => setName(event.target.value)}
-                      required
-                      autoComplete="off"
-                      placeholder="my-next-app"
-                    />
-                  </label>
-                  <label className="luci-field">
-                    Repository URL{" "}
-                    <span className="journey-muted">optional</span>
-                    <input
-                      value={remote}
-                      onChange={(event) => setRemote(event.target.value)}
-                      type="url"
-                      placeholder="https://github.com/you/project.git"
-                    />
-                  </label>
-                  <p className="journey-muted">
-                    Saved inside <code>{config.projectsDir}</code>
-                  </p>
-                  <button
-                    className="luci-button luci-primary"
-                    disabled={!!busy || !name.trim()}
-                  >
-                    {busy === "Creating project"
-                      ? "Creating project…"
-                      : "Create project"}
-                  </button>
-                </form>
-              )}
-              {section === "cloud" && (
                 <>
                   <form
                     onSubmit={(event) => {
                       event.preventDefault();
-                      void run("Planning", async () => {
-                        const value = await client.cloudPlan({
-                          provider: config.cloudProvider || "aws",
-                          name: cloudName,
-                          region: config.region,
-                          domain: config.domain,
-                          size,
-                          monthlyBudgetUsd: config.monthlyBudgetUsd,
-                          sshPublicKey,
-                        });
-                        setPlan(value);
+                      void run("Creating project", async () => {
+                        const project = await client.createProject(
+                          name.trim(),
+                          remote.trim() || undefined,
+                        );
+                        onProjectsChanged();
+                        useCockpit.getState().selectProject(project.id);
+                        useCockpit.getState().setLens("discover");
+                        onClose();
                       });
                     }}
                   >
-                    <h2>A small home for what you build.</h2>
+                    <h2>Start with a name.</h2>
                     <p className="journey-muted">
-                      Use your own AWS or Azure account. Preview a
-                      single-machine deployment before creating any resources.
+                      Create a local Git project, or bring an existing one from
+                      an HTTPS repository.
                     </p>
-                    <div className="setup-field-grid">
-                      <label className="luci-field">
-                        Provider
-                        <select
-                          value={config.cloudProvider || "aws"}
-                          onChange={(event) =>
-                            update({
-                              cloudProvider: event.target.value as
-                                | "aws"
-                                | "azure",
-                              region: "",
-                            })
-                          }
-                        >
-                          <option value="aws">AWS · Lightsail</option>
-                          <option value="azure">Azure · Virtual machine</option>
-                        </select>
-                      </label>
-                      <label className="luci-field">
-                        Region
-                        <input
-                          required
-                          value={config.region}
-                          onChange={(event) =>
-                            update({ region: event.target.value })
-                          }
-                          placeholder={
-                            config.cloudProvider === "azure"
-                              ? "australiaeast"
-                              : "ap-southeast-2"
-                          }
-                        />
-                      </label>
-                      <label className="luci-field">
-                        Deployment name
-                        <input
-                          required
-                          pattern="[a-z][a-z0-9-]*"
-                          value={cloudName}
-                          onChange={(event) => {
-                            setCloudName(event.target.value);
-                            setPlan(null);
-                          }}
-                        />
-                      </label>
-                      <label className="luci-field">
-                        Domain
-                        <input
-                          required
-                          value={config.domain}
-                          onChange={(event) =>
-                            update({ domain: event.target.value })
-                          }
-                          placeholder="app.example.com"
-                        />
-                      </label>
-                      <label className="luci-field">
-                        Machine size
-                        <select
-                          value={size}
-                          onChange={(event) => {
-                            setSize(event.target.value as typeof size);
-                            setPlan(null);
-                          }}
-                        >
-                          <option value="small">Small · start here</option>
-                          <option value="standard">
-                            Standard · more capacity
-                          </option>
-                        </select>
-                      </label>
-                      <label className="luci-field">
-                        Monthly budget · USD
-                        <input
-                          type="number"
-                          min="1"
-                          required
-                          value={config.monthlyBudgetUsd}
-                          onChange={(event) =>
-                            update({
-                              monthlyBudgetUsd: Number(event.target.value),
-                            })
-                          }
-                        />
-                      </label>
-                    </div>
                     <label className="luci-field">
-                      SSH public key
-                      <textarea
-                        rows={3}
+                      Project name
+                      <input
+                        value={name}
+                        onChange={(event) => setName(event.target.value)}
                         required
-                        value={sshPublicKey}
-                        onChange={(event) => {
-                          setSshPublicKey(event.target.value);
-                          setPlan(null);
-                        }}
-                        placeholder="ssh-ed25519 …"
+                        autoComplete="off"
+                        placeholder="my-next-app"
                       />
-                      <small>
-                        Use the public .pub key. Your private key stays on your
-                        machine.
-                      </small>
                     </label>
-                    <ProviderSignIn
-                      client={client}
-                      provider={config.cloudProvider || "aws"}
-                    />
-                    <button
-                      className="luci-button"
-                      type="button"
-                      disabled={!!busy}
-                      onClick={() =>
-                        void run("Creating key", async () => {
-                          const key = await client.createSSHKey();
-                          setSshPublicKey(key.publicKey);
-                          setPrivateKeyPath(key.privateKeyPath);
-                          setPlan(null);
-                          setNotice(
-                            `Your Luci SSH key is ready. Fingerprint: ${key.fingerprint}`,
-                          );
-                        })
-                      }
-                    >
-                      Create or use Luci SSH key
-                    </button>
+                    <label className="luci-field">
+                      Repository URL{" "}
+                      <span className="journey-muted">optional</span>
+                      <input
+                        value={remote}
+                        onChange={(event) => setRemote(event.target.value)}
+                        type="url"
+                        placeholder="https://github.com/you/project.git"
+                      />
+                    </label>
+                    <p className="journey-muted">
+                      Saved inside <code>{config.projectsDir}</code>
+                    </p>
                     <button
                       className="luci-button luci-primary"
-                      disabled={!!busy}
+                      disabled={!!busy || !name.trim()}
                     >
-                      {busy === "Planning"
-                        ? "Preparing plan…"
-                        : "Preview cloud plan"}
+                      {busy === "Creating project"
+                        ? "Creating project…"
+                        : "Create project"}
                     </button>
                   </form>
-                  {plan && (
+                  <ProjectRestore
+                    client={client}
+                    onRestored={(project) => {
+                      onProjectsChanged();
+                      useCockpit.getState().selectProject(project.id);
+                      useCockpit.getState().setLens("discover");
+                      onClose();
+                    }}
+                  />
+                </>
+              )}
+              {section === "cloud" && !manageBacking && (
+                <p className="journey-muted">
+                  Your administrator manages cloud backing and deployment
+                  connections for this workspace.
+                </p>
+              )}
+              {section === "cloud" && manageBacking && (
+                <>
+                  {!allowProvision && (
+                    <p className="journey-muted">
+                      Cloud provisioning is disabled by workspace policy.
+                      Existing connections can still be managed below.
+                    </p>
+                  )}
+                  {allowProvision && (
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void run("Planning", async () => {
+                          const value = await client.cloudPlan({
+                            provider: config.cloudProvider || "aws",
+                            name: cloudName,
+                            region: config.region,
+                            domain: config.domain,
+                            size,
+                            monthlyBudgetUsd: config.monthlyBudgetUsd,
+                            sshPublicKey,
+                          });
+                          setPlan(value);
+                        });
+                      }}
+                    >
+                      <h2>A small home for what you build.</h2>
+                      <p className="journey-muted">
+                        Use your own AWS or Azure account. Preview a
+                        single-machine deployment before creating any resources.
+                      </p>
+                      <div className="setup-field-grid">
+                        <label className="luci-field">
+                          Provider
+                          <select
+                            value={config.cloudProvider || "aws"}
+                            onChange={(event) =>
+                              update({
+                                cloudProvider: event.target.value as
+                                  "aws" | "azure",
+                                region: "",
+                              })
+                            }
+                          >
+                            <option value="aws">AWS · Lightsail</option>
+                            <option value="azure">
+                              Azure · Virtual machine
+                            </option>
+                          </select>
+                        </label>
+                        <label className="luci-field">
+                          Region
+                          <input
+                            required
+                            value={config.region}
+                            onChange={(event) =>
+                              update({ region: event.target.value })
+                            }
+                            placeholder={
+                              config.cloudProvider === "azure"
+                                ? "australiaeast"
+                                : "ap-southeast-2"
+                            }
+                          />
+                        </label>
+                        <label className="luci-field">
+                          Deployment name
+                          <input
+                            required
+                            pattern="[a-z][a-z0-9-]*"
+                            value={cloudName}
+                            onChange={(event) => {
+                              setCloudName(event.target.value);
+                              setPlan(null);
+                            }}
+                          />
+                        </label>
+                        <label className="luci-field">
+                          Domain
+                          <input
+                            required
+                            value={config.domain}
+                            onChange={(event) =>
+                              update({ domain: event.target.value })
+                            }
+                            placeholder="app.example.com"
+                          />
+                        </label>
+                        <label className="luci-field">
+                          Machine size
+                          <select
+                            value={size}
+                            onChange={(event) => {
+                              setSize(event.target.value as typeof size);
+                              setPlan(null);
+                            }}
+                          >
+                            <option value="small">Small · start here</option>
+                            <option value="standard">
+                              Standard · more capacity
+                            </option>
+                          </select>
+                        </label>
+                        <label className="luci-field">
+                          Monthly budget · USD
+                          <input
+                            type="number"
+                            min="1"
+                            required
+                            value={config.monthlyBudgetUsd}
+                            onChange={(event) =>
+                              update({
+                                monthlyBudgetUsd: Number(event.target.value),
+                              })
+                            }
+                          />
+                        </label>
+                      </div>
+                      <label className="luci-field">
+                        SSH public key
+                        <textarea
+                          rows={3}
+                          required
+                          value={sshPublicKey}
+                          onChange={(event) => {
+                            setSshPublicKey(event.target.value);
+                            setPlan(null);
+                          }}
+                          placeholder="ssh-ed25519 …"
+                        />
+                        <small>
+                          Use the public .pub key. Your private key stays on
+                          your machine.
+                        </small>
+                      </label>
+                      <ProviderSignIn
+                        client={client}
+                        provider={config.cloudProvider || "aws"}
+                      />
+                      <button
+                        className="luci-button"
+                        type="button"
+                        disabled={!!busy}
+                        onClick={() =>
+                          void run("Creating key", async () => {
+                            const key = await client.createSSHKey();
+                            setSshPublicKey(key.publicKey);
+                            setPrivateKeyPath(key.privateKeyPath);
+                            setPlan(null);
+                            setNotice(
+                              `Your Luci SSH key is ready. Fingerprint: ${key.fingerprint}`,
+                            );
+                          })
+                        }
+                      >
+                        Create or use Luci SSH key
+                      </button>
+                      <button
+                        className="luci-button luci-primary"
+                        disabled={!!busy}
+                      >
+                        {busy === "Planning"
+                          ? "Preparing plan…"
+                          : "Preview cloud plan"}
+                      </button>
+                    </form>
+                  )}
+                  {allowProvision && plan && (
                     <div className="setup-plan">
                       <h2>Your deployment plan</h2>
                       <p className="journey-muted">
@@ -597,7 +636,7 @@ export function SetupPanel({
                   )}
                   <CloudManager
                     client={client}
-                    plan={plan}
+                    plan={allowProvision ? plan : null}
                     privateKeyPath={privateKeyPath}
                   />
                 </>

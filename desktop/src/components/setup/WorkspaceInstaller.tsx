@@ -6,6 +6,7 @@ import {
   type WorkspaceInstall,
 } from "../../api/product";
 import { changeWorkspace } from "./workspace";
+import { WorkspaceSignIn } from "./WorkspaceSignIn";
 
 export function WorkspaceInstaller({
   client,
@@ -17,6 +18,7 @@ export function WorkspaceInstaller({
   switchWorkspace?: (activate: () => Promise<unknown>) => Promise<void>;
 }) {
   const [jobs, setJobs] = useState<WorkspaceInstall[]>([]),
+    [authenticated, setAuthenticated] = useState<Record<string, boolean>>({}),
     [accepted, setAccepted] = useState<Record<string, boolean>>({}),
     [busy, setBusy] = useState(""),
     [error, setError] = useState("");
@@ -24,7 +26,12 @@ export function WorkspaceInstaller({
     working = useRef(false);
   const load = async () => {
     const result = await client.workspaceInstalls();
-    if (alive.current) setJobs((result.jobs ?? []).sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)));
+    if (alive.current)
+      setJobs(
+        (result.jobs ?? []).sort(
+          (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+        ),
+      );
   };
   useEffect(() => {
     alive.current = true;
@@ -126,7 +133,9 @@ export function WorkspaceInstaller({
                 </button>
                 <button
                   className="luci-button luci-primary"
-                  disabled={!!busy || !!installing}
+                  disabled={
+                    !!busy || !!installing || !authenticated[connection.id]
+                  }
                   onClick={() =>
                     void run("Verifying workspace", () =>
                       switchWorkspace(() =>
@@ -140,6 +149,16 @@ export function WorkspaceInstaller({
                     : "Use this cloud workspace"}
                 </button>
               </div>
+              <WorkspaceSignIn
+                client={client}
+                connectionId={connection.id}
+                onAuthenticated={(value) =>
+                  setAuthenticated((current) => ({
+                    ...current,
+                    [connection.id]: value,
+                  }))
+                }
+              />
               <p className="journey-muted">
                 Switching refreshes the app and detaches current terminal views.
                 Existing sessions keep running on their original machine. Save

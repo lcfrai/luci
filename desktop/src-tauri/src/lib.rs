@@ -1,6 +1,7 @@
 use std::{
     io::Write,
     net::{TcpListener, TcpStream},
+    path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
@@ -24,6 +25,8 @@ struct LocalService {
     child: Mutex<Option<CommandChild>>,
     info: RuntimeInfo,
     exited: Arc<AtomicBool>,
+    state_dir: Option<PathBuf>,
+    lifecycle_token: Option<String>,
 }
 
 #[tauri::command]
@@ -31,12 +34,54 @@ fn runtime_info(state: tauri::State<'_, LocalService>) -> RuntimeInfo {
     state.info.clone()
 }
 
+#[tauri::command]
+fn bootstrap_token(state: tauri::State<'_, LocalService>) -> Result<Option<String>, String> {
+    // An external LUCI_API service never grants this WebView access to local token files.
+    let Some(root) = &state.state_dir else {
+        return Ok(None);
+    };
+    if state.exited.load(Ordering::Acquire)
+        || !state
+            .child
+            .lock()
+            .map_err(|_| "Local service state unavailable")?
+            .is_some()
+    {
+        return Ok(None);
+    }
+    let path = root.join("control-plane").join("bootstrap-token");
+    let metadata = match std::fs::symlink_metadata(&path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => return Err("The managed service bootstrap token is unavailable".into()),
+    };
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 8192 {
+        return Err("The managed service bootstrap token has an invalid format".into());
+    }
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|_| "Managed state folder unavailable")?;
+    let canonical_path = path
+        .canonicalize()
+        .map_err(|_| "Managed bootstrap path unavailable")?;
+    if !canonical_path.starts_with(canonical_root) {
+        return Err("Managed bootstrap path is outside its state folder".into());
+    }
+    let token = std::fs::read_to_string(canonical_path)
+        .map_err(|_| "Managed bootstrap token could not be read")?;
+    let token = token.trim();
+    if token.is_empty() || !token.bytes().all(|byte| byte.is_ascii_graphic()) {
+        return Err("The managed service bootstrap token has an invalid format".into());
+    }
+    Ok(Some(token.to_owned()))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![runtime_info])
+        .invoke_handler(tauri::generate_handler![runtime_info, bootstrap_token])
         .setup(|app| {
             let override_url = std::env::var("LUCI_API")
                 .ok()
@@ -48,12 +93,18 @@ pub fn run() {
                 startup_error: None,
             };
             let mut child = None;
+            let mut state_dir = None;
+            let mut lifecycle_token = None;
             let exited = Arc::new(AtomicBool::new(false));
             if override_url.is_none() {
                 let listener = TcpListener::bind("127.0.0.1:0")?;
                 let address = listener.local_addr()?.to_string();
                 drop(listener);
                 info.api_url = format!("http://{address}");
+                let managed_state = app.path().app_data_dir()?;
+                state_dir = Some(managed_state.clone());
+                let shutdown_token = uuid::Uuid::new_v4().to_string();
+                lifecycle_token = Some(shutdown_token.clone());
                 let runtime = app.path().resource_dir()?.join("runtime");
                 let cloud_bundle = app
                     .path()
@@ -63,6 +114,8 @@ pub fn run() {
                 match app.shell().sidecar("luci-api").and_then(|command| {
                     command
                         .env("LUCI_ADDR", address)
+                        .env("LUCI_STATE_DIR", managed_state)
+                        .env("LUCI_MANAGED_SHUTDOWN_TOKEN", shutdown_token)
                         .env("LUCI_RUNTIME_DIR", runtime)
                         .env("LUCI_CLOUD_BUNDLE", cloud_bundle)
                         .spawn()
@@ -89,6 +142,8 @@ pub fn run() {
                 child: Mutex::new(child),
                 info,
                 exited,
+                state_dir,
+                lifecycle_token,
             });
             Ok(())
         })
@@ -105,8 +160,10 @@ pub fn run() {
                             if let Ok(address) = address.parse() {
                                 if let Ok(mut stream) = TcpStream::connect_timeout(&address, Duration::from_millis(500)) {
                                     let _ = stream.set_write_timeout(Some(Duration::from_millis(500)));
-                                    let request = format!("POST /v1/setup/shutdown HTTP/1.1\r\nHost: {address}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
-                                    let _ = stream.write_all(request.as_bytes());
+                                    if let Some(token) = &service.lifecycle_token {
+                                        let request = format!("POST /v1/control-plane/shutdown HTTP/1.1\r\nHost: {address}\r\nX-Luci-Lifecycle-Token: {token}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                                        let _ = stream.write_all(request.as_bytes());
+                                    }
                                 }
                             }
                         }

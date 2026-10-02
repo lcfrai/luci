@@ -85,7 +85,7 @@ func TestAgentCredentialsValidateAndRefuseProjectOwnedStorage(t *testing.T) {
 		Providers []AgentProvider `json:"providers"`
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &response)
-	if len(response.Providers) != 1 || response.Providers[0].Configured {
+	if len(response.Providers) != 3 || response.Providers[0].Configured {
 		t.Fatal("unusable host storage was reported connected")
 	}
 }

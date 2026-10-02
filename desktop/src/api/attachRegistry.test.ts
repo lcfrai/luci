@@ -24,15 +24,24 @@ import type { Session } from "../store/types";
 function stubClient(getSession?: () => Promise<Session>) {
   return {
     openAttach: (session: Session) =>
-      new FakeWebSocket(`ws://127.0.0.1:8730${session.attachPath}`) as unknown as WebSocket,
-    getSession: getSession ?? (async () => { throw new Error("getSession was not stubbed"); }),
+      new FakeWebSocket(
+        `ws://127.0.0.1:8730${session.attachPath}`,
+      ) as unknown as WebSocket,
+    getSession:
+      getSession ??
+      (async () => {
+        throw new Error("getSession was not stubbed");
+      }),
   };
 }
 
 let term: FakeTerm;
 /** No cast: FakeTerm structurally satisfies TermLike. If tsc rejects this line, step 1's
  *  transcription of FakeTerm drifted — fix the fake, never widen the interface. */
-const createTerm = (): TermLike => { term = new FakeTerm(); return term; };
+const createTerm = (): TermLike => {
+  term = new FakeTerm();
+  return term;
+};
 
 /** A terminal that parses ASYNCHRONOUSLY, as real xterm does: `write` returns immediately and
  *  the data reaches the buffer — moving baseY — only when the deferred parse runs, which is
@@ -42,7 +51,8 @@ const createTerm = (): TermLike => { term = new FakeTerm(); return term; };
  *  reason `sentFrame` does — shared shape §3.3 keeps `fakes.ts` task 14's. */
 class AsyncParseTerm extends FakeTerm {
   override write(data: string | Uint8Array, callback?: () => void) {
-    const text = typeof data === "string" ? data : new TextDecoder().decode(data);
+    const text =
+      typeof data === "string" ? data : new TextDecoder().decode(data);
     this.written.push(text);
     setTimeout(() => {
       this.buffer.active.baseY += text.split("\n").length - 1;
@@ -61,12 +71,18 @@ const socket = (): FakeWebSocket => FakeWebSocket.last()!;
  *  `fakes.ts` task 14's, and this is a handful of lines only one suite needs. */
 function sentFrame(ws: FakeWebSocket, index: number): Uint8Array {
   const raw = ws.sent[index < 0 ? ws.sent.length + index : index];
-  if (!(raw instanceof Uint8Array)) throw new Error(`sent[${index}] is not a frame: ${String(raw)}`);
+  if (!(raw instanceof Uint8Array))
+    throw new Error(`sent[${index}] is not a frame: ${String(raw)}`);
   return raw;
 }
 
 const live = (over: Partial<Session> = {}): Session =>
-  aSession({ id: "s-1", status: "running", attachPath: "/v1/sessions/s-1/attach", ...over });
+  aSession({
+    id: "s-1",
+    status: "running",
+    attachPath: "/v1/sessions/s-1/attach",
+    ...over,
+  });
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -81,6 +97,24 @@ afterEach(() => {
 });
 
 describe("attachRegistry — lifecycle", () => {
+  it("closes a late authenticated socket after its pane was released and prevents duplicate pending tickets", async () => {
+    let finish!: (socket: WebSocket) => void;
+    const pending = new Promise<WebSocket>((resolve) => {
+      finish = resolve;
+    });
+    const openAttach = vi.fn(() => pending);
+    configureAttachRegistry({ client: { ...stubClient(), openAttach } });
+    acquireAttach(live(), { createTerm, readOnly: false });
+    expect(retryAttach("s-1")).toBe(false);
+    expect(openAttach).toHaveBeenCalledTimes(1);
+    releaseAttach("s-1");
+    vi.advanceTimersByTime(GRACE_MS + 1);
+    const late = new FakeWebSocket("ws://127.0.0.1/attach?ticket=one-use");
+    finish(late as unknown as WebSocket);
+    await Promise.resolve();
+    expect(late.closedWith).not.toBeNull();
+    expect(getAttachState("s-1").phase).toBe("detached");
+  });
   it("opens exactly one socket for two acquires of the same session", () => {
     const session = live();
     const a = acquireAttach(session, { createTerm, readOnly: false });
@@ -138,12 +172,12 @@ describe("attachRegistry — lifecycle", () => {
   });
 
   it("an extra release cannot drive the ref count negative and orphan a live pane", () => {
-    acquireAttach(live(), { createTerm, readOnly: false });   // refs 1
-    releaseAttach("s-1");                                     // refs 0
-    releaseAttach("s-1");                                     // one release too many
-    acquireAttach(live(), { createTerm, readOnly: false });   // pane A
-    acquireAttach(live(), { createTerm, readOnly: false });   // pane B
-    releaseAttach("s-1");                                     // pane A closes
+    acquireAttach(live(), { createTerm, readOnly: false }); // refs 1
+    releaseAttach("s-1"); // refs 0
+    releaseAttach("s-1"); // one release too many
+    acquireAttach(live(), { createTerm, readOnly: false }); // pane A
+    acquireAttach(live(), { createTerm, readOnly: false }); // pane B
+    releaseAttach("s-1"); // pane A closes
     vi.advanceTimersByTime(GRACE_MS * 2);
     // Unclamped, the count would read 0 here and tear down the entry pane B is still showing.
     expect(term.disposed).toBe(false);
@@ -185,7 +219,11 @@ describe("attachRegistry — lifecycle", () => {
     const session = live();
     acquireAttach(session, { createTerm, readOnly: false });
     socket().acceptOpen();
-    updateAttachSession({ ...session, status: "idle", updatedAt: "2026-09-18T04:05:06Z" });
+    updateAttachSession({
+      ...session,
+      status: "idle",
+      updatedAt: "2026-09-18T04:05:06Z",
+    });
     expect(term.disposed).toBe(false);
     expect(FakeWebSocket.instances.length).toBe(1);
     expect(getAttachState("s-1").phase).toBe("attached");
@@ -258,7 +296,10 @@ describe("attachRegistry — input", () => {
   });
 
   it("gives an exited session with no reason a sentence anyway", () => {
-    acquireAttach(live({ status: "exited", exitReason: "" }), { createTerm, readOnly: true });
+    acquireAttach(live({ status: "exited", exitReason: "" }), {
+      createTerm,
+      readOnly: true,
+    });
     expect(getAttachState("s-1").reason).toBe("the session has exited");
     expect(term.written.join("")).toContain("the session has exited");
   });
@@ -271,16 +312,16 @@ describe("attachRegistry — input", () => {
   });
 
   it("drops a keystroke and a resize while the handshake is still in flight", () => {
-    acquireAttach(live(), { createTerm, readOnly: false });   // CONNECTING; never opened
+    acquireAttach(live(), { createTerm, readOnly: false }); // CONNECTING; never opened
     term.type("ls\r");
     term.resize(120, 40);
-    expect(socket().sent).toEqual([]);   // FakeWebSocket.send() throws unless OPEN
+    expect(socket().sent).toEqual([]); // FakeWebSocket.send() throws unless OPEN
   });
 
   it("drops a keystroke and a resize while the socket is down between attempts", () => {
     acquireAttach(live(), { createTerm, readOnly: false });
     socket().acceptOpen();
-    socket().emitClose(1006);            // entry.ws is null and a retry is armed
+    socket().emitClose(1006); // entry.ws is null and a retry is armed
     const before = socket().sent.length;
     term.type("ls\r");
     term.resize(120, 40);
@@ -304,12 +345,13 @@ describe("attachRegistry — input", () => {
     updateAttachSession(live({ status: "exited", exitReason: "killed" }));
     updateAttachSession(live({ status: "exited", exitReason: "killed" }));
     off();
-    expect(seen).toEqual(["ended"]);   // a re-publish every 2 s is a re-render every 2 s
+    expect(seen).toEqual(["ended"]); // a re-publish every 2 s is a re-render every 2 s
   });
 });
 
 describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => {
-  const stdout = (s: string) => encode(Kind.Stdout, new TextEncoder().encode(s));
+  const stdout = (s: string) =>
+    encode(Kind.Stdout, new TextEncoder().encode(s));
 
   it("three payloads inside one window produce exactly one write", () => {
     acquireAttach(live(), { createTerm, readOnly: false });
@@ -317,7 +359,7 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
     socket().emitBinary(stdout("one "));
     socket().emitBinary(stdout("two "));
     socket().emitBinary(stdout("three"));
-    expect(term.written).toEqual([]);   // nothing yet: the flush timer has not fired
+    expect(term.written).toEqual([]); // nothing yet: the flush timer has not fired
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
     expect(term.written).toEqual(["one two three"]);
   });
@@ -330,7 +372,7 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
   });
 
   it("keeps a multibyte character split across two frames intact", () => {
-    const arrow = new TextEncoder().encode("→");   // e2 86 92
+    const arrow = new TextEncoder().encode("→"); // e2 86 92
     acquireAttach(live(), { createTerm, readOnly: false });
     socket().acceptOpen();
     socket().emitBinary(encode(Kind.Stdout, arrow.subarray(0, 2)));
@@ -360,7 +402,7 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
     socket().emitBinary(stdout("f\ng\n"));
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
 
-    expect(term.scrolledToBottom).toBe(1);   // still only the first flush
+    expect(term.scrolledToBottom).toBe(1); // still only the first flush
     expect(term.buffer.active.viewportY).toBe(parked);
   });
 
@@ -379,11 +421,11 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
 
     term.scrollUp(1);
     const parked = term.buffer.active.viewportY;
-    expect(parked).toBe(term.buffer.active.baseY - 1);   // exactly one row, not three
+    expect(parked).toBe(term.buffer.active.baseY - 1); // exactly one row, not three
     socket().emitBinary(stdout("f\n"));
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
 
-    expect(term.scrolledToBottom).toBe(1);   // still only the first flush
+    expect(term.scrolledToBottom).toBe(1); // still only the first flush
     expect(term.buffer.active.viewportY).toBe(parked);
   });
 
@@ -395,16 +437,19 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
    *  AsyncParseTerm defers both to a timer, which is the ordering real xterm has. */
   it("scrolls a pinned pane from the write callback, not before the write has landed", () => {
     let slow!: AsyncParseTerm;
-    const createSlowTerm = (): TermLike => { slow = new AsyncParseTerm(); return slow; };
+    const createSlowTerm = (): TermLike => {
+      slow = new AsyncParseTerm();
+      return slow;
+    };
     acquireAttach(live(), { createTerm: createSlowTerm, readOnly: false });
     socket().acceptOpen();
     socket().emitBinary(stdout("a\nb\nc\n"));
 
-    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);   // the registry flushes: term.write(chunk, cb)
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS); // the registry flushes: term.write(chunk, cb)
     expect(slow.written).toEqual(["a\nb\nc\n"]);
-    expect(slow.buffer.active.baseY).toBe(0);    // not parsed yet, exactly as xterm would be
+    expect(slow.buffer.active.baseY).toBe(0); // not parsed yet, exactly as xterm would be
 
-    vi.advanceTimersByTime(1);                   // the parse lands: baseY moves, then cb fires
+    vi.advanceTimersByTime(1); // the parse lands: baseY moves, then cb fires
     expect(slow.buffer.active.baseY).toBe(3);
     expect(slow.scrolledToBottom).toBe(1);
     expect(slow.buffer.active.viewportY).toBe(slow.buffer.active.baseY);
@@ -427,7 +472,7 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
     term.scrollUp(3);
     socket().emitBinary(stdout("f\n"));
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
-    expect(term.scrolledToBottom).toBe(1);   // frozen, as the test above pins
+    expect(term.scrolledToBottom).toBe(1); // frozen, as the test above pins
 
     // The user scrolls back down by hand: xterm re-pins the viewport. `scrollUp(0)` and not
     // `scrollToBottom()`, because the user's own gesture must not touch the counter the
@@ -437,7 +482,7 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
 
     socket().emitBinary(stdout("g\n"));
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
-    expect(term.scrolledToBottom).toBe(2);   // pinned again: this write follows
+    expect(term.scrolledToBottom).toBe(2); // pinned again: this write follows
     expect(term.buffer.active.viewportY).toBe(term.buffer.active.baseY);
   });
 
@@ -482,7 +527,8 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
     expect(term.written.length).toBe(10);
     // …and batching is not dropping: every chunk of the second is on the screen, in order.
     expect(term.written.join("")).toBe(
-      Array.from({ length: 100 }, (_, i) => `t${i * 10} `).join(""));
+      Array.from({ length: 100 }, (_, i) => `t${i * 10} `).join(""),
+    );
   });
 
   it("an empty stdout payload writes nothing and arms nothing", () => {
@@ -509,9 +555,11 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
     // for 8 + 4 bytes and writes NUL padding into the transcript.
     acquireAttach(live(), { createTerm, readOnly: false });
     socket().acceptOpen();
-    socket().emitBinary(stdout("aaaa")); socket().emitBinary(stdout("bbbb"));
+    socket().emitBinary(stdout("aaaa"));
+    socket().emitBinary(stdout("bbbb"));
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
-    socket().emitBinary(stdout("cc")); socket().emitBinary(stdout("dd"));
+    socket().emitBinary(stdout("cc"));
+    socket().emitBinary(stdout("dd"));
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
     expect(term.written).toEqual(["aaaabbbb", "ccdd"]);
   });
@@ -532,11 +580,11 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
 
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
     expect(term.written).toEqual(["one line\n"]);
-    expect(vi.getTimerCount()).toBe(0);           // the flush disarmed, it did not re-arm
+    expect(vi.getTimerCount()).toBe(0); // the flush disarmed, it did not re-arm
 
-    vi.advanceTimersByTime(FLUSH_INTERVAL_MS * 100);   // ten seconds of an idle pane
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS * 100); // ten seconds of an idle pane
     expect(vi.getTimerCount()).toBe(0);
-    expect(term.written).toEqual(["one line\n"]);       // and it wrote nothing more
+    expect(term.written).toEqual(["one line\n"]); // and it wrote nothing more
   });
 
   /** Review round 4, Minor 1, mutant MB: caching the buffer the pinned decision reads
@@ -553,7 +601,7 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
     expect(term.scrolledToBottom).toBe(1);
 
-    term.scrollUp(3);                     // the user parks the NORMAL buffer mid-scrollback
+    term.scrollUp(3); // the user parks the NORMAL buffer mid-scrollback
     socket().emitBinary(stdout("f\n"));
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
     expect(term.scrolledToBottom).toBe(1);
@@ -563,11 +611,14 @@ describe("attachRegistry — 10 Hz batching and the pinned rule (§7.2)", () => 
     term.buffer.active = { viewportY: 0, baseY: 0 };
     socket().emitBinary(stdout("full-screen frame\n"));
     vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
-    expect(term.scrolledToBottom).toBe(2);   // pinned, read from the buffer now on screen
+    expect(term.scrolledToBottom).toBe(2); // pinned, read from the buffer now on screen
   });
 
   it("ignores a frame from a socket the ladder has already superseded", () => {
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     const stale = FakeWebSocket.instances[0];
     stale.emitClose(1006);
     vi.advanceTimersByTime(250);
@@ -588,7 +639,10 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
   }
 
   it("retries a refused handshake on 250, 500, 1000, 2000, then 2000", () => {
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     expect(FakeWebSocket.instances.length).toBe(1);
 
     socket().emitClose(1006);
@@ -651,8 +705,13 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
   });
 
   it("gives up after the budget and calls a RUNNING sandbox running, never 'not running'", async () => {
-    configureAttachRegistry({ client: stubClient(async () => live({ status: "running" })) });
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    configureAttachRegistry({
+      client: stubClient(async () => live({ status: "running" })),
+    });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     await exhaustLadder();
 
     const state = getAttachState("s-1");
@@ -667,7 +726,10 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
       exitReason: "sandbox disappeared while the app was not running",
     });
     configureAttachRegistry({ client: stubClient(async () => dead) });
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     await exhaustLadder();
 
     expect(getAttachState("s-1").phase).toBe("ended");
@@ -682,11 +744,16 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
         throw new ApiError("network_unavailable", "fetch failed", 0);
       }),
     });
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     await exhaustLadder();
 
     expect(getAttachState("s-1").phase).toBe("failed");
-    expect(getAttachState("s-1").reason).toBe("the control plane is not running");
+    expect(getAttachState("s-1").reason).toBe(
+      "the control plane is not running",
+    );
   });
 
   it("never tells a non_loopback_publish refusal as 'not running' (the sixteenth code)", async () => {
@@ -694,10 +761,17 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
     // the one sentence the failure-reason rendering must never produce for this code.
     configureAttachRegistry({
       client: stubClient(async () => {
-        throw new ApiError("non_loopback_publish", "published off loopback", 500);
+        throw new ApiError(
+          "non_loopback_publish",
+          "published off loopback",
+          500,
+        );
       }),
     });
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     await exhaustLadder();
 
     const reason = getAttachState("s-1").reason;
@@ -712,15 +786,21 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
         throw new ApiError("sandbox_not_running", "no sandbox", 409);
       }),
     });
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     await exhaustLadder();
 
     expect(getAttachState("s-1").reason).toBe("the sandbox is not running");
   });
 
   it("the second handshake of the first ladder reads reconnecting, not connecting", () => {
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
-    expect(getAttachState("s-1").phase).toBe("connecting");   // the first, and only the first
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
+    expect(getAttachState("s-1").phase).toBe("connecting"); // the first, and only the first
     socket().emitClose(1006);
     vi.advanceTimersByTime(250);
     expect(FakeWebSocket.instances.length).toBe(2);
@@ -728,7 +808,10 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
   });
 
   it("ignores an open from a socket the ladder has already superseded", () => {
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     const stale = FakeWebSocket.instances[0];
     stale.emitClose(1006);
     vi.advanceTimersByTime(250);
@@ -736,30 +819,36 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
 
     stale.acceptOpen();
     expect(getAttachState("s-1").phase).toBe("reconnecting");
-    expect(stale.sent.length).toBe(0);   // no resize down a socket we have moved off
+    expect(stale.sent.length).toBe(0); // no resize down a socket we have moved off
   });
 
   it("a close from a superseded socket does not start a second ladder", () => {
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     const stale = FakeWebSocket.instances[0];
     stale.emitClose(1006);
     vi.advanceTimersByTime(250);
     expect(FakeWebSocket.instances.length).toBe(2);
 
-    stale.emitClose(1006);               // a browser can deliver close more than once
+    stale.emitClose(1006); // a browser can deliver close more than once
     vi.advanceTimersByTime(2_000);
     expect(FakeWebSocket.instances.length).toBe(2);
   });
 
   it("caps the rung at 2 s rather than running off the end of the ladder", () => {
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     for (const delay of [250, 500, 1_000, 2_000]) {
       socket().emitClose(1006);
       vi.advanceTimersByTime(delay);
     }
     expect(FakeWebSocket.instances.length).toBe(5);
 
-    socket().emitClose(1006);            // attempts is now past the end of RETRY_DELAYS_MS
+    socket().emitClose(1006); // attempts is now past the end of RETRY_DELAYS_MS
     vi.advanceTimersByTime(1_999);
     expect(FakeWebSocket.instances.length).toBe(5);
     vi.advanceTimersByTime(1);
@@ -769,7 +858,7 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
   it("a reconnect after a long attach restarts the ladder from the bottom rung", () => {
     acquireAttach(live(), { createTerm, readOnly: false });
     socket().acceptOpen();
-    vi.advanceTimersByTime(61_000);      // attached for longer than the whole retry budget
+    vi.advanceTimersByTime(61_000); // attached for longer than the whole retry budget
 
     socket().emitClose(1006);
     vi.advanceTimersByTime(250);
@@ -783,15 +872,20 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
   });
 
   it("gives up the moment the budget is spent, not a rung later", async () => {
-    configureAttachRegistry({ client: stubClient(async () => live({ status: "running" })) });
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    configureAttachRegistry({
+      client: stubClient(async () => live({ status: "running" })),
+    });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     for (let i = 0; i < 30; i += 1) {
       socket().emitClose(1006);
       await vi.advanceTimersByTimeAsync(2_000);
     }
-    expect(getAttachState("s-1").phase).toBe("reconnecting");   // 58 s of ladder, still trying
+    expect(getAttachState("s-1").phase).toBe("reconnecting"); // 58 s of ladder, still trying
 
-    socket().emitClose(1006);            // exactly RETRY_BUDGET_MS since the ladder started
+    socket().emitClose(1006); // exactly RETRY_BUDGET_MS since the ladder started
     expect(getAttachState("s-1").phase).toBe("failed");
     await vi.advanceTimersByTimeAsync(0);
   });
@@ -804,14 +898,17 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
 
     updateAttachSession(live({ status: "exited", exitReason: "killed" }));
     vi.advanceTimersByTime(RETRY_BUDGET_MS);
-    expect(FakeWebSocket.instances.length).toBe(1);   // the armed retry never fired
+    expect(FakeWebSocket.instances.length).toBe(1); // the armed retry never fired
     expect(getAttachState("s-1").phase).toBe("ended");
     expect(getAttachState("s-1").reason).toBe("killed");
   });
 
   it("publishes the ladder's start stamp, so the pane can render an elapsed (§7.7)", () => {
     const startedAt = Date.now();
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     expect(getAttachState("s-1").ladderStartedAt).toBe(startedAt);
 
     socket().emitClose(1006);
@@ -822,7 +919,7 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
 
     socket().acceptOpen();
     expect(getAttachState("s-1").phase).toBe("attached");
-    expect(getAttachState("s-1").ladderStartedAt).toBe(0);   // no ladder: nothing to count
+    expect(getAttachState("s-1").ladderStartedAt).toBe(0); // no ladder: nothing to count
   });
 
   it("stamps a fresh ladder when a long-attached socket drops", () => {
@@ -846,8 +943,13 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
   });
 
   it("a listener that throws during give-up surfaces instead of vanishing into a floating promise", async () => {
-    configureAttachRegistry({ client: stubClient(async () => live({ status: "running" })) });
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    configureAttachRegistry({
+      client: stubClient(async () => live({ status: "running" })),
+    });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     for (let i = 0; i < 30; i += 1) {
       socket().emitClose(1006);
       await vi.advanceTimersByTimeAsync(2_000);
@@ -856,9 +958,9 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
       if (state.phase === "failed") throw new Error("listener blew up");
     });
 
-    socket().emitClose(1006);        // budget spent: giveUp publishes "failed" synchronously
+    socket().emitClose(1006); // budget spent: giveUp publishes "failed" synchronously
     off();
-    await Promise.resolve();         // let the call site's .catch() run
+    await Promise.resolve(); // let the call site's .catch() run
     // Rethrown on a macrotask rather than swallowed: an unhandled rejection here would be
     // invisible, and giveUp's own catch must keep meaning "the diagnostic fetch failed".
     expect(() => vi.advanceTimersByTime(0)).toThrow("listener blew up");
@@ -890,8 +992,13 @@ describe("attachRegistry — the retry ladder (§4.6)", () => {
 describe("attachRegistry — retryAttach", () => {
   /** Drive the ladder to `failed` with a client that confirms the sandbox is still running. */
   async function spendTheLadder(): Promise<void> {
-    configureAttachRegistry({ client: stubClient(async () => live({ status: "running" })) });
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    configureAttachRegistry({
+      client: stubClient(async () => live({ status: "running" })),
+    });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     for (let i = 0; i < 40; i += 1) {
       socket().emitClose(1006);
       await vi.advanceTimersByTimeAsync(2_000);
@@ -946,7 +1053,10 @@ describe("attachRegistry — retryAttach", () => {
   // on the other path it accepts, a ladder mid-flight, which is where that line and the
   // clearRetry beside it actually do something.
   it("restarts the budget clock even when a ladder is already running", () => {
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     const firstLadder = getAttachState("s-1").ladderStartedAt;
     expect(firstLadder).not.toBe(0);
 
@@ -975,22 +1085,25 @@ describe("attachRegistry — retryAttach", () => {
   // that line — `scheduleRetry` clears before arming, and `connect()` early-returns on a live
   // socket, so nothing the stale timer does can reach a socket count.
   it("runs the retry's own ladder from the bottom rung, timed from the retry's close", () => {
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
-    socket().emitClose(1006);            // t=0: a 250 ms rung is armed
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
+    socket().emitClose(1006); // t=0: a 250 ms rung is armed
     expect(FakeWebSocket.instances.length).toBe(1);
 
-    vi.advanceTimersByTime(100);         // t=100
+    vi.advanceTimersByTime(100); // t=100
     retryAttach("s-1");
-    expect(FakeWebSocket.instances.length).toBe(2);   // the retry connected immediately
-    socket().emitClose(1006);            // t=100: the retry's rung is armed for t=350
+    expect(FakeWebSocket.instances.length).toBe(2); // the retry connected immediately
+    socket().emitClose(1006); // t=100: the retry's rung is armed for t=350
 
-    vi.advanceTimersByTime(150);         // t=250 — where the pre-retry ladder's rung would have
-    expect(FakeWebSocket.instances.length).toBe(2);   // landed. Nothing opens here.
+    vi.advanceTimersByTime(150); // t=250 — where the pre-retry ladder's rung would have
+    expect(FakeWebSocket.instances.length).toBe(2); // landed. Nothing opens here.
 
-    vi.advanceTimersByTime(99);          // t=349
+    vi.advanceTimersByTime(99); // t=349
     expect(FakeWebSocket.instances.length).toBe(2);
-    vi.advanceTimersByTime(1);           // t=350: 250 ms after the retry's own close, not 250
-    expect(FakeWebSocket.instances.length).toBe(3);   // after the ladder it replaced
+    vi.advanceTimersByTime(1); // t=350: 250 ms after the retry's own close, not 250
+    expect(FakeWebSocket.instances.length).toBe(3); // after the ladder it replaced
   });
 
   it("refuses, and opens nothing, when no pane holds the session", () => {
@@ -1008,7 +1121,10 @@ describe("attachRegistry — retryAttach", () => {
   });
 
   it("refuses once the pane is gone and the grace has run out", () => {
-    acquireAttach(live({ status: "starting" }), { createTerm, readOnly: false });
+    acquireAttach(live({ status: "starting" }), {
+      createTerm,
+      readOnly: false,
+    });
     releaseAttach("s-1");
     vi.advanceTimersByTime(GRACE_MS);
     const before = FakeWebSocket.instances.length;

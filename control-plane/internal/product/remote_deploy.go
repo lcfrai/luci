@@ -17,14 +17,16 @@ import (
 )
 
 type CloudReleaseRequest struct {
-	TargetID   string `json:"targetId"`
-	Repository string `json:"repository"`
-	Branch     string `json:"branch"`
-	Commit     string `json:"commit"`
-	Domain     string `json:"domain"`
-	Port       int    `json:"port"`
-	HealthPath string `json:"healthPath"`
-	Dockerfile string `json:"dockerfile"`
+	TargetID       string `json:"targetId"`
+	Repository     string `json:"repository"`
+	Branch         string `json:"branch"`
+	Commit         string `json:"commit"`
+	Domain         string `json:"domain"`
+	Port           int    `json:"port"`
+	HealthPath     string `json:"healthPath"`
+	Dockerfile     string `json:"dockerfile"`
+	Source         string `json:"source,omitempty"`
+	PrivateKeyUUID string `json:"privateKeyUuid,omitempty"`
 }
 
 // CloudRelease stores provider identifiers outside the project repository. It
@@ -36,6 +38,7 @@ type CloudRelease struct {
 	ApplicationID       string `json:"applicationId,omitempty"`
 	DeploymentID        string `json:"deploymentId,omitempty"`
 	TargetFingerprint   string `json:"targetFingerprint"`
+	RollbackOf          string `json:"rollbackOf,omitempty"`
 }
 
 // The persisted/public wire shape has one commit, from Release provenance.
@@ -49,10 +52,13 @@ type cloudReleaseWire struct {
 	Port              int    `json:"port"`
 	HealthPath        string `json:"healthPath"`
 	Dockerfile        string `json:"dockerfile"`
+	Source            string `json:"source,omitempty"`
+	PrivateKeyUUID    string `json:"privateKeyUuid,omitempty"`
 	ProviderProjectID string `json:"providerProjectId,omitempty"`
 	ApplicationID     string `json:"applicationId,omitempty"`
 	DeploymentID      string `json:"deploymentId,omitempty"`
 	TargetFingerprint string `json:"targetFingerprint"`
+	RollbackOf        string `json:"rollbackOf,omitempty"`
 }
 
 func (row CloudRelease) MarshalJSON() ([]byte, error) {
@@ -60,8 +66,10 @@ func (row CloudRelease) MarshalJSON() ([]byte, error) {
 		Release: row.Release, TargetID: row.TargetID, Repository: row.Repository,
 		Branch: row.Branch, Domain: row.Domain, Port: row.Port,
 		HealthPath: row.HealthPath, Dockerfile: row.Dockerfile,
+		Source: row.Source, PrivateKeyUUID: row.PrivateKeyUUID,
 		ProviderProjectID: row.ProviderProjectID, ApplicationID: row.ApplicationID,
 		DeploymentID: row.DeploymentID, TargetFingerprint: row.TargetFingerprint,
+		RollbackOf: row.RollbackOf,
 	})
 }
 
@@ -76,9 +84,11 @@ func (row *CloudRelease) UnmarshalJSON(data []byte) error {
 			TargetID: decoded.TargetID, Repository: decoded.Repository,
 			Branch: decoded.Branch, Commit: decoded.Commit, Domain: decoded.Domain,
 			Port: decoded.Port, HealthPath: decoded.HealthPath, Dockerfile: decoded.Dockerfile,
+			Source: decoded.Source, PrivateKeyUUID: decoded.PrivateKeyUUID,
 		},
 		ProviderProjectID: decoded.ProviderProjectID, ApplicationID: decoded.ApplicationID,
 		DeploymentID: decoded.DeploymentID, TargetFingerprint: decoded.TargetFingerprint,
+		RollbackOf: decoded.RollbackOf,
 	}
 	return nil
 }
@@ -86,6 +96,8 @@ func (row *CloudRelease) UnmarshalJSON(data []byte) error {
 func (s *Server) registerCloudReleases(mux Registrar) {
 	mux.HandleFunc("POST /v1/product/projects/{id}/releases/cloud", s.createCloudRelease)
 	mux.HandleFunc("POST /v1/product/projects/{id}/releases/{releaseId}/refresh", s.refreshCloudRelease)
+	mux.HandleFunc("POST /v1/product/projects/{id}/releases/{releaseId}/rollback", s.rollbackCloudRelease)
+	mux.HandleFunc("POST /v1/product/projects/{id}/releases/deploy-key", s.prepareDeployKey)
 }
 
 func (s *Server) cloudReleaseFile(projectID string) string {
@@ -176,10 +188,13 @@ func (s *Server) reserveCloudRelease(row CloudRelease) (CloudRelease, bool, erro
 		}
 		if previous.TargetID == row.TargetID && previous.Domain == row.Domain {
 			switch previous.Status {
-			case "preparing", "queued", "deploying", "verifying", "unknown", "attention":
+			case "preparing", "queued", "deploying", "verifying", "unknown", "attention", "stopping":
 				return row, false, errors.New("refresh or resolve the existing release for this target and domain before deploying another commit")
 			}
 			if row.ApplicationID == "" && previous.ApplicationID != "" && previous.Repository == row.Repository && previous.TargetFingerprint == row.TargetFingerprint {
+				if (previous.Source == "private") != (row.Source == "private") || previous.PrivateKeyUUID != row.PrivateKeyUUID {
+					return row, false, errors.New("the existing application's repository access cannot be changed in place; use a separate domain/application")
+				}
 				row.ApplicationID, row.ProviderProjectID = previous.ApplicationID, previous.ProviderProjectID
 			}
 		}
@@ -203,6 +218,11 @@ func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !s.reserveDelivery("cloud-maintenance:" + p.ID) {
+		journeyError(w, 409, "release_busy", "Another release operation is in progress.")
+		return
+	}
+	defer s.releaseDelivery("cloud-maintenance:" + p.ID)
 	target, err := s.deploymentTarget(req.TargetID)
 	if err != nil {
 		journeyError(w, 400, "deployment_target_unavailable", "Select a connected deployment target.")
@@ -229,7 +249,7 @@ func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 400, "invalid_health_url", err.Error())
 		return
 	}
-	app := CoolifyGitApplication{ProjectUUID: "pending", ServerUUID: target.ServerUUID, Name: "luci-" + p.ID, Repository: req.Repository, Branch: req.Branch, Commit: req.Commit, Dockerfile: "/" + req.Dockerfile, Port: req.Port, Domain: req.Domain, HealthPath: req.HealthPath}
+	app := CoolifyGitApplication{ProjectUUID: "pending", ServerUUID: target.ServerUUID, Name: "luci-" + p.ID, Repository: req.Repository, Branch: req.Branch, Commit: req.Commit, Dockerfile: "/" + req.Dockerfile, Port: req.Port, Domain: req.Domain, HealthPath: req.HealthPath, Source: req.Source, PrivateKeyUUID: req.PrivateKeyUUID}
 	if _, err := coolifyGitApplicationPayload(app); err != nil {
 		journeyError(w, 400, "invalid_cloud_release", err.Error())
 		return
@@ -353,6 +373,11 @@ func (s *Server) refreshCloudRelease(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if !s.reserveDelivery("cloud-maintenance:" + p.ID) {
+		journeyError(w, 409, "release_busy", "Another release operation is in progress.")
+		return
+	}
+	defer s.releaseDelivery("cloud-maintenance:" + p.ID)
 	s.mu.RLock()
 	rows, err := s.readCloudReleases(p.ID)
 	s.mu.RUnlock()
@@ -371,7 +396,7 @@ func (s *Server) refreshCloudRelease(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 404, "release_missing", "This project has no cloud release with that ID.")
 		return
 	}
-	if row.Status == "ready" || row.Status == "failed" || row.Status == "cancelled" {
+	if row.Status == "ready" || row.Status == "failed" || row.Status == "cancelled" || row.Status == "stopped" {
 		// Terminal records describe the historical release. Probing an old URL
 		// after a newer commit was deployed would not verify the old revision.
 		journeyJSON(w, 200, row)
@@ -406,6 +431,20 @@ func (s *Server) refreshCloudRelease(w http.ResponseWriter, r *http.Request) {
 }
 
 func observeCloudRelease(ctx context.Context, row CloudRelease, client *CoolifyClient, health func(context.Context, string) error) (CloudRelease, error) {
+	if row.Status == "stopping" {
+		status, err := client.ApplicationStatus(ctx, row.ApplicationID)
+		if err != nil {
+			return row, err
+		}
+		row.URL = ""
+		row.Message = "Stop was requested; waiting for the application to stop."
+		base := strings.ToLower(strings.TrimSpace(strings.Split(status, ":")[0]))
+		if base == "exited" || base == "stopped" {
+			row.Status = "stopped"
+			row.Message = "Coolify confirmed that the application stopped. No volumes or networks were pruned."
+		}
+		return row, nil
+	}
 	deployment, err := client.Deployment(ctx, row.DeploymentID)
 	if err != nil {
 		return row, err

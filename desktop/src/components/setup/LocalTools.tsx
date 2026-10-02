@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { AgentConnections } from "./AgentConnections";
+import { useAuth } from "../auth/AuthProvider";
 import {
   errorText,
   type ProductClient,
@@ -8,10 +10,14 @@ import {
 export function LocalTools({
   client,
   cloud = false,
+  onSessionStarted,
 }: {
   client: ProductClient;
   cloud?: boolean;
+  onSessionStarted?(): void;
 }) {
+  const auth = useAuth();
+  const manageBacking = !auth || auth.profile.permissions.manageBacking;
   const [open, setOpen] = useState(false),
     [loaded, setLoaded] = useState(false),
     [name, setName] = useState(""),
@@ -21,20 +27,15 @@ export function LocalTools({
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const working = useRef(false);
-  const [apiKey, setApiKey] = useState(""),
-    [connected, setConnected] = useState(false);
   useEffect(() => {
     if (!open || loaded) return;
     let cancelled = false;
-    Promise.all([client.gitIdentity(), client.runtime(), client.agents()])
-      .then(([identity, job, agents]) => {
+    Promise.all([client.gitIdentity(), client.runtime()])
+      .then(([identity, job]) => {
         if (!cancelled) {
           setName(identity.name);
           setEmail(identity.email);
           setRuntime(job);
-          setConnected(
-            agents.providers.some((p) => p.id === "anthropic" && p.configured),
-          );
           setLoaded(true);
         }
       })
@@ -128,99 +129,45 @@ export function LocalTools({
               Save Git identity
             </button>
           </form>
-          <section className="setup-plan">
-            <h2>Isolated agent runtime</h2>
-            <p className="journey-muted">
-              Build Luci’s sandbox image using Docker on{" "}
-              {cloud ? "the cloud workspace" : "this machine"}. This downloads
-              its open-source dependencies and can take several minutes.
-            </p>
-            {runtime && (
-              <p role="status">
-                {runtime.status} · {runtime.message}
+          {manageBacking ? (
+            <section className="setup-plan">
+              <h2>Isolated agent runtime</h2>
+              <p className="journey-muted">
+                Build Luci’s sandbox image using Docker on{" "}
+                {cloud ? "the cloud workspace" : "this machine"}. This downloads
+                its open-source dependencies and can take several minutes.
               </p>
-            )}
-            <button
-              className="luci-button"
-              disabled={!!busy || runtime?.status === "installing"}
-              onClick={() =>
-                void run("Starting runtime installation", async () =>
-                  setRuntime(await client.installRuntime()),
-                )
-              }
-            >
-              {runtime?.status === "installing"
-                ? "Installing runtime…"
-                : "Install agent runtime"}
-            </button>
-          </section>
-          <section className="setup-plan">
-            <h2>Your Claude connection</h2>
+              {runtime && (
+                <p role="status">
+                  {runtime.status} · {runtime.message}
+                </p>
+              )}
+              <button
+                className="luci-button"
+                disabled={!!busy || runtime?.status === "installing"}
+                onClick={() =>
+                  void run("Starting runtime installation", async () =>
+                    setRuntime(await client.installRuntime()),
+                  )
+                }
+              >
+                {runtime?.status === "installing"
+                  ? "Installing runtime…"
+                  : "Install agent runtime"}
+              </button>
+            </section>
+          ) : (
             <p className="journey-muted">
-              Use your own Anthropic API key for agent sessions. API usage is
-              billed by Anthropic separately from a Claude subscription. You can
-              also sign in through Claude Code in a session.
+              Your administrator manages the Docker runtime and cloud backing.
+              Your Git identity and model connection below belong to your
+              account.
             </p>
-            <p role="status">
-              {connected
-                ? cloud ? "Personal API key saved in the cloud workspace." : "Personal API key saved on this machine."
-                : "No personal API key saved."}
-            </p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void run("Saving agent connection", async () => {
-                  const value = await client.saveAnthropicKey(apiKey);
-                  setConnected(
-                    value.providers.some(
-                      (p) => p.id === "anthropic" && p.configured,
-                    ),
-                  );
-                  setApiKey("");
-                  setNotice("Your agent connection is saved for new sessions.");
-                });
-              }}
-            >
-              <label className="luci-field">
-                Anthropic API key
-                <input
-                  type="password"
-                  autoComplete="off"
-                  required
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                />
-                <small>
-                  The key stays in the selected workspace service and is passed
-                  only to Claude sessions.
-                </small>
-              </label>
-              <div className="setup-actions">
-                <button className="luci-button" disabled={!!busy || !apiKey}>
-                  Save agent connection
-                </button>
-                {connected && (
-                  <button
-                    type="button"
-                    className="luci-button"
-                    disabled={!!busy}
-                    onClick={() =>
-                      void run("Removing agent connection", async () => {
-                        await client.saveAnthropicKey("");
-                        setConnected(false);
-                        setApiKey("");
-                        setNotice(
-                          "Personal API key removed from Luci. Existing sessions are unchanged.",
-                        );
-                      })
-                    }
-                  >
-                    Remove saved key
-                  </button>
-                )}
-              </div>
-            </form>
-          </section>
+          )}
+          <AgentConnections
+            client={client}
+            cloud={cloud}
+            onSessionStarted={onSessionStarted}
+          />
         </div>
       )}
     </details>

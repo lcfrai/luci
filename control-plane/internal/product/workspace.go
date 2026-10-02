@@ -19,6 +19,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/management"
 )
 
 type Workspace struct {
@@ -47,6 +49,9 @@ type workspacePreview struct {
 }
 
 func (s *Server) initWorkspace() error {
+	if err := s.initWorkspaceAuth(); err != nil {
+		return err
+	}
 	s.workspace = Workspace{Mode: "local", Ready: true}
 	s.workspaceInstalls = map[string]WorkspaceInstall{}
 	s.previews = map[string]*workspacePreview{}
@@ -156,6 +161,7 @@ func (s *Server) reconnectWorkspace(saved savedWorkspace) {
 	}
 }
 func (s *Server) registerWorkspace(mux Registrar) {
+	s.registerWorkspaceAuth(mux)
 	mux.HandleFunc("POST /v1/setup/ssh/connections/{connectionId}/install-luci", s.installCloudWorkspace)
 	mux.HandleFunc("GET /v1/setup/workspace/install", func(w http.ResponseWriter, r *http.Request) {
 		s.mu.RLock()
@@ -170,7 +176,7 @@ func (s *Server) registerWorkspace(mux Registrar) {
 	mux.HandleFunc("POST /v1/setup/workspace/local", s.activateLocalWorkspace)
 	mux.HandleFunc("POST /v1/setup/workspace/preview", s.prepareWorkspacePreview)
 }
-func remoteWorkspaceStatus(ctx context.Context, address, method string) (Status, error) {
+func remoteWorkspaceStatus(ctx context.Context, address, method string, tokens ...string) (Status, error) {
 	timeout := 45 * time.Second
 	if method == "GET" {
 		timeout = 5 * time.Second
@@ -185,6 +191,9 @@ func remoteWorkspaceStatus(ctx context.Context, address, method string) (Status,
 	if err != nil {
 		return Status{}, err
 	}
+	if len(tokens) > 0 && tokens[0] != "" {
+		req.Header.Set("Authorization", "Bearer "+tokens[0])
+	}
 	client := &http.Client{Timeout: 45 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	res, err := client.Do(req)
 	if err != nil {
@@ -198,7 +207,7 @@ func remoteWorkspaceStatus(ctx context.Context, address, method string) (Status,
 	return status, nil
 }
 func workspaceReady(ctx context.Context, address string) error {
-	_, err := remoteWorkspaceStatus(ctx, address, "GET")
+	_, err := readRemoteControlStatus(ctx, address)
 	return err
 }
 func (s *Server) workspaceStatus(ctx context.Context, method string) Status {
@@ -213,8 +222,12 @@ func (s *Server) workspaceStatus(ctx context.Context, method string) Status {
 		address = t.APIURL
 	}
 	cached := s.remoteStatus
+	token := ""
+	if t != nil {
+		token = s.workspaceAuth[workspaceCredentialKey(*t)].Token
+	}
 	s.mu.RUnlock()
-	remote, err := remoteWorkspaceStatus(ctx, address, method)
+	remote, err := remoteWorkspaceStatus(ctx, address, method, token)
 	if address != "" && err == nil {
 		s.mu.Lock()
 		s.remoteStatus = &remote
@@ -280,6 +293,14 @@ func (s *Server) activateWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := workspaceReady(r.Context(), address); err != nil {
 		problem(w, 409, "workspace_not_ready", "Install the matching Luci runtime on this machine, then activate it.")
+		return
+	}
+	_, credential, authErr := s.connectedWorkspace(req.ConnectionID)
+	var remoteIdentity struct {
+		User management.User `json:"user"`
+	}
+	if authErr != nil || credential.Token == "" || remoteWorkspaceAPI(r.Context(), address, "GET", "/v1/auth/me", credential.Token, nil, &remoteIdentity) != nil {
+		problem(w, 401, "backing_sign_in_required", "Sign in to this backing before activating it.")
 		return
 	}
 	ws := Workspace{Mode: "cloud", ConnectionID: req.ConnectionID, Host: host, Ready: true}
@@ -454,7 +475,7 @@ func sshArguments(t Tunnel, copy bool) []string {
 }
 
 func projectRequest(path string) bool {
-	for _, prefix := range []string{"/v1/product/projects", "/v1/projects", "/v1/sessions", "/v1/harnesses", "/v1/machines", "/v1/setup/agents", "/v1/setup/git/identity", "/v1/setup/runtime/install", "/v1/setup/targets", "/v1/setup/config"} {
+	for _, prefix := range []string{"/v1/product/projects", "/v1/projects", "/v1/sessions", "/v1/harnesses", "/v1/machines", "/v1/setup/agents", "/v1/setup/github", "/v1/setup/git/identity", "/v1/setup/runtime/install", "/v1/setup/targets", "/v1/setup/config"} {
 		if path == prefix || strings.HasPrefix(path, prefix+"/") {
 			return true
 		}
@@ -467,6 +488,15 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api")
 		if strings.Contains(path, "/releases/") && strings.Contains(path, "/preview/") {
+			if r.Header.Get("X-Luci-Preview-Bridge") == "1" && r.Header.Get("Sec-Fetch-Site") == "" && r.Header.Get("Sec-Fetch-Mode") == "" && r.Header.Get("Sec-Fetch-Dest") == "" {
+				s.mu.RLock()
+				local := s.workspace.Mode != "cloud"
+				s.mu.RUnlock()
+				if local {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
 			problem(w, 403, "isolated_preview_required", "Open this application through its separate preview address.")
 			return
 		}
@@ -482,6 +512,10 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 			address = t.APIURL
 			management = t.LocalURL
 		}
+		token := ""
+		if t != nil {
+			token = s.workspaceAuth[workspaceCredentialKey(*t)].Token
+		}
 		s.mu.RUnlock()
 		if ws.Mode != "cloud" {
 			next.ServeHTTP(w, r)
@@ -490,6 +524,26 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 		if address == "" {
 			problem(w, 503, "workspace_disconnected", "Reconnect your cloud workspace in Settings, or return to this machine.")
 			return
+		}
+		if token == "" {
+			problem(w, 401, "backing_sign_in_required", "Sign in to the selected backing in Settings.")
+			return
+		}
+		if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+			var ticket struct {
+				Ticket string `json:"ticket"`
+			}
+			if err := remoteWorkspaceAPI(r.Context(), address, "POST", "/v1/auth/socket-ticket", token, map[string]string{"path": path}, &ticket); err != nil || ticket.Ticket == "" {
+				problem(w, 401, "backing_sign_in_required", "Reconnect and sign in to this backing before opening a session.")
+				return
+			}
+			clone := r.Clone(r.Context())
+			u := *r.URL
+			q := u.Query()
+			q.Set("ticket", ticket.Ticket)
+			u.RawQuery = q.Encode()
+			clone.URL = &u
+			r = clone
 		}
 		target, err := url.Parse(address)
 		if err != nil || target.Host == "" {
@@ -503,7 +557,9 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 			req.Host = target.Host
 			req.Header.Del("Origin")
 			req.Header.Del("Cookie")
-			req.Header.Del("Authorization")
+			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Del("X-Luci-Actor")
+			req.Header.Del("X-Luci-Policy")
 			req.Header.Del("Forwarded")
 			req.Header.Del("X-Forwarded-Host")
 			req.URL.Path = path
@@ -624,6 +680,10 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 	if t != nil && t.Status == "connected" {
 		address = t.APIURL
 	}
+	token := ""
+	if t != nil {
+		token = s.workspaceAuth[workspaceCredentialKey(*t)].Token
+	}
 	s.mu.RUnlock()
 	if ws.Mode != "cloud" || address == "" {
 		problem(w, 409, "workspace_required", "Activate your connected cloud workspace first.")
@@ -636,6 +696,7 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 		problem(w, 400, "bad_request", "Choose a valid release.")
 		return
 	}
+	history.Header.Set("Authorization", "Bearer "+token)
 	client := &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	res, err := client.Do(history)
 	if err != nil {
@@ -699,6 +760,7 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 			}
 		}
 		out.Header.Set("X-Luci-Preview-Bridge", "1")
+		out.Header.Set("Authorization", "Bearer "+token)
 	}
 	proxy.ModifyResponse = func(res *http.Response) error {
 		location := res.Header.Get("Location")

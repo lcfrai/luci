@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lcfrai/luci/control-plane/internal/hostpath"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
@@ -79,8 +79,12 @@ func TestServeRefusesAWorktreeSwappedInsideAConversationStore(t *testing.T) {
 	clearDockerEnv(t)
 	state := longTempDir(t)
 	writeInstanceID(t, state, fakeOurs)
-	cfg := fakeDaemonConfig(t, state, newFakeDaemon(t, nil))
+	daemon := newFakeDaemon(t, nil)
+	cfg := fakeDaemonConfig(t, state, daemon)
 	cfg.ProjectsDir = longTempDir(t)
+	// The fixture overlaps roots to exercise the reparse guard itself; normal
+	// management state remains outside all project roots.
+	cfg.ConversationsDir = filepath.Join(cfg.ProjectsDir, "fixture-conversations")
 	app := filepath.Join(cfg.ProjectsDir, "app")
 	loc := filepath.Join(cfg.ConversationsDir, "local", "wt-app")
 	for _, d := range []string{app, filepath.Dir(loc)} {
@@ -107,18 +111,34 @@ func TestServeRefusesAWorktreeSwappedInsideAConversationStore(t *testing.T) {
 
 	id := project.WorktreeID(loc)
 	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Post("http://"+addr+"/v1/sessions", "application/json",
-		strings.NewReader(`{"worktreeId":"`+id+`"}`))
+	token := bootstrapServingTest(t, cfg, addr, client)
+	req, err := http.NewRequest("POST", "http://"+addr+"/v1/sessions", strings.NewReader(`{"worktreeId":"`+id+`"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("POST /v1/sessions: %v", err)
 	}
+	body, readErr := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
 	got := logs.String()
-	if resp.StatusCode != http.StatusInternalServerError ||
-		!strings.Contains(got, "api: resolve worktree "+id+" failed") ||
-		!strings.Contains(got, hostpath.ErrReparsePoint.Error()) {
-		t.Errorf("create on %s, swapped for a junction inside a conversation store = %d; want 500, refused at resolve on %q; logs:\n%s",
-			loc, resp.StatusCode, hostpath.ErrReparsePoint, got)
+	if resp.StatusCode != http.StatusNotFound || !strings.Contains(string(body), "worktree_not_found") {
+		t.Errorf("create on %s, swapped for a junction inside a conversation store = %d; want 404 because unsafe worktrees are filtered before mounting; body:%s logs:\n%s",
+			loc, resp.StatusCode, body, got)
+	}
+	daemon.mu.Lock()
+	unexpected := append([]string(nil), daemon.other...)
+	daemon.mu.Unlock()
+	for _, request := range unexpected {
+		if strings.Contains(request, "/containers/create") {
+			t.Fatalf("unsafe worktree reached container creation: %s", request)
+		}
 	}
 
 	cancel()

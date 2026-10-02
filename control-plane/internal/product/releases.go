@@ -337,7 +337,7 @@ func (s *Server) stopLocalRelease(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !found {
-		journeyError(w, 404, "release_missing", "This project has no release with that ID.")
+		s.stopCloudRelease(w, r)
 		return
 	}
 	if row.Status == "stopped" {

@@ -34,17 +34,19 @@ export interface TermLike {
   write(data: string | Uint8Array, callback?: () => void): void;
   scrollToBottom(): void;
   onData(cb: (data: string) => void): { dispose(): void };
-  onResize(cb: (size: { cols: number; rows: number }) => void): { dispose(): void };
+  onResize(cb: (size: { cols: number; rows: number }) => void): {
+    dispose(): void;
+  };
   dispose(): void;
 }
 
 export type AttachPhase =
-  | "detached"      // no entry: nothing is holding this session
-  | "connecting"    // first handshake in flight
-  | "attached"      // open
-  | "reconnecting"  // the ladder is running after a failure or a close
-  | "ended"         // the session exited. Not an error: the transcript stands
-  | "failed";       // we could not attach and the session is NOT exited
+  | "detached" // no entry: nothing is holding this session
+  | "connecting" // first handshake in flight
+  | "attached" // open
+  | "reconnecting" // the ladder is running after a failure or a close
+  | "ended" // the session exited. Not an error: the transcript stands
+  | "failed"; // we could not attach and the session is NOT exited
 
 export interface AttachState {
   phase: AttachPhase;
@@ -93,6 +95,8 @@ interface Entry {
   refs: number;
   readOnly: boolean;
   ws: WebSocket | null;
+  opening: boolean;
+  connectVersion: number;
   state: AttachState;
   pending: Uint8Array[];
   pendingBytes: number;
@@ -129,7 +133,10 @@ export function configureAttachRegistry(next: Partial<RegistryDeps>): void {
 
 /* ── the public surface ──────────────────────────────────────────────────────────────── */
 
-export function acquireAttach(session: Session, opts: AcquireOptions): AttachHandle {
+export function acquireAttach(
+  session: Session,
+  opts: AcquireOptions,
+): AttachHandle {
   let entry = entries.get(session.id);
   if (!entry) {
     const element = document.createElement("div");
@@ -145,6 +152,8 @@ export function acquireAttach(session: Session, opts: AcquireOptions): AttachHan
       refs: 0,
       readOnly: opts.readOnly,
       ws: null,
+      opening: false,
+      connectVersion: 0,
       state: DETACHED,
       pending: [],
       pendingBytes: 0,
@@ -208,7 +217,7 @@ export function updateAttachSession(session: Session): void {
   entry.session = session;
   if (session.status === "exited" && !wasExited) {
     clearRetry(entry);
-    entry.ladderStartedAt = 0;   // the ladder stopped, so the pane's elapsed stops with it
+    entry.ladderStartedAt = 0; // the ladder stopped, so the pane's elapsed stops with it
     if (!entry.ws) {
       publish(entry, {
         phase: "ended",
@@ -220,7 +229,10 @@ export function updateAttachSession(session: Session): void {
   }
 }
 
-export function setAttachReadOnly(sessionId: SessionId, readOnly: boolean): void {
+export function setAttachReadOnly(
+  sessionId: SessionId,
+  readOnly: boolean,
+): void {
   const entry = entries.get(sessionId);
   if (entry) entry.readOnly = readOnly;
 }
@@ -256,7 +268,7 @@ export function retryAttach(sessionId: SessionId): boolean {
   // rendering. `connect()` would early-return on the same condition, so without this the call
   // would report success having done nothing. The one mid-ladder moment this DOES accept is an
   // armed rung, where `ws` is null.
-  if (entry.ws) return false;
+  if (entry.ws || entry.opening) return false;
   // NO `clearRetry` HERE, and this comment is what the deleted line left behind. A mutant adding
   // one back SURVIVES every test, because three separate mechanisms already make a rung armed
   // before this call unobservable by the time it could matter:
@@ -352,13 +364,15 @@ function notify(id: SessionId, state: AttachState): void {
 
 /** "Rendered verbatim" (§2, Session.exitReason). The fallback is only for an empty string. */
 function exitedReason(session: Session): string {
-  return session.exitReason.trim() !== "" ? session.exitReason : "the session has exited";
+  return session.exitReason.trim() !== ""
+    ? session.exitReason
+    : "the session has exited";
 }
 
 function wireTerm(entry: Entry): void {
   entry.disposables.push(
     entry.term.onData((data) => {
-      if (entry.readOnly) return;   // exited: a keystroke does nothing, by design (§6.6)
+      if (entry.readOnly) return; // exited: a keystroke does nothing, by design (§6.6)
       const ws = entry.ws;
       if (!ws || ws.readyState !== WS_OPEN) return;
       ws.send(encode(Kind.Stdin, ENCODER.encode(data)));
@@ -388,7 +402,7 @@ function openIfLive(entry: Entry): void {
 }
 
 function connect(entry: Entry): void {
-  if (entry.destroyed || entry.ws) return;
+  if (entry.destroyed || entry.ws || entry.opening) return;
   // Stamped on `ladderStartedAt === 0`, not on `attempts === 0`: a successful handshake resets
   // attempts to 0, so keying off it would re-stamp mid-ladder and the 60 s budget would never
   // expire. `onopen` clears the stamp, which is what makes a drop after an hour attached start
@@ -399,7 +413,10 @@ function connect(entry: Entry): void {
     // "connecting" is only ever the FIRST handshake of this entry's life. Once a socket has
     // opened, every later one is a reconnect — the footer must not read "connecting" at the
     // user while a live session is being picked back up.
-    phase: !entry.everAttached && entry.attempts === 1 ? "connecting" : "reconnecting",
+    phase:
+      !entry.everAttached && entry.attempts === 1
+        ? "connecting"
+        : "reconnecting",
     attempts: entry.attempts,
     // Stamped just above if this is the first rung; unchanged on every later rung of the same
     // ladder, so the pane's elapsed keeps growing rather than resetting every 250 ms.
@@ -407,15 +424,35 @@ function connect(entry: Entry): void {
     reason: "",
   });
 
-  let ws: WebSocket;
+  const version = ++entry.connectVersion;
+  entry.opening = true;
+  const failed = () => {
+    if (entry.destroyed || version !== entry.connectVersion) return;
+    entry.opening = false;
+    scheduleRetry(entry);
+  };
+  const ready = (ws: WebSocket) => {
+    if (version === entry.connectVersion) entry.opening = false;
+    if (
+      entry.destroyed ||
+      version !== entry.connectVersion ||
+      entry.session.status === "exited"
+    ) {
+      ws.close(1000, "attachment no longer needed");
+      return;
+    }
+    bindSocket(entry, ws);
+  };
   try {
-    // No Authorization header, here or anywhere: there is no bearer token on this hop before
-    // Phase 8 (§4.5). The browser attaches Origin to the handshake by itself.
-    ws = deps.client.openAttach(entry.session);
+    const socket = deps.client.openAttach(entry.session);
+    if ("then" in socket) void socket.then(ready, failed);
+    else ready(socket);
   } catch {
-    scheduleRetry(entry);   // openAttach throws only on a URL it cannot construct
-    return;
+    failed();
   }
+}
+
+function bindSocket(entry: Entry, ws: WebSocket): void {
   entry.ws = ws;
 
   ws.onopen = () => {
@@ -426,13 +463,18 @@ function connect(entry: Entry): void {
     entry.attempts = 0;
     entry.ladderStartedAt = 0;
     entry.everAttached = true;
-    publish(entry, { phase: "attached", attempts: 0, ladderStartedAt: 0, reason: "" });
+    publish(entry, {
+      phase: "attached",
+      attempts: 0,
+      ladderStartedAt: 0,
+      reason: "",
+    });
     ws.send(encodeResize(entry.term.cols, entry.term.rows));
   };
 
   ws.onmessage = (ev: MessageEvent) => {
     if (entry.ws !== ws || entry.destroyed) return;
-    if (!(ev.data instanceof ArrayBuffer)) return;   // the attach protocol is binary-only
+    if (!(ev.data instanceof ArrayBuffer)) return; // the attach protocol is binary-only
     const { kind, payload } = decode(new Uint8Array(ev.data));
     if (kind === Kind.Stdout) writeOut(entry, payload);
     else if (kind === Kind.Exit) writeOut(entry, BANNER_ENDED);
@@ -506,7 +548,7 @@ function scheduleRetry(entry: Entry): void {
   // that can never come back, because the output that would revive it is the output we are
   // no longer attached to receive.
   if (entry.session.status === "exited") {
-    entry.ladderStartedAt = 0;   // the ladder stops here and the pane's elapsed stops with it
+    entry.ladderStartedAt = 0; // the ladder stops here and the pane's elapsed stops with it
     publish(entry, {
       phase: "ended",
       attempts: entry.attempts,
@@ -541,7 +583,10 @@ function scheduleRetry(entry: Entry): void {
   // Rung = attempts - 1, FLOORED AT ZERO. `attempts` is 0 here whenever the socket had opened
   // (onopen reset it), and `RETRY_DELAYS_MS[-1]` is `undefined`, which setTimeout reads as 0 —
   // a live session that drops would reconnect in a tight loop instead of after §4.6's 250 ms.
-  const rung = Math.min(Math.max(entry.attempts - 1, 0), RETRY_DELAYS_MS.length - 1);
+  const rung = Math.min(
+    Math.max(entry.attempts - 1, 0),
+    RETRY_DELAYS_MS.length - 1,
+  );
   const delay = RETRY_DELAYS_MS[rung];
   publish(entry, {
     phase: "reconnecting",
@@ -559,7 +604,7 @@ function scheduleRetry(entry: Entry): void {
 /** The ladder is spent. One read of the record, so the sentence the pane renders is the truth
  *  rather than the likeliest-looking code — see the note above this step. */
 async function giveUp(entry: Entry): Promise<void> {
-  entry.ladderStartedAt = 0;   // the ladder is spent: there is no elapsed left to render
+  entry.ladderStartedAt = 0; // the ladder is spent: there is no elapsed left to render
   publish(entry, {
     phase: "failed",
     attempts: entry.attempts,
@@ -601,7 +646,8 @@ async function giveUp(entry: Entry): Promise<void> {
 }
 
 function reasonForError(error: unknown): string {
-  if (!(error instanceof ApiError)) return "the control plane could not be reached";
+  if (!(error instanceof ApiError))
+    return "the control plane could not be reached";
   return reasonForCode(error.code, error.message);
 }
 
@@ -649,8 +695,14 @@ function destroy(entry: Entry): void {
   if (entry.destroyed) return;
   entry.destroyed = true;
   clearRetry(entry);
-  if (entry.flushTimer !== null) { clearTimeout(entry.flushTimer); entry.flushTimer = null; }
-  if (entry.graceTimer !== null) { clearTimeout(entry.graceTimer); entry.graceTimer = null; }
+  if (entry.flushTimer !== null) {
+    clearTimeout(entry.flushTimer);
+    entry.flushTimer = null;
+  }
+  if (entry.graceTimer !== null) {
+    clearTimeout(entry.graceTimer);
+    entry.graceTimer = null;
+  }
   for (const disposable of entry.disposables) disposable.dispose();
   entry.disposables = [];
   // ── LOAD-BEARING ORDERING. Read this before reordering the two lines below. ──────────
@@ -678,6 +730,8 @@ function destroy(entry: Entry): void {
   // If you reorder this, write the four negative cases first.
   const ws = entry.ws;
   entry.ws = null;
+  entry.opening = false;
+  entry.connectVersion += 1;
   // Closing the socket detaches. It does NOT destroy the session: the record and its
   // transcript survive, and only a kill, the idle TTL or the reaper remove them.
   if (ws) ws.close(1000, "pane closed");
