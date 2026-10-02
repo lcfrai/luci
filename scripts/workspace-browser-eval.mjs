@@ -173,9 +173,9 @@ try {
   const project = await clickResponse(dialog.getByRole('button', { name: 'Create project', exact: true }), '/v1/product/projects', 201);
   assert.equal(path.resolve(project.path), path.join(remote.projects, 'ssh-browser-app'));
   const purpose = 'A shared garden journal saved through a real SSH workspace.';
-  await page.getByLabel('The idea', { exact: true }).fill(purpose);
-  await page.getByLabel('Who it is for', { exact: true }).fill('Garden volunteers');
-  await page.getByLabel('What good looks like').fill('The brief persists only in the remote workspace.');
+  await page.getByRole('textbox', { name: 'The idea', exact: true }).fill(purpose);
+  await page.getByRole('textbox', { name: 'Who it is for', exact: true }).fill('Garden volunteers');
+  await page.getByRole('textbox', { name: /^What good looks like/ }).fill('The brief persists only in the remote workspace.');
   const brief = await clickResponse(page.getByRole('button', { name: 'Save brief', exact: true }), `/v1/product/projects/${project.id}/brief`);
   assert.equal(brief.revision, 1);
   assert.equal((await api(remote, 'GET', `/v1/product/projects/${project.id}/brief`)).purpose, purpose);
