@@ -21,6 +21,8 @@ When this workflow has run in the repository that will distribute Luci, open **A
 
 Unpack GitHub's artifact wrapper first. Verify the inner archive or installer against its accompanying `SHA256SUMS`. For example, use `sha256sum -c SHA256SUMS` on Linux, `shasum -a 256 -c SHA256SUMS` on macOS, or compare `(Get-FileHash -Algorithm SHA256 -LiteralPath <download>).Hash` on Windows. Checksums detect changed bytes; they do not establish publisher identity. Current Windows candidates are unsigned and are intended for review.
 
+The accompanying `release-manifest.json` records the version, artifact hashes and sizes, licence component counts, and source state captured before building. `sourceCommit` is the full Git commit and `sourceDirty` reports tracked or untracked changes. Both are `null` when building an exported source folder without its own Git metadata. A dirty build contains local changes beyond the named commit; use a clean checkout for a candidate intended to identify an exact reviewed revision.
+
 ## Rebuilding locally
 
 Use Go 1.26.3, Node 22.18.0, Python 3.11 or newer, and the committed lockfiles. Install desktop dependencies with `npm ci` from `desktop/`. The scripts build the desktop assets themselves.
@@ -50,7 +52,7 @@ The inventory is deliberately broader than the final JavaScript bundle. Native c
 
 ## Checks and remaining acceptance gates
 
-The workflow runs both Go module test suites and desktop tests, type checking and asset builds. Its Linux runtime job builds the actual sandbox image and runs the service as host UID 10123, different from the image's default UID 1001. A real shell WebSocket reads the brief, writes project and transcript files, and commits through Git. The job checks private directory modes, host file ownership, zero effective and bounding capabilities, and `NoNewPrivs`. It then builds a preview from the committed Dockerfile, verifies HTTP health and provenance, and stops the owned container. The retained `luci-real-runtime-evidence-<commit>` artifact contains the result and process/shell logs.
+The workflow runs both Go module test suites and desktop tests, type checking and asset builds. Its Linux runtime job builds the actual sandbox image and runs the service as host UID 10123, different from the image's default UID 1001. A real shell WebSocket reads the brief, writes project files, and commits through Git. A separate conversation-bearing session starts without credentials or a prompt; a local probe running as the mapped user verifies writes to its API-created transcript mount without model inference. The job checks private directory modes, host file ownership, zero effective and bounding capabilities of the running sandbox, and `NoNewPrivs`. It then builds a preview from the committed Dockerfile, verifies HTTP health and provenance, and stops the owned container. The retained `luci-real-runtime-evidence-<commit>` artifact contains the result and process/shell logs.
 
 After that job passes, the workflow creates portable archives, starts the Linux/macOS packaged service with isolated state and checks its setup endpoint and web page. Windows CI builds the native NSIS candidate. These checks do not perform cloud account login, create billable resources, use model credits or certify a clean-machine installer journey. A workflow definition is not an execution result; inspect the successful run and its evidence at the candidate's exact commit.
 

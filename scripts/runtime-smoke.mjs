@@ -36,7 +36,7 @@ const child = spawn(binary, [], {
     LUCI_ADDR: `127.0.0.1:${port}`, LUCI_BACKEND: "docker",
     LUCI_STATE_DIR: state, LUCI_PROJECTS_DIR: projects, LUCI_RUNTIME_DIR: repository,
     LUCI_SANDBOX_IMAGE: image, LUCI_GIT_NAME: "Luci Runtime Test",
-    LUCI_GIT_EMAIL: "runtime-test@example.invalid", LUCI_REAP_INTERVAL: "2s",
+    LUCI_GIT_EMAIL: "runtime-test@example.invalid", LUCI_REAP_INTERVAL: "5s",
     LUCI_SESSION_CPU_MILLIS: "500", LUCI_SESSION_MEMORY_MIB: "512",
     GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: join(fixture, "empty-git-config"),
     ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "",
@@ -104,7 +104,7 @@ async function proveShell(sessionID) {
   const suffix = randomUUID().replaceAll("-", "");
   const marker = `LUCISMOKE_${suffix}`;
   let transcript = "";
-  const probeCode = `const fs=require("fs"),os=require("os"); const report=JSON.stringify({uid:process.getuid(),gid:process.getgid(),status:fs.readFileSync("/proc/self/status","utf8"),brief:fs.readFileSync("LUCI.md","utf8")}); fs.writeFileSync("runtime-proof.json",report,{mode:384}); fs.writeFileSync(os.homedir()+"/.claude/projects/runtime-proof.json",report,{mode:384});`;
+  const probeCode = `const fs=require("fs"); const report=JSON.stringify({uid:process.getuid(),gid:process.getgid(),status:fs.readFileSync("/proc/self/status","utf8"),brief:fs.readFileSync("LUCI.md","utf8")}); fs.writeFileSync("runtime-proof.json",report,{mode:384});`;
   const command = `node -e '${probeCode}' && git add runtime-proof.json && git commit -m 'Runtime smoke shell write' && printf '\\nLUCISMOKE_%s\\n' '${suffix}'\r`;
   try {
     await new Promise((done, reject) => {
@@ -169,12 +169,9 @@ try {
   session = await api("POST", "/v1/sessions", { machineId: machines[0].id, worktreeId: worktree.id, harness: "shell", title: "Runtime proof" }, 90_000);
   const sandbox = containerFor("luci.session-id", session.id);
   assertLoopbackPorts(sandbox);
-  const transcripts = sandbox.Mounts.find((mount) => mount.Destination === "/home/dev/.claude/projects")?.Source;
-  assert.ok(transcripts, "Session did not mount its persistent transcript store");
-  const transcriptStat = statSync(transcripts);
-  assert.equal(transcriptStat.uid, process.getuid());
-  assert.equal(transcriptStat.gid, process.getgid());
-  assert.equal(transcriptStat.mode & 0o777, 0o700);
+  // A plain shell deliberately has no agent conversation mount. Do not put
+  // other sessions' transcripts in reach of a shell just to satisfy this test.
+  assert.ok(!sandbox.Mounts.some((mount) => mount.Destination === "/home/dev/.claude/projects"));
   await proveShell(session.id);
   const proofFile = join(project.path, "runtime-proof.json");
   const proof = JSON.parse(readFileSync(proofFile, "utf8"));
@@ -187,15 +184,42 @@ try {
   assert.match(proof.status, /^NoNewPrivs:\s*1$/m);
   assert.equal(statSync(proofFile).uid, process.getuid());
   assert.equal(statSync(proofFile).gid, process.getgid());
-  const transcriptProof = statSync(join(transcripts, "runtime-proof.json"));
-  assert.equal(transcriptProof.uid, process.getuid());
-  assert.equal(transcriptProof.gid, process.getgid());
-  assert.equal(transcriptProof.mode & 0o777, 0o600);
-  assert.equal(statSync(transcripts).mode & 0o777, 0o700, "Runtime relaxed its transcript store mode");
   assert.equal(statSync(project.path).mode & 0o777, originalMode, "Runtime relaxed the project directory mode");
   const shellGit = await api("GET", `/v1/product/projects/${project.id}/git`);
   assert.equal(shellGit.log[0].subject, "Runtime smoke shell write");
   result.checks.push({ name: "shell WebSocket, brief read and Git write through private mount", uid: proof.uid, gid: proof.gid, capabilities: "none", noNewPrivileges: true, projectMode: "0700", shellCommit: shellGit.log[0].hash });
+  await api("DELETE", `/v1/sessions/${session.id}`);
+
+  // Start the real conversation-bearing harness without credentials, a prompt
+  // or an attached client. This exercises its API-created persistent mount;
+  // it does not sign in or ask a model to perform work. A separate local probe
+  // writes as the mapped host UID, never Docker exec's bootstrap-root default.
+  session = await api("POST", "/v1/sessions", { machineId: machines[0].id, worktreeId: worktree.id, harness: "claude-code", title: "Transcript mount proof" }, 90_000);
+  const agent = containerFor("luci.session-id", session.id);
+  assertLoopbackPorts(agent);
+  const transcripts = agent.Mounts.find((mount) => mount.Destination === "/home/dev/.claude/projects")?.Source;
+  assert.ok(transcripts, "Conversation-bearing session did not mount its persistent transcript store");
+  const transcriptStat = statSync(transcripts);
+  assert.equal(transcriptStat.uid, process.getuid());
+  assert.equal(transcriptStat.gid, process.getgid());
+  assert.equal(transcriptStat.mode & 0o777, 0o700);
+  const transcriptProbeCode = 'const fs=require("fs"); const report={uid:process.getuid(),gid:process.getgid(),runtimeStatus:fs.readFileSync("/proc/1/status","utf8")}; fs.writeFileSync("/home/dev/.claude/projects/runtime-proof.json",JSON.stringify(report),{mode:384});';
+  execFileSync("docker", ["exec", "--user", `${process.getuid()}:${process.getgid()}`, agent.Id, "node", "-e", transcriptProbeCode], { timeout: 15_000, stdio: ["ignore", "pipe", "pipe"] });
+  const transcriptProofFile = join(transcripts, "runtime-proof.json");
+  const transcriptProof = statSync(transcriptProofFile);
+  const transcriptReport = JSON.parse(readFileSync(transcriptProofFile, "utf8"));
+  assert.equal(transcriptReport.uid, process.getuid());
+  assert.equal(transcriptReport.gid, process.getgid());
+  assert.match(transcriptReport.runtimeStatus, new RegExp(`^Uid:\\s*${process.getuid()}\\s+${process.getuid()}\\s+${process.getuid()}\\s+${process.getuid()}$`, "m"));
+  assert.match(transcriptReport.runtimeStatus, new RegExp(`^Gid:\\s*${process.getgid()}\\s+${process.getgid()}\\s+${process.getgid()}\\s+${process.getgid()}$`, "m"));
+  assert.match(transcriptReport.runtimeStatus, /^CapEff:\s*0+$/m);
+  assert.match(transcriptReport.runtimeStatus, /^CapBnd:\s*0+$/m);
+  assert.match(transcriptReport.runtimeStatus, /^NoNewPrivs:\s*1$/m);
+  assert.equal(transcriptProof.uid, process.getuid());
+  assert.equal(transcriptProof.gid, process.getgid());
+  assert.equal(transcriptProof.mode & 0o777, 0o600);
+  assert.equal(statSync(transcripts).mode & 0o777, 0o700, "Runtime relaxed its transcript store mode");
+  result.checks.push({ name: "API-created agent transcript mount without model inference", uid: transcriptReport.uid, gid: transcriptReport.gid, directoryMode: "0700", fileMode: "0600", runtimeCapabilities: "none", noNewPrivileges: true });
   await api("DELETE", `/v1/sessions/${session.id}`);
 
   writeFileSync(join(project.path, "app.mjs"), 'import http from "node:http"; http.createServer((req,res)=>{res.writeHead(200,{"content-type":"text/plain"});res.end("Luci runtime preview OK");}).listen(3000,"0.0.0.0");\n', { mode: 0o600 });

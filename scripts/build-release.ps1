@@ -46,8 +46,25 @@ function Confirm-Licenses([string]$Directory) {
     if (@($luciManifest.missingLicenses).Count -ne 0 -or (Get-Item -LiteralPath (Join-Path $Directory 'MISSING-LICENSES.txt')).Length -ne 0) { throw 'Incomplete dependency licence evidence.' }
     return @($luciManifest.components).Count
 }
+function Get-SourceMetadata([string]$Directory) {
+    # An exported source tree has no Git history. Do not accidentally report an
+    # enclosing checkout's commit, and do not label unknown provenance as clean.
+    if (-not (Test-Path -LiteralPath (Join-Path $Directory '.git'))) {
+        return @{ sourceCommit=$null; sourceDirty=$null }
+    }
+    Get-Command git -ErrorAction Stop | Out-Null
+    $luciCommit = (& git -C $Directory rev-parse --verify HEAD)
+    Confirm-Exit 'Source commit lookup'
+    if ($luciCommit -notmatch '^[0-9a-f]{40}(?:[0-9a-f]{24})?$') { throw 'Git did not return a full source commit.' }
+    $luciChanges = @(& git -C $Directory status --porcelain=v1 --untracked-files=all)
+    Confirm-Exit 'Source working-tree status'
+    return @{ sourceCommit=[string]$luciCommit; sourceDirty=($luciChanges.Count -gt 0) }
+}
 
 try {
+    # Capture before generated files are staged; source metadata describes the
+    # inputs at build start, not a later repository state.
+    $luciSource = Get-SourceMetadata $luciRoot
     $luciPackageVersion = (Get-Content -Raw -LiteralPath (Join-Path $luciRoot 'desktop/package.json') | ConvertFrom-Json).version
     $luciTauriVersion = (Get-Content -Raw -LiteralPath (Join-Path $luciNativeRoot 'tauri.conf.json') | ConvertFrom-Json).version
     $luciCargoVersion = [regex]::Match((Get-Content -Raw -LiteralPath (Join-Path $luciNativeRoot 'Cargo.toml')), '(?m)^version\s*=\s*"([^"]+)"').Groups[1].Value
@@ -145,7 +162,7 @@ try {
     foreach ($luciPackage in $luciPackages) { Replace-GeneratedTree $luciPackage.path (Join-Path $luciOutput $luciPackage.name) }
     $luciHashes = $luciArtifactRecords | Sort-Object name | ForEach-Object { $_.sha256 + '  ' + $_.name }
     [IO.File]::WriteAllLines((Join-Path $luciOutput 'SHA256SUMS'), [string[]]$luciHashes, [Text.UTF8Encoding]::new($false))
-    $luciRelease = @{version=$Version;builtAt=[DateTime]::UtcNow.ToString('o');artifacts=$luciArtifactRecords;portableLicenseComponents=@($luciPackages | ForEach-Object {@{target=$_.name;count=$_.licenses;missing=0}});nativeLicenseComponents=$luciNativeCount;nativeRequested=[bool]$Native;stage=$luciStage}
+    $luciRelease = @{version=$Version;sourceCommit=$luciSource.sourceCommit;sourceDirty=$luciSource.sourceDirty;builtAt=[DateTime]::UtcNow.ToString('o');artifacts=$luciArtifactRecords;portableLicenseComponents=@($luciPackages | ForEach-Object {@{target=$_.name;count=$_.licenses;missing=0}});nativeLicenseComponents=$luciNativeCount;nativeRequested=[bool]$Native;stage=$luciStage}
     $luciRelease | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $luciOutput 'release-manifest.json') -Encoding utf8NoBOM
     Write-Host ('Reviewable Luci packages: ' + $luciOutput)
 } finally {

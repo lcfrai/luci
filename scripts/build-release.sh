@@ -16,6 +16,18 @@ for executable in go npm python3; do
 done
 [[ -d "$root/desktop/node_modules" ]] || { printf '%s\n' 'Run npm ci in desktop first.' >&2; exit 1; }
 [[ -f "$root/sandboxd/vendor/modules.txt" ]] || { printf '%s\n' 'The vendored sandbox runtime sources are required.' >&2; exit 1; }
+# A source export can lack Git metadata. Do not accidentally attribute it to
+# an enclosing unrelated checkout. Capture state before generated build files.
+source_commit=
+source_dirty=
+if [[ -e "$root/.git" ]]; then
+  command -v git >/dev/null || { printf '%s\n' 'Git is required to identify this source checkout.' >&2; exit 1; }
+  source_commit=$(git -C "$root" rev-parse --verify HEAD)
+  [[ "$source_commit" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || { printf '%s\n' 'Git returned an invalid source commit.' >&2; exit 1; }
+  source_status=$(git -C "$root" status --porcelain=v1 --untracked-files=all)
+  source_dirty=false
+  [[ -z "$source_status" ]] || source_dirty=true
+fi
 output="$root/artifacts/releases/$version"
 mkdir -p "$output"
 stage=$(mktemp -d "$output/.luci-build-XXXXXX")
@@ -47,6 +59,8 @@ build_package() {
 cloud_package="$stage/luci-cloud-linux-amd64"
 build_package linux amd64 "$cloud_package"
 python3 "$root/scripts/package.py" "$cloud_package" linux
+cp "$cloud_package.tar.gz" "$output/luci-cloud-linux-amd64.tar.gz"
+built_targets=()
 for target in linux-amd64 darwin-arm64; do
   [[ "$selected" == all || "$selected" == "$target" ]] || continue
   goos=${target%-*}
@@ -61,12 +75,30 @@ for target in linux-amd64 darwin-arm64; do
   cp "$cloud_package.tar.gz" "$package/cloud/luci-cloud-linux-amd64.tar.gz"
   python3 "$root/scripts/package.py" "$package" "$goos"
   mv -f -- "$package.tar.gz" "$output/luci-$target.tar.gz"
+  built_targets+=("$target")
 done
-python3 - "$output" <<'PY'
-import hashlib, pathlib, sys
-output = pathlib.Path(sys.argv[1])
-archives = sorted(p for p in output.iterdir() if p.is_file() and (p.name.endswith('.tar.gz') or p.suffix == '.zip'))
-lines = [hashlib.file_digest(p.open('rb'), 'sha256').hexdigest() + '  ' + p.name for p in archives]
+python3 - "$output" "$version" "$source_commit" "$source_dirty" "$stage" "${built_targets[@]}" <<'PY'
+import datetime, hashlib, json, pathlib, sys
+output, version, commit, dirty, stage, *targets = sys.argv[1:]
+output, stage = pathlib.Path(output), pathlib.Path(stage)
+# Only this invocation's artifacts belong to this manifest, even when another
+# platform's older archives still exist in the output directory.
+archives = [output / 'luci-cloud-linux-amd64.tar.gz'] + [output / f'luci-{target}.tar.gz' for target in targets]
+artifacts = []
+for archive in sorted(archives):
+    with archive.open('rb') as stream:
+        digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+    artifacts.append({'name': archive.name, 'bytes': archive.stat().st_size, 'sha256': digest})
+components = []
+for target in targets:
+    inventory = json.loads((stage / f'luci-{target}' / 'licenses/manifest.json').read_text(encoding='utf-8'))
+    components.append({'target': f'luci-{target}', 'count': len(inventory['components']), 'missing': len(inventory['missingLicenses'])})
+lines = [item['sha256'] + '  ' + item['name'] for item in artifacts]
 (output / 'SHA256SUMS').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+manifest = {'version': version, 'builtAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            'sourceCommit': commit or None, 'sourceDirty': dirty == 'true' if dirty else None,
+            'artifacts': artifacts, 'portableLicenseComponents': components,
+            'nativeLicenseComponents': 0, 'nativeRequested': False}
+(output / 'release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
 PY
 printf 'Reviewable Luci packages: %s\n' "$output"

@@ -126,7 +126,7 @@ func (s *Server) buildCloudPlan(ctx context.Context, r CloudRequest) (CloudPlan,
 			{ID: "create", Title: "Create your Luci machine", Detail: "An explicit cost acknowledgement is required before provisioning."},
 			{ID: "dns", Title: "Connect your domain", Detail: "Add an A record for " + r.Domain + " pointing at the new public address. Luci checks DNS before verifying HTTPS."},
 			{ID: "connect", Title: "Connect securely", Detail: "Luci's control service stays on loopback. Connect it over an SSH tunnel with your key; the public domain is for shipped apps."},
-			{ID: "cleanup", Title: "Keep control of costs", Detail: "Stop the machine when idle. Deleting the named stack removes resources; export your projects first."},
+			{ID: "cleanup", Title: "Keep control of costs", Detail: "Export your projects before deleting the named resources. Stopping Luci or the machine does not guarantee billing stops; confirm removal in your provider account."},
 		}}
 	bootstrap := bootstrapScript(r)
 	p.Files = []PlanFile{{Name: "bootstrap.sh", Content: bootstrap, MediaType: "text/x-shellscript"}}
