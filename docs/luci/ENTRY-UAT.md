@@ -24,6 +24,7 @@ that a particular release passed it.
 | Installed app owner recovery | Recovery returns to the original owner ID and preserves brief, drawing, Git and private application configuration. The old password fails and the replacement succeeds. | Native installed receipt |
 | Existing SSH workspace sign-in | Wrong remote credentials preserve local sign-in; correct credentials activate the verified remote workspace and save durable remote work. | `scripts/workspace-browser-eval.mjs` |
 | Selected remote Admin invitation | Invitation is issued on the selected remote control plane, redeemed through the actual SSH connection, and creates a distinct remote member. Returning local preserves both realms. | SSH browser receipt |
+| Invited member's first cloud project | The assigned workspace is immediately ready. Cloud controls show the member's actual permissions; the member creates and saves a project without server setup, and owner/member project reads stay isolated in both directions. | SSH browser receipt and real supervised-worker management test |
 | Native fresh install, restart, reinstall and upgrade | Known and recovered credentials continue to work after replacement. Uninstall removes owned application resources while preserving user data. | `scripts/test-installed-windows.ps1` |
 
 `scripts/run-ui-uat.mjs` runs the independent browser entry fixture before the
@@ -56,3 +57,8 @@ and accepted by the UI only on canonical loopback. It is distinct from the nativ
 capability, which is never written to a file. Remote account creation uses an
 invitation, and local owner recovery must never reset a remote account. Live model
 quality, cloud purchases and public DNS/TLS are outside these account tests.
+
+The original owner's unsaved first setup and a managed account's assigned
+workspace are different states. Acceptance reads the current account's real
+setup status before dismissing a dialog; it must not assume every new account
+opens the same onboarding screen or force a click through a backdrop.

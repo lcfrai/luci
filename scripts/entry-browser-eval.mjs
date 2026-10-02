@@ -98,12 +98,20 @@ async function profile(service, page) {
   return { token, ...(await api(service, "GET", "/v1/auth/me", undefined, token)) };
 }
 async function closeSettings(page) {
-  const close = page.getByRole("button", { name: "Close settings", exact: true });
-  // These entry fixtures deliberately never save workspace setup. Each new
-  // authenticated shell opens its first-run dialog after /v1/setup/status;
-  // shell visibility alone is earlier than that asynchronous transition.
-  await close.waitFor({ state: "visible", timeout: 15000 });
-  await close.click();
+  // Read the current account's real status. The original owner still has
+  // unsaved setup; later managed accounts have a ready assigned workspace.
+  const setup = await page.evaluate(async key => {
+    const response = await fetch("/v1/setup/status", { headers: { Authorization: "Bearer " + sessionStorage.getItem(key) } });
+    const body = await response.json();
+    return { status: response.status, configured: body.configured };
+  }, tokenKey);
+  assert.equal(setup.status, 200);
+  assert.equal(typeof setup.configured, "boolean");
+  if (!setup.configured) {
+    const close = page.getByRole("button", { name: "Close settings", exact: true });
+    await close.waitFor({ state: "visible", timeout: 15000 });
+    await close.click();
+  }
   await page.locator(".setup-backdrop").waitFor({ state: "hidden", timeout: 15000 });
 }
 async function signOut(page) {
@@ -259,7 +267,7 @@ try {
   await ownerPage.getByRole("button", { name: "Sign in", exact: true }).click();
   assert.equal((await refused).status(), 401);
   // Keep the real status response, but delay delivery to reproduce a slow
-  // first-run modal. Account-menu clicks must wait for its normal dismissal.
+  // initial setup request. Account-menu clicks must respect its actual state.
   await ownerPage.route("**/v1/setup/status", async route => {
     const response = await route.fetch();
     await delay(600);

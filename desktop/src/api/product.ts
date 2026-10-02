@@ -57,6 +57,11 @@ export interface SetupStatus {
   platform: string;
   configured: boolean;
   workspace?: Workspace;
+  access?: {
+    user: { username: string; role: "member" | "admin" | "super-admin" };
+    manageBacking: boolean;
+    projectsDirManaged: boolean;
+  };
   config: SetupConfig;
   checks: SetupCheck[];
   cloudProviders: {

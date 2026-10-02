@@ -26,7 +26,8 @@ GET /v1/setup/status returns:
 
 ```json
 {
-  "product": "Luci", "version": "0.4.0", "platform": "windows", "configured": false,
+  "product": "Luci", "version": "0.4.2", "platform": "windows", "configured": false,
+  "access": {"user": {"username": "owner", "role": "super-admin"}, "manageBacking": true, "projectsDirManaged": false},
   "workspace": {"mode": "local", "connectionId": "", "host": "", "ready": true},
   "config": {"projectsDir": "absolute path", "mode": "local", "cloudProvider": "", "region": "", "domain": "", "monthlyBudgetUsd": 30},
   "checks": [{"id": "git", "label": "Git", "status": "unknown", "message": "Run the readiness check", "action": ""}],
@@ -35,6 +36,10 @@ GET /v1/setup/status returns:
 ```
 
 Checks include git, docker, sandbox-image, aws and azure. Status is unknown, ready, missing or error. POST /v1/setup/check runs bounded readiness probes and returns the same status shape. Docker daemon and Luci sandbox image are checked separately. AWS/Azure are optional.
+
+`access` describes the active execution account, derived only from the authenticated gateway or verified worker actor. It is omitted when no trusted actor exists. When a cloud workspace is selected, status/config/check responses carry the remote account's access, never the local desktop administrator's authority. `manageBacking` permits that account's administrator operations; `projectsDirManaged` independently means its project folder is assigned and cannot be changed, including for separate local Admin/Super Admin accounts. Local connection switching still uses the local account's permissions.
+
+Non-owner managed workers start with `configured: true` because the control plane already prepared their private, fixed projects directory. They can immediately create projects and save briefs/designs without a first-use configuration write or infrastructure permission. This includes newly invited Members and additional local accounts. `configured` does not claim Docker, model credentials or cloud deployment readiness; those remain separate checks. Initial installation owners still choose their local/cloud/existing workspace normally. No completion endpoint or broader folder permissions are introduced.
 
 POST /v1/setup/config accepts `{projectsDir, mode, cloudProvider, region, domain, monthlyBudgetUsd}` and returns setup/status. Mode is local or cloud; cloudProvider is empty, aws or azure. ProjectsDir must be absolute. Server stores configuration atomically. Local starts without a cloud account. Saving switches the scanner to the chosen folder immediately.
 

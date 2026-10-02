@@ -17,6 +17,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/management"
 )
 
 const Version = "0.4.2"
@@ -35,16 +37,17 @@ type Registrar interface {
 }
 type Runner func(context.Context, string, []string, string) (string, error)
 type Options struct {
-	CloudBundle    string
-	Shutdown       func()
-	RuntimeDir     string
-	StateDir       string
-	ProjectsDir    string
-	SandboxImage   string
-	CheckMemoryMiB int
-	CheckCPUMillis int
-	Configure      func(string) error
-	Runner         Runner
+	ManagedWorkspace bool
+	CloudBundle      string
+	Shutdown         func()
+	RuntimeDir       string
+	StateDir         string
+	ProjectsDir      string
+	SandboxImage     string
+	CheckMemoryMiB   int
+	CheckCPUMillis   int
+	Configure        func(string) error
+	Runner           Runner
 }
 
 type Server struct {
@@ -74,6 +77,7 @@ type Server struct {
 	checkMemoryMiB    int
 	checkCPUMillis    int
 	configured        bool
+	managedWorkspace  bool
 	checks            []Check
 	plans             map[string]CloudPlan
 	jobs              map[string]CloudJob
@@ -87,11 +91,15 @@ func New(opts Options) (*Server, error) {
 		return nil, errors.New("Luci's state directory must be absolute")
 	}
 	root := opts.ProjectsDir
+	if opts.ManagedWorkspace && !filepath.IsAbs(root) {
+		return nil, errors.New("managed workspaces require an assigned absolute projects folder")
+	}
 	if root == "" {
 		root = filepath.Join(opts.StateDir, "projects")
 	}
 	s := &Server{stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
 		sandboxImage: opts.SandboxImage, plans: make(map[string]CloudPlan),
+		managedWorkspace: opts.ManagedWorkspace, configured: opts.ManagedWorkspace,
 		config: Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30}}
 	if s.runner == nil {
 		s.runner = RunCommand
@@ -118,6 +126,9 @@ func New(opts Options) (*Server, error) {
 		s.configured = true
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
+	}
+	if opts.ManagedWorkspace && filepath.Clean(s.config.ProjectsDir) != filepath.Clean(root) {
+		return nil, errors.New("managed workspace configuration must retain its assigned projects folder")
 	}
 	if !filepath.IsAbs(s.config.ProjectsDir) {
 		return nil, errors.New("projects folder must be absolute")
@@ -312,15 +323,35 @@ type Provider struct {
 	Strategy    string `json:"strategy"`
 	Description string `json:"description"`
 }
+type SetupAccess struct {
+	User struct {
+		Username string `json:"username"`
+		Role     string `json:"role"`
+	} `json:"user"`
+	ManageBacking      bool `json:"manageBacking"`
+	ProjectsDirManaged bool `json:"projectsDirManaged"`
+}
+
 type Status struct {
-	Workspace      Workspace  `json:"workspace"`
-	Product        string     `json:"product"`
-	Version        string     `json:"version"`
-	Platform       string     `json:"platform"`
-	Configured     bool       `json:"configured"`
-	Config         Config     `json:"config"`
-	Checks         []Check    `json:"checks"`
-	CloudProviders []Provider `json:"cloudProviders"`
+	Access         *SetupAccess `json:"access,omitempty"`
+	Workspace      Workspace    `json:"workspace"`
+	Product        string       `json:"product"`
+	Version        string       `json:"version"`
+	Platform       string       `json:"platform"`
+	Configured     bool         `json:"configured"`
+	Config         Config       `json:"config"`
+	Checks         []Check      `json:"checks"`
+	CloudProviders []Provider   `json:"cloudProviders"`
+}
+
+func (s *Server) statusForActor(ctx context.Context) Status {
+	status := s.status()
+	if user, policy, ok := management.ActorFromContext(ctx); ok {
+		status.Access = &SetupAccess{ManageBacking: management.PermissionsFor(user, policy).ManageBacking, ProjectsDirManaged: s.managedWorkspace}
+		status.Access.User.Username = user.Username
+		status.Access.User.Role = user.Role
+	}
+	return status
 }
 
 func defaultChecks() []Check {
@@ -424,6 +455,10 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c.ProjectsDir = filepath.Clean(c.ProjectsDir)
+	if s.managedWorkspace && c.ProjectsDir != s.projectRoot() {
+		problem(w, 403, "workspace_path_fixed", "Managed users keep their projects inside their assigned workspace.")
+		return
+	}
 	c.Domain = strings.ToLower(strings.TrimSpace(c.Domain))
 	if err := validateConfig(c); err != nil {
 		problem(w, 400, "bad_request", err.Error())
@@ -456,5 +491,5 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	s.config = c
 	s.configured = true
 	s.mu.Unlock()
-	writeJSON(w, 200, s.status())
+	writeJSON(w, 200, s.statusForActor(r.Context()))
 }

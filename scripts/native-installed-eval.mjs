@@ -146,10 +146,22 @@ async function visibleProjectIDs() {
   return value.ids;
 }
 async function signOut(expectFirstRunSetup = false) {
-  // A fresh account's setup status can arrive after its shell has mounted.
-  // Wait for that real dialog before normal dismissal; never click through it.
-  if (expectFirstRunSetup) await bodyHas("Choose your workspace");
-  if (await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Close settings");
+  // Read the current account's authoritative setup state rather than assuming
+  // every new account needs configuration or racing its initial status request.
+  const setup = await command("/execute/async", "POST", {
+    script: `const done=arguments[arguments.length-1];
+      fetch(arguments[0]+'/v1/setup/status',{headers:{Authorization:'Bearer '+sessionStorage.getItem('luci.control-plane.session')}})
+        .then(async response=>({status:response.status,body:await response.json()}))
+        .then(value=>done({status:value.status,configured:value.body.configured}))
+        .catch(()=>done({status:0}));`, args: [apiURL],
+  });
+  assert.equal(setup.status, 200);
+  assert.equal(typeof setup.configured, "boolean");
+  if (expectFirstRunSetup) assert.equal(setup.configured, false, "The original owner's interrupted first setup must remain unsaved");
+  if (!setup.configured) {
+    await bodyHas("Choose your workspace");
+    await click("Close settings");
+  }
   await until("setup dialog dismissed before account menu", () => execute("return !document.querySelector('.setup-backdrop')"));
   await click(".rail-account button:first-child", "css");
   await click("Sign out");
@@ -181,7 +193,7 @@ async function verifyLocalEntryRecovery() {
   assert(!(await visibleProjectIDs()).some(id => ownerProjects.includes(id)), "The new account's real catalogue must not include the owner's projects");
   assert.equal(await execute("return [...document.querySelectorAll('[data-kind=project]')].some(e=>e.textContent.includes(arguments[0]))", fixture.projectName), false);
   result.checks.push("An initialized native installation offered OS-authorized account creation after rejected credentials; the new local administrator has a distinct identity and cannot see the owner's project");
-  await signOut(true);
+  await signOut();
   await click("Forgot sign-in?");
   const replacement = randomUUID() + randomUUID();
   await fill("New password", replacement);
