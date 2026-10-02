@@ -33,6 +33,7 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // account home. Keep generated keys beneath that owned home, never world-writable
 // /tmp; do not weaken host/user-key validation to accommodate the test fixture.
 const root = await fs.mkdtemp(path.join(os.homedir(), '.luci-workspace-proof-'));
+await fs.chmod(root, 0o700);
 const username = os.userInfo().username;
 assert.match(username, /^[a-z_][a-z0-9_-]{0,31}$/);
 const passwordLocal = `Local-${randomBytes(18).toString('hex')}`;
@@ -109,7 +110,13 @@ try {
 
   stage = 'start-user-owned-sshd';
   const key = path.join(root, 'client-key'), hostKey = path.join(root, 'host-key');
-  for (const filename of [key, hostKey]) await exec('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', filename]);
+  for (const filename of [key, hostKey]) {
+    await exec('ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', filename]);
+    await fs.chmod(filename, 0o600);
+    const metadata = await fs.stat(filename);
+    assert.equal(metadata.uid, process.getuid(), 'Generated SSH key must belong to the ordinary test user');
+    assert.equal(metadata.mode & 0o777, 0o600, 'Generated SSH private key must be owner-only');
+  }
   const publicKey = (await fs.readFile(hostKey + '.pub', 'utf8')).trim().split(/\s+/)[1];
   const trustedFingerprint = 'SHA256:' + createHash('sha256').update(Buffer.from(publicKey, 'base64')).digest('base64').replace(/=+$/, '');
   const authorized = path.join(root, 'authorized_keys');
