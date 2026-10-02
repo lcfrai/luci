@@ -6,6 +6,10 @@ on:
     branches: [main, 'feat/phase-2-cockpit']
   workflow_dispatch:
     inputs:
+      ssh_only:
+        description: 'Run only the real existing-workspace SSH browser acceptance'
+        type: boolean
+        default: false
       installer_run:
         description: 'Optional completed run ID: test its existing Windows installer without rebuilding'
         type: string
@@ -28,7 +32,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: luci-ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ inputs.installer_run || inputs.installer_release || 'build' }}
+  group: luci-ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ inputs.installer_run || inputs.installer_release || (inputs.ssh_only && 'ssh') || 'build' }}
   cancel-in-progress: false
 
 env:
@@ -39,7 +43,7 @@ env:
 jobs:
   verify:
     name: Go and desktop checks
-    if: ${{ !inputs.installer_run && !inputs.installer_release }}
+    if: ${{ !inputs.installer_run && !inputs.installer_release && !inputs.ssh_only }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -93,6 +97,7 @@ jobs:
   runtime-smoke:
     name: Real Docker and SSH browser UAT
     needs: verify
+    if: ${{ always() && !inputs.installer_run && !inputs.installer_release && (needs.verify.result == 'success' || inputs.ssh_only) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -126,6 +131,7 @@ jobs:
           npx playwright install --with-deps chromium
           sudo chmod -R a+rX /opt/luci-uat-browsers
       - name: Exercise the compiled multi-user control plane
+        if: ${{ !inputs.ssh_only }}
         run: node scripts/control-plane-smoke.mjs --binary artifacts/runtime-smoke/luci --output artifacts/control-plane-smoke.json
       - name: Prepare isolated runtime acceptance fixtures
         id: runtime-fixtures
@@ -154,6 +160,7 @@ jobs:
           sudo install -d -o luci-eval -g luci-eval -m 700 "$stage/evidence"
           echo "stage=$stage" >> "$GITHUB_OUTPUT"
       - name: Exercise Docker as a distinct non-root host user
+        if: ${{ !inputs.ssh_only }}
         env:
           LUCI_EVAL_STAGE: ${{ steps.runtime-fixtures.outputs.stage }}
         run: |

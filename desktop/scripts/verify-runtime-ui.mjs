@@ -409,6 +409,7 @@ try {
     .getByRole("heading", { name: "Luci runtime preview", exact: true })
     .waitFor();
   assert.equal(await frame.locator("#proof").innerText(), nonce);
+  await page.getByTitle("Project preview", { exact: true }).scrollIntoViewIfNeeded();
   await screenshot("04-committed-app-live-in-preview");
   checks.push(
     "Built the committed Docker application through Deploy; actual healthy loopback app rendered inside Luci's preview iframe",
