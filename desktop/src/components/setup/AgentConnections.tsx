@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   errorText,
   type AgentProvider,
+  type CodexAccountConnection,
   type ProductClient,
 } from "../../api/product";
 import { api } from "../../api";
@@ -20,17 +21,34 @@ export function AgentConnections({
   const codex = useCockpit((state) =>
     state.harnesses.find((harness) => harness.id === "codex"),
   );
+  const sessions = useCockpit((state) => state.sessions);
+  const signInSessions = Object.values(sessions)
+    .filter(
+      (session) =>
+        session.harness === "codex" &&
+        session.authOnly &&
+        session.status === "exited",
+    )
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   const [providers, setProviders] = useState<AgentProvider[]>([]);
   const [providerId, setProviderId] = useState("anthropic");
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("http://localhost:11434/v1");
   const [model, setModel] = useState("");
+  const [account, setAccount] = useState<CodexAccountConnection | null>(null);
+  const [signInSessionId, setSignInSessionId] = useState("");
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
   const working = useRef(false),
     alive = useRef(true);
   const provider = providers.find((entry) => entry.id === providerId);
+  const keyLabel =
+    providerId === "anthropic"
+      ? "Anthropic API key"
+      : providerId === "openai"
+        ? "OpenAI API key"
+        : "Endpoint API key · optional";
   useEffect(() => {
     alive.current = true;
     void client
@@ -45,8 +63,60 @@ export function AgentConnections({
       alive.current = false;
     };
   }, [client]);
+  useEffect(() => {
+    if (providerId !== "openai") return;
+    let cancelled = false;
+    setAccount(null);
+    void client
+      .codexAccount()
+      .then((value) => {
+        if (!cancelled) setAccount(value);
+      })
+      .catch((cause) => {
+        if (!cancelled) setError(errorText(cause));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [client, providerId]);
+  const selectedSignIn =
+    signInSessions.find((session) => session.id === signInSessionId) ??
+    signInSessions[0];
+  async function updateAccount(action: "connect" | "disconnect" | "refresh") {
+    if (working.current || (action === "connect" && !selectedSignIn)) return;
+    working.current = true;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const value =
+        action === "connect"
+          ? await client.connectCodexAccount(selectedSignIn!.id)
+          : action === "disconnect"
+            ? await client.disconnectCodexAccount()
+            : await client.codexAccount();
+      if (alive.current) {
+        setAccount(value);
+        if (action !== "refresh")
+          setNotice(
+            action === "connect"
+              ? "Codex sign-in is saved for new sessions in this workspace. A completed model request is still needed to verify access."
+              : "Codex sign-in is disconnected for new sessions. Existing sessions keep their private sign-in. Any saved API key remains available separately.",
+          );
+      }
+    } catch (cause) {
+      if (alive.current) setError(errorText(cause));
+    } finally {
+      working.current = false;
+      if (alive.current) setBusy(false);
+    }
+  }
   async function save(clear = false) {
-    if (working.current) return;
+    if (
+      working.current ||
+      (providerId === "openai" && account?.configured && !clear)
+    )
+      return;
     working.current = true;
     setBusy(true);
     setError("");
@@ -130,14 +200,29 @@ export function AgentConnections({
         {providerId === "anthropic"
           ? "Use your own Anthropic API key for agent sessions. API usage is billed by Anthropic separately from a Claude subscription. You can also sign in through Claude Code in a session."
           : providerId === "openai"
-            ? "Use your own OpenAI API key, or start Codex and use its official sign-in flow. API billing and subscription access are separate; model usage belongs to your account."
+            ? "Connect your ChatGPT subscription through Codex’s official sign-in, or use separately billed OpenAI API credits. Model usage belongs to your account."
             : "Connect an OpenAI-compatible endpoint you control. Choose a model already available there. Luci will not switch to a paid provider if it is unavailable. Localhost is resolved from the active execution workspace."}
       </p>
       {providerId === "openai" && (
         <div className="setup-plan">
+          <h3>ChatGPT subscription</h3>
+          <p role="status">
+            {account?.configured
+              ? cloud
+                ? "Codex sign-in saved in your cloud workspace."
+                : "Codex sign-in saved on this machine."
+              : account
+                ? "No Codex subscription sign-in saved."
+                : "Checking Codex sign-in…"}
+          </p>
           <button
             className="luci-button"
-            disabled={busy || !worktreeId || !codex?.available}
+            disabled={
+              busy ||
+              !!account?.activeSessionId ||
+              !worktreeId ||
+              !codex?.available
+            }
             onClick={() => void signIn()}
           >
             Open Codex account sign-in
@@ -147,11 +232,70 @@ export function AgentConnections({
             {codex && !codex.available
               ? `${codex.note || "Codex is unavailable in this runtime."} `
               : ""}
-            The terminal displays Codex’s official device sign-in. After it
-            exits, restart that session to begin work with the saved account.
-            Credentials stay outside project Git.
+            Complete the official device sign-in in the terminal. Once it exits,
+            return here and choose Save Codex sign-in. New implementation
+            sessions will use that subscription, even if an API key is saved.
+            Credentials stay outside project Git and are private to your Luci
+            account.
           </p>
+          {signInSessions.length > 0 && (
+            <>
+              <label className="luci-field">
+                Completed sign-in session
+                <select
+                  value={selectedSignIn?.id ?? ""}
+                  disabled={busy}
+                  onChange={(event) => setSignInSessionId(event.target.value)}
+                >
+                  {signInSessions.map((session) => (
+                    <option key={session.id} value={session.id}>
+                      {session.title || "Codex sign-in"} · {session.createdAt}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                className="luci-button"
+                disabled={busy || !!account?.activeSessionId}
+                onClick={() => void updateAccount("connect")}
+              >
+                Save Codex sign-in
+              </button>
+            </>
+          )}
+          {account?.activeSessionId && (
+            <p className="journey-muted">
+              A Codex subscription session is active. Stop it before connecting
+              another sign-in or starting another subscription session.
+            </p>
+          )}
+          <div className="setup-actions">
+            <button
+              className="luci-button"
+              disabled={busy}
+              onClick={() => void updateAccount("refresh")}
+            >
+              Refresh Codex connection
+            </button>
+            {account?.configured && (
+              <button
+                className="luci-button"
+                disabled={busy}
+                onClick={() => void updateAccount("disconnect")}
+              >
+                Disconnect Codex sign-in
+              </button>
+            )}
+          </div>
         </div>
+      )}
+      {providerId === "openai" && <h3>OpenAI API credits</h3>}
+      {providerId === "openai" && account?.configured && (
+        <p className="journey-muted">
+          Your subscription is selected for new Codex sessions. Disconnect it
+          first to use API credits. Removing a saved API key does not disconnect
+          your subscription.
+        </p>
       )}
       <p role="status">
         {provider?.configured
@@ -203,15 +347,15 @@ export function AgentConnections({
           </div>
         )}
         <label className="luci-field">
-          {providerId === "anthropic"
-            ? "Anthropic API key"
-            : providerId === "openai"
-              ? "OpenAI API key"
-              : "Endpoint API key · optional"}
+          {keyLabel}
           <input
+            aria-label={keyLabel}
             type="password"
             autoComplete="off"
             required={providerId !== "local"}
+            disabled={
+              busy || (providerId === "openai" && !!account?.configured)
+            }
             value={apiKey}
             onChange={(event) => setApiKey(event.target.value)}
           />
@@ -225,6 +369,7 @@ export function AgentConnections({
             className="luci-button"
             disabled={
               busy ||
+              (providerId === "openai" && !!account?.configured) ||
               (providerId === "local"
                 ? !baseUrl.trim() || !model.trim()
                 : !apiKey)

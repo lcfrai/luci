@@ -47,13 +47,16 @@ type Session struct {
 	BranchID   string `json:"branchId"`
 	WorktreeID string `json:"worktreeId"`
 
-	Harness        string   `json:"harness"` // harness.ID
-	Model          string   `json:"model"`
-	Effort         string   `json:"effort"`
-	PermissionMode string   `json:"permissionMode"`
-	OpeningPrompt  string   `json:"openingPrompt"`
-	Command        string   `json:"command"` // resolved argv[0], for restart
-	Args           []string `json:"args"`    // resolved argv[1:], for restart
+	Harness           string   `json:"harness"` // harness.ID
+	Model             string   `json:"model"`
+	Effort            string   `json:"effort"`
+	PermissionMode    string   `json:"permissionMode"`
+	OpeningPrompt     string   `json:"openingPrompt"`
+	Command           string   `json:"command"` // resolved argv[0], for restart
+	Args              []string `json:"args"`    // resolved argv[1:], for restart
+	AuthOnly          bool     `json:"authOnly,omitempty"`
+	AuthMode          string   `json:"authMode,omitempty"`          // "chatgpt" prevents API-key substitution
+	CodexConnectionID string   `json:"codexConnectionId,omitempty"` // private connection generation, never REST
 
 	// ConversationID is the HARNESS's id for this session's conversation — the
 	// UUID the control plane minted and passed as `claude --session-id` — or ""

@@ -38,11 +38,27 @@ it("offers an embedded preview only for a verified local release and removes it 
   expect(screen.getByTitle("Project preview").getAttribute("src")).toBe(
     "http://127.0.0.1:54211/",
   );
+  expect(
+    screen.getByTitle("Project preview").getAttribute("sandbox"),
+  ).toContain("allow-same-origin");
   await userEvent.click(screen.getByRole("button", { name: "Stop preview" }));
   await waitFor(() =>
     expect(screen.queryByTitle("Project preview")).toBeNull(),
   );
   expect(stop).toHaveBeenCalledWith("p-1", "rel-1");
+});
+
+it("does not grant same-origin sandbox permission to a control-origin preview URL", async () => {
+  vi.spyOn(productApi, "releases").mockResolvedValue({
+    releases: [{ ...ready, url: window.location.origin + "/" }],
+  });
+  render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Open preview" }),
+  );
+  expect(
+    screen.getByTitle("Project preview").getAttribute("sandbox"),
+  ).not.toContain("allow-same-origin");
 });
 it("records a build failure without exposing an unverified preview", async () => {
   vi.spyOn(productApi, "releases")

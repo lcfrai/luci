@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
@@ -330,8 +331,9 @@ func (rs *routes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // API is the whole HTTP surface as one handler.
 type API struct {
-	deps    Deps
-	handler http.Handler
+	deps           Deps
+	handler        http.Handler
+	codexAccountMu sync.Mutex // serializes this user's retained account and private snapshots
 
 	// guarded and root are the two recorders, kept whole rather than
 	// snapshotted into a []string. RegisteredPatterns() reads them LIVE, so a
@@ -398,6 +400,7 @@ func New(d Deps) (*API, error) {
 		d.Product.Register(guarded)
 	}
 	a.registerSessions(guarded)
+	a.registerCodexConnection(guarded)
 	a.registerAttach(guarded)
 	// Task 12 added a.registerAttach(guarded) on the line above. One line, taking
 	// *routes, and in the SAME step that defines the method it names: a call

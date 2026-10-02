@@ -50,19 +50,29 @@ the active server account; its permissions govern workspace and runtime controls
 | Define and Design | Brief and drawing save, reload and reopen after an app restart. |
 | Develop | Tasks retain their state. The selected branch/worktree and agent settings are clear. |
 | Actual agent work | A connected provider edits the selected project, produces usable output and retains its conversation after restart/fork. Use your account to judge model quality. |
+| Codex subscription | Complete official device sign-in and Save Codex sign-in in Settings. Start a new implementation session; its recorded auth mode is ChatGPT. A saved API key must not replace the subscription. Stop before starting another session and check retained sign-in after restart. |
 | Project checks | Run the application's meaningful checks in Docker; inspect output and failures. Task completion is independent from a passed check. |
 | Files and Git | Files show saved output. Review and commit changes, then connect/push the reviewed commit to your repository. |
 | Runtime configuration | Save a private variable. Its value clears and is never displayed again; variable names remain. Changes affect the next build/deployment. |
 | Local preview | Build committed code, wait for health to pass, open the embedded preview, use the app, then Stop it. |
+| Public static deployment | Publish the reviewed commit to a public GitHub repository. In Deploy, choose GitHub Pages and acknowledge public publication. Wait for the exact commit and HTTPS content check, then use the public site. Later default-branch pushes republish the committed /docs folder. |
 | Backup and restore | Download the archive and restore under a new name. Brief, design, plan and Git history return. Runtime variables, application databases and volumes need separate recovery. |
 | Existing workspace | Incorrect remote credentials leave the local login intact. Correct credentials activate the remote workspace; Return to this machine restores local projects. |
 
-See [the complete entry matrix](luci/ENTRY-UAT.md) for interrupted setup, stale
-sessions, rejected passwords, local recovery and shared invitation acceptance.
 | Accounts | A member cannot see another user's projects or administrative controls. Admin actions follow the displayed role and policy. |
 | Installer lifecycle | Restart, reinstall and upgrade preserve user projects and identity. Uninstall removes app resources and preserves user data. |
 | Keyboard and reflow | Tab into project navigation, use arrows, open/close the mobile drawer, and use forms at narrow widths and 200% zoom. |
 | Your cloud/domain | Create approved resources in your account, set the instructed DNS records, verify HTTPS and deploy/stop/rollback the reviewed application. |
+
+See [the complete entry matrix](luci/ENTRY-UAT.md) for interrupted setup, stale
+sessions, rejected passwords, local recovery and shared invitation acceptance.
+
+The real subscription acceptance harness is `scripts/subscription-journey-eval.mjs`.
+Run its prepare, auth, develop, verify and deploy stages against an intended Luci
+test workspace; `--help` lists the environment requirements. Its `results.json`
+cannot pass without real subscription activity, Docker command checks, matching
+committed previews and a functioning public HTTPS site. A prerequisite pause stays
+pending, and provider fixtures cannot satisfy this gate.
 
 ## Reproducible engineering acceptance
 

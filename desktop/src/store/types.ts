@@ -20,12 +20,7 @@ export type MachineKind = "local" | "cloud";
  *  "running" and "error"; the other four need cloud machines (Phase 8). The cockpit renders
  *  all six so nothing changes here later. */
 export type MachineState =
-  | "provisioning"
-  | "running"
-  | "idle"
-  | "sleeping"
-  | "stopped"
-  | "error";
+  "provisioning" | "running" | "idle" | "sleeping" | "stopped" | "error";
 
 export type Isolation = "microvm" | "container" | "none";
 
@@ -92,7 +87,8 @@ export interface Worktree {
 
 /** The five ids the catalogue ships today. The `(string & {})` arm keeps the union open so a
  *  sixth harness added server-side does not fail to parse, while preserving autocomplete. */
-export type KnownHarnessId = "claude-code" | "codex" | "opencode" | "gemini-cli" | "shell";
+export type KnownHarnessId =
+  "claude-code" | "codex" | "opencode" | "gemini-cli" | "shell";
 export type HarnessId = KnownHarnessId | (string & {});
 
 /** Server-driven. Never a hard-coded list in the cockpit. */
@@ -149,6 +145,10 @@ export interface Session {
   permissionMode: PermissionMode;
   openingPrompt: string;
   status: SessionStatus;
+  /** Official account sign-in only; contains no implementation prompt. */
+  authOnly?: boolean;
+  /** Recorded subscription use cannot fall back to an API key on restart. */
+  authMode?: "chatgpt";
   /** Free text for the user: "killed", "process exited", "idle timeout",
    *  "sandbox disappeared while the app was not running". Rendered verbatim. */
   exitReason: string;
@@ -173,7 +173,8 @@ export type Layout = "columns" | "canvas";
 
 /** The six lens rows of the sub-rail. No order, no numbering, no completion state —
  *  docs/AGENTIC-UX.md §4 rule 12. Only "develop" has a surface in Phase 2. */
-export type Lens = "discover" | "design" | "develop" | "files" | "merge" | "deploy";
+export type Lens =
+  "discover" | "design" | "develop" | "files" | "merge" | "deploy";
 
 /** A hand-placed Canvas tile. Persisted per session — known defect 6. */
 export interface TilePosition {

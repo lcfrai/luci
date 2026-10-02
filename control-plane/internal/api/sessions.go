@@ -759,6 +759,8 @@ type sessionJSON struct {
 	Effort         string `json:"effort"`
 	PermissionMode string `json:"permissionMode"`
 	OpeningPrompt  string `json:"openingPrompt"`
+	AuthOnly       bool   `json:"authOnly,omitempty"`
+	AuthMode       string `json:"authMode,omitempty"`
 
 	Status     string `json:"status"`
 	ExitReason string `json:"exitReason"`
@@ -790,6 +792,8 @@ func toJSON(s registry.Session, base string) sessionJSON {
 		Effort:         s.Effort,
 		PermissionMode: s.PermissionMode,
 		OpeningPrompt:  s.OpeningPrompt,
+		AuthOnly:       s.AuthOnly,
+		AuthMode:       s.AuthMode,
 		Status:         string(s.Status),
 		ExitReason:     s.ExitReason,
 		Backend:        s.Backend,
@@ -1099,6 +1103,10 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	var conversation, conversationStore string
 	var source sessionResumeSource
+	if harnessID == harness.Codex {
+		a.codexAccountMu.Lock()
+		defer a.codexAccountMu.Unlock()
+	}
 	if sessionHasConversation(desc) || desc.NativeState() {
 		if resume != "" {
 			var ok bool
@@ -1112,6 +1120,23 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		conversation = ids.UUID()
 	}
 
+	var account *codexConnection
+	var authMode string
+	if harnessID == harness.Codex {
+		var sourceSession registry.Session
+		if source.id != "" {
+			sourceSession, err = a.deps.Store.Get(source.id)
+			if err != nil {
+				codexAccountProblem(w, err)
+				return
+			}
+		}
+		account, authMode, err = a.selectCodexConnection(ctx, sourceSession, req.AuthOnly, "")
+		if err != nil {
+			codexAccountProblem(w, err)
+			return
+		}
+	}
 	command, argv, err := harness.Build(harness.Request{
 		ProjectBrief:  true,
 		Harness:       harnessID,
@@ -1161,6 +1186,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteProblem(w, 409, httpx.CodeConflict, "Configure an explicit local or compatible model in Settings before starting OpenCode.", nil)
 		return
 	}
+	argv = codexSubscriptionArgs(argv, sandboxEnv, authMode)
 	argv = nativeArgs(string(harnessID), argv, sandboxEnv, req.AuthOnly)
 	if a.deps.Backend.Kind() == backend.KindDocker {
 		nativeDockerEndpoint(sandboxEnv)
@@ -1189,6 +1215,10 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			a.internal(w, r, "prepare private provider state", err)
 			return
 		}
+		if err := seedCodexConnection(providerStore, account); err != nil {
+			codexAccountProblem(w, err)
+			return
+		}
 		sandboxMounts = nativeMount(sandboxMounts, providerStore)
 		nativeEnvironment(string(harnessID), sandboxEnv, mode)
 	}
@@ -1210,25 +1240,28 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	// reaper can match a container against. Task 13 owns the grace condition
 	// that stops a sweep landing in this window killing a live create.
 	if err := a.deps.Store.Create(registry.Session{
-		ID:             sessionID,
-		Title:          title,
-		MachineID:      machineID,
-		ProjectID:      projectID,
-		BranchID:       branchID,
-		WorktreeID:     req.WorktreeID,
-		Harness:        string(harnessID),
-		Model:          model,
-		Effort:         string(effort),
-		PermissionMode: string(mode),
-		OpeningPrompt:  req.OpeningPrompt,
-		Command:        command,
-		Args:           argv,
-		ConversationID: conversation,
-		Status:         registry.StatusStarting,
-		Backend:        string(a.deps.Backend.Kind()),
-		SandboxID:      sessionID,
-		AttachToken:    token,
-		ContextRef:     req.ContextRef,
+		ID:                sessionID,
+		Title:             title,
+		MachineID:         machineID,
+		ProjectID:         projectID,
+		BranchID:          branchID,
+		WorktreeID:        req.WorktreeID,
+		Harness:           string(harnessID),
+		Model:             model,
+		Effort:            string(effort),
+		PermissionMode:    string(mode),
+		OpeningPrompt:     req.OpeningPrompt,
+		AuthOnly:          req.AuthOnly,
+		AuthMode:          authMode,
+		CodexConnectionID: codexConnectionID(account),
+		Command:           command,
+		Args:              argv,
+		ConversationID:    conversation,
+		Status:            registry.StatusStarting,
+		Backend:           string(a.deps.Backend.Kind()),
+		SandboxID:         sessionID,
+		AttachToken:       token,
+		ContextRef:        req.ContextRef,
 
 		CarriedConversationID: carriedConversation,
 	}); err != nil {
@@ -1257,6 +1290,11 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := a.leaseCodexConnection(account, sessionID); err != nil {
+		a.markSessionExited(sessionID, "the saved ChatGPT connection could not be reserved")
+		codexAccountProblem(w, err)
+		return
+	}
 	// 5. The sandbox, on a context of its own: see sessionCreateContext (F1).
 	createCtx, endCreate := a.sessionCreateContext(ctx)
 	defer endCreate()
@@ -1797,6 +1835,18 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	var account *codexConnection
+	authMode := sess.AuthMode
+	if sess.Harness == "codex" {
+		a.codexAccountMu.Lock()
+		defer a.codexAccountMu.Unlock()
+		var err error
+		account, authMode, err = a.selectCodexConnection(ctx, sess, false, sess.ID)
+		if err != nil {
+			codexAccountProblem(w, err)
+			return
+		}
+	}
 
 	// The spec is rebuilt, not replayed, so the mount has to be re-resolved.
 	path, err := a.deps.Worktrees.Path(ctx, sess.WorktreeID)
@@ -1879,6 +1929,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteProblem(w, 409, httpx.CodeConflict, "Configure an explicit local or compatible model in Settings before starting OpenCode.", nil)
 		return
 	}
+	args = codexSubscriptionArgs(args, sandboxEnv, authMode)
 	args = nativeArgs(sess.Harness, args, sandboxEnv, false)
 	if a.deps.Backend.Kind() == backend.KindDocker {
 		nativeDockerEndpoint(sandboxEnv)
@@ -1898,6 +1949,13 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	}
 	if nativeHarness(sess.Harness) {
 		source := sessionResumeSource{worktreeID: sess.WorktreeID, conversation: sess.ConversationID}
+		if account != nil && account.ActiveSessionID == sess.ID {
+			if err := a.reconcileCodexConnection(account); err != nil {
+				a.markSessionExited(id, "ChatGPT sign-in could not be retained after stopping")
+				codexAccountProblem(w, err)
+				return
+			}
+		}
 		providerStore, err := a.prepareNativeState(sess.WorktreeID, sess.Harness, conversation, source, true)
 		if err != nil {
 			_, _ = a.deps.Store.Update(id, func(s *registry.Session) error {
@@ -1907,6 +1965,11 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 				return nil
 			})
 			a.internal(w, r, "prepare private provider state for restart", err)
+			return
+		}
+		if err := seedCodexConnection(providerStore, account); err != nil {
+			a.markSessionExited(id, "ChatGPT sign-in could not be prepared after stopping")
+			codexAccountProblem(w, err)
 			return
 		}
 		sandboxMounts = nativeMount(sandboxMounts, providerStore)
@@ -1984,6 +2047,9 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		sess.AttachToken = token
 		sess.Command = command
 		sess.Args = args
+		sess.AuthOnly = false
+		sess.AuthMode = authMode
+		sess.CodexConnectionID = codexConnectionID(account)
 		sess.ConversationID = conversation
 		sess.EarlierConversationIDs = earlier
 		sess.Status = registry.StatusStarting
@@ -2002,6 +2068,11 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := a.leaseCodexConnection(account, id); err != nil {
+		a.markSessionExited(id, "the saved ChatGPT connection could not be reserved")
+		codexAccountProblem(w, err)
+		return
+	}
 	// Its own context, for the same reason create's is: F1's abort cancels a
 	// restart's Docker calls exactly as it cancels a create's.
 	createCtx, endCreate := a.sessionCreateContext(ctx)
@@ -2070,6 +2141,10 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 		defer sessionRestarts.release(id)
 	}
 	ctx := r.Context()
+	if sess.Harness == "codex" {
+		a.codexAccountMu.Lock()
+		defer a.codexAccountMu.Unlock()
+	}
 	purge := strings.EqualFold(strings.TrimSpace(r.URL.Query().Get("purge")), "true")
 
 	// A session a previous verb already took terminal has no sandbox left to
@@ -2126,6 +2201,24 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if sess.Harness == "codex" && sess.CodexConnectionID != "" {
+		account, err := a.readCodexConnection()
+		if err != nil {
+			codexAccountProblem(w, err)
+			return
+		}
+		if account != nil && account.ID == sess.CodexConnectionID && account.ActiveSessionID == id {
+			if err := a.reconcileCodexConnection(account); err != nil {
+				codexAccountProblem(w, err)
+				return
+			}
+			account.ActiveSessionID = ""
+			if err := a.writeCodexConnection(account); err != nil {
+				codexAccountProblem(w, err)
+				return
+			}
+		}
+	}
 	if !purge {
 		httpx.WriteJSON(w, http.StatusOK, toJSON(updated, sessionBasePath))
 		return

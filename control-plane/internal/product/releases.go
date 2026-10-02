@@ -125,6 +125,12 @@ func (s *Server) listProjectReleases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result = append(result, cloud...)
+	pages, err := s.pagesReleases(p.ID)
+	if err != nil {
+		journeyError(w, 500, "releases_unavailable", "Pages history could not be read.")
+		return
+	}
+	result = append(result, pages...)
 	sort.SliceStable(result, func(i, j int) bool { return result[i].CreatedAt > result[j].CreatedAt })
 	journeyJSON(w, 200, map[string]any{"releases": result})
 }
@@ -345,6 +351,10 @@ func waitPreviewHealthy(ctx context.Context, url string) error {
 }
 
 func (s *Server) stopLocalRelease(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.PathValue("releaseId"), "pages-") {
+		s.pagesReleaseOperation(w, r, true)
+		return
+	}
 	p, ok := s.requestProject(w, r)
 	if !ok {
 		return

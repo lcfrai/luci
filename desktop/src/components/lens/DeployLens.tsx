@@ -3,6 +3,7 @@ import { productApi, errorText, type Release } from "../../api/product";
 import { ProjectRequired, JourneyHeader } from "../journey/shared";
 import { useSetup } from "../setup/SetupProvider";
 import { CloudDeployForm } from "../journey/CloudDeployForm";
+import { PagesDeployForm } from "../journey/PagesDeployForm";
 import { ProjectConfiguration } from "../journey/ProjectConfiguration";
 import { useAuth } from "../auth/AuthProvider";
 
@@ -22,7 +23,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
   const locked = !!busy || configurationBusy;
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
-  const [mode, setMode] = useState<"local" | "cloud">("local");
+  const [mode, setMode] = useState<"local" | "cloud" | "pages">("local");
   const alive = useRef(true),
     working = useRef(false);
   const setup = useSetup();
@@ -56,9 +57,14 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
     .filter(
       (release) =>
         release.target !== "local" &&
-        ["preparing", "queued", "deploying", "verifying", "stopping"].includes(
-          release.status,
-        ),
+        [
+          "preparing",
+          "queued",
+          "building",
+          "deploying",
+          "verifying",
+          "stopping",
+        ].includes(release.status),
     )
     .map((release) => release.id)
     .join(",");
@@ -126,7 +132,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
     <section className="journey-page">
       <JourneyHeader
         title="Bring it to life."
-        subtitle="Build a local preview or ship to your own cloud. A release is ready only after its health check passes."
+        subtitle="Preview on this machine, publish a static site, or deploy to your cloud. Readiness requires a verified release and health check."
       >
         {manageBacking && (
           <button className="luci-button" onClick={() => setup?.openCloud()}>
@@ -134,7 +140,11 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
           </button>
         )}
       </JourneyHeader>
-      <div className="journey-actions" role="group" aria-label="Deployment destination">
+      <div
+        className="journey-actions"
+        role="group"
+        aria-label="Deployment destination"
+      >
         <button
           className="luci-button"
           aria-pressed={mode === "local"}
@@ -152,6 +162,14 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
           onClick={() => setMode("cloud")}
         >
           Your cloud
+        </button>
+        <button
+          className="luci-button"
+          aria-pressed={mode === "pages"}
+          disabled={locked}
+          onClick={() => setMode("pages")}
+        >
+          GitHub Pages
         </button>
       </div>
       {error && (
@@ -195,6 +213,18 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
             {busy || "Build local preview"}
           </button>
         </form>
+      ) : mode === "pages" ? (
+        <PagesDeployForm
+          projectId={projectId}
+          busy={
+            busy || (configurationBusy ? "Saving runtime configuration" : "")
+          }
+          onDeploy={(input) =>
+            void operate("Submitting static deployment", () =>
+              productApi.pagesRelease(projectId, input),
+            )
+          }
+        />
       ) : (
         <CloudDeployForm
           projectId={projectId}
@@ -210,11 +240,13 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
           }
         />
       )}
-      <ProjectConfiguration
-        projectId={projectId}
-        disabled={!!busy}
-        onBusyChange={setConfigurationBusy}
-      />
+      {mode !== "pages" && (
+        <ProjectConfiguration
+          projectId={projectId}
+          disabled={!!busy}
+          onBusyChange={setConfigurationBusy}
+        />
+      )}
       <div className="journey-header deploy-history-head">
         <div>
           <h2>Releases</h2>
@@ -245,7 +277,9 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
               <strong>
                 {release.target === "local"
                   ? "Local preview"
-                  : "Cloud deployment"}
+                  : release.target === "github-pages"
+                    ? "GitHub Pages site"
+                    : "Cloud deployment"}
               </strong>
               <span
                 className={`setup-status setup-status-${release.status === "failed" ? "error" : release.status === "ready" ? "ready" : "unknown"}`}
@@ -260,33 +294,45 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
               {new Date(release.createdAt).toLocaleString()}
             </small>
             <div className="journey-actions">
-              {(remotePreview(release) || localUrl(release)) && (
-                <button
+              {release.target === "github-pages" && localUrl(release) && (
+                <a
                   className="luci-button"
-                  disabled={locked}
-                  onClick={() => {
-                    if (!remotePreview(release)) {
-                      setPreview(localUrl(release));
-                      return;
-                    }
-                    void operate("Opening workspace preview", async () => {
-                      const prepared = await productApi.prepareWorkspacePreview(
-                        projectId,
-                        release.id,
-                      );
-                      const url = localUrl({ ...release, url: prepared.url });
-                      if (!url)
-                        throw new Error(
-                          "Luci did not return a valid local preview address.",
-                        );
-                      if (alive.current) setPreview(url);
-                      return release;
-                    });
-                  }}
+                  href={localUrl(release)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  Open preview
-                </button>
+                  Open deployed site
+                </a>
               )}
+              {release.target !== "github-pages" &&
+                (remotePreview(release) || localUrl(release)) && (
+                  <button
+                    className="luci-button"
+                    disabled={locked}
+                    onClick={() => {
+                      if (!remotePreview(release)) {
+                        setPreview(localUrl(release));
+                        return;
+                      }
+                      void operate("Opening workspace preview", async () => {
+                        const prepared =
+                          await productApi.prepareWorkspacePreview(
+                            projectId,
+                            release.id,
+                          );
+                        const url = localUrl({ ...release, url: prepared.url });
+                        if (!url)
+                          throw new Error(
+                            "Luci did not return a valid local preview address.",
+                          );
+                        if (alive.current) setPreview(url);
+                        return release;
+                      });
+                    }}
+                  >
+                    Open preview
+                  </button>
+                )}
               {release.target !== "local" && (
                 <button
                   className="luci-button"
@@ -310,17 +356,22 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
                     void operate(
                       release.target === "local"
                         ? "Stopping preview"
-                        : "Stopping cloud application",
+                        : release.target === "github-pages"
+                          ? "Unpublishing static site"
+                          : "Stopping cloud application",
                       () => productApi.stopRelease(projectId, release.id),
                     )
                   }
                 >
                   {release.target === "local"
                     ? "Stop preview"
-                    : "Stop cloud application"}
+                    : release.target === "github-pages"
+                      ? "Unpublish site"
+                      : "Stop cloud application"}
                 </button>
               )}
               {release.target !== "local" &&
+                release.target !== "github-pages" &&
                 ["ready", "failed", "stopped"].includes(release.status) && (
                   <button
                     className="luci-button"
@@ -335,13 +386,14 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
                   </button>
                 )}
             </div>
-            {release.target !== "local" && (
-              <small>
-                Rollback rebuilds this selected release’s exact commit and
-                historical brief. Provider progress and health must be checked
-                before it is ready.
-              </small>
-            )}
+            {release.target !== "local" &&
+              release.target !== "github-pages" && (
+                <small>
+                  Rollback rebuilds this selected release’s exact commit and
+                  historical brief. Provider progress and health must be checked
+                  before it is ready.
+                </small>
+              )}
           </li>
         ))}
       </ul>
@@ -356,7 +408,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
           <iframe
             src={preview}
             title="Project preview"
-            sandbox="allow-scripts allow-forms"
+            sandbox={`allow-scripts allow-forms${new URL(preview).origin !== window.location.origin ? " allow-same-origin" : ""}`}
           />
         </div>
       )}

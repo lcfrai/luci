@@ -30,6 +30,7 @@ import (
 // map; they do not touch catalogAuditRoutes. Adding a side-effecting GET means a
 // failing test that names the rule before it can be made to pass.
 var catalogReadOnlyRoutes = map[string]string{
+	"GET /v1/setup/agents/codex/account": "Reads private connection metadata only; no CLI, credential export, reconciliation or writes.",
 	"GET /v1/healthz": "Reads Deps.BackendReady, which task 13 keeps as a CACHED bool. " +
 		"This is the one route mounted outside the origin guard, so a hostile page reaches it " +
 		"with no checks whatsoever; a healthz that refreshed a probe on request would be a " +

@@ -95,7 +95,7 @@ func (row *CloudRelease) UnmarshalJSON(data []byte) error {
 
 func (s *Server) registerCloudReleases(mux Registrar) {
 	mux.HandleFunc("POST /v1/product/projects/{id}/releases/cloud", s.createCloudRelease)
-	mux.HandleFunc("POST /v1/product/projects/{id}/releases/{releaseId}/refresh", s.refreshCloudRelease)
+	mux.HandleFunc("POST /v1/product/projects/{id}/releases/{releaseId}/refresh", s.refreshRelease)
 	mux.HandleFunc("POST /v1/product/projects/{id}/releases/{releaseId}/rollback", s.rollbackCloudRelease)
 	mux.HandleFunc("POST /v1/product/projects/{id}/releases/deploy-key", s.prepareDeployKey)
 }

@@ -28,6 +28,13 @@ export interface AgentProvider {
 export interface AgentConnections {
   providers: AgentProvider[];
 }
+export interface CodexAccountConnection {
+  configured: boolean;
+  authMode: "chatgpt";
+  sourceSessionId?: string;
+  activeSessionId?: string;
+  message: string;
+}
 export interface GitHubAccount {
   available: boolean;
   signedIn: boolean;
@@ -223,6 +230,11 @@ export interface Release {
   url: string;
   message: string;
   createdAt: string;
+}
+export interface PagesReleaseRequest {
+  commit: string;
+  branch: string;
+  acknowledgePublic: boolean;
 }
 export interface CloudJob {
   id: string;
@@ -436,6 +448,18 @@ export function createProductClient(
     gitIdentity: () =>
       request<{ name: string; email: string }>("/v1/setup/git/identity"),
     agents: () => request<AgentConnections>("/v1/setup/agents"),
+    codexAccount: () =>
+      request<CodexAccountConnection>("/v1/setup/agents/codex/account"),
+    connectCodexAccount: (sessionId: string) =>
+      request<CodexAccountConnection>("/v1/setup/agents/codex/account", {
+        sessionId,
+      }),
+    disconnectCodexAccount: () =>
+      request<CodexAccountConnection>(
+        "/v1/setup/agents/codex/account",
+        undefined,
+        "DELETE",
+      ),
     saveAnthropicKey: (apiKey: string) =>
       request<AgentConnections>("/v1/setup/agents/anthropic", { apiKey }),
     saveOpenAIKey: (apiKey: string) =>
@@ -658,6 +682,8 @@ export function createProductClient(
       ),
     cloudRelease: (id: string, input: CloudReleaseRequest) =>
       request<Release>(`${project(id)}/releases/cloud`, input, "POST", 180_000),
+    pagesRelease: (id: string, input: PagesReleaseRequest) =>
+      request<Release>(`${project(id)}/releases/pages`, input, "POST", 180_000),
     refreshRelease: (id: string, releaseId: string) =>
       request<Release>(
         `${project(id)}/releases/${encodeURIComponent(releaseId)}/refresh`,

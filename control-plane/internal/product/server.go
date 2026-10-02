@@ -21,7 +21,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/management"
 )
 
-const Version = "0.4.2"
+const Version = "0.4.3"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -180,6 +180,7 @@ func (s *Server) Register(mux Registrar) {
 	s.registerCloudJobs(mux)
 	s.registerConnections(mux)
 	s.registerCloudReleases(mux)
+	s.registerPagesReleases(mux)
 	s.registerSetupTools(mux)
 	s.registerProviderLogin(mux)
 	s.registerWorkspace(mux)
