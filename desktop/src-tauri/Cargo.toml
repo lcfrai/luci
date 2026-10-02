@@ -3,6 +3,7 @@ name = "luci"
 version = "0.3.0"
 description = "Luci — define, design, develop and deploy in one place"
 authors = ["LCFR AI"]
+license = "MIT"
 homepage = "https://lcfr.ai"
 edition = "2021"
 

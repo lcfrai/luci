@@ -25,6 +25,9 @@
     }
   },
   "bundle": {
+    "copyright": "Copyright (c) 2026 lcfr.ai contributors",
+    "license": "MIT",
+    "licenseFile": "../../LICENSE",
     "resources": { "runtime/": "runtime/", "licenses/": "licenses/", "cloud/": "cloud/" },
     "externalBin": ["binaries/luci-api"],
     "active": true,

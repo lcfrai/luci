@@ -13,4 +13,6 @@ Luci is lcfr.ai's open-source application for Define → Design → Develop → 
 
 The local default needs no organisation login, cloud database or Kubernetes cluster. Users configure their own Git identity, agent credentials and optional cloud account. Secrets are excluded from API read responses and project source.
 
+Luci's own code is MIT licensed; dependencies retain their original licences. Local use has no Luci licence or platform fee. Keep cloud spending optional, choose the smallest viable machine for the intended workload, and review current provider quotes and separately billed model usage. A configured budget is a planning constraint, not an enforced provider spending limit.
+
 Historical terminology and corporate planning are archived in `docs/legacy/` and `docs/superpowers/`; they do not govern the Luci build.

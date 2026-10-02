@@ -2,6 +2,8 @@
 
 Luci 0.3.0 packages are release candidates. The workflow prepares downloadable build artifacts for review; it does not publish a GitHub release, upload to lcfr.ai, sign an installer, change repository visibility or provision cloud resources. A successful build proves the checks it ran, not the outstanding acceptance gates below.
 
+Luci's own code uses MIT. Include the root `LICENSE` and `NOTICE` with distributions; upstream components and bundled fonts retain their original grants. In particular, Luci's MIT choice does not replace dependencies' Apache-2.0 or other licence files.
+
 ## Candidate packages
 
 | Package | Interface | Launch |
@@ -65,7 +67,9 @@ Before calling a candidate a public production release, retain evidence for thes
 5. Review licence inventory completeness, source attribution, retained-code ownership, dependency advisories and distribution permissions. The historical private repository and its history require review before any public-source publication.
 6. Set up publisher signing and the intended public source/download location. Native macOS distribution additionally needs its own build, signing and notarization path. Automatic updates are not configured; publish upgrade and rollback instructions for the release actually shipped.
 
-Current verification limits: the development host's Docker engine is unavailable. The Linux Docker job must complete successfully before its real session/preview checks count as evidence. Its shell harness requires no model account; a model-backed agent journey remains a separate gate. Provider/process adapters and HTTP/WebSocket test fixtures can validate request handling and state transitions; no live AWS/Azure account, billable resource, real domain/TLS rollout or complete remote installation is implied by those tests.
+Recorded CI evidence: [run 36953123907](https://github.com/lcfrai/luci/actions/runs/36953123907) passed at source commit `4c117f6a088189f640ad946459f36c9072d344c1`. This includes the real Linux Docker journey, Linux and macOS package startup checks, strict licence inventories and the Windows native installer build. The Linux/macOS manifests identify that exact commit with `sourceDirty: false`; their inventories contain 317 and 318 components respectively, with zero missing licence grants. These results describe that source snapshot, not later package builds or a signed public release.
+
+Current verification limits: the development host's Docker engine remains unavailable; the real Docker evidence came from CI. Its shell and transcript probes used no model inference, so a model-backed agent journey remains a separate gate. A built Windows installer has not by itself passed a clean-host install/uninstall evaluation. No live AWS/Azure account, billable resource, real domain/TLS rollout or complete remote installation is implied by local provider/process adapters and HTTP/WebSocket fixtures.
 
 ## Publishing after those gates
 

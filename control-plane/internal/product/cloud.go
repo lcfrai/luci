@@ -116,6 +116,10 @@ func (s *Server) handleCloudPlan(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) buildCloudPlan(ctx context.Context, r CloudRequest) (CloudPlan, error) {
+	memoryGB := 4
+	if r.Size == "standard" {
+		memoryGB = 8
+	}
 	p := CloudPlan{ID: newID("cp-"), MonthlyBudgetUSD: r.MonthlyBudgetUSD, Provider: r.Provider, Name: r.Name, Region: r.Region, Domain: r.Domain, CreatedAt: time.Now().UTC(), Warnings: []string{},
 		Resources: []string{"One Linux virtual machine", "Persistent storage", "A public address", "HTTPS for your domain"},
 		Estimate:  Estimate{Currency: "USD", Explanation: "No verified quote is available. Check the provider estimate before creating resources."},
@@ -132,24 +136,28 @@ func (s *Server) buildCloudPlan(ctx context.Context, r CloudRequest) (CloudPlan,
 	p.Files = []PlanFile{{Name: "bootstrap.sh", Content: bootstrap, MediaType: "text/x-shellscript"}}
 	if r.Provider == "aws" {
 		bundle := "medium_3_0"
+		diskGB := 80
 		if r.Size == "standard" {
 			bundle = "large_3_0"
+			diskGB = 160
 		}
+		p.Resources[0] = fmt.Sprintf("AWS Lightsail %s: 2 vCPUs, %d GB RAM", bundle, memoryGB)
+		p.Resources[1] = fmt.Sprintf("%d GB bundled SSD storage", diskGB)
 		// A verified quote must come from the user's selected region and account.
 		queryCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
 		out, err := s.runner(queryCtx, "aws", []string{"lightsail", "get-bundles", "--region", r.Region, "--output", "json"}, "")
 		cancel()
 		var quotes struct {
 			Bundles []struct {
-				BundleID string  `json:"bundleId"`
-				Price    float64 `json:"price"`
-				IsActive bool    `json:"isActive"`
+				BundleID string   `json:"bundleId"`
+				Price    *float64 `json:"price"`
+				IsActive bool     `json:"isActive"`
 			} `json:"bundles"`
 		}
 		if err == nil && json.Unmarshal([]byte(out), &quotes) == nil {
 			for _, q := range quotes.Bundles {
-				if q.BundleID == bundle && q.IsActive {
-					value := q.Price
+				if q.BundleID == bundle && q.IsActive && q.Price != nil && *q.Price > 0 {
+					value := *q.Price
 					p.Estimate.Monthly = &value
 					p.Estimate.Verified = true
 					p.Estimate.Explanation = "AWS Lightsail bundle quote from your selected region; excess traffic, snapshots, tax and AI usage are additional."
@@ -176,10 +184,12 @@ func (s *Server) buildCloudPlan(ctx context.Context, r CloudRequest) (CloudPlan,
 			{Label: "Delete resources", Executable: "aws", Args: []string{"cloudformation", "delete-stack", "--stack-name", r.Name, "--region", r.Region}},
 		}
 	} else {
-		vmSize := "Standard_B2s"
+		vmSize := "Standard_B2als_v2"
 		if r.Size == "standard" {
-			vmSize = "Standard_B2ms"
+			vmSize = "Standard_B2as_v2"
 		}
+		p.Resources[0] = fmt.Sprintf("Azure %s: 2 vCPUs, %d GiB RAM", vmSize, memoryGB)
+		p.Resources[1] = "64 GiB Standard SSD managed disk, billed separately"
 		template := azureTemplate(r, vmSize, bootstrap)
 		data, err := json.MarshalIndent(template, "", "  ")
 		if err != nil {
@@ -194,6 +204,7 @@ func (s *Server) buildCloudPlan(ctx context.Context, r CloudRequest) (CloudPlan,
 			{Label: "Delete resources", Executable: "az", Args: []string{"group", "delete", "--name", r.Name, "--yes"}},
 		}
 		p.Estimate.Explanation = "Azure VM, disk and public-address prices vary by region. Obtain the Azure quote before approving this plan."
+		p.Warnings = append(p.Warnings, "Azure VM availability and quota depend on your region and subscription. Review the deployment preview; Luci does not silently substitute a larger or more expensive machine.")
 	}
 	if p.Estimate.Monthly != nil && *p.Estimate.Monthly > r.MonthlyBudgetUSD {
 		p.Warnings = append(p.Warnings, "The machine quote exceeds your monthly budget. Choose a smaller configuration or increase the budget explicitly.")
@@ -201,6 +212,10 @@ func (s *Server) buildCloudPlan(ctx context.Context, r CloudRequest) (CloudPlan,
 	if !p.Estimate.Verified {
 		p.Warnings = append(p.Warnings, "This plan does not yet have a verified complete price. Provisioning must acknowledge that uncertainty.")
 	}
+	if r.Size == "small" {
+		p.Warnings = append(p.Warnings, "Small is Luci's lowest cloud preset: 2 vCPUs and 4 GB RAM. Coolify's own 2 GB minimum does not include your agent sessions, app builds or running apps. Start with one active build or agent session, monitor memory and disk, and increase capacity only when your workload needs it.")
+	}
+	p.Warnings = append(p.Warnings, "The monthly budget is a planning limit, not a provider billing cap. Local use avoids cloud-host charges; model usage, domains, backups, extra traffic and tax can still cost money.")
 	p.Warnings = append(p.Warnings, "The server installs Coolify 4.3.23 for application deployment. Open its first-account setup only through Luci's SSH connection; management port 8000 is not opened in the cloud firewall.", "Container isolation shares the host kernel. This personal single-machine configuration is not hostile multi-tenant isolation.")
 	return p, nil
 }

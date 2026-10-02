@@ -59,6 +59,9 @@ func TestSetupReadOnlyAndRestartPersistence(t *testing.T) {
 			t.Fatal(path, w.Code, w.Body.String())
 		}
 	}
+	if s.Config().Mode != "local" {
+		t.Fatal("fresh setup must not select billable cloud execution")
+	}
 	root := filepath.Join(t.TempDir(), "my-projects")
 	body, _ := json.Marshal(Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30})
 	if w := cloudRequest(mux, "POST", "/v1/setup/config", string(body)); w.Code != 200 {
@@ -108,6 +111,72 @@ func TestCloudPlansDoNotProvisionAndIncludeCompleteResources(t *testing.T) {
 		if !strings.Contains(p.Files[0].Content, "sha256sum --check") {
 			t.Fatal("installer verification missing")
 		}
+	}
+}
+
+func TestCloudMissingOrInvalidQuoteCannotBypassPriceAcknowledgement(t *testing.T) {
+	for _, quote := range []string{
+		`{"bundleId":"medium_3_0","isActive":true}`,
+		`{"bundleId":"medium_3_0","price":null,"isActive":true}`,
+		`{"bundleId":"medium_3_0","price":0,"isActive":true}`,
+		`{"bundleId":"medium_3_0","price":-24,"isActive":true}`,
+		`{"bundleId":"medium_3_0","price":24,"isActive":false}`,
+		`{"bundleId":"large_3_0","price":44,"isActive":true}`,
+	} {
+		t.Run(quote, func(t *testing.T) {
+			calls := 0
+			s, mux := cloudTestServer(t, func(_ context.Context, exe string, args []string, _ string) (string, error) {
+				calls++
+				if exe != "aws" || strings.Join(args[:2], " ") != "lightsail get-bundles" {
+					t.Fatalf("unverified quote reached provisioning: %s %v", exe, args)
+				}
+				return `{"bundles":[` + quote + `]}`, nil
+			})
+			p, err := s.buildCloudPlan(context.Background(), cloudPlanRequest("aws"))
+			if err != nil || p.Estimate.Verified || p.Estimate.Monthly != nil {
+				t.Fatalf("missing or invalid quote became a verified price: %+v, %v", p.Estimate, err)
+			}
+			s.plans[p.ID] = p
+			body, _ := json.Marshal(map[string]any{"planId": p.ID, "acknowledgeCosts": true})
+			w := cloudRequest(mux, "POST", "/v1/setup/cloud/create", string(body))
+			if w.Code != 400 || !strings.Contains(w.Body.String(), "quote_required") || len(s.jobs) != 0 || calls != 1 {
+				t.Fatalf("incomplete quote bypassed acknowledgement: %d %s; jobs=%d calls=%d", w.Code, w.Body.String(), len(s.jobs), calls)
+			}
+		})
+	}
+}
+
+func TestCloudPresetsDiscloseCapacityWithoutImplyingCompletePrice(t *testing.T) {
+	s, _ := cloudTestServer(t, func(context.Context, string, []string, string) (string, error) {
+		return "", errors.New("no account quote available")
+	})
+	for _, tc := range []struct{ provider, size, sku, memory, disk string }{
+		{"aws", "small", "medium_3_0", "4 GB RAM", "80 GB"},
+		{"aws", "standard", "large_3_0", "8 GB RAM", "160 GB"},
+		{"azure", "small", "Standard_B2als_v2", "4 GiB RAM", "64 GiB"},
+		{"azure", "standard", "Standard_B2as_v2", "8 GiB RAM", "64 GiB"},
+	} {
+		t.Run(tc.provider+"/"+tc.size, func(t *testing.T) {
+			req := cloudPlanRequest(tc.provider)
+			req.Size = tc.size
+			p, err := s.buildCloudPlan(context.Background(), req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resources := strings.Join(p.Resources, " ")
+			for _, expected := range []string{tc.sku, "2 vCPUs", tc.memory, tc.disk} {
+				if !strings.Contains(resources, expected) {
+					t.Fatalf("review omits selected capacity %q: %s", expected, resources)
+				}
+			}
+			if !strings.Contains(p.Files[1].Content, `"`+tc.sku+`"`) || p.Estimate.Verified || p.Estimate.Monthly != nil {
+				t.Fatalf("template and disclosed choice/quote disagree: %+v", p)
+			}
+			warnings := strings.Join(p.Warnings, " ")
+			if !strings.Contains(warnings, "not a provider billing cap") || (tc.size == "small" && !strings.Contains(warnings, "one active build or agent session")) {
+				t.Fatalf("review omits cost or capacity limits: %s", warnings)
+			}
+		})
 	}
 }
 

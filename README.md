@@ -33,10 +33,14 @@ The desktop uses `npm ci`, `npm run typecheck`, `npm test` and `npm run build` f
 
 Luci prepares a single-machine deployment using AWS Lightsail or an Azure VM, shows the resources and cost information, and guides you through sign-in, provisioning, DNS and connection. Cloud resources belong to you and continue billing until you remove them. Preview the plan and accept its costs before creation. Luci keeps its control API on loopback; remote administration uses SSH.
 
+Local use has no Luci licence or platform subscription fee, and Define and Design need no cloud resources or model requests. Model subscriptions/API usage and any third-party services have their own costs. Keep development local when it meets your needs. If you need cloud execution or public hosting, start with the smallest viable single host in your chosen region, allowing memory for the deployment service, builds and running apps. Add capacity only when the workload requires it. A smaller advertised VM price is not useful if builds cannot finish.
+
+Review the provider's current quote and currency, plus disk, public addresses, traffic, backups, domain, tax and model costs. An incomplete quote remains unverified; the budget field does not cap the provider's bill. See [cloud setup and cleanup](docs/luci/CLOUD.md) before creating resources.
+
 Coolify supplies the optional application deployment service. Its Git deployment needs a repository the server can access. A local Dockerfile alone does not upload a project's files.
 
 ## Contributing
 
 Read [the current plan](docs/luci/PLAN.md), [API contract](docs/luci/API.md), and [reuse decisions](docs/luci/REUSE.md). `AGENTS.md` describes contributor boundaries. Historical Panacea planning documents are retained as provenance and superseded by the Luci plan.
 
-New Luci code is intended for Apache-2.0 distribution. Third-party components keep their original licences. Publication requires confirming the rights to retained code and history; the old private repository is not a public download yet.
+Luci's own code uses the [MIT licence](LICENSE). Third-party components keep their original licences and notices, including dependencies licensed under Apache-2.0. Publication still requires confirming rights to retained code and history; current package and distribution status is described in [the release guide](docs/luci/RELEASE.md).

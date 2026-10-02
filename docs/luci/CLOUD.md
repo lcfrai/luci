@@ -2,6 +2,19 @@
 
 The default is local. A cloud workspace is an optional place to keep projects and run development; public deployment is a separate optional action. Both use the user's provider account and server. The desktop stays on the person's computer, and management stays behind verified SSH. Coolify handles public application deployment and HTTPS.
 
+Local Luci has no licence or platform fee and creates no cloud-host bill. Paid model usage is separate. For optional cloud use, start with **Small**, the lowest included preset, and increase capacity only after measuring a workload that needs it. The goal is low total cost while keeping development and deployment usable; there is no mandatory cluster, managed database or load balancer.
+
+| Provider | Small, selected initially | Standard, explicit upgrade |
+| --- | --- | --- |
+| AWS Lightsail | `medium_3_0`: 2 vCPUs, 4 GB RAM, 80 GB SSD | `large_3_0`: 2 vCPUs, 8 GB RAM, 160 GB SSD |
+| Azure | `Standard_B2als_v2`: 2 vCPUs, 4 GiB RAM, 64 GiB Standard SSD | `Standard_B2as_v2`: 2 vCPUs, 8 GiB RAM, 64 GiB Standard SSD |
+
+[Coolify lists a 2-core, 2 GB minimum](https://coolify.io/docs/start-with-self-hosted#_3-minimum-hardware-requirements), but that excludes Luci's agents, builds and deployed apps. Keeping 4 GB as the starting preset is a practical headroom choice, not a claim that every application fits. Start with one active build or agent session, monitor memory and disk, and avoid concurrent heavy work on Small. The cheaper 2 GB Lightsail tier is not the preset for this combined workload.
+
+[AWS's public pricing page](https://aws.amazon.com/lightsail/pricing/) lists the IPv4 4 GB bundle at US$24/month as checked on 2 October 2026. Luci still obtains its bundle quote from the selected region and account; missing, zero, invalid or inactive prices remain unverified. A verified bundle price is not an all-in bill. Azure pricing and subscription availability remain unverified until reviewed with the provider; VM, managed disk and public address are separate charges. The chosen [Azure Basv2 sizes are x86-64, with 4/8 GiB memory](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/basv2-series); they replace the [retiring Bv1 family](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/bv1-series). No preset is advertised as the globally cheapest regional offer, and unavailable sizes are not silently replaced with larger machines.
+
+The entered budget gates a known machine quote; it is not a provider billing cap. Domain registration, model usage, backups, traffic beyond the bundle allowance and tax can add cost. Larger configurations and cloud creation require explicit choices; local mode stays available without creating resources.
+
 1. Install the provider CLI if the readiness card links to it. Use **Sign in**; credentials remain in its credential cache.
 2. Generate a Luci SSH key or choose an existing public key and private-key path.
 3. Choose AWS Lightsail or an Azure VM, region, domain and budget. Generate the plan and inspect its resources and cost assumptions. Missing prices remain visibly unverified.
@@ -18,4 +31,4 @@ Use a machine with at least two cores and enough memory for Coolify plus applica
 
 AWS Lightsail instances continue to accrue charges while stopped until they are deleted; see [AWS billing guidance](https://docs.aws.amazon.com/en_en/lightsail/latest/userguide/amazon-lightsail-frequently-asked-questions-faq-billing-and-account-management.html). Azure VMs in the stopped, allocated state still incur compute charges. Deallocation ends compute charges, but disks and other retained resources can still cost money; see [Azure state and billing guidance](https://learn.microsoft.com/en-us/azure/virtual-machines/states-billing). Luci's delete action is the guided cleanup path. Check the provider account afterwards for retained billable resources.
 
-Real account-based acceptance for both providers is required before claiming production rollout has been verified. It must include runtime installation, activation, terminal traffic, interactive previews, reconnect, public DNS/TLS deployment and cleanup. Local adapter and HTTP/WebSocket fixture tests do not replace those outcomes. The current development host also has an unavailable Docker engine, so real Docker session and preview acceptance remains pending; see [the release gates](RELEASE.md).
+Real account-based acceptance for both providers is required before claiming production rollout has been verified. It must include runtime installation, activation, terminal traffic, interactive previews, reconnect, public DNS/TLS deployment and cleanup. Local adapter and HTTP/WebSocket fixture tests do not replace those outcomes. Ubuntu CI has verified real Docker shell traffic, private project/transcript mounts, host-user mapping, a committed preview returning HTTP 200, and owned-container stop. The transcript check launched Claude without a key, prompt or model inference; paid agent execution remains a separate acceptance gate. The current development host's Docker engine remains unavailable; see [the release gates](RELEASE.md).

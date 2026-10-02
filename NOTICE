@@ -1,6 +1,8 @@
 Luci
 Copyright 2026 lcfr.ai contributors
 
+Luci's own code is distributed under the MIT licence in LICENSE.
+
 Luci incorporates open-source components under their respective licences.
 Excalidraw: MIT; Coolify: Apache-2.0; React: MIT; Tauri: MIT or Apache-2.0;
 Zustand: MIT; xterm.js: MIT; Geist: SIL Open Font License 1.1.
