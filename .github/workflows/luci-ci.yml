@@ -124,7 +124,7 @@ jobs:
           npm run build --prefix desktop
           cd desktop
           npx playwright install --with-deps chromium
-          chmod -R a+rX /opt/luci-uat-browsers
+          sudo chmod -R a+rX /opt/luci-uat-browsers
       - name: Exercise the compiled multi-user control plane
         run: node scripts/control-plane-smoke.mjs --binary artifacts/runtime-smoke/luci --output artifacts/control-plane-smoke.json
       - name: Exercise Docker as a distinct non-root host user

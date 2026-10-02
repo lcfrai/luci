@@ -57,6 +57,7 @@ async function element(kind, name) {
   return until(`${kind} ${name}`, () => execute(`
     const visible=e=>!!(e&&e.getClientRects().length);
     const norm=s=>(s||'').replace(/\\s+/g,' ').trim();
+    const labelled=e=>norm((e.getAttribute('aria-labelledby')||'').split(/\\s+/).map(id=>document.getElementById(id)?.textContent||'').join(' '));
     if(arguments[0]==='label') {
       const labels=[...document.querySelectorAll('label')].filter(visible);
       const label=labels.find(e=>norm(e.textContent).startsWith(arguments[1]));
@@ -65,7 +66,7 @@ async function element(kind, name) {
     if(arguments[0]==='css') return [...document.querySelectorAll(arguments[1])].find(visible)||null;
     if(arguments[0]==='file') return [...document.querySelectorAll('.journey-directory button')].filter(visible).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
     return [...document.querySelectorAll('button,summary,[role=treeitem]')].filter(visible).find(e=>
-      e.getAttribute('aria-label')===arguments[1] || norm(e.textContent)===arguments[1] ||
+      e.getAttribute('aria-label')===arguments[1] || labelled(e)===arguments[1] || norm(e.textContent)===arguments[1] ||
       (e.classList.contains('sub-row') && norm(e.textContent).endsWith(arguments[1])))||null;
   `, kind, name));
 }
@@ -110,7 +111,7 @@ async function authenticate() {
 async function settings() {
   if (!await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Settings");
   await until("local setup choice or projects folder", () => execute("return document.body.innerText.includes('On this computer') || [...document.querySelectorAll('label')].some(e=>e.textContent.includes('Projects folder'))"));
-  if (await execute("return [...document.querySelectorAll('button')].some(e=>e.textContent.trim()==='On this computer')")) await click("On this computer");
+  if (await execute("return !!document.querySelector('button[aria-labelledby=\"setup-route-local\"]')")) await click("On this computer");
 }
 async function verifyProject() {
   if (await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Close settings");
