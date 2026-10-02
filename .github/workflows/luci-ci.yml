@@ -326,6 +326,12 @@ jobs:
   installed-diagnostic:
     name: Installed Windows release diagnostic
     if: ${{ github.event_name == 'workflow_dispatch' && (inputs.installer_run != '' || inputs.installer_release != '') }}
+    # GitHub requires push access to list/download unpublished draft releases.
+    # This manual job uses that token only for reads in the download step;
+    # pull-request/build jobs retain the workflow's read-only permissions.
+    permissions:
+      contents: write
+      actions: read
     runs-on: windows-2025
     timeout-minutes: 25
     defaults:
