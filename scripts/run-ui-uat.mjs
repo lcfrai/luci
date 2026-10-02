@@ -80,7 +80,20 @@ async function journey() {
   const code = await new Promise((done, fail) => { child.once('error', fail); child.once('close', done); });
   assert.equal(code, 0, 'The complete browser journey failed; inspect its outcome evidence');
 }
+async function entryJourney() {
+  const entryFixture = fixture + "-entry";
+  const child = spawn(process.execPath, [path.join(repo, "scripts/entry-browser-eval.mjs"), binary, web, runtime, entryFixture], {
+    cwd: repo, windowsHide: true, env: inherited, stdio: ["ignore", "inherit", "inherit"],
+  });
+  const code = await new Promise((done, fail) => { child.once("error", fail); child.once("close", done); });
+  assert.equal(code, 0, "Entry acceptance failed; inspect its independent fixture evidence");
+  const entry = JSON.parse(await readFile(path.join(entryFixture, "evidence/entry-results.json"), "utf8"));
+  assert.equal(entry.passed, true);
+  receipt.entryEvidence = path.join(entryFixture, "evidence/entry-results.json");
+  receipt.checks.push("Independent fresh/existing browser entry, real invitations, stale sessions and retry passed against the compiled service");
+}
 try {
+  await entryJourney();
   await start();
   receipt.checks.push('Fresh isolated shipped service served its actual web assets');
   await journey();

@@ -73,6 +73,8 @@ func withActor(ctx context.Context, u User, p Policy) context.Context {
 
 type Options struct {
 	StateDir, InstanceName, Backing, Executable, Version string
+	LocalAccessToken                                     string
+	PortableOwnerAccess                                  bool
 	WorkerArgs, BaseEnvironment                          []string
 	InitialHandler                                       http.Handler
 }
@@ -93,12 +95,13 @@ type AuditEvent struct {
 	Outcome string `json:"outcome"`
 }
 type storedState struct {
-	Version  int                      `json:"version"`
-	OwnerID  string                   `json:"ownerId"`
-	Users    map[string]userRecord    `json:"users"`
-	Sessions map[string]sessionRecord `json:"sessions"`
-	Policy   Policy                   `json:"policy"`
-	Events   []AuditEvent             `json:"events"`
+	Version     int                         `json:"version"`
+	OwnerID     string                      `json:"ownerId"`
+	Users       map[string]userRecord       `json:"users"`
+	Sessions    map[string]sessionRecord    `json:"sessions"`
+	Policy      Policy                      `json:"policy"`
+	Events      []AuditEvent                `json:"events"`
+	Invitations map[string]invitationRecord `json:"invitations,omitempty"`
 }
 type socketTicket struct {
 	UserID, Path, SessionHash string
@@ -124,6 +127,12 @@ type Gateway struct {
 }
 
 func New(opts Options) (*Gateway, error) {
+	if opts.PortableOwnerAccess && opts.LocalAccessToken != "" {
+		return nil, errors.New("portable and native local access capabilities are mutually exclusive")
+	}
+	if opts.LocalAccessToken != "" && !validLocalAccessToken(opts.LocalAccessToken) {
+		return nil, errors.New("invalid local access capability")
+	}
 	if !filepath.IsAbs(opts.StateDir) {
 		return nil, errors.New("management state directory must be absolute")
 	}
@@ -185,6 +194,18 @@ func New(opts Options) (*Gateway, error) {
 			if err = privatePath(path); err != nil {
 				return nil, err
 			}
+		}
+	}
+	if g.state.Invitations == nil {
+		g.state.Invitations = map[string]invitationRecord{}
+	}
+	// The caller has bound its loopback listener before constructing the gateway.
+	// A portable launcher can prove ownership by reading this private, per-run
+	// capability. Native launch capabilities are never written to disk.
+	if opts.PortableOwnerAccess {
+		g.opts.LocalAccessToken = randomToken()
+		if err := atomicPrivate(filepath.Join(g.dir, "owner-access-token"), []byte(g.opts.LocalAccessToken+"\n")); err != nil {
+			return nil, err
 		}
 	}
 	return g, nil
@@ -279,6 +300,13 @@ func (g *Gateway) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/control-plane/status", g.status)
 	mux.HandleFunc("POST /v1/auth/bootstrap", g.bootstrap)
 	mux.HandleFunc("POST /v1/auth/login", g.login)
+	mux.HandleFunc("GET /v1/auth/local-owner", g.localOwner)
+	mux.HandleFunc("POST /v1/auth/local-account", g.localAccount)
+	mux.HandleFunc("POST /v1/auth/local-owner/recover", g.recoverLocalOwner)
+	mux.HandleFunc("POST /v1/auth/invitations/accept", g.acceptInvitation)
+	mux.HandleFunc("GET /v1/admin/invitations", g.listInvitations)
+	mux.HandleFunc("POST /v1/admin/invitations", g.createInvitation)
+	mux.HandleFunc("DELETE /v1/admin/invitations/{id}", g.revokeInvitation)
 	mux.HandleFunc("GET /v1/auth/me", g.me)
 	mux.HandleFunc("POST /v1/auth/logout", g.logout)
 	mux.HandleFunc("POST /v1/auth/password", g.changePassword)
@@ -311,7 +339,11 @@ func (g *Gateway) Handler() http.Handler {
 			r.Header.Del(header)
 		}
 		path := r.URL.Path
-		public := (r.Method == "GET" && path == "/v1/control-plane/status") || (r.Method == "POST" && (path == "/v1/auth/login" || path == "/v1/auth/bootstrap"))
+		localAccess := (r.Method == "GET" && path == "/v1/auth/local-owner") || (r.Method == "POST" && (path == "/v1/auth/local-account" || path == "/v1/auth/local-owner/recover"))
+		if !localAccess {
+			r.Header.Del(localAccessHeader)
+		}
+		public := localAccess || (r.Method == "GET" && path == "/v1/control-plane/status") || (r.Method == "POST" && (path == "/v1/auth/login" || path == "/v1/auth/bootstrap" || path == "/v1/auth/invitations/accept"))
 		if !public {
 			u, p, sessionHash, ok := g.authenticate(r)
 			if !ok {
@@ -356,6 +388,7 @@ func (g *Gateway) status(w http.ResponseWriter, r *http.Request) {
 	jsonReply(w, 200, result)
 }
 func (g *Gateway) Close(ctx context.Context) error {
+	defer g.removePortableOwnerAccess()
 	g.mu.Lock()
 	g.closed = true
 	for id := range g.sockets {

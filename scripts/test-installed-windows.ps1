@@ -1,6 +1,7 @@
 param(
   [Parameter(Mandatory = $true)][string]$Installer,
   [string]$PreviousInstaller = '',
+  [string]$PreviousVersion = '',
   [string]$Evidence = 'artifacts/native-installed-eval'
 )
 $ErrorActionPreference = 'Stop'
@@ -11,6 +12,7 @@ if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') {
 if ($env:LUCI_API) { throw 'LUCI_API would bypass the installed app-owned sidecar.' }
 $candidate = (Resolve-Path -LiteralPath $Installer).Path
 $prior = if ($PreviousInstaller) { (Resolve-Path -LiteralPath $PreviousInstaller).Path } else { '' }
+if ($PreviousVersion -and (-not $prior -or $PreviousVersion -notmatch '^\d+\.\d+\.\d+$')) { throw 'PreviousVersion requires a previous installer and an exact semantic version.' }
 $evidencePath = [IO.Path]::GetFullPath($Evidence)
 $taskRoot = Join-Path $env:RUNNER_TEMP ('luci-installed-' + [guid]::NewGuid().ToString('N'))
 $installDir = Join-Path $taskRoot 'app'
@@ -47,8 +49,8 @@ function Install-Candidate([string]$Path) {
     if (-not (Test-Path -LiteralPath (Join-Path $installDir $name))) { throw "Installed resource is missing: $name" }
   }
 }
-function Run-UI([string]$Mode, [string]$PassName) {
-  & node (Join-Path $PSScriptRoot 'native-installed-eval.mjs') (Join-Path $installDir 'luci.exe') $evidencePath $Mode
+function Run-UI([string]$Mode, [string]$PassName, [string]$ExpectedVersion = '') {
+  & node (Join-Path $PSScriptRoot 'native-installed-eval.mjs') (Join-Path $installDir 'luci.exe') $evidencePath $Mode $ExpectedVersion
   if ($LASTEXITCODE -ne 0) { throw "Installed WebView journey failed: $PassName" }
   Copy-Item -LiteralPath (Join-Path $evidencePath "$Mode-result.json") -Destination (Join-Path $evidencePath "$PassName-result.json")
   $receipt.checks += $PassName
@@ -127,8 +129,9 @@ try {
   if ($prior) {
     $receipt.previousInstaller = [IO.Path]::GetFileName($prior)
     $receipt.previousInstallerSHA256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $prior).Hash.ToLowerInvariant()
+    $receipt.previousInstallerVersion = $PreviousVersion
     Install-Candidate $prior
-    Run-UI 'seed' 'previous-version-seed'
+    Run-UI 'seed' 'previous-version-seed' $PreviousVersion
     $before = Preserved-Hashes
     Install-Candidate $candidate
     Assert-Preserved $before

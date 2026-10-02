@@ -51,6 +51,8 @@ const (
 	envBacking                = "LUCI_BACKING"
 	envInstanceName           = "LUCI_INSTANCE_NAME"
 	envManagedShutdownToken   = "LUCI_MANAGED_SHUTDOWN_TOKEN"
+	envLocalAccessToken       = "LUCI_LOCAL_ACCESS_TOKEN"
+	envPortableOwnerAccess    = "LUCI_PORTABLE_OWNER_ACCESS"
 
 	// envReadyTimeout is NOT in contract §4's table. Task 5 records it as a
 	// cross-task dependency of this task: dockerbe.Config.ReadyTimeout exists
@@ -150,6 +152,8 @@ type Config struct {
 	Backing              string
 	InstanceName         string
 	ManagedShutdownToken string
+	LocalAccessToken     string
+	PortableOwnerAccess  bool
 	Addr                 string
 	AllowPublicBind      bool
 	Backend              string // "docker" or "kata"; validated here, mapped in main.go
@@ -237,6 +241,27 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		LogLevel:     slog.LevelInfo,
 	}
 	cfg.AllowPublicBind = parseFlag(raw(envAllowPublicBind))
+	cfg.LocalAccessToken = getenv(envLocalAccessToken)
+	cfg.PortableOwnerAccess = parseFlag(raw(envPortableOwnerAccess))
+	if cfg.PortableOwnerAccess {
+		host, _, err := net.SplitHostPort(cfg.Addr)
+		ip := net.ParseIP(host)
+		if err != nil || ip == nil || !ip.IsLoopback() || cfg.AllowPublicBind || parseFlag(raw(envWorker)) || cfg.LocalAccessToken != "" {
+			return Config{}, fmt.Errorf("%s requires a non-worker, explicit loopback service without public binding or a native local access capability", envPortableOwnerAccess)
+		}
+	}
+	if cfg.LocalAccessToken != "" {
+		host, _, err := net.SplitHostPort(cfg.Addr)
+		ip := net.ParseIP(host)
+		if err != nil || ip == nil || !ip.IsLoopback() || len(cfg.LocalAccessToken) < 32 || len(cfg.LocalAccessToken) > 256 || parseFlag(raw(envWorker)) {
+			return Config{}, fmt.Errorf("%s requires a non-worker service on an explicit loopback address and a 32–256 character capability", envLocalAccessToken)
+		}
+		for _, b := range []byte(cfg.LocalAccessToken) {
+			if b < 33 || b > 126 {
+				return Config{}, fmt.Errorf("%s must contain only printable non-space characters", envLocalAccessToken)
+			}
+		}
+	}
 	cfg.HarnessAllowUnverified = parseFlag(raw(envHarnessAllowUnverified))
 
 	if cfg.Backend != string(backend.KindDocker) && cfg.Backend != string(backend.KindKata) {

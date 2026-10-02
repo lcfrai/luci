@@ -473,6 +473,7 @@ export function createProductClient(
       username: string;
       password: string;
       bootstrapToken?: string;
+      inviteCode?: string;
       displayName?: string;
     }) => request<WorkspaceAuth>("/v1/setup/workspace/auth", input),
     disconnectWorkspaceAuth: (connectionId: string) =>

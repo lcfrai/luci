@@ -13,6 +13,7 @@ use tauri_plugin_shell::{
     process::{CommandChild, CommandEvent},
     ShellExt,
 };
+mod local_access;
 mod state_dir;
 
 #[derive(Clone, serde::Serialize)]
@@ -49,6 +50,81 @@ struct LocalService {
     exited: Arc<AtomicBool>,
     state_dir: Option<PathBuf>,
     lifecycle_token: Option<String>,
+    local_access_token: Option<String>,
+}
+
+fn owned_access_connection(
+    state: &LocalService,
+) -> Result<Option<local_access::Connection>, String> {
+    if state.state_dir.is_none() || state.local_access_token.is_none() {
+        return Ok(None);
+    }
+    if state.exited.load(Ordering::Acquire)
+        || state
+            .child
+            .lock()
+            .map_err(|_| "Local service state unavailable")?
+            .is_none()
+    {
+        return Err("Luci's local service stopped. Restart Luci to restore account access on this computer.".into());
+    }
+    let Some(token) = &state.local_access_token else {
+        return Ok(None);
+    };
+    let address = state
+        .info
+        .api_url
+        .strip_prefix("http://")
+        .and_then(|value| value.parse::<std::net::SocketAddr>().ok())
+        .filter(|address| address.ip().is_loopback())
+        .ok_or("Account access is available only for Luci's own local service.")?;
+    Ok(Some(local_access::Connection {
+        address,
+        token: token.clone(),
+    }))
+}
+
+#[tauri::command]
+async fn local_access_info(
+    state: tauri::State<'_, LocalService>,
+) -> Result<local_access::Info, String> {
+    let Some(connection) = owned_access_connection(&state)? else {
+        return Ok(local_access::Info {
+            available: false,
+            owner: None,
+        });
+    };
+    tauri::async_runtime::spawn_blocking(move || local_access::info(&connection))
+        .await
+        .map_err(|_| "Luci could not check account access on this computer.")?
+}
+
+#[tauri::command]
+async fn create_local_account(
+    state: tauri::State<'_, LocalService>,
+    username: String,
+    display_name: String,
+    password: String,
+) -> Result<local_access::AuthResult, String> {
+    let connection = owned_access_connection(&state)?
+        .ok_or("Create an account using an invitation from this workspace's administrator.")?;
+    tauri::async_runtime::spawn_blocking(move || {
+        local_access::create(&connection, &username, &display_name, &password)
+    })
+    .await
+    .map_err(|_| "Luci could not finish creating your account.")?
+}
+
+#[tauri::command]
+async fn recover_local_owner(
+    state: tauri::State<'_, LocalService>,
+    new_password: String,
+) -> Result<local_access::AuthResult, String> {
+    let connection = owned_access_connection(&state)?
+        .ok_or("Contact this workspace's administrator to recover your sign-in.")?;
+    tauri::async_runtime::spawn_blocking(move || local_access::recover(&connection, &new_password))
+        .await
+        .map_err(|_| "Luci could not finish recovering your account.")?
 }
 
 #[tauri::command]
@@ -103,7 +179,13 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![runtime_info, bootstrap_token])
+        .invoke_handler(tauri::generate_handler![
+            runtime_info,
+            bootstrap_token,
+            local_access_info,
+            create_local_account,
+            recover_local_owner
+        ])
         .setup(|app| {
             let override_url = std::env::var("LUCI_API")
                 .ok()
@@ -118,6 +200,7 @@ pub fn run() {
             let mut child = None;
             let mut state_dir = None;
             let mut lifecycle_token = None;
+            let mut local_access_token = None;
             let exited = Arc::new(AtomicBool::new(false));
             if override_url.is_none() {
                 let listener = TcpListener::bind("127.0.0.1:0")?;
@@ -137,6 +220,12 @@ pub fn run() {
                     state_dir = Some(managed_state.clone());
                     let shutdown_token = uuid::Uuid::new_v4().to_string();
                     lifecycle_token = Some(shutdown_token.clone());
+                    let access_token = format!(
+                        "{}{}",
+                        uuid::Uuid::new_v4().simple(),
+                        uuid::Uuid::new_v4().simple()
+                    );
+                    local_access_token = Some(access_token.clone());
                     let runtime = app.path().resource_dir()?.join("runtime");
                     let cloud_bundle = app
                         .path()
@@ -148,6 +237,7 @@ pub fn run() {
                             .env("LUCI_ADDR", address)
                             .env("LUCI_STATE_DIR", managed_state)
                             .env("LUCI_MANAGED_SHUTDOWN_TOKEN", shutdown_token)
+                            .env("LUCI_LOCAL_ACCESS_TOKEN", access_token)
                             .env("LUCI_RUNTIME_DIR", runtime)
                             .env("LUCI_CLOUD_BUNDLE", cloud_bundle)
                             .spawn()
@@ -177,6 +267,7 @@ pub fn run() {
                 exited,
                 state_dir,
                 lifecycle_token,
+                local_access_token,
             });
             Ok(())
         })
@@ -231,5 +322,32 @@ mod tests {
             .startup_error
             .unwrap()
             .contains("could not open its saved workspace"));
+    }
+
+    #[test]
+    fn account_capability_is_unavailable_without_an_owned_live_child() {
+        let mut service = LocalService {
+            child: Mutex::new(None),
+            info: RuntimeInfo {
+                api_url: "http://127.0.0.1:1".into(),
+                startup_error: None,
+                state_dir: None,
+            },
+            exited: Arc::new(AtomicBool::new(false)),
+            state_dir: Some(PathBuf::from("unused-state")),
+            lifecycle_token: None,
+            local_access_token: Some("a".repeat(64)),
+        };
+        assert!(owned_access_connection(&service)
+            .err()
+            .unwrap()
+            .contains("Restart Luci"));
+        service.state_dir = None;
+        assert!(owned_access_connection(&service).unwrap().is_none());
+        // The only serializable runtime metadata must not disclose either
+        // native authority or a local account's password/session.
+        let metadata = serde_json::to_string(&service.info).unwrap();
+        assert!(!metadata.contains("localAccessToken"));
+        assert!(!metadata.contains(&"a".repeat(64)));
     }
 }

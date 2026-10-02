@@ -172,3 +172,60 @@ GET `/v1/product/projects/{id}/configuration` returns `{revision,variables:[{nam
 Values remain in owner-protected state outside the project. They are excluded from project files, Git, design/brief context and project backup. Local Docker releases capture an immutable configuration snapshot and pass an owner-only temporary env-file by pathname, removing it after startup. The build receives no runtime secrets. Release metadata records `configurationRevision` without values. Cloud deployment uses Coolify's runtime environment API before submission and reconciles only the keys Luci manages; unrelated provider/manual configuration is retained. A changed configuration creates a new deployment even at the same Git commit.
 
 Rebuilding historical code uses the current runtime configuration. It does not restore old secrets, database migrations or application data. A project restored from backup needs its runtime values re-entered.
+
+## Account entry, local recovery and invitations
+
+The public control-plane status describes whether a workspace needs its first
+account. It never enumerates users or exposes local account authority. Successful
+first-account creation changes the entry state to sign-in, including after
+sign-out in the same application session. Obsolete browser sessions do not block
+the launcher's one-time first-setup token.
+
+The native launcher creates a per-process `LUCI_LOCAL_ACCESS_TOKEN` for its owned
+loopback sidecar. It remains in Rust and the service; it is not returned to the
+WebView, written to state, or inherited by managed workers. External `LUCI_API`
+connections have no such authority. The following routes require both loopback
+and `X-Luci-Local-Access-Token`; a loopback address alone grants nothing:
+
+- GET `/v1/auth/local-owner` returns `{owner: User | null}`.
+- POST `/v1/auth/local-account` accepts `{username,displayName,password}` and
+  creates a separate local administrator account with its own execution workspace.
+  It preserves the original owner and all saved users, projects and policy.
+- POST `/v1/auth/local-owner/recover` accepts `{newPassword}` and restores only
+  the original installation owner's access. It preserves that account's ID and
+  saved work, ends its prior sessions/connections and records an audit event.
+
+The desktop invokes these through `local_access_info`, `create_local_account` and
+`recover_local_owner`. Account creation and recovery return `{token,user}` through
+IPC, without disclosing the local capability. Native calls require an owned live
+child and refuse external addresses. Credential mutations are persisted before
+success and roll back on a failed save.
+
+The portable launchers explicitly enable `LUCI_PORTABLE_OWNER_ACCESS=1` for their
+loopback service. This mode generates a separate rotating proof in the private
+`control-plane/owner-access-token` file. The launcher verifies that proof against
+the service before opening the browser with an `#owner=...` fragment. The page
+immediately removes the fragment and uses the proof only for same-origin local
+account routes; it never includes it in general API headers. The service removes
+its own proof on exit. Native authority remains exclusively in Rust, and neither
+mode is available on public bindings or managed workers. Reopening the portable
+launcher restores this computer's account controls after a service restart.
+
+Administrators can issue an invitation using POST `/v1/admin/invitations` with
+`{role}`. The result is `{invitation,inviteCode}`; GET returns
+`{invitations: [...]}` without codes, and DELETE `/v1/admin/invitations/{id}`
+revokes a code. Metadata includes `id`, `role`, `createdBy`, `createdAt`,
+`expiresAt`, `revoked` and optional `acceptedAt`/`acceptedBy`. Invitations expire
+after 48 hours, are stored hashed and can be accepted only once. An ordinary
+Admin can invite members; only a Super Admin can invite an administrator.
+
+POST `/v1/auth/invitations/accept` accepts
+`{inviteCode,username,displayName,password}` and returns `{token,user}`. Role comes
+from the invitation; callers cannot choose one. Disabled or demoted issuers,
+revoked/expired codes and reused codes are rejected. Creating an account does not
+grant access to another account's projects.
+
+The selected-workspace management bridge supports these invitation routes with
+the selected backing's identity. Existing SSH workspace sign-in accepts an
+optional `inviteCode` and redeems it on that workspace. A remote account error
+remains a recoverable workspace error and does not expire the local login.

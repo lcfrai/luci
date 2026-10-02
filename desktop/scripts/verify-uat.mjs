@@ -96,10 +96,12 @@ try {
   }
   await page.getByLabel("Username", { exact: true }).fill(owner.username);
   await page.getByLabel("Password", { exact: true }).fill(owner.password);
+  if (control.bootstrapRequired && await page.getByLabel("Confirm password", { exact: true }).isVisible())
+    await page.getByLabel("Confirm password", { exact: true }).fill(owner.password);
   await page
     .getByRole("button", {
       name: control.bootstrapRequired
-        ? "Create Super Admin account"
+        ? (await page.getByRole("button", { name: "Create account", exact: true }).count() ? "Create account" : "Create Super Admin account")
         : "Sign in",
       exact: true,
     })

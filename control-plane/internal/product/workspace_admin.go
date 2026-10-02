@@ -28,6 +28,9 @@ func (s *Server) registerWorkspaceAdmin(mux Registrar) {
 		{"GET", "/me", "/v1/auth/me", "me"},
 		{"GET", "/users", "/v1/admin/users", "users"},
 		{"POST", "/users", "/v1/admin/users", "create-user"},
+		{"GET", "/invitations", "/v1/admin/invitations", "invitations"},
+		{"POST", "/invitations", "/v1/admin/invitations", "create-invitation"},
+		{"DELETE", "/invitations/{id}", "/v1/admin/invitations/{id}", "revoke-invitation"},
 		{"PATCH", "/users/{id}", "/v1/admin/users/{id}", "update-user"},
 		{"GET", "/policy", "/v1/admin/policy", "policy"},
 		{"PATCH", "/policy", "/v1/admin/policy", "policy"},
@@ -151,6 +154,19 @@ func (s *Server) workspaceAdmin(w http.ResponseWriter, r *http.Request, remotePa
 			}{}
 		case "create-user", "update-user":
 			output = &management.User{}
+		case "invitations":
+			output = &struct {
+				Invitations []management.Invitation `json:"invitations"`
+			}{}
+		case "create-invitation":
+			output = &struct {
+				Invitation management.Invitation `json:"invitation"`
+				InviteCode string                `json:"inviteCode"`
+			}{}
+		case "revoke-invitation":
+			output = &struct {
+				Revoked bool `json:"revoked"`
+			}{}
 		case "policy":
 			output = &management.Policy{}
 		case "audit":
@@ -213,7 +229,7 @@ func workspaceAdminBody(w http.ResponseWriter, r *http.Request, kind string) ([]
 		}
 		return nil, "", true
 	}
-	if len(data) == 0 && kind == "runtime" {
+	if len(data) == 0 && (kind == "runtime" || kind == "revoke-invitation") {
 		data = []byte("{}")
 	}
 	var fields map[string]json.RawMessage
@@ -223,6 +239,8 @@ func workspaceAdminBody(w http.ResponseWriter, r *http.Request, kind string) ([]
 	}
 	allowed := map[string]bool{}
 	switch kind {
+	case "create-invitation":
+		allowed["role"] = true
 	case "create-user":
 		for _, key := range []string{"username", "displayName", "password", "role"} {
 			allowed[key] = true
