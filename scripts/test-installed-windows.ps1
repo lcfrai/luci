@@ -93,7 +93,22 @@ try {
   $receipt.webviewVersion = $runtimeVersion
   $receipt.edgeDriverVersion = $driverVersion
   $receipt.edgeDriverSHA256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $nativeDriver).Hash.ToLowerInvariant()
-  $driver = Start-Process -FilePath (Join-Path $toolsDir 'bin\tauri-driver.exe') -ArgumentList @('--native-driver', $nativeDriver) -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $evidencePath 'driver-out.log') -RedirectStandardError (Join-Path $evidencePath 'driver-error.log')
+  # Runtime >=150 deliberately rejects WebDriver's environment arguments in an
+  # elevated host. Exercise the normal user token, not an HKLM policy override or
+  # an older browser. See MicrosoftEdge/WebView2Feedback#5645 and tauri-apps/wry#1782.
+  $gsudoZip = Join-Path $toolsDir 'gsudo.zip'
+  Invoke-WebRequest -Uri 'https://github.com/gerardog/gsudo/releases/download/v2.6.1/gsudo.portable.zip' -OutFile $gsudoZip
+  if ((Get-FileHash -Algorithm SHA256 -LiteralPath $gsudoZip).Hash.ToLowerInvariant() -ne '21130bf178d7b9891207f00bff56f05b6b363ce9cec7b2d084e45fb12ee51f44') { throw 'Pinned gsudo archive checksum differs' }
+  Expand-Archive -LiteralPath $gsudoZip -DestinationPath (Join-Path $toolsDir 'gsudo')
+  $gsudo = Join-Path $toolsDir 'gsudo\x64\gsudo.exe'
+  $runnerSID = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+  & icacls.exe $taskRoot /grant "*$($runnerSID):(OI)(CI)M" | Out-Null
+  if ($LASTEXITCODE -ne 0) { throw 'Could not grant the runner user access to its test directory' }
+  $groups = (& $gsudo --integrity Medium --direct whoami.exe /groups | Out-String)
+  if ($LASTEXITCODE -ne 0 -or $groups -notmatch 'S-1-16-8192') { throw 'The WebDriver process must use a verified Medium-integrity token' }
+  $receipt.driverIntegrity = 'Medium (S-1-16-8192)'
+  $receipt.gsudo = '2.6.1; MIT; CI-only; archive SHA256 verified'
+  $driver = Start-Process -FilePath $gsudo -ArgumentList @('--integrity','Medium','--direct',(Join-Path $toolsDir 'bin\tauri-driver.exe'),'--native-driver',$nativeDriver) -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $evidencePath 'driver-out.log') -RedirectStandardError (Join-Path $evidencePath 'driver-error.log')
   if ($prior) {
     $receipt.previousInstaller = [IO.Path]::GetFileName($prior)
     $receipt.previousInstallerSHA256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $prior).Hash.ToLowerInvariant()
@@ -128,11 +143,9 @@ try {
   $receipt.error = $_.Exception.Message
   throw
 } finally {
-  if ($driver -and -not $driver.HasExited) {
-    # tauri-driver owns the native driver process. Reap only that exact child.
-    Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -eq $driver.Id } | ForEach-Object { Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue }
-    Stop-Process -Id $driver.Id -ErrorAction SilentlyContinue
-  }
+  # The exact per-run tools path owns every process below; no generic process
+  # names or other apps are terminated, including after the wrapper has exited.
+  Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($toolsDir + '\', [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { Stop-Process -Id $_.ProcessId -ErrorAction SilentlyContinue }
   [IO.File]::WriteAllText((Join-Path $evidencePath 'installer-receipt.json'), ($receipt | ConvertTo-Json -Depth 10), [Text.UTF8Encoding]::new($false))
   # The ephemeral test password is never uploaded as evidence.
   $privateFixture = Join-Path $evidencePath 'private-fixture.json'

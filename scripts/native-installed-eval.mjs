@@ -108,6 +108,8 @@ async function authenticate() {
 }
 async function settings() {
   if (!await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Settings");
+  await until("local setup choice or projects folder", () => execute("return document.body.innerText.includes('On this computer') || [...document.querySelectorAll('label')].some(e=>e.textContent.includes('Projects folder'))"));
+  if (await execute("return [...document.querySelectorAll('button')].some(e=>e.textContent.trim()==='On this computer')")) await click("On this computer");
 }
 async function verifyProject() {
   if (await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Close settings");
@@ -207,6 +209,7 @@ try {
   result.passed = true;
 } catch (error) {
   result.error = error.stack || String(error);
+  try { result.ownedProcessesAtFailure = processes(); } catch {}
   if (session) {
     try { await snapshot("failure"); } catch {}
     try { writeFileSync(join(evidence, `${mode}-failure-text.txt`), await execute("return document.body.innerText")); } catch {}
