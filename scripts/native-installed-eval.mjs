@@ -196,7 +196,7 @@ try {
     await fill("What good looks like", "Brief and drawing survive a restart.\nGit records the actual saved work.");
     await click("Save brief");
     await bodyHas("Saved as revision 1");
-    result.checks.push("Created the project and saved brief revision1 through the installed UI");
+    result.checks.push("Created the project and saved brief revision 1 through the installed UI");
     await snapshot("brief");
     await click("Design");
     const canvas = await element("css", ".excalidraw__canvas.interactive");
@@ -214,7 +214,7 @@ try {
       { type: "pointerMove", duration: 500, x: x + 160, y: y + 100, origin: "viewport" }, { type: "pointerUp", button: 0 },
     ] }] });
     await click("Save design");
-    await bodyHas("Design saved");
+    await bodyHas("Design 1 · Brief 1");
     await snapshot("design");
     // Read-only disk verification proves a real canvas element was saved. UI
     // mutations above remain entirely normal user interactions.
