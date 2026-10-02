@@ -58,14 +58,16 @@ async function element(kind, name) {
     const visible=e=>!!(e&&e.getClientRects().length);
     const norm=s=>(s||'').replace(/\\s+/g,' ').trim();
     const labelled=e=>norm((e.getAttribute('aria-labelledby')||'').split(/\\s+/).map(id=>document.getElementById(id)?.textContent||'').join(' '));
+    const scope=[...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].filter(visible).at(-1)||document;
     if(arguments[0]==='label') {
-      const labels=[...document.querySelectorAll('label')].filter(visible);
+      const labels=[...scope.querySelectorAll('label')].filter(visible);
       const label=labels.find(e=>norm(e.textContent).startsWith(arguments[1]));
-      return label?.querySelector('input,textarea,select')||null;
+      const field=label?.querySelector('input,textarea,select');
+      return field&&!field.disabled?field:null;
     }
-    if(arguments[0]==='css') return [...document.querySelectorAll(arguments[1])].find(visible)||null;
-    if(arguments[0]==='file') return [...document.querySelectorAll('.journey-directory button')].filter(visible).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
-    return [...document.querySelectorAll('button,summary,[role=treeitem]')].filter(visible).find(e=>
+    if(arguments[0]==='css') return [...scope.querySelectorAll(arguments[1])].find(visible)||null;
+    if(arguments[0]==='file') return [...scope.querySelectorAll('.journey-directory button')].filter(visible).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
+    return [...scope.querySelectorAll('button,summary,[role=treeitem]')].filter(e=>visible(e)&&!e.disabled).find(e=>
       e.getAttribute('aria-label')===arguments[1] || labelled(e)===arguments[1] || norm(e.textContent)===arguments[1] ||
       (e.classList.contains('sub-row') && norm(e.textContent).endsWith(arguments[1])))||null;
   `, kind, name));
@@ -178,10 +180,14 @@ try {
     await click("Save settings");
     await bodyHas("Settings saved");
     await click("Git identity, agent connection and runtime");
+    // The existing candidate loads identity and runtime together. Wait for its
+    // visible loaded state, so initial GET completion cannot replace typing.
+    await element("css", ".local-tools > div > section.setup-plan:first-of-type [role=status]");
     await fill("Commit author name", "Native Acceptance");
     await fill("Commit author email", "native@example.invalid");
     await click("Save Git identity");
     await bodyHas("Git identity saved");
+    result.checks.push("Projects folder and Git identity saved through the installed Settings UI");
     await click("New project");
     await fill("Project name", fixture.projectName);
     await click("Create project");
