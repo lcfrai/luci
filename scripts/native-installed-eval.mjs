@@ -196,10 +196,17 @@ try {
     await fill("What good looks like", "Brief and drawing survive a restart.\nGit records the actual saved work.");
     await click("Save brief");
     await bodyHas("Saved as revision 1");
+    result.checks.push("Created the project and saved brief revision1 through the installed UI");
     await snapshot("brief");
     await click("Design");
-    await click('[data-testid="toolbar-rectangle"]', "css");
     const canvas = await element("css", ".excalidraw__canvas.interactive");
+    // Excalidraw overlays its radio inputs with icon SVGs. Use the documented
+    // real keyboard shortcut after focusing the canvas, as the browser UAT does.
+    await command(`/element/${canvas[elementKey]}/click`);
+    await command("/actions", "POST", { actions: [{ type: "key", id: "native-keyboard", actions: [
+      { type: "keyDown", value: "2" }, { type: "keyUp", value: "2" },
+    ] }] });
+    await until("rectangle tool selected", () => execute("return document.querySelector('[data-testid=\"toolbar-rectangle\"]')?.checked"));
     const bounds = await command(`/element/${canvas[elementKey]}/rect`, "GET", undefined);
     const x = Math.round(bounds.x + bounds.width * 0.5), y = Math.round(bounds.y + bounds.height * 0.5);
     await command("/actions", "POST", { actions: [{ type: "pointer", id: "native-mouse", parameters: { pointerType: "mouse" }, actions: [
