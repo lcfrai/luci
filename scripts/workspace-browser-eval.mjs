@@ -88,11 +88,17 @@ async function startService(name, port, account, password) {
   service.token = result.token; secrets.push(result.token); service.user = result.user;
   return service;
 }
-async function clickResponse(button, resource, expected = 200) {
+async function clickResponse(button, resource, expected = 200, readBody = true) {
   const received = page.waitForResponse((response) => new URL(response.url()).pathname === resource && response.request().method() === 'POST');
   await button.click(); const response = await received;
   assert.equal(response.status(), expected, `Browser ${resource} returned${response.status()}`);
-  return response.json();
+  return readBody ? response.json() : undefined;
+}
+async function switchWorkspace(button, resource) {
+  // Activation deliberately reloads the document. Its response body is not used;
+  // Chromium may discard that body before CDP can read it after the navigation.
+  const navigation = page.waitForEvent('framenavigated', { predicate: (frame) => frame === page.mainFrame() });
+  await Promise.all([navigation, clickResponse(button, resource, 200, false)]);
 }
 try {
   await fs.mkdir(output, { recursive: true });
@@ -177,7 +183,7 @@ try {
   const auth = await clickResponse(page.getByRole('button', { name: 'Sign in to workspace', exact: true }), '/v1/setup/workspace/auth');
   assert.equal(auth.authenticated, true); assert.equal(auth.user.id, remote.user.id);
   await until(() => page.getByRole('button', { name: 'Use this cloud workspace' }).isEnabled(), 'Authenticated workspace did not enable activation');
-  await clickResponse(page.getByRole('button', { name: 'Use this cloud workspace' }), '/v1/setup/workspace/activate');
+  await switchWorkspace(page.getByRole('button', { name: 'Use this cloud workspace' }), '/v1/setup/workspace/activate');
   await page.getByRole('button', { name: 'Local Workspace Owner', exact: true }).waitFor();
   assert.equal((await api(local, 'GET', '/v1/auth/me')).user.id, local.user.id);
   assert.equal((await api(local, 'GET', '/v1/setup/status')).workspace.mode, 'cloud');
@@ -205,7 +211,7 @@ try {
 
   stage = 'return-to-original-local-workspace';
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await clickResponse(page.getByRole('button', { name: 'Return to this machine', exact: true }), '/v1/setup/workspace/local');
+  await switchWorkspace(page.getByRole('button', { name: 'Return to this machine', exact: true }), '/v1/setup/workspace/local');
   await page.getByRole('heading', { name: 'Choose your workspace', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Close settings', exact: true }).click();
   await page.getByRole('treeitem').filter({ hasText: 'local-only-project' }).first().waitFor();
