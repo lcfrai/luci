@@ -28,7 +28,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: luci-ci-${{ github.workflow }}-${{ github.ref }}-${{ inputs.installer_run || inputs.installer_release || 'build' }}
+  group: luci-ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ inputs.installer_run || inputs.installer_release || 'build' }}
   cancel-in-progress: true
 
 env:

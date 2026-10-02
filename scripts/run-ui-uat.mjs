@@ -87,8 +87,9 @@ try {
   await stop();
   await start();
   const browser = await chromium.launch({ headless: true });
+  let page;
   try {
-    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
     const result = JSON.parse(await readFile(path.join(evidence, 'results.json'), 'utf8'));
     await page.goto(base);
     await page.getByLabel('Username', { exact: true }).fill(username);
@@ -96,14 +97,20 @@ try {
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByRole('treeitem', { name: new RegExp(`${result.restoredName}$`) }).click();
     await page.getByRole('button', { name: 'Define', exact: true }).click();
-    await page.getByLabel('The idea', { exact: true }).waitFor();
-    assert.match(await page.getByLabel('The idea', { exact: true }).inputValue(), /garden journal/);
+    await page.getByRole('textbox', { name: 'The idea', exact: true }).waitFor();
+    assert.match(await page.getByRole('textbox', { name: 'The idea', exact: true }).inputValue(), /garden journal/);
     await page.getByRole('button', { name: 'Develop', exact: true }).click();
     assert.equal(await page.getByLabel(/^Progress for task 1/).inputValue(), 'doing');
     await page.getByRole('button', { name: 'Design', exact: true }).click();
     await page.getByText(/Design 1 · Brief 1/).waitFor();
     await page.screenshot({ path: path.join(evidence, '11-process-restart.png'), fullPage: true });
     receipt.checks.push('Signed in after a real process restart; restored project, brief, design and task state recovered in the UI');
+  } catch (error) {
+    if (page) {
+      await page.screenshot({ path: path.join(evidence, 'restart-failure.png'), fullPage: true }).catch(() => {});
+      await writeFile(path.join(evidence, 'restart-failure-dom.txt'), await page.locator('body').innerText()).catch(() => {});
+    }
+    throw error;
   } finally { await browser.close(); }
   await stop();
   receipt.checks.push('Both owned service instances exited with code zero through the app lifecycle API');

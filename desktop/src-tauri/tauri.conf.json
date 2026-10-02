@@ -31,7 +31,12 @@
     "resources": {
       "runtime/": "runtime/",
       "licenses/": "licenses/",
-      "cloud/": "cloud/"
+      "cloud/": "cloud/",
+      "../../docs/UAT.md": "docs/UAT.md",
+      "../../docs/RUNBOOK.md": "docs/RUNBOOK.md",
+      "../../docs/luci/": "docs/luci/",
+      "../../DESIGN.md": "DESIGN.md",
+      "../../README.md": "README.md"
     },
     "externalBin": [
       "binaries/luci-api"
