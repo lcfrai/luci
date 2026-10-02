@@ -195,6 +195,15 @@ async function selectProject(requireBranch = phase !== "prepare") {
   const branch = row.locator("..").locator('[role="treeitem"][data-kind="branch"]').first();
   await checkpoint("project.branch");
   await branch.click();
+  // Branch selection is project-scoped. A coding session also needs an
+  // explicitly selected worktree, just as the real Settings guidance says.
+  // Its children load asynchronously after selection; a leaf-looking row
+  // cannot expand until the catalogue has supplied those children.
+  assert(await until(async () => (await branch.getAttribute("aria-expanded")) !== null), "The selected branch must load its registered worktree");
+  if (await branch.getAttribute("aria-expanded") !== "true") await branch.click();
+  await checkpoint("project.worktree");
+  const worktree = branch.locator("..").locator('[role="treeitem"][data-kind="worktree"]').first();
+  await worktree.click();
 }
 async function lens(name) { await page.getByRole("button", { name, exact: true }).click(); }
 async function planPanel() {
@@ -204,10 +213,12 @@ async function planPanel() {
   return panel;
 }
 async function settings() {
+  await checkpoint("settings.open");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   const summary = page.getByText("Git identity, agent connection and runtime", { exact: true });
-  if (!(await page.getByLabel("Coding agent", { exact: true }).isVisible())) await summary.click();
-  await page.getByLabel("Coding agent", { exact: true }).selectOption("openai");
+  if (!(await page.getByRole("combobox", { name: "Coding agent", exact: true }).isVisible())) await summary.click();
+  await page.getByRole("combobox", { name: "Coding agent", exact: true }).selectOption("openai");
+  await checkpoint("settings.codex");
 }
 async function closeSettings() { await page.getByRole("button", { name: "Close settings", exact: true }).click(); }
 async function dockerReady() {
@@ -337,7 +348,7 @@ async function auth() {
     assert.equal(session.harness, "codex"); assert.equal(session.authOnly, true);
     if (session.status !== "exited") pending("Complete the official Codex device sign-in in this project's Luci terminal, then rerun auth. No sign-in contents were captured.");
     await settings();
-    await page.getByLabel("Completed sign-in session", { exact: true }).selectOption(session.id);
+    await page.getByRole("combobox", { name: "Completed sign-in session", exact: true }).selectOption(session.id);
     account = await observed(() => page.getByRole("button", { name: "Save Codex sign-in", exact: true }).click(), "/v1/setup/agents/codex/account");
     assert.equal(account.configured, true); assert.equal(account.authMode, "chatgpt");
     await proof("subscription", { authMode: account.authMode, sourceSessionId: session.id, inferenceVerified: false });
@@ -360,11 +371,12 @@ async function develop() {
   const panel = await planPanel();
   await panel.getByRole("button", { name: "Start implementation session", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "New session", exact: true });
-  await dialog.getByLabel("Harness", { exact: true }).selectOption("codex");
-  await dialog.getByLabel("Permission mode", { exact: true }).selectOption(permission);
-  const handoff = await dialog.getByLabel("Opening prompt", { exact: true }).inputValue();
+  await dialog.getByRole("combobox", { name: "Harness", exact: true }).selectOption("codex");
+  await dialog.getByRole("combobox", { name: "Permission mode", exact: true }).selectOption(permission);
+  const handoff = await dialog.getByRole("textbox", { name: "Opening prompt", exact: true }).inputValue();
   assert(handoff.includes("LUCI.md") && handoff.includes(".luci/design.json") && handoff.includes(".luci/plan.json"));
   result.handoff = { sha256: hash(handoff), permissionMode: permission, briefRevision: result.proofs.describe.revision, planRevision: result.proofs.plan.revision };
+  await checkpoint("develop.create-session");
   const session = await observed(() => dialog.getByRole("button", { name: "Create session", exact: true }).click(), "/v1/sessions", 180000);
   assert.equal(session.harness, "codex"); assert.equal(session.authMode, "chatgpt"); assert.notEqual(session.authOnly, true);
   assert.equal(session.backend, "docker"); assert.equal(session.isolation, "container");
@@ -420,7 +432,7 @@ async function checks() {
   // Wait for the API's initial command list before replacing suggestions.
   assert(await until(async () => (await form.locator(".check-commands button").count()) === (initial.suggested || []).length), "Initial check suggestions must finish loading");
   while (await form.locator(".check-commands button").count()) await form.locator(".check-commands button").first().click();
-  const execution = form.getByLabel("Check execution", { exact: true });
+  const execution = form.getByRole("combobox", { name: "Check execution", exact: true });
   if (await execution.count()) await execution.selectOption("docker");
   await form.getByLabel("Executable", { exact: true }).fill("npm");
   await form.getByLabel("Arguments · JSON array", { exact: true }).fill('["test"]');
