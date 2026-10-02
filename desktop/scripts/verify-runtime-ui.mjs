@@ -410,6 +410,11 @@ try {
     .waitFor();
   assert.equal(await frame.locator("#proof").innerText(), nonce);
   await page.getByTitle("Project preview", { exact: true }).scrollIntoViewIfNeeded();
+  // A newly visible cross-origin frame can have its DOM ready before its first
+  // composited paint. Wait inside that frame so the screenshot records the app.
+  await frame.locator("body").evaluate(() => new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  }));
   await screenshot("04-committed-app-live-in-preview");
   checks.push(
     "Built the committed Docker application through Deploy; actual healthy loopback app rendered inside Luci's preview iframe",
