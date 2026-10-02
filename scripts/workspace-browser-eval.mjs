@@ -140,7 +140,7 @@ try {
   assert.ok(scan.fingerprints.includes(trustedFingerprint), 'Browser scan differs from independently hashed generated SSH host key');
   const trust = page.getByRole('button', { name: 'Trust and connect' });
   assert.equal(await trust.isDisabled(), true, 'SSH trust must require an explicit verified fingerprint');
-  await page.getByLabel('Server fingerprint', { exact: true }).selectOption(trustedFingerprint);
+  await page.getByRole('combobox', { name: 'Server fingerprint', exact: true }).selectOption(trustedFingerprint);
   await page.getByLabel('I compared this fingerprint with my server’s trusted console.').check();
   const tunnel = await clickResponse(trust, '/v1/setup/ssh/connect', 202);
   await page.getByLabel('Remote username', { exact: true }).waitFor({ timeout: 45000 });
