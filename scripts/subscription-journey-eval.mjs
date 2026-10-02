@@ -118,6 +118,7 @@ async function proof(name, fields) {
   result.proofs[name] = { passed: true, at: new Date().toISOString(), ...fields };
   await save();
 }
+async function checkpoint(stage) { attempt.stage = stage; await save(); }
 function requireProof(...names) {
   for (const name of names) if (!result.proofs[name]?.passed) pending(`Complete the ${name} stage first; stages cannot be skipped.`);
 }
@@ -144,6 +145,7 @@ async function screenshot(name) {
   await page.screenshot({ path: path.join(evidence, name + ".png"), fullPage: true, mask: [page.locator(".pane-body")] });
 }
 async function enter() {
+  await checkpoint("entry.connection");
   browser = await chromium.launch({ headless: !args.includes("--headed") });
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.setDefaultTimeout(45000);
@@ -159,6 +161,7 @@ async function enter() {
   const status = await get("/v1/control-plane/status");
   if (status.bootstrapRequired) pending("Create the real Luci owner account first, then rerun this stage. The harness does not read bootstrap or owner capabilities.");
   await page.goto(origin);
+  await checkpoint("entry.sign-in");
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -169,19 +172,28 @@ async function enter() {
   if (result.userId) assert.equal(me.user.id, result.userId, "Do not resume evidence in a replacement account");
   result.userId = me.user.id;
   const setup = await get("/v1/setup/status");
+  await checkpoint("entry.setup-dialog");
   if (!setup.configured) {
     await page.getByRole("button", { name: "Close settings", exact: true }).click();
   }
   await page.locator(".setup-backdrop").waitFor({ state: "hidden" });
   if (result.project) await selectProject();
 }
-async function selectProject() {
+async function selectProject(requireBranch = phase !== "prepare") {
+  await checkpoint("project.catalogue");
   const rows = (await get("/v1/projects")).projects;
   assert(rows.some(row => row.id === result.project.id && row.name === result.projectName), "Owned benchmark project is not present in this account");
   const row = page.locator(`[role="treeitem"][data-kind="project"][data-id="${result.project.id}"]`);
+  await checkpoint("project.row");
   await row.waitFor();
+  await checkpoint("project.expand");
+  if (await row.getAttribute("aria-selected") !== "true") await row.click();
   if (await row.getAttribute("aria-expanded") !== "true") await row.click();
+  // A new Git repository has no branch ref before its first commit. Define,
+  // Design and plan are project-scoped and must remain usable before that point.
+  if (!requireBranch) return;
   const branch = row.locator("..").locator('[role="treeitem"][data-kind="branch"]').first();
+  await checkpoint("project.branch");
   await branch.click();
 }
 async function lens(name) { await page.getByRole("button", { name, exact: true }).click(); }
@@ -233,32 +245,53 @@ async function prepare() {
     'A committed Dockerfile serves docs/ on 0.0.0.0:3000 with GET /healthz or /healthz/ returning the health content. npm test runs meaningful node:test checks with no paid service.',
   ];
   if (!result.proofs.describe) {
+    await checkpoint("describe.navigation");
     await lens("Define");
+    await checkpoint("describe.idea");
     await page.getByRole("textbox", { name: "The idea", exact: true }).fill("Build Luci Launch Checklist: a polished, small launch preparation checklist that shows an actual idea becoming a usable deployed website through Luci.");
+    await checkpoint("describe.fields");
     await page.getByRole("textbox", { name: "Who it is for", exact: true }).fill("An individual preparing to launch a small website, using keyboard or touch.");
     await page.getByRole("textbox", { name: "Boundaries and constraints", exact: true }).fill(`Use dependency-light HTML/CSS/JavaScript in docs/ and Node's built-in tests. Follow the saved wireframe, warm neutral surfaces, teal accents, clear type and useful empty states. Docker port 3000 and GitHub Pages /docs must serve the same app, including beneath a repository URL prefix. No external services or assets, no credentials, no cloud purchases. Do not commit or publish; Luci will independently verify and commit. Read the saved plan/design. Only after implementation and your tests finish, write IMPLEMENTATION.md explaining actual changes, remaining limitations and this completion marker: LUCI_SUBSCRIPTION_${result.nonce}. Never claim verification you did not perform.`);
     await page.getByRole("textbox", { name: /^What good looks like/ }).fill(criteria.join("\n"));
+    await checkpoint("describe.save");
     const brief = await observed(() => page.getByRole("button", { name: "Save brief", exact: true }).click(), projectPath("/brief"));
     assert(brief.criteria.length >= criteria.length && brief.revision > 0);
     await proof("describe", { revision: brief.revision, criteriaCount: brief.criteria.length });
     await screenshot("01-define");
   }
   if (!result.proofs.design) {
+    await checkpoint("design.navigation");
     await lens("Design");
     const canvas = page.locator(".excalidraw canvas").first();
     await canvas.waitFor();
-    const box = await canvas.boundingBox(); assert(box && box.width > 700 && box.height > 500);
-    const x = box.x + 170, y = box.y + 100;
+    const box = await canvas.boundingBox(); assert(box && box.width > 850 && box.height > 650);
+    await checkpoint("design.canvas");
+    // Keep the sketch to the right of Excalidraw's visible left style palette.
+    const x = box.x + 280, y = box.y + 140;
+    const paint = () => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
     async function rectangle(dx, dy, width, height) {
       await page.keyboard.press("Escape"); await page.keyboard.press("2");
+      await paint();
       await page.mouse.move(x + dx, y + dy); await page.mouse.down();
       await page.mouse.move(x + dx + width, y + dy + height, { steps: 8 }); await page.mouse.up();
+      await paint();
     }
     async function text(dx, dy, value) {
       await page.keyboard.press("Escape"); await page.keyboard.press("t");
-      await page.mouse.click(x + dx, y + dy); await page.keyboard.insertText(value); await page.keyboard.press("Escape");
+      await paint();
+      await page.mouse.click(x + dx, y + dy);
+      const editor = page.locator(".excalidraw-wysiwyg");
+      await editor.waitFor({ state: "visible" }); await editor.fill(value);
+      await page.keyboard.press("Escape"); await editor.waitFor({ state: "hidden" }); await paint();
     }
-    await canvas.click({ position: { x: 160, y: 80 } });
+    // Excalidraw stacks a static canvas below its interactive canvas. Click the
+    // observed surface coordinates, as the established browser UAT does, rather
+    // than asking Playwright to click through the overlaid static DOM node.
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+    // Resume an unsuccessful sketch in this dedicated benchmark project. The
+    // failed saved revision remains in its attempt evidence; there is no design
+    // proof yet, and no unrelated project is ever adopted by prepare.
+    await page.keyboard.press("ControlOrMeta+a"); await page.keyboard.press("Delete"); await paint();
     await rectangle(0, 0, 500, 430);
     await text(20, 24, "Luci Launch Checklist");
     await text(20, 72, "Total   |   Completed   |   Remaining");
@@ -267,6 +300,7 @@ async function prepare() {
     await text(20, 178, "All     Active     Completed");
     await rectangle(20, 220, 460, 150); await text(35, 240, "[ ] Review launch details\n[ ] Check mobile experience\n[x] Save progress locally");
     await page.keyboard.press("Escape");
+    await checkpoint("design.save");
     const design = await observed(() => page.getByRole("button", { name: "Save design", exact: true }).click(), projectPath("/design"));
     const elements = design.scene?.elements || [];
     assert(elements.some(item => item.type === "rectangle") && elements.some(item => item.type === "text" && item.text.includes("Luci Launch Checklist")), "Actual persisted canvas must contain the wireframe and heading");
@@ -274,14 +308,20 @@ async function prepare() {
     await screenshot("02-design");
   }
   if (!result.proofs.plan) {
+    await checkpoint("plan.navigation");
     const panel = await planPanel();
     await panel.getByRole("button", { name: "Add acceptance criteria as tasks", exact: true }).click();
+    await checkpoint("plan.save");
     const plan = await observed(() => panel.getByRole("button", { name: "Save implementation plan", exact: true }).click(), projectPath("/plan"));
     assert(plan.tasks.length >= criteria.length);
     await proof("plan", { revision: plan.revision, briefRevision: plan.briefRevision, taskCount: plan.tasks.length });
     await screenshot("03-plan");
   }
   await assertContext();
+  await checkpoint("prepare.context-commit");
+  await commit("Define and design Luci Launch Checklist");
+  result.contextCommit = result.commit; await save();
+  await selectProject(true);
   pending("Describe, Design and the implementation plan are saved. Run auth when the Docker runtime and your official Codex sign-in are ready.");
 }
 async function auth() {
@@ -357,11 +397,11 @@ async function stopAgent() {
   }
   return session;
 }
-async function commit() {
+async function commit(message = "Build Luci Launch Checklist through Codex subscription") {
   let git = await get(projectPath("/git"));
   if (!git.clean) {
     await lens("Develop"); await page.getByRole("button", { name: "Git", exact: true }).click();
-    await page.getByRole("textbox", { name: "Commit message", exact: true }).fill("Build Luci Launch Checklist through Codex subscription");
+    await page.getByRole("textbox", { name: "Commit message", exact: true }).fill(message);
     await observed(() => page.getByRole("button", { name: "Commit changes", exact: true }).click(), projectPath("/git/commit"));
     git = await get(projectPath("/git"));
   }
@@ -580,6 +620,14 @@ try {
   result.passed = false;
   result.status = error instanceof Pending ? "pending" : "failed";
   attempt.status = result.status;
+  attempt.errorClass = error?.constructor?.name || "UnknownError";
+  if (phase === "prepare" && !(error instanceof Pending) && page && await page.locator(".shell").isVisible().catch(() => false)) {
+    // Constant checkpoint names and non-auth app geometry help diagnose a
+    // genuine boundary failure without leaking Playwright call logs or bodies.
+    const name = `prepare-failure-${result.attempts.length}`;
+    try { await screenshot(name); attempt.screenshot = name + ".png"; } catch { /* Keep the original failure. */ }
+    attempt.navigation = await page.locator('[role="treeitem"]').evaluateAll(elements => elements.slice(0, 30).map(element => ({ kind: element.getAttribute("data-kind"), id: element.getAttribute("data-id"), expanded: element.getAttribute("aria-expanded"), hidden: element.getClientRects().length === 0 }))).catch(() => []);
+  }
   // Playwright errors can embed typed input and page call logs. Keep only our
   // bounded assertion messages; never emit a full stack, locator log or payload.
   const message = error instanceof Pending || error instanceof assert.AssertionError
