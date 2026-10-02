@@ -28,6 +28,11 @@
     "copyright": "Copyright (c) 2026 lcfr.ai contributors",
     "license": "MIT",
     "licenseFile": "../../LICENSE",
+    "windows": {
+      "nsis": {
+        "installerHooks": "./windows/hooks.nsh"
+      }
+    },
     "resources": {
       "runtime/": "runtime/",
       "licenses/": "licenses/",
