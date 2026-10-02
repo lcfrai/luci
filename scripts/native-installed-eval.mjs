@@ -91,6 +91,9 @@ function processes() {
   return JSON.parse(powershell(`$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded}')); $ownedRows=@((Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $p -or $_.ExecutablePath -eq (Join-Path (Split-Path -Parent $p) 'luci-api.exe') }) | Select-Object ProcessId,ParentProcessId,ExecutablePath); ConvertTo-Json -InputObject $ownedRows -Compress`));
 }
 const readProjectJSON = (path) => JSON.parse(readFileSync(join(fixture.projectRoot, fixture.projectName, path), "utf8"));
+const productStateDir = () => result.applicationVersion.startsWith("0.3.")
+  ? join(process.env.LOCALAPPDATA, "Luci", "state", "sessions")
+  : join(process.env.APPDATA, "ai.lcfr.luci", "sessions");
 async function snapshot(name) {
   const png = await command("/screenshot", "GET", undefined);
   writeFileSync(join(evidence, `${mode}-${name}.png`), Buffer.from(png, "base64"));
@@ -179,7 +182,7 @@ try {
     await settings();
     await fill("Projects folder", fixture.projectRoot);
     await click("Save settings");
-    await until("projects folder persisted", () => JSON.parse(readFileSync(join(process.env.APPDATA, "ai.lcfr.luci", "sessions", "luci.json"), "utf8")).projectsDir === fixture.projectRoot);
+    await until("projects folder persisted", () => JSON.parse(readFileSync(join(productStateDir(), "luci.json"), "utf8")).projectsDir === fixture.projectRoot);
     await click("Git identity, agent connection and runtime");
     // The existing candidate loads identity and runtime together. Wait for its
     // visible loaded state, so initial GET completion cannot replace typing.
