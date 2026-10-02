@@ -127,7 +127,8 @@ jobs:
           sudo chmod -R a+rX /opt/luci-uat-browsers
       - name: Exercise the compiled multi-user control plane
         run: node scripts/control-plane-smoke.mjs --binary artifacts/runtime-smoke/luci --output artifacts/control-plane-smoke.json
-      - name: Exercise Docker as a distinct non-root host user
+      - name: Prepare isolated runtime acceptance fixtures
+        id: runtime-fixtures
         shell: bash
         run: |
           set -euo pipefail
@@ -151,13 +152,27 @@ jobs:
           for source in cmd internal vendor go.mod go.sum; do cp -R "sandboxd/$source" "$stage/sandboxd/$source"; done
           chmod -R a+rX "$stage"
           sudo install -d -o luci-eval -g luci-eval -m 700 "$stage/evidence"
-          capture_evidence() {
-            sudo tar -czf "$RUNNER_TEMP/luci-runtime-evidence.tar.gz" -C "$stage/evidence" .
-            sudo chmod 644 "$RUNNER_TEMP/luci-runtime-evidence.tar.gz"
-          }
-          trap capture_evidence EXIT
+          echo "stage=$stage" >> "$GITHUB_OUTPUT"
+      - name: Exercise Docker as a distinct non-root host user
+        env:
+          LUCI_EVAL_STAGE: ${{ steps.runtime-fixtures.outputs.stage }}
+        run: |
+          stage="$LUCI_EVAL_STAGE"
           sudo -H -u luci-eval env PATH="$PATH" PLAYWRIGHT_BROWSERS_PATH=/opt/luci-uat-browsers LUCI_RUNTIME_UI=1 node "$stage/scripts/runtime-smoke.mjs" "$stage/luci" "$stage/evidence"
+      - name: Exercise real SSH workspace onboarding through the browser
+        if: ${{ always() && steps.runtime-fixtures.outcome == 'success' }}
+        env:
+          LUCI_EVAL_STAGE: ${{ steps.runtime-fixtures.outputs.stage }}
+        run: |
+          stage="$LUCI_EVAL_STAGE"
           sudo -H -u luci-eval env PATH="$PATH" PLAYWRIGHT_BROWSERS_PATH=/opt/luci-uat-browsers node "$stage/scripts/workspace-browser-eval.mjs" --binary "$stage/luci" --desktop "$stage/desktop" --output "$stage/evidence/workspace-browser"
+      - name: Capture independent runtime acceptance evidence
+        if: ${{ always() && steps.runtime-fixtures.outcome == 'success' }}
+        env:
+          LUCI_EVAL_STAGE: ${{ steps.runtime-fixtures.outputs.stage }}
+        run: |
+          sudo tar -czf "$RUNNER_TEMP/luci-runtime-evidence.tar.gz" -C "$LUCI_EVAL_STAGE/evidence" .
+          sudo chmod 644 "$RUNNER_TEMP/luci-runtime-evidence.tar.gz"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

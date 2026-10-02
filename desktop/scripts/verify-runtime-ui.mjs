@@ -235,7 +235,7 @@ try {
       "Use the existing sandbox image. No model accounts or cloud resources.",
     );
   await page
-    .getByRole("textbox", { name: "What good looks like", exact: true })
+    .getByRole("textbox", { name: /^What good looks like/ })
     .fill(
       "A terminal writes files as the ordinary host UID\nDocker checks pass\nA committed app renders in the preview and stops",
     );
@@ -266,7 +266,7 @@ try {
     .getByRole("button", { name: "Session options", exact: true })
     .click();
   const picker = page.getByRole("dialog", { name: "New session", exact: true });
-  await picker.getByLabel("Harness", { exact: true }).selectOption("shell");
+  await picker.getByRole("combobox", { name: "Harness", exact: true }).selectOption("shell");
   result.session = await observed(
     () =>
       picker
@@ -385,7 +385,7 @@ try {
 
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
   await page.getByLabel("Dockerfile", { exact: true }).fill("Dockerfile");
-  await page.getByLabel("App port", { exact: true }).fill("3000");
+  await page.getByRole("spinbutton", { name: /^App port/ }).fill("3000");
   result.release = await observed(
     () =>
       page
