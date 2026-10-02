@@ -225,9 +225,10 @@ try {
     await snapshot("design");
     // Read-only disk verification proves a real canvas element was saved. UI
     // mutations above remain entirely normal user interactions.
-    const design = JSON.parse(readFileSync(join(fixture.projectRoot, fixture.projectName, ".luci", "design.json"), "utf8"));
+    const design = readProjectJSON(".luci/state.json").design;
     assert(design.scene.elements.some((item) => item.type === "rectangle" && !item.isDeleted));
     assert.equal(design.briefRevision, 1);
+    if (!result.applicationVersion.startsWith("0.3.")) assert.deepEqual(readProjectJSON(".luci/design.json"), design);
     await click("Develop");
     if (!result.applicationVersion.startsWith("0.3.")) {
       await fill("New task", "Verify installed application persistence");

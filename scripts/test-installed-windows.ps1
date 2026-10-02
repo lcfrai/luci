@@ -55,10 +55,13 @@ function Preserved-Hashes {
   $fixture = Get-Content -LiteralPath (Join-Path $evidencePath 'private-fixture.json') -Raw | ConvertFrom-Json
   $project = Join-Path $fixture.projectRoot $fixture.projectName
   $hashes = [ordered]@{}
-  foreach ($name in @('LUCI.md','.luci\state.json','.luci\design.json','.git\HEAD')) {
+  foreach ($name in @('LUCI.md','.luci\state.json','.git\HEAD')) {
     $path = Join-Path $project $name
     $hashes[$path] = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash
   }
+  # 0.3 stores its canonical design in state.json; later versions also export it.
+  $designExport = Join-Path $project '.luci\design.json'
+  if (Test-Path -LiteralPath $designExport) { $hashes[$designExport] = (Get-FileHash -Algorithm SHA256 -LiteralPath $designExport).Hash }
   if ($fixture.PSObject.Properties['hasPlan'] -and $fixture.hasPlan) {
     $plan = Join-Path $project '.luci\plan.json'
     $hashes[$plan] = (Get-FileHash -Algorithm SHA256 -LiteralPath $plan).Hash
