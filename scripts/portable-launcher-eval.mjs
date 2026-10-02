@@ -27,6 +27,7 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
   const hash = data => createHash('sha256').update(data).digest('hex');
   const result = { passed: false, platform: process.platform, architecture: process.arch, nodeVersion: process.version,
     packageDir, binarySha256: hash(await readFile(binary)), launcherSha256: hash(await readFile(launcher)),
+    harnessSha256: hash(await readFile(new URL(import.meta.url))),
     startedAt: new Date().toISOString(), checks: [], cloudCalls: 0, modelCalls: 0,
     scope: 'Actual shipped launcher and service; explicit disposable profile, no browser opening or native GUI.' };
   const secrets = new Set(), launched = [];
@@ -34,12 +35,26 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
   const redact = value => { let text = String(value); for (const item of secrets) text = text.replaceAll(item, '[redacted]'); return text; };
   const pass = name => result.checks.push({ name, status: 'passed' });
   const proofPath = path.join(state, 'control-plane', 'owner-access-token');
-  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => /^(PATH|SYSTEMROOT|WINDIR|COMSPEC|PATHEXT|TEMP|TMP|LANG|LC_ALL)$/i.test(key)));
+  const windowsSystemKeys = /^(PROGRAMFILES(?:\(X86\))?|PROGRAMW6432|PROGRAMDATA|ALLUSERSPROFILE|SYSTEMDRIVE)$/i;
+  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => /^(PATH|SYSTEMROOT|WINDIR|COMSPEC|PATHEXT|TEMP|TMP|LANG|LC_ALL)$/i.test(key) || (windows && windowsSystemKeys.test(key))));
   const environment = { ...inherited, HOME: home, USERPROFILE: home, LOCALAPPDATA: path.join(home, 'Local'), APPDATA: path.join(home, 'Roaming'),
     XDG_CONFIG_HOME: path.join(home, '.config'), XDG_DATA_HOME: path.join(home, '.local/share'), XDG_STATE_HOME: path.join(home, '.local/state'),
     GIT_CONFIG_GLOBAL: path.join(home, 'gitconfig'), GIT_CONFIG_NOSYSTEM: '1',
     GH_CONFIG_DIR: path.join(home, 'gh'), AZURE_CONFIG_DIR: path.join(home, 'azure'),
     AWS_CONFIG_FILE: path.join(home, 'aws-config'), AWS_SHARED_CREDENTIALS_FILE: path.join(home, 'aws-credentials'), AWS_EC2_METADATA_DISABLED: 'true' };
+  if (windows) {
+    // Keep the account/credential profile private without withholding Windows'
+    // own runtime paths. Never inherit user or PowerShell 7 module search paths.
+    const systemRoot = Object.entries(inherited).find(([key]) => /^SYSTEMROOT$/i.test(key))?.[1];
+    assert.ok(systemRoot && path.isAbsolute(systemRoot), 'Windows system root is required');
+    environment.PSModulePath = path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'Modules');
+    for (const directory of [environment.LOCALAPPDATA, environment.APPDATA]) await mkdir(directory, { mode: 0o700 });
+    result.environmentProfile = { kind: 'private-user-profile-with-windows-system-modules',
+      systemPaths: Object.fromEntries(Object.entries(inherited).filter(([key]) => windowsSystemKeys.test(key) || /^SYSTEMROOT$/i.test(key))),
+      powershellModulePath: environment.PSModulePath, inheritedModulePath: false, privateProfileDirectoriesCreated: true,
+      privatePaths: { HOME: '<fixture>/home', USERPROFILE: '<fixture>/home', LOCALAPPDATA: '<fixture>/home/Local', APPDATA: '<fixture>/home/Roaming' },
+      credentialPaths: 'Git, GitHub, AWS and Azure remain under the private fixture home', preInvocationWarmup: false };
+  }
   let ownerToken = '', proof = '', owned;
   const ownerPassword = secret(), recoveredPassword = secret();
   async function api(method, route, body, { token = ownerToken, capability = '', status = 200 } = {}) {
@@ -60,8 +75,9 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
     const executable = windows ? 'powershell.exe' : 'bash';
     const args = windows ? ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', launcher, '-Port', String(port), '-StateDir', stateDirectory, '-NoBrowser']
       : [launcher, '--port', String(port), '--state-dir', stateDirectory, '--no-browser'];
+    const startedAt = Date.now();
     const child = spawn(executable, args, { cwd: packageDir, env: environment, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
-    const record = { child, output: '', spawnError: null, closed: false, index: launched.length };
+    const record = { child, output: '', spawnError: null, closed: false, index: launched.length, stateDirectory, startedAt };
     launched.push(record);
     child.once('error', error => { record.spawnError = error; });
     child.once('close', () => { record.closed = true; });
@@ -70,15 +86,51 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
     return record;
   }
   const exited = record => record.child.exitCode !== null || record.child.signalCode !== null || record.spawnError;
+  async function rememberFixtureCodes() {
+    for (const record of launched) for (const name of ['owner-access-token', 'bootstrap-token']) {
+      const filename = path.join(record.stateDirectory, 'control-plane', name);
+      try {
+        if ((await stat(filename)).size > 128) continue;
+        const code = (await readFile(filename, 'utf8')).trim();
+        if (/^[A-Za-z0-9_-]{43}$/.test(code)) secrets.add(code);
+      } catch (error) { if (error.code !== 'ENOENT') (result.diagnosticErrors ||= []).push(`Cannot inspect private fixture code: ${error.code || 'unknown'}`); }
+    }
+  }
+  async function failureDiagnostics() {
+    // Read only this acceptance fixture's code files so a failure before the
+    // normal proof check cannot accidentally publish a private startup code.
+    await rememberFixtureCodes();
+    let service;
+    try {
+      const response = await fetch(base + '/v1/control-plane/status', { signal: AbortSignal.timeout(2000) });
+      const value = await response.json();
+      service = { status: response.status, product: String(value.product || '').slice(0, 80), version: String(value.version || '').slice(0, 80), configured: value.configured, bootstrapRequired: value.bootstrapRequired };
+    } catch (error) { service = { error: redact(error.message) }; }
+    const logs = [];
+    for (const name of ['service.out.log', 'service.err.log']) {
+      try {
+        const filename = path.join(state, name), info = await stat(filename);
+        logs.push(info.size > 1048576 ? { name, bytes: info.size, omitted: 'over diagnostic bound' }
+          : { name, bytes: info.size, tail: redact(await readFile(filename, 'utf8')).slice(-16384) });
+      } catch (error) { logs.push({ name, error: error.code || 'unknown' }); }
+    }
+    return { observedBeforeCleanup: true, service, serviceLogs: logs, launchers: launched.map(record => ({ index: record.index, pid: record.child.pid, exitCode: record.child.exitCode, signal: record.child.signalCode, closed: record.closed, spawnError: record.spawnError ? redact(record.spawnError.message) : null, outputTail: redact(record.output).slice(-16384) })) };
+  }
   async function ready(record) {
+    // Hosted Windows cold command discovery took 29.9s; genuine verified
+    // launcher readiness followed by clean exit was observed by 48.5s. Allow
+    // this first fixture start more time; later starts and Unix retain 45s.
+    const startupBudgetMs = windows && record.index === 0 ? 90000 : 45000;
+    if (record.index === 0) result.startupBudgetMs = startupBudgetMs;
     await waitUntil(async () => {
       if (record.spawnError) throw record.spawnError;
       assert.ok(!exited(record), 'Owned launcher exited before readiness');
       return record.output.includes(`Luci is running at ${base}`);
-    }, 'Launcher did not announce a ready, verified workspace');
+    }, 'Launcher did not announce a ready, verified workspace', startupBudgetMs);
     const status = await api('GET', '/v1/control-plane/status', undefined, { token: '' });
     assert.equal(status.product, 'Luci');
     assert.equal(status.version, process.env.LUCI_VERSION || '0.4.2');
+    if (record.index === 0) result.startupElapsedMs = Date.now() - record.startedAt;
     result.version = status.version;
     return status;
   }
@@ -167,6 +219,8 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
     pass('Launcher output contained no owner proof, bootstrap token, password or bearer');
     result.passed = true;
   } catch (error) {
+    try { result.failureDiagnostics = await failureDiagnostics(); }
+    catch (diagnosticError) { (result.diagnosticErrors ||= []).push(redact(diagnosticError.message)); }
     result.error = redact(error.stack || error);
     throw new Error(result.error);
   } finally {
@@ -175,6 +229,8 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
       try { await closeLauncher(record, record === owned); }
       catch (error) { (result.cleanupErrors ||= []).push(redact(error.message)); record.child.kill(); }
     }
+    await rememberFixtureCodes();
+    if (!result.passed) result.launcherOutputAfterCleanup = launched.map(record => ({ index: record.index, exitCode: record.child.exitCode, signal: record.child.signalCode, outputTail: redact(record.output).slice(-16384) }));
     result.finishedAt = new Date().toISOString();
     await writeFile(path.join(evidence, 'launcher-results.json'), JSON.stringify(result, null, 2));
     await writeFile(path.join(evidence, 'launcher.log'), redact(launched.map(record => `Launcher ${record.index}: exit=${record.child.exitCode}, signal=${record.child.signalCode}\n${record.output}`).join('\n')));
