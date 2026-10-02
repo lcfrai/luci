@@ -5,9 +5,19 @@ on:
   push:
     branches: [main, 'feat/phase-2-cockpit']
   workflow_dispatch:
+    inputs:
+      installer_run:
+        description: 'Optional completed run ID: test its existing Windows installer without rebuilding'
+        type: string
+        default: ''
+      upgrade_from_03:
+        description: 'Seed with the retained 0.3.0 installer and verify the upgrade'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: luci-ci-${{ github.workflow }}-${{ github.ref }}
@@ -21,6 +31,7 @@ env:
 jobs:
   verify:
     name: Go and desktop checks
+    if: ${{ !inputs.installer_run }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -230,6 +241,23 @@ jobs:
           $lines = $installers | ForEach-Object { (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant() + '  ' + $_.Name }
           [System.IO.File]::WriteAllLines((Join-Path $installers[0].Directory.FullName 'SHA256SUMS'), $lines, [System.Text.UTF8Encoding]::new($false))
           Copy-Item -LiteralPath "artifacts/releases/$env:LUCI_VERSION/release-manifest.json" -Destination (Join-Path $installers[0].Directory.FullName 'release-manifest.json')
+      - name: Exercise the installed native application
+        run: |
+          $installer = @(Get-ChildItem -LiteralPath desktop/src-tauri/target/release/bundle/nsis -Filter '*-setup.exe' -File)
+          ./scripts/test-installed-windows.ps1 -Installer $installer[0].FullName
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: luci-installed-windows-evidence-${{ github.sha }}
+          path: |
+            artifacts/native-installed-eval/*-result.json
+            artifacts/native-installed-eval/installer-receipt.json
+            artifacts/native-installed-eval/*.png
+            artifacts/native-installed-eval/*-failure-text.txt
+            artifacts/native-installed-eval/driver-*.log
+            artifacts/package-eval/windows/*.json
+          if-no-files-found: warn
+          retention-days: 14
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: luci-windows-native-${{ github.sha }}
@@ -240,6 +268,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: luci-portable-windows-build-${{ github.sha }}
@@ -251,3 +280,64 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
+
+  installed-diagnostic:
+    name: Installed Windows release diagnostic
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.installer_run != '' }}
+    runs-on: windows-2025
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Obtain the existing installer and verify its recorded hash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INSTALLER_RUN: ${{ inputs.installer_run }}
+          UPGRADE_FROM_03: ${{ inputs.upgrade_from_03 }}
+        run: |
+          if ($env:INSTALLER_RUN -notmatch '^\d+$') { throw 'installer_run must be a numeric completed CI run ID' }
+          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:INSTALLER_RUN" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $run.conclusion -ne 'success') { throw 'Source installer run must have succeeded' }
+          $artifacts = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:INSTALLER_RUN/artifacts" | ConvertFrom-Json
+          $native = @($artifacts.artifacts | Where-Object { $_.name -like 'luci-windows-native-*' -and -not $_.expired })
+          if ($native.Count -ne 1) { throw 'Expected one retained native installer artifact' }
+          gh run download $env:INSTALLER_RUN --repo $env:GITHUB_REPOSITORY --name $native[0].name --dir artifacts/diagnostic-installer
+          if ($LASTEXITCODE -ne 0) { throw 'Installer download failed' }
+          $manifest = Get-Content artifacts/diagnostic-installer/release-manifest.json -Raw | ConvertFrom-Json
+          $installer = @($manifest.artifacts | Where-Object { $_.name -like '*-setup.exe' })
+          if ($installer.Count -ne 1) { throw 'Expected one installer manifest entry' }
+          $path = Join-Path (Resolve-Path artifacts/diagnostic-installer).Path $installer[0].name
+          if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $installer[0].sha256) { throw 'Installer hash differs from source build manifest' }
+          "NATIVE_INSTALLER=$path" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
+          $provenance = @{ scriptsCommit=$env:GITHUB_SHA; installerRun=$env:INSTALLER_RUN; installerSourceCommit=$manifest.sourceCommit; installerSHA256=$installer[0].sha256 }
+          New-Item -ItemType Directory -Path artifacts/native-installed-eval -Force | Out-Null
+          $provenance | ConvertTo-Json | Set-Content artifacts/native-installed-eval/input-provenance.json
+          if ($env:UPGRADE_FROM_03 -eq 'true') {
+            gh release download v0.3.0-rc.1 --repo $env:GITHUB_REPOSITORY --pattern Luci_0.3.0_x64-setup.exe --dir artifacts/diagnostic-previous
+            if ($LASTEXITCODE -ne 0) { throw 'Previous release download failed' }
+            $previous = (Resolve-Path artifacts/diagnostic-previous/Luci_0.3.0_x64-setup.exe).Path
+            if ((Get-FileHash -LiteralPath $previous -Algorithm SHA256).Hash.ToLowerInvariant() -ne '81db0b7006bf8967d924cab362b4db1c140ddc48ca7b26b110dab7edc463c179') { throw 'Previous installer differs from retained 0.3.0 candidate' }
+            "PREVIOUS_INSTALLER=$previous" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
+          }
+      - name: Exercise the installed release
+        run: ./scripts/test-installed-windows.ps1 -Installer $env:NATIVE_INSTALLER -PreviousInstaller "$env:PREVIOUS_INSTALLER"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: luci-installed-diagnostic-${{ github.run_id }}
+          path: |
+            artifacts/native-installed-eval/*-result.json
+            artifacts/native-installed-eval/installer-receipt.json
+            artifacts/native-installed-eval/input-provenance.json
+            artifacts/native-installed-eval/*.png
+            artifacts/native-installed-eval/*-failure-text.txt
+            artifacts/native-installed-eval/driver-*.log
+          if-no-files-found: warn
+          retention-days: 14
