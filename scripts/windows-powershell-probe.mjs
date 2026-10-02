@@ -30,27 +30,71 @@ await new Promise(resolve => reservation.close(resolve));
 const script = `$ErrorActionPreference = 'Stop'
 [Console]::Out.WriteLine('HOST_READY')
 [Console]::Out.Flush()
-[Console]::Out.WriteLine('HTTP_PROBE_START')
-[Console]::Out.Flush()
-try {
-  Invoke-RestMethod -Uri 'http://127.0.0.1:${port}/v1/control-plane/status' -TimeoutSec 2 | Out-Null
-  [Console]::Out.WriteLine('HTTP_UNEXPECTED_SUCCESS')
-  exit 2
-} catch {
-  if ($_.Exception -is [System.Net.WebException] -and $_.Exception.Status -eq [System.Net.WebExceptionStatus]::ConnectFailure) {
-    [Console]::Out.WriteLine('HTTP_EXPECTED_CONNECTION_FAILURE')
-  } else {
-    [Console]::Out.WriteLine('HTTP_UNEXPECTED_ERROR:' + $_.Exception.GetType().FullName)
-    exit 3
+$totalTimer = [Diagnostics.Stopwatch]::StartNew()
+function Write-Marker([string]$Text) {
+  [Console]::Out.WriteLine($Text)
+  [Console]::Out.Flush()
+}
+function Invoke-Probe([string]$Name, [scriptblock]$Action) {
+  Write-Marker ('STEP|' + $Name + '|START|totalMs=' + $totalTimer.ElapsedMilliseconds)
+  $stepTimer = [Diagnostics.Stopwatch]::StartNew()
+  try {
+    & $Action
+    Write-Marker ('STEP|' + $Name + '|END|durationMs=' + $stepTimer.ElapsedMilliseconds + '|outcome=returned')
+  } catch {
+    $problem = $_.Exception
+    $depth = 0
+    while ($null -ne $problem -and $depth -lt 4) {
+      $message = $problem.Message.Replace([char]13, [char]32).Replace([char]10, [char]32).Replace('|', '/')
+      if ($message.Length -gt 512) { $message = $message.Substring(0, 512) }
+      $detail = 'type=' + $problem.GetType().FullName + '|message=' + $message
+      if ($problem -is [Net.WebException]) { $detail += '|webStatus=' + $problem.Status }
+      if ($problem -is [Net.Sockets.SocketException]) { $detail += '|socketError=' + $problem.SocketErrorCode + '|nativeError=' + $problem.NativeErrorCode }
+      Write-Marker ('STEP|' + $Name + '|EXCEPTION|depth=' + $depth + '|' + $detail)
+      $problem = $problem.InnerException
+      $depth++
+    }
+    Write-Marker ('STEP|' + $Name + '|END|durationMs=' + $stepTimer.ElapsedMilliseconds + '|outcome=exception')
+  } finally {
+    $stepTimer.Stop()
   }
 }
-[Console]::Out.WriteLine('HTTP_PROBE_DONE')
-[Console]::Out.Flush()
+$managementPath = [IO.Path]::Combine($env:HOME, 'management-probe')
+Invoke-Probe 'JOIN_PATH' { $value = Join-Path $env:HOME 'management-probe' }
+Invoke-Probe 'TEST_PATH' { $value = Test-Path -LiteralPath $managementPath -PathType Container }
+Invoke-Probe 'NEW_ITEM' { $value = New-Item -ItemType Directory -Path $managementPath }
+Invoke-Probe 'TCP_CONNECT' {
+  $client = [Net.Sockets.TcpClient]::new()
+  $pending = $null
+  try {
+    $pending = $client.BeginConnect('127.0.0.1', ${port}, $null, $null)
+    if (-not $pending.AsyncWaitHandle.WaitOne(2000)) { throw [TimeoutException]::new('TCP connection did not complete within 2000ms') }
+    $client.EndConnect($pending)
+    Write-Marker 'TCP_UNEXPECTED_SUCCESS'
+  } finally {
+    if ($null -ne $pending) { $pending.AsyncWaitHandle.Close() }
+    $client.Close()
+  }
+}
+Invoke-Probe 'INVOKE_REST_FIRST' { $response = Invoke-RestMethod -Uri 'http://127.0.0.1:${port}/v1/control-plane/status' -TimeoutSec 2 }
+Invoke-Probe 'INVOKE_REST_SECOND' { $response = Invoke-RestMethod -Uri 'http://127.0.0.1:${port}/v1/control-plane/status' -TimeoutSec 2 }
+Invoke-Probe 'HTTP_WEB_REQUEST_NO_PROXY' {
+  $request = [Net.HttpWebRequest]::Create('http://127.0.0.1:${port}/v1/control-plane/status')
+  $request.Proxy = $null
+  $request.Timeout = 2000
+  $request.ReadWriteTimeout = 2000
+  $response = $null
+  try { $response = $request.GetResponse() } finally {
+    if ($null -ne $response) { $response.Close() }
+    $request.Abort()
+  }
+}
+Write-Marker ('PROBE_COMPLETE|totalMs=' + $totalTimer.ElapsedMilliseconds)
 exit 0`;
 const result = { diagnosticOnly: true, appAcceptance: false, status: 'running', startedAt: new Date().toISOString(),
   packageDir, scriptSHA256: createHash('sha256').update(script).digest('hex'),
   inheritedEnvironmentKeys: Object.keys(inherited).sort(), fixtureEnvironmentKeys: Object.keys(environment).sort(),
-  timeoutMs: 60000, output: '', events: [], cloudCalls: 0, modelCalls: 0,
+  timeoutMs: 100000, output: '', events: [], cloudCalls: 0, modelCalls: 0,
   limitation: 'Any later launcher acceptance in this job is post-probe and is not cold-start evidence.' };
 const started = Date.now();
 const child = spawn('powershell.exe', ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', script],
@@ -69,8 +113,9 @@ for (const [name, stream] of [['stdout', child.stdout], ['stderr', child.stderr]
 try {
   while (!closed && !spawnError && Date.now() - started < result.timeoutMs) await delay(100);
   result.observedBeforeCleanup = { elapsedMs: Date.now() - started, exitCode: child.exitCode, signal: child.signalCode, closed,
-    spawnError: spawnError?.message || null, hostReady: result.output.includes('HOST_READY'), httpProbeStarted: result.output.includes('HTTP_PROBE_START'), httpProbeDone: result.output.includes('HTTP_PROBE_DONE') };
-  result.status = !closed && !spawnError ? 'timed_out' : child.exitCode === 0 && result.observedBeforeCleanup.httpProbeDone ? 'passed' : 'failed';
+    spawnError: spawnError?.message || null, hostReady: result.output.includes('HOST_READY'), probeComplete: result.output.includes('PROBE_COMPLETE') };
+  result.steps = result.output.split(/\r?\n/).filter(line => line.startsWith('STEP|'));
+  result.status = !closed && !spawnError ? 'timed_out' : child.exitCode === 0 && result.observedBeforeCleanup.probeComplete ? 'completed' : 'failed';
 } finally {
   if (!closed) {
     child.stdin.end();
@@ -86,5 +131,5 @@ try {
   result.finishedAt = new Date().toISOString();
   await writeFile(path.join(evidence, 'powershell-startup-probe.json'), JSON.stringify(result, null, 2));
 }
-console.log(JSON.stringify({ diagnosticOnly: true, status: result.status, hostReady: result.observedBeforeCleanup.hostReady, httpProbeDone: result.observedBeforeCleanup.httpProbeDone, childClosedAfterCleanup: closed }));
-if (result.status !== 'passed' || !closed) process.exitCode = 1;
+console.log(JSON.stringify({ diagnosticOnly: true, status: result.status, hostReady: result.observedBeforeCleanup.hostReady, probeComplete: result.observedBeforeCleanup.probeComplete, childClosedAfterCleanup: closed }));
+if (result.status !== 'completed' || !closed) process.exitCode = 1;
