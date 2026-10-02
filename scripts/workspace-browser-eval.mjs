@@ -29,7 +29,10 @@ assert.notEqual(process.getuid(), 0, 'Run this acceptance as an ordinary user.')
 const { chromium } = createRequire(path.join(desktop, 'package.json'))('playwright');
 const exec = promisify(execFile);
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const root = await fs.mkdtemp(path.join(os.tmpdir(), 'luci-workspace-proof-'));
+// OpenSSH StrictModes checks every parent of AuthorizedKeysFile until the
+// account home. Keep generated keys beneath that owned home, never world-writable
+// /tmp; do not weaken host/user-key validation to accommodate the test fixture.
+const root = await fs.mkdtemp(path.join(os.homedir(), '.luci-workspace-proof-'));
 const username = os.userInfo().username;
 assert.match(username, /^[a-z_][a-z0-9_-]{0,31}$/);
 const passwordLocal = `Local-${randomBytes(18).toString('hex')}`;
@@ -229,6 +232,6 @@ try {
   if (evidence.status !== 'passed') evidence.processDiagnostics = processes.map((proc) => ({ label: proc.label, exitCode: proc.code, tail: sanitize(proc.log).slice(-6000) }));
   await fs.mkdir(output, { recursive: true });
   await fs.writeFile(path.join(output, 'summary.json'), JSON.stringify(evidence, null, 2) + '\n');
-  if (path.dirname(root) === os.tmpdir() && path.basename(root).startsWith('luci-workspace-proof-')) await fs.rm(root, { recursive: true, force: true, maxRetries: 4, retryDelay: 100 });
+  if (path.dirname(root) === os.homedir() && path.basename(root).startsWith('.luci-workspace-proof-')) await fs.rm(root, { recursive: true, force: true, maxRetries: 4, retryDelay: 100 });
 }
 console.log(JSON.stringify({ status: evidence.status, outcomes: evidence.outcomes.length, evidence: path.join(output, 'summary.json'), ...(evidence.failure ? { failure: evidence.failure } : {}) }));
