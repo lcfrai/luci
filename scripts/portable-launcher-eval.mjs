@@ -27,6 +27,7 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
   const hash = data => createHash('sha256').update(data).digest('hex');
   const result = { passed: false, platform: process.platform, architecture: process.arch, nodeVersion: process.version,
     packageDir, binarySha256: hash(await readFile(binary)), launcherSha256: hash(await readFile(launcher)),
+    harnessSha256: hash(await readFile(new URL(import.meta.url))),
     startedAt: new Date().toISOString(), checks: [], cloudCalls: 0, modelCalls: 0,
     scope: 'Actual shipped launcher and service; explicit disposable profile, no browser opening or native GUI.' };
   const secrets = new Set(), launched = [];
@@ -34,12 +35,26 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
   const redact = value => { let text = String(value); for (const item of secrets) text = text.replaceAll(item, '[redacted]'); return text; };
   const pass = name => result.checks.push({ name, status: 'passed' });
   const proofPath = path.join(state, 'control-plane', 'owner-access-token');
-  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => /^(PATH|SYSTEMROOT|WINDIR|COMSPEC|PATHEXT|TEMP|TMP|LANG|LC_ALL)$/i.test(key)));
+  const windowsSystemKeys = /^(PROGRAMFILES(?:\(X86\))?|PROGRAMW6432|PROGRAMDATA|ALLUSERSPROFILE|SYSTEMDRIVE)$/i;
+  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => /^(PATH|SYSTEMROOT|WINDIR|COMSPEC|PATHEXT|TEMP|TMP|LANG|LC_ALL)$/i.test(key) || (windows && windowsSystemKeys.test(key))));
   const environment = { ...inherited, HOME: home, USERPROFILE: home, LOCALAPPDATA: path.join(home, 'Local'), APPDATA: path.join(home, 'Roaming'),
     XDG_CONFIG_HOME: path.join(home, '.config'), XDG_DATA_HOME: path.join(home, '.local/share'), XDG_STATE_HOME: path.join(home, '.local/state'),
     GIT_CONFIG_GLOBAL: path.join(home, 'gitconfig'), GIT_CONFIG_NOSYSTEM: '1',
     GH_CONFIG_DIR: path.join(home, 'gh'), AZURE_CONFIG_DIR: path.join(home, 'azure'),
     AWS_CONFIG_FILE: path.join(home, 'aws-config'), AWS_SHARED_CREDENTIALS_FILE: path.join(home, 'aws-credentials'), AWS_EC2_METADATA_DISABLED: 'true' };
+  if (windows) {
+    // Keep the account/credential profile private without withholding Windows'
+    // own runtime paths. Never inherit user or PowerShell 7 module search paths.
+    const systemRoot = Object.entries(inherited).find(([key]) => /^SYSTEMROOT$/i.test(key))?.[1];
+    assert.ok(systemRoot && path.isAbsolute(systemRoot), 'Windows system root is required');
+    environment.PSModulePath = path.join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'Modules');
+    for (const directory of [environment.LOCALAPPDATA, environment.APPDATA]) await mkdir(directory, { mode: 0o700 });
+    result.environmentProfile = { kind: 'private-user-profile-with-windows-system-modules',
+      systemPaths: Object.fromEntries(Object.entries(inherited).filter(([key]) => windowsSystemKeys.test(key) || /^SYSTEMROOT$/i.test(key))),
+      powershellModulePath: environment.PSModulePath, inheritedModulePath: false, privateProfileDirectoriesCreated: true,
+      privatePaths: { HOME: '<fixture>/home', USERPROFILE: '<fixture>/home', LOCALAPPDATA: '<fixture>/home/Local', APPDATA: '<fixture>/home/Roaming' },
+      credentialPaths: 'Git, GitHub, AWS and Azure remain under the private fixture home', preInvocationWarmup: false };
+  }
   let ownerToken = '', proof = '', owned;
   const ownerPassword = secret(), recoveredPassword = secret();
   async function api(method, route, body, { token = ownerToken, capability = '', status = 200 } = {}) {
