@@ -70,7 +70,9 @@
 }
 
 .pane--focused {
-  box-shadow: 0 0 0 1px var(--accent-ring), var(--e-raised);
+  box-shadow:
+    0 0 0 1px var(--accent-ring),
+    var(--e-raised);
 }
 
 .pane--tile {
@@ -424,7 +426,9 @@
 }
 
 .cv-tile:focus-within {
-  box-shadow: var(--e-card), 0 0 0 1px var(--accent-ring);
+  box-shadow:
+    var(--e-card),
+    0 0 0 1px var(--accent-ring);
 }
 
 /* The two states COMPOSE rather than race. `.cv-tile:focus-within` and
@@ -434,7 +438,9 @@
    the other, so the overlap is written out. */
 .cv-tile[data-cv-dragging="move"]:focus-within,
 .cv-tile[data-cv-dragging="resize"]:focus-within {
-  box-shadow: var(--e-raised), 0 0 0 1px var(--accent-ring);
+  box-shadow:
+    var(--e-raised),
+    0 0 0 1px var(--accent-ring);
 }
 
 .cv-unpin {
@@ -471,4 +477,17 @@
   padding: 6px 10px;
   background: var(--inset);
   box-shadow: 0 -1px 0 0 var(--line-soft);
+}
+
+.cols-pane {
+  flex-basis: min(var(--pane-w), 100%);
+}
+@media (max-width: 760px) {
+  .cols-scroll {
+    padding: 8px;
+    gap: 8px;
+  }
+  .pane-head {
+    flex-wrap: wrap;
+  }
 }

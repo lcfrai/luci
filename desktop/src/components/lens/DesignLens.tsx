@@ -12,7 +12,7 @@ export function DesignLens() {
         <Suspense
           fallback={
             <div className="journey-page">
-              <p>Opening your design tools…</p>
+              <p role="status">Opening your design tools…</p>
             </div>
           }
         >

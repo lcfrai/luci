@@ -158,10 +158,12 @@ it("defaults to the selected backing, checks its identity first, and sends every
     request.mock.calls.filter(([path]) => path === "/v1/auth/me"),
   ).toHaveLength(1);
   await userEvent.click(
-    screen.getByRole("button", { name: "Inspect runtime" }),
+    screen.getByRole("button", { name: "Inspect runtime for cloud" }),
   );
   await screen.findByText(/Cloud runtime is running/);
-  await userEvent.click(screen.getByRole("button", { name: "Stop runtime" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Stop runtime for cloud" }),
+  );
   await screen.findByText(/Cloud runtime stopped/);
   await userEvent.type(screen.getByLabelText("New username"), "person");
   await userEvent.type(screen.getByLabelText("New display name"), "A person");
@@ -398,4 +400,99 @@ it("applies a backing role change before issuing further administration reads", 
   expect(request.mock.calls.slice(mutation + 1).map(([path]) => path)).toEqual([
     `${base}/me`,
   ]);
+});
+
+it("distinguishes loading administration from an empty audit", async () => {
+  let finish!: (value: { users: AuthProfile["user"][] }) => void;
+  const pending = new Promise<{ users: AuthProfile["user"][] }>((resolve) => {
+    finish = resolve;
+  });
+  vi.spyOn(productApi, "request").mockImplementation(async (path) => {
+    const response = publicResponse(path);
+    if (response) return response;
+    if (path === `${base}/me`) return cloud;
+    if (path === `${base}/users`) return pending;
+    if (path === `${base}/audit`) return { events: [] };
+    throw new Error(path);
+  });
+  await openAdmin();
+  await screen.findByText("Loading people and activity…");
+  expect(screen.queryByText("No audit events returned.")).toBeNull();
+  await act(async () => {
+    finish({ users: [] });
+    await pending;
+  });
+  await screen.findByText("No audit events returned.");
+  expect(
+    screen.getByRole("table", { name: "Recent workspace activity" }),
+  ).not.toBeNull();
+  expect(screen.queryByText("Loading people and activity…")).toBeNull();
+});
+
+it("names each person's runtime actions and prevents ordinary Admins from stopping administrator runtimes", async () => {
+  const admin: AuthProfile = {
+    ...cloud,
+    user: {
+      ...cloud.user,
+      id: "cloud-admin",
+      username: "operator",
+      role: "admin",
+    },
+    permissions: {
+      ...cloud.permissions,
+      managePolicy: false,
+      runHostCommands: false,
+    },
+  };
+  const member = {
+    ...cloud.user,
+    id: "cloud-member",
+    username: "gardener",
+    role: "member" as const,
+  };
+  const request = vi
+    .spyOn(productApi, "request")
+    .mockImplementation(async (path) => {
+      const response = publicResponse(path);
+      if (response) return response;
+      if (path === `${base}/me`) return admin;
+      if (path === `${base}/users`)
+        return { users: [cloud.user, admin.user, member] };
+      if (path === `${base}/audit`) return { events: [] };
+      if (path === `${base}/users/cloud-member/runtime`)
+        return { status: "running", message: "Member workspace is ready." };
+      throw new Error(path);
+    });
+  await openAdmin();
+  const protectedStop = await screen.findByRole("button", {
+    name: "Stop runtime for cloud",
+  });
+  expect((protectedStop as HTMLButtonElement).disabled).toBe(true);
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "Stop runtime for operator",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "Stop runtime for gardener",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(false);
+  await userEvent.click(protectedStop);
+  expect(
+    request.mock.calls.some(([path]) => path.endsWith("/runtime/stop")),
+  ).toBe(false);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Inspect runtime for gardener" }),
+  );
+  expect(
+    (await screen.findByText(/Member workspace is ready/)).getAttribute("role"),
+  ).toBe("status");
+  expect(
+    (screen.getByLabelText("Initial password") as HTMLInputElement).minLength,
+  ).toBe(12);
 });

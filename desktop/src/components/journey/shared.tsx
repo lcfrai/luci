@@ -12,7 +12,6 @@ export function ProjectRequired({
   if (!id)
     return (
       <div className="journey-empty">
-        <span className="journey-eyebrow">YOUR NEXT IDEA STARTS HERE</span>
         <h1>Give it a place to grow.</h1>
         <p>
           Create a project or choose one from the rail. Its brief, design, code

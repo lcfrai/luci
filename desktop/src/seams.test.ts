@@ -461,7 +461,7 @@ const SEAMS: Seam[] = [
     id: "S5.2",
     name: "a lens is handed a fixed box and owns its own scroll",
     anchors: [
-      { file: "desktop/src/components/shell.css", present: /^\.shell-lens \{\n  min-block-size: 0;\n  overflow: hidden;\n\}$/m },
+      { file: "desktop/src/components/shell.css", present: /\.shell-lens\s*\{(?=[^}]*min-block-size:\s*0;)(?=[^}]*min-inline-size:\s*0;)(?=[^}]*overflow:\s*hidden;)[^}]*\}/ },
       { file: lensFile("Design"), present: /^export function DesignLens\(/m },
     ],
   },

@@ -161,13 +161,12 @@ func LoopbackHost(hostHeader string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// The preflight answer. Methods is every verb contract 3.1 defines; Headers is
-// Content-Type alone, because the desktop sends no custom header and no
-// Authorization on this hop; 600 is ten minutes of not asking again, which is
-// the only thing a cached preflight is for.
+// The desktop authenticates to its loopback management gateway with a bearer
+// token. The browser must be able to preflight both that header and JSON bodies.
+// This grant is only sent after the exact origin and loopback Host checks.
 const (
 	corsMethods = "GET, POST, PATCH, DELETE, OPTIONS"
-	corsHeaders = "Content-Type"
+	corsHeaders = "Content-Type, Authorization"
 	corsMaxAge  = "600"
 )
 

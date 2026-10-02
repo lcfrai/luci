@@ -177,3 +177,19 @@
 .toast-undo:hover {
   opacity: 0.8;
 }
+
+.pop {
+  max-inline-size: calc(100vw - 24px);
+  max-block-size: calc(100dvh - 24px);
+}
+.toast-stack {
+  max-inline-size: min(440px, calc(100vw - 32px));
+}
+.toast-text {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.toast-undo {
+  flex: 0 0 auto;
+  min-block-size: 36px;
+}

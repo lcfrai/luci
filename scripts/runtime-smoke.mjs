@@ -36,6 +36,7 @@ const child = spawn(binary, [], {
     ...process.env,
     LUCI_ADDR: `127.0.0.1:${port}`, LUCI_BACKEND: "docker",
     LUCI_STATE_DIR: state, LUCI_PROJECTS_DIR: projects, LUCI_RUNTIME_DIR: repository,
+    LUCI_WEB_DIR: join(repository, 'desktop', 'dist'),
     LUCI_SANDBOX_IMAGE: image, LUCI_GIT_NAME: "Luci Runtime Test",
     LUCI_GIT_EMAIL: "runtime-test@example.invalid", LUCI_REAP_INTERVAL: "5s",
     LUCI_SESSION_CPU_MILLIS: "500", LUCI_SESSION_MEMORY_MIB: "512",
@@ -55,6 +56,7 @@ let release;
 let project;
 let authToken;
 let userProjects;
+const ownerPassword = randomUUID() + randomUUID();
 
 async function api(method, path, body, timeout = 30_000) {
   const response = await fetch(origin + path, {
@@ -149,7 +151,7 @@ function cleanupOwned(label, value) {
 try {
   await until("Control plane readiness", () => api("GET", "/v1/control-plane/status", undefined, 2000));
   const bootstrapToken = readFileSync(join(state, "control-plane", "bootstrap-token"), "utf8").trim();
-  const identity = await api("POST", "/v1/auth/bootstrap", { bootstrapToken, username: "runtime-owner", displayName: "Runtime Owner", password: randomUUID() + randomUUID() });
+  const identity = await api("POST", "/v1/auth/bootstrap", { bootstrapToken, username: "runtime-owner", displayName: "Runtime Owner", password: ownerPassword });
   authToken = identity.token;
   assert.ok(authToken && identity.user.id);
   userProjects = projects; // The first owner uses the configured inline workspace.
@@ -282,6 +284,16 @@ try {
   const remaining = execFileSync("docker", ["ps", "--all", "--filter", `label=luci.release-id=${release.id}`, "--format", "{{.ID}}"], { encoding: "utf8" }).trim();
   assert.equal(remaining, "", "Owned preview container survived Stop");
   result.checks.push({ name: "committed Docker preview, private runtime configuration, actual HTTP health and owned stop", commit: release.commit, briefRevision: release.briefRevision, configurationRevision: release.configurationRevision, privateEnvFileRemoved: true, modelKeysInherited: false, removed: true });
+  if (process.env.LUCI_RUNTIME_UI === '1') {
+    const browserEvidence = join(evidence, 'browser');
+    execFileSync(process.execPath, [join(repository, 'desktop/scripts/verify-runtime-ui.mjs')], {
+      cwd: repository, stdio: 'inherit', timeout: 5 * 60_000,
+      env: { ...process.env, LUCI_EVAL_URL: origin, LUCI_UAT_USERNAME: 'runtime-owner', LUCI_UAT_PASSWORD: ownerPassword, LUCI_RUNTIME_UI_IMAGE: image, LUCI_UAT_EVIDENCE: browserEvidence },
+    });
+    const browserResult = JSON.parse(readFileSync(join(browserEvidence, 'results.json'), 'utf8'));
+    assert.equal(browserResult.passed, true);
+    result.checks.push({ name: 'actual browser Docker journey: terminal app creation, project checks, Git commit, healthy iframe preview and owned stop', evidence: 'browser/results.json' });
+  }
   result.passed = true;
   console.log("PASS: real Docker install, non-root shell WebSocket/write, committed preview health and ownership-checked stop.");
 } catch (error) {
@@ -289,6 +301,17 @@ try {
   process.exitCode = 1;
   console.error(error.stack);
 } finally {
+  // On a failed browser journey, reap only IDs recorded by that fixture and
+  // verify every Docker label before removing a container.
+  if (process.env.LUCI_RUNTIME_UI === '1') {
+    try {
+      const observed = JSON.parse(readFileSync(join(evidence, 'browser/results.json'), 'utf8'));
+      for (const id of observed.sessionIds || []) cleanupOwned('luci.session-id', id);
+      for (const id of observed.releaseIds || []) cleanupOwned('luci.release-id', id);
+    } catch (error) {
+      if (error.code !== 'ENOENT') { result.browserCleanupError = error.message; process.exitCode = 1; }
+    }
+  }
   cleanupOwned("ai.lcfr.luci.provider-smoke", providerProbeID);
   try { if (release && project) await api("POST", `/v1/product/projects/${project.id}/releases/${release.id}/stop`, undefined, 10_000); } catch {}
   try { if (session) await api("DELETE", `/v1/sessions/${session.id}`, undefined, 10_000); } catch {}

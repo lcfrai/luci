@@ -63,6 +63,7 @@ async function element(kind, name) {
       return label?.querySelector('input,textarea,select')||null;
     }
     if(arguments[0]==='css') return [...document.querySelectorAll(arguments[1])].find(visible)||null;
+    if(arguments[0]==='file') return [...document.querySelectorAll('.journey-directory button')].filter(visible).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
     return [...document.querySelectorAll('button,summary,[role=treeitem]')].filter(visible).find(e=>
       e.getAttribute('aria-label')===arguments[1] || norm(e.textContent)===arguments[1] ||
       (e.classList.contains('sub-row') && norm(e.textContent).endsWith(arguments[1])))||null;
@@ -122,11 +123,25 @@ async function verifyProject() {
   await element("css", ".excalidraw canvas");
   await snapshot("persisted-design");
   await click("Develop");
+  if (fixture.hasPlan) {
+    const task = await element("label", "Task 1");
+    assert.equal(await command(`/element/${task[elementKey]}/property/value`, "GET", undefined), "Verify installed application persistence");
+    result.checks.push("Implementation plan and its brief revision survived restart");
+  }
   await click("Git");
   await bodyHas(fixture.commitMessage);
   await bodyHas("Everything is committed");
   result.checks.push("Saved brief, nonempty design and Git commit survived installed app replacement/restart");
   await snapshot("persisted-git");
+  if (fixture.hasConfiguration) {
+    await click("Deploy");
+    await bodyHas("NATIVE_UAT_MESSAGE");
+    const value = await element("label", "Private value");
+    assert.equal(await command(`/element/${value[elementKey]}/property/value`, "GET", undefined), "");
+    assert.equal(await execute("return document.body.innerText.includes(arguments[0])", fixture.privateValue), false);
+    result.checks.push("Private runtime configuration survived with names-only UI and no value readback");
+    await snapshot("persisted-runtime-configuration");
+  }
 }
 
 try {
@@ -152,6 +167,8 @@ try {
   const child = owned.find((p) => p.ParentProcessId === appPID && /luci-api\.exe$/i.test(p.ExecutablePath));
   assert(child, "Installed Tauri process must own the bundled Go sidecar");
   childPID = child.ProcessId;
+  const executableBase64 = Buffer.from(executable).toString("base64");
+  result.applicationVersion = powershell(`$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${executableBase64}')); (Get-Item -LiteralPath $p).VersionInfo.ProductVersion`);
   result.checks.push("Installed release WebView uses its own bundled sidecar on a random loopback port");
   await authenticate();
   if (mode === "seed") {
@@ -183,7 +200,7 @@ try {
       { type: "pointerMove", duration: 500, x: x + 160, y: y + 100, origin: "viewport" }, { type: "pointerUp", button: 0 },
     ] }] });
     await click("Save design");
-    await bodyHas("Design saved locally");
+    await bodyHas("Design saved");
     await snapshot("design");
     // Read-only disk verification proves a real canvas element was saved. UI
     // mutations above remain entirely normal user interactions.
@@ -191,13 +208,51 @@ try {
     assert(design.scene.elements.some((item) => item.type === "rectangle" && !item.isDeleted));
     assert.equal(design.briefRevision, 1);
     await click("Develop");
+    if (!result.applicationVersion.startsWith("0.3.")) {
+      await fill("New task", "Verify installed application persistence");
+      await click("Add task");
+      await click("Save implementation plan");
+      await bodyHas("Plan saved as revision 1");
+      const plan = JSON.parse(readFileSync(join(fixture.projectRoot, fixture.projectName, ".luci", "plan.json"), "utf8"));
+      assert.equal(plan.briefRevision, 1);
+      assert.equal(plan.tasks[0].title, "Verify installed application persistence");
+      assert.equal(plan.tasks[0].status, "todo", "Saving a plan must not fabricate completion");
+      fixture.hasPlan = true;
+      result.checks.push("Implementation task saved with real brief provenance and no fabricated verification");
+      await snapshot("implementation-plan");
+    }
+    await click("Files");
+    await click("LUCI.md", "file");
+    await bodyHas(fixture.purpose);
+    result.checks.push("Generated agent context is readable through the installed Files view");
     await click("Git");
     await fill("Commit message", fixture.commitMessage);
     await click("Commit changes");
-    await bodyHas("Changes committed locally");
+    await bodyHas("Changes committed");
     await bodyHas("Everything is committed");
     result.checks.push("Normal installed UI saved project settings, Git identity, brief, actual canvas rectangle and Git commit");
     await snapshot("git");
+    if (!result.applicationVersion.startsWith("0.3.")) {
+      await click("Deploy");
+      fixture.privateValue = "fixture-only-" + randomUUID();
+      await fill("Variable name", "NATIVE_UAT_MESSAGE");
+      await fill("Private value", fixture.privateValue);
+      await click("Save runtime variable");
+      await bodyHas("Runtime configuration saved");
+      const value = await element("label", "Private value");
+      assert.equal(await command(`/element/${value[elementKey]}/property/value`, "GET", undefined), "");
+      assert.equal(await execute("return document.body.innerText.includes(arguments[0])", fixture.privateValue), false);
+      const projectDir = join(fixture.projectRoot, fixture.projectName);
+      const tracked = execFileSync("git", ["-C", projectDir, "ls-files", "-z"], { encoding: "utf8", windowsHide: true }).split("\0").filter(Boolean);
+      for (const path of tracked) assert(!readFileSync(join(projectDir, path), "utf8").includes(fixture.privateValue), "Private runtime value must not enter Git project files");
+      fixture.hasConfiguration = true;
+      result.checks.push("Private runtime variable saved through native UI, cleared from form and excluded from project Git files");
+      await snapshot("runtime-configuration");
+      await click("Develop");
+      await click("Git");
+      await bodyHas("Everything is committed");
+    }
+    writeFileSync(fixtureFile, JSON.stringify(fixture));
   } else await verifyProject();
   // WM_CLOSE exercises Tauri's normal Exit handler before WebDriver cleanup.
   assert.equal(powershell(`$p=Get-Process -Id ${appPID}; $p.CloseMainWindow()`), "True");

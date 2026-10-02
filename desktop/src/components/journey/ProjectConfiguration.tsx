@@ -33,6 +33,7 @@ function ConfigurationFields({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [conflict, setConflict] = useState(false);
+  const privateValue = useRef<HTMLInputElement>(null);
   const alive = useRef(true),
     working = useRef(false);
   const blocked = disabled || !!busy || loading || !configuration || conflict;
@@ -200,6 +201,7 @@ function ConfigurationFields({
                   setEmptyValue(false);
                   setError("");
                   setNotice("");
+                  privateValue.current?.focus();
                 }}
               >
                 Update
@@ -226,6 +228,7 @@ function ConfigurationFields({
             <input
               required
               disabled={blocked}
+              maxLength={128}
               autoComplete="off"
               spellCheck={false}
               value={name}
@@ -236,6 +239,7 @@ function ConfigurationFields({
           <label className="luci-field">
             Private value
             <input
+              ref={privateValue}
               type="password"
               disabled={blocked || emptyValue}
               autoComplete="new-password"

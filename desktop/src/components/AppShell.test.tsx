@@ -13,8 +13,18 @@ import userEvent from "@testing-library/user-event";
 import { AppShell } from "./AppShell";
 import { LENSES } from "./subrail/SubRail";
 import { resetCockpit, useCockpit } from "../store/store";
-import { TERMINAL_HOST_ATTRIBUTE, isInsideTerminal } from "../hooks/useKeyboardMap";
-import { aBranch, aHarness, aMachine, aProject, aSession, aWorktree } from "../test/fixtures";
+import {
+  TERMINAL_HOST_ATTRIBUTE,
+  isInsideTerminal,
+} from "../hooks/useKeyboardMap";
+import {
+  aBranch,
+  aHarness,
+  aMachine,
+  aProject,
+  aSession,
+  aWorktree,
+} from "../test/fixtures";
 
 const { createSession } = vi.hoisted(() => ({ createSession: vi.fn() }));
 vi.mock("../api", () => ({ api: { createSession } }));
@@ -32,7 +42,10 @@ vi.mock("../api", () => ({ api: { createSession } }));
 vi.mock("./Terminal", () => ({
   Terminal: ({ sessionId }: { sessionId: string }) => (
     <div data-testid="terminal" data-session={sessionId} data-terminal-host="">
-      <textarea className="xterm-helper-textarea" aria-label={`terminal ${sessionId}`} />
+      <textarea
+        className="xterm-helper-textarea"
+        aria-label={`terminal ${sessionId}`}
+      />
     </div>
   ),
 }));
@@ -42,11 +55,20 @@ function populate(): void {
     machines: [aMachine()],
     harnesses: [aHarness()],
     projects: [aProject({ id: "p-1", name: "portal" })],
-    branchesByProject: { "p-1": [aBranch({ id: "b-1", projectId: "p-1", name: "evidence" })] },
-    worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", branchId: "b-1", name: "wt-one" })] },
+    branchesByProject: {
+      "p-1": [aBranch({ id: "b-1", projectId: "p-1", name: "evidence" })],
+    },
+    worktreesByBranch: {
+      "b-1": [aWorktree({ id: "w-1", branchId: "b-1", name: "wt-one" })],
+    },
     sessions: { "s-1": aSession({ id: "s-1", worktreeId: "w-1" }) },
     sessionIdsByWorktree: { "w-1": ["s-1"] },
-    selection: { projectId: "p-1", branchId: "b-1", worktreeId: "w-1", sessionId: null },
+    selection: {
+      projectId: "p-1",
+      branchId: "b-1",
+      worktreeId: "w-1",
+      sessionId: null,
+    },
   });
 }
 
@@ -93,13 +115,17 @@ describe("AppShell", () => {
 
     populate();
     rerender(<AppShell />);
-    expect(screen.getByRole("complementary", { name: "Phases" })).not.toBeNull();
+    expect(
+      screen.getByRole("complementary", { name: "Phases" }),
+    ).not.toBeNull();
     // And with a branch, the same slot is the sub-rail rather than the placeholder.
     expect(middleSlot()!.tagName).toBe("ASIDE");
     // It names the branch it is about. Added in task 20's fix round 1, which pointed this
     // derivation at `selectSelectedBranch` (shared-shape §4) — before it, blanking the name
     // outright passed the whole suite, so the sub-rail's one piece of context was unasserted.
-    expect(container.querySelector(".sub-branch")?.textContent).toBe("evidence");
+    expect(container.querySelector(".sub-branch")?.textContent).toBe(
+      "evidence",
+    );
   });
 
   // §6.3 and AGENTIC-UX §4 rule 12: entry into any lens is legal from any state. Not one of
@@ -116,14 +142,18 @@ describe("AppShell", () => {
     // And every one routes to something honest rather than a dead panel.
     await userEvent.click(screen.getByRole("button", { name: "Git" }));
     expect(useCockpit.getState().lens).toBe("merge");
-    expect(screen.getByRole("heading", { name: "Review the work." })).not.toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Review the work." }),
+    ).not.toBeNull();
   });
 
   // §6.4: these two are in FUNCTIONAL-SPEC's top bar, so deleting them would be a silent scope
   // cut and rendering them live would be a lie. Disabled with the phase that makes each real.
   it("offers real Develop tools without dead controls", () => {
     render(<AppShell />);
-    expect(screen.getByRole("navigation", { name: "Develop tools" })).not.toBeNull();
+    expect(
+      screen.getByRole("navigation", { name: "Develop tools" }),
+    ).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Authority" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Run locally" })).toBeNull();
   });
@@ -135,7 +165,9 @@ describe("AppShell", () => {
     // re-render before the assertion can see it.
     act(() => useCockpit.getState().pushToast("killed the session", () => {}));
     expect(screen.getByRole("button", { name: "Undo" })).not.toBeNull();
-    expect(screen.getByRole("status").textContent).toContain("killed the session");
+    expect(screen.getByRole("status").textContent).toContain(
+      "killed the session",
+    );
   });
 
   // Every row kind dispatches through the ONE <ContextMenu/> AppShell mounts; no row renders
@@ -161,24 +193,35 @@ describe("AppShell", () => {
    * The click lands on `header.top` itself, not on `.top-spacer`: the spacer is an empty span
    * whose auto margin is the gap, so the empty part a user clicks is the header's own box. */
   it.each([
-    { route: "an empty part of the top bar", selector: "header.top", opens: true },
-    { route: "the focused pane's own header", selector: ".pane-head", opens: false },
-  ])("OD-9 on, a terminal focused: a click on $route, then ⌘K, opens the palette: $opens", async ({ selector, opens }) => {
-    expect(TERMINAL_HOST_ATTRIBUTE).toBe("data-terminal-host");
-    populate();
-    useCockpit.getState().focusSession("s-1");
-    useCockpit.getState().setSendChordsToTerminal(true);
-    render(<AppShell />);
-    const textarea = screen.getByLabelText("terminal s-1");
-    textarea.focus();
-    expect(isInsideTerminal(document.activeElement)).toBe(true);
-    const surface = document.querySelector(selector);
-    expect(surface).not.toBeNull();
-    await userEvent.click(surface as Element);
-    expect(isInsideTerminal(document.activeElement)).toBe(!opens);
-    await userEvent.keyboard("{Control>}k{/Control}");
-    expect(useCockpit.getState().paletteOpen).toBe(opens);
-  });
+    {
+      route: "an empty part of the top bar",
+      selector: "header.top",
+      opens: true,
+    },
+    {
+      route: "the focused pane's own header",
+      selector: ".pane-head",
+      opens: false,
+    },
+  ])(
+    "OD-9 on, a terminal focused: a click on $route, then ⌘K, opens the palette: $opens",
+    async ({ selector, opens }) => {
+      expect(TERMINAL_HOST_ATTRIBUTE).toBe("data-terminal-host");
+      populate();
+      useCockpit.getState().focusSession("s-1");
+      useCockpit.getState().setSendChordsToTerminal(true);
+      render(<AppShell />);
+      const textarea = screen.getByLabelText("terminal s-1");
+      textarea.focus();
+      expect(isInsideTerminal(document.activeElement)).toBe(true);
+      const surface = document.querySelector(selector);
+      expect(surface).not.toBeNull();
+      await userEvent.click(surface as Element);
+      expect(isInsideTerminal(document.activeElement)).toBe(!opens);
+      await userEvent.keyboard("{Control>}k{/Control}");
+      expect(useCockpit.getState().paletteOpen).toBe(opens);
+    },
+  );
 
   it("collapses the rail and deepens for a branch through class state alone", () => {
     const { container, rerender } = render(<AppShell />);
@@ -186,13 +229,92 @@ describe("AppShell", () => {
     expect(shell).not.toBeNull();
     expect(shell!.className).not.toContain("shell-deep");
     expect(shell!.className).not.toContain("shell-rail-collapsed");
-    // .grain is applied ONCE, on the shell, not per component (tokens.css).
-    expect(shell!.className).toContain("grain");
+    expect(shell!.className).not.toContain("grain");
 
     populate();
     useCockpit.getState().toggleRail();
     rerender(<AppShell />);
     expect(shell!.className).toContain("shell-deep");
     expect(shell!.className).toContain("shell-rail-collapsed");
+  });
+
+  it("opens compact project navigation, isolates the workspace, traps focus and returns it on Escape", async () => {
+    const media = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) => ({
+        matches: query === "(max-width: 760px)",
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: () => false,
+      }));
+    try {
+      populate();
+      const { container } = render(<AppShell />);
+      const trigger = screen.getByRole("button", {
+        name: "Projects",
+      });
+      expect(container.querySelector(".rail")?.hasAttribute("inert")).toBe(
+        true,
+      );
+      await userEvent.click(trigger);
+      expect(trigger.getAttribute("aria-expanded")).toBe("true");
+      expect(
+        container.querySelector(".shell-main")?.hasAttribute("inert"),
+      ).toBe(true);
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Close projects" }),
+      );
+      const last = screen.getByRole("button", {
+        name: "Settings",
+      });
+      last.focus();
+      await userEvent.tab();
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Create project" }),
+      );
+      await userEvent.keyboard("{Escape}");
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
+      expect(document.activeElement).toBe(trigger);
+      expect(
+        container.querySelector(".shell-main")?.hasAttribute("inert"),
+      ).toBe(false);
+    } finally {
+      media.mockRestore();
+    }
+  });
+
+  it("closes compact navigation after selecting a different project", async () => {
+    const media = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) => ({
+        matches: query === "(max-width: 760px)",
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: () => false,
+      }));
+    try {
+      populate();
+      useCockpit.setState((state) => ({
+        projects: [...state.projects, aProject({ id: "p-2", name: "garden" })],
+      }));
+      render(<AppShell />);
+      const trigger = screen.getByRole("button", {
+        name: "Projects",
+      });
+      await userEvent.click(trigger);
+      await userEvent.click(screen.getByRole("treeitem", { name: /garden/ }));
+      expect(trigger.getAttribute("aria-expanded")).toBe("false");
+      expect(useCockpit.getState().selection.projectId).toBe("p-2");
+    } finally {
+      media.mockRestore();
+    }
   });
 });

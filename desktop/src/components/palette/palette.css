@@ -133,3 +133,23 @@
     animation: none;
   }
 }
+
+@media (max-width: 760px), (max-height: 600px) {
+  .pal-scrim {
+    padding-top: 20px;
+  }
+  .pal {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 40px);
+  }
+  .pal-row {
+    min-block-size: 44px;
+    gap: 8px;
+  }
+  .pal-meta {
+    max-inline-size: 12ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

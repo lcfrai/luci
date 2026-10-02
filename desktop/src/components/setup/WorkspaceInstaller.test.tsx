@@ -133,6 +133,7 @@ it("requires remote control-plane sign-in before activating a connected workspac
   });
   render(
     <WorkspaceInstaller
+      existing
       client={createProductClient("http://localhost", fetcher)}
       connections={[
         {
@@ -146,6 +147,10 @@ it("requires remote control-plane sign-in before activating a connected workspac
       switchWorkspace={switchWorkspace}
     />,
   );
+  expect(
+    screen.queryByRole("button", { name: "Install Luci workspace" }),
+  ).toBeNull();
+  expect(screen.queryByLabelText(/Install Luci and its runtime/)).toBeNull();
   await screen.findByText("Remote sign-in required");
   expect(
     (
@@ -177,4 +182,7 @@ it("requires remote control-plane sign-in before activating a connected workspac
     username: "cloud-owner",
     password: "remote-password",
   });
+  expect(
+    fetcher.mock.calls.some(([url]) => String(url).includes("install-luci")),
+  ).toBe(false);
 });

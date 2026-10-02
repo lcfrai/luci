@@ -255,6 +255,7 @@ function AdminPanelContent({
   const [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [busy, setBusy] = useState("");
+  const [reading, setReading] = useState(admin && contextReady);
   const [username, setUsername] = useState(""),
     [displayName, setDisplayName] = useState(""),
     [password, setPassword] = useState(""),
@@ -270,15 +271,27 @@ function AdminPanelContent({
   useEffect(() => {
     ref.current?.focus();
   }, [ref]);
+  useEffect(() => {
+    if (busy && !ref.current?.contains(document.activeElement))
+      ref.current?.focus();
+  }, [busy, ref]);
   function trapFocus(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "Tab") return;
     const items = Array.from(
       event.currentTarget.querySelectorAll<HTMLElement>(
-        "button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]",
+        "button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], summary",
       ),
-    ).filter((item) => !item.closest("details:not([open])"));
+    ).filter((item) => {
+      const closed = item.closest("details:not([open])");
+      return !closed || item === closed.querySelector(":scope > summary");
+    });
     const first = items[0],
       last = items[items.length - 1];
+    if (!first) {
+      event.preventDefault();
+      event.currentTarget.focus();
+      return;
+    }
     if (
       event.shiftKey &&
       (document.activeElement === first ||
@@ -293,17 +306,23 @@ function AdminPanelContent({
   }
   async function reload(access = profile) {
     const generation = ++readGeneration.current;
-    const results = await Promise.all([
-      access.permissions.manageUsers
-        ? productApi.request<{ users: ControlUser[] }>(`${base}/users`)
-        : Promise.resolve({ users: [] }),
-      access.permissions.inspectAudit
-        ? productApi.request<{ events: AuditEvent[] }>(`${base}/audit`)
-        : Promise.resolve({ events: [] }),
-    ]);
-    if (alive.current && generation === readGeneration.current) {
-      setUsers(results[0].users);
-      setEvents(results[1].events);
+    setReading(true);
+    try {
+      const results = await Promise.all([
+        access.permissions.manageUsers
+          ? productApi.request<{ users: ControlUser[] }>(`${base}/users`)
+          : Promise.resolve({ users: [] }),
+        access.permissions.inspectAudit
+          ? productApi.request<{ events: AuditEvent[] }>(`${base}/audit`)
+          : Promise.resolve({ events: [] }),
+      ]);
+      if (alive.current && generation === readGeneration.current) {
+        setUsers(results[0].users);
+        setEvents(results[1].events);
+      }
+    } finally {
+      if (alive.current && generation === readGeneration.current)
+        setReading(false);
     }
   }
   useEffect(() => {
@@ -385,7 +404,11 @@ function AdminPanelContent({
             {notice}
           </p>
         )}
-        {busy && <p role="status">{busy}…</p>}
+        {(busy || reading) && (
+          <p role="status">
+            {busy ? `${busy}…` : "Loading people and activity…"}
+          </p>
+        )}
         {!admin && (
           <section className="admin-section">
             <h2>Change your password</h2>
@@ -411,20 +434,28 @@ function AdminPanelContent({
                 <input
                   type="password"
                   required
+                  disabled={!!busy}
                   autoComplete="current-password"
                   value={currentPassword}
                   onChange={(event) => setCurrentPassword(event.target.value)}
                 />
               </label>
               <label className="luci-field">
-                New password
+                <span id="account-password-label">New password</span>
                 <input
                   type="password"
                   required
+                  disabled={!!busy}
+                  minLength={12}
+                  aria-labelledby="account-password-label"
+                  aria-describedby="account-password-help"
                   autoComplete="new-password"
                   value={newPassword}
                   onChange={(event) => setNewPassword(event.target.value)}
                 />
+                <small id="account-password-help">
+                  Use at least 12 characters.
+                </small>
               </label>
               <button className="luci-button" disabled={!!busy}>
                 Change password
@@ -470,35 +501,56 @@ function AdminPanelContent({
             >
               <div className="setup-field-grid">
                 <label className="luci-field">
-                  New username
+                  <span id="admin-username-label">New username</span>
                   <input
                     required
+                    disabled={!!busy}
+                    minLength={3}
+                    maxLength={64}
+                    pattern="[A-Za-z0-9][A-Za-z0-9_.\-]{2,63}"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    aria-labelledby="admin-username-label"
+                    aria-describedby="admin-username-help"
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
                     autoComplete="off"
                   />
+                  <small id="admin-username-help">
+                    3–64 characters. Start with a letter or number; dots,
+                    underscores and hyphens are allowed.
+                  </small>
                 </label>
                 <label className="luci-field">
                   New display name
                   <input
                     required
+                    disabled={!!busy}
                     value={displayName}
                     onChange={(event) => setDisplayName(event.target.value)}
                   />
                 </label>
                 <label className="luci-field">
-                  Initial password
+                  <span id="admin-password-label">Initial password</span>
                   <input
                     required
+                    disabled={!!busy}
                     type="password"
+                    minLength={12}
+                    aria-labelledby="admin-password-label"
+                    aria-describedby="admin-password-help"
                     autoComplete="new-password"
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                   />
+                  <small id="admin-password-help">
+                    Use at least 12 characters.
+                  </small>
                 </label>
                 <label className="luci-field">
                   New user role
                   <select
+                    disabled={!!busy}
                     value={role}
                     onChange={(event) =>
                       setRole(event.target.value as ControlUser["role"])
@@ -518,7 +570,7 @@ function AdminPanelContent({
                 Create user
               </button>
             </form>
-            <table className="admin-table">
+            <table className="admin-table" aria-busy={reading}>
               <caption>Workspace accounts</caption>
               <thead>
                 <tr>
@@ -557,7 +609,7 @@ function AdminPanelContent({
                     </td>
                     <td>
                       {runtimes[user.id] && (
-                        <p>
+                        <p role="status">
                           {runtimes[user.id].status} ·{" "}
                           {runtimes[user.id].message}
                         </p>
@@ -566,18 +618,30 @@ function AdminPanelContent({
                         <button
                           className="luci-button"
                           disabled={!!busy}
+                          aria-label={`Inspect runtime for ${user.username}`}
                           onClick={() => runtime(user)}
                         >
                           Inspect runtime
                         </button>
                         <button
                           className="luci-button"
-                          disabled={!!busy}
+                          disabled={
+                            !!busy ||
+                            (profile.user.role !== "super-admin" &&
+                              user.role !== "member")
+                          }
+                          aria-label={`Stop runtime for ${user.username}`}
                           onClick={() => runtime(user, true)}
                         >
                           Stop runtime
                         </button>
                       </div>
+                      {profile.user.role !== "super-admin" &&
+                        user.role !== "member" && (
+                          <small>
+                            Only a Super Admin can stop administrator runtimes.
+                          </small>
+                        )}
                     </td>
                   </tr>
                 ))}
@@ -645,7 +709,7 @@ function AdminPanelContent({
                   <input
                     required
                     value={policy.instanceName}
-                    disabled={!permissions.managePolicy}
+                    disabled={!!busy || !permissions.managePolicy}
                     onChange={(event) =>
                       setPolicy({ ...policy, instanceName: event.target.value })
                     }
@@ -655,7 +719,7 @@ function AdminPanelContent({
                   Execution backing
                   <select
                     value={policy.backingMode}
-                    disabled={!permissions.managePolicy}
+                    disabled={!!busy || !permissions.managePolicy}
                     onChange={(event) =>
                       setPolicy({
                         ...policy,
@@ -672,7 +736,7 @@ function AdminPanelContent({
                 <label className="luci-field">
                   Sessions per user
                   <input
-                    disabled={!permissions.managePolicy}
+                    disabled={!!busy || !permissions.managePolicy}
                     type="number"
                     required
                     min="1"
@@ -688,7 +752,7 @@ function AdminPanelContent({
                 <label className="luci-field">
                   Concurrent checks per user
                   <input
-                    disabled={!permissions.managePolicy}
+                    disabled={!!busy || !permissions.managePolicy}
                     type="number"
                     required
                     min="1"
@@ -704,7 +768,7 @@ function AdminPanelContent({
                 <label className="luci-field">
                   Monthly planning budget · USD
                   <input
-                    disabled={!permissions.managePolicy}
+                    disabled={!!busy || !permissions.managePolicy}
                     type="number"
                     required
                     min="0"
@@ -720,7 +784,7 @@ function AdminPanelContent({
                 <label className="luci-field">
                   Allowed coding harnesses
                   <input
-                    disabled={!permissions.managePolicy}
+                    disabled={!!busy || !permissions.managePolicy}
                     value={harnesses}
                     onChange={(event) => setHarnesses(event.target.value)}
                   />
@@ -736,7 +800,9 @@ function AdminPanelContent({
                     {label}
                     <input
                       disabled={
-                        !permissions.managePolicy || policy[key] === undefined
+                        !!busy ||
+                        !permissions.managePolicy ||
+                        policy[key] === undefined
                       }
                       type="number"
                       required
@@ -761,7 +827,7 @@ function AdminPanelContent({
               </p>
               <label className="setup-check">
                 <input
-                  disabled={!permissions.managePolicy}
+                  disabled={!!busy || !permissions.managePolicy}
                   type="checkbox"
                   checked={policy.allowCloudProvisioning}
                   onChange={(event) =>
@@ -775,7 +841,7 @@ function AdminPanelContent({
               </label>
               <label className="setup-check">
                 <input
-                  disabled={!permissions.managePolicy}
+                  disabled={!!busy || !permissions.managePolicy}
                   type="checkbox"
                   checked={policy.allowPublicPublishing}
                   onChange={(event) =>
@@ -789,7 +855,7 @@ function AdminPanelContent({
               </label>
               <label className="setup-check">
                 <input
-                  disabled={!permissions.managePolicy}
+                  disabled={!!busy || !permissions.managePolicy}
                   type="checkbox"
                   checked={policy.allowHostCommands}
                   onChange={(event) =>
@@ -822,7 +888,8 @@ function AdminPanelContent({
                 Refresh administration
               </button>
             </div>
-            <table className="admin-table">
+            <table className="admin-table" aria-busy={reading}>
+              <caption>Recent workspace activity</caption>
               <thead>
                 <tr>
                   <th scope="col">Time</th>
@@ -844,7 +911,7 @@ function AdminPanelContent({
                 ))}
               </tbody>
             </table>
-            {!events.length && (
+            {!reading && !error && !events.length && (
               <p className="journey-muted">No audit events returned.</p>
             )}
           </section>
@@ -874,10 +941,16 @@ function UserAccess({
   const [role, setRole] = useState(user.role),
     [disabled, setDisabled] = useState(user.disabled),
     [password, setPassword] = useState("");
+  useEffect(() => {
+    setRole(user.role);
+    setDisabled(user.disabled);
+  }, [user.role, user.disabled]);
   const locked = busy || (user.role !== "member" && !canSuper);
   return (
     <details>
-      <summary>
+      <summary
+        aria-label={`Access for ${user.username}: ${user.role}, ${user.disabled ? "disabled" : "active"}`}
+      >
         {user.role} · {user.disabled ? "disabled" : "active"}
       </summary>
       <form
@@ -909,6 +982,7 @@ function UserAccess({
         <label className="setup-check">
           <input
             type="checkbox"
+            aria-label={`Disable ${user.username}`}
             checked={disabled}
             disabled={locked || user.id === currentId}
             onChange={(event) => setDisabled(event.target.checked)}
@@ -920,14 +994,24 @@ function UserAccess({
           <input
             disabled={locked}
             type="password"
+            minLength={12}
+            aria-label={`Reset password for ${user.username}`}
+            aria-describedby={`password-help-${user.id}`}
             value={password}
             autoComplete="new-password"
             onChange={(event) => setPassword(event.target.value)}
           />
+          <small id={`password-help-${user.id}`}>
+            Leave blank to keep the current password, or enter at least 12
+            characters.
+          </small>
         </label>
         <button className="luci-button" disabled={locked}>
           Save access
         </button>
+        {!canSuper && user.role !== "member" && (
+          <small>Only a Super Admin can change administrator access.</small>
+        )}
       </form>
     </details>
   );

@@ -17,10 +17,12 @@ export function CloudManager({
   client,
   plan,
   privateKeyPath = "",
+  mode = "all",
 }: {
   client: ProductClient;
   plan: CloudPlan | null;
   privateKeyPath?: string;
+  mode?: "all" | "managed" | "existing";
 }) {
   const [jobs, setJobs] = useState<CloudJob[]>([]);
   const [targets, setTargets] = useState<DeploymentTarget[]>([]);
@@ -53,8 +55,8 @@ export function CloudManager({
     alive = useRef(true);
   const load = async () => {
     const [j, t, c] = await Promise.all([
-      client.cloudJobs(),
-      client.targets(),
+      mode === "existing" ? Promise.resolve({ jobs: [] }) : client.cloudJobs(),
+      mode === "existing" ? Promise.resolve({ targets: [] }) : client.targets(),
       client.tunnels(),
     ]);
     if (alive.current) {
@@ -71,7 +73,7 @@ export function CloudManager({
     return () => {
       alive.current = false;
     };
-  }, [client]);
+  }, [client, mode]);
   useEffect(() => {
     setCost(false);
     setUnknownPrice(false);
@@ -138,7 +140,8 @@ export function CloudManager({
           {notice}
         </p>
       )}
-      {plan && !created && (
+      {busy && <p role="status">{busy}…</p>}
+      {mode !== "existing" && plan && !created && (
         <section className="setup-plan">
           <h2>Create this cloud home</h2>
           <p>
@@ -187,152 +190,159 @@ export function CloudManager({
           </button>
         </section>
       )}
-      <section className="setup-plan">
-        <div className="cloud-section-head">
-          <h2>Your cloud resources</h2>
-          <button
-            className="luci-button"
-            disabled={!!busy}
-            onClick={() => void run("Refreshing", load)}
-          >
-            Refresh list
-          </button>
-        </div>
-        {!jobs.length && (
-          <p className="journey-muted">
-            Your cloud jobs will appear here. You can also connect an existing
-            server below.
-          </p>
-        )}
-        {jobs.map((job) => (
-          <article className="cloud-job" key={job.id}>
-            <div className="cloud-section-head">
-              <strong>{job.name}</strong>
-              <span
-                className={`setup-status setup-status-${job.status === "failed" ? "error" : "unknown"}`}
-              >
-                {job.status.replace(/_/g, " ")}
-              </span>
-            </div>
-            <p>{job.message}</p>
-            <small>
-              {job.provider.toUpperCase()} · {job.region} · {job.domain}
-            </small>
-            {job.publicIp && (
-              <p>
-                DNS A record: <code>{job.domain}</code> →{" "}
-                <code>{job.publicIp}</code>
-              </p>
-            )}
-            <div className="setup-actions">
-              <button
-                className="luci-button"
-                disabled={!!busy || job.status === "deleted"}
-                onClick={() =>
-                  void run("Checking cloud", async () =>
-                    replaceJob(await client.refreshCloud(job.id)),
-                  )
-                }
-              >
-                Check progress
-              </button>
-              {job.publicIp && job.status !== "deleted" && (
-                <>
+      {mode !== "existing" && (
+        <section className="setup-plan">
+          <div className="cloud-section-head">
+            <h2>Your cloud resources</h2>
+            <button
+              className="luci-button"
+              disabled={!!busy}
+              onClick={() => void run("Refreshing", load)}
+            >
+              Refresh list
+            </button>
+          </div>
+          {!jobs.length && (
+            <p className="journey-muted">
+              Your cloud jobs will appear here. You can also connect an existing
+              server below.
+            </p>
+          )}
+          {jobs.map((job) => (
+            <article className="cloud-job" key={job.id}>
+              <div className="cloud-section-head">
+                <strong>{job.name}</strong>
+                <span
+                  className={`setup-status setup-status-${job.status === "failed" ? "error" : "unknown"}`}
+                >
+                  {job.status.replace(/_/g, " ")}
+                </span>
+              </div>
+              <p>{job.message}</p>
+              <small>
+                {job.provider.toUpperCase()} · {job.region} · {job.domain}
+              </small>
+              {job.publicIp && (
+                <p>
+                  DNS A record: <code>{job.domain}</code> →{" "}
+                  <code>{job.publicIp}</code>
+                </p>
+              )}
+              <div className="setup-actions">
+                <button
+                  className="luci-button"
+                  disabled={!!busy || job.status === "deleted"}
+                  onClick={() =>
+                    void run("Checking cloud", async () =>
+                      replaceJob(await client.refreshCloud(job.id)),
+                    )
+                  }
+                >
+                  Check progress
+                </button>
+                {job.publicIp && job.status !== "deleted" && (
+                  <>
+                    <button
+                      className="luci-button"
+                      disabled={!!busy}
+                      onClick={() =>
+                        void run("Checking DNS", async () => {
+                          const result = await client.cloudDNS(job.id);
+                          setDNS((v) => ({ ...v, [job.id]: result }));
+                        })
+                      }
+                    >
+                      Check DNS
+                    </button>
+                    <button
+                      className="luci-button"
+                      onClick={() => {
+                        changeSSH({ host: job.publicIp });
+                        document.getElementById("cloud-ssh-host")?.focus();
+                      }}
+                    >
+                      Connect this server
+                    </button>
+                  </>
+                )}
+                {!["deleted", "deleting", "creating"].includes(job.status) && (
                   <button
                     className="luci-button"
                     disabled={!!busy}
-                    onClick={() =>
-                      void run("Checking DNS", async () => {
-                        const result = await client.cloudDNS(job.id);
-                        setDNS((v) => ({ ...v, [job.id]: result }));
-                      })
-                    }
-                  >
-                    Check DNS
-                  </button>
-                  <button
-                    className="luci-button"
                     onClick={() => {
-                      changeSSH({ host: job.publicIp });
-                      document.getElementById("cloud-ssh-host")?.focus();
+                      setDeleting(job.id);
+                      setConfirmName("");
                     }}
                   >
-                    Connect this server
+                    Remove resources…
                   </button>
-                </>
+                )}
+              </div>
+              {dns[job.id] && (
+                <p
+                  className={
+                    dns[job.id].ready ? "journey-success" : "journey-warning"
+                  }
+                  role="status"
+                >
+                  {dns[job.id].message}
+                </p>
               )}
-              {!["deleted", "deleting", "creating"].includes(job.status) && (
-                <button
-                  className="luci-button"
-                  disabled={!!busy}
-                  onClick={() => {
-                    setDeleting(job.id);
-                    setConfirmName("");
+              {deleting === job.id && (
+                <form
+                  className="cloud-confirm"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void run("Removing resources", async () => {
+                      replaceJob(await client.deleteCloud(job.id, confirmName));
+                      setDeleting("");
+                    });
                   }}
                 >
-                  Remove resources…
-                </button>
+                  <p>
+                    Delete the machine and its data. Type{" "}
+                    <strong>{job.name}</strong> to confirm. Billing ends only
+                    when the provider has removed the resources.
+                  </p>
+                  <label className="luci-field">
+                    Resource name to remove
+                    <input
+                      required
+                      value={confirmName}
+                      onChange={(e) => setConfirmName(e.target.value)}
+                    />
+                  </label>
+                  <div className="setup-actions">
+                    <button
+                      className="luci-button"
+                      disabled={!!busy || confirmName !== job.name}
+                    >
+                      Delete these resources
+                    </button>
+                    <button
+                      type="button"
+                      className="luci-button"
+                      onClick={() => setDeleting("")}
+                    >
+                      Keep resources
+                    </button>
+                  </div>
+                </form>
               )}
-            </div>
-            {dns[job.id] && (
-              <p
-                className={
-                  dns[job.id].ready ? "journey-success" : "journey-warning"
-                }
-                role="status"
-              >
-                {dns[job.id].message}
-              </p>
-            )}
-            {deleting === job.id && (
-              <form
-                className="cloud-confirm"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void run("Removing resources", async () => {
-                    replaceJob(await client.deleteCloud(job.id, confirmName));
-                    setDeleting("");
-                  });
-                }}
-              >
-                <p>
-                  Delete the machine and its data. Type{" "}
-                  <strong>{job.name}</strong> to confirm. Billing ends only when
-                  the provider has removed the resources.
-                </p>
-                <label className="luci-field">
-                  Resource name to remove
-                  <input
-                    required
-                    value={confirmName}
-                    onChange={(e) => setConfirmName(e.target.value)}
-                  />
-                </label>
-                <div className="setup-actions">
-                  <button
-                    className="luci-button"
-                    disabled={!!busy || confirmName !== job.name}
-                  >
-                    Delete these resources
-                  </button>
-                  <button
-                    type="button"
-                    className="luci-button"
-                    onClick={() => setDeleting("")}
-                  >
-                    Keep resources
-                  </button>
-                </div>
-              </form>
-            )}
-          </article>
-        ))}
-      </section>
+            </article>
+          ))}
+        </section>
+      )}
       <section className="setup-plan">
-        <h2>Connect your server securely</h2>
+        <h2>
+          {mode === "existing"
+            ? "Connect to your workspace server"
+            : "Connect your server securely"}
+        </h2>
         <p className="journey-muted">
-          Luci opens a private SSH connection to the deployment service. Public
-          web traffic uses HTTPS; administration stays on this machine.
+          {mode === "existing"
+            ? "Use the SSH details supplied by your workspace administrator. After verifying the server, sign in with your Luci workspace account below. Connecting does not create cloud resources."
+            : "Luci opens a private SSH connection to your server. Public web traffic uses HTTPS; administration stays on this machine."}
         </p>
         <form
           onSubmit={(e) => {
@@ -349,6 +359,7 @@ export function CloudManager({
               Server address
               <input
                 id="cloud-ssh-host"
+                disabled={!!busy}
                 required
                 value={ssh.host}
                 onChange={(e) => changeSSH({ host: e.target.value })}
@@ -359,6 +370,7 @@ export function CloudManager({
               SSH port
               <input
                 type="number"
+                disabled={!!busy}
                 min="1"
                 max="65535"
                 required
@@ -370,6 +382,7 @@ export function CloudManager({
               SSH user
               <input
                 required
+                disabled={!!busy}
                 value={ssh.user}
                 onChange={(e) => changeSSH({ user: e.target.value })}
               />
@@ -378,6 +391,7 @@ export function CloudManager({
               Private key path
               <input
                 value={ssh.privateKeyPath}
+                disabled={!!busy}
                 onChange={(e) => changeSSH({ privateKeyPath: e.target.value })}
                 placeholder="Absolute path, or use your SSH agent"
               />
@@ -397,6 +411,7 @@ export function CloudManager({
             <label className="luci-field">
               Server fingerprint
               <select
+                disabled={!!busy}
                 value={fingerprint}
                 onChange={(e) => {
                   setFingerprint(e.target.value);
@@ -414,6 +429,7 @@ export function CloudManager({
             <label className="luci-check">
               <input
                 type="checkbox"
+                disabled={!!busy}
                 checked={accepted}
                 onChange={(e) => setAccepted(e.target.checked)}
               />
@@ -443,17 +459,19 @@ export function CloudManager({
             </div>
             <p>{t.message}</p>
             <div className="setup-actions">
-              {t.status === "connected" && localManagement(t.localUrl) && (
-                <button
-                  className="luci-button"
-                  onClick={() => {
-                    setManagement(localManagement(t.localUrl));
-                    setBaseUrl(t.localUrl);
-                  }}
-                >
-                  Open server setup
-                </button>
-              )}
+              {mode !== "existing" &&
+                t.status === "connected" &&
+                localManagement(t.localUrl) && (
+                  <button
+                    className="luci-button"
+                    onClick={() => {
+                      setManagement(localManagement(t.localUrl));
+                      setBaseUrl(t.localUrl);
+                    }}
+                  >
+                    Open server setup
+                  </button>
+                )}
               {["connecting", "connected"].includes(t.status) && (
                 <button
                   className="luci-button"
@@ -472,7 +490,7 @@ export function CloudManager({
             </div>
           </article>
         ))}
-        {management && (
+        {mode !== "existing" && management && (
           <div className="cloud-management">
             <div className="cloud-section-head">
               <strong>First account and access token</strong>
@@ -493,142 +511,148 @@ export function CloudManager({
           </div>
         )}
       </section>
-      <WorkspaceInstaller client={client} connections={tunnels} />
-      <section className="setup-plan">
-        <h2>Finish your deployment connection</h2>
-        <p className="journey-muted">
-          The access token stays in Luci’s local service. Luci verifies the
-          server before adding it to Deploy.
-        </p>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void run("Verifying connection", async () => {
-              try {
-                const t = await client.connectTarget({
-                  ...(targetId ? { id: targetId } : {}),
-                  name: targetName,
-                  baseUrl,
-                  token,
-                  ...(serverUuid ? { serverUuid } : {}),
-                });
-                setTargets((v) => [t, ...v.filter((x) => x.id !== t.id)]);
-                setToken("");
-                setServers([]);
-                setNotice(
-                  "Deployment server verified. Choose it in Deploy when your project is ready.",
-                );
-              } catch (cause) {
-                if (cause instanceof ProductApiError) {
-                  const body = cause.body as {
-                    servers?: { uuid: string; name: string }[];
-                  };
-                  if (Array.isArray(body?.servers)) setServers(body.servers);
-                }
-                throw cause;
-              }
-            });
-          }}
-        >
-          {targets.length > 0 && (
-            <label className="luci-field">
-              Connection to save
-              <select
-                value={targetId}
-                onChange={(e) => {
-                  const id = e.target.value,
-                    t = targets.find((x) => x.id === id);
-                  setTargetId(id);
-                  if (t) {
-                    setTargetName(t.name);
-                    setBaseUrl(t.baseUrl);
-                    setServerUuid(t.serverUuid);
-                  } else {
-                    setServerUuid("");
-                  }
+      <WorkspaceInstaller
+        client={client}
+        connections={tunnels}
+        existing={mode === "existing"}
+      />
+      {mode !== "existing" && (
+        <section className="setup-plan">
+          <h2>Finish your deployment connection</h2>
+          <p className="journey-muted">
+            The access token stays in Luci’s local service. Luci verifies the
+            server before adding it to Deploy.
+          </p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run("Verifying connection", async () => {
+                try {
+                  const t = await client.connectTarget({
+                    ...(targetId ? { id: targetId } : {}),
+                    name: targetName,
+                    baseUrl,
+                    token,
+                    ...(serverUuid ? { serverUuid } : {}),
+                  });
+                  setTargets((v) => [t, ...v.filter((x) => x.id !== t.id)]);
                   setToken("");
                   setServers([]);
-                }}
-              >
-                <option value="">Add a new connection</option>
-                {targets.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    Update {t.name}
-                  </option>
-                ))}
-              </select>
-              <small>
-                When reconnecting SSH, update the existing connection with its
-                new local address.
-              </small>
-            </label>
-          )}
-          <div className="setup-field-grid">
+                  setNotice(
+                    "Deployment server verified. Choose it in Deploy when your project is ready.",
+                  );
+                } catch (cause) {
+                  if (cause instanceof ProductApiError) {
+                    const body = cause.body as {
+                      servers?: { uuid: string; name: string }[];
+                    };
+                    if (Array.isArray(body?.servers)) setServers(body.servers);
+                  }
+                  throw cause;
+                }
+              });
+            }}
+          >
+            {targets.length > 0 && (
+              <label className="luci-field">
+                Connection to save
+                <select
+                  value={targetId}
+                  onChange={(e) => {
+                    const id = e.target.value,
+                      t = targets.find((x) => x.id === id);
+                    setTargetId(id);
+                    if (t) {
+                      setTargetName(t.name);
+                      setBaseUrl(t.baseUrl);
+                      setServerUuid(t.serverUuid);
+                    } else {
+                      setServerUuid("");
+                    }
+                    setToken("");
+                    setServers([]);
+                  }}
+                >
+                  <option value="">Add a new connection</option>
+                  {targets.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Update {t.name}
+                    </option>
+                  ))}
+                </select>
+                <small>
+                  When reconnecting SSH, update the existing connection with its
+                  new local address.
+                </small>
+              </label>
+            )}
+            <div className="setup-field-grid">
+              <label className="luci-field">
+                Connection name
+                <input
+                  required
+                  value={targetName}
+                  onChange={(e) => setTargetName(e.target.value)}
+                />
+              </label>
+              <label className="luci-field">
+                Management address
+                <input
+                  type="url"
+                  required
+                  value={baseUrl}
+                  onChange={(e) => {
+                    setBaseUrl(e.target.value);
+                    setServerUuid("");
+                    setServers([]);
+                  }}
+                  placeholder="http://127.0.0.1:…"
+                />
+              </label>
+            </div>
             <label className="luci-field">
-              Connection name
+              Server API token
               <input
+                type="password"
                 required
-                value={targetName}
-                onChange={(e) => setTargetName(e.target.value)}
+                value={token}
+                autoComplete="off"
+                onChange={(e) => setToken(e.target.value)}
               />
             </label>
-            <label className="luci-field">
-              Management address
-              <input
-                type="url"
-                required
-                value={baseUrl}
-                onChange={(e) => {
-                  setBaseUrl(e.target.value);
-                  setServerUuid("");
-                  setServers([]);
-                }}
-                placeholder="http://127.0.0.1:…"
-              />
-            </label>
-          </div>
-          <label className="luci-field">
-            Server API token
-            <input
-              type="password"
-              required
-              value={token}
-              autoComplete="off"
-              onChange={(e) => setToken(e.target.value)}
-            />
-          </label>
-          {servers.length > 0 && (
-            <label className="luci-field">
-              Application server
-              <select
-                required
-                value={serverUuid}
-                onChange={(e) => setServerUuid(e.target.value)}
-              >
-                <option value="">Choose a server</option>
-                {servers.map((s) => (
-                  <option key={s.uuid} value={s.uuid}>
-                    {s.name || s.uuid}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {servers.length > 0 && (
+              <label className="luci-field">
+                Application server
+                <select
+                  required
+                  value={serverUuid}
+                  onChange={(e) => setServerUuid(e.target.value)}
+                >
+                  <option value="">Choose a server</option>
+                  {servers.map((s) => (
+                    <option key={s.uuid} value={s.uuid}>
+                      {s.name || s.uuid}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <button className="luci-button luci-primary" disabled={!!busy}>
+              Verify and save connection
+            </button>
+          </form>
+          {targets.length > 0 && (
+            <ul className="cloud-targets">
+              {targets.map((t) => (
+                <li key={t.id}>
+                  <strong>{t.name}</strong>
+                  <span>{t.baseUrl}</span>
+                </li>
+              ))}
+            </ul>
           )}
-          <button className="luci-button luci-primary" disabled={!!busy}>
-            Verify and save connection
-          </button>
-        </form>
-        {targets.length > 0 && (
-          <ul className="cloud-targets">
-            {targets.map((t) => (
-              <li key={t.id}>
-                <strong>{t.name}</strong>
-                <span>{t.baseUrl}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }

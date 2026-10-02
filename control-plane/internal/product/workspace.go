@@ -301,7 +301,7 @@ func (s *Server) activateWorkspace(w http.ResponseWriter, r *http.Request) {
 		User management.User `json:"user"`
 	}
 	if authErr != nil || credential.Token == "" || remoteWorkspaceAPI(r.Context(), address, "GET", "/v1/auth/me", credential.Token, nil, &remoteIdentity) != nil {
-		problem(w, 401, "backing_sign_in_required", "Sign in to this backing before activating it.")
+		problem(w, 409, "backing_sign_in_required", "Sign in to this backing before activating it.")
 		return
 	}
 	ws := Workspace{Mode: "cloud", ConnectionID: req.ConnectionID, Host: host, Ready: true}

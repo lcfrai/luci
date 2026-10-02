@@ -1,3 +1,4 @@
+import { NavigationIcon } from "../common/NavigationIcon";
 // Contract §6.2: one project row + its chevron. Renders BranchRow children when expanded.
 //
 // TASK 22 NOTE — this file is in task 22's modify list (shared-shape §1). Its right-click
@@ -50,7 +51,7 @@ export function ProjectRow(props: {
         }}
       >
         <span className="rail-chev" aria-hidden="true">
-          {expanded ? "▾" : "▸"}
+          <NavigationIcon name={expanded ? "chevron-down" : "chevron-right"} />
         </span>
         <span className="rail-name">{project.name}</span>
       </div>

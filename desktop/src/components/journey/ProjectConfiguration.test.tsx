@@ -49,6 +49,7 @@ it("configures the selected deployment project without reading values back and b
     await screen.findByRole("button", { name: "Update DATABASE_URL" }),
   );
   const input = screen.getByLabelText(/^Private value/) as HTMLInputElement;
+  expect(document.activeElement).toBe(input);
   expect(input.type).toBe("password");
   expect(input.value).toBe("");
   expect(document.body.textContent).not.toContain("never-read-this-back");

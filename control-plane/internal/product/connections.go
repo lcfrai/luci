@@ -325,7 +325,6 @@ func (s *Server) connectSSH(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	go func() {
-		client := &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
 		for i := 0; i < 15; i++ {
 			time.Sleep(time.Second)
 			s.mu.RLock()
@@ -334,18 +333,14 @@ func (s *Server) connectSSH(w http.ResponseWriter, r *http.Request) {
 			if status != "connecting" {
 				return
 			}
-			res, err := client.Get(t.LocalURL)
-			if err == nil {
-				res.Body.Close()
-				if res.StatusCode < 500 {
-					s.mu.Lock()
-					if t.Status == "connecting" {
-						t.Status = "connected"
-						t.Message = "Connected. Complete first-account setup and create an API token through this protected management connection."
-					}
-					s.mu.Unlock()
-					return
+			if message := tunnelServiceReady(t.APIURL, t.LocalURL); message != "" {
+				s.mu.Lock()
+				if t.Status == "connecting" {
+					t.Status = "connected"
+					t.Message = message
 				}
+				s.mu.Unlock()
+				return
 			}
 		}
 		s.mu.Lock()
@@ -355,6 +350,27 @@ func (s *Server) connectSSH(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 	}()
 	writeJSON(w, 202, response)
+}
+
+// Both addresses are private forwards created after the SSH host fingerprint is
+// accepted. An existing Luci workspace does not need a Coolify management server.
+func tunnelServiceReady(apiURL, managementURL string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	_, err := readRemoteControlStatus(ctx, apiURL)
+	cancel()
+	if err == nil {
+		return "Connected to Luci. Sign in to this workspace through the verified SSH connection."
+	}
+	client := &http.Client{Timeout: 2 * time.Second, Transport: &http.Transport{Proxy: nil}, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
+	defer client.CloseIdleConnections()
+	res, err := client.Get(managementURL)
+	if err == nil {
+		defer res.Body.Close()
+		if res.StatusCode < 500 {
+			return "Connected. Complete first-account setup and create an API token through this protected management connection."
+		}
+	}
+	return ""
 }
 func (s *Server) listTunnels(w http.ResponseWriter, r *http.Request) {
 	s.mu.RLock()

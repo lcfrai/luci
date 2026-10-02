@@ -1,3 +1,4 @@
+import { NavigationIcon } from "../common/NavigationIcon";
 // Contract §6.4 and §0.1: the LEFT half creates with resolved defaults and opens no dialog;
 // the caret opens the picker. The prototype opened a dialog for both and the spec supersedes it.
 import type { JSX } from "react";
@@ -6,7 +7,9 @@ import { useCreateSession } from "../../hooks/useCreateSession";
 import type { WorktreeId } from "../../store/types";
 import "./topbar.css";
 
-export function NewSessionButton(props: { worktreeId: WorktreeId | null }): JSX.Element {
+export function NewSessionButton(props: {
+  worktreeId: WorktreeId | null;
+}): JSX.Element {
   const { worktreeId } = props;
   const createSession = useCreateSession();
   const pickerOpen = useCockpit((s) => s.pickerOpen);
@@ -28,7 +31,7 @@ export function NewSessionButton(props: { worktreeId: WorktreeId | null }): JSX.
           if (worktreeId !== null) void createSession(worktreeId);
         }}
       >
-        ＋ New session
+        <NavigationIcon name="add" /> New session
       </button>
       <button
         type="button"
@@ -39,7 +42,7 @@ export function NewSessionButton(props: { worktreeId: WorktreeId | null }): JSX.
         data-overlay-trigger=""
         onClick={() => (pickerOpen ? closePicker() : openPicker())}
       >
-        ▾
+        <NavigationIcon name="chevron-down" />
       </button>
     </div>
   );

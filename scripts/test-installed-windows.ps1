@@ -59,6 +59,15 @@ function Preserved-Hashes {
     $path = Join-Path $project $name
     $hashes[$path] = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash
   }
+  if ($fixture.PSObject.Properties['hasPlan'] -and $fixture.hasPlan) {
+    $plan = Join-Path $project '.luci\plan.json'
+    $hashes[$plan] = (Get-FileHash -Algorithm SHA256 -LiteralPath $plan).Hash
+  }
+  if ($fixture.PSObject.Properties['hasConfiguration'] -and $fixture.hasConfiguration) {
+    $privateConfig = @(Get-ChildItem -LiteralPath (Join-Path $stateDir 'sessions') -File -Filter 'application-config-*.json')
+    if ($privateConfig.Count -ne 1) { throw 'Expected one private runtime configuration outside the project' }
+    $hashes[$privateConfig[0].FullName] = (Get-FileHash -Algorithm SHA256 -LiteralPath $privateConfig[0].FullName).Hash
+  }
   $identity = Join-Path $stateDir 'control-plane\identity.json'
   if (Test-Path -LiteralPath $identity) { $hashes[$identity] = (Get-FileHash -Algorithm SHA256 -LiteralPath $identity).Hash }
   return $hashes

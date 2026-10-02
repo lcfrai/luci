@@ -376,3 +376,109 @@
     padding: 30px;
   }
 }
+
+.journey-page {
+  padding: 32px;
+  scrollbar-gutter: stable;
+}
+.journey-header h1 {
+  font-size: 30px;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+}
+.journey-header p {
+  max-inline-size: 70ch;
+  line-height: 1.6;
+}
+.journey-form {
+  max-inline-size: 760px;
+  gap: 24px;
+}
+.journey-empty h1 {
+  font-family: var(--sans);
+  letter-spacing: -0.03em;
+  font-weight: 550;
+}
+.journey-revision {
+  font-size: 12px;
+}
+.journey-page > .journey-muted,
+.journey-page > p {
+  max-inline-size: 72ch;
+}
+.journey-directory button {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.journey-directory button > span {
+  overflow-wrap: anywhere;
+}
+.journey-git-layout {
+  grid-template-columns: minmax(150px, 240px) minmax(0, 1fr);
+}
+.cloud-deploy-form {
+  max-inline-size: 760px;
+}
+.deploy-releases li {
+  overflow-wrap: anywhere;
+}
+.deploy-releases li > div:first-child {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 1100px) {
+  .journey-page {
+    padding: 28px;
+  }
+  .journey-git-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .journey-page {
+    padding: 24px 20px;
+  }
+  .journey-header h1 {
+    font-size: 28px;
+  }
+  .journey-header {
+    margin-block-end: 24px;
+  }
+  .journey-empty {
+    padding: 24px;
+  }
+  .deploy-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .design-page {
+    padding: 12px;
+  }
+  .design-page .journey-header h1 {
+    font-size: 23px;
+  }
+  .project-tasks li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .project-tasks li > :first-child {
+    grid-column: 1 / -1;
+  }
+  .project-work-body {
+    padding-inline: 16px;
+  }
+  .check-command-form .luci-field {
+    flex-basis: 100%;
+  }
+  .journey-directory button {
+    grid-template-columns: 20px minmax(0, 1fr);
+  }
+  .journey-directory small {
+    grid-column: 2;
+  }
+}
+
+.journey-header > .luci-button {
+  flex-shrink: 0;
+}
+.journey-header > div {
+  min-inline-size: 0;
+}

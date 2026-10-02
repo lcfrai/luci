@@ -1,42 +1,91 @@
 import { describe, expect, it } from "vitest";
 import tokensCss from "./tokens.css?raw";
 import appCss from "./app.css?raw";
-import { declaredCustomProperties, findHexLiterals, stripCssComments } from "../test/fakes";
+import {
+  declaredCustomProperties,
+  findHexLiterals,
+  stripCssComments,
+} from "../test/fakes";
 
 /** Contract §5.4: the names the already-written Phase 4 Discover plan depends on. Renaming
  *  one of these breaks `desktop/src/discover/` before it is written. */
 const PHASE_4_NAMES = [
-  "--page", "--canvas", "--surface", "--inset", "--hover",
-  "--ink", "--ink-2", "--ink-3", "--ink-4",
-  "--line-soft", "--line", "--line-strong",
-  "--accent", "--accent-hi", "--accent-tint",
-  "--run", "--need", "--fail", "--drift",
-  "--r-chip", "--r-ctl", "--r-card", "--r-window",
-  "--e-hair", "--e-card",
-  "--ease", "--mono", "--sans",
+  "--page",
+  "--canvas",
+  "--surface",
+  "--inset",
+  "--hover",
+  "--ink",
+  "--ink-2",
+  "--ink-3",
+  "--ink-4",
+  "--line-soft",
+  "--line",
+  "--line-strong",
+  "--accent",
+  "--accent-hi",
+  "--accent-tint",
+  "--run",
+  "--need",
+  "--fail",
+  "--drift",
+  "--r-chip",
+  "--r-ctl",
+  "--r-card",
+  "--r-window",
+  "--e-hair",
+  "--e-card",
+  "--ease",
+  "--mono",
+  "--sans",
 ];
 
 /** Contract §5.4's nineteen, plus `--scrim`. The twentieth is this task's addition under Group D
  *  shared shape §3B, which routes a token a component needs into the token layer rather than
  *  letting the component write a raw colour function; task 23's `.pal-scrim` is the case. */
 const PHASE_2_NAMES = [
-  "--hover-2", "--field", "--thread",
-  "--accent-lo", "--accent-ink", "--accent-ring",
-  "--run-tint", "--need-tint", "--fail-tint", "--idle", "--exited",
-  "--e-btn", "--e-raised", "--e-overlay",
-  "--dur-fast", "--dur", "--dur-slow", "--beat", "--numeric",
+  "--hover-2",
+  "--field",
+  "--thread",
+  "--accent-lo",
+  "--accent-ink",
+  "--accent-ring",
+  "--run-tint",
+  "--need-tint",
+  "--fail-tint",
+  "--idle",
+  "--exited",
+  "--e-btn",
+  "--e-raised",
+  "--e-overlay",
+  "--dur-fast",
+  "--dur",
+  "--dur-slow",
+  "--beat",
+  "--numeric",
   "--scrim",
 ];
 
-/** Contract §5.2/§5.3: every derived colour documents the sRGB hex it round-trips to. All
- *  nineteen were re-derived through the inverse Oklab transform while this plan was written:
- *  each is exact, and no channel falls outside [-0.0005, 1.0005]. */
-const DOCUMENTED_HEXES = [
-  "#0a0908", "#0f0d0b", "#141210", "#1a1815", "#201e1b", "#262320", "#070605",
-  "#f2ede7", "#a79f97", "#6c645d", "#453f39",
-  "#2fb3bd", "#74d9e1", "#18848c", "#001517",
-  "#43b95e", "#e2a33c", "#ef5f45", "#c98ae0",
-];
+/** Relative luminance from opaque OKLCH tokens, through the inverse Oklab transform.
+ * This checks readability rather than freezing a historical low-contrast hex value. */
+function luminance(token: string): number {
+  const match = new RegExp(
+    `${token}:\\s*oklch\\(\\s*([\\d.]+)%\\s+([\\d.]+)\\s+([\\d.]+)\\s*\\)`,
+  ).exec(tokensCss);
+  if (!match) throw new Error(`Missing opaque OKLCH token ${token}`);
+  const L = Number(match[1]) / 100,
+    C = Number(match[2]),
+    h = (Number(match[3]) * Math.PI) / 180;
+  const a = C * Math.cos(h),
+    b = C * Math.sin(h);
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  const r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const blue = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+  return 0.2126 * r + 0.7152 * g + 0.0722 * blue;
+}
 
 describe("the token layer", () => {
   it("reads the stylesheets as raw text", () => {
@@ -65,8 +114,23 @@ describe("the token layer", () => {
     expect(findHexLiterals(stripCssComments(tokensCss))).toEqual([]);
   });
 
-  it("documents the source hex of all nineteen derived colours, in comments only", () => {
-    expect(findHexLiterals(tokensCss).sort()).toEqual([...DOCUMENTED_HEXES].sort());
+  it("keeps every readable ink above 4.5:1 across the shared surface ramp", () => {
+    for (const ink of ["--ink", "--ink-2", "--ink-3"]) {
+      for (const surface of [
+        "--page",
+        "--canvas",
+        "--surface",
+        "--inset",
+        "--hover",
+        "--hover-2",
+        "--field",
+      ]) {
+        expect(
+          (luminance(ink) + 0.05) / (luminance(surface) + 0.05),
+          `${ink} on ${surface}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
 
   it("never uses `transition: all`", () => {
@@ -83,9 +147,14 @@ describe("the token layer", () => {
   });
 
   it("has app.css import the token layer first and own no colour of its own", () => {
-    const lines = stripCssComments(appCss).split("\n").map((l) => l.trim()).filter(Boolean);
+    const lines = stripCssComments(appCss)
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
     expect(lines[0]).toBe('@import "./tokens.css";');
     expect(findHexLiterals(appCss)).toEqual([]);
-    expect(stripCssComments(appCss)).not.toMatch(/\b(?:rgb|rgba|hsl|hsla|oklch)\(/);
+    expect(stripCssComments(appCss)).not.toMatch(
+      /\b(?:rgb|rgba|hsl|hsla|oklch)\(/,
+    );
   });
 });

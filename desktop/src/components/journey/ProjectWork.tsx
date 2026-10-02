@@ -58,7 +58,7 @@ export function ProjectWork({
   return (
     <details className="project-work" open>
       <summary>
-        <strong>Project plan and checks</strong>
+        <strong role="heading" aria-level={1}>Project plan and checks</strong>
         <span>
           {facts
             ? `Brief ${facts.brief.revision} · ${facts.git.clean ? "Committed" : "Changes to review"}`

@@ -63,3 +63,12 @@
   font: inherit;
   padding: 5px 8px;
 }
+
+.menu-item {
+  min-block-size: 36px;
+}
+@media (max-width: 760px), (pointer: coarse) {
+  .menu-item {
+    min-block-size: 44px;
+  }
+}

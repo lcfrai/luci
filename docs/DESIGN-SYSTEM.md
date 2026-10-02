@@ -1,6 +1,6 @@
 # Luci — design system
 
-This document exists because the first prototype looked machine-generated. It is the standard every surface is held to.
+This document records the original design direction. [The current implementation authority](../DESIGN.md) resolves it against Luci's shipped application and UAT findings.
 
 ## The tells we must never ship
 
@@ -24,7 +24,7 @@ Depth comes from stacking these, not from blur.
 
 **Hairlines:** `line-soft` → `line` → `line-strong`. Hairlines carry structure; shadows carry elevation.
 
-**Elevation:** a 1px ring **plus** a layered drop shadow. Never a flat border. Scale: `hairline`, `btn`, `card`, `raised`, `overlay`.
+**Elevation:** flat surfaces and hairlines establish the workspace. Reserve layered shadows for overlays. Scale tokens remain available for controls that need elevation.
 
 **Radius scale tied to element size:** chip 6 / control 8 / card 10 / window 14.
 
@@ -42,15 +42,13 @@ If the accent starts appearing decoratively, the hierarchy is broken. When every
 
 ### Typography
 
-Production pairing: **Geist Sans** (OFL, free) as the invisible UI workhorse, plus **one licensed monospace** — Berkeley Mono (~$100 one-time) or Commit Mono (OFL, free) — for code, logs, IDs, timestamps and live meters.
-
-The licensed mono is worth the line item: it is the current taste marker among premium dev tools precisely because most clones will not pay for it. Spend the licence budget on the **one face used sparingly**, not on a display face for body text nobody consciously reads. Inter and Geist are both drifting toward "the new default" — safe, but no longer differentiating on their own.
+The shipped app uses system sans-serif and monospace stacks for offline operation and zero additional font cost. Bundled open-licensed Excalidraw fonts serve the design canvas. No purchased font is required.
 
 Mono is also permitted **once** at display scale (the zero-state headline). A product called a cloud computer is allowed to speak in machine voice exactly once; doing it everywhere is costume.
 
-### Grain
+### Surface clarity
 
-1.5–3% film grain over dark surfaces. It kills colour banding on the dark ramp and adds a tactile made-object quality. Correctly tuned, you would only notice it if it were removed. Overdone, it reads as trying too hard.
+The application has no decorative grain layer. Warm surfaces, readable type, consistent controls and restrained teal state accents establish its identity.
 
 **Easing:** one house curve on nearly every transition — `cubic-bezier(0.23, 1, 0.32, 1)`. Durations under 300ms, `ease-out` by default. Springs only where a cursor or finger supplies the velocity (drag, sheets, reorder, resize).
 

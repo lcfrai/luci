@@ -10,6 +10,14 @@ on:
         description: 'Optional completed run ID: test its existing Windows installer without rebuilding'
         type: string
         default: ''
+      installer_release:
+        description: 'Optional private draft release tag: test its exact installer without rebuilding'
+        type: string
+        default: ''
+      installer_sha256:
+        description: 'Required with installer_release: independently recorded installer SHA256'
+        type: string
+        default: ''
       upgrade_from_03:
         description: 'Seed with the retained 0.3.0 installer and verify the upgrade'
         type: boolean
@@ -20,18 +28,18 @@ permissions:
   actions: read
 
 concurrency:
-  group: luci-ci-${{ github.workflow }}-${{ github.ref }}
+  group: luci-ci-${{ github.workflow }}-${{ github.ref }}-${{ inputs.installer_run || inputs.installer_release || 'build' }}
   cancel-in-progress: true
 
 env:
-  LUCI_VERSION: '0.4.0'
+  LUCI_VERSION: '0.4.1'
   GO_VERSION: '1.26.3'
   NODE_VERSION: '22.18.0'
 
 jobs:
   verify:
     name: Go and desktop checks
-    if: ${{ !inputs.installer_run }}
+    if: ${{ !inputs.installer_run && !inputs.installer_release }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -66,12 +74,27 @@ jobs:
       - name: Build desktop assets
         working-directory: desktop
         run: npm run build
+      - name: Install browser acceptance runtime
+        working-directory: desktop
+        run: npx playwright install --with-deps chromium
+      - name: Run connected browser UAT against the candidate service
+        run: |
+          mkdir -p artifacts/browser-uat
+          CGO_ENABLED=0 go build -trimpath -o artifacts/browser-uat/luci ./control-plane/cmd/api
+          node scripts/run-ui-uat.mjs artifacts/browser-uat/luci desktop/dist .
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: luci-connected-browser-uat-${{ github.sha }}
+          path: artifacts/uat/*/evidence/
+          if-no-files-found: warn
+          retention-days: 14
 
   runtime-smoke:
-    name: Real Linux Docker runtime journey
+    name: Real Docker and SSH browser UAT
     needs: verify
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -89,6 +112,19 @@ jobs:
         run: |
           mkdir -p artifacts/runtime-smoke
           CGO_ENABLED=0 go build -trimpath -o artifacts/runtime-smoke/luci ./control-plane/cmd/api
+      - name: Prepare actual browser and SSH runtime
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: /opt/luci-uat-browsers
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y openssh-server
+          sudo install -d -m 755 /run/sshd
+          sudo install -d -m 777 /opt/luci-uat-browsers
+          npm ci --prefix desktop
+          npm run build --prefix desktop
+          cd desktop
+          npx playwright install --with-deps chromium
+          chmod -R a+rX /opt/luci-uat-browsers
       - name: Exercise the compiled multi-user control plane
         run: node scripts/control-plane-smoke.mjs --binary artifacts/runtime-smoke/luci --output artifacts/control-plane-smoke.json
       - name: Exercise Docker as a distinct non-root host user
@@ -98,6 +134,9 @@ jobs:
           # The runner often uses UID 1001, matching the image's default user.
           # A separate UID proves private host bind mounts work after remapping.
           sudo useradd --uid 10123 --user-group --groups docker --create-home luci-eval
+          # The private SSH fixture accepts only its generated key. Unlock this
+          # disposable account so OpenSSH permits that key authentication.
+          sudo passwd -d luci-eval
           test "$(id -u luci-eval)" != 1001
           stage=$(mktemp -d /tmp/luci-runtime-ci-XXXXXX)
           chmod 755 "$stage"
@@ -105,6 +144,8 @@ jobs:
           cp artifacts/runtime-smoke/luci "$stage/luci"
           cp scripts/runtime-smoke.mjs "$stage/scripts/runtime-smoke.mjs"
           cp scripts/provider-smoke.py "$stage/scripts/provider-smoke.py"
+          cp scripts/workspace-browser-eval.mjs "$stage/scripts/workspace-browser-eval.mjs"
+          ln -s "$GITHUB_WORKSPACE/desktop" "$stage/desktop"
           cp -R images/sandbox "$stage/images/sandbox"
           for source in cmd internal vendor go.mod go.sum; do cp -R "sandboxd/$source" "$stage/sandboxd/$source"; done
           chmod -R a+rX "$stage"
@@ -114,7 +155,8 @@ jobs:
             sudo chmod 644 "$RUNNER_TEMP/luci-runtime-evidence.tar.gz"
           }
           trap capture_evidence EXIT
-          sudo -H -u luci-eval env PATH="$PATH" node "$stage/scripts/runtime-smoke.mjs" "$stage/luci" "$stage/evidence"
+          sudo -H -u luci-eval env PATH="$PATH" PLAYWRIGHT_BROWSERS_PATH=/opt/luci-uat-browsers LUCI_RUNTIME_UI=1 node "$stage/scripts/runtime-smoke.mjs" "$stage/luci" "$stage/evidence"
+          sudo -H -u luci-eval env PATH="$PATH" PLAYWRIGHT_BROWSERS_PATH=/opt/luci-uat-browsers node "$stage/scripts/workspace-browser-eval.mjs" --binary "$stage/luci" --desktop "$stage/desktop" --output "$stage/evidence/workspace-browser"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -283,7 +325,7 @@ jobs:
 
   installed-diagnostic:
     name: Installed Windows release diagnostic
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.installer_run != '' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.installer_run != '' || inputs.installer_release != '') }}
     runs-on: windows-2025
     timeout-minutes: 25
     defaults:
@@ -300,23 +342,40 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           INSTALLER_RUN: ${{ inputs.installer_run }}
+          INSTALLER_RELEASE: ${{ inputs.installer_release }}
+          INSTALLER_SHA256: ${{ inputs.installer_sha256 }}
           UPGRADE_FROM_03: ${{ inputs.upgrade_from_03 }}
         run: |
-          if ($env:INSTALLER_RUN -notmatch '^\d+$') { throw 'installer_run must be a numeric completed CI run ID' }
-          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:INSTALLER_RUN" | ConvertFrom-Json
-          if ($LASTEXITCODE -ne 0 -or $run.conclusion -ne 'success') { throw 'Source installer run must have succeeded' }
-          $artifacts = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:INSTALLER_RUN/artifacts" | ConvertFrom-Json
-          $native = @($artifacts.artifacts | Where-Object { $_.name -like 'luci-windows-native-*' -and -not $_.expired })
-          if ($native.Count -ne 1) { throw 'Expected one retained native installer artifact' }
-          gh run download $env:INSTALLER_RUN --repo $env:GITHUB_REPOSITORY --name $native[0].name --dir artifacts/diagnostic-installer
-          if ($LASTEXITCODE -ne 0) { throw 'Installer download failed' }
+          if ($env:INSTALLER_RUN -and $env:INSTALLER_RELEASE) { throw 'Choose one installer source' }
+          if ($env:INSTALLER_RELEASE) {
+            if ($env:INSTALLER_RELEASE -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$' -or $env:INSTALLER_SHA256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'Release tag and independently recorded installer SHA256 are required' }
+            $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:INSTALLER_RELEASE" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or -not $release.draft) { throw 'Diagnostic release must be an accessible private draft candidate' }
+            gh release download $env:INSTALLER_RELEASE --repo $env:GITHUB_REPOSITORY --pattern '*-setup.exe' --pattern release-manifest.json --dir artifacts/diagnostic-installer
+            if ($LASTEXITCODE -ne 0) { throw 'Draft candidate download failed' }
+          } else {
+            if ($env:INSTALLER_RUN -notmatch '^\d+$') { throw 'installer_run must be a numeric completed CI run ID' }
+            $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:INSTALLER_RUN" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0 -or $run.conclusion -ne 'success') { throw 'Source installer run must have succeeded' }
+            $artifacts = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:INSTALLER_RUN/artifacts" | ConvertFrom-Json
+            $native = @($artifacts.artifacts | Where-Object { $_.name -like 'luci-windows-native-*' -and -not $_.expired })
+            if ($native.Count -ne 1) { throw 'Expected one retained native installer artifact' }
+            gh run download $env:INSTALLER_RUN --repo $env:GITHUB_REPOSITORY --name $native[0].name --dir artifacts/diagnostic-installer
+            if ($LASTEXITCODE -ne 0) { throw 'Installer download failed' }
+          }
           $manifest = Get-Content artifacts/diagnostic-installer/release-manifest.json -Raw | ConvertFrom-Json
           $installer = @($manifest.artifacts | Where-Object { $_.name -like '*-setup.exe' })
           if ($installer.Count -ne 1) { throw 'Expected one installer manifest entry' }
+          if ($installer[0].name -ne [IO.Path]::GetFileName($installer[0].name) -or $manifest.sourceCommit -notmatch '^[a-fA-F0-9]{40}$') { throw 'Invalid installer source manifest' }
           $path = Join-Path (Resolve-Path artifacts/diagnostic-installer).Path $installer[0].name
           if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $installer[0].sha256) { throw 'Installer hash differs from source build manifest' }
+          if ($env:INSTALLER_RELEASE) {
+            if ($installer[0].sha256 -ne $env:INSTALLER_SHA256.ToLowerInvariant()) { throw 'Draft installer differs from independently recorded hash' }
+            $asset = @($release.assets | Where-Object name -eq $installer[0].name)
+            if ($asset.Count -ne 1 -or $asset[0].digest -ne ('sha256:' + $installer[0].sha256)) { throw 'Draft asset server digest differs from manifest' }
+          }
           "NATIVE_INSTALLER=$path" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
-          $provenance = @{ scriptsCommit=$env:GITHUB_SHA; installerRun=$env:INSTALLER_RUN; installerSourceCommit=$manifest.sourceCommit; installerSHA256=$installer[0].sha256 }
+          $provenance = @{ scriptsCommit=$env:GITHUB_SHA; installerRun=$env:INSTALLER_RUN; installerRelease=$env:INSTALLER_RELEASE; installerSourceCommit=$manifest.sourceCommit; installerSHA256=$installer[0].sha256 }
           New-Item -ItemType Directory -Path artifacts/native-installed-eval -Force | Out-Null
           $provenance | ConvertTo-Json | Set-Content artifacts/native-installed-eval/input-provenance.json
           if ($env:UPGRADE_FROM_03 -eq 'true') {

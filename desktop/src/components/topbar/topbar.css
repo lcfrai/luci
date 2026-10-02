@@ -1,7 +1,16 @@
 @import "../../styles/tokens.css";
-.top-tools { display: flex; gap: 3px; }
-.top-tools [aria-current] { color: var(--accent-hi); background: var(--accent-tint); }
-.top-title { font-weight: 550; color: var(--ink-2); }
+.top-tools {
+  display: flex;
+  gap: 3px;
+}
+.top-tools [aria-current] {
+  color: var(--accent-hi);
+  background: var(--accent-tint);
+}
+.top-title {
+  font-weight: 550;
+  color: var(--ink-2);
+}
 
 /* The top bar, and the panel the session picker renders into. Owns .top-* and .pick-*. */
 .top {
@@ -111,4 +120,100 @@
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.top {
+  min-inline-size: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+}
+.top-btn,
+.top-seg-btn,
+.top-split-main,
+.top-split-caret,
+.top-projects {
+  min-block-size: 36px;
+}
+.top-projects {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: center;
+  padding: 7px 9px;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  border-radius: var(--r-ctl);
+  cursor: pointer;
+}
+.top-projects span {
+  display: none;
+}
+.top-projects:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.top-tools {
+  flex-wrap: wrap;
+}
+.top-tools .top-btn {
+  background: none;
+  box-shadow: none;
+  color: var(--ink-2);
+}
+.top-tools .top-btn[aria-current] {
+  background: var(--inset);
+  color: var(--ink);
+}
+.top-title {
+  font-size: 13px;
+}
+.pick {
+  min-inline-size: min(300px, calc(100vw - 40px));
+}
+.pick-panel {
+  max-block-size: calc(100dvh - 100px);
+  overflow-y: auto;
+}
+@media (max-width: 760px) {
+  .top {
+    padding: 8px 12px;
+  }
+  .top-projects span {
+    display: inline;
+  }
+  .top-title {
+    margin-inline-start: auto;
+  }
+  .top-spacer {
+    display: none;
+  }
+  .top-seg {
+    margin-inline-start: auto;
+  }
+  .top-split {
+    margin-inline-start: auto;
+  }
+  .top-btn,
+  .top-seg-btn,
+  .top-split-main,
+  .top-split-caret,
+  .top-projects {
+    min-block-size: 44px;
+  }
+  .top-split-caret {
+    min-inline-size: 44px;
+  }
+  .pick-panel {
+    inset-block-start: 12px;
+  }
+}
+
+.top-split-main,
+.top-split-caret {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }

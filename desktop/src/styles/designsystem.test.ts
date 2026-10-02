@@ -575,6 +575,7 @@ function shadowFaults(t: Tree): string[] {
   for (const file of t.css) {
     if (file === TOKENS) continue;
     for (const value of declarations(stripCssComments(t.read(file)), "box-shadow")) {
+      if (value === "none") continue; // Removing elevation introduces no colour.
       if (!value.includes("var(--") && !value.includes("currentColor")) {
         offenders.push(`${file}  box-shadow: ${value}`);
       }

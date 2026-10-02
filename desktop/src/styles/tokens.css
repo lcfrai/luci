@@ -27,99 +27,97 @@
    * Lightness rises 14.0 → 16.0 → 18.5 → 21.0 → 23.5 → 26.0 across the six that rise. --field
    * is the seventh name and does NOT rise: it sits below --page at 12.5, and the comment
    * beside it says why. */
-  --page:    oklch(14.0% 0.0040 67);   /* #0a0908 — the window ground */
-  --canvas:  oklch(16.0% 0.0045 67);   /* #0f0d0b — rail, sub-rail, the Canvas backdrop */
-  --surface: oklch(18.5% 0.0050 67);   /* #141210 — cards, popovers, menus, the top bar's controls */
-  --inset:   oklch(21.0% 0.0060 67);   /* #1a1815 — a selected row, a chip, a segmented control's thumb */
-  --hover:   oklch(23.5% 0.0065 67);   /* #201e1b — hover on a row */
-  --hover-2: oklch(26.0% 0.0070 67);   /* #262320 — hover on something already at --inset */
+  --page: oklch(14% 0.004 67); /* #0a0908 — the window ground */
+  --canvas: oklch(
+    16% 0.0045 67
+  ); /* #0f0d0b — rail, sub-rail, the Canvas backdrop */
+  --surface: oklch(
+    18.5% 0.005 67
+  ); /* #141210 — cards, popovers, menus, the top bar's controls */
+  --inset: oklch(
+    21% 0.006 67
+  ); /* #1a1815 — a selected row, a chip, a segmented control's thumb */
+  --hover: oklch(23.5% 0.0065 67); /* #201e1b — hover on a row */
+  --hover-2: oklch(
+    26% 0.007 67
+  ); /* #262320 — hover on something already at --inset */
   /* A form field is a WELL, not a raised plane: it reads as something you put text into.
    * This deliberately breaks the monotone ramp; DESIGN-SYSTEM lists the seven surfaces as a
    * naming order, not a lightness order. If a reviewer disagrees, this is the one line to
    * change. */
-  --field:   oklch(12.5% 0.0035 67);   /* #070605 */
+  --field: oklch(12.5% 0.0035 67); /* #070605 */
 
   /* ── Ink ramp ─────────────────────────────────────────────────────────────────────
-   * ink-3 is the FLOOR for anything a user must read (3.43:1 on --page).
+   * ink-3 is the readable secondary floor across the warm surface ramp.
    * ink-4 is 1.92:1 and is never text: thread lines, hairline glyphs, disabled marks. */
-  --ink:   oklch(94.8% 0.0097 73);     /* #f2ede7 — 17.09:1 */
-  --ink-2: oklch(70.7% 0.0148 68);     /* #a79f97 —  7.63:1 */
-  --ink-3: oklch(50.9% 0.0149 64);     /* #6c645d —  3.43:1 */
-  --ink-4: oklch(37.2% 0.0130 67);     /* #453f39 —  1.92:1, non-text only */
+  --ink: oklch(94.8% 0.0097 73); /* #f2ede7 — 17.09:1 */
+  --ink-2: oklch(70.7% 0.0148 68); /* #a79f97 —  7.63:1 */
+  --ink-3: oklch(
+    66% 0.0149 64
+  ); /* Muted text: minimum 5:1 across the surface ramp. */
+  --ink-4: oklch(37.2% 0.013 67); /* #453f39 —  1.92:1, non-text only */
 
   /* ── Hairlines ────────────────────────────────────────────────────────────────────
    * Hairlines carry STRUCTURE; shadows carry ELEVATION. Kept as alpha over the warm ink
    * so they read correctly on every surface in the ramp without a per-surface variant. */
-  --line-soft:   oklch(94.8% 0.0097 73 / 0.04);
-  --line:        oklch(94.8% 0.0097 73 / 0.075);
+  --line-soft: oklch(94.8% 0.0097 73 / 0.04);
+  --line: oklch(94.8% 0.0097 73 / 0.075);
   --line-strong: oklch(94.8% 0.0097 73 / 0.15);
   /* The rail's parent→child connector. Structurally a hairline, semantically a thread. */
-  --thread:      oklch(94.8% 0.0097 73 / 0.16);
+  --thread: oklch(94.8% 0.0097 73 / 0.16);
 
   /* ── Accent — interactive and current state ONLY ──────────────────────────────────
    * Deep teal. Maximally distant from the indigo/violet tell (74-90 degrees of hue away)
    * and 54.7 degrees off running-green so the two never read as the same signal.
    * If the accent starts appearing decoratively, the hierarchy is broken. */
-  --accent:     oklch(70.3% 0.1092 202.7);          /* #2fb3bd — 7.87:1 on --page */
-  --accent-hi:  oklch(82.7% 0.0950 202.7);          /* #74d9e1 — hover on an accent fill, and accent text */
-  --accent-lo:  oklch(56.0% 0.0900 202.7);          /* #18848c — pressed */
-  --accent-ink: oklch(18.0% 0.0300 202.7);          /* #001517 — text ON an accent fill, 7.42:1 */
-  --accent-tint: oklch(70.3% 0.1092 202.7 / 0.11);  /* selected-row wash */
-  --accent-ring: oklch(70.3% 0.1092 202.7 / 0.28);  /* the ring on a selected row */
+  --accent: oklch(70.3% 0.1092 202.7); /* #2fb3bd — 7.87:1 on --page */
+  --accent-hi: oklch(
+    82.7% 0.095 202.7
+  ); /* #74d9e1 — hover on an accent fill, and accent text */
+  --accent-lo: oklch(56% 0.09 202.7); /* #18848c — pressed */
+  --accent-ink: oklch(
+    18% 0.03 202.7
+  ); /* #001517 — text ON an accent fill, 7.42:1 */
+  --accent-tint: oklch(70.3% 0.1092 202.7 / 0.11); /* selected-row wash */
+  --accent-ring: oklch(
+    70.3% 0.1092 202.7 / 0.28
+  ); /* the ring on a selected row */
 
   /* ── Status — a SEPARATE vocabulary that never collides with the accent ───────────
    * Each also carries a SHAPE in the component layer: colour alone fails for colourblind
    * users. Phase 2 emits running / idle / exited only; needs-you and drift are defined so
    * Phase 3 does not invent a second amber and a second purple. */
-  --run:   oklch(69.8% 0.1671 148);    /* #43b95e — running, 7.90:1 */
-  --need:  oklch(75.8% 0.1370 75.8);   /* #e2a33c — needs you (Phase 3+), 9.04:1 */
-  --fail:  oklch(66.7% 0.1830 32.3);   /* #ef5f45 — failed, 6.06:1 */
-  --drift: oklch(72.7% 0.1378 316.7);  /* #c98ae0 — drifting (Phase 3+) */
-  --run-tint:  oklch(69.8% 0.1671 148  / 0.12);
-  --need-tint: oklch(75.8% 0.1370 75.8 / 0.12);
-  --fail-tint: oklch(66.7% 0.1830 32.3 / 0.12);
-  /* "idle" and "exited" are NEUTRAL on purpose. A colour for every state is a colour for
-   * no state.
-   * Both resolve to --ink-3, and that is forced rather than lazy. A status dot is a graphic
-   * you must perceive in order to read the interface, so WCAG 1.4.11 puts a 3:1 floor under
-   * it, and --ink-4 fails that floor on EVERY surface in the ramp — 1.92:1 on --page down to
-   * 1.51:1 on --hover-2. An earlier draft pointed --idle there and shipped a dot below the
-   * floor the ink-ramp comment above asserts.
-   *
-   * --ink-3 clears the floor on the surfaces a dot RESTS on, and it does NOT clear it
-   * everywhere. Measured, per surface:
-   *     --field 3.49 · --page 3.43 · --canvas 3.34 · --surface 3.22 · --inset 3.05   clears
-   *     --hover 2.87 · --hover-2 2.69                                                below
-   * The two it misses are both transient POINTER states. A row rests at --canvas, or at
-   * --inset when selected, and only reaches --hover while the pointer is over it — which is
-   * the one moment the user's attention is already on that row. Raising the value far enough
-   * to clear --hover-2 would push the neutral states bright enough to read as live, which is
-   * a worse failure than a 4-10% shortfall on a hover frame. The shortfall is accepted, not
-   * overlooked.
-   *
-   * The idle/exited distinction does not rest on colour at all: task 18 draws idle as a disc
-   * and exited as a square (dot-disc / dot-square), which is rule 5 at the top of this file
-   * and what a colourblind user reads anyway. Note the shape vocabulary does NOT separate
-   * idle from RUNNING — both are discs — so that pair is carried by colour (--ink-3 against
-   * --run) and by motion: idle is still, running breathes on the --beat clock.
-   * Do not "fix" the duplication by moving one back to --ink-4. */
-  --idle:   var(--ink-3);
+  --run: oklch(69.8% 0.1671 148); /* #43b95e — running, 7.90:1 */
+  --need: oklch(75.8% 0.137 75.8); /* #e2a33c — needs you (Phase 3+), 9.04:1 */
+  --fail: oklch(66.7% 0.183 32.3); /* #ef5f45 — failed, 6.06:1 */
+  --drift: oklch(72.7% 0.1378 316.7); /* #c98ae0 — drifting (Phase 3+) */
+  --run-tint: oklch(69.8% 0.1671 148 / 0.12);
+  --need-tint: oklch(75.8% 0.137 75.8 / 0.12);
+  --fail-tint: oklch(66.7% 0.183 32.3 / 0.12);
+  /* Neutral statuses retain distinct disc/square shapes as well as readable contrast. */
+  --idle: var(--ink-3);
   --exited: var(--ink-3);
 
   /* ── Radius: tied to element size, not one value everywhere ───────────────────────*/
-  --r-chip: 6px;    /* status pills, kbd hints, the tiny mono badges */
-  --r-ctl: 8px;     /* buttons, inputs, segmented controls, rail rows */
-  --r-card: 10px;   /* cards, panes, tiles, popovers */
+  --r-chip: 6px; /* status pills, kbd hints, the tiny mono badges */
+  --r-ctl: 8px; /* buttons, inputs, segmented controls, rail rows */
+  --r-card: 12px; /* cards, panes, tiles, popovers */
   --r-window: 14px; /* the palette, modals — anything that reads as its own window */
 
   /* ── Elevation: a 1px ring PLUS a layered shadow. Never a flat border. ─────────────
    * Five steps. The ring is what makes the edge legible on a dark ground; the shadow is
    * what places it in depth. Either alone looks wrong, which is the whole point. */
-  --e-hair:    0 0 0 1px var(--line);
-  --e-btn:     0 0 0 1px var(--line), 0 1px 1px oklch(0% 0 0 / 0.35);
-  --e-card:    0 0 0 1px var(--line), 0 1px 2px oklch(0% 0 0 / 0.40), 0 4px 12px oklch(0% 0 0 / 0.22);
-  --e-raised:  0 0 0 1px var(--line-strong), 0 2px 4px oklch(0% 0 0 / 0.45), 0 14px 36px oklch(0% 0 0 / 0.40);
-  --e-overlay: 0 0 0 1px var(--line-strong), 0 4px 8px oklch(0% 0 0 / 0.50), 0 30px 70px oklch(0% 0 0 / 0.60);
+  --e-hair: 0 0 0 1px var(--line);
+  --e-btn: 0 0 0 1px var(--line), 0 1px 1px oklch(0% 0 0 / 0.35);
+  --e-card:
+    0 0 0 1px var(--line), 0 1px 2px oklch(0% 0 0 / 0.4),
+    0 4px 12px oklch(0% 0 0 / 0.22);
+  --e-raised:
+    0 0 0 1px var(--line-strong), 0 2px 4px oklch(0% 0 0 / 0.45),
+    0 14px 36px oklch(0% 0 0 / 0.4);
+  --e-overlay:
+    0 0 0 1px var(--line-strong), 0 4px 8px oklch(0% 0 0 / 0.5),
+    0 30px 70px oklch(0% 0 0 / 0.6);
   /* The backdrop behind a window-class overlay — the command palette, and any modal that
    * follows it. Not in contract §5.3: it is here because Group D's shared shape §3B says a
    * colour a component needs becomes a token rather than a raw colour function in that
@@ -148,26 +146,15 @@
    * swapping the first entry for Geist/Berkeley Mono when the licence lands is one line.
    * The --mono stack is the one xterm.js is configured with, so it must stay a real
    * monospace on every platform. */
-  --sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
-  --mono: "Cascadia Mono", ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  --sans:
+    "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+  --mono:
+    "Cascadia Mono", ui-monospace, "SF Mono", Menlo, Consolas,
+    "DejaVu Sans Mono", monospace;
 
   /* Live numbers — tokens, cost, elapsed, attach count — get tabular figures or the digits
    * jitter and the interface reads cheap. Applied on <body> and inherited. */
   --numeric: tabular-nums;
-}
-
-/* Grain: 1.5–3% film grain over dark surfaces. It kills banding on the dark ramp and adds a
- * made-object quality. Applied ONCE, on the app shell, as a fixed pseudo-element — not per
- * component, which would cost a compositor layer each. pointer-events:none so it never eats
- * a click. Correctly tuned you would only notice it if it were removed. */
-.grain::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  opacity: 0.022;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* The floor. prefers-reduced-motion variants on everything, per docs/DESIGN-SYSTEM.md. */
@@ -186,6 +173,6 @@
  * primary input here. :focus-visible only, so a mouse click never draws one. */
 :focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline-offset: 3px;
   border-radius: var(--r-chip);
 }

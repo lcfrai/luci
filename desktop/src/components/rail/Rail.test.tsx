@@ -6,8 +6,17 @@ import { resetCockpit, useCockpit } from "../../store/store";
 import { aBranch, aProject, aSession, aWorktree } from "../../test/fixtures";
 import type { CockpitState } from "../../store/store";
 
-const project = aProject({ id: "p-1", name: "engagement-portal", path: "C:\\work\\portal" });
-const branch = aBranch({ id: "b-1", projectId: "p-1", name: "evidence-upload", isHead: false });
+const project = aProject({
+  id: "p-1",
+  name: "engagement-portal",
+  path: "C:\\work\\portal",
+});
+const branch = aBranch({
+  id: "b-1",
+  projectId: "p-1",
+  name: "evidence-upload",
+  isHead: false,
+});
 const worktree = aWorktree({
   id: "w-1",
   projectId: "p-1",
@@ -16,9 +25,24 @@ const worktree = aWorktree({
   path: "C:\\work\\wt\\evidence",
   sessionCount: 2,
 });
-const base = { projectId: "p-1", branchId: "b-1", worktreeId: "w-1", harness: "claude-code" };
-const running = aSession({ ...base, id: "s-run", status: "running", title: "wire the upload route" });
-const idling = aSession({ ...base, id: "s-idle", status: "idle", title: "read the spec" });
+const base = {
+  projectId: "p-1",
+  branchId: "b-1",
+  worktreeId: "w-1",
+  harness: "claude-code",
+};
+const running = aSession({
+  ...base,
+  id: "s-run",
+  status: "running",
+  title: "wire the upload route",
+});
+const idling = aSession({
+  ...base,
+  id: "s-idle",
+  status: "idle",
+  title: "read the spec",
+});
 
 function seed(over: Partial<CockpitState> = {}): void {
   resetCockpit();
@@ -50,19 +74,30 @@ describe("Rail", () => {
 
   it("selects a branch and sets the lens to develop in one click", async () => {
     render(<Rail />);
-    await userEvent.click(screen.getByRole("treeitem", { name: /evidence-upload$/ }));
+    await userEvent.click(
+      screen.getByRole("treeitem", { name: /evidence-upload$/ }),
+    );
     expect(useCockpit.getState().selection.branchId).toBe("b-1");
     expect(useCockpit.getState().lens).toBe("develop");
   });
 
   it("gives the branch the highest-attention status among its sessions", () => {
     render(<Rail />);
-    expect(screen.getByRole("img", { name: "running · evidence-upload" })).toBeDefined();
-    expect(screen.queryByRole("img", { name: "idle · evidence-upload" })).toBeNull();
+    expect(
+      screen.getByRole("img", { name: "running · evidence-upload" }),
+    ).toBeDefined();
+    expect(
+      screen.queryByRole("img", { name: "idle · evidence-upload" }),
+    ).toBeNull();
   });
 
   it("keeps a worktree expandable when only exited sessions remain", () => {
-    const done = aSession({ ...base, id: "s-done", status: "exited", title: "read the spec" });
+    const done = aSession({
+      ...base,
+      id: "s-done",
+      status: "exited",
+      title: "read the spec",
+    });
     seed({
       worktreesByBranch: { "b-1": [{ ...worktree, sessionCount: 0 }] },
       sessions: { "s-done": done },
@@ -71,7 +106,9 @@ describe("Rail", () => {
     render(<Rail />);
     const row = screen.getByRole("treeitem", { name: /wt-evidence/ });
     expect(row.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("treeitem", { name: /read the spec/ })).toBeDefined();
+    expect(
+      screen.getByRole("treeitem", { name: /read the spec/ }),
+    ).toBeDefined();
   });
 
   // The other arm of the same OR. Step 11's departure is "sessionCount > 0 OR the store
@@ -119,15 +156,34 @@ describe("Rail", () => {
     expect(useCockpit.getState().expandedBranches["b-1"]).toBe(false);
   });
 
+  it("offers one keyboard entry point and moves it with arrow navigation", async () => {
+    render(<Rail />);
+    const rows = screen.getAllByRole("treeitem");
+    expect(rows.filter((row) => row.tabIndex === 0)).toEqual([rows[0]]);
+    rows[0].focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(rows[1]);
+    expect(rows.filter((row) => row.tabIndex === 0)).toEqual([rows[1]]);
+    await userEvent.tab();
+    expect(document.activeElement).not.toBe(rows[0]);
+  });
+
   // ── BranchRow's expansion guard, both collapses ────────────────────────────────────
   // `if (worktrees.length > 0) toggleBranch(id)` has two degenerate forms and each needs its
   // own case: toggling unconditionally (an empty ARIA group under a childless branch) and
   // never toggling (a branch that cannot be opened at all).
 
   it("does not toggle a childless branch, but still selects it", async () => {
-    seed({ worktreesByBranch: {}, sessions: {}, sessionIdsByWorktree: {}, expandedBranches: {} });
+    seed({
+      worktreesByBranch: {},
+      sessions: {},
+      sessionIdsByWorktree: {},
+      expandedBranches: {},
+    });
     render(<Rail />);
-    await userEvent.click(screen.getByRole("treeitem", { name: /evidence-upload$/ }));
+    await userEvent.click(
+      screen.getByRole("treeitem", { name: /evidence-upload$/ }),
+    );
     expect(useCockpit.getState().selection.branchId).toBe("b-1");
     expect(useCockpit.getState().expandedBranches["b-1"]).toBeUndefined();
   });
@@ -135,7 +191,9 @@ describe("Rail", () => {
   it("does toggle a branch that has worktrees", async () => {
     seed({ expandedBranches: {} });
     render(<Rail />);
-    await userEvent.click(screen.getByRole("treeitem", { name: /evidence-upload$/ }));
+    await userEvent.click(
+      screen.getByRole("treeitem", { name: /evidence-upload$/ }),
+    );
     expect(useCockpit.getState().expandedBranches["b-1"]).toBe(true);
   });
 
@@ -174,7 +232,9 @@ describe("Rail", () => {
 
   it("dispatches every right-click through the one context menu", () => {
     render(<Rail />);
-    fireEvent.contextMenu(screen.getByRole("treeitem", { name: /evidence-upload$/ }));
+    fireEvent.contextMenu(
+      screen.getByRole("treeitem", { name: /evidence-upload$/ }),
+    );
     expect(useCockpit.getState().contextMenu?.kind).toBe("branch");
     expect(useCockpit.getState().contextMenu?.id).toBe("b-1");
   });
