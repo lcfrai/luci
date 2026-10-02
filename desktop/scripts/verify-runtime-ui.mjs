@@ -113,7 +113,7 @@ async function until(label, read, timeout = 45000) {
 async function commit(message) {
   await page.getByRole("button", { name: "Develop", exact: true }).click();
   await page.getByRole("button", { name: "Git", exact: true }).click();
-  await page.getByLabel("Commit message", { exact: true }).fill(message);
+  await page.getByRole("textbox", { name: "Commit message", exact: true }).fill(message);
   const [updated] = await Promise.all([
     page.waitForResponse(endpoint(`/v1/product/projects/${result.project.id}/git`)),
     observed(
@@ -177,7 +177,7 @@ try {
     "Local setup controls",
     async () =>
       (await localChoice.isVisible()) ||
-      (await page.getByLabel("Projects folder", { exact: true }).isVisible()),
+      (await page.getByRole("textbox", { name: /^Projects folder/ }).isVisible()),
   );
   if (await localChoice.isVisible()) await localChoice.click();
   await page
@@ -222,18 +222,18 @@ try {
   );
   await receipt();
   await page
-    .getByLabel("The idea", { exact: true })
+    .getByRole("textbox", { name: "The idea", exact: true })
     .fill("An actual Node application created through a Docker shell in Luci.");
   await page
-    .getByLabel("Who it is for", { exact: true })
+    .getByRole("textbox", { name: "Who it is for", exact: true })
     .fill("People verifying the complete development and preview workflow.");
   await page
-    .getByLabel("Boundaries and constraints", { exact: true })
+    .getByRole("textbox", { name: "Boundaries and constraints", exact: true })
     .fill(
       "Use the existing sandbox image. No model accounts or cloud resources.",
     );
   await page
-    .getByLabel("What good looks like", { exact: true })
+    .getByRole("textbox", { name: "What good looks like", exact: true })
     .fill(
       "A terminal writes files as the ordinary host UID\nDocker checks pass\nA committed app renders in the preview and stops",
     );

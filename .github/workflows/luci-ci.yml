@@ -349,8 +349,12 @@ jobs:
           if ($env:INSTALLER_RUN -and $env:INSTALLER_RELEASE) { throw 'Choose one installer source' }
           if ($env:INSTALLER_RELEASE) {
             if ($env:INSTALLER_RELEASE -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$' -or $env:INSTALLER_SHA256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'Release tag and independently recorded installer SHA256 are required' }
-            $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$env:INSTALLER_RELEASE" | ConvertFrom-Json
-            if ($LASTEXITCODE -ne 0 -or -not $release.draft) { throw 'Diagnostic release must be an accessible private draft candidate' }
+            # A draft has no published Git tag; releases/tags/<tag> returns404.
+            $pages = gh api "repos/$env:GITHUB_REPOSITORY/releases" --paginate --slurp | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw 'Draft release listing failed' }
+            $draftCandidates = @(foreach ($page in $pages) { foreach ($item in $page) { if ($item.tag_name -eq $env:INSTALLER_RELEASE) { $item } } })
+            if ($draftCandidates.Count -ne 1 -or -not $draftCandidates[0].draft) { throw 'Diagnostic release must be an accessible private draft candidate' }
+            $release = $draftCandidates[0]
             gh release download $env:INSTALLER_RELEASE --repo $env:GITHUB_REPOSITORY --pattern '*-setup.exe' --pattern release-manifest.json --dir artifacts/diagnostic-installer
             if ($LASTEXITCODE -ne 0) { throw 'Draft candidate download failed' }
           } else {
