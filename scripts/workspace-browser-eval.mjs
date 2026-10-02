@@ -90,7 +90,9 @@ async function startService(name, port, account, password) {
 }
 async function clickResponse(button, resource, expected = 200, readBody = true) {
   const received = page.waitForResponse((response) => new URL(response.url()).pathname === resource && response.request().method() === 'POST');
-  await button.click(); const response = await received;
+  // Handle both promises immediately. If a locator click fails, retain that
+  // error instead of an unhandled response wait masking it during cleanup.
+  const [response] = await Promise.all([received, button.click()]);
   assert.equal(response.status(), expected, `Browser ${resource} returned${response.status()}`);
   return readBody ? response.json() : undefined;
 }
@@ -269,8 +271,9 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Set up a cloud workspace', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Save settings', exact: true }).count(), 0, 'Local administrator identity must not expose remote member folder writes');
   await page.getByRole('button', { name: 'Create your first project', exact: true }).click();
-  await page.getByLabel('Project name', { exact: true }).fill('ssh-member-app');
-  const memberProject = await clickResponse(page.getByRole('button', { name: 'Create project', exact: true }), '/v1/product/projects', 201);
+  const memberDialog = page.getByRole('dialog', { name: 'Create a cloud project', exact: true });
+  await memberDialog.getByLabel('Project name', { exact: true }).fill('ssh-member-app');
+  const memberProject = await clickResponse(memberDialog.getByRole('button', { name: 'Create project', exact: true }), '/v1/product/projects', 201);
   assert.equal(path.resolve(memberProject.path), path.join(assignedProjects, 'ssh-member-app'));
   const memberPurpose = 'An invited member creates and saves their own garden journal in the assigned cloud workspace.';
   await page.getByRole('textbox', { name: 'The idea', exact: true }).fill(memberPurpose);
