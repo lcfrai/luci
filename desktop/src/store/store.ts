@@ -13,7 +13,7 @@ import { createPrefsSlice, initialPrefsState, type PrefsSlice } from "./slices/p
 
 export type CockpitState = DataSlice & UiSlice & PrefsSlice;
 
-export const PERSIST_KEY = "panacea-app.cockpit";
+export const PERSIST_KEY = "luci.cockpit";
 export const PERSIST_VERSION = 1;
 
 /** What survives a restart. Everything else is re-fetched, because the control plane is the

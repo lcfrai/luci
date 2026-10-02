@@ -114,7 +114,7 @@ func main() {
 	command := flag.String("command", "/bin/bash", "command to run in the PTY")
 	argsCSV := flag.String("args", "", "comma-separated arguments (legacy; prefer -args-json)")
 	argsJSON := flag.String("args-json", "", "arguments as a JSON array of strings")
-	token := flag.String("attach-token", os.Getenv("PANACEA_APP_ATTACH_TOKEN"),
+	token := flag.String("attach-token", os.Getenv("LUCI_ATTACH_TOKEN"),
 		"shared secret required on /attach")
 	allowUnauthenticated := flag.Bool("allow-unauthenticated", false,
 		"run without an attach token; local development only")

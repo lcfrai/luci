@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // boundedHost is a hostGit over any Runner, for the bound's own tests.
@@ -257,7 +257,7 @@ func TestAHostConfigReadSaysWhenItWasItsOwnBudgetThatRanOut(t *testing.T) {
 func TestAKilledLineEndingsReadFailsTheCreateAndNamesTheBound(t *testing.T) {
 	killed := &project.GitError{
 		Args:     []string{"config", "--get", "--system", "--includes", "--default", "native", "core.eol"},
-		Dir:      "C:\\Users\\AU-DEV~1\\AppData\\Local\\Temp\\panacea-app-hostgit-1400797516",
+		Dir:      "C:\\Users\\AU-DEV~1\\AppData\\Local\\Temp\\luci-hostgit-1400797516",
 		Err:      errors.New("exit status 1"),
 		Timeout:  project.HostConfigTimeout,
 		Elapsed:  project.HostConfigTimeout,

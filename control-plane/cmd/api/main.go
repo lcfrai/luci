@@ -1,4 +1,4 @@
-// Command api is the panacea-app control plane: one HTTP surface on loopback,
+// Command api is the luci control plane: one HTTP surface on loopback,
 // one JSON registry on disk, one backend, one reaper. It owns no logic of its
 // own beyond wiring, configuration and contract §5.5's restart recovery.
 package main
@@ -27,20 +27,25 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend/dockerbe"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend/katabe"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/instance"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
+	"github.com/lcfrai/luci/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend/dockerbe"
+	"github.com/lcfrai/luci/control-plane/internal/backend/katabe"
+	"github.com/lcfrai/luci/control-plane/internal/httpx"
+	"github.com/lcfrai/luci/control-plane/internal/instance"
+	"github.com/lcfrai/luci/control-plane/internal/product"
+	"github.com/lcfrai/luci/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/reaper"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/sandbox"
 )
 
-func main() { os.Exit(run(os.Getenv, os.Stderr)) }
+func main() {
+	if err := protectChildren(); err != nil {
+		fmt.Fprintf(os.Stderr, "luci: child process cleanup unavailable: %v\n", err)
+	}
+	os.Exit(run(os.Getenv, os.Stderr))
+}
 
 // run is main with its two impure edges as parameters, so that the exit-2 path
 // is a unit test rather than a process. Exit codes: 2 is a configuration
@@ -48,9 +53,12 @@ func main() { os.Exit(run(os.Getenv, os.Stderr)) }
 func run(getenv func(string) string, errOut io.Writer) int {
 	cfg, err := loadConfig(getenv)
 	if err != nil {
-		fmt.Fprintf(errOut, "panacea-app: %v\n", err)
+		fmt.Fprintf(errOut, "luci: %v\n", err)
 		return 2
 	}
+	cfg.WebDir = getenv(envWebDir)
+	cfg.RuntimeDir = getenv(envRuntimeDir)
+	cfg.CloudBundle = getenv(envCloudBundle)
 	log := slog.New(slog.NewTextHandler(errOut, &slog.HandlerOptions{Level: cfg.LogLevel}))
 	logWarnings(log, cfg.Warnings)
 
@@ -80,6 +88,11 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	}
 
 	be, err := newBackend(cfg, instanceID, log)
+	if errors.Is(err, backend.ErrUnavailable) && cfg.Backend == string(backend.KindDocker) {
+		log.Warn("Docker is not ready; Luci setup, Define and Design remain available", "err", err)
+		be = &recoveringBackend{factory: func() (backend.Backend, error) { return newBackend(cfg, instanceID, log) }}
+		err = nil
+	}
 	if err != nil {
 		return err
 	}
@@ -124,13 +137,29 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	// Contract §4: with no projects directory the provider is worktree.Static{},
-	// so every session create fails 404 worktree_not_found. That is correct and
-	// visible — no projects directory means no worktrees to work in.
-	var worktrees worktree.Provider = worktree.Static{}
-	if cfg.ProjectsDir != "" {
-		worktrees = scanner
+	projects := &liveProjects{scanner: scanner, cfg: cfg}
+	runtimeDir := cfg.RuntimeDir
+	if runtimeDir == "" {
+		if exe, err := os.Executable(); err == nil {
+			runtimeDir = filepath.Join(filepath.Dir(exe), "runtime")
+		}
 	}
+	var shutdownService func()
+	cloudBundle := cfg.CloudBundle
+	if cloudBundle == "" {
+		if exe, err := os.Executable(); err == nil {
+			cloudBundle = filepath.Join(filepath.Dir(exe), "cloud", "luci-cloud-linux-amd64.tar.gz")
+		}
+	}
+	productService, err := product.New(product.Options{CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, Configure: projects.configure, Shutdown: func() {
+		if shutdownService != nil {
+			shutdownService()
+		}
+	}})
+	if err != nil {
+		return fmt.Errorf("initialise Luci: %w", err)
+	}
+	defer productService.Close()
 
 	// The host's own git config, and nothing a sandbox can write, answers the
 	// identity, line-ending and global-file questions: hostGit runs each git in
@@ -153,18 +182,25 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	// process here with a sentence rather than panic on the first request.
 	// There is no IdleAfter field to pass — the idle window belongs to the
 	// reaper above, which is the only thing that derives idle.
+	origins := cfg.AllowedOrigins
+	if len(origins) == 0 {
+		origins = append(httpx.DefaultOrigins(), "http://"+cfg.Addr)
+	}
+	originPolicy := httpx.NewOriginPolicy(origins, log)
 	handler, err := api.New(api.Deps{
-		Store:        store,
-		Backend:      be,
-		Worktrees:    worktrees,
-		Projects:     scanner,
-		Flags:        store, // registry.WorktreeFlagStore, implemented by *FileStore
-		Origin:       httpx.NewOriginPolicy(cfg.AllowedOrigins, log),
-		Image:        cfg.SandboxImage,
-		Resources:    cfg.Resources(),
-		ReadyTimeout: cfg.ReadyTimeout,
-		BackendReady: rp.BackendReady,
-		Log:          log,
+		Store:              store,
+		Backend:            be,
+		Worktrees:          projects,
+		Projects:           projects,
+		Product:            productService,
+		ProjectsDirCurrent: func() string { return productService.Config().ProjectsDir },
+		Flags:              store, // registry.WorktreeFlagStore, implemented by *FileStore
+		Origin:             originPolicy,
+		Image:              cfg.SandboxImage,
+		Resources:          cfg.Resources(),
+		ReadyTimeout:       cfg.ReadyTimeout,
+		BackendReady:       rp.BackendReady,
+		Log:                log,
 		// Created per worktree, at the first session that needs it.
 		ConversationsDir: cfg.ConversationsDir,
 		// Where every project is, so the region a global git file may not be
@@ -185,7 +221,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	}
 
 	srv := &http.Server{
-		Handler: handler,
+		Handler: withWeb(originPolicy.Middleware(productService.ProxyWorkspace(handler)), cfg),
 		// ReadHeaderTimeout and nothing else. A ReadTimeout or a WriteTimeout
 		// would kill /attach: the relay is a WebSocket that is idle for minutes
 		// and then streams for an hour, and both timeouts apply to it.
@@ -193,6 +229,11 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
 	}
 
+	shutdownService = func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+	}
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 	log.Info("control plane listening",
@@ -310,7 +351,7 @@ func newBackend(cfg Config, instanceID string, log *slog.Logger) (backend.Backen
 }
 
 // kubeClient builds a Kubernetes client for the Kata path from the in-cluster
-// service account, and refuses PANACEA_APP_KUBECONFIG rather than honouring it.
+// service account, and refuses LUCI_KUBECONFIG rather than honouring it.
 //
 // Reading a kubeconfig FILE needs k8s.io/client-go/tools/clientcmd, which drags
 // github.com/imdario/mergo and github.com/spf13/pflag into go.mod — modules no

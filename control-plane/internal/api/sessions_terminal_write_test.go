@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // I-4: the second write of a create — the one that records the endpoint the

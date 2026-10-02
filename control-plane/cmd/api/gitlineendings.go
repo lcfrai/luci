@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/api"
 )
 
 // gitLineEndingsResolver is the production api.Deps.GitLineEndings: how the

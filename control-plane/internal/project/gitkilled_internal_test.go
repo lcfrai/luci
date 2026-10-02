@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -58,19 +60,26 @@ func killedGitAttempt(t *testing.T, bound time.Duration, attempt int) bool {
 	t.Helper()
 	tmp := t.TempDir()
 	marker := filepath.Join(tmp, fmt.Sprintf("editor-ran-%d", attempt))
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The editor is our own helper, so cleanup can release it after the
+	// timing assertion. A bare `sleep 25` left an orphan holding this TempDir
+	// open on Windows, making an otherwise successful assertion fail cleanup.
+	t.Cleanup(func() { releaseGitEditor(t, marker) })
 	r := &ExecRunner{Timeout: bound, Env: []string{
-		// git hands this to its own sh, so `;` runs both halves: the marker
-		// is the proof the editor started, and the sleep outlives the kill
-		// with git's pipes in hand. The trailing # drops the path git
-		// appends. Forward slashes because sh reads `\` as an escape.
-		"GIT_EDITOR=: > " + filepath.ToSlash(marker) + "; sleep 25 #",
+		// Git invokes its editor through sh. Quote the executable for spaces
+		// and apostrophes, and discard the config pathname Git appends.
+		"GIT_EDITOR=exec '" + strings.ReplaceAll(filepath.ToSlash(executable), "'", "'\"'\"'") + "' -test.run=^TestGitTimeoutEditorHelper$ -test.timeout=45s #",
+		gitEditorMarkerEnv + "=" + marker,
 		// The config edited is a file in this test's own directory, so the
 		// developer's ~/.gitconfig is never opened.
 		"GIT_CONFIG_GLOBAL=" + filepath.Join(tmp, "gitconfig"),
 	}}
 
 	start := time.Now()
-	_, err := r.Run(context.Background(), tmp, "config", "--global", "--edit")
+	_, err = r.Run(context.Background(), tmp, "config", "--global", "--edit")
 	elapsed := time.Since(start)
 
 	var ge *GitError
@@ -120,4 +129,52 @@ func killedGitAttempt(t *testing.T, bound time.Duration, attempt int) bool {
 		t.Errorf("Elapsed = %s under a %s bound: the number beside the bound contradicts it", ge.Elapsed, bound)
 	}
 	return true
+}
+
+const gitEditorMarkerEnv = "LUCI_TEST_GIT_EDITOR_MARKER"
+
+// TestGitTimeoutEditorHelper holds the inherited Git pipes until the parent
+// releases it. The 25-second ceiling also bounds it if the parent crashes.
+func TestGitTimeoutEditorHelper(t *testing.T) {
+	marker := os.Getenv(gitEditorMarkerEnv)
+	if marker == "" {
+		t.Skip("helper process; started only by the Git timeout test")
+	}
+	if err := os.WriteFile(marker, []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
+		os.Exit(2)
+	}
+	deadline := time.Now().Add(25 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, err := os.Stat(marker + ".release"); err == nil {
+			break
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	os.Exit(0)
+}
+
+func releaseGitEditor(t *testing.T, marker string) {
+	t.Helper()
+	// Open a handle while the helper is still blocked, before signalling its
+	// exit. On Windows Wait can then observe this exact process terminating,
+	// which releases its working directory before TempDir removes it.
+	var child *os.Process
+	if runtime.GOOS == "windows" {
+		if data, err := os.ReadFile(marker); err == nil {
+			if pid, err := strconv.Atoi(string(data)); err == nil {
+				child, _ = os.FindProcess(pid)
+			}
+		}
+	}
+	if err := os.WriteFile(marker+".release", nil, 0o600); err != nil {
+		t.Errorf("release Git editor helper: %v", err)
+	}
+	if child != nil {
+		defer child.Release()
+		// The helper is Git's child, not ours. Windows permits this wait;
+		// Unix reaps it through Git/init after observing the release file.
+		if _, err := child.Wait(); err != nil {
+			t.Errorf("wait for Git editor helper to exit: %v", err)
+		}
+	}
 }

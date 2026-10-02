@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/harness"
+	"github.com/lcfrai/luci/control-plane/internal/httpx"
+	"github.com/lcfrai/luci/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // catalogRoutes is the read-only surface's route table.

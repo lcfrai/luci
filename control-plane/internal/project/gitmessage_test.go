@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // Review 3, m-2 and m-1. The only pin on the new derivation's MESSAGE lived

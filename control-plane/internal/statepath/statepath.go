@@ -10,16 +10,16 @@ import (
 )
 
 // EnvStateDir overrides every other rule.
-const EnvStateDir = "PANACEA_APP_STATE_DIR"
+const EnvStateDir = "LUCI_STATE_DIR"
 
 // Dir returns the directory for a named kind of state, e.g. Dir("sessions") or
 // Dir("discover"). The ladder, in order:
 //
-//	$PANACEA_APP_STATE_DIR/<sub>
-//	%LOCALAPPDATA%\PanaceaApp\state\<sub>        (Windows)
-//	$XDG_STATE_HOME/panacea-app/<sub>
-//	~/.local/state/panacea-app/<sub>
-//	<os.TempDir()>/panacea-app/<sub>             (only if the home directory is unknowable)
+//	$LUCI_STATE_DIR/<sub>
+//	%LOCALAPPDATA%\Luci\state\<sub>        (Windows)
+//	$XDG_STATE_HOME/luci/<sub>
+//	~/.local/state/luci/<sub>
+//	<os.TempDir()>/luci/<sub>             (only if the home directory is unknowable)
 //
 // The rungs are chosen by environment rather than by runtime.GOOS on purpose:
 // %LOCALAPPDATA% is simply unset off Windows, so the same code walks the same
@@ -32,14 +32,14 @@ func Dir(sub string) string {
 		return filepath.Join(dir, sub)
 	}
 	if dir := os.Getenv("LOCALAPPDATA"); dir != "" {
-		return filepath.Join(dir, "PanaceaApp", "state", sub)
+		return filepath.Join(dir, "Luci", "state", sub)
 	}
 	if dir := os.Getenv("XDG_STATE_HOME"); dir != "" {
-		return filepath.Join(dir, "panacea-app", sub)
+		return filepath.Join(dir, "luci", sub)
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return filepath.Join(os.TempDir(), "panacea-app", sub)
+		return filepath.Join(os.TempDir(), "luci", sub)
 	}
-	return filepath.Join(home, ".local", "state", "panacea-app", sub)
+	return filepath.Join(home, ".local", "state", "luci", sub)
 }

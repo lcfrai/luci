@@ -10,10 +10,10 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/proxy"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/httpx"
+	"github.com/lcfrai/luci/control-plane/internal/proxy"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // lastOutputFlushInterval bounds how often a relay writes LastOutputAt through

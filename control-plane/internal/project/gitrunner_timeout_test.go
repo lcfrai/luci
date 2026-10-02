@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // F2. On Windows the deadline kill is TerminateProcess(…, 1) and Go returns

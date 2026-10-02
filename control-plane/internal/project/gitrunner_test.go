@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 func requireGit(t *testing.T) {
@@ -56,7 +56,7 @@ func makeGitRepo(t *testing.T, dir string) {
 
 func TestExecRunnerReturnsGitsOutput(t *testing.T) {
 	requireGit(t)
-	dir := filepath.Join(t.TempDir(), "panacea")
+	dir := filepath.Join(t.TempDir(), "luci")
 	makeGitRepo(t, dir)
 
 	out, err := project.NewExecRunner().Run(context.Background(), dir, "rev-parse", "--abbrev-ref", "HEAD")
@@ -86,7 +86,7 @@ func TestExecRunnerErrorCarriesGitsOwnMessage(t *testing.T) {
 
 func TestExecRunnerHonoursACancelledContext(t *testing.T) {
 	requireGit(t)
-	dir := filepath.Join(t.TempDir(), "panacea")
+	dir := filepath.Join(t.TempDir(), "luci")
 	makeGitRepo(t, dir)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -117,7 +117,7 @@ func TestScannerAgainstARealRepositoryAndARealLinkedWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EvalSymlinks(root): %v", err)
 	}
-	repo := filepath.Join(root, "panacea")
+	repo := filepath.Join(root, "luci")
 	makeGitRepo(t, repo)
 
 	// A real linked worktree, created OUTSIDE root so it is not also
@@ -150,8 +150,8 @@ func TestScannerAgainstARealRepositoryAndARealLinkedWorktree(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Projects: %v", err)
 	}
-	if len(projects) != 1 || projects[0].Name != "panacea" {
-		t.Fatalf("Projects() = %#v, want exactly the panacea repository", projects)
+	if len(projects) != 1 || projects[0].Name != "luci" {
+		t.Fatalf("Projects() = %#v, want exactly the luci repository", projects)
 	}
 	pid := projects[0].ID
 
@@ -197,8 +197,8 @@ func TestScannerAgainstARealRepositoryAndARealLinkedWorktree(t *testing.T) {
 			"separator artefact: filepath.Clean in parseWorktrees already turns "+
 			"git's forward slashes into the platform separator", got, linked)
 	}
-	if name := s.ProjectName(pid); name != "panacea" {
-		t.Errorf("ProjectName after enumeration = %q, want panacea", name)
+	if name := s.ProjectName(pid); name != "luci" {
+		t.Errorf("ProjectName after enumeration = %q, want luci", name)
 	}
 }
 
@@ -220,7 +220,7 @@ func TestExecRunnerDoesNotLetAGitWarningOnStderrBecomeABranch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EvalSymlinks(root): %v", err)
 	}
-	repo := filepath.Join(root, "panacea")
+	repo := filepath.Join(root, "luci")
 	makeGitRepo(t, repo)
 
 	// A corrupt loose ref. git reports it and carries on: the complaint goes
@@ -266,7 +266,7 @@ func TestExecRunnerDoesNotLetAGitWarningOnStderrBecomeABranch(t *testing.T) {
 		t.Fatalf("Projects: %v", err)
 	}
 	if len(projects) != 1 {
-		t.Fatalf("Projects() = %#v, want exactly the panacea repository", projects)
+		t.Fatalf("Projects() = %#v, want exactly the luci repository", projects)
 	}
 	branches, err := s.Branches(ctx, projects[0].ID)
 	if err != nil {

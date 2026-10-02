@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // NewStoreFunc opens a Store at path, creating it when it does not exist.

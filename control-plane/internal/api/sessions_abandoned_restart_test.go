@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // F1 on the OTHER path that mints a container.

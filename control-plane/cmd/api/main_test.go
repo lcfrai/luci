@@ -15,9 +15,9 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/reaper"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 var bootClock = time.Date(2026, 9, 18, 9, 0, 0, 0, time.UTC)
@@ -263,7 +263,7 @@ func TestRecoverChangesNothingWhenTheBackendIsDown(t *testing.T) {
 	}
 }
 
-// Ruling 1 splits PANACEA_APP_KUBECONFIG in two: under docker it warns, under
+// Ruling 1 splits LUCI_KUBECONFIG in two: under docker it warns, under
 // kata it is REFUSED, because honouring it needs a module this phase does not
 // add and authenticating with the in-cluster service account instead would tell
 // an operator something false about their own cluster credentials.
@@ -358,14 +358,14 @@ func TestRecoverClearsTheEndpointOfANonLoopbackSandbox(t *testing.T) {
 }
 
 // The grace the reaper actually runs with has to be longer than one ready
-// timeout, because PANACEA_APP_READY_TIMEOUT budgets only the wait for
+// timeout, because LUCI_READY_TIMEOUT budgets only the wait for
 // /healthz while the window a mid-create session must survive is the whole of
 // backend.Create. reaper.CreateGraceFor owns that relationship; this asserts
 // the wiring goes through it, since `CreateGrace: cfg.ReadyTimeout` would
 // compile and quietly halve the protection.
 func TestTheReaperIsWiredWithMoreGraceThanOneReadyTimeout(t *testing.T) {
 	t.Parallel()
-	cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_READY_TIMEOUT": "90s"}))
+	cfg, err := loadConfig(env(map[string]string{"LUCI_READY_TIMEOUT": "90s"}))
 	if err != nil {
 		t.Fatalf("loadConfig: %v", err)
 	}

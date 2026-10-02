@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // Review 2, I-1. "A git process RAN" and "git exited NON-ZERO" are two facts,

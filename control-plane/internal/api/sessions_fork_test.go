@@ -10,9 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/harness"
+	"github.com/lcfrai/luci/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // Fork was shipped starting a fresh session in the other worktree: the same
@@ -117,7 +118,7 @@ func TestAForkIntoAnotherWorktreeStartsTheCLIOnTheSourcesConversation(t *testing
 	fork := forkCreate(t, env)
 
 	spec := env.be.spec(t, 0)
-	want := []string{"--model", "opus", "--resume", sessionsConversation, "--fork-session", "--session-id", fork.ConversationID}
+	want := []string{"--append-system-prompt", harness.ProjectBriefPrompt, "--model", "opus", "--resume", sessionsConversation, "--fork-session", "--session-id", fork.ConversationID}
 	if resumeJoin(spec.Args) != resumeJoin(want) {
 		t.Fatalf("Args = %#v\nwant   %#v", spec.Args, want)
 	}

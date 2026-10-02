@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hostpath"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // gitNeutral runs git in dir with the developer's own config neutralised, so

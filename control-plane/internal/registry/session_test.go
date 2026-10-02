@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/statepath"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/statepath"
 )
 
 // sampleSession is the contract's example document as a Go value. Ids are

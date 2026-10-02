@@ -1,0 +1,10 @@
+Luci
+Copyright 2026 lcfr.ai contributors
+
+Luci incorporates open-source components under their respective licences.
+Excalidraw: MIT; Coolify: Apache-2.0; React: MIT; Tauri: MIT or Apache-2.0;
+Zustand: MIT; xterm.js: MIT; Geist: SIL Open Font License 1.1.
+The optional Coolify server is separately installed; its licence and notices
+remain in its upstream distribution. See docs/luci/REUSE.md for sources.
+Go runtime dependency licences are retained in sandboxd/vendor.
+Retained source history predates the Luci product migration.

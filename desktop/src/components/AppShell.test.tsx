@@ -104,31 +104,28 @@ describe("AppShell", () => {
 
   // §6.3 and AGENTIC-UX §4 rule 12: entry into any lens is legal from any state. Not one of
   // the six may be disabled, numbered or marked complete.
-  it("offers all six lenses and disables none of them", async () => {
+  it("offers all four journey sections and keeps Files and Git inside Develop", async () => {
     populate();
     render(<AppShell />);
     for (const lens of LENSES) {
       const row = screen.getByRole("button", { name: lens.label });
       expect(row.hasAttribute("disabled")).toBe(false);
     }
-    expect(LENSES).toHaveLength(6);
+    expect(LENSES).toHaveLength(4);
 
     // And every one routes to something honest rather than a dead panel.
-    await userEvent.click(screen.getByRole("button", { name: "Merge" }));
+    await userEvent.click(screen.getByRole("button", { name: "Git" }));
     expect(useCockpit.getState().lens).toBe("merge");
-    expect(screen.getByRole("heading", { name: "merge" })).not.toBeNull();
-    expect(screen.getByText(/Arrives in phase 3\./)).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "Review the work." })).not.toBeNull();
   });
 
   // §6.4: these two are in FUNCTIONAL-SPEC's top bar, so deleting them would be a silent scope
   // cut and rendering them live would be a lie. Disabled with the phase that makes each real.
-  it("is honest about the two controls it cannot implement yet", () => {
+  it("offers real Develop tools without dead controls", () => {
     render(<AppShell />);
-    for (const [name, phase] of [["Authority", /Phase 3/], ["Run locally", /Phase 7/]] as const) {
-      const button = screen.getByRole("button", { name });
-      expect(button.hasAttribute("disabled")).toBe(true);
-      expect(button.getAttribute("title") ?? "").toMatch(phase);
-    }
+    expect(screen.getByRole("navigation", { name: "Develop tools" })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Authority" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Run locally" })).toBeNull();
   });
 
   it("mounts exactly one toast stack, and shows an Undo when one is offered", () => {

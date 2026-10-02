@@ -64,6 +64,11 @@ export function useSessionPending(id: SessionId): boolean {
 /** Test-only. vitest's restoreMocks does not clear module state, and a leaked pending id
  *  makes a later test fail in a file that did nothing wrong. Mirrors __resetHeartbeat. */
 export function __resetSessionVerbs(): void {
+  cancelDeferredSessionActions();
+}
+
+/** Workspace changes cancel queued Undo-window actions before routing to another server. */
+export function cancelDeferredSessionActions(): void {
   for (const timer of timers) clearTimeout(timer);
   timers.clear();
   __resetPendingSessions();
@@ -85,7 +90,7 @@ export function __resetSessionVerbs(): void {
 function sentenceFor(error: ApiError): string {
   switch (classify(error)) {
     case "control-plane-down":
-      return "The Panacea control plane is not running, so nothing was changed.";
+      return "The Luci control plane is not running, so nothing was changed.";
     case "backend-down":
       return "Docker is not running on this machine, so nothing was changed.";
     case "server-said":

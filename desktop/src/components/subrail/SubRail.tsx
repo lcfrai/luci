@@ -7,11 +7,9 @@ import type { Lens } from "../../store/types";
 import "./subrail.css";
 
 export const LENSES: ReadonlyArray<{ id: Lens; label: string; glyph: string }> = [
-  { id: "discover", label: "Discover", glyph: "◇" },
+  { id: "discover", label: "Define", glyph: "◇" },
   { id: "design", label: "Design", glyph: "◈" },
   { id: "develop", label: "Develop", glyph: "◆" },
-  { id: "files", label: "Files", glyph: "▤" },
-  { id: "merge", label: "Merge", glyph: "⑂" },
   { id: "deploy", label: "Deploy", glyph: "▲" },
 ];
 
@@ -42,7 +40,7 @@ export function SubRail(): JSX.Element {
             key={entry.id}
             type="button"
             className="sub-row"
-            aria-current={lens === entry.id ? "page" : undefined}
+            aria-current={lens === entry.id || (entry.id === "develop" && (lens === "files" || lens === "merge")) ? "page" : undefined}
             onClick={() => setLens(entry.id)}
           >
             <span className="sub-glyph" aria-hidden="true">

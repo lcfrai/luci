@@ -12,22 +12,22 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend/katabe"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend/katabe"
+	"github.com/lcfrai/luci/control-plane/internal/sandbox"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-const namespace = "panacea-app"
+const namespace = "luci"
 
 func validSpec() backend.Spec {
 	return backend.Spec{
 		ID:          "s-3f2a91c0",
 		SessionID:   "s-3f2a91c0",
-		Image:       "panacea-app/sandbox:dev",
+		Image:       "luci/sandbox:dev",
 		Command:     "claude",
 		Args:        []string{"--model", "opus", "plan the migration, then stop"},
 		AttachToken: "tok-abcdefgh",
@@ -210,7 +210,7 @@ func TestCreateRejectsMountsAndCreatesNoPod(t *testing.T) {
 	b := newBackend(t, client, 0, time.Second)
 
 	spec := validSpec()
-	spec.Mounts = []backend.Mount{{HostPath: `C:\repos\panacea`, ContainerPath: "/work"}}
+	spec.Mounts = []backend.Mount{{HostPath: `C:\repos\luci`, ContainerPath: "/work"}}
 
 	if _, err := b.Create(context.Background(), spec); !errors.Is(err, backend.ErrUnsupported) {
 		t.Fatalf("Create(with mounts) = %v, want an error wrapping ErrUnsupported", err)
@@ -229,7 +229,7 @@ func TestCreateRejectsMountsAndCreatesNoPod(t *testing.T) {
 func TestCreateRejectsAWorkDir(t *testing.T) {
 	b := newBackend(t, fake.NewSimpleClientset(), 0, time.Second)
 	spec := validSpec()
-	spec.WorkDir = "/work/panacea"
+	spec.WorkDir = "/work/luci"
 	if _, err := b.Create(context.Background(), spec); !errors.Is(err, backend.ErrUnsupported) {
 		t.Fatalf("Create(with WorkDir) = %v, want an error wrapping ErrUnsupported", err)
 	}
@@ -337,10 +337,10 @@ func TestCreateRendersKubernetesQuantitiesAndTheArgvContract(t *testing.T) {
 		env[e.Name] = e.Value
 	}
 	if got := env[backend.EnvArgsJSON]; got != `["--model","opus","plan the migration, then stop"]` {
-		t.Errorf("PANACEA_APP_ARGS_JSON = %q; Spec.ArgsJSON() did not reach the pod", got)
+		t.Errorf("LUCI_ARGS_JSON = %q; Spec.ArgsJSON() did not reach the pod", got)
 	}
 	if env[backend.EnvToken] != spec.AttachToken {
-		t.Errorf("PANACEA_APP_ATTACH_TOKEN = %q, want the spec's token", env[backend.EnvToken])
+		t.Errorf("LUCI_ATTACH_TOKEN = %q, want the spec's token", env[backend.EnvToken])
 	}
 }
 
@@ -352,7 +352,7 @@ func TestCreateRendersKubernetesQuantitiesAndTheArgvContract(t *testing.T) {
 // pins the two against each other: one assertion, and "katabe sorts, dockerbe
 // does not" becomes a test failure rather than a Phase 8 discovery.
 //
-// ValidateSpec has already rejected any PANACEA_APP_* key in Env by the time
+// ValidateSpec has already rejected any LUCI_* key in Env by the time
 // containerEnv runs, so containerEnv's reserved-prefix drop — which
 // EnvEntries() does not have, because it does not need it — cannot be the
 // source of a difference on this path. That drop is pinned separately, for

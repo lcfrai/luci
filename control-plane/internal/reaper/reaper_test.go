@@ -14,9 +14,9 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/reaper"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 var clock = time.Date(2026, 9, 18, 9, 0, 0, 0, time.UTC)
@@ -900,7 +900,7 @@ func TestIdleDerivationIsOffWhenIdleAfterIsZero(t *testing.T) {
 		t.Fatalf("Sweep: %v", err)
 	}
 	if got := get(t, store, "s-1").Status; got != registry.StatusRunning {
-		t.Errorf("status = %q with PANACEA_APP_IDLE_AFTER=0, want running", got)
+		t.Errorf("status = %q with LUCI_IDLE_AFTER=0, want running", got)
 	}
 }
 

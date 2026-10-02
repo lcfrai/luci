@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
+	"github.com/lcfrai/luci/control-plane/internal/harness"
 )
 
 func TestCatalogueCarriesEveryHarnessIncludingTheShell(t *testing.T) {

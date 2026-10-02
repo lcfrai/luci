@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 )
 
 // gitfix-rereview I-A: the host's git reads a global excludes file even with

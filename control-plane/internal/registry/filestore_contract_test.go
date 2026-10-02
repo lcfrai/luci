@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry/registrytest"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/registry/registrytest"
 )
 
 // newFileStore adapts the constructor to registrytest.NewStoreFunc. It returns

@@ -1,0 +1,328 @@
+@import "../../styles/tokens.css";
+.workspace-current { margin-block-end: 25px; padding-block-end: 25px; box-shadow: 0 1px var(--line-soft); }
+.setup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 30px;
+  background: var(--backdrop);
+}
+.setup-window {
+  inline-size: min(920px, 100%);
+  max-block-size: calc(100vh - 60px);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  border-radius: var(--r-window);
+  background: var(--surface);
+  box-shadow: var(--e-overlay);
+  overflow: hidden;
+}
+.setup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 30px 34px 20px;
+  gap: 20px;
+}
+.setup-brand {
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+.setup-brand span {
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 400;
+  margin-inline-start: 8px;
+  letter-spacing: 0;
+}
+.setup-header h1 {
+  font-size: 29px;
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  margin: 22px 0 8px;
+}
+.setup-header p,
+.setup-check p {
+  color: var(--ink-2);
+  margin: 6px 0;
+}
+.setup-close {
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font-size: 25px;
+  cursor: pointer;
+}
+.setup-tabs {
+  display: flex;
+  gap: 22px;
+  padding: 0 34px;
+  box-shadow: inset 0 -1px var(--line);
+}
+.setup-tabs button {
+  border: 0;
+  padding: 12px 0;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.setup-tabs button[aria-current] {
+  color: var(--accent-hi);
+  box-shadow: inset 0 -2px var(--accent);
+}
+.setup-content {
+  overflow-y: auto;
+  padding: 26px 34px;
+}
+.setup-content h2 {
+  font-size: 18px;
+  margin: 0 0 8px;
+  font-weight: 550;
+}
+.setup-content form {
+  display: grid;
+  gap: 18px;
+}
+.setup-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.setup-checks {
+  margin: 30px 0;
+}
+.setup-check {
+  padding: 14px 0;
+  box-shadow: 0 1px var(--line-soft);
+}
+.setup-check > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.setup-status {
+  color: var(--ink-2);
+  font-size: 11px;
+  text-transform: capitalize;
+}
+.setup-status-ready {
+  color: var(--run);
+}
+.setup-status-error,
+.setup-status-missing {
+  color: var(--need);
+}
+.setup-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.setup-plan {
+  margin-block-start: 30px;
+  padding-block-start: 25px;
+  box-shadow: 0 -1px var(--line);
+}
+.setup-plan li {
+  padding-block: 4px;
+}
+.setup-plan details {
+  padding-block: 12px;
+}
+.setup-plan summary {
+  cursor: pointer;
+}
+.setup-plan pre,
+.setup-check pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 12px;
+  border-radius: var(--r-ctl);
+  background: var(--field);
+  font-size: 11px;
+}
+.setup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 34px;
+  color: var(--ink-3);
+  font-size: 11px;
+  box-shadow: 0 -1px var(--line);
+}
+.luci-button {
+  background: var(--inset);
+  border: 0;
+  box-shadow: var(--e-btn);
+  border-radius: var(--r-ctl);
+  padding: 9px 14px;
+  color: var(--ink);
+  cursor: pointer;
+  inline-size: fit-content;
+}
+.luci-button:hover:not(:disabled) {
+  background: var(--hover-2);
+}
+.luci-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.luci-primary {
+  background: var(--accent-tint);
+  color: var(--accent-hi);
+}
+.luci-field {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.luci-field input,
+.luci-field textarea,
+.luci-field select {
+  inline-size: 100%;
+  background: var(--field);
+  border: 0;
+  box-shadow: var(--e-hair);
+  border-radius: var(--r-ctl);
+  padding: 10px 12px;
+  color: var(--ink);
+}
+.luci-field textarea {
+  resize: vertical;
+}
+.luci-field small {
+  color: var(--ink-3);
+}
+.journey-muted {
+  color: var(--ink-2);
+}
+.journey-error,
+.journey-warning,
+.journey-success {
+  padding: 10px 12px;
+  border-radius: var(--r-ctl);
+  overflow-wrap: anywhere;
+}
+.cloud-manager {
+  margin-block-start: 24px;
+}
+.cloud-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.cloud-job {
+  padding-block: 22px;
+  box-shadow: 0 1px var(--line-soft);
+  overflow-wrap: anywhere;
+}
+.cloud-job .setup-actions {
+  margin-block-start: 14px;
+}
+.luci-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-block: 16px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.luci-check input {
+  flex: 0 0 auto;
+  margin-block-start: 2px;
+  accent-color: var(--accent);
+}
+.cloud-confirm {
+  padding: 20px;
+  margin-block: 18px;
+  background: var(--field);
+  border-radius: var(--r-ctl);
+}
+.cloud-management {
+  margin-block-start: 24px;
+}
+.cloud-management iframe {
+  inline-size: 100%;
+  block-size: 560px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: var(--page);
+}
+.cloud-targets {
+  list-style: none;
+  padding: 0;
+}
+.cloud-targets li {
+  display: grid;
+  gap: 6px;
+  padding-block: 15px;
+  box-shadow: 0 1px var(--line-soft);
+}
+.cloud-targets span {
+  color: var(--ink-3);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.local-tools {
+  margin-block: 24px;
+  padding-block: 20px;
+  box-shadow: 0 -1px var(--line-soft);
+}
+.local-tools summary {
+  cursor: pointer;
+  margin-block-end: 20px;
+  color: var(--accent-hi);
+}
+.provider-signin {
+  padding: 16px 0;
+  box-shadow: 0 -1px var(--line-soft);
+}
+.provider-signin h3 {
+  font-size: 14px;
+}
+.provider-code {
+  color: var(--accent-hi);
+  font-size: 20px;
+  letter-spacing: 0.06em;
+}
+.journey-error {
+  color: var(--fail);
+  background: var(--fail-tint);
+}
+.journey-warning {
+  color: var(--need);
+  background: var(--need-tint);
+}
+.journey-success {
+  color: var(--run);
+  background: var(--run-tint);
+}
+@media (max-width: 650px) {
+  .setup-backdrop {
+    padding: 10px;
+  }
+  .setup-window {
+    max-block-size: calc(100vh - 20px);
+  }
+  .setup-field-grid {
+    grid-template-columns: 1fr;
+  }
+  .setup-header,
+  .setup-content {
+    padding: 20px;
+  }
+  .setup-tabs {
+    padding-inline: 20px;
+  }
+  .setup-footer {
+    padding: 15px 20px;
+  }
+  .setup-footer span {
+    display: none;
+  }
+}

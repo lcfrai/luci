@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/instance"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/statepath"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/httpx"
+	"github.com/lcfrai/luci/control-plane/internal/instance"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/statepath"
 )
 
 // Every environment variable this process reads, in one block. Contract §4
@@ -26,43 +26,46 @@ import (
 // visible here and a test constructs a Config instead of editing the
 // environment it is running in.
 const (
-	envAddr                   = "PANACEA_APP_ADDR"
-	envAllowPublicBind        = "PANACEA_APP_ALLOW_PUBLIC_BIND"
-	envBackend                = "PANACEA_APP_BACKEND"
-	envSandboxImage           = "PANACEA_APP_SANDBOX_IMAGE"
-	envProjectsDir            = "PANACEA_APP_PROJECTS_DIR"
-	envAllowedOrigins         = "PANACEA_APP_ALLOWED_ORIGINS"
-	envIdleAfter              = "PANACEA_APP_IDLE_AFTER"
-	envIdleTimeout            = "PANACEA_APP_IDLE_TIMEOUT"
-	envReapInterval           = "PANACEA_APP_REAP_INTERVAL"
-	envSessionCPUMillis       = "PANACEA_APP_SESSION_CPU_MILLIS"
-	envSessionMemoryMiB       = "PANACEA_APP_SESSION_MEMORY_MIB"
-	envDockerHost             = "PANACEA_APP_DOCKER_HOST"
-	envKubeconfig             = "PANACEA_APP_KUBECONFIG"
-	envNamespace              = "PANACEA_APP_NAMESPACE"
-	envLogLevel               = "PANACEA_APP_LOG_LEVEL"
-	envHarnessAllowUnverified = "PANACEA_APP_HARNESS_ALLOW_UNVERIFIED"
+	envAddr                   = "LUCI_ADDR"
+	envAllowPublicBind        = "LUCI_ALLOW_PUBLIC_BIND"
+	envBackend                = "LUCI_BACKEND"
+	envSandboxImage           = "LUCI_SANDBOX_IMAGE"
+	envProjectsDir            = "LUCI_PROJECTS_DIR"
+	envWebDir                 = "LUCI_WEB_DIR"
+	envRuntimeDir             = "LUCI_RUNTIME_DIR"
+	envCloudBundle            = "LUCI_CLOUD_BUNDLE"
+	envAllowedOrigins         = "LUCI_ALLOWED_ORIGINS"
+	envIdleAfter              = "LUCI_IDLE_AFTER"
+	envIdleTimeout            = "LUCI_IDLE_TIMEOUT"
+	envReapInterval           = "LUCI_REAP_INTERVAL"
+	envSessionCPUMillis       = "LUCI_SESSION_CPU_MILLIS"
+	envSessionMemoryMiB       = "LUCI_SESSION_MEMORY_MIB"
+	envDockerHost             = "LUCI_DOCKER_HOST"
+	envKubeconfig             = "LUCI_KUBECONFIG"
+	envNamespace              = "LUCI_NAMESPACE"
+	envLogLevel               = "LUCI_LOG_LEVEL"
+	envHarnessAllowUnverified = "LUCI_HARNESS_ALLOW_UNVERIFIED"
 
 	// envReadyTimeout is NOT in contract §4's table. Task 5 records it as a
 	// cross-task dependency of this task: dockerbe.Config.ReadyTimeout exists
 	// but nothing sets it, so production always gets backend.ReadyTimeout and an
 	// operator whose first pull of the sandbox image is cold has no way to wait
 	// longer. This task adds exactly this one row to that table.
-	envReadyTimeout = "PANACEA_APP_READY_TIMEOUT"
+	envReadyTimeout = "LUCI_READY_TIMEOUT"
 
 	// envGitName and envGitEmail are the commit identity every sandbox's git
 	// uses, as a pair. Unset, each session takes the identity the host's own git
 	// gives outside any repository (gitidentity.go; X-1): a worktree's own
 	// user.name is the agent's to write. Added by the sandbox git fix, with
 	// envCABundle; contract §4 carries all three rows.
-	envGitName  = "PANACEA_APP_GIT_NAME"
-	envGitEmail = "PANACEA_APP_GIT_EMAIL"
+	envGitName  = "LUCI_GIT_NAME"
+	envGitEmail = "LUCI_GIT_EMAIL"
 
 	// envCABundle is an absolute host path to a PEM bundle every sandbox trusts
 	// IN ADDITION to its own roots — the root certificate of a TLS-intercepting
 	// proxy, without which Claude Code cannot reach its API from any sandbox on
 	// such a network. Unset mounts nothing and sets nothing.
-	envCABundle = "PANACEA_APP_CA_BUNDLE"
+	envCABundle = "LUCI_CA_BUNDLE"
 
 	// envStateDir is statepath's own constant, not a second spelling of it.
 	// statepath.Dir reads this variable (contract §2.7) and this file reports
@@ -73,8 +76,8 @@ const (
 const (
 	defaultAddr         = "127.0.0.1:8730"
 	defaultBackend      = string(backend.KindDocker)
-	defaultSandboxImage = "panacea-app/sandbox:dev"
-	defaultNamespace    = "panacea-app"
+	defaultSandboxImage = "luci/sandbox:dev"
+	defaultNamespace    = "luci"
 	defaultIdleAfter    = 90 * time.Second
 	defaultReapInterval = 30 * time.Second
 	minReapInterval     = 5 * time.Second
@@ -104,7 +107,7 @@ const (
 	// 2 x the 30s default — and that hole closes only when the relay marks the
 	// session exited on the Exit frame instead of waiting for the sweep
 	// (task 25 handoff #2). This bound removes the configurations where EVERY
-	// normal exit lands in `failed`, which is what PANACEA_APP_REAP_INTERVAL=2m
+	// normal exit lands in `failed`, which is what LUCI_REAP_INTERVAL=2m
 	// did before it existed.
 	maxReapInterval = 45 * time.Second
 )
@@ -115,10 +118,10 @@ const (
 // It is a table and one loop rather than three conditionals because of what
 // happens otherwise: warning about one and staying silent about the others is
 // arbitrary in a way the next reader cannot tell from an oversight, which is
-// exactly how PANACEA_APP_KUBECONFIG came to be parsed and then dropped on the
-// floor. The rule is that no PANACEA_APP_* variable is ever silently ignored.
+// exactly how LUCI_KUBECONFIG came to be parsed and then dropped on the
+// floor. The rule is that no LUCI_* variable is ever silently ignored.
 //
-// PANACEA_APP_KUBECONFIG set under kata is deliberately NOT a warning: it takes
+// LUCI_KUBECONFIG set under kata is deliberately NOT a warning: it takes
 // kubeClient's refusal instead, which says "this build cannot do what you asked"
 // rather than "this has no effect here". The two must not be confused.
 var backendScoped = []struct {
@@ -132,6 +135,9 @@ var backendScoped = []struct {
 
 // Config is the whole of this process's configuration, parsed once at startup.
 type Config struct {
+	RuntimeDir      string
+	CloudBundle     string
+	WebDir          string
 	Addr            string
 	AllowPublicBind bool
 	Backend         string // "docker" or "kata"; validated here, mapped in main.go
@@ -198,7 +204,7 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	}
 	// raw is the value exactly as the operator set it, so "set but the same as
 	// the default" is distinguishable from "unset" — which is the difference
-	// PANACEA_APP_NAMESPACE's warning turns on.
+	// LUCI_NAMESPACE's warning turns on.
 	raw := func(name string) string { return strings.TrimSpace(getenv(name)) }
 	get := func(name, def string) string {
 		if v := raw(name); v != "" {
@@ -236,7 +242,7 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	}
 
 	var err error
-	// A malformed duration exits rather than falling back. PANACEA_APP_IDLE_AFTER=90
+	// A malformed duration exits rather than falling back. LUCI_IDLE_AFTER=90
 	// is not a Go duration; treating it as 90s guesses, and treating it as the
 	// default ignores an operator who plainly meant something.
 	if cfg.IdleAfter, err = parseDuration(envIdleAfter, raw(envIdleAfter), defaultIdleAfter); err != nil {
@@ -318,7 +324,7 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	}
 
 	// filepath.Join(StateDir, "sessions") is byte-for-byte what statepath.Dir
-	// returns when PANACEA_APP_STATE_DIR is set (contract §2.7), so the two
+	// returns when LUCI_STATE_DIR is set (contract §2.7), so the two
 	// cannot disagree; going through registry.DefaultPath when it is unset
 	// keeps the rest of the ladder in the one package that owns it.
 	if cfg.StateDir != "" {
@@ -331,7 +337,7 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		cfg.InstancePath = filepath.Join(statepath.Dir("instance"), instance.FileName)
 	}
 	// The registry is happy with a relative path and a bind mount is not: a
-	// relative PANACEA_APP_STATE_DIR would otherwise fail every session create
+	// relative LUCI_STATE_DIR would otherwise fail every session create
 	// with a Docker error that names neither variable.
 	conversations, err := filepath.Abs(cfg.ConversationsDir)
 	if err != nil {
@@ -376,7 +382,7 @@ func loadConfig(getenv func(string) string) (Config, error) {
 // and not an address, so the port comes off first.
 //
 // That predicate is one step wider than contract §4's literal three spellings:
-// it accepts the whole 127.0.0.0/8 range, so PANACEA_APP_ADDR=127.0.0.2:8730
+// it accepts the whole 127.0.0.0/8 range, so LUCI_ADDR=127.0.0.2:8730
 // binds where §4's text alone would refuse. The widening is deliberate and it is
 // in the safe direction — every address it adds is loopback, which no other host
 // on the network can route to — and it buys one predicate instead of two.
@@ -396,7 +402,7 @@ func validateAddr(cfg *Config) error {
 	return fmt.Errorf("refusing to bind %s: a sandbox attach socket on a non-loopback address is a shell on the LAN. Set %s=1 to override.", cfg.Addr, envAllowPublicBind)
 }
 
-// validateCABundle is the startup check on PANACEA_APP_CA_BUNDLE, and it
+// validateCABundle is the startup check on LUCI_CA_BUNDLE, and it
 // refuses rather than warns. A bundle that is missing or holds no certificate
 // is mounted into every sandbox anyway, Node ignores it with a warning nobody
 // sees, and the user's first sign is Claude Code failing its connection check
@@ -452,7 +458,7 @@ var (
 
 // parseFlag implements contract §4's "any value other than 1 or true is also
 // treated as unset", and it means ANY other value: "TRUE" is not "true".
-// PANACEA_APP_ALLOW_PUBLIC_BIND is the one variable that disarms a security
+// LUCI_ALLOW_PUBLIC_BIND is the one variable that disarms a security
 // rule, so this comparison is exact rather than EqualFold — a case-insensitive
 // widening is a change to a locked document, and the refusal message names the
 // spelling that works.

@@ -25,9 +25,9 @@ var claudePermissionFlag = map[PermissionMode]string{
 //
 // The opening prompt is appended as ONE argv element and is never split,
 // joined, quoted or escaped. That is the whole point of this function: the
-// legacy comma-joined PANACEA_APP_ARGS turned "add tests, then refactor" into
+// legacy comma-joined LUCI_ARGS turned "add tests, then refactor" into
 // two arguments, and Group A task 3 replaced the transport with
-// PANACEA_APP_ARGS_JSON so the producer could stay honest.
+// LUCI_ARGS_JSON so the producer could stay honest.
 //
 // Validation order is fixed — unknown harness, unavailable, then model,
 // effort, permission, resume and conversation, prompt, in that order — so a
@@ -80,6 +80,9 @@ func Build(r Request) (command string, argv []string, err error) {
 
 func claudeArgv(r Request) []string {
 	argv := make([]string, 0, 12)
+	if r.ProjectBrief {
+		argv = append(argv, "--append-system-prompt", ProjectBriefPrompt)
+	}
 	if r.Model != "" {
 		argv = append(argv, "--model", r.Model)
 	}
@@ -90,7 +93,7 @@ func claudeArgv(r Request) []string {
 		argv = append(argv, "--permission-mode", flag)
 	}
 	// A resume FORKS, and the fork is named. Evidence: `claude --help` 2.1.274,
-	// run inside panacea-app/sandbox:dev, and the CLI's behaviour there:
+	// run inside luci/sandbox:dev, and the CLI's behaviour there:
 	//
 	//   --fork-session  "When resuming, create a new session ID instead of
 	//                   reusing the original (use with --resume or --continue)"

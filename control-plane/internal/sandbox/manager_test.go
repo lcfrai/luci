@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox"
+	"github.com/lcfrai/luci/control-plane/internal/sandbox"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -12,7 +12,7 @@ import (
 
 func TestCreateProducesAKataPodWithExplicitResources(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, "panacea-app")
+	m := sandbox.NewManager(client, "luci")
 
 	name, err := m.Create(context.Background(), sandbox.Spec{
 		ID:      "abc123",
@@ -25,7 +25,7 @@ func TestCreateProducesAKataPodWithExplicitResources(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	pod, err := client.CoreV1().Pods("panacea-app").Get(context.Background(), name, metav1.GetOptions{})
+	pod, err := client.CoreV1().Pods("luci").Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -51,14 +51,14 @@ func TestCreateProducesAKataPodWithExplicitResources(t *testing.T) {
 	if c.SecurityContext == nil || c.SecurityContext.RunAsNonRoot == nil || !*c.SecurityContext.RunAsNonRoot {
 		t.Error("container must run as non-root")
 	}
-	if pod.Labels["panacea-app/sandbox-id"] != "abc123" {
-		t.Errorf("sandbox-id label = %q, want abc123", pod.Labels["panacea-app/sandbox-id"])
+	if pod.Labels["luci/sandbox-id"] != "abc123" {
+		t.Errorf("sandbox-id label = %q, want abc123", pod.Labels["luci/sandbox-id"])
 	}
 }
 
 func TestDeleteRemovesThePod(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, "panacea-app")
+	m := sandbox.NewManager(client, "luci")
 
 	name, err := m.Create(context.Background(), sandbox.Spec{
 		ID: "gone", Image: "x:y", Command: "/bin/sh", CPU: "100m", Memory: "256Mi",
@@ -69,21 +69,21 @@ func TestDeleteRemovesThePod(t *testing.T) {
 	if err := m.Delete(context.Background(), name); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
-	if _, err := client.CoreV1().Pods("panacea-app").Get(context.Background(), name, metav1.GetOptions{}); err == nil {
+	if _, err := client.CoreV1().Pods("luci").Get(context.Background(), name, metav1.GetOptions{}); err == nil {
 		t.Fatal("pod still present after Delete")
 	}
 }
 
 func TestCreateMountsWritablePathsUnderReadOnlyRoot(t *testing.T) {
 	client := fake.NewSimpleClientset()
-	m := sandbox.NewManager(client, "panacea-app")
+	m := sandbox.NewManager(client, "luci")
 	name, err := m.Create(context.Background(), sandbox.Spec{
 		ID: "vols", Image: "x:y", Command: "/bin/bash", CPU: "500m", Memory: "1Gi",
 	})
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	pod, err := client.CoreV1().Pods("panacea-app").Get(context.Background(), name, metav1.GetOptions{})
+	pod, err := client.CoreV1().Pods("luci").Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}

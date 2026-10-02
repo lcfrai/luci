@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
+	"github.com/lcfrai/luci/control-plane/internal/harness"
 )
 
 func argvEqual(t *testing.T, got, want []string) {
@@ -110,10 +110,10 @@ func TestBuildRefusesAForkThatReusesTheSourceID(t *testing.T) {
 	}
 }
 
-// THE COMMA DEFECT. The legacy PANACEA_APP_ARGS was comma-joined, so this
+// THE COMMA DEFECT. The legacy LUCI_ARGS was comma-joined, so this
 // prompt arrived inside the sandbox as two arguments and the agent was started
 // with a truncated instruction plus a stray one. Group A task 3 replaced the
-// transport with PANACEA_APP_ARGS_JSON; this asserts the producer never does
+// transport with LUCI_ARGS_JSON; this asserts the producer never does
 // the splitting itself.
 func TestBuildKeepsACommaInTheOpeningPromptAsOneArgument(t *testing.T) {
 	const prompt = "add tests, then refactor, and finally update the README"

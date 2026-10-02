@@ -1,4 +1,4 @@
-module github.com/kpmg-au-emu/panacea-app/sandboxd
+module github.com/lcfrai/luci/sandboxd
 
 go 1.23
 

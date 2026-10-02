@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/server"
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/wire"
+	"github.com/lcfrai/luci/sandboxd/internal/server"
+	"github.com/lcfrai/luci/sandboxd/internal/wire"
 )
 
 const testToken = "test-token-abc"
@@ -134,10 +134,10 @@ func TestStreamsStdoutAndAcceptsStdin(t *testing.T) {
 	c, ctx := dial(t, srv, testToken)
 
 	if err := c.Write(ctx, websocket.MessageBinary,
-		wire.Encode(wire.Stdin, []byte("echo panacea-ok\n"))); err != nil {
+		wire.Encode(wire.Stdin, []byte("echo luci-ok\n"))); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
-	readUntil(t, c, ctx, []byte("panacea-ok"), 10*time.Second)
+	readUntil(t, c, ctx, []byte("luci-ok"), 10*time.Second)
 }
 
 func TestAppliesResize(t *testing.T) {

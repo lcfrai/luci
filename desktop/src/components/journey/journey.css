@@ -1,0 +1,222 @@
+@import "../../styles/tokens.css";
+@import "../setup/setup.css";
+.cloud-deploy-form { display: grid; gap: 18px; max-inline-size: 780px; padding-block: 24px; }
+.journey-page {
+  block-size: 100%;
+  overflow: auto;
+  padding: 34px 38px;
+}
+.journey-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+  margin-block-end: 26px;
+}
+.journey-header h1 {
+  font-weight: 550;
+  font-size: 29px;
+  letter-spacing: -0.04em;
+  margin: 0 0 7px;
+}
+.journey-header p {
+  color: var(--ink-2);
+  max-inline-size: 560px;
+  margin: 0;
+}
+.journey-actions {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.journey-empty {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  block-size: 100%;
+  padding: 60px;
+}
+.journey-empty h1 {
+  font: 28px var(--mono);
+  font-weight: 450;
+  letter-spacing: -0.05em;
+}
+.journey-empty p {
+  color: var(--ink-2);
+  max-inline-size: 400px;
+  line-height: 1.7;
+  margin-block-end: 24px;
+}
+.journey-eyebrow {
+  color: var(--ink-3);
+  font: 10px var(--mono);
+  letter-spacing: 0.1em;
+}
+.journey-form {
+  display: grid;
+  gap: 22px;
+  max-inline-size: 820px;
+}
+.journey-form textarea {
+  line-height: 1.7;
+}
+.journey-revision {
+  font: 11px var(--mono);
+  color: var(--ink-3);
+}
+.journey-code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 20px;
+  background: var(--field);
+  border-radius: var(--r-card);
+  box-shadow: var(--e-card);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.journey-directory {
+  list-style: none;
+  padding: 0;
+  max-inline-size: 900px;
+}
+.journey-directory button {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  text-align: left;
+  inline-size: 100%;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: none;
+  padding: 12px;
+  cursor: pointer;
+  box-shadow: 0 1px var(--line-soft);
+}
+.journey-directory button:hover {
+  background: var(--hover);
+}
+.journey-directory small {
+  color: var(--ink-3);
+}
+.journey-git-layout {
+  display: grid;
+  grid-template-columns: minmax(190px, 270px) minmax(0, 1fr);
+  gap: 25px;
+}
+.journey-git-layout aside h2 {
+  font-size: 13px;
+  font-weight: 500;
+  margin-block: 22px 10px;
+}
+.journey-git-layout ul {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 9px;
+  font-size: 12px;
+}
+.journey-git-layout li {
+  overflow-wrap: anywhere;
+}
+.journey-git-layout code {
+  color: var(--ink-3);
+}
+.journey-git-layout .luci-button {
+  margin-block-start: 12px;
+}
+.design-page {
+  block-size: 100%;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  padding: 20px;
+  gap: 10px;
+}
+.design-page .journey-header {
+  margin: 0;
+}
+.design-page .journey-header h1 {
+  font-size: 21px;
+}
+.design-canvas {
+  min-block-size: 0;
+  border-radius: var(--r-card);
+  overflow: hidden;
+  box-shadow: var(--e-card);
+}
+.deploy-form {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(100px, 1fr);
+  gap: 18px;
+  max-inline-size: 700px;
+}
+.deploy-history-head {
+  margin-block-start: 40px;
+}
+.deploy-history-head h2 {
+  font-size: 18px;
+  font-weight: 550;
+}
+.deploy-releases {
+  display: grid;
+  gap: 15px;
+  padding: 0;
+  list-style: none;
+}
+.deploy-releases li {
+  background: var(--surface);
+  box-shadow: var(--e-card);
+  border-radius: var(--r-card);
+  padding: 18px;
+}
+.deploy-releases li > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+.deploy-releases li p {
+  color: var(--ink-2);
+}
+.deploy-releases li small {
+  color: var(--ink-3);
+}
+.deploy-releases .journey-actions {
+  margin-block-start: 14px;
+}
+.deploy-preview {
+  margin-block-start: 25px;
+}
+.deploy-preview iframe {
+  inline-size: 100%;
+  block-size: 600px;
+  background: var(--surface);
+  border: 0;
+  border-radius: var(--r-card);
+  box-shadow: var(--e-card);
+}
+.design-canvas .excalidraw.theme--dark {
+  --color-primary: var(--accent);
+  --color-primary-darker: var(--accent);
+  --color-primary-light: var(--accent-tint);
+  --color-surface-high: var(--inset);
+  --color-surface-low: var(--surface);
+  --color-surface-mid: var(--surface);
+  --color-surface-primary-container: var(--accent-tint);
+  --color-on-primary-container: var(--accent-hi);
+  --island-bg-color: var(--surface);
+  --button-hover-bg: var(--hover);
+}
+@media (max-width: 900px) {
+  .journey-page {
+    padding: 25px;
+  }
+  .journey-header {
+    flex-direction: column;
+    gap: 15px;
+  }
+  .journey-git-layout {
+    grid-template-columns: 1fr;
+  }
+  .journey-empty {
+    padding: 30px;
+  }
+}

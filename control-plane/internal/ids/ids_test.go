@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+	"github.com/lcfrai/luci/control-plane/internal/ids"
 )
 
 var (

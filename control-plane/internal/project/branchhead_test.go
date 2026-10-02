@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 const headRefs = "for-each-ref"
@@ -27,7 +27,7 @@ func branchesOf(t *testing.T, root, dir string, g project.Runner) ([]project.Bra
 // say why. Only an unborn HEAD may be tolerated.
 func TestBranchesReportsATimedOutRevParseInsteadOfDroppingTheHeadMarker(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 
 	killed := &project.GitError{
 		Args:     []string{"rev-parse", "--abbrev-ref", "HEAD"},
@@ -53,7 +53,7 @@ func TestBranchesReportsATimedOutRevParseInsteadOfDroppingTheHeadMarker(t *testi
 // A git that answered with its own failure is not an unborn HEAD either.
 func TestBranchesReportsARevParseThatGitItselfRefused(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 
 	broke := &project.GitError{
 		Args:   []string{"rev-parse", "--abbrev-ref", "HEAD"},
@@ -85,7 +85,7 @@ func TestBranchesReportsARevParseThatGitItselfRefused(t *testing.T) {
 // whole package green before this test existed.
 func TestBranchesReportsACancelledConfirmationInsteadOfCallingItAnUnbornHead(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 
 	// Both gits die the way a cancelled git dies on Windows: the corpse's own
 	// exit status, and nothing on either stream.
@@ -123,7 +123,7 @@ func TestBranchesReportsACancelledConfirmationInsteadOfCallingItAnUnbornHead(t *
 // NOTHING, where every other failure prints.
 func TestBranchesStillListsBranchesWhenHeadIsUnborn(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 
 	g := newFakeGit()
 	g.reply(dir, "main\n", headRefs, "--format=%(refname:short)", "refs/heads")
@@ -166,7 +166,7 @@ func TestBranchesStillListsBranchesWhenHeadIsUnborn(t *testing.T) {
 func TestBranchesAgainstARealRepositoryWhoseHeadIsUnborn(t *testing.T) {
 	requireGit(t)
 	root := t.TempDir()
-	dir := filepath.Join(root, "panacea")
+	dir := filepath.Join(root, "luci")
 	makeGitRepo(t, dir)
 
 	cmd := exec.Command("git", "checkout", "--orphan", "blank")

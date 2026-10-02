@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/api"
 )
 
 // gitIdentityResolver is the production api.Deps.GitIdentity: who an agent's
@@ -13,7 +13,7 @@ import (
 // (CLAUDE.md), so the answer is always the person running this control plane,
 // and there are exactly two ways to say who that is:
 //
-//  1. PANACEA_APP_GIT_NAME and PANACEA_APP_GIT_EMAIL, which loadConfig has
+//  1. LUCI_GIT_NAME and LUCI_GIT_EMAIL, which loadConfig has
 //     already checked are a pair. They win outright; the host is never asked.
 //  2. Otherwise, the identity the host's own git would stamp on a commit
 //     outside any repository, read with `git var GIT_AUTHOR_IDENT` in

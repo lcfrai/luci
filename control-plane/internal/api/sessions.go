@@ -16,14 +16,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hostpath"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/harness"
+	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/httpx"
+	"github.com/lcfrai/luci/control-plane/internal/ids"
+	"github.com/lcfrai/luci/control-plane/internal/reaper"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/worktree"
 )
 
 // sessionBasePath is the canonical prefix every session URL is built from.
@@ -45,7 +45,7 @@ const sessionWorktreeAdminDir = sessionWorkDir + "/.git/worktrees"
 // outlives a sandbox. Without it Resume has nothing to resume: every sandbox
 // is new, so the transcript `claude --resume` reads died with the old one.
 //
-// Observed, not assumed — claude 2.1.274 in panacea-app/sandbox:dev, started
+// Observed, not assumed — claude 2.1.274 in luci/sandbox:dev, started
 // in sessionWorkDir, writes ~/.claude/projects/-home-dev-work/<conversation
 // id>.jsonl, and a fresh container given only this directory resumed and
 // forked that conversation with its history intact.
@@ -119,7 +119,7 @@ const sessionTranscriptCLIVersion = "2.1.274"
 // sessionTranscriptPath is where the pinned CLI writes conversation id's
 // transcript inside a worktree's store: the store is ~/.claude/projects, and
 // the CLI names the directory under it after the working directory with every
-// "/" made "-". Observed in panacea-app/sandbox:dev, and recorded in the
+// "/" made "-". Observed in luci/sandbox:dev, and recorded in the
 // go-contract's verification table: ~/.claude/projects/-home-dev-work/<uuid>.jsonl.
 func sessionTranscriptPath(store, conversation string) string {
 	return filepath.Join(store, sessionTranscriptDirName, conversation+".jsonl")
@@ -295,7 +295,7 @@ func sessionHasConversation(d harness.Descriptor) bool {
 // the value NODE_EXTRA_CA_CERTS names. Outside /home/dev so nothing the agent
 // user owns sits over it, and read-only because a trust anchor the agent could
 // rewrite is not one.
-const sessionCABundlePath = "/etc/panacea-app/ca-bundle.pem"
+const sessionCABundlePath = "/etc/luci/ca-bundle.pem"
 
 // sessionGitExcludesPath and sessionGitAttributesPath are where the host's
 // global excludes and attributes files appear inside a sandbox, when the host's
@@ -303,8 +303,8 @@ const sessionCABundlePath = "/etc/panacea-app/ca-bundle.pem"
 // Outside /home/dev like the CA bundle, and read-only: they are the host's
 // files, and the host's git reads them too.
 const (
-	sessionGitExcludesPath   = "/etc/panacea-app/git/ignore"
-	sessionGitAttributesPath = "/etc/panacea-app/git/attributes"
+	sessionGitExcludesPath   = "/etc/luci/git/ignore"
+	sessionGitAttributesPath = "/etc/luci/git/attributes"
 )
 
 // sessionGitNoFile is what core.excludesFile or core.attributesFile names in a
@@ -538,7 +538,7 @@ func (a *API) sessionGitConfigOrigins(origins []string) error {
 		if !filepath.IsAbs(origin) {
 			return fmt.Errorf("the host's git reads a global-file setting from %q, which is not an absolute path, so where that file is cannot be checked and this session is not started", origin)
 		}
-		resolved, err := hostpath.ResolveOutside(a.deps.ProjectsDir, origin)
+		resolved, err := hostpath.ResolveOutside(a.projectsDir(), origin)
 		if errors.Is(err, hostpath.ErrInside) {
 			return fmt.Errorf("the host's git reads a global-file setting from %q, which is inside the projects directory where an agent can write it, so this session is not started: move that git config out of the projects directory (%v)", origin, err)
 		}
@@ -597,7 +597,7 @@ func (a *API) sessionGitGlobalFile(worktreeID, key, hostPath string) (sessionGit
 	// checking the named path or the resolved path lets the key through (X-1
 	// review m-5, and review-2 m-4's likelier case). R4 rule 6: the host never
 	// trusts anything a sandbox can write.
-	resolved, err := hostpath.ResolveOutside(a.deps.ProjectsDir, hostPath)
+	resolved, err := hostpath.ResolveOutside(a.projectsDir(), hostPath)
 	if err != nil {
 		if errors.Is(err, hostpath.ErrInside) {
 			return sessionGitFile{}, fmt.Errorf("the host's git config sets %s to %q, and reaching it passes through the projects directory, where an agent can swap it for a link to any file on this host, so it is not mounted: set it to a path outside the projects directory (%v)", key, hostPath, err)
@@ -892,7 +892,7 @@ func (a *API) sessionImage() string {
 	if a.deps.Image != "" {
 		return a.deps.Image
 	}
-	return "panacea-app/sandbox:dev"
+	return "luci/sandbox:dev"
 }
 
 // sessionResources refuses a half-filled Resources: Kata sizes a guest VM from
@@ -1083,6 +1083,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	command, argv, err := harness.Build(harness.Request{
+		ProjectBrief:  true,
 		Harness:       harnessID,
 		Model:         model,
 		Effort:        effort,
@@ -1121,6 +1122,11 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID), lineEndings, gitFiles, a.deps.CABundle)
+	if a.deps.Product != nil {
+		for key, value := range a.deps.Product.AgentEnvironment(string(harnessID)) {
+			sandboxEnv[key] = value
+		}
+	}
 
 	// 3. Ids and the secret.
 	sessionID := ids.New("s")
@@ -1769,6 +1775,7 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	if desc, known := harness.Lookup(harness.ID(sess.Harness)); known && sessionHasConversation(desc) {
 		conversation = ids.UUID()
 		command, args, err = harness.Build(harness.Request{
+			ProjectBrief:  true,
 			Harness:       desc.ID,
 			Model:         sess.Model,
 			Effort:        harness.Effort(sess.Effort),
@@ -1806,6 +1813,11 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID), lineEndings, gitFiles, a.deps.CABundle)
+	if a.deps.Product != nil {
+		for key, value := range a.deps.Product.AgentEnvironment(sess.Harness) {
+			sandboxEnv[key] = value
+		}
+	}
 	// No carried transcript: a restart starts clean, so even a fork's restart
 	// resumes nothing and needs no source to read.
 	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, backend.Mount{}, a.deps.CABundle, gitFiles)

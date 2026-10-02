@@ -345,7 +345,7 @@ describe("the assembled cockpit", () => {
     await settle(POLL_INTERVAL_MS);
     expect(useCockpit.getState().lastError).toBeNull();
     const names = [...container.querySelectorAll(".rail .rail-name")].map((el) => el.textContent);
-    expect(names).toContain("panacea");
+    expect(names).toContain("luci");
 
     // Arrived means arrived. Further good ticks fetch neither the recovered list nor the two
     // that never failed: the retry asks only for what failed or has not arrived.
@@ -528,7 +528,7 @@ describe("the assembled cockpit", () => {
     expect(state.harnesses).toHaveLength(1);
     expect(state.lastError).toBeNull();
     const names = [...container.querySelectorAll(".rail .rail-name")].map((el) => el.textContent);
-    expect(names).toContain("panacea");
+    expect(names).toContain("luci");
   });
 
   it("retries a failed branch list on the next good tick", async () => {

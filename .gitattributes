@@ -1,0 +1,5 @@
+# Linux runtime and deployment scripts must retain valid shebangs on Windows.
+*.sh text eol=lf
+# Retained upstream grants and historical evidence keep their exact bytes.
+third-party/** -text
+docs/legacy/** -text

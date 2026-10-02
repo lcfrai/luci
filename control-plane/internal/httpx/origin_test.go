@@ -87,7 +87,7 @@ func TestAllowMatchesTheWholeOriginNotJustTheHost(t *testing.T) {
 }
 
 func TestAnExplicitListReplacesTheDefaultsAndIsNormalised(t *testing.T) {
-	// Contract section 4: PANACEA_APP_ALLOWED_ORIGINS replaces the defaults, it
+	// Contract section 4: LUCI_ALLOWED_ORIGINS replaces the defaults, it
 	// does not extend them, because "extend" makes lock-down impossible. The
 	// surrounding space, trailing slash and capitals are what an operator
 	// actually pastes out of a browser address bar.
@@ -288,7 +288,7 @@ func TestMiddlewareRejectsANonLoopbackHostButLetsTheBrowserReadWhy(t *testing.T)
 	p, logs := policy(t)
 	var reached bool
 	req := request(http.MethodGet, "http://tauri.localhost")
-	req.Host = "panacea.evil.example"
+	req.Host = "luci.evil.example"
 	rec := httptest.NewRecorder()
 
 	guard(t, p, &reached).ServeHTTP(rec, req)
@@ -307,12 +307,12 @@ func TestMiddlewareRejectsANonLoopbackHostButLetsTheBrowserReadWhy(t *testing.T)
 		t.Errorf("error = %q, want %q", problem.Error, CodeForbiddenHost)
 	}
 	// Decision (e): the origin was fine, so the grant stands and a misconfigured
-	// PANACEA_APP_ADDR shows up in the console as this JSON rather than as an
+	// LUCI_ADDR shows up in the console as this JSON rather than as an
 	// opaque CORS failure.
 	if got, want := rec.Header().Get("Access-Control-Allow-Origin"), "http://tauri.localhost"; got != want {
 		t.Errorf("Access-Control-Allow-Origin = %q, want %q", got, want)
 	}
-	if !strings.Contains(logs.String(), "panacea.evil.example") {
+	if !strings.Contains(logs.String(), "luci.evil.example") {
 		t.Errorf("log %q does not name the rejected Host", logs.String())
 	}
 }

@@ -7,7 +7,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"reflect"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -19,8 +23,8 @@ import (
 	"github.com/docker/go-connections/nat"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend/dockerbe"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend/dockerbe"
 )
 
 // notFoundErr is shaped exactly like the SDK's own objectNotFoundError: a
@@ -241,13 +245,13 @@ func validSpec() backend.Spec {
 	return backend.Spec{
 		ID:          "s-3f2a91c0",
 		SessionID:   "sess-1",
-		Image:       "panacea-app/sandbox:dev",
+		Image:       "luci/sandbox:dev",
 		Command:     "claude",
 		Args:        []string{"--model", "opus", "-p", "refactor auth, then test"},
 		AttachToken: "tok-abc",
 		Resources:   backend.Resources{CPUMillis: 2000, MemoryMiB: 4096},
 		WorkDir:     "/work",
-		Mounts:      []backend.Mount{{HostPath: "C:/repo", ContainerPath: "/work"}},
+		Mounts:      []backend.Mount{{HostPath: filepath.Join(os.TempDir(), "luci-backend-fixture"), ContainerPath: "/work"}},
 	}
 }
 
@@ -312,7 +316,7 @@ func TestCreateBuildsTheContractedContainerAndReturnsALoopbackEndpoint(t *testin
 	addr := healthzAddr(t)
 	f := &fakeDocker{createID: "c0ffeecafe"}
 	f.inspects = []inspectResult{
-		{err: notFoundErr{"panacea-app-s-3f2a91c0"}},
+		{err: notFoundErr{"luci-s-3f2a91c0"}},
 		{resp: inspectOf("c0ffeecafe", "running", "127.0.0.1", portOf(t, addr), labelsFor("s-3f2a91c0", "sess-1"))},
 	}
 	b := newBackend(t, f)
@@ -327,8 +331,8 @@ func TestCreateBuildsTheContractedContainerAndReturnsALoopbackEndpoint(t *testin
 		t.Fatalf("ContainerCreate called %d times, want 1", len(creates))
 	}
 	c := creates[0]
-	if c.name != "panacea-app-s-3f2a91c0" {
-		t.Errorf("container name = %q, want %q", c.name, "panacea-app-s-3f2a91c0")
+	if c.name != "luci-s-3f2a91c0" {
+		t.Errorf("container name = %q, want %q", c.name, "luci-s-3f2a91c0")
 	}
 	if c.networking != nil || c.platform != nil {
 		t.Errorf("networkingConfig=%v platform=%v, want both nil (default bridge, image platform)", c.networking, c.platform)
@@ -336,7 +340,7 @@ func TestCreateBuildsTheContractedContainerAndReturnsALoopbackEndpoint(t *testin
 	if c.config.Tty || c.config.OpenStdin {
 		t.Errorf("Tty=%v OpenStdin=%v, want false/false — sandboxd owns the PTY, not Docker", c.config.Tty, c.config.OpenStdin)
 	}
-	if c.config.WorkingDir != "/work" || c.config.Image != "panacea-app/sandbox:dev" {
+	if c.config.WorkingDir != "/work" || c.config.Image != "luci/sandbox:dev" {
 		t.Errorf("WorkingDir=%q Image=%q", c.config.WorkingDir, c.config.Image)
 	}
 	if _, ok := c.config.ExposedPorts[nat.Port("8080/tcp")]; !ok {
@@ -344,9 +348,18 @@ func TestCreateBuildsTheContractedContainerAndReturnsALoopbackEndpoint(t *testin
 	}
 
 	wantEnv := []string{
-		"PANACEA_APP_COMMAND=claude",
-		`PANACEA_APP_ARGS_JSON=["--model","opus","-p","refactor auth, then test"]`,
-		"PANACEA_APP_ATTACH_TOKEN=tok-abc",
+		"LUCI_COMMAND=claude",
+		`LUCI_ARGS_JSON=["--model","opus","-p","refactor auth, then test"]`,
+		"LUCI_ATTACH_TOKEN=tok-abc",
+	}
+	if (runtime.GOOS == "linux" || runtime.GOOS == "darwin") && os.Geteuid() > 0 && os.Getegid() > 0 {
+		wantEnv = append(wantEnv, "LUCI_HOST_UID="+strconv.Itoa(os.Geteuid()), "LUCI_HOST_GID="+strconv.Itoa(os.Getegid()))
+		if c.config.User != "0:0" {
+			t.Fatal("POSIX host mounts did not receive the trusted identity bootstrap")
+		}
+	}
+	if !reflect.DeepEqual([]string(c.hostConfig.CapDrop), []string{"ALL"}) || !reflect.DeepEqual(c.hostConfig.SecurityOpt, []string{"no-new-privileges:true"}) {
+		t.Fatal("sandbox may retain ambient capabilities or gain privileges")
 	}
 	if !reflect.DeepEqual(c.config.Env, wantEnv) {
 		t.Errorf("Env =\n%q\nwant\n%q", c.config.Env, wantEnv)
@@ -389,8 +402,9 @@ func TestCreateBuildsTheContractedContainerAndReturnsALoopbackEndpoint(t *testin
 	if c.hostConfig.Resources.NanoCPUs != 2_000_000_000 || c.hostConfig.Resources.Memory != 4096<<20 {
 		t.Errorf("Resources = %d nanocpus / %d bytes", c.hostConfig.Resources.NanoCPUs, c.hostConfig.Resources.Memory)
 	}
-	if !reflect.DeepEqual(c.hostConfig.Binds, []string{"C:/repo:/work"}) {
-		t.Errorf("Binds = %q, want %q", c.hostConfig.Binds, []string{"C:/repo:/work"})
+	wantBinds := []string{validSpec().Mounts[0].HostPath + ":/work"}
+	if !reflect.DeepEqual(c.hostConfig.Binds, wantBinds) {
+		t.Errorf("Binds = %q, want %q", c.hostConfig.Binds, wantBinds)
 	}
 
 	if sb.Kind != backend.KindDocker || sb.Ref != "c0ffeecafe" || sb.ID != "s-3f2a91c0" {
@@ -407,13 +421,13 @@ func TestCreateBuildsTheContractedContainerAndReturnsALoopbackEndpoint(t *testin
 	}
 }
 
-// A caller that could set PANACEA_APP_ATTACH_TOKEN could replace the sandbox's
+// A caller that could set LUCI_ATTACH_TOKEN could replace the sandbox's
 // secret. ValidateSpec is the first statement of Create in both backends.
 func TestCreateRejectsAReservedEnvKey(t *testing.T) {
 	f := &fakeDocker{createID: "c0ffeecafe"}
 	b := newBackend(t, f)
 	spec := validSpec()
-	spec.Env = map[string]string{"PANACEA_APP_ATTACH_TOKEN": "mine"}
+	spec.Env = map[string]string{"LUCI_ATTACH_TOKEN": "mine"}
 
 	_, err := b.Create(context.Background(), spec)
 	if !errors.Is(err, backend.ErrUnsupported) {
@@ -446,7 +460,7 @@ func TestCreateIsErrAlreadyExistsWhenTheNameIsTaken(t *testing.T) {
 func TestCreateDestroysTheSandboxWhenDockerPublishesOffLoopback(t *testing.T) {
 	f := &fakeDocker{createID: "c0ffeecafe"}
 	f.inspects = []inspectResult{
-		{err: notFoundErr{"panacea-app-s-3f2a91c0"}},
+		{err: notFoundErr{"luci-s-3f2a91c0"}},
 		{resp: inspectOf("c0ffeecafe", "running", "0.0.0.0", "51000", labelsFor("s-3f2a91c0", "sess-1"))},
 	}
 	b := newBackend(t, f)
@@ -464,7 +478,7 @@ func TestCreateDestroysTheSandboxThatNeverAnswersHealthz(t *testing.T) {
 	dead := deadAddr(t)
 	f := &fakeDocker{createID: "c0ffeecafe"}
 	f.inspects = []inspectResult{
-		{err: notFoundErr{"panacea-app-s-3f2a91c0"}},
+		{err: notFoundErr{"luci-s-3f2a91c0"}},
 		{resp: inspectOf("c0ffeecafe", "running", "127.0.0.1", portOf(t, dead), labelsFor("s-3f2a91c0", "sess-1"))},
 	}
 	b, err := dockerbe.New(dockerbe.Config{Instance: testInstance, Client: f, ReadyTimeout: 400 * time.Millisecond})
@@ -493,7 +507,7 @@ func TestCreateDestroysTheSandboxThatNeverAnswersHealthz(t *testing.T) {
 func TestCreateDestroysTheSandboxThatNeverPublishesAPort(t *testing.T) {
 	f := &fakeDocker{createID: "c0ffeecafe"}
 	f.inspects = []inspectResult{
-		{err: notFoundErr{"panacea-app-s-3f2a91c0"}},
+		{err: notFoundErr{"luci-s-3f2a91c0"}},
 		{resp: inspectOf("c0ffeecafe", "running", "", "", labelsFor("s-3f2a91c0", "sess-1"))},
 	}
 	b, err := dockerbe.New(dockerbe.Config{Instance: testInstance, Client: f, ReadyTimeout: 300 * time.Millisecond})
@@ -520,7 +534,7 @@ func TestCreateDestroysTheSandboxThatNeverPublishesAPort(t *testing.T) {
 func TestCreateRemovesTheContainerAfterTheCallerGivesUp(t *testing.T) {
 	f := &fakeDocker{createID: "c0ffeecafe"}
 	f.inspects = []inspectResult{
-		{err: notFoundErr{"panacea-app-s-3f2a91c0"}},
+		{err: notFoundErr{"luci-s-3f2a91c0"}},
 		{resp: inspectOf("c0ffeecafe", "running", "", "", labelsFor("s-3f2a91c0", "sess-1"))},
 	}
 	b := newBackend(t, f)
@@ -551,7 +565,7 @@ func TestCreateDestroysTheSandboxWhenTheFinalReadReportsOffLoopback(t *testing.T
 	addr := healthzAddr(t)
 	f := &fakeDocker{createID: "c0ffeecafe"}
 	f.inspects = []inspectResult{
-		{err: notFoundErr{"panacea-app-s-3f2a91c0"}},
+		{err: notFoundErr{"luci-s-3f2a91c0"}},
 		{resp: inspectOf("c0ffeecafe", "running", "127.0.0.1", portOf(t, addr), labelsFor("s-3f2a91c0", "sess-1"))},
 		{resp: inspectWithBindings("c0ffeecafe", "running", []nat.PortBinding{
 			{HostIP: "127.0.0.1", HostPort: portOf(t, addr)},
@@ -570,8 +584,8 @@ func TestCreateDestroysTheSandboxWhenTheFinalReadReportsOffLoopback(t *testing.T
 }
 
 func TestCreateSurfacesADaemonFailureFromContainerCreate(t *testing.T) {
-	f := &fakeDocker{createErr: errors.New("no such image: panacea-app/sandbox:dev")}
-	f.inspects = []inspectResult{{err: notFoundErr{"panacea-app-s-3f2a91c0"}}}
+	f := &fakeDocker{createErr: errors.New("no such image: luci/sandbox:dev")}
+	f.inspects = []inspectResult{{err: notFoundErr{"luci-s-3f2a91c0"}}}
 	b := newBackend(t, f)
 
 	_, err := b.Create(context.Background(), validSpec())
@@ -596,7 +610,7 @@ func TestCreateSpendsOneReadyBudgetAcrossBothWaits(t *testing.T) {
 	const budget = time.Second
 	dead := deadAddr(t)
 	f := &fakeDocker{createID: "c0ffeecafe"}
-	f.inspects = []inspectResult{{err: notFoundErr{"panacea-app-s-3f2a91c0"}}}
+	f.inspects = []inspectResult{{err: notFoundErr{"luci-s-3f2a91c0"}}}
 	unpublished := inspectOf("c0ffeecafe", "running", "", "", labelsFor("s-3f2a91c0", "sess-1"))
 	for i := 0; i < 9; i++ {
 		f.inspects = append(f.inspects, inspectResult{resp: unpublished})
@@ -626,7 +640,7 @@ func TestCreateSpendsOneReadyBudgetAcrossBothWaits(t *testing.T) {
 
 func TestCreateRemovesTheContainerWhenStartFails(t *testing.T) {
 	f := &fakeDocker{createID: "c0ffeecafe", startErr: errors.New("driver failed programming external connectivity")}
-	f.inspects = []inspectResult{{err: notFoundErr{"panacea-app-s-3f2a91c0"}}}
+	f.inspects = []inspectResult{{err: notFoundErr{"luci-s-3f2a91c0"}}}
 	b := newBackend(t, f)
 
 	_, err := b.Create(context.Background(), validSpec())
@@ -658,7 +672,7 @@ func TestGetMapsInspectOntoASandbox(t *testing.T) {
 	if !sb.CreatedAt.Equal(time.Date(2026, 9, 18, 1, 2, 3, 400000000, time.UTC)) {
 		t.Errorf("CreatedAt = %s, want 2026-09-18T01:02:03.4Z", sb.CreatedAt)
 	}
-	if f.inspectNames[0] != "panacea-app-s-3f2a91c0" {
+	if f.inspectNames[0] != "luci-s-3f2a91c0" {
 		t.Errorf("inspected %q, want the prefixed container name", f.inspectNames[0])
 	}
 }
@@ -977,7 +991,7 @@ func TestListFallsBackToTheCreatedAtLabelWhenTheSummaryHasNoTimestamp(t *testing
 // Task 13's reaper and an explicit DELETE race by design. A reaper that errors
 // on "already gone" stops sweeping.
 func TestDestroyOfAnAlreadyGoneSandboxIsSuccess(t *testing.T) {
-	f := &fakeDocker{removeErr: notFoundErr{"panacea-app-s-3f2a91c0"}}
+	f := &fakeDocker{removeErr: notFoundErr{"luci-s-3f2a91c0"}}
 	b := newBackend(t, f)
 
 	if err := b.Destroy(context.Background(), "s-3f2a91c0"); err != nil {

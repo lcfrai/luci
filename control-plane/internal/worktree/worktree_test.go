@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
+	"github.com/lcfrai/luci/control-plane/internal/worktree"
 )
 
 // Phase 4's contextwrite.WorktreeResolver declares exactly this method set, so

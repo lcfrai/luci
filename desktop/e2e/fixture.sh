@@ -5,7 +5,7 @@
 # entry and a linked worktree's .git is a file — inside the root it would be a project.
 #
 # Usage: bash desktop/e2e/fixture.sh <empty-directory>
-# Prints the Windows form of the projects root, for PANACEA_APP_PROJECTS_DIR.
+# Prints the Windows form of the projects root, for LUCI_PROJECTS_DIR.
 set -euo pipefail
 
 root="${1:?usage: fixture.sh <empty-directory>}"

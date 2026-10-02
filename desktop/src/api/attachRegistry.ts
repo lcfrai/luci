@@ -326,10 +326,15 @@ export function useAttachState(sessionId: SessionId): AttachState {
 
 /** Test seam: drop every entry and restore the default client. */
 export function __resetAttachRegistry(): void {
-  for (const entry of [...entries.values()]) destroy(entry);
-  entries.clear();
+  detachAllTerminals();
   listeners.clear();
   deps = { client: api };
+}
+
+/** Detach local terminal views without stopping the sessions on their original machine. */
+export function detachAllTerminals(): void {
+  for (const entry of [...entries.values()]) destroy(entry);
+  entries.clear();
 }
 
 /* ── internals ───────────────────────────────────────────────────────────────────────── */

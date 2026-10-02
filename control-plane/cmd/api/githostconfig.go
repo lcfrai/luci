@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // hostGit is how the resolvers ask the HOST's git about the HOST's own config
@@ -31,7 +31,7 @@ type hostGit struct {
 }
 
 // hostGitPattern is os.MkdirTemp's pattern for the directory one git runs in.
-const hostGitPattern = "panacea-app-hostgit-"
+const hostGitPattern = "luci-hostgit-"
 
 // newHostGit is the hostGit serve() wires: the OS temp directory, made
 // absolute because git ignores a relative ceiling, and the runner that keeps
@@ -123,7 +123,7 @@ func (h hostGit) git(ctx context.Context, args ...string) ([]byte, error) {
 
 // hostGitUnset is the --default the scope probe passes: a value nobody sets,
 // so reading it back means the global scope does not set the key.
-const hostGitUnset = "(panacea-app: not set in the global scope)"
+const hostGitUnset = "(luci: not set in the global scope)"
 
 // config runs `git config --get <scope> --includes <args...>` through h.git
 // and returns its one line. --includes because naming a scope turns

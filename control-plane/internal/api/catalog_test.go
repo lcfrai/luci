@@ -7,11 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/harness"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/harness"
+	"github.com/lcfrai/luci/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // catalogNewAPIWithSessions builds the handler over a real FileStore seeded with the
@@ -187,7 +187,7 @@ func TestProjectsCarriesIdNameAndAbsolutePath(t *testing.T) {
 }
 
 func TestProjectsWithNoProjectsIsAnEmptyArrayNotNull(t *testing.T) {
-	// Contract 3.5: an unconfigured PANACEA_APP_PROJECTS_DIR is 200 and an
+	// Contract 3.5: an unconfigured LUCI_PROJECTS_DIR is 200 and an
 	// empty list. null here is a blank rail and a console error.
 	h := catalogNewAPI(t, func(d *api.Deps) { d.Projects = &catalogProjects{} })
 	rec := catalogDo(t, h, http.MethodGet, "/v1/projects", "", nil)

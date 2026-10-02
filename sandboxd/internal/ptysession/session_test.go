@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/ptysession"
+	"github.com/lcfrai/luci/sandboxd/internal/ptysession"
 )
 
 // readUntil reads from r until want appears or the deadline passes.
@@ -39,10 +39,10 @@ func TestSessionEchoesCommandOutput(t *testing.T) {
 	}
 	defer s.Close()
 
-	if _, err := s.Write([]byte("echo panacea-ok\n")); err != nil {
+	if _, err := s.Write([]byte("echo luci-ok\n")); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
-	readUntil(t, s, []byte("panacea-ok"), 5*time.Second)
+	readUntil(t, s, []byte("luci-ok"), 5*time.Second)
 }
 
 func TestSessionResizeIsReportedToTheProcess(t *testing.T) {

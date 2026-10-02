@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/hostpath"
 )
 
 // originEnv points the real git at a global file in a fresh directory and at

@@ -16,13 +16,13 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 )
 
 const (
 	// namePrefix makes `docker ps` legible during an incident, and gives
 	// Create a cheap existence check: one inspect by name, not a list.
-	namePrefix = "panacea-app-"
+	namePrefix = "luci-"
 
 	// loopbackIPv4 is the only interface a sandbox port may be published to.
 	loopbackIPv4 = "127.0.0.1"
@@ -69,7 +69,7 @@ type Config struct {
 	// returns within ReadyTimeout and not within twice it. Zero means
 	// backend.ReadyTimeout. It is a field rather than a constant so the
 	// ready-failure path is testable in under a second. Nothing sets it from
-	// the environment yet: PANACEA_APP_READY_TIMEOUT does not exist, and task
+	// the environment yet: LUCI_READY_TIMEOUT does not exist, and task
 	// 13 is where it has to be added if an operator is ever to raise it.
 	ReadyTimeout time.Duration
 
@@ -156,7 +156,7 @@ func New(cfg Config) (*Backend, error) {
 		if built {
 			_ = api.Close() // close only what we built; never the caller's client
 		}
-		return nil, fmt.Errorf("dockerbe: no Docker daemon answered — start Docker Desktop, or set PANACEA_APP_DOCKER_HOST: %v: %w", err, backend.ErrUnavailable)
+		return nil, fmt.Errorf("dockerbe: no Docker daemon answered — start Docker Desktop, or set LUCI_DOCKER_HOST: %v: %w", err, backend.ErrUnavailable)
 	}
 	return &Backend{
 		api:          api,
@@ -179,6 +179,9 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 	if err := backend.ValidateSpec(spec); err != nil {
 		return backend.Sandbox{}, err
 	}
+	if err := validateBootstrapEnvironment(spec.Env); err != nil {
+		return backend.Sandbox{}, err
+	}
 	name := namePrefix + spec.ID
 
 	// A name collision is how ErrAlreadyExists is detected: inspect the name
@@ -193,7 +196,7 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 	// Spec.ArgsJSON renders an empty argv as "[]" where json.Marshal of a nil
 	// slice renders "null", which sandboxd rejects with exit 2, and
 	// Spec.EnvEntries drops any user key that collides with a reserved
-	// PANACEA_APP_* name so it cannot shadow the attach token.
+	// LUCI_* name so it cannot shadow the attach token.
 	env := make([]string, 0, 3+len(spec.Env))
 	for _, e := range spec.EnvEntries() {
 		env = append(env, e.Name+"="+e.Value)
@@ -217,6 +220,8 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 		OpenStdin:    false,
 	}
 	hostCfg := &container.HostConfig{
+		CapDrop:     []string{"ALL"},
+		SecurityOpt: []string{"no-new-privileges:true"},
 		// HostPort "" asks the daemon for an ephemeral port. HostIP is the
 		// whole security property of this package.
 		PortBindings:  nat.PortMap{attachPort: {{HostIP: b.bindIP, HostPort: ""}}},
@@ -231,6 +236,7 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 			Memory:   spec.Resources.MemoryBytes(),
 		},
 	}
+	configureHostIdentity(cfg, hostCfg)
 
 	// networkingConfig nil and NetworkMode unset means the default bridge.
 	// Host networking is deliberately not used: Kata cannot support it and the
@@ -411,7 +417,7 @@ func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
 //   - A managed container with no instance label: made before per-instance
 //     ownership existed. Returned, with Instance "". This backend cannot tell
 //     whose it is, but a registry can: its sandbox id was minted at random by
-//     one control plane (ids.New) and its name, panacea-app-<id>, is unique on
+//     one control plane (ids.New) and its name, luci-<id>, is unique on
 //     the daemon, so the registry that holds that id made it. Dropping it here
 //     is what used to make restart recovery write `exited` over a session whose
 //     container was still running (reaper-scope fix round, I1). The reaper's

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // x3Register makes wt a linked worktree of dir the way git does: a directory
@@ -36,7 +36,7 @@ func x3Register(t *testing.T, dir, wt string) {
 // A create on it used to mount it read-write.
 func TestPathRefusesAWorktreeTheProjectDoesNotRegister(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 	// ~/dotfiles, the reviewer's worst realistic target: a repository whose
 	// worktree is the home directory.
 	elsewhere := filepath.Join(t.TempDir(), "dotfiles")
@@ -60,7 +60,7 @@ func TestPathRefusesAWorktreeTheProjectDoesNotRegister(t *testing.T) {
 // this project's worktree, and a read-write mount of it is still wrong.
 func TestPathRefusesAForeignRepositoryInsideTheProjectsDirectory(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 	other := makeRepo(t, root, "someone-elses")
 	g := newFakeGit()
 	g.reply(dir, worktreePorcelain(dir, other), "worktree", "list", "--porcelain")
@@ -95,7 +95,7 @@ func TestPathResolvesARegisteredLinkedWorktreeOutsideTheProjectsDirectory(t *tes
 // compared as places. Here git names a link and the registry names its target.
 func TestPathResolvesARegisteredWorktreeReachedByAnotherName(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 	real := filepath.Join(t.TempDir(), "evidence-upload")
 	x3Register(t, dir, real)
 	link := filepath.Join(t.TempDir(), "by-another-name")

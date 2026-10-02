@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 )
 
 // env returns a getenv that reads from m and nothing else. Every test here uses
@@ -21,7 +21,7 @@ func env(m map[string]string) func(string) string {
 func TestLoadConfigDefaultsAreAWorkingLaptop(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_STATE_DIR": dir}))
+	cfg, err := loadConfig(env(map[string]string{"LUCI_STATE_DIR": dir}))
 	if err != nil {
 		t.Fatalf("loadConfig with an empty environment: %v", err)
 	}
@@ -31,14 +31,14 @@ func TestLoadConfigDefaultsAreAWorkingLaptop(t *testing.T) {
 	}{
 		{"Addr", cfg.Addr, "127.0.0.1:8730"},
 		{"Backend", cfg.Backend, "docker"},
-		{"SandboxImage", cfg.SandboxImage, "panacea-app/sandbox:dev"},
+		{"SandboxImage", cfg.SandboxImage, "luci/sandbox:dev"},
 		{"IdleAfter", cfg.IdleAfter, 90 * time.Second},
 		{"IdleTimeout", cfg.IdleTimeout, time.Duration(0)},
 		{"ReapInterval", cfg.ReapInterval, 30 * time.Second},
 		{"ReadyTimeout", cfg.ReadyTimeout, backend.ReadyTimeout},
 		{"CPUMillis", cfg.CPUMillis, 2000},
 		{"MemoryMiB", cfg.MemoryMiB, 4096},
-		{"Namespace", cfg.Namespace, "panacea-app"},
+		{"Namespace", cfg.Namespace, "luci"},
 		{"LogLevel", cfg.LogLevel, slog.LevelInfo},
 		{"SessionsPath", cfg.SessionsPath, filepath.Join(dir, "sessions", "sessions.json")},
 		{"ConversationsDir", cfg.ConversationsDir, filepath.Join(dir, "conversations")},
@@ -67,7 +67,7 @@ func TestLoadConfigDefaultsAreAWorkingLaptop(t *testing.T) {
 func TestTheInstanceIDLivesInTheSameStateDirectoryAsTheRegistry(t *testing.T) {
 	t.Parallel()
 	for name, m := range map[string]map[string]string{
-		"PANACEA_APP_STATE_DIR set": {"PANACEA_APP_STATE_DIR": t.TempDir()},
+		"LUCI_STATE_DIR set": {"LUCI_STATE_DIR": t.TempDir()},
 		"the statepath ladder":      {},
 	} {
 		cfg, err := loadConfig(env(m))
@@ -86,10 +86,10 @@ func TestTheInstanceIDLivesInTheSameStateDirectoryAsTheRegistry(t *testing.T) {
 
 // The registry tolerates a relative state directory and a bind mount does not:
 // every session create would fail inside Docker with an error naming neither
-// PANACEA_APP_STATE_DIR nor the conversation store.
+// LUCI_STATE_DIR nor the conversation store.
 func TestConversationsDirIsAbsoluteEvenForARelativeStateDir(t *testing.T) {
 	t.Parallel()
-	cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_STATE_DIR": "relative-state"}))
+	cfg, err := loadConfig(env(map[string]string{"LUCI_STATE_DIR": "relative-state"}))
 	if err != nil {
 		t.Fatalf("loadConfig: %v", err)
 	}
@@ -106,17 +106,17 @@ func TestLoadConfigRefusesANonLoopbackBind(t *testing.T) {
 	// ":8730" is in this table because it is the plausible typo and it binds
 	// every interface. An empty host is not "the default"; it is 0.0.0.0.
 	for _, addr := range []string{"0.0.0.0:8730", ":8730", "192.168.1.5:8730", "[::]:8730", "example.local:8730"} {
-		_, err := loadConfig(env(map[string]string{"PANACEA_APP_ADDR": addr}))
+		_, err := loadConfig(env(map[string]string{"LUCI_ADDR": addr}))
 		if err == nil {
-			t.Errorf("PANACEA_APP_ADDR=%q was accepted; it puts an unauthenticated shell on the LAN", addr)
+			t.Errorf("LUCI_ADDR=%q was accepted; it puts an unauthenticated shell on the LAN", addr)
 			continue
 		}
 		const want = "a sandbox attach socket on a non-loopback address is a shell on the LAN"
 		if !strings.Contains(err.Error(), want) {
-			t.Errorf("PANACEA_APP_ADDR=%q: error %q does not carry the contract's message %q", addr, err, want)
+			t.Errorf("LUCI_ADDR=%q: error %q does not carry the contract's message %q", addr, err, want)
 		}
-		if !strings.Contains(err.Error(), "PANACEA_APP_ALLOW_PUBLIC_BIND=1") {
-			t.Errorf("PANACEA_APP_ADDR=%q: error %q does not name the override", addr, err)
+		if !strings.Contains(err.Error(), "LUCI_ALLOW_PUBLIC_BIND=1") {
+			t.Errorf("LUCI_ADDR=%q: error %q does not name the override", addr, err)
 		}
 	}
 	// 127.0.0.2:8730 is the accepted departure from contract §4's text, which
@@ -128,8 +128,8 @@ func TestLoadConfigRefusesANonLoopbackBind(t *testing.T) {
 	// refusal and the runtime guard from disagreeing about the same address.
 	// Revert to a literal three-spelling check and this line fails.
 	for _, addr := range []string{"127.0.0.1:0", "127.0.0.1:8730", "127.0.0.2:8730", "localhost:8730", "[::1]:8730"} {
-		if _, err := loadConfig(env(map[string]string{"PANACEA_APP_ADDR": addr})); err != nil {
-			t.Errorf("PANACEA_APP_ADDR=%q is loopback and was rejected: %v", addr, err)
+		if _, err := loadConfig(env(map[string]string{"LUCI_ADDR": addr})); err != nil {
+			t.Errorf("LUCI_ADDR=%q is loopback and was rejected: %v", addr, err)
 		}
 	}
 }
@@ -138,15 +138,15 @@ func TestAllowPublicBindIsTheOnlyWayPast(t *testing.T) {
 	t.Parallel()
 	for _, v := range []string{"1", "true"} {
 		cfg, err := loadConfig(env(map[string]string{
-			"PANACEA_APP_ADDR":              "0.0.0.0:8730",
-			"PANACEA_APP_ALLOW_PUBLIC_BIND": v,
+			"LUCI_ADDR":              "0.0.0.0:8730",
+			"LUCI_ALLOW_PUBLIC_BIND": v,
 		}))
 		if err != nil {
-			t.Errorf("PANACEA_APP_ALLOW_PUBLIC_BIND=%q did not override the refusal: %v", v, err)
+			t.Errorf("LUCI_ALLOW_PUBLIC_BIND=%q did not override the refusal: %v", v, err)
 			continue
 		}
 		if !cfg.AllowPublicBind {
-			t.Errorf("PANACEA_APP_ALLOW_PUBLIC_BIND=%q parsed as false", v)
+			t.Errorf("LUCI_ALLOW_PUBLIC_BIND=%q parsed as false", v)
 		}
 	}
 	// Contract §4: anything other than 1 or true is treated as unset, and
@@ -154,23 +154,23 @@ func TestAllowPublicBindIsTheOnlyWayPast(t *testing.T) {
 	// exactly two spellings. Widening it case-insensitively is a change to a
 	// locked document made on the one variable that disarms a security rule,
 	// and the failure direction matters: an operator who types TRUE is refused
-	// with a message naming PANACEA_APP_ALLOW_PUBLIC_BIND=1, which is the
+	// with a message naming LUCI_ALLOW_PUBLIC_BIND=1, which is the
 	// spelling that works. Guessing the other way puts a shell on the LAN.
 	for _, v := range []string{"yes", "0", "false", "on", "TRUE", "True", ""} {
 		if _, err := loadConfig(env(map[string]string{
-			"PANACEA_APP_ADDR":              "0.0.0.0:8730",
-			"PANACEA_APP_ALLOW_PUBLIC_BIND": v,
+			"LUCI_ADDR":              "0.0.0.0:8730",
+			"LUCI_ALLOW_PUBLIC_BIND": v,
 		})); err == nil {
-			t.Errorf("PANACEA_APP_ALLOW_PUBLIC_BIND=%q was read as an override", v)
+			t.Errorf("LUCI_ALLOW_PUBLIC_BIND=%q was read as an override", v)
 		}
 	}
 }
 
 func TestLoadConfigRejectsAnUnknownBackendAndNamesBoth(t *testing.T) {
 	t.Parallel()
-	_, err := loadConfig(env(map[string]string{"PANACEA_APP_BACKEND": "podman"}))
+	_, err := loadConfig(env(map[string]string{"LUCI_BACKEND": "podman"}))
 	if err == nil {
-		t.Fatal("PANACEA_APP_BACKEND=podman was accepted")
+		t.Fatal("LUCI_BACKEND=podman was accepted")
 	}
 	for _, want := range []string{"podman", "docker", "kata"} {
 		if !strings.Contains(err.Error(), want) {
@@ -178,9 +178,9 @@ func TestLoadConfigRejectsAnUnknownBackendAndNamesBoth(t *testing.T) {
 		}
 	}
 	for _, v := range []string{"docker", "kata"} {
-		cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_BACKEND": v}))
+		cfg, err := loadConfig(env(map[string]string{"LUCI_BACKEND": v}))
 		if err != nil {
-			t.Fatalf("PANACEA_APP_BACKEND=%q: %v", v, err)
+			t.Fatalf("LUCI_BACKEND=%q: %v", v, err)
 		}
 		if cfg.Backend != v {
 			t.Errorf("Backend = %q, want %q", cfg.Backend, v)
@@ -192,16 +192,16 @@ func TestReadyTimeoutIsSettableAndDefaultsToTheBackendConstant(t *testing.T) {
 	t.Parallel()
 	// This variable is not in contract §4; task 5 records it as a dependency of
 	// this task, and until it exists dockerbe.Config.ReadyTimeout is test-only.
-	cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_READY_TIMEOUT": "4m"}))
+	cfg, err := loadConfig(env(map[string]string{"LUCI_READY_TIMEOUT": "4m"}))
 	if err != nil {
-		t.Fatalf("PANACEA_APP_READY_TIMEOUT=4m: %v", err)
+		t.Fatalf("LUCI_READY_TIMEOUT=4m: %v", err)
 	}
 	if cfg.ReadyTimeout != 4*time.Minute {
 		t.Errorf("ReadyTimeout = %v, want 4m", cfg.ReadyTimeout)
 	}
 	for _, v := range []string{"0", "-30s", "60"} {
-		if _, err := loadConfig(env(map[string]string{"PANACEA_APP_READY_TIMEOUT": v})); err == nil {
-			t.Errorf("PANACEA_APP_READY_TIMEOUT=%q was accepted; a create that never waits fails every time", v)
+		if _, err := loadConfig(env(map[string]string{"LUCI_READY_TIMEOUT": v})); err == nil {
+			t.Errorf("LUCI_READY_TIMEOUT=%q was accepted; a create that never waits fails every time", v)
 		}
 	}
 }
@@ -209,20 +209,20 @@ func TestReadyTimeoutIsSettableAndDefaultsToTheBackendConstant(t *testing.T) {
 func TestReapIntervalIsClampedRatherThanTrusted(t *testing.T) {
 	t.Parallel()
 	for _, v := range []string{"1s", "0", "250ms"} {
-		cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_REAP_INTERVAL": v}))
+		cfg, err := loadConfig(env(map[string]string{"LUCI_REAP_INTERVAL": v}))
 		if err != nil {
-			t.Fatalf("PANACEA_APP_REAP_INTERVAL=%q: %v", v, err)
+			t.Fatalf("LUCI_REAP_INTERVAL=%q: %v", v, err)
 		}
 		if cfg.ReapInterval != 5*time.Second {
-			t.Errorf("PANACEA_APP_REAP_INTERVAL=%q gave %v, want the 5s minimum", v, cfg.ReapInterval)
+			t.Errorf("LUCI_REAP_INTERVAL=%q gave %v, want the 5s minimum", v, cfg.ReapInterval)
 		}
-		if len(cfg.Warnings) != 1 || !strings.Contains(cfg.Warnings[0], "PANACEA_APP_REAP_INTERVAL") {
-			t.Errorf("PANACEA_APP_REAP_INTERVAL=%q clamped silently; warnings were %v", v, cfg.Warnings)
+		if len(cfg.Warnings) != 1 || !strings.Contains(cfg.Warnings[0], "LUCI_REAP_INTERVAL") {
+			t.Errorf("LUCI_REAP_INTERVAL=%q clamped silently; warnings were %v", v, cfg.Warnings)
 		}
 	}
-	cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_REAP_INTERVAL": "45s"}))
+	cfg, err := loadConfig(env(map[string]string{"LUCI_REAP_INTERVAL": "45s"}))
 	if err != nil {
-		t.Fatalf("PANACEA_APP_REAP_INTERVAL=45s: %v", err)
+		t.Fatalf("LUCI_REAP_INTERVAL=45s: %v", err)
 	}
 	if cfg.ReapInterval != 45*time.Second || len(cfg.Warnings) != 0 {
 		t.Errorf("45s gave %v with warnings %v", cfg.ReapInterval, cfg.Warnings)
@@ -237,7 +237,7 @@ func TestReapIntervalIsClampedRatherThanTrusted(t *testing.T) {
 // exit reason, and no Restart offered, because Restart is the answer to
 // `exited` — on a session that merely finished normally.
 //
-// The sweep is what writes `exited`. PANACEA_APP_REAP_INTERVAL=2m was accepted
+// The sweep is what writes `exited`. LUCI_REAP_INTERVAL=2m was accepted
 // before this, and it makes that failure the outcome of EVERY session that
 // ends.
 func TestReapIntervalCannotOutrunTheCockpitsAttachBudget(t *testing.T) {
@@ -260,17 +260,17 @@ func TestReapIntervalCannotOutrunTheCockpitsAttachBudget(t *testing.T) {
 			maxReapInterval, margin, cockpitAttachRetryBudget)
 	}
 	for _, v := range []string{"60s", "2m", "1h"} {
-		cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_REAP_INTERVAL": v}))
+		cfg, err := loadConfig(env(map[string]string{"LUCI_REAP_INTERVAL": v}))
 		if err != nil {
-			t.Fatalf("PANACEA_APP_REAP_INTERVAL=%q: %v", v, err)
+			t.Fatalf("LUCI_REAP_INTERVAL=%q: %v", v, err)
 		}
 		if cfg.ReapInterval != maxReapInterval {
-			t.Errorf("PANACEA_APP_REAP_INTERVAL=%q gave %v, want the %v maximum: a sweep slower than "+
+			t.Errorf("LUCI_REAP_INTERVAL=%q gave %v, want the %v maximum: a sweep slower than "+
 				"the cockpit's %v attach budget turns every normal exit into a failed attach",
 				v, cfg.ReapInterval, maxReapInterval, cockpitAttachRetryBudget)
 		}
-		if len(cfg.Warnings) != 1 || !strings.Contains(cfg.Warnings[0], "PANACEA_APP_REAP_INTERVAL") {
-			t.Errorf("PANACEA_APP_REAP_INTERVAL=%q clamped silently; warnings were %v", v, cfg.Warnings)
+		if len(cfg.Warnings) != 1 || !strings.Contains(cfg.Warnings[0], "LUCI_REAP_INTERVAL") {
+			t.Errorf("LUCI_REAP_INTERVAL=%q clamped silently; warnings were %v", v, cfg.Warnings)
 		}
 	}
 	// A bound, not a rewrite: what the operator asked for is kept whenever it
@@ -295,8 +295,8 @@ func TestIdleWindowsAndSizesRejectNonsenseRatherThanDefaulting(t *testing.T) {
 	// 0 is meaningful for both idle variables: IDLE_AFTER=0 disables idle
 	// derivation, IDLE_TIMEOUT=0 means never destroy. Both are contract §4.
 	cfg, err := loadConfig(env(map[string]string{
-		"PANACEA_APP_IDLE_AFTER":   "0",
-		"PANACEA_APP_IDLE_TIMEOUT": "0",
+		"LUCI_IDLE_AFTER":   "0",
+		"LUCI_IDLE_TIMEOUT": "0",
 	}))
 	if err != nil {
 		t.Fatalf("zero idle windows: %v", err)
@@ -305,12 +305,12 @@ func TestIdleWindowsAndSizesRejectNonsenseRatherThanDefaulting(t *testing.T) {
 		t.Errorf("IdleAfter=%v IdleTimeout=%v, want both zero", cfg.IdleAfter, cfg.IdleTimeout)
 	}
 	for _, c := range []struct{ name, value string }{
-		{"PANACEA_APP_IDLE_AFTER", "90"},
-		{"PANACEA_APP_IDLE_AFTER", "-1s"},
-		{"PANACEA_APP_IDLE_TIMEOUT", "soon"},
-		{"PANACEA_APP_SESSION_CPU_MILLIS", "0"},
-		{"PANACEA_APP_SESSION_CPU_MILLIS", "two"},
-		{"PANACEA_APP_SESSION_MEMORY_MIB", "-4096"},
+		{"LUCI_IDLE_AFTER", "90"},
+		{"LUCI_IDLE_AFTER", "-1s"},
+		{"LUCI_IDLE_TIMEOUT", "soon"},
+		{"LUCI_SESSION_CPU_MILLIS", "0"},
+		{"LUCI_SESSION_CPU_MILLIS", "two"},
+		{"LUCI_SESSION_MEMORY_MIB", "-4096"},
 	} {
 		_, err := loadConfig(env(map[string]string{c.name: c.value}))
 		if err == nil {
@@ -331,12 +331,12 @@ func TestLogLevelFallsBackLoudlyAndNeverExits(t *testing.T) {
 		"Warn":  slog.LevelWarn,
 		"error": slog.LevelError,
 	} {
-		cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_LOG_LEVEL": in}))
+		cfg, err := loadConfig(env(map[string]string{"LUCI_LOG_LEVEL": in}))
 		if err != nil || cfg.LogLevel != want {
-			t.Errorf("PANACEA_APP_LOG_LEVEL=%q gave (%v, %v), want %v", in, cfg.LogLevel, err, want)
+			t.Errorf("LUCI_LOG_LEVEL=%q gave (%v, %v), want %v", in, cfg.LogLevel, err, want)
 		}
 	}
-	cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_LOG_LEVEL": "chatty"}))
+	cfg, err := loadConfig(env(map[string]string{"LUCI_LOG_LEVEL": "chatty"}))
 	if err != nil {
 		t.Fatalf("an unknown log level must warn, not fail: %v", err)
 	}
@@ -351,7 +351,7 @@ func TestLogLevelFallsBackLoudlyAndNeverExits(t *testing.T) {
 func TestAllowedOriginsReplaceTheDefaultsAndAnEmptyListIsAnError(t *testing.T) {
 	t.Parallel()
 	cfg, err := loadConfig(env(map[string]string{
-		"PANACEA_APP_ALLOWED_ORIGINS": "tauri://localhost, http://localhost:1420 ",
+		"LUCI_ALLOWED_ORIGINS": "tauri://localhost, http://localhost:1420 ",
 	}))
 	if err != nil {
 		t.Fatalf("two origins: %v", err)
@@ -365,16 +365,16 @@ func TestAllowedOriginsReplaceTheDefaultsAndAnEmptyListIsAnError(t *testing.T) {
 			t.Errorf("AllowedOrigins[%d] = %q, want %q", i, cfg.AllowedOrigins[i], want[i])
 		}
 	}
-	if _, err := loadConfig(env(map[string]string{"PANACEA_APP_ALLOWED_ORIGINS": " , "})); err == nil {
+	if _, err := loadConfig(env(map[string]string{"LUCI_ALLOWED_ORIGINS": " , "})); err == nil {
 		t.Error("a set-but-empty allowlist was accepted; it silently restores the defaults it was meant to replace")
 	}
 }
 
 func TestHarnessAllowUnverifiedWarnsThatNothingReadsItYet(t *testing.T) {
 	t.Parallel()
-	cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_HARNESS_ALLOW_UNVERIFIED": "1"}))
+	cfg, err := loadConfig(env(map[string]string{"LUCI_HARNESS_ALLOW_UNVERIFIED": "1"}))
 	if err != nil {
-		t.Fatalf("PANACEA_APP_HARNESS_ALLOW_UNVERIFIED=1: %v", err)
+		t.Fatalf("LUCI_HARNESS_ALLOW_UNVERIFIED=1: %v", err)
 	}
 	if !cfg.HarnessAllowUnverified {
 		t.Error("HarnessAllowUnverified = false")
@@ -384,8 +384,8 @@ func TestHarnessAllowUnverifiedWarnsThatNothingReadsItYet(t *testing.T) {
 	}
 }
 
-// Ruling 1: no PANACEA_APP_* variable is ever silently ignored. Contract §4
-// carries three backend-specific variables while PANACEA_APP_BACKEND selects
+// Ruling 1: no LUCI_* variable is ever silently ignored. Contract §4
+// carries three backend-specific variables while LUCI_BACKEND selects
 // one backend, so an operator can always set one the running backend has no use
 // for. The table below is the whole rule, both directions — a warning for every
 // inapplicable combination and silence for every applicable one — and it goes
@@ -397,20 +397,20 @@ func TestInapplicableBackendVariablesWarnAndNameTheBackend(t *testing.T) {
 		name, value, backend string
 		wantWarning          bool
 	}{
-		{"PANACEA_APP_DOCKER_HOST", "tcp://127.0.0.1:2375", "docker", false},
-		{"PANACEA_APP_DOCKER_HOST", "tcp://127.0.0.1:2375", "kata", true},
-		{"PANACEA_APP_KUBECONFIG", "/home/dev/.kube/config", "docker", true},
+		{"LUCI_DOCKER_HOST", "tcp://127.0.0.1:2375", "docker", false},
+		{"LUCI_DOCKER_HOST", "tcp://127.0.0.1:2375", "kata", true},
+		{"LUCI_KUBECONFIG", "/home/dev/.kube/config", "docker", true},
 		// Set under kata this variable takes kubeClient's REFUSAL, which is a
 		// different and louder thing than "this has no effect here"; warning
 		// about it as well would tell the operator it is ignored when it is
 		// about to stop the process.
-		{"PANACEA_APP_KUBECONFIG", "/home/dev/.kube/config", "kata", false},
-		{"PANACEA_APP_NAMESPACE", "panacea-sandboxes", "docker", true},
-		{"PANACEA_APP_NAMESPACE", "panacea-sandboxes", "kata", false},
+		{"LUCI_KUBECONFIG", "/home/dev/.kube/config", "kata", false},
+		{"LUCI_NAMESPACE", "luci-sandboxes", "docker", true},
+		{"LUCI_NAMESPACE", "luci-sandboxes", "kata", false},
 	} {
 		cfg, err := loadConfig(env(map[string]string{
 			c.name:                c.value,
-			"PANACEA_APP_BACKEND": c.backend,
+			"LUCI_BACKEND": c.backend,
 		}))
 		if err != nil {
 			t.Fatalf("%s=%q with backend %q: %v", c.name, c.value, c.backend, err)
@@ -431,7 +431,7 @@ func TestInapplicableBackendVariablesWarnAndNameTheBackend(t *testing.T) {
 	// Silence when nothing inapplicable is set, on both backends: a warning
 	// every operator sees on every start is one nobody reads.
 	for _, kind := range []string{"docker", "kata"} {
-		cfg, err := loadConfig(env(map[string]string{"PANACEA_APP_BACKEND": kind}))
+		cfg, err := loadConfig(env(map[string]string{"LUCI_BACKEND": kind}))
 		if err != nil {
 			t.Fatalf("backend %q: %v", kind, err)
 		}

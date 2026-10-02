@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/hub"
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/wire"
+	"github.com/lcfrai/luci/sandboxd/internal/hub"
+	"github.com/lcfrai/luci/sandboxd/internal/wire"
 )
 
 // These drive the real fanOut, not exitFrame in isolation, because that is

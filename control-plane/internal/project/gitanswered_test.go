@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // Review 2, I-1, the other half. head() tolerates ONE silence: git's own, from
@@ -23,7 +23,7 @@ import (
 // repository, however silent it is.
 func TestBranchesDoesNotCallAConfirmationUnbornWhenGitNeverAnsweredItself(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 
 	// The first git: F2's own case, killed at this runner's bound.
 	killed := &project.GitError{

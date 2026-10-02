@@ -3,7 +3,7 @@
 package main
 
 import (
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/server"
+	"github.com/lcfrai/luci/sandboxd/internal/server"
 )
 
 func newServer(command string, argv []string, token string, allowUnauthenticated bool) (sandboxServer, error) {

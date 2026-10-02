@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hostpath"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // x3ReparseJunction makes a Windows junction (a reparse point that is NOT a

@@ -76,7 +76,7 @@ func TestAProcessKilledAtItsDeadlineCarriesItsOwnExitError(t *testing.T) {
 	t.Logf("killed after %s: ProcessState=%v, ExitError=%v", elapsed, cmd.ProcessState, exited)
 }
 
-const helperSleepEnv = "PANACEA_TEST_HELPER_SLEEP"
+const helperSleepEnv = "LUCI_TEST_HELPER_SLEEP"
 
 // TestHelperSleepsPastItsDeadline is not a test: it is the child process the
 // test above kills. It does nothing at all unless that test started it.

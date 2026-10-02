@@ -19,11 +19,11 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/httpx"
+	"github.com/lcfrai/luci/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/worktree"
 )
 
 // attachTestToken is a literal only because this is a test. Production tokens
@@ -243,7 +243,7 @@ func attachNewFixture(t *testing.T, replay []byte, shape func(*registry.Session)
 	// with a live attach. The Cleanup below waits for the relay to unwind and
 	// then ignores the removal error, so the worst case is a leftover
 	// directory rather than a red suite.
-	dir, err := os.MkdirTemp("", "panacea-attach-")
+	dir, err := os.MkdirTemp("", "luci-attach-")
 	if err != nil {
 		t.Fatalf("MkdirTemp: %v", err)
 	}

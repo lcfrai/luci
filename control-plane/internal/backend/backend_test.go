@@ -5,15 +5,15 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/ids"
 )
 
 func validSpec() backend.Spec {
 	return backend.Spec{
 		ID:          "s-3f2a91c0",
 		SessionID:   "s-3f2a91c0",
-		Image:       "panacea-app/sandbox:dev",
+		Image:       "luci/sandbox:dev",
 		Command:     "claude",
 		Args:        []string{"--model", "opus", "add tests, then refactor"},
 		AttachToken: "a-secret",
@@ -57,7 +57,7 @@ func TestDefaultResourcesAreTheDocumentedOnes(t *testing.T) {
 	}
 }
 
-// The comma is the case PANACEA_APP_ARGS_JSON exists for. sandboxd's legacy
+// The comma is the case LUCI_ARGS_JSON exists for. sandboxd's legacy
 // -args form splits on commas and would turn one opening prompt into two
 // arguments.
 func TestArgsJSONSurvivesACommaInTheOpeningPrompt(t *testing.T) {
@@ -68,7 +68,7 @@ func TestArgsJSONSurvivesACommaInTheOpeningPrompt(t *testing.T) {
 	}
 }
 
-// "[]" and not "": sandboxd treats an empty PANACEA_APP_ARGS_JSON as "fall back
+// "[]" and not "": sandboxd treats an empty LUCI_ARGS_JSON as "fall back
 // to the comma-separated form", which is the form this field replaces.
 func TestArgsJSONOfNoArgsIsAnEmptyJSONArray(t *testing.T) {
 	var s backend.Spec
@@ -82,9 +82,9 @@ func TestEnvEntriesPutsTheContractFirstAndSortsTheRest(t *testing.T) {
 	s.Env = map[string]string{"ZED": "3", "ALPHA": "1", "MID": "2"}
 	got := s.EnvEntries()
 	want := []backend.EnvEntry{
-		{Name: "PANACEA_APP_COMMAND", Value: "claude"},
-		{Name: "PANACEA_APP_ARGS_JSON", Value: `["--model","opus","add tests, then refactor"]`},
-		{Name: "PANACEA_APP_ATTACH_TOKEN", Value: "a-secret"},
+		{Name: "LUCI_COMMAND", Value: "claude"},
+		{Name: "LUCI_ARGS_JSON", Value: `["--model","opus","add tests, then refactor"]`},
+		{Name: "LUCI_ATTACH_TOKEN", Value: "a-secret"},
 		{Name: "ALPHA", Value: "1"},
 		{Name: "MID", Value: "2"},
 		{Name: "ZED", Value: "3"},
@@ -95,12 +95,12 @@ func TestEnvEntriesPutsTheContractFirstAndSortsTheRest(t *testing.T) {
 }
 
 // The backstop half of the reserved-key rule (fix round 1, I1): EnvEntries
-// must not render a caller-chosen PANACEA_APP_ATTACH_TOKEN even when
+// must not render a caller-chosen LUCI_ATTACH_TOKEN even when
 // ValidateSpec was never called. Calling ValidateSpec first would not
 // exercise this path at all.
 func TestEnvEntriesDropsAReservedKeyEvenWithoutValidateSpec(t *testing.T) {
 	s := validSpec()
-	s.Env = map[string]string{"PANACEA_APP_ATTACH_TOKEN": "attacker-chosen"}
+	s.Env = map[string]string{"LUCI_ATTACH_TOKEN": "attacker-chosen"}
 	got := s.EnvEntries()
 
 	var tokenEntries []backend.EnvEntry
@@ -135,11 +135,11 @@ func TestValidateSpecAcceptsAValidWorkDirAndMount(t *testing.T) {
 	}
 }
 
-// A caller that could set PANACEA_APP_ATTACH_TOKEN through Spec.Env could
+// A caller that could set LUCI_ATTACH_TOKEN through Spec.Env could
 // replace the sandbox's secret with one it chose.
 func TestValidateSpecRejectsAReservedEnvKey(t *testing.T) {
 	s := validSpec()
-	s.Env = map[string]string{"PANACEA_APP_ATTACH_TOKEN": "mine"}
+	s.Env = map[string]string{"LUCI_ATTACH_TOKEN": "mine"}
 	err := backend.ValidateSpec(s)
 	if !errors.Is(err, backend.ErrUnsupported) {
 		t.Fatalf("ValidateSpec(reserved env) = %v, want an error wrapping ErrUnsupported", err)

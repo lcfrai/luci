@@ -1,0 +1,249 @@
+name: Luci build and release candidates
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'codex/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: luci-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LUCI_VERSION: '0.3.0'
+  GO_VERSION: '1.26.3'
+  NODE_VERSION: '22.18.0'
+
+jobs:
+  verify:
+    name: Go and desktop checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            control-plane/go.sum
+            sandboxd/go.sum
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Test Go services
+        run: go test ./control-plane/... ./sandboxd/...
+      - name: Install locked desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Test desktop
+        working-directory: desktop
+        run: npm test
+      - name: Type-check desktop
+        working-directory: desktop
+        run: npm run typecheck
+      - name: Build desktop assets
+        working-directory: desktop
+        run: npm run build
+
+  runtime-smoke:
+    name: Real Linux Docker runtime journey
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            control-plane/go.sum
+            sandboxd/go.sum
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Build the actual control service
+        run: |
+          mkdir -p artifacts/runtime-smoke
+          CGO_ENABLED=0 go build -trimpath -o artifacts/runtime-smoke/luci ./control-plane/cmd/api
+      - name: Exercise Docker as a distinct non-root host user
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The runner often uses UID 1001, matching the image's default user.
+          # A separate UID proves private host bind mounts work after remapping.
+          sudo useradd --uid 10123 --user-group --groups docker --create-home luci-eval
+          test "$(id -u luci-eval)" != 1001
+          stage=$(mktemp -d /tmp/luci-runtime-ci-XXXXXX)
+          chmod 755 "$stage"
+          mkdir -p "$stage/scripts" "$stage/images" "$stage/sandboxd"
+          cp artifacts/runtime-smoke/luci "$stage/luci"
+          cp scripts/runtime-smoke.mjs "$stage/scripts/runtime-smoke.mjs"
+          cp -R images/sandbox "$stage/images/sandbox"
+          for source in cmd internal vendor go.mod go.sum; do cp -R "sandboxd/$source" "$stage/sandboxd/$source"; done
+          chmod -R a+rX "$stage"
+          sudo install -d -o luci-eval -g luci-eval -m 700 "$stage/evidence"
+          capture_evidence() {
+            sudo tar -czf "$RUNNER_TEMP/luci-runtime-evidence.tar.gz" -C "$stage/evidence" .
+            sudo chmod 644 "$RUNNER_TEMP/luci-runtime-evidence.tar.gz"
+          }
+          trap capture_evidence EXIT
+          sudo -u luci-eval env PATH="$PATH" node "$stage/scripts/runtime-smoke.mjs" "$stage/luci" "$stage/evidence"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: luci-real-runtime-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/luci-runtime-evidence.tar.gz
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+
+  portable:
+    name: Portable ${{ matrix.target }}
+    needs: [verify, runtime-smoke]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: linux-amd64
+          - runner: macos-14
+            target: darwin-arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            control-plane/go.sum
+            sandboxd/go.sum
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install locked desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Build portable archive with runtime and licence evidence
+        run: bash scripts/build-release.sh "$LUCI_VERSION" '${{ matrix.target }}'
+      - name: Check archive and start packaged service
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_dir="$RUNNER_TEMP/luci-package"
+          mkdir -p "$package_dir"
+          tar -xzf "artifacts/releases/$LUCI_VERSION/luci-${{ matrix.target }}.tar.gz" -C "$package_dir"
+          test -f "$package_dir/licenses/manifest.json"
+          test -f "$package_dir/runtime/sandboxd/vendor/modules.txt"
+          test -f "$package_dir/runtime/images/sandbox/Dockerfile"
+          test -f "$package_dir/web/index.html"
+          test -f "$package_dir/cloud/luci-cloud-linux-amd64.tar.gz"
+          python3 - "$package_dir/cloud/luci-cloud-linux-amd64.tar.gz" <<'PY'
+          import sys, tarfile
+          with tarfile.open(sys.argv[1]) as archive:
+              names = set(archive.getnames())
+          assert {'luci', 'web/index.html', 'licenses/manifest.json', 'runtime/sandboxd/vendor/modules.txt'} <= names
+          assert not any(name == 'cloud' or name.startswith('cloud/') for name in names), 'Recursive cloud bundle'
+          PY
+          export LUCI_STATE_DIR="$RUNNER_TEMP/luci-smoke-state"
+          export LUCI_PROJECTS_DIR="$RUNNER_TEMP/luci-smoke-projects"
+          export LUCI_WEB_DIR="$package_dir/web"
+          export LUCI_RUNTIME_DIR="$package_dir/runtime"
+          "$package_dir/luci" >"$RUNNER_TEMP/luci-smoke.log" 2>&1 &
+          service_pid=$!
+          trap 'kill "$service_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8730/v1/setup/status >"$RUNNER_TEMP/luci-status.json"; then
+              curl --fail --silent http://127.0.0.1:8730/ >/dev/null
+              exit 0
+            fi
+            kill -0 "$service_pid" || { cat "$RUNNER_TEMP/luci-smoke.log"; exit 1; }
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/luci-smoke.log"
+          exit 1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: luci-${{ matrix.target }}-${{ github.sha }}
+          path: |
+            artifacts/releases/${{ env.LUCI_VERSION }}/*.tar.gz
+            artifacts/releases/${{ env.LUCI_VERSION }}/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  windows-installer:
+    name: Windows native installer and portable packages
+    needs: [verify, runtime-smoke]
+    runs-on: windows-2025
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: |
+            control-plane/go.sum
+            sandboxd/go.sum
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Prepare stable Rust MSVC toolchain
+        run: |
+          rustup toolchain install stable --profile minimal
+          if ($LASTEXITCODE -ne 0) { throw 'Rust toolchain installation failed' }
+          rustup default stable
+          if ($LASTEXITCODE -ne 0) { throw 'Rust toolchain selection failed' }
+          rustup target add x86_64-pc-windows-msvc
+          if ($LASTEXITCODE -ne 0) { throw 'Rust target installation failed' }
+      - name: Install locked desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Build portable packages and unsigned NSIS installer
+        run: ./scripts/build-release.ps1 -Version $env:LUCI_VERSION -Native
+      - name: Verify native installer exists
+        run: |
+          $installers = @(Get-ChildItem -LiteralPath desktop/src-tauri/target/release/bundle/nsis -Filter '*-setup.exe' -File)
+          if ($installers.Count -eq 0) { throw 'No NSIS installer was produced' }
+          $lines = $installers | ForEach-Object { (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant() + '  ' + $_.Name }
+          [System.IO.File]::WriteAllLines((Join-Path $installers[0].Directory.FullName 'SHA256SUMS'), $lines, [System.Text.UTF8Encoding]::new($false))
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: luci-windows-native-${{ github.sha }}
+          path: |
+            desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+            desktop/src-tauri/target/release/bundle/nsis/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: luci-portable-windows-build-${{ github.sha }}
+          path: |
+            artifacts/releases/${{ env.LUCI_VERSION }}/*.zip
+            artifacts/releases/${{ env.LUCI_VERSION }}/*.tar.gz
+            artifacts/releases/${{ env.LUCI_VERSION }}/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

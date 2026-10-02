@@ -18,8 +18,8 @@ import (
 	"time"
 )
 
-// The sandbox git fix's three variables: PANACEA_APP_GIT_NAME/EMAIL as a pair,
-// and PANACEA_APP_CA_BUNDLE, validated at startup.
+// The sandbox git fix's three variables: LUCI_GIT_NAME/EMAIL as a pair,
+// and LUCI_CA_BUNDLE, validated at startup.
 
 // Each CA refusal is its own errCABundle* value, so each test asks errors.Is
 // whether it got its own and not another's. Never the error's text: on Linux,
@@ -68,7 +68,7 @@ func caCertPEM(t *testing.T) []byte {
 	}
 	tmpl := &x509.Certificate{
 		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "panacea-app test root"},
+		Subject:               pkix.Name{CommonName: "luci test root"},
 		NotBefore:             time.Now().Add(-time.Hour),
 		NotAfter:              time.Now().Add(time.Hour),
 		IsCA:                  true,

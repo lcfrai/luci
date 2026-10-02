@@ -1,0 +1,35 @@
+Assistant: bundled with @excalidraw/excalidraw 0.18.1
+Upstream source: https://raw.githubusercontent.com/excalidraw/excalidraw/a2ec2889babf7d2295469c6d90ebe77fae57df84/packages/excalidraw/fonts/Assistant/Assistant-Bold.woff2
+
+Unmodified embedded OpenType name-table metadata from Assistant-Bold.woff2:
+{
+  "0": [
+    "Copyright 2020 The Assistant Project Authors (https://github.com/hafontia/Assistant). Copyright 2010 The Source Sans Pro Authors (https://github.com/adobe-fonts/source-sans-pro), with Reserved Font Name 'Source'. Source is a trademark of Adobe Systems Incorporated in the United States and/or other countries."
+  ],
+  "1": [
+    "Assistant"
+  ],
+  "5": [
+    "Version 3.000"
+  ],
+  "9": [
+    "Hebrew By Ben Nathan, Latin by Paul Hunt"
+  ],
+  "12": [
+    "hafontia.com"
+  ],
+  "13": [
+    "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL"
+  ],
+  "14": [
+    "http://scripts.sil.org/OFL"
+  ]
+}
+
+Bundled font-file SHA256 values:
+{
+  "Assistant-Bold.woff2": "e0cdd332ce039770e93ec44336b6db65f931940f42b0342aad35a06e7f991d29",
+  "Assistant-Medium.woff2": "81a9f280ce6a790f20ca8cd521183caa430f1f7fdc0752c36ef1cc6dc828ac57",
+  "Assistant-Regular.woff2": "76945f09225aae65bdbd204cb4ac40d4caa4ff67150e5074bab1a04d1b778fc3",
+  "Assistant-SemiBold.woff2": "bba47a7d1b185a4a2e0d265ec82aeac5dbc2dc9cb0f482a2ff57cbdfe4e5045d"
+}

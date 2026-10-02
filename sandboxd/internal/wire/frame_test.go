@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/wire"
+	"github.com/lcfrai/luci/sandboxd/internal/wire"
 )
 
 func TestEncodeDecodeRoundTrip(t *testing.T) {

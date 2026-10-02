@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // X-3 review 3 I-A. The two O-1 attack tests in project_x3_test.go use a
@@ -21,8 +21,8 @@ import (
 // listing that names that entry AND a directory the registry does not name.
 func TestPathRefusesAnUnregisteredWorktreeOfAProjectThatRegistersOthers(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
-	feat := filepath.Join(t.TempDir(), "worktrees", "panacea-feat")
+	dir := makeRepo(t, root, "luci")
+	feat := filepath.Join(t.TempDir(), "worktrees", "luci-feat")
 	x3Register(t, dir, feat)
 	elsewhere := filepath.Join(t.TempDir(), "dotfiles")
 	if err := os.MkdirAll(elsewhere, 0o750); err != nil {

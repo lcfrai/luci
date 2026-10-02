@@ -1,0 +1,9 @@
+# Retained upstream licence evidence
+
+`manifest.json` maps installed npm versions and the fonts bundled with Excalidraw 0.18.1 to retained licence texts, immutable upstream source references where available, and SHA256 hashes. The adjacent Cargo manifest covers native dependencies. `scripts/collect-licenses.py` incorporates both into distributable notices and refuses missing licence files or changed snapshot hashes.
+
+These are third-party terms and attribution, not Luci code. Preserve the original names, copyright statements and licence grants. The provenance notes identify the few packages whose published npm archive omits a complete licence and whose exact historical repository revision is unavailable; a later upstream snapshot is explicitly identified as such. Fastdom and strictdom contain complete MIT grants in their published README files, retained verbatim as licence excerpts.
+
+Font licences are independent of Excalidraw's MIT licence. Comic Shanns carries its own MIT grant. Assistant, Cascadia, Excalifont, Lilita, Nunito, Virgil and Xiaolai have individual OFL notices. The retained font notices include metadata extracted from the actual installed WOFF2 files and hashes for every bundled font file; the representative font file named in each notice was checked byte-for-byte against Excalidraw's pinned v0.18.1 source.
+
+The included Liberation font identifies itself as version 1.05. That legacy font predates the OFL-licensed Liberation 2 family, so its record preserves GPLv2 and the legacy font exceptions, with an explicit provenance note. It is marked for server-side use in Excalidraw and is unnecessary for Luci's browser editor. A notice-completeness result is not a claim that all redistribution/source obligations have been assessed. Keep shipped-asset inventories aligned with the package contents.

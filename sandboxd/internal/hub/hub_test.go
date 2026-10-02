@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/hub"
+	"github.com/lcfrai/luci/sandboxd/internal/hub"
 )
 
 // collect drains out until want appears or the deadline passes, seeding the
@@ -46,10 +46,10 @@ func TestHubStreamsOutputToASubscriber(t *testing.T) {
 	replay, out, cancel := h.Subscribe()
 	defer cancel()
 
-	if _, err := h.Write([]byte("echo panacea-ok\n")); err != nil {
+	if _, err := h.Write([]byte("echo luci-ok\n")); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
-	collect(t, replay, out, []byte("panacea-ok"), 8*time.Second)
+	collect(t, replay, out, []byte("luci-ok"), 8*time.Second)
 }
 
 func TestReAttachReplaysEarlierOutput(t *testing.T) {

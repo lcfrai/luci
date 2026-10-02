@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/proxy"
+	"github.com/lcfrai/luci/control-plane/internal/proxy"
 )
 
 // echoServer replies to every binary message with the same bytes.

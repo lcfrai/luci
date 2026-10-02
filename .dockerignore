@@ -9,3 +9,17 @@ main/
 *.exe
 infra/
 desktop/
+.env
+.env.*
+**/.env
+**/.env.*
+**/.ssh/
+**/.aws/
+**/.azure/
+**/.kube/
+**/.gnupg/
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/credentials.json

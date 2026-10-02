@@ -13,8 +13,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/harness"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // Resume was shipped unable to resume anything, and the test that should have
@@ -218,7 +219,7 @@ func TestResumePassesTheSourcesConversationNotTheCockpitID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	want := []string{"--model", "opus", "--resume", sessionsConversation, "--fork-session", "--session-id", fork.ConversationID}
+	want := []string{"--append-system-prompt", harness.ProjectBriefPrompt, "--model", "opus", "--resume", sessionsConversation, "--fork-session", "--session-id", fork.ConversationID}
 	if resumeJoin(spec.Args) != resumeJoin(want) {
 		t.Fatalf("Args = %#v\nwant   %#v", spec.Args, want)
 	}
@@ -368,7 +369,7 @@ func TestRestartMintsANewConversationAndDropsTheResume(t *testing.T) {
 	if after.ConversationID == sessionsConversation || !resumeUUID.MatchString(after.ConversationID) {
 		t.Fatalf("conversationId = %q after a restart, want a new UUID", after.ConversationID)
 	}
-	want := []string{"--model", "opus", "--session-id", after.ConversationID, "add tests, then refactor"}
+	want := []string{"--append-system-prompt", harness.ProjectBriefPrompt, "--model", "opus", "--session-id", after.ConversationID, "add tests, then refactor"}
 	spec := env.be.spec(t, 0)
 	if resumeJoin(spec.Args) != resumeJoin(want) {
 		t.Errorf("the restarted sandbox ran %#v, want %#v", spec.Args, want)
@@ -529,7 +530,7 @@ func TestRestartKeepsThePermissionModeAndTheEffort(t *testing.T) {
 
 	after := resumeRestart(t, env, done)
 
-	want := []string{"--model", "opus", "--effort", "high", "--permission-mode", "plan", "--session-id", after.ConversationID}
+	want := []string{"--append-system-prompt", harness.ProjectBriefPrompt, "--model", "opus", "--effort", "high", "--permission-mode", "plan", "--session-id", after.ConversationID}
 	if spec := env.be.spec(t, 0); resumeJoin(spec.Args) != resumeJoin(want) {
 		t.Fatalf("the restarted sandbox ran %#v\nwant %#v", spec.Args, want)
 	}

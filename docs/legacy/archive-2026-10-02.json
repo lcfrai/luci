@@ -1,0 +1,142 @@
+[
+  {
+    "original": "prototype/app.html",
+    "archived": "docs/legacy/prototype/app.html",
+    "sha256": "d7ee5f406af407ea1681b31864d3c3674ed373d88770b42e01ee0a65ef3809e4"
+  },
+  {
+    "original": "prototype/index.html",
+    "archived": "docs/legacy/prototype/index.html",
+    "sha256": "da2adbb498a268cc2352f2286d92ee1cae2be4b601757ab8f43c5ac65ffb825e"
+  },
+  {
+    "original": "prototype/phase-3-convergence.html",
+    "archived": "docs/legacy/prototype/phase-3-convergence.html",
+    "sha256": "a5e3a0dbe6052f16094ff362ba19b81eaceb433435524d9b01d261402f8247a5"
+  },
+  {
+    "original": "prototype/phase-4-discover.html",
+    "archived": "docs/legacy/prototype/phase-4-discover.html",
+    "sha256": "4df4d3163b14d24c6a7475e8363f2b14a5aca39ced6999830a7acc97c728eb31"
+  },
+  {
+    "original": "prototype/phase-5-design.html",
+    "archived": "docs/legacy/prototype/phase-5-design.html",
+    "sha256": "9b8322612c5fdcc589236e3e90bca7547a0f8803f8b811dd70946c9ab5929e38"
+  },
+  {
+    "original": "prototype/phase-7-deploy.html",
+    "archived": "docs/legacy/prototype/phase-7-deploy.html",
+    "sha256": "a52fc9ba547915dc41e22db7e5593d712c3670085dd45ed1a00c32215f132946"
+  },
+  {
+    "original": "prototype/v2.html",
+    "archived": "docs/legacy/prototype/v2.html",
+    "sha256": "87a5babdc5736e4890707442c56ff60da19abd0d4d49cc1fca64a77ca07eba1b"
+  },
+  {
+    "original": "prototype/v3.html",
+    "archived": "docs/legacy/prototype/v3.html",
+    "sha256": "f6b303f7eded988410f7855eb61ad301f352d47cf26aad32b5d9aef85d0d825f"
+  },
+  {
+    "original": "prototype/v4.html",
+    "archived": "docs/legacy/prototype/v4.html",
+    "sha256": "cf3814d9d47c84e123d91b4d21521efe1a5f45ce157c50b53f25d166e9363d7a"
+  },
+  {
+    "original": "prototype/v5.html",
+    "archived": "docs/legacy/prototype/v5.html",
+    "sha256": "4bd0c582261f727d06d53fcf8b532cbfd0934a0cbdc9bc360a96f4475908e1cd"
+  },
+  {
+    "original": "prototype/v6.html",
+    "archived": "docs/legacy/prototype/v6.html",
+    "sha256": "a8d242817fedca65eda1e5b0863cc1412aee3e2d8c0244007234fdda81030df1"
+  },
+  {
+    "original": "prototype/work-layer.html",
+    "archived": "docs/legacy/prototype/work-layer.html",
+    "sha256": "36b4b8ad2ed2abcfe349a619a20699a877297887140f2f1306d7332c5da37e95"
+  },
+  {
+    "original": "docs/marketing/panacea-ai-sdlc.html",
+    "archived": "docs/legacy/marketing/panacea-ai-sdlc.html",
+    "sha256": "2d58fcb0cd229ca99424291174a20db5cf7bada1614dfcbde185c06ec3229713"
+  },
+  {
+    "original": "docs/marketing/panacea-ai-sdlc.pdf",
+    "archived": "docs/legacy/marketing/panacea-ai-sdlc.pdf",
+    "sha256": "7ac6bf5a6c4940f3bdcdda07f892fe62c1089e610e8d0c4c09911ea64fff3d67"
+  },
+  {
+    "original": "docs/marketing/panacea-app-ai-sdlc.html",
+    "archived": "docs/legacy/marketing/panacea-app-ai-sdlc.html",
+    "sha256": "9e3a935d418ce2b7316832fddfd399ee02712f7b71928cadb1378e4518acfe4a"
+  },
+  {
+    "original": "docs/marketing/panacea-app-ai-sdlc.pdf",
+    "archived": "docs/legacy/marketing/panacea-app-ai-sdlc.pdf",
+    "sha256": "7b3388db540f5b6b6ec67e825ab5b89169415ebd0da947a5e506909bc51d427d"
+  },
+  {
+    "original": "docs/marketing/_assets/kpmg-doc.css",
+    "archived": "docs/legacy/marketing/_assets/kpmg-doc.css",
+    "sha256": "474354fc0cd28ad3d5db3e115c3cdfb36e1f9b0f117f20b4369377489a3ee835"
+  },
+  {
+    "original": "docs/marketing/_assets/kpmg-logo-mark.png",
+    "archived": "docs/legacy/marketing/_assets/kpmg-logo-mark.png",
+    "sha256": "787bf5a83c95ec901d849e6a3848d285e2fb58a5c866e89e3fbb1656b56010c7"
+  },
+  {
+    "original": "docs/marketing/_assets/render.mjs",
+    "archived": "docs/legacy/marketing/_assets/render.mjs",
+    "sha256": "90823a3ad8c8a423067587352975ceb4296b7a5add43c93b766de771f9a969f1"
+  },
+  {
+    "original": "docs/marketing/_assets/fonts/jetbrains-mono-latin-400-normal.woff2",
+    "archived": "docs/legacy/marketing/_assets/fonts/jetbrains-mono-latin-400-normal.woff2",
+    "sha256": "14425ba9c695763c1547f48a206b7aa60350a33ae23de09f0407877f3fcd89eb"
+  },
+  {
+    "original": "docs/marketing/_assets/fonts/jetbrains-mono-latin-500-normal.woff2",
+    "archived": "docs/legacy/marketing/_assets/fonts/jetbrains-mono-latin-500-normal.woff2",
+    "sha256": "cb182feeed4d798ff6961d3c79f7026279448fca0676438aaecb21f3fc39553a"
+  },
+  {
+    "original": "docs/marketing/_assets/fonts/jetbrains-mono-latin-700-normal.woff2",
+    "archived": "docs/legacy/marketing/_assets/fonts/jetbrains-mono-latin-700-normal.woff2",
+    "sha256": "d0d4e818808f2a0ba39b2b09d1989366f63494e295f003c7ef436697378507e8"
+  },
+  {
+    "original": "docs/marketing/_assets/fonts/open-sans-latin-400-normal.woff2",
+    "archived": "docs/legacy/marketing/_assets/fonts/open-sans-latin-400-normal.woff2",
+    "sha256": "0e44026ad31376af1b56593cd4acb4f353f8e8789c51759e18f64578e4ef296a"
+  },
+  {
+    "original": "docs/marketing/_assets/fonts/open-sans-latin-600-normal.woff2",
+    "archived": "docs/legacy/marketing/_assets/fonts/open-sans-latin-600-normal.woff2",
+    "sha256": "a97a6ed7ef9f75c495e9224f5c59b2271d826e4a4345b738b390b0c76cc9f412"
+  },
+  {
+    "original": "docs/marketing/_assets/fonts/open-sans-latin-700-normal.woff2",
+    "archived": "docs/legacy/marketing/_assets/fonts/open-sans-latin-700-normal.woff2",
+    "sha256": "594a622208d1dad5d1dd58aef74f212ce7132d8f0aa5bacea6cfeb86d308c17a"
+  },
+  {
+    "original": "docs/marketing/_assets/fonts/open-sans-latin-800-normal.woff2",
+    "archived": "docs/legacy/marketing/_assets/fonts/open-sans-latin-800-normal.woff2",
+    "sha256": "fef878a06bd272926ceed713ac28deb89e0a9c59f6680925eaed701f3e8b4913"
+  },
+  {
+    "original": "docs/AGENTIC-UX.md",
+    "archived": "docs/legacy/AGENTIC-UX-panacea-2026-09.md",
+    "sha256": "ceac49498a0e867ba69dab34a5952d19ce288a32e6aa30dfe50098c8b985f2aa"
+  },
+  {
+    "original": "docs/_qa.md",
+    "archived": "docs/legacy/prototype-qa-panacea-2026-09.md",
+    "sha256": "663bd4b1931dae2b49b3818c22eaae46992d0dc0f3a5bbe0a8753cafaede448d"
+  }
+]

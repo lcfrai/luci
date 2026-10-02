@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/api"
 )
 
 // CABundle is optional, so empty is fine and only relative is wrong — for the

@@ -18,12 +18,12 @@ import { chromium } from "playwright";
 // without a browser (review round 1, Important 1).
 import { tileKeptSize } from "./defect6.mjs";
 
-const APP = process.env.PANACEA_E2E_APP ?? "http://localhost:1420";
-const API = process.env.PANACEA_E2E_API ?? "http://127.0.0.1:8730";
-const CDP = process.env.PANACEA_E2E_CDP ?? "";
+const APP = process.env.LUCI_E2E_APP ?? "http://localhost:1420";
+const API = process.env.LUCI_E2E_API ?? "http://127.0.0.1:8730";
+const CDP = process.env.LUCI_E2E_CDP ?? "";
 /** The control plane's log file, for the checks that read the daemon's own account. */
-const CP_LOG = process.env.PANACEA_E2E_CP_LOG ?? "";
-const ONLY = new Set((process.env.PANACEA_E2E_ONLY ?? "").split(",").filter(Boolean));
+const CP_LOG = process.env.LUCI_E2E_CP_LOG ?? "";
+const ONLY = new Set((process.env.LUCI_E2E_ONLY ?? "").split(",").filter(Boolean));
 
 // sandboxd/internal/wire/frame.go:15-18 — one kind byte, then the payload.
 const STDOUT = 0x00;
@@ -58,7 +58,7 @@ async function api(method, path, body) {
 }
 
 function cpLogLines(pattern) {
-  if (CP_LOG === "") throw new Error("PANACEA_E2E_CP_LOG is not set; this check reads the daemon's log");
+  if (CP_LOG === "") throw new Error("LUCI_E2E_CP_LOG is not set; this check reads the daemon's log");
   return readFileSync(CP_LOG, "utf8").split("\n").filter((line) => pattern.test(line));
 }
 
@@ -214,7 +214,7 @@ async function untilAtBottom(h, id, { expect: target = null, maxEvents = 40, ms 
 const CHECKS = [];
 /** `closes` names the carry or row the check is evidence for, so step 19's table can be
  *  built from this script's output rather than from memory. `always` runs even under
- *  PANACEA_E2E_ONLY, because other checks depend on what it leaves behind. */
+ *  LUCI_E2E_ONLY, because other checks depend on what it leaves behind. */
 function check(id, closes, fn, { always = false } = {}) {
   CHECKS.push({ id, closes, fn, always });
 }
@@ -242,7 +242,7 @@ async function main() {
 
   // Kill every session this run made. DELETE destroys the sandbox and keeps the record
   // (docs/FUNCTIONAL-SPEC.md:36 — finished sessions stay listed); the registry is the
-  // throwaway PANACEA_APP_STATE_DIR, so the records go with it.
+  // throwaway LUCI_STATE_DIR, so the records go with it.
   for (const id of ctx.created) await api("DELETE", `/v1/sessions/${id}`).catch(() => {});
   await browser.close();
   process.exit(failed === 0 ? 0 : 1);
@@ -251,7 +251,7 @@ async function main() {
 check("setup", "task 24 step 11, re-run: the catalogue loads and a session can be created from the UI", async (h) => {
   const machines = (await api("GET", "/v1/machines")).machines;
   const project = (await api("GET", "/v1/projects")).projects.find((p) => p.name === "e2e-demo");
-  if (project === undefined) throw new Error("the fixture project is not enumerated; check PANACEA_APP_PROJECTS_DIR");
+  if (project === undefined) throw new Error("the fixture project is not enumerated; check LUCI_PROJECTS_DIR");
   const branch = (await api("GET", `/v1/projects/${project.id}/branches`)).branches.find((b) => b.name === "feat/e2e");
   const worktree = (await api("GET", `/v1/projects/${project.id}/worktrees?branchId=${branch.id}`)).worktrees[0];
   Object.assign(ctx, { machineId: machines[0].id, projectId: project.id, branchId: branch.id, worktreeId: worktree.id });
@@ -640,7 +640,7 @@ check("c4.pinned", "real-browser carry 4: the pinned-scroll rule holds against r
   const id = ctx.sh;
   // This check's OWN preconditions, established here and never inherited: an idle shell, and
   // 3,000 lines of scrollback to scroll into. Run 4 inherited c1.flip's, so under
-  // PANACEA_E2E_ONLY=c4.pinned the wheel-up is a no-op on a 54-row terminal
+  // LUCI_E2E_ONLY=c4.pinned the wheel-up is a no-op on a 54-row terminal
   // (f5-evidence/p1-c4.jsonl line 4: rowCount 54, scrollHeight === clientHeight) and the red
   // reads as "the pinned rule failed against real xterm", which it is not.
   await untilPrompt(h, id);
@@ -795,7 +795,7 @@ check("c6.load", "real-browser carry 6: 4,000 lines/s for 10 s — usability ass
   let other = ctx.created.find((x) => x !== id && x !== ctx.claude && socketsFor(h, x).at(-1)?.closed === null);
   if (other === undefined) {
     // Its own precondition, not one inherited from whichever earlier check happened to leave a
-    // live shell behind. Under PANACEA_E2E_ONLY=c6.load there is none, and "no second live
+    // live shell behind. Under LUCI_E2E_ONLY=c6.load there is none, and "no second live
     // shell to echo into" is a harness red that reads like a product red.
     const echo = await createShell("e2e-load-echo");
     await until("the echo pane", () => h.page.$(paneOf(echo.id)), 10_000);
@@ -838,13 +838,13 @@ check("c6.load", "real-browser carry 6: 4,000 lines/s for 10 s — usability ass
   };
 });
 
-const CP_BIN = process.env.PANACEA_E2E_CP_BIN ?? "";
-let cpPid = Number(process.env.PANACEA_E2E_CP_PID ?? "0");
+const CP_BIN = process.env.LUCI_E2E_CP_BIN ?? "";
+let cpPid = Number(process.env.LUCI_E2E_CP_PID ?? "0");
 
 const healthy = async () => { try { await api("GET", "/v1/healthz"); return true; } catch { return false; } };
 
 async function stopControlPlane() {
-  if (CP_BIN === "" || cpPid === 0) throw new Error("PANACEA_E2E_CP_BIN and PANACEA_E2E_CP_PID are required");
+  if (CP_BIN === "" || cpPid === 0) throw new Error("LUCI_E2E_CP_BIN and LUCI_E2E_CP_PID are required");
   execFileSync("taskkill", ["/PID", String(cpPid), "/F"]);
   await until("the control plane to stop answering", async () => !(await healthy()), 10_000);
 }
@@ -859,7 +859,7 @@ async function startControlPlane() {
 }
 
 const containerOf = (sessionId) =>
-  execFileSync("docker", ["ps", "-q", "--filter", `label=panacea-app.session-id=${sessionId}`], { encoding: "utf8" }).trim();
+  execFileSync("docker", ["ps", "-q", "--filter", `label=luci.session-id=${sessionId}`], { encoding: "utf8" }).trim();
 
 check("d.detach", "durability: a pane unmounted past the grace re-attaches, and the replay carries the transcript", async (h) => {
   await flipTo(h, "Columns");
@@ -978,8 +978,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function argvOf(cid) {
   const env = execFileSync("docker", ["inspect", "--format", "{{range .Config.Env}}{{println .}}{{end}}", cid], { encoding: "utf8" });
-  const m = /^PANACEA_APP_ARGS_JSON=(.*)$/m.exec(env);
-  if (m === null) throw new Error(`container ${cid} carries no PANACEA_APP_ARGS_JSON`);
+  const m = /^LUCI_ARGS_JSON=(.*)$/m.exec(env);
+  if (m === null) throw new Error(`container ${cid} carries no LUCI_ARGS_JSON`);
   return JSON.parse(m[1]);
 }
 const flagValue = (argv, flag) => { const i = argv.indexOf(flag); return i === -1 ? null : argv[i + 1]; };
@@ -1059,12 +1059,12 @@ check("o2.resume", "open carry 2: Resume forks the same Claude conversation, fro
 });
 
 /** The identity step 6 exported. The explicit pair wins over the host's git (sandbox fix §4). */
-const GIT_NAME = process.env.PANACEA_APP_GIT_NAME ?? "";
-const GIT_EMAIL = process.env.PANACEA_APP_GIT_EMAIL ?? "";
-const CA_SET = (process.env.PANACEA_APP_CA_BUNDLE ?? "") !== "";
+const GIT_NAME = process.env.LUCI_GIT_NAME ?? "";
+const GIT_EMAIL = process.env.LUCI_GIT_EMAIL ?? "";
+const CA_SET = (process.env.LUCI_CA_BUNDLE ?? "") !== "";
 
 check("g.primary", "sandbox git + CA fix: git works in a session on a primary worktree, as the configured identity", async (h) => {
-  if (GIT_NAME === "" || GIT_EMAIL === "") throw new Error("PANACEA_APP_GIT_NAME/EMAIL are not exported in this shell — step 6");
+  if (GIT_NAME === "" || GIT_EMAIL === "") throw new Error("LUCI_GIT_NAME/EMAIL are not exported in this shell — step 6");
   // ctx.worktreeId is feat/e2e's LINKED worktree; this check needs main's, the clone itself.
   const main = (await api("GET", `/v1/projects/${ctx.projectId}/branches`)).branches.find((b) => b.name === "main");
   const wt = (await api("GET", `/v1/projects/${ctx.projectId}/worktrees?branchId=${main.id}`)).worktrees[0];
@@ -1077,7 +1077,7 @@ check("g.primary", "sandbox git + CA fix: git works in a session on a primary wo
   const env = execFileSync("docker", ["inspect", "--format", "{{range .Config.Env}}{{println .}}{{end}}", cid], { encoding: "utf8" });
   const want = [/^GIT_CONFIG_COUNT=\d+$/m, new RegExp(`^GIT_AUTHOR_NAME=${GIT_NAME}$`, "m"), new RegExp(`^GIT_COMMITTER_EMAIL=${GIT_EMAIL.replace(/\./g, "\\.")}$`, "m")];
   for (const re of want) if (!re.test(env)) throw new Error(`the sandbox's env lacks ${re}`);
-  if (/^NODE_EXTRA_CA_CERTS=\/etc\/panacea-app\/ca-bundle\.pem$/m.test(env) !== CA_SET) throw new Error(`NODE_EXTRA_CA_CERTS does not follow PANACEA_APP_CA_BUNDLE (set: ${CA_SET})`);
+  if (/^NODE_EXTRA_CA_CERTS=\/etc\/luci\/ca-bundle\.pem$/m.test(env) !== CA_SET) throw new Error(`NODE_EXTRA_CA_CERTS does not follow LUCI_CA_BUNDLE (set: ${CA_SET})`);
   if (/^(SSL_CERT_FILE|NODE_TLS_REJECT_UNAUTHORIZED)=/m.test(env)) throw new Error("the sandbox replaces or disables TLS verification");
 
   // Real exit codes, through a file (runInSandbox), never a pipe.
@@ -1094,7 +1094,7 @@ check("g.primary", "sandbox git + CA fix: git works in a session on a primary wo
 });
 
 check("w.webview2", "phase-1 unproven item 5, agent half: the native WebView2 window mounts a live terminal", async () => {
-  if (CDP === "") return "skipped: PANACEA_E2E_CDP is unset";
+  if (CDP === "") return "skipped: LUCI_E2E_CDP is unset";
   const native = await chromium.connectOverCDP(CDP);
   try {
     const pages = native.contexts().flatMap((c) => c.pages());

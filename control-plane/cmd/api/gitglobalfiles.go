@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/api"
 )
 
 // gitGlobalFilesResolver is the production api.Deps.GitGlobalFiles: where the

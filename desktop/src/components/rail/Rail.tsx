@@ -9,9 +9,11 @@ import { selectDefaultMachine } from "../../store/selectors";
 import { MachineChip } from "./MachineChip";
 import { ProjectRow } from "./ProjectRow";
 import { RailFooter } from "./RailFooter";
+import { useSetup } from "../setup/SetupProvider";
 import "./rail.css";
 
 export function Rail(): JSX.Element {
+  const setup = useSetup();
   const projects = useCockpit(useShallow((s) => s.projects));
   const machine = useCockpit(selectDefaultMachine);
   const expandedProjects = useCockpit((s) => s.expandedProjects);
@@ -85,12 +87,11 @@ export function Rail(): JSX.Element {
 
   return (
     <nav className="rail" aria-label="Projects">
-      <MachineChip machine={machine} />
+      <div><div className="rail-brand"><strong>Luci</strong><button type="button" aria-label="Create project" onClick={() => setup?.openProject()}>＋</button></div>{setup?.workspace?.mode === "cloud" && <button className="rail-workspace" onClick={()=>setup.openSettings()}><strong>Cloud workspace</strong><span>{setup.workspace.host}</span></button>}<MachineChip machine={machine} /></div>
       <div className="rail-scroll" role="tree" aria-label="Projects" onKeyDown={onKeyDown}>
         {projects.length === 0 ? (
           <p className="rail-empty">
-            No projects. Set PANACEA_APP_PROJECTS_DIR to a folder of git repositories and
-            restart the control plane.
+            No projects yet. Create a project above, or choose your projects folder in Settings.
           </p>
         ) : (
           projects.map((project) => (

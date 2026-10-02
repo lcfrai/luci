@@ -11,8 +11,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // eolRunner is a project.Runner double that answers each git invocation from

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hostpath"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // listingGit is a project.Runner double: `git worktree list --porcelain` in

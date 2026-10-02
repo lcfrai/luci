@@ -30,19 +30,27 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/httpx"
+	"github.com/lcfrai/luci/control-plane/internal/product"
+	"github.com/lcfrai/luci/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/worktree"
 )
 
 // DefaultVersion is what /healthz reports when Deps.Version is empty.
-const DefaultVersion = "0.2.0"
+const DefaultVersion = "0.3.0"
 
 // LocalMachineID is the id of the one machine Phase 2 has. Cloud machines are
 // claimed from a warm pool at first sign-in, which is Phase 8.
 const LocalMachineID = "local"
+
+func (a *API) projectsDir() string {
+	if a.deps.ProjectsDirCurrent != nil {
+		return a.deps.ProjectsDirCurrent()
+	}
+	return a.deps.ProjectsDir
+}
 
 // Enumerator is the read-only project surface the catalog handlers need: the
 // three enumerating methods of *project.Scanner, as an interface, so a handler
@@ -118,7 +126,9 @@ type Deps struct {
 	// read-write too (desktop/e2e/fixture.sh puts one there on purpose). That
 	// residue is the X-1 reviewer's, recorded in X-3, and R4 rule 1 closes it in
 	// phase 3. "" is an unconfigured projects directory and refuses nothing.
-	ProjectsDir string
+	ProjectsDir        string
+	ProjectsDirCurrent func() string
+	Product            *product.Server
 
 	// Origin is the allowlist and the loopback Host guard, from task 9.
 	Origin *httpx.OriginPolicy
@@ -127,7 +137,7 @@ type Deps struct {
 	Log *slog.Logger
 
 	// Image is the sandbox image every session runs, e.g.
-	// "panacea-app/sandbox:dev". Empty means that default.
+	// "luci/sandbox:dev". Empty means that default.
 	Image string
 
 	// Resources sizes every sandbox. The zero value means
@@ -136,7 +146,7 @@ type Deps struct {
 
 	// ReadyTimeout bounds the post-create readiness watch of contract §5.1
 	// step 7. Zero means backend.ReadyTimeout. Task 13 feeds it from
-	// PANACEA_APP_READY_TIMEOUT.
+	// LUCI_READY_TIMEOUT.
 	ReadyTimeout time.Duration
 
 	// ConversationsDir is the host directory every worktree's conversation
@@ -151,7 +161,7 @@ type Deps struct {
 	// at every create and restart and hand the answer to the sandbox as
 	// GIT_AUTHOR_* and GIT_COMMITTER_*. Users authenticate as themselves, so
 	// this is the person running the cockpit and never a shared or invented
-	// identity; cmd/api's resolver reads PANACEA_APP_GIT_NAME/EMAIL, else the
+	// identity; cmd/api's resolver reads LUCI_GIT_NAME/EMAIL, else the
 	// host's own git outside any repository.
 	//
 	// None of the three git resolvers is given a worktree (X-1, phase 3 ruling
@@ -384,6 +394,9 @@ func New(d Deps) (*API, error) {
 	guarded := newRoutes()
 	a.guarded = guarded
 	a.registerCatalog(guarded)
+	if d.Product != nil {
+		d.Product.Register(guarded)
+	}
 	a.registerSessions(guarded)
 	a.registerAttach(guarded)
 	// Task 12 added a.registerAttach(guarded) on the line above. One line, taking

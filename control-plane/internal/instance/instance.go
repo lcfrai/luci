@@ -1,5 +1,5 @@
 // Package instance names this control plane. The name is what the
-// panacea-app.instance label carries on every sandbox (backend.LabelInstance),
+// luci.instance label carries on every sandbox (backend.LabelInstance),
 // and it is the whole of how two control planes on one Docker daemon tell
 // their sandboxes apart: List and the reaper act only on sandboxes that carry
 // this instance's id (task-25-26-reconcile.md item 11).
@@ -14,7 +14,7 @@
 //
 // It is RANDOM, not a hash of the directory's path. A path hash collides the
 // moment two machines use the same default path against one remote daemon
-// (two dev boxes both at /home/dev/.local/state/panacea-app), which is the
+// (two dev boxes both at /home/dev/.local/state/luci), which is the
 // defect this label exists to end, and it changes when the same directory is
 // reached through a different spelling (a short 8.3 name, a symlink), which
 // would disown a running fleet. Minted once and persisted, a UUID has neither
@@ -29,8 +29,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/ids"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/ids"
 )
 
 // FileName is the file the id is kept in, inside the directory cmd/api

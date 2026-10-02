@@ -8,6 +8,8 @@ import "./topbar.css";
 
 export function TopBar(): JSX.Element {
   const layout = useCockpit((s) => s.layout);
+  const lens = useCockpit((s) => s.lens);
+  const setLens = useCockpit((s) => s.setLens);
   const setLayout = useCockpit((s) => s.setLayout);
   const pickerOpen = useCockpit((s) => s.pickerOpen);
   const closePicker = useCockpit((s) => s.closePicker);
@@ -20,25 +22,12 @@ export function TopBar(): JSX.Element {
 
   return (
     <header className="top">
-      <LayoutToggle layout={layout} onChange={setLayout} />
+      {lens === "develop" || lens === "files" || lens === "merge" ? <>
+        <nav className="top-tools" aria-label="Develop tools">{([ ["develop", "Sessions"], ["files", "Files"], ["merge", "Git"] ] as const).map(([id, name]) => <button type="button" key={id} className="top-btn" aria-current={lens === id ? "page" : undefined} onClick={() => setLens(id)}>{name}</button>)}</nav>
+        {lens === "develop" && <LayoutToggle layout={layout} onChange={setLayout} />}
+      </> : <span className="top-title">{lens === "discover" ? "Define" : lens === "design" ? "Design" : "Deploy"}</span>}
       <span className="top-spacer" />
-      <button
-        type="button"
-        className="top-btn"
-        disabled
-        title="Authority needs the agent-runtime signal (docs/AGENTIC-UX.md §7). It arrives in Phase 3."
-      >
-        Authority
-      </button>
-      <button
-        type="button"
-        className="top-btn"
-        disabled
-        title="Run locally needs the deploy connector. It arrives in Phase 7."
-      >
-        Run locally
-      </button>
-      <NewSessionButton worktreeId={worktreeId} />
+      {lens === "develop" && <NewSessionButton worktreeId={worktreeId} />}
       <SessionPicker open={pickerOpen} worktreeId={worktreeId} onClose={closePicker} />
     </header>
   );

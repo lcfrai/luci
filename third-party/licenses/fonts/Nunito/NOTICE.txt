@@ -1,0 +1,27 @@
+Nunito: bundled with @excalidraw/excalidraw 0.18.1
+Upstream source: https://raw.githubusercontent.com/excalidraw/excalidraw/a2ec2889babf7d2295469c6d90ebe77fae57df84/packages/excalidraw/fonts/Nunito/Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTA3j6zbXWjgevT5.woff2
+
+Unmodified embedded OpenType name-table metadata from Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTA3j6zbXWjgevT5.woff2:
+{
+  "0": [
+    "Copyright 2014 The Nunito Project Authors (https://github.com/googlefonts/nunito)"
+  ],
+  "1": [
+    "Nunito ExtraLight Medium"
+  ],
+  "5": [
+    "Version 3.602"
+  ],
+  "14": [
+    "https://scripts.sil.org/OFL"
+  ]
+}
+
+Bundled font-file SHA256 values:
+{
+  "Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTA3j6zbXWjgevT5.woff2": "e512f2d7c9fe062b1acf8f6ea64d4bfd89a77d26728150977627e445c7b6e937",
+  "Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTk3j6zbXWjgevT5.woff2": "3e7f76fcc8798b8bba4d6bcc06bdb0d788f6e89706c1d6e64ac81d65ca683c14",
+  "Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTo3j6zbXWjgevT5.woff2": "7928f47b21192cb6fdb2f46b71a474a3bd2fd608945c5ad7d7ed6bde8b0ae24c",
+  "Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTQ3j6zbXWjgeg.woff2": "6d1626aac658786e37e78e0adce3ffffddbd75abc923d72e45a7168bd80053da",
+  "Nunito-Regular-XRXI3I6Li01BKofiOc5wtlZ2di8HDIkhdTs3j6zbXWjgevT5.woff2": "5117398298dd0dba3c95a406ff12fbeb88289fa4e913e3a5cf482cafe7f7071a"
+}

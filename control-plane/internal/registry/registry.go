@@ -15,7 +15,7 @@ import (
 	"errors"
 	"path/filepath"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/statepath"
+	"github.com/lcfrai/luci/control-plane/internal/statepath"
 )
 
 // ErrNotFound is returned for an unknown session id.
@@ -56,7 +56,7 @@ type Store interface {
 // DefaultPath is statepath.Dir("sessions") + "/sessions.json".
 //
 // It resolves at call time rather than in a package variable, because both the
-// tests and the desktop set PANACEA_APP_STATE_DIR after this package has been
+// tests and the desktop set LUCI_STATE_DIR after this package has been
 // initialised, and a cached value would ignore them.
 func DefaultPath() string {
 	return filepath.Join(statepath.Dir("sessions"), "sessions.json")

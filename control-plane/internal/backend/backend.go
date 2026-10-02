@@ -52,14 +52,14 @@ const (
 //   - EnvToken     is the bearer token /attach requires; without it sandboxd
 //     answers 401. /healthz stays unauthenticated so readiness works.
 const (
-	EnvCommand  = "PANACEA_APP_COMMAND"
-	EnvArgsJSON = "PANACEA_APP_ARGS_JSON"
-	EnvToken    = "PANACEA_APP_ATTACH_TOKEN"
+	EnvCommand  = "LUCI_COMMAND"
+	EnvArgsJSON = "LUCI_ARGS_JSON"
+	EnvToken    = "LUCI_ATTACH_TOKEN"
 )
 
 // envReservedPrefix is the namespace a caller may not write into. Spec.Env is
 // user-influenced; the three variables above are the security contract.
-const envReservedPrefix = "PANACEA_APP_"
+const envReservedPrefix = "LUCI_"
 
 // Labels attached to every sandbox this control plane creates. Docker labels
 // use dots by convention; the Kata pod labels already in internal/sandbox use
@@ -67,7 +67,7 @@ const envReservedPrefix = "PANACEA_APP_"
 // invents a third spelling.
 //
 // LabelInstance is ownership, and it is the label List and the reaper match on.
-// LabelManaged says "a Panacea control plane made this"; it cannot say WHICH
+// LabelManaged says "a Luci control plane made this"; it cannot say WHICH
 // one, and two control planes on one Docker daemon — two users of one shared
 // host, or a developer's cockpit beside a test harness — used to read each
 // other's sandboxes as their own orphans and destroy them (reaper rule 4).
@@ -77,20 +77,20 @@ const envReservedPrefix = "PANACEA_APP_"
 // sandbox without it predates per-instance ownership. List returns it with
 // Instance "", because a registry can prove it is its own when a label cannot:
 // its sandbox id was minted by one control plane at random (ids.New), and its
-// name, panacea-app-<id>, is unique on the daemon. The reaper treats one whose
+// name, luci-<id>, is unique on the daemon. The reaper treats one whose
 // id its registry holds as its own, and spares every other one: nothing can
 // prove whose that is (reaper-scope fix round, I1).
 const (
-	LabelManaged   = "panacea-app.managed"    // always "true"
-	LabelInstance  = "panacea-app.instance"   // the owning control plane's instance id
-	LabelSandboxID = "panacea-app.sandbox-id" // equals Spec.ID
-	LabelSessionID = "panacea-app.session-id" // equals registry.Session.ID
-	LabelCreatedAt = "panacea-app.created-at" // RFC3339, diagnostics only
+	LabelManaged   = "luci.managed"    // always "true"
+	LabelInstance  = "luci.instance"   // the owning control plane's instance id
+	LabelSandboxID = "luci.sandbox-id" // equals Spec.ID
+	LabelSessionID = "luci.session-id" // equals registry.Session.ID
+	LabelCreatedAt = "luci.created-at" // RFC3339, diagnostics only
 
-	KubeLabelInstance  = "panacea-app/instance"
-	KubeLabelSandboxID = "panacea-app/sandbox-id"
-	KubeLabelSessionID = "panacea-app/session-id"
-	KubeLabelComponent = "panacea-app/component" // always "sandbox"
+	KubeLabelInstance  = "luci/instance"
+	KubeLabelSandboxID = "luci/sandbox-id"
+	KubeLabelSessionID = "luci/session-id"
+	KubeLabelComponent = "luci/component" // always "sandbox"
 )
 
 // instancePattern is a Kubernetes label value (at most 63 characters,
@@ -162,7 +162,7 @@ func (r Resources) KubeMemory() string { return strconv.Itoa(r.MemoryMiB) + "Mi"
 // so a resume in a later sandbox can find the transcript; for a fork into
 // another worktree, a staged copy of its source's transcript, read-only, one
 // file inside that store, so the CLI can fork it; when the operator set
-// PANACEA_APP_CA_BUNDLE, the extra root certificates a TLS-intercepting
+// LUCI_CA_BUNDLE, the extra root certificates a TLS-intercepting
 // network needs, read-only; and the host git's global excludes and attributes
 // files, read-only, each when the host's git reads one, so a commit in the
 // sandbox holds what it would on the host. Kata ignores Mounts and returns
@@ -181,11 +181,11 @@ type Mount struct {
 type Spec struct {
 	ID          string            // caller-chosen, unique, matches ^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$
 	SessionID   string            // for the label only; a backend never reads it back
-	Image       string            // e.g. "panacea-app/sandbox:dev"
-	Command     string            // becomes PANACEA_APP_COMMAND
-	Args        []string          // JSON-encoded into PANACEA_APP_ARGS_JSON
-	Env         map[string]string // extra environment; PANACEA_APP_* keys are rejected
-	AttachToken string            // becomes PANACEA_APP_ATTACH_TOKEN; never logged
+	Image       string            // e.g. "luci/sandbox:dev"
+	Command     string            // becomes LUCI_COMMAND
+	Args        []string          // JSON-encoded into LUCI_ARGS_JSON
+	Env         map[string]string // extra environment; LUCI_* keys are rejected
+	AttachToken string            // becomes LUCI_ATTACH_TOKEN; never logged
 	Resources   Resources
 	WorkDir     string  // container-side working directory, "" leaves the image default
 	Mounts      []Mount // docker only
@@ -197,10 +197,10 @@ type EnvEntry struct {
 	Value string
 }
 
-// ArgsJSON encodes Args for PANACEA_APP_ARGS_JSON.
+// ArgsJSON encodes Args for LUCI_ARGS_JSON.
 //
 // No arguments encodes as "[]" and never as "": sandboxd treats an empty
-// PANACEA_APP_ARGS_JSON as "fall back to the legacy comma-separated form", and
+// LUCI_ARGS_JSON as "fall back to the legacy comma-separated form", and
 // that form splits an opening prompt on its commas.
 func (s Spec) ArgsJSON() string {
 	if len(s.Args) == 0 {
@@ -217,12 +217,12 @@ func (s Spec) ArgsJSON() string {
 }
 
 // EnvEntries returns the sandbox's environment in a fixed order: the three
-// PANACEA_APP_* variables first, then every Spec.Env key sorted. The order is
+// LUCI_* variables first, then every Spec.Env key sorted. The order is
 // fixed so both backends produce identical environments and a test can assert
 // on a slice instead of a set.
 //
 // ValidateSpec is the loud check: it rejects a Spec carrying a reserved
-// PANACEA_APP_* key in Env, with an error a caller sees before anything runs.
+// LUCI_* key in Env, with an error a caller sees before anything runs.
 // This function is the backstop: it silently drops any reserved key that
 // reaches it anyway, so a backend that forgot to call ValidateSpec first still
 // cannot have a caller-chosen value shadow the real attach token. Neither is

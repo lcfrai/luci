@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hostpath"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // wantPathRefused asserts that Path of wt fails as a reparse point and hands

@@ -23,7 +23,7 @@
 // in a file that makes a point of this lock: rule 5 calls Update for every
 // running or idle session before it can discover there is nothing to change,
 // and Update takes the WRITE lock (filestore.go:298) to find that out. With
-// PANACEA_APP_IDLE_TIMEOUT set, rule 6 adds one Get per session with a sandbox.
+// LUCI_IDLE_TIMEOUT set, rule 6 adds one Get per session with a sandbox.
 // So the converged cost is one List plus one uncontended lock acquisition per
 // session — microseconds, no disk — rather than one read.
 package reaper
@@ -36,8 +36,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // The exit reasons this package writes. They reach the user through
@@ -64,7 +64,7 @@ const (
 const defaultInterval = 30 * time.Second
 
 // createGraceFactor is how many ready timeouts of grace a create gets, and it is
-// 2 because the create path is TWO waits and PANACEA_APP_READY_TIMEOUT budgets
+// 2 because the create path is TWO waits and LUCI_READY_TIMEOUT budgets
 // only the second. See CreateGraceFor.
 const createGraceFactor = 2
 
@@ -75,7 +75,7 @@ const createGraceFactor = 2
 //
 // WHY TWICE. The window a mid-create session must survive is the whole of
 // backend.Create, which is ContainerCreate plus ContainerStart plus the wait for
-// the sandbox to answer /healthz. PANACEA_APP_READY_TIMEOUT budgets only the
+// the sandbox to answer /healthz. LUCI_READY_TIMEOUT budgets only the
 // last of those: dockerbe computes its deadline AFTER the container is created
 // and started (dockerbe/docker.go:207 and :211 versus :219), so one ready
 // timeout of grace is structurally too short by however long the daemon takes to
@@ -98,7 +98,7 @@ const createGraceFactor = 2
 // sandbox image over a slow network — the Phase 1 runbook builds it locally and
 // dockerbe never pulls, so on a working laptop this does not arise — but it is
 // unlikely rather than impossible, and an operator who hits it raises
-// PANACEA_APP_READY_TIMEOUT, which moves this with it.
+// LUCI_READY_TIMEOUT, which moves this with it.
 func CreateGraceFor(readyTimeout time.Duration) time.Duration {
 	if readyTimeout <= 0 {
 		readyTimeout = backend.ReadyTimeout
@@ -238,7 +238,7 @@ func New(cfg Config) *Reaper {
 //   - its Instance is this control plane's, which is the label saying so; or
 //   - it carries no instance label (it predates per-instance ownership) and
 //     this registry holds its sandbox id. That is proof, not a guess: the id
-//     was minted here at random (ids.New), and panacea-app-<id> is unique on
+//     was minted here at random (ids.New), and luci-<id> is unique on
 //     the daemon, so no other control plane made that container. Reading it
 //     as foreign is what used to leave a pre-upgrade session's own
 //     LAN-published sandbox standing (reaper-scope fix round, I1).
@@ -548,7 +548,7 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		if sb.NonLoopback {
 			continue
 		}
-		// "Ours" means THIS control plane's, not merely a Panacea one's.
+		// "Ours" means THIS control plane's, not merely a Luci one's.
 		// LabelManaged alone made every other control plane's live sandboxes
 		// orphans here, because this registry has no record of them. A legacy
 		// sandbox owns() accepts is one this registry holds, so the tracked
@@ -588,7 +588,7 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		gone[sb.ID] = r.destroyOrphan(ctx, sb, why)
 	}
 
-	// Rule 5: idle derivation, opt-out via PANACEA_APP_IDLE_AFTER=0.
+	// Rule 5: idle derivation, opt-out via LUCI_IDLE_AFTER=0.
 	if r.idleAfter > 0 {
 		for _, s := range sessions {
 			if gone[s.SandboxID] {
@@ -600,7 +600,7 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		}
 	}
 
-	// Rule 6: idle TTL, opt-IN via PANACEA_APP_IDLE_TIMEOUT. Zero means never,
+	// Rule 6: idle TTL, opt-IN via LUCI_IDLE_TIMEOUT. Zero means never,
 	// and that is the default on purpose: an agent left thinking overnight must
 	// still be there in the morning.
 	if r.idleTimeout > 0 {

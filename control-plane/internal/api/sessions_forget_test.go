@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // OD-10, in the owner's words: "Forget deletes it". Forget — DELETE
@@ -387,7 +387,7 @@ func TestAForgetThatCannotDeleteOneFileStillDeletesTheRest(t *testing.T) {
 
 // A resume forks: the new session gets a conversation of its own, and the CLI
 // writes that fork as a whole copy of the source's history re-keyed to the new
-// id (observed in panacea-app/sandbox:dev, claude 2.1.274, in `-p` mode;
+// id (observed in luci/sandbox:dev, claude 2.1.274, in `-p` mode;
 // od10-forget-report.md §3; the interactive fork is unverified until OD-12). So
 // forgetting the source leaves the fork's file, and the fork can still be
 // resumed.

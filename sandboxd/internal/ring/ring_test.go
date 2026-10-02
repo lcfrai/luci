@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/ring"
+	"github.com/lcfrai/luci/sandboxd/internal/ring"
 )
 
 func TestSnapshotOfEmptyRingIsEmpty(t *testing.T) {

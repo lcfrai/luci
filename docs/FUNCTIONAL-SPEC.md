@@ -1,72 +1,29 @@
-# Panacea App — functional spec
+# Luci functional specification
 
-Written 2026-09-17. Supersedes assumptions baked into `prototype/app.html`.
+Luci takes one project through Define, Design, Develop and Deploy in a consistent application. It works locally by default and offers a guided deployment using the user's own AWS or Azure resources and domain.
 
-## Object model
+## Setup
 
-| Object | Cardinality | User sees the word? |
-|---|---|---|
-| **Machine** | many per user; one cloud by default, plus "this Mac" | Yes — it is the thing they name and switch between |
-| **Sandbox** | one per running session, ephemeral Kata microVM | No — surfaced only as "isolated" and as blast radius |
-| **Project** | many per machine; = one git repo | Yes |
-| **Branch** | many per project; each separately deployable | Yes |
-| **Worktree** | many per branch; an isolated checkout | Yes — the users are engineers, they know the term |
-| **Session** | **many per worktree** — agent or shell | Yes |
-| **Sub-agent** | many per agent session | Yes, as nested steps |
-| **Environment** | one per deployed branch, arbitrary name | Yes |
+The app starts its own local service. First run explains local/cloud choices, saves the projects folder, checks dependencies, records the person's Git identity, generates an optional SSH key and installs the bundled agent runtime when Docker is ready. Settings offers the same controls without closing terminal sessions. Provider authentication uses the provider's supported CLI/browser flow.
 
-The change that matters: **a worktree holds many sessions.** Previously one agent per worktree, which is wrong — you routinely want a shell open beside an agent, or two agents on different parts of the same checkout.
+## Define and Design
 
-## Starting a session — the owner's question
+Create or clone an HTTPS Git repository without overwriting existing files. Define saves a revisioned brief and `LUCI.md`; stale edits produce a conflict instead of losing changes. Design embeds a themed Excalidraw editor and persists its scene alongside the brief revision. Exported content must escape project text and use a restrictive content policy.
 
-**One click for the common case.** The `＋` on a worktree starts the project's default harness immediately with inherited defaults. No dialog.
+## Develop
 
-**The split button's caret opens the picker** for when you need something else:
-- **Harness** — Claude Code, Codex, OpenCode, Gemini CLI, or **Shell** (a plain terminal, no agent)
-- **Model** — filtered to what that harness supports
-- **Effort** — low / medium / high / xhigh (Claude Code only)
-- **Permission mode** — bypass / ask / plan
-- **Initial prompt** — optional; blank just opens the session
+The project catalogue resolves branches/worktrees through Git. Coding and shell sessions stream real PTY output; transcripts survive service restarts. Files and Git tools show repository content, changes and history, and commit with the person's identity. Coding harnesses receive a prompt to read the canonical project brief. File reads reject traversal, symlinks and known credential locations.
 
-**Defaults inherit** project → branch → session, so a team standardises once and nobody re-chooses.
+## Deploy
 
-**Power users never open it**: `⌘⏎` starts the default harness in the focused worktree; `⌘K` → "new claude in evidence-upload" does it by name.
+A local preview builds a bounded committed snapshot, with no host mounts and a port exposed only on loopback. Release history records the exact commit and brief revision. HTTP health must succeed before readiness is shown. Stop acts only on containers Luci owns.
 
-### Session lifecycle
-Every session carries a `⋯` menu: **Resume** (`claude --resume`, restores context), **Fork** (branch the session from this point into a new worktree), **Restart** (same config, clean context), **Rename**, **Duplicate**, **Kill**. Finished sessions stay listed and readable — the transcript is the artifact.
+Remote deployment uses a verified Coolify target and a Git repository that server can access. Luci tracks provider IDs, avoids duplicate resources on retries and verifies public HTTPS after provider completion. A domain conflict is reported for resolution.
 
-Resume and Fork both start a **new** session on a fork of the source's conversation, under its own id, and neither stops the source. They differ in where: Resume stays in the source's worktree, so both agents work on the same files; Fork goes into another worktree on the branch, so the branch really branches. A shell has no conversation, so its Fork is the configuration alone. A session nobody has spoken in has nothing to carry, and both verbs say so instead of starting. *(Fork carries the conversation from 2026-09-24; before, it started a fresh session in the other worktree. Go contract §3.9, UI contract §4.4.)*
+The cloud wizard creates complete AWS Lightsail or Azure VM templates. It shows cost assumptions, requires explicit acknowledgement, refuses existing resource names, persists operation progress, guides SSH host trust and DNS, and verifies ownership before deletion. Initial Coolify account setup is shown through a protected management connection, inside Luci's setup flow.
 
-## Capacity
+## Release gates
 
-Sessions spend the signed-in user's **own** subscriptions, rotating as each 5-hour or weekly window exhausts, with metered API as backstop. The footer of every session shows which account it is on. A dedicated Capacity view shows each account's utilisation, reset time, and which sessions are on it. Never pooled across users — that violates Anthropic's terms.
+A downloadable build must pass typechecking, applicable Go/frontend tests, packaging, a real local UI journey and restart persistence checks. Real container-session and AWS/Azure rollout results are recorded separately. Code and package notices retain their dependencies' licences. No private credentials or corporate deployment endpoints belong in a public release.
 
-## Machines
-
-One cloud machine exists at first sign-in with no create form — claimed from a warm pool. States: `provisioning · running · idle · sleeping · stopped · error`. **Wake is implicit**: typing into a sleeping machine's session wakes it, with inline "waking… 6s". Sizing is only ever asked for a *second* machine, or after an OOM. The local machine appears in the same list with an honest list of what it cannot do — notably that local agents are bounded by your OS user, not a microVM, so it is badged `unsandboxed`.
-
-## Navigation
-
-- **Rail** — machine chip at top, then projects → branches → worktrees → sessions. Right-click any row for its verbs.
-- **Sub-rail (in a branch)** — Discover, Design, Develop, Files, Merge, Deploy.
-- **Top bar (Develop)** — layout toggle, Authority, Run locally, and the split New-session button.
-- **Command palette `⌘K`** — everything, including things with no button.
-
-## Keyboard
-
-`⌘K` palette · `⌘⏎` new default session · `⌘⇧M` machines · `⌘1-9` focus session n · `⌘\` next session · `shift+tab` cycle permission mode in the focused session · `esc` interrupt · `⌘W` close session · `⌘B` toggle rail · `/` slash commands inside a session.
-
-With a terminal focused, the `⌘` chords go to the cockpit, as in VS Code. The palette's **"Send shortcut keys to the terminal"** toggle hands every one of them, `⌘K` included, to the agent instead; `⌘K` pressed outside a terminal still opens the palette, but with the toggle on, getting outside one takes a pointer: no key leaves a terminal then (an open owner question, UI contract §6.9). `shift+tab`, `esc` and `/` go to the agent either way. *(Owner decision OD-9, 2026-09-24.)*
-
-## Known defects being fixed in this pass
-
-1. Live tick destroys in-progress typing — preserve focus and draft text across re-render.
-2. `uid()` collides on fast successive calls — use a counter.
-3. Denying a permission dead-ends the session — composer must always render.
-4. New session created off-screen with no focus — scroll it into view.
-5. Auto-scroll steals the scrollback — only auto-scroll panes already pinned to the bottom.
-6. Canvas tile positions not persisted — store on the session.
-7. `editAnswer` splices all later answers — splice one.
-8. "Don't ask again for X" flips the whole session to bypass — keep a scoped allow-list instead.
-9. Nothing ever sets `ready`, so user-created worktrees can never merge.
-10. Merge reorder indexes the unfiltered array.
+Current implementation details live in `luci/API.md`; historical specification is archived in `legacy/FUNCTIONAL-SPEC-panacea-2026-09.md`.

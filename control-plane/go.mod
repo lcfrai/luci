@@ -1,4 +1,4 @@
-module github.com/kpmg-au-emu/panacea-app/control-plane
+module github.com/lcfrai/luci/control-plane
 
 go 1.23
 

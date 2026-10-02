@@ -7,13 +7,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // Per-instance ownership (task-25-26-reconcile.md item 11). Two control planes
 // on one Docker daemon each see every managed container, because
-// LabelManaged says "a Panacea control plane made this" and not which one.
+// LabelManaged says "a Luci control plane made this" and not which one.
 // Before LabelInstance, each read the other's live sandboxes as its own
 // orphans and destroyed them, at its very first sweep.
 //
@@ -166,7 +166,7 @@ func TestALegacySandboxWithNoInstanceLabelIsNeverDestroyed(t *testing.T) {
 
 // Reaper-scope fix round, I1. A legacy sandbox (no instance label) whose
 // sandbox id THIS registry holds is provably this control plane's: the id was
-// minted here at random (ids.New) and panacea-app-<id> is unique on the
+// minted here at random (ids.New) and luci-<id> is unique on the
 // daemon, so no other control plane made it. It is a pre-upgrade session of
 // this state directory, and it is treated exactly as ours:
 //

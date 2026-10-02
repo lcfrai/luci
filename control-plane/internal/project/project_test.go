@@ -10,8 +10,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
+	"github.com/lcfrai/luci/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/worktree"
 )
 
 // project.Scanner must satisfy the Phase 3 seam with no adapter; Phase 4's
@@ -102,7 +102,7 @@ func TestAnUnconfiguredRootReturnsEmptyResultsAndNeverRunsGit(t *testing.T) {
 // whole disk is how a rail takes forty seconds to paint.
 func TestProjectsFindsDepth1RepositoriesOnly(t *testing.T) {
 	root := t.TempDir()
-	makeRepo(t, root, "panacea")
+	makeRepo(t, root, "luci")
 	makeRepo(t, root, "eunomia")
 	// A linked worktree has .git as a FILE, not a directory. It is still a
 	// repository as far as enumeration is concerned.
@@ -142,7 +142,7 @@ func TestProjectsFindsDepth1RepositoriesOnly(t *testing.T) {
 		}
 	}
 	// os.ReadDir sorts by filename, and "." sorts before every letter.
-	want := []string{".cache", "eunomia", "linked", "panacea"}
+	want := []string{".cache", "eunomia", "linked", "luci"}
 	if strings.Join(names, ",") != strings.Join(want, ",") {
 		t.Fatalf("Projects() names = %v, want %v in that order", names, want)
 	}
@@ -153,7 +153,7 @@ func TestProjectsFindsDepth1RepositoriesOnly(t *testing.T) {
 // a reboot.
 func TestProjectIdsAreDerivedFromThePathAndAreStable(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 
 	first, err := project.NewScanner(root, newFakeGit()).Projects(context.Background())
 	if err != nil {
@@ -178,7 +178,7 @@ func TestProjectIdsAreDerivedFromThePathAndAreStable(t *testing.T) {
 
 func TestBranchesMarksTheCheckedOutBranch(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 	g := newFakeGit()
 	g.reply(dir, "main\nevidence-upload\nfeat/ready-flag\n", "for-each-ref", "--format=%(refname:short)", "refs/heads")
 	g.reply(dir, "evidence-upload\n", "rev-parse", "--abbrev-ref", "HEAD")
@@ -256,7 +256,7 @@ func TestBranchIDIsStableAcrossIndependentCalls(t *testing.T) {
 
 func TestBranchesOnAnUnknownProjectIsASentinelTheApiCanMapTo404(t *testing.T) {
 	root := t.TempDir()
-	makeRepo(t, root, "panacea")
+	makeRepo(t, root, "luci")
 
 	_, err := project.NewScanner(root, newFakeGit()).Branches(context.Background(), "p-deadbeef")
 	if !errors.Is(err, project.ErrUnknownProject) {
@@ -271,7 +271,7 @@ func TestBranchesOnAnUnknownProjectIsASentinelTheApiCanMapTo404(t *testing.T) {
 // from becoming a 500.
 func TestWorktreesOnAnUnknownProjectIsASentinelTheApiCanMapTo404(t *testing.T) {
 	root := t.TempDir()
-	makeRepo(t, root, "panacea")
+	makeRepo(t, root, "luci")
 
 	_, err := project.NewScanner(root, newFakeGit()).Worktrees(context.Background(), "p-deadbeef")
 	if !errors.Is(err, project.ErrUnknownProject) {
@@ -303,7 +303,7 @@ func worktreePorcelain(dirs ...string) string {
 
 func TestWorktreesParsesPorcelainOutput(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 	linked := filepath.Join(t.TempDir(), "evidence-upload")
 	detached := filepath.Join(t.TempDir(), "spike")
 	for _, d := range []string{linked, detached} {
@@ -351,7 +351,7 @@ func TestWorktreesParsesPorcelainOutput(t *testing.T) {
 // projects root, which is where the e2e fixture puts one too.
 func TestPathResolvesAWorktreeIdThroughTheProvider(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 	linked := filepath.Join(t.TempDir(), "evidence-upload")
 	x3Register(t, dir, linked)
 	g := newFakeGit()
@@ -376,7 +376,7 @@ func TestPathResolvesAWorktreeIdThroughTheProvider(t *testing.T) {
 // must fail here, not inside Docker's bind-mount validation.
 func TestPathOnAWorktreeGitStillListsButDiskHasLostIsErrNotADir(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 	ghost := filepath.Join(t.TempDir(), "pruned-by-hand")
 	g := newFakeGit()
 	g.reply(dir, worktreePorcelain(dir, ghost), "worktree", "list", "--porcelain")
@@ -393,7 +393,7 @@ func TestPathOnAWorktreeGitStillListsButDiskHasLostIsErrNotADir(t *testing.T) {
 // returns the name.
 func TestNamesFallBackToTheIdUntilEnumerationHasWarmedTheCache(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 	pid := project.ProjectID(dir)
 	bid := project.BranchID(pid, "feat/ready-flag")
 
@@ -418,8 +418,8 @@ func TestNamesFallBackToTheIdUntilEnumerationHasWarmedTheCache(t *testing.T) {
 	if _, err := s.Branches(context.Background(), pid); err != nil {
 		t.Fatalf("Branches: %v", err)
 	}
-	if got := s.ProjectName(pid); got != "panacea" {
-		t.Errorf("warm ProjectName = %q, want %q", got, "panacea")
+	if got := s.ProjectName(pid); got != "luci" {
+		t.Errorf("warm ProjectName = %q, want %q", got, "luci")
 	}
 	if got := s.BranchName(bid); got != "feat/ready-flag" {
 		t.Errorf("warm BranchName = %q, want %q", got, "feat/ready-flag")
@@ -431,7 +431,7 @@ func TestNamesFallBackToTheIdUntilEnumerationHasWarmedTheCache(t *testing.T) {
 // every git invocation the package makes.
 func TestEveryGitCommandIsReadOnly(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 	pid := project.ProjectID(dir)
 	g := newFakeGit()
 	g.reply(dir, "main\n", "for-each-ref", "--format=%(refname:short)", "refs/heads")
@@ -475,7 +475,7 @@ func TestEveryGitCommandIsReadOnly(t *testing.T) {
 // 128" and the user has nothing to act on.
 func TestAGitFailureCarriesTheMessageUpward(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 	g := newFakeGit()
 	g.fail(dir, errors.New("fatal: not a git repository"), "for-each-ref", "--format=%(refname:short)", "refs/heads")
 

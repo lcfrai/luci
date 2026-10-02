@@ -32,7 +32,7 @@ beforeEach(() => {
 describe("dataSlice", () => {
   it("keeps catalogue setters independent of one another", () => {
     const s = useCockpit.getState();
-    s.setProjects([aProject({ id: "p-1", name: "panacea", path: "C:\\work\\panacea" })]);
+    s.setProjects([aProject({ id: "p-1", name: "luci", path: "C:\\work\\luci" })]);
     s.setBranches("p-1", [aBranch({ id: "b-1", projectId: "p-1", name: "main", isHead: true })]);
     s.setHarnesses(CATALOGUE);
     expect(useCockpit.getState().projects).toHaveLength(1);
@@ -421,7 +421,7 @@ describe("persistence", () => {
     // The literals, pinned. Every other assertion in this suite reads the CONSTANTS, so a
     // rename would be invisible to all of them — and a renamed key silently wipes the tiles,
     // pins and defaults of everyone who upgrades.
-    expect(PERSIST_KEY).toBe("panacea-app.cockpit");
+    expect(PERSIST_KEY).toBe("luci.cockpit");
     expect(PERSIST_VERSION).toBe(1);
 
     const s = useCockpit.getState();

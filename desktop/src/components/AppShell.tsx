@@ -50,6 +50,7 @@ function LensRouter(props: { lens: Lens }): JSX.Element {
 export function AppShell(): JSX.Element {
   const railCollapsed = useCockpit((s) => s.railCollapsed);
   const branchId = useCockpit((s) => s.selection.branchId);
+  const projectId = useCockpit((s) => s.selection.projectId);
   const lens = useCockpit((s) => s.lens);
 
   // §6.8: the ONE window keydown listener in the app, mounted once, here. Escape is NOT in
@@ -57,14 +58,14 @@ export function AppShell(): JSX.Element {
   useKeyboardMap();
 
   const className = ["shell", "grain"]
-    .concat(branchId === null ? [] : ["shell-deep"])
+    .concat(projectId === null && branchId === null ? [] : ["shell-deep"])
     .concat(railCollapsed ? ["shell-rail-collapsed"] : [])
     .join(" ");
 
   return (
     <div className={className}>
       <Rail />
-      {branchId === null ? <div aria-hidden="true" /> : <SubRail />}
+      {projectId === null && branchId === null ? <div aria-hidden="true" /> : <SubRail />}
       <main className="shell-main">
         <TopBar />
         <div className="shell-lens">

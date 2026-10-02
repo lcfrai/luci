@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/api"
 )
 
 // x1OwnTemp points the OS temp directory at one this test owns, so what

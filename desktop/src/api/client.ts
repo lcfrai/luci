@@ -26,7 +26,7 @@ import type {
   WorktreeId,
 } from "../store/types";
 
-/** No trailing slash. Overridden in dev by import.meta.env.VITE_PANACEA_APP_API. */
+/** No trailing slash. Overridden in dev by import.meta.env.VITE_LUCI_API. */
 export const DEFAULT_BASE_URL = "http://127.0.0.1:8730";
 
 /** Per-request. /attach is not a fetch and is unaffected. */
@@ -189,12 +189,13 @@ export interface CockpitClient {
 
 type Method = "GET" | "POST" | "PATCH" | "DELETE";
 
-/** opts.baseUrl → import.meta.env.VITE_PANACEA_APP_API → DEFAULT_BASE_URL, per §4.1. The env
+/** opts.baseUrl → import.meta.env.VITE_LUCI_API → DEFAULT_BASE_URL, per §4.1. The env
  *  var is statically replaced by Vite at build time and is undefined under vitest, which is
  *  exactly why the explicit option is first. */
 function resolveBaseUrl(explicit?: string): string {
-  const fromEnv: unknown = import.meta.env?.VITE_PANACEA_APP_API;
-  const raw = explicit ?? (typeof fromEnv === "string" && fromEnv !== "" ? fromEnv : DEFAULT_BASE_URL);
+  const fromEnv: unknown = import.meta.env?.VITE_LUCI_API;
+  const runtimeUrl = typeof window === "undefined" ? undefined : window.__LUCI_API__;
+  const raw = explicit ?? runtimeUrl ?? (typeof fromEnv === "string" && fromEnv !== "" ? fromEnv : DEFAULT_BASE_URL);
   return raw.endsWith("/") ? raw.slice(0, -1) : raw;
 }
 
@@ -270,7 +271,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
     // This concatenates, so a baseUrl carrying a path KEEPS it: "http://h/console" + "/v1/machines"
     // → "http://h/console/v1/machines". attachUrl resolves against the base instead and therefore
     // DISCARDS that path → "ws://h/v1/sessions/…/attach", which its own test asserts as correct.
-    // So a VITE_PANACEA_APP_API behind a path prefix would work for REST and silently break attach.
+    // So a VITE_LUCI_API behind a path prefix would work for REST and silently break attach.
     // Nothing to fix while the base is loopback with no path, which is DEFAULT_BASE_URL. Whoever
     // first sets a prefixed base must pick one behaviour and change both ends together.
     const url = baseUrl + route;

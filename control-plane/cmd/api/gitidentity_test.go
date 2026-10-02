@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // identityRunner is a project.Runner double: it records every git invocation
@@ -67,14 +67,14 @@ func TestAnExplicitIdentityWinsAndTheHostIsNeverAsked(t *testing.T) {
 // directory, outside every repository and never in a worktree (X-1): the
 // identity a commit would carry, whatever layer of git supplied it.
 func TestWithNothingSetTheHostGitIsAskedOutsideAnyRepository(t *testing.T) {
-	host := &identityRunner{out: "Dylan <au-dev-dmackie1@kpmg.com.au> 1790156728 +1000\n"}
+	host := &identityRunner{out: "Dylan <developer@example.com> 1790156728 +1000\n"}
 	resolve := gitIdentityResolver("", "", identityHost(host))
 
 	got, err := resolve(context.Background())
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
-	if want := (api.GitIdentity{Name: "Dylan", Email: "au-dev-dmackie1@kpmg.com.au"}); got != want {
+	if want := (api.GitIdentity{Name: "Dylan", Email: "developer@example.com"}); got != want {
 		t.Errorf("identity = %#v, want %#v", got, want)
 	}
 	if len(host.calls) != 1 {

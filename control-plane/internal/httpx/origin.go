@@ -53,7 +53,7 @@ func DefaultOrigins() []string {
 //
 // A non-empty slice whose entries all normalise away leaves the allowlist EMPTY
 // and logs a warning. Falling back to the defaults there would silently restore
-// five origins the operator did not ask for, and PANACEA_APP_ALLOWED_ORIGINS
+// five origins the operator did not ask for, and LUCI_ALLOWED_ORIGINS
 // exists to lock the surface down.
 func NewOriginPolicy(allowed []string, log *slog.Logger) *OriginPolicy {
 	if log == nil {
@@ -138,7 +138,7 @@ func (p *OriginPolicy) Allowed() []string {
 // process with no Origin header and Host: evil.example. Nothing else sees them.
 //
 // It takes a Host HEADER, which may carry a port and may be a bracketed IPv6
-// literal. Task 13's bind refusal splits PANACEA_APP_ADDR itself before calling
+// literal. Task 13's bind refusal splits LUCI_ADDR itself before calling
 // this.
 func LoopbackHost(hostHeader string) bool {
 	h := strings.TrimSpace(hostHeader)
@@ -214,7 +214,7 @@ func (p *OriginPolicy) Middleware(next http.Handler) http.Handler {
 				"origin", origin, "allowed", strings.Join(p.order, ", "),
 				"method", r.Method, "path", r.URL.Path)
 			WriteProblem(w, http.StatusForbidden, CodeForbiddenOrigin,
-				"This origin is not allowed to call the Panacea App control plane. "+
+				"This origin is not allowed to call the Luci App control plane. "+
 					"The control plane log names the origins that are.",
 				map[string]string{"origin": origin})
 			return

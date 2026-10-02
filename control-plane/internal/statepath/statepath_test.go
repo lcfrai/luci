@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/statepath"
+	"github.com/lcfrai/luci/control-plane/internal/statepath"
 )
 
 // clearLadder empties every environment variable Dir reads, so a test starts
@@ -31,8 +31,8 @@ func homeAt(t *testing.T, dir string) {
 func TestEnvStateDirIsTheSharedVariableName(t *testing.T) {
 	// Phase 4's discoverstore reads this exact string. Renaming it here without
 	// renaming it there splits the user's state across two trees.
-	if statepath.EnvStateDir != "PANACEA_APP_STATE_DIR" {
-		t.Fatalf("EnvStateDir = %q, want %q", statepath.EnvStateDir, "PANACEA_APP_STATE_DIR")
+	if statepath.EnvStateDir != "LUCI_STATE_DIR" {
+		t.Fatalf("EnvStateDir = %q, want %q", statepath.EnvStateDir, "LUCI_STATE_DIR")
 	}
 }
 
@@ -57,7 +57,7 @@ func TestLocalAppDataRung(t *testing.T) {
 	t.Setenv("LOCALAPPDATA", local)
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 
-	want := filepath.Join(local, "PanaceaApp", "state", "sessions")
+	want := filepath.Join(local, "Luci", "state", "sessions")
 	if got := statepath.Dir("sessions"); got != want {
 		t.Fatalf("Dir(\"sessions\") = %q, want %q", got, want)
 	}
@@ -69,7 +69,7 @@ func TestXDGStateHomeRung(t *testing.T) {
 	xdg := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", xdg)
 
-	want := filepath.Join(xdg, "panacea-app", "sessions")
+	want := filepath.Join(xdg, "luci", "sessions")
 	if got := statepath.Dir("sessions"); got != want {
 		t.Fatalf("Dir(\"sessions\") = %q, want %q", got, want)
 	}
@@ -80,7 +80,7 @@ func TestHomeRung(t *testing.T) {
 	home := t.TempDir()
 	homeAt(t, home)
 
-	want := filepath.Join(home, ".local", "state", "panacea-app", "sessions")
+	want := filepath.Join(home, ".local", "state", "luci", "sessions")
 	if got := statepath.Dir("sessions"); got != want {
 		t.Fatalf("Dir(\"sessions\") = %q, want %q", got, want)
 	}
@@ -94,7 +94,7 @@ func TestTempFallbackWhenHomeIsUnknowable(t *testing.T) {
 	// user's profile.
 	homeAt(t, "")
 
-	want := filepath.Join(os.TempDir(), "panacea-app", "sessions")
+	want := filepath.Join(os.TempDir(), "luci", "sessions")
 	if got := statepath.Dir("sessions"); got != want {
 		t.Fatalf("Dir(\"sessions\") = %q, want %q", got, want)
 	}
@@ -132,7 +132,7 @@ func TestDirEmptySubReturnsTheStateRoot(t *testing.T) {
 
 func TestSessionsAndDiscoverAreSiblings(t *testing.T) {
 	// Contract §7.1 as an assertion: Phase 2's registry and Phase 4's discover
-	// store live under one parent, so one PANACEA_APP_STATE_DIR moves both.
+	// store live under one parent, so one LUCI_STATE_DIR moves both.
 	clearLadder(t)
 	homeAt(t, t.TempDir())
 	t.Setenv("LOCALAPPDATA", t.TempDir())

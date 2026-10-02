@@ -21,12 +21,13 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/httpx"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry/registrytest"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/harness"
+	"github.com/lcfrai/luci/control-plane/internal/httpx"
+	"github.com/lcfrai/luci/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/registry/registrytest"
+	"github.com/lcfrai/luci/control-plane/internal/worktree"
 )
 
 // sessionsToken and sessionsEndpoint are deliberately unmistakable strings. The leak test
@@ -605,7 +606,7 @@ func sessionsNewEnvOverWith(t *testing.T, dir string, st registry.Store, flags r
 		// store inside the worktree would be committed with the code.
 		conversations: filepath.Join(dir, "conversations"),
 		loc: &sessionsLocator{
-			projects: []project.Project{{ID: "p-8c1d0e42", Name: "panacea", Path: dir}},
+			projects: []project.Project{{ID: "p-8c1d0e42", Name: "luci", Path: dir}},
 			branches: map[string][]project.Branch{
 				"p-8c1d0e42": {{ID: "b-8c1d0e42-evidence-upload", ProjectID: "p-8c1d0e42", Name: "evidence-upload"}},
 			},
@@ -628,7 +629,7 @@ func sessionsNewEnvOverWith(t *testing.T, dir string, st registry.Store, flags r
 		Worktrees:        env.wt,
 		Origin:           httpx.NewOriginPolicy(nil, log),
 		Log:              log,
-		Image:            "panacea-app/sandbox:dev",
+		Image:            "luci/sandbox:dev",
 		Resources:        backend.DefaultResources,
 		ReadyTimeout:     50 * time.Millisecond,
 		ConversationsDir: env.conversations,
@@ -806,7 +807,7 @@ func TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv(t *testing.T) {
 	got := sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions", sessionsCreateBody), http.StatusCreated)
 	spec := env.be.spec(t, 0)
 
-	if spec.Image != "panacea-app/sandbox:dev" {
+	if spec.Image != "luci/sandbox:dev" {
 		t.Errorf("Image = %q", spec.Image)
 	}
 	if spec.SessionID != got.ID {
@@ -830,7 +831,7 @@ func TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	if strings.Join(spec.Args, "\x00") != strings.Join([]string{"--model", "opus", "--effort", "high", "--session-id", stored.ConversationID, "add tests, then refactor"}, "\x00") {
+	if strings.Join(spec.Args, "\x00") != strings.Join([]string{"--append-system-prompt", harness.ProjectBriefPrompt, "--model", "opus", "--effort", "high", "--session-id", stored.ConversationID, "add tests, then refactor"}, "\x00") {
 		t.Errorf("Args = %#v", spec.Args)
 	}
 	if spec.AttachToken == "" {
@@ -838,7 +839,7 @@ func TestCreateBuildsASpecThatMountsTheWorktreeAndCarriesTheArgv(t *testing.T) {
 	}
 	// AMENDED by the sandbox git fix: with no identity and no CA bundle the only
 	// extra environment is git's own configuration, whose values
-	// sessions_sandboxenv_test.go pins. A PANACEA_APP_* key here would be
+	// sessions_sandboxenv_test.go pins. A LUCI_* key here would be
 	// rejected by EnvEntries anyway.
 	for k := range spec.Env {
 		if !strings.HasPrefix(k, "GIT_CONFIG_") {
@@ -1482,7 +1483,7 @@ func TestRestartKeepsTheIDAndMintsANewSandboxAndANewToken(t *testing.T) {
 	if after.ConversationID == "" || after.ConversationID == before.ConversationID {
 		t.Errorf("conversationId = %q (was %q); a restart is a clean context and needs a conversation of its own", after.ConversationID, before.ConversationID)
 	}
-	if want := []string{"--model", "opus", "--session-id", after.ConversationID}; after.Command != before.Command || strings.Join(after.Args, "\x00") != strings.Join(want, "\x00") {
+	if want := []string{"--append-system-prompt", harness.ProjectBriefPrompt, "--model", "opus", "--session-id", after.ConversationID}; after.Command != before.Command || strings.Join(after.Args, "\x00") != strings.Join(want, "\x00") {
 		t.Errorf("restart ran %q %v, want %q %v", after.Command, after.Args, before.Command, want)
 	}
 	if len(env.be.destroys) != 1 || env.be.destroys[0] != before.SandboxID {

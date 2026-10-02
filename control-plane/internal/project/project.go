@@ -18,8 +18,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/hostpath"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/worktree"
+	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/worktree"
 )
 
 // branchReadBudget bounds the WHOLE of Branches — its for-each-ref, its
@@ -547,7 +547,7 @@ func (s *Scanner) readWriteMounts(projects []Project) ([]string, error) {
 // project's worktrees that no phase-2 sandbox can write, and it is the one the
 // host asks.
 //
-// Confining to PANACEA_APP_PROJECTS_DIR instead — the guard RESUME.md names —
+// Confining to LUCI_PROJECTS_DIR instead — the guard RESUME.md names —
 // would refuse the e2e fixture's own worktree: `desktop/e2e/fixture.sh` puts
 // linked worktrees outside the projects root ON PURPOSE, because a linked
 // worktree's .git is a file and one inside the root would enumerate as a second

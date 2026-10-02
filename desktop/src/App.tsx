@@ -8,13 +8,14 @@
 // already has. Nothing else LISTS a machine, a project, a harness, a branch or a worktree, so
 // without this file the rail renders an empty store for ever.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { JSX } from "react";
 import { api } from "./api";
 import { ApiError } from "./api/client";
 import type { CockpitClient } from "./api/client";
 import { startPolling } from "./api/poller";
 import { AppShell } from "./components/AppShell";
+import { SetupProvider } from "./components/setup/SetupProvider";
 import { useCockpit } from "./store/store";
 import type { CockpitState } from "./store/store";
 import type { BranchId, ProjectId } from "./store/types";
@@ -59,6 +60,7 @@ function projectOfBranch(state: CockpitState, branchId: BranchId): ProjectId | n
 }
 
 export interface Catalogue {
+  refreshProjects(): void;
   /** After this returns, nothing this loader started writes the store — the same contract as
    *  `startPolling`'s stop, and for the same reason: a reply that lands after unmount must not
    *  repopulate anything. */
@@ -211,6 +213,19 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
   sync();
 
   return {
+    refreshProjects: () => {
+      if (stopped) return;
+      arrived.delete("projects");
+      failed.delete("projects");
+      loadRoots();
+      // An initial commit creates the first branch without changing the project id.
+      // Refresh open branch lists explicitly instead of treating cached empty lists as final.
+      for (const projectId of openProjects(store.getState())) {
+        const key = `branches:${projectId}` as LoadKey;
+        failed.delete(key);
+        void run(key, () => client.listBranches(projectId), branches => store.getState().setBranches(projectId, branches));
+      }
+    },
     stop: () => {
       stopped = true;
       unsubscribe();
@@ -226,16 +241,19 @@ export function startCatalogue(client: CockpitClient, store: Store): Catalogue {
 }
 
 export default function App(): JSX.Element {
+  const catalogueRef = useRef<Catalogue | null>(null);
   // §4.7 says the poller starts on mount of AppShell; §9 puts it here. Same lifetime: this
   // component renders AppShell and nothing else, so this effect IS AppShell's lifetime.
   useEffect(() => {
     const catalogue = startCatalogue(api, useCockpit);
+    catalogueRef.current = catalogue;
     const stopPolling = startPolling(api, useCockpit, catalogue.retry);
     return () => {
       catalogue.stop();
+      catalogueRef.current = null;
       stopPolling();
     };
   }, []);
 
-  return <AppShell />;
+  return <SetupProvider onProjectsChanged={() => catalogueRef.current?.refreshProjects()}><AppShell /></SetupProvider>;
 }

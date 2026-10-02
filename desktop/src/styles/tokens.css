@@ -1,6 +1,6 @@
 /* desktop/src/styles/tokens.css
  *
- * The Panacea App token layer. docs/DESIGN-SYSTEM.md governs every value here.
+ * The Luci token layer. docs/DESIGN-SYSTEM.md governs every value here.
  *
  * Colour space is OKLCH so light and dark are DERIVED rather than inverted, and so equal
  * numeric steps read as equal perceptual steps in the bottom quarter of the range, which is

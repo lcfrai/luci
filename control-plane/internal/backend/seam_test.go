@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 )
 
 // TestSeamBackendIsTheSevenMethodsBothImplementationsServe pins seam S8.1 in
@@ -69,7 +69,7 @@ func TestSeamBackendIsTheSevenMethodsBothImplementationsServe(t *testing.T) {
 }
 
 // backendPkg is the import path of package backend, where Spec, Sandbox and Kind live.
-const backendPkg = "github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+const backendPkg = "github.com/lcfrai/luci/control-plane/internal/backend"
 
 // namedIn records, by printed name, the import path of every named type t mentions.
 // Predeclared types (error, string) have no import path and are skipped.

@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/coder/websocket"
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/hub"
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/wire"
+	"github.com/lcfrai/luci/sandboxd/internal/hub"
+	"github.com/lcfrai/luci/sandboxd/internal/wire"
 )
 
 // maxMessageBytes raises coder/websocket's 32 KiB default read limit. The
@@ -69,7 +69,7 @@ type Server struct {
 func New(cfg Config) (*Server, error) {
 	if cfg.AttachToken == "" && !cfg.AllowUnauthenticated {
 		return nil, errors.New("sandboxd: no attach token configured; " +
-			"set AttachToken (PANACEA_APP_ATTACH_TOKEN / -attach-token) or " +
+			"set AttachToken (LUCI_ATTACH_TOKEN / -attach-token) or " +
 			"pass -allow-unauthenticated to run without one")
 	}
 	h, err := hub.Start(hub.Config{

@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/sandboxd/internal/ring"
+	"github.com/lcfrai/luci/sandboxd/internal/ring"
 )
 
 // newTestHub builds a Hub with no PTY behind it, so these tests exercise the

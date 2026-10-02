@@ -703,7 +703,7 @@ describe("sessionVerbs — the failure sentence", () => {
     find(sessionVerbs(IDS.session, DEPS), "restart")?.run?.();
     await vi.runOnlyPendingTimersAsync();
     expect(lastToast()?.message).toBe(
-      "The Panacea control plane is not running, so nothing was changed.",
+      "The Luci control plane is not running, so nothing was changed.",
     );
 
     restartMock.mockRejectedValue(new ApiError("backend_unavailable", "docker: no such host", 503));

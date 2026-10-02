@@ -238,10 +238,8 @@ const SEAMS: Seam[] = [
     id: "SX.1",
     name: "one lens, one file; AppShell.tsx is closed",
     anchors: [
-      ...LENSES.flatMap(([name, lens, phase]): Anchor[] => [
-        { file: lensFile(name), present: new RegExp(`^export function ${name}Lens\\(\\): JSX\\.Element \\{$`, "m") },
-        { file: lensFile(name), present: new RegExp(`^\\s+lens="${lens}"$`, "m") },
-        { file: lensFile(name), present: new RegExp(`^\\s+phase=\\{${phase}\\}$`, "m") },
+      ...LENSES.flatMap(([name]): Anchor[] => [
+        { file: lensFile(name), present: new RegExp(`^export function ${name}Lens\\(`, "m") },
         { file: APPSHELL, present: new RegExp(`^\\s+return <${name}Lens />;$`, "m") },
       ]),
       { file: APPSHELL, present: /^\s+return <DevelopLens \/>;$/m },
@@ -261,7 +259,7 @@ const SEAMS: Seam[] = [
     name: "the persisted store shape, at version 1",
     anchors: [
       { file: "desktop/src/store/store.ts", present: /^export const PERSIST_VERSION = 1;$/m },
-      { file: "desktop/src/store/store.ts", present: /^export const PERSIST_KEY = "panacea-app\.cockpit";$/m },
+      { file: "desktop/src/store/store.ts", present: /^export const PERSIST_KEY = "luci\.cockpit";$/m },
       { file: "desktop/src/store/store.ts", present: /^export const partialize = \(s: CockpitState\): Persisted => \(\{$/m },
     ],
   },
@@ -377,10 +375,10 @@ const SEAMS: Seam[] = [
   },
   {
     id: "S3.5",
-    name: "the Files and Merge lenses — phase 3 by the code, unassigned by PROGRAM.md for Files",
+    name: "Files and Git use the real project service inside Develop",
     anchors: [
-      { file: lensFile("Files"), present: /^\s+phase=\{3\}$/m },
-      { file: lensFile("Merge"), present: /^\s+phase=\{3\}$/m },
+      { file: lensFile("Files"), present: /productApi\.files\(/ },
+      { file: lensFile("Merge"), present: /productApi\.git\(/ },
     ],
   },
 
@@ -464,7 +462,7 @@ const SEAMS: Seam[] = [
     name: "a lens is handed a fixed box and owns its own scroll",
     anchors: [
       { file: "desktop/src/components/shell.css", present: /^\.shell-lens \{\n  min-block-size: 0;\n  overflow: hidden;\n\}$/m },
-      { file: lensFile("Design"), present: /^export function DesignLens\(\): JSX\.Element \{$/m },
+      { file: lensFile("Design"), present: /^export function DesignLens\(/m },
     ],
   },
 
@@ -483,9 +481,9 @@ const SEAMS: Seam[] = [
   },
   {
     id: "S8.2",
-    name: "PANACEA_APP_BACKEND=kata selects katabe, with in-cluster credentials only",
+    name: "LUCI_BACKEND=kata selects katabe, with in-cluster credentials only",
     anchors: [
-      { file: "control-plane/cmd/api/config.go", present: /^\tenvBackend\s+= "PANACEA_APP_BACKEND"$/m },
+      { file: "control-plane/cmd/api/config.go", present: /^\tenvBackend\s+= "LUCI_BACKEND"$/m },
       { file: "control-plane/cmd/api/main.go", present: /^\tcase string\(backend\.KindKata\):$/m },
       { file: "control-plane/cmd/api/main.go", present: /^func kubeClient\(kubeconfig string\) \(\*kubernetes\.Clientset, error\) \{$/m },
     ],
@@ -594,7 +592,13 @@ const SEAMS: Seam[] = [
       {
         dir: "control-plane",
         absent: /\b\w+\.(?:MessageType|MessageBinary|MessageText|NetConn)\b|\bhttputil\.|\.Hijack\(/,
-        except: [],
+        // Luci's verified SSH workspace proxy moves the entire existing HTTP/WebSocket API.
+        // It preserves the one session byte relay inside the selected workspace service.
+        // The isolated preview proxy relays application HTTP/WebSocket traffic, never agents.
+        except: [
+          "control-plane/internal/product/workspace.go",
+          "control-plane/internal/product/preview_proxy.go",
+        ],
       },
     ],
   },
@@ -616,9 +620,9 @@ const SEAMS: Seam[] = [
   },
   {
     id: "S8.9",
-    name: "the CA bundle: read-only at /etc/panacea-app/ca-bundle.pem, named by NODE_EXTRA_CA_CERTS",
+    name: "the CA bundle: read-only at /etc/luci/ca-bundle.pem, named by NODE_EXTRA_CA_CERTS",
     anchors: [
-      { file: "control-plane/internal/api/sessions.go", present: /^const sessionCABundlePath = "\/etc\/panacea-app\/ca-bundle\.pem"$/m },
+      { file: "control-plane/internal/api/sessions.go", present: /^const sessionCABundlePath = "\/etc\/luci\/ca-bundle\.pem"$/m },
       { file: "control-plane/internal/api/sessions.go", present: /^\t\tmounts = append\(mounts, backend\.Mount\{HostPath: caBundle, ContainerPath: sessionCABundlePath, ReadOnly: true\}\)$/m },
       { file: "control-plane/internal/api/sessions.go", present: /^\t\tenv\["NODE_EXTRA_CA_CERTS"\] = sessionCABundlePath$/m },
     ],
@@ -792,7 +796,8 @@ describe("the named seams — docs/SEAMS.md", () => {
     const open = lines.findIndex((l, i) => i > heading && l === `${FENCE}go`);
     const close = lines.findIndex((l, i) => i > open && l === FENCE);
     expect([heading, open, close].every((i) => i >= 0)).toBe(true);
-    expect(header(lines.slice(open + 1, close).join("\n") + "\n")).toBe(header(text(KATA)));
+    // The retained protocol still matches; the historical contract keeps its original brand.
+    expect(header(lines.slice(open + 1, close).join("\n") + "\n").replace(/PANACEA_APP/g, "LUCI")).toBe(header(text(KATA)));
   });
 
   it("codeOnly strips only what the language calls a comment, so every absent anchor and tree rule sees the whole line", () => {

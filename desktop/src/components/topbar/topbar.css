@@ -1,4 +1,7 @@
 @import "../../styles/tokens.css";
+.top-tools { display: flex; gap: 3px; }
+.top-tools [aria-current] { color: var(--accent-hi); background: var(--accent-tint); }
+.top-title { font-weight: 550; color: var(--ink-2); }
 
 /* The top bar, and the panel the session picker renders into. Owns .top-* and .pick-*. */
 .top {

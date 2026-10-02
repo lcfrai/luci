@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 )
 
 // fakeSandbox is sandboxd's HTTP surface, reduced to what Dial and WaitReady

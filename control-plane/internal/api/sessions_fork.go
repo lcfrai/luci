@@ -8,8 +8,8 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // Fork is Resume into another worktree. docs/FUNCTIONAL-SPEC.md: Fork "branch[es]
@@ -63,7 +63,7 @@ type sessionResumeSource struct {
 //
 // It also makes the CLI's transcript directory in the fork's own store first,
 // because that is where the mount point goes. Observed on Docker Desktop with
-// panacea-app/sandbox:dev: a mount point's missing parent is made root-owned
+// luci/sandbox:dev: a mount point's missing parent is made root-owned
 // 0755 inside the sandbox, and the CLI, running as the agent user, then cannot
 // write the fork beside the file it forks — the fork fails and writes nothing
 // (fork-carries-report.md §3). Made by the host, it is as writable as the store.

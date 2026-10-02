@@ -6,7 +6,7 @@
 // Turning it on is NOT only a configuration change. Every session create sends
 // host-path Mounts, the worktree first, and a WorkDir (api/sessions.go), and
 // Create refuses both below — correctly, because a host path on an AKS node is
-// meaningless. So under PANACEA_APP_BACKEND=kata every create fails today. The
+// meaningless. So under LUCI_BACKEND=kata every create fails today. The
 // first thing Phase 8 must build is a way to get the worktree into the pod:
 // seam S8.3 in docs/SEAMS.md.
 package katabe
@@ -20,8 +20,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/sandbox"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )

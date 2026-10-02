@@ -37,7 +37,7 @@ export interface CreateSessionOptions {
 function sentenceFor(error: ApiError): string {
   switch (classify(error)) {
     case "control-plane-down":
-      return "The Panacea control plane is not running, so the session was not created.";
+      return "The Luci control plane is not running, so the session was not created.";
     case "backend-down":
       return "Docker is not running on this machine, so the sandbox could not be started.";
     case "server-said":

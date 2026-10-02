@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // Review I-1. head() tolerates ONE silence — `rev-parse --verify --quiet HEAD`
@@ -25,7 +25,7 @@ import (
 // measures it from a real ExecRunner.
 func TestBranchesReportsAConfirmationThatNeverStartedRatherThanCallingItUnborn(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 
 	// F2's own case for the first git: killed at this runner's bound.
 	killed := &project.GitError{

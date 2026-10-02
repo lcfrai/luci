@@ -1,4 +1,4 @@
-# Panacea App — design system
+# Luci — design system
 
 This document exists because the first prototype looked machine-generated. It is the standard every surface is held to.
 

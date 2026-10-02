@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/project"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 // budgetGit records the deadline every git of a read is given.
@@ -45,7 +45,7 @@ var _ project.Runner = (*budgetGit)(nil)
 // git's bound. Nothing asserted this before: the read is bounded in total.
 func TestABranchReadIsBoundedInTotalAndNotPerGit(t *testing.T) {
 	root := t.TempDir()
-	dir := makeRepo(t, root, "panacea")
+	dir := makeRepo(t, root, "luci")
 	g := &budgetGit{}
 
 	start := time.Now()

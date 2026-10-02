@@ -11,9 +11,9 @@ import (
 
 	"github.com/coder/websocket"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/reaper"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // F1, part 1 and part 2 (docs/verification/2026-09-27-phase-2-results.md).

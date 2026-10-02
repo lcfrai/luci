@@ -18,16 +18,16 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/instance"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/reaper"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/registry"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/instance"
+	"github.com/lcfrai/luci/control-plane/internal/reaper"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 // fakeDaemon is the Docker Engine API, as much of it as serve and the reaper
 // call: /_ping, GET /containers/json and DELETE /containers/{name}. It is an
 // httptest server on 127.0.0.1, so a test that points
-// PANACEA_APP_DOCKER_HOST at it reaches no real daemon, and it holds no
+// LUCI_DOCKER_HOST at it reaches no real daemon, and it holds no
 // container anybody made. Any other request is recorded and answered 404, so a
 // test can say what serve asked that it did not expect.
 type fakeDaemon struct {
@@ -111,7 +111,7 @@ func summaryOf(containerID, sandboxID, instanceID string, ports ...container.Por
 	}
 	return container.Summary{
 		ID:      containerID,
-		Names:   []string{"/panacea-app-" + sandboxID},
+		Names:   []string{"/luci-" + sandboxID},
 		State:   "running",
 		Created: time.Now().Add(-time.Hour).Unix(), // well past any create grace
 		Labels:  labels,
@@ -213,8 +213,8 @@ func TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers(t *testing.T) 
 
 	select {
 	case name := <-d.removedCh:
-		if name != "panacea-app-s-ownorph1" {
-			t.Errorf("the first container serve's reaper removed was %q, want its own orphan panacea-app-s-ownorph1", name)
+		if name != "luci-s-ownorph1" {
+			t.Errorf("the first container serve's reaper removed was %q, want its own orphan luci-s-ownorph1", name)
 		}
 	case err := <-done:
 		t.Fatalf("serve returned (%v) before its reaper destroyed its own orphan; logs:\n%s", err, logs.String())
@@ -231,7 +231,7 @@ func TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers(t *testing.T) 
 	case <-time.After(20 * time.Second):
 		t.Fatal("serve did not return within 20s of its context being cancelled")
 	}
-	if got := d.removedNames(); !reflect.DeepEqual(got, []string{"panacea-app-s-ownorph1"}) {
+	if got := d.removedNames(); !reflect.DeepEqual(got, []string{"luci-s-ownorph1"}) {
 		t.Errorf("removed %v, want only this instance's orphan: another instance's is its own reaper's", got)
 	}
 	if !strings.Contains(logs.String(), "instance="+fakeOurs) {

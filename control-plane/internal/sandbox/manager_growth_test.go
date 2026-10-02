@@ -5,19 +5,19 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/sandbox"
+	"github.com/lcfrai/luci/control-plane/internal/sandbox"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-const growthNamespace = "panacea-app"
+const growthNamespace = "luci"
 
 func growthSpec() sandbox.Spec {
 	return sandbox.Spec{
 		ID:          "s-3f2a91c0",
-		Image:       "panacea-app/sandbox:dev",
+		Image:       "luci/sandbox:dev",
 		Command:     "claude",
 		CPU:         "2000m",
 		Memory:      "4096Mi",
@@ -56,12 +56,12 @@ func TestCreateInjectsTheSandboxdContractEnvironment(t *testing.T) {
 	pod := createPod(t, fake.NewSimpleClientset(), growthSpec())
 	env := pod.Spec.Containers[0].Env
 	if len(env) < 3 {
-		t.Fatalf("got %d env vars, want at least the three PANACEA_APP_* variables", len(env))
+		t.Fatalf("got %d env vars, want at least the three LUCI_* variables", len(env))
 	}
 	want := []corev1.EnvVar{
-		{Name: "PANACEA_APP_COMMAND", Value: "claude"},
-		{Name: "PANACEA_APP_ARGS_JSON", Value: `["--model","opus","plan the migration, then stop"]`},
-		{Name: "PANACEA_APP_ATTACH_TOKEN", Value: "tok-abcdefgh"},
+		{Name: "LUCI_COMMAND", Value: "claude"},
+		{Name: "LUCI_ARGS_JSON", Value: `["--model","opus","plan the migration, then stop"]`},
+		{Name: "LUCI_ATTACH_TOKEN", Value: "tok-abcdefgh"},
 	}
 	for i, w := range want {
 		if env[i].Name != w.Name || env[i].Value != w.Value {
@@ -70,7 +70,7 @@ func TestCreateInjectsTheSandboxdContractEnvironment(t *testing.T) {
 	}
 }
 
-// An empty PANACEA_APP_ARGS_JSON is not "no arguments" to sandboxd, it is
+// An empty LUCI_ARGS_JSON is not "no arguments" to sandboxd, it is
 // "use the legacy comma-separated form", which splits the prompt above into
 // two arguments at its comma.
 func TestCreateDefaultsAnEmptyArgsJSONToAnEmptyArray(t *testing.T) {
@@ -78,14 +78,14 @@ func TestCreateDefaultsAnEmptyArgsJSONToAnEmptyArray(t *testing.T) {
 	spec.ArgsJSON = ""
 	pod := createPod(t, fake.NewSimpleClientset(), spec)
 	for _, e := range pod.Spec.Containers[0].Env {
-		if e.Name == "PANACEA_APP_ARGS_JSON" {
+		if e.Name == "LUCI_ARGS_JSON" {
 			if e.Value != "[]" {
-				t.Fatalf("PANACEA_APP_ARGS_JSON = %q, want %q", e.Value, "[]")
+				t.Fatalf("LUCI_ARGS_JSON = %q, want %q", e.Value, "[]")
 			}
 			return
 		}
 	}
-	t.Fatal("PANACEA_APP_ARGS_JSON is absent from the container environment")
+	t.Fatal("LUCI_ARGS_JSON is absent from the container environment")
 }
 
 func TestCreateAppendsExtraEnvironmentSortedAndDropsReservedKeys(t *testing.T) {
@@ -93,7 +93,7 @@ func TestCreateAppendsExtraEnvironmentSortedAndDropsReservedKeys(t *testing.T) {
 	spec.Env = map[string]string{
 		"ZULU":                     "z",
 		"ALPHA":                    "a",
-		"PANACEA_APP_ATTACH_TOKEN": "stolen",
+		"LUCI_ATTACH_TOKEN": "stolen",
 	}
 	pod := createPod(t, fake.NewSimpleClientset(), spec)
 	env := pod.Spec.Containers[0].Env
@@ -105,21 +105,21 @@ func TestCreateAppendsExtraEnvironmentSortedAndDropsReservedKeys(t *testing.T) {
 		t.Errorf("extra env is %s then %s, want ALPHA then ZULU: unsorted map iteration makes two identical Specs produce different pods", env[3].Name, env[4].Name)
 	}
 	for _, e := range env {
-		if e.Name == "PANACEA_APP_ATTACH_TOKEN" && e.Value != "tok-abcdefgh" {
-			t.Fatalf("PANACEA_APP_ATTACH_TOKEN = %q: a caller-supplied reserved key replaced the sandbox secret", e.Value)
+		if e.Name == "LUCI_ATTACH_TOKEN" && e.Value != "tok-abcdefgh" {
+			t.Fatalf("LUCI_ATTACH_TOKEN = %q: a caller-supplied reserved key replaced the sandbox secret", e.Value)
 		}
 	}
 }
 
 func TestCreateLabelsThePodWithTheSessionAndComponent(t *testing.T) {
 	pod := createPod(t, fake.NewSimpleClientset(), growthSpec())
-	if got := pod.Labels["panacea-app/session-id"]; got != "s-3f2a91c0" {
+	if got := pod.Labels["luci/session-id"]; got != "s-3f2a91c0" {
 		t.Errorf("session-id label = %q, want s-3f2a91c0", got)
 	}
-	if got := pod.Labels["panacea-app/component"]; got != "sandbox" {
+	if got := pod.Labels["luci/component"]; got != "sandbox" {
 		t.Errorf("component label = %q, want sandbox", got)
 	}
-	if got := pod.Labels["panacea-app/sandbox-id"]; got != "s-3f2a91c0" {
+	if got := pod.Labels["luci/sandbox-id"]; got != "s-3f2a91c0" {
 		t.Errorf("sandbox-id label = %q, want s-3f2a91c0", got)
 	}
 }
@@ -128,7 +128,7 @@ func TestCreateOmitsTheSessionLabelWhenThereIsNoSession(t *testing.T) {
 	spec := growthSpec()
 	spec.SessionID = ""
 	pod := createPod(t, fake.NewSimpleClientset(), spec)
-	if _, ok := pod.Labels["panacea-app/session-id"]; ok {
+	if _, ok := pod.Labels["luci/session-id"]; ok {
 		t.Error("session-id label is present with an empty value; an empty label is noise in every kubectl output and matches nothing useful")
 	}
 }
@@ -237,7 +237,7 @@ func TestGetAndListIgnorePodsThisManagerDidNotCreate(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "someone-elses-pod",
 			Namespace: growthNamespace,
-			Labels:    map[string]string{"panacea-app/sandbox-id": "s-3f2a91c0"},
+			Labels:    map[string]string{"luci/sandbox-id": "s-3f2a91c0"},
 		},
 	})
 	m := sandbox.NewManager(client, growthNamespace)

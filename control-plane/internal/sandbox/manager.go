@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +19,7 @@ import (
 // runtimeClass is the RuntimeClass installed by AKS pod sandboxing.
 const runtimeClass = "kata-mshv-vm-isolation"
 
-// componentSandbox is the value of the panacea-app/component label on every
+// componentSandbox is the value of the luci/component label on every
 // pod this manager creates. Get and List select on it, so a pod that merely
 // carries a sandbox-id label is invisible to both.
 const componentSandbox = "sandbox"
@@ -27,7 +27,7 @@ const componentSandbox = "sandbox"
 // envReservedPrefix is the namespace of the three variables the sandboxd
 // contract owns. internal/backend.ValidateSpec is the authoritative rejection;
 // the check in containerEnv is the last line for a direct Manager caller.
-const envReservedPrefix = "PANACEA_APP_"
+const envReservedPrefix = "LUCI_"
 
 // emptyArgsJSON is what "no arguments" looks like on the wire. It is not "".
 const emptyArgsJSON = "[]"
@@ -91,7 +91,7 @@ func podLabels(spec Spec) map[string]string {
 	return labels
 }
 
-// containerEnv renders the container's environment: the three PANACEA_APP_*
+// containerEnv renders the container's environment: the three LUCI_*
 // variables the sandboxd contract fixes, then every Spec.Env key in sorted
 // order, so two identical Specs produce byte-identical pods and a test can
 // assert on a slice instead of a set.
@@ -106,7 +106,7 @@ func podLabels(spec Spec) map[string]string {
 func containerEnv(spec Spec) []corev1.EnvVar {
 	argsJSON := spec.ArgsJSON
 	if strings.TrimSpace(argsJSON) == "" {
-		// sandboxd reads an empty PANACEA_APP_ARGS_JSON as "fall back to the
+		// sandboxd reads an empty LUCI_ARGS_JSON as "fall back to the
 		// legacy comma-separated form", and that form splits an opening prompt
 		// on its commas.
 		argsJSON = emptyArgsJSON
@@ -120,7 +120,7 @@ func containerEnv(spec Spec) []corev1.EnvVar {
 
 	keys := make([]string, 0, len(spec.Env))
 	for k := range spec.Env {
-		// A caller that could set PANACEA_APP_ATTACH_TOKEN here could replace
+		// A caller that could set LUCI_ATTACH_TOKEN here could replace
 		// the sandbox's secret with one it chose.
 		if strings.HasPrefix(k, envReservedPrefix) {
 			continue
@@ -170,12 +170,12 @@ func (m *Manager) Create(ctx context.Context, spec Spec) (string, error) {
 			HostNetwork:   false,
 			RestartPolicy: corev1.RestartPolicyNever,
 			Tolerations: []corev1.Toleration{{
-				Key:      "panacea-app/sandbox",
+				Key:      "luci/sandbox",
 				Operator: corev1.TolerationOpEqual,
 				Value:    "true",
 				Effect:   corev1.TaintEffectNoSchedule,
 			}},
-			NodeSelector: map[string]string{"panacea-app/role": "sandbox"},
+			NodeSelector: map[string]string{"luci/role": "sandbox"},
 			// The root filesystem is read-only, so every path the agent writes to
 			// must be an explicit volume. The image's home directory is /home/dev
 			// (uid 1001) and tooling writes to /tmp. Without these two mounts the

@@ -21,15 +21,15 @@ resource "azurerm_kubernetes_cluster_node_pool" "kata" {
   max_count            = var.max_count
 
   node_labels = {
-    "panacea-app/role" = "sandbox"
+    "luci/role" = "sandbox"
   }
 
   node_taints = [
-    "panacea-app/sandbox=true:NoSchedule",
+    "luci/sandbox=true:NoSchedule",
   ]
 
   tags = {
-    product = "panacea-app"
+    product = "luci"
     phase   = "1"
   }
 

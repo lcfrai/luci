@@ -72,8 +72,8 @@ export function aMachine(over: Partial<Machine> = {}): Machine {
 export function aProject(over: Partial<Project> = {}): Project {
   return {
     id: IDS.project,
-    name: "panacea",
-    path: "C:\\work\\panacea",
+    name: "luci",
+    path: "C:\\work\\luci",
     ...over,
   };
 }
@@ -94,7 +94,7 @@ export function aWorktree(over: Partial<Worktree> = {}): Worktree {
     projectId: IDS.project,
     branchId: IDS.branch,
     name: "evidence-upload",
-    path: "C:\\work\\panacea\\.worktrees\\evidence-upload",
+    path: "C:\\work\\luci\\.worktrees\\evidence-upload",
     isPrimary: false,
     sessionCount: 1,
     // Always on the wire per §2's amendment: worktreeJSON's `Ready bool` has no omitempty.

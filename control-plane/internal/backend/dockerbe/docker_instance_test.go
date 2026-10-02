@@ -11,8 +11,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend/dockerbe"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend/dockerbe"
 )
 
 // testInstance is the instance id every backend under test owns.
@@ -39,7 +39,7 @@ func labelsOwnedBy(instance, sandboxID string) map[string]string {
 //
 // The legacy one is returned because a registry can prove it is its own when
 // this backend cannot: its sandbox id was minted by one control plane at
-// random, and panacea-app-<id> is unique on the daemon. Skipping it here made
+// random, and luci-<id> is unique on the daemon. Skipping it here made
 // restart recovery write `exited` over a session whose container was still
 // running. Whether it may be destroyed is the reaper's call (owns()), so List
 // says nothing about it: one line per sandbox, from the layer that knows.
@@ -47,7 +47,7 @@ func TestListReturnsThisInstancesAndLegacyContainersButNotAnothers(t *testing.T)
 	f := &fakeDocker{list: []container.Summary{
 		{ID: "c-ours", State: "running", Labels: labelsOwnedBy(testInstance, "s-ours0001")},
 		{ID: "c-theirs", State: "running", Labels: labelsOwnedBy(otherInstance, "s-theirs01")},
-		{ID: "c-legacy", Names: []string{"/panacea-app-s-legacy01"}, State: "running", Labels: labelsOwnedBy("", "s-legacy01")},
+		{ID: "c-legacy", Names: []string{"/luci-s-legacy01"}, State: "running", Labels: labelsOwnedBy("", "s-legacy01")},
 	}}
 	b, logs := newBackendWithLog(t, f)
 

@@ -13,7 +13,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/backend"
 )
 
 // The sandbox git fix: every sandbox's environment carries git's
@@ -186,7 +186,7 @@ func TestTheSandboxCommitsAsTheIdentityTheHostResolved(t *testing.T) {
 // still starts, the sandbox gets no identity at all, git in it is left unable
 // to guess one, and the resolver's sentence is what the log says.
 func TestNoIdentityStartsTheSessionAndLogsTheResolversSentence(t *testing.T) {
-	const why = "no git identity: set PANACEA_APP_GIT_NAME and PANACEA_APP_GIT_EMAIL"
+	const why = "no git identity: set LUCI_GIT_NAME and LUCI_GIT_EMAIL"
 	// A half answer alongside the error, because Deps.GitIdentity's contract is
 	// "an error means no identity" — not "an error means whatever came back".
 	who := &sandboxEnvIdentity{id: GitIdentity{Name: "Half Resolved"}, err: errors.New(why)}

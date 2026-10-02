@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kpmg-au-emu/panacea-app/control-plane/internal/api"
+	"github.com/lcfrai/luci/control-plane/internal/api"
 )
 
 // This file is contract §10a, checked by a machine — Group C ruling 1. It is its
