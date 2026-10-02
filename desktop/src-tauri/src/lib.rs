@@ -13,12 +13,34 @@ use tauri_plugin_shell::{
     process::{CommandChild, CommandEvent},
     ShellExt,
 };
+mod state_dir;
 
 #[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 struct RuntimeInfo {
     api_url: String,
     startup_error: Option<String>,
+    state_dir: Option<PathBuf>,
+}
+
+impl RuntimeInfo {
+    fn select_state(
+        &mut self,
+        current: &std::path::Path,
+        legacy: Option<&std::path::Path>,
+    ) -> Option<PathBuf> {
+        match state_dir::select(current, legacy) {
+            Ok(selected) => {
+                self.state_dir = Some(selected.clone());
+                Some(selected)
+            }
+            Err(error) => {
+                self.startup_error =
+                    Some(format!("Luci could not open its saved workspace: {error}"));
+                None
+            }
+        }
+    }
 }
 
 struct LocalService {
@@ -91,6 +113,7 @@ pub fn run() {
                     .clone()
                     .unwrap_or_else(|| "http://127.0.0.1:8730".into()),
                 startup_error: None,
+                state_dir: None,
             };
             let mut child = None;
             let mut state_dir = None;
@@ -101,40 +124,50 @@ pub fn run() {
                 let address = listener.local_addr()?.to_string();
                 drop(listener);
                 info.api_url = format!("http://{address}");
-                let managed_state = app.path().app_data_dir()?;
-                state_dir = Some(managed_state.clone());
-                let shutdown_token = uuid::Uuid::new_v4().to_string();
-                lifecycle_token = Some(shutdown_token.clone());
-                let runtime = app.path().resource_dir()?.join("runtime");
-                let cloud_bundle = app
-                    .path()
-                    .resource_dir()?
-                    .join("cloud")
-                    .join("luci-cloud-linux-amd64.tar.gz");
-                match app.shell().sidecar("luci-api").and_then(|command| {
-                    command
-                        .env("LUCI_ADDR", address)
-                        .env("LUCI_STATE_DIR", managed_state)
-                        .env("LUCI_MANAGED_SHUTDOWN_TOKEN", shutdown_token)
-                        .env("LUCI_RUNTIME_DIR", runtime)
-                        .env("LUCI_CLOUD_BUNDLE", cloud_bundle)
-                        .spawn()
-                }) {
-                    Ok((mut events, process)) => {
-                        child = Some(process);
-                        let process_exited = Arc::clone(&exited);
-                        // Drain output so a verbose service never blocks on a full pipe.
-                        tauri::async_runtime::spawn(async move {
-                            while let Some(event) = events.recv().await {
-                                if matches!(event, CommandEvent::Terminated(_)) {
-                                    process_exited.store(true, Ordering::Release);
+                let current_state = app.path().app_data_dir()?;
+                let legacy_state = if cfg!(windows) {
+                    std::env::var_os("LOCALAPPDATA")
+                        .map(|root| PathBuf::from(root).join("Luci").join("state"))
+                } else {
+                    None
+                };
+                if let Some(managed_state) =
+                    info.select_state(&current_state, legacy_state.as_deref())
+                {
+                    state_dir = Some(managed_state.clone());
+                    let shutdown_token = uuid::Uuid::new_v4().to_string();
+                    lifecycle_token = Some(shutdown_token.clone());
+                    let runtime = app.path().resource_dir()?.join("runtime");
+                    let cloud_bundle = app
+                        .path()
+                        .resource_dir()?
+                        .join("cloud")
+                        .join("luci-cloud-linux-amd64.tar.gz");
+                    match app.shell().sidecar("luci-api").and_then(|command| {
+                        command
+                            .env("LUCI_ADDR", address)
+                            .env("LUCI_STATE_DIR", managed_state)
+                            .env("LUCI_MANAGED_SHUTDOWN_TOKEN", shutdown_token)
+                            .env("LUCI_RUNTIME_DIR", runtime)
+                            .env("LUCI_CLOUD_BUNDLE", cloud_bundle)
+                            .spawn()
+                    }) {
+                        Ok((mut events, process)) => {
+                            child = Some(process);
+                            let process_exited = Arc::clone(&exited);
+                            // Drain output so a verbose service never blocks on a full pipe.
+                            tauri::async_runtime::spawn(async move {
+                                while let Some(event) = events.recv().await {
+                                    if matches!(event, CommandEvent::Terminated(_)) {
+                                        process_exited.store(true, Ordering::Release);
+                                    }
                                 }
-                            }
-                        });
-                    }
-                    Err(error) => {
-                        info.startup_error =
-                            Some(format!("Luci could not start its local service: {error}"))
+                            });
+                        }
+                        Err(error) => {
+                            info.startup_error =
+                                Some(format!("Luci could not start its local service: {error}"))
+                        }
                     }
                 }
             }
@@ -177,4 +210,26 @@ pub fn run() {
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn state_selection_failure_is_visible_without_starting_a_service() {
+        let mut info = RuntimeInfo {
+            api_url: "http://127.0.0.1:1".into(),
+            startup_error: None,
+            state_dir: None,
+        };
+        assert!(info
+            .select_state(std::path::Path::new("relative"), None)
+            .is_none());
+        assert!(info.state_dir.is_none());
+        assert!(info
+            .startup_error
+            .unwrap()
+            .contains("could not open its saved workspace"));
+    }
 }

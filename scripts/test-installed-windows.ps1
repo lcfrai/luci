@@ -17,6 +17,8 @@ $installDir = Join-Path $taskRoot 'app'
 $toolsDir = Join-Path $taskRoot 'tools'
 $stateDir = Join-Path $env:APPDATA 'ai.lcfr.luci'
 if (Test-Path -LiteralPath $stateDir) { throw "Runner is not fresh: Luci state already exists at $stateDir" }
+$legacyStateDir = Join-Path $env:LOCALAPPDATA 'Luci\state'
+if (Test-Path -LiteralPath $legacyStateDir) { throw "Runner is not fresh: legacy Luci state already exists at $legacyStateDir" }
 New-Item -ItemType Directory -Path $taskRoot,$toolsDir,$evidencePath -Force | Out-Null
 $receipt = [ordered]@{
   passed = $false; installer = [IO.Path]::GetFileName($candidate)
@@ -53,6 +55,7 @@ function Run-UI([string]$Mode, [string]$PassName) {
 }
 function Preserved-Hashes {
   $fixture = Get-Content -LiteralPath (Join-Path $evidencePath 'private-fixture.json') -Raw | ConvertFrom-Json
+  $selectedStateDir = $fixture.stateDir
   $project = Join-Path $fixture.projectRoot $fixture.projectName
   $hashes = [ordered]@{}
   foreach ($name in @('LUCI.md','.luci\state.json','.git\HEAD')) {
@@ -67,11 +70,11 @@ function Preserved-Hashes {
     $hashes[$plan] = (Get-FileHash -Algorithm SHA256 -LiteralPath $plan).Hash
   }
   if ($fixture.PSObject.Properties['hasConfiguration'] -and $fixture.hasConfiguration) {
-    $privateConfig = @(Get-ChildItem -LiteralPath (Join-Path $stateDir 'sessions') -File -Filter 'application-config-*.json')
+    $privateConfig = @(Get-ChildItem -LiteralPath (Join-Path $selectedStateDir 'sessions') -File -Filter 'application-config-*.json')
     if ($privateConfig.Count -ne 1) { throw 'Expected one private runtime configuration outside the project' }
     $hashes[$privateConfig[0].FullName] = (Get-FileHash -Algorithm SHA256 -LiteralPath $privateConfig[0].FullName).Hash
   }
-  $identity = Join-Path $stateDir 'control-plane\identity.json'
+  $identity = Join-Path $selectedStateDir 'control-plane\identity.json'
   if (Test-Path -LiteralPath $identity) { $hashes[$identity] = (Get-FileHash -Algorithm SHA256 -LiteralPath $identity).Hash }
   return $hashes
 }

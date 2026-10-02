@@ -91,9 +91,7 @@ function processes() {
   return JSON.parse(powershell(`$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded}')); $ownedRows=@((Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq $p -or $_.ExecutablePath -eq (Join-Path (Split-Path -Parent $p) 'luci-api.exe') }) | Select-Object ProcessId,ParentProcessId,ExecutablePath); ConvertTo-Json -InputObject $ownedRows -Compress`));
 }
 const readProjectJSON = (path) => JSON.parse(readFileSync(join(fixture.projectRoot, fixture.projectName, path), "utf8"));
-const productStateDir = () => result.applicationVersion.startsWith("0.3.")
-  ? join(process.env.LOCALAPPDATA, "Luci", "state", "sessions")
-  : join(process.env.APPDATA, "ai.lcfr.luci", "sessions");
+const productStateDir = () => join(result.stateDir, "sessions");
 async function snapshot(name) {
   const png = await command("/screenshot", "GET", undefined);
   writeFileSync(join(evidence, `${mode}-${name}.png`), Buffer.from(png, "base64"));
@@ -176,6 +174,15 @@ try {
   childPID = child.ProcessId;
   const executableBase64 = Buffer.from(executable).toString("base64");
   result.applicationVersion = powershell(`$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${executableBase64}')); (Get-Item -LiteralPath $p).VersionInfo.ProductVersion`);
+  // New native releases report the state root actually supplied to their own
+  // sidecar. Only the retained 0.3 binary needs its documented legacy fallback.
+  result.stateDir = runtime.stateDir || (result.applicationVersion.startsWith("0.3.")
+    ? join(process.env.LOCALAPPDATA, "Luci", "state")
+    : join(process.env.APPDATA, "ai.lcfr.luci"));
+  result.stateDirSource = runtime.stateDir ? "native runtime_info" : "historical version default";
+  if (fixture.stateDir) assert.equal(resolve(result.stateDir).toLowerCase(), resolve(fixture.stateDir).toLowerCase(), "Upgrade/restart must retain the actual saved workspace state root");
+  fixture.stateDir = result.stateDir;
+  result.checks.push("Native managed state location retained across install, upgrade and restart");
   result.checks.push("Installed release WebView uses its own bundled sidecar on a random loopback port");
   await authenticate();
   if (mode === "seed") {

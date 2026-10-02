@@ -293,6 +293,9 @@ jobs:
         run: npm ci
       - name: Build portable packages and unsigned NSIS installer
         run: ./scripts/build-release.ps1 -Version $env:LUCI_VERSION -Native
+      - name: Verify native state selection and upgrade regression
+        working-directory: desktop/src-tauri
+        run: cargo test --locked --release --lib
       - name: Exercise the packaged Windows control plane
         run: |
           node scripts/verify-portable.mjs "artifacts/releases/$env:LUCI_VERSION/luci-windows-amd64" artifacts/package-eval/windows
