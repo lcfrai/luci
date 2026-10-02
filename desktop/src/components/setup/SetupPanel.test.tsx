@@ -38,6 +38,330 @@ const status: SetupStatus = {
 };
 beforeEach(() => resetCockpit());
 
+const memberCloud: SetupStatus = {
+  ...status,
+  workspace: {
+    mode: "cloud",
+    connectionId: "cloud-1",
+    host: "team.example.invalid",
+    ready: true,
+  },
+  access: {
+    user: { username: "invited-member", role: "member" },
+    manageBacking: false,
+    projectsDirManaged: true,
+  },
+  config: { ...status.config, projectsDir: "/srv/luci/users/member/projects" },
+};
+
+it("takes an already selected cloud member straight to their assigned projects without choosing a new backing", async () => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        id: "member-project",
+        name: "my-work",
+        path: "/srv/luci/users/member/projects/my-work",
+      }),
+      { status: 201 },
+    ),
+  );
+  const close = vi.fn(),
+    refresh = vi.fn();
+  render(
+    <SetupPanel
+      initialStatus={memberCloud}
+      client={createProductClient("http://localhost:8730", fetcher)}
+      onStatus={vi.fn()}
+      onProjectsChanged={refresh}
+      onClose={close}
+    />,
+  );
+  expect(
+    screen.getByRole("heading", { name: "Your cloud workspace" }),
+  ).not.toBeNull();
+  expect(screen.getByText(/Signed in as invited-member/)).not.toBeNull();
+  expect(
+    screen.queryByRole("group", { name: "Workspace setup options" }),
+  ).toBeNull();
+  expect(screen.queryByRole("button", { name: "On this computer" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull();
+  expect(
+    (
+      screen.getByRole("textbox", {
+        name: /Projects folder/,
+      }) as HTMLInputElement
+    ).readOnly,
+  ).toBe(true);
+  expect(
+    screen.getByRole("button", { name: "Return to this machine" }),
+  ).not.toBeNull();
+  await userEvent.click(
+    screen.getByRole("button", {
+      name: "Create your first project",
+    }),
+  );
+  expect(
+    screen.getByRole("heading", { name: "Create a cloud project" }),
+  ).not.toBeNull();
+  await userEvent.type(
+    screen.getByRole("textbox", { name: "Project name" }),
+    "my-work",
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Create project" }));
+  await waitFor(() => expect(close).toHaveBeenCalledOnce());
+  expect(fetcher).toHaveBeenCalledOnce();
+  expect(fetcher.mock.calls[0][0]).toBe(
+    "http://localhost:8730/v1/product/projects",
+  );
+  expect(JSON.parse(fetcher.mock.calls[0][1]?.body as string)).toEqual({
+    name: "my-work",
+  });
+  expect(refresh).toHaveBeenCalledOnce();
+  expect(useCockpit.getState().selection.projectId).toBe("member-project");
+});
+
+it("uses remote member permission for runtime controls while retaining personal Git setup and local connection recovery", async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+    const path = new URL(String(url)).pathname;
+    if (path.endsWith("/git/identity"))
+      return new Response(
+        JSON.stringify({ name: "Member", email: "member@example.invalid" }),
+      );
+    if (path.endsWith("/runtime/install"))
+      return new Response(
+        JSON.stringify({ status: "ready", message: "Runtime ready" }),
+      );
+    if (path.endsWith("/agents"))
+      return new Response(JSON.stringify({ providers: [] }));
+    if (path.endsWith("/ssh/connections"))
+      return new Response(
+        JSON.stringify({
+          connections: [
+            {
+              id: "cloud-1",
+              host: "team.example.invalid",
+              status: "connected",
+              localUrl: "http://127.0.0.1:8123",
+              message: "Connected",
+            },
+          ],
+        }),
+      );
+    if (path.endsWith("/workspace/auth"))
+      return new Response(
+        JSON.stringify({
+          authenticated: true,
+          bootstrapRequired: false,
+          user: { username: "invited-member", role: "member" },
+          message: "Connected",
+        }),
+      );
+    throw new Error(`Unexpected request ${path}`);
+  });
+  render(
+    <SetupPanel
+      initialStatus={{ ...memberCloud, configured: true }}
+      client={createProductClient("http://localhost:8730", fetcher)}
+      onStatus={vi.fn()}
+      onProjectsChanged={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  await userEvent.click(
+    screen.getByText("Git identity, agent connection and runtime"),
+  );
+  await waitFor(() =>
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Save Git identity",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false),
+  );
+  expect(
+    screen.queryByRole("button", { name: "Install agent runtime" }),
+  ).toBeNull();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Connection and account" }),
+  );
+  await screen.findByRole("button", { name: "Disconnect remote sign-in" });
+  expect(
+    screen.queryByRole("group", { name: "Workspace setup options" }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Install Luci workspace" }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("heading", {
+      name: "Finish your deployment connection",
+    }),
+  ).toBeNull();
+  expect(
+    fetcher.mock.calls.some(([url]) =>
+      /\/cloud\/|\/setup\/targets/.test(String(url)),
+    ),
+  ).toBe(false);
+});
+
+it("keeps assigned local administrator folders read-only without a disabled Save dead end", () => {
+  render(
+    <SetupPanel
+      initialStatus={{
+        ...status,
+        configured: true,
+        access: {
+          user: { username: "second-admin", role: "admin" },
+          manageBacking: true,
+          projectsDirManaged: true,
+        },
+      }}
+      onStatus={vi.fn()}
+      onProjectsChanged={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(
+    (
+      screen.getByRole("textbox", {
+        name: /Projects folder/,
+      }) as HTMLInputElement
+    ).readOnly,
+  ).toBe(true);
+  expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull();
+  expect(
+    screen.queryByRole("button", {
+      name: "Projects folder managed by administrator",
+    }),
+  ).toBeNull();
+  expect(
+    screen.getByRole("button", { name: /Create your first project/ }),
+  ).not.toBeNull();
+});
+
+it("fails closed for remote resource controls when a cloud service does not supply active-account access", () => {
+  render(
+    <SetupPanel
+      initialStatus={{ ...memberCloud, access: undefined }}
+      onStatus={vi.fn()}
+      onProjectsChanged={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole("button", { name: "Save settings" })).toBeNull();
+  expect(
+    (
+      screen.getByRole("textbox", {
+        name: /Projects folder/,
+      }) as HTMLInputElement
+    ).readOnly,
+  ).toBe(true);
+  expect(
+    screen.getByRole("button", { name: "Connection and account" }),
+  ).not.toBeNull();
+});
+
+it("retains deployment-target configuration for an authorized active cloud administrator without restarting backing onboarding", async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+    const path = new URL(String(url)).pathname;
+    if (path.endsWith("/ssh/connections"))
+      return new Response(JSON.stringify({ connections: [] }));
+    if (path.endsWith("/setup/targets"))
+      return new Response(JSON.stringify({ targets: [] }));
+    throw new Error(`Unexpected request ${path}`);
+  });
+  render(
+    <SetupPanel
+      initialStatus={{
+        ...memberCloud,
+        configured: true,
+        access: {
+          user: { username: "remote-admin", role: "admin" },
+          manageBacking: true,
+          projectsDirManaged: true,
+        },
+      }}
+      initialSection="cloud"
+      client={createProductClient("http://localhost:8730", fetcher)}
+      onStatus={vi.fn()}
+      onProjectsChanged={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  expect(
+    screen.getByRole("heading", { name: "Finish your deployment connection" }),
+  ).not.toBeNull();
+  expect(
+    screen.getByRole("button", { name: "Verify and save connection" }),
+  ).not.toBeNull();
+  expect(
+    screen.queryByRole("group", { name: "Workspace setup options" }),
+  ).toBeNull();
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+});
+
+it("keeps remote sign-in recovery reachable when the expired account cannot load deployment targets", async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+    const path = new URL(String(url)).pathname;
+    if (path.endsWith("/ssh/connections"))
+      return new Response(
+        JSON.stringify({
+          connections: [
+            {
+              id: "cloud-1",
+              host: "team.example.invalid",
+              status: "connected",
+              localUrl: "http://127.0.0.1:8123",
+              message: "Connected",
+            },
+          ],
+        }),
+      );
+    if (path.endsWith("/setup/targets"))
+      return new Response(
+        JSON.stringify({
+          error: "backing_sign_in_required",
+          message: "Sign in to the workspace again.",
+        }),
+        { status: 409 },
+      );
+    if (path.endsWith("/workspace/auth"))
+      return new Response(
+        JSON.stringify({
+          authenticated: false,
+          bootstrapRequired: false,
+          message: "Sign in to this workspace.",
+        }),
+      );
+    throw new Error(`Unexpected request ${path}`);
+  });
+  render(
+    <SetupPanel
+      initialStatus={{
+        ...memberCloud,
+        configured: true,
+        access: {
+          user: { username: "remote-admin", role: "admin" },
+          manageBacking: true,
+          projectsDirManaged: true,
+        },
+      }}
+      initialSection="cloud"
+      client={createProductClient("http://localhost:8730", fetcher)}
+      onStatus={vi.fn()}
+      onProjectsChanged={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+  await screen.findByRole("button", { name: "Sign in to workspace" });
+  expect(screen.getByRole("alert").textContent).toContain(
+    "Sign in to the workspace again.",
+  );
+  expect(
+    screen.getByRole("textbox", { name: "Remote username" }),
+  ).not.toBeNull();
+});
+
 it("saves local configuration, shows the server result and refreshes the project catalogue", async () => {
   const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
     new Response(JSON.stringify({ ...status, configured: true }), {

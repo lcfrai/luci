@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { productApi, errorText, type Workspace } from "../../api/product";
 import { useDismissable } from "../../hooks/useDismissable";
+import { AdminInvitations } from "./AdminInvitations";
 import {
   useAuth,
   type AuthProfile,
@@ -469,6 +470,17 @@ function AdminPanelContent({
               Sign out
             </button>
           </section>
+        )}
+        {admin && permissions.manageUsers && (
+          <AdminInvitations
+            base={base}
+            canSuper={profile.user.role === "super-admin"}
+            disabled={!!busy}
+            onBusy={(value) => {
+              working.current = value;
+              setBusy(value ? "Updating invitations" : "");
+            }}
+          />
         )}
         {admin && permissions.manageUsers && (
           <section className="admin-section">

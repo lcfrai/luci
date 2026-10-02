@@ -10,14 +10,17 @@ import {
 export function LocalTools({
   client,
   cloud = false,
+  manageBacking: workspaceManageBacking,
   onSessionStarted,
 }: {
   client: ProductClient;
   cloud?: boolean;
+  manageBacking?: boolean;
   onSessionStarted?(): void;
 }) {
   const auth = useAuth();
-  const manageBacking = !auth || auth.profile.permissions.manageBacking;
+  const manageBacking =
+    workspaceManageBacking ?? (!auth || auth.profile.permissions.manageBacking);
   const [open, setOpen] = useState(false),
     [loaded, setLoaded] = useState(false),
     [loadAttempt, setLoadAttempt] = useState(0),
@@ -119,7 +122,7 @@ export function LocalTools({
               void run("Saving identity", async () => {
                 await client.saveGitIdentity(name, email);
                 setNotice(
-                  "Git identity saved for this machine. New commits will use your name and email.",
+                  `Git identity saved for ${cloud ? "this cloud workspace" : "this machine"}. New commits will use your name and email.`,
                 );
               });
             }}

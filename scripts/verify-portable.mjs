@@ -6,6 +6,7 @@ import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
+import { evaluatePortableLauncher } from './portable-launcher-eval.mjs';
 
 const packageDir = path.resolve(process.argv[2] || '');
 const evidence = path.resolve(process.argv[3] || `artifacts/package-eval/${Date.now()}`);
@@ -47,7 +48,7 @@ async function start() {
     assert.equal(child.exitCode, null, 'Packaged service exited before readiness');
     try {
       const control = await request('GET','/v1/control-plane/status');
-      assert.equal(control.product,'Luci');assert.equal(control.version,process.env.LUCI_VERSION || '0.4.1');
+      assert.equal(control.product,'Luci');assert.equal(control.version,process.env.LUCI_VERSION || '0.4.2');
       if (control.bootstrapRequired) {
         const code = (await readFile(path.join(state,'control-plane/bootstrap-token'),'utf8')).trim();
         token = (await request('POST','/v1/auth/bootstrap',{bootstrapToken:code,username:'package-owner',displayName:'Package Owner',password})).token;
@@ -96,6 +97,8 @@ try {
   assert.equal(foreign.status,403);
   checks.push('Rejected a foreign browser origin at the shipped control API');
   await stop();
+  const launcher = await evaluatePortableLauncher(packageDir, evidence);
+  checks.push(`Verified shipped launcher ownership, account recovery, reuse and cleanup (${launcher.checks.length} outcomes)`);
   await writeFile(path.join(evidence,'results.json'),JSON.stringify({status:'passed',platform:process.platform,packageDir,checks,licenseComponents:licenses.components.length,cloudCalls:0,modelCalls:0,dockerAcceptance:false},null,2));
   console.log(JSON.stringify({status:'passed',checks,evidence}));
 } finally {

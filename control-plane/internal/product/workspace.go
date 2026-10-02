@@ -212,7 +212,7 @@ func workspaceReady(ctx context.Context, address string) error {
 	return err
 }
 func (s *Server) workspaceStatus(ctx context.Context, method string) Status {
-	local := s.status()
+	local := s.statusForActor(ctx)
 	if local.Workspace.Mode != "cloud" {
 		return local
 	}
@@ -252,6 +252,7 @@ func (s *Server) workspaceStatus(ctx context.Context, method string) Status {
 	}
 	local.Config = remote.Config
 	local.Configured = remote.Configured
+	local.Access = remote.Access
 	local.Platform = remote.Platform
 	local.Checks = append([]Check{}, remote.Checks...)
 	for _, probe := range s.status().Checks {
@@ -327,7 +328,7 @@ func (s *Server) activateLocalWorkspace(w http.ResponseWriter, r *http.Request) 
 	s.workspace = ws
 	s.remoteStatus = nil
 	s.mu.Unlock()
-	writeJSON(w, 200, s.status())
+	writeJSON(w, 200, s.statusForActor(r.Context()))
 }
 func (s *Server) installCloudWorkspace(w http.ResponseWriter, r *http.Request) {
 	var req struct {

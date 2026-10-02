@@ -162,7 +162,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			cloudBundle = filepath.Join(filepath.Dir(exe), "cloud", "luci-cloud-linux-amd64.tar.gz")
 		}
 	}
-	productService, err := product.New(product.Options{CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
+	productService, err := product.New(product.Options{ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
 		if shutdownService != nil {
 			shutdownService()
 		}
@@ -230,6 +230,13 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", cfg.Addr, err)
 	}
+	if cfg.LocalAccessToken != "" || cfg.PortableOwnerAccess {
+		address, ok := ln.Addr().(*net.TCPAddr)
+		if cfg.Worker || !ok || !address.IP.IsLoopback() || (cfg.PortableOwnerAccess && (cfg.AllowPublicBind || cfg.LocalAccessToken != "")) {
+			_ = ln.Close()
+			return fmt.Errorf("local account access requires an owned, loopback-only management service")
+		}
+	}
 
 	engine := productService.ProxyWorkspace(handler)
 	var control *management.Gateway
@@ -244,7 +251,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		if root == "" {
 			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
 		}
-		control, err = management.New(management.Options{StateDir: root, InstanceName: cfg.InstanceName, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ()})
+		control, err = management.New(management.Options{StateDir: root, InstanceName: cfg.InstanceName, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess})
 		if err != nil {
 			_ = ln.Close()
 			return fmt.Errorf("initialise control-plane management: %w", err)

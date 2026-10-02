@@ -38,6 +38,16 @@ recovery action. Private runtime values clear after submission and are never rea
 back into the UI. Switching workspaces must preserve separate local and remote
 identities.
 
+Account entry must explain which workspace the account belongs to. An empty
+installation opens account creation; a configured installation shows sign-in,
+Create account and Forgot sign-in. Never assume the person opening a saved
+installation remembers its credentials. The owned desktop service can create a
+separate local account or recover the original owner's account while preserving
+saved work. Shared workspaces accept administrator-issued invitations and explain
+how to request a password reset. Keep first-run proof automatic when the launcher
+provides it, with manual setup help only when needed. Signing out after setup and
+opening with an expired session must return to the correct entry state.
+
 First-run onboarding offers three real paths: on this computer, guided setup in
 the user's AWS/Azure account, or connection to an existing Luci workspace over
 verified SSH followed by that workspace's account sign-in. Reveal only the fields

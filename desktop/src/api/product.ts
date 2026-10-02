@@ -57,6 +57,11 @@ export interface SetupStatus {
   platform: string;
   configured: boolean;
   workspace?: Workspace;
+  access?: {
+    user: { username: string; role: "member" | "admin" | "super-admin" };
+    manageBacking: boolean;
+    projectsDirManaged: boolean;
+  };
   config: SetupConfig;
   checks: SetupCheck[];
   cloudProviders: {
@@ -473,6 +478,7 @@ export function createProductClient(
       username: string;
       password: string;
       bootstrapToken?: string;
+      inviteCode?: string;
       displayName?: string;
     }) => request<WorkspaceAuth>("/v1/setup/workspace/auth", input),
     disconnectWorkspaceAuth: (connectionId: string) =>

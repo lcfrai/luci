@@ -5,6 +5,8 @@ import { AuthProvider, type AuthProfile } from "./AuthProvider";
 import { RailFooter } from "../rail/RailFooter";
 import { productApi, type SetupStatus } from "../../api/product";
 import { authToken, setAuthToken } from "../../api/authSession";
+const native = vi.hoisted(() => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/core", () => native);
 const member: AuthProfile = {
   user: {
     id: "u-1",
@@ -33,11 +35,14 @@ const member: AuthProfile = {
   },
 };
 beforeEach(() => {
+  native.invoke.mockReset();
   vi.spyOn(productApi, "status").mockResolvedValue({
     workspace: { mode: "local", connectionId: "", host: "", ready: true },
   } as SetupStatus);
 });
 afterEach(() => {
+  Reflect.deleteProperty(window, "__TAURI_INTERNALS__");
+  Reflect.deleteProperty(window, "__LUCI_API__");
   setAuthToken(null);
   window.history.replaceState(null, "", "/");
   vi.restoreAllMocks();
@@ -321,9 +326,11 @@ it("explains first-account requirements before submission and protects an in-fli
   await userEvent.clear(username);
   await userEvent.type(username, "garden.owner");
   await userEvent.type(password, "a long private password");
-  await userEvent.click(
-    screen.getByRole("button", { name: "Create Super Admin account" }),
+  await userEvent.type(
+    screen.getByLabelText("Confirm password"),
+    "a long private password",
   );
+  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
   await screen.findByText("Creating your workspace account…");
   expect(username.disabled).toBe(true);
   expect(password.disabled).toBe(true);
@@ -353,6 +360,9 @@ it("recovers from a connection failure and removes the retry action once sign-in
     </AuthProvider>,
   );
   expect((await screen.findByRole("alert")).textContent).toContain("offline");
+  expect(
+    screen.getByRole("heading", { name: "Connect to Luci." }),
+  ).not.toBeNull();
   await userEvent.click(
     screen.getByRole("button", { name: "Retry connection" }),
   );
@@ -398,4 +408,482 @@ it("keeps account keyboard focus inside the dialog and returns it to the account
   await userEvent.keyboard("{Escape}");
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(document.activeElement).toBe(trigger);
+});
+
+function ownedNative() {
+  Object.defineProperty(window, "__TAURI_INTERNALS__", {
+    configurable: true,
+    value: {},
+  });
+}
+const configured = {
+  configured: true,
+  bootstrapRequired: false,
+  instanceName: "Saved garden",
+  backing: "docker",
+};
+async function fillAccount() {
+  await userEvent.type(screen.getByLabelText("Display name"), "Garden owner");
+  await userEvent.type(screen.getByLabelText("Username"), "garden.owner");
+  await userEvent.type(
+    screen.getByLabelText("Password", { exact: true }),
+    "a long private password",
+  );
+  await userEvent.type(
+    screen.getByLabelText("Confirm password"),
+    "a long private password",
+  );
+}
+it("shows first setup despite a stale session and still obtains the owned bootstrap token", async () => {
+  ownedNative();
+  setAuthToken("obsolete-session");
+  native.invoke.mockImplementation(async (command) =>
+    command === "local_access_info"
+      ? { available: true, owner: null }
+      : "b".repeat(43),
+  );
+  const request = vi.spyOn(productApi, "request").mockResolvedValue({
+    ...configured,
+    configured: false,
+    bootstrapRequired: true,
+  });
+  render(
+    <AuthProvider>
+      <p>Private projects</p>
+    </AuthProvider>,
+  );
+  expect(
+    ((await screen.findByLabelText("Bootstrap token")) as HTMLInputElement)
+      .value,
+  ).toBe("b".repeat(43));
+  expect(authToken()).toBeNull();
+  expect(request.mock.calls.some(([path]) => path === "/v1/auth/me")).toBe(
+    false,
+  );
+  expect(native.invoke).toHaveBeenCalledWith("bootstrap_token");
+  expect(
+    screen
+      .getByText("This workspace is ready for first setup")
+      .closest("details")?.open,
+  ).toBe(false);
+});
+it("offers sign-in after account creation and sign-out rather than repeating bootstrap", async () => {
+  let fresh = true;
+  window.history.replaceState(null, "", `/#bootstrap=${"b".repeat(43)}`);
+  const request = vi
+    .spyOn(productApi, "request")
+    .mockImplementation(async (path) => {
+      if (path.endsWith("/status"))
+        return { ...configured, configured: !fresh, bootstrapRequired: fresh };
+      if (path === "/v1/auth/bootstrap") {
+        fresh = false;
+        return { token: "first-session", user: member.user };
+      }
+      if (path.endsWith("/me")) return member;
+      return {};
+    });
+  render(
+    <AuthProvider>
+      <RailFooter />
+    </AuthProvider>,
+  );
+  await screen.findByLabelText("Display name");
+  await fillAccount();
+  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+  await userEvent.click(
+    await screen.findByRole("button", { name: "A member" }),
+  );
+  await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+  await screen.findByRole("button", { name: "Sign in" });
+  expect(screen.queryByLabelText("Bootstrap token")).toBeNull();
+  expect(
+    request.mock.calls.filter(([path]) => path === "/v1/auth/bootstrap"),
+  ).toHaveLength(1);
+});
+it("creates a separate owned local account through IPC and never sends ownership credentials through browser HTTP", async () => {
+  ownedNative();
+  native.invoke.mockImplementation(async (command) =>
+    command === "local_access_info"
+      ? { available: true, owner: member.user }
+      : { token: "new-local-session", user: member.user },
+  );
+  const request = vi
+    .spyOn(productApi, "request")
+    .mockImplementation(async (path) =>
+      path.endsWith("/status") ? configured : member,
+    );
+  render(
+    <AuthProvider>
+      <p>Separate workspace</p>
+    </AuthProvider>,
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Create account" }),
+  );
+  expect(
+    screen.getByText(/Existing accounts and their projects stay intact/),
+  ).not.toBeNull();
+  expect(screen.queryByLabelText("Invitation code")).toBeNull();
+  await fillAccount();
+  await userEvent.click(screen.getByLabelText("Show passwords"));
+  expect(
+    (screen.getByLabelText("Password", { exact: true }) as HTMLInputElement)
+      .type,
+  ).toBe("text");
+  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+  await screen.findByText("Separate workspace");
+  expect(native.invoke).toHaveBeenCalledWith("create_local_account", {
+    username: "garden.owner",
+    displayName: "Garden owner",
+    password: "a long private password",
+  });
+  expect(
+    request.mock.calls.every(
+      ([path]) => path === "/v1/control-plane/status" || path === "/v1/auth/me",
+    ),
+  ).toBe(true);
+});
+it("recovers only the saved owner through IPC after matching password confirmation", async () => {
+  ownedNative();
+  native.invoke.mockImplementation(async (command) =>
+    command === "local_access_info"
+      ? { available: true, owner: member.user }
+      : { token: "recovered-session", user: member.user },
+  );
+  vi.spyOn(productApi, "request").mockImplementation(async (path) =>
+    path.endsWith("/status") ? configured : member,
+  );
+  render(
+    <AuthProvider>
+      <p>Original projects</p>
+    </AuthProvider>,
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Forgot sign-in?" }),
+  );
+  expect(
+    screen.getByText(/keeps the original account, projects and settings/),
+  ).not.toBeNull();
+  await userEvent.type(
+    screen.getByLabelText("New password"),
+    "a long private password",
+  );
+  await userEvent.type(
+    screen.getByLabelText("Confirm password"),
+    "different private password",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Recover owner account" }),
+  );
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "do not match",
+  );
+  expect(
+    native.invoke.mock.calls.some(
+      ([command]) => command === "recover_local_owner",
+    ),
+  ).toBe(false);
+  await userEvent.clear(screen.getByLabelText("Confirm password"));
+  await userEvent.type(
+    screen.getByLabelText("Confirm password"),
+    "a long private password",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Recover owner account" }),
+  );
+  await screen.findByText("Original projects");
+  expect(native.invoke).toHaveBeenCalledWith("recover_local_owner", {
+    newPassword: "a long private password",
+  });
+});
+it("requires an invitation for browser account creation and keeps an invalid code recoverable", async () => {
+  let invalid = true;
+  const request = vi
+    .spyOn(productApi, "request")
+    .mockImplementation(async (path) => {
+      if (path.endsWith("/status")) return configured;
+      if (path.endsWith("/accept")) {
+        if (invalid)
+          throw new Error(
+            "This invitation is invalid, expired or already used.",
+          );
+        return { token: "invited-session", user: member.user };
+      }
+      return member;
+    });
+  render(
+    <AuthProvider>
+      <p>Invited workspace</p>
+    </AuthProvider>,
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Create account" }),
+  );
+  await userEvent.type(
+    screen.getByLabelText("Invitation code"),
+    "one-time-private-code",
+  );
+  await fillAccount();
+  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "already used",
+  );
+  expect((screen.getByLabelText("Username") as HTMLInputElement).value).toBe(
+    "garden.owner",
+  );
+  expect(screen.queryByRole("button", { name: "Retry connection" })).toBeNull();
+  invalid = false;
+  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+  await screen.findByText("Invited workspace");
+  expect(request).toHaveBeenCalledWith(
+    "/v1/auth/invitations/accept",
+    expect.objectContaining({
+      inviteCode: "one-time-private-code",
+      username: "garden.owner",
+    }),
+  );
+  expect(native.invoke).not.toHaveBeenCalled();
+});
+it("never offers local recovery for an external API even in a native window", async () => {
+  ownedNative();
+  native.invoke.mockResolvedValue({ available: false });
+  vi.spyOn(productApi, "request").mockResolvedValue(configured);
+  render(
+    <AuthProvider>
+      <p>Private projects</p>
+    </AuthProvider>,
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Forgot sign-in?" }),
+  );
+  expect(screen.getByText(/Ask this workspace’s administrator/)).not.toBeNull();
+  expect(
+    screen.queryByRole("button", { name: "Recover owner account" }),
+  ).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+  expect(screen.getByLabelText("Invitation code")).not.toBeNull();
+  expect(native.invoke.mock.calls.map(([command]) => command)).toEqual([
+    "local_access_info",
+  ]);
+});
+it("recovers if another client completes first setup while the form is open", async () => {
+  let configuredElsewhere = false;
+  window.history.replaceState(null, "", `/#bootstrap=${"b".repeat(43)}`);
+  vi.spyOn(productApi, "request").mockImplementation(async (path) => {
+    if (path.endsWith("/status"))
+      return { ...configured, bootstrapRequired: !configuredElsewhere };
+    configuredElsewhere = true;
+    throw Object.assign(new Error("Already configured"), {
+      status: 403,
+      code: "bootstrap_denied",
+    });
+  });
+  render(
+    <AuthProvider>
+      <p>Private projects</p>
+    </AuthProvider>,
+  );
+  await screen.findByLabelText("Display name");
+  await fillAccount();
+  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+  await screen.findByRole("button", { name: "Sign in" });
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "already has an account",
+  );
+  expect(screen.queryByLabelText("Bootstrap token")).toBeNull();
+});
+
+it("keeps manual first-setup code entry open while the user types", async () => {
+  vi.spyOn(productApi, "request").mockResolvedValue({
+    ...configured,
+    configured: false,
+    bootstrapRequired: true,
+    bootstrapTokenPath: "C:/Private/control-plane/bootstrap-token",
+  });
+  render(
+    <AuthProvider>
+      <p>Private projects</p>
+    </AuthProvider>,
+  );
+  const input = await screen.findByLabelText("Bootstrap token");
+  await userEvent.type(input, "b".repeat(43));
+  expect((input as HTMLInputElement).value).toBe("b".repeat(43));
+  expect(input.closest("details")?.open).toBe(true);
+});
+it("preserves local account drafts and offers a capability retry only for native connection failures", async () => {
+  ownedNative();
+  let attempt = 0;
+  native.invoke.mockImplementation(async (command) => {
+    if (command === "local_access_info")
+      return { available: true, owner: member.user };
+    attempt++;
+    throw attempt === 1
+      ? "That username already exists."
+      : "Luci's local service is unavailable. Retry the connection.";
+  });
+  vi.spyOn(productApi, "request").mockResolvedValue(configured);
+  render(
+    <AuthProvider>
+      <p>Private projects</p>
+    </AuthProvider>,
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Create account" }),
+  );
+  await fillAccount();
+  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "already exists",
+  );
+  expect(
+    screen.queryByRole("button", { name: "Retry local account access" }),
+  ).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+  await screen.findByRole("button", { name: "Retry local account access" });
+  expect(
+    (screen.getByLabelText("Display name") as HTMLInputElement).value,
+  ).toBe("Garden owner");
+  expect(
+    (screen.getByLabelText("Password", { exact: true }) as HTMLInputElement)
+      .value,
+  ).toBe("a long private password");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Retry local account access" }),
+  );
+  await screen.findByRole("button", { name: "Create account" });
+  expect((screen.getByLabelText("Username") as HTMLInputElement).value).toBe(
+    "garden.owner",
+  );
+});
+
+it("consumes portable owner proof immediately, creates a separate account and never persists or forwards the proof to normal APIs", async () => {
+  const proof = "o".repeat(43);
+  window.history.replaceState(null, "", `/#owner=${proof}&view=entry`);
+  const fetcher = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(
+      async (_url, init) =>
+        new Response(
+          JSON.stringify(
+            init?.method === "POST"
+              ? { token: "portable-created-session", user: member.user }
+              : { owner: member.user },
+          ),
+        ),
+    );
+  const request = vi
+    .spyOn(productApi, "request")
+    .mockImplementation(async (path) =>
+      path.endsWith("/status") ? configured : member,
+    );
+  render(
+    <AuthProvider>
+      <p>Portable account projects</p>
+    </AuthProvider>,
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Create account" }),
+  );
+  expect(window.location.hash).toBe("#view=entry");
+  expect(screen.queryByLabelText("Invitation code")).toBeNull();
+  await fillAccount();
+  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+  await screen.findByText("Portable account projects");
+  expect(fetcher).toHaveBeenCalledWith(
+    `${window.location.origin}/v1/auth/local-account`,
+    expect.objectContaining({
+      headers: {
+        "X-Luci-Local-Access-Token": proof,
+        "Content-Type": "application/json",
+      },
+    }),
+  );
+  expect(JSON.stringify(request.mock.calls)).not.toContain(proof);
+  expect(JSON.stringify(window.sessionStorage)).not.toContain(proof);
+  expect(JSON.stringify(window.localStorage)).not.toContain(proof);
+});
+it("recovers the original portable owner with the in-memory proof and preserves a network-failed draft", async () => {
+  window.history.replaceState(null, "", `/#owner=${"o".repeat(43)}`);
+  let offline = true;
+  const fetcher = vi
+    .spyOn(globalThis, "fetch")
+    .mockImplementation(async (_url, init) => {
+      if (init?.method === "POST" && offline)
+        throw new Error("Connection refused");
+      return new Response(
+        JSON.stringify(
+          init?.method === "POST"
+            ? { token: "recovered-portable", user: member.user }
+            : { owner: member.user },
+        ),
+      );
+    });
+  vi.spyOn(productApi, "request").mockImplementation(async (path) =>
+    path.endsWith("/status") ? configured : member,
+  );
+  render(
+    <AuthProvider>
+      <p>Saved portable work</p>
+    </AuthProvider>,
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Forgot sign-in?" }),
+  );
+  await userEvent.type(
+    screen.getByLabelText("New password"),
+    "a long private password",
+  );
+  await userEvent.type(
+    screen.getByLabelText("Confirm password"),
+    "a long private password",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Recover owner account" }),
+  );
+  await screen.findByRole("button", { name: "Retry local account access" });
+  expect(
+    (screen.getByLabelText("New password") as HTMLInputElement).value,
+  ).toBe("a long private password");
+  offline = false;
+  await userEvent.click(
+    screen.getByRole("button", { name: "Recover owner account" }),
+  );
+  await screen.findByText("Saved portable work");
+  expect(
+    fetcher.mock.calls.filter(([url]) =>
+      String(url).endsWith("/local-owner/recover"),
+    ),
+  ).toHaveLength(2);
+  expect(native.invoke).not.toHaveBeenCalled();
+});
+it("clears and ignores owner fragments for an external API and for native windows", async () => {
+  const proof = "o".repeat(43);
+  const fetcher = vi.spyOn(globalThis, "fetch");
+  window.__LUCI_API__ = "https://team.example";
+  window.history.replaceState(null, "", `/#owner=${proof}`);
+  vi.spyOn(productApi, "request").mockResolvedValue(configured);
+  const first = render(
+    <AuthProvider>
+      <p>Private work</p>
+    </AuthProvider>,
+  );
+  await userEvent.click(
+    await screen.findByRole("button", { name: "Create account" }),
+  );
+  expect(screen.getByLabelText("Invitation code")).not.toBeNull();
+  expect(window.location.hash).toBe("");
+  expect(fetcher).not.toHaveBeenCalled();
+  first.unmount();
+  Reflect.deleteProperty(window, "__LUCI_API__");
+  ownedNative();
+  native.invoke.mockResolvedValue({ available: false });
+  window.history.replaceState(null, "", `/#owner=${proof}`);
+  render(
+    <AuthProvider>
+      <p>Private work</p>
+    </AuthProvider>,
+  );
+  await screen.findByRole("button", { name: "Sign in" });
+  expect(window.location.hash).toBe("");
+  expect(fetcher).not.toHaveBeenCalled();
 });

@@ -3,16 +3,17 @@
 // Docker repair, cloud calls or model account are involved.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 assert.equal(process.platform, "win32", "Installed acceptance requires Windows");
 assert.equal(process.env.GITHUB_ACTIONS, "true", "Only run on a disposable GitHub runner");
 assert.equal(process.env.RUNNER_OS, "Windows");
 assert.equal(process.env.LUCI_API, undefined, "The installed app must start its own sidecar");
-const [executableArg, evidenceArg, mode = "seed"] = process.argv.slice(2);
+const [executableArg, evidenceArg, mode = "seed", expectedVersion = ""] = process.argv.slice(2);
 assert(executableArg && evidenceArg && ["seed", "verify"].includes(mode));
+assert(!expectedVersion || /^\d+\.\d+\.\d+$/.test(expectedVersion));
 const executable = resolve(executableArg);
 const evidence = resolve(evidenceArg);
 const fixtureFile = join(evidence, "private-fixture.json");
@@ -28,7 +29,7 @@ const result = { mode, passed: false, executable, checks: [], limitations: [
   "WebDriver controls the release WebView2; no model inference or cloud deployment is exercised.",
   "The Windows runner has a prepared WebView2 runtime; first-time runtime download is not covered.",
 ] };
-let session, apiURL, appPID, childPID;
+let session, apiURL, appPID, childPID, localAccess;
 const wdURL = "http://127.0.0.1:4444";
 const elementKey = "element-6066-11e4-a52e-4f735466cecf";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -102,18 +103,139 @@ async function snapshot(name) {
 async function authenticate() {
   await until("native frontend ready", () => execute("return !!document.querySelector('.auth-screen,.shell')"), 60_000);
   if (await execute("return !!document.querySelector('.auth-screen')")) {
-    const bootstrap = await execute("return document.body.innerText.includes('Create Super Admin account')");
-    if (bootstrap) {
+    const bootstrap = localAccess?.available
+      ? (await (await fetch(apiURL + "/v1/control-plane/status")).json()).bootstrapRequired
+      : await execute("return document.body.innerText.includes('Create Super Admin account')");
+    if (bootstrap && !localAccess?.available) {
       const token = await element("label", "Bootstrap token");
       assert(await command(`/element/${token[elementKey]}/property/value`, "GET", undefined), "Managed Rust command must load its own bootstrap token");
+    }
+    if (bootstrap) {
       await fill("Display name", "Native Acceptance Owner");
     }
     await fill("Username", fixture.username);
     await fill("Password", fixture.password);
-    await click(bootstrap ? "Create Super Admin account" : "Sign in");
+    if (bootstrap && localAccess?.available) await fill("Confirm password", fixture.password);
+    await click(bootstrap ? (localAccess?.available ? "Create account" : "Create Super Admin account") : "Sign in");
     await until("authenticated shell", () => execute("return !!document.querySelector('.shell')"));
     result.checks.push(bootstrap ? "Native bootstrap token and first Super Admin created through installed UI" : "Existing account signed in through installed UI");
   }
+}
+async function visibleProfile() {
+  const profile = await command("/execute/async", "POST", {
+    script: `const done=arguments[arguments.length-1];
+      const token=sessionStorage.getItem('luci.control-plane.session');
+      fetch(arguments[0]+'/v1/auth/me',{headers:{Authorization:'Bearer '+token}})
+        .then(async response=>({status:response.status,profile:await response.json()}))
+        .then(result=>done({status:result.status,user:result.profile.user}))
+        .catch(()=>done({status:0}));`, args: [apiURL],
+  });
+  assert.equal(profile.status, 200);
+  assert(profile.user?.id);
+  return profile.user;
+}
+async function visibleProjectIDs() {
+  const value = await command("/execute/async", "POST", {
+    script: `const done=arguments[arguments.length-1];
+      fetch(arguments[0]+'/v1/projects',{headers:{Authorization:'Bearer '+sessionStorage.getItem('luci.control-plane.session')}})
+        .then(async response=>({status:response.status,body:await response.json()}))
+        .then(result=>done({status:result.status,ids:(result.body.projects||[]).map(project=>project.id)}))
+        .catch(()=>done({status:0}));`, args: [apiURL],
+  });
+  assert.equal(value.status, 200);
+  return value.ids;
+}
+async function signOut(expectFirstRunSetup = false) {
+  // Read the current account's authoritative setup state rather than assuming
+  // every new account needs configuration or racing its initial status request.
+  const setup = await command("/execute/async", "POST", {
+    script: `const done=arguments[arguments.length-1];
+      fetch(arguments[0]+'/v1/setup/status',{headers:{Authorization:'Bearer '+sessionStorage.getItem('luci.control-plane.session')}})
+        .then(async response=>({status:response.status,body:await response.json()}))
+        .then(value=>done({status:value.status,configured:value.body.configured}))
+        .catch(()=>done({status:0}));`, args: [apiURL],
+  });
+  assert.equal(setup.status, 200);
+  assert.equal(typeof setup.configured, "boolean");
+  if (expectFirstRunSetup) assert.equal(setup.configured, false, "The original owner's interrupted first setup must remain unsaved");
+  if (!setup.configured) {
+    await bodyHas("Choose your workspace");
+    await click("Close settings");
+  }
+  await until("setup dialog dismissed before account menu", () => execute("return !document.querySelector('.setup-backdrop')"));
+  await click(".rail-account button:first-child", "css");
+  await click("Sign out");
+  await element("label", "Username");
+}
+async function verifyLocalEntryRecovery() {
+  const owner = await visibleProfile();
+  assert.equal(owner.username, fixture.username);
+  const ownerProjects = await visibleProjectIDs();
+  assert(ownerProjects.length > 0, "Preservation fixture must contain a real owner project");
+  const before = new Map(["LUCI.md", ".luci/state.json", ".git/HEAD"].map(name => [name,
+    createHash("sha256").update(readFileSync(join(fixture.projectRoot, fixture.projectName, name))).digest("hex")]));
+  await signOut();
+  await fill("Username", fixture.username);
+  await fill("Password", "deliberately-incorrect-fixture-password");
+  await click("Sign in");
+  await bodyHas("The username or password is incorrect.");
+  await click("Create account");
+  const secondPassword = randomUUID() + randomUUID();
+  await fill("Display name", "Another Local User");
+  await fill("Username", "native-second-user");
+  await fill("Password", secondPassword);
+  await fill("Confirm password", secondPassword);
+  await click("Create account");
+  await until("new native local account entered its own workspace", () => execute("return !!document.querySelector('.shell')"));
+  const second = await visibleProfile();
+  assert.notEqual(second.id, owner.id, "Creating another account must not replace the existing owner");
+  assert.equal(second.role, "super-admin", "The OS-owned local creation control grants administration only inside this owned installation");
+  assert(!(await visibleProjectIDs()).some(id => ownerProjects.includes(id)), "The new account's real catalogue must not include the owner's projects");
+  assert.equal(await execute("return [...document.querySelectorAll('[data-kind=project]')].some(e=>e.textContent.includes(arguments[0]))", fixture.projectName), false);
+  result.checks.push("An initialized native installation offered OS-authorized account creation after rejected credentials; the new local administrator has a distinct identity and cannot see the owner's project");
+  await signOut();
+  await click("Forgot sign-in?");
+  const replacement = randomUUID() + randomUUID();
+  await fill("New password", replacement);
+  await fill("Confirm password", replacement);
+  await click("Recover owner account");
+  await until("recovered owner entered the saved workspace", () => execute("return !!document.querySelector('.shell')"));
+  assert.equal((await visibleProfile()).id, owner.id, "Recovery must authenticate the original owner identity");
+  await verifyProject();
+  for (const [name, digest] of before) assert.equal(createHash("sha256").update(readFileSync(join(fixture.projectRoot, fixture.projectName, name))).digest("hex"), digest, "Account recovery must preserve " + name);
+  result.checks.push("The real native owner-recovery control preserved the original identity, project, brief, drawing and Git bytes");
+  await signOut();
+  await fill("Username", fixture.username);
+  await fill("Password", fixture.password);
+  await click("Sign in");
+  await bodyHas("The username or password is incorrect.");
+  await fill("Password", replacement);
+  await click("Sign in");
+  await until("replacement credentials signed in", () => execute("return !!document.querySelector('.shell')"));
+  assert.equal((await visibleProfile()).id, owner.id);
+  fixture.password = replacement;
+  fixture.entryVerified = true;
+  writeFileSync(fixtureFile, JSON.stringify(fixture));
+  result.checks.push("Recovered owner rejects the previous password and accepts the replacement through normal sign-in");
+  await snapshot("recovered-owner");
+}
+async function verifyPartialFirstRunEntry() {
+  assert.equal(existsSync(join(productStateDir(), "luci.json")), false, "Account-only fixture must not have saved workspace configuration");
+  await bodyHas("Choose your workspace");
+  await signOut(true);
+  await element("button", "Create account");
+  await element("button", "Forgot sign-in?");
+  await fill("Username", fixture.username);
+  await fill("Password", "wrong-before-workspace-setup");
+  await click("Sign in");
+  await bodyHas("The username or password is incorrect.");
+  await element("button", "Create account");
+  await element("button", "Forgot sign-in?");
+  assert.equal(existsSync(join(productStateDir(), "luci.json")), false);
+  await fill("Password", fixture.password);
+  await click("Sign in");
+  await bodyHas("Choose your workspace");
+  result.checks.push("Immediately after first account creation, sign-out and rejected credentials preserved create/recovery choices before any workspace setup was saved");
 }
 async function settings() {
   if (!await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Settings");
@@ -177,6 +299,17 @@ try {
   childPID = child.ProcessId;
   const executableBase64 = Buffer.from(executable).toString("base64");
   result.applicationVersion = powershell(`$p=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${executableBase64}')); (Get-Item -LiteralPath $p).VersionInfo.ProductVersion`);
+  if (expectedVersion) assert.equal(result.applicationVersion, expectedVersion, "The actually installed seed must match the independently selected previous version");
+  const [major, minor, patch] = result.applicationVersion.split(".").map(Number);
+  assert([major, minor, patch].every(Number.isInteger), "Candidate version must be explicit");
+  const historical = major === 0 && (minor < 4 || (minor === 4 && patch < 2));
+  const requireEntry = !historical; // Historical 0.3/0.4.1 upgrade seeds predate these controls.
+  if (requireEntry) {
+    localAccess = await command("/execute/async", "POST", {
+      script: "const done=arguments[arguments.length-1];window.__TAURI_INTERNALS__.invoke('local_access_info').then(done).catch(()=>done({available:false}));", args: [],
+    });
+    assert.equal(localAccess.available, true, "The candidate must expose its actual OS-owned local access controls");
+  }
   // New native releases report the state root actually supplied to their own
   // sidecar. Only the retained 0.3 binary needs its documented legacy fallback.
   result.stateDir = runtime.stateDir || (result.applicationVersion.startsWith("0.3.")
@@ -188,6 +321,15 @@ try {
   result.checks.push("Native managed state location retained across install, upgrade and restart");
   result.checks.push("Installed release WebView uses its own bundled sidecar on a random loopback port");
   await authenticate();
+  // The retained 0.3 seed predates managed identities. Starting with 0.4.1,
+  // assert continuity against the owner created by that actual old release.
+  if (!result.applicationVersion.startsWith("0.3.")) {
+    const authenticatedOwner = await visibleProfile();
+    if (fixture.ownerID) assert.equal(authenticatedOwner.id, fixture.ownerID, "Upgrade/restart must retain the identity created by the previous installed release");
+    else fixture.ownerID = authenticatedOwner.id;
+    result.ownerID = fixture.ownerID;
+  }
+  if (mode === "seed" && requireEntry) await verifyPartialFirstRunEntry();
   if (mode === "seed") {
     await settings();
     await fill("Projects folder", fixture.projectRoot);
@@ -286,6 +428,7 @@ try {
     }
     writeFileSync(fixtureFile, JSON.stringify(fixture));
   } else await verifyProject();
+  if (requireEntry && !fixture.entryVerified) await verifyLocalEntryRecovery();
   // WM_CLOSE exercises Tauri's normal Exit handler before WebDriver cleanup.
   assert.equal(powershell(`$p=Get-Process -Id ${appPID}; $p.CloseMainWindow()`), "True");
   await until("owned installed processes exited", () => !processes().some((p) => p.ProcessId === appPID || p.ProcessId === childPID), 15_000);

@@ -18,11 +18,15 @@ export function CloudManager({
   plan,
   privateKeyPath = "",
   mode = "all",
+  activeConnectionId,
+  manageTargets = false,
 }: {
   client: ProductClient;
   plan: CloudPlan | null;
   privateKeyPath?: string;
   mode?: "all" | "managed" | "existing";
+  activeConnectionId?: string;
+  manageTargets?: boolean;
 }) {
   const [jobs, setJobs] = useState<CloudJob[]>([]);
   const [targets, setTargets] = useState<DeploymentTarget[]>([]);
@@ -54,16 +58,22 @@ export function CloudManager({
   const working = useRef(false),
     alive = useRef(true);
   const load = async () => {
-    const [j, t, c] = await Promise.all([
+    const [j, t, c] = await Promise.allSettled([
       mode === "existing" ? Promise.resolve({ jobs: [] }) : client.cloudJobs(),
-      mode === "existing" ? Promise.resolve({ targets: [] }) : client.targets(),
+      mode === "existing" && !manageTargets
+        ? Promise.resolve({ targets: [] })
+        : client.targets(),
       client.tunnels(),
     ]);
     if (alive.current) {
-      setJobs(j.jobs ?? []);
-      setTargets(t.targets ?? []);
-      setTunnels(c.connections ?? []);
+      if (j.status === "fulfilled") setJobs(j.value.jobs ?? []);
+      if (t.status === "fulfilled") setTargets(t.value.targets ?? []);
+      if (c.status === "fulfilled") setTunnels(c.value.connections ?? []);
     }
+    // Account recovery must remain reachable when the remote target list rejects
+    // expired credentials, while the local SSH connection is still available.
+    for (const result of [c, j, t])
+      if (result.status === "rejected") throw result.reason;
   };
   useEffect(() => {
     alive.current = true;
@@ -73,7 +83,7 @@ export function CloudManager({
     return () => {
       alive.current = false;
     };
-  }, [client, mode]);
+  }, [client, mode, manageTargets]);
   useEffect(() => {
     setCost(false);
     setUnknownPrice(false);
@@ -141,6 +151,15 @@ export function CloudManager({
         </p>
       )}
       {busy && <p role="status">{busy}…</p>}
+      {activeConnectionId && (
+        <WorkspaceInstaller
+          client={client}
+          connections={tunnels.filter(
+            (connection) => connection.id === activeConnectionId,
+          )}
+          existing
+        />
+      )}
       {mode !== "existing" && plan && !created && (
         <section className="setup-plan">
           <h2>Create this cloud home</h2>
@@ -335,14 +354,18 @@ export function CloudManager({
       )}
       <section className="setup-plan">
         <h2>
-          {mode === "existing"
-            ? "Connect to your workspace server"
-            : "Connect your server securely"}
+          {activeConnectionId
+            ? "Your private server connection"
+            : mode === "existing"
+              ? "Connect to your workspace server"
+              : "Connect your server securely"}
         </h2>
         <p className="journey-muted">
-          {mode === "existing"
-            ? "Use the SSH details supplied by your workspace administrator. After verifying the server, sign in with your Luci workspace account below. Connecting does not create cloud resources."
-            : "Luci opens a private SSH connection to your server. Public web traffic uses HTTPS; administration stays on this machine."}
+          {activeConnectionId
+            ? "Your selected workspace is already connected. Manage its sign-in above. Use the SSH controls below only if you need to reconnect the server."
+            : mode === "existing"
+              ? "Use the SSH details supplied by your workspace administrator. After verifying the server, sign in with your Luci workspace account below. Connecting does not create cloud resources."
+              : "Luci opens a private SSH connection to your server. Public web traffic uses HTTPS; administration stays on this machine."}
         </p>
         <form
           onSubmit={(e) => {
@@ -511,17 +534,19 @@ export function CloudManager({
           </div>
         )}
       </section>
-      <WorkspaceInstaller
-        client={client}
-        connections={tunnels}
-        existing={mode === "existing"}
-      />
-      {mode !== "existing" && (
+      {!activeConnectionId && (
+        <WorkspaceInstaller
+          client={client}
+          connections={tunnels}
+          existing={mode === "existing"}
+        />
+      )}
+      {(mode !== "existing" || manageTargets) && (
         <section className="setup-plan">
           <h2>Finish your deployment connection</h2>
           <p className="journey-muted">
-            The access token stays in Luci’s local service. Luci verifies the
-            server before adding it to Deploy.
+            The access token stays in the selected workspace service. Luci
+            verifies the server before adding it to Deploy.
           </p>
           <form
             onSubmit={(e) => {

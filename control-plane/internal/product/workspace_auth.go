@@ -168,6 +168,7 @@ func (s *Server) loginWorkspace(w http.ResponseWriter, r *http.Request) {
 		Password       string `json:"password"`
 		BootstrapToken string `json:"bootstrapToken"`
 		DisplayName    string `json:"displayName"`
+		InviteCode     string `json:"inviteCode"`
 	}
 	if !readJSON(w, r, &req) {
 		return
@@ -204,13 +205,23 @@ func (s *Server) loginWorkspace(w http.ResponseWriter, r *http.Request) {
 		endpoint = "/v1/auth/bootstrap"
 		input["bootstrapToken"] = req.BootstrapToken
 		input["displayName"] = req.DisplayName
+	} else if req.InviteCode != "" {
+		endpoint = "/v1/auth/invitations/accept"
+		input["inviteCode"] = req.InviteCode
+		input["displayName"] = req.DisplayName
 	}
 	var response struct {
 		Token string          `json:"token"`
 		User  management.User `json:"user"`
 	}
 	if err = remoteWorkspaceAPI(r.Context(), t.APIURL, "POST", endpoint, "", input, &response); err != nil {
-		problem(w, 409, "backing_sign_in_failed", err.Error())
+		message := err.Error()
+		for _, secret := range []string{req.Password, req.InviteCode, req.BootstrapToken} {
+			if secret != "" {
+				message = strings.ReplaceAll(message, secret, "[redacted]")
+			}
+		}
+		problem(w, 409, "backing_sign_in_failed", message)
 		return
 	}
 	if len(response.Token) < 40 || response.User.ID == "" {

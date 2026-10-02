@@ -26,6 +26,10 @@ on:
         description: 'Seed with the retained 0.3.0 installer and verify the upgrade'
         type: boolean
         default: false
+      upgrade_from_release:
+        description: 'Optional retained previous release: v0.4.1-rc.4 (independently pinned)'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -36,7 +40,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  LUCI_VERSION: '0.4.1'
+  LUCI_VERSION: '0.4.2'
   GO_VERSION: '1.26.3'
   NODE_VERSION: '22.18.0'
 
@@ -377,8 +381,11 @@ jobs:
           INSTALLER_RELEASE: ${{ inputs.installer_release }}
           INSTALLER_SHA256: ${{ inputs.installer_sha256 }}
           UPGRADE_FROM_03: ${{ inputs.upgrade_from_03 }}
+          UPGRADE_FROM_RELEASE: ${{ inputs.upgrade_from_release }}
         run: |
           if ($env:INSTALLER_RUN -and $env:INSTALLER_RELEASE) { throw 'Choose one installer source' }
+          if ($env:UPGRADE_FROM_03 -eq 'true' -and $env:UPGRADE_FROM_RELEASE) { throw 'Choose one previous installer source' }
+          if ($env:UPGRADE_FROM_RELEASE -and $env:UPGRADE_FROM_RELEASE -ne 'v0.4.1-rc.4') { throw 'Previous release must be the independently pinned v0.4.1-rc.4 candidate' }
           if ($env:INSTALLER_RELEASE) {
             if ($env:INSTALLER_RELEASE -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$' -or $env:INSTALLER_SHA256 -notmatch '^[a-fA-F0-9]{64}$') { throw 'Release tag and independently recorded installer SHA256 are required' }
             # A draft has no published Git tag; releases/tags/<tag> returns404.
@@ -413,16 +420,42 @@ jobs:
           "NATIVE_INSTALLER=$path" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
           $provenance = @{ scriptsCommit=$env:GITHUB_SHA; installerRun=$env:INSTALLER_RUN; installerRelease=$env:INSTALLER_RELEASE; installerSourceCommit=$manifest.sourceCommit; installerSHA256=$installer[0].sha256 }
           New-Item -ItemType Directory -Path artifacts/native-installed-eval -Force | Out-Null
-          $provenance | ConvertTo-Json | Set-Content artifacts/native-installed-eval/input-provenance.json
           if ($env:UPGRADE_FROM_03 -eq 'true') {
             gh release download v0.3.0-rc.1 --repo $env:GITHUB_REPOSITORY --pattern Luci_0.3.0_x64-setup.exe --dir artifacts/diagnostic-previous
             if ($LASTEXITCODE -ne 0) { throw 'Previous release download failed' }
             $previous = (Resolve-Path artifacts/diagnostic-previous/Luci_0.3.0_x64-setup.exe).Path
             if ((Get-FileHash -LiteralPath $previous -Algorithm SHA256).Hash.ToLowerInvariant() -ne '81db0b7006bf8967d924cab362b4db1c140ddc48ca7b26b110dab7edc463c179') { throw 'Previous installer differs from retained 0.3.0 candidate' }
             "PREVIOUS_INSTALLER=$previous" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
+            'PREVIOUS_VERSION=0.3.0' | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
+            $provenance.previousInstallerRelease = 'v0.3.0-rc.1'
+            $provenance.previousInstallerVersion = '0.3.0'
+            $provenance.previousInstallerSHA256 = '81db0b7006bf8967d924cab362b4db1c140ddc48ca7b26b110dab7edc463c179'
+          } elseif ($env:UPGRADE_FROM_RELEASE) {
+            $previousSHA = '032a0428f08cc7e1b9b66fb9b12a1353958ad1090622362bcde3e269888eafb4'
+            $previousName = 'Luci_0.4.1_x64-setup.exe'
+            $previousPages = gh api "repos/$env:GITHUB_REPOSITORY/releases" --paginate --slurp | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw 'Previous draft release listing failed' }
+            $previousReleases = @(foreach ($page in $previousPages) { foreach ($item in $page) { if ($item.tag_name -eq $env:UPGRADE_FROM_RELEASE) { $item } } })
+            if ($previousReleases.Count -ne 1 -or -not $previousReleases[0].draft) { throw 'Expected the retained private 0.4.1 draft release' }
+            $previousAssets = @($previousReleases[0].assets | Where-Object name -eq $previousName)
+            if ($previousAssets.Count -ne 1 -or $previousAssets[0].digest -ne ('sha256:' + $previousSHA) -or $previousAssets[0].size -ne 57542112) { throw 'Previous release server identity differs from the independently retained 0.4.1 installer' }
+            gh release download $env:UPGRADE_FROM_RELEASE --repo $env:GITHUB_REPOSITORY --pattern $previousName --pattern release-manifest.json --dir artifacts/diagnostic-previous
+            if ($LASTEXITCODE -ne 0) { throw 'Previous 0.4.1 release download failed' }
+            $previous = (Resolve-Path (Join-Path artifacts/diagnostic-previous $previousName)).Path
+            if ((Get-FileHash -LiteralPath $previous -Algorithm SHA256).Hash.ToLowerInvariant() -ne $previousSHA) { throw 'Previous installer differs from independently pinned 0.4.1 candidate' }
+            $previousManifest = Get-Content artifacts/diagnostic-previous/release-manifest.json -Raw | ConvertFrom-Json
+            $previousEntries = @($previousManifest.artifacts | Where-Object name -eq $previousName)
+            if ($previousEntries.Count -ne 1 -or $previousEntries[0].sha256 -ne $previousSHA -or $previousManifest.sourceCommit -ne 'd9e743122a3ecc4c8c675d019c679db9a51bfaa6') { throw 'Previous installer manifest differs from the retained 0.4.1 source and installer' }
+            "PREVIOUS_INSTALLER=$previous" | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
+            'PREVIOUS_VERSION=0.4.1' | Out-File -LiteralPath $env:GITHUB_ENV -Append -Encoding utf8
+            $provenance.previousInstallerRelease = $env:UPGRADE_FROM_RELEASE
+            $provenance.previousInstallerVersion = '0.4.1'
+            $provenance.previousInstallerSHA256 = $previousSHA
+            $provenance.previousInstallerSourceCommit = $previousManifest.sourceCommit
           }
+          $provenance | ConvertTo-Json | Set-Content artifacts/native-installed-eval/input-provenance.json
       - name: Exercise the installed release
-        run: ./scripts/test-installed-windows.ps1 -Installer $env:NATIVE_INSTALLER -PreviousInstaller "$env:PREVIOUS_INSTALLER"
+        run: ./scripts/test-installed-windows.ps1 -Installer $env:NATIVE_INSTALLER -PreviousInstaller "$env:PREVIOUS_INSTALLER" -PreviousVersion "$env:PREVIOUS_VERSION"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

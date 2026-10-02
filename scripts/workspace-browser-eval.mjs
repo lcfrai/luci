@@ -90,7 +90,9 @@ async function startService(name, port, account, password) {
 }
 async function clickResponse(button, resource, expected = 200, readBody = true) {
   const received = page.waitForResponse((response) => new URL(response.url()).pathname === resource && response.request().method() === 'POST');
-  await button.click(); const response = await received;
+  // Handle both promises immediately. If a locator click fails, retain that
+  // error instead of an unhandled response wait masking it during cleanup.
+  const [response] = await Promise.all([received, button.click()]);
   assert.equal(response.status(), expected, `Browser ${resource} returned${response.status()}`);
   return readBody ? response.json() : undefined;
 }
@@ -209,8 +211,89 @@ try {
   await page.screenshot({ path: path.join(output, 'remote-saved-brief.png'), fullPage: true });
   pass('browser_to_ssh_to_remote_durable_project', 'Browser-created project and saved revision1 brief are verified through the remote service and actual remote LUCI.md; no equivalent project exists in local storage.');
 
+  stage = 'selected-remote-admin-invitation';
+  await page.getByRole('button', { name: 'Admin', exact: true }).click();
+  const admin = page.getByRole('dialog', { name: 'Workspace administration', exact: true });
+  await until(async () => (await admin.getByRole('combobox', { name: 'Control plane', exact: true }).inputValue()) === 'cloud', 'Admin did not select the active remote control plane');
+  await admin.getByRole('button', { name: 'Manage invitations', exact: true }).click();
+  await admin.getByRole('combobox', { name: 'Invitation role', exact: true }).selectOption('member');
+  const invitation = await clickResponse(admin.getByRole('button', { name: 'Create invitation', exact: true }), '/v1/setup/workspace/admin/invitations', 201);
+  assert(invitation.inviteCode && invitation.invitation.id);
+  secrets.push(invitation.inviteCode);
+  assert.equal(await admin.getByLabel('New invitation code', { exact: true }).innerText(), invitation.inviteCode);
+  await admin.getByRole('button', { name: 'Hide invitation code', exact: true }).click();
+  assert((await api(remote, 'GET', '/v1/admin/invitations')).invitations.some(item => item.id === invitation.invitation.id));
+  assert(!(await api(local, 'GET', '/v1/admin/invitations')).invitations.some(item => item.id === invitation.invitation.id));
+  await admin.getByRole('button', { name: 'Close', exact: true }).click();
+  pass('remote_admin_invitation_boundary', 'The selected remote Admin UI issued a real single-use member invitation on the remote control plane, never in the local account realm.');
+
+  stage = 'join-remote-workspace-with-invitation';
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: 'Connection and account', exact: true }).click();
+  const disconnected = page.waitForResponse(response => new URL(response.url()).pathname === '/v1/setup/workspace/auth' && response.request().method() === 'DELETE');
+  await page.getByRole('button', { name: 'Disconnect remote sign-in', exact: true }).click();
+  assert.equal((await disconnected).status(), 200);
+  await page.getByRole('button', { name: 'Join with an invitation', exact: true }).click();
+  const joinedPassword = 'Invited-' + randomBytes(18).toString('hex'); secrets.push(joinedPassword);
+  await page.getByLabel(/^Remote invitation code/).fill(invitation.inviteCode);
+  await page.getByLabel('Remote display name', { exact: true }).fill('Invited Remote Member');
+  await page.getByLabel('Remote username', { exact: true }).fill('invited-remote-member');
+  await page.getByLabel('Remote password', { exact: true }).fill(joinedPassword);
+  await page.getByLabel('Confirm remote password', { exact: true }).fill(joinedPassword);
+  const joined = await clickResponse(page.getByRole('button', { name: 'Create workspace account', exact: true }), '/v1/setup/workspace/auth');
+  assert.equal(joined.authenticated, true);
+  assert.equal(joined.user.role, 'member');
+  assert.notEqual(joined.user.id, remote.user.id);
+  assert.equal((await api(local, 'GET', '/v1/auth/me')).user.id, local.user.id);
+  await until(() => page.getByRole('button', { name: 'Use this cloud workspace', exact: true }).isEnabled(), 'Invited account did not enable remote activation');
+  await switchWorkspace(page.getByRole('button', { name: 'Use this cloud workspace', exact: true }), '/v1/setup/workspace/activate');
+  await page.getByRole('button', { name: 'Local Workspace Owner', exact: true }).waitFor();
+  assert(!(await api(local, 'GET', '/v1/projects')).projects.some(item => item.id === project.id), 'New remote member must not inherit owner project access');
+  assert.equal((await api(remote, 'GET', `/v1/product/projects/${project.id}/brief`)).purpose, purpose);
+  const accepted = (await api(remote, 'GET', '/v1/admin/invitations')).invitations.find(item => item.id === invitation.invitation.id);
+  assert.equal(accepted.acceptedBy, joined.user.id);
+  assert(accepted.acceptedAt);
+  pass('remote_invitation_account_and_isolation', 'WorkspaceSignIn redeemed the actual remote invitation through pinned SSH, selected a distinct member identity and preserved both the local identity and remote owner data.');
+
+  stage = 'invited-member-first-project';
+  const memberStatus = await api(local, 'GET', '/v1/setup/status');
+  assert.equal(memberStatus.configured, true, 'The managed member must be ready in the server-assigned workspace');
+  assert.equal(memberStatus.workspace.mode, 'cloud');
+  assert.equal(memberStatus.access.user.username, 'invited-remote-member');
+  assert.equal(memberStatus.access.user.role, 'member');
+  assert.equal(memberStatus.access.manageBacking, false);
+  assert.equal(memberStatus.access.projectsDirManaged, true);
+  const assignedProjects = path.join(remote.state, 'control-plane', 'users', joined.user.id, 'runtime', 'projects');
+  assert.equal(path.resolve(memberStatus.config.projectsDir), assignedProjects);
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('heading', { name: 'Your cloud workspace', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'On this computer', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Set up a cloud workspace', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Save settings', exact: true }).count(), 0, 'Local administrator identity must not expose remote member folder writes');
+  await page.getByRole('button', { name: 'Create your first project', exact: true }).click();
+  const memberDialog = page.getByRole('dialog', { name: 'Create a cloud project', exact: true });
+  await memberDialog.getByLabel('Project name', { exact: true }).fill('ssh-member-app');
+  const memberProject = await clickResponse(memberDialog.getByRole('button', { name: 'Create project', exact: true }), '/v1/product/projects', 201);
+  assert.equal(path.resolve(memberProject.path), path.join(assignedProjects, 'ssh-member-app'));
+  const memberPurpose = 'An invited member creates and saves their own garden journal in the assigned cloud workspace.';
+  await page.getByRole('textbox', { name: 'The idea', exact: true }).fill(memberPurpose);
+  await page.getByRole('textbox', { name: 'Who it is for', exact: true }).fill('This invited workspace member');
+  await page.getByRole('textbox', { name: /^What good looks like/ }).fill('The member can save work without changing server settings or seeing another account project.');
+  const memberBrief = await clickResponse(page.getByRole('button', { name: 'Save brief', exact: true }), `/v1/product/projects/${memberProject.id}/brief`);
+  assert.equal(memberBrief.revision, 1);
+  assert.equal((await api(local, 'GET', `/v1/product/projects/${memberProject.id}/brief`)).purpose, memberPurpose);
+  assert.ok((await fs.readFile(path.join(memberProject.path, 'LUCI.md'), 'utf8')).includes(memberPurpose));
+  assert(!(await api(local, 'GET', '/v1/projects')).projects.some(item => item.id === project.id));
+  await api(local, 'GET', `/v1/product/projects/${project.id}/brief`, undefined, 404);
+  await api(remote, 'GET', `/v1/product/projects/${memberProject.id}/brief`, undefined, 404);
+  assert.equal((await api(remote, 'GET', `/v1/product/projects/${project.id}/brief`)).purpose, purpose);
+  await assert.rejects(fs.access(path.join(local.projects, 'ssh-member-app')), { code: 'ENOENT' });
+  await page.screenshot({ path: path.join(output, 'member-saved-brief.png'), fullPage: true });
+  pass('remote_member_first_project', 'The invited member used the real cloud workspace UI to create and save a project in the assigned per-user folder without server setup, with member/owner project access rejected in both directions.');
+
   stage = 'return-to-original-local-workspace';
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('heading', { name: 'Your cloud workspace', exact: true }).waitFor();
   await switchWorkspace(page.getByRole('button', { name: 'Return to this machine', exact: true }), '/v1/setup/workspace/local');
   await page.getByRole('heading', { name: 'Choose your workspace', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Close settings', exact: true }).click();
@@ -219,6 +302,8 @@ try {
   assert.ok(localProjects.some((item) => item.id === sentinel.id)); assert.ok(!localProjects.some((item) => item.id === project.id));
   assert.equal((await api(local, 'GET', '/v1/auth/me')).user.id, local.user.id);
   assert.equal((await api(remote, 'GET', `/v1/product/projects/${project.id}/brief`)).purpose, purpose);
+  assert.ok(!localProjects.some(item => item.id === memberProject.id));
+  assert.ok((await fs.readFile(path.join(memberProject.path, 'LUCI.md'), 'utf8')).includes(memberPurpose));
   await page.screenshot({ path: path.join(output, 'returned-local-workspace.png'), fullPage: true });
   assert.deepEqual(errors, [], 'Browser raised uncaught JavaScript errors');
   pass('return_local_preserves_both_realms', 'The visible return control restores original local projects/account, leaves the saved remote project durable and produces no uncaught browser error.');

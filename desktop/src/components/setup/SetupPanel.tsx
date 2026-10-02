@@ -133,7 +133,7 @@ export function SetupPanel({
   client = productApi,
 }: Props) {
   const auth = useAuth();
-  const manageBacking = !auth || auth.profile.permissions.manageBacking;
+  const localManageBacking = !auth || auth.profile.permissions.manageBacking;
   const allowProvision = !auth || auth.profile.policy.allowCloudProvisioning;
   const [status, setStatus] = useState(initialStatus);
   const [loading, setLoading] = useState(!initialStatus);
@@ -144,7 +144,12 @@ export function SetupPanel({
   const [route, setRoute] = useState<SetupRoute | null>(
     initialSection === "project" ? "local" : null,
   );
-  const onboarding = status?.configured === false;
+  const cloudWorkspace = status?.workspace?.mode === "cloud";
+  const manageBacking =
+    status?.access?.manageBacking ?? (!cloudWorkspace && localManageBacking);
+  const projectsDirManaged = status?.access?.projectsDirManaged === true;
+  const canChooseProjectsDir = manageBacking && !projectsDirManaged;
+  const onboarding = status?.configured === false && !cloudWorkspace;
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
@@ -266,7 +271,7 @@ export function SetupPanel({
   }
   const submitConfig = (event: FormEvent) => {
     event.preventDefault();
-    if (!config || !manageBacking) return;
+    if (!config || !canChooseProjectsDir) return;
     void run("Saving", async () => {
       receive(await client.configure(config));
       onProjectsChanged();
@@ -289,23 +294,27 @@ export function SetupPanel({
               Luci <span>by lcfr.ai</span>
             </span>
             <h1 id="setup-title" ref={heading} tabIndex={-1}>
-              {status?.configured
-                ? "Settings"
-                : route === "local"
-                  ? section === "project"
-                    ? "Create your first project"
-                    : "Set up this computer"
-                  : route === "managed"
-                    ? "Set up a cloud workspace"
-                    : route === "existing"
-                      ? "Connect to an existing workspace"
-                      : "Choose your workspace"}
+              {cloudWorkspace
+                ? section === "project"
+                  ? "Create a cloud project"
+                  : "Your cloud workspace"
+                : status?.configured
+                  ? "Settings"
+                  : route === "local"
+                    ? section === "project"
+                      ? "Create your first project"
+                      : "Set up this computer"
+                    : route === "managed"
+                      ? "Set up a cloud workspace"
+                      : route === "existing"
+                        ? "Connect to an existing workspace"
+                        : "Choose your workspace"}
             </h1>
             <p>
-              {onboarding && !route
-                ? "Start locally, let Luci guide your own cloud setup, or join a workspace you already have."
-                : status?.workspace?.mode === "cloud"
-                  ? `Cloud workspace · ${status.workspace.host}`
+              {cloudWorkspace
+                ? `Cloud workspace · ${status?.workspace?.host}${status?.access ? ` · Signed in as ${status.access.user.username}` : ""}`
+                : onboarding && !route
+                  ? "Start locally, let Luci guide your own cloud setup, or join a workspace you already have."
                   : "Your projects, your machine. Move your workspace to your cloud when you choose."}
             </p>
           </div>
@@ -329,17 +338,15 @@ export function SetupPanel({
             : config &&
               (
                 [
-                  [
-                    "local",
-                    status?.workspace?.mode === "cloud"
-                      ? "This workspace"
-                      : "This machine",
-                  ],
+                  ["local", cloudWorkspace ? "This workspace" : "This machine"],
                   ["project", "New project"],
-                  ["cloud", "Your cloud"],
+                  [
+                    "cloud",
+                    cloudWorkspace ? "Connection and account" : "Your cloud",
+                  ],
                 ] as const
               )
-                .filter(([id]) => id !== "cloud" || manageBacking)
+                .filter(([id]) => id !== "cloud" || localManageBacking)
                 .map(([id, label]) => (
                   <button
                     key={id}
@@ -389,16 +396,16 @@ export function SetupPanel({
               {onboarding && !route && (
                 <SetupRoutes
                   includeLocal
-                  manageBacking={manageBacking}
+                  manageBacking={localManageBacking}
                   allowProvision={allowProvision}
                   onChoose={chooseRoute}
                 />
               )}
               {section === "local" && (!onboarding || route === "local") && (
                 <>
-                  {manageBacking && status?.workspace?.mode === "cloud" && (
+                  {cloudWorkspace && (
                     <div className="workspace-current">
-                      <h2>Working on {status.workspace.host}</h2>
+                      <h2>Working on {status?.workspace?.host}</h2>
                       <p className="journey-muted">
                         Projects and agents use this cloud machine through your
                         private connection. Switching detaches terminal views;
@@ -406,16 +413,26 @@ export function SetupPanel({
                         machine. Save your brief and design before switching.
                       </p>
                       <button
-                        className="luci-button"
-                        disabled={!!busy}
-                        onClick={() =>
-                          void run("Returning locally", () =>
-                            changeWorkspace(() => client.localWorkspace()),
-                          )
-                        }
+                        className="luci-button luci-primary"
+                        type="button"
+                        disabled={!!busy || !status?.workspace?.ready}
+                        onClick={() => setSection("project")}
                       >
-                        Return to this machine
+                        Create your first project
                       </button>
+                      {localManageBacking && (
+                        <button
+                          className="luci-button"
+                          disabled={!!busy}
+                          onClick={() =>
+                            void run("Returning locally", () =>
+                              changeWorkspace(() => client.localWorkspace()),
+                            )
+                          }
+                        >
+                          Return to this machine
+                        </button>
+                      )}
                     </div>
                   )}
                   <form onSubmit={submitConfig}>
@@ -424,29 +441,32 @@ export function SetupPanel({
                       <input
                         value={config.projectsDir}
                         disabled={!!busy}
-                        readOnly={!manageBacking}
+                        readOnly={!canChooseProjectsDir}
                         onChange={(event) =>
                           update({ projectsDir: event.target.value })
                         }
                         required
-                        placeholder="An absolute folder path on this machine"
+                        placeholder={
+                          cloudWorkspace
+                            ? "An absolute folder path on this workspace"
+                            : "An absolute folder path on this machine"
+                        }
                       />
                       <small>
-                        New projects live here. Existing Git repositories appear
-                        in the project rail.
+                        {projectsDirManaged
+                          ? "Your private projects folder is assigned by this workspace. You can create a project without changing server settings."
+                          : "New projects live here. Existing Git repositories appear in the project rail."}
                       </small>
                     </label>
                     <div className="setup-actions">
-                      <button
-                        className="luci-button luci-primary"
-                        disabled={!!busy || !manageBacking}
-                      >
-                        {busy === "Saving"
-                          ? "Saving…"
-                          : manageBacking
-                            ? "Save settings"
-                            : "Projects folder managed by administrator"}
-                      </button>
+                      {canChooseProjectsDir && (
+                        <button
+                          className="luci-button luci-primary"
+                          disabled={!!busy}
+                        >
+                          {busy === "Saving" ? "Saving…" : "Save settings"}
+                        </button>
+                      )}
                       <button
                         className="luci-button"
                         type="button"
@@ -459,7 +479,9 @@ export function SetupPanel({
                         }
                       >
                         {busy === "Checking"
-                          ? "Checking this machine…"
+                          ? cloudWorkspace
+                            ? "Checking this workspace…"
+                            : "Checking this machine…"
                           : "Check readiness"}
                       </button>
                     </div>
@@ -468,8 +490,10 @@ export function SetupPanel({
                     <h2>Ready when you are</h2>
                     <p className="journey-muted">
                       Git supports your projects. Docker and the sandbox image
-                      are needed for isolated agent sessions. AWS and Azure are
-                      optional.
+                      are needed for isolated agent sessions.
+                      {cloudWorkspace
+                        ? " These checks describe the selected cloud workspace."
+                        : " AWS and Azure are optional."}
                     </p>
                     {status?.checks.map((check) => (
                       <div className="setup-check" key={check.id}>
@@ -488,17 +512,20 @@ export function SetupPanel({
                   </div>
                   <LocalTools
                     client={client}
-                    cloud={status?.workspace?.mode === "cloud"}
+                    cloud={cloudWorkspace}
+                    manageBacking={manageBacking}
                     onSessionStarted={onClose}
                   />
-                  <button
-                    className="luci-button"
-                    type="button"
-                    disabled={!!busy}
-                    onClick={() => setSection("project")}
-                  >
-                    Create your first project →
-                  </button>
+                  {!cloudWorkspace && (
+                    <button
+                      className="luci-button"
+                      type="button"
+                      disabled={!!busy}
+                      onClick={() => setSection("project")}
+                    >
+                      Create your first project →
+                    </button>
+                  )}
                 </>
               )}
               {section === "project" && (
@@ -520,8 +547,9 @@ export function SetupPanel({
                   >
                     <h2>Start with a name.</h2>
                     <p className="journey-muted">
-                      Create a local Git project, or bring an existing one from
-                      an HTTPS repository.
+                      {cloudWorkspace
+                        ? "Create a Git project in your private cloud workspace, or bring an existing one from an HTTPS repository."
+                        : "Create a local Git project, or bring an existing one from an HTTPS repository."}
                     </p>
                     <label className="luci-field">
                       Project name
@@ -568,13 +596,22 @@ export function SetupPanel({
                   />
                 </>
               )}
-              {section === "cloud" && !manageBacking && (
+              {section === "cloud" && !localManageBacking && (
                 <p className="journey-muted">
                   Your administrator manages cloud backing and deployment
                   connections for this workspace.
                 </p>
               )}
-              {section === "cloud" && manageBacking && (
+              {section === "cloud" && localManageBacking && cloudWorkspace && (
+                <CloudManager
+                  client={client}
+                  plan={null}
+                  mode="existing"
+                  activeConnectionId={status?.workspace?.connectionId}
+                  manageTargets={manageBacking}
+                />
+              )}
+              {section === "cloud" && localManageBacking && !cloudWorkspace && (
                 <>
                   {!onboarding && route && (
                     <button
@@ -589,7 +626,7 @@ export function SetupPanel({
                   {!route && !onboarding && (
                     <SetupRoutes
                       includeLocal={false}
-                      manageBacking={manageBacking}
+                      manageBacking={localManageBacking}
                       allowProvision={allowProvision}
                       onChoose={chooseRoute}
                     />
@@ -853,7 +890,9 @@ export function SetupPanel({
           <span role="status">
             {busy
               ? `${busy}…`
-              : "Local by default · Your account, when you choose"}
+              : cloudWorkspace
+                ? `Projects and agents run on ${status?.workspace?.host}`
+                : "Local by default · Your account, when you choose"}
           </span>
           <button className="luci-button" onClick={onClose} disabled={!!busy}>
             Back to project

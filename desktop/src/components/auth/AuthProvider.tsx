@@ -12,6 +12,18 @@ import { AUTH_EXPIRED, authToken, setAuthToken } from "../../api/authSession";
 import { detachAllTerminals } from "../../api/attachRegistry";
 import { resetCockpit } from "../../store/store";
 import { AdminPanel } from "./AdminPanel";
+import {
+  portableAccessAvailable,
+  portableRequest,
+  PortableAccessError,
+} from "./portableAccess";
+import {
+  AuthEntry,
+  type ControlStatus,
+  type LocalAccess,
+  type EntryMode,
+  type EntryDraft,
+} from "./AuthEntry";
 import "./auth.css";
 
 export interface ControlUser {
@@ -47,13 +59,6 @@ export interface AuthProfile {
   };
   policy: ControlPolicy;
 }
-interface ControlStatus {
-  configured: boolean;
-  instanceName: string;
-  backing: string;
-  bootstrapRequired: boolean;
-  bootstrapTokenPath?: string;
-}
 interface AuthContextValue {
   profile: AuthProfile;
   refresh(): Promise<void>;
@@ -63,23 +68,32 @@ interface AuthContextValue {
 }
 const AuthContext = createContext<AuthContextValue | null>(null);
 export const useAuth = () => useContext(AuthContext);
+const entryErrorText = (cause: unknown) =>
+  typeof cause === "string" ? cause : errorText(cause);
+
+export interface AuthResult {
+  token: string;
+  user: ControlUser;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const fragmentToken = useRef<string | null>(null);
+  const portableToken = useRef<string | null>(null);
+  const generation = useRef(0);
   const [profile, setProfile] = useState<AuthProfile | null>(null);
   const [status, setStatus] = useState<ControlStatus | null>(null);
-  const [loading, setLoading] = useState(true),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  const [username, setUsername] = useState(""),
-    [password, setPassword] = useState(""),
-    [displayName, setDisplayName] = useState(""),
-    [bootstrapToken, setBootstrapToken] = useState("");
+  const [local, setLocal] = useState<LocalAccess>({ available: false });
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [localError, setLocalError] = useState("");
+  const [connectionError, setConnectionError] = useState(false);
+  const [mode, setMode] = useState<EntryMode>("sign-in");
+  const [bootstrapToken, setBootstrapToken] = useState("");
   const [panel, setPanel] = useState<"account" | "admin" | null>(null);
   const refresh = useCallback(async () => {
     const token = authToken();
     const current = await productApi.request<AuthProfile>("/v1/auth/me");
-    // A late profile response cannot sign a logged-out or changed account back in.
     if (token && token === authToken()) setProfile(current);
   }, []);
   const clear = useCallback(() => {
@@ -88,17 +102,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     resetCockpit();
     setProfile(null);
     setPanel(null);
-    setPassword("");
+    setMode("sign-in");
   }, []);
   const load = useCallback(async () => {
+    const attempt = ++generation.current;
     if (fragmentToken.current === null) {
       const hash = new URLSearchParams(window.location.hash.slice(1));
       const candidate = hash.get("bootstrap") || "";
+      const owner = hash.get("owner") || "";
+      portableToken.current =
+        portableAccessAvailable() && /^[A-Za-z0-9_-]{43}$/.test(owner)
+          ? owner
+          : "";
       fragmentToken.current = /^[A-Za-z0-9_-]{43}$/.test(candidate)
         ? candidate
         : "";
-      if (hash.has("bootstrap")) {
+      if (hash.has("bootstrap") || hash.has("owner")) {
         hash.delete("bootstrap");
+        hash.delete("owner");
         window.history.replaceState(
           null,
           "",
@@ -108,31 +129,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setLoading(true);
     setError("");
+    setLocalError("");
+    setConnectionError(false);
     try {
       const current = await productApi.request<ControlStatus>(
         "/v1/control-plane/status",
       );
+      if (generation.current !== attempt) return;
       setStatus(current);
-      if (current.bootstrapRequired && fragmentToken.current)
-        setBootstrapToken(fragmentToken.current);
-      if (!current.bootstrapRequired) {
+      if (current.bootstrapRequired) {
+        // An obsolete session must not stop first-run ownership verification.
+        clear();
+        if (fragmentToken.current) setBootstrapToken(fragmentToken.current);
+      } else {
         fragmentToken.current = "";
         setBootstrapToken("");
       }
-      if (authToken()) await refresh();
-      if (current.bootstrapRequired && "__TAURI_INTERNALS__" in window) {
-        const { invoke } = await import("@tauri-apps/api/core");
-        const token = await invoke<string | null>("bootstrap_token");
-        if (token) setBootstrapToken(token);
+      if ("__TAURI_INTERNALS__" in window) {
+        try {
+          const { invoke } = await import("@tauri-apps/api/core");
+          const access = await invoke<LocalAccess>("local_access_info");
+          if (generation.current !== attempt) return;
+          setLocal({ ...access, transport: "native" });
+          if (current.bootstrapRequired) {
+            const token = await invoke<string | null>("bootstrap_token");
+            if (generation.current !== attempt) return;
+            if (token) setBootstrapToken(token);
+          }
+        } catch (cause) {
+          if (generation.current !== attempt) return;
+          setLocal({ available: false });
+          setLocalError(entryErrorText(cause));
+        }
+      } else if (portableToken.current) {
+        try {
+          const access = await portableRequest<{ owner: ControlUser | null }>(
+            portableToken.current,
+            "/v1/auth/local-owner",
+          );
+          if (generation.current !== attempt) return;
+          setLocal({
+            available: true,
+            owner: access.owner,
+            transport: "portable",
+          });
+        } catch (cause) {
+          if (generation.current !== attempt) return;
+          setLocal({ available: false });
+          setLocalError(
+            `${entryErrorText(cause)} Reopen Start-Luci.ps1 or start-luci.sh for a fresh local access link.`,
+          );
+        }
+      }
+      if (!current.bootstrapRequired && authToken()) {
+        try {
+          await refresh();
+        } catch (cause) {
+          if (generation.current !== attempt) return;
+          if (!authToken())
+            setError("Your sign-in expired. Sign in again to continue.");
+          else {
+            setError(errorText(cause));
+            setConnectionError(true);
+          }
+        }
       }
     } catch (cause) {
+      if (generation.current !== attempt) return;
+      setStatus(null);
       setError(errorText(cause));
+      setConnectionError(true);
     } finally {
-      setLoading(false);
+      if (generation.current === attempt) setLoading(false);
     }
-  }, [refresh]);
+  }, [refresh, clear]);
   useEffect(() => {
     void load();
+    return () => {
+      generation.current++;
+    };
   }, [load]);
   useEffect(() => {
     const expired = () => {
@@ -147,6 +222,117 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await productApi.request("/v1/auth/logout", {});
     } finally {
       clear();
+      setError("");
+      await load();
+    }
+  };
+  const changeMode = (value: EntryMode) => {
+    setMode(value);
+    setError("");
+    setConnectionError(false);
+  };
+  const submit = async (draft: EntryDraft) => {
+    if (busy || !status) return;
+    setBusy(true);
+    setError("");
+    setConnectionError(false);
+    try {
+      let result: AuthResult;
+      const identity = {
+        username: draft.username,
+        displayName: draft.displayName,
+        password: draft.password,
+      };
+      if (status.bootstrapRequired) {
+        result = await productApi.request<AuthResult>("/v1/auth/bootstrap", {
+          bootstrapToken,
+          ...identity,
+        });
+      } else if (mode === "recover") {
+        if (!local.available || !local.owner)
+          throw new Error(
+            "Recover this account through its workspace administrator.",
+          );
+        if (local.transport === "portable") {
+          result = await portableRequest<AuthResult>(
+            portableToken.current || "",
+            "/v1/auth/local-owner/recover",
+            { newPassword: draft.password },
+          );
+        } else {
+          const { invoke } = await import("@tauri-apps/api/core");
+          result = await invoke<AuthResult>("recover_local_owner", {
+            newPassword: draft.password,
+          });
+        }
+      } else if (mode === "create" && local.available) {
+        if (local.transport === "portable") {
+          result = await portableRequest<AuthResult>(
+            portableToken.current || "",
+            "/v1/auth/local-account",
+            identity,
+          );
+        } else {
+          const { invoke } = await import("@tauri-apps/api/core");
+          result = await invoke<AuthResult>("create_local_account", identity);
+        }
+      } else if (mode === "create") {
+        result = await productApi.request<AuthResult>(
+          "/v1/auth/invitations/accept",
+          { inviteCode: draft.inviteCode, ...identity },
+        );
+      } else {
+        result = await productApi.request<AuthResult>("/v1/auth/login", {
+          username: draft.username,
+          password: draft.password,
+        });
+      }
+      setAuthToken(result.token);
+      setBootstrapToken("");
+      fragmentToken.current = "";
+      setStatus({ ...status, configured: true, bootstrapRequired: false });
+      setMode("sign-in");
+      await refresh();
+    } catch (cause) {
+      setError(entryErrorText(cause));
+      if (cause instanceof PortableAccessError && cause.status === 403) {
+        setLocalError(
+          "Reopen Start-Luci.ps1 or start-luci.sh for a fresh local access link. Your account details have been kept in this form.",
+        );
+      }
+      if (
+        local.available &&
+        (mode === "create" || mode === "recover") &&
+        /local service.*(unavailable|did not|connection)|request did not reach/i.test(
+          entryErrorText(cause),
+        )
+      ) {
+        setLocalError(
+          "Check the local service, then retry. Your account details are still in this form.",
+        );
+      }
+      const failure = cause as { status?: number; code?: string };
+      setConnectionError(failure.status === 0 || (failure.status ?? 0) >= 500);
+      if (failure.code === "bootstrap_denied") {
+        // Another browser may have completed first setup while this form was open.
+        try {
+          const current = await productApi.request<ControlStatus>(
+            "/v1/control-plane/status",
+          );
+          setStatus(current);
+          if (!current.bootstrapRequired) {
+            setBootstrapToken("");
+            setMode("sign-in");
+            setError(
+              "This workspace already has an account. Sign in, create a separate account, or recover your sign-in below.",
+            );
+          }
+        } catch {
+          setConnectionError(true);
+        }
+      }
+    } finally {
+      setBusy(false);
     }
   };
   if (profile)
@@ -165,169 +351,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       </AuthContext.Provider>
     );
   return (
-    <main className="auth-screen">
-      <section className="auth-card">
-        <h1>
-          {status?.bootstrapRequired
-            ? "Make this workspace yours."
-            : "Welcome back."}
-        </h1>
-        <p className="auth-workspace journey-muted">
-          {status?.instanceName || "Luci"}
-        </p>
-        <p className="journey-muted">
-          {status?.bootstrapRequired
-            ? "Create the first Super Admin. This account manages people, execution backing and workspace policy."
-            : "Sign in to your workspace. Your projects and execution runtime are scoped to your account."}
-        </p>
-        {loading && <p role="status">Connecting to the control plane…</p>}
-        {error && (
-          <p className="journey-error" role="alert">
-            {error}
-          </p>
-        )}
-        {!loading && status && (
-          <form
-            className="journey-form"
-            aria-busy={busy}
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (busy) return;
-              setBusy(true);
-              setError("");
-              void productApi
-                .request<{ token: string; user: ControlUser }>(
-                  status.bootstrapRequired
-                    ? "/v1/auth/bootstrap"
-                    : "/v1/auth/login",
-                  status.bootstrapRequired
-                    ? { bootstrapToken, username, displayName, password }
-                    : { username, password },
-                )
-                .then(async (result) => {
-                  setAuthToken(result.token);
-                  setPassword("");
-                  setBootstrapToken("");
-                  fragmentToken.current = "";
-                  await refresh();
-                })
-                .catch((cause) => setError(errorText(cause)))
-                .finally(() => setBusy(false));
-            }}
-          >
-            {status.bootstrapRequired && (
-              <>
-                <label className="luci-field">
-                  <span id="auth-bootstrap-label">Bootstrap token</span>
-                  <input
-                    type="password"
-                    autoComplete="off"
-                    required
-                    disabled={busy}
-                    autoFocus={!bootstrapToken}
-                    aria-labelledby="auth-bootstrap-label"
-                    aria-describedby="auth-bootstrap-help"
-                    value={bootstrapToken}
-                    onChange={(event) => setBootstrapToken(event.target.value)}
-                  />
-                  <small id="auth-bootstrap-help">
-                    {bootstrapToken
-                      ? "Loaded for the managed local service, or entered by you."
-                      : `Use the one-time token on the control-plane host${status.bootstrapTokenPath ? ` at ${status.bootstrapTokenPath}` : ""}.`}
-                  </small>
-                </label>
-                <label className="luci-field">
-                  Display name
-                  <input
-                    required
-                    disabled={busy}
-                    autoFocus={!!bootstrapToken}
-                    value={displayName}
-                    onChange={(event) => setDisplayName(event.target.value)}
-                    autoComplete="name"
-                  />
-                </label>
-              </>
-            )}
-            <label className="luci-field">
-              <span id="auth-username-label">Username</span>
-              <input
-                required
-                disabled={busy}
-                autoFocus={!status.bootstrapRequired}
-                autoCapitalize="none"
-                spellCheck={false}
-                maxLength={64}
-                minLength={status.bootstrapRequired ? 3 : undefined}
-                pattern={
-                  status.bootstrapRequired
-                    ? "[A-Za-z0-9][A-Za-z0-9_.\\-]{2,63}"
-                    : undefined
-                }
-                aria-labelledby="auth-username-label"
-                aria-describedby={
-                  status.bootstrapRequired ? "auth-username-help" : undefined
-                }
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                autoComplete="username"
-              />
-              {status.bootstrapRequired && (
-                <small id="auth-username-help">
-                  3–64 characters. Start with a letter or number; dots,
-                  underscores and hyphens are allowed.
-                </small>
-              )}
-            </label>
-            <label className="luci-field">
-              <span id="auth-password-label">Password</span>
-              <input
-                required
-                disabled={busy}
-                type="password"
-                minLength={status.bootstrapRequired ? 12 : undefined}
-                aria-labelledby="auth-password-label"
-                aria-describedby={
-                  status.bootstrapRequired ? "auth-password-help" : undefined
-                }
-                autoComplete={
-                  status.bootstrapRequired ? "new-password" : "current-password"
-                }
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-              {status.bootstrapRequired && (
-                <small id="auth-password-help">
-                  Use at least 12 characters.
-                </small>
-              )}
-            </label>
-            <button className="luci-button luci-primary" disabled={busy}>
-              {busy
-                ? "Connecting…"
-                : status.bootstrapRequired
-                  ? "Create Super Admin account"
-                  : "Sign in"}
-            </button>
-          </form>
-        )}
-        {busy && (
-          <p role="status">
-            {status?.bootstrapRequired
-              ? "Creating your workspace account…"
-              : "Signing in to your workspace…"}
-          </p>
-        )}
-        {!loading && (error || !status) && (
-          <button
-            className="luci-button"
-            disabled={busy}
-            onClick={() => void load()}
-          >
-            Retry connection
-          </button>
-        )}
-      </section>
-    </main>
+    <AuthEntry
+      status={status}
+      local={local}
+      loading={loading}
+      busy={busy}
+      error={error}
+      connectionError={connectionError}
+      localError={localError}
+      portableLocal={portableAccessAvailable()}
+      mode={mode}
+      bootstrapToken={bootstrapToken}
+      onBootstrapToken={setBootstrapToken}
+      onMode={changeMode}
+      onRetry={() => void load()}
+      onSubmit={submit}
+    />
   );
 }

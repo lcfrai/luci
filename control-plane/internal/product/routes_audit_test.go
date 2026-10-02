@@ -38,6 +38,7 @@ var productReadOnlyRoutes = map[string]string{
 	"GET /v1/setup/workspace/auth":                     "Reads the selected verified SSH backing identity with bounded GET requests; cannot bootstrap or sign in.",
 	"GET /v1/setup/workspace/admin/me":                 "Reads the active backing identity after local administrator and private SSH checks; cannot sign in.",
 	"GET /v1/setup/workspace/admin/users":              "Reads public backing user records through a bounded authenticated GET; cannot create users.",
+	"GET /v1/setup/workspace/admin/invitations":        "Reads bounded invitation metadata on the selected backing; no code readback, creation or redemption.",
 	"GET /v1/setup/workspace/admin/policy":             "Reads backing policy through a bounded authenticated GET; cannot update it.",
 	"GET /v1/setup/workspace/admin/audit":              "Reads existing backing audit events; cannot execute or provision resources.",
 	"GET /v1/setup/workspace/admin/users/{id}/runtime": "Reads cached backing runtime state; cannot start or stop a worker.",
