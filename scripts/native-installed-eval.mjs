@@ -55,10 +55,13 @@ async function until(label, probe, ms = 30_000) {
 }
 async function element(kind, name) {
   return until(`${kind} ${name}`, () => execute(`
-    const visible=e=>!!(e&&e.getClientRects().length);
+    const visible=e=>!!(e&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden'&&getComputedStyle(e).opacity!=='0');
     const norm=s=>(s||'').replace(/\\s+/g,' ').trim();
     const labelled=e=>norm((e.getAttribute('aria-labelledby')||'').split(/\\s+/).map(id=>document.getElementById(id)?.textContent||'').join(' '));
-    const scope=[...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].filter(visible).at(-1)||document;
+    // Luci's Settings/project dialogs own these controls. Excalidraw embeds
+    // independent picker dialogs whose lifetime must not hide the page header
+    // from this lookup; the real WebDriver click still checks interactability.
+    const scope=[...document.querySelectorAll('.setup-window[role="dialog"][aria-modal="true"],.pal[role="dialog"][aria-modal="true"]')].filter(visible).at(-1)||document;
     if(arguments[0]==='label') {
       const labels=[...scope.querySelectorAll('label')].filter(visible);
       const label=labels.find(e=>norm(e.textContent).startsWith(arguments[1]));
@@ -297,6 +300,12 @@ try {
   if (session) {
     try { await snapshot("failure"); } catch {}
     try { writeFileSync(join(evidence, `${mode}-failure-text.txt`), await execute("return document.body.innerText")); } catch {}
+    try {
+      result.controlDiagnostics = await execute(`
+        const describe=e=>({tag:e.tagName,classes:String(e.className||''),label:e.getAttribute('aria-label'),labelledBy:e.getAttribute('aria-labelledby'),disabled:!!e.disabled,visibility:getComputedStyle(e).visibility,opacity:getComputedStyle(e).opacity,bounds:[...e.getClientRects()].map(r=>({x:r.x,y:r.y,width:r.width,height:r.height}))});
+        return {dialogs:[...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].map(describe),saveDesign:[...document.querySelectorAll('button')].filter(e=>e.textContent.trim()==='Save design').map(describe)};
+      `);
+    } catch {}
   }
   process.exitCode = 1;
 } finally {
