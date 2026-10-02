@@ -109,9 +109,14 @@ func (s *Server) rollbackCloudRelease(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 409, "application_unconfirmed", "The historical release has no confirmed application to rebuild.")
 		return
 	}
+	configuration, err := s.applicationConfigurationSnapshot(p.ID)
+	if err != nil {
+		journeyError(w, 500, "configuration_unavailable", "Could not read current private application configuration.")
+		return
+	}
 	for _, current := range rows {
 		if current.ApplicationID == original.ApplicationID && current.TargetID == original.TargetID {
-			if current.RollbackOf == original.ID && current.Status != "failed" && current.Status != "cancelled" && current.Status != "stopped" {
+			if current.RollbackOf == original.ID && current.ConfigurationRevision == configuration.Revision && current.Status != "failed" && current.Status != "cancelled" && current.Status != "stopped" {
 				journeyJSON(w, 202, current)
 				return
 			}
@@ -139,12 +144,13 @@ func (s *Server) rollbackCloudRelease(w http.ResponseWriter, r *http.Request) {
 	}
 	row := original
 	row.ID = newID("cloud-rel-")
+	row.ConfigurationRevision = configuration.Revision
 	row.RollbackOf = original.ID
 	row.CreatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	row.Status = "preparing"
 	row.URL = ""
 	row.DeploymentID = ""
-	row.Message = "Rebuilding the selected historical commit."
+	row.Message = "Rebuilding the selected historical commit with current runtime configuration. Application data is not restored."
 	s.mu.Lock()
 	fresh, err := s.readCloudReleases(p.ID)
 	if err == nil && len(fresh) < 5000 {
@@ -170,13 +176,23 @@ func (s *Server) rollbackCloudRelease(w http.ResponseWriter, r *http.Request) {
 		fail()
 		return
 	}
+	if err = s.reconcileCloudApplicationConfiguration(ctx, row, client, configuration); err != nil {
+		row.Status = "failed"
+		row.Message = "Current runtime configuration was not confirmed. No historical rebuild started; resolve the configuration and retry."
+		if s.storeCloudRelease(row) != nil {
+			journeyError(w, 500, "release_record_failed", "Could not save the configuration failure; no rebuild started.")
+			return
+		}
+		journeyJSON(w, 502, row)
+		return
+	}
 	deployed, err := client.Deploy(ctx, row.ApplicationID)
 	if err != nil {
 		fail()
 		return
 	}
 	row.DeploymentID, row.Status = deployed.UUID, "queued"
-	row.Message = "Historical commit queued. Refresh to verify its commit, DNS, TLS and application health."
+	row.Message = "Historical commit queued with current runtime configuration. Application data is not restored. Refresh to verify commit and HTTPS health."
 	if err = s.storeCloudRelease(row); err != nil {
 		fail()
 		return

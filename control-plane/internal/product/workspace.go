@@ -162,6 +162,7 @@ func (s *Server) reconnectWorkspace(saved savedWorkspace) {
 }
 func (s *Server) registerWorkspace(mux Registrar) {
 	s.registerWorkspaceAuth(mux)
+	s.registerWorkspaceAdmin(mux)
 	mux.HandleFunc("POST /v1/setup/ssh/connections/{connectionId}/install-luci", s.installCloudWorkspace)
 	mux.HandleFunc("GET /v1/setup/workspace/install", func(w http.ResponseWriter, r *http.Request) {
 		s.mu.RLock()

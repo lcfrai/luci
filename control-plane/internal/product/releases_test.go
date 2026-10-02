@@ -71,6 +71,9 @@ func TestLocalReleaseBuildsCommittedSafeContextThenVerifiesHealthAndOwnership(t 
 			return "built", nil
 		case "run":
 			joined := strings.Join(args, " ")
+			if strings.Contains(joined, "--env") {
+				t.Fatal("empty application configuration changed the container environment arguments")
+			}
 			if !strings.Contains(joined, "127.0.0.1::3000") || strings.Contains(joined, "--volume") {
 				t.Fatalf("unsafe container arguments: %v", args)
 			}

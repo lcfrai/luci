@@ -6,18 +6,18 @@ Luci is lcfr.ai's open-source workspace for defining, designing, developing and 
 
 Install the Windows desktop package or extract a portable package and use its launcher. First setup creates your Super Admin account from the private bootstrap code. In Settings, check Git and Docker, install the bundled runtime, choose your Git identity and connect Claude Code, Codex or an explicit OpenCode model. A local OpenAI-compatible model can avoid inference charges when your hardware and model suit the task.
 
-Create or clone a project. Define its purpose and acceptance criteria, design the screens, and save a task plan. Develop passes that saved context into an agent working in the project. Inspect its changes and run checks against the recorded source; task completion is separate from passing checks. Commit and publish through the same workspace, start a Docker preview, then deploy a reachable Git commit through your connected cloud target. The app retains release history, supports stopping and rebuilding a historical release, and exports/restores project backups.
+Create or clone a project. Define its purpose and acceptance criteria, design the screens, and save a task plan. Develop passes that saved context into an agent working in the project. Inspect its changes and run checks against the recorded source; task completion is separate from passing checks. Commit and publish through the same workspace, start a Docker preview, set private runtime values such as a database URL in Deploy, then deploy a reachable Git commit through your connected cloud target. The app retains release history, supports stopping and rebuilding a historical release, and exports/restores project backups.
 
-The Admin screen manages users, workspace processes and audit events. Super Admin controls cloud/host execution policy, concurrent sessions/checks and CPU/memory limits. Each additional user has separate project, state and provider profiles. Host commands are disabled by default; Docker supplies the supported code execution boundary. Your desktop can select a verified AWS/Azure backing without copying local credentials or silently falling back when the server is unavailable.
+The Admin screen manages users, workspace processes and audit events on this machine or the selected cloud backing, using that control plane's account and permissions. Super Admin controls cloud/host execution policy, concurrent sessions/checks and CPU/memory limits. Each additional user has separate project, state and provider profiles. Host commands are disabled by default; Docker supplies the supported code execution boundary. Your desktop can select a verified AWS/Azure backing without copying local credentials or silently falling back when the server is unavailable.
 
 See the [operator runbook](docs/RUNBOOK.md), [provider setup](docs/luci/PROVIDERS.md) and [release guide](docs/luci/RELEASE.md) for prerequisites and verified limits.
 
 ## Structure
 
-- `desktop/` â€” React/Tauri interface, Excalidraw and terminal cockpit
-- `control-plane/` â€” local setup, project journey and session API
-- `sandboxd/` â€” isolated agent runtime
-- `docs/luci/` â€” current plan, API contract and reuse decisions
+- `desktop/` — React/Tauri interface, Excalidraw and terminal cockpit
+- `control-plane/` — local setup, project journey and session API
+- `sandboxd/` — isolated agent runtime
+- `docs/luci/` — current plan, API contract and reuse decisions
 
 ## Run from source
 

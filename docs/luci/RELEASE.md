@@ -1,6 +1,6 @@
 # Building and distributing Luci
 
-Luci 0.4.0 packages integrate the solution workflow and managed backing: local account bootstrap, roles and private user workspaces, saved plans, multiple model providers, command checks, Git delivery, project backups and deployment maintenance. CI produces portable downloads and the native Windows installer. A successful build proves the checks it ran; live AWS/Azure rollout still needs an account and a domain. Publication URLs and signing are separate distribution configuration.
+Luci 0.4.0 packages integrate the solution workflow and managed backing: local account bootstrap, roles and private user workspaces, saved plans, multiple model providers, command checks, Git delivery, project backups, private runtime configuration and deployment maintenance. The Admin workspace can manage the selected cloud backing with that backing's own authenticated account and permissions. CI produces portable downloads and the native Windows installer. A successful build proves the checks it ran; live AWS/Azure rollout still needs an account and a domain. Publication URLs and signing are separate distribution configuration.
 
 Luci's own code uses MIT. Include the root `LICENSE` and `NOTICE` with distributions; upstream components and bundled fonts retain their original grants. In particular, Luci's MIT choice does not replace dependencies' Apache-2.0 or other licence files.
 
@@ -19,7 +19,7 @@ The local service listens on loopback port 8730. Close the portable launch termi
 
 ## Downloading a CI candidate
 
-When this workflow has run in the repository that will distribute Luci, open **Actions Ã¢â€ â€™ Luci build and release candidates**, select the desired successful commit and download its artifact. Artifact access follows the repository's permissions and requires GitHub sign-in; artifacts expire after 14 days. There is no public lcfr.ai download implied by this document.
+When this workflow has run in the repository that will distribute Luci, open **Actions → Luci build and release candidates**, select the desired successful commit and download its artifact. Artifact access follows the repository's permissions and requires GitHub sign-in; artifacts expire after 14 days. There is no public lcfr.ai download implied by this document.
 
 Unpack GitHub's artifact wrapper first. Verify the inner archive or installer against its accompanying `SHA256SUMS`. For example, use `sha256sum -c SHA256SUMS` on Linux, `shasum -a 256 -c SHA256SUMS` on macOS, or compare `(Get-FileHash -Algorithm SHA256 -LiteralPath <download>).Hash` on Windows. Checksums detect changed bytes; they do not establish publisher identity. Current Windows candidates are unsigned and are intended for review.
 
@@ -54,7 +54,7 @@ The inventory is deliberately broader than the final JavaScript bundle. Native c
 
 ## Local application outcomes
 
-The 0.4 integration batch passed 946 desktop tests and TypeScript validation. The production browser eval completed thirteen outcomes with no JavaScript or CSP errors: authenticated setup, owner policy/member creation, saved brief/design/plan, an explicitly approved host diagnostic, a Git commit, a real ZIP backup and restore, deployment controls, and member project isolation. The compiled-service eval separately proved seven management/project outcomes, including actual child supervision, password/account revocation and malicious Git worktree configuration confinement. These evals use private disposable state and do not make cloud or paid-model calls.
+The 0.4 integration batch passed 959 desktop tests and TypeScript validation. The production browser eval completed thirteen outcomes with no JavaScript or CSP errors: authenticated setup, owner policy/member creation, saved brief/design/plan, an explicitly approved host diagnostic, a Git commit, a real ZIP backup and restore, deployment controls, and member project isolation. Private application configuration is stored outside project files and backups; API responses and release history contain variable names and configuration revisions, not values. Preview and cloud deployment receive values at runtime, with cloud build-time injection explicitly disabled. The compiled-service eval separately proved seven management/project outcomes, including actual child supervision, password/account revocation and malicious Git worktree configuration confinement. These evals use private disposable state and do not make cloud or paid-model calls.
 
 ## Checks and remaining acceptance gates
 
@@ -73,7 +73,7 @@ Before calling a candidate a public production release, retain evidence for thes
 
 Recorded CI evidence: [run 36953123907](https://github.com/lcfrai/luci/actions/runs/36953123907) passed at source commit `4c117f6a088189f640ad946459f36c9072d344c1`. This includes the real Linux Docker journey, Linux and macOS package startup checks, strict licence inventories and the Windows native installer build. The Linux/macOS manifests identify that exact commit with `sourceDirty: false`; their inventories contain 317 and 318 components respectively, with zero missing licence grants. These results describe that source snapshot, not later package builds or a signed public release.
 
-Current verification limits: the development host's Docker engine remains unavailable; the real Docker evidence came from CI. The provider CLI fixture can prove protocol, real tool execution and state isolation without paid inference. Actual model quality, subscription login and provider acceptance still require the userâ€™s chosen account/model. A built Windows installer has not by itself passed a clean-host install/uninstall evaluation. No live AWS/Azure account, billable resource, real domain/TLS rollout or complete remote installation is implied by local provider/process adapters and HTTP/WebSocket fixtures.
+Current verification limits: the development host's Docker engine remains unavailable; the real Docker evidence came from CI. The provider CLI fixture can prove protocol, real tool execution and state isolation without paid inference. Actual model quality, subscription login and provider acceptance still require the user’s chosen account/model. A built Windows installer has not by itself passed a clean-host install/uninstall evaluation. No live AWS/Azure account, billable resource, real domain/TLS rollout or complete remote installation is implied by local provider/process adapters and HTTP/WebSocket fixtures.
 
 ## Publishing after those gates
 

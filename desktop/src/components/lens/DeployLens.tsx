@@ -3,6 +3,7 @@ import { productApi, errorText, type Release } from "../../api/product";
 import { ProjectRequired, JourneyHeader } from "../journey/shared";
 import { useSetup } from "../setup/SetupProvider";
 import { CloudDeployForm } from "../journey/CloudDeployForm";
+import { ProjectConfiguration } from "../journey/ProjectConfiguration";
 import { useAuth } from "../auth/AuthProvider";
 
 export function DeployLens() {
@@ -17,6 +18,8 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
   const [port, setPort] = useState(3000);
   const [dockerfile, setDockerfile] = useState("Dockerfile");
   const [busy, setBusy] = useState("");
+  const [configurationBusy, setConfigurationBusy] = useState(false);
+  const locked = !!busy || configurationBusy;
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
   const [mode, setMode] = useState<"local" | "cloud">("local");
@@ -87,7 +90,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
     };
   }, [pendingCloud, busy, projectId]);
   async function operate(label: string, action: () => Promise<Release>) {
-    if (working.current) return;
+    if (working.current || configurationBusy) return;
     working.current = true;
     setBusy(label);
     setError("");
@@ -149,6 +152,11 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
           Your cloud
         </button>
       </div>
+      <ProjectConfiguration
+        projectId={projectId}
+        disabled={!!busy}
+        onBusyChange={setConfigurationBusy}
+      />
       {error && (
         <p className="journey-error" role="alert">
           {error}
@@ -184,14 +192,16 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
             />
             <small>The port your app listens on inside its container.</small>
           </label>
-          <button className="luci-button luci-primary" disabled={!!busy}>
+          <button className="luci-button luci-primary" disabled={locked}>
             {busy || "Build local preview"}
           </button>
         </form>
       ) : (
         <CloudDeployForm
           projectId={projectId}
-          busy={busy}
+          busy={
+            busy || (configurationBusy ? "Saving runtime configuration" : "")
+          }
           canManageBacking={manageBacking}
           onSetup={() => setup?.openCloud()}
           onDeploy={(input) =>
@@ -211,7 +221,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
         </div>
         <button
           className="luci-button"
-          disabled={!!busy}
+          disabled={locked}
           onClick={() =>
             void refresh().catch((cause) => setError(errorText(cause)))
           }
@@ -249,7 +259,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
               {(remotePreview(release) || localUrl(release)) && (
                 <button
                   className="luci-button"
-                  disabled={!!busy}
+                  disabled={locked}
                   onClick={() => {
                     if (!remotePreview(release)) {
                       setPreview(localUrl(release));
@@ -276,7 +286,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
               {release.target !== "local" && (
                 <button
                   className="luci-button"
-                  disabled={!!busy}
+                  disabled={locked}
                   onClick={() =>
                     void operate("Checking deployment health", () =>
                       productApi.refreshRelease(projectId, release.id),
@@ -291,7 +301,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
               ) && (
                 <button
                   className="luci-button"
-                  disabled={!!busy}
+                  disabled={locked}
                   onClick={() =>
                     void operate(
                       release.target === "local"
@@ -310,7 +320,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
                 ["ready", "failed", "stopped"].includes(release.status) && (
                   <button
                     className="luci-button"
-                    disabled={!!busy}
+                    disabled={locked}
                     onClick={() =>
                       void operate("Rebuilding the selected release", () =>
                         productApi.rollbackRelease(projectId, release.id),

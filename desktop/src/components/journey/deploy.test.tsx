@@ -16,7 +16,14 @@ const ready: Release = {
   message: "Health check passed",
   createdAt: "2026-10-02T00:00:00Z",
 };
-beforeEach(() => vi.restoreAllMocks());
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.spyOn(productApi, "configuration").mockResolvedValue({
+    revision: 0,
+    variables: [],
+    updatedAt: "",
+  });
+});
 it("offers an embedded preview only for a verified local release and removes it after stop", async () => {
   vi.spyOn(productApi, "releases")
     .mockResolvedValueOnce({ releases: [ready] })
@@ -130,14 +137,12 @@ it("requests rollback for the selected historical release and keeps an unverifie
         cloud,
       ],
     });
-  const rollback = vi
-    .spyOn(productApi, "rollbackRelease")
-    .mockResolvedValue({
-      ...cloud,
-      id: "replacement",
-      status: "attention",
-      url: "",
-    });
+  const rollback = vi.spyOn(productApi, "rollbackRelease").mockResolvedValue({
+    ...cloud,
+    id: "replacement",
+    status: "attention",
+    url: "",
+  });
   render(<ProjectDeploy projectId="p-1" />);
   await userEvent.click(
     await screen.findByRole("button", { name: "Roll back to this release" }),

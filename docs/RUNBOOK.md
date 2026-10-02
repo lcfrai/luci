@@ -46,6 +46,8 @@ Follow [CLOUD.md](luci/CLOUD.md). Provider login and resource creation run on th
 
 To develop remotely, explicitly install the bundled matching Luci runtime and sign in or bootstrap its separate Luci backing account, and activate that workspace after its readiness check succeeds. The bootstrap code is read only from the installer-owned remote state path over the accepted SSH connection. Remote bearer credentials remain private on the desktop and are replaced when forwarding; the local account token is never sent to the backing. Projects, model settings, Git operations, sessions and runtime installation then apply to the selected server. A switch does not copy local files or credentials. Returning to local mode preserves remote data and does not stop cloud billing.
 
+Use Deploy's runtime configuration form for application variables such as database URLs and API keys. Values stay outside source/Git and project backups; restored projects need their values re-entered. Runtime configuration is applied to the running app, not the image build. Rebuilding old code uses the current configuration.
+
 Public release uses a connected Coolify server, a reachable Git repository, an exact commit and a domain pointing at the server. Readiness requires both the expected provider deployment and a real HTTPS health response. Complete Coolify first-account/token setup explicitly; a generated infrastructure template is not a deployed application.
 
 On a remotely installed workspace, the service is `luci.service`; use the selected machine's service manager to inspect its status and bounded recent logs. The current runtime is at `/opt/luci/current`. Treat host logs and local private state as sensitive when collecting diagnostics. Preserve the accepted SSH host key; do not bypass strict host checking after an unexpected key change.
@@ -64,6 +66,8 @@ The retained `kata` backend is an earlier in-cluster integration and currently r
 The 0.4 build has automated management, project and provider tests, a compiled multi-user service eval and a real browser journey. These outcome results cover local credentials, isolated users, revocation, checks, Git commits and backup/restore. New packages and the Docker image must still pass their exact-commit CI checks. Real provider account/model quality, clean-host installer behavior, live AWS/Azure and domain/TLS journeys require the corresponding external environment. See [the release gates](luci/RELEASE.md); historical test results do not close those gates for a new version.
 
 ## Manage the backing
+
+Select **This machine** or **Selected cloud backing** in Admin; the screen shows the account and role that authorize that surface. Cloud controls use the backing's own identity and permission checks.
 
 Admins can create member accounts, inspect bounded audit events and stop an owned member workspace process. An enabled member's next request restarts its process with durable state; disable its account to prevent restart. Role, password and disable changes revoke sessions, including active terminal sockets. The initial owner's inline workspace ends with the service.
 

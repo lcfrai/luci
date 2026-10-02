@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { productApi, errorText } from "../../api/product";
+import { productApi, errorText, type Workspace } from "../../api/product";
 import { useDismissable } from "../../hooks/useDismissable";
-import { useAuth, type ControlPolicy, type ControlUser } from "./AuthProvider";
+import {
+  useAuth,
+  type AuthProfile,
+  type ControlPolicy,
+  type ControlUser,
+} from "./AuthProvider";
 
 const resources = [
   {
@@ -55,19 +60,197 @@ export function AdminPanel({
   onClose(): void;
 }) {
   const auth = useAuth()!;
-  const permissions = auth.profile.permissions;
-  const permitted =
-    permissions.manageUsers ||
-    permissions.manageBacking ||
-    permissions.managePolicy ||
-    permissions.inspectAudit;
-  const admin = mode === "admin" && permitted;
+  const localPermissions = auth.profile.permissions;
+  const admin =
+    mode === "admin" &&
+    (localPermissions.manageUsers ||
+      localPermissions.manageBacking ||
+      localPermissions.managePolicy ||
+      localPermissions.inspectAudit);
+  const [selection, setSelection] = useState<
+    "loading" | "choose" | "local" | "cloud"
+  >(admin ? "loading" : "local");
+  const [workspace, setWorkspace] = useState<Workspace>();
+  const [remoteProfile, setRemoteProfile] = useState<AuthProfile>();
+  const [contextError, setContextError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (!admin) return;
+    let cancelled = false;
+    void productApi
+      .status()
+      .then((status) => {
+        if (cancelled) return;
+        setWorkspace(status.workspace);
+        setSelection(status.workspace?.mode === "cloud" ? "cloud" : "local");
+      })
+      .catch((cause) => {
+        if (cancelled) return;
+        setContextError(errorText(cause));
+        setSelection("choose");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [admin]);
+  useEffect(() => {
+    if (selection !== "cloud") return;
+    let cancelled = false;
+    setRemoteProfile(undefined);
+    setContextError("");
+    void productApi
+      .request<AuthProfile>("/v1/setup/workspace/admin/me")
+      .then((profile) => {
+        if (!cancelled) setRemoteProfile(profile);
+      })
+      .catch((cause) => {
+        if (!cancelled) setContextError(errorText(cause));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selection, attempt]);
+  const profile = selection === "local" ? auth.profile : remoteProfile;
+  const refreshProfile = async () => {
+    if (selection === "cloud") {
+      try {
+        const updated = await productApi.request<AuthProfile>(
+          "/v1/setup/workspace/admin/me",
+        );
+        setRemoteProfile(updated);
+        return updated;
+      } catch (cause) {
+        setRemoteProfile(undefined);
+        setContextError(errorText(cause));
+        throw cause;
+      }
+    }
+    await auth.refresh();
+  };
+  return (
+    <AdminPanelContent
+      key={`${selection}:${profile?.user.id ?? "pending"}`}
+      admin={admin}
+      profile={profile ?? auth.profile}
+      contextReady={!!profile}
+      base={selection === "cloud" ? "/v1/setup/workspace/admin" : "/v1/admin"}
+      refreshProfile={refreshProfile}
+      onClose={onClose}
+      controls={(busy) =>
+        admin && (
+          <section className="admin-section">
+            <label className="luci-field">
+              Control plane
+              <select
+                value={selection}
+                disabled={busy || selection === "loading"}
+                onChange={(event) => {
+                  setRemoteProfile(undefined);
+                  setContextError("");
+                  setSelection(event.target.value as "local" | "cloud");
+                }}
+              >
+                {selection === "loading" && (
+                  <option value="loading">Checking selected backing…</option>
+                )}
+                {selection === "choose" && (
+                  <option value="choose" disabled>
+                    Choose a control plane
+                  </option>
+                )}
+                <option value="local">This machine</option>
+                <option value="cloud" disabled={workspace?.mode !== "cloud"}>
+                  Selected cloud backing
+                </option>
+              </select>
+            </label>
+            {selection === "cloud" && (
+              <p className="journey-muted">
+                Managing the selected cloud backing
+                {workspace?.host ? ` at ${workspace.host}` : ""}. Changes apply
+                to this backing’s accounts, policy and runtimes.
+              </p>
+            )}
+            {selection === "local" && (
+              <p className="journey-muted">
+                Managing this machine’s accounts, policy and runtimes.
+              </p>
+            )}
+            {contextError ? (
+              <>
+                <p className="journey-error" role="alert">
+                  {contextError}
+                </p>
+                {selection === "cloud" && (
+                  <>
+                    <p className="journey-muted">
+                      Check the cloud connection and its sign-in in Settings,
+                      then retry.
+                    </p>
+                    <button
+                      className="luci-button"
+                      disabled={busy}
+                      onClick={() => setAttempt((value) => value + 1)}
+                    >
+                      Retry backing connection
+                    </button>
+                  </>
+                )}
+              </>
+            ) : (
+              !profile && <p role="status">Loading control-plane account…</p>
+            )}
+            {selection === "cloud" &&
+              profile &&
+              !Object.entries(profile.permissions).some(
+                ([name, value]) => name !== "runHostCommands" && value,
+              ) && (
+                <p className="journey-muted">
+                  This backing account has no administrative permissions. Sign
+                  in to the backing with an Admin or Super Admin account in
+                  Settings.
+                </p>
+              )}
+          </section>
+        )
+      }
+    />
+  );
+}
+
+function AdminPanelContent({
+  admin,
+  profile,
+  contextReady,
+  base,
+  refreshProfile,
+  controls,
+  onClose,
+}: {
+  admin: boolean;
+  profile: AuthProfile;
+  contextReady: boolean;
+  base: string;
+  refreshProfile(): Promise<AuthProfile | void>;
+  controls(busy: boolean): React.ReactNode;
+  onClose(): void;
+}) {
+  const auth = useAuth()!;
+  const permissions = contextReady
+    ? profile.permissions
+    : {
+        manageUsers: false,
+        manageBacking: false,
+        managePolicy: false,
+        inspectAudit: false,
+        runHostCommands: false,
+      };
   const [users, setUsers] = useState<ControlUser[]>([]),
     [events, setEvents] = useState<AuditEvent[]>([]),
     [runtimes, setRuntimes] = useState<Record<string, UserRuntime>>({});
-  const [policy, setPolicy] = useState<ControlPolicy>(auth.profile.policy);
+  const [policy, setPolicy] = useState<ControlPolicy>(profile.policy);
   const [harnesses, setHarnesses] = useState(
-    auth.profile.policy.allowedHarnesses.join(", "),
+    profile.policy.allowedHarnesses.join(", "),
   );
   const [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
@@ -80,6 +263,7 @@ export function AdminPanel({
     [newPassword, setNewPassword] = useState("");
   const alive = useRef(true),
     working = useRef(false);
+  const readGeneration = useRef(0);
   const ref = useDismissable<HTMLDivElement>(true, () => {
     if (!working.current) onClose();
   });
@@ -107,30 +291,36 @@ export function AdminPanel({
       first?.focus();
     }
   }
-  async function reload() {
+  async function reload(access = profile) {
+    const generation = ++readGeneration.current;
     const results = await Promise.all([
-      permissions.manageUsers
-        ? productApi.request<{ users: ControlUser[] }>("/v1/admin/users")
+      access.permissions.manageUsers
+        ? productApi.request<{ users: ControlUser[] }>(`${base}/users`)
         : Promise.resolve({ users: [] }),
-      permissions.inspectAudit
-        ? productApi.request<{ events: AuditEvent[] }>("/v1/admin/audit")
+      access.permissions.inspectAudit
+        ? productApi.request<{ events: AuditEvent[] }>(`${base}/audit`)
         : Promise.resolve({ events: [] }),
     ]);
-    if (alive.current) {
+    if (alive.current && generation === readGeneration.current) {
       setUsers(results[0].users);
       setEvents(results[1].events);
     }
   }
   useEffect(() => {
     alive.current = true;
-    if (admin)
+    if (admin && contextReady)
       void reload().catch((cause) => {
         if (alive.current) setError(errorText(cause));
       });
     return () => {
       alive.current = false;
+      readGeneration.current++;
     };
-  }, [admin]);
+  }, [admin, contextReady, permissions.manageUsers, permissions.inspectAudit]);
+  useEffect(() => {
+    setPolicy(profile.policy);
+    setHarnesses(profile.policy.allowedHarnesses.join(", "));
+  }, [profile.policy]);
   async function run(label: string, action: () => Promise<void>) {
     if (working.current) return;
     working.current = true;
@@ -151,7 +341,7 @@ export function AdminPanel({
       stop ? "Stopping user runtime" : "Reading user runtime",
       async () => {
         const value = await productApi.request<UserRuntime>(
-          `/v1/admin/users/${encodeURIComponent(user.id)}/runtime${stop ? "/stop" : ""}`,
+          `${base}/users/${encodeURIComponent(user.id)}/runtime${stop ? "/stop" : ""}`,
           stop ? {} : undefined,
         );
         if (alive.current)
@@ -172,16 +362,19 @@ export function AdminPanel({
         <header className="journey-header">
           <div>
             <h1>{admin ? "Workspace administration" : "Your account"}</h1>
-            <p>
-              {auth.profile.policy.instanceName} ·{" "}
-              {auth.profile.user.displayName || auth.profile.user.username} ·{" "}
-              {auth.profile.user.role}
-            </p>
+            {contextReady && (
+              <p>
+                {profile.policy.instanceName} ·{" "}
+                {profile.user.displayName || profile.user.username} ·{" "}
+                {profile.user.role}
+              </p>
+            )}
           </div>
           <button className="luci-button" disabled={!!busy} onClick={onClose}>
             Close
           </button>
         </header>
+        {controls(!!busy)}
         {error && (
           <p className="journey-error" role="alert">
             {error}
@@ -258,7 +451,7 @@ export function AdminPanel({
               onSubmit={(event) => {
                 event.preventDefault();
                 void run("Creating user", async () => {
-                  await productApi.request("/v1/admin/users", {
+                  await productApi.request(`${base}/users`, {
                     username,
                     displayName,
                     password,
@@ -312,10 +505,10 @@ export function AdminPanel({
                     }
                   >
                     <option value="member">Member</option>
-                    {auth.profile.user.role === "super-admin" && (
+                    {profile.user.role === "super-admin" && (
                       <option value="admin">Admin</option>
                     )}
-                    {auth.profile.user.role === "super-admin" && (
+                    {profile.user.role === "super-admin" && (
                       <option value="super-admin">Super Admin</option>
                     )}
                   </select>
@@ -346,17 +539,17 @@ export function AdminPanel({
                       <UserAccess
                         user={user}
                         busy={!!busy}
-                        canSuper={auth.profile.user.role === "super-admin"}
-                        currentId={auth.profile.user.id}
+                        canSuper={profile.user.role === "super-admin"}
+                        currentId={profile.user.id}
                         onSave={(patch) =>
                           void run("Updating user access", async () => {
                             await productApi.request(
-                              `/v1/admin/users/${encodeURIComponent(user.id)}`,
+                              `${base}/users/${encodeURIComponent(user.id)}`,
                               patch,
                               "PATCH",
                             );
-                            await reload();
-                            await auth.refresh();
+                            const updatedProfile = await refreshProfile();
+                            await reload(updatedProfile ?? profile);
                             setNotice("User access updated.");
                           })
                         }
@@ -407,7 +600,7 @@ export function AdminPanel({
                 if (!permissions.managePolicy) return;
                 void run("Saving workspace policy", async () => {
                   const updated = await productApi.request<ControlPolicy>(
-                    "/v1/admin/policy",
+                    `${base}/policy`,
                     {
                       ...(permissions.manageBacking
                         ? {
@@ -441,7 +634,7 @@ export function AdminPanel({
                   );
                   setPolicy(updated);
                   setHarnesses(updated.allowedHarnesses.join(", "));
-                  await auth.refresh();
+                  await refreshProfile();
                   setNotice("Workspace policy saved.");
                 });
               }}

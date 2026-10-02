@@ -180,7 +180,7 @@ func (s *Server) reserveCloudRelease(row CloudRelease) (CloudRelease, bool, erro
 		return row, false, err
 	}
 	for _, previous := range rows {
-		if previous.TargetID == row.TargetID && previous.CloudReleaseRequest == row.CloudReleaseRequest && previous.BriefRevision == row.BriefRevision && previous.Status != "failed" && previous.Status != "cancelled" {
+		if previous.TargetID == row.TargetID && previous.CloudReleaseRequest == row.CloudReleaseRequest && previous.BriefRevision == row.BriefRevision && previous.ConfigurationRevision == row.ConfigurationRevision && previous.Status != "failed" && previous.Status != "cancelled" {
 			if previous.TargetFingerprint != row.TargetFingerprint {
 				return row, false, errors.New("the deployment target changed; reconnect the original target before refreshing")
 			}
@@ -298,7 +298,12 @@ func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	row := CloudRelease{Release: Release{ID: newID("cloud-rel-"), ProjectID: p.ID, BriefRevision: state.Brief.Revision, Commit: commit, Target: target.ID, Status: "preparing", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}, CloudReleaseRequest: req, TargetFingerprint: targetFingerprint(target)}
+	configuration, err := s.applicationConfigurationSnapshot(p.ID)
+	if err != nil {
+		journeyError(w, 500, "configuration_unavailable", "Could not read private application configuration.")
+		return
+	}
+	row := CloudRelease{Release: Release{ID: newID("cloud-rel-"), ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: target.ID, Status: "preparing", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}, CloudReleaseRequest: req, TargetFingerprint: targetFingerprint(target)}
 	row, created, err := s.reserveCloudRelease(row)
 	if err != nil {
 		journeyError(w, 409, "release_conflict", err.Error())
@@ -352,6 +357,19 @@ func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.storeCloudRelease(row); err != nil {
 		fail(errors.New("could not save the remote application identifier"))
+		return
+	}
+	if err := s.reconcileCloudApplicationConfiguration(ctx, row, client, configuration); err != nil {
+		// Environment mutations are reconciled by ownership/revision before a
+		// retry. No deployment has been requested, so an explicit new attempt
+		// can safely reuse the application after repairing configuration.
+		row.Status = "failed"
+		row.Message = "Runtime application configuration was not confirmed. No deployment started. Resolve the configuration and retry."
+		if s.storeCloudRelease(row) != nil {
+			journeyError(w, 500, "release_record_failed", "Could not save the configuration failure; no deployment started.")
+			return
+		}
+		journeyJSON(w, http.StatusBadGateway, row)
 		return
 	}
 	deployment, err := client.Deploy(ctx, row.ApplicationID)

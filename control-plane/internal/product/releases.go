@@ -20,15 +20,16 @@ import (
 )
 
 type Release struct {
-	ID            string `json:"id"`
-	ProjectID     string `json:"projectId"`
-	BriefRevision int    `json:"briefRevision"`
-	Commit        string `json:"commit"`
-	Target        string `json:"target"`
-	Status        string `json:"status"`
-	URL           string `json:"url"`
-	Message       string `json:"message"`
-	CreatedAt     string `json:"createdAt"`
+	ID                    string `json:"id"`
+	ProjectID             string `json:"projectId"`
+	BriefRevision         int    `json:"briefRevision"`
+	ConfigurationRevision int    `json:"configurationRevision,omitempty"`
+	Commit                string `json:"commit"`
+	Target                string `json:"target"`
+	Status                string `json:"status"`
+	URL                   string `json:"url"`
+	Message               string `json:"message"`
+	CreatedAt             string `json:"createdAt"`
 }
 
 type storedRelease struct {
@@ -190,13 +191,23 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	row := storedRelease{Release: Release{ID: newID("rel-"), ProjectID: p.ID, BriefRevision: state.Brief.Revision, Commit: commit, Target: "local", Status: "building", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}}
+	configuration, err := s.applicationConfigurationSnapshot(p.ID)
+	if err != nil {
+		journeyError(w, 500, "configuration_unavailable", "Could not read private application configuration.")
+		return
+	}
+	if _, err := previewEnvironmentContent(configuration.Values); err != nil {
+		journeyError(w, 422, "configuration_invalid", err.Error())
+		return
+	}
+	row := storedRelease{Release: Release{ID: newID("rel-"), ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: "local", Status: "building", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}}
 	row.Image = "luci/preview:" + row.ID
 	if err := s.storeRelease(row); err != nil {
 		journeyError(w, 500, "release_reservation_failed", err.Error())
 		return
 	}
 	failed := func(message string) {
+		message = redactPreviewConfiguration(message, configuration.Values)
 		row.Status = "failed"
 		row.Message = message
 		row.URL = ""
@@ -230,8 +241,22 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		failed("Image build failed: " + err.Error())
 		return
 	}
-	args := []string{"run", "--detach", "--init", "--name", "luci-preview-" + row.ID, "--label", "luci.preview=true", "--label", "luci.release-id=" + row.ID, "--label", "luci.project-id=" + p.ID, "--cpus", "1", "--memory", "1g", "--pids-limit", "256", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--publish", fmt.Sprintf("127.0.0.1::%d", req.Port), row.Image}
+	args := []string{"run", "--detach", "--init", "--name", "luci-preview-" + row.ID, "--label", "luci.preview=true", "--label", "luci.release-id=" + row.ID, "--label", "luci.project-id=" + p.ID, "--cpus", "1", "--memory", "1g", "--pids-limit", "256", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--publish", fmt.Sprintf("127.0.0.1::%d", req.Port)}
+	envFile, err := s.writePreviewEnvironment(configuration.Values)
+	if err != nil {
+		failed("Could not prepare private application runtime configuration.")
+		return
+	}
+	if envFile != "" {
+		defer os.Remove(envFile)
+		args = append(args, "--env-file", envFile)
+	}
+	args = append(args, row.Image)
 	containerID, err := s.runner(ctx, "docker", args, "")
+	var cleanupErr error
+	if envFile != "" {
+		cleanupErr = os.Remove(envFile)
+	}
 	if err != nil {
 		failed("Container start failed: " + err.Error())
 		return
@@ -240,6 +265,10 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 	if !regexp.MustCompile(`^[a-f0-9]{12,64}$`).MatchString(row.ContainerID) {
 		row.ContainerID = ""
 		failed("Docker returned an invalid container ID; inspect Docker for this release's labelled container.")
+		return
+	}
+	if cleanupErr != nil {
+		failed("Could not remove the private application environment file after Docker read it.")
 		return
 	}
 	if err := s.storeRelease(row); err != nil {

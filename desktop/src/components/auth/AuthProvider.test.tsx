@@ -1,9 +1,9 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AuthProvider, type AuthProfile } from "./AuthProvider";
 import { RailFooter } from "../rail/RailFooter";
-import { productApi } from "../../api/product";
+import { productApi, type SetupStatus } from "../../api/product";
 import { authToken, setAuthToken } from "../../api/authSession";
 const member: AuthProfile = {
   user: {
@@ -32,6 +32,11 @@ const member: AuthProfile = {
     instanceName: "My workspace",
   },
 };
+beforeEach(() => {
+  vi.spyOn(productApi, "status").mockResolvedValue({
+    workspace: { mode: "local", connectionId: "", host: "", ready: true },
+  } as SetupStatus);
+});
 afterEach(() => {
   setAuthToken(null);
   window.history.replaceState(null, "", "/");
@@ -251,6 +256,7 @@ it("keeps an ordinary Admin's workspace policy read-only and only offers member 
     </AuthProvider>,
   );
   await userEvent.click(await screen.findByRole("button", { name: "Admin" }));
+  await screen.findByLabelText("Workspace name");
   expect(
     (
       screen.getByRole("button", {

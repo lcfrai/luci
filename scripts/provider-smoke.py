@@ -249,7 +249,7 @@ def main():
                 # Match the product's explicit Bypass mode; the Ask/Plan
                 # configuration evidence above is a separate claim.
                 development_env = dict(env, OPENCODE_PERMISSION='{"*":"allow"}')
-                development_args = [provider, "--pure", "--auto", "run", "--agent", "build", "--format", "json",
+                development_args = [provider, "--pure", "run", "--auto", "--agent", "build", "--format", "json",
                                     "Create the small app and verification file requested by this local tool fixture."]
             outcome = run(development_args, development, development_env)
             report["providers"][provider] = {"version": actual, "first": first, "fork": second,
@@ -267,9 +267,15 @@ def main():
     finally:
         server.shutdown()
         server.server_close()
+        report["requests"] = FixtureAPI.requests
         if len(sys.argv) > 1:
             pathlib.Path(sys.argv[1]).write_text(json.dumps(report, indent=2))
         print(json.dumps(report, indent=2))
+        if not report["passed"]:
+            # execFileSync throws before its caller saves stdout on a failure.
+            # Keep completed-provider evidence in CI's retained stderr log too.
+            print("LUCI_PROVIDER_PARTIAL_EVIDENCE_BEGIN\n" + json.dumps(report, indent=2) +
+                  "\nLUCI_PROVIDER_PARTIAL_EVIDENCE_END", file=sys.stderr)
 
 
 if __name__ == "__main__":

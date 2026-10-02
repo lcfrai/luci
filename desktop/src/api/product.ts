@@ -285,6 +285,14 @@ export interface RuntimeJob {
   createdAt: string;
   updatedAt: string;
 }
+export interface ProjectConfiguration {
+  revision: number;
+  variables: { name: string }[];
+  updatedAt: string;
+}
+export type ConfigurationUpdate =
+  | { name: string; value: string; remove?: never }
+  | { name: string; remove: true; value?: never };
 export class ProductApiError extends ApiError {
   constructor(
     code: ProblemCode,
@@ -331,11 +339,9 @@ export function createProductClient(
       });
       if (response.status === 401) expireAuth();
       if (!response.ok) {
-        const problem = (await response
-          .json()
-          .catch(() => ({
-            message: `Request failed (${response.status}).`,
-          }))) as { error?: string; message?: string };
+        const problem = (await response.json().catch(() => ({
+          message: `Request failed (${response.status}).`,
+        }))) as { error?: string; message?: string };
         throw new ProductApiError(
           (problem.error || "internal") as ProblemCode,
           problem.message || "Project transfer failed.",
@@ -621,6 +627,17 @@ export function createProductClient(
       ),
     releases: (id: string) =>
       request<{ releases: Release[] }>(`${project(id)}/releases`),
+    configuration: (id: string) =>
+      request<ProjectConfiguration>(`${project(id)}/configuration`),
+    saveConfiguration: (
+      id: string,
+      expectedRevision: number,
+      updates: ConfigurationUpdate[],
+    ) =>
+      request<ProjectConfiguration>(`${project(id)}/configuration`, {
+        expectedRevision,
+        updates,
+      }),
     release: (id: string, port: number, dockerfile: string) =>
       request<Release>(
         `${project(id)}/releases`,

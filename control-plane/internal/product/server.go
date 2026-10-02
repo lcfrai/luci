@@ -176,6 +176,7 @@ func (s *Server) Register(mux Registrar) {
 	s.registerDelivery(mux)
 	s.registerBackups(mux)
 	s.registerProjectWork(mux)
+	s.registerApplicationConfiguration(mux)
 }
 
 func (s *Server) projectRoot() string {

@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { createWriteStream, mkdtempSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { createWriteStream, mkdtempSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
@@ -247,15 +247,26 @@ try {
   result.checks.push({ name: "API-created agent transcript mount without model inference", uid: transcriptReport.uid, gid: transcriptReport.gid, directoryMode: "0700", fileMode: "0600", runtimeCapabilities: "none", noNewPrivileges: true });
   await api("DELETE", `/v1/sessions/${session.id}`);
 
-  writeFileSync(join(project.path, "app.mjs"), 'import http from "node:http"; http.createServer((req,res)=>{res.writeHead(200,{"content-type":"text/plain"});res.end("Luci runtime preview OK");}).listen(3000,"0.0.0.0");\n', { mode: 0o600 });
+  writeFileSync(join(project.path, "app.mjs"), 'import http from "node:http"; http.createServer((req,res)=>{res.writeHead(200,{"content-type":"application/json"});res.end(JSON.stringify({greeting:process.env.APP_GREETING,fixtureValue:process.env.APP_PRIVATE_FIXTURE,modelKeyPresent:Boolean(process.env.ANTHROPIC_API_KEY||process.env.OPENAI_API_KEY)}));}).listen(3000,"0.0.0.0");\n', { mode: 0o600 });
   writeFileSync(join(project.path, "Dockerfile"), `FROM ${image}\nWORKDIR /app\nCOPY --chown=dev:dev app.mjs /app/app.mjs\nUSER dev\nEXPOSE 3000\nENTRYPOINT ["node","/app/app.mjs"]\n`, { mode: 0o600 });
   await api("POST", `/v1/product/projects/${project.id}/git/commit`, { message: "Runtime smoke committed preview" });
   const git = await api("GET", `/v1/product/projects/${project.id}/git`);
   assert.equal(git.clean, true);
+  const applicationFixtureValue = "fixture-runtime-only-" + randomUUID();
+  const configuration = await api("POST", `/v1/product/projects/${project.id}/configuration`, { expectedRevision: 0, updates: [
+    { name: "APP_GREETING", value: "Luci configured preview OK" },
+    { name: "APP_PRIVATE_FIXTURE", value: applicationFixtureValue },
+  ] });
+  assert.equal(configuration.revision, 1);
+  const configurationMetadata = await api("GET", `/v1/product/projects/${project.id}/configuration`);
+  assert.ok(!JSON.stringify(configurationMetadata).includes(applicationFixtureValue), "Private app values escaped metadata GET");
   release = await api("POST", `/v1/product/projects/${project.id}/releases`, { target: "local", port: 3000, dockerfile: "Dockerfile" }, 4 * 60_000);
   assert.equal(release.status, "ready");
   assert.equal(release.commit, git.log[0].hash);
   assert.equal(release.briefRevision, 1);
+  assert.equal(release.configurationRevision, 1);
+  assert.ok(!JSON.stringify(release).includes(applicationFixtureValue));
+  assert.deepEqual(readdirSync(state).filter((name) => name.startsWith("preview-env-")), [], "Private runtime env file survived Docker run");
   const address = new URL(release.url);
   assert.equal(address.protocol, "http:");
   assert.equal(address.hostname, "127.0.0.1");
@@ -265,12 +276,12 @@ try {
   assertLoopbackPorts(application);
   const response = await fetch(release.url, { redirect: "error", signal: AbortSignal.timeout(5000) });
   assert.equal(response.status, 200);
-  assert.equal(await response.text(), "Luci runtime preview OK");
+  assert.deepEqual(await response.json(), { greeting: "Luci configured preview OK", fixtureValue: applicationFixtureValue, modelKeyPresent: false });
   const stopped = await api("POST", `/v1/product/projects/${project.id}/releases/${release.id}/stop`);
   assert.equal(stopped.status, "stopped");
   const remaining = execFileSync("docker", ["ps", "--all", "--filter", `label=luci.release-id=${release.id}`, "--format", "{{.ID}}"], { encoding: "utf8" }).trim();
   assert.equal(remaining, "", "Owned preview container survived Stop");
-  result.checks.push({ name: "committed Docker preview, actual HTTP health and owned stop", commit: release.commit, briefRevision: release.briefRevision, removed: true });
+  result.checks.push({ name: "committed Docker preview, private runtime configuration, actual HTTP health and owned stop", commit: release.commit, briefRevision: release.briefRevision, configurationRevision: release.configurationRevision, privateEnvFileRemoved: true, modelKeysInherited: false, removed: true });
   result.passed = true;
   console.log("PASS: real Docker install, non-root shell WebSocket/write, committed preview health and ownership-checked stop.");
 } catch (error) {
