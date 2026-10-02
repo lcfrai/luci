@@ -20,14 +20,14 @@ func TestExecRunnerNamesTheTimeoutAndTheBoundItExceeded(t *testing.T) {
 	requireGit(t)
 	dir := t.TempDir()
 
-	// 1 ms is shorter than a process start, so this takes whichever of the two
-	// paths the machine gives it — the git that starts and is killed, or the
-	// git that never starts because the deadline had already passed. Both are
-	// the runner's own bound and both must read the same.
-	r := &project.ExecRunner{Timeout: time.Millisecond}
+	// Exercise the runner's own deadline already expiring before process
+	// startup. A real git can finish inside 1 ms on a fast host, so that bound
+	// does not prove a timeout. The separate running-process fixture verifies
+	// cancellation after startup; here the expired bound must still be named.
+	r := &project.ExecRunner{Timeout: time.Nanosecond}
 	_, err := r.Run(context.Background(), dir, "rev-parse", "--abbrev-ref", "HEAD")
 	if err == nil {
-		t.Fatal("Run with a 1ms bound returned no error")
+		t.Fatal("Run with a 1ns bound returned no error")
 	}
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("error %q does not wrap context.DeadlineExceeded, so no caller can classify it", err)
@@ -36,7 +36,7 @@ func TestExecRunnerNamesTheTimeoutAndTheBoundItExceeded(t *testing.T) {
 	if !strings.Contains(msg, "timed out") {
 		t.Errorf("error = %q, want it to say the git timed out", msg)
 	}
-	if !strings.Contains(msg, "1ms") {
+	if !strings.Contains(msg, "1ns") {
 		t.Errorf("error = %q, want the bound it exceeded in it", msg)
 	}
 }
