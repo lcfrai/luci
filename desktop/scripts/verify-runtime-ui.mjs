@@ -37,6 +37,8 @@ const result = {
   project: null,
   session: null,
   release: null,
+  sessionIds: [],
+  releaseIds: [],
   checks,
   errors,
 };
@@ -274,6 +276,7 @@ try {
     "POST",
     120000,
   );
+  result.sessionIds.push(result.session.id);
   await receipt();
   assert.equal(result.session.harness, "shell");
   await page
@@ -392,6 +395,7 @@ try {
     "POST",
     240000,
   );
+  result.releaseIds.push(result.release.id);
   await receipt();
   assert.equal(result.release.status, "ready");
   assert.equal(result.release.commit, result.commit);
