@@ -64,6 +64,14 @@ SIGNATURES = {
     "aws_access_key_id": re.compile(rb"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b"),
     "anthropic_api_key": re.compile(rb"\bsk-ant-[A-Za-z0-9_-]{40,}\b"),
 }
+# Exact reviewed synthetic value in the API credential-serialization regression.
+# Path + signature + matched-value hash must all agree; never permit a prefix or
+# an entire test file. Keep values out of emitted evidence and failure messages.
+SYNTHETIC_SIGNATURES = {
+    ("control-plane/internal/api/sessions_agent_credentials_test.go", "anthropic_api_key"):
+        ("96880ec50b36c64aa08ebfa90d97866ddc47a716097c20768c13863576a6ddaf",
+         "Explicitly synthetic personal-key fixture for API response/log/session isolation; exact matched-value SHA256 verified."),
+}
 
 
 class ExportError(Exception):
@@ -185,6 +193,11 @@ def verify_source(files: dict[str, bytes], version: str) -> dict:
         for signature, pattern in SIGNATURES.items():
             matches = list(pattern.finditer(data))
             if not matches:
+                continue
+            synthetic = SYNTHETIC_SIGNATURES.get((name, signature))
+            if synthetic and len(matches) == 1 and sha(matches[0].group()) == synthetic[0]:
+                findings.append({"path": name, "signature": signature,
+                                 "matchedValueSha256": synthetic[0], "review": synthetic[1]})
                 continue
             # The existing Git host test intentionally writes just a header.
             # Reject any payload/end marker or additional header in this file.

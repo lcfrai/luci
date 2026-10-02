@@ -271,7 +271,7 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 	if s.projectChecks == nil {
 		s.projectChecks = map[string]*projectCheckJob{}
 	}
-	job := &projectCheckJob{run: row, cancel: cancel}
+	job := &projectCheckJob{run: snapshotProjectCheck(row), cancel: cancel}
 	s.projectChecks[row.ID] = job
 	if err = s.storeCheckRun(row); err != nil {
 		delete(s.projectChecks, row.ID)
@@ -401,9 +401,23 @@ func (s *Server) cancelProjectCheck(w http.ResponseWriter, r *http.Request) {
 	if job.cancel != nil {
 		job.cancel()
 	}
-	row := job.run
+	row := snapshotProjectCheck(job.run)
 	s.mu.Unlock()
 	writeJSON(w, 202, row)
+}
+
+// Caller holds s.mu. HTTP encoding happens after releasing it, so mutable
+// command results and their nested values must not remain shared with a worker.
+func snapshotProjectCheck(row ProjectCheckRun) ProjectCheckRun {
+	row.Commands = append([]CheckCommandResult(nil), row.Commands...)
+	for i := range row.Commands {
+		row.Commands[i].Args = append([]string(nil), row.Commands[i].Args...)
+		if row.Commands[i].ExitCode != nil {
+			code := *row.Commands[i].ExitCode
+			row.Commands[i].ExitCode = &code
+		}
+	}
+	return row
 }
 func (s *Server) closeProjectChecks() {
 	s.mu.Lock()

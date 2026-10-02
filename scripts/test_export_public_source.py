@@ -129,6 +129,28 @@ class ExportTests(unittest.TestCase):
         with self.assertRaisesRegex(exporter.ExportError, "symlink"):
             exporter.read_source(self.repo, revision)
 
+    def test_synthetic_key_exception_is_exact_and_recorded(self):
+        name = "control-plane/internal/api/sessions_agent_credentials_test.go"
+        value = b"sk-ant-" + b"fixture-personal-key-do-not-serialize-123456"
+        self.write(name, b'key := "' + value + b'"\n')
+        self.commit()
+        result = self.export()
+        checks = json.loads((Path(result["output"]) / "EXPORT-CHECKS.json").read_bytes())
+        self.assertEqual(checks["credentialSignatureFindings"][0]["matchedValueSha256"], exporter.sha(value))
+        self.write(name, b'key := "' + value[:-1] + b'7"\n')
+        self.commit()
+        with self.assertRaisesRegex(exporter.ExportError, "Credential signature"):
+            self.export("changed-value")
+        self.write(name, b'key := "' + value + b'"\nsecond := "' + value + b'"\n')
+        self.commit()
+        with self.assertRaisesRegex(exporter.ExportError, "Credential signature"):
+            self.export("second-value")
+        self.write(name, b"removed\n")
+        self.write("desktop/src/unrelated.ts", value)
+        self.commit()
+        with self.assertRaisesRegex(exporter.ExportError, "Credential signature"):
+            self.export("wrong-path")
+
 
 if __name__ == "__main__":
     unittest.main()
