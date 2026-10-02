@@ -10,6 +10,10 @@ on:
         description: 'Run only the real existing-workspace SSH browser acceptance'
         type: boolean
         default: false
+      portable_only:
+        description: 'Diagnostic only: exercise the exact retained private v0.4.2-rc.3 Windows portable ZIP'
+        type: boolean
+        default: false
       installer_run:
         description: 'Optional completed run ID: test its existing Windows installer without rebuilding'
         type: string
@@ -47,7 +51,7 @@ env:
 jobs:
   verify:
     name: Go and desktop checks
-    if: ${{ !inputs.installer_run && !inputs.installer_release && !inputs.ssh_only }}
+    if: ${{ !inputs.installer_run && !inputs.installer_release && !inputs.ssh_only && !inputs.portable_only }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -101,7 +105,7 @@ jobs:
   runtime-smoke:
     name: Real Docker and SSH browser UAT
     needs: verify
-    if: ${{ always() && !inputs.installer_run && !inputs.installer_release && (needs.verify.result == 'success' || inputs.ssh_only) }}
+    if: ${{ always() && !inputs.installer_run && !inputs.installer_release && !inputs.portable_only && (needs.verify.result == 'success' || inputs.ssh_only) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -355,7 +359,7 @@ jobs:
 
   installed-diagnostic:
     name: Installed Windows release diagnostic
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.installer_run != '' || inputs.installer_release != '') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.portable_only && (inputs.installer_run != '' || inputs.installer_release != '') }}
     # GitHub requires push access to list/download unpublished draft releases.
     # This manual job uses that token only for reads in the download step;
     # pull-request/build jobs retain the workflow's read-only permissions.
@@ -467,5 +471,63 @@ jobs:
             artifacts/native-installed-eval/*.png
             artifacts/native-installed-eval/*-failure-text.txt
             artifacts/native-installed-eval/driver-*.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  portable-diagnostic:
+    name: Verified Windows portable diagnostic
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.portable_only }}
+    permissions:
+      contents: write # GitHub requires push access to read unpublished drafts.
+      actions: read
+    runs-on: windows-2025
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Download the independently pinned private portable package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PORTABLE_RELEASE: ${{ inputs.installer_release }}
+        run: |
+          if ($env:PORTABLE_RELEASE -ne 'v0.4.2-rc.3') { throw 'Diagnostic requires the exact retained v0.4.2-rc.3 private draft' }
+          $expectedSHA = '1c00e7541dfedbf9880a177bbfb4c2821ff455dd2419af1eb225bd7582d2902d'
+          $expectedBytes = 60813164
+          $expectedSource = 'a39b6aa59aec06ec7dec7b4c764cc5e7f9d09e70'
+          $assetName = 'luci-windows-amd64.zip'
+          $pages = gh api "repos/$env:GITHUB_REPOSITORY/releases" --paginate --slurp | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Private draft listing failed' }
+          $releases = @(foreach ($page in $pages) { foreach ($release in $page) { if ($release.tag_name -eq $env:PORTABLE_RELEASE) { $release } } })
+          if ($releases.Count -ne 1 -or -not $releases[0].draft) { throw 'Expected one accessible unpublished draft' }
+          $assets = @($releases[0].assets | Where-Object name -eq $assetName)
+          if ($assets.Count -ne 1 -or $assets[0].digest -ne ('sha256:' + $expectedSHA) -or $assets[0].size -ne $expectedBytes) { throw 'Stored GitHub asset differs from the independently recorded portable package' }
+          gh release download $env:PORTABLE_RELEASE --repo $env:GITHUB_REPOSITORY --pattern $assetName --pattern release-manifest.json --dir artifacts/diagnostic-portable
+          if ($LASTEXITCODE -ne 0) { throw 'Private portable download failed' }
+          $manifest = Get-Content artifacts/diagnostic-portable/release-manifest.json -Raw | ConvertFrom-Json
+          $entry = @($manifest.artifacts | Where-Object name -eq $assetName)
+          if ($entry.Count -ne 1 -or $entry[0].sha256 -ne $expectedSHA -or $entry[0].bytes -ne $expectedBytes -or $manifest.sourceCommit -ne $expectedSource -or $manifest.sourceDirty -ne $false) { throw 'Portable manifest does not identify the clean pinned package' }
+          $archive = (Resolve-Path (Join-Path artifacts/diagnostic-portable $assetName)).Path
+          if ((Get-Item -LiteralPath $archive).Length -ne $expectedBytes -or (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expectedSHA) { throw 'Downloaded portable package bytes differ' }
+          Expand-Archive -LiteralPath $archive -DestinationPath artifacts/diagnostic-portable/package
+          if (-not (Test-Path -LiteralPath artifacts/diagnostic-portable/package/Start-Luci.ps1)) { throw 'Portable launcher missing from verified archive' }
+          New-Item -ItemType Directory -Path artifacts/package-eval/portable-diagnostic -Force | Out-Null
+          @{scriptsCommit=$env:GITHUB_SHA;packageSourceCommit=$expectedSource;packageRelease=$env:PORTABLE_RELEASE;packageSHA256=$expectedSHA;packageBytes=$expectedBytes} | ConvertTo-Json | Set-Content artifacts/package-eval/portable-diagnostic/input-provenance.json
+      - name: Exercise the actual shipped launcher with diagnostic capture
+        run: |
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -Command '$PSVersionTable | ConvertTo-Json' | Set-Content artifacts/package-eval/portable-diagnostic/powershell-version.json
+          node scripts/portable-launcher-eval.mjs artifacts/diagnostic-portable/package artifacts/package-eval/portable-diagnostic
+          if ($LASTEXITCODE -ne 0) { throw 'Actual portable launcher acceptance failed; inspect its bounded redacted JSON diagnostics' }
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: luci-portable-diagnostic-${{ github.run_id }}
+          path: artifacts/package-eval/portable-diagnostic/*.json
           if-no-files-found: warn
           retention-days: 14

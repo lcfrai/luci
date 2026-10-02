@@ -61,7 +61,7 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
     const args = windows ? ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', launcher, '-Port', String(port), '-StateDir', stateDirectory, '-NoBrowser']
       : [launcher, '--port', String(port), '--state-dir', stateDirectory, '--no-browser'];
     const child = spawn(executable, args, { cwd: packageDir, env: environment, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
-    const record = { child, output: '', spawnError: null, closed: false, index: launched.length };
+    const record = { child, output: '', spawnError: null, closed: false, index: launched.length, stateDirectory };
     launched.push(record);
     child.once('error', error => { record.spawnError = error; });
     child.once('close', () => { record.closed = true; });
@@ -70,6 +70,36 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
     return record;
   }
   const exited = record => record.child.exitCode !== null || record.child.signalCode !== null || record.spawnError;
+  async function rememberFixtureCodes() {
+    for (const record of launched) for (const name of ['owner-access-token', 'bootstrap-token']) {
+      const filename = path.join(record.stateDirectory, 'control-plane', name);
+      try {
+        if ((await stat(filename)).size > 128) continue;
+        const code = (await readFile(filename, 'utf8')).trim();
+        if (/^[A-Za-z0-9_-]{43}$/.test(code)) secrets.add(code);
+      } catch (error) { if (error.code !== 'ENOENT') (result.diagnosticErrors ||= []).push(`Cannot inspect private fixture code: ${error.code || 'unknown'}`); }
+    }
+  }
+  async function failureDiagnostics() {
+    // Read only this acceptance fixture's code files so a failure before the
+    // normal proof check cannot accidentally publish a private startup code.
+    await rememberFixtureCodes();
+    let service;
+    try {
+      const response = await fetch(base + '/v1/control-plane/status', { signal: AbortSignal.timeout(2000) });
+      const value = await response.json();
+      service = { status: response.status, product: String(value.product || '').slice(0, 80), version: String(value.version || '').slice(0, 80), configured: value.configured, bootstrapRequired: value.bootstrapRequired };
+    } catch (error) { service = { error: redact(error.message) }; }
+    const logs = [];
+    for (const name of ['service.out.log', 'service.err.log']) {
+      try {
+        const filename = path.join(state, name), info = await stat(filename);
+        logs.push(info.size > 1048576 ? { name, bytes: info.size, omitted: 'over diagnostic bound' }
+          : { name, bytes: info.size, tail: redact(await readFile(filename, 'utf8')).slice(-16384) });
+      } catch (error) { logs.push({ name, error: error.code || 'unknown' }); }
+    }
+    return { observedBeforeCleanup: true, service, serviceLogs: logs, launchers: launched.map(record => ({ index: record.index, pid: record.child.pid, exitCode: record.child.exitCode, signal: record.child.signalCode, closed: record.closed, spawnError: record.spawnError ? redact(record.spawnError.message) : null, outputTail: redact(record.output).slice(-16384) })) };
+  }
   async function ready(record) {
     await waitUntil(async () => {
       if (record.spawnError) throw record.spawnError;
@@ -167,6 +197,8 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
     pass('Launcher output contained no owner proof, bootstrap token, password or bearer');
     result.passed = true;
   } catch (error) {
+    try { result.failureDiagnostics = await failureDiagnostics(); }
+    catch (diagnosticError) { (result.diagnosticErrors ||= []).push(redact(diagnosticError.message)); }
     result.error = redact(error.stack || error);
     throw new Error(result.error);
   } finally {
@@ -175,6 +207,8 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
       try { await closeLauncher(record, record === owned); }
       catch (error) { (result.cleanupErrors ||= []).push(redact(error.message)); record.child.kill(); }
     }
+    await rememberFixtureCodes();
+    if (!result.passed) result.launcherOutputAfterCleanup = launched.map(record => ({ index: record.index, exitCode: record.child.exitCode, signal: record.child.signalCode, outputTail: redact(record.output).slice(-16384) }));
     result.finishedAt = new Date().toISOString();
     await writeFile(path.join(evidence, 'launcher-results.json'), JSON.stringify(result, null, 2));
     await writeFile(path.join(evidence, 'launcher.log'), redact(launched.map(record => `Launcher ${record.index}: exit=${record.child.exitCode}, signal=${record.child.signalCode}\n${record.output}`).join('\n')));
