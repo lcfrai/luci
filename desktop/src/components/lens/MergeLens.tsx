@@ -96,7 +96,7 @@ export function ProjectGit({ projectId }: { projectId: string }) {
                     setup?.refreshProjects();
                     if (alive.current) {
                       setMessage("");
-                      setNotice("Changes committed locally.");
+                      setNotice("Changes committed.");
                     }
                   })
                   .catch((cause) => {
@@ -112,6 +112,7 @@ export function ProjectGit({ projectId }: { projectId: string }) {
                 Commit message
                 <textarea
                   required
+                  disabled={busy}
                   rows={3}
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}

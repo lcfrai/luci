@@ -73,7 +73,7 @@ export function BriefEditor({ projectId }: { projectId: string }) {
         title="What are we making?"
         subtitle="A clear brief follows your project through design, development and every release."
       >
-        <span className="journey-revision">
+        <span className="journey-revision" role="status">
           {brief ? `Revision ${brief.revision}` : "Loading brief…"}
         </span>
       </JourneyHeader>
@@ -83,6 +83,7 @@ export function BriefEditor({ projectId }: { projectId: string }) {
           {
             <button
               className="luci-button"
+              disabled={busy}
               onClick={() =>
                 void load().catch((cause) => setError(errorText(cause)))
               }

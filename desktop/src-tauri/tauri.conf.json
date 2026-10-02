@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Luci",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "identifier": "ai.lcfr.luci",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -28,10 +28,20 @@
     "copyright": "Copyright (c) 2026 lcfr.ai contributors",
     "license": "MIT",
     "licenseFile": "../../LICENSE",
+    "windows": {
+      "nsis": {
+        "installerHooks": "./windows/hooks.nsh"
+      }
+    },
     "resources": {
       "runtime/": "runtime/",
       "licenses/": "licenses/",
-      "cloud/": "cloud/"
+      "cloud/": "cloud/",
+      "../../docs/UAT.md": "docs/UAT.md",
+      "../../docs/RUNBOOK.md": "docs/RUNBOOK.md",
+      "../../docs/luci/": "docs/luci/",
+      "../../DESIGN.md": "DESIGN.md",
+      "../../README.md": "README.md"
     },
     "externalBin": [
       "binaries/luci-api"

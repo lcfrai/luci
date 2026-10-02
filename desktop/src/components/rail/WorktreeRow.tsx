@@ -1,3 +1,4 @@
+import { NavigationIcon } from "../common/NavigationIcon";
 // Contract §6.2, with one departure argued in step 11: the chevron is drawn when
 // sessionCount > 0 OR the store already holds session ids for this worktree, so a worktree
 // whose sessions have all exited stays expandable and its transcripts stay reachable.
@@ -16,9 +17,14 @@ import { SessionRow } from "./SessionRow";
 import type { Worktree } from "../../store/types";
 import "./rail.css";
 
-export function WorktreeRow(props: { worktree: Worktree; expanded: boolean }): JSX.Element {
+export function WorktreeRow(props: {
+  worktree: Worktree;
+  expanded: boolean;
+}): JSX.Element {
   const { worktree, expanded } = props;
-  const sessionIds = useCockpit(useShallow(selectSessionIdsForWorktree(worktree.id)));
+  const sessionIds = useCockpit(
+    useShallow(selectSessionIdsForWorktree(worktree.id)),
+  );
   const toggleWorktree = useCockpit((s) => s.toggleWorktree);
   const selectWorktree = useCockpit((s) => s.selectWorktree);
   const openContextMenu = useCockpit((s) => s.openContextMenu);
@@ -55,7 +61,7 @@ export function WorktreeRow(props: { worktree: Worktree; expanded: boolean }): J
           className={hasChildren ? "rail-chev" : "rail-chev rail-chev-empty"}
           aria-hidden="true"
         >
-          {expanded ? "▾" : "▸"}
+          <NavigationIcon name={expanded ? "chevron-down" : "chevron-right"} />
         </span>
         <span className="rail-name">{worktree.name}</span>
         {/* "Mark ready" writes a flag the rail is the only place to see, and §10.2's whole
@@ -67,8 +73,12 @@ export function WorktreeRow(props: { worktree: Worktree; expanded: boolean }): J
             with the status dot. The class name exists so a later task can style it without
             re-finding the element. */}
         {worktree.ready === true ? (
-          <span className="rail-ready" title="Marked ready to merge" aria-label="ready">
-            ✓
+          <span
+            className="rail-ready"
+            title="Marked ready to merge"
+            aria-label="ready"
+          >
+            <NavigationIcon name="check" />
           </span>
         ) : null}
         <button
@@ -80,13 +90,17 @@ export function WorktreeRow(props: { worktree: Worktree; expanded: boolean }): J
             void createSession(worktree.id);
           }}
         >
-          ＋
+          <NavigationIcon name="add" />
         </button>
       </div>
       {expanded ? (
         <div role="group">
           {sessionIds.map((id) => (
-            <SessionRow key={id} sessionId={id} selected={id === focusedSessionId} />
+            <SessionRow
+              key={id}
+              sessionId={id}
+              selected={id === focusedSessionId}
+            />
           ))}
         </div>
       ) : null}

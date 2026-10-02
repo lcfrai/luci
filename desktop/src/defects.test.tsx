@@ -190,12 +190,12 @@ afterEach(() => {
 });
 
 describe("the assembled cockpit", () => {
-  it("mounts the shell and its grain layer, and adds no chrome of its own", async () => {
+  it("mounts the responsive shell without a decorative grain layer", async () => {
     const { container } = render(<App />);
     await settle();
     const shell = container.querySelector(".shell");
     expect(shell).not.toBeNull();
-    expect(shell?.classList.contains("grain")).toBe(true);
+    expect(shell?.classList.contains("grain")).toBe(false);
     // App renders <AppShell/> and nothing else: no wrapper div, no banner, no router.
     expect(container.firstElementChild).toBe(shell);
   });

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AuthProvider, type AuthProfile } from "./AuthProvider";
 import { RailFooter } from "../rail/RailFooter";
@@ -272,4 +272,130 @@ it("keeps an ordinary Admin's workspace policy read-only and only offers member 
       (screen.getByLabelText("New user role") as HTMLSelectElement).options,
     ).map((option) => option.value),
   ).toEqual(["member"]);
+});
+
+it("explains first-account requirements before submission and protects an in-flight account draft", async () => {
+  window.history.replaceState(null, "", `/#bootstrap=${"b".repeat(43)}`);
+  let finish!: (value: { token: string; user: AuthProfile["user"] }) => void;
+  const pending = new Promise<{ token: string; user: AuthProfile["user"] }>(
+    (resolve) => {
+      finish = resolve;
+    },
+  );
+  const request = vi
+    .spyOn(productApi, "request")
+    .mockImplementation(async (path) => {
+      if (path === "/v1/control-plane/status")
+        return {
+          configured: false,
+          bootstrapRequired: true,
+          instanceName: "My workspace",
+          backing: "docker",
+        };
+      if (path === "/v1/auth/bootstrap") return pending;
+      if (path === "/v1/auth/me") return member;
+      throw new Error(path);
+    });
+  render(
+    <AuthProvider>
+      <p>Your project space</p>
+    </AuthProvider>,
+  );
+  const displayName = await screen.findByLabelText("Display name");
+  expect(document.activeElement).toBe(displayName);
+  expect(screen.queryByRole("button", { name: "Retry connection" })).toBeNull();
+  const username = screen.getByLabelText("Username") as HTMLInputElement;
+  const password = screen.getByLabelText("Password") as HTMLInputElement;
+  expect(
+    document.getElementById(username.getAttribute("aria-describedby")!)
+      ?.textContent,
+  ).toContain("3–64");
+  expect(
+    document.getElementById(password.getAttribute("aria-describedby")!)
+      ?.textContent,
+  ).toContain("at least 12");
+  expect(password.minLength).toBe(12);
+  await userEvent.type(displayName, "Garden owner");
+  await userEvent.type(username, "bad name");
+  expect(username.checkValidity()).toBe(false);
+  await userEvent.clear(username);
+  await userEvent.type(username, "garden.owner");
+  await userEvent.type(password, "a long private password");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Create Super Admin account" }),
+  );
+  await screen.findByText("Creating your workspace account…");
+  expect(username.disabled).toBe(true);
+  expect(password.disabled).toBe(true);
+  expect((displayName as HTMLInputElement).disabled).toBe(true);
+  expect(
+    request.mock.calls.filter(([path]) => path === "/v1/auth/bootstrap"),
+  ).toHaveLength(1);
+  await act(async () => {
+    finish({ token: "created-session", user: member.user });
+    await pending;
+  });
+  await screen.findByText("Your project space");
+});
+
+it("recovers from a connection failure and removes the retry action once sign-in is ready", async () => {
+  vi.spyOn(productApi, "request")
+    .mockRejectedValueOnce(new Error("The control plane is offline."))
+    .mockResolvedValue({
+      configured: true,
+      bootstrapRequired: false,
+      instanceName: "My workspace",
+      backing: "docker",
+    });
+  render(
+    <AuthProvider>
+      <p>Your project space</p>
+    </AuthProvider>,
+  );
+  expect((await screen.findByRole("alert")).textContent).toContain("offline");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Retry connection" }),
+  );
+  await screen.findByRole("button", { name: "Sign in" });
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Retry connection" })).toBeNull();
+  expect(document.activeElement).toBe(screen.getByLabelText("Username"));
+});
+
+it("keeps account keyboard focus inside the dialog and returns it to the account trigger", async () => {
+  setAuthToken("member-session");
+  vi.spyOn(productApi, "request").mockImplementation(async (path) => {
+    if (path === "/v1/control-plane/status")
+      return {
+        configured: true,
+        bootstrapRequired: false,
+        instanceName: "My workspace",
+        backing: "docker",
+      };
+    if (path === "/v1/auth/me") return member;
+    throw new Error(path);
+  });
+  render(
+    <AuthProvider>
+      <RailFooter />
+    </AuthProvider>,
+  );
+  const trigger = await screen.findByRole("button", { name: "A member" });
+  await userEvent.click(trigger);
+  const dialog = screen.getByRole("dialog", { name: "Your account" });
+  expect(document.activeElement).toBe(dialog);
+  await userEvent.tab({ shift: true });
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Sign out" }),
+  );
+  await userEvent.tab();
+  expect(document.activeElement).toBe(
+    screen.getByRole("button", { name: "Close" }),
+  );
+  expect(
+    (screen.getByLabelText("New password") as HTMLInputElement).minLength,
+  ).toBe(12);
+  await userEvent.keyboard("{Escape}");
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(document.activeElement).toBe(trigger);
 });

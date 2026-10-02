@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Excalidraw, MainMenu, serializeAsJSON } from "@excalidraw/excalidraw";
 import type {
   ExcalidrawInitialDataState,
@@ -22,18 +22,47 @@ export default function DesignEditor({ projectId }: { projectId: string }) {
     NonNullable<ExcalidrawProps["onChange"]>
   > | null>(null);
   const saving = useRef(false);
+  const alive = useRef(true);
+  const [loading, setLoading] = useState(true);
+  const canvas = useRef<HTMLDivElement>(null);
+  // Excalidraw 0.18.1 omits a name on its menu and gives its nested canvas
+  // controls a page-footer landmark. Keep its controls, supplying semantics
+  // only within our embedded canvas, including when its mobile layout changes.
+  useLayoutEffect(() => {
+    const root = canvas.current;
+    if (!root) return;
+    const describe = () => {
+      const menu = root.querySelector(".main-menu-trigger");
+      if (menu && !menu.getAttribute("aria-label"))
+        menu.setAttribute("aria-label", "Design menu");
+      const toolbar = root.querySelector("footer.layer-ui__wrapper__footer");
+      if (toolbar && toolbar.getAttribute("role") !== "group") {
+        toolbar.setAttribute("role", "group");
+        toolbar.setAttribute("aria-label", "Design canvas controls");
+      }
+    };
+    describe();
+    const observer = new MutationObserver(describe);
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const value = await productApi.design(projectId);
+      if (alive.current) setDesign(value);
+    } catch (cause) {
+      if (alive.current) setError(errorText(cause));
+    } finally {
+      if (alive.current) setLoading(false);
+    }
+  }
   useEffect(() => {
-    let cancelled = false;
-    productApi
-      .design(projectId)
-      .then((value) => {
-        if (!cancelled) setDesign(value);
-      })
-      .catch((cause) => {
-        if (!cancelled) setError(errorText(cause));
-      });
+    alive.current = true;
+    void load();
     return () => {
-      cancelled = true;
+      alive.current = false;
     };
   }, [projectId]);
   async function save() {
@@ -58,13 +87,15 @@ export default function DesignEditor({ projectId }: { projectId: string }) {
         frames: design.frames,
         scene,
       });
-      setDesign(next);
-      setSaved(current.current === snapshot);
+      if (alive.current) {
+        setDesign(next);
+        setSaved(current.current === snapshot);
+      }
     } catch (cause) {
-      setError(errorText(cause));
+      if (alive.current) setError(errorText(cause));
     } finally {
       saving.current = false;
-      setBusy(false);
+      if (alive.current) setBusy(false);
     }
   }
   return (
@@ -73,10 +104,10 @@ export default function DesignEditor({ projectId }: { projectId: string }) {
         title="Give the idea a shape."
         subtitle="Sketch the screens and connections. Your design stays with this project."
       >
-        <span className="journey-revision">
+        <span className="journey-revision" role="status">
           {design
             ? `Design ${design.revision} · Brief ${design.briefRevision}`
-            : "Loading…"}
+            : loading ? "Loading design…" : "Design unavailable"}
         </span>
         <button
           className="luci-button luci-primary"
@@ -90,15 +121,16 @@ export default function DesignEditor({ projectId }: { projectId: string }) {
         {error && (
           <p className="journey-error" role="alert">
             {error}
+            {!design && <button className="luci-button" disabled={loading} onClick={() => void load()}>Retry loading design</button>}
           </p>
         )}
         {saved && (
           <span role="status" className="journey-muted">
-            Design saved locally.
+            Design saved.
           </span>
         )}
       </div>
-      <div className="design-canvas">
+      <div className="design-canvas" ref={canvas} aria-busy={loading}>
         {design && (
           <Excalidraw
             initialData={

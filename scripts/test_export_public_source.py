@@ -90,6 +90,23 @@ class ExportTests(unittest.TestCase):
         self.assertTrue(self.export(plan=True)["planOnly"])
         self.assertFalse((self.root / "candidate").exists())
 
+    def test_native_installer_hook_survives_export_at_its_configured_path(self):
+        hook_name = "desktop/src-tauri/windows/hooks.nsh"
+        hook = b"!macro NSIS_HOOK_PREUNINSTALL\n  ClearErrors\n!macroend\n"
+        self.write(hook_name, hook)
+        self.write("desktop/src-tauri/tauri.conf.json", exporter.json_bytes({
+            "version": "0.4.0",
+            "bundle": {"windows": {"nsis": {"installerHooks": "./windows/hooks.nsh"}}},
+        }))
+        self.commit()
+        result = self.export()
+        output = Path(result["output"])
+        config_path = output / "desktop/src-tauri/tauri.conf.json"
+        config = json.loads(config_path.read_bytes())
+        self.assertEqual((config_path.parent / config["bundle"]["windows"]["nsis"]["installerHooks"]).read_bytes(), hook)
+        with zipfile.ZipFile(result["archive"]) as bundle:
+            self.assertEqual(bundle.read("candidate/" + hook_name), hook)
+
     def test_dirty_and_wrong_revision_refused(self):
         self.write("new-untracked.txt", b"uncommitted\n")
         with self.assertRaisesRegex(exporter.ExportError, "dirty"):

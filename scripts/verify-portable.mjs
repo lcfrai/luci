@@ -47,7 +47,7 @@ async function start() {
     assert.equal(child.exitCode, null, 'Packaged service exited before readiness');
     try {
       const control = await request('GET','/v1/control-plane/status');
-      assert.equal(control.product,'Luci');assert.equal(control.version,process.env.LUCI_VERSION || '0.4.0');
+      assert.equal(control.product,'Luci');assert.equal(control.version,process.env.LUCI_VERSION || '0.4.1');
       if (control.bootstrapRequired) {
         const code = (await readFile(path.join(state,'control-plane/bootstrap-token'),'utf8')).trim();
         token = (await request('POST','/v1/auth/bootstrap',{bootstrapToken:code,username:'package-owner',displayName:'Package Owner',password})).token;

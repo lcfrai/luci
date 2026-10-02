@@ -12,10 +12,12 @@ export function WorkspaceInstaller({
   client,
   connections,
   switchWorkspace = changeWorkspace,
+  existing = false,
 }: {
   client: ProductClient;
   connections: Tunnel[];
   switchWorkspace?: (activate: () => Promise<unknown>) => Promise<void>;
+  existing?: boolean;
 }) {
   const [jobs, setJobs] = useState<WorkspaceInstall[]>([]),
     [authenticated, setAuthenticated] = useState<Record<string, boolean>>({}),
@@ -35,13 +37,14 @@ export function WorkspaceInstaller({
   };
   useEffect(() => {
     alive.current = true;
-    void load().catch((e) => {
-      if (alive.current) setError(errorText(e));
-    });
+    if (!existing)
+      void load().catch((e) => {
+        if (alive.current) setError(errorText(e));
+      });
     return () => {
       alive.current = false;
     };
-  }, [client]);
+  }, [client, existing]);
   useEffect(() => {
     if (
       !jobs.some((j) => ["installing", "running", "queued"].includes(j.status))
@@ -70,12 +73,15 @@ export function WorkspaceInstaller({
   }
   return (
     <section className="setup-plan">
-      <h2>Run all of Luci on your cloud</h2>
+      <h2>
+        {existing
+          ? "Sign in and use this workspace"
+          : "Run all of Luci on your cloud"}
+      </h2>
       <p className="journey-muted">
-        Install Luci’s workspace service on a verified server. Define, Design,
-        Develop and Deploy then use that machine through your private SSH
-        connection. After switching, install the agent runtime in This workspace
-        → Git identity, agent connection and runtime.
+        {existing
+          ? "Your account and permissions belong to this workspace. Sign in, then switch your project view to the verified server. You do not need to reinstall an existing workspace."
+          : "Install Luci’s workspace service on a verified server. Define, Design, Develop and Deploy then use that machine through your private SSH connection. After switching, install the agent runtime in This workspace → Git identity, agent connection and runtime."}
       </p>
       {error && (
         <p className="journey-error" role="alert">
@@ -83,7 +89,11 @@ export function WorkspaceInstaller({
         </p>
       )}
       {!connections.some((c) => c.status === "connected") && (
-        <p>Connect your server above before installing a workspace.</p>
+        <p>
+          {existing
+            ? "Connect your server above to sign in to its workspace."
+            : "Connect your server above before installing a workspace."}
+        </p>
       )}
       {connections
         .filter((c) => c.status === "connected")
@@ -99,38 +109,57 @@ export function WorkspaceInstaller({
                   {job.status} · {job.message}
                 </p>
               )}
-              <label className="luci-check">
-                <input
-                  type="checkbox"
-                  checked={accepted[connection.id] ?? false}
-                  onChange={(e) =>
-                    setAccepted((v) => ({
-                      ...v,
-                      [connection.id]: e.target.checked,
+              {existing && (
+                <WorkspaceSignIn
+                  client={client}
+                  connectionId={connection.id}
+                  onAuthenticated={(value) =>
+                    setAuthenticated((current) => ({
+                      ...current,
+                      [connection.id]: value,
                     }))
                   }
                 />
-                Install Luci and its runtime on this server using my SSH access.
-              </label>
+              )}
+              {!existing && (
+                <label className="luci-check">
+                  <input
+                    type="checkbox"
+                    checked={accepted[connection.id] ?? false}
+                    onChange={(e) =>
+                      setAccepted((v) => ({
+                        ...v,
+                        [connection.id]: e.target.checked,
+                      }))
+                    }
+                  />
+                  Install Luci and its runtime on this server using my SSH
+                  access.
+                </label>
+              )}
               <div className="setup-actions">
-                <button
-                  className="luci-button"
-                  disabled={!!busy || !!installing || !accepted[connection.id]}
-                  onClick={() =>
-                    void run("Installing Luci", async () => {
-                      const result = await client.installWorkspace(
-                        connection.id,
-                        true,
-                      );
-                      setJobs((v) => [
-                        result,
-                        ...v.filter((j) => j.connectionId !== connection.id),
-                      ]);
-                    })
-                  }
-                >
-                  {installing ? "Installing Luci…" : "Install Luci workspace"}
-                </button>
+                {!existing && (
+                  <button
+                    className="luci-button"
+                    disabled={
+                      !!busy || !!installing || !accepted[connection.id]
+                    }
+                    onClick={() =>
+                      void run("Installing Luci", async () => {
+                        const result = await client.installWorkspace(
+                          connection.id,
+                          true,
+                        );
+                        setJobs((v) => [
+                          result,
+                          ...v.filter((j) => j.connectionId !== connection.id),
+                        ]);
+                      })
+                    }
+                  >
+                    {installing ? "Installing Luci…" : "Install Luci workspace"}
+                  </button>
+                )}
                 <button
                   className="luci-button luci-primary"
                   disabled={
@@ -149,16 +178,18 @@ export function WorkspaceInstaller({
                     : "Use this cloud workspace"}
                 </button>
               </div>
-              <WorkspaceSignIn
-                client={client}
-                connectionId={connection.id}
-                onAuthenticated={(value) =>
-                  setAuthenticated((current) => ({
-                    ...current,
-                    [connection.id]: value,
-                  }))
-                }
-              />
+              {!existing && (
+                <WorkspaceSignIn
+                  client={client}
+                  connectionId={connection.id}
+                  onAuthenticated={(value) =>
+                    setAuthenticated((current) => ({
+                      ...current,
+                      [connection.id]: value,
+                    }))
+                  }
+                />
+              )}
               <p className="journey-muted">
                 Switching refreshes the app and detaches current terminal views.
                 Existing sessions keep running on their original machine. Save
@@ -167,7 +198,7 @@ export function WorkspaceInstaller({
             </article>
           );
         })}
-      {jobs.length > 0 && (
+      {!existing && jobs.length > 0 && (
         <button
           className="luci-button"
           disabled={!!busy}

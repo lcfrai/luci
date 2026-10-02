@@ -1,6 +1,5 @@
-// Contract §6.1. Owns the grid, the grain layer, the one keyboard-map mount (task 23) and the
-// overlays that belong to no surface. Owns NO focus and NO scroll — §6.8.
-import type { JSX } from "react";
+// Owns responsive navigation, the single keyboard-map mount and shared overlays.
+import { useEffect, useRef, useState, type JSX } from "react";
 import { useCockpit } from "../store/store";
 import { Rail } from "./rail/Rail";
 import { SubRail } from "./subrail/SubRail";
@@ -15,6 +14,7 @@ import { ContextMenu } from "./menu/ContextMenu";
 import { Toasts } from "./common/Toasts";
 import { CommandPalette } from "./palette/CommandPalette";
 import { useKeyboardMap } from "../hooks/useKeyboardMap";
+import { useDismissable } from "../hooks/useDismissable";
 import type { Lens } from "../store/types";
 import "./shell.css";
 
@@ -52,26 +52,78 @@ export function AppShell(): JSX.Element {
   const branchId = useCockpit((s) => s.selection.branchId);
   const projectId = useCockpit((s) => s.selection.projectId);
   const lens = useCockpit((s) => s.lens);
+  const sessionId = useCockpit((s) => s.selection.sessionId);
+  const toggleRail = useCockpit((s) => s.toggleRail);
+  const [compact, setCompact] = useState(
+    () => window.matchMedia("(max-width: 760px)").matches,
+  );
+  const [projectsOpen, setProjectsOpen] = useState(false);
+  const previousRailCollapsed = useRef(railCollapsed);
+  const previousDrawerOpen = useRef(false);
+  const drawerOpen = compact && projectsOpen;
+  const railRef = useDismissable<HTMLElement>(drawerOpen, () =>
+    setProjectsOpen(false),
+  );
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 760px)");
+    const update = (): void => {
+      setCompact(query.matches);
+      setProjectsOpen(false);
+    };
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    setProjectsOpen(false);
+  }, [projectId, branchId, sessionId, lens]);
+  useEffect(() => {
+    if (compact && previousRailCollapsed.current !== railCollapsed)
+      setProjectsOpen((open) => !open);
+    previousRailCollapsed.current = railCollapsed;
+  }, [compact, railCollapsed]);
+  useEffect(() => {
+    if (drawerOpen)
+      railRef.current?.querySelector<HTMLButtonElement>(".rail-close")?.focus();
+    else if (previousDrawerOpen.current)
+      document.querySelector<HTMLButtonElement>(".top-projects")?.focus();
+    previousDrawerOpen.current = drawerOpen;
+  }, [drawerOpen, railRef]);
 
   // §6.8: the ONE window keydown listener in the app, mounted once, here. Escape is NOT in
   // it — hooks/useDismissable owns the overlay stack and therefore owns Escape (§6.9).
   useKeyboardMap();
 
-  const className = ["shell", "grain"]
+  const className = ["shell"]
     .concat(projectId === null && branchId === null ? [] : ["shell-deep"])
     .concat(railCollapsed ? ["shell-rail-collapsed"] : [])
+    .concat(drawerOpen ? ["shell-projects-open"] : [])
     .join(" ");
 
   return (
     <div className={className}>
-      <Rail />
-      {projectId === null && branchId === null ? <div aria-hidden="true" /> : <SubRail />}
-      <main className="shell-main">
-        <TopBar />
+      <Rail
+        panelRef={railRef}
+        hidden={compact ? !drawerOpen : railCollapsed}
+        drawerOpen={drawerOpen}
+        onClose={() => setProjectsOpen(false)}
+      />
+      {projectId === null && branchId === null ? (
+        <div className="shell-sub-empty" aria-hidden="true" />
+      ) : (
+        <SubRail inert={drawerOpen} />
+      )}
+      <main className="shell-main" inert={drawerOpen}>
+        <TopBar
+          projectsExpanded={compact ? drawerOpen : !railCollapsed}
+          onToggleProjects={() =>
+            compact ? setProjectsOpen((open) => !open) : toggleRail()
+          }
+        />
         <div className="shell-lens">
           <LensRouter lens={lens} />
         </div>
       </main>
+      {drawerOpen && <div className="shell-scrim" aria-hidden="true" />}
       <ContextMenu />
       <Toasts />
       <CommandPalette />

@@ -26,8 +26,8 @@ body {
   background: var(--page);
   color: var(--ink);
   font-family: var(--sans);
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.5;
   /* Live numbers must not jitter. Set once here and inherited. */
   font-variant-numeric: var(--numeric);
   -webkit-font-smoothing: antialiased;
@@ -79,4 +79,22 @@ samp {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--ink-3);
   background-clip: padding-box;
+}
+
+:where(input, textarea) {
+  caret-color: var(--accent);
+}
+:where(input, textarea)::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+a {
+  text-underline-offset: 0.2em;
+}
+:where(h1, h2, h3) {
+  text-wrap: balance;
+}
+.navigation-icon {
+  display: block;
+  flex: 0 0 auto;
 }

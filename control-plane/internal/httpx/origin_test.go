@@ -155,7 +155,7 @@ func TestMiddlewareAnswersPreflightBeforeTheMux(t *testing.T) {
 	var reached bool
 	req := request(http.MethodOptions, "http://tauri.localhost")
 	req.Header.Set("Access-Control-Request-Method", "POST")
-	req.Header.Set("Access-Control-Request-Headers", "content-type")
+	req.Header.Set("Access-Control-Request-Headers", "authorization, content-type")
 	rec := httptest.NewRecorder()
 
 	guard(t, p, &reached).ServeHTTP(rec, req)
@@ -169,7 +169,7 @@ func TestMiddlewareAnswersPreflightBeforeTheMux(t *testing.T) {
 	for header, want := range map[string]string{
 		"Access-Control-Allow-Origin":  "http://tauri.localhost",
 		"Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-		"Access-Control-Allow-Headers": "Content-Type",
+		"Access-Control-Allow-Headers": "Content-Type, Authorization",
 		"Access-Control-Max-Age":       "600",
 	} {
 		if got := rec.Header().Get(header); got != want {
@@ -192,7 +192,7 @@ func TestMiddlewareRejectsAPreflightFromADisallowedOrigin(t *testing.T) {
 	var reached bool
 	req := request(http.MethodOptions, "http://evil.example")
 	req.Header.Set("Access-Control-Request-Method", "POST")
-	req.Header.Set("Access-Control-Request-Headers", "content-type")
+	req.Header.Set("Access-Control-Request-Headers", "authorization, content-type")
 	rec := httptest.NewRecorder()
 
 	guard(t, p, &reached).ServeHTTP(rec, req)
@@ -218,6 +218,52 @@ func TestMiddlewareRejectsAPreflightFromADisallowedOrigin(t *testing.T) {
 	} {
 		if got := rec.Header().Get(header); got != "" {
 			t.Errorf("the rejected preflight was granted %s: %q", header, got)
+		}
+	}
+}
+
+func TestNativeAuthenticatedRoutesSurviveBrowserPreflight(t *testing.T) {
+	// Native bootstrap has no bearer header, but its next profile request and
+	// terminal socket-ticket POST do. A Content-Type-only grant strands a real
+	// WebView at sign-in even though direct HTTP clients pass their auth tests.
+	for _, origin := range []string{"http://tauri.localhost", "https://tauri.localhost"} {
+		for _, route := range []struct{ method, path string }{
+			{http.MethodGet, "/v1/auth/me"},
+			{http.MethodPost, "/v1/auth/socket-ticket"},
+		} {
+			t.Run(origin+route.path, func(t *testing.T) {
+				p, _ := policy(t)
+				reached := false
+				h := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					reached = true
+					if r.Header.Get("Authorization") != "Bearer fixture-token" {
+						t.Fatal("middleware lost the authenticated request header")
+					}
+					w.WriteHeader(http.StatusOK)
+				}))
+				preflight := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:8730"+route.path, nil)
+				preflight.Header.Set("Origin", origin)
+				preflight.Header.Set("Access-Control-Request-Method", route.method)
+				preflight.Header.Set("Access-Control-Request-Headers", "authorization, content-type")
+				rec := httptest.NewRecorder()
+				h.ServeHTTP(rec, preflight)
+				if reached || rec.Code != http.StatusNoContent || rec.Header().Get("Access-Control-Allow-Origin") != origin {
+					t.Fatalf("preflight did not safely authorize native route: reached=%v response=%v", reached, rec.Result())
+				}
+				for _, requested := range []string{"authorization", "content-type"} {
+					if !strings.Contains(strings.ToLower(rec.Header().Get("Access-Control-Allow-Headers")), requested) {
+						t.Fatalf("browser would block required header %s", requested)
+					}
+				}
+				actual := httptest.NewRequest(route.method, "http://127.0.0.1:8730"+route.path, nil)
+				actual.Header.Set("Origin", origin)
+				actual.Header.Set("Authorization", "Bearer fixture-token")
+				rec = httptest.NewRecorder()
+				h.ServeHTTP(rec, actual)
+				if !reached || rec.Code != http.StatusOK || rec.Header().Get("Access-Control-Allow-Origin") != origin {
+					t.Fatal("authenticated response was not readable by the native origin")
+				}
+			})
 		}
 	}
 }

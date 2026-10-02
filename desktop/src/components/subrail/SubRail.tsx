@@ -4,16 +4,24 @@ import type { JSX } from "react";
 import { selectSelectedBranch } from "../../store/selectors";
 import { useCockpit } from "../../store/store";
 import type { Lens } from "../../store/types";
+import {
+  NavigationIcon,
+  type NavigationIconName,
+} from "../common/NavigationIcon";
 import "./subrail.css";
 
-export const LENSES: ReadonlyArray<{ id: Lens; label: string; glyph: string }> = [
-  { id: "discover", label: "Define", glyph: "◇" },
-  { id: "design", label: "Design", glyph: "◈" },
-  { id: "develop", label: "Develop", glyph: "◆" },
-  { id: "deploy", label: "Deploy", glyph: "▲" },
+export const LENSES: ReadonlyArray<{
+  id: Lens;
+  label: string;
+  icon: NavigationIconName;
+}> = [
+  { id: "discover", label: "Define", icon: "discover" },
+  { id: "design", label: "Design", icon: "design" },
+  { id: "develop", label: "Develop", icon: "develop" },
+  { id: "deploy", label: "Deploy", icon: "deploy" },
 ];
 
-export function SubRail(): JSX.Element {
+export function SubRail({ inert }: { inert?: boolean } = {}): JSX.Element {
   const lens = useCockpit((s) => s.lens);
   const setLens = useCockpit((s) => s.setLens);
   const projectId = useCockpit((s) => s.selection.projectId);
@@ -27,24 +35,35 @@ export function SubRail(): JSX.Element {
   );
 
   return (
-    <aside className="sub" aria-label="Phases">
+    <aside className="sub" aria-label="Phases" inert={inert}>
       <div className="sub-head">
-        <button type="button" className="sub-back" onClick={() => selectProject(projectId)}>
-          ← {projectName}
+        <button
+          type="button"
+          className="sub-back"
+          title={projectName}
+          onClick={() => selectProject(projectId)}
+        >
+          <NavigationIcon name="back" />
+          <span>{projectName}</span>
         </button>
         <span className="sub-branch">{branchName}</span>
       </div>
-      <nav className="sub-list">
+      <nav className="sub-list" aria-label="Project journey">
         {LENSES.map((entry) => (
           <button
             key={entry.id}
             type="button"
             className="sub-row"
-            aria-current={lens === entry.id || (entry.id === "develop" && (lens === "files" || lens === "merge")) ? "page" : undefined}
+            aria-current={
+              lens === entry.id ||
+              (entry.id === "develop" && (lens === "files" || lens === "merge"))
+                ? "page"
+                : undefined
+            }
             onClick={() => setLens(entry.id)}
           >
             <span className="sub-glyph" aria-hidden="true">
-              {entry.glyph}
+              <NavigationIcon name={entry.icon} />
             </span>
             {entry.label}
           </button>

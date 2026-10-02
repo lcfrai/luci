@@ -20,6 +20,8 @@ export function LocalTools({
   const manageBacking = !auth || auth.profile.permissions.manageBacking;
   const [open, setOpen] = useState(false),
     [loaded, setLoaded] = useState(false),
+    [loadAttempt, setLoadAttempt] = useState(0),
+    [loadError, setLoadError] = useState(""),
     [name, setName] = useState(""),
     [email, setEmail] = useState("");
   const [runtime, setRuntime] = useState<RuntimeJob | null>(null),
@@ -30,6 +32,7 @@ export function LocalTools({
   useEffect(() => {
     if (!open || loaded) return;
     let cancelled = false;
+    setLoadError("");
     Promise.all([client.gitIdentity(), client.runtime()])
       .then(([identity, job]) => {
         if (!cancelled) {
@@ -40,12 +43,12 @@ export function LocalTools({
         }
       })
       .catch((e) => {
-        if (!cancelled) setError(errorText(e));
+        if (!cancelled) setLoadError(errorText(e));
       });
     return () => {
       cancelled = true;
     };
-  }, [client, open, loaded]);
+  }, [client, open, loaded, loadAttempt]);
   useEffect(() => {
     if (runtime?.status !== "installing") return;
     const timer = setInterval(() => {
@@ -79,6 +82,25 @@ export function LocalTools({
       <summary>Git identity, agent connection and runtime</summary>
       {open && (
         <div>
+          {!loaded && !loadError && (
+            <p className="journey-muted" role="status">
+              Loading Git identity and runtime…
+            </p>
+          )}
+          {loadError && (
+            <div>
+              <p className="journey-error" role="alert">
+                {loadError}
+              </p>
+              <button
+                className="luci-button"
+                type="button"
+                onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+              >
+                Retry loading Git identity and runtime
+              </button>
+            </div>
+          )}
           {error && (
             <p className="journey-error" role="alert">
               {error}
@@ -90,8 +112,10 @@ export function LocalTools({
             </p>
           )}
           <form
+            aria-busy={!loaded && !loadError}
             onSubmit={(e) => {
               e.preventDefault();
+              if (!loaded || busy) return;
               void run("Saving identity", async () => {
                 await client.saveGitIdentity(name, email);
                 setNotice(
@@ -111,6 +135,7 @@ export function LocalTools({
                 Commit author name
                 <input
                   required
+                  disabled={!loaded || !!busy}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
@@ -120,12 +145,13 @@ export function LocalTools({
                 <input
                   required
                   type="email"
+                  disabled={!loaded || !!busy}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </label>
             </div>
-            <button className="luci-button" disabled={!!busy}>
+            <button className="luci-button" disabled={!loaded || !!busy}>
               Save Git identity
             </button>
           </form>
@@ -144,7 +170,7 @@ export function LocalTools({
               )}
               <button
                 className="luci-button"
-                disabled={!!busy || runtime?.status === "installing"}
+                disabled={!loaded || !!busy || runtime?.status === "installing"}
                 onClick={() =>
                   void run("Starting runtime installation", async () =>
                     setRuntime(await client.installRuntime()),

@@ -44,7 +44,7 @@ func TestWorkspaceSignsIntoRealRemoteGatewayAndPinsCredential(t *testing.T) {
 	if !strings.Contains(metadata.Body.String(), `"bootstrapRequired":true`) {
 		t.Fatal(metadata.Body.String())
 	}
-	journeyRequest(t, mux, "POST", "/v1/setup/workspace/activate", map[string]string{"connectionId": tunnel.ID}, 401)
+	journeyRequest(t, mux, "POST", "/v1/setup/workspace/activate", map[string]string{"connectionId": tunnel.ID}, 409)
 	original := s.runner
 	s.runner = func(ctx context.Context, name string, args []string, dir string) (string, error) {
 		if name != "ssh" {
@@ -57,6 +57,11 @@ func TestWorkspaceSignsIntoRealRemoteGatewayAndPinsCredential(t *testing.T) {
 		return string(data), err
 	}
 	journeyRequest(t, mux, "POST", "/v1/setup/workspace/auth", map[string]string{"connectionId": tunnel.ID, "username": "remote-owner", "displayName": "Remote Owner", "password": "remote-password-long-enough"}, 200)
+	failed := journeyRequest(t, mux, "POST", "/v1/setup/workspace/auth", map[string]string{"connectionId": tunnel.ID, "username": "remote-owner", "password": "incorrect-remote-password"}, 409)
+	if !strings.Contains(failed.Body.String(), "backing_sign_in_failed") {
+		t.Fatal("Remote credentials must not expire the separate local browser identity", failed.Body.String())
+	}
+	journeyRequest(t, mux, "POST", "/v1/setup/workspace/auth", map[string]string{"connectionId": tunnel.ID, "username": "remote-owner", "password": "remote-password-long-enough"}, 200)
 	journeyRequest(t, mux, "POST", "/v1/setup/workspace/activate", map[string]string{"connectionId": tunnel.ID}, 200)
 	proxy := s.ProxyWorkspace(http.NotFoundHandler())
 	req := httptest.NewRequest("GET", "/v1/projects", nil)

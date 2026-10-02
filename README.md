@@ -12,6 +12,8 @@ The Admin screen manages users, workspace processes and audit events on this mac
 
 See the [operator runbook](docs/RUNBOOK.md), [provider setup](docs/luci/PROVIDERS.md) and [release guide](docs/luci/RELEASE.md) for prerequisites and verified limits.
 
+The [UAT guide](docs/UAT.md) walks through the three onboarding choices and the complete project journey. [DESIGN.md](DESIGN.md) describes the implemented visual and interaction system.
+
 ## Structure
 
 - `desktop/` — React/Tauri interface, Excalidraw and terminal cockpit

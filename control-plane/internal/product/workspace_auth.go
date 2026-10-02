@@ -210,7 +210,7 @@ func (s *Server) loginWorkspace(w http.ResponseWriter, r *http.Request) {
 		User  management.User `json:"user"`
 	}
 	if err = remoteWorkspaceAPI(r.Context(), t.APIURL, "POST", endpoint, "", input, &response); err != nil {
-		problem(w, 401, "backing_sign_in_failed", err.Error())
+		problem(w, 409, "backing_sign_in_failed", err.Error())
 		return
 	}
 	if len(response.Token) < 40 || response.User.ID == "" {

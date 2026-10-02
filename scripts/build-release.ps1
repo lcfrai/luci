@@ -1,5 +1,5 @@
 #requires -Version 7.0
-param([string]$Version = '0.4.0', [switch]$Native)
+param([string]$Version = '0.4.1', [switch]$Native)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$') { throw 'Version must be a semantic version.' }
@@ -101,8 +101,9 @@ try {
         try { & go build -trimpath -ldflags '-s -w' -o (Join-Path $luciPackage ('luci' + $luciTarget.suffix)) ./control-plane/cmd/api; Confirm-Exit ($luciName + ' service build') } finally { Pop-Location }
         Copy-Tree (Join-Path $luciRoot 'desktop/dist') (Join-Path $luciPackage 'web')
         Copy-Tree $luciRuntime (Join-Path $luciPackage 'runtime')
-        foreach ($luciDoc in @('LICENSE','NOTICE','README.md')) { Copy-Item -LiteralPath (Join-Path $luciRoot $luciDoc) -Destination $luciPackage }
+        foreach ($luciDoc in @('LICENSE','NOTICE','README.md','DESIGN.md')) { Copy-Item -LiteralPath (Join-Path $luciRoot $luciDoc) -Destination $luciPackage }
         Copy-Tree (Join-Path $luciRoot 'docs/luci') (Join-Path $luciPackage 'docs/luci')
+        foreach ($luciDoc in @('UAT.md','RUNBOOK.md')) { Copy-Item -LiteralPath (Join-Path $luciRoot ('docs/' + $luciDoc)) -Destination (Join-Path $luciPackage ('docs/' + $luciDoc)) }
         $luciLicenses = Join-Path $luciPackage 'licenses'
         & python (Join-Path $PSScriptRoot 'collect-licenses.py') $luciRoot $luciLicenses
         Confirm-Exit ($luciName + ' strict licence collection')

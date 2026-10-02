@@ -134,10 +134,11 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
           </button>
         )}
       </JourneyHeader>
-      <div className="journey-actions" aria-label="Deployment destination">
+      <div className="journey-actions" role="group" aria-label="Deployment destination">
         <button
           className="luci-button"
           aria-pressed={mode === "local"}
+          disabled={locked}
           onClick={() => setMode("local")}
         >
           {setup?.workspace?.mode === "cloud"
@@ -147,16 +148,12 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
         <button
           className="luci-button"
           aria-pressed={mode === "cloud"}
+          disabled={locked}
           onClick={() => setMode("cloud")}
         >
           Your cloud
         </button>
       </div>
-      <ProjectConfiguration
-        projectId={projectId}
-        disabled={!!busy}
-        onBusyChange={setConfigurationBusy}
-      />
       {error && (
         <p className="journey-error" role="alert">
           {error}
@@ -176,6 +173,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
             Dockerfile
             <input
               required
+              disabled={locked}
               value={dockerfile}
               onChange={(event) => setDockerfile(event.target.value)}
             />
@@ -184,6 +182,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
             App port
             <input
               required
+              disabled={locked}
               type="number"
               min="1"
               max="65535"
@@ -211,6 +210,11 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
           }
         />
       )}
+      <ProjectConfiguration
+        projectId={projectId}
+        disabled={!!busy}
+        onBusyChange={setConfigurationBusy}
+      />
       <div className="journey-header deploy-history-head">
         <div>
           <h2>Releases</h2>

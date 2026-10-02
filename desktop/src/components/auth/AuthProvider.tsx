@@ -167,14 +167,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <main className="auth-screen">
       <section className="auth-card">
-        <p className="journey-eyebrow">
-          LUCI · {status?.instanceName || "YOUR WORKSPACE"}
-        </p>
         <h1>
           {status?.bootstrapRequired
             ? "Make this workspace yours."
             : "Welcome back."}
         </h1>
+        <p className="auth-workspace journey-muted">
+          {status?.instanceName || "Luci"}
+        </p>
         <p className="journey-muted">
           {status?.bootstrapRequired
             ? "Create the first Super Admin. This account manages people, execution backing and workspace policy."
@@ -189,6 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         {!loading && status && (
           <form
             className="journey-form"
+            aria-busy={busy}
             onSubmit={(event) => {
               event.preventDefault();
               if (busy) return;
@@ -217,15 +218,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             {status.bootstrapRequired && (
               <>
                 <label className="luci-field">
-                  Bootstrap token
+                  <span id="auth-bootstrap-label">Bootstrap token</span>
                   <input
                     type="password"
                     autoComplete="off"
                     required
+                    disabled={busy}
+                    autoFocus={!bootstrapToken}
+                    aria-labelledby="auth-bootstrap-label"
+                    aria-describedby="auth-bootstrap-help"
                     value={bootstrapToken}
                     onChange={(event) => setBootstrapToken(event.target.value)}
                   />
-                  <small>
+                  <small id="auth-bootstrap-help">
                     {bootstrapToken
                       ? "Loaded for the managed local service, or entered by you."
                       : `Use the one-time token on the control-plane host${status.bootstrapTokenPath ? ` at ${status.bootstrapTokenPath}` : ""}.`}
@@ -235,6 +240,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   Display name
                   <input
                     required
+                    disabled={busy}
+                    autoFocus={!!bootstrapToken}
                     value={displayName}
                     onChange={(event) => setDisplayName(event.target.value)}
                     autoComplete="name"
@@ -243,25 +250,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               </>
             )}
             <label className="luci-field">
-              Username
+              <span id="auth-username-label">Username</span>
               <input
                 required
+                disabled={busy}
+                autoFocus={!status.bootstrapRequired}
+                autoCapitalize="none"
+                spellCheck={false}
+                maxLength={64}
+                minLength={status.bootstrapRequired ? 3 : undefined}
+                pattern={
+                  status.bootstrapRequired
+                    ? "[A-Za-z0-9][A-Za-z0-9_.\\-]{2,63}"
+                    : undefined
+                }
+                aria-labelledby="auth-username-label"
+                aria-describedby={
+                  status.bootstrapRequired ? "auth-username-help" : undefined
+                }
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 autoComplete="username"
               />
+              {status.bootstrapRequired && (
+                <small id="auth-username-help">
+                  3–64 characters. Start with a letter or number; dots,
+                  underscores and hyphens are allowed.
+                </small>
+              )}
             </label>
             <label className="luci-field">
-              Password
+              <span id="auth-password-label">Password</span>
               <input
                 required
+                disabled={busy}
                 type="password"
+                minLength={status.bootstrapRequired ? 12 : undefined}
+                aria-labelledby="auth-password-label"
+                aria-describedby={
+                  status.bootstrapRequired ? "auth-password-help" : undefined
+                }
                 autoComplete={
                   status.bootstrapRequired ? "new-password" : "current-password"
                 }
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />
+              {status.bootstrapRequired && (
+                <small id="auth-password-help">
+                  Use at least 12 characters.
+                </small>
+              )}
             </label>
             <button className="luci-button luci-primary" disabled={busy}>
               {busy
@@ -272,7 +311,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             </button>
           </form>
         )}
-        {!loading && (
+        {busy && (
+          <p role="status">
+            {status?.bootstrapRequired
+              ? "Creating your workspace account…"
+              : "Signing in to your workspace…"}
+          </p>
+        )}
+        {!loading && (error || !status) && (
           <button
             className="luci-button"
             disabled={busy}

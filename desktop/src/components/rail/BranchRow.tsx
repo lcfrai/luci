@@ -1,3 +1,4 @@
+import { NavigationIcon } from "../common/NavigationIcon";
 // Contract §6.2: one branch row. Click selects the branch AND sets lens "develop". Its dot is
 // the highest-attention status among its sessions, and clicking the dot navigates to the first
 // session carrying that status — AGENTIC-UX §10 rule 7, every aggregate names its fact.
@@ -8,7 +9,10 @@
 import type { JSX } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useCockpit } from "../../store/store";
-import { selectBranchAttentionSessionId, selectWorktrees } from "../../store/selectors";
+import {
+  selectBranchAttentionSessionId,
+  selectWorktrees,
+} from "../../store/selectors";
 import { StatusDot } from "../common/StatusDot";
 import { WorktreeRow } from "./WorktreeRow";
 import type { Branch } from "../../store/types";
@@ -53,14 +57,21 @@ export function BranchRow(props: {
         }}
         onContextMenu={(event) => {
           event.preventDefault();
-          openContextMenu({ kind: "branch", id: branch.id, x: event.clientX, y: event.clientY });
+          openContextMenu({
+            kind: "branch",
+            id: branch.id,
+            x: event.clientX,
+            y: event.clientY,
+          });
         }}
       >
         <span
-          className={worktrees.length > 0 ? "rail-chev" : "rail-chev rail-chev-empty"}
+          className={
+            worktrees.length > 0 ? "rail-chev" : "rail-chev rail-chev-empty"
+          }
           aria-hidden="true"
         >
-          {expanded ? "▾" : "▸"}
+          <NavigationIcon name={expanded ? "chevron-down" : "chevron-right"} />
         </span>
         {attentionStatus === undefined ? null : (
           <button

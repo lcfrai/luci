@@ -20,6 +20,7 @@ import zipfile
 
 
 ROOT_FILES = {
+    "DESIGN.md", "docs/UAT.md",
     ".dockerignore", ".gitattributes", ".gitignore", "AGENTS.md", "CLAUDE.md",
     "CONTEXT.md", "LICENSE", "NOTICE", "README.md", "go.work", "go.work.sum",
     "docs/DESIGN-SYSTEM.md", "docs/PROGRAM.md", "docs/RUNBOOK.md", "docs/SEAMS.md",

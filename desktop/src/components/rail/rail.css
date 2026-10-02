@@ -1,6 +1,20 @@
 @import "../../styles/tokens.css";
-.rail-workspace { display: grid; gap: 4px; background: none; border: 0; color: var(--accent-hi); padding: 8px 16px; text-align: left; max-inline-size: 100%; cursor: pointer; }
-.rail-workspace span { overflow-wrap: anywhere; color: var(--ink-2); font-size: 11px; }
+.rail-workspace {
+  display: grid;
+  gap: 4px;
+  background: none;
+  border: 0;
+  color: var(--accent-hi);
+  padding: 8px 16px;
+  text-align: left;
+  max-inline-size: 100%;
+  cursor: pointer;
+}
+.rail-workspace span {
+  overflow-wrap: anywhere;
+  color: var(--ink-2);
+  font-size: 11px;
+}
 
 /* The rail. Owns .rail-*. */
 .rail {
@@ -16,10 +30,32 @@
   overflow-y: auto;
   padding: 4px;
 }
-.rail-brand { display: flex; align-items: center; justify-content: space-between; padding: 16px 14px 8px; font-size: 20px; letter-spacing: -.04em; }
-.rail-brand button, .rail-settings { background: none; border: 0; color: var(--ink-2); cursor: pointer; border-radius: var(--r-ctl); padding: 3px 6px; }
-.rail-brand button:hover, .rail-settings:hover { background: var(--hover); color: var(--ink); }
-.rail-settings { margin-inline-end: 12px; padding: 3px 0; }
+.rail-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 14px 8px;
+  font-size: 20px;
+  letter-spacing: -0.04em;
+}
+.rail-brand button,
+.rail-settings {
+  background: none;
+  border: 0;
+  color: var(--ink-2);
+  cursor: pointer;
+  border-radius: var(--r-ctl);
+  padding: 3px 6px;
+}
+.rail-brand button:hover,
+.rail-settings:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.rail-settings {
+  margin-inline-end: 12px;
+  padding: 3px 0;
+}
 .rail-row {
   display: flex;
   align-items: center;
@@ -150,4 +186,86 @@
 .rail-row:hover .rail-add,
 .rail-add:focus-visible {
   opacity: 1;
+}
+
+.rail-brand {
+  padding: 16px 16px 12px;
+  letter-spacing: -0.03em;
+}
+.rail-brand-actions {
+  display: flex;
+  gap: 4px;
+}
+.rail-brand button {
+  min-block-size: 36px;
+  min-inline-size: 36px;
+  display: grid;
+  place-items: center;
+}
+.rail-scroll {
+  padding: 8px;
+}
+.rail-row {
+  min-block-size: 36px;
+}
+.rail-machine {
+  padding: 12px 16px;
+}
+.rail-footer {
+  gap: 8px;
+  padding: 12px 16px;
+}
+.rail-footer > div,
+.rail-account {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rail-settings {
+  min-block-size: 36px;
+  padding: 6px 8px;
+  margin: 0;
+}
+.rail-account .rail-settings:first-child {
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+.rail-workspace span {
+  font-size: 12px;
+}
+.rail-footer-error {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px), (pointer: coarse) {
+  .rail-brand button,
+  .rail-row,
+  .rail-settings,
+  .rail-add,
+  .rail-dot-btn {
+    min-block-size: 44px;
+  }
+  .rail-brand button,
+  .rail-add,
+  .rail-dot-btn {
+    min-inline-size: 44px;
+  }
+  .rail-add {
+    opacity: 1;
+  }
+}
+
+.rail-chev {
+  display: flex;
+  flex: 0 0 14px;
+  inline-size: 14px;
+}
+.rail-chev svg {
+  inline-size: 14px;
+}
+.rail-add {
+  display: grid;
+  place-items: center;
 }
