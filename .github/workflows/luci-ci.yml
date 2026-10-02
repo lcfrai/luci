@@ -559,7 +559,6 @@ jobs:
       - name: Run the original full portable sequence with diagnostic capture
         if: ${{ inputs.portable_build }}
         run: |
-          & powershell.exe -NoLogo -NoProfile -NonInteractive -Command '$PSVersionTable | ConvertTo-Json' | Set-Content artifacts/package-eval/ci-build-diagnostic/powershell-version.json
           node (Join-Path $env:LUCI_DIAGNOSTIC_HARNESS 'verify-portable.mjs') "artifacts/releases/$env:LUCI_VERSION/luci-windows-amd64" artifacts/package-eval/ci-build-diagnostic
           if ($LASTEXITCODE -ne 0) { throw 'Full portable acceptance failed; inspect bounded redacted launcher diagnostics' }
       - name: Download the independently pinned private portable package
@@ -593,9 +592,17 @@ jobs:
       - name: Exercise the actual shipped launcher with diagnostic capture
         if: ${{ !inputs.portable_build }}
         run: |
-          & powershell.exe -NoLogo -NoProfile -NonInteractive -Command '$PSVersionTable | ConvertTo-Json' | Set-Content artifacts/package-eval/portable-diagnostic/powershell-version.json
           node scripts/portable-launcher-eval.mjs artifacts/diagnostic-portable/package artifacts/package-eval/portable-diagnostic
           if ($LASTEXITCODE -ne 0) { throw 'Actual portable launcher acceptance failed; inspect its bounded redacted JSON diagnostics' }
+      - name: Record Windows PowerShell version only after acceptance
+        if: always()
+        run: |
+          # Do not warm Windows PowerShell before its first real launcher start.
+          foreach ($evidence in @('artifacts/package-eval/portable-diagnostic', 'artifacts/package-eval/ci-build-diagnostic')) {
+            if (Test-Path -LiteralPath $evidence -PathType Container) {
+              & powershell.exe -NoLogo -NoProfile -NonInteractive -Command '$PSVersionTable | ConvertTo-Json' | Set-Content (Join-Path $evidence 'powershell-version.json')
+            }
+          }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
