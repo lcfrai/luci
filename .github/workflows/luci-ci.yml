@@ -145,7 +145,8 @@ jobs:
           cp scripts/runtime-smoke.mjs "$stage/scripts/runtime-smoke.mjs"
           cp scripts/provider-smoke.py "$stage/scripts/provider-smoke.py"
           cp scripts/workspace-browser-eval.mjs "$stage/scripts/workspace-browser-eval.mjs"
-          ln -s "$GITHUB_WORKSPACE/desktop" "$stage/desktop"
+          mkdir -p "$stage/desktop"
+          cp -a desktop/dist desktop/scripts desktop/node_modules desktop/package.json "$stage/desktop/"
           cp -R images/sandbox "$stage/images/sandbox"
           for source in cmd internal vendor go.mod go.sum; do cp -R "sandboxd/$source" "$stage/sandboxd/$source"; done
           chmod -R a+rX "$stage"
