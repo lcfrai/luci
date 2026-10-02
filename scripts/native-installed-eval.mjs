@@ -145,8 +145,12 @@ async function visibleProjectIDs() {
   assert.equal(value.status, 200);
   return value.ids;
 }
-async function signOut() {
+async function signOut(expectFirstRunSetup = false) {
+  // A fresh account's setup status can arrive after its shell has mounted.
+  // Wait for that real dialog before normal dismissal; never click through it.
+  if (expectFirstRunSetup) await bodyHas("Choose your workspace");
   if (await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Close settings");
+  await until("setup dialog dismissed before account menu", () => execute("return !document.querySelector('.setup-backdrop')"));
   await click(".rail-account button:first-child", "css");
   await click("Sign out");
   await element("label", "Username");
@@ -177,7 +181,7 @@ async function verifyLocalEntryRecovery() {
   assert(!(await visibleProjectIDs()).some(id => ownerProjects.includes(id)), "The new account's real catalogue must not include the owner's projects");
   assert.equal(await execute("return [...document.querySelectorAll('[data-kind=project]')].some(e=>e.textContent.includes(arguments[0]))", fixture.projectName), false);
   result.checks.push("An initialized native installation offered OS-authorized account creation after rejected credentials; the new local administrator has a distinct identity and cannot see the owner's project");
-  await signOut();
+  await signOut(true);
   await click("Forgot sign-in?");
   const replacement = randomUUID() + randomUUID();
   await fill("New password", replacement);
@@ -206,7 +210,7 @@ async function verifyLocalEntryRecovery() {
 async function verifyPartialFirstRunEntry() {
   assert.equal(existsSync(join(productStateDir(), "luci.json")), false, "Account-only fixture must not have saved workspace configuration");
   await bodyHas("Choose your workspace");
-  await signOut();
+  await signOut(true);
   await element("button", "Create account");
   await element("button", "Forgot sign-in?");
   await fill("Username", fixture.username);

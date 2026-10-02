@@ -99,7 +99,12 @@ async function profile(service, page) {
 }
 async function closeSettings(page) {
   const close = page.getByRole("button", { name: "Close settings", exact: true });
-  if (await close.isVisible()) await close.click();
+  // These entry fixtures deliberately never save workspace setup. Each new
+  // authenticated shell opens its first-run dialog after /v1/setup/status;
+  // shell visibility alone is earlier than that asynchronous transition.
+  await close.waitFor({ state: "visible", timeout: 15000 });
+  await close.click();
+  await page.locator(".setup-backdrop").waitFor({ state: "hidden", timeout: 15000 });
 }
 async function signOut(page) {
   await closeSettings(page);
@@ -253,6 +258,13 @@ try {
   const refused = ownerPage.waitForResponse(response => response.url() === portable.base + "/v1/auth/login");
   await ownerPage.getByRole("button", { name: "Sign in", exact: true }).click();
   assert.equal((await refused).status(), 401);
+  // Keep the real status response, but delay delivery to reproduce a slow
+  // first-run modal. Account-menu clicks must wait for its normal dismissal.
+  await ownerPage.route("**/v1/setup/status", async route => {
+    const response = await route.fetch();
+    await delay(600);
+    await route.fulfill({ response });
+  });
   await ownerPage.getByRole("button", { name: "Create account", exact: true }).click();
   assert.equal(await ownerPage.getByLabel("Invitation code", { exact: true }).count(), 0, "An OS-owned launcher must use its actual local capability");
   await register(ownerPage, { username: "portable-second-owner", displayName: "Separate Portable Account", password: secret() }, "Create account");
@@ -262,6 +274,7 @@ try {
   assert.equal(second.user.role, "super-admin");
   assert(!(await api(portable, "GET", "/v1/projects", undefined, second.token)).projects.some(row => row.id === project.id));
   await signOut(ownerPage);
+  await ownerPage.unroute("**/v1/setup/status");
   // A second, still-live owner session proves recovery revokes more than the
   // browser's already-signed-out bearer. It belongs only to this fixture.
   const prior = await api(portable, "POST", "/v1/auth/login", { username: portableIdentity.username, password: portableIdentity.password }); secrets.add(prior.token);
