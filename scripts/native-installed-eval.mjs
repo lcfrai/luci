@@ -29,7 +29,7 @@ const result = { mode, passed: false, executable, checks: [], limitations: [
   "WebDriver controls the release WebView2; no model inference or cloud deployment is exercised.",
   "The Windows runner has a prepared WebView2 runtime; first-time runtime download is not covered.",
 ] };
-let session, apiURL, appPID, childPID, localAccess;
+let session, apiURL, appPID, childPID, localAccess, structuredUI = false;
 const wdURL = "http://127.0.0.1:4444";
 const elementKey = "element-6066-11e4-a52e-4f735466cecf";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -86,6 +86,13 @@ async function fill(name, value) {
   await command(`/element/${e[elementKey]}/value`, "POST", { text: value });
 }
 const bodyHas = (text) => until(text, () => execute("return document.body.innerText.includes(arguments[0])", text));
+const workspaceReady = () => until("authenticated workspace or onboarding portal", () => execute("return !document.querySelector('.auth-screen') && !!document.querySelector('.shell,.onboarding-portal')"));
+async function dismissSetup() {
+  await workspaceReady();
+  if (await execute("return !!document.querySelector('.onboarding-portal')")) await click("Continue to projects");
+  else if (await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Close settings");
+  await until("project workspace available", () => execute("return !!document.querySelector('.shell') && !document.querySelector('.setup-backdrop,.onboarding-portal')"));
+}
 function powershell(script) {
   return execFileSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true }).trim();
 }
@@ -101,7 +108,7 @@ async function snapshot(name) {
   writeFileSync(join(evidence, `${mode}-${name}.png`), Buffer.from(png, "base64"));
 }
 async function authenticate() {
-  await until("native frontend ready", () => execute("return !!document.querySelector('.auth-screen,.shell')"), 60_000);
+  await until("native frontend ready", () => execute("return !!document.querySelector('.auth-screen,.shell,.onboarding-portal')"), 60_000);
   if (await execute("return !!document.querySelector('.auth-screen')")) {
     const bootstrap = localAccess?.available
       ? (await (await fetch(apiURL + "/v1/control-plane/status")).json()).bootstrapRequired
@@ -117,7 +124,7 @@ async function authenticate() {
     await fill("Password", fixture.password);
     if (bootstrap && localAccess?.available) await fill("Confirm password", fixture.password);
     await click(bootstrap ? (localAccess?.available ? "Create account" : "Create Super Admin account") : "Sign in");
-    await until("authenticated shell", () => execute("return !!document.querySelector('.shell')"));
+    await workspaceReady();
     result.checks.push(bootstrap ? "Native bootstrap token and first Super Admin created through installed UI" : "Existing account signed in through installed UI");
   }
 }
@@ -160,9 +167,8 @@ async function signOut(expectFirstRunSetup = false) {
   if (expectFirstRunSetup) assert.equal(setup.configured, false, "The original owner's interrupted first setup must remain unsaved");
   if (!setup.configured) {
     await bodyHas("Choose your workspace");
-    await click("Close settings");
   }
-  await until("setup dialog dismissed before account menu", () => execute("return !document.querySelector('.setup-backdrop')"));
+  await dismissSetup();
   await click(".rail-account button:first-child", "css");
   await click("Sign out");
   await element("label", "Username");
@@ -186,7 +192,7 @@ async function verifyLocalEntryRecovery() {
   await fill("Password", secondPassword);
   await fill("Confirm password", secondPassword);
   await click("Create account");
-  await until("new native local account entered its own workspace", () => execute("return !!document.querySelector('.shell')"));
+  await workspaceReady();
   const second = await visibleProfile();
   assert.notEqual(second.id, owner.id, "Creating another account must not replace the existing owner");
   assert.equal(second.role, "super-admin", "The OS-owned local creation control grants administration only inside this owned installation");
@@ -199,7 +205,7 @@ async function verifyLocalEntryRecovery() {
   await fill("New password", replacement);
   await fill("Confirm password", replacement);
   await click("Recover owner account");
-  await until("recovered owner entered the saved workspace", () => execute("return !!document.querySelector('.shell')"));
+  await workspaceReady();
   assert.equal((await visibleProfile()).id, owner.id, "Recovery must authenticate the original owner identity");
   await verifyProject();
   for (const [name, digest] of before) assert.equal(createHash("sha256").update(readFileSync(join(fixture.projectRoot, fixture.projectName, name))).digest("hex"), digest, "Account recovery must preserve " + name);
@@ -211,7 +217,7 @@ async function verifyLocalEntryRecovery() {
   await bodyHas("The username or password is incorrect.");
   await fill("Password", replacement);
   await click("Sign in");
-  await until("replacement credentials signed in", () => execute("return !!document.querySelector('.shell')"));
+  await workspaceReady();
   assert.equal((await visibleProfile()).id, owner.id);
   fixture.password = replacement;
   fixture.entryVerified = true;
@@ -238,17 +244,28 @@ async function verifyPartialFirstRunEntry() {
   result.checks.push("Immediately after first account creation, sign-out and rejected credentials preserved create/recovery choices before any workspace setup was saved");
 }
 async function settings() {
-  if (!await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Settings");
+  if (!await execute("return !!document.querySelector('.onboarding-portal,[aria-label=\"Close settings\"]')")) await click("Settings");
   await until("local setup choice or projects folder", () => execute("return document.body.innerText.includes('On this computer') || [...document.querySelectorAll('label')].some(e=>e.textContent.includes('Projects folder'))"));
   if (await execute("return !!document.querySelector('button[aria-labelledby=\"setup-route-local\"]')")) await click("On this computer");
 }
 async function verifyProject() {
-  if (await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Close settings");
+  await dismissSetup();
   await click('[data-kind="project"]', "css");
   await click("Define");
+  if (structuredUI) await click("Specification");
   const idea = await element("label", "The idea");
   assert.equal(await command(`/element/${idea[elementKey]}/property/value`, "GET", undefined), fixture.purpose);
+  if (fixture.hasSpecification) {
+    const requirement = await element("label", "Requirement 1");
+    assert.equal(await command(`/element/${requirement[elementKey]}/property/value`, "GET", undefined), fixture.requirement);
+    const spec = readProjectJSON(".luci/state.json").specification;
+    assert.equal(spec.status, "approved");
+    assert.equal(spec.revision, fixture.specificationRevision);
+    assert.equal(spec.digest, fixture.specificationDigest);
+    result.checks.push("Approved structured definition and stable requirement survived restart without revision or digest changes");
+  }
   await click("Design");
+  if (structuredUI) await click("Sketch");
   await bodyHas("Design 1");
   await element("css", ".excalidraw canvas");
   await snapshot("persisted-design");
@@ -265,6 +282,7 @@ async function verifyProject() {
   await snapshot("persisted-git");
   if (fixture.hasConfiguration) {
     await click("Deploy");
+    if (structuredUI) await element("css", '.deployment-tabs button[aria-current="page"]');
     await bodyHas("NATIVE_UAT_MESSAGE");
     const value = await element("label", "Private value");
     assert.equal(await command(`/element/${value[elementKey]}/property/value`, "GET", undefined), "");
@@ -302,6 +320,10 @@ try {
   if (expectedVersion) assert.equal(result.applicationVersion, expectedVersion, "The actually installed seed must match the independently selected previous version");
   const [major, minor, patch] = result.applicationVersion.split(".").map(Number);
   assert([major, minor, patch].every(Number.isInteger), "Candidate version must be explicit");
+  // Retained 0.3/0.4.x installers seed their original UI; the new product
+  // version must exercise its portal and structured project workspaces.
+  structuredUI = major > 0 || minor > 4 || (minor === 4 && patch >= 4);
+  result.projectUI = structuredUI ? "structured definition and design" : "historical brief and canvas";
   const historical = major === 0 && (minor < 4 || (minor === 4 && patch < 2));
   const requireEntry = !historical; // Historical 0.3/0.4.1 upgrade seeds predate these controls.
   if (requireEntry) {
@@ -335,29 +357,62 @@ try {
     await fill("Projects folder", fixture.projectRoot);
     await click("Save settings");
     await until("projects folder persisted", () => JSON.parse(readFileSync(join(productStateDir(), "luci.json"), "utf8")).projectsDir === fixture.projectRoot);
-    await click("Git identity, agent connection and runtime");
-    // The existing candidate loads identity and runtime together. Wait for its
-    // visible loaded state, so initial GET completion cannot replace typing.
-    await element("css", ".local-tools > div > section.setup-plan:first-of-type [role=status]");
+    // Portal identity is already expanded. Never toggle it closed, and wait
+    // for the real enabled fields so initial loading cannot replace typing.
+    if (!await execute("return !!document.querySelector('.local-tools[open]')")) {
+      await click(structuredUI ? "Your Git commit identity" : "Git identity, agent connection and runtime");
+    }
     await fill("Commit author name", "Native Acceptance");
     await fill("Commit author email", "native@example.invalid");
     await click("Save Git identity");
     await until("Git identity persisted", () => ["user.name", "user.email"].map((key) => execFileSync("git", ["config", "--global", "--get", key], { encoding: "utf8", windowsHide: true }).trim()).join("\n") === "Native Acceptance\nnative@example.invalid");
     result.checks.push("Projects folder and Git identity saved through the installed Settings UI");
+    if (structuredUI) {
+      await click("Continue to projects");
+      await bodyHas("Your projects");
+      assert.equal(await execute("return !!document.querySelector('.onboarding-portal,.setup-backdrop')"), false);
+      result.checks.push("Completed the full-page onboarding portal and reached the independent projects home");
+    }
     await click("New project");
+    if (structuredUI) await element("css", '.project-entry[role="dialog"][aria-modal="true"]');
     await fill("Project name", fixture.projectName);
     await click("Create project");
+    if (structuredUI) await click("Specification");
     await fill("The idea", fixture.purpose);
     await fill("Who it is for", "People using the installed Windows application.");
-    await fill("What good looks like", "Brief and drawing survive a restart.\nGit records the actual saved work.");
-    await click("Save brief");
+    if (structuredUI) {
+      fixture.requirement = "Saved project work survives an installed application restart";
+      await fill("Boundaries and constraints", "Disposable native acceptance only; no model or cloud account.");
+      await click("Add requirement");
+      await fill("Requirement 1", fixture.requirement);
+      await fill("Acceptance scenario 1", "Given saved project work, when Luci closes and reopens, then the brief, sketch and Git history remain unchanged.");
+      await click("Save definition");
+    } else {
+      await fill("What good looks like", "Brief and drawing survive a restart.\nGit records the actual saved work.");
+      await click("Save brief");
+    }
     await until("brief revision persisted", () => {
       const brief = readProjectJSON(".luci/state.json").brief;
       return brief.revision === 1 && brief.purpose === fixture.purpose;
     });
     result.checks.push("Created the project and saved brief revision 1 through the installed UI");
+    if (structuredUI) {
+      await until("structured definition persisted", () => readProjectJSON(".luci/state.json").specification?.revision === 1);
+      await click("Approve definition");
+      const spec = await until("definition approval persisted", () => {
+        const value = readProjectJSON(".luci/state.json").specification;
+        return value?.status === "approved" && value.revision === 2 && value.digest && value;
+      });
+      assert.equal(spec.briefRevision, 1);
+      assert.equal(spec.requirements[0].title, fixture.requirement);
+      fixture.hasSpecification = true;
+      fixture.specificationRevision = spec.revision;
+      fixture.specificationDigest = spec.digest;
+      result.checks.push("Saved and explicitly approved a structured definition with a stable requirement, acceptance scenario and digest");
+    }
     await snapshot("brief");
     await click("Design");
+    if (structuredUI) await click("Sketch");
     const canvas = await element("css", ".excalidraw__canvas.interactive");
     // Excalidraw overlays its radio inputs with icon SVGs. Use the documented
     // real keyboard shortcut after focusing the canvas, as the browser UAT does.
@@ -408,6 +463,15 @@ try {
     await snapshot("git");
     if (!result.applicationVersion.startsWith("0.3.")) {
       await click("Deploy");
+      if (structuredUI) {
+        const selected = await element("css", '.deployment-tabs button[aria-current="page"]');
+        assert.equal(await command(`/element/${selected[elementKey]}/text`, "GET", undefined), "Application platform");
+        await bodyHas("Deploy and operate");
+        await click("Previews and publishing");
+        await bodyHas("Build local preview");
+        await click("Application platform");
+        result.checks.push("Deploy opens the application platform and exposes previews/publishing through its explicit workspace tab");
+      }
       fixture.privateValue = "fixture-only-" + randomUUID();
       await fill("Variable name", "NATIVE_UAT_MESSAGE");
       await fill("Private value", fixture.privateValue);

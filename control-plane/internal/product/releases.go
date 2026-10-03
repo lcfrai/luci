@@ -17,6 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
 )
 
 type Release struct {
@@ -424,7 +426,7 @@ func archiveCommittedProject(ctx context.Context, dir, commit, destination strin
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	args := append(append([]string{}, journeyGitFlags...), "archive", "--format=tar", commit)
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := exec.CommandContext(ctx, "git", gitcommand.PlatformArgs(dir, args)...)
 	cmd.Dir = dir
 	cmd.WaitDelay = 2 * time.Second
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")

@@ -7,7 +7,11 @@ import { classify } from "../api/problems";
 import { resolveDefaults, toCreateRequest } from "../store/defaults";
 import { selectResolvedDefaults } from "../store/selectors";
 import { useCockpit } from "../store/store";
-import type { HarnessId, SessionDefaultsOverride, WorktreeId } from "../store/types";
+import type {
+  HarnessId,
+  SessionDefaultsOverride,
+  WorktreeId,
+} from "../store/types";
 
 export interface CreateSessionOptions {
   /** Forces a harness — "Open a shell here" passes "shell". Re-clamped like any override. */
@@ -65,43 +69,56 @@ export function __resetCreateSession(): void {
 export function useCreateSession(): (
   worktreeId: WorktreeId,
   options?: CreateSessionOptions,
-) => Promise<void> {
-  return useCallback(async (worktreeId: WorktreeId, options?: CreateSessionOptions) => {
-    const state = useCockpit.getState();
-    const wanted: SessionDefaultsOverride = {
-      ...options?.overrides,
-      ...(options?.harness === undefined ? {} : { harness: options.harness }),
-    };
-    // Re-resolve rather than spread: switching harness invalidates model, effort and
-    // permission mode, and resolveDefaults is the only place that clamp lives (§3.6).
-    const resolved = resolveDefaults(selectResolvedDefaults(state), wanted, undefined, state.harnesses);
-    const harness = state.harnesses.find((h) => h.id === resolved.harness);
-    if (harness === undefined) {
-      state.pushToast("No harness is available on this machine, so no session can be started.");
-      return;
-    }
-
-    state.setLoading("sessions", true);
-    try {
-      const session = await api.createSession(
-        toCreateRequest(worktreeId, resolved, harness, {
-          openingPrompt: options?.openingPrompt,
-          title: options?.title,
-        }),
+) => Promise<{ ok: true } | { ok: false; message: string }> {
+  return useCallback(
+    async (worktreeId: WorktreeId, options?: CreateSessionOptions) => {
+      const state = useCockpit.getState();
+      const wanted: SessionDefaultsOverride = {
+        ...options?.overrides,
+        ...(options?.harness === undefined ? {} : { harness: options.harness }),
+      };
+      // Re-resolve rather than spread: switching harness invalidates model, effort and
+      // permission mode, and resolveDefaults is the only place that clamp lives (§3.6).
+      const resolved = resolveDefaults(
+        selectResolvedDefaults(state),
+        wanted,
+        undefined,
+        state.harnesses,
       );
-      state.upsertSession(session);
-      // Read live: `state` is the snapshot from before the await, and its `lastError` is stale.
-      if (raised !== null && useCockpit.getState().lastError === raised) state.setError(null);
-      state.selectWorktree(worktreeId);
-      // Focus is what makes defect 4's scroll-into-view fire in task 20's ColumnsLayout.
-      state.focusSession(session.id);
-    } catch (caught) {
-      const error = caught as ApiError;
-      raised = { code: error.code, message: error.message };
-      state.setError(raised);
-      state.pushToast(sentenceFor(error));
-    } finally {
-      useCockpit.getState().setLoading("sessions", false);
-    }
-  }, []);
+      const harness = state.harnesses.find((h) => h.id === resolved.harness);
+      if (harness === undefined) {
+        const message =
+          "No harness is available on this machine, so no session can be started.";
+        state.pushToast(message);
+        return { ok: false, message };
+      }
+
+      state.setLoading("sessions", true);
+      try {
+        const session = await api.createSession(
+          toCreateRequest(worktreeId, resolved, harness, {
+            openingPrompt: options?.openingPrompt,
+            title: options?.title,
+          }),
+        );
+        state.upsertSession(session);
+        // Read live: `state` is the snapshot from before the await, and its `lastError` is stale.
+        if (raised !== null && useCockpit.getState().lastError === raised)
+          state.setError(null);
+        state.selectWorktree(worktreeId);
+        // Focus is what makes defect 4's scroll-into-view fire in task 20's ColumnsLayout.
+        state.focusSession(session.id);
+        return { ok: true };
+      } catch (caught) {
+        const error = caught as ApiError;
+        raised = { code: error.code, message: error.message };
+        state.setError(raised);
+        state.pushToast(sentenceFor(error));
+        return { ok: false, message: sentenceFor(error) };
+      } finally {
+        useCockpit.getState().setLoading("sessions", false);
+      }
+    },
+    [],
+  );
 }

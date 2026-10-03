@@ -31,6 +31,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/assistance"
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/product"
@@ -331,9 +332,13 @@ func (rs *routes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // API is the whole HTTP surface as one handler.
 type API struct {
-	deps           Deps
-	handler        http.Handler
-	codexAccountMu sync.Mutex // serializes this user's retained account and private snapshots
+	deps               Deps
+	handler            http.Handler
+	codexAccountMu     sync.Mutex // serializes this user's retained account and private snapshots
+	assistMu           sync.Mutex
+	assistRecoveryOnce sync.Once
+	assistStore        *assistance.Store
+	assistCancels      map[string]context.CancelFunc
 
 	// guarded and root are the two recorders, kept whole rather than
 	// snapshotted into a []string. RegisteredPatterns() reads them LIVE, so a
@@ -401,6 +406,7 @@ func New(d Deps) (*API, error) {
 	}
 	a.registerSessions(guarded)
 	a.registerCodexConnection(guarded)
+	a.registerAssistance(guarded)
 	a.registerAttach(guarded)
 	// Task 12 added a.registerAttach(guarded) on the line above. One line, taking
 	// *routes, and in the SAME step that defines the method it names: a call

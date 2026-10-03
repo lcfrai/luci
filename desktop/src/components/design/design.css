@@ -1,0 +1,27 @@
+@import "../../styles/tokens.css";
+.design-workspace { max-inline-size: 1400px; margin-inline: auto; }
+.design-plan-layout { display: grid; grid-template-columns: minmax(0,1fr) 280px; gap: 36px; align-items: start; }
+.design-plan-content { min-inline-size: 0; }
+.design-pair { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.design-definition { border-inline-start: 1px solid var(--line-soft); padding-inline-start: 24px; }
+.design-definition h2, .design-workspace h2 { font-size: 1.125rem; }
+.design-definition ul { list-style: none; padding: 0; }
+.design-definition li { padding-block: 14px; border-block-end: 1px solid var(--line-soft); }
+.design-definition li strong { font: 0.8rem var(--mono); color: var(--ink-2); }
+.design-definition p, .design-workspace > p, .design-prototype > p, .design-handoff > p { line-height: 1.65; }
+.design-definition small { color: var(--ink-3); }
+.design-empty { max-inline-size: 68ch; padding-block: 20px 28px; }
+.design-empty p { line-height: 1.65; }
+.design-sketch { min-block-size: 650px; }
+.design-sketch > section { block-size: 700px; }
+.design-prototype-tools { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-block: 24px; }
+.design-prototype-tools > .luci-field { flex: 1; min-inline-size: 220px; }
+.design-prototype-viewport { overflow: auto; background: var(--canvas); padding: 18px; display: grid; gap: 16px; }
+.design-prototype-viewport iframe { background: var(--surface); border: 1px solid var(--line-soft); block-size: 720px; flex-shrink: 0; }
+.design-token { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)) auto; gap: 12px; align-items: end; margin-block: 16px; }
+.design-handoff h3 { font-size: 1rem; margin-block: 28px 16px; }
+.design-provenance { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 12px 24px; border-block-start: 1px solid var(--line-soft); margin-block: 28px; padding-block-start: 20px; }
+.design-provenance dd { margin: 0; overflow-wrap: anywhere; font: 0.8rem/1.6 var(--mono); }
+.design-workspace button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media(max-width:1100px) { .design-plan-layout { grid-template-columns: minmax(0,1fr); } .design-definition { border-inline-start: 0; border-block-start: 1px solid var(--line-soft); padding-inline-start: 0; padding-block-start: 24px; } }
+@media(max-width:700px) { .design-pair, .design-token { grid-template-columns: minmax(0,1fr); } .design-sketch { min-block-size: 520px; } .design-sketch > section { block-size: 600px; } }

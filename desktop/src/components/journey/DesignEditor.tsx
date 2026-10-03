@@ -12,8 +12,29 @@ import {
   type DesignScene,
 } from "../../api/product";
 import { JourneyHeader } from "./shared";
+import { useAppearance } from "../../preferences/appearance";
+
+/** Excalidraw stores a concrete paper colour. Resolve the shared token through
+ * the browser so persisted scene data does not depend on CSS variable support. */
+function initialPaperColour(): string | undefined {
+  const colour = getComputedStyle(document.documentElement)
+    .getPropertyValue("--design-paper")
+    .trim();
+  if (!colour) return undefined;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 1;
+  const context = canvas.getContext("2d");
+  if (!context) return undefined;
+  context.fillStyle = colour;
+  context.fillRect(0, 0, 1, 1);
+  return "#" + Array.from(context.getImageData(0, 0, 1, 1).data)
+    .slice(0, 3)
+    .map((channel) => channel.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 export default function DesignEditor({ projectId }: { projectId: string }) {
+  const appearance = useAppearance();
   const [design, setDesign] = useState<Design | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -107,7 +128,9 @@ export default function DesignEditor({ projectId }: { projectId: string }) {
         <span className="journey-revision" role="status">
           {design
             ? `Design ${design.revision} · Brief ${design.briefRevision}`
-            : loading ? "Loading design…" : "Design unavailable"}
+            : loading
+              ? "Loading design…"
+              : "Design unavailable"}
         </span>
         <button
           className="luci-button luci-primary"
@@ -121,7 +144,15 @@ export default function DesignEditor({ projectId }: { projectId: string }) {
         {error && (
           <p className="journey-error" role="alert">
             {error}
-            {!design && <button className="luci-button" disabled={loading} onClick={() => void load()}>Retry loading design</button>}
+            {!design && (
+              <button
+                className="luci-button"
+                disabled={loading}
+                onClick={() => void load()}
+              >
+                Retry loading design
+              </button>
+            )}
           </p>
         )}
         {saved && (
@@ -137,16 +168,14 @@ export default function DesignEditor({ projectId }: { projectId: string }) {
               (design.scene ?? {
                 elements: [],
                 appState: {
-                  viewBackgroundColor: getComputedStyle(
-                    document.documentElement,
-                  )
-                    .getPropertyValue("--ink")
-                    .trim(),
+                  // Excalidraw applies its own dark-theme canvas transformation.
+                  // A document's paper colour is independent of the editor theme.
+                  viewBackgroundColor: initialPaperColour(),
                 },
                 files: {},
               }) as ExcalidrawInitialDataState
             }
-            theme="dark"
+            theme={appearance.resolvedTheme}
             name="Luci design"
             onChange={(...args) => {
               current.current = args;

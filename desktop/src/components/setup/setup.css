@@ -1,4 +1,14 @@
 @import "../../styles/tokens.css";
+.workspace-loading {
+  padding: clamp(24px, 6vw, 80px);
+}
+.workspace-loading h1 {
+  font-size: 28px;
+  margin-block-start: 42px;
+}
+.workspace-loading p {
+  color: var(--ink-2);
+}
 .workspace-current {
   margin-block-end: 25px;
   padding-block-end: 25px;
@@ -89,6 +99,147 @@
 .setup-content form {
   display: grid;
   gap: 18px;
+}
+.onboarding-portal {
+  block-size: 100dvh;
+  overflow: auto;
+  display: grid;
+  grid-template-columns: minmax(250px, 0.75fr) minmax(0, 1.25fr);
+  max-inline-size: 1500px;
+  margin-inline: auto;
+  padding: clamp(20px, 4vw, 60px);
+  gap: clamp(24px, 5vw, 70px);
+  background: var(--page);
+}
+.onboarding-intro {
+  align-self: start;
+  position: sticky;
+  inset-block-start: 0;
+  padding-block: 14px;
+}
+.onboarding-intro > strong {
+  font-size: 25px;
+  letter-spacing: -0.04em;
+}
+.onboarding-intro h2 {
+  font-size: clamp(30px, 3.3vw, 48px);
+  line-height: 1.12;
+  letter-spacing: -0.045em;
+  font-weight: 550;
+  max-inline-size: 13ch;
+  margin-block: 60px 24px;
+}
+.onboarding-intro p {
+  color: var(--ink-2);
+  max-inline-size: 43ch;
+  line-height: 1.65;
+}
+.onboarding-intro ol {
+  padding-inline-start: 23px;
+  margin-block: 36px;
+}
+.onboarding-intro li {
+  padding: 10px 0 10px 8px;
+  color: var(--ink-3);
+}
+.onboarding-intro li[aria-current] {
+  color: var(--ink);
+  font-weight: 600;
+}
+.onboarding-portal .setup-window {
+  inline-size: 100%;
+  max-block-size: none;
+  min-block-size: 0;
+  align-self: start;
+  box-shadow: none;
+  border: 1px solid var(--line-strong);
+}
+.onboarding-portal .setup-content {
+  overflow: visible;
+}
+.onboarding-portal .setup-brand {
+  display: none;
+}
+.onboarding-portal .setup-header h1 {
+  margin-block-start: 0;
+}
+.runtime-preparation {
+  margin-block-end: 32px;
+  border-block-end: 1px solid var(--line-strong);
+  padding-block-end: 28px;
+}
+.preparation-list {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+.preparation-list li {
+  border-block-end: 1px solid var(--line);
+  padding-block: 14px;
+}
+.preparation-list li > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+}
+.preparation-list p {
+  color: var(--ink-2);
+  font-size: 13px;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
+.preparation-list .preparation-action {
+  color: var(--ink);
+}
+.appearance-panel .setup-field-grid {
+  margin-block: 26px;
+}
+.appearance-preview {
+  padding-block: 22px;
+  border-block: 1px solid var(--line-strong);
+  line-height: 1.8;
+}
+.appearance-preview > span {
+  font-weight: 600;
+  display: block;
+}
+@media (max-width: 900px) {
+  .onboarding-portal {
+    display: block;
+    padding: 22px;
+  }
+  .onboarding-intro {
+    position: static;
+  }
+  .onboarding-intro h2 {
+    font-size: 30px;
+    max-inline-size: none;
+    margin-block: 22px 12px;
+  }
+  .onboarding-intro ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 30px;
+    margin-block: 20px;
+  }
+  .onboarding-intro > .journey-muted {
+    display: none;
+  }
+  .onboarding-portal .setup-window {
+    margin-block: 16px;
+  }
+}
+@media (max-width: 480px) {
+  .onboarding-portal {
+    padding: 14px;
+  }
+  .onboarding-portal .setup-header,
+  .onboarding-portal .setup-content {
+    padding: 22px 18px;
+  }
+  .onboarding-portal .setup-tabs {
+    padding-inline: 18px;
+  }
 }
 .setup-actions {
   display: flex;
@@ -394,6 +545,7 @@
 }
 .luci-button {
   min-block-size: 40px;
+  padding-block: var(--control-pad-block);
   font-size: 14px;
   font-weight: 550;
   line-height: 1.4;
@@ -417,8 +569,14 @@
 .luci-field textarea,
 .luci-field select {
   font-size: 14px;
-  min-block-size: 42px;
+  padding-block: var(--control-pad-block);
+  min-block-size: var(--field-min-size);
   box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.onboarding-next {
+  margin-block: 30px;
+  padding-block: 24px;
+  border-block: 1px solid var(--line);
 }
 .luci-field textarea {
   min-block-size: 96px;

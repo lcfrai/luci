@@ -16,6 +16,7 @@ export function TopBar({
 } = {}): JSX.Element {
   const layout = useCockpit((s) => s.layout);
   const lens = useCockpit((s) => s.lens);
+  const projectId = useCockpit((s) => s.selection.projectId);
   const setLens = useCockpit((s) => s.setLens);
   const setLayout = useCockpit((s) => s.setLayout);
   const pickerOpen = useCockpit((s) => s.pickerOpen);
@@ -44,7 +45,9 @@ export function TopBar({
         <NavigationIcon name="projects" />
         <span>Projects</span>
       </button>
-      {lens === "develop" || lens === "files" || lens === "merge" ? (
+      {projectId === null ? (
+        <span className="top-title">Projects</span>
+      ) : lens === "develop" || lens === "files" || lens === "merge" ? (
         <>
           <nav className="top-tools" aria-label="Develop tools">
             {(
@@ -79,7 +82,9 @@ export function TopBar({
         </span>
       )}
       <span className="top-spacer" />
-      {lens === "develop" && <NewSessionButton worktreeId={worktreeId} />}
+      {projectId !== null && lens === "develop" && (
+        <NewSessionButton worktreeId={worktreeId} />
+      )}
       <SessionPicker
         open={pickerOpen}
         worktreeId={worktreeId}

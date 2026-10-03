@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -23,6 +24,8 @@ const journeyMaxBody = 2 << 20
 var projectNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
 
 func (s *Server) registerProjects(mux Registrar) {
+	s.registerSpecification(mux)
+	s.registerDesignPlan(mux)
 	s.registerReleases(mux)
 	mux.HandleFunc("POST /v1/product/projects", s.createProductProject)
 	mux.HandleFunc("GET /v1/product/projects/{id}/brief", s.getBrief)
@@ -118,12 +121,24 @@ func (s *Server) createProductProject(w http.ResponseWriter, r *http.Request) {
 	args := []string{"init", "--initial-branch=main", "."}
 	if req.RemoteURL != "" {
 		args = []string{"-c", "protocol.allow=never", "-c", "protocol.https.allow=always", "-c", "core.hooksPath=/dev/null", "clone", "--", req.RemoteURL, "."}
+		if runtime.GOOS == "windows" {
+			args = []string{"-c", "protocol.allow=never", "-c", "protocol.https.allow=always", "-c", "core.hooksPath=/dev/null", "clone", "-c", "core.longpaths=true", "--", req.RemoteURL, "."}
+		}
 	}
 	if _, err := s.runner(ctx, "git", args, dir); err != nil {
 		// Keep a partial clone for inspection. Never recursively delete a path
 		// that an external process might have replaced while Git was running.
 		journeyError(w, 422, "git_failed", fmt.Sprintf("Git could not create the project. Its folder was retained at %s: %v", dir, err))
 		return
+	}
+	if runtime.GOOS == "windows" && req.RemoteURL == "" {
+		// Git for Windows can cache long-path support before command-line
+		// overrides are applied. Initialize this owned repository's setting
+		// for later Git children as well; never modify global configuration.
+		if _, err := s.runner(ctx, "git", []string{"config", "--local", "core.longpaths", "true"}, dir); err != nil {
+			journeyError(w, 422, "git_failed", fmt.Sprintf("Git could not configure the project. Its folder was retained at %s: %v", dir, err))
+			return
+		}
 	}
 	journeyJSON(w, http.StatusCreated, project.Project{ID: project.ProjectID(dir), Name: req.Name, Path: dir})
 }

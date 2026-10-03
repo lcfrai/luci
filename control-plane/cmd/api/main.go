@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/instance"
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/platform"
 	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/reaper"
@@ -171,6 +173,11 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		return fmt.Errorf("initialise Luci: %w", err)
 	}
 	defer productService.Close()
+	platformService, err := platform.New(platform.Options{StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource})
+	if err != nil {
+		return fmt.Errorf("initialise application platform: %w", err)
+	}
+	defer platformService.Close()
 
 	// The host's own git config, and nothing a sandbox can write, answers the
 	// identity, line-ending and global-file questions: hostGit runs each git in
@@ -238,7 +245,15 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		}
 	}
 
-	engine := productService.ProxyWorkspace(handler)
+	platformHandler := platformService.Handler()
+	combined := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v1/platform/") {
+			platformHandler.ServeHTTP(w, r)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	})
+	engine := productService.ProxyWorkspace(combined)
 	var control *management.Gateway
 	if cfg.Worker {
 		engine = management.WorkerHandler(cfg.WorkerToken, engine)

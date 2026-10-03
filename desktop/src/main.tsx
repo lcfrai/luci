@@ -6,6 +6,9 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import "./components/journey/designAssets";
+import { initializeAppearance } from "./preferences/appearance";
+
+initializeAppearance();
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,

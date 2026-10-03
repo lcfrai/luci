@@ -32,6 +32,9 @@ const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) 
 const environment = {
   ...inherited, LUCI_ADDR: address, LUCI_STATE_DIR: state, LUCI_PROJECTS_DIR: projects,
   LUCI_WEB_DIR: web, LUCI_RUNTIME_DIR: runtime, LUCI_BACKEND: 'docker',
+  // This gate exercises truthful missing-runtime recovery without installing or
+  // mutating Docker. The separate Docker browser gate supplies positive proof.
+  LUCI_DOCKER_HOST: 'tcp://127.0.0.1:1', DOCKER_HOST: 'tcp://127.0.0.1:1',
   LUCI_MANAGED_SHUTDOWN_TOKEN: lifecycle, OPENAI_API_KEY: '', ANTHROPIC_API_KEY: '',
   GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: path.join(fixture, 'empty-git-config'),
 };
@@ -115,9 +118,30 @@ try {
     await page.getByRole('button', { name: 'Develop', exact: true }).click();
     assert.equal(await page.getByLabel(/^Progress for task 1/).inputValue(), 'doing');
     await page.getByRole('button', { name: 'Design', exact: true }).click();
+    await page.getByRole('heading', { name: 'Design the experience', exact: true }).waitFor();
+    await page.getByRole('textbox', { name: 'Screen name', exact: true }).waitFor();
+    assert.equal(await page.getByRole('textbox', { name: 'Screen name', exact: true }).inputValue(), 'Garden journal');
+    await page.getByRole('button', { name: 'Implementation handoff', exact: true }).click();
+    assert.match(await page.getByRole('textbox', { name: 'Implementation notes', exact: true }).inputValue(), /keyboard/);
+    const sessionToken = await page.evaluate(() => sessionStorage.getItem('luci.control-plane.session'));
+    for (const [suffix, expected] of [['specification', result.restoredDefinition], ['design-plan', result.restoredDesignHandoff]]) {
+      const response = await fetch(`${base}/v1/product/projects/${result.restoredProjectId}/${suffix}`, { headers: { Authorization: `Bearer ${sessionToken}` } });
+      assert.equal(response.status, 200);
+      const record = await response.json();
+      assert.equal(record.projectId, result.restoredProjectId);
+      assert.equal(record.status, 'draft');
+      assert.equal(record.revision, expected.revision);
+      assert.equal(record.digest || '', expected.digest);
+      if (suffix === 'specification') assert.deepEqual(record.requirements.map(item => item.id), expected.requirementIds);
+      else {
+        assert.deepEqual(record.screens, expected.screens);
+        assert.equal(record.implementationNotes, expected.implementationNotes);
+      }
+    }
+    await page.getByRole('button', { name: 'Sketch', exact: true }).click();
     await page.getByText(/Design 1 · Brief 1/).waitFor();
     await page.screenshot({ path: path.join(evidence, '11-process-restart.png'), fullPage: true });
-    receipt.checks.push('Signed in after a real process restart; restored project, brief, design and task state recovered in the UI');
+    receipt.checks.push('Signed in after a real process restart; restored definition/design drafts correctly require renewed approval, and their linked screen plan, sketch and task state recovered through real API and UI');
   } catch (error) {
     if (page) {
       await page.screenshot({ path: path.join(evidence, 'restart-failure.png'), fullPage: true }).catch(() => {});

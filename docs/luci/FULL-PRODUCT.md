@@ -1,0 +1,29 @@
+# Full product implementation and acceptance
+
+3 October 2026. The user's installed-app inspection supersedes the earlier narrow delivery checklist. The current application is not a complete UAT handback.
+
+## Work in progress
+
+1. Dedicated, resumable onboarding: account entry, execution location, actual prerequisite checks and automatic runtime preparation, provider connection and workspace ready. A configured directory does not imply a ready runtime. Local, user-owned AWS/Azure and existing workspaces each have their own recovery and permission states.
+2. Projects home: create, import and restore independent of Settings, understandable repository setup and next actions. Appearance includes system/light/dark, accent, density and terminal text size.
+3. Versioned specification: guided one-question interview; repository analysis; stable acceptance IDs; scope, roles, entities, integrations, terms, decisions and unresolved questions; explicit approved snapshots. Existing briefs and revision history are preserved.
+4. Design workspace: requirement-linked screens/states and responsive targets, sketch and working prototype as distinct surfaces, assets/tokens and a recorded implementation handoff. A saved canvas does not imply an approved design.
+5. Develop: account connection before project execution, durable runs, useful startup recovery, requirements/tasks/check evidence and live previews tied to source. AI assistance uses the person's actual selected provider; deterministic guidance is labelled honestly.
+6. Application platform: inspect the newer private Panacea backend before adapting its services. Implement genuine local Docker application/data operations and an authenticated external Panacea connection without shipping restricted source in Luci's MIT package. Expose only operational capabilities; no simulated successful databases, sign-in, deployment or health.
+7. Packaging and acceptance: rebuild matching source; install and complete realistic account/onboarding/project/restart flows; exercise each project phase with a Codex subscription in Docker; deploy a real site, verify its behavior and preserve evidence.
+
+## Backend provenance
+
+The separate checkout is `../panacea`. Default main is `1a76d094d9b50afe563377a29098bea4d290c715`; the newer `finish-dev-outstanding` candidate is `30580a7e34d16e9b04eeb31ac2c2f002e38d2bac`. Candidate selection is deliberate, and existing corporate estate migration scripts must not run. Panacea's local Kubernetes platform and application backing-services devstack are distinct. Its documentation acknowledges unexercised runtime paths; source/API tests alone do not prove a turnkey local deployment.
+
+## Evidence rules
+
+Every capability needs an actual outcome in the environment that is claimed. Record source revision, package provenance, execution location and external prerequisites. Preserve failed evidence. Verify the connected installed journey, meaningful failure/retry/restart cases and isolated-account boundaries. Use one batched visual inspection and one correction confirmation rather than repeated cosmetic reviews. Completion requires the full product journey and operating capabilities, not just the small public-site benchmark.
+
+## 0.4.4 implementation checkpoint
+
+The first corrective source batch adds Projects home, first-run workspace onboarding, appearance preferences, versioned requirements and design handoffs, project-independent Codex account sign-in, actual subscription-backed interview jobs, persistent Docker application deployments and PostgreSQL with downloadable backups. The Panacea adapter uses a separately supplied scoped HTTPS account connection; it contains no private Panacea source.
+
+The complete control-plane Go suite passes. The broad frontend run found five appearance-rule failures among 1,026 checks; the corrected affected group subsequently passes. Focused new specification/design race checks and type checking pass. Browser entry, installed-upgrade, connected UAT, Docker and SSH acceptance scripts have been migrated, but their new packaged execution is still pending at this checkpoint.
+
+This is an implementation checkpoint, not a full-product release claim. Host dependency installation, production cloud provisioning, complete authentication/storage/realtime services, backup restore and the real subscription-driven public deployment remain outstanding. PostgreSQL alone is not Supabase, and local loopback deployments are not public hosting.

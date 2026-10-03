@@ -88,8 +88,8 @@ async function startService(name, port, account, password) {
   service.token = result.token; secrets.push(result.token); service.user = result.user;
   return service;
 }
-async function clickResponse(button, resource, expected = 200, readBody = true) {
-  const received = page.waitForResponse((response) => new URL(response.url()).pathname === resource && response.request().method() === 'POST');
+async function clickResponse(button, resource, expected = 200, readBody = true, method = 'POST') {
+  const received = page.waitForResponse((response) => new URL(response.url()).pathname === resource && response.request().method() === method);
   // Handle both promises immediately. If a locator click fails, retain that
   // error instead of an unhandled response wait masking it during cleanup.
   const [response] = await Promise.all([received, button.click()]);
@@ -101,6 +101,28 @@ async function switchWorkspace(button, resource) {
   // Chromium may discard that body before CDP can read it after the navigation.
   const navigation = page.waitForEvent('framenavigated', { predicate: (frame) => frame === page.mainFrame() });
   await Promise.all([navigation, clickResponse(button, resource, 200, false)]);
+}
+async function saveStructuredDefinition(projectId, purpose, audience, acceptance) {
+  await page.getByRole('heading', { name: 'Define your project', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Specification', exact: true }).click();
+  await page.getByRole('textbox', { name: 'The idea', exact: true }).fill(purpose);
+  await page.getByRole('textbox', { name: 'Who it is for', exact: true }).fill(audience);
+  await page.getByRole('textbox', { name: 'Boundaries and constraints', exact: true }).fill('Keep project data private to this workspace identity. Use the already verified SSH connection.');
+  await page.getByRole('button', { name: 'Add requirement', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Requirement 1', exact: true }).fill('Private durable project');
+  await page.getByRole('textbox', { name: 'Acceptance scenario 1', exact: true }).fill(acceptance);
+  const saved = await clickResponse(page.getByRole('button', { name: 'Save definition', exact: true }), `/v1/product/projects/${projectId}/specification`);
+  assert.equal(saved.revision, 1);
+  assert.equal(saved.briefRevision, 1);
+  assert.equal(saved.requirements.length, 1);
+  assert.equal(saved.requirements[0].acceptance, acceptance);
+  const approved = await clickResponse(page.getByRole('button', { name: 'Approve definition', exact: true }), `/v1/product/projects/${projectId}/specification/approve`);
+  assert.equal(approved.status, 'approved');
+  assert.equal(approved.revision, 2);
+  assert.equal(approved.briefRevision, saved.briefRevision);
+  assert.equal(approved.requirements[0].id, saved.requirements[0].id);
+  assert.match(approved.digest, /^[a-f0-9]{64}$/);
+  return approved;
 }
 try {
   await fs.mkdir(output, { recursive: true });
@@ -193,23 +215,23 @@ try {
   pass('separate_account_error_recovery_and_activation', 'Wrong remote password keeps the browser signed in locally and activation disabled; real remote sign-in succeeds on retry, then the selected cloud workspace replaces the project view while local identity stays intact.');
 
   stage = 'create-and-save-remote-project-in-browser';
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByRole('button', { name: 'New project', exact: true }).click();
+  await page.getByRole('heading', { name: 'Your projects', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'New project', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Create a project', exact: true });
   await dialog.getByLabel('Project name', { exact: true }).fill('ssh-browser-app');
   const project = await clickResponse(dialog.getByRole('button', { name: 'Create project', exact: true }), '/v1/product/projects', 201);
   assert.equal(path.resolve(project.path), path.join(remote.projects, 'ssh-browser-app'));
   const purpose = 'A shared garden journal saved through a real SSH workspace.';
-  await page.getByRole('textbox', { name: 'The idea', exact: true }).fill(purpose);
-  await page.getByRole('textbox', { name: 'Who it is for', exact: true }).fill('Garden volunteers');
-  await page.getByRole('textbox', { name: /^What good looks like/ }).fill('The brief persists only in the remote workspace.');
-  const brief = await clickResponse(page.getByRole('button', { name: 'Save brief', exact: true }), `/v1/product/projects/${project.id}/brief`);
-  assert.equal(brief.revision, 1);
+  const definition = await saveStructuredDefinition(project.id, purpose, 'Garden volunteers', 'The definition and canonical brief persist only in the remote workspace.');
+  evidence.ownerDefinition = { projectId: project.id, revision: definition.revision, briefRevision: definition.briefRevision, digest: definition.digest, requirementIds: definition.requirements.map(item => item.id) };
+  assert.equal((await api(remote, 'GET', `/v1/product/projects/${project.id}/specification`)).digest, definition.digest);
   assert.equal((await api(remote, 'GET', `/v1/product/projects/${project.id}/brief`)).purpose, purpose);
+  assert.equal((await api(remote, 'GET', `/v1/product/projects/${project.id}/brief`)).revision, definition.briefRevision);
   assert.ok((await fs.readFile(path.join(project.path, 'LUCI.md'), 'utf8')).includes(purpose));
+  assert.equal(JSON.parse(await fs.readFile(path.join(project.path, '.luci', 'specification.json'), 'utf8')).digest, definition.digest);
   await assert.rejects(fs.access(path.join(local.projects, 'ssh-browser-app')), { code: 'ENOENT' });
   await page.screenshot({ path: path.join(output, 'remote-saved-brief.png'), fullPage: true });
-  pass('browser_to_ssh_to_remote_durable_project', 'Browser-created project and saved revision1 brief are verified through the remote service and actual remote LUCI.md; no equivalent project exists in local storage.');
+  pass('browser_to_ssh_to_remote_durable_project', 'The dedicated project dialog and structured Define UI create an approved revision2 definition with stable requirements and canonical brief1. Remote API, specification.json and LUCI.md agree; no equivalent project exists locally.');
 
   stage = 'selected-remote-admin-invitation';
   await page.getByRole('button', { name: 'Admin', exact: true }).click();
@@ -230,9 +252,7 @@ try {
   stage = 'join-remote-workspace-with-invitation';
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('button', { name: 'Connection and account', exact: true }).click();
-  const disconnected = page.waitForResponse(response => new URL(response.url()).pathname === '/v1/setup/workspace/auth' && response.request().method() === 'DELETE');
-  await page.getByRole('button', { name: 'Disconnect remote sign-in', exact: true }).click();
-  assert.equal((await disconnected).status(), 200);
+  await clickResponse(page.getByRole('button', { name: 'Disconnect remote sign-in', exact: true }), '/v1/setup/workspace/auth', 200, true, 'DELETE');
   await page.getByRole('button', { name: 'Join with an invitation', exact: true }).click();
   const joinedPassword = 'Invited-' + randomBytes(18).toString('hex'); secrets.push(joinedPassword);
   await page.getByLabel(/^Remote invitation code/).fill(invitation.inviteCode);
@@ -271,37 +291,42 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Set up a cloud workspace', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Save settings', exact: true }).count(), 0, 'Local administrator identity must not expose remote member folder writes');
   await page.getByRole('button', { name: 'Create your first project', exact: true }).click();
-  const memberDialog = page.getByRole('dialog', { name: 'Create a cloud project', exact: true });
+  const memberDialog = page.getByRole('dialog', { name: 'Create a project', exact: true });
   await memberDialog.getByLabel('Project name', { exact: true }).fill('ssh-member-app');
   const memberProject = await clickResponse(memberDialog.getByRole('button', { name: 'Create project', exact: true }), '/v1/product/projects', 201);
   assert.equal(path.resolve(memberProject.path), path.join(assignedProjects, 'ssh-member-app'));
   const memberPurpose = 'An invited member creates and saves their own garden journal in the assigned cloud workspace.';
-  await page.getByRole('textbox', { name: 'The idea', exact: true }).fill(memberPurpose);
-  await page.getByRole('textbox', { name: 'Who it is for', exact: true }).fill('This invited workspace member');
-  await page.getByRole('textbox', { name: /^What good looks like/ }).fill('The member can save work without changing server settings or seeing another account project.');
-  const memberBrief = await clickResponse(page.getByRole('button', { name: 'Save brief', exact: true }), `/v1/product/projects/${memberProject.id}/brief`);
-  assert.equal(memberBrief.revision, 1);
+  const memberDefinition = await saveStructuredDefinition(memberProject.id, memberPurpose, 'This invited workspace member', 'The member can save and approve work without changing server settings or seeing another account project.');
+  evidence.memberDefinition = { projectId: memberProject.id, revision: memberDefinition.revision, briefRevision: memberDefinition.briefRevision, digest: memberDefinition.digest, requirementIds: memberDefinition.requirements.map(item => item.id) };
+  assert.equal((await api(local, 'GET', `/v1/product/projects/${memberProject.id}/specification`)).digest, memberDefinition.digest);
   assert.equal((await api(local, 'GET', `/v1/product/projects/${memberProject.id}/brief`)).purpose, memberPurpose);
+  assert.equal((await api(local, 'GET', `/v1/product/projects/${memberProject.id}/brief`)).revision, memberDefinition.briefRevision);
   assert.ok((await fs.readFile(path.join(memberProject.path, 'LUCI.md'), 'utf8')).includes(memberPurpose));
+  assert.equal(JSON.parse(await fs.readFile(path.join(memberProject.path, '.luci', 'specification.json'), 'utf8')).digest, memberDefinition.digest);
   assert(!(await api(local, 'GET', '/v1/projects')).projects.some(item => item.id === project.id));
   await api(local, 'GET', `/v1/product/projects/${project.id}/brief`, undefined, 404);
   await api(remote, 'GET', `/v1/product/projects/${memberProject.id}/brief`, undefined, 404);
+  await api(local, 'GET', `/v1/product/projects/${project.id}/specification`, undefined, 404);
+  await api(remote, 'GET', `/v1/product/projects/${memberProject.id}/specification`, undefined, 404);
   assert.equal((await api(remote, 'GET', `/v1/product/projects/${project.id}/brief`)).purpose, purpose);
   await assert.rejects(fs.access(path.join(local.projects, 'ssh-member-app')), { code: 'ENOENT' });
   await page.screenshot({ path: path.join(output, 'member-saved-brief.png'), fullPage: true });
-  pass('remote_member_first_project', 'The invited member used the real cloud workspace UI to create and save a project in the assigned per-user folder without server setup, with member/owner project access rejected in both directions.');
+  pass('remote_member_first_project', 'The invited member used the dedicated project dialog and structured Define UI to save and approve a project in the assigned per-user folder without server setup. Both canonical brief and full definition reject member/owner cross-account reads.');
 
   stage = 'return-to-original-local-workspace';
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('heading', { name: 'Your cloud workspace', exact: true }).waitFor();
   await switchWorkspace(page.getByRole('button', { name: 'Return to this machine', exact: true }), '/v1/setup/workspace/local');
   await page.getByRole('heading', { name: 'Choose your workspace', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Close settings', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: 'Close settings', exact: true }).count(), 0);
+  await page.getByRole('button', { name: 'Continue to projects', exact: true }).click();
+  await page.getByRole('heading', { name: 'Your projects', exact: true }).waitFor();
   await page.getByRole('treeitem').filter({ hasText: 'local-only-project' }).first().waitFor();
   const localProjects = (await api(local, 'GET', '/v1/projects')).projects;
   assert.ok(localProjects.some((item) => item.id === sentinel.id)); assert.ok(!localProjects.some((item) => item.id === project.id));
   assert.equal((await api(local, 'GET', '/v1/auth/me')).user.id, local.user.id);
   assert.equal((await api(remote, 'GET', `/v1/product/projects/${project.id}/brief`)).purpose, purpose);
+  assert.equal((await api(remote, 'GET', `/v1/product/projects/${project.id}/specification`)).digest, definition.digest);
   assert.ok(!localProjects.some(item => item.id === memberProject.id));
   assert.ok((await fs.readFile(path.join(memberProject.path, 'LUCI.md'), 'utf8')).includes(memberPurpose));
   await page.screenshot({ path: path.join(output, 'returned-local-workspace.png'), fullPage: true });

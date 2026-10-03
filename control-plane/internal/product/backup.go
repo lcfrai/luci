@@ -471,6 +471,32 @@ func (s *Server) restoreProjectBackup(w http.ResponseWriter, r *http.Request) {
 	newID := project.ProjectID(dest)
 	state.Brief.ProjectID = newID
 	state.Design.ProjectID = newID
+	if state.DesignPlan != nil {
+		state.DesignPlan.ProjectID = newID
+		state.DesignPlan.Status = "draft"
+		state.DesignPlan.Digest = ""
+		state.DesignPlan.PrototypeReleaseID = ""
+		state.DesignPlan.PrototypeCommit = ""
+	}
+	for i := range state.DesignPlanRevisions {
+		state.DesignPlanRevisions[i].ProjectID = newID
+		state.DesignPlanRevisions[i].Status = "draft"
+		state.DesignPlanRevisions[i].Digest = ""
+		state.DesignPlanRevisions[i].PrototypeReleaseID = ""
+		state.DesignPlanRevisions[i].PrototypeCommit = ""
+	}
+	if state.Specification != nil {
+		state.Specification.ProjectID = newID
+		state.Specification.Status = "draft"
+		state.Specification.Digest = ""
+	}
+	for i := range state.SpecificationRevisions {
+		state.SpecificationRevisions[i].ProjectID = newID
+		// A restored project has a new identity; the former approval cannot
+		// attest to this new source/environment. Preserve the content history.
+		state.SpecificationRevisions[i].Status = "draft"
+		state.SpecificationRevisions[i].Digest = ""
+	}
 	if state.Plan != nil {
 		state.Plan.ProjectID = newID
 	}

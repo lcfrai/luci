@@ -1,0 +1,40 @@
+@import "../../styles/tokens.css";
+.definition-workspace { max-inline-size: 1400px; margin-inline: auto; }
+.definition-tabs { display: flex; gap: 8px; border-block-end: 1px solid var(--line-soft); margin-block-end: 28px; overflow-x: auto; }
+.definition-tabs button { border: 0; border-block-end: 2px solid transparent; background: transparent; color: var(--ink-2); padding: 14px 18px; font: inherit; white-space: nowrap; cursor: pointer; min-block-size: 44px; }
+.definition-tabs button[aria-current] { color: var(--ink); border-block-end-color: var(--accent); }
+.definition-tabs button:hover { background: var(--surface); }
+.definition-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 330px); gap: 36px; align-items: start; }
+.definition-content { min-inline-size: 0; }
+.definition-content h2, .definition-assistant h2 { font-size: 1.125rem; font-weight: 600; margin-block: 24px 12px; }
+.definition-fields { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
+.definition-interview { max-inline-size: 68ch; }
+.definition-interview > p { line-height: 1.65; }
+.definition-interview .luci-field, .definition-specification > .luci-field { margin-block: 18px; }
+.definition-assistant { position: sticky; inset-block-start: 18px; border-inline-start: 1px solid var(--line-soft); padding-inline-start: 26px; min-inline-size: 0; }
+.definition-assistant h2 { margin-block-start: 0; }
+.definition-assistant p { font-size: 0.875rem; line-height: 1.65; }
+.definition-assistant .luci-field { margin-block: 18px; }
+.definition-answer { border-block-start: 1px solid var(--line-soft); padding-block-start: 18px; margin-block-start: 20px; overflow-wrap: anywhere; }
+.definition-answer h3 { font-size: 1rem; line-height: 1.5; }
+.definition-answer li { margin-block: 12px; line-height: 1.6; }
+.definition-option { inline-size: 100%; text-align: start; margin-block: 5px; white-space: normal; }
+.definition-record { min-inline-size: 0; border: 1px solid var(--line-soft); border-radius: 10px; padding: 18px; margin-block: 18px; display: grid; gap: 14px; }
+.definition-record legend { font: 0.8rem var(--mono); padding-inline: 6px; color: var(--ink-2); }
+.definition-record > button { justify-self: start; }
+.definition-requirements { margin-block: 30px; }
+.definition-group { border-block-start: 1px solid var(--line-soft); }
+.definition-group > summary { display: flex; justify-content: space-between; gap: 14px; cursor: pointer; padding-block: 18px; min-block-size: 44px; font-weight: 550; }
+.definition-group-body { padding-block-end: 20px; }
+.definition-links { border: 0; padding: 0; display: grid; gap: 8px; }
+.definition-links label { display: flex; gap: 9px; align-items: baseline; font-size: 0.875rem; line-height: 1.5; }
+.definition-links input { accent-color: var(--accent); }
+.definition-history { padding-inline-start: 22px; }
+.definition-history > li { padding-block: 16px; border-block-end: 1px solid var(--line-soft); }
+.definition-history pre { white-space: pre-wrap; overflow-wrap: anywhere; max-block-size: 420px; overflow: auto; font: 0.8rem/1.6 var(--mono); }
+.definition-footer { position: sticky; inset-block-end: -28px; background: var(--surface); padding-block: 16px; margin-block-start: 32px; border-block-start: 1px solid var(--line-soft); z-index: 1; }
+.definition-footer p { margin-block: 10px 0; }
+.definition-workspace button:focus-visible, .definition-workspace summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.definition-workspace .sr-only { position: absolute; inline-size: 1px; block-size: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@media (max-width: 1100px) { .definition-layout { grid-template-columns: minmax(0, 1fr); gap: 26px; } .definition-assistant { position: static; border-inline-start: 0; border-block-start: 1px solid var(--line-soft); padding-inline-start: 0; padding-block-start: 24px; } }
+@media (max-width: 600px) { .definition-record { padding: 12px; } .definition-tabs button { padding-inline: 12px; } .definition-footer { position: static; } .definition-footer .journey-actions { flex-wrap: wrap; } }

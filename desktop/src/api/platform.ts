@@ -1,0 +1,145 @@
+import { productApi } from "./product";
+import { DEFAULT_BASE_URL } from "./client";
+import { authHeaders, expireAuth } from "./authSession";
+
+export interface PlatformDeployment {
+  id: string;
+  projectId: string;
+  provider: "docker" | "panacea";
+  commit: string;
+  configurationRevision: number;
+  status: string;
+  url?: string;
+  message: string;
+  image?: string;
+  createdAt: string;
+  updatedAt: string;
+  pipelineRun?: string;
+}
+export interface PlatformDatabase {
+  status: string;
+  engine: string;
+  host?: string;
+  port?: number;
+  database?: string;
+  username?: string;
+  message: string;
+}
+export interface PlatformBackup {
+  id: string;
+  createdAt: string;
+  bytes: number;
+  sha256: string;
+}
+export interface PlatformProject {
+  projectId: string;
+  deployments: PlatformDeployment[];
+  database: PlatformDatabase;
+  backups: PlatformBackup[];
+  panaceaProject?: string;
+}
+export interface PlatformStatus {
+  dockerReady: boolean;
+  scope: string;
+  limits: { memoryMiB: number; cpuMillis: number };
+  permissions: { connectPanacea: boolean; deployPanacea: boolean };
+  supabase: { status: string; message: string; upstream: string };
+}
+export interface PanaceaConnection {
+  configured: boolean;
+  baseUrl?: string;
+  checkedAt?: string;
+  canManage: boolean;
+}
+export interface PanaceaProject {
+  name: string;
+  displayName: string;
+  repoUrl: string;
+  defaultBranch: string;
+  status: string;
+  url: string;
+}
+const base = "/v1/platform";
+const project = (id: string) => `${base}/projects/${encodeURIComponent(id)}`;
+export const platformApi = {
+  status: () => productApi.request<PlatformStatus>(`${base}/status`),
+  project: (id: string) =>
+    productApi.request<{ project: PlatformProject; busy: boolean }>(
+      project(id),
+    ),
+  deploy: (id: string, commit: string, port: number, healthPath: string) =>
+    productApi.request<PlatformDeployment>(`${project(id)}/deployments`, {
+      commit,
+      port,
+      healthPath,
+    }),
+  action: (
+    id: string,
+    deploymentId: string,
+    action: "stop" | "restart" | "refresh",
+  ) =>
+    productApi.request<PlatformDeployment>(
+      `${project(id)}/deployments/${encodeURIComponent(deploymentId)}/${action}`,
+      {},
+    ),
+  logs: (id: string, deploymentId: string) =>
+    productApi.request<{ text: string; notice: string }>(
+      `${project(id)}/deployments/${encodeURIComponent(deploymentId)}/logs`,
+    ),
+  database: (id: string, action: "start" | "stop" | "backup") =>
+    productApi.request<PlatformDatabase | PlatformBackup>(
+      `${project(id)}/database`,
+      { action },
+      "POST",
+      200_000,
+    ),
+  connection: () => productApi.request<PanaceaConnection>(`${base}/panacea`),
+  connect: (baseUrl: string, apiKey: string) =>
+    productApi.request<PanaceaConnection>(
+      `${base}/panacea`,
+      { baseUrl, apiKey },
+      "PUT",
+    ),
+  disconnect: () =>
+    productApi.request<PanaceaConnection>(
+      `${base}/panacea`,
+      undefined,
+      "DELETE",
+    ),
+  projects: () =>
+    productApi.request<{ projects: PanaceaProject[] }>(
+      `${base}/panacea/projects`,
+    ),
+  mapProject: (id: string, projectName: string) =>
+    productApi.request<{ project: PlatformProject; busy: boolean }>(
+      `${project(id)}/panacea`,
+      { projectName },
+      "PUT",
+    ),
+  deployPanacea: (id: string, commit: string, branch: string) =>
+    productApi.request<PlatformDeployment>(`${project(id)}/panacea/deploy`, {
+      commit,
+      branch,
+    }),
+  refreshPanacea: (id: string, deploymentId: string) =>
+    productApi.request<PlatformDeployment>(
+      `${project(id)}/panacea/deployments/${encodeURIComponent(deploymentId)}/refresh`,
+      {},
+    ),
+  async downloadBackup(id: string, backup: PlatformBackup) {
+    const response = await fetch(
+      `${DEFAULT_BASE_URL}${project(id)}/backups/${encodeURIComponent(backup.id)}`,
+      { headers: authHeaders(), signal: AbortSignal.timeout(60_000) },
+    );
+    if (response.status === 401) expireAuth();
+    if (!response.ok)
+      throw new Error("The verified database backup could not be downloaded.");
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${backup.id}.dump`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  },
+};

@@ -1,4 +1,11 @@
 @import "../../styles/tokens.css";
+.pick-inputs {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-inline-size: 0;
+  display: contents;
+}
 .top-tools {
   display: flex;
   gap: 3px;

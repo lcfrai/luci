@@ -3,7 +3,7 @@
 // and owns its own scroll. AppShell.tsx routes the "design" lens here and is closed.
 import { lazy, Suspense } from "react";
 import { ProjectRequired } from "../journey/shared";
-const DesignEditor = lazy(() => import("../journey/DesignEditor"));
+const DesignWorkspace = lazy(() => import("../design/DesignWorkspace"));
 
 export function DesignLens() {
   return (
@@ -16,7 +16,7 @@ export function DesignLens() {
             </div>
           }
         >
-          <DesignEditor key={id} projectId={id} />
+          <DesignWorkspace key={id} projectId={id} />
         </Suspense>
       )}
     </ProjectRequired>

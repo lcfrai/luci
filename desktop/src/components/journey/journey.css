@@ -1,5 +1,9 @@
 @import "../../styles/tokens.css";
 @import "../setup/setup.css";
+@import "../definition/definition.css";
+.deployment-workspace { block-size: 100%; overflow: auto; }
+.deployment-tabs { padding-inline: 24px; margin-block-end: 0; background: var(--canvas); position: sticky; inset-block-start: 0; z-index: 2; }
+.deployment-workspace > .journey-page { block-size: auto; overflow: visible; }
 .develop-workspace {
   block-size: 100%;
   display: flex;

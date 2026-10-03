@@ -18,10 +18,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 )
 
-const Version = "0.4.3"
+const Version = "0.4.4"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -270,6 +271,9 @@ func RunCommand(ctx context.Context, executable string, args []string, dir strin
 	}
 	ctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
+	if executable == "git" {
+		args = gitcommand.PlatformArgs(dir, args)
+	}
 	cmd := exec.CommandContext(ctx, executable, args...)
 	hideProcess(cmd)
 	cmd.Dir = dir

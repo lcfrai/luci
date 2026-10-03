@@ -9,10 +9,14 @@ import {
   updateAttachSession,
 } from "../api/attachRegistry";
 import type { AttachHandle, TermLike } from "../api/attachRegistry";
-import { TERMINAL_HOST_ATTRIBUTE, terminalKeepsKey } from "../hooks/useKeyboardMap";
+import {
+  TERMINAL_HOST_ATTRIBUTE,
+  terminalKeepsKey,
+} from "../hooks/useKeyboardMap";
 import { selectSession } from "../store/selectors";
 import { useCockpit } from "../store/store";
 import type { SessionId } from "../store/types";
+import { getAppearance, useAppearance } from "../preferences/appearance";
 
 /** Checked against src/styles/tokens.css by the greps above; task 14 owns the names. */
 const TERM_BG_TOKEN = "--page";
@@ -21,13 +25,29 @@ const TERM_FG_TOKEN = "--ink";
 /** The fit addon belongs to the terminal, and the terminal outlives this component, so the
  *  pairing cannot live in a ref. Weak, so a disposed terminal takes its addon with it. */
 const fitAddons = new WeakMap<TermLike, FitAddon>();
+const terminals = new WeakMap<TermLike, XTerm>();
 
 /** No literal hex in this file. If the tokens do not resolve — jsdom, where nothing is
  *  rendered anyway — no theme is passed and xterm keeps its own defaults. */
-function themeFromTokens(): { background: string; foreground: string } | undefined {
+function themeFromTokens():
+  { background: string; foreground: string } | undefined {
   const styles = getComputedStyle(document.documentElement);
-  const background = styles.getPropertyValue(TERM_BG_TOKEN).trim();
-  const foreground = styles.getPropertyValue(TERM_FG_TOKEN).trim();
+  // xterm accepts CSS hex/rgb colours, not every browser-supported colour space.
+  // Resolve tokens through a canvas so OKLCH themes become concrete sRGB values.
+  const resolve = (token: string) => {
+    const value = styles.getPropertyValue(token).trim();
+    if (!value) return "";
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const context = canvas.getContext("2d");
+    if (!context) return value;
+    context.fillStyle = value;
+    context.fillRect(0, 0, 1, 1);
+    const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+  const background = resolve(TERM_BG_TOKEN);
+  const foreground = resolve(TERM_FG_TOKEN);
   if (background === "" || foreground === "") return undefined;
   return { background, foreground };
 }
@@ -36,7 +56,7 @@ function themeFromTokens(): { background: string; foreground: string } | undefin
 function makeTerm(): TermLike {
   const term = new XTerm({
     fontFamily: '"Cascadia Mono", ui-monospace, Menlo, Consolas, monospace',
-    fontSize: 12,
+    fontSize: getAppearance().terminalFontSize,
     theme: themeFromTokens(),
     cursorBlink: true,
     // §7.2. xterm's default is 1 000 lines, which makes scrolling up not worth doing — and
@@ -67,6 +87,7 @@ function makeTerm(): TermLike {
   const fit = new FitAddon();
   term.loadAddon(fit);
   fitAddons.set(term, fit);
+  terminals.set(term, term);
   return term;
 }
 
@@ -91,6 +112,7 @@ function TerminalImpl({
   focused: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const appearance = useAppearance();
   const session = useCockpit(selectSession(sessionId));
   const hasSession = session !== undefined;
   /** The handle, so the focus effect below can reach it. `focused` must NOT join the mount
@@ -116,8 +138,8 @@ function TerminalImpl({
     const handle = acquireAttach(current, { createTerm: makeTerm, readOnly });
     handleRef.current = handle;
     node.appendChild(handle.element);
-    handle.mount();                              // AFTER the append: xterm measures a
-    fitAddons.get(handle.term)?.fit();           // rendered element, never a detached one
+    handle.mount(); // AFTER the append: xterm measures a
+    fitAddons.get(handle.term)?.fit(); // rendered element, never a detached one
 
     /* EDITED BY TASK 21's FIX ROUND 1, as a declared departure — task 19 is closed and this file
      * is its own. The change is the resize trigger, and nothing else.
@@ -157,6 +179,15 @@ function TerminalImpl({
     };
   }, [sessionId, hasSession]);
 
+  useEffect(() => {
+    const handle = handleRef.current;
+    const term = handle && terminals.get(handle.term);
+    if (!handle || !term?.options) return;
+    term.options.fontSize = appearance.terminalFontSize;
+    term.options.theme = themeFromTokens();
+    fitAddons.get(handle.term)?.fit();
+  }, [appearance, sessionId, hasSession]);
+
   // The condition. Runs after the effect above on mount, because effects fire in declaration
   // order, so the handle is already in the ref. Covers BOTH halves with one mechanism: a pane
   // that mounts focused takes the caret, and a pane focused later — a rail-row click, ⌘1-9,
@@ -167,7 +198,13 @@ function TerminalImpl({
 
   // OD-9: the marker useKeyboardMap's isInsideTerminal looks for. Spread from the constant, so
   // the attribute is named once.
-  return <div ref={host} {...{ [TERMINAL_HOST_ATTRIBUTE]: "" }} style={{ width: "100%", height: "100%" }} />;
+  return (
+    <div
+      ref={host}
+      {...{ [TERMINAL_HOST_ATTRIBUTE]: "" }}
+      style={{ width: "100%", height: "100%" }}
+    />
+  );
 }
 
 /** memo'd per §8 row 1: a parent re-render with unchanged props never reaches the effects.

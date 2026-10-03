@@ -428,5 +428,6 @@ func codexSubscriptionArgs(args []string, env map[string]string, authMode string
 		return args
 	}
 	delete(env, "OPENAI_API_KEY")
+	delete(env, "CODEX_API_KEY")
 	return append([]string{"-c", `forced_login_method="chatgpt"`, "-c", `model_provider="openai"`}, args...)
 }

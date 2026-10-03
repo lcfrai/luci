@@ -1,9 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SessionPicker } from "./SessionPicker";
 import { resetCockpit, useCockpit } from "../../store/store";
-import { aBranch, aHarness, aProject, aSession, aWorktree } from "../../test/fixtures";
+import {
+  aBranch,
+  aHarness,
+  aProject,
+  aSession,
+  aWorktree,
+} from "../../test/fixtures";
+import { ApiError } from "../../api/client";
 
 const { createSession } = vi.hoisted(() => ({ createSession: vi.fn() }));
 vi.mock("../../api", () => ({ api: { createSession } }));
@@ -57,20 +64,67 @@ const codex = aHarness({
 describe("SessionPicker", () => {
   beforeEach(() => {
     createSession.mockReset();
-    createSession.mockResolvedValue(aSession({ id: "s-new", worktreeId: "w-1" }));
+    createSession.mockResolvedValue(
+      aSession({ id: "s-new", worktreeId: "w-1" }),
+    );
     resetCockpit();
     useCockpit.setState({
       harnesses: [claude, shell, codex],
       projects: [aProject({ id: "p-1" })],
       branchesByProject: { "p-1": [aBranch({ id: "b-1", projectId: "p-1" })] },
-      worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", branchId: "b-1", name: "wt-one" })] },
-      selection: { projectId: "p-1", branchId: "b-1", worktreeId: "w-1", sessionId: null },
+      worktreesByBranch: {
+        "b-1": [aWorktree({ id: "w-1", branchId: "b-1", name: "wt-one" })],
+      },
+      selection: {
+        projectId: "p-1",
+        branchId: "b-1",
+        worktreeId: "w-1",
+        sessionId: null,
+      },
     });
+  });
+
+  it("retains the draft after a failed start and closes only after a successful retry", async () => {
+    const close = vi.fn();
+    createSession.mockRejectedValueOnce(
+      new ApiError(
+        "backend_unavailable",
+        "Start Docker before trying again.",
+        503,
+      ),
+    );
+    render(
+      <SessionPicker
+        open
+        worktreeId="w-1"
+        onClose={close}
+        initialPrompt="Implement the saved plan"
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create session" }),
+    );
+    expect((await screen.findByRole("alert")).textContent).toContain("Docker");
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "Opening prompt",
+        }) as HTMLTextAreaElement
+      ).value,
+    ).toBe("Implement the saved plan");
+    expect(close).not.toHaveBeenCalled();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create session" }),
+    );
+    await waitFor(() => expect(close).toHaveBeenCalledOnce());
+    expect(createSession).toHaveBeenCalledTimes(2);
   });
 
   it("lists an unavailable harness with its note, rather than hiding it", () => {
     render(<SessionPicker open worktreeId="w-1" onClose={() => {}} />);
-    expect(screen.getByRole("option", { name: /Not installed on this machine\./ })).toBeDefined();
+    expect(
+      screen.getByRole("option", { name: /Not installed on this machine\./ }),
+    ).toBeDefined();
   });
 
   it("hides model, effort and permission mode for a harness that declares none", async () => {
@@ -86,7 +140,9 @@ describe("SessionPicker", () => {
   it("sends only the fields the chosen harness accepts", async () => {
     render(<SessionPicker open worktreeId="w-1" onClose={() => {}} />);
     await userEvent.selectOptions(screen.getByLabelText("Harness"), "shell");
-    await userEvent.click(screen.getByRole("button", { name: "Create session" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Create session" }),
+    );
     const body = createSession.mock.calls[0][0] as Record<string, unknown>;
     expect(body.harness).toBe("shell");
     expect(body).not.toHaveProperty("model");
@@ -98,8 +154,12 @@ describe("SessionPicker", () => {
     const onClose = vi.fn();
     render(<SessionPicker open worktreeId="w-1" onClose={onClose} />);
     await userEvent.selectOptions(screen.getByLabelText("Harness"), "shell");
-    await userEvent.click(screen.getByRole("button", { name: "Save as branch default" }));
-    expect(useCockpit.getState().branchDefaults["b-1"]).toMatchObject({ harness: "shell" });
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save as branch default" }),
+    );
+    expect(useCockpit.getState().branchDefaults["b-1"]).toMatchObject({
+      harness: "shell",
+    });
     expect(createSession).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
   });

@@ -23,15 +23,27 @@ import {
   subscribePending,
 } from "../../lib/pendingSessions";
 import type { MenuItem } from "../menu/ContextMenu";
-import { selectHarness, selectSession, selectWorktrees } from "../../store/selectors";
+import {
+  selectHarness,
+  selectSession,
+  selectWorktrees,
+} from "../../store/selectors";
 import { TOAST_TTL_UNDO } from "../../store/slices/uiSlice";
 import { useCockpit } from "../../store/store";
-import type { Session, SessionId, Worktree, WorktreeId } from "../../store/types";
+import type {
+  Session,
+  SessionId,
+  Worktree,
+  WorktreeId,
+} from "../../store/types";
 
 /** What a verb needs from whichever surface is rendering it. */
 export interface VerbDeps {
   /** Task 18's useCreateSession() result. The one create path; this module does not add a second. */
-  createSession: (worktreeId: WorktreeId, options?: CreateSessionOptions) => Promise<void>;
+  createSession: (
+    worktreeId: WorktreeId,
+    options?: CreateSessionOptions,
+  ) => Promise<unknown>;
   /** Closes the host menu before the verb runs, so an Undo toast is not hidden behind it. */
   close: () => void;
   /** Arms the inline rename input. SessionMenu owns the input; the rail menu re-routes to it. */
@@ -125,7 +137,8 @@ function report(error: ApiError): void {
  *  sentence otherwise outlived the Resume that worked. A new path that calls `report` joins this
  *  operation, so it calls this on success and gets a row in the test file's `SUCCEEDS` table. */
 function clearOwnReport(): void {
-  if (raised !== null && useCockpit.getState().lastError === raised) useCockpit.getState().setError(null);
+  if (raised !== null && useCockpit.getState().lastError === raised)
+    useCockpit.getState().setError(null);
 }
 
 /* ── commit shape 1: deferred. The request is held for the Undo window. ──────────────── */
@@ -269,7 +282,10 @@ function restoreSession(snapshot: Session): () => void {
  *  poll added during the window is dropped from the index for at most one tick, and 2 s later
  *  `replaceSessions` puts it back from the server, which is authoritative for exactly this list.
  *  A rewrite would be an index-merge for a 2 s window, which is more machinery than the defect. */
-function restoreWorktreeSessions(worktreeId: WorktreeId, sessionId: SessionId): () => void {
+function restoreWorktreeSessions(
+  worktreeId: WorktreeId,
+  sessionId: SessionId,
+): () => void {
   const state = useCockpit.getState();
   const rows = (state.sessionIdsByWorktree[worktreeId] ?? [])
     .map((id) => state.sessions[id])
@@ -292,7 +308,11 @@ function restoreWorktreeSessions(worktreeId: WorktreeId, sessionId: SessionId): 
       pinned:
         pinIndex === -1 || s.pinned.includes(sessionId)
           ? s.pinned
-          : [...s.pinned.slice(0, pinIndex), sessionId, ...s.pinned.slice(pinIndex)],
+          : [
+              ...s.pinned.slice(0, pinIndex),
+              sessionId,
+              ...s.pinned.slice(pinIndex),
+            ],
     }));
     // Only when nothing else took focus in the window: re-focusing would yank the user out of a
     // session they moved to while the toast was still up.
@@ -327,7 +347,9 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
   // component and holds no subscription — it reads one snapshot per right-click, so the filtered
   // array never enters a render path and a `selectForkTargets` would put task 17's file into
   // this commit for a derivation with one caller.
-  const siblings = selectWorktrees(session.branchId)(state).filter((w) => w.id !== session.worktreeId);
+  const siblings = selectWorktrees(session.branchId)(state).filter(
+    (w) => w.id !== session.worktreeId,
+  );
   const alive = session.status !== "exited";
   const act = (fn: () => void) => (): void => {
     deps.close();
@@ -380,7 +402,11 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
             : act(() => {
                 void (async () => {
                   try {
-                    const next = await api.forkSession(session, worktree.id, harness);
+                    const next = await api.forkSession(
+                      session,
+                      worktree.id,
+                      harness,
+                    );
                     useCockpit.getState().upsertSession(next);
                     useCockpit.getState().focusSession(next.id);
                     clearOwnReport();
@@ -390,7 +416,9 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
                 })();
               }),
         disabledReason:
-          harness === undefined ? "This session's harness is not in the catalogue." : undefined,
+          harness === undefined
+            ? "This session's harness is not in the catalogue."
+            : undefined,
       });
     }
   }
@@ -444,7 +472,9 @@ function tailVerbs(
               // session exited under the open menu. Saying so beats a row that silently no-ops.
               useCockpit
                 .getState()
-                .pushToast("That pane is no longer attached, so there was nothing to retry.");
+                .pushToast(
+                  "That pane is no longer attached, so there was nothing to retry.",
+                );
             }),
           },
         ]
@@ -463,7 +493,13 @@ function tailVerbs(
         runImmediate({
           sessionId: id,
           apply: () =>
-            useCockpit.getState().upsertSession({ ...session, status: "starting", exitReason: "" }),
+            useCockpit
+              .getState()
+              .upsertSession({
+                ...session,
+                status: "starting",
+                exitReason: "",
+              }),
           rollback: restoreSession(session),
           commit: () => api.restartSession(id),
         }),
@@ -487,7 +523,9 @@ function tailVerbs(
       id: "shell",
       label: "Open a shell here",
       separatorBefore: true,
-      run: act(() => void deps.createSession(session.worktreeId, { harness: "shell" })),
+      run: act(
+        () => void deps.createSession(session.worktreeId, { harness: "shell" }),
+      ),
     },
     {
       id: "kill",
@@ -503,7 +541,11 @@ function tailVerbs(
                 apply: () =>
                   useCockpit
                     .getState()
-                    .upsertSession({ ...session, status: "exited", exitReason: "killed" }),
+                    .upsertSession({
+                      ...session,
+                      status: "exited",
+                      exitReason: "killed",
+                    }),
                 rollback: restoreSession(session),
                 commit: () => api.killSession(id),
                 // The server's own object, for the reason `runImmediate` argues at length: it
@@ -574,7 +616,8 @@ export function renameSessionTo(sessionId: SessionId, title: string): void {
   if (snapshot === undefined) return;
   runImmediate({
     sessionId,
-    apply: () => useCockpit.getState().upsertSession({ ...snapshot, title: title.trim() }),
+    apply: () =>
+      useCockpit.getState().upsertSession({ ...snapshot, title: title.trim() }),
     rollback: restoreSession(snapshot),
     commit: () => api.renameSession(sessionId, title),
   });
@@ -638,7 +681,10 @@ export function markWorktreeReady(worktree: Worktree): void {
  *
  *  Already-ready is disabled rather than hidden: the row is a fact about the worktree, and
  *  Phase 2 has no un-mark to offer — the merge queue in Phase 3 owns that. */
-export function worktreeReadyItems(worktree: Worktree, close: () => void): MenuItem[] {
+export function worktreeReadyItems(
+  worktree: Worktree,
+  close: () => void,
+): MenuItem[] {
   return [
     {
       id: "mark-ready",

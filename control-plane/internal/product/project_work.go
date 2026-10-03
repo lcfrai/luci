@@ -112,6 +112,12 @@ func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 
 func writeJourneyContext(dir string, state journeyState) error {
 	values := map[string]any{".luci/design.json": state.Design}
+	if state.DesignPlan != nil {
+		values[".luci/design-handoff.json"] = currentDesignPlan(state)
+	}
+	if state.Specification != nil {
+		values[".luci/specification.json"] = currentSpecification(state)
+	}
 	if state.Plan != nil {
 		values[".luci/plan.json"] = state.Plan
 	}
@@ -122,6 +128,16 @@ func writeJourneyContext(dir string, state journeyState) error {
 		}
 		if err = writeProjectAtomic(dir, path, append(data, '\n')); err != nil {
 			return fmt.Errorf("project context export %s: %w", path, err)
+		}
+	}
+	if state.Specification != nil {
+		if err := writeProjectAtomic(dir, ".luci/specification.md", renderSpecification(currentSpecification(state))); err != nil {
+			return fmt.Errorf("specification context export: %w", err)
+		}
+	}
+	if state.DesignPlan != nil {
+		if err := writeProjectAtomic(dir, ".luci/design-handoff.md", renderDesignPlan(currentDesignPlan(state))); err != nil {
+			return fmt.Errorf("design handoff export: %w", err)
 		}
 	}
 	return nil

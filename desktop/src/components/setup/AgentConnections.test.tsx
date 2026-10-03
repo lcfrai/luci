@@ -51,32 +51,39 @@ it("saves an explicitly selected local model without adding a paid fallback or e
   expect(screen.getByText(/provider has not been validated/)).not.toBeNull();
 });
 
-it("opens the official Codex sign-in as an auth-only session and returns to its terminal", async () => {
-  const { api } = await import("../../api");
+it("opens official Codex sign-in without a project and returns to its isolated terminal", async () => {
   const { useCockpit, resetCockpit } = await import("../../store/store");
   const { aHarness, aSession } = await import("../../test/fixtures");
   resetCockpit();
   useCockpit.setState({
     harnesses: [aHarness({ id: "codex" })],
     selection: {
-      projectId: "p1",
-      branchId: "b1",
-      worktreeId: "w1",
+      projectId: null,
+      branchId: null,
+      worktreeId: null,
       sessionId: null,
     },
   });
-  const create = vi
-    .spyOn(api, "createSession")
-    .mockResolvedValue(
-      aSession({ id: "auth-session", worktreeId: "w1", harness: "codex" }),
-    );
   const close = vi.fn();
-  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-    new Response(
-      JSON.stringify({
-        providers: [{ id: "openai", name: "Codex", configured: false }],
-      }),
-    ),
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(
+    async (url) =>
+      new Response(
+        JSON.stringify(
+          String(url).endsWith("/codex/sign-in")
+            ? aSession({
+                id: "auth-session",
+                worktreeId: "setup-codex",
+                projectId: "",
+                branchId: "",
+                harness: "codex",
+                authOnly: true,
+                authMode: "chatgpt",
+              })
+            : {
+                providers: [{ id: "openai", name: "Codex", configured: false }],
+              },
+        ),
+      ),
   );
   render(
     <AgentConnections
@@ -92,14 +99,15 @@ it("opens the official Codex sign-in as an auth-only session and returns to its 
   await userEvent.click(
     screen.getByRole("button", { name: "Open Codex account sign-in" }),
   );
-  expect(create).toHaveBeenCalledWith({
-    worktreeId: "w1",
-    harness: "codex",
-    authOnly: true,
-  });
+  const post = fetcher.mock.calls.find((call) => call[1]?.method === "POST")!;
+  expect(post[0]).toBe("http://localhost/v1/setup/agents/codex/sign-in");
+  expect(JSON.parse(post[1]?.body as string)).toEqual({});
   expect(close).toHaveBeenCalledOnce();
   expect(useCockpit.getState().sessions["auth-session"]).toBeDefined();
-  create.mockRestore();
+  expect(useCockpit.getState().selection).toMatchObject({
+    projectId: null,
+    sessionId: "auth-session",
+  });
   resetCockpit();
 });
 
@@ -129,26 +137,22 @@ it("connects a stopped sign-in for future Codex sessions and keeps API billing u
       }),
     },
   });
-  const fetcher = vi
-    .fn<typeof fetch>()
-    .mockImplementation(
-      async (url, init) =>
-        new Response(
-          JSON.stringify(
-            String(url).endsWith("/codex/account")
-              ? {
-                  configured: init?.method === "POST",
-                  authMode: "chatgpt",
-                  message: "Account credential saved.",
-                }
-              : {
-                  providers: [
-                    { id: "openai", name: "Codex", configured: true },
-                  ],
-                },
-          ),
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(
+    async (url, init) =>
+      new Response(
+        JSON.stringify(
+          String(url).endsWith("/codex/account")
+            ? {
+                configured: init?.method === "POST",
+                authMode: "chatgpt",
+                message: "Account credential saved.",
+              }
+            : {
+                providers: [{ id: "openai", name: "Codex", configured: true }],
+              },
         ),
-    );
+      ),
+  );
   render(
     <AgentConnections
       client={createProductClient("http://localhost", fetcher)}

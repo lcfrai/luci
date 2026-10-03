@@ -5,19 +5,19 @@ import {
   type CodexAccountConnection,
   type ProductClient,
 } from "../../api/product";
-import { api } from "../../api";
 import { useCockpit } from "../../store/store";
 
 export function AgentConnections({
   client,
   cloud,
   onSessionStarted,
+  initialProvider = "anthropic",
 }: {
   client: ProductClient;
   cloud: boolean;
   onSessionStarted?(): void;
+  initialProvider?: string;
 }) {
-  const worktreeId = useCockpit((state) => state.selection.worktreeId);
   const codex = useCockpit((state) =>
     state.harnesses.find((harness) => harness.id === "codex"),
   );
@@ -31,7 +31,7 @@ export function AgentConnections({
     )
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   const [providers, setProviders] = useState<AgentProvider[]>([]);
-  const [providerId, setProviderId] = useState("anthropic");
+  const [providerId, setProviderId] = useState(initialProvider);
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("http://localhost:11434/v1");
   const [model, setModel] = useState("");
@@ -82,6 +82,19 @@ export function AgentConnections({
   const selectedSignIn =
     signInSessions.find((session) => session.id === signInSessionId) ??
     signInSessions[0];
+  const pendingSignIn = Object.values(sessions).find(
+    (session) =>
+      session.harness === "codex" &&
+      session.authOnly &&
+      session.status !== "exited",
+  );
+  const openSignIn = (sessionId: string) => {
+    const state = useCockpit.getState();
+    state.selectProject(null);
+    state.setLens("develop");
+    state.focusSession(sessionId);
+    onSessionStarted?.();
+  };
   async function updateAccount(action: "connect" | "disconnect" | "refresh") {
     if (working.current || (action === "connect" && !selectedSignIn)) return;
     working.current = true;
@@ -149,22 +162,15 @@ export function AgentConnections({
     }
   }
   async function signIn() {
-    if (working.current || !worktreeId) return;
+    if (working.current || pendingSignIn) return;
     working.current = true;
     setBusy(true);
     setError("");
     try {
-      const session = await api.createSession({
-        worktreeId,
-        harness: "codex",
-        authOnly: true,
-      });
+      const session = await client.startCodexSignIn();
       const state = useCockpit.getState();
       state.upsertSession(session);
-      state.selectWorktree(worktreeId);
-      state.setLens("develop");
-      state.focusSession(session.id);
-      onSessionStarted?.();
+      openSignIn(session.id);
     } catch (cause) {
       if (alive.current) setError(errorText(cause));
     } finally {
@@ -220,7 +226,7 @@ export function AgentConnections({
             disabled={
               busy ||
               !!account?.activeSessionId ||
-              !worktreeId ||
+              !!pendingSignIn ||
               !codex?.available
             }
             onClick={() => void signIn()}
@@ -228,7 +234,6 @@ export function AgentConnections({
             Open Codex account sign-in
           </button>
           <p className="journey-muted">
-            {!worktreeId ? "Select a project worktree first. " : ""}
             {codex && !codex.available
               ? `${codex.note || "Codex is unavailable in this runtime."} `
               : ""}
@@ -238,6 +243,16 @@ export function AgentConnections({
             Credentials stay outside project Git and are private to your Luci
             account.
           </p>
+          {pendingSignIn && (
+            <button
+              className="luci-button"
+              type="button"
+              disabled={busy}
+              onClick={() => openSignIn(pendingSignIn.id)}
+            >
+              Resume Codex sign-in
+            </button>
+          )}
           {signInSessions.length > 0 && (
             <>
               <label className="luci-field">

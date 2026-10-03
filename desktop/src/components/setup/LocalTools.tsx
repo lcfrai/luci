@@ -12,16 +12,18 @@ export function LocalTools({
   cloud = false,
   manageBacking: workspaceManageBacking,
   onSessionStarted,
+  identityOnly = false,
 }: {
   client: ProductClient;
   cloud?: boolean;
   manageBacking?: boolean;
   onSessionStarted?(): void;
+  identityOnly?: boolean;
 }) {
   const auth = useAuth();
   const manageBacking =
     workspaceManageBacking ?? (!auth || auth.profile.permissions.manageBacking);
-  const [open, setOpen] = useState(false),
+  const [open, setOpen] = useState(identityOnly),
     [loaded, setLoaded] = useState(false),
     [loadAttempt, setLoadAttempt] = useState(0),
     [loadError, setLoadError] = useState(""),
@@ -80,9 +82,14 @@ export function LocalTools({
   return (
     <details
       className="local-tools"
+      open={open}
       onToggle={(e) => setOpen(e.currentTarget.open)}
     >
-      <summary>Git identity, agent connection and runtime</summary>
+      <summary>
+        {identityOnly
+          ? "Your Git commit identity"
+          : "Git identity, agent connection and runtime"}
+      </summary>
       {open && (
         <div>
           {!loaded && !loadError && (
@@ -158,45 +165,51 @@ export function LocalTools({
               Save Git identity
             </button>
           </form>
-          {manageBacking ? (
-            <section className="setup-plan">
-              <h2>Isolated agent runtime</h2>
-              <p className="journey-muted">
-                Build Luci’s sandbox image using Docker on{" "}
-                {cloud ? "the cloud workspace" : "this machine"}. This downloads
-                its open-source dependencies and can take several minutes.
-              </p>
-              {runtime && (
-                <p role="status">
-                  {runtime.status} · {runtime.message}
+          {!identityOnly &&
+            (manageBacking ? (
+              <section className="setup-plan">
+                <h2>Isolated agent runtime</h2>
+                <p className="journey-muted">
+                  Build Luci’s sandbox image using Docker on{" "}
+                  {cloud ? "the cloud workspace" : "this machine"}. This
+                  downloads its open-source dependencies and can take several
+                  minutes.
                 </p>
-              )}
-              <button
-                className="luci-button"
-                disabled={!loaded || !!busy || runtime?.status === "installing"}
-                onClick={() =>
-                  void run("Starting runtime installation", async () =>
-                    setRuntime(await client.installRuntime()),
-                  )
-                }
-              >
-                {runtime?.status === "installing"
-                  ? "Installing runtime…"
-                  : "Install agent runtime"}
-              </button>
-            </section>
-          ) : (
-            <p className="journey-muted">
-              Your administrator manages the Docker runtime and cloud backing.
-              Your Git identity and model connection below belong to your
-              account.
-            </p>
+                {runtime && (
+                  <p role="status">
+                    {runtime.status} · {runtime.message}
+                  </p>
+                )}
+                <button
+                  className="luci-button"
+                  disabled={
+                    !loaded || !!busy || runtime?.status === "installing"
+                  }
+                  onClick={() =>
+                    void run("Starting runtime installation", async () =>
+                      setRuntime(await client.installRuntime()),
+                    )
+                  }
+                >
+                  {runtime?.status === "installing"
+                    ? "Installing runtime…"
+                    : "Install agent runtime"}
+                </button>
+              </section>
+            ) : (
+              <p className="journey-muted">
+                Your administrator manages the Docker runtime and cloud backing.
+                Your Git identity and model connection below belong to your
+                account.
+              </p>
+            ))}
+          {!identityOnly && (
+            <AgentConnections
+              client={client}
+              cloud={cloud}
+              onSessionStarted={onSessionStarted}
+            />
           )}
-          <AgentConnections
-            client={client}
-            cloud={cloud}
-            onSessionStarted={onSessionStarted}
-          />
         </div>
       )}
     </details>

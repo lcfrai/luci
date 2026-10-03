@@ -26,6 +26,10 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/design-plan": "Reads saved screen/state handoff and compares in-memory revisions; no writes or execution.",
+	"GET /v1/product/projects/{id}/design-plan/history": "Reads immutable saved design handoff snapshots without starting resources.",
+	"GET /v1/product/projects/{id}/specification": "Reads saved definition or derives a legacy summary in memory; no writes, models or processes.",
+	"GET /v1/product/projects/{id}/specification/history": "Reads immutable saved definition snapshots; no resources or writes.",
 	"GET /v1/product/projects/{id}/configuration":      "Reads only names/revision from private runtime configuration; no values, writes or execution.",
 	"GET /v1/setup/status":                             "Reads local setup or bounded remote setup status; no provisioning.",
 	"GET /v1/setup/cloud/jobs":                         "Reads cached provisioning history.",

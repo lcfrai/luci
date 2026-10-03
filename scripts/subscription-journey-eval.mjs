@@ -165,7 +165,7 @@ async function enter() {
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.locator(".shell").waitFor();
+  await page.locator(".shell, .onboarding-portal").first().waitFor();
   token = await page.evaluate(() => sessionStorage.getItem("luci.control-plane.session"));
   assert(token, "The real account must authenticate");
   const me = await get("/v1/auth/me");
@@ -174,9 +174,11 @@ async function enter() {
   const setup = await get("/v1/setup/status");
   await checkpoint("entry.setup-dialog");
   if (!setup.configured) {
-    await page.getByRole("button", { name: "Close settings", exact: true }).click();
+    await page.getByRole("button", { name: "On this computer", exact: true }).click();
+    await page.getByRole("button", { name: "Continue to projects", exact: true }).click();
   }
   await page.locator(".setup-backdrop").waitFor({ state: "hidden" });
+  await page.locator(".shell").waitFor();
   if (result.project) await selectProject();
 }
 async function selectProject(requireBranch = phase !== "prepare") {
@@ -215,8 +217,7 @@ async function planPanel() {
 async function settings() {
   await checkpoint("settings.open");
   await page.getByRole("button", { name: "Settings", exact: true }).click();
-  const summary = page.getByText("Git identity, agent connection and runtime", { exact: true });
-  if (!(await page.getByRole("combobox", { name: "Coding agent", exact: true }).isVisible())) await summary.click();
+  await page.getByRole("button", { name: "Agent connection", exact: true }).click();
   await page.getByRole("combobox", { name: "Coding agent", exact: true }).selectOption("openai");
   await checkpoint("settings.codex");
 }
@@ -235,6 +236,18 @@ async function assertContext() {
   assert.equal(plan.revision, result.proofs.plan.revision, "Plan changed after handoff");
   assert.equal(design.briefRevision, brief.revision);
   assert.equal(plan.briefRevision, brief.revision);
+  if (result.proofs.describe.specificationRevision) {
+    const specification = await get(projectPath("/specification"));
+    assert.equal(specification.revision, result.proofs.describe.specificationRevision);
+    assert.equal(specification.status, "approved");
+    assert.equal(specification.digest, result.proofs.describe.digest);
+  }
+  if (result.proofs.design.handoffRevision) {
+    const handoff = await get(projectPath("/design-plan"));
+    assert.equal(handoff.revision, result.proofs.design.handoffRevision);
+    assert.equal(handoff.status, "approved");
+    assert.equal(handoff.digest, result.proofs.design.digest);
+  }
 }
 async function prepare() {
   if (!result.project) {
@@ -258,27 +271,37 @@ async function prepare() {
   if (!result.proofs.describe) {
     await checkpoint("describe.navigation");
     await lens("Define");
+    await page.getByRole("button", { name: "Specification", exact: true }).click();
     await checkpoint("describe.idea");
     await page.getByRole("textbox", { name: "The idea", exact: true }).fill("Build Luci Launch Checklist: a polished, small launch preparation checklist that shows an actual idea becoming a usable deployed website through Luci.");
     await checkpoint("describe.fields");
     await page.getByRole("textbox", { name: "Who it is for", exact: true }).fill("An individual preparing to launch a small website, using keyboard or touch.");
     await page.getByRole("textbox", { name: "Boundaries and constraints", exact: true }).fill(`Use dependency-light HTML/CSS/JavaScript in docs/ and Node's built-in tests. Follow the saved wireframe, warm neutral surfaces, teal accents, clear type and useful empty states. Docker port 3000 and GitHub Pages /docs must serve the same app, including beneath a repository URL prefix. No external services or assets, no credentials, no cloud purchases. Do not commit or publish; Luci will independently verify and commit. Read the saved plan/design. Only after implementation and your tests finish, write IMPLEMENTATION.md explaining actual changes, remaining limitations and this completion marker: LUCI_SUBSCRIPTION_${result.nonce}. Never claim verification you did not perform.`);
-    await page.getByRole("textbox", { name: /^What good looks like/ }).fill(criteria.join("\n"));
+    for (let index = 0; index < criteria.length; index++) {
+      await page.getByRole("button", { name: "Add requirement", exact: true }).click();
+      await page.getByRole("textbox", { name: `Requirement ${index+1}`, exact: true }).fill(`Launch outcome ${index+1}`);
+      await page.getByRole("textbox", { name: `Acceptance scenario ${index+1}`, exact: true }).fill(criteria[index]);
+    }
     await checkpoint("describe.save");
-    const brief = await observed(() => page.getByRole("button", { name: "Save brief", exact: true }).click(), projectPath("/brief"));
-    assert(brief.criteria.length >= criteria.length && brief.revision > 0);
-    await proof("describe", { revision: brief.revision, criteriaCount: brief.criteria.length });
+    const draft = await observed(() => page.getByRole("button", { name: "Save definition", exact: true }).click(), projectPath("/specification"));
+    assert(draft.requirements.length >= criteria.length && draft.revision > 0);
+    const approved = await observed(() => page.getByRole("button", { name: "Approve definition", exact: true }).click(), projectPath("/specification/approve"));
+    assert.equal(approved.status,"approved");
+    await proof("describe", { revision: approved.briefRevision, specificationRevision: approved.revision, digest: approved.digest, criteriaCount: approved.requirements.length });
     await screenshot("01-define");
   }
   if (!result.proofs.design) {
     await checkpoint("design.navigation");
     await lens("Design");
+    await page.getByRole("button", { name: "Start a screen plan from my definition", exact: true }).click();
+    await observed(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), projectPath("/design-plan"));
+    await page.getByRole("button", { name: "Sketch", exact: true }).click();
     const canvas = page.locator(".excalidraw canvas").first();
     await canvas.waitFor();
-    const box = await canvas.boundingBox(); assert(box && box.width > 850 && box.height > 650);
+    const box = await canvas.boundingBox(); assert(box && box.width > 850 && box.height > 450);
     await checkpoint("design.canvas");
     // Keep the sketch to the right of Excalidraw's visible left style palette.
-    const x = box.x + 280, y = box.y + 140;
+    const x = box.x + 280, y = box.y + 90;
     const paint = () => page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
     async function rectangle(dx, dy, width, height) {
       await page.keyboard.press("Escape"); await page.keyboard.press("2");
@@ -315,7 +338,11 @@ async function prepare() {
     const design = await observed(() => page.getByRole("button", { name: "Save design", exact: true }).click(), projectPath("/design"));
     const elements = design.scene?.elements || [];
     assert(elements.some(item => item.type === "rectangle") && elements.some(item => item.type === "text" && item.text.includes("Luci Launch Checklist")), "Actual persisted canvas must contain the wireframe and heading");
-    await proof("design", { revision: design.revision, briefRevision: design.briefRevision, elementCount: elements.length, sceneSha256: hash(JSON.stringify(design.scene)) });
+    await page.getByRole("button", { name: "Screens and states", exact: true }).click();
+    await observed(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), projectPath("/design-plan"));
+    const handoff = await observed(() => page.getByRole("button", { name: "Approve design handoff", exact: true }).click(), projectPath("/design-plan/approve"));
+    assert.equal(handoff.status,"approved");
+    await proof("design", { revision: design.revision, briefRevision: design.briefRevision, handoffRevision: handoff.revision, digest: handoff.digest, screenCount: handoff.screens.length, elementCount: elements.length, sceneSha256: hash(JSON.stringify(design.scene)) });
     await screenshot("02-design");
   }
   if (!result.proofs.plan) {
@@ -356,7 +383,7 @@ async function auth() {
     pending("Official sign-in saved through Luci. Run develop; a saved credential alone does not prove inference.");
   }
   await settings();
-  const session = await observed(() => page.getByRole("button", { name: "Open Codex account sign-in", exact: true }).click(), "/v1/sessions", 180000);
+  const session = await observed(() => page.getByRole("button", { name: "Open Codex account sign-in", exact: true }).click(), "/v1/setup/agents/codex/sign-in", 180000);
   assert.equal(session.harness, "codex"); assert.equal(session.authOnly, true);
   result.authSessionId = session.id; await save();
   if (waitMs) await until(async () => (await get(`/v1/sessions/${encodeURIComponent(session.id)}`)).status === "exited", waitMs);
@@ -522,7 +549,8 @@ async function verify() {
   await commit();
   if (result.proofs.dockerChecks?.commit !== result.commit) await checks();
   let git = await get(projectPath("/git")); assert(git.clean && git.log[0].hash === result.commit, "Checks must leave verified source unchanged");
-  await lens("Deploy");
+    await lens("Deploy");
+    await page.getByRole("button", { name: "Previews and publishing", exact: true }).click();
   let release = result.localReleaseId && (await get(projectPath("/releases"))).releases.find(row => row.id === result.localReleaseId && row.status === "ready" && row.commit === result.commit);
   if (!release) {
     await page.getByLabel("Dockerfile", { exact: true }).fill("Dockerfile");
@@ -581,6 +609,7 @@ async function deploy() {
   assert(delivery.publication?.verified && delivery.publication.commit === result.commit);
   await proof("publication", { repository, branch: git.branch, commit: result.commit, remoteVerified: true });
   await lens("Deploy");
+    await page.getByRole("button", { name: "Previews and publishing", exact: true }).click();
   // The adapter deliberately derives repository/branch from the verified origin;
   // it cannot publish an unrelated project or treat a localhost preview as public.
   const pages = page.getByRole("button", { name: "GitHub Pages", exact: true });

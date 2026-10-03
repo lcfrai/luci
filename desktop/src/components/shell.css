@@ -1,4 +1,32 @@
 @import "../styles/tokens.css";
+.account-session-workspace {
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  min-block-size: 0;
+}
+.account-session-workspace > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 26px;
+  border-block-end: 1px solid var(--line);
+}
+.account-session-workspace h1 {
+  font-size: 21px;
+  margin: 0 0 8px;
+}
+.account-session-workspace p {
+  color: var(--ink-2);
+  margin: 0;
+  max-inline-size: 70ch;
+}
+.account-session-terminal {
+  flex: 1;
+  min-block-size: 180px;
+}
 
 /* Wide workspaces have a project tree and journey rail. Compact workspaces retain
    the same controls, with the journey above the content and projects in a drawer. */

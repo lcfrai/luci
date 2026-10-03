@@ -1,5 +1,6 @@
 import { ApiError, DEFAULT_BASE_URL, type ProblemCode } from "./client";
 import { authHeaders, expireAuth } from "./authSession";
+import type { Session } from "../store/types";
 
 export interface SetupConfig {
   projectsDir: string;
@@ -450,6 +451,8 @@ export function createProductClient(
     agents: () => request<AgentConnections>("/v1/setup/agents"),
     codexAccount: () =>
       request<CodexAccountConnection>("/v1/setup/agents/codex/account"),
+    startCodexSignIn: () =>
+      request<Session>("/v1/setup/agents/codex/sign-in", {}),
     connectCodexAccount: (sessionId: string) =>
       request<CodexAccountConnection>("/v1/setup/agents/codex/account", {
         sessionId,

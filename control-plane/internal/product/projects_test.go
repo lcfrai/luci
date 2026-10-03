@@ -253,6 +253,9 @@ func TestGitJourneyCommitsAsThePersonAndSuppressesRepoPrograms(t *testing.T) {
 	}
 	marker := filepath.Join(p.Path, "hook-ran")
 	hook := "#!/bin/sh\n: > '" + filepath.ToSlash(marker) + "'\n"
+	if err := os.MkdirAll(filepath.Join(p.Path, ".git", "hooks"), 0700); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(p.Path, ".git", "hooks", "pre-commit"), []byte(hook), 0700); err != nil {
 		t.Fatal(err)
 	}

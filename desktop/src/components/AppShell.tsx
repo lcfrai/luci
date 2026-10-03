@@ -17,6 +17,9 @@ import { useKeyboardMap } from "../hooks/useKeyboardMap";
 import { useDismissable } from "../hooks/useDismissable";
 import type { Lens } from "../store/types";
 import "./shell.css";
+import { ProjectsHome } from "./projects/ProjectsHome";
+import { ColumnsLayout } from "./develop/ColumnsLayout";
+import { useSetup } from "./setup/SetupProvider";
 
 // CLOSED FOR THE PROGRAMME — task 26, seam SX.1 in docs/SEAMS.md. Every lens is one file
 // under ./lens/, and a later phase fills its own file rather than this switch: five phases
@@ -48,11 +51,15 @@ function LensRouter(props: { lens: Lens }): JSX.Element {
 }
 
 export function AppShell(): JSX.Element {
+  const setup = useSetup();
   const railCollapsed = useCockpit((s) => s.railCollapsed);
   const branchId = useCockpit((s) => s.selection.branchId);
   const projectId = useCockpit((s) => s.selection.projectId);
   const lens = useCockpit((s) => s.lens);
   const sessionId = useCockpit((s) => s.selection.sessionId);
+  const accountSession = useCockpit((s) =>
+    s.selection.sessionId ? s.sessions[s.selection.sessionId] : undefined,
+  );
   const toggleRail = useCockpit((s) => s.toggleRail);
   const [compact, setCompact] = useState(
     () => window.matchMedia("(max-width: 760px)").matches,
@@ -120,7 +127,32 @@ export function AppShell(): JSX.Element {
           }
         />
         <div className="shell-lens">
-          <LensRouter lens={lens} />
+          {projectId === null && accountSession?.authOnly ? (
+            <section className="account-session-workspace">
+              <header>
+                <div>
+                  <h1>Connect your Codex account</h1>
+                  <p>
+                    Complete the official sign-in below. When it finishes,
+                    return to save this connection for new projects.
+                  </p>
+                </div>
+                <button
+                  className="luci-button luci-primary"
+                  onClick={() => setup?.openAgents()}
+                >
+                  Return to agent connection
+                </button>
+              </header>
+              <div className="account-session-terminal">
+                <ColumnsLayout sessionIds={[accountSession.id]} />
+              </div>
+            </section>
+          ) : projectId === null && branchId === null ? (
+            <ProjectsHome />
+          ) : (
+            <LensRouter lens={lens} />
+          )}
         </div>
       </main>
       {drawerOpen && <div className="shell-scrim" aria-hidden="true" />}

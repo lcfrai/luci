@@ -117,8 +117,13 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "runtime_unavailable", "Your private workspace could not start. Ask an administrator to inspect its runtime status.")
 		return
 	}
-	creatingSession := r.Method == "POST" && (path == "/v1/sessions" || strings.HasSuffix(path, "/restart") || strings.HasSuffix(path, "/fork")) && strings.HasPrefix(path, "/v1/sessions")
+	creatingCodexUtility := r.Method == "POST" && (path == "/v1/setup/agents/codex/sign-in" || (strings.HasPrefix(path, "/v1/product/projects/") && strings.HasSuffix(path, "/assist")))
+	creatingSession := creatingCodexUtility || (r.Method == "POST" && (path == "/v1/sessions" || strings.HasSuffix(path, "/restart") || strings.HasSuffix(path, "/fork")) && strings.HasPrefix(path, "/v1/sessions"))
 	if creatingSession {
+		if creatingCodexUtility {
+			// These bounded routes cannot select a different provider by body.
+			fields = map[string]json.RawMessage{"harness": json.RawMessage(`"codex"`)}
+		}
 		g.mu.Lock()
 		lock := g.admissions[u.ID]
 		if lock == nil {

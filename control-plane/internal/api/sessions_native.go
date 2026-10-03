@@ -199,6 +199,7 @@ func nativeArgs(provider string, args []string, env map[string]string, authOnly 
 	}
 	if authOnly {
 		delete(env, "OPENAI_API_KEY")
+		delete(env, "CODEX_API_KEY")
 		return []string{"-c", `cli_auth_credentials_store="file"`, "login", "--device-auth"}
 	}
 	if env["OPENAI_API_KEY"] == "" {

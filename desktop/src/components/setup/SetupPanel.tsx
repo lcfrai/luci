@@ -22,11 +22,17 @@ import { ProviderSignIn } from "./ProviderSignIn";
 import { changeWorkspace } from "./workspace";
 import { ProjectRestore } from "../journey/ProjectBackup";
 import { useAuth } from "../auth/AuthProvider";
+import { AppearancePanel } from "./AppearancePanel";
+import { RuntimePreparation } from "./RuntimePreparation";
+import { AgentConnections } from "./AgentConnections";
 import "./setup.css";
 
 interface Props {
   initialStatus: SetupStatus | null;
-  initialSection?: "local" | "project" | "cloud";
+  initialSection?: "local" | "project" | "cloud" | "appearance" | "agents";
+  presentation?: "dialog" | "portal";
+  onOpenProject?(): void;
+  onSessionStarted?(): void;
   onStatus(value: SetupStatus): void;
   onClose(): void;
   onProjectsChanged(): void;
@@ -127,6 +133,9 @@ function SetupRoutes({
 export function SetupPanel({
   initialStatus,
   initialSection = "local",
+  presentation = "dialog",
+  onOpenProject,
+  onSessionStarted,
   onStatus,
   onClose,
   onProjectsChanged,
@@ -149,7 +158,11 @@ export function SetupPanel({
     status?.access?.manageBacking ?? (!cloudWorkspace && localManageBacking);
   const projectsDirManaged = status?.access?.projectsDirManaged === true;
   const canChooseProjectsDir = manageBacking && !projectsDirManaged;
-  const onboarding = status?.configured === false && !cloudWorkspace;
+  const firstRun = useRef(initialStatus?.configured === false);
+  const portal = presentation === "portal";
+  const onboarding =
+    (status?.configured === false || (portal && firstRun.current)) &&
+    !cloudWorkspace;
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
@@ -163,7 +176,7 @@ export function SetupPanel({
   const alive = useRef(true);
   const inFlight = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
-  const panel = useDismissable<HTMLDivElement>(true, () => {
+  const panel = useDismissable<HTMLDivElement>(!portal, () => {
     if (!inFlight.current) onClose();
   });
   useLayoutEffect(() => {
@@ -231,7 +244,21 @@ export function SetupPanel({
     setSection(value === "local" ? "local" : "cloud");
     setError("");
     setNotice("");
+    if (
+      portal &&
+      value === "local" &&
+      config &&
+      !status?.configured &&
+      canChooseProjectsDir
+    ) {
+      void run("Preparing projects folder", async () => {
+        receive(await client.configure(config));
+        onProjectsChanged();
+      });
+    }
   };
+  const createProject = () =>
+    onOpenProject ? onOpenProject() : setSection("project");
   const chooseAgain = () => {
     setRoute(null);
     setPlan(null);
@@ -279,14 +306,37 @@ export function SetupPanel({
     });
   };
   return (
-    <div className="setup-backdrop">
+    <div className={portal ? "onboarding-portal" : "setup-backdrop"}>
+      {portal && (
+        <aside className="onboarding-intro">
+          <strong>Luci</strong>
+          <h2>A workspace for the whole idea.</h2>
+          <p>
+            Define what matters, design the experience, build with an agent and
+            ship a working solution.
+          </p>
+          <ol aria-label="Getting started">
+            <li aria-current={!route && onboarding ? "step" : undefined}>
+              Choose where you work
+            </li>
+            <li aria-current={route || !onboarding ? "step" : undefined}>
+              Prepare your workspace
+            </li>
+            <li>Create your first project</li>
+          </ol>
+          <p className="journey-muted">
+            Your account is ready. These steps connect the tools your projects
+            will use. Cloud resources and model use are separate choices.
+          </p>
+        </aside>
+      )}
       <div
         className="setup-window"
         ref={panel}
-        role="dialog"
-        aria-modal="true"
+        role={portal ? "main" : "dialog"}
+        aria-modal={portal ? undefined : true}
         aria-labelledby="setup-title"
-        onKeyDown={trapFocus}
+        onKeyDown={portal ? undefined : trapFocus}
       >
         <header className="setup-header">
           <div>
@@ -299,7 +349,9 @@ export function SetupPanel({
                   ? "Create a cloud project"
                   : "Your cloud workspace"
                 : status?.configured
-                  ? "Settings"
+                  ? portal
+                    ? "Prepare your workspace"
+                    : "Settings"
                   : route === "local"
                     ? section === "project"
                       ? "Create your first project"
@@ -318,15 +370,17 @@ export function SetupPanel({
                   : "Your projects, your machine. Move your workspace to your cloud when you choose."}
             </p>
           </div>
-          <button
-            className="setup-close"
-            type="button"
-            onClick={onClose}
-            disabled={!!busy}
-            aria-label="Close settings"
-          >
-            ×
-          </button>
+          {!portal && (
+            <button
+              className="setup-close"
+              type="button"
+              onClick={onClose}
+              disabled={!!busy}
+              aria-label="Close settings"
+            >
+              ×
+            </button>
+          )}
         </header>
         <nav className="setup-tabs" aria-label="Settings sections">
           {onboarding
@@ -344,9 +398,12 @@ export function SetupPanel({
                     "cloud",
                     cloudWorkspace ? "Connection and account" : "Your cloud",
                   ],
+                  ["appearance", "Appearance"],
+                  ["agents", "Agent connection"],
                 ] as const
               )
                 .filter(([id]) => id !== "cloud" || localManageBacking)
+                .filter(([id]) => id !== "project" || !onOpenProject)
                 .map(([id, label]) => (
                   <button
                     key={id}
@@ -416,7 +473,7 @@ export function SetupPanel({
                         className="luci-button luci-primary"
                         type="button"
                         disabled={!!busy || !status?.workspace?.ready}
-                        onClick={() => setSection("project")}
+                        onClick={createProject}
                       >
                         Create your first project
                       </button>
@@ -434,6 +491,17 @@ export function SetupPanel({
                         </button>
                       )}
                     </div>
+                  )}
+                  {portal && busy !== "Preparing projects folder" && (
+                    <RuntimePreparation
+                      client={client}
+                      manageBacking={manageBacking}
+                      automatic
+                      onStatus={(value) => {
+                        setStatus(value);
+                        onStatus(value);
+                      }}
+                    />
                   )}
                   <form onSubmit={submitConfig}>
                     <label className="luci-field">
@@ -486,42 +554,62 @@ export function SetupPanel({
                       </button>
                     </div>
                   </form>
-                  <div className="setup-checks">
-                    <h2>Ready when you are</h2>
-                    <p className="journey-muted">
-                      Git supports your projects. Docker and the sandbox image
-                      are needed for isolated agent sessions.
-                      {cloudWorkspace
-                        ? " These checks describe the selected cloud workspace."
-                        : " AWS and Azure are optional."}
-                    </p>
-                    {status?.checks.map((check) => (
-                      <div className="setup-check" key={check.id}>
-                        <div>
-                          <strong>{check.label}</strong>
-                          <span
-                            className={`setup-status setup-status-${check.status}`}
-                          >
-                            {check.status}
-                          </span>
+                  {!portal && (
+                    <div className="setup-checks">
+                      <h2>Ready when you are</h2>
+                      <p className="journey-muted">
+                        Git supports your projects. Docker and the sandbox image
+                        are needed for isolated agent sessions.
+                        {cloudWorkspace
+                          ? " These checks describe the selected cloud workspace."
+                          : " AWS and Azure are optional."}
+                      </p>
+                      {status?.checks.map((check) => (
+                        <div className="setup-check" key={check.id}>
+                          <div>
+                            <strong>{check.label}</strong>
+                            <span
+                              className={`setup-status setup-status-${check.status}`}
+                            >
+                              {check.status}
+                            </span>
+                          </div>
+                          <p>{check.message}</p>
+                          {check.action && <pre>{check.action}</pre>}
                         </div>
-                        <p>{check.message}</p>
-                        {check.action && <pre>{check.action}</pre>}
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                   <LocalTools
                     client={client}
+                    identityOnly={portal}
                     cloud={cloudWorkspace}
                     manageBacking={manageBacking}
-                    onSessionStarted={onClose}
+                    onSessionStarted={onSessionStarted ?? onClose}
                   />
+                  {portal && (
+                    <section className="onboarding-next">
+                      <h2>Connect your coding agent</h2>
+                      <p className="journey-muted">
+                        Use your Codex account, provider API credits or a local
+                        model. You can connect now or come back after defining
+                        your project.
+                      </p>
+                      <button
+                        className="luci-button"
+                        type="button"
+                        onClick={() => setSection("agents")}
+                      >
+                        Connect a coding agent
+                      </button>
+                    </section>
+                  )}
                   {!cloudWorkspace && (
                     <button
                       className="luci-button"
                       type="button"
                       disabled={!!busy}
-                      onClick={() => setSection("project")}
+                      onClick={createProject}
                     >
                       Create your first project →
                     </button>
@@ -594,6 +682,25 @@ export function SetupPanel({
                       onClose();
                     }}
                   />
+                </>
+              )}
+              {section === "appearance" && <AppearancePanel />}
+              {section === "agents" && (
+                <>
+                  <AgentConnections
+                    client={client}
+                    cloud={cloudWorkspace}
+                    initialProvider="openai"
+                    onSessionStarted={onSessionStarted ?? onClose}
+                  />
+                  {portal && (
+                    <button
+                      className="luci-button"
+                      onClick={() => setSection("local")}
+                    >
+                      Back to workspace preparation
+                    </button>
+                  )}
                 </>
               )}
               {section === "cloud" && !localManageBacking && (
@@ -895,7 +1002,7 @@ export function SetupPanel({
                 : "Local by default · Your account, when you choose"}
           </span>
           <button className="luci-button" onClick={onClose} disabled={!!busy}>
-            Back to project
+            {portal ? "Continue to projects" : "Back to project"}
           </button>
         </footer>
       </div>

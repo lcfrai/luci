@@ -1,0 +1,40 @@
+import { afterEach, expect, it, vi } from "vitest";
+import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { definitionApi, type ProjectSpecification } from "../../api/definition";
+import { DefinitionWorkspace } from "./DefinitionWorkspace";
+
+afterEach(() => { cleanup();vi.restoreAllMocks(); });
+const fixture = (): ProjectSpecification => ({projectId:"p-1",version:1,revision:2,briefRevision:3,startingPoint:"new",purpose:"A complete app",audience:"People",constraints:"Offline",outOfScope:[],requirements:[{id:"AC-001",title:"Save work",priority:"must",acceptance:"Saved work survives reopening"}],journeys:[],roles:[],entities:[],integrations:[],glossary:[],decisions:[],questions:[],status:"draft",digest:"",updatedAt:""});
+it("keeps model proposals separate from saved and approved definition", async () => {
+  vi.spyOn(definitionApi,"get").mockResolvedValue(fixture());
+  const proposed={...fixture(),purpose:"A proposed fuller application",requirements:[{id:"AC-002",title:"Export work",priority:"must" as const,acceptance:"Exports can be reopened"}]};
+  vi.spyOn(definitionApi,"assist").mockResolvedValue({id:"assist-1",projectId:"p-1",status:"succeeded",message:"Proposal ready",createdAt:"",updatedAt:"",result:{question:"Who needs exports?",options:["The owner"],rationale:"The sharing boundary matters.",proposal:proposed}});
+  const save=vi.spyOn(definitionApi,"save").mockResolvedValue({...proposed,revision:3,briefRevision:4});
+  const approve=vi.spyOn(definitionApi,"approve");
+  render(<DefinitionWorkspace projectId="p-1"/>);
+  await screen.findByRole("textbox",{name:"The idea"});
+  await userEvent.type(screen.getByRole("textbox",{name:"What would you like to explore?"}),"Help me find gaps");
+  await userEvent.click(screen.getByRole("button",{name:"Ask Luci"}));
+  await screen.findByText("Who needs exports?");
+  expect(save).not.toHaveBeenCalled();expect(approve).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByText("Review proposed definition"));
+  await userEvent.click(screen.getByRole("button",{name:"Use this proposal as my draft"}));
+  expect((screen.getByRole("textbox",{name:"The idea"}) as HTMLTextAreaElement).value).toBe(proposed.purpose);
+  expect(save).not.toHaveBeenCalled();expect(approve).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button",{name:"Save definition"}));
+  await waitFor(()=>expect(save).toHaveBeenCalledOnce());
+  expect(save.mock.calls[0][1].requirements[0].id).toBe("AC-002");
+  expect(approve).not.toHaveBeenCalled();
+});
+it("keeps requirement identities while changing acceptance words",async()=>{
+  vi.spyOn(definitionApi,"get").mockResolvedValue(fixture());
+  const save=vi.spyOn(definitionApi,"save").mockImplementation(async(_id,spec)=>({...spec,revision:3,briefRevision:4}));
+  render(<DefinitionWorkspace projectId="p-1"/>);
+  const acceptance=await screen.findByRole("textbox",{name:"Acceptance scenario 1"});
+  await userEvent.clear(acceptance);await userEvent.type(acceptance,"Given saved work, when reopened offline, then all entries return");
+  await userEvent.click(screen.getByRole("button",{name:"Save definition"}));
+  await waitFor(()=>expect(save).toHaveBeenCalledOnce());
+  expect(save.mock.calls[0][1].requirements[0].id).toBe("AC-001");
+  expect(save.mock.calls[0][1].requirements[0].acceptance).toContain("offline");
+});

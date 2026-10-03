@@ -6,13 +6,25 @@ import { CloudDeployForm } from "../journey/CloudDeployForm";
 import { PagesDeployForm } from "../journey/PagesDeployForm";
 import { ProjectConfiguration } from "../journey/ProjectConfiguration";
 import { useAuth } from "../auth/AuthProvider";
+import { PlatformWorkspace } from "../platform/PlatformWorkspace";
 
 export function DeployLens() {
   return (
     <ProjectRequired>
-      {(id) => <ProjectDeploy key={id} projectId={id} />}
+      {(id) => <DeploymentWorkspace key={id} projectId={id} />}
     </ProjectRequired>
   );
+}
+function DeploymentWorkspace({ projectId }: { projectId: string }) {
+  const [view, setView] = useState<"platform" | "publishing">("platform");
+  const [configurationBusy, setConfigurationBusy] = useState(false);
+  return <div className="deployment-workspace">
+    <nav className="definition-tabs deployment-tabs" aria-label="Deployment workspace">
+      <button aria-current={view === "platform" ? "page" : undefined} onClick={() => setView("platform")}>Application platform</button>
+      <button aria-current={view === "publishing" ? "page" : undefined} onClick={() => setView("publishing")}>Previews and publishing</button>
+    </nav>
+    {view === "platform" ? <section className="journey-page"><JourneyHeader title="Deploy and operate" subtitle="Run the application and its backing services, inspect its health and maintain it after launch." /><ProjectConfiguration projectId={projectId} disabled={false} onBusyChange={setConfigurationBusy} /><fieldset className="definition-fields" disabled={configurationBusy}><PlatformWorkspace projectId={projectId} /></fieldset></section> : <ProjectDeploy projectId={projectId} />}
+  </div>;
 }
 export function ProjectDeploy({ projectId }: { projectId: string }) {
   const [releases, setReleases] = useState<Release[]>([]);

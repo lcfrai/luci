@@ -155,7 +155,16 @@ export function Rail({
     >
       <div>
         <div className="rail-brand">
-          <strong>Luci</strong>
+          <button
+            className="rail-home"
+            aria-label="All projects"
+            onClick={() => {
+              useCockpit.getState().selectProject(null);
+              onClose?.();
+            }}
+          >
+            Luci
+          </button>
           <div className="rail-brand-actions">
             <button
               type="button"
@@ -204,8 +213,8 @@ export function Rail({
       >
         {projects.length === 0 ? (
           <p className="rail-empty">
-            No projects yet. Create a project above, or choose your projects
-            folder in Settings.
+            No projects yet. Create a project or import a repository from your
+            projects home.
           </p>
         ) : (
           projects.map((project) => (
