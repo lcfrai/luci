@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { DataWorkspace } from "./DataWorkspace";
 import { dataApi, type DataStatus } from "../../api/data";
 import { platformApi } from "../../api/platform";
@@ -132,18 +133,42 @@ it("retains an existing local browser data endpoint without allocating a cloud c
 });
 
 it("offers retained-volume first-install recovery only after stopping and both acknowledgements", async () => {
+  const user = userEvent.setup();
+  let finishStop!: (value: DataStatus) => void;
+  const stopping = new Promise<DataStatus>(resolve => { finishStop = resolve; });
   vi.mocked(dataApi.status).mockResolvedValue({ ...initial, status: "degraded", initializationState: "unknown", canRecoverInstall: true });
-  vi.mocked(dataApi.action).mockImplementation(async (_id, action) => action === "stop" ? { ...initial, status: "stopped", initializationState: "unknown", canRecoverInstall: true, revision: 1 } : { ...initial, status: "installing", initializationState: "pending", canRecoverInstall: false, revision: 2, priorStackRetained: true, operation: { id: "recovery", action: "recover-install", status: "running", stage: "checking", message: "Verifying retained bootstrap failure", createdAt: "now", updatedAt: "now" } });
+  vi.mocked(dataApi.action).mockImplementation(async (_id, action) => action === "stop" ? stopping : { ...initial, status: "installing", initializationState: "pending", canRecoverInstall: false, revision: 2, priorStackRetained: true, operation: { id: "recovery", action: "recover-install", status: "running", stage: "checking", message: "Verifying retained bootstrap failure", createdAt: "now", updatedAt: "now" } });
   render(<DataWorkspace projectId="owned" dockerReady />);
-  const recovery = await screen.findByRole("button", { name: "Recover initial installation" });
-  expect((recovery as HTMLButtonElement).disabled).toBe(true);
+  await screen.findByRole("button", { name: "Recover initial installation" });
+  const recovery = () => screen.getByRole("button", { name: "Recover initial installation" }) as HTMLButtonElement;
+  const capacity = () => screen.getByLabelText("I have capacity for these services on the selected Docker host.") as HTMLInputElement;
+  expect(recovery().disabled).toBe(true);
   expect(screen.queryByLabelText("Start a fresh installation and retain the incomplete stack's volumes.")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "Stop data services" }));
-  await screen.findByLabelText("Start a fresh installation and retain the incomplete stack's volumes.");
-  fireEvent.click(screen.getByLabelText("Start a fresh installation and retain the incomplete stack's volumes."));
-  expect((recovery as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.click(screen.getByLabelText("I have capacity for these services on the selected Docker host."));
-  fireEvent.click(recovery);
+  await user.click(recovery());
+  expect(dataApi.action).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Stop data services" }));
+  expect(dataApi.action).toHaveBeenCalledExactlyOnceWith("owned", "stop", { acknowledgeResources: false });
+  expect(capacity().disabled).toBe(true);
+  expect(recovery().disabled).toBe(true);
+  expect(screen.queryByLabelText("Start a fresh installation and retain the incomplete stack's volumes.")).toBeNull();
+  await act(async () => {
+    finishStop({ ...initial, status: "stopped", initializationState: "unknown", canRecoverInstall: true, revision: 1 });
+    await stopping;
+  });
+  const fresh = await screen.findByLabelText("Start a fresh installation and retain the incomplete stack's volumes.") as HTMLInputElement;
+  await waitFor(() => {
+    expect(fresh.disabled).toBe(false);
+    expect(capacity().disabled).toBe(false);
+  });
+  await user.click(fresh);
+  expect(fresh.checked).toBe(true);
+  expect(recovery().disabled).toBe(true);
+  await user.click(recovery());
+  expect(dataApi.action).toHaveBeenCalledTimes(1);
+  await user.click(capacity());
+  expect(capacity().checked).toBe(true);
+  await waitFor(() => expect(recovery().disabled).toBe(false));
+  await user.click(recovery());
   await waitFor(() => expect(dataApi.action).toHaveBeenCalledWith("owned", "recover-install", { acknowledgeResources: true, confirmFreshInstall: true }));
   await screen.findByText("Verifying retained bootstrap failure");
   expect(screen.getByText("Previous stack volumes are retained for recovery.")).not.toBeNull();

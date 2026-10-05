@@ -597,3 +597,30 @@ readback finds all eleven original services stopped with their named-volume
 identities unchanged. Evidence is the secondary instance's
 `functions-ui-58ce3ee6-7819-4b68-bddb-7741e1d0d497/results.json`. This is an
 auxiliary acceptance fixture, not a subscription-generated benchmark application.
+
+### Installed 0.4.10 and asynchronous recovery test correction
+
+Clean source `32e6b8529863f97a1b3d1d7f73c81c6d512ebeab` produced the matching
+Linux/cloud archives, 917-file Docker distribution and 955-file source export.
+Strict materialization checks all 906 Linux files; licence evidence covers 344
+components with no missing grants. Both existing Docker instances upgraded with
+accounts, journeys and named volumes preserved. The primary's real runtime is
+ready and its remembered admin visit opens Your projects. Evidence is
+`artifacts/review/010-32e6-installed-package-checkpoint.json`.
+
+Its full CI `37357248335` stopped at one desktop recovery test (1,192 passes).
+Runtime, SSH, portable and native jobs were skipped; they are not passes for this
+candidate. The actual PR merge `71b06f2` and intended source have the same tree.
+The failed test used immediate synthetic clicks and a saved recovery-button
+reference around an asynchronous stop/state-reset boundary. The exact historical
+timing did not reproduce in one focused local run; the failure remains retained
+under `artifacts/review/010-ci-37357248335-recovery`.
+
+Only that test changes next: it controls the stop promise, verifies disabled
+controls while stopping, settles through async `act`, waits for genuinely enabled
+acknowledgements, and uses normal user interactions/current button queries. It
+still requires stop first, both acknowledgements, the exact recovery request and
+retained volumes without invented operation completion. All 13 affected tests
+pass (4.21 seconds). Product locking/recovery is unchanged. Evidence is
+`artifacts/review/010-data-recovery-test-source-check.json`; a new full CI must
+still supply actual downstream installed outcomes.
