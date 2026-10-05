@@ -75,8 +75,11 @@ async function api(service, method, resource, body, expected = 200, token = serv
 async function startService(name, port, account, password) {
   const directory = path.join(root, name), state = path.join(directory, 'state'), projects = path.join(directory, 'projects'), home = path.join(directory, 'home');
   for (const folder of [state, projects, home]) await fs.mkdir(folder, { recursive: true, mode: 0o700 });
-  // Deliberate minimal environment: no host provider credentials or configuration.
-  const env = { PATH: process.env.PATH, HOME: home, USER: username, LOGNAME: username, LANG: 'C.UTF-8', TMPDIR: root, LUCI_ADDR: `127.0.0.1:${port}`, LUCI_STATE_DIR: state, LUCI_PROJECTS_DIR: projects, LUCI_BACKEND: 'docker', LUCI_BACKING: 'docker', LUCI_WEB_DIR: path.join(desktop, 'dist'), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: path.join(home, '.gitconfig'), GH_CONFIG_DIR: path.join(home, 'gh'), AWS_CONFIG_FILE: path.join(home, 'aws-config'), AWS_SHARED_CREDENTIALS_FILE: path.join(home, 'aws-credentials'), AZURE_CONFIG_DIR: path.join(home, 'azure') };
+  // Deliberate minimal environment: no host provider credentials/configuration.
+  // SSH-only acceptance must not use the CI runner's live Docker engine when
+  // first-visit preparation checks the newly selected remote workspace.
+  const unavailableEngine = 'tcp://127.0.0.1:1';
+  const env = { PATH: process.env.PATH, HOME: home, USER: username, LOGNAME: username, LANG: 'C.UTF-8', TMPDIR: root, LUCI_ADDR: `127.0.0.1:${port}`, LUCI_STATE_DIR: state, LUCI_PROJECTS_DIR: projects, LUCI_BACKEND: 'docker', LUCI_BACKING: 'docker', LUCI_DOCKER_HOST: unavailableEngine, DOCKER_HOST: unavailableEngine, LUCI_WEB_DIR: path.join(desktop, 'dist'), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: path.join(home, '.gitconfig'), GH_CONFIG_DIR: path.join(home, 'gh'), AWS_CONFIG_FILE: path.join(home, 'aws-config'), AWS_SHARED_CREDENTIALS_FILE: path.join(home, 'aws-credentials'), AZURE_CONFIG_DIR: path.join(home, 'azure') };
   const proc = start(binary, [], env, name);
   const service = { base: `http://127.0.0.1:${port}`, state, projects, proc, token: '' };
   await until(async () => {
@@ -211,12 +214,39 @@ try {
   const auth = await clickResponse(page.getByRole('button', { name: 'Sign in to workspace', exact: true }), '/v1/setup/workspace/auth');
   assert.equal(auth.authenticated, true); assert.equal(auth.user.id, remote.user.id);
   await until(() => page.getByRole('button', { name: 'Use this cloud workspace' }).isEnabled(), 'Authenticated workspace did not enable activation');
-  await switchWorkspace(page.getByRole('button', { name: 'Use this cloud workspace' }), '/v1/setup/workspace/activate');
+  // Check each independent controller before the local one routes to the cloud.
+  for (const service of [local, remote]) {
+    const runtime = await api(service, 'GET', '/v1/setup/runtime/install');
+    assert.equal(runtime.status, 'idle', 'SSH-only entry must not prepare any runtime');
+    assert.ok(!runtime.id, 'No runtime installation attempt may be allocated');
+  }
+  const [readinessResponse] = await Promise.all([
+    page.waitForResponse(response => new URL(response.url()).pathname === '/v1/setup/check' && response.request().method() === 'POST'),
+    switchWorkspace(page.getByRole('button', { name: 'Use this cloud workspace' }), '/v1/setup/workspace/activate'),
+  ]);
+  // This remote identity has no projects yet. Complete its real first-visit
+  // portal before expecting shell account controls, without claiming readiness.
+  await page.getByRole('heading', { name: 'Your cloud workspace', exact: true }).waitFor();
+  assert.equal(readinessResponse.status(), 200);
+  const readiness = await readinessResponse.json();
+  assert.equal(readiness.workspace.mode, 'cloud');
+  assert.equal(readiness.workspace.connectionId, tunnel.id);
+  for (const id of ['docker', 'sandbox-image'])
+    assert.equal(readiness.checks.find(check => check.id === id)?.status, 'missing', `${id} must reflect the explicit unavailable SSH-only fixture engine`);
+  // The local API now forwards this route to the selected remote controller;
+  // verify its actual cached state both directly and through the SSH workspace.
+  for (const service of [remote, local]) {
+    const runtime = await api(service, 'GET', '/v1/setup/runtime/install');
+    assert.equal(runtime.status, 'idle', 'SSH-only entry must not prepare any runtime');
+    assert.ok(!runtime.id, 'No runtime installation attempt may be allocated');
+  }
+  await page.getByRole('button', { name: 'Continue to projects', exact: true }).click();
+  await page.getByRole('heading', { name: 'Your projects', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Local Workspace Owner', exact: true }).waitFor();
   assert.equal((await api(local, 'GET', '/v1/auth/me')).user.id, local.user.id);
   assert.equal((await api(local, 'GET', '/v1/setup/status')).workspace.mode, 'cloud');
   assert.ok(!(await api(local, 'GET', '/v1/projects')).projects.some((item) => item.id === sentinel.id));
-  pass('separate_account_error_recovery_and_activation', 'Wrong remote password keeps the browser signed in locally and activation disabled; real remote sign-in succeeds on retry, then the selected cloud workspace replaces the project view while local identity stays intact.');
+  pass('separate_account_error_recovery_and_activation', 'Wrong remote password keeps the browser signed in locally and activation disabled; real remote sign-in succeeds on retry. Both independent controllers are idle before activation; the empty remote first-visit portal completes through its visible action with actual Docker/image checks missing and no runtime attempt, verified directly and through SSH. Cloud projects replace the catalogue while local identity stays intact.');
 
   stage = 'create-and-save-remote-project-in-browser';
   await page.getByRole('heading', { name: 'Your projects', exact: true }).waitFor();
