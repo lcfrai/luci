@@ -378,17 +378,30 @@ export function createProductClient(
     path: string,
     body: Blob | undefined,
     read: (response: Response) => Promise<T>,
+    options: {
+      method?: "GET" | "POST";
+      headers?: Record<string, string>;
+      budgetMs?: number;
+      signal?: AbortSignal;
+      kind?: "project" | "file";
+    } = {},
   ): Promise<T> {
-    const controller = new AbortController(),
-      timer = setTimeout(() => controller.abort(), 120_000);
+    const controller = new AbortController();
+    const abort = () => controller.abort(options.signal?.reason);
+    options.signal?.addEventListener("abort", abort, { once: true });
+    if (options.signal?.aborted) abort();
+    const timer = setTimeout(() => controller.abort(), options.budgetMs ?? 120_000);
+    const method = options.method ?? "POST";
     try {
+      controller.signal.throwIfAborted();
       const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
-        method: "POST",
+        method,
         signal: controller.signal,
-        headers: authHeaders({
+        headers: authHeaders(method === "GET" ? options.headers : {
           "Content-Type": body ? "application/zip" : "application/json",
+          ...options.headers,
         }),
-        body: body || "{}",
+        body: method === "GET" ? undefined : body || "{}",
       });
       if (response.status === 401) expireAuth();
       if (!response.ok) {
@@ -397,23 +410,27 @@ export function createProductClient(
         }))) as { error?: string; message?: string };
         throw new ProductApiError(
           (problem.error || "internal") as ProblemCode,
-          problem.message || "Project transfer failed.",
+          problem.message || (options.kind === "file" ? "File transfer failed." : "Project transfer failed."),
           response.status,
           problem,
         );
       }
       return await read(response);
     } catch (cause) {
+      if (options.signal?.aborted) throw options.signal.reason;
       if (cause instanceof ApiError) throw cause;
       throw new ApiError(
         controller.signal.aborted ? "timeout" : "network_unavailable",
         controller.signal.aborted
-          ? "Project transfer timed out. Check the project list before retrying a restore."
+          ? options.kind === "file"
+            ? "The file transfer timed out. Check its result before trying again."
+            : "Project transfer timed out. Check the project list before retrying a restore."
           : "The workspace service is unavailable. Retry when it reconnects.",
         0,
       );
     } finally {
       clearTimeout(timer);
+      options.signal?.removeEventListener("abort", abort);
     }
   }
   async function request<T>(
@@ -481,7 +498,16 @@ export function createProductClient(
   const project = (id: string) =>
     `/v1/product/projects/${encodeURIComponent(id)}`;
   return {
+    get baseUrl() { return baseUrl.replace(/\/$/, ""); },
     request,
+    requestBlob: (
+      path: string,
+      options: { method?: "GET" | "POST"; body?: Blob; headers?: Record<string, string> } = {},
+      budgetMs = 60_000,
+      signal?: AbortSignal,
+    ) => transfer(path, options.body, response => response.blob(), {
+      method: options.method ?? "GET", headers: options.headers, budgetMs, signal, kind: "file",
+    }),
     status: () => request<SetupStatus>("/v1/setup/status"),
     check: (signal?: AbortSignal) =>
       request<SetupStatus>("/v1/setup/check", {}, "POST", 120_000, signal),

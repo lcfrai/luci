@@ -27,11 +27,14 @@ vi.mock("../../api/platform", async (importOriginal) => ({
     prepareBrowser: vi.fn(),
   },
 }));
-vi.mock("../../api/product", () => ({
-  productApi: { gitDelivery: vi.fn() },
-  errorText: (value: unknown) =>
-    value instanceof Error ? value.message : "Request failed",
-}));
+vi.mock("../../api/product", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/product")>();
+  return {
+    ...actual,
+    productApi: { baseUrl: actual.productApi.baseUrl, gitDelivery: vi.fn() },
+    errorText: (value: unknown) => value instanceof Error ? value.message : "Request failed",
+  };
+});
 const project: PlatformProject = {
   projectId: "owned",
   deployments: [],

@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { DataWorkspace } from "./DataWorkspace";
 import { dataApi, type DataStatus } from "../../api/data";
 import { platformApi } from "../../api/platform";
-vi.mock("../../api/product", async (importOriginal) => ({ ...await importOriginal<typeof import("../../api/product")>(), productApi: { targets: vi.fn().mockResolvedValue({ targets: [] }) } }));
+vi.mock("../../api/product", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/product")>();
+  return { ...actual, productApi: { baseUrl: actual.productApi.baseUrl, targets: vi.fn().mockResolvedValue({ targets: [] }) } };
+});
 vi.mock("../../api/platform", async (importOriginal) => ({ ...await importOriginal<typeof import("../../api/platform")>(), platformApi: { prepareBrowser: vi.fn() } }));
 vi.mock("./DataEmail", () => ({ DataEmail: ({ ready }: { ready: boolean }) => <section aria-label="Application email settings">{ready ? "Email service settings" : "Saved email settings; start data before applying."}</section> }));
 vi.mock("../../api/data", () => ({ dataApi: { domain: vi.fn().mockImplementation(id => Promise.resolve({ projectId: id, status: "not-configured", revision: 0, message: "Private connection", emailDelivery: "unconfigured" })), configureDomain: vi.fn(), status: vi.fn(), action: vi.fn(), users: vi.fn(), createUser: vi.fn(), tables: vi.fn(), rows: vi.fn(), rls: vi.fn(), buckets: vi.fn(), realtime: vi.fn(), functions: vi.fn(), downloadBackup: vi.fn() } }));

@@ -1,6 +1,4 @@
 import { productApi } from "./product";
-import { DEFAULT_BASE_URL } from "./client";
-import { authHeaders, expireAuth } from "./authSession";
 
 export interface PlatformDeployment {
   id: string;
@@ -92,7 +90,7 @@ export function isGatewayHostname(hostname: string): boolean {
 export function isolatedBrowserURL(raw: string): string | undefined {
   try {
     const url = new URL(raw);
-    const controlOrigin = new URL(window.__LUCI_API__ || DEFAULT_BASE_URL).origin;
+    const controlOrigin = new URL(productApi.baseUrl).origin;
     if (url.username || url.password || url.origin === window.location.origin || url.origin === controlOrigin) return undefined;
     return url.protocol === "http:" && !!url.port &&
       (url.hostname === "127.0.0.1" || isGatewayHostname(url.hostname))
@@ -184,14 +182,9 @@ export const platformApi = {
       {},
     ),
   async downloadBackup(id: string, backup: PlatformBackup) {
-    const response = await fetch(
-      `${DEFAULT_BASE_URL}${project(id)}/backups/${encodeURIComponent(backup.id)}`,
-      { headers: authHeaders(), signal: AbortSignal.timeout(60_000) },
+    const blob = await productApi.requestBlob(
+      `${project(id)}/backups/${encodeURIComponent(backup.id)}`,
     );
-    if (response.status === 401) expireAuth();
-    if (!response.ok)
-      throw new Error("The verified database backup could not be downloaded.");
-    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

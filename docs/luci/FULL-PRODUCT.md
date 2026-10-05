@@ -1019,3 +1019,64 @@ database worker as well as the existing identity/project/check paths. The local
 Windows host has no C compiler and cannot execute Go's race detector; its
 retained prerequisite failure is not a race-test pass. Actual race acceptance
 must come from the next matching Linux CI run.
+
+## 0.4.14 CI and installed outcomes — 6 October 2026
+
+[CI run 37384464598](https://github.com/lcfrai/luci/actions/runs/37384464598)
+checks out merge `9f2a11432165a9f290c4fcf82c1e05b6611a408f`, whose tree
+`44baf923eb7c55f99870a805e480750c13804400` matches frozen source
+`80731496c8fa5f2de251615ed2fd5b2d8a390b92`. Whole Go, the expanded Linux race
+gate including platform workers, desktop 1,271/79 files, TypeScript validation
+and the web build pass. Connected browser acceptance fails after seven completed
+journey checks: the driver waits for bare `passed`, while the actual UI shows
+`Commands passed` and `Unverified · generic commands without requirement links`.
+The owned host Git diagnostic has exit zero and a passed command summary; this
+does not establish requirement satisfaction. Entry acceptance passes nine
+checks, and lifecycle acceptance fails after two completed checkpoints. Runtime,
+portable and Windows jobs are skipped. The terminal summary, digest-verified
+browser artifact and safe DOM diagnosis remain under
+`artifacts/review/014-ci-observer`; no CI rerun replaces this failure.
+
+The matching installed standalone PostgreSQL journey passes database startup,
+owner/ACL checks and creation of a native PGDMP backup. Its actual UI download
+then fails because the selected secondary workspace uses port 8750 while the
+binary request targets a fixed port 8730. This is a product transfer defect,
+separate from the browser driver's status lookup. The installed failure is
+retained in `artifacts/review/014-standalone-postgres-installed-execution-1.log`.
+Restore, rollback and their later preservation outcomes are not verified by
+that interrupted journey.
+
+## 0.4.15 source correction checkpoint — 6 October 2026
+
+The next batch corrects both causes. Binary downloads and uploads use the shared
+authenticated transport for the selected workspace, including PostgreSQL backup,
+platform transfers, Data storage and Supabase backup. The transport consumes the
+response within its authentication, timeout and cancellation budget. Existing
+file-size and path guards remain in place. The browser driver waits for the
+visible `Commands passed` label and verifies the generic-command unverified
+disclosure, retaining actual command exit/output, Docker-default and permission
+assertions. Its syntax and whitespace checks pass; that correction is not a
+completed installed or browser journey. The focused transfer/transport batch
+passes 22 tests in four files, and TypeScript validation passes. These checks
+cover the selected port 8750 and authenticated binary response, nested storage
+keys, the upload size guard and object URL cleanup, authentication expiry, caller
+cancellation and response-body timeouts. They also verify that a preview origin
+cannot replace the captured workspace origin.
+
+The first complete frontend run retains two failed preview assertions: their
+partial product-client mocks omitted the captured workspace origin now used by
+the shared preview guard. The fixtures now retain the actual client's origin;
+their navigation and unsafe-address assertions remain intact. The subsequent
+whole frontend run passes all 1,278 tests in 80 files, and final TypeScript
+validation passes. Five packaging tests and five version-sensitive workspace
+readiness tests also pass. Logs remain under `artifacts/review/015-*`, including
+both full frontend outcomes. The twelve package/API version declarations are
+aligned to 0.4.15 without changing dependency graphs.
+
+Matching 0.4.15 packages, CI and installed acceptance remain pending.
+Existing 0.4.14 packages, failed receipts and older source-bound evidence
+remain unchanged. Standalone restore/rollback, requirement-evidence acceptance
+and the supported Windows installer lifecycle still need their scoped installed
+outcomes. The real subscription-generated application/public deployment,
+AWS/Azure and domain/TLS journeys, external inbox delivery and authorized public
+source/download acceptance remain required by the full product goal.

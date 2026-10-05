@@ -1,6 +1,4 @@
 import { productApi } from "./product";
-import { DEFAULT_BASE_URL } from "./client";
-import { authHeaders, expireAuth } from "./authSession";
 
 export interface DataBackup {
   id: string; createdAt: string; bytes: number; sha256: string; includesStorage: boolean;
@@ -43,15 +41,8 @@ const table = (id: string, name: string) => `${base(id)}/tables/${encodeURICompo
 const bucket = (id: string, name: string) => `${base(id)}/buckets/${encodeURIComponent(name)}`;
 const object = (id: string, name: string, key: string) => `${bucket(id, name)}/objects/${key.split("/").map(encodeURIComponent).join("/")}`;
 
-async function binary(route: string, options?: RequestInit) {
-  const response = await fetch(`${DEFAULT_BASE_URL}${route}`, { ...options, headers: { ...authHeaders(), ...options?.headers }, signal: AbortSignal.timeout(60_000) });
-  if (response.status === 401) expireAuth();
-  if (!response.ok) throw new Error(response.status === 413 ? "This file exceeds the 8 MiB upload limit." : "The data service could not complete this transfer. Refresh its health and try again.");
-  return response;
-}
 async function download(route: string, name: string) {
-  const response = await binary(route);
-  const url = URL.createObjectURL(await response.blob());
+  const url = URL.createObjectURL(await productApi.requestBlob(route));
   const link = document.createElement("a"); link.href = url; link.download = name; link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -74,7 +65,7 @@ export const dataApi = {
   objects: (id: string, name: string, prefix = "") => productApi.request<{ objects: DataObject[]; limit: number }>(`${bucket(id, name)}/objects${prefix ? `?prefix=${encodeURIComponent(prefix)}` : ""}`),
   upload: async (id: string, name: string, key: string, file: File) => {
     if (file.size > 8 * 1024 * 1024) throw new Error("Choose a file no larger than 8 MiB.");
-    await binary(object(id, name, key), { method: "POST", body: file, headers: { "Content-Type": file.type || "application/octet-stream" } });
+    await productApi.requestBlob(object(id, name, key), { method: "POST", body: file, headers: { "Content-Type": file.type || "application/octet-stream" } });
   },
   downloadObject: (id: string, name: string, key: string) => download(object(id, name, key), key.split("/").pop() || "download"),
   realtime: (id: string) => productApi.request<{ tables: string[]; publication: string; rlsRequired: boolean }>(`${base(id)}/realtime`),
