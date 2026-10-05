@@ -169,9 +169,12 @@ try {
     () => page.getByRole("button", { name: "Sign in", exact: true }).click(),
     "/v1/auth/login",
   );
-  // runtime-smoke builds the image but deliberately does not complete onboarding.
-  // Current first use is a dedicated portal, not a Settings modal. Choosing the
-  // local route prepares the assigned folder and checks the actual Docker image.
+  // runtime-smoke has already retained a real runtime proof project. Returning
+  // accounts open Projects home; resume unfinished onboarding through its visible
+  // entry, then keep the real image/readiness checks below.
+  await page.getByRole("heading", { name: "Your projects", exact: true }).waitFor();
+  await page.getByText(/Your workspace setup is unfinished/).waitFor();
+  await page.getByRole("button", { name: "Workspace setup", exact: true }).click();
   await page.getByRole("heading", { name: "Choose your workspace", exact: true }).waitFor();
   assert.equal(await page.getByRole("button", { name: "Close settings", exact: true }).count(), 0);
   const localChoice = page.getByRole("button", {

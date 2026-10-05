@@ -173,6 +173,10 @@ try {
   await page.getByLabel('Username', { exact: true }).fill('local-owner');
   await page.getByLabel('Password', { exact: true }).fill(passwordLocal);
   await clickResponse(page.getByRole('button', { name: 'Sign in', exact: true }), '/v1/auth/login');
+  // The isolation sentinel is retained work, so resume setup from Projects home.
+  await page.getByRole('heading', { name: 'Your projects', exact: true }).waitFor();
+  await page.getByText(/Your workspace setup is unfinished/).waitFor();
+  await page.getByRole('button', { name: 'Workspace setup', exact: true }).click();
   await page.getByRole('heading', { name: 'Choose your workspace', exact: true }).waitFor();
   await page.getByRole('button', { name: 'Connect to an existing workspace', exact: true }).click();
   await page.getByLabel('Server address', { exact: true }).fill('127.0.0.1');
@@ -318,10 +322,9 @@ try {
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('heading', { name: 'Your cloud workspace', exact: true }).waitFor();
   await switchWorkspace(page.getByRole('button', { name: 'Return to this machine', exact: true }), '/v1/setup/workspace/local');
-  await page.getByRole('heading', { name: 'Choose your workspace', exact: true }).waitFor();
-  assert.equal(await page.getByRole('button', { name: 'Close settings', exact: true }).count(), 0);
-  await page.getByRole('button', { name: 'Continue to projects', exact: true }).click();
+  // The original local sentinel returns directly to its retained catalogue.
   await page.getByRole('heading', { name: 'Your projects', exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: 'Close settings', exact: true }).count(), 0);
   await page.getByRole('treeitem').filter({ hasText: 'local-only-project' }).first().waitFor();
   const localProjects = (await api(local, 'GET', '/v1/projects')).projects;
   assert.ok(localProjects.some((item) => item.id === sentinel.id)); assert.ok(!localProjects.some((item) => item.id === project.id));
