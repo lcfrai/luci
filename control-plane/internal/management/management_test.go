@@ -274,7 +274,8 @@ func TestResourcePolicyDefaultsBoundsAndOlderStateMigration(t *testing.T) {
 
 func TestActualOwnedWorkerIsolatesStateEnvironmentAndStops(t *testing.T) {
 	g, h, token, _ := fixture(t, nil)
-	g.opts.BaseEnvironment = append(os.Environ(), "GH_TOKEN=parent-secret", "OPENAI_API_KEY=parent-model-secret", "AWS_ACCESS_KEY_ID=parent-cloud-secret", "LUCI_CONVERSATIONS_DIR=parent-provider-home")
+	const selectedEngine = "unix:///run/luci-engine/docker.sock"
+	g.opts.BaseEnvironment = append(os.Environ(), "GH_TOKEN=parent-secret", "OPENAI_API_KEY=parent-model-secret", "AWS_ACCESS_KEY_ID=parent-cloud-secret", "LUCI_CONVERSATIONS_DIR=parent-provider-home", "DOCKER_HOST="+selectedEngine, "LUCI_DOCKER_HOST="+selectedEngine)
 	member := addUser(t, h, token, "worker", "member")
 	memberToken := loginAs(t, h, "worker")
 	request(t, h, "GET", "/v1/projects", token, nil, 200)
@@ -286,6 +287,9 @@ func TestActualOwnedWorkerIsolatesStateEnvironmentAndStops(t *testing.T) {
 	root := filepath.Join(g.dir, "users", member.ID, "runtime")
 	if proof["projects"] != filepath.Join(root, "projects") || proof["home"] != filepath.Join(root, "home") || proof["actor"] != member.ID || proof["ghToken"] != "" || proof["modelToken"] != "" || proof["awsToken"] != "" {
 		t.Fatalf("isolation proof %+v", proof)
+	}
+	if proof["dockerHost"] != selectedEngine || proof["luciDockerHost"] != selectedEngine {
+		t.Fatal("actual managed worker lost the controller's selected private Docker engine")
 	}
 	wantConversations := filepath.Join(root, "state", "conversations")
 	if runtime.GOOS == "windows" {
@@ -335,7 +339,7 @@ func TestWorkerHelper(t *testing.T) {
 		if !ok {
 			os.Exit(4)
 		}
-		jsonReply(w, 200, map[string]string{"actor": u.ID, "projects": os.Getenv("LUCI_PROJECTS_DIR"), "home": os.Getenv("HOME"), "conversations": os.Getenv("LUCI_CONVERSATIONS_DIR"), "ghToken": os.Getenv("GH_TOKEN"), "modelToken": os.Getenv("OPENAI_API_KEY"), "awsToken": os.Getenv("AWS_ACCESS_KEY_ID")})
+		jsonReply(w, 200, map[string]string{"actor": u.ID, "projects": os.Getenv("LUCI_PROJECTS_DIR"), "home": os.Getenv("HOME"), "conversations": os.Getenv("LUCI_CONVERSATIONS_DIR"), "dockerHost": os.Getenv("DOCKER_HOST"), "luciDockerHost": os.Getenv("LUCI_DOCKER_HOST"), "ghToken": os.Getenv("GH_TOKEN"), "modelToken": os.Getenv("OPENAI_API_KEY"), "awsToken": os.Getenv("AWS_ACCESS_KEY_ID")})
 	})
 	if WriteWorkerAddress(os.Getenv("LUCI_WORKER_ADDRESS_FILE"), listener.Addr().String()) != nil {
 		os.Exit(5)

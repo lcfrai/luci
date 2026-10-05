@@ -129,7 +129,9 @@ func validWorkerAddress(address string) bool {
 func isolatedEnvironment(base []string, root, secret, addressFile string, u User) []string {
 	// Explicit allowlist: never inherit model/API keys, cloud credentials,
 	// Git configuration injection or another user's provider profile paths.
-	allowed := map[string]bool{"PATH": true, "SYSTEMROOT": true, "WINDIR": true, "PATHEXT": true, "COMSPEC": true, "PROGRAMFILES": true, "PROGRAMFILES(X86)": true, "LANG": true, "LC_ALL": true, "TZ": true, "DOCKER_HOST": true, "LUCI_RUNTIME_DIR": true, "LUCI_SANDBOX_IMAGE": true, "LUCI_CLOUD_BUNDLE": true, "LUCI_BROWSER_PREVIEW_PORT": true}
+	// Keep the controller's explicit engine selection for worker Config as well
+	// as Docker CLI discovery; both must reach the same private Docker daemon.
+	allowed := map[string]bool{"PATH": true, "SYSTEMROOT": true, "WINDIR": true, "PATHEXT": true, "COMSPEC": true, "PROGRAMFILES": true, "PROGRAMFILES(X86)": true, "LANG": true, "LC_ALL": true, "TZ": true, "DOCKER_HOST": true, "LUCI_DOCKER_HOST": true, "LUCI_RUNTIME_DIR": true, "LUCI_SANDBOX_IMAGE": true, "LUCI_CLOUD_BUNDLE": true, "LUCI_BROWSER_PREVIEW_PORT": true}
 	env := []string{}
 	for _, entry := range base {
 		key, _, ok := strings.Cut(entry, "=")

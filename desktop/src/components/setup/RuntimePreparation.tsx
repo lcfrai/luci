@@ -13,12 +13,15 @@ export function RuntimePreparation({
   automatic = false,
   refreshToken = 0,
   onStatus,
+  onPendingChange,
 }: {
   client: ProductClient;
   manageBacking: boolean;
   automatic?: boolean;
   refreshToken?: number;
   onStatus(status: SetupStatus): void;
+  /** Initial checks and install acceptance only; the backend build continues independently. */
+  onPendingChange?(pending: boolean): void;
 }) {
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [job, setJob] = useState<RuntimeJob | null>(null);
@@ -27,10 +30,28 @@ export function RuntimePreparation({
   const [attempt, setAttempt] = useState(0);
   const callback = useRef(onStatus);
   callback.current = onStatus;
-  const automaticStarted = useRef(false);
+  const pendingCallback = useRef(onPendingChange);
+  pendingCallback.current = onPendingChange;
+  const automaticStarted = useRef(new WeakSet<ProductClient>());
+  const installations = useRef(new WeakMap<ProductClient, Promise<RuntimeJob>>());
+  const generation = useRef(0);
+  const prepare = (selected: ProductClient) => {
+    const existing = installations.current.get(selected);
+    if (existing) return existing;
+    const pending = selected.installRuntime();
+    installations.current.set(selected, pending);
+    const clear = () => {
+      if (installations.current.get(selected) === pending)
+        installations.current.delete(selected);
+    };
+    void pending.then(clear, clear);
+    return pending;
+  };
   useEffect(() => {
     let alive = true;
+    generation.current += 1;
     setChecking(true);
+    pendingCallback.current?.(true);
     setError("");
     void Promise.all([client.check(), client.runtime()])
       .then(async ([next, runtime]) => {
@@ -50,43 +71,79 @@ export function RuntimePreparation({
           docker &&
           !image &&
           runtime.status === "idle" &&
-          !automaticStarted.current
+          !automaticStarted.current.has(client)
         ) {
-          automaticStarted.current = true;
-          const installed = await client.installRuntime();
-          if (alive) setJob(installed);
+          automaticStarted.current.add(client);
+          prepare(client);
+        }
+        let settled = runtime;
+        const pending = installations.current.get(client);
+        if (pending) {
+          const installed = await pending;
+          if (!alive) return;
+          settled = installed;
+          setJob(installed);
+        }
+        // A job can finish after the first image check. Confirm actual image
+        // readiness once rather than treating its ready state as proof.
+        if (alive && settled.status === "ready" && !image) {
+          const current = await client.check();
+          if (alive) {
+            setStatus(current);
+            callback.current(current);
+          }
         }
       })
       .catch((cause) => {
         if (alive) setError(errorText(cause));
       })
       .finally(() => {
-        if (alive) setChecking(false);
+        if (alive) {
+          setChecking(false);
+          pendingCallback.current?.(false);
+        }
       });
     return () => {
       alive = false;
+      generation.current += 1;
+      pendingCallback.current?.(false);
     };
   }, [client, automatic, manageBacking, attempt, refreshToken]);
   useEffect(() => {
     if (job?.status !== "installing") return;
     let alive = true;
+    let polling = false;
     const timer = setInterval(() => {
+      if (polling) return;
+      polling = true;
       void client
         .runtime()
         .then(async (next) => {
           if (!alive) return;
-          setJob(next);
-          setError("");
+          let current: SetupStatus | undefined;
+          let readinessError = "";
           if (next.status === "ready") {
-            const current = await client.check();
-            if (alive) {
-              setStatus(current);
-              callback.current(current);
+            try {
+              current = await client.check();
+            } catch (cause) {
+              readinessError = errorText(cause);
             }
           }
+          if (!alive) return;
+          // Changing installing to ready tears down this polling effect. Apply
+          // its actual readiness response before finishing that lifecycle.
+          if (current) {
+            setStatus(current);
+            callback.current(current);
+          }
+          setJob(next);
+          setError(readinessError);
         })
         .catch((cause) => {
           if (alive) setError(errorText(cause));
+        })
+        .finally(() => {
+          polling = false;
         });
     }, 3000);
     return () => {
@@ -178,13 +235,31 @@ export function RuntimePreparation({
               className="luci-button"
               disabled={checking}
               onClick={() => {
+                const currentGeneration = generation.current;
                 setChecking(true);
+                pendingCallback.current?.(true);
                 setError("");
-                void client
-                  .installRuntime()
-                  .then(setJob)
-                  .catch((cause) => setError(errorText(cause)))
-                  .finally(() => setChecking(false));
+                void prepare(client)
+                  .then(async (next) => {
+                    if (generation.current !== currentGeneration) return;
+                    setJob(next);
+                    if (next.status === "ready" && !imageReady) {
+                      const current = await client.check();
+                      if (generation.current === currentGeneration) {
+                        setStatus(current);
+                        callback.current(current);
+                      }
+                    }
+                  })
+                  .catch((cause) => {
+                    if (generation.current === currentGeneration) setError(errorText(cause));
+                  })
+                  .finally(() => {
+                    if (generation.current === currentGeneration) {
+                      setChecking(false);
+                      pendingCallback.current?.(false);
+                    }
+                  });
               }}
             >
               {job?.status === "failed"

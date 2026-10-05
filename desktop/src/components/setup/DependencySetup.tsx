@@ -89,14 +89,14 @@ export function DependencySetup({ client = dependencyApi, canManage, automatic =
     const action = dependency.job?.status === "action_required" ? dependency.job.actionRequired : dependency.actionRequired;
     const installable = canManage && status?.canInstall && status.installer.status === "ready" && dependency.supported && !installing && !needsFreshCheck && dependency.check.status === "missing" && !["restart_app", "restart_computer", "elevation"].includes(action);
     return <li key={dependency.id} className="dependency-row">
-      <div className="dependency-row-heading"><h3>{dependency.name}</h3><span className="setup-status" role={installing ? "status" : undefined}>{statusLabel(dependency)}</span></div>
+      <div className="dependency-row-heading"><h3>{dependency.id === "docker" && status?.platform !== "windows" ? "Docker engine" : dependency.name}</h3><span className="setup-status" role={installing ? "status" : undefined}>{statusLabel(dependency)}</span></div>
       <p className="journey-muted">{purpose[dependency.id]}</p>
       <p>{dependency.job?.message || dependency.check.message || dependency.reason}</p>
       {dependency.check.version && <p className="journey-muted">Detected version: {dependency.check.version}</p>}
       {actions[action] && <p className="preparation-action">{actions[action]}</p>}
       {needsFreshCheck && <p className="preparation-action">Choose “Check tools again” to confirm the result before trying another installation.</p>}
-      {!dependency.supported && dependency.reason && <p className="journey-muted">{dependency.reason}</p>}
-      {dependency.id === "docker" && <p className="journey-muted">Installing Docker does not start its engine. Workspace readiness checks the engine separately.</p>}
+      {!dependency.supported && dependency.check.status !== "ready" && dependency.reason && <p className="journey-muted">{dependency.reason}</p>}
+      {dependency.id === "docker" && dependency.check.status !== "ready" && <p className="journey-muted">Installing Docker does not start its engine. Workspace readiness checks the engine separately.</p>}
       {installable && <div className="dependency-install">
         <label className="luci-check"><input type="checkbox" checked={consent[dependency.id] === true} disabled={!!busy || hasActiveJob} onChange={event => setConsent(value => ({ ...value, [dependency.id]: event.target.checked }))} />I accept the publisher and package source agreements for {dependency.name}.</label>
         <p className="journey-muted">Windows Package Manager installs {dependency.packageId}. Windows may request administrator approval or a restart.</p>
@@ -111,12 +111,12 @@ export function DependencySetup({ client = dependencyApi, canManage, automatic =
     </li>;
   }
   return <section className="dependency-setup" aria-labelledby={heading}>
-    <h2 id={heading}>Tools on this computer</h2>
+    <h2 id={heading}>{status?.platform === "linux" ? "Workspace tools" : "Tools on this computer"}</h2>
     <p className="journey-muted">Luci checks the computer running this connection service. Installations download the selected publisher’s software; no model is called.{cloudWorkspace && " These installations do not change your selected cloud workspace."}</p>
     {busy && <p role="status">{busy}…</p>}
     {error && <div className="journey-error" role="alert">{error} <button type="button" className="luci-button" disabled={!!busy} onClick={() => setAttempt(value => value + 1)}>Retry loading tools</button></div>}
     {status && <>
-      {status.installer.status !== "ready" && <p className="journey-muted">{status.installer.message}</p>}
+      {status.installer.status !== "ready" && status.dependencies.some(item => item.check.status !== "ready") && <p className="journey-muted">{status.installer.message}</p>}
       {!canManage && <p className="journey-muted">Your administrator installs tools on this computer. You can keep defining your project.</p>}
       <ul className="dependency-list">{status.dependencies.filter(item => target ? item.id === target : item.id === "git" || item.id === "docker").map(row)}</ul>
       <details className="dependency-optional"><summary>Optional publishing and cloud tools</summary><p className="journey-muted">Install only the tools for services you choose. Installing a CLI does not sign you in or create paid resources.</p><ul className="dependency-list">{status.dependencies.filter(item => target ? item.id !== target : !["git", "docker"].includes(item.id)).map(row)}</ul></details>

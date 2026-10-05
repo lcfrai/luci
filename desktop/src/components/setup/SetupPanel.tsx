@@ -181,11 +181,19 @@ export function SetupPanel({
   const [sshPublicKey, setSshPublicKey] = useState("");
   const [privateKeyPath, setPrivateKeyPath] = useState("");
   const [plan, setPlan] = useState<CloudPlan | null>(null);
+  const [runtimePending, setRuntimePending] = useState(true);
+  const runtimeActive =
+    portal && section === "local" && (!onboarding || route === "local") &&
+    busy !== "Preparing projects folder";
+  const runtimeHandoffPending = runtimeActive && runtimePending;
+  const navigationLocked = !!busy || runtimeHandoffPending;
+  const runtimePendingRef = useRef(runtimeHandoffPending);
+  runtimePendingRef.current = runtimeHandoffPending;
   const alive = useRef(true);
   const inFlight = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const panel = useDismissable<HTMLDivElement>(!portal, () => {
-    if (!inFlight.current) onClose();
+    if (!inFlight.current && !runtimePendingRef.current) onClose();
   });
   useLayoutEffect(() => {
     heading.current?.focus();
@@ -248,6 +256,7 @@ export function SetupPanel({
     setPlan(null);
   };
   const chooseRoute = (value: SetupRoute, provider?: "aws" | "azure") => {
+    if (value === "local") setRuntimePending(true);
     if (provider) update({ cloudProvider: provider,
       region: (config?.cloudProvider || "aws") === provider ? config?.region || "" : "",
     });
@@ -268,8 +277,11 @@ export function SetupPanel({
       });
     }
   };
-  const createProject = () =>
-    onOpenProject ? onOpenProject() : setSection("project");
+  const createProject = () => {
+    if (inFlight.current || runtimePendingRef.current) return;
+    if (onOpenProject) onOpenProject();
+    else setSection("project");
+  };
   const chooseAgain = () => {
     setRoute(null);
     setPlan(null);
@@ -386,7 +398,7 @@ export function SetupPanel({
               className="setup-close"
               type="button"
               onClick={onClose}
-              disabled={!!busy}
+              disabled={navigationLocked}
               aria-label="Close settings"
             >
               ×
@@ -396,7 +408,7 @@ export function SetupPanel({
         <nav className="setup-tabs" aria-label="Settings sections">
           {onboarding
             ? route && (
-                <button type="button" disabled={!!busy} onClick={chooseAgain}>
+                <button type="button" disabled={navigationLocked} onClick={chooseAgain}>
                   Choose another setup option
                 </button>
               )
@@ -419,9 +431,12 @@ export function SetupPanel({
                   <button
                     key={id}
                     type="button"
-                    disabled={!!busy}
+                    disabled={navigationLocked}
                     aria-current={section === id ? "page" : undefined}
-                    onClick={() => setSection(id)}
+                    onClick={() => {
+                      if (id === "local" && portal) setRuntimePending(true);
+                      setSection(id);
+                    }}
                   >
                     {label}
                   </button>
@@ -483,7 +498,7 @@ export function SetupPanel({
                       <button
                         className="luci-button luci-primary"
                         type="button"
-                        disabled={!!busy || !status?.workspace?.ready}
+                        disabled={navigationLocked || !status?.workspace?.ready}
                         onClick={createProject}
                       >
                         Create your first project
@@ -491,7 +506,7 @@ export function SetupPanel({
                       {localManageBacking && (
                         <button
                           className="luci-button"
-                          disabled={!!busy}
+                          disabled={navigationLocked}
                           onClick={() =>
                             void run("Returning locally", () =>
                               changeWorkspace(() => client.localWorkspace()),
@@ -503,20 +518,24 @@ export function SetupPanel({
                       )}
                     </div>
                   )}
-                  {portal && busy !== "Preparing projects folder" && (
+                  {runtimeActive && (
                     <>
                       <DependencySetup
                         client={dependencies}
                         canManage={localManageBacking}
                         automatic
                         cloudWorkspace={cloudWorkspace}
-                        onChecked={() => setToolsRevision(value => value + 1)}
+                        onChecked={() => {
+                          setRuntimePending(true);
+                          setToolsRevision(value => value + 1);
+                        }}
                       />
                       <RuntimePreparation
                         refreshToken={toolsRevision}
                         client={client}
                         manageBacking={manageBacking}
                         automatic
+                        onPendingChange={setRuntimePending}
                         onStatus={(value) => {
                           setStatus(value);
                           onStatus(value);
@@ -620,6 +639,7 @@ export function SetupPanel({
                       <button
                         className="luci-button"
                         type="button"
+                        disabled={navigationLocked}
                         onClick={() => setSection("agents")}
                       >
                         Connect a coding agent
@@ -630,7 +650,7 @@ export function SetupPanel({
                     <button
                       className="luci-button"
                       type="button"
-                      disabled={!!busy}
+                      disabled={navigationLocked}
                       onClick={createProject}
                     >
                       Create your first project →
@@ -1022,13 +1042,15 @@ export function SetupPanel({
           <span role="status">
             {busy
               ? `${busy}…`
+              : runtimeHandoffPending
+                ? "Checking your workspace and starting runtime preparation…"
               : cloudWorkspace
                 ? `Projects and agents run on ${status?.workspace?.host}`
                 : portal
                   ? "You can connect tools later. Continuing does not mark them ready."
                   : "Local by default · Your account, when you choose"}
           </span>
-          <button className="luci-button" onClick={onClose} disabled={!!busy}>
+          <button className="luci-button" onClick={onClose} disabled={navigationLocked}>
             {portal ? "Continue to projects" : "Back to project"}
           </button>
         </footer>

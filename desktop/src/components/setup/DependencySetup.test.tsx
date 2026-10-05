@@ -71,3 +71,20 @@ it("checks unchecked tools during local onboarding without installing them", asy
   expect(checked).toHaveBeenCalledOnce();
   expect(api.install).not.toHaveBeenCalled();
 });
+
+it("shows bundled Linux tools without Windows installation instructions", async () => {
+  const value = snapshot();
+  value.platform = "linux";
+  value.canInstall = false;
+  value.installer = { id: "winget", status: "unsupported", message: "Use official installers on this operating system." };
+  value.dependencies[0].supported = false;
+  value.dependencies[0].reason = "Automatic installation supports Windows Package Manager.";
+  value.dependencies[0].check = { status: "ready", message: "The private Docker engine answered.", version: "28.5.1" };
+  const api = client(value);
+  render(<DependencySetup client={api} canManage />);
+  await screen.findByRole("heading", { name: "Workspace tools" });
+  expect(screen.getByRole("heading", { name: "Docker engine" })).not.toBeNull();
+  expect(screen.getByText("The private Docker engine answered.")).not.toBeNull();
+  expect(screen.queryByText(/Use official installers|Automatic installation supports/)).toBeNull();
+  expect(api.install).not.toHaveBeenCalled();
+});

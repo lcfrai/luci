@@ -70,6 +70,18 @@ the token import and browser-gateway seam were corrected, and the affected
 27 deployment checks and type checking. These checks do not substitute for the
 subscription-backed journey or real cloud-provider provisioning.
 
+A matching clean-source Docker distribution subsequently started its non-root
+controller and distinct private engine with no host bind mounts, created the
+owner/Admin through real account entry, installed the agent runtime through the
+UI, and saved/committed the benchmark's Describe, Design and implementation plan.
+The instance is recorded under
+`artifacts/subscription-e2e/docker-instance-602960d5-0755-433f-b269-fd0a67ebf7c9`.
+This run exposed a cancelled automatic preparation handoff, stale ready-job UI
+and a lost managed-worker engine setting. Those defects now have focused fixes
+and passing regressions; the updated clean package must repeat their installed
+outcomes. Official subscription sign-in remains a user step. No successful
+inference, implementation or public site is claimed at this checkpoint.
+
 Windows conversation storage now has compact physical names with unchanged
 logical identities and retained legacy state. A real isolated managed-account
 probe verified official Codex device sign-in stayed running and nested rollout

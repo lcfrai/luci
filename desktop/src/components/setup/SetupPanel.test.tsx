@@ -811,3 +811,65 @@ it("connects an existing workspace through host verification and its account wit
     ),
   ).toBe(false);
 });
+
+it("hands automatic preparation to the backend before leaving the portal and permits planning while the build runs", async () => {
+  let finishCheck!: (value: Response) => void;
+  let acceptInstall!: (value: Response) => void;
+  const check = new Promise<Response>(resolve => { finishCheck = resolve; });
+  const acceptance = new Promise<Response>(resolve => { acceptInstall = resolve; });
+  const current: SetupStatus = { ...status, configured: true, checks: [
+    { id: "docker", label: "Docker", status: "ready", message: "Docker running", action: "" },
+    { id: "sandbox-image", label: "Agent runtime", status: "missing", message: "Image not built", action: "" },
+  ] };
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+    const route = new URL(String(url)).pathname;
+    if (route.endsWith("/setup/check")) return check;
+    if (route.endsWith("/runtime/install"))
+      return init?.method === "POST" ? acceptance : new Response(JSON.stringify({ status: "idle" }));
+    if (route.endsWith("/git/identity")) return new Response(JSON.stringify({ name: "Owner", email: "owner@example.invalid" }));
+    throw new Error("Unexpected portal request");
+  });
+  const close = vi.fn(), openProject = vi.fn();
+  const { unmount } = render(<SetupPanel presentation="portal" initialStatus={current} client={createProductClient("http://localhost:8730", fetcher)} onStatus={vi.fn()} onProjectsChanged={vi.fn()} onClose={close} onOpenProject={openProject} />);
+  await userEvent.click(screen.getByRole("button", { name: "On this computer" }));
+  const proceed = screen.getByRole("button", { name: "Continue to projects" }) as HTMLButtonElement;
+  expect(proceed.disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Choose another setup option" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Connect a coding agent" }) as HTMLButtonElement).disabled).toBe(true);
+  const create = screen.getByRole("button", { name: /Create your first project/ }) as HTMLButtonElement;
+  expect(create.disabled).toBe(true);
+  await userEvent.click(proceed);
+  await userEvent.click(create);
+  expect(close).not.toHaveBeenCalled();
+  expect(openProject).not.toHaveBeenCalled();
+  await act(async () => { finishCheck(new Response(JSON.stringify(current))); await check; });
+  await waitFor(() => expect(fetcher.mock.calls.filter(([url, init]) => String(url).endsWith("/runtime/install") && init?.method === "POST")).toHaveLength(1));
+  expect(proceed.disabled).toBe(true);
+  await act(async () => { acceptInstall(new Response(JSON.stringify({ status: "installing", message: "Backend build continues" }), { status: 202 })); await acceptance; });
+  await screen.findByText(/Installing runtime… Backend build continues/);
+  await waitFor(() => expect(proceed.disabled).toBe(false));
+  expect(create.disabled).toBe(false);
+  await userEvent.click(proceed);
+  expect(close).toHaveBeenCalledOnce();
+  unmount();
+  expect(fetcher.mock.calls.filter(([url, init]) => String(url).endsWith("/runtime/install") && init?.method === "POST")).toHaveLength(1);
+});
+
+it("allows the portal to continue after a real unavailable-Docker check without starting a runtime", async () => {
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+    const route = new URL(String(url)).pathname;
+    if (route.endsWith("/setup/check")) return new Response(JSON.stringify({ ...status, configured: true }));
+    if (route.endsWith("/runtime/install")) return new Response(JSON.stringify({ status: "idle" }));
+    if (route.endsWith("/git/identity")) return new Response(JSON.stringify({ name: "Owner", email: "owner@example.invalid" }));
+    throw new Error("Unexpected portal request");
+  });
+  const close = vi.fn();
+  render(<SetupPanel presentation="portal" initialStatus={{ ...status, configured: true }} client={createProductClient("http://localhost:8730", fetcher)} onStatus={vi.fn()} onProjectsChanged={vi.fn()} onClose={close} />);
+  await userEvent.click(screen.getByRole("button", { name: "On this computer" }));
+  await screen.findByText(/Open Docker Desktop and wait for its engine to start/);
+  const proceed = screen.getByRole("button", { name: "Continue to projects" }) as HTMLButtonElement;
+  await waitFor(() => expect(proceed.disabled).toBe(false));
+  await userEvent.click(proceed);
+  expect(close).toHaveBeenCalledOnce();
+  expect(fetcher.mock.calls.some(([url, init]) => String(url).endsWith("/runtime/install") && init?.method === "POST")).toBe(false);
+});

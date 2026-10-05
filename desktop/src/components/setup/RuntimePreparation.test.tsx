@@ -1,9 +1,9 @@
 import { StrictMode } from "react";
 import { expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RuntimePreparation } from "./RuntimePreparation";
-import type { ProductClient, SetupStatus } from "../../api/product";
+import type { ProductClient, RuntimeJob, SetupStatus } from "../../api/product";
 
 const ready = {
   checks: [
@@ -133,4 +133,151 @@ it("never installs a runtime for an account without backing permission", async (
   expect(
     screen.queryByRole("button", { name: "Prepare agent runtime" }),
   ).toBeNull();
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+it("does not dispatch late automatic work after changing the selected client", async () => {
+  const oldCheck = deferred<SetupStatus>();
+  const oldInstall = vi.fn();
+  const previous = {
+    check: vi.fn().mockReturnValue(oldCheck.promise),
+    runtime: vi.fn().mockResolvedValue({ status: "idle" }),
+    installRuntime: oldInstall,
+  } as unknown as ProductClient;
+  const nextInstall = vi.fn().mockResolvedValue({ status: "installing", message: "Selected workspace build" });
+  const selected = {
+    check: vi.fn().mockResolvedValue(ready),
+    runtime: vi.fn().mockResolvedValue({ status: "idle" }),
+    installRuntime: nextInstall,
+  } as unknown as ProductClient;
+  const { rerender } = render(<RuntimePreparation client={previous} manageBacking automatic onStatus={vi.fn()} />);
+  rerender(<RuntimePreparation client={selected} manageBacking automatic onStatus={vi.fn()} />);
+  await screen.findByText(/Installing runtime… Selected workspace build/);
+  await act(async () => { oldCheck.resolve(ready); await oldCheck.promise; });
+  expect(oldInstall).not.toHaveBeenCalled();
+  expect(nextInstall).toHaveBeenCalledOnce();
+});
+
+it("tracks automatic preparation separately for each selected client", async () => {
+  const first = {
+    check: vi.fn().mockResolvedValue(ready),
+    runtime: vi.fn().mockResolvedValue({ status: "idle" }),
+    installRuntime: vi.fn().mockResolvedValue({ status: "installing", message: "First workspace build" }),
+  } as unknown as ProductClient;
+  const second = {
+    check: vi.fn().mockResolvedValue(ready),
+    runtime: vi.fn().mockResolvedValue({ status: "idle" }),
+    installRuntime: vi.fn().mockResolvedValue({ status: "installing", message: "Second workspace build" }),
+  } as unknown as ProductClient;
+  const { rerender } = render(<RuntimePreparation client={first} manageBacking automatic onStatus={vi.fn()} />);
+  await screen.findByText(/Installing runtime… First workspace build/);
+  rerender(<RuntimePreparation client={second} manageBacking automatic onStatus={vi.fn()} />);
+  await screen.findByText(/Installing runtime… Second workspace build/);
+  expect(first.installRuntime).toHaveBeenCalledOnce();
+  expect(second.installRuntime).toHaveBeenCalledOnce();
+});
+
+it("does not start late automatic work after backing permission is revoked", async () => {
+  const check = deferred<SetupStatus>();
+  const installRuntime = vi.fn();
+  const client = {
+    check: vi.fn().mockReturnValue(check.promise),
+    runtime: vi.fn().mockResolvedValue({ status: "idle" }),
+    installRuntime,
+  } as unknown as ProductClient;
+  const { rerender } = render(<RuntimePreparation client={client} manageBacking automatic onStatus={vi.fn()} />);
+  rerender(<RuntimePreparation client={client} manageBacking={false} automatic onStatus={vi.fn()} />);
+  await act(async () => { check.resolve(ready); await check.promise; });
+  await screen.findByText("Docker running");
+  expect(installRuntime).not.toHaveBeenCalled();
+});
+
+it("keeps a shared install handoff pending across a new readiness check and unlocks before its build completes", async () => {
+  const acceptance = deferred<RuntimeJob>();
+  const pending = vi.fn();
+  const client = {
+    check: vi.fn().mockResolvedValue(ready),
+    runtime: vi.fn().mockResolvedValue({ status: "idle" }),
+    installRuntime: vi.fn().mockReturnValue(acceptance.promise),
+  } as unknown as ProductClient;
+  const { rerender } = render(<RuntimePreparation client={client} manageBacking automatic onStatus={vi.fn()} onPendingChange={pending} />);
+  await waitFor(() => expect(client.installRuntime).toHaveBeenCalledOnce());
+  rerender(<RuntimePreparation client={client} manageBacking automatic refreshToken={1} onStatus={vi.fn()} onPendingChange={pending} />);
+  await waitFor(() => expect(client.check).toHaveBeenCalledTimes(2));
+  expect(pending).toHaveBeenLastCalledWith(true);
+  await act(async () => { acceptance.resolve({ status: "installing", message: "Backend build continues" } as RuntimeJob); await acceptance.promise; });
+  await screen.findByText(/Installing runtime… Backend build continues/);
+  expect(client.installRuntime).toHaveBeenCalledOnce();
+  expect(pending).toHaveBeenLastCalledWith(false);
+});
+
+it.each([true, false])("checks actual image readiness once when the job finished after its first snapshot (image exists: %s)", async (imageExists) => {
+  const current = {
+    ...ready,
+    checks: ready.checks.map(item => item.id === "sandbox-image" ? {
+      ...item, status: imageExists ? "ready" : "missing", message: imageExists ? "Actual image verified" : "Actual image still missing",
+    } : item),
+  } as SetupStatus;
+  const onStatus = vi.fn();
+  const client = {
+    check: vi.fn().mockResolvedValueOnce(ready).mockResolvedValue(current),
+    runtime: vi.fn().mockResolvedValue({ status: "ready" }),
+    installRuntime: vi.fn(),
+  } as unknown as ProductClient;
+  render(<RuntimePreparation client={client} manageBacking automatic onStatus={onStatus} />);
+  await screen.findByText(imageExists ? "Actual image verified" : "Actual image still missing");
+  expect(client.check).toHaveBeenCalledTimes(2);
+  expect(client.installRuntime).not.toHaveBeenCalled();
+  expect(onStatus).toHaveBeenLastCalledWith(current);
+  expect(!!screen.queryByRole("button", { name: "Prepare agent runtime" })).toBe(!imageExists);
+});
+
+it("checks actual image availability after an install request reports ready", async () => {
+  const current = { ...ready, checks: ready.checks.map(item => item.id === "sandbox-image" ? { ...item, status: "ready", message: "Installed image verified" } : item) } as SetupStatus;
+  const client = {
+    check: vi.fn().mockResolvedValueOnce(ready).mockResolvedValue(current),
+    runtime: vi.fn().mockResolvedValue({ status: "idle" }),
+    installRuntime: vi.fn().mockResolvedValue({ status: "ready" }),
+  } as unknown as ProductClient;
+  render(<RuntimePreparation client={client} manageBacking automatic onStatus={vi.fn()} />);
+  await screen.findByText("Installed image verified");
+  expect(client.check).toHaveBeenCalledTimes(2);
+  expect(client.installRuntime).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("button", { name: "Prepare agent runtime" })).toBeNull();
+});
+
+it("applies the final actual image check before the completed-job poll tears down", async () => {
+  vi.useFakeTimers();
+  const imageProof = deferred<SetupStatus>();
+  const verified = { ...ready, checks: ready.checks.map(item => item.id === "sandbox-image" ? { ...item, status: "ready", message: "Completed image verified" } : item) } as SetupStatus;
+  const client = {
+    check: vi.fn().mockResolvedValueOnce(ready).mockReturnValue(imageProof.promise),
+    runtime: vi.fn().mockResolvedValueOnce({ status: "idle" }).mockResolvedValue({ status: "ready" }),
+    installRuntime: vi.fn().mockResolvedValue({ status: "installing", message: "Backend build" }),
+  } as unknown as ProductClient;
+  const view = render(<RuntimePreparation client={client} manageBacking automatic onStatus={vi.fn()} />);
+  try {
+    await act(async () => {});
+    expect(screen.getByText(/Installing runtime… Backend build/)).not.toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    expect(client.check).toHaveBeenCalledTimes(2);
+    expect(screen.getByText(/Installing runtime… Backend build/)).not.toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+    expect(client.check).toHaveBeenCalledTimes(2);
+    expect(client.runtime).toHaveBeenCalledTimes(2);
+    await act(async () => { imageProof.resolve(verified); await imageProof.promise; });
+    expect(screen.getByText("Completed image verified")).not.toBeNull();
+    expect(screen.queryByText(/Installing runtime…/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Prepare agent runtime" })).toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(6000); });
+    expect(client.check).toHaveBeenCalledTimes(2);
+  } finally {
+    view.unmount();
+    vi.useRealTimers();
+  }
 });
