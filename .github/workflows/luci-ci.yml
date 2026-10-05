@@ -40,9 +40,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  LUCI_VERSION: '0.4.5'
+  # Keep this aligned with desktop/package.json and product.Version.
+  LUCI_VERSION: '0.4.6'
   GO_VERSION: '1.26.3'
-  NODE_VERSION: '22.18.0'
+  NODE_VERSION: '24.19.0'
 
 jobs:
   verify:

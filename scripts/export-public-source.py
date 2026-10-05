@@ -27,7 +27,7 @@ ROOT_FILES = {
 }
 PREFIXES = (
     ".github/", "control-plane/", "desktop/", "sandboxd/", "images/sandbox/",
-    "scripts/", "third-party/licenses/", "docs/luci/",
+    "scripts/", "third-party/licenses/", "docs/luci/", "distribution/docker/",
 )
 OMISSIONS = {
     "desktop/src/seams.test.ts": "Historical-document seam audit loads excluded phase-2 "
@@ -42,6 +42,19 @@ FORBIDDEN_PARTS = {
     ".aws", ".azure", ".git", ".luci", ".ssh", ".terraform", ".venv",
     "__pycache__", "artifacts", "dist", "node_modules", "target",
 }
+SUPABASE_ROOT = "control-plane/internal/platform/supabase_assets/"
+SUPABASE_MANIFEST = SUPABASE_ROOT + "manifest.json"
+SUPABASE_METADATA = {SUPABASE_MANIFEST, SUPABASE_ROOT + "NOTICE.txt"}
+SUPABASE_DIST = SUPABASE_ROOT + "volumes/functions/_vendor/jose/dist/"
+FLUID_ROOT = "third-party/fluid-functionalism/"
+FLUID_MANIFEST = FLUID_ROOT + "manifest.json"
+FLUID_METADATA = {FLUID_MANIFEST, FLUID_ROOT + "LICENSE", FLUID_ROOT + "README.md"}
+FLUID_SOURCE = "desktop/src/components/fluid/"
+FLUID_LICENSE_SHA256 = "3dc44f653f431ac7920c70f6f064a55a8852e6b7544499bb8506dfbfd351d2e1"
+# Same owned inputs as prepare-docker-release.PACKAGING_FILES; no release output.
+DOCKER_PACKAGING_FILES = ("Dockerfile", "compose.yaml", "entrypoint.sh", "engine-entrypoint.sh",
+                         "workspace-init.sh", "healthcheck.sh", "start-luci.sh", "Start-Luci.ps1",
+                         "Start-Luci.cmd", "README.md", ".dockerignore")
 REQUIRED = {
     "LICENSE", "NOTICE", "go.work", "control-plane/go.mod", "control-plane/go.sum",
     "sandboxd/go.mod", "sandboxd/go.sum", "sandboxd/vendor/modules.txt",
@@ -52,6 +65,9 @@ REQUIRED = {
     "scripts/package.py", "desktop/scripts/prepare-design-assets.mjs",
     "third-party/licenses/manifest.json", "control-plane/internal/product/server.go",
     ".github/workflows/luci-ci.yml",
+    SUPABASE_MANIFEST, SUPABASE_ROOT + "NOTICE.txt",
+    "scripts/prepare-docker-release.py",
+    *("distribution/docker/" + name for name in DOCKER_PACKAGING_FILES),
 }
 GENERATED = {
     "EXPORT-ALLOWLIST.json", "EXPORT-CHECKS.json", "PROVENANCE.md",
@@ -72,6 +88,13 @@ SYNTHETIC_SIGNATURES = {
     ("control-plane/internal/api/sessions_agent_credentials_test.go", "anthropic_api_key"):
         ("96880ec50b36c64aa08ebfa90d97866ddc47a716097c20768c13863576a6ddaf",
          "Explicitly synthetic personal-key fixture for API response/log/session isolation; exact matched-value SHA256 verified."),
+}
+# One pinned upstream PKCS8 parser contains a header literal, never a key payload.
+# Both its path/signature and entire immutable blob must match; changes fail closed.
+RETAINED_SOURCE_SIGNATURES = {
+    (SUPABASE_DIST + "webapi/key/import.js", "private_key_header"):
+        ("b4e122bd70624cdbca8ca2e002e85540ac6f20e2c5c72c2b4b93e8e8ba4f2f5d",
+         "Pinned jose PKCS8 parser header literal; exact retained library blob verified, no key payload."),
 }
 
 
@@ -107,15 +130,112 @@ def safe_path(name: str) -> bool:
     )
 
 
-def selected(name: str) -> bool:
-    if name not in ROOT_FILES and not name.startswith(PREFIXES):
+def selected(name: str, retained_supabase: set[str] | None = None) -> bool:
+    if name not in ROOT_FILES and name not in FLUID_METADATA and not name.startswith(PREFIXES):
         return False
     if name in OMISSIONS or name.startswith(EXCLUDED_PREFIXES):
         return False
     parts = name.lower().split("/")
-    if any(part in FORBIDDEN_PARTS or part == ".env" or part.startswith(".env.") for part in parts):
+    retained_dist = (retained_supabase is not None and name in retained_supabase
+                     and name.startswith(SUPABASE_DIST))
+    if any((part in FORBIDDEN_PARTS and not (part == "dist" and retained_dist))
+           or part == ".env" or part.startswith(".env.") for part in parts):
         return False
+    if name.startswith(SUPABASE_ROOT) and retained_supabase is not None:
+        if name not in retained_supabase and name not in SUPABASE_METADATA:
+            return False
     return not name.lower().endswith((".exe", ".log", ".tfstate", ".tfstate.backup", ".pyc"))
+
+
+def supabase_assets(manifest_data: bytes) -> dict[str, dict]:
+    """Validate the committed manifest before granting its exact dist exemption."""
+    try:
+        manifest = json.loads(manifest_data)
+    except (ValueError, TypeError) as exc:
+        raise ExportError("Invalid retained Supabase asset manifest") from exc
+    if (not isinstance(manifest, dict)
+            or manifest.get("upstream") != "https://github.com/supabase/supabase"
+            or manifest.get("revision") != "564eab8ad7840b13324f68b1bfac074ef8d51c21"
+            or manifest.get("licence") != "Apache-2.0"
+            or manifest.get("version") != "self-hosted/v0.8.2"
+            or not isinstance(manifest.get("files"), list)
+            or not 1 <= len(manifest["files"]) <= 256):
+        raise ExportError("Invalid retained Supabase asset provenance")
+    assets = {}
+    folded = set()
+    for row in manifest["files"]:
+        if not isinstance(row, dict) or not isinstance(row.get("path"), str):
+            raise ExportError("Invalid retained Supabase asset path")
+        name = SUPABASE_ROOT + row["path"]
+        if (not safe_path(name) or name.casefold() in folded
+                or name in SUPABASE_METADATA
+                or not selected(name, {name})
+                or not isinstance(row.get("sha256"), str)
+                or not re.fullmatch(r"[a-f0-9]{64}", row["sha256"])
+                or type(row.get("bytes")) is not int
+                or not 0 <= row["bytes"] <= 64 * 1024 * 1024):
+            raise ExportError(f"Unsafe or invalid retained Supabase asset: {name}")
+        assets[name] = row
+        folded.add(name.casefold())
+    if SUPABASE_ROOT + "LICENSE" not in assets:
+        raise ExportError("Retained Supabase licence grant is missing from its manifest")
+    return assets
+
+
+def verify_supabase_assets(files: dict[str, bytes], assets: dict[str, dict]) -> None:
+    for name, row in assets.items():
+        if name not in files or len(files[name]) != row["bytes"] or sha(files[name]) != row["sha256"]:
+            raise ExportError(f"Missing or changed retained Supabase asset: {name}")
+
+
+def normalized_source(data: bytes) -> bytes:
+    # Match collect-licenses.py: UTF-8 text and universal newline reads, then LF.
+    return data.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
+def verify_fluid(files: dict[str, bytes]) -> dict:
+    present = any(name.startswith(FLUID_SOURCE) or name in FLUID_METADATA for name in files)
+    if not present:
+        return {"present": False, "adaptedSourceFilesVerified": 0}
+    if not {FLUID_MANIFEST, FLUID_ROOT + "LICENSE"} <= files.keys():
+        raise ExportError("Retained Fluid source requires its manifest and original MIT grant")
+    try:
+        manifest = json.loads(files[FLUID_MANIFEST].decode("utf-8-sig"))
+    except (UnicodeError, ValueError, TypeError) as exc:
+        raise ExportError("Invalid retained Fluid provenance") from exc
+    if (not isinstance(manifest, dict) or manifest.get("name") != "fluid-functionalism"
+            or manifest.get("upstream") != "https://github.com/mickadesign/fluid-functionalism"
+            or manifest.get("revision") != "97183f8018e619722edffd2f9fccefbea0effe8d"
+            or manifest.get("license") != "MIT"
+            or not isinstance(manifest.get("files"), list)
+            or not 1 <= len(manifest["files"]) <= 32):
+        raise ExportError("Invalid retained Fluid provenance")
+    try:
+        grant_sha = sha(normalized_source(files[FLUID_ROOT + "LICENSE"]))
+    except UnicodeError as exc:
+        raise ExportError("Invalid retained Fluid MIT grant") from exc
+    if grant_sha != FLUID_LICENSE_SHA256:
+        raise ExportError("Missing or changed retained Fluid MIT grant")
+    seen = set()
+    for row in manifest["files"]:
+        name = row.get("path") if isinstance(row, dict) else None
+        if (not isinstance(name, str) or not name.startswith(FLUID_SOURCE)
+                or not safe_path(name) or not selected(name) or name.casefold() in seen
+                or not isinstance(row.get("normalizedSha256"), str)
+                or not re.fullmatch(r"[a-f0-9]{64}", row["normalizedSha256"])
+                or not isinstance(row.get("upstreamPath"), str) or not safe_path(row["upstreamPath"])
+                or not isinstance(row.get("upstreamSha256"), str)
+                or not re.fullmatch(r"[a-f0-9]{64}", row["upstreamSha256"])):
+            raise ExportError("Unsafe or invalid retained Fluid source entry")
+        try:
+            matches = name in files and sha(normalized_source(files[name])) == row["normalizedSha256"]
+        except UnicodeError as exc:
+            raise ExportError(f"Invalid UTF-8 retained Fluid source: {name}") from exc
+        if not matches:
+            raise ExportError(f"Missing or changed retained Fluid source: {name}")
+        seen.add(name.casefold())
+    return {"present": True, "revision": manifest["revision"],
+            "adaptedSourceFilesVerified": len(seen), "licenseNormalizedSha256": grant_sha}
 
 
 def ensure_clean(repo: Path, revision: str) -> None:
@@ -126,6 +246,8 @@ def ensure_clean(repo: Path, revision: str) -> None:
 
 
 def read_source(repo: Path, revision: str) -> tuple[dict[str, bytes], list[dict]]:
+    assets = supabase_assets(git(repo, "show", revision + ":" + SUPABASE_MANIFEST))
+    asset_names = set(assets)
     files: dict[str, bytes] = {}
     inventory = []
     folded: set[str] = set()
@@ -134,7 +256,7 @@ def read_source(repo: Path, revision: str) -> tuple[dict[str, bytes], list[dict]
             continue
         attrs, raw_name = row.split(b"\t", 1)
         name = raw_name.decode("utf-8", errors="strict")
-        if not selected(name):
+        if not selected(name, asset_names):
             continue
         mode, kind, oid = attrs.decode("ascii").split()
         if not safe_path(name) or name.casefold() in folded:
@@ -148,6 +270,7 @@ def read_source(repo: Path, revision: str) -> tuple[dict[str, bytes], list[dict]
         folded.add(name.casefold())
         inventory.append({"path": name, "gitBlob": oid, "gitMode": mode,
                           "bytes": len(data), "sha256": sha(data)})
+    verify_supabase_assets(files, assets)
     return files, sorted(inventory, key=lambda row: row["path"])
 
 
@@ -155,6 +278,9 @@ def verify_source(files: dict[str, bytes], version: str) -> dict:
     missing = REQUIRED - files.keys()
     if missing:
         raise ExportError("Required source files are missing: " + ", ".join(sorted(missing)))
+    assets = supabase_assets(files[SUPABASE_MANIFEST])
+    verify_supabase_assets(files, assets)
+    fluid = verify_fluid(files)
     if b"MIT License" not in files["LICENSE"] or b"Permission is hereby granted" not in files["LICENSE"]:
         raise ExportError("The selected Luci root licence is not the expected MIT grant")
     package = json.loads(files["desktop/package.json"])
@@ -200,6 +326,11 @@ def verify_source(files: dict[str, bytes], version: str) -> dict:
                 findings.append({"path": name, "signature": signature,
                                  "matchedValueSha256": synthetic[0], "review": synthetic[1]})
                 continue
+            retained = RETAINED_SOURCE_SIGNATURES.get((name, signature))
+            if retained and len(matches) == 1 and sha(data) == retained[0]:
+                findings.append({"path": name, "signature": signature,
+                                 "sourceBlobSha256": retained[0], "review": retained[1]})
+                continue
             # The existing Git host test intentionally writes just a header.
             # Reject any payload/end marker or additional header in this file.
             fixture = (name == "control-plane/cmd/api/githostconfig_test.go"
@@ -223,6 +354,8 @@ def verify_source(files: dict[str, bytes], version: str) -> dict:
     if local_deps:
         raise ExportError("Local dependency references need an explicit export boundary review: " + ", ".join(local_deps))
     return {"versionsVerified": versions, "retainedLicenseReferencesVerified": len(references),
+            "retainedSupabaseAssetsVerified": len(assets),
+            "retainedFluidProvenanceVerified": fluid,
             "credentialSignaturePatterns": sorted(SIGNATURES), "credentialSignatureFindings": findings,
             "unresolvedCredentialSignatureFindings": 0, "localDependencyReferences": local_deps,
             "requiredBuildInputsVerified": sorted(REQUIRED)}
@@ -265,8 +398,12 @@ def export(repo: Path, revision: str, version: str, output: Path, plan: bool = F
     if plan:
         return result
     allowlist = {"rootFiles": sorted(ROOT_FILES), "treePrefixes": list(PREFIXES), "omittedFiles": OMISSIONS,
+                 "retainedFluidMetadataFiles": sorted(FLUID_METADATA),
                  "excludedWithinAllowedPrefixes": list(EXCLUDED_PREFIXES), "forbiddenPathParts": sorted(FORBIDDEN_PARTS),
-                 "envFilesExcluded": True, "defaultForAllOtherTrackedPaths": "exclude"}
+                 "envFilesExcluded": True, "defaultForAllOtherTrackedPaths": "exclude",
+                 "manifestBoundSourceAssets": {"manifest": SUPABASE_MANIFEST, "root": SUPABASE_ROOT,
+                     "distExemptionPrefix": SUPABASE_DIST, "exactListedPathsOnly": True,
+                     "gitBlobBytesAndSHA256Verified": True}}
     files["EXPORT-ALLOWLIST.json"] = json_bytes(allowlist)
     files["EXPORT-CHECKS.json"] = json_bytes(checks)
     files["SOURCE-INVENTORY.json"] = json_bytes({"sourceCommit": revision, "files": inventory})

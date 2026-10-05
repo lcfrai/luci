@@ -2,4 +2,5 @@
 *.sh text eol=lf
 # Retained upstream grants and historical evidence keep their exact bytes.
 third-party/** -text
+control-plane/internal/platform/supabase_assets/** -text
 docs/legacy/** -text

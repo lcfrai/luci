@@ -41,6 +41,22 @@ class ExportTests(unittest.TestCase):
         self.write("third-party/licenses/manifest.json", exporter.json_bytes([
             {"files": [{"path": "fixture/LICENSE", "sha256": exporter.sha(self.grant)}]},
         ]))
+        self.assets = {
+            "LICENSE": b"Synthetic Apache-2.0 grant fixture\r\n",
+            "volumes/functions/main/index.ts": b"// retained main fixture\r\n",
+            "volumes/functions/_vendor/jose/dist/webapi/index.js": b"// retained jose fixture\r\n",
+        }
+        self.asset_manifest = {
+            "upstream": "https://github.com/supabase/supabase",
+            "revision": "564eab8ad7840b13324f68b1bfac074ef8d51c21",
+            "version": "self-hosted/v0.8.2", "licence": "Apache-2.0",
+            "files": [{"path": name, "bytes": len(data), "sha256": exporter.sha(data)}
+                      for name, data in self.assets.items()],
+        }
+        self.write(exporter.SUPABASE_MANIFEST, exporter.json_bytes(self.asset_manifest))
+        self.write(exporter.SUPABASE_ROOT + "NOTICE.txt", b"Synthetic asset provenance fixture\n")
+        for name, data in self.assets.items():
+            self.write(exporter.SUPABASE_ROOT + name, data)
         self.write("docs/legacy/private.md", b"excluded archive\n")
         self.write("desktop/.env.local", b"excluded secret state\n")
         self.write("desktop/src/seams.test.ts", b"historical audit\n")
@@ -66,6 +82,23 @@ class ExportTests(unittest.TestCase):
     def export(self, name="candidate", plan=False):
         return exporter.export(self.repo, self.revision, "0.4.0", self.root / name, plan)
 
+    def add_fluid(self):
+        grant = (Path(__file__).resolve().parent.parent / exporter.FLUID_ROOT / "LICENSE").read_bytes()
+        name = exporter.FLUID_SOURCE + "components/button.tsx"
+        source = b"// Synthetic adapted Fluid component\r\nexport const Button = 1\r\n"
+        self.write(exporter.FLUID_ROOT + "LICENSE", grant)
+        self.write(exporter.FLUID_ROOT + "README.md", b"Fixture attribution\n")
+        self.write(name, source)
+        self.write(exporter.FLUID_MANIFEST, exporter.json_bytes({
+            "name": "fluid-functionalism",
+            "upstream": "https://github.com/mickadesign/fluid-functionalism",
+            "revision": "97183f8018e619722edffd2f9fccefbea0effe8d", "license": "MIT",
+            "files": [{"path": name, "upstreamPath": "registry/radix/button.tsx",
+                       "upstreamSha256": exporter.sha(b"Synthetic upstream source\n"),
+                       "normalizedSha256": exporter.sha(source.replace(b"\r\n", b"\n"))}],
+        }))
+        return name, source, grant
+
     def test_exact_bytes_modes_selection_and_checksums(self):
         result = self.export()
         output = Path(result["output"])
@@ -88,6 +121,156 @@ class ExportTests(unittest.TestCase):
 
     def test_plan_writes_nothing(self):
         self.assertTrue(self.export(plan=True)["planOnly"])
+        self.assertFalse((self.root / "candidate").exists())
+
+    def test_manifest_bound_runtime_assets_survive_source_zip_without_dist_or_private_leaks(self):
+        extras = ["desktop/dist/build.js", exporter.SUPABASE_DIST + "unlisted.js",
+                  exporter.SUPABASE_DIST + ".env", exporter.SUPABASE_DIST + ".aws/credentials",
+                  exporter.SUPABASE_ROOT + "unlisted.txt"]
+        for name in extras:
+            self.write(name, b"excluded fixture\n")
+        self.commit()
+        result = self.export()
+        output = Path(result["output"])
+        checks = json.loads((output / "EXPORT-CHECKS.json").read_bytes())
+        self.assertEqual(checks["retainedSupabaseAssetsVerified"], len(self.assets))
+        with zipfile.ZipFile(result["archive"]) as bundle:
+            for name, data in self.assets.items():
+                path = exporter.SUPABASE_ROOT + name
+                self.assertEqual((output / path).read_bytes(), data)
+                self.assertEqual(bundle.read("candidate/" + path), data)
+            for name in extras:
+                self.assertFalse((output / name).exists(), name)
+                self.assertNotIn("candidate/" + name, bundle.namelist())
+
+    def test_missing_or_changed_manifest_runtime_asset_refuses_export_before_writes(self):
+        name = exporter.SUPABASE_DIST + "webapi/index.js"
+        self.write(name, b"changed runtime bytes\n")
+        self.commit()
+        with self.assertRaisesRegex(exporter.ExportError, "changed retained Supabase asset"):
+            self.export()
+        self.assertFalse((self.root / "candidate").exists())
+        self.run_git("rm", "--", name)
+        self.commit()
+        with self.assertRaisesRegex(exporter.ExportError, "changed retained Supabase asset"):
+            self.export()
+
+    def test_manifest_cannot_exempt_private_paths_or_other_dist_outputs(self):
+        for relative in ["volumes/functions/_vendor/jose/dist/.env",
+                         "volumes/functions/_vendor/jose/dist/.ssh/key",
+                         "volumes/functions/_vendor/jose/dist/../outside.js",
+                         "dist/unreviewed.js"]:
+            with self.subTest(relative=relative):
+                manifest = {**self.asset_manifest, "files": [*self.asset_manifest["files"],
+                    {"path": relative, "bytes": 1, "sha256": exporter.sha(b"x")}]}
+                self.write(exporter.SUPABASE_MANIFEST, exporter.json_bytes(manifest))
+                self.commit()
+                with self.assertRaisesRegex(exporter.ExportError, "Unsafe or invalid retained"):
+                    self.export()
+
+    def test_pinned_jose_parser_literal_is_exact_blob_only_not_a_private_key_exception(self):
+        name = exporter.SUPABASE_DIST + "webapi/key/import.js"
+        data = (Path(__file__).resolve().parent.parent / name).read_bytes()
+        relative = name.removeprefix(exporter.SUPABASE_ROOT)
+        row = {"path": relative, "bytes": len(data), "sha256": exporter.sha(data)}
+        self.write(name, data)
+        self.write(exporter.SUPABASE_MANIFEST, exporter.json_bytes({
+            **self.asset_manifest, "files": [*self.asset_manifest["files"], row],
+        }))
+        self.commit()
+        result = self.export()
+        checks = json.loads((Path(result["output"]) / "EXPORT-CHECKS.json").read_bytes())
+        finding = next(item for item in checks["credentialSignatureFindings"] if item["path"] == name)
+        self.assertEqual(finding["sourceBlobSha256"], exporter.sha(data))
+        with zipfile.ZipFile(result["archive"]) as bundle:
+            self.assertEqual(bundle.read("candidate/" + name), data)
+        # Updating the retained manifest must not extend the immutable parser exception.
+        changed = data + b"\n// altered parser blob\n"
+        self.write(name, changed)
+        row.update(bytes=len(changed), sha256=exporter.sha(changed))
+        self.write(exporter.SUPABASE_MANIFEST, exporter.json_bytes({
+            **self.asset_manifest, "files": [*self.asset_manifest["files"], row],
+        }))
+        self.commit()
+        with self.assertRaisesRegex(exporter.ExportError, "Credential signature"):
+            self.export("changed-parser")
+        self.assertFalse((self.root / "changed-parser").exists())
+
+    def test_fluid_grant_and_normalized_source_survive_zip_with_exact_bytes(self):
+        name, source, grant = self.add_fluid()
+        self.write(exporter.FLUID_ROOT + "unreviewed.txt", b"excluded\n")
+        self.commit()
+        result = self.export()
+        output = Path(result["output"])
+        checks = json.loads((output / "EXPORT-CHECKS.json").read_bytes())
+        self.assertEqual(checks["retainedFluidProvenanceVerified"]["adaptedSourceFilesVerified"], 1)
+        self.assertTrue(checks["retainedFluidProvenanceVerified"]["present"])
+        with zipfile.ZipFile(result["archive"]) as bundle:
+            self.assertEqual(bundle.read("candidate/" + name), source)
+            self.assertEqual(bundle.read("candidate/" + exporter.FLUID_ROOT + "LICENSE"), grant)
+            self.assertIn("candidate/" + exporter.FLUID_MANIFEST, bundle.namelist())
+            self.assertNotIn("candidate/" + exporter.FLUID_ROOT + "unreviewed.txt", bundle.namelist())
+
+    def test_fluid_source_cannot_silently_omit_manifest_or_original_grant(self):
+        self.add_fluid()
+        self.commit()
+        for name in [exporter.FLUID_MANIFEST, exporter.FLUID_ROOT + "LICENSE"]:
+            with self.subTest(name=name):
+                data = (self.repo / name).read_bytes()
+                self.run_git("rm", "--", name)
+                self.commit()
+                with self.assertRaisesRegex(exporter.ExportError, "requires its manifest and original MIT grant"):
+                    self.export()
+                self.assertFalse((self.root / "candidate").exists())
+                self.write(name, data)
+                self.commit()
+
+    def test_changed_fluid_source_and_grant_refuse_export_before_writes(self):
+        name, source, grant = self.add_fluid()
+        self.write(name, source + b"// unrecorded change\n")
+        self.commit()
+        with self.assertRaisesRegex(exporter.ExportError, "changed retained Fluid source"):
+            self.export()
+        self.assertFalse((self.root / "candidate").exists())
+        self.write(name, source)
+        self.write(exporter.FLUID_ROOT + "LICENSE", grant + b"changed grant\n")
+        self.commit()
+        with self.assertRaisesRegex(exporter.ExportError, "changed retained Fluid MIT grant"):
+            self.export()
+        self.assertFalse((self.root / "candidate").exists())
+
+    def test_owned_docker_distribution_inputs_survive_source_zip(self):
+        packaging_spec = importlib.util.spec_from_file_location(
+            "docker_packaging", Path(__file__).with_name("prepare-docker-release.py"))
+        packaging = importlib.util.module_from_spec(packaging_spec)
+        packaging_spec.loader.exec_module(packaging)
+        self.assertEqual(exporter.DOCKER_PACKAGING_FILES, packaging.PACKAGING_FILES)
+        expected = {}
+        for relative in packaging.PACKAGING_FILES:
+            name = "distribution/docker/" + relative
+            expected[name] = ("Synthetic owned Docker input: " + relative + "\r\n").encode()
+            self.write(name, expected[name])
+        extras = ["distribution/private.txt", "distribution/docker/dist/build.js",
+                  "distribution/docker/artifacts/context.tar", "distribution/docker/.env",
+                  "distribution/docker/.aws/credentials"]
+        for name in extras:
+            self.write(name, b"excluded\n")
+        self.run_git("add", "--all")
+        self.run_git("update-index", "--chmod=+x", "distribution/docker/start-luci.sh")
+        self.commit()
+        result = self.export()
+        with zipfile.ZipFile(result["archive"]) as bundle:
+            for name, data in expected.items():
+                self.assertEqual(bundle.read("candidate/" + name), data)
+            for name in extras:
+                self.assertNotIn("candidate/" + name, bundle.namelist())
+            self.assertEqual(bundle.getinfo("candidate/distribution/docker/start-luci.sh").external_attr >> 16 & 0o777, 0o755)
+
+    def test_missing_owned_docker_distribution_input_refuses_before_writes(self):
+        self.run_git("rm", "--", "distribution/docker/workspace-init.sh")
+        self.commit()
+        with self.assertRaisesRegex(exporter.ExportError, "Required source files are missing.*workspace-init.sh"):
+            self.export()
         self.assertFalse((self.root / "candidate").exists())
 
     def test_native_installer_hook_survives_export_at_its_configured_path(self):
