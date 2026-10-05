@@ -1080,3 +1080,72 @@ and the supported Windows installer lifecycle still need their scoped installed
 outcomes. The real subscription-generated application/public deployment,
 AWS/Azure and domain/TLS journeys, external inbox delivery and authorized public
 source/download acceptance remain required by the full product goal.
+
+## 0.4.15 installed and CI outcomes — 6 October 2026
+
+Matching clean-source Linux and Docker artifacts were built from
+`d4ebdf16bc7e979885318d8ac30846512e68d0cf`. Both installed workspaces admitted
+the 917-file bundle with accounts, journey state and volumes preserved, and
+fresh runtime observations report ready. The source export matches all 971
+selected original Git files and retained provenance. The Linux package retains
+344 licence components with zero missing grants. These are local review
+artifacts, not public downloads or a signed native installer.
+
+The primary workspace's read-only requirement-evidence retention check passes
+four checkpoints at this installed version. Approved specification/design,
+tasks, seven check records and their current/stale/unverified disclosures
+survive reload unchanged. All three projects, including the original model
+benchmark, sources, histories, configuration, sessions and owned-engine
+structure match the durable 0.4.14 final baseline. The original functional
+requirement-evidence chain remains bound to 0.4.14; retention does not relabel
+those checks. Receipts are linked by
+`artifacts/subscription-e2e/installed-requirements-retention-015-summary.md`.
+
+The secondary workspace's actual UI backup download now matches the original
+native PGDMP bytes. Its first continuation then fails a test-driver Git lookup
+under Deploy; normal UI observation proves Git is available under Develop.
+The remaining-only continuation exercises eight actual database/application
+outcomes: native SQL through a deployed application, failed transactional
+restore with original preservation, a fresh-candidate retry retaining ownership
+and grants, snapshot restore with stale application Restart refusal and
+redeployment, previous-database recovery and reload/stop/start persistence.
+The functional checkpoints pass, but that receipt remains failed at its final
+volume-preservation assertion, which required labels on every new volume.
+A separate read-only final confirmation proves the three anonymous volumes
+belong to the exact registered fixture deployments and their recorded images'
+sole declared volume path. All original 57 containers and 25 volumes retain
+their structural records; 18 prior images, 12 neighboring projects and seven
+sessions, including source/configuration/journey snapshots, remain unchanged.
+All 61 current private-engine containers are stopped. No volume is deleted and
+no restore checkpoint is replayed to replace the failed receipt. The separate
+proof is `postgres-cleanup-observation-fe44431a-90a6-4788-8bc4-fea89473790e/results.json`
+inside the secondary installed evidence directory.
+
+[CI run 37387318702](https://github.com/lcfrai/luci/actions/runs/37387318702)
+checks out merge `3797c7312e683781e6eb4587637faff3d3ca5abc`, whose tree
+`7b4cceed072060b98ece5af6646ce0c5a705c8a0` matches the frozen source. Go, the
+expanded race gate, frontend, TypeScript and web build succeed. Connected browser
+acceptance again fails after seven completed checkpoints: the workflow invokes
+`scripts/run-ui-uat.mjs` and `desktop/scripts/verify-uat.mjs`, while the preceding
+correction changed the separate `verify-journey.mjs`. The actual active driver
+still waits for bare `passed`. Entry checks pass nine outcomes; lifecycle fails
+after two checkpoints. Runtime, portable and Windows jobs are skipped. The
+original failure, checkout proof and digest-verified browser artifact remain
+under `artifacts/review/015-ci-observer`.
+
+## 0.4.16 active-driver correction checkpoint — 6 October 2026
+
+The next coherent batch corrects the two active invocation paths: connected
+browser `verify-uat.mjs` and Docker runtime `verify-runtime-ui.mjs`. Both must
+check the visible `Commands passed` summary and generic-command unverified
+disclosure, retaining actual exit/output, native execution, ownership and
+permission assertions. Both drivers' syntax checks pass and the active invocation
+search finds no remaining bare-status completion waits. Twelve version
+declarations are aligned without changing dependency graphs. Five packaging
+tests and five version-sensitive readiness tests pass at this source batch;
+the latter complete in 0.222 seconds. This changes test drivers and package/API
+version metadata; production workflow code remains unchanged. Fresh matching CI and
+package/installed confirmation are pending. Older failed receipts and their
+downstream skipped gates remain preserved. The full product's model/public
+deployment, live cloud/domain, external inbox, native lifecycle and public
+distribution requirements remain open.

@@ -385,8 +385,18 @@ try {
     .click();
   await checkPanel
     .locator(".check-runs")
-    .getByText("passed", { exact: true })
+    .getByText("Commands passed", { exact: true })
     .waitFor({ timeout: 30000 });
+  assert.equal(
+    await checkPanel
+      .locator(".check-runs")
+      .getByText("Unverified · generic commands without requirement links", {
+        exact: true,
+      })
+      .isVisible(),
+    true,
+    "A generic host diagnostic must remain visibly unverified for requirements",
+  );
   await checkPanel.getByText(/^git .* passed .* exit 0$/).click();
   await checkPanel.getByText(/git version/).waitFor();
   await screenshot("03b-plan-checks");

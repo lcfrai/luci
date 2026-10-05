@@ -391,8 +391,18 @@ try {
   result.checkRunId = run.id;
   await panel
     .locator(".check-runs strong")
-    .filter({ hasText: /^passed$/ })
+    .filter({ hasText: /^Commands passed$/ })
     .waitFor({ timeout: 120000 });
+  assert.equal(
+    await panel
+      .locator(".check-runs")
+      .getByText("Unverified · generic commands without requirement links", {
+        exact: true,
+      })
+      .isVisible(),
+    true,
+    "Generic Docker checks must remain visibly unverified for requirements",
+  );
   await panel.locator(".check-runs summary").first().click();
   await panel
     .getByText(`Luci runtime checks passed as uid ${process.getuid()}`, {

@@ -1,11 +1,15 @@
 # Building and distributing Luci
 
-The current installed review candidate is **0.4.14**, built from clean source
-`80731496c8fa5f2de251615ed2fd5b2d8a390b92`. Its standalone PostgreSQL evaluation
-passes database startup, owner/ACL checks and creation of a native PGDMP backup,
-then fails the actual UI download: the selected workspace is on port 8750, but
-the request uses a fixed port 8730. Restore and rollback acceptance therefore
-remain incomplete. The failed installed receipt is retained.
+The current installed review candidate is **0.4.15**, built from clean source
+`d4ebdf16bc7e979885318d8ac30846512e68d0cf`. Both Docker workspaces admit its
+matching 917-file bundle with accounts, history and volumes preserved. Runtime
+observations report ready; four read-only requirement-evidence retention checks
+pass. PostgreSQL backup download now uses the selected workspace and matches
+the retained native bytes. Eight restore/application checkpoints pass. Their
+receipt fails a final volume-label assertion; a separate native preservation
+confirmation proves the three anonymous volumes are owned by the recorded test
+deployments and all original resources and neighboring projects remain unchanged.
+All test services are stopped. Original failed receipts remain unchanged.
 
 The preceding 0.4.13 task-draft, native design-prototype and readiness journeys
 pass, with separate durable before/after preservation confirmation. Earlier
@@ -13,25 +17,27 @@ drawing, workspace, archive, email, data, Functions, branch and recovery results
 retain their own source bindings. See the
 [full product checkpoint](FULL-PRODUCT.md) for those outcomes and their limits.
 
-The next source correction targets **0.4.15**. It routes binary transfers through
-the selected workspace's authenticated transport and corrects the connected
-browser driver's outdated status selector. The rebuilding examples below target
-that declared version. The focused transport batch passes 22 tests in four files.
+The next source correction targets **0.4.16**. It corrects the actual connected
+browser and Docker-runtime drivers' outdated command status selectors. The
+preceding correction changed a separate driver and therefore did not fix the
+workflow's active invocation. Production workflow code remains unchanged.
+The rebuilding examples below target the next declared version. The installed
+0.4.15 binary transfer correction passes 22 focused tests in four files.
 After correcting two partial preview-client fixtures to retain the actual
 workspace origin, the whole frontend passes 1,278 tests in 80 files and final
 TypeScript validation passes. Five packaging and five version-sensitive
 workspace readiness tests pass. Matching CI, packages and installed acceptance
-remain pending; existing 0.4.14
+remain pending for 0.4.16; existing 0.4.15
 packages and manifests retain their original source bindings.
 
 This is not a public production release. The required real Codex-generated
 application and public deployment, live AWS/Azure and domain acceptance,
 external email delivery, supported native installer lifecycle and public
 download acceptance remain open. Current exact-tree CI
-[`37384464598`](https://github.com/lcfrai/luci/actions/runs/37384464598)
-passes whole Go, the expanded Linux race gate, all 1,271 desktop tests in 79
-files, TypeScript validation and the web build. Connected browser acceptance
-fails after seven completed journey checks because the driver waits for bare
+[`37387318702`](https://github.com/lcfrai/luci/actions/runs/37387318702)
+passes whole Go, the expanded Linux race gate, frontend, TypeScript validation
+and the web build. Connected browser acceptance fails after seven completed
+journey checks because the actual active driver waits for bare
 `passed` while the UI displays `Commands passed` and an unverified generic-command
 disclosure. Entry acceptance passes nine checks; lifecycle acceptance fails after
 two completed checkpoints. Downstream runtime, portable and Windows jobs are
@@ -76,9 +82,9 @@ Use Go 1.26.3, Node 24.19.0, Python 3.11 or newer, and the committed lockfiles. 
 On Windows:
 
 ```powershell
-./scripts/build-release.ps1 -Version 0.4.15
+./scripts/build-release.ps1 -Version 0.4.16
 # Also build the native Windows NSIS installer:
-./scripts/build-release.ps1 -Version 0.4.15 -Native
+./scripts/build-release.ps1 -Version 0.4.16 -Native
 ```
 
 Native Windows builds also need stable Rust with the MSVC target and the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/). Tauri receives the Cargo lock flag after its argument separator: `npm run tauri -- build --bundles nsis -- --locked`. The [NSIS distribution documentation](https://v2.tauri.app/distribute/windows-installer/) describes the installer and signing options.
@@ -86,11 +92,11 @@ Native Windows builds also need stable Rust with the MSVC target and the [Tauri 
 On Linux or macOS:
 
 ```bash
-bash scripts/build-release.sh 0.4.15 linux-amd64
-bash scripts/build-release.sh 0.4.15 darwin-arm64
+bash scripts/build-release.sh 0.4.16 linux-amd64
+bash scripts/build-release.sh 0.4.16 darwin-arm64
 ```
 
-Archives and their checksums are written under `artifacts/releases/0.4.15/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
+Archives and their checksums are written under `artifacts/releases/0.4.16/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
 
 `scripts/collect-licenses.py` inventories installed npm runtime packages, each bundled Excalidraw font family, the Go modules compiled into the service and sandbox, and the Go standard library. Native builds also inventory reachable Windows Cargo packages. It retains original files and source snapshot references with SHA-256 hashes in `licenses/manifest.json`; `MISSING-LICENSES.txt` lists missing grants. The default command fails when a component has no retained licence file. `--allow-missing` is diagnostic only and must not be used to make a distributable package pass. Updating a dependency can require a new version-specific snapshot in `third-party/licenses/manifest.json`.
 

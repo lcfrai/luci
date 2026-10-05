@@ -3,7 +3,7 @@
   "description": "Luci — define, design, develop and deploy in one place.",
   "homepage": "https://lcfr.ai",
   "private": true,
-  "version": "0.4.15",
+  "version": "0.4.16",
   "license": "MIT",
   "type": "module",
   "overrides": {
