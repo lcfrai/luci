@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { dataEmailApi, type DataEmailConfiguration, type DataEmailRequest, type DataEmailStatus } from "../../api/dataEmail";
 import { errorText } from "../../api/product";
+import { Button } from "../fluid/components/button";
 
 interface Props {
   projectId: string; ready: boolean; locked?: boolean; canManage?: boolean;
@@ -49,6 +50,7 @@ function ProjectDataEmail({ projectId, ready, locked = false, canManage = true, 
     return () => window.clearInterval(timer);
   }, [running, load]);
   const busy = locked || !!pending || !!running;
+  const activeAction = pending || (running ? status?.operation?.action : "");
   const readOnly = busy || !canManage;
   const saved = !!status?.configuration.host;
   const applied = !!status && status.appliedRevision > 0 && status.appliedRevision === status.revision && status.status !== "attention";
@@ -76,7 +78,7 @@ function ProjectDataEmail({ projectId, ready, locked = false, canManage = true, 
     finally { submitting.current = false; if (active.current) setPending(""); }
   }
   return <section className="data-section" aria-label="Application email delivery">
-    <div className="data-heading"><div><h4>Email delivery</h4><p>Connect your email provider for application signup confirmation and password recovery.</p></div><button type="button" className="luci-button" disabled={busy} onClick={() => void load()}>Refresh email status</button></div>
+    <div className="data-heading"><div><h4>Email delivery</h4><p>Connect your email provider for application signup confirmation and password recovery.</p></div><Button type="button" variant="secondary" disabled={busy} onClick={() => void load()}>Refresh email status</Button></div>
     {error && <p className="journey-error" role="alert">{error}</p>}
     {!status && !error && <p role="status">Loading email settings…</p>}
     {status && <><p role="status"><strong>{statusLabels[status.status] || status.status}.</strong> {pending ? `${pending === "save" ? "Saving" : "Preparing email operation"}…` : status.operation?.status === "running" ? status.operation.message : status.message}</p>
@@ -93,7 +95,7 @@ function ProjectDataEmail({ projectId, ready, locked = false, canManage = true, 
       <label htmlFor={`${id}-name`}>Sender name<input id={`${id}-name`} required maxLength={128} disabled={readOnly} value={draft.senderName} onChange={event => field("senderName", event.target.value)} /></label>
       <label htmlFor={`${id}-origin`}>Application redirect address<input id={`${id}-origin`} type="url" required disabled={readOnly || status?.originSource === "public-domain"} value={status?.originSource === "public-domain" ? status.applicationOrigin : draft.applicationOrigin} placeholder="http://localhost:3000" onChange={event => field("applicationOrigin", event.target.value)} /></label>
       <p>{status?.originSource === "public-domain" ? "Your public data connection controls this application origin." : "Use your application's HTTPS origin or local address. Confirmation and recovery return users there; the app must handle the Auth callback."}</p>
-      <div className="journey-actions"><button className="luci-button luci-primary" disabled={readOnly || !status}>Save email settings</button><button type="button" className="luci-button" disabled={readOnly || !saved || dirty} onClick={() => void action("check")}>Check SMTP connection</button><button type="button" className="luci-button" disabled={readOnly || !saved || dirty || !ready} onClick={() => void action("apply")}>Apply to Auth</button></div>
+      <div className="journey-actions"><Button type="submit" variant="primary" loading={activeAction === "save"} disabled={readOnly || !status}>Save email settings</Button><Button type="button" variant="secondary" loading={activeAction === "check"} disabled={readOnly || !saved || dirty} onClick={() => void action("check")}>Check SMTP connection</Button><Button type="button" variant="secondary" loading={activeAction === "apply"} disabled={readOnly || !saved || dirty || !ready} onClick={() => void action("apply")}>Apply to Auth</Button></div>
     </form>
     {!ready && <p>Start the data stack before applying settings or sending a test. Saving and connection checks remain available.</p>}
     {status?.connection.status === "passed" && status.connection.revision === status.revision && <p>Connection verified: TLS and SMTP authentication succeeded. This check sent no email.</p>}
@@ -103,12 +105,12 @@ function ProjectDataEmail({ projectId, ready, locked = false, canManage = true, 
         <p>A test uses the applied SMTP settings. It sends a fixed message and does not create or change an application user.</p>
         <label htmlFor={`${id}-recipient`}>Test recipient<input id={`${id}-recipient`} type="email" required maxLength={254} disabled={readOnly} value={recipient} onChange={event => { setRecipient(event.target.value); setSendConfirmed(false); }} /></label>
         <label className="data-check"><input type="checkbox" checked={sendConfirmed} disabled={readOnly} onChange={event => setSendConfirmed(event.target.checked)} />Send one test email to this recipient.</label>
-        <button className="luci-button" disabled={readOnly || !ready || !applied || dirty || !recipient || !sendConfirmed}>Send test email</button>
+        <Button type="submit" variant="secondary" loading={activeAction === "test"} disabled={readOnly || !ready || !applied || dirty || !recipient || !sendConfirmed}>Send test email</Button>
       </form>
       {status?.test.status === "accepted" && <p>SMTP accepted the test email. Check the recipient's inbox; delivery has not been confirmed.</p>}
       {status?.test.status === "uncertain" && <p>The previous test may have been sent. Check the inbox before explicitly requesting another test.</p>}
       {status?.test.status === "failed" && <p>The test was not accepted. Check the operation result and provider sending restrictions.</p>}
     </details>
-    {saved && <details className="data-disclosure"><summary>Remove SMTP configuration</summary><p>This removes saved SMTP credentials after Auth is verified with email delivery disabled. Existing application users and data remain.</p><label className="data-check"><input type="checkbox" checked={removeConfirmed} disabled={readOnly} onChange={event => setRemoveConfirmed(event.target.checked)} />Remove SMTP credentials and disable confirmation and recovery email.</label><button type="button" className="luci-button" disabled={readOnly || !ready || !removeConfirmed} onClick={() => void action("disable")}>Remove SMTP configuration</button></details>}
+    {saved && <details className="data-disclosure"><summary>Remove SMTP configuration</summary><p>This removes saved SMTP credentials after Auth is verified with email delivery disabled. Existing application users and data remain.</p><label className="data-check"><input type="checkbox" checked={removeConfirmed} disabled={readOnly} onChange={event => setRemoveConfirmed(event.target.checked)} />Remove SMTP credentials and disable confirmation and recovery email.</label><Button type="button" variant="tertiary" loading={activeAction === "disable"} disabled={readOnly || !ready || !removeConfirmed} onClick={() => void action("disable")}>Remove SMTP configuration</Button></details>}
   </section>;
 }

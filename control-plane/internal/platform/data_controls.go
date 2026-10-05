@@ -44,8 +44,7 @@ func (s *Service) registerDataControls(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/platform/projects/{id}/data/buckets/{bucket}/objects/{path...}", s.dataObjects)
 	mux.HandleFunc("GET /v1/platform/projects/{id}/data/realtime", s.dataRealtime)
 	mux.HandleFunc("POST /v1/platform/projects/{id}/data/realtime", s.dataRealtime)
-	mux.HandleFunc("GET /v1/platform/projects/{id}/data/functions", s.dataFunctions)
-	mux.HandleFunc("POST /v1/platform/projects/{id}/data/functions/{function}/invoke", s.dataFunctions)
+	s.registerDataFunctions(mux)
 }
 func (s *Service) readyData(w http.ResponseWriter, r *http.Request) (dataInstallation, dataSecret, bool) {
 	p, ok := s.project(w, r)
@@ -502,48 +501,6 @@ func (s *Service) dataObjects(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(b)
 }
 
-func (s *Service) dataFunctions(w http.ResponseWriter, r *http.Request) {
-	i, secret, ok := s.readyData(w, r)
-	if !ok {
-		return
-	}
-	if r.Method == "GET" {
-		respond(w, 200, map[string]any{"functions": []map[string]any{{"name": "hello", "source": "reviewed-luci-example", "authRequired": true}}, "customPublishing": false})
-		return
-	}
-	if r.PathValue("function") != "hello" {
-		problem(w, 404, "function_unavailable", "Choose the reviewed hello function. Publishing custom code requires a committed project deployment.")
-		return
-	}
-	if !s.dataControlClaim(w, r, i.ProjectID) {
-		return
-	}
-	defer s.release(i.ProjectID)
-	var input map[string]any
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
-	if decoder.Decode(&input) != nil {
-		problem(w, 400, "invalid_function_input", "Supply a JSON object of up to 64 KiB.")
-		return
-	}
-	if decoder.Decode(new(any)) != io.EOF {
-		problem(w, 400, "invalid_function_input", "Supply one JSON object.")
-		return
-	}
-	b, _ := json.Marshal(input)
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-	defer cancel()
-	out, e := s.dataHTTP(ctx, i, secret, "POST", "/functions/v1/hello", b, "application/json")
-	if e != nil {
-		dataControlError(w)
-		return
-	}
-	var result any
-	if json.Unmarshal(out, &result) != nil {
-		dataControlError(w)
-		return
-	}
-	respond(w, 200, map[string]any{"function": "hello", "result": result})
-}
 func (s *Service) dataRealtime(w http.ResponseWriter, r *http.Request) {
 	i, _, ok := s.readyData(w, r)
 	if !ok {

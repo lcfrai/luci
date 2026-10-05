@@ -23,7 +23,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
-const Version = "0.4.5"
+const Version = "0.4.6"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -75,6 +75,7 @@ type Server struct {
 	authJobs          map[string]*ProviderLoginJob
 	runtimeDir        string
 	mu                sync.RWMutex
+	functionSourceMu  sync.RWMutex
 	config            Config
 	stateDir          string
 	runner            Runner

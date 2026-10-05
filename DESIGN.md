@@ -18,10 +18,18 @@ Helper text uses the readable ink floor; reserve faint ink for non-text structur
 Keep body copy at a readable size. Screens do not need decorative grain, gradients,
 glass effects or extra marketing labels. Elevation is reserved for overlays.
 
-Use the installed system sans-serif stack and system monospace stack so the app
-works offline without buying fonts. Excalidraw's open-licensed design fonts are
-bundled locally. Navigation icons use the shared SVG component and stroke weight.
-Do not add an icon or component library for a control the existing system provides.
+The owner's Fluid Functionalism direction supersedes the earlier system-font-only
+choice. Prefer the official MIT-licensed Fluid controls and their shared shape,
+size and motion behaviour before implementing new controls. Vendor a pinned,
+reviewed subset with its licence and provenance; compile its utilities without
+replacing the existing reset. Map it to Luci's appearance tokens and density.
+Inter's OFL-licensed variable font is bundled locally so the app works offline.
+Terminal text remains monospace. Navigation retains the shared Luci SVG icons.
+
+Everyday use should be calm, clear and easy. Show one main action and the result
+that matters; place runtime details, revisions and recovery tools behind deliberate
+disclosures. Develop is the exception: show the user's actual CLI work and output.
+Do not hide failures, invent progress or replace working actions with visual demos.
 
 ## Layout and interaction
 

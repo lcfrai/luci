@@ -245,7 +245,7 @@ func TestAPIOnlyRestorePublishesActiveDataTargetAndReinstatesOriginalOnFailure(t
 				t.Fatal("active browser target unavailable")
 			}
 			activeSecret, err := s.dataCredentials(active)
-			if err != nil || address != "http://"+registered.Key+".localhost:8731" || registered.ResourceID != original.storageTenant() || registered.Container != s.dataName(active, "api-gw") || registered.Upstream != dataURL(active) || registered.Labels[labelResource] != "data-"+active.StackID+"-api-gw" || registered.PublishableKey != activeSecret.Anon {
+			if err != nil || address != "http://"+previewgateway.CapabilityHostname(registered.Key)+":8731" || registered.ResourceID != original.storageTenant() || registered.Container != s.dataName(active, "api-gw") || registered.Upstream != dataURL(active) || registered.Labels[labelResource] != "data-"+active.StackID+"-api-gw" || registered.PublishableKey != activeSecret.Anon {
 				t.Fatal("API-only restore left the browser target or credentials pointing at another stack")
 			}
 			for _, name := range dataServiceNames {

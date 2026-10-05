@@ -80,7 +80,7 @@ function pendingBrowserProject() {
 
 it("prepares a cloud application's isolated browser address only after Open, then retains a safe link", async () => {
   pendingBrowserProject();
-  const address = `http://${"a".repeat(64)}.localhost:8731/`;
+  const address = `http://${"a".repeat(32)}.${"a".repeat(32)}.localhost:8731/`;
   let finish!: (value: { url: string; projectId: string; kind: "application"; resourceId: string }) => void;
   vi.mocked(platformApi.prepareBrowser).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
   const open = vi.spyOn(window, "open").mockReturnValue(null);

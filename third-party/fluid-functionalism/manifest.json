@@ -1,0 +1,75 @@
+{
+  "name": "fluid-functionalism",
+  "upstream": "https://github.com/mickadesign/fluid-functionalism",
+  "files": [
+    {
+      "upstreamPath": "registry/radix/button.tsx",
+      "upstreamSha256": "3a2e17cb47169d130ba1beb0ba47f8eede59cdff03c3dd243419e8e0e8f2aab8",
+      "path": "desktop/src/components/fluid/components/button.tsx",
+      "normalizedSha256": "dd96dee365611ee55fc3c128e3fe2e0f2049c0f126ecc9db31a76e46c84229f5"
+    },
+    {
+      "upstreamPath": "registry/radix/tabs-subtle.tsx",
+      "upstreamSha256": "cfe2e3de9dd402ca32d5175494d4cb0eb215d114187adee8611cbca373d734fe",
+      "path": "desktop/src/components/fluid/components/tabs-subtle.tsx",
+      "normalizedSha256": "2f240274d92623b3a8bd0f44e49060fbb92a066454dcc78a7fa93b99a4a2c5cb"
+    },
+    {
+      "upstreamPath": "registry/default/lib/font-weight.ts",
+      "upstreamSha256": "3d249aa3cf6e7e8bf2830e8367659abededc3ed4d430670537a1bd065953a14a",
+      "path": "desktop/src/components/fluid/lib/font-weight.ts",
+      "normalizedSha256": "e24ad1081bf07948cd842027b99d8e1d2f5ecb10142a5cd6acba5971d4a20acf"
+    },
+    {
+      "upstreamPath": "registry/default/lib/shape-context.tsx",
+      "upstreamSha256": "c88e150726e3b3c0b133fa826942c976283f01252162538677db7dd96cb836c3",
+      "path": "desktop/src/components/fluid/lib/shape-context.tsx",
+      "normalizedSha256": "fdf02a4eebce30aa21b35d9efb0250e7f9c4ef12362728160d51124c3d86f4f8"
+    },
+    {
+      "upstreamPath": "registry/default/lib/size-context.tsx",
+      "upstreamSha256": "cca35a72e37b121a3a5701c95fde8470626ceb74bcf55fe040b99afd06f0e21f",
+      "path": "desktop/src/components/fluid/lib/size-context.tsx",
+      "normalizedSha256": "f6c4be111a88eb973794f7c7c7dd97de72a358fb1d8b2fa6c00dc54c654df46c"
+    },
+    {
+      "upstreamPath": "registry/default/lib/springs.ts",
+      "upstreamSha256": "b5d1c7c55ba4b865ac1156effc9ae41e95e4fdd08b42cefcda2854e93b817057",
+      "path": "desktop/src/components/fluid/lib/springs.ts",
+      "normalizedSha256": "4d13feda421fcec7fbca8b0b718e47e0f8a8455111746e2a4e0804dab46b49a7"
+    },
+    {
+      "upstreamPath": "registry/default/lib/utils.ts",
+      "upstreamSha256": "267863ba7a82f11320f207a30735bd19653e0207e1cfd39fde32958ba8c861ce",
+      "path": "desktop/src/components/fluid/lib/utils.ts",
+      "normalizedSha256": "98cf7ca16d03605c6863ed7346b6a9c5ca49a51dd8e725afad75a8f25c1f7d78"
+    },
+    {
+      "upstreamPath": "registry/default/hooks/use-fluid-hover.ts",
+      "upstreamSha256": "dba8381f5b50c9120a3eba4e86a75ec252aa4ac401c6afbf35922fe0ff47d61d",
+      "path": "desktop/src/components/fluid/hooks/use-fluid-hover.ts",
+      "normalizedSha256": "4d2f96eb01846cb94ea39192f2837b9b65c9e3a18284f4218a67b602cdbcc4bf"
+    },
+    {
+      "upstreamPath": "registry/default/lib/icon-context.tsx",
+      "upstreamSha256": "466b6c8f96eeb56d908baf064d9d71ffa07903c040ead71fa5ff3ad919215fe8",
+      "path": "desktop/src/components/fluid/lib/icon-context.ts",
+      "normalizedSha256": "c52c421d25802929e4df4acf82fc860d290f469003f9f0bd4f340445d4a14474"
+    }
+  ],
+  "revision": "97183f8018e619722edffd2f9fccefbea0effe8d",
+  "license": "MIT",
+  "adaptations": [
+    "Relative imports for Luci",
+    "Subset of icon-context types; existing Luci icons retained",
+    "Appearance and offline Inter integration",
+    "Native-button defaults/loading state",
+    "Reduced-motion handling and observer cleanup in tabs"
+  ],
+  "glasses": {
+    "repositoryId": "6a7f58b6fecc68b2ea92",
+    "buttonId": "0b2ccd2795d26f57bbdf",
+    "tabsId": "17d96c7b6974bd72b041",
+    "note": "Registry sources inspected through Glasses; vendoring uses immutable Git source and its MIT grant, not registry metadata alone."
+  }
+}

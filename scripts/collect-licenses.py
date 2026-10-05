@@ -128,6 +128,20 @@ def collect(root, output, native):
                 assets / "volumes" / "functions" / "_vendor" / dependency["name"],
                 dependency["license"], source_url=dependency["source"])
 
+    fluid = root / "third-party" / "fluid-functionalism"
+    if fluid.is_dir():
+        provenance = json.loads((fluid / "manifest.json").read_text(encoding="utf-8-sig"))
+        for item in provenance["files"]:
+            path = (root / item["path"]).resolve()
+            path.relative_to(root)
+            if path.is_symlink():
+                raise RuntimeError("Linked Fluid source: " + item["path"])
+            normalized = path.read_text(encoding="utf-8").replace("\r\n", "\n").encode("utf-8")
+            if hashlib.sha256(normalized).hexdigest() != item["normalizedSha256"]:
+                raise RuntimeError("Adapted Fluid source differs from its provenance: " + item["path"])
+        add("vendored", "fluid-functionalism", provenance["revision"], fluid,
+            "MIT", source_url=provenance["upstream"] + "/tree/" + provenance["revision"])
+
     lock = json.loads((root / "desktop" / "package-lock.json").read_text(encoding="utf-8"))
     for relative, meta in sorted(lock["packages"].items()):
         if not relative or meta.get("dev", False):

@@ -110,7 +110,7 @@ func TestCloudBrowserDataConfigurationRequiresBoundServerTransport(t *testing.T)
 	s, f := newDataFake(t)
 	secret := newDataSecret()
 	seedBridgeData(t, s, f, "stack-first", "durable-data", "http://127.0.0.1:34567", secret)
-	origin := "http://" + strings.Repeat("a", 64) + ".localhost:8741"
+	origin := "http://" + strings.Repeat("a", 32) + "." + strings.Repeat("a", 32) + ".localhost:8741"
 	makeRequest := func() *http.Request {
 		r := httptest.NewRequest("POST", "http://127.0.0.1:8730/v1/platform/projects/owned/deployments", nil)
 		r.Header.Set("X-Luci-Preview-Bridge", "1")
@@ -130,6 +130,14 @@ func TestCloudBrowserDataConfigurationRequiresBoundServerTransport(t *testing.T)
 			t.Fatal("spoofed or stale browser binding accepted")
 		}
 	}
+	for _, malformed := range []string{"http://" + strings.Repeat("a", 64) + ".localhost:8741", "http://" + strings.Repeat("a", 31) + "." + strings.Repeat("a", 33) + ".localhost:8741", "http://extra." + strings.Repeat("a", 32) + "." + strings.Repeat("a", 32) + ".localhost:8741"} {
+		r := makeRequest()
+		r.Header.Set("X-Luci-Workspace-Data-Origin", malformed)
+		values, _ := s.dataBindings("owned")
+		if err := s.deploymentBrowserData(r, "owned", values); err == nil {
+			t.Fatal("invalid DNS capability layout was accepted as a browser binding")
+		}
+	}
 }
 
 func TestCloudBrowserDataOriginReachesActualPrivateDeploymentRuntime(t *testing.T) {
@@ -140,7 +148,7 @@ func TestCloudBrowserDataOriginReachesActualPrivateDeploymentRuntime(t *testing.
 	defer app.Close()
 	appURL, _ := url.Parse(app.URL)
 	s.opts.HTTPClient = &http.Client{}
-	origin := "http://" + strings.Repeat("a", 64) + ".localhost:8741"
+	origin := "http://" + strings.Repeat("a", 32) + "." + strings.Repeat("a", 32) + ".localhost:8741"
 	r := httptest.NewRequest("POST", "http://127.0.0.1:8730/v1/platform/projects/owned/deployments", nil)
 	r.Header.Set("X-Luci-Preview-Bridge", "1")
 	r.Header.Set("X-Luci-Workspace-Data-Origin", origin)

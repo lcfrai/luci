@@ -79,7 +79,5 @@ export const dataApi = {
   downloadObject: (id: string, name: string, key: string) => download(object(id, name, key), key.split("/").pop() || "download"),
   realtime: (id: string) => productApi.request<{ tables: string[]; publication: string; rlsRequired: boolean }>(`${base(id)}/realtime`),
   updateRealtime: (id: string, name: string, enabled: boolean) => productApi.request<{ tables: string[] }>(`${base(id)}/realtime`, { table: name, enabled }),
-  functions: (id: string) => productApi.request<{ functions: { name: string; source: string; authRequired: boolean }[]; customPublishing: boolean }>(`${base(id)}/functions`),
-  invoke: (id: string, name: string, input: Record<string, unknown>) => productApi.request<{ function: string; result: unknown }>(`${base(id)}/functions/${encodeURIComponent(name)}/invoke`, input),
   downloadBackup: (id: string, backup: DataBackup) => download(`${base(id)}/backups/${encodeURIComponent(backup.id)}`, `${backup.id}.zip`),
 };

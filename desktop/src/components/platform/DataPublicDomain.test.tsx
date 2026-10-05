@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { DataPublicDomain, publicDataAddress } from "./DataPublicDomain";
 import { dataApi, type DataDomainStatus } from "../../api/data";
 import { productApi } from "../../api/product";
@@ -39,6 +39,25 @@ it("sends only the acknowledged public request and keeps accepted work pending",
   expect(await screen.findByText("Preparing this saved attempt.")).not.toBeNull();
   expect(screen.queryByLabelText("Public HTTPS API address")).toBeNull();
   expect(change).toHaveBeenCalledTimes(1);
+});
+it("prevents duplicate publication and keeps progress visible after the server accepts background work", async () => {
+  let complete!: (value: DataDomainStatus) => void;
+  vi.mocked(dataApi.configureDomain).mockImplementation(() => new Promise(resolve => { complete = resolve; }));
+  render(<DataPublicDomain projectId="owned" disabled={false} ready onChange={vi.fn()} />);
+  await fill();
+  fireEvent.click(screen.getByLabelText("Make this project's client API available publicly at this domain."));
+  const publish = screen.getByRole("button", { name: "Publish data API" }) as HTMLButtonElement;
+  expect(publish.type).toBe("submit");
+  fireEvent.click(publish);
+  expect(publish.getAttribute("aria-busy")).toBe("true"); expect(publish.disabled).toBe(true);
+  fireEvent.submit(publish.form!); fireEvent.click(publish);
+  expect(dataApi.configureDomain).toHaveBeenCalledTimes(1);
+  await act(async () => { complete({ ...initial, revision: 1, status: "pending", message: "Preparing this saved attempt.", operation: { id: "job", action: "publish", status: "running", stage: "queued", message: "Queued", createdAt: "now", updatedAt: "now" } }); });
+  const update = await screen.findByRole("button", { name: "Update public connection" }) as HTMLButtonElement;
+  expect(update.getAttribute("aria-busy")).toBe("true"); expect(update.disabled).toBe(true);
+  const check = screen.getByRole("button", { name: "Check DNS and HTTPS" }) as HTMLButtonElement;
+  expect(check.type).toBe("button"); expect(check.hasAttribute("aria-busy")).toBe(false); expect(check.disabled).toBe(true);
+  expect(screen.queryByLabelText("Public HTTPS API address")).toBeNull();
 });
 it("reconciles an uncertain creation without offering another publish", async () => {
   vi.mocked(dataApi.domain).mockResolvedValue({ ...initial, revision: 2, status: "uncertain", targetId: "target", domain: "data.example.com", applicationOrigin: "https://app.example.com" });

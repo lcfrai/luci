@@ -16,6 +16,7 @@ import {
   type ProductClient,
 } from "../../api/product";
 import { useDismissable } from "../../hooks/useDismissable";
+import { Button } from "../fluid/components/button";
 import { useCockpit } from "../../store/store";
 import { CloudManager } from "./CloudManager";
 import { LocalTools } from "./LocalTools";
@@ -460,8 +461,8 @@ export function SetupPanel({
               ) : (
                 <>
                   <p>Connect to Luci’s local service to load your settings.</p>
-                  <button
-                    className="luci-button"
+                  <Button type="button"
+                    variant="secondary" loading={busy === "Connecting"}
                     disabled={!!busy}
                     onClick={() =>
                       void run("Connecting", async () =>
@@ -470,7 +471,7 @@ export function SetupPanel({
                     }
                   >
                     Retry connection
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -495,17 +496,17 @@ export function SetupPanel({
                         existing sessions keep running on their original
                         machine. Save your brief and design before switching.
                       </p>
-                      <button
-                        className="luci-button luci-primary"
+                      <Button
+                        variant="primary"
                         type="button"
                         disabled={navigationLocked || !status?.workspace?.ready}
                         onClick={createProject}
                       >
                         Create your first project
-                      </button>
+                      </Button>
                       {localManageBacking && (
-                        <button
-                          className="luci-button"
+                        <Button type="button"
+                          variant="secondary" loading={busy === "Returning locally"}
                           disabled={navigationLocked}
                           onClick={() =>
                             void run("Returning locally", () =>
@@ -514,7 +515,7 @@ export function SetupPanel({
                           }
                         >
                           Return to this machine
-                        </button>
+                        </Button>
                       )}
                     </div>
                   )}
@@ -569,15 +570,15 @@ export function SetupPanel({
                     </label>
                     <div className="setup-actions">
                       {canChooseProjectsDir && (
-                        <button
-                          className="luci-button luci-primary"
+                        <Button type="submit"
+                          variant="primary" loading={busy === "Saving"}
                           disabled={!!busy}
                         >
                           {busy === "Saving" ? "Saving…" : "Save settings"}
-                        </button>
+                        </Button>
                       )}
-                      <button
-                        className="luci-button"
+                      <Button
+                        variant="secondary" loading={busy === "Checking"}
                         type="button"
                         disabled={!!busy}
                         onClick={() =>
@@ -592,7 +593,7 @@ export function SetupPanel({
                             ? "Checking this workspace…"
                             : "Checking this machine…"
                           : "Check readiness"}
-                      </button>
+                      </Button>
                     </div>
                   </form>
                   {!portal && (
@@ -636,25 +637,25 @@ export function SetupPanel({
                         model. You can connect now or come back after defining
                         your project.
                       </p>
-                      <button
-                        className="luci-button"
+                      <Button
+                        variant="secondary"
                         type="button"
                         disabled={navigationLocked}
                         onClick={() => setSection("agents")}
                       >
                         Connect a coding agent
-                      </button>
+                      </Button>
                     </section>
                   )}
                   {!cloudWorkspace && (
-                    <button
-                      className="luci-button"
+                    <Button
+                      variant="secondary"
                       type="button"
                       disabled={navigationLocked}
                       onClick={createProject}
                     >
                       Create your first project →
-                    </button>
+                    </Button>
                   )}
                 </>
               )}
@@ -706,14 +707,14 @@ export function SetupPanel({
                     <p className="journey-muted">
                       Saved inside <code>{config.projectsDir}</code>
                     </p>
-                    <button
-                      className="luci-button luci-primary"
+                    <Button type="submit"
+                      variant="primary" loading={busy === "Creating project"}
                       disabled={!!busy || !name.trim()}
                     >
                       {busy === "Creating project"
                         ? "Creating project…"
                         : "Create project"}
-                    </button>
+                    </Button>
                   </form>
                   <ProjectRestore
                     client={client}
@@ -736,12 +737,12 @@ export function SetupPanel({
                     onSessionStarted={onSessionStarted ?? onClose}
                   />
                   {portal && (
-                    <button
-                      className="luci-button"
+                    <Button type="button"
+                      variant="ghost"
                       onClick={() => setSection("local")}
                     >
                       Back to workspace preparation
-                    </button>
+                    </Button>
                   )}
                 </>
               )}
@@ -763,14 +764,14 @@ export function SetupPanel({
               {section === "cloud" && localManageBacking && !cloudWorkspace && (
                 <>
                   {!onboarding && route && (
-                    <button
+                    <Button
                       type="button"
-                      className="luci-button"
+                      variant="ghost"
                       disabled={!!busy}
                       onClick={chooseAgain}
                     >
                       Cloud setup options
-                    </button>
+                    </Button>
                   )}
                   {!route && !onboarding && (
                     <SetupRoutes
@@ -939,8 +940,8 @@ export function SetupPanel({
                               your machine.
                             </small>
                           </label>
-                          <button
-                            className="luci-button"
+                          <Button
+                            variant="secondary" loading={busy === "Creating key"}
                             type="button"
                             disabled={!!busy}
                             onClick={() =>
@@ -956,15 +957,15 @@ export function SetupPanel({
                             }
                           >
                             Create or use Luci SSH key
-                          </button>
-                          <button
-                            className="luci-button luci-primary"
+                          </Button>
+                          <Button type="submit"
+                            variant="primary" loading={busy === "Planning"}
                             disabled={!!busy}
                           >
                             {busy === "Planning"
                               ? "Preparing plan…"
                               : "Preview cloud plan"}
-                          </button>
+                          </Button>
                         </form>
                       )}
                       {allowProvision && plan && (
@@ -1005,8 +1006,8 @@ export function SetupPanel({
                             <details key={file.name}>
                               <summary>{file.name}</summary>
                               <pre>{file.content}</pre>
-                              <button
-                                className="luci-button"
+                              <Button type="button"
+                                variant="secondary"
                                 onClick={() => {
                                   const blob = new Blob([file.content], {
                                     type: file.mediaType,
@@ -1020,7 +1021,7 @@ export function SetupPanel({
                                 }}
                               >
                                 Save template
-                              </button>
+                              </Button>
                             </details>
                           ))}
                         </div>
@@ -1050,9 +1051,9 @@ export function SetupPanel({
                   ? "You can connect tools later. Continuing does not mark them ready."
                   : "Local by default · Your account, when you choose"}
           </span>
-          <button className="luci-button" onClick={onClose} disabled={navigationLocked}>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={navigationLocked}>
             {portal ? "Continue to projects" : "Back to project"}
-          </button>
+          </Button>
         </footer>
       </div>
     </div>

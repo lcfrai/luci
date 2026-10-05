@@ -24,6 +24,19 @@ import (
 
 var name = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
 var capability = regexp.MustCompile(`^[a-f0-9]{64}$`)
+var capabilityHostname = regexp.MustCompile(`^[a-f0-9]{32}\.[a-f0-9]{32}\.localhost$`)
+
+// CapabilityHostname preserves the full private registration key in two DNS
+// labels. A single 64-character label cannot resolve in real browsers because
+// the DNS label limit is 63; existing persisted keys remain unchanged.
+func CapabilityHostname(key string) string {
+	if !capability.MatchString(key) {
+		return ""
+	}
+	return key[:32] + "." + key[32:] + ".localhost"
+}
+
+func IsCapabilityHostname(host string) bool { return capabilityHostname.MatchString(host) }
 
 type Target struct {
 	Kind           string            `json:"kind"`
@@ -166,7 +179,7 @@ func (r *Registry) Publish(t Target) (string, error) {
 	if err = os.Rename(tmp, path); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("http://%s.localhost:%d", key, r.port), nil
+	return fmt.Sprintf("http://%s:%d", CapabilityHostname(key), r.port), nil
 }
 func (r *Registry) Remove(kind, project, resource string) error {
 	r.mu.Lock()
@@ -218,12 +231,8 @@ func requestKey(host string, port int) string {
 	if err != nil || p != strconv.Itoa(port) {
 		return ""
 	}
-	if !strings.HasSuffix(h, ".localhost") {
+	if !IsCapabilityHostname(h) {
 		return ""
 	}
-	key := strings.TrimSuffix(h, ".localhost")
-	if !capability.MatchString(key) {
-		return ""
-	}
-	return key
+	return strings.ReplaceAll(strings.TrimSuffix(h, ".localhost"), ".", "")
 }

@@ -477,7 +477,7 @@
   .setup-footer {
     padding: 15px 20px;
   }
-  .setup-footer span {
+  .setup-footer > span {
     display: block;
   }
 }
@@ -524,12 +524,13 @@
   padding: 16px 30px;
   font-size: 12px;
 }
-.setup-footer span {
+.setup-footer > span {
   min-inline-size: 0;
   flex: 1 1 220px;
   overflow-wrap: anywhere;
 }
-.setup-footer .luci-button {
+.setup-footer .luci-button,
+.setup-footer > .fluid-control {
   flex: 0 0 auto;
   margin-inline-start: auto;
 }
@@ -621,7 +622,7 @@ label.setup-check {
   .setup-footer {
     padding: 12px 20px;
   }
-  .setup-footer span {
+  .setup-footer > span {
     flex-basis: 100%;
   }
   .luci-button,

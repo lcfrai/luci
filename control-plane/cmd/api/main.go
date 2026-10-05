@@ -178,7 +178,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	defer productService.Close()
 	// Public browser origins are optional and independent from private Docker
 	// health URLs. The portable/native launch paths keep their prior defaults.
-	platformService, err = platform.New(platform.Options{DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource})
+	platformService, err = platform.New(platform.Options{FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource})
 	if err != nil {
 		return fmt.Errorf("initialise application platform: %w", err)
 	}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "../fluid/components/button";
 import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import "./projects.css";
@@ -23,38 +24,38 @@ export function ProjectsHome() {
               : "Bring an idea to life, from the first brief to a working release."}
           </p>
         </div>
-        <button
-          className="luci-button luci-primary"
+        <Button type="button"
+          variant="primary"
           onClick={() => setup?.openProject()}
         >
           New project
-        </button>
+        </Button>
       </header>
       <div className="projects-utilities">
         <div className="setup-actions">
-          <button
-            className="luci-button"
+          <Button type="button"
+            variant="secondary"
             onClick={() => setup?.openProject("import")}
           >
             Import repository
-          </button>
-          <button
-            className="luci-button"
+          </Button>
+          <Button type="button"
+            variant="secondary"
             onClick={() => setup?.openProject("restore")}
           >
             Restore backup
-          </button>
+          </Button>
         </div>
-        <button className="luci-button" onClick={() => setup?.openOnboarding()}>
+        <Button type="button" variant="secondary" onClick={() => setup?.openOnboarding()}>
           Workspace setup
-        </button>
+        </Button>
       </div>
       {setup?.statusError && (
         <p className="journey-error" role="alert">
           {setup.statusError}{" "}
-          <button className="luci-button" onClick={() => setup.retryStatus()}>
+          <Button type="button" variant="secondary" onClick={() => setup.retryStatus()}>
             Retry workspace connection
-          </button>
+          </Button>
         </p>
       )}
       {setup?.status && !setup.status.configured && (
@@ -66,12 +67,12 @@ export function ProjectsHome() {
       {lastError && (
         <p className="journey-error" role="alert">
           {lastError.message}{" "}
-          <button
-            className="luci-button"
+          <Button type="button"
+            variant="secondary" loading={loading}
             onClick={() => setup?.refreshProjects()}
           >
             Refresh projects
-          </button>
+          </Button>
         </p>
       )}
       {projects.length > 0 && (
@@ -112,12 +113,12 @@ export function ProjectsHome() {
               <span>Preview locally, then publish.</span>
             </li>
           </ol>
-          <button
-            className="luci-button luci-primary"
+          <Button type="button"
+            variant="secondary"
             onClick={() => setup?.openProject()}
           >
             Create your first project
-          </button>
+          </Button>
         </div>
       ) : (
         <ul className="projects-list">

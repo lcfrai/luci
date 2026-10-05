@@ -7,6 +7,7 @@ import ReactDOM from "react-dom/client";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import "./components/journey/designAssets";
 import { initializeAppearance } from "./preferences/appearance";
+import { FluidProvider } from "./components/fluid/FluidProvider";
 
 initializeAppearance();
 
@@ -61,7 +62,7 @@ async function launch() {
     root.render(
       <React.StrictMode>
         <AuthProvider>
-          <App />
+          <FluidProvider><App /></FluidProvider>
         </AuthProvider>
       </React.StrictMode>,
     );

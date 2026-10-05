@@ -8,6 +8,7 @@
  * below is a var() from tokens.css; this file declares no colour of its own.
  */
 @import "./tokens.css";
+@import "./fluid.css";
 
 *,
 *::before,

@@ -49,16 +49,7 @@ func (s *Service) deploymentBrowserData(r *http.Request, projectID string, value
 	port, portErr := strconv.Atoi(uPort(u))
 	capabilityHost := false
 	if u != nil {
-		host := u.Hostname()
-		capabilityHost = len(host) == 74 && strings.HasSuffix(host, ".localhost")
-		if capabilityHost {
-			for _, c := range strings.TrimSuffix(host, ".localhost") {
-				if !strings.ContainsRune("0123456789abcdef", c) {
-					capabilityHost = false
-					break
-				}
-			}
-		}
+		capabilityHost = previewgateway.IsCapabilityHostname(u.Hostname())
 	}
 	if err != nil || u == nil || u.Scheme != "http" || u.User != nil || u.Path != "" || u.RawPath != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || portErr != nil || port < 1 || port > 65535 || u.Port() == controlPort || u.Port() == "8730" || (!capabilityHost && u.Hostname() != "127.0.0.1") {
 		return errors.New("data bridge requires a separate protected browser origin")

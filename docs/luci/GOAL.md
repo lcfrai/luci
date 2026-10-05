@@ -55,6 +55,9 @@ components discovered through lcfr.ai Glasses where this improves delivery.
    It has clear next actions, accessible labels and keyboard interaction,
    responsive layouts, useful loading/empty/error states and consistent visual
    tokens. No supported core journey ends in an unexplained error or dead control.
+   Prefer existing suitable UI through Glasses, especially the official Fluid
+   Functionalism controls. Everyday use stays calm and understandable, with
+   runtime detail behind deliberate disclosures. Develop exposes actual CLI work.
 10. Distribution preserves MIT and upstream licence grants, accurate provenance,
     matching source/package manifests and actual download/install instructions.
     Release readiness includes the supported clean-host installation outcomes;

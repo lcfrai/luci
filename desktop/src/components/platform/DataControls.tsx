@@ -123,12 +123,3 @@ export function DataRealtime({ projectId }: { projectId: string }) {
     {state.value && !state.value.available.length && <p>Create an application table first.</p>}
   </section>;
 }
-
-export function DataFunctions({ projectId }: { projectId: string }) {
-  const read = useCallback(() => dataApi.functions(projectId), [projectId]);
-  const state = useRead(read);
-  const [input, setInput] = useState('{"name":"Luci"}');
-  const [output, setOutput] = useState<unknown>(null);
-  const [issue, setIssue] = useState("");
-  return <section className="data-section" aria-label="Data functions"><h4>Functions</h4><p>Check the bundled function against the real running service. Publishing custom functions from your project is not yet available.</p><Result state={state} />{state.value?.functions.map(item => <form key={item.name} className="data-form" onSubmit={event => { event.preventDefault(); setIssue(""); setOutput(null); try { const body: unknown = JSON.parse(input); if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("Enter a JSON object for the function request."); void state.run("Invoke function", async () => { const response = await dataApi.invoke(projectId, item.name, body as Record<string, unknown>); setOutput(response.result); }); } catch (cause) { setIssue(errorText(cause)); } }}><h4>{item.name}</h4><label>Function request<textarea rows={4} maxLength={65536} value={input} disabled={!!state.pending} onChange={event => setInput(event.target.value)} /></label>{issue && <p role="alert" className="journey-error">{issue}</p>}<button className="luci-button" disabled={!!state.pending}>Invoke {item.name}</button></form>)}{output !== null && <pre className="journey-code" aria-label="Function response">{JSON.stringify(output, null, 2)}</pre>}</section>;
-}

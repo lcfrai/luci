@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { designPlanApi, type DesignPlan, type DesignScreen } from "../../api/designPlan";
 import { definitionApi, type ProjectSpecification } from "../../api/definition";
 import { productApi, errorText, type Release } from "../../api/product";
+import { isGatewayHostname } from "../../api/platform";
 import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import { JourneyHeader } from "../journey/shared";
@@ -57,7 +58,7 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
       let target = release.url;
       if (setup?.workspace?.mode === "cloud" && release.target === "local") target = (await productApi.prepareWorkspacePreview(projectId, release.id)).url;
       const url = new URL(target);
-      if (url.origin === window.location.origin || !((url.protocol === "http:" && (["127.0.0.1", "localhost"].includes(url.hostname) || /^[a-f0-9]{64}\.localhost$/.test(url.hostname))) || url.protocol === "https:") || url.username || url.password) throw new Error("The prototype requires a verified separate application origin.");
+      if (url.origin === window.location.origin || !((url.protocol === "http:" && (["127.0.0.1", "localhost"].includes(url.hostname) || isGatewayHostname(url.hostname))) || url.protocol === "https:") || url.username || url.password) throw new Error("The prototype requires a verified separate application origin.");
       if (alive.current) setPreview(url.toString());
     } catch (e) { if (alive.current) setError(errorText(e)); }
     finally { working.current = false; if (alive.current) setBusy(false); }

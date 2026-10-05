@@ -33,8 +33,26 @@ bundled public SQL assets masked by the private worker's umask. The corrected
 source sets public asset permissions explicitly while keeping credentials
 private. This batch includes a real Linux permission regression, targeted
 recovery/backup/restore checks and actual Compose credential-byte checks. Its
-matching package and installed recovery acceptance are the next gate. The
-retained failed stack and receipts have not been discarded.
+matching `3fbf487f` package is installed. Actual UI recovery proved a new healthy
+stack, preserved stable tenant/credential bytes and retained the original stopped
+containers and volumes. Account creation, table persistence and owner RLS passed.
+The broader browser run then found a real Realtime entry failure: the private
+gateway used a 64-character DNS label. Chromium resolves labels of up to 63
+characters; the next batch preserves the existing key and emits two 32-character
+labels. The retained failed stack and receipts have not been discarded. Full data
+acceptance must continue on the next matching installed package.
+
+Installed repository/provider/source-consent and appearance checks passed at
+`3fbf487f`, including preference persistence and the scoped axe scan. The next
+batch vendors the official Fluid Button and Tabs Subtle at
+`97183f8018e619722edffd2f9fccefbea0effe8d`, discovered through Glasses. It uses
+Luci's appearance/density tokens and offline Inter; upstream MIT/OFL grants are
+retained. Code, test and release panels keep Functions manageable without hiding
+real failures. Custom functions now use committed project source, the pinned
+native Supabase Edge Runtime, verified application sessions, immutable releases
+and guarded publication/rollback/removal. Its actual isolated runtime eval passed
+credential/permission and release-transition checks; the complete installed
+Functions journey is still required.
 
 These additions do not prove a full UAT handback. Real subscription inference,
 generated implementation and a verified public site remain required, as do live

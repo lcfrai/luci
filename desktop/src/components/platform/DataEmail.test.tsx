@@ -29,6 +29,34 @@ it("mount only reads and saving is separate from checking, applying and sending"
   expect((screen.getByLabelText("SMTP password") as HTMLInputElement).value).toBe("");
   expect(await screen.findByText("Settings saved privately.")).not.toBeNull();
 });
+it("shows the pending save and prevents duplicate submits while clearing the entered password", async () => {
+  let complete!: (value: DataEmailStatus) => void;
+  vi.mocked(dataEmailApi.action).mockImplementation(() => new Promise(resolve => { complete = resolve; }));
+  render(<DataEmail projectId="owned" ready />);
+  await fill();
+  const save = screen.getByRole("button", { name: "Save email settings" }) as HTMLButtonElement;
+  const check = screen.getByRole("button", { name: "Check SMTP connection" }) as HTMLButtonElement;
+  expect(save.type).toBe("submit"); expect(check.type).toBe("button");
+  expect((screen.getByRole("button", { name: "Send test email" }) as HTMLButtonElement).type).toBe("submit");
+  fireEvent.click(save);
+  expect(save.getAttribute("aria-busy")).toBe("true"); expect(save.disabled).toBe(true);
+  expect(check.hasAttribute("aria-busy")).toBe(false);
+  expect((screen.getByLabelText("SMTP password") as HTMLInputElement).value).toBe("");
+  fireEvent.submit(save.form!); fireEvent.click(check);
+  expect(dataEmailApi.action).toHaveBeenCalledTimes(1);
+  await act(async () => { complete(saved); });
+  await screen.findByText("Settings saved privately.");
+  expect(save.hasAttribute("aria-busy")).toBe(false); expect(save.disabled).toBe(false);
+});
+it("keeps the specific action busy while a saved background operation is still running", async () => {
+  vi.mocked(dataEmailApi.status).mockResolvedValue({ ...saved, operation: { id: "apply-job", action: "apply", status: "running", stage: "verifying", message: "Checking Auth health.", createdAt: "now", updatedAt: "now" } });
+  render(<DataEmail projectId="owned" ready />);
+  await screen.findByText("Checking Auth health.");
+  const apply = screen.getByRole("button", { name: "Apply to Auth" }) as HTMLButtonElement;
+  expect(apply.getAttribute("aria-busy")).toBe("true"); expect(apply.disabled).toBe(true);
+  expect(screen.getByRole("button", { name: "Save email settings" }).hasAttribute("aria-busy")).toBe(false);
+  expect(dataEmailApi.action).not.toHaveBeenCalled();
+});
 it("retains saved credentials without returning or resubmitting a fake password", async () => {
   vi.mocked(dataEmailApi.status).mockResolvedValue(saved); vi.mocked(dataEmailApi.action).mockResolvedValue({ ...saved, revision: 2 });
   render(<DataEmail projectId="owned" ready />);

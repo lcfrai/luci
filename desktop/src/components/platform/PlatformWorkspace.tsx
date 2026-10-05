@@ -3,6 +3,7 @@ import { errorText, productApi, type GitDelivery } from "../../api/product";
 import {
   platformApi,
   isolatedBrowserURL,
+  isGatewayHostname,
   type PanaceaConnection,
   type PanaceaProject,
   type PlatformDeployment,
@@ -124,7 +125,7 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
       const url = new URL(raw);
       if (url.username || url.password || url.origin === window.location.origin) return undefined;
       return url.protocol === "https:" ||
-        (url.protocol === "http:" && (url.hostname === "127.0.0.1" || /^[a-f0-9]{64}\.localhost$/.test(url.hostname)))
+        (url.protocol === "http:" && (url.hostname === "127.0.0.1" || isGatewayHostname(url.hostname)))
         ? url.href
         : undefined;
     } catch {

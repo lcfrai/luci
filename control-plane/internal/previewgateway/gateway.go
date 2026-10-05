@@ -145,7 +145,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	allowedOrigin := requestOrigin == "" || requestOrigin == origin
 	if dataTarget && requestOrigin != "" && requestOrigin != origin {
 		for _, other := range all {
-			if other.owner == target.owner && other.ProjectID == target.ProjectID && other.Kind != "data" && other.ClientKind != "data" && requestOrigin == "http://"+other.Key+".localhost:"+portString(g.port) {
+			if other.owner == target.owner && other.ProjectID == target.ProjectID && other.Kind != "data" && other.ClientKind != "data" && requestOrigin == "http://"+CapabilityHostname(other.Key)+":"+portString(g.port) {
 				allowedOrigin = true
 				break
 			}

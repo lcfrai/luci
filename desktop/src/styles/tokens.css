@@ -140,15 +140,10 @@
    * hoping ten elements mounted on the same frame. */
   --beat: 2400ms;
 
-  /* ── Type ─────────────────────────────────────────────────────────────────────────
-   * Geist Sans and a licensed mono are the production pairing in docs/DESIGN-SYSTEM.md.
-   * Phase 2 ships neither webfont: the app is offline-first on a corporate laptop, and a
-   * font that fails to load is a layout shift. These stacks are the local fallbacks, and
-   * swapping the first entry for Geist/Berkeley Mono when the licence lands is one line.
-   * The --mono stack is the one xterm.js is configured with, so it must stay a real
-   * monospace on every platform. */
+  /* Inter's optical/weight axes support Fluid's stable-width selection feedback.
+   * The OFL-licensed font is bundled locally; terminal text stays monospace. */
   --sans:
-    "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+    "Inter Variable", "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
   --mono:
     "Cascadia Mono", ui-monospace, "SF Mono", Menlo, Consolas,
     "DejaVu Sans Mono", monospace;

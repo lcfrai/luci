@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
 // Configuration and receipts are client-safe. Passwords exist only in the
@@ -183,7 +185,7 @@ func canonicalDataEmailApplicationOrigin(v string) (string, error) {
 		return "", errors.New("Use an HTTPS application origin or a local HTTP application address without a path.")
 	}
 	host := u.Hostname()
-	capability := strings.HasSuffix(host, ".localhost") && dataDigestPattern.MatchString(strings.TrimSuffix(host, ".localhost"))
+	capability := previewgateway.IsCapabilityHostname(host)
 	if host != "127.0.0.1" && host != "localhost" && !capability {
 		return "", errors.New("Use localhost or the app's isolated .localhost address for local email redirects.")
 	}

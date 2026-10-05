@@ -16,7 +16,7 @@ const ready: Release = {
   message: "Health check passed",
   createdAt: "2026-10-02T00:00:00Z",
 };
-const gatewayURL = "http://" + "a".repeat(64) + ".localhost:8731/";
+const gatewayURL = "http://" + "a".repeat(32) + "." + "a".repeat(32) + ".localhost:8731/";
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(productApi, "configuration").mockResolvedValue({
@@ -75,6 +75,9 @@ it("opens an isolated verified Docker gateway preview with application origin pe
 });
 
 it.each([
+  "http://" + "a".repeat(64) + ".localhost:8731/",
+  "http://" + "a".repeat(31) + "." + "b".repeat(33) + ".localhost:8731/",
+  "http://extra." + "a".repeat(32) + "." + "b".repeat(32) + ".localhost:8731/",
   "http://" + "a".repeat(63) + ".localhost:8731/",
   "http://" + "a".repeat(65) + ".localhost:8731/",
   "http://" + "g".repeat(64) + ".localhost:8731/",

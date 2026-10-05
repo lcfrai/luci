@@ -69,13 +69,17 @@ export interface PlatformBrowserConnection {
   resourceId: string;
 }
 
+export function isGatewayHostname(hostname: string): boolean {
+  return /^[a-f0-9]{32}\.[a-f0-9]{32}\.localhost$/.test(hostname);
+}
+
 export function isolatedBrowserURL(raw: string): string | undefined {
   try {
     const url = new URL(raw);
     const controlOrigin = new URL(window.__LUCI_API__ || DEFAULT_BASE_URL).origin;
     if (url.username || url.password || url.origin === window.location.origin || url.origin === controlOrigin) return undefined;
     return url.protocol === "http:" && !!url.port &&
-      (url.hostname === "127.0.0.1" || /^[a-f0-9]{64}\.localhost$/.test(url.hostname))
+      (url.hostname === "127.0.0.1" || isGatewayHostname(url.hostname))
       ? url.href : undefined;
   } catch { return undefined; }
 }

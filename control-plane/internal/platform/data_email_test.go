@@ -163,11 +163,16 @@ func TestDataEmailValidatesTLSHeadersAndRedirectOrigins(t *testing.T) {
 			t.Fatalf("invalid setting accepted case%d", n)
 		}
 	}
-	for _, origin := range []string{"http://127.0.0.1:4000", "http://" + strings.Repeat("a", 64) + ".localhost:8731", "https://app.example.test"} {
+	for _, origin := range []string{"http://127.0.0.1:4000", "http://" + strings.Repeat("a", 32) + "." + strings.Repeat("a", 32) + ".localhost:8731", "https://app.example.test"} {
 		input := emailInput()
 		input.ApplicationOrigin = origin
 		if _, e := s.validateDataEmailConfiguration("owned", input, nil); e != nil {
 			t.Fatal(e)
+		}
+	}
+	for _, origin := range []string{"http://" + strings.Repeat("a", 64) + ".localhost:8731", "http://" + strings.Repeat("a", 31) + "." + strings.Repeat("a", 33) + ".localhost:8731", "http://extra." + strings.Repeat("a", 32) + "." + strings.Repeat("a", 32) + ".localhost:8731"} {
+		if _, err := canonicalDataEmailApplicationOrigin(origin); err == nil {
+			t.Fatal("invalid DNS capability layout was accepted for email redirects")
 		}
 	}
 }

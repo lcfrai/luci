@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { productApi, errorText, type Release } from "../../api/product";
+import { isGatewayHostname } from "../../api/platform";
 import { ProjectRequired, JourneyHeader } from "../journey/shared";
 import { useSetup } from "../setup/SetupProvider";
 import { CloudDeployForm } from "../journey/CloudDeployForm";
@@ -136,7 +137,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
         (url.protocol === "http:" &&
           (url.hostname === "127.0.0.1" ||
             url.hostname === "localhost" ||
-            /^[a-f0-9]{64}\.localhost$/.test(url.hostname)))
+            isGatewayHostname(url.hostname)))
         ? url.toString()
         : null;
     } catch {

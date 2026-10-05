@@ -81,7 +81,7 @@ it("connects a running cloud data API only after explicit browser preparation", 
   expect((screen.getByRole("button", { name: "Connecting browser API…" }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByRole("button", { name: "Connecting browser API…" }));
   expect(platformApi.prepareBrowser).toHaveBeenCalledTimes(1);
-  const address = `http://${"b".repeat(64)}.localhost:8731/`;
+  const address = `http://${"b".repeat(32)}.${"b".repeat(32)}.localhost:8731/`;
   finish({ url: address, projectId: "owned", kind: "data", resourceId: "stable-data-identity" });
   expect((await screen.findByLabelText("API address for your browser") as HTMLInputElement).value).toBe(address);
   expect((screen.getByLabelText(/Public anonymous key/) as HTMLTextAreaElement).value).toBe("anonymous-public-fixture");
@@ -123,7 +123,7 @@ it("ignores a late cloud API connection after switching project", async () => {
 });
 
 it("retains an existing local browser data endpoint without allocating a cloud connection", async () => {
-  const address = `http://${"c".repeat(64)}.localhost:8731/`;
+  const address = `http://${"c".repeat(32)}.${"c".repeat(32)}.localhost:8731/`;
   vi.mocked(dataApi.status).mockResolvedValue({ ...initial, status: "ready", url: address, endpointScope: "browser-gateway" });
   render(<DataWorkspace projectId="owned" dockerReady />);
   fireEvent.click(await screen.findByRole("button", { name: "Connect" }));

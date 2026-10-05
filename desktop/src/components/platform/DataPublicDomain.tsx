@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { dataApi, type DataDomainStatus } from "../../api/data";
 import { errorText, productApi, type DeploymentTarget } from "../../api/product";
+import { Button } from "../fluid/components/button";
 
 const labels: Record<string, string> = {
   "not-configured": "Private",
@@ -92,6 +93,8 @@ function ProjectPublicDomain({ projectId, disabled, ready, onChange, onEmailSett
     return () => window.clearInterval(timer);
   }, [operating, projectId, accept]);
   const locked = disabled || !!pending || operating;
+  const activeAction = pending || (binding?.operation?.status === "running" ? binding.operation.action :
+    binding?.status === "publishing" ? "publish" : binding?.status === "checking" ? "refresh" : binding?.status === "stopping" ? "stop" : "");
   const address = binding && publicDataAddress(binding);
   const uncertain = binding?.status === "uncertain";
   const configured = binding && binding.status !== "not-configured";
@@ -114,7 +117,7 @@ function ProjectPublicDomain({ projectId, disabled, ready, onChange, onEmailSett
   return <section className="data-public-domain" aria-label="Public data connection">
     <div className="data-heading"><div><h4>Use data in your published app</h4><p>Give this project a secure API address on your cloud server. Table and file policies continue to control access.</p></div>
       <span className="platform-state" data-state={address ? "ready" : "pending"}>{binding ? binding.status === "verifiedHTTPS" && !address ? "Verification needed" : labels[binding.status] || "Checking connection" : "Loading"}</span></div>
-    {error && <><p className="journey-error" role="alert">{error}</p><button type="button" className="luci-button" disabled={!!pending || operating} onClick={() => void load()}>Reload saved connection</button></>}
+    {error && <><p className="journey-error" role="alert">{error}</p><Button type="button" variant="secondary" disabled={!!pending || operating} onClick={() => void load()}>Reload saved connection</Button></>}
     {binding?.message && <p role="status">{binding.message}</p>}
     {binding?.checkedAt && Number.isFinite(Date.parse(binding.checkedAt)) && <p className="journey-muted">Last checked {new Date(binding.checkedAt).toLocaleString()}.</p>}
     {operating && <p role="status">You can leave this page. Luci keeps this attempt and its progress.</p>}
@@ -125,13 +128,13 @@ function ProjectPublicDomain({ projectId, disabled, ready, onChange, onEmailSett
       <div className="data-field"><label htmlFor={`${fieldId}-domain`}>Data API domain</label><input id={`${fieldId}-domain`} aria-describedby={`${fieldId}-domain-help`} required autoComplete="off" spellCheck={false} placeholder="data.example.com" value={domain} disabled={locked || !targets.length} onChange={event => { setDomain(event.target.value); changed(); }} /><small id={`${fieldId}-domain-help`}>Point this domain's A or AAAA record at your cloud server's public address. Luci's deployment service requests and renews its HTTPS certificate.</small></div>
       <div className="data-field"><label htmlFor={`${fieldId}-origin`}>Published application address</label><input id={`${fieldId}-origin`} aria-describedby={`${fieldId}-origin-help`} required type="url" autoComplete="url" placeholder="https://app.example.com" value={applicationOrigin} disabled={locked || !targets.length} onChange={event => { setApplicationOrigin(event.target.value); changed(); }} /><small id={`${fieldId}-origin-help`}>Enter the exact HTTPS origin of the app allowed to use this API, without a path. This also sets its password sign-in redirect address.</small></div>
       <label className="data-check"><input type="checkbox" checked={acknowledged} disabled={locked || !targets.length || uncertain} onChange={event => setAcknowledged(event.target.checked)} />Make this project's client API available publicly at this domain.</label>
-      <button className="luci-button luci-primary" disabled={locked || !ready || !binding || !targets.length || !acknowledged || uncertain || !targetId || !domain.trim() || !applicationOrigin.trim()}>{pending === "publish" ? "Preparing public access…" : configured ? "Update public connection" : "Publish data API"}</button>
+      <Button type="submit" variant="primary" loading={activeAction === "publish"} disabled={locked || !ready || !binding || !targets.length || !acknowledged || uncertain || !targetId || !domain.trim() || !applicationOrigin.trim()}>{configured ? "Update public connection" : "Publish data API"}</Button>
     </form>
-    {!!configured && <div className="journey-actions"><button type="button" className="luci-button" disabled={locked} onClick={() => void submit("refresh")}>{pending === "refresh" ? "Checking DNS and HTTPS…" : "Check DNS and HTTPS"}</button></div>}
+    {!!configured && <div className="journey-actions"><Button type="button" variant="secondary" loading={activeAction === "refresh"} disabled={locked} onClick={() => void submit("refresh")}>Check DNS and HTTPS</Button></div>}
     {uncertain && <p>Check this saved attempt before publishing again. Luci will reconcile it with the deployment service to avoid creating duplicates.</p>}
     {!ready && <p>Start and check the data services before publishing. You can still stop an existing public connection.</p>}
-    {!!configured && binding.status !== "stopped" && <div className="data-domain-stop"><label className="data-check"><input type="checkbox" checked={stopConfirmed} disabled={locked} onChange={event => setStopConfirmed(event.target.checked)} />Stop public API access for applications using this address.</label><button type="button" className="luci-button" disabled={locked || !stopConfirmed} onClick={() => void submit("stop")}>{pending === "stop" ? "Stopping public access…" : "Stop public access"}</button></div>}
+    {!!configured && binding.status !== "stopped" && <div className="data-domain-stop"><label className="data-check"><input type="checkbox" checked={stopConfirmed} disabled={locked} onChange={event => setStopConfirmed(event.target.checked)} />Stop public API access for applications using this address.</label><Button type="button" variant="tertiary" loading={activeAction === "stop"} disabled={locked || !stopConfirmed} onClick={() => void submit("stop")}>Stop public access</Button></div>}
     <p>Email confirmation and password recovery use your SMTP connection in Authentication. Publishing this API does not configure email.</p>
-    {onEmailSettings && <button type="button" className="luci-button" onClick={onEmailSettings}>Email settings</button>}
+    {onEmailSettings && <Button type="button" variant="secondary" onClick={onEmailSettings}>Email settings</Button>}
   </section>;
 }

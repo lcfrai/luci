@@ -441,11 +441,38 @@ The following controls require the owned data stack to be ready:
 - GET `/data/realtime` returns `{tables,publication,rlsRequired:true}`. POST
   `{table,enabled}` adds or removes an existing public table in the real
   `supabase_realtime` publication. Application subscriptions still obey RLS.
-- GET `/data/functions` returns the reviewed shipped `hello` handler and
-  `customPublishing:false`. POST `/data/functions/hello/invoke` accepts a JSON
-  object of at most64KiB and returns `{function:"hello",result}` from an actual
-  authenticated Edge Runtime invocation. This is not an arbitrary code upload
-  route or a claim of custom committed function publishing.
+- GET `/data/functions` is a read-only catalogue:
+  `{projectId,revision,canManage,customPublishing,functions,operation?,message}`.
+  Summaries include name/path/sourceDigest/authMode/workingChanged/builtin,
+  active release and retained history. Draft source is available before service
+  installation. The reserved `hello` example remains read-only.
+- GET `/data/functions/{name}` reads the confined project's function source,
+  files, digest and current Git commit/committedDigest. POST `.../{name}/source`
+  saves `{expectedDigest,authMode,files:[{path,content}]}` with an optimistic
+  source guard. A new source uses the empty expected digest. The fixed entry is
+  `supabase/functions/{name}/index.ts`; source is limited to32 local files,
+  64KiB each and1MiB total, without links, private paths or remote imports.
+  The generated `luci.function.json` retains the selected access policy.
+- POST `/data/functions/{name}/action` uses
+  `{action,expectedRevision,commit?,releaseId?,acknowledgeExecute?,acknowledgeRemove?}`
+  for publish/rollback/remove/refresh. Publish requires verified committed source,
+  healthy owned data services and explicit code-execution acknowledgement.
+  Rollback requires an earlier release and the same acknowledgement; it restores
+  code/policy rather than database contents. Remove unroutes the endpoint while
+  retaining source/releases. Accepted work returns202 with durable progress.
+  Immutable artifacts are compiled/probed by the pinned native Edge Runtime
+  before route promotion. A failed candidate must preserve the prior route or
+  report an uncertain/degraded recovery; it cannot claim a healthy activation.
+- POST `/data/functions/{name}/invoke` accepts
+  `{input:JSONobject,applicationAccessToken?}` up to64KiB, returning
+  `{function,releaseId,statusCode,result,durationMs,contentType?}` from the actual
+  service. Authenticated is the default access policy: a real application-user
+  session is required and verified. Explicit project-key functions allow the
+  public project key. Luci/control or service-role credentials are not accepted.
+  Legacy unwrapped `hello` requests remain supported. A timed-out request reports
+  an uncertain outcome and is never retried automatically.
+  Worker code receives client-safe project settings, limited data-network access
+  and no private server credentials or host-command/filesystem authority.
 
 Backups contain a real custom-format PostgreSQL dump of public/Auth/Storage
 schemas and a storage file archive. Their metadata is

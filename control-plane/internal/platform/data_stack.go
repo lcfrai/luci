@@ -83,13 +83,13 @@ func (s *Service) prepareDataStackEmail(install dataInstallation, secret dataSec
 		// Retain original source in the compiled assets. These runtime changes
 		// isolate projects and remove a floating dependency version.
 		if f.Path == "volumes/api/envoy/cds.yaml" {
-			b = []byte(strings.ReplaceAll(string(b), "realtime-dev.supabase-realtime", s.dataName(install, "realtime")))
+			b = []byte(strings.ReplaceAll(string(b), "realtime-dev.supabase-realtime", "realtime-dev.realtime"))
 		}
 		if f.Path == "volumes/functions/main/index.ts" {
-			b = []byte(strings.ReplaceAll(string(b), "jsr:@panva/jose@6", "../_vendor/jose/dist/webapi/index.js"))
+			b = []byte(dataFunctionMain())
 		}
 		if f.Path == "volumes/functions/hello/index.ts" {
-			b = []byte("// Luci's dependency-free example handler. Authentication is enforced by the main worker.\nexport default { fetch: () => Response.json({ message: 'Hello from Luci Functions!' }) };\n")
+			b = []byte(dataFunctionHello)
 		}
 		if f.Path == "volumes/functions/deno.jsonc" {
 			b = []byte("{\"imports\":{}}\n")
@@ -162,7 +162,10 @@ func (s *Service) prepareDataStackEmail(install dataInstallation, secret dataSec
 			service["ports"] = []string{fmt.Sprintf("127.0.0.1:%d:8000", install.APIPort)}
 		}
 		if name == "realtime" {
-			service["networks"] = map[string]any{"default": map[string]any{"aliases": []string{s.dataName(install, name)}}}
+			// The long ownership-bearing container name is not a valid DNS
+			// label. This short alias is scoped to the stack's private network;
+			// its first label retains Supabase's realtime-dev tenant selection.
+			service["networks"] = map[string]any{"default": map[string]any{"aliases": []string{"realtime-dev.realtime"}}}
 		}
 		if name == "db" {
 			volumes := service["volumes"].([]any)
@@ -179,6 +182,15 @@ func (s *Service) prepareDataStackEmail(install dataInstallation, secret dataSec
 		}
 		if name == "studio" {
 			service["volumes"] = []string{"snippets:/app/snippets", "./volumes/functions:/app/edge-functions:ro"}
+		}
+		if name == "functions" {
+			service["volumes"] = []string{"./volumes/functions:/home/deno/functions:ro", "deno-cache:/root/.cache/deno"}
+			environment := service["environment"].(map[string]any)
+			for _, key := range []string{"SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEYS", "SUPABASE_DB_URL"} {
+				delete(environment, key)
+			}
+			environment["LUCI_FUNCTION_RUNTIME_VERSION"] = dataFunctionRuntimeVersion
+			environment["LUCI_FUNCTION_PROBE_TOKEN"] = "${LUCI_FUNCTION_PROBE_TOKEN}"
 		}
 	}
 	volumes := map[string]any{}
@@ -213,6 +225,9 @@ func (s *Service) prepareDataStackEmail(install dataInstallation, secret dataSec
 		values["ADDITIONAL_REDIRECT_URLS"] = origin + "/**"
 	}
 	if e = s.dataEmailConfiguration(install, values, email); e != nil {
+		return e
+	}
+	if e = s.dataFunctionConfiguration(install, values); e != nil {
 		return e
 	}
 	for _, key := range []string{"SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_ADMIN_EMAIL", "SMTP_SENDER_NAME"} {

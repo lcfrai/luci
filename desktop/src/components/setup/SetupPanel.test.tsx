@@ -581,9 +581,11 @@ it("holds the cloud-plan inputs and section in place until the displayed plan ma
     screen.getByLabelText(/SSH public key/),
     "ssh-ed25519 AAAATEST",
   );
-  await userEvent.click(
-    screen.getByRole("button", { name: "Preview cloud plan" }),
-  );
+  const previewPlan = screen.getByRole("button", { name: "Preview cloud plan" }) as HTMLButtonElement;
+  expect(previewPlan.type).toBe("submit");
+  await userEvent.click(previewPlan);
+  expect(previewPlan.getAttribute("aria-busy")).toBe("true");
+  expect(previewPlan.disabled).toBe(true);
   expect(
     (screen.getByLabelText("Provider") as HTMLSelectElement).disabled,
   ).toBe(true);
@@ -627,6 +629,7 @@ it("holds the cloud-plan inputs and section in place until the displayed plan ma
   await screen.findByText(
     "Plan generated. No cloud resources have been created.",
   );
+  expect(previewPlan.hasAttribute("aria-busy")).toBe(false);
   expect((screen.getByLabelText("Domain") as HTMLInputElement).disabled).toBe(
     false,
   );

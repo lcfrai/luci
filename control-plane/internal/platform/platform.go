@@ -35,6 +35,7 @@ type Options struct {
 	Runner                           Runner
 	HTTPClient                       *http.Client
 	DataDomains                      *DataDomainProvider
+	FunctionSources                  *DataFunctionSources
 }
 type Deployment struct {
 	ID                    string `json:"id"`
