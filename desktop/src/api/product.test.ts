@@ -2,6 +2,21 @@ import { expect, it, vi } from "vitest";
 import { ApiError } from "./client";
 import { createProductClient } from "./product";
 
+it("sends exact requirement revision bindings for tasks and checks without changing generic check requests", async () => {
+  const fetcher = vi.fn().mockResolvedValue(new Response("{}", { status:200 }));
+  const client = createProductClient("http://localhost", fetcher);
+  await client.savePlan("p-1",3,[{id:"t1",title:"Offline",status:"todo",requirementIds:["R-OFFLINE"]}],6);
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({expectedRevision:3,tasks:[{id:"t1",title:"Offline",status:"todo",requirementIds:["R-OFFLINE"]}],expectedSpecificationRevision:6});
+  fetcher.mockResolvedValue(new Response("{}", {status:200}));
+  await client.runChecks("p-1",[{label:"Tests",executable:"npm",args:["test"]}],true,"docker",{requirementIds:["R-OFFLINE"],expectedSpecificationRevision:6,expectedDesignPlanRevision:8});
+  expect(JSON.parse(fetcher.mock.calls[1][1].body)).toMatchObject({requirementIds:["R-OFFLINE"],expectedSpecificationRevision:6,expectedDesignPlanRevision:8,execution:"docker",acknowledgeHostExecution:true});
+  fetcher.mockResolvedValue(new Response("{}", {status:200}));
+  await client.runChecks("p-1",[{label:"Tests",executable:"npm",args:["test"]}],true);
+  const generic = JSON.parse(fetcher.mock.calls[2][1].body);
+  expect(generic).not.toHaveProperty("requirementIds");
+  expect(generic).not.toHaveProperty("expectedSpecificationRevision");
+});
+
 it("cancels an in-flight readiness response without reporting a service failure", async () => {
   let transportSignal: AbortSignal | undefined;
   const fetcher = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => {

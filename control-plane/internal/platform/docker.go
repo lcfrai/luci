@@ -87,6 +87,7 @@ type containerInfo struct {
 	Config    struct {
 		Labels map[string]string
 		Image  string
+		Env    []string
 	}
 	State struct {
 		Running bool
@@ -94,6 +95,10 @@ type containerInfo struct {
 	}
 	NetworkSettings struct {
 		Ports map[string][]struct{ HostIP, HostPort string }
+	}
+	Mounts []struct {
+		Type, Name, Destination string
+		RW                      bool
 	}
 }
 
@@ -188,7 +193,17 @@ func (s *Service) environment(id string) (int, map[string]string, error) {
 	}
 	var secret databaseSecret
 	if s.read(id+"-database-secret", &secret) == nil {
-		copyValues["DATABASE_URL"] = "postgresql://luci:" + secret.Password + "@database:5432/app?sslmode=disable"
+		s.mu.Lock()
+		state, err := s.load(id)
+		s.mu.Unlock()
+		if err != nil || !validDatabasePassword(secret.Password) {
+			return 0, nil, errors.New("invalid database binding state")
+		}
+		name, err := activeDatabaseName(state.Database)
+		if err != nil {
+			return 0, nil, err
+		}
+		copyValues["DATABASE_URL"] = "postgresql://luci:" + secret.Password + "@database:5432/" + name + "?sslmode=disable"
 	}
 	dataValues, e := s.dataBindings(id)
 	if e != nil {
@@ -445,12 +460,17 @@ func (s *Service) deploymentAction(w http.ResponseWriter, r *http.Request) {
 	defer s.release(p.ID)
 	ctx, cancel := context.WithTimeout(r.Context(), 75*time.Second)
 	defer cancel()
-	if _, e = s.inspect(ctx, p.ID, d.ID, d.Container); e != nil {
+	info, e := s.inspect(ctx, p.ID, d.ID, d.Container)
+	if e != nil {
 		problem(w, 409, "ownership_unverified", "The recorded container is missing or its ownership has changed.")
 		return
 	}
 	if action != "refresh" {
 		if action == "restart" {
+			if e = s.checkDeploymentDatabaseBinding(p.ID, d, info); e != nil {
+				problem(w, 409, "database_redeployment_required", "Redeploy this application to connect to the selected restored database. Restarting its retained container would use an earlier database binding.")
+				return
+			}
 			args := append([]string{"update"}, s.limits(r).args()...)
 			args = append(args, d.Container)
 			if _, e = s.docker(ctx, args...); e != nil {

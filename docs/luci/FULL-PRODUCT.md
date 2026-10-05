@@ -904,3 +904,118 @@ This correction is not full-product handback. Real subscription inference and
 the public benchmark site, live AWS/Azure resources and domains, external inbox
 delivery, current native installer lifecycle and public distribution still need
 their own verified outcomes.
+
+## Installed 0.4.13 acceptance — 6 October 2026
+
+Clean source `5442ec585a1ded126396d5016d19777a8c2a89d0` produced matching
+Linux, Docker and source-export candidates. Both existing Docker installations
+admitted all 917 bundle files with accounts, journeys and volumes preserved.
+The primary's fresh actual runtime-readiness observation passes. The source
+export reconciles 960 Git originals, 966 archive entries and 965 checksum
+records; dependency graphs and the existing upstream assets/grants are retained.
+The immutable package checkpoint is `artifacts/review/013-package-checkpoint.json`.
+Its initial pending-installed fields remain historical, rather than being
+rewritten as though installation had already occurred at capture time.
+
+Actual installed task navigation now retains edited task progress and an
+unsubmitted task title, focuses Keep editing and follows the exact requested
+destination on Discard. The native Design prototype journey selects the owned
+healthy application release, saves its authoritative source commit, renders
+the real client on desktop and phone, approves and reloads the recorded design,
+shows useful recovery after Stop and works again after Restart. Local opening
+uses native project metadata and the isolated gateway, with no cloud preparation
+POST. These genuine outcomes remain in the original driver receipts. The first
+driver stopped on a label selector; its continuation's final preservation
+assertion incorrectly excluded the legitimate canonical `.luci/state.json`
+change from Save/Approve. Neither failed receipt is relabeled as a whole pass.
+
+A separate, narrower installed confirmation passes three checks with durable
+private before/after snapshots: Restart, verified native catalogue/Open and
+client interaction, then UI Stop. All 12 projects/worktrees' journeys, histories,
+configuration metadata, Git/source/index state and sessions remain exact,
+including the approved Design revision4 and its three legitimate planning paths.
+All 57 container identities and mount maps, 25 volumes and 18 image identities
+match, with zero containers running. Live package/binary/web bindings remain
+exact; browser logout/closure and owned cleanup complete. This confirmation
+adds no new planning history. Its original predecessor stopped on a helper's
+revision0/optional-field assumption; the failed receipt is preserved. Evidence:
+`artifacts/subscription-e2e/docker-instance-b6f125cd-0105-4570-8a69-9822280e4956/prototype-preservation-confirm-49ff4f0c-29e0-449e-a7f6-983b1d03712a/results.json`.
+
+Five installed readiness checks also pass. An ordinary enabled Check tools
+again action cancels the pending HTTP check; its replacement returns200 and
+the newest real readiness result unlocks navigation. The original conservative
+classifier misses cancellation because CDP delivers the replacement start one
+millisecond before its abort notification. A separate read-only chronological
+interpretation preserves that raw receipt and its timestamps. Backend canceled
+parent-state retention remains a separate meaningful Go proof. No installation,
+provider authentication or model/cloud operation starts. All 57 containers stay
+stopped; 25 volumes, 19 images and project/session/configuration/cloud-job state
+remain unchanged. Evidence is
+`artifacts/review/013-installed-readiness-observation-summary.json`.
+
+Fresh CI [`37376894900`](https://github.com/lcfrai/luci/actions/runs/37376894900)
+checks out merge `0e43152ec8eccc0c6bfe9fd90d2f99c8933019ef`, whose tree equals
+the frozen `5442ec58` source. The whole Go and race gate now passes, separately
+from the retained earlier read-route-audit failure. Desktop1,243/76files,
+typecheck/build, connected browser19, entry9 and lifecycle4 pass. Nine automated
+accessibility surfaces report no violations; ten responsive measurements report
+no horizontal overflow, without implying accessibility certification. Actual
+control-plane7, Docker-native6, Docker-browser6 and existing-workspace SSH8 pass,
+as do Linux/macOS portable checks. Verified artifact receipts are retained under
+`artifacts/review/013-ci-run-37376894900`. Fixture provider completion and local
+terminal-written app deployment remain distinct from real subscription inference
+and public hosting. The native Windows exercise subsequently fails after six
+genuine installed checks: its CSS selector searches inside the visible project
+dialog and excludes the dialog itself. The screenshot and failed receipt remain
+under that run's evidence directory. Project creation, later design/Git work,
+restart, reinstall and uninstall are not verified by that failed exercise.
+
+The full-product reconciliation identifies two concrete supported-path gaps
+beyond external acceptance prerequisites. Standalone PostgreSQL still offers
+manual `pg_restore`; the full Supabase restoration evidence does not cover that
+lighter database path. Develop also lacks structured links from tasks/check
+evidence to approved stable requirement IDs and specification/design revisions.
+The next coherent source batch implements both inside Luci. Passing arbitrary
+commands or recording a task Done must not claim that its requirements are
+satisfied. Neither addition is an installed verified outcome yet.
+
+## 0.4.14 source validation — 6 October 2026
+
+The next source batch implements standalone PostgreSQL restore and recovery of
+the previous database through the existing platform UI. Restore validates an
+owned retained backup, creates a separate logical candidate in the same owned
+volume, verifies native restore and authenticated health, then promotes it.
+The previous database remains retained. Applications must be stopped beforehand
+and redeployed afterwards; restarting an old deployment with the old private
+database binding is refused. Failed and interrupted work retain useful progress
+and an explicit recovery path. Restoring the previous database requires the
+recorded successful restore history and health checks, rather than an arbitrary
+database name. Database roles, grants and object ownership remain part of the
+native dump/restore operation.
+
+Develop now links tasks and command checks to stable approved requirement IDs.
+Check evidence records the authoritative specification/design revisions and
+digests, source commit/digest and actual command outcome. Source or approval
+drift makes old evidence stale; generic, failed or canceled checks do not become
+requirement success. Task Done remains user-reported progress. Compact coverage
+and history disclosures keep this distinction visible inside the existing UI.
+
+The native Windows driver now includes a matching modal scope in its CSS lookup.
+Five source regression tests cover that actual lookup function, without implying
+that the native installer lifecycle has passed. The first complete frontend run
+retains one failed canvas fixture timing assertion. Its correction waits for the
+mock's actual native API attachment before exercising resize callbacks; the
+product canvas implementation is unchanged. The subsequent complete frontend
+run passes all 1,271 tests in 79 files, and TypeScript validation passes. Logs are
+`artifacts/review/014-desktop-full.log`,
+`artifacts/review/014-desktop-full-after-api-readiness.log` and
+`artifacts/review/014-typecheck.log`. Both additions still need matching installed
+acceptance, and a fresh exact-source Windows exercise must verify the remaining
+installer lifecycle. These source results do not close the external model,
+cloud/domain, inbox or public-distribution gates.
+
+The CI race gate now includes platform operations, covering the new asynchronous
+database worker as well as the existing identity/project/check paths. The local
+Windows host has no C compiler and cannot execute Go's race detector; its
+retained prerequisite failure is not a race-test pass. Actual race acceptance
+must come from the next matching Linux CI run.

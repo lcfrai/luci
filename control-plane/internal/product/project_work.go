@@ -11,16 +11,19 @@ import (
 
 // ProjectPlan records human/agent progress. Check runs carry independent execution evidence.
 type ProjectPlan struct {
-	ProjectID     string        `json:"projectId"`
-	Revision      int           `json:"revision"`
-	BriefRevision int           `json:"briefRevision"`
-	Tasks         []ProjectTask `json:"tasks"`
-	UpdatedAt     string        `json:"updatedAt"`
+	ProjectID             string        `json:"projectId"`
+	Revision              int           `json:"revision"`
+	BriefRevision         int           `json:"briefRevision"`
+	Tasks                 []ProjectTask `json:"tasks"`
+	UpdatedAt             string        `json:"updatedAt"`
+	SpecificationRevision int           `json:"specificationRevision,omitempty"`
+	SpecificationDigest   string        `json:"specificationDigest,omitempty"`
 }
 type ProjectTask struct {
-	ID     string `json:"id"`
-	Title  string `json:"title"`
-	Status string `json:"status"`
+	ID             string   `json:"id"`
+	Title          string   `json:"title"`
+	Status         string   `json:"status"`
+	RequirementIDs []string `json:"requirementIds,omitempty"`
 }
 
 func (s *Server) registerProjectWork(mux Registrar) {
@@ -37,11 +40,11 @@ func currentPlan(state journeyState, id string) ProjectPlan {
 		return ProjectPlan{ProjectID: id, Tasks: []ProjectTask{}}
 	}
 	p := *state.Plan
-	p.Tasks = append([]ProjectTask{}, p.Tasks...)
+	p.Tasks = snapshotProjectTasks(p.Tasks)
 	return p
 }
 func validatePlan(p ProjectPlan) error {
-	if p.Revision < 0 || p.BriefRevision < 0 || len(p.Tasks) > 200 {
+	if p.Revision < 0 || p.BriefRevision < 0 || p.SpecificationRevision < 0 || len(p.Tasks) > 200 {
 		return errors.New("Use at most 200 tasks and nonnegative revisions.")
 	}
 	ids := make(map[string]bool)
@@ -51,6 +54,9 @@ func validatePlan(p ProjectPlan) error {
 		}
 		if task.Status != "todo" && task.Status != "doing" && task.Status != "done" {
 			return errors.New("Task status must be todo, doing or done.")
+		}
+		if err := validateRequirementIDs(task.RequirementIDs); err != nil {
+			return err
 		}
 		ids[task.ID] = true
 	}
@@ -72,8 +78,9 @@ func (s *Server) getProjectPlan(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ExpectedRevision int           `json:"expectedRevision"`
-		Tasks            []ProjectTask `json:"tasks"`
+		ExpectedRevision              int           `json:"expectedRevision"`
+		Tasks                         []ProjectTask `json:"tasks"`
+		ExpectedSpecificationRevision *int          `json:"expectedSpecificationRevision"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
@@ -98,9 +105,21 @@ func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "revision_conflict", "The plan changed. Reload before saving.")
 		return
 	}
+	plan.SpecificationRevision, plan.SpecificationDigest = 0, ""
+	for _, task := range req.Tasks {
+		if len(task.RequirementIDs) == 0 {
+			continue
+		}
+		binding, err := bindProjectRequirements(state, p.ID, task.RequirementIDs, req.ExpectedSpecificationRevision, nil, false)
+		if err != nil {
+			writeEvidenceBindingError(w, err)
+			return
+		}
+		plan.SpecificationRevision, plan.SpecificationDigest = binding.SpecificationRevision, binding.SpecificationDigest
+	}
 	plan.Revision++
 	plan.BriefRevision = state.Brief.Revision
-	plan.Tasks = append([]ProjectTask{}, req.Tasks...)
+	plan.Tasks = snapshotProjectTasks(req.Tasks)
 	plan.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	state.Plan = &plan
 	if err = writeJourney(p.Path, state); err != nil {

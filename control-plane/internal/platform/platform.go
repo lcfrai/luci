@@ -71,13 +71,29 @@ type Backup struct {
 	CreatedAt string `json:"createdAt"`
 	Bytes     int64  `json:"bytes"`
 	SHA256    string `json:"sha256"`
+	Database  string `json:"database,omitempty"`
+}
+type DatabaseOperation struct {
+	ID                string `json:"id"`
+	Action            string `json:"action"`
+	Status            string `json:"status"`
+	Stage             string `json:"stage"`
+	Message           string `json:"message"`
+	CreatedAt         string `json:"createdAt"`
+	UpdatedAt         string `json:"updatedAt"`
+	BackupID          string `json:"backupId"`
+	RestoreID         string `json:"restoreId,omitempty"`
+	PreviousDatabase  string `json:"previousDatabase"`
+	CandidateDatabase string `json:"candidateDatabase"`
 }
 type ProjectState struct {
-	ProjectID      string       `json:"projectId"`
-	Deployments    []Deployment `json:"deployments"`
-	Database       Database     `json:"database"`
-	Backups        []Backup     `json:"backups"`
-	PanaceaProject string       `json:"panaceaProject,omitempty"`
+	ProjectID              string              `json:"projectId"`
+	Deployments            []Deployment        `json:"deployments"`
+	Database               Database            `json:"database"`
+	Backups                []Backup            `json:"backups"`
+	PanaceaProject         string              `json:"panaceaProject,omitempty"`
+	DatabaseOperation      *DatabaseOperation  `json:"databaseOperation,omitempty"`
+	DatabaseRestoreHistory []DatabaseOperation `json:"databaseRestoreHistory,omitempty"`
 }
 type Service struct {
 	browserRegistry *previewgateway.Registry
@@ -339,6 +355,7 @@ func (s *Service) projectStatus(w http.ResponseWriter, r *http.Request) {
 	// Ready records are last-verified receipts; an explicit refresh verifies
 	// the current container and HTTP health without silently starting anything.
 	if !busy {
+		observeInterruptedDatabaseRestore(&v)
 		for i := range v.Deployments {
 			if v.Deployments[i].Provider == "docker" && v.Deployments[i].Status == "building" {
 				v.Deployments[i].Status = "interrupted"

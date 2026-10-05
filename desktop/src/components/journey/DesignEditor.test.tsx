@@ -10,7 +10,7 @@ import {
 } from "../../preferences/appearance";
 import DesignEditor from "./DesignEditor";
 
-const canvasState = vi.hoisted(() => ({ change: null as NonNullable<ExcalidrawProps["onChange"]> | null, refresh: vi.fn() }));
+const canvasState = vi.hoisted(() => ({ change: null as NonNullable<ExcalidrawProps["onChange"]> | null, refresh: vi.fn(), apiReady: false }));
 vi.mock("@excalidraw/excalidraw", async () => {
   const { useEffect } = await import("react");
   return {
@@ -18,6 +18,7 @@ vi.mock("@excalidraw/excalidraw", async () => {
     canvasState.change = onChange;
     useEffect(() => {
       excalidrawAPI?.({ refresh: canvasState.refresh } as unknown as ExcalidrawImperativeAPI);
+      canvasState.apiReady = true;
       onChange(...[initialData.elements || [], { ...initialData.appState, theme, scrollX: 0, scrollY: 0, selectedElementIds: {} }, initialData.files || {}] as unknown as Parameters<typeof onChange>);
     }, []);
     return <div data-testid="canvas" data-theme={theme} data-paper={initialData.appState?.viewBackgroundColor as string} />;
@@ -34,7 +35,7 @@ vi.mock("@excalidraw/excalidraw", async () => {
   // selection and drawing-tool state are deliberately outside its export.
   serializeAsJSON: (elements: Record<string, unknown>[], state: Record<string, unknown>, files: Record<string, unknown>) => JSON.stringify({ elements: elements.filter(element => !element.isDeleted), appState: Object.fromEntries(["gridSize", "gridStep", "gridModeEnabled", "viewBackgroundColor"].filter(key => key in state).map(key => [key, state[key]])), files }),
 }; });
-beforeEach(() => { resetCockpit(); canvasState.change = null; canvasState.refresh.mockReset(); });
+beforeEach(() => { resetCockpit(); canvasState.change = null; canvasState.refresh.mockReset(); canvasState.apiReady = false; });
 afterEach(() => {
   updateAppearance(DEFAULT_APPEARANCE);
   vi.restoreAllMocks();
@@ -74,6 +75,9 @@ it("refreshes the native layout after real size changes without tool or document
   ] as unknown as Parameters<NonNullable<ExcalidrawProps["onChange"]>>));
   const view = render(<DesignEditor projectId="p-1" onDirtyChange={dirty} />);
   await screen.findByTestId("canvas");
+  // The placeholder DOM can mount before its passive effect exposes the native
+  // API. Resize assertions exercise the ready editor, independently of timing.
+  await waitFor(() => expect(canvasState.apiReady).toBe(true));
   expect(observe).toHaveBeenCalledExactlyOnceWith(view.container.querySelector(".design-canvas"));
   act(() => deliver([], observer));
   expect(request).not.toHaveBeenCalled();

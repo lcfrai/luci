@@ -188,11 +188,14 @@ export interface ImplementationTask {
   id: string;
   title: string;
   status: "todo" | "doing" | "done";
+  requirementIds?: string[];
 }
 export interface ImplementationPlan {
   projectId: string;
   revision: number;
   briefRevision: number;
+  specificationRevision?: number;
+  specificationDigest?: string;
   tasks: ImplementationTask[];
   updatedAt: string;
 }
@@ -215,11 +218,40 @@ export interface CheckRun {
   execution?: "docker" | "host";
   sourceDigest?: string;
   sourceChanged?: boolean;
+  requirementIds?: string[];
+  requirementSnapshots?: { id: string; title: string; acceptance: string }[];
+  specificationRevision?: number;
+  specificationDigest?: string;
+  designPlanRevision?: number;
+  designPlanDigest?: string;
+  evidenceStatus?: RequirementEvidenceStatus;
+  staleReasons?: string[];
   status: string;
   commands: CheckResult[];
   createdAt: string;
   updatedAt: string;
   message: string;
+}
+export type RequirementEvidenceStatus = "linked-test-evidence" | "stale" | "unverified";
+export interface RequirementCoverage {
+  projectId: string;
+  specification: { revision: number; status: string; digest: string };
+  design: { revision: number; status: string; digest: string };
+  source: { commit: string; sourceDigest: string; dirty: boolean; available: boolean };
+  rows: {
+    requirementId: string;
+    title: string;
+    acceptance: string;
+    taskIds: string[];
+    doneTaskIds: string[];
+    evidenceRunIds: string[];
+    evidenceStatus: RequirementEvidenceStatus;
+  }[];
+}
+export interface RequirementCheckBinding {
+  requirementIds: string[];
+  expectedSpecificationRevision: number;
+  expectedDesignPlanRevision: number;
 }
 export interface Release {
   id: string;
@@ -643,13 +675,15 @@ export function createProductClient(
       id: string,
       expectedRevision: number,
       tasks: ImplementationTask[],
+      expectedSpecificationRevision?: number,
     ) =>
       request<ImplementationPlan>(`${project(id)}/plan`, {
         expectedRevision,
         tasks,
+        ...(expectedSpecificationRevision === undefined ? {} : { expectedSpecificationRevision }),
       }),
     checks: (id: string) =>
-      request<{ runs: CheckRun[]; suggested: CheckCommand[] }>(
+      request<{ runs: CheckRun[]; suggested: CheckCommand[]; coverage?: RequirementCoverage }>(
         `${project(id)}/checks`,
       ),
     runChecks: (
@@ -657,11 +691,13 @@ export function createProductClient(
       commands: CheckCommand[],
       acknowledgeHostExecution: boolean,
       execution: "docker" | "host" = "docker",
+      binding?: RequirementCheckBinding,
     ) =>
       request<CheckRun>(`${project(id)}/checks`, {
         commands,
         acknowledgeHostExecution,
         execution,
+        ...binding,
       }),
     checkRun: (id: string, runId: string) =>
       request<CheckRun>(`${project(id)}/checks/${encodeURIComponent(runId)}`),

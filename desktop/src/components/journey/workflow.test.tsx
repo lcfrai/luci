@@ -49,6 +49,7 @@ beforeEach(() => {
   vi.restoreAllMocks();
   resetCockpit();
   createSession.mockReset();
+  vi.spyOn(productApi, "checks").mockResolvedValue({ runs: [], suggested: [] });
 });
 
 it("requires reviewed host trust before running real checks and shows a failing command honestly", async () => {

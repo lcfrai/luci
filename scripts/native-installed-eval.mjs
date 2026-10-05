@@ -78,7 +78,13 @@ async function lookupElement(kind, name, deadline) {
       const field=label?.querySelector('input,textarea,select');
       return field&&!field.disabled?field:null;
     }
-    if(arguments[0]==='css') return [...scope.querySelectorAll(arguments[1])].find(e=>visible(e)&&!e.disabled)||null;
+    if(arguments[0]==='css') {
+      // querySelectorAll searches descendants, not the selected dialog itself.
+      // Keep modal scoping while allowing a read-only wait for its root.
+      const candidates=scope instanceof Element&&scope.matches(arguments[1])
+        ?[scope,...scope.querySelectorAll(arguments[1])]:[...scope.querySelectorAll(arguments[1])];
+      return candidates.find(e=>visible(e)&&!e.disabled)||null;
+    }
     if(arguments[0]==='file') return [...scope.querySelectorAll('.journey-directory button')].filter(e=>visible(e)&&!e.disabled).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
     return [...scope.querySelectorAll('button,summary,[role=treeitem]')].filter(e=>visible(e)&&!e.disabled).find(e=>
       e.getAttribute('aria-label')===arguments[1] || labelled(e)===arguments[1] || namedText(e)===arguments[1] ||

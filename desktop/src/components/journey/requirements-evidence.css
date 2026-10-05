@@ -1,0 +1,13 @@
+@import "../../styles/tokens.css";
+.requirements-evidence { border-block: 1px solid var(--line-soft); padding-block: 12px; margin-block: 16px; }
+.requirements-evidence > summary, .task-requirements > summary, .check-requirements > summary { cursor: pointer; min-block-size: 28px; color: var(--ink-2); }
+.requirements-evidence-list { list-style: none; padding: 0; display: grid; gap: 14px; margin-block: 16px; }
+.requirements-evidence-list > li { border-block-start: 1px solid var(--line-soft); padding-block-start: 12px; min-inline-size: 0; }
+.requirements-evidence-heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.requirements-evidence-heading span, .requirements-context, .requirements-latest, .requirements-evidence-list small { color: var(--ink-2); }
+.requirements-evidence p, .requirements-evidence li, .task-requirements p, .requirement-choice span { overflow-wrap: anywhere; line-height: 1.6; }
+.task-requirements { grid-column: 1 / -1; padding-block: 4px; }
+.requirement-choice { display: flex; gap: 9px; align-items: flex-start; padding-block: 7px; font-size: 12px; }
+.requirement-choice input { flex: none; margin-block-start: 4px; }
+.requirement-choice small { display: block; color: var(--ink-2); }
+.check-requirements { margin-block: 16px; }

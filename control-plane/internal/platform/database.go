@@ -27,13 +27,37 @@ func (s *Service) databaseAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Action string `json:"action"`
+		Action               string `json:"action"`
+		BackupID             string `json:"backupId,omitempty"`
+		RestoreID            string `json:"restoreId,omitempty"`
+		ConfirmRestore       bool   `json:"confirmRestore,omitempty"`
+		AcknowledgeResources bool   `json:"acknowledgeResources,omitempty"`
 	}
 	if !body(w, r, &in) {
 		return
 	}
-	if in.Action != "start" && in.Action != "stop" && in.Action != "backup" {
-		problem(w, 400, "invalid_action", "Choose start, stop or backup.")
+	if in.Action != "start" && in.Action != "stop" && in.Action != "backup" && in.Action != "restore" && in.Action != "rollback-restore" {
+		problem(w, 400, "invalid_action", "Choose start, stop, backup, restore or rollback-restore.")
+		return
+	}
+	if in.Action == "restore" || in.Action == "rollback-restore" {
+		selected := in.BackupID
+		if in.Action == "rollback-restore" {
+			selected = in.RestoreID
+		}
+		if !in.ConfirmRestore || !identifier.MatchString(selected) {
+			problem(w, 400, "restore_confirmation_required", "Choose a saved backup or successful restore and confirm switching the active database. Previous data is retained.")
+			return
+		}
+		if !in.AcknowledgeResources {
+			problem(w, 400, "resource_acknowledgement_required", "A restore starts PostgreSQL with this workspace's service limits and requires disk space for an additional database. Acknowledge those resources.")
+			return
+		}
+		if in.Action == "rollback-restore" {
+			s.acceptDatabaseRecovery(w, r, p.ID, "", in.RestoreID)
+		} else {
+			s.acceptDatabaseRestore(w, r, p.ID, in.BackupID)
+		}
 		return
 	}
 	if !s.claim(p.ID, operationLimit(r)) {
@@ -41,6 +65,10 @@ func (s *Service) databaseAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer s.release(p.ID)
+	if e := s.update(p.ID, observeInterruptedDatabaseRestore); e != nil {
+		problem(w, 500, "state_unavailable", "Database status could not be read.")
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
 	defer cancel()
 	if in.Action == "backup" {
@@ -71,10 +99,20 @@ func (s *Service) databaseAction(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Service) startDatabase(ctx context.Context, id string, limits resourceLimits) (Database, error) {
 	name := s.resource(id, "postgres")
-	db := Database{Status: "starting", Engine: "PostgreSQL 16.15", Container: name, Database: "app", Username: "luci", Message: "Starting persistent PostgreSQL."}
+	s.mu.Lock()
+	state, e := s.load(id)
+	s.mu.Unlock()
+	if e != nil {
+		return Database{}, e
+	}
+	active, e := activeDatabaseName(state.Database)
+	if e != nil || (state.Database.Container != "" && state.Database.Container != name) {
+		return Database{}, errors.New("invalid database selection")
+	}
+	db := Database{Status: "starting", Engine: "PostgreSQL 16.15", Container: name, Database: active, Username: "luci", Message: "Starting persistent PostgreSQL."}
 	secretName := id + "-database-secret"
 	var secret databaseSecret
-	e := s.read(secretName, &secret)
+	e = s.read(secretName, &secret)
 	if errors.Is(e, os.ErrNotExist) {
 		secret.Password = randomID("")
 		if e = s.write(secretName, secret); e != nil {
@@ -83,7 +121,7 @@ func (s *Service) startDatabase(ctx context.Context, id string, limits resourceL
 	} else if e != nil {
 		return db, e
 	}
-	if len(secret.Password) != 24 {
+	if !validDatabasePassword(secret.Password) {
 		return db, errors.New("database credential state is invalid")
 	}
 	// Only a verified owned container may be resumed. A name collision cannot
@@ -138,15 +176,18 @@ func (s *Service) startDatabase(ctx context.Context, id string, limits resourceL
 		}
 		_ = os.Remove(file)
 	}
+	return s.waitDatabase(ctx, id, db)
+}
+func (s *Service) waitDatabase(ctx context.Context, id string, db Database) (Database, error) {
 	for {
-		info, e := s.inspect(ctx, id, "postgres", name)
+		info, e := s.inspect(ctx, id, "postgres", db.Container)
 		if e != nil {
 			return db, e
 		}
 		if !info.State.Running {
 			return db, errors.New("database container stopped")
 		}
-		b, e = s.docker(ctx, "exec", name, "psql", "-U", "luci", "-d", "app", "-Atqc", "SELECT 1")
+		b, e := s.docker(ctx, "exec", db.Container, "psql", "-U", "luci", "-d", db.Database, "-Atqc", "SELECT 1")
 		if e == nil && strings.TrimSpace(string(b)) == "1" {
 			address, e := loopbackURL(info, 5432)
 			if e != nil {
@@ -179,21 +220,35 @@ func (s *Service) stopDatabase(ctx context.Context, id string) (Database, error)
 	if _, e = s.docker(ctx, "stop", db.Container); e != nil {
 		return db, e
 	}
+	info, e := s.inspect(ctx, id, "postgres", db.Container)
+	if e != nil || info.State.Running {
+		return db, errors.New("database stopped state unverified")
+	}
 	db.Status = "stopped"
 	db.Message = "PostgreSQL stopped. Its private data volume is retained."
 	return db, nil
 }
 func (s *Service) backupDatabase(ctx context.Context, id string) (Backup, error) {
 	name := s.resource(id, "postgres")
+	s.mu.Lock()
+	state, e := s.load(id)
+	s.mu.Unlock()
+	if e != nil {
+		return Backup{}, e
+	}
+	active, e := activeDatabaseName(state.Database)
+	if e != nil {
+		return Backup{}, e
+	}
 	info, e := s.inspect(ctx, id, "postgres", name)
 	if e != nil || !info.State.Running {
 		return Backup{}, errors.New("database unavailable")
 	}
-	data, e := s.docker(ctx, "exec", name, "pg_dump", "-U", "luci", "-d", "app", "--format=custom")
-	if e != nil || len(data) < 5 || string(data[:5]) != "PGDMP" {
+	data, e := s.docker(ctx, "exec", name, "pg_dump", "-U", "luci", "-d", active, "--format=custom")
+	if e != nil || len(data) < 5 || len(data) > databaseBackupLimit || string(data[:5]) != "PGDMP" {
 		return Backup{}, errors.New("invalid database backup")
 	}
-	b := Backup{ID: randomID("backup-"), CreatedAt: now(), Bytes: int64(len(data))}
+	b := Backup{ID: randomID("backup-"), CreatedAt: now(), Bytes: int64(len(data)), Database: active}
 	sum := sha256.Sum256(data)
 	b.SHA256 = hex.EncodeToString(sum[:])
 	file, e := s.path(b.ID)
@@ -248,14 +303,8 @@ func (s *Service) downloadBackup(w http.ResponseWriter, r *http.Request) {
 		problem(w, 404, "backup_unavailable", "This backup is unavailable in your project.")
 		return
 	}
-	file, e := s.path(selected.ID)
+	data, e := s.databaseBackupBytes(*selected)
 	if e != nil {
-		problem(w, 404, "backup_unavailable", "Backup file is unavailable.")
-		return
-	}
-	data, e := os.ReadFile(file)
-	sum := sha256.Sum256(data)
-	if e != nil || int64(len(data)) != selected.Bytes || hex.EncodeToString(sum[:]) != selected.SHA256 {
 		problem(w, 409, "backup_changed", "The backup no longer matches its recorded checksum.")
 		return
 	}

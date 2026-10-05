@@ -31,12 +31,28 @@ export interface PlatformBackup {
   createdAt: string;
   bytes: number;
   sha256: string;
+  database?: string;
+}
+export interface PlatformDatabaseOperation {
+  id: string;
+  action: string;
+  status: "running" | "succeeded" | "failed" | "interrupted";
+  stage: string;
+  message: string;
+  createdAt: string;
+  updatedAt: string;
+  backupId?: string;
+  restoreId?: string;
+  previousDatabase?: string;
+  candidateDatabase?: string;
 }
 export interface PlatformProject {
   projectId: string;
   deployments: PlatformDeployment[];
   database: PlatformDatabase;
   backups: PlatformBackup[];
+  databaseOperation?: PlatformDatabaseOperation;
+  databaseRestoreHistory?: PlatformDatabaseOperation[];
   panaceaProject?: string;
 }
 export interface PlatformStatus {
@@ -120,6 +136,20 @@ export const platformApi = {
       "POST",
       200_000,
     ),
+  restoreDatabase: (id: string, backupId: string) =>
+    productApi.request<PlatformDatabaseOperation>(`${project(id)}/database`, {
+      action: "restore",
+      backupId,
+      confirmRestore: true,
+      acknowledgeResources: true,
+    }),
+  recoverPreviousDatabase: (id: string, restoreId: string) =>
+    productApi.request<PlatformDatabaseOperation>(`${project(id)}/database`, {
+      action: "rollback-restore",
+      restoreId,
+      confirmRestore: true,
+      acknowledgeResources: true,
+    }),
   connection: () => productApi.request<PanaceaConnection>(`${base}/panacea`),
   connect: (baseUrl: string, apiKey: string) =>
     productApi.request<PanaceaConnection>(

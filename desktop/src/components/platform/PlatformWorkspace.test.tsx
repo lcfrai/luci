@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { PlatformWorkspace } from "./PlatformWorkspace";
 import { platformApi, type PlatformProject } from "../../api/platform";
 import { productApi } from "../../api/product";
@@ -14,6 +14,8 @@ vi.mock("../../api/platform", async (importOriginal) => ({
     projects: vi.fn(),
     deploy: vi.fn(),
     database: vi.fn(),
+    restoreDatabase: vi.fn(),
+    recoverPreviousDatabase: vi.fn(),
     connect: vi.fn(),
     disconnect: vi.fn(),
     mapProject: vi.fn(),
@@ -41,6 +43,7 @@ const project: PlatformProject = {
   },
 };
 beforeEach(() => {
+  vi.mocked(platformApi.restoreDatabase).mockReset();
   vi.mocked(platformApi.prepareBrowser).mockReset();
   vi.mocked(platformApi.status).mockResolvedValue({
     dockerReady: true,
@@ -65,6 +68,49 @@ beforeEach(() => {
     head: "a".repeat(40),
     branch: "main",
   });
+});
+
+it("shows accepted restore as progress, polls its actual result and never calls it completed early", async () => {
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    const backup = { id: "backup-owned", createdAt: "2026-10-06T00:00:00Z", bytes: 2048, sha256: "a".repeat(64) };
+    const stopped = { ...structuredClone(project), backups: [backup], database: { ...project.database, status: "stopped" } };
+    const operation = { id: "restore-owned", action: "restore", status: "running" as const, stage: "restoring", backupId: backup.id, message: "Restoring into a separate candidate.", createdAt: "now", updatedAt: "now" };
+    vi.mocked(platformApi.project)
+      .mockResolvedValueOnce({ project: stopped, busy: false })
+      .mockResolvedValueOnce({ project: { ...stopped, databaseOperation: operation }, busy: true })
+      .mockResolvedValue({ project: { ...stopped, database: { ...stopped.database, status: "ready" }, databaseOperation: { ...operation, status: "succeeded", stage: "complete", message: "Candidate passed real health checks." } }, busy: false });
+    vi.mocked(platformApi.restoreDatabase).mockResolvedValue(operation);
+    render(<PlatformWorkspace projectId="owned" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Data" }));
+    fireEvent.click(screen.getByText("Standalone PostgreSQL database"));
+    fireEvent.change(screen.getByRole("combobox", { name: "PostgreSQL backup to restore" }), { target: { value: backup.id } });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Switch to this backup/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Restore PostgreSQL backup" }));
+    expect(await screen.findByText("Restoring into a separate candidate.")).not.toBeNull();
+    expect(screen.queryByText("Restore PostgreSQL backup completed.")).toBeNull();
+    expect(platformApi.restoreDatabase).toHaveBeenCalledExactlyOnceWith("owned", backup.id);
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+    expect(await screen.findByText("Candidate passed real health checks.")).not.toBeNull();
+    expect(screen.getByText("Redeploy your application to connect to the restored database.")).not.toBeNull();
+  } finally { vi.useRealTimers(); }
+});
+
+it("refuses a foreign progress snapshot without replacing this project's retained services", async () => {
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  try {
+    const owned = { ...structuredClone(project), database: { ...project.database, status: "stopped", message: "Owned database retained." } };
+    vi.mocked(platformApi.project).mockResolvedValueOnce({ project: owned, busy: true })
+      .mockResolvedValue({ project: { ...owned, projectId: "foreign", database: { ...owned.database, message: "Foreign database." } }, busy: false });
+    render(<PlatformWorkspace projectId="owned" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Data" }));
+    fireEvent.click(screen.getByText("Standalone PostgreSQL database"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+    expect((await screen.findByRole("alert")).textContent).toContain("could not verify this project's operation progress");
+    expect(screen.getByText("Owned database retained.")).not.toBeNull();
+    expect(screen.queryByText("Foreign database.")).toBeNull();
+    expect(platformApi.restoreDatabase).not.toHaveBeenCalled();
+  } finally { vi.useRealTimers(); }
 });
 
 const pendingBrowserDeployment = {

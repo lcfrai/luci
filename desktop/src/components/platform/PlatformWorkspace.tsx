@@ -11,13 +11,15 @@ import {
   type PlatformStatus,
 } from "../../api/platform";
 import { DataWorkspace } from "./DataWorkspace";
+import { StandaloneDatabase } from "./StandaloneDatabase";
 
 export function PlatformWorkspace({ projectId }: { projectId: string }) {
   return <ProjectPlatform key={projectId} projectId={projectId} />;
 }
 
 function ProjectPlatform({ projectId }: { projectId: string }) {
-  const active = useRef(true), connectingBrowser = useRef(false);
+  const active = useRef(true), connectingBrowser = useRef(false), operating = useRef(false);
+  const requestGeneration = useRef(0);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [status, setStatus] = useState<PlatformStatus | null>(null);
   const [project, setProject] = useState<PlatformProject | null>(null);
@@ -43,22 +45,30 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
     notice: string;
   } | null>(null);
   const reload = useCallback(async () => {
+    const generation = ++requestGeneration.current;
     const [nextProject, nextDelivery] = await Promise.all([
       platformApi.project(projectId),
       productApi.gitDelivery(projectId),
     ]);
+    if (!active.current || generation !== requestGeneration.current) return;
+    if (nextProject.project.projectId !== projectId)
+      throw new Error("Luci could not verify this project's application services. Refresh the platform and try again.");
     setProject(nextProject.project);
-    setServerBusy(nextProject.busy);
+    setServerBusy(nextProject.busy || nextProject.project.databaseOperation?.status === "running");
     setDelivery(nextDelivery);
     setRemoteProject(nextProject.project.panaceaProject || "");
     setProviderError("");
     try {
       const nextConnection = await platformApi.connection();
+      if (!active.current || generation !== requestGeneration.current) return;
       setConnection(nextConnection);
-      if (nextConnection.configured)
-        setRemoteProjects((await platformApi.projects()).projects);
+      if (nextConnection.configured) {
+        const remote = await platformApi.projects();
+        if (active.current && generation === requestGeneration.current) setRemoteProjects(remote.projects);
+      }
       else setRemoteProjects([]);
     } catch {
+      if (!active.current || generation !== requestGeneration.current) return;
       setRemoteProjects([]);
       setProviderError(
         "Panacea is unavailable. Your Docker services and database remain available.",
@@ -80,41 +90,56 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
   }, [reload]);
   useEffect(() => {
     if (!serverBusy) return;
+    let current = true, inFlight = false;
     const timer = window.setInterval(() => {
+      if (inFlight) return;
+      inFlight = true;
+      const generation = requestGeneration.current;
       void platformApi
         .project(projectId)
         .then((value) => {
+          if (!current || !active.current || generation !== requestGeneration.current) return;
+          if (value.project.projectId !== projectId)
+            throw new Error("Luci could not verify this project's operation progress. Refresh the platform.");
           setProject(value.project);
-          setServerBusy(value.busy);
+          setServerBusy(value.busy || value.project.databaseOperation?.status === "running");
+          setError("");
         })
         .catch((cause) => {
-          setError(errorText(cause));
-          setServerBusy(false);
-        });
+          if (current && active.current && generation === requestGeneration.current) setError(errorText(cause));
+        })
+        .finally(() => { inFlight = false; });
     }, 2500);
-    return () => window.clearInterval(timer);
+    return () => { current = false; window.clearInterval(timer); };
   }, [serverBusy, projectId]);
   async function run(label: string, task: () => Promise<unknown>) {
-    if (busy || serverBusy) return;
+    if (busy || serverBusy || operating.current || !active.current) return;
+    operating.current = true;
+    ++requestGeneration.current;
     setBusy(label);
     setError("");
     setMessage("");
     try {
       const result = await task();
+      if (!active.current) return;
       await reload();
+      if (!active.current) return;
       const state =
         result && typeof result === "object" && "status" in result
           ? String(result.status)
           : "";
       setMessage(
-        state === "building" || state === "deploying"
-          ? "Deployment accepted and running. Readiness has not been verified yet."
+        state === "running"
+          ? "Database recovery accepted. Its verified progress and result appear below."
+          : state === "building" || state === "deploying"
+            ? "Deployment accepted and running. Readiness has not been verified yet."
           : `${label} completed.`,
       );
     } catch (cause) {
-      setError(errorText(cause));
+      if (active.current) setError(errorText(cause));
     } finally {
-      setBusy("");
+      operating.current = false;
+      if (active.current) setBusy("");
     }
   }
   const disabled = !!busy || serverBusy;
@@ -310,88 +335,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
           {view === "Data" && (
             <section aria-label="Project database">
               <DataWorkspace projectId={projectId} dockerReady={status.dockerReady} />
-              <details className="data-disclosure">
-              <summary>Standalone PostgreSQL database</summary>
-              <div className="cloud-deploy-form">
-              <h3>Standalone PostgreSQL</h3>
-              <p>
-                {project?.database.message ||
-                  "Create a private database on this Docker host."}
-              </p>
-              <p>
-                A Docker volume retains the data. New deployments receive
-                DATABASE_URL privately. Choose this lighter database when
-                your app does not need the full data and authentication stack.
-                It remains separate from Supabase and uses fewer resources.
-              </p>
-              <p>
-                Status:{" "}
-                <strong>{project?.database.status || "not-created"}</strong>
-              </p>
-              <div className="journey-actions">
-                <button
-                  className="luci-button"
-                  disabled={
-                    disabled ||
-                    !status.dockerReady ||
-                    project?.database.status === "ready"
-                  }
-                  onClick={() =>
-                    void run("Start PostgreSQL", () =>
-                      platformApi.database(projectId, "start"),
-                    )
-                  }
-                >
-                  Start PostgreSQL
-                </button>
-                <button
-                  className="luci-button"
-                  disabled={disabled || project?.database.status !== "ready"}
-                  onClick={() =>
-                    void run("Stop PostgreSQL", () =>
-                      platformApi.database(projectId, "stop"),
-                    )
-                  }
-                >
-                  Stop PostgreSQL
-                </button>
-                <button
-                  className="luci-button"
-                  disabled={disabled || project?.database.status !== "ready"}
-                  onClick={() =>
-                    void run("Create database backup", () =>
-                      platformApi.database(projectId, "backup"),
-                    )
-                  }
-                >
-                  Create database backup
-                </button>
-              </div>
-              <p>
-                Backups are private PostgreSQL custom-format dumps, up to 64
-                MiB. Restore is not automated here; use pg_restore into a
-                separate database.
-              </p>
-              {project?.backups.map((backup) => (
-                <p key={backup.id}>
-                  <button
-                    className="luci-button"
-                    disabled={disabled}
-                    onClick={() =>
-                      void run("Download database backup", () =>
-                        platformApi.downloadBackup(projectId, backup),
-                      )
-                    }
-                  >
-                    Download backup{" "}
-                    {new Date(backup.createdAt).toLocaleString()}
-                  </button>{" "}
-                  {Math.ceil(backup.bytes / 1024)} KiB · SHA-256{" "}
-                  <code>{backup.sha256.slice(0, 16)}…</code>
-                </p>
-              ))}
-              </div>
-              </details>
+              <StandaloneDatabase projectId={projectId} project={project}
+                dockerReady={status.dockerReady} disabled={disabled} run={run}
+                onDeployments={() => setView("Deployments")} />
             </section>
           )}
           {view === "Hosting connection" && (
