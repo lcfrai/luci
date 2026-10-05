@@ -659,3 +659,87 @@ browser acceptance (19), fresh/existing entry (nine), and lifecycle checks (four
 Its digest-verified core artifact and actual equal-tree merge checkout evidence
 are under `artifacts/review/010-ci-37359529911-recovery`. Real runtime and native
 jobs remain pending, and that run cannot validate the later 0.4.11 CSS adapter.
+
+### Installed 0.4.11 findings and full-product continuation
+
+Clean source `a54477d34872938d43ee15704a0080ce997fbf04` produced matching
+Linux/cloud archives and a 917-file Docker distribution. Both installed instances
+upgraded with accounts, journeys and volumes preserved; the primary runtime is
+ready. The exact source export passes Git-tree/allowlist, ZIP mode and checksum
+reconciliation for all 955 originals. Its 59 grant references, 106 Supabase assets,
+12 adapted Fluid files and offline Linux fonts match their recorded provenance.
+Evidence is `artifacts/review/011-a544-installed-package-checkpoint.json` and
+`artifacts/review/011-export-artifact-check-verified.json`. This audit does not
+claim an independent rebuild from the exported source or runtime acceptance.
+
+Actual narrow-screen pointer acceptance finds two remaining product defects.
+The vendor's device breakpoint changes during resize but may not render until
+a tool interaction, leaving a clipped desktop toolbar. A normal visible
+Rectangle/Selection mouse diagnostic then reveals that the wrapped mobile row
+shrinks to a 40-pixel island with eleven vertical rows. Both failed installed
+receipts and exact geometry remain retained. Saved Scene5 and all four appearance
+values are unchanged; successful diagnostic clicks do not pass initial layout.
+The next adapter uses a supported native refresh on deduplicated canvas resize
+and chooses the toolbar's intrinsic width within its existing container bound.
+Its matching package still needs actual resize, target and menu acceptance.
+
+A bounded core-route audit also finds that Ready cannot be cleared from the UI
+although the backend supports `ready:false`, and the Docker browser offers a
+native-only Reveal in Explorer action without useful failure feedback. The next
+batch restores persisted readiness changes and routes browser/remote projects to
+their existing Files view. Native local folder revelation keeps its own bridge
+and error handling. Evidence is `artifacts/review/011-core-route-audit.json`;
+these fixes require affected source checks and matching installed outcomes.
+
+The retained branch journey on installed 0.4.10 `32e6b852` now passes all seven
+checks, including actual non-root committed previews, native branch switching,
+readiness reset, pinned history, dirty/stale guards, neighbour isolation and
+complete owned CLI/preview cleanup. Evidence is the secondary instance's
+`branches-ui-7ed4be99-2bb5-4b17-9e91-7970fbe24977/results.json`.
+CI `37359529911` additionally passes actual runtime groups6, Docker browser6 and
+SSH8, plus Linux/Darwin portable jobs; digest-verified receipts remain under its
+recovery directory. The Windows build has completed, but full installed UI,
+restart, reinstall and uninstall acceptance is pending at this checkpoint.
+Queued 0.4.11 CI `37361331914` retains its separate source scope.
+
+The full product goal remains active. Native signup/confirmation/recovery mail
+needs its controlled inbox journey. Codex subscription authorization has expired;
+generated benchmark implementation, the public benchmark site, live AWS/Azure
+resource/domain/TLS journeys and external inbox delivery remain unverified.
+
+### 0.4.12 corrective source batch
+
+The canvas resize/width correction is implemented through the pinned editor's
+supported layout API, a deduplicated outer ResizeObserver and a canceled-on-unmount
+animation frame. Seven affected tests pass, including viewport-only refresh
+without a dirty document or Save request. Both readiness directions and guarded
+Files/native-folder actions pass all 90 affected menu/verb tests. Version-sensitive
+Docker packaging checks pass five cases. These are source checks; the next matching
+installed package still needs the narrow pointer and core-control outcomes.
+
+Actual 0.4.10 Windows UAT remains failed after five seed checks: Continue is
+disabled while runtime preparation is pending, and its ordinary click reaches
+the 30-second deadline. Project, canvas, Git, restart, reinstall and uninstall
+are not reached. Installer/state/portable/launcher/control smoke checks succeeded
+before that failure. The final backend result is absent from the failed receipt;
+serial probes and automatic check-generation restart are causal timing inferences
+from source, not a claim that the old installed check eventually succeeded.
+Evidence is `artifacts/review/010-ci-37359529911-recovery/native-failure-diagnosis.json`.
+
+Independent readiness probes now run together, retaining individual eight-second
+deadlines and deterministic complete results. Empty output or proof arriving after
+a deadline remains missing; canceled browser generations cannot publish over the
+saved readiness snapshot. Focused tests include the concurrent start barrier, an
+actual individual timeout, canceled-parent retention and cloud-local skip rules.
+The full affected product suite is pending on frozen source at this checkpoint;
+product vet passes. The native driver separately waits for the current visible
+preparation outcome within the existing 120-second request budget, then uses its
+unchanged bounded ordinary click. Eleven driver stage cases and eight existing
+click cases pass; actual installed acceptance remains required.
+
+The queued 0.4.11 CI did not acquire its hosted core runner after repeated GitHub
+attempts. It produced no test steps, runner logs or artifacts; downstream jobs
+were skipped. This is infrastructure failure, with no product or installed
+conclusion. Its job metadata and GitHub annotation remain under
+`artifacts/review/011-ci-37361331914-recovery`. The next coherent source batch
+requires its own full CI and native installer evidence.

@@ -23,7 +23,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
-const Version = "0.4.11"
+const Version = "0.4.12"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -423,35 +423,48 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 		{"aws", []string{"sts", "get-caller-identity", "--query", "Account", "--output", "text"}, "Install AWS CLI and sign in with aws login or your configured SSO profile."},
 		{"az", []string{"account", "show", "--query", "name", "--output", "tsv"}, "Install Azure CLI and use az login to connect your own account."},
 	}
+	var pending sync.WaitGroup
 	for i, p := range probes {
 		if cloud && i < 3 {
 			continue
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
-		output, err := s.runner(ctx, p.exe, p.args, "")
-		cancel()
-		// A successful process with no formatted result is not readiness proof.
-		// Docker clients can return an empty ServerVersion for a dead engine;
-		// accepting it would start automatic installation against that engine.
-		if err != nil || strings.TrimSpace(output) == "" {
-			checks[i].Status = "missing"
-			checks[i].Message = "This connection is not ready."
-			checks[i].Action = p.action
-		} else {
-			checks[i].Status = "ready"
-			checks[i].Message = "Ready"
-			if i == 0 || i == 1 {
-				checks[i].Message = strings.TrimSpace(output)
+		pending.Add(1)
+		go func() {
+			defer pending.Done()
+			ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+			defer cancel()
+			output, err := s.runner(ctx, p.exe, p.args, "")
+			// Each independent probe owns one stable result slot. Publish the
+			// complete ordered snapshot only after every probe has settled.
+			// Zero exit, empty output or late proof after cancellation is not
+			// evidence that Docker or a provider account is ready.
+			if err != nil || ctx.Err() != nil || strings.TrimSpace(output) == "" {
+				checks[i].Status = "missing"
+				checks[i].Message = "This connection is not ready."
+				checks[i].Action = p.action
+			} else {
+				checks[i].Status = "ready"
+				checks[i].Message = "Ready"
+				if i == 0 || i == 1 {
+					checks[i].Message = strings.TrimSpace(output)
+				}
+				if i == 3 {
+					checks[i].Message = "Signed in to your AWS account"
+				}
+				if i == 4 {
+					checks[i].Message = "Signed in to " + strings.TrimSpace(output)
+				}
 			}
-			if i == 3 {
-				checks[i].Message = "Signed in to your AWS account"
-			}
-			if i == 4 {
-				checks[i].Message = "Signed in to " + strings.TrimSpace(output)
-			}
-		}
+		}()
 	}
+	pending.Wait()
 	s.mu.Lock()
+	// A superseded or disconnected browser may cancel its generation while
+	// the probes drain. Its result must not replace a newer readiness snapshot.
+	if r.Context().Err() != nil {
+		s.mu.Unlock()
+		return
+	}
 	s.checks = checks
 	s.mu.Unlock()
 	writeJSON(w, 200, s.workspaceStatus(r.Context(), "POST"))

@@ -12,7 +12,7 @@
 import { useSyncExternalStore } from "react";
 import { api } from "../../api";
 import { getAttachState, retryAttach } from "../../api/attachRegistry";
-import type { ApiError } from "../../api/client";
+import { ApiError } from "../../api/client";
 import { classify } from "../../api/problems";
 import type { CreateSessionOptions } from "../../hooks/useCreateSession";
 import { replaceById } from "../../lib/immutable";
@@ -57,6 +57,20 @@ export interface VerbDeps {
  *  importing this module — which imports the store — would be a runtime cycle. The timers stay
  *  here: they are this module's machinery and nothing else reads them. */
 const timers = new Set<ReturnType<typeof setTimeout>>();
+const readinessRequests = new Map<string, symbol>();
+const readinessListeners = new Set<() => void>();
+let readinessGeneration = 0;
+const readinessKey = (worktree: Worktree) => `${worktree.projectId}/${worktree.id}`;
+const notifyReadiness = () => readinessListeners.forEach(listener => listener());
+const subscribeReadiness = (listener: () => void) => {
+  readinessListeners.add(listener);
+  return () => { readinessListeners.delete(listener); };
+};
+
+export function useWorktreeReadyPending(worktree: Worktree | undefined): boolean {
+  return useSyncExternalStore(subscribeReadiness,
+    () => worktree !== undefined && readinessRequests.has(readinessKey(worktree)), () => false);
+}
 
 export { isSessionPending } from "../../lib/pendingSessions";
 
@@ -84,6 +98,9 @@ export function cancelDeferredSessionActions(): void {
   for (const timer of timers) clearTimeout(timer);
   timers.clear();
   __resetPendingSessions();
+  readinessGeneration++;
+  readinessRequests.clear();
+  notifyReadiness();
   raised = null;
 }
 
@@ -625,45 +642,50 @@ export function renameSessionTo(sessionId: SessionId, title: string): void {
 
 /* ── contract §10.2's verb, and known defect 9 ───────────────────────────────────────── */
 
-/** Optimistic and immediate: the flag is a boolean the user set, the server's answer is the
- *  same worktree object, and a refusal puts the tick back where it was. The list write goes
- *  through task 15's `replaceById` — contract §8 defect 7's helper, consumed here because
- *  "replacing one worktree in a list" is the other half of that defect's Phase 2 shape, and a
- *  hand-rolled `.map` is how the two spellings drift apart.
- *
- *  BOTH directions go by id, through the same `write`, and this task's plan had it backwards.
- *  The plan captured the branch's whole array up front and rolled back to it, arguing that
- *  rebuilding from the CURRENT list "would silently drop anything a poll added in between". It
- *  is the other way round: `setWorktrees` replaces the list wholesale, so restoring a snapshot
- *  taken before the request is exactly what discards a worktree the 2 s poll added while it was
- *  in flight. `replaceById` against the live list touches one element and keeps every other,
- *  which is the whole reason the forward path uses it.
- *
- *  It is also right at the other edge: `replaceById` is a no-op copy for an id the list no
- *  longer holds and never appends, so a worktree the server dropped mid-request stays dropped
- *  rather than being resurrected by a rollback. */
-export function markWorktreeReady(worktree: Worktree): void {
+/** Adopt only the server-confirmed flag on the same project checkout. A refusal
+ *  leaves the latest catalogue state intact; a late response cannot recreate a
+ *  removed worktree or mark a newly selected source branch ready. */
+export function markWorktreeReady(worktree: Worktree, ready = true): void {
   const branchId = worktree.branchId;
-  const write = (next: Worktree): void => {
-    const current = selectWorktrees(branchId)(useCockpit.getState());
-    // `replaceById` returns a COPY for an id it cannot find (`lib/immutable.ts:31`), and
-    // `selectWorktrees` returns the shared empty constant for a branch the store does not hold —
-    // so writing unconditionally would create `worktreesByBranch[branchId] = []` where there was
-    // no key at all, inventing an empty branch out of a failed lookup. Nothing to replace is not
-    // an error here; it means the branch was never loaded, or a poll dropped the worktree while
-    // the menu was open.
-    if (!current.some((w) => w.id === next.id)) return;
-    useCockpit.getState().setWorktrees(branchId, replaceById(current, next));
+  const before = useCockpit.getState();
+  const sourceRevision = before.projectSourceRevisions[worktree.projectId] ?? 0;
+  const generation = readinessGeneration;
+  const currentWorktree = (): Worktree | undefined => {
+    const state = useCockpit.getState();
+    if (generation !== readinessGeneration || (state.projectSourceRevisions[worktree.projectId] ?? 0) !== sourceRevision ||
+        (state.projectsLoaded && !state.projects.some(project => project.id === worktree.projectId))) return undefined;
+    return selectWorktrees(branchId)(state).find(item => item.id === worktree.id &&
+      item.projectId === worktree.projectId && item.branchId === branchId && item.path === worktree.path);
   };
-
-  write({ ...worktree, ready: true });
+  if (!currentWorktree()) {
+    report(new ApiError("conflict", "This project's source changed. Refresh before updating readiness.", 409));
+    return;
+  }
+  const key = readinessKey(worktree);
+  if (readinessRequests.has(key)) return;
+  const request = Symbol();
+  readinessRequests.set(key, request);
+  notifyReadiness();
   void (async () => {
     try {
-      write(await api.setWorktreeReady(worktree.projectId, worktree.id, true));
+      const next = await api.setWorktreeReady(worktree.projectId, worktree.id, ready);
+      if (generation !== readinessGeneration) return;
+      if (!currentWorktree() || next.id !== worktree.id || next.projectId !== worktree.projectId ||
+          next.branchId !== branchId || next.path !== worktree.path || next.ready !== ready) {
+        throw new ApiError("conflict", "Luci could not confirm this worktree's readiness. Refresh its current branch before trying again.", 409);
+      }
+      const state = useCockpit.getState();
+      state.setWorktrees(branchId, replaceById(selectWorktrees(branchId)(state), next));
       clearOwnReport();
+      state.pushToast(ready ? "Worktree marked ready." : "Worktree marked not ready.");
     } catch (caught) {
-      write(worktree);
-      report(caught as ApiError);
+      // Keep the latest confirmed catalogue state, including any intervening poll.
+      if (generation === readinessGeneration) report(caught as ApiError);
+    } finally {
+      if (readinessRequests.get(key) === request) {
+        readinessRequests.delete(key);
+        notifyReadiness();
+      }
     }
   })();
 }
@@ -679,8 +701,7 @@ export function markWorktreeReady(worktree: Worktree): void {
  *  not moved, because it asserted a shape the control plane cannot produce. `Worktree.ready`
  *  stays optional in the type only because that safely accepts an always-present boolean.
  *
- *  Already-ready is disabled rather than hidden: the row is a fact about the worktree, and
- *  Phase 2 has no un-mark to offer — the merge queue in Phase 3 owns that. */
+ *  Both directions use the server's existing ready flag; pending work never invents readiness. */
 export function worktreeReadyItems(
   worktree: Worktree,
   close: () => void,
@@ -688,18 +709,18 @@ export function worktreeReadyItems(
   return [
     {
       id: "mark-ready",
-      label: worktree.ready === true ? "Ready to merge" : "Mark ready",
+      label: worktree.ready === true ? "Mark not ready" : "Mark ready",
       separatorBefore: true,
       run:
-        worktree.ready === true
+        readinessRequests.has(readinessKey(worktree))
           ? undefined
           : () => {
               close();
-              markWorktreeReady(worktree);
+              markWorktreeReady(worktree, worktree.ready !== true);
             },
       disabledReason:
-        worktree.ready === true
-          ? "Already marked ready. Phase 2 has no un-mark; the merge queue in Phase 3 owns that."
+        readinessRequests.has(readinessKey(worktree))
+          ? "Readiness is being updated."
           : undefined,
     },
   ];

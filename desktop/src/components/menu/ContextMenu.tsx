@@ -9,7 +9,7 @@
 // file and does not say who mounts which; the natural home was AppShell.tsx, but shared-shape
 // §1 gives that file's edit row to task 23, and this is the only file task 22 may edit that
 // AppShell already mounts exactly once. The two menus are the same concern.
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useRef } from "react";
 import type { JSX } from "react";
 import { useCockpit } from "../../store/store";
 import {
@@ -21,7 +21,9 @@ import {
 import { useCreateSession } from "../../hooks/useCreateSession";
 import { Popover } from "../common/Popover";
 import { SessionMenu, anchorRectFor } from "../develop/SessionMenu";
-import { sessionVerbs, worktreeReadyItems } from "../develop/sessionVerbs";
+import { sessionVerbs, useWorktreeReadyPending, worktreeReadyItems } from "../develop/sessionVerbs";
+import { useSetup } from "../setup/SetupProvider";
+import type { Project } from "../../store/types";
 import "./menu.css";
 
 /** One row of the menu. `run: undefined` means disabled, and `disabledReason` is then
@@ -39,12 +41,16 @@ function copyText(text: string): void {
   void navigator.clipboard?.writeText(text);
 }
 
-/** Dynamic import so a jsdom test that renders the shell never loads the Tauri IPC bridge. */
-function revealInExplorer(path: string): void {
-  void import("@tauri-apps/plugin-opener").then((mod) => mod.revealItemInDir(path));
-}
-
 export function ContextMenu(): JSX.Element {
+  const setup = useSetup();
+  const bridge = (window as typeof window & { __TAURI_INTERNALS__?: { invoke?: unknown } }).__TAURI_INTERNALS__;
+  const localFolderAvailable = typeof bridge?.invoke === "function" && setup?.workspace?.mode === "local" &&
+    setup.workspace.connectionId === "" && setup.workspace.host === "" &&
+    setup.status?.platform === "windows" && setup.status.access?.projectsDirManaged === false;
+  // The supported native distribution runs its controller on Windows. A Linux
+  // Docker controller or remote workspace path is never a local Explorer path.
+  const localFolder = useRef(localFolderAvailable);
+  localFolder.current = localFolderAvailable;
   const target = useCockpit((s) => s.contextMenu);
   const closeContextMenu = useCockpit((s) => s.closeContextMenu);
   const selectBranch = useCockpit((s) => s.selectBranch);
@@ -66,6 +72,7 @@ export function ContextMenu(): JSX.Element {
   const worktree = useCockpit((s) =>
     target !== null && target.kind === "worktree" ? selectWorktreeById(target.id)(s) : undefined,
   );
+  useWorktreeReadyPending(worktree);
   // The branch verbs create into the branch's FIRST worktree; §3.7's selectWorktrees already
   // returns them in server order, so "first" needs no second ordering rule.
   const branchWorktree = useCockpit((s) =>
@@ -96,6 +103,28 @@ export function ContextMenu(): JSX.Element {
     fn();
   };
 
+  const currentProject = (snapshot: Project): Project | undefined => {
+    const current = useCockpit.getState().projects.find(item => item.id === snapshot.id && item.path === snapshot.path);
+    if (!current) useCockpit.getState().pushToast("This project changed or is no longer available. Refresh your projects before opening its files.");
+    return current;
+  };
+  const openFiles = (snapshot: Project): void => {
+    if (currentProject(snapshot)) useCockpit.getState().selectProject(snapshot.id, "files");
+  };
+  const revealFolder = async (snapshot: Project): Promise<void> => {
+    if (!currentProject(snapshot)) return;
+    try {
+      const opener = await import("@tauri-apps/plugin-opener");
+      if (!localFolder.current) {
+        openFiles(snapshot);
+        return;
+      }
+      if (currentProject(snapshot)) await opener.revealItemInDir(snapshot.path);
+    } catch {
+      useCockpit.getState().pushToast("Luci couldn't reveal this folder. Open project files in Luci or try again.");
+    }
+  };
+
   const projectItems = (): MenuItem[] => {
     if (project === undefined) return [];
     return [
@@ -105,7 +134,9 @@ export function ContextMenu(): JSX.Element {
         run: act(() => openBranchManager({ projectId: project.id, action: "create" })),
       },
       { id: "copy-path", label: "Copy path", run: act(() => copyText(project.path)) },
-      { id: "reveal", label: "Reveal in Explorer", run: act(() => revealInExplorer(project.path)) },
+      localFolderAvailable
+        ? { id: "reveal", label: "Reveal in folder", run: act(() => void revealFolder(project)) }
+        : { id: "open-files", label: "Open project files", run: act(() => openFiles(project)) },
     ];
   };
 

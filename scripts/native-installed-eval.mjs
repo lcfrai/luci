@@ -109,6 +109,55 @@ async function click(name, kind = "button") {
   }
   throw new Error(`click ${kind} ${name} timed out${last ? `: ${last.message}` : ""}`);
 }
+async function preparationSettled() {
+  // ProductClient bounds a setup request at 120 seconds. This stage waits for
+  // its current visible generation, separately from a normal 30-second click.
+  const deadline = Date.now() + 120_000;
+  let observedPending = false;
+  while (Date.now() < deadline) {
+    const state = await command("/execute/sync", "POST", { script: `
+      const visible=e=>!!(e&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden');
+      const portal=document.querySelector('.onboarding-portal');
+      if(!visible(portal)) return {portal:false};
+      const preparation=portal.querySelector('.runtime-preparation');
+      const button=portal.querySelector('.setup-footer button');
+      const checking=!!preparation&&[...preparation.querySelectorAll('[role=status]')].some(e=>visible(e)&&e.textContent.trim()==='Checking dependencies and preparing your workspace…');
+      const handoff=portal.querySelector('.setup-footer [role=status]')?.textContent.includes('Checking your workspace and starting runtime preparation…')===true;
+      const checks=preparation?[...preparation.querySelectorAll('.preparation-list>li')].map(e=>({label:e.querySelector('strong')?.textContent.trim(),status:e.querySelector('.setup-status')?.textContent.trim()})):[];
+      const hasError=!!preparation&&[...preparation.querySelectorAll('[role=alert]')].some(visible);
+      const outcome=!preparation||hasError||(checks.length===3&&checks.every(e=>['ready','missing'].includes(e.status)));
+      const installing=!!preparation&&[...preparation.querySelectorAll('[role=status]')].some(e=>visible(e)&&e.textContent.trim().startsWith('Installing runtime…'));
+      return {portal:true,preparation:!!preparation,checking,handoff,outcome,checks,hasError,installing,enabled:visible(button)&&!button.disabled};
+    `, args: [] }, deadline);
+    if (Date.now() >= deadline) break;
+    assert(state.portal, "The onboarding portal disappeared before its preparation outcome was checked");
+    const pending = state.checking || state.handoff;
+    if (pending) {
+      observedPending = true;
+      assert.equal(state.enabled, false, "The current preparation generation must keep Continue disabled");
+    }
+    if (!pending && state.outcome && state.enabled) {
+      if (state.preparation) {
+        if (!state.hasError) {
+          assert.deepEqual(state.checks.map(check => check.label), ["Git", "Docker engine", "Agent runtime"], "Preparation must show the actual ordered local readiness outcomes");
+        }
+        const docker = state.checks.find(check => check.label === "Docker engine");
+        if (docker?.status === "missing") {
+          assert.equal(state.installing, false, "Missing Docker must not start automatic runtime installation");
+        }
+        (result.preparationStages ??= []).push({ observedPending, checks: state.checks, error: state.hasError, installing: state.installing });
+      }
+      return;
+    }
+    const remaining = deadline - Date.now();
+    if (remaining > 0) await sleep(Math.min(200, remaining));
+  }
+  throw new Error("Workspace preparation did not reach a settled visible outcome within its 120-second request budget");
+}
+async function continueToProjects() {
+  await preparationSettled();
+  await click("Continue to projects");
+}
 async function openDisclosure(name) {
   const collapsed = await execute("const summary=[...document.querySelectorAll('details>summary')].find(e=>e.textContent.trim()===arguments[0]);return !!(summary&&!summary.parentElement.open)", name);
   if (collapsed) await click(name);
@@ -122,7 +171,7 @@ const bodyHas = (text) => until(text, () => execute("return document.body.innerT
 const workspaceReady = () => until("authenticated workspace or onboarding portal", () => execute("return !document.querySelector('.auth-screen') && !!document.querySelector('.shell,.onboarding-portal')"));
 async function dismissSetup() {
   await workspaceReady();
-  if (await execute("return !!document.querySelector('.onboarding-portal')")) await click("Continue to projects");
+  if (await execute("return !!document.querySelector('.onboarding-portal')")) await continueToProjects();
   else if (await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Close settings");
   await until("project workspace available", () => execute("return !!document.querySelector('.shell') && !document.querySelector('.setup-backdrop,.onboarding-portal')"));
 }
@@ -410,7 +459,7 @@ try {
     await until("Git identity persisted", () => ["user.name", "user.email"].map((key) => execFileSync("git", ["config", "--global", "--get", key], { encoding: "utf8", windowsHide: true }).trim()).join("\n") === "Native Acceptance\nnative@example.invalid");
     result.checks.push("Projects folder and Git identity saved through the installed Settings UI");
     if (structuredUI) {
-      await click("Continue to projects");
+      await continueToProjects();
       await bodyHas("Your projects");
       assert.equal(await execute("return !!document.querySelector('.onboarding-portal,.setup-backdrop')"), false);
       result.checks.push("Completed the full-page onboarding portal and reached the independent projects home");

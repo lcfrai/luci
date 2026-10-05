@@ -26,6 +26,7 @@
    Wrap the shapes row so controls and inline native menus remain reachable. */
 .design-canvas { container-type: inline-size; }
 .design-canvas .excalidraw--mobile .App-toolbar--mobile {
+  inline-size: max-content;
   max-inline-size: calc(100cqw - 2 * var(--editor-container-padding));
 }
 .design-canvas .excalidraw--mobile .App-toolbar--mobile > .Stack_horizontal {

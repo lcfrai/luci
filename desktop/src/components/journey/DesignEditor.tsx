@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Excalidraw, MainMenu, serializeAsJSON } from "@excalidraw/excalidraw";
 import type {
   ExcalidrawInitialDataState,
+  ExcalidrawImperativeAPI,
   ExcalidrawProps,
 } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
@@ -73,6 +74,34 @@ function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange }: Props) 
   useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   useEffect(() => () => { onBusyChange?.(false); }, [onBusyChange]);
   const canvas = useRef<HTMLDivElement>(null);
+  const nativeAPI = useRef<ExcalidrawImperativeAPI | null>(null);
+  // The pinned editor's resize observer can update its device breakpoint after
+  // the window resize already wrote the same bounds, without another render.
+  // Refresh its supported layout API after those observers finish; this does
+  // not change tools, elements, the viewport or the saved document.
+  useLayoutEffect(() => {
+    const root = canvas.current;
+    if (!root || typeof ResizeObserver === "undefined") return;
+    let disposed = false, frame: number | null = null;
+    let { width, height } = root.getBoundingClientRect();
+    const observer = new ResizeObserver(() => {
+      if (disposed) return;
+      const next = root.getBoundingClientRect();
+      if (next.width === width && next.height === height) return;
+      width = next.width; height = next.height;
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        if (!disposed && width > 0 && height > 0) nativeAPI.current?.refresh();
+      });
+    });
+    observer.observe(root);
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, []);
   // Excalidraw 0.18.1 omits a name on its menu and gives its nested canvas
   // controls a page-footer landmark. Keep its controls, supplying semantics
   // only within our embedded canvas, including when its mobile layout changes.
@@ -189,6 +218,7 @@ function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange }: Props) 
       <div className="design-canvas" ref={canvas} aria-busy={loading}>
         {design && (
           <Excalidraw
+            excalidrawAPI={(api) => { nativeAPI.current = api; }}
             initialData={
               (design.scene ?? {
                 elements: [],

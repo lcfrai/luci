@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ExcalidrawProps } from "@excalidraw/excalidraw/types";
+import type { ExcalidrawImperativeAPI, ExcalidrawProps } from "@excalidraw/excalidraw/types";
 import { productApi, type Design, type DesignScene } from "../../api/product";
 import { resetCockpit, useCockpit } from "../../store/store";
 import {
@@ -10,13 +10,14 @@ import {
 } from "../../preferences/appearance";
 import DesignEditor from "./DesignEditor";
 
-const canvasState = vi.hoisted(() => ({ change: null as NonNullable<ExcalidrawProps["onChange"]> | null }));
+const canvasState = vi.hoisted(() => ({ change: null as NonNullable<ExcalidrawProps["onChange"]> | null, refresh: vi.fn() }));
 vi.mock("@excalidraw/excalidraw", async () => {
   const { useEffect } = await import("react");
   return {
-  Excalidraw: ({ theme, initialData, onChange }: { theme: string; initialData: DesignScene; onChange: NonNullable<ExcalidrawProps["onChange"]> }) => {
+  Excalidraw: ({ theme, initialData, onChange, excalidrawAPI }: { theme: string; initialData: DesignScene; onChange: NonNullable<ExcalidrawProps["onChange"]>; excalidrawAPI?: ExcalidrawProps["excalidrawAPI"] }) => {
     canvasState.change = onChange;
     useEffect(() => {
+      excalidrawAPI?.({ refresh: canvasState.refresh } as unknown as ExcalidrawImperativeAPI);
       onChange(...[initialData.elements || [], { ...initialData.appState, theme, scrollX: 0, scrollY: 0, selectedElementIds: {} }, initialData.files || {}] as unknown as Parameters<typeof onChange>);
     }, []);
     return <div data-testid="canvas" data-theme={theme} data-paper={initialData.appState?.viewBackgroundColor as string} />;
@@ -33,10 +34,11 @@ vi.mock("@excalidraw/excalidraw", async () => {
   // selection and drawing-tool state are deliberately outside its export.
   serializeAsJSON: (elements: Record<string, unknown>[], state: Record<string, unknown>, files: Record<string, unknown>) => JSON.stringify({ elements: elements.filter(element => !element.isDeleted), appState: Object.fromEntries(["gridSize", "gridStep", "gridModeEnabled", "viewBackgroundColor"].filter(key => key in state).map(key => [key, state[key]])), files }),
 }; });
-beforeEach(() => { resetCockpit(); canvasState.change = null; });
+beforeEach(() => { resetCockpit(); canvasState.change = null; canvasState.refresh.mockReset(); });
 afterEach(() => {
   updateAppearance(DEFAULT_APPEARANCE);
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   document.documentElement.style.removeProperty("--design-paper");
 });
 
@@ -47,6 +49,61 @@ const design = (value = scene()): Design => ({ projectId: "p-1", revision: 3, br
 function change(elements: unknown[], state: Record<string, unknown> = paper, files: Record<string, unknown> = {}) {
   act(() => canvasState.change?.(...[elements, state, files] as unknown as Parameters<NonNullable<ExcalidrawProps["onChange"]>>));
 }
+
+it("refreshes the native layout after real size changes without tool or document edits, and cancels pending work on unmount", async () => {
+  vi.spyOn(productApi, "design").mockResolvedValue(design());
+  const save = vi.spyOn(productApi, "saveDesign"), dirty = vi.fn();
+  let width = 1200, height = 700, deliver!: ResizeObserverCallback, observer!: ResizeObserver;
+  const observe = vi.fn(), disconnect = vi.fn();
+  vi.stubGlobal("ResizeObserver", class {
+    constructor(callback: ResizeObserverCallback) { deliver = callback; observer = this as unknown as ResizeObserver; }
+    observe = observe;
+    disconnect = disconnect;
+  });
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    return this.classList.contains("design-canvas") ? new DOMRect(0, 0, width, height) : new DOMRect();
+  });
+  const frames = new Map<number, FrameRequestCallback>();
+  let nextFrame = 0;
+  const request = vi.fn((callback: FrameRequestCallback) => { const id = ++nextFrame; frames.set(id, callback); return id; });
+  const cancel = vi.fn((id: number) => { frames.delete(id); });
+  vi.stubGlobal("requestAnimationFrame", request);
+  vi.stubGlobal("cancelAnimationFrame", cancel);
+  canvasState.refresh.mockImplementation(() => canvasState.change?.(...[
+    [shape], { ...paper, width, height, offsetLeft: 32, offsetTop: 100, theme: "light", selectedElementIds: {}, activeTool: { type: "selection" } }, {},
+  ] as unknown as Parameters<NonNullable<ExcalidrawProps["onChange"]>>));
+  const view = render(<DesignEditor projectId="p-1" onDirtyChange={dirty} />);
+  await screen.findByTestId("canvas");
+  expect(observe).toHaveBeenCalledExactlyOnceWith(view.container.querySelector(".design-canvas"));
+  act(() => deliver([], observer));
+  expect(request).not.toHaveBeenCalled();
+  width = 316; height = 425;
+  act(() => { deliver([], observer); deliver([], observer); });
+  expect(request).toHaveBeenCalledOnce();
+  expect(canvasState.refresh).not.toHaveBeenCalled();
+  width = 340;
+  act(() => deliver([], observer));
+  expect(cancel).toHaveBeenCalledWith(1);
+  expect(frames.size).toBe(1);
+  const frame = [...frames.values()][0]; frames.clear();
+  act(() => frame(0));
+  expect(canvasState.refresh).toHaveBeenCalledOnce();
+  expect(dirty).not.toHaveBeenCalledWith(true);
+  expect(screen.queryByText("Unsaved sketch changes.")).toBeNull();
+  expect((screen.getByRole("button", { name: "Save design" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(save).not.toHaveBeenCalled();
+  expect(Object.values(useCockpit.getState().unsavedProjectDrafts)).toEqual([]);
+  width = 600;
+  act(() => deliver([], observer));
+  const pending = [...frames.values()][0];
+  view.unmount();
+  expect(disconnect).toHaveBeenCalledOnce();
+  expect(cancel).toHaveBeenLastCalledWith(3);
+  expect(frames.size).toBe(0);
+  act(() => { pending(0); deliver([], observer); });
+  expect(canvasState.refresh).toHaveBeenCalledOnce();
+  expect(request).toHaveBeenCalledTimes(3);
+});
 
 it("does not register hydration, appearance, viewport, selection or image cache changes as document drafts", async () => {
   const file = { id: "image-1", mimeType: "image/png", dataURL: "data:image/png;base64,cGl4ZWxz", created: 1, lastRetrieved: 1 };

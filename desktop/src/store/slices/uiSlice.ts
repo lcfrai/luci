@@ -35,12 +35,12 @@ const NO_SELECTION: Selection = Object.freeze({
 
 export interface UnsavedProjectDraft { projectId: ProjectId; label: string; lens: Lens }
 export type PendingNavigation =
-  | { kind: "project"; projectId: ProjectId | null }
+  | { kind: "project"; projectId: ProjectId | null; lens?: Lens }
   | { kind: "branch"; projectId: ProjectId; branchId: BranchId }
   | { kind: "lens"; lens: Lens };
 export interface BranchManagerTarget { projectId: ProjectId; action: "create" | "switch"; branchId?: BranchId }
 const navigationState = (navigation: PendingNavigation, selection: Selection): Partial<UiSlice> => {
-  if (navigation.kind === "project") return { selection: { ...NO_SELECTION, projectId: navigation.projectId } };
+  if (navigation.kind === "project") return { selection: { ...NO_SELECTION, projectId: navigation.projectId }, ...(navigation.lens ? { lens: navigation.lens } : {}) };
   if (navigation.kind === "branch") return { lens: "develop", selection: { projectId: navigation.projectId, branchId: navigation.branchId, worktreeId: null, sessionId: null } };
   return { lens: navigation.lens, selection };
 };
@@ -77,7 +77,7 @@ export interface UiSlice {
   closeBranchManager(): void;
   acceptBranchChange(projectId: ProjectId, branches: Branch[], worktree: Worktree): void;
 
-  selectProject(id: ProjectId | null): void;
+  selectProject(id: ProjectId | null, lens?: Lens): void;
   /** Sets lens to "develop" and clears worktree + session selection. */
   selectBranch(projectId: ProjectId, id: BranchId): void;
   selectWorktree(id: WorktreeId | null): void;
@@ -144,10 +144,14 @@ export const createUiSlice: StateCreator<
 
   // Decision (a): a project selection clears everything below it, so the rail and the
   // Columns view can never disagree about which branch is in view.
-  selectProject: (id) => {
+  selectProject: (id, lens) => {
     const state = get();
-    if (id === state.selection.projectId && state.selection.branchId === null) return;
-    const navigation: PendingNavigation = { kind: "project", projectId: id };
+    if (lens && id !== null && !state.projects.some(project => project.id === id)) {
+      state.pushToast("This project is no longer available. Refresh your projects before opening its files.");
+      return;
+    }
+    if (id === state.selection.projectId && state.selection.branchId === null && (!lens || lens === state.lens)) return;
+    const navigation: PendingNavigation = { kind: "project", projectId: id, ...(lens ? { lens } : {}) };
     if (Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === state.selection.projectId)) set({ pendingNavigation: navigation });
     else set(navigationState(navigation, state.selection));
   },
@@ -174,11 +178,21 @@ export const createUiSlice: StateCreator<
     return { unsavedProjectDrafts: drafts };
   }),
   cancelNavigation: () => set({ pendingNavigation: null }),
-  discardDraftsAndNavigate: () => set(state => {
-    if (!state.pendingNavigation) return state;
-    const drafts = Object.fromEntries(Object.entries(state.unsavedProjectDrafts).filter(([, draft]) => draft.projectId !== state.selection.projectId));
-    return { ...navigationState(state.pendingNavigation, state.selection), unsavedProjectDrafts: drafts, pendingNavigation: null };
-  }),
+  discardDraftsAndNavigate: () => {
+    const current = get();
+    const destination = current.pendingNavigation;
+    if (destination?.kind === "project" && destination.lens && destination.projectId !== null &&
+        !current.projects.some(project => project.id === destination.projectId)) {
+      set({ pendingNavigation: null });
+      current.pushToast("This project is no longer available. Your edited draft is still here.");
+      return;
+    }
+    set(state => {
+      if (!state.pendingNavigation) return state;
+      const drafts = Object.fromEntries(Object.entries(state.unsavedProjectDrafts).filter(([, draft]) => draft.projectId !== state.selection.projectId));
+      return { ...navigationState(state.pendingNavigation, state.selection), unsavedProjectDrafts: drafts, pendingNavigation: null };
+    });
+  },
   openBranchManager: target => set({ branchManager: target }),
   closeBranchManager: () => set({ branchManager: null }),
   acceptBranchChange: (projectId, branches, worktree) => set(state => {
