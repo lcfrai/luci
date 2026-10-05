@@ -124,13 +124,15 @@ export function ProjectsHome() {
           {filtered.map((project) => (
             <li key={project.id}>
               <button
+                aria-label={`Open project ${project.name}`}
+                title={project.path}
                 onClick={() => {
                   useCockpit.getState().selectProject(project.id);
                   useCockpit.getState().setLens("discover");
                 }}
               >
                 <strong>{project.name}</strong>
-                <span>{project.path}</span>
+                <span>{setup?.workspace?.mode === "cloud" ? "Connected cloud workspace" : "Current workspace"}</span>
                 <span className="project-open">Open project →</span>
               </button>
             </li>

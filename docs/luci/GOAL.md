@@ -1,0 +1,84 @@
+# Finish the full Luci product
+
+The owner's direction on5 October2026 expands the earlier four-phase Docker
+benchmark. That benchmark remains mandatory evidence within this full product
+goal; it is not the definition of completion. This goal supersedes earlier
+claims that a visual demo, a source test suite, or a single small deployment is
+sufficient for handback.
+
+Deliver a complete, polished, MIT-licensed lcfr.ai open-source application that
+someone can use to complete a whole solution. It must have a coherent experience
+from first launch and account creation through defining, designing, developing,
+deploying and maintaining the result. The user can choose local Docker, their
+own AWS or Azure resources and domain, or an existing workspace. Minimize ongoing
+cost while preserving the quality of the result. Reuse suitable open-source
+components discovered through lcfr.ai Glasses where this improves delivery.
+
+## Required product outcomes
+
+1. A downloaded matching package launches successfully. Account creation,
+   returning sign-in and account recovery are discoverable. Onboarding explains
+   execution choices, checks prerequisites, prepares supported dependencies,
+   records progress and gives useful remedies when a step fails. Planning can
+   continue while installation runs. No configuration field alone proves ready.
+2. Projects have a dedicated home with creation, Git import and backup restore.
+   Project context is consistent across navigation, files, agents and releases.
+   Appearance, density and accessibility controls work and survive restart.
+3. Define supports a useful guided interview and genuine existing-repository
+   analysis, selected provider/model access, stable acceptance criteria,
+   requirements, journeys, roles, entities, integration constraints and versioned
+   approval. Partial model findings are labelled and reviewed before saving.
+4. Design supports requirement-linked screens, states, responsive targets,
+   working prototypes, assets/tokens and an explicit implementation handoff.
+   Saved sketches and screenshots alone do not prove the designed interactions.
+5. Develop connects the person's provider account, runs real coding agents in
+   the selected execution environment, retains run progress and diagnostics,
+   exposes real Git changes and previews, and verifies the implementation against
+   the approved requirements and design. The benchmark implementation must be
+   produced by the actual Codex subscription run, not inserted by its verifier.
+6. The application platform exposes working deployment, database, application
+   authentication, row policies, storage, live updates, supported functions and
+   email workflows inside Luci. Public client settings and private server secrets
+   remain distinct. Supported operations need real health and ownership checks,
+   durable progress and actionable failure states.
+7. Local Docker and user-owned AWS/Azure paths integrate with the same project
+   experience. Cloud plans explain prerequisites and actual quoted costs;
+   resource creation requires the product's explicit cost acknowledgement.
+   Existing-account/server connections, SSH trust, installation, reconnect,
+   domains/TLS and deployment have concrete supported paths. No placeholder
+   provider success, invented quote or unreachable ready URL is acceptable.
+8. Maintenance includes restart persistence, deployment inspection, supported
+   rollback/stop, data backups and restoration, and safe recovery of failed
+   operations. Failed-first-install recovery retains original volumes and never
+   assumes a stopped or unmarked database is empty.
+9. The UI is coherent, readable and polished at the level requested by the owner.
+   It has clear next actions, accessible labels and keyboard interaction,
+   responsive layouts, useful loading/empty/error states and consistent visual
+   tokens. No supported core journey ends in an unexplained error or dead control.
+10. Distribution preserves MIT and upstream licence grants, accurate provenance,
+    matching source/package manifests and actual download/install instructions.
+    Release readiness includes the supported clean-host installation outcomes;
+    a locally built archive is not evidence of a public download or native install.
+
+## Acceptance and handback
+
+Use installed matching packages for complete connected journeys and preserve
+both successful and failed evidence. Source tests, fixture providers, generated
+plans and static reviews are scoped evidence only. Verify functional outcomes,
+restart, failure/retry, recovery and account/project isolation. Run a batched
+visual/accessibility inspection and confirm fixes without repeated cosmetic
+review loops.
+
+The real Docker/Codex Describe→Design→Develop→Deploy journey must finish with a
+working public site whose behavior, commit and release provenance are verified.
+Separately, supported live AWS and Azure account/resource/domain journeys need
+their own evidence, including recovery/reconnect and owned-resource cleanup.
+SMTP acceptance must be distinguished from inbox delivery. User-owned external
+credentials and resources are prerequisites; absence of them is not a pass.
+
+Do not hand back the application as fully tested or complete until every required
+outcome has adequate current evidence. Keep implementation checkpoints and
+unverified external prerequisites explicit. Update `FULL-PRODUCT.md` with
+concrete outcomes and evidence as the build advances. The available goal-control
+API currently cannot edit an unfinished objective; its stored narrow benchmark
+must not override this owner-approved expanded completion standard.

@@ -30,6 +30,7 @@ import (
 // map; they do not touch catalogAuditRoutes. Adding a side-effecting GET means a
 // failing test that names the rule before it can be made to pass.
 var catalogReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/assist":         "Lists at most twenty bounded private job metadata records for an owned project. No inference, sandbox probes, recovery or project writes occur on GET.",
 	"GET /v1/product/projects/{id}/assist/{jobId}": "Reads a bounded private job snapshot. No model calls, sandbox probes, recovery or project writes occur on GET.",
 	"GET /v1/setup/agents/codex/account":           "Reads private connection metadata only; no CLI, credential export, reconciliation or writes.",
 	"GET /v1/healthz": "Reads Deps.BackendReady, which task 13 keeps as a CACHED bool. " +

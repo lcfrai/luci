@@ -2,6 +2,11 @@
 
 3 October 2026. The user's installed-app inspection supersedes the earlier narrow delivery checklist. The current application is not a complete UAT handback.
 
+The owner's5 October instruction is recorded in [GOAL.md](GOAL.md). It is the
+current completion standard: finish the full product and verify its supported
+installed workflows. The small Docker/subscription deployment benchmark is one
+required acceptance journey within that scope.
+
 ## Work in progress
 
 1. Dedicated, resumable onboarding: account entry, execution location, actual prerequisite checks and automatic runtime preparation, provider connection and workspace ready. A configured directory does not imply a ready runtime. Local, user-owned AWS/Azure and existing workspaces each have their own recovery and permission states.
@@ -11,6 +16,31 @@
 5. Develop: account connection before project execution, durable runs, useful startup recovery, requirements/tasks/check evidence and live previews tied to source. AI assistance uses the person's actual selected provider; deterministic guidance is labelled honestly.
 6. Application platform: inspect the newer private Panacea backend before adapting its services. Implement genuine local Docker application/data operations and an authenticated external Panacea connection without shipping restricted source in Luci's MIT package. Expose only operational capabilities; no simulated successful databases, sign-in, deployment or health.
 7. Packaging and acceptance: rebuild matching source; install and complete realistic account/onboarding/project/restart flows; exercise each project phase with a Codex subscription in Docker; deploy a real site, verify its behavior and preserve evidence.
+
+## Current completion batch — 5 October 2026
+
+Repository analysis now has an explicit provider/model/source-consent flow,
+bounded read-only source snapshots, persisted findings and guarded application
+as a draft. Saved assistance reloads without inference. Application email has
+private SMTP configuration, connection checks, verified Auth application and an
+explicit test-message step; acceptance is distinct from inbox delivery. New data
+installations record completion only after real health checks. An explicit
+failed-first-install recovery preserves original volumes and requires verified
+bootstrap failure before a fresh candidate can become active.
+
+The complete Docker data run at source `e04e6840` progressed to startup and found
+bundled public SQL assets masked by the private worker's umask. The corrected
+source sets public asset permissions explicitly while keeping credentials
+private. This batch includes a real Linux permission regression, targeted
+recovery/backup/restore checks and actual Compose credential-byte checks. Its
+matching package and installed recovery acceptance are the next gate. The
+retained failed stack and receipts have not been discarded.
+
+These additions do not prove a full UAT handback. Real subscription inference,
+generated implementation and a verified public site remain required, as do live
+AWS/Azure account/resource/domain acceptance and the supported clean-host
+distribution outcomes. External SMTP delivery has not been exercised without a
+supplied test connection and recipient.
 
 ## Backend provenance
 

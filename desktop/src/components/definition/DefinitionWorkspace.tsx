@@ -3,10 +3,11 @@ import { definitionApi, type ProjectSpecification, type DefinitionAssistance, ty
 import { errorText } from "../../api/product";
 import { useCockpit } from "../../store/store";
 import { JourneyHeader } from "../journey/shared";
+import { RepositoryAnalysisPanel } from "./RepositoryAnalysisPanel";
 import "./definition.css";
 
 const recordId = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 12)}`;
-type Tab = "interview" | "specification" | "history";
+type Tab = "interview" | "specification" | "history" | "repository";
 const questions = [
   { field: "purpose", label: "What should this solution do?", help: "Describe the problem, the result you want and why it matters.", placeholder: "A useful outcome, in your own words…" },
   { field: "audience", label: "Who will use it?", help: "Think about the person, their situation and what they need to achieve.", placeholder: "The people and their main tasks…" },
@@ -34,6 +35,9 @@ function RecordGroup<T extends { id: string }>({ title, help, items, fields, cre
 }
 
 export function DefinitionWorkspace({ projectId }: { projectId: string }) {
+  return <ProjectDefinition key={projectId} projectId={projectId} />;
+}
+function ProjectDefinition({ projectId }: { projectId: string }) {
   const [spec, setSpec] = useState<ProjectSpecification | null>(null);
   const [base, setBase] = useState<{ revision: number; briefRevision: number } | null>(null);
   const [tab, setTab] = useState<Tab>("interview");
@@ -48,6 +52,7 @@ export function DefinitionWorkspace({ projectId }: { projectId: string }) {
   const [assistError, setAssistError] = useState("");
   const alive = useRef(true);
   const submitting = useRef(false);
+  const assistGeneration = useRef(0);
   const setLens = useCockpit((s) => s.setLens);
   const load = async () => {
     const value = await definitionApi.get(projectId);
@@ -58,8 +63,16 @@ export function DefinitionWorkspace({ projectId }: { projectId: string }) {
   };
   useEffect(() => {
     alive.current = true;
+    const ticket = ++assistGeneration.current;
     void load().catch((cause) => { if (alive.current) setError(errorText(cause)); });
-    return () => { alive.current = false; };
+    void definitionApi.listAssistance(projectId).then(async ({ jobs }) => {
+      const latest = jobs.filter(item => item.projectId === projectId && (!item.kind || item.kind === "interview"))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+      if (!latest || !alive.current || ticket !== assistGeneration.current) return;
+      const value = await definitionApi.assistance(projectId, latest.id);
+      if (alive.current && ticket === assistGeneration.current && value.projectId === projectId && (!value.kind || value.kind === "interview")) setJob(value);
+    }).catch(cause => { if (alive.current && ticket === assistGeneration.current) setAssistError(errorText(cause)); });
+    return () => { alive.current = false; assistGeneration.current++; };
   }, [projectId]);
   useEffect(() => {
     if (!job || (job.status !== "queued" && job.status !== "running")) return;
@@ -94,10 +107,11 @@ export function DefinitionWorkspace({ projectId }: { projectId: string }) {
   }
   async function ask() {
     if (!spec || !message.trim() || dirty || busy) return;
+    const ticket = ++assistGeneration.current;
     setBusy(true); setAssistError("");
-    try { const value = await definitionApi.assist(projectId, spec.revision, message.trim()); if (alive.current) { setJob(value); setMessage(""); } }
-    catch (cause) { if (alive.current) setAssistError(errorText(cause)); }
-    finally { if (alive.current) setBusy(false); }
+    try { const value = await definitionApi.assist(projectId, spec.revision, message.trim()); if (alive.current && ticket === assistGeneration.current) { setJob(value); setMessage(""); } }
+    catch (cause) { if (alive.current && ticket === assistGeneration.current) setAssistError(errorText(cause)); }
+    finally { if (alive.current && ticket === assistGeneration.current) setBusy(false); }
   }
   const selectTab = (next: Tab) => {
     setTab(next);
@@ -126,15 +140,16 @@ export function DefinitionWorkspace({ projectId }: { projectId: string }) {
       <nav className="definition-tabs" aria-label="Definition views">
         <button aria-current={tab === "interview" ? "page" : undefined} onClick={() => selectTab("interview")}>Guided interview</button>
         <button aria-current={tab === "specification" ? "page" : undefined} onClick={() => selectTab("specification")}>Specification</button>
+        <button aria-current={tab === "repository" ? "page" : undefined} onClick={() => selectTab("repository")}>Repository analysis</button>
         <button aria-current={tab === "history" ? "page" : undefined} onClick={() => selectTab("history")}>Revision history</button>
       </nav>
       {spec.status === "outdated" && <div className="journey-error" role="status">The brief changed after this definition was saved. Reconcile the current purpose and requirements before approving again.</div>}
-      <div className="definition-layout">
+      <div className="definition-layout" style={tab === "repository" ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
         <div className="definition-content">
           <fieldset disabled={busy} className="definition-fields">
             {tab === "interview" && <div className="definition-interview">
               <label className="luci-field">Starting point<select value={spec.startingPoint} onChange={(e) => patch({ startingPoint: e.target.value as "new" | "existing" })}><option value="new">A new idea</option><option value="existing">An existing application</option></select></label>
-              {spec.startingPoint === "existing" && <p className="journey-muted">Use the assistant to inspect the project definition and propose gaps. Repository source analysis runs separately and must be accepted as a draft.</p>}
+              {spec.startingPoint === "existing" && <div><p className="journey-muted">Analyse actual source with your chosen provider, review the observed behaviour and gaps, then apply a draft. Save any edited answers before starting.</p><button type="button" className="luci-button" onClick={() => setTab("repository")}>Analyse this repository</button></div>}
               <p className="journey-muted">Question {step + 1} of {questions.length}</p>
               <h2>{questions[step].label}</h2><p>{questions[step].help}</p>
               <label className="luci-field"><span className="sr-only">{questions[step].label}</span><textarea rows={7} value={interviewValue} placeholder={questions[step].placeholder} onChange={(e) => interviewChange(e.target.value)} /></label>
@@ -175,9 +190,13 @@ export function DefinitionWorkspace({ projectId }: { projectId: string }) {
               <RecordGroup title="Open questions" help="Capture the gaps. Answer them before approving the definition." items={spec.questions} fields={[{ key: "question", label: "Question" }, { key: "answer", label: "Answer" }]} create={() => ({ id: recordId("question"), question: "", answer: "" })} onChange={(questions) => patch({ questions })} />
             </div>}
           </fieldset>
+          {tab === "repository" && <RepositoryAnalysisPanel projectId={projectId} specification={spec} dirty={dirty || busy} onApplied={value => {
+            setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setDirty(false); setError(""); setTab("specification");
+            setNotice(`Repository analysis saved as definition ${value.revision}. Review the draft and resolve open questions before approving.`);
+          }} />}
           {tab === "history" && <section><h2>Saved definition snapshots</h2>{!history.length && <p>No structured revisions yet. Existing brief text is preserved when you save your first definition.</p>}<ol className="definition-history">{history.slice().reverse().map((r) => <li key={r.revision}><strong>Revision {r.revision} · {r.status}</strong><p>{r.purpose}</p><small>Brief {r.briefRevision} · {r.requirements.length} requirements · {new Date(r.updatedAt).toLocaleString()}</small><details><summary>Read this snapshot</summary><pre>{JSON.stringify(r, null, 2)}</pre></details></li>)}</ol></section>}
         </div>
-        <aside className="definition-assistant" aria-label="Definition assistant">
+        {tab !== "repository" && <aside className="definition-assistant" aria-label="Definition assistant">
           <h2>Work through it with Luci</h2><p>Ask the connected Codex agent to find gaps, explore an idea or propose a fuller definition. Suggestions remain drafts until you accept them.</p>
           <label className="luci-field">What would you like to explore?<textarea rows={4} value={message} disabled={busy || job?.status === "running" || job?.status === "queued"} onChange={(e) => setMessage(e.target.value)} placeholder="Help me make the first version complete. Ask the next useful question." /></label>
           <button className="luci-button luci-primary" onClick={() => void ask()} disabled={dirty || busy || !message.trim() || job?.status === "running" || job?.status === "queued"}>Ask Luci</button>
@@ -190,7 +209,7 @@ export function DefinitionWorkspace({ projectId }: { projectId: string }) {
             </>}
           </div>}
           <p className="journey-muted">The assistant requires your own connected Codex account and a ready Docker runtime. Your definition is sent to that provider.</p>
-        </aside>
+        </aside>}
       </div>
       <footer className="definition-footer"><div className="journey-actions"><button className="luci-button luci-primary" disabled={busy || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>{busy ? "Working…" : "Save definition"}</button><button className="luci-button" disabled={busy || dirty || !spec.revision || spec.status === "approved"} onClick={() => void approve()}>Approve definition</button>{spec.status === "approved" && !dirty && <button className="luci-button" onClick={() => setLens("design")}>Continue to Design</button>}</div><p role="status" className="journey-muted">{notice || `${spec.requirements.length} requirements · ${spec.questions.filter((q) => !q.answer.trim()).length} open questions`}</p></footer>
     </>}

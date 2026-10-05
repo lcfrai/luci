@@ -13,12 +13,36 @@ import (
 )
 
 const MaxResultBytes = 256 << 10
+const MaxJobBytes = MaxResultBytes + (64 << 10)
+
+type SourceFile struct {
+	Path   string `json:"path"`
+	Digest string `json:"digest"`
+	Bytes  int    `json:"bytes"`
+}
+type Source struct {
+	Mode          string       `json:"mode"`
+	Commit        string       `json:"commit,omitempty"`
+	Digest        string       `json:"digest"`
+	FileCount     int          `json:"fileCount"`
+	IncludedBytes int          `json:"includedBytes"`
+	SkippedFiles  int          `json:"skippedFiles"`
+	Partial       bool         `json:"partial"`
+	Limitation    string       `json:"limitation"`
+	Files         []SourceFile `json:"files"`
+}
+type Finding struct {
+	Kind    string   `json:"kind"`
+	Summary string   `json:"summary"`
+	Paths   []string `json:"paths"`
+}
 
 type Result struct {
 	Question  string          `json:"question"`
 	Options   []string        `json:"options"`
 	Rationale string          `json:"rationale"`
 	Proposal  json.RawMessage `json:"proposal"`
+	Findings  []Finding       `json:"findings,omitempty"`
 }
 
 type Job struct {
@@ -32,6 +56,12 @@ type Job struct {
 	CreatedAt             string  `json:"createdAt"`
 	UpdatedAt             string  `json:"updatedAt"`
 	Result                *Result `json:"result,omitempty"`
+	Kind                  string  `json:"kind,omitempty"`
+	Harness               string  `json:"harness,omitempty"`
+	Model                 string  `json:"model,omitempty"`
+	AuthMode              string  `json:"authMode,omitempty"`
+	Source                *Source `json:"source,omitempty"`
+	AppliedRevision       int     `json:"appliedRevision,omitempty"`
 }
 
 // Store serializes changes and persists before returning. The caller supplies
@@ -57,7 +87,7 @@ func (s *Store) readJob(id string) (Job, error) {
 	if err != nil {
 		return job, err
 	}
-	if len(b) > MaxResultBytes+8192 || json.Unmarshal(b, &job) != nil || job.ID != id {
+	if len(b) > MaxJobBytes || json.Unmarshal(b, &job) != nil || job.ID != id {
 		return Job{}, errors.New("invalid assistant job")
 	}
 	return job, nil
@@ -69,6 +99,9 @@ func (s *Store) Create(job Job) error {
 	b, err := json.Marshal(job)
 	if err != nil {
 		return err
+	}
+	if len(b) > MaxJobBytes {
+		return errors.New("assistant job exceeds its limit")
 	}
 	return s.write(job.ID, b)
 }
@@ -84,6 +117,9 @@ func (s *Store) Update(id string, mutate func(*Job) error) (Job, error) {
 	}
 	job.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	b, err := json.Marshal(job)
+	if err == nil && len(b) > MaxJobBytes {
+		err = errors.New("assistant job exceeds its limit")
+	}
 	if err == nil {
 		err = s.write(id, b)
 	}
@@ -114,6 +150,14 @@ func DecodeResult(data []byte) (Result, error) {
 			return Result{}, errors.New("invalid assistant option")
 		}
 	}
+	if len(result.Findings) > 40 {
+		return Result{}, errors.New("too many repository findings")
+	}
+	for _, finding := range result.Findings {
+		if (finding.Kind != "observed" && finding.Kind != "inference" && finding.Kind != "gap") || strings.TrimSpace(finding.Summary) == "" || len(finding.Summary) > 4000 || len(finding.Paths) > 12 {
+			return Result{}, errors.New("invalid repository finding")
+		}
+	}
 	if strings.TrimSpace(result.Question) == "" && string(result.Proposal) == "null" {
 		return Result{}, errors.New("assistant supplied neither a question nor a proposal")
 	}
@@ -131,6 +175,20 @@ func Schema(specification any) ([]byte, error) {
 	return json.Marshal(map[string]any{"type": "object", "additionalProperties": false, "required": []string{"question", "options", "rationale", "proposal"}, "properties": map[string]any{
 		"question": map[string]any{"type": "string"}, "options": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "rationale": map[string]any{"type": "string"}, "proposal": map[string]any{"anyOf": []any{proposal, map[string]any{"type": "null"}}},
 	}})
+}
+
+func RepositorySchema(specification any) ([]byte, error) {
+	b, err := Schema(specification)
+	if err != nil {
+		return nil, err
+	}
+	var schema map[string]any
+	if err = json.Unmarshal(b, &schema); err != nil {
+		return nil, err
+	}
+	schema["required"] = []string{"question", "options", "rationale", "proposal", "findings"}
+	schema["properties"].(map[string]any)["findings"] = schemaFor(reflect.TypeOf([]Finding{}))
+	return json.Marshal(schema)
 }
 func schemaFor(t reflect.Type) map[string]any {
 	switch t.Kind() {

@@ -26,8 +26,11 @@ const assistDeadline = 5 * time.Minute
 func (a *API) registerAssistance(mux *routes) {
 	mux.HandleFunc("POST "+codexSignInRoute, a.handleCodexSignIn)
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist", a.handleAssistCreate)
+	mux.HandleFunc("GET /v1/product/projects/{id}/assist", a.handleAssistList)
+	mux.HandleFunc("POST /v1/product/projects/{id}/assist/repository", a.handleRepositoryAnalysis)
 	mux.HandleFunc("GET /v1/product/projects/{id}/assist/{jobId}", a.handleAssistGet)
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist/{jobId}/cancel", a.handleAssistCancel)
+	mux.HandleFunc("POST /v1/product/projects/{id}/assist/{jobId}/apply", a.handleAnalysisApply)
 	// Startup recovery never repeats an inference. A durable in-flight record
 	// only reconnects to its already-owned sandbox or reports interruption.
 	a.assistRecoveryOnce.Do(a.recoverAssistance)
@@ -66,7 +69,7 @@ func (a *API) assistanceStore() *assistance.Store {
 			if !strings.HasPrefix(id, "assist-") || !sessionStoreSegment.MatchString(id) {
 				return nil, os.ErrNotExist
 			}
-			return codexRead(a.deps.ConversationsDir, filepath.Join(a.deps.ConversationsDir, "assistance", "jobs", id+".json"), assistance.MaxResultBytes+8192)
+			return codexRead(a.deps.ConversationsDir, filepath.Join(a.deps.ConversationsDir, "assistance", "jobs", id+".json"), assistance.MaxJobBytes)
 		}, func(id string, b []byte) error {
 			if !strings.HasPrefix(id, "assist-") || !sessionStoreSegment.MatchString(id) {
 				return errors.New("invalid assistant identity")
@@ -270,6 +273,14 @@ func (a *API) handleAssistCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) assistJob(w http.ResponseWriter, r *http.Request) (assistance.Job, bool) {
+	if a.deps.Product == nil {
+		httpx.WriteProblem(w, 404, "project_not_found", "No project in your workspace has that id.", nil)
+		return assistance.Job{}, false
+	}
+	if _, err := a.deps.Product.ResolveProject(r.PathValue("id")); err != nil {
+		httpx.WriteProblem(w, 404, "project_not_found", "No project in your workspace has that id.", nil)
+		return assistance.Job{}, false
+	}
 	job, err := a.assistanceStore().Read(r.PathValue("jobId"))
 	if err != nil || job.ProjectID != r.PathValue("id") {
 		httpx.WriteProblem(w, 404, "assistant_not_found", "No assistant job with that id belongs to this project.", nil)
@@ -314,7 +325,11 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 	defer cancel()
 	defer func() { a.assistMu.Lock(); delete(a.assistCancels, job.ID); a.assistMu.Unlock() }()
 	session, err := a.deps.Store.Get(job.SessionID)
-	if err != nil || session.ContextRef != "luci:define-assist" || session.ProjectID != job.ProjectID || session.WorktreeID != assistWorktree {
+	contextRef := "luci:define-assist"
+	if job.Kind == "repository" {
+		contextRef = "luci:repository-analysis"
+	}
+	if err != nil || session.ContextRef != contextRef || session.ProjectID != job.ProjectID || session.WorktreeID != assistWorktree || (job.Harness != "" && (session.Harness != job.Harness || session.Model != job.Model || session.AuthMode != job.AuthMode)) {
 		_, _ = a.assistanceStore().Update(job.ID, func(j *assistance.Job) error {
 			j.Status = "failed"
 			j.Message = "The assistant's owned session is no longer available."
@@ -323,6 +338,9 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 		return
 	}
 	status, message := "failed", "Codex did not complete a valid response. Check your saved ChatGPT connection and Docker runtime, then try again."
+	if job.Kind == "repository" {
+		message = "The selected provider did not complete a valid repository response. Check that connection, model and Docker runtime, then start a new analysis. No draft was applied."
+	}
 	var result *assistance.Result
 	defer func() {
 		cleanup, c := context.WithTimeout(context.Background(), sessionDestroyTimeout)
@@ -333,20 +351,22 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 			result = nil
 		} else {
 			a.markSessionExited(job.SessionID, "definition assistant finished")
-			a.codexAccountMu.Lock()
-			account, err := a.readCodexConnection()
-			if err == nil && account != nil && account.ActiveSessionID == job.SessionID {
-				err = a.reconcileCodexConnection(account)
-				if err == nil {
-					account.ActiveSessionID = ""
-					err = a.writeCodexConnection(account)
+			if session.Harness == "codex" && session.AuthMode == "chatgpt" {
+				a.codexAccountMu.Lock()
+				account, err := a.readCodexConnection()
+				if err == nil && account != nil && account.ActiveSessionID == job.SessionID {
+					err = a.reconcileCodexConnection(account)
+					if err == nil {
+						account.ActiveSessionID = ""
+						err = a.writeCodexConnection(account)
+					}
 				}
-			}
-			a.codexAccountMu.Unlock()
-			if err != nil {
-				status = "failed"
-				message = "The ChatGPT connection could not be retained safely. Reconnect before continuing."
-				result = nil
+				a.codexAccountMu.Unlock()
+				if err != nil {
+					status = "failed"
+					message = "The ChatGPT connection could not be retained safely. Reconnect before continuing."
+					result = nil
+				}
 			}
 		}
 		_, _ = a.assistanceStore().Update(job.ID, func(j *assistance.Job) error {
@@ -379,6 +399,9 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 		}
 		j.Status = "running"
 		j.Message = "Codex is considering your definition."
+		if j.Kind == "repository" {
+			j.Message = "Your selected provider is analysing the bounded repository snapshot. Implementation files remain untouched."
+		}
 		return nil
 	})
 	if err != nil {
@@ -411,8 +434,10 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 			if err = a.validateAssistProposal(job, &decoded); err != nil {
 				return
 			}
-			if err = a.retainAssistTurn(job, decoded); err != nil {
-				return
+			if job.Kind != "repository" {
+				if err = a.retainAssistTurn(job, decoded); err != nil {
+					return
+				}
 			}
 			result = &decoded
 			status = "succeeded"
@@ -434,6 +459,27 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 }
 
 func (a *API) validateAssistProposal(job assistance.Job, result *assistance.Result) error {
+	if job.Kind == "repository" {
+		if job.Source == nil || len(result.Findings) == 0 {
+			return errors.New("repository response requires bounded source findings")
+		}
+		paths := map[string]bool{}
+		for _, file := range job.Source.Files {
+			paths[file.Path] = true
+		}
+		for _, finding := range result.Findings {
+			if finding.Kind == "observed" && len(finding.Paths) == 0 {
+				return errors.New("observed finding requires source evidence")
+			}
+			for _, path := range finding.Paths {
+				if !paths[path] {
+					return errors.New("finding references unread source")
+				}
+			}
+		}
+	} else if len(result.Findings) > 0 {
+		return errors.New("interview response cannot claim repository evidence")
+	}
 	if string(result.Proposal) == "null" {
 		return nil
 	}
@@ -445,6 +491,9 @@ func (a *API) validateAssistProposal(job assistance.Job, result *assistance.Resu
 	}
 	if proposal.ProjectID != job.ProjectID || proposal.Version != 1 || proposal.Revision != job.ExpectedRevision || proposal.BriefRevision != job.ExpectedBriefRevision || proposal.Status != "draft" {
 		return errors.New("invalid proposal provenance")
+	}
+	if job.Kind == "repository" && proposal.StartingPoint != "existing" {
+		return errors.New("repository proposal must identify an existing application")
 	}
 	return product.ValidateSpecification(proposal)
 }

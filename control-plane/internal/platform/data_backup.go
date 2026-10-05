@@ -404,7 +404,7 @@ func (s *Service) restoreData(ctx context.Context, id string, previous dataInsta
 	if e = s.read(backupID+"-secret", &secret); e != nil {
 		return &dataFailure{"The private restore keys for this backup are unavailable. Original database and storage backups are retained."}
 	}
-	next := dataInstallation{ProjectID: id, StackID: randomID("stack-"), StorageTenantID: tenant, Previous: append([]string{}, previous.Previous...)}
+	next := dataInstallation{ProjectID: id, StackID: randomID("stack-"), StorageTenantID: tenant, InitializationState: "pending", Previous: append([]string{}, previous.Previous...)}
 	if previous.StackID != "" {
 		next.Previous = append(next.Previous, previous.StackID)
 	}
@@ -556,6 +556,9 @@ func (s *Service) restoreData(ctx context.Context, id string, previous dataInsta
 		return e
 	}
 	if e = s.refreshData(ctx, next, true); e != nil {
+		return e
+	}
+	if e = s.markDataInitialized(next); e != nil {
 		return e
 	}
 	if _, e = s.browserDataURL(next, secret); e != nil {

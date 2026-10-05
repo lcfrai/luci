@@ -42,7 +42,7 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var fields map[string]json.RawMessage
-	inspectBody := mutating && (path == "/v1/setup/config" || path == "/v1/setup/cloud/plan" || path == "/v1/sessions" || strings.HasSuffix(path, "/git/github") || strings.HasPrefix(path, "/v1/setup/ssh/") || strings.HasSuffix(path, "/checks"))
+	inspectBody := mutating && (path == "/v1/setup/config" || path == "/v1/setup/cloud/plan" || path == "/v1/sessions" || strings.HasSuffix(path, "/git/github") || strings.HasPrefix(path, "/v1/setup/ssh/") || strings.HasSuffix(path, "/checks") || (strings.HasPrefix(path, "/v1/product/projects/") && strings.HasSuffix(path, "/assist/repository")))
 	if inspectBody {
 		data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 2<<20))
 		if err != nil || json.Unmarshal(data, &fields) != nil {
@@ -118,8 +118,16 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	creatingCodexUtility := r.Method == "POST" && (path == "/v1/setup/agents/codex/sign-in" || (strings.HasPrefix(path, "/v1/product/projects/") && strings.HasSuffix(path, "/assist")))
-	creatingSession := creatingCodexUtility || (r.Method == "POST" && (path == "/v1/sessions" || strings.HasSuffix(path, "/restart") || strings.HasSuffix(path, "/fork")) && strings.HasPrefix(path, "/v1/sessions"))
+	creatingRepositoryAnalysis := r.Method == "POST" && strings.HasPrefix(path, "/v1/product/projects/") && strings.HasSuffix(path, "/assist/repository")
+	creatingSession := creatingCodexUtility || creatingRepositoryAnalysis || (r.Method == "POST" && (path == "/v1/sessions" || strings.HasSuffix(path, "/restart") || strings.HasSuffix(path, "/fork")) && strings.HasPrefix(path, "/v1/sessions"))
 	if creatingSession {
+		if creatingRepositoryAnalysis {
+			var chosen string
+			if json.Unmarshal(fields["harness"], &chosen) != nil || (chosen != "codex" && chosen != "claude-code" && chosen != "opencode") {
+				fail(w, 400, "invalid_analysis_provider", "Choose the provider for repository analysis.")
+				return
+			}
+		}
 		if creatingCodexUtility {
 			// These bounded routes cannot select a different provider by body.
 			fields = map[string]json.RawMessage{"harness": json.RawMessage(`"codex"`)}

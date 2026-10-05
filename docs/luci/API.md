@@ -259,6 +259,32 @@ the selected backing's identity. Existing SSH workspace sign-in accepts an
 optional `inviteCode` and redeems it on that workspace. A remote account error
 remains a recoverable workspace error and does not expire the local login.
 
+## Repository analysis and saved assistance
+
+GET `/v1/product/projects/{id}/assist` returns the newest twenty job metadata
+records as `{jobs:[...]}` without results or provider calls. GET
+`/assist/{jobId}` reads a saved detailed result. POST `/assist/repository`
+accepts `{expectedRevision,expectedBriefRevision,sourceMode,harness,model,
+authMode,acknowledgeSourceRead:true,message?}` and returns202 with a durable job.
+Source mode is `worktree` or `commit`; harness is `codex`, `claude-code` or
+`opencode`. An explicit non-default model is required. Codex uses the chosen
+`chatgpt` or `api` connection, Claude uses `api`, and OpenCode uses `configured`
+with the exact saved `luci-local/{model}` connection. No provider fallback occurs.
+Session quota and allowed-harness policy apply before starting a job.
+
+The read-only snapshot includes at most sixty Git-visible text files,16KiB per
+file and96KiB total. Ignored, private, generated, binary and linked files are
+excluded. The response records the partial selection, paths, byte counts and
+fingerprints. Findings distinguish `observed`, `inference` and `gap`; observed
+findings must cite an included file. Selection is not full-repository coverage.
+
+POST `/assist/{jobId}/apply` requires `{expectedRevision,expectedBriefRevision,
+acknowledgePartial:true}` and returns a saved specification draft only when the
+job belongs to the project, both revisions and source fingerprints still match,
+and the proposal has not previously been applied. Approval remains a separate
+operation. POST `/assist/{jobId}/cancel {}` cancels an owned run. Loading saved
+history never starts inference or changes the definition.
+
 ## Optional Supabase data backend
 
 These routes use the selected project's workspace and authenticated actor. They
@@ -269,7 +295,7 @@ reviewed upstream configurations and vendored dependency licences.
 GET `/v1/platform/projects/{id}/data` returns cached
 `{projectId,provider:"supabase",version,revision,status,message,endpointScope,
 url?,publishableKey?,services,operation?,backups,capabilities,requirements,
-checkedAt?,priorStackRetained}`. Service receipts contain
+checkedAt?,priorStackRetained,initializationState,canRecoverInstall}`. Service receipts contain
 `{name,status,health,image}`. The public key is the client-safe anon JWT, never
 the database password, JWT signing secret or service-role key. `endpointScope`
 is `selected-docker-host-loopback` by default: a remote worker's `127.0.0.1` URL
@@ -296,7 +322,9 @@ when native services are stopped.
 
 The response includes `{projectId,status,message,revision,operation?,domain?,
 publicUrl?,applicationOrigin?,targetId?,serverUuid?,providerServiceUuid?,
-configurationDigest?,checkedAt?,emailDelivery:"unconfigured"}`. A public URL is
+configurationDigest?,checkedAt?,emailDelivery}`. Email delivery reports
+`unconfigured`, `configured`, `test-accepted` or `attention`; an accepted test is
+not proof of inbox delivery. A public URL is
 usable only at `verifiedHTTPS`. Publication requires proven co-location of the
 owned native stack, network and official Coolify controller with the selected
 provider server. An unrelated remote deployment server or Docker engine cannot
@@ -345,13 +373,49 @@ redeployment to capture changed bindings. Runtime keys stay outside project Git,
 exports and source archives. No OpenAI API credential or fake SMTP defaults are
 inherited from upstream example configuration.
 
+GET `/v1/platform/projects/{id}/data/email` reads cached SMTP configuration and
+operation receipts without making a connection or sending a message. Its
+client-safe response includes `{projectId,status,message,revision,
+appliedRevision,configuration,applicationOrigin,originSource,connection,test,
+operation?}`. Configuration contains `{host,port,username,fromAddress,senderName,
+applicationOrigin,hasPassword}` and never returns a password. `originSource` is
+`public-domain` or `local`; the public data connection controls the redirect
+origin whenever configured.
+
+An Admin can POST the same route with `{action,expectedRevision,configuration?,
+recipient?,acknowledgeSend?}`. Actions are `save`, `check`, `apply`, `test` and
+`disable`. A save returns200; other admitted actions return202 with a durable
+operation. Saving needs all configuration fields plus an SMTP password, or a
+blank password to retain the previously saved credential for the same host and
+username. A changed destination requires a new password. SMTP credentials are
+stored in private controller state and owned Auth configuration, outside Git,
+client environment bindings and portable database/storage backups.
+
+The reviewed native Auth version accepts verified implicit TLS on port465.
+STARTTLS-only providers are refused because that upstream version cannot enforce
+STARTTLS. `check` verifies the TLS certificate and SMTP authentication without
+issuing MAIL, RCPT or DATA. `apply` checks the connection, recreates only the owned
+Auth service, and verifies its exact private environment and health before
+recording an applied revision. A failure attempts to restore and verify the
+previous settings while retaining the saved draft. Settings are preserved across
+stack regeneration and restore, and public connection origins take precedence.
+
+`test` requires the current saved revision to be applied, a valid recipient and
+`acknowledgeSend:true`. It sends one fixed message without account credentials,
+confirmation links or user changes. The receipt distinguishes SMTP acceptance,
+failure and uncertain acceptance; it never claims inbox delivery. Interrupted
+operations are not automatically retried. `disable` clears SMTP credentials only
+after healthy owned Auth readback. Applying, testing and disabling need running
+Auth; saving and connection checks are available before stack startup.
+
 The following controls require the owned data stack to be ready:
 
 - GET `/data/users` returns `{users,page:1,limit:100}` with user ID, email and
   creation/confirmation timestamps only. POST accepts
   `{email,password,emailConfirm:true}` and creates a real confirmed Auth user.
-  Passwords require12–256 characters. SMTP is not configured by this installer;
-  email signup/recovery flows are not claimed as delivered.
+  Passwords require12–256 characters. Direct administrator creation sends no
+  confirmation email. Application signup confirmation and recovery use the
+  separately configured SMTP connection above.
 - GET `/data/tables` returns `{tables}` with names, columns and `rlsEnabled`.
   POST accepts `{name,columns:[{name,type,nullable}],enableRls:true}`. UUID `id`
   is generated automatically; supported column types are `text`, `uuid`,
@@ -401,6 +465,19 @@ diagnosis; it never overwrites the old volume. Redeploy applications to update
 client-facing URLs after the switch. Backup imports, automatic volume deletion,
 arbitrary migrations and public data-domain provisioning are separate operations
 and are not implied by these controls.
+
+The explicit `recover-install` data action requires `confirmFreshInstall:true`
+and the resource acknowledgement. It is limited to a stopped incomplete first
+installation, with no successful initialization, prior restore or backup. Both
+legacy unknown state and a pending state with existing containers require owned
+database logs proving the reviewed initial SQL permission failure; an absent
+success receipt never proves an empty database. The cached `canRecoverInstall`
+flag offers the UI action, while native preflight revalidates eligibility before
+allocation. Recovery creates a fresh candidate with the same credentials and
+storage identity, checks all services and database/Auth/REST/Storage, then
+promotes it with verified network handover. Original volumes remain retained.
+Failure stops the owned candidate or reports a degraded cleanup outcome; it does
+not report a successful installation or silently reset the original database.
 
 ## Public static deployment
 

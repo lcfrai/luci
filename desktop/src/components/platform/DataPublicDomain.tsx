@@ -29,12 +29,12 @@ export function publicDataAddress(value: DataDomainStatus): string | null {
 }
 
 export function DataPublicDomain(props: {
-  projectId: string; disabled: boolean; ready: boolean; onChange(value: DataDomainStatus): void;
+  projectId: string; disabled: boolean; ready: boolean; onChange(value: DataDomainStatus): void; onEmailSettings?(): void;
 }) {
   return <ProjectPublicDomain key={props.projectId} {...props} />;
 }
-function ProjectPublicDomain({ projectId, disabled, ready, onChange }: {
-  projectId: string; disabled: boolean; ready: boolean; onChange(value: DataDomainStatus): void;
+function ProjectPublicDomain({ projectId, disabled, ready, onChange, onEmailSettings }: {
+  projectId: string; disabled: boolean; ready: boolean; onChange(value: DataDomainStatus): void; onEmailSettings?(): void;
 }) {
   const active = useRef(true), submitting = useRef(false), generation = useRef(0);
   const fieldId = useId();
@@ -131,6 +131,7 @@ function ProjectPublicDomain({ projectId, disabled, ready, onChange }: {
     {uncertain && <p>Check this saved attempt before publishing again. Luci will reconcile it with the deployment service to avoid creating duplicates.</p>}
     {!ready && <p>Start and check the data services before publishing. You can still stop an existing public connection.</p>}
     {!!configured && binding.status !== "stopped" && <div className="data-domain-stop"><label className="data-check"><input type="checkbox" checked={stopConfirmed} disabled={locked} onChange={event => setStopConfirmed(event.target.checked)} />Stop public API access for applications using this address.</label><button type="button" className="luci-button" disabled={locked || !stopConfirmed} onClick={() => void submit("stop")}>{pending === "stop" ? "Stopping public access…" : "Stop public access"}</button></div>}
-    <p>Email delivery is not configured. Email confirmation and password-recovery email need an SMTP connection; publishing this API does not enable them.</p>
+    <p>Email confirmation and password recovery use your SMTP connection in Authentication. Publishing this API does not configure email.</p>
+    {onEmailSettings && <button type="button" className="luci-button" onClick={onEmailSettings}>Email settings</button>}
   </section>;
 }

@@ -8,7 +8,7 @@ export interface DataBackup {
 export interface DataDomainStatus {
   projectId: string; status: string; message: string; revision: number;
   publicUrl?: string; applicationOrigin?: string; targetId?: string;
-  domain?: string; checkedAt?: string; emailDelivery: "unconfigured";
+  domain?: string; checkedAt?: string; emailDelivery: "unconfigured" | "configured" | "test-accepted" | "attention";
   operation?: DataStatus["operation"];
 }
 export interface DataDomainRequest {
@@ -25,6 +25,8 @@ export interface DataStatus {
   backups: DataBackup[]; capabilities: Record<string, boolean>;
   requirements: { memoryMiB: number; cpuMillis: number; diskGiB: number };
   checkedAt?: string; priorStackRetained: boolean;
+  initializationState?: "pending" | "complete" | "unknown";
+  canRecoverInstall?: boolean;
   publicDomain?: DataDomainStatus;
   publicUrl?: string;
 }
@@ -57,7 +59,7 @@ export const dataApi = {
   status: (id: string) => productApi.request<DataStatus>(base(id)),
   domain: (id: string) => productApi.request<DataDomainStatus>(`${base(id)}/domain`),
   configureDomain: (id: string, input: DataDomainRequest) => productApi.request<DataDomainStatus>(`${base(id)}/domain`, input),
-  action: (id: string, action: "install" | "start" | "stop" | "refresh" | "backup" | "restore", options: { acknowledgeResources?: boolean; backupId?: string; confirmRestore?: boolean } = {}) => productApi.request<DataStatus>(base(id), { action, ...options }),
+  action: (id: string, action: "install" | "start" | "stop" | "refresh" | "backup" | "restore" | "recover-install", options: { acknowledgeResources?: boolean; backupId?: string; confirmRestore?: boolean; confirmFreshInstall?: boolean } = {}) => productApi.request<DataStatus>(base(id), { action, ...options }),
   users: (id: string) => productApi.request<{ users: DataUser[]; page: number; limit: number }>(`${base(id)}/users`),
   createUser: (id: string, email: string, password: string) => productApi.request<DataUser>(`${base(id)}/users`, { email, password, emailConfirm: true }),
   tables: (id: string) => productApi.request<{ tables: DataTable[] }>(`${base(id)}/tables`),

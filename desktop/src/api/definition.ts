@@ -18,8 +18,21 @@ export interface ProjectSpecification {
 }
 export interface DefinitionAssistance {
   id: string; projectId: string; status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
-  message: string; result?: { question: string; options: string[]; rationale: string; proposal: ProjectSpecification | null };
+  kind?: "interview" | "repository"; harness?: "codex" | "claude-code" | "opencode";
+  model?: string; authMode?: "chatgpt" | "api" | "configured"; appliedRevision?: number;
+  source?: RepositoryAnalysisSource;
+  message: string; result?: { question: string; options: string[]; rationale: string; proposal: ProjectSpecification | null; findings?: { kind: "observed" | "inference" | "gap"; summary: string; paths: string[] }[] };
   createdAt: string; updatedAt: string;
+}
+export interface RepositoryAnalysisSource {
+  mode: "worktree" | "commit"; commit?: string; digest: string; fileCount: number;
+  includedBytes: number; skippedFiles: number; partial: true; limitation: string;
+  files: { path: string; digest: string; bytes: number }[];
+}
+export interface RepositoryAnalysisRequest {
+  expectedRevision: number; expectedBriefRevision: number; sourceMode: "worktree" | "commit";
+  harness: "codex" | "claude-code" | "opencode"; model: string;
+  authMode: "chatgpt" | "api" | "configured"; acknowledgeSourceRead: true; message?: string;
 }
 const path = (id: string) => `/v1/product/projects/${encodeURIComponent(id)}`;
 export const definitionApi = {
@@ -33,4 +46,7 @@ export const definitionApi = {
     productApi.request<DefinitionAssistance>(`${path(id)}/assist`, { expectedRevision, message }),
   assistance: (id: string, jobId: string) => productApi.request<DefinitionAssistance>(`${path(id)}/assist/${encodeURIComponent(jobId)}`),
   cancelAssistance: (id: string, jobId: string) => productApi.request<DefinitionAssistance>(`${path(id)}/assist/${encodeURIComponent(jobId)}/cancel`, {}),
+  listAssistance: (id: string) => productApi.request<{ jobs: DefinitionAssistance[] }>(`${path(id)}/assist`),
+  analyseRepository: (id: string, input: RepositoryAnalysisRequest) => productApi.request<DefinitionAssistance>(`${path(id)}/assist/repository`, input),
+  applyAnalysis: (id: string, jobId: string, input: { expectedRevision: number; expectedBriefRevision: number; acknowledgePartial: true }) => productApi.request<ProjectSpecification>(`${path(id)}/assist/${encodeURIComponent(jobId)}/apply`, input),
 };

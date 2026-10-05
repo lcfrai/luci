@@ -1,10 +1,11 @@
-import { afterEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { act, render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { definitionApi, type ProjectSpecification } from "../../api/definition";
 import { DefinitionWorkspace } from "./DefinitionWorkspace";
 
 afterEach(() => { cleanup();vi.restoreAllMocks(); });
+beforeEach(() => { vi.spyOn(definitionApi,"listAssistance").mockResolvedValue({jobs:[]}); });
 const fixture = (): ProjectSpecification => ({projectId:"p-1",version:1,revision:2,briefRevision:3,startingPoint:"new",purpose:"A complete app",audience:"People",constraints:"Offline",outOfScope:[],requirements:[{id:"AC-001",title:"Save work",priority:"must",acceptance:"Saved work survives reopening"}],journeys:[],roles:[],entities:[],integrations:[],glossary:[],decisions:[],questions:[],status:"draft",digest:"",updatedAt:""});
 it("keeps model proposals separate from saved and approved definition", async () => {
   vi.spyOn(definitionApi,"get").mockResolvedValue(fixture());
@@ -27,6 +28,18 @@ it("keeps model proposals separate from saved and approved definition", async ()
   expect(save.mock.calls[0][1].requirements[0].id).toBe("AC-002");
   expect(approve).not.toHaveBeenCalled();
 });
+it("restores the latest interview without starting a provider job and isolates changed projects",async()=>{
+  vi.spyOn(definitionApi,"get").mockImplementation(async id=>({...fixture(),projectId:id}));
+  vi.mocked(definitionApi.listAssistance).mockImplementation(async id=>({jobs:id==="p-1"?[{id:"assist-existing",projectId:id,status:"succeeded",message:"Saved interview",createdAt:"2026-10-05",updatedAt:""}]:[]}));
+  vi.spyOn(definitionApi,"assistance").mockResolvedValue({id:"assist-existing",projectId:"p-1",status:"succeeded",message:"Saved interview",createdAt:"",updatedAt:"",result:{question:"Who may view the delivery?",options:[],rationale:"Clarify permissions.",proposal:null}});
+  const infer=vi.spyOn(definitionApi,"assist"); const analyse=vi.spyOn(definitionApi,"analyseRepository");
+  const {rerender}=render(<DefinitionWorkspace projectId="p-1"/>);
+  await screen.findByText("Who may view the delivery?");
+  expect(infer).not.toHaveBeenCalled();expect(analyse).not.toHaveBeenCalled();
+  rerender(<DefinitionWorkspace projectId="p-2"/>);
+  await waitFor(()=>expect(screen.queryByText("Who may view the delivery?")).toBeNull());
+  expect(infer).not.toHaveBeenCalled();expect(analyse).not.toHaveBeenCalled();
+});
 it("keeps requirement identities while changing acceptance words",async()=>{
   vi.spyOn(definitionApi,"get").mockResolvedValue(fixture());
   const save=vi.spyOn(definitionApi,"save").mockImplementation(async(_id,spec)=>({...spec,revision:3,briefRevision:4}));
@@ -37,4 +50,19 @@ it("keeps requirement identities while changing acceptance words",async()=>{
   await waitFor(()=>expect(save).toHaveBeenCalledOnce());
   expect(save.mock.calls[0][1].requirements[0].id).toBe("AC-001");
   expect(save.mock.calls[0][1].requirements[0].acceptance).toContain("offline");
+});
+it("does not let late saved interview history replace a newly requested job", async () => {
+  vi.spyOn(definitionApi,"get").mockResolvedValue(fixture());
+  let resolveHistory!: (value: Awaited<ReturnType<typeof definitionApi.listAssistance>>) => void;
+  vi.mocked(definitionApi.listAssistance).mockReturnValue(new Promise(resolve => { resolveHistory = resolve; }));
+  const readOld = vi.spyOn(definitionApi,"assistance");
+  vi.spyOn(definitionApi,"assist").mockResolvedValue({id:"assist-new",projectId:"p-1",status:"succeeded",message:"New interview",createdAt:"",updatedAt:"",result:{question:"The current question",options:[],rationale:"The selected request.",proposal:null}});
+  render(<DefinitionWorkspace projectId="p-1"/>);
+  await screen.findByRole("textbox",{name:"The idea"});
+  await userEvent.type(screen.getByRole("textbox",{name:"What would you like to explore?"}),"Explore current requirements");
+  await userEvent.click(screen.getByRole("button",{name:"Ask Luci"}));
+  await screen.findByText("The current question");
+  await act(async () => { resolveHistory({jobs:[{id:"assist-old",projectId:"p-1",status:"succeeded",message:"Old interview",createdAt:"2026-10-01",updatedAt:""}]}); });
+  expect(readOld).not.toHaveBeenCalled();
+  expect(screen.getByText("The current question")).not.toBeNull();
 });

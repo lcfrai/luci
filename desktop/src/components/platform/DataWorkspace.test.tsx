@@ -1,10 +1,11 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { DataWorkspace } from "./DataWorkspace";
 import { dataApi, type DataStatus } from "../../api/data";
 import { platformApi } from "../../api/platform";
 vi.mock("../../api/product", async (importOriginal) => ({ ...await importOriginal<typeof import("../../api/product")>(), productApi: { targets: vi.fn().mockResolvedValue({ targets: [] }) } }));
 vi.mock("../../api/platform", async (importOriginal) => ({ ...await importOriginal<typeof import("../../api/platform")>(), platformApi: { prepareBrowser: vi.fn() } }));
+vi.mock("./DataEmail", () => ({ DataEmail: ({ ready }: { ready: boolean }) => <section aria-label="Application email settings">{ready ? "Email service settings" : "Saved email settings; start data before applying."}</section> }));
 vi.mock("../../api/data", () => ({ dataApi: { domain: vi.fn().mockImplementation(id => Promise.resolve({ projectId: id, status: "not-configured", revision: 0, message: "Private connection", emailDelivery: "unconfigured" })), configureDomain: vi.fn(), status: vi.fn(), action: vi.fn(), users: vi.fn(), createUser: vi.fn(), tables: vi.fn(), rows: vi.fn(), rls: vi.fn(), buckets: vi.fn(), realtime: vi.fn(), functions: vi.fn(), downloadBackup: vi.fn() } }));
 const initial: DataStatus = { projectId: "owned", provider: "supabase", version: "self-hosted/v0.8.2", revision: 0, status: "not-installed", message: "Not installed.", services: [], backups: [], capabilities: {}, requirements: { memoryMiB: 4096, cpuMillis: 2000, diskGiB: 40 }, priorStackRetained: false };
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(platformApi.prepareBrowser).mockReset(); vi.mocked(dataApi.status).mockResolvedValue(structuredClone(initial)); });
@@ -128,4 +129,69 @@ it("retains an existing local browser data endpoint without allocating a cloud c
   fireEvent.click(await screen.findByRole("button", { name: "Connect" }));
   expect((screen.getByLabelText("API address for your browser") as HTMLInputElement).value).toBe(address);
   expect(platformApi.prepareBrowser).not.toHaveBeenCalled();
+});
+
+it("offers retained-volume first-install recovery only after stopping and both acknowledgements", async () => {
+  vi.mocked(dataApi.status).mockResolvedValue({ ...initial, status: "degraded", initializationState: "unknown", canRecoverInstall: true });
+  vi.mocked(dataApi.action).mockImplementation(async (_id, action) => action === "stop" ? { ...initial, status: "stopped", initializationState: "unknown", canRecoverInstall: true, revision: 1 } : { ...initial, status: "installing", initializationState: "pending", canRecoverInstall: false, revision: 2, priorStackRetained: true, operation: { id: "recovery", action: "recover-install", status: "running", stage: "checking", message: "Verifying retained bootstrap failure", createdAt: "now", updatedAt: "now" } });
+  render(<DataWorkspace projectId="owned" dockerReady />);
+  const recovery = await screen.findByRole("button", { name: "Recover initial installation" });
+  expect((recovery as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByLabelText("Start a fresh installation and retain the incomplete stack's volumes.")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Stop data services" }));
+  await screen.findByLabelText("Start a fresh installation and retain the incomplete stack's volumes.");
+  fireEvent.click(screen.getByLabelText("Start a fresh installation and retain the incomplete stack's volumes."));
+  expect((recovery as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByLabelText("I have capacity for these services on the selected Docker host."));
+  fireEvent.click(recovery);
+  await waitFor(() => expect(dataApi.action).toHaveBeenCalledWith("owned", "recover-install", { acknowledgeResources: true, confirmFreshInstall: true }));
+  await screen.findByText("Verifying retained bootstrap failure");
+  expect(screen.getByText("Previous stack volumes are retained for recovery.")).not.toBeNull();
+  expect(screen.queryByText(/recovery completed/i)).toBeNull();
+});
+
+it("does not offer fresh-install recovery for a previously initialized stack or saved backups", async () => {
+  vi.mocked(dataApi.status).mockResolvedValue({ ...initial, status: "stopped", initializationState: "complete", canRecoverInstall: true });
+  const view = render(<DataWorkspace projectId="owned" dockerReady />);
+  await screen.findByRole("button", { name: "Start data services" });
+  expect(screen.queryByRole("button", { name: "Recover initial installation" })).toBeNull();
+  vi.mocked(dataApi.status).mockResolvedValue({ ...initial, projectId: "backup-project", status: "stopped", initializationState: "pending", canRecoverInstall: true, backups: [{ id: "saved", createdAt: "now", bytes: 1, sha256: "hash", includesStorage: true }] });
+  view.rerender(<DataWorkspace projectId="backup-project" dockerReady />);
+  await waitFor(() => expect(dataApi.status).toHaveBeenCalledWith("backup-project"));
+  await screen.findByRole("button", { name: "Start data services" });
+  expect(screen.queryByRole("button", { name: "Recover initial installation" })).toBeNull();
+});
+
+it("leaves a refused recovery actionable and does not report a successful installation", async () => {
+  vi.mocked(dataApi.status).mockResolvedValue({ ...initial, status: "stopped", initializationState: "unknown", canRecoverInstall: true });
+  vi.mocked(dataApi.action).mockRejectedValue(new Error("Luci could not verify a failed first bootstrap. The original stack was retained."));
+  render(<DataWorkspace projectId="owned" dockerReady />);
+  await screen.findByRole("button", { name: "Recover initial installation" });
+  fireEvent.click(screen.getByLabelText("Start a fresh installation and retain the incomplete stack's volumes."));
+  fireEvent.click(screen.getByLabelText("I have capacity for these services on the selected Docker host."));
+  fireEvent.click(screen.getByRole("button", { name: "Recover initial installation" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("original stack was retained");
+  expect(screen.queryByText(/installation completed/i)).toBeNull();
+});
+
+it("opens application email settings from the connection guidance while native services are stopped", async () => {
+  vi.mocked(dataApi.status).mockResolvedValue({ ...initial, status: "stopped" });
+  render(<DataWorkspace projectId="owned" dockerReady />);
+  fireEvent.click(await screen.findByRole("button", { name: "Connect" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Email settings" }));
+  expect(screen.getByRole("region", { name: "Application email settings" }).textContent).toContain("start data before applying");
+});
+
+it("ignores a late service operation after switching project", async () => {
+  let finish!: (value: DataStatus) => void;
+  vi.mocked(dataApi.action).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<DataWorkspace projectId="owned" dockerReady />);
+  await screen.findByRole("button", { name: "Install data services" });
+  fireEvent.click(screen.getByLabelText("I have capacity for these services on the selected Docker host."));
+  fireEvent.click(screen.getByRole("button", { name: "Install data services" }));
+  vi.mocked(dataApi.status).mockResolvedValue({ ...initial, projectId: "other" });
+  view.rerender(<DataWorkspace projectId="other" dockerReady />);
+  await act(async () => { finish({ ...initial, status: "ready", message: "Old project installation completed" }); });
+  expect(screen.queryByText("Old project installation completed")).toBeNull();
+  expect((await screen.findByRole("button", { name: "Install data services" }) as HTMLButtonElement).disabled).toBe(true);
 });

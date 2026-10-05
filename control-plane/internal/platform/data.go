@@ -20,24 +20,26 @@ import (
 // DataStatus contains cached receipts and client-safe configuration only. A GET
 // never starts Docker, downloads images, repairs a host, or returns an admin key.
 type DataStatus struct {
-	ProjectID          string            `json:"projectId"`
-	Provider           string            `json:"provider"`
-	Version            string            `json:"version"`
-	Revision           int               `json:"revision"`
-	Status             string            `json:"status"`
-	Message            string            `json:"message"`
-	URL                string            `json:"url,omitempty"`
-	EndpointScope      string            `json:"endpointScope"`
-	PublishableKey     string            `json:"publishableKey,omitempty"`
-	Services           []DataService     `json:"services"`
-	Operation          *DataOperation    `json:"operation,omitempty"`
-	Backups            []DataBackup      `json:"backups"`
-	Capabilities       map[string]bool   `json:"capabilities"`
-	Requirements       map[string]int    `json:"requirements"`
-	CheckedAt          string            `json:"checkedAt,omitempty"`
-	PriorStackRetained bool              `json:"priorStackRetained"`
-	PublicURL          string            `json:"publicUrl,omitempty"`
-	PublicDomain       *DataDomainStatus `json:"publicDomain,omitempty"`
+	ProjectID           string            `json:"projectId"`
+	Provider            string            `json:"provider"`
+	Version             string            `json:"version"`
+	Revision            int               `json:"revision"`
+	Status              string            `json:"status"`
+	Message             string            `json:"message"`
+	URL                 string            `json:"url,omitempty"`
+	EndpointScope       string            `json:"endpointScope"`
+	PublishableKey      string            `json:"publishableKey,omitempty"`
+	Services            []DataService     `json:"services"`
+	Operation           *DataOperation    `json:"operation,omitempty"`
+	Backups             []DataBackup      `json:"backups"`
+	Capabilities        map[string]bool   `json:"capabilities"`
+	Requirements        map[string]int    `json:"requirements"`
+	CheckedAt           string            `json:"checkedAt,omitempty"`
+	PriorStackRetained  bool              `json:"priorStackRetained"`
+	PublicURL           string            `json:"publicUrl,omitempty"`
+	PublicDomain        *DataDomainStatus `json:"publicDomain,omitempty"`
+	InitializationState string            `json:"initializationState"`
+	CanRecoverInstall   bool              `json:"canRecoverInstall"`
 }
 type DataService struct {
 	Name   string `json:"name"`
@@ -62,11 +64,12 @@ type DataBackup struct {
 	IncludesStorage bool   `json:"includesStorage"`
 }
 type dataInstallation struct {
-	ProjectID       string   `json:"projectId"`
-	StackID         string   `json:"stackId"`
-	StorageTenantID string   `json:"storageTenantId,omitempty"`
-	APIPort         int      `json:"apiPort"`
-	Previous        []string `json:"previous"`
+	ProjectID           string   `json:"projectId"`
+	StackID             string   `json:"stackId"`
+	StorageTenantID     string   `json:"storageTenantId,omitempty"`
+	APIPort             int      `json:"apiPort"`
+	Previous            []string `json:"previous"`
+	InitializationState string   `json:"initializationState,omitempty"`
 }
 
 func (i dataInstallation) storageTenant() string {
@@ -97,6 +100,7 @@ func (s *Service) registerData(mux *http.ServeMux) {
 	mux.HandleFunc("GET /v1/platform/projects/{id}/data/backups/{backupId}", s.downloadDataBackup)
 	s.registerDataControls(mux)
 	s.registerDataDomain(mux)
+	s.registerDataEmail(mux)
 }
 func emptyData(id string) DataStatus {
 	return DataStatus{ProjectID: id, Provider: "supabase", Version: "self-hosted/v0.8.2", EndpointScope: "selected-docker-host-loopback", Status: "not-installed", Message: "Optional Auth, REST, Storage, Realtime and Functions use a separate PostgreSQL 17 stack. Existing PostgreSQL 16 data is retained.", Services: []DataService{}, Backups: []DataBackup{}, Capabilities: map[string]bool{"auth": false, "rest": false, "storage": false, "realtime": false, "tables": false, "rowLevelSecurity": false, "functions": false, "backups": false, "restore": false}, Requirements: map[string]int{"memoryMiB": 4096, "cpuMillis": 2000, "diskGiB": 40}}
@@ -110,6 +114,7 @@ func (s *Service) loadData(id string) (DataStatus, error) {
 	if v.ProjectID != id {
 		return v, errors.New("data project binding mismatch")
 	}
+	s.dataInitializationStatus(&v)
 	return v, e
 }
 func (s *Service) changeData(id string, f func(*DataStatus)) error {
@@ -149,6 +154,7 @@ type dataActionRequest struct {
 	AcknowledgeResources bool   `json:"acknowledgeResources"`
 	BackupID             string `json:"backupId,omitempty"`
 	ConfirmRestore       bool   `json:"confirmRestore,omitempty"`
+	ConfirmFreshInstall  bool   `json:"confirmFreshInstall,omitempty"`
 }
 
 func (s *Service) dataAction(w http.ResponseWriter, r *http.Request) {
@@ -161,17 +167,21 @@ func (s *Service) dataAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch in.Action {
-	case "install", "start", "stop", "refresh", "backup", "restore":
+	case "install", "start", "stop", "refresh", "backup", "restore", "recover-install":
 	default:
-		problem(w, 400, "invalid_action", "Choose install, start, stop, refresh, backup or restore.")
+		problem(w, 400, "invalid_action", "Choose install, start, stop, refresh, backup, restore or recover-install.")
 		return
 	}
-	if (in.Action == "install" || in.Action == "start" || in.Action == "restore") && !in.AcknowledgeResources {
+	if (in.Action == "install" || in.Action == "start" || in.Action == "restore" || in.Action == "recover-install") && !in.AcknowledgeResources {
 		problem(w, 400, "resource_acknowledgement_required", "This optional stack needs at least 4 GiB RAM, 2 CPU cores and 40 GiB SSD, in addition to other workloads. Acknowledge those resources before starting it.")
 		return
 	}
 	if in.Action == "restore" && (!in.ConfirmRestore || !identifier.MatchString(in.BackupID)) {
 		problem(w, 400, "restore_confirmation_required", "Choose a recorded backup and confirm that restoring replaces the active data stack. The previous stack is retained.")
+		return
+	}
+	if in.Action == "recover-install" && !in.ConfirmFreshInstall {
+		problem(w, 400, "fresh_install_confirmation_required", "Confirm a fresh data installation after stopping the incomplete owned stack. Its original volumes are retained; no data is assumed empty or deleted.")
 		return
 	}
 	if !s.claim(p.ID, operationLimit(r)) {
@@ -271,7 +281,7 @@ func (s *Service) runDataAction(ctx context.Context, id string, in dataActionReq
 			return e
 		}
 		if install.StackID == "" {
-			install = dataInstallation{ProjectID: id, StackID: randomID("stack-"), Previous: []string{}}
+			install = dataInstallation{ProjectID: id, StackID: randomID("stack-"), Previous: []string{}, InitializationState: "pending"}
 			install.APIPort, e = freeDataPort()
 			if e != nil {
 				return e
@@ -311,13 +321,27 @@ func (s *Service) runDataAction(ctx context.Context, id string, in dataActionReq
 		if e = s.refreshData(ctx, install, true); e != nil {
 			return e
 		}
+		if e = s.markDataInitialized(install); e != nil {
+			return e
+		}
 		return s.refreshPublishedDataDomain(ctx, id, false)
+	case "recover-install":
+		return s.recoverDataInstallation(ctx, id, install)
 	case "refresh":
 		if install.StackID == "" {
 			return &dataFailure{"Install the optional data stack before refreshing it."}
 		}
 		if e = s.refreshData(ctx, install, false); e != nil {
 			return e
+		}
+		status, statusErr := s.loadData(id)
+		if statusErr != nil {
+			return statusErr
+		}
+		if status.Status == "ready" {
+			if e = s.markDataInitialized(install); e != nil {
+				return e
+			}
 		}
 		return s.refreshPublishedDataDomain(ctx, id, false)
 	case "stop":

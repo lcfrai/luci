@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lcfrai/luci/control-plane/internal/hostpath"
 	"gopkg.in/yaml.v3"
 )
 
@@ -62,6 +63,9 @@ func reviewedDataAssets() (dataAssetManifest, error) {
 	return m, nil
 }
 func (s *Service) prepareDataStack(install dataInstallation, secret dataSecret) error {
+	return s.prepareDataStackEmail(install, secret, nil)
+}
+func (s *Service) prepareDataStackEmail(install dataInstallation, secret dataSecret, email *dataEmailRuntimeSelection) error {
 	m, e := reviewedDataAssets()
 	if e != nil {
 		return e
@@ -70,6 +74,7 @@ func (s *Service) prepareDataStack(install dataInstallation, secret dataSecret) 
 	if e != nil {
 		return e
 	}
+	publicDirectories := map[string]bool{}
 	for _, f := range m.Files {
 		if !strings.HasPrefix(f.Path, "volumes/") {
 			continue
@@ -90,10 +95,26 @@ func (s *Service) prepareDataStack(install dataInstallation, secret dataSecret) 
 			b = []byte("{\"imports\":{}}\n")
 		}
 		target := filepath.Join(root, filepath.FromSlash(f.Path))
-		if e = os.MkdirAll(filepath.Dir(target), 0755); e != nil {
+		if e = dataPublicAssetDirectories(root, filepath.Dir(target), publicDirectories); e != nil {
 			return e
 		}
+		if _, statErr := os.Lstat(target); statErr == nil {
+			if _, e = hostpath.ConfineToMounts([]string{root}, target); e != nil {
+				return e
+			}
+		} else if !errors.Is(statErr, os.ErrNotExist) {
+			return statErr
+		}
 		if e = os.WriteFile(target, b, 0644); e != nil {
+			return e
+		}
+		if _, e = hostpath.ConfineToMounts([]string{root}, target); e != nil {
+			return e
+		}
+		// The private controller runs under umask 077. Embedded SQL/functions
+		// are public source read by service UIDs through read-only bind mounts;
+		// mkdir/write modes alone would leave them unreadable as 0700/0600.
+		if e = os.Chmod(target, 0644); e != nil {
 			return e
 		}
 	}
@@ -191,12 +212,47 @@ func (s *Service) prepareDataStack(install dataInstallation, secret dataSecret) 
 		values["SITE_URL"] = origin
 		values["ADDITIONAL_REDIRECT_URLS"] = origin + "/**"
 	}
+	if e = s.dataEmailConfiguration(install, values, email); e != nil {
+		return e
+	}
+	for _, key := range []string{"SMTP_HOST", "SMTP_USER", "SMTP_PASS", "SMTP_ADMIN_EMAIL", "SMTP_SENDER_NAME"} {
+		values[key] = dataEmailEnvironmentLiteral(values[key])
+	}
 	file, e := s.envFile(values)
 	if e != nil {
 		return e
 	}
 	defer os.Remove(file)
 	return os.Rename(file, filepath.Join(root, "runtime.env"))
+}
+
+func dataPublicAssetDirectories(root, directory string, verified map[string]bool) error {
+	relative, e := filepath.Rel(root, directory)
+	if e != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) || filepath.IsAbs(relative) {
+		return errors.New("public data asset directory escapes the owned stack")
+	}
+	parts := strings.Split(relative, string(filepath.Separator))
+	if len(parts) == 0 || parts[0] != "volumes" {
+		return errors.New("only embedded data asset ancestors may have public modes")
+	}
+	current := root
+	for _, part := range parts {
+		current = filepath.Join(current, part)
+		if verified[current] {
+			continue
+		}
+		if e = os.Mkdir(current, 0755); e != nil && !errors.Is(e, os.ErrExist) {
+			return e
+		}
+		if _, e = hostpath.ConfineToMounts([]string{root}, current); e != nil {
+			return e
+		}
+		if e = os.Chmod(current, 0755); e != nil {
+			return e
+		}
+		verified[current] = true
+	}
+	return nil
 }
 func (s *Service) verifyDataOwnership(ctx context.Context, install dataInstallation, allowMissing bool) error {
 	for _, name := range dataServiceNames {

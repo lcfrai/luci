@@ -140,7 +140,7 @@ func (s *Service) DataDomainStatus(id string) (DataDomainStatus, error) {
 	if e != nil {
 		return DataDomainStatus{}, e
 	}
-	result := DataDomainStatus{ProjectID: id, Status: v.Status, Message: v.Message, Domain: v.Request.Domain, AppOrigin: v.Request.AppOrigin, TargetID: v.Request.TargetID, ServerUUID: v.Receipt.ServerUUID, ProviderServiceUUID: v.Receipt.ProviderServiceUUID, ConfigurationDigest: v.Receipt.ConfigurationDigest, Revision: v.Revision, CheckedAt: v.CheckedAt, EmailDelivery: "unconfigured", Operation: v.Operation}
+	result := DataDomainStatus{ProjectID: id, Status: v.Status, Message: v.Message, Domain: v.Request.Domain, AppOrigin: v.Request.AppOrigin, TargetID: v.Request.TargetID, ServerUUID: v.Receipt.ServerUUID, ProviderServiceUUID: v.Receipt.ProviderServiceUUID, ConfigurationDigest: v.Receipt.ConfigurationDigest, Revision: v.Revision, CheckedAt: v.CheckedAt, EmailDelivery: s.EmailDeliveryStatus(id), Operation: v.Operation}
 	if v.Operation != nil && v.Operation.Status == "running" {
 		s.mu.Lock()
 		busy := s.busy[id]
@@ -804,7 +804,7 @@ func (s *Service) runDataDomain(ctx context.Context, id string, in DataDomainReq
 	var receipt DataDomainReceipt
 	switch in.Action {
 	case "publish":
-		s.domainStage(id, "configuring-auth", "Configuring Auth with the data API domain and application redirect origin. Email delivery remains unconfigured until SMTP is supplied.")
+		s.domainStage(id, "configuring-auth", "Configuring Auth with the data API domain and application redirect origin. Email delivery uses this project's applied SMTP settings.")
 		nativeChanged = true
 		if e = s.configureDataDomain(ctx, id, current); e != nil {
 			return e
