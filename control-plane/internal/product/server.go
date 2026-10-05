@@ -275,10 +275,7 @@ func newID(prefix string) string {
 
 // RunCommand never invokes a shell. Output and duration are bounded, including child pipe drains.
 func RunCommand(ctx context.Context, executable string, args []string, dir string) (string, error) {
-	limit := 2 * time.Minute
-	if _, ok := ctx.Deadline(); ok {
-		limit = 10 * time.Minute
-	}
+	limit := commandExecutionBudget(ctx, executable, args)
 	ctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
 	if executable == "git" {
