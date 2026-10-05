@@ -465,3 +465,72 @@ fixture provider or auxiliary deployment substitutes for the required real
 Describe→Design→Develop→Deploy public application. Live AWS/Azure resource and
 domain/TLS journeys and external SMTP delivery retain their own prerequisites
 and evidence gates. The full-product goal remains open.
+
+## Installed 0.4.9 checkpoint and canvas correction — 6 October 2026
+
+Clean source `c458c6e58503170d63ea701b0bfdc3bf032ec4a8` produced the three
+portable archives and Linux cloud archive without a local native rebuild. Their
+licence inventories remain complete (345 Windows, 344 Linux, 344 macOS). Both
+Docker instances upgraded to the matching 928-file distribution with accounts,
+journeys and volumes preserved. The primary runtime is ready and its remembered
+admin visit opens the projects catalogue. Upgrade receipts are
+`package-upgrade-9de4c5cc-06dd-49bf-ad4d-7d9848fee115.json` in the primary and
+`package-upgrade-d8ffa128-eaab-4d3a-babc-c7349ad6c592.json` in the secondary
+instance under `artifacts/subscription-e2e`.
+
+Full installed Fluid workflow acceptance passed all nine checks on the retained
+auxiliary project. Real Escape dismissal now returns to its exact Design control;
+focus trapping and Keep editing/explicit discard pass. Guided definition,
+native Sketch saving, exact approved implementation handoff, linked destination
+tabs, private-variable draft retention and invalid-field disclosure pass. Nine
+scoped desktop/mobile scans report zero axe violations or incomplete findings;
+appearance is restored and no model or service execution was performed. Evidence
+is `artifacts/review/fluid-ui-049-installed-summary.json`. Separate native canvas
+captures preserve their original 13 desktop/six mobile contrast findings as
+incomplete; they are not included in the nine zero-incomplete surfaces.
+
+The shipped Windows portable verifier passes its six checks, including seven
+launcher outcomes. Its same-binary multi-user control-plane smoke passes seven
+checks. Every one of 919 materialized package files matches its shipped ZIP;
+the owned processes exited. The independent source candidate audit checks 953
+original committed files, all 959 archive files/modes, 106 pinned platform assets,
+59 grant references and 12 adapted Fluid files. The focused asset test runs from
+that actual exported candidate and passes (0.588 seconds). Evidence is
+`artifacts/review/049-local-portable-source-acceptance.json`. The temporary child
+process's null/empty environment-restoration bookkeeping failure is preserved
+with a separate resolution; it did not mutate the parent host environment or
+require an application rerun.
+
+CI `37348953998` passes broad Go/race/desktop/connected-browser checks, the real
+non-root Docker and browser workflows, all eight SSH outcomes, and Linux/macOS
+portable execution. The formerly blocked member-project and return-local paths
+pass. Its actual merge `def5615` and branch source have the same tree. The Windows
+native job is still running; installer UAT is not yet a pass. Digest-verified
+core/runtime evidence is under `artifacts/review/049-ci-37348953998-recovery`.
+
+Actual branch acceptance now reaches a running sandbox shell with live WebSocket
+output and exact primary source/work-directory isolation. Source and a Git commit
+were created through the real terminal, and checkout while that CLI is active
+correctly returns `409 sessions_active`. Native UI stop is verified. The remaining
+branch/preview journey is still in progress; earlier harness failures and stopped
+owned sessions are retained. They cannot stand in for complete branch acceptance.
+
+A targeted manual investigation resolves the native canvas's 19 incomplete
+contrast findings into 14 actual small-text failures and five passes. Inactive
+shortcut numbers render at 1.984:1 against white; hint text renders at 1.871:1
+against the actual saved paper. All 31 associated icon paints pass their 3:1
+threshold. The text is active small text and cannot use a disabled exemption.
+Evidence is `artifacts/review/native-canvas-contrast-manual-resolution-049.json`.
+
+The next 0.4.10 candidate applies a narrow adapter in `design.css`: native
+on-surface text replaces the low-contrast idle shortcut token, while checked and
+hovered child tokens retain their semantics. The overflowing hint receives an
+opaque native island background with its matching text colour so arbitrary
+document paper cannot reduce contrast. An explicit dark selector makes the
+override independent of async vendor stylesheet order. No vendored source or
+scene geometry is changed. The projected ratios are preparation only; the new
+compiled and immutable installed light/dark controls must supply actual proof.
+
+The full goal remains open. The completed UI, auxiliary shell, portable and CI
+runtime outcomes do not establish Codex subscription implementation, the required
+public generated site, live provider/domain/TLS outcomes or external email delivery.

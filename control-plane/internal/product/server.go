@@ -23,7 +23,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
-const Version = "0.4.9"
+const Version = "0.4.10"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`

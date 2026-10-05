@@ -14,6 +14,14 @@
 .design-empty p { line-height: 1.65; }
 .design-sketch { min-block-size: 650px; }
 .design-sketch > section { block-size: 700px; }
+/* Native shortcut text stays readable; selected tools retain their own token. */
+.design-canvas .excalidraw,
+.design-canvas .excalidraw.theme--dark { --keybinding-color: var(--color-on-surface); }
+/* The hint overflows its toolbar onto document paper, which can be any colour. */
+.design-canvas .excalidraw .HintViewer > span {
+  color: var(--color-on-surface);
+  background-color: var(--island-bg-color);
+}
 .design-prototype-tools { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-block: 24px; }
 .design-prototype-tools > .luci-field { flex: 1; min-inline-size: 220px; }
 .design-prototype-viewport { overflow: auto; background: var(--canvas); padding: 18px; display: grid; gap: 16px; }

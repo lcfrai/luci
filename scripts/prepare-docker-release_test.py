@@ -61,7 +61,7 @@ class DockerReleaseBoundary(unittest.TestCase):
             self.assertEqual((output / name).read_bytes(), (SOURCE_ROOT / "distribution/docker" / name).read_bytes().replace(b"\r\n", b"\n"))
             self.assertNotIn(b"\r", (output / name).read_bytes())
         self.assertEqual((output / "compose.yaml").read_bytes().count(b"${LUCI_VERSION:-0.4.4}"), 2)
-        self.assertNotIn(b"${LUCI_VERSION:-0.4.9}", (output / "compose.yaml").read_bytes())
+        self.assertNotIn(b"${LUCI_VERSION:-0.4.10}", (output / "compose.yaml").read_bytes())
         archive = packaging.archive_distribution(self.repo, output)
         self.assertEqual(archive["sha256"], packaging.digest(output.with_name(output.name + ".zip")))
         with zipfile.ZipFile(output.with_name(output.name + ".zip")) as zipped:
