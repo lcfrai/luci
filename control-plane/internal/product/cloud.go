@@ -262,7 +262,7 @@ install -d -m 700 -o luci -g luci /home/luci/.ssh /home/luci/.local/state/luci
 printf '%%s\n' '%s' > /home/luci/.ssh/authorized_keys
 chmod 600 /home/luci/.ssh/authorized_keys
 chown luci:luci /home/luci/.ssh/authorized_keys
-install -d -m 700 /opt/luci
+install -d -m 755 /opt/luci
 curl --fail --proto '=https' --tlsv1.2 --location https://raw.githubusercontent.com/coollabsio/coolify/e2e2d4010bcd590084b66d6f748f3eec8e2bbee9/scripts/install.sh --output /opt/luci/coolify-install.sh
 printf '%%s  %%s\n' '8ef02dce49339208f5abc247bff0277c73d04538d7a36dcfd21331e314e0f2cd' '/opt/luci/coolify-install.sh' | sha256sum --check --status
 AUTOUPDATE=false bash /opt/luci/coolify-install.sh 4.3.23

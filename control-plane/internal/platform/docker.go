@@ -328,6 +328,9 @@ func (s *Service) deploy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rev, env, e := s.environment(p.ID)
+	if e == nil {
+		e = s.deploymentBrowserData(r, p.ID, env)
+	}
 	if e != nil {
 		s.release(p.ID)
 		problem(w, 500, "configuration_unavailable", "Runtime configuration could not be read.")

@@ -368,7 +368,7 @@ func (g *Gateway) Handler() http.Handler {
 	})
 }
 
-var previewPathPattern = regexp.MustCompile(`^/v1/product/projects/[A-Za-z0-9_-]+/releases/[A-Za-z0-9_-]+/preview/`)
+var previewPathPattern = regexp.MustCompile(`^/v1/(?:product/projects/[A-Za-z0-9_-]+/releases/[A-Za-z0-9_-]+/preview/|platform/projects/[A-Za-z0-9_-]+/browser/(?:application|data)/[A-Za-z0-9_-]+/)`)
 
 func privatePreviewPath(r *http.Request) bool {
 	if !isPrivatePreviewRequest(r) || !previewPathPattern.MatchString(r.URL.RawPath) {

@@ -140,11 +140,12 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	origin := "http://" + r.Host
+	dataTarget := target.Kind == "data" || target.ClientKind == "data"
 	requestOrigin := r.Header.Get("Origin")
 	allowedOrigin := requestOrigin == "" || requestOrigin == origin
-	if target.Kind == "data" && requestOrigin != "" && requestOrigin != origin {
+	if dataTarget && requestOrigin != "" && requestOrigin != origin {
 		for _, other := range all {
-			if other.owner == target.owner && other.ProjectID == target.ProjectID && other.Kind != "data" && requestOrigin == "http://"+other.Key+".localhost:"+portString(g.port) {
+			if other.owner == target.owner && other.ProjectID == target.ProjectID && other.Kind != "data" && other.ClientKind != "data" && requestOrigin == "http://"+other.Key+".localhost:"+portString(g.port) {
 				allowedOrigin = true
 				break
 			}
@@ -154,27 +155,8 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Browser origin is not approved for this project", 403)
 		return
 	}
-	if target.Kind == "data" {
-		if !dataPath(r.URL.Path) {
-			http.NotFound(w, r)
-			return
-		}
-		auth := r.Header.Get("Authorization")
-		if auth != "" && (!strings.HasPrefix(auth, "Bearer ") || !jwtClient(strings.TrimPrefix(auth, "Bearer "))) {
-			http.Error(w, "Use a Supabase client user token", 401)
-			return
-		}
-		if key := r.Header.Get("apikey"); key != "" && key != target.PublishableKey {
-			http.Error(w, "Use this project's publishable key", 401)
-			return
-		}
-		q := r.URL.Query()
-		if key := q.Get("apikey"); key != "" && key != target.PublishableKey {
-			http.Error(w, "Use this project's publishable key", 401)
-			return
-		}
-		if token := q.Get("access_token"); token != "" && !jwtClient(token) {
-			http.Error(w, "Use a Supabase client user token", 401)
+	if dataTarget {
+		if !AllowDataClient(w, r, target.PublishableKey) {
 			return
 		}
 		if requestOrigin != "" {
@@ -226,7 +208,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				res.Header.Set("Location", loc.String())
 			}
 		}
-		if target.Kind == "data" {
+		if dataTarget {
 			res.Header.Del("Access-Control-Allow-Origin")
 			res.Header.Del("Access-Control-Allow-Credentials")
 			if requestOrigin != "" {

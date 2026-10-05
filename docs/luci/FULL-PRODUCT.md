@@ -82,6 +82,27 @@ and passing regressions; the updated clean package must repeat their installed
 outcomes. Official subscription sign-in remains a user step. No successful
 inference, implementation or public site is claimed at this checkpoint.
 
+The installed Docker candidate also passed 55 of 56 functional cloud-entry
+checks: AWS/Azure selection and plan validation, cost acknowledgements and
+invalidation, existing-server connection prerequisites and recovery. No account
+sign-in or cloud resource creation was attempted. The failure was a bundled
+Azure CLI readiness decoder rejecting its valid nested extensions object.
+Fresh-restore browser addresses also need to remain stable for connected
+applications, without routing to a replacement stack before healthy promotion.
+These corrections require a new matching package and installed acceptance.
+
+Cloud installation now keeps the executable ancestors traversable by the
+system-service user while retaining private workspace/state permissions. Eleven
+checks using the generated installer in an isolated Linux container verified
+that correction; its executable and systemctl were explicit fixtures. Protected
+cloud application/data browser transport uses the authenticated workspace
+connection and separate local origins. New Docker deployments receive the
+desktop's verified client data address while private server bindings stay on the
+selected Docker network. Existing apps need redeployment after connecting or
+reconnecting; restoring an active stack retains the data address. These transport
+checks use real HTTP/WebSocket fixtures, not live AWS/Azure provisioning. Public
+data-domain publication and automatic Coolify data bindings remain unimplemented.
+
 Windows conversation storage now has compact physical names with unchanged
 logical identities and retained legacy state. A real isolated managed-account
 probe verified official Codex device sign-in stayed running and nested rollout

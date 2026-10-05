@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { dataApi, type DataStatus } from "../../api/data";
 import { errorText } from "../../api/product";
+import { platformApi, isolatedBrowserURL } from "../../api/platform";
 import { DataTables, DataUsers, DataStorage, DataRealtime, DataFunctions } from "./DataControls";
 import "./platform.css";
 
@@ -10,6 +11,8 @@ export function DataWorkspace({ projectId, dockerReady }: { projectId: string; d
   return <ProjectData key={projectId} projectId={projectId} dockerReady={dockerReady} />;
 }
 function ProjectData({ projectId, dockerReady }: { projectId: string; dockerReady: boolean }) {
+  const active = useRef(true), connectingBrowser = useRef(false);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [data, setData] = useState<DataStatus | null>(null);
   const [section, setSection] = useState<Section>("Services");
   const [pending, setPending] = useState("");
@@ -53,6 +56,20 @@ function ProjectData({ projectId, dockerReady }: { projectId: string; dockerRead
     catch (cause) { setError(errorText(cause)); }
     finally { setPending(""); }
   }
+  async function connectBrowser() {
+    if (locked || !ready || connectingBrowser.current) return;
+    connectingBrowser.current = true;
+    setPending("browser"); setError("");
+    try {
+      const connection = await platformApi.prepareBrowser(projectId, "data");
+      if (!active.current) return;
+      const address = isolatedBrowserURL(connection.url);
+      if (!address || connection.projectId !== projectId || connection.kind !== "data" || !connection.resourceId)
+        throw new Error("Luci could not verify this project's browser API connection. Reconnect your workspace and try again.");
+      setData(current => current ? { ...current, url: address, endpointScope: "browser-gateway" } : current);
+    } catch (cause) { if (active.current) setError(errorText(cause)); }
+    finally { connectingBrowser.current = false; if (active.current) setPending(""); }
+  }
   return <section className="data-workspace" aria-label="Project data platform">
     <header className="data-heading">
       <div><h3>Data &amp; authentication</h3><p>PostgreSQL, user accounts, files and live updates for this project.</p></div>
@@ -87,7 +104,7 @@ function ProjectData({ projectId, dockerReady }: { projectId: string; dockerRead
         {!!data.backups.length && <form className="data-form data-recovery" onSubmit={event => { event.preventDefault(); void action("restore"); }}><h4>Restore into a fresh stack</h4><p>The selected backup replaces the active data stack. Luci keeps the previous volumes for recovery. Staging needs another 4 GiB RAM and 2 CPU cores while the previous stack exists.</p><label>Backup to restore<select required value={restoreId} disabled={locked} onChange={event => { setRestoreId(event.target.value); setRestoreConfirmed(false); }}><option value="">Choose a saved backup</option>{data.backups.map(backup => <option key={backup.id} value={backup.id}>{new Date(backup.createdAt).toLocaleString()} · {backup.id}</option>)}</select></label><label className="data-check"><input type="checkbox" checked={acknowledged} disabled={locked} onChange={event => setAcknowledged(event.target.checked)} />I have capacity for a fresh data stack.</label><label className="data-check"><input type="checkbox" checked={restoreConfirmed} disabled={locked || !restoreId} onChange={event => setRestoreConfirmed(event.target.checked)} />Restore this backup and replace the active stack.</label><button className="luci-button" disabled={locked || !dockerReady || !restoreId || !acknowledged || !restoreConfirmed}>Restore selected backup</button></form>}
         {data.priorStackRetained && <p>Previous stack volumes are retained. They are not deleted by restoring.</p>}
       </section>}
-      {section === "Connect" && <section className="data-section"><h4>Connect your application</h4><p>Apps running on this project’s Docker network receive server connection settings privately when deployed. Your browser client uses the public anonymous key with row-level security.</p>{data.url ? <><label className="data-readonly">{data.endpointScope === "browser-gateway" ? "API address for your browser" : "API address on the selected Docker host"}<input readOnly value={data.url} /></label><p>{data.endpointScope === "browser-gateway" ? "This local address reaches your project through Luci’s Docker gateway. Keep Docker running while using it. Public hosting needs an HTTPS proxy and domain." : "This loopback address works on that Docker host. A cloud workspace needs an HTTPS proxy and domain before a browser on another machine can use it."}</p></> : <p>An API address will appear after installation.</p>}{data.publishableKey && <label className="data-readonly">Public anonymous key<textarea readOnly rows={4} value={data.publishableKey} /><small>This key identifies the project; it is not an administrator credential. Access depends on your table and storage policies.</small></label>}<p>Supabase {data.version}. Email delivery and OAuth providers need separate configuration before those sign-in flows can be used.</p></section>}
+      {section === "Connect" && <section className="data-section"><h4>Connect your application</h4><p>Apps running on this project’s Docker network receive server connection settings privately when deployed. Your browser client uses the public anonymous key with row-level security. New Docker deployments receive this browser address automatically. Redeploy existing applications after connecting or reconnecting the workspace.</p>{data.endpointScope === "workspace-browser-pending" ? <><p>Your data services are running on the connected workspace. Connect a private browser address to use their API from this computer.</p><button type="button" className="luci-button" disabled={locked || !ready} onClick={() => void connectBrowser()}>{pending === "browser" ? "Connecting browser API…" : "Connect browser API"}</button></> : data.url ? <><label className="data-readonly">{data.endpointScope === "browser-gateway" ? "API address for your browser" : "API address on the selected Docker host"}<input readOnly value={data.url} /></label><p>{data.endpointScope === "browser-gateway" ? "This local address reaches your project through your active Luci workspace connection. Keep Luci and its Docker host running. Public hosting needs an HTTPS proxy and domain." : "This loopback address works on that Docker host. A cloud workspace needs an HTTPS proxy and domain before a browser on another machine can use it."}</p></> : <p>An API address will appear after installation.</p>}{data.publishableKey && <label className="data-readonly">Public anonymous key<textarea readOnly rows={4} value={data.publishableKey} /><small>This key identifies the project; it is not an administrator credential. Access depends on your table and storage policies.</small></label>}<p>Supabase {data.version}. Email delivery and OAuth providers need separate configuration before those sign-in flows can be used.</p></section>}
     </>}
   </section>;
 }

@@ -434,9 +434,42 @@ func (s *Service) restoreData(ctx context.Context, id string, previous dataInsta
 			_ = s.changeData(id, func(v *DataStatus) { v.PriorStackRetained = true })
 		}
 		if previousStopped && previous.StackID != "" {
-			_, _ = s.compose(ctx, previous, "up", "-d", "--wait", "--wait-timeout", "240")
-			_ = s.attachDataNetwork(ctx, previous)
-			_ = s.write(id+"-data-installation", previous)
+			reinstate := func() error {
+				if e := s.detachDataNetwork(ctx, next); e != nil {
+					return e
+				}
+				if _, e := s.compose(ctx, previous, "up", "-d", "--wait", "--wait-timeout", "240"); e != nil {
+					return e
+				}
+				if e := s.attachDataNetwork(ctx, previous); e != nil {
+					return e
+				}
+				if e := s.write(id+"-data-installation", previous); e != nil {
+					return e
+				}
+				if e := s.refreshData(ctx, previous, true); e != nil {
+					return e
+				}
+				previousSecret, e := s.dataCredentials(previous)
+				if e != nil {
+					return e
+				}
+				_, e = s.browserDataURL(previous, previousSecret)
+				return e
+			}
+			if reinstate() != nil {
+				err = &dataFailure{"Restore failed during activation and the previous application connection could not be fully reinstated. Both stacks and the backup are retained; inspect owned services before retrying."}
+				_ = s.changeData(id, func(v *DataStatus) {
+					v.Status = "degraded"
+					v.URL = ""
+					for key := range v.Capabilities {
+						v.Capabilities[key] = false
+					}
+					v.Capabilities["restore"] = len(v.Backups) > 0
+				})
+			} else {
+				err = &dataFailure{"Restore failed during activation. The previous stack and its application connections have been reinstated; the candidate and backup are retained for inspection."}
+			}
 		}
 	}()
 	s.dataStage(id, "restoring", "Restoring into a fresh owned PostgreSQL 17 and file volume. The existing stack stays available until the restored stack passes checks.")
@@ -516,9 +549,17 @@ func (s *Service) restoreData(ctx context.Context, id string, previous dataInsta
 	if e = s.refreshData(ctx, next, true); e != nil {
 		return e
 	}
+	if _, e = s.browserDataURL(next, secret); e != nil {
+		return e
+	}
 	switched = true
 	return s.changeData(id, func(v *DataStatus) {
 		v.PriorStackRetained = previous.StackID != ""
-		v.Message = "Restored database and storage passed health checks. The previous stack is stopped and retained. Redeploy applications to update their client-facing data URL."
+		v.Message = "Restored database and storage passed health checks. The previous stack is stopped and retained."
+		if s.browserRegistry != nil {
+			v.Message += " Connected applications keep the same data address."
+		} else {
+			v.Message += " Redeploy applications to update their client-facing data URL."
+		}
 	})
 }

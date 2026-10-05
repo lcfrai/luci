@@ -608,6 +608,8 @@ const SEAMS: Seam[] = [
           "control-plane/internal/product/workspace.go",
           "control-plane/internal/product/preview_proxy.go",
           "control-plane/internal/previewgateway/gateway.go",
+          "control-plane/internal/platform/browser_bridge.go",
+          "control-plane/internal/product/workspace_platform.go",
           "control-plane/internal/management/runtime.go",
           "control-plane/internal/management/sockets.go",
         ],

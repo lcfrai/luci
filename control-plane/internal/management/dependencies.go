@@ -476,9 +476,13 @@ func (m *dependencyManager) checkTool(parent context.Context, def dependencyDefi
 	result := m.runner.run(ctx, path, args...)
 	version := ""
 	if def.id == "azure" {
-		var versions map[string]string
+		// Azure also returns nested extension metadata. Only the CLI version
+		// determines readiness; a nonstring version must still be rejected.
+		var versions struct {
+			AzureCLI string `json:"azure-cli"`
+		}
 		if json.Unmarshal([]byte(result.Output), &versions) == nil {
-			version = versions["azure-cli"]
+			version = versions.AzureCLI
 			if !regexp.MustCompile(`^[0-9][0-9A-Za-z._+-]{0,63}$`).MatchString(version) {
 				version = ""
 			}

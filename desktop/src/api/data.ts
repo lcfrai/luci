@@ -8,7 +8,7 @@ export interface DataBackup {
 export interface DataStatus {
   projectId: string; provider: "supabase"; version: string; revision: number;
   status: string; message: string; url?: string; publishableKey?: string;
-  endpointScope?: "selected-docker-host-loopback" | "browser-gateway";
+  endpointScope?: "selected-docker-host-loopback" | "browser-gateway" | "workspace-browser-pending";
   services: { name: string; status: string; health: string; image: string }[];
   operation?: { id: string; action: string; status: string; stage: string; message: string; createdAt: string; updatedAt: string };
   backups: DataBackup[]; capabilities: Record<string, boolean>;

@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { errorText, productApi, type GitDelivery } from "../../api/product";
 import {
   platformApi,
+  isolatedBrowserURL,
   type PanaceaConnection,
   type PanaceaProject,
   type PlatformDeployment,
@@ -15,6 +16,8 @@ export function PlatformWorkspace({ projectId }: { projectId: string }) {
 }
 
 function ProjectPlatform({ projectId }: { projectId: string }) {
+  const active = useRef(true), connectingBrowser = useRef(false);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [status, setStatus] = useState<PlatformStatus | null>(null);
   const [project, setProject] = useState<PlatformProject | null>(null);
   const [delivery, setDelivery] = useState<GitDelivery | null>(null);
@@ -132,6 +135,22 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
     if (deployment.provider === "panacea")
       await platformApi.refreshPanacea(projectId, deployment.id);
     else await platformApi.action(projectId, deployment.id, "refresh");
+  }
+  async function openWorkspaceApplication(deployment: PlatformDeployment) {
+    if (disabled || connectingBrowser.current) return;
+    connectingBrowser.current = true;
+    setBusy("Connecting application browser"); setError(""); setMessage("");
+    try {
+      const connection = await platformApi.prepareBrowser(projectId, "application", deployment.id);
+      if (!active.current) return;
+      const address = isolatedBrowserURL(connection.url);
+      if (!address || connection.projectId !== projectId || connection.kind !== "application" || connection.resourceId !== deployment.id)
+        throw new Error("Luci could not verify this application's browser connection. Reconnect your workspace and try again.");
+      setProject(current => current ? { ...current, deployments: current.deployments.map(row => row.id === deployment.id ? { ...row, url: address, browserConnectionRequired: false } : row) } : current);
+      setMessage("Browser connection ready. You can open the application below.");
+      window.open(address, "_blank", "noopener,noreferrer");
+    } catch (cause) { if (active.current) setError(errorText(cause)); }
+    finally { connectingBrowser.current = false; if (active.current) setBusy(""); }
   }
   return (
     <section
@@ -526,7 +545,12 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                   <p>
                     <strong>{deployment.status}</strong> · {deployment.message}
                   </p>
-                  {deployment.status === "ready" && safeURL(deployment.url) && (
+                  {deployment.status === "ready" && deployment.provider === "docker" && deployment.browserConnectionRequired && (
+                    <button type="button" className="luci-button" disabled={disabled} onClick={() => void openWorkspaceApplication(deployment)}>
+                      Open deployed application
+                    </button>
+                  )}
+                  {deployment.status === "ready" && !deployment.browserConnectionRequired && safeURL(deployment.url) && (
                     <a
                       className="luci-button"
                       href={safeURL(deployment.url)}

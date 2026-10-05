@@ -23,6 +23,7 @@ type dependencyProcessCall struct {
 type fakeDependencyRunner struct {
 	mu            sync.Mutex
 	installed     map[string]bool
+	versionOutput map[string]string
 	sourceTrusted bool
 	engineRunning bool
 	calls         []dependencyProcessCall
@@ -93,6 +94,7 @@ func (f *fakeDependencyRunner) run(ctx context.Context, executable string, args 
 		return dependencyCommandResult{Code: code, Output: "publisher output is not public"}
 	}
 	engine := f.engineRunning
+	versionOverride, overridden := f.versionOutput[name]
 	f.mu.Unlock()
 	if name == "docker" && args[0] == "info" {
 		if !engine {
@@ -100,10 +102,13 @@ func (f *fakeDependencyRunner) run(ctx context.Context, executable string, args 
 		}
 		return dependencyCommandResult{Output: "28.5.1"}
 	}
+	if overridden {
+		return dependencyCommandResult{Output: versionOverride}
+	}
 	versions := map[string]string{
 		"git": "git version 2.51.0.windows.1\n", "docker": "Docker version 28.5.1, build xxx\n",
 		"gh": "gh version 2.80.0 (2026-01-01)\n", "aws": "aws-cli/2.31.1 Python/3.13 Windows/11 exe/AMD64\n",
-		"az": `{"azure-cli":"2.78.0","azure-cli-core":"2.78.0"}`,
+		"az": `{"azure-cli":"2.88.0","azure-cli-core":"2.88.0","azure-cli-telemetry":"1.1.0","extensions":{}}`,
 	}
 	return dependencyCommandResult{Output: versions[name]}
 }
@@ -213,6 +218,50 @@ func TestDependencyCheckDistinguishesDockerCLIFromEngineAndReturnsOnlySafeVersio
 		}
 	}
 	request(t, h, "POST", "/v1/setup/dependencies/docker/install", token, map[string]any{"acceptAgreements": true}, 409)
+}
+
+func TestDependencyAzureVersionAcceptsExtensionMetadataButRejectsInvalidCLIVersion(t *testing.T) {
+	definition, ok := dependencyByID("azure")
+	if !ok {
+		t.Fatal("Azure CLI must remain in the supported dependency catalogue")
+	}
+	for _, test := range []struct {
+		name, output, version string
+	}{
+		{"actual bundled version shape", `{"azure-cli":"2.88.0","azure-cli-core":"2.88.0","azure-cli-telemetry":"1.1.0","extensions":{}}`, "2.88.0"},
+		{"nested installed extension", `{"azure-cli":"2.88.0","extensions":{"containerapp":{"version":"1.0.0","preview":false}}}`, "2.88.0"},
+		{"malformed JSON", `{"azure-cli":"2.88.0","extensions":`, ""},
+		{"missing CLI version", `{"extensions":{}}`, ""},
+		{"numeric CLI version", `{"azure-cli":2.88,"extensions":{}}`, ""},
+		{"object CLI version", `{"azure-cli":{"version":"2.88.0"},"extensions":{}}`, ""},
+		{"array CLI version", `{"azure-cli":["2.88.0"],"extensions":{}}`, ""},
+		{"boolean CLI version", `{"azure-cli":true,"extensions":{}}`, ""},
+		{"null CLI version", `{"azure-cli":null,"extensions":{}}`, ""},
+		{"invalid version text", `{"azure-cli":"2.88.0 private-context-path","extensions":{}}`, ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			runner := newFakeDependencyRunner()
+			runner.platformName = "linux"
+			runner.installed["az"] = true
+			runner.versionOutput = map[string]string{"az": test.output}
+			manager := &dependencyManager{runner: runner}
+			check, action := manager.checkTool(context.Background(), definition)
+			if test.version != "" {
+				if check.Status != "ready" || check.Version != test.version || action != "none" {
+					t.Fatalf("working Azure CLI rejected: %+v, action=%s", check, action)
+				}
+			} else if check.Status != "action_required" || check.Version != "" || action != "manual_install" {
+				t.Fatalf("invalid version treated as installed: %+v, action=%s", check, action)
+			}
+			if strings.Contains(check.Message, "private-context-path") {
+				t.Fatal("untrusted version output escaped into public readiness")
+			}
+			calls := runner.recordedCalls()
+			if len(calls) != 1 || !reflect.DeepEqual(calls[0].Args, []string{"version", "--output", "json"}) {
+				t.Fatalf("readiness used an unexpected command: %+v", calls)
+			}
+		})
+	}
 }
 
 func TestDependencyQueueSerializesAccountsAndRechecksIssuerAtDispatch(t *testing.T) {

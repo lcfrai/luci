@@ -111,6 +111,9 @@ func TestCloudPlansDoNotProvisionAndIncludeCompleteResources(t *testing.T) {
 		if !strings.Contains(p.Files[0].Content, "sha256sum --check") {
 			t.Fatal("installer verification missing")
 		}
+		if !strings.Contains(p.Files[0].Content, "install -d -m 755 /opt/luci\n") || !strings.Contains(p.Files[0].Content, "install -d -m 700 -o luci -g luci /home/luci/.ssh /home/luci/.local/state/luci") {
+			t.Fatal("cloud bootstrap must separate traversable executable assets from private SSH and state directories")
+		}
 	}
 }
 

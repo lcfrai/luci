@@ -34,6 +34,7 @@ type Target struct {
 	Labels         map[string]string `json:"labels,omitempty"`
 	PublishableKey string            `json:"publishableKey,omitempty"`
 	BridgeKey      string            `json:"bridgeKey,omitempty"`
+	ClientKind     string            `json:"clientKind,omitempty"`
 }
 type record struct {
 	Target
@@ -95,11 +96,16 @@ func validate(t Target, port int) (*url.URL, error) {
 		if !bound {
 			return nil, errors.New("Docker target must bind its project label")
 		}
-	} else if !capability.MatchString(t.BridgeKey) {
-		return nil, errors.New("owned bridge requires a private liveness key")
+	} else {
+		if !capability.MatchString(t.BridgeKey) || (t.ClientKind != "" && t.ClientKind != "application" && t.ClientKind != "data") {
+			return nil, errors.New("owned bridge requires a private liveness key and valid client kind")
+		}
 	}
-	if t.Kind == "data" && (len(t.PublishableKey) < 32 || len(t.PublishableKey) > 4096) {
+	if (t.Kind == "data" || t.ClientKind == "data") && (len(t.PublishableKey) < 32 || len(t.PublishableKey) > 4096) {
 		return nil, errors.New("data target requires its client publishable key")
+	}
+	if t.Kind != "bridge" && t.ClientKind != "" {
+		return nil, errors.New("client kind is reserved for owned bridges")
 	}
 	return u, nil
 }

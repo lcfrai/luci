@@ -10,6 +10,7 @@ export interface PlatformDeployment {
   configurationRevision: number;
   status: string;
   url?: string;
+  browserConnectionRequired?: boolean;
   message: string;
   image?: string;
   createdAt: string;
@@ -61,7 +62,29 @@ export interface PanaceaProject {
 }
 const base = "/v1/platform";
 const project = (id: string) => `${base}/projects/${encodeURIComponent(id)}`;
+export interface PlatformBrowserConnection {
+  url: string;
+  projectId: string;
+  kind: "application" | "data";
+  resourceId: string;
+}
+
+export function isolatedBrowserURL(raw: string): string | undefined {
+  try {
+    const url = new URL(raw);
+    const controlOrigin = new URL(window.__LUCI_API__ || DEFAULT_BASE_URL).origin;
+    if (url.username || url.password || url.origin === window.location.origin || url.origin === controlOrigin) return undefined;
+    return url.protocol === "http:" && !!url.port &&
+      (url.hostname === "127.0.0.1" || /^[a-f0-9]{64}\.localhost$/.test(url.hostname))
+      ? url.href : undefined;
+  } catch { return undefined; }
+}
+
 export const platformApi = {
+  prepareBrowser: (projectId: string, kind: "application" | "data", resourceId?: string) =>
+    productApi.request<PlatformBrowserConnection>("/v1/setup/workspace/platform/browser", {
+      projectId, kind, ...(resourceId ? { resourceId } : {}),
+    }),
   status: () => productApi.request<PlatformStatus>(`${base}/status`),
   project: (id: string) =>
     productApi.request<{ project: PlatformProject; busy: boolean }>(

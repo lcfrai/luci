@@ -575,6 +575,9 @@ func TestCloudWorkspaceInstallRequiresAcknowledgementBundleAndVerifiedTransfer(t
 	if !strings.Contains(script, hex.EncodeToString(sum[:])) || !strings.Contains(script, "sha256sum --check") || !strings.Contains(script, "LUCI_ADDR=127.0.0.1:8730") {
 		t.Fatal("remote installation omitted integrity verification or loopback binding")
 	}
+	if !strings.Contains(script, "install -d -m 755 /opt/luci /opt/luci/releases /opt/luci/releases/"+accepted.ID) || !strings.Contains(script, "User="+tunnel.Request.User+"\n") || !strings.Contains(script, "install -d -m 700 -o "+tunnel.Request.User+" /home/"+tunnel.Request.User+"/projects /home/"+tunnel.Request.User+"/.local/state/luci") || !strings.Contains(script, "UMask=0077") {
+		t.Fatal("remote install must repair executable ancestors for its service user without weakening private workspace/state permissions")
+	}
 	failInstall.Store(true)
 	w = journeyRequest(t, mux, "POST", path, map[string]bool{"acknowledgeInstall": true}, 202)
 	_ = json.Unmarshal(w.Body.Bytes(), &accepted)

@@ -279,6 +279,7 @@ func (s *Service) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/platform/projects/{id}/backups/{backupId}", s.downloadBackup)
 	s.registerPanacea(mux)
 	s.registerData(mux)
+	s.registerBrowserBridge(mux)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, _, ok := management.ActorFromContext(r.Context()); !ok {
 			problem(w, 401, "sign_in_required", "Sign in to use the platform.")

@@ -5,7 +5,8 @@ import { platformApi, type PlatformProject } from "../../api/platform";
 import { productApi } from "../../api/product";
 vi.mock("./DataWorkspace", () => ({ DataWorkspace: () => <div>Project data services</div> }));
 
-vi.mock("../../api/platform", () => ({
+vi.mock("../../api/platform", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../../api/platform")>(),
   platformApi: {
     status: vi.fn(),
     project: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock("../../api/platform", () => ({
     action: vi.fn(),
     logs: vi.fn(),
     downloadBackup: vi.fn(),
+    prepareBrowser: vi.fn(),
   },
 }));
 vi.mock("../../api/product", () => ({
@@ -39,6 +41,7 @@ const project: PlatformProject = {
   },
 };
 beforeEach(() => {
+  vi.mocked(platformApi.prepareBrowser).mockReset();
   vi.mocked(platformApi.status).mockResolvedValue({
     dockerReady: true,
     scope: "Local persistent services.",
@@ -62,6 +65,90 @@ beforeEach(() => {
     head: "a".repeat(40),
     branch: "main",
   });
+});
+
+const pendingBrowserDeployment = {
+  id: "cloud-application", projectId: "owned", provider: "docker" as const,
+  commit: "a".repeat(40), configurationRevision: 1, status: "ready",
+  browserConnectionRequired: true, message: "Application is healthy on the workspace.",
+  createdAt: "now", updatedAt: "now",
+};
+
+function pendingBrowserProject() {
+  vi.mocked(platformApi.project).mockResolvedValue({ project: { ...structuredClone(project), deployments: [pendingBrowserDeployment] }, busy: false });
+}
+
+it("prepares a cloud application's isolated browser address only after Open, then retains a safe link", async () => {
+  pendingBrowserProject();
+  const address = `http://${"a".repeat(64)}.localhost:8731/`;
+  let finish!: (value: { url: string; projectId: string; kind: "application"; resourceId: string }) => void;
+  vi.mocked(platformApi.prepareBrowser).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const open = vi.spyOn(window, "open").mockReturnValue(null);
+  render(<PlatformWorkspace projectId="owned" />);
+  fireEvent.click(await screen.findByRole("button", { name: "Deployments" }));
+  expect(platformApi.prepareBrowser).not.toHaveBeenCalled();
+  expect(screen.queryByRole("link", { name: "Open deployed application" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Open deployed application" }));
+  expect(platformApi.prepareBrowser).toHaveBeenCalledExactlyOnceWith("owned", "application", "cloud-application");
+  expect(open).not.toHaveBeenCalled();
+  expect((screen.getByRole("button", { name: "Open deployed application" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "Open deployed application" }));
+  expect(platformApi.prepareBrowser).toHaveBeenCalledTimes(1);
+  finish({ url: address, projectId: "owned", kind: "application", resourceId: "cloud-application" });
+  const link = await screen.findByRole("link", { name: "Open deployed application" });
+  expect(link.getAttribute("href")).toBe(address);
+  expect(open).toHaveBeenCalledExactlyOnceWith(address, "_blank", "noopener,noreferrer");
+  expect(screen.getByText("Browser connection ready. You can open the application below.")).not.toBeNull();
+});
+
+it.each([
+  "http://user:password@127.0.0.1:45678/",
+  `http://${"a".repeat(63)}.localhost:8731/`,
+  `http://${"a".repeat(64)}.localhost.example.com:8731/`,
+  "https://external.example.com/",
+  "http://127.0.0.1:8730/",
+  "http://localhost:3000/",
+])("rejects an unsafe prepared browser address without navigation: %s", async (url) => {
+  pendingBrowserProject();
+  vi.mocked(platformApi.prepareBrowser).mockResolvedValue({ url, projectId: "owned", kind: "application", resourceId: "cloud-application" });
+  const open = vi.spyOn(window, "open").mockReturnValue(null);
+  render(<PlatformWorkspace projectId="owned" />);
+  fireEvent.click(await screen.findByRole("button", { name: "Deployments" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open deployed application" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("could not verify");
+  expect(open).not.toHaveBeenCalled();
+  expect(screen.queryByRole("link", { name: "Open deployed application" })).toBeNull();
+  expect((screen.getByRole("button", { name: "Open deployed application" }) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it("keeps failed cloud browser preparation recoverable and refuses another resource binding", async () => {
+  pendingBrowserProject();
+  vi.mocked(platformApi.prepareBrowser)
+    .mockRejectedValueOnce(new Error("Reconnect your workspace in setup."))
+    .mockResolvedValueOnce({ url: "http://127.0.0.1:45678/", projectId: "owned", kind: "application", resourceId: "other-application" });
+  const open = vi.spyOn(window, "open").mockReturnValue(null);
+  render(<PlatformWorkspace projectId="owned" />);
+  fireEvent.click(await screen.findByRole("button", { name: "Deployments" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open deployed application" }));
+  expect((await screen.findByRole("alert")).textContent).toBe("Reconnect your workspace in setup.");
+  fireEvent.click(screen.getByRole("button", { name: "Open deployed application" }));
+  await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("could not verify"));
+  expect(platformApi.prepareBrowser).toHaveBeenCalledTimes(2);
+  expect(open).not.toHaveBeenCalled();
+});
+
+it("does not open a late application browser response after leaving its project", async () => {
+  pendingBrowserProject();
+  let finish!: (value: { url: string; projectId: string; kind: "application"; resourceId: string }) => void;
+  vi.mocked(platformApi.prepareBrowser).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const open = vi.spyOn(window, "open").mockReturnValue(null);
+  const view = render(<PlatformWorkspace projectId="owned" />);
+  fireEvent.click(await screen.findByRole("button", { name: "Deployments" }));
+  fireEvent.click(screen.getByRole("button", { name: "Open deployed application" }));
+  view.unmount();
+  finish({ url: "http://127.0.0.1:45678/", projectId: "owned", kind: "application", resourceId: "cloud-application" });
+  await Promise.resolve();
+  expect(open).not.toHaveBeenCalled();
 });
 it("starts with an honest capability overview and discloses real service controls by section", async () => {
   render(<PlatformWorkspace projectId="owned" />);

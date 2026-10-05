@@ -44,10 +44,11 @@ type WorkspaceInstall struct {
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
 type workspacePreview struct {
-	projectID, releaseID string
-	server               *http.Server
-	url                  string
-	connectionID         string
+	projectID, releaseID                                       string
+	remoteUserID, clientKind, clientResourceID, publishableKey string
+	server                                                     *http.Server
+	url                                                        string
+	connectionID                                               string
 }
 
 func (s *Server) initWorkspace() error {
@@ -178,6 +179,7 @@ func (s *Server) registerWorkspace(mux Registrar) {
 	mux.HandleFunc("POST /v1/setup/workspace/activate", s.activateWorkspace)
 	mux.HandleFunc("POST /v1/setup/workspace/local", s.activateLocalWorkspace)
 	mux.HandleFunc("POST /v1/setup/workspace/preview", s.prepareWorkspacePreview)
+	mux.HandleFunc("POST /v1/setup/workspace/platform/browser", s.prepareWorkspacePlatformBrowser)
 }
 func remoteWorkspaceStatus(ctx context.Context, address, method string, tokens ...string) (Status, error) {
 	timeout := 45 * time.Second
@@ -414,7 +416,7 @@ func (s *Server) installWorkspace(job WorkspaceInstall, t Tunnel) {
 	}
 	script := fmt.Sprintf(`set -euo pipefail
 printf '%%s  %%s\n' '%s' '%s' | sha256sum --check --status
-install -d /opt/luci/releases/%s
+install -d -m 755 /opt/luci /opt/luci/releases /opt/luci/releases/%s
 tar --extract --gzip --file '%s' --directory /opt/luci/releases/%s --no-same-owner
 chmod 755 /opt/luci/releases/%s/luci
 ln -sfn /opt/luci/releases/%s /opt/luci/current
@@ -491,7 +493,7 @@ func projectRequest(path string) bool {
 func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api")
-		if strings.Contains(path, "/releases/") && strings.Contains(path, "/preview/") {
+		if (strings.Contains(path, "/releases/") && strings.Contains(path, "/preview/")) || (strings.HasPrefix(path, "/v1/platform/projects/") && strings.Contains(path, "/browser/")) {
 			if r.Header.Get("X-Luci-Preview-Bridge") == "1" && r.Header.Get("Sec-Fetch-Site") == "" && r.Header.Get("Sec-Fetch-Mode") == "" && r.Header.Get("Sec-Fetch-Dest") == "" {
 				s.mu.RLock()
 				local := s.workspace.Mode != "cloud"
@@ -554,6 +556,20 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 			problem(w, 503, "workspace_disconnected", "The selected workspace has no valid connection.")
 			return
 		}
+		var clientDataResource, clientDataOrigin string
+		if r.Method == "POST" && strings.HasPrefix(path, "/v1/platform/projects/") && strings.HasSuffix(path, "/deployments") {
+			projectID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/platform/projects/"), "/deployments")
+			if !coolifyID.MatchString(projectID) {
+				problem(w, 400, "browser_request_invalid", "Choose a valid project deployment.")
+				return
+			}
+			meta, origin, err := s.cloudDeploymentBrowserData(r, ws.ConnectionID, projectID)
+			if err != nil {
+				problem(w, 409, "data_browser_connection_required", "Verify and connect this project's data services before deploying its application.")
+				return
+			}
+			clientDataResource, clientDataOrigin = meta.ResourceID, origin
+		}
 		proxy := httputil.NewSingleHostReverseProxy(target)
 		original := proxy.Director
 		proxy.Director = func(req *http.Request) {
@@ -566,6 +582,21 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 			req.Header.Del("X-Luci-Policy")
 			req.Header.Del("Forwarded")
 			req.Header.Del("X-Forwarded-Host")
+			for name := range req.Header {
+				if strings.HasPrefix(strings.ToLower(name), "x-luci-") {
+					req.Header.Del(name)
+				}
+			}
+			if clientDataOrigin != "" {
+				for name := range req.Header {
+					if strings.HasPrefix(strings.ToLower(name), "sec-fetch-") {
+						req.Header.Del(name)
+					}
+				}
+				req.Header.Set("X-Luci-Preview-Bridge", "1")
+				req.Header.Set("X-Luci-Workspace-Data-Origin", clientDataOrigin)
+				req.Header.Set("X-Luci-Workspace-Data-Resource", clientDataResource)
+			}
 			req.URL.Path = path
 		}
 		if path == "/v1/setup/targets" && r.Method == "POST" {
@@ -605,7 +636,8 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 			if res.StatusCode >= 400 {
 				return nil
 			}
-			if path != "/v1/setup/config" && path != "/v1/setup/targets" && !(strings.Contains(path, "/releases") && res.Header.Get("Content-Type") != "") {
+			platformResponse := strings.HasPrefix(path, "/v1/platform/") && strings.HasPrefix(res.Header.Get("Content-Type"), "application/json")
+			if path != "/v1/setup/config" && path != "/v1/setup/targets" && !(strings.Contains(path, "/releases") && res.Header.Get("Content-Type") != "") && !platformResponse {
 				return nil
 			}
 			data, err := io.ReadAll(io.LimitReader(res.Body, 8<<20+1))
@@ -640,6 +672,9 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 				value = remote
 			} else {
 				s.rewriteWorkspaceResponse(value, ws.ConnectionID, management)
+				if platformResponse {
+					s.rewriteWorkspacePlatformResponse(value, ws.ConnectionID)
+				}
 			}
 			data, err = json.Marshal(value)
 			if err != nil {
@@ -741,6 +776,12 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 	if !found {
 		problem(w, 409, "preview_not_ready", "Choose a running preview in this project.")
 		return
+	}
+	remoteUserID := ""
+	if t != nil {
+		s.mu.RLock()
+		remoteUserID = s.workspaceAuth[workspaceCredentialKey(*t)].User.ID
+		s.mu.RUnlock()
 	}
 	key := req.ProjectID + "/" + req.ReleaseID
 	s.mu.Lock()
@@ -852,7 +893,7 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 			return
 		}
 	}
-	s.previews[key] = &workspacePreview{server: server, url: browserOrigin, connectionID: ws.ConnectionID, projectID: req.ProjectID, releaseID: req.ReleaseID}
+	s.previews[key] = &workspacePreview{server: server, url: browserOrigin, connectionID: ws.ConnectionID, projectID: req.ProjectID, releaseID: req.ReleaseID, remoteUserID: remoteUserID}
 	s.mu.Unlock()
 	go server.Serve(ln)
 	writeJSON(w, 200, map[string]string{"url": browserOrigin})

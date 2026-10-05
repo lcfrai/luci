@@ -1,6 +1,11 @@
 package platform
 
-import "github.com/lcfrai/luci/control-plane/internal/previewgateway"
+import (
+	"errors"
+	"os"
+
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
+)
 
 func (s *Service) browserDeployment(d Deployment) Deployment {
 	if s.browserRegistry == nil || d.Provider != "docker" || d.Status != "ready" {
@@ -19,7 +24,35 @@ func (s *Service) browserDataURL(i dataInstallation, secret dataSecret) (string,
 	if s.browserRegistry == nil {
 		return dataURL(i), nil
 	}
-	return s.browserRegistry.Publish(previewgateway.Target{Kind: "data", ProjectID: i.ProjectID, ResourceID: i.StackID, Upstream: dataURL(i), Container: s.dataName(i, "api-gw"), Labels: map[string]string{labelInstance: s.instance, labelProject: i.ProjectID, labelResource: "data-" + i.StackID + "-api-gw"}, PublishableKey: secret.Anon})
+	// Applications retain their client endpoint across a fresh-volume restore.
+	// The durable data identity selects the browser origin; the mutable target
+	// still verifies the active stack's exact container, labels and loopback port.
+	return s.browserRegistry.Publish(previewgateway.Target{Kind: "data", ProjectID: i.ProjectID, ResourceID: i.storageTenant(), Upstream: dataURL(i), Container: s.dataName(i, "api-gw"), Labels: map[string]string{labelInstance: s.instance, labelProject: i.ProjectID, labelResource: "data-" + i.StackID + "-api-gw"}, PublishableKey: secret.Anon})
+}
+
+// A restore candidate needs the durable client address in its configuration,
+// but it must not replace the gateway target before healthy active promotion.
+func (s *Service) browserDataConfigurationURL(candidate dataInstallation, secret dataSecret) (string, error) {
+	if s.browserRegistry == nil {
+		return dataURL(candidate), nil
+	}
+	var active dataInstallation
+	err := s.read(candidate.ProjectID+"-data-installation", &active)
+	if errors.Is(err, os.ErrNotExist) {
+		// The first installation can reserve its address before it is started.
+		return s.browserDataURL(candidate, secret)
+	}
+	if err != nil {
+		return "", err
+	}
+	if active.ProjectID != candidate.ProjectID || active.storageTenant() != candidate.storageTenant() {
+		return "", errors.New("private data installation binding mismatch")
+	}
+	activeSecret, err := s.dataCredentials(active)
+	if err != nil {
+		return "", err
+	}
+	return s.browserDataURL(active, activeSecret)
 }
 func (s *Service) browserDataStatus(v DataStatus) DataStatus {
 	if s.browserRegistry == nil || v.URL == "" {
