@@ -29,7 +29,7 @@ The [UAT guide](docs/UAT.md) walks through onboarding and the complete project j
 
 ## Run from source
 
-Install Git, Go 1.26+, Node 22+ and Docker. Docker is needed for agent sessions and container previews; Define and Design work without it. Run `scripts/dev.ps1` on Windows or `scripts/dev.sh` on Linux/macOS, then follow setup in the application. Native desktop builds also need Rust and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
+Install Git, Go 1.26+, Node 24.19.0 and Docker. Docker is needed for agent sessions and container previews; Define and Design work without it. Run `scripts/dev.ps1` on Windows or `scripts/dev.sh` on Linux/macOS, then follow setup in the application. Native desktop builds also need Rust and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ## Building and testing
 

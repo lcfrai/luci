@@ -728,8 +728,10 @@ Evidence is `artifacts/review/010-ci-37359529911-recovery/native-failure-diagnos
 
 Independent readiness probes now run together, retaining individual eight-second
 deadlines and deterministic complete results. Empty output or proof arriving after
-a deadline remains missing; canceled browser generations cannot publish over the
-saved readiness snapshot. Focused tests include the concurrent start barrier, an
+a deadline remains missing; an actually canceled HTTP parent cannot publish over
+the saved readiness snapshot. UI generation cleanup currently ignores superseded
+responses without passing an AbortSignal; the server cancellation guard does not
+cover every superseded request that remains live. Focused tests include the concurrent start barrier, an
 actual individual timeout, canceled-parent retention and cloud-local skip rules.
 The full affected product suite is pending on frozen source at this checkpoint;
 product vet passes. The native driver separately waits for the current visible
@@ -743,3 +745,87 @@ were skipped. This is infrastructure failure, with no product or installed
 conclusion. Its job metadata and GitHub annotation remain under
 `artifacts/review/011-ci-37361331914-recovery`. The next coherent source batch
 requires its own full CI and native installer evidence.
+
+## Installed 0.4.12 acceptance — 6 October 2026
+
+Clean source `8940c010a926258eab2ee1841ef52c4b5b69e121` produced matching Linux
+and Docker candidates. Both existing Docker installations admitted all 917 bundle
+files with accounts, journeys and volumes preserved; the primary runtime passes
+its fresh readiness observation. The original packages and manifests remain
+bound to that source, separately from this later documentation checkpoint.
+
+The matching installed native drawing acceptance passes six targeted checks:
+light/dark initial 390-pixel mount and desktop-to-narrow resize before tool
+interaction, all 11 contained and unoccluded targets, actual mouse tools and
+native menus, changed hint contrast, and exact Scene5/four-preference restoration.
+The earlier failed mobile probes remain retained. Evidence is
+`artifacts/subscription-e2e/docker-instance-b6f125cd-0105-4570-8a69-9822280e4956/native-canvas-pointer-012-3d6114c8-8331-4049-8847-cff24ec66558/results.json`.
+
+Six installed workspace-control checks also pass: genuine Ready changes in both
+directions across reload, native persisted flags, actual project Files content,
+and Keep editing/Discard navigation to the intended neighbouring Files view.
+Saved documents/source, Git refs/dirty state, seven sessions, four release
+histories and neighbouring project baselines remain unchanged. Earlier driver
+attempts stopped before any readiness write; the successful driver follows the
+actual lazy catalogue sequence of selection, loading and expansion. Evidence is
+`artifacts/subscription-e2e/docker-instance-b6f125cd-0105-4570-8a69-9822280e4956/core-controls-ui-fb7f4875-38b2-489a-9dc1-9ac3f287cf51/results.json`.
+
+Native application email passes 13 actual installed checks in a fresh auxiliary
+project: redacted UI configuration, wrong-password recovery, Auth-only apply,
+acknowledged test message and actual inbox delivery, unconfirmed signup through
+confirmation and login, password recovery/update, rejected old passwords and
+consumed links, restart persistence, another confirmed signup, and private SMTP
+removal with users retained and an unconfigured test refused. The deployed
+fixture client reports no CORS/CSP/network errors. This is genuine pinned GoTrue
+execution, not model-generated benchmark code or external email deliverability.
+Evidence is
+`artifacts/subscription-e2e/docker-instance-b6f125cd-0105-4570-8a69-9822280e4956/native-mail-5ec555ec-c1dfb115-2434-4015-a7b1-9e046039fc57/results.json`.
+
+The receiver uses a verified temporary CA, hostname and authenticated TLS1.3,
+with explicitly scoped read-only trust fixtures for the secondary controller
+and auxiliary Auth. Those fixtures are test prerequisites, not normal installer
+trust support. Strict verification remained enabled. Failed fixture attempts,
+including a CA missing certificate-signing KeyUsage, remain preserved. Final
+cleanup stops the owned app/data services, removes receiver/trust resources and
+the inert overlay, restores exact private hosts/base controller configuration
+and unique environment values, and verifies live binary/web bytes. All other 55
+baseline containers and 25 volumes remain exact; only the pinned owned auxiliary
+Auth was legitimately replaced. The separate post-cleanup proof passes.
+
+The full affected product Go suite passes in 338.354s on the frozen functional
+bytes; vet, seven readiness cases and 19 native-driver stage/click simulations
+pass. Fresh CI `37366618534` proves desktop 1,215 tests, Go/concurrent checks,
+typecheck/build, connected browser 19, entry nine and lifecycle four. Its actual
+checkout `0945a450add7e1778448ff5cb63549bf99ddd1d3` has the same tree as `8940c010`.
+Both the initial runtime job and one targeted failed-job retry fail to acquire
+a hosted runner; neither executes runtime/portable/native stages or produces an
+installer outcome. The inherited passed core is reused on attempt2. GitHub's
+contemporaneous public Actions incident corroborates assignment problems; it is
+not proof of each individual run's cause. Original and retry evidence are kept
+separately under `artifacts/review/012-ci-37366618534-recovery` and
+`artifacts/review/012-ci-37366618534-recovery-attempt2`.
+
+The exact source export reconciles all 955 Git originals, complete selection,
+961 archive entries/modes and 960 checksum records, with 59 licence references,
+106 Supabase assets and 12 adapted official Fluid files. A separate clean,
+non-root Git-less container performs exactly one public locked dependency
+install and one unmodified exported Linux release pipeline successfully. All
+original source/archive bytes remain unchanged; both output archives reconcile
+their executable/web assets, 344 component records, 371 licence files and 233
+offline font files. Its truthful null Git provenance links separately to the
+original export. This proves a source build, not runtime, native installation,
+bit-for-bit reproducibility, legal clearance or publication. Evidence is
+`artifacts/exported-build/gitless-source-012-a401de9e-740e-490c-b444-bf7fbc0d2c4f/reconciliation-results.json`.
+
+That build succeeds on the previously documented Node22.18 but exposes a locked
+dependency engine warning requiring Node22.19 or newer. The development/release
+guidance now recommends the actual CI-proved Node24.19.0. No dependency, runtime,
+product version or functional source is changed by this documentation correction.
+
+Full-product handback remains open. Required real Codex subscription authorization
+has expired, so generated implementation and the verified public site remain
+unproved. Live AWS/Azure resource/domain/TLS, external delivery, actual supported
+Windows installer lifecycle and public download acceptance still require their
+own evidence. The observed [lcfr.ai Luci page](https://lcfr.ai/luci) presently
+announces that source/downloads are unavailable; private review archives do not
+turn that public surface into a verified release.

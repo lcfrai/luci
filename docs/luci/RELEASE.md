@@ -1,5 +1,21 @@
 # Building and distributing Luci
 
+The current review candidate is **0.4.12**, built from clean source
+`8940c010a926258eab2ee1841ef52c4b5b69e121`. Both installed Docker workspaces
+have admitted that matching bundle. Targeted installed drawing, workspace
+controls and native email journeys pass; retained earlier data, Functions,
+branch and recovery evidence has its own source bindings. See the
+[full product checkpoint](FULL-PRODUCT.md) for those outcomes and their limits.
+
+This is not a public production release. The required real Codex-generated
+application and public deployment, live AWS/Azure and domain acceptance,
+external email delivery, supported native installer lifecycle and public
+download acceptance remain open. The latest core CI passes, but its runtime
+job and one retry never acquired a hosted runner; dependent portable/native
+jobs did not execute. Earlier passing runs below are historical evidence,
+not proof for this candidate. [lcfr.ai/luci](https://lcfr.ai/luci) does not yet
+offer public source or package downloads.
+
 The 0.4.3 development candidate adds a retained per-user Codex subscription connection, public static GitHub Pages deployment and storage-capable isolated previews. Its stricter acceptance goal is a real Docker/Codex subscription journey through Define, Design, Develop and Deploy ending in an independently checked public site. `scripts/subscription-journey-eval.mjs` retains staged evidence and cannot mark that journey passed while authentication, Docker or public deployment is missing. The previous 0.4.2 fixture/native acceptance does not satisfy this new live-model gate, and the retained 0.4.2 download is not rebuilt or relabelled by these source changes.
 
 Luci 0.4.0 packages integrate the solution workflow and managed backing: local account bootstrap, roles and private user workspaces, saved plans, multiple model providers, command checks, Git delivery, project backups, private runtime configuration and deployment maintenance. The Admin workspace can manage the selected cloud backing with that backing's own authenticated account and permissions. CI produces portable downloads and the native Windows installer. A successful build proves the checks it ran; live AWS/Azure rollout still needs an account and a domain. Publication URLs and signing are separate distribution configuration.
@@ -29,14 +45,14 @@ The accompanying `release-manifest.json` records the version, artifact hashes an
 
 ## Rebuilding locally
 
-Use Go 1.26.3, Node 22.18.0, Python 3.11 or newer, and the committed lockfiles. Install desktop dependencies with `npm ci` from `desktop/`. The scripts build the desktop assets themselves.
+Use Go 1.26.3, Node 24.19.0, Python 3.11 or newer, and the committed lockfiles. Install desktop dependencies with `npm ci` from `desktop/`. The scripts build the desktop assets themselves.
 
 On Windows:
 
 ```powershell
-./scripts/build-release.ps1 -Version 0.4.0
+./scripts/build-release.ps1 -Version 0.4.12
 # Also build the native Windows NSIS installer:
-./scripts/build-release.ps1 -Version 0.4.0 -Native
+./scripts/build-release.ps1 -Version 0.4.12 -Native
 ```
 
 Native Windows builds also need stable Rust with the MSVC target and the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/). Tauri receives the Cargo lock flag after its argument separator: `npm run tauri -- build --bundles nsis -- --locked`. The [NSIS distribution documentation](https://v2.tauri.app/distribute/windows-installer/) describes the installer and signing options.
@@ -44,11 +60,11 @@ Native Windows builds also need stable Rust with the MSVC target and the [Tauri 
 On Linux or macOS:
 
 ```bash
-bash scripts/build-release.sh 0.4.0 linux-amd64
-bash scripts/build-release.sh 0.4.0 darwin-arm64
+bash scripts/build-release.sh 0.4.12 linux-amd64
+bash scripts/build-release.sh 0.4.12 darwin-arm64
 ```
 
-Archives and their checksums are written under `artifacts/releases/0.4.0/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
+Archives and their checksums are written under `artifacts/releases/0.4.12/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
 
 `scripts/collect-licenses.py` inventories installed npm runtime packages, each bundled Excalidraw font family, the Go modules compiled into the service and sandbox, and the Go standard library. Native builds also inventory reachable Windows Cargo packages. It retains original files and source snapshot references with SHA-256 hashes in `licenses/manifest.json`; `MISSING-LICENSES.txt` lists missing grants. The default command fails when a component has no retained licence file. `--allow-missing` is diagnostic only and must not be used to make a distributable package pass. Updating a dependency can require a new version-specific snapshot in `third-party/licenses/manifest.json`.
 
@@ -75,7 +91,7 @@ Before calling a candidate a public production release, retain evidence for thes
 
 Recorded CI evidence: [run 36953123907](https://github.com/lcfrai/luci/actions/runs/36953123907) passed at source commit `4c117f6a088189f640ad946459f36c9072d344c1`. This includes the real Linux Docker journey, Linux and macOS package startup checks, strict licence inventories and the Windows native installer build. The Linux/macOS manifests identify that exact commit with `sourceDirty: false`; their inventories contain 317 and 318 components respectively, with zero missing licence grants. These results describe that source snapshot, not later package builds or a signed public release.
 
-Current verification limits: Docker Desktop is now available on the development host, and the complete Docker candidate has real installation/runtime receipts. The subscription-driven implementation/public deployment and native data stack acceptance on that complete distribution remain pending. Earlier CI evidence belongs to its recorded source revision. The provider CLI fixture can prove protocol, real tool execution and state isolation without paid inference. Actual model quality, subscription login and provider acceptance still require the user’s chosen account/model. A built Windows installer has not by itself passed a clean-host install/uninstall evaluation. No live AWS/Azure account, billable resource, real domain/TLS rollout or complete remote installation is implied by local provider/process adapters and HTTP/WebSocket fixtures.
+Current verification limits: Docker Desktop is available on the development host, and the Docker candidate has real installation/runtime receipts. Installed data, Functions and native confirmation/recovery outcomes have scoped evidence in the full product checkpoint; they do not prove external email deliverability or a subscription-generated application. The required implementation/public deployment remains pending. Earlier CI evidence belongs to its recorded source revision. The provider CLI fixture can prove protocol, real tool execution and state isolation without paid inference. Actual model quality, subscription login and provider acceptance still require the user's chosen account/model. A built Windows installer has not by itself passed a clean-host install/uninstall evaluation. No live AWS/Azure account, billable resource, real domain/TLS rollout or complete remote installation is implied by local provider/process adapters and HTTP/WebSocket fixtures.
 
 ## Publishing after those gates
 
