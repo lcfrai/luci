@@ -1,5 +1,5 @@
 #requires -Version 7.0
-param([string]$Version = '0.4.10', [switch]$Native)
+param([string]$Version = '0.4.11', [switch]$Native)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$') { throw 'Version must be a semantic version.' }

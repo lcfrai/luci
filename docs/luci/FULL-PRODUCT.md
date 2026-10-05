@@ -624,3 +624,38 @@ retained volumes without invented operation completion. All 13 affected tests
 pass (4.21 seconds). Product locking/recovery is unchanged. Evidence is
 `artifacts/review/010-data-recovery-test-source-check.json`; a new full CI must
 still supply actual downstream installed outcomes.
+
+### Canvas acceptance and embedded mobile toolbar correction
+
+Targeted contrast acceptance on installed 0.4.10 source `32e6b852` completes all
+four light/dark desktop/mobile matrices and 68 actual native text/icon samples.
+Every measured sample passes (minimum 9.714), with no unresolved paint. Four
+native captures are retained; saved Scene revision 5 and its exact file hash are
+unchanged, and all four appearance values are restored. Earlier helper failures
+remain separately recorded, including native zero-height text boxes and
+legitimately absent hints/shortcut paint. Evidence is the secondary instance's
+`native-canvas-contrast-010-a77b0410-c0d0-4f1b-aa27-daa2b163754f/results.json`.
+
+This is explicitly contrast acceptance, not full mobile interaction acceptance.
+Actual mouse clicks cannot return to Selection in the narrow embedded canvas:
+the native 373-pixel mobile toolbar sizes against the window while its canvas is
+316 pixels wide. The Selection control's center is outside that clipped canvas,
+and the enclosing page intercepts the click. An advertised keyboard shortcut
+restores state only for cleanup; it does not waive this product failure. The
+separate mobile pointer probe and outcome note remain retained.
+
+The 0.4.11 source adapter sizes that native toolbar against the actual embedded
+canvas through an inline-size query container. It wraps only the mobile shapes
+row, preserving native target sizes and inline More tools menus rather than
+clipping the whole toolbar. No vendor source, scene geometry, model or platform
+behavior changes. Version-sensitive Docker packaging checks pass all five cases
+(0.553 seconds). A new immutable installed package must prove direct mouse
+Rectangle/Selection transitions, tool/menu reachability, containment and no page
+overflow in both themes. The earlier contrast result does not prove this fix.
+
+The test-only 0.4.10 source `faadc895` now passes the fresh full core CI gate:
+all 1,193 desktop tests, Go/concurrent checks, type checking/build, connected
+browser acceptance (19), fresh/existing entry (nine), and lifecycle checks (four).
+Its digest-verified core artifact and actual equal-tree merge checkout evidence
+are under `artifacts/review/010-ci-37359529911-recovery`. Real runtime and native
+jobs remain pending, and that run cannot validate the later 0.4.11 CSS adapter.

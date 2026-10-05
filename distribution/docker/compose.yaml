@@ -2,7 +2,7 @@ name: ${LUCI_COMPOSE_PROJECT:-luci-docker}
 
 services:
   engine:
-    image: luci/engine:${LUCI_VERSION:-0.4.10}
+    image: luci/engine:${LUCI_VERSION:-0.4.11}
     build:
       context: .
       dockerfile: Dockerfile
@@ -30,7 +30,7 @@ services:
       ai.lcfr.luci.distribution: private-docker-engine
 
   controller:
-    image: luci/controller:${LUCI_VERSION:-0.4.10}
+    image: luci/controller:${LUCI_VERSION:-0.4.11}
     platform: linux/amd64
     build:
       context: .

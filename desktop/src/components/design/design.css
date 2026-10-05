@@ -22,6 +22,15 @@
   color: var(--color-on-surface);
   background-color: var(--island-bg-color);
 }
+/* Native mobile tools size against the embedded canvas, not the whole window.
+   Wrap the shapes row so controls and inline native menus remain reachable. */
+.design-canvas { container-type: inline-size; }
+.design-canvas .excalidraw--mobile .App-toolbar--mobile {
+  max-inline-size: calc(100cqw - 2 * var(--editor-container-padding));
+}
+.design-canvas .excalidraw--mobile .App-toolbar--mobile > .Stack_horizontal {
+  display: flex; flex-wrap: wrap; justify-content: center;
+}
 .design-prototype-tools { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-block: 24px; }
 .design-prototype-tools > .luci-field { flex: 1; min-inline-size: 220px; }
 .design-prototype-viewport { overflow: auto; background: var(--canvas); padding: 18px; display: grid; gap: 16px; }
