@@ -1,11 +1,16 @@
 # Building and distributing Luci
 
-The current review candidate is **0.4.12**, built from clean source
+The last installed review candidate is **0.4.12**, built from clean source
 `8940c010a926258eab2ee1841ef52c4b5b69e121`. Both installed Docker workspaces
 have admitted that matching bundle. Targeted installed drawing, workspace
 controls and native email journeys pass; retained earlier data, Functions,
 branch and recovery evidence has its own source bindings. See the
 [full product checkpoint](FULL-PRODUCT.md) for those outcomes and their limits.
+
+This checkout prepares **0.4.13**; rebuilding examples below use that declared
+version. Existing 0.4.12 packages and manifests retain their original source
+bindings. New source changes need a new matching bundle and scoped installed
+confirmation before they become verified product outcomes.
 
 This is not a public production release. The required real Codex-generated
 application and public deployment, live AWS/Azure and domain acceptance,
@@ -50,9 +55,9 @@ Use Go 1.26.3, Node 24.19.0, Python 3.11 or newer, and the committed lockfiles. 
 On Windows:
 
 ```powershell
-./scripts/build-release.ps1 -Version 0.4.12
+./scripts/build-release.ps1 -Version 0.4.13
 # Also build the native Windows NSIS installer:
-./scripts/build-release.ps1 -Version 0.4.12 -Native
+./scripts/build-release.ps1 -Version 0.4.13 -Native
 ```
 
 Native Windows builds also need stable Rust with the MSVC target and the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/). Tauri receives the Cargo lock flag after its argument separator: `npm run tauri -- build --bundles nsis -- --locked`. The [NSIS distribution documentation](https://v2.tauri.app/distribute/windows-installer/) describes the installer and signing options.
@@ -60,11 +65,11 @@ Native Windows builds also need stable Rust with the MSVC target and the [Tauri 
 On Linux or macOS:
 
 ```bash
-bash scripts/build-release.sh 0.4.12 linux-amd64
-bash scripts/build-release.sh 0.4.12 darwin-arm64
+bash scripts/build-release.sh 0.4.13 linux-amd64
+bash scripts/build-release.sh 0.4.13 darwin-arm64
 ```
 
-Archives and their checksums are written under `artifacts/releases/0.4.12/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
+Archives and their checksums are written under `artifacts/releases/0.4.13/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
 
 `scripts/collect-licenses.py` inventories installed npm runtime packages, each bundled Excalidraw font family, the Go modules compiled into the service and sandbox, and the Go standard library. Native builds also inventory reachable Windows Cargo packages. It retains original files and source snapshot references with SHA-256 hashes in `licenses/manifest.json`; `MISSING-LICENSES.txt` lists missing grants. The default command fails when a component has no retained licence file. `--allow-missing` is diagnostic only and must not be used to make a distributable package pass. Updating a dependency can require a new version-specific snapshot in `third-party/licenses/manifest.json`.
 

@@ -3,7 +3,7 @@ import { expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { RuntimePreparation } from "./RuntimePreparation";
-import type { ProductClient, RuntimeJob, SetupStatus } from "../../api/product";
+import { createProductClient, type ProductClient, type RuntimeJob, type SetupStatus } from "../../api/product";
 
 const ready = {
   checks: [
@@ -207,13 +207,102 @@ it("keeps a shared install handoff pending across a new readiness check and unlo
   } as unknown as ProductClient;
   const { rerender } = render(<RuntimePreparation client={client} manageBacking automatic onStatus={vi.fn()} onPendingChange={pending} />);
   await waitFor(() => expect(client.installRuntime).toHaveBeenCalledOnce());
+  const originalSignal = vi.mocked(client.check).mock.calls[0][0]!;
   rerender(<RuntimePreparation client={client} manageBacking automatic refreshToken={1} onStatus={vi.fn()} onPendingChange={pending} />);
   await waitFor(() => expect(client.check).toHaveBeenCalledTimes(2));
+  expect(originalSignal.aborted).toBe(true);
+  expect(vi.mocked(client.check).mock.calls[1][0]!.aborted).toBe(false);
   expect(pending).toHaveBeenLastCalledWith(true);
   await act(async () => { acceptance.resolve({ status: "installing", message: "Backend build continues" } as RuntimeJob); await acceptance.promise; });
   await screen.findByText(/Installing runtime… Backend build continues/);
   expect(client.installRuntime).toHaveBeenCalledOnce();
+  expect(client.installRuntime).toHaveBeenCalledWith();
   expect(pending).toHaveBeenLastCalledWith(false);
+});
+
+it("aborts abandoned HTTP readiness and runtime observations when the workspace changes", async () => {
+  const abandoned: AbortSignal[] = [];
+  const fetcher = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => {
+    const signal = init!.signal!;
+    abandoned.push(signal);
+    return new Promise<Response>((_resolve, reject) => {
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+  });
+  const previous = createProductClient("http://localhost", fetcher);
+  const onStatus = vi.fn();
+  const selected = {
+    check: vi.fn().mockResolvedValue(ready),
+    runtime: vi.fn().mockResolvedValue({ status: "idle" }),
+    installRuntime: vi.fn(),
+  } as unknown as ProductClient;
+  const view = render(<RuntimePreparation client={previous} manageBacking={false} onStatus={onStatus} />);
+  expect(abandoned).toHaveLength(2);
+  view.rerender(<RuntimePreparation client={selected} manageBacking={false} onStatus={onStatus} />);
+  await screen.findByText("Docker running");
+  expect(abandoned.every(signal => signal.aborted)).toBe(true);
+  expect(onStatus).toHaveBeenCalledOnce();
+  expect(onStatus).toHaveBeenLastCalledWith(ready);
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(selected.installRuntime).not.toHaveBeenCalled();
+});
+
+it("cancels an in-flight completed-job observation on unmount without cancelling its build", async () => {
+  vi.useFakeTimers();
+  const imageProof = deferred<SetupStatus>();
+  const onStatus = vi.fn();
+  const client = {
+    check: vi.fn().mockResolvedValueOnce(ready).mockReturnValue(imageProof.promise),
+    runtime: vi.fn().mockResolvedValueOnce({ status: "idle" }).mockResolvedValue({ status: "ready" }),
+    installRuntime: vi.fn().mockResolvedValue({ status: "installing", message: "Backend build" }),
+  } as unknown as ProductClient;
+  const view = render(<RuntimePreparation client={client} manageBacking automatic onStatus={onStatus} />);
+  try {
+    await act(async () => {});
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    const pollSignal = vi.mocked(client.check).mock.calls[1][0]!;
+    expect(pollSignal.aborted).toBe(false);
+    view.unmount();
+    expect(pollSignal.aborted).toBe(true);
+    await act(async () => { imageProof.resolve(ready); await imageProof.promise; });
+    expect(onStatus).toHaveBeenCalledOnce();
+    expect(client.installRuntime).toHaveBeenCalledWith();
+    expect(vi.getTimerCount()).toBe(0);
+  } finally {
+    view.unmount();
+    vi.useRealTimers();
+  }
+});
+
+it("cancels an older job poll when a fresh readiness check replaces it", async () => {
+  vi.useFakeTimers();
+  const oldImage = deferred<SetupStatus>();
+  const current = { ...ready, checks: ready.checks.map(item => item.id === "sandbox-image"
+    ? { ...item, status: "ready", message: "Fresh image verified" } : item) } as SetupStatus;
+  const onStatus = vi.fn();
+  const client = {
+    check: vi.fn().mockResolvedValueOnce(ready).mockReturnValueOnce(oldImage.promise).mockResolvedValue(current),
+    runtime: vi.fn().mockResolvedValueOnce({ status: "idle" }).mockResolvedValue({ status: "ready" }),
+    installRuntime: vi.fn().mockResolvedValue({ status: "installing", message: "Backend build" }),
+  } as unknown as ProductClient;
+  const view = render(<RuntimePreparation client={client} manageBacking automatic onStatus={onStatus} />);
+  try {
+    await act(async () => {});
+    await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+    const oldPoll = vi.mocked(client.check).mock.calls[1][0]!;
+    view.rerender(<RuntimePreparation client={client} manageBacking automatic refreshToken={1} onStatus={onStatus} />);
+    await act(async () => {});
+    expect(oldPoll.aborted).toBe(true);
+    expect(screen.getByText("Fresh image verified")).not.toBeNull();
+    await act(async () => { oldImage.resolve(ready); await oldImage.promise; });
+    expect(onStatus).toHaveBeenCalledTimes(2);
+    expect(onStatus).toHaveBeenLastCalledWith(current);
+    expect(screen.getByText("Fresh image verified")).not.toBeNull();
+    expect(client.installRuntime).toHaveBeenCalledOnce();
+  } finally {
+    view.unmount();
+    vi.useRealTimers();
+  }
 });
 
 it.each([true, false])("checks actual image readiness once when the job finished after its first snapshot (image exists: %s)", async (imageExists) => {

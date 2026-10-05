@@ -56,6 +56,7 @@ var productReadOnlyRoutes = map[string]string{
 	"GET /v1/product/projects/{id}/files":                               "Reads contained regular files/directories; rejects credential paths.",
 	"GET /v1/product/projects/{id}/git":                                 "Bounded Git inspection with hooks, filters and optional writes disabled.",
 	"GET /v1/product/projects/{id}/releases":                            "Reads saved release rows; never builds, deploys or opens a listener.",
+	"GET /v1/product/projects/{id}/prototype-releases":                  "Reads owned release histories and bounded native ownership/health observations; never builds, starts resources, writes state or opens a listener.",
 	"GET /v1/product/projects/{id}/plan":                                "Reads canonical task progress; cannot start checks or complete tasks.",
 	"GET /v1/product/projects/{id}/checks":                              "Reads saved bounded execution evidence and suggested command names; no commands execute.",
 	"GET /v1/product/projects/{id}/checks/{runId}":                      "Reads saved execution evidence without starting a process.",

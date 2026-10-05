@@ -829,3 +829,78 @@ Windows installer lifecycle and public download acceptance still require their
 own evidence. The observed [lcfr.ai Luci page](https://lcfr.ai/luci) presently
 announces that source/downloads are unavailable; private review archives do not
 turn that public surface into a verified release.
+
+## 0.4.13 connected workflow correction — 6 October 2026
+
+Further acceptance on the unchanged installed 0.4.12 package proves eight
+project-archive outcomes: ordinary Projects creation, saved/approved planning,
+native Git and dirty source, a real checked ZIP/Git bundle, invalid-upload
+recovery, collision refusal, restored identity/context/source and reload with
+account/project isolation. Resumed checks link their immutable earlier evidence;
+they do not claim a fresh repetition of the whole journey. Evidence is
+`artifacts/review/012-installed-project-archive-summary.json`.
+
+Five actual installed Docker check outcomes also pass: a committed JavaScript
+syntax check, exact nonzero failure, cancellation and engine-container removal,
+retained source/results after reload and neighbouring-project isolation. The
+execution has its actual non-root identity, read-only root, dropped capabilities,
+no-new-privileges and CPU/memory bounds recorded. No model, mail, data or cloud
+service is started. Evidence is the secondary instance's
+`develop-docker-checks-f24fd507-81c22f60-70a1-4b88-9c48-c56df8f7ca2f/results.json`.
+
+The same installed app reveals a real unsaved implementation-task loss when
+navigating away. That failed outcome is retained in
+`implementation-plan-draft-6a418ab9-c58c-4625-88e5-b9ca713d6029/results.json`.
+The 0.4.13 source registers task edits and an unsubmitted task title with the
+existing project draft guard, and refuses agent handoff while either remains.
+Six focused workflow checks pass; matching installed confirmation is pending.
+
+Readiness cleanup now forwards an actual AbortSignal through the product client
+to initial checks, runtime reads and polling. Accepted installation jobs remain
+independent. Nineteen focused transport/component checks pass, including old
+generation and polling cancellation. This closes the source gap described in
+the 0.4.12 checkpoint; it does not relabel its ignored-response evidence as an
+installed HTTP cancellation test. Ordinary disabled onboarding actions remain
+disabled during the initial pending handoff.
+
+Design now uses a project-scoped prototype catalogue shared with its save
+validation. It includes verified local/cloud/Pages releases and actual owned,
+healthy Docker application releases. Native addresses and container metadata
+stay private; opening uses the existing project/resource-bound isolated browser
+connection. Saving records the backend's exact release commit. Stopped or missing
+saved prototypes offer a clear Deploy recovery path. A bounded integration check
+found that the initial frontend used the cloud-only connection for local Docker
+applications. The correction reads the existing native project DTO, verifies the
+exact release/source/configuration and reuses its owned local gateway; only the
+explicit cloud connection follows the cloud POST. Focused checks cover both paths
+and changed bindings. Late metadata after a project switch cannot allocate the
+old project's cloud bridge. These are source results; the next matching package
+still needs the connected installed plan/prototype journey.
+
+The final desktop suite passes all 1,243 tests in 76 files on the corrected
+local/cloud implementation, in 87.04s. Its log is
+`artifacts/review/013-desktop-full-local-gateway-final.log`. Locked npm/Cargo
+dependency graphs remain unchanged apart from Luci's declared 0.4.13 version;
+five Docker packaging checks pass.
+
+The full affected product Go run completes in 375.948s with one failure: the new
+catalogue GET was missing from the registered read-route audit inventory. All
+implementation hashes remain unchanged through the run. The corrected existing
+GET/HEAD gate passes in 0.826s, asserting unchanged project/state trees and no
+resource allocation. Focused product/platform/API prototype and browser checks
+and vet pass. The original failed full result is retained rather than relabelled;
+unchanged heavy lifecycle cases are not repeated solely to rename that result.
+Evidence is `artifacts/review/013-prototype-final-validation.json`.
+
+The existing lcfr.ai site source separately has a locally committed installation
+portal for Docker, AWS, Azure and existing workspaces, using its original controls
+and visual design. Its public build, five routing checks and eight browser checks
+pass, including narrow layouts, keyboard interaction and no-JavaScript content.
+Download/source metadata remains explicitly unavailable. The portal is not
+published, and no private repository history is exposed. Its retained outcome is
+`F:/Glasses/Glasses-Codex-Ready/evidence/luci-install-portal-2026-10-06-dea5068b-b59d-4c4f-a12c-3780ba175f19/outcome.json`.
+
+This correction is not full-product handback. Real subscription inference and
+the public benchmark site, live AWS/Azure resources and domains, external inbox
+delivery, current native installer lifecycle and public distribution still need
+their own verified outcomes.

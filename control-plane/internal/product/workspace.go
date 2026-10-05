@@ -637,7 +637,7 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 				return nil
 			}
 			platformResponse := strings.HasPrefix(path, "/v1/platform/") && strings.HasPrefix(res.Header.Get("Content-Type"), "application/json")
-			if path != "/v1/setup/config" && path != "/v1/setup/targets" && !(strings.Contains(path, "/releases") && res.Header.Get("Content-Type") != "") && !platformResponse {
+			if path != "/v1/setup/config" && path != "/v1/setup/targets" && !((strings.Contains(path, "/releases") || strings.HasSuffix(path, "/prototype-releases")) && res.Header.Get("Content-Type") != "") && !platformResponse {
 				return nil
 			}
 			data, err := io.ReadAll(io.LimitReader(res.Body, 8<<20+1))

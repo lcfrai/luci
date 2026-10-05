@@ -54,6 +54,7 @@ func (s *Server) registerDesignPlan(mux Registrar) {
 	mux.HandleFunc("POST /v1/product/projects/{id}/design-plan", s.saveDesignPlan)
 	mux.HandleFunc("POST /v1/product/projects/{id}/design-plan/approve", s.approveDesignPlan)
 	mux.HandleFunc("GET /v1/product/projects/{id}/design-plan/history", s.designPlanHistory)
+	mux.HandleFunc("GET /v1/product/projects/{id}/prototype-releases", s.listPrototypeReleases)
 }
 func currentDesignPlan(state journeyState) ProjectDesignPlan {
 	if state.DesignPlan == nil {
@@ -179,6 +180,23 @@ func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 		problem(w, 400, "wrong_project", "The design belongs to another project.")
 		return
 	}
+	if plan.PrototypeReleaseID != "" {
+		rows, err := s.prototypeReleases(r.Context(), p.ID)
+		if err != nil {
+			problem(w, 500, "prototypes_unavailable", "Prototype history could not be verified. Check the project's deployments and retry.")
+			return
+		}
+		for _, row := range rows {
+			if row.ID == plan.PrototypeReleaseID {
+				plan.PrototypeCommit = row.Commit
+				break
+			}
+		}
+		if plan.PrototypeCommit == "" {
+			problem(w, 422, "prototype_unavailable", "Choose a verified, running prototype release from this project.")
+			return
+		}
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	state, err := readJourney(p.Path, p.ID)
@@ -195,22 +213,6 @@ func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	if err := validateDesignLinks(plan, spec); err != nil {
 		problem(w, 400, "invalid_requirement_link", err.Error())
 		return
-	}
-	if plan.PrototypeReleaseID != "" {
-		rows, err := s.readReleases(p.ID)
-		if err != nil {
-			problem(w, 500, "releases_unavailable", err.Error())
-			return
-		}
-		for _, row := range rows {
-			if row.ID == plan.PrototypeReleaseID && row.ProjectID == p.ID && row.Status == "ready" {
-				plan.PrototypeCommit = row.Commit
-			}
-		}
-		if plan.PrototypeCommit == "" {
-			problem(w, 422, "prototype_unavailable", "Choose a verified, running prototype release from this project.")
-			return
-		}
 	}
 	plan.Revision = old.Revision + 1
 	plan.BriefRevision = state.Brief.Revision

@@ -23,7 +23,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
-const Version = "0.4.12"
+const Version = "0.4.13"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -39,65 +39,67 @@ type Registrar interface {
 }
 type Runner func(context.Context, string, []string, string) (string, error)
 type Options struct {
-	ClearBranchReady   func(context.Context, string) error
-	BranchSessions     func(context.Context, string, string) (bool, error)
-	CloudDataBindings  func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
-	BrowserPreviewPort int
-	ManagedWorkspace   bool
-	CloudBundle        string
-	Shutdown           func()
-	RuntimeDir         string
-	StateDir           string
-	ProjectsDir        string
-	SandboxImage       string
-	CheckMemoryMiB     int
-	CheckCPUMillis     int
-	Configure          func(string) error
-	Runner             Runner
+	NativePrototypeReleases func(context.Context, string) ([]Release, error)
+	ClearBranchReady        func(context.Context, string) error
+	BranchSessions          func(context.Context, string, string) (bool, error)
+	CloudDataBindings       func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
+	BrowserPreviewPort      int
+	ManagedWorkspace        bool
+	CloudBundle             string
+	Shutdown                func()
+	RuntimeDir              string
+	StateDir                string
+	ProjectsDir             string
+	SandboxImage            string
+	CheckMemoryMiB          int
+	CheckCPUMillis          int
+	Configure               func(string) error
+	Runner                  Runner
 }
 
 type Server struct {
-	clearBranchReady  func(context.Context, string) error
-	branchSessions    func(context.Context, string, string) (bool, error)
-	branchGuardMu     sync.Mutex
-	branchGuards      map[string]*sync.RWMutex
-	branchRunner      Runner
-	cloudDataBindings func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
-	browserRegistry   *previewgateway.Registry
-	cloudBundle       string
-	workspace         Workspace
-	workspaceInstalls map[string]WorkspaceInstall
-	workspaceCancel   context.CancelFunc
-	workspaceContext  context.Context
-	remoteStatus      *Status
-	workspaceAuth     map[string]workspaceCredential
-	previews          map[string]*workspacePreview
-	shutdown          func()
-	agentAPIKey       string
-	agentOpenAIKey    string
-	agentLocal        LocalAgentConfig
-	deliveryBusy      map[string]bool
-	projectChecks     map[string]*projectCheckJob
-	runtimeJob        RuntimeJob
-	authJobs          map[string]*ProviderLoginJob
-	runtimeDir        string
-	mu                sync.RWMutex
-	functionSourceMu  sync.RWMutex
-	config            Config
-	stateDir          string
-	runner            Runner
-	configure         func(string) error
-	sandboxImage      string
-	checkMemoryMiB    int
-	checkCPUMillis    int
-	configured        bool
-	managedWorkspace  bool
-	checks            []Check
-	plans             map[string]CloudPlan
-	jobs              map[string]CloudJob
-	targets           map[string]DeploymentTarget
-	scans             map[string]SSHScan
-	tunnels           map[string]*Tunnel
+	nativePrototypeReleases func(context.Context, string) ([]Release, error)
+	clearBranchReady        func(context.Context, string) error
+	branchSessions          func(context.Context, string, string) (bool, error)
+	branchGuardMu           sync.Mutex
+	branchGuards            map[string]*sync.RWMutex
+	branchRunner            Runner
+	cloudDataBindings       func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
+	browserRegistry         *previewgateway.Registry
+	cloudBundle             string
+	workspace               Workspace
+	workspaceInstalls       map[string]WorkspaceInstall
+	workspaceCancel         context.CancelFunc
+	workspaceContext        context.Context
+	remoteStatus            *Status
+	workspaceAuth           map[string]workspaceCredential
+	previews                map[string]*workspacePreview
+	shutdown                func()
+	agentAPIKey             string
+	agentOpenAIKey          string
+	agentLocal              LocalAgentConfig
+	deliveryBusy            map[string]bool
+	projectChecks           map[string]*projectCheckJob
+	runtimeJob              RuntimeJob
+	authJobs                map[string]*ProviderLoginJob
+	runtimeDir              string
+	mu                      sync.RWMutex
+	functionSourceMu        sync.RWMutex
+	config                  Config
+	stateDir                string
+	runner                  Runner
+	configure               func(string) error
+	sandboxImage            string
+	checkMemoryMiB          int
+	checkCPUMillis          int
+	configured              bool
+	managedWorkspace        bool
+	checks                  []Check
+	plans                   map[string]CloudPlan
+	jobs                    map[string]CloudJob
+	targets                 map[string]DeploymentTarget
+	scans                   map[string]SSHScan
+	tunnels                 map[string]*Tunnel
 }
 
 func New(opts Options) (*Server, error) {
@@ -111,7 +113,7 @@ func New(opts Options) (*Server, error) {
 	if root == "" {
 		root = filepath.Join(opts.StateDir, "projects")
 	}
-	s := &Server{clearBranchReady: opts.ClearBranchReady, branchSessions: opts.BranchSessions, cloudDataBindings: opts.CloudDataBindings, stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
+	s := &Server{nativePrototypeReleases: opts.NativePrototypeReleases, clearBranchReady: opts.ClearBranchReady, branchSessions: opts.BranchSessions, cloudDataBindings: opts.CloudDataBindings, stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
 		sandboxImage: opts.SandboxImage, plans: make(map[string]CloudPlan),
 		managedWorkspace: opts.ManagedWorkspace, configured: opts.ManagedWorkspace,
 		config: Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30}}

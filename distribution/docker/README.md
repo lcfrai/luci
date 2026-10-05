@@ -78,8 +78,8 @@ Build the normal clean Linux portable release first, then prepare a fresh Docker
 distribution from its manifest-verified archive:
 
 ```sh
-python scripts/prepare-docker-release.py 0.4.12 --archive
-cd artifacts/docker/0.4.12
+python scripts/prepare-docker-release.py 0.4.13 --archive
+cd artifacts/docker/0.4.13
 docker compose build engine controller
 docker compose up --detach --wait
 ```

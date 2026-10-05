@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import { designPlanApi, type DesignPlan, type DesignScreen } from "../../api/designPlan";
 import { definitionApi, type ProjectSpecification } from "../../api/definition";
 import { productApi, errorText, type Release } from "../../api/product";
-import { isGatewayHostname } from "../../api/platform";
+import { isGatewayHostname, isolatedBrowserURL, platformApi } from "../../api/platform";
 import { DEFAULT_BASE_URL } from "../../api/client";
 import { useCockpit } from "../../store/store";
 import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
@@ -44,40 +44,68 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
     const requestGeneration = generation.current;
     sketchRead.current++;
     setRefreshingSketch(false);
-    const [saved, definition, history] = await Promise.all([designPlanApi.get(projectId), definitionApi.get(projectId), productApi.releases(projectId)]);
+    const [saved, definition, history] = await Promise.all([designPlanApi.get(projectId), definitionApi.get(projectId), productApi.prototypeReleases(projectId)]);
     if (!alive.current || requestGeneration !== generation.current) return;
     setPlan(saved); setBaseRevision(saved.revision); setSpec(definition); setReleases(history.releases); setDirty(false); setError("");
   }
-  useEffect(() => { alive.current = true; generation.current++; void load().catch((e) => { if (alive.current) setError(errorText(e)); }); return () => { alive.current = false; generation.current++; }; }, [projectId]);
+  useEffect(() => {
+    alive.current = true; generation.current++; working.current = false;
+    setBusy(false); setPending(""); setPreview("");
+    const requestGeneration = generation.current;
+    void load().catch((e) => { if (alive.current && requestGeneration === generation.current) setError(errorText(e)); });
+    return () => { alive.current = false; generation.current++; };
+  }, [projectId]);
   const patch = (value: Partial<DesignPlan>) => { draftVersion.current++; if (plan) setPlan({ ...plan, ...value, status: "draft", digest: "" }); setDirty(true); setNotice(""); };
   const screenChange = (screenId: string, value: Partial<DesignScreen>) => plan && patch({ screens: plan.screens.map((s) => s.id === screenId ? { ...s, ...value } : s) });
   async function save() {
     if (!plan || !spec || working.current || refreshingSketch) return;
+    const requestGeneration = generation.current;
     working.current = true; setBusy(true); setPending("save"); setError("");
-    try { const saved = await designPlanApi.save(projectId, plan, baseRevision, spec.briefRevision, spec.revision); if (alive.current) { setPlan(saved); setBaseRevision(saved.revision); setDirty(false); setNotice(`Design plan ${saved.revision} saved. Implementation context updated.`); } }
-    catch (e) { if (alive.current) setError(errorText(e)); }
-    finally { working.current = false; if (alive.current) { setBusy(false); setPending(""); } }
+    try { const saved = await designPlanApi.save(projectId, plan, baseRevision, spec.briefRevision, spec.revision); if (alive.current && requestGeneration === generation.current) { setPlan(saved); setBaseRevision(saved.revision); setDirty(false); setNotice(`Design plan ${saved.revision} saved. Implementation context updated.`); } }
+    catch (e) { if (alive.current && requestGeneration === generation.current) setError(errorText(e)); }
+    finally { if (alive.current && requestGeneration === generation.current) { working.current = false; setBusy(false); setPending(""); } }
   }
   async function approve() {
     if (!plan || dirty || working.current || refreshingSketch) return;
+    const requestGeneration = generation.current;
     working.current = true; setBusy(true); setPending("approve"); setError("");
-    try { const saved = await designPlanApi.approve(projectId, plan.revision); if (alive.current) { setPlan(saved); setBaseRevision(saved.revision); setNotice(`Design handoff ${saved.revision} approved. Its linked definition and sketch are recorded.`); } }
-    catch (e) { if (alive.current) setError(errorText(e)); }
-    finally { working.current = false; if (alive.current) { setBusy(false); setPending(""); } }
+    try { const saved = await designPlanApi.approve(projectId, plan.revision); if (alive.current && requestGeneration === generation.current) { setPlan(saved); setBaseRevision(saved.revision); setNotice(`Design handoff ${saved.revision} approved. Its linked definition and sketch are recorded.`); } }
+    catch (e) { if (alive.current && requestGeneration === generation.current) setError(errorText(e)); }
+    finally { if (alive.current && requestGeneration === generation.current) { working.current = false; setBusy(false); setPending(""); } }
   }
   async function openPrototype() {
-    const release = releases.find((r) => r.id === plan?.prototypeReleaseId && r.status === "ready");
+    const release = selectedPrototype;
     if (!release || working.current) return;
+    const requestGeneration = generation.current;
     working.current = true; setBusy(true); setPending("prototype"); setError("");
     try {
       let target = release.url;
-      if (setup?.workspace?.mode === "cloud" && release.target === "local") target = (await productApi.prepareWorkspacePreview(projectId, release.id)).url;
+      if (release.target === "application") {
+        const current = await platformApi.project(projectId);
+        if (!alive.current || requestGeneration !== generation.current) return;
+        const rows = current.project.deployments.filter((row) => row.id === release.id);
+        const deployment = rows[0];
+        if (current.busy || current.project.projectId !== projectId || rows.length !== 1 ||
+          deployment.projectId !== projectId || deployment.provider !== "docker" || deployment.status !== "ready" ||
+          deployment.commit !== release.commit || deployment.configurationRevision !== (release.configurationRevision ?? 0))
+          throw new Error("This prototype's deployment changed. Refresh it in Deploy and choose the current release.");
+        if (deployment.browserConnectionRequired) {
+          const connection = await platformApi.prepareBrowser(projectId, "application", release.id);
+          if (connection.projectId !== projectId || connection.kind !== "application" || connection.resourceId !== release.id)
+            throw new Error("Luci could not verify this prototype's browser connection. Refresh the application in Deploy and try again.");
+          target = connection.url;
+        } else target = deployment.url || "";
+        const address = isolatedBrowserURL(target);
+        if (!address)
+          throw new Error("Luci could not verify this prototype's browser connection. Refresh the application in Deploy and try again.");
+        target = address;
+      } else if (setup?.workspace?.mode === "cloud" && release.target === "local") target = (await productApi.prepareWorkspacePreview(projectId, release.id)).url;
       const url = new URL(target);
       const controlOrigin = new URL(window.__LUCI_API__ || DEFAULT_BASE_URL).origin;
       if (url.origin === window.location.origin || url.origin === controlOrigin || !((url.protocol === "http:" && (["127.0.0.1", "localhost"].includes(url.hostname) || isGatewayHostname(url.hostname))) || url.protocol === "https:") || url.username || url.password) throw new Error("The prototype requires a verified separate application origin.");
-      if (alive.current) setPreview(url.toString());
-    } catch (e) { if (alive.current) setError(errorText(e)); }
-    finally { working.current = false; if (alive.current) { setBusy(false); setPending(""); } }
+      if (alive.current && requestGeneration === generation.current) setPreview(url.toString());
+    } catch (e) { if (alive.current && requestGeneration === generation.current) { setPreview(""); setError(errorText(e)); } }
+    finally { if (alive.current && requestGeneration === generation.current) { working.current = false; setBusy(false); setPending(""); } }
   }
   const activateView = (next: View) => {
     setView(next);
@@ -91,7 +119,10 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
         .catch((e) => { if (alive.current && requestGeneration === generation.current && request === sketchRead.current) setError(errorText(e)); })
         .finally(() => { if (alive.current && requestGeneration === generation.current && request === sketchRead.current) setRefreshingSketch(false); });
     }
-    if (next === "prototype") void productApi.releases(projectId).then((r) => { if (alive.current) setReleases(r.releases); }).catch((e) => setError(errorText(e)));
+    if (next === "prototype") {
+      const requestGeneration = generation.current;
+      void productApi.prototypeReleases(projectId).then((r) => { if (alive.current && requestGeneration === generation.current) setReleases(r.releases); }).catch((e) => { if (alive.current && requestGeneration === generation.current) setError(errorText(e)); });
+    }
   };
   const selectView = (next: View) => {
     if (sketchBusy) return;
@@ -100,6 +131,8 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
   };
   useEffect(() => { if (!sketchDirty) setPendingView(null); }, [sketchDirty]);
   const linked = new Set(plan?.screens.flatMap((s) => s.requirementIds) || []);
+  const prototypes = releases.filter((r) => r.projectId === projectId && r.status === "ready");
+  const selectedPrototype = prototypes.find((r) => r.id === plan?.prototypeReleaseId);
   return <section className="journey-page design-workspace">
     <JourneyHeader title="Design the experience" subtitle="Plan the screens and their states, sketch ideas, inspect a working prototype and carry a precise handoff into development.">
       {plan && <span className="journey-revision" role="status">{dirty ? "Unsaved changes" : `${plan.status} · Revision ${plan.revision}`}</span>}
@@ -132,9 +165,10 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
       </TabsSubtlePanel>
       <TabsSubtlePanel idPrefix={tabsId} index={2} selectedIndex={selectedIndex}>
       {view === "prototype" && <section className="design-prototype"><h2>Inspect an actual running prototype</h2><p>Choose a verified application release built from your project. Its source commit will be recorded in the design handoff.</p>
-        <div className="design-prototype-tools"><label className="luci-field">Prototype release<select value={plan.prototypeReleaseId} disabled={busy} onChange={(e) => { patch({ prototypeReleaseId:e.target.value });setPreview(""); }}><option value="">Choose a verified release</option>{releases.filter((r) => r.status === "ready").map((r) => <option key={r.id} value={r.id}>{r.target} · {r.commit.slice(0,8)} · {r.id}</option>)}</select></label><label className="luci-field">Preview width<select value={width} onChange={(e) => setWidth(Number(e.target.value))}><option value={390}>Phone · 390 px</option><option value={768}>Tablet · 768 px</option><option value={1440}>Desktop · 1440 px</option></select></label><Button type="button" variant="secondary" loading={pending === "prototype"} disabled={busy || !plan.prototypeReleaseId} onClick={() => void openPrototype()}>Open prototype</Button></div>
-        {!releases.some((r) => r.status === "ready") && <div className="design-empty"><h3>No verified prototype yet</h3><p>Build and preview the project's interface in Develop, then return here to inspect its real behavior.</p><Button type="button" variant="secondary" onClick={() => setLens("develop")}>Go to Develop</Button></div>}
-        {preview && <div className="design-prototype-viewport"><iframe title="Design prototype" src={preview} style={{ width }} sandbox="allow-scripts allow-forms allow-same-origin" /><a href={preview} target="_blank" rel="noreferrer">Open prototype in a separate tab</a></div>}
+        <div className="design-prototype-tools"><label className="luci-field">Prototype release<select value={plan.prototypeReleaseId} disabled={busy} onChange={(e) => { patch({ prototypeReleaseId:e.target.value });setPreview(""); }}><option value="">Choose a verified release</option>{plan.prototypeReleaseId && !selectedPrototype && <option value={plan.prototypeReleaseId} disabled>Saved prototype unavailable</option>}{prototypes.map((r) => <option key={r.id} value={r.id}>{r.target === "application" ? "Application" : r.target === "local" ? "Local preview" : r.target === "github-pages" ? "GitHub Pages" : "Cloud"} · {r.commit.slice(0,8)} · {r.id}</option>)}</select></label><label className="luci-field">Preview width<select value={width} onChange={(e) => setWidth(Number(e.target.value))}><option value={390}>Phone · 390 px</option><option value={768}>Tablet · 768 px</option><option value={1440}>Desktop · 1440 px</option></select></label><Button type="button" variant="secondary" loading={pending === "prototype"} disabled={busy || !selectedPrototype} onClick={() => void openPrototype()}>Open prototype</Button></div>
+        {plan.prototypeReleaseId && !selectedPrototype && <div className="design-empty"><p role="status">This prototype has stopped or is no longer available. Choose a running release or open Deploy to refresh the application.</p><Button type="button" variant="secondary" onClick={() => setLens("deploy")}>Go to Deploy</Button></div>}
+        {!prototypes.length && !plan.prototypeReleaseId && <div className="design-empty"><h3>No verified prototype yet</h3><p>Build and preview the project's interface in Develop, then return here to inspect its real behavior.</p><Button type="button" variant="secondary" onClick={() => setLens("develop")}>Go to Develop</Button></div>}
+        {preview && selectedPrototype && <div className="design-prototype-viewport"><iframe title="Design prototype" src={preview} style={{ width }} sandbox="allow-scripts allow-forms allow-same-origin" /><a href={preview} target="_blank" rel="noreferrer">Open prototype in a separate tab</a></div>}
       </section>}
       </TabsSubtlePanel>
       <TabsSubtlePanel idPrefix={tabsId} index={3} selectedIndex={selectedIndex}>

@@ -36,6 +36,7 @@ export function RuntimePreparation({
   const automaticStarted = useRef(new WeakSet<ProductClient>());
   const installations = useRef(new WeakMap<ProductClient, Promise<RuntimeJob>>());
   const generation = useRef(0);
+  const readiness = useRef<AbortController | null>(null);
   const prepare = (selected: ProductClient) => {
     const existing = installations.current.get(selected);
     if (existing) return existing;
@@ -50,11 +51,13 @@ export function RuntimePreparation({
   };
   useEffect(() => {
     let alive = true;
+    const controller = new AbortController();
+    readiness.current = controller;
     generation.current += 1;
     setChecking(true);
     pendingCallback.current?.(true);
     setError("");
-    void Promise.all([client.check(), client.runtime()])
+    void Promise.all([client.check(controller.signal), client.runtime(controller.signal)])
       .then(async ([next, runtime]) => {
         if (!alive) return;
         setStatus(next);
@@ -88,7 +91,7 @@ export function RuntimePreparation({
         // A job can finish after the first image check. Confirm actual image
         // readiness once rather than treating its ready state as proof.
         if (alive && settled.status === "ready" && !image) {
-          const current = await client.check();
+          const current = await client.check(controller.signal);
           if (alive) {
             setStatus(current);
             callback.current(current);
@@ -106,6 +109,8 @@ export function RuntimePreparation({
       });
     return () => {
       alive = false;
+      controller.abort();
+      if (readiness.current === controller) readiness.current = null;
       generation.current += 1;
       pendingCallback.current?.(false);
     };
@@ -113,19 +118,20 @@ export function RuntimePreparation({
   useEffect(() => {
     if (job?.status !== "installing") return;
     let alive = true;
+    const controller = new AbortController();
     let polling = false;
     const timer = setInterval(() => {
       if (polling) return;
       polling = true;
       void client
-        .runtime()
+        .runtime(controller.signal)
         .then(async (next) => {
           if (!alive) return;
           let current: SetupStatus | undefined;
           let readinessError = "";
           if (next.status === "ready") {
             try {
-              current = await client.check();
+              current = await client.check(controller.signal);
             } catch (cause) {
               readinessError = errorText(cause);
             }
@@ -149,9 +155,10 @@ export function RuntimePreparation({
     }, 3000);
     return () => {
       alive = false;
+      controller.abort();
       clearInterval(timer);
     };
-  }, [client, job?.status]);
+  }, [client, job?.status, automatic, manageBacking, attempt, refreshToken]);
   const dockerReady =
     status?.checks.find((check) => check.id === "docker")?.status === "ready";
   const imageReady =
@@ -237,6 +244,7 @@ export function RuntimePreparation({
               disabled={checking}
               onClick={() => {
                 const currentGeneration = generation.current;
+                const signal = readiness.current?.signal;
                 setChecking(true);
                 pendingCallback.current?.(true);
                 setError("");
@@ -245,7 +253,7 @@ export function RuntimePreparation({
                     if (generation.current !== currentGeneration) return;
                     setJob(next);
                     if (next.status === "ready" && !imageReady) {
-                      const current = await client.check();
+                      const current = await client.check(signal);
                       if (generation.current === currentGeneration) {
                         setStatus(current);
                         callback.current(current);

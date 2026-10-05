@@ -3,7 +3,8 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { designPlanApi, type DesignPlan } from "../../api/designPlan";
 import { definitionApi } from "../../api/definition";
-import { productApi } from "../../api/product";
+import { productApi, type Release } from "../../api/product";
+import { platformApi, type PlatformProject } from "../../api/platform";
 import DesignWorkspace from "./DesignWorkspace";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { DEFAULT_BASE_URL } from "../../api/client";
@@ -16,7 +17,7 @@ it("retains newly typed handoff notes when the sketch refresh completes late", a
   let finish!: (value: DesignPlan) => void;
   vi.spyOn(designPlanApi,"get").mockResolvedValueOnce(fixture()).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
   vi.spyOn(definitionApi,"get").mockResolvedValue({projectId:"p-1",version:1,revision:2,briefRevision:1,startingPoint:"new",purpose:"Save work",audience:"People",constraints:"",outOfScope:[],requirements:[{id:"AC-001",title:"Save work",priority:"must",acceptance:"Reopened work returns"}],journeys:[],roles:[],entities:[],integrations:[],glossary:[],decisions:[],questions:[],status:"approved",digest:"a".repeat(64),updatedAt:""});
-  vi.spyOn(productApi,"releases").mockResolvedValue({releases:[]});
+  vi.spyOn(productApi,"prototypeReleases").mockResolvedValue({releases:[]});
   render(<DesignWorkspace projectId="p-1"/>);
   await screen.findByRole("textbox",{name:"Screen name"});
   await userEvent.click(screen.getByRole("tab",{name:"Sketch"}));
@@ -32,7 +33,7 @@ it("retains newly typed handoff notes when the sketch refresh completes late", a
 function ready(plan = fixture()) {
   vi.spyOn(designPlanApi, "get").mockResolvedValue(plan);
   vi.spyOn(definitionApi, "get").mockResolvedValue({ projectId:"p-1", version:1, revision:2, briefRevision:1, startingPoint:"new", purpose:"Save work", audience:"People", constraints:"", outOfScope:[], requirements:[{id:"AC-001", title:"Save work", priority:"must", acceptance:"Reopened work returns"}], journeys:[], roles:[], entities:[], integrations:[], glossary:[], decisions:[], questions:[], status:"approved", digest:"a".repeat(64), updatedAt:"" });
-  vi.spyOn(productApi, "releases").mockResolvedValue({ releases: [] });
+  vi.spyOn(productApi, "prototypeReleases").mockResolvedValue({ releases: [] });
 }
 
 it("links design tabs to manually activated panels without opening sketch on keyboard focus", async () => {
@@ -161,7 +162,7 @@ it("retains the design draft and save action after a revision refusal", async ()
 it("preserves the local isolated prototype gateway and rejects control-origin or credential URLs", async () => {
   ready({ ...fixture(), prototypeReleaseId: "verified" });
   const release = { id: "verified", projectId: "p-1", briefRevision: 1, commit: "a".repeat(40), target: "local", status: "ready", url: `http://${"a".repeat(32)}.${"b".repeat(32)}.localhost:8731/`, message: "Verified", createdAt: "" };
-  vi.mocked(productApi.releases).mockResolvedValue({ releases: [release] });
+  vi.mocked(productApi.prototypeReleases).mockResolvedValue({ releases: [release] });
   const view = render(<DesignWorkspace projectId="p-1" />);
   await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
   await userEvent.click(screen.getByRole("button", { name: "Open prototype" }));
@@ -170,7 +171,7 @@ it("preserves the local isolated prototype gateway and rejects control-origin or
   expect(frame.getAttribute("sandbox")).toBe("allow-scripts allow-forms allow-same-origin");
   view.unmount();
   for (const url of [window.location.origin + "/", DEFAULT_BASE_URL + "/", "http://account:password@localhost:8731/", `http://${"a".repeat(64)}.localhost:8731/`]) {
-    vi.mocked(productApi.releases).mockResolvedValue({ releases: [{ ...release, url }] });
+    vi.mocked(productApi.prototypeReleases).mockResolvedValue({ releases: [{ ...release, url }] });
     const attempt = render(<DesignWorkspace projectId="p-1" />);
     await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Open prototype" })).not.toBeNull());
@@ -179,4 +180,154 @@ it("preserves the local isolated prototype gateway and rejects control-origin or
     expect(screen.queryByTitle("Design prototype")).toBeNull();
     attempt.unmount();
   }
+});
+
+const applicationRelease = (): Release => ({
+  id: "deploy-owned", projectId: "p-1", briefRevision: 1, commit: "a".repeat(40),
+  configurationRevision: 4,
+  target: "application", status: "ready", url: "", browserConnectionRequired: true,
+  message: "Verified application", createdAt: "",
+});
+
+const nativeProject = (cloud = false): { project: PlatformProject; busy: boolean } => ({
+  project: { projectId: "p-1", deployments: [{
+    id: "deploy-owned", projectId: "p-1", provider: "docker", commit: "a".repeat(40),
+    configurationRevision: 4, status: "ready", message: "Owned application", createdAt: "", updatedAt: "",
+    browserConnectionRequired: cloud,
+    url: cloud ? undefined : `http://${"a".repeat(32)}.${"b".repeat(32)}.localhost:8731/`,
+  }], database: { status: "not-created", engine: "postgres", message: "" }, backups: [] }, busy: false,
+});
+
+it("opens a local Docker prototype through its existing owned gateway without requiring a cloud account", async () => {
+  ready({ ...fixture(), prototypeReleaseId: "deploy-owned" });
+  vi.mocked(productApi.prototypeReleases).mockResolvedValue({ releases: [applicationRelease()] });
+  const local = nativeProject();
+  const read = vi.spyOn(platformApi, "project").mockResolvedValue(local);
+  const prepare = vi.spyOn(platformApi, "prepareBrowser");
+  render(<DesignWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
+  await userEvent.click(screen.getByRole("button", { name: "Open prototype" }));
+  const frame = await screen.findByTitle("Design prototype");
+  expect(frame.getAttribute("src")).toBe(local.project.deployments[0].url);
+  expect(read).toHaveBeenCalledExactlyOnceWith("p-1");
+  expect(prepare).not.toHaveBeenCalled();
+});
+
+it.each([
+  "project", "deployment-project", "missing", "duplicate", "commit", "configuration", "busy", "stopped", "gateway",
+])("rejects changed local prototype metadata: %s", async (changed) => {
+  ready({ ...fixture(), prototypeReleaseId: "deploy-owned" });
+  vi.mocked(productApi.prototypeReleases).mockResolvedValue({ releases: [applicationRelease()] });
+  const local = nativeProject();
+  const deployment = local.project.deployments[0];
+  if (changed === "project") local.project.projectId = "another-project";
+  if (changed === "deployment-project") deployment.projectId = "another-project";
+  if (changed === "missing") local.project.deployments = [];
+  if (changed === "duplicate") local.project.deployments.push({ ...deployment });
+  if (changed === "commit") deployment.commit = "b".repeat(40);
+  if (changed === "configuration") deployment.configurationRevision++;
+  if (changed === "busy") local.busy = true;
+  if (changed === "stopped") deployment.status = "stopped";
+  if (changed === "gateway") deployment.url = DEFAULT_BASE_URL;
+  vi.spyOn(platformApi, "project").mockResolvedValue(local);
+  const prepare = vi.spyOn(platformApi, "prepareBrowser");
+  render(<DesignWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
+  await userEvent.click(screen.getByRole("button", { name: "Open prototype" }));
+  await screen.findByRole("alert");
+  expect(screen.queryByTitle("Design prototype")).toBeNull();
+  expect(prepare).not.toHaveBeenCalled();
+});
+
+it("opens a cloud Docker prototype through its owned isolated browser connection", async () => {
+  ready({ ...fixture(), prototypeReleaseId: "deploy-owned" });
+  const release = applicationRelease();
+  vi.mocked(productApi.prototypeReleases).mockResolvedValue({ releases: [release] });
+  vi.spyOn(platformApi, "project").mockResolvedValue(nativeProject(true));
+  const connection = { projectId: "p-1", kind: "application" as const, resourceId: release.id,
+    url: `http://${"a".repeat(32)}.${"b".repeat(32)}.localhost:8731/` };
+  const prepare = vi.spyOn(platformApi, "prepareBrowser").mockResolvedValue(connection);
+  render(<DesignWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
+  expect(screen.getByRole("option", { name: /Application · aaaaaaaa/ })).not.toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Open prototype" }));
+  expect(prepare).toHaveBeenCalledExactlyOnceWith("p-1", "application", release.id);
+  const frame = await screen.findByTitle("Design prototype");
+  expect(frame.getAttribute("src")).toBe(connection.url);
+  expect(frame.getAttribute("sandbox")).toBe("allow-scripts allow-forms allow-same-origin");
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "Preview width" }), "390");
+  expect((frame as HTMLIFrameElement).style.width).toBe("390px");
+});
+
+it.each([
+  { projectId: "another-project", kind: "application" as const, resourceId: "deploy-owned", url: "http://127.0.0.1:8731/" },
+  { projectId: "p-1", kind: "data" as const, resourceId: "deploy-owned", url: "http://127.0.0.1:8731/" },
+  { projectId: "p-1", kind: "application" as const, resourceId: "another-release", url: "http://127.0.0.1:8731/" },
+  { projectId: "p-1", kind: "application" as const, resourceId: "deploy-owned", url: DEFAULT_BASE_URL },
+])("refuses a changed prototype/browser binding: %j", async (connection) => {
+  ready({ ...fixture(), prototypeReleaseId: "deploy-owned" });
+  vi.mocked(productApi.prototypeReleases).mockResolvedValue({ releases: [applicationRelease()] });
+  vi.spyOn(platformApi, "project").mockResolvedValue(nativeProject(true));
+  vi.spyOn(platformApi, "prepareBrowser").mockResolvedValue(connection);
+  render(<DesignWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
+  await userEvent.click(screen.getByRole("button", { name: "Open prototype" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("verify this prototype's browser connection");
+  expect(screen.queryByTitle("Design prototype")).toBeNull();
+  expect((screen.getByRole("button", { name: "Open prototype" }) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it("makes a stopped saved prototype recoverable and never offers a neighbouring project's release", async () => {
+  ready({ ...fixture(), prototypeReleaseId: "deploy-owned" });
+  vi.mocked(productApi.prototypeReleases).mockResolvedValue({ releases: [
+    { ...applicationRelease(), status: "stopped" },
+    { ...applicationRelease(), id: "foreign-release", projectId: "other-project" },
+  ] });
+  const prepare = vi.spyOn(platformApi, "prepareBrowser");
+  render(<DesignWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
+  expect(screen.getByText(/This prototype has stopped or is no longer available/)).not.toBeNull();
+  expect(screen.getByRole("option", { name: "Saved prototype unavailable" })).not.toBeNull();
+  expect(screen.queryByRole("option", { name: /foreign-release/ })).toBeNull();
+  const open = screen.getByRole("button", { name: "Open prototype" });
+  expect((open as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(open);
+  expect(prepare).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Go to Deploy" }));
+  expect(useCockpit.getState().lens).toBe("deploy");
+});
+
+it("does not show a previous project's late application connection after navigation", async () => {
+  ready({ ...fixture(), prototypeReleaseId: "deploy-owned" });
+  vi.mocked(designPlanApi.get).mockImplementation(async (id) => ({ ...fixture(), projectId: id, prototypeReleaseId: id === "p-1" ? "deploy-owned" : "" }));
+  vi.mocked(productApi.prototypeReleases).mockImplementation(async (id) => ({ releases: id === "p-1" ? [applicationRelease()] : [] }));
+  vi.spyOn(platformApi, "project").mockResolvedValue(nativeProject(true));
+  let finish!: (connection: { projectId: string; kind: "application"; resourceId: string; url: string }) => void;
+  vi.spyOn(platformApi, "prepareBrowser").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<DesignWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
+  await userEvent.click(screen.getByRole("button", { name: "Open prototype" }));
+  view.rerender(<DesignWorkspace projectId="p-2" />);
+  await screen.findByText("No verified prototype yet");
+  await act(async () => { finish({ projectId: "p-1", kind: "application", resourceId: "deploy-owned", url: "http://127.0.0.1:8731/" }); });
+  expect(screen.queryByTitle("Design prototype")).toBeNull();
+  expect((screen.getByRole("button", { name: "Open prototype" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("does not prepare an old cloud browser after its deployment read finishes in another project", async () => {
+  ready({ ...fixture(), prototypeReleaseId: "deploy-owned" });
+  vi.mocked(designPlanApi.get).mockImplementation(async (id) => ({ ...fixture(), projectId: id, prototypeReleaseId: id === "p-1" ? "deploy-owned" : "" }));
+  vi.mocked(productApi.prototypeReleases).mockImplementation(async (id) => ({ releases: id === "p-1" ? [applicationRelease()] : [] }));
+  let finish!: (value: ReturnType<typeof nativeProject>) => void;
+  vi.spyOn(platformApi, "project").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const prepare = vi.spyOn(platformApi, "prepareBrowser");
+  const view = render(<DesignWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
+  await userEvent.click(screen.getByRole("button", { name: "Open prototype" }));
+  view.rerender(<DesignWorkspace projectId="p-2" />);
+  await screen.findByText("No verified prototype yet");
+  await act(async () => { finish(nativeProject(true)); });
+  expect(prepare).not.toHaveBeenCalled();
+  expect(screen.queryByTitle("Design prototype")).toBeNull();
 });

@@ -7,6 +7,7 @@ import {
   type ImplementationTask,
 } from "../../api/product";
 import { useCockpit } from "../../store/store";
+import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { SessionPicker } from "../topbar/SessionPicker";
 
 export function implementationPrompt(
@@ -37,6 +38,8 @@ export function ProjectPlan({
   const [tasks, setTasks] = useState<ImplementationTask[]>([]);
   const [title, setTitle] = useState("");
   const [changed, setChanged] = useState(false);
+  const dirty = changed || !!title.trim();
+  useUnsavedProjectDraft(projectId, dirty, "Implementation plan", "develop");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -85,7 +88,7 @@ export function ProjectPlan({
         })),
     ]);
   function handoff(task?: ImplementationTask) {
-    if (!plan || changed) return;
+    if (!plan || dirty) return;
     setPrompt(implementationPrompt(brief, plan, task));
     setPickerOpen(true);
   }
@@ -168,7 +171,7 @@ export function ProjectPlan({
                 </label>
                 <button
                   className="luci-button"
-                  disabled={busy || changed || !worktreeId}
+                  disabled={busy || dirty || !worktreeId}
                   onClick={() => handoff(task)}
                 >
                   Implement task
@@ -250,14 +253,16 @@ export function ProjectPlan({
             </button>
             <button
               className="luci-button"
-              disabled={busy || changed || !worktreeId || !plan.tasks.length}
+              disabled={busy || dirty || !worktreeId || !plan.tasks.length}
               onClick={() => handoff()}
             >
               Start implementation session
             </button>
-            {changed && (
+            {dirty && (
               <span className="journey-muted">
-                Save changes before handing the plan to an agent.
+                {title.trim()
+                  ? "Add or clear the new task, then save changes before handing the plan to an agent."
+                  : "Save changes before handing the plan to an agent."}
               </span>
             )}
             {!worktreeId && (

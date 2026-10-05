@@ -23,16 +23,17 @@ import (
 )
 
 type Release struct {
-	ID                    string `json:"id"`
-	ProjectID             string `json:"projectId"`
-	BriefRevision         int    `json:"briefRevision"`
-	ConfigurationRevision int    `json:"configurationRevision,omitempty"`
-	Commit                string `json:"commit"`
-	Target                string `json:"target"`
-	Status                string `json:"status"`
-	URL                   string `json:"url"`
-	Message               string `json:"message"`
-	CreatedAt             string `json:"createdAt"`
+	ID                        string `json:"id"`
+	ProjectID                 string `json:"projectId"`
+	BriefRevision             int    `json:"briefRevision"`
+	ConfigurationRevision     int    `json:"configurationRevision,omitempty"`
+	Commit                    string `json:"commit"`
+	Target                    string `json:"target"`
+	Status                    string `json:"status"`
+	URL                       string `json:"url"`
+	Message                   string `json:"message"`
+	CreatedAt                 string `json:"createdAt"`
+	BrowserConnectionRequired bool   `json:"browserConnectionRequired,omitempty"`
 }
 
 type storedRelease struct {

@@ -225,10 +225,12 @@ export interface Release {
   id: string;
   projectId: string;
   briefRevision: number;
+  configurationRevision?: number;
   commit: string;
   target: string;
   status: string;
   url: string;
+  browserConnectionRequired?: boolean;
   message: string;
   createdAt: string;
 }
@@ -387,10 +389,15 @@ export function createProductClient(
     body?: unknown,
     method = body === undefined ? "GET" : "POST",
     budgetMs = 120_000,
+    signal?: AbortSignal,
   ): Promise<T> {
     const controller = new AbortController();
+    const abort = () => controller.abort(signal?.reason);
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
     const timer = setTimeout(() => controller.abort(), budgetMs);
     try {
+      controller.signal.throwIfAborted();
       const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
         method,
         signal: controller.signal,
@@ -425,6 +432,7 @@ export function createProductClient(
       }
       return value as T;
     } catch (error) {
+      if (signal?.aborted) throw signal.reason;
       if (error instanceof ApiError) throw error;
       throw new ApiError(
         controller.signal.aborted ? "timeout" : "network_unavailable",
@@ -435,6 +443,7 @@ export function createProductClient(
       );
     } finally {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
     }
   }
   const project = (id: string) =>
@@ -442,7 +451,8 @@ export function createProductClient(
   return {
     request,
     status: () => request<SetupStatus>("/v1/setup/status"),
-    check: () => request<SetupStatus>("/v1/setup/check", {}),
+    check: (signal?: AbortSignal) =>
+      request<SetupStatus>("/v1/setup/check", {}, "POST", 120_000, signal),
     configure: (config: SetupConfig) =>
       request<SetupStatus>("/v1/setup/config", config),
     cloudPlan: (input: CloudPlanRequest) =>
@@ -485,7 +495,8 @@ export function createProductClient(
         privateKeyPath: string;
         fingerprint: string;
       }>("/v1/setup/ssh/key", {}),
-    runtime: () => request<RuntimeJob>("/v1/setup/runtime/install"),
+    runtime: (signal?: AbortSignal) =>
+      request<RuntimeJob>("/v1/setup/runtime/install", undefined, "GET", 120_000, signal),
     installRuntime: () => request<RuntimeJob>("/v1/setup/runtime/install", {}),
     cloudJobs: () => request<{ jobs: CloudJob[] }>("/v1/setup/cloud/jobs"),
     workspaceInstalls: () =>
@@ -661,6 +672,8 @@ export function createProductClient(
       ),
     releases: (id: string) =>
       request<{ releases: Release[] }>(`${project(id)}/releases`),
+    prototypeReleases: (id: string) =>
+      request<{ releases: Release[] }>(`${project(id)}/prototype-releases`),
     configuration: (id: string) =>
       request<ProjectConfiguration>(`${project(id)}/configuration`),
     saveConfiguration: (
