@@ -20,9 +20,10 @@ import (
 
 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
-const Version = "0.4.4"
+const Version = "0.4.5"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -38,20 +39,22 @@ type Registrar interface {
 }
 type Runner func(context.Context, string, []string, string) (string, error)
 type Options struct {
-	ManagedWorkspace bool
-	CloudBundle      string
-	Shutdown         func()
-	RuntimeDir       string
-	StateDir         string
-	ProjectsDir      string
-	SandboxImage     string
-	CheckMemoryMiB   int
-	CheckCPUMillis   int
-	Configure        func(string) error
-	Runner           Runner
+	BrowserPreviewPort int
+	ManagedWorkspace   bool
+	CloudBundle        string
+	Shutdown           func()
+	RuntimeDir         string
+	StateDir           string
+	ProjectsDir        string
+	SandboxImage       string
+	CheckMemoryMiB     int
+	CheckCPUMillis     int
+	Configure          func(string) error
+	Runner             Runner
 }
 
 type Server struct {
+	browserRegistry   *previewgateway.Registry
 	cloudBundle       string
 	workspace         Workspace
 	workspaceInstalls map[string]WorkspaceInstall
@@ -102,6 +105,13 @@ func New(opts Options) (*Server, error) {
 		sandboxImage: opts.SandboxImage, plans: make(map[string]CloudPlan),
 		managedWorkspace: opts.ManagedWorkspace, configured: opts.ManagedWorkspace,
 		config: Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30}}
+	if opts.BrowserPreviewPort != 0 {
+		var err error
+		s.browserRegistry, err = previewgateway.NewRegistry(opts.StateDir, opts.BrowserPreviewPort)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if s.runner == nil {
 		s.runner = RunCommand
 	}

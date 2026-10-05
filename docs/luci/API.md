@@ -100,6 +100,18 @@ Discovery builder: Glasses reuse evidence and compatible deployment/design compo
 
 ## Setup tools and runtime
 
+### Managed installation of host tools
+
+`GET /v1/setup/dependencies` is an authenticated, cached read from the management gateway. It never starts a worker, calls an installer, probes a CLI or follows the selected cloud workspace. Its `scope` is always `control-plane-host`; `platform` is the gateway computer's operating system. It returns `{scope,platform,canInstall,installer:{id:"winget",status,message,checkedAt?},dependencies:[{id,name,packageId,supported,reason,check:{status,version?,message,checkedAt?},actionRequired,job:null|{id,dependencyId,status,message,actionRequired,createdAt,updatedAt,exitCode?}}]}`. Members can read it; `canInstall` also depends on the current account's administrator role and verified installer availability.
+
+`POST /v1/setup/dependencies/check {}` requires Admin or Super Admin and explicitly performs bounded, read-only probes. Tool check status is `unchecked`, `missing`, `ready` or `action_required`. Docker CLI availability and its configured engine are distinct: an installed CLI with an unavailable engine requires `start_docker`, and does not offer another Docker installation. The existing workspace readiness endpoint separately checks the selected execution host and Luci runtime image. Optional GitHub/AWS/Azure tools are not installed or signed in by a check. A fresh check supersedes an old installation's displayed action while preserving the private operation history.
+
+`POST /v1/setup/dependencies/{id}/install {acceptAgreements:true}` requires Admin or Super Admin, an explicitly accepted package/source agreement, and a prior check that the tool is missing. It returns `202` with a durable job. The fixed catalogue is `git` → `Git.Git`, `docker` → `Docker.DockerDesktop`, `github` → `GitHub.cli`, `aws` → `Amazon.AWSCLI`, and `azure` → `Microsoft.AzureCLI`. Unknown IDs and additional executable, URL, package or command fields are refused. Automatic installation currently supports Windows only; other operating systems receive a manual-install explanation.
+
+The gateway verifies the official Microsoft WinGet source URL, package identifier, type and trust metadata before enabling installation, and verifies it again immediately before dispatch. It uses an exact package ID, the explicit `winget` source and dependency source, silent/noninteractive package installation, agreement flags and `--no-upgrade`. It never resets sources, launches a shell, imports project configuration, passes model/cloud credentials to installers, invokes an elevation bypass, or requests an automatic reboot. Microsoft's source and command semantics are documented in [WinGet source](https://learn.microsoft.com/en-us/windows/package-manager/winget/source) and [WinGet install](https://learn.microsoft.com/en-us/windows/package-manager/winget/install).
+
+Jobs are `queued`, `installing`, `ready`, `action_required`, `failed` or `interrupted`; actions are `none`, `check`, `install_winget`, `elevation`, `restart_app`, `restart_computer`, `start_docker` or `manual_install`. A completed installer is only `ready` after a real version check. UAC/restart/Windows policy results remain actionable states with a normalized exit code, never a fabricated success. The gateway serializes all accounts' host installations, shares active duplicate requests, and uses a Windows named mutex across Luci instances. It rechecks the requesting identity's current role before dispatching each queued job. Startup marks prior queued/running jobs `interrupted` and runs no automatic retry. Closing Luci cancels its owned process tree. Retry requires checking tools and a fresh explicit installation request. Raw installer output and the private issuer ID are not returned.
+
 GET /v1/setup/git/identity returns `{name, email}` from the person's global Git configuration. It runs bounded read-only Git commands outside project repositories and does not create directories. POST on the same route accepts `{name, email}` and writes those explicitly supplied values to global Git configuration. It never substitutes an invented author or rewrites repository-local configuration. Invalid names/emails return 400; a partial write is reported explicitly so it can be retried.
 
 POST /v1/setup/ssh/key accepts `{}` and returns `{publicKey, privateKeyPath, fingerprint}`. The dedicated Ed25519 key is stored at `stateDir/ssh/id_luci`; only its public key, local private-key path and SHA256 fingerprint are returned. Repeating the request returns the same matching key pair. Existing key material is never overwritten. A missing/mismatched public key or unreadable private key returns 409 for explicit resolution.
@@ -246,6 +258,115 @@ The selected-workspace management bridge supports these invitation routes with
 the selected backing's identity. Existing SSH workspace sign-in accepts an
 optional `inviteCode` and redeems it on that workspace. A remote account error
 remains a recoverable workspace error and does not expire the local login.
+
+## Optional Supabase data backend
+
+These routes use the selected project's workspace and authenticated actor. They
+are forwarded through the selected cloud workspace under `/v1/platform`; there
+is no fallback to local data. Compiled cloud and desktop workers retain the same
+reviewed upstream configurations and vendored dependency licences.
+
+GET `/v1/platform/projects/{id}/data` returns cached
+`{projectId,provider:"supabase",version,revision,status,message,endpointScope,
+url?,publishableKey?,services,operation?,backups,capabilities,requirements,
+checkedAt?,priorStackRetained}`. Service receipts contain
+`{name,status,health,image}`. The public key is the client-safe anon JWT, never
+the database password, JWT signing secret or service-role key. `endpointScope`
+is `selected-docker-host-loopback` by default: a remote worker's `127.0.0.1` URL
+is local to that worker and is not a public deployment or a link usable from the
+desktop. The Docker distribution enables `browser-gateway`, returning a
+per-project `http://<64-hex>.localhost:<preview-port>` endpoint that is usable by
+the local browser. It accepts this project's publishable key and Supabase
+anon/authenticated user JWTs, and permits CORS only from the same account's
+registered application origins for this project. Server deployments retain
+`SUPABASE_URL=http://supabase-api:8000`; `SUPABASE_PUBLIC_URL` uses the browser
+endpoint. Cloud applications need an explicitly configured HTTPS data endpoint.
+
+POST the same route with `{action,acknowledgeResources?,backupId?,confirmRestore?}`
+returns202 and an operation receipt
+`{id,action,status,stage,message,createdAt,updatedAt}`. Actions are `install`,
+`start`, `stop`, `refresh`, `backup` and `restore`. Starting requires explicit
+acknowledgement of the stack's separate minimum 4096MiB RAM, 2000 CPU millis and
+40GiB SSD requirement. Docker must be Linux, with Compose v2. Running resource
+reservations, including the existing PostgreSQL 16 service, are accounted for
+before startup. Docker does not report free SSD capacity here; that requirement
+is acknowledged, not falsely described as measured. A restore needs another
+stack's capacity while its original remains available. In-flight receipts after
+a Luci restart become `interrupted` on read and are never automatically rerun.
+
+The stack uses official `self-hosted/v0.8.2` at commit
+`564eab8ad7840b13324f68b1bfac074ef8d51c21`, with11 immutable image digests and
+Logs/Analytics disabled. Its PostgreSQL 17 and storage volumes are separate from
+existing PostgreSQL 16 resources. Only its API gateway binds to literal loopback;
+Studio, metadata and database services do not expose extra host ports. Each
+container, volume and network carries the installation and project ownership
+labels. Starting or stopping cannot adopt a resource with different labels.
+
+New Docker deployments receive private `SUPABASE_URL`, `SUPABASE_PUBLIC_URL`,
+`SUPABASE_ANON_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and
+`SUPABASE_DB_URL` bindings. An existing PostgreSQL 16 `DATABASE_URL` is preserved;
+without one, the Supabase database becomes the default `DATABASE_URL`.
+Client-safe settings are separated from server keys. Existing deployments need
+redeployment to capture changed bindings. Runtime keys stay outside project Git,
+exports and source archives. No OpenAI API credential or fake SMTP defaults are
+inherited from upstream example configuration.
+
+The following controls require the owned data stack to be ready:
+
+- GET `/data/users` returns `{users,page:1,limit:100}` with user ID, email and
+  creation/confirmation timestamps only. POST accepts
+  `{email,password,emailConfirm:true}` and creates a real confirmed Auth user.
+  Passwords require12–256 characters. SMTP is not configured by this installer;
+  email signup/recovery flows are not claimed as delivered.
+- GET `/data/tables` returns `{tables}` with names, columns and `rlsEnabled`.
+  POST accepts `{name,columns:[{name,type,nullable}],enableRls:true}`. UUID `id`
+  is generated automatically; supported column types are `text`, `uuid`,
+  `boolean`, `integer`, `bigint`, `numeric`, `timestamptz` and `jsonb`.
+  New REST tables require RLS and deny client access until policies are added.
+- GET `/data/tables/{table}/rows` returns up to100 rows, explicitly with
+  `access:"project-administrator"`. POST accepts a bounded JSON column/value
+  object. Identifiers and SQL types are allowlisted; data values are quoted and
+  sent through private stdin rather than process arguments.
+- GET `/data/tables/{table}/rls` returns `{enabled,policies}`. POST accepts
+  `{enabled,policy?}`. A policy has `{name,operation,role,using,ownerColumn?}`;
+  operations are `select`, `insert`, `update`, `delete` or `all`, with roles
+  `authenticated` or `anon`. Fixed rules are `authenticated` (signed-in users)
+  and `owner` (a UUID owner column must equal `auth.uid()`). Disabling RLS is an
+  explicit operation; adding a policy requires enabled RLS.
+- GET/POST `/data/buckets` list or create real Storage buckets. Creation accepts
+  `{name,public:false}`; public buckets require the caller to explicitly set
+  `public:true`. GET `/data/buckets/{bucket}/objects?prefix=folder/` returns
+  `{objects,limit:100,prefix}` for a validated relative folder prefix. POST
+  `/data/buckets/{bucket}/objects/{path...}` uploads at most8MiB of raw bytes;
+  GET the same path downloads the object. Absolute, parent, empty and backslash
+  path segments are refused. Stored objects use the real Storage API.
+- GET `/data/realtime` returns `{tables,publication,rlsRequired:true}`. POST
+  `{table,enabled}` adds or removes an existing public table in the real
+  `supabase_realtime` publication. Application subscriptions still obey RLS.
+- GET `/data/functions` returns the reviewed shipped `hello` handler and
+  `customPublishing:false`. POST `/data/functions/hello/invoke` accepts a JSON
+  object of at most64KiB and returns `{function:"hello",result}` from an actual
+  authenticated Edge Runtime invocation. This is not an arbitrary code upload
+  route or a claim of custom committed function publishing.
+
+Backups contain a real custom-format PostgreSQL dump of public/Auth/Storage
+schemas and a storage file archive. Their metadata is
+`{id,createdAt,bytes,sha256,includesStorage:true}`. GET
+`/data/backups/{backupId}` downloads the recorded ZIP only after its checksum is
+verified. The combined limit is64MiB. Signing/encryption restore keys remain in
+private companion state and are not included in the downloaded ZIP. API services
+briefly pause during backup; direct database clients must separately pause writes
+for cross-service consistency. The UI must not call this a zero-downtime backup.
+
+Restore requires a recorded project-owned backup, `confirmRestore:true` and the
+resource acknowledgement. It validates ZIP entries, checksums, expanded limits
+and storage paths, restores into fresh owned volumes, and checks the new services
+before switching private application bindings. The previous stack is stopped and
+retained. A failed candidate is stopped by verified ownership and retained for
+diagnosis; it never overwrites the old volume. Redeploy applications to update
+client-facing URLs after the switch. Backup imports, automatic volume deletion,
+arbitrary migrations and public data-domain provisioning are separate operations
+and are not implied by these controls.
 
 ## Public static deployment
 

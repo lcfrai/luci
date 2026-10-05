@@ -8,6 +8,7 @@ import {
   type PlatformProject,
   type PlatformStatus,
 } from "../../api/platform";
+import { DataWorkspace } from "./DataWorkspace";
 
 export function PlatformWorkspace({ projectId }: { projectId: string }) {
   return <ProjectPlatform key={projectId} projectId={projectId} />;
@@ -118,8 +119,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
     if (!raw) return undefined;
     try {
       const url = new URL(raw);
+      if (url.username || url.password || url.origin === window.location.origin) return undefined;
       return url.protocol === "https:" ||
-        (url.protocol === "http:" && url.hostname === "127.0.0.1")
+        (url.protocol === "http:" && (url.hostname === "127.0.0.1" || /^[a-f0-9]{64}\.localhost$/.test(url.hostname)))
         ? url.href
         : undefined;
     } catch {
@@ -286,19 +288,21 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
             </form>
           )}
           {view === "Data" && (
-            <section
-              className="cloud-deploy-form"
-              aria-label="Project database"
-            >
-              <h3>PostgreSQL database</h3>
+            <section aria-label="Project database">
+              <DataWorkspace projectId={projectId} dockerReady={status.dockerReady} />
+              <details className="data-disclosure">
+              <summary>Standalone PostgreSQL database</summary>
+              <div className="cloud-deploy-form">
+              <h3>Standalone PostgreSQL</h3>
               <p>
                 {project?.database.message ||
                   "Create a private database on this Docker host."}
               </p>
               <p>
                 A Docker volume retains the data. New deployments receive
-                DATABASE_URL privately. This does not install Supabase
-                authentication, object storage or realtime.
+                DATABASE_URL privately. Choose this lighter database when
+                your app does not need the full data and authentication stack.
+                It remains separate from Supabase and uses fewer resources.
               </p>
               <p>
                 Status:{" "}
@@ -366,6 +370,8 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                   <code>{backup.sha256.slice(0, 16)}…</code>
                 </p>
               ))}
+              </div>
+              </details>
             </section>
           )}
           {view === "Hosting connection" && (

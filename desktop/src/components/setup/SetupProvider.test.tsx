@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { SetupProvider, useSetup } from "./SetupProvider";
 import { productApi, type SetupStatus } from "../../api/product";
 import { resetCockpit, useCockpit } from "../../store/store";
+import { completeOnboardingVisit, onboardingKey } from "../../preferences/onboarding";
+import { aProject } from "../../test/fixtures";
 
 const status = {
   product: "Luci",
@@ -32,7 +34,9 @@ function Home() {
   );
 }
 beforeEach(() => {
+  localStorage.clear();
   resetCockpit();
+  useCockpit.getState().setProjects([]);
   vi.restoreAllMocks();
 });
 it("renders first-run onboarding as a dedicated portal, then returns to projects without claiming dependencies are ready", async () => {
@@ -57,6 +61,7 @@ it("renders first-run onboarding as a dedicated portal, then returns to projects
   expect(screen.getByRole("heading", { name: "Project home" })).not.toBeNull();
 });
 it("creates a project outside Settings and selects it only after the server succeeds", async () => {
+  completeOnboardingVisit(onboardingKey(status));
   vi.spyOn(productApi, "status").mockResolvedValue(status);
   const create = vi
     .spyOn(productApi, "createProject")
@@ -88,4 +93,41 @@ it("creates a project outside Settings and selects it only after the server succ
   expect(create).toHaveBeenCalledWith("build-it", undefined);
   expect(useCockpit.getState().selection.projectId).toBe("p-new");
   expect(useCockpit.getState().lens).toBe("discover");
+});
+
+it("shows the location chooser for a new account with an assigned, configured folder", async () => {
+  vi.spyOn(productApi, "status").mockResolvedValue({ ...status,
+    access: { user: { username: "admin", role: "admin" }, manageBacking: true, projectsDirManaged: true },
+  });
+  render(<SetupProvider onProjectsChanged={vi.fn()}><Home /></SetupProvider>);
+  await screen.findByRole("heading", { name: "Choose your workspace" });
+  for (const name of ["On this computer", "AWS", "Azure", "Connect to an existing workspace"])
+    expect(screen.getByRole("button", { name })).not.toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Continue to projects" }));
+  expect(screen.getByRole("heading", { name: "Project home" })).not.toBeNull();
+  expect(useCockpit.getState().projects).toEqual([]);
+});
+
+it("remembers a completed visit without changing workspace readiness", async () => {
+  const snapshot = { ...status, configured: false };
+  vi.spyOn(productApi, "status").mockResolvedValue(snapshot);
+  const first = render(<SetupProvider onProjectsChanged={vi.fn()}><Home /></SetupProvider>);
+  await screen.findByRole("heading", { name: "Choose your workspace" });
+  await userEvent.click(screen.getByRole("button", { name: "Continue to projects" }));
+  first.unmount();
+  render(<SetupProvider onProjectsChanged={vi.fn()}><Home /></SetupProvider>);
+  await screen.findByRole("heading", { name: "Project home" });
+  expect(screen.queryByRole("heading", { name: "Choose your workspace" })).toBeNull();
+  expect(snapshot.configured).toBe(false);
+});
+
+it("keeps a returning account in its existing project when no visit preference exists", async () => {
+  const project = aProject({ id: "p-existing" });
+  useCockpit.getState().setProjects([project]);
+  useCockpit.getState().selectProject(project.id);
+  vi.spyOn(productApi, "status").mockResolvedValue(status);
+  render(<SetupProvider onProjectsChanged={vi.fn()}><Home /></SetupProvider>);
+  await screen.findByRole("heading", { name: "Project home" });
+  expect(screen.queryByRole("heading", { name: "Choose your workspace" })).toBeNull();
+  expect(useCockpit.getState().selection.projectId).toBe(project.id);
 });

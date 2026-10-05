@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -37,8 +38,18 @@ func withWeb(api http.Handler, cfg Config) http.Handler {
 		}
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*; worker-src 'self' blob:; frame-src http://127.0.0.1:* http://localhost:* https:; object-src 'none'; base-uri 'self'; form-action 'self'")
+		w.Header().Set("Content-Security-Policy", webCSP(cfg))
 		w.Header().Set("Cache-Control", "no-cache")
 		files.ServeHTTP(w, r)
 	})
+}
+
+func webCSP(cfg Config) string {
+	policy := "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:* http://localhost:* ws://127.0.0.1:* ws://localhost:*; worker-src 'self' blob:; frame-src http://127.0.0.1:* http://localhost:* https:; object-src 'none'; base-uri 'self'; form-action 'self'"
+	if cfg.BrowserPreviewPort > 0 {
+		port := strconv.Itoa(cfg.BrowserPreviewPort)
+		policy = strings.Replace(policy, "ws://localhost:*;", "ws://localhost:* http://*.localhost:"+port+" ws://*.localhost:"+port+";", 1)
+		policy = strings.Replace(policy, "https:; object-src", "http://*.localhost:"+port+" https:; object-src", 1)
+	}
+	return policy
 }

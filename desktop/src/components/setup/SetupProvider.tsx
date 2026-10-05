@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -15,6 +16,8 @@ import { SetupPanel } from "./SetupPanel";
 import { ProjectEntry, type ProjectEntryMode } from "../projects/ProjectEntry";
 import { useCockpit } from "../../store/store";
 import { errorText } from "../../api/product";
+import { useAuth } from "../auth/AuthProvider";
+import { completeOnboardingVisit, onboardingKey, onboardingVisited } from "../../preferences/onboarding";
 
 type SetupContextValue = {
   workspace?: Workspace;
@@ -38,6 +41,11 @@ export function SetupProvider({
   children: ReactNode;
   onProjectsChanged(): void;
 }) {
+  const auth = useAuth();
+  const projects = useCockpit(state => state.projects);
+  const projectsLoaded = useCockpit(state => state.projectsLoaded);
+  const projectsLoading = useCockpit(state => state.loading.projects);
+  const evaluatedVisit = useRef("");
   const [status, setStatus] = useState<SetupStatus | null>(null);
   const [open, setOpen] = useState(false);
   const [portal, setPortal] = useState(false);
@@ -57,7 +65,6 @@ export function SetupProvider({
       .then((value) => {
         if (!cancelled) {
           setStatus(value);
-          if (!value.configured) setPortal(true);
         }
       })
       .catch((cause) => {
@@ -70,15 +77,27 @@ export function SetupProvider({
       cancelled = true;
     };
   }, [attempt]);
+  const visitKey = status ? onboardingKey(status, auth?.profile.user.id) : "";
+  useEffect(() => {
+    if (!visitKey || !projectsLoaded || evaluatedVisit.current === visitKey) return;
+    evaluatedVisit.current = visitKey;
+    // Existing work takes people back to their retained project; an assigned
+    // empty folder still needs the first-visit workspace choice.
+    if (projects.length === 0 && !onboardingVisited(visitKey)) setPortal(true);
+  }, [visitKey, projectsLoaded, projects.length]);
+  const finishVisit = useCallback(() => {
+    if (visitKey) completeOnboardingVisit(visitKey);
+    setPortal(false);
+  }, [visitKey]);
   const openSettings = useCallback(() => {
     setSection("local");
     setOpen(true);
   }, []);
   const openProject = useCallback((mode: ProjectEntryMode = "new") => {
     setOpen(false);
-    setPortal(false);
+    finishVisit();
     setEntry(mode);
-  }, []);
+  }, [finishVisit]);
   const openCloud = useCallback(() => {
     setSection("cloud");
     setOpen(true);
@@ -105,7 +124,7 @@ export function SetupProvider({
         refreshProjects: onProjectsChanged,
       }}
     >
-      {statusLoading ? (
+      {statusLoading || (!projectsLoaded && projectsLoading !== false) ? (
         <main className="workspace-loading">
           <strong>Luci</strong>
           <h1>Opening your workspace</h1>
@@ -117,10 +136,7 @@ export function SetupProvider({
           initialStatus={status}
           initialSection={section}
           onStatus={setStatus}
-          onClose={() => {
-            setPortal(false);
-            useCockpit.getState().selectProject(null);
-          }}
+          onClose={finishVisit}
           onOpenProject={() => openProject()}
           onSessionStarted={() => {
             setPortal(false);

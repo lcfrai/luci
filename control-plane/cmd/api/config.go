@@ -34,6 +34,8 @@ const (
 	envWebDir                 = "LUCI_WEB_DIR"
 	envRuntimeDir             = "LUCI_RUNTIME_DIR"
 	envCloudBundle            = "LUCI_CLOUD_BUNDLE"
+	envBrowserPreviewAddr     = "LUCI_BROWSER_PREVIEW_ADDR"
+	envBrowserPreviewPort     = "LUCI_BROWSER_PREVIEW_PORT"
 	envAllowedOrigins         = "LUCI_ALLOWED_ORIGINS"
 	envIdleAfter              = "LUCI_IDLE_AFTER"
 	envIdleTimeout            = "LUCI_IDLE_TIMEOUT"
@@ -78,7 +80,8 @@ const (
 	// envStateDir is statepath's own constant, not a second spelling of it.
 	// statepath.Dir reads this variable (contract §2.7) and this file reports
 	// it; a rename in either place must break the build, not the ladder.
-	envStateDir = statepath.EnvStateDir
+	envStateDir         = statepath.EnvStateDir
+	envConversationsDir = "LUCI_CONVERSATIONS_DIR"
 )
 
 const (
@@ -143,6 +146,8 @@ var backendScoped = []struct {
 
 // Config is the whole of this process's configuration, parsed once at startup.
 type Config struct {
+	BrowserPreviewAddr   string
+	BrowserPreviewPort   int
 	RuntimeDir           string
 	CloudBundle          string
 	WebDir               string
@@ -241,6 +246,25 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		LogLevel:     slog.LevelInfo,
 	}
 	cfg.AllowPublicBind = parseFlag(raw(envAllowPublicBind))
+	cfg.BrowserPreviewAddr = raw(envBrowserPreviewAddr)
+	if value := raw(envBrowserPreviewPort); value != "" {
+		n, err := strconv.Atoi(value)
+		if err != nil || n < 1 || n > 65535 {
+			return Config{}, fmt.Errorf("%s requires a port from 1 to 65535", envBrowserPreviewPort)
+		}
+		cfg.BrowserPreviewPort = n
+	}
+	if cfg.BrowserPreviewAddr != "" {
+		host, port, err := net.SplitHostPort(cfg.BrowserPreviewAddr)
+		ip := net.ParseIP(host)
+		n, parseErr := strconv.Atoi(port)
+		_, controlPort, _ := net.SplitHostPort(cfg.Addr)
+		if err != nil || parseErr != nil || n < 1 || n > 65535 || ip == nil || (!ip.IsLoopback() && !cfg.AllowPublicBind) || port == controlPort || cfg.BrowserPreviewPort == 0 || parseFlag(raw(envWorker)) {
+			return Config{}, fmt.Errorf("%s requires an independent non-worker listener, valid advertised port and explicit public-bind acknowledgement for a container listener", envBrowserPreviewAddr)
+		}
+	} else if cfg.BrowserPreviewPort != 0 && !parseFlag(raw(envWorker)) {
+		return Config{}, fmt.Errorf("%s requires %s on the main process", envBrowserPreviewPort, envBrowserPreviewAddr)
+	}
 	cfg.LocalAccessToken = getenv(envLocalAccessToken)
 	cfg.PortableOwnerAccess = parseFlag(raw(envPortableOwnerAccess))
 	if cfg.PortableOwnerAccess {
@@ -372,6 +396,13 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		cfg.SessionsPath = registry.DefaultPath()
 		cfg.ConversationsDir = statepath.Dir("conversations")
 		cfg.InstancePath = filepath.Join(statepath.Dir("instance"), instance.FileName)
+	}
+	// The registry is happy with a relative path and a bind mount is not: a
+	if value := raw(envConversationsDir); value != "" {
+		if !filepath.IsAbs(value) {
+			return Config{}, fmt.Errorf("%s must be an absolute path", envConversationsDir)
+		}
+		cfg.ConversationsDir = value
 	}
 	// The registry is happy with a relative path and a bind mount is not: a
 	// relative LUCI_STATE_DIR would otherwise fail every session create

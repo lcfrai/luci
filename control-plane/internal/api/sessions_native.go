@@ -10,9 +10,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/conversationpath"
 	"github.com/lcfrai/luci/control-plane/internal/harness"
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
@@ -34,7 +36,24 @@ func (a *API) nativeStore(worktreeID, provider, conversation string) (string, er
 	}
 	// Outside the entire Claude transcript mount: a Claude session must never
 	// see another provider's auth or database through a nested bind directory.
-	return filepath.Join(a.deps.ConversationsDir, "native", sessionConversationOwner, worktreeID, provider, conversation), nil
+	legacy := filepath.Join(a.deps.ConversationsDir, conversationpath.LegacyRelative(sessionConversationOwner, worktreeID, provider, conversation))
+	if runtime.GOOS != "windows" {
+		return legacy, nil
+	}
+	compact := filepath.Join(a.deps.ConversationsDir, conversationpath.NativeRelative(sessionConversationOwner, worktreeID, provider, conversation))
+	if _, err := os.Lstat(compact); err == nil {
+		return compact, nil
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	// Existing standalone Windows stores keep their original homes. Managed
+	// workers migrate them before launch; new conversations use compact homes.
+	if _, err := os.Lstat(legacy); err == nil {
+		return legacy, nil
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	return compact, nil
 }
 
 // Snapshot only stopped CLI homes. Their SQLite/WAL and provider transcripts

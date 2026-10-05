@@ -288,7 +288,8 @@ try {
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await page.getByRole('heading', { name: 'Your cloud workspace', exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'On this computer', exact: true }).count(), 0);
-  assert.equal(await page.getByRole('button', { name: 'Set up a cloud workspace', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'AWS', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Azure', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Save settings', exact: true }).count(), 0, 'Local administrator identity must not expose remote member folder writes');
   await page.getByRole('button', { name: 'Create your first project', exact: true }).click();
   const memberDialog = page.getByRole('dialog', { name: 'Create a project', exact: true });

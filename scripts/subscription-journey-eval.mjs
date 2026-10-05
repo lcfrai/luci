@@ -173,15 +173,22 @@ async function enter() {
   result.userId = me.user.id;
   const setup = await get("/v1/setup/status");
   await checkpoint("entry.setup-dialog");
-  if (!setup.configured) {
+  const portal = page.locator(".onboarding-portal");
+  // An assigned folder can be configured before this account's first visit.
+  // Complete the actual visible choice instead of inferring that visit from
+  // runtime readiness. Each acceptance browser starts with fresh preferences.
+  if (await portal.isVisible()) {
+    await portal.getByRole("button", { name: "On this computer", exact: true }).click();
+    await portal.getByRole("button", { name: "Continue to projects", exact: true }).click();
+  } else if (!setup.configured) {
     await page.getByRole("button", { name: "On this computer", exact: true }).click();
     await page.getByRole("button", { name: "Continue to projects", exact: true }).click();
   }
-  await page.locator(".setup-backdrop").waitFor({ state: "hidden" });
+  await page.locator(".setup-backdrop,.onboarding-portal").waitFor({ state: "hidden" });
   await page.locator(".shell").waitFor();
   if (result.project) await selectProject();
 }
-async function selectProject(requireBranch = phase !== "prepare") {
+async function selectProject(requireBranch = ["develop", "verify", "deploy"].includes(phase)) {
   await checkpoint("project.catalogue");
   const rows = (await get("/v1/projects")).projects;
   assert(rows.some(row => row.id === result.project.id && row.name === result.projectName), "Owned benchmark project is not present in this account");
@@ -373,7 +380,7 @@ async function auth() {
   if (result.authSessionId) {
     const session = await get(`/v1/sessions/${encodeURIComponent(result.authSessionId)}`);
     assert.equal(session.harness, "codex"); assert.equal(session.authOnly, true);
-    if (session.status !== "exited") pending("Complete the official Codex device sign-in in this project's Luci terminal, then rerun auth. No sign-in contents were captured.");
+    if (session.status !== "exited") pending("Complete the official Codex device sign-in in Luci’s account sign-in terminal, then rerun auth. No sign-in contents were captured.");
     await settings();
     await page.getByRole("combobox", { name: "Completed sign-in session", exact: true }).selectOption(session.id);
     account = await observed(() => page.getByRole("button", { name: "Save Codex sign-in", exact: true }).click(), "/v1/setup/agents/codex/account");
@@ -387,7 +394,9 @@ async function auth() {
   assert.equal(session.harness, "codex"); assert.equal(session.authOnly, true);
   result.authSessionId = session.id; await save();
   if (waitMs) await until(async () => (await get(`/v1/sessions/${encodeURIComponent(session.id)}`)).status === "exited", waitMs);
-  pending("Official device sign-in session is ready in Luci. Complete it yourself, then rerun auth to save it. No device code or terminal contents were recorded.");
+  const current = await get(`/v1/sessions/${encodeURIComponent(session.id)}`);
+  if (current.status === "exited") pending("The account sign-in session has exited. Its saved account still needs verification through Luci before subscription inference can run. No device code or terminal contents were recorded.");
+  pending("An official device sign-in session is running in Luci. Complete it yourself, then rerun auth to save it. No device code or terminal contents were recorded.");
 }
 async function develop() {
   requireProof("describe", "design", "plan", "subscription"); await dockerReady(); await assertContext();

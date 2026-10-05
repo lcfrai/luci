@@ -112,11 +112,10 @@ async function closeSettings(page) {
   assert.equal(setup.status, 200);
   assert.equal(typeof setup.configured, "boolean");
   await workspaceReady(page);
-  if (!setup.configured) {
+  const portal = page.locator(".onboarding-portal");
+  if (await portal.isVisible()) {
     // First use is a full-page portal. Leaving it does not silently save a
     // workspace or require Docker, and the account menu exists only afterward.
-    const portal = page.locator(".onboarding-portal");
-    await portal.waitFor({ state: "visible", timeout: 15000 });
     await portal.getByRole("button", { name: "Continue to projects", exact: true }).click();
   }
   const close = page.getByRole("button", { name: "Close settings", exact: true });

@@ -27,3 +27,52 @@ The first corrective source batch adds Projects home, first-run workspace onboar
 The complete control-plane Go suite passes. The broad frontend run found five appearance-rule failures among 1,026 checks; the corrected affected group subsequently passes. Focused new specification/design race checks and type checking pass. Browser entry, installed-upgrade, connected UAT, Docker and SSH acceptance scripts have been migrated, but their new packaged execution is still pending at this checkpoint.
 
 This is an implementation checkpoint, not a full-product release claim. Host dependency installation, production cloud provisioning, complete authentication/storage/realtime services, backup restore and the real subscription-driven public deployment remain outstanding. PostgreSQL alone is not Supabase, and local loopback deployments are not public hosting.
+
+## 0.4.5 integration checkpoint — 5 October 2026
+
+The source now separates first-visit onboarding from workspace readiness, offers
+local, AWS, Azure and existing-workspace entry paths, and connects prerequisite
+checks to consented installer jobs. Cloud selection includes an optional preset
+with enough CPU for the full data stack alongside an application and agent.
+Provider prices still require a current account/region quote; no live AWS or Azure
+provisioning is claimed by source or template checks.
+
+The actual compiled 0.4.4 development candidate passed nine browser entry and
+recovery checks, nineteen connected project/account checks, restart persistence,
+and the batched desktop/mobile appearance inspection. Nine axe surfaces had no
+violations; the canvas retained incomplete contrast checks. Evidence is under
+`artifacts/uat/entry-frontend-5451563d-662a-47e6-bc2b-0ab29ddb1168`.
+These receipts do not admit a new release or prove model inference.
+
+The new optional data platform uses pinned upstream Supabase services and native
+Luci controls for tables, Auth users, RLS, Storage, Realtime and the shipped
+function. Real Docker acceptance verified eleven healthy services, user creation,
+stored rows/policies, realtime publication, exact nested file bytes, function
+execution and a downloaded backup with matching SHA-256. Those runs uncovered
+and corrected cold-start health grace, normal tar directory handling and fresh
+restore schema/ownership issues and storage tenant bindings. A fresh real Docker
+run then passed twelve checks, including restored password sign-in, owner JWT
+row access, anonymous denial, retained RLS/realtime, exact object bytes and real
+stop/start persistence with browser record display. Its receipt is
+`artifacts/data-uat-4fcf9300/results.json`; this used a host controller and does
+not prove the complete Docker distribution. Custom function publishing,
+SMTP/OAuth configuration and public data-domain provisioning are not implied by
+the available controls.
+
+The complete Docker distribution packages the controller, a private execution
+engine, persistent workspace and provider tools. Browser previews and data APIs
+use isolated local origins. The controller runs with the same non-root identity
+as its private agent mounts. Docker install/restart and the subscription-backed
+four-phase journey must still run against a matching clean-source package.
+The broad frontend run passed 1,044 checks and identified two audit failures;
+the token import and browser-gateway seam were corrected, and the affected
+104-check audit group passed. The gateway preview URL correction also passed
+27 deployment checks and type checking. These checks do not substitute for the
+subscription-backed journey or real cloud-provider provisioning.
+
+Windows conversation storage now has compact physical names with unchanged
+logical identities and retained legacy state. A real isolated managed-account
+probe verified official Codex device sign-in stayed running and nested rollout
+writes succeeded. This proves the storage fix, not completed account sign-in or
+subscription inference. The user's provider sign-in, implementation, immutable
+checks and working public deployment are still mandatory goal outcomes.

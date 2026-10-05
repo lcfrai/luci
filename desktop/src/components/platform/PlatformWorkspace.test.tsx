@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { PlatformWorkspace } from "./PlatformWorkspace";
 import { platformApi, type PlatformProject } from "../../api/platform";
 import { productApi } from "../../api/product";
+vi.mock("./DataWorkspace", () => ({ DataWorkspace: () => <div>Project data services</div> }));
 
 vi.mock("../../api/platform", () => ({
   platformApi: {
@@ -70,6 +71,7 @@ it("starts with an honest capability overview and discloses real service control
   expect(screen.queryByLabelText("Application port")).toBeNull();
   expect(screen.getByText("Full Supabase is not installed.")).not.toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Data" }));
+  fireEvent.click(screen.getByText("Standalone PostgreSQL database"));
   expect(
     (
       screen.getByRole("button", {

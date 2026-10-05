@@ -105,7 +105,7 @@ export interface CloudPlanRequest {
   name: string;
   region: string;
   domain: string;
-  size: "small" | "standard";
+  size: "small" | "standard" | "full";
   monthlyBudgetUsd: number;
   sshPublicKey: string;
 }

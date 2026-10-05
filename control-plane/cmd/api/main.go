@@ -36,6 +36,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/instance"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/platform"
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/reaper"
@@ -164,7 +165,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			cloudBundle = filepath.Join(filepath.Dir(exe), "cloud", "luci-cloud-linux-amd64.tar.gz")
 		}
 	}
-	productService, err := product.New(product.Options{ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
+	productService, err := product.New(product.Options{BrowserPreviewPort: cfg.BrowserPreviewPort, ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
 		if shutdownService != nil {
 			shutdownService()
 		}
@@ -173,7 +174,9 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		return fmt.Errorf("initialise Luci: %w", err)
 	}
 	defer productService.Close()
-	platformService, err := platform.New(platform.Options{StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource})
+	// Public browser origins are optional and independent from private Docker
+	// health URLs. The portable/native launch paths keep their prior defaults.
+	platformService, err := platform.New(platform.Options{BrowserPreviewPort: cfg.BrowserPreviewPort, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource})
 	if err != nil {
 		return fmt.Errorf("initialise application platform: %w", err)
 	}
@@ -277,6 +280,30 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			_ = control.Close(cleanup)
 		}()
 		engine = control.Handler()
+	}
+	if cfg.BrowserPreviewAddr != "" && !cfg.Worker {
+		root := cfg.StateDir
+		if root == "" {
+			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
+		}
+		gateway, err := previewgateway.New(root, cfg.BrowserPreviewPort, previewgateway.DockerVerifier(cfg.DockerHost))
+		if err != nil {
+			_ = ln.Close()
+			return fmt.Errorf("initialise browser gateway: %w", err)
+		}
+		previewListener, err := net.Listen("tcp", cfg.BrowserPreviewAddr)
+		if err != nil {
+			_ = ln.Close()
+			return fmt.Errorf("listen on browser gateway: %w", err)
+		}
+		previewServer := &http.Server{Handler: gateway, ReadHeaderTimeout: 10 * time.Second}
+		defer previewServer.Close()
+		go func() {
+			if err := previewServer.Serve(previewListener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Error("browser gateway stopped", "err", err)
+				_ = ln.Close()
+			}
+		}()
 	}
 	srv := &http.Server{
 		Handler: withWeb(originPolicy.Middleware(withManagedShutdown(engine, cfg.ManagedShutdownToken, func() {

@@ -131,9 +131,12 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
     if (release.status !== "ready") return null;
     try {
       const url = new URL(release.url);
+      if (url.username || url.password) return null;
       return (release.target !== "local" && url.protocol === "https:") ||
         (url.protocol === "http:" &&
-          (url.hostname === "127.0.0.1" || url.hostname === "localhost"))
+          (url.hostname === "127.0.0.1" ||
+            url.hostname === "localhost" ||
+            /^[a-f0-9]{64}\.localhost$/.test(url.hostname)))
         ? url.toString()
         : null;
     } catch {

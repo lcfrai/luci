@@ -83,9 +83,15 @@ func (s *Service) ensureNetwork(ctx context.Context, id string) (string, error) 
 }
 
 type containerInfo struct {
-	ID, Image       string
-	Config          struct{ Labels map[string]string }
-	State           struct{ Running bool }
+	ID, Image string
+	Config    struct {
+		Labels map[string]string
+		Image  string
+	}
+	State struct {
+		Running bool
+		Health  struct{ Status string }
+	}
 	NetworkSettings struct {
 		Ports map[string][]struct{ HostIP, HostPort string }
 	}
@@ -183,6 +189,16 @@ func (s *Service) environment(id string) (int, map[string]string, error) {
 	var secret databaseSecret
 	if s.read(id+"-database-secret", &secret) == nil {
 		copyValues["DATABASE_URL"] = "postgresql://luci:" + secret.Password + "@database:5432/app?sslmode=disable"
+	}
+	dataValues, e := s.dataBindings(id)
+	if e != nil {
+		return 0, nil, e
+	}
+	for key, value := range dataValues {
+		copyValues[key] = value
+	}
+	if _, hasLegacyDatabase := copyValues["DATABASE_URL"]; !hasLegacyDatabase && dataValues["SUPABASE_DB_URL"] != "" {
+		copyValues["DATABASE_URL"] = dataValues["SUPABASE_DB_URL"]
 	}
 	return rev, copyValues, nil
 }
@@ -451,7 +467,7 @@ func (s *Service) deploymentAction(w http.ResponseWriter, r *http.Request) {
 		problem(w, 500, "state_unavailable", "Deployment state could not be saved.")
 		return
 	}
-	respond(w, 200, d)
+	respond(w, 200, s.browserDeployment(d))
 }
 func (s *Service) logs(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.project(w, r)

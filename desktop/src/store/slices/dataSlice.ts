@@ -29,6 +29,7 @@ export type LoadKey =
 export interface DataSlice {
   machines: Machine[];
   projects: Project[];
+  projectsLoaded: boolean;
   branchesByProject: Record<ProjectId, Branch[]>;
   worktreesByBranch: Record<BranchId, Worktree[]>;
   sessions: Record<SessionId, Session>;
@@ -54,7 +55,7 @@ export interface DataSlice {
 
 type DataState = Pick<
   DataSlice,
-  | "machines" | "projects" | "branchesByProject" | "worktreesByBranch"
+  | "machines" | "projects" | "projectsLoaded" | "branchesByProject" | "worktreesByBranch"
   | "sessions" | "sessionIdsByWorktree" | "harnesses" | "loading" | "lastError"
 >;
 
@@ -65,6 +66,7 @@ type DataState = Pick<
 export const initialDataState: DataState = Object.freeze({
   machines: Object.freeze([]) as unknown as Machine[],
   projects: Object.freeze([]) as unknown as Project[],
+  projectsLoaded: false,
   branchesByProject: Object.freeze({}) as Record<ProjectId, Branch[]>,
   worktreesByBranch: Object.freeze({}) as Record<BranchId, Worktree[]>,
   sessions: Object.freeze({}) as Record<SessionId, Session>,
@@ -103,7 +105,17 @@ export const createDataSlice: StateCreator<
   ...initialDataState,
 
   setMachines: (machines) => set({ machines }),
-  setProjects: (projects) => set({ projects }),
+  setProjects: (projects) => set((state) => {
+    // Only a successful catalogue response can invalidate a retained selection.
+    // Failed or pending requests leave the user's current project in place.
+    const missing = state.selection.projectId !== null &&
+      !projects.some(project => project.id === state.selection.projectId);
+    return {
+      projects,
+      projectsLoaded: true,
+      ...(missing ? { selection: { projectId: null, branchId: null, worktreeId: null, sessionId: null } } : {}),
+    };
+  }),
   setBranches: (projectId, branches) =>
     set((s) => ({ branchesByProject: { ...s.branchesByProject, [projectId]: branches } })),
   setWorktrees: (branchId, worktrees) =>

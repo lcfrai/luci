@@ -1,6 +1,7 @@
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -25,6 +26,8 @@ import { useAuth } from "../auth/AuthProvider";
 import { AppearancePanel } from "./AppearancePanel";
 import { RuntimePreparation } from "./RuntimePreparation";
 import { AgentConnections } from "./AgentConnections";
+import { DependencySetup } from "./DependencySetup";
+import { createDependencyClient } from "../../api/dependencies";
 import "./setup.css";
 
 interface Props {
@@ -49,7 +52,7 @@ function SetupRoutes({
   includeLocal: boolean;
   manageBacking: boolean;
   allowProvision: boolean;
-  onChoose(route: SetupRoute): void;
+  onChoose(route: SetupRoute, provider?: "aws" | "azure"): void;
 }) {
   const routes: {
     id: SetupRoute;
@@ -57,6 +60,7 @@ function SetupRoutes({
     description: string;
     note: string;
     disabled: boolean;
+    provider?: "aws" | "azure";
   }[] = [
     ...(includeLocal
       ? [
@@ -70,18 +74,21 @@ function SetupRoutes({
           },
         ]
       : []),
-    {
+    ...(["aws", "azure"] as const).map(provider => ({
       id: "managed",
-      title: "Set up a cloud workspace",
+      provider,
+      title: provider === "aws" ? "AWS" : "Azure",
       description:
-        "Let Luci guide setup in your own AWS or Azure account. You choose the resources and approve their costs before creation.",
+        provider === "aws"
+          ? "Run your workspace in your own AWS account. Luci guides the sign-in, machine setup and domain connection."
+          : "Run your workspace in your own Azure account. Luci guides the sign-in, machine setup and domain connection.",
       note: !manageBacking
         ? "An Admin manages cloud connections for this workspace."
         : !allowProvision
           ? "Cloud provisioning is disabled by workspace policy."
           : "Have your cloud account and a domain you control ready. Cloud, domain and model charges are separate.",
       disabled: !manageBacking || !allowProvision,
-    },
+    } as const)),
     {
       id: "existing",
       title: "Connect to an existing workspace",
@@ -101,26 +108,26 @@ function SetupRoutes({
     >
       {routes.map((route) => (
         <button
-          key={route.id}
+          key={route.provider || route.id}
           type="button"
           className="setup-route-choice"
           disabled={route.disabled}
-          aria-labelledby={`setup-route-${route.id}`}
-          aria-describedby={`setup-route-description-${route.id} setup-route-note-${route.id}`}
-          onClick={() => onChoose(route.id)}
+          aria-labelledby={`setup-route-${route.provider || route.id}`}
+          aria-describedby={`setup-route-description-${route.provider || route.id} setup-route-note-${route.provider || route.id}`}
+          onClick={() => onChoose(route.id, route.provider)}
         >
-          <span className="setup-route-title" id={`setup-route-${route.id}`}>
+          <span className="setup-route-title" id={`setup-route-${route.provider || route.id}`}>
             {route.title}
           </span>
           <span
             className="setup-route-description"
-            id={`setup-route-description-${route.id}`}
+            id={`setup-route-description-${route.provider || route.id}`}
           >
             {route.description}
           </span>
           <span
             className={`setup-route-note${route.id === "local" ? " setup-route-recommended" : ""}`}
-            id={`setup-route-note-${route.id}`}
+            id={`setup-route-note-${route.provider || route.id}`}
           >
             {route.note}
           </span>
@@ -158,18 +165,19 @@ export function SetupPanel({
     status?.access?.manageBacking ?? (!cloudWorkspace && localManageBacking);
   const projectsDirManaged = status?.access?.projectsDirManaged === true;
   const canChooseProjectsDir = manageBacking && !projectsDirManaged;
-  const firstRun = useRef(initialStatus?.configured === false);
   const portal = presentation === "portal";
   const onboarding =
-    (status?.configured === false || (portal && firstRun.current)) &&
+    (status?.configured === false || portal) &&
     !cloudWorkspace;
+  const dependencies = useMemo(() => createDependencyClient(client), [client]);
+  const [toolsRevision, setToolsRevision] = useState(0);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   const [name, setName] = useState("");
   const [remote, setRemote] = useState("");
   const [cloudName, setCloudName] = useState("luci");
-  const [size, setSize] = useState<"small" | "standard">("small");
+  const [size, setSize] = useState<"small" | "standard" | "full">("small");
   const [sshPublicKey, setSshPublicKey] = useState("");
   const [privateKeyPath, setPrivateKeyPath] = useState("");
   const [plan, setPlan] = useState<CloudPlan | null>(null);
@@ -239,7 +247,10 @@ export function SetupPanel({
     if (config) setConfig({ ...config, ...patch });
     setPlan(null);
   };
-  const chooseRoute = (value: SetupRoute) => {
+  const chooseRoute = (value: SetupRoute, provider?: "aws" | "azure") => {
+    if (provider) update({ cloudProvider: provider,
+      region: (config?.cloudProvider || "aws") === provider ? config?.region || "" : "",
+    });
     setRoute(value);
     setSection(value === "local" ? "local" : "cloud");
     setError("");
@@ -348,7 +359,7 @@ export function SetupPanel({
                 ? section === "project"
                   ? "Create a cloud project"
                   : "Your cloud workspace"
-                : status?.configured
+                : !onboarding && status?.configured
                   ? portal
                     ? "Prepare your workspace"
                     : "Settings"
@@ -493,16 +504,27 @@ export function SetupPanel({
                     </div>
                   )}
                   {portal && busy !== "Preparing projects folder" && (
-                    <RuntimePreparation
-                      client={client}
-                      manageBacking={manageBacking}
-                      automatic
-                      onStatus={(value) => {
-                        setStatus(value);
-                        onStatus(value);
-                      }}
-                    />
+                    <>
+                      <DependencySetup
+                        client={dependencies}
+                        canManage={localManageBacking}
+                        automatic
+                        cloudWorkspace={cloudWorkspace}
+                        onChecked={() => setToolsRevision(value => value + 1)}
+                      />
+                      <RuntimePreparation
+                        refreshToken={toolsRevision}
+                        client={client}
+                        manageBacking={manageBacking}
+                        automatic
+                        onStatus={(value) => {
+                          setStatus(value);
+                          onStatus(value);
+                        }}
+                      />
+                    </>
                   )}
+                  {!portal && <DependencySetup client={dependencies} canManage={localManageBacking} cloudWorkspace={cloudWorkspace} onChecked={() => setToolsRevision(value => value + 1)} />}
                   <form onSubmit={submitConfig}>
                     <label className="luci-field">
                       Projects folder
@@ -774,6 +796,7 @@ export function SetupPanel({
                             resources and costs before approving creation. Your
                             budget is a planning limit, not a billing cap.
                           </p>
+                          <DependencySetup client={dependencies} canManage={localManageBacking} automatic target={config.cloudProvider || "aws"} />
                           <label className="luci-field">
                             Provider
                             <select
@@ -851,12 +874,14 @@ export function SetupPanel({
                                 }}
                               >
                                 <option value="small">
-                                  Small · start here
+                                  Small · 4 GB / 2 CPU · lightweight apps
                                 </option>
                                 <option value="standard">
-                                  Standard · more capacity
+                                  Standard · 8 GB / 2 CPU
                                 </option>
+                                <option value="full">Full data stack · 4 CPU · {config.cloudProvider === "azure" ? "8 GB" : "16 GB"}</option>
                               </select>
+                              <small>Choose Full data stack to run authentication, storage and realtime alongside an app and coding agent. The smaller machines suit lightweight projects.</small>
                             </label>
                             <label className="luci-field">
                               Monthly budget · USD
@@ -999,7 +1024,9 @@ export function SetupPanel({
               ? `${busy}…`
               : cloudWorkspace
                 ? `Projects and agents run on ${status?.workspace?.host}`
-                : "Local by default · Your account, when you choose"}
+                : portal
+                  ? "You can connect tools later. Continuing does not mark them ready."
+                  : "Local by default · Your account, when you choose"}
           </span>
           <button className="luci-button" onClick={onClose} disabled={!!busy}>
             {portal ? "Continue to projects" : "Back to project"}

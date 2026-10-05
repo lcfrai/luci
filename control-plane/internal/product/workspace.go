@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
 type Workspace struct {
@@ -43,9 +44,10 @@ type WorkspaceInstall struct {
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
 type workspacePreview struct {
-	server       *http.Server
-	url          string
-	connectionID string
+	projectID, releaseID string
+	server               *http.Server
+	url                  string
+	connectionID         string
 }
 
 func (s *Server) initWorkspace() error {
@@ -763,6 +765,7 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 	prefix := "/v1/product/projects/" + url.PathEscape(req.ProjectID) + "/releases/" + url.PathEscape(req.ReleaseID) + "/preview"
 	proxy := httputil.NewSingleHostReverseProxy(upstream)
 	proxy.Director = func(out *http.Request) {
+		appAuthorization := out.Header.Get("Authorization")
 		out.URL.Scheme = upstream.Scheme
 		out.URL.Host = upstream.Host
 		out.Host = upstream.Host
@@ -777,6 +780,9 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 			}
 		}
 		out.Header.Set("X-Luci-Preview-Bridge", "1")
+		if len(appAuthorization) <= 8192 && appAuthorization != "" {
+			out.Header.Set("X-Luci-Preview-App-Authorization", appAuthorization)
+		}
 		out.Header.Set("Authorization", "Bearer "+token)
 	}
 	proxy.ModifyResponse = func(res *http.Response) error {
@@ -791,6 +797,16 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		problem(w, 503, "preview_unavailable", "The workspace preview is not answering.")
+	}
+	bridgeKey := ""
+	if s.browserRegistry != nil {
+		bridgeKey, err = previewgateway.NewBridgeKey()
+		if err != nil {
+			_ = ln.Close()
+			s.mu.Unlock()
+			problem(w, 500, "preview_unavailable", "The private bridge could not be secured.")
+			return
+		}
 	}
 	server := &http.Server{ReadHeaderTimeout: 10 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if "http://"+r.Host != origin {
@@ -814,12 +830,32 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 			problem(w, 503, "workspace_disconnected", "Reconnect this workspace in Luci.")
 			return
 		}
+		if r.Method == "GET" && r.URL.Path == previewgateway.BridgeProbePath && bridgeKey != "" {
+			proof := previewgateway.BridgeProof(bridgeKey, r.Header.Get(previewgateway.BridgeNonceHeader))
+			if proof == "" {
+				problem(w, 403, "bridge_probe_rejected", "The bridge probe is invalid.")
+				return
+			}
+			w.Header().Set(previewgateway.BridgeProofHeader, proof)
+			w.WriteHeader(204)
+			return
+		}
 		proxy.ServeHTTP(w, r)
 	})}
-	s.previews[key] = &workspacePreview{server: server, url: origin, connectionID: ws.ConnectionID}
+	browserOrigin := origin
+	if s.browserRegistry != nil {
+		browserOrigin, err = s.browserRegistry.Publish(previewgateway.Target{Kind: "bridge", ProjectID: req.ProjectID, ResourceID: req.ReleaseID, Upstream: origin, BridgeKey: bridgeKey})
+		if err != nil {
+			_ = ln.Close()
+			s.mu.Unlock()
+			problem(w, 500, "preview_unavailable", "The private preview browser address could not be registered.")
+			return
+		}
+	}
+	s.previews[key] = &workspacePreview{server: server, url: browserOrigin, connectionID: ws.ConnectionID, projectID: req.ProjectID, releaseID: req.ReleaseID}
 	s.mu.Unlock()
 	go server.Serve(ln)
-	writeJSON(w, 200, map[string]string{"url": origin})
+	writeJSON(w, 200, map[string]string{"url": browserOrigin})
 }
 func (s *Server) closePreviews() {
 	s.mu.Lock()
@@ -828,6 +864,9 @@ func (s *Server) closePreviews() {
 	s.mu.Unlock()
 	for _, preview := range previews {
 		_ = preview.server.Close()
+		if s.browserRegistry != nil {
+			_ = s.browserRegistry.Remove("bridge", preview.projectID, preview.releaseID)
+		}
 	}
 }
 func (s *Server) closeWorkspace() {

@@ -85,12 +85,34 @@ const screenshot = async (label) => {
   screenshots.push(`${label}.png`);
 };
 async function observedPost(action, suffix) {
-  const [response] = await Promise.all([
-    page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname.endsWith(suffix)),
-    action(),
-  ]);
-  assert.ok(response.ok(), `${suffix} returned ${response.status()}`);
-  return response.json();
+  // Observe the real response before a successful UI action reloads the page.
+  // The unchanged request reaches the actual service; the identical response
+  // is delivered to the app. No fixture response or application state is made.
+  let resolveBody, rejectBody;
+  const bodyPromise = new Promise((resolve, reject) => { resolveBody = resolve; rejectBody = reject; });
+  const timeout = setTimeout(() => rejectBody(new Error(`No real POST response arrived for ${suffix}`)), 45000);
+  const matcher = url => url.origin === new URL(base).origin && url.pathname.endsWith(suffix);
+  const observer = async route => {
+    if (route.request().method() !== "POST") { await route.continue(); return; }
+    try {
+      const response = await route.fetch({ maxRedirects: 0 });
+      const bytes = await response.body();
+      await route.fulfill({ response, body: bytes });
+      assert.ok(response.ok(), `${suffix} returned ${response.status()}`);
+      resolveBody(JSON.parse(bytes.toString("utf8")));
+    } catch (error) {
+      rejectBody(error);
+      await route.abort().catch(() => {});
+    }
+  };
+  await page.route(matcher, observer);
+  try {
+    const [body] = await Promise.all([bodyPromise, action()]);
+    return body;
+  } finally {
+    clearTimeout(timeout);
+    await page.unroute(matcher, observer);
+  }
 }
 try {
   await page.goto(base);
@@ -129,11 +151,11 @@ try {
     /\/artifacts\/uat\/[^/]+\/projects\/?$/,
   );
   checks.push(
-    "Authenticated through the real account UI before any project catalogue mounted",
+    "Authenticated through the real account UI before opening its account-scoped workspace",
   );
   assert.equal(initial.configured, false, "The fresh owner should enter the onboarding portal");
   assert.equal(await page.getByRole("dialog").count(), 0, "Onboarding is a dedicated page, not Settings");
-  for (const choice of ["On this computer", "Set up a cloud workspace", "Connect to an existing workspace"])
+  for (const choice of ["On this computer", "AWS", "Azure", "Connect to an existing workspace"])
     await page.getByRole("button", { name: choice, exact: true }).waitFor();
   assert.equal(await page.getByLabel("SSH public key", { exact: true }).count(), 0);
   await page.getByRole("button", { name: "Connect to an existing workspace", exact: true }).click();
@@ -142,7 +164,7 @@ try {
   assert.equal(await page.getByRole("button", { name: "Install Luci workspace", exact: true }).count(), 0);
   await screenshot("00a-existing-workspace-choice");
   await page.getByRole("button", { name: "Choose another setup option", exact: true }).click();
-  await page.getByRole("button", { name: "Set up a cloud workspace", exact: true }).click();
+  await page.getByRole("button", { name: "AWS", exact: true }).click();
   await page.getByRole("combobox", { name: "Provider", exact: true }).selectOption("azure");
   await page.getByRole("option", { name: "Azure · Virtual machine", exact: true }).waitFor({ state: "attached" });
   await screenshot("00b-cloud-workspace-choice");
@@ -151,7 +173,7 @@ try {
   const configured = await observedPost(() => page.getByRole("button", { name: "On this computer", exact: true }).click(), "/v1/setup/config");
   assert.equal(configured.configured, true);
   assert.equal(configured.config.projectsDir, initial.config.projectsDir);
-  await page.getByText(/Luci cannot install or start Docker for you/).waitFor({ timeout: 45000 });
+  await page.getByText(/Open Docker Desktop and wait for its engine to start/).waitFor({ timeout: 45000 });
   assert.equal(await page.getByRole("button", { name: "Prepare agent runtime", exact: true }).count(), 0);
   await page.getByLabel("Commit author name", { exact: true }).fill("Luci UAT Owner");
   await page.getByLabel("Commit author email", { exact: true }).fill("uat@example.invalid");
@@ -234,7 +256,7 @@ try {
   await page.getByRole("heading", { name: "Design the experience", exact: true }).waitFor();
   await page.getByRole("button", { name: "Start a screen plan from my definition", exact: true }).click();
   await page.getByRole("textbox", { name: "Screen name", exact: true }).fill("Garden journal");
-  await page.getByRole("textbox", { name: "Responsive widths", exact: true }).fill("390, 768, 1440");
+  await page.getByRole("textbox", { name: /^Responsive widths/ }).fill("390, 768, 1440");
   const savedScreenPlan = await observedPost(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), "/design-plan");
   assert.deepEqual(savedScreenPlan.screens[0].requirementIds, approvedDefinition.requirements.map(item => item.id));
   assert.equal(savedScreenPlan.specificationRevision, approvedDefinition.revision);
@@ -472,7 +494,7 @@ try {
   await page
     .getByRole("button", { name: "Cloud settings", exact: true })
     .click();
-  await page.getByRole("button", { name: "Set up a cloud workspace", exact: true }).click();
+  await page.getByRole("button", { name: "AWS", exact: true }).click();
   await page
     .getByRole("heading", { name: "Plan your cloud workspace" })
     .waitFor();
@@ -497,6 +519,10 @@ try {
   await memberPage
     .getByRole("button", { name: "Sign in", exact: true })
     .click();
+  await memberPage.getByRole("heading", { name: "Choose your workspace", exact: true }).waitFor();
+  for (const choice of ["AWS", "Azure", "Connect to an existing workspace"])
+    assert.equal(await memberPage.getByRole("button", { name: choice, exact: true }).isDisabled(), true);
+  await memberPage.getByRole("button", { name: "Continue to projects", exact: true }).click();
   await memberPage
     .getByRole("button", { name: "Evaluation Member", exact: true })
     .waitFor();
@@ -549,6 +575,69 @@ try {
   await writeFile(path.join(evidence, "accessibility.json"), JSON.stringify(accessibility, null, 2));
   assert.deepEqual(accessibility.filter(r => r.violations.length > 0), [], "Automated accessibility violations must be repaired; incomplete results remain in the evidence for manual UAT");
   checks.push("All nine project/settings/management surfaces, including the screen plan and sketch, passed axe automated WCAG A/AA and best-practice checks; automated checks are not accessibility certification");
+  const visualMeasurements = [];
+  async function visual(label) {
+    await screenshot(label);
+    const measurement = await page.evaluate(() => ({
+      width: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      theme: document.documentElement.dataset.theme,
+      accent: document.documentElement.dataset.accent,
+      density: document.documentElement.dataset.density,
+    }));
+    visualMeasurements.push({ label, ...measurement });
+    assert.ok(measurement.documentWidth <= measurement.width + 1, `${label}: horizontal document overflow`);
+  }
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Appearance", exact: true }).click();
+  await page.getByRole("combobox", { name: /^Colour scheme/ }).selectOption("dark");
+  await page.getByRole("combobox", { name: /^Accent colour/ }).selectOption("teal");
+  await page.getByRole("combobox", { name: /^Interface density/ }).selectOption("compact");
+  await visual("09-appearance-desktop-dark-compact");
+  await page.getByRole("button", { name: "Close settings", exact: true }).click();
+  await page.getByRole("button", { name: "Deploy", exact: true }).click();
+  await visual("09a-deploy-desktop-dark-compact");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Define", exact: true }).click();
+  await page.getByRole("textbox", { name: "The idea", exact: true }).waitFor();
+  await visual("10a-define-mobile-dark");
+  await page.getByRole("button", { name: "Design", exact: true }).click();
+  await page.getByRole("textbox", { name: "Screen name", exact: true }).waitFor();
+  await visual("10b-design-mobile-dark");
+  await page.getByRole("button", { name: "Projects", exact: true }).click();
+  await page.getByRole("button", { name: "All projects", exact: true }).click();
+  await page.getByRole("heading", { name: "Your projects", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Workspace setup", exact: true }).click();
+  await page.getByRole("heading", { name: "Choose your workspace", exact: true }).waitFor();
+  await visual("10c-onboarding-mobile-dark");
+  await page.getByRole("button", { name: "On this computer", exact: true }).click();
+  await page.getByText(/Open Docker Desktop and wait for its engine to start/).waitFor();
+  await visual("10d-preparation-mobile-dark");
+  await page.getByRole("button", { name: "Continue to projects", exact: true }).click();
+  await page.getByRole("heading", { name: "Your projects", exact: true }).waitFor();
+  await visual("10e-projects-mobile-dark");
+  await page.getByRole("button", { name: "Projects", exact: true }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Appearance", exact: true }).click();
+  await page.getByRole("combobox", { name: /^Colour scheme/ }).selectOption("light");
+  await page.getByRole("combobox", { name: /^Accent colour/ }).selectOption("blue");
+  await page.getByRole("combobox", { name: /^Interface density/ }).selectOption("comfortable");
+  await visual("10f-appearance-mobile-light-blue");
+  await page.getByRole("button", { name: "Close settings", exact: true }).click();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("treeitem", { name: new RegExp(`${name}-restored$`) }).click();
+  await page.getByRole("button", { name: "Define", exact: true }).click();
+  await page.getByRole("textbox", { name: "The idea", exact: true }).waitFor();
+  await visual("10g-define-desktop-light-blue");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Appearance", exact: true }).click();
+  await page.getByRole("combobox", { name: /^Accent colour/ }).selectOption("rose");
+  await page.getByRole("button", { name: "Close settings", exact: true }).click();
+  await page.getByRole("button", { name: "Design", exact: true }).click();
+  await page.getByRole("textbox", { name: "Screen name", exact: true }).waitFor();
+  await visual("10h-design-desktop-light-rose");
+  checks.push("Actual desktop/mobile onboarding, projects, definition, design, deployment and appearance controls rendered without horizontal document overflow in dark/compact and light/comfortable themes");
+  await writeFile(path.join(evidence, "visual-measurements.json"), JSON.stringify(visualMeasurements, null, 2));
   assert.deepEqual(errors, []);
   await writeFile(
     path.join(evidence, "results.json"),
@@ -561,6 +650,7 @@ try {
         accessibility,
         errors,
         screenshots,
+        visualMeasurements,
         projectId: createdProject.id,
         restoredProjectId: restoredProject.id,
         definition: { revision: approvedDefinition.revision, briefRevision: approvedDefinition.briefRevision, digest: approvedDefinition.digest, requirementIds: approvedDefinition.requirements.map(item => item.id) },

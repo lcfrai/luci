@@ -3,10 +3,12 @@ package api
 import (
 	"encoding/json"
 	"github.com/lcfrai/luci/control-plane/internal/backend"
+	"github.com/lcfrai/luci/control-plane/internal/conversationpath"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -139,5 +141,30 @@ func TestOpenCodeRefusesAnImplicitPaidProvider(t *testing.T) {
 	sessionsProblemCode(t, env.do(t, http.MethodPost, "/v1/sessions", `{"worktreeId":"w-4a77b1c9","harness":"opencode"}`), 409)
 	if len(env.be.specs) != 0 {
 		t.Fatal("unconfigured model started a sandbox")
+	}
+}
+
+func TestWindowsNativeStorePreservesLegacyHomesAndPrefersMigratedCompactHomes(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows Docker physical path compatibility")
+	}
+	env := sessionsNewEnv(t)
+	conversation := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+	legacy := filepath.Join(env.api.deps.ConversationsDir, conversationpath.LegacyRelative(sessionConversationOwner, "setup-codex", "codex", conversation))
+	compact := filepath.Join(env.api.deps.ConversationsDir, conversationpath.NativeRelative(sessionConversationOwner, "setup-codex", "codex", conversation))
+	if got, err := env.api.nativeStore("setup-codex", "codex", conversation); err != nil || got != compact {
+		t.Fatal("new Windows sessions do not use compact private homes")
+	}
+	nativeWrite(t, legacy, "auth.json", "legacy-owned-fixture")
+	if got, err := env.api.nativeStore("setup-codex", "codex", conversation); err != nil || got != legacy {
+		t.Fatal("standalone upgrade discarded existing provider home")
+	}
+	nativeWrite(t, compact, "auth.json", "migrated-and-rotated-fixture")
+	if got, err := env.api.nativeStore("setup-codex", "codex", conversation); err != nil || got != compact {
+		t.Fatal("managed worker reselected retired legacy home")
+	}
+	data, _ := os.ReadFile(filepath.Join(legacy, "auth.json"))
+	if string(data) != "legacy-owned-fixture" {
+		t.Fatal("native path selection modified legacy credentials")
 	}
 }

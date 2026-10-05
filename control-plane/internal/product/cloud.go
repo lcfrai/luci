@@ -79,8 +79,8 @@ func validateCloud(r CloudRequest) error {
 	if !validDomain(r.Domain) {
 		return errors.New("enter a domain you control, without https:// or a path")
 	}
-	if r.Size != "small" && r.Size != "standard" {
-		return errors.New("choose small or standard size")
+	if r.Size != "small" && r.Size != "standard" && r.Size != "full" {
+		return errors.New("choose small, standard or full data-stack size")
 	}
 	if r.MonthlyBudgetUSD <= 0 || r.MonthlyBudgetUSD > 100000 {
 		return errors.New("enter your monthly cloud budget in USD")
@@ -123,8 +123,15 @@ func (s *Server) handleCloudPlan(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) buildCloudPlan(ctx context.Context, r CloudRequest) (CloudPlan, error) {
 	memoryGB := 4
-	if r.Size == "standard" {
+	cpuCount := 2
+	if r.Size == "standard" || r.Size == "full" {
 		memoryGB = 8
+	}
+	if r.Size == "full" {
+		cpuCount = 4
+		if r.Provider == "aws" {
+			memoryGB = 16
+		}
 	}
 	p := CloudPlan{ID: newID("cp-"), MonthlyBudgetUSD: r.MonthlyBudgetUSD, Provider: r.Provider, Name: r.Name, Region: r.Region, Domain: r.Domain, CreatedAt: time.Now().UTC(), Warnings: []string{},
 		Resources: []string{"One Linux virtual machine", "Persistent storage", "A public address", "HTTPS for your domain"},
@@ -147,7 +154,11 @@ func (s *Server) buildCloudPlan(ctx context.Context, r CloudRequest) (CloudPlan,
 			bundle = "large_3_0"
 			diskGB = 160
 		}
-		p.Resources[0] = fmt.Sprintf("AWS Lightsail %s: 2 vCPUs, %d GB RAM", bundle, memoryGB)
+		if r.Size == "full" {
+			bundle = "xlarge_3_0"
+			diskGB = 320
+		}
+		p.Resources[0] = fmt.Sprintf("AWS Lightsail %s: %d vCPUs, %d GB RAM", bundle, cpuCount, memoryGB)
 		p.Resources[1] = fmt.Sprintf("%d GB bundled SSD storage", diskGB)
 		// A verified quote must come from the user's selected region and account.
 		queryCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
@@ -194,7 +205,10 @@ func (s *Server) buildCloudPlan(ctx context.Context, r CloudRequest) (CloudPlan,
 		if r.Size == "standard" {
 			vmSize = "Standard_B2as_v2"
 		}
-		p.Resources[0] = fmt.Sprintf("Azure %s: 2 vCPUs, %d GiB RAM", vmSize, memoryGB)
+		if r.Size == "full" {
+			vmSize = "Standard_B4als_v2"
+		}
+		p.Resources[0] = fmt.Sprintf("Azure %s: %d vCPUs, %d GiB RAM", vmSize, cpuCount, memoryGB)
 		p.Resources[1] = "64 GiB Standard SSD managed disk, billed separately"
 		template := azureTemplate(r, vmSize, bootstrap)
 		data, err := json.MarshalIndent(template, "", "  ")
@@ -220,6 +234,11 @@ func (s *Server) buildCloudPlan(ctx context.Context, r CloudRequest) (CloudPlan,
 	}
 	if r.Size == "small" {
 		p.Warnings = append(p.Warnings, "Small is Luci's lowest cloud preset: 2 vCPUs and 4 GB RAM. Coolify's own 2 GB minimum does not include your agent sessions, app builds or running apps. Start with one active build or agent session, monitor memory and disk, and increase capacity only when your workload needs it.")
+	}
+	if r.Size != "full" {
+		p.Warnings = append(p.Warnings, "The optional Supabase data stack reserves 2 CPU cores and 4 GiB RAM separately from apps and agents. Choose Full data stack when you need those services alongside your application; this two-core preset cannot reserve both.")
+	} else {
+		p.Warnings = append(p.Warnings, "Full data stack provides four CPU cores for a data stack, one application and one agent. Supabase installation is optional and separate. A restore stages another stack; stop the existing data services first if the host cannot reserve both. Docker verifies real available capacity before installing or restoring.")
 	}
 	p.Warnings = append(p.Warnings, "The monthly budget is a planning limit, not a provider billing cap. Local use avoids cloud-host charges; model usage, domains, backups, extra traffic and tax can still cost money.")
 	p.Warnings = append(p.Warnings, "The server installs Coolify 4.3.23 for application deployment. Open its first-account setup only through Luci's SSH connection; management port 8000 is not opened in the cloud firewall.", "Container isolation shares the host kernel. This personal single-machine configuration is not hostile multi-tenant isolation.")

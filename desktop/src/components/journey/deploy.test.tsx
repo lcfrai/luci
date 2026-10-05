@@ -16,6 +16,7 @@ const ready: Release = {
   message: "Health check passed",
   createdAt: "2026-10-02T00:00:00Z",
 };
+const gatewayURL = "http://" + "a".repeat(64) + ".localhost:8731/";
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(productApi, "configuration").mockResolvedValue({
@@ -60,6 +61,53 @@ it("does not grant same-origin sandbox permission to a control-origin preview UR
     screen.getByTitle("Project preview").getAttribute("sandbox"),
   ).not.toContain("allow-same-origin");
 });
+it("opens an isolated verified Docker gateway preview with application origin permission", async () => {
+  vi.spyOn(productApi, "releases").mockResolvedValue({
+    releases: [{ ...ready, url: gatewayURL }],
+  });
+  const prepare = vi.spyOn(productApi, "prepareWorkspacePreview");
+  render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Open preview" }));
+  const frame = screen.getByTitle("Project preview");
+  expect(frame.getAttribute("src")).toBe(gatewayURL);
+  expect(frame.getAttribute("sandbox")).toBe("allow-scripts allow-forms allow-same-origin");
+  expect(prepare).not.toHaveBeenCalled();
+});
+
+it.each([
+  "http://" + "a".repeat(63) + ".localhost:8731/",
+  "http://" + "a".repeat(65) + ".localhost:8731/",
+  "http://" + "g".repeat(64) + ".localhost:8731/",
+  "http://" + "a".repeat(64) + ".localhost.example:8731/",
+  "http://extra." + "a".repeat(64) + ".localhost:8731/",
+  "http://localhost.example:8731/",
+  "http://127.0.0.1.example:8731/",
+  "https://" + "a".repeat(64) + ".localhost:8731/",
+  "http://user:password@" + "a".repeat(64) + ".localhost:8731/",
+  "http://:password@localhost:8731/",
+])("keeps an invalid or credential-bearing local address out of the preview: %s", async (url) => {
+  vi.spyOn(productApi, "releases").mockResolvedValue({
+    releases: [{ ...ready, url }],
+  });
+  render(<ProjectDeploy projectId="p-1" />);
+  await screen.findByText("Health check passed");
+  expect(screen.queryByRole("button", { name: "Open preview" })).toBeNull();
+  expect(screen.queryByTitle("Project preview")).toBeNull();
+});
+
+it.each(["https://user:password@app.example/", "https://:password@app.example/"])(
+  "does not link to a credential-bearing public deployment: %s",
+  async (url) => {
+    vi.spyOn(productApi, "releases").mockResolvedValue({
+      releases: [{ ...ready, target: "github-pages", url }],
+    });
+    render(<ProjectDeploy projectId="p-1" />);
+    await screen.findByText("Health check passed");
+    expect(screen.queryByRole("link", { name: "Open deployed site" })).toBeNull();
+    expect(screen.queryByTitle("Project preview")).toBeNull();
+  },
+);
+
 it("records a build failure without exposing an unverified preview", async () => {
   vi.spyOn(productApi, "releases")
     .mockResolvedValueOnce({ releases: [] })
@@ -81,7 +129,7 @@ it("records a build failure without exposing an unverified preview", async () =>
   expect(screen.queryByRole("button", { name: "Open preview" })).toBeNull();
 });
 
-it("opens a cloud workspace preview through a newly prepared local origin only after a click", async () => {
+it.each(["http://127.0.0.1:54411/", gatewayURL])("opens a cloud workspace preview through its prepared isolated address only after a click: %s", async (url) => {
   vi.spyOn(setup, "useSetup").mockReturnValue({
     workspace: {
       mode: "cloud",
@@ -95,7 +143,7 @@ it("opens a cloud workspace preview through a newly prepared local origin only a
   });
   const prepare = vi
     .spyOn(productApi, "prepareWorkspacePreview")
-    .mockResolvedValue({ url: "http://127.0.0.1:54411/" });
+    .mockResolvedValue({ url });
   render(<ProjectDeploy projectId="p-1" />);
   const button = await screen.findByRole("button", { name: "Open preview" });
   expect(prepare).not.toHaveBeenCalled();
@@ -103,11 +151,17 @@ it("opens a cloud workspace preview through a newly prepared local origin only a
   await userEvent.click(button);
   expect(
     (await screen.findByTitle("Project preview")).getAttribute("src"),
-  ).toBe("http://127.0.0.1:54411/");
+  ).toBe(url);
+  expect(screen.getByTitle("Project preview").getAttribute("sandbox")).toContain("allow-same-origin");
   expect(prepare).toHaveBeenCalledWith("p-1", "rel-1");
 });
 
-it("keeps an invalid remote preview address out of the embedded frame", async () => {
+it.each([
+  "https://unexpected.example",
+  "http://" + "a".repeat(64) + ".localhost.example:8731/",
+  "http://" + "a".repeat(63) + ".localhost:8731/",
+  "http://user:password@" + "a".repeat(64) + ".localhost:8731/",
+])("keeps an invalid remote preview address out of the embedded frame: %s", async (url) => {
   vi.spyOn(setup, "useSetup").mockReturnValue({
     workspace: {
       mode: "cloud",
@@ -120,7 +174,7 @@ it("keeps an invalid remote preview address out of the embedded frame", async ()
     releases: [{ ...ready, url: "" }],
   });
   vi.spyOn(productApi, "prepareWorkspacePreview").mockResolvedValue({
-    url: "https://unexpected.example",
+    url,
   });
   render(<ProjectDeploy projectId="p-1" />);
   await userEvent.click(

@@ -119,7 +119,7 @@ func (s *Server) listProjectReleases(w http.ResponseWriter, r *http.Request) {
 	}
 	result := []Release{}
 	for _, row := range rows {
-		result = append(result, row.Release)
+		result = append(result, s.browserRelease(row))
 	}
 	cloud, err := s.cloudReleases(p.ID)
 	if err != nil {
@@ -307,7 +307,7 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		failed("Health passed but its release record could not be saved: " + err.Error())
 		return
 	}
-	journeyJSON(w, 201, row.Release)
+	journeyJSON(w, 201, s.browserRelease(row))
 }
 
 func localPreviewURL(mapping string) (string, error) {

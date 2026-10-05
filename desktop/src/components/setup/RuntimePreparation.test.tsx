@@ -81,7 +81,7 @@ it("does not install when Docker is unavailable and lets the user rerun readines
       onStatus={vi.fn()}
     />,
   );
-  await screen.findByText(/Luci cannot install or start Docker/);
+  await screen.findByText(/Open Docker Desktop and wait for its engine to start/);
   expect(installRuntime).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("button", { name: "Check again" }));
   await waitFor(() => expect(check).toHaveBeenCalledTimes(2));

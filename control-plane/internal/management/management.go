@@ -124,6 +124,7 @@ type Gateway struct {
 	checks              map[string]int
 	sockets             map[string]map[net.Conn]string
 	closed              bool
+	dependencies        *dependencyManager
 }
 
 func New(opts Options) (*Gateway, error) {
@@ -207,6 +208,11 @@ func New(opts Options) (*Gateway, error) {
 		if err := atomicPrivate(filepath.Join(g.dir, "owner-access-token"), []byte(g.opts.LocalAccessToken+"\n")); err != nil {
 			return nil, err
 		}
+	}
+	g.dependencies, err = newDependencyManager(g, dependencySystemRunner{environment: opts.BaseEnvironment, dir: g.dir})
+	if err != nil {
+		g.removePortableOwnerAccess()
+		return nil, err
 	}
 	return g, nil
 }
@@ -319,6 +325,9 @@ func (g *Gateway) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/admin/audit", g.audit)
 	mux.HandleFunc("GET /v1/admin/users/{id}/runtime", g.runtimeStatus)
 	mux.HandleFunc("POST /v1/admin/users/{id}/runtime/stop", g.stopRuntime)
+	mux.HandleFunc("GET /v1/setup/dependencies", g.dependencyStatus)
+	mux.HandleFunc("POST /v1/setup/dependencies/check", g.checkDependencies)
+	mux.HandleFunc("POST /v1/setup/dependencies/{id}/install", g.installDependency)
 	mux.HandleFunc("/", g.route)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/v1/") {
@@ -401,6 +410,9 @@ func (g *Gateway) Close(ctx context.Context) error {
 	g.mu.Unlock()
 	for _, rt := range list {
 		rt.stop()
+	}
+	if err := g.dependencies.close(ctx); err != nil {
+		return err
 	}
 	for _, rt := range list {
 		select {

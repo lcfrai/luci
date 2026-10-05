@@ -150,21 +150,26 @@ func TestCloudPresetsDiscloseCapacityWithoutImplyingCompletePrice(t *testing.T) 
 	s, _ := cloudTestServer(t, func(context.Context, string, []string, string) (string, error) {
 		return "", errors.New("no account quote available")
 	})
-	for _, tc := range []struct{ provider, size, sku, memory, disk string }{
-		{"aws", "small", "medium_3_0", "4 GB RAM", "80 GB"},
-		{"aws", "standard", "large_3_0", "8 GB RAM", "160 GB"},
-		{"azure", "small", "Standard_B2als_v2", "4 GiB RAM", "64 GiB"},
-		{"azure", "standard", "Standard_B2as_v2", "8 GiB RAM", "64 GiB"},
+	for _, tc := range []struct{ provider, size, sku, memory, disk, cpu string }{
+		{"aws", "small", "medium_3_0", "4 GB RAM", "80 GB", "2 vCPUs"},
+		{"aws", "standard", "large_3_0", "8 GB RAM", "160 GB", "2 vCPUs"},
+		{"aws", "full", "xlarge_3_0", "16 GB RAM", "320 GB", "4 vCPUs"},
+		{"azure", "small", "Standard_B2als_v2", "4 GiB RAM", "64 GiB", "2 vCPUs"},
+		{"azure", "standard", "Standard_B2as_v2", "8 GiB RAM", "64 GiB", "2 vCPUs"},
+		{"azure", "full", "Standard_B4als_v2", "8 GiB RAM", "64 GiB", "4 vCPUs"},
 	} {
 		t.Run(tc.provider+"/"+tc.size, func(t *testing.T) {
 			req := cloudPlanRequest(tc.provider)
 			req.Size = tc.size
+			if err := validateCloud(req); err != nil {
+				t.Fatalf("Disclosed preset cannot be selected: %v", err)
+			}
 			p, err := s.buildCloudPlan(context.Background(), req)
 			if err != nil {
 				t.Fatal(err)
 			}
 			resources := strings.Join(p.Resources, " ")
-			for _, expected := range []string{tc.sku, "2 vCPUs", tc.memory, tc.disk} {
+			for _, expected := range []string{tc.sku, tc.cpu, tc.memory, tc.disk} {
 				if !strings.Contains(resources, expected) {
 					t.Fatalf("review omits selected capacity %q: %s", expected, resources)
 				}

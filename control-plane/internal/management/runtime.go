@@ -129,7 +129,7 @@ func validWorkerAddress(address string) bool {
 func isolatedEnvironment(base []string, root, secret, addressFile string, u User) []string {
 	// Explicit allowlist: never inherit model/API keys, cloud credentials,
 	// Git configuration injection or another user's provider profile paths.
-	allowed := map[string]bool{"PATH": true, "SYSTEMROOT": true, "WINDIR": true, "PATHEXT": true, "COMSPEC": true, "PROGRAMFILES": true, "PROGRAMFILES(X86)": true, "LANG": true, "LC_ALL": true, "TZ": true, "DOCKER_HOST": true, "LUCI_RUNTIME_DIR": true, "LUCI_SANDBOX_IMAGE": true, "LUCI_CLOUD_BUNDLE": true}
+	allowed := map[string]bool{"PATH": true, "SYSTEMROOT": true, "WINDIR": true, "PATHEXT": true, "COMSPEC": true, "PROGRAMFILES": true, "PROGRAMFILES(X86)": true, "LANG": true, "LC_ALL": true, "TZ": true, "DOCKER_HOST": true, "LUCI_RUNTIME_DIR": true, "LUCI_SANDBOX_IMAGE": true, "LUCI_CLOUD_BUNDLE": true, "LUCI_BROWSER_PREVIEW_PORT": true}
 	env := []string{}
 	for _, entry := range base {
 		key, _, ok := strings.Cut(entry, "=")
@@ -207,6 +207,21 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 		}
 	}
 	addressFile := filepath.Join(root, "worker-address.json")
+	conversations, err := prepareWorkerConversations(g.dir, root, rt.user.ID)
+	legacyStorage := false
+	if err != nil {
+		if errors.Is(err, errConversationsActive) {
+			// A persisted running status may survive a host crash. Keep the
+			// original homes available to the ordinary worker, whose backend
+			// recovery proves which sandboxes still exist and lets the user stop
+			// live sessions. Never copy a possibly active CLI home to upgrade it.
+			conversations = filepath.Join(root, "state", "conversations")
+			legacyStorage = true
+		} else {
+			finish("Private conversation storage could not be prepared. Existing data has been preserved.")
+			return
+		}
+	}
 	if err := os.Remove(addressFile); err != nil && !os.IsNotExist(err) {
 		finish("Previous workspace address could not be removed.")
 		return
@@ -214,6 +229,7 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 	cmd := exec.Command(g.opts.Executable, g.opts.WorkerArgs...)
 	cmd.Dir = root
 	cmd.Env = isolatedEnvironment(g.opts.BaseEnvironment, root, rt.secret, addressFile, rt.user)
+	cmd.Env = append(cmd.Env, "LUCI_CONVERSATIONS_DIR="+conversations)
 	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
 	kill, err := startOwnedProcess(cmd)
 	if err != nil {
@@ -273,7 +289,11 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 				continue
 			}
 			rt.address = endpoint.Address
-			rt.status = RuntimeStatus{Status: "running", StartedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: "Private user workspace is running."}
+			message := "Private user workspace is running."
+			if legacyStorage {
+				message = "Private workspace is running with its existing agent homes. Stop active sessions, then restart this workspace to complete the private storage upgrade."
+			}
+			rt.status = RuntimeStatus{Status: "running", StartedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: message}
 			rt.mu.Unlock()
 			close(rt.ready)
 			readyClosed = true

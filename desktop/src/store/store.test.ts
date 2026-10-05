@@ -30,6 +30,25 @@ beforeEach(() => {
 });
 
 describe("dataSlice", () => {
+  it("clears a vanished project only after a successful catalogue result", () => {
+    const store = useCockpit.getState();
+    store.selectBranch("missing-project", "old-branch");
+    store.setLoading("projects", true);
+    store.setError({ message: "Connection unavailable", code: "offline" });
+    expect(useCockpit.getState().selection.projectId).toBe("missing-project");
+    expect(useCockpit.getState().projectsLoaded).toBe(false);
+    store.setProjects([aProject({ id: "another-project" })]);
+    expect(useCockpit.getState().selection).toEqual({ projectId: null, branchId: null, worktreeId: null, sessionId: null });
+    expect(useCockpit.getState().projectsLoaded).toBe(true);
+  });
+
+  it("preserves all current navigation when the project remains in the catalogue", () => {
+    const store = useCockpit.getState();
+    store.selectBranch("p-1", "b-1");
+    const selected = useCockpit.getState().selection;
+    store.setProjects([aProject({ id: "p-1" })]);
+    expect(useCockpit.getState().selection).toBe(selected);
+  });
   it("keeps catalogue setters independent of one another", () => {
     const s = useCockpit.getState();
     s.setProjects([aProject({ id: "p-1", name: "luci", path: "C:\\work\\luci" })]);

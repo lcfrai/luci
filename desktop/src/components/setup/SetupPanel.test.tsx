@@ -5,6 +5,9 @@ import { SetupPanel } from "./SetupPanel";
 import { createProductClient, type SetupStatus } from "../../api/product";
 import { resetCockpit, useCockpit } from "../../store/store";
 
+// Dependency installation has its own consent, cached-check and retry outcome tests.
+vi.mock("./DependencySetup", () => ({ DependencySetup: () => null }));
+
 const status: SetupStatus = {
   product: "Luci",
   version: "0.3.0",
@@ -491,7 +494,7 @@ it("labels an unverified cloud plan honestly and never creates resources while p
     />,
   );
   await userEvent.click(
-    screen.getByRole("button", { name: "Set up a cloud workspace" }),
+    screen.getByRole("button", { name: "AWS" }),
   );
   await userEvent.type(
     screen.getByRole("textbox", { name: /SSH public key/ }),
@@ -572,7 +575,7 @@ it("holds the cloud-plan inputs and section in place until the displayed plan ma
     />,
   );
   await userEvent.click(
-    screen.getByRole("button", { name: "Set up a cloud workspace" }),
+    screen.getByRole("button", { name: "AWS" }),
   );
   await userEvent.type(
     screen.getByLabelText(/SSH public key/),
@@ -652,7 +655,7 @@ it("offers three clear first-run routes before loading cloud tools and allows ba
     screen.getByRole("button", { name: "On this computer" }),
   ).not.toBeNull();
   expect(
-    screen.getByRole("button", { name: "Set up a cloud workspace" }),
+    screen.getByRole("button", { name: "AWS" }),
   ).not.toBeNull();
   expect(
     screen.getByRole("button", { name: "Connect to an existing workspace" }),
@@ -704,7 +707,7 @@ it("recovers failed initial settings loading into the route choices without show
     "not available",
   );
   expect(
-    screen.queryByRole("button", { name: "Set up a cloud workspace" }),
+    screen.queryByRole("button", { name: "AWS" }),
   ).toBeNull();
   await userEvent.click(
     screen.getByRole("button", { name: "Retry connection" }),

@@ -4,9 +4,11 @@ Luci is lcfr.ai's open-source workspace for defining, designing, developing and 
 
 ## Use Luci
 
-Install the Windows desktop package or extract a portable package and use its launcher. Create your local account; the first account administers the installation. If an account already exists, choose **Create account** for a separate account or **Forgot sign-in details** to recover the original owner and saved work. In Settings, check Git and Docker, install the bundled runtime, choose your Git identity and connect Claude Code, Codex or an explicit OpenCode model. A local OpenAI-compatible model can avoid inference charges when your hardware and model suit the task.
+Install the Windows desktop package or extract a portable package and use its launcher. The [Docker distribution](distribution/docker/README.md) runs the entire app and its private execution engine in containers; its launchers need Docker, without host Go, Node.js or Python. Create your local account; the first account administers the installation. If an account already exists, choose **Create account** for a separate account or **Forgot sign-in details** to recover the original owner and saved work.
 
-Create or clone a project. Define its purpose and acceptance criteria, design the screens, and save a task plan. Develop passes that saved context into an agent working in the project. Inspect its changes and run checks against the recorded source; task completion is separate from passing checks. Commit and publish through the same workspace, start a Docker preview, set private runtime values such as a database URL in Deploy, then deploy a reachable Git commit through your connected cloud target. The app retains release history, supports stopping and rebuilding a historical release, and exports/restores project backups.
+The onboarding portal guides you through **On this computer**, **AWS**, **Azure** or **Connect to an existing workspace**, checks the actual prerequisites and prepares the agent runtime. It distinguishes installed tools from a running engine and a connected provider account. Choose your Git identity and connect Claude Code, Codex or an explicit OpenCode model. A local OpenAI-compatible model can avoid inference charges when your hardware and model suit the task.
+
+Create or clone a project from Projects home. Define its purpose and acceptance criteria, design the screens, and save a task plan. Develop passes that saved context into an agent working in the project. Inspect its changes and run checks against the recorded source; task completion is separate from passing checks. Commit and publish through the same workspace, start a Docker preview, set private runtime values such as a database URL in Deploy, then deploy a reachable Git commit through your connected cloud target. The app retains release history, supports stopping and rebuilding a historical release, and exports/restores project backups. Optional Supabase data services share Luci's project navigation and appearance rather than requiring a separate administration portal.
 
 For Codex subscription access, complete official device sign-in from Settings, then **Save Codex sign-in**. New implementation sessions use that connection, with separate private histories and no fallback to API billing. API credits remain a separate option. A saved sign-in is not proof of a successful model request.
 
@@ -16,7 +18,7 @@ The Admin screen manages users, workspace processes and audit events on this mac
 
 See the [operator runbook](docs/RUNBOOK.md), [provider setup](docs/luci/PROVIDERS.md) and [release guide](docs/luci/RELEASE.md) for prerequisites and verified limits.
 
-The [UAT guide](docs/UAT.md) walks through the three onboarding choices and the complete project journey. [DESIGN.md](DESIGN.md) describes the implemented visual and interaction system.
+The [UAT guide](docs/UAT.md) walks through onboarding and the complete project journey. [DESIGN.md](DESIGN.md) describes the implemented visual and interaction system. Current incomplete acceptance gates are recorded in the [full product checkpoint](docs/luci/FULL-PRODUCT.md).
 
 ## Structure
 

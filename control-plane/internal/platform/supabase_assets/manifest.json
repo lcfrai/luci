@@ -1,0 +1,667 @@
+{
+  "upstream": "https://github.com/supabase/supabase",
+  "revision": "564eab8ad7840b13324f68b1bfac074ef8d51c21",
+  "version": "self-hosted/v0.8.2",
+  "licence": "Apache-2.0",
+  "files": [
+    {
+      "path": "LICENSE",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/LICENSE",
+      "sha256": "c29468abcd629e248c2f76848155c386b733872bcabcc4cf65ef1e7c61431042",
+      "bytes": 11338
+    },
+    {
+      "path": "docker-compose.yml",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/docker-compose.yml",
+      "sha256": "8ba18fd43e9afba90e8287c8e8afc4bdda1e38d2228e57ff660968bb550da054",
+      "bytes": 21240
+    },
+    {
+      "path": "configuration-defaults.txt",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/.env.example",
+      "sha256": "d27fb4516702358ac5965fb06d207736abeb3c26c7d949f19b90e88b25e694ef",
+      "bytes": 12294
+    },
+    {
+      "path": "volumes/api/envoy/cds.yaml",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/api/envoy/cds.yaml",
+      "sha256": "1d7514b891370ed27c25911df008887402e16ab09273e6e433225bb7f09f7905",
+      "bytes": 5901
+    },
+    {
+      "path": "volumes/api/envoy/docker-entrypoint.sh",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/api/envoy/docker-entrypoint.sh",
+      "sha256": "8a0c9503764de32ba39e0d81e73629457b13ec42ef19897e30e4918c996d0508",
+      "bytes": 1366
+    },
+    {
+      "path": "volumes/api/envoy/envoy.yaml",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/api/envoy/envoy.yaml",
+      "sha256": "3697f23b0be9ec5b829f937c600eb9b878f1f778ab510b42ad5e4f14742447e9",
+      "bytes": 677
+    },
+    {
+      "path": "volumes/api/envoy/lds.template.yaml",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/api/envoy/lds.template.yaml",
+      "sha256": "9d9a6d6ea0a372be99e165d995f012d383d5cc8473b92a06b7aa0bbd73566c3d",
+      "bytes": 50085
+    },
+    {
+      "path": "volumes/db/_supabase.sql",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/db/_supabase.sql",
+      "sha256": "9dce462adc04137d6afabcf28efa60a6c355270a4b32d7af58891ac4eb964c5f",
+      "bytes": 83
+    },
+    {
+      "path": "volumes/db/jwt.sql",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/db/jwt.sql",
+      "sha256": "c1d3f5c01e44646c2e533c5a1c111821cc49cb5a4c2534e08cddad61d8fb0339",
+      "bytes": 98
+    },
+    {
+      "path": "volumes/db/logs.sql",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/db/logs.sql",
+      "sha256": "f0463ce5030907acef49326d2bffd36002df0718035071be7c99bd7fc897c63d",
+      "bytes": 144
+    },
+    {
+      "path": "volumes/db/pooler.sql",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/db/pooler.sql",
+      "sha256": "df97ebe148d94cfb92a5e37ebf972dfd496be195f0915ecf14396b2cf50efecb",
+      "bytes": 144
+    },
+    {
+      "path": "volumes/db/realtime.sql",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/db/realtime.sql",
+      "sha256": "7e9e442e7fc4dae05544c07b67bede37a00d84644304dfce4d937134cb4c8f88",
+      "bytes": 117
+    },
+    {
+      "path": "volumes/db/roles.sql",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/db/roles.sql",
+      "sha256": "3ad717b225daa38aa982da26750f35641eb404e1eb5e69a763c22236ab96c1b2",
+      "bytes": 379
+    },
+    {
+      "path": "volumes/db/webhooks.sql",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/db/webhooks.sql",
+      "sha256": "05a61316b899374253891cbba66ce073d9273f33983c3f47961eda3aa26c2823",
+      "bytes": 9070
+    },
+    {
+      "path": "volumes/db/init/data.sql",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/db/init/data.sql",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "volumes/functions/deno.jsonc",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/functions/deno.jsonc",
+      "sha256": "a9a29da36c2576f755dd868b9f553a02afdf7d7bccf52e97e65c7f68cf36bfef",
+      "bytes": 136
+    },
+    {
+      "path": "volumes/functions/hello/index.ts",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/functions/hello/index.ts",
+      "sha256": "65e7d7ce5d898dd285e660cbab54521fca4bf990c41370f51fad5b4d4cae5f42",
+      "bytes": 1341
+    },
+    {
+      "path": "volumes/functions/main/index.ts",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/functions/main/index.ts",
+      "sha256": "9b7978abd7fd4af39e4f407f8a956137aa99e6ffaeb2190a5e29c8e1787d2da6",
+      "bytes": 6901
+    },
+    {
+      "path": "volumes/pooler/pooler.exs",
+      "source": "https://raw.githubusercontent.com/supabase/supabase/564eab8ad7840b13324f68b1bfac074ef8d51c21/docker/volumes/pooler/pooler.exs",
+      "sha256": "d844e49f8915021ccbf6af6b769fef7909a723346bfc8f94ddb0433a328e49b1",
+      "bytes": 1103
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/aesgcmkw.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "9b8dd57297a5d1a812b51b3439371b807060436a7e11c6e3c9c1bd8bed867b4c",
+      "bytes": 600
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/aeskw.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "f01d1f7befb989ab98374721e21e764dfaa04d0f9133113dd0ec6a04a62dc87f",
+      "bytes": 1189
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/asn1.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "6cf78019642ea1563343dec179f136f579d925239863b715641bdc6ed4f84f17",
+      "bytes": 8717
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/base64.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "547a24150d1270d26f7afba4a046023744e71d31c84bc41ec6dbc033440a23b3",
+      "bytes": 673
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/util/base64url.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "ef958171d26c8558f212ec05dc584bf04c4f01f72a32155201e5be1476601b22",
+      "bytes": 1047
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/buffer_utils.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "af3452e2e31a4be49183f40507e2d8142fd53ad386f14e3d41175b6223080f77",
+      "bytes": 1345
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/check_key_type.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "52509c9142e0f1963e9d0ba2ce811d3dcdebce7507e6d20e14e0e3b77647bbe5",
+      "bytes": 4768
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/content_encryption.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "244e216c1e9e31c20bcec94a3317769ab976d5d4143472b16a0b817c42e5af81",
+      "bytes": 7636
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/crypto_key.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "371ecc09e79513b7939f883f1811c2bba972a357e62ca3e763572a33e29bf90f",
+      "bytes": 4566
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/util/decode_jwt.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "18cca146284be37a6079be2739976eebc52541d459c021bee51e885175bed793",
+      "bytes": 1102
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/util/decode_protected_header.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "a2899bfcadf70f4b3ae81ee1ce31ebc73ab7656a79b51c67cad66a58e2c5151b",
+      "bytes": 1060
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwe/compact/decrypt.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "5b9b92a4af569e143761511dbad7b41f23477dc58848f3c4bd8d9f1039ad3a17",
+      "bytes": 1055
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwe/flattened/decrypt.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "aad6e7eefbec582e182d158d678458e8ecef2f346739a2a56a11cdfb4ed162f1",
+      "bytes": 7135
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwe/general/decrypt.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "4afc1ed154915d1deb44d8453d814201a00a40ab4defef00dde2f65e36d27289",
+      "bytes": 1131
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwt/decrypt.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "0da3ffbc71dbd7b9dd4f48c229649862af6651f9fd782e92a9402e86d3e25422",
+      "bytes": 1285
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/deflate.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "75a3c92bf38e6fb3b2a2098d623da7316f27394c37d65527430c3d2f9badadf6",
+      "bytes": 1525
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/ecdhes.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "97cc7d18711ab24c375d864a2b4fdb3f63b4e1bd3b5bb2534b7f59f6cd9f0609",
+      "bytes": 2029
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwk/embedded.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "fa9f66636d9199fc4e39844bbe4ee194a010017fc26c612d6c1bb5de94b0943b",
+      "bytes": 687
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwe/compact/encrypt.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "56dd4a4caed37f41cd51ef2c732b25388a19d7f34d835acf340f66600c4c2ef4",
+      "bytes": 897
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwe/flattened/encrypt.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "f1d24fa854837c58834b537b91c741fbd0b112ea18a19542e3ad1c50154211c8",
+      "bytes": 6747
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwe/general/encrypt.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "bc5b4d2d4d4212a2461a322188f2692e44f23a1c6e5b68331cbdc58dac8950c2",
+      "bytes": 7884
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwt/encrypt.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "8368bd584d1dde5ee0db3f353328069a6e57b5412ca18ac3141df80dd6ab1d80",
+      "bytes": 3087
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/util/errors.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "e567c2321364b5a0d944416b2d926b5b0674775bbcd6690b17e0f1d249db5a25",
+      "bytes": 3286
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/key/export.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "ef14da4eefd904fd6ab50b69a660ed983d8a4ec036932478729a7a87be2b04f4",
+      "bytes": 345
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/key/generate_key_pair.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "bb441bdf6b3fb3916f351e18c1f85cf830c255c12d3541484238cc1f7d1c5d70",
+      "bytes": 3528
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/key/generate_secret.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "171f3a2746f0f635de6be46d12b0d6329af643fadb726122e667ec8a8b937f84",
+      "bytes": 1428
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/helpers.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "d208a73cdc195924dca7ca5fd1d95c94a541d21927cbaad01530664356f94aa2",
+      "bytes": 596
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/key/import.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "b4e122bd70624cdbca8ca2e002e85540ac6f20e2c5c72c2b4b93e8e8ba4f2f5d",
+      "bytes": 2371
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/index.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "fbf397ad57aba0d12c82fc7b7db59bc2a4d6a81c26fa6bd65edf8ea5958d760e",
+      "bytes": 1779
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/invalid_key_input.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "bf49ee8c45df6f70734f03883c34ee1d50051ea0937ee365e377f5b56b935e3e",
+      "bytes": 974
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/is_key_like.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "6d9d1b323a996b39412f7b2b2d1344a96ba33faf6856bf7e33f3ef96bd368d14",
+      "bytes": 493
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/jwk_to_key.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "a2d384e946814d14826daffe3b58d2b2568f388ad93d376e3c48668aa13b707e",
+      "bytes": 4009
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/jwt_claims_set.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "e12991f71e7fd1cfcb6114a74726bb2dc21dd50721197748549a5e7ab4983e5b",
+      "bytes": 8208
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/key_management.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "fa01a02e2d24c8dd310aba6fb50e9a82c0a5d1cfbdd99dba30a051b35249a806",
+      "bytes": 8075
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/key_to_jwk.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "cc098bc7a46430484cfb20f8851b9475b347123e6dee966d11ad50c5fec2f02e",
+      "bytes": 943
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwks/local.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "08407ff36c51af44c1f30c7324e2296e5371d40d5d51af1463e3f168b2cb73f1",
+      "bytes": 4058
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/normalize_key.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "2a938d4c272e0b4502490360e4d45648aa7c2c86d6c28839320bd0032bd59bfd",
+      "bytes": 5283
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/pbes2kw.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "5294c7b34bf54ed7f950d28b5af8c510aecabd12d51be8b99b7fcab42ccfbf42",
+      "bytes": 1614
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwks/remote.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "71b25f107812d657eca520ba90b1657aefab0d087b613173f20fe689c1ac95ba",
+      "bytes": 6003
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/rsaes.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "bdc6135d1a842bee6f3de31b27eb92a323f6c0766e7128a04e98acfa710aa56a",
+      "bytes": 930
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jws/compact/sign.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "1ea707188de5726c32a38af6cc97e2c269781fac5730405513de07798ffb8e0c",
+      "bytes": 627
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jws/flattened/sign.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "1b03c19f4cbef29709f37860b421d118964c2e71b3361b617d044f599085964b",
+      "bytes": 3487
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jws/general/sign.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "7f14e3ddca46b24ed6d79bc8b309d3acec702b67233ae85da8c5a6727c574ffc",
+      "bytes": 2236
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwt/sign.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "5263958960b60aa39de13920e7e18d2284450659841e904bda475e0557afbbd3",
+      "bytes": 1455
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/signing.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "6e46857a0b4e251c6ffe42b429b12f8cb334ea947242ef961b05633a4531e4dd",
+      "bytes": 2521
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwk/thumbprint.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "ed977bec36b1654aa64f4e561f6c5ea032eacf35ed2c11375753ed2f793f50b9",
+      "bytes": 2799
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/type_checks.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "af1417dc3a4a2d2189255fe0975f4c117ddad92bc5b92ef19126845545c28248",
+      "bytes": 1470
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwt/unsecured.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "3cbd8a28a3d8691e112e71c38e4d2dea3fa12ff3a99c923afadbe6710e2ce7dd",
+      "bytes": 1903
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/validate_algorithms.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "3540fb8f9c68da668dd6e84d61741b741d2648d8970bd062c5fac277bd497606",
+      "bytes": 356
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/lib/validate_crit.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "db22a09889a07951d6b7b46fa8548646859508d4459e89aca0329e81863d1520",
+      "bytes": 1583
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jws/compact/verify.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "dfc153ab0ef9d96bc90f2d6a0cb65ed088e19aabcc45b952bb3d74b6aa00c711",
+      "bytes": 898
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jws/flattened/verify.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "591d910af117e0097811c8eb431d1cf84b817b05467efec4ea2623dfb04aea18",
+      "bytes": 4426
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jws/general/verify.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "95fb74fb49a4100c71c1e6620d78aa6aaa0884c0421459256e81ff97b38dcdc2",
+      "bytes": 904
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/webapi/jwt/verify.js",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "b5e1af340cb1567a9c805ac1917c0ab1cb362bfecaea0d64d6edf809c0cbc634",
+      "bytes": 737
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/package.json",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "1c2090109c3f3b363b9c26f140581326c2189e38b6625e715ab9ffb08bdc99e2",
+      "bytes": 5633
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/LICENSE.md",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "8078b0829d6c3e9ecde2f003e1966e4cad3efc6e7a640efbab0313cc166b1af1",
+      "bytes": 1079
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/util/base64url.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "e7878d8cd1fd0d0f1c55dcd8f5539f4c22e44993852f588dd194bd666b230727",
+      "bytes": 306
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/util/decode_jwt.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "ca369bcbdafc423d1a9dccd69de98044534900ff8236d2dd970b52438afb5355",
+      "bytes": 822
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/util/decode_protected_header.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "83d2dab980f2d1a2fe333f0001de8f42c831a438159d47b77c686ae405891b7f",
+      "bytes": 697
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwe/compact/decrypt.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "a380cd0a371b5b344c2f679a932593f02445571f9de0014bdf013dddf2a77376",
+      "bytes": 1472
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwe/flattened/decrypt.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "dbbcd13911daafc1554acc17dad18ab92f91b5b8f084c6c4370cb8c60520c3b6",
+      "bytes": 1504
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwe/general/decrypt.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "9c06dd902f40b340b062fff14d3ef579b67c65007fbaba56497422a21e2e5911",
+      "bytes": 1973
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwt/decrypt.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "1b3174ea6e3b4ae157c88eb28bf8e6d67f044edc9c552daf5488628fd8e5be97",
+      "bytes": 1917
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwk/embedded.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "a61f8455fd21cec75a8288cd761f5bcc72441848841eb64aa09569e9d8929ff0",
+      "bytes": 824
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwe/compact/encrypt.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "6564db88fa4cf3bae5c8e0de01c701c6228eaeef1118b4ad6a49a8aaf8556350",
+      "bytes": 2533
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwe/flattened/encrypt.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "9c5a4a21ed5686b2ea080557488b966c3aeea641ef1aa8975a10e5fc59dd569f",
+      "bytes": 3277
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwe/general/encrypt.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "b026daf5c00c8f2abdb49008322a7d51fbadcd7b200a99ee7a4452dbd40f0420",
+      "bytes": 3107
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwt/encrypt.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "c92c9dc7415bf7969931ac5339f21c65687909b32d05ac89789b411372e52991",
+      "bytes": 3643
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/util/errors.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "5b90280e84e8eba347caaefc18210de3ce6ac176f5e82705a28e7f497dcc8689",
+      "bytes": 6045
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/key/export.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "364a5c527037fdd7d494ab0a97f510d3ceda30b8a4bc598b490c135f959ff3c6",
+      "bytes": 1343
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/key/generate_key_pair.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "34e2f00467aa6f46c1d7955f8d57bffb48ccc6ad2bbc847d0b1ccef1d55a9c3c",
+      "bytes": 1961
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/key/generate_secret.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "f09dfae4ff5f84c1341d74208e9b442659c32d039e9d27c09f79a203755e953d",
+      "bytes": 1410
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/key/import.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "f198de1cd91b94acc7f4d72cbccc11abadb1570bedc4ede174810e1f6985e06e",
+      "bytes": 3737
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/index.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "0d22b18cb407b03331edf3413b93e568da71130c906fd69911090df2abf55414",
+      "bytes": 3894
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwks/local.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "b135437aa8444e851e10cb514b4a73141813e0adcfcc06d702df6aa0fd922587",
+      "bytes": 1413
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwks/remote.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "cc82fa360f22d73b4cc7f446d08ad52b11f5aba66aa04b1ed8feb11a509e8aff",
+      "bytes": 8548
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jws/compact/sign.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "5585ed538922e2e58655218652dcb262f08afa902f26f490cdec4967887ac31a",
+      "bytes": 1216
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jws/flattened/sign.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "b46de7238d9d2243b27a21797e4772ba91465caae9c31f21dc43748dc9de9cd0",
+      "bytes": 1467
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jws/general/sign.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "625fdbce788630c62f793cb6c80e0072ce0b8bf1d4d0a9922430671164371e0b",
+      "bytes": 2101
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwt/sign.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "b6790300d245377671c085e76e9ef359b3cbba6821b913d6ce6b2739d00b9fb1",
+      "bytes": 1589
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwk/thumbprint.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "a36c717362d06d76e7332d9c1d2744c2c5e4b4a5da6218ef7b4a299a62d23a6d",
+      "bytes": 1363
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/types.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "ef52b983c108a10854a26ee467a86c9b5f87024563d48defe3b0e8f4a1af4a51",
+      "bytes": 28589
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwt/unsecured.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "466e7296272b827c55b53a7858502de733733558966e2e3a7cc78274e930210a",
+      "bytes": 1547
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jws/compact/verify.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "e130a73d7e1e34953b1964c17c218fd14fccd1df6f15f111352b0d53291311bb",
+      "bytes": 1656
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jws/flattened/verify.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "4ddecad872558e2b3df434ef0b01114d245e7a18a86afa6e7b5c68e75f9b8f76",
+      "bytes": 1698
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jws/general/verify.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "924e513606180beab310a21ece1fe85dc3f1cc159bd894861b01bbe46764d7ca",
+      "bytes": 2199
+    },
+    {
+      "path": "volumes/functions/_vendor/jose/dist/types/jwt/verify.d.ts",
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "sha256": "270ceb915b1304c042b6799de28ff212cfa4baf06900d3a8bc4b79f62f00c8a7",
+      "bytes": 2034
+    }
+  ],
+  "images": {
+    "supabase/studio:2026.09.07-sha-7996410": "supabase/studio:2026.09.07-sha-7996410@sha256:94a2a9d2906e8b4109e55159a62e241c3044709a492913ea8edd34b14973d288",
+    "envoyproxy/envoy:v1.39.1": "envoyproxy/envoy:v1.39.1@sha256:57e14a549d7bd43c8d3f6d03e8cfa653e037d4b38e133acd9b54f38c524401b4",
+    "supabase/gotrue:v2.196.0": "supabase/gotrue:v2.196.0@sha256:c0c25187a6b835e65a6f6e6c6b39d090e832d40e6de5186f2c038e0411944232",
+    "postgrest/postgrest:v14.17": "postgrest/postgrest:v14.17@sha256:c9dc201e555f5d8e37e7f39cdd4df0229774996e213bfd7de8d10ac609030f2c",
+    "supabase/realtime:v2.134.10": "supabase/realtime:v2.134.10@sha256:cbcc6a7986fc28b6dcffa798b077d5fb9c69cd25500371ab49147a86d7edbb03",
+    "supabase/storage-api:v1.74.0": "supabase/storage-api:v1.74.0@sha256:f1546fac6d1c7e345428ac904bfaa7be7cecd50a1f549fe1cf38c628a7b15c85",
+    "darthsim/imgproxy:v3.31.4": "darthsim/imgproxy:v3.31.4@sha256:73c5dda13199745b0d2d00e4149d4a589c5b2e205dbf335ca05eca8276b54712",
+    "supabase/postgres-meta:v0.99.0": "supabase/postgres-meta:v0.99.0@sha256:9a079ac1c94d89629262822a4bd1902d5b1be4adb464e5a0a8fd078aaed72158",
+    "supabase/edge-runtime:v1.76.2": "supabase/edge-runtime:v1.76.2@sha256:edd22bef4477b900d5c300e287ce9b18bff9b81a0291bee14ee0b7c7b71a2899",
+    "supabase/postgres:17.6.1.136": "supabase/postgres:17.6.1.136@sha256:f371b5f3f2ac0a05703f33d6e6134515fb2498cab708fb948a0aeb7481467c00",
+    "supabase/supavisor:2.9.12": "supabase/supavisor:2.9.12@sha256:464b93a60ba8c96bc06dad7f241562d6613b2a994922307717b05f432ae415c2"
+  },
+  "vendoredDependencies": [
+    {
+      "name": "jose",
+      "version": "6.2.2",
+      "license": "MIT",
+      "dependencies": {},
+      "source": "https://registry.npmjs.org/jose/-/jose-6.2.2.tgz",
+      "integrity": "sha512-d7kPDd34KO/YnzaDOlikGpOurfF0ByC2sEV4cANCtdqLlTfBlw2p14O/5d/zv40gJPbIQxfES3nSx1/oYNyuZQ=="
+    }
+  ]
+}

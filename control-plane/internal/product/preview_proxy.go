@@ -134,6 +134,11 @@ func (s *Server) proxyReleasePreview(w http.ResponseWriter, r *http.Request) {
 					pr.Out.Header.Del(name)
 				}
 			}
+			// The authenticated server bridge separates ordinary application
+			// authorization from the Luci bearer used to reach the worker.
+			if appAuthorization := pr.In.Header.Get("X-Luci-Preview-App-Authorization"); appAuthorization != "" && len(appAuthorization) <= 8192 {
+				pr.Out.Header.Set("Authorization", appAuthorization)
+			}
 			if pr.In.Header.Get("Origin") != "" {
 				pr.Out.Header.Set("Origin", target.String())
 			}

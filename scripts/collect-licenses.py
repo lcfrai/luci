@@ -113,6 +113,21 @@ def collect(root, output, native):
             record["sourceArchive"] = {"path": archive_path.relative_to(output).as_posix(), "sha256": hashlib.sha256(archive_path.read_bytes()).hexdigest(), "modified": False}
         records.append(record)
 
+    assets = root / "control-plane" / "internal" / "platform" / "supabase_assets"
+    if assets.is_dir():
+        source = json.loads((assets / "manifest.json").read_text(encoding="utf-8"))
+        for retained in source["files"]:
+            path = (assets / retained["path"]).resolve()
+            path.relative_to(assets.resolve())
+            if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != retained["sha256"]:
+                raise RuntimeError("Retained Supabase asset changed: " + retained["path"])
+        add("configuration", "supabase-self-hosted", source["version"], assets, "Apache-2.0",
+            extra=[assets / "NOTICE.txt"], source_url=source["upstream"] + "/tree/" + source["revision"])
+        for dependency in source.get("vendoredDependencies", []):
+            add("vendored", dependency["name"], dependency["version"],
+                assets / "volumes" / "functions" / "_vendor" / dependency["name"],
+                dependency["license"], source_url=dependency["source"])
+
     lock = json.loads((root / "desktop" / "package-lock.json").read_text(encoding="utf-8"))
     for relative, meta in sorted(lock["packages"].items()):
         if not relative or meta.get("dev", False):

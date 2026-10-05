@@ -11,11 +11,13 @@ export function RuntimePreparation({
   client,
   manageBacking,
   automatic = false,
+  refreshToken = 0,
   onStatus,
 }: {
   client: ProductClient;
   manageBacking: boolean;
   automatic?: boolean;
+  refreshToken?: number;
   onStatus(status: SetupStatus): void;
 }) {
   const [status, setStatus] = useState<SetupStatus | null>(null);
@@ -64,7 +66,7 @@ export function RuntimePreparation({
     return () => {
       alive = false;
     };
-  }, [client, automatic, manageBacking, attempt]);
+  }, [client, automatic, manageBacking, attempt, refreshToken]);
   useEffect(() => {
     if (job?.status !== "installing") return;
     let alive = true;
@@ -150,9 +152,8 @@ export function RuntimePreparation({
       )}
       {status && !dockerReady && (
         <p className="journey-muted">
-          Install or start Docker using your operating system’s Docker
-          application, then check again. Luci cannot install or start Docker for
-          you.
+          Use the tool setup above to install Docker where supported. Open
+          Docker Desktop and wait for its engine to start, then check again.
         </p>
       )}
       {!manageBacking && (

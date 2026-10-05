@@ -19,10 +19,12 @@ import (
 
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 type Options struct {
+	BrowserPreviewPort               int
 	StateDir, InstanceID, DockerHost string
 	ResolveProject                   func(string) (project.Project, error)
 	ApplicationConfiguration         func(string) (int, map[string]string, error)
@@ -74,13 +76,14 @@ type ProjectState struct {
 	PanaceaProject string       `json:"panaceaProject,omitempty"`
 }
 type Service struct {
-	opts          Options
-	dir, instance string
-	mu            sync.Mutex
-	busy          map[string]bool
-	ctx           context.Context
-	cancel        context.CancelFunc
-	wg            sync.WaitGroup
+	browserRegistry *previewgateway.Registry
+	opts            Options
+	dir, instance   string
+	mu              sync.Mutex
+	busy            map[string]bool
+	ctx             context.Context
+	cancel          context.CancelFunc
+	wg              sync.WaitGroup
 }
 
 var identifier = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
@@ -120,7 +123,16 @@ func New(opts Options) (*Service, error) {
 	if opts.HTTPClient == nil {
 		opts.HTTPClient = providerHTTPClient()
 	}
-	return &Service{opts: opts, dir: dir, instance: instance, busy: map[string]bool{}, ctx: ctx, cancel: cancel}, nil
+	s := &Service{opts: opts, dir: dir, instance: instance, busy: map[string]bool{}, ctx: ctx, cancel: cancel}
+	if opts.BrowserPreviewPort != 0 {
+		var err error
+		s.browserRegistry, err = previewgateway.NewRegistry(opts.StateDir, opts.BrowserPreviewPort)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+	}
+	return s, nil
 }
 func (s *Service) Close() { s.cancel(); s.wg.Wait() }
 func (s *Service) path(name string) (string, error) {
@@ -266,6 +278,7 @@ func (s *Service) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/platform/projects/{id}/database", s.databaseAction)
 	mux.HandleFunc("GET /v1/platform/projects/{id}/backups/{backupId}", s.downloadBackup)
 	s.registerPanacea(mux)
+	s.registerData(mux)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, _, ok := management.ActorFromContext(r.Context()); !ok {
 			problem(w, 401, "sign_in_required", "Sign in to use the platform.")
@@ -280,7 +293,7 @@ func (s *Service) status(w http.ResponseWriter, r *http.Request) {
 	_, err := s.opts.Runner(ctx, "docker", []string{"info", "--format", "{{.ServerVersion}}"}, s.dir, nil)
 	_, policy, _ := management.ActorFromContext(r.Context())
 	limits := s.limits(r)
-	respond(w, 200, map[string]any{"dockerReady": err == nil, "limits": map[string]int{"memoryMiB": limits.MemoryMiB, "cpuMillis": limits.CPUMillis}, "permissions": map[string]bool{"connectPanacea": admin(r), "deployPanacea": policy.AllowCloudProvisioning}, "capabilities": map[string]bool{"persistentLocalDeployments": err == nil, "postgres": err == nil, "postgresBackups": err == nil, "panaceaConnector": true, "supabaseInstalled": false}, "scope": "Local deployments persist on this Docker host. Public hosting requires a connected hosting provider. Limits apply per running service, not to total host capacity or billing.", "supabase": map[string]any{"status": "not-installed", "message": "Full Supabase auth, storage and realtime are separate from the PostgreSQL service.", "upstream": "https://supabase.com/docs/guides/self-hosting/docker"}})
+	respond(w, 200, map[string]any{"dockerReady": err == nil, "limits": map[string]int{"memoryMiB": limits.MemoryMiB, "cpuMillis": limits.CPUMillis}, "permissions": map[string]bool{"connectPanacea": admin(r), "deployPanacea": policy.AllowCloudProvisioning}, "capabilities": map[string]bool{"persistentLocalDeployments": err == nil, "postgres": err == nil, "postgresBackups": err == nil, "panaceaConnector": true, "supabaseAvailable": true}, "scope": "Local deployments persist on this Docker host. Public hosting requires a connected hosting provider. Limits apply per running service, not to total host capacity or billing.", "supabase": map[string]any{"status": "available", "message": "Optional Supabase Auth, Storage, REST and Realtime are installed per project with a separate resource acknowledgement.", "upstream": "https://supabase.com/docs/guides/self-hosting/docker"}})
 }
 func (s *Service) projectStatus(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.project(w, r)
@@ -305,6 +318,9 @@ func (s *Service) projectStatus(w http.ResponseWriter, r *http.Request) {
 				v.Deployments[i].Message = "Luci stopped during deployment. Verify its owned container before restarting."
 			}
 		}
+	}
+	for i := range v.Deployments {
+		v.Deployments[i] = s.browserDeployment(v.Deployments[i])
 	}
 	respond(w, 200, map[string]any{"project": v, "busy": busy})
 }
