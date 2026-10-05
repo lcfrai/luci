@@ -102,6 +102,40 @@ func TestPlatformRequiresActorAndConfinesProjects(t *testing.T) {
 		t.Fatalf("member connection %d", w.Code)
 	}
 }
+func TestPlatformCapabilitiesRequireDockerServerEvidence(t *testing.T) {
+	for _, tc := range []struct {
+		name, output string
+		err          error
+		ready        bool
+	}{
+		{"empty-success", "", nil, false},
+		{"whitespace-success", " \r\n", nil, false},
+		{"failed-version", "28.3.3", errors.New("engine unavailable"), false},
+		{"verified-version", "28.3.3\n", nil, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s := fixture(t, func(context.Context, string, []string, string, []byte) ([]byte, error) {
+				return []byte(tc.output), tc.err
+			})
+			w := request(t, s, "GET", "/v1/platform/status", "member", nil)
+			var status struct {
+				DockerReady  bool            `json:"dockerReady"`
+				Capabilities map[string]bool `json:"capabilities"`
+			}
+			if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &status) != nil {
+				t.Fatalf("status: %d %s", w.Code, w.Body)
+			}
+			if status.DockerReady != tc.ready {
+				t.Fatalf("engine ready=%v, want %v", status.DockerReady, tc.ready)
+			}
+			for _, capability := range []string{"persistentLocalDeployments", "postgres", "postgresBackups"} {
+				if status.Capabilities[capability] != tc.ready {
+					t.Fatalf("%s advertised without Docker evidence", capability)
+				}
+			}
+		})
+	}
+}
 func TestArchiveUsesExactCommitAndExcludesPrivateFiles(t *testing.T) {
 	var captured []string
 	s := fixture(t, func(_ context.Context, exe string, args []string, _ string, _ []byte) ([]byte, error) {

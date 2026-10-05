@@ -209,12 +209,12 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if dataTarget {
+			// The response writer already owns the single approved CORS
+			// origin, including error responses and preflight. ReverseProxy
+			// appends upstream headers, so repeating it here creates two
+			// Allow-Origin fields and browsers reject the successful response.
 			res.Header.Del("Access-Control-Allow-Origin")
 			res.Header.Del("Access-Control-Allow-Credentials")
-			if requestOrigin != "" {
-				res.Header.Set("Access-Control-Allow-Origin", requestOrigin)
-				res.Header.Add("Vary", "Origin")
-			}
 		}
 		res.Header.Set("Referrer-Policy", "no-referrer")
 		return nil

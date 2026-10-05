@@ -114,6 +114,38 @@ async function observedPost(action, suffix) {
     await page.unroute(matcher, observer);
   }
 }
+async function unavailableRuntimeThroughUi(action) {
+  // run-ui-uat.mjs selects the real, deliberately unavailable loopback engine.
+  // Observe the UI's real check, then independently read its persisted status.
+  // An empty successful CLI response must never permit an automatic build.
+  const [response] = await Promise.all([
+    page.waitForResponse(value => value.url() === `${base}/v1/setup/check`
+      && value.request().method() === "POST", { timeout: 45000 }),
+    action(),
+  ]);
+  assert.equal(response.status(), 200, "The UI's actual readiness check failed");
+  const posted = await response.json();
+  const preparation = page.locator(".runtime-preparation");
+  await preparation.getByRole("button", { name: "Check again", exact: true }).waitFor();
+  await page.waitForFunction(() => {
+    const control = [...document.querySelectorAll(".runtime-preparation button")]
+      .find(node => node.textContent.trim() === "Check again");
+    return control && !control.disabled;
+  }, undefined, { timeout: 45000 });
+  const saved = await authed("/v1/setup/status");
+  for (const status of [posted, saved]) {
+    for (const id of ["docker", "sandbox-image"])
+      assert.equal(status.checks.find(check => check.id === id)?.status, "missing", `${id} must report the actual unavailable engine`);
+  }
+  const runtime = await authed("/v1/setup/runtime/install");
+  assert.equal(runtime.status, "idle", "An unavailable engine must not start automatic runtime preparation");
+  assert.ok(!runtime.id, "No installation attempt may have been allocated");
+  const docker = posted.checks.find(check => check.id === "docker");
+  assert.ok(docker.action, "The unavailable engine must have actionable guidance");
+  await preparation.getByText(docker.action, { exact: true }).waitFor();
+  for (const label of ["Prepare agent runtime", "Retry runtime preparation"])
+    assert.equal(await preparation.getByRole("button", { name: label, exact: true }).count(), 0);
+}
 try {
   await page.goto(base);
   if (control.bootstrapRequired) {
@@ -170,11 +202,12 @@ try {
   await screenshot("00b-cloud-workspace-choice");
   await page.getByRole("button", { name: "Choose another setup option", exact: true }).click();
   checks.push("First-run local, guided own-account cloud and existing-workspace choices disclose only their relevant controls and allow backtracking without cloud mutations");
-  const configured = await observedPost(() => page.getByRole("button", { name: "On this computer", exact: true }).click(), "/v1/setup/config");
+  let configured;
+  await unavailableRuntimeThroughUi(async () => {
+    configured = await observedPost(() => page.getByRole("button", { name: "On this computer", exact: true }).click(), "/v1/setup/config");
+  });
   assert.equal(configured.configured, true);
   assert.equal(configured.config.projectsDir, initial.config.projectsDir);
-  await page.getByText(/Open Docker Desktop and wait for its engine to start/).waitFor({ timeout: 45000 });
-  assert.equal(await page.getByRole("button", { name: "Prepare agent runtime", exact: true }).count(), 0);
   await page.getByLabel("Commit author name", { exact: true }).fill("Luci UAT Owner");
   await page.getByLabel("Commit author email", { exact: true }).fill("uat@example.invalid");
   await page.getByRole("button", { name: "Save Git identity", exact: true }).click();
@@ -612,8 +645,7 @@ try {
   await page.getByRole("button", { name: "Workspace setup", exact: true }).click();
   await page.getByRole("heading", { name: "Choose your workspace", exact: true }).waitFor();
   await visual("10c-onboarding-mobile-dark");
-  await page.getByRole("button", { name: "On this computer", exact: true }).click();
-  await page.getByText(/Open Docker Desktop and wait for its engine to start/).waitFor();
+  await unavailableRuntimeThroughUi(() => page.getByRole("button", { name: "On this computer", exact: true }).click());
   await visual("10d-preparation-mobile-dark");
   await page.getByRole("button", { name: "Continue to projects", exact: true }).click();
   await page.getByRole("heading", { name: "Your projects", exact: true }).waitFor();

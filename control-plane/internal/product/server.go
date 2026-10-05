@@ -23,7 +23,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
-const Version = "0.4.7"
+const Version = "0.4.8"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -430,7 +430,10 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
 		output, err := s.runner(ctx, p.exe, p.args, "")
 		cancel()
-		if err != nil {
+		// A successful process with no formatted result is not readiness proof.
+		// Docker clients can return an empty ServerVersion for a dead engine;
+		// accepting it would start automatic installation against that engine.
+		if err != nil || strings.TrimSpace(output) == "" {
 			checks[i].Status = "missing"
 			checks[i].Message = "This connection is not ready."
 			checks[i].Action = p.action

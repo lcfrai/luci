@@ -316,10 +316,11 @@ func (s *Service) Handler() http.Handler {
 func (s *Service) status(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 	defer cancel()
-	_, err := s.opts.Runner(ctx, "docker", []string{"info", "--format", "{{.ServerVersion}}"}, s.dir, nil)
+	version, err := s.opts.Runner(ctx, "docker", []string{"info", "--format", "{{.ServerVersion}}"}, s.dir, nil)
+	dockerReady := err == nil && strings.TrimSpace(string(version)) != ""
 	_, policy, _ := management.ActorFromContext(r.Context())
 	limits := s.limits(r)
-	respond(w, 200, map[string]any{"dockerReady": err == nil, "limits": map[string]int{"memoryMiB": limits.MemoryMiB, "cpuMillis": limits.CPUMillis}, "permissions": map[string]bool{"connectPanacea": admin(r), "deployPanacea": policy.AllowCloudProvisioning}, "capabilities": map[string]bool{"persistentLocalDeployments": err == nil, "postgres": err == nil, "postgresBackups": err == nil, "panaceaConnector": true, "supabaseAvailable": true}, "scope": "Local deployments persist on this Docker host. Public hosting requires a connected hosting provider. Limits apply per running service, not to total host capacity or billing.", "supabase": map[string]any{"status": "available", "message": "Optional Supabase Auth, Storage, REST and Realtime are installed per project with a separate resource acknowledgement.", "upstream": "https://supabase.com/docs/guides/self-hosting/docker"}})
+	respond(w, 200, map[string]any{"dockerReady": dockerReady, "limits": map[string]int{"memoryMiB": limits.MemoryMiB, "cpuMillis": limits.CPUMillis}, "permissions": map[string]bool{"connectPanacea": admin(r), "deployPanacea": policy.AllowCloudProvisioning}, "capabilities": map[string]bool{"persistentLocalDeployments": dockerReady, "postgres": dockerReady, "postgresBackups": dockerReady, "panaceaConnector": true, "supabaseAvailable": true}, "scope": "Local deployments persist on this Docker host. Public hosting requires a connected hosting provider. Limits apply per running service, not to total host capacity or billing.", "supabase": map[string]any{"status": "available", "message": "Optional Supabase Auth, Storage, REST and Realtime are installed per project with a separate resource acknowledgement.", "upstream": "https://supabase.com/docs/guides/self-hosting/docker"}})
 }
 func (s *Service) projectStatus(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.project(w, r)

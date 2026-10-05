@@ -166,6 +166,46 @@ func TestDataClientAuthenticationAndProjectCORS(t *testing.T) {
 		t.Fatal("other account's same project ID crossed ownership boundary")
 	}
 }
+func TestDataCrossOriginResponseHasOneTrustedAllowOrigin(t *testing.T) {
+	for _, upstreamOrigins := range [][]string{nil, {"*"}, {"https://untrusted.example", "*"}} {
+		t.Run(fmt.Sprintf("upstream-headers-%d", len(upstreamOrigins)), func(t *testing.T) {
+			up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				for _, origin := range upstreamOrigins {
+					w.Header().Add("Access-Control-Allow-Origin", origin)
+				}
+				w.Header().Set("Access-Control-Allow-Credentials", "true")
+				w.Header().Set("Content-Type", "application/json")
+				w.Write([]byte(`[]`))
+			}))
+			defer up.Close()
+			g, registry := testGateway(t, func(context.Context, Target) error { return nil })
+			app, err := registry.Publish(appTarget(up.URL))
+			if err != nil {
+				t.Fatal(err)
+			}
+			target := appTarget(up.URL)
+			target.Kind, target.ResourceID, target.PublishableKey = "data", "data-cors", clientJWT("anon")
+			data, err := registry.Publish(target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			preflight := request(g, "OPTIONS", data, "/rest/v1/notes", map[string]string{"Origin": app, "Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "apikey,authorization"})
+			if origins := preflight.Header().Values("Access-Control-Allow-Origin"); preflight.Code != 204 || len(origins) != 1 || origins[0] != app {
+				t.Fatal("the approved project's preflight did not have one trusted origin")
+			}
+			res := request(g, "GET", data, "/rest/v1/notes", map[string]string{"Origin": app, "apikey": target.PublishableKey, "Authorization": "Bearer " + clientJWT("authenticated")})
+			origins := res.Result().Header.Values("Access-Control-Allow-Origin")
+			// Header.Get checks only the first field and misses this browser-
+			// rejecting duplicate introduced by ReverseProxy's header append.
+			if res.Code != 200 || len(origins) != 1 || origins[0] != app {
+				t.Fatalf("the approved project's proxied response must have one trusted origin: status=%d fields=%d", res.Code, len(origins))
+			}
+			if res.Header().Get("Access-Control-Allow-Credentials") != "" || !strings.Contains(res.Header().Get("Vary"), "Origin") || res.Body.String() != `[]` {
+				t.Fatal("the proxied client response changed its credential, cache, or body boundary")
+			}
+		})
+	}
+}
 func TestRegistryRejectsHostileTargetsAndOwnershipReuse(t *testing.T) {
 	g, r := testGateway(t, func(context.Context, Target) error { return errors.New("container label or binding changed") })
 	for _, upstream := range []string{"http://localhost:3000", "http://127.0.0.2:3000", "https://127.0.0.1:3000", "http://user:pass@127.0.0.1:3000", "http://127.0.0.1:3000/path", "http://127.0.0.1:3000?query=1", "http://127.0.0.1:8730", "http://127.0.0.1:8731", "http://169.254.169.254:80"} {

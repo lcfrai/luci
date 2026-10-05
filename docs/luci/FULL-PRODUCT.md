@@ -282,3 +282,84 @@ with bounded concurrency and a six-minute timeout; both pass (221.053 and 26.840
 seconds). The interrupted broad invocation is not recorded as a pass. Its emitted
 modules, corrected full platform suite and completed product/project follow-up
 together provide the source backend checks for this candidate.
+
+## Installed 0.4.7 checkpoint — 6 October 2026
+
+Clean source `b61f959e172af26697db122ac2d136ee8a65a16c` produced the Windows
+installer, Windows/Linux/macOS portable packages and Linux cloud bundle, with no
+missing licence evidence. Its 928-file Docker distribution has manifest SHA-256
+`931b9d7ad102a06db06df215a5ebb154a0c4a3a62c6649b98e84b4d78710d93f`
+and archive SHA-256
+`cb63347fc5b2c2b5bd80488db55a5f0f07898922dc5e025f5e310fcf55f8e6af`.
+The 950-file source export has SHA-256
+`7c1f14af375655102d8dcb1a549b064d2400e881842bdf31deae62c983cb0f44`;
+its exported platform assets passed their test. Both actual Docker installations
+upgraded with accounts, project journeys and volumes preserved. Upgrade receipts
+are `package-upgrade-aed3f020-12da-475f-a941-625112789744.json` in the primary
+instance and `package-upgrade-6df804e6-81e4-4436-828e-cb4b9874d6fe.json` in the
+secondary instance under `artifacts/subscription-e2e`.
+
+The retained native-data journey passed twelve checks against this exact package:
+private-engine ownership and eleven healthy services, native Auth, owner RLS,
+actual browser Realtime delivery, exact Storage bytes and isolated gateway client
+access. The retained Git fixture deployed successfully and became healthy,
+proving the archive correction in the installed distribution. Its page and public
+configuration loaded, and its private server read returned HTTP 200. The first
+cross-origin browser data request then failed the CORS gate; backup, restore and
+restart acceptance were not reached. The application and data stack were stopped
+and retained. Evidence is
+`artifacts/subscription-e2e/docker-instance-b6f125cd-0105-4570-8a69-9822280e4956/data-acceptance-8af2d655-2dd2-4b57-bdad-72d0c1ab4b29/results.json`.
+
+Installed UI checks independently verified the complete manifest, running binary
+and web bytes, account sign-in and guided definition save/approval. They stopped
+on the draft dialog's missing `aria-modal` attribute before claiming complete
+keyboard/appearance acceptance. CI run `37332731444` passed Go, race, desktop
+tests and build, then exposed an empty successful Docker probe being marked ready
+despite its deliberately unavailable engine. The semantic dialog attribute and
+readiness false-positive are being corrected; their preserved failures require a
+new matching package and repeated affected acceptance.
+
+This checkpoint does not establish current clean-host native installer UAT, live
+AWS/Azure or public DNS/TLS, external SMTP delivery, Codex subscription inference
+or the required generated public site. Build success and a healthy private
+fixture deployment do not complete the full-product goal.
+
+## 0.4.8 corrective candidate — 6 October 2026
+
+Actual installed browser and native HTTP evidence isolated the data-client CORS
+failure: the gateway emitted two identical allowed-origin header fields. The
+proxy now keeps the single origin already approved by Luci and removes upstream
+origin/credential headers. A response-multiplicity regression fails before the
+fix and passes for absent, wildcard and hostile duplicated upstream origins.
+All thirteen gateway checks and vet pass; account/project and control-bearer
+boundaries remain intact. The preserved source/installed evidence is
+`artifacts/review/048-data-cors-response-fix.json`. Complete installed browser,
+backup and restore continuation still requires the corrected package.
+
+Workspace and platform readiness now require an actual nonempty probe result,
+including Docker's server version and runtime image identifier. Empty successful
+CLI results no longer advertise an available engine or enable automatic runtime
+preparation. The new regressions reproduce the false readiness before the fix and
+pass afterward. The shared Fluid workflow dialog now explicitly declares its
+modal semantics while retaining Radix focus trapping and Luci's overlay handling.
+Twenty-four affected desktop checks, production build and five Docker packaging
+checks pass. The first generic Python discovery found zero tests and is preserved
+as an unsuccessful invocation; the explicit packaging test file ran all five.
+
+The compiled 0.4.8 source candidate passed nine independent account-entry checks,
+nineteen connected workspace/project checks and real process-restart persistence.
+Both desktop and mobile onboarding observe the real readiness POST, reread its
+persisted missing Docker/image checks and confirm runtime installation remains
+idle without an allocated attempt. Recovery guidance matches the actual backend
+action; no preparation or retry control appears for the unavailable engine. Nine
+axe surfaces reported no violations, with the existing incomplete findings kept.
+Evidence is under
+`artifacts/uat/frontend-048-65585017-c997-413c-85f1-4671fd22abd9`. This candidate
+uses a deliberately unavailable engine and does not prove positive installed
+runtime/data behavior, subscription inference or a public release.
+
+The complete affected Windows product and platform suites pass (251.370 and
+90.845 seconds), with their three explicit optional Docker/Envoy native-eval
+skips preserved. Product/platform vet passes. The complete JSON test outcomes are
+in `artifacts/review/048-readiness-full-product-platform.jsonl`; these source
+checks do not substitute for the remaining installed lifecycle continuation.
