@@ -1,3 +1,4 @@
+import { Button } from "../fluid/components/button";
 import { useEffect, useState } from "react";
 import {
   errorText,
@@ -96,35 +97,35 @@ export function ProviderSignIn({
         </p>
       )}
       <div className="setup-actions">
-        <button
+        <Button
           type="button"
-          className="luci-button"
+          variant="secondary"
           disabled={busy || !!active}
           onClick={() => void signIn()}
         >
           {active
             ? "Waiting for provider sign-in…"
             : `Sign in to ${provider === "aws" ? "AWS" : "Azure"}`}
-        </button>
+        </Button>
         {officialUrl(job?.verificationUrl) && (
-          <button
+          <Button
             type="button"
-            className="luci-button"
+            variant="secondary"
             onClick={() =>
               void openOfficial(officialUrl(job?.verificationUrl)!)
             }
           >
             Open provider sign-in
-          </button>
+          </Button>
         )}
         {officialUrl(job?.actionUrl) && (
-          <button
+          <Button
             type="button"
-            className="luci-button"
+            variant="secondary"
             onClick={() => void openOfficial(officialUrl(job?.actionUrl)!)}
           >
             Install provider tools
-          </button>
+          </Button>
         )}
       </div>
     </section>

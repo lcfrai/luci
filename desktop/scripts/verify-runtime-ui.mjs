@@ -144,7 +144,7 @@ async function typeCommand(command) {
 async function stopPreview() {
   if (!result.release || result.release.status === "stopped") return;
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
-  await page.getByRole("button", { name: "Previews and publishing", exact: true }).click();
+  await page.getByRole("tab", { name: "Previews and publishing", exact: true }).click();
   const stopped = await observed(
     () =>
       page.getByRole("button", { name: "Stop preview", exact: true }).click(),
@@ -407,7 +407,8 @@ try {
   );
 
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
-  await page.getByRole("button", { name: "Previews and publishing", exact: true }).click();
+  await page.getByRole("tab", { name: "Previews and publishing", exact: true }).click();
+  await page.locator("summary").filter({ hasText: /^Preview build options$/ }).click();
   await page.getByLabel("Dockerfile", { exact: true }).fill("Dockerfile");
   await page.getByRole("spinbutton", { name: /^App port/ }).fill("3000");
   result.release = await observed(

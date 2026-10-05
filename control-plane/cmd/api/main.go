@@ -167,7 +167,27 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	}
 	var platformService *platform.Service
 	resolveDataPlatform := func() *platform.Service { return platformService }
-	productService, err := product.New(product.Options{CloudDataBindings: product.PlatformCloudDataBindings(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
+	productService, err := product.New(product.Options{ClearBranchReady: func(ctx context.Context, worktreeID string) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		_, err := store.SetWorktreeReady(worktreeID, false)
+		return err
+	}, BranchSessions: func(ctx context.Context, projectID, worktreeID string) (bool, error) {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		sessions, err := store.List()
+		if err != nil {
+			return false, err
+		}
+		for _, sess := range sessions {
+			if (sess.ProjectID == projectID || sess.WorktreeID == worktreeID) && sess.Status != registry.StatusExited {
+				return true, nil
+			}
+		}
+		return false, nil
+	}, CloudDataBindings: product.PlatformCloudDataBindings(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
 		if shutdownService != nil {
 			shutdownService()
 		}

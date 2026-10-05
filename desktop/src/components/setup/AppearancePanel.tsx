@@ -1,3 +1,4 @@
+import { Button } from "../fluid/components/button";
 import {
   DEFAULT_APPEARANCE,
   updateAppearance,
@@ -83,13 +84,13 @@ export function AppearancePanel() {
         <span>Preview</span> Readable text, clear focus and a little breathing
         room.
       </p>
-      <button
-        className="luci-button"
+      <Button
+        variant="secondary"
         type="button"
         onClick={() => updateAppearance(DEFAULT_APPEARANCE)}
       >
         Reset appearance
-      </button>
+      </Button>
     </section>
   );
 }

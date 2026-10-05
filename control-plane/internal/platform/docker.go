@@ -251,6 +251,16 @@ func (s *Service) archive(ctx context.Context, p project.Project, commit string)
 		if e != nil {
 			return nil, e
 		}
+		// Git emits this global PAX record before the committed files. It is
+		// provenance metadata, not a filesystem entry. Accept only the exact
+		// requested commit's comment; no global path, size or link overrides
+		// may enter Docker's build context.
+		if h.Typeflag == tar.TypeXGlobalHeader {
+			if h.Name != "pax_global_header" || len(h.PAXRecords) != 1 || h.PAXRecords["comment"] != commit {
+				return nil, errors.New("source archive contains unsupported metadata")
+			}
+			continue
+		}
 		clean := path.Clean(h.Name)
 		if path.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, "../") || strings.Contains(clean, "\\") || h.Typeflag != tar.TypeReg && h.Typeflag != tar.TypeDir {
 			return nil, errors.New("source archive contains unsupported paths")

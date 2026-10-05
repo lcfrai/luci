@@ -55,6 +55,24 @@
       "upstreamSha256": "466b6c8f96eeb56d908baf064d9d71ffa07903c040ead71fa5ff3ad919215fe8",
       "path": "desktop/src/components/fluid/lib/icon-context.ts",
       "normalizedSha256": "c52c421d25802929e4df4acf82fc860d290f469003f9f0bd4f340445d4a14474"
+    },
+    {
+      "upstreamPath": "registry/radix/dialog.tsx",
+      "upstreamSha256": "be463142cb8055a49b2b8681b79e7d24692dc89725d346932a401f5ecc5ee64a",
+      "path": "desktop/src/components/fluid/components/dialog.tsx",
+      "normalizedSha256": "0c69981057f4d307facb6520b2560209d1e078cf8497e896813c09760446358c"
+    },
+    {
+      "upstreamPath": "registry/default/lib/surface-context.tsx",
+      "upstreamSha256": "17352842c40d49bd6a90bf8ca21c789fdde8be8904d9e5d667c71f365c48c120",
+      "path": "desktop/src/components/fluid/lib/surface-context.tsx",
+      "normalizedSha256": "daca8f8b61dd52317ac432367102dcbec5f52aaa7f72ce59a0c1b7560bcc79ec"
+    },
+    {
+      "upstreamPath": "registry/default/lib/surface-classes.ts",
+      "upstreamSha256": "cb42a715b587950d9adecbb7994f8b67cdea101eed0852a732365549e7cdc896",
+      "path": "desktop/src/components/fluid/lib/surface-classes.ts",
+      "normalizedSha256": "26f2a4055c031e414e486e13d81b09cc1e93bd7f39ba5278b1a2c7ebdf28f203"
     }
   ],
   "revision": "97183f8018e619722edffd2f9fccefbea0effe8d",
@@ -64,12 +82,14 @@
     "Subset of icon-context types; existing Luci icons retained",
     "Appearance and offline Inter integration",
     "Native-button defaults/loading state",
-    "Reduced-motion handling and observer cleanup in tabs"
+    "Reduced-motion handling and observer cleanup in tabs",
+    "Dialog retains Radix focus trapping, uses Luci close icon and existing surface tokens, and respects reduced motion"
   ],
   "glasses": {
     "repositoryId": "6a7f58b6fecc68b2ea92",
     "buttonId": "0b2ccd2795d26f57bbdf",
     "tabsId": "17d96c7b6974bd72b041",
-    "note": "Registry sources inspected through Glasses; vendoring uses immutable Git source and its MIT grant, not registry metadata alone."
+    "note": "Registry sources inspected through Glasses; vendoring uses immutable Git source and its MIT grant, not registry metadata alone.",
+    "dialogId": "24df6615c2a906864660"
   }
 }

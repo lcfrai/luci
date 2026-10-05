@@ -8,7 +8,10 @@ import { ProjectGit } from "../lens/MergeLens";
 import { ApiError } from "../../api/client";
 import { definitionApi, type ProjectSpecification } from "../../api/definition";
 
-beforeEach(() => vi.restoreAllMocks());
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.spyOn(definitionApi, "listAssistance").mockResolvedValue({ jobs: [] });
+});
 it("keeps the edited definition on a revision conflict instead of claiming it was saved", async () => {
   const original: ProjectSpecification = {
     projectId: "p-1",
@@ -39,7 +42,7 @@ it("keeps the edited definition on a revision conflict instead of claiming it wa
   await userEvent.clear(idea);
   await userEvent.type(idea, "A better idea");
   await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
-  await screen.findByRole("alert");
+  expect((await screen.findByRole("alert")).textContent).toContain("This brief changed. Reload before saving.");
   expect((idea as HTMLTextAreaElement).value).toBe("A better idea");
   expect(screen.queryByText(/Agent context updated/)).toBeNull();
   expect(save).toHaveBeenCalledWith("p-1", { ...original, purpose: "A better idea" }, 2, 3);

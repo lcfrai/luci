@@ -1,3 +1,4 @@
+import { Button } from "../fluid/components/button";
 import { useEffect, useRef, useState } from "react";
 import {
   errorText,
@@ -139,8 +140,8 @@ export function WorkspaceInstaller({
               )}
               <div className="setup-actions">
                 {!existing && (
-                  <button
-                    className="luci-button"
+                  <Button type="button"
+                    variant="secondary"
                     disabled={
                       !!busy || !!installing || !accepted[connection.id]
                     }
@@ -158,10 +159,10 @@ export function WorkspaceInstaller({
                     }
                   >
                     {installing ? "Installing Luci…" : "Install Luci workspace"}
-                  </button>
+                  </Button>
                 )}
-                <button
-                  className="luci-button luci-primary"
+                <Button type="button"
+                  variant="primary"
                   disabled={
                     !!busy || !!installing || !authenticated[connection.id]
                   }
@@ -176,7 +177,7 @@ export function WorkspaceInstaller({
                   {busy === "Verifying workspace"
                     ? "Verifying workspace…"
                     : "Use this cloud workspace"}
-                </button>
+                </Button>
               </div>
               {!existing && (
                 <WorkspaceSignIn
@@ -199,13 +200,13 @@ export function WorkspaceInstaller({
           );
         })}
       {!existing && jobs.length > 0 && (
-        <button
-          className="luci-button"
+        <Button type="button"
+          variant="secondary"
           disabled={!!busy}
           onClick={() => void run("Checking installation", load)}
         >
           Check workspace installation
-        </button>
+        </Button>
       )}
     </section>
   );

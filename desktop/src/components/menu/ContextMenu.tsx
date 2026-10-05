@@ -49,6 +49,7 @@ export function ContextMenu(): JSX.Element {
   const closeContextMenu = useCockpit((s) => s.closeContextMenu);
   const selectBranch = useCockpit((s) => s.selectBranch);
   const openPicker = useCockpit((s) => s.openPicker);
+  const openBranchManager = useCockpit(s => s.openBranchManager);
   const sessionMenuFor = useCockpit((s) => s.sessionMenuFor);
   const closeSessionMenu = useCockpit((s) => s.closeSessionMenu);
   const openSessionMenu = useCockpit((s) => s.openSessionMenu);
@@ -101,8 +102,7 @@ export function ContextMenu(): JSX.Element {
       {
         id: "new-branch",
         label: "New branch",
-        disabledReason:
-          "Phase 2 has no create-branch endpoint (contract §10.3). Create it in git and it appears here.",
+        run: act(() => openBranchManager({ projectId: project.id, action: "create" })),
       },
       { id: "copy-path", label: "Copy path", run: act(() => copyText(project.path)) },
       { id: "reveal", label: "Reveal in Explorer", run: act(() => revealInExplorer(project.path)) },
@@ -113,6 +113,7 @@ export function ContextMenu(): JSX.Element {
     if (branch === undefined) return [];
     const first = branchWorktree;
     return [
+      { id: "switch-branch", label: "Switch to this branch", run: act(() => openBranchManager({ projectId: branch.projectId, action: "switch", branchId: branch.id })) },
       {
         id: "new-session",
         label: "New session here",

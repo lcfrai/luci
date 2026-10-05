@@ -1,3 +1,4 @@
+import { Button } from "../fluid/components/button";
 import { useEffect, useRef, useState } from "react";
 import {
   errorText,
@@ -220,19 +221,19 @@ export function RuntimePreparation({
         </p>
       )}
       <div className="setup-actions">
-        <button
-          className="luci-button"
+        <Button type="button"
+          variant="secondary"
           disabled={checking}
           onClick={() => setAttempt((value) => value + 1)}
         >
           Check again
-        </button>
+        </Button>
         {manageBacking &&
           dockerReady &&
           !imageReady &&
           job?.status !== "installing" && (
-            <button
-              className="luci-button"
+            <Button type="button"
+              variant="secondary"
               disabled={checking}
               onClick={() => {
                 const currentGeneration = generation.current;
@@ -265,7 +266,7 @@ export function RuntimePreparation({
               {job?.status === "failed"
                 ? "Retry runtime preparation"
                 : "Prepare agent runtime"}
-            </button>
+            </Button>
           )}
       </div>
     </section>

@@ -1,3 +1,4 @@
+import { Button } from "../fluid/components/button";
 import { useEffect, useRef, useState } from "react";
 import { AgentConnections } from "./AgentConnections";
 import { useAuth } from "../auth/AuthProvider";
@@ -102,13 +103,13 @@ export function LocalTools({
               <p className="journey-error" role="alert">
                 {loadError}
               </p>
-              <button
-                className="luci-button"
+              <Button
+                variant="secondary"
                 type="button"
                 onClick={() => setLoadAttempt((attempt) => attempt + 1)}
               >
                 Retry loading Git identity and runtime
-              </button>
+              </Button>
             </div>
           )}
           {error && (
@@ -161,9 +162,9 @@ export function LocalTools({
                 />
               </label>
             </div>
-            <button className="luci-button" disabled={!loaded || !!busy}>
+            <Button type="submit" variant="secondary" disabled={!loaded || !!busy}>
               Save Git identity
-            </button>
+            </Button>
           </form>
           {!identityOnly &&
             (manageBacking ? (
@@ -180,8 +181,8 @@ export function LocalTools({
                     {runtime.status} · {runtime.message}
                   </p>
                 )}
-                <button
-                  className="luci-button"
+                <Button type="button"
+                  variant="secondary"
                   disabled={
                     !loaded || !!busy || runtime?.status === "installing"
                   }
@@ -194,7 +195,7 @@ export function LocalTools({
                   {runtime?.status === "installing"
                     ? "Installing runtime…"
                     : "Install agent runtime"}
-                </button>
+                </Button>
               </section>
             ) : (
               <p className="journey-muted">

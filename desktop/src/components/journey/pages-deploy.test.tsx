@@ -114,3 +114,29 @@ it("keeps queued Pages releases unlinked until provider and HTTPS checks succeed
   await screen.findByText("Waiting for verification");
   expect(screen.queryByRole("link", { name: "Open deployed site" })).toBeNull();
 });
+
+it("retries a failed pushed-revision check and requires acknowledgement of the newly checked source", async () => {
+  vi.mocked(productApi.gitDelivery).mockRejectedValueOnce(new Error("Reconnect GitHub before checking the pushed revision.")).mockResolvedValueOnce(delivery).mockResolvedValueOnce({ ...delivery, head: "b".repeat(40), publication: { ...delivery.publication!, commit: "b".repeat(40) } });
+  const deploy = vi.fn();
+  render(<PagesDeployForm projectId="p-1" busy="" onDeploy={deploy} />);
+  await screen.findByRole("alert");
+  await userEvent.click(screen.getByRole("button", { name: "Refresh pushed revision" }));
+  await screen.findByText(delivery.origin!);
+  await userEvent.click(screen.getByRole("checkbox"));
+  expect((screen.getByRole("button", { name: "Deploy to GitHub Pages" }) as HTMLButtonElement).disabled).toBe(false);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh pushed revision" }));
+  await screen.findByText(/bbbbbbbbbbbb/);
+  expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
+  expect((screen.getByRole("button", { name: "Deploy to GitHub Pages" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(deploy).not.toHaveBeenCalled();
+});
+
+it("cannot publish a verified private repository by acknowledging the public-site checkbox", async () => {
+  vi.mocked(productApi.gitDelivery).mockResolvedValue({ ...delivery, publication: { ...delivery.publication!, visibility: "private" } });
+  const deploy = vi.fn();
+  render(<PagesDeployForm projectId="p-1" busy="" onDeploy={deploy} />);
+  await screen.findByText(delivery.origin!);
+  await userEvent.click(screen.getByRole("checkbox"));
+  expect((screen.getByRole("button", { name: "Deploy to GitHub Pages" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(deploy).not.toHaveBeenCalled();
+});

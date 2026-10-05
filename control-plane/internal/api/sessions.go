@@ -1062,6 +1062,18 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. The harness.
+	releaseBranch, ok := a.sessionBranchAdmission(w, r, req.WorktreeID, "")
+	if !ok {
+		return
+	}
+	defer releaseBranch()
+	// A primary checkout may have switched while initial ownership was read.
+	// Re-resolve beneath admission before context or sandbox work begins.
+	if path, err = a.deps.Worktrees.Path(ctx, req.WorktreeID); err != nil {
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, "The worktree changed before the session could start. Refresh the project and try again.", nil)
+		return
+	}
+
 	harnessID := harness.ID(strings.TrimSpace(req.Harness))
 	if harnessID == "" {
 		harnessID = harness.ClaudeCode
@@ -1835,6 +1847,15 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	if a.deps.Product != nil && sess.BranchID == "" {
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, "This older session has no saved branch. Start a fresh session on the selected branch instead.", nil)
+		return
+	}
+	releaseBranch, admitted := a.sessionBranchAdmission(w, r, sess.WorktreeID, sess.BranchID)
+	if !admitted {
+		return
+	}
+	defer releaseBranch()
 	var account *codexConnection
 	authMode := sess.AuthMode
 	if sess.Harness == "codex" {

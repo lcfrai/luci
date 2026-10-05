@@ -1,3 +1,4 @@
+import { Button } from "../fluid/components/button";
 import { useEffect, useId, useRef, useState } from "react";
 import { dependencyApi, type Dependency, type DependencyAction, type DependencyClient, type DependencyId, type DependencyStatus } from "../../api/dependencies";
 import { errorText } from "../../api/product";
@@ -100,13 +101,13 @@ export function DependencySetup({ client = dependencyApi, canManage, automatic =
       {installable && <div className="dependency-install">
         <label className="luci-check"><input type="checkbox" checked={consent[dependency.id] === true} disabled={!!busy || hasActiveJob} onChange={event => setConsent(value => ({ ...value, [dependency.id]: event.target.checked }))} />I accept the publisher and package source agreements for {dependency.name}.</label>
         <p className="journey-muted">Windows Package Manager installs {dependency.packageId}. Windows may request administrator approval or a restart.</p>
-        <button type="button" className="luci-button" disabled={!consent[dependency.id] || !!busy || hasActiveJob} onClick={() => void run(`Starting ${dependency.name} installation`, async () => {
+        <Button type="button" variant="secondary" disabled={!consent[dependency.id] || !!busy || hasActiveJob} onClick={() => void run(`Starting ${dependency.name} installation`, async () => {
           const job = await client.install(dependency.id, true);
           if (!alive.current) return;
           setConsent(value => ({ ...value, [dependency.id]: false }));
           setStatus(value => value ? { ...value, dependencies: value.dependencies.map(item => item.id === dependency.id ? { ...item, job } : item) } : value);
           if (!["queued", "installing"].includes(job.status)) onCheckedRef.current?.();
-        })}>Install {dependency.name}</button>
+        })}>Install {dependency.name}</Button>
       </div>}
     </li>;
   }
@@ -114,16 +115,16 @@ export function DependencySetup({ client = dependencyApi, canManage, automatic =
     <h2 id={heading}>{status?.platform === "linux" ? "Workspace tools" : "Tools on this computer"}</h2>
     <p className="journey-muted">Luci checks the computer running this connection service. Installations download the selected publisher’s software; no model is called.{cloudWorkspace && " These installations do not change your selected cloud workspace."}</p>
     {busy && <p role="status">{busy}…</p>}
-    {error && <div className="journey-error" role="alert">{error} <button type="button" className="luci-button" disabled={!!busy} onClick={() => setAttempt(value => value + 1)}>Retry loading tools</button></div>}
+    {error && <div className="journey-error" role="alert">{error} <Button type="button" variant="secondary" disabled={!!busy} onClick={() => setAttempt(value => value + 1)}>Retry loading tools</Button></div>}
     {status && <>
       {status.installer.status !== "ready" && status.dependencies.some(item => item.check.status !== "ready") && <p className="journey-muted">{status.installer.message}</p>}
       {!canManage && <p className="journey-muted">Your administrator installs tools on this computer. You can keep defining your project.</p>}
       <ul className="dependency-list">{status.dependencies.filter(item => target ? item.id === target : item.id === "git" || item.id === "docker").map(row)}</ul>
       <details className="dependency-optional"><summary>Optional publishing and cloud tools</summary><p className="journey-muted">Install only the tools for services you choose. Installing a CLI does not sign you in or create paid resources.</p><ul className="dependency-list">{status.dependencies.filter(item => target ? item.id !== target : !["git", "docker"].includes(item.id)).map(row)}</ul></details>
-      {canManage && <button type="button" className="luci-button" disabled={!!busy || hasActiveJob} onClick={() => void run("Checking tools", async () => {
+      {canManage && <Button type="button" variant="secondary" disabled={!!busy || hasActiveJob} onClick={() => void run("Checking tools", async () => {
         const checked = await client.check();
         if (alive.current) { setStatus(checked); setConsent({}); onCheckedRef.current?.(); }
-      })}>Check tools again</button>}
+      })}>Check tools again</Button>}
     </>}
   </section>;
 }

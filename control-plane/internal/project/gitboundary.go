@@ -61,6 +61,17 @@ func gitMetadataFile(root, path string) ([]byte, error) {
 
 var gitIncludeSection = regexp.MustCompile(`(?im)^\s*\[\s*include(?:if)?(?:\s|\])`)
 
+// ManagedGitArguments reuses the catalogue's assigned-workspace boundary for
+// trusted controller Git operations. The caller selects a direct subcommand;
+// callers must still disable any configured filters before checking out files.
+func ManagedGitArguments(root, dir string, args []string) ([]string, error) {
+	return boundedGitArgs(root, dir, args)
+}
+
+// ManagedGitEnvironment removes inherited Git redirection and external config
+// before a controller inspects or changes an owned repository.
+func ManagedGitEnvironment(env []string) []string { return boundedGitEnvironment(env) }
+
 // Resolve .git ourselves before asking Git anything. A legitimate linked
 // worktree points to an in-root .git/worktrees entry whose commondir points
 // back to the same repository; a primary repository cannot redirect commondir.

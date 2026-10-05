@@ -10,15 +10,18 @@ import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import { ProjectPlan } from "./ProjectPlan";
 import { ProjectChecks } from "./ProjectChecks";
+import { Button } from "../fluid/components/button";
 import "./journey.css";
 
 /** Saved project facts are a handoff, not a claim that its acceptance criteria passed. */
 export function ProjectWork({
   projectId,
   children,
+  expanded = true,
 }: {
   projectId: string;
   children?: ReactNode;
+  expanded?: boolean;
 }) {
   const [facts, setFacts] = useState<{
     brief: Brief;
@@ -56,7 +59,7 @@ export function ProjectWork({
     };
   }, [load]);
   return (
-    <details className="project-work" open>
+    <details className="project-work" open={expanded}>
       <summary>
         <strong role="heading" aria-level={1}>Project plan and checks</strong>
         <span>
@@ -74,16 +77,16 @@ export function ProjectWork({
           </p>
         )}
         <div className="journey-actions">
-          <button
-            className="luci-button"
+          <Button
+            variant="secondary"
             disabled={loading}
             onClick={() => void load()}
           >
             Refresh project facts
-          </button>
-          <button className="luci-button" onClick={() => setup?.openSettings()}>
+          </Button>
+          <Button variant="secondary" onClick={() => setup?.openSettings()}>
             Agent and execution settings
-          </button>
+          </Button>
         </div>
         {facts && (
           <>
@@ -108,12 +111,12 @@ export function ProjectWork({
                     </p>
                   </>
                 )}
-                <button
-                  className="luci-button"
+                <Button
+                  variant="secondary"
                   onClick={() => setLens("discover")}
                 >
                   Edit brief
-                </button>
+                </Button>
               </section>
               <section>
                 <h2>Implementation context</h2>
@@ -146,30 +149,30 @@ export function ProjectWork({
                   before deployment.
                 </p>
                 <div className="journey-actions">
-                  <button
-                    className="luci-button"
+                  <Button
+                    variant="secondary"
                     onClick={() => setLens("design")}
                   >
                     Review design
-                  </button>
-                  <button
-                    className="luci-button"
+                  </Button>
+                  <Button
+                    variant="secondary"
                     onClick={() => setLens("files")}
                   >
                     Browse files
-                  </button>
-                  <button
-                    className="luci-button"
+                  </Button>
+                  <Button
+                    variant="secondary"
                     onClick={() => setLens("merge")}
                   >
                     Review and publish
-                  </button>
-                  <button
-                    className="luci-button"
+                  </Button>
+                  <Button
+                    variant="secondary"
                     onClick={() => setLens("deploy")}
                   >
                     Preview and deploy
-                  </button>
+                  </Button>
                 </div>
               </section>
             </div>

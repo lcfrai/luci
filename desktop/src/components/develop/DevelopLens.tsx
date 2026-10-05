@@ -33,7 +33,7 @@ export function DevelopLens(): JSX.Element {
      code (shared-shape rule 3). */
   return (
     <div className="develop-workspace">
-      {projectId && <ProjectWork key={projectId} projectId={projectId} />}
+      {projectId && <ProjectWork key={projectId} projectId={projectId} expanded={sessionIds.length === 0} />}
       <div className="develop-sessions">
         {sessionIds.length === 0 ? (
           <div className="cols-empty">

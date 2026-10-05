@@ -44,9 +44,13 @@ samp {
   font-family: var(--mono);
 }
 
-:where(button, input, select, textarea) {
-  font: inherit;
-  color: inherit;
+/* Keep the document form reset below control utilities. An unlayered reset
+   outranks every Tailwind utility, including a primary button's light label. */
+@layer base {
+  :where(button, input, select, textarea) {
+    font: inherit;
+    color: inherit;
+  }
 }
 
 ::selection {

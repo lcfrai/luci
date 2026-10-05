@@ -1,9 +1,6 @@
 @import "../../styles/tokens.css";
 .definition-workspace { max-inline-size: 1400px; margin-inline: auto; }
-.definition-tabs { display: flex; gap: 8px; border-block-end: 1px solid var(--line-soft); margin-block-end: 28px; overflow-x: auto; }
-.definition-tabs button { border: 0; border-block-end: 2px solid transparent; background: transparent; color: var(--ink-2); padding: 14px 18px; font: inherit; white-space: nowrap; cursor: pointer; min-block-size: 44px; }
-.definition-tabs button[aria-current] { color: var(--ink); border-block-end-color: var(--accent); }
-.definition-tabs button:hover { background: var(--surface); }
+.definition-tabs { margin-block-end: 28px; }
 .definition-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 330px); gap: 36px; align-items: start; }
 .definition-content { min-inline-size: 0; }
 .definition-content h2, .definition-assistant h2 { font-size: 1.125rem; font-weight: 600; margin-block: 24px 12px; }
@@ -43,4 +40,4 @@
 .repository-analysis code, .repository-analysis small { overflow-wrap: anywhere; }
 .repository-analysis pre { max-block-size: 480px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 0.8rem/1.6 var(--mono); }
 @media (max-width: 1100px) { .definition-layout { grid-template-columns: minmax(0, 1fr); gap: 26px; } .definition-assistant { position: static; border-inline-start: 0; border-block-start: 1px solid var(--line-soft); padding-inline-start: 0; padding-block-start: 24px; } }
-@media (max-width: 600px) { .definition-record { padding: 12px; } .definition-tabs button { padding-inline: 12px; } .definition-footer { position: static; } .definition-footer .journey-actions { flex-wrap: wrap; } }
+@media (max-width: 600px) { .definition-record { padding: 12px; } .definition-footer { position: static; } .definition-footer .journey-actions { flex-wrap: wrap; } }

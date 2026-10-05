@@ -133,3 +133,23 @@ it("lets the user retry failed history loading without invoking a provider", asy
   await screen.findByText("The app renders a start route.");
   expect(definitionApi.analyseRepository).not.toHaveBeenCalled();
 });
+
+it("submits once while pending and retains explicit source consent for a failed-start retry", async () => {
+  let fail!: (cause: Error) => void;
+  vi.mocked(definitionApi.analyseRepository).mockImplementationOnce(() => new Promise((_resolve, reject) => { fail = reject; }));
+  mount();
+  const action = await screen.findByRole("button", { name: "Analyse repository" });
+  expect(action.getAttribute("type")).toBe("submit");
+  fireEvent.click(screen.getByLabelText("Send the selected source and definition to this provider for analysis."));
+  fireEvent.click(action);
+  expect(action.getAttribute("aria-busy")).toBe("true");
+  expect((action as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(action);
+  expect(definitionApi.analyseRepository).toHaveBeenCalledOnce();
+  await act(async () => fail(new Error("Reconnect the selected provider before trying again.")));
+  expect((await screen.findByRole("alert")).textContent).toContain("Reconnect the selected provider");
+  expect((screen.getByLabelText("Send the selected source and definition to this provider for analysis.") as HTMLInputElement).checked).toBe(true);
+  expect((screen.getByLabelText("Analysis model") as HTMLInputElement).value).toBe("configured-model");
+  expect((action as HTMLButtonElement).disabled).toBe(false);
+  expect(definitionApi.applyAnalysis).not.toHaveBeenCalled();
+});

@@ -24,6 +24,11 @@ func (s *Service) dataInitializationStatus(v *DataStatus) {
 }
 
 func (s *Service) markDataInitialized(install dataInstallation) error {
+	// Status reads open the active receipt while holding this mutex. Keep its
+	// validation and atomic replacement in the same critical section: Windows
+	// cannot rename over a receipt still open by a concurrent status reader.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	var active dataInstallation
 	if e := s.read(install.ProjectID+"-data-installation", &active); e != nil {
 		return e

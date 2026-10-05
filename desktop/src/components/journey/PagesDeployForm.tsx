@@ -1,42 +1,44 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   errorText,
   productApi,
   type GitDelivery,
   type PagesReleaseRequest,
 } from "../../api/product";
+import { Button } from "../fluid/components/button";
 
-export function PagesDeployForm({
+type Props = { projectId: string; busy: string; onDeploy(input: PagesReleaseRequest): void };
+export function PagesDeployForm(props: Props) { return <ProjectPagesDeployForm key={props.projectId} {...props} />; }
+function ProjectPagesDeployForm({
   projectId,
   busy,
   onDeploy,
-}: {
-  projectId: string;
-  busy: string;
-  onDeploy(input: PagesReleaseRequest): void;
-}) {
+}: Props) {
   const [delivery, setDelivery] = useState<GitDelivery | null>(null);
   const [acknowledgePublic, setAcknowledgePublic] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const active = useRef(true), checking = useRef(false);
+  async function load() {
+    if (checking.current) return;
+    checking.current = true;
+    setLoading(true); setDelivery(null); setAcknowledgePublic(false); setError("");
+    try {
+      const value = await productApi.gitDelivery(projectId);
+      if (active.current) setDelivery(value);
+    } catch (cause) { if (active.current) setError(errorText(cause)); }
+    finally { checking.current = false; if (active.current) setLoading(false); }
+  }
   useEffect(() => {
-    let active = true;
-    setDelivery(null);
-    setAcknowledgePublic(false);
-    setError("");
-    productApi
-      .gitDelivery(projectId)
-      .then((value) => {
-        if (active) setDelivery(value);
-      })
-      .catch((cause) => {
-        if (active) setError(errorText(cause));
-      });
+    active.current = true;
+    void load();
     return () => {
-      active = false;
+      active.current = false;
     };
   }, [projectId]);
   const pushed =
     !!delivery?.head &&
+    delivery.publication?.visibility === "public" &&
     delivery.publication?.verified === true &&
     delivery.publication.commit === delivery.head;
   return (
@@ -44,7 +46,7 @@ export function PagesDeployForm({
       className="cloud-deploy-form"
       onSubmit={(event) => {
         event.preventDefault();
-        if (delivery && pushed && acknowledgePublic && !busy)
+        if (delivery && pushed && acknowledgePublic && !busy && !loading)
           onDeploy({
             commit: delivery.head,
             branch: delivery.branch,
@@ -68,7 +70,7 @@ export function PagesDeployForm({
           {error}
         </p>
       )}
-      {!delivery && !error && (
+      {loading && (
         <p role="status">Checking your pushed revision…</p>
       )}
       {delivery && (
@@ -89,17 +91,19 @@ export function PagesDeployForm({
         <input
           type="checkbox"
           checked={acknowledgePublic}
-          disabled={!!busy}
+          disabled={!!busy || loading}
           onChange={(event) => setAcknowledgePublic(event.target.checked)}
         />
         I understand that this site and its repository are public.
       </label>
-      <button
-        className="luci-button luci-primary"
-        disabled={!!busy || !pushed || !acknowledgePublic}
+      <div className="journey-actions"><Button type="submit"
+        variant="primary"
+        loading={!!busy}
+        disabled={!!busy || loading || !pushed || !acknowledgePublic}
       >
         {busy || "Deploy to GitHub Pages"}
-      </button>
+      </Button>
+      <Button type="button" variant="ghost" loading={loading} disabled={!!busy || loading} onClick={() => void load()}>Refresh pushed revision</Button></div>
     </form>
   );
 }

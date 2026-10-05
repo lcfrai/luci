@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { dataFunctionsApi, type FunctionAction, type FunctionAuth, type FunctionCatalog, type FunctionFile, type FunctionResponse, type FunctionSource, type FunctionSummary } from "../../api/dataFunctions";
 import { errorText } from "../../api/product";
 import { useCockpit } from "../../store/store";
+import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { Button } from "../fluid/components/button";
 import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
 import "./data-functions.css";
@@ -111,6 +112,7 @@ function FunctionEditor({ projectId, summary, ready, busy, canManage, onDirty, o
   const [request, setRequest] = useState('{"name":"Luci"}'), [token, setToken] = useState(""), [response, setResponse] = useState<FunctionResponse | null>(null);
   const id = useId(), setLens = useCockpit(state => state.setLens);
   const dirtyCallback = useRef(onDirty); dirtyCallback.current = onDirty;
+  useUnsavedProjectDraft(projectId, dirty, `Function ${summary.name}`, "deploy");
   const accept = useCallback((value: FunctionSource) => {
     if (value.name !== summary.name || !Array.isArray(value.files) || !["authenticated", "project-key"].includes(value.authMode)) throw new Error("Luci could not verify this function's source. Reload before saving.");
     setSource(value); setFiles(value.files); setAuthMode(value.authMode); setFile(current => value.files.some(item => item.path === current) ? current : value.files[0]?.path || "index.ts");
@@ -123,11 +125,6 @@ function FunctionEditor({ projectId, summary, ready, busy, canManage, onDirty, o
   }, [projectId, summary.name, accept]);
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; generation.current++; }; }, [load]);
   useEffect(() => { setExecute(false); setRollbackAck(false); setRemove(false); setResponse(null); setToken(""); }, [summary.active?.releaseId]);
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
-    window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
   const locked = busy || !!pending;
   const editable = canManage && !summary.builtin && !locked;
   const published = summary.builtin || !!summary.active;

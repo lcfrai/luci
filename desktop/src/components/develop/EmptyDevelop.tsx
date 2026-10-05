@@ -1,4 +1,4 @@
-import type { JSX } from "react";
+import { useRef, useState, type JSX } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { api } from "../../api";
 import type { ApiError } from "../../api/client";
@@ -8,6 +8,7 @@ import { selectResolvedDefaults, selectWorktrees } from "../../store/selectors";
 import { useCockpit } from "../../store/store";
 import type { Branch, SessionDefaults, WorktreeId } from "../../store/types";
 import { LinkedWorktreeNote } from "./LinkedWorktreeNote";
+import { Button } from "../fluid/components/button";
 
 /** The create path for this surface's two named actions. It lived in `SessionPane.tsx` while
  *  that file's Restart was also a create; Restart is now `api.restartSession`, so these two
@@ -66,13 +67,7 @@ function sentenceForCreate(error: ApiError): string {
   }
 }
 
-/** Three zero states, not one. docs/DESIGN-SYSTEM.md's floor is that every state is designed,
- *  and "empty" here is three different situations that deserve three different sentences: no
- *  branch is a navigation state whose answer is the rail; a branch with no worktrees is the
- *  one §10.3 calls out, because POST /v1/sessions needs an existing worktreeId and worktree
- *  creation is Phase 3, so it must say so in WORDS rather than offer a button that 404s; and
- *  a worktree with no sessions is the only one with actions. No spinner and no skeleton in
- *  any of them — §7.7 allows none that shifts a pixel. */
+/** Help the user select a branch, open its checkout or start the chosen real CLI. */
 export function EmptyDevelop({ branch }: { branch: Branch | undefined }): JSX.Element {
   // §3.7: selectWorktrees returns a stable empty-array constant when the branch is absent,
   // so this needs no useShallow and no `?? []`.
@@ -82,6 +77,15 @@ export function EmptyDevelop({ branch }: { branch: Branch | undefined }): JSX.El
   // a bare read re-renders this on every 2 s poll (task 17's amendment to §3.7).
   const defaults = useCockpit(useShallow(selectResolvedDefaults));
   const harnesses = useCockpit((s) => s.harnesses);
+  const openBranchManager = useCockpit(s => s.openBranchManager);
+  const [pending, setPending] = useState("");
+  const starting = useRef(false);
+  async function start(worktreeId: WorktreeId, descriptor: SessionDefaults) {
+    if (starting.current) return;
+    starting.current = true; setPending(descriptor.harness);
+    try { await startSessionOnWorktree(worktreeId, descriptor); }
+    finally { starting.current = false; setPending(""); }
+  }
 
   if (branch === undefined) {
     return (
@@ -95,12 +99,12 @@ export function EmptyDevelop({ branch }: { branch: Branch | undefined }): JSX.El
     return (
       <div className="pane-empty">
         <p className="pane-empty-line">
-          {branch.name} has no worktrees yet, and a session runs inside one.
+          Open {branch.name} in your project to start working.
         </p>
         <p className="pane-empty-note">
-          Creating a worktree arrives in Phase 3. Until then, check out this branch in a
-          worktree from the command line and it will appear in the rail.
+          Luci can switch the main project checkout to this branch after you commit changes and stop active sessions.
         </p>
+        <Button onClick={() => openBranchManager({ projectId: branch.projectId, action: "switch", branchId: branch.id })}>Switch to {branch.name}</Button>
       </div>
     );
   }
@@ -122,22 +126,25 @@ export function EmptyDevelop({ branch }: { branch: Branch | undefined }): JSX.El
       {/* Before the buttons, so the user reads what a session here cannot do before starting one. */}
       <LinkedWorktreeNote worktree={target} />
       <div className="pane-empty-actions">
-        <button
+        <Button
           type="button"
-          className="pane-empty-go"
-          onClick={() => void startSessionOnWorktree(target.id, defaults)}
+          loading={pending === defaults.harness}
+          disabled={!!pending}
+          onClick={() => void start(target.id, defaults)}
         >
           {`＋ ${primary?.name ?? defaults.harness}`}
-        </button>
+        </Button>
         {shell === undefined ? null : (
-          <button
+          <Button
             type="button"
-            className="pane-empty-go"
+            variant="secondary"
+            loading={pending === shell.id}
+            disabled={!!pending}
             onClick={() =>
               // permissionMode: "ask" is passed and toCreateRequest strips it, because
               // shell.permissionModes is empty — §3.6's rule, not a special case here.
               // Passing "" instead would be a lie about a legal PermissionMode.
-              void startSessionOnWorktree(target.id, {
+              void start(target.id, {
                 harness: shell.id,
                 model: "",
                 effort: "",
@@ -146,7 +153,7 @@ export function EmptyDevelop({ branch }: { branch: Branch | undefined }): JSX.El
             }
           >
             Open a shell
-          </button>
+          </Button>
         )}
       </div>
     </div>

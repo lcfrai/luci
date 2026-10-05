@@ -45,9 +45,13 @@ export const selectWorktrees =
 /** Ids, not objects: an id array is referentially stable across a poll that changed nothing,
  *  because dataSlice.replaceSessions keeps the previous array when the ids match. */
 export const selectSessionIdsForWorktree =
-  (worktreeId: WorktreeId | null) =>
-  (s: CockpitState): SessionId[] =>
-    (worktreeId === null ? undefined : s.sessionIdsByWorktree[worktreeId]) ?? NO_IDS;
+  (worktreeId: WorktreeId | null, branchId?: BranchId) =>
+  (s: CockpitState): SessionId[] => {
+    const ids = (worktreeId === null ? undefined : s.sessionIdsByWorktree[worktreeId]) ?? NO_IDS;
+    if (!branchId || ids.length === 0) return ids;
+    const scoped = ids.filter(id => s.sessions[id]?.branchId === branchId);
+    return scoped.length ? scoped : NO_IDS;
+  };
 
 export const selectSession =
   (id: SessionId | null) =>
@@ -77,7 +81,7 @@ export const selectPaneSessionIds = (s: CockpitState): SessionId[] => {
   const out: SessionId[] = [];
   for (const w of worktrees) {
     const ids = s.sessionIdsByWorktree[w.id];
-    if (ids !== undefined) out.push(...ids);
+    if (ids !== undefined) out.push(...ids.filter(id => s.sessions[id]?.branchId === branchId));
   }
   return out.length === 0 ? NO_IDS : out;
 };
@@ -188,7 +192,7 @@ export const selectBranchAttentionSessionId =
     for (const worktree of s.worktreesByBranch[branchId] ?? []) {
       for (const id of s.sessionIdsByWorktree[worktree.id] ?? []) {
         const session = s.sessions[id];
-        if (session === undefined) continue;
+        if (session === undefined || session.branchId !== branchId) continue;
         const rank = STATUS_RANK[session.status];
         if (rank < bestRank) {
           bestRank = rank;

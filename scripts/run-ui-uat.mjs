@@ -121,7 +121,7 @@ try {
     await page.getByRole('heading', { name: 'Design the experience', exact: true }).waitFor();
     await page.getByRole('textbox', { name: 'Screen name', exact: true }).waitFor();
     assert.equal(await page.getByRole('textbox', { name: 'Screen name', exact: true }).inputValue(), 'Garden journal');
-    await page.getByRole('button', { name: 'Implementation handoff', exact: true }).click();
+    await page.getByRole('tab', { name: 'Implementation handoff', exact: true }).click();
     assert.match(await page.getByRole('textbox', { name: 'Implementation notes', exact: true }).inputValue(), /keyboard/);
     const sessionToken = await page.evaluate(() => sessionStorage.getItem('luci.control-plane.session'));
     for (const [suffix, expected] of [['specification', result.restoredDefinition], ['design-plan', result.restoredDesignHandoff]]) {
@@ -138,7 +138,7 @@ try {
         assert.equal(record.implementationNotes, expected.implementationNotes);
       }
     }
-    await page.getByRole('button', { name: 'Sketch', exact: true }).click();
+    await page.getByRole('tab', { name: 'Sketch', exact: true }).click();
     await page.getByText(/Design 1 · Brief 1/).waitFor();
     await page.screenshot({ path: path.join(evidence, '11-process-restart.png'), fullPage: true });
     receipt.checks.push('Signed in after a real process restart; restored definition/design drafts correctly require renewed approval, and their linked screen plan, sketch and task state recovered through real API and UI');

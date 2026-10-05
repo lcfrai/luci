@@ -39,6 +39,11 @@ func (s *Server) SpecificationSnapshot(id string) (ProjectSpecification, error) 
 // ValidateDeploymentSource ties an application release to the exact reviewed
 // commit, including structured definition bytes. No build is started here.
 func (s *Server) ValidateDeploymentSource(ctx context.Context, id, commit string) error {
+	release, err := s.AcquireGitSessionAdmission(ctx, id)
+	if err != nil {
+		return err
+	}
+	defer release()
 	if !deliverySHA.MatchString(commit) {
 		return errors.New("Choose a full source commit.")
 	}

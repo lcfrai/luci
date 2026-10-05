@@ -1,9 +1,10 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ProjectDeploy } from "../lens/DeployLens";
 import { productApi, type Release } from "../../api/product";
 import * as setup from "../setup/SetupProvider";
+import { DEFAULT_BASE_URL } from "../../api/client";
 
 const ready: Release = {
   id: "rel-1",
@@ -49,17 +50,74 @@ it("offers an embedded preview only for a verified local release and removes it 
   expect(stop).toHaveBeenCalledWith("p-1", "rel-1");
 });
 
-it("does not grant same-origin sandbox permission to a control-origin preview URL", async () => {
+it.each([window.location.origin + "/", DEFAULT_BASE_URL + "/"])("does not embed either Luci control origin as a project preview: %s", async url => {
   vi.spyOn(productApi, "releases").mockResolvedValue({
-    releases: [{ ...ready, url: window.location.origin + "/" }],
+    releases: [{ ...ready, url }],
   });
   render(<ProjectDeploy projectId="p-1" />);
-  await userEvent.click(
-    await screen.findByRole("button", { name: "Open preview" }),
-  );
-  expect(
-    screen.getByTitle("Project preview").getAttribute("sandbox"),
-  ).not.toContain("allow-same-origin");
+  await screen.findByText("Health check passed");
+  expect(screen.queryByRole("button", { name: "Open preview" })).toBeNull();
+  expect(screen.queryByTitle("Project preview")).toBeNull();
+});
+
+it("retires an open preview when refreshed release health is no longer ready", async () => {
+  vi.spyOn(productApi, "releases").mockResolvedValueOnce({ releases: [ready] }).mockResolvedValue({ releases: [{ ...ready, status: "failed", message: "Health verification failed" }] });
+  render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Open preview" }));
+  expect(screen.getByTitle("Project preview")).not.toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await screen.findByText("Health verification failed");
+  await waitFor(() => expect(screen.queryByTitle("Project preview")).toBeNull());
+  expect(screen.queryByRole("button", { name: "Open preview" })).toBeNull();
+});
+
+it("changes deployment destination only on explicit tab activation", async () => {
+  vi.spyOn(productApi, "releases").mockResolvedValue({ releases: [] });
+  const delivery = vi.spyOn(productApi, "gitDelivery").mockResolvedValue({ branch: "main", head: "" });
+  const targets = vi.spyOn(productApi, "targets");
+  render(<ProjectDeploy projectId="p-1" />);
+  const user = userEvent.setup();
+  screen.getByRole("tab", { name: "On this machine" }).focus();
+  await user.keyboard("{ArrowRight}{ArrowRight}");
+  expect(delivery).not.toHaveBeenCalled();
+  expect(targets).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Build local preview" })).not.toBeNull();
+  await user.keyboard("{Enter}");
+  await screen.findByRole("button", { name: "Deploy to GitHub Pages" });
+  const tab = screen.getByRole("tab", { name: "GitHub Pages" });
+  const panel = screen.getByRole("tabpanel", { name: "GitHub Pages" });
+  expect(tab.getAttribute("aria-controls")).toBe(panel.id);
+  expect(panel.getAttribute("aria-labelledby")).toBe(tab.id);
+  expect(delivery).toHaveBeenCalledExactlyOnceWith("p-1");
+  expect(targets).not.toHaveBeenCalled();
+});
+it("uses the default build without expanding technical options and retains truthful pending release state", async () => {
+  const building = { ...ready, status: "building", url: "", message: "Building the selected source" };
+  vi.spyOn(productApi, "releases").mockResolvedValueOnce({ releases: [] }).mockResolvedValue({ releases: [building] });
+  const release = vi.spyOn(productApi, "release").mockResolvedValue(building);
+  render(<ProjectDeploy projectId="p-1" />);
+  const summary = screen.getByText("Preview build options", { selector: "summary" });
+  expect((summary.parentElement as HTMLDetailsElement).open).toBe(false);
+  await userEvent.click(screen.getByRole("button", { name: "Build local preview" }));
+  expect(release).toHaveBeenCalledExactlyOnceWith("p-1", 3000, "Dockerfile");
+  await screen.findByText("Building the selected source");
+  expect(screen.getByText("building")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Open preview" })).toBeNull();
+  expect(screen.queryByTitle("Project preview")).toBeNull();
+  await userEvent.click(summary);
+  expect(screen.getByRole("spinbutton", { name: /App port/ })).not.toBeNull();
+});
+it("reveals a collapsed preview option when the browser reports invalid input", () => {
+  vi.spyOn(productApi, "releases").mockResolvedValue({ releases: [] });
+  const release = vi.spyOn(productApi, "release");
+  render(<ProjectDeploy projectId="p-1" />);
+  const details = screen.getByText("Preview build options", { selector: "summary" }).parentElement as HTMLDetailsElement;
+  const port = screen.getByLabelText(/^App port/);
+  fireEvent.change(port, { target: { value: 0 } });
+  expect(details.open).toBe(false);
+  fireEvent.invalid(port);
+  expect(details.open).toBe(true);
+  expect(release).not.toHaveBeenCalled();
 });
 it("opens an isolated verified Docker gateway preview with application origin permission", async () => {
   vi.spyOn(productApi, "releases").mockResolvedValue({

@@ -260,7 +260,7 @@ try {
   const savedScreenPlan = await observedPost(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), "/design-plan");
   assert.deepEqual(savedScreenPlan.screens[0].requirementIds, approvedDefinition.requirements.map(item => item.id));
   assert.equal(savedScreenPlan.specificationRevision, approvedDefinition.revision);
-  await page.getByRole("button", { name: "Sketch", exact: true }).click();
+  await page.getByRole("tab", { name: "Sketch", exact: true }).click();
   await page.locator(".excalidraw canvas").first().waitFor();
   const canvas = await page.locator(".excalidraw canvas").first().boundingBox();
   assert.ok(canvas && canvas.width > 350 && canvas.height > 250);
@@ -302,7 +302,7 @@ try {
   await screenshot("03-design");
   const [handoffRefresh] = await Promise.all([
     page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname.endsWith(`/projects/${createdProject.id}/design-plan`)),
-    page.getByRole("button", { name: "Implementation handoff", exact: true }).click(),
+    page.getByRole("tab", { name: "Implementation handoff", exact: true }).click(),
   ]);
   assert.equal(handoffRefresh.status(), 200);
   await page.getByText("The definition or sketch has changed. Review the screen plan and save a new handoff before approving.", { exact: true }).waitFor();
@@ -399,6 +399,7 @@ try {
   );
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
   const privateValue = `uat-private-${randomUUID()}`;
+  await page.locator("summary").filter({ hasText: /^Runtime configuration$/ }).click();
   await page.getByLabel("Variable name", { exact: true }).fill("UAT_PRIVATE_MESSAGE");
   await page.getByLabel(/^Private value/).fill(privateValue);
   const savedConfiguration = page.waitForResponse(r => r.request().method() === "POST" && r.url().endsWith("/configuration"));
@@ -410,6 +411,7 @@ try {
   await page.getByRole("button", { name: "Update UAT_PRIVATE_MESSAGE", exact: true }).click();
   assert.equal(await page.getByLabel(/^Private value/).evaluate(e => e === document.activeElement), true);
   assert.equal(await page.getByLabel(/^Private value/).inputValue(), "");
+  await page.getByRole("button", { name: "Discard variable draft", exact: true }).click();
   await page.getByRole("button", { name: "Develop", exact: true }).click();
   await page.getByRole("button", { name: "Git", exact: true }).click();
   await page.getByText(/Everything is committed/).waitFor();
@@ -470,7 +472,7 @@ try {
     "Downloaded a real private Git backup and restored it from Projects home as a new project, preserving definition/handoff content, linked requirements, sketch, task plan and Git history while invalidating approvals for the new project identity",
   );
   await page.getByRole("button", { name: "Design", exact: true }).click();
-  await page.getByRole("button", { name: "Sketch", exact: true }).click();
+  await page.getByRole("tab", { name: "Sketch", exact: true }).click();
   await page.getByText(/Design 1 · Brief 1/).waitFor();
   checks.push("Reopened the persisted design linked to brief revision 1");
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
@@ -481,11 +483,11 @@ try {
   assert.equal(await persistentDeploy.isDisabled(), true, "Missing Docker must not be represented as deployable");
   await page.getByText("Start Docker to deploy an application or database.", { exact: true }).waitFor();
   checks.push("Deploy opens the real application platform and reports missing Docker honestly, disabling persistent deployment instead of claiming service readiness");
-  await page.getByRole("button", { name: "Previews and publishing", exact: true }).click();
+  await page.getByRole("tab", { name: "Previews and publishing", exact: true }).click();
   await page
     .getByRole("button", { name: "Build local preview", exact: true })
     .waitFor();
-  await page.getByRole("button", { name: "Your cloud", exact: true }).click();
+  await page.getByRole("tab", { name: "Your cloud", exact: true }).click();
   await page.getByRole("heading", { name: "Ship to your cloud" }).waitFor();
   await screenshot("06-deploy");
   checks.push(
@@ -559,7 +561,7 @@ try {
     "Signed in as a separate member; Admin hidden, management request rejected 403, and owner projects absent from the member catalogue",
   );
   for (const surface of ["Define", "Design", "Sketch", "Develop", "Files", "Git", "Deploy", "Settings", "Admin"]) {
-    await page.getByRole("button", { name: surface, exact: true }).click();
+    await page.getByRole(surface === "Sketch" ? "tab" : "button", { name: surface, exact: true }).click();
     if (surface === "Define") await page.getByRole("textbox", { name: "The idea", exact: true }).waitFor();
     if (surface === "Design") await page.getByRole("textbox", { name: "Screen name", exact: true }).waitFor();
     if (surface === "Sketch") await page.locator(".excalidraw canvas").first().waitFor();

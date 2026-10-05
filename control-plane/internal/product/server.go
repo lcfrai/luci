@@ -23,7 +23,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
-const Version = "0.4.6"
+const Version = "0.4.7"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -39,6 +39,8 @@ type Registrar interface {
 }
 type Runner func(context.Context, string, []string, string) (string, error)
 type Options struct {
+	ClearBranchReady   func(context.Context, string) error
+	BranchSessions     func(context.Context, string, string) (bool, error)
 	CloudDataBindings  func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
 	BrowserPreviewPort int
 	ManagedWorkspace   bool
@@ -55,6 +57,11 @@ type Options struct {
 }
 
 type Server struct {
+	clearBranchReady  func(context.Context, string) error
+	branchSessions    func(context.Context, string, string) (bool, error)
+	branchGuardMu     sync.Mutex
+	branchGuards      map[string]*sync.RWMutex
+	branchRunner      Runner
 	cloudDataBindings func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
 	browserRegistry   *previewgateway.Registry
 	cloudBundle       string
@@ -104,7 +111,7 @@ func New(opts Options) (*Server, error) {
 	if root == "" {
 		root = filepath.Join(opts.StateDir, "projects")
 	}
-	s := &Server{cloudDataBindings: opts.CloudDataBindings, stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
+	s := &Server{clearBranchReady: opts.ClearBranchReady, branchSessions: opts.BranchSessions, cloudDataBindings: opts.CloudDataBindings, stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
 		sandboxImage: opts.SandboxImage, plans: make(map[string]CloudPlan),
 		managedWorkspace: opts.ManagedWorkspace, configured: opts.ManagedWorkspace,
 		config: Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30}}
@@ -178,6 +185,7 @@ func New(opts Options) (*Server, error) {
 }
 
 func (s *Server) Register(mux Registrar) {
+	mux = s.guardProjectSourceRoutes(mux)
 	mux.HandleFunc("POST /v1/setup/shutdown", func(w http.ResponseWriter, r *http.Request) {
 		if s.shutdown == nil {
 			problem(w, 501, "unsupported", "This service is managed externally.")
@@ -278,6 +286,10 @@ func newID(prefix string) string {
 
 // RunCommand never invokes a shell. Output and duration are bounded, including child pipe drains.
 func RunCommand(ctx context.Context, executable string, args []string, dir string) (string, error) {
+	return runCommandEnvironment(ctx, executable, args, dir, append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "AWS_PAGER=", "AZURE_CORE_ONLY_SHOW_ERRORS=true"))
+}
+
+func runCommandEnvironment(ctx context.Context, executable string, args []string, dir string, env []string) (string, error) {
 	limit := commandExecutionBudget(ctx, executable, args)
 	ctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
@@ -288,7 +300,7 @@ func RunCommand(ctx context.Context, executable string, args []string, dir strin
 	hideProcess(cmd)
 	cmd.Dir = dir
 	cmd.WaitDelay = 2 * time.Second
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "AWS_PAGER=", "AZURE_CORE_ONLY_SHOW_ERRORS=true")
+	cmd.Env = env
 	output := &limitedBuffer{limit: 2 << 20}
 	stderr := &limitedBuffer{limit: 2 << 20}
 	cmd.Stdout = output

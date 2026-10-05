@@ -2,7 +2,7 @@
 
 3 October 2026. The user's installed-app inspection supersedes the earlier narrow delivery checklist. The current application is not a complete UAT handback.
 
-The owner's5 October instruction is recorded in [GOAL.md](GOAL.md). It is the
+The owner's 5 October instruction is recorded in [GOAL.md](GOAL.md). It is the
 current completion standard: finish the full product and verify its supported
 installed workflows. The small Docker/subscription deployment benchmark is one
 required acceptance journey within that scope.
@@ -59,6 +59,47 @@ generated implementation and a verified public site remain required, as do live
 AWS/Azure account/resource/domain acceptance and the supported clean-host
 distribution outcomes. External SMTP delivery has not been exercised without a
 supplied test connection and recipient.
+
+## Installed 0.4.6 checkpoint — 6 October 2026
+
+Clean source `adac3886846c38f2ea712411001435f923c9896e` produced matching native
+Windows, portable and Docker candidates. Both Docker installations upgraded with
+accounts, project journeys and volumes preserved. The open-source export contains
+all 106 hash-verified Supabase assets, nine normalized Fluid sources with their
+original MIT grant, and all 11 Docker packaging inputs. The exported source passed
+the platform asset test. The earlier CI failure caused by ignored runtime files
+is preserved; no missing asset was replaced with a stub or a waived hash.
+
+The next CI run passed Go services and race checks, then passed 1,149 desktop
+checks with three failures. Two concern token/reduced-motion stylesheet rules;
+the other is a conflict fixture missing its newly required saved-assistance mock.
+These are scheduled for the next focused implementation batch; CI is not green.
+Native installer build success does not prove installed WebView/installer UAT.
+
+Actual Docker browser continuation on the retained recovery project verified all
+11 services, native application sign-in, owner Realtime event delivery, anonymous
+RLS denial, REST/Storage bytes and CORS/control-bearer separation. Its fixture
+deployment failed before creating an application container. A corrected harness
+readback exposed the actual failure: the archive validator rejected the
+`pax_global_header` comment emitted by native Git. The next source batch accepts
+and strips only that exact, bounded metadata carrying the requested commit,
+while retaining private-file, path, link, size and unexpected-metadata rejection.
+A real Git archive regression proves exact old-commit extraction despite newer
+and dirty working-tree content. The failed deployment and all retained data remain
+for installed continuation after the correction is packaged. Full backup/restore
+acceptance on this complete distribution is still pending.
+
+Actual installed Functions acceptance subsequently passed sixteen lifecycle
+checks on an isolated project at the same clean `adac3886` package: saved native
+source and Git commit, authenticated publication/invocation, anonymous and control
+bearer rejection, changed release, exact rollback, bad-compile retention of the
+working endpoint, stop/start persistence, removal, retained release history and
+the shipped function. The owned data stack is stopped with its source/history and
+volumes retained. Two scoped axe scans reported no violations, with incomplete
+contrast results requiring a manual check. The receipt is
+`artifacts/subscription-e2e/docker-instance-b6f125cd-0105-4570-8a69-9822280e4956/functions-ui-4d4d6ae1-d891-44fd-8df5-331d42f0a78d/results.json`.
+This fixture uses actual native function execution; it does not prove Codex
+subscription inference or the required public-site journey.
 
 ## Backend provenance
 
@@ -190,3 +231,54 @@ investigation isolated Linux directory link-count handling in platform path
 validation. Its source correction must pass installed acceptance before the data
 journey is considered proven. The actual subscription journey still needs owner
 sign-in, generated implementation, immutable checks and a verified public site.
+
+
+## 0.4.7 source completion batch — 6 October 2026
+
+The source adds actual primary Git branch creation/switching with durable
+operation receipts, exact source/target checks and read-only recovery for a lost
+reply. Session creation/restart and project source operations share admission
+with checkout, keeping active work and Functions source consistent. A verified
+checkout clears readiness on the stable primary worktree ID before Git can start;
+private project configuration, release records and historical session identities
+are retained. Linked-worktree creation remains outside the supported host
+metadata boundary and the UI explains that limitation.
+
+The frontend uses the official Fluid Dialog alongside its Button and Tabs, with
+focus trapping, keyboard dismissal, actual operation state and explicit protection
+for unsaved project work. Branch changes remount source-dependent editors and
+keep historical CLI sessions attached to their saved branch. Define and Design
+have coherent panels and next actions; deployment destinations use accessible
+tabs and deliberate advanced options. The next installed checks must verify the
+connected outcomes against the matching immutable package.
+
+These source changes, targeted native Git checks and focused frontend checks are
+preparation for a new candidate. They do not admit a new distribution or mark the
+full product goal complete. Native clean-host install, complete Docker data
+deployment/restore, live cloud/DNS/TLS, external SMTP and the real
+subscription-generated public application retain their own evidence gates.
+
+The integrated 0.4.7 desktop suite passed all 1,191 checks and production build.
+Seventeen source-export checks and five Docker-packaging checks passed. A real
+compiled-service browser candidate then passed nine independent account-entry
+checks, nineteen connected project/workspace checks and process-restart
+persistence. Its nine axe surfaces reported no violations; Sketch contrast and
+Admin table checks remain incomplete findings. Browser evidence is under
+`artifacts/uat/frontend-047-0465ce91-7b21-4afd-be87-f44456015b1d`. This is source
+candidate evidence using a deliberately unavailable Docker endpoint for failure
+recovery; it does not attest the next immutable package or model inference.
+
+The broad Windows backend run exposed an actual initialization receipt race.
+Status reads could hold an open handle while the worker replaced the same receipt,
+causing access denied after services became healthy. Promotion now holds the
+existing status mutex for its read/validation/write. A deterministic native
+Windows held-reader regression fails before the fix and passes after it. The
+affected tests passed five consecutive runs; the full platform suite passed
+93 tests with two explicit opt-in native-eval skips. No lifecycle assertion or
+fixture deadline was weakened. The broad Go driver subsequently spun without a
+compiler or test child and was interrupted by exact owned PID; its emitted module
+outcomes are preserved. Only the unemitted product/project packages were resumed
+with bounded concurrency and a six-minute timeout; both pass (221.053 and 26.840
+seconds). The interrupted broad invocation is not recorded as a pass. Its emitted
+modules, corrected full platform suite and completed product/project follow-up
+together provide the source backend checks for this candidate.

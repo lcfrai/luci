@@ -20,20 +20,14 @@ import "./shell.css";
 import { ProjectsHome } from "./projects/ProjectsHome";
 import { ColumnsLayout } from "./develop/ColumnsLayout";
 import { useSetup } from "./setup/SetupProvider";
+import { DraftNavigationDialog } from "./common/DraftNavigationDialog";
+import { BranchManager } from "./journey/BranchManager";
 
-// CLOSED FOR THE PROGRAMME — task 26, seam SX.1 in docs/SEAMS.md. Every lens is one file
-// under ./lens/, and a later phase fills its own file rather than this switch: five phases
-// editing one import block is five merge conflicts (dependency-graph-and-order.md:143-145).
+// Each phase owns its workspace. Source checkout revisions remount them together
+// so a saved definition, design or file view cannot linger from the old branch.
 function LensRouter(props: { lens: Lens }): JSX.Element {
   switch (props.lens) {
     case "develop":
-      // ── TASK 20 FILLED THIS INSERTION POINT ───────────────────────────────────────
-      // Develop is the one lens Phase 2 builds, so it is the one arm that is not a
-      // placeholder. DevelopLens chooses Columns vs Canvas vs the zero state and owns
-      // nothing else (§6.5); the other five arms stay honest about the phase that makes
-      // them real. Guard, still true:
-      //   grep -cE '^[[:space:]]+return <DevelopLens' src/components/AppShell.tsx  # 1
-      // ───────────────────────────────────────────────────────────────────────────────
       return <DevelopLens />;
     case "discover":
       return <DiscoverLens />;
@@ -55,6 +49,7 @@ export function AppShell(): JSX.Element {
   const railCollapsed = useCockpit((s) => s.railCollapsed);
   const branchId = useCockpit((s) => s.selection.branchId);
   const projectId = useCockpit((s) => s.selection.projectId);
+  const sourceRevision = useCockpit(s => projectId ? s.projectSourceRevisions[projectId] ?? 0 : 0);
   const lens = useCockpit((s) => s.lens);
   const sessionId = useCockpit((s) => s.selection.sessionId);
   const accountSession = useCockpit((s) =>
@@ -151,7 +146,7 @@ export function AppShell(): JSX.Element {
           ) : projectId === null && branchId === null ? (
             <ProjectsHome />
           ) : (
-            <LensRouter lens={lens} />
+            <LensRouter key={`${projectId}:${sourceRevision}`} lens={lens} />
           )}
         </div>
       </main>
@@ -159,6 +154,8 @@ export function AppShell(): JSX.Element {
       <ContextMenu />
       <Toasts />
       <CommandPalette />
+      <BranchManager />
+      <DraftNavigationDialog />
     </div>
   );
 }

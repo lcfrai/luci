@@ -24,6 +24,8 @@ const journeyMaxBody = 2 << 20
 var projectNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
 
 func (s *Server) registerProjects(mux Registrar) {
+	s.registerProjectBranches(mux)
+	mux = s.guardProjectSourceRoutes(mux)
 	s.registerSpecification(mux)
 	s.registerDesignPlan(mux)
 	s.registerReleases(mux)

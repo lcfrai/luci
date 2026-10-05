@@ -18,6 +18,7 @@ export function TopBar({
   const lens = useCockpit((s) => s.lens);
   const projectId = useCockpit((s) => s.selection.projectId);
   const setLens = useCockpit((s) => s.setLens);
+  const openBranchManager = useCockpit(s => s.openBranchManager);
   const setLayout = useCockpit((s) => s.setLayout);
   const pickerOpen = useCockpit((s) => s.pickerOpen);
   const closePicker = useCockpit((s) => s.closePicker);
@@ -82,6 +83,7 @@ export function TopBar({
         </span>
       )}
       <span className="top-spacer" />
+      {projectId !== null && (lens === "develop" || lens === "files" || lens === "merge") && <button type="button" className="top-btn" aria-haspopup="dialog" onClick={() => openBranchManager({ projectId, action: "switch" })}>Branches</button>}
       {projectId !== null && lens === "develop" && (
         <NewSessionButton worktreeId={worktreeId} />
       )}

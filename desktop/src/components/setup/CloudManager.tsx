@@ -1,3 +1,4 @@
+import { Button } from "../fluid/components/button";
 import { useEffect, useRef, useState } from "react";
 import {
   errorText,
@@ -187,8 +188,8 @@ export function CloudManager({
               a spending cap.
             </label>
           )}
-          <button
-            className="luci-button luci-primary"
+          <Button type="button"
+            variant="primary"
             disabled={
               !!busy || !cost || (!plan.estimate.verified && !unknownPrice)
             }
@@ -206,20 +207,20 @@ export function CloudManager({
             {busy === "Creating resources"
               ? "Requesting resources…"
               : "Create cloud resources"}
-          </button>
+          </Button>
         </section>
       )}
       {mode !== "existing" && (
         <section className="setup-plan">
           <div className="cloud-section-head">
             <h2>Your cloud resources</h2>
-            <button
-              className="luci-button"
+            <Button type="button"
+              variant="secondary"
               disabled={!!busy}
               onClick={() => void run("Refreshing", load)}
             >
               Refresh list
-            </button>
+            </Button>
           </div>
           {!jobs.length && (
             <p className="journey-muted">
@@ -248,8 +249,8 @@ export function CloudManager({
                 </p>
               )}
               <div className="setup-actions">
-                <button
-                  className="luci-button"
+                <Button type="button"
+                  variant="secondary"
                   disabled={!!busy || job.status === "deleted"}
                   onClick={() =>
                     void run("Checking cloud", async () =>
@@ -258,11 +259,11 @@ export function CloudManager({
                   }
                 >
                   Check progress
-                </button>
+                </Button>
                 {job.publicIp && job.status !== "deleted" && (
                   <>
-                    <button
-                      className="luci-button"
+                    <Button type="button"
+                      variant="secondary"
                       disabled={!!busy}
                       onClick={() =>
                         void run("Checking DNS", async () => {
@@ -272,21 +273,21 @@ export function CloudManager({
                       }
                     >
                       Check DNS
-                    </button>
-                    <button
-                      className="luci-button"
+                    </Button>
+                    <Button type="button"
+                      variant="secondary"
                       onClick={() => {
                         changeSSH({ host: job.publicIp });
                         document.getElementById("cloud-ssh-host")?.focus();
                       }}
                     >
                       Connect this server
-                    </button>
+                    </Button>
                   </>
                 )}
                 {!["deleted", "deleting", "creating"].includes(job.status) && (
-                  <button
-                    className="luci-button"
+                  <Button type="button"
+                    variant="secondary"
                     disabled={!!busy}
                     onClick={() => {
                       setDeleting(job.id);
@@ -294,7 +295,7 @@ export function CloudManager({
                     }}
                   >
                     Remove resources…
-                  </button>
+                  </Button>
                 )}
               </div>
               {dns[job.id] && (
@@ -332,19 +333,19 @@ export function CloudManager({
                     />
                   </label>
                   <div className="setup-actions">
-                    <button
-                      className="luci-button"
+                    <Button type="submit"
+                      variant="secondary"
                       disabled={!!busy || confirmName !== job.name}
                     >
                       Delete these resources
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
-                      className="luci-button"
+                      variant="secondary"
                       onClick={() => setDeleting("")}
                     >
                       Keep resources
-                    </button>
+                    </Button>
                   </div>
                 </form>
               )}
@@ -420,9 +421,9 @@ export function CloudManager({
               />
             </label>
           </div>
-          <button className="luci-button" disabled={!!busy}>
+          <Button type="submit" variant="secondary" disabled={!!busy}>
             Inspect server fingerprint
-          </button>
+          </Button>
         </form>
         {scan && (
           <div className="cloud-confirm">
@@ -458,8 +459,8 @@ export function CloudManager({
               />
               I compared this fingerprint with my server’s trusted console.
             </label>
-            <button
-              className="luci-button luci-primary"
+            <Button type="button"
+              variant="primary"
               disabled={!!busy || !fingerprint || !accepted}
               onClick={() =>
                 void run("Connecting SSH", async () => {
@@ -471,7 +472,7 @@ export function CloudManager({
               }
             >
               Trust and connect
-            </button>
+            </Button>
           </div>
         )}
         {tunnels.map((t) => (
@@ -485,19 +486,19 @@ export function CloudManager({
               {mode !== "existing" &&
                 t.status === "connected" &&
                 localManagement(t.localUrl) && (
-                  <button
-                    className="luci-button"
+                  <Button type="button"
+                    variant="secondary"
                     onClick={() => {
                       setManagement(localManagement(t.localUrl));
                       setBaseUrl(t.localUrl);
                     }}
                   >
                     Open server setup
-                  </button>
+                  </Button>
                 )}
               {["connecting", "connected"].includes(t.status) && (
-                <button
-                  className="luci-button"
+                <Button type="button"
+                  variant="secondary"
                   disabled={!!busy}
                   onClick={() =>
                     void run("Disconnecting", async () => {
@@ -508,7 +509,7 @@ export function CloudManager({
                   }
                 >
                   Disconnect
-                </button>
+                </Button>
               )}
             </div>
           </article>
@@ -517,9 +518,9 @@ export function CloudManager({
           <div className="cloud-management">
             <div className="cloud-section-head">
               <strong>First account and access token</strong>
-              <button className="luci-button" onClick={() => setManagement("")}>
+              <Button type="button" variant="secondary" onClick={() => setManagement("")}>
                 Close server setup
-              </button>
+              </Button>
             </div>
             <p>
               Create the server’s first account, then an API token in its
@@ -662,9 +663,9 @@ export function CloudManager({
                 </select>
               </label>
             )}
-            <button className="luci-button luci-primary" disabled={!!busy}>
+            <Button type="submit" variant="primary" disabled={!!busy}>
               Verify and save connection
-            </button>
+            </Button>
           </form>
           {targets.length > 0 && (
             <ul className="cloud-targets">

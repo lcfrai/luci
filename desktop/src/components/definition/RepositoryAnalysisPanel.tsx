@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import { definitionApi, type DefinitionAssistance, type ProjectSpecification, type RepositoryAnalysisRequest } from "../../api/definition";
 import { errorText, productApi } from "../../api/product";
 import { useCockpit } from "../../store/store";
+import { Button } from "../fluid/components/button";
 
 type Props = { projectId: string; specification: ProjectSpecification; dirty: boolean; onApplied(value: ProjectSpecification): void };
 const running = (job: DefinitionAssistance) => job.status === "queued" || job.status === "running";
@@ -107,7 +108,7 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied 
     <h2>Understand the existing application</h2>
     <p>Analyse a bounded selection of this project's source with your connected provider. Luci records the files it used and separates observed behaviour, inferences and gaps. Review the proposed definition before saving it as a draft.</p>
     {error && <p className="journey-error" role="alert">{error}</p>}
-    <div className="journey-actions"><button type="button" className="luci-button" disabled={!!pending} onClick={() => void act("reload")}>Refresh saved analyses</button></div>
+    <div className="journey-actions"><Button type="button" variant="ghost" loading={pending === "reload"} disabled={!!pending} onClick={() => void act("reload")}>Refresh saved analyses</Button></div>
     {jobs.some(item => item.kind === "repository") && <label className="luci-field">Saved analysis<select value={job?.id || ""} disabled={!!pending} onChange={event => void act("select", event.target.value)}><option value="" disabled>Choose an analysis</option>{jobs.filter(item => item.kind === "repository").map(item => <option key={item.id} value={item.id}>{new Date(item.createdAt).toLocaleString()} · {item.status}</option>)}</select></label>}
     <form onSubmit={event => { event.preventDefault(); void act("start"); }}>
       <fieldset disabled={locked} className="definition-fields">
@@ -122,19 +123,19 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied 
         <label className="luci-field">What should the analysis focus on?<textarea rows={3} value={message} onChange={event => { setMessage(event.target.value); changed(); }} placeholder="Optional: the intended changes, questions or parts you want understood." /></label>
         <p className="journey-muted">Uses the selected provider and its configured account. Source sent for analysis excludes ignored, private, generated and binary files. The selection is partial and can miss behaviours elsewhere in the repository. Model usage follows your account's charges or subscription limits.</p>
         <label className="data-check"><input type="checkbox" checked={acknowledged} onChange={event => setAcknowledged(event.target.checked)} />Send the selected source and definition to this provider for analysis.</label>
-        <button className="luci-button luci-primary" disabled={locked || !harness || !validModel || !acknowledged}>{pending === "start" ? "Starting analysis…" : "Analyse repository"}</button>
+        <Button type="submit" variant={proposal && !job?.appliedRevision ? "secondary" : "primary"} loading={pending === "start"} disabled={locked || !harness || !validModel || !acknowledged}>Analyse repository</Button>
       </fieldset>
     </form>
     {dirty && <p>Save your definition changes before analysing or applying a proposal.</p>}
     {activeJob && !activeAnalysis && <p role="status">Another definition request is running. Its saved progress will remain available.</p>}
     {job && <section className="definition-answer" aria-label="Analysis result">
       <p role="status">{job.message || job.status}</p>
-      {activeAnalysis && <><p>You can leave this page and return to the saved run.</p><button type="button" className="luci-button" disabled={!!pending} onClick={() => void act("cancel")}>Cancel repository analysis</button></>}
+      {activeAnalysis && <><p>You can leave this page and return to the saved run.</p><Button type="button" variant="secondary" loading={pending === "cancel"} disabled={!!pending} onClick={() => void act("cancel")}>Cancel repository analysis</Button></>}
       {source && <><h3>Source used</h3><p>{source.fileCount} files · {Math.ceil(source.includedBytes / 1024)} KiB · {source.skippedFiles} files omitted · {source.mode === "commit" ? `commit ${source.commit?.slice(0, 12) || "unavailable"}` : "working files"}</p><p className="journey-muted">{source.limitation}</p><details><summary>Included files and source fingerprint</summary><code>{source.digest}</code><ul>{source.files.map(file => <li key={file.path}><code>{file.path}</code> · {file.bytes} bytes</li>)}</ul></details></>}
       {job.result && <><h3>Findings</h3><p>{job.result.rationale}</p><ul>{job.result.findings?.map((finding, index) => <li key={index}><strong>{finding.kind === "observed" ? "Observed in source" : finding.kind === "inference" ? "Inference" : "Gap"}</strong><p>{finding.summary}</p>{!!finding.paths.length && <small>{finding.paths.join(", ")}</small>}</li>)}</ul></>}
       {proposal && <><h3>Proposed definition</h3><p>{proposal.purpose}</p><ul>{proposal.requirements.map(requirement => <li key={requirement.id}><strong>{requirement.id} · {requirement.title}</strong><p>{requirement.acceptance}</p></li>)}</ul><details><summary>Read the complete proposed definition</summary><pre>{JSON.stringify(proposal, null, 2)}</pre></details>
         <p>Applying replaces the saved definition with this draft. Approval stays a separate step. Luci checks that both the source and saved definition still match this analysis.</p>
-        {job.appliedRevision ? <p role="status">Applied as draft revision {job.appliedRevision}.</p> : <><label className="data-check"><input type="checkbox" checked={reviewed} disabled={locked || job.status !== "succeeded"} onChange={event => setReviewed(event.target.checked)} />I reviewed the proposed definition and its partial source coverage.</label><button type="button" className="luci-button" disabled={locked || !reviewed || job.status !== "succeeded"} onClick={() => void act("apply")}>{pending === "apply" ? "Saving reviewed draft…" : "Apply as definition draft"}</button></>}
+        {job.appliedRevision ? <p role="status">Applied as draft revision {job.appliedRevision}.</p> : <><label className="data-check"><input type="checkbox" checked={reviewed} disabled={locked || job.status !== "succeeded"} onChange={event => setReviewed(event.target.checked)} />I reviewed the proposed definition and its partial source coverage.</label><Button type="button" loading={pending === "apply"} disabled={locked || !reviewed || job.status !== "succeeded"} onClick={() => void act("apply")}>Apply as definition draft</Button></>}
       </>}
     </section>}
   </section>;

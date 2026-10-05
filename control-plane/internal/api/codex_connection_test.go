@@ -10,7 +10,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
@@ -24,9 +23,13 @@ func codexTestEnv(t *testing.T) *sessionsEnv {
 	return e
 }
 
-func codexTestSignIn(t *testing.T, e *sessionsEnv, done <-chan string) (sessionJSON, string) {
+func codexTestSignIn(t *testing.T, e *sessionsEnv, done <-chan string, worktreeIDs ...string) (sessionJSON, string) {
 	t.Helper()
-	s := sessionsDecodeOne(t, e.do(t, "POST", "/v1/sessions", `{"worktreeId":"w-4a77b1c9","harness":"codex","authOnly":true}`), 201)
+	worktreeID := "w-4a77b1c9"
+	if len(worktreeIDs) != 0 {
+		worktreeID = worktreeIDs[0]
+	}
+	s := sessionsDecodeOne(t, e.do(t, "POST", "/v1/sessions", `{"worktreeId":"`+worktreeID+`","harness":"codex","authOnly":true}`), 201)
 	sessionsAwaitWatch(t, done)
 	if !s.AuthOnly || s.AuthMode != "chatgpt" {
 		t.Fatal("sign-in metadata is absent")
@@ -57,27 +60,22 @@ func codexTestAdopt(t *testing.T, e *sessionsEnv, id string) {
 }
 
 func TestCodexAccountFreshSessionRotatesRestartPersistsAndNeverUsesAPIKey(t *testing.T) {
-	e := codexTestEnv(t)
+	e, _, wt, _ := sessionsPrimaryBranchFixture(t)
+	e.api.registerCodexConnection(e.mux)
 	sessionsStubReady(t, nil)
 	done := sessionsWatchDone(t)
-	p, err := product.New(product.Options{StateDir: t.TempDir(), ProjectsDir: e.dir})
-	if err != nil {
-		t.Fatal(err)
-	}
-	e.api.deps.Product = p
-	p.Register(e.mux)
 	key := "fixture-api-key-must-never-replace-chatgpt"
 	r := e.do(t, "POST", "/v1/setup/agents/openai", `{"apiKey":"`+key+`"}`)
 	if r.Code != 200 {
 		t.Fatalf("save fixture API key: %d", r.Code)
 	}
-	signIn, signInDir := codexTestSignIn(t, e, done)
+	signIn, signInDir := codexTestSignIn(t, e, done, wt.ID)
 	codexTestAdopt(t, e, signIn.ID)
 	initialStatus := e.do(t, "GET", codexAccountRoute, "")
 	if strings.Contains(initialStatus.Body.String(), "activeSessionId") {
 		t.Fatal("the saved, stopped sign-in was reported as an active session")
 	}
-	first := sessionsDecodeOne(t, e.do(t, "POST", "/v1/sessions", `{"worktreeId":"w-4a77b1c9","harness":"codex"}`), 201)
+	first := sessionsDecodeOne(t, e.do(t, "POST", "/v1/sessions", `{"worktreeId":"`+wt.ID+`","harness":"codex"}`), 201)
 	sessionsAwaitWatch(t, done)
 	spec := e.be.spec(t, 1)
 	dir := nativeStateMount(t, spec)
@@ -108,7 +106,7 @@ func TestCodexAccountFreshSessionRotatesRestartPersistsAndNeverUsesAPIKey(t *tes
 	e.mux = newRoutes()
 	reopened.registerSessions(e.mux)
 	reopened.registerCodexConnection(e.mux)
-	second := sessionsDecodeOne(t, e.do(t, "POST", "/v1/sessions", `{"worktreeId":"w-4a77b1c9","harness":"codex"}`), 201)
+	second := sessionsDecodeOne(t, e.do(t, "POST", "/v1/sessions", `{"worktreeId":"`+wt.ID+`","harness":"codex"}`), 201)
 	sessionsAwaitWatch(t, done)
 	secondDir := nativeStateMount(t, e.be.spec(t, 2))
 	auth, _ = os.ReadFile(filepath.Join(secondDir, "auth.json"))

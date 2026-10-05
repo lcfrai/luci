@@ -24,7 +24,40 @@ type functionSourceConfiguration struct {
 }
 
 func (s *Server) FunctionSources() *platform.DataFunctionSources {
-	return &platform.DataFunctionSources{List: s.listFunctionSource, Read: s.readFunctionSource, Save: s.saveFunctionSource, Committed: s.committedFunctionSource}
+	return &platform.DataFunctionSources{
+		List: func(ctx context.Context, id string) ([]platform.DataFunctionSource, error) {
+			release, err := s.AcquireGitSessionAdmission(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			defer release()
+			return s.listFunctionSource(ctx, id)
+		},
+		Read: func(ctx context.Context, id, name string) (platform.DataFunctionSource, error) {
+			release, err := s.AcquireGitSessionAdmission(ctx, id)
+			if err != nil {
+				return platform.DataFunctionSource{}, err
+			}
+			defer release()
+			return s.readFunctionSource(ctx, id, name)
+		},
+		Save: func(ctx context.Context, id, name string, input platform.DataFunctionSave) (platform.DataFunctionSource, error) {
+			release, err := s.AcquireGitSessionAdmission(ctx, id)
+			if err != nil {
+				return platform.DataFunctionSource{}, err
+			}
+			defer release()
+			return s.saveFunctionSource(ctx, id, name, input)
+		},
+		Committed: func(ctx context.Context, id, name, commit string) (platform.DataFunctionSource, error) {
+			release, err := s.AcquireGitSessionAdmission(ctx, id)
+			if err != nil {
+				return platform.DataFunctionSource{}, err
+			}
+			defer release()
+			return s.committedFunctionSource(ctx, id, name, commit)
+		},
+	}
 }
 func functionRelative(name string) (string, error) {
 	if !platform.ValidDataFunctionName(name) {

@@ -61,7 +61,7 @@ function populate(): void {
     worktreesByBranch: {
       "b-1": [aWorktree({ id: "w-1", branchId: "b-1", name: "wt-one" })],
     },
-    sessions: { "s-1": aSession({ id: "s-1", worktreeId: "w-1" }) },
+    sessions: { "s-1": aSession({ id: "s-1", projectId: "p-1", branchId: "b-1", worktreeId: "w-1" }) },
     sessionIdsByWorktree: { "w-1": ["s-1"] },
     selection: {
       projectId: "p-1",

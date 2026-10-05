@@ -1,13 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { definitionApi, type ProjectSpecification, type DefinitionAssistance, type Requirement } from "../../api/definition";
 import { errorText } from "../../api/product";
 import { useCockpit } from "../../store/store";
+import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { JourneyHeader } from "../journey/shared";
 import { RepositoryAnalysisPanel } from "./RepositoryAnalysisPanel";
+import { Button } from "../fluid/components/button";
+import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
 import "./definition.css";
 
 const recordId = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 12)}`;
 type Tab = "interview" | "specification" | "history" | "repository";
+const views: [Tab, string][] = [["interview", "Guided interview"], ["specification", "Specification"], ["repository", "Repository analysis"], ["history", "Revision history"]];
 const questions = [
   { field: "purpose", label: "What should this solution do?", help: "Describe the problem, the result you want and why it matters.", placeholder: "A useful outcome, in your own words…" },
   { field: "audience", label: "Who will use it?", help: "Think about the person, their situation and what they need to achieve.", placeholder: "The people and their main tasks…" },
@@ -27,9 +31,9 @@ function RecordGroup<T extends { id: string }>({ title, help, items, fields, cre
         {fields.map(({ key, label }) => <label className="luci-field" key={String(key)}>{label}
           <textarea rows={2} value={String(item[key] ?? "")} onChange={(e) => onChange(items.map((old) => old.id === item.id ? { ...old, [key]: e.target.value } : old))} />
         </label>)}
-        <button className="luci-button" type="button" onClick={() => onChange(items.filter((old) => old.id !== item.id))}>Remove {title.toLowerCase().replace(/s$/, "")} {index + 1}</button>
+        <Button type="button" variant="secondary" onClick={() => onChange(items.filter((old) => old.id !== item.id))}>Remove {title.toLowerCase().replace(/s$/, "")} {index + 1}</Button>
       </fieldset>)}
-      <button className="luci-button" type="button" onClick={() => onChange([...items, create()])}>Add {title.toLowerCase().replace(/s$/, "")}</button>
+      <Button type="button" variant="secondary" onClick={() => onChange([...items, create()])}>Add {title.toLowerCase().replace(/s$/, "")}</Button>
     </div>
   </details>;
 }
@@ -43,7 +47,9 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
   const [tab, setTab] = useState<Tab>("interview");
   const [step, setStep] = useState(0);
   const [dirty, setDirty] = useState(false);
+  useUnsavedProjectDraft(projectId, dirty, "Definition", "discover");
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<"" | "save" | "approve" | "ask">("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [history, setHistory] = useState<ProjectSpecification[]>([]);
@@ -53,6 +59,7 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
   const alive = useRef(true);
   const submitting = useRef(false);
   const assistGeneration = useRef(0);
+  const tabsId = useId(), selectedIndex = views.findIndex(([key]) => key === tab);
   const setLens = useCockpit((s) => s.setLens);
   const load = async () => {
     const value = await definitionApi.get(projectId);
@@ -89,29 +96,29 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
   };
   async function save() {
     if (!spec || !base || submitting.current) return;
-    submitting.current = true; setBusy(true); setError(""); setNotice("");
+    submitting.current = true; setBusy(true); setPending("save"); setError(""); setNotice("");
     try {
       const saved = await definitionApi.save(projectId, spec, base.revision, base.briefRevision);
       if (alive.current) { setSpec(saved); setBase({ revision: saved.revision, briefRevision: saved.briefRevision }); setDirty(false); setNotice(`Definition ${saved.revision} saved. The full specification is available to your agent.`); }
     } catch (cause) { if (alive.current) setError(errorText(cause)); }
-    finally { submitting.current = false; if (alive.current) setBusy(false); }
+    finally { submitting.current = false; if (alive.current) { setBusy(false); setPending(""); } }
   }
   async function approve() {
     if (!spec || dirty || submitting.current) return;
-    submitting.current = true; setBusy(true); setError("");
+    submitting.current = true; setBusy(true); setPending("approve"); setError("");
     try {
       const value = await definitionApi.approve(projectId, spec.revision, spec.briefRevision);
       if (alive.current) { setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setNotice(`Definition ${value.revision} approved for design and implementation.`); }
     } catch (cause) { if (alive.current) setError(errorText(cause)); }
-    finally { submitting.current = false; if (alive.current) setBusy(false); }
+    finally { submitting.current = false; if (alive.current) { setBusy(false); setPending(""); } }
   }
   async function ask() {
     if (!spec || !message.trim() || dirty || busy) return;
     const ticket = ++assistGeneration.current;
-    setBusy(true); setAssistError("");
+    setBusy(true); setPending("ask"); setAssistError("");
     try { const value = await definitionApi.assist(projectId, spec.revision, message.trim()); if (alive.current && ticket === assistGeneration.current) { setJob(value); setMessage(""); } }
     catch (cause) { if (alive.current && ticket === assistGeneration.current) setAssistError(errorText(cause)); }
-    finally { if (alive.current && ticket === assistGeneration.current) setBusy(false); }
+    finally { if (alive.current && ticket === assistGeneration.current) { setBusy(false); setPending(""); } }
   }
   const selectTab = (next: Tab) => {
     setTab(next);
@@ -134,27 +141,25 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
     <JourneyHeader title="Define your project" subtitle="Turn an idea or existing application into a clear, testable product definition.">
       {spec && <span className="journey-revision" role="status">{dirty ? "Unsaved changes" : `${spec.status === "approved" ? "Approved" : spec.status === "outdated" ? "Needs reconciliation" : "Draft"} · Revision ${spec.revision}`}</span>}
     </JourneyHeader>
-    {error && <div className="journey-error" role="alert">{error} <button className="luci-button" disabled={busy} onClick={() => void load().catch((e) => setError(errorText(e)))}>Reload saved definition</button>{dirty && <p>Your edited draft is still here. Reloading replaces it with the saved definition.</p>}</div>}
+    {error && <div className="journey-error" role="alert">{error} <Button type="button" variant="secondary" disabled={busy} onClick={() => void load().catch((e) => setError(errorText(e)))}>Reload saved definition</Button>{dirty && <p>Your edited draft is still here. Reloading replaces it with the saved definition.</p>}</div>}
     {!spec && !error && <p role="status">Loading your project definition…</p>}
     {spec && <>
-      <nav className="definition-tabs" aria-label="Definition views">
-        <button aria-current={tab === "interview" ? "page" : undefined} onClick={() => selectTab("interview")}>Guided interview</button>
-        <button aria-current={tab === "specification" ? "page" : undefined} onClick={() => selectTab("specification")}>Specification</button>
-        <button aria-current={tab === "repository" ? "page" : undefined} onClick={() => selectTab("repository")}>Repository analysis</button>
-        <button aria-current={tab === "history" ? "page" : undefined} onClick={() => selectTab("history")}>Revision history</button>
-      </nav>
+      <TabsSubtle className="definition-tabs" aria-label="Definition views" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => selectTab(views[index][0])}>
+        {views.map(([, label], index) => <TabsSubtleItem key={label} index={index} label={label} />)}
+      </TabsSubtle>
       {spec.status === "outdated" && <div className="journey-error" role="status">The brief changed after this definition was saved. Reconcile the current purpose and requirements before approving again.</div>}
+      {views.map(([key], index) => <TabsSubtlePanel key={key} idPrefix={tabsId} index={index} selectedIndex={selectedIndex}>
       <div className="definition-layout" style={tab === "repository" ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
         <div className="definition-content">
           <fieldset disabled={busy} className="definition-fields">
             {tab === "interview" && <div className="definition-interview">
               <label className="luci-field">Starting point<select value={spec.startingPoint} onChange={(e) => patch({ startingPoint: e.target.value as "new" | "existing" })}><option value="new">A new idea</option><option value="existing">An existing application</option></select></label>
-              {spec.startingPoint === "existing" && <div><p className="journey-muted">Analyse actual source with your chosen provider, review the observed behaviour and gaps, then apply a draft. Save any edited answers before starting.</p><button type="button" className="luci-button" onClick={() => setTab("repository")}>Analyse this repository</button></div>}
+              {spec.startingPoint === "existing" && <div><p className="journey-muted">Analyse actual source with your chosen provider, review the observed behaviour and gaps, then apply a draft. Save any edited answers before starting.</p><Button type="button" variant="secondary" onClick={() => setTab("repository")}>Analyse this repository</Button></div>}
               <p className="journey-muted">Question {step + 1} of {questions.length}</p>
               <h2>{questions[step].label}</h2><p>{questions[step].help}</p>
               <label className="luci-field"><span className="sr-only">{questions[step].label}</span><textarea rows={7} value={interviewValue} placeholder={questions[step].placeholder} onChange={(e) => interviewChange(e.target.value)} /></label>
-              <div className="journey-actions"><button type="button" className="luci-button" disabled={step === 0} onClick={() => setStep(step - 1)}>Back</button>
-                <button type="button" className="luci-button luci-primary" onClick={() => step < questions.length - 1 ? setStep(step + 1) : setTab("specification")}>{step < questions.length - 1 ? "Next question" : "Review specification"}</button></div>
+              <div className="journey-actions"><Button type="button" variant="secondary" disabled={step === 0} onClick={() => setStep(step - 1)}>Back</Button>
+                <Button type="button" variant="secondary" onClick={() => step < questions.length - 1 ? setStep(step + 1) : setTab("specification")}>{step < questions.length - 1 ? "Next question" : "Review specification"}</Button></div>
               <p className="journey-muted">You can switch to the specification or save at any time. This guided outline uses your answers; the connected assistant can propose deeper questions.</p>
             </div>}
             {tab === "specification" && <div className="definition-specification">
@@ -169,9 +174,9 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
                   <label className="luci-field">Requirement {index + 1}<input value={r.title} onChange={(e) => requirementChange(r.id, { title: e.target.value })} /></label>
                   <label className="luci-field">Priority<select value={r.priority} onChange={(e) => requirementChange(r.id, { priority: e.target.value as Requirement["priority"] })}><option value="must">Must have</option><option value="should">Should have</option><option value="could">Could have</option></select></label>
                   <label className="luci-field">Acceptance scenario {index + 1}<textarea rows={3} placeholder="Given a starting state, when the person takes an action, then an observable outcome happens." value={r.acceptance} onChange={(e) => requirementChange(r.id, { acceptance: e.target.value })} /></label>
-                  <button type="button" className="luci-button" onClick={() => removeRequirement(r.id)}>Remove requirement {index + 1}</button>
+                  <Button type="button" variant="secondary" onClick={() => removeRequirement(r.id)}>Remove requirement {index + 1}</Button>
                 </fieldset>)}
-                <button type="button" className="luci-button" onClick={addRequirement}>Add requirement</button>
+                <Button type="button" variant="secondary" onClick={addRequirement}>Add requirement</Button>
               </section>
               <details className="definition-group"><summary><span>User journeys</span><span className="journey-muted">{spec.journeys.length}</span></summary><div className="definition-group-body">
                 {spec.journeys.map((j, index) => <fieldset className="definition-record" key={j.id}><legend>Journey {index + 1}</legend>
@@ -179,8 +184,8 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
                   <label className="luci-field">Person or role<input value={j.actor} onChange={(e) => patch({ journeys: spec.journeys.map((old) => old.id === j.id ? { ...old, actor: e.target.value } : old) })} /></label>
                   <label className="luci-field">Steps and recovery<textarea value={j.steps} rows={3} onChange={(e) => patch({ journeys: spec.journeys.map((old) => old.id === j.id ? { ...old, steps: e.target.value } : old) })} /></label>
                   <fieldset className="definition-links"><legend>Related requirements</legend>{spec.requirements.map((r) => <label key={r.id}><input type="checkbox" checked={j.requirementIds.includes(r.id)} onChange={(e) => patch({ journeys: spec.journeys.map((old) => old.id === j.id ? { ...old, requirementIds: e.target.checked ? [...old.requirementIds, r.id] : old.requirementIds.filter((id) => id !== r.id) } : old) })} />{r.id} · {r.title}</label>)}</fieldset>
-                  <button type="button" className="luci-button" onClick={() => patch({ journeys: spec.journeys.filter((old) => old.id !== j.id) })}>Remove journey {index + 1}</button>
-                </fieldset>)}<button type="button" className="luci-button" onClick={() => patch({ journeys: [...spec.journeys, { id: recordId("journey"), name: "", actor: "", steps: "", requirementIds: [] }] })}>Add user journey</button>
+                  <Button type="button" variant="secondary" onClick={() => patch({ journeys: spec.journeys.filter((old) => old.id !== j.id) })}>Remove journey {index + 1}</Button>
+                </fieldset>)}<Button type="button" variant="secondary" onClick={() => patch({ journeys: [...spec.journeys, { id: recordId("journey"), name: "", actor: "", steps: "", requirementIds: [] }] })}>Add user journey</Button>
               </div></details>
               <RecordGroup title="Access roles" help="Describe what each person can do and what they must not access." items={spec.roles} fields={[{ key: "name", label: "Role name" }, { key: "canDo", label: "Can do" }, { key: "cannotDo", label: "Cannot do or access" }]} create={() => ({ id: recordId("role"), name: "", canDo: "", cannotDo: "" })} onChange={(roles) => patch({ roles })} />
               <RecordGroup title="Data entities" help="Name the data, fields, privacy and retention expectations." items={spec.entities} fields={[{ key: "name", label: "Entity name" }, { key: "fields", label: "Fields and relationships" }, { key: "privacy", label: "Privacy and retention" }]} create={() => ({ id: recordId("entity"), name: "", fields: "", privacy: "" })} onChange={(entities) => patch({ entities })} />
@@ -199,19 +204,26 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
         {tab !== "repository" && <aside className="definition-assistant" aria-label="Definition assistant">
           <h2>Work through it with Luci</h2><p>Ask the connected Codex agent to find gaps, explore an idea or propose a fuller definition. Suggestions remain drafts until you accept them.</p>
           <label className="luci-field">What would you like to explore?<textarea rows={4} value={message} disabled={busy || job?.status === "running" || job?.status === "queued"} onChange={(e) => setMessage(e.target.value)} placeholder="Help me make the first version complete. Ask the next useful question." /></label>
-          <button className="luci-button luci-primary" onClick={() => void ask()} disabled={dirty || busy || !message.trim() || job?.status === "running" || job?.status === "queued"}>Ask Luci</button>
+          <Button type="button" variant="secondary" loading={pending === "ask"} onClick={() => void ask()} disabled={dirty || busy || !message.trim() || job?.status === "running" || job?.status === "queued"}>Ask Luci</Button>
           {dirty && <p className="journey-muted">Save your draft first so the assistant works from the same definition.</p>}
           {assistError && <p className="journey-error" role="alert">{assistError}</p>}
           {job && <div className="definition-answer"><p role="status">{job.message || job.status}</p>
-            {(job.status === "queued" || job.status === "running") && <button className="luci-button" onClick={() => void definitionApi.cancelAssistance(projectId, job.id).then(setJob).catch((e) => setAssistError(errorText(e)))}>Cancel assistance</button>}
-            {job.result && <><h3>{job.result.question}</h3><p>{job.result.rationale}</p>{job.result.options.map((option) => <button className="luci-button definition-option" key={option} onClick={() => setMessage(option)}>{option}</button>)}
-              {job.result.proposal && <details><summary>Review proposed definition</summary><p>{job.result.proposal.purpose}</p><ul>{job.result.proposal.requirements.map((r) => <li key={r.id}>{r.title}<br /><small>{r.acceptance}</small></li>)}</ul><p>This replaces the edited definition with a proposed draft. It does not approve or save it.</p><button className="luci-button" onClick={() => { const proposal = job.result?.proposal; if (proposal) { setSpec({ ...proposal, projectId, version: 1, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); setNotice("Proposal accepted as an editable draft. Review it and save when ready."); } }}>Use this proposal as my draft</button></details>}
+            {(job.status === "queued" || job.status === "running") && <Button type="button" variant="secondary" onClick={() => void definitionApi.cancelAssistance(projectId, job.id).then(setJob).catch((e) => setAssistError(errorText(e)))}>Cancel assistance</Button>}
+            {job.result && <><h3>{job.result.question}</h3><p>{job.result.rationale}</p>{job.result.options.map((option) => <Button type="button" variant="secondary" className="definition-option" key={option} onClick={() => setMessage(option)}>{option}</Button>)}
+              {job.result.proposal && <details><summary>Review proposed definition</summary><p>{job.result.proposal.purpose}</p><ul>{job.result.proposal.requirements.map((r) => <li key={r.id}>{r.title}<br /><small>{r.acceptance}</small></li>)}</ul><p>This replaces the edited definition with a proposed draft. It does not approve or save it.</p><Button type="button" variant="secondary" onClick={() => { const proposal = job.result?.proposal; if (proposal) { setSpec({ ...proposal, projectId, version: 1, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); setNotice("Proposal accepted as an editable draft. Review it and save when ready."); } }}>Use this proposal as my draft</Button></details>}
             </>}
           </div>}
           <p className="journey-muted">The assistant requires your own connected Codex account and a ready Docker runtime. Your definition is sent to that provider.</p>
         </aside>}
       </div>
-      <footer className="definition-footer"><div className="journey-actions"><button className="luci-button luci-primary" disabled={busy || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>{busy ? "Working…" : "Save definition"}</button><button className="luci-button" disabled={busy || dirty || !spec.revision || spec.status === "approved"} onClick={() => void approve()}>Approve definition</button>{spec.status === "approved" && !dirty && <button className="luci-button" onClick={() => setLens("design")}>Continue to Design</button>}</div><p role="status" className="journey-muted">{notice || `${spec.requirements.length} requirements · ${spec.questions.filter((q) => !q.answer.trim()).length} open questions`}</p></footer>
+      </TabsSubtlePanel>)}
+      <footer className="definition-footer"><div className="journey-actions">
+        {dirty || spec.status === "outdated" || !spec.revision
+          ? <Button type="button" loading={pending === "save"} disabled={busy || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
+          : spec.status === "approved"
+            ? <Button type="button" disabled={busy} onClick={() => setLens("design")}>Continue to Design</Button>
+            : <Button type="button" loading={pending === "approve"} disabled={busy} onClick={() => void approve()}>Approve definition</Button>}
+      </div><p role="status" className="journey-muted">{notice || `${spec.requirements.length} requirements · ${spec.questions.filter((q) => !q.answer.trim()).length} open questions`}</p></footer>
     </>}
   </section>;
 }

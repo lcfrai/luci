@@ -104,7 +104,7 @@ async function switchWorkspace(button, resource) {
 }
 async function saveStructuredDefinition(projectId, purpose, audience, acceptance) {
   await page.getByRole('heading', { name: 'Define your project', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Specification', exact: true }).click();
+  await page.getByRole('tab', { name: 'Specification', exact: true }).click();
   await page.getByRole('textbox', { name: 'The idea', exact: true }).fill(purpose);
   await page.getByRole('textbox', { name: 'Who it is for', exact: true }).fill(audience);
   await page.getByRole('textbox', { name: 'Boundaries and constraints', exact: true }).fill('Keep project data private to this workspace identity. Use the already verified SSH connection.');

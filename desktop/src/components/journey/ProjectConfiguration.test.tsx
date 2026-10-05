@@ -16,15 +16,17 @@ import {
   type ProjectConfiguration as Configuration,
 } from "../../api/product";
 import { setAuthToken } from "../../api/authSession";
+import { resetCockpit, useCockpit } from "../../store/store";
 
 const stored: Configuration = {
   revision: 2,
   variables: [{ name: "DATABASE_URL" }],
   updatedAt: "2026-10-02T00:00:00Z",
 };
-beforeEach(() =>
-  vi.spyOn(productApi, "configuration").mockResolvedValue(stored),
-);
+beforeEach(() => {
+  resetCockpit();
+  vi.spyOn(productApi, "configuration").mockResolvedValue(stored);
+});
 afterEach(() => {
   setAuthToken(null);
   vi.restoreAllMocks();
@@ -308,4 +310,40 @@ it("authenticates the encoded project route and sends secrets only in the explic
     expectedRevision: 2,
     updates: [{ name: "API_KEY", value: "request-only-secret" }],
   });
+});
+
+it("protects an unsaved private variable across navigation until explicitly discarded", async () => {
+  useCockpit.getState().selectProject("p-1");
+  useCockpit.getState().setLens("deploy");
+  render(<ProjectConfiguration projectId="p-1" />);
+  await screen.findByRole("button", { name: "Update DATABASE_URL" });
+  await userEvent.type(screen.getByLabelText("Variable name"), "PRIVATE_TOKEN");
+  await userEvent.type(screen.getByLabelText(/^Private value/), "draft-only-secret");
+  useCockpit.getState().setLens("develop");
+  expect(useCockpit.getState().lens).toBe("deploy");
+  expect(useCockpit.getState().pendingNavigation).toEqual({ kind: "lens", lens: "develop" });
+  expect(JSON.stringify(useCockpit.getState().unsavedProjectDrafts)).not.toContain("draft-only-secret");
+  await userEvent.click(screen.getByRole("button", { name: "Discard variable draft" }));
+  expect((screen.getByLabelText(/^Private value/) as HTMLInputElement).value).toBe("");
+  expect((screen.getByLabelText("Variable name") as HTMLInputElement).value).toBe("");
+  useCockpit.getState().setLens("develop");
+  expect(useCockpit.getState().lens).toBe("develop");
+});
+
+it("keeps an unsubmitted private draft when metadata refresh fails, then uses the newly read revision", async () => {
+  vi.mocked(productApi.configuration).mockResolvedValueOnce(stored).mockRejectedValueOnce(new Error("Private provider detail")).mockResolvedValue({ ...stored, revision: 7 });
+  const save = vi.spyOn(productApi, "saveConfiguration").mockResolvedValue({ ...stored, revision: 8 });
+  render(<ProjectConfiguration projectId="p-1" />);
+  await screen.findByRole("button", { name: "Update DATABASE_URL" });
+  await userEvent.type(screen.getByLabelText("Variable name"), "NEW_VARIABLE");
+  await userEvent.type(screen.getByLabelText(/^Private value/), "unsubmitted-private-value");
+  await userEvent.click(screen.getByRole("button", { name: "Refresh stored names" }));
+  await screen.findByRole("alert");
+  expect((screen.getByLabelText(/^Private value/) as HTMLInputElement).value).toBe("unsubmitted-private-value");
+  expect(document.body.textContent).not.toContain("Private provider detail");
+  await userEvent.click(screen.getByRole("button", { name: "Refresh stored names" }));
+  await waitFor(() => expect((screen.getByRole("button", { name: "Save runtime variable" }) as HTMLButtonElement).disabled).toBe(false));
+  await userEvent.click(screen.getByRole("button", { name: "Save runtime variable" }));
+  expect(save).toHaveBeenCalledExactlyOnceWith("p-1", 7, [{ name: "NEW_VARIABLE", value: "unsubmitted-private-value" }]);
+  expect((screen.getByLabelText(/^Private value/) as HTMLInputElement).value).toBe("");
 });

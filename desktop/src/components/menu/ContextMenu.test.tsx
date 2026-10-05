@@ -64,6 +64,7 @@ describe("ContextMenu", () => {
     seed({ kind: "branch", id: "b-1", ...at });
     const second = render(<ContextMenu />);
     expect(labels()).toEqual([
+      "Switch to this branch",
       "New session here",
       "Copy branch name",
       "Set branch defaults…",
@@ -126,20 +127,17 @@ describe("ContextMenu", () => {
     expect(screen.getByRole("menuitem", { name: "Kill" })).not.toBeNull();
   });
 
-  // §6.4 and §7.7: a control the user cannot operate must say WHY, and §6.2 puts that reason
-  // in the tooltip rather than on a second line, which would reflow the menu.
-  it("disables New branch and carries its reason in the tooltip", () => {
+  it("opens the real branch creation flow from the project menu", async () => {
     seed({ kind: "project", id: "p-1", ...at });
     render(<ContextMenu />);
     const item = screen.getByRole("menuitem", { name: "New branch" });
-    expect(item.hasAttribute("disabled")).toBe(true);
-    expect(item.getAttribute("title") ?? "").toContain("no create-branch endpoint");
-
-    // And the enabled rows are genuinely enabled, so "disabled" is a decision and not the
-    // default that every row happens to get.
+    expect(item.hasAttribute("disabled")).toBe(false);
     expect(
       screen.getByRole("menuitem", { name: "Copy path" }).hasAttribute("disabled"),
     ).toBe(false);
+    await userEvent.click(item);
+    expect(useCockpit.getState().branchManager).toEqual({ projectId: "p-1", action: "create" });
+    expect(useCockpit.getState().contextMenu).toBeNull();
   });
 
   it("disables New session here for a branch with no worktrees, and says so", () => {

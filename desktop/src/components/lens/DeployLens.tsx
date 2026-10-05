@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { productApi, errorText, type Release } from "../../api/product";
 import { isGatewayHostname } from "../../api/platform";
 import { ProjectRequired, JourneyHeader } from "../journey/shared";
@@ -8,6 +8,9 @@ import { PagesDeployForm } from "../journey/PagesDeployForm";
 import { ProjectConfiguration } from "../journey/ProjectConfiguration";
 import { useAuth } from "../auth/AuthProvider";
 import { PlatformWorkspace } from "../platform/PlatformWorkspace";
+import { DEFAULT_BASE_URL } from "../../api/client";
+import { Button } from "../fluid/components/button";
+import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
 
 export function DeployLens() {
   return (
@@ -16,32 +19,44 @@ export function DeployLens() {
     </ProjectRequired>
   );
 }
-function DeploymentWorkspace({ projectId }: { projectId: string }) {
+export function DeploymentWorkspace({ projectId }: { projectId: string }) {
   const [view, setView] = useState<"platform" | "publishing">("platform");
   const [configurationBusy, setConfigurationBusy] = useState(false);
+  const [publishingBusy, setPublishingBusy] = useState(false);
+  const tabsId = useId(), selectedIndex = view === "platform" ? 0 : 1;
+  const locked = configurationBusy || publishingBusy;
   return <div className="deployment-workspace">
-    <nav className="definition-tabs deployment-tabs" aria-label="Deployment workspace">
-      <button aria-current={view === "platform" ? "page" : undefined} onClick={() => setView("platform")}>Application platform</button>
-      <button aria-current={view === "publishing" ? "page" : undefined} onClick={() => setView("publishing")}>Previews and publishing</button>
-    </nav>
-    {view === "platform" ? <section className="journey-page"><JourneyHeader title="Deploy and operate" subtitle="Run the application and its backing services, inspect its health and maintain it after launch." /><ProjectConfiguration projectId={projectId} disabled={false} onBusyChange={setConfigurationBusy} /><fieldset className="definition-fields" disabled={configurationBusy}><PlatformWorkspace projectId={projectId} /></fieldset></section> : <ProjectDeploy projectId={projectId} />}
+    <TabsSubtle className="deployment-tabs" aria-label="Deployment workspace" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => { if (!locked) setView(index === 0 ? "platform" : "publishing"); }}>
+      <TabsSubtleItem index={0} label="Application platform" aria-disabled={locked} />
+      <TabsSubtleItem index={1} label="Previews and publishing" aria-disabled={locked} />
+    </TabsSubtle>
+    <TabsSubtlePanel idPrefix={tabsId} index={0} selectedIndex={selectedIndex}>
+      <section className="journey-page"><JourneyHeader title="Deploy and operate" subtitle="Run the application and its backing services, inspect its health and maintain it after launch." /><fieldset className="definition-fields" disabled={configurationBusy}><PlatformWorkspace projectId={projectId} /></fieldset></section>
+    </TabsSubtlePanel>
+    <TabsSubtlePanel idPrefix={tabsId} index={1} selectedIndex={selectedIndex}>
+      <ProjectDeploy projectId={projectId} configurationManaged configurationBusy={configurationBusy} onBusyChange={setPublishingBusy} />
+    </TabsSubtlePanel>
+    <section className="journey-page deployment-configuration"><details className="deployment-details"><summary>Runtime configuration</summary><ProjectConfiguration projectId={projectId} disabled={publishingBusy} onBusyChange={setConfigurationBusy} /></details></section>
   </div>;
 }
-export function ProjectDeploy({ projectId }: { projectId: string }) {
+export function ProjectDeploy({ projectId, configurationManaged = false, configurationBusy: externalConfigurationBusy = false, onBusyChange }: { projectId: string; configurationManaged?: boolean; configurationBusy?: boolean; onBusyChange?(busy: boolean): void }) {
   const [releases, setReleases] = useState<Release[]>([]);
   const [port, setPort] = useState(3000);
   const [dockerfile, setDockerfile] = useState("Dockerfile");
   const [busy, setBusy] = useState("");
-  const [configurationBusy, setConfigurationBusy] = useState(false);
+  const [localConfigurationBusy, setConfigurationBusy] = useState(false);
+  const configurationBusy = localConfigurationBusy || externalConfigurationBusy;
   const locked = !!busy || configurationBusy;
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; releaseId: string } | null>(null);
   const [mode, setMode] = useState<"local" | "cloud" | "pages">("local");
+  const tabsId = useId(), selectedIndex = mode === "local" ? 0 : mode === "cloud" ? 1 : 2;
   const alive = useRef(true),
     working = useRef(false);
   const setup = useSetup();
   const auth = useAuth();
   const manageBacking = !auth || auth.profile.permissions.manageBacking;
+  useEffect(() => { onBusyChange?.(!!busy); return () => onBusyChange?.(false); }, [busy, onBusyChange]);
   const remotePreview = (release: Release) =>
     setup?.workspace?.mode === "cloud" &&
     release.target === "local" &&
@@ -59,6 +74,9 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
       alive.current = false;
     };
   }, [projectId]);
+  useEffect(() => {
+    if (preview && !releases.some(release => release.id === preview.releaseId && release.status === "ready")) setPreview(null);
+  }, [preview, releases]);
   useEffect(() => {
     if (!busy) return;
     const timer = setInterval(() => {
@@ -132,7 +150,8 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
     if (release.status !== "ready") return null;
     try {
       const url = new URL(release.url);
-      if (url.username || url.password) return null;
+      const controlOrigin = new URL(window.__LUCI_API__ || DEFAULT_BASE_URL).origin;
+      if (url.username || url.password || url.origin === window.location.origin || url.origin === controlOrigin) return null;
       return (release.target !== "local" && url.protocol === "https:") ||
         (url.protocol === "http:" &&
           (url.hostname === "127.0.0.1" ||
@@ -147,55 +166,30 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
   return (
     <section className="journey-page">
       <JourneyHeader
-        title="Bring it to life."
-        subtitle="Preview on this machine, publish a static site, or deploy to your cloud. Readiness requires a verified release and health check."
+        title="Previews and publishing"
+        subtitle="Choose where this project runs. A release is ready after its deployment and health checks pass."
       >
         {manageBacking && (
-          <button className="luci-button" onClick={() => setup?.openCloud()}>
+          <Button type="button" variant="secondary" onClick={() => setup?.openCloud()}>
             Cloud settings
-          </button>
+          </Button>
         )}
       </JourneyHeader>
-      <div
-        className="journey-actions"
-        role="group"
-        aria-label="Deployment destination"
-      >
-        <button
-          className="luci-button"
-          aria-pressed={mode === "local"}
-          disabled={locked}
-          onClick={() => setMode("local")}
-        >
-          {setup?.workspace?.mode === "cloud"
-            ? "This workspace"
-            : "On this machine"}
-        </button>
-        <button
-          className="luci-button"
-          aria-pressed={mode === "cloud"}
-          disabled={locked}
-          onClick={() => setMode("cloud")}
-        >
-          Your cloud
-        </button>
-        <button
-          className="luci-button"
-          aria-pressed={mode === "pages"}
-          disabled={locked}
-          onClick={() => setMode("pages")}
-        >
-          GitHub Pages
-        </button>
-      </div>
+      <TabsSubtle className="deployment-destinations" aria-label="Deployment destination" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => { if (!locked) setMode(index === 0 ? "local" : index === 1 ? "cloud" : "pages"); }}>
+        <TabsSubtleItem index={0} label={setup?.workspace?.mode === "cloud" ? "This workspace" : "On this machine"} aria-disabled={locked} />
+        <TabsSubtleItem index={1} label="Your cloud" aria-disabled={locked} />
+        <TabsSubtleItem index={2} label="GitHub Pages" aria-disabled={locked} />
+      </TabsSubtle>
       {error && (
         <p className="journey-error" role="alert">
           {error}
         </p>
       )}
-      {mode === "local" ? (
+      <TabsSubtlePanel idPrefix={tabsId} index={0} selectedIndex={selectedIndex}>
+      {mode === "local" && (
         <form
           className="deploy-form"
+          onInvalidCapture={event => { const details = (event.target as HTMLElement).closest<HTMLDetailsElement>("details"); if (details) details.open = true; }}
           onSubmit={(event) => {
             event.preventDefault();
             void operate("Building and checking your app", () =>
@@ -203,6 +197,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
             );
           }}
         >
+          <details className="deployment-details"><summary>Preview build options</summary><div className="setup-field-grid">
           <label className="luci-field">
             Dockerfile
             <input
@@ -225,11 +220,15 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
             />
             <small>The port your app listens on inside its container.</small>
           </label>
-          <button className="luci-button luci-primary" disabled={locked}>
+          </div></details>
+          <Button type="submit" variant="primary" loading={!!busy} disabled={locked}>
             {busy || "Build local preview"}
-          </button>
+          </Button>
         </form>
-      ) : mode === "pages" ? (
+      )}
+      </TabsSubtlePanel>
+      <TabsSubtlePanel idPrefix={tabsId} index={2} selectedIndex={selectedIndex}>
+      {mode === "pages" && (
         <PagesDeployForm
           projectId={projectId}
           busy={
@@ -241,7 +240,10 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
             )
           }
         />
-      ) : (
+      )}
+      </TabsSubtlePanel>
+      <TabsSubtlePanel idPrefix={tabsId} index={1} selectedIndex={selectedIndex}>
+      {mode === "cloud" && (
         <CloudDeployForm
           projectId={projectId}
           busy={
@@ -256,7 +258,8 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
           }
         />
       )}
-      {mode !== "pages" && (
+      </TabsSubtlePanel>
+      {!configurationManaged && (
         <ProjectConfiguration
           projectId={projectId}
           disabled={!!busy}
@@ -271,15 +274,15 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
             from.
           </p>
         </div>
-        <button
-          className="luci-button"
+        <Button type="button"
+          variant="secondary"
           disabled={locked}
           onClick={() =>
             void refresh().catch((cause) => setError(errorText(cause)))
           }
         >
           Refresh
-        </button>
+        </Button>
       </div>
       {!releases.length && (
         <p className="journey-muted">
@@ -311,23 +314,23 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
             </small>
             <div className="journey-actions">
               {release.target === "github-pages" && localUrl(release) && (
-                <a
-                  className="luci-button"
+                <Button asChild variant="secondary"><a
                   href={localUrl(release)!}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   Open deployed site
-                </a>
+                </a></Button>
               )}
               {release.target !== "github-pages" &&
                 (remotePreview(release) || localUrl(release)) && (
-                  <button
-                    className="luci-button"
+                  <Button type="button"
+                    variant="secondary"
                     disabled={locked}
                     onClick={() => {
                       if (!remotePreview(release)) {
-                        setPreview(localUrl(release));
+                        const url = localUrl(release);
+                        if (url) setPreview({ url, releaseId: release.id });
                         return;
                       }
                       void operate("Opening workspace preview", async () => {
@@ -341,17 +344,17 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
                           throw new Error(
                             "Luci did not return a valid local preview address.",
                           );
-                        if (alive.current) setPreview(url);
+                        if (alive.current) setPreview({ url, releaseId: release.id });
                         return release;
                       });
                     }}
                   >
                     Open preview
-                  </button>
+                  </Button>
                 )}
               {release.target !== "local" && (
-                <button
-                  className="luci-button"
+                <Button type="button"
+                  variant="secondary"
                   disabled={locked}
                   onClick={() =>
                     void operate("Checking deployment health", () =>
@@ -360,13 +363,13 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
                   }
                 >
                   Check deployment health
-                </button>
+                </Button>
               )}
               {!["stopped", "stopping", "failed", "cancelled"].includes(
                 release.status,
               ) && (
-                <button
-                  className="luci-button"
+                <Button type="button"
+                  variant="secondary"
                   disabled={locked}
                   onClick={() =>
                     void operate(
@@ -384,13 +387,13 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
                     : release.target === "github-pages"
                       ? "Unpublish site"
                       : "Stop cloud application"}
-                </button>
+                </Button>
               )}
               {release.target !== "local" &&
                 release.target !== "github-pages" &&
                 ["ready", "failed", "stopped"].includes(release.status) && (
-                  <button
-                    className="luci-button"
+                  <Button type="button"
+                    variant="secondary"
                     disabled={locked}
                     onClick={() =>
                       void operate("Rebuilding the selected release", () =>
@@ -399,7 +402,7 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
                     }
                   >
                     Roll back to this release
-                  </button>
+                  </Button>
                 )}
             </div>
             {release.target !== "local" &&
@@ -417,14 +420,14 @@ export function ProjectDeploy({ projectId }: { projectId: string }) {
         <div className="deploy-preview">
           <div className="journey-header">
             <strong>Verified release preview</strong>
-            <button className="luci-button" onClick={() => setPreview(null)}>
+            <Button type="button" variant="secondary" onClick={() => setPreview(null)}>
               Close preview
-            </button>
+            </Button>
           </div>
           <iframe
-            src={preview}
+            src={preview.url}
             title="Project preview"
-            sandbox={`allow-scripts allow-forms${new URL(preview).origin !== window.location.origin ? " allow-same-origin" : ""}`}
+            sandbox="allow-scripts allow-forms allow-same-origin"
           />
         </div>
       )}

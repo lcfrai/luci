@@ -1,6 +1,6 @@
 # Finish the full Luci product
 
-The owner's direction on5 October2026 expands the earlier four-phase Docker
+The owner's direction on 5 October 2026 expands the earlier four-phase Docker
 benchmark. That benchmark remains mandatory evidence within this full product
 goal; it is not the definition of completion. This goal supersedes earlier
 claims that a visual demo, a source test suite, or a single small deployment is
@@ -13,6 +13,30 @@ deploying and maintaining the result. The user can choose local Docker, their
 own AWS or Azure resources and domain, or an existing workspace. Minimize ongoing
 cost while preserving the quality of the result. Reuse suitable open-source
 components discovered through lcfr.ai Glasses where this improves delivery.
+
+## Overnight completion instruction — 6 October 2026
+
+The owner has explicitly authorized continued autonomous work while away and
+reaffirmed that the result must be the full, finished product. Finish implementation
+and actual installed acceptance together. Resolve known blocking defects,
+unfinished core controls and disconnected workflows before handback. A control
+must perform its stated operation, show truthful progress and give a useful
+recovery path; obsolete phase/demo guidance does not meet this standard.
+
+The target is an excellent, coherent experience that can create and maintain a
+complete application end to end. Check meaningful success, failure, retry,
+restart, source/version and account/project isolation outcomes. Use bounded
+visual/accessibility checks and appropriate engineering tests rather than
+repeated cosmetic reviews. Required external credentials remain prerequisites;
+missing credentials never turn an untested outcome into a pass. Literal absence
+of every possible future defect cannot be promised, and must not replace concrete
+acceptance evidence.
+
+The active native goal-control API cannot replace an unfinished objective or edit
+its text. An attempted replacement again returned that an unfinished goal exists.
+Do not falsely complete the smaller stored benchmark to clear that restriction.
+This expanded completion contract is authoritative across continued turns; the
+stored four-phase benchmark remains a required gate within it.
 
 ## Required product outcomes
 

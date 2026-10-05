@@ -1,6 +1,6 @@
 # Fluid Functionalism in Luci
 
-Luci reuses the official Radix Button, Tabs Subtle and their shared helpers from
+Luci reuses the official Radix Button, Tabs Subtle, Dialog and their shared helpers from
 [Fluid Functionalism](https://github.com/mickadesign/fluid-functionalism), pinned
 to commit `97183f8018e619722edffd2f9fccefbea0effe8d`. The original MIT grant and
 copyright are retained in LICENSE. Glasses discovery/inspection identifiers and

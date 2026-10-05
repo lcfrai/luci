@@ -9,12 +9,12 @@ import type { Worktree } from "../../store/types";
  *  inside the Linux sandbox. So every git command there dies with "not a git repository". The
  *  primary worktree's git works (the sandbox git fix): it converts line endings as the host's git
  *  does in that worktree, and it cannot prune the linked worktrees' metadata (round 1), which
- *  makes "not primary" exactly the set without working git. Making it work across that boundary
- *  is Phase 3's decision 3-D1. */
+ *  makes "not primary" exactly the set without working git. The managed branch switch flow
+ *  operates the primary project checkout. */
 export const LINKED_WORKTREE_GIT_NOTE =
   "Git is unavailable in this worktree's sessions because it is a linked worktree, whose .git " +
-  "points to a path on this machine the sandbox cannot see; git in linked worktrees arrives in " +
-  "Phase 3.";
+  "points to a path on this machine the sandbox cannot see; open this branch in the main project " +
+  "checkout to use Git.";
 
 /** Where a user starts a session in a worktree, or reads one, and that worktree is linked.
  *

@@ -14,6 +14,8 @@ import type {
   SessionId,
   Toast,
   WorktreeId,
+  Branch,
+  Worktree,
 } from "../types";
 import type { CockpitState } from "../store";
 
@@ -30,6 +32,18 @@ const NO_SELECTION: Selection = Object.freeze({
   worktreeId: null,
   sessionId: null,
 });
+
+export interface UnsavedProjectDraft { projectId: ProjectId; label: string; lens: Lens }
+export type PendingNavigation =
+  | { kind: "project"; projectId: ProjectId | null }
+  | { kind: "branch"; projectId: ProjectId; branchId: BranchId }
+  | { kind: "lens"; lens: Lens };
+export interface BranchManagerTarget { projectId: ProjectId; action: "create" | "switch"; branchId?: BranchId }
+const navigationState = (navigation: PendingNavigation, selection: Selection): Partial<UiSlice> => {
+  if (navigation.kind === "project") return { selection: { ...NO_SELECTION, projectId: navigation.projectId } };
+  if (navigation.kind === "branch") return { lens: "develop", selection: { projectId: navigation.projectId, branchId: navigation.branchId, worktreeId: null, sessionId: null } };
+  return { lens: navigation.lens, selection };
+};
 
 export interface UiSlice {
   selection: Selection;
@@ -51,6 +65,17 @@ export interface UiSlice {
    *  not in MachineChip's own state because §6.9's ⌘⇧M must open it from useKeyboardMap,
    *  which is mounted in AppShell and cannot reach a component's local state. */
   machinesOpen: boolean;
+  /** Runtime-only editor guards and source revisions; never saved as preferences. */
+  unsavedProjectDrafts: Record<string, UnsavedProjectDraft>;
+  pendingNavigation: PendingNavigation | null;
+  branchManager: BranchManagerTarget | null;
+  projectSourceRevisions: Record<ProjectId, number>;
+  setUnsavedProjectDraft(id: string, draft: UnsavedProjectDraft | null): void;
+  cancelNavigation(): void;
+  discardDraftsAndNavigate(): void;
+  openBranchManager(target: BranchManagerTarget): void;
+  closeBranchManager(): void;
+  acceptBranchChange(projectId: ProjectId, branches: Branch[], worktree: Worktree): void;
 
   selectProject(id: ProjectId | null): void;
   /** Sets lens to "develop" and clears worktree + session selection. */
@@ -85,7 +110,7 @@ type UiState = Pick<
   | "selection" | "lens" | "layout" | "railCollapsed"
   | "expandedProjects" | "expandedBranches" | "expandedWorktrees"
   | "paletteOpen" | "pickerOpen" | "contextMenu" | "sessionMenuFor" | "toasts"
-  | "machinesOpen"
+  | "machinesOpen" | "unsavedProjectDrafts" | "pendingNavigation" | "branchManager" | "projectSourceRevisions"
 >;
 
 /** FROZEN, containers and all — see the note on `initialDataState`. */
@@ -103,6 +128,10 @@ export const initialUiState: UiState = Object.freeze({
   sessionMenuFor: null,
   toasts: Object.freeze([]) as unknown as Toast[],
   machinesOpen: false,
+  unsavedProjectDrafts: Object.freeze({}),
+  pendingNavigation: null,
+  branchManager: null,
+  projectSourceRevisions: Object.freeze({}),
 });
 
 export const createUiSlice: StateCreator<
@@ -110,22 +139,58 @@ export const createUiSlice: StateCreator<
   [["zustand/persist", unknown]],
   [],
   UiSlice
-> = (set) => ({
+> = (set, get) => ({
   ...initialUiState,
 
   // Decision (a): a project selection clears everything below it, so the rail and the
   // Columns view can never disagree about which branch is in view.
-  selectProject: (id) => set({ selection: { ...NO_SELECTION, projectId: id } }),
+  selectProject: (id) => {
+    const state = get();
+    if (id === state.selection.projectId && state.selection.branchId === null) return;
+    const navigation: PendingNavigation = { kind: "project", projectId: id };
+    if (Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === state.selection.projectId)) set({ pendingNavigation: navigation });
+    else set(navigationState(navigation, state.selection));
+  },
   selectBranch: (projectId, id) =>
-    set({
-      lens: "develop",
-      selection: { projectId, branchId: id, worktreeId: null, sessionId: null },
-    }),
+    {
+      const state = get();
+      const navigation: PendingNavigation = { kind: "branch", projectId, branchId: id };
+      if ((state.selection.branchId !== id || state.lens !== "develop") && Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === state.selection.projectId)) set({ pendingNavigation: navigation });
+      else set(navigationState(navigation, state.selection));
+    },
   // Decision (b): the focused session survives, because focus is not navigation.
   selectWorktree: (id) => set((s) => ({ selection: { ...s.selection, worktreeId: id } })),
   focusSession: (id) => set((s) => ({ selection: { ...s.selection, sessionId: id } })),
 
-  setLens: (lens) => set({ lens }),
+  setLens: (lens) => {
+    const state = get();
+    if (state.lens === lens) return;
+    if (Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === state.selection.projectId)) set({ pendingNavigation: { kind: "lens", lens } });
+    else set({ lens });
+  },
+  setUnsavedProjectDraft: (id, draft) => set(state => {
+    const drafts = { ...state.unsavedProjectDrafts };
+    if (draft) drafts[id] = draft; else delete drafts[id];
+    return { unsavedProjectDrafts: drafts };
+  }),
+  cancelNavigation: () => set({ pendingNavigation: null }),
+  discardDraftsAndNavigate: () => set(state => {
+    if (!state.pendingNavigation) return state;
+    const drafts = Object.fromEntries(Object.entries(state.unsavedProjectDrafts).filter(([, draft]) => draft.projectId !== state.selection.projectId));
+    return { ...navigationState(state.pendingNavigation, state.selection), unsavedProjectDrafts: drafts, pendingNavigation: null };
+  }),
+  openBranchManager: target => set({ branchManager: target }),
+  closeBranchManager: () => set({ branchManager: null }),
+  acceptBranchChange: (projectId, branches, worktree) => set(state => {
+    const worktreesByBranch = Object.fromEntries(Object.entries(state.worktreesByBranch).map(([id, worktrees]) => [id, worktrees.filter(item => item.id !== worktree.id)]));
+    worktreesByBranch[worktree.branchId] = [...(worktreesByBranch[worktree.branchId] ?? []), worktree];
+    return {
+      branchesByProject: { ...state.branchesByProject, [projectId]: branches }, worktreesByBranch,
+      projectSourceRevisions: { ...state.projectSourceRevisions, [projectId]: (state.projectSourceRevisions[projectId] ?? 0) + 1 },
+      ...(state.selection.projectId === projectId ? { selection: { projectId, branchId: worktree.branchId, worktreeId: worktree.id, sessionId: null }, lens: "develop" as const } : {}),
+      branchManager: null,
+    };
+  }),
   setLayout: (layout) => set({ layout }),
   toggleRail: () => set((s) => ({ railCollapsed: !s.railCollapsed })),
   // An absent key means collapsed, so the first toggle expands.

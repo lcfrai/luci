@@ -58,6 +58,9 @@ async function element(kind, name) {
   return until(`${kind} ${name}`, () => execute(`
     const visible=e=>!!(e&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden'&&getComputedStyle(e).opacity!=='0');
     const norm=s=>(s||'').replace(/\\s+/g,' ').trim();
+    // Fluid retains decorative measurement labels. Match the visible control's
+    // accessible text without counting its aria-hidden copy twice.
+    const namedText=e=>{const copy=e.cloneNode(true);copy.querySelectorAll('[aria-hidden="true"]').forEach(node=>node.remove());return norm(copy.textContent);};
     const labelled=e=>norm((e.getAttribute('aria-labelledby')||'').split(/\\s+/).map(id=>document.getElementById(id)?.textContent||'').join(' '));
     // Luci's Settings/project dialogs own these controls. Excalidraw embeds
     // independent picker dialogs whose lifetime must not hide the page header
@@ -72,13 +75,17 @@ async function element(kind, name) {
     if(arguments[0]==='css') return [...scope.querySelectorAll(arguments[1])].find(visible)||null;
     if(arguments[0]==='file') return [...scope.querySelectorAll('.journey-directory button')].filter(visible).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
     return [...scope.querySelectorAll('button,summary,[role=treeitem]')].filter(e=>visible(e)&&!e.disabled).find(e=>
-      e.getAttribute('aria-label')===arguments[1] || labelled(e)===arguments[1] || norm(e.textContent)===arguments[1] ||
+      e.getAttribute('aria-label')===arguments[1] || labelled(e)===arguments[1] || namedText(e)===arguments[1] ||
       (e.classList.contains('sub-row') && norm(e.textContent).endsWith(arguments[1])))||null;
   `, kind, name));
 }
 async function click(name, kind = "button") {
   const e = await element(kind, name);
   await command(`/element/${e[elementKey]}/click`);
+}
+async function openDisclosure(name) {
+  const collapsed = await execute("const summary=[...document.querySelectorAll('details>summary')].find(e=>e.textContent.trim()===arguments[0]);return !!(summary&&!summary.parentElement.open)", name);
+  if (collapsed) await click(name);
 }
 async function fill(name, value) {
   const e = await element("label", name);
@@ -282,7 +289,8 @@ async function verifyProject() {
   await snapshot("persisted-git");
   if (fixture.hasConfiguration) {
     await click("Deploy");
-    if (structuredUI) await element("css", '.deployment-tabs button[aria-current="page"]');
+    if (structuredUI) await element("css", '.deployment-tabs button[aria-current="page"],.deployment-tabs button[role="tab"][aria-selected="true"]');
+    await openDisclosure("Runtime configuration");
     await bodyHas("NATIVE_UAT_MESSAGE");
     const value = await element("label", "Private value");
     assert.equal(await command(`/element/${value[elementKey]}/property/value`, "GET", undefined), "");
@@ -464,7 +472,7 @@ try {
     if (!result.applicationVersion.startsWith("0.3.")) {
       await click("Deploy");
       if (structuredUI) {
-        const selected = await element("css", '.deployment-tabs button[aria-current="page"]');
+        const selected = await element("css", '.deployment-tabs button[aria-current="page"],.deployment-tabs button[role="tab"][aria-selected="true"]');
         assert.equal(await command(`/element/${selected[elementKey]}/text`, "GET", undefined), "Application platform");
         await bodyHas("Deploy and operate");
         await click("Previews and publishing");
@@ -472,6 +480,7 @@ try {
         await click("Application platform");
         result.checks.push("Deploy opens the application platform and exposes previews/publishing through its explicit workspace tab");
       }
+      await openDisclosure("Runtime configuration");
       fixture.privateValue = "fixture-only-" + randomUUID();
       await fill("Variable name", "NATIVE_UAT_MESSAGE");
       await fill("Private value", fixture.privateValue);

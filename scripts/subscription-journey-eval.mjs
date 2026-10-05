@@ -279,7 +279,7 @@ async function prepare() {
   if (!result.proofs.describe) {
     await checkpoint("describe.navigation");
     await lens("Define");
-    await page.getByRole("button", { name: "Specification", exact: true }).click();
+    await page.getByRole("tab", { name: "Specification", exact: true }).click();
     await checkpoint("describe.idea");
     await page.getByRole("textbox", { name: "The idea", exact: true }).fill("Build Luci Launch Checklist: a polished, small launch preparation checklist that shows an actual idea becoming a usable deployed website through Luci.");
     await checkpoint("describe.fields");
@@ -303,7 +303,7 @@ async function prepare() {
     await lens("Design");
     await page.getByRole("button", { name: "Start a screen plan from my definition", exact: true }).click();
     await observed(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), projectPath("/design-plan"));
-    await page.getByRole("button", { name: "Sketch", exact: true }).click();
+    await page.getByRole("tab", { name: "Sketch", exact: true }).click();
     const canvas = page.locator(".excalidraw canvas").first();
     await canvas.waitFor();
     const box = await canvas.boundingBox(); assert(box && box.width > 850 && box.height > 450);
@@ -346,7 +346,7 @@ async function prepare() {
     const design = await observed(() => page.getByRole("button", { name: "Save design", exact: true }).click(), projectPath("/design"));
     const elements = design.scene?.elements || [];
     assert(elements.some(item => item.type === "rectangle") && elements.some(item => item.type === "text" && item.text.includes("Luci Launch Checklist")), "Actual persisted canvas must contain the wireframe and heading");
-    await page.getByRole("button", { name: "Screens and states", exact: true }).click();
+    await page.getByRole("tab", { name: "Screens and states", exact: true }).click();
     await observed(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), projectPath("/design-plan"));
     const handoff = await observed(() => page.getByRole("button", { name: "Approve design handoff", exact: true }).click(), projectPath("/design-plan/approve"));
     assert.equal(handoff.status,"approved");
@@ -565,9 +565,10 @@ async function verify() {
   if (result.proofs.dockerChecks?.commit !== result.commit) await checks();
   let git = await get(projectPath("/git")); assert(git.clean && git.log[0].hash === result.commit, "Checks must leave verified source unchanged");
     await lens("Deploy");
-    await page.getByRole("button", { name: "Previews and publishing", exact: true }).click();
+    await page.getByRole("tab", { name: "Previews and publishing", exact: true }).click();
   let release = result.localReleaseId && (await get(projectPath("/releases"))).releases.find(row => row.id === result.localReleaseId && row.status === "ready" && row.commit === result.commit);
   if (!release) {
+    await page.locator("summary").filter({ hasText: /^Preview build options$/ }).click();
     await page.getByLabel("Dockerfile", { exact: true }).fill("Dockerfile");
     await page.getByRole("spinbutton", { name: /^App port/ }).fill("3000");
     release = await observed(() => page.getByRole("button", { name: "Build local preview", exact: true }).click(), projectPath("/releases"), 240000);
@@ -624,10 +625,10 @@ async function deploy() {
   assert(delivery.publication?.verified && delivery.publication.commit === result.commit);
   await proof("publication", { repository, branch: git.branch, commit: result.commit, remoteVerified: true });
   await lens("Deploy");
-    await page.getByRole("button", { name: "Previews and publishing", exact: true }).click();
+    await page.getByRole("tab", { name: "Previews and publishing", exact: true }).click();
   // The adapter deliberately derives repository/branch from the verified origin;
   // it cannot publish an unrelated project or treat a localhost preview as public.
-  const pages = page.getByRole("button", { name: "GitHub Pages", exact: true });
+  const pages = page.getByRole("tab", { name: "GitHub Pages", exact: true });
   if (!(await pages.count())) pending("This Luci build does not yet contain the GitHub Pages deployment adapter. Publication is not a completed deployment.");
   await pages.click();
   let release = result.publicReleaseId && (await get(projectPath("/releases"))).releases.find(row => row.id === result.publicReleaseId);

@@ -1,3 +1,4 @@
+import { Button } from "../fluid/components/button";
 import { useEffect, useRef, useState } from "react";
 import {
   errorText,
@@ -221,8 +222,8 @@ export function AgentConnections({
                 ? "No Codex subscription sign-in saved."
                 : "Checking Codex sign-in…"}
           </p>
-          <button
-            className="luci-button"
+          <Button type="button"
+            variant="secondary"
             disabled={
               busy ||
               !!account?.activeSessionId ||
@@ -232,7 +233,7 @@ export function AgentConnections({
             onClick={() => void signIn()}
           >
             Open Codex account sign-in
-          </button>
+          </Button>
           <p className="journey-muted">
             {codex && !codex.available
               ? `${codex.note || "Codex is unavailable in this runtime."} `
@@ -244,14 +245,14 @@ export function AgentConnections({
             account.
           </p>
           {pendingSignIn && (
-            <button
-              className="luci-button"
+            <Button
+              variant="secondary"
               type="button"
               disabled={busy}
               onClick={() => openSignIn(pendingSignIn.id)}
             >
               Resume Codex sign-in
-            </button>
+            </Button>
           )}
           {signInSessions.length > 0 && (
             <>
@@ -269,13 +270,13 @@ export function AgentConnections({
                   ))}
                 </select>
               </label>
-              <button
-                className="luci-button"
+              <Button type="button"
+                variant="secondary"
                 disabled={busy || !!account?.activeSessionId}
                 onClick={() => void updateAccount("connect")}
               >
                 Save Codex sign-in
-              </button>
+              </Button>
             </>
           )}
           {account?.activeSessionId && (
@@ -285,21 +286,21 @@ export function AgentConnections({
             </p>
           )}
           <div className="setup-actions">
-            <button
-              className="luci-button"
+            <Button type="button"
+              variant="secondary"
               disabled={busy}
               onClick={() => void updateAccount("refresh")}
             >
               Refresh Codex connection
-            </button>
+            </Button>
             {account?.configured && (
-              <button
-                className="luci-button"
+              <Button type="button"
+                variant="secondary"
                 disabled={busy}
                 onClick={() => void updateAccount("disconnect")}
               >
                 Disconnect Codex sign-in
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -380,8 +381,8 @@ export function AgentConnections({
           </small>
         </label>
         <div className="setup-actions">
-          <button
-            className="luci-button"
+          <Button type="submit"
+            variant="secondary"
             disabled={
               busy ||
               (providerId === "openai" && !!account?.configured) ||
@@ -391,16 +392,16 @@ export function AgentConnections({
             }
           >
             {busy ? "Saving connection…" : "Save agent connection"}
-          </button>
+          </Button>
           {provider?.configured && (
-            <button
+            <Button
               type="button"
-              className="luci-button"
+              variant="secondary"
               disabled={busy}
               onClick={() => void save(true)}
             >
               {providerId === "local" ? "Remove endpoint" : "Remove saved key"}
-            </button>
+            </Button>
           )}
         </div>
       </form>
