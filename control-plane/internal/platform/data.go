@@ -20,22 +20,24 @@ import (
 // DataStatus contains cached receipts and client-safe configuration only. A GET
 // never starts Docker, downloads images, repairs a host, or returns an admin key.
 type DataStatus struct {
-	ProjectID          string          `json:"projectId"`
-	Provider           string          `json:"provider"`
-	Version            string          `json:"version"`
-	Revision           int             `json:"revision"`
-	Status             string          `json:"status"`
-	Message            string          `json:"message"`
-	URL                string          `json:"url,omitempty"`
-	EndpointScope      string          `json:"endpointScope"`
-	PublishableKey     string          `json:"publishableKey,omitempty"`
-	Services           []DataService   `json:"services"`
-	Operation          *DataOperation  `json:"operation,omitempty"`
-	Backups            []DataBackup    `json:"backups"`
-	Capabilities       map[string]bool `json:"capabilities"`
-	Requirements       map[string]int  `json:"requirements"`
-	CheckedAt          string          `json:"checkedAt,omitempty"`
-	PriorStackRetained bool            `json:"priorStackRetained"`
+	ProjectID          string            `json:"projectId"`
+	Provider           string            `json:"provider"`
+	Version            string            `json:"version"`
+	Revision           int               `json:"revision"`
+	Status             string            `json:"status"`
+	Message            string            `json:"message"`
+	URL                string            `json:"url,omitempty"`
+	EndpointScope      string            `json:"endpointScope"`
+	PublishableKey     string            `json:"publishableKey,omitempty"`
+	Services           []DataService     `json:"services"`
+	Operation          *DataOperation    `json:"operation,omitempty"`
+	Backups            []DataBackup      `json:"backups"`
+	Capabilities       map[string]bool   `json:"capabilities"`
+	Requirements       map[string]int    `json:"requirements"`
+	CheckedAt          string            `json:"checkedAt,omitempty"`
+	PriorStackRetained bool              `json:"priorStackRetained"`
+	PublicURL          string            `json:"publicUrl,omitempty"`
+	PublicDomain       *DataDomainStatus `json:"publicDomain,omitempty"`
 }
 type DataService struct {
 	Name   string `json:"name"`
@@ -94,6 +96,7 @@ func (s *Service) registerData(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/platform/projects/{id}/data", s.dataAction)
 	mux.HandleFunc("GET /v1/platform/projects/{id}/data/backups/{backupId}", s.downloadDataBackup)
 	s.registerDataControls(mux)
+	s.registerDataDomain(mux)
 }
 func emptyData(id string) DataStatus {
 	return DataStatus{ProjectID: id, Provider: "supabase", Version: "self-hosted/v0.8.2", EndpointScope: "selected-docker-host-loopback", Status: "not-installed", Message: "Optional Auth, REST, Storage, Realtime and Functions use a separate PostgreSQL 17 stack. Existing PostgreSQL 16 data is retained.", Services: []DataService{}, Backups: []DataBackup{}, Capabilities: map[string]bool{"auth": false, "rest": false, "storage": false, "realtime": false, "tables": false, "rowLevelSecurity": false, "functions": false, "backups": false, "restore": false}, Requirements: map[string]int{"memoryMiB": 4096, "cpuMillis": 2000, "diskGiB": 40}}
@@ -138,7 +141,7 @@ func (s *Service) dataStatus(w http.ResponseWriter, r *http.Request) {
 		v.Status = "interrupted"
 		v.Message = v.Operation.Message
 	}
-	respond(w, 200, s.browserDataStatus(v))
+	respond(w, 200, s.publicDataStatus(s.browserDataStatus(v)))
 }
 
 type dataActionRequest struct {
@@ -220,6 +223,25 @@ func dataError(e error) string {
 	if errors.As(e, &public) {
 		return public.message
 	}
+	var command *platformCommandFailure
+	if errors.As(e, &command) {
+		messages := map[string]string{
+			"permission":            "Docker could not access an owned file or its configured engine. Check installation permissions.",
+			"docker-connection":     "Docker could not reach the selected engine. Start it and verify the workspace connection.",
+			"registry-access":       "The container registry denied image retrieval or applied a rate limit. Verify registry access before retrying.",
+			"registry-manifest":     "A pinned container image was unavailable for this engine. Check the recorded image and supported architecture.",
+			"registry-network":      "A container image could not be retrieved over the network. Check registry connectivity before retrying.",
+			"compose-configuration": "Docker Compose could not validate or run the owned stack configuration. Verify Compose v2 and the installation.",
+			"context-deadline":      "The data command exceeded its bounded time budget. Inspect the retained resources before retrying.",
+			"context-cancelled":     "The data command was interrupted. Inspect the retained resources before retrying.",
+			"start-failed":          "The data command could not start. Verify the installed Docker executable and private working directory.",
+		}
+		message := messages[command.kind]
+		if message == "" {
+			message = "The data command did not complete. Inspect the retained owned resources before retrying."
+		}
+		return message + " Existing data is retained. Command result: " + command.processStatus + "."
+	}
 	return "The data operation failed. Existing data is retained. Refresh to inspect owned services, and check Docker capacity, image access and available disk space."
 }
 
@@ -268,6 +290,13 @@ func (s *Service) runDataAction(ctx context.Context, id string, in dataActionReq
 		if e = s.verifyDataOwnership(ctx, install, true); e != nil {
 			return e
 		}
+		secret, e := s.dataCredentials(install)
+		if e != nil {
+			return e
+		}
+		if e = s.prepareDataStack(install, secret); e != nil {
+			return e
+		}
 		s.dataStage(id, "pulling", "Downloading the 11 pinned Supabase images. Container images are separately installed, not bundled with Luci.")
 		if _, e = s.compose(ctx, install, "pull", "--quiet"); e != nil {
 			return e
@@ -279,12 +308,18 @@ func (s *Service) runDataAction(ctx context.Context, id string, in dataActionReq
 		if e = s.attachDataNetwork(ctx, install); e != nil {
 			return e
 		}
-		return s.refreshData(ctx, install, true)
+		if e = s.refreshData(ctx, install, true); e != nil {
+			return e
+		}
+		return s.refreshPublishedDataDomain(ctx, id, false)
 	case "refresh":
 		if install.StackID == "" {
 			return &dataFailure{"Install the optional data stack before refreshing it."}
 		}
-		return s.refreshData(ctx, install, false)
+		if e = s.refreshData(ctx, install, false); e != nil {
+			return e
+		}
+		return s.refreshPublishedDataDomain(ctx, id, false)
 	case "stop":
 		if install.StackID == "" {
 			return &dataFailure{"No data stack is installed for this project."}
@@ -455,6 +490,11 @@ func (s *Service) dataBindings(id string) (map[string]string, error) {
 	publicURL, e := s.browserDataURL(install, secret)
 	if e != nil {
 		return nil, e
+	}
+	if domain, err := s.DataDomainStatus(id); err != nil {
+		return nil, err
+	} else if domain.PublicURL != "" {
+		publicURL = domain.PublicURL
 	}
 	return map[string]string{"SUPABASE_URL": "http://supabase-api:8000", "SUPABASE_PUBLIC_URL": publicURL, "SUPABASE_ANON_KEY": secret.Anon, "SUPABASE_PUBLISHABLE_KEY": secret.Anon, "SUPABASE_SERVICE_ROLE_KEY": secret.ServiceRole, "SUPABASE_DB_URL": "postgresql://postgres:" + secret.Password + "@supabase-db:5432/postgres?sslmode=disable"}, nil
 }

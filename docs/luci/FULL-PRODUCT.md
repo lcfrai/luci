@@ -101,7 +101,8 @@ desktop's verified client data address while private server bindings stay on the
 selected Docker network. Existing apps need redeployment after connecting or
 reconnecting; restoring an active stack retains the data address. These transport
 checks use real HTTP/WebSocket fixtures, not live AWS/Azure provisioning. Public
-data-domain publication and automatic Coolify data bindings remain unimplemented.
+data-domain publication and automatic Coolify data bindings were still
+unimplemented at that transport checkpoint.
 
 Windows conversation storage now has compact physical names with unchanged
 logical identities and retained legacy state. A real isolated managed-account
@@ -109,3 +110,35 @@ probe verified official Codex device sign-in stayed running and nested rollout
 writes succeeded. This proves the storage fix, not completed account sign-in or
 subscription inference. The user's provider sign-in, implementation, immutable
 checks and working public deployment are still mandatory goal outcomes.
+
+## Public application data integration checkpoint
+
+Public data connection setup is now implemented inside Connect, with saved-server
+selection, an exact application origin, public acknowledgement, asynchronous
+progress, read-only recovery, HTTPS verification and explicit stop. Cloud release
+forms offer runtime-only, Vite and Next.js client variables. Provider operations
+use persisted ownership and uncertain-result reconciliation, and require actual
+native stack/server co-location before allocation. Only public client values can
+be embedded into browser builds; changed domain or client-key state requires
+redeployment. SMTP configuration and custom function publication are separate
+remaining capabilities.
+
+Forty-seven focused frontend checks and TypeScript validation passed. Typed
+native/provider integration checks passed, as did the provider configuration and
+restore/rollback fixtures. A real pinned Envoy container passed twenty HTTP
+boundary cases, including accepted client traffic and rejected administrative
+traffic; its receipt is
+`artifacts/subscription-e2e/public-data-envoy-20261005/receipt.json`.
+This does not establish live Coolify API compatibility, public DNS, certificate
+issuance, AWS/Azure provisioning or subscription inference.
+
+The secondary complete Docker installation proved automatic runtime preparation
+starts without a Prepare click and allows onboarding to continue while building.
+Its first cold runtime build exceeded the old ten-minute limit. The clean source
+`4b4b2d72dbd8c42d7c455a8b840c19f03b1704d4` package retained that failure and
+completed one visible retry using its bounded thirty-minute runtime preparation.
+The subsequent complete-Docker native data acceptance failed before pulling;
+investigation isolated Linux directory link-count handling in platform path
+validation. Its source correction must pass installed acceptance before the data
+journey is considered proven. The actual subscription journey still needs owner
+sign-in, generated implementation, immutable checks and a verified public site.

@@ -14,6 +14,8 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,6 +34,7 @@ type Options struct {
 	MemoryMiB, CPUMillis             int
 	Runner                           Runner
 	HTTPClient                       *http.Client
+	DataDomains                      *DataDomainProvider
 }
 type Deployment struct {
 	ID                    string `json:"id"`
@@ -79,6 +82,7 @@ type Service struct {
 	browserRegistry *previewgateway.Registry
 	opts            Options
 	dir, instance   string
+	nativeSocket    string
 	mu              sync.Mutex
 	busy            map[string]bool
 	ctx             context.Context
@@ -117,13 +121,26 @@ func New(opts Options) (*Service, error) {
 	sum := sha256.Sum256([]byte(opts.StateDir + opts.InstanceID))
 	instance := hex.EncodeToString(sum[:8])
 	ctx, cancel := context.WithCancel(context.Background())
+	nativeSocket := ""
+	if strings.HasPrefix(opts.DockerHost, "unix:///") && !strings.ContainsAny(opts.DockerHost, "\x00\r\n?#") {
+		nativeSocket = strings.TrimPrefix(opts.DockerHost, "unix://")
+	}
+	// A default runner discards inherited DOCKER_HOST, but Docker contexts can
+	// still select another engine. The host verifier checks the actual default
+	// context before admitting the implicit native socket.
+	if opts.Runner == nil && opts.DockerHost == "" && runtime.GOOS == "linux" && os.Getenv("DOCKER_CONTEXT") == "" {
+		nativeSocket = "/var/run/docker.sock"
+	}
+	if os.Getenv("DOCKER_CONTEXT") != "" {
+		nativeSocket = ""
+	}
 	if opts.Runner == nil {
 		opts.Runner = commandRunner(opts.DockerHost)
 	}
 	if opts.HTTPClient == nil {
 		opts.HTTPClient = providerHTTPClient()
 	}
-	s := &Service{opts: opts, dir: dir, instance: instance, busy: map[string]bool{}, ctx: ctx, cancel: cancel}
+	s := &Service{opts: opts, dir: dir, instance: instance, nativeSocket: nativeSocket, busy: map[string]bool{}, ctx: ctx, cancel: cancel}
 	if opts.BrowserPreviewPort != 0 {
 		var err error
 		s.browserRegistry, err = previewgateway.NewRegistry(opts.StateDir, opts.BrowserPreviewPort)
@@ -143,13 +160,20 @@ func (s *Service) path(name string) (string, error) {
 		return "", err
 	}
 	p := filepath.Join(s.dir, name)
-	if _, err := os.Lstat(p); errors.Is(err, os.ErrNotExist) {
+	info, err := os.Lstat(p)
+	if errors.Is(err, os.ErrNotExist) {
 		return p, nil
 	} else if err != nil {
 		return "", err
 	}
-	if err := hostpath.OneName(p); err != nil {
-		return "", err
+	// OneName guards files whose contents steer private resources. Native
+	// Linux directories have multiple links by design (including children),
+	// so applying that file guard made every prepared data stack unusable.
+	// The full component/reparse walk below still protects directories.
+	if !info.IsDir() {
+		if err := hostpath.OneName(p); err != nil {
+			return "", err
+		}
 	}
 	return hostpath.ConfineToMounts([]string{s.dir}, p)
 }

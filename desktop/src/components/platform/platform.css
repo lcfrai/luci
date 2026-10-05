@@ -34,7 +34,7 @@
 .data-records small, .data-form small, .data-readonly small { display: block; color: var(--ink-3); line-height: 1.6; }
 .data-records code { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
 .data-form { display: grid; gap: 18px; max-inline-size: 760px; padding-block: 20px; }
-.data-form label, .data-readonly, .data-select { display: grid; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.data-form label, .data-field, .data-readonly, .data-select { display: grid; gap: 8px; font-size: 13px; color: var(--ink-2); }
 .data-form input:not([type="checkbox"]), .data-form select, .data-form textarea, .data-readonly input, .data-readonly textarea, .data-select select { inline-size: 100%; min-inline-size: 0; }
 .data-form textarea, .data-readonly textarea { resize: vertical; }
 .data-form > button, .data-form .journey-actions { justify-self: start; }
@@ -50,6 +50,9 @@
 .data-empty h4 { font-size: 17px; font-weight: 550; }
 .data-empty p { color: var(--ink-2); line-height: 1.65; }
 .data-recovery { margin-block-start: 32px; padding-block-start: 28px; border-block-start: 1px solid var(--line); }
+.data-public-domain { margin-block-start: 32px; padding-block-start: 28px; border-block-start: 1px solid var(--line); min-inline-size: 0; }
+.data-domain-stop { display: grid; gap: 16px; margin-block: 28px; max-inline-size: 760px; }
+.data-domain-stop > button { justify-self: start; }
 @media (max-width: 760px) {
   .data-heading { flex-wrap: wrap; gap: 12px; }
   .data-column { grid-template-columns: minmax(100px, 1fr) minmax(100px, 1fr); }

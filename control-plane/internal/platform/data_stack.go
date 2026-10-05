@@ -183,6 +183,14 @@ func (s *Service) prepareDataStack(install dataInstallation, secret dataSecret) 
 	}
 	values["SUPABASE_PUBLIC_URL"] = publicURL
 	values["API_EXTERNAL_URL"] = publicURL + "/auth/v1"
+	if domain, origin, err := s.dataDomainConfiguration(install); err != nil {
+		return err
+	} else if domain != "" {
+		values["SUPABASE_PUBLIC_URL"] = domain
+		values["API_EXTERNAL_URL"] = domain + "/auth/v1"
+		values["SITE_URL"] = origin
+		values["ADDITIONAL_REDIRECT_URLS"] = origin + "/**"
+	}
 	file, e := s.envFile(values)
 	if e != nil {
 		return e

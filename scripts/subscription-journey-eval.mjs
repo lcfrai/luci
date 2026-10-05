@@ -198,8 +198,8 @@ async function selectProject(requireBranch = ["develop", "verify", "deploy"].inc
   await checkpoint("project.expand");
   if (await row.getAttribute("aria-selected") !== "true") await row.click();
   if (await row.getAttribute("aria-expanded") !== "true") await row.click();
-  // A new Git repository has no branch ref before its first commit. Define,
-  // Design and plan are project-scoped and must remain usable before that point.
+  // Define and Design remain project-scoped. Develop must also expose Git's
+  // actual initial branch and primary worktree before the first commit.
   if (!requireBranch) return;
   const branch = row.locator("..").locator('[role="treeitem"][data-kind="branch"]').first();
   await checkpoint("project.branch");
@@ -213,6 +213,7 @@ async function selectProject(requireBranch = ["develop", "verify", "deploy"].inc
   await checkpoint("project.worktree");
   const worktree = branch.locator("..").locator('[role="treeitem"][data-kind="worktree"]').first();
   await worktree.click();
+  return { branchId: await branch.getAttribute("data-id"), worktreeId: await worktree.getAttribute("data-id") };
 }
 async function lens(name) { await page.getByRole("button", { name, exact: true }).click(); }
 async function planPanel() {
@@ -363,10 +364,15 @@ async function prepare() {
     await screenshot("03-plan");
   }
   await assertContext();
-  await checkpoint("prepare.context-commit");
-  await commit("Define and design Luci Launch Checklist");
-  result.contextCommit = result.commit; await save();
-  await selectProject(true);
+  await checkpoint("prepare.first-agent-entry");
+  const selected = await selectProject(true);
+  const panel = await planPanel();
+  assert(await panel.getByRole("button", { name: "Start implementation session", exact: true }).isEnabled(), "Saved Define and Design must reach an enabled first-agent action without a planning commit");
+  const git = await get(projectPath("/git"));
+  const catalogue = await get(`/v1/projects/${encodeURIComponent(result.project.id)}/worktrees`);
+  assert(catalogue.worktrees.some(worktree => worktree.id === selected.worktreeId && worktree.branchId === selected.branchId && worktree.isPrimary), "The first-agent action must use the actual owned primary worktree");
+  result.firstAgentEntry = { initialBranchSelected: true, primaryWorktreeSelected: true, actionEnabled: true, beforeFirstCommit: git.log.length === 0 };
+  await save();
   pending("Describe, Design and the implementation plan are saved. Run auth when the Docker runtime and your official Codex sign-in are ready.");
 }
 async function auth() {

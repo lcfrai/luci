@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -18,6 +18,69 @@ type Runner func(context.Context, string, []string, string, []byte) ([]byte, err
 type boundedBuffer struct {
 	bytes.Buffer
 	limit int
+}
+
+// Diagnostics stay in process memory and only an allowlisted cause leaves the
+// runner. Docker/Compose stderr can include runtime configuration or tokens.
+type commandDiagnosticBuffer struct{ data []byte }
+
+func (b *commandDiagnosticBuffer) Write(p []byte) (int, error) {
+	const limit = 8192
+	n := len(p)
+	if len(p) >= limit {
+		b.data = append(b.data[:0], p[len(p)-limit:]...)
+	} else {
+		if len(b.data)+len(p) > limit {
+			b.data = b.data[len(b.data)+len(p)-limit:]
+		}
+		b.data = append(b.data, p...)
+	}
+	return n, nil
+}
+
+type platformCommandFailure struct {
+	kind, processStatus string
+	exitCode            int
+	cause               error
+}
+
+func (e *platformCommandFailure) Error() string {
+	return fmt.Sprintf("platform command failed (%s; %s)", e.kind, e.processStatus)
+}
+func (e *platformCommandFailure) Unwrap() error { return e.cause }
+func classifyPlatformCommand(ctx context.Context, cmd *exec.Cmd, err error, diagnostic []byte) error {
+	failure := &platformCommandFailure{kind: "start-failed", processStatus: "not-started", exitCode: -1}
+	if cmd.ProcessState != nil {
+		failure.kind = "exit"
+		failure.exitCode = cmd.ProcessState.ExitCode()
+		failure.processStatus = cmd.ProcessState.String()
+	}
+	if ctx.Err() != nil {
+		failure.cause = ctx.Err()
+		failure.kind = "context-cancelled"
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			failure.kind = "context-deadline"
+		}
+		return failure
+	}
+	value := strings.ToLower(string(diagnostic))
+	switch {
+	case strings.Contains(value, "permission denied") || strings.Contains(value, "operation not permitted"):
+		failure.kind = "permission"
+	case strings.Contains(value, "cannot connect to the docker daemon") || strings.Contains(value, "error during connect") || strings.Contains(value, "dial unix") || strings.Contains(value, "is the docker daemon running"):
+		failure.kind = "docker-connection"
+	case strings.Contains(value, "unauthorized") || strings.Contains(value, "pull access denied") || strings.Contains(value, "toomanyrequests"):
+		failure.kind = "registry-access"
+	case strings.Contains(value, "manifest unknown") || strings.Contains(value, "no matching manifest"):
+		failure.kind = "registry-manifest"
+	case strings.Contains(value, "failed to resolve reference") || strings.Contains(value, "tls handshake timeout") || strings.Contains(value, "unexpected eof") || strings.Contains(value, "network is unreachable"):
+		failure.kind = "registry-network"
+	case strings.Contains(value, "validating ") || strings.Contains(value, "invalid compose") || strings.Contains(value, "additional property") || strings.Contains(value, "interpolation") || strings.Contains(value, "is not a docker command") || strings.Contains(value, "unknown flag"):
+		failure.kind = "compose-configuration"
+	case errors.Is(err, exec.ErrWaitDelay):
+		failure.kind = "output-timeout"
+	}
+	return failure
 }
 
 func (b *boundedBuffer) Write(p []byte) (int, error) {
@@ -47,13 +110,14 @@ func commandRunner(dockerHost string) Runner {
 			cmd.Env = append(cmd.Env, "DOCKER_HOST="+dockerHost)
 		}
 		out := &boundedBuffer{limit: 64 << 20}
+		diagnostic := &commandDiagnosticBuffer{}
 		cmd.Stdout = out
-		cmd.Stderr = io.Discard
+		cmd.Stderr = diagnostic
 		if exe == "docker" && len(args) > 0 && args[0] == "logs" {
 			cmd.Stderr = out
 		}
 		if err := cmd.Run(); err != nil {
-			return nil, errors.New("platform command failed")
+			return nil, classifyPlatformCommand(ctx, cmd, err, diagnostic.data)
 		}
 		return out.Bytes(), nil
 	}

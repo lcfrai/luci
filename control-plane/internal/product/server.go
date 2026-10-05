@@ -39,6 +39,7 @@ type Registrar interface {
 }
 type Runner func(context.Context, string, []string, string) (string, error)
 type Options struct {
+	CloudDataBindings  func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
 	BrowserPreviewPort int
 	ManagedWorkspace   bool
 	CloudBundle        string
@@ -54,6 +55,7 @@ type Options struct {
 }
 
 type Server struct {
+	cloudDataBindings func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
 	browserRegistry   *previewgateway.Registry
 	cloudBundle       string
 	workspace         Workspace
@@ -101,7 +103,7 @@ func New(opts Options) (*Server, error) {
 	if root == "" {
 		root = filepath.Join(opts.StateDir, "projects")
 	}
-	s := &Server{stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
+	s := &Server{cloudDataBindings: opts.CloudDataBindings, stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
 		sandboxImage: opts.SandboxImage, plans: make(map[string]CloudPlan),
 		managedWorkspace: opts.ManagedWorkspace, configured: opts.ManagedWorkspace,
 		config: Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30}}

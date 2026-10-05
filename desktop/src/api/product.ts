@@ -284,6 +284,7 @@ export interface DNSResult {
   message: string;
 }
 export interface CloudReleaseRequest {
+  dataClientFramework?: "none" | "vite" | "nextjs";
   source?: "public" | "private";
   privateKeyUuid?: string;
   targetId: string;

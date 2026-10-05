@@ -5,6 +5,17 @@ import { authHeaders, expireAuth } from "./authSession";
 export interface DataBackup {
   id: string; createdAt: string; bytes: number; sha256: string; includesStorage: boolean;
 }
+export interface DataDomainStatus {
+  projectId: string; status: string; message: string; revision: number;
+  publicUrl?: string; applicationOrigin?: string; targetId?: string;
+  domain?: string; checkedAt?: string; emailDelivery: "unconfigured";
+  operation?: DataStatus["operation"];
+}
+export interface DataDomainRequest {
+  action: "publish" | "refresh" | "stop";
+  targetId?: string; domain?: string; applicationOrigin?: string;
+  acknowledgePublic?: boolean; expectedRevision: number;
+}
 export interface DataStatus {
   projectId: string; provider: "supabase"; version: string; revision: number;
   status: string; message: string; url?: string; publishableKey?: string;
@@ -14,6 +25,8 @@ export interface DataStatus {
   backups: DataBackup[]; capabilities: Record<string, boolean>;
   requirements: { memoryMiB: number; cpuMillis: number; diskGiB: number };
   checkedAt?: string; priorStackRetained: boolean;
+  publicDomain?: DataDomainStatus;
+  publicUrl?: string;
 }
 export type DataType = "text" | "uuid" | "boolean" | "integer" | "bigint" | "numeric" | "timestamptz" | "jsonb";
 export interface DataColumn { name: string; type: string; nullable: boolean }
@@ -42,6 +55,8 @@ async function download(route: string, name: string) {
 }
 export const dataApi = {
   status: (id: string) => productApi.request<DataStatus>(base(id)),
+  domain: (id: string) => productApi.request<DataDomainStatus>(`${base(id)}/domain`),
+  configureDomain: (id: string, input: DataDomainRequest) => productApi.request<DataDomainStatus>(`${base(id)}/domain`, input),
   action: (id: string, action: "install" | "start" | "stop" | "refresh" | "backup" | "restore", options: { acknowledgeResources?: boolean; backupId?: string; confirmRestore?: boolean } = {}) => productApi.request<DataStatus>(base(id), { action, ...options }),
   users: (id: string) => productApi.request<{ users: DataUser[]; page: number; limit: number }>(`${base(id)}/users`),
   createUser: (id: string, email: string, password: string) => productApi.request<DataUser>(`${base(id)}/users`, { email, password, emailConfirm: true }),

@@ -17,48 +17,58 @@ import (
 )
 
 type CloudReleaseRequest struct {
-	TargetID       string `json:"targetId"`
-	Repository     string `json:"repository"`
-	Branch         string `json:"branch"`
-	Commit         string `json:"commit"`
-	Domain         string `json:"domain"`
-	Port           int    `json:"port"`
-	HealthPath     string `json:"healthPath"`
-	Dockerfile     string `json:"dockerfile"`
-	Source         string `json:"source,omitempty"`
-	PrivateKeyUUID string `json:"privateKeyUuid,omitempty"`
+	TargetID            string `json:"targetId"`
+	Repository          string `json:"repository"`
+	Branch              string `json:"branch"`
+	Commit              string `json:"commit"`
+	Domain              string `json:"domain"`
+	Port                int    `json:"port"`
+	HealthPath          string `json:"healthPath"`
+	Dockerfile          string `json:"dockerfile"`
+	Source              string `json:"source,omitempty"`
+	PrivateKeyUUID      string `json:"privateKeyUuid,omitempty"`
+	DataClientFramework string `json:"dataClientFramework,omitempty"`
 }
 
 // CloudRelease stores provider identifiers outside the project repository. It
 // never contains the target's token or connection URL.
 type CloudRelease struct {
 	Release
-	CloudReleaseRequest `json:"-"`
-	ProviderProjectID   string `json:"providerProjectId,omitempty"`
-	ApplicationID       string `json:"applicationId,omitempty"`
-	DeploymentID        string `json:"deploymentId,omitempty"`
-	TargetFingerprint   string `json:"targetFingerprint"`
-	RollbackOf          string `json:"rollbackOf,omitempty"`
+	CloudReleaseRequest    `json:"-"`
+	ProviderProjectID      string `json:"providerProjectId,omitempty"`
+	ApplicationID          string `json:"applicationId,omitempty"`
+	DeploymentID           string `json:"deploymentId,omitempty"`
+	TargetFingerprint      string `json:"targetFingerprint"`
+	RollbackOf             string `json:"rollbackOf,omitempty"`
+	ServerUUID             string `json:"serverUuid,omitempty"`
+	DataDomainRevision     int    `json:"dataDomainRevision,omitempty"`
+	DataBindingFingerprint string `json:"dataBindingFingerprint,omitempty"`
+	DataBindingStatus      string `json:"dataBindingStatus,omitempty"`
 }
 
 // The persisted/public wire shape has one commit, from Release provenance.
 // Keep the original request separately in memory for idempotency comparisons.
 type cloudReleaseWire struct {
 	Release
-	TargetID          string `json:"targetId"`
-	Repository        string `json:"repository"`
-	Branch            string `json:"branch"`
-	Domain            string `json:"domain"`
-	Port              int    `json:"port"`
-	HealthPath        string `json:"healthPath"`
-	Dockerfile        string `json:"dockerfile"`
-	Source            string `json:"source,omitempty"`
-	PrivateKeyUUID    string `json:"privateKeyUuid,omitempty"`
-	ProviderProjectID string `json:"providerProjectId,omitempty"`
-	ApplicationID     string `json:"applicationId,omitempty"`
-	DeploymentID      string `json:"deploymentId,omitempty"`
-	TargetFingerprint string `json:"targetFingerprint"`
-	RollbackOf        string `json:"rollbackOf,omitempty"`
+	TargetID               string `json:"targetId"`
+	Repository             string `json:"repository"`
+	Branch                 string `json:"branch"`
+	Domain                 string `json:"domain"`
+	Port                   int    `json:"port"`
+	HealthPath             string `json:"healthPath"`
+	Dockerfile             string `json:"dockerfile"`
+	Source                 string `json:"source,omitempty"`
+	PrivateKeyUUID         string `json:"privateKeyUuid,omitempty"`
+	ProviderProjectID      string `json:"providerProjectId,omitempty"`
+	ApplicationID          string `json:"applicationId,omitempty"`
+	DeploymentID           string `json:"deploymentId,omitempty"`
+	TargetFingerprint      string `json:"targetFingerprint"`
+	RollbackOf             string `json:"rollbackOf,omitempty"`
+	ServerUUID             string `json:"serverUuid,omitempty"`
+	DataClientFramework    string `json:"dataClientFramework,omitempty"`
+	DataDomainRevision     int    `json:"dataDomainRevision,omitempty"`
+	DataBindingFingerprint string `json:"dataBindingFingerprint,omitempty"`
+	DataBindingStatus      string `json:"dataBindingStatus,omitempty"`
 }
 
 func (row CloudRelease) MarshalJSON() ([]byte, error) {
@@ -70,6 +80,9 @@ func (row CloudRelease) MarshalJSON() ([]byte, error) {
 		ProviderProjectID: row.ProviderProjectID, ApplicationID: row.ApplicationID,
 		DeploymentID: row.DeploymentID, TargetFingerprint: row.TargetFingerprint,
 		RollbackOf: row.RollbackOf,
+		ServerUUID: row.ServerUUID, DataClientFramework: row.DataClientFramework,
+		DataDomainRevision: row.DataDomainRevision, DataBindingFingerprint: row.DataBindingFingerprint,
+		DataBindingStatus: row.DataBindingStatus,
 	})
 }
 
@@ -85,10 +98,13 @@ func (row *CloudRelease) UnmarshalJSON(data []byte) error {
 			Branch: decoded.Branch, Commit: decoded.Commit, Domain: decoded.Domain,
 			Port: decoded.Port, HealthPath: decoded.HealthPath, Dockerfile: decoded.Dockerfile,
 			Source: decoded.Source, PrivateKeyUUID: decoded.PrivateKeyUUID,
+			DataClientFramework: decoded.DataClientFramework,
 		},
 		ProviderProjectID: decoded.ProviderProjectID, ApplicationID: decoded.ApplicationID,
 		DeploymentID: decoded.DeploymentID, TargetFingerprint: decoded.TargetFingerprint,
 		RollbackOf: decoded.RollbackOf,
+		ServerUUID: decoded.ServerUUID, DataDomainRevision: decoded.DataDomainRevision, DataBindingFingerprint: decoded.DataBindingFingerprint,
+		DataBindingStatus: decoded.DataBindingStatus,
 	}
 	return nil
 }
@@ -180,7 +196,7 @@ func (s *Server) reserveCloudRelease(row CloudRelease) (CloudRelease, bool, erro
 		return row, false, err
 	}
 	for _, previous := range rows {
-		if previous.TargetID == row.TargetID && previous.CloudReleaseRequest == row.CloudReleaseRequest && previous.BriefRevision == row.BriefRevision && previous.ConfigurationRevision == row.ConfigurationRevision && previous.Status != "failed" && previous.Status != "cancelled" {
+		if previous.TargetID == row.TargetID && previous.CloudReleaseRequest == row.CloudReleaseRequest && previous.BriefRevision == row.BriefRevision && previous.ConfigurationRevision == row.ConfigurationRevision && previous.DataDomainRevision == row.DataDomainRevision && previous.DataBindingFingerprint == row.DataBindingFingerprint && previous.Status != "failed" && previous.Status != "cancelled" {
 			if previous.TargetFingerprint != row.TargetFingerprint {
 				return row, false, errors.New("the deployment target changed; reconnect the original target before refreshing")
 			}
@@ -212,6 +228,10 @@ func (s *Server) reserveCloudRelease(row CloudRelease) (CloudRelease, bool, erro
 func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 	var req CloudReleaseRequest
 	if !journeyDecode(w, r, &req) {
+		return
+	}
+	if !validDataClientFramework(req.DataClientFramework) {
+		journeyError(w, 400, "invalid_data_client_framework", "Choose runtime-only, Vite or Next.js browser data variables.")
 		return
 	}
 	p, ok := s.requestProject(w, r)
@@ -303,7 +323,27 @@ func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 500, "configuration_unavailable", "Could not read private application configuration.")
 		return
 	}
-	row := CloudRelease{Release: Release{ID: newID("cloud-rel-"), ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: target.ID, Status: "preparing", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}, CloudReleaseRequest: req, TargetFingerprint: targetFingerprint(target)}
+	row := CloudRelease{Release: Release{ID: newID("cloud-rel-"), ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: target.ID, Status: "preparing", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}, CloudReleaseRequest: req, TargetFingerprint: targetFingerprint(target), ServerUUID: target.ServerUUID}
+	data, err := s.cloudApplicationDataSnapshot(ctx, row)
+	if err != nil {
+		journeyError(w, 409, "data_domain_unverified", err.Error())
+		return
+	}
+	row.DataDomainRevision, row.DataBindingFingerprint = data.DomainRevision, cloudDataFingerprint(data, req.DataClientFramework)
+	if row.DataBindingFingerprint != "" {
+		row.DataBindingStatus = "current"
+	}
+	if _, err := cloudApplicationVariables(row, configuration, data); err != nil {
+		journeyError(w, 409, "data_configuration_conflict", err.Error())
+		return
+	}
+	if len(dataClientAliases(req.DataClientFramework)) > 0 {
+		dockerfile, err := s.journeyGit(ctx, p.Path, "show", commit+":"+req.Dockerfile)
+		if err != nil || len(dockerfile) > 1<<20 || requireDataClientDockerfileArgs(dockerfile, req.DataClientFramework) != nil {
+			journeyError(w, 409, "data_build_arguments_required", "Declare the selected public Data URL and anon key as Dockerfile ARG inputs in the framework build stage, then commit and push before deploying.")
+			return
+		}
+	}
 	row, created, err := s.reserveCloudRelease(row)
 	if err != nil {
 		journeyError(w, 409, "release_conflict", err.Error())
@@ -359,7 +399,7 @@ func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 		fail(errors.New("could not save the remote application identifier"))
 		return
 	}
-	if err := s.reconcileCloudApplicationConfiguration(ctx, row, client, configuration); err != nil {
+	if err := s.reconcileCloudApplicationConfiguration(ctx, row, client, configuration, data); err != nil {
 		// Environment mutations are reconciled by ownership/revision before a
 		// retry. No deployment has been requested, so an explicit new attempt
 		// can safely reuse the application after repairing configuration.
@@ -370,6 +410,16 @@ func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		journeyJSON(w, http.StatusBadGateway, row)
+		return
+	}
+	if err := s.recheckCloudApplicationData(ctx, row); err != nil {
+		row.Status, row.Message = "failed", err.Error()+" No deployment started."
+		row.DataBindingStatus = "redeploy-required"
+		if s.storeCloudRelease(row) != nil {
+			journeyError(w, 500, "release_record_failed", "Could not save the changed Data binding; no deployment started.")
+			return
+		}
+		journeyJSON(w, 409, row)
 		return
 	}
 	deployment, err := client.Deploy(ctx, row.ApplicationID)
@@ -417,6 +467,18 @@ func (s *Server) refreshCloudRelease(w http.ResponseWriter, r *http.Request) {
 	if row.Status == "ready" || row.Status == "failed" || row.Status == "cancelled" || row.Status == "stopped" {
 		// Terminal records describe the historical release. Probing an old URL
 		// after a newer commit was deployed would not verify the old revision.
+		if row.Status == "ready" && row.DataBindingFingerprint != "" {
+			ctx, cancel := context.WithTimeout(r.Context(), 40*time.Second)
+			defer cancel()
+			if err := s.recheckCloudApplicationData(ctx, row); err != nil {
+				row.DataBindingStatus = "redeploy-required"
+				row.Message = "This release's Data domain or client key changed. Verify the current Data domain and deploy again; browser values in the existing image are unchanged."
+				if err := s.storeCloudRelease(row); err != nil {
+					journeyError(w, 500, "release_record_failed", "Could not save the stale Data binding observation.")
+					return
+				}
+			}
+		}
 		journeyJSON(w, 200, row)
 		return
 	}

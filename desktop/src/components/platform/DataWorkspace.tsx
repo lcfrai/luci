@@ -3,6 +3,7 @@ import { dataApi, type DataStatus } from "../../api/data";
 import { errorText } from "../../api/product";
 import { platformApi, isolatedBrowserURL } from "../../api/platform";
 import { DataTables, DataUsers, DataStorage, DataRealtime, DataFunctions } from "./DataControls";
+import { DataPublicDomain } from "./DataPublicDomain";
 import "./platform.css";
 
 const sections = ["Services", "Tables", "Authentication", "Storage", "Realtime", "Functions", "Backups", "Connect"] as const;
@@ -105,6 +106,7 @@ function ProjectData({ projectId, dockerReady }: { projectId: string; dockerRead
         {data.priorStackRetained && <p>Previous stack volumes are retained. They are not deleted by restoring.</p>}
       </section>}
       {section === "Connect" && <section className="data-section"><h4>Connect your application</h4><p>Apps running on this project’s Docker network receive server connection settings privately when deployed. Your browser client uses the public anonymous key with row-level security. New Docker deployments receive this browser address automatically. Redeploy existing applications after connecting or reconnecting the workspace.</p>{data.endpointScope === "workspace-browser-pending" ? <><p>Your data services are running on the connected workspace. Connect a private browser address to use their API from this computer.</p><button type="button" className="luci-button" disabled={locked || !ready} onClick={() => void connectBrowser()}>{pending === "browser" ? "Connecting browser API…" : "Connect browser API"}</button></> : data.url ? <><label className="data-readonly">{data.endpointScope === "browser-gateway" ? "API address for your browser" : "API address on the selected Docker host"}<input readOnly value={data.url} /></label><p>{data.endpointScope === "browser-gateway" ? "This local address reaches your project through your active Luci workspace connection. Keep Luci and its Docker host running. Public hosting needs an HTTPS proxy and domain." : "This loopback address works on that Docker host. A cloud workspace needs an HTTPS proxy and domain before a browser on another machine can use it."}</p></> : <p>An API address will appear after installation.</p>}{data.publishableKey && <label className="data-readonly">Public anonymous key<textarea readOnly rows={4} value={data.publishableKey} /><small>This key identifies the project; it is not an administrator credential. Access depends on your table and storage policies.</small></label>}<p>Supabase {data.version}. Email delivery and OAuth providers need separate configuration before those sign-in flows can be used.</p></section>}
+      {section === "Connect" && installed && <DataPublicDomain projectId={projectId} disabled={locked || !dockerReady} ready={ready} onChange={value => setData(current => current ? { ...current, publicDomain: value, publicUrl: value.publicUrl, ...(value.operation ? { operation: value.operation } : {}) } : current)} />}
     </>}
   </section>;
 }

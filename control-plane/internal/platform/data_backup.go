@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 )
 
 const dataBackupLimit = 64 << 20
@@ -374,6 +375,10 @@ func (s *Service) detachDataNetwork(ctx context.Context, i dataInstallation) err
 	return nil
 }
 func (s *Service) restoreData(ctx context.Context, id string, previous dataInstallation, backupID string) (err error) {
+	publicBefore, e := s.prepareDataDomainRestore(ctx, id)
+	if e != nil {
+		return e
+	}
 	_, b, e := s.readDataBackup(id, backupID)
 	if e != nil {
 		return &dataFailure{"This backup is unavailable or no longer matches its recorded checksum."}
@@ -420,6 +425,8 @@ func (s *Service) restoreData(ctx context.Context, id string, previous dataInsta
 		if err == nil || switched {
 			return
 		}
+		ctx, cancel := context.WithTimeout(s.ctx, 5*time.Minute)
+		defer cancel()
 		if candidateStarted {
 			for _, name := range dataServiceNames {
 				container := s.dataName(next, name)
@@ -454,8 +461,10 @@ func (s *Service) restoreData(ctx context.Context, id string, previous dataInsta
 				if e != nil {
 					return e
 				}
-				_, e = s.browserDataURL(previous, previousSecret)
-				return e
+				if _, e = s.browserDataURL(previous, previousSecret); e != nil {
+					return e
+				}
+				return s.recoverDataDomainRestore(ctx, id, publicBefore)
 			}
 			if reinstate() != nil {
 				err = &dataFailure{"Restore failed during activation and the previous application connection could not be fully reinstated. Both stacks and the backup are retained; inspect owned services before retrying."}
@@ -550,6 +559,9 @@ func (s *Service) restoreData(ctx context.Context, id string, previous dataInsta
 		return e
 	}
 	if _, e = s.browserDataURL(next, secret); e != nil {
+		return e
+	}
+	if e = s.promoteDataDomainRestore(ctx, id, publicBefore); e != nil {
 		return e
 	}
 	switched = true

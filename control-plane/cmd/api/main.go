@@ -165,7 +165,9 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			cloudBundle = filepath.Join(filepath.Dir(exe), "cloud", "luci-cloud-linux-amd64.tar.gz")
 		}
 	}
-	productService, err := product.New(product.Options{BrowserPreviewPort: cfg.BrowserPreviewPort, ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
+	var platformService *platform.Service
+	resolveDataPlatform := func() *platform.Service { return platformService }
+	productService, err := product.New(product.Options{CloudDataBindings: product.PlatformCloudDataBindings(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
 		if shutdownService != nil {
 			shutdownService()
 		}
@@ -176,7 +178,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	defer productService.Close()
 	// Public browser origins are optional and independent from private Docker
 	// health URLs. The portable/native launch paths keep their prior defaults.
-	platformService, err := platform.New(platform.Options{BrowserPreviewPort: cfg.BrowserPreviewPort, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource})
+	platformService, err = platform.New(platform.Options{DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource})
 	if err != nil {
 		return fmt.Errorf("initialise application platform: %w", err)
 	}

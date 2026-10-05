@@ -3,8 +3,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { DataWorkspace } from "./DataWorkspace";
 import { dataApi, type DataStatus } from "../../api/data";
 import { platformApi } from "../../api/platform";
+vi.mock("../../api/product", async (importOriginal) => ({ ...await importOriginal<typeof import("../../api/product")>(), productApi: { targets: vi.fn().mockResolvedValue({ targets: [] }) } }));
 vi.mock("../../api/platform", async (importOriginal) => ({ ...await importOriginal<typeof import("../../api/platform")>(), platformApi: { prepareBrowser: vi.fn() } }));
-vi.mock("../../api/data", () => ({ dataApi: { status: vi.fn(), action: vi.fn(), users: vi.fn(), createUser: vi.fn(), tables: vi.fn(), rows: vi.fn(), rls: vi.fn(), buckets: vi.fn(), realtime: vi.fn(), functions: vi.fn(), downloadBackup: vi.fn() } }));
+vi.mock("../../api/data", () => ({ dataApi: { domain: vi.fn().mockImplementation(id => Promise.resolve({ projectId: id, status: "not-configured", revision: 0, message: "Private connection", emailDelivery: "unconfigured" })), configureDomain: vi.fn(), status: vi.fn(), action: vi.fn(), users: vi.fn(), createUser: vi.fn(), tables: vi.fn(), rows: vi.fn(), rls: vi.fn(), buckets: vi.fn(), realtime: vi.fn(), functions: vi.fn(), downloadBackup: vi.fn() } }));
 const initial: DataStatus = { projectId: "owned", provider: "supabase", version: "self-hosted/v0.8.2", revision: 0, status: "not-installed", message: "Not installed.", services: [], backups: [], capabilities: {}, requirements: { memoryMiB: 4096, cpuMillis: 2000, diskGiB: 40 }, priorStackRetained: false };
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(platformApi.prepareBrowser).mockReset(); vi.mocked(dataApi.status).mockResolvedValue(structuredClone(initial)); });
 

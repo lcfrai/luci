@@ -282,6 +282,40 @@ registered application origins for this project. Server deployments retain
 `SUPABASE_URL=http://supabase-api:8000`; `SUPABASE_PUBLIC_URL` uses the browser
 endpoint. Cloud applications need an explicitly configured HTTPS data endpoint.
 
+GET `/v1/platform/projects/{id}/data/domain` reads the saved public connection;
+it does not contact Docker or create provider resources. POST accepts
+`{action:"publish"|"refresh"|"stop",expectedRevision,targetId?,domain?,
+applicationOrigin?,acknowledgePublic?}`. Publication needs a saved deployment
+target, a public DNS name, the exact HTTPS application origin and explicit public
+acknowledgement. Internal project/tenant/network/provider identifiers and secrets
+are derived by the service; HTTP callers cannot supply them. Each admitted action
+returns202 with a durable operation, and cached reads show its progress. A
+duplicate active attempt is refused; an uncertain provider response is reconciled
+before another creation. Stop remains available for an existing public connection
+when native services are stopped.
+
+The response includes `{projectId,status,message,revision,operation?,domain?,
+publicUrl?,applicationOrigin?,targetId?,serverUuid?,providerServiceUuid?,
+configurationDigest?,checkedAt?,emailDelivery:"unconfigured"}`. A public URL is
+usable only at `verifiedHTTPS`. Publication requires proven co-location of the
+owned native stack, network and official Coolify controller with the selected
+provider server. An unrelated remote deployment server or Docker engine cannot
+publish a local stack. Luci configures a restricted client API proxy; private
+database, Studio and administrative routes remain inaccessible. DNS/certificate
+issuance and the running configuration digest plus Auth/REST/Storage client
+endpoints must verify through trusted HTTPS before success. Restore retains the
+same domain and stable upstream; changed client keys or domain configuration
+invalidate application bindings until redeployment.
+
+Cloud release requests can explicitly choose `dataClientFramework:"none"|"vite"|
+"nextjs"` (default `none`). A verified public connection supplies only its HTTPS
+URL and anonymous/publishable client key. Vite receives `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY`; Next.js receives `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`. Only the chosen public aliases are build variables;
+the committed Dockerfile must declare both ARGs in its frontend build stage.
+Private configuration remains runtime-only. Generated/manual collisions or
+changes to tenant, server, domain revision, digest or key refuse deployment.
+
 POST the same route with `{action,acknowledgeResources?,backupId?,confirmRestore?}`
 returns202 and an operation receipt
 `{id,action,status,stage,message,createdAt,updatedAt}`. Actions are `install`,

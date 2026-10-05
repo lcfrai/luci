@@ -223,3 +223,35 @@ it("prepares read-only access before deploying a private repository and carries 
     }),
   );
 });
+it.each(["none", "vite", "nextjs"] as const)("carries the explicit %s browser data choice into the reviewed cloud release", async (framework) => {
+  vi.spyOn(productApi, "targets").mockResolvedValue({ targets: [{ id: "target-1", name: "Server", serverUuid: "srv-1", baseUrl: "https://control.example" }] });
+  vi.spyOn(productApi, "git").mockResolvedValue(git);
+  vi.spyOn(productApi, "gitDelivery").mockResolvedValue({ origin: "https://github.com/owner/journal.git", branch: "main", head });
+  const deploy = vi.fn();
+  render(<CloudDeployForm projectId="p-1" busy="" onSetup={vi.fn()} onDeploy={deploy} />);
+  await screen.findByRole("option", { name: "Server" });
+  fireEvent.change(screen.getByLabelText("Deployment server"), { target: { value: "target-1" } });
+  fireEvent.change(screen.getByLabelText("Application domain"), { target: { value: "journal.example.com" } });
+  fireEvent.change(screen.getByLabelText("Repository access"), { target: { value: "public" } });
+  fireEvent.change(screen.getByLabelText("Browser data variables"), { target: { value: framework } });
+  fireEvent.submit(screen.getByRole("button", { name: "Deploy to cloud" }).closest("form")!);
+  expect(deploy).toHaveBeenCalledTimes(1);
+  const input = deploy.mock.calls[0][0];
+  expect(input.commit).toBe(head);
+  expect(input.dataClientFramework).toBe(framework === "none" ? undefined : framework);
+  expect(input.privateKeyUuid).toBeUndefined();
+});
+it("does not submit another deployment while a release is running", async () => {
+  vi.spyOn(productApi, "targets").mockResolvedValue({ targets: [{ id: "target-1", name: "Server", serverUuid: "srv-1", baseUrl: "https://control.example" }] });
+  vi.spyOn(productApi, "git").mockResolvedValue(git);
+  vi.spyOn(productApi, "gitDelivery").mockResolvedValue({ origin: "https://github.com/owner/journal.git", branch: "main", head });
+  const deploy = vi.fn();
+  const props = { projectId: "p-1", onSetup: vi.fn(), onDeploy: deploy };
+  const view = render(<CloudDeployForm {...props} busy="" />);
+  await screen.findByRole("option", { name: "Server" });
+  fireEvent.change(screen.getByLabelText("Deployment server"), { target: { value: "target-1" } });
+  fireEvent.change(screen.getByLabelText("Repository access"), { target: { value: "public" } });
+  view.rerender(<CloudDeployForm {...props} busy="Deploying…" />);
+  fireEvent.submit(screen.getByRole("button", { name: "Deploying…" }).closest("form")!);
+  expect(deploy).not.toHaveBeenCalled();
+});

@@ -1,8 +1,8 @@
 // Package project enumerates the projects, branches and worktrees the cockpit's
 // rail shows. It is READ-ONLY by design: docs/PROGRAM.md phase 3 owns worktree
 // lifecycle, and a Phase 2 that could create or delete one would be building
-// Phase 3 badly. Three git subcommands are used, all of them reads —
-// for-each-ref, rev-parse and worktree list — and project_test.go asserts that
+// Phase 3 badly. Git commands remain read-only, including symbolic-ref and
+// check-ref-format for a repository's initial branch; project_test.go asserts that
 // whitelist mechanically.
 package project
 
@@ -22,9 +22,9 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/worktree"
 )
 
-// branchReadBudget bounds the WHOLE of Branches — its for-each-ref, its
-// rev-parse --abbrev-ref and F4's confirmation — at one GitTimeout, rather
-// than letting three gits each take their own and add up to 30 s.
+// branchReadBudget bounds the WHOLE of Branches, including the initial branch's
+// symbolic-ref and format checks, at one GitTimeout rather than letting every
+// invocation take its own bound.
 //
 // GitTimeout's own reason is that a blocked enumeration git must fail rather
 // than hold a request open, and that reason is about the REQUEST, so the
@@ -287,12 +287,24 @@ func (s *Scanner) Branches(ctx context.Context, projectID string) ([]Branch, err
 	if err != nil {
 		return nil, fmt.Errorf("project: list branches of %s: %w", p.Name, err)
 	}
-	head, err := s.head(ctx, p.Path)
+	head, unborn, err := s.head(ctx, p.Path)
 	if err != nil {
 		return nil, fmt.Errorf("project: resolve the checked-out branch of %s: %w", p.Name, err)
 	}
 
 	lines := strings.Split(strings.ReplaceAll(string(out), "\r\n", "\n"), "\n")
+	if unborn {
+		// A new repository's symbolic branch exists before refs/heads contains
+		// its first commit. Expose that actual branch so its primary worktree
+		// can run the first agent; enumeration must never create a commit.
+		found := false
+		for _, name := range lines {
+			found = found || strings.TrimSpace(name) == head
+		}
+		if !found {
+			lines = append(lines, head)
+		}
+	}
 	branches := make([]Branch, 0, len(lines))
 	for _, name := range lines {
 		name = strings.TrimSpace(name)
@@ -311,60 +323,34 @@ func (s *Scanner) Branches(ctx context.Context, projectID string) ([]Branch, err
 	return branches, nil
 }
 
-// head is the branch checked out in dir, or "" when there is no branch name
-// to mark: an unborn HEAD, or a detached one, which rev-parse answers with the
-// literal "HEAD" and no branch matches.
-//
-// This used to tolerate EVERY failure of rev-parse, though its comment gave
-// exactly one reason — a repository with no commits. So a rev-parse killed by
-// GitTimeout returned the branch list with nothing marked IsHead, and no error
-// and no log line said why: a wrong fact, drawn confidently, which is worse
-// than a failure the rail can show (F4, the 2026-09-27 proof).
-//
-// Only an unborn HEAD is tolerated, and it is CONFIRMED rather than guessed
-// from git's prose, which is translated and reworded between versions:
-// `rev-parse --verify --quiet HEAD` exits non-zero and says NOTHING when HEAD
-// does not resolve, and prints on every other failure — no repository, a
-// broken object store, a killed process. A confirmation that itself times out
-// confirms nothing, so the original failure is returned.
-//
-// A confirmation that NEVER RAN confirms nothing either, and that is the same
-// silence read from the other end: os/exec's, not git's. A refused process
-// create leaves both streams empty with neither context done, so without
-// GitError.Exited the tolerated case was "the confirmation said nothing" when
-// it had to be "git ran, and said nothing" — and F4 came back on exactly the
-// transient per-process stall this code was written for (review I-1).
-//
-// Review 2, I-1: what this needs is the narrower fact, ExitedNonZero. A
-// confirmation whose pipes gitWaitDelay closed under it RAN — so Exited is
-// true — and is silent for os/exec's reason rather than git's. Only git
-// reaching its own non-zero exit is git saying "HEAD resolves to nothing".
-//
-// Review 3, I-1 corrects the second example round 2 gave here: a confirmation
-// THIS runner killed at its bound is NOT silent the same way on Windows. The
-// kill is TerminateProcess(…, 1), Process.Wait reports that status, and
-// Cmd.Wait prefers it over the context's error, so a killed confirmation is
-// an *exec.ExitError — ExitedNonZero is true for it. TimedOut is what
-// excludes it here, and only when this runner's own bound is what ended it.
-// A THIRD party's kill — AV, Task Manager, a reboot sweep — arrives as exit 1
-// with both streams empty and no deadline of ours, which is byte-for-byte an
-// unborn HEAD's answer, and is tolerated. That residual is review 3's m-5 and
-// is RECORDED as an owner question, not built: `git symbolic-ref -q HEAD`
-// answers the unborn case POSITIVELY (exit 0, refs/heads/main, on a
-// repository with no commits), so the tolerated silence could be replaced by
-// an answer that also names the branch.
-func (s *Scanner) head(ctx context.Context, dir string) (string, error) {
+// head reports the current branch and whether it has no commit yet. A failed
+// rev-parse is tolerated only when Git itself confirms no HEAD object and a
+// successful symbolic-ref plus check-ref-format identifies an actual local
+// branch. Timeouts, cancellation, failed starts, invalid refs and detached
+// failures never become an inferred initial branch.
+func (s *Scanner) head(ctx context.Context, dir string) (string, bool, error) {
 	raw, err := s.git.Run(ctx, dir, "rev-parse", "--abbrev-ref", "HEAD")
 	if err == nil {
-		return strings.TrimSpace(string(raw)), nil
+		return strings.TrimSpace(string(raw)), false, nil
 	}
 	if _, confirm := s.git.Run(ctx, dir, "rev-parse", "--verify", "--quiet", "HEAD"); confirm != nil {
 		var ge *GitError
 		if errors.As(confirm, &ge) && ge.ExitedNonZero && !ge.TimedOut && !ge.Canceled && ge.Output() == "" {
-			return "", nil
+			ref, refErr := s.git.Run(ctx, dir, "symbolic-ref", "--quiet", "HEAD")
+			if refErr != nil {
+				return "", false, refErr
+			}
+			name := strings.TrimSpace(string(ref))
+			if !strings.HasPrefix(name, "refs/heads/") || strings.ContainsAny(name, "\r\n\x00") {
+				return "", false, errors.New("project: initial HEAD does not identify a local branch")
+			}
+			if _, refErr = s.git.Run(ctx, dir, "check-ref-format", name); refErr != nil {
+				return "", false, refErr
+			}
+			return strings.TrimPrefix(name, "refs/heads/"), true, nil
 		}
 	}
-	return "", err
+	return "", false, err
 }
 
 // Worktrees lists the repository's worktrees. It reports what git reports and
