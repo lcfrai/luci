@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -468,6 +469,13 @@ func archiveCommittedProject(ctx context.Context, dir, commit, destination strin
 }
 
 func extractPreviewArchive(reader io.Reader, destination string) error {
+	root, err := os.Lstat(destination)
+	if err != nil || !root.IsDir() || root.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+		return errors.New("the build context requires an ordinary private staging directory")
+	}
+	if runtime.GOOS != "windows" && root.Mode().Perm() != 0700 {
+		return errors.New("the build context staging directory must remain private")
+	}
 	archive := tar.NewReader(reader)
 	total := int64(0)
 	files := 0
@@ -513,28 +521,34 @@ func extractPreviewArchive(reader io.Reader, destination string) error {
 		if total > 100<<20 {
 			return errors.New("the build context exceeds 100 MiB")
 		}
-		target := filepath.Join(destination, filepath.FromSlash(name))
 		if header.Typeflag == tar.TypeDir {
-			if err := os.MkdirAll(target, 0700); err != nil {
+			if err := previewArchiveDirectory(destination, name); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
+		if err := previewArchiveDirectory(destination, filepath.ToSlash(filepath.Dir(filepath.FromSlash(name)))); err != nil {
 			return err
 		}
-		if _, err := guardedProjectPath(destination, name, true); err != nil {
+		target, err := guardedProjectPath(destination, name, true)
+		if err != nil {
 			return err
 		}
-		mode := os.FileMode(0600)
+		mode := os.FileMode(0644)
 		if header.Mode&0111 != 0 {
-			mode = 0700
+			mode = 0755
 		}
-		file, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+		file, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 		if err != nil {
 			return err
 		}
 		_, copyErr := io.CopyN(file, archive, header.Size)
+		// The enclosing MkdirTemp directory stays private. Files inside must
+		// retain canonical Git readability/executability when Docker COPY
+		// gives them to a non-root application, including under umask 077.
+		if copyErr == nil {
+			copyErr = file.Chmod(mode)
+		}
 		closeErr := file.Close()
 		if copyErr != nil {
 			return copyErr
@@ -543,4 +557,58 @@ func extractPreviewArchive(reader io.Reader, destination string) error {
 			return closeErr
 		}
 	}
+}
+
+// Create and check each ancestor before changing its permissions. MkdirAll
+// alone would follow a pre-existing directory symlink, and a later directory
+// header could otherwise chmod a path outside this private build context.
+func previewArchiveDirectory(root, relative string) error {
+	if relative == "." || relative == "" {
+		return nil // Never broaden the private outer staging directory.
+	}
+	var partial string
+	for _, component := range strings.Split(relative, "/") {
+		if partial == "" {
+			partial = component
+		} else {
+			partial += "/" + component
+		}
+		directory, err := guardedProjectPath(root, partial, true)
+		if err != nil {
+			return err
+		}
+		if err := os.Mkdir(directory, 0700); err != nil && !errors.Is(err, os.ErrExist) {
+			return err
+		}
+		info, err := os.Lstat(directory)
+		if err != nil || !info.IsDir() || info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+			return errors.New("the build context contains an unsafe directory")
+		}
+		if _, err := guardedProjectPath(root, partial, false); err != nil {
+			return err
+		}
+		opened, err := os.Open(directory)
+		if err != nil {
+			return err
+		}
+		actual, statErr := opened.Stat()
+		if statErr != nil || !os.SameFile(info, actual) {
+			_ = opened.Close()
+			return errors.New("the build context directory changed during extraction")
+		}
+		guardErr := func() error {
+			if _, err := guardedProjectPath(root, partial, false); err != nil {
+				return err
+			}
+			return opened.Chmod(0755)
+		}()
+		closeErr := opened.Close()
+		if guardErr != nil {
+			return guardErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+	}
+	return nil
 }

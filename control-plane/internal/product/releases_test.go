@@ -207,7 +207,11 @@ func TestPreviewArchiveRejectsTraversalLinksAndOversizedEntries(t *testing.T) {
 				t.Fatal(err)
 			}
 			_ = writer.Close()
-			if err := extractPreviewArchive(&data, t.TempDir()); err == nil {
+			root := t.TempDir()
+			if err := os.Chmod(root, 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := extractPreviewArchive(&data, root); err == nil {
 				t.Fatalf("unsafe archive entry accepted: %#v", header)
 			}
 		})

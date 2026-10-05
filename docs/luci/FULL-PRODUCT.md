@@ -534,3 +534,66 @@ compiled and immutable installed light/dark controls must supply actual proof.
 The full goal remains open. The completed UI, auxiliary shell, portable and CI
 runtime outcomes do not establish Codex subscription implementation, the required
 public generated site, live provider/domain/TLS outcomes or external email delivery.
+
+### Native installer acceptance result and bounded driver correction
+
+The 0.4.9 Windows native job subsequently failed during actual installed UAT.
+Its native state tests (12), packaged checks (six), launcher checks (seven) and
+control-plane checks (seven) pass. Account creation, returning sign-in/recovery,
+projects-folder persistence and Git identity reached the installed application.
+The next real WebDriver click on Continue to projects was intercepted while an
+automatic workspace readiness check temporarily disabled that control. Project
+creation, restart, reinstall and uninstall were not reached. The original failed
+evidence and exact installer digest are retained under
+`artifacts/review/049-ci-37348953998-recovery`; this is not a native UAT pass.
+
+The next candidate's driver re-resolves a visible, enabled control after only
+three genuine W3C rejection classes: stale element reference, intercepted click
+and element not interactable. Lookup, native click requests and retry delays
+share one 30-second deadline. Fatal or ambiguous failures remain fatal, and the
+driver cannot force a click or bypass readiness. Syntax checking and eight
+isolated checks of the actual helper code pass. A new installed run must still
+exercise the original full persistence, restart, reinstall and uninstall gates.
+
+The original unadmitted 0.4.10 CSS-only release from source `898e539c` is retained
+as `artifacts/releases/0.4.10-898e539c-retained`, with its archive/manifest digests
+unchanged. Its Docker and source exports remain separate original evidence; they
+will not be relabelled as a later source candidate.
+
+### Committed preview permissions and retained Functions acceptance
+
+The retained branch journey reaches exact source commits, native branch creation,
+live CLI output and stopped sessions, but its 0.4.9 preview fails the real HTTP
+health deadline. Native inspection of that exact built image confirms the cause:
+the committed page is root-owned mode 0600, while the application runs as
+UID/GID 1001. The archive extractor had replaced Git's readable modes with
+private host-file modes. The failed preview is removed by its normal failure
+cleanup; all six owned branch shells are stopped, and source/history remain.
+Evidence is the secondary instance's
+`branch-preview-diagnostic-90c3b2dc-0a5e-42f1-8560-7c141fb3736a/results.json`.
+
+The next source candidate retains its outer staging directory at mode 0700 and
+normalizes only internal committed files/directories to 0644/0755. Explicit
+handle-based permission changes preserve those modes under umask 077. Each
+ancestor is confined and checked before creation/permission changes; linked roots,
+linked ancestors, existing-file overwrite, special bits and private source files
+remain refused. Seven actual Linux regression gates pass as UID/GID 1001,
+including real Git extraction and the original traversal/link/size checks, with
+no skips. Source fingerprints remain identical before/after and the disposable
+executor is removed. Evidence is
+`artifacts/review/010-linux-preview-permissions-1aaccb55-03bb-4a9b-a1d4-09cd39a45cc8/summary.json`.
+This proves the source correction, not a new installed preview outcome.
+The complete affected product suite passes (297.110 seconds), product vet passes,
+and the focused Windows archive/local-release checks pass (5.422 seconds). The
+new matching package must still build and serve the unchanged non-root fixture.
+
+The retained custom Functions journey on installed 0.4.9 passes all 17 checks.
+Actual UI/source/native Git publication, authenticated invocation, three denied
+caller classes, a second version, rollback, failed compilation retaining the
+active route and genuine stop/start persistence pass. Removing this run's
+endpoint yields 404 while the built-in function remains reachable. Earlier
+histories and the invalid committed candidate are preserved. Final native
+readback finds all eleven original services stopped with their named-volume
+identities unchanged. Evidence is the secondary instance's
+`functions-ui-58ce3ee6-7819-4b68-bddb-7741e1d0d497/results.json`. This is an
+auxiliary acceptance fixture, not a subscription-generated benchmark application.

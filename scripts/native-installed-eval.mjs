@@ -34,16 +34,22 @@ const wdURL = "http://127.0.0.1:4444";
 const elementKey = "element-6066-11e4-a52e-4f735466cecf";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function request(path, method = "GET", body) {
+async function request(path, method = "GET", body, deadline) {
+  const remaining = deadline === undefined ? 90_000 : deadline - Date.now();
+  if (remaining <= 0) throw new Error(`WebDriver ${method} ${path}: click deadline exceeded`);
   const response = await fetch(wdURL + path, {
     method, headers: { "content-type": "application/json" },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(90_000),
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(remaining),
   });
   const answer = await response.json();
-  if (!response.ok || answer.value?.error) throw new Error(`WebDriver ${method} ${path}: ${answer.value?.error || response.status}: ${answer.value?.message || ""}`);
+  if (!response.ok || answer.value?.error) {
+    const error = new Error(`WebDriver ${method} ${path}: ${answer.value?.error || response.status}: ${answer.value?.message || ""}`);
+    error.webdriverError = answer.value?.error;
+    throw error;
+  }
   return answer.value;
 }
-const command = (path, method = "POST", body = {}) => request(`/session/${session}${path}`, method, method === "GET" ? undefined : body);
+const command = (path, method = "POST", body = {}, deadline) => request(`/session/${session}${path}`, method, method === "GET" ? undefined : body, deadline);
 const execute = (script, ...args) => command("/execute/sync", "POST", { script, args });
 async function until(label, probe, ms = 30_000) {
   const deadline = Date.now() + ms;
@@ -54,8 +60,8 @@ async function until(label, probe, ms = 30_000) {
   }
   throw new Error(`${label} timed out${last ? `: ${last.message}` : ""}`);
 }
-async function element(kind, name) {
-  return until(`${kind} ${name}`, () => execute(`
+async function lookupElement(kind, name, deadline) {
+  return command("/execute/sync", "POST", { script: `
     const visible=e=>!!(e&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden'&&getComputedStyle(e).opacity!=='0');
     const norm=s=>(s||'').replace(/\\s+/g,' ').trim();
     // Fluid retains decorative measurement labels. Match the visible control's
@@ -72,16 +78,36 @@ async function element(kind, name) {
       const field=label?.querySelector('input,textarea,select');
       return field&&!field.disabled?field:null;
     }
-    if(arguments[0]==='css') return [...scope.querySelectorAll(arguments[1])].find(visible)||null;
-    if(arguments[0]==='file') return [...scope.querySelectorAll('.journey-directory button')].filter(visible).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
+    if(arguments[0]==='css') return [...scope.querySelectorAll(arguments[1])].find(e=>visible(e)&&!e.disabled)||null;
+    if(arguments[0]==='file') return [...scope.querySelectorAll('.journey-directory button')].filter(e=>visible(e)&&!e.disabled).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
     return [...scope.querySelectorAll('button,summary,[role=treeitem]')].filter(e=>visible(e)&&!e.disabled).find(e=>
       e.getAttribute('aria-label')===arguments[1] || labelled(e)===arguments[1] || namedText(e)===arguments[1] ||
       (e.classList.contains('sub-row') && norm(e.textContent).endsWith(arguments[1])))||null;
-  `, kind, name));
+  `, args: [kind, name] }, deadline);
+}
+async function element(kind, name) {
+  return until(`${kind} ${name}`, () => lookupElement(kind, name));
 }
 async function click(name, kind = "button") {
-  const e = await element(kind, name);
-  await command(`/element/${e[elementKey]}/click`);
+  const deadline = Date.now() + 30_000;
+  let last;
+  while (Date.now() < deadline) {
+    try {
+      const e = await lookupElement(kind, name, deadline);
+      if (e) {
+        await command(`/element/${e[elementKey]}/click`, "POST", {}, deadline);
+        return;
+      }
+    } catch (error) {
+      // These W3C errors reject the click before dispatch. Resolve the current
+      // enabled control again; never force it or retry an ambiguous failure.
+      if (!["stale element reference", "element click intercepted", "element not interactable"].includes(error.webdriverError)) throw error;
+      last = error;
+    }
+    const remaining = deadline - Date.now();
+    if (remaining > 0) await sleep(Math.min(200, remaining));
+  }
+  throw new Error(`click ${kind} ${name} timed out${last ? `: ${last.message}` : ""}`);
 }
 async function openDisclosure(name) {
   const collapsed = await execute("const summary=[...document.querySelectorAll('details>summary')].find(e=>e.textContent.trim()===arguments[0]);return !!(summary&&!summary.parentElement.open)", name);
