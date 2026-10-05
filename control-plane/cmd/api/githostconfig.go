@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -178,9 +179,12 @@ func (h hostGit) value(ctx context.Context, key string, args ...string) (string,
 // read together with --show-origin so a value an [include] pulled in is paired
 // with the file that actually set it, not the top-level file (X-3 review 3 I-C).
 // --includes is on for the same reason config() sets it: naming a scope turns
-// include.path off, and the host's git follows it. An unset key answered by
-// --default has the origin "command line", which parseShowOrigin reports as no
-// file.
+// include.path off, and the host's git follows it. Read configured values
+// without --default: some supported Linux Git builds abort when --show-origin
+// tries to report a default outside a config callback. Only Git's quiet exit 1
+// proves that the key is absent. Its default is then expanded by Git against
+// the empty OS null file, so a config change between reads cannot introduce a
+// configured value whose origin was never checked.
 //
 // -z (X-3 review 4 I-C): without it git C-quotes an origin name holding a
 // backslash, a double quote, a control byte or a non-ASCII byte — a Windows
@@ -189,12 +193,46 @@ func (h hostGit) value(ctx context.Context, key string, args ...string) (string,
 // ran. With -z git writes the name raw and ends each field with a NUL, which
 // no path and no config value can hold, so there is no quoting to undo.
 func (h hostGit) valueWithOrigin(ctx context.Context, scope, key string, args ...string) (value, origin string, err error) {
-	full := append([]string{"config", "-z", "--show-origin", "--get", scope, "--includes"}, args...)
+	var configured []string
+	var def string
+	hasDefault := false
+	for i := 0; i < len(args); i++ {
+		if args[i] != "--default" {
+			configured = append(configured, args[i])
+			continue
+		}
+		if hasDefault || i+1 == len(args) {
+			return "", "", errors.New("git config default must be provided exactly once with a value")
+		}
+		hasDefault, def = true, args[i+1]
+		i++
+	}
+	full := append([]string{"config", "-z", "--show-origin", "--get", scope, "--includes"}, configured...)
 	out, err := h.git(ctx, append(full, key)...)
 	if err != nil {
-		return "", "", err
+		var failed *project.GitError
+		var exited interface{ ExitCode() int }
+		if !hasDefault || !errors.As(err, &failed) || !failed.Exited || !failed.ExitedNonZero || failed.TimedOut || failed.Canceled || failed.Output() != "" || !errors.As(failed.Err, &exited) || exited.ExitCode() != 1 {
+			return "", "", err
+		}
+		// --file reads only this empty file, never a newly added host setting
+		// or include. --type=path still performs Git's own ~/ expansion.
+		fallback := append([]string{"config", "-z", "--get", "--file", os.DevNull}, configured...)
+		out, err = h.git(ctx, append(fallback, "--default", def, key)...)
+		if err != nil {
+			return "", "", err
+		}
+		fields := strings.Split(string(out), "\x00")
+		if len(fields) != 2 || fields[1] != "" {
+			return "", "", errors.New("git config default did not answer one NUL-terminated value")
+		}
+		return fields[0], "", nil
 	}
-	return parseShowOrigin(string(out))
+	value, origin, err = parseShowOrigin(string(out))
+	if err == nil && origin == "" {
+		return "", "", errors.New("git config returned a configured value without its file origin")
+	}
+	return value, origin, err
 }
 
 // parseShowOrigin reads `git config -z --show-origin --get` output: exactly one

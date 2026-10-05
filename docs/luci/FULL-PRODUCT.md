@@ -363,3 +363,105 @@ The complete affected Windows product and platform suites pass (251.370 and
 skips preserved. Product/platform vet passes. The complete JSON test outcomes are
 in `artifacts/review/048-readiness-full-product-platform.jsonl`; these source
 checks do not substitute for the remaining installed lifecycle continuation.
+
+## Installed 0.4.8 continuation — 6 October 2026
+
+Clean source `1c53777f792d6636c69484d02e9f75e6fff510ef` produced the matching
+Windows installer, three portable packages, Linux cloud bundle, Docker archive
+and source export. Their manifests contain no missing licence evidence. Both
+owned Docker installations upgraded with accounts, project journeys and volumes
+preserved; installed binary and web hashes, non-root execution, read-only root,
+private engines and loopback publication were checked. Packaging exhausted the
+host disk and exposed stale Docker Desktop IPC paths. Bounded Cargo cleanup and
+identity-verified retention of those stopped IPC directories recovered Desktop;
+no project volume or account state was reset. The original failed attempts and
+successful recovery are retained in `artifacts/review`.
+
+The complete retained native-data journey passed all 24 checks against this exact
+package. It exercised actual application Auth, JWT/RLS, exact public/private
+Storage bytes, browser Realtime with an anonymous negative check, cross-origin
+application clients, a shipped function invocation, downloaded backup ZIP bytes
+and checksum, restoration into a fresh owned volume, original credentials and
+objects, and stop/start persistence. The unchanged retained application reached
+the restored service aliases and client URL. Its three eight-step browser client
+batches each returned HTTP 200 without CORS, CSP or network errors. The restored
+row was verified in the actual UI DOM; its screenshot did not visually include
+that row because of the internal scroll position. This is an auxiliary installed
+fixture, not the required subscription-generated application. Evidence is
+`artifacts/subscription-e2e/docker-instance-b6f125cd-0105-4570-8a69-9822280e4956/data-acceptance-c6ca6d69-1cdc-40f0-a11c-c1aa651ac73a/results.json`.
+An independent final observation found none of its 34 owned containers running,
+restarting or paused; source, volumes and failed receipt history were retained.
+
+The full installed Fluid workflow stopped on a genuine focus-return defect:
+closing the draft dialog left focus on the document body. A separately labelled
+partial continuation then verified native Sketch saving and exact design
+handoff approval, explicit draft discard, destination tabs, private-variable
+draft retention, collapsed invalid configuration and prevention of a build POST.
+Four controls across both themes and densities yielded 16 label measurements,
+minimum contrast 6.13 and intended 36/28-pixel heights. Six desktop/mobile
+Design, Deploy and Functions surfaces reported no axe violations or incomplete
+findings and no global overflow. The Functions screenshot showed the upper pane;
+its lower action label was verified through computed visibility. The corrected
+canvas and disclosure locators are test-helper corrections with their earlier
+failures retained. The partial result explicitly remains `fullAcceptance: false`:
+`fluid-workflow-ui-continuation-cf7a9958-c1d7-4987-8be8-2a3a49f18e09/results.json`
+within the secondary Docker instance.
+
+The installed branch journey separately failed opening a shell before allocating
+a session or preview. A native Docker probe reproduced Git's abort when
+`--show-origin` and `--default` were combined for an absent host setting. Neither
+fixture repository was changed to make the journey pass.
+
+CI run `37345129203` passed the broad source checks and positive Docker browser
+acceptance. SSH acceptance passed six outcomes before an unscoped project-create
+selector matched both the current cloud-workspace dialog and the catalogue behind
+it. The selector is corrected to the named current dialog with all persistence,
+isolation and return-local assertions retained; the remaining SSH outcomes need
+a new actual run. The independent exact 0.4.8 installer diagnostic
+`37345276463` installed and exercised account entry, then stopped because its
+returning-sign-in harness assumed automatic onboarding despite the earlier
+explicit choice to continue to projects. The harness now follows the visible
+Workspace setup action and still requires configuration to remain unsaved.
+Project continuation, restart, reinstall and uninstall were not reached. Its
+digest-verified failed-run evidence is
+`artifacts/review/native-048-clean-host-37345276463`.
+
+## 0.4.9 corrective source batch — 6 October 2026
+
+The controlled Fluid dialog captures its opening control and restores focus
+after Radix removes the focus trap. Unmocked Escape and Keep editing regressions
+reproduce the old body-focus failure and pass after the correction. The affected
+52 frontend/store checks and type checking pass. Complete installed focus and
+workflow acceptance must run against the new matching package.
+
+Host Git reads now obtain configured values with their checked file origins
+without combining `--show-origin` and `--default`. Only a quiet genuine Git exit
+1 permits a separate native read of the empty OS null file to expand a default.
+Timeout, cancellation, abort, partial output and a setting introduced between
+reads cannot bypass provenance checks. The focused error, race, origin and real
+Git regressions pass; the full affected API command package passes (27.319
+seconds). Four read-only replacement probes also pass in the installed Docker
+environment. Source evidence is
+`artifacts/subscription-e2e/049-host-git-default-checks.json`. These replacement
+probes do not prove a shell session until the corrected package is installed.
+
+The generic public server-error message now gives a truthful retry action without
+promising a persisted log which a private worker may discard. Its existing
+information-leak regression passes. This batch also includes the narrowly scoped
+native/SSH harness corrections and aligned active release versions. It does not
+complete installation, cloud, email or model-inference acceptance.
+
+The integrated desktop suite passes all 1,193 checks in 75 files; type checking
+and the production build pass. The full HTTP API suite passes (54.510 seconds),
+and HTTP API/command vet passes. All five Docker-packaging and seventeen
+source-export checks pass. Their logs are preserved under `artifacts/review/049-*`.
+These are source-batch outcomes, before immutable package admission and the new
+installed acceptance run.
+
+The expanded owner completion contract in `GOAL.md` remains authoritative. The
+actual Codex subscription device authorization has expired and no saved
+subscription authentication is present. No verifier-supplied implementation,
+fixture provider or auxiliary deployment substitutes for the required real
+Describe→Design→Develop→Deploy public application. Live AWS/Azure resource and
+domain/TLS journeys and external SMTP delivery retain their own prerequisites
+and evidence gates. The full-product goal remains open.

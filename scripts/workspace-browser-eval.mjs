@@ -320,12 +320,14 @@ try {
   const assignedProjects = path.join(remote.state, 'control-plane', 'users', joined.user.id, 'runtime', 'projects');
   assert.equal(path.resolve(memberStatus.config.projectsDir), assignedProjects);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByRole('heading', { name: 'Your cloud workspace', exact: true }).waitFor();
+  const memberSettings = page.getByRole('dialog', { name: 'Your cloud workspace', exact: true });
+  await memberSettings.getByRole('heading', { name: 'Your cloud workspace', exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: 'On this computer', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'AWS', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Azure', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Save settings', exact: true }).count(), 0, 'Local administrator identity must not expose remote member folder writes');
-  await page.getByRole('button', { name: 'Create your first project', exact: true }).click();
+  // Projects home offers the same action behind the current settings dialog.
+  await memberSettings.getByRole('button', { name: 'Create your first project', exact: true }).click();
   const memberDialog = page.getByRole('dialog', { name: 'Create a project', exact: true });
   await memberDialog.getByLabel('Project name', { exact: true }).fill('ssh-member-app');
   const memberProject = await clickResponse(memberDialog.getByRole('button', { name: 'Create project', exact: true }), '/v1/product/projects', 201);

@@ -247,6 +247,14 @@ async function verifyPartialFirstRunEntry() {
   assert.equal(existsSync(join(productStateDir(), "luci.json")), false);
   await fill("Password", fixture.password);
   await click("Sign in");
+  if (structuredUI) {
+    // Continue to projects completed this account's visit without saving setup.
+    // Returning sign-in keeps that choice and offers an explicit way back.
+    await bodyHas("Your projects");
+    await bodyHas("Your workspace setup is unfinished.");
+    assert.equal(existsSync(join(productStateDir(), "luci.json")), false, "Returning sign-in must not silently complete workspace configuration");
+    await click("Workspace setup");
+  }
   await bodyHas("Choose your workspace");
   result.checks.push("Immediately after first account creation, sign-out and rejected credentials preserved create/recovery choices before any workspace setup was saved");
 }

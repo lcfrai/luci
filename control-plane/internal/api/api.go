@@ -492,13 +492,12 @@ func (a *API) grantHealthzOrigin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// internal answers 500 with contract §3.2's deliberately generic message and
-// puts the real error in the log. Tasks 11 and 12 use it too, so one place
-// decides how much a caller is told — and the answer is nothing that names a
-// path on disk, a container id or a token.
+// internal answers 500 with a generic recovery message and reports the error
+// to the configured logger. A private worker may discard its output, so the
+// response must not promise a persisted log or reveal a path, container or token.
 func (a *API) internal(w http.ResponseWriter, r *http.Request, op string, err error) {
 	a.deps.Log.Error("api: "+op+" failed",
 		"method", r.Method, "path", r.URL.Path, "err", err)
 	httpx.WriteProblem(w, http.StatusInternalServerError, httpx.CodeInternal,
-		"Something went wrong inside the control plane. The detail is in its log.", nil)
+		"Luci couldn't complete this request. Please try again.", nil)
 }
