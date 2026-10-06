@@ -751,6 +751,99 @@ function guardDesignDraft(discard = vi.fn()) {
 function planReviewView() {
   return view({ nextAction: { id: "plan", label: "Review implementation tasks", reason: "Bind a current task plan to the reviewed project definition.", lens: "develop" } });
 }
+it.each(["question", "plan"] as const)("collapses compact overview only after an explicit successful %s handoff", async target => {
+  responsiveOverview(true);
+  vi.mocked(orchestratorApi.get).mockResolvedValue(target === "question" ? manualQuestionView() : planReviewView());
+  useCockpit.setState({ lens: "develop" });
+  render(<OrchestratorPanel projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Show project overview" }));
+  await userEvent.click(await screen.findByRole("button", { name: target === "question" ? "Answer in definition" : "Review implementation tasks" }));
+  expect(screen.getByRole("button", { name: "Show project overview" }).getAttribute("aria-expanded")).toBe("false");
+  expect(useCockpit.getState().lens).toBe(target === "question" ? "discover" : "develop");
+  expect(takeProjectContextEdit(currentScope(), "p-1", target === "question" ? "definition" : "plan")).toEqual(target === "question" ? { editor: "definition", questionId: "membership" } : { editor: "plan" });
+  await userEvent.click(screen.getByRole("button", { name: "Show project overview" }));
+  expect(screen.getByRole("button", { name: "Hide project overview" })).not.toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.apply).not.toHaveBeenCalled();
+});
+it.each(["definition", "design"] as const)("keeps compact overview open for a generic %s handoff without a destination-focus contract", async editor => {
+  responsiveOverview(true);
+  useCockpit.setState({ lens: "develop" });
+  render(<OrchestratorPanel projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Show project overview" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Change the plan" }));
+  await userEvent.click(screen.getByRole("button", { name: editor === "definition" ? "Edit outcomes" : "Edit experience" }));
+  expect(takeProjectContextEdit(currentScope(), "p-1", editor)).toEqual({ editor });
+  expect(screen.getByRole("button", { name: "Hide project overview" }).getAttribute("aria-expanded")).toBe("true");
+});
+it("keeps the desktop overview open after a successful same-stage plan review", async () => {
+  responsiveOverview(false);
+  vi.mocked(orchestratorApi.get).mockResolvedValue(planReviewView());
+  useCockpit.setState({ lens: "develop" });
+  render(<OrchestratorPanel projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Review implementation tasks" }));
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toEqual({ editor: "plan" });
+  expect(screen.getByRole("button", { name: "Hide project overview" }).getAttribute("aria-expanded")).toBe("true");
+});
+it.each(["Keep drafts and continue", "Discard edits and continue"])("keeps compact overview and drafts on guard cancellation, then collapses after %s", async choice => {
+  responsiveOverview(true);
+  vi.mocked(orchestratorApi.get).mockResolvedValue(planReviewView());
+  const discard = guardDesignDraft();
+  render(<><OrchestratorPanel projectId="p-1" /><DraftNavigationDialog /></>);
+  await userEvent.click(await screen.findByRole("button", { name: "Show project overview" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Review implementation tasks" }));
+  await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(screen.getByRole("button", { name: "Hide project overview" }).getAttribute("aria-expanded")).toBe("true");
+  expect(useCockpit.getState().unsavedProjectDrafts.sketch).toBeDefined();
+  expect(discard).not.toHaveBeenCalled();
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toBe(false);
+  await userEvent.click(screen.getByRole("button", { name: "Review implementation tasks" }));
+  await userEvent.click(screen.getByRole("button", { name: choice }));
+  expect(screen.getByRole("button", { name: "Show project overview" }).getAttribute("aria-expanded")).toBe("false");
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toEqual({ editor: "plan" });
+  expect(discard).toHaveBeenCalledTimes(choice === "Discard edits and continue" ? 1 : 0);
+});
+it.each([true, false])("uses the viewport at guarded success, with compact=%s, instead of the activation width", async compactAtSuccess => {
+  const media = responsiveOverview(!compactAtSuccess);
+  vi.mocked(orchestratorApi.get).mockResolvedValue(planReviewView());
+  guardDesignDraft();
+  render(<><OrchestratorPanel projectId="p-1" /><DraftNavigationDialog /></>);
+  if (compactAtSuccess) await userEvent.click(await screen.findByRole("button", { name: "Hide project overview" }));
+  // Keep the user's explicit open choice while the dialog is active.
+  await userEvent.click(await screen.findByRole("button", { name: "Show project overview" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Review implementation tasks" }));
+  media.resize(compactAtSuccess);
+  await userEvent.click(screen.getByRole("button", { name: "Keep drafts and continue" }));
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toEqual({ editor: "plan" });
+  expect(screen.getByRole("button", { name: compactAtSuccess ? "Show project overview" : "Hide project overview" }).getAttribute("aria-expanded")).toBe(compactAtSuccess ? "false" : "true");
+});
+it("does not collapse compact overview when permission is lost before guarded editor navigation succeeds", async () => {
+  responsiveOverview(true);
+  vi.mocked(orchestratorApi.get).mockResolvedValue(manualQuestionView());
+  guardDesignDraft();
+  const mounted = render(<><OrchestratorPanel projectId="p-1" /><DraftNavigationDialog /></>);
+  await userEvent.click(await screen.findByRole("button", { name: "Show project overview" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Answer in definition" }));
+  identity.edit = false;
+  mounted.rerender(<><OrchestratorPanel projectId="p-1" /><DraftNavigationDialog /></>);
+  await userEvent.click(screen.getByRole("button", { name: "Keep drafts and continue" }));
+  expect(takeProjectContextEdit(currentScope(), "p-1", "definition")).toBe(false);
+  expect(screen.getByRole("button", { name: "Hide project overview" }).getAttribute("aria-expanded")).toBe("true");
+});
+it("preserves an explicitly open compact overview through programmatic navigation and asynchronous context refresh", async () => {
+  responsiveOverview(true);
+  vi.mocked(orchestratorApi.get).mockResolvedValue(planReviewView());
+  useCockpit.setState({ lens: "develop" });
+  render(<OrchestratorPanel projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Show project overview" }));
+  await screen.findByRole("button", { name: "Review implementation tasks" });
+  const before = vi.mocked(orchestratorApi.get).mock.calls.length;
+  act(() => useCockpit.getState().setLens("design"));
+  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledTimes(before + 1));
+  act(() => notifyProjectContextChanged(currentScope(), "p-1"));
+  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledTimes(before + 2));
+  expect(screen.getByRole("button", { name: "Hide project overview" }).getAttribute("aria-expanded")).toBe("true");
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toBe(false);
+});
 it("publishes repeatable exact plan review requests in Develop for a read-only reader without sending or changing context", async () => {
   identity.edit = false; identity.assist = false;
   vi.mocked(orchestratorApi.get).mockResolvedValue(planReviewView());
@@ -835,6 +928,25 @@ it.each(["Keep drafts and continue", "Discard edits and continue"])("focuses the
   expect((answer as HTMLTextAreaElement).value).toBe("Coordinators invite members.");
   expect(discard).toHaveBeenCalledTimes(choice === "Discard edits and continue" ? 1 : 0);
   expect(save).not.toHaveBeenCalled(); expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.apply).not.toHaveBeenCalled();
+});
+it("collapses the compact overview and focuses the requested answer after the real draft dialog closes", async () => {
+  responsiveOverview(true);
+  vi.mocked(orchestratorApi.get).mockResolvedValue(manualQuestionView());
+  vi.spyOn(definitionApi, "get").mockResolvedValue(manualQuestionView().context.specification);
+  const save = vi.spyOn(definitionApi, "save"), discard = guardDesignDraft();
+  render(<QuestionWorkspace />);
+  await userEvent.click(await screen.findByRole("button", { name: "Show project overview" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Answer in definition" }));
+  await userEvent.click(screen.getByRole("button", { name: "Keep drafts and continue" }));
+  expect(screen.getByRole("button", { name: "Show project overview" }).getAttribute("aria-expanded")).toBe("false");
+  const answer = await screen.findByRole("textbox", { name: "Answer" });
+  await waitFor(() => expect(document.activeElement).toBe(answer));
+  expect(screen.queryByRole("dialog", { name: "Keep your changes?" })).toBeNull();
+  await userEvent.type(answer, "Coordinators invite members.");
+  expect(document.activeElement).toBe(answer);
+  expect((answer as HTMLTextAreaElement).value).toBe("Coordinators invite members.");
+  expect(discard).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.apply).not.toHaveBeenCalled();
 });
 it("abandons an unconsumed question target when navigation changes before its lazy editor loads", async () => {
   vi.mocked(orchestratorApi.get).mockResolvedValue(manualQuestionView());

@@ -434,6 +434,10 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     const request = () => {
       if (!alive.current || !permitted()) return;
       const cancel = requestProjectContextEdit(scope, projectId, editor, questionId);
+      // Exact destinations transfer focus, so compact screens can give their
+      // workspace back. Generic editors keep the overview and opener visible.
+      const transfersFocus = editor === "plan" || (editor === "definition" && !!questionId);
+      if (transfersFocus && window.matchMedia(compactOverviewQuery).matches) setOpenChoice(false);
       const unsubscribe = useCockpit.subscribe(state => {
         if (state.lens === destination) return;
         cancel(); unsubscribe();

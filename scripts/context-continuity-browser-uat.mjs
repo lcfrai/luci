@@ -202,11 +202,20 @@ async function revealPlanFromOverview() {
     await understanding.getByRole('region', { name: 'Next step', exact: true }).getByRole('button', { name: 'Review implementation tasks', exact: true }).click();
     await until('overview opens and focuses implementation plan', () => plan.evaluate(node => node === document.activeElement));
     assert.equal(await work.evaluate(node => node.open), true);
+    const compact = viewport.width === 390;
+    await page.getByRole('button', { name: compact ? 'Show project overview' : 'Hide project overview', exact: true }).waitFor();
+    if (compact) {
+      const allocation = await page.locator('.develop-workspace').evaluate(node => {
+        const workspace = node.getBoundingClientRect(), overview = document.querySelector('.orchestrator').getBoundingClientRect();
+        return { workspaceBottom: workspace.bottom, overviewTop: overview.top };
+      });
+      assert(Math.abs(allocation.workspaceBottom - allocation.overviewTop) <= 1, 'Compact destination must use the space up to the collapsed overview');
+    }
     // Do not help the product scroll to its destination. The normal Next step
     // action must itself reveal the focused region and its visible heading.
     await planningViewport('04c-overview-reveals-plan-' + viewport.width, plan.getByRole('heading', { name: 'Implementation plan', exact: true }), { scroll: false });
     assert(await plan.evaluate(node => node === document.activeElement));
-    receipt.planNavigation.push({ viewport, disclosureOpened: true, exactRegionFocused: true, userScrollAfterNextAction: false });
+    receipt.planNavigation.push({ viewport, disclosureOpened: true, exactRegionFocused: true, overviewCollapsed: compact, userScrollAfterNextAction: false });
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
 }
@@ -364,6 +373,8 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await savedAnswer.getByRole('button', { name: 'Edit answer in definition', exact: true }).click();
   await until('phone exact answer receives product focus', () => answer.evaluate(node => node === document.activeElement));
+  await page.getByRole('button', { name: 'Show project overview', exact: true }).waitFor();
+  assert(await answer.evaluate(node => node === document.activeElement), 'Collapsing overview must preserve the explicit answer focus');
   assert.equal(await answer.inputValue(), retentionAnswer);
   const phoneAnswer = await answer.evaluate(node => { const r = node.getBoundingClientRect(); return { x: r.x, right: r.right, visibleHeight: Math.min(r.bottom, innerHeight) - Math.max(r.top, 0), viewportWidth: innerWidth }; });
   assert(phoneAnswer.x >= 0 && phoneAnswer.right <= phoneAnswer.viewportWidth + 1 && phoneAnswer.visibleHeight >= 24, 'Focused phone answer must be visible and contained');
@@ -444,8 +455,12 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await planningViewport('07-changed-context-recovery-review-390', recovery.getByText('Recover your verification setup draft', { exact: true }));
   await auditScope('07-changed-context-recovery-review-390', '.project-checks');
-  await planningViewport('07a-visible-recovery-actions-390', recovery.getByRole('button', { name: 'Restore draft', exact: true }));
+  assert(await recovery.getByRole('button', { name: 'Restore draft', exact: true }).isDisabled(), 'Changed-context recovery requires explicit review first');
   await recovery.getByRole('checkbox', { name: 'I reviewed the current check setup and want to continue with this draft.', exact: true }).check();
+  // Disabled buttons intentionally ignore pointer hits. Verify that review
+  // enables the real action, then assess its visible interactive target.
+  assert(await recovery.getByRole('button', { name: 'Restore draft', exact: true }).isEnabled());
+  await planningViewport('07a-visible-recovery-actions-390', recovery.getByRole('button', { name: 'Restore draft', exact: true }));
   await recovery.getByRole('button', { name: 'Restore draft', exact: true }).click();
   await until('changed-context restore warning', async () => (await checks.innerText()).includes('review and select the criteria again.'));
   assert.equal(await argumentsField.inputValue(), unfinished); assert.equal(await program.inputValue(), 'node');

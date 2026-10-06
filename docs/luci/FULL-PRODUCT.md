@@ -328,6 +328,43 @@ authorized read-only review and navigation after a draft dialog. Source receipt:
 `artifacts/quality-planning-flow/source-validation.json`. Matching installed
 rendering and focus proof is the next check, with original observations retained.
 
+Clean `6e7797f3` passes the four connected continuity groups with six scoped
+accessibility scans (zero violations). The visible recovery heading/actions
+follow-ups have no incomplete findings; one clipped Define question label
+remains an automated contrast incomplete. Canonical definition/design revisions,
+planned screens/states, exact plan focus and explicit local-command assistance
+boundaries are observed in the installed UI. With the overview compact, phone
+planning has 525 px of usable workspace rather than the earlier 185 px. Desktop
+planning has 940 px. Six portable groups and seven launcher outcomes pass; all
+940 package members and 346 licence components are verified. Receipt:
+`artifacts/package-eval/0.5.0-6e7797f3/context-continuity-attempt-2/result.json`.
+The first attempt's disabled-control hit-test error is retained: Restore must
+remain disabled before the required changed-context acknowledgement. The corrected
+driver verifies that state, then acknowledges through the UI before hit-testing
+and clicking the enabled action.
+
+Two further installed keyboard-focus groups pass on `6e7797f3`: actual Tab/Enter
+activation preserves exact decision focus and unsent/recovered reply identity.
+The solid two-pixel outline with two-pixel offset stays inside the phone
+scrollport, with 7.7 px clearance; window position stays unchanged during both
+traversal and activation. Both scoped scans have no violations/incomplete items.
+No commands, model or Docker calls occur; fixture cleanup passes. Receipt:
+`artifacts/package-eval/0.5.0-6e7797f3/decision-focus-attempt-1/result.json`.
+The document's larger measured scroll height remains a separate observation;
+this does not claim to explain full-page screenshot whitespace.
+
+A final visible interaction gap remains in this batch: explicitly opening the
+plan from an expanded phone overview leaves half the screen occupied by that
+overview. The correction folds it into its stage bar only after an explicit
+task-plan or exact-answer destination succeeds; cancelled navigation and
+background refreshes cannot trigger it. Generic editor destinations retain their
+existing overview behavior until they have an explicit focus handoff. Matching compact handoff proof is next. The final narrow correction passes all
+86 affected panel tests and TypeScript, including cancelled/confirmed navigation,
+viewport changes during the guard and actual Answer focus after dialog cleanup.
+Only the panel and its tests changed after the complete 1,979-test source run;
+that full run was not repeated. Exact final inputs/logs are in
+`artifacts/quality-planning-flow/compact-navigation-checks/results.json`.
+
 
 GitHub rejected the `7ff66d3b` Actions run before any check step for account
 payment/spending admission, recorded in
