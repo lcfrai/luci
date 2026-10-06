@@ -62,7 +62,7 @@ func (s *Server) prototypeReleases(ctx context.Context, projectID string) ([]Rel
 		return nil, err
 	}
 	rows := []Release{}
-	for _, row := range local {
+	for _, row := range s.observeLocalReleases(ctx, local) {
 		rows = append(rows, s.browserRelease(row))
 	}
 	cloud, err := s.cloudReleases(projectID)

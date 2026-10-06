@@ -12,6 +12,7 @@ import type {
   Effort,
   Harness,
   HarnessId,
+  ImplementationContextRequest,
   Machine,
   MachineId,
   ModelId,
@@ -134,6 +135,7 @@ export interface CreateSessionRequest {
   authOnly?: boolean;
   /** Omitted uses the active connection; empty explicitly uses direct agent settings. */
   agentConnectionId?: string;
+  implementationContext?: ImplementationContextRequest;
 }
 
 export interface ListSessionsFilter {

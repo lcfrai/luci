@@ -29,7 +29,7 @@ func (s *Server) SpecificationSnapshot(id string) (ProjectSpecification, error) 
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		return ProjectSpecification{}, err
 	}
@@ -60,9 +60,19 @@ func (s *Server) ValidateDeploymentSource(ctx context.Context, id, commit string
 		return errors.New("Commit all source and context changes before deploying.")
 	}
 	s.mu.RLock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	s.mu.RUnlock()
 	if err != nil {
+		return err
+	}
+	return s.validateReviewedCommit(ctx, p, state, commit)
+}
+
+// Callers have already admitted the project's source operation and verified
+// HEAD/cleanliness. Share exact snapshot checks without acquiring admission
+// again or relying only on the rendered brief's public content.
+func (s *Server) validateReviewedCommit(ctx context.Context, p project.Project, state journeyState, commit string) error {
+	if err := requireJourneyReviews(state); err != nil {
 		return err
 	}
 	if state.Brief.Revision == 0 {
@@ -79,7 +89,7 @@ func (s *Server) ValidateDeploymentSource(ctx context.Context, id, commit string
 		}
 		text, err := s.journeyGit(ctx, p.Path, "show", commit+":.luci/specification.json")
 		var committed ProjectSpecification
-		if err != nil || json.Unmarshal([]byte(text), &committed) != nil || committed.Digest != spec.Digest || committed.Revision != spec.Revision || committed.ProjectID != id {
+		if err != nil || json.Unmarshal([]byte(text), &committed) != nil || committed.Digest != spec.Digest || committed.Revision != spec.Revision || committed.ProjectID != p.ID {
 			return errors.New("Commit the approved specification snapshot before deploying.")
 		}
 		canonical, _ := json.Marshal(spec)

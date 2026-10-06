@@ -62,6 +62,16 @@ try {
   const plan = await api('POST', projectBase + '/plan', memberToken, { expectedRevision: 0, tasks: [{ id: 'build', title: 'Build the reviewed feature', status: 'todo' }] });
   const design = await api('POST', projectBase + '/design', memberToken, { revision: 0, frames: [{ id: 'home', name: 'Member design', width: 600, height: 400, background: '#ffffff', elements: [] }] });
   assert.equal(brief.revision, 1); assert.equal(plan.revision, 1); assert.equal(design.revision, 1);
+  const definition = await api('GET', projectBase + '/specification', memberToken);
+  definition.requirements = [{ id: 'private-ownership', title: 'Private member workspace', priority: 'must', acceptance: 'Only this member can read the project through the control API, including after its worker restarts.' }];
+  const savedDefinition = await api('POST', projectBase + '/specification', memberToken, { expectedRevision: definition.revision, expectedBriefRevision: definition.briefRevision, specification: definition });
+  const approvedDefinition = await api('POST', projectBase + '/specification/approve', memberToken, { revision: savedDefinition.revision, briefRevision: savedDefinition.briefRevision });
+  assert.equal(approvedDefinition.status, 'approved'); assert.match(approvedDefinition.digest, /^[a-f0-9]{64}$/);
+  const handoff = await api('GET', projectBase + '/design-plan', memberToken);
+  handoff.screens = [{ id: 'member-home', name: 'Private project', route: '/', purpose: 'Read the owned project and recover from failure', states: ['Loading', 'Owned project', 'Access denied', 'Retry'], widths: [390, 1440], requirementIds: ['private-ownership'], accessibility: 'Labeled controls and keyboard access' }];
+  const savedHandoff = await api('POST', projectBase + '/design-plan', memberToken, { expectedRevision: handoff.revision, expectedBriefRevision: approvedDefinition.briefRevision, expectedSpecificationRevision: approvedDefinition.revision, plan: handoff });
+  const approvedHandoff = await api('POST', projectBase + '/design-plan/approve', memberToken, { revision: savedHandoff.revision });
+  assert.equal(approvedHandoff.status, 'approved'); assert.match(approvedHandoff.digest, /^[a-f0-9]{64}$/);
   const commit = await api('POST', projectBase + '/git/commit', memberToken, { message: 'Save member brief, plan and design' });
   assert.match(commit.commit, /^[0-9a-f]{40,64}$/);
   const ownIdentity = await fs.readFile(path.join(runtimeRoot, 'home', '.gitconfig'), 'utf8');
@@ -96,6 +106,10 @@ try {
   assert.equal((await api('GET', restoredBase + '/brief', memberToken)).projectId, restored.id);
   const restoredPlan = await api('GET', restoredBase + '/plan', memberToken); assert.equal(restoredPlan.projectId, restored.id); assert.equal(restoredPlan.tasks[0].title, plan.tasks[0].title);
   const restoredDesign = await api('GET', restoredBase + '/design', memberToken); assert.equal(restoredDesign.projectId, restored.id); assert.equal(restoredDesign.frames[0].name, design.frames[0].name);
+  const restoredDefinition = await api('GET', restoredBase + '/specification', memberToken);
+  const restoredHandoff = await api('GET', restoredBase + '/design-plan', memberToken);
+  assert.notEqual(restoredDefinition.status, 'approved'); assert.notEqual(restoredHandoff.status, 'approved');
+  assert.equal(restoredDefinition.requirements[0].id, 'private-ownership');
   const restoredGit = await api('GET', restoredBase + '/git', memberToken); assert.equal(restoredGit.log[0].hash, commit.commit);
   await api('POST', '/v1/product/projects/restore?name=restored-app', memberToken, archive, 409);
   pass('actual_zip_backup_restore', `Downloaded ${archive.length} byte ZIP, restored history/brief/plan/design with new identity, omitted current secret file, refused overwrite.`);
@@ -104,8 +118,12 @@ try {
   await api('POST', `/v1/admin/users/${member.id}/runtime/stop`, ownerToken, {});
   let stopped; for (let n = 0; n < 50; n++) { stopped = await api('GET', `/v1/admin/users/${member.id}/runtime`, ownerToken); if (stopped.status === 'stopped') break; await pause(100); } assert.equal(stopped.status, 'stopped');
   assert.equal((await api('GET', projectBase + '/brief', memberToken)).purpose, brief.purpose);
+  const retainedDefinition = await api('GET', projectBase + '/specification', memberToken);
+  const retainedHandoff = await api('GET', projectBase + '/design-plan', memberToken);
+  assert.equal(retainedDefinition.status, 'approved'); assert.equal(retainedDefinition.digest, approvedDefinition.digest);
+  assert.equal(retainedHandoff.status, 'approved'); assert.equal(retainedHandoff.digest, approvedHandoff.digest);
   const restarted = await api('GET', `/v1/admin/users/${member.id}/runtime`, ownerToken); assert.equal(restarted.status, 'running'); assert.notEqual(restarted.startedAt, before.startedAt);
-  pass('owned_runtime_stop_restart', 'Administrator stopped the actual child; next authenticated member request started a new child with durable project data.');
+  pass('owned_runtime_stop_restart', 'Administrator stopped the actual child; next authenticated member request started a new child with durable project data and exact private-backed Define/Design approvals. Imported content retains its requirements without importing approval authority.');
 
   await api('POST', '/v1/auth/password', memberToken, { currentPassword: password, newPassword: replacementPassword });
   await api('GET', '/v1/auth/me', memberToken, undefined, 401);

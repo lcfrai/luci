@@ -474,7 +474,7 @@ func (s *Server) pushGitDelivery(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "clean_commit_required", "Commit all project changes before pushing.")
 		return
 	}
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		problem(w, 409, "brief_unavailable", "The saved brief could not be read.")
 		return

@@ -111,7 +111,8 @@ type Session struct {
 
 	// ContextRef is the Phase 4 brief this session inherited, or "". Phase 2
 	// stores and returns it and never interprets it.
-	ContextRef string `json:"contextRef"`
+	ContextRef            string                 `json:"contextRef"`
+	ImplementationContext *ImplementationContext `json:"implementationContext,omitempty"`
 }
 
 // Clone returns a copy that shares nothing with s.
@@ -126,6 +127,7 @@ func (s Session) Clone() Session {
 	out := s
 	out.Args = cloneStrings(s.Args)
 	out.EarlierConversationIDs = cloneStrings(s.EarlierConversationIDs)
+	out.ImplementationContext = s.ImplementationContext.Clone()
 	return out
 }
 

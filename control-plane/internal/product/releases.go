@@ -120,7 +120,7 @@ func (s *Server) listProjectReleases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result := []Release{}
-	for _, row := range rows {
+	for _, row := range s.observeLocalReleases(r.Context(), rows) {
 		result = append(result, s.browserRelease(row))
 	}
 	cloud, err := s.cloudReleases(p.ID)
@@ -188,18 +188,15 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.RLock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	s.mu.RUnlock()
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())
 		return
 	}
-	if state.Brief.Revision > 0 {
-		committedBrief, briefErr := s.journeyGit(ctx, p.Path, "show", commit+":LUCI.md")
-		if briefErr != nil || committedBrief != string(renderBrief(state.Brief)) {
-			journeyError(w, 409, "brief_commit_required", "Commit the current LUCI.md before previewing. The release must bind the brief that is actually in its commit.")
-			return
-		}
+	if err := s.validateReviewedCommit(ctx, p, state, commit); err != nil {
+		problem(w, 409, "review_approval_required", err.Error())
+		return
 	}
 	configuration, err := s.applicationConfigurationSnapshot(p.ID)
 	if err != nil {
@@ -211,6 +208,17 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row := storedRelease{Release: Release{ID: newID("rel-"), ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: "local", Status: "building", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}}
+	s.mu.Lock()
+	if s.activeLocalReleases == nil {
+		s.activeLocalReleases = make(map[string]bool)
+	}
+	s.activeLocalReleases[row.ID] = true
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		delete(s.activeLocalReleases, row.ID)
+		s.mu.Unlock()
+	}()
 	row.Image = "luci/preview:" + row.ID
 	if err := s.storeRelease(row); err != nil {
 		journeyError(w, 500, "release_reservation_failed", err.Error())

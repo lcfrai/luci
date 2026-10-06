@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -34,10 +35,11 @@ func TestLocalReleaseBuildsCommittedSafeContextThenVerifiesHealthAndOwnership(t 
 			t.Fatal(err)
 		}
 	}
+	reviewed, _ := reviewDeploymentFixture(t, mux, p.ID)
 	commitPreviewFixture(t, p.Path)
-	healthHits := 0
+	var healthHits atomic.Int32
 	health := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		healthHits++
+		healthHits.Add(1)
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte("ready"))
 	}))
@@ -87,6 +89,9 @@ func TestLocalReleaseBuildsCommittedSafeContextThenVerifiesHealthAndOwnership(t 
 			return strings.TrimPrefix(health.URL, "http://") + "\n", nil
 		case "inspect":
 			inspected++
+			if args[2] != "{{json .Config.Labels}}" {
+				return previewInspection(storedRelease{Release: Release{ID: releaseID, ProjectID: p.ID, URL: health.URL}}), nil
+			}
 			data, _ := json.Marshal(map[string]string{"luci.preview": "true", "luci.release-id": releaseID, "luci.project-id": p.ID})
 			return string(data), nil
 		case "rm":
@@ -103,8 +108,8 @@ func TestLocalReleaseBuildsCommittedSafeContextThenVerifiesHealthAndOwnership(t 
 	w := journeyRequest(t, mux, "POST", base+"/releases", map[string]any{"target": "local", "port": 3000, "dockerfile": "Dockerfile"}, 201)
 	var release Release
 	_ = json.Unmarshal(w.Body.Bytes(), &release)
-	if release.Status != "ready" || release.BriefRevision != 1 || release.Commit == "" || release.URL != health.URL || healthHits == 0 || builds != 1 {
-		t.Fatalf("release lacks real health/provenance: %#v, checks=%d, builds=%d", release, healthHits, builds)
+	if release.Status != "ready" || release.BriefRevision != reviewed.BriefRevision || release.Commit == "" || release.URL != health.URL || healthHits.Load() == 0 || builds != 1 {
+		t.Fatalf("release lacks real health/provenance: %#v, checks=%d, builds=%d", release, healthHits.Load(), builds)
 	}
 	stored, err := s.readReleases(p.ID)
 	if err != nil || len(stored) != 1 || stored[0].ContainerID != container {
@@ -114,7 +119,7 @@ func TestLocalReleaseBuildsCommittedSafeContextThenVerifiesHealthAndOwnership(t 
 	stop := base + "/releases/" + release.ID + "/stop"
 	journeyRequest(t, mux, "POST", stop, nil, 200)
 	journeyRequest(t, mux, "POST", stop, nil, 200)
-	if removed != 1 || inspected != 1 {
+	if removed != 1 || inspected != 2 {
 		t.Fatalf("stop was not verified and idempotent: removed=%d inspected=%d", removed, inspected)
 	}
 	restored, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
@@ -122,7 +127,7 @@ func TestLocalReleaseBuildsCommittedSafeContextThenVerifiesHealthAndOwnership(t 
 		t.Fatal(err)
 	}
 	rows, err := restored.readReleases(p.ID)
-	if err != nil || len(rows) != 1 || rows[0].Status != "stopped" || rows[0].BriefRevision != 1 {
+	if err != nil || len(rows) != 1 || rows[0].Status != "stopped" || rows[0].BriefRevision != reviewed.BriefRevision {
 		t.Fatalf("restart lost release provenance: %#v %v", rows, err)
 	}
 }
@@ -134,6 +139,7 @@ func TestLocalReleaseRefusesDirtyBuildAndRecordsFailuresWithoutClaimingReady(t *
 	_ = os.WriteFile(filepath.Join(p.Path, "Dockerfile"), []byte("FROM scratch\n"), 0600)
 	body := map[string]any{"target": "local", "port": 3000, "dockerfile": "Dockerfile"}
 	journeyRequest(t, mux, "POST", base+"/releases", body, 409)
+	reviewDeploymentFixture(t, mux, p.ID)
 	commitPreviewFixture(t, p.Path)
 	runs := 0
 	s.runner = func(ctx context.Context, exe string, args []string, dir string) (string, error) {

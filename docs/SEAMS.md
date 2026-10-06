@@ -55,6 +55,18 @@ SX.10 still rests on the Go tests its manifest entry names.
 
 ## Rules that bind every phase
 
+Implementation handoffs reuse the saved plan, current approved definition/design coverage,
+and the session registry. `ProjectPlan` passes `implementationContext` with exact
+`projectId`, `briefRevision`, `planRevision`, `specificationRevision`,
+`designPlanRevision` and selected stable `taskIds` through `SessionPicker`,
+`useCreateSession` and `toCreateRequest`. The server adds immutable digests, source and
+worktree identity, task titles and saved requirement IDs to `Session.implementationContext`.
+Unlinked tasks retain an empty requirement list. `selectImplementationSessions(projectId)`
+feeds the owning project's history with `useShallow`; activity/PTY exit never marks Done or
+establishes verification. These server records are outside local preference `partialize`, so
+the local persistence schema stays version 2. Prototype history has its own read/retry state
+and cannot block loading or approving the saved design and definition.
+
 Not seams — none has one location — but each is broken the same way by every phase that
 forgets it, and each is already enforced where cited.
 
@@ -93,7 +105,7 @@ forgets it, and each is already enforced where cited.
 | S3.3 | 3 | `PATCH /v1/projects/{projectId}/worktrees/{worktreeId}` (`catalog.go:33`); `Worktree.ready?` (`types.ts:85`); `setWorktreeReady` (`client.ts`) | Gate merge on `ready` | Derive readiness any other way (known defect 9) | seams.test.ts `S3.3` |
 | S3.4 | 3 | `desktop/src/lib/immutable.ts` — `moveWithinVisible`, `idAtVisiblePosition` | Reorder the merge queue through them | Pass an index across a filter boundary (known defect 10) | defects.test.tsx row 10 |
 | S3.5 | 3 | `FilesLens.tsx`, `MergeLens.tsx` — both render phase 3 | Fill both | Treat Files' ownership as settled: `docs/PROGRAM.md` names no owner for it (open carry 8) | seams.test.ts `S3.5` |
-| S4.1 | 4 (write), all (read) | `Session.contextRef`: `registry/session.go:102-104`; `api/sessions.go`'s four mentions (the response type and its build, the create request type, and the record create writes); `types.ts:163`; `defaults.ts:110,127`; carried by resume and fork (`client.ts`, both `from.contextRef` copies) | Write it on create; add a resolve endpoint so surfaces can show a brief's title | Make Phase 2 code interpret it; render it from a component before updating this row — the tree tripwire fires | seams.test.ts `S4.1` |
+| S4.1 | 4 (write), all (read) | `Session.contextRef`: `registry/session.go`'s `ContextRef string` field with `json:"contextRef"` (gofmt alignment is allowed); `api/sessions.go`'s four mentions (the response type and its build, the create request type, and the record create writes); `types.ts`'s `contextRef`; `defaults.ts`'s carry; carried by resume and fork (`client.ts`, both `from.contextRef` copies) | Write it on create; add a resolve endpoint so surfaces can show a brief's title | Make Phase 2 code interpret it; render it from a component before updating this row — the tree tripwire fires | seams.test.ts `S4.1` |
 | S4.2 | 4 | `handleSessionCreate` and `handleSessionRestart` (`api/sessions.go`): in each, between its `Worktrees.Path` and its `Backend.Create`. One window, two occupants: the resume fix's Claude session id is minted there, and the `Materialiser` ruled by R1 lands there | Materialise `CLAUDE.md` there through R1's `Materialiser` (declared in `api`, held in `api.Deps`), **materialising first**, and stamp `ContextRef` from the key it returns, so the stamp and the minted session id both describe the process that starts | Rely on the client to call it first — silent inheritance failure; derive `ContextRef` from anything but the materialiser's return | seams.test.ts `S4.2` (`api.go` has no materialiser) |
 | S4.3 | 4 | `desktop/src/lib/immutable.ts` — `replaceAt`, `replaceById` | Implement `editAnswer` through them | Splice later answers (known defect 7) | defects.test.tsx row 7 |
 | S4.4 | 4 | `project.Scanner.ProjectName` / `BranchName` (`project.go`); `/api/v1/` prefix strip (`api.go`'s `http.StripPrefix("/api", guarded)`) | Use them as its `Naming` and its route prefix | Delete the prefix strip — its comment says why | seams.test.ts `S4.4` |

@@ -453,6 +453,14 @@ const sessionBody = (id: string, status: SessionStatus): string =>
   });
 
 describe("createClient — sessions", () => {
+  it("sends chosen implementation revisions and retains the server's immutable source snapshot", async () => {
+    const request = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"] };
+    const context = { ...request, briefDigest: "brief-2", planDigest: "plan-3", specificationDigest: "spec-6", designPlanDigest: "design-8", worktreeId: "w-1", sourceCommit: "a".repeat(40), sourceDigest: "source-a", sourceDirty: true, taskTitles: ["Build editor"], requirementIds: [] };
+    const { fn, calls } = fetchStub([jsonReply(201, JSON.stringify({ ...source, implementationContext: context }))]);
+    const session = await createClient({ fetch: fn }).createSession({ worktreeId: "w-1", implementationContext: request });
+    expect(JSON.parse(calls[0].init?.body as string).implementationContext).toEqual(request);
+    expect(session.implementationContext).toEqual(context);
+  });
   it("accepts 201 from createSession and returns the body, not the Location header", async () => {
     const created = new Response(sessionBody("s-2", "starting") + "\n", {
       status: 201,

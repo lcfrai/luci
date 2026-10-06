@@ -58,6 +58,15 @@ export const selectSession =
   (s: CockpitState): Session | undefined =>
     id === null ? undefined : s.sessions[id];
 
+/** ProjectPlan's persisted implementation history, restricted to this project's own sessions.
+ *  Consume with useShallow; the response snapshot is never reconstructed from current plans. */
+export const selectImplementationSessions =
+  (projectId: ProjectId) =>
+  (s: CockpitState): Session[] =>
+    Object.values(s.sessions)
+      .filter(session => session.projectId === projectId && session.implementationContext?.projectId === projectId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id));
+
 export const selectHarness =
   (id: HarnessId | null) =>
   (s: CockpitState): Harness | undefined =>

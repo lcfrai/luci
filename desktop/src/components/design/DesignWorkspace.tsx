@@ -29,14 +29,19 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
   useUnsavedProjectDraft(projectId, dirty, "Design", "design");
   const [busy, setBusy] = useState(false);
   const [refreshingSketch, setRefreshingSketch] = useState(false);
-  const [pending, setPending] = useState<"" | "save" | "approve" | "prototype">("");
+  const [pending, setPending] = useState<"" | "save" | "approve">("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [releases, setReleases] = useState<Release[]>([]);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [prototypeBusy, setPrototypeBusy] = useState(false);
+  const [prototypeError, setPrototypeError] = useState("");
   const [preview, setPreview] = useState("");
   const [width, setWidth] = useState(1440);
   const alive = useRef(true), working = useRef(false), draftVersion = useRef(0), generation = useRef(0);
   const sketchRead = useRef(0);
+  const historyRead = useRef(0), prototypeRead = useRef(0), prototypeWorking = useRef(false);
   const tabsId = useId(), selectedIndex = views.findIndex(([key]) => key === view);
   const setup = useSetup();
   const setLens = useCockpit((s) => s.setLens);
@@ -44,15 +49,29 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
     const requestGeneration = generation.current;
     sketchRead.current++;
     setRefreshingSketch(false);
-    const [saved, definition, history] = await Promise.all([designPlanApi.get(projectId), definitionApi.get(projectId), productApi.prototypeReleases(projectId)]);
+    const [saved, definition] = await Promise.all([designPlanApi.get(projectId), definitionApi.get(projectId)]);
     if (!alive.current || requestGeneration !== generation.current) return;
-    setPlan(saved); setBaseRevision(saved.revision); setSpec(definition); setReleases(history.releases); setDirty(false); setError("");
+    setPlan(saved); setBaseRevision(saved.revision); setSpec(definition); setDirty(false); setError("");
+  }
+  async function loadPrototypeHistory() {
+    const requestGeneration = generation.current, request = ++historyRead.current;
+    setHistoryBusy(true); setHistoryError("");
+    try {
+      const history = await productApi.prototypeReleases(projectId);
+      if (alive.current && requestGeneration === generation.current && request === historyRead.current) setReleases(history.releases);
+    } catch (cause) {
+      if (alive.current && requestGeneration === generation.current && request === historyRead.current) setHistoryError(errorText(cause));
+    } finally {
+      if (alive.current && requestGeneration === generation.current && request === historyRead.current) setHistoryBusy(false);
+    }
   }
   useEffect(() => {
     alive.current = true; generation.current++; working.current = false;
-    setBusy(false); setPending(""); setPreview("");
+    setPlan(null); setSpec(null); setDirty(false); setError(""); setNotice(""); setReleases([]);
+    setBusy(false); setPending(""); setPreview(""); setPrototypeBusy(false); setPrototypeError(""); prototypeWorking.current = false;
     const requestGeneration = generation.current;
     void load().catch((e) => { if (alive.current && requestGeneration === generation.current) setError(errorText(e)); });
+    void loadPrototypeHistory();
     return () => { alive.current = false; generation.current++; };
   }, [projectId]);
   const patch = (value: Partial<DesignPlan>) => { draftVersion.current++; if (plan) setPlan({ ...plan, ...value, status: "draft", digest: "" }); setDirty(true); setNotice(""); };
@@ -75,9 +94,9 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
   }
   async function openPrototype() {
     const release = selectedPrototype;
-    if (!release || working.current) return;
-    const requestGeneration = generation.current;
-    working.current = true; setBusy(true); setPending("prototype"); setError("");
+    if (!release || prototypeWorking.current || historyBusy || historyError) return;
+    const requestGeneration = generation.current, request = ++prototypeRead.current;
+    prototypeWorking.current = true; setPrototypeBusy(true); setPrototypeError("");
     try {
       let target = release.url;
       if (release.target === "application") {
@@ -103,9 +122,9 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
       const url = new URL(target);
       const controlOrigin = new URL(window.__LUCI_API__ || DEFAULT_BASE_URL).origin;
       if (url.origin === window.location.origin || url.origin === controlOrigin || !((url.protocol === "http:" && (["127.0.0.1", "localhost"].includes(url.hostname) || isGatewayHostname(url.hostname))) || url.protocol === "https:") || url.username || url.password) throw new Error("The prototype requires a verified separate application origin.");
-      if (alive.current && requestGeneration === generation.current) setPreview(url.toString());
-    } catch (e) { if (alive.current && requestGeneration === generation.current) { setPreview(""); setError(errorText(e)); } }
-    finally { if (alive.current && requestGeneration === generation.current) { working.current = false; setBusy(false); setPending(""); } }
+      if (alive.current && requestGeneration === generation.current && request === prototypeRead.current) setPreview(url.toString());
+    } catch (e) { if (alive.current && requestGeneration === generation.current && request === prototypeRead.current) { setPreview(""); setPrototypeError(errorText(e)); } }
+    finally { if (alive.current && requestGeneration === generation.current && request === prototypeRead.current) { prototypeWorking.current = false; setPrototypeBusy(false); } }
   }
   const activateView = (next: View) => {
     setView(next);
@@ -120,8 +139,7 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
         .finally(() => { if (alive.current && requestGeneration === generation.current && request === sketchRead.current) setRefreshingSketch(false); });
     }
     if (next === "prototype") {
-      const requestGeneration = generation.current;
-      void productApi.prototypeReleases(projectId).then((r) => { if (alive.current && requestGeneration === generation.current) setReleases(r.releases); }).catch((e) => { if (alive.current && requestGeneration === generation.current) setError(errorText(e)); });
+      void loadPrototypeHistory();
     }
   };
   const selectView = (next: View) => {
@@ -165,9 +183,12 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
       </TabsSubtlePanel>
       <TabsSubtlePanel idPrefix={tabsId} index={2} selectedIndex={selectedIndex}>
       {view === "prototype" && <section className="design-prototype"><h2>Inspect an actual running prototype</h2><p>Choose a verified application release built from your project. Its source commit will be recorded in the design handoff.</p>
-        <div className="design-prototype-tools"><label className="luci-field">Prototype release<select value={plan.prototypeReleaseId} disabled={busy} onChange={(e) => { patch({ prototypeReleaseId:e.target.value });setPreview(""); }}><option value="">Choose a verified release</option>{plan.prototypeReleaseId && !selectedPrototype && <option value={plan.prototypeReleaseId} disabled>Saved prototype unavailable</option>}{prototypes.map((r) => <option key={r.id} value={r.id}>{r.target === "application" ? "Application" : r.target === "local" ? "Local preview" : r.target === "github-pages" ? "GitHub Pages" : "Cloud"} · {r.commit.slice(0,8)} · {r.id}</option>)}</select></label><label className="luci-field">Preview width<select value={width} onChange={(e) => setWidth(Number(e.target.value))}><option value={390}>Phone · 390 px</option><option value={768}>Tablet · 768 px</option><option value={1440}>Desktop · 1440 px</option></select></label><Button type="button" variant="secondary" loading={pending === "prototype"} disabled={busy || !selectedPrototype} onClick={() => void openPrototype()}>Open prototype</Button></div>
-        {plan.prototypeReleaseId && !selectedPrototype && <div className="design-empty"><p role="status">This prototype has stopped or is no longer available. Choose a running release or open Deploy to refresh the application.</p><Button type="button" variant="secondary" onClick={() => setLens("deploy")}>Go to Deploy</Button></div>}
-        {!prototypes.length && !plan.prototypeReleaseId && <div className="design-empty"><h3>No verified prototype yet</h3><p>Build and preview the project's interface in Develop, then return here to inspect its real behavior.</p><Button type="button" variant="secondary" onClick={() => setLens("develop")}>Go to Develop</Button></div>}
+        {historyBusy && <p role="status">Refreshing prototype history… Your saved design remains available.</p>}
+        {historyError && <div role="alert" className="journey-error">Prototype history could not be loaded: {historyError} <Button type="button" variant="secondary" disabled={historyBusy} onClick={() => void loadPrototypeHistory()}>Retry prototype history</Button><p>Your saved design and definition remain available.</p></div>}
+        {prototypeError && <p role="alert" className="journey-error">{prototypeError}</p>}
+        <div className="design-prototype-tools"><label className="luci-field">Prototype release<select value={plan.prototypeReleaseId} disabled={busy || prototypeBusy || historyBusy || !!historyError} onChange={(e) => { patch({ prototypeReleaseId:e.target.value });setPreview(""); setPrototypeError(""); }}><option value="">Choose a verified release</option>{plan.prototypeReleaseId && !selectedPrototype && <option value={plan.prototypeReleaseId} disabled>Saved prototype unavailable</option>}{prototypes.map((r) => <option key={r.id} value={r.id}>{r.target === "application" ? "Application" : r.target === "local" ? "Local preview" : r.target === "github-pages" ? "GitHub Pages" : "Cloud"} · {r.commit.slice(0,8)} · {r.id}</option>)}</select></label><label className="luci-field">Preview width<select value={width} onChange={(e) => setWidth(Number(e.target.value))}><option value={390}>Phone · 390 px</option><option value={768}>Tablet · 768 px</option><option value={1440}>Desktop · 1440 px</option></select></label><Button type="button" variant="secondary" loading={prototypeBusy} disabled={prototypeBusy || historyBusy || !!historyError || !selectedPrototype} onClick={() => void openPrototype()}>Open prototype</Button></div>
+        {!historyBusy && !historyError && plan.prototypeReleaseId && !selectedPrototype && <div className="design-empty"><p role="status">This prototype has stopped or is no longer available. Choose a running release or open Deploy to refresh the application.</p><Button type="button" variant="secondary" onClick={() => setLens("deploy")}>Go to Deploy</Button></div>}
+        {!historyBusy && !historyError && !prototypes.length && !plan.prototypeReleaseId && <div className="design-empty"><h3>No verified prototype yet</h3><p>Build and preview the project's interface in Develop, then return here to inspect its real behavior.</p><Button type="button" variant="secondary" onClick={() => setLens("develop")}>Go to Develop</Button></div>}
         {preview && selectedPrototype && <div className="design-prototype-viewport"><iframe title="Design prototype" src={preview} style={{ width }} sandbox="allow-scripts allow-forms allow-same-origin" /><a href={preview} target="_blank" rel="noreferrer">Open prototype in a separate tab</a></div>}
       </section>}
       </TabsSubtlePanel>

@@ -87,10 +87,10 @@ func designPlanContentDigest(plan ProjectDesignPlan) string {
 }
 func currentEvidenceApprovals(state journeyState, id string) (ProjectSpecification, ProjectDesignPlan) {
 	spec, design := currentSpecification(state), currentDesignPlan(state)
-	if spec.Status == "approved" && (state.Specification == nil || spec.ProjectID != id || spec.Revision <= 0 || spec.Digest != specificationContentDigest(spec)) {
+	if spec.Status == "approved" && (!specificationApprovalMatches(state) || state.Specification == nil || spec.ProjectID != id || spec.Revision <= 0 || spec.Digest != specificationContentDigest(spec)) {
 		spec.Status = "outdated"
 	}
-	if design.Status == "approved" && (state.DesignPlan == nil || design.ProjectID != id || design.Revision <= 0 || design.Digest != designPlanContentDigest(design)) {
+	if design.Status == "approved" && (!designApprovalMatches(state) || state.DesignPlan == nil || design.ProjectID != id || design.Revision <= 0 || design.Digest != designPlanContentDigest(design)) {
 		design.Status = "outdated"
 	}
 	return spec, design
@@ -196,7 +196,7 @@ func (s *Server) evidenceSource(ctx context.Context, id, dir string, state journ
 
 func (s *Server) readProjectEvidence(ctx context.Context, id, dir string) (ProjectRequirementCoverage, []ProjectCheckRun, error) {
 	s.mu.RLock()
-	state, stateErr := readJourney(dir, id)
+	state, stateErr := s.readApprovedJourney(dir, id)
 	rows, err := s.readCheckHistory(id)
 	s.mu.RUnlock()
 	if stateErr != nil {
@@ -209,7 +209,7 @@ func (s *Server) readProjectEvidence(ctx context.Context, id, dir string) (Proje
 	// File hashing must not hold the shared journey mutex. Refresh authoritative
 	// approvals afterwards so concurrent saves cannot retain superseded evidence.
 	s.mu.RLock()
-	state, stateErr = readJourney(dir, id)
+	state, stateErr = s.readApprovedJourney(dir, id)
 	rows, err = s.readCheckHistory(id)
 	s.mu.RUnlock()
 	if stateErr != nil {

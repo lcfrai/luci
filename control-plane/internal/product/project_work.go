@@ -68,7 +68,7 @@ func (s *Server) getProjectPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.RLock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	s.mu.RUnlock()
 	if err != nil {
 		problem(w, 500, "history_unavailable", err.Error())
@@ -95,7 +95,7 @@ func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
@@ -106,6 +106,14 @@ func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	plan.SpecificationRevision, plan.SpecificationDigest = 0, ""
+	if req.ExpectedSpecificationRevision != nil {
+		spec, _ := currentEvidenceApprovals(state, p.ID)
+		if spec.Status != "approved" || spec.Revision != *req.ExpectedSpecificationRevision {
+			problem(w, 409, "revision_conflict", "Approve the current specification and reload it before saving this plan.")
+			return
+		}
+		plan.SpecificationRevision, plan.SpecificationDigest = spec.Revision, spec.Digest
+	}
 	for _, task := range req.Tasks {
 		if len(task.RequirementIDs) == 0 {
 			continue

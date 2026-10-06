@@ -1210,3 +1210,88 @@ completed. Earlier failed receipts stay failed. A source
 test or simulated provider response does not satisfy the required actual
 subscription-generated application, public deployment, cloud/domain, external
 inbox, native lifecycle or public distribution gates.
+
+## 0.4.17 exact package and 0.4.18 integration checkpoint
+
+The clean source `e0e51f640efc6aed54b1ce84d742b56d83b68215`, tree
+`af8c60d46a72d8c547f0b175eb3f5357771f4d46`, has a completed independent F:
+build and sequential package audit. Linux/cloud archives, 906 materialized
+files, the 917-file Docker context, 987 selected source blobs and 993 exported
+files pass their recorded integrity checks. The Linux licence inventory has
+344 components and no missing grants. These are build/package results, not a
+native installation or public distribution result.
+
+The secondary Docker workspace at port 8750 admits that exact 0.4.17 context.
+Three read-only PostgreSQL retention outcomes pass against the original 0.4.15
+baseline: thirteen projects, twelve neighbors, seven exited sessions, 61 stopped
+containers, 29 volumes, twenty retained image identities, three exact native
+backup dumps and four restore histories remain preserved. No database restore,
+new model execution or application deployment is repeated by those checks.
+The owner's primary workspace remains 0.4.16.
+
+[CI 37398697512](https://github.com/lcfrai/luci/actions/runs/37398697512)
+actually checks out merge `219d0135e9f1460482bd4e8e920f9cff6d36bff7`; its tree
+matches the source above. Whole Go, race, frontend, TypeScript, asset build and
+connected browser checks pass. The downloaded browser evidence records nineteen
+connected, nine entry and four lifecycle cases, with nine accessibility surfaces
+and ten visual measurements. Compiled multi-user, real non-root Docker and real
+SSH browser steps also pass. The runtime job fails at GitHub artifact upload
+because its storage quota is exhausted; its runtime artifact is unavailable.
+Downstream native/portable jobs are skipped. The workflow run remains failed.
+The next workflow records actual required test success before artifact transport
+so native/portable checks can still execute; upload failures remain fatal and
+missing evidence remains explicit. Strict YAML/reference validation passes for
+that source correction; its actual next CI run is pending.
+
+The 0.4.18 working batch adds exact task-to-session inputs and immutable starting
+source, stale handoff refusal before allocation or container replacement, and
+own-project run history. Its focused API/product checks pass; a real registry
+reopen/clone/lifecycle test preserves the recorded input snapshot. Focused
+frontend validation passes 213 tests in nine files and TypeScript. Optional
+prototype-history failures no longer block saved Design or its approvals.
+Remote workspaces now route the shared connection catalogue with the execution
+service. Preview forwarding verifies actual running container ownership and
+loopback binding; invalid/stopped/foreign/rebound cases forward no traffic while
+valid HTTP and WebSocket paths pass. Ready history requires actual owned
+container and nonredirecting HTTP health; interrupted builds become recoverable
+unknown observations without rewriting saved history or replaying operations.
+Twenty-one focused product cases, ten gateway cases and vet pass at that batch.
+These are source outcomes; a matching 0.4.18 package is not yet installed.
+
+Astra subsequently reproduces a P1 approval-authority flaw in unchanged 0.4.17:
+an agent can write matching approved status/revisions/public hashes into
+`.luci/state.json` without an authenticated review. This forges review provenance,
+not the separate private command outcomes. The isolated diagnostic invokes real
+journey/evidence admission and retains its proof outside the project. Private
+controller review receipts now bind the authenticated actor, account/project,
+full brief/specification/sketch/design content and latest private selection.
+Save revokes the affected selection; imported or old unanchored content stays
+preserved and requires fresh explicit review. Eight focused authority parent
+gates pass, including forged hashes, replay, unchanged-revision dependency
+edits, missing/corrupt/linked private storage, actual Windows hardlinks and
+partial export retry. Five final deployment/commit parent gates pass, including
+six committed context-drift variants refused before resource or publishing
+calls and legitimate native/local/cloud/Pages paths. Product vet passes.
+Original failed stale-fixture assertions remain retained; positive fixtures
+now perform real authenticated review and compare the captured approved
+revision. The frozen source receipt is
+`F:/LuciBuilds/agent-connections-recovery-validation/018-private-review-authority-validation.json`
+(SHA-256 `6156b11f48602ca1461d3fadf943d96199f5e49bc9d341ed52cd025af8cb40f2`).
+These remain source outcomes, not installed security acceptance.
+
+During the installed runtime refresh, C: exhausts its free space and the final
+recorder fails with ENOSPC, leaving its original zero-byte receipt intact. A
+separate F: continuation reaches no login or runtime mutation because Docker's
+read commands time out and the secondary service is unreachable. WSL remains
+responsive. Docker VM logs show block-device I/O errors, an aborted EXT4 journal
+and a read-only remount at the same time. The earlier runtime build outcome is
+unknown; neither recorder failure nor unavailable observation proves it failed.
+Dormant generated archives/build stages are being preserved on F: with integrity
+receipts to restore host headroom. Shared Desktop restart needs the owner's
+confirmation. No prune, reset, volume deletion, live filesystem repair or blind
+runtime retry has run.
+
+Full-product handback remains open. The actual Codex-subscription implementation
+and public site, supplied live LiteLLM endpoint, owned AWS/Azure/domain journeys,
+external inbox delivery, current native lifecycle and public download/signing
+have distinct outstanding acceptance gates.

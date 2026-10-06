@@ -8,6 +8,7 @@ import type {
   Branch,
   BranchId,
   Harness,
+  ImplementationContext,
   Machine,
   Project,
   ProjectId,
@@ -76,14 +77,27 @@ export const initialDataState: DataState = Object.freeze({
   lastError: null,
 });
 
-/** Shallow field comparison, which is exact for `Session`: every field is a primitive, so
- *  there is no nested value a shallow pass could miss. Used to keep a poll from replacing an
- *  object that did not change. */
+/** The immutable implementation snapshot has primitive fields and three ordered string arrays.
+ *  Compare their values so an unchanged poll preserves the session object and its history row. */
+function sameImplementationContext(a: ImplementationContext | undefined, b: ImplementationContext | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const keys = Object.keys(a) as (keyof ImplementationContext)[];
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every(key => {
+    const left = a[key], right = b[key];
+    return Array.isArray(left) && Array.isArray(right) ? sameIds(left, right) : left === right;
+  });
+}
+
+/** Primitive session fields plus the exact immutable implementation snapshot. */
 export function sameSession(a: Session, b: Session): boolean {
   const keys = Object.keys(a) as (keyof Session)[];
   if (keys.length !== Object.keys(b).length) return false;
   for (const k of keys) {
-    if (a[k] !== b[k]) return false;
+    if (k === "implementationContext") {
+      if (!sameImplementationContext(a.implementationContext, b.implementationContext)) return false;
+    } else if (a[k] !== b[k]) return false;
   }
   return true;
 }

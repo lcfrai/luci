@@ -1,5 +1,5 @@
 #requires -Version 7.0
-param([string]$Version = '0.4.17', [switch]$Native)
+param([string]$Version = '0.4.18', [switch]$Native)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$') { throw 'Version must be a semantic version.' }
@@ -8,6 +8,8 @@ $luciOutput = Join-Path $luciRoot ('artifacts/releases/' + $Version)
 $luciStage = Join-Path $luciOutput ('.stage-' + [guid]::NewGuid().ToString('N'))
 $luciNativeRoot = Join-Path $luciRoot 'desktop/src-tauri'
 $luciSavedEnvironment = @{}
+$luciBuildSucceeded = $false
+. (Join-Path $PSScriptRoot 'owned-build-stage.ps1')
 foreach ($luciKey in @('PATH','GOOS','GOARCH','CGO_ENABLED','GOFLAGS','CARGO_TARGET_DIR')) { $luciSavedEnvironment[$luciKey] = [Environment]::GetEnvironmentVariable($luciKey, 'Process') }
 
 function Confirm-Exit([string]$Operation) {
@@ -165,7 +167,11 @@ try {
     [IO.File]::WriteAllLines((Join-Path $luciOutput 'SHA256SUMS'), [string[]]$luciHashes, [Text.UTF8Encoding]::new($false))
     $luciRelease = @{version=$Version;sourceCommit=$luciSource.sourceCommit;sourceDirty=$luciSource.sourceDirty;builtAt=[DateTime]::UtcNow.ToString('o');artifacts=$luciArtifactRecords;portableLicenseComponents=@($luciPackages | ForEach-Object {@{target=$_.name;count=$_.licenses;missing=0}});nativeLicenseComponents=$luciNativeCount;nativeRequested=[bool]$Native;stage=$luciStage}
     $luciRelease | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $luciOutput 'release-manifest.json') -Encoding utf8NoBOM
-    Write-Host ('Reviewable Luci packages: ' + $luciOutput)
+    $luciBuildSucceeded = $true
 } finally {
     foreach ($luciKey in $luciSavedEnvironment.Keys) { [Environment]::SetEnvironmentVariable($luciKey, $luciSavedEnvironment[$luciKey], 'Process') }
+    # Published packages and their checksums are complete. Keep failed stages
+    # for diagnosis, but do not retain another full copy after every success.
+    if ($luciBuildSucceeded) { Remove-LuciCompletedBuildStage -WorkspaceRoot $luciRoot -Version $Version -StagePath $luciStage | Out-Null }
 }
+Write-Host ('Reviewable Luci packages: ' + $luciOutput)

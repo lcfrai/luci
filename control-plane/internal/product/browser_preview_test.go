@@ -45,9 +45,7 @@ func TestPreviewBridgePreservesAppAuthorizationWithoutControlBearer(t *testing.T
 		w.WriteHeader(200)
 	}))
 	defer app.Close()
-	if err := s.storeRelease(storedRelease{Release: Release{ID: "release-auth", ProjectID: p.ID, Target: "local", Status: "ready", URL: app.URL}}); err != nil {
-		t.Fatal(err)
-	}
+	seedVerifiedPreview(t, s, Release{ID: "release-auth", ProjectID: p.ID, Target: "local", Status: "ready", URL: app.URL})
 	r := httptest.NewRequest("POST", "/v1/product/projects/"+p.ID+"/releases/release-auth/preview/login", strings.NewReader("{}"))
 	r.Header.Set("Authorization", "Bearer luci-management-bearer")
 	r.Header.Set("X-Luci-Preview-App-Authorization", "Bearer app-user-token")

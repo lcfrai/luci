@@ -142,6 +142,9 @@ func currentSpecification(state journeyState) ProjectSpecification {
 			}
 		}
 	}
+	if copy.Status == "approved" && !specificationApprovalMatches(state) {
+		copy.Status, copy.Digest = "draft", ""
+	}
 	return copy
 }
 
@@ -240,7 +243,7 @@ func (s *Server) getSpecification(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
@@ -255,7 +258,7 @@ func (s *Server) specificationHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
@@ -290,7 +293,7 @@ func (s *Server) saveSpecification(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
@@ -317,6 +320,10 @@ func (s *Server) saveSpecification(w http.ResponseWriter, r *http.Request) {
 	}
 	brief := Brief{ProjectID: p.ID, Revision: spec.BriefRevision, Purpose: spec.Purpose, Audience: spec.Audience, Constraints: spec.Constraints, Criteria: criteria, UpdatedAt: spec.UpdatedAt}
 	brief.Structured = true
+	if err := s.revokeJourneyApproval(p.Path, p.ID, true); err != nil {
+		problem(w, 500, "approval_unavailable", "The private review selection could not be revoked. The definition was not changed.")
+		return
+	}
 	state.Brief = brief
 	state.BriefRevisions = append(state.BriefRevisions, brief)
 	state.Specification = &spec
@@ -333,6 +340,10 @@ func (s *Server) saveSpecification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) approveSpecification(w http.ResponseWriter, r *http.Request) {
+	actor, authenticated := authenticatedReviewActor(w, r)
+	if !authenticated {
+		return
+	}
 	var req struct {
 		Revision      int `json:"revision"`
 		BriefRevision int `json:"briefRevision"`
@@ -346,7 +357,7 @@ func (s *Server) approveSpecification(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
@@ -373,6 +384,10 @@ func (s *Server) approveSpecification(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if spec.Status == "approved" {
+		if err := writeJourneyContext(p.Path, state); err != nil {
+			problem(w, 500, "context_export_failed", "The private approval is retained, but its context export could not be repaired. Resolve the project paths and retry this explicit review.")
+			return
+		}
 		writeJSON(w, 200, spec)
 		return
 	}
@@ -385,6 +400,10 @@ func (s *Server) approveSpecification(w http.ResponseWriter, r *http.Request) {
 	spec.Digest = hex.EncodeToString(sum[:])
 	state.Specification = &spec
 	state.SpecificationRevisions = append(state.SpecificationRevisions, spec)
+	if err := s.recordJourneyApproval(p.Path, p.ID, "specification", actor, &state); err != nil {
+		problem(w, 500, "approval_unavailable", "The private review receipt could not be saved. Approval was not granted; retain your draft and retry explicit review.")
+		return
+	}
 	if err := writeJourney(p.Path, state); err != nil {
 		problem(w, 500, "save_failed", err.Error())
 		return

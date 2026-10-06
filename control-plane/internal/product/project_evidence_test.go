@@ -297,15 +297,23 @@ func TestLinkedFailedCancelledAndHistoricalChecksStayUnverified(t *testing.T) {
 }
 
 func TestEvidenceSemanticDriftIncompleteOutcomesAndSnapshotsAreIndependent(t *testing.T) {
-	id := "p-evidence"
-	spec := specificationFromBrief(Brief{ProjectID: id, Revision: 1, Purpose: "Saved work", Audience: "People"})
-	spec.Revision, spec.Status = 2, "approved"
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "semantic-evidence")
+	id := p.ID
+	base := "/v1/product/projects/" + id
+	spec := specificationFromBrief(Brief{ProjectID: id, Purpose: "Saved work", Audience: "People"})
 	spec.Requirements = []SpecificationRequirement{{ID: "AC-save", Title: "Save work", Priority: "must", Acceptance: "Exact contents return"}}
-	spec.Digest = specificationContentDigest(spec)
-	design := ProjectDesignPlan{ProjectID: id, Revision: 2, BriefRevision: 1, SpecificationRevision: 2, Status: "approved", ImplementationNotes: "Use saved state"}
-	design.Digest = designPlanContentDigest(design)
-	state := journeyState{Brief: Brief{ProjectID: id, Revision: 1}, Design: Design{ProjectID: id}, Specification: &spec, DesignPlan: &design,
-		Plan: &ProjectPlan{ProjectID: id, Tasks: []ProjectTask{{ID: "task", Title: "Save", Status: "done", RequirementIDs: []string{"AC-save"}}}}}
+	decodeEvidenceResponse(t, journeyRequest(t, mux, "POST", base+"/specification", map[string]any{"expectedRevision": 0, "expectedBriefRevision": 0, "specification": spec}, 200).Body.Bytes(), &spec)
+	decodeEvidenceResponse(t, journeyRequest(t, mux, "POST", base+"/specification/approve", map[string]int{"revision": spec.Revision, "briefRevision": spec.BriefRevision}, 200).Body.Bytes(), &spec)
+	design := ProjectDesignPlan{ProjectID: id, Screens: []DesignScreen{{ID: "home", Name: "Home", Purpose: "Save work", States: []string{"Saved", "Error"}, Widths: []int{390}, RequirementIDs: []string{"AC-save"}}}, ImplementationNotes: "Use saved state"}
+	decodeEvidenceResponse(t, journeyRequest(t, mux, "POST", base+"/design-plan", map[string]any{"expectedRevision": 0, "expectedBriefRevision": spec.BriefRevision, "expectedSpecificationRevision": spec.Revision, "plan": design}, 200).Body.Bytes(), &design)
+	decodeEvidenceResponse(t, journeyRequest(t, mux, "POST", base+"/design-plan/approve", map[string]int{"revision": design.Revision}, 200).Body.Bytes(), &design)
+	state, err := s.readApprovedJourney(p.Path, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.Specification, state.DesignPlan = &spec, &design
+	state.Plan = &ProjectPlan{ProjectID: id, Tasks: []ProjectTask{{ID: "task", Title: "Save", Status: "done", RequirementIDs: []string{"AC-save"}}}}
 	zero := 0
 	source := EvidenceSource{Available: true, SourceDigest: strings.Repeat("a", 64), Commit: strings.Repeat("b", 40)}
 	row := ProjectCheckRun{ID: "check-1", ProjectID: id, Status: "passed", Commit: source.Commit, SourceDigest: source.SourceDigest, RequirementIDs: []string{"AC-save"}, RequirementSnapshots: []RequirementSnapshot{{ID: "AC-save", Title: "Save work", Acceptance: "Exact contents return"}}, SpecificationRevision: 2, SpecificationDigest: spec.Digest, DesignPlanRevision: 2, DesignPlanDigest: design.Digest, Commands: []CheckCommandResult{{CheckCommand: CheckCommand{Args: []string{"test"}}, Status: "passed", ExitCode: &zero}}}

@@ -191,3 +191,42 @@ The real Codex subscription, supplied LiteLLM endpoint, live AWS/Azure accounts,
 owned domain, external SMTP recipient/inbox and public release/signing remain
 distinct external prerequisites. Their absence is neither a code defect nor a
 pass. The fixtures above do not satisfy those live acceptance outcomes.
+
+## Follow-through on the integrated candidate
+
+Source 0.4.17 implements the connection resolver, model retention, guided
+assistance and Docker Ask corrections described above. Its exact fresh F:
+package build and secondary installation are recorded in
+[FULL-PRODUCT.md](FULL-PRODUCT.md). Required installed connector/tool execution
+has not run: Docker became unavailable after host disk exhaustion. Source/fixture
+results must not be presented as live gateway or subscription readiness.
+
+The next source batch addresses the following concrete follow-through findings:
+
+| ID | Severity | Finding | Current outcome |
+| --- | --- | --- | --- |
+| ROUTE-01 | P1 | The shared connection catalogue stayed local while an activated workspace's sessions and assistants ran remotely. | Exact connection-prefix routing joins the remote execution service; focused divergent-store proxy checks pass. |
+| PREVIEW-01 | P1 | A saved ready URL could forward authenticated HTTP/WebSocket traffic without verifying the current container and its bound port. | Actual running/ownership/binding checks precede forwarding; eleven invalid variants forward zero requests, and positive paths remain working. |
+| HANDOFF-01 | P1 | Task handoff was prompt text without a durable session/task/reviewed-revision/source binding. | Bound session inputs, restart/resume admission and own-project run history are implemented; focused source tests pass. They do not claim verified task completion. |
+| LIVENESS-01 | P2 | Interrupted builds and vanished preview containers could retain building/ready UI states indefinitely. | Bounded real observation reports unknown and clears unusable URLs, preserves history and keeps explicit recovery; focused source checks pass. |
+| DESIGN-LOAD-01 | P2 | Optional prototype history failure prevented the saved Design workspace from loading. | Independent history loading/retry with saved Design intact; focused frontend checks pass. |
+| REVIEW-01 | P1 | Public content hashes in agent-writable journey state served as review authority. Exact unchanged 0.4.17 accepts directly forged approved specification/design without any approve API call. | Private authenticated scoped receipts, full dependency binding, save/replay invalidation and unconditional current reviews now guard deployment. Eight authority and five final commit/deployment parent gates pass in source, including actual hardlink refusal and partial export retry. Unanchored content remains readable and needs fresh review. Matching installed acceptance remains open. |
+
+REVIEW-01 proof is the isolated overlay diagnostic retained at
+`F:/LuciBuilds/agent-connections-recovery-validation/astra-runtime17-continuation-16480d92-4b7d-450d-ab0d-80800c80a589/approval-authority-proof.json`.
+The old source checkout remains unchanged. Private recorded command outcomes are
+separate and were not forged. Public hashes establish integrity, not an actor's
+approval. Dependency edits at an unchanged revision and replay of an older
+approved file after a save must fail closed. Removing structured files must not
+downgrade deployment admission to a legacy no-review path.
+
+Glasses follow-through inspected the Vercel Workflow README and Apache-2.0 licence
+at exact revision `0e64f7bc25b9159a39485c5ff5b2c8025bf2745a`. It introduces a
+separate TypeScript workflow backend beside Luci's Go service and does not supply
+Luci's account/project/review/evidence authority. It has not been adopted.
+Temporal, Argo and Superplane catalogue discovery is additional research only;
+metadata classification and older licence evidence do not establish current fit.
+An optional coordinator must persist and reconcile actual child session, check
+and release outcomes through the existing typed boundaries. Stronger model
+planning is useful where measured quality requires it, and cannot self-grant
+human review, cloud-cost acknowledgement or successful deployment.

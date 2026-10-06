@@ -56,6 +56,7 @@ type Element struct {
 }
 
 type journeyState struct {
+	approvalAuthority      *journeyApprovalStore
 	Version                int                    `json:"version"`
 	Brief                  Brief                  `json:"brief"`
 	Design                 Design                 `json:"design"`
@@ -154,7 +155,7 @@ func (s *Server) getBrief(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())
 		return
@@ -189,7 +190,7 @@ func (s *Server) saveBrief(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())
 		return
@@ -203,6 +204,10 @@ func (s *Server) saveBrief(w http.ResponseWriter, r *http.Request) {
 	// Validate the generated artifact target before committing canonical state.
 	if _, err := guardedProjectPath(p.Path, "LUCI.md", true); err != nil {
 		journeyError(w, 403, "unsafe_context_path", err.Error())
+		return
+	}
+	if err := s.revokeJourneyApproval(p.Path, p.ID, true); err != nil {
+		journeyError(w, 500, "approval_unavailable", "The private review selection could not be revoked. The brief was not changed.")
 		return
 	}
 	state.Brief = brief
@@ -237,7 +242,7 @@ func (s *Server) getDesign(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())
 		return
@@ -307,7 +312,7 @@ func (s *Server) saveDesign(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())
 		return
@@ -317,6 +322,10 @@ func (s *Server) saveDesign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	design := Design{ProjectID: p.ID, Revision: req.Revision + 1, BriefRevision: state.Brief.Revision, Frames: append([]Frame{}, req.Frames...), Scene: append(json.RawMessage(nil), req.Scene...), UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	if err := s.revokeJourneyApproval(p.Path, p.ID, false); err != nil {
+		journeyError(w, 500, "approval_unavailable", "The private review selection could not be revoked. The sketch was not changed.")
+		return
+	}
 	state.Design = design
 	state.DesignRevisions = append(state.DesignRevisions, design)
 	if err := writeJourney(p.Path, state); err != nil {
@@ -361,7 +370,7 @@ func (s *Server) exportDesign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.RLock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	s.mu.RUnlock()
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())

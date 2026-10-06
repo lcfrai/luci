@@ -305,18 +305,15 @@ func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.RLock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	s.mu.RUnlock()
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", "Could not read the project brief history.")
 		return
 	}
-	if state.Brief.Revision > 0 {
-		committedBrief, err := s.journeyGit(ctx, p.Path, "show", commit+":LUCI.md")
-		if err != nil || committedBrief != string(renderBrief(state.Brief)) {
-			journeyError(w, 409, "brief_commit_required", "Commit the current LUCI.md so the release binds the brief contained in its commit.")
-			return
-		}
+	if err := s.validateReviewedCommit(ctx, p, state, commit); err != nil {
+		problem(w, 409, "review_approval_required", err.Error())
+		return
 	}
 	configuration, err := s.applicationConfigurationSnapshot(p.ID)
 	if err != nil {

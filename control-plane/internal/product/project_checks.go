@@ -250,7 +250,7 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.Lock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		s.mu.Unlock()
 		problem(w, 500, "history_unavailable", "The saved project definition could not be read.")

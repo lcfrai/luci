@@ -202,17 +202,14 @@ func (s *Server) createPagesRelease(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "clean_commit_required", "Refresh and commit all changes on the selected branch before deploying.")
 		return
 	}
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		problem(w, 409, "brief_unavailable", "The saved brief could not be read.")
 		return
 	}
-	if state.Brief.Revision > 0 {
-		text, e := s.journeyGit(ctx, p.Path, "show", req.Commit+":LUCI.md")
-		if e != nil || text != string(renderBrief(state.Brief)) {
-			problem(w, 409, "brief_not_committed", "Commit the current brief before deploying.")
-			return
-		}
+	if err := s.validateReviewedCommit(ctx, p, state, req.Commit); err != nil {
+		problem(w, 409, "review_approval_required", err.Error())
+		return
 	}
 	tree, err := s.journeyGit(ctx, p.Path, "ls-tree", "-r", "-z", req.Commit, "--", "docs", "Dockerfile")
 	files := map[string]bool{}

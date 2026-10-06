@@ -1,17 +1,20 @@
 # Building and distributing Luci
 
-The current installed review candidate is **0.4.16**, built from clean source
-`eda1d061d679e4051e720b7ff98f67a760c270dc`. Both Docker workspaces admit its
-matching 917-file bundle with accounts, history and volumes preserved. Both
-runtime observations report ready. Four read-only requirement-evidence retention
-checks and three standalone PostgreSQL retention checks pass against the upgraded
-packages. These retain the earlier execution evidence; they do not repeat or
-relabel it as a new model or database run. Test services remain stopped.
+The primary installed workspace remains **0.4.16**, from clean source
+`eda1d061d679e4051e720b7ff98f67a760c270dc`. The secondary workspace admitted
+**0.4.17**, from clean source `e0e51f640efc6aed54b1ce84d742b56d83b68215`,
+with its matching 917-file bundle and three passing PostgreSQL retention checks.
+Accounts, existing projects, history and volumes were preserved. These are
+retention outcomes, not new model or database execution outcomes. Docker's VM
+subsequently recorded disk I/O errors and a read-only filesystem after C: ran
+out of space. Current runtime health and the interrupted sandbox-image rebuild
+are unknown; the earlier ready observations are historical.
 
-The matching Linux, Docker and source artifacts were built in a fresh independent
-F: checkout with locked dependencies and isolated caches. Materialization verifies
-906 files, and the source audit verifies 971 selected Git blobs and all 977
-exported files. The Linux package retains 344 licence components with zero
+The matching 0.4.17 Linux, Docker and source artifacts were built in a fresh
+independent F: checkout with locked dependencies and isolated caches.
+Materialization verifies 906 files, and the source audit verifies 987 selected
+Git blobs and all 993 exported files. The Linux package retains 344 licence
+components with zero
 missing grants. Earlier packages, manifests and failed receipts retain their
 original source bindings.
 
@@ -36,9 +39,19 @@ The source batch passes 1,311 frontend checks in 81 files, with a later focused
 40-check Shell picker/defaults run and TypeScript validation. The schema-2
 preference migration preserves existing layouts, settings and connection
 inheritance. Five packaging checks pass. Local Go failures and their focused
-corrections remain recorded; fresh matching CI is required for whole-suite,
-race, runtime and native acceptance. The installed packages described above
-remain 0.4.16 until a matching 0.4.17 build is admitted.
+corrections remain recorded. Matching 0.4.17 CI run
+[`37398697512`](https://github.com/lcfrai/luci/actions/runs/37398697512) passes
+whole Go, race, frontend, TypeScript, web build and connected browser checks.
+Its runtime tests pass, but runtime evidence upload fails on GitHub artifact
+storage quota; that job remains failed and native/portable jobs are skipped.
+
+The current source correction is **0.4.18**. It adds reviewed implementation
+context, private account-scoped review authority, actual preview ownership and
+health observation, remote connection forwarding, and independent optional
+prototype loading. Its focused source results do not establish installed
+acceptance. A matching clean build, full CI and installed continuation remain
+required. Successful Windows builds now remove only their verified generated
+stage; failed stages remain available for diagnosis.
 
 This is not a public production release. The required real Codex-generated
 application and public deployment, live AWS/Azure and domain acceptance,
@@ -93,9 +106,9 @@ Use Go 1.26.3, Node 24.19.0, Python 3.11 or newer, and the committed lockfiles. 
 On Windows:
 
 ```powershell
-./scripts/build-release.ps1 -Version 0.4.17
+./scripts/build-release.ps1 -Version 0.4.18
 # Also build the native Windows NSIS installer:
-./scripts/build-release.ps1 -Version 0.4.17 -Native
+./scripts/build-release.ps1 -Version 0.4.18 -Native
 ```
 
 Native Windows builds also need stable Rust with the MSVC target and the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/). Tauri receives the Cargo lock flag after its argument separator: `npm run tauri -- build --bundles nsis -- --locked`. The [NSIS distribution documentation](https://v2.tauri.app/distribute/windows-installer/) describes the installer and signing options.
@@ -103,11 +116,11 @@ Native Windows builds also need stable Rust with the MSVC target and the [Tauri 
 On Linux or macOS:
 
 ```bash
-bash scripts/build-release.sh 0.4.17 linux-amd64
-bash scripts/build-release.sh 0.4.17 darwin-arm64
+bash scripts/build-release.sh 0.4.18 linux-amd64
+bash scripts/build-release.sh 0.4.18 darwin-arm64
 ```
 
-Archives and their checksums are written under `artifacts/releases/0.4.17/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
+Archives and their checksums are written under `artifacts/releases/0.4.18/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
 
 `scripts/collect-licenses.py` inventories installed npm runtime packages, each bundled Excalidraw font family, the Go modules compiled into the service and sandbox, and the Go standard library. Native builds also inventory reachable Windows Cargo packages. It retains original files and source snapshot references with SHA-256 hashes in `licenses/manifest.json`; `MISSING-LICENSES.txt` lists missing grants. The default command fails when a component has no retained licence file. `--allow-missing` is diagnostic only and must not be used to make a distributable package pass. Updating a dependency can require a new version-specific snapshot in `third-party/licenses/manifest.json`.
 

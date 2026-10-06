@@ -49,7 +49,9 @@ beforeEach(() => {
   vi.restoreAllMocks();
   resetCockpit();
   createSession.mockReset();
-  vi.spyOn(productApi, "checks").mockResolvedValue({ runs: [], suggested: [] });
+  vi.spyOn(productApi, "checks").mockResolvedValue({ runs: [], suggested: [], coverage: { projectId: "p-1", specification: { revision: 6, status: "approved", digest: "spec-6" }, design: { revision: 8, status: "approved", digest: "design-8" }, source: { commit: "a".repeat(40), sourceDigest: "source-a", dirty: false, available: true }, rows: [] } });
+  vi.spyOn(productApi, "agentConnections").mockResolvedValue({ revision: 0, activeConnectionId: "", connections: [] });
+  vi.spyOn(productApi, "agents").mockResolvedValue({ providers: [] });
 });
 
 it("requires reviewed host trust before running real checks and shows a failing command honestly", async () => {
@@ -109,7 +111,7 @@ it("retains edited tasks when saving encounters a revision conflict", async () =
   ).toBe("doing");
   expect(save).toHaveBeenCalledWith("p-1", 3, [
     { id: "t1", title: "Build editor", status: "doing" },
-  ]);
+  ], 6);
   expect(screen.queryByText(/Plan saved as revision/)).toBeNull();
   expect(Object.values(useCockpit.getState().unsavedProjectDrafts)).toEqual([
     { projectId: "p-1", label: "Implementation plan", lens: "develop" },
@@ -117,12 +119,14 @@ it("retains edited tasks when saving encounters a revision conflict", async () =
 });
 
 const savedPlan = {
-  projectId: "p-1", revision: 3, briefRevision: 2,
+  projectId: "p-1", revision: 3, briefRevision: 2, specificationRevision: 6,
   tasks: [{ id: "t1", title: "Build editor", status: "todo" as const }], updatedAt: "",
 };
 function selectPlanProject() {
   useCockpit.setState({
     projects: [aProject({ id: "p-1" }), aProject({ id: "p-2" })],
+    branchesByProject: { "p-1": [aBranch({ id: "b-1", projectId: "p-1" })] },
+    worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", projectId: "p-1", branchId: "b-1", isPrimary: true })] },
     selection: { projectId: "p-1", branchId: "b-1", worktreeId: "w-1", sessionId: null },
     lens: "develop",
   });
@@ -195,7 +199,7 @@ it("a successful saved task does not clear a separate unsubmitted title or its n
   await userEvent.type(screen.getByLabelText("New task"), "Not yet added");
   await userEvent.click(screen.getByRole("button", { name: "Save implementation plan" }));
   await screen.findByText("Plan saved as revision 4.");
-  expect(save).toHaveBeenCalledWith("p-1", 3, [{ id: "t1", title: "Build editor", status: "doing" }]);
+  expect(save).toHaveBeenCalledWith("p-1", 3, [{ id: "t1", title: "Build editor", status: "doing" }], 6);
   expect((screen.getByLabelText("New task") as HTMLInputElement).value).toBe("Not yet added");
   expect(Object.values(useCockpit.getState().unsavedProjectDrafts)).toHaveLength(1);
   expect((screen.getByRole("button", { name: "Start implementation session" }) as HTMLButtonElement).disabled).toBe(true);
@@ -212,6 +216,9 @@ it("hands a saved task and project context to an actual session only after revie
   useCockpit.setState({
     harnesses: [
       aHarness({
+        id: "claude-code",
+        name: "Claude Code",
+        command: "claude",
         available: true,
         installed: true,
         flagsVerified: true,
@@ -221,7 +228,7 @@ it("hands a saved task and project context to an actual session only after revie
     projects: [aProject({ id: "p-1" })],
     branchesByProject: { "p-1": [aBranch({ id: "b-1", projectId: "p-1" })] },
     worktreesByBranch: {
-      "b-1": [aWorktree({ id: "w-1", branchId: "b-1", ready: true })],
+      "b-1": [aWorktree({ id: "w-1", projectId: "p-1", branchId: "b-1", isPrimary: true, ready: true })],
     },
     selection: {
       projectId: "p-1",
@@ -234,6 +241,7 @@ it("hands a saved task and project context to an actual session only after revie
     projectId: "p-1",
     revision: 3,
     briefRevision: 2,
+    specificationRevision: 6,
     tasks: [{ id: "t1", title: "Build editor", status: "todo" }],
     updatedAt: "",
   });
@@ -253,5 +261,6 @@ it("hands a saved task and project context to an actual session only after revie
   expect(createSession.mock.calls[0][0]).toMatchObject({
     worktreeId: "w-1",
     openingPrompt: prompt.value,
+    implementationContext: { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["t1"] },
   });
 });

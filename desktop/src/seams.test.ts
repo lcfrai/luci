@@ -389,7 +389,7 @@ const SEAMS: Seam[] = [
     id: "S4.1",
     name: "Session.contextRef: carried everywhere, written and read by no surface yet",
     anchors: [
-      { file: "control-plane/internal/registry/session.go", present: /^\tContextRef string `json:"contextRef"`$/m },
+      { file: "control-plane/internal/registry/session.go", present: /^\tContextRef\s+string\s+`json:"contextRef"`$/m },
       { file: "control-plane/internal/api/sessions.go", present: /^\t\tContextRef:\s+req\.ContextRef,$/m },
       { file: "desktop/src/store/types.ts", present: /^\s+contextRef: string;$/m },
       { file: "desktop/src/store/defaults.ts", present: /^\s+contextRef\?: string;$/m },

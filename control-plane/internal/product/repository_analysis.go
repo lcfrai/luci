@@ -46,7 +46,7 @@ func (s *Server) RepositoryAnalysisSnapshot(ctx context.Context, id, mode string
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		return RepositoryAnalysisSnapshot{}, err
 	}
@@ -274,7 +274,7 @@ func (s *Server) ApplyRepositoryAnalysisDraft(ctx context.Context, id string, ex
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		return ProjectSpecification{}, err
 	}
@@ -301,6 +301,9 @@ func (s *Server) ApplyRepositoryAnalysisDraft(ctx context.Context, id string, ex
 		criteria = append(criteria, text)
 	}
 	brief := Brief{ProjectID: id, Revision: spec.BriefRevision, Purpose: spec.Purpose, Audience: spec.Audience, Constraints: spec.Constraints, Criteria: criteria, UpdatedAt: spec.UpdatedAt, Structured: true}
+	if err := s.revokeJourneyApproval(p.Path, p.ID, true); err != nil {
+		return ProjectSpecification{}, errors.New("The private review selection could not be revoked. The analyzed definition was not changed.")
+	}
 	state.Brief = brief
 	state.BriefRevisions = append(state.BriefRevisions, brief)
 	state.Specification = &spec

@@ -22,6 +22,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/ids"
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/reaper"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 	"github.com/lcfrai/luci/control-plane/internal/worktree"
@@ -757,17 +758,18 @@ type sessionJSON struct {
 	BranchID   string `json:"branchId"`
 	WorktreeID string `json:"worktreeId"`
 
-	Harness                 string `json:"harness"`
-	Model                   string `json:"model"`
-	Effort                  string `json:"effort"`
-	PermissionMode          string `json:"permissionMode"`
-	OpeningPrompt           string `json:"openingPrompt"`
-	AuthOnly                bool   `json:"authOnly,omitempty"`
-	AuthMode                string `json:"authMode,omitempty"`
-	AgentConnectionID       string `json:"agentConnectionId,omitempty"`
-	AgentConnectionRevision int    `json:"agentConnectionRevision,omitempty"`
-	AgentConnectionKind     string `json:"agentConnectionKind,omitempty"`
-	AgentConnectionProtocol string `json:"agentConnectionProtocol,omitempty"`
+	Harness                 string                          `json:"harness"`
+	Model                   string                          `json:"model"`
+	Effort                  string                          `json:"effort"`
+	PermissionMode          string                          `json:"permissionMode"`
+	OpeningPrompt           string                          `json:"openingPrompt"`
+	AuthOnly                bool                            `json:"authOnly,omitempty"`
+	AuthMode                string                          `json:"authMode,omitempty"`
+	AgentConnectionID       string                          `json:"agentConnectionId,omitempty"`
+	AgentConnectionRevision int                             `json:"agentConnectionRevision,omitempty"`
+	AgentConnectionKind     string                          `json:"agentConnectionKind,omitempty"`
+	AgentConnectionProtocol string                          `json:"agentConnectionProtocol,omitempty"`
+	ImplementationContext   *registry.ImplementationContext `json:"implementationContext,omitempty"`
 
 	Status     string `json:"status"`
 	ExitReason string `json:"exitReason"`
@@ -805,6 +807,7 @@ func toJSON(s registry.Session, base string) sessionJSON {
 		AgentConnectionRevision: s.AgentConnectionRevision,
 		AgentConnectionKind:     s.AgentConnectionKind,
 		AgentConnectionProtocol: s.AgentConnectionProtocol,
+		ImplementationContext:   s.ImplementationContext.Clone(),
 		Status:                  string(s.Status),
 		ExitReason:              s.ExitReason,
 		Backend:                 s.Backend,
@@ -871,18 +874,19 @@ var sessionErrMoved = errors.New("api: the session moved on while the watch was 
 // sessionCreateRequest is the body of POST /v1/sessions, contract §3.9. Every
 // field but worktreeId is optional and defaulted below.
 type sessionCreateRequest struct {
-	MachineID         string  `json:"machineId"`
-	WorktreeID        string  `json:"worktreeId"`
-	Harness           string  `json:"harness"`
-	Model             string  `json:"model"`
-	Effort            string  `json:"effort"`
-	PermissionMode    string  `json:"permissionMode"`
-	OpeningPrompt     string  `json:"openingPrompt"`
-	Title             string  `json:"title"`
-	Resume            string  `json:"resume"`
-	ContextRef        string  `json:"contextRef"`
-	AuthOnly          bool    `json:"authOnly"`
-	AgentConnectionID *string `json:"agentConnectionId"`
+	MachineID             string                                `json:"machineId"`
+	WorktreeID            string                                `json:"worktreeId"`
+	Harness               string                                `json:"harness"`
+	Model                 string                                `json:"model"`
+	Effort                string                                `json:"effort"`
+	PermissionMode        string                                `json:"permissionMode"`
+	OpeningPrompt         string                                `json:"openingPrompt"`
+	Title                 string                                `json:"title"`
+	Resume                string                                `json:"resume"`
+	ContextRef            string                                `json:"contextRef"`
+	AuthOnly              bool                                  `json:"authOnly"`
+	AgentConnectionID     *string                               `json:"agentConnectionId"`
+	ImplementationContext *product.ImplementationContextRequest `json:"implementationContext,omitempty"`
 }
 
 // registerSessions mounts the six verbs. Go 1.22's ServeMux matches on method
@@ -1155,6 +1159,10 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	selection := req.AgentConnectionID
+	implementationContext, contextOK := a.bindSessionImplementation(w, r, &req, path, sourceSession)
+	if !contextOK {
+		return
+	}
 	if req.AuthOnly {
 		if selection != nil && *selection != "" {
 			httpx.WriteProblem(w, 409, httpx.CodeConflict, "Device sign-in cannot use an API or gateway route. Start a fresh subscription sign-in instead.", nil)
@@ -1289,6 +1297,9 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		machineID = LocalMachineID
 	}
 	projectID, branchID := a.sessionLocate(ctx, req.WorktreeID)
+	if !a.validateSessionImplementation(w, projectID, req.WorktreeID, path, implementationContext) {
+		return
+	}
 
 	// 4. The record exists before the sandbox does. SandboxID is written here,
 	// before backend.Create, so a crash between the two leaves a record the
@@ -1321,6 +1332,7 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		SandboxID:               sessionID,
 		AttachToken:             token,
 		ContextRef:              req.ContextRef,
+		ImplementationContext:   implementationContext,
 
 		CarriedConversationID: carriedConversation,
 	}); err != nil {
@@ -1943,6 +1955,9 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !a.validateSessionImplementation(w, sess.ProjectID, sess.WorktreeID, path, sess.ImplementationContext) {
+		return
+	}
 	// A harness with a conversation is REBUILT, not replayed, and restart is
 	// the one place this file does that. The stored args name the old
 	// conversation with --session-id, and now that the store outlives the

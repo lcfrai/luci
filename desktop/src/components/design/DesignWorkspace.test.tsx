@@ -36,6 +36,36 @@ function ready(plan = fixture()) {
   vi.spyOn(productApi, "prototypeReleases").mockResolvedValue({ releases: [] });
 }
 
+it("keeps saved design usable after optional prototype history fails and retries without blocking approval", async () => {
+  ready();
+  vi.mocked(productApi.prototypeReleases).mockRejectedValue(new Error("History unavailable"));
+  const save = vi.spyOn(designPlanApi, "save").mockResolvedValue({ ...fixture(), revision: 3, implementationNotes: "Keep saved work" });
+  const approve = vi.spyOn(designPlanApi, "approve").mockResolvedValue({ ...fixture(), revision: 4, implementationNotes: "Keep saved work", status: "approved" });
+  render(<DesignWorkspace projectId="p-1" />);
+  await screen.findByLabelText("Screen name");
+  expect(screen.queryByRole("alert")).toBeNull();
+  await userEvent.click(screen.getByRole("tab", { name: "Implementation handoff" }));
+  await userEvent.clear(screen.getByLabelText("Implementation notes")); await userEvent.type(screen.getByLabelText("Implementation notes"), "Keep saved work");
+  await userEvent.click(screen.getByRole("button", { name: "Save design plan" }));
+  await screen.findByText("Design plan 3 saved. Implementation context updated.");
+  expect(save).toHaveBeenCalledOnce();
+  await userEvent.click(screen.getByRole("tab", { name: "Prototype" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("History unavailable");
+  expect(screen.queryByText("No verified prototype yet")).toBeNull();
+  let finish!: (value: { releases: Release[] }) => void;
+  vi.mocked(productApi.prototypeReleases).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  await userEvent.click(screen.getByRole("button", { name: "Retry prototype history" }));
+  await screen.findByText(/Refreshing prototype history/);
+  await userEvent.click(screen.getByRole("tab", { name: "Implementation handoff" }));
+  expect((screen.getByLabelText("Implementation notes") as HTMLTextAreaElement).value).toBe("Keep saved work");
+  expect((screen.getByRole("button", { name: "Approve design handoff" }) as HTMLButtonElement).disabled).toBe(false);
+  await userEvent.click(screen.getByRole("button", { name: "Approve design handoff" }));
+  expect(approve).toHaveBeenCalledExactlyOnceWith("p-1", 3);
+  await act(async () => finish({ releases: [] }));
+  expect(screen.getByRole("button", { name: "Continue to Develop" })).not.toBeNull();
+  expect(designPlanApi.get).toHaveBeenCalledOnce();
+});
+
 it("links design tabs to manually activated panels without opening sketch on keyboard focus", async () => {
   ready();
   render(<DesignWorkspace projectId="p-1" />);

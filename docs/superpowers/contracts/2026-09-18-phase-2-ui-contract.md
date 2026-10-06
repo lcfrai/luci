@@ -527,6 +527,30 @@ export interface Harness {
  *  would require reading PTY bytes, which docs/PROGRAM.md forbids absolutely. */
 export type SessionStatus = "starting" | "running" | "idle" | "exited";
 
+/** Exact saved revisions and stable task IDs requested for an implementation session. */
+export interface ImplementationContextRequest {
+  projectId: ProjectId;
+  briefRevision: number;
+  planRevision: number;
+  specificationRevision: number;
+  designPlanRevision: number;
+  taskIds: string[];
+}
+
+/** Immutable server snapshot. Session activity never establishes task completion or verification. */
+export interface ImplementationContext extends ImplementationContextRequest {
+  briefDigest: string;
+  planDigest: string;
+  specificationDigest: string;
+  designPlanDigest: string;
+  worktreeId: WorktreeId;
+  sourceCommit: string;
+  sourceDigest: string;
+  sourceDirty: boolean;
+  taskTitles: string[];
+  requirementIds: string[];
+}
+
 export interface Session {
   id: SessionId;
   title: string;
@@ -548,6 +572,7 @@ export interface Session {
   agentConnectionRevision?: number;
   agentConnectionKind?: string;
   agentConnectionProtocol?: string;
+  implementationContext?: ImplementationContext;
   /** Free text for the user: "killed", "process exited", "idle timeout",
    *  "sandbox disappeared while the app was not running". Rendered verbatim. */
   exitReason: string;

@@ -151,7 +151,7 @@ func (s *Server) buildProjectBackup(ctx context.Context, p project.Project, tmp 
 		}
 	}
 	s.mu.RLock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	s.mu.RUnlock()
 	if err != nil {
 		return "", errors.New("Could not read saved brief and design history.")

@@ -235,6 +235,12 @@ describe("resolveDefaults — the clamp, in §3.6's order", () => {
 });
 
 describe("toCreateRequest — §3.6's inclusion table", () => {
+  it("sends saved handoff choices without allowing a response snapshot to supply server-only binding fields", () => {
+    const context = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"], sourceCommit: "client-must-not-bind-this", briefDigest: "client-must-not-bind-this" };
+    const request = toCreateRequest("w-1", resolved, claude, { implementationContext: context });
+    expect(request.implementationContext).toEqual({ projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"] });
+    expect(request.implementationContext?.taskIds).not.toBe(context.taskIds);
+  });
   const resolved = resolveDefaults(full, undefined, undefined, catalogue);
 
   it("always carries worktreeId and harness, and never machineId", () => {

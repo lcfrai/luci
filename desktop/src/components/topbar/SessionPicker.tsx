@@ -13,7 +13,9 @@ import { useAgentConnections, selectedAgentConnection, configuredAgentModel, age
 import { AgentConnectionSelect } from "../setup/AgentConnectionSelect";
 import type {
   Effort,
+  ImplementationContextRequest,
   PermissionMode,
+  SessionId,
   SessionDefaultsOverride,
   WorktreeId,
 } from "../../store/types";
@@ -40,15 +42,19 @@ export function SessionPicker(props: {
   worktreeId: WorktreeId | null;
   onClose: () => void;
   initialPrompt?: string;
+  implementationContext?: ImplementationContextRequest;
+  onCreated?: (sessionId?: SessionId) => void;
 }): JSX.Element | null {
   const { open, worktreeId, onClose, initialPrompt = "" } = props;
   const harnesses = useCockpit(useShallow((s) => s.harnesses));
   const inherited = useCockpit(useShallow(selectResolvedDefaults));
   const branchId = useCockpit((s) => s.selection.branchId);
+  const projectId = useCockpit((s) => s.selection.projectId);
   const worktrees = useCockpit(useShallow(selectWorktrees(branchId ?? "")));
   const setBranchDefaults = useCockpit((s) => s.setBranchDefaults);
   const createSession = useCreateSession();
   const working = useRef(false);
+  const generation = useRef(0);
   const modelsId = useId();
   const ref = useDismissable<HTMLDivElement>(open, () => {
     if (!working.current) onClose();
@@ -64,13 +70,16 @@ export function SessionPicker(props: {
   const [connectionChanged, setConnectionChanged] = useState(false);
 
   useEffect(() => {
+    generation.current++;
     if (!open) return;
     setDraft({});
     setConnectionChanged(false);
     setPrompt(initialPrompt);
     setTarget(worktreeId);
     setError("");
-  }, [open, worktreeId, initialPrompt]);
+    setBusy(false); working.current = false;
+    return () => { generation.current++; };
+  }, [open, worktreeId, initialPrompt, props.implementationContext]);
   useEffect(() => {
     if (!open) return;
     let stopped = false;
@@ -90,6 +99,12 @@ export function SessionPicker(props: {
   const connection = isShell ? undefined : selectedAgentConnection(catalogue, effective.agentConnectionId);
   const savedModel = configuredAgentModel(connection, effective.harness);
   const connectionIssue = isShell ? "" : agentConnectionIssue(connection, effective.harness, effective.agentConnectionId ?? catalogue?.activeConnectionId);
+  const targetWorktree = worktrees.find(worktree => worktree.id === target);
+  const contextIssue = !props.implementationContext ? "" : isShell || !harness?.supportsOpeningPrompt
+    ? "Choose a coding agent that accepts an opening prompt for this implementation handoff."
+    : projectId !== props.implementationContext.projectId || targetWorktree?.projectId !== props.implementationContext.projectId
+      ? "This implementation handoff belongs to another project. Return to that project and choose its worktree."
+      : !targetWorktree?.isPrimary ? "Implementation handoffs currently need the main checkout. Choose its branch and worktree." : "";
   const modelReadOnly = !!connection && connection.kind !== "codex-subscription" || !!savedModel || effective.harness === "opencode" && !!localModel && !connection;
   if (isShell) effective.model = "";
   else if (savedModel) effective.model = savedModel;
@@ -107,6 +122,8 @@ export function SessionPicker(props: {
       className="pop pick-panel"
     >
       <div className="pick" aria-busy={busy}>
+        {props.implementationContext && <p className="pick-note">Saved handoff · Brief {props.implementationContext.briefRevision} · Plan {props.implementationContext.planRevision} · Definition {props.implementationContext.specificationRevision} · Design {props.implementationContext.designPlanRevision} · {props.implementationContext.taskIds.length} selected tasks</p>}
+        {contextIssue && <p className="journey-error" role="alert">{contextIssue}</p>}
         {error && (
           <p className="journey-error" role="alert">
             {error} Your session settings and prompt have been kept. Resolve the
@@ -260,11 +277,13 @@ export function SessionPicker(props: {
               busy ||
               !harness.available ||
               !!connectionIssue ||
+              !!contextIssue ||
               (!!initialPrompt && !harness.supportsOpeningPrompt)
             }
             title={harness.available ? undefined : harness.note}
             onClick={async () => {
               if (target !== null && !working.current) {
+                const requestGeneration = generation.current;
                 working.current = true;
                 setBusy(true);
                 setError("");
@@ -272,10 +291,12 @@ export function SessionPicker(props: {
                   overrides: { ...draft, model: effective.model },
                   openingPrompt: prompt,
                   agentConnectionId: isShell ? undefined : effective.agentConnectionId,
+                  implementationContext: props.implementationContext,
                 });
+                if (requestGeneration !== generation.current) return;
                 working.current = false;
                 setBusy(false);
-                if (result.ok) onClose();
+                if (result.ok) { props.onCreated?.(result.sessionId); onClose(); }
                 else setError(result.message);
               }
             }}

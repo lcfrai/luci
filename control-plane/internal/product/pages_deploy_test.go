@@ -48,6 +48,7 @@ func pagesFixtureServer(t *testing.T) (*Server, *http.ServeMux, project.Project,
 			t.Fatal(err)
 		}
 	}
+	reviewDeploymentFixture(t, mux, p.ID)
 	commitPreviewFixture(t, p.Path)
 	head, _ := s.journeyGit(context.Background(), p.Path, "rev-parse", "HEAD")
 	if _, err := s.journeyGit(context.Background(), p.Path, "remote", "add", "origin", "https://github.com/example/static-demo.git"); err != nil {
@@ -114,12 +115,16 @@ func pagesFixtureServer(t *testing.T) (*Server, *http.ServeMux, project.Project,
 func TestPagesDeploymentPinsPublicCommitPersistsAndStopsOnlyOwnedSite(t *testing.T) {
 	s, mux, p, req, f := pagesFixtureServer(t)
 	base := "/v1/product/projects/" + p.ID + "/releases"
+	reviewed, err := s.SpecificationSnapshot(p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	var release Release
 	created := journeyRequest(t, mux, "POST", base+"/pages", req, 202)
 	if err := json.Unmarshal(created.Body.Bytes(), &release); err != nil {
 		t.Fatal(err)
 	}
-	if release.Status != "queued" || release.Commit != req.Commit || release.BriefRevision != 1 || release.Target != "github-pages" || release.URL != "" {
+	if release.Status != "queued" || release.Commit != req.Commit || release.BriefRevision != reviewed.BriefRevision || release.Target != "github-pages" || release.URL != "" {
 		t.Fatalf("premature or unpinned release: %+v", release)
 	}
 	duplicate := journeyRequest(t, mux, "POST", base+"/pages", req, 202)

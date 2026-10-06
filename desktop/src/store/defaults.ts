@@ -8,6 +8,7 @@ import type {
   Effort,
   Harness,
   HarnessId,
+  ImplementationContextRequest,
   ModelId,
   PermissionMode,
   SessionDefaults,
@@ -112,6 +113,7 @@ export function toCreateRequest(
     resume?: string;
     contextRef?: string;
     agentConnectionId?: string;
+    implementationContext?: ImplementationContextRequest;
   } = {},
 ): CreateSessionRequest {
   const req: CreateSessionRequest = { worktreeId, harness: harness.id };
@@ -131,5 +133,9 @@ export function toCreateRequest(
     req.resume = opts.resume;
   }
   if (opts.contextRef !== undefined && opts.contextRef !== "") req.contextRef = opts.contextRef;
+  if (opts.implementationContext !== undefined) {
+    const { projectId, briefRevision, planRevision, specificationRevision, designPlanRevision, taskIds } = opts.implementationContext;
+    req.implementationContext = { projectId, briefRevision, planRevision, specificationRevision, designPlanRevision, taskIds: [...taskIds] };
+  }
   return req;
 }

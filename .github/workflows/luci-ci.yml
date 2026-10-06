@@ -41,7 +41,7 @@ concurrency:
 
 env:
   # Keep this aligned with desktop/package.json and product.Version.
-  LUCI_VERSION: '0.4.17'
+  LUCI_VERSION: '0.4.18'
   GO_VERSION: '1.26.3'
   NODE_VERSION: '24.19.0'
 
@@ -51,6 +51,8 @@ jobs:
     if: ${{ !inputs.installer_run && !inputs.installer_release && !inputs.ssh_only }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    outputs:
+      checks: ${{ steps.record_checks.outputs.passed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -67,30 +69,40 @@ jobs:
           cache: npm
           cache-dependency-path: desktop/package-lock.json
       - name: Test Go services
+        id: go_tests
         run: go test ./control-plane/... ./sandboxd/...
       - name: Check concurrent control-plane paths
+        id: race_tests
         if: runner.os == 'Linux'
         run: go test -race ./control-plane/internal/management/... ./control-plane/internal/product/... ./control-plane/internal/project/... ./control-plane/internal/platform/...
       - name: Install locked desktop dependencies
         working-directory: desktop
         run: npm ci
       - name: Test desktop
+        id: desktop_tests
         working-directory: desktop
         run: npm test
       - name: Type-check desktop
+        id: desktop_types
         working-directory: desktop
         run: npm run typecheck
       - name: Build desktop assets
+        id: desktop_build
         working-directory: desktop
         run: npm run build
       - name: Install browser acceptance runtime
         working-directory: desktop
         run: npx playwright install --with-deps chromium
       - name: Run connected browser UAT against the candidate service
+        id: browser_tests
         run: |
           mkdir -p artifacts/browser-uat
           CGO_ENABLED=0 go build -trimpath -o artifacts/browser-uat/luci ./control-plane/cmd/api
           node scripts/run-ui-uat.mjs artifacts/browser-uat/luci desktop/dist .
+      - name: Record successful application checks
+        id: record_checks
+        if: ${{ !cancelled() && steps.go_tests.outcome == 'success' && steps.race_tests.outcome == 'success' && steps.desktop_tests.outcome == 'success' && steps.desktop_types.outcome == 'success' && steps.desktop_build.outcome == 'success' && steps.browser_tests.outcome == 'success' }}
+        run: echo "passed=passed" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -102,9 +114,11 @@ jobs:
   runtime-smoke:
     name: Real Docker and SSH browser UAT
     needs: verify
-    if: ${{ always() && !inputs.installer_run && !inputs.installer_release && (needs.verify.result == 'success' || inputs.ssh_only) }}
+    if: ${{ always() && !cancelled() && !inputs.installer_run && !inputs.installer_release && (needs.verify.outputs.checks == 'passed' || inputs.ssh_only) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    outputs:
+      checks: ${{ steps.record_checks.outputs.passed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -136,6 +150,7 @@ jobs:
           npx playwright install --with-deps chromium
           sudo chmod -R a+rX /opt/luci-uat-browsers
       - name: Exercise the compiled multi-user control plane
+        id: control_tests
         if: ${{ !inputs.ssh_only }}
         run: node scripts/control-plane-smoke.mjs --binary artifacts/runtime-smoke/luci --output artifacts/control-plane-smoke.json
       - name: Prepare isolated runtime acceptance fixtures
@@ -165,6 +180,7 @@ jobs:
           sudo install -d -o luci-eval -g luci-eval -m 700 "$stage/evidence"
           echo "stage=$stage" >> "$GITHUB_OUTPUT"
       - name: Exercise Docker as a distinct non-root host user
+        id: docker_tests
         if: ${{ !inputs.ssh_only }}
         env:
           LUCI_EVAL_STAGE: ${{ steps.runtime-fixtures.outputs.stage }}
@@ -172,6 +188,7 @@ jobs:
           stage="$LUCI_EVAL_STAGE"
           sudo -H -u luci-eval env PATH="$PATH" PLAYWRIGHT_BROWSERS_PATH=/opt/luci-uat-browsers LUCI_RUNTIME_UI=1 node "$stage/scripts/runtime-smoke.mjs" "$stage/luci" "$stage/evidence"
       - name: Exercise real SSH workspace onboarding through the browser
+        id: ssh_tests
         if: ${{ always() && steps.runtime-fixtures.outcome == 'success' }}
         env:
           LUCI_EVAL_STAGE: ${{ steps.runtime-fixtures.outputs.stage }}
@@ -179,12 +196,17 @@ jobs:
           stage="$LUCI_EVAL_STAGE"
           sudo -H -u luci-eval env PATH="$PATH" PLAYWRIGHT_BROWSERS_PATH=/opt/luci-uat-browsers node "$stage/scripts/workspace-browser-eval.mjs" --binary "$stage/luci" --desktop "$stage/desktop" --output "$stage/evidence/workspace-browser"
       - name: Capture independent runtime acceptance evidence
+        id: capture_evidence
         if: ${{ always() && steps.runtime-fixtures.outcome == 'success' }}
         env:
           LUCI_EVAL_STAGE: ${{ steps.runtime-fixtures.outputs.stage }}
         run: |
           sudo tar -czf "$RUNNER_TEMP/luci-runtime-evidence.tar.gz" -C "$LUCI_EVAL_STAGE/evidence" .
           sudo chmod 644 "$RUNNER_TEMP/luci-runtime-evidence.tar.gz"
+      - name: Record successful runtime checks
+        id: record_checks
+        if: ${{ !cancelled() && steps.control_tests.outcome == 'success' && steps.docker_tests.outcome == 'success' && steps.ssh_tests.outcome == 'success' && steps.capture_evidence.outcome == 'success' }}
+        run: echo "passed=passed" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -199,6 +221,9 @@ jobs:
   portable:
     name: Portable ${{ matrix.target }}
     needs: [verify, runtime-smoke]
+    # Evidence upload failures remain red, but do not suppress native testing
+    # when every required application and runtime check actually passed.
+    if: ${{ always() && !cancelled() && needs.verify.outputs.checks == 'passed' && needs['runtime-smoke'].outputs.checks == 'passed' }}
     strategy:
       fail-fast: false
       matrix:
@@ -265,6 +290,7 @@ jobs:
   windows-installer:
     name: Windows native installer and portable packages
     needs: [verify, runtime-smoke]
+    if: ${{ always() && !cancelled() && needs.verify.outputs.checks == 'passed' && needs['runtime-smoke'].outputs.checks == 'passed' }}
     runs-on: windows-2025
     timeout-minutes: 60
     defaults:
@@ -297,7 +323,9 @@ jobs:
         working-directory: desktop
         run: npm ci
       - name: Build portable packages and unsigned NSIS installer
-        run: ./scripts/build-release.ps1 -Version $env:LUCI_VERSION -Native
+        run: |
+          ./scripts/test-owned-build-stage.ps1 -OutputDirectory artifacts/package-eval/windows/build-stage-guards
+          ./scripts/build-release.ps1 -Version $env:LUCI_VERSION -Native
       - name: Verify native state selection and upgrade regression
         working-directory: desktop/src-tauri
         run: cargo test --locked --release --lib

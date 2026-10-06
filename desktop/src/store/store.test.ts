@@ -106,6 +106,23 @@ describe("dataSlice", () => {
     expect(useCockpit.getState().sessions["s-1"]).toBe(before);
   });
 
+  it("preserves an equal implementation snapshot across polls and notices changed binding fields or arrays", () => {
+    const context = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"], briefDigest: "brief-2", planDigest: "plan-3", specificationDigest: "spec-6", designPlanDigest: "design-8", worktreeId: "w-1", sourceCommit: "a".repeat(40), sourceDigest: "source-a", sourceDirty: false, taskTitles: ["Build editor"], requirementIds: ["R-EDIT"] };
+    const original = aSession({ id: "s-bound", worktreeId: "w-1", implementationContext: context });
+    const s = useCockpit.getState();
+    s.replaceSessions([original], ["w-1"]);
+    s.replaceSessions([structuredClone(original)], ["w-1"]);
+    expect(useCockpit.getState().sessions["s-bound"]).toBe(original);
+    for (const changed of [{ sourceDigest: "changed-source" }, { taskIds: ["task-2"] }, { taskTitles: ["Revised editor" ] }, { requirementIds: [] }]) {
+      s.replaceSessions([original], ["w-1"]);
+      const updated = { ...original, implementationContext: { ...context, ...changed } };
+      s.replaceSessions([updated], ["w-1"]);
+      expect(useCockpit.getState().sessions["s-bound"]).toBe(updated);
+    }
+    s.replaceSessions([{ ...original, implementationContext: undefined }], ["w-1"]);
+    expect(useCockpit.getState().sessions["s-bound"].implementationContext).toBeUndefined();
+  });
+
   it("replaces the session object when a field actually changed", () => {
     const s = useCockpit.getState();
     s.replaceSessions(sessionsOn("w-1", ["s-1"]), ["w-1"]);

@@ -481,7 +481,7 @@ func sshArguments(t Tunnel, copy bool) []string {
 }
 
 func projectRequest(path string) bool {
-	for _, prefix := range []string{"/v1/platform", "/v1/product/projects", "/v1/projects", "/v1/sessions", "/v1/harnesses", "/v1/machines", "/v1/setup/agents", "/v1/setup/github", "/v1/setup/git/identity", "/v1/setup/runtime/install", "/v1/setup/targets", "/v1/setup/config"} {
+	for _, prefix := range []string{"/v1/platform", "/v1/product/projects", "/v1/projects", "/v1/sessions", "/v1/harnesses", "/v1/machines", "/v1/setup/agents", "/v1/setup/agent-connections", "/v1/setup/github", "/v1/setup/git/identity", "/v1/setup/runtime/install", "/v1/setup/targets", "/v1/setup/config"} {
 		if path == prefix || strings.HasPrefix(path, prefix+"/") {
 			return true
 		}

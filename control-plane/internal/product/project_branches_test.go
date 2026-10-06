@@ -104,6 +104,7 @@ func TestPrimaryBranchCreateSwitchConnectsFilesGitContextAndDeploymentSource(t *
 		t.Fatal(err)
 	}
 	journeyRequest(t, mux, "POST", branchBase(p)+"brief", map[string]any{"revision": current.Revision, "purpose": "Feature purpose", "audience": "fixture users", "constraints": "", "criteria": []string{"actual source"}}, 200)
+	reviewDeploymentFixture(t, mux, p.ID)
 	journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", map[string]string{"message": "Actual feature implementation"}, 200)
 	feature := branchCatalogue(t, mux, p)
 	if feature.Commit == original.Commit {
@@ -128,8 +129,8 @@ func TestPrimaryBranchCreateSwitchConnectsFilesGitContextAndDeploymentSource(t *
 	if err := s.ValidateDeploymentSource(context.Background(), p.ID, feature.Commit); err == nil {
 		t.Fatal("wrong branch deployment commit accepted")
 	}
-	if err := s.ValidateDeploymentSource(context.Background(), p.ID, original.Commit); err != nil {
-		t.Fatal("main deployment source disconnected", err)
+	if err := s.ValidateDeploymentSource(context.Background(), p.ID, original.Commit); err == nil || !strings.Contains(strings.ToLower(err.Error()), "approve") {
+		t.Fatal("returning to unreviewed legacy main bypassed explicit Define/Design review", err)
 	}
 	configuration, err := s.applicationConfigurationSnapshot(p.ID)
 	if err != nil || configuration.Revision != privateRevision.Revision || configuration.Values["API_SECRET"] != "retained-private-value" {

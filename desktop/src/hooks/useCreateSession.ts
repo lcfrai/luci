@@ -9,6 +9,8 @@ import { selectResolvedDefaults } from "../store/selectors";
 import { useCockpit } from "../store/store";
 import type {
   HarnessId,
+  ImplementationContextRequest,
+  SessionId,
   SessionDefaultsOverride,
   WorktreeId,
 } from "../store/types";
@@ -21,6 +23,7 @@ export interface CreateSessionOptions {
   openingPrompt?: string;
   title?: string;
   agentConnectionId?: string;
+  implementationContext?: ImplementationContextRequest;
 }
 
 /** network_unavailable and backend_unavailable are different sentences and must not be
@@ -70,7 +73,7 @@ export function __resetCreateSession(): void {
 export function useCreateSession(): (
   worktreeId: WorktreeId,
   options?: CreateSessionOptions,
-) => Promise<{ ok: true } | { ok: false; message: string }> {
+) => Promise<{ ok: true; sessionId: SessionId } | { ok: false; message: string }> {
   return useCallback(
     async (worktreeId: WorktreeId, options?: CreateSessionOptions) => {
       const state = useCockpit.getState();
@@ -93,6 +96,17 @@ export function useCreateSession(): (
         state.pushToast(message);
         return { ok: false, message };
       }
+      if (options?.implementationContext) {
+        const target = Object.values(state.worktreesByBranch).flat().find(worktree => worktree.id === worktreeId);
+        const message = harness.id === "shell" || !harness.supportsOpeningPrompt
+          ? "Choose a coding agent that accepts an opening prompt for this implementation handoff."
+          : options.implementationContext.projectId !== state.selection.projectId || target?.projectId !== options.implementationContext.projectId
+            ? "This implementation handoff belongs to another project. Return to that project and choose its worktree."
+            : !target?.isPrimary
+              ? "Implementation handoffs currently need the main checkout. Choose its branch and worktree."
+              : "";
+        if (message) { state.pushToast(message); return { ok: false, message }; }
+      }
 
       state.setLoading("sessions", true);
       try {
@@ -100,6 +114,7 @@ export function useCreateSession(): (
           toCreateRequest(worktreeId, resolved, harness, {
             openingPrompt: options?.openingPrompt,
             title: options?.title,
+            implementationContext: options?.implementationContext,
             ...(options && Object.prototype.hasOwnProperty.call(options, "agentConnectionId") ? { agentConnectionId: options.agentConnectionId } : {}),
           }),
         );
@@ -107,10 +122,13 @@ export function useCreateSession(): (
         // Read live: `state` is the snapshot from before the await, and its `lastError` is stale.
         if (raised !== null && useCockpit.getState().lastError === raised)
           state.setError(null);
-        state.selectWorktree(worktreeId);
+        const live = useCockpit.getState();
+        if (!options?.implementationContext || (live.selection.projectId === options.implementationContext.projectId && live.selection.branchId === state.selection.branchId)) {
+          state.selectWorktree(worktreeId);
         // Focus is what makes defect 4's scroll-into-view fire in task 20's ColumnsLayout.
-        state.focusSession(session.id);
-        return { ok: true };
+          state.focusSession(session.id);
+        }
+        return { ok: true, sessionId: session.id };
       } catch (caught) {
         const error = caught as ApiError;
         raised = { code: error.code, message: error.message };

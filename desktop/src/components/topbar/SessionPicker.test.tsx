@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SessionPicker } from "./SessionPicker";
 import { resetCockpit, useCockpit } from "../../store/store";
@@ -98,6 +98,57 @@ describe("SessionPicker", () => {
     expect((screen.getByLabelText("Model") as HTMLInputElement).readOnly).toBe(true);
     await userEvent.click(screen.getByRole("button", { name: "Create session" }));
     await waitFor(() => expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ model: "company-coder", agentConnectionId: "saved-gateway", harness: "codex" })));
+  });
+
+  it("passes the exact saved handoff context and returns the created session ID", async () => {
+    const context = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"] };
+    const created = vi.fn();
+    useCockpit.setState({ worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", branchId: "b-1", projectId: "p-1", isPrimary: true })] } });
+    render(<SessionPicker open worktreeId="w-1" initialPrompt="Implement this saved task" implementationContext={context} onCreated={created} onClose={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Create session" }));
+    await waitFor(() => expect(created).toHaveBeenCalledExactlyOnceWith("s-new"));
+    expect(createSession.mock.calls[0][0].implementationContext).toEqual(context);
+    expect(useCockpit.getState().selection.sessionId).toBe("s-new");
+  });
+
+  it("requires a coding agent for a bound task even when no opening prompt was supplied", async () => {
+    const context = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"] };
+    useCockpit.setState({ worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", branchId: "b-1", projectId: "p-1", isPrimary: true })] } });
+    render(<SessionPicker open worktreeId="w-1" implementationContext={context} onClose={vi.fn()} />);
+    await userEvent.selectOptions(screen.getByLabelText("Harness"), "shell");
+    expect((screen.getByRole("button", { name: "Create session" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByRole("alert").textContent).toContain("Choose a coding agent");
+    await userEvent.click(screen.getByRole("button", { name: "Create session" }));
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("refuses a stale project selection and does not submit another project's task context", async () => {
+    const context = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"] };
+    useCockpit.setState({ worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", branchId: "b-1", projectId: "p-1", isPrimary: true })] } });
+    render(<SessionPicker open worktreeId="w-1" implementationContext={context} onClose={vi.fn()} />);
+    act(() => useCockpit.setState({ selection: { projectId: "p-2", branchId: "b-2", worktreeId: "w-2", sessionId: null } }));
+    expect(screen.getByRole("alert").textContent).toContain("belongs to another project");
+    expect((screen.getByRole("button", { name: "Create session" }) as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.click(screen.getByRole("button", { name: "Create session" }));
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  it("records a late creation without closing or focusing a newer project's picker", async () => {
+    const context = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"] };
+    const created = vi.fn(), close = vi.fn();
+    useCockpit.setState({ worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", branchId: "b-1", projectId: "p-1", isPrimary: true })] } });
+    let finish!: (value: ReturnType<typeof aSession>) => void;
+    createSession.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const view = render(<SessionPicker open worktreeId="w-1" initialPrompt="Original handoff" implementationContext={context} onCreated={created} onClose={close} />);
+    await userEvent.click(screen.getByRole("button", { name: "Create session" }));
+    act(() => useCockpit.setState({ worktreesByBranch: { "b-2": [aWorktree({ id: "w-2", projectId: "p-2", branchId: "b-2", isPrimary: true })] }, selection: { projectId: "p-2", branchId: "b-2", worktreeId: "w-2", sessionId: null } }));
+    view.rerender(<SessionPicker open worktreeId="w-2" initialPrompt="New project handoff" implementationContext={{ ...context, projectId: "p-2" }} onCreated={created} onClose={close} />);
+    await act(async () => finish(aSession({ id: "s-original", projectId: "p-1", branchId: "b-1", worktreeId: "w-1" })));
+    expect(useCockpit.getState().sessions["s-original"].projectId).toBe("p-1");
+    expect(useCockpit.getState().selection.worktreeId).toBe("w-2");
+    expect(useCockpit.getState().selection.sessionId).toBeNull();
+    expect((screen.getByLabelText("Opening prompt") as HTMLTextAreaElement).value).toBe("New project handoff");
+    expect(created).not.toHaveBeenCalled(); expect(close).not.toHaveBeenCalled();
   });
 
   it("preserves a custom Develop model rather than replacing it with the catalogue default", async () => {

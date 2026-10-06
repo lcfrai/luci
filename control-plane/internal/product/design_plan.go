@@ -63,6 +63,8 @@ func currentDesignPlan(state journeyState) ProjectDesignPlan {
 	plan := *state.DesignPlan
 	if plan.BriefRevision != state.Brief.Revision || plan.SpecificationRevision != currentSpecification(state).Revision || plan.SketchRevision != state.Design.Revision {
 		plan.Status = "outdated"
+	} else if plan.Status == "approved" && !designApprovalMatches(state) {
+		plan.Status, plan.Digest = "draft", ""
 	}
 	return plan
 }
@@ -119,7 +121,7 @@ func (s *Server) getDesignPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
@@ -133,7 +135,7 @@ func (s *Server) designPlanHistory(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
@@ -199,7 +201,7 @@ func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
@@ -219,6 +221,10 @@ func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	plan.SpecificationRevision = spec.Revision
 	plan.SketchRevision = state.Design.Revision
 	plan.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	if err := s.revokeJourneyApproval(p.Path, p.ID, false); err != nil {
+		problem(w, 500, "approval_unavailable", "The private review selection could not be revoked. The design handoff was not changed.")
+		return
+	}
 	state.DesignPlan = &plan
 	state.DesignPlanRevisions = append(state.DesignPlanRevisions, plan)
 	if err := writeJourney(p.Path, state); err != nil {
@@ -228,6 +234,10 @@ func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, plan)
 }
 func (s *Server) approveDesignPlan(w http.ResponseWriter, r *http.Request) {
+	actor, authenticated := authenticatedReviewActor(w, r)
+	if !authenticated {
+		return
+	}
 	var req struct {
 		Revision int `json:"revision"`
 	}
@@ -240,7 +250,7 @@ func (s *Server) approveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
@@ -276,6 +286,10 @@ func (s *Server) approveDesignPlan(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if plan.Status == "approved" {
+		if err := writeJourneyContext(p.Path, state); err != nil {
+			problem(w, 500, "context_export_failed", "The private approval is retained, but its context export could not be repaired. Resolve the project paths and retry this explicit review.")
+			return
+		}
 		writeJSON(w, 200, plan)
 		return
 	}
@@ -288,6 +302,10 @@ func (s *Server) approveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	plan.Digest = hex.EncodeToString(sum[:])
 	state.DesignPlan = &plan
 	state.DesignPlanRevisions = append(state.DesignPlanRevisions, plan)
+	if err := s.recordJourneyApproval(p.Path, p.ID, "design", actor, &state); err != nil {
+		problem(w, 500, "approval_unavailable", "The private review receipt could not be saved. Approval was not granted; retain your draft and retry explicit review.")
+		return
+	}
 	if err := writeJourney(p.Path, state); err != nil {
 		problem(w, 500, "save_failed", err.Error())
 		return

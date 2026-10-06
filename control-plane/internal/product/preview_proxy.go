@@ -1,6 +1,7 @@
 package product
 
 import (
+	"context"
 	"errors"
 	"io"
 	"log"
@@ -8,10 +9,36 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
+
+var previewContainerID = regexp.MustCompile(`^[a-f0-9]{12,64}$`)
+
+// Inspect through this worker's runner so local and selected SSH workspaces
+// enforce the same native ownership boundary before reaching a saved port.
+func (s *Server) verifyReleasePreview(ctx context.Context, row storedRelease) error {
+	if row.Target != "local" || !previewContainerID.MatchString(row.ContainerID) {
+		return errors.New("release has no owned local container")
+	}
+	if _, err := recordedPreviewOrigin(row.URL); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	inspection, err := s.runner(ctx, "docker", []string{"inspect", "--format", `{"running":{{json .State.Running}},"labels":{{json .Config.Labels}},"ports":{{json .NetworkSettings.Ports}}}`, row.ContainerID}, "")
+	if err != nil {
+		return errors.New("owned preview could not be inspected")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return previewgateway.ValidateContainerInspection(previewgateway.Target{Kind: "preview", ProjectID: row.ProjectID, ResourceID: row.ID, Upstream: row.URL, Container: row.ContainerID, Labels: map[string]string{"luci.preview": "true", "luci.release-id": row.ID, "luci.project-id": row.ProjectID}}, []byte(inspection))
+}
 
 // registerPreviewProxy is consumed through a separate browser origin by the
 // workspace bridge. An application must never share the Luci control origin.
@@ -77,6 +104,10 @@ func (s *Server) proxyReleasePreview(w http.ResponseWriter, r *http.Request) {
 	_, requestPort, _ := net.SplitHostPort(r.Host)
 	if target.Port() == requestPort || target.Port() == "8730" {
 		journeyError(w, http.StatusConflict, "invalid_preview_origin", "A preview cannot use the Luci control port.")
+		return
+	}
+	if err := s.verifyReleasePreview(r.Context(), *row); err != nil {
+		journeyError(w, http.StatusConflict, "preview_not_running", "The owned preview is unavailable or its port changed. Refresh it in Deploy.")
 		return
 	}
 	path := "/" + r.PathValue("path")

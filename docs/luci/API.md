@@ -227,6 +227,34 @@ POST `.../releases/{releaseId}/rollback` accepts `{}` and creates a new release 
 
 ## Task plans and check outcomes
 
+### Reviewed implementation runs
+
+POST `/v1/sessions` may include `implementationContext` with
+`{projectId,briefRevision,planRevision,specificationRevision,designPlanRevision,taskIds}`.
+The selected worktree must be this owned project's main checkout. The server
+resolves saved task titles, requirement links, reviewed definition/design and
+their content digests; clients cannot submit approval digests or substitute
+task text. Stale, foreign, duplicate or missing task selections fail before
+allocating a container. Shell and provider sign-in sessions cannot carry a
+reviewed coding handoff. Ordinary independent CLI sessions remain supported.
+
+The returned optional Session `implementationContext` includes those revisions,
+`worktreeId`, brief/plan/specification/design digests, canonical task IDs/titles,
+requirement IDs and the actual `sourceCommit`, `sourceDigest` and `sourceDirty`
+captured at start. It survives controller restart with the session. Restart
+retains that original source snapshot, allows normal implementation changes and
+revalidates the reviewed inputs before replacing its container. Resume retains
+the original task selection and worktree, and captures its new run's starting
+source; it cannot silently retag a conversation to different tasks. Changed
+reviewed inputs require a new run from the current plan.
+
+An unlinked task is supported without inventing requirement coverage. Explicit
+`expectedSpecificationRevision` binds even an unlinked saved plan to the current
+approved specification. The canonical opening prompt includes the saved
+specification and both `.luci/design-handoff.json` and
+`.luci/design-handoff.md`; a sketch is supplemental. Task status and CLI exit are
+independent of recorded verification and deployment outcomes.
+
 GET `/v1/product/projects/{id}/plan` returns `{projectId,revision,briefRevision,tasks:[{id,title,status,requirementIds?}],updatedAt,specificationRevision?,specificationDigest?}`. Task status is `todo`, `doing` or `done`. POST accepts `{expectedRevision,tasks,expectedSpecificationRevision?}` and returns200 with the saved plan. When any task has requirement links, the expected specification revision must match this project's current saved approved specification. Links use its stable requirement IDs; at most100 unique IDs per task and200 tasks are allowed. Unknown/foreign IDs or duplicates return400; stale or missing expected revisions return409; an unapproved/outdated specification returns422. The server records the approval revision/digest. Unlinked legacy plans remain supported, and existing links remain readable after the definition changes so they can be explicitly removed. Saving publishes `.luci/plan.json` alongside canonical state and `.luci/design.json` for agent context. Task Done remains user-reported progress, independent of test evidence.
 
 GET `.../checks` returns `{runs,suggested,coverage}`. POST accepts `{commands:[{label,executable,args}],execution:"docker"|"host",acknowledgeHostExecution:true,requirementIds?,expectedSpecificationRevision?,expectedDesignPlanRevision?}` and returns202 with a reserved run. Docker is the default; host mode additionally requires Super Admin and the enabled host-command policy. Nonempty requirement IDs require both current saved approvals and their exact expected revisions. Unknown/foreign/duplicate IDs return400 `invalid_requirement_link`; stale or missing expected revisions return409 `revision_conflict`; current approval prerequisites return422 `specification_approval_required` or `design_approval_required`. A refused binding allocates no check. Empty links retain generic check behavior. Commands are bounded typed argv, not interpolated shell text. Runs have a ten-minute limit, at most eight commands, bounded output and twenty retained rows. GET `.../checks/{runId}` reads an owned run; POST `.../checks/{runId}/cancel {}` requests cancellation.

@@ -59,3 +59,11 @@ func verifyContainer(t Target, b []byte) error {
 	}
 	return errors.New("owned loopback port changed")
 }
+
+// ValidateContainerInspection applies the same owned, running, loopback-only
+// checks when the selected worker supplies a bounded Docker inspection through
+// its command runner. Callers must read only State.Running, Config.Labels and
+// NetworkSettings.Ports; no private container environment is needed.
+func ValidateContainerInspection(t Target, b []byte) error {
+	return verifyContainer(t, b)
+}

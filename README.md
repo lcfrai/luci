@@ -22,6 +22,9 @@ The [UAT guide](docs/UAT.md) walks through onboarding and the complete project j
 
 ## Structure
 
+The latest engineering handoff, Astra findings and continuation instructions
+are in [the 6 October checkpoint](docs/luci/HANDOFF-2026-10-06.md).
+
 - `desktop/` — React/Tauri interface, Excalidraw and terminal cockpit
 - `control-plane/` — local setup, project journey and session API
 - `sandboxd/` — isolated agent runtime

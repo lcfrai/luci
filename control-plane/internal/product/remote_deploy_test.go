@@ -98,6 +98,7 @@ func cloudReleaseFixture(t *testing.T, provider *cloudProviderFixture) (*Server,
 	if err := os.WriteFile(filepath.Join(p.Path, "Dockerfile"), []byte("FROM scratch\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	reviewDeploymentFixture(t, mux, p.ID)
 	commitPreviewFixture(t, p.Path)
 	commit, err := s.journeyGit(context.Background(), p.Path, "rev-parse", "HEAD")
 	if err != nil {
@@ -129,8 +130,12 @@ func TestCloudReleasePinsCommitPersistsAndReusesApplication(t *testing.T) {
 	provider := &cloudProviderFixture{status: "in_progress"}
 	s, mux, p, req, remote := cloudReleaseFixture(t, provider)
 	base := "/v1/product/projects/" + p.ID + "/releases"
+	reviewed, err := s.SpecificationSnapshot(p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	row := decodeCloudRelease(t, journeyRequest(t, mux, "POST", base+"/cloud", req, 202))
-	if row.Status != "queued" || row.Release.Commit != req.Commit || row.CloudReleaseRequest.Commit != req.Commit || row.BriefRevision != 1 || row.ApplicationID != "remote-app" || row.DeploymentID != "remote-deployment" || row.URL != "" {
+	if row.Status != "queued" || row.Release.Commit != req.Commit || row.CloudReleaseRequest.Commit != req.Commit || row.BriefRevision != reviewed.BriefRevision || row.ApplicationID != "remote-app" || row.DeploymentID != "remote-deployment" || row.URL != "" {
 		t.Fatalf("incomplete or premature release: %+v", row)
 	}
 	duplicate := decodeCloudRelease(t, journeyRequest(t, mux, "POST", base+"/cloud", req, 202))
@@ -156,7 +161,7 @@ func TestCloudReleasePinsCommitPersistsAndReusesApplication(t *testing.T) {
 		t.Fatal(err)
 	}
 	rows, err := restored.cloudReleases(p.ID)
-	if err != nil || len(rows) != 1 || rows[0].Commit != req.Commit || rows[0].BriefRevision != 1 {
+	if err != nil || len(rows) != 1 || rows[0].Commit != req.Commit || rows[0].BriefRevision != reviewed.BriefRevision {
 		t.Fatalf("restart lost provenance: %+v %v", rows, err)
 	}
 	if err := s.storeRelease(storedRelease{Release: Release{ID: "rel-local-fixture", ProjectID: p.ID, Target: "local", Status: "stopped", Commit: req.Commit}}); err != nil {
@@ -221,7 +226,9 @@ func TestCloudReleaseRejectsUncommittedOrMismatchedProvenance(t *testing.T) {
 		bad.Domain = domain
 		journeyRequest(t, mux, "POST", base+"/releases/cloud", bad, 400)
 	}
-	journeyRequest(t, mux, "POST", base+"/brief", map[string]any{"revision": 1, "purpose": "Updated, uncommitted brief"}, 200)
+	var current Brief
+	decodeEvidenceResponse(t, journeyRequest(t, mux, "GET", base+"/brief", nil, 200).Body.Bytes(), &current)
+	journeyRequest(t, mux, "POST", base+"/brief", map[string]any{"revision": current.Revision, "purpose": "Updated, uncommitted brief"}, 200)
 	journeyRequest(t, mux, "POST", base+"/releases/cloud", req, 409)
 	provider.mu.Lock()
 	defer provider.mu.Unlock()

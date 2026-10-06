@@ -14,15 +14,15 @@ import (
 
 func seedPrototypeSources(t *testing.T, s *Server, p project.Project) []Release {
 	t.Helper()
+	app := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) }))
+	t.Cleanup(app.Close)
 	rows := []Release{
-		{ID: "rel-local", ProjectID: p.ID, Commit: strings.Repeat("a", 40), Target: "local", Status: "ready", URL: "http://127.0.0.1:31000", CreatedAt: "2026-10-06T01:00:00Z"},
+		{ID: "rel-local", ProjectID: p.ID, Commit: strings.Repeat("a", 40), Target: "local", Status: "ready", URL: app.URL, CreatedAt: "2026-10-06T01:00:00Z"},
 		{ID: "cloud-rel-owned", ProjectID: p.ID, Commit: strings.Repeat("b", 40), Target: "target-owned", Status: "ready", URL: "https://app.example.com", CreatedAt: "2026-10-06T02:00:00Z"},
 		{ID: "pages-owned", ProjectID: p.ID, Commit: strings.Repeat("c", 40), Target: "github-pages", Status: "ready", URL: "https://owner.github.io/project/", CreatedAt: "2026-10-06T03:00:00Z"},
 		{ID: "deploy-owned", ProjectID: p.ID, Commit: strings.Repeat("d", 40), Target: "application", Status: "ready", BrowserConnectionRequired: true, CreatedAt: "2026-10-06T04:00:00Z"},
 	}
-	if err := s.storeRelease(storedRelease{Release: rows[0]}); err != nil {
-		t.Fatal(err)
-	}
+	seedVerifiedPreview(t, s, rows[0])
 	if err := atomicJSON(s.cloudReleaseFile(p.ID), []CloudRelease{{Release: rows[1]}}); err != nil {
 		t.Fatal(err)
 	}

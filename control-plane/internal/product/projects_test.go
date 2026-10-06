@@ -2,6 +2,7 @@ package product
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,8 +14,35 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
+
+// Only explicit review routes in fixtures receive the same validated worker
+// actor context as production. Raw handler tests remain unauthenticated.
+type fixtureReviewRegistrar struct{ Registrar }
+
+func fixtureReviewHandler(next http.Handler) http.Handler {
+	token := strings.Repeat("f", 43)
+	user, _ := json.Marshal(management.User{ID: "fixture-reviewer", Username: "reviewer", Role: "super-admin"})
+	policy, _ := json.Marshal(management.Policy{AllowHostCommands: true, AllowPublicPublishing: true, MaxSessionsPerUser: 1, MaxConcurrentChecksPerUser: 1, SessionMemoryMiB: 1024, SessionCPUMillis: 1000, CheckMemoryMiB: 1024, CheckCPUMillis: 1000, MonthlyBudgetUSD: 30, AllowedHarnesses: []string{"claude-code", "codex", "opencode", "shell"}, BackingMode: "docker", InstanceName: "Fixture"})
+	worker := management.WorkerHandler(token, next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clone := r.Clone(r.Context())
+		clone.Header.Set("Authorization", "Bearer "+token)
+		clone.Header.Set("X-Luci-Actor", base64.RawURLEncoding.EncodeToString(user))
+		clone.Header.Set("X-Luci-Policy", base64.RawURLEncoding.EncodeToString(policy))
+		worker.ServeHTTP(w, clone)
+	})
+}
+
+func (mux fixtureReviewRegistrar) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+	if strings.HasPrefix(pattern, "POST ") && strings.HasSuffix(pattern, "/approve") {
+		mux.Registrar.HandleFunc(pattern, fixtureReviewHandler(http.HandlerFunc(handler)).ServeHTTP)
+	} else {
+		mux.Registrar.HandleFunc(pattern, handler)
+	}
+}
 
 func journeyFixture(t *testing.T) (*Server, *http.ServeMux) {
 	t.Helper()
@@ -31,7 +59,7 @@ func journeyFixture(t *testing.T) (*Server, *http.ServeMux) {
 	}
 	t.Cleanup(func() { s.Close() })
 	mux := http.NewServeMux()
-	s.registerProjects(mux)
+	s.registerProjects(fixtureReviewRegistrar{mux})
 	return s, mux
 }
 
