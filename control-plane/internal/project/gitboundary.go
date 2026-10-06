@@ -166,7 +166,12 @@ func boundedGitArgs(root, dir string, args []string) ([]string, error) {
 	prefix := []string{"--git-dir=" + gitdir, "--work-tree=" + work,
 		"-c", "core.worktree=" + work, "-c", "core.bare=false",
 		"-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + os.DevNull,
-		"-c", "core.attributesFile=" + os.DevNull, "-c", "core.excludesFile=" + os.DevNull}
+		"-c", "core.attributesFile=" + os.DevNull, "-c", "core.excludesFile=" + os.DevNull,
+		// A completed controller command must not leave an untracked metadata
+		// writer behind. Detached auto-maintenance can remove lock/PID files
+		// during the next strict metadata walk; older Git uses gc --auto.
+		// These per-command overrides leave explicit native maintenance intact.
+		"-c", "maintenance.auto=false", "-c", "gc.auto=0"}
 	return append(prefix, args...), nil
 }
 

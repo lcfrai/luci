@@ -2,6 +2,7 @@ package product
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -11,6 +12,76 @@ import (
 
 	"github.com/lcfrai/luci/control-plane/internal/project"
 )
+
+func TestManagedCommitDoesNotStartDeferredMaintenance(t *testing.T) {
+	s, mux := journeyFixture(t)
+	s.branchSessions = func(context.Context, string, string) (bool, error) { return false, nil }
+	p := createJourneyProject(t, mux, "owned-maintenance")
+	for key, value := range map[string]string{"maintenance.auto": "true", "maintenance.autoDetach": "true", "gc.auto": "1", "gc.autoDetach": "true"} {
+		confinedFixtureGit(t, p.Path, "config", key, value)
+	}
+	configPath := filepath.Join(p.Path, ".git", "config")
+	before, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tracePath := filepath.Join(t.TempDir(), "managed-git-trace.jsonl")
+	traced := func(ctx context.Context, executable string, args []string, dir string) (string, error) {
+		// Inject only this test's private trace after production environment
+		// sanitation; controller commands never inherit a caller's trace target.
+		env := append(project.ManagedGitEnvironment(os.Environ()), "GIT_TRACE2_EVENT="+filepath.ToSlash(tracePath))
+		return runCommandEnvironment(ctx, executable, args, dir, env)
+	}
+	s.runner, s.branchRunner = traced, traced
+	if err := os.WriteFile(filepath.Join(p.Path, "README.md"), []byte("Committed without a detached metadata writer\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	committed := journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", map[string]string{"message": "Explicit controller commit"}, 200)
+	var result struct{ Commit string }
+	if json.Unmarshal(committed.Body.Bytes(), &result) != nil || !deliverySHA.MatchString(result.Commit) {
+		t.Fatal("managed commit did not return its verified revision")
+	}
+	catalogue := branchCatalogue(t, mux, p)
+	if catalogue.Commit != result.Commit {
+		t.Fatal("immediate metadata verification lost the committed revision")
+	}
+	decodeBranchResult(t, journeyRequest(t, mux, "POST", branchBase(p)+"git/branches", branchCreateRequest(catalogue, "managed-feature", "managed-no-background-writer"), 200))
+	trace, err := os.ReadFile(tracePath)
+	if err != nil {
+		t.Fatal("real Git trace was not recorded", err)
+	}
+	starts := 0
+	for _, line := range strings.Split(strings.TrimSpace(string(trace)), "\n") {
+		var event struct {
+			Event string
+			Argv  []string
+		}
+		if err := json.Unmarshal([]byte(line), &event); err != nil {
+			t.Fatal(err)
+		}
+		if event.Event == "start" {
+			starts++
+		}
+		if event.Event == "child_start" && len(event.Argv) >= 2 && (event.Argv[1] == "maintenance" || event.Argv[1] == "gc") {
+			t.Fatalf("controller command launched deferred Git maintenance: %v", event.Argv)
+		}
+	}
+	if starts == 0 {
+		t.Fatal("no real Git execution observed")
+	}
+	for _, name := range []string{"objects/maintenance.lock", "gc.pid", "gc.log.lock"} {
+		if _, err := os.Lstat(filepath.Join(p.Path, ".git", filepath.FromSlash(name))); !os.IsNotExist(err) {
+			t.Fatal("deferred maintenance metadata survived the controller command", name, err)
+		}
+	}
+	if err := validateBranchMetadata(context.Background(), s.projectRoot(), p.Path); err != nil {
+		t.Fatal("strict metadata guard rejected the completed command", err)
+	}
+	after, err := os.ReadFile(configPath)
+	if err != nil || string(before) != string(after) {
+		t.Fatal("controller policy rewrote the user's native Git configuration", err)
+	}
+}
 
 func confinedFixtureGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()

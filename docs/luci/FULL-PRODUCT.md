@@ -1516,3 +1516,35 @@ visual measurements are retained at
 previous packaged service with newly built web assets; it establishes the fix,
 not a new matching package. Test selectors now target the actual phase/file
 surface when the project overview intentionally repeats shared context.
+
+## Installed c4d064e0 acceptance and Git maintenance correction
+
+The clean `c4d064e01dea8d82e0d53332f4d96693d6a36d36` package passed the full
+personal journey (20), independent account entry (9), lifecycle/restart (5),
+portable persistence (6), launcher recovery (7), compiled account isolation (7),
+team worker (17), two-browser collaboration (10), orchestrator flow (10),
+upgrade/rollback (6), and actual Codex/Docker check/release journey (7).
+The real sketch was drawn, saved and reopened. Nine personal UI accessibility
+surfaces plus team and wide/mobile overview scans had no violations or incomplete
+results. Ten viewport/theme measurements and 25 personal screenshots are retained.
+Receipts are under `artifacts/package-eval/0.5.0-c4d064e0`.
+
+Those installed results remain valid at their stated scope, but source CI failed
+an intermittent strict Git metadata check after a successful commit. Its exact
+filename is absent from the retained annotation. A real native Git 2.52
+reproduction under controlled automatic-GC pressure captured a metadata entry
+after the commit returned, then observed background Git remove it before the
+uncached entry inspection. That produces the same strict unsafe-path error;
+it establishes the failure mechanism without claiming the CI filename is known.
+
+Controller-owned Git commands now override `maintenance.auto=false` and
+`gc.auto=0`. They leave repository configuration and explicit native-user
+maintenance unchanged. Strict metadata traversal still rejects unsafe or
+concurrently changing paths. A real Git Trace2 regression fails without the
+policy and passes with it; affected project/product/API Git, branch and worktree
+race suites passed. Evidence is `artifacts/onboarding/git-maintenance-*`.
+
+The `c4d064e0` archives and manifest are preserved under
+`artifacts/releases/0.5.0-c4d064e0-ci-failed`; their installed passes do not turn
+that failed source-CI gate into a pass. GitHub artifact quota remains a separate
+external evidence-retention failure.

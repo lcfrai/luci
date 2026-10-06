@@ -168,3 +168,9 @@ verified fixture state. The eval checks that backups and the retained original
 remain, and that the minimal `.luci-host-deleted` tombstone prevents automatic
 fresh bootstrap. This is filesystem removal, not secure-media sanitization or
 completion of external/provider/backup deletion obligations.
+
+Controller-owned Git commands suppress automatic maintenance so a completed
+command cannot leave a detached metadata writer racing the next operation.
+Repository configuration is not rewritten. Operators can perform deliberate Git
+maintenance in a quiesced, owned workspace after preserving its backup; stop
+concurrent writers first. Maintenance is not dispatched by a read or a restore.
