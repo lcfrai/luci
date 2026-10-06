@@ -23,6 +23,13 @@ continues while external commissioning and Windows CI access remain blocked.
 
 ## Current product behavior
 
+The current continuation is tracked in [QUALITY-WORKLIST.md](QUALITY-WORKLIST.md).
+It addresses collaborative draft loss, meaningful prototype review and fresh
+browser invitations, truthful deployment recovery, and durable uncertain-request
+identity. Its full source checks pass; a combined two-person journey against a
+matching Linux portable candidate is the next acceptance step. The results below
+retain their historical identities and do not stand in for that execution.
+
 The primary project overview explains the current stage, agreed purpose and
 outcomes, exact tasks and reviewed revisions in an active build, unresolved
 material decisions and one next step. It remains available across Define,

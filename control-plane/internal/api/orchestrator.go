@@ -39,18 +39,34 @@ type orchestratorRequest struct {
 	AgentConnectionID     *string `json:"agentConnectionId"`
 }
 
-func (a *API) handleOrchestratorCreate(w http.ResponseWriter, r *http.Request) {
-	var req orchestratorRequest
-	if !httpx.DecodeJSON(w, r, &req) {
-		return
-	}
+func validOrchestratorRequest(req orchestratorRequest) bool {
 	validKey := len(req.IdempotencyKey) >= 16 && len(req.IdempotencyKey) <= 128
 	for _, ch := range req.IdempotencyKey {
 		if ch < 33 || ch > 126 {
 			validKey = false
 		}
 	}
-	if strings.TrimSpace(req.Message) == "" || len(req.Message) > 16000 || req.ExpectedRevision < 0 || len(req.ExpectedContextDigest) != 64 || !validKey {
+	return strings.TrimSpace(req.Message) != "" && len(req.Message) <= 16000 && req.ExpectedRevision >= 0 && len(req.ExpectedContextDigest) == 64 && validKey
+}
+
+func orchestratorTurnSelection(req orchestratorRequest) product.OrchestratorTurnRequest {
+	if req.Harness == "" {
+		req.Harness = "codex"
+	}
+	route, _ := json.Marshal(struct {
+		Harness, Model, AuthMode string
+		Connection               *string
+	}{req.Harness, req.Model, req.AuthMode, req.AgentConnectionID})
+	digest := sha256.Sum256(route)
+	return product.OrchestratorTurnRequest{ExpectedRevision: req.ExpectedRevision, ExpectedContextDigest: req.ExpectedContextDigest, IdempotencyKey: req.IdempotencyKey, Message: req.Message, ReplyToTurnID: req.ReplyToTurnID, RouteDigest: hex.EncodeToString(digest[:])}
+}
+
+func (a *API) handleOrchestratorCreate(w http.ResponseWriter, r *http.Request) {
+	var req orchestratorRequest
+	if !httpx.DecodeJSON(w, r, &req) {
+		return
+	}
+	if !validOrchestratorRequest(req) {
 		httpx.WriteProblem(w, 400, "invalid_orchestrator_request", "Send a message, unique turn key and current conversation revision and context digest.", nil)
 		return
 	}
@@ -67,11 +83,6 @@ func (a *API) handleOrchestratorCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	// Join an exact retry before consulting a provider's active credential lease.
 	// The original job retains its actual immutable connection/model receipt.
-	route, _ := json.Marshal(struct {
-		Harness, Model, AuthMode string
-		Connection               *string
-	}{req.Harness, req.Model, req.AuthMode, req.AgentConnectionID})
-	digest := sha256.Sum256(route)
 	// Make the ledger reservation and first job write indivisible to another
 	// admission in this worker. A duplicate must not mistake that short window
 	// for a crashed reservation and fail a turn which is still being created.
@@ -82,7 +93,7 @@ func (a *API) handleOrchestratorCreate(w http.ResponseWriter, r *http.Request) {
 			a.orchestratorAdmissionMu.Unlock()
 		}
 	}()
-	turn, snapshot, existing, err := a.deps.Product.ReserveOrchestratorTurn(r.Context(), r.PathValue("id"), product.OrchestratorTurnRequest{ExpectedRevision: req.ExpectedRevision, ExpectedContextDigest: req.ExpectedContextDigest, IdempotencyKey: req.IdempotencyKey, Message: req.Message, ReplyToTurnID: req.ReplyToTurnID, RouteDigest: hex.EncodeToString(digest[:])}, ids.New("assist"))
+	turn, snapshot, existing, err := a.deps.Product.ReserveOrchestratorTurn(r.Context(), r.PathValue("id"), orchestratorTurnSelection(req), ids.New("assist"))
 	if err != nil {
 		code, message := "orchestrator_changed", "The project context or conversation changed, or this turn cannot be reserved. Reload the orchestrator before continuing."
 		if errors.Is(err, product.ErrOrchestratorBusy) {
@@ -90,6 +101,9 @@ func (a *API) handleOrchestratorCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		if errors.Is(err, product.ErrOrchestratorCapacity) {
 			code, message = "orchestrator_capacity", err.Error()
+		}
+		if errors.Is(err, product.ErrOrchestratorNotSent) {
+			code, message = "orchestrator_request_closed", err.Error()
 		}
 		httpx.WriteProblem(w, 409, code, message, nil)
 		return

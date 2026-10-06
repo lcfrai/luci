@@ -64,7 +64,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   }, [scope, projectId, !!spec, canRead]);
   const [dirty, setDirty] = useState(false);
   const draftBase = base ? JSON.stringify(base) : null;
-  const draft = useProjectDraft({ scope, kind: "definition", base: draftBase, value: spec, dirty, valid: definitionDraftValid });
+  const draft = useProjectDraft({ scope, kind: "definition", base: draftBase, baseValue: savedSpec.current, value: spec, dirty, valid: definitionDraftValid });
   useUnsavedProjectDraft(projectId, dirty, "Definition", "discover", scope ? { retained: draft.retained, discard: () => { draft.clear(); setSpec(savedSpec.current); setDirty(false); } } : undefined);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<"" | "save" | "approve">("");
@@ -75,6 +75,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   const submitting = useRef(false);
   const tabsId = useId(), selectedIndex = views.findIndex(([key]) => key === tab);
   const setLens = useCockpit((s) => s.setLens);
+  const missingJourneyLinks = spec?.journeys.some(journey => journey.requirementIds.some(id => !spec.requirements.some(requirement => requirement.id === id))) ?? false;
   const load = async () => {
     if (!canRead) return;
     const value = await definitionApi.get(projectId);
@@ -94,7 +95,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
     setDirty(true); setNotice("");
   };
   async function save() {
-    if (!canEdit || !spec || !base || submitting.current || draft.pending) return;
+    if (!canEdit || !spec || !base || submitting.current || draft.pending || missingJourneyLinks) return;
     submitting.current = true; setBusy(true); setPending("save"); setError(""); setNotice("");
     try {
       const saved = await definitionApi.save(projectId, spec, base.revision, base.briefRevision);
@@ -141,7 +142,8 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
     </div>
     {access.message && <p role="status" className="journey-muted">{access.message}</p>}
     {error && <div className="journey-error" role="alert">{error} <Button type="button" variant="secondary" disabled={busy} onClick={() => { draft.offerRecovery(); void load().catch((e) => setError(errorText(e))); }}>Reload saved definition</Button>{dirty && <p>Your edited draft is still here. Reload to compare it with the saved definition and choose what to recover.</p>}</div>}
-    <DraftRecovery draft={draft} label="Definition" base={draftBase} saved={savedSpec.current} busy={busy} readOnly={!canEdit} onDiscard={() => { setSpec(savedSpec.current); setDirty(false); }} onRestore={value => { if (spec) { setSpec({ ...value, projectId, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); } }} />
+    <DraftRecovery merge draft={draft} label="Definition" base={draftBase} saved={savedSpec.current} busy={busy} readOnly={!canEdit} onDiscard={() => { setSpec(savedSpec.current); setDirty(false); }} onRestore={value => { if (spec) { setSpec({ ...value, projectId, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); } }} />
+    {missingJourneyLinks && <p role="alert" className="journey-warning">A user journey still refers to an outcome that was removed. Review its related requirements below: choose any replacement outcome and explicitly remove the unavailable link before saving.</p>}
     {!spec && !error && <p role="status">Loading your project definition…</p>}
     {spec && canRead && <>
       <TabsSubtle className="definition-tabs" aria-label="Definition views" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => selectTab(views[index][0])}>
@@ -191,12 +193,14 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
                 </fieldset>)}
                 <Button type="button" variant="secondary" onClick={addRequirement}>Add requirement</Button>
               </section>
-              <details className="definition-group"><summary><span>User journeys</span><span className="journey-muted">{spec.journeys.length}</span></summary><div className="definition-group-body">
+              <details className="definition-group" open={missingJourneyLinks || undefined}><summary><span>User journeys</span><span className="journey-muted">{spec.journeys.length}</span></summary><div className="definition-group-body">
                 {spec.journeys.map((j, index) => <fieldset className="definition-record" key={j.id}><legend>Journey {index + 1}</legend>
                   <label className="luci-field">Journey name<input value={j.name} onChange={(e) => patch({ journeys: spec.journeys.map((old) => old.id === j.id ? { ...old, name: e.target.value } : old) })} /></label>
                   <label className="luci-field">Person or role<input value={j.actor} onChange={(e) => patch({ journeys: spec.journeys.map((old) => old.id === j.id ? { ...old, actor: e.target.value } : old) })} /></label>
                   <label className="luci-field">Steps and recovery<textarea value={j.steps} rows={3} onChange={(e) => patch({ journeys: spec.journeys.map((old) => old.id === j.id ? { ...old, steps: e.target.value } : old) })} /></label>
-                  <fieldset className="definition-links"><legend>Related requirements</legend>{spec.requirements.map((r) => <label key={r.id}><input type="checkbox" checked={j.requirementIds.includes(r.id)} onChange={(e) => patch({ journeys: spec.journeys.map((old) => old.id === j.id ? { ...old, requirementIds: e.target.checked ? [...old.requirementIds, r.id] : old.requirementIds.filter((id) => id !== r.id) } : old) })} />{r.id} · {r.title}</label>)}</fieldset>
+                  <fieldset className="definition-links"><legend>Related requirements</legend>{spec.requirements.map((r) => <label key={r.id}><input type="checkbox" checked={j.requirementIds.includes(r.id)} onChange={(e) => patch({ journeys: spec.journeys.map((old) => old.id === j.id ? { ...old, requirementIds: e.target.checked ? [...old.requirementIds, r.id] : old.requirementIds.filter((id) => id !== r.id) } : old) })} />{r.id} · {r.title}</label>)}
+                    {j.requirementIds.filter(id => !spec.requirements.some(requirement => requirement.id === id)).map(id => <label key={id}><input type="checkbox" checked aria-label={`Remove unavailable outcome ${id} from journey ${index + 1}`} onChange={() => patch({ journeys: spec.journeys.map(old => old.id === j.id ? { ...old, requirementIds: old.requirementIds.filter(value => value !== id) } : old) })} />{id} · removed outcome. Uncheck this unavailable link; the journey and its steps will be kept.</label>)}
+                  </fieldset>
                   <Button type="button" variant="secondary" onClick={() => patch({ journeys: spec.journeys.filter((old) => old.id !== j.id) })}>Remove journey {index + 1}</Button>
                 </fieldset>)}<Button type="button" variant="secondary" onClick={() => patch({ journeys: [...spec.journeys, { id: recordId("journey"), name: "", actor: "", steps: "", requirementIds: [] }] })}>Add user journey</Button>
               </div></details>
@@ -219,7 +223,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
       </TabsSubtlePanel>)}
       <footer className="definition-footer"><div className="journey-actions">
         {dirty || spec.status === "outdated" || !spec.revision
-          ? <Button type="button" loading={pending === "save"} disabled={!canEdit || busy || !!draft.pending || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
+          ? <Button type="button" loading={pending === "save"} disabled={!canEdit || busy || !!draft.pending || missingJourneyLinks || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
           : spec.status === "approved"
             ? <Button type="button" disabled={busy} onClick={() => setLens("design")}>Continue to Design</Button>
             : <Button type="button" loading={pending === "approve"} disabled={!canEdit || busy || !!draft.pending} onClick={() => void approve()}>Approve definition</Button>}

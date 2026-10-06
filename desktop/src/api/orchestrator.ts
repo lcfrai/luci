@@ -56,6 +56,10 @@ export interface OrchestratorJob {
   harness?: string; model?: string; agentConnectionId?: string; agentConnectionRevision?: number;
   createdAt: string; updatedAt: string;
 }
+export interface OrchestratorResolution {
+  projectId: string; status: "accepted" | "not-sent" | "unknown";
+  job?: OrchestratorJob; turnId?: string; jobId?: string; message: string;
+}
 const route = (id: string) => `/v1/product/projects/${encodeURIComponent(id)}`;
 function validActiveRuns(value: OrchestratorContext): boolean {
   if (value.activeRuns === undefined) return true;
@@ -96,6 +100,14 @@ export const orchestratorApi = {
   },
   async send(projectId: string, input: OrchestratorRequest) {
     return verifiedJob(await productApi.request<OrchestratorJob>(`${route(projectId)}/assist/orchestrator`, input), projectId);
+  },
+  async resolveRequest(projectId: string, input: OrchestratorRequest) {
+    const value = await productApi.request<OrchestratorResolution>(`${route(projectId)}/orchestrator/resolve`, input);
+    if (value?.projectId !== projectId || !["accepted", "not-sent", "unknown"].includes(value.status) || typeof value.message !== "string" || (value.status === "accepted" && !value.job)) {
+      throw new Error("The original request could not be verified. Its saved identity has been retained.");
+    }
+    if (value.job) verifiedJob(value.job, projectId);
+    return value;
   },
   async job(projectId: string, jobId: string) {
     return verifiedJob(await productApi.request<OrchestratorJob>(`${route(projectId)}/assist/${encodeURIComponent(jobId)}`), projectId);

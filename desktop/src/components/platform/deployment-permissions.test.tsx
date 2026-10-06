@@ -79,3 +79,18 @@ it("discards in-flight log output when its secrets grant is removed", async () =
   await act(async () => resolve({ text: "late sensitive output", notice: "Private" }));
   expect(screen.queryByText("late sensitive output")).toBeNull();
 });
+
+it("does not open a delayed application browser after execution access is revoked", async () => {
+  Object.assign(grants, { edit: true, execute: true });
+  let finish!: (value: { url: string; projectId: string; kind: "application"; resourceId: string }) => void;
+  vi.spyOn(platformApi, "prepareBrowser").mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const open = vi.spyOn(window, "open").mockReturnValue(null);
+  const view = render(<PlatformWorkspace projectId="owned" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Deployments" }));
+  await userEvent.click(screen.getByRole("button", { name: "Open deployed application" }));
+  grants.execute = false; view.rerender(<PlatformWorkspace projectId="owned" />);
+  await act(async () => finish({ url: `http://${"a".repeat(32)}.${"a".repeat(32)}.localhost:8731/`, projectId: "owned", kind: "application", resourceId: deployment.id }));
+  expect(open).not.toHaveBeenCalled();
+  expect(screen.queryByText("Browser connection ready. You can open the application below.")).toBeNull();
+  expect((screen.getByRole("button", { name: "Open deployed application" }) as HTMLButtonElement).disabled).toBe(true);
+});

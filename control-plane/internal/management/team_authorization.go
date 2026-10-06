@@ -116,6 +116,9 @@ var teamRouteRules = []teamRouteRule{
 	{"GET /v1/product/projects/{projectId}/orchestrator", teamRead},
 	{"GET /v1/product/projects/{projectId}/orchestrator/export", teamRead},
 	{"POST /v1/product/projects/{projectId}/orchestrator/rotate", teamEdit},
+	// Actor-bound request recovery fences only that actor's absent request; it
+	// cannot change shared context, lease credentials or dispatch/repair jobs.
+	{"POST /v1/product/projects/{projectId}/orchestrator/resolve", teamRead},
 	{"POST /v1/product/projects/{projectId}/orchestrator/turns/{turnId}/apply", teamEdit},
 	{"GET /v1/product/projects/{projectId}/assist/{jobId}", teamRead},
 	{"POST /v1/product/projects/{projectId}/assist/{jobId}/cancel", teamEdit | teamExecute},

@@ -31,6 +31,7 @@ beforeEach(() => {
   vi.spyOn(orchestratorApi, "get").mockImplementation(async id => view({ projectId: id, context: context(id) }));
   vi.spyOn(orchestratorApi, "send").mockResolvedValue(job());
   vi.spyOn(orchestratorApi, "job").mockResolvedValue(job());
+  vi.spyOn(orchestratorApi, "resolveRequest").mockResolvedValue({ projectId: "p-1", status: "accepted", job: job(), message: "Original receipt found" });
   vi.spyOn(orchestratorApi, "cancel").mockResolvedValue(job({ status: "cancelled" }));
   vi.spyOn(orchestratorApi, "reconcile").mockResolvedValue(job({ status: "succeeded" }));
   vi.spyOn(orchestratorApi, "apply").mockResolvedValue(view({ revision: 4 }));
@@ -395,5 +396,143 @@ it("discards a pending manual edit on account change instead of replaying it whe
   await userEvent.click(screen.getByRole("button", { name: "Edit outcomes" }));
   identity.actor = "other"; mounted.rerender(<OrchestratorPanel projectId="p-1" />); await ready();
   expect(takeProjectContextEdit(oldScope, "p-1", "definition")).toBe(false);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("retains an unsent scoped message and reply target after the conversation remounts", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()], blockingQuestions: [{ turnId: "turn-1", question: "Can guests book without an account?", rationale: "Privacy", options: [] }] }));
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByRole("button", { name: "Answer this decision" }));
+  await userEvent.type(screen.getByRole("textbox", { name: "Message Luci" }), "Keep this private answer while I review the plan");
+  mounted.unmount(); render(<OrchestratorPanel projectId="p-1" />); await ready();
+  expect((screen.getByRole("textbox", { name: "Message Luci" }) as HTMLTextAreaElement).value).toBe("");
+  await userEvent.click(screen.getByRole("button", { name: "Restore unsent message" }));
+  expect((screen.getByRole("textbox", { name: "Message Luci" }) as HTMLTextAreaElement).value).toBe("Keep this private answer while I review the plan");
+  expect(screen.getByText("Replying to: Can guests book without an account?")).not.toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("retains an uncertain request through remount and refresh, and retries its exact original identity", async () => {
+  vi.mocked(orchestratorApi.send).mockRejectedValueOnce(new Error("Response lost"));
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Discuss a private change");
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
+  await screen.findByText(/Response lost/);
+  const original = vi.mocked(orchestratorApi.send).mock.calls[0][1];
+  mounted.unmount();
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ revision: 90, context: { ...context(), digest: "b".repeat(64) } }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("");
+  expect(orchestratorApi.send).toHaveBeenCalledTimes(1);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh conversation" }));
+  expect((screen.getByRole("button", { name: "Send to Luci" }) as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(screen.getByRole("button", { name: "Review original request" }));
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("Discuss a private change");
+  await userEvent.click(screen.getByRole("button", { name: "Retry original request" }));
+  expect(orchestratorApi.send).toHaveBeenCalledTimes(2);
+  expect(vi.mocked(orchestratorApi.send).mock.calls[1][1]).toEqual(original);
+  expect(original.expectedRevision).toBe(3);
+});
+
+it("uses a durable not-sent receipt before restoring an editable message against new context", async () => {
+  vi.mocked(orchestratorApi.send).mockRejectedValueOnce(new Error("Connection interrupted"));
+  vi.mocked(orchestratorApi.resolveRequest).mockResolvedValue({ projectId: "p-1", status: "not-sent", message: "The original key is fenced" });
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Retain my question");
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
+  await screen.findByText(/Connection interrupted/);
+  const original = vi.mocked(orchestratorApi.send).mock.calls[0][1];
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ revision: 8 }));
+  await userEvent.click(screen.getByRole("button", { name: "Check original request" }));
+  await screen.findByText(/was not sent and can no longer start/);
+  expect(orchestratorApi.resolveRequest).toHaveBeenCalledWith("p-1", original);
+  expect(orchestratorApi.send).toHaveBeenCalledTimes(1);
+  await userEvent.click(screen.getByRole("button", { name: "Restore unsent message" }));
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
+  const next = vi.mocked(orchestratorApi.send).mock.calls[1][1];
+  expect(next.message).toBe(original.message); expect(next.expectedRevision).toBe(8);
+  expect(next.idempotencyKey).not.toBe(original.idempotencyKey);
+});
+
+it("keeps unknown outcomes blocked, and an accepted receipt clears the draft without resending", async () => {
+  vi.mocked(orchestratorApi.send).mockRejectedValueOnce(new Error("Timeout"));
+  vi.mocked(orchestratorApi.resolveRequest).mockResolvedValueOnce({ projectId: "p-1", status: "unknown", message: "Original job unavailable; retained for recovery" });
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Original question");
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" })); await screen.findByText(/Timeout/);
+  await userEvent.click(screen.getByRole("button", { name: "Check original request" }));
+  await screen.findByText(/Original job unavailable/);
+  expect((screen.getByRole("button", { name: "Send to Luci" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByRole("button", { name: "Discard unsent message" })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Check original request" }));
+  await screen.findByText(/original request was accepted/);
+  expect(orchestratorApi.send).toHaveBeenCalledTimes(1);
+  mounted.unmount(); render(<OrchestratorPanel projectId="p-1" />); await ready();
+  expect(screen.queryByRole("button", { name: "Restore unsent message" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Check original request" })).toBeNull();
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("");
+});
+
+it.each(["actor", "connection", "root", "project", "team"])("keeps an unsent message private across %s scope navigation", async changed => {
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Only in my original scope");
+  if (changed === "actor") identity.actor = "second-user";
+  if (changed === "connection") identity.connection = "another-host";
+  if (changed === "root") identity.root = "/different/root";
+  if (changed === "team") selectTeamScope("team-AAAAAAAAAAAAAAAAAAAAAA");
+  mounted.rerender(<OrchestratorPanel projectId={changed === "project" ? "p-2" : "p-1"} />); await ready();
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("");
+  expect(screen.queryByRole("button", { name: "Restore unsent message" })).toBeNull();
+  Object.assign(identity, { actor: "owner", connection: "", root: "/projects/owner" }); selectTeamScope("");
+  mounted.rerender(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByRole("button", { name: "Restore unsent message" }));
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("Only in my original scope");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("hides recovery and private composer content when permission is revoked", async () => {
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Private unsent text");
+  identity.assist = false; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("");
+  expect(screen.queryByRole("button", { name: "Restore unsent message" })).toBeNull();
+  identity.read = false; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
+  expect(screen.queryByRole("textbox", { name: "Message Luci" })).toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("blocks paid dispatch if its recovery identity cannot be stored", async () => {
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Keep a copy before sending");
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("Storage denied"); });
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
+  await screen.findByText(/enable browser storage before sending/);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("Keep a copy before sending");
+});
+
+it("lets a demoted reader resolve their original request without allowing another paid send", async () => {
+  vi.mocked(orchestratorApi.send).mockRejectedValueOnce(new Error("Lost response"));
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Private original prompt");
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" })); await screen.findByText(/Lost response/);
+  identity.assist = false; identity.edit = false; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
+  expect(screen.queryByRole("button", { name: "Retry original request" })).toBeNull();
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("");
+  await userEvent.click(screen.getByRole("button", { name: "Check original request" }));
+  await screen.findByText(/original request was accepted/);
+  expect(orchestratorApi.send).toHaveBeenCalledTimes(1);
+  expect((screen.getByRole("button", { name: "Send to Luci" }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it("does not resend stale text after another tab clears the saved draft", async () => {
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Text accepted in another tab");
+  const key = Object.keys(localStorage).find(key => key.startsWith("luci.orchestrator-composer") && key.endsWith(":draft"))!;
+  const oldValue = localStorage.getItem(key); localStorage.removeItem(key);
+  act(() => window.dispatchEvent(new StorageEvent("storage", { key, oldValue, newValue: null })));
+  expect((screen.getByRole("button", { name: "Send to Luci" }) as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved message" }));
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("");
   expect(orchestratorApi.send).not.toHaveBeenCalled();
 });

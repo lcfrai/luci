@@ -514,6 +514,39 @@ and the proposal has not previously been applied. Approval remains a separate
 operation. POST `/assist/{jobId}/cancel {}` cancels an owned run. Loading saved
 history never starts inference or changes the definition.
 
+## Recovering an uncertain orchestrator request
+
+`POST /v1/product/projects/{id}/orchestrator/resolve` accepts the exact original
+`POST .../assist/orchestrator` body: `expectedRevision`,
+`expectedContextDigest`, `idempotencyKey`, `message`, `replyToTurnId`, `harness`,
+`model`, `authMode` and `agentConnectionId`, preserving omitted/default values.
+The response is `{projectId,status,message,job?,turnId?,jobId?}`. This explicit
+POST requires project read access, including a member demoted to viewer; it
+recovers only the authenticated actor's own request. It grants no editing,
+execution, secret-use or job-repair permission.
+
+- `accepted` includes the original matching assistant job. Resolution never
+  invokes the provider, changes that job or applies its result.
+- `not-sent` is returned only after private storage proves absence and durably
+  records a no-dispatch fence for that actor/key/request. A delayed original POST
+  then returns409 `orchestrator_request_closed`. The browser may restore an
+  editable draft; sending again requires a new key and explicit user action.
+- `unknown` retains uncertainty. A matching turn with a missing/corrupt job
+  returns its `turnId`/`jobId` without recreating the job. Conflicting inputs,
+  unavailable/corrupt history or insufficient retained history cannot become
+  confirmed absence. Other actors' matching keys disclose no receipt identities.
+
+Send and resolution share the worker admission lock. Current and verified
+archived receipts are searched before source or provider selections are
+reconsidered. New turns retain their original admission revision; legacy turns
+without that revision still support existing send retries but cannot prove an
+exact resolution. No-dispatch fences remain in the active private ledger through
+history rotation and have no expiry. At the bounded recovery-storage limit,
+resolution returns actionable `unknown`; it never silently drops a fence or
+reopens a paid request key. History gaps after older exports/rotations also leave
+unmatched requests `unknown`, including a fresh request whose absence cannot be
+established from those retained receipts.
+
 ## Standalone PostgreSQL backups and recovery
 
 GET `/v1/platform/projects/{id}` returns `{project,busy}`. The project includes the cached `database`, `backups`, optional `databaseOperation` and `databaseRestoreHistory`. A read starts no restore or database; ready status describes the last verified operation. PostgreSQL is the project's existing pinned PostgreSQL16 container and private persistent volume, separate from optional Supabase data resources.

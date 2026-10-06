@@ -76,6 +76,30 @@ Context storage exposes them and supports another explicit cleanup. Corrupt or
 foreign chunks are not silently deleted: recover the verified files from Git or
 a backup before continuing.
 
+## Browser draft recovery and concurrent changes
+
+Definition, design-plan and implementation-plan drafts retain the original saved
+document alongside unsaved edits, in the existing private browser scope. Account,
+workspace route, project root and project identity remain separate. The original
+document counts toward the existing 2 MiB per-draft and 4 MiB total browser budget;
+drafts expire after 30 days. Storage failure is visible and cannot claim that
+unretained edits are safe to leave behind. Sketches keep their existing explicit
+whole-document recovery; no automatic canvas merge is attempted.
+
+After another contributor saves, explicit recovery compares original, local and
+current content. Independent edits combine; stable record IDs preserve outcomes,
+screens and tasks. Concurrent edits to the same field, deletion versus editing,
+and incompatible ordering require explicit choices. Current saved revision and
+approval metadata never come from a stale draft. Legacy drafts without an
+original document require choices for differing content rather than guessing
+which version changed. A new saved snapshot invalidates previous recovery choices.
+
+Recovery changes only the local editor. The person reviews and explicitly saves
+against the current revision; another concurrent save still conflicts. If merged
+journeys refer to removed outcomes, those links remain visible and block saving
+until the person explicitly removes or replaces them. A teammate's journey is
+not silently removed to make a merged document validate.
+
 ## Generated export recovery
 
 `.luci/state.json` is canonical. `LUCI.md`, design/plan JSON, specification

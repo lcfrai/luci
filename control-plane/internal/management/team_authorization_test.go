@@ -65,6 +65,8 @@ func TestTeamRouteCapabilitiesSeparateContextExecutionSecretsAndDeployment(t *te
 		{"viewer exports project conversation", "GET", "/v1/product/projects/p-one/orchestrator/export", viewer, true},
 		{"viewer cannot rotate project conversation", "POST", "/v1/product/projects/p-one/orchestrator/rotate", viewer, false},
 		{"editor rotates conversation without execution", "POST", "/v1/product/projects/p-one/orchestrator/rotate", editor, true},
+		{"viewer resolves own prior request without execution", "POST", "/v1/product/projects/p-one/orchestrator/resolve", viewer, true},
+		{"editor resolves own request without execution or secrets", "POST", "/v1/product/projects/p-one/orchestrator/resolve", editor, true},
 		{"editor reconciles retained result without execution", "POST", "/v1/product/projects/p-one/assist/assist-one/reconcile", editor, true},
 		{"orchestrator requires provider credentials", "POST", "/v1/product/projects/p-one/assist/orchestrator", executor, false},
 		{"authorized orchestrator inference", "POST", "/v1/product/projects/p-one/assist/orchestrator", full, true},

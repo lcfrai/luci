@@ -24,6 +24,7 @@ import (
 )
 
 type Release struct {
+	CanStop bool `json:"canStop"`
 	ID                        string `json:"id"`
 	ProjectID                 string `json:"projectId"`
 	BriefRevision             int    `json:"briefRevision"`

@@ -54,6 +54,32 @@ route. An authenticated actor and immutable context are durably reserved before
 inference. Identical retries join the original job; changed key payloads conflict.
 A missing or failed provider is a real failure, without a fabricated answer.
 
+The browser retains unsent discussion text and its reply target in the same
+account/workspace/project scope; restoring it is explicit. These drafts expire
+after 30 days. Before sending, it durably records the complete original request
+and idempotency key in a separate immutable slot. Local recovery is bounded to
+128 records, 128 KiB per record and 2 MiB total. Storage failure blocks dispatch
+with a remedy. Unresolved request identities do not expire into fresh messages.
+Reload and conversation refresh never silently generate a new key for an
+uncertain send, and no recovery operation sends automatically.
+
+The person can explicitly retry the original request with its original body and
+key, or check its outcome through `POST .../orchestrator/resolve`. The latter
+requires readable project access, is bound to the authenticated actor, and never
+leases credentials, repairs a job or dispatches inference. It returns an exact
+accepted receipt, a durable not-sent result, or continued uncertainty. A not-sent
+result first fences that key against delayed original requests; a bare absent
+lookup would not be safe. Only then can the browser recover that message for
+editing. A reader without execution permission can resolve their own old request
+but cannot retry or start a new one. Loss of read access hides local recovery.
+See [API.md](API.md#recovering-an-uncertain-orchestrator-request) for the receipt,
+archive and admission contract.
+
+No-dispatch fences are private hash-only records, bounded to 1,024 per project,
+and remain in the active ledger through every history rotation without expiry.
+Capacity or incomplete/corrupt history returns continued uncertainty rather
+than silently reopening an old request key.
+
 The selected existing assistance runtime receives saved context and a bounded
 recent discussion excerpt. Older proposal payloads are omitted from the excerpt;
 the current context remains authoritative. A specifically answered question is

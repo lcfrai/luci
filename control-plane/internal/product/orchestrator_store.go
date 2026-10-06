@@ -24,6 +24,7 @@ const orchestratorAnswerLimit = 384 << 10
 
 type storedOrchestratorTurn struct {
 	OrchestratorTurn
+	AdmissionRevision   *int   `json:"admissionRevision,omitempty"`
 	KeyDigest           string `json:"keyDigest"`
 	RequestDigest       string `json:"requestDigest"`
 	ApplyIntent         string `json:"applyIntent,omitempty"`
@@ -38,6 +39,7 @@ type orchestratorLedger struct {
 	ProjectID     string                   `json:"projectId"`
 	Revision      int                      `json:"revision"`
 	Turns         []storedOrchestratorTurn `json:"turns"`
+	NoDispatch    []orchestratorNoDispatch `json:"noDispatch,omitempty"`
 }
 
 func (s *Server) orchestratorPath(id string, create bool) (string, error) {
@@ -113,8 +115,14 @@ func decodeOrchestratorLedger(data []byte, out orchestratorLedger) (orchestrator
 		return out, ErrOrchestratorInvalid
 	}
 	seen := map[string]bool{}
+	if validateOrchestratorNoDispatch(saved.NoDispatch) != nil {
+		return out, ErrOrchestratorInvalid
+	}
 	previousSequence := 0
 	for _, turn := range saved.Turns {
+		if turn.AdmissionRevision != nil && (*turn.AdmissionRevision < 0 || *turn.AdmissionRevision >= saved.Revision) {
+			return out, ErrOrchestratorInvalid
+		}
 		if turn.ProjectID != out.ProjectID || !strings.HasPrefix(turn.ID, "turn-") || !prototypeReleaseID.MatchString(turn.ID) || !prototypeReleaseID.MatchString(turn.JobID) || turn.Sequence <= previousSequence || seen[turn.ID] || !hexDigest(turn.ContextDigest) || turn.Context.Digest != turn.ContextDigest || turn.Context.ProjectID != out.ProjectID || !hexDigest(turn.KeyDigest) || !hexDigest(turn.RequestDigest) || len(turn.Message) == 0 || len(turn.Message) > 16000 || !validConnectionToken(turn.Actor.ID, 128, false) || turn.Actor.DisplayName == "" || !validOrchestratorStatus(turn.Status) {
 			return out, ErrOrchestratorInvalid
 		}
@@ -140,6 +148,9 @@ func terminalOrchestrator(status string) bool {
 	return status == "succeeded" || status == "failed" || status == "cancelled" || status == "unknown"
 }
 func (s *Server) saveOrchestrator(saved orchestratorLedger) error {
+	if err := validateOrchestratorNoDispatch(saved.NoDispatch); err != nil {
+		return err
+	}
 	data, err := json.MarshalIndent(saved, "", "  ")
 	if err != nil || len(data)+1 > orchestratorFileLimit || len(saved.Turns) > orchestratorTurnLimit {
 		return ErrOrchestratorCapacity
@@ -156,6 +167,9 @@ func (s *Server) saveOrchestrator(saved orchestratorLedger) error {
 		return ErrOrchestratorInvalid
 	}
 	if err = atomicJSON(path, saved); err != nil {
+		return ErrOrchestratorInvalid
+	}
+	if err = syncProjectRunDirectory(s.stateDir); err != nil {
 		return ErrOrchestratorInvalid
 	}
 	if err = syncProjectRunDirectory(filepath.Dir(path)); err != nil {
@@ -248,13 +262,21 @@ func (s *Server) ReserveOrchestratorTurn(ctx context.Context, id string, req Orc
 	}
 	key := reviewDigest(actor.ID + ":" + req.IdempotencyKey)
 	digest := reviewDigest([]any{actor.ID, req.Message, req.ReplyToTurnID, req.ExpectedContextDigest, req.RouteDigest})
-	for _, turn := range saved.Turns {
-		if turn.KeyDigest == key {
-			if turn.RequestDigest != digest {
-				return OrchestratorTurn{}, OrchestratorContext{}, false, ErrOrchestratorConflict
-			}
-			return turn.OrchestratorTurn, turn.Context, true, nil
+	storage, err := s.orchestratorStorageLocked(p, saved)
+	if err != nil {
+		return OrchestratorTurn{}, OrchestratorContext{}, false, err
+	}
+	for _, fence := range saved.NoDispatch {
+		if fence.KeyDigest == key {
+			return OrchestratorTurn{}, OrchestratorContext{}, false, ErrOrchestratorNotSent
 		}
+	}
+	previous, err := findOrchestratorRequest(storage, key, digest)
+	if err != nil {
+		return OrchestratorTurn{}, OrchestratorContext{}, false, err
+	}
+	if previous != nil {
+		return previous.OrchestratorTurn, previous.Context, true, nil
 	}
 	// Bound the set that must survive rotation, while always allowing an explicit answer.
 	if len(orchestratorQuestions(saved)) >= 16 && req.ReplyToTurnID == "" {
@@ -292,7 +314,7 @@ func (s *Server) ReserveOrchestratorTurn(ctx context.Context, id string, req Orc
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	turn := OrchestratorTurn{ID: newID("turn-"), ProjectID: id, Sequence: nextOrchestratorSequence(saved), Actor: actor, Message: req.Message, JobID: jobID, ReplyToTurnID: req.ReplyToTurnID, ContextDigest: snapshot.Digest, Context: snapshot, Status: "reserved", CreatedAt: now, UpdatedAt: now}
-	saved.Turns = append(saved.Turns, storedOrchestratorTurn{OrchestratorTurn: turn, KeyDigest: key, RequestDigest: digest})
+	saved.Turns = append(saved.Turns, storedOrchestratorTurn{OrchestratorTurn: turn, AdmissionRevision: &req.ExpectedRevision, KeyDigest: key, RequestDigest: digest})
 	saved.Revision++
 	// Reserve room for the bounded terminal answer before model work starts.
 	encoded, marshalErr := json.MarshalIndent(saved, "", "  ")

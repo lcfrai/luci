@@ -80,6 +80,8 @@ it("retains conflict edits while comparing the newer saved definition, and requi
   await userEvent.click(screen.getByText("Compare draft with saved version"));
   const recovery = screen.getByRole("region", { name: "Definition draft recovery" });
   expect(recovery.textContent).toContain("Colleague saved idea"); expect(recovery.textContent).toContain("My conflicting draft");
+  expect((screen.getByRole("checkbox", { name: /I reviewed the saved version/ }) as HTMLInputElement).disabled).toBe(true);
+  await userEvent.click(screen.getByRole("radio", { name: /Use my draft for The idea/ }));
   await userEvent.click(screen.getByRole("checkbox", { name: /I reviewed the saved version/ }));
   await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
   expect(save).toHaveBeenCalledTimes(1);
@@ -87,6 +89,69 @@ it("retains conflict edits while comparing the newer saved definition, and requi
   await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
   await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
   expect(save.mock.calls[1][1].purpose).toBe("My conflicting draft"); expect(save.mock.calls[1].slice(2)).toEqual([3, 4]);
+});
+
+it("recovers Alice's constraint without overwriting Bob's newer outcome and saves against the current revision", async () => {
+  const save = vi.spyOn(definitionApi, "save").mockRejectedValueOnce(new Error("Revision conflict"));
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByLabelText("Boundaries and constraints"); edit("Boundaries and constraints", "Alice requires keyboard access");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  await screen.findByText(/Revision conflict/);
+  const bob = { ...specification(), revision: 3, briefRevision: 4, requirements: [{ ...specification().requirements[0], title: "Save a note with its garden area", acceptance: "Reopened notes retain the chosen garden area" }] };
+  vi.mocked(definitionApi.get).mockResolvedValue(bob);
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved definition" }));
+  await waitFor(() => expect((screen.getByLabelText("Requirement 1") as HTMLInputElement).value).toBe(bob.requirements[0].title));
+  expect(screen.queryByRole("radio")).toBeNull();
+  expect(screen.getByText(/Edits to different fields are combined/)).not.toBeNull();
+  await userEvent.click(screen.getByRole("checkbox", { name: /I reviewed the saved version/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("Boundaries and constraints") as HTMLTextAreaElement).value).toBe("Alice requires keyboard access");
+  expect((screen.getByLabelText("Acceptance scenario 1") as HTMLTextAreaElement).value).toBe(bob.requirements[0].acceptance);
+  save.mockImplementation(async (_id, value) => ({ ...value, revision: 4, briefRevision: 5 }));
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+  expect(save.mock.calls[1][1]).toMatchObject({ constraints: "Alice requires keyboard access", requirements: bob.requirements });
+  expect(save.mock.calls[1].slice(2)).toEqual([3, 4]);
+});
+
+it("requires explicit field choices for legacy stale drafts instead of treating a newer saved document as their baseline", async () => {
+  const save = vi.spyOn(definitionApi, "save");
+  const first = render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByLabelText("Boundaries and constraints"); edit("Boundaries and constraints", "Alice requires keyboard access"); first.unmount();
+  const key = storedDrafts()[0], legacy = JSON.parse(localStorage.getItem(key)!);
+  delete legacy.original; localStorage.setItem(key, JSON.stringify(legacy));
+  const bob = { ...specification(), revision: 3, briefRevision: 4, purpose: "Bob's updated idea" };
+  vi.mocked(definitionApi.get).mockResolvedValue(bob);
+  render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  expect(screen.getByText(/older browser draft does not include its original/)).not.toBeNull();
+  expect((screen.getByRole("button", { name: "Restore draft" }) as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(screen.getByRole("radio", { name: /Keep saved version for The idea/ }));
+  await userEvent.click(screen.getByRole("radio", { name: /Use my draft for Constraints/ }));
+  await userEvent.click(screen.getByRole("checkbox", { name: /I reviewed the saved version/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe(bob.purpose);
+  expect((screen.getByLabelText("Boundaries and constraints") as HTMLTextAreaElement).value).toBe("Alice requires keyboard access");
+  expect(save).not.toHaveBeenCalled();
+});
+
+it("makes a merged journey's removed outcome link visible and requires an explicit remedy without dropping the teammate's journey", async () => {
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_id, value) => ({ ...value, revision: 4, briefRevision: 5 }));
+  const first = render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByLabelText("The idea");
+  await userEvent.click(screen.getByRole("button", { name: "Remove requirement 1" })); first.unmount();
+  const replacement = { id: "AC-2", title: "Save with a garden area", acceptance: "The garden area is retained", priority: "must" as const };
+  vi.mocked(definitionApi.get).mockResolvedValue({ ...specification(), revision: 3, briefRevision: 4, requirements: [...specification().requirements, replacement], journeys: [{ id: "bob-journey", name: "Bob's note workflow", actor: "Gardener", steps: "Save, reopen and review the note", requirementIds: ["AC-1"] }] });
+  render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  await userEvent.click(screen.getByRole("checkbox", { name: /I reviewed the saved version/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect(screen.getByRole("alert").textContent).toContain("outcome that was removed");
+  expect((screen.getByRole("button", { name: "Save definition" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText("Journey name") as HTMLInputElement).value).toBe("Bob's note workflow");
+  await userEvent.click(screen.getByRole("checkbox", { name: /AC-2 · Save with a garden area/ }));
+  await userEvent.click(screen.getByRole("checkbox", { name: "Remove unavailable outcome AC-1 from journey 1" }));
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  expect(save.mock.calls[0][1].journeys).toEqual([{ id: "bob-journey", name: "Bob's note workflow", actor: "Gardener", steps: "Save, reopen and review the note", requirementIds: ["AC-2"] }]);
 });
 
 it("isolates drafts when accounts, remote accounts, workspaces, project roots, API endpoints, or projects change", async () => {
@@ -133,6 +198,19 @@ it("recovers task edits and an unfinished new task without starting implementati
   await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
   expect((screen.getByLabelText("Task 1") as HTMLInputElement).value).toBe("Unsaved implementation task");
   expect((screen.getByPlaceholderText("Describe a concrete outcome") as HTMLInputElement).value).toBe("Not added yet");
+  expect(save).not.toHaveBeenCalled();
+});
+
+it("preserves a teammate's newly added task when recovering an independently edited task", async () => {
+  const save = vi.spyOn(productApi, "savePlan");
+  const first = render(<ProjectPlan projectId="p-1" brief={brief} />);
+  await screen.findByLabelText("Task 1"); edit("Task 1", "Alice's revised implementation task"); first.unmount();
+  vi.mocked(productApi.plan).mockResolvedValue({ ...plan, revision: 6, tasks: [...plan.tasks, { id: "test-area", title: "Bob's garden-area regression test", status: "todo" }] });
+  render(<ProjectPlan projectId="p-1" brief={brief} />); await screen.findByLabelText("Task 2");
+  await userEvent.click(screen.getByRole("checkbox", { name: /I reviewed the saved version/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("Task 1") as HTMLInputElement).value).toBe("Alice's revised implementation task");
+  expect((screen.getByLabelText("Task 2") as HTMLInputElement).value).toBe("Bob's garden-area regression test");
   expect(save).not.toHaveBeenCalled();
 });
 

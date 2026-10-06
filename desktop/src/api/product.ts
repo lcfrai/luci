@@ -268,6 +268,7 @@ export interface RequirementCheckBinding {
   expectedDesignPlanRevision: number;
 }
 export interface Release {
+  canStop?: boolean;
   id: string;
   projectId: string;
   briefRevision: number;

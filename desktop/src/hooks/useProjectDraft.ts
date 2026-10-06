@@ -7,7 +7,7 @@ const PREFIX = "luci.project-draft.v1:";
 const MAX_BYTES = 2 * 1024 * 1024;
 const TOTAL_BYTES = 4 * 1024 * 1024;
 const MAX_AGE = 30 * 24 * 60 * 60 * 1000;
-export interface ProjectDraft<T> { version: 1; base: string; value: T; updatedAt: number }
+export interface ProjectDraft<T> { version: 1; base: string; value: T; original?: T; updatedAt: number }
 export function useProjectDraftScope(projectId: string): string | null {
   const auth = useAuth(), setup = useSetup();
   const workspace = setup?.workspace, status = setup?.status;
@@ -28,9 +28,9 @@ export interface ProjectDraftState<T> {
   offerRecovery(): void;
 }
 /** Only project documents enter this hook. Runtime settings and credentials do not. */
-export function useProjectDraft<T>({ scope, kind, base, value, dirty, valid }: {
+export function useProjectDraft<T>({ scope, kind, base, baseValue, value, dirty, valid }: {
   scope: string | null; kind: "definition" | "design-plan" | "sketch" | "implementation-plan";
-  base: string | null; value: T | null; dirty: boolean; valid(value: unknown): value is T;
+  base: string | null; baseValue?: T | null; value: T | null; dirty: boolean; valid(value: unknown): value is T;
 }): ProjectDraftState<T> {
   const key = scope ? PREFIX + JSON.stringify([scope, kind]) : null;
   const expected = useRef<string | null>(null);
@@ -46,10 +46,12 @@ export function useProjectDraft<T>({ scope, kind, base, value, dirty, valid }: {
       if (raw.length * 2 > MAX_BYTES || record.version !== 1 || typeof record.base !== "string" ||
           !Number.isFinite(record.updatedAt) || record.updatedAt > Date.now() + 60000 || !valid(record.value)) return null;
       if (Date.now() - record.updatedAt > MAX_AGE) { localStorage.removeItem(key); expected.current = null; return null; }
-      return record as ProjectDraft<T>;
+      // Older drafts have no original document. Keep their edits recoverable,
+      // but never infer a merge baseline from a newer saved revision.
+      return { ...record, original: valid(record.original) ? record.original : undefined } as ProjectDraft<T>;
     } catch { return null; }
   });
-  const latest = useRef({ value, base }); latest.current = { value, base };
+  const latest = useRef({ value, base, baseValue }); latest.current = { value, base, baseValue };
   function clear() {
     if (key) {
       try {
@@ -64,7 +66,7 @@ export function useProjectDraft<T>({ scope, kind, base, value, dirty, valid }: {
     if (!key) { setError("Draft recovery is unavailable until your account and workspace are known. Keep this page open until you save."); return; }
     try {
       if (localStorage.getItem(key) !== expected.current) throw new Error("Another tab changed this browser draft. Your edits are still here; save them to the project before leaving this page.");
-      const record: ProjectDraft<T> = { version: 1, base, value, updatedAt: Date.now() };
+      const record: ProjectDraft<T> = { version: 1, base, value, ...(baseValue ? { original: baseValue } : {}), updatedAt: Date.now() };
       const raw = JSON.stringify(record);
       if (raw.length * 2 > MAX_BYTES) throw new Error("This draft is too large for browser recovery. Keep this page open until you save it to the project.");
       let bytes = raw.length * 2;
@@ -85,14 +87,14 @@ export function useProjectDraft<T>({ scope, kind, base, value, dirty, valid }: {
       setRetained(false);
       setError(cause instanceof Error && !["QuotaExceededError", "SecurityError"].includes(cause.name) ? cause.message : "Browser storage is unavailable or full. Keep this page open until you save your changes.");
     }
-  }, [key, dirty, base, value, pending]);
+  }, [key, dirty, base, baseValue, value, pending]);
   return {
     pending, retained, restored, error,
     take: () => { const record = pending; setPending(null); setRestored(!!record); return record; },
     clear,
     offerRecovery: () => {
       const snapshot = latest.current;
-      if (snapshot.value && snapshot.base && dirty) setPending({ version: 1, base: snapshot.base, value: snapshot.value, updatedAt: Date.now() });
+      if (snapshot.value && snapshot.base && dirty) setPending({ version: 1, base: snapshot.base, value: snapshot.value, ...(snapshot.baseValue ? { original: snapshot.baseValue } : {}), updatedAt: Date.now() });
     },
   };
 }

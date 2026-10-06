@@ -29,6 +29,7 @@ func (a *API) registerAssistance(mux *routes) {
 	mux.HandleFunc("GET /v1/product/projects/{id}/assist", a.handleAssistList)
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist/repository", a.handleRepositoryAnalysis)
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist/orchestrator", a.handleOrchestratorCreate)
+	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/resolve", a.handleOrchestratorResolve)
 	mux.HandleFunc("GET /v1/product/projects/{id}/assist/{jobId}", a.handleAssistGet)
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist/{jobId}/cancel", a.handleAssistCancel)
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist/{jobId}/reconcile", a.handleOrchestratorReconcile)

@@ -42,6 +42,14 @@ polish or live model quality. The target is no known serious product or usabilit
 defect in the supported journeys, with understandable recovery from expected
 failures. Do not promise that any application can never encounter a future bug.
 
+The owner's renewed continuation instruction is explicit: a completed corrective
+batch, updated PR or saved roadmap is a checkpoint, not the end of this objective.
+Continue through the remaining independently actionable product work. A missing
+credential or platform capability blocks only the gate that requires it; it does
+not close the goal or justify stopping unrelated implementation. Keep concrete
+findings and their resolution in [QUALITY-WORKLIST.md](QUALITY-WORKLIST.md), and
+keep the whole-product acceptance contract open until its outcomes are observed.
+
 ## Open-source and managed-team goal — 6 October 2026
 
 The owner has confirmed two delivery options: the self-hosted MIT open-source

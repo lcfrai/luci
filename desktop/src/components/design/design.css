@@ -35,7 +35,28 @@
 .design-prototype-tools { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin-block: 24px; }
 .design-prototype-tools > .luci-field { flex: 1; min-inline-size: 220px; }
 .design-prototype-viewport { overflow: auto; background: var(--canvas); padding: 18px; display: grid; gap: 16px; }
-.design-prototype-viewport iframe { background: var(--surface); border: 1px solid var(--line-soft); block-size: 720px; flex-shrink: 0; }
+.design-prototype-viewport iframe { box-sizing: content-box; background: var(--surface); border: 1px solid var(--line-soft); block-size: 720px; flex-shrink: 0; }
+.prototype-review { margin-block: 24px; padding: 24px; border: 1px solid var(--line-soft); border-radius: 12px; background: var(--surface); }
+.prototype-review h3, .prototype-review h4 { margin-block: 0 12px; }
+.prototype-review p, .prototype-review li { line-height: 1.6; }
+.prototype-review code { overflow-wrap: anywhere; }
+.prototype-review > .luci-field { max-inline-size: 32rem; }
+.prototype-route { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px 20px; }
+.prototype-route dd { margin: 0; overflow-wrap: anywhere; }
+.prototype-expectations { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; margin-block-start: 24px; }
+.prototype-expectations ul { margin: 0; padding-inline-start: 20px; }
+.prototype-expectations li + li { margin-block-start: 12px; }
+.prototype-expectations li p { margin-block: 4px 12px; white-space: pre-line; }
+.prototype-observation { margin-block-start: 24px; padding-block-start: 20px; border-block-start: 1px solid var(--line-soft); }
+.prototype-review-layout { min-inline-size: 0; }
+.prototype-review-layout > * { min-inline-size: 0; }
+@container (min-width: 850px) {
+  .prototype-review-layout.has-preview { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 24px; align-items: start; }
+  .prototype-review-layout.has-preview > .prototype-review { grid-column: 2; grid-row: 1; margin-block: 0; }
+  .prototype-review-layout.has-preview > .design-prototype-viewport { grid-column: 1; grid-row: 1; }
+  .prototype-review-layout.has-preview .prototype-expectations { grid-template-columns: minmax(0,1fr); }
+}
+@container (max-width: 650px) { .prototype-expectations { grid-template-columns: minmax(0,1fr); } .prototype-review { padding: 16px; } }
 .design-token { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)) auto; gap: 12px; align-items: end; margin-block: 16px; }
 .design-handoff h3 { font-size: 1rem; margin-block: 28px 16px; }
 .design-provenance { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 12px 24px; border-block-start: 1px solid var(--line-soft); margin-block: 28px; padding-block-start: 20px; }

@@ -7,6 +7,7 @@ import type { ProjectRunDeploymentIntent } from "../../store/slices/uiSlice";
 import { useProjectDraftScope } from "../../hooks/useProjectDraft";
 import { notifyProjectContextChanged } from "../../api/projectContextEvents";
 import { projectRunsApi } from "../../api/projectRuns";
+import { DeploymentOverview, type DeploymentInspection } from "../journey/DeploymentOverview";
 import { useRunDeployment } from "../journey/useRunDeployment";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { ProjectRequired, JourneyHeader } from "../journey/shared";
@@ -17,6 +18,7 @@ import { ProjectConfiguration } from "../journey/ProjectConfiguration";
 import { useAuth } from "../auth/AuthProvider";
 import { PlatformWorkspace } from "../platform/PlatformWorkspace";
 import { DEFAULT_BASE_URL } from "../../api/client";
+import { WorkflowDialog } from "../common/WorkflowDialog";
 import { Button } from "../fluid/components/button";
 import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
 
@@ -36,6 +38,7 @@ function ScopedDeploymentWorkspace({ projectId, scope }: { projectId: string; sc
   const matches = (value: ProjectRunDeploymentIntent | null) => !!scope && value?.scope === scope && value.projectId === projectId;
   const [intent, setIntent] = useState<ProjectRunDeploymentIntent | null>(() => matches(pending) ? pending : null);
   const [view, setView] = useState<"platform" | "publishing">(() => matches(pending) ? "publishing" : "platform");
+  const [inspection, setInspection] = useState<(DeploymentInspection & { request: number }) | null>(null);
   const [configurationBusy, setConfigurationBusy] = useState(false);
   const [publishingBusy, setPublishingBusy] = useState(false);
   const tabsId = useId(), selectedIndex = view === "platform" ? 0 : 1;
@@ -46,25 +49,29 @@ function ScopedDeploymentWorkspace({ projectId, scope }: { projectId: string; sc
     useCockpit.setState(state => state.projectRunDeployment === pending ? { projectRunDeployment: null } : {});
   }, [pending, scope, projectId, locked]);
   return <div className="deployment-workspace">
+    {!intent && <DeploymentOverview projectId={projectId} scope={scope} disabled={locked} onInspect={target => {
+      if (locked) return;
+      setInspection(previous => ({ ...target, request: (previous?.request ?? 0) + 1 })); setView(target.kind === "release" ? "publishing" : "platform");
+    }} />}
     <TabsSubtle className="deployment-tabs" aria-label="Deployment workspace" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => { if (!locked) setView(index === 0 ? "platform" : "publishing"); }}>
       <TabsSubtleItem index={0} label="Application platform" aria-disabled={locked} />
       <TabsSubtleItem index={1} label="Previews and publishing" aria-disabled={locked} />
     </TabsSubtle>
     <TabsSubtlePanel idPrefix={tabsId} index={0} selectedIndex={selectedIndex}>
-      <section className="journey-page"><JourneyHeader title="Deploy and operate" subtitle="Run the application and its backing services, inspect its health and maintain it after launch." /><fieldset className="definition-fields" disabled={configurationBusy}><PlatformWorkspace projectId={projectId} /></fieldset></section>
+      <section className="journey-page"><JourneyHeader title="Deploy and operate" subtitle="Run the application and its backing services, inspect its health and maintain it after launch." /><fieldset className="definition-fields" disabled={configurationBusy}><PlatformWorkspace projectId={projectId} inspectionRequest={inspection?.request} inspectDeploymentId={inspection?.kind === "platform" ? inspection.id : undefined} /></fieldset></section>
     </TabsSubtlePanel>
     <TabsSubtlePanel idPrefix={tabsId} index={1} selectedIndex={selectedIndex}>
-      <ProjectDeploy projectId={projectId} deploymentIntent={intent} configurationManaged configurationBusy={configurationBusy} onBusyChange={setPublishingBusy} />
+      <ProjectDeploy projectId={projectId} inspectionRequest={inspection?.request} inspectReleaseId={inspection?.kind === "release" ? inspection.id : undefined} deploymentIntent={intent} configurationManaged configurationBusy={configurationBusy} onBusyChange={setPublishingBusy} />
     </TabsSubtlePanel>
     <section className="journey-page deployment-configuration"><details className="deployment-details"><summary>Runtime configuration</summary><ProjectConfiguration projectId={projectId} disabled={publishingBusy} onBusyChange={setConfigurationBusy} /></details></section>
   </div>;
 }
-interface ProjectDeployProps { projectId: string; configurationManaged?: boolean; configurationBusy?: boolean; onBusyChange?(busy: boolean): void; deploymentIntent?: ProjectRunDeploymentIntent | null }
+interface ProjectDeployProps { projectId: string; inspectionRequest?: number; inspectReleaseId?: string; configurationManaged?: boolean; configurationBusy?: boolean; onBusyChange?(busy: boolean): void; deploymentIntent?: ProjectRunDeploymentIntent | null }
 export function ProjectDeploy(props: ProjectDeployProps) {
   const scope = useProjectDraftScope(props.projectId);
   return <ScopedProjectDeploy key={JSON.stringify([scope ?? props.projectId, props.deploymentIntent?.runId ?? "", props.deploymentIntent?.checkId ?? ""])} {...props} scope={scope} />;
 }
-function ScopedProjectDeploy({ projectId, configurationManaged = false, configurationBusy: externalConfigurationBusy = false, onBusyChange, deploymentIntent, scope }: ProjectDeployProps & { scope: string | null }) {
+function ScopedProjectDeploy({ projectId, configurationManaged = false, configurationBusy: externalConfigurationBusy = false, onBusyChange, deploymentIntent, scope, inspectReleaseId, inspectionRequest }: ProjectDeployProps & { scope: string | null }) {
   const intent = scope && deploymentIntent?.scope === scope && deploymentIntent.projectId === projectId ? deploymentIntent : null;
   const binding = useRunDeployment(projectId, intent);
   const projectAccess = useProjectAccess(projectId);
@@ -74,6 +81,10 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
     : !canDeploy ? "Deployment access is required to build, stop, check health or roll back releases. Ask a team owner for editing and deployment access."
       : !projectAccess.canExecute ? "You can deploy this project. Ask a team owner for execution access to open its private application preview." : "";
   const [releases, setReleases] = useState<Release[]>([]);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const releaseNodes = useRef(new Map<string, HTMLLIElement>());
+  const focusedRelease = useRef<string | undefined>(undefined);
+  const [inspectionIssue, setInspectionIssue] = useState("");
   const [port, setPort] = useState(3000);
   const [dockerfile, setDockerfile] = useState("Dockerfile");
   const [busy, setBusy] = useState("");
@@ -82,6 +93,8 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
   const locked = !!busy || configurationBusy;
   const buildLocked = locked || !canDeploy || (!!intent && (!binding.run || binding.loading || !!binding.error));
   const [error, setError] = useState("");
+  const [replacement, setReplacement] = useState<{ previous: Release; commit: string } | null>(null);
+  const [replacementAccepted, setReplacementAccepted] = useState(false);
   const [preview, setPreview] = useState<{ url: string; releaseId: string } | null>(null);
   const [mode, setMode] = useState<"local" | "cloud" | "pages">(intent?.outcome === "publish" ? "cloud" : "local");
   const tabsId = useId(), selectedIndex = mode === "local" ? 0 : mode === "cloud" ? 1 : 2;
@@ -97,7 +110,8 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
     release.status === "ready";
   const refresh = async () => {
     const value = await productApi.releases(projectId);
-    if (alive.current) setReleases(value.releases);
+    if (value.releases.some(row => row.projectId !== projectId)) throw new Error("The release history belongs to another project. Refresh this workspace.");
+    if (alive.current) { setReleases(value.releases); setHistoryLoaded(true); }
   };
   useEffect(() => {
     alive.current = true;
@@ -108,6 +122,13 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
       alive.current = false;
     };
   }, [projectId]);
+  useEffect(() => {
+    if (!historyLoaded || !inspectReleaseId || focusedRelease.current === `${inspectReleaseId}:${inspectionRequest ?? 0}`) return;
+    focusedRelease.current = `${inspectReleaseId}:${inspectionRequest ?? 0}`;
+    const node = releaseNodes.current.get(inspectReleaseId);
+    if (node) { setInspectionIssue(""); node.scrollIntoView?.({ block: "nearest" }); node.focus(); }
+    else setInspectionIssue("The selected release is no longer in this project's history. Refresh application history before choosing another release.");
+  }, [inspectReleaseId, inspectionRequest, historyLoaded, releases]);
   useEffect(() => { if (!projectAccess.canExecute) setPreview(null); }, [projectAccess.canExecute]);
   useEffect(() => {
     if (preview && !releases.some(release => release.id === preview.releaseId && release.status === "ready")) setPreview(null);
@@ -346,6 +367,8 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
           Refresh
         </Button>
       </div>
+      {inspectionIssue && <p role="alert">{inspectionIssue}</p>}
+      <p className="journey-muted">Refreshing history checks retained local previews without restarting them. For a cloud release, use Check deployment health to record a fresh provider observation.</p>
       {!releases.length && (
         <p className="journey-muted">
           No releases yet. Your first preview will appear here.
@@ -353,7 +376,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
       )}
       <ul className="deploy-releases">
         {releases.map((release) => (
-          <li key={release.id}>
+          <li key={release.id} tabIndex={-1} ref={node => { if (node) releaseNodes.current.set(release.id, node); else releaseNodes.current.delete(release.id); }} aria-label={`Release ${release.id}`}>
             <div>
               <strong>
                 {release.target === "local"
@@ -433,9 +456,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
                   Check deployment health
                 </Button>
               )}
-              {!["stopped", "stopping", "failed", "cancelled"].includes(
-                release.status,
-              ) && (
+              {(release.target === "local" ? (release.canStop === true || (release.canStop === undefined && !["stopped", "stopping", "failed", "cancelled"].includes(release.status))) : !["stopped", "stopping", "failed", "cancelled"].includes(release.status)) && (
                 <Button type="button"
                   variant="secondary"
                   disabled={locked || !canDeploy}
@@ -457,6 +478,15 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
                       : "Stop cloud application"}
                 </Button>
               )}
+              {!intent && release.target === "local" && ["stopped", "failed"].includes(release.status) && <Button variant="secondary" disabled={locked || !canDeploy || release.canStop === true} onClick={() => {
+                void operate("Reading replacement source", async () => {
+                  const [source, git] = await Promise.all([productApi.gitDelivery(projectId), productApi.git(projectId)]);
+                  if (!git.clean || !/^[a-f0-9]{40}([a-f0-9]{24})?$/.test(source.head)) throw new Error("Review and commit the current project source in Develop before preparing a replacement preview.");
+                  if (alive.current) { setReplacement({ previous: release, commit: source.head }); setReplacementAccepted(false); }
+                  return release;
+                }, false);
+              }}>Prepare replacement preview</Button>}
+              {release.target === "local" && release.status === "failed" && release.canStop === true && <p className="journey-muted">A container is still recorded for this failed attempt. Stop it explicitly before preparing a replacement.</p>}
               {release.target !== "local" &&
                 release.target !== "github-pages" &&
                 ["ready", "failed", "stopped"].includes(release.status) && (
@@ -484,6 +514,23 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
           </li>
         ))}
       </ul>
+      {replacement && <WorkflowDialog title="Review replacement preview" description="Create a new preview from the selected current commit. This retains the earlier release record; it does not restart the old container or roll back application data." busy={!!busy} onClose={() => { setReplacement(null); setReplacementAccepted(false); }}>
+        <p>Earlier source: <code>{replacement.previous.commit}</code></p>
+        <p>Replacement source: <code>{replacement.commit}</code></p>
+        {replacement.previous.commit !== replacement.commit && <p className="journey-warning">The project has changed since that release. The replacement must be checked and reviewed again before its behavior is accepted.</p>}
+        <p>Current runtime configuration applies. Review the build options; earlier releases do not record a reusable build configuration.</p>
+        <label className="luci-field">Replacement Dockerfile<input value={dockerfile} disabled={!!busy} onChange={event => setDockerfile(event.target.value)} /></label>
+        <label className="luci-field">Replacement app port<input type="number" min="1" max="65535" value={port} disabled={!!busy} onChange={event => setPort(Number(event.target.value))} /></label>
+        {error && <p role="alert">{error}</p>}
+        <label className="setup-check"><input type="checkbox" checked={replacementAccepted} disabled={!!busy} onChange={event => setReplacementAccepted(event.target.checked)} />Build this selected commit as a new preview; keep the earlier release in history.</label>
+        <div className="journey-actions"><Button variant="secondary" disabled={!!busy} onClick={() => setReplacement(null)}>Keep reviewing</Button><Button disabled={locked || !canDeploy || !replacementAccepted || !dockerfile.trim() || !Number.isInteger(port) || port < 1 || port > 65535} onClick={() => {
+          void operate("Building replacement preview", async () => {
+            const created = await productApi.release(projectId, port, dockerfile, replacement.commit);
+            if (alive.current) { setReplacement(null); setReplacementAccepted(false); }
+            return created;
+          });
+        }}>Build replacement preview</Button></div>
+      </WorkflowDialog>}
       {preview && (
         <div className="deploy-preview">
           <div className="journey-header">

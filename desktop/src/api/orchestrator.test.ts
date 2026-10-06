@@ -82,3 +82,16 @@ it.each([
   vi.spyOn(productApi, "request").mockResolvedValue(view({ context: { ...context(), activeRuns } as never }));
   await expect(orchestratorApi.get("p-1")).rejects.toThrow("could not be verified");
 });
+
+it("resolves only the original scoped request and rejects a mismatched or unsupported receipt", async () => {
+  const input = { expectedRevision: 3, expectedContextDigest: context().digest, idempotencyKey: "retained-original-key", message: "Original", harness: "codex" as const, model: "original-model" };
+  const request = vi.spyOn(productApi, "request").mockResolvedValue({ projectId: "p-1", status: "accepted", job: job(), message: "Already accepted" });
+  expect((await orchestratorApi.resolveRequest("p-1", input)).job?.id).toBe(job().id);
+  expect(request).toHaveBeenCalledWith("/v1/product/projects/p-1/orchestrator/resolve", input);
+  for (const value of [
+    { projectId: "other", status: "not-sent", message: "Wrong scope" },
+    { projectId: "p-1", status: "absent", message: "Unfenced absence is not safe" },
+    { projectId: "p-1", status: "accepted", message: "Missing receipt" },
+    { projectId: "p-1", status: "accepted", job: job({ projectId: "other" }), message: "Wrong job" },
+  ]) { request.mockResolvedValue(value); await expect(orchestratorApi.resolveRequest("p-1", input)).rejects.toThrow(); }
+});

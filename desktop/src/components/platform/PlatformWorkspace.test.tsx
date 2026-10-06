@@ -314,3 +314,60 @@ it("clears a submitted provider key immediately and never renders failed provide
   );
   expect(document.body.textContent).not.toContain("private-key-value-12345");
 });
+
+it.each(["Restart deployment", "Verify deployment health"])("reports an HTTP-success unhealthy result honestly after %s", async label => {
+  pendingBrowserProject();
+  vi.mocked(platformApi.action).mockResolvedValue({ ...pendingBrowserDeployment, status: "failed", message: "Application did not pass its readiness probe." });
+  render(<PlatformWorkspace projectId="owned" inspectDeploymentId={pendingBrowserDeployment.id} />);
+  fireEvent.click(await screen.findByRole("button", { name: label }));
+  const alert = await screen.findByRole("alert");
+  expect(alert.textContent).toContain(`${label} needs attention.`);
+  expect(alert.textContent).toContain("Application did not pass its readiness probe.");
+  expect(screen.queryByText(`${label} completed.`)).toBeNull();
+  expect(platformApi.action).toHaveBeenLastCalledWith("owned", pendingBrowserDeployment.id, label === "Restart deployment" ? "restart" : "refresh");
+});
+
+it("opens an exact retained application and requires review before replacing it with current committed source", async () => {
+  const old = { ...pendingBrowserDeployment, status: "failed", commit: "b".repeat(40) };
+  vi.mocked(platformApi.project).mockResolvedValue({ project: { ...project, deployments: [old] }, busy: false });
+  vi.mocked(platformApi.deploy).mockResolvedValue({ ...old, id: "replacement", status: "building", commit: "a".repeat(40) });
+  const callsBefore = vi.mocked(platformApi.deploy).mock.calls.length;
+  render(<PlatformWorkspace projectId="owned" inspectDeploymentId={old.id} />);
+  const row = await screen.findByRole("article", { name: `Deployment ${old.id}` });
+  await waitFor(() => expect(document.activeElement).toBe(row));
+  fireEvent.click(screen.getByRole("button", { name: "Prepare replacement deployment" }));
+  expect(screen.getByRole("heading", { name: "Review replacement deployment" })).not.toBeNull();
+  expect(screen.getByText(/replacement needs new checks and review/)).not.toBeNull();
+  const start = screen.getByRole("button", { name: "Start replacement deployment" });
+  expect((start as HTMLButtonElement).disabled).toBe(true);
+  expect(platformApi.deploy).toHaveBeenCalledTimes(callsBefore);
+  fireEvent.click(screen.getByRole("checkbox", { name: "Create this replacement and retain the earlier deployment." }));
+  fireEvent.click(start);
+  await waitFor(() => expect(platformApi.deploy).toHaveBeenLastCalledWith("owned", "a".repeat(40), 3000, "/"));
+  expect(screen.getByRole("article", { name: `Deployment ${old.id}` })).not.toBeNull();
+  expect(await screen.findByText("Deployment accepted and running. Readiness has not been verified yet.")).not.toBeNull();
+});
+
+it("does not replace a missing inspected application with the newest row", async () => {
+  pendingBrowserProject();
+  render(<PlatformWorkspace projectId="owned" inspectDeploymentId="missing-deployment" />);
+  expect((await screen.findByRole("alert")).textContent).toContain("selected application is no longer");
+  expect(document.activeElement?.getAttribute("aria-label")).not.toBe(`Deployment ${pendingBrowserDeployment.id}`);
+});
+
+it("waits for platform readiness before selecting a retained row and supports inspecting it again", async () => {
+  pendingBrowserProject();
+  let finish!: (value: Awaited<ReturnType<typeof platformApi.status>>) => void;
+  const status = await platformApi.status();
+  vi.mocked(platformApi.status).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<PlatformWorkspace projectId="owned" inspectDeploymentId={pendingBrowserDeployment.id} inspectionRequest={1} />);
+  await act(async () => {});
+  expect(screen.queryByRole("alert")).toBeNull();
+  await act(async () => finish(status));
+  const row = await screen.findByRole("article", { name: `Deployment ${pendingBrowserDeployment.id}` });
+  await waitFor(() => expect(document.activeElement).toBe(row));
+  fireEvent.click(screen.getByRole("button", { name: "Overview" }));
+  expect(screen.queryByRole("article", { name: `Deployment ${pendingBrowserDeployment.id}` })).toBeNull();
+  view.rerender(<PlatformWorkspace projectId="owned" inspectDeploymentId={pendingBrowserDeployment.id} inspectionRequest={2} />);
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("article", { name: `Deployment ${pendingBrowserDeployment.id}` })));
+});

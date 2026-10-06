@@ -17,6 +17,7 @@ import { ContextStorage } from "../journey/ContextStorage";
 import { JourneyHeader } from "../journey/shared";
 import { Button } from "../fluid/components/button";
 import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
+import { PrototypeReview, prototypeScreenRoute, type OpenPrototypeSource } from "./PrototypeReview";
 import "../definition/definition.css";
 import "./design.css";
 const Sketch = lazy(() => import("../journey/DesignEditor"));
@@ -41,7 +42,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
   const [pendingView, setPendingView] = useState<View | null>(null);
   const [dirty, setDirty] = useState(false);
   const draftBase = plan && spec ? JSON.stringify({ revision: baseRevision, briefRevision: spec.briefRevision, specificationRevision: spec.revision, sketchRevision: plan.sketchRevision }) : null;
-  const draft = useProjectDraft({ scope, kind: "design-plan", base: draftBase, value: plan, dirty, valid: designPlanDraftValid });
+  const draft = useProjectDraft({ scope, kind: "design-plan", base: draftBase, baseValue: savedPlan.current, value: plan, dirty, valid: designPlanDraftValid });
   useUnsavedProjectDraft(projectId, dirty, "Design", "design", scope ? { retained: draft.retained, discard: () => { draft.clear(); setPlan(savedPlan.current); setDirty(false); } } : undefined);
   const [busy, setBusy] = useState(false);
   const [refreshingSketch, setRefreshingSketch] = useState(false);
@@ -54,9 +55,13 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
   const [prototypeBusy, setPrototypeBusy] = useState(false);
   const [prototypeError, setPrototypeError] = useState("");
   const [preview, setPreview] = useState("");
+  const [previewSource, setPreviewSource] = useState<OpenPrototypeSource | null>(null);
+  const [reviewScreenId, setReviewScreenId] = useState("");
+  const screenInputs = useRef(new Map<string, HTMLInputElement>());
+  const pendingScreenFocus = useRef<string | null>(null);
   const mayExecute = useRef(canExecute); mayExecute.current = canExecute;
-  useEffect(() => { if (!access.loading && !canExecute) setPreview(""); }, [canExecute, access.loading]);
-  const [width, setWidth] = useState(1440);
+  useEffect(() => { if (!access.loading && !canExecute) closePrototype(); }, [canExecute, access.loading]);
+  const [width, setWidth] = useState(390);
   const alive = useRef(true), working = useRef(false), draftVersion = useRef(0), generation = useRef(0);
   const sketchRead = useRef(0);
   const historyRead = useRef(0), prototypeRead = useRef(0), prototypeWorking = useRef(false);
@@ -118,7 +123,11 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
     catch (e) { if (alive.current && requestGeneration === generation.current) setError(errorText(e)); }
     finally { if (alive.current && requestGeneration === generation.current) { working.current = false; setBusy(false); setPending(""); } }
   }
-  async function openPrototype(separateTab = false) {
+  function closePrototype() {
+    prototypeRead.current++; prototypeWorking.current = false;
+    setPreview(""); setPreviewSource(null); setPrototypeBusy(false);
+  }
+  async function openPrototype(separateTab = false, plannedRoute?: string) {
     const release = selectedPrototype;
     if (!canExecute || !release || prototypeWorking.current || historyBusy || historyError) return;
     // Open synchronously from the click so popup blockers do not swallow an async handoff.
@@ -128,6 +137,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
     let transferred = false;
     const requestGeneration = generation.current, request = ++prototypeRead.current;
     prototypeWorking.current = true; setPrototypeBusy(true); setPrototypeError("");
+    if (!tab) { setPreview(""); setPreviewSource(null); }
     try {
       let target = release.url;
       if (release.target === "application") {
@@ -153,16 +163,22 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
       const url = new URL(target);
       const controlOrigin = new URL(window.__LUCI_API__ || DEFAULT_BASE_URL).origin;
       if (url.origin === window.location.origin || url.origin === controlOrigin || !((url.protocol === "http:" && (["127.0.0.1", "localhost"].includes(url.hostname) || isGatewayHostname(url.hostname))) || url.protocol === "https:") || url.username || url.password) throw new Error("The prototype requires a verified separate application origin.");
+      const route = plannedRoute === undefined ? null : prototypeScreenRoute(plannedRoute);
+      if (plannedRoute !== undefined && !route) throw new Error("Use a concrete screen route within this application, or navigate from its start page.");
+      const address = route ? new URL(route, url.origin) : url;
       if (!alive.current || !mayExecute.current || requestGeneration !== generation.current || request !== prototypeRead.current) return;
-      const browserURL = await prepareBrowserAccess(projectId, url.toString());
+      const browserURL = await prepareBrowserAccess(projectId, address.toString());
       if (alive.current && mayExecute.current && requestGeneration === generation.current && request === prototypeRead.current) {
         if (tab) { tab.location.href = browserURL; transferred = true; }
-        else setPreview(browserURL);
+        else { setPreview(browserURL); setPreviewSource({ releaseId: release.id, commit: release.commit, configurationRevision: release.configurationRevision ?? 0, route: address.pathname, plannedRoute: route ?? undefined }); }
       }
-    } catch (e) { if (alive.current && requestGeneration === generation.current && request === prototypeRead.current) { setPreview(""); setPrototypeError(errorText(e)); } }
+    } catch (e) { if (alive.current && requestGeneration === generation.current && request === prototypeRead.current) { setPreview(""); setPreviewSource(null); setPrototypeError(errorText(e)); } }
     finally { if (tab && !transferred) tab.close(); if (alive.current && requestGeneration === generation.current && request === prototypeRead.current) { prototypeWorking.current = false; setPrototypeBusy(false); } }
   }
   const activateView = (next: View) => {
+    // A team browser invitation is single-use. Never remount a consumed iframe
+    // URL after comparing or amending the screen plan; require a fresh open.
+    if (view === "prototype" && next !== "prototype") closePrototype();
     setView(next);
     // Leaving the independent sketch adapter refreshes its saved revision;
     // edited screen/asset/token drafts stay intact.
@@ -185,6 +201,11 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
   };
   useEffect(() => { if (!sketchDirty) setPendingView(null); }, [sketchDirty]);
   useEffect(() => {
+    if (view !== "screens" || !pendingScreenFocus.current) return;
+    const input = screenInputs.current.get(pendingScreenFocus.current);
+    if (input) { input.focus(); input.scrollIntoView({ block: "center" }); pendingScreenFocus.current = null; }
+  }, [view]);
+  useEffect(() => {
     if (!plan || !canRead || sketchBusy) return;
     const edit = () => { if (takeProjectContextEdit(scope, projectId, "design")) selectView("screens"); };
     edit(); window.addEventListener(PROJECT_CONTEXT_EDIT, edit);
@@ -193,13 +214,17 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
   const linked = new Set(plan?.screens.flatMap((s) => s.requirementIds) || []);
   const prototypes = releases.filter((r) => r.projectId === projectId && r.status === "ready");
   const selectedPrototype = prototypes.find((r) => r.id === plan?.prototypeReleaseId);
+  const currentPreviewSource = previewSource && selectedPrototype?.id === previewSource.releaseId && selectedPrototype.commit === previewSource.commit && (selectedPrototype.configurationRevision ?? 0) === previewSource.configurationRevision ? previewSource : null;
+  const reviewScreen = plan?.screens.find(screen => screen.id === reviewScreenId) ?? plan?.screens[0];
+  const widths = [...new Set([390, 768, 1440, width, ...(reviewScreen?.widths ?? [])])].filter(value => Number.isInteger(value) && value > 0).sort((a, b) => a - b);
+  useEffect(() => { closePrototype(); }, [selectedPrototype?.id, selectedPrototype?.commit, selectedPrototype?.configurationRevision]);
   return <section className="journey-page design-workspace">
     <JourneyHeader title="Design the experience" subtitle="Plan the screens and their states, sketch ideas, inspect a working prototype and carry a precise handoff into development.">
       {plan && <span className="journey-revision" role="status">{dirty ? "Unsaved changes" : `${plan.status} · Revision ${plan.revision}`}</span>}
     </JourneyHeader>
     {access.message && <p role="status" className="journey-muted">{access.message}</p>}
     {error && <div role="alert" className="journey-error">{error} <Button type="button" variant="secondary" disabled={busy} onClick={() => { draft.offerRecovery(); void load().catch((e) => setError(errorText(e))); }}>Reload saved design</Button>{dirty && <p>Your draft is retained. Reload to compare it with saved work and choose what to recover.</p>}</div>}
-    <DraftRecovery draft={draft} label="Design plan" base={draftBase} saved={savedPlan.current} busy={busy} readOnly={!canEdit} onDiscard={() => { setPlan(savedPlan.current); setDirty(false); }} onRestore={value => { if (plan) { draftVersion.current++; setPlan({ ...value, projectId, revision: plan.revision, briefRevision: plan.briefRevision, specificationRevision: plan.specificationRevision, sketchRevision: plan.sketchRevision, status: "draft", digest: "" }); setDirty(true); } }} />
+    <DraftRecovery draft={draft} label="Design plan" base={draftBase} saved={savedPlan.current} merge busy={busy} readOnly={!canEdit} onDiscard={() => { setPlan(savedPlan.current); setDirty(false); }} onRestore={value => { if (plan) { draftVersion.current++; setPlan({ ...value, projectId, revision: plan.revision, briefRevision: plan.briefRevision, specificationRevision: plan.specificationRevision, sketchRevision: plan.sketchRevision, status: "draft", digest: "" }); setDirty(true); } }} />
     {!plan && !error && <p role="status">Loading your design workspace…</p>}
     {plan && spec && canRead && <>
       <TabsSubtle className="definition-tabs" aria-label="Design views" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => selectView(views[index][0])}>
@@ -211,7 +236,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
       {view === "screens" && <div className="design-plan-layout"><div className="design-plan-content"><fieldset className="definition-fields" disabled={!canEdit || busy || !!draft.pending}>
         {!plan.screens.length && <div className="design-empty"><h2>Give the solution a screen plan</h2><p>Capture the primary screens, empty/loading/error states and responsive targets before developing the interface.</p><Button type="button" variant="primary" onClick={() => patch({ screens: [{ id: id("screen"), name: "Home", route: "/", purpose: spec.purpose, states: ["Initial visit", "Loading", "No saved content", "Successful use", "Error and recovery"], widths: [390, 1440], requirementIds: spec.requirements.map((r) => r.id), accessibility: "Keyboard navigation, labelled controls, visible focus and readable contrast" }] })}>Start a screen plan from my definition</Button><p className="journey-muted">This creates an editable planning outline, not a generated interface or verified implementation.</p></div>}
         {plan.screens.map((s,index) => <fieldset className="definition-record" key={s.id}><legend>Screen {index + 1}</legend>
-          <div className="design-pair"><label className="luci-field">Screen name<input value={s.name} onChange={(e) => screenChange(s.id,{ name:e.target.value })} /></label><label className="luci-field">Route<input value={s.route} placeholder="/dashboard" onChange={(e) => screenChange(s.id,{ route:e.target.value })} /></label></div>
+          <div className="design-pair"><label className="luci-field">Screen name<input ref={input => { if (input) screenInputs.current.set(s.id, input); else screenInputs.current.delete(s.id); }} value={s.name} onChange={(e) => screenChange(s.id,{ name:e.target.value })} /></label><label className="luci-field">Route<input value={s.route} placeholder="/dashboard" onChange={(e) => screenChange(s.id,{ route:e.target.value })} /></label></div>
           <label className="luci-field">What this screen helps someone do<textarea rows={2} value={s.purpose} onChange={(e) => screenChange(s.id,{ purpose:e.target.value })} /></label>
           <label className="luci-field">States and recovery<textarea rows={4} aria-label="States and recovery" aria-describedby={`design-${s.id}-states-help`} value={s.states.join("\n")} onChange={(e) => screenChange(s.id,{ states:e.target.value.split("\n") })} /><small id={`design-${s.id}-states-help`}>One state per line. Include first use, loading, empty, successful, error and permission states that apply.</small></label>
           <label className="luci-field">Responsive widths<input aria-label="Responsive widths" aria-describedby={`design-${s.id}-widths-help`} value={s.widths.join(", ")} onChange={(e) => screenChange(s.id,{ widths:e.target.value.split(",").map((v) => Number(v.trim())).filter((v) => v > 0) })} /><small id={`design-${s.id}-widths-help`}>Widths in pixels, such as 390, 768, 1440.</small></label>
@@ -230,11 +255,19 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
         {historyBusy && <p role="status">Refreshing prototype history… Your saved design remains available.</p>}
         {historyError && <div role="alert" className="journey-error">Prototype history could not be loaded: {historyError} <Button type="button" variant="secondary" disabled={historyBusy} onClick={() => void loadPrototypeHistory()}>Retry prototype history</Button><p>Your saved design and definition remain available.</p></div>}
         {prototypeError && <p role="alert" className="journey-error">{prototypeError}</p>}
-        <div className="design-prototype-tools"><label className="luci-field">Prototype release<select value={plan.prototypeReleaseId} disabled={!canEdit || busy || !!draft.pending || prototypeBusy || historyBusy || !!historyError} onChange={(e) => { patch({ prototypeReleaseId:e.target.value });setPreview(""); setPrototypeError(""); }}><option value="">Choose a verified release</option>{plan.prototypeReleaseId && !selectedPrototype && <option value={plan.prototypeReleaseId} disabled>Saved prototype unavailable</option>}{prototypes.map((r) => <option key={r.id} value={r.id}>{r.target === "application" ? "Application" : r.target === "local" ? "Local preview" : r.target === "github-pages" ? "GitHub Pages" : "Cloud"} · {r.commit.slice(0,8)} · {r.id}</option>)}</select></label><label className="luci-field">Preview width<select value={width} onChange={(e) => setWidth(Number(e.target.value))}><option value={390}>Phone · 390 px</option><option value={768}>Tablet · 768 px</option><option value={1440}>Desktop · 1440 px</option></select></label><Button type="button" variant="secondary" loading={prototypeBusy} disabled={!canExecute || prototypeBusy || historyBusy || !!historyError || !selectedPrototype} onClick={() => void openPrototype()}>Open prototype</Button></div>
+        <div className="design-prototype-tools"><label className="luci-field">Prototype release<select value={plan.prototypeReleaseId} disabled={!canEdit || busy || !!draft.pending || prototypeBusy || historyBusy || !!historyError} onChange={(e) => { patch({ prototypeReleaseId:e.target.value });closePrototype(); setPrototypeError(""); }}><option value="">Choose a verified release</option>{plan.prototypeReleaseId && !selectedPrototype && <option value={plan.prototypeReleaseId} disabled>Saved prototype unavailable</option>}{prototypes.map((r) => <option key={r.id} value={r.id}>{r.target === "application" ? "Application" : r.target === "local" ? "Local preview" : r.target === "github-pages" ? "GitHub Pages" : "Cloud"} · {r.commit.slice(0,8)} · {r.id}</option>)}</select></label><label className="luci-field">Preview width<select value={width} onChange={(e) => setWidth(Number(e.target.value))}>{widths.map(value => <option key={value} value={value}>{value === 390 ? "Phone · " : value === 768 ? "Tablet · " : value === 1440 ? "Desktop · " : ""}{value} px</option>)}</select></label><Button type="button" variant="secondary" loading={prototypeBusy} disabled={!canExecute || prototypeBusy || historyBusy || !!historyError || !selectedPrototype} onClick={() => void openPrototype()}>Open prototype</Button></div>
         {!historyBusy && !historyError && plan.prototypeReleaseId && !selectedPrototype && <div className="design-empty"><p role="status">This prototype has stopped or is no longer available. Choose a running release or open Deploy to refresh the application.</p><Button type="button" variant="secondary" onClick={() => setLens("deploy")}>Go to Deploy</Button></div>}
         {!historyBusy && !historyError && !prototypes.length && !plan.prototypeReleaseId && <div className="design-empty"><h3>No verified prototype yet</h3><p>Build and preview the project's interface in Develop, then return here to inspect its real behavior.</p><Button type="button" variant="secondary" onClick={() => setLens("develop")}>Go to Develop</Button></div>}
         {!canExecute && <p className="journey-muted">Opening a live prototype requires editing and execution access because the application can change project data.</p>}
-        {preview && (canExecute || access.loading) && selectedPrototype && <div className="design-prototype-viewport"><iframe title="Design prototype" src={preview} style={{ width }} sandbox="allow-scripts allow-forms allow-same-origin" /><Button type="button" variant="secondary" disabled={!canExecute || prototypeBusy} onClick={() => void openPrototype(true)}>Open prototype in a separate tab</Button></div>}
+        <div className={preview && currentPreviewSource ? "prototype-review-layout has-preview" : "prototype-review-layout"}>
+        <PrototypeReview key={`${baseRevision}:${!!draft.pending}:${currentPreviewSource?.releaseId}:${currentPreviewSource?.commit}:${currentPreviewSource?.configurationRevision}:${currentPreviewSource?.route}:${reviewScreen?.id}`} plan={plan} specification={spec} screen={reviewScreen}
+          onSelectScreen={screenId => { setReviewScreenId(screenId); const chosen = plan.screens.find(item => item.id === screenId); if (chosen?.widths[0]) setWidth(chosen.widths[0]); }}
+          onAmend={screenId => { pendingScreenFocus.current = screenId; selectView("screens"); }}
+          onOpenScreen={route => void openPrototype(false, route)} source={currentPreviewSource} width={width}
+          canEdit={canEdit && !draft.pending} canOpen={canExecute && !!selectedPrototype && !historyBusy && !historyError}
+          busy={busy || prototypeBusy} onNotesChange={implementationNotes => patch({ implementationNotes })} />
+        {preview && currentPreviewSource && (canExecute || access.loading) && <div className="design-prototype-viewport"><iframe title="Design prototype" src={preview} style={{ width }} sandbox="allow-scripts allow-forms allow-same-origin" /><Button type="button" variant="secondary" disabled={!canExecute || prototypeBusy} onClick={() => void openPrototype(true, currentPreviewSource.plannedRoute)}>Open prototype in a separate tab</Button></div>}
+        </div>
       </section>}
       </TabsSubtlePanel>
       <TabsSubtlePanel idPrefix={tabsId} index={3} selectedIndex={selectedIndex}>

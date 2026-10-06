@@ -13,6 +13,7 @@ vi.mock("../../hooks/useProjectAccess", () => ({ useProjectAccess: () => ({
   loading: false, error: null, message: "", canRead: true, canEdit: identity.edit, canExecute: identity.edit && identity.execute,
   permissions: { read: true, edit: identity.edit, execute: identity.execute, deploy: identity.deploy, secrets: identity.secrets },
 }) }));
+vi.mock("./DeploymentOverview", () => ({ DeploymentOverview: () => null }));
 vi.mock("../platform/PlatformWorkspace", () => ({ PlatformWorkspace: () => <div>Application platform controls</div> }));
 vi.mock("./ProjectConfiguration", () => ({ ProjectConfiguration: () => <div>Runtime configuration controls</div> }));
 const intent: ProjectRunDeploymentIntent = { scope: "account-team-workspace-project", projectId: "p-1", runId: "run-exact", checkId: "check-exact", commit: "a".repeat(40), sourceDigest: "b".repeat(64), outcome: "preview" };

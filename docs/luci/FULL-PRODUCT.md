@@ -58,7 +58,27 @@ checks pass:
 These are open acceptance obligations. Separate mechanism tests do not establish
 that a person can complete the combined workflow with an understandable result.
 
-### Current quality-batch evidence
+### Continuing product work after 340f1590
+
+The owner explicitly requires continued implementation beyond a completed batch.
+[QUALITY-WORKLIST.md](QUALITY-WORKLIST.md) records the next concrete findings:
+stale draft recovery could overwrite a teammate; prototype review lost expected
+behavior and reused consumed invitations; deployment operations could report
+success for a failed result; and an uncertain model send could lose its identity
+on reload. The current source corrects those paths. A two-person rendered
+amendment, replacement-deployment and prototype-review journey is prepared;
+matching packaged execution remains pending at this checkpoint.
+
+Source checks passed 1,701 frontend tests across 117 files, type checking and
+production web build; 1,997 Go test/subtest outcomes with 22 skips; and 1,170
+race outcomes across the three changed integration packages with five skips.
+Receipts are under `artifacts/quality-continuation` and the named continuation
+logs in `artifacts/quality-batch`. No real-model or installed-platform success
+follows from these source checks. Historical 90450209 archives were hash-verified
+and retained in `artifacts/releases/0.5.0-90450209-historical` before rebuilding;
+the original package evidence retains its original source identity.
+
+### 340f1590 quality-batch evidence
 
 The source build uses service SHA-256
 `e319b1684fc70e24125377da979eec025d88b6cf1dead90e68263ac18b8237e5`

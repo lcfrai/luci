@@ -65,7 +65,8 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
   const dirty = changed || !!title.trim();
   const draftBase = plan ? JSON.stringify({ revision: plan.revision, briefRevision: plan.briefRevision, specificationRevision: plan.specificationRevision }) : null;
   const draftValue = useMemo(() => ({ tasks, title }), [tasks, title]);
-  const draft = useProjectDraft({ scope, kind: "implementation-plan", base: draftBase, value: draftValue, dirty, valid: planDraftValid });
+  const draftOriginal = useMemo(() => plan ? { tasks: plan.tasks, title: "" } : null, [plan]);
+  const draft = useProjectDraft({ scope, kind: "implementation-plan", base: draftBase, baseValue: draftOriginal, value: draftValue, dirty, valid: planDraftValid });
   useUnsavedProjectDraft(projectId, dirty, "Implementation plan", "develop", scope ? { retained: draft.retained, discard: () => { draft.clear(); setTasks(plan?.tasks ?? []); setTitle(""); setChanged(false); } } : undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -239,7 +240,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
           </Button>
         </div>
       )}
-      <DraftRecovery draft={draft} label="Implementation plan" base={draftBase} saved={plan ? { tasks: plan.tasks, title: "" } : null} busy={busy} readOnly={!canEdit} onDiscard={() => { setTasks(plan?.tasks ?? []); setTitle(""); setChanged(false); }} onRestore={value => { setTasks(value.tasks); setTitle(value.title); setChanged(true); }} />
+      <DraftRecovery merge draft={draft} label="Implementation plan" base={draftBase} saved={draftOriginal} busy={busy} readOnly={!canEdit} onDiscard={() => { setTasks(plan?.tasks ?? []); setTitle(""); setChanged(false); }} onRestore={value => { setTasks(value.tasks); setTitle(value.title); setChanged(true); }} />
       {notice && (
         <p className="journey-success" role="status">
           {notice}
