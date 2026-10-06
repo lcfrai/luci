@@ -1628,3 +1628,38 @@ open while preparing another build, checks both exact-run inspection paths,
 verifies parent cancellation did not stop the container, then explicitly stops
 and reconciles the child. Its matching-package execution receipt must establish
 this coverage; source regression results alone do not claim that run passed.
+
+## Installed active-work acceptance at 3aa44a10
+
+Clean source `3aa44a108e1c44383ab980ce535055569ca1b0ff` passed all 11 Linux
+installed groups: personal (20), account entry (9), lifecycle (5), portable (6),
+launcher (7), account isolation (7), team worker (17), two-browser collaboration
+(10), expanded orchestrator (12), upgrade/rollback (6), and actual team CLI/check/
+release (7). The orchestrator held a real Codex agent A open while preparing B,
+verified both inspection routes opened A's exact scope, confirmed parent
+cancellation left its container running, then explicitly stopped/reconciled it.
+The full receipt index is
+`artifacts/package-eval/0.5.0-3aa44a10/candidate-status.json`. The original Linux
+archive SHA-256 is
+`4a510d2a5fb09e42b647e18873c3b8a42047ecdb4cfec6e646afc3508a3c0e67`;
+archives remain under `artifacts/releases/0.5.0-3aa44a10-accepted-local`.
+All 425 binary/web members were checked against that archive. The runtime and
+local deterministic provider limitations from earlier receipts still apply.
+
+There were no automated accessibility violations. Wide/mobile orchestrator
+scans had zero incomplete results; the personal Git surface had one incomplete
+heading-order assessment. The original runner retained only its node count,
+so that result does not support a zero-incomplete claim or a specific heading
+defect. The runner now retains selectors/check messages without DOM HTML or
+field values, preserving its existing pass/fail checks. No speculative heading
+change was made.
+
+The same source's GitHub Go and concurrency steps passed. Final source CI and
+artifact retention remain distinct gates. Visual verification found redundant
+cancellation explanations in the new card. The final presentation correction
+keeps one clear notice, exact immutable scope and concise recorded-status text;
+technical reasons remain under the existing activity disclosure. It preserves
+blocked-run remedies and simplifies the primary next-step wording without
+changing run semantics. Fifty-four focused frontend checks and the two affected
+backend action/scope regressions passed; matching presentation-package browser
+receipts must be recorded separately from the original 3aa44a10 results.

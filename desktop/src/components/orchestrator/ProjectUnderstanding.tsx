@@ -27,14 +27,15 @@ function BuildScope({ run, title, onInspect }: { run: OrchestratorRunSummary; ti
       : run.tasks?.length ? <ul>{run.tasks.map(task => <li key={task.id}>{task.title}</li>)}</ul> : <p>The selected tasks are available in the build workspace.</p>}
     {!!run.requirements?.length && <details><summary>Outcomes this build must prove</summary><ul>{run.requirements.map(requirement => <li key={requirement.id}><strong>{requirement.title}</strong><p>{requirement.acceptance}</p></li>)}</ul></details>}
     {!!run.specificationRevision && <p className="understanding-note">Uses reviewed definition {run.specificationRevision}{run.designRevision ? ` and design ${run.designRevision}` : ""}. Later edits do not silently change work already started.</p>}
-    {run.reason && <p>{run.reason}</p>}
-    {run.activityReason && <p>{run.activityReason}</p>}
-    {pending && <p className="understanding-note">This is recorded activity. Reconcile the run to confirm the coding session’s current state.</p>}
+    {!pending && run.reason && <p>{run.reason}</p>}
+    {pending && <p className="understanding-note">Recorded status. Open the run to reconcile its current outcome.</p>}
     {run.operationsOmitted && <p>{run.operationCount} unfinished coding attempts; inspect this build for their full recorded activity.</p>}
-    {!run.valid && <p className="understanding-note">This run needs verification against the current context. Its recorded progress does not prove the current application is ready.</p>}
-    {!!run.operations?.length && <details><summary>Recorded coding activity</summary><ul>{run.operations.map(operation => <li key={operation.id}>
+    {!pending && !run.valid && <p className="understanding-note">This run needs verification against the current context. Its recorded progress does not prove the current application is ready.</p>}
+    {(pending || !!run.operations?.length) && <details><summary>Recorded coding activity</summary>
+      {run.reason && <p>{run.reason}</p>}{run.activityReason && <p>{run.activityReason}</p>}
+      {!!run.operations?.length && <ul>{run.operations.map(operation => <li key={operation.id}>
       <strong>{operationLabels[operation.status]}</strong><p>Session {operation.childId}</p><time dateTime={operation.updatedAt}>{new Date(operation.updatedAt).toLocaleString()}</time>
-    </li>)}</ul></details>}
+    </li>)}</ul>}</details>}
     <Button variant="secondary" onClick={onInspect}>Inspect build and checks</Button>
   </section>;
 }

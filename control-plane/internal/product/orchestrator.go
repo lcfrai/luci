@@ -113,9 +113,9 @@ func orchestratorNext(context OrchestratorContext, questions []OrchestratorQuest
 	for _, run := range context.ActiveRuns {
 		switch run.Activity {
 		case "running":
-			return runAction(run.ID, "inspect-run", "Inspect active builds", "An existing coding child is recorded as running. Inspect all unfinished builds and reconcile their current outcomes; cancelling future dispatch does not stop their children.", "develop")
+			return runAction(run.ID, "inspect-run", "Inspect active builds", "An agent was last recorded as working on this build. Open its run to check progress or stop it.", "develop")
 		case "unknown":
-			return runAction(run.ID, "reconcile-run", "Reconcile coding sessions", "An existing coding child has an unconfirmed outcome. Inspect and reconcile that owned operation before preparing another attempt.", "develop")
+			return runAction(run.ID, "reconcile-run", "Confirm build status", "The last attempt has no confirmed outcome. Open its run and check its current status before starting another attempt.", "develop")
 		}
 	}
 	if len(questions) > 0 {
@@ -123,7 +123,7 @@ func orchestratorNext(context OrchestratorContext, questions []OrchestratorQuest
 	}
 	for _, run := range context.ActiveRuns {
 		if run.Activity == "pending" {
-			return runAction(run.ID, "inspect-run", "Review reserved work", "A coding operation is already reserved. Review its saved scope and current approvals, then continue that reservation or explicitly cancel it.", "develop")
+			return runAction(run.ID, "inspect-run", "Review prepared work", "This coding work is prepared but has not started. Review its agreed scope and approvals, then continue or cancel it.", "develop")
 		}
 	}
 	if context.Specification.Revision == 0 {

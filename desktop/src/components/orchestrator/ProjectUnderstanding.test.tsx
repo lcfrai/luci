@@ -157,3 +157,35 @@ it("discloses omitted scope and activity with exact counts and inspection of tha
   expect(inspect).toHaveBeenCalledExactlyOnceWith("large-older-build");
   expect(navigate).not.toHaveBeenCalled();
 });
+
+it("keeps one cancellation notice beside the exact scope and reveals technical reasons only on request", async () => {
+  const snapshot = context();
+  const reason = "Future dispatch is cancelled. Use the child's explicit stop control.";
+  const activityReason = "A coding child was last recorded as running. Future dispatch is cancelled.";
+  snapshot.activeRuns = [{ id: "active", state: "cancelled", valid: false, reason, activityReason, activity: "running", dispatchCancelled: true,
+    tasks: [{ id: "task", title: "Build private guest checkout", status: "selected" }], requirements: [{ id: "outcome", title: "Guest privacy", acceptance: "Only the guest sees their booking" }],
+    specificationRevision: 2, designRevision: 3, operations: [{ id: "op", childId: "session", status: "running", updatedAt: "2026-10-06T14:00:00Z" }] }];
+  render(<ProjectUnderstanding view={view({ context: snapshot })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={vi.fn()} />);
+  const build = screen.getByRole("region", { name: "In this build" });
+  const details = within(build).getByText("Recorded coding activity").closest("details")!;
+  expect(details.open).toBe(false);
+  expect(within(details).getByText(reason)).not.toBeNull();
+  expect(within(details).getByText(activityReason)).not.toBeNull();
+  expect(within(build).getByText("Build private guest checkout").closest("details")).toBeNull();
+  expect(within(build).getByText(/Uses reviewed definition 2 and design 3/).closest("details")).toBeNull();
+  expect(within(build).getAllByText("Further work cancelled.")).toHaveLength(1);
+  expect(within(build).getByText("Recorded status. Open the run to reconcile its current outcome.")).not.toBeNull();
+  expect(within(build).queryByText(/does not prove the current application is ready/)).toBeNull();
+  await userEvent.click(within(build).getByText("Recorded coding activity"));
+  expect(details.open).toBe(true);
+  expect(within(details).getByText("Session session")).not.toBeNull();
+});
+
+it("keeps a blocked run's actionable reason and verification warning visible when no coding work is pending", () => {
+  const snapshot = context();
+  snapshot.currentRun = { id: "blocked", state: "blocked", valid: false, reason: "The selected provider was disabled. Choose an enabled connection and prepare a new run.", activity: "none", operations: [] };
+  render(<ProjectUnderstanding view={view({ context: snapshot })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={vi.fn()} />);
+  const build = screen.getByRole("region", { name: "In this build" });
+  expect(within(build).getByText(snapshot.currentRun.reason).closest("details")).toBeNull();
+  expect(within(build).getByText(/does not prove the current application is ready/)).not.toBeNull();
+});

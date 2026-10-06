@@ -688,7 +688,10 @@ try {
     await page.evaluate(axe.source);
     const result = await page.evaluate(async () => {
       const r = await axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa", "best-practice"] } });
-      return { violations: r.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => ({ target: n.target, failureSummary: n.failureSummary })) })), incomplete: r.incomplete.map(v => ({ id: v.id, nodes: v.nodes.length })) };
+      return { violations: r.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => ({ target: n.target, failureSummary: n.failureSummary })) })), incomplete: r.incomplete.map(v => ({ id: v.id, nodes: v.nodes.length,
+        // Retain actionable diagnostics without exporting DOM HTML or field values.
+        details: v.nodes.map(n => ({ target: n.target, messages: [...n.any, ...n.all, ...n.none].map(check => check.message) })),
+      })) };
     });
     accessibility.push({ surface, ...result });
     if (surface === "Settings" || surface === "Admin") await page.getByRole("button", { name: surface === "Settings" ? "Close settings" : "Close", exact: true }).click();
