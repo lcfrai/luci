@@ -1,7 +1,7 @@
 @import "../../styles/tokens.css";
 .definition-workspace { max-inline-size: 1400px; margin-inline: auto; }
 .definition-tabs { margin-block-end: 28px; }
-.definition-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 330px); gap: 36px; align-items: start; }
+.definition-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
 .definition-content { min-inline-size: 0; }
 .definition-content h2, .definition-assistant h2 { font-size: 1.125rem; font-weight: 600; margin-block: 24px 12px; }
 .definition-fields { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
@@ -41,3 +41,6 @@
 .repository-analysis pre { max-block-size: 480px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: 0.8rem/1.6 var(--mono); }
 @media (max-width: 1100px) { .definition-layout { grid-template-columns: minmax(0, 1fr); gap: 26px; } .definition-assistant { position: static; border-inline-start: 0; border-block-start: 1px solid var(--line-soft); padding-inline-start: 0; padding-block-start: 24px; } }
 @media (max-width: 600px) { .definition-record { padding: 12px; } .definition-footer { position: static; } .definition-footer .journey-actions { flex-wrap: wrap; } }
+
+.definition-conversation-link { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-block-end: 24px; }
+.definition-conversation-link p { margin: 0; max-inline-size: 72ch; line-height: 1.6; }

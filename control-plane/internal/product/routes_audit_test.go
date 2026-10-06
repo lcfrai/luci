@@ -28,9 +28,11 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
-	"GET /v1/product/projects/{id}/context-history":                    "Reads bounded private authenticated edit/review receipts; creates no files, authority, context changes or resources.",
-	"GET /v1/product/projects/{id}/context":                            "Reads canonical portable context identity and compares generated export bytes without repair or writes.",
-	"GET /v1/product/projects/{id}/context/archive":                    "Reads bounded immutable context history chunks and retention metadata without pruning or writes.",
+	"GET /v1/product/projects/{id}/orchestrator":                        "Reads the private conversation, saved context and bounded Git status in memory; no inference, reconciliation, approval or mutation.",
+	"GET /v1/product/projects/{id}/orchestrator/export":                 "Exports existing bounded private conversation and archive bytes with a current digest; does not rotate, prune, repair or create files.",
+	"GET /v1/product/projects/{id}/context-history":                     "Reads bounded private authenticated edit/review receipts; creates no files, authority, context changes or resources.",
+	"GET /v1/product/projects/{id}/context":                             "Reads canonical portable context identity and compares generated export bytes without repair or writes.",
+	"GET /v1/product/projects/{id}/context/archive":                     "Reads bounded immutable context history chunks and retention metadata without pruning or writes.",
 	"GET /v1/product/projects/{id}/runs":                                "Reads bounded private run history and original evidence availability; no observation, repair or dispatch.",
 	"GET /v1/product/projects/{id}/runs/{runId}":                        "Reads one private run and retained evidence availability; no observation, repair or dispatch.",
 	"GET /v1/product/projects/{id}/git/branches":                        "Inspects bounded native refs, HEAD and clean state, then reads session state and private receipts; no checkout, sessions or writes.",
@@ -139,6 +141,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			"config\x00--null\x00--name-only\x00--get-regexp\x00^filter\\.": true,
 			"symbolic-ref\x00--quiet\x00--short\x00HEAD":                    true,
 			"status\x00--porcelain=v1\x00-z\x00--untracked-files=normal":    true,
+			"status\x00--porcelain=v1\x00--untracked-files=normal":          true,
 			"log\x00-10\x00--format=%H%x00%s%x00":                           true,
 			"rev-parse\x00--verify\x00HEAD":                                 true,
 			"config\x00--get-all\x00remote.origin.url":                      true,

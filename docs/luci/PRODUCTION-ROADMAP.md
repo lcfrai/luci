@@ -36,6 +36,12 @@ open-source assets through lcfr.ai Glasses, including the existing Fluid
 Functionalism UI foundation, and verify their actual licences before adoption.
 Add managed infrastructure only for a measured operational requirement.
 
+[Project understanding and reviewed amendments](ORCHESTRATION.md) defines the
+current cross-phase contract: explain agreed intent and immutable run scope,
+make material ambiguity visible, and apply amendments through explicit review
+and revision checks. Optional private discussion has an export and bounded
+continuation path; retaining chat is not a stage exit criterion.
+
 ## Current baseline
 
 The [6 October handoff](HANDOFF-2026-10-06.md) records the pushed 0.4.18 baseline
@@ -82,6 +88,45 @@ The historical handoff's host failures and installed receipts remain tied to
 their original machine/source. Matching clean-package, current native lifecycle,
 live model/provider, real cloud/domain/email and public/paid acceptance gates
 remain open; no whole-stage completion follows from these source outcomes.
+
+## Required coherent project orchestration
+
+The owner's latest clarification prioritizes understanding the current stage,
+what is being built (especially during agent execution), and the consequences of
+amendments. A persistent chat is optional supporting history, not the primary
+experience or an acceptance requirement. Reuse private assistance/provider jobs,
+canonical project context and durable runs. Keep phase editors and terminal
+details available as focused views of the same solution.
+
+Measurable exits:
+
+- Every phase shows the agreed purpose, current requirements, selected task/run,
+  observed stage and one useful next step. Changes of phase, restart and an
+  authorized teammate's return preserve this understanding. Account, workspace,
+  team and project changes never mix contexts or supporting history.
+- The actual selected provider receives the bounded current brief, definition,
+  design, task plan, previous conversation and observed execution summary.
+  Missing provider access shows a remedy and never invents an assistant result.
+- Material uncertainty produces a clear question with its effect on the work.
+  New coordinated implementation pauses until an authenticated answer resolves
+  it; read, cancel and independent manual terminals remain usable.
+- Amendments to definition, design or task plan show current/proposed content,
+  rationale and downstream effects. Explicit review applies a draft using the
+  exact saved-context and conversation revisions. A concurrent teammate's edit
+  conflicts without overwriting either person's work. Affected approvals become
+  stale; historical run inputs and outcomes remain immutable.
+- One visible next step derives from real saved context and execution evidence,
+  leading through existing review, build, checks, preview and publish controls.
+  A model suggestion cannot bypass identity, secret, execution, source-binding,
+  health, publishing or cost-acknowledgement gates.
+- Duplicated requests, interrupted inference and restart reconcile an existing
+  durable turn/job without repeating paid work. Read-only history never invokes
+  a provider. Private conversation storage and model inputs are bounded, and
+  retention/capacity limits are visible rather than silently erasing decisions.
+- An actual connected journey demonstrates an initial idea, a meaningful
+  clarification, accepted design/task amendments, implementation/check evidence,
+  a working preview and the explicit path to a live release. Fixture evidence
+  and externally verified live-provider/public-domain outcomes stay separate.
 
 ## Stage 1: Trustworthy project execution
 

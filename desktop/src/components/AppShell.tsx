@@ -22,6 +22,7 @@ import { ColumnsLayout } from "./develop/ColumnsLayout";
 import { useSetup } from "./setup/SetupProvider";
 import { DraftNavigationDialog } from "./common/DraftNavigationDialog";
 import { BranchManager } from "./journey/BranchManager";
+import { OrchestratorPanel } from "./orchestrator/OrchestratorPanel";
 
 // Each phase owns its workspace. Source checkout revisions remount them together
 // so a saved definition, design or file view cannot linger from the old branch.
@@ -121,6 +122,7 @@ export function AppShell(): JSX.Element {
             compact ? setProjectsOpen((open) => !open) : toggleRail()
           }
         />
+        <div className="shell-workspace">
         <div className="shell-lens">
           {projectId === null && accountSession?.authOnly ? (
             <section className="account-session-workspace">
@@ -148,6 +150,8 @@ export function AppShell(): JSX.Element {
           ) : (
             <LensRouter key={`${projectId}:${sourceRevision}`} lens={lens} />
           )}
+        </div>
+        {projectId && <OrchestratorPanel projectId={projectId} />}
         </div>
       </main>
       {drawerOpen && <div className="shell-scrim" aria-hidden="true" />}

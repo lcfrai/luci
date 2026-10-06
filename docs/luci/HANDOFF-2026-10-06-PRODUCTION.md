@@ -1,118 +1,110 @@
-# Production foundation continuation
+# Luci 0.5.0 production continuation
 
-This work starts from `690adbb1836269767b8f096274d2d57dbc340b38` on
-`codex/luci-subscription-e2e` (PR #5), including its
-[handoff](HANDOFF-2026-10-06.md). The confirmed delivery model is self-hosted
-MIT open source plus optional lcfr.ai-managed team workspaces. The continuing
-goal and measurable stages are in [GOAL.md](GOAL.md) and
-[PRODUCTION-ROADMAP.md](PRODUCTION-ROADMAP.md). This is a production foundation
-change, not authorization or evidence for a public release or paid launch.
+The active goal is the complete product in [GOAL.md](GOAL.md), with measurable
+release gates in [PRODUCTION-ROADMAP.md](PRODUCTION-ROADMAP.md). The owner selected
+MIT self-hosting plus optional managed team workspaces, priced as a fixed Stripe
+team subscription with model and infrastructure costs billed separately.
 
-## Implemented behavior
+This branch starts from `690adbb1836269767b8f096274d2d57dbc340b38`, PR #5 and its
+[original handoff](HANDOFF-2026-10-06.md). Draft PR #6 contains the production
+continuation. The earlier production handoff at `51a1d8fc` describes the historical
+coordinator-only checkpoint; its package results are not current release evidence.
 
-The reviewed implementation plan can create a durable project run without
-starting a session. A separate action reserves and starts coding through the
-existing session API. Run inputs retain exact private review selections,
-requirements, worktree and model route; each numbered attempt records its actual
-starting source. Independent sessions remain available.
+## Current product behavior
 
-The controller persists an operation and its child identity before allocation.
-Concurrent and repeated requests recover the same child. Interrupted allocation
-stays unknown when its outcome cannot be established; reconciliation never
-replays it. Reserved but undispatched work can be continued explicitly. A new
-attempt follows a known terminal outcome. Run-bound resume/fork is intentionally
-not supported in this first adapter: reserve a new clean attempt instead.
+The primary project overview explains the current stage, agreed purpose and
+outcomes, exact tasks and reviewed revisions in an active build, unresolved
+material decisions and one next step. It remains available across Define,
+Design, Develop and Deploy. Discussion is optional; the user's priority is
+understanding what is being built and how to change it.
 
-Checks and releases are joined by owned identity, with actual command results,
-complete selected requirement coverage, exact clean candidate source, private
-review authority and fresh release ownership/health observations. New release
-admission records immutable provenance before side effects. Older releases
-without that provenance remain historical. Pruning ordinary check history
-does not erase the run's bounded evidence snapshot.
+Provider-backed orchestration receives the saved context and bounded private
+history through the selected existing provider. It cannot edit source or launch
+implementation tools. Missing access and interrupted jobs remain visible and
+recoverable without automatic inference. Consequential unanswered questions block
+new coordinated implementation. Explicit reviewed amendments show the proposed
+content and effects, check the original revisions, invalidate affected approvals
+and preserve immutable historical run inputs. See [ORCHESTRATION.md](ORCHESTRATION.md).
 
-Explicit acceptance requires matching current evidence. A CLI exit, completed
-task or saved deployment status cannot complete a run. Later source, review,
-connection or health changes invalidate the current observation while preserving
-historical acceptance. Reads and service restart do not dispatch or repair work.
+Durable project runs reserve child identities before allocation, join actual
+owned coding/check/release evidence, retain exact context/model/source inputs and
+require independent verification. Retries and crash recovery cannot silently
+repeat paid work. A successful process, a task checkbox or a saved deployment
+status alone cannot complete a run. [PROJECT-RUN-CONTRACT.md](PROJECT-RUN-CONTRACT.md)
+records the supported adapter and retention limits.
 
-Related reliability changes make account mutations transactional across failed
-state writes, defer connection revocation until a successful commit, constrain
-project Git metadata and environment to owned repositories, cap sandbox process
-counts at 256, and make the image entrypoint explicitly readable/executable by
-its non-root user.
+The managed foundation includes explicit teams and project permissions, separate
+execution/secret/deployment grants, invitations and revocation, attributed context
+changes, concurrent edit recovery and portable context format 2. Teams use an
+explicit dedicated execution boundary. Operator admission does not establish
+physical isolation. Public HTTPS ingress preserves authenticated browser grants
+and requires separate app and preview sites.
 
-## Verification and its limits
+Stripe uses the official SDK, a reviewed fixed recurring team price, durable
+idempotent Checkout requests and signed webhooks followed by authoritative
+subscription reconciliation. Redirects cannot grant service; manual suspension
+remains independent. Cancellation retains data. Host backup/restore and explicit
+owner-requested erasure have actual local acceptance. Commercial terms and privacy
+text are drafts requiring the service operator's decisions. Read
+[STRIPE-BILLING.md](STRIPE-BILLING.md),
+[TEAM-SERVICE-OPERATIONS.md](TEAM-SERVICE-OPERATIONS.md) and
+[MANAGED-DATA-LIFECYCLE.md](MANAGED-DATA-LIFECYCLE.md).
 
-The cloud workspace uses Go 1.26.3, Node 24.19.0, Docker 28.4.0 and system
-Chromium 151 through Playwright's supported executable override. The installed
-Playwright package's pinned browser could not be downloaded under the current
-network policy. That exact browser and native Windows/macOS installers remain
-separate gates.
+## Verification and evidence
 
-- The broad Go run exercised all control-plane and sandbox packages. Its one
-  failure was the registry reference-field audit missing the already-cloned
-  implementation context; the audit was corrected. The final four changed
-  integration packages passed 923 tests/subtests, with four skips.
-- The complete frontend run initially passed 1,341 of 1,344 tests. The exact
-  DTO audit, CSS token import audit and a nondeterministic service-down fixture
-  were corrected; all affected files passed afterward. Typecheck and production
-  build passed.
-- Focused race tests cover run storage/HTTP, concurrent gateway/subscription
-  dispatch, interrupted allocation, exact source validation, evidence/native
-  release adapters and management persistence. Full Go vet passed.
-- The compiled management service smoke passed all seven outcomes.
-- The real browser journey passed authenticated review, named route selection,
-  create/read/cancel, process restart persistence, and backup restoration
-  without inherited private run history. Accessibility and account-entry
-  assertions remained enabled.
-- Final existing-image Docker acceptance passed deterministic Codex/OpenCode
-  completion and fork fixtures, private mounts, process limits, authenticated
-  reviews, actual terminal file creation and checks, committed-source non-root
-  HTTP/iframe preview, private environment cleanup and owned stop. The image
-  installation step was explicitly not exercised by this run. An earlier
-  retained failure exposed a stale hardcoded brief revision in the verifier;
-  the final verifier compares the actual approved definition revision.
-- The clean Linux portable package at source
-  `50ea11cc4568676dc716687ddd9405782fe515c4` passed six portable checks, seven
-  launcher outcomes and seven packaged service outcomes. Its manifest and Go
-  metadata both report clean source. Strict collection retained 344 dependency
-  licence components with none missing. Linux archive SHA-256:
-  `c45b4ba255afae4618b099d6c15ddc4cfc3f21f1cf50c35a7c6d4fb7be7a9391`.
+The cloud environment has verified Go 1.26.3, Node 24.19.0, Docker 28.4.0 and system
+Chromium 151. Tests use Playwright's supported executable override; they do not
+claim its unavailable pinned Chromium build. Docker uses vfs and requires at
+least 5 GiB free for one full sandbox; run expensive sandbox fixtures sequentially.
 
-Local evidence is under `artifacts/onboarding`,
-`artifacts/uat/coordinator-final/evidence`,
-`artifacts/acceptance/runtime-final`, and
-`artifacts/package-eval/production-50ea11cc`. The package and immutable manifest
-are in `artifacts/releases/0.4.18`.
-These ignored directories can include private disposable fixture state; publish
-only reviewed evidence files, never entire fixture trees. Failed attempts remain
-retained rather than overwritten with a pass. Runtime and package results must
-be read from their own final manifests; source tests do not establish those
-outcomes.
+The managed foundation passed a complete 1,503-test frontend run and 1,100 passing
+race test/subtest outcomes across seven integration packages (18 skips). The
+new project-understanding batch passed 1,538 frontend tests in 108 files. Its
+broad Go run identified one newly registered read route absent from the
+read-only audit; the audit was updated with the actual bounded read behavior and
+passed. Final changed-package race results and installed candidate receipts are
+recorded in [FULL-PRODUCT.md](FULL-PRODUCT.md).
 
-Provider fixtures exercise actual supported CLIs and Docker plumbing against
-local deterministic providers. They do not establish paid provider availability,
-live subscription inference, or that a real agent produced the benchmark app.
-No cloud resources, paid inference, public application or release were created.
+Actual local acceptance includes two-browser collaboration and conflict recovery
+(10 outcomes), portable team-worker lifecycle (17), invitation flows (5), browser
+handoffs (11), local TLS ingress (11), real PostgreSQL restoration, managed service
+admission and suspension, and host recovery/owner-requested erasure (7). The actual
+reviewed team run passed all seven outcomes through the installed Codex CLI:
+exact reviewed context, one reserved child, active stream revocation, independent
+checks and a healthy release at the same commit. Its provider was a local
+deterministic fixture. This proves execution and context delivery, not model
+quality or paid provider availability.
 
-## Continuation requirements
+Retained evidence is under `artifacts/onboarding`, `artifacts/uat`,
+`artifacts/acceptance` and `artifacts/package-eval`. Each receipt binds its own
+binary/source/image and scope. Private fixture directories can contain disposable
+credentials; publish only reviewed summaries and release archives. Failed attempts
+remain retained. Historical 0.4.18 packages must not be relabelled as 0.5.0.
 
-The current run adapter retains the reviewed main-checkout restriction. Saved
-versioned model connections or a retained Codex subscription generation are
-required; unversioned legacy API credentials cannot identify a durable billing
-route. Storage fails explicitly at 200 runs/project, 100 operations/run or
-1 MiB/record instead of silently pruning evidence. Export/retention management
-and run-bound conversation continuation need their own future contracts.
+GitHub's clean-source Go and race checks passed at `5d074fbc`. The run then failed
+because the repository's Actions artifact storage quota was exhausted. The
+workflow now uploads diagnostics after application checks so an external storage
+failure cannot prevent those checks from running. A quota failure remains a
+failed workflow, not a waived release gate.
 
-Real team membership, project permissions, shared editing/conflict resolution,
-durable draft recovery and managed-team operations remain subsequent stages.
-Invitations to private per-user workers do not implement collaboration or prove
-hostile tenant isolation. Start the managed pilot with dedicated team execution
-boundaries as described in the roadmap.
+## Remaining real release gates
 
-Live model acceptance needs the intended gateway URL/model or an actual connected
-subscription. Cloud/domain/TLS, SMTP delivery, signed downloaded installations,
-billing and operational recovery need their own real environment and evidence.
-These prerequisites do not convert untested release gates into passes. The goal
-remains open; this session did not create a native background goal because that
-API is not exposed here.
+The full roadmap remains active. Live gateway/subscription inference, actual
+AWS/Azure resources with acknowledged spending, owned public DNS/TLS, external
+SMTP inbox delivery, merchant Stripe acceptance, dedicated paid-team host
+isolation/capacity, signed native installations and exact public downloaded bytes
+need their real accounts and environments. None was simulated into a pass.
+
+No live charges, cloud provisioning, public release or public application was
+created in this cloud session. Local reviewable release packages and deterministic
+fixtures do not establish production service availability. The scoped GitHub
+connection can push source; release uploads and CI raw-log hosts additionally need
+the saved environment network additions. GitHub artifact quota needs an operator
+resolution, not deletion of unrelated evidence by this task.
+
+Use the existing checkout; do not create a worktree without a user request.
+Activate `/workspace/.luci-tools/activate.sh` in every shell. Complete reusable
+installation/start instructions live in the environment configuration draft.
+Saved configuration is distinct from publication or a tested new-task restore.
+There is no callable native goal-control API here; the goal and roadmap files
+carry the continuing objective.

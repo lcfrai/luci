@@ -130,6 +130,8 @@ func (s *Server) FindProjectRunSession(projectID, runID, operationID string, loo
 // BeginProjectRunSession grants a persisted reservation once. A crash before the
 // caller writes its registry child leaves a dispatching operation; its absence
 // cannot become permission to allocate again after restart.
+// The caller holds Git/session admission through backend allocation, which also
+// fences publication of new orchestrator questions and approved amendments.
 func (s *Server) BeginProjectRunSession(projectID, runID, operationID string, candidate registry.Session, lookup func(string) (registry.Session, error)) (ProjectRunSessionAdmission, error) {
 	s.projectRunDispatchMu.Lock()
 	var once sync.Once
@@ -161,6 +163,9 @@ func (s *Server) BeginProjectRunSession(projectID, runID, operationID string, ca
 		return ProjectRunSessionAdmission{SessionID: op.ChildID, Existing: existing, Release: release}, nil
 	}
 	validate := func() error {
+		if err := s.OrchestratorExecutionGate(projectID); err != nil {
+			return err
+		}
 		current, err := s.projectRuns.Get(projectID, p.Path, runID)
 		if err != nil {
 			return err

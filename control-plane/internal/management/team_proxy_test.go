@@ -26,6 +26,85 @@ type teamProxyFixture struct {
 	beforeSessionCatalogue   func(*http.Request)
 }
 
+type observedTeamExportWriter struct {
+	*httptest.ResponseRecorder
+	written atomic.Int64
+}
+
+func (w *observedTeamExportWriter) Write(data []byte) (int, error) {
+	n, err := w.ResponseRecorder.Write(data)
+	w.written.Add(int64(n))
+	return n, err
+}
+
+func TestTeamOrchestratorExportStreamsBeyondCatalogueLimitAndRevokes(t *testing.T) {
+	f := newTeamProxyFixture(t)
+	// Read permission alone is sufficient to recover private conversation data.
+	f.g.mu.Lock()
+	row := f.g.state.Teams[f.team.ID]
+	member := row.Members[f.member.ID]
+	member.Role = "viewer"
+	member.Grants = TeamGrants{}
+	row.Members[f.member.ID] = member
+	grant := row.Projects["p-alpha"][f.member.ID]
+	grant.Role = "viewer"
+	grant.Grants = TeamGrants{}
+	row.Projects["p-alpha"][f.member.ID] = grant
+	f.g.state.Teams[f.team.ID] = row
+	f.g.mu.Unlock()
+	payload := append([]byte(`{"ledger":{"message":"`), bytes.Repeat([]byte("a"), teamResponseLimit+1024)...)
+	payload = append(payload, []byte(`"},"archive":[]}`)...)
+	started, release := make(chan struct{}), make(chan struct{})
+	defer close(release)
+	var cancelled atomic.Bool
+	f.g.opts.TeamHandler = func(_ context.Context, teamID string) (http.Handler, error) {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/v1/product/projects/p-alpha/orchestrator/export" {
+				f.worker(t, teamID, w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Content-Disposition", `attachment; filename="conversation.json"`)
+			_, _ = w.Write(payload)
+			close(started)
+			select {
+			case <-r.Context().Done():
+				cancelled.Store(true)
+			case <-release:
+			}
+		}), nil
+	}
+	request(t, f.h, "GET", f.path("/v1/product/projects/p-secret/orchestrator/export"), f.memberToken, nil, 403)
+	w := &observedTeamExportWriter{ResponseRecorder: httptest.NewRecorder()}
+	done := make(chan struct{})
+	go func() {
+		r := httptest.NewRequest("GET", f.path("/v1/product/projects/p-alpha/orchestrator/export"), nil)
+		r.Header.Set("Authorization", "Bearer "+f.memberToken)
+		f.h.ServeHTTP(w, r)
+		close(done)
+	}()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("owned export did not reach streaming handler")
+	}
+	if w.written.Load() != int64(len(payload)) {
+		t.Fatal("project export was buffered or truncated by catalogue response limit", w.written.Load())
+	}
+	f.g.mu.Lock()
+	revision := f.g.state.Teams[f.team.ID].Team.Revision
+	f.g.mu.Unlock()
+	request(t, f.h, "DELETE", "/v1/teams/"+f.team.ID+"/members/"+f.member.ID, f.ownerToken, map[string]int{"expectedRevision": revision}, 200)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("revoked conversation download remained active")
+	}
+	if !cancelled.Load() || w.Code != 200 || w.Body.Len() != len(payload) || !json.Valid(w.Body.Bytes()) || !strings.Contains(w.Header().Get("Content-Disposition"), "conversation.json") {
+		t.Fatal("export lost streaming bytes, download metadata or cancellation")
+	}
+}
+
 func newTeamProxyFixture(t *testing.T) *teamProxyFixture {
 	t.Helper()
 	g, h, token, owner := fixture(t, nil)

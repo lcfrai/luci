@@ -43,3 +43,13 @@
 .design-workspace button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 @media(max-width:1100px) { .design-plan-layout { grid-template-columns: minmax(0,1fr); } .design-definition { border-inline-start: 0; border-block-start: 1px solid var(--line-soft); padding-inline-start: 0; padding-block-start: 24px; } }
 @media(max-width:700px) { .design-pair, .design-token { grid-template-columns: minmax(0,1fr); } .design-sketch { min-block-size: 520px; } .design-sketch > section { block-size: 600px; } }
+/* The conversation can narrow this workspace on a wide screen. Adapt to the
+   available workspace, as well as the viewport, so every editor stays usable. */
+@container (max-width: 800px) {
+  .design-plan-layout { grid-template-columns: minmax(0,1fr); }
+  .design-definition { border-inline-start: 0; border-block-start: 1px solid var(--line-soft); padding-inline-start: 0; padding-block-start: 24px; }
+}
+@container (max-width: 560px) {
+  .design-pair, .design-token { grid-template-columns: minmax(0,1fr); }
+  .design-provenance { grid-template-columns: minmax(0,1fr); margin-inline: 0; }
+}

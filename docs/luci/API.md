@@ -1,12 +1,15 @@
 # Luci application contract
 
-Version 0.4, 2 October 2026. JSON is camelCase. Routes below are additions to the retained session API at /v1. Errors are `{error: string, message: string}`. Requests reject unknown JSON fields. A control API read never starts a session/provisioning job or creates a resource. Bounded read-only Git subprocesses are allowed. Application preview requests are forwarded to the selected application's own HTTP surface.
+Version 0.5, 6 October 2026. JSON is camelCase. Routes below are additions to the retained session API at /v1. Errors are `{error: string, message: string}`. Requests reject unknown JSON fields. A control API read never starts a session/provisioning job or creates a resource. Bounded read-only Git subprocesses are allowed. Application preview requests are forwarded to the selected application's own HTTP surface.
+
+
+Current cross-phase contracts are documented separately in [project understanding and reviewed amendments](ORCHESTRATION.md) and [durable project runs](PROJECT-RUN-CONTRACT.md). Team, billing and hosting contracts are in [team service operations](TEAM-SERVICE-OPERATIONS.md), [Stripe billing](STRIPE-BILLING.md) and [public HTTPS ingress](PUBLIC-HTTPS-INGRESS.md).
 
 ## Setup
 
 ### Identity and management
 
-The control-plane gateway authenticates the API before it reaches a user's execution service. `GET /v1/control-plane/status` is public and returns `{product: "Luci", version, configured, instanceName, backing: "docker" | "aws" | "azure", bootstrapRequired, bootstrapTokenPath?}`. First setup reads the owner-only `StateDir/control-plane/bootstrap-token` file. `POST /v1/auth/bootstrap` accepts `{bootstrapToken, username, displayName, password}` and returns `201 {token, user}` for the first Super Admin. The bootstrap file is removed after success. `POST /v1/auth/login` accepts `{username, password}` and returns `{token, user}`. Passwords require 12ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“1,024 characters and use the Go project's Argon2id implementation with random salts; derivation concurrency and login attempts are bounded.
+The control-plane gateway authenticates the API before it reaches a user's execution service. `GET /v1/control-plane/status` is public and returns `{product: "Luci", version, configured, instanceName, backing: "docker" | "aws" | "azure", bootstrapRequired, bootstrapTokenPath?}`. First setup reads the owner-only `StateDir/control-plane/bootstrap-token` file. `POST /v1/auth/bootstrap` accepts `{bootstrapToken, username, displayName, password}` and returns `201 {token, user}` for the first Super Admin. The bootstrap file is removed after success. `POST /v1/auth/login` accepts `{username, password}` and returns `{token, user}`. Passwords require 12–1,024 characters and use the Go project's Argon2id implementation with random salts; derivation concurrency and login attempts are bounded.
 
 API requests use `Authorization: Bearer TOKEN`. Sessions expire after twelve hours; only SHA-256 token hashes are persisted. `GET /v1/auth/me` returns `{user, permissions, policy}`. User fields are `{id, username, displayName, role: "member" | "admin" | "super-admin", disabled}`. Permissions are `{manageUsers, manageBacking, managePolicy, inspectAudit, runHostCommands}`. `POST /v1/auth/logout {}` revokes the current session. `POST /v1/auth/password {currentPassword, newPassword}` revokes existing sessions and returns `{signInRequired: true}`.
 

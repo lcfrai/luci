@@ -89,6 +89,9 @@ func implementationSnapshot(state journeyState, req ImplementationContextRequest
 // The caller holds the existing Git/session admission. Linked worktrees cannot
 // silently inherit or overwrite their context files from the main checkout.
 func (s *Server) BindImplementationContext(ctx context.Context, req ImplementationContextRequest, worktreeID, worktreePath string) (*registry.ImplementationContext, error) {
+	if err := s.OrchestratorExecutionGate(req.ProjectID); err != nil {
+		return nil, err
+	}
 	p, err := s.resolveProject(req.ProjectID)
 	if err != nil {
 		return nil, errors.New("The implementation plan does not belong to this workspace.")
@@ -123,6 +126,11 @@ func (s *Server) BindImplementationContext(ctx context.Context, req Implementati
 func (s *Server) ValidateImplementationContext(projectID, worktreeID, worktreePath string, saved *registry.ImplementationContext) error {
 	if saved == nil {
 		return nil
+	}
+	// Manual sessions have no reviewed context and keep their separate authority.
+	// Reviewed restarts/resumes must respect questions raised after this snapshot.
+	if err := s.OrchestratorExecutionGate(projectID); err != nil {
+		return err
 	}
 	if saved.ProjectID != projectID || saved.WorktreeID != worktreeID {
 		return errors.New("This task run belongs to a different project or worktree. Start a new run from its saved plan.")

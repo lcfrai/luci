@@ -50,6 +50,33 @@ public publication or hosted subscription activation has been performed. Preserv
 SMTP and signed/public-download evidence below; a smaller milestone does not
 replace the full completion contract.
 
+## One understandable project journey — 6 October 2026
+
+The owner's latest clarification prioritizes a clear view of the current stage,
+exactly what Luci and its agents are building, and how amendments change the
+solution. Persistent conversation is useful supporting history, not a required
+primary interface or a completion gate. Luci must understand the agreed idea,
+build shared context through each phase and carry it through implementation,
+verification and a live application. Phase editors are focused views of that
+same project; the current purpose, requirements, selected tasks, execution state
+and useful next step must remain understandable across them.
+
+Luci asks about material ambiguity and explains consequential recommendations
+and downstream effects. A reviewed amendment creates a versioned draft,
+invalidates affected approvals and keeps earlier run inputs/evidence immutable.
+Unresolved material questions block new coordinated implementation; an
+explicit answer and any needed renewed context review provide the path forward.
+A saved discussion, recommendation or completed process never proves a working
+outcome. Provider-backed assistance must report the actual chosen connection and
+failures without simulated answers. Existing checks, release observations,
+public publishing consent and cloud cost acknowledgement remain execution gates.
+
+[Project understanding and amendments](ORCHESTRATION.md) specifies the shared
+status, immutable build scope, real provider assistance, reviewed changes and
+bounded private history recovery. Acceptance must show understandable stage and
+selected work during actual agent activity, including a teammate amendment and
+its effect on existing run inputs; retained chat alone is not acceptance.
+
 ## Overnight completion instruction — 6 October 2026
 
 The owner has explicitly authorized continued autonomous work while away and

@@ -175,6 +175,10 @@ func (s *Server) createProjectRun(w http.ResponseWriter, r *http.Request) {
 		s.writeProjectRun(w, http.StatusOK, run)
 		return
 	}
+	if err := s.OrchestratorExecutionGate(p.ID); err != nil {
+		projectRunProblem(w, err)
+		return
+	}
 	if s.projectRunSelectionResolver == nil {
 		projectRunProblem(w, errors.New("The coding session service is unavailable."))
 		return
@@ -233,6 +237,9 @@ func (s *Server) createProjectRun(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) resolveProjectRunSelection(ctx context.Context, run ProjectRun) (ProjectRunSelection, error) {
 	var zero ProjectRunSelection
+	if err := s.OrchestratorExecutionGate(run.ProjectID); err != nil {
+		return zero, err
+	}
 	if s.projectRunSelectionResolver == nil {
 		return zero, errors.New("The coding session service is unavailable.")
 	}

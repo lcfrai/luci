@@ -332,13 +332,14 @@ func (rs *routes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // API is the whole HTTP surface as one handler.
 type API struct {
-	deps               Deps
-	handler            http.Handler
-	codexAccountMu     sync.Mutex // serializes this user's retained account and private snapshots
-	assistMu           sync.Mutex
-	assistRecoveryOnce sync.Once
-	assistStore        *assistance.Store
-	assistCancels      map[string]context.CancelFunc
+	deps                    Deps
+	handler                 http.Handler
+	codexAccountMu          sync.Mutex // serializes this user's retained account and private snapshots
+	assistMu                sync.Mutex
+	orchestratorAdmissionMu sync.Mutex
+	assistRecoveryOnce      sync.Once
+	assistStore             *assistance.Store
+	assistCancels           map[string]context.CancelFunc
 
 	// guarded and root are the two recorders, kept whole rather than
 	// snapshotted into a []string. RegisteredPatterns() reads them LIVE, so a

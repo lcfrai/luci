@@ -76,6 +76,11 @@ func (a *API) handleAssistList(w http.ResponseWriter, r *http.Request) {
 	if len(jobs) > 20 {
 		jobs = jobs[:20]
 	}
+	// Full immutable contexts remain available on the individual owned job. A
+	// catalogue must not multiply 20 large snapshots into an oversized response.
+	for i := range jobs {
+		jobs[i].OrchestratorContext = nil
+	}
 	httpx.WriteJSON(w, 200, map[string]any{"jobs": jobs})
 }
 

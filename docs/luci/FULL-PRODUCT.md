@@ -1391,3 +1391,57 @@ inbox delivery, dedicated paid-team host isolation and final signed public
 downloads remain separate full-product gates. Historical Windows host failures
 are not evidence of the current cloud machine's runtime state. The new source
 work does not turn prior fixture or package results into live service evidence.
+
+## Project understanding and operational acceptance — 6 October 2026
+
+The 0.5.0 project overview now explains the observed stage, current purpose and
+outcomes, exact selected work and reviewed revisions in an existing run, and the
+next useful action across all four phases. Discussion is optional. A real
+selected-provider orchestrator receives bounded saved context and private history;
+material unresolved questions block new coordinated implementation. Reviewed
+amendments show their content and effects, require exact revision checks, clear
+affected approvals and preserve historical run inputs. Private history has an
+explicit export and acknowledged bounded rotation path. See [ORCHESTRATION.md](ORCHESTRATION.md).
+
+The complete frontend run passed 1,538 tests in 108 files. A final focused batch
+passed 29 tests after fixing the primary question-answer button to carry the
+actual unresolved question ID. That correction prevents an apparently successful
+answer leaving implementation blocked. Fresh-install compiled acceptance exposed
+an absent assistant storage root; safe initialization now validates existing
+ancestors before private creation and retains symlink/project confinement.
+
+Final full changed-package race suites passed: API 248 top-level tests (444
+passing test/subtest outcomes, three Windows-specific outcomes skipped) and
+product 234 top-level tests (428 passing outcomes, one optional Envoy Docker test
+skipped). There were no race warnings or failures. Logs are
+`artifacts/onboarding/orchestrator-final-api-race.jsonl` and
+`artifacts/onboarding/orchestrator-final-product-race.jsonl`; full Go vet also
+passed. The broader Go run's sole failure was a new read route absent from the
+explicit read-only audit; the corrected audit and complete product race suite
+passed afterward. No test was disabled to produce these outcomes.
+
+The actual reviewed team run passed all seven checks at
+`artifacts/uat/team-run-acceptance/results.json`, binary SHA-256
+`0b3eab8fcbd14ae47d51d6b6ad044d465ad20bc08a11e2c9815e719d125cb2d3`.
+Two real accounts used one dedicated team worker. The installed Codex CLI read the
+exact five reviewed context files and generated the fixture application through
+its normal tools. Revoking the editor closed its active coding socket and denied
+further access while leaving the owned child for explicit owner control. Independent
+Docker checks and the healthy release used commit
+`c2077a7d9a7067c71df3cf31cfedc23a32272b73`. All owned containers were stopped.
+This used a local deterministic provider and an explicit prebuilt trusted sandbox;
+it does not prove real-model reasoning, live subscriptions or runtime installation.
+
+Actual host backup/restore and owner-requested cancellation/erasure passed seven
+checks at `artifacts/onboarding/managed-host-recovery-erasure/result.json`, binary
+SHA-256 `a53f88ae4554435373d5cf691bed86ef14fd81ab5bc102134b7916ac408a7b8d`.
+Actual PostgreSQL data restoration and managed binding/suspension passed their
+separate receipts under `artifacts/acceptance/database-recovery-current` and
+`artifacts/acceptance/managed-team-service-current`. Stripe SDK fixture tests prove
+reviewed fixed-price Checkout, authoritative subscription reconciliation and
+entitlement boundaries; no real merchant request or customer charge occurred.
+
+GitHub Go and concurrency checks passed at `5d074fbc`; the following diagnostic
+upload failed because Actions artifact storage quota was exhausted. Diagnostic
+uploads now run after application checks. The workflow remains a release gate;
+local passing results do not change the failed remote workflow conclusion.

@@ -10,9 +10,12 @@ team, select an access state, record a reason, then save. A stale revision fails
 without changing the saved state; reload before reviewing and retrying. The
 selected remote backing's Admin view does not expose these local controls.
 
-This is an operator admission control. It is not connected to a payment provider,
-does not create a subscription, and does not verify dedicated host isolation.
-Managed paid availability still requires the separate production roadmap gates.
+These controls manage operator admission; changing a service record does not
+create a subscription or verify dedicated host isolation. A configured managed
+installation also enforces the separate [Stripe subscription](STRIPE-BILLING.md)
+receipt. Payment cannot override operator suspension, and an operator
+self-hosted label cannot bypass configured billing. Managed paid availability
+still requires the separate production roadmap gates.
 The existing team workers use the installation's Docker host; worker and private
 directory separation alone is not proof of a boundary between paying tenants.
 
@@ -61,8 +64,8 @@ permissions, and it cannot bypass service suspension.
 
 | State | Behavior |
 | --- | --- |
-| Self-hosted active | No commercial admission restriction. Existing identity, project permissions and resource policy still apply. |
-| Managed active | Operator permits execution. No payment or isolation claim is implied. |
+| Self-hosted active | No commercial restriction on an installation without managed billing. Configured managed billing still applies regardless of this operator label. Existing identity, project permissions and resource policy always apply. |
+| Managed active | Operator permits execution subject to configured billing and project capabilities. The label alone proves neither payment nor host isolation. |
 | Managed suspended | Blocks new agent sessions, terminal/browser access, inference, checks, deployment, restore/rebuild and credential replacement. |
 
 Suspended teams retain authorized context reads and edits, project/context
@@ -82,7 +85,8 @@ Already running containers, deployments and detached jobs are retained. Use
 their explicit owned stop/cancel controls; suspension does not guarantee that
 provider charges stop. It never deletes project files, databases, backups,
 volumes, membership or project grants. Resume by saving managed active at the
-current revision. Members can inspect and refresh service status in the team
+current revision; configured billing must also permit execution. Members can
+inspect and refresh service status in the team
 workspace; operator reasons are visible to members and must contain no secrets.
 
 ## API
@@ -91,17 +95,20 @@ All routes require normal authenticated management identity. API reads do not
 provision resources or start project work.
 
 * `GET /v1/admin/team-services`: Super Admin only. Returns
-  `{teams:[{teamId,name,service}],billingConnected:false,executionIsolationVerified:false}`.
+  `{teams:[{teamId,name,service}],billingConnected:boolean,executionIsolationVerified:false}`.
   This operational catalogue exposes no project content, member catalogue or
-  secret values and grants no team membership.
+  secret values and grants no team membership. `billingConnected` reports whether
+  Stripe billing is configured, not a verified charge or team entitlement.
 * `PUT /v1/admin/team-services/{teamId}`: Super Admin only. Body
   `{expectedRevision,mode,status,reason}`. Mode is `self-hosted` or `managed`;
   status is `active` or `suspended`. Self-hosted suspended is invalid. Reason is
   1–240 characters. Successful writes increment service revision and return the
   saved service record. Revision conflict is `409 team_service_changed`.
 * `GET /v1/teams/{teamId}/service`: current team members only. Returns
-  `{mode,status,revision,reason?,updatedAt?,updatedBy?}`. Service revision is
-  independent of membership/project permission revisions.
+  `{mode,status,revision,reason?,updatedAt?,updatedBy?,billingEnabled?}`. Service revision is
+  independent of membership/project permission revisions. `billingEnabled:true`
+  signals configured billing; read the separate billing status for its verified
+  subscription outcome.
 
 The service record lives in private management identity state, not project
 exports. A project import cannot activate managed execution or establish a paid
@@ -118,8 +125,26 @@ admission races and exact bounded action-body forwarding. Frontend acceptance
 tests exercise deliberate operator changes, stale revisions, duplicate-submit
 prevention, current-team status and late-response isolation.
 
-Payment collection, signed provider-event verification, billing reconciliation,
-commercial terms, independently verified dedicated team host assignment,
-whole-host backup/restore/upgrade and measured production capacity remain
-separate work. No payment provider or cloud resource is contacted by these
-service-access operations.
+The [Stripe implementation](STRIPE-BILLING.md) includes explicit price/terms
+acknowledgement, reserved checkout, signed provider events, reconciliation,
+expiry and cancellation admission. Its official-SDK HTTP fixture tests pass
+(`artifacts/onboarding/billing-sdk-http-tests.log`); they make no charge and do
+not establish real merchant or webhook commissioning. These operator service
+controls themselves do not contact a payment provider or create cloud resources.
+
+[Private host recovery](MANAGED-HOST-RECOVERY.md) and
+[reviewed state removal](MANAGED-DATA-LIFECYCLE.md) are implemented. The compiled
+Linux service and real Docker fixture passed seven backup/restore/deletion
+checks in `artifacts/onboarding/managed-host-recovery-erasure/result.json`, bound
+to service SHA-256
+`a53f88ae4554435373d5cf691bed86ef14fd81ab5bc102134b7916ac408a7b8d`.
+That receipt covers writer refusals, owner/member access and context after
+restoration, cancellation defeating a stale deletion backup, and explicit
+verified state removal with retained proofs. It is development evidence; it
+does not prove customer-host recovery time, an upgraded package, external data
+restoration or removal of provider resources.
+
+Real Stripe test/live commissioning, reviewed published commercial terms,
+independently verified dedicated host assignment, matching-package upgrade,
+measured production capacity and operator support commitments retain their
+separate production gates.

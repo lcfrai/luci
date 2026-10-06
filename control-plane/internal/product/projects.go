@@ -25,6 +25,7 @@ var projectNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
 
 func (s *Server) registerProjects(mux Registrar) {
 	s.registerProjectBranches(mux)
+	s.registerOrchestrator(mux)
 	mux = s.guardProjectSourceRoutes(mux)
 	s.registerJourneyContext(mux)
 	s.registerSpecification(mux)
