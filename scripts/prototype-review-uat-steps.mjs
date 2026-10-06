@@ -84,9 +84,21 @@ export async function verifyPrototypeReview({ page, projectId, projectRoute, rel
     await root.getByRole('button', { name: 'Record an observation', exact: true }).click();
     await root.getByRole('textbox', { name: 'Observation or requested change', exact: true }).fill(note);
     await root.getByText(/Saving creates a draft that needs design review again/).waitFor();
-    await root.getByRole('button', { name: 'Done writing', exact: true }).click();
-    await root.getByRole('tab', { name: 'Implementation handoff', exact: true }).click();
-    const notes = await root.getByRole('textbox', { name: 'Implementation notes', exact: true }).inputValue();
+    const tabDiagnostics = await observePrototypeTabTransition(page);
+    let notes;
+    try {
+      await root.getByRole('button', { name: 'Done writing', exact: true }).click();
+      await root.getByRole('tab', { name: 'Implementation handoff', exact: true }).click();
+      notes = await root.getByRole('textbox', { name: 'Implementation notes', exact: true }).inputValue();
+      assert.equal(await root.getByRole('tab', { name: 'Implementation handoff', exact: true }).getAttribute('aria-selected'), 'true', 'The handoff tab must actually be selected.');
+    } catch (cause) {
+      // Preserve the original failure and timeout. The driver retains this
+      // bounded control-only trace; no field values, invitations or raw errors.
+      cause.prototypeTabDiagnostics = await tabDiagnostics.finish();
+      throw cause;
+    } finally {
+      await tabDiagnostics.finish();
+    }
     assert(notes.startsWith(design.implementationNotes.trimEnd()), 'The observation must preserve prior handoff notes.');
     for (const expected of ['human note; not verification', 'Release: ' + release.id, 'Source commit: ' + release.commit, 'Screen: ' + planned.name + ' (' + planned.id + ')', 'Viewport: 390 px', note]) assert(notes.includes(expected), 'The handoff observation lost its actual source, selected screen, intended width or human note.');
     assert(!notes.includes('ticket='), 'Private one-use invitations must never enter project context.');
@@ -122,4 +134,58 @@ export async function verifyPrototypeReview({ page, projectId, projectRoute, rel
     page.off('request', observeRequest);
     if (originalViewport) await page.setViewportSize(originalViewport);
   }
+}
+
+
+/** Diagnostic only: does not activate controls, retry clicks or alter timing. */
+async function observePrototypeTabTransition(page) {
+  const browserErrors = [];
+  const observeError = error => {
+    if (browserErrors.length >= 8) return;
+    const allowed = ['TypeError', 'ReferenceError', 'RangeError', 'SyntaxError'];
+    browserErrors.push({ category: allowed.includes(error.name) ? error.name : 'JavaScriptError' });
+  };
+  page.on('pageerror', observeError);
+  try {
+    await page.evaluate(() => {
+      const labels = ['Screens and states', 'Sketch', 'Prototype', 'Implementation handoff', 'Done writing', 'Record an observation'];
+      const describe = target => {
+        if (!(target instanceof Element)) return { role: 'none', label: '' };
+        const button = target.closest('button');
+        const role = button?.getAttribute('role') === 'tab' ? 'tab' : button ? 'button' : target.matches('textarea') ? 'textbox' : 'other';
+        const text = button?.getAttribute('aria-label') || button?.textContent || '';
+        return { role, label: labels.find(label => text === label || text === label + label) || (button ? 'other button' : '') };
+      };
+      const tabs = () => [...document.querySelectorAll('.design-workspace [role="tab"]')].slice(0, 4).map(tab => ({ ...describe(tab), selected: tab.getAttribute('aria-selected') === 'true', disabled: tab.getAttribute('aria-disabled') === 'true' || tab.hasAttribute('disabled') }));
+      const before = { tabs: tabs(), focus: describe(document.activeElement) };
+      const events = [], start = performance.now();
+      const record = event => {
+        if (events.length >= 64) return;
+        const item = { sequence: events.length + 1, event: event.type, elapsedMs: Math.round(performance.now() - start), target: describe(event.target), focus: describe(document.activeElement), defaultPrevented: event.defaultPrevented };
+        if (event instanceof MouseEvent) Object.assign(item, { button: event.button, buttons: event.buttons, alt: event.altKey, control: event.ctrlKey, meta: event.metaKey, shift: event.shiftKey });
+        events.push(item);
+        // Capture the final flag even if a later capture/bubble handler consumes
+        // the event. No second event handler is dispatched by this observer.
+        queueMicrotask(() => { item.defaultPrevented = event.defaultPrevented; });
+      };
+      const kinds = ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click', 'focusin', 'focusout'];
+      for (const kind of kinds) document.addEventListener(kind, record, true);
+      window.__luciPrototypeTabDiagnostic = () => {
+        for (const kind of kinds) document.removeEventListener(kind, record, true);
+        delete window.__luciPrototypeTabDiagnostic;
+        return { before, events, after: { tabs: tabs(), focus: describe(document.activeElement) } };
+      };
+    });
+  } catch (cause) {
+    page.off('pageerror', observeError);
+    throw cause;
+  }
+  let result;
+  return { async finish() {
+    if (result) return result;
+    page.off('pageerror', observeError);
+    const trace = await page.evaluate(() => window.__luciPrototypeTabDiagnostic?.()).catch(() => ({ unavailable: true }));
+    result = { ...trace, browserErrors };
+    return result;
+  } };
 }

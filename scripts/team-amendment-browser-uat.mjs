@@ -513,7 +513,11 @@ try {
   receipt.providerCalls = providerCalls; receipt.originalAcceptanceTestSHA256 = sha(testSource); receipt.amendedAcceptanceTestSHA256 = sha(amendedTestSource); receipt.passed = true;
 } catch (error) {
   receipt.failedStage = stage; receipt.failure = scrub(error.stack ?? error); process.exitCode = 1; console.error(receipt.failure);
+  if (error.prototypeTabDiagnostics) receipt.prototypeTabDiagnostics = error.prototypeTabDiagnostics;
+  receipt.browserErrors = browserErrors;
+  receipt.failureTabs = {};
   for (const [name, target] of [['alice', alice], ['bob', bob]]) if (target) {
+    receipt.failureTabs[name] = await target.getByRole('tab').evaluateAll(elements => elements.map(element => ({ label: element.getAttribute('aria-label') || element.textContent, selected: element.getAttribute('aria-selected'), disabled: element.getAttribute('aria-disabled') }))).catch(() => []);
     await target.screenshot({ path: join(evidence, name + '-failure.png'), fullPage: true, mask: [target.locator('.xterm-screen'), target.locator('input[type=password]')] }).catch(() => {});
     writeFileSync(join(fixture, name + '-failure-dom.txt'), scrub(await target.locator('body').innerText().catch(() => 'Unavailable')), { mode: 0o600 });
   }

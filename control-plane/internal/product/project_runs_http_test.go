@@ -289,11 +289,34 @@ func TestProjectRunHTTPExactEvidenceAcceptanceAndHistoricalValidity(t *testing.T
 	if complete.State != "complete" || complete.Acceptance == nil || complete.Acceptance.CheckID != check.ID {
 		t.Fatal(complete)
 	}
+	assertAcceptedSummary := func(record ProjectRunView, valid bool) {
+		t.Helper()
+		before, hits := auditTree(t, s.stateDir), healthHits.Load()
+		var overview OrchestratorView
+		decodeEvidenceResponse(t, journeyRequest(t, mux, "GET", base+"/orchestrator", nil, 200).Body.Bytes(), &overview)
+		summary := overview.Context.CurrentRun
+		if summary == nil || summary.ID != record.ID || summary.State != "complete" || summary.Valid != valid {
+			t.Fatal("accepted run lost from current understanding", summary)
+		}
+		wantReason, wantAction := record.Reason, "maintain"
+		if !valid {
+			wantReason, wantAction = record.Observation.Reason, "inspect-run"
+		}
+		if summary.Reason != wantReason || strings.Contains(summary.Reason, "accept the selected outcome") || overview.NextAction.ID != wantAction || overview.NextAction.RunID != record.ID {
+			t.Fatal("summary repeats acceptance or hides current invalidity", summary, overview.NextAction)
+		}
+		retained := projectRunHTTPResponse(t, journeyRequest(t, mux, "GET", base+"/runs/"+run.ID, nil, 200))
+		if healthHits.Load() != hits || !reflect.DeepEqual(before, auditTree(t, s.stateDir)) || !reflect.DeepEqual(retained.Acceptance, record.Acceptance) || !reflect.DeepEqual(retained.Observation, record.Observation) {
+			t.Fatal("reading accepted understanding probed a release or rewrote historical evidence")
+		}
+	}
+	assertAcceptedSummary(complete, true)
 	health.Store(503)
 	drifted := projectRunHTTPResponse(t, journeyRequest(t, mux, "POST", base+"/runs/"+run.ID+"/reconcile", map[string]int{"expectedRevision": complete.Revision}, 200))
 	if drifted.State != "complete" || drifted.Observation.Valid || drifted.Acceptance == nil {
 		t.Fatal("health loss erased history or claimed current validity", drifted)
 	}
+	assertAcceptedSummary(drifted, false)
 	before, hits := auditTree(t, s.stateDir), healthHits.Load()
 	journeyRequest(t, mux, "GET", base+"/runs/"+run.ID, nil, 200)
 	if healthHits.Load() != hits || !reflect.DeepEqual(before, auditTree(t, s.stateDir)) {

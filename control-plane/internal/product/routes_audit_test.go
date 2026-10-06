@@ -28,6 +28,7 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/project-imports/{attemptId}":                       "Reads an owned private import receipt and matching directory identities; no clone, promotion, retry or writes.",
 	"GET /v1/product/projects/{id}/orchestrator":                        "Reads the private conversation, saved context and bounded Git status in memory; no inference, reconciliation, approval or mutation.",
 	"GET /v1/product/projects/{id}/orchestrator/export":                 "Exports existing bounded private conversation and archive bytes with a current digest; does not rotate, prune, repair or create files.",
 	"GET /v1/product/projects/{id}/context-history":                     "Reads bounded private authenticated edit/review receipts; creates no files, authority, context changes or resources.",
@@ -107,6 +108,13 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 	p := createJourneyProject(t, initial, "read-only-app")
 	recorded := &productRouteRecorder{ServeMux: http.NewServeMux()}
 	s.Register(recorded)
+	importRootIdentity, err := projectImportDirectoryIdentity(s.projectRoot())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.writeImportReceipt(&projectImportReceipt{Version: 1, projectImportView: projectImportView{ID: importTestID, Name: "read-only-import", Status: "failed", Message: "Fixture import failed before publication."}, ActorID: "fixture-reviewer", Root: s.projectRoot(), RootIdentity: importRootIdentity, Phase: "reserved"}); err != nil {
+		t.Fatal(err)
+	}
 	beforeState, beforeProject := auditTree(t, s.stateDir), auditTree(t, p.Path)
 	identityDir, err := s.setupHostDir(false)
 	if err != nil {
@@ -190,7 +198,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 		if pattern != previewPattern && productReadOnlyRoutes[pattern] == "" {
 			t.Fatalf("unaudited read route %q", pattern)
 		}
-		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{path...}", "").Replace(path)
+		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{path...}", "").Replace(path)
 		for _, readMethod := range []string{"GET", "HEAD"} {
 			status := 200
 			if pattern == previewPattern {
@@ -210,7 +218,11 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			if pattern == "GET /v1/product/projects/{id}/git/branch-operations/{operationId}" {
 				status = 404
 			}
-			journeyRequest(t, recorded, readMethod, path, nil, status)
+			var handler http.Handler = recorded
+			if pattern == "GET /v1/product/project-imports/{attemptId}" {
+				handler = fixtureReviewHandler(recorded)
+			}
+			journeyRequest(t, handler, readMethod, path, nil, status)
 		}
 	}
 	for pattern := range productReadOnlyRoutes {

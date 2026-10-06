@@ -507,3 +507,31 @@ it("keeps a replaced release's observations bound to the source that was actuall
   expect(notes).toContain("Source commit: " + "b".repeat(40));
   expect(notes).toContain("New source keeps the title.");
 });
+
+it("leaves a finished prototype observation through the handoff tab without saving or replaying its browser invitation", async () => {
+  ready({ ...fixture(), status: "approved", prototypeReleaseId: "verified", prototypeCommit: "a".repeat(40) });
+  const url = `http://${"a".repeat(32)}.${"b".repeat(32)}.localhost:8731/`;
+  vi.mocked(productApi.prototypeReleases).mockResolvedValue({ releases: [{ id: "verified", projectId: "p-1", briefRevision: 1, commit: "a".repeat(40), target: "local", status: "ready", url, message: "Verified", createdAt: "" }] });
+  const prepare = vi.spyOn(browserAccess, "prepareBrowserAccess").mockResolvedValue(url + ".well-known/luci-team-access?ticket=first");
+  const save = vi.spyOn(designPlanApi, "save"), approve = vi.spyOn(designPlanApi, "approve");
+  render(<DesignWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
+  await userEvent.click(screen.getByRole("button", { name: "Open planned screen" }));
+  await screen.findByTitle("Design prototype");
+  await userEvent.click(screen.getByRole("button", { name: "Record an observation" }));
+  await userEvent.type(screen.getByRole("textbox", { name: "Observation or requested change" }), "Keep the entered note after a failed save.");
+  await userEvent.click(screen.getByRole("button", { name: "Done writing" }));
+  expect(screen.queryByRole("textbox", { name: "Observation or requested change" })).toBeNull();
+  const handoff = screen.getByRole("tab", { name: "Implementation handoff" });
+  await userEvent.click(handoff);
+  expect(handoff.getAttribute("aria-selected")).toBe("true");
+  const notes = (screen.getByRole("textbox", { name: "Implementation notes" }) as HTMLTextAreaElement).value;
+  expect(notes).toContain("Saved notes");
+  expect(notes).toContain("human note; not verification");
+  expect(notes).toContain("Keep the entered note after a failed save.");
+  expect(screen.queryByTitle("Design prototype")).toBeNull();
+  await userEvent.click(screen.getByRole("tab", { name: "Prototype" }));
+  expect(screen.queryByTitle("Design prototype")).toBeNull();
+  expect(prepare).toHaveBeenCalledOnce();
+  expect(save).not.toHaveBeenCalled(); expect(approve).not.toHaveBeenCalled();
+});

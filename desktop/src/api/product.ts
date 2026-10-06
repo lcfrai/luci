@@ -663,10 +663,10 @@ export function createProductClient(
         `/v1/setup/ssh/connections/${encodeURIComponent(id)}/stop`,
         {},
       ),
-    createProject: (name: string, remoteUrl?: string) =>
+    createProject: (name: string, remoteUrl?: string, importAttemptId?: string) =>
       request<{ id: string; name: string; path: string }>(
         "/v1/product/projects",
-        { name, ...(remoteUrl ? { remoteUrl } : {}) },
+        { name, ...(remoteUrl ? { remoteUrl } : {}), ...(importAttemptId ? { importAttemptId } : {}) },
       ),
     brief: (id: string) => request<Brief>(`${project(id)}/brief`),
     saveBrief: (

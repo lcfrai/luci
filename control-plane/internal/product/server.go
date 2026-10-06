@@ -88,6 +88,9 @@ type Server struct {
 	agentConnections                agentConnectionStore
 	activeLocalReleases             map[string]bool
 	deliveryBusy                    map[string]bool
+	importMu                        sync.Mutex
+	importNames                     map[string]bool
+	importActive                    map[string]bool
 	projectChecks                   map[string]*projectCheckJob
 	runtimeJob                      RuntimeJob
 	authJobs                        map[string]*ProviderLoginJob

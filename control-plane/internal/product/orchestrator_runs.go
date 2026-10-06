@@ -22,7 +22,10 @@ func orchestratorRunSummary(run ProjectRun) OrchestratorRunSummary {
 	}
 	if run.Observation != nil {
 		summary.Valid = run.Observation.Valid
-		if !summary.DispatchCancelled {
+		// Acceptance changes the run's meaning without rewriting its earlier
+		// observation. A valid pre-acceptance observation can still invite the
+		// user to accept; only later invalidity should replace accepted wording.
+		if !summary.DispatchCancelled && (run.State != "complete" || !run.Observation.Valid) {
 			summary.Reason = run.Observation.Reason
 		}
 	}

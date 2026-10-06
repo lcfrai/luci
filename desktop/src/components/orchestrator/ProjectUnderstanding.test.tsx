@@ -192,3 +192,31 @@ it("keeps a blocked run's actionable reason and verification warning visible whe
   expect(within(build).getByText(snapshot.currentRun.reason).closest("details")).toBeNull();
   expect(within(build).getByText(/does not prove the current application is ready/)).not.toBeNull();
 });
+
+it("never repeats the acceptance invitation from an accepted run's historical valid observation", () => {
+  const snapshot = context();
+  const staleInvitation = "Checks and the freshly observed release match. Review the application and accept the selected outcome.";
+  snapshot.currentRun = { id: "accepted", state: "complete", valid: true, reason: staleInvitation, outcome: "preview" };
+  render(<ProjectUnderstanding view={view({ context: snapshot, nextAction: { id: "maintain", runId: "accepted", label: "Inspect releases and health", reason: "Historical acceptance does not guarantee uptime.", lens: "deploy" } })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={vi.fn()} />);
+  const build = screen.getByRole("region", { name: "In this build" });
+  expect(within(build).getByText("Run accepted")).not.toBeNull();
+  expect(within(build).queryByText(staleInvitation)).toBeNull();
+  expect(within(build).getByText("This outcome was accepted. Historical acceptance does not guarantee current release health.")).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Inspect releases and health" })).not.toBeNull();
+  expect(build.textContent).not.toMatch(/is live|accept the selected outcome/i);
+});
+
+it.each([
+  "The accepted release no longer passes its health check. Inspect the existing release.",
+  "The project definition changed. Review the current definition before starting new work.",
+])("retains accepted history and the actionable current invalidity: %s", async reason => {
+  const snapshot = context(), inspect = vi.fn();
+  snapshot.currentRun = { id: "accepted-invalid", state: "complete", valid: false, reason, outcome: "preview" };
+  render(<ProjectUnderstanding view={view({ context: snapshot, nextAction: { id: "inspect-run", runId: "accepted-invalid", label: "Review current run evidence", reason, lens: "develop" } })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={vi.fn()} onInspect={inspect} />);
+  const build = screen.getByRole("region", { name: "In this build" });
+  expect(within(build).getByText("Run accepted")).not.toBeNull();
+  expect(within(build).getByText(reason).closest("details")).toBeNull();
+  expect(within(build).getByText(/recorded progress does not prove the current application is ready/)).not.toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Review current run evidence" }));
+  expect(inspect).toHaveBeenCalledExactlyOnceWith("accepted-invalid");
+});

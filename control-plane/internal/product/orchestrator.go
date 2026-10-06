@@ -153,6 +153,7 @@ func orchestratorNext(context OrchestratorContext, questions []OrchestratorQuest
 			if run.Valid {
 				return runAction(run.ID, "maintain", "Inspect releases and health", "Review current release health and the next amendment; historical acceptance does not guarantee uptime.", "deploy")
 			}
+			return runAction(run.ID, "inspect-run", "Review current run evidence", run.Reason, "develop")
 		case "blocked":
 			return runAction(run.ID, "inspect-run", "Resolve the run's next step", run.Reason, "develop")
 		}

@@ -43,6 +43,8 @@ func TestTeamRouteCapabilitiesSeparateContextExecutionSecretsAndDeployment(t *te
 		permissions        TeamPermissions
 		allow              bool
 	}{
+		{"viewer can inspect own import receipt without provisioning", "GET", "/v1/product/project-imports/imp-000000000000000000000001", viewer, true},
+		{"viewer cannot retry an import", "POST", "/v1/product/projects", viewer, false},
 		{"viewer reads reviewed context", "GET", "/v1/product/projects/p-one/specification", viewer, true},
 		{"viewer reads context attribution", "HEAD", "/v1/product/projects/p-one/context-history", viewer, true},
 		{"viewer reads context storage", "GET", "/v1/product/projects/p-one/context", viewer, true},
@@ -126,6 +128,7 @@ func TestTeamRouteClassificationRequiresOwnedOpaqueLookupsAndCollectionProjectio
 		{"POST", "/v1/sessions", TeamRouteScope{WorktreeFromBody: true}},
 		{"POST", "/v1/product/projects", TeamRouteScope{CreatesProject: true}},
 		{"POST", "/v1/product/projects/restore", TeamRouteScope{CreatesProject: true}},
+		{"GET", "/v1/product/project-imports/imp-000000000000000000000001", TeamRouteScope{}},
 		{"POST", "/v1/product/projects/p-first/assist/job-other/cancel", TeamRouteScope{ProjectID: "p-first"}},
 		{"GET", "/v1/platform/projects/p-first/backups/backup-other", TeamRouteScope{ProjectID: "p-first"}},
 		{"POST", "/v1/platform/projects/p-first/deployments/release-other/stop", TeamRouteScope{ProjectID: "p-first"}},

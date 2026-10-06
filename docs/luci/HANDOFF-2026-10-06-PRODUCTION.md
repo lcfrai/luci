@@ -26,9 +26,13 @@ continues while external commissioning and Windows CI access remain blocked.
 The current continuation is tracked in [QUALITY-WORKLIST.md](QUALITY-WORKLIST.md).
 It addresses collaborative draft loss, meaningful prototype review and fresh
 browser invitations, truthful deployment recovery, and durable uncertain-request
-identity. Its full source checks pass; a combined two-person journey against a
-matching Linux portable candidate is the next acceptance step. The results below
-retain their historical identities and do not stand in for that execution.
+identity. The matching `a10d941e` Linux package passes seven combined browser
+groups, but the overall attempt stops at a prototype handoff tab that did not
+activate. The original failure, successful smaller reproduction and next-run
+diagnostics remain distinct. Subsequent source adds recoverable real Git import
+and corrects accepted-run guidance; its broader source checks and remaining
+installed acceptance are recorded in [FULL-PRODUCT.md](FULL-PRODUCT.md). The
+results below retain their historical identities.
 
 The primary project overview explains the current stage, agreed purpose and
 outcomes, exact tasks and reviewed revisions in an active build, unresolved

@@ -12,6 +12,35 @@ new durable-run, portable-context, team and release-integrity work. Earlier
 installed versions, hashes and results are preserved as historical evidence;
 none is relabelled as acceptance of the new candidate.
 
+## Current continuation: collaboration and import recovery
+
+The clean `a10d941e` Linux package passes portable/launcher acceptance. Its
+installed two-person journey passes seven groups: concurrent context recovery,
+old versus amended build scope, renewed actual coding/checks, matching preview
+acceptance, preview continuity during permission refresh, owned replacement,
+and actual prototype behavior at the planned phone width. The complete attempt
+remains failed at prototype-to-handoff tab activation. Preserve the receipt and
+screenshots in `artifacts/package-eval/0.5.0-a10d941e/team-amendment-attempt-3`.
+A smaller rendered reproduction and a focused regression pass; no guessed tab
+handler fix has been made. The next installed attempt records bounded pointer,
+focus and selection diagnostics. Isolated composer recovery against this package
+passes both scenarios with zero model calls, but is not a full-journey pass.
+
+Subsequent source adds recoverable repository import: owned staging, native
+no-overwrite publication, final directory identity checks, durable private
+receipts, safe retry with the same intended name, and explicit read-only recovery
+after a lost response. It also corrects accepted-run guidance in both the
+orchestrator's context projection and the visible overview, preserving later
+invalidity and health warnings without rewriting historical evidence.
+
+The service suite passes 2,011 test/subtest outcomes (22 skips), with 1,184 race
+outcomes across the changed integration packages (five skips). The frontend
+suite passes 1,771 of 1,772 tests; its single obsolete mock-argument assertion was
+corrected, and all five tests in that affected suite pass. Type checking and the
+production web build pass. Logs are in `artifacts/quality-imports`. Matching
+installed import acceptance and the complete combined journey remain pending;
+[QUALITY-WORKLIST.md](QUALITY-WORKLIST.md) keeps those outcomes open.
+
 ## Product-quality completion standard — 6 October 2026
 
 The owner's latest direction requires a polished whole product, with Vercel and

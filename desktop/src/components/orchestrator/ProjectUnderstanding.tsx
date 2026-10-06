@@ -29,7 +29,8 @@ function BuildScope({ run, title, onInspect }: { run: OrchestratorRunSummary; ti
       : run.tasks?.length ? <ul>{run.tasks.map(task => <li key={task.id}>{task.title}</li>)}</ul> : <p>The selected tasks are available in the build workspace.</p>}
     {!!run.requirements?.length && <details><summary>Outcomes this build must prove</summary><ul>{run.requirements.map(requirement => <li key={requirement.id}><strong>{requirement.title}</strong><p>{requirement.acceptance}</p></li>)}</ul></details>}
     {!!run.specificationRevision && <p className="understanding-note">Uses reviewed definition {run.specificationRevision}{run.designRevision ? ` and design ${run.designRevision}` : ""}. Later edits do not silently change work already started.</p>}
-    {!pending && run.reason && <p>{run.reason}</p>}
+    {!pending && run.state === "complete" && <p>This outcome was accepted. Historical acceptance does not guarantee current release health.</p>}
+    {!pending && run.reason && (run.state !== "complete" || !run.valid) && <p>{run.reason}</p>}
     {pending && <p className="understanding-note">Recorded status. Open the run to reconcile its current outcome.</p>}
     {run.operationsOmitted && <p>{run.operationCount} unfinished coding attempts; inspect this build for their full recorded activity.</p>}
     {!pending && !run.valid && <p className="understanding-note">This run needs verification against the current context. Its recorded progress does not prove the current application is ready.</p>}
