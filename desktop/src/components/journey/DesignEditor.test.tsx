@@ -4,15 +4,16 @@ import userEvent from "@testing-library/user-event";
 import type { ExcalidrawImperativeAPI, ExcalidrawProps } from "@excalidraw/excalidraw/types";
 import { productApi, type Design, type DesignScene } from "../../api/product";
 import { resetCockpit, useCockpit } from "../../store/store";
+import * as projectDraft from "../../hooks/useProjectDraft";
 import {
   DEFAULT_APPEARANCE,
   updateAppearance,
 } from "../../preferences/appearance";
 import DesignEditor from "./DesignEditor";
 
-const canvasState = vi.hoisted(() => ({ change: null as NonNullable<ExcalidrawProps["onChange"]> | null, refresh: vi.fn(), apiReady: false }));
+const canvasState = vi.hoisted(() => ({ change: null as NonNullable<ExcalidrawProps["onChange"]> | null, refresh: vi.fn(), apiReady: false, repeatOnRender: null as Parameters<NonNullable<ExcalidrawProps["onChange"]>> | null }));
 vi.mock("@excalidraw/excalidraw", async () => {
-  const { useEffect } = await import("react");
+  const { useEffect, useLayoutEffect } = await import("react");
   return {
   Excalidraw: ({ theme, initialData, onChange, excalidrawAPI }: { theme: string; initialData: DesignScene; onChange: NonNullable<ExcalidrawProps["onChange"]>; excalidrawAPI?: ExcalidrawProps["excalidrawAPI"] }) => {
     canvasState.change = onChange;
@@ -21,6 +22,11 @@ vi.mock("@excalidraw/excalidraw", async () => {
       canvasState.apiReady = true;
       onChange(...[initialData.elements || [], { ...initialData.appState, theme, scrollX: 0, scrollY: 0, selectedElementIds: {} }, initialData.files || {}] as unknown as Parameters<typeof onChange>);
     }, []);
+    // The native adapter also reports its current document after host updates.
+    // A host render must not turn an identical scene into another document edit.
+    useLayoutEffect(() => {
+      if (canvasState.repeatOnRender) onChange(...structuredClone(canvasState.repeatOnRender));
+    });
     return <div data-testid="canvas" data-theme={theme} data-paper={initialData.appState?.viewBackgroundColor as string} />;
   },
   MainMenu: Object.assign(() => null, {
@@ -35,7 +41,7 @@ vi.mock("@excalidraw/excalidraw", async () => {
   // selection and drawing-tool state are deliberately outside its export.
   serializeAsJSON: (elements: Record<string, unknown>[], state: Record<string, unknown>, files: Record<string, unknown>) => JSON.stringify({ elements: elements.filter(element => !element.isDeleted), appState: Object.fromEntries(["gridSize", "gridStep", "gridModeEnabled", "viewBackgroundColor"].filter(key => key in state).map(key => [key, state[key]])), files }),
 }; });
-beforeEach(() => { resetCockpit(); canvasState.change = null; canvasState.refresh.mockReset(); canvasState.apiReady = false; });
+beforeEach(() => { resetCockpit(); canvasState.change = null; canvasState.refresh.mockReset(); canvasState.apiReady = false; canvasState.repeatOnRender = null; });
 afterEach(() => {
   updateAppearance(DEFAULT_APPEARANCE);
   vi.restoreAllMocks();
@@ -50,6 +56,32 @@ const design = (value = scene()): Design => ({ projectId: "p-1", revision: 3, br
 function change(elements: unknown[], state: Record<string, unknown> = paper, files: Record<string, unknown> = {}) {
   act(() => canvasState.change?.(...[elements, state, files] as unknown as Parameters<NonNullable<ExcalidrawProps["onChange"]>>));
 }
+
+it("keeps a dirty native canvas usable when the adapter re-emits the same scene after host renders", async () => {
+  localStorage.clear();
+  vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue("sketch-regression-scope");
+  vi.spyOn(productApi, "design").mockResolvedValue(design());
+  const edited = { ...shape, width: 180, version: 2 };
+  const savedScene = { elements: [edited], appState: paper, files: {} };
+  const save = vi.spyOn(productApi, "saveDesign").mockResolvedValue({ ...design(savedScene), revision: 4 });
+  render(<DesignEditor projectId="p-1" />);
+  await screen.findByTestId("canvas");
+  canvasState.repeatOnRender = [[edited], paper, {}] as unknown as Parameters<NonNullable<ExcalidrawProps["onChange"]>>;
+  change([edited]);
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByText("Unsaved sketch changes.")).not.toBeNull();
+  expect((screen.getByRole("button", { name: "Save design" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(Object.values(useCockpit.getState().unsavedProjectDrafts)[0].retained).toBe(true);
+  const draftKey = Object.keys(localStorage).find(key => key.startsWith("luci.project-draft.v1:"));
+  expect(draftKey).toBeDefined();
+  expect(JSON.parse(localStorage.getItem(draftKey!)!).value).toEqual(savedScene);
+  expect(save).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Save design" }));
+  expect(save).toHaveBeenCalledExactlyOnceWith("p-1", { revision: 3, frames: [], scene: savedScene });
+  await screen.findByText("Design saved.");
+  expect(screen.queryByText("Unsaved sketch changes.")).toBeNull();
+  expect(localStorage.getItem(draftKey!)).toBeNull();
+});
 
 it("refreshes the native layout after real size changes without tool or document edits, and cancels pending work on unmount", async () => {
   vi.spyOn(productApi, "design").mockResolvedValue(design());

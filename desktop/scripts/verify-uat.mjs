@@ -43,6 +43,7 @@ const page = await browser.newPage({
   viewport: { width: 1440, height: 1000 },
   deviceScaleFactor: 1,
 });
+const phaseWorkspace = page.locator(".shell-lens");
 if (verifyCsp) {
   const config = JSON.parse(
     await readFile("src-tauri/tauri.conf.json", "utf8"),
@@ -257,7 +258,7 @@ try {
     await page.getByRole("textbox", { name: label, exact: true }).fill(text);
     await page.getByRole("button", { name: index === answers.length - 1 ? "Review specification" : "Next question", exact: true }).click();
   }
-  await page.getByText("User journeys", { exact: true }).click();
+  await phaseWorkspace.getByText("User journeys", { exact: true }).click();
   await page.getByRole("button", { name: "Add user journey", exact: true }).click();
   await page.getByRole("textbox", { name: "Journey name", exact: true }).fill("Keep a garden note");
   await page.getByRole("textbox", { name: "Person or role", exact: true }).fill("Gardener");
@@ -274,7 +275,7 @@ try {
   assert.equal(approvedDefinition.briefRevision, 1);
   assert.match(approvedDefinition.digest, /^[a-f0-9]{64}$/);
   assert.deepEqual(approvedDefinition.requirements.map(item => item.id), savedDefinition.requirements.map(item => item.id));
-  await page.getByText("Definition 2 approved for design and implementation.", { exact: true }).waitFor();
+  await phaseWorkspace.getByText("Definition 2 approved for design and implementation.", { exact: true }).waitFor();
   await screenshot("02-define");
   await page.reload();
   await page.getByRole("textbox", { name: "The idea", exact: true }).waitFor();
@@ -294,29 +295,34 @@ try {
   assert.deepEqual(savedScreenPlan.screens[0].requirementIds, approvedDefinition.requirements.map(item => item.id));
   assert.equal(savedScreenPlan.specificationRevision, approvedDefinition.revision);
   await page.getByRole("tab", { name: "Sketch", exact: true }).click();
-  await page.locator(".excalidraw canvas").first().waitFor();
-  const canvas = await page.locator(".excalidraw canvas").first().boundingBox();
+  const sketchCanvas = page.locator(".excalidraw canvas").first();
+  await sketchCanvas.waitFor();
+  const initialCanvas = await sketchCanvas.boundingBox();
+  await screenshot("02b-sketch-before-interaction");
+  await sketchCanvas.scrollIntoViewIfNeeded();
+  const canvas = await sketchCanvas.boundingBox();
   assert.ok(canvas && canvas.width > 350 && canvas.height > 250);
+  const viewport = page.viewportSize();
+  const visibleCanvas = { left: Math.max(canvas.x, 0), top: Math.max(canvas.y, 0), right: Math.min(canvas.x + canvas.width, viewport.width), bottom: Math.min(canvas.y + canvas.height, viewport.height) };
+  const visibleWidth = visibleCanvas.right - visibleCanvas.left, visibleHeight = visibleCanvas.bottom - visibleCanvas.top;
+  await writeFile(path.join(evidence, "sketch-interaction-bounds.json"), JSON.stringify({ initialCanvas, canvas, viewport, visibleCanvas }, null, 2));
+  assert.ok(visibleWidth > 350 && visibleHeight > 250, "The real sketch must provide a usable visible drawing area");
   await page.mouse.click(
-    canvas.x + canvas.width / 2,
-    canvas.y + canvas.height / 2,
+    visibleCanvas.left + visibleWidth * 0.7,
+    visibleCanvas.top + visibleHeight * 0.5,
   );
   await page.keyboard.press("2");
-  await page.mouse.move(canvas.x + 240, canvas.y + 160);
+  // Stay within the visible canvas and clear of Excalidraw's tool properties.
+  // A stacked design workspace can legitimately extend below the viewport.
+  await page.mouse.move(visibleCanvas.left + visibleWidth * 0.68, visibleCanvas.top + visibleHeight * 0.42);
   await page.mouse.down();
-  await page.mouse.move(canvas.x + 440, canvas.y + 300, { steps: 8 });
+  await page.mouse.move(visibleCanvas.left + visibleWidth * 0.9, visibleCanvas.top + visibleHeight * 0.62, { steps: 8 });
   await page.mouse.up();
-  const savedDesign = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().endsWith("/design"),
-  );
-  await page.getByRole("button", { name: "Save design", exact: true }).click();
-  const designRecord = await (await savedDesign).json();
+  const designRecord = await observedPost(() => page.getByRole("button", { name: "Save design", exact: true }).click(), "/design");
   assert.ok(
     designRecord.scene.elements.some((element) => element.type === "rectangle"),
   );
-  await page.getByText(/Design 1 · Brief 1/).waitFor();
+  await phaseWorkspace.getByText(/Design 1 · Brief 1/).waitFor();
   if (verifyCsp) {
     const fontLoaded = await page.evaluate(async () => {
       const loaded = await document.fonts.load('16px "Excalifont"', "Luci");
@@ -338,7 +344,7 @@ try {
     page.getByRole("tab", { name: "Implementation handoff", exact: true }).click(),
   ]);
   assert.equal(handoffRefresh.status(), 200);
-  await page.getByText("The definition or sketch has changed. Review the screen plan and save a new handoff before approving.", { exact: true }).waitFor();
+  await phaseWorkspace.getByText("The definition or sketch has changed. Review the screen plan and save a new handoff before approving.", { exact: true }).waitFor();
   await page.getByRole("textbox", { name: "Implementation notes", exact: true }).fill("Use a journal list and labelled editor. Preserve unsaved text on failure. Keep keyboard focus visible and support 390, 768 and 1440 pixel layouts.");
   const savedHandoff = await observedPost(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), "/design-plan");
   assert.equal(savedHandoff.sketchRevision, designRecord.revision);
@@ -361,7 +367,7 @@ try {
   await page
     .getByRole("button", { name: "Save implementation plan", exact: true })
     .click();
-  await page.getByText("Plan saved as revision 1.", { exact: true }).waitFor();
+  await phaseWorkspace.getByText("Plan saved as revision 1.", { exact: true }).waitFor();
   assert.equal(
     await page.getByLabel(/^Progress for task 2/).inputValue(),
     "todo",
@@ -405,7 +411,7 @@ try {
   );
   await page.getByRole("button", { name: "Files", exact: true }).click();
   await page.getByRole("button", { name: /LUCI.md/ }).click();
-  await page.getByText(/A local garden journal/, { exact: false }).waitFor();
+  await phaseWorkspace.locator(".journey-code").filter({ hasText: "A local garden journal" }).waitFor();
   await screenshot("04-files");
   checks.push("Opened saved LUCI.md through the bounded file browser");
   const projectPath = createdProject.path;
@@ -429,7 +435,7 @@ try {
   await page
     .getByRole("button", { name: "Commit changes", exact: true })
     .click();
-  await page.getByText("Changes committed.").waitFor();
+  await phaseWorkspace.getByText("Changes committed.").waitFor();
   assert.match(
     execFileSync("git", ["-C", projectPath, "log", "-1", "--format=%s"], {
       encoding: "utf8",
@@ -518,7 +524,7 @@ try {
   await page.getByRole("button", { name: "Save runtime variable", exact: true }).click();
   const metadata = await (await savedConfiguration).json();
   assert.equal(JSON.stringify(metadata).includes(privateValue), false);
-  await page.getByText(/Runtime configuration saved/).waitFor();
+  await phaseWorkspace.getByText(/Runtime configuration saved/).waitFor();
   assert.equal(await page.getByLabel(/^Private value/).inputValue(), "");
   await page.getByRole("button", { name: "Update UAT_PRIVATE_MESSAGE", exact: true }).click();
   assert.equal(await page.getByLabel(/^Private value/).evaluate(e => e === document.activeElement), true);
@@ -526,7 +532,7 @@ try {
   await page.getByRole("button", { name: "Discard variable draft", exact: true }).click();
   await page.getByRole("button", { name: "Develop", exact: true }).click();
   await page.getByRole("button", { name: "Git", exact: true }).click();
-  await page.getByText(/Everything is committed/).waitFor();
+  await phaseWorkspace.getByText(/Everything is committed/).waitFor();
   checks.push("Saved private runtime configuration through the UI; response and fields never expose the value, Update moves keyboard focus to its empty replacement field, and Git remains clean");
   const downloadPromise = page.waitForEvent("download");
   await page
@@ -586,7 +592,7 @@ try {
   );
   await page.getByRole("button", { name: "Design", exact: true }).click();
   await page.getByRole("tab", { name: "Sketch", exact: true }).click();
-  await page.getByText(/Design 1 · Brief 1/).waitFor();
+  await phaseWorkspace.getByText(/Design 1 · Brief 1/).waitFor();
   checks.push("Reopened the persisted design linked to brief revision 1");
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
   await page.getByRole("heading", { name: "Deploy and operate", exact: true }).waitFor();
@@ -594,7 +600,7 @@ try {
   const persistentDeploy = page.getByRole("button", { name: "Start persistent deployment", exact: true });
   await persistentDeploy.waitFor();
   assert.equal(await persistentDeploy.isDisabled(), true, "Missing Docker must not be represented as deployable");
-  await page.getByText("Start Docker to deploy an application or database.", { exact: true }).waitFor();
+  await phaseWorkspace.getByText("Start Docker to deploy an application or database.", { exact: true }).waitFor();
   checks.push("Deploy opens the real application platform and reports missing Docker honestly, disabling persistent deployment instead of claiming service readiness");
   await page.getByRole("tab", { name: "Previews and publishing", exact: true }).click();
   await page

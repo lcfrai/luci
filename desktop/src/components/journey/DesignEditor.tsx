@@ -266,11 +266,15 @@ function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange, scope }: 
                 // Excalidraw normalizes the initial document before its first
                 // change callback. Hydration itself is not a user edit.
                 if (baseline.current === null) baseline.current = fingerprint;
+                const documentChanged = latestDocument.current !== fingerprint;
                 latestDocument.current = fingerprint;
                 const changed = fingerprint !== baseline.current;
                 setDirty(changed);
-                if (changed) { setSceneDraft(document); setSaved(false); }
-                else if (draft.retained && !draft.pending) draft.clear();
+                // The pinned editor emits onChange after host renders too.
+                // Publishing a fresh scene object for that same document would
+                // feed another host render back into the native editor forever.
+                if (changed && documentChanged) { setSceneDraft(document); setSaved(false); }
+                else if (!changed && draft.retained && !draft.pending) draft.clear();
               } catch (cause) {
                 setDirty(true); setSaved(false); setError(errorText(cause));
               }

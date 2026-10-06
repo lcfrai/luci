@@ -1476,3 +1476,43 @@ or browser errors. The dependency receipt is `artifacts/uat/dependency-advisorie
 CI now checks production advisories at high severity. The Unix package now includes
 the same operator documentation layout as the PowerShell packager, including the
 upgrade procedure.
+
+## Failed installed 0.5.0 candidate at 8d61059d
+
+Clean source `8d61059de466efc7a86e2d7d278ea1e847066fbf` produced Linux amd64,
+Darwin arm64 and cloud Linux archives, each with 346 retained dependency licences
+and none missing. The Linux archive SHA-256 was
+`13a6298ec83bbc911ca7cb97c8af0acfaff9e8fbb1284f0b6bc2c05dd0bb5672`;
+its binary reported the same clean VCS source.
+
+That exact Linux package passed portable persistence (6), launcher ownership and
+recovery (7), compiled control-plane isolation (7), team-worker lifecycle (17),
+two-browser collaboration (10), orchestrator flow (10), upgrade/rollback (6),
+and actual reviewed Codex/Docker check/release execution (7). The installed entry
+checks passed 9 outcomes. These scoped successes **do not pass the candidate**:
+its full personal journey exposed a real React maximum-update-depth crash when
+creating the first sketch rectangle.
+
+The actual visible canvas was usable; Excalidraw's update callback repeatedly
+published an unchanged dirty document as a fresh draft object, causing a host
+render and another callback. The correction deduplicates document publication
+while retaining unsaved recovery for identical callbacks. Native callback
+lifecycle coverage is required before the rebuilt candidate can pass.
+
+All candidate receipts remain under `artifacts/package-eval/0.5.0-8d61059d`.
+The failing browser capture is
+`artifacts/uat/package-personal-0.5.0-8d61059d-r2/evidence`.
+The original archive bytes and manifest are preserved in
+`artifacts/releases/0.5.0-8d61059d-failed`; `candidate-status.json` records that
+retention location. Later candidates must have their own hashes and outcomes.
+
+The sketch correction passed a regression that fails under the old callback
+behavior, followed by all 1,542 frontend tests in 108 files. Actual browser
+continuation with corrected production web assets passed 20 personal journey
+checks, 9 account-entry checks, 5 lifecycle/restart checks and 9 scoped accessibility
+surfaces with no violations or incomplete results. Its 25 screenshots and 10
+visual measurements are retained at
+`artifacts/uat/source-personal-sketch-fix-r2/evidence`. That continuation used the
+previous packaged service with newly built web assets; it establishes the fix,
+not a new matching package. Test selectors now target the actual phase/file
+surface when the project overview intentionally repeats shared context.

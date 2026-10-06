@@ -59,7 +59,8 @@ least 5 GiB free for one full sandbox; run expensive sandbox fixtures sequential
 
 The managed foundation passed a complete 1,503-test frontend run and 1,100 passing
 race test/subtest outcomes across seven integration packages (18 skips). The
-new project-understanding batch passed 1,538 frontend tests in 108 files. Its
+new project-understanding batch passed 1,538 frontend tests in 108 files; the
+final sketch correction passed all 1,542 tests in the same 108 files. Its
 broad Go run identified one newly registered read route absent from the
 read-only audit; the audit was updated with the actual bounded read behavior and
 passed. Final changed-package race results and installed candidate receipts are
