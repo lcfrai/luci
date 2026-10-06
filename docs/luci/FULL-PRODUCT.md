@@ -14,45 +14,46 @@ none is relabelled as acceptance of the new candidate.
 
 ## Latest continuing checkpoint
 
-The full product goal remains open. The installed `171a1dd1` inspector now
-passes actual owner and read-only teammate inspection of all four original
-captured documents while the amended definition and design remain visible.
-This reuses genuine stopped-session state through supported owner recovery;
-account/grant setup is explicitly recorded, with no response substitutions,
-agent execution or provider requests. The captured bundle, native history and
-original run stay unchanged. Evidence:
-`artifacts/quality-reviewed-context-isolation/171a1dd1-inspector-layout-1/`.
+The full product goal remains open. The clean installed `9c585ec3` package
+passes captured-context inspection, phone coding layout and subscription-recovery
+guidance. Its 941 installed files and 346 licence components are independently
+verified against the source-bound archive. The prior failures remain retained.
 
-The phone diagnosis measured only 28.97 px of terminal height with the new
-inspector action. The responsive correction lets the Develop workflow scroll
-and gives the terminal its own 240 px minimum, keeping scope, controls and the
-open project overview available. A separately labelled source-CSS witness
-measures 374 × 240 px with native focus and the same terminal DOM. Matching
-package acceptance remains required, including explicit opening of an already
-selected session and preserving newer focus during a delayed request.
+Twelve actual captured-document inspections pass, including an existing read-only
+teammate. Original agreed A remains readable while current amended B is visible.
+At 390 px, the terminal body measures 374 × 416 px with the project overview open.
+Opening the already-selected session reveals and focuses the same terminal DOM;
+delayed original responses preserve newer task focus and Define navigation.
+The genuine stopped session, captured inputs, native history and package remain
+unchanged, with no owned fixture processes left. This fixture performs no coding
+or model execution. Evidence:
+`artifacts/quality-reviewed-context-isolation/9c585ec3-final-attempt-2/`.
 
-Installed native lifecycle acceptance exposed a real resume failure after a
-successful service restart. Copying genuine retained Codex state reproduces the
-failure: Codex's temporary launcher aliases are rejected by the history copier.
-The correction excludes that provider's transient directory without following
-links, retaining the strict guards and independent copies for credentials,
-conversation history and database files. Forty-eight affected race outcomes and
-both real-home copy modes pass; a new installed lifecycle run is still required.
-Private worker failures now also have bounded fixed-code diagnostics, with no
-raw error strings, request data or public read endpoint.
+Native lifecycle acceptance remains failed. The correction for Codex's temporary
+launcher aliases fixes the previous HTTP 500: supported resume now returns 201
+and creates an independent captured bundle and real child. The resumed CLI then
+fails to reach the controlled provider within the unchanged 120-second bound.
+The initial actual CLI read and service restart pass; the complete continuation,
+corruption and amendment recovery gates remain open. Independent cleanup verifies
+zero owned resources and unchanged package/image identities. Evidence:
+`artifacts/quality-reviewed-context-lifecycle/9c585ec3-attempt-1/`.
+Bounded private worker diagnostics retain fixed failure codes, without raw errors
+or request data; see [WORKER-DIAGNOSTICS.md](WORKER-DIAGNOSTICS.md).
 
-Subscription admission now explains the actual recovery authority: owners can
-review and verify access in Service and data; members ask an owner; an operator
-suspension still requires the operator. This changes guidance only, with no
-implicit provider request or change to payment/access rules. Focused source
-checks pass; matching installed rendering is pending. The combined source passes
-2,256 Go outcomes with 22 skips, 860 affected race outcomes with four skips,
-Windows API-test/service compilation and Darwin service compilation. All 687
-Go inputs remain unchanged; these are compile checks, not native execution.
-Affected frontend checks and TypeScript pass with the interrupted DOM-matcher
-attempt and its correction retained. A matching clean package is next.
-No live model, merchant, managed-host or public-release claim follows from these
-scoped corrections.
+All three installed subscription-guidance cases pass: owners can review access in
+Service and data, members are directed to the owner, and an operator suspension
+retains its operator remedy. Actual denied requests start no commands and contact
+no payment provider. Billing observations are labelled fixtures; this does not
+establish merchant operation. Two earlier driver failures and their corrections
+are retained in `artifacts/quality-team-subscription-guidance/`.
+
+The combined source passes 2,256 Go outcomes with 22 skips, 860 affected race
+outcomes with four skips, Windows API-test/service compilation and Darwin service
+compilation. All 687 Go inputs remain unchanged. Affected frontend checks and
+TypeScript pass; no fresh full frontend run or native Windows runtime is claimed.
+GitHub rejects the current Actions jobs before execution because of account
+payment/spending-limit status. Real-model, managed-host and public-release gates
+remain separate; completed corrections do not close the full product objective.
 
 ## Earlier context-delivery and inspector checkpoint
 

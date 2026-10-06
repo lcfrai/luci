@@ -174,16 +174,24 @@ async function makePage(username) {
   if (!await details.getAttribute('open').then(value => value !== null)) await details.locator(':scope > summary').click();
   const executableField = current.getByRole('textbox', { name: 'Executable', exact: true });
   await executableField.fill('node');
-  await current.getByRole('textbox', { name: 'Arguments · JSON array', exact: true }).fill('["-e","throw new Error(\"must never execute\")"]');
+  await current.getByRole('textbox', { name: 'Arguments · JSON array', exact: true }).fill(JSON.stringify(['-e', 'throw new Error("must never execute")']));
   await current.getByRole('button', { name: 'Add check command', exact: true }).click();
+  await current.getByRole('button', { name: 'Remove node', exact: true }).waitFor();
   return current;
 }
 async function denyChecks(current, label, expected, forbidden) {
   const path = `/v1/teams/${teamA.id}/workspace/v1/product/projects/${projectA.id}/checks`;
   await current.getByRole('checkbox', { name: "I trust this project's code and these Docker commands to write project files and use the network.", exact: true }).check();
-  const responsePromise = current.waitForResponse(response => new URL(response.url()).pathname === path && response.request().method() === 'POST');
-  await current.getByRole('button', { name: 'Run project checks', exact: true }).click();
-  const response = await responsePromise, value = await response.json();
+  const runButton = current.getByRole('button', { name: 'Run project checks', exact: true });
+  const before = await runButton.evaluate(button => { const box = button.getBoundingClientRect(); return { disabled: button.disabled, rect: { x: box.x, y: box.y, width: box.width, height: box.height }, viewport: { width: innerWidth, height: innerHeight } }; });
+  writeFileSync(join(evidence, label + '-before-click.json'), JSON.stringify(before, null, 2), { mode: 0o600 });
+  writeFileSync(join(evidence, label + '-before-click-dom.txt'), scrub(await current.locator('body').innerText()), { mode: 0o600 });
+  await current.screenshot({ path: join(evidence, label + '-before-click.png'), fullPage: true });
+  const [response] = await Promise.all([
+    current.waitForResponse(response => new URL(response.url()).pathname === path && response.request().method() === 'POST'),
+    runButton.click(),
+  ]);
+  const value = await response.json();
   assert.equal(response.status(), 403); assert.equal(value.error, 'team_service_suspended');
   assert(value.message.includes(expected), label + ' did not receive expected backend guidance');
   if (forbidden) assert(!value.message.includes(forbidden), label + ' received the wrong recovery authority');
