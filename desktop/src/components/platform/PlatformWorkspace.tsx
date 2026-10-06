@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { errorText, productApi, type GitDelivery } from "../../api/product";
 import { prepareBrowserAccess } from "../../api/browserAccess";
 import { selectedTeamId } from "../../api/teamScope";
+import { notifyProjectContextChanged } from "../../api/projectContextEvents";
+import { useProjectDraftScope } from "../../hooks/useProjectDraft";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
 import {
   platformApi,
@@ -22,6 +24,10 @@ export function PlatformWorkspace({ projectId }: { projectId: string }) {
 
 function ProjectPlatform({ projectId }: { projectId: string }) {
   const projectAccess = useProjectAccess(projectId);
+  const scope = useProjectDraftScope(projectId);
+  const canDeploy = projectAccess.canEdit && projectAccess.permissions.deploy;
+  const canReadLogs = !projectAccess.loading && !projectAccess.error && projectAccess.canRead && projectAccess.permissions.deploy && projectAccess.permissions.secrets;
+  const logPermission = useRef(canReadLogs); logPermission.current = canReadLogs;
   const active = useRef(true), connectingBrowser = useRef(false), operating = useRef(false);
   const requestGeneration = useRef(0);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
@@ -116,8 +122,8 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
     }, 2500);
     return () => { current = false; window.clearInterval(timer); };
   }, [serverBusy, projectId]);
-  async function run(label: string, task: () => Promise<unknown>) {
-    if (busy || serverBusy || operating.current || !active.current) return;
+  async function run(label: string, task: () => Promise<unknown>, permitted = true) {
+    if (!permitted || busy || serverBusy || operating.current || !active.current) return;
     operating.current = true;
     ++requestGeneration.current;
     setBusy(label);
@@ -146,6 +152,8 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
       if (active.current) setBusy("");
     }
   }
+  const deploy = (label: string, task: () => Promise<unknown>) => run(label, async () => { const result = await task(); notifyProjectContextChanged(scope, projectId); return result; }, canDeploy);
+  useEffect(() => { if (!canReadLogs) setLogs(null); }, [canReadLogs]);
   const disabled = !!busy || serverBusy;
   const sourceReady = !!delivery?.head;
   const safeURL = (raw?: string) => {
@@ -213,6 +221,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
           Refresh platform
         </button>
       </div>
+      {!canDeploy && <p role="status">Deployment access is required to build, stop, restart or check deployment health. Ask a team owner for editing and deployment access.</p>}
+      {!canReadLogs && <p role="status">Application logs require deployment and secrets access. Ask a team owner for those permissions.</p>}
+      {!projectAccess.canExecute && <p role="status">Opening private application previews requires execution access.</p>}
       {error && (
         <p className="journey-error" role="alert">
           {error}
@@ -286,8 +297,8 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
               className="cloud-deploy-form"
               onSubmit={(event) => {
                 event.preventDefault();
-                if (delivery)
-                  void run("Start persistent deployment", () =>
+                if (delivery && canDeploy)
+                  void deploy("Start persistent deployment", () =>
                     platformApi.deploy(
                       projectId,
                       delivery.head,
@@ -338,7 +349,7 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
               )}
               <button
                 className="luci-button luci-primary"
-                disabled={disabled || !status.dockerReady || !sourceReady}
+                disabled={disabled || !canDeploy || !status.dockerReady || !sourceReady}
               >
                 Start persistent deployment
               </button>
@@ -410,11 +421,11 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                       disabled ||
                       !project?.panaceaProject ||
                       !sourceReady ||
-                      !status.permissions.deployPanacea
+                      !status.permissions.deployPanacea || !canDeploy
                     }
                     onClick={() => {
                       if (delivery)
-                        void run("Request Panacea deployment", () =>
+                        void deploy("Request Panacea deployment", () =>
                           platformApi.deployPanacea(
                             projectId,
                             delivery.head,
@@ -522,9 +533,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                   <div className="journey-actions">
                     <button
                       className="luci-button"
-                      disabled={disabled}
+                      disabled={disabled || !canDeploy}
                       onClick={() =>
-                        void run("Verify deployment health", () =>
+                        void deploy("Verify deployment health", () =>
                           refreshDeployment(deployment),
                         )
                       }
@@ -535,9 +546,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                       <>
                         <button
                           className="luci-button"
-                          disabled={disabled || deployment.status === "stopped"}
+                          disabled={disabled || !canDeploy || deployment.status === "stopped"}
                           onClick={() =>
-                            void run("Stop deployment", () =>
+                            void deploy("Stop deployment", () =>
                               platformApi.action(
                                 projectId,
                                 deployment.id,
@@ -550,9 +561,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                         </button>
                         <button
                           className="luci-button"
-                          disabled={disabled}
+                          disabled={disabled || !canDeploy}
                           onClick={() =>
-                            void run("Restart deployment", () =>
+                            void deploy("Restart deployment", () =>
                               platformApi.action(
                                 projectId,
                                 deployment.id,
@@ -565,17 +576,12 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                         </button>
                         <button
                           className="luci-button"
-                          disabled={disabled}
+                          disabled={disabled || !canReadLogs}
                           onClick={() =>
                             void run("Read application logs", async () => {
-                              setLogs({
-                                id: deployment.id,
-                                ...(await platformApi.logs(
-                                  projectId,
-                                  deployment.id,
-                                )),
-                              });
-                            })
+                              const result = await platformApi.logs(projectId, deployment.id);
+                              if (active.current && logPermission.current) setLogs({ id: deployment.id, ...result });
+                            }, canReadLogs)
                           }
                         >
                           Read application logs

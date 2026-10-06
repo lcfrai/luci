@@ -10,6 +10,17 @@ This branch starts from `690adbb1836269767b8f096274d2d57dbc340b38`, PR #5 and it
 continuation. The earlier production handoff at `51a1d8fc` describes the historical
 coordinator-only checkpoint; its package results are not current release evidence.
 
+## Active quality goal
+
+The owner explicitly rejects a clean launch or test-count milestone as completion.
+[PRODUCT-QUALITY.md](PRODUCT-QUALITY.md) now defines the required whole-product
+journeys and interaction, comprehension, recovery, responsiveness and accessibility
+standard. **The goal remains open.** Real-model implementation, a representative
+authenticated/data-backed application, meaningful prototype review and day-two
+amendment/redeployment/recovery still need complete UI acceptance. Existing local
+fixtures establish only their stated mechanisms. Independent product work
+continues while external commissioning and Windows CI access remain blocked.
+
 ## Current product behavior
 
 The primary project overview explains the current stage, agreed purpose and
@@ -57,6 +68,35 @@ text are drafts requiring the service operator's decisions. Read
 [STRIPE-BILLING.md](STRIPE-BILLING.md),
 [TEAM-SERVICE-OPERATIONS.md](TEAM-SERVICE-OPERATIONS.md) and
 [MANAGED-DATA-LIFECYCLE.md](MANAGED-DATA-LIFECYCLE.md).
+
+## Latest continuity corrections
+
+Guided outcomes now retain their IDs, titles and independent acceptance text.
+Successful definition, design and task-plan saves/approvals immediately refresh
+shared understanding. Changing the plan offers direct outcome/experience editing
+without requiring a provider. Fresh projects choose their real build location at
+run preparation, with guarded draft-preserving navigation.
+
+Verification carries the exact selected run into visible saved criteria and an
+explicit passing-evidence attachment. Deployment retains that run/check/source;
+the service refuses a changed expected commit before allocating a preview.
+Permission guidance matches the actual deployment, execution and secret grants.
+Opening a coding session gives its exact active terminal usable space while
+retaining mounted planning drafts; cancelled navigation and late replies cannot
+steal another selection's focus. Accepted builds no longer repeat the invitation
+to accept; current evidence warnings remain distinct from historical acceptance.
+
+The final local browser journey now completes real CLI execution, a meaningful
+behavioral failure, repair with an unchanged test, checked preview behavior and
+explicit original-run acceptance through the UI. The provider remains a
+prewritten deterministic fixture. The full 1,625-test frontend suite passed; the
+subsequent bounded tab-measurement correction passed all six focused tests, type
+checking, production build and vendored-source/license verification. The final
+accepted-guidance correction passed all 23 focused run tests and another matching
+build. Current
+service/web hashes, Go/race results, browser receipts, performance outliers and
+scope limits are in [FULL-PRODUCT.md](FULL-PRODUCT.md). No current native package,
+real-model or public/paid-service acceptance follows from these source results.
 
 ## Verification and evidence
 

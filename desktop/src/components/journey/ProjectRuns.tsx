@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
 import { errorText, productApi, type CheckRun, type Release } from '../../api/product';
 import { platformApi } from '../../api/platform';
+import { notifyProjectContextChanged } from '../../api/projectContextEvents';
 import { projectRunsApi, runSessionRequest, type CreateProjectRun, type ProjectRun, type RunOperation } from '../../api/projectRuns';
 import type { CreateSessionRequest } from '../../api/client';
 import type { ImplementationContextRequest } from '../../store/types';
@@ -16,6 +17,7 @@ import { SessionPicker } from '../topbar/SessionPicker';
 import './project-runs.css';
 
 export interface ProjectRunDraft { implementationContext: ImplementationContextRequest; worktreeId: string }
+type OpenCodingSessionTarget = { scope: string; projectId: string; sessionId: string };
 type Dialog = 'join-check' | 'join-release' | 'accept' | 'cancel';
 type ReleaseChoice = Pick<Release, 'id' | 'projectId' | 'commit' | 'status' | 'target'>;
 const releaseKey = (release: ReleaseChoice) => JSON.stringify([release.target, release.id]);
@@ -26,22 +28,23 @@ const labels: Record<string, string> = {
 const when = (value: string) => new Date(value).toLocaleString();
 const scope = (values: unknown[]) => JSON.stringify(values);
 
-export function ProjectRuns(props: { projectId: string; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void }) {
+export function ProjectRuns(props: { projectId: string; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void; onOpenCodingSession?(target: OpenCodingSessionTarget): void }) {
   const auth = useAuth(), setup = useSetup();
   const navigationScope = useProjectDraftScope(props.projectId);
-  const identity = scope([productApi.baseUrl, auth?.profile.user.id, setup?.workspace, setup?.status?.access?.user, props.projectId]);
+  const identity = scope([productApi.baseUrl, auth?.profile.user.id, setup?.workspace, setup?.status?.access?.user, props.projectId, navigationScope]);
   const prepared = useRef({ draft: props.draft, identity });
   if (prepared.current.draft !== props.draft) prepared.current = { draft: props.draft, identity };
   // Discard transient requests, errors, selection and confirmations on account/workspace changes.
   return <RunWorkspace key={identity} {...props} navigationScope={navigationScope} draft={prepared.current.identity === identity ? props.draft : undefined} />;
 }
 
-function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, navigationScope }: {
-  projectId: string; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void; navigationScope: string | null;
+function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodingSession, navigationScope }: {
+  projectId: string; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void; onOpenCodingSession?(target: OpenCodingSessionTarget): void; navigationScope: string | null;
 }) {
   const access = useProjectAccess(projectId);
   const { canRead, canEdit, canExecute } = access;
   const mayDispatch = useRef(canExecute); mayDispatch.current = canExecute;
+  const mayRead = useRef(canRead); mayRead.current = canRead;
   const [runs, setRuns] = useState<ProjectRun[]>([]), [selected, setSelected] = useState('');
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState('');
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
@@ -56,6 +59,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, navigation
   const run = selected ? runs.find(item => item.id === selected) : runs[0];
   const inspection = useCockpit(state => state.projectRunInspection);
   const region = useRef<HTMLElement>(null);
+  const inspecting = useRef<typeof inspection>(null);
   const setLens = useCockpit(state => state.setLens);
   const allowed = (action: string) => canEdit && (!['start-coding', 'continue-coding'].includes(action) || canExecute) && !!run?.allowedActions?.includes(action) && !(dispatchUncertain && (action === 'start-coding' || action === 'continue-coding'));
   const remember = (value: ProjectRun) => {
@@ -82,23 +86,43 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, navigation
   }, [projectId, canRead || runs.length > 0]);
   useEffect(() => { if (draft) { setOutcome('preview'); creation.current = null; } }, [draft]);
   useEffect(() => {
-    if (!inspection || loading || busy || !canRead) return;
-    // A queued request can cross a lens mount, but never an identity/workspace change.
-    if (navigationScope && inspection.scope === navigationScope && inspection.projectId === projectId) {
-      setSelected(inspection.runId); setDialog(null); setNotice('');
-      setError(runs.some(item => item.id === inspection.runId) ? '' : 'The requested run is unavailable in this project. Refresh history or choose another recorded run.');
+    if (!inspection || loading || busy || !canRead || inspecting.current === inspection) return;
+    if (!navigationScope || inspection.scope !== navigationScope || inspection.projectId !== projectId) {
+      useCockpit.setState(state => state.projectRunInspection === inspection ? { projectRunInspection: null } : {});
+      return;
+    }
+    inspecting.current = inspection;
+    setSelected(inspection.runId); setDialog(null); setNotice('');
+    const finish = () => {
+      if (!alive.current || useCockpit.getState().projectRunInspection !== inspection) return;
+      useCockpit.setState({ projectRunInspection: null });
       requestAnimationFrame(() => {
         if (!alive.current) return;
         region.current?.scrollIntoView?.({ block: 'nearest' }); region.current?.focus();
       });
+    };
+    if (inspection.refresh) {
+      const mine = ++request.current;
+      setLoading(true);
+      void projectRunsApi.get(projectId, inspection.runId).then(value => {
+        if (!alive.current || mine !== request.current || useCockpit.getState().projectRunInspection !== inspection) return;
+        if (value.id !== inspection.runId) throw new Error('The requested run is unavailable in this project.');
+        remember(value); setError('');
+      }).catch(cause => {
+        if (alive.current && mine === request.current) setError(errorText(cause));
+      }).finally(() => {
+        if (alive.current && mine === request.current) { setLoading(false); finish(); }
+      });
+    } else {
+      setError(runs.some(item => item.id === inspection.runId) ? '' : 'The requested run is unavailable in this project. Refresh history or choose another recorded run.');
+      finish();
     }
-    useCockpit.setState(state => state.projectRunInspection === inspection ? { projectRunInspection: null } : {});
   }, [inspection, loading, busy, canRead, navigationScope, projectId, runs]);
 
-  async function operate(label: string, action: () => Promise<void>) {
+  async function operate(label: string, action: () => Promise<void>, changed = true) {
     if (working.current) return;
     working.current = true; request.current++; setLoading(false); setBusy(label); setError(''); setNotice('');
-    try { await action(); }
+    try { await action(); if (changed && alive.current) notifyProjectContextChanged(navigationScope, projectId); }
     catch (cause) {
       if (alive.current) setError(`${errorText(cause)} Refresh history and reconcile the recorded run before retrying an uncertain operation.`);
     } finally { working.current = false; if (alive.current) setBusy(''); }
@@ -119,7 +143,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, navigation
     try {
       const value = await projectRunsApi.create(projectId, { ...input, idempotencyKey: creation.current.key });
       if (!alive.current) return { ok: false as const, message: 'The workspace changed. Open its run history to inspect the saved result.' };
-      request.current++; setLoading(false); remember(value);
+      request.current++; setLoading(false); remember(value); notifyProjectContextChanged(navigationScope, projectId);
       setNotice('Reviewed run saved. Start coding when ready; no session or deployment has started.');
       return { ok: true as const };
     } catch (cause) { return { ok: false as const, message: errorText(cause) }; }
@@ -155,13 +179,23 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, navigation
     if (!canRead) return;
     const child = run?.observation?.childId || run?.operations[run.operations.length - 1]?.childId;
     if (!child || !run) return;
+    const before = useCockpit.getState();
+    if (before.pendingNavigation) return;
     const session = await api.getSession(child);
-    if (!alive.current) return;
-    if (session.projectId !== projectId || session.projectRunId !== run.id || !run.operations.some(item => item.id === session.projectRunOperationId && item.childId === session.id)) throw new Error('This coding session does not belong to the selected run.');
+    if (!alive.current || !mayRead.current) return;
+    const currentNavigation = useCockpit.getState();
+    if (currentNavigation.selection !== before.selection || currentNavigation.lens !== before.lens || currentNavigation.pendingNavigation) return;
+    if (session.id !== child || session.worktreeId !== run.worktreeId || session.projectId !== projectId || session.projectRunId !== run.id || !run.operations.some(item => item.id === session.projectRunOperationId && item.childId === session.id)) throw new Error('This coding session does not belong to the selected run.');
     const state = useCockpit.getState();
     state.upsertSession(session); state.selectBranch(projectId, session.branchId);
     const current = useCockpit.getState();
-    if (current.selection.projectId === projectId && current.selection.branchId === session.branchId) { current.selectWorktree(session.worktreeId); current.focusSession(session.id); }
+    if (!current.pendingNavigation && current.lens === 'develop' && current.selection.projectId === projectId && current.selection.branchId === session.branchId) {
+      current.selectWorktree(session.worktreeId); current.focusSession(session.id);
+      const focused = useCockpit.getState();
+      if (navigationScope && !focused.pendingNavigation && focused.lens === 'develop' && focused.selection.projectId === projectId && focused.selection.branchId === session.branchId && focused.selection.worktreeId === session.worktreeId && focused.selection.sessionId === session.id) {
+        onOpenCodingSession?.({ scope: navigationScope, projectId, sessionId: session.id });
+      }
+    }
   }
   async function chooseEvidence(kind: 'join-check' | 'join-release') {
     if (!allowed(kind)) return;
@@ -203,21 +237,33 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, navigation
     }
     if (alive.current) { remember(value); setDialog(null); }
   }
-  const primary = allowed('accept') && run?.observation?.valid ? 'accept'
+  const primary = !run?.acceptance && allowed('accept') && run?.observation?.valid ? 'accept'
     : allowed('continue-coding') ? 'continue-coding'
       : run?.state === 'ready' && allowed('start-coding') ? 'start-coding'
-      : run?.state === 'awaiting-checks' && allowed('join-check') ? 'join-check'
-        : run?.state === 'awaiting-release' && allowed('join-release') ? 'join-release'
+      : run?.state === 'awaiting-checks' && allowed('join-check') ? 'verify'
+        : run?.state === 'awaiting-release' && allowed('join-release') ? (run.checks.length && !run.releases.length ? 'deploy' : 'join-release')
           : allowed('reconcile') ? 'reconcile' : '';
   function action(kind: string) {
-    if (!run || !allowed(kind)) return;
+    if (!run) return;
+    if (kind === 'verify') {
+      if (navigationScope && allowed('join-check')) useCockpit.setState({ projectRunVerification: { scope: navigationScope, projectId, runId: run.id } });
+      return;
+    }
+    if (kind === 'deploy') {
+      const check = run.checks[run.checks.length - 1];
+      if (!navigationScope || !check || !allowed('join-release')) return;
+      useCockpit.setState({ projectRunDeployment: { scope: navigationScope, projectId, runId: run.id, checkId: check.checkId, commit: check.commit, sourceDigest: check.sourceDigest, outcome: run.input.outcome } });
+      setLens('deploy');
+      return;
+    }
+    if (!allowed(kind)) return;
     if (kind === 'start-coding') void operate('Starting coding', startCoding);
     else if (kind === 'continue-coding') void operate('Continuing reserved coding', continueCoding);
     else if (kind === 'reconcile') void operate('Reconciling run', async () => { remember(await projectRunsApi.reconcile(projectId, run.id, run.revision)); if (alive.current) setDispatchUncertain(false); });
-    else if (kind === 'join-check' || kind === 'join-release') void operate('Reading available evidence', () => chooseEvidence(kind));
+    else if (kind === 'join-check' || kind === 'join-release') void operate('Reading available evidence', () => chooseEvidence(kind), false);
     else if (kind === 'accept' || kind === 'cancel') { setAccepted(false); setDialog(kind); }
   }
-  const actionLabel: Record<string, string> = { 'start-coding': 'Start coding', 'continue-coding': 'Continue reserved coding', 'join-check': 'Select check evidence', 'join-release': 'Select release evidence', reconcile: 'Reconcile run', accept: 'Review and accept outcome', cancel: 'Cancel run' };
+  const actionLabel: Record<string, string> = { verify: 'Verify this build', deploy: run?.input.outcome === 'publish' ? 'Prepare deployment' : 'Preview this build', 'start-coding': 'Start coding', 'continue-coding': 'Continue reserved coding', 'join-check': 'Select check evidence', 'join-release': 'Select release evidence', reconcile: 'Reconcile run', accept: 'Review and accept outcome', cancel: 'Cancel run' };
   if (!canRead) return <section className="project-runs" aria-label="Project runs"><p role="status">{access.message}</p></section>;
   return <section ref={region} tabIndex={-1} className="project-runs" aria-label="Project runs" aria-busy={!!busy || loading}>
     <div className="project-runs-heading"><h2>Project run</h2><Button variant="tertiary" disabled={!!busy || loading} onClick={() => void load()}>{loading ? 'Reading history…' : 'Refresh history'}</Button></div>
@@ -227,16 +273,17 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, navigation
     {!run ? <><p className="journey-muted">Keep reviewed tasks, coding, checks and a verified release together. Creating a run saves its inputs; each next operation remains your choice.</p><Button variant="secondary" onClick={onReviewPlan}>Review implementation plan</Button></> : <>
       <div className="project-run-next"><strong>{labels[run.state] || run.state}</strong><span>{run.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span><p>{run.reason}</p>
         {run.acceptance && <p>Accepted {when(run.acceptance.acceptedAt)}. This historical acceptance is retained separately from current validity.</p>}
-        {run.observation ? <p className={run.observation.valid ? 'journey-muted' : 'journey-warning'}>{run.observation.valid ? 'Last observation valid' : 'Current evidence needs attention'} · {when(run.observation.observedAt)}. {run.observation.reason}</p> : <p className="journey-muted">No observation recorded yet. Refreshing history does not run or reconcile operations.</p>}
+        {run.observation ? <p className={run.observation.valid ? 'journey-muted' : 'journey-warning'}>{run.observation.valid ? 'Last observation valid' : 'Current evidence needs attention'} · {when(run.observation.observedAt)}.{(!run.acceptance || !run.observation.valid) && <> {run.observation.reason}</>}</p> : <p className="journey-muted">No observation recorded yet. Refreshing history does not run or reconcile operations.</p>}
         <div className="journey-actions">
-          {primary && <Button disabled={!!busy || loading} onClick={() => action(primary)}>{busy || actionLabel[primary]}</Button>}
-          {!!run.operations.length && <Button variant="secondary" disabled={!canRead || !!busy} onClick={() => void operate('Opening coding session', openSession)}>Open coding session</Button>}
+          {primary && <Button disabled={!!busy || loading || (['verify', 'deploy'].includes(primary) && !navigationScope)} onClick={() => action(primary)}>{busy || actionLabel[primary]}</Button>}
+          {!!run.operations.length && <Button variant="secondary" disabled={!canRead || !!busy} onClick={() => void operate('Opening coding session', openSession, false)}>Open coding session</Button>}
           {allowed('reconcile') && primary !== 'reconcile' && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('reconcile')}>Reconcile run</Button>}
-          {allowed('join-check') && primary !== 'join-check' && <Button variant="tertiary" disabled={!!busy || loading} onClick={() => action('join-check')}>Select check evidence</Button>}
+          {run.state === 'awaiting-checks' && allowed('start-coding') && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('start-coding')}>Start another coding attempt</Button>}
+          {allowed('join-release') && primary !== 'join-release' && <Button variant="tertiary" disabled={!!busy || loading} onClick={() => action('join-release')}>Select release evidence</Button>}
+          {allowed('join-check') && <Button variant="tertiary" disabled={!!busy || loading} onClick={() => action('join-check')}>Select check evidence</Button>}
         </div>
-        {run.state === 'awaiting-checks' && <p className="journey-muted">Run reviewed commands in the checks panel below, then select their evidence here. A CLI exit or task marked Done does not complete this run.</p>}
+        {run.state === 'awaiting-checks' && <p className="journey-muted">Verify this build to review its saved criteria, run checks, and use matching results. If a check fails, inspect its output and start another coding attempt to repair the implementation. A CLI exit or task marked Done does not complete this run.</p>}
         {allowed('continue-coding') && <p className="journey-muted">A coding operation was reserved before dispatch. Continue uses that same child identity; it does not reserve another attempt. Reconcile first if its result is uncertain.</p>}
-        {run.state === 'awaiting-release' && <Button variant="tertiary" disabled={!!busy} onClick={() => setLens('deploy')}>Open deployment controls</Button>}
         {run.state === 'cancelled' && <p className="journey-muted">Future dispatch is cancelled. Running children retain their separate stop controls.</p>}
       </div>
       <details className="project-run-receipts"><summary>Reviewed inputs and evidence</summary>
@@ -246,7 +293,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, navigation
         {run.input.requirements.map(item => <p key={item.id}><strong>{item.id} · {item.title}</strong><br />{item.acceptance}</p>)}
         <h3>Coding attempts</h3>{!run.operations.length && <p>No coding operation reserved.</p>}
         <ul>{run.operations.map(item => <li key={item.id}>Attempt {item.attempt} · {item.status} · {item.childId}<p>{item.message}</p></li>)}</ul>
-        {allowed('start-coding') && primary !== 'start-coding' && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('start-coding')}>Start another coding attempt</Button>}
+        {allowed('start-coding') && primary !== 'start-coding' && run.state !== 'awaiting-checks' && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('start-coding')}>Start another coding attempt</Button>}
         <h3>Check evidence</h3>{!run.checks.length && <p>No accepted check evidence.</p>}
         {run.checks.map(item => <div key={item.checkId}><p>{item.checkId} · {item.commit.slice(0, 12)} · {item.execution}</p>{!item.originalAvailable && <p className="journey-muted">Original check history is unavailable; the saved evidence snapshot is retained.</p>}<ul>{item.commands.map((command, index) => <li key={index}>{command.label} · {command.status} · exit {command.exitCode}</li>)}</ul></div>)}
         <h3>Release evidence</h3>{!run.releases.length && <p>No accepted release evidence.</p>}

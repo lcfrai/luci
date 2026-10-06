@@ -14,11 +14,17 @@ Luci takes a person from an idea to a running application in one app. Distributi
 - Model access belongs to the user: existing harness sign-in, provider API or local model. Explain availability and cost in Luci. There is no mandatory enterprise gateway.
 - One project identity carries a versioned brief, design, agent sessions, Git evidence and verified releases. Adopted parts use Luci navigation, tokens, copy and error states.
 - User-facing setup discovers missing dependencies, explains fixes, previews real resources/cost, guides provider authentication and DNS, checks health and exposes stop/cleanup. It never labels a generated template a successful deployment.
-- Use MIT for Luci's own code, as selected by the owner. Preserve dependencies' licences and original source attribution. The owner now explicitly requires the private Panacea backend's capabilities. Inspect the newer source and integrate through real authenticated APIs; its internal-use source notice is separate from Luci's MIT public export. Do not inherit a corporate cloud estate or identity default.
+- Use MIT for Luci's own code, as selected by the owner. Preserve dependencies' licences and original source attribution. Deliver application-platform capabilities through Luci's own implementation and appropriately licensed integrations. The current open-source direction and AGENTS.md supersede the earlier private Panacea integration instruction; do not import restricted proprietary source or inherit a corporate cloud estate or identity default.
 
 ## Build sequence
 
 The installed-app inspection on 3 October supersedes the former narrow completion bar. [FULL-PRODUCT.md](FULL-PRODUCT.md) defines the active implementation and complete acceptance requirements: proper onboarding, automatic preparation, Projects home, appearance, rich Define, meaningful Design, operational Develop and an application/data deployment platform. The application is not yet a full UAT handback.
+
+The owner's latest polish requirement is an explicit completion gate in
+[PRODUCT-QUALITY.md](PRODUCT-QUALITY.md) and [GOAL.md](GOAL.md): a coherent,
+dependable idea-to-production experience at the quality expected of leading
+AI-era applications. Continue implementing and validating complete user journeys;
+launch success and passing technical tests do not establish that outcome.
 
 1. Rebrand active source, runtime variables, UI, packages, metadata and instructions. Keep historical planning clearly historical.
 2. Implement setup readiness, durable local configuration and a real new-project flow. Make the desktop start its service.

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { orchestratorApi, type OrchestratorJob, type OrchestratorTurn, type OrchestratorView } from "../../api/orchestrator";
 import { errorText } from "../../api/product";
 import { ApiError } from "../../api/client";
+import { PROJECT_CONTEXT_CHANGED, requestProjectContextEdit, type ContextEditor, type ProjectContextIdentity } from "../../api/projectContextEvents";
 import { useProjectDraftScope } from "../../hooks/useProjectDraft";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { agentConnectionIssue, configuredAgentModel, selectedAgentConnection, useAgentConnections } from "../../hooks/useAgentConnections";
@@ -37,6 +38,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const [message, setMessage] = useState(""), [replyTo, setReplyTo] = useState("");
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false), [busy, setBusy] = useState("");
+  const [contextRefreshQueued, setContextRefreshQueued] = useState(false);
   const [uncertain, setUncertain] = useState(false), [pendingJob, setPendingJob] = useState<OrchestratorJob | null>(null);
   const [missingJobId, setMissingJobId] = useState("");
   const [review, setReview] = useState<{ turn: OrchestratorTurn; revision: number; digest: string } | null>(null);
@@ -57,6 +59,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const composer = useRef<HTMLTextAreaElement>(null), conversationEnd = useRef<HTMLDivElement>(null);
   const sendKey = useRef<{ signature: string; key: string } | null>(null);
   const contentId = useId();
+  const cancelEditRequest = useRef<(() => void) | null>(null);
   latest.current = view;
 
   const remember = useCallback((value: OrchestratorView) => {
@@ -78,12 +81,27 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
 
   useEffect(() => {
     alive.current = true;
-    return () => { alive.current = false; generation.current++; };
+    return () => { alive.current = false; generation.current++; cancelEditRequest.current?.(); };
   }, []);
   useEffect(() => {
     if (!canRead) { generation.current++; working.current = false; latest.current = null; setBusy(""); setLoading(false); setView(null); setEarlier([]); setPendingJob(null); setMissingJobId(""); setReview(null); return; }
     void refresh();
   }, [canRead, sourceRevision, lens, refresh]);
+  useEffect(() => {
+    const changed = (event: Event) => {
+      const detail = (event as CustomEvent<ProjectContextIdentity>).detail;
+      if (detail?.scope === scope && detail.projectId === projectId && permission.current.canRead) setContextRefreshQueued(true);
+    };
+    window.addEventListener(PROJECT_CONTEXT_CHANGED, changed);
+    return () => window.removeEventListener(PROJECT_CONTEXT_CHANGED, changed);
+  }, [scope, projectId]);
+  useEffect(() => {
+    // Never invalidate an in-flight mutation's ownership. Once it completes,
+    // refresh with the normal generation fence so old reads cannot win.
+    if (!contextRefreshQueued || busy || working.current) return;
+    setContextRefreshQueued(false);
+    void refresh(true);
+  }, [contextRefreshQueued, busy, refresh]);
   useEffect(() => {
     if (!catalogue || agent.agentConnectionId !== undefined) return;
     // Resolve "active" once. A later catalogue refresh must not silently reroute a conversation.
@@ -144,7 +162,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   }, [refreshEditor, drafts, projectId]);
 
   async function send() {
-    if (!canAssist || !view || !message.trim() || drafts || routeIssue || busy || working.current || activeTurn || activeJobId || uncertain) return;
+    if (!canAssist || !view || !message.trim() || drafts || routeIssue || busy || loading || contextRefreshQueued || working.current || activeTurn || activeJobId || uncertain) return;
     const text = message.trim();
     const input = { expectedRevision: view.revision, expectedContextDigest: view.context.digest, message: text,
       ...(replyTo ? { replyToTurnId: replyTo } : {}), harness: agent.harness, ...(model.trim() ? { model: model.trim() } : {}), agentConnectionId: agent.agentConnectionId };
@@ -217,6 +235,12 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     requestAnimationFrame(() => { if (alive.current) composer.current?.focus(); });
   };
   const ask = (text?: string) => { setReplyTo(""); openComposer(text); };
+  const edit = (editor: ContextEditor) => {
+    if (!permission.current.canEdit) return;
+    cancelEditRequest.current?.();
+    cancelEditRequest.current = requestProjectContextEdit(scope, projectId, editor);
+    setLens(editor === "definition" ? "discover" : "design");
+  };
   const reply = (turnId: string, text = "") => { setReplyTo(turnId); if (text) setMessage(text); openComposer(); };
   const inspect = (runId: string) => {
     if (!permission.current.canRead) return;
@@ -236,7 +260,8 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         {loading && !view && <p role="status">Loading project understanding…</p>}
         {error && <p className="orchestrator-error" role="alert">{error}</p>}
         {notice && <p role="status">{notice}</p>}
-        {view && <ProjectUnderstanding view={view} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} />}
+        {(loading || contextRefreshQueued) && view && <p role="status">Updating saved project understanding…</p>}
+        {view && <ProjectUnderstanding view={view} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} onEdit={edit} canEdit={canEdit} />}
         <details className="orchestrator-discussion" open={conversationOpen} onToggle={event => setConversationOpen(event.currentTarget.open)}><summary>Discuss or request a change</summary>
         <div hidden={!conversationOpen}>
         {view && <>
@@ -280,7 +305,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
           {refreshEditor && drafts && <p role="status">The amendment is saved. Your newer unsaved edits remain in the editor; save or discard them to refresh its context.</p>}
           {replyTo && <div className="orchestrator-actions"><span>{replyQuestion ? `Replying to: ${replyQuestion}` : "Replying to a project decision"}</span><Button type="button" variant="ghost" size="compact" onClick={() => setReplyTo("")}>Clear reply</Button></div>}
           <label className="luci-field">Message Luci<textarea ref={composer} rows={3} value={message} maxLength={16000} disabled={!canAssist || busy === "send"} onChange={event => setMessage(event.target.value)} placeholder="What should we build, clarify or change?" /></label>
-          <div className="orchestrator-actions"><Button type="submit" disabled={!canAssist || !view || !message.trim() || !!drafts || !!routeIssue || !!busy || !!activeTurn || !!activeJobId || uncertain}>{busy === "send" ? "Sending…" : "Send to Luci"}</Button>{activeJobId && !completedUnrecorded && !missingReservedJob && <Button type="button" variant="secondary" disabled={!canExecute || !!busy} onClick={() => void cancel()}>Cancel Luci request</Button>}</div>
+          <div className="orchestrator-actions"><Button type="submit" disabled={!canAssist || !view || !message.trim() || !!drafts || !!routeIssue || !!busy || loading || contextRefreshQueued || !!activeTurn || !!activeJobId || uncertain}>{busy === "send" ? "Sending…" : "Send to Luci"}</Button>{activeJobId && !completedUnrecorded && !missingReservedJob && <Button type="button" variant="secondary" disabled={!canExecute || !!busy} onClick={() => void cancel()}>Cancel Luci request</Button>}</div>
           <p className="orchestrator-muted">Messages can propose changes. You review amendments and start coding, checks or deployment explicitly.</p>
         </form>
         </div>

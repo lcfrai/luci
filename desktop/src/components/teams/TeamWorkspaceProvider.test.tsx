@@ -84,8 +84,10 @@ it('opens the managed team regardless of a personal preference and refuses works
 
 it('blocks an account outside the managed team without offering personal fallback', async () => {
   vi.mocked(teamsApi.list).mockResolvedValue({ teams: [], managedTeamId: teamA });
+  vi.mocked(teamsApi.projectAccess).mockRejectedValueOnce(new ApiError('forbidden_origin', 'Team membership required', 403));
   renderWorkspace();
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('Ask a team owner for access'));
+  await waitFor(() => expect(permissions()).toEqual({ permissions: noPermissions, loading: false, error: 'Team membership required' }));
   expect(selectedTeamId()).toBe(teamA);
   expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
   expect(screen.queryByRole('combobox', { name: 'Workspace' })).toBeNull();

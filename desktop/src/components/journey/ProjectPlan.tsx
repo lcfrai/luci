@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { api } from "../../api";
 import { useShallow } from "zustand/react/shallow";
 import {
   productApi,
@@ -19,6 +20,7 @@ import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { SessionPicker } from "../topbar/SessionPicker";
 import { Button } from "../fluid/components/button";
 import { notifyRequirementEvidenceChanged, watchRequirementEvidence } from "./RequirementsEvidence";
+import { notifyProjectContextChanged } from "../../api/projectContextEvents";
 import type { ProjectRunDraft } from "./ProjectRuns";
 
 export function implementationPrompt(
@@ -81,12 +83,37 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
   const selectedProjectId = useCockpit((state) => state.selection.projectId);
   const sessions = useCockpit(useShallow(selectImplementationSessions(projectId)));
   const setLens = useCockpit(state => state.setLens);
-  const worktreeId = useCockpit(
-    (state) =>
-      state.selection.worktreeId ??
-      (branchId ? (state.worktreesByBranch[branchId]?.[0]?.id ?? null) : null),
-  );
+  const worktreeId = useCockpit(state => state.selection.worktreeId);
   const worktree = useCockpit(selectWorktreeById(worktreeId ?? ""));
+  const branchesByProject = useCockpit(state => state.branchesByProject);
+  const worktreesByBranch = useCockpit(state => state.worktreesByBranch);
+  const locations = useMemo(() => (branchesByProject[projectId] ?? []).filter(branch => branch.projectId === projectId).flatMap(branch =>
+    (worktreesByBranch[branch.id] ?? []).filter(checkout => checkout.projectId === projectId && checkout.branchId === branch.id).map(checkout => ({ branch, checkout }))), [branchesByProject, worktreesByBranch, projectId]);
+  const [locationError, setLocationError] = useState("");
+  const [readingLocations, setReadingLocations] = useState(false);
+  const [locationRetry, setLocationRetry] = useState(0);
+  const missingHeadBranches = (branchesByProject[projectId] ?? []).filter(branch => branch.projectId === projectId && branch.isHead && worktreesByBranch[branch.id] === undefined).map(branch => branch.id);
+  const locationReadKey = JSON.stringify(missingHeadBranches);
+  useEffect(() => {
+    if (!canRead || !missingHeadBranches.length) { setReadingLocations(false); if (!missingHeadBranches.length) setLocationError(""); return; }
+    let current = true;
+    setReadingLocations(true); setLocationError("");
+    void Promise.all(missingHeadBranches.map(async id => ({ branchId: id, worktrees: await api.listWorktrees(projectId, id) }))).then(results => {
+      if (!current) return;
+      if (results.some(result => result.worktrees.some(checkout => checkout.projectId !== projectId || checkout.branchId !== result.branchId))) throw new Error("The checkout list did not match this project. Refresh build locations.");
+      for (const result of results) useCockpit.getState().setWorktrees(result.branchId, result.worktrees);
+    }).catch(cause => { if (current) setLocationError(errorText(cause)); }).finally(() => { if (current) setReadingLocations(false); });
+    return () => { current = false; };
+  }, [projectId, scope, canRead, locationReadKey, locationRetry]);
+  const selectedLocation = locations.find(item => selectedProjectId === projectId && item.branch.id === branchId && item.checkout.id === worktreeId);
+  function chooseLocation(id: string) {
+    if (!canRead || busy || selectedProjectId !== projectId) return;
+    const location = locations.find(item => item.checkout.id === id && item.checkout.isPrimary);
+    if (!location) return;
+    // The shared navigation action changes the branch and checkout together,
+    // only after any unsaved-draft decision has completed.
+    useCockpit.getState().selectBranch(projectId, location.branch.id, location.checkout.id);
+  }
   async function load() {
     if (!canRead) return;
     const context = generation.current;
@@ -149,7 +176,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
               : needsRebind ? "The brief or definition changed. Review the tasks and save the plan against the current revisions."
                 : unavailableLinks ? "Review and remove unavailable requirement links before starting."
                   : !coverage.source.available ? "The current source could not be read. Refresh the project before starting."
-                    : selectedProjectId !== projectId || worktree?.projectId !== projectId ? "Select this project's branch and worktree before starting."
+                    : !selectedLocation ? "Choose a build location below before preparing the run."
                       : !worktree?.isPrimary ? "Implementation handoffs currently need the main checkout. Choose its branch and worktree."
                         : "";
   useEffect(() => {
@@ -333,6 +360,19 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
             </Button>
             <Button type="button" variant="secondary" disabled={!canEdit || busy || !!draft.pending || !approvedRequirements || !requirements.length} onClick={() => edit([...tasks, ...requirements.filter(row => !tasks.some(task => task.requirementIds?.includes(row.requirementId))).map(row => ({ id:`task-${crypto.randomUUID()}`,title:row.title,status:"todo" as const,requirementIds:[row.requirementId] }))])}>Add approved requirements as tasks</Button>
           </form>
+          <div className="build-location">
+            <label className="luci-field">
+              Build location
+              <select value={selectedLocation?.checkout.id ?? ""} disabled={!canRead || busy || selectedProjectId !== projectId || !locations.some(item => item.checkout.isPrimary)} onChange={event => chooseLocation(event.target.value)}>
+                <option value="" disabled>Choose a branch and checkout</option>
+                {locations.map(({ branch, checkout }) => <option key={checkout.id} value={checkout.id} disabled={!checkout.isPrimary}>{branch.name} · {checkout.name}{checkout.isPrimary ? " · main checkout" : " · linked checkout (not supported for reviewed builds)"}</option>)}
+              </select>
+            </label>
+            <p className="journey-muted">Choose the checkout Luci will change; preparing a run does not start coding.</p>
+            {(readingLocations || branchesByProject[projectId] === undefined) && <p role="status" className="journey-muted">Reading build locations…</p>}
+            {locationError && <p role="alert" className="journey-error">{locationError} <Button variant="secondary" onClick={() => setLocationRetry(value => value + 1)}>Refresh build locations</Button></p>}
+            {!readingLocations && !locationError && branchesByProject[projectId] !== undefined && !locations.some(item => item.checkout.isPrimary) && <p role="status" className="journey-muted">No main checkout is currently available for this project. Open a branch in the project, then return to prepare the run.</p>}
+          </div>
           <div className="journey-actions">
             {onPrepareRun && <Button type="button" disabled={!canEdit || busy || !!draft.pending || !!handoffIssue || !worktreeId || !plan.tasks.some(task => task.status !== "done")} onClick={() => handoff(undefined, true)}>Prepare project run</Button>}
             <Button type="button" variant="primary" loading={busy}
@@ -358,6 +398,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
                       setChanged(false);
                       setNotice(`Plan saved as revision ${value.revision}.`);
                       notifyRequirementEvidenceChanged(projectId);
+                      notifyProjectContextChanged(scope, projectId);
                     }
                   })
                   .catch((cause) => {
@@ -383,11 +424,6 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
                 {title.trim()
                   ? "Add or clear the new task, then save changes before handing the plan to an agent."
                   : "Save changes before handing the plan to an agent."}
-              </span>
-            )}
-            {!worktreeId && (
-              <span className="journey-muted">
-                Select a branch with a worktree to start an agent session.
               </span>
             )}
           </div>

@@ -251,13 +251,21 @@ try {
     ["Who will use it?", "Home gardeners who prefer to keep their notes on their own machine."],
     ["What does it need to respect?", "Use labelled keyboard-accessible controls. Keep notes on this machine; no cloud account required."],
     ["What should we leave out?", "Social sharing\nPaid subscriptions"],
-    ["How will we know it works?", "Notes persist after restart\nThe app works without a cloud account"],
   ];
-  for (let index = 0; index < answers.length; index++) {
-    const [label, text] = answers[index];
+  for (const [label, text] of answers) {
     await page.getByRole("textbox", { name: label, exact: true }).fill(text);
-    await page.getByRole("button", { name: index === answers.length - 1 ? "Review specification" : "Next question", exact: true }).click();
+    await page.getByRole("button", { name: "Next question", exact: true }).click();
   }
+  const outcomes = [
+    { title: "Notes persist after restart", acceptance: "Save a garden note and close the app.\nReopen the app and confirm the saved note is unchanged." },
+    { title: "The app works without a cloud account", acceptance: "Create, save and reopen a garden note without signing into a cloud account." },
+  ];
+  for (const [index, outcome] of outcomes.entries()) {
+    await page.getByRole("button", { name: "Add an outcome", exact: true }).click();
+    await page.getByRole("textbox", { name: `Outcome ${index + 1}`, exact: true }).fill(outcome.title);
+    await page.getByRole("textbox", { name: `How to check outcome ${index + 1}`, exact: true }).fill(outcome.acceptance);
+  }
+  await page.getByRole("button", { name: "Review specification", exact: true }).click();
   await phaseWorkspace.getByText("User journeys", { exact: true }).click();
   await page.getByRole("button", { name: "Add user journey", exact: true }).click();
   await page.getByRole("textbox", { name: "Journey name", exact: true }).fill("Keep a garden note");
@@ -269,12 +277,14 @@ try {
   assert.equal(savedDefinition.briefRevision, 1);
   assert.equal(savedDefinition.requirements.length, 2);
   assert.equal(new Set(savedDefinition.requirements.map(item => item.id)).size, 2);
+  assert.deepEqual(savedDefinition.requirements.map(({ title, acceptance }) => ({ title, acceptance })), outcomes);
   approvedDefinition = await observedPost(() => page.getByRole("button", { name: "Approve definition", exact: true }).click(), "/specification/approve");
   assert.equal(approvedDefinition.status, "approved");
   assert.equal(approvedDefinition.revision, 2);
   assert.equal(approvedDefinition.briefRevision, 1);
   assert.match(approvedDefinition.digest, /^[a-f0-9]{64}$/);
   assert.deepEqual(approvedDefinition.requirements.map(item => item.id), savedDefinition.requirements.map(item => item.id));
+  assert.deepEqual(approvedDefinition.requirements, savedDefinition.requirements);
   await phaseWorkspace.getByText("Definition 2 approved for design and implementation.", { exact: true }).waitFor();
   await screenshot("02-define");
   await page.reload();

@@ -6,6 +6,7 @@ import {
   type Design,
   type GitState,
 } from "../../api/product";
+import { useProjectDraftScope } from "../../hooks/useProjectDraft";
 import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import { ProjectPlan } from "./ProjectPlan";
@@ -35,6 +36,11 @@ export function ProjectWork({
   const setup = useSetup();
   const [runDraft, setRunDraft] = useState<ProjectRunDraft>();
   const details = useRef<HTMLDetailsElement>(null);
+  const navigationScope = useProjectDraftScope(projectId);
+  const verification = useCockpit(state => state.projectRunVerification);
+  useEffect(() => {
+    if (navigationScope && verification?.scope === navigationScope && verification.projectId === projectId && details.current) details.current.open = true;
+  }, [verification, navigationScope, projectId]);
   const load = useCallback(
     async (isCurrent: () => boolean = () => true) => {
       setLoading(true);
@@ -63,7 +69,10 @@ export function ProjectWork({
   }, [load]);
   return (
     <>
-    <ProjectRuns projectId={projectId} draft={runDraft} onDraftClose={() => setRunDraft(undefined)} onReviewPlan={() => { if (details.current) { details.current.open = true; details.current.scrollIntoView({ block: 'nearest' }); } }} />
+    <ProjectRuns projectId={projectId} draft={runDraft} onDraftClose={() => setRunDraft(undefined)} onReviewPlan={() => { if (details.current) { details.current.open = true; details.current.scrollIntoView({ block: 'nearest' }); } }} onOpenCodingSession={target => {
+      const current = useCockpit.getState();
+      if (target.scope === navigationScope && target.projectId === projectId && current.selection.projectId === projectId && current.selection.sessionId === target.sessionId && !current.pendingNavigation && details.current) details.current.open = false;
+    }} />
     <details className="project-work" open={expanded} ref={details}>
       <summary>
         <strong role="heading" aria-level={1}>Project plan and checks</strong>

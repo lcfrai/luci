@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { notifyProjectContextChanged } from "../../api/projectContextEvents";
 import { Excalidraw, MainMenu, serializeAsJSON } from "@excalidraw/excalidraw";
 import type {
   ExcalidrawInitialDataState,
@@ -184,6 +185,7 @@ function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange, scope }: 
         savedDesign.current = next; setDesign(next);
         setDirty(remaining);
         setSaved(!remaining);
+        notifyProjectContextChanged(scope, projectId);
       }
     } catch (cause) {
       if (alive.current) setError(errorText(cause));

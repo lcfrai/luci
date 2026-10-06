@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { notifyProjectContextChanged, PROJECT_CONTEXT_EDIT, takeProjectContextEdit } from "../../api/projectContextEvents";
 import { definitionApi, type ProjectSpecification, type Requirement } from "../../api/definition";
 import { errorText } from "../../api/product";
 import { useCockpit } from "../../store/store";
@@ -22,7 +23,7 @@ const questions = [
   { field: "audience", label: "Who will use it?", help: "Think about the person, their situation and what they need to achieve.", placeholder: "The people and their main tasks…" },
   { field: "constraints", label: "What does it need to respect?", help: "Include privacy, accessibility, platforms, budget or existing systems. You can leave this open for now.", placeholder: "The important boundaries…" },
   { field: "outOfScope", label: "What should we leave out?", help: "Keep the first complete version focused. Enter one exclusion per line.", placeholder: "Features or changes outside this project…" },
-  { field: "acceptance", label: "How will we know it works?", help: "Name one observable outcome per line. We will give each a stable ID for Design, tasks and checks.", placeholder: "For example: a returning user can resume their saved work after reopening the app." },
+  { field: "acceptance", label: "How will we know it works?", help: "Describe each outcome and how someone can check it. These outcomes stay linked to your design, tasks and checks as you edit or reorder them.", placeholder: "For example: a returning user can resume their saved work after reopening the app." },
 ] as const;
 
 function RecordGroup<T extends { id: string }>({ title, help, items, fields, create, onChange }: {
@@ -55,6 +56,12 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   const [base, setBase] = useState<{ revision: number; briefRevision: number } | null>(null);
   const [tab, setTab] = useState<Tab>("interview");
   const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (!spec || !canRead) return;
+    const edit = () => { if (takeProjectContextEdit(scope, projectId, "definition")) setTab("specification"); };
+    edit(); window.addEventListener(PROJECT_CONTEXT_EDIT, edit);
+    return () => window.removeEventListener(PROJECT_CONTEXT_EDIT, edit);
+  }, [scope, projectId, !!spec, canRead]);
   const [dirty, setDirty] = useState(false);
   const draftBase = base ? JSON.stringify(base) : null;
   const draft = useProjectDraft({ scope, kind: "definition", base: draftBase, value: spec, dirty, valid: definitionDraftValid });
@@ -91,7 +98,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
     submitting.current = true; setBusy(true); setPending("save"); setError(""); setNotice("");
     try {
       const saved = await definitionApi.save(projectId, spec, base.revision, base.briefRevision);
-      if (alive.current) { draft.clear(); savedSpec.current = saved; setSpec(saved); setBase({ revision: saved.revision, briefRevision: saved.briefRevision }); setDirty(false); setNotice(`Definition ${saved.revision} saved. The full specification is available to your agent.`); }
+      if (alive.current) { draft.clear(); savedSpec.current = saved; setSpec(saved); setBase({ revision: saved.revision, briefRevision: saved.briefRevision }); setDirty(false); setNotice(`Definition ${saved.revision} saved. The full specification is available to your agent.`); notifyProjectContextChanged(scope, projectId); }
     } catch (cause) { if (alive.current) setError(errorText(cause)); }
     finally { submitting.current = false; if (alive.current) { setBusy(false); setPending(""); } }
   }
@@ -100,7 +107,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
     submitting.current = true; setBusy(true); setPending("approve"); setError("");
     try {
       const value = await definitionApi.approve(projectId, spec.revision, spec.briefRevision);
-      if (alive.current) { savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setNotice(`Definition ${value.revision} approved for design and implementation.`); }
+      if (alive.current) { savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setNotice(`Definition ${value.revision} approved for design and implementation.`); notifyProjectContextChanged(scope, projectId); }
     } catch (cause) { if (alive.current) setError(errorText(cause)); }
     finally { submitting.current = false; if (alive.current) { setBusy(false); setPending(""); } }
   }
@@ -111,15 +118,17 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   const requirementChange = (id: string, value: Partial<Requirement>) => spec && patch({ requirements: spec.requirements.map((r) => r.id === id ? { ...r, ...value } : r) });
   const addRequirement = () => spec && patch({ requirements: [...spec.requirements, { id: recordId("AC"), title: "", priority: "must", acceptance: "" }] });
   const removeRequirement = (id: string) => spec && patch({ requirements: spec.requirements.filter((r) => r.id !== id), journeys: spec.journeys.map((j) => ({ ...j, requirementIds: j.requirementIds.filter((r) => r !== id) })) });
-  const interviewValue = !spec ? "" : step === 3 ? spec.outOfScope.join("\n") : step === 4 ? spec.requirements.map((r) => r.acceptance || r.title).join("\n") : spec[questions[step].field as "purpose" | "audience" | "constraints"];
+  const moveRequirement = (index: number, offset: -1 | 1) => {
+    if (!spec || index + offset < 0 || index + offset >= spec.requirements.length) return;
+    const requirements = [...spec.requirements];
+    [requirements[index], requirements[index + offset]] = [requirements[index + offset], requirements[index]];
+    patch({ requirements });
+  };
+  const interviewValue = !spec ? "" : step === 3 ? spec.outOfScope.join("\n") : step === 4 ? "" : spec[questions[step].field as "purpose" | "audience" | "constraints"];
   const interviewChange = (text: string) => {
     if (!spec) return;
     if (step === 3) patch({ outOfScope: text.split("\n") });
-    else if (step === 4) {
-      const lines = text.split("\n");
-      // Existing records keep their identities while their words are edited.
-      patch({ requirements: lines.map((line, index) => ({ id: spec.requirements[index]?.id || recordId("AC"), title: line, acceptance: line, priority: spec.requirements[index]?.priority || "must" })) });
-    } else patch({ [questions[step].field]: text });
+    else if (step !== 4) patch({ [questions[step].field]: text });
   };
   return <section className="journey-page definition-workspace">
     <JourneyHeader title="Define your project" subtitle="Turn an idea or existing application into a clear, testable product definition.">
@@ -148,7 +157,20 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
               {spec.startingPoint === "existing" && <div><p className="journey-muted">Analyse actual source with your chosen provider, review the observed behaviour and gaps, then apply a draft. Save any edited answers before starting.</p><Button type="button" variant="secondary" onClick={() => setTab("repository")}>Analyse this repository</Button></div>}
               <p className="journey-muted">Question {step + 1} of {questions.length}</p>
               <h2>{questions[step].label}</h2><p>{questions[step].help}</p>
-              <label className="luci-field"><span className="sr-only">{questions[step].label}</span><textarea rows={7} value={interviewValue} placeholder={questions[step].placeholder} onChange={(e) => interviewChange(e.target.value)} /></label>
+              {step === 4 ? <div className="definition-interview-outcomes">
+                {!spec.requirements.length && <p>Add an outcome, such as “Customers can book an appointment,” and describe how you will check it.</p>}
+                {spec.requirements.map((requirement, index) => <fieldset className="definition-record" key={requirement.id}>
+                  <legend>Outcome {index + 1}</legend>
+                  <label className="luci-field">Outcome {index + 1}<input value={requirement.title} onChange={event => requirementChange(requirement.id, { title: event.target.value })} placeholder="What the person should be able to do" /></label>
+                  <label className="luci-field">How to check outcome {index + 1}<textarea rows={3} value={requirement.acceptance} onChange={event => requirementChange(requirement.id, { acceptance: event.target.value })} placeholder={questions[step].placeholder} /></label>
+                  <div className="journey-actions">
+                    <Button type="button" variant="secondary" disabled={index === 0} onClick={() => moveRequirement(index, -1)}>Move outcome {index + 1} up</Button>
+                    <Button type="button" variant="secondary" disabled={index === spec.requirements.length - 1} onClick={() => moveRequirement(index, 1)}>Move outcome {index + 1} down</Button>
+                    <Button type="button" variant="secondary" onClick={() => removeRequirement(requirement.id)}>Remove outcome {index + 1}</Button>
+                  </div>
+                </fieldset>)}
+                <Button type="button" variant="secondary" onClick={addRequirement}>Add an outcome</Button>
+              </div> : <label className="luci-field"><span className="sr-only">{questions[step].label}</span><textarea rows={7} value={interviewValue} placeholder={questions[step].placeholder} onChange={(e) => interviewChange(e.target.value)} /></label>}
               <div className="journey-actions"><Button type="button" variant="secondary" disabled={step === 0} onClick={() => setStep(step - 1)}>Back</Button>
                 <Button type="button" variant="secondary" onClick={() => step < questions.length - 1 ? setStep(step + 1) : setTab("specification")}>{step < questions.length - 1 ? "Next question" : "Review specification"}</Button></div>
               <p className="journey-muted">You can switch to the specification or save at any time. These answers become the shared context for your conversation with Luci, the design and the implementation.</p>
@@ -188,7 +210,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
           </fieldset>
           {tab === "repository" && <RepositoryAnalysisPanel projectId={projectId} specification={spec} dirty={dirty || busy || !!draft.pending} onApplied={value => {
             savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setDirty(false); setError(""); setTab("specification");
-            setNotice(`Repository analysis saved as definition ${value.revision}. Review the draft and resolve definition questions before approving.`);
+            setNotice(`Repository analysis saved as definition ${value.revision}. Review the draft and resolve definition questions before approving.`); notifyProjectContextChanged(scope, projectId);
           }} />}
           {tab === "history" && <section><h2>Saved definition snapshots</h2>{!history.length && <p>No structured revisions yet. Existing brief text is preserved when you save your first definition.</p>}<ol className="definition-history">{history.slice().reverse().map((r) => <li key={r.revision}><strong>Revision {r.revision} · {r.status}</strong><p>{r.purpose}</p><small>Brief {r.briefRevision} · {r.requirements.length} requirements · {new Date(r.updatedAt).toLocaleString()}</small><details><summary>Read this snapshot</summary><pre>{JSON.stringify(r, null, 2)}</pre></details></li>)}</ol></section>}
         </div>

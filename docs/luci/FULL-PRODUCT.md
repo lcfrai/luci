@@ -12,6 +12,130 @@ new durable-run, portable-context, team and release-integrity work. Earlier
 installed versions, hashes and results are preserved as historical evidence;
 none is relabelled as acceptance of the new candidate.
 
+## Product-quality completion standard — 6 October 2026
+
+The owner's latest direction requires a polished whole product, with Vercel and
+ChatGPT as references for clarity and care. [PRODUCT-QUALITY.md](PRODUCT-QUALITY.md)
+is the current acceptance contract. Luci is **not finished or production ready**.
+Historical package and fixture successes below do not close this contract.
+
+The targeted assessment found concrete continuity defects: saved context could
+contradict the overview until polling; the guided interview could rewrite outcome
+titles and identities; changing the plan could lead to a provider-gated composer;
+verification required selecting detached evidence; deployment lost the selected
+checked build; and viewers could attempt deployment before receiving a denial.
+The positive journey also exposed a fresh-project interruption: run preparation
+required discovering and selecting a branch in the sidebar. The correction adds
+an explicit existing build-location choice at the preparation step.
+A real second coding attempt also exposed a clipped terminal after checks; opening
+its coding session now collapses the planning panel while keeping drafts mounted.
+The regression driver separately binds terminal input and output to the exact
+active session, so an older stopped pane cannot satisfy the repair step.
+The current correction batch addresses those defects and adds a positive UI
+journey through implementation, a meaningful failed check, repair, verification,
+preview and explicit acceptance. Its deterministic provider is an execution
+fixture, not evidence of real-model reasoning or implementation quality.
+
+The following whole-product proof remains required even after local regression
+checks pass:
+
+- Ordinary-language idea clarification and implementation by the real selected
+  model, without the evaluator supplying a complete professional specification
+  or prewritten application.
+- Meaningful design/prototype interaction and principal application tasks, not
+  just saved screen counts, rectangles or matching context digests.
+- A representative application with real authentication, roles and durable data,
+  built and deployed through Luci; a local-storage or in-memory example does not
+  substitute for it.
+- A teammate's amendment, renewed checks and deployment preserving application
+  data, followed by an observed failed rollout and supported recovery.
+- Current supported installed-platform acceptance and live model, billing,
+  cloud/domain, inbox and distribution gates recorded against their actual
+  identities. GitHub Actions payment/spending admission and artifact quota
+  currently prevent new Windows diagnostics; the earlier installed-app failure
+  remains unresolved.
+
+These are open acceptance obligations. Separate mechanism tests do not establish
+that a person can complete the combined workflow with an understandable result.
+
+### Current quality-batch evidence
+
+The source build uses service SHA-256
+`e319b1684fc70e24125377da979eec025d88b6cf1dead90e68263ac18b8237e5`
+and UI-continuity web-index SHA-256
+`a7ec919115507d4b01ad4de8abd0dc2601aff3e2d8cacec953c8b4e6b089e9f2`.
+`artifacts/quality-batch/terminal-focus-build-provenance.json` records the build's
+source inventory. This is a compiled service/production-web acceptance batch;
+the earlier portable/native packages below retain their original source identities.
+
+- The full frontend suite passed **1,625 tests across 113 files**, with
+  type checking and production builds passing. Three exposed test-fixture
+  synchronization errors were corrected by waiting for actual hydration/read
+  completion, without increasing timeouts or weakening the behavior assertions.
+  Original failed logs remain alongside `frontend-tests-accepted.log`.
+- Go service checks passed **1,968 test/subtest outcomes, 22 skips**. The changed
+  product package's race suite passed **434 outcomes, one skip**. Exact-commit
+  refusal is tested before release reservation or Docker side effects.
+- The final actual UI continuity journey passed **5/5 groups**: fresh account,
+  workspace and saved provider; reviewed definition/design/tasks; real Codex
+  implementation followed by a behavioral test failure; a second coding attempt
+  that repairs application behavior with the identical test; matching passing
+  evidence, a working preview and explicit acceptance of the original run.
+  No API/file mutation substitutes for these user steps. Both active terminals
+  measured **520 by 625 px**, with the current session's complete folder-trust
+  prompt visible. The plan overview updated in **148 ms**. Its provider supplied
+  a deterministic small fixture, not real-model reasoning. Receipt and screenshots:
+  `artifacts/uat/project-journey-quality-batch`. The exact accepted driver is
+  retained; subsequent assertion-error fail-fast hardening passed separately.
+- The initial correction build additionally passed immediate context/editing
+  browser checks **4/4**, team collaboration/viewer checks **11/11**, and personal,
+  entry and restart groups **20/9/5**. Their receipts retain the earlier web hash
+  `189a4787…`, before build-location and terminal-space corrections; those later
+  corrections are exercised by the final UI continuity journey above.
+- On the intermediate `c5593112…` web build, 80 warm phase transitions measured
+  p95 **206 ms at 1440 px** and **255 ms at 390 px**. Twelve rendered accessibility
+  scans found zero violations/incomplete items and no document/panel overflow;
+  phase keyboard focus was retained. This uses a small seeded project on headless
+  Chromium 151 and four effective CPU cores, without live terminals, providers,
+  network throttling or screen-reader certification. Two acknowledgements exceeded
+  the 100 ms target; those observations remain recorded. A focused 24-action
+  final-build trace reproduced a 143 ms input-to-acknowledgement Deploy action,
+  with client event processing contributing to a main-thread long task. It does
+  not identify a particular Luci component or explain the original Define
+  outlier. Receipts: `artifacts/quality-batch/responsiveness-c5593112-r4` and
+  `mobile-ack-trace-a7ec9191`. This is not an all-actions responsiveness pass.
+- A bounded CPU profile then identified unused width reads and per-label resize
+  observers in ordinary tabs. The correction measures only labels configured to
+  collapse, preserving their resizing and observer cleanup. Six focused tab
+  tests, type checking and the production build passed. All 12 vendored Fluid
+  file hashes verify; license collection reports 346 components, none missing
+  licenses. Upstream revision and original grants remain unchanged. This measured
+  web index is
+  `1f9af237993d10441ab14942314a2167fa478b13b33cbb60f033a225b97d6389`,
+  recorded in `tab-measurement-build-provenance.json`. The service is unchanged;
+  the earlier complete UI journey retains its exact pre-optimization web identity.
+  Removing unnecessary measurement does not establish the cause or resolution
+  of every earlier latency outlier. A single follow-up trace completed all 24
+  mobile Define/Deploy actions below the 100 ms acknowledgement target, including
+  input delay, with no browser errors or external requests. The owned fixture was
+  removed. Its receipt is `mobile-ack-trace-1f9af237`; the earlier slow samples
+  remain evidence, and this small follow-up does not establish an all-actions pass.
+- Inspection of the accepted-run screenshot found a stale instruction to accept
+  an already accepted outcome. The final rendering correction removes that
+  repeated instruction/action while retaining observation time and current
+  invalidity warnings. All 23 focused run tests, type checking and production
+  build passed. The final web index is
+  `0e27ceb4a781fbe081151f866f615fb842dde648d2f18f6a7fc2bd46ec1516f7`,
+  recorded in `accepted-guidance-build-provenance.json`. The full UI journey and
+  performance receipts retain their earlier identities; this last copy/action
+  correction is covered by the focused tests, not a rerun of those journeys.
+
+The actual journey exposed and corrected the build-location and clipped-terminal
+product defects. Separate driver errors (selectors, mock prompt expectations and
+terminal selection) are recorded as driver errors. Neither they nor the product
+failures were relabelled as successful earlier runs. Owned fixtures, processes,
+sandboxes and preview images were cleaned up after their recorded checks.
+
 ## Work in progress
 
 1. Dedicated, resumable onboarding: account entry, execution location, actual prerequisite checks and automatic runtime preparation, provider connection and workspace ready. A configured directory does not imply a ready runtime. Local, user-owned AWS/Azure and existing workspaces each have their own recovery and permission states.

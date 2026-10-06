@@ -10,9 +10,11 @@ import { Button } from "../fluid/components/button";
 type CloudDeployFormProps = {
   projectId: string;
   busy: string;
+  disabled?: boolean;
   onDeploy(input: CloudReleaseRequest): void;
   onSetup(): void;
   canManageBacking?: boolean;
+  canPrepareAccess?: boolean;
 };
 export function CloudDeployForm(props: CloudDeployFormProps) {
   return <ProjectCloudDeployForm key={props.projectId} {...props} />;
@@ -20,9 +22,11 @@ export function CloudDeployForm(props: CloudDeployFormProps) {
 function ProjectCloudDeployForm({
   projectId,
   busy,
+  disabled = false,
   onDeploy,
   onSetup,
   canManageBacking = true,
+  canPrepareAccess = true,
 }: CloudDeployFormProps) {
   const alive = useRef(true),
     preparing = useRef(false);
@@ -81,7 +85,7 @@ function ProjectCloudDeployForm({
     };
   }, [projectId]);
   async function prepareAccess() {
-    if (preparing.current || loading || busy || !targetId || !repository.trim()) return;
+    if (!canPrepareAccess || preparing.current || loading || busy || !targetId || !repository.trim()) return;
     preparing.current = true;
     const ticket = generation.current;
     setKeyBusy(true);
@@ -115,7 +119,7 @@ function ProjectCloudDeployForm({
       onSubmit={(e) => {
         e.preventDefault();
         if (
-          !busy && !keyBusy && !loading && git?.clean &&
+          !disabled && !busy && !keyBusy && !loading && git?.clean &&
           head &&
           selectedTarget &&
           (source === "public" || privateKeyUuid.trim())
@@ -275,13 +279,14 @@ function ProjectCloudDeployForm({
           <Button type="button"
             variant="secondary"
             loading={keyBusy}
-            disabled={!!busy || keyBusy || loading || !targetId || !repository.trim()}
+            disabled={!canPrepareAccess || !!busy || keyBusy || loading || !targetId || !repository.trim()}
             onClick={() => void prepareAccess()}
           >
             {keyBusy
               ? "Preparing read-only access…"
               : "Prepare read-only GitHub access"}
           </Button>
+          {!canPrepareAccess && <p role="status">Ask a team owner for secrets access to prepare private repository credentials.</p>}
           {keyMessage && <p role="status">{keyMessage}</p>}
           <label className="luci-field">
             Deployment server key ID
@@ -309,7 +314,7 @@ function ProjectCloudDeployForm({
           variant="primary"
           loading={!!busy}
           disabled={
-            !!busy ||
+            disabled || !!busy ||
             keyBusy ||
             loading ||
             !selectedTarget ||

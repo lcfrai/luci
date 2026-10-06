@@ -770,10 +770,10 @@ export function createProductClient(
         expectedRevision,
         updates,
       }),
-    release: (id: string, port: number, dockerfile: string) =>
+    release: (id: string, port: number, dockerfile: string, expectedCommit?: string) =>
       request<Release>(
         `${project(id)}/releases`,
-        { target: "local", port, dockerfile },
+        { target: "local", port, dockerfile, ...(expectedCommit ? { expectedCommit } : {}) },
         "POST",
         180_000,
       ),

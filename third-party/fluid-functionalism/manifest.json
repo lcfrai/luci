@@ -12,7 +12,7 @@
       "upstreamPath": "registry/radix/tabs-subtle.tsx",
       "upstreamSha256": "cfe2e3de9dd402ca32d5175494d4cb0eb215d114187adee8611cbca373d734fe",
       "path": "desktop/src/components/fluid/components/tabs-subtle.tsx",
-      "normalizedSha256": "2f240274d92623b3a8bd0f44e49060fbb92a066454dcc78a7fa93b99a4a2c5cb"
+      "normalizedSha256": "e8b9b1c5a78be5a0b0d7e9396a0982cee7798b4db8dd25dfa266f877404fb5e7"
     },
     {
       "upstreamPath": "registry/default/lib/font-weight.ts",
@@ -83,6 +83,7 @@
     "Appearance and offline Inter integration",
     "Native-button defaults/loading state",
     "Reduced-motion handling and observer cleanup in tabs",
+    "Only collapsing icon labels measure width and retain a label ResizeObserver; ordinary tabs avoid unused synchronous layout reads",
     "Dialog retains Radix focus trapping, uses Luci close icon and existing surface tokens, and respects reduced motion"
   ],
   "glasses": {

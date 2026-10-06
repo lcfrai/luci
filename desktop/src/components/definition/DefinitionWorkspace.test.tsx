@@ -133,3 +133,59 @@ it("retains an amendment draft before returning to the saved-context conversatio
   expect(screen.getByText(/Save or resolve this draft first/)).not.toBeNull();
   expect((idea as HTMLTextAreaElement).value).toContain("changed intent");
 });
+
+async function interviewOutcomes() {
+  await screen.findByRole("textbox", { name: "The idea" });
+  await userEvent.click(screen.getByRole("tab", { name: "Guided interview" }));
+  for (let step = 0; step < 4; step++) await userEvent.click(screen.getByRole("button", { name: "Next question" }));
+  await screen.findByRole("textbox", { name: "How to check outcome 1" });
+}
+function twoOutcomes() {
+  const value = fixture();
+  value.requirements.push({ id: "AC-002", title: "Staff block availability", priority: "should", acceptance: "Unavailable slots cannot be booked" });
+  value.journeys = [{ id: "customer", name: "Booking", actor: "Customer", steps: "Choose and confirm", requirementIds: ["AC-001", "AC-002"] }];
+  return value;
+}
+it("changes only the intended acceptance when revisiting the interview, preserving titles, IDs, priorities and other answers", async () => {
+  const original = twoOutcomes();
+  vi.spyOn(definitionApi, "get").mockResolvedValue(original);
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_id, spec) => ({ ...spec, revision: 3 }));
+  render(<DefinitionWorkspace projectId="p-1" />); await interviewOutcomes();
+  const answer = screen.getByRole("textbox", { name: "How to check outcome 1" });
+  await userEvent.clear(answer); await userEvent.type(answer, "When reopened offline, every saved entry returns.");
+  await userEvent.click(screen.getByRole("button", { name: "Review specification" }));
+  expect((screen.getByRole("textbox", { name: "Requirement 1" }) as HTMLInputElement).value).toBe("Save work");
+  expect((screen.getByRole("textbox", { name: "Requirement 2" }) as HTMLInputElement).value).toBe("Staff block availability");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  expect(save.mock.calls[0][1].requirements).toEqual([{ ...original.requirements[0], acceptance: "When reopened offline, every saved entry returns." }, original.requirements[1]]);
+  expect(save.mock.calls[0][1].journeys).toEqual(original.journeys);
+});
+it("reorders and removes the chosen outcome without reassigning identities or retaining its journey link", async () => {
+  const original = twoOutcomes();
+  vi.spyOn(definitionApi, "get").mockResolvedValue(original);
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_id, spec) => ({ ...spec, revision: 3 }));
+  render(<DefinitionWorkspace projectId="p-1" />); await interviewOutcomes();
+  await userEvent.click(screen.getByRole("button", { name: "Move outcome 2 up" }));
+  expect((screen.getByRole("textbox", { name: "Outcome 1" }) as HTMLInputElement).value).toBe(original.requirements[1].title);
+  await userEvent.click(screen.getByRole("button", { name: "Remove outcome 2" }));
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  expect(save.mock.calls[0][1].requirements).toEqual([original.requirements[1]]);
+  expect(save.mock.calls[0][1].journeys[0].requirementIds).toEqual(["AC-002"]);
+});
+it("keeps an empty or multiline answer on its own outcome and adds a distinct outcome without recreating existing records", async () => {
+  const original = twoOutcomes();
+  vi.spyOn(definitionApi, "get").mockResolvedValue(original);
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_id, spec) => ({ ...spec, revision: 3 }));
+  render(<DefinitionWorkspace projectId="p-1" />); await interviewOutcomes();
+  await userEvent.clear(screen.getByRole("textbox", { name: "How to check outcome 1" }));
+  await userEvent.click(screen.getByRole("button", { name: "Add an outcome" }));
+  await userEvent.type(screen.getByRole("textbox", { name: "Outcome 3" }), "Customer cancellation");
+  await userEvent.type(screen.getByRole("textbox", { name: "How to check outcome 3" }), "Cancel a booking.\nThe slot becomes available.");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  const rows = save.mock.calls[0][1].requirements;
+  expect(rows).toHaveLength(3);
+  expect(rows[0]).toEqual({ ...original.requirements[0], acceptance: "" });
+  expect(rows[1]).toEqual(original.requirements[1]);
+  expect(rows[2]).toMatchObject({ title: "Customer cancellation", acceptance: "Cancel a booking.\nThe slot becomes available.", priority: "must" });
+  expect(new Set(rows.map(row => row.id)).size).toBe(3);
+});

@@ -5,6 +5,12 @@ release manifest and checksums must identify the same source commit. The Windows
 installer is unsigned. The local app runs without a cloud account; isolated agents,
 project checks and app previews need a working Docker engine.
 
+The completion standard is [the product-quality contract](luci/PRODUCT-QUALITY.md).
+The scenarios below support it; a clean launch or passing fixture cannot substitute
+for a representative, understandable idea-to-live journey with the real selected
+model. Preserve source identities and record assistance, confusion and recovery,
+as well as technical success.
+
 ## Start and choose your workspace
 
 1. Install Luci, or extract the portable archive and run its launcher. Open the
@@ -96,3 +102,34 @@ to disposable Windows GitHub runners. Docker and SSH scenarios run as a separate
 ordinary Linux user. Live model accounts, provider purchases and public DNS/TLS
 require the selected operator's credentials and are recorded separately from
 these engineering results.
+
+## Connected build, verification and preview regression
+
+`scripts/project-journey-browser-uat.mjs` exercises a fresh local account and
+project entirely through visible controls: provider settings, definition/design,
+reviewed task plan and build location, actual Codex execution, a meaningful failed
+check, a second coding attempt that repairs application behavior without changing
+the acceptance test, matching check evidence, preview and explicit acceptance of
+the original run. API/file reads observe identities and invariants; they do not
+create the project or substitute for its user actions.
+
+Run against a matching built service and web directory with an existing trusted
+sandbox image and existing Node preview image:
+
+```sh
+node scripts/project-journey-browser-uat.mjs \
+  --binary artifacts/browser-uat/luci --web desktop/dist \
+  --image luci/sandbox:dev --release-image node:22-alpine
+```
+
+The driver refuses missing images rather than pulling them. Use an exclusive
+Docker window and enough free storage; a vfs host needs room for one full sandbox.
+Completed coding sandboxes are stopped through the UI before the next allocation.
+Fixture cleanup checks process/container ownership. Supply `--chromium` when
+using an explicitly installed browser and record its version in the result.
+
+This deterministic local provider supplies a deliberately small implementation
+with an injected behavioral defect. It proves UI continuity and real execution,
+not model reasoning, authentication/data durability, public deployment or full
+product readiness. Those remain separate complete journeys in the quality
+contract. Preserve failed receipts and their source/build identities.

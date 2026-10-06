@@ -1,4 +1,6 @@
+import { useId, useState } from "react";
 import type { OrchestratorRunSummary, OrchestratorView } from "../../api/orchestrator";
+import type { ContextEditor } from "../../api/projectContextEvents";
 import { Button } from "../fluid/components/button";
 import "./project-understanding.css";
 
@@ -40,9 +42,12 @@ function BuildScope({ run, title, onInspect }: { run: OrchestratorRunSummary; ti
   </section>;
 }
 
-export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate, onInspect }: {
-  view: OrchestratorView; onAsk(message?: string): void; onReply(turnId: string): void; onNavigate(lens: Stage): void; onInspect?(runId: string): void;
+export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate, onInspect, onEdit, canEdit = true }: {
+  view: OrchestratorView; onAsk(message?: string): void; onReply(turnId: string): void; onNavigate(lens: Stage): void; onInspect?(runId: string): void; onEdit?(editor: ContextEditor): void; canEdit?: boolean;
 }) {
+  const [changing, setChanging] = useState(false);
+  const changeId = useId();
+  const edit = (editor: ContextEditor) => { setChanging(false); if (onEdit) onEdit(editor); else onNavigate(editor === "definition" ? "discover" : "design"); };
   const { context, nextAction, blockingQuestions } = view;
   const spec = context.specification, run = context.currentRun;
   const activeRuns = context.activeRuns ?? [];
@@ -73,7 +78,16 @@ export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate, onInspe
       <p className="understanding-purpose">{spec.purpose.trim() || context.brief.purpose.trim() || "The idea is still taking shape. Describe the problem and the result you want."}</p>
       <p className="understanding-label">{definitionStatus}{spec.revision ? ` · Revision ${spec.revision}` : ""}</p>
       {spec.audience.trim() && <p><strong>For </strong>{spec.audience}</p>}
-      <Button variant="secondary" onClick={() => onAsk()}>Change the plan</Button>
+      <Button variant="secondary" aria-expanded={changing} aria-controls={changeId} onClick={() => setChanging(value => !value)}>Change the plan</Button>
+      {changing && <section id={changeId} aria-label="Change the plan options">
+        <p>Choose what to change. You can edit directly without an agent connection.</p>
+        <div className="journey-actions">
+          <Button variant="secondary" disabled={!canEdit} onClick={() => edit("definition")}>Edit outcomes</Button>
+          <Button variant="secondary" disabled={!canEdit} onClick={() => edit("design")}>Edit experience</Button>
+          <Button variant="secondary" onClick={() => { setChanging(false); onAsk(); }}>Discuss a change with Luci</Button>
+        </div>
+        <p className="understanding-note">Direct edits are drafts until you save them. Luci can propose an amendment when you connect an agent; nothing is sent automatically.</p>
+      </section>}
       <p className="understanding-note">Describe a change or edit a stage directly. Review what it affects before saving; changed context needs fresh review before a new build.</p>
     </section>
 

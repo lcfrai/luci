@@ -42,6 +42,13 @@ make material ambiguity visible, and apply amendments through explicit review
 and revision checks. Optional private discussion has an export and bounded
 continuation path; retaining chat is not a stage exit criterion.
 
+[PRODUCT-QUALITY.md](PRODUCT-QUALITY.md) is the owner's explicit completion
+standard for polish and whole-product usefulness. Its independent complete
+journeys, comprehension, continuity, recovery, responsiveness and accessibility
+criteria apply to every stage. Passing technical tests or reaching a clean launch
+does not close this roadmap. Windows/live-service access blocks only the checks
+that require it; independent product-quality gaps remain implementation work.
+
 ## Current baseline
 
 The [6 October handoff](HANDOFF-2026-10-06.md) records the pushed 0.4.18 baseline
@@ -272,6 +279,7 @@ before requesting the credentials or authorization needed to publish.
 | Build and integrity | Required CI at the candidate commit, immutable package hashes, supported platform signing/notarization where required, verified update and signature behavior, and retained failed build evidence. |
 | Public distribution | Actual signed release/download configuration, a working public download surface, source links, installation/upgrade/recovery instructions, and fresh installation of those exact downloaded bytes on supported hosts. A local archive is not a public download. |
 | Full product acceptance | Current installed end-to-end outcomes and the separate live subscription, gateway, AWS, Azure, domain/TLS and external SMTP gates. Any unsupported platform or operation is explicitly excluded from the released support claim. |
+| Product quality | Demonstrate the complete journeys and quality gates in PRODUCT-QUALITY.md, resolve serious usability findings, and record actual comprehension, continuity, recovery, accessibility and responsiveness evidence. |
 | Paid team availability | Stage 2 collaboration and project authorization, independently verified dedicated team boundaries, restore/upgrade and revocation evidence, measured capacity, clear model/infrastructure charges, and operational support ownership. |
 | Commercial operations | Reviewed service terms and privacy/data-retention/export/deletion behavior, usable onboarding and cancellation, tested billing/entitlement boundaries and truthful service commitments. Disabling billing must not silently destroy project data. |
 

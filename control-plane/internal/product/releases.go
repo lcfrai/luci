@@ -142,11 +142,16 @@ func (s *Server) listProjectReleases(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Target     string `json:"target"`
-		Port       int    `json:"port"`
-		Dockerfile string `json:"dockerfile"`
+		ExpectedCommit string `json:"expectedCommit,omitempty"`
+		Target         string `json:"target"`
+		Port           int    `json:"port"`
+		Dockerfile     string `json:"dockerfile"`
 	}
 	if !journeyDecode(w, r, &req) {
+		return
+	}
+	if req.ExpectedCommit != "" && !deliverySHA.MatchString(req.ExpectedCommit) {
+		journeyError(w, 400, "invalid_commit", "Use the exact full commit saved with the checked build.")
 		return
 	}
 	if req.Target != "local" {
@@ -186,6 +191,10 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 	commit = strings.TrimSpace(commit)
 	if err != nil || !regexp.MustCompile(`^[a-f0-9]{40,64}$`).MatchString(commit) {
 		journeyError(w, 409, "commit_required", "Create a commit before previewing this project.")
+		return
+	}
+	if req.ExpectedCommit != "" && req.ExpectedCommit != commit {
+		journeyError(w, 409, "source_changed", "The project commit changed after this build was checked. Return to the build results and verify the intended source before previewing.")
 		return
 	}
 	s.mu.RLock()

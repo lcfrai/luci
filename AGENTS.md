@@ -12,6 +12,8 @@ Minimize ongoing cost while preserving working outcomes. Prefer local execution 
 
 Work autonomously within this scope. Prefer an existing suitable open-source solution discovered through the lcfr.ai Glasses MCP before constructing a replacement. Keep one app vocabulary, navigation, token system and project context. Avoid standalone vendor administration screens in the user journey.
 
+Completion is governed by `docs/luci/GOAL.md` and `docs/luci/PRODUCT-QUALITY.md`. The owner requires a polished, understandable idea-to-live application journey, including amendments and operation after launch. A clean launch, a test count or deterministic provider fixtures cannot establish full product or real-model quality. Keep those release gates and their evidence explicit while resolving concrete product gaps.
+
 Plan file ownership and interfaces before parallel implementation. Verify meaningful outcomes and add evals for the full journey. Run the relevant tests once per meaningful batch; repeat when a failure or change requires it. Do not use repeated review rounds as a substitute for implementation. User review is not a prerequisite for reversible implementation.
 
 Actual cloud creation, public release and publication require a concrete plan/artifact and the relevant credentials. The product must itself obtain an explicit cost acknowledgement before creating cloud resources. Never fabricate a successful deployment, quote, integration or eval.

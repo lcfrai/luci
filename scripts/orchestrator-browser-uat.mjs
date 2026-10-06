@@ -322,6 +322,11 @@ try {
   check('The same private question and conversation recover across all four phases, reload and process restart without redispatch');
   await page.screenshot({ path: join(evidence, '01-persistent-question.png'), fullPage: true });
   await panel.getByRole('button', { name: 'Change the plan', exact: true }).click(); assert.equal(calls, beforeNavigation);
+  const changeOptions = panel.getByRole('region', { name: 'Change the plan options', exact: true });
+  await changeOptions.getByRole('button', { name: 'Edit outcomes', exact: true }).waitFor();
+  await changeOptions.getByRole('button', { name: 'Edit experience', exact: true }).waitFor();
+  await changeOptions.getByRole('button', { name: 'Discuss a change with Luci', exact: true }).click();
+  assert.equal(calls, beforeNavigation, 'Opening the change discussion dispatched before an explicit send');
   await panel.getByRole('region', { name: 'Next step', exact: true }).getByRole('button', { name: recovered.nextAction.label, exact: true }).click();
   assert.equal(calls, beforeNavigation, 'Primary question action dispatched before an explicit send');
   // Type the answer directly: an offered-option button also binds the reply

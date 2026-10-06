@@ -313,7 +313,9 @@ const TabsSubtleItem = forwardRef<HTMLButtonElement, TabsSubtleItemProps>(
       // Both stacked spans carry the text-box trim so the invisible bold
       // sizer and the visible label keep identical boxes.
       <span
-        ref={measureLabel}
+        // Only collapsing icon labels consume labelWidth. Ordinary tabs
+        // should not force layout or allocate a per-label resize observer.
+        ref={collapseLabel ? measureLabel : undefined}
         className={cn("inline-grid whitespace-nowrap", sizeClasses.text)}
       >
         <span

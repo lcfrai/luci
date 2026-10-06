@@ -114,6 +114,19 @@ it('joins only a selected existing check ID and preserves a server rejection', a
   expect(screen.queryByText('Accepted outcome')).toBeNull();
 });
 
+it('shows accepted history and the valid observation time without repeating the prior acceptance instruction', async () => {
+  const observationReason = 'The checked release matches. Review the application and accept the selected outcome.';
+  vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'complete', reason: 'The reviewed outcome was accepted.', acceptance: { acceptedAt: '2026-10-06T01:00:00Z', checkId: 'check-1', releaseId: 'release-1' }, observation: { state: 'awaiting-release', valid: true, observedAt: '2026-10-06T00:59:00Z', reason: observationReason }, allowedActions: ['accept', 'reconcile'] })]);
+  const accept = vi.spyOn(projectRunsApi, 'accept');
+  render(<ProjectRuns {...props()} />);
+  await screen.findByText(/historical acceptance is retained/);
+  expect(screen.getByText(/Last observation valid/).textContent).toContain(new Date('2026-10-06T00:59:00Z').toLocaleString());
+  expect(screen.queryByText(/Review the application and accept the selected outcome/)).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Review and accept outcome' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Reconcile run' })).not.toBeNull();
+  expect(accept).not.toHaveBeenCalled();
+});
+
 it('retains historical acceptance while displaying current invalidity without offering acceptance again', async () => {
   vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'complete', acceptance: { acceptedAt: '2026-10-06T01:00:00Z', checkId: 'check-1', releaseId: 'release-1' }, observation: { state: 'blocked', valid: false, observedAt: '2026-10-06T02:00:00Z', reason: 'Design approval changed.' }, allowedActions: ['reconcile'] })]);
   render(<ProjectRuns {...props()} />);
@@ -299,4 +312,44 @@ it('discards an inspection request when the account changes before its history r
   expect(within(runs).queryByText('Old account reply')).toBeNull();
   expect(within(runs).queryByRole('alert')).toBeNull();
   expect(useCockpit.getState().projectRunInspection).toBeNull();
+});
+
+it('hands verification the selected reviewed run without executing or asking for an evidence ID', async () => {
+  vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'awaiting-checks', allowedActions: ['join-check', 'reconcile', 'start-coding'] })]);
+  const checks = vi.spyOn(productApi, 'checks');
+  const create = vi.spyOn(api, 'createSession');
+  render(<ProjectRuns {...props()} />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Verify this build' }));
+  expect(useCockpit.getState().projectRunVerification).toMatchObject({ projectId: 'p-1', runId: 'run-1' });
+  expect(useCockpit.getState().projectRunVerification?.scope).toContain('owner');
+  expect(checks).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Start another coding attempt' })).not.toBeNull();
+});
+
+it('carries the last accepted check and exact source into deployment while retaining the dirty navigation guard', async () => {
+  const check: ProjectRun['checks'][number] = { checkId: 'checked-version', projectId: 'p-1', commit: 'a'.repeat(40), sourceDigest: 'reviewed-source', approvals, requirements: makeRun().input.requirements, commands: [], execution: 'docker', createdAt: '', joinedAt: '', originalAvailable: true };
+  vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'awaiting-release', checks: [{ ...check, checkId: 'older-check' }, check], allowedActions: ['join-release', 'reconcile'] })]);
+  useCockpit.setState({ unsavedProjectDrafts: { draft: { projectId: 'p-1', label: 'Plan', lens: 'develop' } } });
+  render(<ProjectRuns {...props()} />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Preview this build' }));
+  expect(useCockpit.getState().projectRunDeployment).toMatchObject({ projectId: 'p-1', runId: 'run-1', checkId: 'checked-version', commit: check.commit, sourceDigest: check.sourceDigest, outcome: 'preview' });
+  expect(useCockpit.getState().lens).toBe('develop');
+  expect(useCockpit.getState().pendingNavigation).toEqual({ kind: 'lens', lens: 'deploy' });
+  act(() => useCockpit.getState().cancelNavigation());
+  expect(useCockpit.getState().projectRunDeployment).toBeNull();
+});
+
+it('refreshes the exact inspection target after evidence is joined instead of continuing with its cached revision', async () => {
+  render(<ProjectRuns {...props()} />);
+  await screen.findByRole('button', { name: 'Start coding' });
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh history' }));
+  await waitFor(() => expect(projectRunsApi.list).toHaveBeenCalledTimes(2));
+  const get = vi.spyOn(projectRunsApi, 'get').mockResolvedValue(makeRun({ revision: 9, state: 'awaiting-release', reason: 'Fresh joined evidence', allowedActions: ['join-release', 'reconcile'] }));
+  const matchingScope = JSON.stringify([productApi.baseUrl, 'owner', 'local', '', '', 'owner', '/projects', 'p-1']);
+  act(() => useCockpit.setState({ projectRunInspection: { scope: matchingScope, projectId: 'p-1', runId: 'run-1', refresh: true } }));
+  await screen.findByText('Fresh joined evidence');
+  expect(get).toHaveBeenCalledWith('p-1', 'run-1');
+  expect(useCockpit.getState().projectRunInspection).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull();
 });

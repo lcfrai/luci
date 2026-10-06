@@ -19,8 +19,8 @@ vi.mock("@excalidraw/excalidraw", async () => {
     canvasState.change = onChange;
     useEffect(() => {
       excalidrawAPI?.({ refresh: canvasState.refresh } as unknown as ExcalidrawImperativeAPI);
-      canvasState.apiReady = true;
       onChange(...[initialData.elements || [], { ...initialData.appState, theme, scrollX: 0, scrollY: 0, selectedElementIds: {} }, initialData.files || {}] as unknown as Parameters<typeof onChange>);
+      canvasState.apiReady = true;
     }, []);
     // The native adapter also reports its current document after host updates.
     // A host render must not turn an identical scene into another document edit.
@@ -66,6 +66,11 @@ it("keeps a dirty native canvas usable when the adapter re-emits the same scene 
   const save = vi.spyOn(productApi, "saveDesign").mockResolvedValue({ ...design(savedScene), revision: 4 });
   render(<DesignEditor projectId="p-1" />);
   await screen.findByTestId("canvas");
+  // A mounted placeholder is not a hydrated native editor. Start the user edit
+  // only after its initial scene has been delivered as the clean baseline.
+  await waitFor(() => expect(canvasState.apiReady).toBe(true));
+  expect(screen.queryByText("Unsaved sketch changes.")).toBeNull();
+  expect((screen.getByRole("button", { name: "Save design" }) as HTMLButtonElement).disabled).toBe(true);
   canvasState.repeatOnRender = [[edited], paper, {}] as unknown as Parameters<NonNullable<ExcalidrawProps["onChange"]>>;
   change([edited]);
   expect(screen.queryByRole("alert")).toBeNull();

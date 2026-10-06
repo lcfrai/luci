@@ -39,7 +39,7 @@ try {
  await api('POST','/v1/product/projects',{name:'alice-personal'},owner.token,201);
  const bobLogin=await api('POST','/v1/auth/login',{username:'bob',password});
  await api('POST','/v1/product/projects',{name:'bob-personal'},bobLogin.token,201);
- browser=await chromium.launch({headless:true});alice=await contextPage();bob=await contextPage();
+ browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE}:{})});receipt.browserVersion=browser.version();alice=await contextPage();bob=await contextPage();
  await login(alice,'alice',password);await login(bob,'bob',password);
  await alice.getByRole('button',{name:'Manage teams',exact:true}).click();await alice.getByLabel('Team name',{exact:true}).fill('Luci collaboration');await alice.getByRole('button',{name:'Create team',exact:true}).click();
  await alice.getByRole('button',{name:'Team access',exact:true}).waitFor();
@@ -54,9 +54,11 @@ try {
  await alice.getByText('Add an existing member',{exact:true}).click();const members=alice.getByRole('group',{name:'Add an existing Luci account',exact:true});await members.getByLabel('Username',{exact:true}).fill('bob');await members.getByLabel('Role',{exact:true}).selectOption('editor');await members.getByRole('button',{name:'Add member',exact:true}).click();await alice.getByLabel('Team access for Bob Editor',{exact:true}).waitFor();await alice.getByRole('tab',{name:'Project sharing',exact:true}).click();
  const share=alice.getByRole('group',{name:'Grant project access',exact:true});await share.getByLabel('Team member',{exact:true}).selectOption(colleague.id);await share.getByLabel('Project role',{exact:true}).selectOption('editor');await share.getByRole('button',{name:'Share project',exact:true}).click();await alice.getByLabel('Project access for Bob Editor',{exact:true}).waitFor();await alice.getByRole('button',{name:'Close',exact:true}).click();check('Added an editor and explicitly shared one project through real membership UI');
  await bob.reload();await bob.getByLabel('Workspace',{exact:true}).selectOption(team.id);await bob.getByRole('treeitem',{name:/shared-atlas$/}).click();await bob.getByRole('button',{name:'Define',exact:true}).click();
- const answers=[['What should this solution do?','A shared atlas of project decisions.'],['Who will use it?','Two collaborating developers.'],['What does it need to respect?','Retain edits and attribute reviewed changes.'],['What should we leave out?','Paid execution in this test'],['How will we know it works?','Shared notes survive restart']];
- for(let index=0;index<answers.length;index++){await bob.getByRole('textbox',{name:answers[index][0],exact:true}).fill(answers[index][1]);await bob.getByRole('button',{name:index===answers.length-1?'Review specification':'Next question',exact:true}).click();}
- const first=await saveDefinition(bob);assert.equal(first.revision,1);check('A separate browser identity saved shared definition with independent editing permission');
+ const answers=[['What should this solution do?','A shared atlas of project decisions.'],['Who will use it?','Two collaborating developers.'],['What does it need to respect?','Retain edits and attribute reviewed changes.'],['What should we leave out?','Paid execution in this test']];
+ for(const [label,value] of answers){await bob.getByRole('textbox',{name:label,exact:true}).fill(value);await bob.getByRole('button',{name:'Next question',exact:true}).click();}
+ const outcome={title:'Shared notes survive restart',acceptance:'Save a shared note, restart the app and confirm both collaborators can read it.'};
+ await bob.getByRole('button',{name:'Add an outcome',exact:true}).click();await bob.getByRole('textbox',{name:'Outcome 1',exact:true}).fill(outcome.title);await bob.getByRole('textbox',{name:'How to check outcome 1',exact:true}).fill(outcome.acceptance);await bob.getByRole('button',{name:'Review specification',exact:true}).click();
+ const first=await saveDefinition(bob);assert.equal(first.revision,1);assert.deepEqual(first.requirements.map(({title,acceptance})=>({title,acceptance})),[outcome]);check('A separate browser identity saved shared definition with independent editing permission');
  await alice.reload();await alice.getByRole('button',{name:'Define',exact:true}).click();await alice.getByRole('tab',{name:'Specification',exact:true}).click();await alice.getByRole('textbox',{name:'The idea',exact:true}).waitFor();assert.equal(await alice.getByRole('textbox',{name:'The idea',exact:true}).inputValue(),answers[0][1]);
  await bob.getByRole('textbox',{name:'The idea',exact:true}).fill('Bob retained edit during concurrent collaboration.');
  await alice.getByRole('textbox',{name:'The idea',exact:true}).fill('Alice saved the newer shared definition.');await saveDefinition(alice);
@@ -67,6 +69,24 @@ try {
  await bob.reload();await bob.getByRole('button',{name:'Define',exact:true}).click();await bob.getByRole('region',{name:'Definition draft recovery',exact:true}).waitFor();check('Reload preserved the team-scoped definition draft and offered recovery against newer context');
  await alice.getByRole('button',{name:'Team access',exact:true}).click();await alice.getByLabel('Team access for Bob Editor',{exact:true}).click();const bobMember=alice.getByRole('group',{name:'Bob Editor',exact:true}).first();await bobMember.getByLabel('Role',{exact:true}).selectOption('viewer');await bobMember.getByRole('button',{name:'Save access',exact:true}).click();await alice.getByRole('button',{name:'Close',exact:true}).click();
  await bob.reload();await bob.getByRole('button',{name:'Define',exact:true}).click();await bob.locator('.definition-workspace').getByText(/Read-only access/).waitFor();assert.equal(await bob.getByRole('button',{name:'Approve definition',exact:true}).isEnabled(),false);check('Downgraded collaborator sees read-only controls and cannot approve or run agents');
+ const deploymentTraffic=[];
+ const recordDeploymentRequest=request=>{const url=new URL(request.url());if(url.origin===base&&url.pathname.startsWith(workspace+'/'))deploymentTraffic.push({method:request.method(),path:url.pathname});};
+ bob.on('request',recordDeploymentRequest);
+ try {
+  await bob.getByRole('button',{name:'Deploy',exact:true}).click();await bob.getByRole('tab',{name:'Previews and publishing',exact:true}).click();
+  await bob.getByText('Deployment access is required to build, stop, check health or roll back releases. Ask a team owner for editing and deployment access.',{exact:true}).waitFor();
+  assert.equal(await bob.getByRole('button',{name:'Build local preview',exact:true}).isEnabled(),false);
+  const refresh=bob.getByRole('button',{name:'Refresh',exact:true});assert.equal(await refresh.isEnabled(),true);
+  const historyResponse=bob.waitForResponse(response=>response.request().method()==='GET'&&new URL(response.url()).pathname===`${workspace}/v1/product/projects/${project.id}/releases`);
+  await refresh.click();const refreshed=await historyResponse;assert.equal(refreshed.status(),200);assert.deepEqual((await refreshed.json()).releases,[]);
+  // Observe beyond the deployment-health polling interval without creating a
+  // release or contacting Docker. Pending-release polling is covered separately.
+  await delay(5500);
+  assert.deepEqual(deploymentTraffic.filter(request=>!['GET','HEAD','OPTIONS'].includes(request.method)),[],'Viewer navigation or history refresh attempted a workspace mutation');
+  await bob.screenshot({path:path.join(evidence,'viewer-deployment-permissions.png'),fullPage:true});
+  receipt.viewerDeployment={history:'empty',observationMs:5500,requests:deploymentTraffic};
+  check('Viewer sees disabled local preview with an owner-grant remedy, can GET empty release history, and sends no deployment mutation or health POST during navigation and refresh');
+ } finally {bob.off('request',recordDeploymentRequest);}
  await alice.getByRole('button',{name:'Define',exact:true}).click();await alice.getByRole('button',{name:'Approve definition',exact:true}).click();
  const history=await api('GET',`${workspace}/v1/product/projects/${project.id}/context-history`,undefined,owner.token);assert.ok(history.events.some(row=>row.actor.id===colleague.id));assert.ok(history.events.some(row=>row.actor.id===owner.user.id&&row.action==='approve'));check('Private saved history attributes Bob’s change and Alice’s approval to their real authenticated identities');
  await alice.getByRole('button',{name:'Team access',exact:true}).click();await alice.waitForFunction(()=>getComputedStyle(document.querySelector('[role="dialog"]')).opacity==='1');await alice.evaluate(axe.source);const audit=await alice.evaluate(async()=>window.axe.run(document.querySelector('[role="dialog"]'),{runOnly:['wcag2a','wcag2aa','wcag21aa']}));await writeFile(path.join(evidence,'team-accessibility.json'),JSON.stringify(audit.violations,null,2));assert.deepEqual(audit.violations.map(v=>v.id),[]);await alice.screenshot({path:path.join(evidence,'team-access.png'),fullPage:true});check('Team access dialog passed bounded WCAG A/AA accessibility check');

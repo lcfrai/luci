@@ -2,6 +2,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { productApi, errorText, type Release } from "../../api/product";
 import { isGatewayHostname, isPublicGatewayHostname } from "../../api/platform";
 import { prepareBrowserAccess } from "../../api/browserAccess";
+import { useCockpit } from "../../store/store";
+import type { ProjectRunDeploymentIntent } from "../../store/slices/uiSlice";
+import { useProjectDraftScope } from "../../hooks/useProjectDraft";
+import { notifyProjectContextChanged } from "../../api/projectContextEvents";
+import { projectRunsApi } from "../../api/projectRuns";
+import { useRunDeployment } from "../journey/useRunDeployment";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { ProjectRequired, JourneyHeader } from "../journey/shared";
 import { useSetup } from "../setup/SetupProvider";
@@ -22,11 +28,23 @@ export function DeployLens() {
   );
 }
 export function DeploymentWorkspace({ projectId }: { projectId: string }) {
-  const [view, setView] = useState<"platform" | "publishing">("platform");
+  const scope = useProjectDraftScope(projectId);
+  return <ScopedDeploymentWorkspace key={scope ?? projectId} projectId={projectId} scope={scope} />;
+}
+function ScopedDeploymentWorkspace({ projectId, scope }: { projectId: string; scope: string | null }) {
+  const pending = useCockpit(state => state.projectRunDeployment);
+  const matches = (value: ProjectRunDeploymentIntent | null) => !!scope && value?.scope === scope && value.projectId === projectId;
+  const [intent, setIntent] = useState<ProjectRunDeploymentIntent | null>(() => matches(pending) ? pending : null);
+  const [view, setView] = useState<"platform" | "publishing">(() => matches(pending) ? "publishing" : "platform");
   const [configurationBusy, setConfigurationBusy] = useState(false);
   const [publishingBusy, setPublishingBusy] = useState(false);
   const tabsId = useId(), selectedIndex = view === "platform" ? 0 : 1;
   const locked = configurationBusy || publishingBusy;
+  useEffect(() => {
+    if (!matches(pending) || locked) return;
+    setIntent(pending); setView("publishing");
+    useCockpit.setState(state => state.projectRunDeployment === pending ? { projectRunDeployment: null } : {});
+  }, [pending, scope, projectId, locked]);
   return <div className="deployment-workspace">
     <TabsSubtle className="deployment-tabs" aria-label="Deployment workspace" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => { if (!locked) setView(index === 0 ? "platform" : "publishing"); }}>
       <TabsSubtleItem index={0} label="Application platform" aria-disabled={locked} />
@@ -36,13 +54,25 @@ export function DeploymentWorkspace({ projectId }: { projectId: string }) {
       <section className="journey-page"><JourneyHeader title="Deploy and operate" subtitle="Run the application and its backing services, inspect its health and maintain it after launch." /><fieldset className="definition-fields" disabled={configurationBusy}><PlatformWorkspace projectId={projectId} /></fieldset></section>
     </TabsSubtlePanel>
     <TabsSubtlePanel idPrefix={tabsId} index={1} selectedIndex={selectedIndex}>
-      <ProjectDeploy projectId={projectId} configurationManaged configurationBusy={configurationBusy} onBusyChange={setPublishingBusy} />
+      <ProjectDeploy projectId={projectId} deploymentIntent={intent} configurationManaged configurationBusy={configurationBusy} onBusyChange={setPublishingBusy} />
     </TabsSubtlePanel>
     <section className="journey-page deployment-configuration"><details className="deployment-details"><summary>Runtime configuration</summary><ProjectConfiguration projectId={projectId} disabled={publishingBusy} onBusyChange={setConfigurationBusy} /></details></section>
   </div>;
 }
-export function ProjectDeploy({ projectId, configurationManaged = false, configurationBusy: externalConfigurationBusy = false, onBusyChange }: { projectId: string; configurationManaged?: boolean; configurationBusy?: boolean; onBusyChange?(busy: boolean): void }) {
+interface ProjectDeployProps { projectId: string; configurationManaged?: boolean; configurationBusy?: boolean; onBusyChange?(busy: boolean): void; deploymentIntent?: ProjectRunDeploymentIntent | null }
+export function ProjectDeploy(props: ProjectDeployProps) {
+  const scope = useProjectDraftScope(props.projectId);
+  return <ScopedProjectDeploy key={JSON.stringify([scope ?? props.projectId, props.deploymentIntent?.runId ?? "", props.deploymentIntent?.checkId ?? ""])} {...props} scope={scope} />;
+}
+function ScopedProjectDeploy({ projectId, configurationManaged = false, configurationBusy: externalConfigurationBusy = false, onBusyChange, deploymentIntent, scope }: ProjectDeployProps & { scope: string | null }) {
+  const intent = scope && deploymentIntent?.scope === scope && deploymentIntent.projectId === projectId ? deploymentIntent : null;
+  const binding = useRunDeployment(projectId, intent);
   const projectAccess = useProjectAccess(projectId);
+  const browserPermission = useRef(projectAccess.canExecute); browserPermission.current = projectAccess.canExecute;
+  const canDeploy = projectAccess.canEdit && projectAccess.permissions.deploy;
+  const permissionMessage = projectAccess.loading || projectAccess.error ? projectAccess.message
+    : !canDeploy ? "Deployment access is required to build, stop, check health or roll back releases. Ask a team owner for editing and deployment access."
+      : !projectAccess.canExecute ? "You can deploy this project. Ask a team owner for execution access to open its private application preview." : "";
   const [releases, setReleases] = useState<Release[]>([]);
   const [port, setPort] = useState(3000);
   const [dockerfile, setDockerfile] = useState("Dockerfile");
@@ -50,9 +80,10 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
   const [localConfigurationBusy, setConfigurationBusy] = useState(false);
   const configurationBusy = localConfigurationBusy || externalConfigurationBusy;
   const locked = !!busy || configurationBusy;
+  const buildLocked = locked || !canDeploy || (!!intent && (!binding.run || binding.loading || !!binding.error));
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<{ url: string; releaseId: string } | null>(null);
-  const [mode, setMode] = useState<"local" | "cloud" | "pages">("local");
+  const [mode, setMode] = useState<"local" | "cloud" | "pages">(intent?.outcome === "publish" ? "cloud" : "local");
   const tabsId = useId(), selectedIndex = mode === "local" ? 0 : mode === "cloud" ? 1 : 2;
   const alive = useRef(true),
     working = useRef(false);
@@ -77,6 +108,7 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
       alive.current = false;
     };
   }, [projectId]);
+  useEffect(() => { if (!projectAccess.canExecute) setPreview(null); }, [projectAccess.canExecute]);
   useEffect(() => {
     if (preview && !releases.some(release => release.id === preview.releaseId && release.status === "ready")) setPreview(null);
   }, [preview, releases]);
@@ -103,7 +135,7 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
     .map((release) => release.id)
     .join(",");
   useEffect(() => {
-    if (!pendingCloud || busy) return;
+    if (!pendingCloud || busy || !canDeploy) return;
     let cancelled = false,
       checking = false;
     const timer = setInterval(() => {
@@ -128,14 +160,15 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
       cancelled = true;
       clearInterval(timer);
     };
-  }, [pendingCloud, busy, projectId]);
-  async function operate(label: string, action: () => Promise<Release>, refreshAfter = true) {
-    if (working.current || configurationBusy) return;
+  }, [pendingCloud, busy, projectId, canDeploy]);
+  async function operate(label: string, action: () => Promise<Release>, refreshAfter = true, permitted = canDeploy) {
+    if (working.current || configurationBusy || !permitted) return;
     working.current = true;
     setBusy(label);
     setError("");
     try {
       const release = await action();
+      if (alive.current && refreshAfter) notifyProjectContextChanged(scope, projectId);
       if (alive.current && release.status === "stopped") setPreview(null);
     } catch (cause) {
       if (alive.current) setError(errorText(cause));
@@ -149,6 +182,18 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
       if (alive.current) setBusy("");
     }
   }
+  const returnToRun = () => {
+    if (!alive.current || !intent || !scope) return;
+    useCockpit.setState({ projectRunInspection: { scope, projectId, runId: intent.runId, refresh: true } });
+    useCockpit.getState().setLens("develop");
+  };
+  const createRelease = async (build: () => Promise<Release>, commit?: string) => {
+    if (intent) {
+      await binding.validate();
+      if (commit && commit !== intent.commit) throw new Error("The selected deployment source differs from this build's checked commit. Refresh its results before continuing.");
+    }
+    return build();
+  };
   const localUrl = (release: Release): string | null => {
     if (release.status !== "ready") return null;
     try {
@@ -178,10 +223,20 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
           </Button>
         )}
       </JourneyHeader>
-      <TabsSubtle className="deployment-destinations" aria-label="Deployment destination" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => { if (!locked) setMode(index === 0 ? "local" : index === 1 ? "cloud" : "pages"); }}>
-        <TabsSubtleItem index={0} label={setup?.workspace?.mode === "cloud" ? "This workspace" : "On this machine"} aria-disabled={locked} />
-        <TabsSubtleItem index={1} label="Your cloud" aria-disabled={locked} />
-        <TabsSubtleItem index={2} label="GitHub Pages" aria-disabled={locked} />
+      {permissionMessage && <p role="status" className="journey-muted">{permissionMessage}</p>}
+      {intent && <section className="journey-section" aria-label="Checked build deployment">
+        <h2>Deploy this checked build</h2>
+        <p>Build {intent.runId} · Check {intent.checkId} · Commit <code>{intent.commit}</code></p>
+        <p>{intent.outcome === "preview" ? "The agreed outcome is a local preview." : "The agreed outcome is publication."} Starting a release, attaching its verified evidence and accepting the outcome are separate decisions.</p>
+        {binding.loading && <p role="status">Checking this build's saved evidence and current source…</p>}
+        {binding.error && <p role="alert">{binding.error}</p>}
+        <div className="journey-actions"><Button variant="secondary" disabled={locked || binding.loading} onClick={() => void binding.validate().catch(() => {})}>Refresh checked source</Button>
+        <Button variant="secondary" disabled={locked} onClick={returnToRun}>Return to build results</Button></div>
+      </section>}
+      <TabsSubtle className="deployment-destinations" aria-label="Deployment destination" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => { if (!locked && (!intent || (intent.outcome === "preview" ? index === 0 : index !== 0))) setMode(index === 0 ? "local" : index === 1 ? "cloud" : "pages"); }}>
+        <TabsSubtleItem index={0} label={setup?.workspace?.mode === "cloud" ? "This workspace" : "On this machine"} aria-disabled={locked || intent?.outcome === "publish"} />
+        <TabsSubtleItem index={1} label="Your cloud" aria-disabled={locked || intent?.outcome === "preview"} />
+        <TabsSubtleItem index={2} label="GitHub Pages" aria-disabled={locked || intent?.outcome === "preview"} />
       </TabsSubtle>
       {error && (
         <p className="journey-error" role="alert">
@@ -195,9 +250,10 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
           onInvalidCapture={event => { const details = (event.target as HTMLElement).closest<HTMLDetailsElement>("details"); if (details) details.open = true; }}
           onSubmit={(event) => {
             event.preventDefault();
-            void operate("Building and checking your app", () =>
-              productApi.release(projectId, port, dockerfile),
-            );
+            if (buildLocked) return;
+            void operate("Building and checking your app", () => createRelease(() =>
+              intent ? productApi.release(projectId, port, dockerfile, intent.commit) : productApi.release(projectId, port, dockerfile),
+            ));
           }}
         >
           <details className="deployment-details"><summary>Preview build options</summary><div className="setup-field-grid">
@@ -205,7 +261,7 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
             Dockerfile
             <input
               required
-              disabled={locked}
+              disabled={buildLocked}
               value={dockerfile}
               onChange={(event) => setDockerfile(event.target.value)}
             />
@@ -214,7 +270,7 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
             App port
             <input
               required
-              disabled={locked}
+              disabled={buildLocked}
               type="number"
               min="1"
               max="65535"
@@ -224,7 +280,7 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
             <small>The port your app listens on inside its container.</small>
           </label>
           </div></details>
-          <Button type="submit" variant="primary" loading={!!busy} disabled={locked}>
+          <Button type="submit" variant="primary" loading={!!busy} disabled={buildLocked}>
             {busy || "Build local preview"}
           </Button>
         </form>
@@ -234,29 +290,32 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
       {mode === "pages" && (
         <PagesDeployForm
           projectId={projectId}
+          disabled={buildLocked}
           busy={
             busy || (configurationBusy ? "Saving runtime configuration" : "")
           }
           onDeploy={(input) =>
             void operate("Submitting static deployment", () =>
-              productApi.pagesRelease(projectId, input),
+              createRelease(() => productApi.pagesRelease(projectId, input), input.commit),
             )
           }
         />
       )}
       </TabsSubtlePanel>
       <TabsSubtlePanel idPrefix={tabsId} index={1} selectedIndex={selectedIndex}>
-      {mode === "cloud" && (
+      {mode === "cloud" && canDeploy && (
         <CloudDeployForm
           projectId={projectId}
+          disabled={buildLocked}
           busy={
             busy || (configurationBusy ? "Saving runtime configuration" : "")
           }
           canManageBacking={manageBacking}
+          canPrepareAccess={projectAccess.permissions.secrets}
           onSetup={() => setup?.openCloud()}
           onDeploy={(input) =>
             void operate("Submitting cloud deployment", () =>
-              productApi.cloudRelease(projectId, input),
+              createRelease(() => productApi.cloudRelease(projectId, input), input.commit),
             )
           }
         />
@@ -316,6 +375,16 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
               {new Date(release.createdAt).toLocaleString()}
             </small>
             <div className="journey-actions">
+              {intent && release.status === "ready" && release.commit === intent.commit && (intent.outcome === "preview" ? release.target === "local" : release.target !== "local") && <Button variant="primary" disabled={locked || !projectAccess.canEdit || !binding.run || binding.loading || !!binding.error} onClick={() => {
+                void operate("Verifying and attaching release evidence", async () => {
+                  const current = await binding.validate();
+                  if (!current) throw new Error("Reopen this build's results before attaching evidence.");
+                  await projectRunsApi.joinRelease(projectId, current.id, current.revision, release.id, release.target);
+                  notifyProjectContextChanged(scope, projectId);
+                  returnToRun();
+                  return release;
+                }, false, projectAccess.canEdit);
+              }}>Attach release to build results</Button>}
               {release.target === "github-pages" && localUrl(release) && (
                 <Button asChild variant="secondary"><a
                   href={localUrl(release)!}
@@ -343,9 +412,9 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
                             "Luci did not return a valid local preview address.",
                           );
                         const opened = await prepareBrowserAccess(projectId, url);
-                        if (alive.current) setPreview({ url: opened, releaseId: release.id });
+                        if (alive.current && browserPermission.current) setPreview({ url: opened, releaseId: release.id });
                         return release;
-                      }, false);
+                      }, false, projectAccess.canExecute);
                     }}
                   >
                     Open preview
@@ -354,7 +423,7 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
               {release.target !== "local" && (
                 <Button type="button"
                   variant="secondary"
-                  disabled={locked}
+                  disabled={locked || !canDeploy}
                   onClick={() =>
                     void operate("Checking deployment health", () =>
                       productApi.refreshRelease(projectId, release.id),
@@ -369,7 +438,7 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
               ) && (
                 <Button type="button"
                   variant="secondary"
-                  disabled={locked}
+                  disabled={locked || !canDeploy}
                   onClick={() =>
                     void operate(
                       release.target === "local"
@@ -393,7 +462,7 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
                 ["ready", "failed", "stopped"].includes(release.status) && (
                   <Button type="button"
                     variant="secondary"
-                    disabled={locked}
+                    disabled={locked || !canDeploy}
                     onClick={() =>
                       void operate("Rebuilding the selected release", () =>
                         productApi.rollbackRelease(projectId, release.id),

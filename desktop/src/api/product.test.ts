@@ -2,6 +2,16 @@ import { expect, it, vi } from "vitest";
 import { ApiError } from "./client";
 import { createProductClient } from "./product";
 
+it("binds a checked local preview to its exact commit while preserving independent preview requests", async () => {
+  const fetcher = vi.fn().mockImplementation(() => Promise.resolve(new Response("{}", { status: 200 })));
+  const client = createProductClient("http://localhost", fetcher);
+  const commit = "a".repeat(40);
+  await client.release("p-1", 3000, "Dockerfile", commit);
+  expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ target: "local", port: 3000, dockerfile: "Dockerfile", expectedCommit: commit });
+  await client.release("p-1", 3000, "Dockerfile");
+  expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({ target: "local", port: 3000, dockerfile: "Dockerfile" });
+});
+
 it("sends exact requirement revision bindings for tasks and checks without changing generic check requests", async () => {
   const fetcher = vi.fn().mockResolvedValue(new Response("{}", { status:200 }));
   const client = createProductClient("http://localhost", fetcher);

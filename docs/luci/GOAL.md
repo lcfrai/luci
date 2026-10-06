@@ -14,6 +14,34 @@ own AWS or Azure resources and domain, or an existing workspace. Minimize ongoin
 cost while preserving the quality of the result. Reuse suitable open-source
 components discovered through lcfr.ai Glasses where this improves delivery.
 
+## Product-quality completion standard — owner's latest direction
+
+Deliver an exceptionally polished, dependable idea-to-production product, with
+the clarity, responsiveness and consistency people expect from Vercel, ChatGPT
+and other leading AI-era applications. The standard covers the complete work,
+including context building, amendments, collaboration, agent execution,
+verification, deployment and operation. A clean launch or passing technical
+suite does not complete this goal.
+
+The person must understand the solution being agreed and built at every stage,
+know what requires their decision, see the consequence of a change, and have a
+clear way forward after an interruption or failure. Luci must carry this
+understanding into an independently verified, live application and subsequent
+changes. Persistent conversation remains optional.
+
+[PRODUCT-QUALITY.md](PRODUCT-QUALITY.md) defines the observable quality contract,
+representative complete journeys and evidence required to close this goal.
+Treat it as a release gate alongside the existing functional, isolation,
+commercial and distribution gates. Keep improving concrete shortcomings until
+the contract is demonstrated; neither blocked Windows CI nor missing external
+credentials excuses independent product and interaction work.
+
+Current status: **not complete and not production ready**. Existing scoped
+test/package results are valuable evidence, not a verdict on whole-product
+polish or live model quality. The target is no known serious product or usability
+defect in the supported journeys, with understandable recovery from expected
+failures. Do not promise that any application can never encounter a future bug.
+
 ## Open-source and managed-team goal — 6 October 2026
 
 The owner has confirmed two delivery options: the self-hosted MIT open-source

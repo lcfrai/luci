@@ -35,3 +35,13 @@ it("moves the same primary checkout while retaining exited transcripts on their 
   state.acceptBranchChange("owned", [main, feature], aWorktree({ id: "primary", projectId: "owned", branchId: "main", isPrimary: true, ready: false }));
   expect(selectPaneSessionIds(useCockpit.getState())).toEqual(["old"]); expect(selectCanvasSessionIds(useCockpit.getState())).toEqual(["old"]); expect(useCockpit.getState().projectSourceRevisions.owned).toBe(2);
 });
+
+it("keeps checked deployment and verification intents transient and clears cancelled navigation", () => {
+  const intent = { scope: "account-workspace-project", projectId: "owned", runId: "checked-run" };
+  useCockpit.setState({ projectRunVerification: intent, projectRunDeployment: { ...intent, checkId: "check", commit: "a".repeat(40), sourceDigest: "b".repeat(64), outcome: "preview" } });
+  expect(partialize(useCockpit.getState())).not.toHaveProperty("projectRunVerification");
+  expect(partialize(useCockpit.getState())).not.toHaveProperty("projectRunDeployment");
+  useCockpit.getState().cancelNavigation();
+  expect(useCockpit.getState().projectRunVerification).toBeNull();
+  expect(useCockpit.getState().projectRunDeployment).toBeNull();
+});

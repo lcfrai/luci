@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
+import { notifyProjectContextChanged, PROJECT_CONTEXT_EDIT, takeProjectContextEdit } from "../../api/projectContextEvents";
 import { designPlanApi, type DesignPlan, type DesignScreen } from "../../api/designPlan";
 import { definitionApi, type ProjectSpecification } from "../../api/definition";
 import { productApi, errorText, type Release } from "../../api/product";
@@ -105,7 +106,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
     if (!canEdit || !plan || !spec || draft.pending || working.current || refreshingSketch) return;
     const requestGeneration = generation.current;
     working.current = true; setBusy(true); setPending("save"); setError("");
-    try { const saved = await designPlanApi.save(projectId, plan, baseRevision, spec.briefRevision, spec.revision); if (alive.current && requestGeneration === generation.current) { draft.clear(); savedPlan.current = saved; setPlan(saved); setBaseRevision(saved.revision); setDirty(false); setNotice(`Design plan ${saved.revision} saved. Implementation context updated.`); } }
+    try { const saved = await designPlanApi.save(projectId, plan, baseRevision, spec.briefRevision, spec.revision); if (alive.current && requestGeneration === generation.current) { draft.clear(); savedPlan.current = saved; setPlan(saved); setBaseRevision(saved.revision); setDirty(false); setNotice(`Design plan ${saved.revision} saved. Implementation context updated.`); notifyProjectContextChanged(scope, projectId); } }
     catch (e) { if (alive.current && requestGeneration === generation.current) setError(errorText(e)); }
     finally { if (alive.current && requestGeneration === generation.current) { working.current = false; setBusy(false); setPending(""); } }
   }
@@ -113,7 +114,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
     if (!canEdit || !plan || dirty || draft.pending || working.current || refreshingSketch) return;
     const requestGeneration = generation.current;
     working.current = true; setBusy(true); setPending("approve"); setError("");
-    try { const saved = await designPlanApi.approve(projectId, plan.revision); if (alive.current && requestGeneration === generation.current) { savedPlan.current = saved; setPlan(saved); setBaseRevision(saved.revision); setNotice(`Design handoff ${saved.revision} approved. Its linked definition and sketch are recorded.`); } }
+    try { const saved = await designPlanApi.approve(projectId, plan.revision); if (alive.current && requestGeneration === generation.current) { savedPlan.current = saved; setPlan(saved); setBaseRevision(saved.revision); setNotice(`Design handoff ${saved.revision} approved. Its linked definition and sketch are recorded.`); notifyProjectContextChanged(scope, projectId); } }
     catch (e) { if (alive.current && requestGeneration === generation.current) setError(errorText(e)); }
     finally { if (alive.current && requestGeneration === generation.current) { working.current = false; setBusy(false); setPending(""); } }
   }
@@ -183,6 +184,12 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
     activateView(next);
   };
   useEffect(() => { if (!sketchDirty) setPendingView(null); }, [sketchDirty]);
+  useEffect(() => {
+    if (!plan || !canRead || sketchBusy) return;
+    const edit = () => { if (takeProjectContextEdit(scope, projectId, "design")) selectView("screens"); };
+    edit(); window.addEventListener(PROJECT_CONTEXT_EDIT, edit);
+    return () => window.removeEventListener(PROJECT_CONTEXT_EDIT, edit);
+  }, [scope, projectId, !!plan, canRead, view, sketchDirty, sketchBusy]);
   const linked = new Set(plan?.screens.flatMap((s) => s.requirementIds) || []);
   const prototypes = releases.filter((r) => r.projectId === projectId && r.status === "ready");
   const selectedPrototype = prototypes.find((r) => r.id === plan?.prototypeReleaseId);

@@ -41,6 +41,9 @@ it("makes amendment and clarification paths explicit without starting an operati
   expect(screen.getByRole("region", { name: "Decisions to resolve" })).not.toBeNull();
   expect(screen.getByText("This changes the privacy boundary.")).not.toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Change the plan" }));
+  expect(ask).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Edit outcomes" })).not.toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Discuss a change with Luci" }));
   expect(ask).toHaveBeenCalledExactlyOnceWith();
   expect(navigate).not.toHaveBeenCalled();
 });
