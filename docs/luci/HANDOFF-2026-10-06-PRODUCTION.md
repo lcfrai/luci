@@ -24,7 +24,22 @@ continues while external commissioning and Windows CI access remain blocked.
 
 ## Latest source checkpoint
 
-Current packaged `85f830e0` passes all ten connected collaborative build groups
+Clean `98e329ea` proves actual same-child captured A survives a teammate's UI
+amendment B, with separately verified read-only delivery, writable canonical B,
+identity, explicit stop and cleanup. Its overall attempt remains failed on the
+390 px terminal-area assertion; exact failed dimensions were lost and are being
+measured on a private copied-state layout diagnostic. No phone pass is claimed.
+
+The working follow-on adds human inspection of original captured documents for
+team readers without terminal privileges. Source validation passes full Go2,176/
+22 skips, affected race781/four skips, Windows/Darwin cross-compilation and frontend
+2,093-case coverage across complete/corrected runs plus TypeScript. Missing token
+import and the old workflow-prompt expectation were the two full-frontend failures;
+the 86-case correction passes. An independently found response-projection
+revocation window is fixed with a retained before-fix failure. Installed inspector,
+layout and bundle lifecycle acceptance remain open.
+
+Earlier packaged `85f830e0` passes all ten connected collaborative build groups
 and all three actual local-platform / delayed-provider groups, with owned cleanup
 and unchanged pins. Provider/model behavior is controlled fixture input.
 The newly confirmed highest-priority defect is immutable context delivery:

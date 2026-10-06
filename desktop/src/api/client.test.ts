@@ -533,6 +533,22 @@ describe("createClient — sessions", () => {
     expect((err as ApiError).code).toBe("session_not_found");
     expect((err as ApiError).status).toBe(404);
   });
+
+  it("reads one named captured document without requesting current project context or mutating a session", async () => {
+    const body = { sessionId: "s-a/b", projectId: "p-1", worktreeId: "w-1", version: 1, digest: "a".repeat(64), implementationContext: {}, document: { kind: "definition", sha256: "b".repeat(64), bytes: 30, value: { purpose: "Original garden" } } };
+    const { fn, calls } = fetchStub([jsonReply(200, JSON.stringify(body))]);
+    expect(await createClient({ fetch: fn }).getSessionReviewedContext("s-a/b", "definition")).toEqual(body);
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe(`${DEFAULT_BASE_URL}/v1/sessions/s-a%2Fb/reviewed-context?document=definition`);
+    expect(calls[0].init?.method).toBe("GET");
+    expect(calls[0].init?.body).toBeUndefined();
+  });
+
+  it("retains an unavailable capture response without falling back to current project documents", async () => {
+    const { fn, calls } = fetchStub([problemReply(409, "conflict", "This session's captured context cannot be verified.")]);
+    await expect(createClient({ fetch: fn }).getSessionReviewedContext("s-1", "plan")).rejects.toMatchObject({ status: 409, message: "This session's captured context cannot be verified." });
+    expect(calls).toHaveLength(1);
+  });
 });
 
 describe("createClient — the lifecycle verbs", () => {

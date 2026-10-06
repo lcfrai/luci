@@ -456,7 +456,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
               const older = context.briefRevision !== brief.revision || context.planRevision !== plan.revision || context.specificationRevision !== coverage?.specification.revision || context.designPlanRevision !== coverage?.design.revision;
               return <li key={session.id}><div className="journey-header"><div><strong>{session.title} · {sessionStatus[session.status]}</strong><p>Brief {context.briefRevision} · Plan {context.planRevision} · Definition {context.specificationRevision} · Design {context.designPlanRevision}{older ? " · Earlier saved context" : ""}</p></div><Button type="button" variant="tertiary" disabled={!canRead || dirty} onClick={() => openSession(session)}>Open session</Button></div>
                 <p>{context.taskTitles.join("; ")}</p><p className="journey-muted">Source {context.sourceCommit ? context.sourceCommit.slice(0, 12) : "without a commit"}{context.sourceDirty ? " · included uncommitted changes at start" : " · clean at start"}. {context.requirementIds.length ? `Saved task links: ${context.requirementIds.join(", ")}.` : "No task-specific requirement links recorded."}</p>
-                <ReviewedContextNote session={session} />
+                <ReviewedContextNote session={session} canInspect={canRead} readPending={access.loading || !!access.error} />
                 {session.status === "exited" && <p className="journey-muted">{session.exitReason || "Session ended."} Completion and verification are not inferred.</p>}
               </li>;
             })}</ul>

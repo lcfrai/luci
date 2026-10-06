@@ -439,31 +439,43 @@ func (g *Gateway) routeTeamWorkspace(w http.ResponseWriter, r *http.Request) {
 	if scope.SessionID != "" && !strings.HasSuffix(inner.URL.Path, "/attach") || scope.WorktreeFromBody || inner.URL.Path == "/v1/setup/agents/codex/sign-in" {
 		capture := newTeamCapture()
 		g.route(capture, inner)
-		if inner.Context().Err() != nil {
-			fail(w, 403, "team_access_changed", errTeamAccess.Error())
-			return
-		}
-		if capture.overflow {
-			fail(w, 503, "team_session_unavailable", "The team session response exceeded its supported limit.")
-			return
-		}
-		if capture.status >= 200 && capture.status < 300 && capture.body.Len() > 0 {
-			projected, err := teamSessionProjection(capture.body.Bytes(), prefix)
-			if err != nil {
-				fail(w, 503, "team_session_unavailable", "The team session result could not be verified. Refresh before retrying.")
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			w.Header().Set("Cache-Control", "no-store")
-			w.WriteHeader(capture.status)
-			_, _ = w.Write(projected)
-			return
-		}
-		copyTeamResponse(w, capture)
+		writeTeamSessionResponse(w, inner.Context(), capture, prefix)
 		return
 	}
 	g.route(w, inner)
 }
+
+// The worker response remains private until projection finishes and the pinned
+// request is checked again. Large captured documents can take meaningful time
+// to decode; revocation during that work must not release the buffered bytes.
+func writeTeamSessionResponse(w http.ResponseWriter, ctx context.Context, capture *teamCapturedResponse, prefix string) {
+	if ctx.Err() != nil {
+		fail(w, 403, "team_access_changed", errTeamAccess.Error())
+		return
+	}
+	if capture.overflow {
+		fail(w, 503, "team_session_unavailable", "The team session response exceeded its supported limit.")
+		return
+	}
+	if capture.status >= 200 && capture.status < 300 && capture.body.Len() > 0 {
+		projected, err := teamSessionProjection(capture.body.Bytes(), prefix)
+		if err != nil {
+			fail(w, 503, "team_session_unavailable", "The team session result could not be verified. Refresh before retrying.")
+			return
+		}
+		if ctx.Err() != nil {
+			fail(w, 403, "team_access_changed", errTeamAccess.Error())
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(capture.status)
+		_, _ = w.Write(projected)
+		return
+	}
+	copyTeamResponse(w, capture)
+}
+
 func teamSessionProjection(raw []byte, prefix string) (json.RawMessage, error) {
 	var fields map[string]json.RawMessage
 	if json.Unmarshal(raw, &fields) != nil {

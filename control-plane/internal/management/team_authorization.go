@@ -82,6 +82,7 @@ var teamRouteRules = []teamRouteRule{
 	{"GET /v1/sessions", teamRead},
 	{"POST /v1/sessions", teamEdit | teamExecute},
 	{"GET /v1/sessions/{sessionId}", teamRead},
+	{"GET /v1/sessions/{sessionId}/reviewed-context", teamRead},
 	{"PATCH /v1/sessions/{sessionId}", teamEdit},
 	{"DELETE /v1/sessions/{sessionId}", teamEdit | teamExecute},
 	{"POST /v1/sessions/{sessionId}/restart", teamEdit | teamExecute},

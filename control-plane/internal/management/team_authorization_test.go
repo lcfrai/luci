@@ -79,6 +79,8 @@ func TestTeamRouteCapabilitiesSeparateContextExecutionSecretsAndDeployment(t *te
 		{"editor cannot allocate coding", "POST", "/v1/sessions", editor, false},
 		{"executor allocates coding", "POST", "/v1/sessions", executor, true},
 		{"viewer sees session metadata", "GET", "/v1/sessions/s-one", viewer, true},
+		{"viewer inspects frozen inputs without execution or secrets", "GET", "/v1/sessions/s-one/reviewed-context", viewer, true},
+		{"captured inspection cannot mutate", "POST", "/v1/sessions/s-one/reviewed-context", full, false},
 		{"attach GET is writable", "GET", "/v1/sessions/s-one/attach", viewer, false},
 		{"editor cannot attach terminal", "GET", "/v1/sessions/s-one/attach", editor, false},
 		{"executor attaches terminal", "GET", "/v1/sessions/s-one/attach", executor, true},

@@ -13,6 +13,7 @@ import type {
   Effort,
   Harness,
   HarnessId,
+  ImplementationContext,
   ImplementationContextRequest,
   Machine,
   MachineId,
@@ -148,6 +149,18 @@ export interface ListSessionsFilter {
   status?: SessionStatus[];
 }
 
+export type ReviewedContextDocument = "brief" | "definition" | "design" | "plan";
+/** Verified captured context from this session, never the current project documents. */
+export interface SessionReviewedContext {
+  sessionId: SessionId;
+  projectId: ProjectId;
+  worktreeId: WorktreeId;
+  version: 1;
+  digest: string;
+  implementationContext: ImplementationContext;
+  document: { kind: ReviewedContextDocument; sha256: string; bytes: number; value: unknown };
+}
+
 /** ws(s):// + the session's own attachPath. The path is taken from the session object and
  *  NOT reassembled from the id, so a server-side route change is one server change. */
 export function attachUrl(baseUrl: string, session: Session): string {
@@ -197,6 +210,7 @@ export interface CockpitClient {
    *  zero pixels (§4.7). */
   listSessions(filter?: ListSessionsFilter): Promise<Session[]>;
   getSession(id: SessionId): Promise<Session>;
+  getSessionReviewedContext(id: SessionId, document: ReviewedContextDocument): Promise<SessionReviewedContext>;
   renameSession(id: SessionId, title: string): Promise<Session>;
   restartSession(id: SessionId): Promise<Session>;
   /** Idempotent: killing an exited session is a 200, not an error. */
@@ -446,6 +460,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
       ).sessions;
     },
     getSession: (id) => get<Session>(sessionPath(id)),
+    getSessionReviewedContext: (id, document) => get<SessionReviewedContext>(`${sessionPath(id)}/reviewed-context?document=${encodeURIComponent(document)}`),
     renameSession: async (id, title) => {
       const trimmed = title.trim();
       if (trimmed === "") {

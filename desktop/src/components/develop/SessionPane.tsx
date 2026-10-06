@@ -196,7 +196,7 @@ export function SessionPane({
     >
       <div className="pane-heading">
         <SessionPaneHeader session={session} worktree={worktree} variant={variant} />
-        <ReviewedContextNote session={session} className="pane-context-note" />
+        <ReviewedContextNote session={session} canInspect={access.canRead} readPending={access.loading || !!access.error} className="pane-context-note" />
       </div>
       <div className="pane-body" ref={bodyRef} tabIndex={-1}>
         {/* Unconditional, for every status — known defect 3. readOnly is the ONLY thing

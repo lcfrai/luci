@@ -283,6 +283,25 @@ history, stop and reconciliation remain available, but an already-running old
 container does not acquire a frozen mount retroactively. Kill retains the bundle;
 Forget removes only that stopped session's owned copy before deleting its record.
 
+GET `/v1/sessions/{id}/reviewed-context?document=brief|definition|design|plan`
+deliberately inspects one captured canonical JSON document; an omitted selector
+chooses `definition`. The response is
+`{sessionId,projectId,worktreeId,version:1,digest,implementationContext,document:{kind,sha256,bytes,value}}`.
+The outer digest identifies the saved manifest; document digest and byte count
+identify the exact retained file, while `value` presents that JSON object. The
+entire owned bundle is verified on this request. Newer amendments or approvals
+do not replace or block inspection of the original captured version. No host
+paths, sketch scene, private approval history or provider credentials are added
+to the response, and no terminal attachment, execution, repair or write occurs.
+Team project read permission is sufficient; a grant revoked during the buffered
+response prevents its release. Responses are not cached. One compact document
+and its binding stay below the existing 8 MiB team response limit; the defensive
+7 MiB inspection ceiling refuses unsupported oversized data without truncation.
+Unknown or repeated document selectors return `400`; an absent session returns
+`404` (inaccessible team sessions return `403`). Manual, legacy, missing or
+unverifiable captures return `409`, retaining ordinary history and never
+substituting current project files.
+
 An unlinked task is supported without inventing requirement coverage. Explicit
 `expectedSpecificationRevision` binds even an unlinked saved plan to the current
 approved specification. The canonical opening prompt includes the saved

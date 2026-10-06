@@ -14,7 +14,40 @@ none is relabelled as acceptance of the new candidate.
 
 ## Latest continuing checkpoint
 
-The current `85f830e0` package passes all ten collaborative coding/amendment,
+The clean `98e329ea` package now has a scoped, independently checked context-
+delivery witness: one actual coding child reads approved A, a teammate saves
+Definition/Design B through the UI, and that same child rereads the original
+seven authoritative files, manifest and brief while canonical B remains visible.
+The separate context mount is read-only, source stays writable, and session/run/
+operation/container identities remain unchanged. Exact UI stop and independent
+cleanup verify zero owned resources and unchanged image pins. Its overall
+installed attempt remains **failed**: the 390 px terminal area did not meet the
+unchanged usable-area requirement. The failed numeric dimensions were not
+retained; a bounded layout diagnosis is required before choosing a correction.
+The first two attempts' Git-mount and obsolete-copy fixture failures remain
+separate. Evidence: `artifacts/quality-reviewed-context-isolation/98e329ea-after-attempt-3-scoped-delivery-witness.json`.
+
+A second comprehension gap is corrected in the working source: a recorded delivery
+notice did not let people inspect the complete captured inputs. A deliberate
+read-only dialog now shows the original brief, definition, design and plan from
+both the session pane and implementation history. Team viewers need no execution
+or secret privilege. Each request verifies the retained bundle; missing or corrupt
+captures never substitute current files. Permission refresh preserves the open
+view; scope loss and revocation fence late results. Independent review also found
+and closed a post-projection revocation window before buffered data is emitted,
+with a genuine before-fix failure retained.
+
+Inspector validation passes 2,176 complete Go outcomes / 22 skips, 781 affected
+API/management race outcomes / four skips, and Windows API test plus Darwin API
+build cross-compilation. Frontend coverage spans 2,093 cases across 129 files:
+2,091 passed initially, and the missing stylesheet token import and obsolete
+workflow-prompt expectation pass in an 86-case affected-file correction. TypeScript
+passes; no application TypeScript changed after it. This is not a single clean
+full frontend run. Matching installed human inspection, phone layout and captured-
+bundle lifecycle acceptance remain open. Source receipts:
+`artifacts/quality-reviewed-context-inspector/`.
+
+The prior `85f830e0` package passes all ten collaborative coding/amendment,
 reviewed Git commit, independent Docker check, preview and replacement groups.
 It also passes all three real local-operation / delayed-HTTPS-provider groups:
 the local app opens and stops while provider discovery remains pending; actual

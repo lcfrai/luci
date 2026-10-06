@@ -79,8 +79,8 @@ function friendlyScalar(value: unknown, field: string): string {
 }
 
 /** Read-only presentation of structured context; no interpretation or merging of drawings. */
-export function DraftDocumentReview({ value, path = [], documents = [], absent = "Not present in this version" }: {
-  value: unknown; path?: string[]; documents?: unknown[]; absent?: string;
+export function DraftDocumentReview({ value, path = [], documents = [], absent = "Not present in this version", metadataDescription = "These identify the recorded context. Restoring a draft does not save or approve your edits." }: {
+  value: unknown; path?: string[]; documents?: unknown[]; absent?: string; metadataDescription?: string;
 }) {
   const sources = [value, ...documents];
   function idLabel(id: string, collectionPath: string[]): ReactNode {
@@ -120,7 +120,7 @@ export function DraftDocumentReview({ value, path = [], documents = [], absent =
         const recorded = Object.fromEntries(Object.entries(current).filter(([key]) => metadata.has(key)));
         return <>{fields(current, currentPath, [...metadata])}{!!Object.keys(recorded).length &&
           <DraftReviewDisclosure title="Recorded revision details" className="draft-technical">{() => <>
-            <p className="journey-muted">These identify the recorded context. Restoring a draft does not save or approve your edits.</p>
+            <p className="journey-muted">{metadataDescription}</p>
             {fields(recorded, ["metadata"])}
           </>}</DraftReviewDisclosure>}</>;
       }

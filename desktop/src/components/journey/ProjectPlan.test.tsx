@@ -8,8 +8,8 @@ import { aBranch, aHarness, aProject, aSession, aWorktree } from "../../test/fix
 import { implementationPrompt, ProjectPlan } from "./ProjectPlan";
 import { DraftNavigationDialog } from "../common/DraftNavigationDialog";
 
-const { createSession } = vi.hoisted(() => ({ createSession: vi.fn() }));
-vi.mock("../../api", () => ({ api: { createSession } }));
+const { createSession, reviewedContext } = vi.hoisted(() => ({ createSession: vi.fn(), reviewedContext: vi.fn() }));
+vi.mock("../../api", () => ({ api: { createSession, getSessionReviewedContext: reviewedContext } }));
 vi.mock("../../hooks/useProjectDraft", async original => ({ ...await original<typeof import("../../hooks/useProjectDraft")>(), useProjectDraftScope: (projectId: string) => `plan-permission-test:${projectId}` }));
 const brief: Brief = { projectId: "p-1", revision: 2, purpose: "Journal", audience: "Writers", constraints: "Offline", criteria: [], updatedAt: "" };
 const plan: ImplementationPlan = { projectId: "p-1", revision: 3, briefRevision: 2, specificationRevision: 6, tasks: [{ id: "t-1", title: "Build editor", status: "todo" }, { id: "t-2", title: "Save entries", status: "doing" }, { id: "t-3", title: "Set up project", status: "done" }], updatedAt: "" };
@@ -17,7 +17,7 @@ const coverage: RequirementCoverage = { projectId: "p-1", specification: { revis
 const snapshot = (over: Partial<ImplementationContext> = {}): ImplementationContext => ({ projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["t-1"], briefDigest: "brief-2", planDigest: "plan-3", specificationDigest: "spec-6", designPlanDigest: "design-8", worktreeId: "w-1", sourceCommit: "a".repeat(40), sourceDigest: "source-a", sourceDirty: false, taskTitles: ["Build editor"], requirementIds: [], ...over });
 
 beforeEach(() => {
-  vi.restoreAllMocks(); localStorage.clear(); resetCockpit(); createSession.mockReset();
+  vi.restoreAllMocks(); localStorage.clear(); resetCockpit(); createSession.mockReset(); reviewedContext.mockReset();
   useCockpit.setState({ projects: [aProject({ id: "p-1" })], branchesByProject: { "p-1": [aBranch({ id: "b-1", projectId: "p-1" })] }, worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", projectId: "p-1", branchId: "b-1", isPrimary: true })] }, selection: { projectId: "p-1", branchId: "b-1", worktreeId: "w-1", sessionId: null }, harnesses: [aHarness({ id: "claude-code", name: "Claude Code", command: "claude", available: true, supportsOpeningPrompt: true })] });
   vi.spyOn(productApi, "plan").mockResolvedValue(plan);
   vi.spyOn(productApi, "checks").mockResolvedValue({ runs: [], suggested: [], coverage });
@@ -88,8 +88,10 @@ it("re-saves an unchanged stale plan against current approved definition without
 });
 
 it("lets a viewer open immutable ended history and excludes foreign sessions without inferring completion", async () => {
-  teamAccess.permissions.edit = false; teamAccess.permissions.execute = false;
-  useCockpit.getState().upsertSession(aSession({ id: "s-old", title: "Prior editor run", projectId: "p-1", branchId: "b-1", worktreeId: "w-1", status: "exited", exitReason: "Process exited with code 0", implementationContext: snapshot({ briefRevision: 1, planRevision: 2, taskTitles: ["Original editor title"], sourceDirty: true }) }));
+  teamAccess.permissions.edit = false; teamAccess.permissions.execute = false; teamAccess.permissions.secrets = false;
+  const originalContext = snapshot({ briefRevision: 1, planRevision: 2, taskTitles: ["Original editor title"], sourceDirty: true });
+  useCockpit.getState().upsertSession(aSession({ id: "s-old", title: "Prior editor run", projectId: "p-1", branchId: "b-1", worktreeId: "w-1", status: "exited", exitReason: "Process exited with code 0", implementationContext: originalContext, reviewedContextDelivery: { status: "captured", version: 1, digest: "a".repeat(64) } }));
+  reviewedContext.mockResolvedValue({ sessionId: "s-old", projectId: "p-1", worktreeId: "w-1", version: 1, digest: "a".repeat(64), implementationContext: originalContext, document: { kind: "definition", sha256: "b".repeat(64), bytes: 40, value: { purpose: "Original editor scope" } } });
   useCockpit.getState().upsertSession(aSession({ id: "s-foreign", title: "Foreign run", projectId: "p-2", implementationContext: snapshot() }));
   render(<ProjectPlan projectId="p-1" brief={brief} />);
   const history = await screen.findByRole("region", { name: "Implementation sessions" });
@@ -99,6 +101,13 @@ it("lets a viewer open immutable ended history and excludes foreign sessions wit
   expect(within(history).getByText(/Completion and verification are not inferred/)).not.toBeNull();
   expect(screen.queryByText(/Foreign run/)).toBeNull();
   expect((screen.getByLabelText("Progress for task 1") as HTMLSelectElement).value).toBe("todo");
+  await userEvent.click(within(history).getByRole("button", { name: "View reviewed context" }));
+  const dialog = await screen.findByRole("dialog", { name: "Reviewed context" });
+  await within(dialog).findByText("Original editor scope");
+  expect(useCockpit.getState().selection.sessionId).toBeNull();
+  expect(reviewedContext).toHaveBeenCalledExactlyOnceWith("s-old", "definition");
+  expect(createSession).not.toHaveBeenCalled();
+  await userEvent.click(within(dialog).getByRole("button", { name: "Close reviewed context" }));
   await userEvent.click(within(history).getByRole("button", { name: "Open session" }));
   expect(useCockpit.getState().selection.sessionId).toBe("s-old");
 });
