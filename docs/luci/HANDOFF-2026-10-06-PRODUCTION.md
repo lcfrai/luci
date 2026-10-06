@@ -103,6 +103,17 @@ latest candidate outcomes. GitHub's Actions artifact storage quota is a separate
 external failure. Diagnostics upload after application checks; a quota failure
 remains a failed workflow, not a waived release gate.
 
+The latest complete CI at `90450209` passed all source/browser checks, real
+Docker/SSH acceptance, Linux/macOS packages and Windows build/state/packaged-service
+checks. Installed Windows application acceptance failed; its actual cause is
+not yet known. Detailed artifacts could not be retained because of quota.
+`f14b7e69` adds safe failure annotations and a Windows-only manual diagnostic mode,
+with seven reporter tests, 19 native-driver tests and workflow validation passing
+locally. The diagnostic rerun was refused before execution because GitHub reports
+failed account payments or a spending-limit issue. Restore Actions access, then
+use the focused command in [FULL-PRODUCT.md](FULL-PRODUCT.md) to diagnose and fix
+the native failure. No assertion was weakened and native acceptance is not passed.
+
 ## Remaining real release gates
 
 The full roadmap remains active. Live gateway/subscription inference, actual
@@ -117,6 +128,8 @@ fixtures do not establish production service availability. The scoped GitHub
 connection can push source; release uploads and CI raw-log hosts additionally need
 the saved environment network additions. GitHub artifact quota needs an operator
 resolution, not deletion of unrelated evidence by this task.
+Actions runner admission now also requires the account owner to resolve the
+reported billing/payment limit. This task did not change paid settings.
 
 Use the existing checkout; do not create a worktree without a user request.
 Activate `/workspace/.luci-tools/activate.sh` in every shell. Complete reusable

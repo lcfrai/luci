@@ -1693,3 +1693,60 @@ The original 87ca7c18 archives remain retained under
 `artifacts/releases/0.5.0-87ca7c18-empty-workspace-failed`. Final matching empty and
 populated acceptance must bind the rebuilt package's own hashes. No product
 heading, check assertion or run lifecycle was weakened.
+
+## Cross-platform checks and the unresolved Windows installation gate
+
+The matching `e86001d4` package passed empty and populated Admin accessibility
+(4 outcomes), portable persistence (6) and launcher recovery (7). The loaded
+views had zero axe violations or incomplete results, and all 937 extracted
+members were verified. Its full CI found an outdated AppShell assertion that
+still expected an empty ARIA tree. `90450209a0667b0b6870a99cea4b7276777b9773`
+corrected that assertion; all 1,566 frontend tests in 108 files passed. No
+application implementation changed between those revisions.
+
+The clean 90450209 Linux package passed portable persistence (6) and launcher
+recovery (7), with 346 licence components and no missing grants. Its archive
+SHA-256 is
+`318d40dcc26049559c9b4c97d0c8b88ffb90ccd018c45cf70ae8cbb6460013c7`.
+The receipt index is `artifacts/package-eval/0.5.0-90450209/candidate-status.json`;
+the earlier installed journeys retain their original source/package identities.
+
+[CI run 37432862391](https://github.com/lcfrai/luci/actions/runs/37432862391)
+passed the complete Go, race, dependency, desktop, type, build and connected
+browser checks. The compiled multi-user service, distinct-user Docker execution
+and real SSH browser onboarding passed. Linux and native macOS portable builds
+and packaged-service checks passed. Windows built the unsigned NSIS installer
+and passed native state/upgrade regressions, packaged control-plane acceptance
+and installer existence checks.
+
+**Installed Windows application acceptance failed.** Its available annotation
+reports only exit code 1. The actual cause is not yet established. GitHub artifact
+storage quota prevented retaining its detailed runner receipts; raw-log download
+hosts remain unavailable in this cloud instance. Those access failures do not
+turn native acceptance into a pass. `ci-90450209-summary.json` and adjacent
+step/annotation receipts under `artifacts/onboarding` retain these distinctions.
+The PR merge checkout `4c68b8c9` had exactly the candidate's source tree, while
+keeping its own commit identity for native manifests.
+
+`f14b7e69c5efde0bb755b137b1eb56e91877b094` adds bounded native failure
+annotations and a manual `native_windows_only` diagnostic mode. Reporting
+exposes named stages/actions, failure categories and source lines, without raw
+UI text, field values or private fixture data. Assertions, timeouts, cleanup and
+failing exits remain intact. Seven reporting regressions and 19 existing native
+driver tests passed locally; actionlint and 73 workflow routing cases passed.
+Verified official PowerShell 7.6.6 parsed the wrapper without syntax errors and
+executed its non-Windows admission path: exit 1, safe failure annotation/summary,
+zero fixture allocation and no private marker disclosure. The receipt is
+`artifacts/onboarding/native-windows-powershell-validation.json`. This checks
+reporting and refusal behavior, not installed Windows application acceptance.
+Normal PR runs still require source/runtime checks before native packaging;
+conflicting diagnostic inputs explicitly fail.
+
+The [focused rerun](https://github.com/lcfrai/luci/actions/runs/37439728953)
+and its PR run were refused before any job steps: GitHub reports that recent
+account payments failed or the spending limit needs attention. No billing limit
+was changed. After the account owner restores Actions access, run
+`gh workflow run luci-ci.yml --ref codex/luci-production-runs -f native_windows_only=true`
+to obtain the native diagnosis, fix its actual cause and finish installed
+acceptance. This focused mode alone does not establish full release readiness.
+Artifact storage and saved raw-log egress changes remain separate prerequisites.
