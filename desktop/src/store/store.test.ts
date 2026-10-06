@@ -344,6 +344,21 @@ describe("prefsSlice", () => {
     expect(useCockpit.getState().defaults.effort).toBe("high");
   });
 
+  it("preserves an omitted connection patch and clears an explicitly undefined app connection", () => {
+    const state = useCockpit.getState();
+    state.setDefaults({ agentConnectionId: "gateway-one", model: "chosen-model", effort: "high" });
+    state.setDefaults({ permissionMode: "plan" });
+    const required = { ...APP_DEFAULTS, model: "chosen-model", effort: "high", permissionMode: "plan" };
+    expect(useCockpit.getState().defaults).toEqual({ ...required, agentConnectionId: "gateway-one" });
+    state.setDefaults({ agentConnectionId: undefined, effort: undefined });
+    expect(useCockpit.getState().defaults).toEqual(required);
+    expect(useCockpit.getState().defaults).not.toHaveProperty("agentConnectionId");
+    expect(createCockpitStore().getState().defaults).not.toHaveProperty("agentConnectionId");
+    state.setDefaults({ agentConnectionId: "" });
+    state.setDefaults({ model: "chosen-model" });
+    expect(createCockpitStore().getState().defaults).toEqual({ ...required, agentConnectionId: "" });
+  });
+
   it("deletes an override key set to undefined, so the level above inherits again", () => {
     const s = useCockpit.getState();
     s.setProjectDefaults("p-1", { harness: "codex", model: "gpt-5-codex" });
@@ -441,7 +456,7 @@ describe("persistence", () => {
     // rename would be invisible to all of them — and a renamed key silently wipes the tiles,
     // pins and defaults of everyone who upgrades.
     expect(PERSIST_KEY).toBe("luci.cockpit");
-    expect(PERSIST_VERSION).toBe(1);
+    expect(PERSIST_VERSION).toBe(2);
 
     const s = useCockpit.getState();
     s.setLayout("canvas");
@@ -508,9 +523,51 @@ describe("persistence", () => {
     expect(migrate({ layout: "canvas", pinned: ["s-1"] }, 0)).toEqual({});
   });
 
-  it("passes a version 1 snapshot through untouched", () => {
+  it("passes a current version 2 snapshot through untouched", () => {
     const snapshot = { layout: "canvas" as const, pinned: ["s-1"] };
-    expect(migrate(snapshot, 1)).toBe(snapshot);
+    expect(migrate(snapshot, 2)).toBe(snapshot);
+  });
+
+  it("upgrades every version 1 preference without inventing a connection selection", () => {
+    const snapshot: ReturnType<typeof partialize> = {
+      defaults: { ...APP_DEFAULTS, effort: "high" as const },
+      projectDefaults: { "p-1": { model: "project-model" } },
+      branchDefaults: { "b-1": { permissionMode: "plan" as const } },
+      tiles: { "s-1": { x: 8, y: 9, w: 480, h: 320 } },
+      pinned: ["s-1"], layout: "canvas" as const, railCollapsed: true,
+      expandedProjects: { "p-1": true }, expandedBranches: { "b-1": true }, expandedWorktrees: { "w-1": true },
+      selection: { projectId: "p-1", branchId: "b-1", worktreeId: "w-1", sessionId: "s-1" },
+      lens: "design" as const, sendChordsToTerminal: true,
+    };
+    localStorage.setItem(PERSIST_KEY, JSON.stringify({ state: snapshot, version: 1 }));
+    const state = createCockpitStore().getState();
+    expect(partialize(state)).toEqual(snapshot);
+    expect(state.defaults).not.toHaveProperty("agentConnectionId");
+    expect(state.projectDefaults["p-1"]).not.toHaveProperty("agentConnectionId");
+    expect(state.branchDefaults["b-1"]).not.toHaveProperty("agentConnectionId");
+    expect(JSON.parse(localStorage.getItem(PERSIST_KEY)!)).toEqual({ state: snapshot, version: 2 });
+  });
+
+  it.each([undefined, "", "gateway-one"])("preserves connection choice %s at all three levels across migration and restart", (agentConnectionId) => {
+    const connection = agentConnectionId === undefined ? {} : { agentConnectionId };
+    const choices = {
+      defaults: { ...APP_DEFAULTS, ...connection },
+      projectDefaults: { "p-1": { model: "project-model", ...connection } },
+      branchDefaults: { "b-1": { effort: "high" as const, ...connection } },
+    };
+    localStorage.setItem(PERSIST_KEY, JSON.stringify({ state: choices, version: 1 }));
+    const migrated = createCockpitStore().getState();
+    const restarted = createCockpitStore().getState();
+    for (const state of [migrated, restarted]) {
+      expect(state.defaults).toEqual(choices.defaults);
+      expect(state.projectDefaults).toEqual(choices.projectDefaults);
+      expect(state.branchDefaults).toEqual(choices.branchDefaults);
+      for (const defaults of [state.defaults, state.projectDefaults["p-1"], state.branchDefaults["b-1"]]) {
+        if (agentConnectionId === undefined) expect(defaults).not.toHaveProperty("agentConnectionId");
+        else expect(defaults).toHaveProperty("agentConnectionId", agentConnectionId);
+      }
+    }
+    expect(JSON.parse(localStorage.getItem(PERSIST_KEY)!).version).toBe(2);
   });
 
   it("is total over garbage, because it runs before any error boundary exists", () => {

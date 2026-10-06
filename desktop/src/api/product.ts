@@ -29,6 +29,19 @@ export interface AgentProvider {
 export interface AgentConnections {
   providers: AgentProvider[];
 }
+export type AgentConnectionKind = "litellm" | "compatible-api" | "codex-subscription" | "direct-api";
+export interface AgentConnection {
+  id: string; name: string; kind: AgentConnectionKind; revision: number; enabled: boolean;
+  endpoints: { responses?: string; anthropicMessages?: string; chatCompletions?: string };
+  models: { codex?: string; claudeCode?: string; opencode?: string };
+  configured: boolean; keyPresent: boolean; blockedReason?: string;
+}
+export interface AgentConnectionCatalogue {
+  revision: number; activeConnectionId: string; connections: AgentConnection[];
+}
+export type AgentConnectionMutation =
+  | { action: "save"; expectedRevision: number; id?: string; name: string; kind: AgentConnectionKind; enabled: boolean; endpoints: AgentConnection["endpoints"]; models: AgentConnection["models"]; apiKey?: string }
+  | { action: "select" | "delete"; expectedRevision: number; id: string };
 export interface CodexAccountConnection {
   configured: boolean;
   authMode: "chatgpt";
@@ -518,6 +531,8 @@ export function createProductClient(
     gitIdentity: () =>
       request<{ name: string; email: string }>("/v1/setup/git/identity"),
     agents: () => request<AgentConnections>("/v1/setup/agents"),
+    agentConnections: () => request<AgentConnectionCatalogue>("/v1/setup/agent-connections"),
+    updateAgentConnection: (input: AgentConnectionMutation) => request<AgentConnectionCatalogue>("/v1/setup/agent-connections", input),
     codexAccount: () =>
       request<CodexAccountConnection>("/v1/setup/agents/codex/account"),
     startCodexSignIn: () =>

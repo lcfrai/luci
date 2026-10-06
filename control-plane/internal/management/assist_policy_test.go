@@ -25,7 +25,7 @@ func TestAccountSignInAndDefineAssistantUseCodexPolicyAndSessionQuota(t *testing
 	paths := []string{"/v1/setup/agents/codex/sign-in", "/v1/product/projects/p-test/assist"}
 	request(t, handler, "PATCH", "/v1/admin/policy", token, map[string]any{"allowedHarnesses": []string{"shell"}}, 200)
 	for _, path := range paths {
-		request(t, handler, "POST", path, token, map[string]any{"harness": "shell"}, 403)
+		request(t, handler, "POST", path, token, map[string]any{"harness": "codex"}, 403)
 	}
 	request(t, handler, "PATCH", "/v1/admin/policy", token, map[string]any{"allowedHarnesses": []string{"codex"}}, 200)
 	active.Store(true)
@@ -73,5 +73,39 @@ func TestRepositoryAnalysisUsesChosenHarnessQuotaAndReadOnlyListingIsNotAdmissio
 	request(t, handler, "POST", path, token, map[string]any{"harness": "opencode"}, 200)
 	if executions.Load() != 3 {
 		t.Fatal("disabled/invalid/over-quota inference reached the private worker")
+	}
+}
+
+func TestInterviewUsesActualSelectedHarnessAndRejectsInvalidBodiesBeforeExecution(t *testing.T) {
+	var active atomic.Bool
+	var executed atomic.Int32
+	engine := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" && r.URL.Path == "/v1/sessions" {
+			status := "exited"
+			if active.Load() {
+				status = "running"
+			}
+			jsonReply(w, 200, map[string]any{"sessions": []map[string]string{{"id": "owned", "harness": "codex", "status": status}}})
+			return
+		}
+		executed.Add(1)
+		jsonReply(w, 200, map[string]bool{"ok": true})
+	})
+	_, handler, token, _ := fixture(t, engine)
+	path := "/v1/product/projects/p-owned/assist"
+	request(t, handler, "PATCH", "/v1/admin/policy", token, map[string]any{"allowedHarnesses": []string{"claude-code"}}, 200)
+	for _, chosen := range []string{"codex", "opencode"} {
+		request(t, handler, "POST", path, token, map[string]any{"harness": chosen}, 403)
+	}
+	for _, chosen := range []string{"shell", "invented"} {
+		request(t, handler, "POST", path, token, map[string]any{"harness": chosen}, 400)
+	}
+	request(t, handler, "POST", path, token, nil, 400)
+	active.Store(true)
+	request(t, handler, "POST", path, token, map[string]any{"harness": "claude-code"}, 409)
+	active.Store(false)
+	request(t, handler, "POST", path, token, map[string]any{"harness": "claude-code"}, 200)
+	if executed.Load() != 1 {
+		t.Fatal("disabled, invalid or over-quota interview reached the worker")
 	}
 }

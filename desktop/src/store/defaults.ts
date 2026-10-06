@@ -33,6 +33,7 @@ function applyOverride(
     model: patch.model ?? base.model,
     effort: patch.effort ?? base.effort,
     permissionMode: patch.permissionMode ?? base.permissionMode,
+    ...(patch.agentConnectionId === undefined && base.agentConnectionId === undefined ? {} : { agentConnectionId: patch.agentConnectionId ?? base.agentConnectionId }),
   };
 }
 
@@ -49,6 +50,7 @@ function clampHarness(id: HarnessId, harnesses: readonly Harness[]): HarnessId {
 /** `models` is `[]` and never `null` — task 8's fix round made the Go side allocate
  *  unconditionally — so `.length` is always safe and no `?? []` belongs here. */
 function clampModel(model: ModelId, h: Harness): ModelId {
+  if (h.supportsCustomModel && model.trim()) return model.trim();
   if (h.models.length === 0) return "";
   if (h.models.some((m) => m.id === model)) return model;
   return h.defaultModel;
@@ -81,6 +83,7 @@ export function clampToCatalogue(
     model: clampModel(d.model, h),
     effort: clampEffort(d.effort, h),
     permissionMode: clampPermissionMode(d.permissionMode, h),
+    ...(d.agentConnectionId === undefined ? {} : { agentConnectionId: d.agentConnectionId }),
   };
 }
 
@@ -108,10 +111,13 @@ export function toCreateRequest(
     title?: string;
     resume?: string;
     contextRef?: string;
+    agentConnectionId?: string;
   } = {},
 ): CreateSessionRequest {
   const req: CreateSessionRequest = { worktreeId, harness: harness.id };
-  if (harness.models.length > 0 && d.model !== "") req.model = d.model;
+  if (harness.id !== "shell" && (harness.models.length > 0 || harness.supportsCustomModel) && d.model !== "") req.model = d.model;
+  const connectionId = Object.prototype.hasOwnProperty.call(opts, "agentConnectionId") ? opts.agentConnectionId : d.agentConnectionId;
+  if (harness.id !== "shell" && connectionId !== undefined) req.agentConnectionId = connectionId;
   if (harness.efforts.length > 0 && d.effort !== "") req.effort = d.effort;
   if (harness.permissionModes.length > 0) req.permissionMode = d.permissionMode;
 

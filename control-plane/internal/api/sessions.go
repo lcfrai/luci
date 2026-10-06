@@ -212,6 +212,9 @@ func sessionTranscriptState(store, conversation string) (written bool, err error
 // Any failure to delete comes back as the error, and the caller keeps the
 // record that names the file.
 func (a *API) sessionForgetTranscripts(sess registry.Session) error {
+	if sess.Harness == string(harness.Shell) {
+		return a.forgetShellHome(sess)
+	}
 	if nativeHarness(sess.Harness) {
 		return a.forgetNativeState(sess)
 	}
@@ -754,13 +757,17 @@ type sessionJSON struct {
 	BranchID   string `json:"branchId"`
 	WorktreeID string `json:"worktreeId"`
 
-	Harness        string `json:"harness"`
-	Model          string `json:"model"`
-	Effort         string `json:"effort"`
-	PermissionMode string `json:"permissionMode"`
-	OpeningPrompt  string `json:"openingPrompt"`
-	AuthOnly       bool   `json:"authOnly,omitempty"`
-	AuthMode       string `json:"authMode,omitempty"`
+	Harness                 string `json:"harness"`
+	Model                   string `json:"model"`
+	Effort                  string `json:"effort"`
+	PermissionMode          string `json:"permissionMode"`
+	OpeningPrompt           string `json:"openingPrompt"`
+	AuthOnly                bool   `json:"authOnly,omitempty"`
+	AuthMode                string `json:"authMode,omitempty"`
+	AgentConnectionID       string `json:"agentConnectionId,omitempty"`
+	AgentConnectionRevision int    `json:"agentConnectionRevision,omitempty"`
+	AgentConnectionKind     string `json:"agentConnectionKind,omitempty"`
+	AgentConnectionProtocol string `json:"agentConnectionProtocol,omitempty"`
 
 	Status     string `json:"status"`
 	ExitReason string `json:"exitReason"`
@@ -781,22 +788,26 @@ type sessionJSON struct {
 // built from; production passes sessionBasePath.
 func toJSON(s registry.Session, base string) sessionJSON {
 	return sessionJSON{
-		ID:             s.ID,
-		Title:          s.Title,
-		MachineID:      s.MachineID,
-		ProjectID:      s.ProjectID,
-		BranchID:       s.BranchID,
-		WorktreeID:     s.WorktreeID,
-		Harness:        s.Harness,
-		Model:          s.Model,
-		Effort:         s.Effort,
-		PermissionMode: s.PermissionMode,
-		OpeningPrompt:  s.OpeningPrompt,
-		AuthOnly:       s.AuthOnly,
-		AuthMode:       s.AuthMode,
-		Status:         string(s.Status),
-		ExitReason:     s.ExitReason,
-		Backend:        s.Backend,
+		ID:                      s.ID,
+		Title:                   s.Title,
+		MachineID:               s.MachineID,
+		ProjectID:               s.ProjectID,
+		BranchID:                s.BranchID,
+		WorktreeID:              s.WorktreeID,
+		Harness:                 s.Harness,
+		Model:                   s.Model,
+		Effort:                  s.Effort,
+		PermissionMode:          s.PermissionMode,
+		OpeningPrompt:           s.OpeningPrompt,
+		AuthOnly:                s.AuthOnly,
+		AuthMode:                s.AuthMode,
+		AgentConnectionID:       s.AgentConnectionID,
+		AgentConnectionRevision: s.AgentConnectionRevision,
+		AgentConnectionKind:     s.AgentConnectionKind,
+		AgentConnectionProtocol: s.AgentConnectionProtocol,
+		Status:                  string(s.Status),
+		ExitReason:              s.ExitReason,
+		Backend:                 s.Backend,
 		// isolationFor is task 10's and is the package's only mapping of
 		// contract §3.4's enum — group-C ruling 6. registry.Session.Backend is
 		// a plain string because task 7 keeps registry free of a backend
@@ -860,17 +871,18 @@ var sessionErrMoved = errors.New("api: the session moved on while the watch was 
 // sessionCreateRequest is the body of POST /v1/sessions, contract §3.9. Every
 // field but worktreeId is optional and defaulted below.
 type sessionCreateRequest struct {
-	MachineID      string `json:"machineId"`
-	WorktreeID     string `json:"worktreeId"`
-	Harness        string `json:"harness"`
-	Model          string `json:"model"`
-	Effort         string `json:"effort"`
-	PermissionMode string `json:"permissionMode"`
-	OpeningPrompt  string `json:"openingPrompt"`
-	Title          string `json:"title"`
-	Resume         string `json:"resume"`
-	ContextRef     string `json:"contextRef"`
-	AuthOnly       bool   `json:"authOnly"`
+	MachineID         string  `json:"machineId"`
+	WorktreeID        string  `json:"worktreeId"`
+	Harness           string  `json:"harness"`
+	Model             string  `json:"model"`
+	Effort            string  `json:"effort"`
+	PermissionMode    string  `json:"permissionMode"`
+	OpeningPrompt     string  `json:"openingPrompt"`
+	Title             string  `json:"title"`
+	Resume            string  `json:"resume"`
+	ContextRef        string  `json:"contextRef"`
+	AuthOnly          bool    `json:"authOnly"`
+	AgentConnectionID *string `json:"agentConnectionId"`
 }
 
 // registerSessions mounts the six verbs. Go 1.22's ServeMux matches on method
@@ -1134,30 +1146,53 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 
 	var account *codexConnection
 	var authMode string
-	if harnessID == harness.Codex {
-		var sourceSession registry.Session
-		if source.id != "" {
-			sourceSession, err = a.deps.Store.Get(source.id)
-			if err != nil {
-				codexAccountProblem(w, err)
-				return
-			}
-		}
-		account, authMode, err = a.selectCodexConnection(ctx, sourceSession, req.AuthOnly, "")
+	var sourceSession registry.Session
+	if source.id != "" {
+		sourceSession, err = a.deps.Store.Get(source.id)
 		if err != nil {
 			codexAccountProblem(w, err)
 			return
 		}
 	}
+	selection := req.AgentConnectionID
+	if req.AuthOnly {
+		if selection != nil && *selection != "" {
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, "Device sign-in cannot use an API or gateway route. Start a fresh subscription sign-in instead.", nil)
+			return
+		}
+		empty := ""
+		selection = &empty
+	}
+	agentConnection, agentEnv, boundModel, err := a.resolveSessionAgent(string(harnessID), selection, sourceSession, req.Model)
+	if err != nil {
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
+		return
+	}
+	if boundModel != "" {
+		model = boundModel
+	}
+	authMode = agentConnection.AuthMode
+	if harnessID == harness.Codex && (agentConnection.Kind == "legacy" || agentConnection.Kind == "codex-subscription") {
+		account, authMode, err = a.selectCodexConnection(ctx, sourceSession, req.AuthOnly, "")
+		if err != nil {
+			codexAccountProblem(w, err)
+			return
+		}
+		if agentConnection.Kind == "codex-subscription" && account == nil {
+			codexAccountProblem(w, errCodexDisconnected)
+			return
+		}
+	}
 	command, argv, err := harness.Build(harness.Request{
-		ProjectBrief:  true,
-		Harness:       harnessID,
-		Model:         model,
-		Effort:        effort,
-		Permission:    mode,
-		OpeningPrompt: req.OpeningPrompt,
-		Conversation:  conversation,
-		Resume:        resume,
+		DockerBoundary: a.deps.Backend.Kind() == backend.KindDocker,
+		ProjectBrief:   true,
+		Harness:        harnessID,
+		Model:          model,
+		Effort:         effort,
+		Permission:     mode,
+		OpeningPrompt:  req.OpeningPrompt,
+		Conversation:   conversation,
+		Resume:         resume,
 	})
 	if err != nil {
 		a.writeHarnessProblem(w, r, harnessID, desc, err)
@@ -1189,20 +1224,19 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, req.WorktreeID), lineEndings, gitFiles, a.deps.CABundle)
-	if a.deps.Product != nil {
-		for key, value := range a.deps.Product.AgentEnvironment(string(harnessID)) {
-			sandboxEnv[key] = value
-		}
+	for key, value := range agentEnv {
+		sandboxEnv[key] = value
 	}
 	if harnessID == harness.OpenCode && sandboxEnv["OPENCODE_CONFIG_CONTENT"] == "" {
 		httpx.WriteProblem(w, 409, httpx.CodeConflict, "Configure an explicit local or compatible model in Settings before starting OpenCode.", nil)
 		return
 	}
 	argv = codexSubscriptionArgs(argv, sandboxEnv, authMode)
-	argv = nativeArgs(string(harnessID), argv, sandboxEnv, req.AuthOnly)
 	if a.deps.Backend.Kind() == backend.KindDocker {
 		nativeDockerEndpoint(sandboxEnv)
 	}
+	argv = nativeArgs(string(harnessID), argv, sandboxEnv, req.AuthOnly)
+	nativeSandboxEnvironment(sandboxEnv)
 
 	// 3. Ids and the secret.
 	sessionID := ids.New("s")
@@ -1221,6 +1255,15 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		carriedConversation = source.conversation
 	}
 	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, carried, a.deps.CABundle, gitFiles)
+	if harnessID == harness.Shell {
+		home, err := a.prepareShellHome(req.WorktreeID, sessionID)
+		if err != nil {
+			a.internal(w, r, "prepare private terminal home", err)
+			return
+		}
+		shellEnvironment(sandboxEnv)
+		sandboxMounts = shellMount(sandboxMounts, home)
+	}
 	if desc.NativeState() {
 		providerStore, err := a.prepareNativeState(req.WorktreeID, string(harnessID), conversation, source, false)
 		if err != nil {
@@ -1252,28 +1295,32 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	// reaper can match a container against. Task 13 owns the grace condition
 	// that stops a sweep landing in this window killing a live create.
 	if err := a.deps.Store.Create(registry.Session{
-		ID:                sessionID,
-		Title:             title,
-		MachineID:         machineID,
-		ProjectID:         projectID,
-		BranchID:          branchID,
-		WorktreeID:        req.WorktreeID,
-		Harness:           string(harnessID),
-		Model:             model,
-		Effort:            string(effort),
-		PermissionMode:    string(mode),
-		OpeningPrompt:     req.OpeningPrompt,
-		AuthOnly:          req.AuthOnly,
-		AuthMode:          authMode,
-		CodexConnectionID: codexConnectionID(account),
-		Command:           command,
-		Args:              argv,
-		ConversationID:    conversation,
-		Status:            registry.StatusStarting,
-		Backend:           string(a.deps.Backend.Kind()),
-		SandboxID:         sessionID,
-		AttachToken:       token,
-		ContextRef:        req.ContextRef,
+		ID:                      sessionID,
+		Title:                   title,
+		MachineID:               machineID,
+		ProjectID:               projectID,
+		BranchID:                branchID,
+		WorktreeID:              req.WorktreeID,
+		Harness:                 string(harnessID),
+		Model:                   model,
+		Effort:                  string(effort),
+		PermissionMode:          string(mode),
+		OpeningPrompt:           req.OpeningPrompt,
+		AuthOnly:                req.AuthOnly,
+		AuthMode:                authMode,
+		CodexConnectionID:       codexConnectionID(account),
+		AgentConnectionID:       agentConnection.ID,
+		AgentConnectionRevision: agentConnection.Revision,
+		AgentConnectionKind:     agentConnection.Kind,
+		AgentConnectionProtocol: agentConnection.Protocol,
+		Command:                 command,
+		Args:                    argv,
+		ConversationID:          conversation,
+		Status:                  registry.StatusStarting,
+		Backend:                 string(a.deps.Backend.Kind()),
+		SandboxID:               sessionID,
+		AttachToken:             token,
+		ContextRef:              req.ContextRef,
 
 		CarriedConversationID: carriedConversation,
 	}); err != nil {
@@ -1858,13 +1905,26 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	defer releaseBranch()
 	var account *codexConnection
 	authMode := sess.AuthMode
-	if sess.Harness == "codex" {
+	selection := sess.AgentConnectionID
+	agentConnection, agentEnv, model, err := a.resolveSessionAgent(sess.Harness, &selection, sess, sess.Model)
+	if err != nil {
+		httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
+		return
+	}
+	if agentConnection.AuthMode != "" {
+		authMode = agentConnection.AuthMode
+	}
+	if sess.Harness == "codex" && (agentConnection.Kind == "legacy" || agentConnection.Kind == "codex-subscription") {
 		a.codexAccountMu.Lock()
 		defer a.codexAccountMu.Unlock()
 		var err error
 		account, authMode, err = a.selectCodexConnection(ctx, sess, false, sess.ID)
 		if err != nil {
 			codexAccountProblem(w, err)
+			return
+		}
+		if agentConnection.Kind == "codex-subscription" && account == nil {
+			codexAccountProblem(w, errCodexDisconnected)
 			return
 		}
 	}
@@ -1901,13 +1961,14 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	if desc, known := harness.Lookup(harness.ID(sess.Harness)); known && (sessionHasConversation(desc) || desc.NativeState()) {
 		conversation = ids.UUID()
 		command, args, err = harness.Build(harness.Request{
-			ProjectBrief:  true,
-			Harness:       desc.ID,
-			Model:         sess.Model,
-			Effort:        harness.Effort(sess.Effort),
-			Permission:    harness.PermissionMode(sess.PermissionMode),
-			OpeningPrompt: sess.OpeningPrompt,
-			Conversation:  conversation,
+			DockerBoundary: a.deps.Backend.Kind() == backend.KindDocker,
+			ProjectBrief:   true,
+			Harness:        desc.ID,
+			Model:          model,
+			Effort:         harness.Effort(sess.Effort),
+			Permission:     harness.PermissionMode(sess.PermissionMode),
+			OpeningPrompt:  sess.OpeningPrompt,
+			Conversation:   conversation,
 		})
 		if err != nil {
 			a.writeHarnessProblem(w, r, desc.ID, desc, err)
@@ -1941,23 +2002,31 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sandboxEnv := sessionEnv(a.sessionGitIdentity(ctx, sess.WorktreeID), lineEndings, gitFiles, a.deps.CABundle)
-	if a.deps.Product != nil {
-		for key, value := range a.deps.Product.AgentEnvironment(sess.Harness) {
-			sandboxEnv[key] = value
-		}
+	for key, value := range agentEnv {
+		sandboxEnv[key] = value
 	}
 	if sess.Harness == string(harness.OpenCode) && sandboxEnv["OPENCODE_CONFIG_CONTENT"] == "" {
 		httpx.WriteProblem(w, 409, httpx.CodeConflict, "Configure an explicit local or compatible model in Settings before starting OpenCode.", nil)
 		return
 	}
 	args = codexSubscriptionArgs(args, sandboxEnv, authMode)
-	args = nativeArgs(sess.Harness, args, sandboxEnv, false)
 	if a.deps.Backend.Kind() == backend.KindDocker {
 		nativeDockerEndpoint(sandboxEnv)
 	}
+	args = nativeArgs(sess.Harness, args, sandboxEnv, false)
+	nativeSandboxEnvironment(sandboxEnv)
 	// No carried transcript: a restart starts clean, so even a fork's restart
 	// resumes nothing and needs no source to read.
 	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, backend.Mount{}, a.deps.CABundle, gitFiles)
+	if sess.Harness == string(harness.Shell) {
+		home, err := a.prepareShellHome(sess.WorktreeID, sess.ID)
+		if err != nil {
+			a.internal(w, r, "prepare private terminal home for restart", err)
+			return
+		}
+		shellEnvironment(sandboxEnv)
+		sandboxMounts = shellMount(sandboxMounts, home)
+	}
 
 	// One of contract §5.2's three permitted destroys.
 	if sess.SandboxID != "" {
@@ -2071,6 +2140,10 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 		sess.AuthOnly = false
 		sess.AuthMode = authMode
 		sess.CodexConnectionID = codexConnectionID(account)
+		sess.AgentConnectionID = agentConnection.ID
+		sess.AgentConnectionRevision = agentConnection.Revision
+		sess.AgentConnectionKind = agentConnection.Kind
+		sess.AgentConnectionProtocol = agentConnection.Protocol
 		sess.ConversationID = conversation
 		sess.EarlierConversationIDs = earlier
 		sess.Status = registry.StatusStarting

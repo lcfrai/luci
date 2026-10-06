@@ -7,6 +7,7 @@ import {
   type ProductClient,
 } from "../../api/product";
 import { useCockpit } from "../../store/store";
+import { AgentConnectionManager } from "./AgentConnectionManager";
 
 export function AgentConnections({
   client,
@@ -180,8 +181,10 @@ export function AgentConnections({
     }
   }
   return (
+    <>
+      <AgentConnectionManager client={client} />
     <section className="setup-plan">
-      <h2>Your agent connection</h2>
+      <h2>Your own agent accounts</h2>
       <label className="luci-field">
         Coding agent
         <select
@@ -406,5 +409,6 @@ export function AgentConnections({
         </div>
       </form>
     </section>
+    </>
   );
 }

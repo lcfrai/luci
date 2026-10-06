@@ -11,7 +11,18 @@ import (
 // The pinned 1.18.34 CLI debug config/agent commands validate this contract.
 func ReadOnlyOpenCode(env map[string]string, model string) error {
 	var config map[string]any
-	if json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config) != nil || config["model"] != model {
+	if json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config) != nil {
+		return errors.New("Choose the actual saved OpenCode model.")
+	}
+	configured, ok := config["model"].(string)
+	providerID, alias, qualified := strings.Cut(configured, "/")
+	providers, _ := config["provider"].(map[string]any)
+	provider, _ := providers[providerID].(map[string]any)
+	models, _ := provider["models"].(map[string]any)
+	// A saved gateway exposes the model alias in the connection editor. The
+	// CLI requires its registered provider prefix; this is normalization of
+	// that exact saved binding, never selection of another model.
+	if !ok || (configured != model && (!qualified || providerID != "luci-gateway" || alias != model || models[alias] == nil)) {
 		return errors.New("Choose the actual saved OpenCode model.")
 	}
 	config["instructions"] = []string{}
@@ -26,6 +37,7 @@ func ReadOnlyOpenCode(env map[string]string, model string) error {
 	}
 	env["OPENCODE_CONFIG_CONTENT"] = string(b)
 	env["OPENCODE_PERMISSION"] = `{"*":"deny"}`
+	env["LUCI_OPENCODE_MODEL"] = configured
 	return nil
 }
 
@@ -67,10 +79,14 @@ for name in ('CODEX_API_KEY',):
     env.pop(name, None)
 if provider != 'codex':
     env.pop('OPENAI_API_KEY', None)
+    env.pop('OPENAI_BASE_URL', None)
 if provider != 'claude-code':
     env.pop('ANTHROPIC_API_KEY', None)
+    env.pop('ANTHROPIC_AUTH_TOKEN', None)
+    env.pop('ANTHROPIC_BASE_URL', None)
 if provider != 'opencode':
     env.pop('OPENCODE_LOCAL_API_KEY', None)
+    env.pop('LUCI_GATEWAY_API_KEY', None)
     env.pop('OPENCODE_CONFIG_CONTENT', None)
 if provider == 'codex':
     command = ['codex', '--no-daemon', '-c', 'cli_auth_credentials_store="file"', '-c', 'features.shell_tool=false', '-c', 'features.shell_snapshot=false', '-c', 'features.apps=false', '-c', 'features.remote_plugin=false', '-c', 'features.multi_agent=false', '-c', 'features.hooks=false', '-c', 'features.goals=false', '-c', 'web_search="disabled"']
@@ -78,11 +94,18 @@ if provider == 'codex':
         env.pop('OPENAI_API_KEY', None)
         command += ['-c', 'forced_login_method="chatgpt"', '-c', 'model_provider="openai"']
     elif auth == 'api' and env.get('OPENAI_API_KEY'):
-        command += ['-c', 'model_provider="luci-openai"', '-c', 'model_providers.luci-openai={name="OpenAI API",base_url="https://api.openai.com/v1",env_key="OPENAI_API_KEY",wire_api="responses"}']
+        base = env.get('OPENAI_BASE_URL', 'https://api.openai.com/v1')
+        # JSON quoting is also a TOML basic string here: never interpolate a
+        # URL into shell text or put the API key into process arguments.
+        provider_config = 'model_providers.luci-openai={name="Luci selected API",base_url='+json.dumps(base)+',env_key="OPENAI_API_KEY",wire_api="responses"}'
+        command += ['-c', 'model_provider="luci-openai"', '-c', provider_config]
     else:
         sys.exit(2)
-    command += ['--ask-for-approval', 'never', 'exec', '--skip-git-repo-check', '--sandbox', 'read-only', '--model', model, '--output-schema', '/luci-input/schema.json', '--output-last-message', '/luci-output/result.json', '-']
-elif provider == 'claude-code' and auth == 'api' and env.get('ANTHROPIC_API_KEY'):
+    command += ['--ask-for-approval', 'never', 'exec', '--skip-git-repo-check', '--sandbox', 'read-only']
+    if model != 'default':
+        command += ['--model', model]
+    command += ['--output-schema', '/luci-input/schema.json', '--output-last-message', '/luci-output/result.json', '-']
+elif provider == 'claude-code' and auth == 'api' and (env.get('ANTHROPIC_API_KEY') or env.get('ANTHROPIC_AUTH_TOKEN')):
     with open('/luci-input/schema.json') as source:
         schema = json.dumps(json.load(source),separators=(',',':'))
     command = ['claude', '--restricted', '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}', '--tools', '', '--permission-mode', 'plan', '--print', '--output-format', 'json', '--json-schema', schema, '--model', model]

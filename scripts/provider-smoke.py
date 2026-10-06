@@ -173,7 +173,7 @@ def verify_development(directory):
 
 def main():
     if os.name != "posix" or not pathlib.Path("/.dockerenv").is_file():
-        raise SystemExit("Run this smoke inside the isolated Docker sandbox image; its development turn explicitly selects Luci's Bypass mode.")
+        raise SystemExit("Run this smoke inside the isolated Docker sandbox image; Codex exercises Docker Ask and OpenCode explicitly exercises Bypass.")
     root = pathlib.Path(tempfile.mkdtemp(prefix="luci-provider-smoke-")).resolve()
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), FixtureAPI)
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -239,9 +239,10 @@ def main():
             development.mkdir(mode=0o700)
             FixtureAPI.development = {"provider": provider, "directory": development, "calls": [], "completedAfterToolResult": False}
             if provider == "codex":
-                # Luci's explicit Bypass mode inside Docker. Never attempt
-                # this fixture on the host to evade a host sandbox refusal.
-                development_args = prefix + ["--dangerously-bypass-approvals-and-sandbox", "exec", "--skip-git-repo-check", "--json",
+                # Match Luci's Docker-only Ask mode: Docker is the process
+                # boundary and Codex retains on-request approvals. Do not run
+                # this setting on the host or treat CLI exit as tool success.
+                development_args = prefix + ["--ask-for-approval", "on-request", "--sandbox", "danger-full-access", "exec", "--skip-git-repo-check", "--json",
                                              "--model", "fixture-model",
                                              "Create the small app and verification file requested by this local tool fixture."]
                 development_env = env
@@ -257,7 +258,8 @@ def main():
             assert "Luci provider fixture passed." in outcome["stdout"], outcome
             assert FixtureAPI.development["completedAfterToolResult"], "CLI did not complete its tool round trip"
             artifact = verify_development(development)
-            artifact.update(toolCalls=FixtureAPI.development["calls"], cli=outcome, fixtureModel=True, permissionMode="bypass", executionBoundary="isolated-docker")
+            artifact.update(toolCalls=FixtureAPI.development["calls"], cli=outcome, fixtureModel=True,
+                            permissionMode="ask" if provider == "codex" else "bypass", executionBoundary="isolated-docker")
             FixtureAPI.development = None
             report["providers"][provider]["development"] = artifact
         report["requests"] = FixtureAPI.requests

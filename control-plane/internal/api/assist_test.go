@@ -217,7 +217,7 @@ func TestIndependentSignInAndDefineAssistantPreserveSubscriptionIsolationAndExpl
 	if w := e.do(t, "DELETE", codexAccountRoute, ""); w.Code != 200 {
 		t.Fatal(w.Code)
 	}
-	if code := sessionsProblemCode(t, e.do(t, "POST", base, `{"expectedRevision":0,"message":"No subscription"}`), 409); code != "codex_account_required" {
+	if code := sessionsProblemCode(t, e.do(t, "POST", base, `{"expectedRevision":0,"message":"No subscription","authMode":"chatgpt"}`), 409); code != "codex_account_required" {
 		t.Fatal("missing subscription silently used saved API key")
 	}
 }

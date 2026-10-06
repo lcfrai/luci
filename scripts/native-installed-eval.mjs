@@ -63,6 +63,7 @@ async function until(label, probe, ms = 30_000) {
 async function lookupElement(kind, name, deadline) {
   return command("/execute/sync", "POST", { script: `
     const visible=e=>!!(e&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden'&&getComputedStyle(e).opacity!=='0');
+    const enabled=e=>!e.disabled&&!e.matches(':disabled');
     const norm=s=>(s||'').replace(/\\s+/g,' ').trim();
     // Fluid retains decorative measurement labels. Match the visible control's
     // accessible text without counting its aria-hidden copy twice.
@@ -76,17 +77,17 @@ async function lookupElement(kind, name, deadline) {
       const labels=[...scope.querySelectorAll('label')].filter(visible);
       const label=labels.find(e=>norm(e.textContent).startsWith(arguments[1]));
       const field=label?.querySelector('input,textarea,select');
-      return field&&!field.disabled?field:null;
+      return field&&enabled(field)?field:null;
     }
     if(arguments[0]==='css') {
       // querySelectorAll searches descendants, not the selected dialog itself.
       // Keep modal scoping while allowing a read-only wait for its root.
       const candidates=scope instanceof Element&&scope.matches(arguments[1])
         ?[scope,...scope.querySelectorAll(arguments[1])]:[...scope.querySelectorAll(arguments[1])];
-      return candidates.find(e=>visible(e)&&!e.disabled)||null;
+      return candidates.find(e=>visible(e)&&enabled(e))||null;
     }
-    if(arguments[0]==='file') return [...scope.querySelectorAll('.journey-directory button')].filter(e=>visible(e)&&!e.disabled).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
-    return [...scope.querySelectorAll('button,summary,[role=treeitem]')].filter(e=>visible(e)&&!e.disabled).find(e=>
+    if(arguments[0]==='file') return [...scope.querySelectorAll('.journey-directory button')].filter(e=>visible(e)&&enabled(e)).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
+    return [...scope.querySelectorAll('button,summary,[role=treeitem]')].filter(e=>visible(e)&&enabled(e)).find(e=>
       e.getAttribute('aria-label')===arguments[1] || labelled(e)===arguments[1] || namedText(e)===arguments[1] ||
       (e.classList.contains('sub-row') && norm(e.textContent).endsWith(arguments[1])))||null;
   `, args: [kind, name] }, deadline);
@@ -94,15 +95,48 @@ async function lookupElement(kind, name, deadline) {
 async function element(kind, name) {
   return until(`${kind} ${name}`, () => lookupElement(kind, name));
 }
+function beginAction(call, kind, label) {
+  // These are the driver's named controls, never a field value, body text,
+  // terminal transcript or credential read from the installed application.
+  const action = { call, kind, label, phase: "lookup" };
+  (result.actionStages ??= []).push(action);
+  assert(result.actionStages.length <= 500, "Native action diagnostics exceeded their bounded control count");
+  return action;
+}
+async function centerElement(e, deadline) {
+  return command("/execute/sync", "POST", { script: `
+    const e=arguments[0];
+    const visible=e=>!!(e&&e.isConnected&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden'&&getComputedStyle(e).opacity!=='0');
+    const scope=[...document.querySelectorAll('.setup-window[role="dialog"][aria-modal="true"],.pal[role="dialog"][aria-modal="true"]')].filter(visible).at(-1)||document;
+    if(!visible(e)||e.disabled||e.matches(':disabled')||!scope.contains(e)) return false;
+    // WebDriver's default bottom alignment can land beneath a sticky action
+    // dock. Move only the viewport; activation remains a real W3C click.
+    e.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'});
+    return true;
+  `, args: [e] }, deadline);
+}
 async function click(name, kind = "button") {
   const deadline = Date.now() + 30_000;
+  const action = beginAction("click", kind, name);
   let last;
   while (Date.now() < deadline) {
     try {
+      action.phase = "lookup";
       const e = await lookupElement(kind, name, deadline);
       if (e) {
-        await command(`/element/${e[elementKey]}/click`, "POST", {}, deadline);
-        return;
+        action.phase = "center-scroll";
+        if (await centerElement(e, deadline)) {
+          action.phase = "revalidate";
+          const current = await lookupElement(kind, name, deadline);
+          // Scrolling may synchronously replace a control or open a modal.
+          // Never activate a different element admitted by the later lookup.
+          if (current && current[elementKey] === e[elementKey]) {
+            action.phase = "native-click";
+            await command(`/element/${e[elementKey]}/click`, "POST", {}, deadline);
+            action.phase = "completed";
+            return;
+          }
+        }
       }
     } catch (error) {
       // These W3C errors reject the click before dispatch. Resolve the current
@@ -169,9 +203,13 @@ async function openDisclosure(name) {
   if (collapsed) await click(name);
 }
 async function fill(name, value) {
+  const action = beginAction("fill", "label", name);
   const e = await element("label", name);
+  action.phase = "native-clear";
   await command(`/element/${e[elementKey]}/clear`);
+  action.phase = "native-value";
   await command(`/element/${e[elementKey]}/value`, "POST", { text: value });
+  action.phase = "completed";
 }
 const bodyHas = (text) => until(text, () => execute("return document.body.innerText.includes(arguments[0])", text));
 const workspaceReady = () => until("authenticated workspace or onboarding portal", () => execute("return !document.querySelector('.auth-screen') && !!document.querySelector('.shell,.onboarding-portal')"));

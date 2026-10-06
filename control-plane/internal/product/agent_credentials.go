@@ -60,6 +60,9 @@ func (s *Server) agentCredentialPath() (string, error) {
 }
 
 func (s *Server) initAgentCredentials() error {
+	if err := s.initAgentConnections(); err != nil {
+		return err
+	}
 	// An unconfigured installation can still open with an unusual folder
 	// layout. Credential operations themselves require host-owned state.
 	if _, err := os.Lstat(filepath.Join(s.stateDir, "agent-credentials.json")); errors.Is(err, os.ErrNotExist) {
@@ -92,6 +95,7 @@ func (s *Server) initAgentCredentials() error {
 }
 
 func (s *Server) registerAgentCredentials(mux Registrar) {
+	s.registerAgentConnections(mux)
 	mux.HandleFunc("GET /v1/setup/agents", s.getAgents)
 	mux.HandleFunc("POST /v1/setup/agents/anthropic", s.setAnthropicCredential)
 	mux.HandleFunc("POST /v1/setup/agents/openai", s.setOpenAICredential)
@@ -103,9 +107,9 @@ func (s *Server) getAgents(w http.ResponseWriter, r *http.Request) {
 	local := s.agentLocal
 	s.mu.RUnlock()
 	writeJSON(w, 200, map[string]any{"providers": []AgentProvider{
-		{ID: "anthropic", Name: "Claude Code", Configured: len(s.AgentEnvironment("claude-code")) > 0, AuthMode: "api-key"},
-		{ID: "openai", Name: "Codex", Configured: len(s.AgentEnvironment("codex")) > 0, AuthMode: "api-key-or-cli-sign-in", SignInCommand: "codex login --device-auth"},
-		{ID: "local", Name: "OpenCode · local or compatible model", Configured: len(s.AgentEnvironment("opencode")) > 0, AuthMode: "local", BaseURL: local.BaseURL, Model: local.Model},
+		{ID: "anthropic", Name: "Claude Code", Configured: len(s.legacyAgentEnvironment("claude-code")) > 0, AuthMode: "api-key"},
+		{ID: "openai", Name: "Codex", Configured: len(s.legacyAgentEnvironment("codex")) > 0, AuthMode: "api-key-or-cli-sign-in", SignInCommand: "codex login --device-auth"},
+		{ID: "local", Name: "OpenCode · local or compatible model", Configured: len(s.legacyAgentEnvironment("opencode")) > 0, AuthMode: "local", BaseURL: local.BaseURL, Model: local.Model},
 	}})
 }
 
@@ -162,6 +166,14 @@ func (s *Server) setAgentKey(w http.ResponseWriter, r *http.Request, openAI bool
 // a key applies to new/restarted sessions; existing containers retain their own
 // environment until stopped. Shells and unavailable harnesses get no secret.
 func (s *Server) AgentEnvironment(harness string) map[string]string {
+	_, env, err := s.ResolveAgentConnection(harness, nil)
+	if err != nil {
+		return nil
+	}
+	return env
+}
+
+func (s *Server) legacyAgentEnvironment(harness string) map[string]string {
 	s.mu.RLock()
 	key, openai, local, root := s.agentAPIKey, s.agentOpenAIKey, s.agentLocal, s.config.ProjectsDir
 	s.mu.RUnlock()
@@ -262,6 +274,10 @@ func (s *Server) setLocalAgent(w http.ResponseWriter, r *http.Request) {
 }
 
 func writePrivateAgentCredentials(path string, value agentCredentials) error {
+	return writePrivateAgentJSON(path, value)
+}
+
+func writePrivateAgentJSON(path string, value any) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err

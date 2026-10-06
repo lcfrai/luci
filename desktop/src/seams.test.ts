@@ -258,9 +258,9 @@ const SEAMS: Seam[] = [
   },
   {
     id: "SX.3",
-    name: "the persisted store shape, at version 1",
+    name: "the persisted store shape, at version 2",
     anchors: [
-      { file: "desktop/src/store/store.ts", present: /^export const PERSIST_VERSION = 1;$/m },
+      { file: "desktop/src/store/store.ts", present: /^export const PERSIST_VERSION = 2;$/m },
       { file: "desktop/src/store/store.ts", present: /^export const PERSIST_KEY = "luci\.cockpit";$/m },
       { file: "desktop/src/store/store.ts", present: /^export const partialize = \(s: CockpitState\): Persisted => \(\{$/m },
     ],

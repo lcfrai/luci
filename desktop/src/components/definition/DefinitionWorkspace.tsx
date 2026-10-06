@@ -1,11 +1,13 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { definitionApi, type ProjectSpecification, type DefinitionAssistance, type Requirement } from "../../api/definition";
-import { errorText } from "../../api/product";
+import { definitionApi, type ProjectSpecification, type DefinitionAssistance, type Requirement, type DefinitionAgentOptions } from "../../api/definition";
+import { errorText, productApi } from "../../api/product";
 import { useCockpit } from "../../store/store";
 import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { JourneyHeader } from "../journey/shared";
 import { RepositoryAnalysisPanel } from "./RepositoryAnalysisPanel";
 import { Button } from "../fluid/components/button";
+import { AgentConnectionSelect } from "../setup/AgentConnectionSelect";
+import { useAgentConnections, selectedAgentConnection, configuredAgentModel, agentConnectionIssue } from "../../hooks/useAgentConnections";
 import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
 import "./definition.css";
 
@@ -56,6 +58,25 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
   const [message, setMessage] = useState("");
   const [job, setJob] = useState<DefinitionAssistance | null>(null);
   const [assistError, setAssistError] = useState("");
+  const [assistant, setAssistant] = useState<DefinitionAgentOptions>(() => {
+    const state = useCockpit.getState(), defaults = { ...state.defaults, ...state.projectDefaults[projectId] };
+    return { harness: ["codex", "claude-code", "opencode"].includes(defaults.harness) ? defaults.harness as DefinitionAgentOptions["harness"] : "codex", model: defaults.model === "default" ? "" : defaults.model, ...(defaults.agentConnectionId === undefined ? {} : { agentConnectionId: defaults.agentConnectionId }) };
+  });
+  const { catalogue, error: connectionError } = useAgentConnections();
+  const [localModel, setLocalModel] = useState("");
+  const connection = selectedAgentConnection(catalogue, assistant.agentConnectionId);
+  const assistantModel = configuredAgentModel(connection, assistant.harness || "codex") || (connection && connection.kind !== "codex-subscription" ? "" : assistant.harness === "opencode" && localModel ? localModel : assistant.model);
+  const assistantModelReadOnly = !!configuredAgentModel(connection, assistant.harness || "codex") || !!connection && connection.kind !== "codex-subscription" || assistant.harness === "opencode" && !!localModel;
+  const connectionIssue = agentConnectionIssue(connection, assistant.harness || "codex", assistant.agentConnectionId ?? catalogue?.activeConnectionId);
+  useEffect(() => {
+    if (assistant.harness !== "opencode" || connection) return;
+    let stopped = false;
+    void productApi.agents().then(value => {
+      const local = value.providers.find(item => item.id === "local" && item.configured);
+      if (!stopped) setLocalModel(local?.model ? `luci-local/${local.model}` : "");
+    }).catch(() => { if (!stopped) setLocalModel(""); });
+    return () => { stopped = true; };
+  }, [assistant.harness, connection]);
   const alive = useRef(true);
   const submitting = useRef(false);
   const assistGeneration = useRef(0);
@@ -113,10 +134,10 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
     finally { submitting.current = false; if (alive.current) { setBusy(false); setPending(""); } }
   }
   async function ask() {
-    if (!spec || !message.trim() || dirty || busy) return;
+    if (!spec || !message.trim() || dirty || busy || connectionIssue) return;
     const ticket = ++assistGeneration.current;
     setBusy(true); setPending("ask"); setAssistError("");
-    try { const value = await definitionApi.assist(projectId, spec.revision, message.trim()); if (alive.current && ticket === assistGeneration.current) { setJob(value); setMessage(""); } }
+    try { const value = await definitionApi.assist(projectId, spec.revision, message.trim(), { ...assistant, ...(assistantModel ? { model: assistantModel } : { model: undefined }) }); if (alive.current && ticket === assistGeneration.current) { setJob(value); setMessage(""); } }
     catch (cause) { if (alive.current && ticket === assistGeneration.current) setAssistError(errorText(cause)); }
     finally { if (alive.current && ticket === assistGeneration.current) { setBusy(false); setPending(""); } }
   }
@@ -202,9 +223,15 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
           {tab === "history" && <section><h2>Saved definition snapshots</h2>{!history.length && <p>No structured revisions yet. Existing brief text is preserved when you save your first definition.</p>}<ol className="definition-history">{history.slice().reverse().map((r) => <li key={r.revision}><strong>Revision {r.revision} · {r.status}</strong><p>{r.purpose}</p><small>Brief {r.briefRevision} · {r.requirements.length} requirements · {new Date(r.updatedAt).toLocaleString()}</small><details><summary>Read this snapshot</summary><pre>{JSON.stringify(r, null, 2)}</pre></details></li>)}</ol></section>}
         </div>
         {tab !== "repository" && <aside className="definition-assistant" aria-label="Definition assistant">
-          <h2>Work through it with Luci</h2><p>Ask the connected Codex agent to find gaps, explore an idea or propose a fuller definition. Suggestions remain drafts until you accept them.</p>
+          <h2>Work through it with Luci</h2><p>Ask your connected agent to find gaps, explore an idea or propose a fuller definition. Suggestions remain drafts until you accept them.</p>
+          <fieldset disabled={busy || job?.status === "running" || job?.status === "queued"} className="definition-fields">
+            <label className="luci-field">Assistant provider<select value={assistant.harness} onChange={event => setAssistant({ ...assistant, harness: event.target.value as DefinitionAgentOptions["harness"], model: "" })}><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="opencode">OpenCode</option></select></label>
+            <AgentConnectionSelect catalogue={catalogue} value={assistant.agentConnectionId} onChange={id => setAssistant({ ...assistant, agentConnectionId: id })} label="Assistant connection" />
+            <label className="luci-field">Assistant model<input value={assistantModel ?? ""} readOnly={assistantModelReadOnly} onChange={event => setAssistant({ ...assistant, model: event.target.value })} placeholder="Agent default, or an exact available model ID" /></label>
+          </fieldset>
+          {(connectionIssue || connectionError) && <p className="journey-error" role="alert">{connectionIssue || connectionError}</p>}
           <label className="luci-field">What would you like to explore?<textarea rows={4} value={message} disabled={busy || job?.status === "running" || job?.status === "queued"} onChange={(e) => setMessage(e.target.value)} placeholder="Help me make the first version complete. Ask the next useful question." /></label>
-          <Button type="button" variant="secondary" loading={pending === "ask"} onClick={() => void ask()} disabled={dirty || busy || !message.trim() || job?.status === "running" || job?.status === "queued"}>Ask Luci</Button>
+          <Button type="button" variant="secondary" loading={pending === "ask"} onClick={() => void ask()} disabled={dirty || busy || !!connectionIssue || !message.trim() || job?.status === "running" || job?.status === "queued"}>Ask Luci</Button>
           {dirty && <p className="journey-muted">Save your draft first so the assistant works from the same definition.</p>}
           {assistError && <p className="journey-error" role="alert">{assistError}</p>}
           {job && <div className="definition-answer"><p role="status">{job.message || job.status}</p>
@@ -213,7 +240,7 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
               {job.result.proposal && <details><summary>Review proposed definition</summary><p>{job.result.proposal.purpose}</p><ul>{job.result.proposal.requirements.map((r) => <li key={r.id}>{r.title}<br /><small>{r.acceptance}</small></li>)}</ul><p>This replaces the edited definition with a proposed draft. It does not approve or save it.</p><Button type="button" variant="secondary" onClick={() => { const proposal = job.result?.proposal; if (proposal) { setSpec({ ...proposal, projectId, version: 1, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); setNotice("Proposal accepted as an editable draft. Review it and save when ready."); } }}>Use this proposal as my draft</Button></details>}
             </>}
           </div>}
-          <p className="journey-muted">The assistant requires your own connected Codex account and a ready Docker runtime. Your definition is sent to that provider.</p>
+          <p className="journey-muted">The assistant uses your selected connection and a ready Docker runtime. Your definition is sent to that provider.</p>
         </aside>}
       </div>
       </TabsSubtlePanel>)}

@@ -63,7 +63,7 @@ POST /v1/setup/cloud/login accepts `{provider: "aws" | "azure"}` and returns an 
 
 `GET /v1/product/projects/{id}/prototype-releases` returns `{releases: Release[]}` for Design. It combines the project's verified local previews, cloud and GitHub Pages releases with its owned running native Docker applications. Only ready project-owned records with valid provenance are admitted; foreign, malformed or ambiguous history is refused. Native application rows have `target:"application"`, a blank `url` and `browserConnectionRequired:true`. Opening first reads the existing platform project DTO and requires a nonbusy matching project and exactly one ready Docker deployment with the same release ID, commit and configuration revision. Local applications reuse that deployment's existing isolated gateway URL. Only a deployment marked as requiring a cloud browser connection uses `POST /v1/setup/workspace/platform/browser {projectId,kind:"application",resourceId}`, with the returned resource binding and separate origin checked. Selected SSH workspaces use the same catalogue and their explicit browser bridge. Saving a design resolves its prototype against this catalogue and records the backend release's exact commit; caller-supplied `prototypeCommit` is not trusted. This catalogue does not add native application rows to the separate preview/cloud deployment history or change its stop/rollback routing. Cloud/Pages ready history retains its original verification and does not continuously monitor the public site; native application eligibility includes a current owned-container health check.
 
-`POST /v1/setup/agents/codex/sign-in {}` starts an official auth-only session in a private setup workspace, independent of project/worktree selection. It returns the ordinary Session DTO for terminal attach; saving the completed account connection still uses the existing explicit account endpoint. `POST /v1/product/projects/{id}/assist {expectedRevision,message}` starts a durable Docker Codex structured-assistance job using the person's saved ChatGPT connection. GET of `.../assist/{jobId}` reads cached progress/result; POST of `.../cancel` cancels the owned run. Results contain one question/options/rationale and an optional proposed definition. They never save or approve project content. No API-key fallback or host-profile credential import is used.
+`POST /v1/setup/agents/codex/sign-in {}` starts an official auth-only session in a private setup workspace, independent of project/worktree selection. It returns the ordinary Session DTO for terminal attach; saving the completed account connection still uses the existing explicit account endpoint. `POST /v1/product/projects/{id}/assist {expectedRevision,message,harness?,model?,agentConnectionId?}` starts a durable structured-assistance job through the selected connection described below. Omitted harness defaults to Codex. GET of `.../assist/{jobId}` reads cached progress/result; POST of `.../cancel` cancels the owned run. Results contain one question/options/rationale and an optional proposed definition. They never save or approve project content. A named subscription connection never falls back to an API account. No host-profile credential import is used.
 
 ### Git delivery and project backups
 
@@ -120,9 +120,58 @@ POST /v1/setup/ssh/key accepts `{}` and returns `{publicKey, privateKeyPath, fin
 
 POST /v1/setup/runtime/install accepts `{}` and returns HTTP 202 with `{id, status, image, message, createdAt, updatedAt}`. The build uses the runtime source shipped with Luci, configured by the application at startup; callers cannot supply an arbitrary source path or image. Docker builds the bundled sandbox image asynchronously with a ten-minute limit and then verifies that Docker can inspect the resulting image. Repeating POST while installation is running returns the same job. Status is `idle`, `installing`, `ready`, `failed` or `unknown`. Docker failures remain failures with their actual bounded diagnostic. GET on the same route returns only cached job state and never calls Docker. A restart during installation yields `unknown`, requiring a readiness check or explicit retry. A saved `ready` outcome records the prior successful install; `/v1/setup/check` verifies current availability.
 
-After installing the runtime, open a Claude Code session in Develop and follow the harness's own sign-in prompt; inside that session, `/login` opens its account sign-in flow. Model access and charges belong to the person's provider account. Credentials created by that in-session sign-in remain inside the sandbox and are not copied into Luci's project files or transcript storage; creating a replacement sandbox can require signing in again. Shell sessions remain available without a model account. Claude receives a fixed instruction to read the worktree's `LUCI.md` as untrusted project context; Luci does not replace the person's `CLAUDE.md` or interpolate their brief text into a system prompt.
+Configured Claude Code API and gateway connections are injected into the session without an additional login-method choice. A person using Claude's separate subscription may explicitly use its own `/login` flow inside the sandbox; that subscription is not an API gateway credential. Model access and charges belong to the chosen provider account. Credentials created by in-session sign-in remain inside that sandbox and are not copied into project files or transcripts; a replacement sandbox can require sign-in again. Shell sessions need no model account. Claude receives a fixed instruction to read the worktree's `LUCI.md` as untrusted project context; Luci does not replace the person's `CLAUDE.md` or interpolate their brief into a system prompt.
 
 For a persistent personal API connection, GET /v1/setup/agents returns `{providers: [{id: "anthropic", name: "Claude Code", configured: false}]}`. POST /v1/setup/agents/anthropic accepts `{apiKey: "..."}` and returns the same status-only shape. An empty key disconnects. A nonempty key must be 20ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“8,192 printable ASCII characters without whitespace. The explicit save stores the key only in Luci's private host state, with mode 0600 on Unix and a protected owner-only DACL on Windows. It is injected as `ANTHROPIC_API_KEY` only into new or restarted Claude sandboxes, never into shell sessions, project files, session records, GET responses or command arguments. Clearing applies to future sessions; stop existing containers to remove their existing environment. Saving a key does not make a provider call or claim that the provider accepted it. API usage is billed by Anthropic under the person's API account; a Claude subscription is a separate sign-in option. Startup and settings refuse any projects folder that contains the private state folder.
+
+## Shared model connections and general CLI sessions
+
+`GET /v1/setup/agent-connections` returns `{revision,activeConnectionId,connections}`.
+Public rows contain ID, name, kind, enabled/revision, protocol endpoint bases,
+model aliases, configured status, key presence and any blocked reason. Keys are
+never returned. `POST` supports `save`, `select` and `delete` with the current
+`expectedRevision`; save accepts the connection fields and optional `apiKey`.
+Omitting a key preserves it; an explicit empty key clears it. The private store
+is bounded to sixteen connections and 256KiB, written atomically outside
+projects with private file permissions. Endpoint URLs cannot contain credentials,
+queries or fragments. HTTPS and private/loopback HTTP bases are supported.
+
+Kinds are `litellm`, `compatible-api`, `codex-subscription` and `direct-api`.
+LiteLLM's simple editor derives Responses and Chat Completions bases at
+`<server>/v1` and the Messages server base only after Apply gateway address.
+Explicit custom protocol paths remain available under Advanced. The lcfr.ai
+gateway has no invented default address. Saving configuration makes no provider
+call and does not certify access or pricing.
+
+New Develop sessions, guided Define and repository analysis share this
+selection. An omitted `agentConnectionId` uses the active connection; an explicit
+empty ID selects the retained personal connection. Switching the active ID to
+empty turns off the gateway without deleting it. A named disabled, deleted or
+changed connection is refused before replacing an existing sandbox. Sessions
+record its ID, revision, kind and protocol without its key. Named model changes
+cannot silently select a different billed model or account. Existing running
+containers retain their injected environment until stopped. Codex receives a
+Responses route, Claude Code a Messages route and OpenCode a Chat Completions
+route. A gateway must actually support each enabled protocol and model.
+
+The server maps private routing hints into each CLI's supported configuration
+before validating a sandbox; callers cannot inject reserved `LUCI_` variables.
+Only Docker-backed Codex Ask sessions use Codex's supported `danger-full-access`
+inner sandbox with `on-request` approvals, because its namespace sandbox cannot
+start inside the existing restricted Docker boundary. Host execution retains
+its original sandbox policy. The outer Docker container remains non-root with
+dropped capabilities, no new privileges and no host Docker socket. Interactive
+coding containers do not claim a read-only root filesystem. Explicit bypass
+mode remains a separate user choice.
+
+Shell supports ordinary installed CLI tools and file operations in its assigned
+worktree. Each Shell session has a separate private tools/home directory outside
+projects, mounted only into that session; HOME, XDG, npm, pip, Go and Cargo paths
+use it. Tools and configuration survive Restart and Stop. Forget removes the
+owned directory only after the container is gone. New sessions and other users
+do not share it. Unsafe linked home paths are refused before container removal.
+Using an arbitrary CLI in Shell does not imply that Luci can automatically
+configure that CLI's provider authentication.
 
 ## Local release execution
 
@@ -271,11 +320,13 @@ GET `/v1/product/projects/{id}/assist` returns the newest twenty job metadata
 records as `{jobs:[...]}` without results or provider calls. GET
 `/assist/{jobId}` reads a saved detailed result. POST `/assist/repository`
 accepts `{expectedRevision,expectedBriefRevision,sourceMode,harness,model,
-authMode,acknowledgeSourceRead:true,message?}` and returns202 with a durable job.
+agentConnectionId?,acknowledgeSourceRead:true,message?}` and returns202 with a durable job.
 Source mode is `worktree` or `commit`; harness is `codex`, `claude-code` or
-`opencode`. An explicit non-default model is required. Codex uses the chosen
-`chatgpt` or `api` connection, Claude uses `api`, and OpenCode uses `configured`
-with the exact saved `luci-local/{model}` connection. No provider fallback occurs.
+`opencode`. An explicit non-default model is required. All three use the shared
+connection resolver; a named connection requires its exact saved model alias.
+Legacy clients may still specify `authMode`; this cannot override a named
+connection. OpenCode uses its saved qualified provider/model identifier.
+No provider fallback occurs.
 Session quota and allowed-harness policy apply before starting a job.
 
 The read-only snapshot includes at most sixty Git-visible text files,16KiB per

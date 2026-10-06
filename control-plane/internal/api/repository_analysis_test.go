@@ -45,7 +45,7 @@ func TestRepositoryAnalysisRecoveryObservesOwnedOutputAndNeverStartsAnotherInfer
 				t.Fatal(err)
 			}
 			e.api.codexAccountMu.Lock()
-			s, spec, err := e.api.analysisSession(context.Background(), p.ID, "codex", "gpt-fixture", "api", map[string]string{"OPENAI_API_KEY": "fixture-selected-key"}, nil)
+			s, spec, err := e.api.assistantSession(context.Background(), p.ID, "Repository analysis", "luci:repository-analysis", "codex", product.AgentConnectionReceipt{Model: "gpt-fixture", AuthMode: "api"}, map[string]string{"OPENAI_API_KEY": "fixture-selected-key"}, nil)
 			e.api.codexAccountMu.Unlock()
 			if err != nil {
 				t.Fatal(err)

@@ -68,7 +68,7 @@ func TestLocalReleaseUsesPrivatePinnedRuntimeConfigurationAndRemovesItsEnvFile(t
 							envPath = args[i+1]
 						}
 					}
-					if envPath == "" || filepath.Dir(envPath) != s.stateDir {
+					if envPath == "" || filepath.Clean(filepath.Dir(envPath)) != filepath.Clean(s.stateDir) {
 						t.Fatal("runtime env file is not outside the project in private state")
 					}
 					assertPrivateFile(t, envPath)

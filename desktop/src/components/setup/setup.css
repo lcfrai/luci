@@ -280,6 +280,12 @@
   padding-block-start: 25px;
   box-shadow: 0 -1px var(--line);
 }
+.agent-connection-manager fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
 .setup-plan li {
   padding-block: 4px;
 }

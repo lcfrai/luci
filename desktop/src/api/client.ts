@@ -132,6 +132,8 @@ export interface CreateSessionRequest {
   contextRef?: string;
   /** Start only the official Codex account sign-in, without an implementation prompt. */
   authOnly?: boolean;
+  /** Omitted uses the active connection; empty explicitly uses direct agent settings. */
+  agentConnectionId?: string;
 }
 
 export interface ListSessionsFilter {
@@ -492,6 +494,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
         title: from.title,
         resume: from.id,
         contextRef: from.contextRef,
+        ...(from.agentConnectionId === undefined ? {} : { agentConnectionId: from.agentConnectionId }),
       });
     },
     forkSession: async (from, targetWorktreeId, harness) => {
@@ -524,6 +527,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
             : undefined,
         resume: carries ? from.id : undefined,
         contextRef: from.contextRef,
+        ...(from.agentConnectionId === undefined ? {} : { agentConnectionId: from.agentConnectionId }),
       });
     },
     attachUrl: (session) => attachUrl(baseUrl, session),

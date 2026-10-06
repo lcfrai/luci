@@ -173,8 +173,12 @@ func (a *API) recordUtilitySandbox(id string, sb backend.Sandbox) (registry.Sess
 
 func (a *API) handleAssistCreate(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ExpectedRevision int    `json:"expectedRevision"`
-		Message          string `json:"message"`
+		ExpectedRevision  int     `json:"expectedRevision"`
+		Message           string  `json:"message"`
+		Harness           string  `json:"harness"`
+		Model             string  `json:"model"`
+		AgentConnectionID *string `json:"agentConnectionId"`
+		AuthMode          string  `json:"authMode"` // accepted only for explicit legacy clients
 	}
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
@@ -202,14 +206,28 @@ func (a *API) handleAssistCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	a.codexAccountMu.Lock()
 	defer a.codexAccountMu.Unlock()
-	account, _, err := a.selectCodexConnection(r.Context(), registry.Session{}, false, "")
+	if req.Harness == "" {
+		req.Harness = "codex"
+	}
+	connection, env, account, err := a.resolveAssistanceConnection(r.Context(), req.Harness, req.Model, req.AuthMode, req.AgentConnectionID, false)
+	if err != nil {
+		if errors.Is(err, errCodexDisconnected) || errors.Is(err, errCodexBusy) {
+			codexAccountProblem(w, err)
+		} else {
+			httpx.WriteProblem(w, 409, "assistant_connection_required", err.Error(), nil)
+		}
+		return
+	}
+	jobs, err := a.projectAssistance(snapshot.ProjectID)
 	if err != nil {
 		codexAccountProblem(w, err)
 		return
 	}
-	if account == nil {
-		codexAccountProblem(w, errCodexDisconnected)
-		return
+	for _, job := range jobs {
+		if !assistance.Terminal(job.Status) {
+			httpx.WriteProblem(w, 409, "assistant_busy", "An assistant is already running for this project. Resume or cancel it before starting another.", nil)
+			return
+		}
 	}
 	jobID := ids.New("assist")
 	inputDir, err := a.assistDirectory(filepath.Join("assistance", "runs", jobID, "input"))
@@ -242,19 +260,21 @@ func (a *API) handleAssistCreate(w http.ResponseWriter, r *http.Request) {
 		codexAccountProblem(w, err)
 		return
 	}
-	for name, b := range map[string][]byte{"prompt.txt": prompt, "message.txt": []byte(req.Message), "schema.json": schema, "run.py": []byte(assistance.Launcher)} {
+	selection, _ := json.Marshal(map[string]string{"harness": req.Harness, "model": connection.Model, "authMode": connection.AuthMode})
+	for name, b := range map[string][]byte{"prompt.txt": prompt, "message.txt": []byte(req.Message), "schema.json": schema, "selection.json": selection, "run.py": []byte(assistance.Launcher)} {
 		if err = codexAtomicPrivate(filepath.Join(inputDir, name), b); err != nil {
 			codexAccountProblem(w, err)
 			return
 		}
 	}
-	s, spec, err := a.utilitySession(r.Context(), snapshot.ProjectID, "Define assistant", account, false)
+	s, spec, err := a.assistantSession(r.Context(), snapshot.ProjectID, "Define assistant", "luci:define-assist", req.Harness, connection, env, account)
 	if err != nil {
 		codexAccountProblem(w, err)
 		return
 	}
 	spec.Mounts = append(spec.Mounts, backend.Mount{HostPath: inputDir, ContainerPath: "/luci-input", ReadOnly: true}, backend.Mount{HostPath: outputDir, ContainerPath: "/luci-output"})
-	job := assistance.Job{ID: jobID, ProjectID: snapshot.ProjectID, ExpectedRevision: snapshot.Revision, ExpectedBriefRevision: snapshot.BriefRevision, SessionID: s.ID, Status: "queued", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: "Waiting for Codex in your private Docker runtime."}
+	job := assistance.Job{ID: jobID, ProjectID: snapshot.ProjectID, ExpectedRevision: snapshot.Revision, ExpectedBriefRevision: snapshot.BriefRevision, SessionID: s.ID, Harness: req.Harness, Model: connection.Model, AuthMode: connection.AuthMode, Status: "queued", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: "Waiting for your selected provider in the private Docker runtime."}
+	bindAssistantJob(&job, connection)
 	if err = a.assistanceStore().Create(job); err != nil {
 		a.markSessionExited(s.ID, "assistant job could not be saved")
 		codexAccountProblem(w, err)
@@ -329,7 +349,7 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 	if job.Kind == "repository" {
 		contextRef = "luci:repository-analysis"
 	}
-	if err != nil || session.ContextRef != contextRef || session.ProjectID != job.ProjectID || session.WorktreeID != assistWorktree || (job.Harness != "" && (session.Harness != job.Harness || session.Model != job.Model || session.AuthMode != job.AuthMode)) {
+	if err != nil || session.ContextRef != contextRef || session.ProjectID != job.ProjectID || session.WorktreeID != assistWorktree || (job.Harness != "" && (session.Harness != job.Harness || session.Model != job.Model || session.AuthMode != job.AuthMode)) || session.AgentConnectionID != job.AgentConnectionID || session.AgentConnectionRevision != job.AgentConnectionRevision || session.AgentConnectionKind != job.AgentConnectionKind || session.AgentConnectionProtocol != job.AgentConnectionProtocol {
 		_, _ = a.assistanceStore().Update(job.ID, func(j *assistance.Job) error {
 			j.Status = "failed"
 			j.Message = "The assistant's owned session is no longer available."
@@ -337,7 +357,7 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 		})
 		return
 	}
-	status, message := "failed", "Codex did not complete a valid response. Check your saved ChatGPT connection and Docker runtime, then try again."
+	status, message := "failed", "The selected provider did not complete a valid response. Check its connection, model and Docker runtime, then try again."
 	if job.Kind == "repository" {
 		message = "The selected provider did not complete a valid repository response. Check that connection, model and Docker runtime, then start a new analysis. No draft was applied."
 	}
@@ -398,7 +418,7 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 			return context.Canceled
 		}
 		j.Status = "running"
-		j.Message = "Codex is considering your definition."
+		j.Message = "Your selected provider is considering your definition."
 		if j.Kind == "repository" {
 			j.Message = "Your selected provider is analysing the bounded repository snapshot. Implementation files remain untouched."
 		}

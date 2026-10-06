@@ -1,6 +1,6 @@
 // Contract §6.4. Every control is gated on the HARNESS DESCRIPTOR, never on a harness id.
 // The draft lives here and dies with the popover (§3.3: there is no drafts map in the store).
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { JSX } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useCockpit } from "../../store/store";
@@ -8,6 +8,9 @@ import { selectResolvedDefaults, selectWorktrees } from "../../store/selectors";
 import { resolveDefaults } from "../../store/defaults";
 import { useCreateSession } from "../../hooks/useCreateSession";
 import { useDismissable } from "../../hooks/useDismissable";
+import { productApi } from "../../api/product";
+import { useAgentConnections, selectedAgentConnection, configuredAgentModel, agentConnectionIssue } from "../../hooks/useAgentConnections";
+import { AgentConnectionSelect } from "../setup/AgentConnectionSelect";
 import type {
   Effort,
   PermissionMode,
@@ -46,6 +49,7 @@ export function SessionPicker(props: {
   const setBranchDefaults = useCockpit((s) => s.setBranchDefaults);
   const createSession = useCreateSession();
   const working = useRef(false);
+  const modelsId = useId();
   const ref = useDismissable<HTMLDivElement>(open, () => {
     if (!working.current) onClose();
   });
@@ -55,19 +59,42 @@ export function SessionPicker(props: {
   const [draft, setDraft] = useState<SessionDefaultsOverride>({});
   const [prompt, setPrompt] = useState("");
   const [target, setTarget] = useState<WorktreeId | null>(worktreeId);
+  const { catalogue, error: connectionError } = useAgentConnections(productApi, open);
+  const [localModel, setLocalModel] = useState("");
+  const [connectionChanged, setConnectionChanged] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setDraft({});
+    setConnectionChanged(false);
     setPrompt(initialPrompt);
     setTarget(worktreeId);
     setError("");
   }, [open, worktreeId, initialPrompt]);
+  useEffect(() => {
+    if (!open) return;
+    let stopped = false;
+    void productApi.agents().then(value => {
+      const local = value.providers.find(item => item.id === "local" && item.configured);
+      if (!stopped) setLocalModel(local?.model ? `luci-local/${local.model}` : "");
+    }).catch(() => { if (!stopped) setLocalModel(""); });
+    return () => { stopped = true; };
+  }, [open]);
 
   // Re-resolve rather than merge: the clamp in §3.6 is what keeps a stale branch default from
   // offering a model the chosen harness does not have.
   const effective = resolveDefaults(inherited, draft, undefined, harnesses);
+  if (connectionChanged) effective.agentConnectionId = draft.agentConnectionId;
+  const isShell = effective.harness === "shell";
   const harness = harnesses.find((h) => h.id === effective.harness);
+  const connection = isShell ? undefined : selectedAgentConnection(catalogue, effective.agentConnectionId);
+  const savedModel = configuredAgentModel(connection, effective.harness);
+  const connectionIssue = isShell ? "" : agentConnectionIssue(connection, effective.harness, effective.agentConnectionId ?? catalogue?.activeConnectionId);
+  const modelReadOnly = !!connection && connection.kind !== "codex-subscription" || !!savedModel || effective.harness === "opencode" && !!localModel && !connection;
+  if (isShell) effective.model = "";
+  else if (savedModel) effective.model = savedModel;
+  else if (connection && connection.kind !== "codex-subscription") effective.model = "";
+  else if (effective.harness === "opencode" && localModel) effective.model = localModel;
 
   if (!open || harness === undefined) return null;
 
@@ -97,13 +124,15 @@ export function SessionPicker(props: {
             Harness
             <select
               value={effective.harness}
-              // Replacing the draft rather than spreading is deliberate: a new harness
-              // invalidates model, effort and permission mode, and resolveDefaults re-derives
-              // all three from the descriptor on the next render.
-              onChange={(event) => setDraft({ harness: event.target.value })}
+              // A new harness resets its options, while retaining the chosen coding route
+              // for switching back from Shell. Shell creation ignores that route.
+              onChange={(event) => {
+                const next = event.target.value;
+                setDraft(current => ({ harness: next, ...(Object.prototype.hasOwnProperty.call(current, "agentConnectionId") ? { agentConnectionId: current.agentConnectionId } : {}) }));
+              }}
             >
               {harnesses.map((entry) => (
-                <option key={entry.id} value={entry.id}>
+                <option key={entry.id} value={entry.id} disabled={!entry.available}>
                   {entry.available
                     ? entry.name
                     : `${entry.name} — ${entry.note}`}
@@ -112,7 +141,10 @@ export function SessionPicker(props: {
             </select>
           </label>
 
-          {harness.models.length === 0 ? null : (
+          {harness.id !== "shell" && <AgentConnectionSelect catalogue={catalogue} value={effective.agentConnectionId} onChange={id => { setDraft({ ...draft, agentConnectionId: id }); setConnectionChanged(true); }} className="pick-field" />}
+          {harness.id !== "shell" && (connectionIssue || connectionError) && <p className="journey-error" role="alert">{connectionIssue || connectionError}</p>}
+
+          {harness.supportsCustomModel ? <><label className="pick-field">Model<input value={effective.model} readOnly={modelReadOnly} onChange={event => setDraft({ ...draft, model: event.target.value })} placeholder="Exact available model ID" list={modelsId} /></label><datalist id={modelsId}>{harness.models.map(model => <option key={model.id} value={model.id}>{model.name}</option>)}</datalist></> : harness.models.length === 0 ? null : (
             <label className="pick-field">
               Model
               <select
@@ -198,6 +230,8 @@ export function SessionPicker(props: {
           {harness.note === "" ? null : (
             <p className="pick-note">{harness.note}</p>
           )}
+          {isShell && <p className="pick-note">Tools installed in this terminal’s private home survive Restart. Forget removes that home and its tools.</p>}
+          {harness.dockerAskNotice && <p className="pick-note">{harness.dockerAskNotice}</p>}
           {initialPrompt && !harness.supportsOpeningPrompt && (
             <p className="pick-note">
               Choose a coding agent that accepts an opening prompt to use this
@@ -212,7 +246,7 @@ export function SessionPicker(props: {
             disabled={busy || branchId === null}
             title={branchId === null ? "Select a branch first." : undefined}
             onClick={() => {
-              if (branchId !== null) setBranchDefaults(branchId, draft);
+              if (branchId !== null) setBranchDefaults(branchId, { ...draft, model: effective.model });
               onClose();
             }}
           >
@@ -225,6 +259,7 @@ export function SessionPicker(props: {
               target === null ||
               busy ||
               !harness.available ||
+              !!connectionIssue ||
               (!!initialPrompt && !harness.supportsOpeningPrompt)
             }
             title={harness.available ? undefined : harness.note}
@@ -234,8 +269,9 @@ export function SessionPicker(props: {
                 setBusy(true);
                 setError("");
                 const result = await createSession(target, {
-                  overrides: draft,
+                  overrides: { ...draft, model: effective.model },
                   openingPrompt: prompt,
+                  agentConnectionId: isShell ? undefined : effective.agentConnectionId,
                 });
                 working.current = false;
                 setBusy(false);

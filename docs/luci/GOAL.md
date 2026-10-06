@@ -40,6 +40,29 @@ stored four-phase benchmark remains a required gate within it.
 
 ## Required product outcomes
 
+The owner's 6 October CLI instruction is part of this completion contract.
+Supported coding harnesses and general CLI work must be able to create and edit
+files in their assigned project while retaining account, project and sandbox
+boundaries. Read-only verification is distinct from the coding workspace.
+Choosing a harness should reuse the connected API access and inject its supported
+provider configuration without making the user assemble login-method settings.
+Provider subscription sign-in remains a real external protocol where required;
+never claim universal account reuse, silently import host credentials or label an
+unconnected provider ready. Use the requested GPT-6 Astra review to find and
+implement concrete gaps across these contracts and the full polished journey.
+
+The lcfr.ai connection will be a configurable LiteLLM gateway, with Azure OpenAI
+or AWS Bedrock available behind that gateway. A person can enable it, switch it
+off, or choose their own compatible endpoint or Codex subscription without losing
+the saved alternatives. Protocol compatibility is explicit; a selected connection
+must never silently change the provider, billing account or model. A supplied
+gateway address is required before claiming live access. Astra's review covers
+the entire product and its release evidence, including orchestration, recovery,
+distribution and the coherence of all four phases. Add stronger orchestration
+where concrete findings require it, with measured outcomes rather than a model
+name standing in for reliability. This is a full product release contract, not a
+demo or a preliminary test.
+
 1. A downloaded matching package launches successfully. Account creation,
    returning sign-in and account recovery are discoverable. Onboarding explains
    execution choices, checks prerequisites, prepares supported dependencies,

@@ -121,6 +121,8 @@ export interface Harness {
   permissionModes: PermissionMode[];
   supportsOpeningPrompt: boolean;
   supportsResume: boolean;
+  supportsCustomModel?: boolean;
+  dockerAskNotice?: string;
   /** Why it is unavailable, or what it is. Rendered verbatim in the picker. */
   note: string;
 }
@@ -149,6 +151,10 @@ export interface Session {
   authOnly?: boolean;
   /** Recorded subscription use cannot fall back to an API key on restart. */
   authMode?: "chatgpt";
+  agentConnectionId?: string;
+  agentConnectionRevision?: number;
+  agentConnectionKind?: string;
+  agentConnectionProtocol?: string;
   /** Free text for the user: "killed", "process exited", "idle timeout",
    *  "sandbox disappeared while the app was not running". Rendered verbatim. */
   exitReason: string;
@@ -191,6 +197,7 @@ export interface SessionDefaults {
   model: ModelId;
   effort: Effort;
   permissionMode: PermissionMode;
+  agentConnectionId?: string;
 }
 
 /** A partial override recorded against a project or a branch. Every field optional: an

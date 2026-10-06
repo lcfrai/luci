@@ -4,6 +4,8 @@ import { definitionApi, type DefinitionAssistance, type ProjectSpecification, ty
 import { errorText, productApi } from "../../api/product";
 import { useCockpit } from "../../store/store";
 import { Button } from "../fluid/components/button";
+import { AgentConnectionSelect } from "../setup/AgentConnectionSelect";
+import { useAgentConnections, selectedAgentConnection, configuredAgentModel, agentConnectionIssue } from "../../hooks/useAgentConnections";
 
 type Props = { projectId: string; specification: ProjectSpecification; dirty: boolean; onApplied(value: ProjectSpecification): void };
 const running = (job: DefinitionAssistance) => job.status === "queued" || job.status === "running";
@@ -14,12 +16,18 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied 
   const defaults = useCockpit(useShallow(state => ({
     harness: state.projectDefaults[projectId]?.harness ?? state.defaults.harness,
     model: state.projectDefaults[projectId]?.model ?? state.defaults.model,
+    agentConnectionId: state.projectDefaults[projectId]?.agentConnectionId ?? state.defaults.agentConnectionId,
   })));
   const [harness, setHarness] = useState<RepositoryAnalysisRequest["harness"] | "">(() => supportedProvider(defaults.harness) ? defaults.harness as RepositoryAnalysisRequest["harness"] : "");
   const [model, setModel] = useState(() => supportedProvider(defaults.harness) && defaults.model !== "default" ? defaults.model : "");
   const [localModel, setLocalModel] = useState("");
   const [connectionError, setConnectionError] = useState("");
-  const [authMode, setAuthMode] = useState<"chatgpt" | "api">("chatgpt");
+  const [agentConnectionId, setAgentConnectionId] = useState<string | undefined>(defaults.agentConnectionId);
+  const { catalogue, error: catalogueError } = useAgentConnections();
+  const connection = selectedAgentConnection(catalogue, agentConnectionId);
+  const savedModel = configuredAgentModel(connection, harness);
+  const savedAPI = connection && connection.kind !== "codex-subscription";
+  const connectionIssue = agentConnectionIssue(connection, harness, agentConnectionId ?? catalogue?.activeConnectionId);
   const [sourceMode, setSourceMode] = useState<"worktree" | "commit">("worktree");
   const [message, setMessage] = useState("");
   const [acknowledged, setAcknowledged] = useState(false), [reviewed, setReviewed] = useState(false);
@@ -68,8 +76,8 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied 
     return () => { stopped = true; window.clearInterval(timer); };
   }, [activeJob?.id, activeJob?.status, activeAnalysis, projectId, job?.id, accept, load]);
   const locked = !!pending || !!activeJob || !!activeAnalysis || dirty;
-  const selectedModel = harness === "opencode" ? localModel : model.trim();
-  const validModel = !!selectedModel && selectedModel !== "default";
+  const selectedModel = savedModel || (savedAPI ? "" : harness === "opencode" ? localModel : model.trim());
+  const validModel = !!selectedModel && selectedModel !== "default" && !connectionIssue;
   async function act(action: "start" | "apply" | "cancel" | "select" | "reload", id = "") {
     if (submitting.current) return;
     if (action === "start" && (locked || !harness || !validModel || !acknowledged)) return;
@@ -80,7 +88,7 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied 
       if (action === "start" && harness) {
         const value = await definitionApi.analyseRepository(projectId, {
           expectedRevision: specification.revision, expectedBriefRevision: specification.briefRevision,
-          sourceMode, harness, model: selectedModel, authMode: harness === "codex" ? authMode : harness === "claude-code" ? "api" : "configured",
+          sourceMode, harness, model: selectedModel, ...(agentConnectionId === undefined ? {} : { agentConnectionId }),
           acknowledgeSourceRead: true, ...(message.trim() ? { message: message.trim() } : {}),
         });
         if (alive.current && generation.current === ticket) { accept(value); setAcknowledged(false); setReviewed(false); }
@@ -115,10 +123,11 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied 
         <div className="setup-field-grid">
           <label className="luci-field">Source to analyse<select value={sourceMode} onChange={event => { setSourceMode(event.target.value as typeof sourceMode); changed(); }}><option value="worktree">Current working files</option><option value="commit">Latest committed source</option></select></label>
           <label className="luci-field">Analysis provider<select required value={harness} onChange={event => { setHarness(event.target.value as typeof harness); setModel(""); changed(); }}><option value="" disabled>Choose your connected provider</option>{Object.entries(providers).map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
-          <label className="luci-field">Analysis model<input required value={harness === "opencode" ? localModel : model} readOnly={harness === "opencode"} autoComplete="off" onChange={event => { setModel(event.target.value); changed(); }} placeholder={harness === "opencode" ? "Connect a local model in Agent connection" : "Enter a model available to your account"} /></label>
-          {harness === "codex" && <label className="luci-field">Codex connection<select value={authMode} onChange={event => { setAuthMode(event.target.value as typeof authMode); changed(); }}><option value="chatgpt">Codex subscription</option><option value="api">Connected API account</option></select></label>}
+          <AgentConnectionSelect catalogue={catalogue} value={agentConnectionId} onChange={id => { setAgentConnectionId(id); changed(); }} label="Analysis connection" />
+          <label className="luci-field">Analysis model<input required value={savedModel || (savedAPI ? "" : harness === "opencode" ? localModel : model)} readOnly={!!savedAPI || !!savedModel || harness === "opencode"} autoComplete="off" onChange={event => { setModel(event.target.value); changed(); }} placeholder={harness === "opencode" ? "Save a model in Agent connections" : "Enter a model available to your account"} /></label>
         </div>
-        {harness === "opencode" && <p className="journey-muted">OpenCode uses the model saved in Agent connection. {localModel ? "This analysis will use that exact connection." : "Save a local provider and model there before starting."}</p>}
+        {(connectionIssue || catalogueError) && <p role="alert" className="journey-error">{connectionIssue || catalogueError}</p>}
+        {harness === "opencode" && <p className="journey-muted">OpenCode uses the model saved in Agent connections. {selectedModel ? "This analysis will use that exact connection." : "Save a provider and model there before starting."}</p>}
         {harness === "opencode" && connectionError && <p role="alert">{connectionError}</p>}
         <label className="luci-field">What should the analysis focus on?<textarea rows={3} value={message} onChange={event => { setMessage(event.target.value); changed(); }} placeholder="Optional: the intended changes, questions or parts you want understood." /></label>
         <p className="journey-muted">Uses the selected provider and its configured account. Source sent for analysis excludes ignored, private, generated and binary files. The selection is partial and can miss behaviours elsewhere in the repository. Model usage follows your account's charges or subscription limits.</p>

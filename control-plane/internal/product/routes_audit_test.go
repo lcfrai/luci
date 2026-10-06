@@ -50,6 +50,7 @@ var productReadOnlyRoutes = map[string]string{
 	"GET /v1/setup/workspace/admin/users/{id}/runtime":                  "Reads cached backing runtime state; cannot start or stop a worker.",
 	"GET /v1/setup/github/login":                                        "Reads cached explicit GitHub login jobs without running CLI commands.",
 	"GET /v1/setup/agents":                                              "Reports presence of the private agent credential without its value.",
+	"GET /v1/setup/agent-connections":                                   "Reads public saved route identities, protocol bindings and key presence without secrets or provider requests.",
 	"GET /v1/product/projects/{id}/brief":                               "Reads canonical brief history without creating missing state.",
 	"GET /v1/product/projects/{id}/design":                              "Reads canonical design history without creating missing state.",
 	"GET /v1/product/projects/{id}/design/export":                       "Renders an inert HTML response from saved design state.",

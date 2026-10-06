@@ -6,7 +6,7 @@ import { productApi } from "../../api/product";
 import { resetCockpit, useCockpit } from "../../store/store";
 
 vi.mock("../../api/definition", () => ({ definitionApi: { listAssistance: vi.fn(), assistance: vi.fn(), analyseRepository: vi.fn(), applyAnalysis: vi.fn(), cancelAssistance: vi.fn() } }));
-vi.mock("../../api/product", async original => ({ ...await original<typeof import("../../api/product")>(), productApi: { agents: vi.fn() } }));
+vi.mock("../../api/product", async original => ({ ...await original<typeof import("../../api/product")>(), productApi: { agents: vi.fn(), agentConnections: vi.fn() } }));
 const specification = (): ProjectSpecification => ({ projectId: "owned", version: 1, revision: 2, briefRevision: 3, startingPoint: "existing", purpose: "Understand this app", audience: "Its users", constraints: "Keep data", outOfScope: [], requirements: [], journeys: [], roles: [], entities: [], integrations: [], glossary: [], decisions: [], questions: [], status: "draft", digest: "", updatedAt: "" });
 const result = (): DefinitionAssistance => ({
   id: "analysis-one", projectId: "owned", kind: "repository", status: "succeeded", harness: "codex", model: "configured-model", authMode: "chatgpt", message: "Analysis saved", createdAt: "2026-10-05T00:00:00Z", updatedAt: "2026-10-05T00:00:05Z",
@@ -17,6 +17,7 @@ beforeEach(() => {
   vi.resetAllMocks(); resetCockpit();
   vi.mocked(definitionApi.listAssistance).mockResolvedValue({ jobs: [] });
   vi.mocked(productApi.agents).mockResolvedValue({ providers: [] });
+  vi.mocked(productApi.agentConnections).mockResolvedValue({ revision: 0, activeConnectionId: "", connections: [] });
   useCockpit.getState().setDefaults({ harness: "codex", model: "configured-model" });
 });
 const mount = (dirty = false, onApplied = vi.fn()) => render(<RepositoryAnalysisPanel projectId="owned" specification={specification()} dirty={dirty} onApplied={onApplied} />);
@@ -46,7 +47,7 @@ it("requires a real model and source acknowledgement before an explicit subscrip
   expect((screen.getByLabelText("Send the selected source and definition to this provider for analysis.") as HTMLInputElement).checked).toBe(false);
   fireEvent.click(screen.getByLabelText("Send the selected source and definition to this provider for analysis."));
   fireEvent.click(screen.getByRole("button", { name: "Analyse repository" }));
-  await waitFor(() => expect(definitionApi.analyseRepository).toHaveBeenCalledExactlyOnceWith("owned", { expectedRevision: 2, expectedBriefRevision: 3, sourceMode: "worktree", harness: "codex", model: "chosen-account-model", authMode: "chatgpt", acknowledgeSourceRead: true }));
+  await waitFor(() => expect(definitionApi.analyseRepository).toHaveBeenCalledExactlyOnceWith("owned", { expectedRevision: 2, expectedBriefRevision: 3, sourceMode: "worktree", harness: "codex", model: "chosen-account-model", acknowledgeSourceRead: true }));
   expect(definitionApi.applyAnalysis).not.toHaveBeenCalled();
 });
 
@@ -60,7 +61,7 @@ it("uses the exact saved local connection for OpenCode and cannot edit its model
   expect((screen.getByLabelText("Analysis model") as HTMLInputElement).readOnly).toBe(true);
   fireEvent.click(screen.getByLabelText("Send the selected source and definition to this provider for analysis."));
   fireEvent.click(screen.getByRole("button", { name: "Analyse repository" }));
-  await waitFor(() => expect(definitionApi.analyseRepository).toHaveBeenCalledWith("owned", expect.objectContaining({ harness: "opencode", model: "luci-local/installed-model", authMode: "configured" })));
+  await waitFor(() => expect(definitionApi.analyseRepository).toHaveBeenCalledWith("owned", expect.objectContaining({ harness: "opencode", model: "luci-local/installed-model" })));
 });
 
 it("uses the saved API connection for an explicitly selected Claude model", async () => {
@@ -70,7 +71,25 @@ it("uses the saved API connection for an explicitly selected Claude model", asyn
   fireEvent.change(screen.getByLabelText("Analysis model"), { target: { value: "sonnet" } });
   fireEvent.click(screen.getByLabelText("Send the selected source and definition to this provider for analysis."));
   fireEvent.click(screen.getByRole("button", { name: "Analyse repository" }));
-  await waitFor(() => expect(definitionApi.analyseRepository).toHaveBeenCalledWith("owned", expect.objectContaining({ harness: "claude-code", model: "sonnet", authMode: "api" })));
+  await waitFor(() => expect(definitionApi.analyseRepository).toHaveBeenCalledWith("owned", expect.objectContaining({ harness: "claude-code", model: "sonnet" })));
+});
+
+it("binds an explicitly selected gateway model and refuses a missing protocol without fallback", async () => {
+  vi.mocked(productApi.agentConnections).mockResolvedValue({ revision: 3, activeConnectionId: "", connections: [{ id: "chosen-gateway", revision: 2, name: "Company gateway", kind: "litellm", enabled: true, configured: true, keyPresent: true, endpoints: { responses: "https://gateway.example/v1" }, models: { codex: "gateway-coder" } }] });
+  vi.mocked(definitionApi.analyseRepository).mockResolvedValue({ ...result(), status: "queued", result: undefined });
+  mount();
+  await screen.findByRole("option", { name: "Company gateway" });
+  fireEvent.change(screen.getByLabelText("Analysis connection"), { target: { value: "chosen-gateway" } });
+  expect((screen.getByLabelText("Analysis model") as HTMLInputElement).value).toBe("gateway-coder");
+  fireEvent.change(screen.getByLabelText("Analysis provider"), { target: { value: "claude-code" } });
+  fireEvent.click(screen.getByLabelText("Send the selected source and definition to this provider for analysis."));
+  expect((screen.getByRole("button", { name: "Analyse repository" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(definitionApi.analyseRepository).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText("Analysis provider"), { target: { value: "codex" } });
+  fireEvent.click(screen.getByLabelText("Send the selected source and definition to this provider for analysis."));
+  fireEvent.click(screen.getByRole("button", { name: "Analyse repository" }));
+  await waitFor(() => expect(definitionApi.analyseRepository).toHaveBeenCalledWith("owned", expect.objectContaining({ harness: "codex", model: "gateway-coder", agentConnectionId: "chosen-gateway" })));
+  expect(vi.mocked(definitionApi.analyseRepository).mock.calls[0][1]).not.toHaveProperty("authMode");
 });
 
 it("applies reviewed partial findings only as a guarded draft and prevents a second application", async () => {

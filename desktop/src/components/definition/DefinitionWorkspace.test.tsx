@@ -4,10 +4,36 @@ import userEvent from "@testing-library/user-event";
 import { definitionApi, type ProjectSpecification } from "../../api/definition";
 import { DefinitionWorkspace } from "./DefinitionWorkspace";
 import { resetCockpit, useCockpit } from "../../store/store";
+import { productApi } from "../../api/product";
+import { AGENT_CONNECTIONS_CHANGED } from "../../hooks/useAgentConnections";
 
 afterEach(() => { cleanup();vi.restoreAllMocks(); });
-beforeEach(() => { resetCockpit(); vi.spyOn(definitionApi,"listAssistance").mockResolvedValue({jobs:[]}); });
+beforeEach(() => { resetCockpit(); vi.spyOn(definitionApi,"listAssistance").mockResolvedValue({jobs:[]}); vi.spyOn(productApi,"agentConnections").mockResolvedValue({revision:0,activeConnectionId:"",connections:[]}); vi.spyOn(productApi,"agents").mockResolvedValue({providers:[]}); });
 const fixture = (): ProjectSpecification => ({projectId:"p-1",version:1,revision:2,briefRevision:3,startingPoint:"new",purpose:"A complete app",audience:"People",constraints:"Offline",outOfScope:[],requirements:[{id:"AC-001",title:"Save work",priority:"must",acceptance:"Saved work survives reopening"}],journeys:[],roles:[],entities:[],integrations:[],glossary:[],decisions:[],questions:[],status:"draft",digest:"",updatedAt:""});
+it("uses the selected assistant provider and saved gateway model only after an explicit request", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
+  vi.mocked(productApi.agentConnections).mockResolvedValue({ revision: 1, activeConnectionId: "", connections: [{ id: "saved-gateway", name: "My models", kind: "litellm", revision: 1, enabled: true, configured: true, keyPresent: true, endpoints: { chatCompletions: "https://gateway.example/v1" }, models: { opencode: "my-code-model" } }] });
+  const assist = vi.spyOn(definitionApi, "assist").mockResolvedValue({ id: "asked", projectId: "p-1", status: "succeeded", message: "Ready", createdAt: "", updatedAt: "" });
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByRole("option", { name: "My models" });
+  await userEvent.selectOptions(screen.getByLabelText("Assistant provider"), "opencode");
+  await userEvent.selectOptions(screen.getByLabelText("Assistant connection"), "saved-gateway");
+  expect((screen.getByLabelText("Assistant model") as HTMLInputElement).value).toBe("my-code-model");
+  expect(assist).not.toHaveBeenCalled();
+  await userEvent.type(screen.getByLabelText("What would you like to explore?"), "Find missing acceptance outcomes");
+  await userEvent.click(screen.getByRole("button", { name: "Ask Luci" }));
+  await waitFor(() => expect(assist).toHaveBeenCalledExactlyOnceWith("p-1", 2, "Find missing acceptance outcomes", { harness: "opencode", model: "my-code-model", agentConnectionId: "saved-gateway" }));
+});
+it("refreshes the assistant connection after settings change without starting inference", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
+  const assist = vi.spyOn(definitionApi, "assist");
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByRole("textbox", { name: "The idea" });
+  vi.mocked(productApi.agentConnections).mockResolvedValue({ revision: 2, activeConnectionId: "updated-route", connections: [{ id: "updated-route", name: "Updated gateway", kind: "litellm", revision: 2, enabled: true, configured: true, keyPresent: true, endpoints: { anthropicMessages: "https://gateway.example" }, models: { claudeCode: "updated-model" } }] });
+  await act(async () => { window.dispatchEvent(new Event(AGENT_CONNECTIONS_CHANGED)); });
+  await waitFor(() => expect((screen.getByLabelText("Assistant model") as HTMLInputElement).value).toBe("updated-model"));
+  expect(assist).not.toHaveBeenCalled();
+});
 it("keeps model proposals separate from saved and approved definition", async () => {
   vi.spyOn(definitionApi,"get").mockResolvedValue(fixture());
   const proposed={...fixture(),purpose:"A proposed fuller application",requirements:[{id:"AC-002",title:"Export work",priority:"must" as const,acceptance:"Exports can be reopened"}]};

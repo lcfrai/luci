@@ -57,6 +57,13 @@ type Session struct {
 	AuthOnly          bool     `json:"authOnly,omitempty"`
 	AuthMode          string   `json:"authMode,omitempty"`          // "chatgpt" prevents API-key substitution
 	CodexConnectionID string   `json:"codexConnectionId,omitempty"` // private connection generation, never REST
+	// The selected model route is retained for restart/resume. A missing or
+	// disabled route must block admission rather than substitute another account.
+	// These fields contain public connection identity only, never credentials.
+	AgentConnectionID       string `json:"agentConnectionId,omitempty"`
+	AgentConnectionRevision int    `json:"agentConnectionRevision,omitempty"`
+	AgentConnectionKind     string `json:"agentConnectionKind,omitempty"`
+	AgentConnectionProtocol string `json:"agentConnectionProtocol,omitempty"`
 
 	// ConversationID is the HARNESS's id for this session's conversation — the
 	// UUID the control plane minted and passed as `claude --session-id` — or ""

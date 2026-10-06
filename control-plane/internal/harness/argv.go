@@ -100,7 +100,14 @@ func codexArgv(r Request) []string {
 	case PermissionPlan:
 		args = append(args, "--sandbox", "read-only", "--ask-for-approval", "on-request")
 	default:
-		args = append(args, "--sandbox", "workspace-write", "--ask-for-approval", "on-request")
+		sandbox := "workspace-write"
+		if r.DockerBoundary {
+			// The pinned CLI's bwrap namespace cannot run inside the verified
+			// nonroot, cap-drop/no-new-privileges Docker boundary. Ask still
+			// retains on-request approval; it is distinct from explicit Bypass.
+			sandbox = "danger-full-access"
+		}
+		args = append(args, "--sandbox", sandbox, "--ask-for-approval", "on-request")
 	}
 	if r.ProjectBrief {
 		// TOML string quoting is data, not command-line interpretation.

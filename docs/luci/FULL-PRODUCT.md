@@ -1149,3 +1149,64 @@ package/installed confirmation are pending. Older failed receipts and their
 downstream skipped gates remain preserved. The full product's model/public
 deployment, live cloud/domain, external inbox, native lifecycle and public
 distribution requirements remain open.
+
+## 0.4.16 installed outcomes and 0.4.17 correction — 6 October 2026
+
+The 0.4.16 candidate is installed in both retained Docker workspaces. Four
+read-only requirement checks and three standalone PostgreSQL retention checks
+pass without repeating model execution, database restore or deployment. The
+matching clean F: build verifies 906 materialized files, 971 selected Git source
+blobs, 977 exported files and 344 retained licence components with no missing
+grants. Existing accounts, projects, histories and private-engine resources
+remain bound to their original evidence.
+
+[CI run 37389074732](https://github.com/lcfrai/luci/actions/runs/37389074732)
+passes Go, Linux race coverage, 1,278 frontend tests, TypeScript, web build,
+connected browser and actual Docker/SSH acceptance, and Linux/macOS portable
+checks. Windows portable/NSIS compilation, state/upgrade and compiled-service
+checks pass. Actual installed native acceptance fails after six checks before
+the first saved brief; later native lifecycle outcomes remain unverified.
+Remote merge-tree equality and workflow metadata are retained, but the frozen
+observer did not capture each job's actual checkout log.
+
+The 0.4.17 source correction adds private revisioned model connections shared
+by guided Define, repository analysis and Develop, optional LiteLLM setup with
+an explicit gateway switch, exact model retention, and refusal of disabled or
+changed connections without provider fallback. Secrets remain outside project,
+session and job records. Shell tools have a private session home that survives
+Restart and is removed only by Forget after its container is gone.
+
+The requested whole-product GPT-6 Astra audit is retained in
+[ASTRA-READINESS-2026-10-06.md](ASTRA-READINESS-2026-10-06.md). Its actual pinned
+Codex fixture proves the previous default Docker Ask mode exited successfully
+without producing files because its inner namespace sandbox failed. The
+Docker-only correction retains on-request approvals and uses the existing
+restricted outer container. A separate fixture produces exact application
+files and HTTP 200; interactive approval and live subscription use remain
+unverified. Native driver tests and a Chromium scroll fixture cover the
+center-scroll correction; actual WebView2 acceptance needs a fresh candidate.
+
+The broad frontend run passes 1,311 tests in 81 files with two workers. A later
+focused 40-test run covers the corrected Shell picker and request path: an
+active or inherited gateway cannot disable Shell or inject a provider route.
+TypeScript passes. Preference schema version 2 preserves all existing settings
+and distinguishes omitted, empty and named connection choices. Five packaging
+checks pass. The first combined local Go run retains failures from obsolete
+Shell-mount assertions and a Windows path-spelling comparison; the latter is
+corrected without relaxing private-directory checks. A branch precondition
+failure does not reproduce in its separate unchanged 30-second test. Fresh CI
+must still establish the whole Go/race and installed runtime/native outcomes.
+
+The corrected full API run has one project-admission failure before its
+connection-revision test begins; that unchanged test then passes separately,
+including changed/disabled/deleted route refusal before container destruction.
+The original full run remains failed. Focused Shell checks execute the actual
+Windows junction cases; only Linux Bash bootstrap is platform-skipped locally.
+The final editor conversion check explicitly clears a keyed API connection when
+changing its type to Codex subscription, while ordinary edits preserve its key.
+
+The matching 0.4.17 package and installed connection/CLI acceptance are being
+completed. Earlier failed receipts stay failed. A source
+test or simulated provider response does not satisfy the required actual
+subscription-generated application, public deployment, cloud/domain, external
+inbox, native lifecycle or public distribution gates.

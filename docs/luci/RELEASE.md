@@ -1,15 +1,19 @@
 # Building and distributing Luci
 
-The current installed review candidate is **0.4.15**, built from clean source
-`d4ebdf16bc7e979885318d8ac30846512e68d0cf`. Both Docker workspaces admit its
-matching 917-file bundle with accounts, history and volumes preserved. Runtime
-observations report ready; four read-only requirement-evidence retention checks
-pass. PostgreSQL backup download now uses the selected workspace and matches
-the retained native bytes. Eight restore/application checkpoints pass. Their
-receipt fails a final volume-label assertion; a separate native preservation
-confirmation proves the three anonymous volumes are owned by the recorded test
-deployments and all original resources and neighboring projects remain unchanged.
-All test services are stopped. Original failed receipts remain unchanged.
+The current installed review candidate is **0.4.16**, built from clean source
+`eda1d061d679e4051e720b7ff98f67a760c270dc`. Both Docker workspaces admit its
+matching 917-file bundle with accounts, history and volumes preserved. Both
+runtime observations report ready. Four read-only requirement-evidence retention
+checks and three standalone PostgreSQL retention checks pass against the upgraded
+packages. These retain the earlier execution evidence; they do not repeat or
+relabel it as a new model or database run. Test services remain stopped.
+
+The matching Linux, Docker and source artifacts were built in a fresh independent
+F: checkout with locked dependencies and isolated caches. Materialization verifies
+906 files, and the source audit verifies 971 selected Git blobs and all 977
+exported files. The Linux package retains 344 licence components with zero
+missing grants. Earlier packages, manifests and failed receipts retain their
+original source bindings.
 
 The preceding 0.4.13 task-draft, native design-prototype and readiness journeys
 pass, with separate durable before/after preservation confirmation. Earlier
@@ -17,33 +21,40 @@ drawing, workspace, archive, email, data, Functions, branch and recovery results
 retain their own source bindings. See the
 [full product checkpoint](FULL-PRODUCT.md) for those outcomes and their limits.
 
-The next source correction targets **0.4.16**. It corrects the actual connected
-browser and Docker-runtime drivers' outdated command status selectors. The
-preceding correction changed a separate driver and therefore did not fix the
-workflow's active invocation. Production workflow code remains unchanged.
-The rebuilding examples below target the next declared version. The installed
-0.4.15 binary transfer correction passes 22 focused tests in four files.
-After correcting two partial preview-client fixtures to retain the actual
-workspace origin, the whole frontend passes 1,278 tests in 80 files and final
-TypeScript validation passes. Five packaging and five version-sensitive
-workspace readiness tests pass. Matching CI, packages and installed acceptance
-remain pending for 0.4.16; existing 0.4.15
-packages and manifests retain their original source bindings.
+The 0.4.17 source correction includes shared model connections across guided Define,
+repository analysis and Develop, a configurable optional LiteLLM gateway, and
+Codex's Docker coding permissions. The requested GPT-6 Astra audit proved that
+the default Codex inner workspace sandbox cannot create its namespace under the
+existing restricted Docker boundary. A controlled provider fixture proves the
+supported Docker-only correction writes actual application files and serves
+HTTP 200; this is not live subscription or gateway acceptance. The correction
+retains Codex approval policy and the outer non-root Docker restrictions.
+Native click-driver correction also has focused tests and a browser scroll
+fixture; its actual installed WebView2 outcome awaits a fresh candidate run.
+
+The source batch passes 1,311 frontend checks in 81 files, with a later focused
+40-check Shell picker/defaults run and TypeScript validation. The schema-2
+preference migration preserves existing layouts, settings and connection
+inheritance. Five packaging checks pass. Local Go failures and their focused
+corrections remain recorded; fresh matching CI is required for whole-suite,
+race, runtime and native acceptance. The installed packages described above
+remain 0.4.16 until a matching 0.4.17 build is admitted.
 
 This is not a public production release. The required real Codex-generated
 application and public deployment, live AWS/Azure and domain acceptance,
 external email delivery, supported native installer lifecycle and public
-download acceptance remain open. Current exact-tree CI
-[`37387318702`](https://github.com/lcfrai/luci/actions/runs/37387318702)
-passes whole Go, the expanded Linux race gate, frontend, TypeScript validation
-and the web build. Connected browser acceptance fails after seven completed
-journey checks because the actual active driver waits for bare
-`passed` while the UI displays `Commands passed` and an unverified generic-command
-disclosure. Entry acceptance passes nine checks; lifecycle acceptance fails after
-two completed checkpoints. Downstream runtime, portable and Windows jobs are
-skipped. The correction waits for the actual visible labels and retains command
-exit/output and permission checks; it has not yet passed a fresh full journey.
-The earlier 0.4.13 Windows installed-native failure also remains retained.
+download acceptance remain open. Candidate CI
+[`37389074732`](https://github.com/lcfrai/luci/actions/runs/37389074732)
+passes whole Go, expanded Linux race coverage, 1,278 frontend tests in 80 files,
+TypeScript, the web build, connected browser acceptance, actual Docker/SSH runtime
+acceptance and Linux/macOS portable startup and persistence. Windows portable and
+unsigned NSIS builds, compiled-service acceptance and state/upgrade checks pass.
+The actual installed native journey fails after six checks, before its first
+saved brief. Later design, Git, restart, reinstall and uninstall checkpoints are
+unverified. Metadata and the remote merge tree bind the candidate revision; the
+frozen observer did not capture each job's actual checkout log. This limit is
+retained separately from build success. The earlier 0.4.13 Windows native and
+0.4.15 browser failures remain retained.
 Earlier runner
 assignment failures remain separately preserved. [lcfr.ai/luci](https://lcfr.ai/luci) does not yet
 offer public source or package downloads.
@@ -82,9 +93,9 @@ Use Go 1.26.3, Node 24.19.0, Python 3.11 or newer, and the committed lockfiles. 
 On Windows:
 
 ```powershell
-./scripts/build-release.ps1 -Version 0.4.16
+./scripts/build-release.ps1 -Version 0.4.17
 # Also build the native Windows NSIS installer:
-./scripts/build-release.ps1 -Version 0.4.16 -Native
+./scripts/build-release.ps1 -Version 0.4.17 -Native
 ```
 
 Native Windows builds also need stable Rust with the MSVC target and the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/). Tauri receives the Cargo lock flag after its argument separator: `npm run tauri -- build --bundles nsis -- --locked`. The [NSIS distribution documentation](https://v2.tauri.app/distribute/windows-installer/) describes the installer and signing options.
@@ -92,11 +103,11 @@ Native Windows builds also need stable Rust with the MSVC target and the [Tauri 
 On Linux or macOS:
 
 ```bash
-bash scripts/build-release.sh 0.4.16 linux-amd64
-bash scripts/build-release.sh 0.4.16 darwin-arm64
+bash scripts/build-release.sh 0.4.17 linux-amd64
+bash scripts/build-release.sh 0.4.17 darwin-arm64
 ```
 
-Archives and their checksums are written under `artifacts/releases/0.4.16/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
+Archives and their checksums are written under `artifacts/releases/0.4.17/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
 
 `scripts/collect-licenses.py` inventories installed npm runtime packages, each bundled Excalidraw font family, the Go modules compiled into the service and sandbox, and the Go standard library. Native builds also inventory reachable Windows Cargo packages. It retains original files and source snapshot references with SHA-256 hashes in `licenses/manifest.json`; `MISSING-LICENSES.txt` lists missing grants. The default command fails when a component has no retained licence file. `--allow-missing` is diagnostic only and must not be used to make a distributable package pass. Updating a dependency can require a new version-specific snapshot in `third-party/licenses/manifest.json`.
 

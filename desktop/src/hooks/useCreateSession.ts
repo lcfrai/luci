@@ -20,6 +20,7 @@ export interface CreateSessionOptions {
   overrides?: SessionDefaultsOverride;
   openingPrompt?: string;
   title?: string;
+  agentConnectionId?: string;
 }
 
 /** network_unavailable and backend_unavailable are different sentences and must not be
@@ -99,6 +100,7 @@ export function useCreateSession(): (
           toCreateRequest(worktreeId, resolved, harness, {
             openingPrompt: options?.openingPrompt,
             title: options?.title,
+            ...(options && Object.prototype.hasOwnProperty.call(options, "agentConnectionId") ? { agentConnectionId: options.agentConnectionId } : {}),
           }),
         );
         state.upsertSession(session);

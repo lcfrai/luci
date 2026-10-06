@@ -14,7 +14,7 @@ import { createPrefsSlice, initialPrefsState, type PrefsSlice } from "./slices/p
 export type CockpitState = DataSlice & UiSlice & PrefsSlice;
 
 export const PERSIST_KEY = "luci.cockpit";
-export const PERSIST_VERSION = 1;
+export const PERSIST_VERSION = 2;
 
 /** What survives a restart. Everything else is re-fetched, because the control plane is the
  *  only truth about machines, projects, branches, worktrees and sessions. */
@@ -49,8 +49,10 @@ export const partialize = (s: CockpitState): Persisted => ({
 
 /** Version 0 is any snapshot written before this contract existed — a pre-release dev build.
  *  It is dropped rather than translated: nothing shipped, so nothing is owed, and a wrong
- *  translation of a shape nobody documented is worse than a clean start. Future versions
- *  translate; they never drop, because by then a user's tile layout is their work.
+ *  translation of a shape nobody documented is worse than a clean start. Version 2 adds the
+ *  optional agentConnectionId inside defaults and overrides. Version 1 translates without
+ *  changing values: missing IDs still inherit, empty IDs still select the personal route,
+ *  and exact saved IDs remain exact. All other preferences survive unchanged.
  *
  *  This runs at module evaluation, before React mounts and before any error boundary exists,
  *  so it is TOTAL over `unknown`. A throw here is a white screen at launch, not a caught
@@ -58,6 +60,7 @@ export const partialize = (s: CockpitState): Persisted => ({
  *  console they do not have in a packaged Tauri build. */
 export function migrate(persisted: unknown, from: number): Partial<Persisted> {
   if (from < 1 || persisted === null || typeof persisted !== "object") return {};
+  if (from === 1) return { ...persisted } as Partial<Persisted>;
   return persisted as Partial<Persisted>;
 }
 

@@ -41,7 +41,7 @@ concurrency:
 
 env:
   # Keep this aligned with desktop/package.json and product.Version.
-  LUCI_VERSION: '0.4.16'
+  LUCI_VERSION: '0.4.17'
   GO_VERSION: '1.26.3'
   NODE_VERSION: '24.19.0'
 

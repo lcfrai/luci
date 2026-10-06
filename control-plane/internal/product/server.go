@@ -23,7 +23,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
-const Version = "0.4.16"
+const Version = "0.4.17"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -78,6 +78,7 @@ type Server struct {
 	agentAPIKey             string
 	agentOpenAIKey          string
 	agentLocal              LocalAgentConfig
+	agentConnections        agentConnectionStore
 	deliveryBusy            map[string]bool
 	projectChecks           map[string]*projectCheckJob
 	runtimeJob              RuntimeJob

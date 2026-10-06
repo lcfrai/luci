@@ -11,6 +11,7 @@ import { definitionApi, type ProjectSpecification } from "../../api/definition";
 beforeEach(() => {
   vi.restoreAllMocks();
   vi.spyOn(definitionApi, "listAssistance").mockResolvedValue({ jobs: [] });
+  vi.spyOn(productApi, "agentConnections").mockResolvedValue({ revision: 0, activeConnectionId: "", connections: [] });
 });
 it("keeps the edited definition on a revision conflict instead of claiming it was saved", async () => {
   const original: ProjectSpecification = {

@@ -46,22 +46,26 @@ type Result struct {
 }
 
 type Job struct {
-	ID                    string  `json:"id"`
-	ProjectID             string  `json:"projectId"`
-	ExpectedRevision      int     `json:"expectedRevision"`
-	ExpectedBriefRevision int     `json:"expectedBriefRevision"`
-	SessionID             string  `json:"sessionId"`
-	Status                string  `json:"status"`
-	Message               string  `json:"message"`
-	CreatedAt             string  `json:"createdAt"`
-	UpdatedAt             string  `json:"updatedAt"`
-	Result                *Result `json:"result,omitempty"`
-	Kind                  string  `json:"kind,omitempty"`
-	Harness               string  `json:"harness,omitempty"`
-	Model                 string  `json:"model,omitempty"`
-	AuthMode              string  `json:"authMode,omitempty"`
-	Source                *Source `json:"source,omitempty"`
-	AppliedRevision       int     `json:"appliedRevision,omitempty"`
+	ID                      string  `json:"id"`
+	ProjectID               string  `json:"projectId"`
+	ExpectedRevision        int     `json:"expectedRevision"`
+	ExpectedBriefRevision   int     `json:"expectedBriefRevision"`
+	SessionID               string  `json:"sessionId"`
+	Status                  string  `json:"status"`
+	Message                 string  `json:"message"`
+	CreatedAt               string  `json:"createdAt"`
+	UpdatedAt               string  `json:"updatedAt"`
+	Result                  *Result `json:"result,omitempty"`
+	Kind                    string  `json:"kind,omitempty"`
+	Harness                 string  `json:"harness,omitempty"`
+	Model                   string  `json:"model,omitempty"`
+	AuthMode                string  `json:"authMode,omitempty"`
+	AgentConnectionID       string  `json:"agentConnectionId,omitempty"`
+	AgentConnectionRevision int     `json:"agentConnectionRevision,omitempty"`
+	AgentConnectionKind     string  `json:"agentConnectionKind,omitempty"`
+	AgentConnectionProtocol string  `json:"agentConnectionProtocol,omitempty"`
+	Source                  *Source `json:"source,omitempty"`
+	AppliedRevision         int     `json:"appliedRevision,omitempty"`
 }
 
 // Store serializes changes and persists before returning. The caller supplies
@@ -222,18 +226,4 @@ func schemaFor(t reflect.Type) map[string]any {
 // Launcher is trusted source, mounted read-only. Prompt data reaches stdin,
 // never shell interpolation, process arguments, container labels or logs.
 // Only a bounded final response and a numeric exit status cross back to Luci.
-const Launcher = `import json, os, subprocess, sys
-with open('/luci-input/prompt.txt', 'rb') as source:
-    prompt = source.read(262145)
-if len(prompt) > 262144:
-    sys.exit(2)
-env = dict(os.environ)
-for key in ('OPENAI_API_KEY', 'CODEX_API_KEY'):
-    env.pop(key, None)
-command = ['codex', '--no-daemon', '-c', 'forced_login_method="chatgpt"', '-c', 'model_provider="openai"', '-c', 'cli_auth_credentials_store="file"', '-c', 'features.shell_tool=false', '-c', 'features.shell_snapshot=false', '-c', 'features.apps=false', '-c', 'features.remote_plugin=false', '-c', 'features.multi_agent=false', '-c', 'features.hooks=false', '-c', 'features.goals=false', '-c', 'web_search="disabled"', '--ask-for-approval', 'never', 'exec', '--skip-git-repo-check', '--sandbox', 'read-only', '--output-schema', '/luci-input/schema.json', '--output-last-message', '/luci-output/result.json', '-']
-completed = subprocess.run(command, input=prompt, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
-with open('/luci-output/exit.json.tmp', 'w') as target:
-    json.dump({'exitCode': completed.returncode}, target)
-os.replace('/luci-output/exit.json.tmp', '/luci-output/exit.json')
-sys.exit(completed.returncode)
-`
+const Launcher = RepositoryLauncher

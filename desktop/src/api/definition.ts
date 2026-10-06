@@ -20,6 +20,7 @@ export interface DefinitionAssistance {
   id: string; projectId: string; status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
   kind?: "interview" | "repository"; harness?: "codex" | "claude-code" | "opencode";
   model?: string; authMode?: "chatgpt" | "api" | "configured"; appliedRevision?: number;
+  agentConnectionId?: string; agentConnectionRevision?: number; agentConnectionKind?: string; agentConnectionProtocol?: string;
   source?: RepositoryAnalysisSource;
   message: string; result?: { question: string; options: string[]; rationale: string; proposal: ProjectSpecification | null; findings?: { kind: "observed" | "inference" | "gap"; summary: string; paths: string[] }[] };
   createdAt: string; updatedAt: string;
@@ -32,7 +33,10 @@ export interface RepositoryAnalysisSource {
 export interface RepositoryAnalysisRequest {
   expectedRevision: number; expectedBriefRevision: number; sourceMode: "worktree" | "commit";
   harness: "codex" | "claude-code" | "opencode"; model: string;
-  authMode: "chatgpt" | "api" | "configured"; acknowledgeSourceRead: true; message?: string;
+  authMode?: "chatgpt" | "api" | "configured"; agentConnectionId?: string; acknowledgeSourceRead: true; message?: string;
+}
+export interface DefinitionAgentOptions {
+  harness?: "codex" | "claude-code" | "opencode"; model?: string; agentConnectionId?: string;
 }
 const path = (id: string) => `/v1/product/projects/${encodeURIComponent(id)}`;
 export const definitionApi = {
@@ -42,8 +46,8 @@ export const definitionApi = {
   approve: (id: string, revision: number, briefRevision: number) =>
     productApi.request<ProjectSpecification>(`${path(id)}/specification/approve`, { revision, briefRevision }),
   history: (id: string) => productApi.request<{ revisions: ProjectSpecification[] }>(`${path(id)}/specification/history`),
-  assist: (id: string, expectedRevision: number, message: string) =>
-    productApi.request<DefinitionAssistance>(`${path(id)}/assist`, { expectedRevision, message }),
+  assist: (id: string, expectedRevision: number, message: string, agent: DefinitionAgentOptions = {}) =>
+    productApi.request<DefinitionAssistance>(`${path(id)}/assist`, { expectedRevision, message, ...agent }),
   assistance: (id: string, jobId: string) => productApi.request<DefinitionAssistance>(`${path(id)}/assist/${encodeURIComponent(jobId)}`),
   cancelAssistance: (id: string, jobId: string) => productApi.request<DefinitionAssistance>(`${path(id)}/assist/${encodeURIComponent(jobId)}/cancel`, {}),
   listAssistance: (id: string) => productApi.request<{ jobs: DefinitionAssistance[] }>(`${path(id)}/assist`),

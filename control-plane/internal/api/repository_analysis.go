@@ -82,9 +82,11 @@ func (a *API) handleAssistList(w http.ResponseWriter, r *http.Request) {
 // analysisSession has a new empty home and only the selected connection's
 // environment. No host CLI profile, project directory or Git settings mount.
 // Caller holds codexAccountMu, which also serializes analysis admission.
-func (a *API) analysisSession(ctx context.Context, projectID, harness, model, auth string, env map[string]string, account *codexConnection) (registry.Session, backend.Spec, error) {
+func (a *API) assistantSession(ctx context.Context, projectID, title, contextRef, harness string, connection product.AgentConnectionReceipt, env map[string]string, account *codexConnection) (registry.Session, backend.Spec, error) {
+	model, auth := connection.Model, connection.AuthMode
 	id, conversation := ids.New("s"), ids.UUID()
-	s := registry.Session{ID: id, Title: "Repository analysis", MachineID: LocalMachineID, ProjectID: projectID, WorktreeID: assistWorktree, Harness: harness, Model: model, PermissionMode: "plan", AuthMode: auth, CodexConnectionID: codexConnectionID(account), ConversationID: conversation, Status: registry.StatusStarting, Backend: string(a.deps.Backend.Kind()), SandboxID: id, AttachToken: ids.Token(), ContextRef: "luci:repository-analysis", Command: "python3", Args: []string{"/luci-input/run.py"}}
+	s := registry.Session{ID: id, Title: title, MachineID: LocalMachineID, ProjectID: projectID, WorktreeID: assistWorktree, Harness: harness, Model: model, PermissionMode: "plan", AuthMode: auth, CodexConnectionID: codexConnectionID(account), ConversationID: conversation, Status: registry.StatusStarting, Backend: string(a.deps.Backend.Kind()), SandboxID: id, AttachToken: ids.Token(), ContextRef: contextRef, Command: "python3", Args: []string{"/luci-input/run.py"}}
+	bindAssistantConnection(&s, connection)
 	var home string
 	var err error
 	if nativeHarness(harness) {
@@ -105,6 +107,7 @@ func (a *API) analysisSession(ctx context.Context, projectID, harness, model, au
 		return s, backend.Spec{}, err
 	}
 	env["GIT_CONFIG_GLOBAL"], env["GIT_CONFIG_NOSYSTEM"] = "/dev/null", "1"
+	nativeDockerEndpoint(env)
 	if nativeHarness(harness) {
 		nativeEnvironment(harness, env, "plan")
 		if harness == "opencode" {
@@ -115,10 +118,16 @@ func (a *API) analysisSession(ctx context.Context, projectID, harness, model, au
 		env["HOME"] = nativeAgentDir
 		env["CLAUDE_CONFIG_DIR"] = nativeAgentDir + "/.claude"
 	}
+	// Internal resolver metadata must never shadow sandboxd's LUCI_* control
+	// variables. The trusted launch seam maps only selected provider settings.
+	nativeSandboxEnvironment(env)
 	spec := backend.Spec{ID: id, SessionID: id, Image: a.sessionImage(), Command: s.Command, Args: s.Args, Env: env, AttachToken: s.AttachToken, Resources: a.sessionResources(ctx), WorkDir: sessionWorkDir, Mounts: []backend.Mount{{HostPath: workspace, ContainerPath: sessionWorkDir}, {HostPath: home, ContainerPath: nativeAgentDir}}}
 	if a.deps.CABundle != "" {
 		spec.Mounts = append(spec.Mounts, backend.Mount{HostPath: a.deps.CABundle, ContainerPath: sessionCABundlePath, ReadOnly: true})
 		env["NODE_EXTRA_CA_CERTS"] = sessionCABundlePath
+	}
+	if err = backend.ValidateSpec(spec); err != nil {
+		return s, spec, errors.New("The selected assistant configuration cannot enter the private sandbox.")
 	}
 	if err = a.deps.Store.Create(s); err != nil {
 		return s, spec, err
@@ -132,19 +141,27 @@ func (a *API) analysisSession(ctx context.Context, projectID, harness, model, au
 
 func (a *API) handleRepositoryAnalysis(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		ExpectedRevision      int    `json:"expectedRevision"`
-		ExpectedBriefRevision int    `json:"expectedBriefRevision"`
-		SourceMode            string `json:"sourceMode"`
-		Harness               string `json:"harness"`
-		Model                 string `json:"model"`
-		AuthMode              string `json:"authMode"`
-		AcknowledgeSourceRead bool   `json:"acknowledgeSourceRead"`
-		Message               string `json:"message"`
+		ExpectedRevision      int     `json:"expectedRevision"`
+		ExpectedBriefRevision int     `json:"expectedBriefRevision"`
+		SourceMode            string  `json:"sourceMode"`
+		Harness               string  `json:"harness"`
+		Model                 string  `json:"model"`
+		AuthMode              string  `json:"authMode"`
+		AgentConnectionID     *string `json:"agentConnectionId"`
+		AcknowledgeSourceRead bool    `json:"acknowledgeSourceRead"`
+		Message               string  `json:"message"`
 	}
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
-	if err := assistance.ValidateSelection(req.Harness, req.Model, req.AuthMode); err != nil {
+	validationAuth := req.AuthMode
+	if validationAuth == "" {
+		validationAuth = "api"
+		if req.Harness == "opencode" {
+			validationAuth = "configured"
+		}
+	}
+	if err := assistance.ValidateSelection(req.Harness, req.Model, validationAuth); err != nil {
 		httpx.WriteProblem(w, 400, "invalid_analysis_provider", err.Error(), nil)
 		return
 	}
@@ -175,32 +192,16 @@ func (a *API) handleRepositoryAnalysis(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	env := a.deps.Product.AgentEnvironment(req.Harness)
-	if env == nil {
-		env = map[string]string{}
-	}
-	var account *codexConnection
-	if req.Harness == "codex" && req.AuthMode == "chatgpt" {
-		account, _, err = a.selectCodexConnection(r.Context(), registry.Session{}, false, "")
-		if err != nil {
+	connection, env, account, err := a.resolveAssistanceConnection(r.Context(), req.Harness, req.Model, req.AuthMode, req.AgentConnectionID, true)
+	if err != nil {
+		if errors.Is(err, errCodexDisconnected) || errors.Is(err, errCodexBusy) {
 			codexAccountProblem(w, err)
-			return
+		} else {
+			httpx.WriteProblem(w, 409, "analysis_connection_required", err.Error(), nil)
 		}
-		if account == nil {
-			codexAccountProblem(w, errCodexDisconnected)
-			return
-		}
-		env = map[string]string{}
-	} else if req.Harness == "codex" && env["OPENAI_API_KEY"] == "" || req.Harness == "claude-code" && env["ANTHROPIC_API_KEY"] == "" || req.Harness == "opencode" && env["OPENCODE_CONFIG_CONTENT"] == "" {
-		httpx.WriteProblem(w, 409, "analysis_connection_required", "Connect the selected provider in Settings before analysing source. A different provider will not be substituted.", nil)
 		return
 	}
-	if req.Harness == "opencode" {
-		if err = assistance.ReadOnlyOpenCode(env, req.Model); err != nil {
-			httpx.WriteProblem(w, 409, "analysis_model_changed", err.Error(), nil)
-			return
-		}
-	}
+	req.Model, req.AuthMode = connection.Model, connection.AuthMode
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	snapshot, err := a.deps.Product.RepositoryAnalysisSnapshot(ctx, r.PathValue("id"), req.SourceMode)
 	cancel()
@@ -240,13 +241,14 @@ func (a *API) handleRepositoryAnalysis(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	s, spec, err := a.analysisSession(r.Context(), snapshot.Specification.ProjectID, req.Harness, req.Model, req.AuthMode, env, account)
+	s, spec, err := a.assistantSession(r.Context(), snapshot.Specification.ProjectID, "Repository analysis", "luci:repository-analysis", req.Harness, connection, env, account)
 	if err != nil {
 		codexAccountProblem(w, err)
 		return
 	}
 	spec.Mounts = append(spec.Mounts, backend.Mount{HostPath: inputDir, ContainerPath: "/luci-input", ReadOnly: true}, backend.Mount{HostPath: outputDir, ContainerPath: "/luci-output"})
 	job := assistance.Job{ID: jobID, ProjectID: snapshot.Specification.ProjectID, ExpectedRevision: req.ExpectedRevision, ExpectedBriefRevision: req.ExpectedBriefRevision, SessionID: s.ID, Kind: "repository", Harness: req.Harness, Model: req.Model, AuthMode: req.AuthMode, Source: &snapshot.Source, Status: "queued", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: "Waiting for your selected provider in the private Docker runtime."}
+	bindAssistantJob(&job, connection)
 	if err = a.assistanceStore().Create(job); err != nil {
 		a.markSessionExited(s.ID, "assistant record could not be retained")
 		codexAccountProblem(w, err)

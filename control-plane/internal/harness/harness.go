@@ -73,7 +73,9 @@ type Descriptor struct {
 	Efforts         []Effort         `json:"efforts"`
 	PermissionModes []PermissionMode `json:"permissionModes"`
 
-	SupportsOpeningPrompt bool `json:"supportsOpeningPrompt"`
+	SupportsOpeningPrompt bool   `json:"supportsOpeningPrompt"`
+	SupportsCustomModel   bool   `json:"supportsCustomModel"`
+	DockerAskNotice       string `json:"dockerAskNotice,omitempty"`
 
 	// SupportsResume is also whether the harness has a conversation for the
 	// control plane to name: resuming is the only thing Request.Conversation
@@ -84,8 +86,8 @@ type Descriptor struct {
 	// Note is shown in the picker when the harness is unavailable. It says why.
 	Note string `json:"note"`
 
-	// freeTextModel is unexported on purpose: it changes no JSON and the
-	// cockpit has no use for it. Claude Code documents full model names as well
+	// freeTextModel remains the validation source; SupportsCustomModel exposes
+	// the same capability to the connection picker. Claude supports full names
 	// as aliases; Codex and OpenCode likewise accept provider model IDs.
 	freeTextModel bool
 }
@@ -101,14 +103,17 @@ func (d Descriptor) Available() bool { return d.Installed && d.FlagsVerified }
 // Conversation and keeps it on the session record, which is how it can later
 // supply Resume without ever reading what the CLI printed.
 type Request struct {
-	ProjectBrief  bool // instruct the agent to read LUCI.md as untrusted project context
-	Harness       ID
-	Model         string
-	Effort        Effort
-	Permission    PermissionMode
-	OpeningPrompt string
-	Conversation  string // the id this session's conversation will carry; "" names none
-	Resume        string // the conversation to continue from; "" starts fresh
+	// Derived only from the actual backend, never an HTTP request field. Docker
+	// already supplies the nonroot/capability/mount isolation boundary.
+	DockerBoundary bool
+	ProjectBrief   bool // instruct the agent to read LUCI.md as untrusted project context
+	Harness        ID
+	Model          string
+	Effort         Effort
+	Permission     PermissionMode
+	OpeningPrompt  string
+	Conversation   string // the id this session's conversation will carry; "" names none
+	Resume         string // the conversation to continue from; "" starts fresh
 }
 
 // ProjectBriefPrompt is static application guidance. User-authored brief text
@@ -173,6 +178,7 @@ var catalogue = []Descriptor{
 	},
 	{
 		ID:                    Codex,
+		DockerAskNotice:       "In Docker, Ask uses the container's isolation and keeps Codex's on-request approvals. It does not enable unattended approval bypass.",
 		Name:                  "Codex",
 		Command:               "codex",
 		Installed:             true,
@@ -222,6 +228,7 @@ func (d Descriptor) NativeState() bool { return d.ID == Codex || d.ID == OpenCod
 // harness.models.map(...) throws on null where it silently no-ops on [].
 func clone(d Descriptor) Descriptor {
 	out := d
+	out.SupportsCustomModel = d.freeTextModel
 	out.Models = append([]Model{}, d.Models...)
 	out.Efforts = append([]Effort{}, d.Efforts...)
 	out.PermissionModes = append([]PermissionMode{}, d.PermissionModes...)

@@ -11,16 +11,53 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/conversationpath"
 	"github.com/lcfrai/luci/control-plane/internal/harness"
 	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
 const nativeAgentDir = "/home/dev/.luci-agent"
+
+func (a *API) resolveSessionAgent(provider string, selection *string, source registry.Session, requestedModel string) (product.AgentConnectionReceipt, map[string]string, string, error) {
+	receipt := product.AgentConnectionReceipt{Kind: "legacy"}
+	if source.ID != "" && selection == nil {
+		// An existing conversation keeps its own route, even when the user's
+		// default changes. Old sessions explicitly retain legacy behaviour.
+		id := source.AgentConnectionID
+		selection = &id
+	}
+	if a.deps.Product == nil {
+		if selection != nil && *selection != "" {
+			return receipt, nil, "", errors.New("Saved agent connections are unavailable in this workspace.")
+		}
+		return receipt, nil, requestedModel, nil
+	}
+	receipt, env, err := a.deps.Product.ResolveAgentConnection(provider, selection)
+	if err != nil {
+		return receipt, nil, "", err
+	}
+	if source.ID != "" && (source.AgentConnectionID != receipt.ID || source.AgentConnectionID != "" && (source.AgentConnectionRevision != receipt.Revision || source.AgentConnectionKind != receipt.Kind || source.AgentConnectionProtocol != receipt.Protocol)) {
+		return receipt, nil, "", errors.New("This session's agent connection changed or is unavailable. Start a new session with the connection you intend to use.")
+	}
+	model := requestedModel
+	if receipt.Model != "" {
+		prefixed := receipt.Model
+		if provider == "opencode" && receipt.Kind != "legacy" {
+			prefixed = "luci-gateway/" + receipt.Model
+		}
+		if (selection != nil || source.ID != "") && model != "" && model != "default" && model != receipt.Model && model != prefixed {
+			return receipt, nil, "", errors.New("The requested model differs from this saved agent connection. Edit the connection or select its configured model.")
+		}
+		model = prefixed
+	}
+	return receipt, env, model, nil
+}
 
 func nativeHarness(id string) bool {
 	d, ok := harness.Lookup(harness.ID(id))
@@ -219,43 +256,79 @@ func nativeArgs(provider string, args []string, env map[string]string, authOnly 
 	if authOnly {
 		delete(env, "OPENAI_API_KEY")
 		delete(env, "CODEX_API_KEY")
+		delete(env, "LUCI_CODEX_BASE_URL")
+		delete(env, "LUCI_CODEX_MODEL")
 		return []string{"-c", `cli_auth_credentials_store="file"`, "login", "--device-auth"}
 	}
 	if env["OPENAI_API_KEY"] == "" {
 		return args
 	}
-	return append([]string{"-c", `model_provider="luci-openai"`, "-c", `model_providers.luci-openai={name="OpenAI API",base_url="https://api.openai.com/v1",env_key="OPENAI_API_KEY",wire_api="responses"}`}, args...)
+	base := env["LUCI_CODEX_BASE_URL"]
+	if base == "" {
+		base = "https://api.openai.com/v1"
+	}
+	providerConfig := `model_providers.luci-openai={name="Luci selected API",base_url=` + strconv.Quote(base) + `,env_key="OPENAI_API_KEY",wire_api="responses",supports_websockets=false}`
+	return append([]string{"-c", `model_provider="luci-openai"`, "-c", providerConfig}, args...)
 }
 
 // Container localhost is the agent itself, not the Docker host. Docker's
 // host-gateway alias reaches a deliberately configured host model service.
 func nativeDockerEndpoint(env map[string]string) {
+	for _, key := range []string{"LUCI_CODEX_BASE_URL", "ANTHROPIC_BASE_URL"} {
+		if env[key] != "" {
+			env[key] = nativeHostEndpoint(env[key])
+		}
+	}
 	var config map[string]any
 	if json.Unmarshal([]byte(env["OPENCODE_CONFIG_CONTENT"]), &config) != nil {
 		return
 	}
 	providers, _ := config["provider"].(map[string]any)
-	provider, _ := providers["luci-local"].(map[string]any)
-	options, _ := provider["options"].(map[string]any)
-	base, _ := options["baseURL"].(string)
+	for _, id := range []string{"luci-local", "luci-gateway"} {
+		provider, _ := providers[id].(map[string]any)
+		options, _ := provider["options"].(map[string]any)
+		base, _ := options["baseURL"].(string)
+		if options != nil {
+			options["baseURL"] = nativeHostEndpoint(base)
+		}
+	}
+	data, err := json.Marshal(config)
+	if err == nil {
+		env["OPENCODE_CONFIG_CONTENT"] = string(data)
+	}
+}
+
+// Private resolver hints are consumed before a backend spec is built. The
+// backend reserves LUCI_* for its command/attach-token contract; no exception
+// is made for user-selected routes. The remaining names are provider inputs.
+func nativeSandboxEnvironment(env map[string]string) {
+	if base := env["LUCI_CODEX_BASE_URL"]; base != "" {
+		env["OPENAI_BASE_URL"] = base
+	}
+	if key, ok := env["LUCI_GATEWAY_API_KEY"]; ok {
+		env["OPENCODE_LOCAL_API_KEY"] = key
+		env["OPENCODE_CONFIG_CONTENT"] = strings.ReplaceAll(env["OPENCODE_CONFIG_CONTENT"], "{env:LUCI_GATEWAY_API_KEY}", "{env:OPENCODE_LOCAL_API_KEY}")
+	}
+	for _, key := range []string{"LUCI_CODEX_BASE_URL", "LUCI_CODEX_MODEL", "LUCI_GATEWAY_API_KEY", "LUCI_OPENCODE_MODEL"} {
+		delete(env, key)
+	}
+}
+
+func nativeHostEndpoint(base string) string {
 	u, err := url.Parse(base)
 	if err != nil {
-		return
+		return base
 	}
 	ip := net.ParseIP(u.Hostname())
 	if u.Hostname() != "localhost" && (ip == nil || !ip.IsLoopback()) {
-		return
+		return base
 	}
 	port := u.Port()
 	u.Host = "host.docker.internal"
 	if port != "" {
 		u.Host = net.JoinHostPort(u.Host, port)
 	}
-	options["baseURL"] = u.String()
-	data, err := json.Marshal(config)
-	if err == nil {
-		env["OPENCODE_CONFIG_CONTENT"] = string(data)
-	}
+	return u.String()
 }
 
 func nativeMount(mounts []backend.Mount, path string) []backend.Mount {
