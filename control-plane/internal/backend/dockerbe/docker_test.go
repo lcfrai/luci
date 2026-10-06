@@ -776,7 +776,7 @@ func TestGetOfAnUnpublishedContainerIsStartingWithNoEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
-	if sb.State != backend.StateStarting || sb.Endpoint != "" {
+	if sb.State != backend.StateStarting || sb.Endpoint != "" || !sb.CreatedOnly {
 		t.Fatalf("Sandbox = %+v, want starting with an empty endpoint", sb)
 	}
 }
@@ -844,6 +844,9 @@ func TestListMapsEveryDockerStateOntoABackendState(t *testing.T) {
 		}
 		if len(got) != 1 || got[0].State != want {
 			t.Errorf("docker state %q mapped to %v, want %q", dockerState, got, want)
+		}
+		if len(got) == 1 && got[0].CreatedOnly != (dockerState == "created") {
+			t.Errorf("docker state %q has CreatedOnly=%v", dockerState, got[0].CreatedOnly)
 		}
 	}
 }

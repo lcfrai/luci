@@ -163,6 +163,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
     if (step === 3) patch({ outOfScope: text.split("\n") });
     else if (step !== 4) patch({ [questions[step].field]: text });
   };
+  const openQuestionCount = spec?.questions.filter((question) => !question.answer.trim()).length ?? 0;
   return <section className="journey-page definition-workspace">
     <JourneyHeader title="Define your project" subtitle="Turn an idea or existing application into a clear, testable product definition.">
       {spec && <span className="journey-revision" role="status">{dirty ? "Unsaved changes" : `${spec.status === "approved" ? "Approved" : spec.status === "outdated" ? "Needs reconciliation" : "Draft"} · Revision ${spec.revision}`}</span>}
@@ -250,7 +251,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
             savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setDirty(false); setError(""); setTab("specification");
             setNotice(`Repository analysis saved as definition ${value.revision}. Review the draft and resolve definition questions before approving.`); notifyProjectContextChanged(scope, projectId);
           }} />}
-          {tab === "history" && <section><h2>Saved definition snapshots</h2>{!history.length && <p>No structured revisions yet. Existing brief text is preserved when you save your first definition.</p>}<ol className="definition-history">{history.slice().reverse().map((r) => <li key={r.revision}><strong>Revision {r.revision} · {r.status}</strong><p>{r.purpose}</p><small>Brief {r.briefRevision} · {r.requirements.length} requirements · {new Date(r.updatedAt).toLocaleString()}</small><details><summary>Read this snapshot</summary><pre>{JSON.stringify(r, null, 2)}</pre></details></li>)}</ol></section>}
+          {tab === "history" && <section><h2>Saved definition snapshots</h2>{!history.length && <p>No structured revisions yet. Existing brief text is preserved when you save your first definition.</p>}<ol className="definition-history">{history.slice().reverse().map((r) => <li key={r.revision}><strong>Revision {r.revision} · {r.status}</strong><p>{r.purpose}</p><small>Brief {r.briefRevision} · {r.requirements.length} {r.requirements.length === 1 ? "requirement" : "requirements"} · {new Date(r.updatedAt).toLocaleString()}</small><details><summary>Read this snapshot</summary><pre>{JSON.stringify(r, null, 2)}</pre></details></li>)}</ol></section>}
         </div>
 
       </div>
@@ -261,7 +262,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
           : spec.status === "approved"
             ? <Button type="button" disabled={busy} onClick={() => setLens("design")}>Continue to Design</Button>
             : <Button type="button" loading={pending === "approve"} disabled={!canEdit || busy || !!draft.pending} onClick={() => void approve()}>Approve definition</Button>}
-      </div><p role="status" className="journey-muted">{notice || `${spec.requirements.length} requirements · ${spec.questions.filter((q) => !q.answer.trim()).length} definition questions`}</p></footer>
+      </div><p role="status" className="journey-muted">{notice || `${spec.requirements.length} ${spec.requirements.length === 1 ? "requirement" : "requirements"} · ${openQuestionCount} definition ${openQuestionCount === 1 ? "question" : "questions"}`}</p></footer>
     </>}
     <ContextStorage projectId={projectId} />
   </section>;

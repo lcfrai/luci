@@ -106,6 +106,7 @@ type Backend struct {
 	// every sweep, which is the line that must.
 	exposedMu sync.Mutex
 	exposed   map[string]bool
+	creates   sync.Map // sandbox ID -> active Create; never persisted or inherited
 }
 
 // New returns a Docker backend, or fails with backend.ErrUnavailable and a
@@ -183,6 +184,10 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 		return backend.Sandbox{}, err
 	}
 	name := namePrefix + spec.ID
+	if _, active := b.creates.LoadOrStore(spec.ID, struct{}{}); active {
+		return backend.Sandbox{}, fmt.Errorf("dockerbe: container %s is being created: %w", name, backend.ErrAlreadyExists)
+	}
+	defer b.creates.Delete(spec.ID)
 
 	// A name collision is how ErrAlreadyExists is detected: inspect the name
 	// first rather than decoding the daemon's 409.
@@ -363,6 +368,7 @@ func abandonedWait(name string, ctxErr error) error {
 }
 
 func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
+	_, creatingBefore := b.creates.Load(id)
 	name := namePrefix + id
 	resp, err := b.api.ContainerInspect(ctx, name)
 	if err != nil {
@@ -386,15 +392,18 @@ func (b *Backend) Get(ctx context.Context, id string) (backend.Sandbox, error) {
 	if resp.State != nil {
 		status = resp.State.Status
 	}
+	_, creatingAfter := b.creates.Load(id)
 	return backend.Sandbox{
-		ID:        id,
-		Kind:      backend.KindDocker,
-		Ref:       resp.ID,
-		Endpoint:  endpoint,
-		Instance:  labels[backend.LabelInstance],
-		State:     stateFrom(status),
-		CreatedAt: parseCreated(resp.Created, labels),
-		Labels:    labels,
+		ID:               id,
+		Kind:             backend.KindDocker,
+		Ref:              resp.ID,
+		Endpoint:         endpoint,
+		Instance:         labels[backend.LabelInstance],
+		CreatedOnly:      status == "created",
+		CreationInFlight: creatingBefore || creatingAfter,
+		State:            stateFrom(status),
+		CreatedAt:        parseCreated(resp.Created, labels),
+		Labels:           labels,
 	}, nil
 }
 
@@ -490,6 +499,7 @@ func (b *Backend) List(ctx context.Context) ([]backend.Sandbox, error) {
 			Endpoint:    endpoint,
 			NonLoopback: nonLoopback,
 			Instance:    owner,
+			CreatedOnly: s.State == "created",
 			State:       stateFrom(s.State),
 			CreatedAt:   createdFromUnix(s.Created, s.Labels),
 			Labels:      s.Labels,

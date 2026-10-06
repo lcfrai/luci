@@ -614,8 +614,9 @@ func recoverSessions(ctx context.Context, store registry.Store, be backend.Backe
 				// still starting is neither: the control plane went down
 				// between Create and the first /healthz answer. Reporting
 				// running would fabricate a status, exited is terminal, and
-				// starting is simply true. The reaper re-derives it within one
-				// interval.
+				// starting is simply true. An owned Docker Created-only child
+				// converges through the reaper's bounded interrupted-create rule;
+				// a pending pod or restarting container is not that evidence.
 				rec.Status = registry.StatusStarting
 			}
 		})

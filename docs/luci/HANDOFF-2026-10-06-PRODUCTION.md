@@ -43,14 +43,33 @@ and seven launcher outcomes. Current responsiveness/reflow and the connected
 build/amendment journey continue. The original failed attempts remain recorded;
 restoration callback lifetime has component-level evidence only.
 
-The next scoped CSS correction preserves the tab component’s inset focus outline
-and lets the action footer scroll normally in short-height viewports. Current
-installed timing/reflow evidence exposed both clipped indicators and actual tab
-obscuration. Sixty-three existing phase/component tests pass; corrected rendered
-acceptance is next. The 80-action baseline meets navigation p95 targets but misses
-the mobile acknowledgement target in three actions. CPU profiling must identify
-the cause before a performance change. The reduced viewport/DPR diagnostic is
-not native 200% browser-zoom acceptance.
+Clean `84095f9d` verifies the tab focus/footer correction through 48 installed
+observations, 24 internal-tab states and 12 scoped axe scans with zero violations.
+Native 200% browser zoom also passes; actual 400% exposes a zero-height Develop
+workspace. The working CSS correction keeps short-height content in outer scroll
+flow and gives active terminal/Canvas surfaces definite space. Seven source
+geometry cases pass; matching installed native-zoom acceptance is still required.
+
+The 80-action baseline meets navigation p95 targets but misses the mobile
+acknowledgement target in three actions. A CPU diagnostic identifies duplicated
+tab geometry work without reproducing the original large stalls. Shared coalesced
+geometry, including a review-found replaced-container correction, now passes 71
+focused tests and type checking. Both new regressions fail before the correction.
+An unprofiled installed comparison follows; no performance improvement is claimed
+from source alone.
+
+The connected journey also exposed a Docker Create completing after service
+interruption, leaving a never-started child indefinitely Starting. The working
+recovery correction preserves exact session/run identity, observes active creates,
+checks current ownership and applies the existing grace before a conditional
+terminal transition. Full Go checks pass 2,144 outcomes / 22 skips; full affected
+race checks pass 1,283 / seven skips across five packages. Independent review
+finds no actionable defect. Installed interrupted-create recovery and the complete
+team coding/amendment/check/preview journey are next; the earlier interrupted
+attempt remains aborted, not passed. Final frontend validation passes 2,059
+tests across 128 files plus TypeScript. Accepted frontend/Go inputs are unchanged;
+Windows product-test and Darwin API cross-compilation also pass. Receipts are in
+`artifacts/quality-recovery-responsiveness/`; no native execution is inferred.
 
 Separately, clean `f388ad44` passes eight installed full-sandbox restart/recovery
 groups: the same live child survives gateway/worker restart, explicit continuation

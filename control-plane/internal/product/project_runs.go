@@ -531,7 +531,9 @@ func (s *Server) reconcileProjectRun(ctx context.Context, p project.Project, run
 				child := children[0]
 				if child.ID == op.ChildID && child.ProjectID == run.ProjectID && child.WorktreeID == run.WorktreeID && child.ProjectRunID == run.ID && child.ProjectRunOperationID == op.ID && ProjectRunSessionRequestDigest(child) == op.RequestDigest {
 					switch child.Status {
-					case registry.StatusStarting, registry.StatusRunning, registry.StatusIdle:
+					case registry.StatusStarting:
+						status, message = "running", "The coding sandbox is still starting; agent execution has not been confirmed. Wait for startup recovery or explicitly stop this session before trying again."
+					case registry.StatusRunning, registry.StatusIdle:
 						status, message = "running", "The coding session is active. Its output is not verification of the selected requirements."
 					case registry.StatusExited:
 						status, message = "cancelled", "The coding session ended. Its outcome remains unverified; run and join checks for the candidate source."

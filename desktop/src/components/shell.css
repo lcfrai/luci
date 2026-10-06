@@ -130,3 +130,46 @@
     box-shadow: var(--e-overlay);
   }
 }
+
+/* At high browser zoom or in a short landscape window, fixed shell controls
+   can consume the whole viewport. Keep them and the journey in one scroll
+   flow so keyboard navigation can reveal the work below the toolbar. */
+@media (max-width: 760px) and (max-height: 500px) {
+  .shell {
+    grid-template-rows: auto auto;
+    align-content: start;
+    overflow-y: auto;
+    scroll-padding-block: 12px;
+  }
+  .shell-main,
+  .shell-workspace {
+    display: block;
+    overflow: visible;
+  }
+  .shell-lens {
+    overflow: visible;
+  }
+  .shell .journey-page,
+  .shell .deployment-workspace,
+  .shell .develop-workspace,
+  .shell .account-session-workspace,
+  .shell .orchestrator-open {
+    block-size: auto;
+    overflow: visible;
+  }
+  .shell .project-work,
+  .shell .project-runs {
+    max-block-size: none;
+    overflow: visible;
+  }
+  .shell .orchestrator-body {
+    overflow: visible;
+  }
+  /* Terminal rows and the movable canvas need a definite drawing surface;
+     their own content can scroll while the surrounding journey stays in flow. */
+  .shell .develop-workspace:not(.develop-workspace--planning) > .develop-sessions,
+  .shell .account-session-terminal {
+    flex: none;
+    block-size: 360px;
+  }
+}

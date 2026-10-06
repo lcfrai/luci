@@ -77,7 +77,55 @@ sticky footer overlapping tabs. Scoped CSS corrections are implemented with 63
 existing phase/component tests passing; matching browser verification follows.
 Twelve scoped axe scans have zero violations and two incomplete contrast items.
 The 720 × 500 / DPR 2 observation is equivalent-viewport reflow, not actual 200%
-browser zoom. These are independent product obligations. The representative real-model benchmark is prepared at
+browser zoom. Clean `84095f9d` now passes the focused CSS follow-up: 48 keyboard/
+Verify observations, 24 internal-tab states and 12 axe scans with zero violations.
+The focus indicators are complete, the footer no longer obscures navigation,
+actual hit targets are unobstructed and saved context is unchanged. The remaining
+wide Deploy contrast incomplete has a saved-image/computed-color assessment of
+12.47:1; the corrected Define status text measures 7.97:1. These are scoped
+accessibility observations, not conformance. Ordinary Chromium Settings provides
+a verified native-zoom mechanism. Installed `84095f9d` passes native 200% zoom:
+four phase scans have zero violations or incomplete items, and all 16 keyboard
+observations retain complete focus outlines. Native 400% exposes a real blocker:
+shell controls consume the short viewport and collapse the Develop workspace to
+zero height. A narrow short-height correction keeps the journey in normal scroll
+flow while giving active terminal/Canvas surfaces definite usable space. Seven
+source geometry cases pass; matching native-zoom acceptance remains pending.
+
+The CPU diagnostic identifies duplicated tab geometry work but does not reproduce
+the original large phone stalls. Fluid now shares one coalesced geometry snapshot
+for its pills and selected/focused tab visibility. Independent review then found
+that a replaced strip could retain listeners on its old DOM element. Two new
+regressions fail before the correction and pass afterward; all 71 affected tests
+and type checking pass. An unprofiled matching-package measurement must establish
+the actual result. These changes do not yet establish the responsiveness target.
+
+The connected runtime attempt exposed a separate product recovery defect. Docker
+finished an owned Create after the fixture service was interrupted; its retained
+session remained Starting while the child was merely Created with PID 0. The
+original attempt is aborted, not passed: three groups and one reviewed commit
+completed, but checks and preview did not. The initial interruption resulted from
+an incorrect harness disk-floor interpretation. Corrected admission budgets
+reserve capacity before allocation and a separate remaining-space margin while
+running. The exact late resource was identified and removed; repeated cleanup
+observations show zero owned resources, with private evidence retained.
+
+The source correction uses explicit Created-only and in-flight observations,
+the existing grace, fresh exact ownership and a conditional session transition.
+It retains the same session/run/operation/source identity and prevents automatic
+redispatch. The complete Go suite passes 2,144 outcomes with 22 skips; the full
+five-package affected race suite passes 1,283 outcomes with seven skips. A bounded
+independent source review finds no actionable defect. A real installed
+interrupted-create/restart test still follows; neither source tests nor the
+aborted fixture establish the repaired installed behavior.
+The final complete frontend suite passes 2,059 tests across 128 files, plus
+TypeScript. All 428 frontend and 671 Go input hashes remain unchanged during their
+accepted checks. Windows product-test and Darwin API cross-compilation pass; this
+is not native execution. Receipts and original review-found failures are retained
+in `artifacts/quality-recovery-responsiveness/`. Matching installed acceptance
+follows. The Definition footer/history also now use correct singular counts.
+
+These are independent product obligations. The representative real-model benchmark is prepared at
 `artifacts/plans/idea-to-live-acceptance.json`; execution needs the selected saved
 model connection. Managed/public/native and full data-platform gates remain open.
 
