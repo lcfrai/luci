@@ -26,6 +26,7 @@
   flex: 0 1 auto;
   max-block-size: 60%;
   overflow: auto;
+  scroll-padding-block: 12px;
   border-block-end: 1px solid var(--line-soft);
   background: var(--surface);
 }
@@ -33,6 +34,8 @@
    empty-session guidance in one flow instead of reserving terminal space. */
 .develop-workspace--planning {
   overflow: auto;
+  /* Native keyboard scrolling must leave room for the field focus outline. */
+  scroll-padding-block: 12px;
 }
 .develop-workspace--planning > .project-runs,
 .develop-workspace--planning > .project-work {

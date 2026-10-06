@@ -30,8 +30,14 @@ preserve newer edits, staging on refusal and native recovery history. Existing
 drafts survive permission changes; late downloads and navigation cannot cross
 scope or confirmed grant loss. The full current source batch passes 2,051
 frontend tests / 128 files, 2,120 Go outcomes / 22 skips, 513 product-package race
-outcomes / one skip, and TypeScript. Matching package/browser proof is next;
-logs and original failed attempts are in `artifacts/quality-collaboration-boundaries/`.
+outcomes / one skip, and TypeScript. Clean `448275fc` passes six portable groups,
+seven launcher outcomes and four two-person Git-review groups; all 940 package
+files and 346 licence components are verified. Logs and original failed attempts
+are in `artifacts/quality-collaboration-boundaries/` and the matching package-eval
+directory. The permission journey exposed a keyboard focus ring clipped at the
+planning scroll boundary. Scoped scroll padding corrects the reproduced desktop
+and phone case; its matching installed journey and current responsiveness/zoom
+acceptance are next. The failed installed attempt remains recorded.
 
 Separately, clean `f388ad44` passes eight installed full-sandbox restart/recovery
 groups: the same live child survives gateway/worker restart, explicit continuation

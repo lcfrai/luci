@@ -47,8 +47,19 @@ Logs and original failures are retained in
 `artifacts/quality-collaboration-boundaries/`: old API fixtures and the exact
 read-command audit were corrected; a subsequent temporary-disk exhaustion was
 resolved by clearing only the task-owned build cache and rerunning unchanged
-source. Matching installed proof for this batch follows; it is not inferred from
-`f388ad44`. The representative real-model benchmark is prepared at
+source. Clean `448275fc` independently matches all 940 package files and 346
+licence components, with no missing licences. Six portable groups, seven launcher
+outcomes and four actual two-person Git-review groups pass. A real UI amendment
+makes the earlier review stale without changing HEAD or index; explicit refresh
+retains the message and commits the reviewed bytes. A later amendment remains
+uncommitted. The provider and Docker are unused in this scope.
+
+The installed permission journey exposed a clipped keyboard focus ring around
+New task. The original attempt remains failed. A bounded desktop/phone Chromium
+diagnostic reproduced the scroll boundary and supports a scoped scroll-padding
+correction; the corrected package still needs the full six-group journey. Current
+navigation timing and zoom/reflow acceptance also continue. These are independent
+product-quality obligations. The representative real-model benchmark is prepared at
 `artifacts/plans/idea-to-live-acceptance.json`; execution needs the selected saved
 model connection. Managed/public/native and full data-platform gates remain open.
 
