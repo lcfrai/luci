@@ -136,7 +136,13 @@ async function send(message, responseStatus = 202) {
     const running = await api('GET', `${projectRoute}/assist/${job.id}`); assert.equal(running.status, 'running');
     const owned = docker('ps', '--filter', `label=luci.session-id=${job.sessionId}`, '--format', '{{.ID}}').split(/\s+/).filter(Boolean); assert.equal(owned.length, 1);
     const container = JSON.parse(docker('inspect', owned[0]))[0]; assert.equal(container.Config.Labels['luci.session-id'], job.sessionId); assert.equal(container.HostConfig.PidsLimit, 256);
-    assert(container.Config.User && !['root', '0', '0:0'].includes(container.Config.User), 'Assistant process was configured as root');
+    // Image bootstrap starts as root to map private bind-mount ownership, then
+    // drops all capabilities and UID. Verify running workloads, not Config.User.
+    const processes = docker('top', owned[0], '-eo', 'uid,pid,comm').split('\n').slice(1).map(line => { const [uid, , command] = line.trim().split(/\s+/, 3); return [uid, command]; });
+    const workloads = processes.filter(([, command]) => /^(sandboxd|python3?|node|codex)$/.test(command));
+    assert(workloads.some(([, command]) => command === 'codex'), 'Installed Codex process was not running');
+    assert(workloads.every(([uid]) => Number(uid) === process.getuid() && Number(uid) !== 0), 'Assistant workload did not drop to the unprivileged host UID');
+    receipt.assistantProcessUIDs = workloads.map(([uid, command]) => ({ uid: Number(uid), command }));
     assert(container.Mounts.some(m => m.Destination === '/luci-input' && m.RW === false));
     assert(!container.Mounts.some(m => resolve(m.Source) === resolve(project.path) || resolve(m.Source).startsWith(resolve(project.path) + sep)), 'Read-only orchestration mounted editable project source');
     await assertProjectUnderstanding(expectedContext);
@@ -187,7 +193,7 @@ try {
   assert.deepEqual(build.operations, [], 'Preparing run unexpectedly started coding'); assert.equal(build.state, 'ready');
 
   await page.reload(); await openPanel(); await panel.getByText('Agent and model', { exact: true }).click();
-  await panel.getByLabel('Luci agent', { exact: true }).selectOption('codex'); await panel.getByLabel('Luci connection', { exact: true }).selectOption(connectionID); assert.equal(await panel.getByLabel('Luci model', { exact: true }).inputValue(), 'orchestrator-fixture');
+  await panel.getByRole('combobox', { name: /^Luci agent/ }).selectOption('codex'); await panel.getByRole('combobox', { name: /^Luci connection/ }).selectOption(connectionID); assert.equal(await panel.getByLabel('Luci model', { exact: true }).inputValue(), 'orchestrator-fixture');
   const asked = await send('Inspect the complete saved project context and ask the material visibility question before recommending implementation.');
   assert(asked.turn.answer.blocking); assert.equal(asked.view.blockingQuestions.length, 1); assert.equal(asked.view.nextAction.id, 'answer-question'); await assertProjectUnderstanding(asked.view.context); await panel.getByText(question, { exact: true }).first().waitFor(); await noContextChange(initial.context);
   check('Real selected Codex CLI receives exact saved definition/design/plan and records its material question without changing documents', { turnId: asked.turn.id, contextDigest: asked.turn.contextDigest, providerCalls: calls });

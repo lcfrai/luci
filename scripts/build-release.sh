@@ -41,15 +41,16 @@ trap cleanup EXIT
 (cd "$root/desktop" && npm run build)
 build_package() {
   local goos=$1 goarch=$2 package=$3
-  mkdir -p "$package/runtime/sandboxd" "$package/runtime/images" "$package/docs"
+  mkdir -p "$package/runtime/sandboxd" "$package/runtime/images" "$package/docs/luci"
   (cd "$root" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o "$package/luci" ./control-plane/cmd/api)
   cp -R "$root/desktop/dist" "$package/web"
   for source in cmd internal vendor go.mod go.sum; do
     cp -R "$root/sandboxd/$source" "$package/runtime/sandboxd/$source"
   done
   cp -R "$root/images/sandbox" "$package/runtime/images/sandbox"
-  cp "$root/LICENSE" "$root/NOTICE" "$root/README.md" "$package/"
-  cp "$root/docs/luci/RELEASE.md" "$root/docs/luci/REUSE.md" "$package/docs/"
+  cp "$root/LICENSE" "$root/NOTICE" "$root/README.md" "$root/DESIGN.md" "$package/"
+  cp -R "$root/docs/luci/." "$package/docs/luci/"
+  cp "$root/docs/UAT.md" "$root/docs/RUNBOOK.md" "$package/docs/"
   cp "$root/scripts/launch-unix.sh" "$package/start-luci.sh"
   chmod 755 "$package/luci" "$package/start-luci.sh"
   GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 python3 "$root/scripts/collect-licenses.py" "$root" "$package/licenses"

@@ -1445,3 +1445,34 @@ GitHub Go and concurrency checks passed at `5d074fbc`; the following diagnostic
 upload failed because Actions artifact storage quota was exhausted. Diagnostic
 uploads now run after application checks. The workflow remains a release gate;
 local passing results do not change the failed remote workflow conclusion.
+
+The actual compiled orchestrator browser journey passed ten outcomes at
+`artifacts/uat/orchestrator-browser-current/result.json`. It exercised the installed
+Codex CLI against a local deterministic provider, exact saved context/history,
+visible stage and build scope while awaiting a response, four-phase navigation
+and restart, primary-action reply binding, a real concurrent-write 409, explicit
+amendment application and provider failure without fallback. The runner measured
+unprivileged UID 1000 processes, read-only input mounts, the process limit and
+exactly the seven deliberate browser mutations. Desktop/mobile scoped axe scans
+each passed 23 checks with no violations or incomplete results. The binary SHA-256
+was `6cccf28f9550cbcafedf0a2846b4466baa268a204fae5a38a8c868ce780bfe05`;
+this is compiled development acceptance, not yet clean-package acceptance.
+
+A real stopped-state 0.4.18-to-0.5.0 rehearsal passed six outcomes at
+`artifacts/uat/managed-upgrade-current/result.json`, retaining existing identities,
+account isolation, context/reviews, private provider settings and Git/history.
+Read-only access preserved format 1; an explicit save migrated to format 2 and
+survived restart. Rollback restored the complete byte-verified pre-upgrade state
+before starting the old writer. Each stop verified the separately grouped gateway
+and worker processes. It does not claim migration of teams absent from 0.4.18,
+external databases or general schema downgrade. [The operator procedure](MANAGED-UPGRADE.md)
+describes the required stopped backup, verification and rollback boundaries.
+
+The release audit found and patched source-map-js 1.2.1 to 1.2.2 and Mermaid's
+KaTeX 0.16.47 to 0.18.2 without changing Mermaid or Excalidraw. Production audit
+reported zero vulnerabilities; 20 focused tests and real Chromium equation,
+flowchart and sequence-to-editable-canvas checks passed without external requests
+or browser errors. The dependency receipt is `artifacts/uat/dependency-advisories`.
+CI now checks production advisories at high severity. The Unix package now includes
+the same operator documentation layout as the PowerShell packager, including the
+upgrade procedure.

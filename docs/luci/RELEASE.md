@@ -1,5 +1,8 @@
 # Building and distributing Luci
 
+For a version change, follow [the stopped-state upgrade and rollback procedure](MANAGED-UPGRADE.md). It preserves the complete pre-upgrade state; an older binary must never write a newer context format.
+
+
 The current source is the **0.5.0 release candidate**, not a published production
 release. It adds durable project runs, portable context format 2 with bounded
 recoverable archives, authenticated team/project permissions and context

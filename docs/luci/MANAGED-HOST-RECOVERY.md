@@ -1,5 +1,8 @@
 # Private managed-host recovery
 
+For a version change, follow [the stopped-state upgrade and rollback procedure](MANAGED-UPGRADE.md). It preserves the complete pre-upgrade state; an older binary must never write a newer context format.
+
+
 `scripts/managed-host-backup.py` backs up and restores one commissioned Linux
 managed-team installation. It preserves the entire private `LUCI_STATE_DIR`:
 accounts/password hashes, login sessions, membership and project grants, service

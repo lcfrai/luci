@@ -188,7 +188,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
           </fieldset>
           {tab === "repository" && <RepositoryAnalysisPanel projectId={projectId} specification={spec} dirty={dirty || busy || !!draft.pending} onApplied={value => {
             savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setDirty(false); setError(""); setTab("specification");
-            setNotice(`Repository analysis saved as definition ${value.revision}. Review the draft and resolve open questions before approving.`);
+            setNotice(`Repository analysis saved as definition ${value.revision}. Review the draft and resolve definition questions before approving.`);
           }} />}
           {tab === "history" && <section><h2>Saved definition snapshots</h2>{!history.length && <p>No structured revisions yet. Existing brief text is preserved when you save your first definition.</p>}<ol className="definition-history">{history.slice().reverse().map((r) => <li key={r.revision}><strong>Revision {r.revision} · {r.status}</strong><p>{r.purpose}</p><small>Brief {r.briefRevision} · {r.requirements.length} requirements · {new Date(r.updatedAt).toLocaleString()}</small><details><summary>Read this snapshot</summary><pre>{JSON.stringify(r, null, 2)}</pre></details></li>)}</ol></section>}
         </div>
@@ -201,7 +201,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
           : spec.status === "approved"
             ? <Button type="button" disabled={busy} onClick={() => setLens("design")}>Continue to Design</Button>
             : <Button type="button" loading={pending === "approve"} disabled={!canEdit || busy || !!draft.pending} onClick={() => void approve()}>Approve definition</Button>}
-      </div><p role="status" className="journey-muted">{notice || `${spec.requirements.length} requirements · ${spec.questions.filter((q) => !q.answer.trim()).length} open questions`}</p></footer>
+      </div><p role="status" className="journey-muted">{notice || `${spec.requirements.length} requirements · ${spec.questions.filter((q) => !q.answer.trim()).length} definition questions`}</p></footer>
     </>}
     <ContextStorage projectId={projectId} />
   </section>;

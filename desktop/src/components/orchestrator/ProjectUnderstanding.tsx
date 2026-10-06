@@ -10,7 +10,7 @@ const stages: { lens: Stage; label: string; purpose: string }[] = [
   { lens: "deploy", label: "Deploy", purpose: "Release and look after the application" },
 ];
 const runLabels: Record<string, string> = {
-  ready: "Ready to build", coding: "Building", "awaiting-checks": "Ready for independent checks",
+  ready: "Build prepared", coding: "Building", "awaiting-checks": "Ready for independent checks",
   "awaiting-release": "Ready for release", blocked: "Needs attention", cancelled: "Stopped", complete: "Run accepted",
 };
 
