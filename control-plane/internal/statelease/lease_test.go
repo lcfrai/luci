@@ -10,7 +10,7 @@ import (
 )
 
 func TestLeaseBlocksSecondWriterAndSurvivesHolderExit(t *testing.T) {
-	dir := t.TempDir()
+	dir := privateLeaseFixture(t)
 	first, err := Acquire(dir, "0.5.0")
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +94,7 @@ func TestLeaseRejectsLinksAndBroadPermissions(t *testing.T) {
 }
 
 func TestLeaseRefusesInterruptedRestoreBeforeWriting(t *testing.T) {
-	dir := t.TempDir()
+	dir := privateLeaseFixture(t)
 	if err := os.WriteFile(filepath.Join(dir, ".luci-host-restore-incomplete"), []byte("interrupted"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestLeaseRefusesInterruptedRestoreBeforeWriting(t *testing.T) {
 }
 
 func TestLeaseRefusesDeletedHostBeforeFreshBootstrap(t *testing.T) {
-	dir := t.TempDir()
+	dir := privateLeaseFixture(t)
 	if err := os.WriteFile(filepath.Join(dir, ".luci-host-deleted"), []byte("erasure"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -119,4 +119,13 @@ func TestLeaseRefusesDeletedHostBeforeFreshBootstrap(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dir, FileName)); !os.IsNotExist(err) {
 		t.Fatal("startup wrote into a retired host")
 	}
+}
+
+func privateLeaseFixture(t *testing.T) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "private-state")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	return dir
 }

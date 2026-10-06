@@ -196,7 +196,7 @@ const (
 // state directory, 127.0.0.1:0, and a daemon that is an httptest server.
 func TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers(t *testing.T) {
 	clearDockerEnv(t)
-	state := t.TempDir()
+	state := privateStateDir(t)
 	writeInstanceID(t, state, fakeOurs)
 	d := newFakeDaemon(t, []container.Summary{
 		summaryOf("c-own-orphan", "s-ownorph1", fakeOurs),
@@ -249,7 +249,7 @@ func TestServeReapsItsOwnOrphanWithTheIDItLoadedAndSparesAnothers(t *testing.T) 
 // disappeared, which is what dropping it from List produced.
 func TestRestartRecoveryKeepsAPreUpgradeSessionWhoseSandboxIsStillRunning(t *testing.T) {
 	clearDockerEnv(t)
-	state := t.TempDir()
+	state := privateStateDir(t)
 	writeInstanceID(t, state, fakeOurs)
 	d := newFakeDaemon(t, []container.Summary{
 		summaryOf("c-legacy", "s-legacy01", "", container.Port{IP: "127.0.0.1", PrivatePort: uint16(backend.ContainerPort), PublicPort: 51001, Type: "tcp"}),

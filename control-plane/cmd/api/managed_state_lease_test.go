@@ -16,7 +16,7 @@ import (
 func TestManagedRootAndOrphanWorkerLeaseBeforeAnyStateWrite(t *testing.T) {
 	for _, kind := range []string{"initial-bootstrap", "requested-root", "bound-root", "worker"} {
 		t.Run(kind, func(t *testing.T) {
-			dir := t.TempDir()
+			dir := privateStateDir(t)
 			cfg := Config{StateDir: dir, InstancePath: filepath.Join(dir, "instance", "instance-id")}
 			switch kind {
 			case "requested-root":

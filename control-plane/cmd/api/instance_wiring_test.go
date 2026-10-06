@@ -42,7 +42,7 @@ func TestNewBackendHandsDockerTheInstanceID(t *testing.T) {
 // exists. The second run must find the same id and not mint again.
 func TestServeMintsTheInstanceIDOnceAndARestartKeepsIt(t *testing.T) {
 	t.Parallel()
-	state := t.TempDir()
+	state := privateStateDir(t)
 	path := filepath.Join(state, "instance", instance.FileName)
 
 	var first bytes.Buffer
@@ -75,7 +75,7 @@ func TestServeMintsTheInstanceIDOnceAndARestartKeepsIt(t *testing.T) {
 // backend exists, so nothing is created under an identity nobody chose.
 func TestServeRefusesACorruptInstanceID(t *testing.T) {
 	t.Parallel()
-	state := t.TempDir()
+	state := privateStateDir(t)
 	path := filepath.Join(state, "instance", instance.FileName)
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)

@@ -168,7 +168,10 @@ func TestJourneyGitAndArchiveIgnoreInheritedRepositoryRedirection(t *testing.T) 
 	if err != nil || strings.TrimSpace(out) != commit || strings.TrimSpace(out) == foreignCommit {
 		t.Fatalf("inherited Git redirection escaped confinement: %q %v", out, err)
 	}
-	destination := t.TempDir()
+	destination := filepath.Join(t.TempDir(), "private-archive")
+	if err := os.Mkdir(destination, 0700); err != nil {
+		t.Fatal(err)
+	}
 	if err := archiveCommittedProject(context.Background(), p.Path, commit, destination); err != nil {
 		t.Fatal(err)
 	}
