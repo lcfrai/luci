@@ -94,8 +94,11 @@ source geometry cases pass. Clean `4c6b895f` now passes native 200% and restores
 reachable content at 400% through normal Tab navigation and shell scrolling.
 One of 29 stops still clips the full-width plan disclosure's focus ring. A narrow
 inset-outline correction preserves its two-pixel accent and unchanged geometry;
-four before/after geometry cases and type checking pass. Exact matching-package
-400% verification follows; the original failure remains retained.
+four before/after geometry cases and type checking pass. Clean `e7e4dc41` now
+passes all 29 native-400% Tab stops with the complete inset focus outline and
+reachable content, preserving the actual 360 × 228 CSS viewport / DPR 4 and
+unchanged outer window. Full physical screenshots and the original failure are
+retained in `artifacts/quality-responsiveness/e7e4dc41-native400-focus-attempt-1/`.
 
 The CPU diagnostic identifies duplicated tab geometry work but does not reproduce
 the original large phone stalls. Fluid now shares one coalesced geometry snapshot
@@ -148,6 +151,33 @@ The initial `72c33b02` build correctly refused outdated adapted-Fluid provenance
 The follow-on updates only the two adaptation hashes and their description,
 preserving upstream revision, original source fingerprints and the MIT grant.
 Application source is unchanged; the failed build log remains retained.
+
+The first `e7e4dc41` connected retry completes three groups, actual amended
+coding and two reviewed UI Git commits, then reaches the unchanged check timeout.
+Its Docker transport helper sent response headers only with the response body:
+Docker wait held those headers until exit, while the CLI required the headers
+before issuing Start. A bounded real-container diagnostic reproduces this
+circular wait and verifies the same child can run when started directly.
+Flushing passthrough response headers fixes the helper; original transport smoke
+checks and a fresh real CLI Create/attach/wait/Start control pass. The failed
+journey is retained and is not relabelled as passed. The next matching-package
+journey uses the corrected transport with unchanged product assertions and
+check timeout. Cleanup confirms zero containers/volumes and unchanged image pins.
+
+A separate local-platform defect is corrected: slow optional hosting discovery
+no longer withholds verified Docker/Data controls or keeps a completed local
+operation busy. Local project identity, Git and capability admission still must
+succeed. Provider loading, failure and retry are explicit; its independent
+request generation rejects stale results, and provider actions remain guarded
+until discovery finishes. Both pending-provider regressions fail before the
+change; all 34 component tests and type checking pass afterward. A prepared
+installed test will use an actual local app and stop operation while authenticated
+HTTPS provider requests remain pending, then verify failure/retry and unchanged
+context. Source evidence: `artifacts/quality-platform-provider/`. Full frontend
+validation now passes 2,072 tests across 128 files, plus TypeScript, with all
+428 source inputs unchanged. The 671 Go inputs also match the previously accepted
+full/race suites, so those suites were not repeated. Matching installed acceptance
+continues.
 
 These are independent product obligations. The representative real-model benchmark is prepared at
 `artifacts/plans/idea-to-live-acceptance.json`; execution needs the selected saved

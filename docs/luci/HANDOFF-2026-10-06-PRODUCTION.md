@@ -50,8 +50,9 @@ workspace. The working CSS correction keeps short-height content in outer scroll
 flow and gives active terminal/Canvas surfaces definite space. Seven source
 geometry cases pass. Installed `4c6b895f` confirms native 200% and restores content
 reachability at 400%. One full-width disclosure still clips its focus outline;
-the next scoped inset-outline correction passes four geometry cases and type
-checking, with exact installed 400% verification pending.
+the scoped inset-outline correction passes four geometry cases and type
+checking. Matching clean `e7e4dc41` now passes all 29 native-400% Tab stops,
+with complete focus outlines and reachable content. Original failures remain.
 
 The 80-action baseline meets navigation p95 targets but misses the mobile
 acknowledgement target in three actions. A CPU diagnostic identifies duplicated
@@ -80,6 +81,21 @@ the earlier interrupted attempt remains aborted, not passed. Final frontend vali
 tests across 128 files plus TypeScript. Accepted frontend/Go inputs are unchanged;
 Windows product-test and Darwin API cross-compilation also pass. Receipts are in
 `artifacts/quality-recovery-responsiveness/`; no native execution is inferred.
+
+The first `e7e4dc41` connected retry completes three groups and both reviewed
+UI commits, then times out because its test proxy buffers Docker wait response
+headers. A real tiny-container comparison confirms the cause; header flushing
+passes helper regressions and actual CLI Create/attach/wait/Start. The original
+failed journey remains retained. Full connected acceptance is still pending.
+
+Optional hosting discovery also blocked already-verified local Platform controls
+and completed local operations. The correction separates provider generations,
+loading and failure from local project/Git admission and action completion.
+Both old deferred-provider cases fail before; all 34 component tests and
+TypeScript pass afterward. Final full frontend validation passes 2,072 tests
+across 128 files with all 428 inputs unchanged; all 671 accepted Go inputs also
+remain unchanged. Installed real-local-app / pending-HTTPS-provider acceptance is next. Evidence and frozen source:
+`artifacts/quality-platform-provider/result.json`.
 
 Separately, clean `f388ad44` passes eight installed full-sandbox restart/recovery
 groups: the same live child survives gateway/worker restart, explicit continuation

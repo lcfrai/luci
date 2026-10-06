@@ -5,6 +5,8 @@ import { platformApi, type PlatformProject } from "../../api/platform";
 import { productApi } from "../../api/product";
 vi.mock("./DataWorkspace", () => ({ DataWorkspace: () => <div>Project data services</div> }));
 const access = vi.hoisted(() => ({ loading: false, error: "", edit: true, deploy: true, secrets: true, execute: true }));
+const identity = vi.hoisted(() => ({ scope: "workspace-one" }));
+vi.mock("../../hooks/useProjectDraft", () => ({ useProjectDraftScope: (id: string) => `${identity.scope}:${id}` }));
 vi.mock("../../hooks/useProjectAccess", () => ({ useProjectAccess: () => ({
   loading: access.loading, error: access.error, canRead: true,
   canEdit: !access.loading && !access.error && access.edit,
@@ -53,6 +55,7 @@ const project: PlatformProject = {
   },
 };
 beforeEach(() => {
+  identity.scope = "workspace-one";
   Object.assign(access, { loading: false, error: "", edit: true, deploy: true, secrets: true, execute: true });
   vi.mocked(platformApi.restoreDatabase).mockReset();
   vi.mocked(platformApi.prepareBrowser).mockReset();
@@ -75,11 +78,22 @@ beforeEach(() => {
     configured: false,
     canManage: true,
   });
+  vi.mocked(platformApi.projects).mockReset().mockResolvedValue({ projects: [] });
   vi.mocked(productApi.gitDelivery).mockResolvedValue({
     head: "a".repeat(40),
     branch: "main",
   });
 });
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+
+const configuredHosting = { configured: true, canManage: true, baseUrl: "https://provider.example" };
+const hostingProject = (name: string) => ({ name, displayName: name, repoUrl: `https://git.example/${name}`, defaultBranch: "main", status: "ready", url: "" });
 
 it("distinguishes permission uncertainty from resolved missing grants without losing a deployment draft", async () => {
   const view = render(<PlatformWorkspace projectId="owned" />);
@@ -347,6 +361,195 @@ it("keeps Docker available when a connected Panacea account cannot be read", asy
     "Your Docker services and database remain available",
   );
 });
+
+it.each(["connection", "projects"] as const)("keeps local controls usable while optional hosting %s discovery is pending", async stage => {
+  const connection = deferred<Awaited<ReturnType<typeof platformApi.connection>>>();
+  const projects = deferred<Awaited<ReturnType<typeof platformApi.projects>>>();
+  vi.mocked(platformApi.connection).mockImplementation(() => stage === "connection" ? connection.promise : Promise.resolve(configuredHosting));
+  vi.mocked(platformApi.projects).mockReturnValue(projects.promise);
+  const view = render(<PlatformWorkspace projectId="owned" />);
+  try {
+    await waitFor(() => expect(platformApi[stage]).toHaveBeenCalled());
+    const deployments = await screen.findByRole("button", { name: "Deployments" });
+    expect(screen.queryByText("Checking platform capabilities…")).toBeNull();
+    fireEvent.click(deployments);
+    expect((screen.getByRole("button", { name: "Start persistent deployment" }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Data" }));
+    expect(screen.getByText("Project data services")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Hosting connection" }));
+    expect(screen.getByText(stage === "connection" ? "Checking Panacea connection…" : "Loading Panacea projects…")).not.toBeNull();
+    if (stage === "projects") {
+      expect((screen.getByRole("combobox", { name: "Panacea project" }) as HTMLSelectElement).disabled).toBe(true);
+    } else {
+      expect(screen.queryByText("An administrator can connect this workspace to Panacea.")).toBeNull();
+      expect(screen.queryByText("Not connected")).toBeNull();
+    }
+  } finally {
+    view.unmount();
+    await act(async () => { connection.resolve(configuredHosting); projects.resolve({ projects: [] }); });
+  }
+});
+
+it("waits for both local project and Git reads before revealing capabilities while optional hosting stays pending", async () => {
+  const local = deferred<Awaited<ReturnType<typeof platformApi.project>>>();
+  const git = deferred<Awaited<ReturnType<typeof productApi.gitDelivery>>>();
+  const provider = deferred<Awaited<ReturnType<typeof platformApi.projects>>>();
+  vi.mocked(platformApi.project).mockReturnValue(local.promise);
+  vi.mocked(productApi.gitDelivery).mockReturnValue(git.promise);
+  vi.mocked(platformApi.connection).mockResolvedValue(configuredHosting);
+  vi.mocked(platformApi.projects).mockReturnValue(provider.promise);
+  const view = render(<PlatformWorkspace projectId="owned" />);
+  try {
+    await act(async () => {});
+    expect(screen.getByText("Checking platform capabilities…")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "Data" })).toBeNull();
+    expect(screen.queryByText("not-created")).toBeNull();
+    await act(async () => local.resolve({ project: { ...project, database: { ...project.database, status: "ready" } }, busy: false }));
+    expect(screen.queryByRole("button", { name: "Deployments" })).toBeNull();
+    await act(async () => git.resolve({ head: "a".repeat(40), branch: "main" }));
+    expect(await screen.findByRole("button", { name: "Data" })).not.toBeNull();
+    expect(screen.getByText("ready")).not.toBeNull();
+    expect(screen.queryByText("not-created")).toBeNull();
+  } finally {
+    view.unmount();
+    await act(async () => { local.resolve({ project, busy: false }); git.resolve({ head: "a".repeat(40), branch: "main" }); provider.resolve({ projects: [] }); });
+  }
+});
+
+it.each(["project failure", "Git failure", "foreign project"] as const)("keeps local controls hidden after %s despite ready Docker capabilities", async failure => {
+  vi.mocked(platformApi.connection).mockResolvedValue(configuredHosting);
+  if (failure === "project failure") vi.mocked(platformApi.project).mockRejectedValue(new Error("Project services could not be read."));
+  else if (failure === "Git failure") vi.mocked(productApi.gitDelivery).mockRejectedValue(new Error("Reviewed Git source could not be read."));
+  else vi.mocked(platformApi.project).mockResolvedValue({ project: { ...project, projectId: "foreign" }, busy: false });
+  render(<PlatformWorkspace projectId="owned" />);
+  expect(await screen.findByRole("alert")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Deployments" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Data" })).toBeNull();
+  expect(screen.queryByText("not-created")).toBeNull();
+  expect(platformApi.deploy).not.toHaveBeenCalled();
+});
+
+it("finishes a local stop and unlocks local controls while optional hosting refresh is pending", async () => {
+  const provider = deferred<Awaited<ReturnType<typeof platformApi.projects>>>();
+  const stopped = { ...pendingBrowserDeployment, status: "stopped", message: "The retained Docker service is stopped." };
+  vi.mocked(platformApi.project).mockResolvedValueOnce({ project: { ...project, deployments: [pendingBrowserDeployment] }, busy: false })
+    .mockResolvedValue({ project: { ...project, deployments: [stopped] }, busy: false });
+  vi.mocked(platformApi.connection).mockResolvedValue(configuredHosting);
+  vi.mocked(platformApi.projects).mockResolvedValueOnce({ projects: [] }).mockReturnValue(provider.promise);
+  vi.mocked(platformApi.action).mockResolvedValue(stopped);
+  const view = render(<PlatformWorkspace projectId="owned" inspectDeploymentId={stopped.id} />);
+  try {
+    fireEvent.click(await screen.findByRole("button", { name: "Stop deployment" }));
+    await waitFor(() => expect(platformApi.projects).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("The selected service is stopped. The retained Docker service is stopped.")).not.toBeNull();
+    expect(screen.queryByText("Stop deployment…")).toBeNull();
+    expect((screen.getByRole("button", { name: "Restart deployment" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(platformApi.action).toHaveBeenCalledExactlyOnceWith("owned", stopped.id, "stop");
+  } finally {
+    view.unmount();
+    await act(async () => provider.resolve({ projects: [] }));
+  }
+});
+
+it("recovers optional hosting errors without blocking local controls during the next discovery", async () => {
+  const first = deferred<Awaited<ReturnType<typeof platformApi.projects>>>();
+  const retry = deferred<Awaited<ReturnType<typeof platformApi.projects>>>();
+  vi.mocked(platformApi.connection).mockResolvedValue(configuredHosting);
+  vi.mocked(platformApi.projects).mockReturnValueOnce(first.promise).mockReturnValue(retry.promise);
+  const view = render(<PlatformWorkspace projectId="owned" />);
+  try {
+    await waitFor(() => expect(platformApi.projects).toHaveBeenCalledTimes(1));
+    await act(async () => first.reject(new Error("provider unavailable")));
+    fireEvent.click(await screen.findByRole("button", { name: "Hosting connection" }));
+    expect(screen.getByRole("alert").textContent).toContain("Your Docker services and database remain available");
+    fireEvent.click(screen.getByRole("button", { name: "Refresh platform" }));
+    await waitFor(() => expect(platformApi.projects).toHaveBeenCalledTimes(2));
+    expect((screen.getByRole("button", { name: "Refresh platform" }) as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByText("Loading Panacea projects…")).not.toBeNull();
+    expect((screen.getByRole("combobox", { name: "Panacea project" }) as HTMLSelectElement).disabled).toBe(true);
+    await act(async () => retry.resolve({ projects: [hostingProject("recovered-project")] }));
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText("Loading Panacea projects…")).toBeNull();
+    expect(screen.getByRole("option", { name: "recovered-project" })).not.toBeNull();
+    expect((screen.getByRole("combobox", { name: "Panacea project" }) as HTMLSelectElement).disabled).toBe(false);
+  } finally {
+    view.unmount();
+    await act(async () => { first.resolve({ projects: [] }); retry.resolve({ projects: [] }); });
+  }
+});
+
+it.each(["resolve", "reject"] as const)("ignores an older optional hosting %s while newer discovery is still pending", async outcome => {
+  const older = deferred<Awaited<ReturnType<typeof platformApi.projects>>>();
+  const newer = deferred<Awaited<ReturnType<typeof platformApi.projects>>>();
+  vi.mocked(platformApi.connection).mockResolvedValue(configuredHosting);
+  vi.mocked(platformApi.projects).mockReturnValueOnce(older.promise).mockReturnValue(newer.promise);
+  const view = render(<PlatformWorkspace projectId="owned" />);
+  try {
+    await waitFor(() => expect(platformApi.projects).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh platform" }));
+    await waitFor(() => expect(platformApi.projects).toHaveBeenCalledTimes(2));
+    fireEvent.click(await screen.findByRole("button", { name: "Hosting connection" }));
+    await act(async () => outcome === "resolve" ? older.resolve({ projects: [hostingProject("stale-project")] }) : older.reject(new Error("stale provider failure")));
+    expect(screen.getByText("Loading Panacea projects…")).not.toBeNull();
+    expect((screen.getByRole("combobox", { name: "Panacea project" }) as HTMLSelectElement).disabled).toBe(true);
+    expect(screen.queryByRole("option", { name: "stale-project" })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    await act(async () => newer.resolve({ projects: [hostingProject("current-project")] }));
+    expect(screen.getByRole("option", { name: "current-project" })).not.toBeNull();
+    expect(screen.queryByText("Loading Panacea projects…")).toBeNull();
+  } finally {
+    view.unmount();
+    await act(async () => { older.resolve({ projects: [] }); newer.resolve({ projects: [] }); });
+  }
+});
+
+it("lets pending optional hosting discovery settle after a local operation fails", async () => {
+  const provider = deferred<Awaited<ReturnType<typeof platformApi.projects>>>();
+  pendingBrowserProject();
+  vi.mocked(platformApi.connection).mockResolvedValue(configuredHosting);
+  vi.mocked(platformApi.projects).mockReturnValue(provider.promise);
+  vi.mocked(platformApi.action).mockRejectedValue(new Error("Docker stop could not be confirmed."));
+  const view = render(<PlatformWorkspace projectId="owned" inspectDeploymentId={pendingBrowserDeployment.id} />);
+  try {
+    await waitFor(() => expect(platformApi.projects).toHaveBeenCalledTimes(1));
+    fireEvent.click(await screen.findByRole("button", { name: "Stop deployment" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("Docker stop could not be confirmed");
+    await act(async () => provider.resolve({ projects: [hostingProject("available-project")] }));
+    fireEvent.click(screen.getByRole("button", { name: "Hosting connection" }));
+    expect(screen.getByRole("option", { name: "available-project" })).not.toBeNull();
+    expect(screen.queryByText("Loading Panacea projects…")).toBeNull();
+    expect((screen.getByRole("combobox", { name: "Panacea project" }) as HTMLSelectElement).disabled).toBe(false);
+  } finally {
+    view.unmount();
+    await act(async () => provider.resolve({ projects: [] }));
+  }
+});
+
+it.each(["connection", "projects"] as const)("ignores late optional hosting %s after switching workspace scope", async stage => {
+  const oldConnection = deferred<Awaited<ReturnType<typeof platformApi.connection>>>();
+  const oldProjects = deferred<Awaited<ReturnType<typeof platformApi.projects>>>();
+  vi.mocked(platformApi.connection).mockImplementationOnce(() => stage === "connection" ? oldConnection.promise : Promise.resolve(configuredHosting))
+    .mockResolvedValue({ ...configuredHosting, baseUrl: "https://new-provider.example" });
+  if (stage === "projects") vi.mocked(platformApi.projects).mockReturnValueOnce(oldProjects.promise);
+  vi.mocked(platformApi.projects).mockResolvedValue({ projects: [hostingProject("new-workspace-project")] });
+  const view = render(<PlatformWorkspace projectId="owned" />);
+  try {
+    await waitFor(() => expect(platformApi[stage]).toHaveBeenCalledTimes(1));
+    identity.scope = "workspace-two";
+    view.rerender(<PlatformWorkspace projectId="owned" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Hosting connection" }));
+    expect(await screen.findByRole("option", { name: "new-workspace-project" })).not.toBeNull();
+    await act(async () => { oldConnection.resolve(configuredHosting); oldProjects.resolve({ projects: [hostingProject("old-workspace-project")] }); });
+    expect(screen.getByText("https://new-provider.example")).not.toBeNull();
+    expect(screen.queryByText("https://provider.example")).toBeNull();
+    expect(screen.queryByRole("option", { name: "old-workspace-project" })).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  } finally {
+    view.unmount();
+    await act(async () => { oldConnection.resolve(configuredHosting); oldProjects.resolve({ projects: [] }); });
+  }
+});
+
 it("clears a submitted provider key immediately and never renders failed provider bodies", async () => {
   let reject!: (reason: Error) => void;
   vi.mocked(platformApi.connect).mockImplementation(

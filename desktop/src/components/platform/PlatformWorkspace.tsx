@@ -33,6 +33,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
   const browserPermission = useRef(projectAccess.canExecute); browserPermission.current = projectAccess.canExecute;
   const active = useRef(true), connectingBrowser = useRef(false), operating = useRef(false);
   const requestGeneration = useRef(0);
+  const providerGeneration = useRef(0);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [status, setStatus] = useState<PlatformStatus | null>(null);
   const [project, setProject] = useState<PlatformProject | null>(null);
@@ -43,6 +44,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
   const [serverBusy, setServerBusy] = useState(false);
   const [error, setError] = useState("");
   const [providerError, setProviderError] = useState("");
+  const [providerLoading, setProviderLoading] = useState<"" | "connection" | "projects" | "updating">("");
   const [view, setView] = useState<
     "Overview" | "Deployments" | "Data" | "Hosting connection"
   >(inspectDeploymentId ? "Deployments" : "Overview");
@@ -71,45 +73,61 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
     text: string;
     notice: string;
   } | null>(null);
+  const reloadProvider = useCallback(async () => {
+    // Local operations can fail without refreshing. Their generation must not
+    // invalidate a provider lookup that can still finish independently.
+    const generation = ++providerGeneration.current;
+    const current = () => active.current && generation === providerGeneration.current;
+    setProviderLoading("connection");
+    setProviderError("");
+    setRemoteProjects([]);
+    try {
+      const nextConnection = await platformApi.connection();
+      if (!current()) return;
+      setConnection(nextConnection);
+      if (nextConnection.configured) {
+        setProviderLoading("projects");
+        const remote = await platformApi.projects();
+        if (current()) setRemoteProjects(remote.projects);
+      }
+    } catch {
+      if (!current()) return;
+      setRemoteProjects([]);
+      setProviderError(
+        "Panacea is unavailable. Your Docker services and database remain available.",
+      );
+    } finally {
+      if (current()) setProviderLoading("");
+    }
+  }, []);
   const reload = useCallback(async () => {
     const generation = ++requestGeneration.current;
     const [nextProject, nextDelivery] = await Promise.all([
       platformApi.project(projectId),
       productApi.gitDelivery(projectId),
     ]);
-    if (!active.current || generation !== requestGeneration.current) return;
+    if (!active.current || generation !== requestGeneration.current) return null;
     if (nextProject.project.projectId !== projectId)
       throw new Error("Luci could not verify this project's application services. Refresh the platform and try again.");
     setProject(nextProject.project);
     setServerBusy(nextProject.busy || nextProject.project.databaseOperation?.status === "running");
     setDelivery(nextDelivery);
     setRemoteProject(nextProject.project.panaceaProject || "");
-    setProviderError("");
-    try {
-      const nextConnection = await platformApi.connection();
-      if (!active.current || generation !== requestGeneration.current) return;
-      setConnection(nextConnection);
-      if (nextConnection.configured) {
-        const remote = await platformApi.projects();
-        if (active.current && generation === requestGeneration.current) setRemoteProjects(remote.projects);
-      }
-      else setRemoteProjects([]);
-    } catch {
-      if (!active.current || generation !== requestGeneration.current) return;
-      setRemoteProjects([]);
-      setProviderError(
-        "Panacea is unavailable. Your Docker services and database remain available.",
-      );
-    }
-  }, [projectId]);
+    // Hosting discovery is optional. Do not hold local capability admission or
+    // a completed Docker operation behind the provider's network timeout.
+    void reloadProvider();
+    return generation;
+  }, [projectId, reloadProvider]);
   useEffect(() => {
     let active = true;
-    Promise.all([platformApi.status(), reload()])
-      .then(([value]) => {
-        if (active) setStatus(value);
+    const local = reload();
+    const generation = requestGeneration.current;
+    Promise.all([platformApi.status(), local])
+      .then(([value, loaded]) => {
+        if (active && loaded === generation && generation === requestGeneration.current) setStatus(value);
       })
       .catch((cause) => {
-        if (active) setError(errorText(cause));
+        if (active && generation === requestGeneration.current) setError(errorText(cause));
       });
     return () => {
       active = false;
@@ -139,18 +157,27 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
     }, 2500);
     return () => { current = false; window.clearInterval(timer); };
   }, [serverBusy, projectId]);
-  async function run(label: string, task: () => Promise<unknown>, permitted = true) {
+  async function run<T>(label: string, task: () => Promise<T>, permitted = true, options: { afterReload?: (result: T) => void; providerMutation?: boolean } = {}) {
     if (!permitted || busy || serverBusy || operating.current || !active.current) return;
     operating.current = true;
     ++requestGeneration.current;
     setBusy(label);
     setError("");
     setMessage("");
+    let providerRefreshed = false;
+    if (options.providerMutation) {
+      ++providerGeneration.current;
+      setProviderLoading("updating");
+      setRemoteProjects([]);
+      setProviderError("");
+    }
     try {
       const result = await task();
       if (!active.current) return;
-      await reload();
-      if (!active.current) return;
+      const generation = await reload();
+      providerRefreshed = generation !== null;
+      if (!active.current || generation !== requestGeneration.current) return;
+      options.afterReload?.(result);
       const state =
         result && typeof result === "object" && "status" in result
           ? String(result.status)
@@ -171,13 +198,20 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
     } catch (cause) {
       if (active.current) setError(errorText(cause));
     } finally {
+      if (active.current && options.providerMutation && !providerRefreshed) void reloadProvider();
       operating.current = false;
       if (active.current) setBusy("");
     }
   }
+  const runHosting = (label: string, task: () => Promise<unknown>, permitted: boolean) => run(label, task, permitted && !providerLoading, { providerMutation: true });
   const deploy = (label: string, task: () => Promise<unknown>) => run(label, async () => { const result = await task(); notifyProjectContextChanged(scope, projectId); return result; }, canDeploy);
   useEffect(() => { if (!canReadLogs) setLogs(null); }, [canReadLogs]);
   const disabled = !!busy || serverBusy;
+  const hostingDisabled = disabled || !!providerLoading;
+  const hostingProjectsReady = !providerLoading && !providerError && !!connection?.configured;
+  const providerStatus = providerLoading === "connection" ? "Checking Panacea connection…"
+    : providerLoading === "projects" ? "Loading Panacea projects…"
+    : providerLoading === "updating" ? "Updating Panacea hosting…" : "";
   const sourceReady = !!delivery?.head;
   const safeURL = (raw?: string) => {
     if (!raw) return undefined;
@@ -236,9 +270,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
           className="luci-button"
           disabled={disabled}
           onClick={() =>
-            void run("Refresh platform", async () => {
-              setStatus(await platformApi.status());
-            })
+            void run("Refresh platform", platformApi.status, true, { afterReload: setStatus })
           }
         >
           Refresh platform
@@ -266,6 +298,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
               : message}
         </p>
       )}
+      {providerStatus && <p role="status">{providerStatus}</p>}
       {!status && !error && (
         <p role="status">Checking platform capabilities…</p>
       )}
@@ -303,9 +336,12 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                 <dd>{project?.database.status || "not-created"}</dd>
                 <dt>Panacea</dt>
                 <dd>
-                  {connection?.configured
+                  {providerLoading === "connection" || providerLoading === "updating"
+                    ? "Checking connection"
+                    : providerError ? "Unavailable"
+                    : connection?.configured
                     ? `Connected to ${connection.baseUrl}`
-                    : "Not connected"}
+                    : connection ? "Not connected" : "Connection not yet checked"}
                 </dd>
               </dl>
               <p>{status.supabase.message}</p>
@@ -412,8 +448,9 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                     className="platform-form"
                     onSubmit={(event) => {
                       event.preventDefault();
-                      void run("Connect Panacea project", () =>
+                      void runHosting("Connect Panacea project", () =>
                         platformApi.mapProject(projectId, remoteProject),
+                        hostingProjectsReady && remoteProjects.some(item => item.name === remoteProject),
                       );
                     }}
                   >
@@ -421,13 +458,13 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                       Panacea project
                       <select
                         value={remoteProject}
-                        disabled={disabled}
+                        disabled={hostingDisabled || !hostingProjectsReady}
                         required
                         onChange={(event) =>
                           setRemoteProject(event.target.value)
                         }
                       >
-                        <option value="">Choose an accessible project</option>
+                        <option value="">{providerLoading === "projects" ? "Loading accessible projects…" : providerError ? "Projects unavailable" : "Choose an accessible project"}</option>
                         {remoteProjects.map((item) => (
                           <option key={item.name} value={item.name}>
                             {item.displayName || item.name}
@@ -437,7 +474,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                     </label>
                     <button
                       className="luci-button"
-                      disabled={disabled || !remoteProject}
+                      disabled={hostingDisabled || !hostingProjectsReady || !remoteProjects.some(item => item.name === remoteProject)}
                     >
                       Connect Panacea project
                     </button>
@@ -450,13 +487,13 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                   <button
                     className="luci-button luci-primary"
                     disabled={
-                      disabled ||
+                      hostingDisabled || !hostingProjectsReady ||
                       !project?.panaceaProject ||
                       !sourceReady ||
                       !status.permissions.deployPanacea || !canDeploy
                     }
                     onClick={() => {
-                      if (delivery)
+                      if (delivery && hostingProjectsReady && project?.panaceaProject && canDeploy && status.permissions.deployPanacea)
                         void deploy("Request Panacea deployment", () =>
                           platformApi.deployPanacea(
                             projectId,
@@ -471,9 +508,9 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                   {connection.canManage && (
                     <button
                       className="luci-button"
-                      disabled={disabled}
+                      disabled={hostingDisabled}
                       onClick={() =>
-                        void run("Disconnect Panacea", platformApi.disconnect)
+                        void runHosting("Disconnect Panacea", platformApi.disconnect, !!connection?.canManage)
                       }
                     >
                       Disconnect Panacea
@@ -487,8 +524,9 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                     event.preventDefault();
                     const key = apiKey;
                     setApiKey("");
-                    void run("Verify Panacea connection", () =>
+                    void runHosting("Verify Panacea connection", () =>
                       platformApi.connect(baseUrl, key),
+                      !!connection?.canManage,
                     );
                   }}
                 >
@@ -499,7 +537,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                       placeholder="https://panacea.example.com"
                       required
                       value={baseUrl}
-                      disabled={disabled}
+                      disabled={hostingDisabled}
                       onChange={(event) => setBaseUrl(event.target.value)}
                     />
                   </label>
@@ -511,13 +549,13 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                       required
                       minLength={16}
                       value={apiKey}
-                      disabled={disabled}
+                      disabled={hostingDisabled}
                       onChange={(event) => setApiKey(event.target.value)}
                     />
                   </label>
                   <button
                     className="luci-button"
-                    disabled={disabled || !apiKey}
+                    disabled={hostingDisabled || !apiKey}
                   >
                     Verify and save connection
                   </button>
@@ -526,9 +564,9 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                     returned to this form.
                   </p>
                 </form>
-              ) : (
+              ) : connection && !providerLoading ? (
                 <p>An administrator can connect this workspace to Panacea.</p>
-              )}
+              ) : null}
             </section>
           )}
           {view === "Deployments" && (
