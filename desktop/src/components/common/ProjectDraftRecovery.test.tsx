@@ -268,6 +268,7 @@ it("preserves a newer draft written in another tab when a late save clears this 
   const key = storedDrafts()[0], record = JSON.parse(localStorage.getItem(key)!); record.value.purpose = "Second tab"; localStorage.setItem(key, JSON.stringify(record));
   await act(async () => finish({ ...specification(), purpose: "First tab", revision: 3, briefRevision: 4 })); view.unmount();
   render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  await userEvent.click(screen.getByText("Compare draft with saved version", { selector: "summary" }));
   expect(within(screen.getByRole("region", { name: "Definition draft recovery" })).getByText(/Second tab/)).not.toBeNull();
 });
 
@@ -298,6 +299,7 @@ it("keeps an account's unsaved draft when its save finishes after switching acco
   expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("Saved idea");
   expect(screen.queryByRole("button", { name: "Restore draft" })).toBeNull();
   identity.actor = "alice"; view.rerender(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  await userEvent.click(screen.getByText("Compare draft with saved version", { selector: "summary" }));
   expect(screen.getByRole("region", { name: "Definition draft recovery" }).textContent).toContain("Alice pending save");
 });
 

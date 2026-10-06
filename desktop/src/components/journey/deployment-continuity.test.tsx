@@ -3,14 +3,15 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { DeploymentWorkspace, ProjectDeploy } from "../lens/DeployLens";
 import { productApi, type Release } from "../../api/product";
+import * as browserAccess from "../../api/browserAccess";
 import { projectRunsApi, type ProjectRun } from "../../api/projectRuns";
 import { resetCockpit, useCockpit } from "../../store/store";
 import type { ProjectRunDeploymentIntent } from "../../store/slices/uiSlice";
 
-const identity = vi.hoisted(() => ({ scope: "account-team-workspace-project", edit: true, execute: true, deploy: true, secrets: true }));
+const identity = vi.hoisted(() => ({ scope: "account-team-workspace-project", loading: false, error: "", edit: true, execute: true, deploy: true, secrets: true }));
 vi.mock("../../hooks/useProjectDraft", () => ({ useProjectDraftScope: () => identity.scope }));
 vi.mock("../../hooks/useProjectAccess", () => ({ useProjectAccess: () => ({
-  loading: false, error: null, message: "", canRead: true, canEdit: identity.edit, canExecute: identity.edit && identity.execute,
+  loading: identity.loading, error: identity.error, message: identity.loading ? "Checking project permissions…" : identity.error, canRead: true, canEdit: !identity.loading && !identity.error && identity.edit, canExecute: !identity.loading && !identity.error && identity.edit && identity.execute,
   permissions: { read: true, edit: identity.edit, execute: identity.execute, deploy: identity.deploy, secrets: identity.secrets },
 }) }));
 vi.mock("./DeploymentOverview", () => ({ DeploymentOverview: () => null }));
@@ -20,7 +21,7 @@ const intent: ProjectRunDeploymentIntent = { scope: "account-team-workspace-proj
 const saved = { id: intent.runId, projectId: intent.projectId, revision: 4, state: "awaiting-release", input: { outcome: "preview" }, checks: [{ checkId: intent.checkId, projectId: intent.projectId, commit: intent.commit, sourceDigest: intent.sourceDigest }], allowedActions: ["join-release"] } as ProjectRun;
 const release: Release = { id: "rel-exact", projectId: "p-1", briefRevision: 1, commit: intent.commit, target: "local", status: "ready", url: "http://127.0.0.1:45678/", message: "Preview health passed", createdAt: "2026-10-06T12:00:00Z" };
 beforeEach(() => {
-  resetCockpit(); Object.assign(identity, { scope: intent.scope, edit: true, execute: true, deploy: true, secrets: true });
+  resetCockpit(); Object.assign(identity, { scope: intent.scope, loading: false, error: "", edit: true, execute: true, deploy: true, secrets: true });
   useCockpit.setState({ selection: { projectId: "p-1", branchId: null, worktreeId: null, sessionId: null }, lens: "deploy" });
   vi.spyOn(projectRunsApi, "get").mockResolvedValue(saved);
   vi.spyOn(projectRunsApi, "joinRelease").mockResolvedValue({ ...saved, revision: 5, allowedActions: ["accept"] });
@@ -158,4 +159,73 @@ it("never performs background health mutations for a viewer", async () => {
   await act(async () => { await Promise.resolve(); });
   await act(async () => { await vi.advanceTimersByTimeAsync(15000); });
   expect(productApi.refreshRelease).not.toHaveBeenCalled();
+});
+
+const browserGrant = `http://${"a".repeat(32)}.${"a".repeat(32)}.localhost:8731/.well-known/luci-team-access?ticket=${"b".repeat(64)}`;
+it("retains the exact open preview and its browser grant through a pending same-project permission refresh", async () => {
+  vi.mocked(productApi.releases).mockResolvedValue({ releases: [release] });
+  const grant = vi.spyOn(browserAccess, "prepareBrowserAccess").mockResolvedValue(browserGrant);
+  const view = render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Open preview" }));
+  const frame = await screen.findByTitle("Project preview");
+  expect(frame.getAttribute("src")).toBe(browserGrant);
+  identity.loading = true;
+  view.rerender(<ProjectDeploy projectId="p-1" />);
+  expect(screen.getByTitle("Project preview")).toBe(frame);
+  expect(frame.isConnected).toBe(true);
+  expect((screen.getByRole("button", { name: "Open preview" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Build local preview" }) as HTMLButtonElement).disabled).toBe(true);
+  identity.loading = false;
+  view.rerender(<ProjectDeploy projectId="p-1" />);
+  expect(screen.getByTitle("Project preview")).toBe(frame);
+  expect(frame.getAttribute("src")).toBe(browserGrant);
+  expect(grant).toHaveBeenCalledExactlyOnceWith("p-1", release.url);
+  expect(productApi.release).not.toHaveBeenCalled();
+});
+
+it.each(["denied", "unavailable"])("closes an existing preview when refreshed project access is %s", async outcome => {
+  vi.mocked(productApi.releases).mockResolvedValue({ releases: [release] });
+  const grant = vi.spyOn(browserAccess, "prepareBrowserAccess").mockResolvedValue(browserGrant);
+  const view = render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Open preview" }));
+  const frame = await screen.findByTitle("Project preview");
+  identity.loading = true; view.rerender(<ProjectDeploy projectId="p-1" />);
+  expect(screen.getByTitle("Project preview")).toBe(frame);
+  identity.loading = false;
+  if (outcome === "denied") identity.execute = false;
+  else identity.error = "Project access unavailable";
+  view.rerender(<ProjectDeploy projectId="p-1" />);
+  await waitFor(() => expect(screen.queryByTitle("Project preview")).toBeNull());
+  expect(frame.isConnected).toBe(false);
+  identity.execute = true; identity.error = "";
+  view.rerender(<ProjectDeploy projectId="p-1" />);
+  expect(screen.queryByTitle("Project preview")).toBeNull();
+  expect(grant).toHaveBeenCalledTimes(1);
+});
+
+it.each([false, true])("rejects a browser grant arriving after confirmed denial, even if access was restored: %s", async restore => {
+  vi.mocked(productApi.releases).mockResolvedValue({ releases: [release] });
+  let finish!: (url: string) => void;
+  const grant = vi.spyOn(browserAccess, "prepareBrowserAccess").mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Open preview" }));
+  expect(grant).toHaveBeenCalledOnce();
+  identity.execute = false; view.rerender(<ProjectDeploy projectId="p-1" />);
+  if (restore) { identity.execute = true; view.rerender(<ProjectDeploy projectId="p-1" />); }
+  await act(async () => finish(browserGrant));
+  expect(screen.queryByTitle("Project preview")).toBeNull();
+  expect(grant).toHaveBeenCalledTimes(1);
+});
+
+it("drops an existing preview on an account or workspace scope change even while new permissions are pending", async () => {
+  vi.mocked(productApi.releases).mockResolvedValue({ releases: [release] });
+  const grant = vi.spyOn(browserAccess, "prepareBrowserAccess").mockResolvedValue(browserGrant);
+  const view = render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Open preview" }));
+  const frame = await screen.findByTitle("Project preview");
+  identity.scope = "different-account-team-workspace-project"; identity.loading = true;
+  view.rerender(<ProjectDeploy projectId="p-1" />);
+  expect(screen.queryByTitle("Project preview")).toBeNull();
+  expect(frame.isConnected).toBe(false);
+  expect(grant).toHaveBeenCalledTimes(1);
 });

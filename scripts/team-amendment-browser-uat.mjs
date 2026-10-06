@@ -57,13 +57,13 @@ const oldTitle = 'Save and read a garden note', oldAcceptance = 'Saving a garden
 const newTitle = 'Save and read a garden note with its garden area', newAcceptance = 'Save a note for the Greenhouse and confirm the next read and the notes list show both the note and its garden area; notes without an area remain readable.';
 const originalConstraints = 'Label the note field and Save note button clearly. Keep this fixture local; no public publishing or external services.';
 const aliceConstraint = originalConstraints + ' Keep the garden area and note controls keyboard accessible with visible labels.';
-const pageHTML = '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Garden notes</title><style>body{font:18px system-ui;max-width:42rem;margin:3rem auto;padding:1rem}input,button{font:inherit;padding:.6rem}label{display:block}li{padding:.5rem}</style></head><body><h1>Garden notes</h1><p>Save an observation for this running preview.</p><label for="note">Garden note</label><input id="note"><button id="save">Save note</button><p role="status" id="status"></p><ul id="notes"></ul><script>async function refresh(){const r=await fetch("/notes");const notes=await r.json();document.querySelector("#notes").replaceChildren(...notes.map(text=>{const li=document.createElement("li");li.textContent=text;return li;}));}document.querySelector("#save").onclick=async()=>{const input=document.querySelector("#note");const r=await fetch("/notes",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({note:input.value})});if(!r.ok){document.querySelector("#status").textContent="Could not save the note";return;}input.value="";await refresh();document.querySelector("#status").textContent="Saved";};refresh();</script></body></html>';
+const pageHTML = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Garden notes</title><style>body{font:18px system-ui;max-width:42rem;margin:3rem auto;padding:1rem}input,button{font:inherit;padding:.6rem}label{display:block}li{padding:.5rem}</style></head><body><h1>Garden notes</h1><p>Save an observation for this running preview.</p><label for="note">Garden note</label><input id="note"><button id="save">Save note</button><p role="status" id="status"></p><ul id="notes"></ul><script>async function refresh(){const r=await fetch("/notes");const notes=await r.json();document.querySelector("#notes").replaceChildren(...notes.map(text=>{const li=document.createElement("li");li.textContent=text;return li;}));}document.querySelector("#save").onclick=async()=>{const input=document.querySelector("#note");const r=await fetch("/notes",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({note:input.value})});if(!r.ok){document.querySelector("#status").textContent="Could not save the note";return;}input.value="";await refresh();document.querySelector("#status").textContent="Saved";};refresh();</script></body></html>';
 const appSource = [
   "const http = require('node:http');", 'const saveEnabled = true;', 'const html = ' + JSON.stringify(pageHTML) + ';',
   'function createApp() { const notes = []; return http.createServer(async (req, res) => {',
   "if (req.url === '/health') { res.writeHead(200, {'content-type':'application/json'}); res.end(JSON.stringify({status:'ok'})); return; }",
   "if (req.url === '/notes') { if (req.method === 'POST') { let raw=''; for await (const part of req) raw += part; const {note}=JSON.parse(raw); if (saveEnabled && typeof note === 'string' && note.trim()) notes.push(note.trim()); } res.writeHead(200, {'content-type':'application/json'}); res.end(JSON.stringify(notes)); return; }",
-  "res.writeHead(200, {'content-type':'text/html'}); res.end(html); }); }",
+  "res.writeHead(200, {'content-type':'text/html; charset=utf-8'}); res.end(html); }); }",
   "if (require.main === module) createApp().listen(3000, '0.0.0.0');", 'module.exports = { createApp };', '',
 ].join('\n');
 const testSource = [
@@ -395,6 +395,14 @@ try {
   // local constraint. Never re-enter Bob's change to hide a destructive restore.
   await recovery.getByText(/Edits to different fields are combined with the saved version/).waitFor();
   assert.equal(await recovery.getByRole('radio').count(), 0, 'Disjoint edits should combine without asking which contributor to discard');
+  const combinedDraft = recovery.locator('details').filter({ has: page.locator(':scope > summary').filter({ hasText: /^Review combined draft$/ }) });
+  if (!await combinedDraft.evaluate(element => element.open)) await combinedDraft.locator(':scope > summary').click();
+  await combinedDraft.getByText(newTitle, { exact: true }).waitFor();
+  await combinedDraft.getByText(newAcceptance, { exact: true }).waitFor();
+  await combinedDraft.getByText(aliceConstraint, { exact: true }).waitFor();
+  assert.equal(await combinedDraft.locator('pre').count(), 0, 'Reviewing the combined draft must show named fields without requiring technical JSON');
+  receipt.combinedDraftReview = { bobOutcome: newTitle, bobAcceptance: newAcceptance, aliceConstraint, visibleText: await combinedDraft.innerText() };
+  await screenshot('02b-review-both-contributors-before-restore');
   await recovery.getByRole('checkbox', { name: 'I reviewed the saved version and these recovery choices.', exact: true }).check();
   await recovery.getByRole('button', { name: 'Restore draft', exact: true }).click();
   assert.equal(await page.getByRole('textbox', { name: 'Requirement 1', exact: true }).inputValue(), newTitle);
@@ -434,7 +442,7 @@ try {
   check('Bob renewed the changed design and linked task plan, explicitly stopped the original child and cancelled only its future work; original instructions and candidate source remain recorded', { originalRunID: originalRun.id, originalSessionID: originalSession.id, preservedCommit });
 
   stage = 'new-reviewed-build';
-  const planDetails = page.locator('details.project-work'); if (await planDetails.count() && !await planDetails.evaluate(element => element.open)) await planDetails.locator('summary').click();
+  const planDetails = page.locator('details.project-work'); if (await planDetails.count() && !await planDetails.evaluate(element => element.open)) await planDetails.locator(':scope > summary').click();
   await prepareRun(); assert.notEqual(run.id, originalRun.id); assert.equal(run.input.requirements[0].title, newTitle); assert.equal(run.input.requirements[0].acceptance, newAcceptance); assert.equal(run.input.implementation.specificationRevision, reviewed.revision); receipt.amendedRunID = run.id;
   const amendedSession = await codingAttempt('Start coding', 2);
   assert.equal(readFileSync(join(project.path, 'app.cjs'), 'utf8'), amendedAppSource); assert(readFileSync(join(project.path, 'acceptance.cjs'), 'utf8').startsWith(testSource));
@@ -448,7 +456,30 @@ try {
   await page.getByRole('region', { name: 'Checked build deployment', exact: true }).getByText(amendedCommit, { exact: false }).waitFor();
   const release = await mutation(() => page.getByRole('button', { name: 'Build local preview', exact: true }).click(), projectRoute + '/releases', 'POST', 240_000); releases.add(release.id); assert.equal(release.commit, amendedCommit); assert.equal(release.status, 'ready');
   await page.getByRole('button', { name: 'Open preview', exact: true }).click(); const preview = page.frameLocator('iframe[title="Project preview"]');
-  await preview.getByRole('heading', { name: 'Garden notes', exact: true }).waitFor(); await preview.getByLabel('Garden area', { exact: true }).fill('Greenhouse'); await preview.getByLabel('Garden note', { exact: true }).fill('Inspect the seedlings'); await preview.getByRole('button', { name: 'Save note', exact: true }).click(); await preview.getByText('Greenhouse · Inspect the seedlings', { exact: true }).waitFor();
+  await preview.getByRole('heading', { name: 'Garden notes', exact: true }).waitFor(); await preview.getByLabel('Garden area', { exact: true }).fill('Greenhouse'); await preview.getByLabel('Garden note', { exact: true }).fill('Inspect the seedlings');
+  const previewNode = await page.locator('iframe[title="Project preview"]').elementHandle(); assert(previewNode);
+  const previewURL = await previewNode.getAttribute('src'), callsBeforeRefresh = providerCalls, refreshGrants = [];
+  const grantPath = '/v1/teams/' + team.id + '/projects/' + project.id + '/browser-access';
+  const grantObserver = request => { if (request.method() === 'POST' && new URL(request.url()).pathname === grantPath) refreshGrants.push(request.method()); };
+  page.on('request', grantObserver);
+  try {
+    const membershipResponse = page.waitForResponse(response => response.request().method() === 'GET' && new URL(response.url()).origin === base && new URL(response.url()).pathname === '/v1/teams');
+    const permissionsResponse = page.waitForResponse(response => response.request().method() === 'GET' && new URL(response.url()).origin === base && new URL(response.url()).pathname === '/v1/teams/' + team.id + '/projects/' + project.id + '/members');
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    const [membership, permissions] = await Promise.all([membershipResponse, permissionsResponse]);
+    assert(membership.ok()); assert(permissions.ok());
+    const currentPermissions = await permissions.json(); assert.equal(currentPermissions.projectId, project.id); assert(currentPermissions.permissions.execute);
+    await until('Preview permission refresh restores controls', () => page.getByRole('button', { name: 'Open preview', exact: true }).isEnabled(), 10_000);
+    await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+    assert(await previewNode.evaluate(element => element.isConnected && element === document.querySelector('iframe[title="Project preview"]')), 'A background permission refresh must retain the exact open preview node');
+    assert((await previewNode.getAttribute('src')) === previewURL, 'A background permission refresh must not replace its browser invitation');
+    assert.equal(await preview.getByLabel('Garden area', { exact: true }).inputValue(), 'Greenhouse');
+    assert.equal(await preview.getByLabel('Garden note', { exact: true }).inputValue(), 'Inspect the seedlings');
+    assert.deepEqual(refreshGrants, []); assert.equal(providerCalls, callsBeforeRefresh);
+    receipt.previewPermissionRefresh = { trigger: 'Ordinary window focus event', membershipStatus: membership.status(), projectPermissionStatus: permissions.status(), exactFrameRetained: true, unsavedArea: 'Greenhouse', unsavedNote: 'Inspect the seedlings', additionalBrowserGrants: 0, modelCallDelta: 0 };
+    await screenshot('03b-preview-draft-survives-permission-refresh');
+  } finally { page.off('request', grantObserver); await previewNode.dispose(); }
+  await preview.getByRole('button', { name: 'Save note', exact: true }).click(); await preview.getByText('Greenhouse · Inspect the seedlings', { exact: true }).waitFor();
   await preview.getByLabel('Garden area', { exact: true }).fill(''); await preview.getByLabel('Garden note', { exact: true }).fill('Plain notes still work'); await preview.getByRole('button', { name: 'Save note', exact: true }).click(); await preview.getByText('Plain notes still work', { exact: true }).waitFor();
   await screenshot('04-amended-preview-preserves-original-behavior');
   await mutation(() => page.getByRole('button', { name: 'Attach release to build results', exact: true }).click(), '/runs/' + run.id + '/releases');

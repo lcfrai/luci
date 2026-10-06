@@ -76,6 +76,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
   const binding = useRunDeployment(projectId, intent);
   const projectAccess = useProjectAccess(projectId);
   const browserPermission = useRef(projectAccess.canExecute); browserPermission.current = projectAccess.canExecute;
+  const browserGrantEpoch = useRef(0);
   const canDeploy = projectAccess.canEdit && projectAccess.permissions.deploy;
   const permissionMessage = projectAccess.loading || projectAccess.error ? projectAccess.message
     : !canDeploy ? "Deployment access is required to build, stop, check health or roll back releases. Ask a team owner for editing and deployment access."
@@ -129,7 +130,15 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
     if (node) { setInspectionIssue(""); node.scrollIntoView?.({ block: "nearest" }); node.focus(); }
     else setInspectionIssue("The selected release is no longer in this project's history. Refresh application history before choosing another release.");
   }, [inspectReleaseId, inspectionRequest, historyLoaded, releases]);
-  useEffect(() => { if (!projectAccess.canExecute) setPreview(null); }, [projectAccess.canExecute]);
+  useEffect(() => {
+    // A same-project permission refresh disables new execution but must not
+    // reload an existing frame or consume its one-use browser grant again.
+    // A confirmed denial also retires any grant still arriving from before it.
+    if (!projectAccess.loading && !projectAccess.canExecute) {
+      ++browserGrantEpoch.current;
+      setPreview(null);
+    }
+  }, [projectAccess.loading, projectAccess.canExecute]);
   useEffect(() => {
     if (preview && !releases.some(release => release.id === preview.releaseId && release.status === "ready")) setPreview(null);
   }, [preview, releases]);
@@ -423,6 +432,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
                     variant="secondary"
                     disabled={locked || !projectAccess.canExecute}
                     onClick={() => {
+                      const grantEpoch = browserGrantEpoch.current;
                       void operate("Opening workspace preview", async () => {
                         const prepared = remotePreview(release) ?
                           await productApi.prepareWorkspacePreview(
@@ -435,7 +445,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
                             "Luci did not return a valid local preview address.",
                           );
                         const opened = await prepareBrowserAccess(projectId, url);
-                        if (alive.current && browserPermission.current) setPreview({ url: opened, releaseId: release.id });
+                        if (alive.current && browserPermission.current && browserGrantEpoch.current === grantEpoch) setPreview({ url: opened, releaseId: release.id });
                         return release;
                       }, false, projectAccess.canExecute);
                     }}
