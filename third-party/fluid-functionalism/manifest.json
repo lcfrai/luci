@@ -12,7 +12,7 @@
       "upstreamPath": "registry/radix/tabs-subtle.tsx",
       "upstreamSha256": "cfe2e3de9dd402ca32d5175494d4cb0eb215d114187adee8611cbca373d734fe",
       "path": "desktop/src/components/fluid/components/tabs-subtle.tsx",
-      "normalizedSha256": "e8b9b1c5a78be5a0b0d7e9396a0982cee7798b4db8dd25dfa266f877404fb5e7"
+      "normalizedSha256": "0efc5d62ac64007ec62ebc09d72adb8887c498c5a6091b6bb79234e8298a8fd4"
     },
     {
       "upstreamPath": "registry/default/lib/font-weight.ts",

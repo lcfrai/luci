@@ -199,18 +199,22 @@ async function visibleGeometry(locator) {
   return locator.evaluate(node => {
     const box = node.getBoundingClientRect(), style = getComputedStyle(node);
     const rect = value => ({ x: value.x, y: value.y, width: value.width, height: value.height });
-    const clip = { left: Math.max(0, box.left), top: Math.max(0, box.top), right: Math.min(innerWidth, box.right), bottom: Math.min(innerHeight, box.bottom) };
+    const clip = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
     for (let parent = node.parentElement; parent; parent = parent.parentElement) {
       const bounds = parent.getBoundingClientRect(), css = getComputedStyle(parent);
       if (/(auto|scroll|hidden|clip)/.test(css.overflowX)) { clip.left = Math.max(clip.left, bounds.left + parent.clientLeft); clip.right = Math.min(clip.right, bounds.left + parent.clientLeft + parent.clientWidth); }
       if (/(auto|scroll|hidden|clip)/.test(css.overflowY)) { clip.top = Math.max(clip.top, bounds.top + parent.clientTop); clip.bottom = Math.min(clip.bottom, bounds.top + parent.clientTop + parent.clientHeight); }
     }
     const full = box.width > 0 && box.height > 0 && clip.left <= box.left + 1 && clip.top <= box.top + 1 && clip.right >= box.right - 1 && clip.bottom >= box.bottom - 1;
+    const outlineWidth = parseFloat(style.outlineWidth) || 0, outlineOffset = parseFloat(style.outlineOffset) || 0;
+    const outlineOutset = Math.max(0, outlineWidth + outlineOffset);
+    const outline = { left: box.left - outlineOutset, top: box.top - outlineOutset, right: box.right + outlineOutset, bottom: box.bottom + outlineOutset };
+    const outlineUnclipped = style.outlineStyle !== 'none' && outlineWidth > 0 && clip.left <= outline.left && clip.top <= outline.top && clip.right >= outline.right && clip.bottom >= outline.bottom;
     const samples = [[0.5, 0.5], [0.2, 0.2], [0.8, 0.8]].map(([x, y]) => {
       const hit = document.elementFromPoint(box.left + box.width * x, box.top + box.height * y);
       return !!hit && (hit === node || node.contains(hit));
     });
-    return { rect: rect(box), clip, fullyVisible: full && samples.every(Boolean), hitTests: samples,
+    return { rect: rect(box), clip, fullyVisible: full && samples.every(Boolean), hitTests: samples, outline: { ...outline, outset: outlineOutset, unclipped: outlineUnclipped },
       active: document.activeElement === node, focusVisible: node.matches(':focus-visible'),
       focusStyle: { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth, outlineOffset: style.outlineOffset, outlineColor: style.outlineColor, boxShadow: style.boxShadow },
       labels: [...(node.labels ?? [])].map(label => ({ text: label.textContent.trim(), rect: rect(label.getBoundingClientRect()) })) };
@@ -241,7 +245,7 @@ async function repairFieldSnapshot(form, width) {
     }
     const focused = observations[1].input;
     assert(focused.active && focused.focusVisible, 'Native Tab must focus the visible Health check path field');
-    assert(focused.focusStyle.outlineStyle !== 'none' && parseFloat(focused.focusStyle.outlineWidth) > 0, 'Focused field must expose its focus ring');
+    assert(focused.outline.unclipped, 'Focused field must expose its complete focus ring within the viewport and scroll clips');
     assert.equal(await port.inputValue(), '3000'); assert.equal(await health.inputValue(), '/health');
     result.visualObservations.push({ state: name, width, keyboard: 'Application port → Tab → Health check path', fields: observations });
   });
@@ -336,6 +340,7 @@ try {
     const statusGeometry = await visibleGeometry(status), control = await visibleGeometry(stop), article = await visibleGeometry(row(B.id));
     assert(statusGeometry.fullyVisible && control.fullyVisible, 'Failed B status and Stop deployment must be visible in the mobile capture');
     assert(control.active && control.focusVisible, 'Failed B stop control must retain visible keyboard focus');
+    assert(control.outline.unclipped, 'Failed B stop control must expose its complete focus ring within the viewport and scroll clips');
     result.visualObservations.push({ state: '02-failed-B-retains-A-mobile', width: 390, deploymentID: B.id, article, status: statusGeometry, focusedControl: control });
   }); await page.setViewportSize({ width: 1440, height: 1050 });
   check('Real committed B fails health, exposes bounded application logs and has no ready link while A stays reachable', { deploymentID: B.id, commit: B.commit, retainedA: A.id, originalAHealthySamples: result.appObservations.filter(row => row.label === 'A remains reachable during B admission').length });
