@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useLayoutEffect, useRef } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
@@ -6,6 +6,7 @@ import {
   acquireAttach,
   releaseAttach,
   setAttachReadOnly,
+  setAttachPermission,
   updateAttachSession,
 } from "../api/attachRegistry";
 import type { AttachHandle, TermLike } from "../api/attachRegistry";
@@ -17,6 +18,7 @@ import { selectSession } from "../store/selectors";
 import { useCockpit } from "../store/store";
 import type { SessionId } from "../store/types";
 import { getAppearance, useAppearance } from "../preferences/appearance";
+import { useProjectAccess } from "../hooks/useProjectAccess";
 
 /** Checked against src/styles/tokens.css by the greps above; task 14 owns the names. */
 const TERM_BG_TOKEN = "--page";
@@ -114,6 +116,12 @@ function TerminalImpl({
   const host = useRef<HTMLDivElement>(null);
   const appearance = useAppearance();
   const session = useCockpit(selectSession(sessionId));
+  const access = useProjectAccess(session?.projectId ?? '');
+  const canAttach = access.canExecute && (session?.harness === 'shell' || access.permissions.secrets) && (!session?.authOnly || access.permissions.admin);
+  const permissionScope = JSON.stringify([sessionId,session?.projectId,session?.attachPath]);
+  const verifiedPermission = useRef({scope:'',allowed:false});
+  if (!access.loading) verifiedPermission.current = {scope:permissionScope,allowed:canAttach};
+  const streamPermitted = canAttach || (access.loading && verifiedPermission.current.scope===permissionScope && verifiedPermission.current.allowed);
   const hasSession = session !== undefined;
   /** The handle, so the focus effect below can reach it. `focused` must NOT join the mount
    *  effect's dependency array — a focus change would re-acquire and re-append the terminal,
@@ -127,6 +135,9 @@ function TerminalImpl({
   useEffect(() => {
     setAttachReadOnly(sessionId, readOnly);
   }, [sessionId, readOnly]);
+  useLayoutEffect(() => {
+    setAttachPermission(sessionId, streamPermitted, canAttach);
+  }, [sessionId, streamPermitted, canAttach]);
 
   useEffect(() => {
     const node = host.current;
@@ -135,7 +146,7 @@ function TerminalImpl({
     const current = useCockpit.getState().sessions[sessionId];
     if (!node || !current) return;
 
-    const handle = acquireAttach(current, { createTerm: makeTerm, readOnly });
+    const handle = acquireAttach(current, { createTerm: makeTerm, readOnly, permitted: streamPermitted, connectPermitted: canAttach });
     handleRef.current = handle;
     node.appendChild(handle.element);
     handle.mount(); // AFTER the append: xterm measures a

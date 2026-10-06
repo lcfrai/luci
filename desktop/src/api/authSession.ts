@@ -1,3 +1,4 @@
+import { selectTeamScope } from './teamScope';
 const TOKEN_KEY = "luci.control-plane.session";
 export const AUTH_EXPIRED = "luci-auth-expired";
 export function authToken(): string | null {
@@ -8,6 +9,7 @@ export function authToken(): string | null {
   }
 }
 export function setAuthToken(token: string | null): void {
+	if (token !== authToken()) selectTeamScope('');
   if (token) window.sessionStorage.setItem(TOKEN_KEY, token);
   else window.sessionStorage.removeItem(TOKEN_KEY);
 }

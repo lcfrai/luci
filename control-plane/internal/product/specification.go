@@ -264,7 +264,7 @@ func (s *Server) specificationHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	history := append([]ProjectSpecification{}, state.SpecificationRevisions...)
-	writeJSON(w, 200, map[string]any{"revisions": history})
+	writeJSON(w, 200, map[string]any{"revisions": history, "archiveHead": state.HistoryHead})
 }
 
 func (s *Server) saveSpecification(w http.ResponseWriter, r *http.Request) {
@@ -328,7 +328,7 @@ func (s *Server) saveSpecification(w http.ResponseWriter, r *http.Request) {
 	state.BriefRevisions = append(state.BriefRevisions, brief)
 	state.Specification = &spec
 	state.SpecificationRevisions = append(state.SpecificationRevisions, spec)
-	if err := writeJourney(p.Path, state); err != nil {
+	if err := s.writeAttributedJourney(r.Context(), p.Path, state, contextMutation{"specification", "save"}, contextMutation{"brief", "save"}); err != nil {
 		problem(w, 500, "save_failed", err.Error())
 		return
 	}
@@ -404,7 +404,7 @@ func (s *Server) approveSpecification(w http.ResponseWriter, r *http.Request) {
 		problem(w, 500, "approval_unavailable", "The private review receipt could not be saved. Approval was not granted; retain your draft and retry explicit review.")
 		return
 	}
-	if err := writeJourney(p.Path, state); err != nil {
+	if err := s.writeAttributedJourney(r.Context(), p.Path, state, contextMutation{"specification", "approve"}); err != nil {
 		problem(w, 500, "save_failed", err.Error())
 		return
 	}

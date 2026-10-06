@@ -29,6 +29,8 @@ The control service defaults to `127.0.0.1:8730`. Open the application and choos
 | `LUCI_CA_BUNDLE` | Optional trusted CA file for networks that require one; mounted read-only at `/etc/luci/ca-bundle.pem` and passed with `NODE_EXTRA_CA_CERTS` |
 | `LUCI_SESSION_CPU_MILLIS`, `LUCI_SESSION_MEMORY_MIB` | Resource limits for agent containers |
 | `LUCI_LOG_LEVEL` | `debug`, `info`, `warn` or `error` |
+| `LUCI_BROWSER_PREVIEW_ADDR` | Separate main-process browser listener, for example `127.0.0.1:8731`; configure together with the advertised port |
+| `LUCI_BROWSER_PREVIEW_PORT` | Browser gateway port advertised to owned workers, for example `8731`; distinct from the control listener |
 
 Keep the control service on loopback. Cloud workspaces use SSH forwarding rather than a publicly exposed control port. Custom `LUCI_ALLOWED_ORIGINS` replaces the default origin allowlist; configure it only when changing the actual client origin. Do not disable origin protection or certificate verification to work around setup problems.
 
@@ -53,6 +55,29 @@ Public release uses a connected Coolify server, a reachable Git repository, an e
 On a remotely installed workspace, the service is `luci.service`; use the selected machine's service manager to inspect its status and bounded recent logs. The current runtime is at `/opt/luci/current`. Treat host logs and local private state as sensitive when collecting diagnostics. Preserve the accepted SSH host key; do not bypass strict host checking after an unexpected key change.
 
 ## Failure recovery and verification limits
+
+Team app previews open through Luci's project-authorized browser invitation.
+Keep both listeners and the dedicated team worker available. Reopen the preview
+after signing in again, changing browser context, or restarting the service;
+copying its clean URL does not copy permission. Data → Connect provides a client
+example that includes browser credentials only for the configured data origin.
+Opening an authorized app also connects its same-project data origins before
+loading it. Public applications use their separate application authentication.
+
+The current team browser flow uses isolated localhost origins. Its verified
+Chromium flow supports embedded apps, credentialed data fetch and realtime;
+other browser/webview versions and remote managed-host ingress require their
+own acceptance. Do not replace these origins with a shared control origin or
+remove cookie/project checks to make a remote link reachable. Team remote
+workspace forwarding remains disabled until it can preserve the real member's
+authorization through the remote boundary.
+
+To reproduce the browser boundary check with the repository toolchain and
+desktop dependencies installed, run
+`node scripts/team-browser-eval.mjs --browser /path/to/chromium`. The browser path
+is optional when Playwright's Chromium is installed. Use `--report path.json` to
+select the sanitized result file. Private temporary state is removed on exit;
+the test uses production gateway handlers with fixture application/data servers.
 
 - If Docker is missing or stopped, start or repair the user's Docker installation through its normal supported controls, then repeat the readiness check. A test fixture is not a substitute for a real engine.
 - If the sandbox image is missing, use **Install runtime** with Docker working. A failed build reports failure; confirm the recorded image exists before attempting a session.

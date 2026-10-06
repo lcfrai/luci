@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import {
   productApi,
@@ -11,6 +11,10 @@ import {
 import { useCockpit } from "../../store/store";
 import { selectImplementationSessions, selectWorktreeById } from "../../store/selectors";
 import type { ImplementationContextRequest, Session, SessionStatus } from "../../store/types";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
+import { useProjectDraft, useProjectDraftScope } from "../../hooks/useProjectDraft";
+import { planDraftValid } from "../../hooks/projectDraftValidation";
+import { DraftRecovery } from "../common/DraftRecovery";
 import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { SessionPicker } from "../topbar/SessionPicker";
 import { Button } from "../fluid/components/button";
@@ -44,21 +48,23 @@ export function implementationPrompt(
 
 const sessionStatus: Record<SessionStatus, string> = { starting: "Starting", running: "Running", idle: "Idle", exited: "Ended" };
 
-export function ProjectPlan({
-  projectId,
-  brief,
-  onPrepareRun,
-}: {
-  projectId: string;
-  brief: Brief;
-  onPrepareRun?: (draft: ProjectRunDraft) => void;
-}) {
+type Props = { projectId: string; brief: Brief; onPrepareRun?: (draft: ProjectRunDraft) => void };
+export function ProjectPlan(props: Props) {
+  const scope = useProjectDraftScope(props.projectId);
+  return <ProjectPlanEditor key={`${scope}:${props.projectId}`} {...props} scope={scope} />;
+}
+function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { scope: string | null }) {
+  const access = useProjectAccess(projectId);
+  const { canRead, canEdit, canExecute } = access;
   const [plan, setPlan] = useState<ImplementationPlan | null>(null);
   const [tasks, setTasks] = useState<ImplementationTask[]>([]);
   const [title, setTitle] = useState("");
   const [changed, setChanged] = useState(false);
   const dirty = changed || !!title.trim();
-  useUnsavedProjectDraft(projectId, dirty, "Implementation plan", "develop");
+  const draftBase = plan ? JSON.stringify({ revision: plan.revision, briefRevision: plan.briefRevision, specificationRevision: plan.specificationRevision }) : null;
+  const draftValue = useMemo(() => ({ tasks, title }), [tasks, title]);
+  const draft = useProjectDraft({ scope, kind: "implementation-plan", base: draftBase, value: draftValue, dirty, valid: planDraftValid });
+  useUnsavedProjectDraft(projectId, dirty, "Implementation plan", "develop", scope ? { retained: draft.retained, discard: () => { draft.clear(); setTasks(plan?.tasks ?? []); setTitle(""); setChanged(false); } } : undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -82,17 +88,19 @@ export function ProjectPlan({
   );
   const worktree = useCockpit(selectWorktreeById(worktreeId ?? ""));
   async function load() {
+    if (!canRead) return;
     const context = generation.current;
     const value = await productApi.plan(projectId);
     if (alive.current && context === generation.current) {
       setPlan(value);
-      setTasks(value.tasks);
+      setTasks(value.tasks); setTitle("");
       setChanged(false);
       setError("");
       setPickerOpen(false); setImplementationContext(undefined);
     }
   }
   async function loadRequirements() {
+    if (!canRead) return;
     const context = generation.current, request = ++requirementRequest.current;
     setRefreshingRequirements(true);
     try {
@@ -126,13 +134,13 @@ export function ProjectPlan({
       generation.current++;
       unwatch();
     };
-  }, [projectId]);
+  }, [projectId, canRead || !!plan]);
   const requirements = coverage?.rows ?? [];
   const approvedRequirements = coverage?.specification.status === "approved";
   const linked = tasks.some(task => task.requirementIds?.length);
   const unavailableLinks = !!coverage && tasks.some(task => task.requirementIds?.some(id => !requirements.some(row => row.requirementId === id)));
   const needsRebind = !!plan && (plan.briefRevision !== brief.revision || (!!approvedRequirements && plan.specificationRevision !== coverage!.specification.revision));
-  const handoffIssue = dirty ? "Save changes before handing the plan to an agent."
+  const handoffIssue = !canEdit ? "Editing access is required to prepare or start implementation." : draft.pending ? "Restore or discard the browser draft before handing the plan to an agent." : dirty ? "Save changes before handing the plan to an agent."
     : !plan?.revision ? "Save the implementation plan before starting."
       : refreshingRequirements ? "Checking the current definition and design approvals…"
         : !coverage ? "Refresh the current definition and design approvals before starting."
@@ -167,7 +175,7 @@ export function ProjectPlan({
         })),
     ]);
   function handoff(task?: ImplementationTask, prepareRun = false) {
-    if (!plan || handoffIssue || !coverage) return;
+    if (!canEdit || (!prepareRun && !canExecute) || !plan || handoffIssue || !coverage) return;
     const selected = task ? plan.tasks.filter(item => item.id === task.id) : plan.tasks.filter(item => item.status !== "done");
     if (!selected.length) return;
     const context: ImplementationContextRequest = { projectId, briefRevision: brief.revision, planRevision: plan.revision, specificationRevision: coverage.specification.revision, designPlanRevision: coverage.design.revision, taskIds: selected.map(item => item.id) };
@@ -177,6 +185,7 @@ export function ProjectPlan({
     setPickerOpen(true);
   }
   function openSession(session: Session) {
+    if (!canRead) return;
     const state = useCockpit.getState();
     state.selectBranch(projectId, session.branchId);
     const current = useCockpit.getState();
@@ -191,25 +200,25 @@ export function ProjectPlan({
         Break the brief into work you can hand to an agent. Task progress is
         recorded by you; verification results are recorded separately below.
       </p>
+      {access.message && <p role="status" className="journey-muted">{access.message}</p>}
       {error && (
         <div className="journey-error" role="alert">
           {error}{" "}
           <Button type="button" variant="secondary"
             disabled={busy}
-            onClick={() =>
-              void load().catch((cause) => setError(errorText(cause)))
-            }
+            onClick={() => { draft.offerRecovery(); void load().catch((cause) => setError(errorText(cause))); }}
           >
             Reload saved plan
           </Button>
         </div>
       )}
+      <DraftRecovery draft={draft} label="Implementation plan" base={draftBase} saved={plan ? { tasks: plan.tasks, title: "" } : null} busy={busy} readOnly={!canEdit} onDiscard={() => { setTasks(plan?.tasks ?? []); setTitle(""); setChanged(false); }} onRestore={value => { setTasks(value.tasks); setTitle(value.title); setChanged(true); }} />
       {notice && (
         <p className="journey-success" role="status">
           {notice}
         </p>
       )}
-      {plan && (
+      {plan && canRead && (
         <>
           {plan.revision > 0 && plan.briefRevision !== brief.revision && (
             <p className="journey-muted">
@@ -226,7 +235,7 @@ export function ProjectPlan({
                 <label className="luci-field">
                   <span className="sr-only">Task {index + 1}</span>
                   <input
-                    disabled={busy}
+                    disabled={!canEdit || busy || !!draft.pending}
                     value={task.title}
                     onChange={(event) =>
                       edit(
@@ -242,7 +251,7 @@ export function ProjectPlan({
                 <label className="luci-field">
                   <span className="sr-only">Progress for task {index + 1}</span>
                   <select
-                    disabled={busy}
+                    disabled={!canEdit || busy || !!draft.pending}
                     value={task.status}
                     onChange={(event) =>
                       edit(
@@ -264,13 +273,13 @@ export function ProjectPlan({
                   </select>
                 </label>
                 <Button type="button" variant="secondary"
-                  disabled={busy || !!handoffIssue || !worktreeId}
+                  disabled={!canExecute || busy || !!draft.pending || !!handoffIssue || !worktreeId}
                   onClick={() => handoff(task)}
                 >
                   Implement task
                 </Button>
                 <Button type="button" variant="tertiary"
-                  disabled={busy}
+                  disabled={!canEdit || busy || !!draft.pending}
                   aria-label={`Remove task ${index + 1}`}
                   onClick={() =>
                     edit(tasks.filter((item) => item.id !== task.id))
@@ -284,11 +293,11 @@ export function ProjectPlan({
                   {requirements.map(row => {
                     const checked = task.requirementIds?.includes(row.requirementId) ?? false;
                     return <label className="requirement-choice" key={row.requirementId}>
-                      <input type="checkbox" aria-label={`Link ${row.requirementId} to task ${index + 1}`} disabled={busy || (!approvedRequirements && !checked)} checked={checked} onChange={event => edit(tasks.map(item => item.id === task.id ? { ...item, requirementIds: event.target.checked ? [...(item.requirementIds ?? []), row.requirementId] : (item.requirementIds ?? []).filter(id => id !== row.requirementId) } : item))} />
+                      <input type="checkbox" aria-label={`Link ${row.requirementId} to task ${index + 1}`} disabled={!canEdit || busy || !!draft.pending || (!approvedRequirements && !checked)} checked={checked} onChange={event => edit(tasks.map(item => item.id === task.id ? { ...item, requirementIds: event.target.checked ? [...(item.requirementIds ?? []), row.requirementId] : (item.requirementIds ?? []).filter(id => id !== row.requirementId) } : item))} />
                       <span>{row.requirementId} · {row.title}<small>{row.acceptance}</small></span>
                     </label>;
                   })}
-                  {(task.requirementIds ?? []).filter(id => !requirements.some(row => row.requirementId === id)).map(id => <label className="requirement-choice" key={id}><input type="checkbox" aria-label={`Remove ${coverage ? "unavailable" : "saved"} requirement ${id} from task ${index + 1}`} disabled={busy} checked onChange={() => edit(tasks.map(item => item.id === task.id ? { ...item, requirementIds: (item.requirementIds ?? []).filter(value => value !== id) } : item))} /><span>{id} · {coverage ? "unavailable in the current requirements. Remove this old link before saving." : "saved link; refresh requirements to read the current text."}</span></label>)}
+                  {(task.requirementIds ?? []).filter(id => !requirements.some(row => row.requirementId === id)).map(id => <label className="requirement-choice" key={id}><input type="checkbox" aria-label={`Remove ${coverage ? "unavailable" : "saved"} requirement ${id} from task ${index + 1}`} disabled={!canEdit || busy || !!draft.pending} checked onChange={() => edit(tasks.map(item => item.id === task.id ? { ...item, requirementIds: (item.requirementIds ?? []).filter(value => value !== id) } : item))} /><span>{id} · {coverage ? "unavailable in the current requirements. Remove this old link before saving." : "saved link; refresh requirements to read the current text."}</span></label>)}
                   {!requirements.length && !task.requirementIds?.length && <p className="journey-muted">No approved requirement links recorded.</p>}
                 </details>
               </li>
@@ -311,26 +320,27 @@ export function ProjectPlan({
                 placeholder="Describe a concrete outcome"
               />
             </label>
-            <Button type="submit" variant="secondary" disabled={busy || !title.trim()}>
+            <Button type="submit" variant="secondary" disabled={!canEdit || busy || !!draft.pending || !title.trim()}>
               Add task
             </Button>
             <Button
               type="button"
               variant="tertiary"
-              disabled={busy || !brief.criteria.length}
+              disabled={!canEdit || busy || !!draft.pending || !brief.criteria.length}
               onClick={() => add(brief.criteria)}
             >
               Add acceptance criteria as tasks
             </Button>
-            <Button type="button" variant="secondary" disabled={busy || !approvedRequirements || !requirements.length} onClick={() => edit([...tasks, ...requirements.filter(row => !tasks.some(task => task.requirementIds?.includes(row.requirementId))).map(row => ({ id:`task-${crypto.randomUUID()}`,title:row.title,status:"todo" as const,requirementIds:[row.requirementId] }))])}>Add approved requirements as tasks</Button>
+            <Button type="button" variant="secondary" disabled={!canEdit || busy || !!draft.pending || !approvedRequirements || !requirements.length} onClick={() => edit([...tasks, ...requirements.filter(row => !tasks.some(task => task.requirementIds?.includes(row.requirementId))).map(row => ({ id:`task-${crypto.randomUUID()}`,title:row.title,status:"todo" as const,requirementIds:[row.requirementId] }))])}>Add approved requirements as tasks</Button>
           </form>
           <div className="journey-actions">
-            {onPrepareRun && <Button type="button" disabled={busy || !!handoffIssue || !worktreeId || !plan.tasks.some(task => task.status !== "done")} onClick={() => handoff(undefined, true)}>Prepare project run</Button>}
+            {onPrepareRun && <Button type="button" disabled={!canEdit || busy || !!draft.pending || !!handoffIssue || !worktreeId || !plan.tasks.some(task => task.status !== "done")} onClick={() => handoff(undefined, true)}>Prepare project run</Button>}
             <Button type="button" variant="primary" loading={busy}
               disabled={
-                busy || (!changed && !needsRebind) || tasks.some((task) => !task.title.trim()) || (linked && (!approvedRequirements || unavailableLinks))
+                !canEdit || busy || !!draft.pending || (!changed && !needsRebind) || tasks.some((task) => !task.title.trim()) || (linked && (!approvedRequirements || unavailableLinks))
               }
               onClick={() => {
+                if (!canEdit) return;
                 const context = generation.current;
                 if (saving.current === context) return;
                 saving.current = context;
@@ -342,6 +352,7 @@ export function ProjectPlan({
                   : productApi.savePlan(projectId, plan.revision, tasks))
                   .then((value) => {
                     if (alive.current && context === generation.current) {
+                      if (!title.trim()) draft.clear();
                       setPlan(value);
                       setTasks(value.tasks);
                       setChanged(false);
@@ -361,7 +372,7 @@ export function ProjectPlan({
               {busy ? "Saving plan…" : "Save implementation plan"}
             </Button>
             <Button type="button" variant="secondary"
-              disabled={busy || !!handoffIssue || !worktreeId || !plan.tasks.some(task => task.status !== "done")}
+              disabled={!canExecute || busy || !!draft.pending || !!handoffIssue || !worktreeId || !plan.tasks.some(task => task.status !== "done")}
               onClick={() => handoff()}
             >
               Start implementation session
@@ -389,7 +400,7 @@ export function ProjectPlan({
             belongs to your provider account.
           </p>
           <SessionPicker
-            open={pickerOpen}
+            open={pickerOpen && canExecute}
             worktreeId={worktreeId}
             initialPrompt={prompt}
             implementationContext={implementationContext}
@@ -401,7 +412,7 @@ export function ProjectPlan({
             <ul className="check-runs">{sessions.map(session => {
               const context = session.implementationContext!;
               const older = context.briefRevision !== brief.revision || context.planRevision !== plan.revision || context.specificationRevision !== coverage?.specification.revision || context.designPlanRevision !== coverage?.design.revision;
-              return <li key={session.id}><div className="journey-header"><div><strong>{session.title} · {sessionStatus[session.status]}</strong><p>Brief {context.briefRevision} · Plan {context.planRevision} · Definition {context.specificationRevision} · Design {context.designPlanRevision}{older ? " · Earlier saved context" : ""}</p></div><Button type="button" variant="tertiary" disabled={dirty} onClick={() => openSession(session)}>Open session</Button></div>
+              return <li key={session.id}><div className="journey-header"><div><strong>{session.title} · {sessionStatus[session.status]}</strong><p>Brief {context.briefRevision} · Plan {context.planRevision} · Definition {context.specificationRevision} · Design {context.designPlanRevision}{older ? " · Earlier saved context" : ""}</p></div><Button type="button" variant="tertiary" disabled={!canRead || dirty} onClick={() => openSession(session)}>Open session</Button></div>
                 <p>{context.taskTitles.join("; ")}</p><p className="journey-muted">Source {context.sourceCommit ? context.sourceCommit.slice(0, 12) : "without a commit"}{context.sourceDirty ? " · included uncommitted changes at start" : " · clean at start"}. {context.requirementIds.length ? `Saved task links: ${context.requirementIds.join(", ")}.` : "No task-specific requirement links recorded."}</p>
                 {session.status === "exited" && <p className="journey-muted">{session.exitReason || "Session ended."} Completion and verification are not inferred.</p>}
               </li>;

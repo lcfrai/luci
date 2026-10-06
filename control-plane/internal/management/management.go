@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 	"io"
 	"net"
 	"net/http"
@@ -72,11 +73,16 @@ func withActor(ctx context.Context, u User, p Policy) context.Context {
 }
 
 type Options struct {
+	StripeBilling                                        StripeBillingConfig
+	stripeProvider                                       stripeBillingProvider
 	StateDir, InstanceName, Backing, Executable, Version string
+	ManagedTeamID                                        string
+	PublicAppOrigin                                      string
 	LocalAccessToken                                     string
 	PortableOwnerAccess                                  bool
 	WorkerArgs, BaseEnvironment                          []string
 	InitialHandler                                       http.Handler
+	TeamHandler                                          func(context.Context, string) (http.Handler, error)
 }
 type userRecord struct {
 	User         User   `json:"user"`
@@ -102,19 +108,24 @@ type storedState struct {
 	Policy      Policy                      `json:"policy"`
 	Events      []AuditEvent                `json:"events"`
 	Invitations map[string]invitationRecord `json:"invitations,omitempty"`
+	Teams       map[string]teamRecord       `json:"teams,omitempty"`
 }
 type socketTicket struct {
-	UserID, Path, SessionHash string
-	ExpiresAt                 time.Time
+	UserID, Path, SessionHash       string
+	ExpiresAt                       time.Time
+	TeamID, ProjectID               string
+	MemberRevision, ProjectRevision int
 }
 type loginAttempt struct {
 	Count int
 	Until time.Time
 }
 type Gateway struct {
+	billing             *teamBillingRuntime
 	mu                  sync.Mutex
 	opts                Options
 	dir, bootstrapToken string
+	managedTeamID       string
 	state               storedState
 	tickets             map[string]socketTicket
 	attempts            map[string]loginAttempt
@@ -125,9 +136,17 @@ type Gateway struct {
 	sockets             map[string]map[net.Conn]string
 	closed              bool
 	dependencies        *dependencyManager
+	teamRequests        map[*teamRequest]context.CancelFunc
+	teamSockets         map[net.Conn]teamSocketScope
+	teamBrowser         *teamBrowserAccess
 }
 
 func New(opts Options) (*Gateway, error) {
+	if opts.PublicAppOrigin != "" {
+		if err := previewgateway.ValidatePublicAppOrigin(opts.PublicAppOrigin); err != nil {
+			return nil, err
+		}
+	}
 	if opts.PortableOwnerAccess && opts.LocalAccessToken != "" {
 		return nil, errors.New("portable and native local access capabilities are mutually exclusive")
 	}
@@ -200,6 +219,18 @@ func New(opts Options) (*Gateway, error) {
 	if g.state.Invitations == nil {
 		g.state.Invitations = map[string]invitationRecord{}
 	}
+	if g.state.Teams == nil {
+		g.state.Teams = map[string]teamRecord{}
+	}
+	if err := validateTeams(g.state); err != nil {
+		return nil, err
+	}
+	if err := g.bindManagedTeam(opts.ManagedTeamID); err != nil {
+		return nil, err
+	}
+	if err := g.initializeTeamBilling(); err != nil {
+		return nil, err
+	}
 	// The caller has bound its loopback listener before constructing the gateway.
 	// A portable launcher can prove ownership by reading this private, per-run
 	// capability. Native launch capabilities are never written to disk.
@@ -214,6 +245,7 @@ func New(opts Options) (*Gateway, error) {
 		g.removePortableOwnerAccess()
 		return nil, err
 	}
+	g.scheduleBillingExpiryLocked()
 	return g, nil
 }
 func randomToken() string {
@@ -303,6 +335,7 @@ func (g *Gateway) userListLocked() []User {
 }
 func (g *Gateway) Handler() http.Handler {
 	mux := http.NewServeMux()
+	g.registerTeams(mux)
 	mux.HandleFunc("GET /v1/control-plane/status", g.status)
 	mux.HandleFunc("POST /v1/auth/bootstrap", g.bootstrap)
 	mux.HandleFunc("POST /v1/auth/login", g.login)
@@ -340,11 +373,11 @@ func (g *Gateway) Handler() http.Handler {
 			clone.URL = &u
 			r = clone
 		}
-		if (r.URL.RawPath != "" && !privatePreviewPath(r)) || strings.Contains(r.URL.Path, "//") || strings.Contains(r.URL.Path, "/../") {
+		if (r.URL.RawPath != "" && !privatePreviewPath(r) && !canonicalStorageObjectPath(r)) || strings.Contains(r.URL.Path, "//") || strings.Contains(r.URL.Path, "/../") {
 			fail(w, 400, "invalid_path", "Use a canonical API path.")
 			return
 		}
-		for _, header := range []string{"X-Luci-Actor", "X-Luci-Policy"} {
+		for _, header := range []string{"X-Luci-Actor", "X-Luci-Policy", "X-Luci-Team", "X-Luci-Team-Access"} {
 			r.Header.Del(header)
 		}
 		path := r.URL.Path
@@ -352,7 +385,7 @@ func (g *Gateway) Handler() http.Handler {
 		if !localAccess {
 			r.Header.Del(localAccessHeader)
 		}
-		public := localAccess || (r.Method == "GET" && path == "/v1/control-plane/status") || (r.Method == "POST" && (path == "/v1/auth/login" || path == "/v1/auth/bootstrap" || path == "/v1/auth/invitations/accept"))
+		public := localAccess || (r.Method == "GET" && path == "/v1/control-plane/status") || (r.Method == "POST" && (path == "/v1/billing/stripe/webhook" || path == "/v1/auth/login" || path == "/v1/auth/bootstrap" || path == "/v1/auth/invitations/accept"))
 		if !public {
 			u, p, sessionHash, ok := g.authenticate(r)
 			if !ok {
@@ -400,6 +433,10 @@ func (g *Gateway) Close(ctx context.Context) error {
 	defer g.removePortableOwnerAccess()
 	g.mu.Lock()
 	g.closed = true
+	if g.billing != nil && g.billing.expiry != nil {
+		g.billing.expiry.Stop()
+	}
+	g.revokeTeamAccessLocked("", "", "")
 	for id := range g.sockets {
 		g.closeSocketsLocked(id, "")
 	}

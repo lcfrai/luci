@@ -8,6 +8,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
 import { evaluatePortableLauncher } from './portable-launcher-eval.mjs';
 
+const expectedVersion = process.env.LUCI_VERSION;
+assert.match(expectedVersion || '', /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/, 'Set LUCI_VERSION to the exact candidate version before package acceptance');
 const packageDir = path.resolve(process.argv[2] || '');
 const evidence = path.resolve(process.argv[3] || `artifacts/package-eval/${Date.now()}`);
 assert.ok(process.argv[2], 'Usage: node scripts/verify-portable.mjs <extracted package> [evidence directory]');
@@ -48,7 +50,7 @@ async function start() {
     assert.equal(child.exitCode, null, 'Packaged service exited before readiness');
     try {
       const control = await request('GET','/v1/control-plane/status');
-      assert.equal(control.product,'Luci');assert.equal(control.version,process.env.LUCI_VERSION || '0.4.3');
+      assert.equal(control.product,'Luci');assert.equal(control.version,expectedVersion);
       if (control.bootstrapRequired) {
         const code = (await readFile(path.join(state,'control-plane/bootstrap-token'),'utf8')).trim();
         token = (await request('POST','/v1/auth/bootstrap',{bootstrapToken:code,username:'package-owner',displayName:'Package Owner',password})).token;

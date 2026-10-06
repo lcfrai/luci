@@ -27,6 +27,7 @@ import (
 
 type Options struct {
 	BrowserPreviewPort               int
+	BrowserPreviewDomain             string
 	StateDir, InstanceID, DockerHost string
 	ResolveProject                   func(string) (project.Project, error)
 	ApplicationConfiguration         func(string) (int, map[string]string, error)
@@ -73,6 +74,7 @@ type Backup struct {
 	Bytes     int64  `json:"bytes"`
 	SHA256    string `json:"sha256"`
 	Database  string `json:"database,omitempty"`
+	Imported  bool   `json:"imported,omitempty"`
 }
 type DatabaseOperation struct {
 	ID                string `json:"id"`
@@ -161,7 +163,7 @@ func New(opts Options) (*Service, error) {
 	s := &Service{opts: opts, dir: dir, instance: instance, nativeSocket: nativeSocket, busy: map[string]bool{}, ctx: ctx, cancel: cancel}
 	if opts.BrowserPreviewPort != 0 {
 		var err error
-		s.browserRegistry, err = previewgateway.NewRegistry(opts.StateDir, opts.BrowserPreviewPort)
+		s.browserRegistry, err = previewgateway.NewRegistryWithDomain(opts.StateDir, opts.BrowserPreviewPort, opts.BrowserPreviewDomain)
 		if err != nil {
 			cancel()
 			return nil, err
@@ -319,6 +321,7 @@ func (s *Service) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/platform/projects/{id}/deployments/{releaseId}/logs", s.logs)
 	mux.HandleFunc("POST /v1/platform/projects/{id}/database", s.databaseAction)
 	mux.HandleFunc("GET /v1/platform/projects/{id}/backups/{backupId}", s.downloadBackup)
+	mux.HandleFunc("POST /v1/platform/projects/{id}/backups/import", s.importDatabaseBackup)
 	s.registerPanacea(mux)
 	s.registerData(mux)
 	s.registerBrowserBridge(mux)

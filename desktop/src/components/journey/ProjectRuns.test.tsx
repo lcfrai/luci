@@ -209,3 +209,27 @@ it('rejects foreign project receipts and only requests explicit cancellation of 
   await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel future dispatch' }));
   await waitFor(() => expect(cancel).toHaveBeenCalledExactlyOnceWith('p-1', 'run-1', 1));
 });
+
+const teamAccess = vi.hoisted(() => ({ loading: false, error: "", permissions: { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true } }));
+vi.mock("../teams/TeamWorkspaceProvider", () => ({ useTeamProjectPermissions: () => teamAccess, useTeamWorkspace: () => null }));
+beforeEach(() => { teamAccess.loading = false; teamAccess.error = ""; Object.assign(teamAccess.permissions, { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true }); });
+it('exposes run history to viewers and reconciliation to editors without granting execution', async () => {
+  teamAccess.permissions.edit = false; teamAccess.permissions.execute = false;
+  const reserve = vi.spyOn(projectRunsApi, 'reserve'), reconcile = vi.spyOn(projectRunsApi, 'reconcile').mockResolvedValue(makeRun());
+  const view = render(<ProjectRuns {...props()} />); await screen.findByText('Reviewed inputs saved.');
+  expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Reconcile run' })).toBeNull();
+  teamAccess.permissions.edit = true; view.rerender(<ProjectRuns {...props()} />);
+  await userEvent.click(screen.getByRole('button', { name: 'Reconcile run' }));
+  await waitFor(() => expect(reconcile).toHaveBeenCalledOnce()); expect(reserve).not.toHaveBeenCalled();
+});
+it('does not dispatch a reserved child when execution permission changes during reservation', async () => {
+  let finish!: (value: { run: ProjectRun; operation: RunOperation }) => void;
+  vi.spyOn(projectRunsApi, 'reserve').mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const create = vi.spyOn(api, 'createSession');
+  const view = render(<ProjectRuns {...props()} />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Start coding' }));
+  teamAccess.permissions.execute = false; view.rerender(<ProjectRuns {...props()} />);
+  await act(async () => finish({ run: makeRun({ state: 'coding', operations: [operation], allowedActions: ['continue-coding', 'reconcile', 'cancel'] }), operation }));
+  await screen.findByText(/Execution access changed/);
+  expect(create).not.toHaveBeenCalled();
+});

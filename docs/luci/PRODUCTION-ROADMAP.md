@@ -45,19 +45,43 @@ Historical source and installed results remain bound to their original commits
 and packages. They do not establish current clean installation or live service
 readiness.
 
-The current implementation wave is the durable project-run/evidence
-coordinator. Its required behavior is in
-[PROJECT-RUN-CONTRACT.md](PROJECT-RUN-CONTRACT.md): private records, reservations
-before effects, exact review/model/source bindings, independent check and
-release joins, crash recovery and explicit next actions. Work underway is not a
-claim that the coordinator has shipped or passed installed acceptance.
+The working source is now the **0.5.0 candidate**. It contains the durable
+coordinator specified in [PROJECT-RUN-CONTRACT.md](PROJECT-RUN-CONTRACT.md),
+private evidence joins, exact source/review/model binding and explicit recovery.
+[Context format 2](CONTEXT-STORAGE.md) separates public lineage from local
+permissions, preserves bounded archived revisions, supports clone/restore and
+makes generated-export repair explicit. Legacy format 1 remains readable;
+older writers must not edit format 2.
 
-Account invitations currently grant private per-user workspaces. They do not
-provide shared team membership, project ACLs, collaborative context editing or
-team execution permissions. Those are required product work before paid team
-availability. The historical handoff's external prerequisites and host failures
-must be rechecked in the actual acceptance environment, rather than assumed to
-describe every later machine.
+[Dedicated team HTTPS ingress](PUBLIC-HTTPS-INGRESS.md) now connects the remote
+web UI to owned app/data origins through static app-origin and separate preview
+site settings. It retains authenticated browser grants and active revocation.
+Eleven local TLS Chromium checks cover the browser boundary, and the supplied
+operator-certificate Nginx template passes its syntax check. Real DNS,
+certificate renewal and public-host acceptance remain separate release gates.
+
+Team membership and project grants, shared routing, separate execute/secret/
+deploy permissions, context attribution, scoped recovery drafts and operator
+service admission now have source implementations and targeted tests. These
+replace the earlier private-account-only limitation; they do not prove a
+managed team's dedicated host boundary, payment processing or installed
+multi-person acceptance. [Team service operations](TEAM-SERVICE-OPERATIONS.md)
+keeps those limits explicit.
+
+Ten portable-context regressions cover actual Git clone/backup/restore, large
+scenes, bounded history, stale cleanup/repair, interrupted chunks/staging and hostile
+JSON/archives. The combined context, backup, private-review and attribution
+suite passed in the cloud workspace. Release tooling independently checks
+version alignment and candidate integrity; its five regression tests pass.
+An opt-in GitHub/Sigstore integrity-attestation workflow and optional Windows
+certificate-store signing path are implemented. Neither has been executed with
+production distribution authority in this environment. See [RELEASE.md](RELEASE.md)
+and the current [full-product checkpoint](FULL-PRODUCT.md).
+
+The historical handoff's host failures and installed receipts remain tied to
+their original machine/source. Matching clean-package, current native lifecycle,
+live model/provider, real cloud/domain/email and public/paid acceptance gates
+remain open; no whole-stage completion follows from these source outcomes.
 
 ## Stage 1: Trustworthy project execution
 

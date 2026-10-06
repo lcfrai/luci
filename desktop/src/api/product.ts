@@ -1,3 +1,4 @@
+import { workspacePath, teamScopePrefix, teamScopeGeneration } from './teamScope';
 import { ApiError, DEFAULT_BASE_URL, type ProblemCode } from "./client";
 import { authHeaders, expireAuth } from "./authSession";
 import type { Session } from "../store/types";
@@ -399,6 +400,7 @@ export function createProductClient(
       kind?: "project" | "file";
     } = {},
   ): Promise<T> {
+    const scopeGeneration = teamScopeGeneration();
     const controller = new AbortController();
     const abort = () => controller.abort(options.signal?.reason);
     options.signal?.addEventListener("abort", abort, { once: true });
@@ -407,7 +409,7 @@ export function createProductClient(
     const method = options.method ?? "POST";
     try {
       controller.signal.throwIfAborted();
-      const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
+      const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${workspacePath(path)}`, {
         method,
         signal: controller.signal,
         headers: authHeaders(method === "GET" ? options.headers : {
@@ -416,6 +418,7 @@ export function createProductClient(
         }),
         body: method === "GET" ? undefined : body || "{}",
       });
+      if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed before this response arrived. Open its history to inspect the result.", 409);
       if (response.status === 401) expireAuth();
       if (!response.ok) {
         const problem = (await response.json().catch(() => ({
@@ -428,7 +431,9 @@ export function createProductClient(
           problem,
         );
       }
-      return await read(response);
+      const value = await read(response);
+      if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed while this transfer was loading.", 409);
+      return value;
     } catch (cause) {
       if (options.signal?.aborted) throw options.signal.reason;
       if (cause instanceof ApiError) throw cause;
@@ -453,6 +458,7 @@ export function createProductClient(
     budgetMs = 120_000,
     signal?: AbortSignal,
   ): Promise<T> {
+    const scopeGeneration = teamScopeGeneration();
     const controller = new AbortController();
     const abort = () => controller.abort(signal?.reason);
     signal?.addEventListener("abort", abort, { once: true });
@@ -460,7 +466,7 @@ export function createProductClient(
     const timer = setTimeout(() => controller.abort(), budgetMs);
     try {
       controller.signal.throwIfAborted();
-      const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
+      const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${workspacePath(path)}`, {
         method,
         signal: controller.signal,
         headers: authHeaders(
@@ -470,8 +476,10 @@ export function createProductClient(
         ),
         body: body === undefined ? undefined : JSON.stringify(body),
       });
+      if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed before this response arrived. Open its history to inspect the result.", 409);
       if (response.status === 401) expireAuth();
       const raw = await response.text();
+      if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed while this response was loading.", 409);
       let value: unknown;
       try {
         value = raw === "" ? undefined : JSON.parse(raw);
@@ -511,7 +519,7 @@ export function createProductClient(
   const project = (id: string) =>
     `/v1/product/projects/${encodeURIComponent(id)}`;
   return {
-    get baseUrl() { return baseUrl.replace(/\/$/, ""); },
+    get baseUrl() { return baseUrl.replace(/\/$/, "") + teamScopePrefix(); },
     request,
     requestBlob: (
       path: string,
@@ -674,7 +682,7 @@ export function createProductClient(
         Partial<Pick<Design, "frames" | "scene">>,
     ) => request<Design>(`${project(id)}/design`, design),
     designExportUrl: (id: string) =>
-      `${baseUrl.replace(/\/$/, "")}${project(id)}/design/export`,
+      `${baseUrl.replace(/\/$/, "")}${workspacePath(project(id) + "/design/export")}`,
     files: (id: string, path = "") =>
       request<FileResult>(
         `${project(id)}/files?path=${encodeURIComponent(path)}`,

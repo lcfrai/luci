@@ -1,0 +1,11 @@
+@import "../../styles/tokens.css";
+
+.context-storage { margin-block: 16px; border-block-start: 1px solid var(--line-soft); padding-block: 12px; }
+.context-storage > summary, .context-prune > summary { cursor: pointer; color: var(--ink-2); }
+.context-storage > section > * + * { margin-block-start: 12px; }
+.context-export-list { display: grid; gap: 8px; padding: 0; list-style: none; }
+.context-export-list li { display: flex; gap: 16px; justify-content: space-between; flex-wrap: wrap; }
+.context-export-list code { overflow-wrap: anywhere; }
+.context-export-list span { color: var(--ink-3); }
+.context-archive, .context-prune { padding: 12px; border: 1px solid var(--line-soft); border-radius: 8px; }
+.context-prune > * + * { margin-block-start: 12px; }

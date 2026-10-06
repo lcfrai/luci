@@ -26,3 +26,12 @@ it("preserves credential, transport and control-origin exclusions", () => {
   expect(isolatedBrowserURL(`https://${hostname}:8731/`)).toBeUndefined();
   expect(isolatedBrowserURL(window.location.origin)).toBeUndefined();
 });
+
+it("accepts the DNS-valid HTTPS isolated origin but rejects altered transports and padding", () => {
+  const publicHost = `p-${"b".repeat(51)}a.previews.example.test`;
+  expect(isolatedBrowserURL(`https://${publicHost}/app`)).toBe(`https://${publicHost}/app`);
+  expect(isolatedBrowserURL(`http://${publicHost}/app`)).toBeUndefined();
+  expect(isolatedBrowserURL(`https://${publicHost}:8443/app`)).toBeUndefined();
+  expect(isolatedBrowserURL(`https://${publicHost.replace('a.previews', 'b.previews')}/app`)).toBeUndefined();
+  expect(isolatedBrowserURL(`https://${publicHost.replace('example.test', 'localhost')}/app`)).toBeUndefined();
+});

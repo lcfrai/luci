@@ -17,6 +17,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/instance"
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 	"github.com/lcfrai/luci/control-plane/internal/statepath"
 )
@@ -36,6 +37,14 @@ const (
 	envCloudBundle            = "LUCI_CLOUD_BUNDLE"
 	envBrowserPreviewAddr     = "LUCI_BROWSER_PREVIEW_ADDR"
 	envBrowserPreviewPort     = "LUCI_BROWSER_PREVIEW_PORT"
+	envStripeAPIKey           = "LUCI_STRIPE_API_KEY"
+	envStripeWebhookSecret    = "LUCI_STRIPE_WEBHOOK_SECRET"
+	envStripeAccountID        = "LUCI_STRIPE_ACCOUNT_ID"
+	envStripePriceID          = "LUCI_STRIPE_PRICE_ID"
+	envBillingTermsURL        = "LUCI_BILLING_TERMS_URL"
+	envBillingPrivacyURL      = "LUCI_BILLING_PRIVACY_URL"
+	envPublicAppOrigin        = "LUCI_PUBLIC_APP_ORIGIN"
+	envPreviewBaseDomain      = "LUCI_PREVIEW_BASE_DOMAIN"
 	envAllowedOrigins         = "LUCI_ALLOWED_ORIGINS"
 	envIdleAfter              = "LUCI_IDLE_AFTER"
 	envIdleTimeout            = "LUCI_IDLE_TIMEOUT"
@@ -52,6 +61,7 @@ const (
 	envWorkerAddressFile      = "LUCI_WORKER_ADDRESS_FILE"
 	envBacking                = "LUCI_BACKING"
 	envInstanceName           = "LUCI_INSTANCE_NAME"
+	envManagedTeamID          = "LUCI_MANAGED_TEAM_ID"
 	envManagedShutdownToken   = "LUCI_MANAGED_SHUTDOWN_TOKEN"
 	envLocalAccessToken       = "LUCI_LOCAL_ACCESS_TOKEN"
 	envPortableOwnerAccess    = "LUCI_PORTABLE_OWNER_ACCESS"
@@ -146,25 +156,29 @@ var backendScoped = []struct {
 
 // Config is the whole of this process's configuration, parsed once at startup.
 type Config struct {
-	BrowserPreviewAddr   string
-	BrowserPreviewPort   int
-	RuntimeDir           string
-	CloudBundle          string
-	WebDir               string
-	Worker               bool
-	WorkerToken          string
-	WorkerAddressFile    string
-	Backing              string
-	InstanceName         string
-	ManagedShutdownToken string
-	LocalAccessToken     string
-	PortableOwnerAccess  bool
-	Addr                 string
-	AllowPublicBind      bool
-	Backend              string // "docker" or "kata"; validated here, mapped in main.go
-	SandboxImage         string
-	StateDir             string // "" means the statepath ladder decides
-	SessionsPath         string // the registry document, derived from StateDir
+	StripeAPIKey, StripeWebhookSecret, StripeAccountID, StripePriceID, BillingTermsURL, BillingPrivacyURL string
+	BrowserPreviewAddr                                                                                    string
+	BrowserPreviewPort                                                                                    int
+	PublicAppOrigin                                                                                       string
+	PreviewBaseDomain                                                                                     string
+	RuntimeDir                                                                                            string
+	CloudBundle                                                                                           string
+	WebDir                                                                                                string
+	Worker                                                                                                bool
+	WorkerToken                                                                                           string
+	WorkerAddressFile                                                                                     string
+	Backing                                                                                               string
+	InstanceName                                                                                          string
+	ManagedTeamID                                                                                         string
+	ManagedShutdownToken                                                                                  string
+	LocalAccessToken                                                                                      string
+	PortableOwnerAccess                                                                                   bool
+	Addr                                                                                                  string
+	AllowPublicBind                                                                                       bool
+	Backend                                                                                               string // "docker" or "kata"; validated here, mapped in main.go
+	SandboxImage                                                                                          string
+	StateDir                                                                                              string // "" means the statepath ladder decides
+	SessionsPath                                                                                          string // the registry document, derived from StateDir
 	// InstancePath is the file this state directory's instance id is kept in
 	// (internal/instance), derived from StateDir beside the registry.
 	InstancePath string
@@ -264,6 +278,35 @@ func loadConfig(getenv func(string) string) (Config, error) {
 		}
 	} else if cfg.BrowserPreviewPort != 0 && !parseFlag(raw(envWorker)) {
 		return Config{}, fmt.Errorf("%s requires %s on the main process", envBrowserPreviewPort, envBrowserPreviewAddr)
+	}
+	cfg.StripeAPIKey = raw(envStripeAPIKey)
+	cfg.StripeWebhookSecret = raw(envStripeWebhookSecret)
+	cfg.StripeAccountID = raw(envStripeAccountID)
+	cfg.StripePriceID = raw(envStripePriceID)
+	cfg.BillingTermsURL = raw(envBillingTermsURL)
+	cfg.BillingPrivacyURL = raw(envBillingPrivacyURL)
+	if parseFlag(raw(envWorker)) && (cfg.StripeAPIKey != "" || cfg.StripeWebhookSecret != "" || cfg.StripeAccountID != "" || cfg.StripePriceID != "" || cfg.BillingTermsURL != "" || cfg.BillingPrivacyURL != "") {
+		return Config{}, errors.New("merchant billing configuration belongs only to the management process")
+	}
+	cfg.PublicAppOrigin = raw(envPublicAppOrigin)
+	cfg.PreviewBaseDomain = raw(envPreviewBaseDomain)
+	if cfg.PublicAppOrigin != "" {
+		if err := previewgateway.ValidatePublicAppOrigin(cfg.PublicAppOrigin); err != nil {
+			return Config{}, err
+		}
+	}
+	if cfg.PreviewBaseDomain != "" {
+		if err := previewgateway.ValidatePreviewBaseDomain(cfg.PreviewBaseDomain); err != nil {
+			return Config{}, err
+		}
+		if cfg.BrowserPreviewPort == 0 || (!parseFlag(raw(envWorker)) && cfg.PublicAppOrigin == "") {
+			return Config{}, fmt.Errorf("%s requires a configured browser gateway and exact public app origin", envPreviewBaseDomain)
+		}
+		if cfg.PublicAppOrigin != "" {
+			if err := previewgateway.ValidatePublicIngress(cfg.PublicAppOrigin, cfg.PreviewBaseDomain); err != nil {
+				return Config{}, err
+			}
+		}
 	}
 	cfg.LocalAccessToken = getenv(envLocalAccessToken)
 	cfg.PortableOwnerAccess = parseFlag(raw(envPortableOwnerAccess))

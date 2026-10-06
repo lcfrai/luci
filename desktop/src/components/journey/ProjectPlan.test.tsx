@@ -70,7 +70,8 @@ it("re-saves an unchanged stale plan against current approved definition without
   expect(save.mock.calls[0][2].every(task => !task.requirementIds)).toBe(true);
 });
 
-it("shows immutable ended history and excludes foreign sessions without inferring completion", async () => {
+it("lets a viewer open immutable ended history and excludes foreign sessions without inferring completion", async () => {
+  teamAccess.permissions.edit = false; teamAccess.permissions.execute = false;
   useCockpit.getState().upsertSession(aSession({ id: "s-old", title: "Prior editor run", projectId: "p-1", branchId: "b-1", worktreeId: "w-1", status: "exited", exitReason: "Process exited with code 0", implementationContext: snapshot({ briefRevision: 1, planRevision: 2, taskTitles: ["Original editor title"], sourceDirty: true }) }));
   useCockpit.getState().upsertSession(aSession({ id: "s-foreign", title: "Foreign run", projectId: "p-2", implementationContext: snapshot() }));
   render(<ProjectPlan projectId="p-1" brief={brief} />);
@@ -95,4 +96,20 @@ it("closes a reviewed picker when approval revisions change rather than silently
   await waitFor(() => expect(screen.queryByRole("dialog", { name: "New session" })).toBeNull());
   expect(screen.getByText("The saved handoff changed. Review the current definition, design and plan before starting.")).not.toBeNull();
   expect(createSession).not.toHaveBeenCalled();
+});
+
+const teamAccess = vi.hoisted(() => ({ loading: false, error: "", permissions: { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true } }));
+vi.mock("../teams/TeamWorkspaceProvider", () => ({ useTeamProjectPermissions: () => teamAccess, useTeamWorkspace: () => null }));
+beforeEach(() => { teamAccess.loading = false; teamAccess.error = ""; Object.assign(teamAccess.permissions, { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true }); });
+it("lets an editor save tasks and prepare a run without granting coding execution", async () => {
+  teamAccess.permissions.execute = false;
+  const prepare = vi.fn(), save = vi.spyOn(productApi, "savePlan").mockImplementation(async (_id, _revision, tasks) => ({ ...plan, tasks, revision: 4 }));
+  render(<ProjectPlan projectId="p-1" brief={brief} onPrepareRun={prepare} />);
+  const prepareButton = await screen.findByRole("button", { name: "Prepare project run" });
+  await waitFor(() => expect((prepareButton as HTMLButtonElement).disabled).toBe(false));
+  expect((screen.getByRole("button", { name: "Start implementation session" }) as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(prepareButton); expect(prepare).toHaveBeenCalledOnce(); expect(createSession).not.toHaveBeenCalled();
+  await userEvent.type(screen.getByLabelText("Task 1"), " revised");
+  await userEvent.click(screen.getByRole("button", { name: "Save implementation plan" }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce()); expect(save.mock.calls[0][2][0].title).toContain("revised");
 });

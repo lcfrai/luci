@@ -82,8 +82,13 @@ func cloneIdentityState(source storedState) storedState {
 	out.Events = append([]AuditEvent{}, source.Events...)
 	out.Invitations = make(map[string]invitationRecord, len(source.Invitations))
 	for k, v := range source.Invitations {
+		if v.Team != nil {
+			team := *v.Team
+			v.Team = &team
+		}
 		out.Invitations[k] = v
 	}
+	out.Teams = cloneTeamRecords(source.Teams)
 	return out
 }
 

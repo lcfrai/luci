@@ -6,6 +6,7 @@ import {
   type CheckRun,
   type RequirementCoverage,
 } from "../../api/product";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { useAuth } from "../auth/AuthProvider";
 import { Button } from "../fluid/components/button";
 import { RequirementsEvidence, commandStatus, evidenceLabel, watchRequirementEvidence } from "./RequirementsEvidence";
@@ -13,6 +14,9 @@ import { RequirementsEvidence, commandStatus, evidenceLabel, watchRequirementEvi
 const active = (run: CheckRun) =>
   run.status === "queued" || run.status === "running";
 export function ProjectChecks({ projectId }: { projectId: string }) {
+  const access = useProjectAccess(projectId);
+  const { canRead, canExecute } = access;
+  const [readOnce, setReadOnce] = useState(false);
   const [runs, setRuns] = useState<CheckRun[]>([]);
   const [commands, setCommands] = useState<CheckCommand[]>([]);
   const [trusted, setTrusted] = useState(false);
@@ -36,6 +40,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
   const contextKey = (value: RequirementCoverage) => JSON.stringify([value.specification.revision, value.specification.digest, value.specification.status, value.design.revision, value.design.digest, value.design.status]);
   const canLink = coverage?.specification.status === "approved" && coverage.design.status === "approved" && coverage.source.available;
   async function load(replaceCommands = false) {
+    if (!canRead) return;
     const context = generation.current, request = ++readGeneration.current;
     setRefreshing(true);
     try {
@@ -54,7 +59,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
         setRequirementIds([]); selectedContext.current = null; setTrusted(false);
         setNotice("Requirements or design changed. Review and select the criteria again.");
       }
-      setCoverage(value.coverage ?? null);
+      setCoverage(value.coverage ?? null); setReadOnce(true);
     } catch (cause) {
       if (alive.current && context === generation.current && request === readGeneration.current) { setCoverage(null); setError(errorText(cause)); }
     } finally {
@@ -77,13 +82,13 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
       generation.current++;
       unwatch();
     };
-  }, [projectId]);
+  }, [projectId, canRead || readOnce]);
   const activeIds = runs
     .filter(active)
     .map((run) => run.id)
     .join(",");
   useEffect(() => {
-    if (!activeIds) return;
+    if (!activeIds || !canRead) return;
     let cancelled = false;
     let polling = false;
     const timer = setInterval(() => {
@@ -106,8 +111,9 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [projectId, activeIds]);
+  }, [projectId, activeIds, canRead]);
   async function operate(action: () => Promise<CheckRun>) {
+    if (!canExecute) return;
     const context = generation.current;
     if (working.current === context) return;
     working.current = context;
@@ -126,9 +132,11 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
       if (alive.current && context === generation.current) setBusy(false);
     }
   }
+  if (!canRead) return <section className="project-checks"><p role="status">{access.message}</p></section>;
   return (
     <section className="project-checks">
       <h2>Verify the implementation</h2>
+      {access.message && <p role="status" className="journey-muted">{access.message}</p>}
       <p className="journey-muted">
         Run reviewed commands in this project's Docker backing. Results record
         the commit and any uncommitted changes; passing commands do not prove
@@ -138,6 +146,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
         <label className="luci-field">
           Check execution
           <select
+            disabled={!canExecute}
             value={execution}
             onChange={(event) => {
               setExecution(event.target.value as typeof execution);
@@ -161,14 +170,14 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
         <p className="journey-muted">Select the criteria these commands actually exercise. Unselected commands are recorded as generic checks.</p>
         {!canLink && <p className="journey-muted">Approve the current requirements and design, and refresh readable project source, before linking evidence.</p>}
         {(coverage?.rows ?? []).map(row => <label className="requirement-choice" key={row.requirementId}>
-          <input type="checkbox" aria-label={`Check ${row.requirementId} · ${row.title}`} checked={requirementIds.includes(row.requirementId)} disabled={busy || !!activeIds || !canLink} onChange={event => {
+          <input type="checkbox" aria-label={`Check ${row.requirementId} · ${row.title}`} checked={requirementIds.includes(row.requirementId)} disabled={!canExecute || busy || !!activeIds || !canLink} onChange={event => {
             setRequirementIds(current => event.target.checked ? [...current, row.requirementId] : current.filter(id => id !== row.requirementId));
             selectedContext.current = coverage ? contextKey(coverage) : null;
             setNotice(""); setTrusted(false);
           }} />
           <span>{row.requirementId} · {row.title}<small>{row.acceptance}</small></span>
         </label>)}
-        {!!requirementIds.length && <Button type="button" variant="tertiary" disabled={busy || !!activeIds} onClick={() => { setRequirementIds([]); selectedContext.current = null; setTrusted(false); }}>Clear requirement selection</Button>}
+        {!!requirementIds.length && <Button type="button" variant="tertiary" disabled={!canExecute || busy || !!activeIds} onClick={() => { setRequirementIds([]); selectedContext.current = null; setTrusted(false); }}>Clear requirement selection</Button>}
       </details>
       <ul className="check-commands">
         {commands.map((command, index) => (
@@ -181,7 +190,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
               </code>
             </div>
             <Button type="button" variant="tertiary"
-              disabled={busy || !!activeIds}
+              disabled={!canExecute || busy || !!activeIds}
               aria-label={`Remove ${command.label}`}
               onClick={() => {
                 setCommands(commands.filter((_, i) => index !== i));
@@ -197,6 +206,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
         className="check-command-form"
         onSubmit={(event) => {
           event.preventDefault();
+          if (!canExecute) return;
           try {
             const parsed: unknown = JSON.parse(args);
             if (
@@ -227,6 +237,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
           Executable
           <input
             required
+            disabled={!canExecute}
             value={executable}
             onChange={(event) => setExecutable(event.target.value)}
             placeholder="npm"
@@ -236,13 +247,14 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
           Arguments · JSON array
           <input
             required
+            disabled={!canExecute}
             value={args}
             onChange={(event) => setArgs(event.target.value)}
             placeholder={'["test"]'}
           />
         </label>
         <Button type="submit" variant="secondary"
-          disabled={busy || !!activeIds || !executable.trim()}
+          disabled={!canExecute || busy || !!activeIds || !executable.trim()}
         >
           Add check command
         </Button>
@@ -251,6 +263,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
         <input
           type="checkbox"
           checked={trusted}
+          disabled={!canExecute}
           onChange={(event) => setTrusted(event.target.checked)}
         />
         {execution === "host" && allowHost
@@ -258,7 +271,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
           : "I trust this project's code and these Docker commands to write project files and use the network."}
       </label>
       <Button type="button" variant="primary" loading={busy}
-        disabled={busy || !!activeIds || !trusted || !commands.length || (!!requirementIds.length && !canLink)}
+        disabled={!canExecute || busy || !!activeIds || !trusted || !commands.length || (!!requirementIds.length && !canLink)}
         onClick={() =>
           void operate(() =>
             requirementIds.length && coverage ? productApi.runChecks(
@@ -307,7 +320,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
               </div>
               {active(run) && (
                 <Button type="button" variant="secondary"
-                  disabled={busy}
+                  disabled={!canExecute || busy}
                   onClick={() =>
                     void operate(() =>
                       productApi.cancelChecks(projectId, run.id),

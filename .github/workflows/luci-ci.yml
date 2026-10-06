@@ -41,7 +41,7 @@ concurrency:
 
 env:
   # Keep this aligned with desktop/package.json and product.Version.
-  LUCI_VERSION: '0.4.18'
+  LUCI_VERSION: '0.5.0'
   GO_VERSION: '1.26.3'
   NODE_VERSION: '24.19.0'
 
@@ -68,13 +68,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: desktop/package-lock.json
+      - name: Check release version and integrity tooling
+        run: |
+          python3 scripts/release-version.py check "$LUCI_VERSION"
+          python3 -m unittest discover -s scripts -p 'test_release_*.py'
+      - name: Verify Go failure reporting
+        run: python3 -m unittest discover -s scripts -p 'test_ci_go_tests.py'
       - name: Test Go services
         id: go_tests
-        run: go test ./control-plane/... ./sandboxd/...
+        run: python3 scripts/ci-go-tests.py --name 'Go services' --output artifacts/go-tests/services -- go test -json ./control-plane/... ./sandboxd/...
       - name: Check concurrent control-plane paths
         id: race_tests
         if: runner.os == 'Linux'
-        run: go test -race ./control-plane/internal/management/... ./control-plane/internal/product/... ./control-plane/internal/project/... ./control-plane/internal/platform/...
+        run: python3 scripts/ci-go-tests.py --name 'Go race checks' --output artifacts/go-tests/race -- go test -json -race ./control-plane/internal/management/... ./control-plane/internal/product/... ./control-plane/internal/project/... ./control-plane/internal/platform/...
+      - name: Retain Go test diagnostics
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: luci-go-tests-${{ github.sha }}
+          path: artifacts/go-tests/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Install locked desktop dependencies
         working-directory: desktop
         run: npm ci

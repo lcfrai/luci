@@ -5,6 +5,7 @@ import { platformApi } from '../../api/platform';
 import { projectRunsApi, runSessionRequest, type CreateProjectRun, type ProjectRun, type RunOperation } from '../../api/projectRuns';
 import type { CreateSessionRequest } from '../../api/client';
 import type { ImplementationContextRequest } from '../../store/types';
+import { useProjectAccess } from '../../hooks/useProjectAccess';
 import { useCockpit } from '../../store/store';
 import { useAuth } from '../auth/AuthProvider';
 import { useSetup } from '../setup/SetupProvider';
@@ -36,6 +37,9 @@ export function ProjectRuns(props: { projectId: string; draft?: ProjectRunDraft;
 function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
   projectId: string; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void;
 }) {
+  const access = useProjectAccess(projectId);
+  const { canRead, canEdit, canExecute } = access;
+  const mayDispatch = useRef(canExecute); mayDispatch.current = canExecute;
   const [runs, setRuns] = useState<ProjectRun[]>([]), [selected, setSelected] = useState('');
   const [loading, setLoading] = useState(true), [busy, setBusy] = useState('');
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
@@ -49,7 +53,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
   const operationKeys = useRef(new Map<string, string>());
   const run = runs.find(item => item.id === selected) ?? runs[0];
   const setLens = useCockpit(state => state.setLens);
-  const allowed = (action: string) => !!run?.allowedActions?.includes(action) && !(dispatchUncertain && (action === 'start-coding' || action === 'continue-coding'));
+  const allowed = (action: string) => canEdit && (!['start-coding', 'continue-coding'].includes(action) || canExecute) && !!run?.allowedActions?.includes(action) && !(dispatchUncertain && (action === 'start-coding' || action === 'continue-coding'));
   const remember = (value: ProjectRun) => {
     if (!alive.current) return;
     if (value.projectId !== projectId || value.input.implementation.projectId !== projectId) throw new Error('The run belongs to another project. Refresh this project.');
@@ -57,6 +61,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
     setSelected(value.id);
   };
   async function load() {
+    if (!canRead) return;
     const mine = ++request.current;
     setLoading(true);
     try {
@@ -70,7 +75,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
   useEffect(() => {
     alive.current = true; void load();
     return () => { alive.current = false; request.current++; };
-  }, [projectId]);
+  }, [projectId, canRead || runs.length > 0]);
   useEffect(() => { if (draft) { setOutcome('preview'); creation.current = null; } }, [draft]);
 
   async function operate(label: string, action: () => Promise<void>) {
@@ -82,6 +87,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
     } finally { working.current = false; if (alive.current) setBusy(''); }
   }
   async function create(selection: CreateSessionRequest) {
+    if (!canEdit) return { ok: false as const, message: 'Editing access is required to prepare a project run.' };
     if (!draft || !selection.implementationContext || selection.implementationContext.projectId !== projectId) return { ok: false as const, message: 'Review this project’s saved plan first.' };
     if (working.current) return { ok: false as const, message: 'A run operation is already in progress.' };
     const input: Omit<CreateProjectRun, 'idempotencyKey'> = {
@@ -113,6 +119,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
     await dispatch(reserved.run, reserved.operation);
   }
   async function dispatch(saved: ProjectRun, operation: RunOperation) {
+    if (!mayDispatch.current) throw new Error('Execution access changed. The reserved operation remains available to an authorized project member.');
     setDispatchUncertain(true);
     const session = await api.createSession(runSessionRequest(saved, operation));
     if (!alive.current) return;
@@ -128,6 +135,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
     await dispatch(run, reserved[0]);
   }
   async function openSession() {
+    if (!canRead) return;
     const child = run?.observation?.childId || run?.operations[run.operations.length - 1]?.childId;
     if (!child || !run) return;
     const session = await api.getSession(child);
@@ -193,8 +201,10 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
     else if (kind === 'accept' || kind === 'cancel') { setAccepted(false); setDialog(kind); }
   }
   const actionLabel: Record<string, string> = { 'start-coding': 'Start coding', 'continue-coding': 'Continue reserved coding', 'join-check': 'Select check evidence', 'join-release': 'Select release evidence', reconcile: 'Reconcile run', accept: 'Review and accept outcome', cancel: 'Cancel run' };
+  if (!canRead) return <section className="project-runs" aria-label="Project runs"><p role="status">{access.message}</p></section>;
   return <section className="project-runs" aria-label="Project runs" aria-busy={!!busy || loading}>
     <div className="project-runs-heading"><h2>Project run</h2><Button variant="tertiary" disabled={!!busy || loading} onClick={() => void load()}>{loading ? 'Reading history…' : 'Refresh history'}</Button></div>
+    {access.message && <p role="status" className="journey-muted">{access.message}</p>}
     {error && <p role="alert" className="journey-error">{error}</p>}
     {notice && <p role="status" className="journey-muted">{notice}</p>}
     {!run ? <><p className="journey-muted">Keep reviewed tasks, coding, checks and a verified release together. Creating a run saves its inputs; each next operation remains your choice.</p><Button variant="secondary" onClick={onReviewPlan}>Review implementation plan</Button></> : <>
@@ -203,7 +213,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
         {run.observation ? <p className={run.observation.valid ? 'journey-muted' : 'journey-warning'}>{run.observation.valid ? 'Last observation valid' : 'Current evidence needs attention'} · {when(run.observation.observedAt)}. {run.observation.reason}</p> : <p className="journey-muted">No observation recorded yet. Refreshing history does not run or reconcile operations.</p>}
         <div className="journey-actions">
           {primary && <Button disabled={!!busy || loading} onClick={() => action(primary)}>{busy || actionLabel[primary]}</Button>}
-          {!!run.operations.length && <Button variant="secondary" disabled={!!busy} onClick={() => void operate('Opening coding session', openSession)}>Open coding session</Button>}
+          {!!run.operations.length && <Button variant="secondary" disabled={!canRead || !!busy} onClick={() => void operate('Opening coding session', openSession)}>Open coding session</Button>}
           {allowed('reconcile') && primary !== 'reconcile' && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('reconcile')}>Reconcile run</Button>}
           {allowed('join-check') && primary !== 'join-check' && <Button variant="tertiary" disabled={!!busy || loading} onClick={() => action('join-check')}>Select check evidence</Button>}
         </div>
@@ -228,14 +238,14 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
       </details>
     </>}
     {runs.length > 0 && <details className="project-run-history"><summary>Run history · {runs.length}</summary><ul>{runs.map(item => <li key={item.id}><Button variant={item.id === run?.id ? 'secondary' : 'tertiary'} disabled={!!busy} aria-pressed={item.id === run?.id} onClick={() => { setSelected(item.id); setDialog(null); setError(''); setNotice(''); }}>{labels[item.state] || item.state} · {when(item.createdAt)}</Button><span>{item.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span></li>)}</ul></details>}
-    <SessionPicker open={!!draft} worktreeId={draft?.worktreeId ?? null} implementationContext={draft?.implementationContext} onClose={onDraftClose} onSubmit={create} onCreated={onDraftClose} submitLabel="Create project run">
+    <SessionPicker open={!!draft && canEdit} worktreeId={draft?.worktreeId ?? null} implementationContext={draft?.implementationContext} onClose={onDraftClose} onSubmit={create} onCreated={onDraftClose} submitLabel="Create project run">
       <p className="pick-note">Save the reviewed inputs and model route. Coding and deployment start only through their separate controls.</p><label className="pick-field">Intended outcome<select value={outcome} onChange={event => setOutcome(event.target.value as typeof outcome)}><option value="preview">Workspace preview</option><option value="publish">Public deployment</option></select></label>
     </SessionPicker>
-    {dialog && run && <WorkflowDialog title={actionLabel[dialog]} busy={!!busy} onClose={() => setDialog(null)} description={dialog === 'cancel' ? 'Cancel future dispatch for this run. This does not stop an existing coding session, check or application; use its separate stop control.' : dialog === 'accept' ? 'Review the selected behavior yourself. Acceptance records that review only after the server revalidates matching technical evidence.' : 'Choose an existing result. The server validates its project, current reviews, requirements and exact source before joining it. This does not execute commands or deploy anything.'}>
+    {dialog && run && canEdit && <WorkflowDialog title={actionLabel[dialog]} busy={!!busy} onClose={() => setDialog(null)} description={dialog === 'cancel' ? 'Cancel future dispatch for this run. This does not stop an existing coding session, check or application; use its separate stop control.' : dialog === 'accept' ? 'Review the selected behavior yourself. Acceptance records that review only after the server revalidates matching technical evidence.' : 'Choose an existing result. The server validates its project, current reviews, requirements and exact source before joining it. This does not execute commands or deploy anything.'}>
       {error && <p role="alert" className="journey-error">{error}</p>}
       {evidenceNotice && <p role="status" className="journey-muted">{evidenceNotice}</p>}
       {dialog === 'accept' ? <label className="setup-check"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} />I reviewed the selected {run.input.outcome === 'preview' ? 'workspace preview' : 'public deployment'} and accept this run’s outcome.</label> : dialog === 'join-check' || dialog === 'join-release' ? <label className="luci-field">{dialog === 'join-check' ? 'Check result' : 'Release result'}<select value={choice} onChange={event => setChoice(event.target.value)}><option value="">Choose recorded evidence</option>{(dialog === 'join-check' ? checks : releases).map(item => <option key={'target' in item ? releaseKey(item) : item.id} value={'target' in item ? releaseKey(item) : item.id}>{item.id} · {item.status} · {'target' in item ? `${item.target} · ` : ''}{item.commit ? item.commit.slice(0, 12) : 'No commit'}</option>)}</select>{!(dialog === 'join-check' ? checks : releases).length && <small>No results recorded yet. Run checks or prepare a release through its existing controls first.</small>}</label> : null}
-      <div className="workflow-actions"><Button variant="secondary" disabled={!!busy} onClick={() => setDialog(null)}>Keep reviewing</Button><Button disabled={!!busy || (dialog === 'accept' ? !accepted || !run.observation?.valid : dialog !== 'cancel' && !choice)} onClick={() => void operate(actionLabel[dialog], confirm)}>{busy || (dialog === 'accept' ? 'Accept reviewed outcome' : dialog === 'cancel' ? 'Cancel future dispatch' : 'Join selected evidence')}</Button></div>
+      <div className="workflow-actions"><Button variant="secondary" disabled={!!busy} onClick={() => setDialog(null)}>Keep reviewing</Button><Button disabled={!allowed(dialog) || !!busy || (dialog === 'accept' ? !accepted || !run.observation?.valid : dialog !== 'cancel' && !choice)} onClick={() => void operate(actionLabel[dialog], confirm)}>{busy || (dialog === 'accept' ? 'Accept reviewed outcome' : dialog === 'cancel' ? 'Cancel future dispatch' : 'Join selected evidence')}</Button></div>
     </WorkflowDialog>}
   </section>;
 }

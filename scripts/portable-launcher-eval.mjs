@@ -9,6 +9,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 
 export async function evaluatePortableLauncher(packageDirectory, evidenceDirectory) {
+  const expectedVersion = process.env.LUCI_VERSION;
+  assert.match(expectedVersion || '', /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/, 'Set LUCI_VERSION to the exact candidate version before launcher acceptance');
   const packageDir = path.resolve(packageDirectory), evidence = path.resolve(evidenceDirectory);
   assert.match(evidence.replaceAll('\\', '/'), /\/artifacts\/package-eval\//, 'Use a disposable package-eval directory');
   const fixture = path.join(evidence, 'launcher'), state = path.join(fixture, 'state');
@@ -129,7 +131,7 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
     }, 'Launcher did not announce a ready, verified workspace', startupBudgetMs);
     const status = await api('GET', '/v1/control-plane/status', undefined, { token: '' });
     assert.equal(status.product, 'Luci');
-    assert.equal(status.version, process.env.LUCI_VERSION || '0.4.3');
+    assert.equal(status.version, expectedVersion);
     if (record.index === 0) result.startupElapsedMs = Date.now() - record.startedAt;
     result.version = status.version;
     return status;

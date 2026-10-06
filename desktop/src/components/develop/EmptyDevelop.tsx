@@ -9,6 +9,7 @@ import { useCockpit } from "../../store/store";
 import type { Branch, SessionDefaults, WorktreeId } from "../../store/types";
 import { LinkedWorktreeNote } from "./LinkedWorktreeNote";
 import { Button } from "../fluid/components/button";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
 
 /** The create path for this surface's two named actions. It lived in `SessionPane.tsx` while
  *  that file's Restart was also a create; Restart is now `api.restartSession`, so these two
@@ -69,6 +70,7 @@ function sentenceForCreate(error: ApiError): string {
 
 /** Help the user select a branch, open its checkout or start the chosen real CLI. */
 export function EmptyDevelop({ branch }: { branch: Branch | undefined }): JSX.Element {
+  const access = useProjectAccess(branch?.projectId ?? "");
   // §3.7: selectWorktrees returns a stable empty-array constant when the branch is absent,
   // so this needs no useShallow and no `?? []`.
   const worktrees = useCockpit(selectWorktrees(branch?.id ?? ""));
@@ -81,7 +83,7 @@ export function EmptyDevelop({ branch }: { branch: Branch | undefined }): JSX.El
   const [pending, setPending] = useState("");
   const starting = useRef(false);
   async function start(worktreeId: WorktreeId, descriptor: SessionDefaults) {
-    if (starting.current) return;
+    if (starting.current || !access.canExecute || descriptor.harness !== "shell" && !access.canAssist) return;
     starting.current = true; setPending(descriptor.harness);
     try { await startSessionOnWorktree(worktreeId, descriptor); }
     finally { starting.current = false; setPending(""); }
@@ -104,7 +106,8 @@ export function EmptyDevelop({ branch }: { branch: Branch | undefined }): JSX.El
         <p className="pane-empty-note">
           Luci can switch the main project checkout to this branch after you commit changes and stop active sessions.
         </p>
-        <Button onClick={() => openBranchManager({ projectId: branch.projectId, action: "switch", branchId: branch.id })}>Switch to {branch.name}</Button>
+        {access.message && <p className="pane-empty-note">{access.message}</p>}
+        <Button disabled={!access.canEdit} onClick={() => openBranchManager({ projectId: branch.projectId, action: "switch", branchId: branch.id })}>Switch to {branch.name}</Button>
       </div>
     );
   }
@@ -125,11 +128,13 @@ export function EmptyDevelop({ branch }: { branch: Branch | undefined }): JSX.El
       <p className="pane-empty-line">No sessions on {target.name}.</p>
       {/* Before the buttons, so the user reads what a session here cannot do before starting one. */}
       <LinkedWorktreeNote worktree={target} />
+      {access.message && <p className="pane-empty-note">{access.message}</p>}
       <div className="pane-empty-actions">
         <Button
           type="button"
           loading={pending === defaults.harness}
-          disabled={!!pending}
+          disabled={!!pending || !access.canExecute || defaults.harness !== "shell" && !access.canAssist}
+          title={defaults.harness !== "shell" && !access.canAssist ? "Credential access is required to run a coding agent." : undefined}
           onClick={() => void start(target.id, defaults)}
         >
           {`＋ ${primary?.name ?? defaults.harness}`}
@@ -139,7 +144,7 @@ export function EmptyDevelop({ branch }: { branch: Branch | undefined }): JSX.El
             type="button"
             variant="secondary"
             loading={pending === shell.id}
-            disabled={!!pending}
+            disabled={!!pending || !access.canExecute}
             onClick={() =>
               // permissionMode: "ask" is passed and toCreateRequest strips it, because
               // shell.permissionModes is empty — §3.6's rule, not a special case here.

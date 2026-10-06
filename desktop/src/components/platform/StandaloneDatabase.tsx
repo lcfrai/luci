@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { platformApi, type PlatformProject } from "../../api/platform";
 import { Button } from "../fluid/components/button";
 
@@ -31,6 +31,10 @@ export function StandaloneDatabase({
   const [backupId, setBackupId] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [previousConfirmed, setPreviousConfirmed] = useState(false);
+  const [importFile, setImportFile] = useState<File>();
+  const [trustImport, setTrustImport] = useState(false);
+  const importController = useRef<AbortController | null>(null);
+  const importInput = useRef<HTMLInputElement>(null);
   const operation = project?.databaseOperation;
   const locked = disabled || operation?.status === "running";
   const database = project?.database;
@@ -47,6 +51,11 @@ export function StandaloneDatabase({
   );
   useEffect(() => { setConfirmed(false); }, [selected?.id, selected?.sha256]);
   useEffect(() => { setPreviousConfirmed(false); }, [previous?.id, database?.database]);
+  useEffect(() => {
+    setImportFile(undefined); setTrustImport(false);
+    if (importInput.current) importInput.current.value = "";
+    return () => { importController.current?.abort(new Error("Project changed")); importController.current = null; };
+  }, [projectId]);
   const canRestore = !locked && dockerReady && database?.status === "stopped" &&
     !activeApplications && !!selected && confirmed;
   const canRecoverPrevious = !locked && dockerReady && database?.status === "stopped" &&
@@ -79,13 +88,36 @@ export function StandaloneDatabase({
           </Button>
         </div>
         <p className="data-summary">Backups are private PostgreSQL custom-format dumps, up to 64 MiB.</p>
-        {!backups.length && <p className="data-summary">Create a backup while PostgreSQL is running to enable recovery.</p>}
+        {!backups.length && <p className="data-summary">Create a backup while PostgreSQL is running, or import a saved dump to enable recovery.</p>}
+        <form className="data-form data-recovery" aria-label="Import PostgreSQL backup" onSubmit={event => {
+          event.preventDefault();
+          if (locked || !importFile || !trustImport || importController.current) return;
+          const selectedFile = importFile;
+          const controller = new AbortController();
+          importController.current = controller;
+          setTrustImport(false);
+          void run("Import PostgreSQL backup", async () => {
+            const imported = await platformApi.importDatabaseBackup(projectId, selectedFile, true, controller.signal);
+            if (!controller.signal.aborted) {
+              setBackupId(imported.id); setConfirmed(false); setImportFile(undefined);
+              if (importInput.current) importInput.current.value = "";
+            }
+            return imported;
+          }).finally(() => { if (importController.current === controller) importController.current = null; });
+        }}>
+          <h4>Import a saved PostgreSQL dump</h4>
+          <p>Recover a downloaded Luci database backup in this project. Import checks its format and checksum and stores it privately. It does not start PostgreSQL or change your database. Restore it separately after starting and stopping this project's database.</p>
+          <p>A dump can contain SQL supplied by its author, which runs during restore. Only import a dump from a source you trust. External database roles and credentials are not included.</p>
+          <label>PostgreSQL dump file<input ref={importInput} type="file" accept=".dump,.backup,application/octet-stream" disabled={locked} onChange={event => { setImportFile(event.target.files?.[0]); setTrustImport(false); }} /></label>
+          <label className="data-check"><input type="checkbox" disabled={locked || !importFile} checked={trustImport} onChange={event => setTrustImport(event.target.checked)} />I trust this dump and the SQL it can execute during restore.</label>
+          <Button type="submit" variant="secondary" disabled={locked || !importFile || !trustImport}>Import PostgreSQL backup</Button>
+        </form>
         {!!backups.length && (
           <ul className="data-records" aria-label="PostgreSQL backups">
             {backups.map((backup) => (
               <li key={backup.id}>
                 <div>
-                  <strong>{new Date(backup.createdAt).toLocaleString()}</strong>
+                  <strong>{backup.imported ? "Imported " : ""}{new Date(backup.createdAt).toLocaleString()}</strong>
                   <small>{Math.ceil(backup.bytes / 1024)} KiB · SHA-256 <code>{backup.sha256.slice(0, 16)}…</code></small>
                 </div>
                 <Button variant="secondary" disabled={locked}

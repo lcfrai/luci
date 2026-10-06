@@ -68,6 +68,7 @@ func run(getenv func(string) string, errOut io.Writer) int {
 	cfg.WorkerAddressFile = getenv(envWorkerAddressFile)
 	cfg.Backing = getenv(envBacking)
 	cfg.InstanceName = getenv(envInstanceName)
+	cfg.ManagedTeamID = getenv(envManagedTeamID)
 	cfg.ManagedShutdownToken = getenv(envManagedShutdownToken)
 	if cfg.Worker && (len(cfg.WorkerToken) < 40 || !filepath.IsAbs(cfg.WorkerAddressFile) || !filepath.IsAbs(cfg.StateDir)) {
 		fmt.Fprintln(errOut, "luci: managed workers require a private token, state directory and address file")
@@ -87,6 +88,13 @@ func run(getenv func(string) string, errOut io.Writer) int {
 }
 
 func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
+	lease, err := acquireManagedStateLease(cfg)
+	if err != nil {
+		return fmt.Errorf("acquire managed host state: %w", err)
+	}
+	if lease != nil {
+		defer lease.Close()
+	}
 	// The instance id comes first: the backend stamps it on every sandbox and
 	// lists only sandboxes that carry it, and the reaper destroys only those,
 	// so neither can be built without it. It is this state directory's, minted
@@ -187,7 +195,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			}
 		}
 		return false, nil
-	}, NativePrototypeReleases: product.PlatformPrototypeReleases(resolveDataPlatform), CloudDataBindings: product.PlatformCloudDataBindings(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
+	}, NativePrototypeReleases: product.PlatformPrototypeReleases(resolveDataPlatform), CloudDataBindings: product.PlatformCloudDataBindings(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, BrowserPreviewDomain: cfg.PreviewBaseDomain, ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
 		if shutdownService != nil {
 			shutdownService()
 		}
@@ -198,7 +206,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	defer productService.Close()
 	// Public browser origins are optional and independent from private Docker
 	// health URLs. The portable/native launch paths keep their prior defaults.
-	platformService, err = platform.New(platform.Options{FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource, RecordDeploymentProvenance: productService.RecordProjectRunReleaseProvenance})
+	platformService, err = platform.New(platform.Options{FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, BrowserPreviewDomain: cfg.PreviewBaseDomain, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource, RecordDeploymentProvenance: productService.RecordProjectRunReleaseProvenance})
 	if err != nil {
 		return fmt.Errorf("initialise application platform: %w", err)
 	}
@@ -234,10 +242,18 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	// There is no IdleAfter field to pass — the idle window belongs to the
 	// reaper above, which is the only thing that derives idle.
 	origins := cfg.AllowedOrigins
+	if cfg.PublicAppOrigin != "" {
+		origins = []string{cfg.PublicAppOrigin}
+	}
 	if len(origins) == 0 {
 		origins = append(httpx.DefaultOrigins(), "http://"+cfg.Addr)
 	}
 	originPolicy := httpx.NewOriginPolicy(origins, log)
+	if cfg.PublicAppOrigin != "" {
+		if err := originPolicy.SetPublicAppOrigin(cfg.PublicAppOrigin); err != nil {
+			return err
+		}
+	}
 	handler, err := api.New(api.Deps{
 		Store:              store,
 		Backend:            be,
@@ -299,7 +315,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		if root == "" {
 			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
 		}
-		control, err = management.New(management.Options{StateDir: root, InstanceName: cfg.InstanceName, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess})
+		control, err = management.New(management.Options{StripeBilling: management.StripeBillingConfig{APIKey: cfg.StripeAPIKey, WebhookSecret: cfg.StripeWebhookSecret, AccountID: cfg.StripeAccountID, PriceID: cfg.StripePriceID, TermsURL: cfg.BillingTermsURL, PrivacyURL: cfg.BillingPrivacyURL}, StateDir: root, InstanceName: cfg.InstanceName, ManagedTeamID: cfg.ManagedTeamID, PublicAppOrigin: cfg.PublicAppOrigin, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess})
 		if err != nil {
 			_ = ln.Close()
 			return fmt.Errorf("initialise control-plane management: %w", err)
@@ -309,6 +325,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			defer cancel()
 			_ = control.Close(cleanup)
 		}()
+		if cfg.PublicAppOrigin != "" && control.ManagedTeamID() == "" {
+			_ = ln.Close()
+			return errors.New("public HTTPS ingress requires this installation to be bound to one managed team")
+		}
 		engine = control.Handler()
 	}
 	if cfg.BrowserPreviewAddr != "" && !cfg.Worker {
@@ -317,10 +337,14 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
 		}
 		gateway, err := previewgateway.New(root, cfg.BrowserPreviewPort, previewgateway.DockerVerifier(cfg.DockerHost))
+		if cfg.PreviewBaseDomain != "" {
+			gateway, err = previewgateway.NewWithPublicIngress(root, cfg.BrowserPreviewPort, previewgateway.DockerVerifier(cfg.DockerHost), cfg.PreviewBaseDomain, control.ManagedTeamID())
+		}
 		if err != nil {
 			_ = ln.Close()
 			return fmt.Errorf("initialise browser gateway: %w", err)
 		}
+		control.SetBrowserGateway(gateway)
 		previewListener, err := net.Listen("tcp", cfg.BrowserPreviewAddr)
 		if err != nil {
 			_ = ln.Close()

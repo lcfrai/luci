@@ -255,6 +255,30 @@ specification and both `.luci/design-handoff.json` and
 `.luci/design-handoff.md`; a sketch is supplemental. Task status and CLI exit are
 independent of recorded verification and deployment outcomes.
 
+### Context authorship
+
+`GET /v1/product/projects/{id}/context-history` returns
+`{events:[{id,projectId,kind,action,revision,digest,at,actor:{id,displayName},status}],pruned}`.
+Kinds are `brief`, `specification`, `sketch`, `design` and `plan`; actions are
+`save`, `approve` and `apply-analysis`. The display identity is captured at the
+time of the action from the authenticated gateway context. Request headers,
+client JSON and project-authored claims cannot supply an actor receipt.
+
+Receipts live in private workspace state, scoped to the canonical project, and
+bind the exact saved revision bytes. They are separate from exported project
+context and private approval authority. A copied or restored project does not
+inherit authenticated authorship. Legacy changes without a private receipt have
+unknown authorship. Saving a structured definition also records its synchronized
+brief; approval records the actual reviewer rather than rewriting its editor.
+
+The last 2,000 events are retained within a 2 MiB bound; `pruned:true` indicates
+older events were removed. A private intent precedes an authenticated context
+write. Only a confirmed completed write produces `status:"applied"`; a failed or
+interrupted write remains `unconfirmed`. Failure to record a private intent
+blocks the attributed mutation. Reads never finalize pending events or repair
+project files. A receipt describes historical authorship, not proof that current
+agent-editable bytes, requirements or application behavior are valid.
+
 ### Durable project runs
 
 All routes below use `/v1/product/projects/{id}/runs` on the selected execution
@@ -409,7 +433,52 @@ from the invitation; callers cannot choose one. Disabled or demoted issuers,
 revoked/expired codes and reused codes are rejected. Creating an account does not
 grant access to another account's projects.
 
-The selected-workspace management bridge supports these invitation routes with
+Team administrators can invite new or existing accounts without instance-wide
+administration. GET `/v1/teams/{teamId}/invitations` returns `{team,invitations}`;
+POST accepts `{expectedRevision,role,grants}` and returns
+`{team,invitation,inviteCode}`. Roles are `owner`, `editor` and `viewer`, with
+explicit `execute`, `secrets`, `deploy` and `admin` capability booleans. Only an
+owner can issue or revoke an owner invitation; owners retain `admin`. DELETE
+`/v1/teams/{teamId}/invitations/{id}` accepts `{expectedRevision}` and returns
+the revised team and revoked invitation. These mutations advance the team
+revision and reject stale writers. Global invitation routes do not list or
+manage team invitations.
+
+Team invitation metadata includes `team:{id,name,role,grants}` and derived
+`status` (`pending`, `accepted`, `revoked`, `expired` or `unavailable`). Codes are
+hashed, single-use, expire after 48 hours and are only returned at creation.
+Acceptance revalidates the issuer's enabled account, current team administration
+and exact membership revision. Changing or removing that membership invalidates
+its outstanding invitations, even if the previous permissions are later restored.
+Each team retains at most 128 active invitations; the installation retains at
+most 1,000 invitation records, with records expired over 30 days eligible for
+removal when another invitation is issued.
+
+New accounts use the existing `/v1/auth/invitations/accept` payload. A team
+invitation creates a standard installation member and the pinned team membership
+in the same persisted transaction as invitation consumption and session issuance;
+the response additionally includes `teamId`. Authenticated existing accounts use
+POST `/v1/teams/invitations/accept` with `{inviteCode}` and receive the joined
+team view. An existing membership is never overwritten. Capacity, used codes,
+revocation and persistence failure leave a recoverable error; failed persistence
+does not consume the code or partially create an account or membership. Inviting
+and joining do not start an execution worker. Non-administrators still require
+explicit project grants after joining. The UI remembers the invited team only
+as an account-scoped navigation preference; current membership is rechecked
+before displaying its workspace.
+
+GET `/v1/teams/{teamId}/audit` requires current team administration and returns
+`{teamId,events,limit:200,installationRetentionLimit:1000}`. It filters the existing
+private management ledger by exact team target and team action before selecting
+the newest 200 rows. Rows retain the recorded actor ID/action/outcome and include
+`actor:{id,displayName}` resolved from the current private account directory.
+Global authentication activity and other teams are excluded. The installation's
+1,000-event retention is shared, so this is a recent operational history, not an
+unbounded compliance archive. Reading it changes no state. Project context edits
+and reviews remain in their separate project-scoped context history.
+
+The selected-workspace management bridge supports the instance-administrator
+invitation routes with
 the selected backing's identity. Existing SSH workspace sign-in accepts an
 optional `inviteCode` and redeems it on that workspace. A remote account error
 remains a recoverable workspace error and does not expire the local login.
@@ -680,3 +749,85 @@ not report a successful installation or silently reset the original database.
 POST `/v1/product/projects/{id}/releases/pages` accepts `{commit,branch,acknowledgePublic:true}`. The repository comes only from the project's verified GitHub origin, and the published directory is fixed to `/docs`. The project must have a clean current HEAD matching the requested full commit and current/default branch, a matching committed brief, Dockerfile, `docs/index.html` and `docs/.nojekyll`. The GitHub repository must be public and its remote branch must match the requested commit. Public-publication policy and the explicit acknowledgement apply. This route uses the signed-in GitHub CLI; it accepts no provider token or arbitrary command/path.
 
 The durable release has `target:"github-pages"`. Its provider record is outside project Git and contains repository/source configuration, commit, brief revision, index digest, provider build and verification time. `ready` requires the recorded provider commit, a public HTTPS response and matching committed index bytes. Queued/building/verifying outcomes are not readiness. Common history and refresh routes include Pages releases; stop unpublishes only unchanged configuration owned by that release. Pages rollback is not supported. Later default-branch pushes can republish `/docs` automatically; an older ready history entry describes its original verification and is not continuous site monitoring. Pages hosts static public output and receives no private runtime values.
+
+## Team browser access
+
+Team registrations live in the dedicated worker's private
+`control-plane/teams/{teamId}/runtime/state/sessions/browser-previews` directory.
+The browser gateway discovers these alongside personal registrations, but a
+known team preview hostname alone grants no access. Every team target requires
+the management access controller; missing wiring fails closed.
+
+POST `/v1/teams/{teamId}/projects/{projectId}/browser-access` accepts `{url}` for
+an already registered isolated browser URL and returns `{url,expiresAt}`. It
+requires the current Luci login, project membership, editing and execution
+permissions, and an active team service. Data origins additionally require
+deployment and secret permissions. The requested origin must belong to that
+exact team and project; it cannot supply an arbitrary upstream. An intentionally
+public HTTPS deployment retains its own application authentication and does not
+use this private browser endpoint.
+
+The returned URL is a single-use invitation, valid for at most 60 seconds. Its
+`/.well-known/luci-team-access` endpoint sets a host-only Secure, HttpOnly,
+SameSite=None, partitioned browser cookie and removes the invitation from the
+visible application address. Open a fresh invitation for a new top-level tab;
+do not reuse the URL consumed by an embedded preview. Invitation/cookie values
+stay out of project context, release records and application requests. The
+application cannot overwrite Luci's reserved browser cookie or set a cookie
+domain spanning sibling preview origins.
+
+When the caller also has data access, the application handoff first connects
+registered data origins from the same project using bounded hidden handoffs in
+the same browser partition. The generated client example in Data → Connect uses
+`@supabase/supabase-js` with a fetch wrapper setting `credentials:'include'` only
+for its configured data origin. Existing browser clients need this option.
+Credentialed CORS admits only an isolated application origin from the same
+private project; preflight returns CORS metadata without authorizing a data
+request. Application JWT validation and row/storage policies remain in force.
+Realtime WebSockets use the same project-authorized browser cookie.
+
+Each request revalidates its login session, exact team/project grant revisions,
+permissions and service state. Logout, permission removal, project revocation
+and service suspension cancel active requests and close upgraded connections.
+They preserve shared running children and data for an authorized explicit stop
+or cleanup. Browser grants are memory-only; a service restart requires opening
+the preview again. A copied clean URL in a different browser partition does not
+authenticate. Direct team control-origin preview/remote-workspace bridges remain
+outside the team route allowlist.
+
+`node scripts/team-browser-eval.mjs --browser /path/to/chromium` validates actual
+Chromium iframe authentication, isolated cookies, cross-origin data API and
+realtime behavior, copied-URL denial and live revocation through production
+gateway handlers. It uses deterministic app/data upstream fixtures, creates no
+paid resources, and writes a sanitized report under `artifacts/uat`. This is
+browser transport evidence, not proof of a real Supabase installation or a
+remotely hosted team's TLS/network boundary.
+
+## Owner data-deletion requests
+
+GET `/v1/teams/{teamId}/data-lifecycle` requires a current team owner and returns
+`{team,dataLifecycle}`. Initially the lifecycle is `{revision:0,status:"none"}`.
+POST to the same path plus `/request` accepts
+`{expectedRevision,acknowledgeDeletion:true}`; `/cancel` accepts
+`{expectedRevision,requestId}` for the exact pending request. The revision is the
+current **team** revision. Both operations advance it and the independent
+lifecycle revision; stale revisions, duplicate pending requests and wrong request
+IDs return409. Nonowners receive403, including administrators without ownership.
+
+A saved lifecycle is `{revision,status:"requested"|"cancelled",requestId,
+requestedBy,requestedAt,updatedAt,cancelledBy?,cancelledAt?}`. The gateway supplies
+identity and timestamps from authenticated authority; clients cannot supply a
+completed status or private receipt fields. Request/cancel audit entries are
+saved atomically with the receipt. A failed persistence write rolls back both.
+Cancelling preserves the original request identity; a later request gets a new ID.
+Neither operation starts workers, stops workloads, changes billing/access or
+removes any project or state files.
+
+GET `/v1/admin/team-data-requests` requires a current Super Admin and returns
+`{requests:[{team,dataLifecycle}]}` for pending requests, restricted to the bound
+team on a managed host. It is an operator queue read, not automatic processing.
+The separate operator tool requires the exact pending request, a still-enabled
+owner, stopped state writers and a current private backup before unlinking the
+verified bound host's files. Its scoped receipt never claims removal of external
+resources, backup archives or provider records. See
+[managed data lifecycle](MANAGED-DATA-LIFECYCLE.md) for the review/command contract.

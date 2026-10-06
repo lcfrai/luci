@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorText, productApi, type GitDelivery } from "../../api/product";
+import { prepareBrowserAccess } from "../../api/browserAccess";
+import { selectedTeamId } from "../../api/teamScope";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
 import {
   platformApi,
   isolatedBrowserURL,
@@ -18,6 +21,7 @@ export function PlatformWorkspace({ projectId }: { projectId: string }) {
 }
 
 function ProjectPlatform({ projectId }: { projectId: string }) {
+  const projectAccess = useProjectAccess(projectId);
   const active = useRef(true), connectingBrowser = useRef(false), operating = useRef(false);
   const requestGeneration = useRef(0);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
@@ -163,19 +167,27 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
     else await platformApi.action(projectId, deployment.id, "refresh");
   }
   async function openWorkspaceApplication(deployment: PlatformDeployment) {
-    if (disabled || connectingBrowser.current) return;
+    if (disabled || connectingBrowser.current || !projectAccess.canExecute) return;
+    const popup = selectedTeamId() ? window.open('about:blank', '_blank') : null;
+    if (popup) popup.opener = null;
     connectingBrowser.current = true;
     setBusy("Connecting application browser"); setError(""); setMessage("");
     try {
-      const connection = await platformApi.prepareBrowser(projectId, "application", deployment.id);
+      const connection = deployment.browserConnectionRequired
+        ? await platformApi.prepareBrowser(projectId, "application", deployment.id)
+        : {url: deployment.url || '', projectId, kind: 'application', resourceId: deployment.id};
       if (!active.current) return;
       const address = isolatedBrowserURL(connection.url);
       if (!address || connection.projectId !== projectId || connection.kind !== "application" || connection.resourceId !== deployment.id)
         throw new Error("Luci could not verify this application's browser connection. Reconnect your workspace and try again.");
       setProject(current => current ? { ...current, deployments: current.deployments.map(row => row.id === deployment.id ? { ...row, url: address, browserConnectionRequired: false } : row) } : current);
       setMessage("Browser connection ready. You can open the application below.");
-      window.open(address, "_blank", "noopener,noreferrer");
-    } catch (cause) { if (active.current) setError(errorText(cause)); }
+      const opened = await prepareBrowserAccess(projectId, address);
+      if (active.current) {
+        if (popup) popup.location.replace(opened);
+        else window.open(opened, "_blank", "noopener,noreferrer");
+      } else popup?.close();
+    } catch (cause) { popup?.close(); if (active.current) setError(errorText(cause)); }
     finally { connectingBrowser.current = false; if (active.current) setBusy(""); }
   }
   return (
@@ -492,12 +504,12 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                   <p>
                     <strong>{deployment.status}</strong> · {deployment.message}
                   </p>
-                  {deployment.status === "ready" && deployment.provider === "docker" && deployment.browserConnectionRequired && (
-                    <button type="button" className="luci-button" disabled={disabled} onClick={() => void openWorkspaceApplication(deployment)}>
+                  {deployment.status === "ready" && deployment.provider === "docker" && (deployment.browserConnectionRequired || selectedTeamId()) && (
+                    <button type="button" className="luci-button" disabled={disabled || !projectAccess.canExecute} onClick={() => void openWorkspaceApplication(deployment)}>
                       Open deployed application
                     </button>
                   )}
-                  {deployment.status === "ready" && !deployment.browserConnectionRequired && safeURL(deployment.url) && (
+                  {deployment.status === "ready" && !deployment.browserConnectionRequired && !selectedTeamId() && safeURL(deployment.url) && (
                     <a
                       className="luci-button"
                       href={safeURL(deployment.url)}

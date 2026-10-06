@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/url"
@@ -54,12 +53,22 @@ type record struct {
 	Key string `json:"key"`
 }
 type Registry struct {
-	dir  string
-	port int
-	mu   sync.Mutex
+	dir    string
+	port   int
+	domain string
+	mu     sync.Mutex
 }
 
 func NewRegistry(stateDir string, port int) (*Registry, error) {
+	return NewRegistryWithDomain(stateDir, port, "")
+}
+
+func NewRegistryWithDomain(stateDir string, port int, domain string) (*Registry, error) {
+	if domain != "" {
+		if err := ValidatePreviewBaseDomain(domain); err != nil {
+			return nil, err
+		}
+	}
 	if !filepath.IsAbs(stateDir) || port < 1 || port > 65535 {
 		return nil, errors.New("browser gateway requires an absolute private state directory and valid port")
 	}
@@ -76,7 +85,7 @@ func NewRegistry(stateDir string, port int) (*Registry, error) {
 	if err := protect(dir); err != nil {
 		return nil, err
 	}
-	return &Registry{dir: dir, port: port}, nil
+	return &Registry{dir: dir, port: port, domain: domain}, nil
 }
 func validate(t Target, port int) (*url.URL, error) {
 	if !name.MatchString(t.ProjectID) || !name.MatchString(t.ResourceID) {
@@ -179,7 +188,7 @@ func (r *Registry) Publish(t Target) (string, error) {
 	if err = os.Rename(tmp, path); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("http://%s:%d", CapabilityHostname(key), r.port), nil
+	return browserOrigin(key, r.port, r.domain), nil
 }
 func (r *Registry) Remove(kind, project, resource string) error {
 	r.mu.Lock()

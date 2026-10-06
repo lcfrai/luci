@@ -1,0 +1,53 @@
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, expect, it, vi } from "vitest";
+import { teamDataLifecycleApi, type TeamDataLifecycleResponse } from "../../api/teamDataLifecycle";
+import { emptyGrants, type Team, type TeamMember } from "../../api/teams";
+import { TeamDataLifecycle } from "./TeamDataLifecycle";
+const team = { id: "team-one", name: "One", revision: 3 } as Team;
+const membership = { userId: "user-owner", role: "owner", grants: { ...emptyGrants, admin: true } } as TeamMember;
+const none: TeamDataLifecycleResponse = { team, dataLifecycle: { status: "none", revision: 0 } };
+const pending: TeamDataLifecycleResponse = { team: { ...team, revision: 4 }, dataLifecycle: { status: "requested", revision: 1, requestId: "delete-ABCDEFGHIJKLMNOPQRSTUV", requestedBy: membership.userId, requestedAt: "2026-10-06T01:00:00Z", updatedAt: "2026-10-06T01:00:00Z" } };
+const cancelled: TeamDataLifecycleResponse = { team: { ...team, revision: 5 }, dataLifecycle: { ...pending.dataLifecycle, status: "cancelled", revision: 2, cancelledBy: membership.userId, cancelledAt: "2026-10-06T02:00:00Z", updatedAt: "2026-10-06T02:00:00Z" } };
+beforeEach(() => { vi.restoreAllMocks(); vi.spyOn(teamDataLifecycleApi, "get").mockResolvedValue(none); vi.spyOn(teamDataLifecycleApi, "request").mockResolvedValue(pending); vi.spyOn(teamDataLifecycleApi, "cancel").mockResolvedValue(cancelled); });
+it("requires explicit acknowledgement, displays a review receipt, and cancels only that exact request", async () => {
+  const onChange = vi.fn().mockResolvedValue(undefined);
+  render(<TeamDataLifecycle team={team} membership={membership} onChange={onChange} />);
+  await userEvent.click(await screen.findByText("Request permanent data deletion"));
+  const submit = screen.getByRole("button", { name: "Submit deletion request" });
+  expect((submit as HTMLButtonElement).disabled).toBe(true); expect(teamDataLifecycleApi.request).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("checkbox")); await userEvent.click(submit);
+  expect(await screen.findByText("Awaiting operator review")).not.toBeNull();
+  expect(teamDataLifecycleApi.request).toHaveBeenCalledWith(team.id, 3);
+  expect(screen.getByText(/not confirmation that data has been deleted/)).not.toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Cancel deletion request" }));
+  expect(await screen.findByText(/No data was erased by this request workflow/)).not.toBeNull();
+  expect(teamDataLifecycleApi.cancel).toHaveBeenCalledWith(team.id, 4, pending.dataLifecycle.requestId);
+  expect(onChange).toHaveBeenCalledTimes(2);
+});
+it("hides data lifecycle controls from administrators who are not owners", () => {
+  render(<TeamDataLifecycle team={team} membership={{ ...membership, role: "editor" }} onChange={async () => {}} />);
+  expect(screen.queryByRole("region", { name: "Team data lifecycle" })).toBeNull(); expect(teamDataLifecycleApi.get).not.toHaveBeenCalled();
+});
+it("reports a failed request without claiming it was saved, then lets the owner refresh an uncertain outcome", async () => {
+  vi.mocked(teamDataLifecycleApi.request).mockRejectedValueOnce(new Error("Connection lost. Refresh to confirm the outcome."));
+  render(<TeamDataLifecycle team={team} membership={membership} onChange={async () => {}} />);
+  await userEvent.click(await screen.findByText("Request permanent data deletion")); await userEvent.click(screen.getByRole("checkbox")); await userEvent.click(screen.getByRole("button", { name: "Submit deletion request" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("Connection lost"); expect(screen.queryByText("Awaiting operator review")).toBeNull();
+  vi.mocked(teamDataLifecycleApi.get).mockResolvedValueOnce(pending);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh data request" }));
+  expect(await screen.findByText("Awaiting operator review")).not.toBeNull();
+});
+it("discards a previous team's late request receipt and permission loss removes controls", async () => {
+  let complete!: (value: TeamDataLifecycleResponse) => void;
+  vi.mocked(teamDataLifecycleApi.request).mockReturnValueOnce(new Promise(resolve => { complete = resolve; }));
+  const onChange = vi.fn().mockResolvedValue(undefined);
+  const view = render(<TeamDataLifecycle team={team} membership={membership} onChange={onChange} />);
+  await userEvent.click(await screen.findByText("Request permanent data deletion")); await userEvent.click(screen.getByRole("checkbox")); await userEvent.click(screen.getByRole("button", { name: "Submit deletion request" }));
+  vi.mocked(teamDataLifecycleApi.get).mockResolvedValueOnce({ ...none, team: { ...team, id: "team-two" } });
+  view.rerender(<TeamDataLifecycle team={{ ...team, id: "team-two" }} membership={membership} onChange={onChange} />);
+  await act(async () => complete(pending)); await waitFor(() => expect(teamDataLifecycleApi.get).toHaveBeenCalledTimes(2));
+  expect(screen.queryByText("Awaiting operator review")).toBeNull(); expect(onChange).not.toHaveBeenCalled();
+  view.rerender(<TeamDataLifecycle team={team} membership={{ ...membership, role: "viewer" }} onChange={onChange} />);
+  expect(screen.queryByText("Team data")).toBeNull();
+});

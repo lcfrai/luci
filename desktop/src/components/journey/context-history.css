@@ -1,0 +1,12 @@
+@import "../../styles/tokens.css";
+
+.context-history { margin-block-start: 20px; padding-block-start: 16px; border-block-start: 1px solid var(--line-soft); }
+.context-history-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.context-history-heading h3 { margin: 0; }
+.context-history > * + * { margin-block-start: 12px; }
+.context-history-events { list-style: none; padding: 0; display: grid; gap: 12px; }
+.context-history-events li { border-inline-start: 2px solid var(--line-soft); padding-inline-start: 12px; overflow-wrap: anywhere; }
+.context-history-events li p { margin: 0; }
+.context-history-events li p + p { margin-block-start: 4px; }
+.context-history-meta { color: var(--ink-3); font-size: 12px; }
+.context-history-unconfirmed { color: var(--ink-2); font-size: 12px; }

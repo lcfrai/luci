@@ -28,6 +28,9 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/context-history":                    "Reads bounded private authenticated edit/review receipts; creates no files, authority, context changes or resources.",
+	"GET /v1/product/projects/{id}/context":                            "Reads canonical portable context identity and compares generated export bytes without repair or writes.",
+	"GET /v1/product/projects/{id}/context/archive":                    "Reads bounded immutable context history chunks and retention metadata without pruning or writes.",
 	"GET /v1/product/projects/{id}/runs":                                "Reads bounded private run history and original evidence availability; no observation, repair or dispatch.",
 	"GET /v1/product/projects/{id}/runs/{runId}":                        "Reads one private run and retained evidence availability; no observation, repair or dispatch.",
 	"GET /v1/product/projects/{id}/git/branches":                        "Inspects bounded native refs, HEAD and clean state, then reads session state and private receipts; no checkout, sessions or writes.",

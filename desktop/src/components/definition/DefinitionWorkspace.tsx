@@ -2,7 +2,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { definitionApi, type ProjectSpecification, type DefinitionAssistance, type Requirement, type DefinitionAgentOptions } from "../../api/definition";
 import { errorText, productApi } from "../../api/product";
 import { useCockpit } from "../../store/store";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
+import { useProjectDraft, useProjectDraftScope } from "../../hooks/useProjectDraft";
+import { definitionDraftValid } from "../../hooks/projectDraftValidation";
+import { DraftRecovery } from "../common/DraftRecovery";
 import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
+import { ContextStorage } from "../journey/ContextStorage";
 import { JourneyHeader } from "../journey/shared";
 import { RepositoryAnalysisPanel } from "./RepositoryAnalysisPanel";
 import { Button } from "../fluid/components/button";
@@ -41,15 +46,21 @@ function RecordGroup<T extends { id: string }>({ title, help, items, fields, cre
 }
 
 export function DefinitionWorkspace({ projectId }: { projectId: string }) {
-  return <ProjectDefinition key={projectId} projectId={projectId} />;
+  const scope = useProjectDraftScope(projectId);
+  return <ProjectDefinition key={`${scope}:${projectId}`} projectId={projectId} scope={scope} />;
 }
-function ProjectDefinition({ projectId }: { projectId: string }) {
+function ProjectDefinition({ projectId, scope }: { projectId: string; scope: string | null }) {
+  const access = useProjectAccess(projectId);
+  const { canRead, canEdit, canExecute, canAssist } = access;
   const [spec, setSpec] = useState<ProjectSpecification | null>(null);
+  const savedSpec = useRef<ProjectSpecification | null>(null);
   const [base, setBase] = useState<{ revision: number; briefRevision: number } | null>(null);
   const [tab, setTab] = useState<Tab>("interview");
   const [step, setStep] = useState(0);
   const [dirty, setDirty] = useState(false);
-  useUnsavedProjectDraft(projectId, dirty, "Definition", "discover");
+  const draftBase = base ? JSON.stringify(base) : null;
+  const draft = useProjectDraft({ scope, kind: "definition", base: draftBase, value: spec, dirty, valid: definitionDraftValid });
+  useUnsavedProjectDraft(projectId, dirty, "Definition", "discover", scope ? { retained: draft.retained, discard: () => { draft.clear(); setSpec(savedSpec.current); setDirty(false); } } : undefined);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<"" | "save" | "approve" | "ask">("");
   const [error, setError] = useState("");
@@ -83,14 +94,16 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
   const tabsId = useId(), selectedIndex = views.findIndex(([key]) => key === tab);
   const setLens = useCockpit((s) => s.setLens);
   const load = async () => {
+    if (!canRead) return;
     const value = await definitionApi.get(projectId);
     if (!alive.current) return;
-    setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision });
+    savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision });
     setDirty(false); setError("");
     if (value.purpose || value.revision) setTab("specification");
   };
   useEffect(() => {
     alive.current = true;
+    if (!canRead) return;
     const ticket = ++assistGeneration.current;
     void load().catch((cause) => { if (alive.current) setError(errorText(cause)); });
     void definitionApi.listAssistance(projectId).then(async ({ jobs }) => {
@@ -101,40 +114,40 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
       if (alive.current && ticket === assistGeneration.current && value.projectId === projectId && (!value.kind || value.kind === "interview")) setJob(value);
     }).catch(cause => { if (alive.current && ticket === assistGeneration.current) setAssistError(errorText(cause)); });
     return () => { alive.current = false; assistGeneration.current++; };
-  }, [projectId]);
+  }, [projectId, canRead || !!spec]);
   useEffect(() => {
-    if (!job || (job.status !== "queued" && job.status !== "running")) return;
+    if (!canRead || !job || (job.status !== "queued" && job.status !== "running")) return;
     let stopped = false;
     const timer = setInterval(() => {
       void definitionApi.assistance(projectId, job.id).then((value) => { if (!stopped) setJob(value); })
         .catch((cause) => { if (!stopped) setAssistError(errorText(cause)); });
     }, 2500);
     return () => { stopped = true; clearInterval(timer); };
-  }, [projectId, job?.id, job?.status]);
+  }, [projectId, job?.id, job?.status, canRead]);
   const patch = (value: Partial<ProjectSpecification>) => {
     if (spec) setSpec({ ...spec, ...value, status: "draft", digest: "" });
     setDirty(true); setNotice("");
   };
   async function save() {
-    if (!spec || !base || submitting.current) return;
+    if (!canEdit || !spec || !base || submitting.current || draft.pending) return;
     submitting.current = true; setBusy(true); setPending("save"); setError(""); setNotice("");
     try {
       const saved = await definitionApi.save(projectId, spec, base.revision, base.briefRevision);
-      if (alive.current) { setSpec(saved); setBase({ revision: saved.revision, briefRevision: saved.briefRevision }); setDirty(false); setNotice(`Definition ${saved.revision} saved. The full specification is available to your agent.`); }
+      if (alive.current) { draft.clear(); savedSpec.current = saved; setSpec(saved); setBase({ revision: saved.revision, briefRevision: saved.briefRevision }); setDirty(false); setNotice(`Definition ${saved.revision} saved. The full specification is available to your agent.`); }
     } catch (cause) { if (alive.current) setError(errorText(cause)); }
     finally { submitting.current = false; if (alive.current) { setBusy(false); setPending(""); } }
   }
   async function approve() {
-    if (!spec || dirty || submitting.current) return;
+    if (!canEdit || !spec || dirty || draft.pending || submitting.current) return;
     submitting.current = true; setBusy(true); setPending("approve"); setError("");
     try {
       const value = await definitionApi.approve(projectId, spec.revision, spec.briefRevision);
-      if (alive.current) { setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setNotice(`Definition ${value.revision} approved for design and implementation.`); }
+      if (alive.current) { savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setNotice(`Definition ${value.revision} approved for design and implementation.`); }
     } catch (cause) { if (alive.current) setError(errorText(cause)); }
     finally { submitting.current = false; if (alive.current) { setBusy(false); setPending(""); } }
   }
   async function ask() {
-    if (!spec || !message.trim() || dirty || busy || connectionIssue) return;
+    if (!canAssist || !spec || !message.trim() || dirty || draft.pending || busy || connectionIssue) return;
     const ticket = ++assistGeneration.current;
     setBusy(true); setPending("ask"); setAssistError("");
     try { const value = await definitionApi.assist(projectId, spec.revision, message.trim(), { ...assistant, ...(assistantModel ? { model: assistantModel } : { model: undefined }) }); if (alive.current && ticket === assistGeneration.current) { setJob(value); setMessage(""); } }
@@ -162,9 +175,11 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
     <JourneyHeader title="Define your project" subtitle="Turn an idea or existing application into a clear, testable product definition.">
       {spec && <span className="journey-revision" role="status">{dirty ? "Unsaved changes" : `${spec.status === "approved" ? "Approved" : spec.status === "outdated" ? "Needs reconciliation" : "Draft"} · Revision ${spec.revision}`}</span>}
     </JourneyHeader>
-    {error && <div className="journey-error" role="alert">{error} <Button type="button" variant="secondary" disabled={busy} onClick={() => void load().catch((e) => setError(errorText(e)))}>Reload saved definition</Button>{dirty && <p>Your edited draft is still here. Reloading replaces it with the saved definition.</p>}</div>}
+    {access.message && <p role="status" className="journey-muted">{access.message}</p>}
+    {error && <div className="journey-error" role="alert">{error} <Button type="button" variant="secondary" disabled={busy} onClick={() => { draft.offerRecovery(); void load().catch((e) => setError(errorText(e))); }}>Reload saved definition</Button>{dirty && <p>Your edited draft is still here. Reload to compare it with the saved definition and choose what to recover.</p>}</div>}
+    <DraftRecovery draft={draft} label="Definition" base={draftBase} saved={savedSpec.current} busy={busy} readOnly={!canEdit} onDiscard={() => { setSpec(savedSpec.current); setDirty(false); }} onRestore={value => { if (spec) { setSpec({ ...value, projectId, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); } }} />
     {!spec && !error && <p role="status">Loading your project definition…</p>}
-    {spec && <>
+    {spec && canRead && <>
       <TabsSubtle className="definition-tabs" aria-label="Definition views" idPrefix={tabsId} selectedIndex={selectedIndex} onSelect={index => selectTab(views[index][0])}>
         {views.map(([, label], index) => <TabsSubtleItem key={label} index={index} label={label} />)}
       </TabsSubtle>
@@ -172,7 +187,7 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
       {views.map(([key], index) => <TabsSubtlePanel key={key} idPrefix={tabsId} index={index} selectedIndex={selectedIndex}>
       <div className="definition-layout" style={tab === "repository" ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
         <div className="definition-content">
-          <fieldset disabled={busy} className="definition-fields">
+          <fieldset disabled={!canEdit || busy || !!draft.pending} className="definition-fields">
             {tab === "interview" && <div className="definition-interview">
               <label className="luci-field">Starting point<select value={spec.startingPoint} onChange={(e) => patch({ startingPoint: e.target.value as "new" | "existing" })}><option value="new">A new idea</option><option value="existing">An existing application</option></select></label>
               {spec.startingPoint === "existing" && <div><p className="journey-muted">Analyse actual source with your chosen provider, review the observed behaviour and gaps, then apply a draft. Save any edited answers before starting.</p><Button type="button" variant="secondary" onClick={() => setTab("repository")}>Analyse this repository</Button></div>}
@@ -216,41 +231,43 @@ function ProjectDefinition({ projectId }: { projectId: string }) {
               <RecordGroup title="Open questions" help="Capture the gaps. Answer them before approving the definition." items={spec.questions} fields={[{ key: "question", label: "Question" }, { key: "answer", label: "Answer" }]} create={() => ({ id: recordId("question"), question: "", answer: "" })} onChange={(questions) => patch({ questions })} />
             </div>}
           </fieldset>
-          {tab === "repository" && <RepositoryAnalysisPanel projectId={projectId} specification={spec} dirty={dirty || busy} onApplied={value => {
-            setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setDirty(false); setError(""); setTab("specification");
+          {tab === "repository" && <RepositoryAnalysisPanel projectId={projectId} specification={spec} dirty={dirty || busy || !!draft.pending} onApplied={value => {
+            savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setDirty(false); setError(""); setTab("specification");
             setNotice(`Repository analysis saved as definition ${value.revision}. Review the draft and resolve open questions before approving.`);
           }} />}
           {tab === "history" && <section><h2>Saved definition snapshots</h2>{!history.length && <p>No structured revisions yet. Existing brief text is preserved when you save your first definition.</p>}<ol className="definition-history">{history.slice().reverse().map((r) => <li key={r.revision}><strong>Revision {r.revision} · {r.status}</strong><p>{r.purpose}</p><small>Brief {r.briefRevision} · {r.requirements.length} requirements · {new Date(r.updatedAt).toLocaleString()}</small><details><summary>Read this snapshot</summary><pre>{JSON.stringify(r, null, 2)}</pre></details></li>)}</ol></section>}
         </div>
         {tab !== "repository" && <aside className="definition-assistant" aria-label="Definition assistant">
           <h2>Work through it with Luci</h2><p>Ask your connected agent to find gaps, explore an idea or propose a fuller definition. Suggestions remain drafts until you accept them.</p>
-          <fieldset disabled={busy || job?.status === "running" || job?.status === "queued"} className="definition-fields">
+          <fieldset disabled={!canAssist || busy || job?.status === "running" || job?.status === "queued"} className="definition-fields">
             <label className="luci-field">Assistant provider<select value={assistant.harness} onChange={event => setAssistant({ ...assistant, harness: event.target.value as DefinitionAgentOptions["harness"], model: "" })}><option value="codex">Codex</option><option value="claude-code">Claude Code</option><option value="opencode">OpenCode</option></select></label>
             <AgentConnectionSelect catalogue={catalogue} value={assistant.agentConnectionId} onChange={id => setAssistant({ ...assistant, agentConnectionId: id })} label="Assistant connection" />
             <label className="luci-field">Assistant model<input value={assistantModel ?? ""} readOnly={assistantModelReadOnly} onChange={event => setAssistant({ ...assistant, model: event.target.value })} placeholder="Agent default, or an exact available model ID" /></label>
           </fieldset>
           {(connectionIssue || connectionError) && <p className="journey-error" role="alert">{connectionIssue || connectionError}</p>}
-          <label className="luci-field">What would you like to explore?<textarea rows={4} value={message} disabled={busy || job?.status === "running" || job?.status === "queued"} onChange={(e) => setMessage(e.target.value)} placeholder="Help me make the first version complete. Ask the next useful question." /></label>
-          <Button type="button" variant="secondary" loading={pending === "ask"} onClick={() => void ask()} disabled={dirty || busy || !!connectionIssue || !message.trim() || job?.status === "running" || job?.status === "queued"}>Ask Luci</Button>
+          <label className="luci-field">What would you like to explore?<textarea rows={4} value={message} disabled={!canAssist || busy || job?.status === "running" || job?.status === "queued"} onChange={(e) => setMessage(e.target.value)} placeholder="Help me make the first version complete. Ask the next useful question." /></label>
+          <Button type="button" variant="secondary" loading={pending === "ask"} onClick={() => void ask()} disabled={!canAssist || dirty || busy || !!connectionIssue || !message.trim() || job?.status === "running" || job?.status === "queued"}>Ask Luci</Button>
           {dirty && <p className="journey-muted">Save your draft first so the assistant works from the same definition.</p>}
           {assistError && <p className="journey-error" role="alert">{assistError}</p>}
           {job && <div className="definition-answer"><p role="status">{job.message || job.status}</p>
-            {(job.status === "queued" || job.status === "running") && <Button type="button" variant="secondary" onClick={() => void definitionApi.cancelAssistance(projectId, job.id).then(setJob).catch((e) => setAssistError(errorText(e)))}>Cancel assistance</Button>}
+            {(job.status === "queued" || job.status === "running") && <Button type="button" variant="secondary" disabled={!canExecute} onClick={() => { if (!canExecute) return; void definitionApi.cancelAssistance(projectId, job.id).then(setJob).catch((e) => setAssistError(errorText(e))); }}>Cancel assistance</Button>}
             {job.result && <><h3>{job.result.question}</h3><p>{job.result.rationale}</p>{job.result.options.map((option) => <Button type="button" variant="secondary" className="definition-option" key={option} onClick={() => setMessage(option)}>{option}</Button>)}
-              {job.result.proposal && <details><summary>Review proposed definition</summary><p>{job.result.proposal.purpose}</p><ul>{job.result.proposal.requirements.map((r) => <li key={r.id}>{r.title}<br /><small>{r.acceptance}</small></li>)}</ul><p>This replaces the edited definition with a proposed draft. It does not approve or save it.</p><Button type="button" variant="secondary" onClick={() => { const proposal = job.result?.proposal; if (proposal) { setSpec({ ...proposal, projectId, version: 1, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); setNotice("Proposal accepted as an editable draft. Review it and save when ready."); } }}>Use this proposal as my draft</Button></details>}
+              {job.result.proposal && <details><summary>Review proposed definition</summary><p>{job.result.proposal.purpose}</p><ul>{job.result.proposal.requirements.map((r) => <li key={r.id}>{r.title}<br /><small>{r.acceptance}</small></li>)}</ul><p>This replaces the edited definition with a proposed draft. It does not approve or save it.</p><Button type="button" variant="secondary" disabled={!canEdit || !!draft.pending} onClick={() => { const proposal = job.result?.proposal; if (proposal) { setSpec({ ...proposal, projectId, version: 1, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); setNotice("Proposal accepted as an editable draft. Review it and save when ready."); } }}>Use this proposal as my draft</Button></details>}
             </>}
           </div>}
+          {canEdit && !canAssist && <p className="journey-muted">Assistance requires execution and secret access for the selected provider.</p>}
           <p className="journey-muted">The assistant uses your selected connection and a ready Docker runtime. Your definition is sent to that provider.</p>
         </aside>}
       </div>
       </TabsSubtlePanel>)}
       <footer className="definition-footer"><div className="journey-actions">
         {dirty || spec.status === "outdated" || !spec.revision
-          ? <Button type="button" loading={pending === "save"} disabled={busy || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
+          ? <Button type="button" loading={pending === "save"} disabled={!canEdit || busy || !!draft.pending || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
           : spec.status === "approved"
             ? <Button type="button" disabled={busy} onClick={() => setLens("design")}>Continue to Design</Button>
-            : <Button type="button" loading={pending === "approve"} disabled={busy} onClick={() => void approve()}>Approve definition</Button>}
+            : <Button type="button" loading={pending === "approve"} disabled={!canEdit || busy || !!draft.pending} onClick={() => void approve()}>Approve definition</Button>}
       </div><p role="status" className="journey-muted">{notice || `${spec.requirements.length} requirements · ${spec.questions.filter((q) => !q.answer.trim()).length} open questions`}</p></footer>
     </>}
+    <ContextStorage projectId={projectId} />
   </section>;
 }

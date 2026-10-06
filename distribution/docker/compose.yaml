@@ -2,7 +2,7 @@ name: ${LUCI_COMPOSE_PROJECT:-luci-docker}
 
 services:
   engine:
-    image: luci/engine:${LUCI_VERSION:-0.4.17}
+    image: luci/engine:${LUCI_VERSION:-0.5.0}
     build:
       context: .
       dockerfile: Dockerfile
@@ -30,7 +30,7 @@ services:
       ai.lcfr.luci.distribution: private-docker-engine
 
   controller:
-    image: luci/controller:${LUCI_VERSION:-0.4.17}
+    image: luci/controller:${LUCI_VERSION:-0.5.0}
     platform: linux/amd64
     build:
       context: .
@@ -52,6 +52,15 @@ services:
       LUCI_ALLOWED_ORIGINS: "http://127.0.0.1:${LUCI_PORT:-8730},http://localhost:${LUCI_PORT:-8730}"
       LUCI_BROWSER_PREVIEW_ADDR: 0.0.0.0:8731
       LUCI_BROWSER_PREVIEW_PORT: "${LUCI_PREVIEW_PORT:-8731}"
+      LUCI_PUBLIC_APP_ORIGIN: "${LUCI_PUBLIC_APP_ORIGIN:-}"
+      LUCI_PREVIEW_BASE_DOMAIN: "${LUCI_PREVIEW_BASE_DOMAIN:-}"
+      LUCI_MANAGED_TEAM_ID: "${LUCI_MANAGED_TEAM_ID:-}"
+      LUCI_STRIPE_API_KEY: "${LUCI_STRIPE_API_KEY:-}"
+      LUCI_STRIPE_WEBHOOK_SECRET: "${LUCI_STRIPE_WEBHOOK_SECRET:-}"
+      LUCI_STRIPE_ACCOUNT_ID: "${LUCI_STRIPE_ACCOUNT_ID:-}"
+      LUCI_STRIPE_PRICE_ID: "${LUCI_STRIPE_PRICE_ID:-}"
+      LUCI_BILLING_TERMS_URL: "${LUCI_BILLING_TERMS_URL:-}"
+      LUCI_BILLING_PRIVACY_URL: "${LUCI_BILLING_PRIVACY_URL:-}"
     volumes:
       - engine-socket:/run/luci-engine
       - workspace:/luci-workspace

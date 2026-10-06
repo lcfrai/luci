@@ -153,3 +153,32 @@ it("retains a rejected approval as a draft and lets the user correct it", async 
   await userEvent.type(screen.getByRole("textbox", { name: "The idea" }), " with a clear acceptance scenario");
   expect(screen.getByRole("button", { name: "Save definition" })).not.toBeNull();
 });
+
+const teamAccess = vi.hoisted(() => ({ loading: false, error: "", permissions: { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true } }));
+vi.mock("../teams/TeamWorkspaceProvider", () => ({ useTeamProjectPermissions: () => teamAccess, useTeamWorkspace: () => null }));
+beforeEach(() => { teamAccess.loading = false; teamAccess.error = ""; Object.assign(teamAccess.permissions, { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true }); });
+it("allows viewers to read shared definition while disabling edits, approval and provider execution", async () => {
+  teamAccess.permissions.edit = false; teamAccess.permissions.execute = false;
+  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
+  const save = vi.spyOn(definitionApi, "save"), approve = vi.spyOn(definitionApi, "approve"), assist = vi.spyOn(definitionApi, "assist");
+  render(<DefinitionWorkspace projectId="p-1" />);
+  const idea = await screen.findByLabelText("The idea");
+  expect((idea.closest("fieldset") as HTMLFieldSetElement).disabled).toBe(true);
+  expect(screen.getByText(/Read-only access/)).not.toBeNull();
+  await userEvent.type(idea, " forbidden");
+  await userEvent.click(screen.getByRole("button", { name: "Approve definition" }));
+  expect((idea as HTMLTextAreaElement).value).toBe(fixture().purpose);
+  expect((screen.getByRole("button", { name: "Ask Luci" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(save).not.toHaveBeenCalled(); expect(approve).not.toHaveBeenCalled(); expect(assist).not.toHaveBeenCalled();
+});
+it("retains edited answers while project permissions refresh and then become read-only", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
+  const view = render(<DefinitionWorkspace projectId="p-1" />);
+  const idea = await screen.findByLabelText("The idea"); await userEvent.type(idea, " with unsaved edits");
+  teamAccess.loading = true; view.rerender(<DefinitionWorkspace projectId="p-1" />);
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toContain("with unsaved edits");
+  expect((screen.getByRole("button", { name: "Save definition" }) as HTMLButtonElement).disabled).toBe(true);
+  teamAccess.loading = false; teamAccess.permissions.edit = false; view.rerender(<DefinitionWorkspace projectId="p-1" />);
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toContain("with unsaved edits");
+  expect(definitionApi.get).toHaveBeenCalledOnce();
+});

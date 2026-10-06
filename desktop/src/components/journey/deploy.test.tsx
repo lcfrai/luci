@@ -119,15 +119,15 @@ it("reveals a collapsed preview option when the browser reports invalid input", 
   expect(details.open).toBe(true);
   expect(release).not.toHaveBeenCalled();
 });
-it("opens an isolated verified Docker gateway preview with application origin permission", async () => {
+it.each([gatewayURL, `https://p-${"b".repeat(51)}a.preview.projects.test/`])("opens an isolated verified Docker gateway preview with application origin permission: %s", async address => {
   vi.spyOn(productApi, "releases").mockResolvedValue({
-    releases: [{ ...ready, url: gatewayURL }],
+    releases: [{ ...ready, url: address }],
   });
   const prepare = vi.spyOn(productApi, "prepareWorkspacePreview");
   render(<ProjectDeploy projectId="p-1" />);
   await userEvent.click(await screen.findByRole("button", { name: "Open preview" }));
   const frame = screen.getByTitle("Project preview");
-  expect(frame.getAttribute("src")).toBe(gatewayURL);
+  expect(frame.getAttribute("src")).toBe(address);
   expect(frame.getAttribute("sandbox")).toBe("allow-scripts allow-forms allow-same-origin");
   expect(prepare).not.toHaveBeenCalled();
 });

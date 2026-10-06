@@ -35,7 +35,7 @@ func PlatformPrototypeReleases(resolve func() *platform.Service) func(context.Co
 	}
 }
 
-func validPrototypeURL(row Release) bool {
+func validPrototypeURL(row Release, registry ...*previewgateway.Registry) bool {
 	if row.Target == "application" {
 		return row.BrowserConnectionRequired && row.URL == ""
 	}
@@ -44,6 +44,9 @@ func validPrototypeURL(row Release) bool {
 		return false
 	}
 	if row.Target == "local" {
+		if len(registry) > 0 && registry[0] != nil && registry[0].AcceptsOrigin(u.Scheme+"://"+u.Host) {
+			return true
+		}
 		host := strings.ToLower(u.Hostname())
 		port, err := strconv.Atoi(u.Port())
 		return err == nil && port > 0 && port <= 65535 && (u.Scheme == "http" || u.Scheme == "https") && (host == "127.0.0.1" || host == "localhost" || previewgateway.IsCapabilityHostname(host))
@@ -92,7 +95,7 @@ func (s *Server) prototypeReleases(ctx context.Context, projectID string) ([]Rel
 		if row.Target != "local" && row.Target != "application" {
 			validCommit = coolifyCommit.MatchString(row.Commit)
 		}
-		if row.ProjectID != projectID || !prototypeReleaseID.MatchString(row.ID) || seen[row.ID] || !validCommit || !validPrototypeURL(row) {
+		if row.ProjectID != projectID || !prototypeReleaseID.MatchString(row.ID) || seen[row.ID] || !validCommit || !validPrototypeURL(row, s.browserRegistry) {
 			return nil, errors.New("prototype release provenance is invalid or ambiguous")
 		}
 		seen[row.ID] = true

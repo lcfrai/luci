@@ -24,7 +24,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
-const Version = "0.4.18"
+const Version = "0.5.0"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -45,6 +45,7 @@ type Options struct {
 	BranchSessions          func(context.Context, string, string) (bool, error)
 	CloudDataBindings       func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
 	BrowserPreviewPort      int
+	BrowserPreviewDomain    string
 	ManagedWorkspace        bool
 	CloudBundle             string
 	Shutdown                func()
@@ -127,7 +128,7 @@ func New(opts Options) (*Server, error) {
 		config: Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30}}
 	if opts.BrowserPreviewPort != 0 {
 		var err error
-		s.browserRegistry, err = previewgateway.NewRegistry(opts.StateDir, opts.BrowserPreviewPort)
+		s.browserRegistry, err = previewgateway.NewRegistryWithDomain(opts.StateDir, opts.BrowserPreviewPort, opts.BrowserPreviewDomain)
 		if err != nil {
 			return nil, err
 		}

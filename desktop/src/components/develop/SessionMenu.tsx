@@ -17,6 +17,7 @@ import type { FormEvent, JSX } from "react";
 import { Popover } from "../common/Popover";
 import { useDismissable } from "../../hooks/useDismissable";
 import { useCreateSession } from "../../hooks/useCreateSession";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { selectSession } from "../../store/selectors";
 import { useCockpit } from "../../store/store";
 import type { SessionId } from "../../store/types";
@@ -41,7 +42,9 @@ export function SessionMenu(props: {
 }): JSX.Element {
   const { sessionId, anchor, onClose } = props;
   const title = useCockpit((s) => selectSession(sessionId)(s)?.title ?? "");
-  const createSession = useCreateSession();
+  const projectId = useCockpit(state => selectSession(sessionId)(state)?.projectId ?? "");
+  const access = useProjectAccess(projectId);
+  const createSession = useCreateSession(projectId);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
   // Task 18's overlay stack, not a second Escape listener. Pushed ABOVE the Popover's entry
@@ -53,6 +56,7 @@ export function SessionMenu(props: {
   if (anchor === null) return <></>;
 
   const items = sessionVerbs(sessionId, {
+    access,
     createSession,
     close: onClose,
     beginRename: () => {
@@ -63,6 +67,7 @@ export function SessionMenu(props: {
 
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
+    if (!access.canEdit) return;
     setRenaming(false);
     renameSessionTo(sessionId, draft);
     onClose();
@@ -84,6 +89,8 @@ export function SessionMenu(props: {
             id={`rename-${sessionId}`}
             className="menu-rename-input"
             value={draft}
+            disabled={!access.canEdit}
+            title={access.message || undefined}
             autoFocus
             onChange={(event) => setDraft(event.target.value)}
           />

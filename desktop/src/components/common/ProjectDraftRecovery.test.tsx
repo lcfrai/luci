@@ -1,0 +1,236 @@
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { DefinitionWorkspace } from "../definition/DefinitionWorkspace";
+import DesignWorkspace from "../design/DesignWorkspace";
+import DesignEditor from "../journey/DesignEditor";
+import { ProjectPlan } from "../journey/ProjectPlan";
+import { DraftNavigationDialog } from "./DraftNavigationDialog";
+import { definitionApi, type ProjectSpecification } from "../../api/definition";
+import { designPlanApi, type DesignPlan } from "../../api/designPlan";
+import { productApi, type Brief, type DesignScene, type ImplementationPlan } from "../../api/product";
+import { selectTeamScope } from "../../api/teamScope";
+import { resetCockpit, useCockpit } from "../../store/store";
+
+const identity = vi.hoisted(() => ({ actor: "alice", workspace: "local", remoteUser: "alice", root: "/projects/alice" }));
+vi.mock("../auth/AuthProvider", () => ({ useAuth: () => identity.actor ? { profile: { user: { id: identity.actor } } } : null }));
+vi.mock("../setup/SetupProvider", () => ({ useSetup: () => ({ workspace: { mode: identity.workspace === "local" ? "local" : "cloud", connectionId: identity.workspace, host: identity.workspace }, status: { config: { projectsDir: identity.root }, access: { user: { username: identity.remoteUser } } } }) }));
+const canvas = vi.hoisted(() => ({ change: null as ((elements: unknown[], state: object, files: object) => void) | null }));
+vi.mock("@excalidraw/excalidraw", async () => {
+  const { useEffect } = await import("react");
+  return { Excalidraw: ({ initialData, onChange }: { initialData: DesignScene; onChange: typeof canvas.change }) => {
+    canvas.change = onChange;
+    useEffect(() => { onChange?.(initialData.elements, initialData.appState, initialData.files); }, []);
+    return <div aria-label="Sketch document">{JSON.stringify(initialData.elements)}</div>;
+  }, serializeAsJSON: (elements: unknown[], appState: object, files: object) => JSON.stringify({ elements, appState, files }),
+  MainMenu: Object.assign(() => null, { DefaultItems: { Export: () => null, SaveAsImage: () => null, ClearCanvas: () => null, ChangeCanvasBackground: () => null } }) };
+});
+const specification = (): ProjectSpecification => ({ projectId: "p-1", version: 1, revision: 2, briefRevision: 3, startingPoint: "new", purpose: "Saved idea", audience: "People", constraints: "Offline", outOfScope: [], requirements: [{ id: "AC-1", title: "Save work", priority: "must", acceptance: "Reopened work returns" }], journeys: [], roles: [], entities: [], integrations: [], glossary: [], decisions: [], questions: [], status: "draft", digest: "", updatedAt: "" });
+const designPlan = (): DesignPlan => ({ projectId: "p-1", revision: 4, briefRevision: 3, specificationRevision: 2, sketchRevision: 1, screens: [{ id: "home", name: "Saved screen", route: "/", purpose: "Save work", states: ["Loading"], widths: [390], requirementIds: ["AC-1"], accessibility: "Keyboard" }], tokens: [], assets: [], implementationNotes: "Saved notes", prototypeReleaseId: "", prototypeCommit: "", status: "draft", digest: "", updatedAt: "" });
+const brief: Brief = { projectId: "p-1", revision: 3, purpose: "Saved idea", audience: "People", constraints: "", criteria: [], updatedAt: "" };
+const plan: ImplementationPlan = { projectId: "p-1", revision: 5, briefRevision: 3, tasks: [{ id: "build", title: "Saved task", status: "todo" }], updatedAt: "" };
+const scene: DesignScene = { elements: [{ id: "shape", x: 1 }], appState: {}, files: {} };
+function edit(name: string, value: string) { fireEvent.change(screen.getByRole("textbox", { name }), { target: { value } }); }
+function storedDrafts() { return Object.keys(localStorage).filter(key => key.startsWith("luci.project-draft.v1:")); }
+
+beforeEach(() => {
+  vi.restoreAllMocks(); selectTeamScope(""); localStorage.clear(); resetCockpit();
+  Object.assign(identity, { actor: "alice", workspace: "local", remoteUser: "alice", root: "/projects/alice" });
+  vi.spyOn(definitionApi, "get").mockImplementation(async id => ({ ...specification(), projectId: id }));
+  vi.spyOn(definitionApi, "listAssistance").mockResolvedValue({ jobs: [] });
+  vi.spyOn(productApi, "agentConnections").mockResolvedValue({ revision: 0, activeConnectionId: "", connections: [] });
+  vi.spyOn(productApi, "agents").mockResolvedValue({ providers: [] });
+  vi.spyOn(designPlanApi, "get").mockResolvedValue(designPlan());
+  vi.spyOn(productApi, "prototypeReleases").mockResolvedValue({ releases: [] });
+  vi.spyOn(productApi, "plan").mockResolvedValue(plan);
+  vi.spyOn(productApi, "checks").mockResolvedValue({ runs: [], suggested: [] });
+  vi.spyOn(productApi, "design").mockResolvedValue({ projectId: "p-1", revision: 2, briefRevision: 3, frames: [], scene, updatedAt: "" });
+});
+afterEach(() => { cleanup(); selectTeamScope(""); localStorage.clear(); vi.restoreAllMocks(); });
+
+it("recovers a definition only after an explicit restore, keeps its stable requirement IDs, and clears it after a successful save", async () => {
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_id, value) => ({ ...value, revision: 3, briefRevision: 4 }));
+  const view = render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByLabelText("The idea"); edit("The idea", "My unsaved idea"); edit("Acceptance scenario 1", "Recover work after reload");
+  expect(storedDrafts()).toHaveLength(1); view.unmount();
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByLabelText("The idea");
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("Saved idea");
+  expect(save).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("My unsaved idea");
+  expect(screen.getByText(/Recovered draft · kept in this browser/)).not.toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  await waitFor(() => expect(storedDrafts()).toHaveLength(0));
+  expect(save.mock.calls[0][1].requirements[0]).toMatchObject({ id: "AC-1", acceptance: "Recover work after reload" });
+  expect(save.mock.calls[0].slice(2)).toEqual([2, 3]);
+});
+
+it("retains conflict edits while comparing the newer saved definition, and requires review before rebasing a manual save", async () => {
+  const save = vi.spyOn(definitionApi, "save").mockRejectedValueOnce(new Error("Revision conflict: another person saved this definition"));
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByLabelText("The idea"); edit("The idea", "My conflicting draft");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  await screen.findByText(/Revision conflict:/);
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("My conflicting draft");
+  vi.mocked(definitionApi.get).mockResolvedValue({ ...specification(), purpose: "Colleague saved idea", revision: 3, briefRevision: 4 });
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved definition" }));
+  await waitFor(() => expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("Colleague saved idea"));
+  expect((screen.getByRole("button", { name: "Restore draft" }) as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(screen.getByText("Compare draft with saved version"));
+  const recovery = screen.getByRole("region", { name: "Definition draft recovery" });
+  expect(recovery.textContent).toContain("Colleague saved idea"); expect(recovery.textContent).toContain("My conflicting draft");
+  await userEvent.click(screen.getByRole("checkbox", { name: /I reviewed the saved version/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect(save).toHaveBeenCalledTimes(1);
+  save.mockImplementation(async (_id, value) => ({ ...value, revision: 4, briefRevision: 5 }));
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+  expect(save.mock.calls[1][1].purpose).toBe("My conflicting draft"); expect(save.mock.calls[1].slice(2)).toEqual([3, 4]);
+});
+
+it("isolates drafts when accounts, remote accounts, workspaces, project roots, API endpoints, or projects change", async () => {
+  const view = render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByLabelText("The idea"); edit("The idea", "Private Alice draft");
+  for (const [key, next] of [["actor", "bob"], ["workspace", "other-host"], ["remoteUser", "remote-bob"], ["root", "/new-root"]] as const) {
+    const previous = identity[key]; identity[key] = next;
+    view.rerender(<DefinitionWorkspace projectId="p-1" />);
+    await screen.findByLabelText("The idea");
+    expect(screen.queryByRole("button", { name: "Restore draft" })).toBeNull();
+    expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("Saved idea");
+    identity[key] = previous;
+  }
+  const endpoint = vi.spyOn(productApi, "baseUrl", "get").mockReturnValue("https://other-service.invalid");
+  view.rerender(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  expect(screen.queryByRole("button", { name: "Restore draft" })).toBeNull(); endpoint.mockRestore();
+  view.rerender(<DefinitionWorkspace projectId="p-2" />); await screen.findByLabelText("The idea");
+  expect(screen.queryByRole("button", { name: "Restore draft" })).toBeNull();
+  view.rerender(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("Private Alice draft");
+});
+
+it("retains structured design edits through remount and discards a browser draft without saving it", async () => {
+  const save = vi.spyOn(designPlanApi, "save");
+  const view = render(<DesignWorkspace projectId="p-1" />);
+  await screen.findByLabelText("Screen name"); edit("Screen name", "Unsaved screen"); view.unmount();
+  const recovered = render(<DesignWorkspace projectId="p-1" />); await screen.findByLabelText("Screen name");
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("Screen name") as HTMLInputElement).value).toBe("Unsaved screen"); recovered.unmount();
+  render(<DesignWorkspace projectId="p-1" />); await screen.findByLabelText("Screen name");
+  await userEvent.click(screen.getByRole("button", { name: "Discard browser draft" }));
+  expect((screen.getByLabelText("Screen name") as HTMLInputElement).value).toBe("Saved screen");
+  expect(storedDrafts()).toHaveLength(0); expect(save).not.toHaveBeenCalled();
+});
+
+it("recovers task edits and an unfinished new task without starting implementation", async () => {
+  const save = vi.spyOn(productApi, "savePlan");
+  const view = render(<ProjectPlan projectId="p-1" brief={brief} />);
+  await screen.findByLabelText("Task 1"); edit("Task 1", "Unsaved implementation task");
+  fireEvent.change(screen.getByPlaceholderText("Describe a concrete outcome"), { target: { value: "Not added yet" } }); view.unmount();
+  render(<ProjectPlan projectId="p-1" brief={brief} />); await screen.findByLabelText("Task 1");
+  expect((screen.getByLabelText("Task 1") as HTMLInputElement).value).toBe("Saved task");
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("Task 1") as HTMLInputElement).value).toBe("Unsaved implementation task");
+  expect((screen.getByPlaceholderText("Describe a concrete outcome") as HTMLInputElement).value).toBe("Not added yet");
+  expect(save).not.toHaveBeenCalled();
+});
+
+it("recovers a normalized sketch without counting hydration as an edit or automatically saving it", async () => {
+  const save = vi.spyOn(productApi, "saveDesign");
+  const view = render(<DesignEditor projectId="p-1" />);
+  await screen.findByLabelText("Sketch document"); expect(storedDrafts()).toHaveLength(0);
+  act(() => canvas.change?.([{ id: "shape", x: 99 }], {}, {})); view.unmount();
+  render(<DesignEditor projectId="p-1" />); await screen.findByLabelText("Sketch document");
+  expect(screen.getByLabelText("Sketch document").textContent).toContain('"x":1');
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect(screen.getByLabelText("Sketch document").textContent).toContain('"x":99');
+  expect((screen.getByRole("button", { name: "Save design" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(save).not.toHaveBeenCalled();
+});
+
+it("keeps a draft through guarded navigation and explicitly deletes it on discard navigation", async () => {
+  useCockpit.getState().selectProject("p-1"); useCockpit.getState().setLens("discover");
+  const view = render(<><DefinitionWorkspace projectId="p-1" /><DraftNavigationDialog /></>);
+  await screen.findByLabelText("The idea"); edit("The idea", "Navigate with this draft");
+  act(() => useCockpit.getState().setLens("develop"));
+  await userEvent.click(screen.getByRole("button", { name: "Keep drafts and continue" }));
+  expect(useCockpit.getState().lens).toBe("develop"); view.unmount();
+  const next = render(<><DefinitionWorkspace projectId="p-1" /><DraftNavigationDialog /></>); await screen.findByLabelText("The idea");
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  act(() => useCockpit.getState().setLens("design"));
+  await userEvent.click(screen.getByRole("button", { name: "Discard edits and continue" }));
+  next.unmount(); expect(storedDrafts()).toHaveLength(0);
+});
+
+it("reports unavailable storage truthfully and offers no keep-and-leave action", async () => {
+  const write = Storage.prototype.setItem;
+  vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) { if (key.startsWith("luci.project-draft.v1:")) throw new DOMException("Full", "QuotaExceededError"); write.call(this, key, value); });
+  useCockpit.getState().selectProject("p-1");
+  render(<><DefinitionWorkspace projectId="p-1" /><DraftNavigationDialog /></>);
+  await screen.findByLabelText("The idea"); edit("The idea", "Still in memory");
+  expect((await screen.findByRole("alert")).textContent).toContain("Browser storage is unavailable or full");
+  act(() => useCockpit.getState().setLens("design"));
+  expect(screen.queryByRole("button", { name: "Keep drafts and continue" })).toBeNull();
+});
+
+it("does not persist unidentified accounts or oversized drafts", async () => {
+  identity.actor = "";
+  const view = render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea"); edit("The idea", "Unidentified draft");
+  expect(storedDrafts()).toHaveLength(0); view.unmount(); identity.actor = "alice";
+  render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea"); edit("The idea", "x".repeat(1024 * 1024 + 1));
+  expect((await screen.findByRole("alert")).textContent).toContain("too large"); expect(storedDrafts()).toHaveLength(0);
+});
+
+it("preserves a newer draft written in another tab when a late save clears this editor", async () => {
+  let finish!: (value: ProjectSpecification) => void;
+  vi.spyOn(definitionApi, "save").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea"); edit("The idea", "First tab");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  const key = storedDrafts()[0], record = JSON.parse(localStorage.getItem(key)!); record.value.purpose = "Second tab"; localStorage.setItem(key, JSON.stringify(record));
+  await act(async () => finish({ ...specification(), purpose: "First tab", revision: 3, briefRevision: 4 })); view.unmount();
+  render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  expect(within(screen.getByRole("region", { name: "Definition draft recovery" })).getByText(/Second tab/)).not.toBeNull();
+});
+
+it("does not offer an expired browser draft and never evicts a fresh draft to make room", async () => {
+  const first = render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea"); edit("The idea", "Expired work"); first.unmount();
+  const expiredKey = storedDrafts()[0], expired = JSON.parse(localStorage.getItem(expiredKey)!);
+  expired.updatedAt = Date.now() - 31 * 24 * 60 * 60 * 1000; localStorage.setItem(expiredKey, JSON.stringify(expired));
+  const second = render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  expect(screen.queryByRole("button", { name: "Restore draft" })).toBeNull(); expect(storedDrafts()).toHaveLength(0);
+  // Other fresh documents already consume this feature's bounded budget.
+  const fresh = JSON.stringify({ ...expired, updatedAt: Date.now(), value: { ...specification(), purpose: "z".repeat(1050000) } });
+  localStorage.setItem("luci.project-draft.v1:other-document-1", fresh);
+  localStorage.setItem("luci.project-draft.v1:other-document-2", fresh);
+  edit("The idea", "Keep this edit in memory when browser recovery is full");
+  expect((await screen.findByRole("alert")).textContent).toContain("Browser draft storage is full");
+  expect(localStorage.getItem("luci.project-draft.v1:other-document-1")).toBe(fresh);
+  expect(localStorage.getItem("luci.project-draft.v1:other-document-2")).toBe(fresh);
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toContain("Keep this edit"); second.unmount();
+});
+
+it("keeps an account's unsaved draft when its save finishes after switching accounts", async () => {
+  let finish!: (value: ProjectSpecification) => void;
+  vi.spyOn(definitionApi, "save").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea"); edit("The idea", "Alice pending save");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  identity.actor = "bob"; view.rerender(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  await act(async () => finish({ ...specification(), purpose: "Alice pending save", revision: 3, briefRevision: 4 }));
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("Saved idea");
+  expect(screen.queryByRole("button", { name: "Restore draft" })).toBeNull();
+  identity.actor = "alice"; view.rerender(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  expect(screen.getByRole("region", { name: "Definition draft recovery" }).textContent).toContain("Alice pending save");
+});
+
+it("keeps personal and selected team drafts separate through the actual API workspace prefix", async () => {
+  const view = render(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea"); edit("The idea", "Personal-only draft");
+  selectTeamScope("team-aaaaaaaaaaaaaaaaaaaaaa"); view.rerender(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  expect(screen.queryByRole("button", { name: "Restore draft" })).toBeNull(); edit("The idea", "Shared workspace draft");
+  selectTeamScope(""); view.rerender(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("Personal-only draft");
+  selectTeamScope("team-aaaaaaaaaaaaaaaaaaaaaa"); view.rerender(<DefinitionWorkspace projectId="p-1" />); await screen.findByLabelText("The idea");
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("Shared workspace draft");
+});

@@ -36,6 +36,9 @@ func blockedProjectFile(relative string) bool {
 // Only the documented context exports may cross the one-click Git boundary.
 // Other private Luci files remain protected even when stored beside them.
 func journeyContextFile(relative string) bool {
+	if journeyArchivePath(relative) {
+		return true
+	}
 	switch relative {
 	case ".luci/state.json", ".luci/design.json", ".luci/plan.json",
 		".luci/specification.json", ".luci/specification.md",
@@ -421,6 +424,10 @@ func (s *Server) commitProject(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ctx = context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir)
+	if err := discardJourneyArchiveStaging(p.Path); err != nil {
+		journeyError(w, 409, "context_unavailable", "Interrupted context staging must be recoverable before committing.")
+		return
+	}
 	status, err := s.journeyGit(ctx, p.Path, "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	if err != nil {
 		journeyError(w, 422, "git_failed", err.Error())
@@ -431,7 +438,30 @@ func (s *Server) commitProject(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 409, "nothing_to_commit", "The project has no changes to commit.")
 		return
 	}
+	archiveFiles := map[string]bool{}
 	for _, change := range changes {
+		if change.Path == ".luci/state.json" || journeyArchivePath(change.Path) {
+			state, err := readJourney(p.Path, p.ID)
+			if err != nil {
+				journeyError(w, 409, "context_unavailable", "Saved context must be readable before committing its history.")
+				return
+			}
+			records, err := readJourneyArchive(p.Path, state.ContextID, state.HistoryHead)
+			if err != nil {
+				journeyError(w, 409, "archive_unavailable", err.Error())
+				return
+			}
+			for _, record := range records {
+				archiveFiles[journeyArchiveFile(record.Digest)] = true
+			}
+			break
+		}
+	}
+	for _, change := range changes {
+		if journeyArchivePath(change.Path) && !strings.Contains(change.Status, "D") && !archiveFiles[change.Path] {
+			journeyError(w, 409, "unreferenced_archive", "A context archive file is outside the verified history chain. Export or remove it explicitly before committing.")
+			return
+		}
 		// .luci is intentional provenance. Other credential names require a
 		// user's explicit handling in Git; the one-click commit never adds them.
 		if blockedProjectFile(change.Path) && !journeyContextFile(change.Path) {

@@ -1,10 +1,10 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { StandaloneDatabase } from "./StandaloneDatabase";
 import { platformApi, type PlatformProject } from "../../api/platform";
 
 vi.mock("../../api/platform", () => ({ platformApi: {
-  database: vi.fn(), downloadBackup: vi.fn(), restoreDatabase: vi.fn(), recoverPreviousDatabase: vi.fn(),
+  database: vi.fn(), downloadBackup: vi.fn(), restoreDatabase: vi.fn(), recoverPreviousDatabase: vi.fn(), importDatabaseBackup: vi.fn(),
 } }));
 
 const backup = { id: "backup-owned", createdAt: "2026-10-06T00:00:00Z", bytes: 2048, sha256: "a".repeat(64), database: "app" };
@@ -24,6 +24,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(platformApi.restoreDatabase).mockResolvedValue(operation);
   vi.mocked(platformApi.recoverPreviousDatabase).mockResolvedValue({ ...operation, action: "rollback-restore" });
+  vi.mocked(platformApi.importDatabaseBackup).mockResolvedValue({ ...backup, imported: true });
 });
 function chooseAndConfirm() {
   fireEvent.change(screen.getByRole("combobox", { name: "PostgreSQL backup to restore" }), { target: { value: backup.id } });
@@ -134,4 +135,39 @@ it("does not offer recovery from failed, unbound or same-database history", () =
     ] }} />);
   expect(screen.queryByRole("button", { name: "Use previous database" })).toBeNull();
   expect(platformApi.recoverPreviousDatabase).not.toHaveBeenCalled();
+});
+
+it("imports only an explicitly trusted file without starting or restoring PostgreSQL", async () => {
+  render(<StandaloneDatabase {...props} dockerReady={false} />);
+  const button = screen.getByRole("button", { name: "Import PostgreSQL backup" }) as HTMLButtonElement;
+  expect(button.disabled).toBe(true);
+  const file = new File(["PGDMP-fixture"], "saved.dump");
+  fireEvent.change(screen.getByLabelText("PostgreSQL dump file"), { target: { files: [file] } });
+  expect(button.disabled).toBe(true);
+  fireEvent.click(screen.getByRole("checkbox", { name: "I trust this dump and the SQL it can execute during restore." }));
+  fireEvent.click(button); fireEvent.click(button);
+  await waitFor(() => expect(platformApi.importDatabaseBackup).toHaveBeenCalledExactlyOnceWith("owned", file, true, expect.any(AbortSignal)));
+  expect(platformApi.database).not.toHaveBeenCalled();
+  expect(platformApi.restoreDatabase).not.toHaveBeenCalled();
+  expect((screen.getByRole("checkbox", { name: /Switch to this backup/ }) as HTMLInputElement).checked).toBe(false);
+  expect((screen.getByRole("button", { name: "Restore PostgreSQL backup" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText(/A dump can contain SQL supplied by its author/)).not.toBeNull();
+});
+
+it("clears file trust when the selection or project changes and cancels pending import", async () => {
+  const view = render(<StandaloneDatabase {...props} />);
+  const choose = (name: string) => fireEvent.change(screen.getByLabelText("PostgreSQL dump file"), { target: { files: [new File(["PGDMP-fixture"], name)] } });
+  const trust = () => screen.getByRole("checkbox", { name: "I trust this dump and the SQL it can execute during restore." }) as HTMLInputElement;
+  choose("first.dump"); fireEvent.click(trust()); choose("second.dump");
+  expect(trust().checked).toBe(false);
+  let finish!: (value: typeof backup) => void;
+  vi.mocked(platformApi.importDatabaseBackup).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  fireEvent.click(trust()); fireEvent.click(screen.getByRole("button", { name: "Import PostgreSQL backup" }));
+  const signal = vi.mocked(platformApi.importDatabaseBackup).mock.calls[0][3]!;
+  view.rerender(<StandaloneDatabase {...props} projectId="other" project={{ ...project, projectId: "other" }} />);
+  expect(signal.aborted).toBe(true);
+  expect(trust().checked).toBe(false);
+  finish(backup);
+  await waitFor(() => expect((screen.getByRole("button", { name: "Import PostgreSQL backup" }) as HTMLButtonElement).disabled).toBe(true));
+  expect(platformApi.restoreDatabase).not.toHaveBeenCalled();
 });

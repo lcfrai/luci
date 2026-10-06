@@ -15,6 +15,7 @@ type socketResponseWriter struct {
 	http.ResponseWriter
 	gateway             *Gateway
 	userID, sessionHash string
+	teamScope           *teamSocketScope
 }
 
 func (w *socketResponseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
@@ -33,6 +34,11 @@ func (w *socketResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 		conn.Close()
 		return nil, nil, errors.New("session was revoked before upgrade")
 	}
+	if scope := w.teamScope; scope != nil && (!g.teamAccessCurrentLocked(scope.TeamID, w.userID, scope.ProjectID, scope.MemberRevision, scope.ProjectRevision) || !g.teamServiceAllowsExecutionLocked(scope.TeamID)) {
+		g.mu.Unlock()
+		conn.Close()
+		return nil, nil, errors.New("team access was revoked before upgrade")
+	}
 	if g.sockets[w.userID] == nil {
 		g.sockets[w.userID] = map[net.Conn]string{}
 	}
@@ -42,9 +48,15 @@ func (w *socketResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 		return nil, nil, errors.New("too many active socket connections")
 	}
 	g.sockets[w.userID][conn] = w.sessionHash
+	if w.teamScope != nil {
+		if g.teamSockets == nil {
+			g.teamSockets = map[net.Conn]teamSocketScope{}
+		}
+		g.teamSockets[conn] = *w.teamScope
+	}
 	g.mu.Unlock()
-	wrapped := &ownedSocket{Conn: conn, close: func() { g.mu.Lock(); delete(g.sockets[w.userID], conn); g.mu.Unlock() }}
-	wrapped.timer = time.AfterFunc(time.Until(session.ExpiresAt), func() { _ = conn.Close(); g.mu.Lock(); delete(g.sockets[w.userID], conn); g.mu.Unlock() })
+	wrapped := &ownedSocket{Conn: conn, close: func() { g.mu.Lock(); g.forgetSocketLocked(w.userID, conn); g.mu.Unlock() }}
+	wrapped.timer = time.AfterFunc(time.Until(session.ExpiresAt), func() { _ = conn.Close(); g.mu.Lock(); g.forgetSocketLocked(w.userID, conn); g.mu.Unlock() })
 	return wrapped, buffer, nil
 }
 
@@ -61,10 +73,16 @@ func (c *ownedSocket) Close() error {
 	return err
 }
 func (g *Gateway) closeSocketsLocked(userID, sessionHash string) {
+	for request, cancel := range g.teamRequests {
+		if request.UserID == userID && (sessionHash == "" || request.SessionHash == sessionHash) {
+			cancel()
+			delete(g.teamRequests, request)
+		}
+	}
 	for conn, hash := range g.sockets[userID] {
 		if sessionHash == "" || hash == sessionHash {
 			_ = conn.Close()
-			delete(g.sockets[userID], conn)
+			g.forgetSocketLocked(userID, conn)
 		}
 	}
 }

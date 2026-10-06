@@ -310,7 +310,7 @@ func (s *Server) ApplyRepositoryAnalysisDraft(ctx context.Context, id string, ex
 	state.BriefRevisions = append(state.BriefRevisions, brief)
 	state.Specification = &spec
 	state.SpecificationRevisions = append(state.SpecificationRevisions, spec)
-	if err = writeJourney(p.Path, state); err != nil {
+	if err = s.writeAttributedJourney(ctx, p.Path, state, contextMutation{"specification", "apply-analysis"}, contextMutation{"brief", "apply-analysis"}); err != nil {
 		return ProjectSpecification{}, err
 	}
 	if err = writeProjectAtomic(p.Path, "LUCI.md", renderBrief(brief)); err != nil {

@@ -33,7 +33,7 @@ const NO_SELECTION: Selection = Object.freeze({
   sessionId: null,
 });
 
-export interface UnsavedProjectDraft { projectId: ProjectId; label: string; lens: Lens }
+export interface UnsavedProjectDraft { projectId: ProjectId; label: string; lens: Lens; retained?: boolean; discard?(): void }
 export type PendingNavigation =
   | { kind: "project"; projectId: ProjectId | null; lens?: Lens }
   | { kind: "branch"; projectId: ProjectId; branchId: BranchId }
@@ -72,7 +72,7 @@ export interface UiSlice {
   projectSourceRevisions: Record<ProjectId, number>;
   setUnsavedProjectDraft(id: string, draft: UnsavedProjectDraft | null): void;
   cancelNavigation(): void;
-  discardDraftsAndNavigate(): void;
+  discardDraftsAndNavigate(keepDrafts?: boolean): void;
   openBranchManager(target: BranchManagerTarget): void;
   closeBranchManager(): void;
   acceptBranchChange(projectId: ProjectId, branches: Branch[], worktree: Worktree): void;
@@ -178,7 +178,7 @@ export const createUiSlice: StateCreator<
     return { unsavedProjectDrafts: drafts };
   }),
   cancelNavigation: () => set({ pendingNavigation: null }),
-  discardDraftsAndNavigate: () => {
+  discardDraftsAndNavigate: (keepDrafts = false) => {
     const current = get();
     const destination = current.pendingNavigation;
     if (destination?.kind === "project" && destination.lens && destination.projectId !== null &&
@@ -187,6 +187,9 @@ export const createUiSlice: StateCreator<
       current.pushToast("This project is no longer available. Your edited draft is still here.");
       return;
     }
+    const leaving = Object.values(current.unsavedProjectDrafts).filter(draft => draft.projectId === current.selection.projectId);
+    if (!destination || (keepDrafts && leaving.some(draft => !draft.retained))) return;
+    if (!keepDrafts) leaving.forEach(draft => draft.discard?.());
     set(state => {
       if (!state.pendingNavigation) return state;
       const drafts = Object.fromEntries(Object.entries(state.unsavedProjectDrafts).filter(([, draft]) => draft.projectId !== state.selection.projectId));

@@ -7,6 +7,11 @@ current completion standard: finish the full product and verify its supported
 installed workflows. The small Docker/subscription deployment benchmark is one
 required acceptance journey within that scope.
 
+The current source candidate is **0.5.0**. See the final checkpoint below for the
+new durable-run, portable-context, team and release-integrity work. Earlier
+installed versions, hashes and results are preserved as historical evidence;
+none is relabelled as acceptance of the new candidate.
+
 ## Work in progress
 
 1. Dedicated, resumable onboarding: account entry, execution location, actual prerequisite checks and automatic runtime preparation, provider connection and workspace ready. A configured directory does not imply a ready runtime. Local, user-owned AWS/Azure and existing workspaces each have their own recovery and permission states.
@@ -14,7 +19,7 @@ required acceptance journey within that scope.
 3. Versioned specification: guided one-question interview; repository analysis; stable acceptance IDs; scope, roles, entities, integrations, terms, decisions and unresolved questions; explicit approved snapshots. Existing briefs and revision history are preserved.
 4. Design workspace: requirement-linked screens/states and responsive targets, sketch and working prototype as distinct surfaces, assets/tokens and a recorded implementation handoff. A saved canvas does not imply an approved design.
 5. Develop: account connection before project execution, durable runs, useful startup recovery, requirements/tasks/check evidence and live previews tied to source. AI assistance uses the person's actual selected provider; deterministic guidance is labelled honestly.
-6. Application platform: inspect the newer private Panacea backend before adapting its services. Implement genuine local Docker application/data operations and an authenticated external Panacea connection without shipping restricted source in Luci's MIT package. Expose only operational capabilities; no simulated successful databases, sign-in, deployment or health.
+6. Application platform: provide genuine local Docker application/data operations and explicitly configured external backing without importing proprietary platform source into Luci's MIT package. Expose only operational capabilities; no simulated successful databases, sign-in, deployment or health.
 7. Packaging and acceptance: rebuild matching source; install and complete realistic account/onboarding/project/restart flows; exercise each project phase with a Codex subscription in Docker; deploy a real site, verify its behavior and preserve evidence.
 
 ## Current completion batch — 5 October 2026
@@ -1295,3 +1300,94 @@ Full-product handback remains open. The actual Codex-subscription implementation
 and public site, supplied live LiteLLM endpoint, owned AWS/Azure/domain journeys,
 external inbox delivery, current native lifecycle and public download/signing
 have distinct outstanding acceptance gates.
+
+
+## 0.5.0 production candidate — current cloud implementation
+
+The continuing goal is MIT self-hosted Luci plus optional lcfr.ai-managed team
+workspaces, with the dedicated execution boundary and measurable release gates
+in [PRODUCTION-ROADMAP.md](PRODUCTION-ROADMAP.md). No native goal-control API was
+available in this cloud session; GOAL.md and the roadmap carry the continuing
+contract rather than a fabricated external goal record.
+
+The candidate has durable private project runs with reservations before child
+allocation, immutable selected context/model/source bindings, idempotent joins,
+independent checks/releases, explicit cancellation and truthful crash-unknown
+recovery. A process exit alone does not complete a run. Historical acceptance
+survives later drift as history while current validity is observed separately.
+
+[Context format 2](CONTEXT-STORAGE.md) preserves public lineage across actual
+Git clones and backup restores while keeping routing, grants and private review
+authority local. It bounds active history and immutable archives, preserves
+interrupted chunks in backups, rejects incomplete/foreign chains and exposes
+explicit CAS export repair and acknowledged cleanup. A chunk created after a
+backup invalidates cleanup permission even if canonical revisions are unchanged.
+Ten dedicated regressions cover clone/read/edit/approval isolation, twelve
+substantial scene saves, complete backup/restore, capacity recovery, corrupted
+archives, partial exports, stale writers, pre-rename crash recovery and bounded scene serialization. The
+combined portable-context, backup, private-approval and context-attribution
+suite passed in 13.398 seconds in this workspace. It did not create a paid-model
+session, a cloud resource or a public deployment.
+
+Source implementations add explicit teams and project grants, shared workspace
+routing, independent execution/secret/deployment capabilities, removal/revocation
+handling, authenticated edit/review attribution, account/workspace/project-scoped
+recovery drafts and operator team-service admission. [Team service operations](TEAM-SERVICE-OPERATIONS.md)
+records that admission is neither payment processing nor independently verified
+host isolation. The connected team and installed acceptance results must remain
+bound to their actual candidate and retained evidence; implementation alone is
+not a paid-service availability claim.
+
+An interim two-browser development run passed ten shared-team checks, including
+team/project creation, membership/share, save conflicts and retained drafts,
+viewer enforcement, authenticated review attribution, dialog accessibility,
+member removal and restart. Its evidence is
+`artifacts/uat/team-fourth/evidence/result.json`. The service was a dirty 0.4.18
+build predating the version bump while its web assets were 0.5.0, so this is
+interim development evidence, not acceptance of a matching clean 0.5.0 package.
+The broad frontend run at that point passed 1,448 of 1,450 tests; two Deploy
+failures were fixed with a passing 63-test focused batch and TypeScript. A fresh
+whole-suite pass is still required and is not inferred from the focused rerun.
+
+A subsequent matching-version 0.5.0 development build passed all ten actual
+two-browser team journey checks in `artifacts/uat/team-polish/evidence/result.json`.
+That receipt identifies service SHA-256
+`f2933a1c3b985cc8b68dbcaad20556c0482790caa9c77fa78d106fe34ee9b3e1`
+and web index SHA-256
+`21e2960dc92faab4066757ea4cf8fde3efc0fb0b43d0f4e23bdcc1296288c943`.
+It made no external model call or cloud resource. The separate main-process/team
+worker acceptance passed 17 lifecycle/context/restart assertions at
+`artifacts/uat/team-main-acceptance/results.json`; that receipt has its own binary
+hash and explicitly excludes inference, container execution and remote hosts.
+These outcomes improve on the earlier mixed-version development run; they are
+not a matching clean release package or current installed native acceptance.
+
+[Public HTTPS ingress](PUBLIC-HTTPS-INGRESS.md) now supports the managed web UI
+and isolated project app/data origins using static configuration, a separate
+preview site and the existing session-bound team authorization. Eleven Chromium
+checks pass through a local TLS reverse proxy with fixture-only DNS mapping and
+certificate pinning (`artifacts/uat/team-browser-https/results.json`). The Nginx
+TLS template passes its actual syntax validator. Real public DNS, certificate
+issuance/renewal and customer host acceptance remain unperformed.
+
+Authoritative manifests now agree on 0.5.0. Five new release-tool regressions
+verify version alignment without changing dependency versions, unsafe/mismatched
+requests, retained artifact layouts, trusted exact-commit build admission,
+licence inventories, byte tampering, duplicate records and links. A current
+strict runtime licence collection retains 346 components with zero missing
+grants, including stripe-go/v87 v87.0.0; its manifest is
+`artifacts/uat/ingress-release-licenses/manifest.json`. Bash/Node
+syntax and workflow YAML checks pass. A manual GitHub/Sigstore integrity
+attestation uses measured retained artifacts and identifies the original build;
+it does not falsely claim its validation job built those packages. Optional
+Windows Authenticode/timestamp support uses an existing certificate and records
+verified signing only after checking the app and installer. Neither production
+certificate-backed signing nor the GitHub attestation workflow has been executed
+in this cloud session. No public release or hosted subscription was activated.
+
+Matching clean-package and installed lifecycle acceptance, real Codex
+subscription/LiteLLM execution, owned AWS/Azure/domain deployment, actual external
+inbox delivery, dedicated paid-team host isolation and final signed public
+downloads remain separate full-product gates. Historical Windows host failures
+are not evidence of the current cloud machine's runtime state. The new source
+work does not turn prior fixture or package results into live service evidence.

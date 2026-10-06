@@ -13,6 +13,7 @@ import { TOAST_TTL_UNDO } from "../../store/slices/uiSlice";
 import { resetCockpit, useCockpit } from "../../store/store";
 import type { Session, Toast, Worktree } from "../../store/types";
 import { ApiError } from "../../api/client";
+import { selectTeamScope } from "../../api/teamScope";
 
 const { killMock, purgeMock, restartMock, renameMock, resumeMock, forkMock, readyMock } = vi.hoisted(
   () => ({
@@ -104,6 +105,40 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe("session actions across workspace changes", () => {
+  afterEach(() => selectTeamScope(""));
+  it("does not send a deferred kill through a newly selected workspace", async () => {
+    seed({ status: "running" });
+    find(sessionVerbs(IDS.session, DEPS), "kill")?.run?.();
+    selectTeamScope("team-aaaaaaaaaaaaaaaaaaaaaa"); resetCockpit();
+    await vi.advanceTimersByTimeAsync(TOAST_TTL_UNDO);
+    expect(killMock).not.toHaveBeenCalled();
+    expect(useCockpit.getState().sessions[IDS.session]).toBeUndefined();
+    expect(isSessionPending(IDS.session)).toBe(false);
+  });
+  it.each([true, false])("does not adopt or roll back an old immediate request after switching (success=%s)", async succeeded => {
+    seed();
+    let resolve!: (session: Session) => void, reject!: (cause: unknown) => void;
+    renameMock.mockReturnValueOnce(new Promise<Session>((done, fail) => { resolve = done; reject = fail; }));
+    renameSessionTo(IDS.session, "Old workspace title");
+    selectTeamScope("team-aaaaaaaaaaaaaaaaaaaaaa"); resetCockpit();
+    if (succeeded) resolve(aSession({ title: "Old workspace title" })); else reject(new ApiError("conflict", "Workspace changed", 409));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(useCockpit.getState().sessions[IDS.session]).toBeUndefined();
+    expect(useCockpit.getState().lastError).toBeNull();
+  });
+  it("ignores a late resumed child from the old workspace", async () => {
+    seed({ harness: "claude-code" });
+    let resolve!: (session: Session) => void;
+    resumeMock.mockReturnValueOnce(new Promise<Session>(done => { resolve = done; }));
+    find(sessionVerbs(IDS.session, DEPS), "resume")?.run?.();
+    selectTeamScope("team-aaaaaaaaaaaaaaaaaaaaaa"); resetCockpit();
+    resolve(aSession({ id: "late-child" })); await vi.advanceTimersByTimeAsync(0);
+    expect(useCockpit.getState().sessions["late-child"]).toBeUndefined();
+    expect(useCockpit.getState().selection.sessionId).toBeNull();
+  });
 });
 
 describe("sessionVerbs — the gates", () => {

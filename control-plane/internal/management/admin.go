@@ -157,6 +157,12 @@ func (g *Gateway) updateUser(w http.ResponseWriter, r *http.Request) {
 	before := g.state
 	g.state = cloneIdentityState(before)
 	g.state.Users[row.User.ID] = updated
+	if err := validateTeams(g.state); err != nil {
+		g.state = before
+		g.mu.Unlock()
+		fail(w, 409, "team_owner_required", "Assign another enabled team owner before disabling this account.")
+		return
+	}
 	g.revokeSessionsLocked(row.User.ID)
 	g.auditLocked(actor.ID, "user.update", row.User.ID, "succeeded")
 	if g.persistLocked() != nil {

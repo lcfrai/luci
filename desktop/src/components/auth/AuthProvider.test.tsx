@@ -5,6 +5,7 @@ import { AuthProvider, type AuthProfile } from "./AuthProvider";
 import { RailFooter } from "../rail/RailFooter";
 import { productApi, type SetupStatus } from "../../api/product";
 import { authToken, setAuthToken } from "../../api/authSession";
+import { teamWorkspaceStorageKey } from "../../api/teamWorkspacePreference";
 const native = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => native);
 const member: AuthProfile = {
@@ -648,6 +649,24 @@ it("requires an invitation for browser account creation and keeps an invalid cod
     }),
   );
   expect(native.invoke).not.toHaveBeenCalled();
+});
+it("remembers an invited team for the new account without persisting its code", async () => {
+  const teamId = "team-aaaaaaaaaaaaaaaaaaaaaa", code = "private-team-code-for-new-account";
+  const key = teamWorkspaceStorageKey(productApi.baseUrl, member.user.id);
+  vi.spyOn(productApi, "request").mockImplementation(async path => {
+    if (path.endsWith("/status")) return configured;
+    if (path.endsWith("/accept")) return { token: "team-invited-session", user: member.user, teamId };
+    return member;
+  });
+  render(<AuthProvider><p>Invited team ready</p></AuthProvider>);
+  await userEvent.click(await screen.findByRole("button", { name: "Create account" }));
+  await userEvent.type(screen.getByLabelText("Invitation code"), code);
+  await fillAccount();
+  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+  await screen.findByText("Invited team ready");
+  expect(localStorage.getItem(key)).toBe(teamId);
+  expect(JSON.stringify(localStorage)).not.toContain(code);
+  localStorage.removeItem(key);
 });
 it("never offers local recovery for an external API even in a native window", async () => {
   ownedNative();

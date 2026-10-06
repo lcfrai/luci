@@ -1,7 +1,6 @@
 package product
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -130,7 +129,7 @@ func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 	plan.Tasks = snapshotProjectTasks(req.Tasks)
 	plan.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	state.Plan = &plan
-	if err = writeJourney(p.Path, state); err != nil {
+	if err = s.writeAttributedJourney(r.Context(), p.Path, state, contextMutation{"plan", "save"}); err != nil {
 		problem(w, 500, "save_failed", err.Error())
 		return
 	}
@@ -138,33 +137,13 @@ func (s *Server) saveProjectPlan(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeJourneyContext(dir string, state journeyState) error {
-	values := map[string]any{".luci/design.json": state.Design}
-	if state.DesignPlan != nil {
-		values[".luci/design-handoff.json"] = currentDesignPlan(state)
+	exports, err := journeyContextExports(state)
+	if err != nil {
+		return err
 	}
-	if state.Specification != nil {
-		values[".luci/specification.json"] = currentSpecification(state)
-	}
-	if state.Plan != nil {
-		values[".luci/plan.json"] = state.Plan
-	}
-	for path, value := range values {
-		data, err := json.MarshalIndent(value, "", "  ")
-		if err != nil {
-			return err
-		}
-		if err = writeProjectAtomic(dir, path, append(data, '\n')); err != nil {
-			return fmt.Errorf("project context export %s: %w", path, err)
-		}
-	}
-	if state.Specification != nil {
-		if err := writeProjectAtomic(dir, ".luci/specification.md", renderSpecification(currentSpecification(state))); err != nil {
-			return fmt.Errorf("specification context export: %w", err)
-		}
-	}
-	if state.DesignPlan != nil {
-		if err := writeProjectAtomic(dir, ".luci/design-handoff.md", renderDesignPlan(currentDesignPlan(state))); err != nil {
-			return fmt.Errorf("design handoff export: %w", err)
+	for _, item := range exports {
+		if err := writeProjectAtomic(dir, item.Path, item.Data); err != nil {
+			return fmt.Errorf("project context export %s: %w", item.Path, err)
 		}
 	}
 	return nil

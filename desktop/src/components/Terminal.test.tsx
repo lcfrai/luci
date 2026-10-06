@@ -16,6 +16,8 @@ import type { AttachHandle } from "../api/attachRegistry";
 import { resetCockpit, useCockpit } from "../store/store";
 import type { Session } from "../store/types";
 import { Terminal } from "./Terminal";
+const projectAccess = vi.hoisted(() => ({ canExecute: true, loading: false, permissions: { secrets: true, admin: true } }));
+vi.mock('../hooks/useProjectAccess', () => ({ useProjectAccess: () => projectAccess }));
 import {
   TERMINAL_HOST_ATTRIBUTE,
   isInsideTerminal,
@@ -65,6 +67,10 @@ function seed(s: Session): void {
 }
 
 beforeEach(() => {
+  projectAccess.canExecute = true;
+  projectAccess.loading = false;
+  projectAccess.permissions.secrets = true;
+  projectAccess.permissions.admin = true;
   FakeWebSocket.reset();
   __resetAttachRegistry();
   resetCockpit();
@@ -98,6 +104,48 @@ function grab(): AttachHandle {
 }
 
 describe("Terminal", () => {
+  it('retains an established terminal during background access refresh and closes it on confirmed denial', () => {
+    seed(session());
+    const view = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const ws = FakeWebSocket.last()!; ws.acceptOpen();
+    projectAccess.canExecute = false; projectAccess.loading = true;
+    view.rerender(<Terminal sessionId="s-1" readOnly={false} focused />);
+    expect(ws.closedWith).toBeNull();
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    projectAccess.loading = false;
+    view.rerender(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    expect(ws.closedWith).not.toBeNull();
+  });
+  it("mounts cached output without any attach when project execution permission is unavailable", () => {
+    projectAccess.canExecute = false;
+    seed(session());
+    const view = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    expect(FakeWebSocket.instances).toHaveLength(0);
+    projectAccess.canExecute = true;
+    view.rerender(<Terminal sessionId="s-1" readOnly={false} focused />);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    const term = grab().term as FakeTerm;
+    term.write('Private scrollback');
+    const ws = FakeWebSocket.last()!; ws.acceptOpen();
+    const sent = ws.sent.length;
+    projectAccess.canExecute = false;
+    view.rerender(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    expect(ws.closedWith).not.toBeNull();
+    term.type('not permitted'); term.resize(120, 45);
+    expect(ws.sent).toHaveLength(sent);
+    expect(term.disposed).toBe(false);
+    expect(term.written).toEqual(['Private scrollback']);
+  });
+
+  it('requires explicit credential use for a provider terminal even when execution is granted', () => {
+    projectAccess.permissions.secrets = false;
+    seed(session({ harness: 'codex' }));
+    const view = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    expect(FakeWebSocket.instances).toHaveLength(0);
+    projectAccess.permissions.secrets = true;
+    view.rerender(<Terminal sessionId="s-1" readOnly={false} focused />);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+  });
   it("updates text size on the retained terminal without reopening its socket or losing output", () => {
     seed(session());
     render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);

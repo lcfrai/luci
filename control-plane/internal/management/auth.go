@@ -166,7 +166,7 @@ func (g *Gateway) authenticate(r *http.Request) (User, Policy, string, bool) {
 			sessionHash = hashToken(token)
 		}
 	}
-	if id == "" && r.Method == "GET" && attachPathPattern.MatchString(r.URL.Path) && strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+	if id == "" && r.Method == "GET" && validAttachPath(r.URL.Path) && strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
 		value := r.URL.Query().Get("ticket")
 		key := hashToken(value)
 		t, ok := g.tickets[key]
@@ -174,7 +174,8 @@ func (g *Gateway) authenticate(r *http.Request) (User, Policy, string, bool) {
 			delete(g.tickets, key)
 		}
 		session, sessionExists := g.state.Sessions[t.SessionHash]
-		if ok && value != "" && t.Path == r.URL.Path && now.Before(t.ExpiresAt) && sessionExists && session.UserID == t.UserID && now.Before(session.ExpiresAt) {
+		teamCurrent := t.TeamID == "" || g.teamAccessCurrentLocked(t.TeamID, t.UserID, t.ProjectID, t.MemberRevision, t.ProjectRevision)
+		if ok && value != "" && t.Path == r.URL.Path && now.Before(t.ExpiresAt) && sessionExists && session.UserID == t.UserID && now.Before(session.ExpiresAt) && teamCurrent {
 			id = t.UserID
 			sessionHash = t.SessionHash
 		}
@@ -374,6 +375,11 @@ func (g *Gateway) changePassword(w http.ResponseWriter, r *http.Request) {
 }
 
 var attachPathPattern = regexp.MustCompile(`^/v1/sessions/[A-Za-z0-9_-]+/attach$`)
+var teamAttachPathPattern = regexp.MustCompile(`^/v1/teams/(team-[A-Za-z0-9_-]{22})/workspace/v1/sessions/([A-Za-z0-9_-]+)/attach$`)
+
+func validAttachPath(path string) bool {
+	return attachPathPattern.MatchString(path) || teamAttachPathPattern.MatchString(path)
+}
 
 func (g *Gateway) createSocketTicket(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -382,11 +388,27 @@ func (g *Gateway) createSocketTicket(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	if !attachPathPattern.MatchString(req.Path) {
+	if !validAttachPath(req.Path) {
 		fail(w, 400, "invalid_path", "Choose the session's attach path.")
 		return
 	}
-	u, _, _ := ActorFromContext(r.Context())
+	u, policy, _ := ActorFromContext(r.Context())
+	var teamAccess TeamAccess
+	if g.managedTeamID != "" {
+		target := teamAttachPathPattern.FindStringSubmatch(req.Path)
+		if target == nil || target[1] != g.managedTeamID {
+			fail(w, 403, "managed_team_required", "Only this installation's assigned team can open a terminal.")
+			return
+		}
+	}
+	if target := teamAttachPathPattern.FindStringSubmatch(req.Path); target != nil {
+		var err error
+		teamAccess, err = g.resolveTeamSocketAccess(r.Context(), u, policy, target[1], target[2])
+		if err != nil {
+			fail(w, 403, "team_socket_denied", "You need current execution access to this team's project before opening its terminal.")
+			return
+		}
+	}
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	now := time.Now()
@@ -407,9 +429,13 @@ func (g *Gateway) createSocketTicket(w http.ResponseWriter, r *http.Request) {
 		fail(w, 401, "sign_in_required", "Sign in again before connecting.")
 		return
 	}
+	if teamAccess.Team.ID != "" && (!g.teamAccessCurrentLocked(teamAccess.Team.ID, u.ID, teamAccess.ProjectID, teamAccess.Member.Revision, teamAccess.ProjectRevision) || !g.teamServiceAllowsExecutionLocked(teamAccess.Team.ID)) {
+		fail(w, 403, "team_access_changed", "Team access changed before this terminal ticket could be issued.")
+		return
+	}
 	if session.ExpiresAt.Before(expires) {
 		expires = session.ExpiresAt
 	}
-	g.tickets[hashToken(ticket)] = socketTicket{UserID: u.ID, Path: req.Path, SessionHash: sessionHash, ExpiresAt: expires}
+	g.tickets[hashToken(ticket)] = socketTicket{UserID: u.ID, Path: req.Path, SessionHash: sessionHash, ExpiresAt: expires, TeamID: teamAccess.Team.ID, ProjectID: teamAccess.ProjectID, MemberRevision: teamAccess.Member.Revision, ProjectRevision: teamAccess.ProjectRevision}
 	jsonReply(w, 200, map[string]any{"ticket": ticket, "expiresAt": expires.Format(time.RFC3339Nano)})
 }

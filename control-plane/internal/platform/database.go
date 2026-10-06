@@ -2,8 +2,6 @@ package platform
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -248,36 +246,7 @@ func (s *Service) backupDatabase(ctx context.Context, id string) (Backup, error)
 	if e != nil || len(data) < 5 || len(data) > databaseBackupLimit || string(data[:5]) != "PGDMP" {
 		return Backup{}, errors.New("invalid database backup")
 	}
-	b := Backup{ID: randomID("backup-"), CreatedAt: now(), Bytes: int64(len(data)), Database: active}
-	sum := sha256.Sum256(data)
-	b.SHA256 = hex.EncodeToString(sum[:])
-	file, e := s.path(b.ID)
-	if e != nil {
-		return b, e
-	}
-	f, e := os.OpenFile(file, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if e != nil {
-		return b, e
-	}
-	if e = protect(file); e == nil {
-		_, e = f.Write(data)
-	}
-	if e == nil {
-		e = f.Sync()
-	}
-	closeErr := f.Close()
-	if e == nil {
-		e = closeErr
-	}
-	if e != nil {
-		_ = os.Remove(file)
-		return b, e
-	}
-	if e = s.update(id, func(v *ProjectState) { v.Backups = append([]Backup{b}, v.Backups...) }); e != nil {
-		_ = os.Remove(file)
-		return b, e
-	}
-	return b, nil
+	return s.storeDatabaseBackup(id, data, active, false)
 }
 func (s *Service) downloadBackup(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.project(w, r)

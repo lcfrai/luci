@@ -9,6 +9,7 @@ import {
 } from "react";
 import { productApi, errorText } from "../../api/product";
 import { AUTH_EXPIRED, authToken, setAuthToken } from "../../api/authSession";
+import { rememberInvitedTeam } from "../../api/teamWorkspacePreference";
 import { detachAllTerminals } from "../../api/attachRegistry";
 import { resetCockpit } from "../../store/store";
 import { AdminPanel } from "./AdminPanel";
@@ -74,6 +75,7 @@ const entryErrorText = (cause: unknown) =>
 export interface AuthResult {
   token: string;
   user: ControlUser;
+  teamId?: string;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -288,6 +290,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
       setAuthToken(result.token);
+      if (mode === "create" && result.teamId) rememberInvitedTeam(productApi.baseUrl, result.user.id, result.teamId);
       setBootstrapToken("");
       fragmentToken.current = "";
       setStatus({ ...status, configured: true, bootstrapRequired: false });

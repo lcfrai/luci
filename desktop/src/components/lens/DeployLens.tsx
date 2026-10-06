@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { productApi, errorText, type Release } from "../../api/product";
-import { isGatewayHostname } from "../../api/platform";
+import { isGatewayHostname, isPublicGatewayHostname } from "../../api/platform";
+import { prepareBrowserAccess } from "../../api/browserAccess";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { ProjectRequired, JourneyHeader } from "../journey/shared";
 import { useSetup } from "../setup/SetupProvider";
 import { CloudDeployForm } from "../journey/CloudDeployForm";
@@ -40,6 +42,7 @@ export function DeploymentWorkspace({ projectId }: { projectId: string }) {
   </div>;
 }
 export function ProjectDeploy({ projectId, configurationManaged = false, configurationBusy: externalConfigurationBusy = false, onBusyChange }: { projectId: string; configurationManaged?: boolean; configurationBusy?: boolean; onBusyChange?(busy: boolean): void }) {
+  const projectAccess = useProjectAccess(projectId);
   const [releases, setReleases] = useState<Release[]>([]);
   const [port, setPort] = useState(3000);
   const [dockerfile, setDockerfile] = useState("Dockerfile");
@@ -126,7 +129,7 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
       clearInterval(timer);
     };
   }, [pendingCloud, busy, projectId]);
-  async function operate(label: string, action: () => Promise<Release>) {
+  async function operate(label: string, action: () => Promise<Release>, refreshAfter = true) {
     if (working.current || configurationBusy) return;
     working.current = true;
     setBusy(label);
@@ -138,7 +141,7 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
       if (alive.current) setError(errorText(cause));
     } finally {
       try {
-        await refresh();
+        if (refreshAfter) await refresh();
       } catch (cause) {
         if (alive.current) setError(errorText(cause));
       }
@@ -152,7 +155,7 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
       const url = new URL(release.url);
       const controlOrigin = new URL(window.__LUCI_API__ || DEFAULT_BASE_URL).origin;
       if (url.username || url.password || url.origin === window.location.origin || url.origin === controlOrigin) return null;
-      return (release.target !== "local" && url.protocol === "https:") ||
+      return ((release.target !== "local" || (!url.port && isPublicGatewayHostname(url.hostname))) && url.protocol === "https:") ||
         (url.protocol === "http:" &&
           (url.hostname === "127.0.0.1" ||
             url.hostname === "localhost" ||
@@ -326,27 +329,23 @@ export function ProjectDeploy({ projectId, configurationManaged = false, configu
                 (remotePreview(release) || localUrl(release)) && (
                   <Button type="button"
                     variant="secondary"
-                    disabled={locked}
+                    disabled={locked || !projectAccess.canExecute}
                     onClick={() => {
-                      if (!remotePreview(release)) {
-                        const url = localUrl(release);
-                        if (url) setPreview({ url, releaseId: release.id });
-                        return;
-                      }
                       void operate("Opening workspace preview", async () => {
-                        const prepared =
+                        const prepared = remotePreview(release) ?
                           await productApi.prepareWorkspacePreview(
                             projectId,
                             release.id,
-                          );
+                          ) : release;
                         const url = localUrl({ ...release, url: prepared.url });
                         if (!url)
                           throw new Error(
                             "Luci did not return a valid local preview address.",
                           );
-                        if (alive.current) setPreview({ url, releaseId: release.id });
+                        const opened = await prepareBrowserAccess(projectId, url);
+                        if (alive.current) setPreview({ url: opened, releaseId: release.id });
                         return release;
-                      });
+                      }, false);
                     }}
                   >
                     Open preview

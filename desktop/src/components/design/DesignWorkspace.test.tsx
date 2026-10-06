@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { designPlanApi, type DesignPlan } from "../../api/designPlan";
 import { definitionApi } from "../../api/definition";
 import { productApi, type Release } from "../../api/product";
+import * as browserAccess from "../../api/browserAccess";
 import { platformApi, type PlatformProject } from "../../api/platform";
 import DesignWorkspace from "./DesignWorkspace";
 import { resetCockpit, useCockpit } from "../../store/store";
@@ -359,5 +360,57 @@ it("does not prepare an old cloud browser after its deployment read finishes in 
   await screen.findByText("No verified prototype yet");
   await act(async () => { finish(nativeProject(true)); });
   expect(prepare).not.toHaveBeenCalled();
+  expect(screen.queryByTitle("Design prototype")).toBeNull();
+});
+
+const teamAccess = vi.hoisted(() => ({ loading: false, error: "", permissions: { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true } }));
+vi.mock("../teams/TeamWorkspaceProvider", () => ({ useTeamProjectPermissions: () => teamAccess, useTeamWorkspace: () => null }));
+beforeEach(() => { teamAccess.loading = false; teamAccess.error = ""; Object.assign(teamAccess.permissions, { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true }); });
+it("keeps saved design readable for viewers without offering screen edits or approval", async () => {
+  ready(); teamAccess.permissions.edit = false; teamAccess.permissions.execute = false;
+  const save = vi.spyOn(designPlanApi, "save"), approve = vi.spyOn(designPlanApi, "approve");
+  render(<DesignWorkspace projectId="p-1" />);
+  const name = await screen.findByLabelText("Screen name");
+  expect((name.closest("fieldset.definition-fields") as HTMLFieldSetElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Approve design handoff" }) as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.type(name, " forbidden");
+  expect((name as HTMLInputElement).value).toBe("Home"); expect(save).not.toHaveBeenCalled(); expect(approve).not.toHaveBeenCalled();
+});
+
+
+it("prepares a fresh one-use handoff for a separate tab and keeps the embedded ticket unchanged", async () => {
+  ready({ ...fixture(), prototypeReleaseId: "verified" });
+  const url = `http://${"a".repeat(32)}.${"b".repeat(32)}.localhost:8731/app#review`;
+  const release = { id: "verified", projectId: "p-1", briefRevision: 1, commit: "a".repeat(40), target: "local", status: "ready", url, message: "Verified", createdAt: "" };
+  vi.mocked(productApi.prototypeReleases).mockResolvedValue({ releases: [release] });
+  const prepare = vi.spyOn(browserAccess, "prepareBrowserAccess").mockResolvedValueOnce("https://isolated.example/.well-known/luci-team-access?ticket=embedded").mockResolvedValueOnce("https://isolated.example/.well-known/luci-team-access?ticket=separate");
+  const tab = { opener: window, location: { href: "about:blank" }, close: vi.fn() };
+  vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+  render(<DesignWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
+  await userEvent.click(screen.getByRole("button", { name: "Open prototype" }));
+  const frame = await screen.findByTitle("Design prototype");
+  await userEvent.click(screen.getByRole("button", { name: "Open prototype in a separate tab" }));
+  await waitFor(() => expect(tab.location.href).toContain("ticket=separate"));
+  expect(prepare.mock.calls).toEqual([["p-1", url], ["p-1", url]]);
+  expect(frame.getAttribute("src")).toContain("ticket=embedded"); expect(tab.opener).toBeNull(); expect(tab.close).not.toHaveBeenCalled();
+});
+
+it("closes a pending separate tab when execution access is revoked and does not reuse the embedded ticket", async () => {
+  ready({ ...fixture(), prototypeReleaseId: "verified" });
+  const url = `http://${"a".repeat(32)}.${"b".repeat(32)}.localhost:8731/`;
+  vi.mocked(productApi.prototypeReleases).mockResolvedValue({ releases: [{ id: "verified", projectId: "p-1", briefRevision: 1, commit: "a".repeat(40), target: "local", status: "ready", url, message: "Verified", createdAt: "" }] });
+  let finish!: (url: string) => void;
+  vi.spyOn(browserAccess, "prepareBrowserAccess").mockResolvedValueOnce(url).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const tab = { opener: window, location: { href: "about:blank" }, close: vi.fn() };
+  vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+  const view = render(<DesignWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("tab", { name: "Prototype" }));
+  await userEvent.click(screen.getByRole("button", { name: "Open prototype" })); await screen.findByTitle("Design prototype");
+  await userEvent.click(screen.getByRole("button", { name: "Open prototype in a separate tab" }));
+  teamAccess.permissions.execute = false; view.rerender(<DesignWorkspace projectId="p-1" />);
+  await act(async () => finish("https://isolated.example/.well-known/luci-team-access?ticket=stale"));
+  expect(tab.close).toHaveBeenCalledOnce(); expect(tab.location.href).toBe("about:blank"); expect(screen.queryByTitle("Design prototype")).toBeNull();
+  teamAccess.permissions.execute = true; view.rerender(<DesignWorkspace projectId="p-1" />);
   expect(screen.queryByTitle("Design prototype")).toBeNull();
 });

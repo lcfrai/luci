@@ -26,21 +26,27 @@ Local use remains supported without a mandatory hosted account or subscription.
 The first paid deployment uses a dedicated execution boundary for each team,
 with private state, secrets, containers and resource ownership. Existing
 per-user application workers are useful account separation, but are not proof
-of isolation between paying teams on a shared host. Existing invitations create
-accounts with private workspaces; they do not yet implement team membership,
-project sharing or collaborative editing. Paid team availability requires
-explicit membership and project permissions, trustworthy attribution/review,
-concurrent-change handling and revocation across files, context, agents,
-previews and deployments. Secret use and execution privileges need separate
+of isolation between paying teams on a shared host. The 0.5.0 candidate adds explicit team membership, project grants, shared
+workspace routing, authenticated context attribution and scoped draft recovery.
+Those source capabilities do not establish dedicated host isolation or a paid
+service. Paid team availability requires verified membership/project permissions,
+trustworthy review, concurrent-change recovery and revocation across files,
+context, agents, previews and deployments. Secret use and execution privileges need separate
 authorization from the right to read or edit project context.
 
 [PRODUCTION-ROADMAP.md](PRODUCTION-ROADMAP.md) defines measurable stages for this
-continuing goal. The active implementation wave is the durable project-run and
-evidence coordinator described in [PROJECT-RUN-CONTRACT.md](PROJECT-RUN-CONTRACT.md).
-Implementation in progress does not establish shipment or acceptance. Continue
-through portable context, genuine team collaboration, the polished installed
-journey, operational maintenance, and the separate open-source and paid release
-gates. Preserve the required live subscription, gateway, AWS, Azure, domain,
+continuing goal. The **0.5.0 release candidate** includes the durable coordinator in
+[PROJECT-RUN-CONTRACT.md](PROJECT-RUN-CONTRACT.md),
+[portable context and bounded storage](CONTEXT-STORAGE.md), team permissions,
+scoped recovery drafts, operator service admission and
+[dedicated team HTTPS ingress](PUBLIC-HTTPS-INGRESS.md). The public ingress uses
+separate app/preview sites and preserves session-bound app/data browser grants;
+local TLS browser evidence does not prove public DNS or certificate operation. Implementation and source
+tests do not establish shipment or installed acceptance. Continue through the
+matching installed collaborative journey, operational maintenance, and separate
+open-source and paid release gates. Candidate integrity attestations and optional
+Windows publisher-signing support are reviewable tooling; no production signing,
+public publication or hosted subscription activation has been performed. Preserve the required live subscription, gateway, AWS, Azure, domain,
 SMTP and signed/public-download evidence below; a smaller milestone does not
 replace the full completion contract.
 

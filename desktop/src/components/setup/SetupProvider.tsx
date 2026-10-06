@@ -16,6 +16,8 @@ import { SetupPanel } from "./SetupPanel";
 import { ProjectEntry, type ProjectEntryMode } from "../projects/ProjectEntry";
 import { useCockpit } from "../../store/store";
 import { errorText } from "../../api/product";
+import { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
+import { TeamSettings } from "../teams/TeamSettings";
 import { useAuth } from "../auth/AuthProvider";
 import { completeOnboardingVisit, onboardingKey, onboardingVisited } from "../../preferences/onboarding";
 
@@ -42,6 +44,9 @@ export function SetupProvider({
   onProjectsChanged(): void;
 }) {
   const auth = useAuth();
+  const team = useTeamWorkspace();
+  const teamWorkspace = !!team?.teamId;
+  const canCreate = !teamWorkspace || !!(team?.selected?.permissions.edit && team.selected.permissions.admin);
   const projects = useCockpit(state => state.projects);
   const projectsLoaded = useCockpit(state => state.projectsLoaded);
   const projectsLoading = useCockpit(state => state.loading.projects);
@@ -83,8 +88,8 @@ export function SetupProvider({
     evaluatedVisit.current = visitKey;
     // Existing work takes people back to their retained project; an assigned
     // empty folder still needs the first-visit workspace choice.
-    if (projects.length === 0 && !onboardingVisited(visitKey)) setPortal(true);
-  }, [visitKey, projectsLoaded, projects.length]);
+    if (projects.length === 0 && !onboardingVisited(visitKey) && !teamWorkspace) setPortal(true);
+  }, [visitKey, projectsLoaded, projects.length, teamWorkspace]);
   const finishVisit = useCallback(() => {
     if (visitKey) completeOnboardingVisit(visitKey);
     setPortal(false);
@@ -94,10 +99,11 @@ export function SetupProvider({
     setOpen(true);
   }, []);
   const openProject = useCallback((mode: ProjectEntryMode = "new") => {
+    if (!canCreate) { useCockpit.getState().pushToast("Ask your team administrator to create or share a project."); return; }
     setOpen(false);
     finishVisit();
     setEntry(mode);
-  }, [finishVisit]);
+  }, [finishVisit, canCreate]);
   const openCloud = useCallback(() => {
     setSection("cloud");
     setOpen(true);
@@ -124,13 +130,14 @@ export function SetupProvider({
         refreshProjects: onProjectsChanged,
       }}
     >
+      {teamWorkspace && (open || portal) && <TeamSettings status={status} onStatus={setStatus} onClose={() => {setOpen(false);finishVisit();}} onSessionStarted={() => {setOpen(false);finishVisit();}}/>}
       {statusLoading || (!projectsLoaded && projectsLoading !== false) ? (
         <main className="workspace-loading">
           <strong>Luci</strong>
           <h1>Opening your workspace</h1>
           <p role="status">Checking your workspace connection…</p>
         </main>
-      ) : portal ? (
+      ) : portal && !teamWorkspace ? (
         <SetupPanel
           presentation="portal"
           initialStatus={status}
@@ -147,7 +154,7 @@ export function SetupProvider({
       ) : (
         children
       )}
-      {open && !portal && (
+      {open && !portal && !teamWorkspace && (
         <SetupPanel
           initialStatus={status}
           initialSection={section}
@@ -158,7 +165,7 @@ export function SetupProvider({
           onProjectsChanged={onProjectsChanged}
         />
       )}
-      {entry && (
+      {entry && canCreate && (
         <ProjectEntry
           mode={entry}
           onClose={() => setEntry(null)}

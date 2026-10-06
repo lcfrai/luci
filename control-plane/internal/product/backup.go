@@ -71,6 +71,12 @@ func validBackupEntry(name string) bool {
 	if name == "git.bundle" || name == "journey.json" {
 		return true
 	}
+	if strings.HasPrefix(name, "context-unused/") {
+		return journeyArchivePath(".luci/history/" + strings.TrimPrefix(name, "context-unused/"))
+	}
+	if strings.HasPrefix(name, "context-history/") {
+		return journeyArchivePath(".luci/history/" + strings.TrimPrefix(name, "context-history/"))
+	}
 	if !strings.HasPrefix(name, "files/") {
 		return false
 	}
@@ -152,6 +158,13 @@ func (s *Server) buildProjectBackup(ctx context.Context, p project.Project, tmp 
 	}
 	s.mu.RLock()
 	state, err := s.readApprovedJourney(p.Path, p.ID)
+	var archiveRecords, unusedRecords []journeyArchiveRecord
+	if err == nil {
+		archiveRecords, err = readJourneyArchive(p.Path, state.ContextID, state.HistoryHead)
+	}
+	if err == nil {
+		unusedRecords, err = readUnusedJourneyArchives(p.Path, state.ContextID, archiveRecords)
+	}
 	s.mu.RUnlock()
 	if err != nil {
 		return "", errors.New("Could not read saved brief and design history.")
@@ -168,6 +181,22 @@ func (s *Server) buildProjectBackup(ctx context.Context, p project.Project, tmp 
 		max        int64
 	}
 	sources := []source{{filepath.Join(tmp, "journey.json"), "journey.json", 8 << 20}}
+	// Snapshot the verified chain alongside its canonical head. Generated
+	// exports and private receipts are never backup authority.
+	for _, record := range archiveRecords {
+		path := filepath.Join(tmp, record.Digest+".json")
+		if err = os.WriteFile(path, record.Data, 0600); err != nil {
+			return "", err
+		}
+		sources = append(sources, source{path, "context-history/" + record.Digest + ".json", journeyArchiveChunkLimit})
+	}
+	for _, record := range unusedRecords {
+		path := filepath.Join(tmp, record.Digest+".json")
+		if err = os.WriteFile(path, record.Data, 0600); err != nil {
+			return "", err
+		}
+		sources = append(sources, source{path, "context-unused/" + record.Digest + ".json", journeyArchiveChunkLimit})
+	}
 	if manifest.Head != "" {
 		bundle := filepath.Join(tmp, "git.bundle")
 		if _, err = s.journeyGit(ctx, p.Path, "bundle", "create", bundle, "--all", "HEAD"); err != nil {
@@ -303,6 +332,9 @@ func readBackupArchive(path, dir string) (backupManifest, error) {
 		if f.Name == "git.bundle" {
 			limit = backupArchiveLimit
 		}
+		if strings.HasPrefix(f.Name, "context-history/") || strings.HasPrefix(f.Name, "context-unused/") {
+			limit = journeyArchiveChunkLimit
+		}
 		if f.Name == "journey.json" {
 			limit = 8 << 20
 		}
@@ -408,8 +440,59 @@ func (s *Server) restoreProjectBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := os.ReadFile(filepath.Join(extracted, "journey.json"))
 	var state journeyState
-	if err != nil || json.Unmarshal(data, &state) != nil || state.Version != 1 || state.Brief.ProjectID != manifest.ProjectID || state.Design.ProjectID != manifest.ProjectID || state.Brief.Revision < 0 || state.Design.Revision < 0 {
+	if err != nil || json.Unmarshal(data, &state) != nil || (state.Version != 1 && state.Version != 2) || state.Brief.ProjectID != manifest.ProjectID || state.Design.ProjectID != manifest.ProjectID || state.Brief.Revision < 0 || state.Design.Revision < 0 {
 		problem(w, 400, "invalid_history", "The saved brief/design history does not match this backup.")
+		return
+	}
+	if err = normalizeJourneyIdentity(&state, manifest.ProjectID); err != nil {
+		problem(w, 400, "invalid_history", "The saved context has inconsistent project identities.")
+		return
+	}
+	archiveRecords, err := readJourneyArchiveAt(state.ContextID, state.HistoryHead, func(digest string) ([]byte, error) {
+		return os.ReadFile(filepath.Join(extracted, "context-history", digest+".json"))
+	})
+	if err != nil {
+		problem(w, 400, "invalid_history", "The context archive is incomplete or invalid.")
+		return
+	}
+	archiveEntries := 0
+	for _, entry := range manifest.Entries {
+		if strings.HasPrefix(entry.Path, "context-history/") {
+			archiveEntries++
+		}
+	}
+	if archiveEntries != len(archiveRecords) {
+		problem(w, 400, "invalid_history", "The backup contains context archives outside its verified history chain.")
+		return
+	}
+
+	archiveDigests := map[string]bool{}
+	var archiveBytes int64
+	for _, record := range archiveRecords {
+		archiveDigests[record.Digest] = true
+		archiveBytes += int64(len(record.Data))
+	}
+	for _, entry := range manifest.Entries {
+		if !strings.HasPrefix(entry.Path, "context-unused/") {
+			continue
+		}
+		digest := strings.TrimSuffix(strings.TrimPrefix(entry.Path, "context-unused/"), ".json")
+		if archiveDigests[digest] {
+			problem(w, 400, "invalid_history", "A context archive was listed twice.")
+			return
+		}
+		data, readErr := os.ReadFile(filepath.Join(extracted, filepath.FromSlash(entry.Path)))
+		chunk, verifyErr := validateJourneyArchiveChunk(data, digest, state.ContextID)
+		if readErr != nil || verifyErr != nil {
+			problem(w, 400, "invalid_history", "An unused context archive is invalid.")
+			return
+		}
+		archiveRecords = append(archiveRecords, journeyArchiveRecord{Digest: digest, Data: data, Chunk: chunk})
+		archiveDigests[digest] = true
+		archiveBytes += int64(len(data))
+	}
+	if len(archiveRecords) > journeyArchiveChunksLimit || archiveBytes > journeyArchiveBytesLimit {
+		problem(w, 400, "invalid_history", "The context archive exceeds its storage limit.")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
@@ -469,42 +552,18 @@ func (s *Server) restoreProjectBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	newID := project.ProjectID(dest)
-	state.Brief.ProjectID = newID
-	state.Design.ProjectID = newID
-	if state.DesignPlan != nil {
-		state.DesignPlan.ProjectID = newID
-		state.DesignPlan.Status = "draft"
-		state.DesignPlan.Digest = ""
-		state.DesignPlan.PrototypeReleaseID = ""
-		state.DesignPlan.PrototypeCommit = ""
-	}
-	for i := range state.DesignPlanRevisions {
-		state.DesignPlanRevisions[i].ProjectID = newID
-		state.DesignPlanRevisions[i].Status = "draft"
-		state.DesignPlanRevisions[i].Digest = ""
-		state.DesignPlanRevisions[i].PrototypeReleaseID = ""
-		state.DesignPlanRevisions[i].PrototypeCommit = ""
-	}
-	if state.Specification != nil {
-		state.Specification.ProjectID = newID
-		state.Specification.Status = "draft"
-		state.Specification.Digest = ""
-	}
-	for i := range state.SpecificationRevisions {
-		state.SpecificationRevisions[i].ProjectID = newID
-		// A restored project has a new identity; the former approval cannot
-		// attest to this new source/environment. Preserve the content history.
-		state.SpecificationRevisions[i].Status = "draft"
-		state.SpecificationRevisions[i].Digest = ""
-	}
-	if state.Plan != nil {
-		state.Plan.ProjectID = newID
-	}
-	for i := range state.BriefRevisions {
-		state.BriefRevisions[i].ProjectID = newID
-	}
-	for i := range state.DesignRevisions {
-		state.DesignRevisions[i].ProjectID = newID
+	rebindJourneyIdentity(&state, newID)
+	if len(archiveRecords) > 0 {
+		if err = os.MkdirAll(filepath.Join(dest, ".luci", "history"), 0700); err != nil {
+			problem(w, 500, "restore_failed", "Could not prepare restored context history.")
+			return
+		}
+		for _, record := range archiveRecords {
+			if err = writeProjectAtomic(dest, journeyArchiveFile(record.Digest), record.Data); err != nil {
+				problem(w, 500, "restore_failed", "Could not restore verified context history.")
+				return
+			}
+		}
 	}
 	for _, entry := range manifest.Entries {
 		if !strings.HasPrefix(entry.Path, "files/") {
