@@ -162,6 +162,9 @@ async function auditDesign(name) {
 }
 async function mutation(action, path) {
   const response = page.waitForResponse(value => value.request().method() === 'POST' && new URL(value.url()).pathname === path);
+  // Observe failure immediately if the action fails before this waiter is awaited.
+  // The await below still rejects; this only keeps cleanup and evidence reachable.
+  void response.catch(() => {});
   await action(); const actual = await response;
   assert.equal(actual.status(), 200, 'UI mutation refused: ' + path);
   return actual.json();
@@ -315,7 +318,10 @@ try {
 } finally {
   await browser?.close().catch(error => { receipt.cleanupErrors ??= []; receipt.cleanupErrors.push(scrub(error)); });
   let cleaned = false; try { await stop(); cleaned = true; } catch (error) { receipt.cleanupErrors ??= []; receipt.cleanupErrors.push(scrub(error)); }
-  if (cleaned && receipt.passed) rmSync(fixture, { recursive: true, force: true }); else receipt.retainedFixture = fixture;
+  if (cleaned && receipt.passed) {
+    try { rmSync(fixture, { recursive: true, force: true }); }
+    catch (error) { receipt.cleanupErrors ??= []; receipt.cleanupErrors.push(scrub(error)); receipt.retainedFixture = fixture; }
+  } else receipt.retainedFixture = fixture;
   if (receipt.cleanupErrors?.length) { receipt.passed = false; process.exitCode = 1; }
   receipt.finishedAt = new Date().toISOString();
   writeFileSync(join(evidence, 'service.log'), scrub(serviceLog), { mode: 0o600 }); writeFileSync(report, JSON.stringify(receipt, null, 2), { mode: 0o600 });
