@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
+import { nativeFailure, publishFailure } from "./native-eval-report.mjs";
 
 assert.equal(process.platform, "win32", "Installed acceptance requires Windows");
 assert.equal(process.env.GITHUB_ACTIONS, "true", "Only run on a disposable GitHub runner");
@@ -34,6 +35,11 @@ const wdURL = "http://127.0.0.1:4444";
 const elementKey = "element-6066-11e4-a52e-4f735466cecf";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function recordCheck(message) {
+  result.checks.push(message);
+  (result.completedCheckStages ??= []).push(result.stage);
+}
+
 async function request(path, method = "GET", body, deadline) {
   const remaining = deadline === undefined ? 90_000 : deadline - Date.now();
   if (remaining <= 0) throw new Error(`WebDriver ${method} ${path}: click deadline exceeded`);
@@ -58,7 +64,7 @@ async function until(label, probe, ms = 30_000) {
     try { const value = await probe(); if (value) return value; } catch (error) { last = error; }
     await sleep(200);
   }
-  throw new Error(`${label} timed out${last ? `: ${last.message}` : ""}`);
+  throw Object.assign(new Error(`${label} timed out${last ? `: ${last.message}` : ""}`), { nativeFailure: "wait-timeout" });
 }
 async function lookupElement(kind, name, deadline) {
   return command("/execute/sync", "POST", { script: `
@@ -147,7 +153,7 @@ async function click(name, kind = "button") {
     const remaining = deadline - Date.now();
     if (remaining > 0) await sleep(Math.min(200, remaining));
   }
-  throw new Error(`click ${kind} ${name} timed out${last ? `: ${last.message}` : ""}`);
+  throw Object.assign(new Error(`click ${kind} ${name} timed out${last ? `: ${last.message}` : ""}`), { nativeFailure: "click-timeout" });
 }
 async function preparationSettled() {
   // ProductClient bounds a setup request at 120 seconds. This stage waits for
@@ -192,7 +198,7 @@ async function preparationSettled() {
     const remaining = deadline - Date.now();
     if (remaining > 0) await sleep(Math.min(200, remaining));
   }
-  throw new Error("Workspace preparation did not reach a settled visible outcome within its 120-second request budget");
+  throw Object.assign(new Error("Workspace preparation did not reach a settled visible outcome within its 120-second request budget"), { nativeFailure: "preparation-timeout" });
 }
 async function continueToProjects() {
   await preparationSettled();
@@ -234,6 +240,7 @@ async function snapshot(name) {
   writeFileSync(join(evidence, `${mode}-${name}.png`), Buffer.from(png, "base64"));
 }
 async function authenticate() {
+  result.stage = "authenticate";
   await until("native frontend ready", () => execute("return !!document.querySelector('.auth-screen,.shell,.onboarding-portal')"), 60_000);
   if (await execute("return !!document.querySelector('.auth-screen')")) {
     const bootstrap = localAccess?.available
@@ -251,7 +258,7 @@ async function authenticate() {
     if (bootstrap && localAccess?.available) await fill("Confirm password", fixture.password);
     await click(bootstrap ? (localAccess?.available ? "Create account" : "Create Super Admin account") : "Sign in");
     await workspaceReady();
-    result.checks.push(bootstrap ? "Native bootstrap token and first Super Admin created through installed UI" : "Existing account signed in through installed UI");
+    recordCheck(bootstrap ? "Native bootstrap token and first Super Admin created through installed UI" : "Existing account signed in through installed UI");
   }
 }
 async function visibleProfile() {
@@ -300,6 +307,7 @@ async function signOut(expectFirstRunSetup = false) {
   await element("label", "Username");
 }
 async function verifyLocalEntryRecovery() {
+  result.stage = "account-isolation";
   const owner = await visibleProfile();
   assert.equal(owner.username, fixture.username);
   const ownerProjects = await visibleProjectIDs();
@@ -324,8 +332,9 @@ async function verifyLocalEntryRecovery() {
   assert.equal(second.role, "super-admin", "The OS-owned local creation control grants administration only inside this owned installation");
   assert(!(await visibleProjectIDs()).some(id => ownerProjects.includes(id)), "The new account's real catalogue must not include the owner's projects");
   assert.equal(await execute("return [...document.querySelectorAll('[data-kind=project]')].some(e=>e.textContent.includes(arguments[0]))", fixture.projectName), false);
-  result.checks.push("An initialized native installation offered OS-authorized account creation after rejected credentials; the new local administrator has a distinct identity and cannot see the owner's project");
+  recordCheck("An initialized native installation offered OS-authorized account creation after rejected credentials; the new local administrator has a distinct identity and cannot see the owner's project");
   await signOut();
+  result.stage = "owner-recovery";
   await click("Forgot sign-in?");
   const replacement = randomUUID() + randomUUID();
   await fill("New password", replacement);
@@ -335,9 +344,10 @@ async function verifyLocalEntryRecovery() {
   assert.equal((await visibleProfile()).id, owner.id, "Recovery must authenticate the original owner identity");
   await verifyProject();
   for (const [name, digest] of before) assert.equal(createHash("sha256").update(readFileSync(join(fixture.projectRoot, fixture.projectName, name))).digest("hex"), digest, "Account recovery must preserve " + name);
-  result.checks.push("The real native owner-recovery control preserved the original identity, project, brief, drawing and Git bytes");
+  recordCheck("The real native owner-recovery control preserved the original identity, project, brief, drawing and Git bytes");
   await signOut();
   await fill("Username", fixture.username);
+  result.stage = "recovered-sign-in";
   await fill("Password", fixture.password);
   await click("Sign in");
   await bodyHas("The username or password is incorrect.");
@@ -348,10 +358,11 @@ async function verifyLocalEntryRecovery() {
   fixture.password = replacement;
   fixture.entryVerified = true;
   writeFileSync(fixtureFile, JSON.stringify(fixture));
-  result.checks.push("Recovered owner rejects the previous password and accepts the replacement through normal sign-in");
+  recordCheck("Recovered owner rejects the previous password and accepts the replacement through normal sign-in");
   await snapshot("recovered-owner");
 }
 async function verifyPartialFirstRunEntry() {
+  result.stage = "partial-first-run";
   assert.equal(existsSync(join(productStateDir(), "luci.json")), false, "Account-only fixture must not have saved workspace configuration");
   await bodyHas("Choose your workspace");
   await signOut(true);
@@ -375,18 +386,21 @@ async function verifyPartialFirstRunEntry() {
     await click("Workspace setup");
   }
   await bodyHas("Choose your workspace");
-  result.checks.push("Immediately after first account creation, sign-out and rejected credentials preserved create/recovery choices before any workspace setup was saved");
+  recordCheck("Immediately after first account creation, sign-out and rejected credentials preserved create/recovery choices before any workspace setup was saved");
 }
 async function settings() {
+  result.stage = "workspace-settings";
   if (!await execute("return !!document.querySelector('.onboarding-portal,[aria-label=\"Close settings\"]')")) await click("Settings");
   await until("local setup choice or projects folder", () => execute("return document.body.innerText.includes('On this computer') || [...document.querySelectorAll('label')].some(e=>e.textContent.includes('Projects folder'))"));
   if (await execute("return !!document.querySelector('button[aria-labelledby=\"setup-route-local\"]')")) await click("On this computer");
 }
 async function verifyProject() {
+  result.stage = "verify-project";
   await dismissSetup();
   await click('[data-kind="project"]', "css");
   await click("Define");
   if (structuredUI) await click("Specification");
+  result.stage = "verify-definition";
   const idea = await element("label", "The idea");
   assert.equal(await command(`/element/${idea[elementKey]}/property/value`, "GET", undefined), fixture.purpose);
   if (fixture.hasSpecification) {
@@ -396,25 +410,29 @@ async function verifyProject() {
     assert.equal(spec.status, "approved");
     assert.equal(spec.revision, fixture.specificationRevision);
     assert.equal(spec.digest, fixture.specificationDigest);
-    result.checks.push("Approved structured definition and stable requirement survived restart without revision or digest changes");
+    recordCheck("Approved structured definition and stable requirement survived restart without revision or digest changes");
   }
   await click("Design");
   if (structuredUI) await click("Sketch");
+  result.stage = "verify-sketch";
   await bodyHas("Design 1");
   await element("css", ".excalidraw canvas");
   await snapshot("persisted-design");
   await click("Develop");
   if (fixture.hasPlan) {
+    result.stage = "verify-plan";
     const task = await element("label", "Task 1");
     assert.equal(await command(`/element/${task[elementKey]}/property/value`, "GET", undefined), "Verify installed application persistence");
-    result.checks.push("Implementation plan and its brief revision survived restart");
+    recordCheck("Implementation plan and its brief revision survived restart");
   }
+  result.stage = "verify-git";
   await click("Git");
   await bodyHas(fixture.commitMessage);
   await bodyHas("Everything is committed");
-  result.checks.push("Saved brief, nonempty design and Git commit survived installed app replacement/restart");
+  recordCheck("Saved brief, nonempty design and Git commit survived installed app replacement/restart");
   await snapshot("persisted-git");
   if (fixture.hasConfiguration) {
+    result.stage = "verify-configuration";
     await click("Deploy");
     if (structuredUI) await element("css", '.deployment-tabs button[aria-current="page"],.deployment-tabs button[role="tab"][aria-selected="true"]');
     await openDisclosure("Runtime configuration");
@@ -422,13 +440,15 @@ async function verifyProject() {
     const value = await element("label", "Private value");
     assert.equal(await command(`/element/${value[elementKey]}/property/value`, "GET", undefined), "");
     assert.equal(await execute("return document.body.innerText.includes(arguments[0])", fixture.privateValue), false);
-    result.checks.push("Private runtime configuration survived with names-only UI and no value readback");
+    recordCheck("Private runtime configuration survived with names-only UI and no value readback");
     await snapshot("persisted-runtime-configuration");
   }
 }
 
 try {
+  result.stage = "driver-ready";
   await until("Tauri WebDriver", () => request("/status"), 30_000);
+  result.stage = "start-webview";
   const started = await request("/session", "POST", { capabilities: { alwaysMatch: {
     "tauri:options": { application: executable },
   } } });
@@ -436,6 +456,7 @@ try {
   assert(session);
   await command("/timeouts", "POST", { script: 30_000, pageLoad: 60_000, implicit: 0 });
   await command("/window/rect", "POST", { width: 1440, height: 1000 });
+  result.stage = "native-bridge";
   await until("Tauri bridge", () => execute("return !!window.__TAURI_INTERNALS__"));
   const runtime = await command("/execute/async", "POST", {
     script: "const done=arguments[arguments.length-1];window.__TAURI_INTERNALS__.invoke('runtime_info').then(done).catch(e=>done({error:String(e)}));", args: [],
@@ -443,6 +464,7 @@ try {
   assert.equal(runtime.startupError, null);
   assert.match(runtime.apiUrl, /^http:\/\/127\.0\.0\.1:\d+$/);
   apiURL = runtime.apiUrl;
+  result.stage = "sidecar-ownership";
   const owned = processes();
   const app = owned.find((p) => p.ExecutablePath.toLowerCase() === executable.toLowerCase());
   assert(app, "The WebView must belong to the installed release exe");
@@ -462,6 +484,7 @@ try {
   const historical = major === 0 && (minor < 4 || (minor === 4 && patch < 2));
   const requireEntry = !historical; // Historical 0.3/0.4.1 upgrade seeds predate these controls.
   if (requireEntry) {
+    result.stage = "local-access";
     localAccess = await command("/execute/async", "POST", {
       script: "const done=arguments[arguments.length-1];window.__TAURI_INTERNALS__.invoke('local_access_info').then(done).catch(()=>done({available:false}));", args: [],
     });
@@ -475,8 +498,8 @@ try {
   result.stateDirSource = runtime.stateDir ? "native runtime_info" : "historical version default";
   if (fixture.stateDir) assert.equal(resolve(result.stateDir).toLowerCase(), resolve(fixture.stateDir).toLowerCase(), "Upgrade/restart must retain the actual saved workspace state root");
   fixture.stateDir = result.stateDir;
-  result.checks.push("Native managed state location retained across install, upgrade and restart");
-  result.checks.push("Installed release WebView uses its own bundled sidecar on a random loopback port");
+  recordCheck("Native managed state location retained across install, upgrade and restart");
+  recordCheck("Installed release WebView uses its own bundled sidecar on a random loopback port");
   await authenticate();
   // The retained 0.3 seed predates managed identities. Starting with 0.4.1,
   // assert continuity against the owner created by that actual old release.
@@ -497,22 +520,25 @@ try {
     if (!await execute("return !!document.querySelector('.local-tools[open]')")) {
       await click(structuredUI ? "Your Git commit identity" : "Git identity, agent connection and runtime");
     }
+    result.stage = "git-identity";
     await fill("Commit author name", "Native Acceptance");
     await fill("Commit author email", "native@example.invalid");
     await click("Save Git identity");
     await until("Git identity persisted", () => ["user.name", "user.email"].map((key) => execFileSync("git", ["config", "--global", "--get", key], { encoding: "utf8", windowsHide: true }).trim()).join("\n") === "Native Acceptance\nnative@example.invalid");
-    result.checks.push("Projects folder and Git identity saved through the installed Settings UI");
+    recordCheck("Projects folder and Git identity saved through the installed Settings UI");
     if (structuredUI) {
       await continueToProjects();
       await bodyHas("Your projects");
       assert.equal(await execute("return !!document.querySelector('.onboarding-portal,.setup-backdrop')"), false);
-      result.checks.push("Completed the full-page onboarding portal and reached the independent projects home");
+      recordCheck("Completed the full-page onboarding portal and reached the independent projects home");
     }
+    result.stage = "create-project";
     await click("New project");
     if (structuredUI) await element("css", '.project-entry[role="dialog"][aria-modal="true"]');
     await fill("Project name", fixture.projectName);
     await click("Create project");
     if (structuredUI) await click("Specification");
+    result.stage = "save-definition";
     await fill("The idea", fixture.purpose);
     await fill("Who it is for", "People using the installed Windows application.");
     if (structuredUI) {
@@ -530,9 +556,10 @@ try {
       const brief = readProjectJSON(".luci/state.json").brief;
       return brief.revision === 1 && brief.purpose === fixture.purpose;
     });
-    result.checks.push("Created the project and saved brief revision 1 through the installed UI");
+    recordCheck("Created the project and saved brief revision 1 through the installed UI");
     if (structuredUI) {
       await until("structured definition persisted", () => readProjectJSON(".luci/state.json").specification?.revision === 1);
+      result.stage = "approve-definition";
       await click("Approve definition");
       const spec = await until("definition approval persisted", () => {
         const value = readProjectJSON(".luci/state.json").specification;
@@ -543,11 +570,12 @@ try {
       fixture.hasSpecification = true;
       fixture.specificationRevision = spec.revision;
       fixture.specificationDigest = spec.digest;
-      result.checks.push("Saved and explicitly approved a structured definition with a stable requirement, acceptance scenario and digest");
+      recordCheck("Saved and explicitly approved a structured definition with a stable requirement, acceptance scenario and digest");
     }
     await snapshot("brief");
     await click("Design");
     if (structuredUI) await click("Sketch");
+    result.stage = "draw-sketch";
     const canvas = await element("css", ".excalidraw__canvas.interactive");
     // Excalidraw overlays its radio inputs with icon SVGs. Use the documented
     // real keyboard shortcut after focusing the canvas, as the browser UAT does.
@@ -562,6 +590,7 @@ try {
       { type: "pointerMove", duration: 0, x, y, origin: "viewport" }, { type: "pointerDown", button: 0 },
       { type: "pointerMove", duration: 500, x: x + 160, y: y + 100, origin: "viewport" }, { type: "pointerUp", button: 0 },
     ] }] });
+    result.stage = "save-sketch";
     await click("Save design");
     await bodyHas("Design 1 · Brief 1");
     await snapshot("design");
@@ -573,6 +602,7 @@ try {
     if (!result.applicationVersion.startsWith("0.3.")) assert.deepEqual(readProjectJSON(".luci/design.json"), design);
     await click("Develop");
     if (!result.applicationVersion.startsWith("0.3.")) {
+      result.stage = "implementation-plan";
       await fill("New task", "Verify installed application persistence");
       await click("Add task");
       await click("Save implementation plan");
@@ -582,32 +612,36 @@ try {
       assert.equal(plan.tasks[0].title, "Verify installed application persistence");
       assert.equal(plan.tasks[0].status, "todo", "Saving a plan must not fabricate completion");
       fixture.hasPlan = true;
-      result.checks.push("Implementation task saved with real brief provenance and no fabricated verification");
+      recordCheck("Implementation task saved with real brief provenance and no fabricated verification");
       await snapshot("implementation-plan");
     }
+    result.stage = "read-context";
     await click("Files");
     await click("LUCI.md", "file");
     await bodyHas(fixture.purpose);
-    result.checks.push("Generated agent context is readable through the installed Files view");
+    recordCheck("Generated agent context is readable through the installed Files view");
     await click("Git");
+    result.stage = "git-commit";
     await fill("Commit message", fixture.commitMessage);
     await click("Commit changes");
     await bodyHas("Everything is committed");
     await bodyHas(fixture.commitMessage);
-    result.checks.push("Normal installed UI saved project settings, Git identity, brief, actual canvas rectangle and Git commit");
+    recordCheck("Normal installed UI saved project settings, Git identity, brief, actual canvas rectangle and Git commit");
     await snapshot("git");
     if (!result.applicationVersion.startsWith("0.3.")) {
       await click("Deploy");
       if (structuredUI) {
+        result.stage = "deployment-tabs";
         const selected = await element("css", '.deployment-tabs button[aria-current="page"],.deployment-tabs button[role="tab"][aria-selected="true"]');
         assert.equal(await command(`/element/${selected[elementKey]}/text`, "GET", undefined), "Application platform");
         await bodyHas("Deploy and operate");
         await click("Previews and publishing");
         await bodyHas("Build local preview");
         await click("Application platform");
-        result.checks.push("Deploy opens the application platform and exposes previews/publishing through its explicit workspace tab");
+        recordCheck("Deploy opens the application platform and exposes previews/publishing through its explicit workspace tab");
       }
       await openDisclosure("Runtime configuration");
+      result.stage = "runtime-configuration";
       fixture.privateValue = "fixture-only-" + randomUUID();
       await fill("Variable name", "NATIVE_UAT_MESSAGE");
       await fill("Private value", fixture.privateValue);
@@ -620,7 +654,7 @@ try {
       const tracked = execFileSync("git", ["-C", projectDir, "ls-files", "-z"], { encoding: "utf8", windowsHide: true }).split("\0").filter(Boolean);
       for (const path of tracked) assert(!readFileSync(join(projectDir, path), "utf8").includes(fixture.privateValue), "Private runtime value must not enter Git project files");
       fixture.hasConfiguration = true;
-      result.checks.push("Private runtime variable saved through native UI, cleared from form and excluded from project Git files");
+      recordCheck("Private runtime variable saved through native UI, cleared from form and excluded from project Git files");
       await snapshot("runtime-configuration");
       await click("Develop");
       await click("Git");
@@ -629,16 +663,21 @@ try {
     writeFileSync(fixtureFile, JSON.stringify(fixture));
   } else await verifyProject();
   if (requireEntry && !fixture.entryVerified) await verifyLocalEntryRecovery();
+  result.stage = "native-shutdown";
   // WM_CLOSE exercises Tauri's normal Exit handler before WebDriver cleanup.
   assert.equal(powershell(`$p=Get-Process -Id ${appPID}; $p.CloseMainWindow()`), "True");
   await until("owned installed processes exited", () => !processes().some((p) => p.ProcessId === appPID || p.ProcessId === childPID), 15_000);
   await until("owned sidecar listener closed", async () => {
     try { await fetch(apiURL + "/v1/control-plane/status", { signal: AbortSignal.timeout(500) }); return false; } catch { return true; }
   }, 5000);
-  result.checks.push("Normal native window close terminated its owned sidecar and loopback listener");
+  recordCheck("Normal native window close terminated its owned sidecar and loopback listener");
   result.passed = true;
 } catch (error) {
   result.error = error.stack || String(error);
+  process.exitCode = 1;
+  result.safeFailure = nativeFailure(result, error);
+  // Emit before screenshots/cleanup, which may themselves time out.
+  publishFailure(result.safeFailure);
   try { result.ownedProcessesAtFailure = processes(); } catch {}
   if (session) {
     try { await snapshot("failure"); } catch {}
@@ -664,5 +703,7 @@ try {
     }
   }
   writeFileSync(join(evidence, `${mode}-result.json`), JSON.stringify(result, null, 2) + "\n");
-  console.log(JSON.stringify(result));
+  // The complete receipt stays on disk; never expand raw exception/UI data
+  // into public CI annotations or console output.
+  console.log(JSON.stringify({ mode, passed: result.passed, completedChecks: result.checks.length, safeFailure: result.safeFailure }));
 }
