@@ -35,9 +35,22 @@ seven launcher outcomes and four two-person Git-review groups; all 940 package
 files and 346 licence components are verified. Logs and original failed attempts
 are in `artifacts/quality-collaboration-boundaries/` and the matching package-eval
 directory. The permission journey exposed a keyboard focus ring clipped at the
-planning scroll boundary. Scoped scroll padding corrects the reproduced desktop
-and phone case; its matching installed journey and current responsiveness/zoom
-acceptance are next. The failed installed attempt remains recorded.
+planning scroll boundary. Scoped scroll padding is now verified in the matching
+`c6e28ec8` six-group permission/backup journey, at desktop and phone widths. All
+three stale-download cases produce none; the authorized ZIP verifies source,
+Git and context-history contents. That package also passes six portable groups
+and seven launcher outcomes. Current responsiveness/reflow and the connected
+build/amendment journey continue. The original failed attempts remain recorded;
+restoration callback lifetime has component-level evidence only.
+
+The next scoped CSS correction preserves the tab component’s inset focus outline
+and lets the action footer scroll normally in short-height viewports. Current
+installed timing/reflow evidence exposed both clipped indicators and actual tab
+obscuration. Sixty-three existing phase/component tests pass; corrected rendered
+acceptance is next. The 80-action baseline meets navigation p95 targets but misses
+the mobile acknowledgement target in three actions. CPU profiling must identify
+the cause before a performance change. The reduced viewport/DPR diagnostic is
+not native 200% browser-zoom acceptance.
 
 Separately, clean `f388ad44` passes eight installed full-sandbox restart/recovery
 groups: the same live child survives gateway/worker restart, explicit continuation

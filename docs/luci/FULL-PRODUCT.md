@@ -55,11 +55,29 @@ retains the message and commits the reviewed bytes. A later amendment remains
 uncommitted. The provider and Docker are unused in this scope.
 
 The installed permission journey exposed a clipped keyboard focus ring around
-New task. The original attempt remains failed. A bounded desktop/phone Chromium
-diagnostic reproduced the scroll boundary and supports a scoped scroll-padding
-correction; the corrected package still needs the full six-group journey. Current
-navigation timing and zoom/reflow acceptance also continue. These are independent
-product-quality obligations. The representative real-model benchmark is prepared at
+New task. Scoped scroll padding now resolves it on clean `c6e28ec8`: six installed
+permission/backup groups pass, with complete keyboard focus outlines at 1440 and
+390 px, retained editor drafts through access changes, and zero downloads from
+three stale-response scenarios. One authorized ZIP contains independently checked
+source, Git history and context archives. Six portable groups and seven launcher
+outcomes pass; all 940 package files and 346 licence components match. The four
+earlier attempts retain one product failure and three distinct harness failures.
+Receipt and rendered evidence:
+`artifacts/package-eval/0.5.0-c6e28ec8/permission-continuity-attempt-3/`.
+Restoration callback lifetime remains component-tested; the current restore dialog
+prevents normal navigation while busy. This CSS-only follow-on passes type
+checking and before/after native-scrolling diagnostics; the complete source suite
+above belongs to `448275fc`. Current navigation timing/reflow and connected
+build/amendment acceptance continue. The initial 80-transition timing record
+meets warm-navigation p95 targets (245.5 ms desktop, 328.4 ms phone), but phone
+input-inclusive acknowledgement p95 is 118.3 ms and three actions exceed 100 ms.
+Those original outliers are retained for profiling. Rendered keyboard/reflow
+checks also expose clipped internal-tab focus indicators and a short-height
+sticky footer overlapping tabs. Scoped CSS corrections are implemented with 63
+existing phase/component tests passing; matching browser verification follows.
+Twelve scoped axe scans have zero violations and two incomplete contrast items.
+The 720 × 500 / DPR 2 observation is equivalent-viewport reflow, not actual 200%
+browser zoom. These are independent product obligations. The representative real-model benchmark is prepared at
 `artifacts/plans/idea-to-live-acceptance.json`; execution needs the selected saved
 model connection. Managed/public/native and full data-platform gates remain open.
 
