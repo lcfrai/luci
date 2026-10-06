@@ -122,6 +122,14 @@ Portable packages contain the compiled local service, built web assets including
 
 The local service listens on loopback port 8730. Close the portable launch terminal to stop it. Keep the complete extracted folder together. Project files and Luci state remain outside the application package; replacing an extracted application folder is not a project backup. Back up both before testing upgrades.
 
+Extract an update into a new folder and close the previous portable launcher
+before opening the new one. The launcher checks the running package's identity,
+including its service and web assets. It can reopen the same package; if an
+older or different package is still running, it explains how to close that
+instance and leaves its process and saved data intact. Keep the supplied
+`package-identity` file with the extracted archive. This check does not replace
+archive verification or the stopped-state backup/rollback procedure.
+
 ## Downloading a CI candidate
 
 When this workflow has run in the repository that will distribute Luci, open **Actions → Luci build and release candidates**, select the desired successful commit and download its artifact. Artifact access follows the repository's permissions and requires GitHub sign-in; artifacts expire after 14 days. There is no public lcfr.ai download implied by this document.

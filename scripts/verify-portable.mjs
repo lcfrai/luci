@@ -17,7 +17,7 @@ assert.match(evidence.replaceAll('\\', '/'), /\/artifacts\/package-eval\//, 'Use
 await mkdir(evidence, { recursive: true });
 const projects = path.join(evidence, 'projects'), state = path.join(evidence, 'state');
 await mkdir(projects); // Refuse reusing a previous eval's repositories.
-for (const file of ['web/index.html', 'runtime/images/sandbox/Dockerfile', 'runtime/sandboxd/vendor/modules.txt', 'cloud/luci-cloud-linux-amd64.tar.gz', 'licenses/manifest.json', 'docs/luci/MANAGED-UPGRADE.md']) {
+for (const file of ['package-identity', 'web/index.html', 'runtime/images/sandbox/Dockerfile', 'runtime/sandboxd/vendor/modules.txt', 'cloud/luci-cloud-linux-amd64.tar.gz', 'licenses/manifest.json', 'docs/luci/MANAGED-UPGRADE.md']) {
   assert.ok((await stat(path.join(packageDir, file))).size > 0, `Missing shipped file ${file}`);
 }
 const licenses = JSON.parse(await readFile(path.join(packageDir, 'licenses/manifest.json'), 'utf8'));

@@ -50,6 +50,12 @@ manifest. Point the existing service configuration at the new package while
 retaining the same private state/project paths, service account and explicit
 provider configuration. Start one gateway with its own supervised workers.
 
+For portable use, close the old launch terminal before starting the new package.
+The new launcher refuses to reuse an older/different package or a service that
+cannot report its portable identity, even when the release number is the same.
+It does not stop that existing process or change its state. Follow the explicit
+close-old-launcher instruction; do not reset the state directory to bypass it.
+
 Before reopening access, verify the reported release, existing account login,
 intended personal/team access, saved projects and context, review state,
 provider configuration and history. A configured connection is not proof that

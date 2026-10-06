@@ -65,6 +65,7 @@ const (
 	envManagedShutdownToken   = "LUCI_MANAGED_SHUTDOWN_TOKEN"
 	envLocalAccessToken       = "LUCI_LOCAL_ACCESS_TOKEN"
 	envPortableOwnerAccess    = "LUCI_PORTABLE_OWNER_ACCESS"
+	envPortablePackageID      = "LUCI_PORTABLE_PACKAGE_ID"
 
 	// envReadyTimeout is NOT in contract §4's table. Task 5 records it as a
 	// cross-task dependency of this task: dockerbe.Config.ReadyTimeout exists
@@ -173,6 +174,7 @@ type Config struct {
 	ManagedShutdownToken                                                                                  string
 	LocalAccessToken                                                                                      string
 	PortableOwnerAccess                                                                                   bool
+	PortablePackageID                                                                                     string
 	Addr                                                                                                  string
 	AllowPublicBind                                                                                       bool
 	Backend                                                                                               string // "docker" or "kata"; validated here, mapped in main.go
@@ -310,6 +312,10 @@ func loadConfig(getenv func(string) string) (Config, error) {
 	}
 	cfg.LocalAccessToken = getenv(envLocalAccessToken)
 	cfg.PortableOwnerAccess = parseFlag(raw(envPortableOwnerAccess))
+	cfg.PortablePackageID = getenv(envPortablePackageID)
+	if cfg.PortablePackageID != "" && (!cfg.PortableOwnerAccess || len(cfg.PortablePackageID) != 64 || strings.Trim(cfg.PortablePackageID, "0123456789abcdef") != "") {
+		return Config{}, fmt.Errorf("%s requires portable owner access and a lowercase SHA-256 identifier", envPortablePackageID)
+	}
 	if cfg.PortableOwnerAccess {
 		host, _, err := net.SplitHostPort(cfg.Addr)
 		ip := net.ParseIP(host)

@@ -430,6 +430,22 @@ its own proof on exit. Native authority remains exclusively in Rust, and neither
 mode is available on public bindings or managed workers. Reopening the portable
 launcher restores this computer's account controls after a service restart.
 
+Portable packages also contain a `package-identity` derived from the compiled
+service and every shipped web asset. The launcher passes this 64-character
+lowercase SHA-256 value as `LUCI_PORTABLE_PACKAGE_ID`; configuration accepts it
+only with portable owner access. GET `/v1/auth/local-package` requires the same
+loopback and local-capability checks and returns the identifier as plain text
+with a trailing newline and `Cache-Control: no-store`. Services without a portable
+identity return 404. The value is never inherited by managed workers or included
+in public status. It is package consistency metadata, not a credential, signature
+or publisher proof.
+
+After checking local ownership, portable launchers compare the running package
+identity before opening the browser. A different package, missing identity or
+legacy endpoint requires the person to close the previous launcher first. The
+rejected second launcher preserves the existing service and saved state. Same
+version numbers alone do not establish that the service and web assets match.
+
 Administrators can issue an invitation using POST `/v1/admin/invitations` with
 `{role}`. The result is `{invitation,inviteCode}`; GET returns
 `{invitations: [...]}` without codes, and DELETE `/v1/admin/invitations/{id}`

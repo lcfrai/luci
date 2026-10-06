@@ -80,6 +80,7 @@ type Options struct {
 	PublicAppOrigin                                      string
 	LocalAccessToken                                     string
 	PortableOwnerAccess                                  bool
+	PortablePackageID                                    string
 	WorkerArgs, BaseEnvironment                          []string
 	InitialHandler                                       http.Handler
 	TeamHandler                                          func(context.Context, string) (http.Handler, error)
@@ -149,6 +150,9 @@ func New(opts Options) (*Gateway, error) {
 	}
 	if opts.PortableOwnerAccess && opts.LocalAccessToken != "" {
 		return nil, errors.New("portable and native local access capabilities are mutually exclusive")
+	}
+	if opts.PortablePackageID != "" && (!opts.PortableOwnerAccess || len(opts.PortablePackageID) != 64 || strings.Trim(opts.PortablePackageID, "0123456789abcdef") != "") {
+		return nil, errors.New("package identity requires portable owner access and a lowercase SHA-256 identifier")
 	}
 	if opts.LocalAccessToken != "" && !validLocalAccessToken(opts.LocalAccessToken) {
 		return nil, errors.New("invalid local access capability")
@@ -340,6 +344,7 @@ func (g *Gateway) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/auth/bootstrap", g.bootstrap)
 	mux.HandleFunc("POST /v1/auth/login", g.login)
 	mux.HandleFunc("GET /v1/auth/local-owner", g.localOwner)
+	mux.HandleFunc("GET /v1/auth/local-package", g.localPackage)
 	mux.HandleFunc("POST /v1/auth/local-account", g.localAccount)
 	mux.HandleFunc("POST /v1/auth/local-owner/recover", g.recoverLocalOwner)
 	mux.HandleFunc("POST /v1/auth/invitations/accept", g.acceptInvitation)
@@ -381,7 +386,7 @@ func (g *Gateway) Handler() http.Handler {
 			r.Header.Del(header)
 		}
 		path := r.URL.Path
-		localAccess := (r.Method == "GET" && path == "/v1/auth/local-owner") || (r.Method == "POST" && (path == "/v1/auth/local-account" || path == "/v1/auth/local-owner/recover"))
+		localAccess := (r.Method == "GET" && (path == "/v1/auth/local-owner" || path == "/v1/auth/local-package")) || (r.Method == "POST" && (path == "/v1/auth/local-account" || path == "/v1/auth/local-owner/recover"))
 		if !localAccess {
 			r.Header.Del(localAccessHeader)
 		}

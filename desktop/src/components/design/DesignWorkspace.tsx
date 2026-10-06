@@ -24,6 +24,20 @@ const Sketch = lazy(() => import("../journey/DesignEditor"));
 type View = "screens" | "sketch" | "prototype" | "handoff";
 const views: [View, string][] = [["screens", "Screens and states"], ["sketch", "Sketch"], ["prototype", "Prototype"], ["handoff", "Implementation handoff"]];
 const id = (prefix: string) => `${prefix}-${crypto.randomUUID().slice(0, 12)}`;
+// Browser drafts retain unfinished text in the same field, so recovery also
+// detects conflicting edits to widths. Only parsed numbers cross the API seam.
+type ScreenDraft = Omit<DesignScreen, "widths"> & { widths: number[] | string };
+type PlanDraft = Omit<DesignPlan, "screens"> & { screens: ScreenDraft[] };
+function responsiveWidths(value: ScreenDraft["widths"]): { values: number[]; error: string } {
+  const parts = typeof value === "string" ? value.trim() ? value.split(",").map(part => part.trim()) : [] : value;
+  const values = parts.map(Number);
+  const invalid = parts.some(part => typeof part === "string" && !/^\d+$/.test(part)) || values.some(width => !Number.isInteger(width) || width < 320 || width > 3840);
+  return { values: invalid ? [] : values, error: parts.length > 12 ? "Use at most 12 responsive widths." : invalid ? "Enter whole-number widths from 320 to 3840, separated by commas. Finish or remove any trailing comma." : "" };
+}
+function planDraftValid(value: unknown): value is PlanDraft {
+  if (!value || typeof value !== "object" || !("screens" in value) || !Array.isArray(value.screens)) return false;
+  return designPlanDraftValid({ ...value, screens: value.screens.map(screen => screen && typeof screen === "object" && typeof screen.widths === "string" ? { ...screen, widths: [] } : screen) });
+}
 
 export default function DesignWorkspace({ projectId }: { projectId: string }) {
   const scope = useProjectDraftScope(projectId);
@@ -33,7 +47,7 @@ export default function DesignWorkspace({ projectId }: { projectId: string }) {
 function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId: string; scope: string | null; view: View; setView(view: View): void }) {
   const access = useProjectAccess(projectId);
   const { canRead, canEdit, canExecute } = access;
-  const [plan, setPlan] = useState<DesignPlan | null>(null);
+  const [plan, setPlan] = useState<PlanDraft | null>(null);
   const [spec, setSpec] = useState<ProjectSpecification | null>(null);
   const [baseRevision, setBaseRevision] = useState(0);
   const savedPlan = useRef<DesignPlan | null>(null);
@@ -42,7 +56,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
   const [pendingView, setPendingView] = useState<View | null>(null);
   const [dirty, setDirty] = useState(false);
   const draftBase = plan && spec ? JSON.stringify({ revision: baseRevision, briefRevision: spec.briefRevision, specificationRevision: spec.revision, sketchRevision: plan.sketchRevision }) : null;
-  const draft = useProjectDraft({ scope, kind: "design-plan", base: draftBase, baseValue: savedPlan.current, value: plan, dirty, valid: designPlanDraftValid });
+  const draft = useProjectDraft({ scope, kind: "design-plan", base: draftBase, baseValue: savedPlan.current, value: plan, dirty, valid: planDraftValid });
   useUnsavedProjectDraft(projectId, dirty, "Design", "design", scope ? { retained: draft.retained, discard: () => { draft.clear(); setPlan(savedPlan.current); setDirty(false); } } : undefined);
   const [busy, setBusy] = useState(false);
   const [refreshingSketch, setRefreshingSketch] = useState(false);
@@ -105,13 +119,15 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
     if (canRead) void loadPrototypeHistory();
     return () => { alive.current = false; generation.current++; };
   }, [projectId, canRead || !!plan]);
-  const patch = (value: Partial<DesignPlan>) => { draftVersion.current++; if (plan) setPlan({ ...plan, ...value, status: "draft", digest: "" }); setDirty(true); setNotice(""); };
-  const screenChange = (screenId: string, value: Partial<DesignScreen>) => plan && patch({ screens: plan.screens.map((s) => s.id === screenId ? { ...s, ...value } : s) });
+  const patch = (value: Partial<PlanDraft>) => { draftVersion.current++; if (plan) setPlan({ ...plan, ...value, status: "draft", digest: "" }); setDirty(true); setNotice(""); };
+  const screenChange = (screenId: string, value: Partial<ScreenDraft>) => plan && patch({ screens: plan.screens.map((s) => s.id === screenId ? { ...s, ...value } : s) });
   async function save() {
     if (!canEdit || !plan || !spec || draft.pending || working.current || refreshingSketch) return;
+    if (plan.screens.some(screen => responsiveWidths(screen.widths).error || screen.requirementIds.some(id => !spec.requirements.some(requirement => requirement.id === id)))) return;
+    const savedInput: DesignPlan = { ...plan, screens: plan.screens.map(screen => ({ ...screen, widths: responsiveWidths(screen.widths).values })) };
     const requestGeneration = generation.current;
     working.current = true; setBusy(true); setPending("save"); setError("");
-    try { const saved = await designPlanApi.save(projectId, plan, baseRevision, spec.briefRevision, spec.revision); if (alive.current && requestGeneration === generation.current) { draft.clear(); savedPlan.current = saved; setPlan(saved); setBaseRevision(saved.revision); setDirty(false); setNotice(`Design plan ${saved.revision} saved. Implementation context updated.`); notifyProjectContextChanged(scope, projectId); } }
+    try { const saved = await designPlanApi.save(projectId, savedInput, baseRevision, spec.briefRevision, spec.revision); if (alive.current && requestGeneration === generation.current) { draft.clear(); savedPlan.current = saved; setPlan(saved); setBaseRevision(saved.revision); setDirty(false); setNotice(`Design plan ${saved.revision} saved. Implementation context updated.`); notifyProjectContextChanged(scope, projectId); } }
     catch (e) { if (alive.current && requestGeneration === generation.current) setError(errorText(e)); }
     finally { if (alive.current && requestGeneration === generation.current) { working.current = false; setBusy(false); setPending(""); } }
   }
@@ -215,7 +231,10 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
   const prototypes = releases.filter((r) => r.projectId === projectId && r.status === "ready");
   const selectedPrototype = prototypes.find((r) => r.id === plan?.prototypeReleaseId);
   const currentPreviewSource = previewSource && selectedPrototype?.id === previewSource.releaseId && selectedPrototype.commit === previewSource.commit && (selectedPrototype.configurationRevision ?? 0) === previewSource.configurationRevision ? previewSource : null;
-  const reviewScreen = plan?.screens.find(screen => screen.id === reviewScreenId) ?? plan?.screens[0];
+  const reviewPlan = plan && { ...plan, screens: plan.screens.map(screen => ({ ...screen, widths: responsiveWidths(screen.widths).values })) };
+  const reviewScreen = reviewPlan?.screens.find(screen => screen.id === reviewScreenId) ?? reviewPlan?.screens[0];
+  const invalidWidths = !!plan?.screens.some(screen => responsiveWidths(screen.widths).error);
+  const unavailableLinks = !!spec && !!plan?.screens.some(screen => screen.requirementIds.some(id => !spec.requirements.some(requirement => requirement.id === id)));
   const widths = [...new Set([390, 768, 1440, width, ...(reviewScreen?.widths ?? [])])].filter(value => Number.isInteger(value) && value > 0).sort((a, b) => a - b);
   useEffect(() => { closePrototype(); }, [selectedPrototype?.id, selectedPrototype?.commit, selectedPrototype?.configurationRevision]);
   return <section className="journey-page design-workspace">
@@ -232,6 +251,8 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
       </TabsSubtle>
       {pendingView && <div className="journey-error" role="alert"><p>Your sketch has unsaved changes. Save the drawing before leaving, keep its browser draft, or discard the edits.</p><div className="journey-actions"><Button type="button" variant="secondary" onClick={() => setPendingView(null)}>Keep editing</Button><Button type="button" variant="secondary" disabled={sketchBusy} onClick={() => leaveSketch(pendingView, true)}>Discard sketch and continue</Button>{sketchRetained && <Button type="button" disabled={sketchBusy} onClick={() => leaveSketch(pendingView, false)}>Keep sketch draft and continue</Button>}</div></div>}
       {plan.status === "outdated" && <div className="journey-error" role="status">The definition or sketch has changed. Review the screen plan and save a new handoff before approving.</div>}
+      {unavailableLinks && <p className="journey-warning" role="status">An outcome linked to a screen was removed from the definition. In Screens and states, explicitly remove its unavailable link before saving. Your screen content is kept.</p>}
+      {invalidWidths && <p className="journey-warning" role="status">Finish the responsive widths in Screens and states before saving. Your exact text is kept while you edit.</p>}
       <TabsSubtlePanel idPrefix={tabsId} index={0} selectedIndex={selectedIndex}>
       {view === "screens" && <div className="design-plan-layout"><div className="design-plan-content"><fieldset className="definition-fields" disabled={!canEdit || busy || !!draft.pending}>
         {!plan.screens.length && <div className="design-empty"><h2>Give the solution a screen plan</h2><p>Capture the primary screens, empty/loading/error states and responsive targets before developing the interface.</p><Button type="button" variant="primary" onClick={() => patch({ screens: [{ id: id("screen"), name: "Home", route: "/", purpose: spec.purpose, states: ["Initial visit", "Loading", "No saved content", "Successful use", "Error and recovery"], widths: [390, 1440], requirementIds: spec.requirements.map((r) => r.id), accessibility: "Keyboard navigation, labelled controls, visible focus and readable contrast" }] })}>Start a screen plan from my definition</Button><p className="journey-muted">This creates an editable planning outline, not a generated interface or verified implementation.</p></div>}
@@ -239,9 +260,11 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
           <div className="design-pair"><label className="luci-field">Screen name<input ref={input => { if (input) screenInputs.current.set(s.id, input); else screenInputs.current.delete(s.id); }} value={s.name} onChange={(e) => screenChange(s.id,{ name:e.target.value })} /></label><label className="luci-field">Route<input value={s.route} placeholder="/dashboard" onChange={(e) => screenChange(s.id,{ route:e.target.value })} /></label></div>
           <label className="luci-field">What this screen helps someone do<textarea rows={2} value={s.purpose} onChange={(e) => screenChange(s.id,{ purpose:e.target.value })} /></label>
           <label className="luci-field">States and recovery<textarea rows={4} aria-label="States and recovery" aria-describedby={`design-${s.id}-states-help`} value={s.states.join("\n")} onChange={(e) => screenChange(s.id,{ states:e.target.value.split("\n") })} /><small id={`design-${s.id}-states-help`}>One state per line. Include first use, loading, empty, successful, error and permission states that apply.</small></label>
-          <label className="luci-field">Responsive widths<input aria-label="Responsive widths" aria-describedby={`design-${s.id}-widths-help`} value={s.widths.join(", ")} onChange={(e) => screenChange(s.id,{ widths:e.target.value.split(",").map((v) => Number(v.trim())).filter((v) => v > 0) })} /><small id={`design-${s.id}-widths-help`}>Widths in pixels, such as 390, 768, 1440.</small></label>
+          <label className="luci-field">Responsive widths<input aria-label="Responsive widths" aria-invalid={!!responsiveWidths(s.widths).error} aria-describedby={`design-${s.id}-widths-help`} value={typeof s.widths === "string" ? s.widths : s.widths.join(", ")} onChange={(e) => screenChange(s.id,{ widths:e.target.value })} /><small id={`design-${s.id}-widths-help`}>{responsiveWidths(s.widths).error || "Widths in pixels, such as 390, 768, 1440. Add responsive targets before approval."}</small></label>
           <label className="luci-field">Accessibility and interaction<textarea rows={2} value={s.accessibility} onChange={(e) => screenChange(s.id,{ accessibility:e.target.value })} /></label>
-          <fieldset className="definition-links"><legend>Requirements carried by this screen</legend>{spec.requirements.map((r) => <label key={r.id}><input type="checkbox" checked={s.requirementIds.includes(r.id)} onChange={(e) => screenChange(s.id,{ requirementIds:e.target.checked ? [...s.requirementIds,r.id] : s.requirementIds.filter((id) => id !== r.id) })} />{r.id} · {r.title}</label>)}</fieldset>
+          <fieldset className="definition-links"><legend>Requirements carried by this screen</legend>{spec.requirements.map((r) => <label key={r.id}><input type="checkbox" checked={s.requirementIds.includes(r.id)} onChange={(e) => screenChange(s.id,{ requirementIds:e.target.checked ? [...s.requirementIds,r.id] : s.requirementIds.filter((id) => id !== r.id) })} />{r.id} · {r.title}</label>)}
+            {s.requirementIds.filter(id => !spec.requirements.some(requirement => requirement.id === id)).map(id => <label key={id}><input type="checkbox" checked aria-label={`Remove unavailable outcome ${id} from screen ${index + 1}`} onChange={() => screenChange(s.id, { requirementIds: s.requirementIds.filter(value => value !== id) })} />{id} · removed outcome. Uncheck this unavailable link; the screen and its details will be kept.</label>)}
+          </fieldset>
           <Button type="button" variant="secondary" onClick={() => patch({ screens:plan.screens.filter((old) => old.id !== s.id) })}>Remove screen {index + 1}</Button>
         </fieldset>)}
         <Button type="button" variant="secondary" onClick={() => patch({ screens:[...plan.screens,{ id:id("screen"),name:"",route:"",purpose:"",states:[],widths:[390,1440],requirementIds:[],accessibility:"" }] })}>Add screen</Button>
@@ -260,8 +283,8 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
         {!historyBusy && !historyError && !prototypes.length && !plan.prototypeReleaseId && <div className="design-empty"><h3>No verified prototype yet</h3><p>Build and preview the project's interface in Develop, then return here to inspect its real behavior.</p><Button type="button" variant="secondary" onClick={() => setLens("develop")}>Go to Develop</Button></div>}
         {!canExecute && <p className="journey-muted">Opening a live prototype requires editing and execution access because the application can change project data.</p>}
         <div className={preview && currentPreviewSource ? "prototype-review-layout has-preview" : "prototype-review-layout"}>
-        <PrototypeReview key={`${baseRevision}:${!!draft.pending}:${currentPreviewSource?.releaseId}:${currentPreviewSource?.commit}:${currentPreviewSource?.configurationRevision}:${currentPreviewSource?.route}:${reviewScreen?.id}`} plan={plan} specification={spec} screen={reviewScreen}
-          onSelectScreen={screenId => { setReviewScreenId(screenId); const chosen = plan.screens.find(item => item.id === screenId); if (chosen?.widths[0]) setWidth(chosen.widths[0]); }}
+        <PrototypeReview key={`${baseRevision}:${!!draft.pending}:${currentPreviewSource?.releaseId}:${currentPreviewSource?.commit}:${currentPreviewSource?.configurationRevision}:${currentPreviewSource?.route}:${reviewScreen?.id}`} plan={reviewPlan!} specification={spec} screen={reviewScreen}
+          onSelectScreen={screenId => { setReviewScreenId(screenId); const chosen = reviewPlan?.screens.find(item => item.id === screenId); if (chosen?.widths[0]) setWidth(chosen.widths[0]); }}
           onAmend={screenId => { pendingScreenFocus.current = screenId; selectView("screens"); }}
           onOpenScreen={route => void openPrototype(false, route)} source={currentPreviewSource} width={width}
           canEdit={canEdit && !draft.pending} canOpen={canExecute && !!selectedPrototype && !historyBusy && !historyError}
@@ -279,7 +302,7 @@ function ProjectDesignWorkspace({ projectId, scope, view, setView }: { projectId
       </TabsSubtlePanel>
       {view !== "sketch" && <footer className="definition-footer"><div className="journey-actions">
         {dirty || plan.status === "outdated" || !plan.revision
-          ? <Button type="button" loading={pending === "save"} disabled={!canEdit || busy || !!draft.pending || refreshingSketch || (!dirty && plan.status !== "outdated")} onClick={() => void save()}>Save design plan</Button>
+          ? <Button type="button" loading={pending === "save"} disabled={!canEdit || busy || !!draft.pending || refreshingSketch || invalidWidths || unavailableLinks || (!dirty && plan.status !== "outdated")} onClick={() => void save()}>Save design plan</Button>
           : plan.status === "approved"
             ? <Button type="button" disabled={!canEdit || busy || !!draft.pending || refreshingSketch} onClick={() => setLens("develop")}>Continue to Develop</Button>
             : <Button type="button" loading={pending === "approve"} disabled={!canEdit || busy || !!draft.pending || refreshingSketch} onClick={() => void approve()}>Approve design handoff</Button>}

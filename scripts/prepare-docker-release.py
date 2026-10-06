@@ -14,7 +14,7 @@ import tarfile
 import zipfile
 
 VERSION = re.compile(r"^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$")
-TOP_LEVEL = {"luci", "web", "runtime", "cloud", "licenses", "docs", "LICENSE", "NOTICE", "README.md", "DESIGN.md", "start-luci.sh"}
+TOP_LEVEL = {"luci", "web", "runtime", "cloud", "licenses", "docs", "LICENSE", "NOTICE", "README.md", "DESIGN.md", "start-luci.sh", "package-identity"}
 REQUIRED = {"luci", "web/index.html", "runtime/images/sandbox/Dockerfile", "runtime/images/sandbox/entrypoint.sh", "cloud/luci-cloud-linux-amd64.tar.gz", "LICENSE", "NOTICE", "licenses/manifest.json", "licenses/MISSING-LICENSES.txt"}
 PACKAGING_FILES = ("Dockerfile", "compose.yaml", "entrypoint.sh", "engine-entrypoint.sh", "workspace-init.sh", "healthcheck.sh", "start-luci.sh", "Start-Luci.ps1", "Start-Luci.cmd", "README.md", ".dockerignore")
 MAX_FILES = 20000

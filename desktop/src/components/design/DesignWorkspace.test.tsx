@@ -9,6 +9,7 @@ import { platformApi, type PlatformProject } from "../../api/platform";
 import DesignWorkspace from "./DesignWorkspace";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { DEFAULT_BASE_URL } from "../../api/client";
+import * as projectDraft from "../../hooks/useProjectDraft";
 
 vi.mock("../journey/DesignEditor", () => ({ default: ({ onDirtyChange, onBusyChange }: { onDirtyChange?(dirty: boolean): void; onBusyChange?(busy: boolean): void }) => <div>Drawing tools<button onClick={() => onDirtyChange?.(true)}>Edit sketch fixture</button><button onClick={() => onDirtyChange?.(false)}>Save sketch fixture</button><button onClick={() => onBusyChange?.(true)}>Begin sketch save fixture</button><button onClick={() => onBusyChange?.(false)}>Complete sketch save fixture</button></div> }));
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -36,6 +37,121 @@ function ready(plan = fixture()) {
   vi.spyOn(definitionApi, "get").mockResolvedValue({ projectId:"p-1", version:1, revision:2, briefRevision:1, startingPoint:"new", purpose:"Save work", audience:"People", constraints:"", outOfScope:[], requirements:[{id:"AC-001", title:"Save work", priority:"must", acceptance:"Reopened work returns"}], journeys:[], roles:[], entities:[], integrations:[], glossary:[], decisions:[], questions:[], status:"approved", digest:"a".repeat(64), updatedAt:"" });
   vi.spyOn(productApi, "prototypeReleases").mockResolvedValue({ releases: [] });
 }
+
+it("keeps typed comma delimiters and only saves parsed responsive widths after the edit is complete", async () => {
+  ready();
+  const original = fixture();
+  const save = vi.spyOn(designPlanApi, "save").mockImplementation(async (_id, plan) => ({ ...plan, revision: 3, status: "draft" }));
+  const approve = vi.spyOn(designPlanApi, "approve");
+  const user = userEvent.setup();
+  const view = render(<DesignWorkspace projectId="p-1" />);
+  const input = await screen.findByRole("textbox", { name: "Responsive widths" });
+  await user.click(input);
+  await user.keyboard("{End},");
+  expect((input as HTMLInputElement).value).toBe("390, 1440,");
+  expect(input.getAttribute("aria-invalid")).toBe("true");
+  expect((screen.getByRole("button", { name: "Save design plan" }) as HTMLButtonElement).disabled).toBe(true);
+  await user.keyboard(" 768");
+  expect((input as HTMLInputElement).value).toBe("390, 1440, 768");
+  expect(input.getAttribute("aria-invalid")).toBe("false");
+  expect(save).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Save design plan" }));
+  await screen.findByText("Design plan 3 saved. Implementation context updated.");
+  const expected = { ...original, screens: [{ ...original.screens[0], widths: [390, 1440, 768] }] };
+  expect(save).toHaveBeenCalledExactlyOnceWith("p-1", expected, 2, 1, 2);
+  expect(approve).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: "Continue to Develop" })).toBeNull();
+  view.unmount();
+  vi.mocked(designPlanApi.get).mockResolvedValue({ ...expected, revision: 3 });
+  render(<DesignWorkspace projectId="p-1" />);
+  expect(((await screen.findByRole("textbox", { name: "Responsive widths" })) as HTMLInputElement).value).toBe("390, 1440, 768");
+  expect(screen.getByRole("button", { name: "Approve design handoff" })).not.toBeNull();
+});
+
+it("retains exact invalid width text through blur, tabs, reload and explicit browser draft recovery", async () => {
+  ready();
+  vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue("design-width-recovery");
+  const save = vi.spyOn(designPlanApi, "save");
+  const approve = vi.spyOn(designPlanApi, "approve");
+  const user = userEvent.setup();
+  const view = render(<DesignWorkspace projectId="p-1" />);
+  const input = await screen.findByRole("textbox", { name: "Responsive widths" });
+  const raw = "390, tablet, 1440, ";
+  await user.clear(input); await user.type(input, raw); await user.tab();
+  expect((input as HTMLInputElement).value).toBe(raw);
+  expect(screen.getByText(/Enter whole-number widths from 320 to 3840/)).not.toBeNull();
+  await user.click(screen.getByRole("tab", { name: "Implementation handoff" }));
+  expect(screen.getByText("Unsaved changes")).not.toBeNull();
+  expect((screen.getByRole("button", { name: "Save design plan" }) as HTMLButtonElement).disabled).toBe(true);
+  await user.click(screen.getByRole("tab", { name: "Screens and states" }));
+  expect((screen.getByRole("textbox", { name: "Responsive widths" }) as HTMLInputElement).value).toBe(raw);
+  view.unmount();
+  const reload = render(<DesignWorkspace projectId="p-1" />);
+  await screen.findByRole("region", { name: "Design plan draft recovery" });
+  const restore = screen.getByRole("button", { name: "Restore draft" });
+  await waitFor(() => expect((restore as HTMLButtonElement).disabled).toBe(false));
+  await user.click(restore);
+  expect((screen.getByRole("textbox", { name: "Responsive widths" }) as HTMLInputElement).value).toBe(raw);
+  expect((screen.getByRole("button", { name: "Save design plan" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(save).not.toHaveBeenCalled(); expect(approve).not.toHaveBeenCalled();
+  await expect(vi.mocked(designPlanApi.get).mock.results[0].value).resolves.toEqual(fixture());
+  reload.unmount();
+  localStorage.removeItem('luci.project-draft.v1:["design-width-recovery","design-plan"]');
+});
+
+it("requires a recovery choice when unfinished widths and a teammate's saved widths both changed", async () => {
+  ready();
+  vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue("design-width-conflict");
+  const save = vi.spyOn(designPlanApi, "save");
+  const user = userEvent.setup();
+  const view = render(<DesignWorkspace projectId="p-1" />);
+  const input = await screen.findByRole("textbox", { name: "Responsive widths" });
+  await user.click(input); await user.keyboard("{End}, ");
+  view.unmount();
+  const peer = { ...fixture(), revision: 3, implementationNotes: "Keep the teammate's keyboard requirement", screens: [{ ...fixture().screens[0], widths: [390, 1024] }] };
+  vi.mocked(designPlanApi.get).mockResolvedValue(peer);
+  const reload = render(<DesignWorkspace projectId="p-1" />);
+  const choice = await screen.findByRole("radio", { name: "Use my draft for Screens · Home · Responsive widths" });
+  const restore = screen.getByRole("button", { name: "Restore draft" });
+  expect((restore as HTMLButtonElement).disabled).toBe(true);
+  await user.click(choice);
+  await user.click(screen.getByRole("checkbox", { name: "I reviewed the saved version and these recovery choices." }));
+  await user.click(restore);
+  expect((screen.getByRole("textbox", { name: "Responsive widths" }) as HTMLInputElement).value).toBe("390, 1440, ");
+  await user.click(screen.getByRole("tab", { name: "Implementation handoff" }));
+  expect((screen.getByRole("textbox", { name: "Implementation notes" }) as HTMLTextAreaElement).value).toBe(peer.implementationNotes);
+  expect((screen.getByRole("button", { name: "Save design plan" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(save).not.toHaveBeenCalled();
+  reload.unmount();
+  localStorage.removeItem('luci.project-draft.v1:["design-width-conflict","design-plan"]');
+});
+
+it("exposes removed requirement links and preserves all screen content until explicit unlink, save and review", async () => {
+  const original: DesignPlan = { ...fixture(), status: "outdated", screens: [{ ...fixture().screens[0], requirementIds: ["AC-001", "AC-removed"] }] };
+  ready(original);
+  const save = vi.spyOn(designPlanApi, "save").mockImplementation(async (_id, plan) => ({ ...plan, revision: 3, status: "draft" }));
+  const approve = vi.spyOn(designPlanApi, "approve").mockImplementation(async () => ({ ...fixture(), revision: 4, status: "approved" }));
+  const user = userEvent.setup();
+  render(<DesignWorkspace projectId="p-1" />);
+  const removed = await screen.findByRole("checkbox", { name: "Remove unavailable outcome AC-removed from screen 1" });
+  expect((removed as HTMLInputElement).checked).toBe(true);
+  expect(screen.getByText(/An outcome linked to a screen was removed/)).not.toBeNull();
+  expect((screen.getByRole("button", { name: "Save design plan" }) as HTMLButtonElement).disabled).toBe(true);
+  await user.click(screen.getByRole("button", { name: "Save design plan" }));
+  expect(save).not.toHaveBeenCalled();
+  expect(original.screens[0].requirementIds).toEqual(["AC-001", "AC-removed"]);
+  await user.click(removed);
+  expect(screen.queryByRole("checkbox", { name: "Remove unavailable outcome AC-removed from screen 1" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Save design plan" }));
+  await screen.findByText("Design plan 3 saved. Implementation context updated.");
+  expect(save).toHaveBeenCalledExactlyOnceWith("p-1", { ...original, status: "draft", digest: "", screens: [{ ...original.screens[0], requirementIds: ["AC-001"] }] }, 2, 1, 2);
+  expect(original.screens[0].requirementIds).toEqual(["AC-001", "AC-removed"]);
+  expect(approve).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: "Continue to Develop" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Approve design handoff" }));
+  expect(approve).toHaveBeenCalledExactlyOnceWith("p-1", 3);
+  await screen.findByRole("button", { name: "Continue to Develop" });
+});
 
 it("keeps saved design usable after optional prototype history fails and retries without blocking approval", async () => {
   ready();

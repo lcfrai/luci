@@ -5,6 +5,28 @@ import (
 	"testing"
 )
 
+func TestPortablePackageIdentityRequiresPortableLauncherButRemainsOptional(t *testing.T) {
+	for _, item := range []struct {
+		name, id, portable, worker string
+		valid                      bool
+	}{
+		{"direct-service", "", "", "", true},
+		{"legacy-portable", "", "1", "", true},
+		{"verified-portable", strings.Repeat("a", 64), "1", "", true},
+		{"outside-portable", strings.Repeat("a", 64), "", "", false},
+		{"malformed", strings.Repeat("A", 64), "1", "", false},
+		{"short", "abc", "1", "", false},
+		{"worker", strings.Repeat("a", 64), "1", "1", false},
+	} {
+		t.Run(item.name, func(t *testing.T) {
+			cfg, err := loadConfig(env(map[string]string{envStateDir: t.TempDir(), envAddr: "127.0.0.1:8730", envPortablePackageID: item.id, envPortableOwnerAccess: item.portable, envWorker: item.worker}))
+			if (err == nil) != item.valid || (err == nil && cfg.PortablePackageID != item.id) {
+				t.Fatalf("valid=%v config=%q error=%v", item.valid, cfg.PortablePackageID, err)
+			}
+		})
+	}
+}
+
 func TestLocalAccessCapabilityRequiresExplicitLoopbackAndNeverWorkers(t *testing.T) {
 	secret := strings.Repeat("x", 43)
 	for _, test := range []struct {

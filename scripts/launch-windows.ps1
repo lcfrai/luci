@@ -2,13 +2,19 @@ param([ValidateRange(1,65535)][int]$Port = 8730, [string]$StateDir = '', [switch
 $ErrorActionPreference = 'Stop'
 $luciExe = Join-Path $PSScriptRoot 'luci.exe'
 if (-not (Test-Path -LiteralPath $luciExe -PathType Leaf)) { throw 'Extract the complete Luci ZIP, then open Start-Luci.ps1 again.' }
+$luciPackageFile = Join-Path $PSScriptRoot 'package-identity'
+if (-not (Test-Path -LiteralPath $luciPackageFile -PathType Leaf)) { throw 'This package is incomplete. Extract the complete verified Luci archive into a new folder, then open its launcher.' }
+$luciPackageInfo = Get-Item -LiteralPath $luciPackageFile -Force
+if (($luciPackageInfo.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $luciPackageInfo.Length -gt 66) { throw 'This package has invalid identity metadata. Extract the complete verified Luci archive into a new folder.' }
+$luciPackageId = (Get-Content -LiteralPath $luciPackageFile -Raw).Trim()
+if ($luciPackageId -cnotmatch '^[0-9a-f]{64}$') { throw 'This package has invalid identity metadata. Extract the complete verified Luci archive into a new folder.' }
 if (-not $StateDir) { $StateDir = if ($env:LUCI_STATE_DIR) { $env:LUCI_STATE_DIR } else { Join-Path $env:LOCALAPPDATA 'Luci/state' } }
 $luciState = [IO.Path]::GetFullPath($StateDir)
 New-Item -ItemType Directory -Force -Path $luciState | Out-Null
 $luciBase = 'http://127.0.0.1:' + $Port
 $luciOwned = $null
 $luciPriorEnvironment = @{}
-foreach ($luciKey in @('LUCI_STATE_DIR','LUCI_ADDR','LUCI_MANAGED_SHUTDOWN_TOKEN','LUCI_LOCAL_ACCESS_TOKEN','LUCI_PORTABLE_OWNER_ACCESS','LUCI_ALLOW_PUBLIC_BIND','LUCI_WORKER','LUCI_WEB_DIR','LUCI_RUNTIME_DIR','LUCI_CLOUD_BUNDLE')) {
+foreach ($luciKey in @('LUCI_STATE_DIR','LUCI_ADDR','LUCI_MANAGED_SHUTDOWN_TOKEN','LUCI_LOCAL_ACCESS_TOKEN','LUCI_PORTABLE_OWNER_ACCESS','LUCI_PORTABLE_PACKAGE_ID','LUCI_ALLOW_PUBLIC_BIND','LUCI_WORKER','LUCI_WEB_DIR','LUCI_RUNTIME_DIR','LUCI_CLOUD_BUNDLE')) {
     $luciPriorEnvironment[$luciKey] = [Environment]::GetEnvironmentVariable($luciKey, 'Process')
 }
 $luciLifecycle = [Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N')
@@ -26,6 +32,7 @@ try {
     $env:LUCI_MANAGED_SHUTDOWN_TOKEN = $luciLifecycle
     $env:LUCI_LOCAL_ACCESS_TOKEN = ''
     $env:LUCI_PORTABLE_OWNER_ACCESS = '1'
+    $env:LUCI_PORTABLE_PACKAGE_ID = $luciPackageId
     $env:LUCI_ALLOW_PUBLIC_BIND = ''
     $env:LUCI_WORKER = ''
     $env:LUCI_WEB_DIR = Join-Path $PSScriptRoot 'web'
@@ -52,6 +59,10 @@ try {
     try {
         Invoke-RestMethod -Uri ($luciBase + '/v1/auth/local-owner') -Headers @{'X-Luci-Local-Access-Token'=$luciOwnerCode} -TimeoutSec 5 | Out-Null
     } catch { throw 'The running workspace does not belong to this launcher. Close its launcher or choose a different -Port; your saved data has not been reset.' }
+    try {
+        $luciRunningPackage = Invoke-RestMethod -Uri ($luciBase + '/v1/auth/local-package') -Headers @{'X-Luci-Local-Access-Token'=$luciOwnerCode} -TimeoutSec 5
+    } catch { $luciRunningPackage = '' }
+    if (([string]$luciRunningPackage).TrimEnd([char[]]"`r`n") -cne $luciPackageId) { throw 'A different or older Luci package is already running for this workspace. Close its launcher before opening this package. The existing service and saved data have not been changed.' }
     # Fragments are not sent in HTTP requests and Luci removes them immediately.
     # No password or private proof is printed by this launcher.
     $luciFragment = 'owner=' + $luciOwnerCode

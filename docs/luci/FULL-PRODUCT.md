@@ -181,7 +181,11 @@ repair fields with separated labels and complete keyboard focus outlines. A
 remains healthy through 30 independent observations of B's actual HTTP 503;
 service restart and explicit C repair retain the expected resource identities.
 Seven scoped maintenance accessibility scans have zero violations/incomplete
-items. Billing retains one automated phone-contrast incomplete result. Original
+items. Billing retains one automated phone-contrast incomplete result. A bounded
+manual assessment of that original tab label finds unobscured text at 12.47:1,
+matching saved desktop-checkout and phone-portal observations; the original
+incomplete result remains unchanged. Evidence: `artifacts/package-eval/0.5.0-7f39ea9e/billing-return-contrast-assessment`. This does not establish full
+accessibility conformance. Original
 failures remain preserved, including the rejected `796bf63c` build whose adapted
 Fluid source digest had not yet been updated; `7f39ea9e` corrects the reviewed
 adaptation digest without changing upstream provenance.
@@ -189,7 +193,29 @@ adaptation digest without changing upstream provenance.
 Receipts and screenshots: `artifacts/package-eval/0.5.0-7f39ea9e`; source and
 integrity logs: `artifacts/quality-rendered-polish`. Fixtures retain their stated
 scope; none establishes live-model, merchant, Supabase or public-cloud acceptance.
-A further scoped data-form styling correction is awaiting rendered proof.
+The follow-on clean `4c8012c1` CSS-only data-field package passes seven permission
+groups and four desktop/phone field observations: 44 px controls, complete labels
+and focus rings, retained draft identity, unchanged checkboxes and no horizontal
+overflow. Receipt: `artifacts/package-eval/0.5.0-4c8012c1/data-permissions-attempt-1`.
+Its archive SHA-256 is
+`705895b2ee8d52bd468ae801f3a61c755b8130ee3a5e42b607770bcf05531857`;
+all 939 members and 346 licence components are verified. This scoped styling
+change does not relabel earlier Docker journeys or repeat unaffected service
+checks. Continuing work addresses a reproduced cross-package launcher reuse
+problem and two concrete design-editing blockers.
+
+Those corrections pass all **1,887 frontend tests across 125 files**, including
+47 focused design/prototype tests. The design editor retains unfinished width
+text in the recoverable draft, exposes removed requirement links for explicit
+removal, and keeps numeric API values and approval semantics intact. Portable
+package identity generation, Bash admission, PowerShell-on-Linux admission and
+Docker-context packaging pass 18 Python cases; nine focused top-level Go tests
+and three management race tests pass. No Docker runs in these checks. Independent
+launcher review finds no blocker. The matching installed design and upgrade
+journeys remain pending; PowerShell on Linux does not establish native Windows
+execution. Logs and input identities: `artifacts/quality-design-upgrade` and
+`artifacts/quality-rendered-polish/portable-identity-source`.
+
 
 GitHub rejected the `7ff66d3b` Actions run before any check step for account
 payment/spending admission, recorded in

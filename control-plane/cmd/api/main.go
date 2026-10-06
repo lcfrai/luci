@@ -315,7 +315,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		if root == "" {
 			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
 		}
-		control, err = management.New(management.Options{StripeBilling: management.StripeBillingConfig{APIKey: cfg.StripeAPIKey, WebhookSecret: cfg.StripeWebhookSecret, AccountID: cfg.StripeAccountID, PriceID: cfg.StripePriceID, TermsURL: cfg.BillingTermsURL, PrivacyURL: cfg.BillingPrivacyURL}, StateDir: root, InstanceName: cfg.InstanceName, ManagedTeamID: cfg.ManagedTeamID, PublicAppOrigin: cfg.PublicAppOrigin, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess})
+		control, err = management.New(management.Options{StripeBilling: management.StripeBillingConfig{APIKey: cfg.StripeAPIKey, WebhookSecret: cfg.StripeWebhookSecret, AccountID: cfg.StripeAccountID, PriceID: cfg.StripePriceID, TermsURL: cfg.BillingTermsURL, PrivacyURL: cfg.BillingPrivacyURL}, StateDir: root, InstanceName: cfg.InstanceName, ManagedTeamID: cfg.ManagedTeamID, PublicAppOrigin: cfg.PublicAppOrigin, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess, PortablePackageID: cfg.PortablePackageID})
 		if err != nil {
 			_ = ln.Close()
 			return fmt.Errorf("initialise control-plane management: %w", err)
