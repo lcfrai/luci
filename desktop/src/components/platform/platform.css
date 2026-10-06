@@ -37,9 +37,19 @@
 .data-records strong { font-size: 13px; font-weight: 550; overflow-wrap: anywhere; }
 .data-records small, .data-form small, .data-readonly small { display: block; color: var(--ink-3); line-height: 1.6; }
 .data-records code { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; }
-.data-form { display: grid; gap: 18px; max-inline-size: 760px; padding-block: 20px; }
-.data-form label, .data-field, .data-readonly, .data-select { display: grid; gap: 8px; font-size: 13px; color: var(--ink-2); }
-.data-form input:not([type="checkbox"]), .data-form select, .data-form textarea, .data-readonly input, .data-readonly textarea, .data-select select { inline-size: 100%; min-inline-size: 0; }
+.data-form { display: grid; gap: 18px; min-inline-size: 0; max-inline-size: 760px; padding-block: 20px; }
+.data-form label, .data-field, .data-readonly, .data-select { display: grid; gap: 8px; min-inline-size: 0; font-size: 13px; color: var(--ink-2); }
+.data-form input:not([type="checkbox"]), .data-form select, .data-form textarea, .data-readonly input, .data-readonly textarea, .data-select select {
+  box-sizing: border-box; inline-size: 100%; min-inline-size: 0; min-block-size: var(--field-min-size);
+  padding: var(--control-pad-block) 12px; border: 0; border-radius: var(--r-ctl);
+  box-shadow: inset 0 0 0 1px var(--line-strong); background: var(--field); color: var(--ink); font: inherit; font-size: 14px; line-height: 1.6;
+}
+:is(.data-form, .data-readonly) :is(input, textarea)[readonly] { background: var(--inset); cursor: text; }
+:is(.data-form, .data-readonly, .data-select) :is(input:not([type="checkbox"]), select, textarea):disabled { background: var(--inset); color: var(--ink-3); opacity: 1; cursor: not-allowed; }
+:is(.data-form, .data-readonly, .data-select) :is(input:not([type="checkbox"]), select, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.data-form input[type="file"] { padding: 6px 8px; overflow: hidden; text-overflow: ellipsis; }
+.data-form input[type="file"]::file-selector-button { margin-inline-end: 12px; padding: 6px 10px; border: 0; border-radius: var(--r-chip); background: var(--hover-2); color: var(--ink); font: inherit; cursor: pointer; }
+.data-form input[type="file"]:disabled::file-selector-button { background: var(--inset); color: var(--ink-3); cursor: not-allowed; }
 .data-form textarea, .data-readonly textarea { resize: vertical; }
 .data-form > button, .data-form .journey-actions { justify-self: start; }
 .data-disclosure { padding-block: 16px; border-block: 1px solid var(--line); margin-block: 20px; }

@@ -165,17 +165,40 @@ Platform permission guidance distinguishes uncertainty from confirmed denial.
 The selected billing tab and its focus ring are revealed by scrolling only the
 tab strip, and deployment/hosting fields have local token-based styling. The
 complete frontend suite passes **1,883 tests across 125 files**. Current service
-sources remain identical to the tested `e04fa35c` service inputs. Matching rendered
-verification of these visual corrections is pending; earlier package receipts
-remain unchanged. Logs: `artifacts/quality-rendered-polish`.
+sources remain identical to the tested `e04fa35c` service inputs. The clean
+**`7f39ea9e`** package now passes six portable groups (including seven launcher
+outcomes), six repository-analysis groups, eight billing-return groups, seven
+data-permission groups and five actual Docker maintenance groups. All 939
+extracted files match the archive; 346 licence components have complete evidence.
+The archive SHA-256 is
+`38169540fb2690a9377e7ab4885a15dafe028cc91f600afa0104e2a6bc0341e6`.
+
+Rendered checks verify explicit answer focus, a 61 px compact phone overview
+leaving 633 px for analysis, retained drafts through overview changes, truthful
+permission messages and a fully visible selected billing tab/focus ring. The
+maintenance journey verifies the actual failed row at 390 px and 44 px-high
+repair fields with separated labels and complete keyboard focus outlines. A
+remains healthy through 30 independent observations of B's actual HTTP 503;
+service restart and explicit C repair retain the expected resource identities.
+Seven scoped maintenance accessibility scans have zero violations/incomplete
+items. Billing retains one automated phone-contrast incomplete result. Original
+failures remain preserved, including the rejected `796bf63c` build whose adapted
+Fluid source digest had not yet been updated; `7f39ea9e` corrects the reviewed
+adaptation digest without changing upstream provenance.
+
+Receipts and screenshots: `artifacts/package-eval/0.5.0-7f39ea9e`; source and
+integrity logs: `artifacts/quality-rendered-polish`. Fixtures retain their stated
+scope; none establishes live-model, merchant, Supabase or public-cloud acceptance.
+A further scoped data-form styling correction is awaiting rendered proof.
 
 GitHub rejected the `7ff66d3b` Actions run before any check step for account
 payment/spending admission, recorded in
 `artifacts/onboarding/ci-7ff66d3b-admission-annotations.json`. The installed Windows
 failure therefore remains undiagnosed; local Linux success does not close it.
 The `e04fa35c` run was likewise rejected before any step with the same explicit
-payment/spending admission message; its annotation is retained at
-`artifacts/onboarding/ci-e04fa35c-admission-annotations.json`.
+payment/spending admission message. The latest `7f39ea9e` run is likewise refused
+before any step; its annotation is retained at
+`artifacts/onboarding/ci-7f39ea9e-admission-annotations.json`.
 
 ## Product-quality completion standard — 6 October 2026
 

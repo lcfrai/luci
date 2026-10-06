@@ -32,10 +32,16 @@ groups, four real HTTPS Git import/recovery groups, six portable acceptance grou
 and seven launcher outcomes. Earlier prototype failures are retained: a direct
 comparison identified Chromium 151 delivering a click using stale iframe geometry
 during scrolling. Explicit visible-scroll readiness corrected the driver without
-changing product handlers or weakening assertions. Subsequent implementation
-continues repository-analysis clarification, billing-return continuity and data
-permissions. Exact evidence and remaining gates are in [FULL-PRODUCT.md](FULL-PRODUCT.md). The
-results below retain their historical identities.
+changing product handlers or weakening assertions. The subsequent clean `7f39ea9e` package passes six repository-clarification,
+eight billing-return, seven data-permission and five actual Docker maintenance
+groups, plus six portable groups and seven launcher outcomes. Its rendered
+checks cover explicit answer focus, compact phone context, retained drafts,
+truthful access messages, visible selected tabs and labelled deployment fields.
+A further CSS-only data-field correction is awaiting rendered proof. The latest
+complete frontend run passes 1,883 tests; service sources retain the validated
+2,045 Go outcomes and 1,230 race outcomes. Exact source identities, fixture
+limits and remaining gates are in [FULL-PRODUCT.md](FULL-PRODUCT.md). The results
+below retain their historical identities.
 
 The primary project overview explains the current stage, agreed purpose and
 outcomes, exact tasks and reviewed revisions in an active build, unresolved

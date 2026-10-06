@@ -81,7 +81,7 @@ const receipt = {
   scope: 'Installed data-permission rendering with real authentication, team membership and project grant changes; database/status results are labelled browser-local display fixtures, not operational receipts.',
   limitations: ['No Docker, database, restore, rollback or resource allocation occurs.', 'No actual application users, row-level security, durable app data, Supabase, external model or cloud claim.', 'Database recovery navigation is exercised using a labelled succeeded display fixture; actual PostgreSQL backup/restore/restart has separate installed 7ff66d3b evidence.', 'Temporary pending and failed permission responses are explicit browser transport fault injection after successful real server authorization.', 'No-new-private-read checks observe bounded 250ms windows; they are not a long-duration polling guarantee.'],
   setupScaffolding: ['API-created isolated owner/member accounts, one team, empty personal entry projects and one shared project.', 'Team membership permits editing/deployment/secrets while narrower real project grants move through denied, private viewer, editor and revoked-secret states.', 'Platform Docker/status, saved database recovery and empty application tables are display-only fixtures substituted after real endpoint authorization.'],
-  checks: [], permissions: [], fixtureResponses: [], requests: [], browserMutations: [], blockedRequests: [], browserErrors: [], cleanup: [],
+  checks: [], permissions: [], fieldObservations: [], fixtureResponses: [], requests: [], browserMutations: [], blockedRequests: [], browserErrors: [], cleanup: [],
   externalModelCalls: 0, cloudResourcesCreated: 0, dockerAllocations: 0,
 };
 const inherited = Object.fromEntries(Object.entries(process.env).filter(([name]) => /^(PATH|LANG|LC_ALL|LC_CTYPE|TZ)$/.test(name)));
@@ -151,6 +151,53 @@ const readOnly = 'Read-only data access. Ask a team owner for editing access to 
 const fixtureMessage = 'LOCAL DISPLAY FIXTURE: no data services or database have been created.';
 const recoveryMessage = 'LOCAL DISPLAY FIXTURE: simulated verified recovery for navigation only; no database was restored.';
 async function screenshot(name) { await page.screenshot({ path: join(evidence, name + '.png'), fullPage: true }); }
+async function captureTableFields(tableName, originalInput) {
+  const columnType = page.getByRole('combobox', { name: 'Column 1 type', exact: true });
+  const tableSection = page.getByRole('region', { name: 'Application tables', exact: true });
+  const originalViewport = page.viewportSize();
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1080 });
+    // Use the actual keyboard sequence from the disclosure into its fields.
+    await tableSection.getByText('Create a table', { exact: true }).focus(); await page.keyboard.press('Tab');
+    assert(await tableName.evaluate(node => node === document.activeElement), 'Table name is not reachable by keyboard');
+    for (const [name, field] of [['table-name', tableName], ['column-type', columnType]]) {
+      if (name === 'column-type') { await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); }
+      await field.scrollIntoViewIfNeeded();
+      const measured = await field.evaluate(node => {
+        const box = node.getBoundingClientRect(), style = getComputedStyle(node), label = node.closest('label');
+        const texts = [...label.childNodes].filter(child => child.nodeType === Node.TEXT_NODE && child.textContent.trim());
+        const range = document.createRange(); range.setStart(texts[0], 0); range.setEnd(texts.at(-1), texts.at(-1).textContent.length); const labelText = range.getBoundingClientRect();
+        const rect = value => ({ x: value.x, y: value.y, width: value.width, height: value.height, right: value.right, bottom: value.bottom });
+        const clip = { left: 0, top: 0, right: innerWidth, bottom: innerHeight };
+        for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+          const bounds = parent.getBoundingClientRect(), css = getComputedStyle(parent);
+          if (/(auto|scroll|hidden|clip)/.test(css.overflowX)) { clip.left = Math.max(clip.left, bounds.left + parent.clientLeft); clip.right = Math.min(clip.right, bounds.left + parent.clientLeft + parent.clientWidth); }
+          if (/(auto|scroll|hidden|clip)/.test(css.overflowY)) { clip.top = Math.max(clip.top, bounds.top + parent.clientTop); clip.bottom = Math.min(clip.bottom, bounds.top + parent.clientTop + parent.clientHeight); }
+        }
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return { box: rect(box), labelText: rect(labelText), clip, unobscured: hit === node || node.contains(hit), viewport: { width: innerWidth, height: innerHeight }, focused: document.activeElement === node,
+          boxSizing: style.boxSizing, fontSize: parseFloat(style.fontSize), minSize: parseFloat(style.getPropertyValue('--field-min-size')),
+          paddingTop: parseFloat(style.paddingTop), paddingBottom: parseFloat(style.paddingBottom), shadow: style.boxShadow,
+          focusVisible: node.matches(':focus-visible'), outlineStyle: style.outlineStyle, outlineWidth: parseFloat(style.outlineWidth), outlineOffset: parseFloat(style.outlineOffset),
+          formWidth: node.closest('form').clientWidth, formScrollWidth: node.closest('form').scrollWidth, documentWidth: document.documentElement.scrollWidth };
+      });
+      receipt.fieldObservations.push({ width, field: name, ...measured, scope: 'Rendered existing table form after locator scrolling; no schema submission or database operation.' });
+      assert(measured.focused && measured.focusVisible && measured.outlineStyle !== 'none' && measured.outlineWidth >= 2, name + ' lacks visible keyboard focus');
+      assert.equal(measured.boxSizing, 'border-box'); assert(measured.box.height >= Math.max(36, measured.minSize), name + ' is shorter than the selected Luci field size');
+      assert(measured.fontSize >= 14 && measured.paddingTop >= 7 && measured.paddingBottom >= 7 && measured.shadow !== 'none', name + ' lacks readable field styling');
+      assert(measured.labelText.bottom + 4 <= measured.box.y, name + ' label is not clearly separated from its control');
+      const ring = measured.outlineWidth + measured.outlineOffset;
+      assert(measured.unobscured && measured.box.x - ring >= measured.clip.left - 1 && measured.box.right + ring <= measured.clip.right + 1 && measured.box.y - ring >= measured.clip.top - 1 && measured.box.bottom + ring <= measured.clip.bottom + 1, name + ' or its focus ring is obscured by the viewport or a scroll container');
+      assert(measured.labelText.x >= measured.clip.left - 1 && measured.labelText.right <= measured.clip.right + 1 && measured.labelText.y >= measured.clip.top - 1, name + ' label is clipped');
+      assert(measured.formScrollWidth <= measured.formWidth + 1 && measured.documentWidth <= width + 1, 'Table fields overflow at ' + width);
+      assert(await tableName.evaluate((node, original) => node === original, originalInput)); assert.equal(await tableName.inputValue(), 'pending_private_table');
+      await screenshot('02-table-fields-' + width + '-' + name + '-display-fixture');
+    }
+    const checkbox = await tableSection.getByRole('checkbox', { name: 'Optional', exact: true }).boundingBox();
+    assert(checkbox && checkbox.width === 18 && checkbox.height === 18, 'Field styling changed the optional-column checkbox geometry');
+  }
+  await page.setViewportSize(originalViewport);
+}
 async function grant(role, grants) {
   const latest = await api('GET', `/v1/teams/${team.id}`);
   const updated = await api('PUT', accessPath + '/' + member.user.id, { expectedRevision: latest.team.revision, role, grants: { execute: false, admin: false, ...grants } });
@@ -277,6 +324,7 @@ try {
   await refreshPermissions(); await until('editing enabled by the actual project grant', () => tableName.isEnabled());
   await tableName.fill('pending_private_table'); await columnName.fill('private_draft_note'); assert(await createTable.isEnabled());
   const originalInput = await tableName.elementHandle(); assert(originalInput);
+  await captureTableFields(tableName, originalInput);
   check('Real editing grant enables schema controls while execution remains ungranted; no table is submitted');
 
   stage = 'permission-refresh-pending'; permissionMode = 'hold'; heldPermission = new Promise(resolve => { releaseHeld = resolve; });
