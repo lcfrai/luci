@@ -101,7 +101,7 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
     draft.clear(); setupEdited.current = false; setChanged(false); setCommands(suggested); setExecutable(""); setArgs("[]");
     setRequirementIds([]); selectedContext.current = null; setRecoveringSelection(null); setTrusted(false); setExecution("docker"); setNotice("");
   }
-  useUnsavedProjectDraft(projectId, changed && JSON.stringify(draftValue) !== recordedSetup, "Verification setup", "develop", navigationScope ? { retained: draft.retained, discard: discardSetup } : undefined);
+  useUnsavedProjectDraft(projectId, changed && JSON.stringify(draftValue) !== recordedSetup, "Verification setup", "develop", navigationScope ? { retained: draft.retained, discard: discardSetup } : undefined, "verification-setup");
   function restoreSetup(value: CheckSetupDraft) {
     const base = draft.pending?.base;
     const target = buildId || value.buildId;

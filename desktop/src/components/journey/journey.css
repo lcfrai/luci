@@ -29,6 +29,26 @@
   border-block-end: 1px solid var(--line-soft);
   background: var(--surface);
 }
+/* With no coding panes, planning is the workspace. Keep its history, checks and
+   empty-session guidance in one flow instead of reserving terminal space. */
+.develop-workspace--planning {
+  overflow: auto;
+}
+.develop-workspace--planning > .project-runs,
+.develop-workspace--planning > .project-work {
+  flex: 0 0 auto;
+  max-block-size: none;
+  overflow: visible;
+}
+.develop-workspace--planning > .develop-sessions {
+  flex: 0 0 auto;
+  min-block-size: 0;
+  overflow: visible;
+}
+.develop-workspace--planning .cols-empty {
+  block-size: auto;
+  padding: 20px;
+}
 .project-work > summary {
   display: flex;
   gap: 20px;

@@ -2,7 +2,7 @@
 export const PROJECT_CONTEXT_CHANGED = "luci:project-context-changed";
 export const PROJECT_CONTEXT_EDIT = "luci:project-context-edit";
 export type ProjectContextIdentity = { scope: string; projectId: string };
-export type ContextEditor = "definition" | "design";
+export type ContextEditor = "definition" | "design" | "plan";
 export type ContextEditTarget = { editor: ContextEditor; questionId?: string };
 
 export function notifyProjectContextChanged(scope: string | null, projectId: string) {

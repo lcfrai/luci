@@ -238,3 +238,17 @@ it.each([true, false])('asks before switching a workspace with unsaved drafts (r
   expect(localStorage.getItem(storageKey())).toBe(teamB);
   expect(useCockpit.getState().unsavedProjectDrafts).toEqual({});
 });
+it('keeps local check drafts protected on workspace change without suggesting a nonexistent shared save', async () => {
+  remembered(); renderWorkspace();
+  await screen.findByRole('textbox', { name: 'Project draft' });
+  const discard = vi.fn();
+  act(() => useCockpit.getState().setUnsavedProjectDraft('checks', { projectId: 'project-a', label: 'Verification setup', lens: 'develop', purpose: 'verification-setup', retained: true, discard }));
+  await userEvent.click(screen.getByRole('button', { name: 'Select Birch' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Switch workspace?' });
+  expect(dialog.textContent).toContain('Continue editing here, keep any retained browser drafts');
+  expect(dialog.textContent).not.toContain('Save them before leaving');
+  expect(selectedTeamId()).toBe(teamA);
+  await userEvent.click(screen.getByRole('button', { name: 'Keep drafts and switch' }));
+  await waitFor(() => expect(selectedTeamId()).toBe(teamB));
+  expect(discard).not.toHaveBeenCalled();
+});

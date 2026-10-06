@@ -18,7 +18,7 @@
 .orchestrator:not(.orchestrator-open) .orchestrator-header { writing-mode: vertical-rl; flex-wrap: nowrap; padding: 14px 8px; border-block-end: 0; }
 .orchestrator:not(.orchestrator-open) .orchestrator-header > div { display: none; }
 .orchestrator:not(.orchestrator-open) .orchestrator-header button { block-size: auto; min-inline-size: 90px; padding: 12px 6px; }
-.orchestrator-body { min-block-size: 0; overflow: auto; overscroll-behavior: contain; padding: 16px; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.orchestrator-body { min-block-size: 0; overflow: auto; overscroll-behavior: contain; scroll-padding-block: 12px; padding: 16px; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
 .orchestrator-body[hidden] { display: none; }
 .orchestrator-toolbar, .orchestrator-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .orchestrator-toolbar { justify-content: space-between; gap: 4px; }

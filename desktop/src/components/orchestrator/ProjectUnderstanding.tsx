@@ -48,7 +48,7 @@ export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate, onInspe
 }) {
   const [changing, setChanging] = useState(false);
   const changeId = useId();
-  const edit = (editor: ContextEditor, questionId?: string) => { setChanging(false); if (onEdit) onEdit(editor, questionId); else onNavigate(editor === "definition" ? "discover" : "design"); };
+  const edit = (editor: ContextEditor, questionId?: string) => { setChanging(false); if (onEdit) onEdit(editor, questionId); else onNavigate(editor === "definition" ? "discover" : editor === "plan" ? "develop" : "design"); };
   const { context, nextAction, blockingQuestions } = view;
   const spec = context.specification, run = context.currentRun;
   const activeRuns = context.activeRuns ?? [];
@@ -93,7 +93,7 @@ export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate, onInspe
       <p className="understanding-note">Describe a change or edit a stage directly. Review what it affects before saving; changed context needs fresh review before a new build.</p>
     </section>
 
-    <section className="understanding-next" aria-label="Next step"><h3>Next step</h3><p>{nextAction.reason}</p><Button onClick={() => nextAction.id === "answer-question" ? discussDecision() : nextAction.runId && nextAction.lens === "develop" ? inspect(nextAction.runId) : onNavigate(nextAction.lens)}>{nextAction.label}</Button></section>
+    <section className="understanding-next" aria-label="Next step"><h3>Next step</h3><p>{nextAction.reason}</p><Button onClick={() => nextAction.id === "answer-question" ? discussDecision() : nextAction.id === "plan" ? edit("plan") : nextAction.runId && nextAction.lens === "develop" ? inspect(nextAction.runId) : onNavigate(nextAction.lens)}>{nextAction.label}</Button></section>
 
     {activeRuns.length > 0 && <section aria-label="Active and unconfirmed work">
       <h3>Active and unconfirmed work</h3>

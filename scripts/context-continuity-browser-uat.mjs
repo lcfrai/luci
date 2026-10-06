@@ -81,8 +81,8 @@ const receipt = {
   package: { archiveSHA256: provenance.archiveSHA256, binarySHA256, webIndexSHA256, allWebFilesMatchArchive: true, webFileCount: Object.keys(webFiles).length },
   driverSHA256: sha(readFileSync(fileURLToPath(import.meta.url))),
   driverCheckout: { commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dirname(fileURLToPath(import.meta.url)), encoding: 'utf8' }).trim(), dirty: !!execFileSync('git', ['status', '--porcelain'], { cwd: dirname(fileURLToPath(import.meta.url)), encoding: 'utf8' }).trim() },
-  scope: 'Installed manual-question navigation and verification setup recovery with explicit review and renewed execution consent.',
-  limitations: ['Account/project/initial definition and authored design draft are API scaffolding; claimed answer, review, navigation and recovery steps use the UI.', 'Instance host-command policy is enabled only to demonstrate that a previously selected host mode and consent never recover. No command is dispatched; execution routes are blocked and Docker points to an absent socket.', 'No provider, model reasoning, source implementation, checks, release or full-journey quality claim.', 'Bounded axe and rendered focus/reflow observations are not accessibility certification; incomplete findings remain separate for manual review.'],
+  scope: 'Installed manual-question navigation and verification setup recovery, truthful reviewed handoff facts, available no-session planning viewport, and unsent help with explicit review and renewed execution consent.',
+  limitations: ['Account/project/initial definition and authored design draft are API scaffolding; claimed answer, review, navigation and recovery steps use the UI.', 'Instance host-command policy is enabled only to demonstrate that a previously selected host mode and consent never recover. No command is dispatched; execution routes are blocked and Docker points to an absent socket.', 'No provider, model reasoning, source implementation, checks, release or full-journey quality claim. Composer remains independently blocked by missing provider/model; this UI slice proves editable unsent help and its disclosure, not dispatch readiness.', 'Bounded axe and rendered focus/reflow observations are not accessibility certification; incomplete findings remain separate for manual review.'],
   setupScaffolding: ['Private account and Git identity', 'One project with an initial draft definition: first question answered, second question unanswered', 'An authored one-screen design draft', 'Host-command selector enabled by setup policy; no host commands allowed by browser interceptor'],
   checks: [], accessibility: [], browserMutations: [], blockedRequests: [], browserErrors: [], cleanup: [],
   externalModelCalls: 0, cloudResourcesCreated: 0, dockerAllocations: 0,
@@ -159,6 +159,77 @@ async function auditScope(name, selector) {
   receipt.accessibility.push({ state: name, viewport: result.viewport, documentScrollWidth: result.documentScrollWidth, focus: result.focus, violations: result.violations.map(row => row.id), incomplete: result.incomplete.map(row => row.id) });
   assert(result.documentScrollWidth <= result.viewport.width + 1, name + ' has horizontal document overflow');
   assert.deepEqual(result.violations, [], name + ' has scoped automated accessibility violations');
+}
+// Read actual clipping/scroll ownership after an ordinary browser scroll. The
+// no-session planning surface should consume its workspace, not retain nested
+// check panes above an empty terminal reserve. No exact pixel size is prescribed.
+async function planningViewport(name, target, { scroll = true } = {}) {
+  if (scroll) await target.scrollIntoViewIfNeeded();
+  const measure = () => target.evaluate(node => {
+    const workspace = node.closest('.develop-workspace');
+    if (!workspace) throw new Error('Planning control is outside Develop');
+    const rect = item => { const r = item.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height, top: r.top, right: r.right, bottom: r.bottom, left: r.left }; };
+    const scrollOwners = [];
+    for (let parent = node.parentElement; parent; parent = parent.parentElement) {
+      const style = getComputedStyle(parent);
+      if (/(auto|scroll)/.test(style.overflowY) && parent.scrollHeight > parent.clientHeight + 1) scrollOwners.push({ isWorkspace: parent === workspace, tag: parent.tagName, classes: parent.className, bounds: rect(parent), clientHeight: parent.clientHeight, scrollHeight: parent.scrollHeight });
+      if (parent === workspace) break;
+    }
+    const r = rect(node), w = rect(workspace), x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const hit = document.elementFromPoint(x, y), active = document.activeElement;
+    return { viewport: { width: innerWidth, height: innerHeight }, workspace: w, target: r, scrollOwners,
+      contained: r.top >= Math.max(0, w.top) - 1 && r.bottom <= Math.min(innerHeight, w.bottom) + 1 && r.left >= Math.max(0, w.left) - 1 && r.right <= Math.min(innerWidth, w.right) + 1,
+      hitTarget: !!hit && (hit === node || node.contains(hit)),
+      focus: { tag: active?.tagName, label: active?.getAttribute('aria-label') || active?.closest('label')?.textContent || (active?.tagName === 'BUTTON' ? active.textContent : ''), bounds: active ? rect(active) : null } };
+  });
+  let value;
+  try { await until('normal scroll exposes ' + name, async () => { value = await measure(); return value.contained && value.hitTarget; }, 5000); }
+  finally { receipt.planningLayout ??= []; receipt.planningLayout.push({ name, ...value }); }
+  assert.equal(value.scrollOwners.length, 1, name + ' must use one natural content scroll area');
+  assert.equal(value.scrollOwners[0].isWorkspace, true, name + ' must use the available Develop workspace, not a nested restricted editor');
+  await screenshot(name);
+}
+async function revealPlanFromOverview() {
+  const work = page.locator('details.project-work');
+  const plan = page.getByRole('region', { name: 'Implementation plan', exact: true });
+  receipt.planNavigation ??= [];
+  for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(viewport);
+    assert(await work.evaluate(node => node.open));
+    await work.locator('summary').first().click();
+    assert.equal(await work.evaluate(node => node.open), false);
+    const understanding = await overview();
+    await understanding.getByRole('region', { name: 'Next step', exact: true }).getByRole('button', { name: 'Review implementation tasks', exact: true }).click();
+    await until('overview opens and focuses implementation plan', () => plan.evaluate(node => node === document.activeElement));
+    assert.equal(await work.evaluate(node => node.open), true);
+    // Do not help the product scroll to its destination. The normal Next step
+    // action must itself reveal the focused region and its visible heading.
+    await planningViewport('04c-overview-reveals-plan-' + viewport.width, plan.getByRole('heading', { name: 'Implementation plan', exact: true }), { scroll: false });
+    assert(await plan.evaluate(node => node === document.activeElement));
+    receipt.planNavigation.push({ viewport, disclosureOpened: true, exactRegionFocused: true, userScrollAfterNextAction: false });
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+}
+async function unsentCheckHelp(panel, unfinished) {
+  await overview();
+  const assistant = page.getByRole('complementary', { name: 'Project understanding', exact: true });
+  await disclosure(assistant, 'Discuss or request a change');
+  const note = 'Your verification setup is a browser draft and is not included automatically. Paste the relevant commands or unfinished arguments into your message to ask for help. Sending does not execute them.';
+  await assistant.getByText(note, { exact: true }).waitFor();
+  const message = assistant.getByRole('textbox', { name: 'Message Luci', exact: true });
+  const question = 'How should I finish the arguments for the retention check? Please explain before I run it.';
+  assert(await message.isEnabled()); await message.fill(question);
+  assert.equal(await message.inputValue(), question);
+  assert(!(await assistant.innerText()).includes('Verification setup has unsaved edits.'), 'Local setup must not masquerade as unsaved shared context');
+  const routingRemedy = 'Choose a saved connection, or enter the exact model for your own agent settings.';
+  await assistant.getByText(routingRemedy, { exact: true }).waitFor();
+  assert(await assistant.getByRole('button', { name: 'Send to Luci', exact: true }).isDisabled(), 'No configured provider/model is present in this fixture');
+  assert.equal(await panel.getByRole('textbox', { name: 'Arguments · JSON array', exact: true }).inputValue(), unfinished);
+  await message.scrollIntoViewIfNeeded(); await screenshot('04a-local-check-draft-unsent-help');
+  receipt.localSetupHelp = { explicitBoundary: note, message: question, configuredProvider: false, sendDisabledReason: routingRemedy, sent: false, unfinishedArgumentsPreserved: true };
+  // Clear only the unsent message through its editable UI; do not leave a new
+  // composer recovery prompt to obscure the later verification-only reload.
+  await message.fill(''); await disclosure(assistant, 'Discuss or request a change', false);
 }
 async function mutation(action, path) {
   const response = page.waitForResponse(value => value.request().method() === 'POST' && new URL(value.url()).pathname === path);
@@ -309,6 +380,15 @@ try {
   stage = 'unchanged-verification-recovery';
   await page.getByRole('button', { name: 'Develop', exact: true }).click();
   let checks = await checksPanel();
+  await revealPlanFromOverview();
+  const facts = page.locator('.project-work-facts');
+  await facts.getByText(`Definition revision ${definition.revision} · Approved.`, { exact: true }).waitFor();
+  await facts.getByText(`Design handoff revision ${reviewedDesign.revision} · Approved.`, { exact: true }).waitFor();
+  await facts.getByText(`1 planned screen · 3 documented states · based on definition ${definition.revision}.`, { exact: true }).waitFor();
+  await facts.getByText('No optional sketch saved.', { exact: true }).waitFor();
+  assert(!(await facts.innerText()).includes('No saved design yet'));
+  await planningViewport('04b-canonical-reviewed-handoff-facts', facts.getByText(`Design handoff revision ${reviewedDesign.revision} · Approved.`, { exact: true }));
+  receipt.handoffFacts = { definitionRevision: definition.revision, designRevision: reviewedDesign.revision, screens: reviewedDesign.screens.length, states: reviewedDesign.screens.flatMap(screen => screen.states).length, optionalSketchRevision: reviewedDesign.sketchRevision };
   const program = checks.getByRole('textbox', { name: 'Executable', exact: true }), argumentsField = checks.getByRole('textbox', { name: 'Arguments · JSON array', exact: true });
   await program.fill('node'); await argumentsField.fill('["--test","tests/retention.test.mjs"]'); await checks.getByRole('button', { name: 'Add check command', exact: true }).click();
   const unfinished = '["--test", "tests/unsaved';
@@ -318,6 +398,8 @@ try {
   await until('reviewed criterion available', () => criterion.isEnabled()); await criterion.check();
   await checks.getByRole('combobox', { name: 'Check execution', exact: true }).selectOption('host'); await trust(checks).check();
   assert(await trust(checks).isChecked());
+  await unsentCheckHelp(checks, unfinished);
+  assert(await trust(checks).isChecked(), 'Opening help does not execute or change check consent');
   const unchangedCoverage = (await api('GET', projectRoute + '/checks')).coverage;
   await page.getByRole('button', { name: 'Design', exact: true }).click();
   guard = page.getByRole('dialog', { name: 'Keep your changes?', exact: true }); await guard.getByRole('button', { name: 'Keep editing', exact: true }).click();
@@ -326,12 +408,22 @@ try {
   await page.reload(); await openProject('Develop'); checks = await checksPanel();
   let recovery = checks.getByRole('region', { name: 'Verification setup draft recovery', exact: true }); await recovery.waitFor();
   await disclosure(recovery, 'Compare draft with current check setup');
+  // The comparison renders lazily after its native disclosure toggle. Await
+  // the exact visible unfinished text before reading the comparison body.
+  await recovery.getByText(unfinished, { exact: true }).waitFor();
   assert((await recovery.innerText()).includes(unfinished)); assert((await recovery.innerText()).includes('tests/retention.test.mjs'));
-  await screenshot('05-readable-check-draft-recovery-1440'); await auditScope('05-readable-check-draft-recovery-1440', '.project-checks');
+  await planningViewport('05-readable-check-draft-recovery-1440', checks.getByRole('heading', { name: 'Verify the implementation', exact: true }));
+  await auditScope('05-readable-check-draft-recovery-1440', '.project-checks');
+  await auditScope('05a-visible-check-heading-1440', '.project-checks > h2');
+  await planningViewport('05b-visible-recovery-actions-1440', recovery.getByRole('button', { name: 'Restore draft', exact: true }));
+  await auditScope('05b-visible-recovery-actions-1440', '.draft-recovery-panel > .journey-actions');
   assert.deepEqual((await api('GET', projectRoute + '/checks')).coverage, unchangedCoverage);
   await recovery.getByRole('button', { name: 'Restore draft', exact: true }).click();
   await until('restored executable', async () => await program.inputValue() === 'node'); assert.equal(await argumentsField.inputValue(), unfinished);
   assert.equal(await checks.getByRole('button', { name: 'Remove node', exact: true }).count(), 1);
+  // Reload returns the native coverage disclosure to its closed default. Open
+  // it normally before inspecting the restored visible criterion control.
+  await disclosure(checks, 'Link checks to approved requirements · 1 selected');
   await until('matching-context coverage restored', () => criterion.isChecked()); await freshConsent(checks);
   await screenshot('06-restored-checks-with-fresh-consent-required');
   check('Custom command and unfinished argument text survive cancelled navigation, kept draft and reload; explicit restore retains matching coverage but resets host mode and execution consent');
@@ -349,8 +441,10 @@ try {
   recovery = checks.getByRole('region', { name: 'Verification setup draft recovery', exact: true }); await recovery.waitFor();
   await recovery.getByText('The source, reviewed context or selected build differs from this draft. Review the setup; outdated requirement selections will be cleared.', { exact: true }).waitFor();
   await disclosure(recovery, 'Compare draft with current check setup');
-  await page.setViewportSize({ width: 390, height: 844 }); await recovery.scrollIntoViewIfNeeded();
-  await screenshot('07-changed-context-recovery-review-390'); await auditScope('07-changed-context-recovery-review-390', '.project-checks');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await planningViewport('07-changed-context-recovery-review-390', recovery.getByText('Recover your verification setup draft', { exact: true }));
+  await auditScope('07-changed-context-recovery-review-390', '.project-checks');
+  await planningViewport('07a-visible-recovery-actions-390', recovery.getByRole('button', { name: 'Restore draft', exact: true }));
   await recovery.getByRole('checkbox', { name: 'I reviewed the current check setup and want to continue with this draft.', exact: true }).check();
   await recovery.getByRole('button', { name: 'Restore draft', exact: true }).click();
   await until('changed-context restore warning', async () => (await checks.innerText()).includes('review and select the criteria again.'));
@@ -358,7 +452,7 @@ try {
   await disclosure(checks, 'Link checks to approved requirements · 0 selected');
   criterion = checks.getByRole('checkbox', { name: 'Check AC-notes · Keep garden observations', exact: true }); assert.equal(await criterion.isChecked(), false);
   assert((await checks.innerText()).includes(amendedCriterion)); await freshConsent(checks);
-  await screenshot('08-amended-criteria-not-preselected-390');
+  await planningViewport('08-amended-criteria-not-preselected-390', criterion);
   await checks.getByRole('button', { name: 'Discard verification setup', exact: true }).click();
   assert.equal(await argumentsField.inputValue(), '[]'); assert.equal(await program.inputValue(), '');
   assert.equal(await checks.getByRole('button', { name: 'Remove node', exact: true }).count(), 0);

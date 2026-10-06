@@ -10,6 +10,8 @@ import { ProjectChecks } from './ProjectChecks';
 import { ProjectWork } from './ProjectWork';
 import * as authentication from '../auth/AuthProvider';
 import { checkSetupDraftValid } from '../../hooks/projectDraftValidation';
+import { definitionApi } from '../../api/definition';
+import { designPlanApi } from '../../api/designPlan';
 
 const identity = vi.hoisted(() => ({ scope: 'owner-workspace' }));
 const access = vi.hoisted(() => ({ canRead: true, canEdit: true, canExecute: true, canAssist: true, message: '' }));
@@ -38,6 +40,8 @@ beforeEach(() => {
   vi.spyOn(projectRunsApi, 'get').mockResolvedValue(build);
   vi.spyOn(productApi, 'runChecks').mockResolvedValue(passing);
   vi.spyOn(projectRunsApi, 'joinCheck').mockResolvedValue({ ...build, revision: 7, state: 'awaiting-release', allowedActions: ['join-release'] });
+  vi.spyOn(definitionApi, 'get').mockResolvedValue({ projectId: 'p-1', revision: 4, briefRevision: 2, status: 'approved' } as never);
+  vi.spyOn(designPlanApi, 'get').mockResolvedValue({ projectId: 'p-1', revision: 5, briefRevision: 2, specificationRevision: 4, sketchRevision: 1, status: 'approved', screens: [] } as never);
 });
 async function selectAndTrust() {
   await userEvent.click(screen.getByRole('checkbox', { name: 'Check R-KEEP · Keep notes' }));
@@ -195,7 +199,8 @@ it('does not focus or collapse after reading permission changes while opening a 
   await userEvent.click(await screen.findByRole('button', { name: 'Open coding session' }));
   access.canRead = false; view.rerender(<ProjectWork projectId="p-1" />);
   await act(async () => resolve(session));
-  expect(view.container.querySelector<HTMLDetailsElement>('.project-work')?.open).toBe(true);
+  expect(view.container.querySelector('details.project-work')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Open coding session' })).toBeNull();
   expect(useCockpit.getState().selection.sessionId).toBeNull();
   expect(useCockpit.getState().sessions[session.id]).toBeUndefined();
 });

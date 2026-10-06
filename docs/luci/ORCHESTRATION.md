@@ -51,6 +51,13 @@ leaves no hidden target for a later visit. Saved answers remain available in the
 shared overview, explicitly labelled as needing definition review or belonging
 to the reviewed revision. Reading or navigating never saves or approves an answer.
 
+The implementation-task next action opens the existing plan disclosure and
+focuses its review region, including from an already-open Develop stage. This
+read destination remains available to authorized viewers. Guarded cancellation,
+a changed scope or a newer focus choice cannot leave a delayed task destination
+that interrupts other work. Develop summarizes the structured design handoff and
+its actual review dependencies; an optional sketch is a separate artifact.
+
 Prepared builds separately project changes to reviewed context and unresolved
 private conversation decisions. The latter opens the existing current question
 through scoped navigation and focuses its answer control after a fresh read;
@@ -64,6 +71,13 @@ and source. It never restores command trust or host-execution mode. Commands
 already recorded by an explicit check request can remain a reusable local
 template without repeated navigation warnings; unfinished and later edits stay
 protected. This local setup is not shared context or passing check evidence.
+It therefore does not block an explicit assistance request. The composer makes
+clear that local command text is not included automatically; the person can paste
+relevant commands or unfinished arguments into the message. Sending a message
+does not execute them. Unsaved shared context still blocks Send, and all unsaved
+work retains navigation, branch-change and amendment-application protection.
+When there are no coding panes, planning and verification use one continuous
+scroll area instead of reserving space for an empty terminal.
 
 ## Provider-backed assistance
 

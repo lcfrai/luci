@@ -55,6 +55,18 @@ it("blocks editor drafts and dirty repositories with a path back to the work", a
   expect(projectBranchesApi.create).not.toHaveBeenCalled(); expect(screen.getByText(/Save your Definition edits/)).not.toBeNull();
   expect((screen.getByRole("button", { name: "Open Git to commit changes" }) as HTMLButtonElement).disabled).toBe(true);
 });
+it.each([true, false])("keeps branch changes protected by local verification setup with an actionable retention remedy (retained=%s)", async retained => {
+  const discard = vi.fn();
+  useCockpit.getState().setUnsavedProjectDraft("checks", { projectId: "owned", label: "Verification setup", lens: "develop", purpose: "verification-setup", retained, discard });
+  render(<ProjectBranchManager target={target} />); await screen.findByText(/Ready to change/);
+  fireEvent.change(screen.getByLabelText(/Branch name/), { target: { value: "new-work" } });
+  expect((screen.getByRole("button", { name: "Create and open branch" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText(retained ? /Close this dialog, change phase and choose Keep drafts and continue/ : /Keep editing to copy the command text you need/)).not.toBeNull();
+  expect(screen.queryByText(/Save your Verification setup/)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(projectBranchesApi.create).not.toHaveBeenCalled(); expect(discard).not.toHaveBeenCalled();
+  expect(useCockpit.getState().unsavedProjectDrafts.checks).toBeDefined();
+});
 it("retains the name after a stale-source refusal and permits an explicit refresh", async () => {
   vi.mocked(projectBranchesApi.create).mockRejectedValue(new ApiError("conflict", "Source changed. Refresh Git.", 409));
   render(<ProjectBranchManager target={target} />); await screen.findByText(/Ready to change/);

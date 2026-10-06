@@ -72,7 +72,13 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const sourceRevision = useCockpit(state => state.projectSourceRevisions[projectId] ?? 0);
   const lens = useCockpit(state => state.lens), setLens = useCockpit(state => state.setLens);
   const drafts = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId).map(draft => draft.label).join(", "));
-  const draftWarning = drafts ? `${drafts} has unsaved edits. Save or discard those edits in the editor before sending or applying; Luci uses saved context.` : "";
+  const contextDrafts = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId && draft.purpose !== "verification-setup").map(draft => draft.label).join(", "));
+  const checkSetupDraft = useCockpit(state => Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === projectId && draft.purpose === "verification-setup"));
+  const checkSetupRetained = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId && draft.purpose === "verification-setup").every(draft => draft.retained));
+  const draftWarning = contextDrafts ? `${contextDrafts} has unsaved edits. Save or discard those edits in the editor before sending or applying; Luci uses saved context.` : "";
+  const setupChangeWarning = checkSetupDraft ? checkSetupRetained
+    ? "Keep your verification setup for later by changing phase and choosing Keep drafts and continue, or discard the setup before applying this amendment."
+    : "Your verification setup is not retained in this browser. Copy the command text you need, then discard the setup before applying this amendment." : "";
   const alive = useRef(true), generation = useRef(0), viewRead = useRef(0), working = useRef(false), latest = useRef(view);
   const permission = useRef(access); permission.current = access;
   const messageRef = useRef(message); messageRef.current = message;
@@ -80,6 +86,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const overviewBody = useRef<HTMLDivElement>(null);
   const contentId = useId();
   const cancelEditRequest = useRef<(() => void) | null>(null);
+  const editRequestNeedsWrite = useRef(true);
   const decisionRequest = useRef(0), decisionNoticeNode = useRef<HTMLParagraphElement>(null);
   const decisionNodes = useRef(new Map<string, HTMLDivElement>());
   latest.current = view;
@@ -120,7 +127,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     return () => { alive.current = false; generation.current++; cancelEditRequest.current?.(); };
   }, []);
   useEffect(() => {
-    if (!canEdit || !canRead) { cancelEditRequest.current?.(); cancelEditRequest.current = null; }
+    if (!canRead || (!canEdit && editRequestNeedsWrite.current)) { cancelEditRequest.current?.(); cancelEditRequest.current = null; }
   }, [canEdit, canRead]);
   useEffect(() => {
     if (!canRead) { generation.current++; working.current = false; latest.current = null; setBusy(""); setLoading(false); setView(null); setEarlier([]); setPendingJob(null); setMissingJobId(""); setReview(null); return; }
@@ -323,7 +330,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     } finally { if (ticket === generation.current) { working.current = false; if (alive.current) { setBusy(""); setLoading(false); } } }
   }
   async function send() {
-    if (!permission.current.canAssist || !view || !message.trim() || drafts || routeIssue || busy || loading || contextRefreshQueued || working.current || activeTurn || activeJobId || uncertain || pendingRequest || recoveredDraft || storageConflict || localRecovery.error) return;
+    if (!permission.current.canAssist || !view || !message.trim() || contextDrafts || routeIssue || busy || loading || contextRefreshQueued || working.current || activeTurn || activeJobId || uncertain || pendingRequest || recoveredDraft || storageConflict || localRecovery.error) return;
     const input: OrchestratorRequest = { expectedRevision: view.revision, expectedContextDigest: view.context.digest, message: message.trim(),
       ...(replyTo ? { replyToTurnId: replyTo } : {}), harness: agent.harness, ...(model.trim() ? { model: model.trim() } : {}), agentConnectionId: agent.agentConnectionId, idempotencyKey: crypto.randomUUID() };
     try {
@@ -332,7 +339,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     await dispatchRequest(input);
   }
   async function retryOriginal() {
-    if (!permission.current.canAssist || !pendingRequest || reviewedRequest !== pendingRequest.request.idempotencyKey || drafts || working.current || busy) return;
+    if (!permission.current.canAssist || !pendingRequest || reviewedRequest !== pendingRequest.request.idempotencyKey || contextDrafts || working.current || busy) return;
     // Never rebase on a newer revision, context, active connection or model.
     await dispatchRequest(pendingRequest.request);
   }
@@ -419,11 +426,13 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   };
   const ask = (text?: string) => { if (!pendingRequest && !recoveredDraft) editComposer(messageRef.current || text?.slice(0, 16000) || "", ""); openComposer(); };
   const edit = (editor: ContextEditor, questionId?: string) => {
-    if (!permission.current.canEdit) return;
+    const permitted = () => permission.current.canRead && (editor === "plan" || permission.current.canEdit);
+    if (!permitted()) return;
     cancelEditRequest.current?.();
-    const destination = editor === "definition" ? "discover" : "design";
+    editRequestNeedsWrite.current = editor !== "plan";
+    const destination = editor === "definition" ? "discover" : editor === "plan" ? "develop" : "design";
     const request = () => {
-      if (!alive.current || !permission.current.canEdit) return;
+      if (!alive.current || !permitted()) return;
       const cancel = requestProjectContextEdit(scope, projectId, editor, questionId);
       const unsubscribe = useCockpit.subscribe(state => {
         if (state.lens === destination) return;
@@ -436,7 +445,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     if (current.lens === destination) request();
     else if (current.pendingNavigation?.kind === "lens" && current.pendingNavigation.lens === destination) {
       // Publish only after guarded navigation succeeds. Cancelling must not
-      // leave a question target waiting for an unrelated later visit.
+      // leave a context target waiting for an unrelated later visit.
       const unsubscribe = useCockpit.subscribe(state => {
         if (state.pendingNavigation?.kind === "lens" && state.pendingNavigation.lens === destination) return;
         unsubscribe();
@@ -454,7 +463,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   };
   const turns = [...new Map([...earlier, ...(view?.turns ?? [])].map(turn => [turn.id, turn])).values()].sort((a, b) => a.sequence - b.sequence);
   const replyQuestion = view?.blockingQuestions.find(question => question.turnId === replyTo)?.question || turns.find(turn => turn.id === replyTo)?.answer?.question;
-  const reviewBlock = draftWarning || (!canEdit ? "Editing access is required to apply an amendment." : review && view && review.revision !== view.revision ? "The conversation changed during review. Close this review, refresh and review the amendment again." : "");
+  const reviewBlock = draftWarning || setupChangeWarning || (!canEdit ? "Editing access is required to apply an amendment." : review && view && review.revision !== view.revision ? "The conversation changed during review. Close this review, refresh and review the amendment again." : "");
 
   return <aside className={`orchestrator${open ? " orchestrator-open" : ""}`} aria-label="Project understanding">
     <header className="orchestrator-header"><div><h2>Project understanding</h2>{open ? <p>What we are building and what happens next.</p> : <p className="orchestrator-collapsed-stage">{canRead && view ? `${stageLabels[view.nextAction.lens]} · Saved context` : "Saved project context"}</p>}</div><Button variant="secondary" size="compact" aria-expanded={open} aria-controls={contentId} onClick={() => setOpenChoice(!open)}>{open ? "Hide project overview" : "Show project overview"}</Button></header>
@@ -502,7 +511,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         {canRead && pendingRequest && <section aria-label="Unconfirmed message recovery"><p>The original request may already have been accepted. Sending a new copy is blocked until its outcome is checked. Nothing is retried automatically.</p>
           <Button variant="secondary" disabled={!!busy} onClick={() => void checkOriginal()}>Check original request</Button>
           {localRecovery.pending.length > 1 && <p>{localRecovery.pending.length} requests need to be checked, one at a time.</p>}
-          {canAssist && (reviewedRequest !== pendingRequest.request.idempotencyKey ? <Button variant="secondary" onClick={() => { setMessage(pendingRequest.request.message); setReplyTo(pendingRequest.request.replyToTurnId ?? ""); setReviewedRequest(pendingRequest.request.idempotencyKey); setConversationOpen(true); }}>Review original request</Button> : <><p>Original agent: {pendingRequest.request.harness}{pendingRequest.request.model ? ` · ${pendingRequest.request.model}` : ""}. Retry uses its saved context and original request identity; model usage may be charged if it was never accepted.</p><Button variant="secondary" disabled={!!busy || !!drafts} onClick={() => void retryOriginal()}>Retry original request</Button></>)}
+          {canAssist && (reviewedRequest !== pendingRequest.request.idempotencyKey ? <Button variant="secondary" onClick={() => { setMessage(pendingRequest.request.message); setReplyTo(pendingRequest.request.replyToTurnId ?? ""); setReviewedRequest(pendingRequest.request.idempotencyKey); setConversationOpen(true); }}>Review original request</Button> : <><p>Original agent: {pendingRequest.request.harness}{pendingRequest.request.model ? ` · ${pendingRequest.request.model}` : ""}. Retry uses its saved context and original request identity; model usage may be charged if it was never accepted.</p><Button variant="secondary" disabled={!!busy || !!contextDrafts} onClick={() => void retryOriginal()}>Retry original request</Button></>)}
         </section>}
         <form className="orchestrator-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
           <details className="orchestrator-agent"><summary>Agent and model</summary><fieldset disabled={!!busy || !canAssist || !!pendingRequest}>
@@ -515,11 +524,12 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
           {connectionError && <p role="status">Agent settings could not be refreshed: {connectionError}</p>}
           {setup && <Button type="button" variant="ghost" size="compact" onClick={() => setup.openAgents()}>Agent connections</Button>}
           {draftWarning && <p role="status">{draftWarning}</p>}
+          {checkSetupDraft && <p role="status">Your verification setup is a browser draft and is not included automatically. Paste the relevant commands or unfinished arguments into your message to ask for help. Sending does not execute them.</p>}
           {!canAssist && canRead && <p role="status">Sending requires editing, execution and secret access. You can still read the conversation and saved context.</p>}
-          {refreshEditor && drafts && <p role="status">The amendment is saved. Your newer unsaved edits remain in the editor; save or discard them to refresh its context.</p>}
+          {refreshEditor && drafts && <p role="status">The amendment is saved. {contextDrafts ? "Your newer unsaved edits remain in the editor; save or discard them to refresh its context." : checkSetupRetained ? "Your verification setup remains in the editor. Change phase and choose Keep drafts and continue, or discard the setup, to refresh saved context." : "Your verification setup remains in the editor but is not retained. Copy the command text you need, then discard the setup to refresh saved context."}</p>}
           {canAssist && replyTo && <div className="orchestrator-actions"><span>{replyQuestion ? `Replying to: ${replyQuestion}` : "Replying to a project decision"}</span><Button type="button" variant="ghost" size="compact" disabled={!!pendingRequest || !canAssist} onClick={() => editComposer(message, "")}>Clear reply</Button></div>}
           <label className="luci-field">Message Luci<textarea ref={composer} rows={3} value={canAssist ? message : ""} maxLength={16000} disabled={!canAssist || busy === "send" || !!pendingRequest || !!recoveredDraft || storageConflict} onChange={event => editComposer(event.target.value, replyTo)} placeholder="What should we build, clarify or change?" /></label>
-          <div className="orchestrator-actions"><Button type="submit" disabled={!canAssist || !view || !message.trim() || !!drafts || !!routeIssue || !!busy || loading || contextRefreshQueued || !!activeTurn || !!activeJobId || uncertain || !!pendingRequest || !!recoveredDraft || storageConflict || !!localRecovery.error}>{busy === "send" ? "Sending…" : "Send to Luci"}</Button>{activeJobId && !completedUnrecorded && !missingReservedJob && <Button type="button" variant="secondary" disabled={!canExecute || !!busy} onClick={() => void cancel()}>Cancel Luci request</Button>}</div>
+          <div className="orchestrator-actions"><Button type="submit" disabled={!canAssist || !view || !message.trim() || !!contextDrafts || !!routeIssue || !!busy || loading || contextRefreshQueued || !!activeTurn || !!activeJobId || uncertain || !!pendingRequest || !!recoveredDraft || storageConflict || !!localRecovery.error}>{busy === "send" ? "Sending…" : "Send to Luci"}</Button>{activeJobId && !completedUnrecorded && !missingReservedJob && <Button type="button" variant="secondary" disabled={!canExecute || !!busy} onClick={() => void cancel()}>Cancel Luci request</Button>}</div>
           <p className="orchestrator-muted">Messages can propose changes. You review amendments and start coding, checks or deployment explicitly.</p>
         </form>
         </div>

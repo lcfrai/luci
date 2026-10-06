@@ -52,7 +52,7 @@ Go outcomes, eight isolated source-binary checks and eight matching packaged
 checks. Manual-question continuity, verification draft recovery and stale or
 decision-blocked prepared-run guidance now pass the full 2,088-outcome Go suite
 (22 skips), 1,944 frontend tests, type checking and 481 product-package race
-outcomes (one skip). Matching installed continuity acceptance is next. Earlier
+outcomes (one skip). Clean bb720e51 passes four installed continuity groups, six portable groups and seven launcher outcomes. Rendered follow-up found cramped phone check recovery and concrete assistance/design/task-navigation gaps; corrections pass the complete 1,979-test frontend suite with matching installed proof next. Earlier
 integration-package race results retain their own identities. Exact source identities, fixture
 limits and remaining gates are in [FULL-PRODUCT.md](FULL-PRODUCT.md). The results
 below retain their historical identities.

@@ -40,3 +40,15 @@ it("retains only the question identity for its exact scoped definition and never
   requestProjectContextEdit("owner-workspace", "p", "design", "membership-question");
   expect(takeProjectContextEdit("owner-workspace", "p", "design")).toEqual({ editor: "design" });
 });
+it("delivers plan review only to the exact workspace and project, without a definition question target", () => {
+  const old = requestProjectContextEdit("scope", "p", "definition", "question");
+  const cancel = requestProjectContextEdit("scope", "p", "plan", "question");
+  old();
+  expect(takeProjectContextEdit("scope", "p", "definition")).toBe(false);
+  expect(takeProjectContextEdit("scope", "p", "design")).toBe(false);
+  expect(takeProjectContextEdit("another-scope", "p", "plan")).toBe(false);
+  expect(takeProjectContextEdit("scope", "another-project", "plan")).toBe(false);
+  expect(takeProjectContextEdit("scope", "p", "plan")).toEqual({ editor: "plan" });
+  expect(takeProjectContextEdit("scope", "p", "plan")).toBe(false);
+  cancel();
+});

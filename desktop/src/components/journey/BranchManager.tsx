@@ -26,6 +26,8 @@ export function ProjectBranchManager({ target }: { target: BranchManagerTarget }
   const close = useCockpit(state => state.closeBranchManager);
   const open = useCockpit(state => state.openBranchManager);
   const drafts = useCockpit(useShallow(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId)));
+  const contextDrafts = drafts.filter(draft => draft.purpose !== "verification-setup");
+  const setupDrafts = drafts.filter(draft => draft.purpose === "verification-setup");
   const load = useCallback(async () => {
     const ticket = ++generation.current;
     const value = await projectBranchesApi.catalogue(projectId);
@@ -118,7 +120,13 @@ export function ProjectBranchManager({ target }: { target: BranchManagerTarget }
     {catalogue && <div className="workflow-facts"><span>Current: {catalogue.currentBranch || "No branch"}</span><code>{catalogue.commit?.slice(0, 8) || "No saved commit"}</code></div>}
     {error && <p className="workflow-error" role="alert">{error}</p>}
     {pending === "loading" && <p role="status">Reading your project…</p>}
-    {!!drafts.length && <div className="workflow-alert"><p>Save your {drafts.map(draft => draft.label).join(" and ")} edits before changing branches.</p><Button variant="secondary" disabled={busy} onClick={close}>Keep editing</Button></div>}
+    {!!drafts.length && <div className="workflow-alert">
+      {!!contextDrafts.length && <p>Save your {contextDrafts.map(draft => draft.label).join(" and ")} edits before changing branches.</p>}
+      {!!setupDrafts.length && <p>{setupDrafts.every(draft => draft.retained)
+        ? "Your verification setup is kept in this browser. Close this dialog, change phase and choose Keep drafts and continue, or discard the setup before changing branches."
+        : "Your verification setup is not retained in this browser. Keep editing to copy the command text you need, then discard the setup before changing branches."}</p>}
+      <Button variant="secondary" disabled={busy} onClick={close}>Keep editing</Button>
+    </div>}
     {catalogue?.message && <p className="workflow-alert">{catalogue.message}</p>}
     {catalogue && (!catalogue.clean || !catalogue.commit) && <Button variant="secondary" disabled={busy || !!unresolved || !!drafts.length} onClick={() => { close(); useCockpit.getState().setLens("merge"); }}>Open Git to commit changes</Button>}
     <form className="workflow-form" onSubmit={event => { event.preventDefault(); void submit(); }}>

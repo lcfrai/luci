@@ -87,6 +87,7 @@ export function TeamWorkspaceProvider({children}: {children:ReactNode}) {
   };
   const value={teams,selected:teams.find(row=>row.team.id===selected)??null,teamId:selected,managedTeamId,revision,refresh,select};
   const retained=Object.values(drafts).every(draft=>draft.retained);
+  const localSetup=Object.values(drafts).some(draft=>draft.purpose==='verification-setup');
   return <TeamWorkspaceContext.Provider value={value}>
     {ready&&<div className="team-app-host" hidden={blocked}><Fragment key={`${userId}:${epoch}`}>{children}</Fragment></div>}
     {ready&&!blocked&&error&&<div className="team-connection-status" role="status">Workspace access could not be refreshed: {error} <button onClick={()=>void refresh().catch(()=>{})}>Retry</button></div>}
@@ -94,7 +95,7 @@ export function TeamWorkspaceProvider({children}: {children:ReactNode}) {
       <h1>{error?'Workspace unavailable':'Opening your workspace…'}</h1>
       {error&&<><p role="alert">{error}</p><Button onClick={()=>{if(!ready)setRetry(v=>v+1);else void refresh().catch(()=>{});}}>Retry connection</Button>{ready&&!managedTeamId&&<label>Workspace<select value={selected} onChange={event=>select(event.target.value)}><option value="">Personal workspace</option>{!teams.some(row=>row.team.id===selected)&&selected&&<option value={selected} disabled>Unavailable team</option>}{teams.map(row=><option key={row.team.id} value={row.team.id}>{row.team.name}</option>)}</select></label>}</>}
     </main>}
-    {pending!==null&&<WorkflowDialog title="Switch workspace?" description="Your project has unsaved edits. Save them before leaving, keep the retained browser drafts, or discard them." onClose={()=>setPending(null)}>
+    {pending!==null&&<WorkflowDialog title="Switch workspace?" description={localSetup?'Your project has unsaved edits. Continue editing here, keep any retained browser drafts, or discard the edits before switching.':'Your project has unsaved edits. Save them before leaving, keep the retained browser drafts, or discard them.'} onClose={()=>setPending(null)}>
       <div className="workflow-actions"><Button variant="secondary" onClick={()=>{Object.values(drafts).forEach(draft=>draft.discard?.());apply(pending);}}>Discard edits and switch</Button>{retained&&<Button variant="secondary" onClick={()=>apply(pending)}>Keep drafts and switch</Button>}<Button onClick={()=>setPending(null)}>Stay here</Button></div>
     </WorkflowDialog>}
   </TeamWorkspaceContext.Provider>;

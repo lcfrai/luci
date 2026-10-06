@@ -278,6 +278,56 @@ manual-question and draft-recovery proof is next; run-blocker acceptance at this
 checkpoint is HTTP/UI source coverage, not an installed execution claim. This
 batch does not close the whole-product goal.
 
+The clean `bb720e51` Linux package passes **four installed continuity groups**:
+manual questions navigate to their exact answer through draft cancellation;
+saved answers distinguish pending review from reviewed context; custom commands
+and exact unfinished argument text recover across reload without execution
+consent; a real reviewed amendment clears stale coverage while retaining command
+text. Six portable groups and seven launcher outcomes also pass. All 940 archive
+members match and all 346 licence components have evidence. Receipt:
+`artifacts/package-eval/0.5.0-bb720e51/context-continuity-attempt-3/result.json`.
+The two earlier failures were retained automation errors: a still-collapsed
+coverage disclosure and a lazy comparison mount. Corrected normal disclosure
+clicks and awaited visible text preserve the assertions. No command, Docker or
+model execution was performed.
+
+Four scoped accessibility scans have zero violations; two retain contrast
+incomplete findings on four clipped/overlapped nodes. Rendered review exposed a
+real layout gap: on a 390 px phone, fixed run content and an empty session panel
+leave only about 185 px for check recovery. Functional success does not close
+this usability finding. The next correction gives no-session planning one
+continuous scroll area. Additional concrete continuation findings: local check
+setup incorrectly blocks asking Luci for help; Develop confuses an absent sketch
+with an absent approved design handoff; and the overview's implementation-task
+next action leaves a collapsed editor closed. These corrections and their
+matching installed acceptance remain active.
+
+Four further installed `bb720e51` run-guidance groups pass. A real UI definition
+amendment suppresses stale coding/evidence invitations while preserving original
+run inputs. A separately labelled stored-question fixture proves current-context
+material-decision projection, exact question focus, retained unsent/recovered
+composer text and a different original reply target. No provider, coding, check
+or release operation runs. Both service lifetimes stop normally; four scoped axe
+scans report no violations or incomplete findings. Original setup failure
+(connection protocol base URL) remains retained. Receipt:
+`artifacts/package-eval/0.5.0-bb720e51/run-freshness-attempt-2/result.json`.
+This is installed navigation over real run/context state and seeded private
+question history, not model-generated questions. The phone focus target reaches
+the bottom edge of its scroll area; additional scroll padding and visible focus
+containment remain part of the active polish batch.
+
+The subsequent frozen frontend corrections pass **1,979 tests across 126 files**
+and TypeScript checking with all 426 recorded frontend inputs unchanged. All
+667 Go inputs match the `bb720e51` full-suite/race baseline, so those unchanged
+backend checks were not repeated. Local command drafts now permit explicit
+assistance without implicit command attachment; shared-context and source-change
+guards remain. No-session planning uses one scroll area. Develop reads the
+structured handoff and preserves editor drafts through scoped fact refreshes.
+The overview opens and focuses the implementation-plan destination, including
+authorized read-only review and navigation after a draft dialog. Source receipt:
+`artifacts/quality-planning-flow/source-validation.json`. Matching installed
+rendering and focus proof is the next check, with original observations retained.
+
 
 GitHub rejected the `7ff66d3b` Actions run before any check step for account
 payment/spending admission, recorded in

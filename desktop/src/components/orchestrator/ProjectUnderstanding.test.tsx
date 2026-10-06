@@ -5,6 +5,21 @@ import { ProjectUnderstanding } from "./ProjectUnderstanding";
 import { context, view } from "./fixtures";
 import type { OrchestratorRunSummary } from "../../api/orchestrator";
 
+it("targets the implementation plan for its next action even when the reader cannot edit", async () => {
+  const edit = vi.fn(), navigate = vi.fn(), ask = vi.fn();
+  render(<ProjectUnderstanding view={view({ nextAction: { id: "plan", label: "Review implementation tasks", reason: "Review the plan against the current definition.", lens: "develop" } })} onAsk={ask} onReply={vi.fn()} onNavigate={navigate} onEdit={edit} canEdit={false} />);
+  await userEvent.click(screen.getByRole("button", { name: "Review implementation tasks" }));
+  expect(edit).toHaveBeenCalledExactlyOnceWith("plan", undefined);
+  expect(navigate).not.toHaveBeenCalled(); expect(ask).not.toHaveBeenCalled();
+});
+
+it("falls back to Develop for a plan review when no context destination handler is provided", async () => {
+  const navigate = vi.fn();
+  render(<ProjectUnderstanding view={view({ nextAction: { id: "plan", label: "Review implementation tasks", reason: "Review the current tasks.", lens: "develop" } })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={navigate} />);
+  await userEvent.click(screen.getByRole("button", { name: "Review implementation tasks" }));
+  expect(navigate).toHaveBeenCalledExactlyOnceWith("develop");
+});
+
 it("routes each manual question to its own definition answer while keeping model questions separate", async () => {
   const snapshot = context(), edit = vi.fn(), ask = vi.fn(), reply = vi.fn();
   snapshot.specification.questions = [{ id: "join", question: "How do members join?", answer: "" }, { id: "reassign", question: "Who can reassign tasks?", answer: "" }];

@@ -10,6 +10,7 @@ import { useCockpit, resetCockpit } from "../../store/store";
 import { ORCHESTRATOR_OPEN, OrchestratorPanel } from "./OrchestratorPanel";
 import { notifyProjectContextChanged, takeProjectContextEdit } from "../../api/projectContextEvents";
 import { DefinitionWorkspace } from "../definition/DefinitionWorkspace";
+import { ProjectChecks } from "../journey/ProjectChecks";
 import { DraftNavigationDialog } from "../common/DraftNavigationDialog";
 import { definitionApi } from "../../api/definition";
 import { context, job, proposalTurn, turn, view } from "./fixtures";
@@ -446,6 +447,94 @@ it("blocks sending/applying over unsaved edits and also preserves edits begun wh
   await waitFor(() => expect(useCockpit.getState().projectSourceRevisions["p-1"]).toBe(1));
 });
 
+function checkDraftFixture() {
+  vi.spyOn(productApi, "checks").mockResolvedValue({ runs: [], suggested: [{ label: "Acceptance tests", executable: "npm", args: ["test"] }] });
+  vi.spyOn(productApi, "runChecks").mockResolvedValue({} as never);
+  useCockpit.setState(state => ({ selection: { ...state.selection, projectId: "p-1" }, lens: "develop" }));
+}
+async function authorLocalChecks() {
+  await screen.findByRole("button", { name: "Remove Acceptance tests" });
+  fireEvent.change(screen.getByRole("textbox", { name: "Executable" }), { target: { value: "node" } });
+  fireEvent.change(screen.getByRole("textbox", { name: "Arguments · JSON array" }), { target: { value: '["private-draft-only.mjs", ' } });
+}
+
+it("lets a person ask for help beside an actual unfinished check draft without attaching it or weakening navigation protection", async () => {
+  checkDraftFixture();
+  render(<><OrchestratorPanel projectId="p-1" /><ProjectChecks projectId="p-1" /><DraftNavigationDialog /></>);
+  await ready(); await authorLocalChecks();
+  expect(Object.values(useCockpit.getState().unsavedProjectDrafts)).toEqual([expect.objectContaining({ purpose: "verification-setup", retained: true })]);
+  expect(screen.getByText(/verification setup is a browser draft and is not included automatically/)).not.toBeNull();
+  const input = screen.getByRole("textbox", { name: "Arguments · JSON array" }) as HTMLInputElement;
+  act(() => useCockpit.getState().setLens("design"));
+  const navigation = screen.getByRole("dialog", { name: "Keep your changes?" });
+  expect(navigation.textContent).toContain("Stay here to continue editing");
+  expect(within(navigation).getByRole("button", { name: "Keep drafts and continue" })).not.toBeNull();
+  await userEvent.click(within(navigation).getByRole("button", { name: "Keep editing" }));
+  const message = "Which acceptance scenarios should these tests cover?";
+  await userEvent.type(screen.getByLabelText("Message Luci"), message);
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
+  expect(orchestratorApi.send).toHaveBeenCalledExactlyOnceWith("p-1", expect.objectContaining({ message, expectedContextDigest: context().digest, agentConnectionId: "gateway" }));
+  expect(JSON.stringify(vi.mocked(orchestratorApi.send).mock.calls[0])).not.toContain("private-draft-only");
+  expect(input.isConnected).toBe(true); expect(input.value).toBe('["private-draft-only.mjs", ');
+  expect(Object.values(useCockpit.getState().unsavedProjectDrafts)).toHaveLength(1);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+
+it("keeps amendments blocked by a local check draft and shared context still blocks sending when both exist", async () => {
+  checkDraftFixture(); vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [proposalTurn()] }));
+  render(<><OrchestratorPanel projectId="p-1" /><ProjectChecks projectId="p-1" /></>);
+  await ready(); await authorLocalChecks();
+  await userEvent.click(screen.getByRole("button", { name: "Review amendment" }));
+  const dialog = screen.getByRole("dialog", { name: "Review definition amendment" });
+  expect(within(dialog).getByText(/Keep your verification setup for later by changing phase/)).not.toBeNull();
+  await userEvent.click(within(dialog).getByRole("checkbox"));
+  expect((within(dialog).getByRole("button", { name: "Apply reviewed amendment" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(orchestratorApi.apply).not.toHaveBeenCalled();
+  await userEvent.click(within(dialog).getByRole("button", { name: "Keep current context" }));
+  act(() => useCockpit.getState().setUnsavedProjectDraft("definition", { projectId: "p-1", label: "Definition", lens: "discover" }));
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Help me finish this check");
+  expect(screen.getByText(/Definition has unsaved edits. Save or discard/)).not.toBeNull();
+  expect((screen.getByRole("button", { name: "Send to Luci" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+
+it("allows only the exact original request retry beside local setup, while shared context retains its retry guard", async () => {
+  const original = { expectedRevision: 3, expectedContextDigest: context().digest, idempotencyKey: "original-request-with-check-draft", message: "Original explicit question", harness: "codex", model: "model-team", agentConnectionId: "gateway" } as const;
+  retainComposerRequest(decisionScope(), original);
+  useCockpit.getState().setUnsavedProjectDraft("checks", { projectId: "p-1", label: "Verification setup", lens: "develop", purpose: "verification-setup", retained: true });
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByRole("button", { name: "Review original request" }));
+  expect((screen.getByRole("button", { name: "Retry original request" }) as HTMLButtonElement).disabled).toBe(false);
+  act(() => useCockpit.getState().setUnsavedProjectDraft("design", { projectId: "p-1", label: "Design", lens: "design" }));
+  expect((screen.getByRole("button", { name: "Retry original request" }) as HTMLButtonElement).disabled).toBe(true);
+  act(() => useCockpit.getState().setUnsavedProjectDraft("design", null));
+  await userEvent.click(screen.getByRole("button", { name: "Retry original request" }));
+  expect(orchestratorApi.send).toHaveBeenCalledExactlyOnceWith("p-1", original);
+  expect(useCockpit.getState().unsavedProjectDrafts.checks).toBeDefined();
+});
+
+it("defers editor remount for a new local setup created while an amendment is saving", async () => {
+  checkDraftFixture(); vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [proposalTurn()] }));
+  let finish!: (value: OrchestratorView) => void;
+  vi.mocked(orchestratorApi.apply).mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  render(<><OrchestratorPanel projectId="p-1" /><ProjectChecks projectId="p-1" /></>);
+  await ready();
+  await userEvent.click(screen.getByRole("button", { name: "Review amendment" }));
+  const dialog = screen.getByRole("dialog", { name: "Review definition amendment" });
+  await userEvent.click(within(dialog).getByRole("checkbox"));
+  await userEvent.click(within(dialog).getByRole("button", { name: "Apply reviewed amendment" }));
+  // An independently mounted editor can change while the network request is pending.
+  const args = screen.getByLabelText("Arguments · JSON array") as HTMLInputElement;
+  fireEvent.change(args, { target: { value: '["new-draft' } });
+  await act(async () => finish(view({ revision: 4 })));
+  expect(useCockpit.getState().projectSourceRevisions["p-1"]).toBeUndefined();
+  expect(screen.getByText(/Your verification setup remains in the editor. Change phase/)).not.toBeNull();
+  expect(args.value).toBe('["new-draft');
+  await userEvent.click(screen.getByRole("button", { name: "Discard verification setup" }));
+  await waitFor(() => expect(useCockpit.getState().projectSourceRevisions["p-1"]).toBe(1));
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+
 it.each(["actor", "connection", "root", "project", "team"] as const)("fences late private conversation replies when the selected %s changes", async changed => {
   let finish!: (value: OrchestratorView) => void;
   vi.mocked(orchestratorApi.get).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
@@ -659,6 +748,65 @@ function guardDesignDraft(discard = vi.fn()) {
   useCockpit.setState(state => ({ selection: { ...state.selection, projectId: "p-1" }, lens: "design", unsavedProjectDrafts: { sketch: { projectId: "p-1", label: "Sketch", lens: "design", retained: true, discard } } }));
   return discard;
 }
+function planReviewView() {
+  return view({ nextAction: { id: "plan", label: "Review implementation tasks", reason: "Bind a current task plan to the reviewed project definition.", lens: "develop" } });
+}
+it("publishes repeatable exact plan review requests in Develop for a read-only reader without sending or changing context", async () => {
+  identity.edit = false; identity.assist = false;
+  vi.mocked(orchestratorApi.get).mockResolvedValue(planReviewView());
+  useCockpit.setState({ lens: "develop" });
+  render(<OrchestratorPanel projectId="p-1" />);
+  const review = await screen.findByRole("button", { name: "Review implementation tasks" });
+  await userEvent.click(review);
+  expect(useCockpit.getState().lens).toBe("develop");
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toEqual({ editor: "plan" });
+  await userEvent.click(review);
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toEqual({ editor: "plan" });
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.apply).not.toHaveBeenCalled();
+});
+it("keeps a guarded plan review unpublished when navigation is cancelled, then delivers it after explicit continuation", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(planReviewView());
+  const discard = guardDesignDraft();
+  render(<><OrchestratorPanel projectId="p-1" /><DraftNavigationDialog /></>);
+  await userEvent.click(await screen.findByRole("button", { name: "Review implementation tasks" }));
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toBe(false);
+  await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(useCockpit.getState().lens).toBe("design");
+  expect(useCockpit.getState().unsavedProjectDrafts.sketch).toBeDefined();
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toBe(false);
+  await userEvent.click(screen.getByRole("button", { name: "Review implementation tasks" }));
+  await userEvent.click(screen.getByRole("button", { name: "Keep drafts and continue" }));
+  expect(useCockpit.getState().lens).toBe("develop");
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toEqual({ editor: "plan" });
+  expect(discard).not.toHaveBeenCalled();
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.apply).not.toHaveBeenCalled();
+});
+it("keeps pending plan review after edit access is removed but cancels it when read access is removed", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(planReviewView());
+  useCockpit.setState({ lens: "develop" });
+  const mounted = render(<OrchestratorPanel projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Review implementation tasks" }));
+  identity.edit = false; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toEqual({ editor: "plan" });
+  await userEvent.click(screen.getByRole("button", { name: "Review implementation tasks" }));
+  identity.read = false; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toBe(false);
+  identity.read = true; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
+  await screen.findByRole("button", { name: "Review implementation tasks" });
+  expect(takeProjectContextEdit(currentScope(), "p-1", "plan")).toBe(false);
+});
+it.each(["navigation", "account", "project"])("abandons an unconsumed lazy plan request after %s changes", async change => {
+  vi.mocked(orchestratorApi.get).mockImplementation(async id => ({ ...planReviewView(), projectId: id, context: context(id) }));
+  useCockpit.setState({ lens: "develop" });
+  const mounted = render(<OrchestratorPanel projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Review implementation tasks" }));
+  const oldScope = currentScope();
+  if (change === "navigation") act(() => useCockpit.getState().setLens("design"));
+  else if (change === "account") { identity.actor = "other"; mounted.rerender(<OrchestratorPanel projectId="p-1" />); }
+  else mounted.rerender(<OrchestratorPanel projectId="p-2" />);
+  expect(takeProjectContextEdit(oldScope, "p-1", "plan")).toBe(false);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
 it("cancels question navigation with the existing draft guard and leaves no answer target for a later visit", async () => {
   vi.mocked(orchestratorApi.get).mockResolvedValue(manualQuestionView());
   const getDefinition = vi.spyOn(definitionApi, "get").mockResolvedValue(manualQuestionView().context.specification);
