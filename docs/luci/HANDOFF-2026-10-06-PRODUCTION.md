@@ -24,6 +24,26 @@ continues while external commissioning and Windows CI access remain blocked.
 
 ## Latest source checkpoint
 
+Current packaged `85f830e0` passes all ten connected collaborative build groups
+and all three actual local-platform / delayed-provider groups, with owned cleanup
+and unchanged pins. Provider/model behavior is controlled fixture input.
+The newly confirmed highest-priority defect is immutable context delivery:
+active agents can reread amended checkout exports despite retaining old review
+metadata. The API before-fix witness reproduces this on the same running child.
+A separate read-only captured bundle, verified lifecycle reuse and truthful older-
+session guidance are implemented. Frontend 2,075 cases pass across the full
+run and corrected contract/copy expectations, plus TypeScript. The complete Go
+suite passes 2,165 outcomes / 22 skips and the four affected race packages pass
+1,097 / four skips. Windows API test and Darwin API build cross-compilation pass;
+all 675 Go inputs are unchanged. A final launcher prompt correction removes
+competing live-context instructions; 11 plan and 30 session-pane cases plus
+TypeScript pass. Installed reread and lifecycle evidence are still pending. Current source/evidence work is in
+`artifacts/quality-reviewed-context-isolation/` and `quality-reviewed-context-ui/`.
+The three-action responsiveness diagnostic did not reproduce earlier tail misses;
+it is not new performance acceptance.
+
+### Earlier accepted checkpoints
+
 Viewer task input, delayed backup/restore responses and stale Git review are now
 corrected. Git commits are bound to the reviewed source/context/index/branch and
 preserve newer edits, staging on refusal and native recovery history. Existing

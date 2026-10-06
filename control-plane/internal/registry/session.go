@@ -113,6 +113,7 @@ type Session struct {
 	// stores and returns it and never interprets it.
 	ContextRef            string                 `json:"contextRef"`
 	ImplementationContext *ImplementationContext `json:"implementationContext,omitempty"`
+	ReviewedContext       *ReviewedContext       `json:"reviewedContext,omitempty"`
 	// ProjectRunID and ProjectRunOperationID bind this durable child to one
 	// privately reserved operation. Both are recorded before sandbox allocation.
 	ProjectRunID          string `json:"projectRunId,omitempty"`
@@ -132,6 +133,7 @@ func (s Session) Clone() Session {
 	out.Args = cloneStrings(s.Args)
 	out.EarlierConversationIDs = cloneStrings(s.EarlierConversationIDs)
 	out.ImplementationContext = s.ImplementationContext.Clone()
+	out.ReviewedContext = s.ReviewedContext.Clone()
 	return out
 }
 

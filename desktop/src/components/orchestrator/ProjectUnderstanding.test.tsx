@@ -91,7 +91,7 @@ it("shows what the active build was actually asked to do when the current draft 
   const build = screen.getByRole("region", { name: "In this build" });
   expect(within(build).getByText("Implement the reviewed guest checkout")).not.toBeNull();
   expect(within(build).queryByText("A newly proposed task")).toBeNull();
-  expect(within(build).getByText(/Uses reviewed definition 2 and design 3/)).not.toBeNull();
+  expect(within(build).getByText(/Saved scope: reviewed definition 2 and design 3/)).not.toBeNull();
   expect(screen.getByText(/Draft definition/)).not.toBeNull();
   expect(within(build).getByText(/does not prove the current application is ready/)).not.toBeNull();
 });
@@ -152,7 +152,7 @@ it("keeps an older coding scope visible through newer preparation, parent cancel
   expect(within(ongoing).getByText("Implement private guest booking")).not.toBeNull();
   expect(within(ongoing).queryByText("Add calendar export")).toBeNull();
   expect(within(ongoing).getByText("Only the guest may recover their booking")).not.toBeNull();
-  expect(within(ongoing).getByText(/Uses reviewed definition 2 and design 3/)).not.toBeNull();
+  expect(within(ongoing).getByText(/Saved scope: reviewed definition 2 and design 3/)).not.toBeNull();
   expect(within(latest).getByText("Add calendar export")).not.toBeNull();
   expect(within(latest).queryByText("Implement private guest booking")).toBeNull();
 
@@ -236,7 +236,7 @@ it("keeps one cancellation notice beside the exact scope and reveals technical r
   expect(within(details).getByText(reason)).not.toBeNull();
   expect(within(details).getByText(activityReason)).not.toBeNull();
   expect(within(build).getByText("Build private guest checkout").closest("details")).toBeNull();
-  expect(within(build).getByText(/Uses reviewed definition 2 and design 3/).closest("details")).toBeNull();
+  expect(within(build).getByText(/Saved scope: reviewed definition 2 and design 3/).closest("details")).toBeNull();
   expect(within(build).getAllByText("Further work cancelled.")).toHaveLength(1);
   expect(within(build).getByText("Recorded status. Open the run to reconcile its current outcome.")).not.toBeNull();
   expect(within(build).queryByText(/does not prove the current application is ready/)).toBeNull();

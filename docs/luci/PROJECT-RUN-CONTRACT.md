@@ -100,6 +100,17 @@ persist both run IDs in `registry.Session` **before** `backend.Create`. The
 session request must match the reserved immutable implementation/connection
 selection. Independent sessions omit both fields. Unknown/partial pairs fail.
 
+Revision metadata alone is not immutable delivery. A reviewed coding child
+receives canonical document bytes captured from the same approved journey
+snapshot through its separate, private read-only context mount. Its descriptor
+is recorded before backend allocation. The shared checkout remains writable and
+can contain newer amendments; neither the agent nor session lifecycle silently
+replaces those amendments with the captured bundle. Resume/restart verifies the
+original bundle before allocation or destructive replacement. Legacy sessions
+without it retain history and explicit stop/reconcile/receipt recovery, but need
+a new reviewed run for further allocation. See the reviewed-session delivery
+contract in [API.md](API.md).
+
 Serialize reservation/admission under the same per-account run lock; persist
 deduplication and reservation together. Revalidate approvals, connection and
 worktree immediately before allocation. A second request finds the reserved

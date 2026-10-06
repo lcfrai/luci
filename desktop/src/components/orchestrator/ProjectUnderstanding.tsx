@@ -28,7 +28,7 @@ function BuildScope({ run, title, onInspect }: { run: OrchestratorRunSummary; ti
     {run.scopeOmitted ? <p>{run.taskCount ?? 0} selected tasks / {run.requirementCount ?? 0} outcomes; inspect this build for its full saved scope.</p>
       : run.tasks?.length ? <ul>{run.tasks.map(task => <li key={task.id}>{task.title}</li>)}</ul> : <p>The selected tasks are available in the build workspace.</p>}
     {!!run.requirements?.length && <details><summary>Outcomes this build must prove</summary><ul>{run.requirements.map(requirement => <li key={requirement.id}><strong>{requirement.title}</strong><p>{requirement.acceptance}</p></li>)}</ul></details>}
-    {!!run.specificationRevision && <p className="understanding-note">Uses reviewed definition {run.specificationRevision}{run.designRevision ? ` and design ${run.designRevision}` : ""}. Later edits do not silently change work already started.</p>}
+    {!!run.specificationRevision && <p className="understanding-note">Saved scope: reviewed definition {run.specificationRevision}{run.designRevision ? ` and design ${run.designRevision}` : ""}. Review amendments before starting another build. Open the coding session to inspect its delivered inputs.</p>}
     {!pending && run.state === "complete" && <p>This outcome was accepted. Historical acceptance does not guarantee current release health.</p>}
     {!pending && run.reason && (run.state !== "complete" || !run.valid) && <p>{run.reason}</p>}
     {pending && <p className="understanding-note">Recorded status. Open the run to reconcile its current outcome.</p>}

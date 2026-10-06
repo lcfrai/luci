@@ -10,6 +10,7 @@ import { Terminal } from "../Terminal";
 import { LinkedWorktreeNote } from "./LinkedWorktreeNote";
 import { SessionPaneFooter, attachLabel } from "./SessionPaneFooter";
 import { SessionPaneHeader } from "./SessionPaneHeader";
+import { ReviewedContextNote } from "./ReviewedContextNote";
 import { selectSession, selectWorktreeById } from "../../store/selectors";
 import { useCockpit } from "../../store/store";
 import type { SessionId } from "../../store/types";
@@ -193,7 +194,10 @@ export function SessionPane({
       aria-label={`${worktree?.name ?? session.title} — ${session.status}`}
       onPointerDown={onPointerDown}
     >
-      <SessionPaneHeader session={session} worktree={worktree} variant={variant} />
+      <div className="pane-heading">
+        <SessionPaneHeader session={session} worktree={worktree} variant={variant} />
+        <ReviewedContextNote session={session} className="pane-context-note" />
+      </div>
       <div className="pane-body" ref={bodyRef} tabIndex={-1}>
         {/* Unconditional, for every status — known defect 3. readOnly is the ONLY thing
             `exited` changes, and even then the scrollback stays: the transcript is the

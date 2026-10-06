@@ -403,6 +403,11 @@ func TestProjectRunReplayMatchesImmutableSelectionWithoutReadingCurrentSource(t 
 	if !projectRunSessionRequestMatches(req, sess) {
 		t.Fatal("same reserved selection did not reuse existing child")
 	}
+	legacy := sess.Clone()
+	legacy.OpeningPrompt = product.LegacyImplementationOpeningPrompt(bound)
+	if !projectRunSessionRequestMatches(req, legacy) {
+		t.Fatal("legacy live-context receipt could not be recovered without allocating a new child")
+	}
 	for _, alter := range []func(*sessionCreateRequest){
 		func(r *sessionCreateRequest) { r.Model = "other-model" },
 		func(r *sessionCreateRequest) { r.PermissionMode = "bypass" },

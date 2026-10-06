@@ -85,11 +85,19 @@ func projectRunSessionRequestMatches(req sessionCreateRequest, existing registry
 	if req.ImplementationContext == nil || existing.ImplementationContext == nil || !sameImplementationSelection(req.ImplementationContext, product.ImplementationContextSelection(existing.ImplementationContext)) {
 		return false
 	}
-	prompt := product.ImplementationOpeningPrompt(existing.ImplementationContext)
-	if strings.TrimSpace(req.OpeningPrompt) != "" {
-		prompt += "\n\nAdditional direction supplied for this run:\n" + req.OpeningPrompt
+	prompts := []string{product.ImplementationOpeningPrompt(existing.ImplementationContext)}
+	if existing.ReviewedContext == nil {
+		prompts = append(prompts, product.LegacyImplementationOpeningPrompt(existing.ImplementationContext))
 	}
-	return prompt == existing.OpeningPrompt
+	for _, prompt := range prompts {
+		if strings.TrimSpace(req.OpeningPrompt) != "" {
+			prompt += "\n\nAdditional direction supplied for this run:\n" + req.OpeningPrompt
+		}
+		if prompt == existing.OpeningPrompt {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *API) beginProjectRunSession(w http.ResponseWriter, r *http.Request, req sessionCreateRequest, candidate registry.Session) (product.ProjectRunSessionAdmission, bool) {

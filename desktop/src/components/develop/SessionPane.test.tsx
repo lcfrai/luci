@@ -4,7 +4,7 @@
 //
 // No jest-dom (shared-shape §3C): plain DOM property assertions only.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SessionPane } from "./SessionPane";
 import { ApiError } from "../../api/client";
@@ -122,6 +122,29 @@ describe("SessionPane", () => {
       expect(screen.getByTestId("terminal").getAttribute("data-session")).toBe("s-1");
       view.unmount();
     }
+  });
+
+  it("distinguishes captured inputs from older live context without replacing the terminal", () => {
+    const implementationContext = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"], briefDigest: "brief-2", planDigest: "plan-3", specificationDigest: "spec-6", designPlanDigest: "design-8", worktreeId: "w-1", sourceCommit: "a".repeat(40), sourceDigest: "source-a", sourceDirty: false, taskTitles: ["Build editor"], requirementIds: ["R-EDIT"] };
+    const session = seed({ implementationContext });
+    render(<SessionPane sessionId={session.id} variant="column" />);
+    const terminal = screen.getByTestId("terminal");
+    expect(screen.getByRole("note", { name: "Agent context" }).textContent).toContain("Stop it and start a new reviewed run");
+    act(() => useCockpit.getState().upsertSession({ ...session, reviewedContextDelivery: { status: "captured", version: 1, digest: "a".repeat(64) } }));
+    expect(screen.getByRole("note", { name: "Agent context" }).textContent).toContain("Reviewed inputs were captured at start");
+    expect(screen.getByTestId("terminal")).toBe(terminal);
+    act(() => useCockpit.getState().upsertSession({ ...session, status: "exited", reviewedContextDelivery: { status: "legacy-live" } }));
+    expect(screen.getByRole("note", { name: "Agent context" }).textContent).toContain("Start a new reviewed run to use captured inputs");
+    expect(screen.getByRole("note", { name: "Agent context" }).textContent).not.toContain("Stop it");
+    expect(screen.getByTestId("terminal")).toBe(terminal);
+    act(() => useCockpit.getState().upsertSession({ ...session, reviewedContextDelivery: { status: "captured", version: 1, digest: "" } }));
+    expect(screen.getByRole("note", { name: "Agent context" }).textContent).toContain("Context delivery is unconfirmed");
+  });
+
+  it("does not label a manual session as a reviewed-context delivery", () => {
+    const session = seed();
+    render(<SessionPane sessionId={session.id} variant="column" />);
+    expect(screen.queryByRole("note", { name: "Agent context" })).toBeNull();
   });
 
   it("wires stdin for every status except exited", () => {

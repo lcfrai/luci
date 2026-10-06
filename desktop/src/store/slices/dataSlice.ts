@@ -97,6 +97,9 @@ export function sameSession(a: Session, b: Session): boolean {
   for (const k of keys) {
     if (k === "implementationContext") {
       if (!sameImplementationContext(a.implementationContext, b.implementationContext)) return false;
+    } else if (k === "reviewedContextDelivery") {
+      const left = a.reviewedContextDelivery, right = b.reviewedContextDelivery;
+      if (left !== right && (!left || !right || left.status !== right.status || left.version !== right.version || left.digest !== right.digest)) return false;
     } else if (a[k] !== b[k]) return false;
   }
   return true;

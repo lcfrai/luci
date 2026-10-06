@@ -5,7 +5,7 @@ import { productApi, type Brief, type ImplementationPlan, type RequirementCovera
 import { resetCockpit, useCockpit } from "../../store/store";
 import type { ImplementationContext } from "../../store/types";
 import { aBranch, aHarness, aProject, aSession, aWorktree } from "../../test/fixtures";
-import { ProjectPlan } from "./ProjectPlan";
+import { implementationPrompt, ProjectPlan } from "./ProjectPlan";
 import { DraftNavigationDialog } from "../common/DraftNavigationDialog";
 
 const { createSession } = vi.hoisted(() => ({ createSession: vi.fn() }));
@@ -33,17 +33,32 @@ it("binds only unfinished saved tasks and canonical handoff revisions after pick
   await waitFor(() => expect((start as HTMLButtonElement).disabled).toBe(false));
   await userEvent.click(start);
   const prompt = screen.getByLabelText("Opening prompt") as HTMLTextAreaElement;
-  expect(prompt.value).toContain(".luci/design-handoff.json"); expect(prompt.value).toContain(".luci/design-handoff.md");
+  expect(prompt.value).toContain("Use the captured reviewed context supplied by Luci for this session");
+  expect(prompt.value).toContain("Read the captured specification for the exact criteria");
+  expect(prompt.value).toContain("do not substitute them for the captured scope");
+  expect(prompt.value).not.toMatch(/LUCI\.md|\.luci\//);
   expect(prompt.value).toContain("brief is revision 2"); expect(prompt.value).toContain("implementation plan is revision 3");
   expect(prompt.value).toContain("no task-specific requirement links");
   expect(createSession).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("button", { name: "Create session" }));
   await screen.findByText("Bound implementation · Starting");
+  expect(createSession.mock.calls[0][0].openingPrompt).toBe(prompt.value);
   expect(createSession.mock.calls[0][0].implementationContext).toEqual({ projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["t-1", "t-2"] });
   expect((screen.getByLabelText("Progress for task 1") as HTMLSelectElement).value).toBe("todo");
   expect((screen.getByLabelText("Progress for task 2") as HTMLSelectElement).value).toBe("doing");
   expect(save).not.toHaveBeenCalled();
   expect(useCockpit.getState().sessions["s-bound"].implementationContext?.sourceDigest).toBe("source-a");
+});
+
+it("keeps an unbound prompt honest about live checkout context without claiming captured inputs", () => {
+  const task = { ...plan.tasks[0], requirementIds: ["R-EDIT"] };
+  const prompt = implementationPrompt(brief, plan, task);
+  expect(prompt).toContain("Read LUCI.md, .luci/plan.json");
+  expect(prompt).toContain(".luci/design-handoff.json and .luci/design-handoff.md");
+  expect(prompt).toContain("Read .luci/specification.json for the exact criteria.");
+  expect(prompt).toContain("Work on this task: Build editor");
+  expect(prompt).toContain("This task links: R-EDIT.");
+  expect(prompt).not.toContain("captured");
 });
 
 it("requires current definition and design approvals and provides their review paths", async () => {

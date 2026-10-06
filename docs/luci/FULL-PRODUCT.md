@@ -14,6 +14,53 @@ none is relabelled as acceptance of the new candidate.
 
 ## Latest continuing checkpoint
 
+The current `85f830e0` package passes all ten collaborative coding/amendment,
+reviewed Git commit, independent Docker check, preview and replacement groups.
+It also passes all three real local-operation / delayed-HTTPS-provider groups:
+the local app opens and stops while provider discovery remains pending; actual
+provider failure and explicit retry recover without changing identity, source,
+context or permissions. Both runtime windows finish with zero owned resources
+and unchanged protected images. These use controlled providers, not real model
+reasoning. Original fixture failures and their narrow corrections remain in
+`artifacts/quality-connected-amendment/` and
+`artifacts/quality-platform-provider-isolation/85f830e0-attempt-3/`.
+
+A separate core defect is now the active correction: reviewed sessions retained
+immutable revision metadata, but their delivered prompt read mutable checkout
+context. A teammate's amendment could therefore change the files read by an
+already-running agent. The real API regression reproduces six changed exports
+on the same child, with canonical edits, source and Git staging retained.
+The installed `85f830e0` before-fix witness independently confirms the defect:
+a real coding child reads approved A, a second browser saves Definition/Design B,
+and that same child rereads five changed exports and the unapproved requirement.
+It uses exactly one Create/Start and is explicitly stopped through the UI before
+the intended context-drift assertion; independent cleanup finds zero owned
+resources and unchanged image pins. The earlier auxiliary-provider harness
+failure is retained separately.
+The correction captures canonical reviewed bytes into a separate read-only,
+session-owned bundle and keeps ordinary project files editable. Restart/resume
+must verify that bundle; older sessions cannot invent missing delivery evidence.
+The UI distinguishes recorded captured inputs from older unconfirmed delivery
+without replacing the terminal. Its 2,075 frontend cases pass across the complete
+suite and a 43-case contract/copy correction run; TypeScript passes. The full
+Go suite passes 2,165 outcomes with 22 skips; all four affected packages pass
+1,097 race outcomes with four skips. Windows API test and Darwin API build
+cross-compilation pass, with all 675 Go inputs unchanged. These are source
+checks, not native execution. A final review also removed competing live-context
+instructions from the built-in task launcher; its 11 tests and the 30 session-pane
+tests pass with TypeScript, retaining all earlier receipts. Matching installed
+same-child reread and recovery acceptance remain open. See `artifacts/quality-reviewed-context-isolation/` and
+`artifacts/quality-reviewed-context-ui/source-validation.json`.
+
+The bounded `85f830e0` responsiveness diagnostic completes exactly three actions,
+with no repeated attempt and no reproduced tail miss. Both observed status
+round trips are dominated by their actual Docker CLI probe, but this does not
+explain the previous long outliers or establish a fix. Negative profiler sample
+deltas prohibit naive leaf CPU totals. The responsiveness gate remains open;
+`artifacts/quality-responsiveness/85f830e0-bounded-diagnostic.md` records limits.
+
+### Earlier continuing checkpoints
+
 The full product goal remains open. Clean `f388ad44` has the installed phone
 handoff and connected-recovery evidence recorded below. It also passes eight
 installed full-sandbox restart/recovery groups: the same live Codex child,

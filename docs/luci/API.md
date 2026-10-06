@@ -261,6 +261,28 @@ the original task selection and worktree, and captures its new run's starting
 source; it cannot silently retag a conversation to different tasks. Changed
 reviewed inputs require a new run from the current plan.
 
+Reviewed session creation also captures the actual canonical documents from the
+same approved state, rather than asking the agent to reread mutable checkout
+exports. Eight context files and a versioned manifest are stored in a private,
+session-owned bundle, bounded to 32 MiB of document bytes, and mounted read-only
+at `/home/dev/.luci-reviewed-context`. Both opening and harness guidance name
+that directory as the selected scope. The writable checkout remains unchanged;
+teammates can save amendments without replacing the agent's delivered inputs.
+
+The optional response-only `reviewedContextDelivery` is
+`{status:"captured",version:1,digest:<manifest SHA-256>}` for a captured session,
+or `{status:"legacy-live"}` for an older reviewed session without a bundle.
+Manual sessions omit it. This is the recorded delivery receipt, not a fresh
+filesystem integrity check on every poll; no host path or document body is
+returned in the session DTO. Restart verifies the bundle before destroying the
+current sandbox. Resume/fork verifies and copies its original bytes into an
+independent child-owned directory; source-code capture may advance separately.
+Missing, altered, foreign or unsupported legacy bundles refuse new allocation
+with guidance to start a new reviewed run. Existing legacy receipt replay,
+history, stop and reconciliation remain available, but an already-running old
+container does not acquire a frozen mount retroactively. Kill retains the bundle;
+Forget removes only that stopped session's owned copy before deleting its record.
+
 An unlinked task is supported without inventing requirement coverage. Explicit
 `expectedSpecificationRevision` binds even an unlinked saved plan to the current
 approved specification. The canonical opening prompt includes the saved

@@ -35,8 +35,9 @@ func (a *API) validateSessionImplementation(w http.ResponseWriter, projectID, wo
 	return true
 }
 
-func (a *API) bindSessionImplementation(w http.ResponseWriter, r *http.Request, req *sessionCreateRequest, path string, source registry.Session) (*registry.ImplementationContext, bool) {
+func (a *API) bindSessionImplementation(w http.ResponseWriter, r *http.Request, req *sessionCreateRequest, path string, source registry.Session) (*product.ReviewedContextCapture, bool) {
 	selection := req.ImplementationContext
+	var capture *product.ReviewedContextCapture
 	if source.ImplementationContext != nil {
 		if source.WorktreeID != req.WorktreeID {
 			httpx.WriteProblem(w, 409, httpx.CodeConflict, "A reviewed task cannot be moved into a different worktree by resuming its conversation. Start a new run from the matching plan.", nil)
@@ -48,6 +49,12 @@ func (a *API) bindSessionImplementation(w http.ResponseWriter, r *http.Request, 
 		original := product.ImplementationContextSelection(source.ImplementationContext)
 		if selection != nil && !sameImplementationSelection(selection, original) {
 			httpx.WriteProblem(w, 409, httpx.CodeConflict, "Resuming retains the original reviewed tasks. Start a new session to work on a different plan.", nil)
+			return nil, false
+		}
+		var err error
+		capture, err = a.readReviewedContext(source.ID, source.ImplementationContext, source.ReviewedContext)
+		if err != nil {
+			a.reviewedContextProblem(w, source.ID, err)
 			return nil, false
 		}
 		selection = original
@@ -64,7 +71,20 @@ func (a *API) bindSessionImplementation(w http.ResponseWriter, r *http.Request, 
 		httpx.WriteProblem(w, 409, httpx.CodeConflict, "The selected task belongs to a different project. Open its saved plan to start the run.", nil)
 		return nil, false
 	}
-	bound, err := a.deps.Product.BindImplementationContext(r.Context(), *selection, req.WorktreeID, path)
+	var bound *registry.ImplementationContext
+	var err error
+	if capture == nil {
+		capture, err = a.deps.Product.CaptureImplementationContext(r.Context(), *selection, req.WorktreeID, path)
+		if err == nil {
+			bound = capture.Binding
+		}
+	} else {
+		// Resume keeps the original delivered bytes. Only the starting source
+		// observation changes; that code is deliberately writable and may have
+		// advanced since the original session.
+		bound, err = a.deps.Product.BindImplementationContext(r.Context(), *selection, req.WorktreeID, path)
+		capture.Binding = bound
+	}
 	if err != nil {
 		httpx.WriteProblem(w, 409, httpx.CodeConflict, err.Error(), nil)
 		return nil, false
@@ -74,5 +94,5 @@ func (a *API) bindSessionImplementation(w http.ResponseWriter, r *http.Request, 
 		prompt += "\n\nAdditional direction supplied for this run:\n" + req.OpeningPrompt
 	}
 	req.OpeningPrompt = prompt
-	return bound, true
+	return capture, true
 }

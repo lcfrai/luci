@@ -123,6 +123,19 @@ describe("dataSlice", () => {
     expect(useCockpit.getState().sessions["s-bound"].implementationContext).toBeUndefined();
   });
 
+  it("keeps equal delivery receipts stable and surfaces changed or missing delivery across polls", () => {
+    const original = aSession({ id: "s-delivery", worktreeId: "w-1", reviewedContextDelivery: { status: "captured", version: 1, digest: "a".repeat(64) } });
+    const s = useCockpit.getState();
+    s.replaceSessions([original], ["w-1"]);
+    s.replaceSessions([structuredClone(original)], ["w-1"]);
+    expect(useCockpit.getState().sessions[original.id]).toBe(original);
+    for (const receipt of [{ status: "legacy-live" as const }, { status: "captured" as const, version: 1, digest: "b".repeat(64) }, undefined]) {
+      const updated = { ...original, reviewedContextDelivery: receipt };
+      s.replaceSessions([updated], ["w-1"]);
+      expect(useCockpit.getState().sessions[original.id]).toBe(updated);
+    }
+  });
+
   it("replaces the session object when a field actually changed", () => {
     const s = useCockpit.getState();
     s.replaceSessions(sessionsOn("w-1", ["s-1"]), ["w-1"]);
