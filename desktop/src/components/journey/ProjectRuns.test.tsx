@@ -86,6 +86,23 @@ it.each(['changed', 'unavailable'] as const)('keeps active session access and re
   expect(create).not.toHaveBeenCalled(); expect(reserve).not.toHaveBeenCalled();
 });
 
+it('retains the original Open trigger across a delayed session read so its destination can protect newer focus', async () => {
+  vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'coding', operations: [operation] })]);
+  let resolve!: (session: ReturnType<typeof aSession>) => void;
+  vi.spyOn(api, 'getSession').mockReturnValue(new Promise(done => { resolve = done; }));
+  const opened = vi.fn();
+  render(<><input aria-label="Other work" /><ProjectRuns {...props()} onOpenCodingSession={opened} /></>);
+  const trigger = await screen.findByRole('button', { name: 'Open coding session' });
+  await userEvent.click(trigger);
+  const other = screen.getByRole('textbox', { name: 'Other work' }); await userEvent.click(other);
+  await act(async () => resolve(aSession({ id: operation.childId, projectId: 'p-1', branchId: 'b-1', worktreeId: 'w-1', projectRunId: 'run-1', projectRunOperationId: operation.id })));
+  await waitFor(() => expect(opened).toHaveBeenCalledTimes(1));
+  expect(opened.mock.calls[0][0].projectId).toBe('p-1');
+  expect(opened.mock.calls[0][0].sessionId).toBe(operation.childId);
+  expect(opened.mock.calls[0][0].origin).toBe(trigger);
+  expect(document.activeElement).toBe(other);
+});
+
 it('preserves accepted evidence and stopped-session status separately from current context freshness', async () => {
   const stopped = makeRun({ id: 'run-stopped', state: 'awaiting-checks', operations: [{ ...operation, status: 'cancelled' }], contextFreshness: { status: 'changed', reason: 'The implementation plan changed.' }, allowedActions: ['join-check', 'reconcile', 'start-coding'] });
   const accepted = makeRun({ state: 'complete', contextFreshness: { status: 'changed', reason: 'The design was reviewed again.' }, acceptance: { acceptedAt: '2026-10-06T01:00:00Z', checkId: 'check-1', releaseId: 'release-1' }, observation: { state: 'awaiting-release', valid: true, observedAt: '2026-10-06T00:59:00Z', reason: 'Matching evidence' }, allowedActions: ['reconcile'] });

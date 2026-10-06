@@ -32,6 +32,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/backend/dockerbe"
 	"github.com/lcfrai/luci/control-plane/internal/backend/katabe"
+	"github.com/lcfrai/luci/control-plane/internal/diagnostics"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/instance"
 	"github.com/lcfrai/luci/control-plane/internal/management"
@@ -256,6 +257,11 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			return err
 		}
 	}
+	var recordFailure func(string, error) error
+	if recorder := openWorkerDiagnostics(cfg, log); recorder != nil {
+		defer recorder.Close()
+		recordFailure = recorder.Record
+	}
 	handler, err := api.New(api.Deps{
 		Store:              store,
 		Backend:            be,
@@ -270,6 +276,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		ReadyTimeout:       cfg.ReadyTimeout,
 		BackendReady:       rp.BackendReady,
 		Log:                log,
+		RecordFailure:      recordFailure,
 		// Created per worktree, at the first session that needs it.
 		ConversationsDir: cfg.ConversationsDir,
 		// Where every project is, so the region a global git file may not be
@@ -434,6 +441,22 @@ func newScanner(cfg Config, git project.Runner) (*project.Scanner, error) {
 		return nil, fmt.Errorf("the conversation stores' root %q is not absolute, so a worktree location inside a store cannot be refused: every sandbox mounts its store read-write", cfg.ConversationsDir)
 	}
 	return project.NewScanner(cfg.ProjectsDir, git).WithProjectBoundary().WithWritableDirs(cfg.ConversationsDir), nil
+}
+
+// Worker stderr remains discarded by the gateway. Retain only classified API
+// failures in that worker's private state, without adding a readable API surface.
+func openWorkerDiagnostics(cfg Config, log *slog.Logger) *diagnostics.Recorder {
+	if !cfg.Worker {
+		return nil
+	}
+	recorder, err := diagnostics.New(cfg.StateDir)
+	if err != nil {
+		// Do not turn an unavailable diagnostic sink into a workspace outage,
+		// or echo filesystem paths/error strings through a new logging surface.
+		log.Warn("Private worker failure diagnostics are unavailable")
+		return nil
+	}
+	return recorder
 }
 
 // reaperConfigFor is the Config-to-reaper.Config mapping, extracted from serve

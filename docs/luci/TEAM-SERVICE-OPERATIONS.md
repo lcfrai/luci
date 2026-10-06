@@ -115,6 +115,15 @@ exports. A project import cannot activate managed execution or establish a paid
 subscription. Unknown or malformed persisted service states prevent startup.
 Suspended execution returns `403 team_service_suspended`; lost membership and
 project grants retain their existing separate authorization failures.
+The error detail distinguishes an operator suspension from unverified
+subscription access. Operator suspension directs members to the service
+operator; subscription admission directs an owner to the team's **Service and
+data** settings and other members to a team owner. An elapsed verified billing
+period is described as such, without assuming whether Stripe has renewed it.
+This guidance performs no provider refresh, checkout or other operation; the
+person explicitly verifies status or resumes the existing checkout. Existing
+workloads remain owned stop/cancel operations, and payment cannot override an
+operator suspension.
 
 ## Verification and remaining production gates
 

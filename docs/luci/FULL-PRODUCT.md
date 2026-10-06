@@ -14,6 +14,48 @@ none is relabelled as acceptance of the new candidate.
 
 ## Latest continuing checkpoint
 
+The full product goal remains open. The installed `171a1dd1` inspector now
+passes actual owner and read-only teammate inspection of all four original
+captured documents while the amended definition and design remain visible.
+This reuses genuine stopped-session state through supported owner recovery;
+account/grant setup is explicitly recorded, with no response substitutions,
+agent execution or provider requests. The captured bundle, native history and
+original run stay unchanged. Evidence:
+`artifacts/quality-reviewed-context-isolation/171a1dd1-inspector-layout-1/`.
+
+The phone diagnosis measured only 28.97 px of terminal height with the new
+inspector action. The responsive correction lets the Develop workflow scroll
+and gives the terminal its own 240 px minimum, keeping scope, controls and the
+open project overview available. A separately labelled source-CSS witness
+measures 374 × 240 px with native focus and the same terminal DOM. Matching
+package acceptance remains required, including explicit opening of an already
+selected session and preserving newer focus during a delayed request.
+
+Installed native lifecycle acceptance exposed a real resume failure after a
+successful service restart. Copying genuine retained Codex state reproduces the
+failure: Codex's temporary launcher aliases are rejected by the history copier.
+The correction excludes that provider's transient directory without following
+links, retaining the strict guards and independent copies for credentials,
+conversation history and database files. Forty-eight affected race outcomes and
+both real-home copy modes pass; a new installed lifecycle run is still required.
+Private worker failures now also have bounded fixed-code diagnostics, with no
+raw error strings, request data or public read endpoint.
+
+Subscription admission now explains the actual recovery authority: owners can
+review and verify access in Service and data; members ask an owner; an operator
+suspension still requires the operator. This changes guidance only, with no
+implicit provider request or change to payment/access rules. Focused source
+checks pass; matching installed rendering is pending. The combined source passes
+2,256 Go outcomes with 22 skips, 860 affected race outcomes with four skips,
+Windows API-test/service compilation and Darwin service compilation. All 687
+Go inputs remain unchanged; these are compile checks, not native execution.
+Affected frontend checks and TypeScript pass with the interrupted DOM-matcher
+attempt and its correction retained. A matching clean package is next.
+No live model, merchant, managed-host or public-release claim follows from these
+scoped corrections.
+
+## Earlier context-delivery and inspector checkpoint
+
 The clean `98e329ea` package now has a scoped, independently checked context-
 delivery witness: one actual coding child reads approved A, a teammate saves
 Definition/Design B through the UI, and that same child rereads the original

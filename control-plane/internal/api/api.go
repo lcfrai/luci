@@ -138,6 +138,11 @@ type Deps struct {
 	// Log is where a 500's real cause goes. Nil means slog.Default().
 	Log *slog.Logger
 
+	// RecordFailure optionally retains bounded, classified host diagnostics.
+	// It must not expose raw errors or request data. Recording failure never
+	// replaces the original HTTP error; ordinary reads still change no product state.
+	RecordFailure func(operation string, cause error) error
+
 	// Image is the sandbox image every session runs, e.g.
 	// "luci/sandbox:dev". Empty means that default.
 	Image string
@@ -501,6 +506,9 @@ func (a *API) grantHealthzOrigin(w http.ResponseWriter, r *http.Request) {
 // to the configured logger. A private worker may discard its output, so the
 // response must not promise a persisted log or reveal a path, container or token.
 func (a *API) internal(w http.ResponseWriter, r *http.Request, op string, err error) {
+	if a.deps.RecordFailure != nil {
+		_ = a.deps.RecordFailure(op, err)
+	}
 	a.deps.Log.Error("api: "+op+" failed",
 		"method", r.Method, "path", r.URL.Path, "err", err)
 	httpx.WriteProblem(w, http.StatusInternalServerError, httpx.CodeInternal,

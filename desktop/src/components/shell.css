@@ -173,3 +173,49 @@
     block-size: 360px;
   }
 }
+
+/* A coding session has its own readable terminal, scope and controls. On a
+   phone, let the whole Develop journey scroll instead of dividing the space
+   left below the toolbar between several independently clipped regions. */
+@media (max-width: 760px) {
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) {
+    grid-template-rows: auto auto;
+    align-content: start;
+    overflow-y: auto;
+    scroll-padding-block: 12px;
+  }
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .shell-main,
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .shell-workspace {
+    display: block;
+    overflow: visible;
+  }
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .shell-lens,
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .orchestrator-body {
+    overflow: visible;
+  }
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .develop-workspace,
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .orchestrator-open {
+    block-size: auto;
+    overflow: visible;
+  }
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .project-work,
+  .shell:has(.develop-workspace:not(.develop-workspace--planning)) .project-runs {
+    max-block-size: none;
+    overflow: visible;
+  }
+  .shell .develop-workspace:not(.develop-workspace--planning) > .develop-sessions {
+    flex: none;
+    block-size: 360px;
+  }
+  .shell .develop-workspace > .develop-sessions:has(> .cols-scroll) {
+    block-size: auto;
+  }
+  .shell .develop-workspace .cols-scroll {
+    height: auto;
+  }
+  .shell .develop-workspace .cols-pane > .pane:not(.pane--gone) {
+    /* The minimum belongs to the terminal row, so longer scope notes, the
+       inspector action and exit details add space rather than taking it away. */
+    grid-template-rows: auto minmax(240px, 1fr) auto auto;
+  }
+}

@@ -18,7 +18,7 @@ import { ORCHESTRATOR_OPEN, type OrchestratorOpenDetail } from '../orchestrator/
 import './project-runs.css';
 
 export interface ProjectRunDraft { implementationContext: ImplementationContextRequest; worktreeId: string }
-type OpenCodingSessionTarget = { scope: string; projectId: string; sessionId: string };
+type OpenCodingSessionTarget = { scope: string; projectId: string; sessionId: string; origin: Element | null };
 type Dialog = 'join-check' | 'join-release' | 'accept' | 'cancel';
 type ReleaseChoice = Pick<Release, 'id' | 'projectId' | 'commit' | 'status' | 'target'>;
 const releaseKey = (release: ReleaseChoice) => JSON.stringify([release.target, release.id]);
@@ -197,6 +197,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     if (!child || !run) return;
     const before = useCockpit.getState();
     if (before.pendingNavigation) return;
+    const origin = document.activeElement;
     const session = await api.getSession(child);
     if (!alive.current || !mayRead.current) return;
     const currentNavigation = useCockpit.getState();
@@ -209,7 +210,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
       current.selectWorktree(session.worktreeId); current.focusSession(session.id);
       const focused = useCockpit.getState();
       if (navigationScope && !focused.pendingNavigation && focused.lens === 'develop' && focused.selection.projectId === projectId && focused.selection.branchId === session.branchId && focused.selection.worktreeId === session.worktreeId && focused.selection.sessionId === session.id) {
-        onOpenCodingSession?.({ scope: navigationScope, projectId, sessionId: session.id });
+        onOpenCodingSession?.({ scope: navigationScope, projectId, sessionId: session.id, origin });
       }
     }
   }
@@ -299,7 +300,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
         {run.codingBlocker && <p className="journey-warning">{run.codingBlocker.reason}</p>}
         {run.contextFreshness && <p className={contextNeedsReview(run) ? 'journey-warning' : 'journey-muted'}>{contextNeedsReview(run) && <strong>{run.contextFreshness.status === 'unavailable' ? 'Reviewed context unavailable. ' : 'Reviewed context changed. '}</strong>}{run.contextFreshness.reason}</p>}
         {run.acceptance && <p>Accepted {when(run.acceptance.acceptedAt)}. This historical acceptance is retained separately from current validity.</p>}
-        {run.observation ? <p className={run.observation.valid ? 'journey-muted' : 'journey-warning'}>{run.observation.valid ? 'Last observation valid' : 'Current evidence needs attention'} · {when(run.observation.observedAt)}.{(!run.acceptance || !run.observation.valid) && <> {run.observation.reason}</>}</p> : <p className="journey-muted">No observation recorded yet. Refreshing history does not run or reconcile operations.</p>}
+        {run.observation ? <p className={run.observation.valid ? 'journey-muted' : 'journey-warning'}>{run.observation.valid ? 'Last observation valid' : 'Current evidence needs attention'} · {when(run.observation.observedAt)}.{(!run.acceptance || !run.observation.valid) && (run.observation.reason !== run.reason || (run.state === 'ready' && codingBlocked(run))) && <> {run.observation.reason}</>}</p> : <p className="journey-muted">No observation recorded yet. Refreshing history does not run or reconcile operations.</p>}
         <div className="journey-actions">
           {primary && <Button disabled={!!busy || loading || (['verify', 'deploy', 'review-decisions'].includes(primary) && !navigationScope)} onClick={() => action(primary)}>{busy || actionLabel[primary]}</Button>}
           {run.codingBlocker && primary !== 'review-decisions' && <Button variant="secondary" disabled={!!busy || loading || !navigationScope} onClick={() => action('review-decisions')}>{actionLabel['review-decisions']}</Button>}

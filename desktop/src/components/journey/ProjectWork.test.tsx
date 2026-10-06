@@ -13,9 +13,10 @@ import { DraftNavigationDialog } from '../common/DraftNavigationDialog';
 import { ProjectWork } from './ProjectWork';
 
 const identity = vi.hoisted(() => ({ scope: 'account-a/workspace-a', read: true, edit: true }));
+const runActions = vi.hoisted(() => ({ open: undefined as undefined | ((target: { scope: string; projectId: string; sessionId: string; origin: Element | null }) => void) }));
 vi.mock('../../hooks/useProjectDraft', async original => ({ ...await original<typeof import('../../hooks/useProjectDraft')>(), useProjectDraftScope: () => identity.scope }));
 vi.mock('../../hooks/useProjectAccess', () => ({ useProjectAccess: () => ({ canRead: identity.read, canEdit: identity.edit, canExecute: identity.edit, canAssist: identity.edit, message: identity.read ? '' : 'Project reading access is unavailable.' }) }));
-vi.mock('./ProjectRuns', () => ({ ProjectRuns: () => null }));
+vi.mock('./ProjectRuns', () => ({ ProjectRuns: ({ onOpenCodingSession }: { onOpenCodingSession: typeof runActions.open }) => { runActions.open = onOpenCodingSession; return null; } }));
 const saved = context();
 const sketch: Design = { projectId: 'p-1', revision: 0, briefRevision: 0, frames: [], updatedAt: '' };
 const handoff = { ...saved.designPlan, revision: 2, status: 'approved' as const, screens: [
@@ -26,6 +27,7 @@ const git: GitState = { clean: true, branch: 'main', changes: [], log: [{ hash: 
 function deferred<T>() { let resolve!: (value: T) => void; return { promise: new Promise<T>(done => { resolve = done; }), resolve }; }
 beforeEach(() => {
   vi.restoreAllMocks(); localStorage.clear(); resetCockpit(); Object.assign(identity, { scope: 'account-a/workspace-a', read: true, edit: true });
+  runActions.open = undefined;
   vi.spyOn(productApi, 'brief').mockImplementation(async id => ({ ...saved.brief, projectId: id }));
   vi.spyOn(productApi, 'design').mockImplementation(async id => ({ ...sketch, projectId: id }));
   vi.spyOn(productApi, 'git').mockResolvedValue(git);
@@ -199,4 +201,61 @@ it('finishes a guarded overview plan navigation with focus in the plan after the
   await waitFor(() => expect(document.activeElement).toBe(region));
   expect(useCockpit.getState().lens).toBe('develop'); expect(discard).not.toHaveBeenCalled();
   expect(screen.queryByRole('dialog', { name: 'Keep your changes?' })).toBeNull();
+});
+
+function sessionWorkspace() {
+  useCockpit.setState(state => ({ selection: { ...state.selection, projectId: 'p-1', sessionId: 's-1' } }));
+  return render(<div className="develop-workspace"><button>Other work</button><ProjectWork projectId="p-1" /><section className="pane" data-session-id="s-1"><div className="pane-body"><textarea aria-label="Session input" /></div></section></div>);
+}
+function openCurrentSession(origin = document.activeElement) {
+  act(() => runActions.open?.({ scope: identity.scope, projectId: 'p-1', sessionId: 's-1', origin }));
+}
+
+it('explicitly reveals and focuses an already-selected coding session again without recreating its input', async () => {
+  const mounted = sessionWorkspace(); await screen.findByText('Design handoff revision 2 · Approved.');
+  const input = screen.getByRole('textbox', { name: 'Session input' });
+  const pane = mounted.container.querySelector<HTMLElement>('.pane')!;
+  const scroll = vi.spyOn(pane, 'scrollIntoView');
+  openCurrentSession(); await waitFor(() => expect(document.activeElement).toBe(input));
+  expect(scroll).toHaveBeenCalledWith({ block: 'start', inline: 'nearest' });
+  expect(mounted.container.querySelector<HTMLDetailsElement>('.project-work')?.open).toBe(false);
+  await userEvent.click(screen.getByRole('button', { name: 'Other work' }));
+  openCurrentSession(); await waitFor(() => expect(document.activeElement).toBe(input));
+  expect(scroll).toHaveBeenCalledTimes(2);
+  expect(screen.getByRole('textbox', { name: 'Session input' })).toBe(input);
+  act(() => notifyProjectContextChanged(identity.scope, 'p-1'));
+  await waitFor(() => expect(designPlanApi.get).toHaveBeenCalledTimes(2));
+  expect(scroll).toHaveBeenCalledTimes(2);
+});
+
+it.each(['new focus before response', 'new focus', 'new selection', 'pending navigation', 'read denial'])('does not reveal a session over %s before its scheduled focus transfer', async changed => {
+  const mounted = sessionWorkspace(); await screen.findByText('Design handoff revision 2 · Approved.');
+  const scroll = vi.spyOn(mounted.container.querySelector<HTMLElement>('.pane')!, 'scrollIntoView');
+  const frames: FrameRequestCallback[] = []; vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => { frames.push(callback); return frames.length; });
+  const other = screen.getByRole('button', { name: 'Other work' });
+  const origin = document.activeElement;
+  if (changed === 'new focus before response') other.focus();
+  openCurrentSession(origin);
+  if (changed === 'new focus') other.focus();
+  if (changed === 'new selection') act(() => useCockpit.setState(state => ({ selection: { ...state.selection, sessionId: 's-2' } })));
+  if (changed === 'pending navigation') act(() => {
+    useCockpit.getState().setUnsavedProjectDraft('draft', { projectId: 'p-1', lens: 'develop', label: 'Draft', retained: true, discard: vi.fn() });
+    useCockpit.getState().setLens('design');
+  });
+  if (changed === 'read denial') { identity.read = false; mounted.rerender(<div className="develop-workspace"><ProjectWork projectId="p-1" /></div>); }
+  act(() => frames.forEach(callback => callback(0)));
+  expect(scroll).not.toHaveBeenCalled();
+  if (changed.startsWith('new focus')) expect(document.activeElement).toBe(other);
+  if (changed === 'new focus before response') expect(mounted.container.querySelector<HTMLDetailsElement>('.project-work')?.open).toBe(true);
+});
+
+it('ignores coding-session destinations from another context scope or project', async () => {
+  const mounted = sessionWorkspace(); await screen.findByText('Design handoff revision 2 · Approved.');
+  const scroll = vi.spyOn(mounted.container.querySelector<HTMLElement>('.pane')!, 'scrollIntoView');
+  act(() => {
+    runActions.open?.({ scope: 'other-account', projectId: 'p-1', sessionId: 's-1', origin: document.activeElement });
+    runActions.open?.({ scope: identity.scope, projectId: 'p-2', sessionId: 's-1', origin: document.activeElement });
+  });
+  expect(mounted.container.querySelector<HTMLDetailsElement>('.project-work')?.open).toBe(true);
+  expect(scroll).not.toHaveBeenCalled();
 });

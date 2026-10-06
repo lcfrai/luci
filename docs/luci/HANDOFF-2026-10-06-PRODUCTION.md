@@ -24,38 +24,46 @@ continues while external commissioning and Windows CI access remain blocked.
 
 ## Latest source checkpoint
 
-Clean `98e329ea` proves actual same-child captured A survives a teammate's UI
-amendment B, with separately verified read-only delivery, writable canonical B,
-identity, explicit stop and cleanup. Its overall attempt remains failed on the
-390 px terminal-area assertion; exact failed dimensions were lost and are being
-measured on a private copied-state layout diagnostic. No phone pass is claimed.
+Installed `171a1dd1` now passes owner and true read-only teammate inspection of
+all four original captured documents while current amended context is visible.
+The genuine stopped session, reviewed bundle and historical run are retained;
+owner recovery and test grant setup are explicit. Earlier `98e329ea` separately
+proves the active agent keeps A after a teammate saves B. Neither result is live
+model reasoning or whole-product acceptance.
 
-The working follow-on adds human inspection of original captured documents for
-team readers without terminal privileges. Source validation passes full Go2,176/
-22 skips, affected race781/four skips, Windows/Darwin cross-compilation and frontend
-2,093-case coverage across complete/corrected runs plus TypeScript. Missing token
-import and the old workflow-prompt expectation were the two full-frontend failures;
-the 86-case correction passes. An independently found response-projection
-revocation window is fixed with a retained before-fix failure. Installed inspector,
-layout and bundle lifecycle acceptance remain open.
+The phone diagnosis exposed only 28.97 px of terminal height after the inspector
+action was added. The source correction uses normal scrolling and an independent
+240 px terminal minimum; its rendered CSS witness passes with the overview open.
+Explicit opening of the same session also respects focus moved during a delayed
+request. Matching immutable-package interaction acceptance remains required.
 
-Earlier packaged `85f830e0` passes all ten connected collaborative build groups
-and all three actual local-platform / delayed-provider groups, with owned cleanup
-and unchanged pins. Provider/model behavior is controlled fixture input.
-The newly confirmed highest-priority defect is immutable context delivery:
-active agents can reread amended checkout exports despite retaining old review
-metadata. The API before-fix witness reproduces this on the same running child.
-A separate read-only captured bundle, verified lifecycle reuse and truthful older-
-session guidance are implemented. Frontend 2,075 cases pass across the full
-run and corrected contract/copy expectations, plus TypeScript. The complete Go
-suite passes 2,165 outcomes / 22 skips and the four affected race packages pass
-1,097 / four skips. Windows API test and Darwin API build cross-compilation pass;
-all 675 Go inputs are unchanged. A final launcher prompt correction removes
-competing live-context instructions; 11 plan and 30 session-pane cases plus
-TypeScript pass. Installed reread and lifecycle evidence are still pending. Current source/evidence work is in
-`artifacts/quality-reviewed-context-isolation/` and `quality-reviewed-context-ui/`.
-The three-action responsiveness diagnostic did not reproduce earlier tail misses;
-it is not new performance acceptance.
+The installed lifecycle attempt on171 preserves a live child and captured inputs
+through service restart, then fails native resume before a second allocation.
+Genuine Codex state reproduces the failure because temporary launcher links were
+included in the strict history copy. The corrected copy excludes only that
+provider's transient directory while preserving native history and unsafe-link
+checks. Both real-home copy modes and 48 affected race outcomes pass; matching
+installed lifecycle still needs to run. Fixed-code worker diagnostics now make
+future internal failures inspectable privately without storing raw errors or
+request data; see [WORKER-DIAGNOSTICS.md](WORKER-DIAGNOSTICS.md).
+
+Subscription recovery guidance now distinguishes operator suspension from
+unverified subscription access, with separate owner/member next actions. The
+focused 50-outcome source check passes with one explicit fixture skip, and a
+no-payment installed driver is prepared. No financial policy or entitlement
+rule changed. Combined checks pass 2,256 Go outcomes/22 skips and 860 affected
+race outcomes/four skips, with 687 unchanged inputs. Windows API-test/service
+and Darwin service compilation pass; affected frontend checks and TypeScript
+pass. The next clean package and installed continuation remain required.
+
+Current evidence lives in `artifacts/quality-native-resume/`,
+`quality-worker-diagnostics/`, `quality-reviewed-context-inspector/`,
+`quality-reviewed-context-isolation/`, `quality-team-subscription-guidance/`
+and `quality-recovery-and-phone/`. Failed attempts retain their original scope.
+[FULL-PRODUCT.md](FULL-PRODUCT.md) and [QUALITY-WORKLIST.md](QUALITY-WORKLIST.md)
+separate the current corrections from the earlier checkpoints below. Continue
+through installed recovery, phone focus and billing guidance, then the remaining
+whole-product gates; a completed batch or updated PR does not close the goal.
 
 ### Earlier accepted checkpoints
 

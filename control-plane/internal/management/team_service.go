@@ -246,8 +246,13 @@ func serviceConfigurationRemoval(fields map[string]json.RawMessage) bool {
 }
 
 func (g *Gateway) authorizeTeamService(w http.ResponseWriter, r *http.Request, teamID string) bool {
+	actor, _, _ := ActorFromContext(r.Context())
 	g.mu.Lock()
 	active := g.teamServiceAllowsExecutionLocked(teamID)
+	detail := ""
+	if !active {
+		detail = g.teamServiceDenialLocked(teamID, actor.ID)
+	}
 	g.mu.Unlock()
 	if active {
 		return true
@@ -256,6 +261,27 @@ func (g *Gateway) authorizeTeamService(w http.ResponseWriter, r *http.Request, t
 	if teamServiceCleanup(r) {
 		return true
 	}
-	fail(w, 403, "team_service_suspended", "Managed team execution is suspended. Context, exports, owned stop/cancel operations and connection removal remain available with your existing permissions. Ask the service operator to restore execution access.")
+	fail(w, 403, "team_service_suspended", detail)
 	return false
+}
+
+// Guidance only: callers have already applied the existing admission decision.
+// Read saved state under g.mu without contacting Stripe or changing entitlement.
+// A manual suspension takes precedence; paying cannot restore operator access.
+func (g *Gateway) teamServiceDenialLocked(teamID, actorID string) string {
+	retained := " Context, exports, owned stop/cancel operations and connection removal remain available with your existing permissions. Existing workloads are not stopped automatically."
+	row, exists := g.state.Teams[teamID]
+	if !exists || effectiveTeamService(row.Service).Status == "suspended" || g.billing == nil {
+		return "Managed team execution is suspended. Ask the service operator to restore execution access." + retained
+	}
+	detail := "New team execution is unavailable because subscription access is not currently verified."
+	if b := row.Billing; b != nil && (b.Status == "active" || b.Status == "trialing") && b.PeriodEnd > 0 && b.PeriodEnd <= time.Now().Unix() {
+		detail = "New team execution is unavailable because the last verified subscription period has ended."
+	}
+	if row.Members[actorID].Role == "owner" {
+		detail += " Open the team's Service and data settings to review subscription status and verify it with Stripe. Resume an existing checkout or manage the subscription there; do not create another checkout to recover an uncertain payment."
+	} else {
+		detail += " Ask a team owner to open Service and data, review the subscription and verify it with Stripe."
+	}
+	return detail + retained
 }

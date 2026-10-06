@@ -48,6 +48,7 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
   const details = useRef<HTMLDetailsElement>(null);
   const planRegion = useRef<HTMLElement>(null);
   const [planFocus, setPlanFocus] = useState<{ origin: Element | null; fromDialog: boolean } | null>(null);
+  const [sessionFocus, setSessionFocus] = useState<{ sessionId: string; origin: Element | null } | null>(null);
   const verification = useCockpit(state => state.projectRunVerification);
   useEffect(() => {
     if (navigationScope && verification?.scope === navigationScope && verification.projectId === projectId && details.current) details.current.open = true;
@@ -124,6 +125,23 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
     }); });
     return () => { cancelAnimationFrame(frame); cancelAnimationFrame(second); };
   }, [planFocus, facts, access.canRead]);
+  useEffect(() => {
+    if (!sessionFocus) return;
+    const cancel = () => setSessionFocus(null);
+    document.addEventListener("pointerdown", cancel, true); document.addEventListener("keydown", cancel, true);
+    const frame = requestAnimationFrame(() => {
+      const current = useCockpit.getState();
+      if (alive.current && canRead.current && current.selection.projectId === projectId && current.selection.sessionId === sessionFocus.sessionId && !current.pendingNavigation && (document.activeElement === sessionFocus.origin || document.activeElement === document.body)) {
+        const workspace = details.current?.closest(".develop-workspace");
+        const pane = Array.from(workspace?.querySelectorAll<HTMLElement>(".pane[data-session-id]") ?? []).find(node => node.dataset.sessionId === sessionFocus.sessionId);
+        const input = pane?.querySelector<HTMLElement>(".pane-body textarea") ?? pane?.querySelector<HTMLElement>(".pane-body");
+        pane?.scrollIntoView?.({ block: "start", inline: "nearest" });
+        input?.focus({ preventScroll: true });
+      }
+      setSessionFocus(null);
+    });
+    return () => { cancelAnimationFrame(frame); document.removeEventListener("pointerdown", cancel, true); document.removeEventListener("keydown", cancel, true); };
+  }, [sessionFocus, projectId]);
   const definitionNeedsReview = !!facts && (facts.definition.status === "outdated" || facts.definition.briefRevision !== facts.brief.revision);
   const handoffNeedsReview = !!facts && (facts.handoff.status === "outdated" || facts.handoff.briefRevision !== facts.brief.revision || facts.handoff.specificationRevision !== facts.definition.revision || facts.handoff.sketchRevision !== facts.sketch.revision || definitionNeedsReview || (facts.handoff.status === "approved" && facts.definition.status !== "approved"));
   const reviewStatus = (status: string, stale: boolean) => stale ? "Needs review" : status === "approved" ? "Approved" : "Draft";
@@ -133,7 +151,12 @@ function ProjectWorkView({ projectId, children, expanded = true, navigationScope
     <>
     <ProjectRuns projectId={projectId} draft={runDraft} onDraftClose={() => setRunDraft(undefined)} onReviewPlan={() => { if (details.current) { details.current.open = true; details.current.scrollIntoView({ block: 'nearest' }); } }} onOpenCodingSession={target => {
       const current = useCockpit.getState();
-      if (target.scope === navigationScope && target.projectId === projectId && current.selection.projectId === projectId && current.selection.sessionId === target.sessionId && !current.pendingNavigation && details.current) details.current.open = false;
+      if (target.scope === navigationScope && target.projectId === projectId && current.selection.projectId === projectId && current.selection.sessionId === target.sessionId && !current.pendingNavigation && details.current && (document.activeElement === target.origin || document.activeElement === document.body)) {
+        details.current.open = false;
+        // An explicit Open must reveal even the already-selected session. Polls
+        // and ordinary context refreshes never request this focus transfer.
+        setSessionFocus({ sessionId: target.sessionId, origin: target.origin });
+      }
     }} />
     <details className="project-work" open={expanded} ref={details}>
       <summary>

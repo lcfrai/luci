@@ -91,7 +91,7 @@ func (g *Gateway) createTeamBrowserAccess(w http.ResponseWriter, r *http.Request
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	if !g.teamServiceAllowsExecutionLocked(teamID) {
-		fail(w, 403, "team_service_suspended", "This team's execution service is suspended. Saved project context remains available.")
+		fail(w, 403, "team_service_suspended", g.teamServiceDenialLocked(teamID, actor.ID))
 		return
 	}
 	if !g.teamAccessCurrentLocked(teamID, actor.ID, projectID, access.Member.Revision, access.ProjectRevision) {

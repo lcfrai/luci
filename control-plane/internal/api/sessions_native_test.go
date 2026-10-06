@@ -53,6 +53,7 @@ func TestCodexDeviceSignInRestartAndStoppedForkPreserveSeparateHomes(t *testing.
 		t.Fatal("auth-only state was offered as a conversation")
 	}
 	nativeWrite(t, firstDir, "sessions/2026/fixture.jsonl", "old conversation")
+	nativeCodexTransientAliases(t, firstDir)
 	rec = env.do(t, http.MethodPost, "/v1/sessions/"+first.ID+"/restart", `{}`)
 	sessionsDecodeOne(t, rec, 200)
 	sessionsAwaitWatch(t, done)
@@ -71,6 +72,7 @@ func TestCodexDeviceSignInRestartAndStoppedForkPreserveSeparateHomes(t *testing.
 	body := `{"worktreeId":"w-4a77b1c9","harness":"codex","resume":"` + first.ID + `"}`
 	sessionsProblemCode(t, env.do(t, http.MethodPost, "/v1/sessions", body), 409)
 	nativeWrite(t, secondDir, "sessions/2026/new.jsonl", "new conversation")
+	nativeCodexTransientAliases(t, secondDir)
 	env.do(t, http.MethodDelete, "/v1/sessions/"+first.ID, "")
 	fork := sessionsDecodeOne(t, env.do(t, http.MethodPost, "/v1/sessions", body), 201)
 	sessionsAwaitWatch(t, done)
@@ -106,7 +108,7 @@ func TestNativeStateSnapshotsRejectLinksAndForgetCannotEscape(t *testing.T) {
 	if err := os.Symlink(filepath.Join(outside, "secret.txt"), filepath.Join(source, "auth.json")); err != nil {
 		t.Skipf("symlink unavailable: %v", err)
 	}
-	if err := copyNativeState(source, target, false); err == nil {
+	if err := copyNativeState(source, target, "codex", false); err == nil {
 		t.Fatal("copied a symlink out of provider state")
 	}
 	if err := env.api.forgetNativeState(registry.Session{WorktreeID: "w-4a77b1c9", Harness: "codex", ConversationID: "../../outside"}); err == nil {
