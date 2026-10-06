@@ -189,21 +189,38 @@ async function billingReturn(current, kind, team, navigate = true) {
   assert(await current.getByText(/New team execution is unavailable/).isVisible());
 }
 async function capture(name, width) {
+  const pageScroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
   await page.setViewportSize({ width, height: width < 600 ? 844 : 1000 });
   const dialog = page.getByRole('dialog'); await dialog.waitFor();
   await dialog.evaluate(async node => { for (const animation of node.getAnimations({ subtree: true })) await animation.finished.catch(() => {}); });
   const geometry = await dialog.evaluate(node => { const box = node.getBoundingClientRect(); return { x: box.x, y: box.y, width: box.width, height: box.height, clientWidth: node.clientWidth, scrollWidth: node.scrollWidth, viewport: { width: innerWidth, height: innerHeight } }; });
   assert(geometry.x >= -1 && geometry.x + geometry.width <= width + 1 && geometry.y >= -1 && geometry.y + geometry.height <= geometry.viewport.height + 1, 'Dialog does not fit ' + name);
   assert(geometry.scrollWidth <= geometry.clientWidth + 1, 'Dialog has horizontal overflow: ' + name);
+  // Programmatic billing return and viewport changes must reveal the selected
+  // tab before keyboard focus happens to move it. Include the 2px outset ring.
+  await page.waitForFunction(() => {
+    const list = document.querySelector('[role="dialog"] [role="tablist"]'), selected = list?.querySelector('[aria-selected="true"]');
+    if (!list || !selected) return true;
+    const outer = list.getBoundingClientRect(), tab = selected.getBoundingClientRect();
+    return tab.left - 2 >= outer.left && tab.right + 2 <= outer.right;
+  });
+  assert.deepEqual(await page.evaluate(() => ({ x: scrollX, y: scrollY })), pageScroll, 'Revealing a tab scrolled the document');
   // Exercise native keyboard focus, including trap wrapping; no DOM focus edits.
   for (const key of ['Tab', ...Array(18).fill('Tab'), ...Array(18).fill('Shift+Tab')]) {
     await page.keyboard.press(key);
     assert(await dialog.evaluate(node => node.contains(document.activeElement)), 'Keyboard focus escaped billing dialog');
   }
+  const tabs = await dialog.evaluate(node => {
+    const list = node.querySelector('[role="tablist"]'), selected = list?.querySelector('[aria-selected="true"]');
+    if (!list || !selected) return null;
+    const outer = list.getBoundingClientRect(), tab = selected.getBoundingClientRect();
+    return { left: outer.left, right: outer.right, scrollLeft: list.scrollLeft, clientWidth: list.clientWidth, scrollWidth: list.scrollWidth, selectedLeft: tab.left, selectedRight: tab.right, outset: 2 };
+  });
+  if (tabs) assert(tabs.selectedLeft - tabs.outset >= tabs.left && tabs.selectedRight + tabs.outset <= tabs.right, 'Selected tab or focus ring is clipped after keyboard navigation');
   await page.evaluate(axe.source);
   const audit = await dialog.evaluate(async node => window.axe.run(node, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa'] }));
   writeFileSync(join(evidence, name + '-accessibility.json'), JSON.stringify(audit, null, 2), { mode: 0o600 });
-  receipt.accessibility.push({ name, geometry, focusStayedInDialog: true, violations: audit.violations.map(row => row.id), incomplete: audit.incomplete.map(row => row.id) });
+  receipt.accessibility.push({ name, geometry, tabs, focusStayedInDialog: true, documentScrollUnchangedOnResize: true, violations: audit.violations.map(row => row.id), incomplete: audit.incomplete.map(row => row.id) });
   await page.screenshot({ path: join(evidence, name + '.png'), fullPage: true });
   assert.deepEqual(audit.violations, [], 'Accessibility violation: ' + name);
 }
@@ -293,7 +310,9 @@ try {
   await page.getByLabel('Workspace', { exact: true }).selectOption(teamB.id); await page.getByRole('button', { name: 'Keep drafts and switch', exact: true }).click();
   await page.getByLabel('Workspace', { exact: true }).selectOption(teamA.id); await page.getByRole('treeitem', { name: /billing-draft-garden$/ }).click(); await page.getByRole('button', { name: 'Define', exact: true }).click();
   const recovery = page.getByRole('region', { name: 'Definition draft recovery', exact: true }); await recovery.waitFor(); await recovery.getByRole('button', { name: 'Restore draft', exact: true }).click();
-  assert.equal(await idea.inputValue(), draftText);
+  // Explicit recovery opens Specification for review; it does not return to
+  // the guided interview field used to author the original draft.
+  assert.equal(await page.getByRole('textbox', { name: 'The idea', exact: true }).inputValue(), draftText);
   const saved = await api('GET', `/v1/teams/${teamA.id}/workspace/v1/product/projects/${projectA.id}/specification`); assert.equal(saved.purpose, '');
   await page.screenshot({ path: join(evidence, 'retained-definition.png'), fullPage: true });
   check('After returning, actual workspace switch cancellation preserves edits and keep-drafts/switch/back restores the unsaved text without changing the saved project');

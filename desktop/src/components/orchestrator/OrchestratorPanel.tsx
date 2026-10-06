@@ -18,6 +18,8 @@ import { finishComposerRequest, isComposerRecoveryKey, readComposerRecovery, ret
 import "./orchestrator.css";
 
 export const ORCHESTRATOR_OPEN = "luci:orchestrator-open";
+const compactOverviewQuery = "(max-width: 1100px)";
+const stageLabels = { discover: "Define", design: "Design", develop: "Develop", deploy: "Deploy" };
 const pendingStatus = (status: string) => ["reserved", "queued", "running", "unknown"].includes(status);
 const statuses: Record<OrchestratorTurn["status"], string> = {
   reserved: "Request reserved · outcome not yet confirmed", queued: "Waiting for the agent", running: "Luci is working",
@@ -33,7 +35,12 @@ export function OrchestratorPanel({ projectId }: { projectId: string }) {
 function ProjectConversation({ projectId, scope }: { projectId: string; scope: string }) {
   const access = useProjectAccess(projectId), setup = useSetup();
   const { canRead, canEdit, canAssist, canExecute } = access;
-  const [open, setOpen] = useState(true), [view, setView] = useState<OrchestratorView | null>(null);
+  const [compact, setCompact] = useState(() => window.matchMedia(compactOverviewQuery).matches);
+  // The responsive default applies only until an explicit choice. Keep the
+  // body mounted when collapsed so discussion, review and drafts are retained.
+  const [openChoice, setOpenChoice] = useState<boolean | null>(null);
+  const open = openChoice ?? !compact;
+  const [view, setView] = useState<OrchestratorView | null>(null);
   const [conversationOpen, setConversationOpen] = useState(false);
   const [earlier, setEarlier] = useState<OrchestratorTurn[]>([]), [page, setPage] = useState<{ before: number; hasEarlier: boolean } | null>(null);
   const [message, setMessage] = useState(""), [replyTo, setReplyTo] = useState("");
@@ -64,9 +71,23 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const permission = useRef(access); permission.current = access;
   const messageRef = useRef(message); messageRef.current = message;
   const composer = useRef<HTMLTextAreaElement>(null), conversationEnd = useRef<HTMLDivElement>(null);
+  const overviewBody = useRef<HTMLDivElement>(null);
   const contentId = useId();
   const cancelEditRequest = useRef<(() => void) | null>(null);
   latest.current = view;
+
+  useEffect(() => {
+    const media = window.matchMedia(compactOverviewQuery);
+    const resize = () => {
+      // Do not hide the control someone is using when the viewport narrows.
+      // No focus is moved; an explicit open/close still takes precedence.
+      if (media.matches && overviewBody.current?.contains(document.activeElement)) setOpenChoice(current => current ?? true);
+      setCompact(media.matches);
+    };
+    resize();
+    media.addEventListener("change", resize);
+    return () => media.removeEventListener("change", resize);
+  }, []);
 
   const remember = useCallback((value: OrchestratorView) => {
     if (!alive.current || !permission.current.canRead || value.projectId !== projectId || value.revision < (latest.current?.revision ?? -1)) return;
@@ -160,7 +181,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     const receive = (event: Event) => {
       const detail = (event as CustomEvent<{ projectId?: string; message?: string }>).detail;
       if (detail?.projectId !== projectId || !permission.current.canRead) return;
-      setOpen(true);
+      setOpenChoice(true);
       setConversationOpen(true);
       if (typeof detail.message === "string" && detail.message.trim()) {
         if (!messageRef.current.trim()) editComposerRef.current(detail.message.slice(0, 16000), "");
@@ -319,7 +340,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     finally { if (ticket === generation.current) { working.current = false; if (alive.current) setBusy(""); } }
   }
   const openComposer = (text?: string) => {
-    setOpen(true); setConversationOpen(true);
+    setOpenChoice(true); setConversationOpen(true);
     if (text && !messageRef.current.trim()) editComposer(text.slice(0, 16000), replyTo);
     requestAnimationFrame(() => { if (alive.current) composer.current?.focus(); });
   };
@@ -341,8 +362,8 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const reviewBlock = draftWarning || (!canEdit ? "Editing access is required to apply an amendment." : review && view && review.revision !== view.revision ? "The conversation changed during review. Close this review, refresh and review the amendment again." : "");
 
   return <aside className={`orchestrator${open ? " orchestrator-open" : ""}`} aria-label="Project understanding">
-    <header className="orchestrator-header"><div><h2>Project understanding</h2><p>What we are building and what happens next.</p></div><Button variant="secondary" size="compact" aria-expanded={open} aria-controls={contentId} onClick={() => setOpen(value => !value)}>{open ? "Hide project overview" : "Show project overview"}</Button></header>
-    <div className="orchestrator-body" id={contentId} hidden={!open}>
+    <header className="orchestrator-header"><div><h2>Project understanding</h2>{open ? <p>What we are building and what happens next.</p> : <p className="orchestrator-collapsed-stage">{canRead && view ? `${stageLabels[view.nextAction.lens]} · Saved context` : "Saved project context"}</p>}</div><Button variant="secondary" size="compact" aria-expanded={open} aria-controls={contentId} onClick={() => setOpenChoice(!open)}>{open ? "Hide project overview" : "Show project overview"}</Button></header>
+    <div className="orchestrator-body" id={contentId} ref={overviewBody} hidden={!open}>
       {access.message && <p role="status">{access.message}</p>}
       {canRead && <>
         <div className="orchestrator-toolbar"><span className="orchestrator-muted">Saved shared context</span><Button variant="ghost" size="compact" disabled={!!busy || loading} onClick={() => void refresh(true)}>Refresh project understanding</Button></div>

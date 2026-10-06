@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { RepositoryAnalysisPanel } from "./RepositoryAnalysisPanel";
 import { definitionApi, type DefinitionAssistance, type ProjectSpecification } from "../../api/definition";
 import { productApi } from "../../api/product";
@@ -238,8 +239,10 @@ it("keeps later answer edits separate from the original pending payload and reta
   await waitFor(() => expect(readRepositoryAnalysisRecovery(scope()).draft?.sourceMode).toBe("commit"));
   expect(readRepositoryAnalysisRecovery(scope()).pending?.message).toBe("Keep existing accounts");
   expect(readRepositoryAnalysisRecovery(scope()).pending?.sourceMode).toBe("worktree");
+  const editingAnswer = screen.getByLabelText("Your answer"); editingAnswer.focus();
   await act(async () => finish({ ...result(), id: "reply-two", idempotencyKey: request.idempotencyKey, replyToAnalysisId: request.replyToAnalysisId, userMessage: request.message, replySourceChanged: true }));
   await screen.findByText(/source changed since the earlier question/);
+  expect(document.activeElement).toBe(editingAnswer);
   expect((screen.getByLabelText("Your answer") as HTMLTextAreaElement).value).toBe("Later independent notes for another round");
   expect(readRepositoryAnalysisRecovery(scope()).draft?.message).toBe("Later independent notes for another round");
   expect(readRepositoryAnalysisRecovery(scope()).pending).toBeNull();
@@ -418,9 +421,56 @@ it("discards an unsent draft to free its storage record while retaining an unres
   await saveRepositoryAnalysisDraft(scope(), null, { message: "Unsent new answer", replyToAnalysisId: "analysis-one", harness: "codex", model: "configured-model", agentConnectionId: "", sourceMode: "worktree" });
   vi.mocked(definitionApi.repositoryRequest).mockRejectedValue(new ApiError("internal", "Unavailable", 503));
   mount(); await screen.findByText(/still unconfirmed/);
+  fireEvent.click(screen.getByText("Other draft actions"));
   fireEvent.click(screen.getByRole("button", { name: "Discard saved analysis draft" }));
   await waitFor(() => expect(readRepositoryAnalysisRecovery(scope()).draft).toBeNull());
   expect((screen.getByLabelText("What should the analysis focus on?") as HTMLTextAreaElement).value).toBe("");
   expect(readRepositoryAnalysisRecovery(scope()).pending).toEqual(original);
   expect(definitionApi.analyseRepository).not.toHaveBeenCalled();
+});
+
+it("places the question before answer and provider review, and keyboard option selection focuses the editor without sending", async () => {
+  const user = userEvent.setup(); savedQuestion(); mount();
+  const questionText = await screen.findByText("Should existing customer accounts be kept?");
+  const input = screen.getByLabelText("What should the analysis focus on?");
+  const provider = screen.getByLabelText("Analysis provider");
+  const evidence = screen.getByText("Review findings and source evidence");
+  expect(questionText.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(input.compareDocumentPosition(provider) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect(provider.compareDocumentPosition(evidence) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  expect((evidence.closest("details") as HTMLDetailsElement).open).toBe(false);
+  screen.getByRole("button", { name: "Use answer: Keep existing accounts" }).focus();
+  await user.keyboard("{Enter}");
+  const answer = screen.getByLabelText("Your answer") as HTMLTextAreaElement;
+  expect(document.activeElement).toBe(answer);
+  expect(answer.value).toBe("Keep existing accounts");
+  expect((screen.getByRole("button", { name: "Send answer" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText("Send the selected source and definition to this provider for analysis.") as HTMLInputElement).checked).toBe(false);
+  await waitFor(() => expect(readRepositoryAnalysisRecovery(scope()).draft?.message).toBe("Keep existing accounts"));
+  expect(definitionApi.analyseRepository).not.toHaveBeenCalled();
+  expect(definitionApi.applyAnalysis).not.toHaveBeenCalled();
+});
+
+it("restores an answered draft without taking focus and lets keyboard Answer resume the same text", async () => {
+  const user = userEvent.setup();
+  await saveRepositoryAnalysisDraft(scope(), null, { message: "Keep accounts and their existing notes", replyToAnalysisId: "analysis-one", harness: "codex", model: "configured-model", agentConnectionId: "", sourceMode: "commit" });
+  let complete!: (value: DefinitionAssistance) => void;
+  vi.mocked(definitionApi.listAssistance).mockResolvedValue({ jobs: [question()] });
+  vi.mocked(definitionApi.assistance).mockImplementationOnce(() => new Promise(resolve => { complete = resolve; }));
+  render(<><input aria-label="Other project notes" /><RepositoryAnalysisPanel projectId="owned" specification={specification()} dirty={false} onApplied={vi.fn()} /></>);
+  const otherEditor = screen.getByLabelText("Other project notes"); otherEditor.focus();
+  await waitFor(() => expect(definitionApi.assistance).toHaveBeenCalled());
+  await act(async () => complete(question()));
+  await screen.findByText("Should existing customer accounts be kept?");
+  expect(document.activeElement).toBe(otherEditor);
+  const answer = screen.getByLabelText("Your answer") as HTMLTextAreaElement;
+  expect(answer.value).toBe("Keep accounts and their existing notes");
+  expect(screen.getByText("Should existing customer accounts be kept?").compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  screen.getByRole("button", { name: "Answer this question" }).focus();
+  await user.keyboard(" ");
+  expect(document.activeElement).toBe(answer);
+  expect(answer.value).toBe("Keep accounts and their existing notes");
+  expect((screen.getByLabelText("Source to analyse") as HTMLSelectElement).value).toBe("commit");
+  expect(definitionApi.analyseRepository).not.toHaveBeenCalled();
+  expect(definitionApi.applyAnalysis).not.toHaveBeenCalled();
 });

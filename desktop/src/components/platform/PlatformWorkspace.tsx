@@ -17,6 +17,7 @@ import {
 } from "../../api/platform";
 import { DataWorkspace } from "./DataWorkspace";
 import { StandaloneDatabase } from "./StandaloneDatabase";
+import "./platform.css";
 
 export function PlatformWorkspace({ projectId, inspectDeploymentId, inspectionRequest }: { projectId: string; inspectDeploymentId?: string; inspectionRequest?: number }) {
   const scope = useProjectDraftScope(projectId);
@@ -243,9 +244,13 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
           Refresh platform
         </button>
       </div>
-      {!canDeploy && <p role="status">Deployment access is required to build, stop, restart or check deployment health. Ask a team owner for editing and deployment access.</p>}
-      {!canReadLogs && <p role="status">Application logs require deployment and secrets access. Ask a team owner for those permissions.</p>}
-      {!projectAccess.canExecute && <p role="status">Opening private application previews requires execution access.</p>}
+      {projectAccess.loading ? <p role="status">Checking platform permissions…</p>
+        : projectAccess.error ? <p role="status">Platform permissions could not be confirmed. {projectAccess.error} Luci must confirm access before you can operate applications or open private logs and previews.</p>
+          : <>
+            {!canDeploy && <p role="status">Deployment access is required to build, stop, restart or check deployment health. Ask a team owner for editing and deployment access.</p>}
+            {!canReadLogs && <p role="status">Application logs require deployment and secrets access. Ask a team owner for those permissions.</p>}
+            {!projectAccess.canExecute && <p role="status">Opening private application previews requires execution access.</p>}
+          </>}
       {inspectionIssue && <p role="alert" className="journey-error">{inspectionIssue}</p>}
       {error && (
         <p className="journey-error" role="alert">
@@ -318,7 +323,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
           {view === "Deployments" && (
             <form
               ref={buildForm} tabIndex={-1}
-              className="cloud-deploy-form"
+              className="platform-form"
               onSubmit={(event) => {
                 event.preventDefault();
                 if (delivery && canDeploy && (!replacement || replacementAccepted))
@@ -347,7 +352,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                   ? `${delivery.branch} · ${delivery.head.slice(0, 12)}`
                   : "Commit your project in Develop first."}
               </p>
-              <label>
+              <label className="platform-field">
                 Application port
                 <input
                   type="number"
@@ -359,7 +364,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                   onChange={(event) => setPort(event.target.value)}
                 />
               </label>
-              <label>
+              <label className="platform-field">
                 Health check path
                 <input
                   required
@@ -390,7 +395,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
             </section>
           )}
           {view === "Hosting connection" && (
-            <section className="cloud-deploy-form" aria-label="Panacea hosting">
+            <section className="platform-block" aria-label="Panacea hosting">
               <h3>Connect Panacea hosting</h3>
               {providerError && <p role="alert">{providerError}</p>}
               <p>
@@ -404,6 +409,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                     Connected to <strong>{connection.baseUrl}</strong>
                   </p>
                   <form
+                    className="platform-form"
                     onSubmit={(event) => {
                       event.preventDefault();
                       void run("Connect Panacea project", () =>
@@ -411,7 +417,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                       );
                     }}
                   >
-                    <label>
+                    <label className="platform-field">
                       Panacea project
                       <select
                         value={remoteProject}
@@ -476,6 +482,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                 </>
               ) : connection?.canManage ? (
                 <form
+                  className="platform-form"
                   onSubmit={(event) => {
                     event.preventDefault();
                     const key = apiKey;
@@ -485,7 +492,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                     );
                   }}
                 >
-                  <label>
+                  <label className="platform-field">
                     Panacea HTTPS origin
                     <input
                       type="url"
@@ -496,7 +503,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                       onChange={(event) => setBaseUrl(event.target.value)}
                     />
                   </label>
-                  <label>
+                  <label className="platform-field">
                     Scoped Panacea API key
                     <input
                       type="password"
@@ -531,7 +538,7 @@ function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: 
                 <p>No persistent deployments yet.</p>
               )}
               {project?.deployments.map((deployment) => (
-                <article className="cloud-deploy-form" key={deployment.id} tabIndex={-1} ref={node => { if (node) deploymentNodes.current.set(deployment.id, node); else deploymentNodes.current.delete(deployment.id); }} aria-label={`Deployment ${deployment.id}`}>
+                <article className="platform-block" key={deployment.id} tabIndex={-1} ref={node => { if (node) deploymentNodes.current.set(deployment.id, node); else deploymentNodes.current.delete(deployment.id); }} aria-label={`Deployment ${deployment.id}`}>
                   <h4>
                     {deployment.provider === "docker"
                       ? "Docker service"

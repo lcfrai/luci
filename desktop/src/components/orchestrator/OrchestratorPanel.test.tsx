@@ -43,6 +43,98 @@ async function ready() {
   await screen.findByText(/Using Team provider/);
 }
 
+function responsiveOverview(initialCompact: boolean) {
+  const original = window.matchMedia;
+  const listeners = new Set<() => void>();
+  const media = {
+    matches: initialCompact,
+    addEventListener: (_event: string, listener: () => void) => { listeners.add(listener); },
+    removeEventListener: (_event: string, listener: () => void) => { listeners.delete(listener); },
+  };
+  vi.spyOn(window, "matchMedia").mockImplementation(query => query === "(max-width: 1100px)" ? media as unknown as MediaQueryList : original(query));
+  return {
+    resize(compact: boolean) { act(() => { media.matches = compact; listeners.forEach(listener => listener()); }); },
+    listeners,
+  };
+}
+
+it("starts compact screens with a labelled phase/context disclosure and opens only on request", async () => {
+  const media = responsiveOverview(true);
+  const mounted = render(<OrchestratorPanel projectId="p-1" />);
+  await screen.findByText("Design · Saved context");
+  const disclosure = screen.getByRole("button", { name: "Show project overview" });
+  expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+  expect(screen.queryByRole("region", { name: "Current project understanding" })).toBeNull();
+  expect(document.getElementById(disclosure.getAttribute("aria-controls")!)?.querySelector(".project-understanding")).not.toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+  await userEvent.click(disclosure);
+  expect(screen.getByRole("button", { name: "Review design" })).not.toBeNull();
+  expect(screen.getByRole("button", { name: "Hide project overview" }).getAttribute("aria-expanded")).toBe("true");
+  mounted.unmount();
+  expect(media.listeners.size).toBe(0);
+});
+
+it("adapts an untouched overview on resize without moving task focus, while preserving explicit open and close choices", async () => {
+  const media = responsiveOverview(false);
+  render(<><input aria-label="Main task draft" /><OrchestratorPanel projectId="p-1" /></>);
+  await screen.findByRole("button", { name: "Review design" });
+  const task = screen.getByRole("textbox", { name: "Main task draft" });
+  task.focus(); media.resize(true);
+  expect(screen.getByRole("button", { name: "Show project overview" })).not.toBeNull();
+  expect(document.activeElement).toBe(task);
+  media.resize(false);
+  expect(screen.getByRole("button", { name: "Hide project overview" })).not.toBeNull();
+  expect(document.activeElement).toBe(task);
+  await userEvent.click(screen.getByRole("button", { name: "Hide project overview" }));
+  media.resize(true); media.resize(false);
+  expect(screen.getByRole("button", { name: "Show project overview" })).not.toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Show project overview" }));
+  media.resize(true);
+  expect(screen.getByRole("button", { name: "Hide project overview" })).not.toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("retains the exact mounted conversation and unsent composer through compact disclosure changes", async () => {
+  const media = responsiveOverview(true);
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+  render(<OrchestratorPanel projectId="p-1" />);
+  await screen.findByText("Design · Saved context");
+  await userEvent.click(screen.getByRole("button", { name: "Show project overview" }));
+  await ready();
+  const composer = screen.getByRole("textbox", { name: "Message Luci" }) as HTMLTextAreaElement;
+  await userEvent.type(composer, "Keep this unsent clarification while I work in the project.");
+  const conversation = screen.getByRole("list", { name: "Conversation history" });
+  await userEvent.click(screen.getByRole("button", { name: "Hide project overview" }));
+  expect(screen.queryByRole("textbox", { name: "Message Luci" })).toBeNull();
+  expect(composer.isConnected).toBe(true); expect(conversation.isConnected).toBe(true);
+  media.resize(false); media.resize(true);
+  await userEvent.click(screen.getByRole("button", { name: "Show project overview" }));
+  expect(screen.getByRole("textbox", { name: "Message Luci" })).toBe(composer);
+  expect(composer.value).toBe("Keep this unsent clarification while I work in the project.");
+  expect(screen.getByRole("list", { name: "Conversation history" })).toBe(conversation);
+  expect(screen.getByText("Support guest checkout")).not.toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("does not hide a focused composer on resize and keeps explicit project-open events working after a manual close", async () => {
+  const media = responsiveOverview(false);
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  const composer = screen.getByRole("textbox", { name: "Message Luci" }) as HTMLTextAreaElement;
+  await userEvent.type(composer, "Preserve my active thought");
+  media.resize(true);
+  expect(screen.getByRole("button", { name: "Hide project overview" })).not.toBeNull();
+  expect(document.activeElement).toBe(composer);
+  await userEvent.click(screen.getByRole("button", { name: "Hide project overview" }));
+  act(() => window.dispatchEvent(new CustomEvent(ORCHESTRATOR_OPEN, { detail: { projectId: "other" } })));
+  expect(screen.getByRole("button", { name: "Show project overview" })).not.toBeNull();
+  act(() => window.dispatchEvent(new CustomEvent(ORCHESTRATOR_OPEN, { detail: { projectId: "p-1" } })));
+  await waitFor(() => expect(document.activeElement).toBe(composer));
+  expect(composer.value).toBe("Preserve my active thought");
+  media.resize(false); media.resize(true);
+  expect(screen.getByRole("button", { name: "Hide project overview" })).not.toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
 it("restores shared history without inference and keeps the same composer across phase changes", async () => {
   vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
   render(<OrchestratorPanel projectId="p-1" />); await ready();

@@ -256,13 +256,11 @@ async function until(label, test, timeout = 120000) {
   throw new Error(label + ' timed out');
 }
 async function screenshot(name) { await page.screenshot({ path: join(evidence, name + '.png'), fullPage: true }); }
-// Capture both the natural post-action viewport and the result after ordinary
-// focus/scroll navigation. A non-visible answer after option selection remains
-// evidence of discoverability limits; the driver never relabels it as visible.
-async function observeAnalysisLayout(name, kind) {
-  const original = page.viewportSize();
-  const target = kind === 'question' ? panel.getByRole('button', { name: 'Use answer: ' + choice, exact: true }) : panel.getByRole('textbox', { name: 'Your answer', exact: true });
-  const read = () => panel.evaluate(element => {
+// Observe normal reading order before any locator navigation. The meaningful
+// focus proof below comes from the product's actual answer action, never a
+// driver focus(), fill(), forced click or JS activation.
+async function readAnalysisLayout() {
+  return panel.evaluate(element => {
     const rect = node => { const r = node.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; };
     const describe = node => {
       if (!node) return null;
@@ -275,28 +273,74 @@ async function observeAnalysisLayout(name, kind) {
       return { ...box, intersectsVisibleArea: box.width > 0 && box.height > 0 && box.x < right && box.x + box.width > left && box.y < bottom && box.y + box.height > top,
         fullyInVisibleArea: box.x >= left - 1 && box.x + box.width <= right + 1 && box.y >= top - 1 && box.y + box.height <= bottom + 1 };
     };
+    let top = 0, bottom = innerHeight;
+    for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) if (/(auto|scroll|hidden|clip)/.test(getComputedStyle(ancestor).overflowY)) { const r = ancestor.getBoundingClientRect(); top = Math.max(top, r.top); bottom = Math.min(bottom, r.bottom); }
+    const question = element.querySelector('[aria-label="Saved analysis question"]'), answer = element.querySelector('textarea');
     const buttons = [...element.querySelectorAll('button')], label = node => node?.getAttribute('aria-label') || (node?.tagName === 'TEXTAREA' ? 'Your answer' : node?.textContent?.trim()?.slice(0, 100)) || null;
-    return { viewport: { width: innerWidth, height: innerHeight }, documentHorizontalOverflow: document.documentElement.scrollWidth - innerWidth,
+    return { viewport: { width: innerWidth, height: innerHeight }, usableAnalysisHeight: Math.max(0, bottom - top), questionBeforeAnswer: !!(question && answer && (question.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING)), documentHorizontalOverflow: document.documentElement.scrollWidth - innerWidth,
       question: describe(element.querySelector('[aria-label="Saved analysis question"]')), firstOption: describe(buttons.find(node => node.textContent.startsWith('Use answer:'))),
       answer: describe(element.querySelector('textarea')), send: describe(buttons.find(node => node.textContent === 'Send answer')),
       active: { tag: document.activeElement?.tagName, label: label(document.activeElement), insidePanel: element.contains(document.activeElement) } };
   });
+}
+async function observeAnalysisLayout(name, kind) {
+  const original = page.viewportSize();
   try {
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
       await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
-      const beforeNavigation = await read();
-      await screenshot(name + '-' + width + '-before-navigation');
-      await target.scrollIntoViewIfNeeded(); await target.focus();
-      const focused = await read();
-      assert.equal(focused.active.insidePanel, true, 'Question/answer focus escaped its analysis panel');
-      const geometry = kind === 'question' ? focused.firstOption : focused.answer;
-      assert(geometry && geometry.intersectsVisibleArea, 'Focused analysis control is not visible');
-      await screenshot(name + '-' + width + '-focused');
-      await page.keyboard.press('Tab'); const afterTab = await read();
-      (receipt.layoutObservations ??= []).push({ state: name, kind, width, beforeNavigation, focused, afterTab, scope: 'Actual rendered geometry and one forward Tab; no automated claim of novice discoverability or complete accessibility conformance.' });
+      const natural = await readAnalysisLayout();
+      await screenshot(name + '-' + width + '-natural');
+      assert.equal(natural.questionBeforeAnswer, true, 'Saved question must precede the editable answer in the reading order');
+      assert.equal(natural.documentHorizontalOverflow, 0, 'Analysis introduced horizontal page overflow');
+      (receipt.layoutObservations ??= []).push({ state: name, kind, width, natural, scope: 'Natural rendered geometry before locator scrolling; no focus or click supplied by this observation.' });
+      if (width === 390) {
+        const overview = page.getByRole('complementary', { name: 'Project understanding', exact: true });
+        assert.equal(await overview.getByRole('button', { name: 'Show project overview', exact: true }).getAttribute('aria-expanded'), 'false');
+        await overview.getByText('Define · Saved context', { exact: true }).waitFor();
+        const size = await overview.boundingBox(); assert(size && size.height <= 100, 'Compact overview still consumes the working viewport');
+        assert(natural.usableAnalysisHeight >= 480, 'Compact overview leaves too little usable analysis space');
+        (receipt.compactOverview ??= []).push({ state: name, overviewHeight: size.height, analysisHeight: natural.usableAnalysisHeight, phaseContextVisible: true });
+      }
     }
   } finally { await page.setViewportSize(original); }
+}
+async function chooseAnswerAndObserve() {
+  const original = page.viewportSize();
+  for (const [width, label] of [[1440, 'Use answer: ' + choice], [390, 'Answer this question']]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    await page.getByRole('region', { name: 'Saved analysis question', exact: true }).getByRole('button', { name: label, exact: true }).click();
+    // Capture the direct product result before any input fill or focus call.
+    const state = await readAnalysisLayout();
+    await screenshot('03-immediate-answer-action-' + width);
+    const focused = await panel.getByRole('textbox', { name: 'Your answer', exact: true }).evaluate(element => document.activeElement === element && !element.disabled && !element.readOnly);
+    assert.equal(focused, true, 'Explicit answer action must focus the actual editable answer');
+    assert.equal(state.active.tag, 'TEXTAREA'); assert(state.answer?.fullyInVisibleArea, 'The focused answer must be fully visible');
+    assert.equal(await panel.getByRole('textbox', { name: 'Your answer', exact: true }).inputValue(), choice);
+    (receipt.answerActionFocus ??= []).push({ width, action: label, state, editableAnswerFocusedByProduct: true });
+  }
+  // Remain on the phone for the unsent-draft disclosure check; the caller
+  // restores desktop width only after proving the user's explicit close.
+  return original;
+}
+async function exerciseOverviewDisclosure() {
+  const overview = page.getByRole('complementary', { name: 'Project understanding', exact: true });
+  const input = await panel.getByRole('textbox', { name: 'Your answer', exact: true }).elementHandle(); assert(input);
+  const before = { posts: receipt.analysisRequests.length, calls: providerCalls };
+  const show = overview.getByRole('button', { name: 'Show project overview', exact: true });
+  assert.equal(await show.getAttribute('aria-expanded'), 'false'); await overview.getByText('Define · Saved context', { exact: true }).waitFor();
+  const compact = await overview.boundingBox(); assert(compact && compact.height <= 100);
+  await show.click();
+  await overview.getByRole('region', { name: 'Current project understanding', exact: true }).waitFor();
+  assert.equal(await input.evaluate(element => element.isConnected && element.value), answer);
+  await screenshot('03-phone-overview-explicitly-open');
+  await overview.getByRole('button', { name: 'Hide project overview', exact: true }).click();
+  assert.equal(await input.evaluate(element => element.isConnected && element === document.querySelector('.repository-analysis textarea') && element.value), answer);
+  const closed = await readAnalysisLayout(); assert(closed.usableAnalysisHeight >= 480);
+  assert.equal(receipt.analysisRequests.length, before.posts); assert.equal(providerCalls, before.calls);
+  await screenshot('03-phone-overview-closed-draft-preserved');
+  receipt.overviewDisclosure = { defaultCollapsed: true, compactHeight: compact.height, restoredAnalysisHeight: closed.usableAnalysisHeight, sameDraftNodeAndText: true, noAdditionalSend: true, noAdditionalInference: true };
+  await input.dispose();
 }
 async function openAnalysis() {
   await page.getByRole('treeitem', { name: /garden-repository-review$/ }).click();
@@ -326,7 +370,7 @@ async function complete(job) {
   releaseProvider();
   const terminal = await until('Actual repository analysis completes', async () => { const value = await api('GET', `${projectRoute}/assist/${job.id}`); return ['succeeded', 'failed', 'cancelled'].includes(value.status) && value; }, 180000);
   assert.equal(terminal.status, 'succeeded', terminal.message); assert.equal(terminal.ownRequest, true);
-  await until('UI observes this exact successful result', async () => await panel.getByLabel('Saved analysis', { exact: true }).inputValue() === job.id && !(await recoveryRecords()).some(row => row.kind === 'pending'), 30000);
+  await until('UI observes this exact successful result', async () => await panel.getByRole('combobox', { name: 'Saved analysis', exact: true }).inputValue() === job.id && !(await recoveryRecords()).some(row => row.kind === 'pending'), 30000);
   await until('Finished readonly sandbox is removed', () => docker('ps', '-a', '--filter', `label=luci.session-id=${job.sessionId}`, '--format', '{{.ID}}') === '', 30000);
   return terminal;
 }
@@ -416,9 +460,9 @@ try {
   check('UI imports the actual HTTPS repository with both commits and unchanged source, then opens repository analysis', receipt.imported);
 
   stage = 'first-real-analysis-question';
-  await panel.getByLabel('Source to analyse', { exact: true }).selectOption('commit');
-  await panel.getByLabel('Analysis provider', { exact: true }).selectOption('codex');
-  await panel.getByLabel('Analysis connection', { exact: true }).selectOption({ label: 'Local repository clarification fixture' });
+  await panel.getByRole('combobox', { name: 'Source to analyse', exact: true }).selectOption('commit');
+  await panel.getByRole('combobox', { name: 'Analysis provider', exact: true }).selectOption('codex');
+  await panel.getByRole('combobox', { name: 'Analysis connection', exact: true }).selectOption({ label: 'Local repository clarification fixture' });
   await until('Selected saved model appears', async () => await panel.getByLabel('Analysis model', { exact: true }).inputValue() === 'repository-fixture', 10000);
   await panel.getByRole('textbox', { name: 'What should the analysis focus on?', exact: true }).fill(focus);
   const consent = () => panel.getByRole('checkbox', { name: 'Send the selected source and definition to this provider for analysis.', exact: true });
@@ -437,18 +481,20 @@ try {
 
   stage = 'retained-human-answer';
   const requestsBeforeAnswer = receipt.analysisRequests.length, callsBeforeAnswer = providerCalls;
-  await panel.getByRole('button', { name: 'Use answer: ' + choice, exact: true }).click();
+  const desktopViewport = await chooseAnswerAndObserve();
   assert.equal(await panel.getByRole('textbox', { name: 'Your answer', exact: true }).inputValue(), choice);
   assert.equal(await panel.getByRole('button', { name: 'Send answer', exact: true }).isEnabled(), false);
   await panel.getByRole('textbox', { name: 'Your answer', exact: true }).fill(answer);
   await until('Exact edited answer is durably saved in this browser', async () => (await recoveryRecords()).some(row => row.kind === 'draft' && row.value.message === answer && row.value.replyToAnalysisId === firstJob.id && row.value.agentConnectionId === connectionID));
   assert.equal(await consent().isChecked(), false); await screenshot('03-unsent-edited-answer');
+  await exerciseOverviewDisclosure();
+  await page.setViewportSize(desktopViewport);
   await observeAnalysisLayout('03-editable-answer', 'answer');
   await page.reload(); await openAnalysis();
-  await until('Original question and human answer restored', async () => await panel.getByRole('textbox', { name: 'Your answer', exact: true }).inputValue() === answer && await panel.getByLabel('Saved analysis', { exact: true }).inputValue() === firstJob.id);
+  await until('Original question and human answer restored', async () => await panel.getByRole('textbox', { name: 'Your answer', exact: true }).inputValue() === answer && await panel.getByRole('combobox', { name: 'Saved analysis', exact: true }).inputValue() === firstJob.id);
   await panel.getByRole('region', { name: 'Saved analysis question', exact: true }).getByText(question, { exact: true }).waitFor();
-  assert.equal(await panel.getByLabel('Source to analyse', { exact: true }).inputValue(), 'commit'); assert.equal(await panel.getByLabel('Analysis provider', { exact: true }).inputValue(), 'codex');
-  assert.equal(await panel.getByLabel('Analysis connection', { exact: true }).inputValue(), connectionID); assert.equal(await panel.getByLabel('Analysis model', { exact: true }).inputValue(), 'repository-fixture');
+  assert.equal(await panel.getByRole('combobox', { name: 'Source to analyse', exact: true }).inputValue(), 'commit'); assert.equal(await panel.getByRole('combobox', { name: 'Analysis provider', exact: true }).inputValue(), 'codex');
+  assert.equal(await panel.getByRole('combobox', { name: 'Analysis connection', exact: true }).inputValue(), connectionID); assert.equal(await panel.getByLabel('Analysis model', { exact: true }).inputValue(), 'repository-fixture');
   assert.equal(await consent().isChecked(), false); assert.equal(receipt.analysisRequests.length, requestsBeforeAnswer); assert.equal(providerCalls, callsBeforeAnswer); await noDefinitionChange();
   await screenshot('04-answer-and-authoritative-question-after-reload');
   await observeAnalysisLayout('04-reloaded-answer', 'answer');
@@ -491,6 +537,9 @@ try {
   const finished = await complete(acceptedReply); assert.equal(finished.replyToAnalysisId, firstJob.id); assert.equal(finished.userMessage, answer); assert.equal(finished.replySourceChanged ?? false, false);
   assert.deepEqual(prompts[1].snapshot.followUp.result, firstJob.result); assert.equal(prompts[1].userMessage, answer); assert.equal(finished.result.proposal.purpose, purpose);
   await panel.getByRole('heading', { name: 'Proposed definition', exact: true }).waitFor(); await panel.getByText(purpose, { exact: true }).waitFor();
+  const evidenceDisclosure = panel.getByText('Review findings and source evidence', { selector: 'summary', exact: true });
+  assert.equal(await evidenceDisclosure.evaluate(element => element.parentElement.open), false);
+  await evidenceDisclosure.click();
   await panel.getByText('The source has no sign-in or invitation checks; these are proposed future requirements, not implemented behavior.', { exact: true }).waitFor();
   assert.equal(await panel.getByRole('button', { name: 'Apply as definition draft', exact: true }).isEnabled(), false); await noDefinitionChange();
   await screenshot('07-review-source-grounded-proposal');

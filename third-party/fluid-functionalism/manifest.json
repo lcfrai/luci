@@ -84,6 +84,7 @@
     "Native-button defaults/loading state",
     "Reduced-motion handling and observer cleanup in tabs",
     "Only collapsing icon labels measure width and retain a label ResizeObserver; ordinary tabs avoid unused synchronous layout reads",
+    "Selected and keyboard-focused tabs reveal within their horizontal strip, preserving focus-ring space on resize without scrolling the enclosing dialog or document",
     "Dialog retains Radix focus trapping, uses Luci close icon and existing surface tokens, and respects reduced motion"
   ],
   "glasses": {

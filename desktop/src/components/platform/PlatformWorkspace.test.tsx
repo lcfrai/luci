@@ -4,6 +4,13 @@ import { PlatformWorkspace } from "./PlatformWorkspace";
 import { platformApi, type PlatformProject } from "../../api/platform";
 import { productApi } from "../../api/product";
 vi.mock("./DataWorkspace", () => ({ DataWorkspace: () => <div>Project data services</div> }));
+const access = vi.hoisted(() => ({ loading: false, error: "", edit: true, deploy: true, secrets: true, execute: true }));
+vi.mock("../../hooks/useProjectAccess", () => ({ useProjectAccess: () => ({
+  loading: access.loading, error: access.error, canRead: true,
+  canEdit: !access.loading && !access.error && access.edit,
+  canExecute: !access.loading && !access.error && access.edit && access.execute,
+  permissions: { read: true, admin: false, ...access },
+}) }));
 
 vi.mock("../../api/platform", async (importOriginal) => ({
   ...await importOriginal<typeof import("../../api/platform")>(),
@@ -46,6 +53,7 @@ const project: PlatformProject = {
   },
 };
 beforeEach(() => {
+  Object.assign(access, { loading: false, error: "", edit: true, deploy: true, secrets: true, execute: true });
   vi.mocked(platformApi.restoreDatabase).mockReset();
   vi.mocked(platformApi.prepareBrowser).mockReset();
   vi.mocked(platformApi.status).mockResolvedValue({
@@ -71,6 +79,56 @@ beforeEach(() => {
     head: "a".repeat(40),
     branch: "main",
   });
+});
+
+it("distinguishes permission uncertainty from resolved missing grants without losing a deployment draft", async () => {
+  const view = render(<PlatformWorkspace projectId="owned" />);
+  fireEvent.click(await screen.findByRole("button", { name: "Deployments" }));
+  const port = screen.getByLabelText("Application port") as HTMLInputElement;
+  fireEvent.change(port, { target: { value: "8080" } });
+  const start = () => screen.getByRole("button", { name: "Start persistent deployment" }) as HTMLButtonElement;
+  const missingDeployment = /Deployment access is required to build/;
+  const missingLogs = /Application logs require deployment and secrets access/;
+  const missingPreview = /Opening private application previews requires execution access/;
+  const checkUncertainDraft = () => {
+    expect(screen.queryByText(missingDeployment)).toBeNull();
+    expect(screen.queryByText(missingLogs)).toBeNull();
+    expect(screen.queryByText(missingPreview)).toBeNull();
+    expect(screen.getByLabelText("Application port")).toBe(port);
+    expect(port.value).toBe("8080");
+    expect(start().disabled).toBe(true);
+    fireEvent.submit(port.closest("form")!);
+    expect(platformApi.deploy).not.toHaveBeenCalled();
+  };
+
+  Object.assign(access, { loading: true, edit: false, deploy: false, secrets: false, execute: false });
+  view.rerender(<PlatformWorkspace projectId="owned" />);
+  expect(screen.getByText("Checking platform permissions…")).not.toBeNull();
+  checkUncertainDraft();
+
+  Object.assign(access, { loading: false, error: "The workspace connection is temporarily unavailable." });
+  view.rerender(<PlatformWorkspace projectId="owned" />);
+  expect(screen.queryByText("Checking platform permissions…")).toBeNull();
+  expect(screen.getByText(/Platform permissions could not be confirmed/).textContent).toContain(access.error);
+  checkUncertainDraft();
+
+  access.error = "";
+  view.rerender(<PlatformWorkspace projectId="owned" />);
+  expect(screen.queryByText(/Platform permissions could not be confirmed/)).toBeNull();
+  expect(screen.getByText(missingDeployment)).not.toBeNull();
+  expect(screen.getByText(missingLogs)).not.toBeNull();
+  expect(screen.getByText(missingPreview)).not.toBeNull();
+  expect(start().disabled).toBe(true);
+
+  Object.assign(access, { edit: true, deploy: true, secrets: true, execute: true });
+  view.rerender(<PlatformWorkspace projectId="owned" />);
+  expect(screen.queryByText(missingDeployment)).toBeNull();
+  expect(screen.queryByText(missingLogs)).toBeNull();
+  expect(screen.queryByText(missingPreview)).toBeNull();
+  expect(screen.getByLabelText("Application port")).toBe(port);
+  expect(port.value).toBe("8080");
+  expect(start().disabled).toBe(false);
+  expect(platformApi.deploy).not.toHaveBeenCalled();
 });
 
 it("shows accepted restore as progress, polls its actual result and never calls it completed early", async () => {

@@ -1,4 +1,8 @@
 @import "../../styles/tokens.css";
+.platform-form, .platform-block { display: grid; gap: 18px; min-inline-size: 0; max-inline-size: 760px; padding-block: 24px; overflow-wrap: anywhere; }
+.platform-block > .platform-form { padding-block: 0; }
+.platform-field { display: grid; gap: 8px; min-inline-size: 0; font-size: 13px; color: var(--ink-2); }
+.platform-field input, .platform-field select { box-sizing: border-box; inline-size: 100%; min-inline-size: 0; min-block-size: var(--field-min-size); padding: var(--control-pad-block) 12px; border: 0; border-radius: var(--r-ctl); box-shadow: inset 0 0 0 1px var(--line-strong); background: var(--field); color: var(--ink); font: inherit; font-size: 14px; }
 .data-workspace { min-inline-size: 0; padding-block: 24px; }
 .data-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-block-end: 20px; }
 .data-heading h3 { font-size: 21px; font-weight: 600; letter-spacing: -0.025em; margin: 0 0 6px; }

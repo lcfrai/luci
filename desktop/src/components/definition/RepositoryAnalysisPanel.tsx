@@ -63,6 +63,7 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied,
   const [jobs, setJobs] = useState<DefinitionAssistance[]>([]), [job, setJob] = useState<DefinitionAssistance | null>(null);
   const [pending, setPending] = useState(""), [error, setError] = useState("");
   const alive = useRef(true), submitting = useRef(false), generation = useRef(0);
+  const answerInput = useRef<HTMLTextAreaElement>(null);
   function editDraft(patch: Partial<RepositoryAnalysisDraft>) {
     const next = { ...draftRef.current, ...patch };
     draftRef.current = next; setDraft(next); setAcknowledged(false);
@@ -167,6 +168,11 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied,
   const replying = !!draft.replyToAnalysisId;
   const ownQuestion = job?.status === "succeeded" && !!job.result?.question.trim() && job.ownRequest === true;
   const validReply = !replying || (ownQuestion && job?.id === draft.replyToAnalysisId && !!message.trim());
+  function answerQuestion(option?: string) {
+    if (!canAssist || !ownQuestion || !job) return;
+    editDraft({ replyToAnalysisId: job.id, ...(option === undefined ? {} : { message: option }) });
+    answerInput.current?.focus();
+  }
   async function receipt(value: DefinitionAssistance, request: PendingRepositoryAnalysisRequest, ticket: number) {
     if (!alive.current || ticket !== generation.current || !permissions.current.canRead) return;
     if (value.projectId !== projectId || value.kind !== "repository" || typeof value.id !== "string" || !value.id ||
@@ -257,7 +263,7 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied,
   if (!canRead) return <section className="repository-analysis" aria-label="Repository analysis"><h2>Understand the existing application</h2><p role="status">{access.message || "Project read access is required to inspect repository analysis. Ask a team owner for access."}</p></section>;
   return <section className="repository-analysis" aria-label="Repository analysis">
     <h2>Understand the existing application</h2>
-    <p>Analyse a bounded selection of this project's source with your connected provider. Luci records the files it used and separates observed behaviour, inferences and gaps. Review the proposed definition before saving it as a draft.</p>
+    <p>Understand the source, answer open questions, then review a proposed definition before saving it.</p>
     {error && <p className="journey-error" role="alert">{error}</p>}
     {storageError && <p className="journey-error" role="alert">{storageError} Keep this page open; no new request will be sent until recovery can be saved.</p>}
     {savedRequest && <section className="definition-answer" aria-label="Saved analysis request">
@@ -275,10 +281,19 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied,
         <Button type="button" disabled={!!pending || !canAssist || dirty || !retryConfirmed} loading={pending === "retry"} onClick={() => void recover("retry")}>Retry original request</Button>
       </>}
     </section>}
-    <div className="journey-actions"><Button type="button" variant="ghost" loading={pending === "reload"} disabled={!!pending} onClick={() => void act("reload")}>Refresh saved analyses</Button></div>
-    {jobs.some(item => item.kind === "repository") && <label className="luci-field">Saved analysis<select value={job?.id || ""} disabled={!!pending} onChange={event => void act("select", event.target.value)}><option value="" disabled>Choose an analysis</option>{jobs.filter(item => item.kind === "repository").map(item => <option key={item.id} value={item.id}>{new Date(item.createdAt).toLocaleString()} · {item.status}</option>)}</select></label>}
+    {job?.result?.question && <section className="repository-question" aria-label="Saved analysis question">
+      <h3>A question about this application</h3><p className="repository-question-text">{job.result.question}</p>
+      {!!job.result.options.length && <ul className="repository-options">{job.result.options.map((option, index) => <li key={index}><Button type="button" variant="secondary" className="definition-option" disabled={!canAssist || !ownQuestion} onClick={() => answerQuestion(option)}>Use answer: {option}</Button></li>)}</ul>}
+      {ownQuestion ? <Button type="button" variant="secondary" disabled={!canAssist} onClick={() => answerQuestion()}>Answer this question</Button>
+        : <p>This question belongs to another person or an older unattributed analysis. Start a new analysis with your own account to ask a follow-up.</p>}
+      <p className="journey-muted">Choose an option, or select “Answer this question” to write your own response. Nothing is sent until you review and confirm it.</p>
+    </section>}
     <form onSubmit={event => { event.preventDefault(); void act("start"); }}>
       <fieldset disabled={!canAssist} className="definition-fields">
+        <label className="luci-field">{replying ? "Your answer" : "What should the analysis focus on?"}<textarea ref={answerInput} rows={3} value={message} onChange={event => editDraft({ message: event.target.value })} placeholder={replying ? "Answer the saved question in your own words." : "Optional: the intended changes, questions or parts you want understood."} /></label>
+        {replying && <p className="journey-muted">Sending uses the original question and a new snapshot of the source you choose below.</p>}
+        {replying && !validReply && <p>Choose your original saved question and write an answer before sending, or start a new analysis.</p>}
+        <h3>Review source and provider</h3>
         <div className="setup-field-grid">
           <label className="luci-field">Source to analyse<select value={sourceMode} onChange={event => editDraft({ sourceMode: event.target.value as typeof sourceMode })}><option value="worktree">Current working files</option><option value="commit">Latest committed source</option></select></label>
           <label className="luci-field">Analysis provider<select required value={harness} onChange={event => editDraft({ harness: event.target.value as typeof harness, model: "" })}><option value="" disabled>Choose your connected provider</option>{Object.entries(providers).map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
@@ -288,17 +303,15 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied,
         {(connectionIssue || catalogueError) && <p role="alert" className="journey-error">{connectionIssue || catalogueError}</p>}
         {harness === "opencode" && <p className="journey-muted">OpenCode uses the model saved in Agent connections. {selectedModel ? "This analysis will use that exact connection." : "Save a provider and model there before starting."}</p>}
         {harness === "opencode" && connectionError && <p role="alert">{connectionError}</p>}
-        {replying && <p>Answering saved analysis <code>{draft.replyToAnalysisId}</code>. The server will use its original question and a new snapshot of your selected source.</p>}
-        {replying && !validReply && <p>Choose your original saved question and write an answer before sending, or start a new analysis.</p>}
-        <label className="luci-field">{replying ? "Your answer" : "What should the analysis focus on?"}<textarea rows={3} value={message} onChange={event => editDraft({ message: event.target.value })} placeholder={replying ? "Answer the saved question in your own words." : "Optional: the intended changes, questions or parts you want understood."} /></label>
-        {replying && <Button type="button" variant="ghost" onClick={() => editDraft({ replyToAnalysisId: "" })}>Start a new analysis instead</Button>}
-        <p className="journey-muted">Your draft is kept in this browser for this account and workspace. You can keep editing it while a submitted request is being checked; later edits are not added to that request.</p>
-        <p className="journey-muted">Uses the selected provider and its configured account. Source sent for analysis excludes ignored, private, generated and binary files. The selection is partial and can miss behaviours elsewhere in the repository. Model usage follows your account's charges or subscription limits.</p>
+        <p className="journey-muted">Only a partial source selection is sent; ignored, private, generated and binary files are excluded. Your selected account's model charges or subscription limits apply.</p>
         <label className="data-check"><input type="checkbox" checked={acknowledged} onChange={event => setAcknowledged(event.target.checked)} />Send the selected source and definition to this provider for analysis.</label>
         <Button type="submit" variant={proposal && !job?.appliedRevision ? "secondary" : "primary"} loading={pending === "start"} disabled={!canAssist || locked || !harness || !validModel || !acknowledged || !validReply || !!storageError}>{replying ? "Send answer" : "Analyse repository"}</Button>
       </fieldset>
-      <Button type="button" variant="ghost" disabled={!scope || (!savedDraft.current && !message && !replying)} onClick={discardDraft}>Discard saved analysis draft</Button>
-      <p className="journey-muted">Discarding this draft clears only your unsent answer or focus. It does not cancel or remove an original submitted request.</p>
+      <details className="repository-draft-actions"><summary>Other draft actions</summary>
+        {replying && <Button type="button" variant="ghost" disabled={!canAssist} onClick={() => editDraft({ replyToAnalysisId: "" })}>Start a new analysis instead</Button>}
+        <Button type="button" variant="ghost" disabled={!scope || (!savedDraft.current && !message && !replying)} onClick={discardDraft}>Discard saved analysis draft</Button>
+        <p className="journey-muted">Your account's draft stays in this browser. Later edits are separate from an original submitted request. Discarding this draft does not cancel or remove that request.</p>
+      </details>
     </form>
     {dirty && <p>Save your definition changes before analysing or applying a proposal.</p>}
     {activeJob && !activeAnalysis && <p role="status">Another definition request is running. Its saved progress will remain available.</p>}
@@ -307,18 +320,18 @@ function ProjectRepositoryAnalysis({ projectId, specification, dirty, onApplied,
       {job.userMessage && <details><summary>{job.replyToAnalysisId ? "Submitted answer" : "Submitted analysis focus"}</summary><p>{job.userMessage}</p></details>}
       {job.replySourceChanged && <p className="journey-warning">The source changed since the earlier question. This reply used a new source snapshot; the earlier findings describe historical source.</p>}
       {activeAnalysis && <><p>You can leave this page and return to the saved run.</p><Button type="button" variant="secondary" loading={pending === "cancel"} disabled={!canExecute || !!pending} onClick={() => void act("cancel")}>Cancel repository analysis</Button></>}
-      {source && <><h3>Source used</h3><p>{source.fileCount} files · {Math.ceil(source.includedBytes / 1024)} KiB · {source.skippedFiles} files omitted · {source.mode === "commit" ? `commit ${source.commit?.slice(0, 12) || "unavailable"}` : "working files"}</p><p className="journey-muted">{source.limitation}</p><details><summary>Included files and source fingerprint</summary><code>{source.digest}</code><ul>{source.files.map(file => <li key={file.path}><code>{file.path}</code> · {file.bytes} bytes</li>)}</ul></details></>}
-      {job.result && <><h3>Findings</h3><p>{job.result.rationale}</p><ul>{job.result.findings?.map((finding, index) => <li key={index}><strong>{finding.kind === "observed" ? "Observed in source" : finding.kind === "inference" ? "Inference" : "Gap"}</strong><p>{finding.summary}</p>{!!finding.paths.length && <small>{finding.paths.join(", ")}</small>}</li>)}</ul></>}
-      {job.result?.question && <section aria-label="Saved analysis question"><h3>A question about this application</h3><p>{job.result.question}</p>
-        {!!job.result.options.length && <ul>{job.result.options.map((option, index) => <li key={index}><Button type="button" variant="secondary" disabled={!canAssist || !ownQuestion} onClick={() => editDraft({ replyToAnalysisId: job.id, message: option })}>Use answer: {option}</Button></li>)}</ul>}
-        {ownQuestion ? <Button type="button" variant="secondary" disabled={!canAssist} onClick={() => editDraft({ replyToAnalysisId: job.id })}>Answer this question</Button>
-          : <p>This question belongs to another person or an older unattributed analysis. Start a new analysis with your own account to ask a follow-up.</p>}
-        <p>Choosing an option only fills your draft. Review its answer, source and provider, then send it explicitly.</p>
-      </section>}
       {proposal && <><h3>Proposed definition</h3><p>{proposal.purpose}</p><ul>{proposal.requirements.map(requirement => <li key={requirement.id}><strong>{requirement.id} · {requirement.title}</strong><p>{requirement.acceptance}</p></li>)}</ul><details><summary>Read the complete proposed definition</summary><pre>{JSON.stringify(proposal, null, 2)}</pre></details>
         <p>Applying replaces the saved definition with this draft. Approval stays a separate step. Luci checks that both the source and saved definition still match this analysis.</p>
         {job.appliedRevision ? <p role="status">Applied as draft revision {job.appliedRevision}.</p> : <><label className="data-check"><input type="checkbox" checked={reviewed} disabled={!canEdit || locked || job.status !== "succeeded"} onChange={event => setReviewed(event.target.checked)} />I reviewed the proposed definition and its partial source coverage.</label><Button type="button" loading={pending === "apply"} disabled={!canEdit || locked || !reviewed || job.status !== "succeeded"} onClick={() => void act("apply")}>Apply as definition draft</Button></>}
       </>}
+      {(source || job.result) && <details className="repository-evidence"><summary>Review findings and source evidence</summary>
+        {job.result && <><h3>Findings</h3><p>{job.result.rationale}</p><ul>{job.result.findings?.map((finding, index) => <li key={index}><strong>{finding.kind === "observed" ? "Observed in source" : finding.kind === "inference" ? "Inference" : "Gap"}</strong><p>{finding.summary}</p>{!!finding.paths.length && <small>{finding.paths.join(", ")}</small>}</li>)}</ul></>}
+        {source && <><h3>Source used</h3><p>{source.fileCount} files · {Math.ceil(source.includedBytes / 1024)} KiB · {source.skippedFiles} files omitted · {source.mode === "commit" ? `commit ${source.commit?.slice(0, 12) || "unavailable"}` : "working files"}</p><p className="journey-muted">{source.limitation}</p><details><summary>Included files and source fingerprint</summary><code>{source.digest}</code><ul>{source.files.map(file => <li key={file.path}><code>{file.path}</code> · {file.bytes} bytes</li>)}</ul></details></>}
+      </details>}
     </section>}
+    <div className="repository-history">
+      {jobs.some(item => item.kind === "repository") && <label className="luci-field">Saved analysis<select value={job?.id || ""} disabled={!!pending} onChange={event => void act("select", event.target.value)}><option value="" disabled>Choose an analysis</option>{jobs.filter(item => item.kind === "repository").map(item => <option key={item.id} value={item.id}>{new Date(item.createdAt).toLocaleString()} · {item.status}</option>)}</select></label>}
+      <Button type="button" variant="ghost" loading={pending === "reload"} disabled={!!pending} onClick={() => void act("reload")}>Refresh saved analyses</Button>
+    </div>
   </section>;
 }

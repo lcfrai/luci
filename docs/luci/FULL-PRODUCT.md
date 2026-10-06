@@ -109,10 +109,73 @@ frontend tests across 125 files**. The original failed log remains retained.
 Matching installed acceptance is continuing. Logs are in `artifacts/quality-clarification`.
 These source results do not establish live model or merchant acceptance.
 
+The clean matching **`e04fa35c`** Linux package passes six portable acceptance
+groups and seven launcher outcomes. All 939 extracted files match the verified
+archive, with complete licence evidence for 346 components. Its installed browser
+journeys now establish:
+
+- **Repository analysis, six groups:** actual HTTPS import, two real read-only
+  Codex jobs using a deterministic provider, question-only clarification, edited
+  answer/reload, recovery of a dropped actual accepted response through the same
+  request key, and explicit application as an unapproved definition draft.
+  Exact selected connection revision, workspace actor, current source and prior
+  question/answer are checked; no duplicate inference or source/history rewrite
+  occurs. Attempt 1 retains a nested-label test selector failure; attempt 2 uses
+  the real accessible combobox role. Visual observations still find questions
+  below the viewport and a cramped phone layout; those are continuing product
+  work, not waived by the passing mechanism checks.
+- **Billing return, eight groups:** actual sign-in, explicit membership/workspace
+  choice, unavailable-team rejection, checkout/cancel/portal navigation, same-tab
+  local checkout shell, and retained draft cancel/restore. Billing status and
+  responses are explicitly local display fixtures; the real unconfigured backend
+  rejects the two deliberately requested billing actions before substitution.
+  There are no URL-driven billing mutations, Stripe calls or external requests.
+  Attempt 1 preserves a wrong post-restore field locator. Four bounded scans
+  find zero accessibility violations; one phone-tab contrast item remains
+  incomplete and is not conformance evidence.
+- **Data permissions, seven groups:** actual team/project grants and backend
+  denials, private viewer versus editor controls, the same draft input through
+  delayed and failed permission delivery, real revocation, and recovery-to-
+  deployments navigation. Database status/recovery content is explicitly a
+  display fixture; no database operation occurs in this journey.
+- **Persistent Docker maintenance, five groups:** real UI deployment A stays
+  healthy through 28 independent observations while candidate B returns actual
+  HTTP 503 and fails its health check. Owned logs and both deployment records
+  remain available after an installed service restart. Explicit stop, reviewed
+  repaired source C, and retained A stop/restart preserve exact source/image/
+  container identities. Exactly three deployment requests create A/B/C. Five
+  bounded desktop/phone accessibility scans have no violations or incomplete
+  items. This is labelled fixture source, not model-authored implementation,
+  database recovery, traffic cutover or cloud acceptance.
+
+Each journey verifies the binary and all 424 shipped web assets against the
+original archive. Receipts, failed attempts, driver bytes and screenshots are
+under `artifacts/package-eval/0.5.0-e04fa35c`; all owned processes and runtime
+resources were verified cleaned up. The archive SHA-256 is
+`69c4e640058e060ae3a9ef0f29be1d921af964ffdd1f0ff10b2af3b5ea236db1`.
+The next rendered corrections address prominent questions, explicit answer
+focus, compact project overview and truthful permission-refresh guidance. The
+whole-product goal remains open.
+
+Those corrections now have source implementations: the saved question and
+editable answer precede technical evidence; only an explicit Answer/Use answer
+action moves focus. Compact screens start with a labelled collapsed project
+overview while explicit choices, focused work and mounted drafts survive resize.
+Platform permission guidance distinguishes uncertainty from confirmed denial.
+The selected billing tab and its focus ring are revealed by scrolling only the
+tab strip, and deployment/hosting fields have local token-based styling. The
+complete frontend suite passes **1,883 tests across 125 files**. Current service
+sources remain identical to the tested `e04fa35c` service inputs. Matching rendered
+verification of these visual corrections is pending; earlier package receipts
+remain unchanged. Logs: `artifacts/quality-rendered-polish`.
+
 GitHub rejected the `7ff66d3b` Actions run before any check step for account
 payment/spending admission, recorded in
 `artifacts/onboarding/ci-7ff66d3b-admission-annotations.json`. The installed Windows
 failure therefore remains undiagnosed; local Linux success does not close it.
+The `e04fa35c` run was likewise rejected before any step with the same explicit
+payment/spending admission message; its annotation is retained at
+`artifacts/onboarding/ci-e04fa35c-admission-annotations.json`.
 
 ## Product-quality completion standard — 6 October 2026
 

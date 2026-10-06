@@ -39,6 +39,82 @@ it("supports keyboard selection and links only the active content to its tab", a
   expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe("test-tools-tab-1");
 });
 
+function narrowTabGeometry() {
+  let width = 420;
+  const positions = [[4, 82], [86, 117], [203, 128]];
+  const observers: TabResizeObserver[] = [];
+  class TabResizeObserver implements ResizeObserver {
+    readonly targets = new Set<Element>();
+    constructor(readonly callback: ResizeObserverCallback) { observers.push(this); }
+    observe(target: Element) { this.targets.add(target); }
+    unobserve(target: Element) { this.targets.delete(target); }
+    disconnect() { this.targets.clear(); }
+  }
+  vi.stubGlobal("ResizeObserver", TabResizeObserver);
+  const clientWidth = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function (this: HTMLElement) { return this.getAttribute("role") === "tablist" ? width : 0; });
+  const offsetWidth = vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function (this: HTMLElement) { return this.getAttribute("role") === "tablist" ? width : positions[Number(this.dataset.fluidHoverIndex)]?.[1] ?? 0; });
+  const originalRect = HTMLElement.prototype.getBoundingClientRect;
+  const rect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+    if (this.getAttribute("role") === "tablist") return DOMRect.fromRect({ x: 100, y: 200, width, height: 44 });
+    if (this.getAttribute("role") === "tab") {
+      const [left, itemWidth] = positions[Number(this.dataset.fluidHoverIndex)];
+      return DOMRect.fromRect({ x: 100 + left - this.parentElement!.scrollLeft, y: 204, width: itemWidth, height: 36 });
+    }
+    return originalRect.call(this);
+  });
+  const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView").mockClear();
+  return {
+    resize(next: number) { width = next; act(() => { for (const observer of observers) if ([...observer.targets].some(element => element.getAttribute("role") === "tablist")) observer.callback([], observer); }); },
+    scrollIntoView,
+    restore() { clientWidth.mockRestore(); offsetWidth.mockRestore(); rect.mockRestore(); scrollIntoView.mockRestore(); vi.unstubAllGlobals(); },
+  };
+}
+const teamTabs = <><TabsSubtleItem label="Members" index={0} /><TabsSubtleItem label="Project sharing" index={1} /><TabsSubtleItem label="Service and data" index={2} /></>;
+
+it("reveals a programmatically selected final tab and its focus gutter after narrowing, without scrolling its parent", () => {
+  const geometry = narrowTabGeometry();
+  const tabs = (selected: number) => <div data-testid="dialog-scroll"><TabsSubtle aria-label="Team settings" selectedIndex={selected} onSelect={() => {}}>{teamTabs}</TabsSubtle></div>;
+  const view = render(tabs(2));
+  try {
+    const list = screen.getByRole("tablist"), parent = screen.getByTestId("dialog-scroll"); parent.scrollTop = 80;
+    expect(list.scrollLeft).toBe(0);
+    geometry.resize(316);
+    const selected = screen.getByRole("tab", { name: "Service and data" });
+    expect(selected.getBoundingClientRect().right + 4).toBeLessThanOrEqual(list.getBoundingClientRect().right);
+    expect(list.scrollLeft).toBeGreaterThan(0);
+    expect(parent.scrollTop).toBe(80);
+    expect(geometry.scrollIntoView).not.toHaveBeenCalled();
+    view.rerender(tabs(0));
+    expect(list.scrollLeft).toBe(0);
+    view.rerender(tabs(2));
+    expect(selected.getBoundingClientRect().right + 4).toBeLessThanOrEqual(list.getBoundingClientRect().right);
+  } finally { view.unmount(); geometry.restore(); }
+});
+
+it("reveals keyboard focus before manual activation and returns to the first tab with Home", async () => {
+  const geometry = narrowTabGeometry();
+  function Example() {
+    const [selected, setSelected] = useState(0);
+    return <TabsSubtle aria-label="Team settings" selectedIndex={selected} onSelect={setSelected}>{teamTabs}</TabsSubtle>;
+  }
+  const view = render(<Example />);
+  try {
+    geometry.resize(316);
+    const user = userEvent.setup(), list = screen.getByRole("tablist");
+    await user.tab(); await user.keyboard("{End}");
+    const last = screen.getByRole("tab", { name: "Service and data" });
+    expect(document.activeElement).toBe(last);
+    expect(last.getAttribute("aria-selected")).toBe("false");
+    expect(last.getBoundingClientRect().right + 4).toBeLessThanOrEqual(list.getBoundingClientRect().right);
+    await user.keyboard("{Enter}"); expect(last.getAttribute("aria-selected")).toBe("true");
+    await user.keyboard("{Home}");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Members" }));
+    expect(last.getAttribute("aria-selected")).toBe("true");
+    expect(list.scrollLeft).toBe(0);
+    expect(geometry.scrollIntoView).not.toHaveBeenCalled();
+  } finally { view.unmount(); geometry.restore(); }
+});
+
 function observeLabelMeasurements() {
   const reads: HTMLElement[] = [];
   const observers: RecordingResizeObserver[] = [];
