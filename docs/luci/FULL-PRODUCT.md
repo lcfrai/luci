@@ -124,6 +124,10 @@ accepted checks. Windows product-test and Darwin API cross-compilation pass; thi
 is not native execution. Receipts and original review-found failures are retained
 in `artifacts/quality-recovery-responsiveness/`. Matching installed acceptance
 follows. The Definition footer/history also now use correct singular counts.
+The initial `72c33b02` build correctly refused outdated adapted-Fluid provenance.
+The follow-on updates only the two adaptation hashes and their description,
+preserving upstream revision, original source fingerprints and the MIT grant.
+Application source is unchanged; the failed build log remains retained.
 
 These are independent product obligations. The representative real-model benchmark is prepared at
 `artifacts/plans/idea-to-live-acceptance.json`; execution needs the selected saved

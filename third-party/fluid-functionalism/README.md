@@ -11,7 +11,9 @@ navigation keeps Luci's existing icons, native buttons default to type=button,
 and loading announces aria-busy. Tabs support reduced motion and measure label
 width only for collapsing icon labels, cleaning up their observer when that mode
 ends or the label unmounts. Ordinary labels avoid unused layout reads and label
-observers. The utility compiler is scoped to these components and omits
+observers. Tabs and hover pills share coalesced geometry; native scrolling and
+replacement-container observation keep the selected/focused tab visible without
+repeated selection-time measurements. The utility compiler is scoped to these components and omits
 Preflight; styles use Luci's light/dark/accent tokens and density. Inter's
 variable font is served from the local bundle; its original SIL Open Font
 License is collected from @fontsource-variable/inter with release notices.
