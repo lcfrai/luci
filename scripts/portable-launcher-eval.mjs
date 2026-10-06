@@ -22,6 +22,10 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
   await new Promise((resolve, reject) => listener.once('error', reject).listen(0, '127.0.0.1', resolve));
   const port = listener.address().port;
   await new Promise(resolve => listener.close(resolve));
+  const previewListener = createServer();
+  await new Promise((resolve, reject) => previewListener.once('error', reject).listen(0, '127.0.0.1', resolve));
+  const previewPort = previewListener.address().port;
+  await new Promise(resolve => previewListener.close(resolve));
   const base = `http://127.0.0.1:${port}`;
   const windows = process.platform === 'win32';
   const launcher = path.join(packageDir, windows ? 'Start-Luci.ps1' : 'start-luci.sh');
@@ -42,6 +46,8 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
   const environment = { ...inherited, HOME: home, USERPROFILE: home, LOCALAPPDATA: path.join(home, 'Local'), APPDATA: path.join(home, 'Roaming'),
     XDG_CONFIG_HOME: path.join(home, '.config'), XDG_DATA_HOME: path.join(home, '.local/share'), XDG_STATE_HOME: path.join(home, '.local/state'),
     GIT_CONFIG_GLOBAL: path.join(home, 'gitconfig'), GIT_CONFIG_NOSYSTEM: '1',
+    LUCI_DOCKER_HOST: windows ? `npipe:////./pipe/luci-eval-${randomUUID()}` : `unix://${path.join(fixture, 'absent-docker.sock')}`,
+    LUCI_BROWSER_PREVIEW_ADDR: `127.0.0.1:${previewPort}`, LUCI_BROWSER_PREVIEW_PORT: String(previewPort),
     GH_CONFIG_DIR: path.join(home, 'gh'), AZURE_CONFIG_DIR: path.join(home, 'azure'),
     AWS_CONFIG_FILE: path.join(home, 'aws-config'), AWS_SHARED_CREDENTIALS_FILE: path.join(home, 'aws-credentials'), AWS_EC2_METADATA_DISABLED: 'true' };
   if (windows) {

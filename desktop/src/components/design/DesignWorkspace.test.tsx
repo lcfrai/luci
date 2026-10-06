@@ -38,6 +38,82 @@ function ready(plan = fixture()) {
   vi.spyOn(productApi, "prototypeReleases").mockResolvedValue({ releases: [] });
 }
 
+it("starts an unfinished screen without invented behavior or coverage, allows a named draft and blocks approval until described", async () => {
+  ready({ ...fixture(), revision: 0, screens: [] });
+  const save = vi.spyOn(designPlanApi, "save").mockImplementation(async (_id, plan) => ({ ...plan, revision: 1, status: "draft" }));
+  const approve = vi.spyOn(designPlanApi, "approve");
+  const user = userEvent.setup();
+  render(<DesignWorkspace projectId="p-1" />);
+  await user.click(await screen.findByRole("button", { name: "Describe the first screen" }));
+  const name = screen.getByRole("textbox", { name: "Screen name" });
+  expect(document.activeElement).toBe(name);
+  for (const label of ["Screen name", "Route", "What this screen helps someone do", "States and recovery", "Accessibility and interaction"]) expect((screen.getByRole("textbox", { name: label }) as HTMLInputElement).value).toBe("");
+  expect((screen.getByRole("checkbox", { name: "AC-001 · Save work" }) as HTMLInputElement).checked).toBe(false);
+  expect(screen.getByText("Name screen 1 so you can save this draft.")).not.toBeNull();
+  expect((screen.getByRole("button", { name: "Save design plan" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByRole("button", { name: "Approve design handoff" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Continue to Develop" })).toBeNull();
+  await user.type(name, "Garden observations");
+  await user.click(screen.getByRole("button", { name: "Save design plan" }));
+  await screen.findByText("Design plan 1 saved. Implementation context updated.");
+  const screenDraft = save.mock.calls[0][1].screens[0];
+  expect(screenDraft).toMatchObject({ name: "Garden observations", route: "", purpose: "", states: [], requirementIds: [], accessibility: "", widths: [390, 1440] });
+  expect((screen.getByRole("button", { name: "Approve design handoff" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByRole("region", { name: "Design decisions still needed" }).textContent).toContain("what people do here and how their access differs");
+  await user.click(screen.getByRole("button", { name: "Approve design handoff" }));
+  expect(approve).not.toHaveBeenCalled();
+});
+
+it("shows actual saved roles and acceptance, then separately saves and approves explicitly authored role behavior", async () => {
+  ready({ ...fixture(), revision: 0, screens: [] });
+  const definition = await definitionApi.get("p-1");
+  vi.mocked(definitionApi.get).mockResolvedValue({ ...definition, audience: "Garden coordinators and members", roles: [
+    { id: "role-coordinator", name: "Coordinator", canDo: "Assign shared garden tasks", cannotDo: "Change another member's private notes" },
+    { id: "role-member", name: "Member", canDo: "Mark assigned tasks complete", cannotDo: "Assign tasks to other members" },
+  ] });
+  const save = vi.spyOn(designPlanApi, "save").mockImplementation(async (_id, plan) => ({ ...plan, revision: 1, status: "draft" }));
+  const approve = vi.spyOn(designPlanApi, "approve").mockImplementation(async () => ({ ...save.mock.calls[0][1], revision: 2, status: "approved" }));
+  const user = userEvent.setup();
+  render(<DesignWorkspace projectId="p-1" />);
+  await user.click(await screen.findByText("People, permissions and outcomes from your definition"));
+  const guidance = screen.getByRole("region", { name: "Plan the experience" });
+  for (const text of ["Garden coordinators and members", "Assign shared garden tasks", "Change another member's private notes", "Mark assigned tasks complete", "Assign tasks to other members", "Reopened work returns"]) expect(guidance.textContent).toContain(text);
+  await user.click(screen.getByRole("button", { name: "Describe the first screen" }));
+  await user.type(screen.getByRole("textbox", { name: "Screen name" }), "Garden tasks");
+  const purpose = "Coordinators assign tasks; members see and complete their assigned tasks without assignment controls. Saved completion remains when either role returns.";
+  const states = "No assigned tasks: members see who to contact\nSaved completion: task remains completed after reopening\nSave failed: retain the member's changes and offer retry\nMember opens assignment route: explain coordinator access is required";
+  await user.click(screen.getByRole("textbox", { name: "What this screen helps someone do" })); await user.paste(purpose);
+  await user.click(screen.getByRole("textbox", { name: "States and recovery" })); await user.paste(states);
+  await user.click(screen.getByRole("checkbox", { name: "AC-001 · Save work" }));
+  await user.click(screen.getByRole("button", { name: "Save design plan" }));
+  await screen.findByText("Design plan 1 saved. Implementation context updated.");
+  expect(save.mock.calls[0][1].screens[0]).toMatchObject({ purpose, states: states.split("\n"), requirementIds: ["AC-001"] });
+  expect(approve).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Approve design handoff" }));
+  expect(approve).toHaveBeenCalledExactlyOnceWith("p-1", 1);
+  await screen.findByRole("button", { name: "Continue to Develop" });
+});
+
+it("opens existing Luci planning help with a scoped unsent request and requires resolving local edits first", async () => {
+  ready({ ...fixture(), revision: 0, screens: [] });
+  const receive = vi.fn(); window.addEventListener("luci:orchestrator-open", receive);
+  const save = vi.spyOn(designPlanApi, "save"), approve = vi.spyOn(designPlanApi, "approve");
+  try {
+    const user = userEvent.setup(); render(<DesignWorkspace projectId="p-1" />);
+    const help = await screen.findByRole("button", { name: "Ask Luci to help plan the experience" });
+    await user.click(help);
+    expect(receive).toHaveBeenCalledOnce();
+    const detail = (receive.mock.calls[0][0] as CustomEvent).detail;
+    expect(detail.projectId).toBe("p-1"); expect(detail.message).toContain("each person or role"); expect(detail.message).toContain("design-plan draft for my review");
+    expect(screen.getByText(/Opens an unsent message. Sending needs an available agent connection/)).not.toBeNull();
+    expect(save).not.toHaveBeenCalled(); expect(approve).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Describe the first screen" }));
+    expect((help as HTMLButtonElement).disabled).toBe(true);
+    await user.click(help); expect(receive).toHaveBeenCalledOnce();
+    expect(screen.getByText(/Save or resolve your draft first so the conversation uses the context you intend/)).not.toBeNull();
+  } finally { window.removeEventListener("luci:orchestrator-open", receive); }
+});
+
 it("keeps typed comma delimiters and only saves parsed responsive widths after the edit is complete", async () => {
   ready();
   const original = fixture();

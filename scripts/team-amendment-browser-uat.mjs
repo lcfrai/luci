@@ -364,7 +364,22 @@ try {
   await page.getByRole('button', { name: 'Add an outcome', exact: true }).click(); await page.getByRole('textbox', { name: 'Outcome 1', exact: true }).fill(oldTitle); await page.getByRole('textbox', { name: 'How to check outcome 1', exact: true }).fill(oldAcceptance); await page.getByRole('button', { name: 'Review specification', exact: true }).click();
   await mutation(() => page.getByRole('button', { name: 'Save definition', exact: true }).click(), projectRoute + '/specification');
   const spec = await mutation(() => page.getByRole('button', { name: 'Approve definition', exact: true }).click(), projectRoute + '/specification/approve');
-  await lens('Design'); await page.getByRole('button', { name: 'Start a screen plan from my definition', exact: true }).click(); await page.getByRole('textbox', { name: 'Screen name', exact: true }).fill('Garden notes'); await page.getByRole('textbox', { name: /^Responsive widths/ }).fill('390, 1440');
+  assert.equal(spec.requirements.length, 1); assert.equal(spec.requirements[0].title, oldTitle);
+  await lens('Design'); await page.getByRole('button', { name: 'Describe the first screen', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Screen name', exact: true }).fill('Garden notes');
+  await page.getByRole('textbox', { name: 'Route', exact: true }).fill('/');
+  await page.getByRole('textbox', { name: 'What this screen helps someone do', exact: true }).fill('Two gardeners reviewing this local preview can enter a Garden note, activate Save note and read observations in the shared list. Both preview visitors have the same actions; their Luci team roles do not create application accounts or application access rules. Notes remain in this running application process across page reloads, but a restart clears its in-memory list.');
+  await page.getByRole('textbox', { name: 'States and recovery', exact: true }).fill([
+    'First visit: show the labelled Garden note input and Save note button with an empty observations list.',
+    'While saving: retain the entered note until the server response arrives.',
+    'Successful save: show Saved, clear the note input and read the saved observation back into the list.',
+    'Rejected save: show Could not save the note, retain the entered text and allow an explicit Save note retry.',
+    'Application restart: the list is empty again; durable application data is outside this fixture.',
+  ].join('\n'));
+  await page.getByRole('textbox', { name: 'Accessibility and interaction', exact: true }).fill('Associate the visible Garden note label with its input. Keep Save note a native button reachable with Tab and activated with Enter or Space. Use the status region for save results and a semantic notes list; keep controls readable at 390 and 1440 pixels.');
+  await page.getByRole('textbox', { name: /^Responsive widths/ }).fill('390, 1440');
+  const originalOutcome = page.getByRole('checkbox', { name: `${spec.requirements[0].id} · ${oldTitle}`, exact: true });
+  assert.equal(await originalOutcome.isChecked(), false, 'The unfinished screen must not claim requirement coverage automatically'); await originalOutcome.check();
   await mutation(() => page.getByRole('button', { name: 'Save design plan', exact: true }).click(), projectRoute + '/design-plan');
   await page.getByRole('tab', { name: 'Implementation handoff', exact: true }).click(); await page.getByRole('textbox', { name: 'Implementation notes', exact: true }).fill('A labelled Garden note input, Save note button and a list showing the saved observations.');
   await mutation(() => page.getByRole('button', { name: 'Save design plan', exact: true }).click(), projectRoute + '/design-plan');
@@ -417,6 +432,18 @@ try {
 
   stage = 'renew-review-and-stop-original'; page = bob; await lens('Design');
   await page.getByText('The definition or sketch has changed. Review the screen plan and save a new handoff before approving.', { exact: true }).waitFor();
+  await page.getByRole('tab', { name: 'Screens and states', exact: true }).click();
+  await page.getByRole('textbox', { name: 'What this screen helps someone do', exact: true }).fill('Both gardeners can save a Garden note with an optional Garden area and read the area and note together. Notes saved before this amendment, or without an area, remain readable as plain notes. There are still no application accounts or different application privileges. The list is shared only within the running preview process; page reloads retain it and a process restart clears it.');
+  await page.getByRole('textbox', { name: 'States and recovery', exact: true }).fill([
+    'First visit: show visibly labelled Garden area and Garden note inputs, Save note and the current notes list.',
+    'While saving: retain both inputs until the server returns its result.',
+    'Successful save with an area: show Saved, clear the note input, retain the area input and render the area beside the note on the next read.',
+    'Earlier notes or notes without an area: keep the plain note readable in the same list.',
+    'Rejected save: show Could not save the note, keep both inputs and allow an explicit retry.',
+    'Application restart: the in-memory list starts empty; the amendment adds no durable storage or application authentication.',
+  ].join('\n'));
+  await page.getByRole('textbox', { name: 'Accessibility and interaction', exact: true }).fill('Use associated, visible Garden area and Garden note labels. Tab reaches both inputs and the native Save note button; Enter or Space on the button saves. Announce results through the status region, preserve a semantic list and keep the area and note readable at 390 and 1440 pixels.');
+  assert(await page.getByRole('checkbox', { name: `${spec.requirements[0].id} · ${newTitle}`, exact: true }).isChecked(), 'The amended screen must retain its exact outcome identity');
   await page.getByRole('tab', { name: 'Implementation handoff', exact: true }).click();
   await page.getByRole('textbox', { name: 'Implementation notes', exact: true }).fill('Keep the existing Garden note input and saved-note behavior. Add a labelled, keyboard-accessible Garden area input. Saving a note with an area renders area and note together; old plain notes remain readable.');
   await mutation(() => page.getByRole('button', { name: 'Save design plan', exact: true }).click(), projectRoute + '/design-plan');

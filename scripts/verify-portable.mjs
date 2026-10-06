@@ -27,6 +27,10 @@ const listener = createServer();
 await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
 const address = `127.0.0.1:${listener.address().port}`;
 await new Promise(resolve => listener.close(resolve));
+const previewListener = createServer();
+await new Promise(resolve => previewListener.listen(0, '127.0.0.1', resolve));
+const previewPort = previewListener.address().port;
+await new Promise(resolve => previewListener.close(resolve));
 const base = `http://${address}`;
 const binary = path.join(packageDir, process.platform === 'win32' ? 'luci.exe' : 'luci');
 const checks = [], logs = [];
@@ -42,7 +46,7 @@ async function request(method, route, body) {
   return value;
 }
 async function start() {
-  child = spawn(binary, [], {cwd:packageDir, windowsHide:true, env:{...process.env, LUCI_ADDR:address, LUCI_STATE_DIR:state, LUCI_PROJECTS_DIR:projects, LUCI_WEB_DIR:path.join(packageDir,'web'), LUCI_RUNTIME_DIR:path.join(packageDir,'runtime')}});
+  child = spawn(binary, [], {cwd:packageDir, windowsHide:true, env:{...process.env, LUCI_ADDR:address, LUCI_STATE_DIR:state, LUCI_PROJECTS_DIR:projects, LUCI_WEB_DIR:path.join(packageDir,'web'), LUCI_RUNTIME_DIR:path.join(packageDir,'runtime'), LUCI_DOCKER_HOST:process.platform === 'win32' ? `npipe:////./pipe/luci-eval-${randomUUID()}` : `unix://${path.join(evidence,'absent-docker.sock')}`, LUCI_BROWSER_PREVIEW_ADDR:`127.0.0.1:${previewPort}`, LUCI_BROWSER_PREVIEW_PORT:String(previewPort)}});
   child.on('error', error => logs.push(String(error)));
   for (const stream of [child.stdout, child.stderr]) stream.on('data', data => { if (logs.join('').length < 65536) logs.push(data.toString()); });
   const until = Date.now() + 60000;

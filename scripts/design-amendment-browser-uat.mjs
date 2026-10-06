@@ -213,7 +213,9 @@ try {
   check('Actual Define removal and renewed review preserve the screen and surface its unavailable link; Design cannot silently save it');
 
   stage = 'explicit-unlink-and-typing';
-  await removeLink().uncheck(); assert.equal(await removeLink().count(), 0);
+  // This explicit unlink removes its own checkbox. A normal click followed by
+  // absence verifies the action; uncheck() waits for a node that no longer exists.
+  await removeLink().click(); assert.equal(await removeLink().count(), 0);
   const widthField = input(); await widthField.click(); await page.keyboard.press('End'); await page.keyboard.type(', ');
   assert.equal(await widthField.inputValue(), '390, 1440, '); assert.equal(await widthField.getAttribute('aria-invalid'), 'true'); assert(await saveButton().isDisabled());
   await page.keyboard.press('Tab'); assert.equal(await widthField.inputValue(), '390, 1440, ');

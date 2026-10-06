@@ -283,9 +283,21 @@ try {
   await mutation(() => page.getByRole('button', { name: 'Save definition', exact: true }).click(), projectRoute + '/specification');
   const specification = await mutation(() => page.getByRole('button', { name: 'Approve definition', exact: true }).click(), projectRoute + '/specification/approve');
   assert.equal(specification.requirements.length, 1);
-  await lens('Design'); await page.getByRole('button', { name: 'Start a screen plan from my definition', exact: true }).click();
+  await lens('Design'); await page.getByRole('button', { name: 'Describe the first screen', exact: true }).click();
   await page.getByRole('textbox', { name: 'Screen name', exact: true }).fill('Garden notes');
+  await page.getByRole('textbox', { name: 'Route', exact: true }).fill('/');
+  await page.getByRole('textbox', { name: 'What this screen helps someone do', exact: true }).fill('A gardener using the local preview enters a Garden note, activates Save note and reads the saved observation in the list. Every preview visitor has the same actions; there are no application accounts or role checks. Notes survive a page reload while this application process runs, but are held only in server memory and disappear when it restarts.');
+  await page.getByRole('textbox', { name: 'States and recovery', exact: true }).fill([
+    'First visit: show the Garden note field, Save note button and an empty notes list.',
+    'While saving: retain the entered note until the server responds; do not show Saved before a successful response.',
+    'Successful save: clear the note field, show Saved and refresh the list so the next read contains the trimmed note.',
+    'Rejected save: show Could not save the note, keep the entered note and let the gardener retry Save note.',
+    'Application restart: the notes list starts empty; this fixture does not claim durable storage.',
+  ].join('\n'));
+  await page.getByRole('textbox', { name: 'Accessibility and interaction', exact: true }).fill('Keep the Garden note label visible and programmatically associated with its input. Tab reaches the native Save note button; Enter or Space on that button saves. Announce Saved or a rejected save through the status region, use a semantic list, and keep the form readable at both planned widths.');
   await page.getByRole('textbox', { name: /^Responsive widths/ }).fill('390, 1440');
+  const noteOutcome = page.getByRole('checkbox', { name: `${specification.requirements[0].id} · ${specification.requirements[0].title}`, exact: true });
+  assert.equal(await noteOutcome.isChecked(), false, 'The unfinished screen must not claim requirement coverage automatically'); await noteOutcome.check();
   await mutation(() => page.getByRole('button', { name: 'Save design plan', exact: true }).click(), projectRoute + '/design-plan');
   await page.getByRole('tab', { name: 'Implementation handoff', exact: true }).click();
   await page.getByRole('textbox', { name: 'Implementation notes', exact: true }).fill('One labelled note input, a Save note button and a list of saved observations. Saving must actually update the next read.');

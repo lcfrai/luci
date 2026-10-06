@@ -6,6 +6,8 @@ This is the current local and cloud-workspace runbook. The [Phase 1 runbook](ver
 
 For packaged candidates, follow [RELEASE.md](luci/RELEASE.md), extract the complete archive and use its launcher, or install the Windows desktop candidate. From source, install the prerequisites in the project README and run `scripts/dev.ps1` or `scripts/dev.sh` from the repository root.
 
+The compiled service supports `luci --help` (or `-h`) and `luci --version` without initializing state or starting services. Run it with no arguments for an environment-configured service; unsupported or conflicting arguments fail with usage and exit code 2. Portable app users should use the supplied launcher.
+
 First startup creates an owner-only bootstrap file in `StateDir/control-plane/bootstrap-token`. The packaged launcher or native application can populate that first-run code; otherwise enter it in the application. Choose the initial Super Admin username and password. Subsequent starts use ordinary sign-in. API automation obtains a bearer token from `/v1/auth/login`; do not put tokens in URLs or commit them. `GET /v1/control-plane/status` is the public readiness endpoint; all workspace APIs require sign-in.
 
 The control service defaults to `127.0.0.1:8730`. Open the application and choose a project folder. Setup checks Git, Docker and the sandbox image separately. Define and Design remain available while Docker is unavailable. A running Docker engine and installed agent runtime are required for real sessions and container previews. Configure a real Git identity and the person's chosen model access in Settings.

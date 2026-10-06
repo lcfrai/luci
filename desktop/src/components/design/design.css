@@ -12,6 +12,16 @@
 .design-definition small { color: var(--ink-3); }
 .design-empty { max-inline-size: 68ch; padding-block: 20px 28px; }
 .design-empty p { line-height: 1.65; }
+.design-planning-guide { margin-block: 20px 28px; }
+.design-planning-guide > p { max-inline-size: 76ch; line-height: 1.6; }
+.design-planning-guide > button { max-inline-size: 100%; white-space: normal; block-size: auto; min-block-size: 44px; }
+.design-context-reference { margin-block-start: 20px; padding: 16px; border: 1px solid var(--line-soft); border-radius: 10px; }
+.design-context-reference summary { cursor: pointer; font-weight: 600; }
+.design-context-reference h3, .design-review-needs h3 { font-size: 1rem; }
+.design-context-reference li + li { margin-block-start: 16px; }
+.design-context-reference li p { margin-block: 6px; white-space: pre-line; }
+.design-review-needs { margin-block: 20px; padding: 16px 20px; border-inline-start: 3px solid var(--line-soft); }
+.design-review-needs li, .design-review-needs p { line-height: 1.6; }
 .design-sketch { min-block-size: 650px; }
 .design-sketch > section { block-size: 700px; }
 /* Native shortcut text stays readable; selected tools retain their own token. */

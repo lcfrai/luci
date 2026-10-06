@@ -37,9 +37,17 @@ eight billing-return, seven data-permission and five actual Docker maintenance
 groups, plus six portable groups and seven launcher outcomes. Its rendered
 checks cover explicit answer focus, compact phone context, retained drafts,
 truthful access messages, visible selected tabs and labelled deployment fields.
-The follow-on clean `4c8012c1` package also passes seven permission groups and four rendered data-field observations. The latest
-complete frontend run passes 1,883 tests; service sources retain the validated
-2,045 Go outcomes and 1,230 race outcomes. Exact source identities, fixture
+The follow-on clean `4c8012c1` package also passes seven permission groups and four
+rendered data-field observations. Clean `1b0d8043` passes five design-amendment
+groups, six portable groups, seven launcher outcomes and five actual
+legacy-package refusal/state-preserving upgrade checks. The latest source batch
+replaces generic auto-filled design outlines with explicit screen authoring,
+saved people/outcome guidance, unsent planning help and separate draft/approval
+guidance. Its full frontend run passes 1,890 tests; two final wording-only changes
+and matching installed acceptance remain separately scoped. CLI help, version and
+rejected arguments now exit before service initialization, with 21 focused Go
+outcomes and eight isolated source-binary checks. Earlier service sources retain
+the validated 2,045 Go outcomes and 1,230 race outcomes. Exact source identities, fixture
 limits and remaining gates are in [FULL-PRODUCT.md](FULL-PRODUCT.md). The results
 below retain their historical identities.
 

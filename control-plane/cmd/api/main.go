@@ -45,10 +45,12 @@ import (
 )
 
 func main() {
-	if err := protectChildren(); err != nil {
-		fmt.Fprintf(os.Stderr, "luci: child process cleanup unavailable: %v\n", err)
-	}
-	os.Exit(run(os.Getenv, os.Stderr))
+	os.Exit(runCommand(os.Args[1:], os.Stdout, os.Stderr, func() int {
+		if err := protectChildren(); err != nil {
+			fmt.Fprintf(os.Stderr, "luci: child process cleanup unavailable: %v\n", err)
+		}
+		return run(os.Getenv, os.Stderr)
+	}))
 }
 
 // run is main with its two impure edges as parameters, so that the exit-2 path

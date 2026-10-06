@@ -211,10 +211,41 @@ removal, and keeps numeric API values and approval semantics intact. Portable
 package identity generation, Bash admission, PowerShell-on-Linux admission and
 Docker-context packaging pass 18 Python cases; nine focused top-level Go tests
 and three management race tests pass. No Docker runs in these checks. Independent
-launcher review finds no blocker. The matching installed design and upgrade
-journeys remain pending; PowerShell on Linux does not establish native Windows
-execution. Logs and input identities: `artifacts/quality-design-upgrade` and
-`artifacts/quality-rendered-polish/portable-identity-source`.
+launcher review finds no blocker. The clean `1b0d8043` package passes six portable
+groups (including seven launcher outcomes) and five installed design-amendment
+groups: actual definition removal/review, explicit unlink, per-keystroke width
+entry, exact unfinished-text reload/recovery, numeric save/reload and separate
+approval. Every unrelated screen field and historical design remains unchanged.
+The first design attempt retains a driver failure: Playwright's uncheck waited
+for the removed control; one ordinary click plus the existing absence assertion
+correctly observes explicit unlinking. No product assertion was weakened.
+
+The archive SHA-256 is
+`2a5ec21198e331caf64b9c0a79aabc2155ec367db5d769af3111b460e089ee7c`;
+all 940 members match and 346 licence components have complete evidence. Five
+actual upgrade checks pass: the new launcher refuses a running legacy package
+without changing its process or private files, then preserves its account,
+session and saved definition after explicit shutdown and startup. Same-package
+reuse and normal cleanup pass. The older extracted package was independently
+matched to its retained archive; the original receipt's missing old archive-path
+observation remains recorded separately from that verification.
+PowerShell on Linux does not establish native Windows execution. Logs and input
+identities: `artifacts/quality-design-upgrade` and
+`artifacts/quality-rendered-polish/portable-identity-source`; installed receipts:
+`artifacts/package-eval/0.5.0-1b0d8043`.
+
+An independent fresh-owner walkthrough then found that an untouched generic
+screen outline could become an approved handoff for a role-based application.
+The correction replaces that generated outline with explicit screen authoring,
+saved people/access/outcome guidance, and a route to Luci's existing unsent
+planning conversation. A named incomplete screen can be saved as a draft;
+approval explains the missing behavior and states. No semantic quality score or
+model response is invented. Existing authored plans retain their content.
+The full frontend suite passes **1,890 tests across 125 files** with unchanged
+inputs during the run. Two subsequent wording-only corrections invite handoff
+review and explain draft saving; matching package build and four-group rendered
+authoring acceptance remain pending. The source and copy scope are recorded in
+`artifacts/quality-design-authoring`.
 
 
 GitHub rejected the `7ff66d3b` Actions run before any check step for account
