@@ -48,15 +48,22 @@ observations, 24 internal-tab states and 12 scoped axe scans with zero violation
 Native 200% browser zoom also passes; actual 400% exposes a zero-height Develop
 workspace. The working CSS correction keeps short-height content in outer scroll
 flow and gives active terminal/Canvas surfaces definite space. Seven source
-geometry cases pass; matching installed native-zoom acceptance is still required.
+geometry cases pass. Installed `4c6b895f` confirms native 200% and restores content
+reachability at 400%. One full-width disclosure still clips its focus outline;
+the next scoped inset-outline correction passes four geometry cases and type
+checking, with exact installed 400% verification pending.
 
 The 80-action baseline meets navigation p95 targets but misses the mobile
 acknowledgement target in three actions. A CPU diagnostic identifies duplicated
 tab geometry work without reproducing the original large stalls. Shared coalesced
 geometry, including a review-found replaced-container correction, now passes 71
 focused tests and type checking. Both new regressions fail before the correction.
-An unprofiled installed comparison follows; no performance improvement is claimed
-from source alone.
+The first `4c6b895f` unprofiled 80-action run records input-inclusive ACK p95 of
+62.4/72.2 ms and initial-content p95 of 492.5/228.3 ms at desktop/phone widths.
+Two ACK and two readiness misses remain; the original large stalls are not proven
+fixed. All 48 keyboard/Verify observations, 24 indicator alignments and 12 axe
+scans pass. Retained analysis leaves the responsiveness gate open; no speculative
+code change or pass-hunting timing rerun follows.
 
 The connected journey also exposed a Docker Create completing after service
 interruption, leaving a never-started child indefinitely Starting. The working
@@ -64,9 +71,12 @@ recovery correction preserves exact session/run identity, observes active create
 checks current ownership and applies the existing grace before a conditional
 terminal transition. Full Go checks pass 2,144 outcomes / 22 skips; full affected
 race checks pass 1,283 / seven skips across five packages. Independent review
-finds no actionable defect. Installed interrupted-create recovery and the complete
-team coding/amendment/check/preview journey are next; the earlier interrupted
-attempt remains aborted, not passed. Final frontend validation passes 2,059
+finds no actionable defect. Installed `4c6b895f` interrupted-create recovery passes
+all four groups: real Create once, no Start/provider calls, actual grace recovery,
+same identities/source, blocked failure with explicit retry, owned child removal
+and explicit cancellation. Independent cleanup confirms zero owned resources and
+unchanged pins. The complete team coding/amendment/check/preview journey is next;
+the earlier interrupted attempt remains aborted, not passed. Final frontend validation passes 2,059
 tests across 128 files plus TypeScript. Accepted frontend/Go inputs are unchanged;
 Windows product-test and Darwin API cross-compilation also pass. Receipts are in
 `artifacts/quality-recovery-responsiveness/`; no native execution is inferred.

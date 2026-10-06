@@ -90,15 +90,28 @@ observations retain complete focus outlines. Native 400% exposes a real blocker:
 shell controls consume the short viewport and collapse the Develop workspace to
 zero height. A narrow short-height correction keeps the journey in normal scroll
 flow while giving active terminal/Canvas surfaces definite usable space. Seven
-source geometry cases pass; matching native-zoom acceptance remains pending.
+source geometry cases pass. Clean `4c6b895f` now passes native 200% and restores
+reachable content at 400% through normal Tab navigation and shell scrolling.
+One of 29 stops still clips the full-width plan disclosure's focus ring. A narrow
+inset-outline correction preserves its two-pixel accent and unchanged geometry;
+four before/after geometry cases and type checking pass. Exact matching-package
+400% verification follows; the original failure remains retained.
 
 The CPU diagnostic identifies duplicated tab geometry work but does not reproduce
 the original large phone stalls. Fluid now shares one coalesced geometry snapshot
 for its pills and selected/focused tab visibility. Independent review then found
 that a replaced strip could retain listeners on its old DOM element. Two new
 regressions fail before the correction and pass afterward; all 71 affected tests
-and type checking pass. An unprofiled matching-package measurement must establish
-the actual result. These changes do not yet establish the responsiveness target.
+and type checking pass. Clean `4c6b895f` passes 48 keyboard/Verify observations,
+24 selected-tab alignments and 12 axe scans with zero violations. Its 80 warm
+actions have input-inclusive acknowledgement p95 of 62.4 ms desktop / 72.2 ms
+phone, and initial-content p95 of 492.5 / 228.3 ms. Two acknowledgement and two
+readiness misses remain. The slow readiness waits on platform status; retained
+traces do not identify a specific slow application function or partition server,
+renderer, observer and host scheduling costs. Instrumentation also changed, so
+this does not prove the original stalls were fixed. The responsiveness gate stays
+open. Full evidence and limits: `artifacts/quality-responsiveness/4c6b895f-acceptance.md`
+and the adjacent trace analysis.
 
 The connected runtime attempt exposed a separate product recovery defect. Docker
 finished an owned Create after the fixture service was interrupted; its retained
@@ -115,15 +128,22 @@ the existing grace, fresh exact ownership and a conditional session transition.
 It retains the same session/run/operation/source identity and prevents automatic
 redispatch. The complete Go suite passes 2,144 outcomes with 22 skips; the full
 five-package affected race suite passes 1,283 outcomes with seven skips. A bounded
-independent source review finds no actionable defect. A real installed
-interrupted-create/restart test still follows; neither source tests nor the
-aborted fixture establish the repaired installed behavior.
+independent source review finds no actionable defect. Clean `4c6b895f` passes all
+four installed interrupted-create/restart groups on its first attempt. One real
+Create and zero Start/provider calls preserve the same session/run/operation and
+source. Restart shows unconfirmed startup; the actual grace and ordinary sweep
+produce a failed/blocked attempt, explicit enabled retry and removal of the exact
+owned child. Explicit cancellation preserves the ledger. Minimum remaining disk
+is 1,836,802,048 bytes; confirmed daemon drain and independent cleanup find zero
+owned processes, containers or volumes with pinned images intact. Receipt:
+`artifacts/package-eval/0.5.0-4c6b895f/interrupted-create-attempt-1/result.json`.
 The final complete frontend suite passes 2,059 tests across 128 files, plus
 TypeScript. All 428 frontend and 671 Go input hashes remain unchanged during their
 accepted checks. Windows product-test and Darwin API cross-compilation pass; this
 is not native execution. Receipts and original review-found failures are retained
-in `artifacts/quality-recovery-responsiveness/`. Matching installed acceptance
-follows. The Definition footer/history also now use correct singular counts.
+in `artifacts/quality-recovery-responsiveness/`. All 940 installed package files
+match, with 346 licence components and none missing. Six portable groups and seven
+launcher outcomes pass. The Definition footer/history also use singular counts.
 The initial `72c33b02` build correctly refused outdated adapted-Fluid provenance.
 The follow-on updates only the two adaptation hashes and their description,
 preserving upstream revision, original source fingerprints and the MIT grant.

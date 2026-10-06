@@ -59,6 +59,10 @@
   cursor: pointer;
   align-items: center;
 }
+.project-work > summary:focus-visible {
+  /* This disclosure spans the scroll viewport; keep its full outline inside. */
+  outline-offset: -2px;
+}
 .project-work > summary::before {
   content: "+";
   font: 14px var(--mono);
