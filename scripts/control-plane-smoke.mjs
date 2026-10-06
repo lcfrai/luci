@@ -72,7 +72,7 @@ try {
   const savedHandoff = await api('POST', projectBase + '/design-plan', memberToken, { expectedRevision: handoff.revision, expectedBriefRevision: approvedDefinition.briefRevision, expectedSpecificationRevision: approvedDefinition.revision, plan: handoff });
   const approvedHandoff = await api('POST', projectBase + '/design-plan/approve', memberToken, { revision: savedHandoff.revision });
   assert.equal(approvedHandoff.status, 'approved'); assert.match(approvedHandoff.digest, /^[a-f0-9]{64}$/);
-  const commit = await api('POST', projectBase + '/git/commit', memberToken, { message: 'Save member brief, plan and design' });
+  const commit = await api('POST', projectBase + '/git/commit', memberToken, { message: 'Save member brief, plan and design', expectedReviewDigest: (await api('GET', projectBase + '/git', memberToken)).reviewDigest });
   assert.match(commit.commit, /^[0-9a-f]{40,64}$/);
   const ownIdentity = await fs.readFile(path.join(runtimeRoot, 'home', '.gitconfig'), 'utf8');
   assert.match(ownIdentity, /Fixture Member/);

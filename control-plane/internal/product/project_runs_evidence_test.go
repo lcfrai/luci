@@ -27,7 +27,7 @@ func projectRunEvidenceFixture(t *testing.T) (*Server, project.Project, ProjectR
 	if err := os.WriteFile(filepath.Join(p.Path, "check.js"), []byte(`console.log('private-output-must-not-be-copied');process.exit(0)`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/git/commit", map[string]string{"message": "Save reviewed check candidate"}, 200)
+	journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/git/commit", reviewedCommitRequest(t, mux, "/v1/product/projects/"+p.ID+"/git/commit", "Save reviewed check candidate"), 200)
 	useActualEvidenceProcesses(t, s)
 	var row ProjectCheckRun
 	decodeEvidenceResponse(t, journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/checks", evidenceRequest(spec, design, "check.js"), 202).Body.Bytes(), &row)

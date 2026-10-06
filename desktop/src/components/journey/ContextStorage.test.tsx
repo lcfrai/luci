@@ -130,3 +130,135 @@ it("lets a viewer inspect archive history while disabling export repair, private
   expect((screen.getByRole("button", { name: "Remove archived revisions" }) as HTMLButtonElement).disabled).toBe(true);
   expect(projectContextApi.repair).not.toHaveBeenCalled(); expect(productApi.backupProject).not.toHaveBeenCalled(); expect(projectContextApi.prune).not.toHaveBeenCalled();
 });
+
+it.each(["backup", "context readback"])("drops a private backup after editing is revoked during %s, even if editing returns", async phase => {
+  let finish!: (value: Blob | ProjectContext) => void;
+  const pending = new Promise<Blob | ProjectContext>(resolve => { finish = resolve; });
+  const view = render(<ContextStorage projectId="p-1" />); await open();
+  if (phase === "backup") vi.mocked(productApi.backupProject).mockImplementationOnce(() => pending as Promise<Blob>);
+  else vi.mocked(projectContextApi.get).mockImplementationOnce(() => pending as Promise<ProjectContext>);
+  await userEvent.click(screen.getByText("Free archive space"));
+  await userEvent.click(screen.getByRole("button", { name: "Download backup before removal" }));
+  if (phase === "context readback") await waitFor(() => expect(projectContextApi.get).toHaveBeenCalledTimes(2));
+  teamAccess.permissions.edit = false; view.rerender(<ContextStorage projectId="p-1" />);
+  teamAccess.permissions.edit = true; view.rerender(<ContextStorage projectId="p-1" />);
+  await act(async () => finish(phase === "backup" ? new Blob(["private source"]) : fixture()));
+  expect(download).not.toHaveBeenCalled(); expect(URL.createObjectURL).not.toHaveBeenCalled();
+  expect(screen.queryByText(/Backup download started/)).toBeNull();
+  expect((screen.getByRole("checkbox", { name: /I saved the backup/ }) as HTMLInputElement).disabled).toBe(true);
+  expect(projectContextApi.get).toHaveBeenCalledTimes(phase === "backup" ? 1 : 2);
+});
+
+it("keeps archive reading available through an edit downgrade and permission refresh, but fences actual read revocation", async () => {
+  let finish!: (value: ContextArchivePage) => void;
+  vi.mocked(projectContextApi.archive).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<ContextStorage projectId="p-1" />); await open();
+  await userEvent.click(screen.getByRole("button", { name: "Browse archived revisions" }));
+  teamAccess.permissions.edit = false; teamAccess.loading = true; view.rerender(<ContextStorage projectId="p-1" />);
+  await act(async () => finish(archived()));
+  expect(screen.getByText(/Archived original purpose/)).not.toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Download these revisions" })); expect(download).toHaveBeenCalledOnce();
+  download.mockClear(); vi.mocked(URL.createObjectURL).mockClear();
+  vi.mocked(projectContextApi.archive).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  await userEvent.click(screen.getByRole("button", { name: "Older archive page" }));
+  teamAccess.permissions.read = false; view.rerender(<ContextStorage projectId="p-1" />);
+  teamAccess.permissions.read = true; teamAccess.loading = false; view.rerender(<ContextStorage projectId="p-1" />);
+  await act(async () => finish(archived(older, "")));
+  expect(screen.queryByText(/Archived original purpose/)).toBeNull(); expect(download).not.toHaveBeenCalled();
+});
+
+it("does not publish a late context read after access was lost and a fresh read completed", async () => {
+  let finish!: (value: ProjectContext) => void;
+  vi.mocked(projectContextApi.get).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<ContextStorage projectId="p-1" />);
+  await userEvent.click(screen.getByText("Context storage and history"));
+  await waitFor(() => expect(projectContextApi.get).toHaveBeenCalledOnce());
+  teamAccess.permissions.read = false; view.rerender(<ContextStorage projectId="p-1" />);
+  vi.mocked(projectContextApi.get).mockResolvedValue(fixture({ archiveError: "Current archive needs repair" }));
+  teamAccess.permissions.read = true; view.rerender(<ContextStorage projectId="p-1" />);
+  await screen.findByText("Current archive needs repair");
+  await act(async () => finish(fixture({ archiveError: "Private obsolete error" })));
+  expect(screen.queryByText("Private obsolete error")).toBeNull(); expect(screen.getByText("Current archive needs repair")).not.toBeNull();
+});
+
+it("drops a backup readback when the disclosure unmounts", async () => {
+  let finish!: (value: ProjectContext) => void;
+  render(<ContextStorage projectId="p-1" />); await open();
+  vi.mocked(projectContextApi.get).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  await userEvent.click(screen.getByText("Free archive space")); await userEvent.click(screen.getByRole("button", { name: "Download backup before removal" }));
+  await waitFor(() => expect(projectContextApi.get).toHaveBeenCalledTimes(2));
+  await userEvent.click(screen.getByText("Context storage and history"));
+  await waitFor(() => expect(screen.queryByRole("region", { name: "Project context storage" })).toBeNull());
+  await act(async () => finish(fixture()));
+  expect(download).not.toHaveBeenCalled(); expect(URL.createObjectURL).not.toHaveBeenCalled();
+});
+
+it.each(["backup", "context readback"])("cannot download or show success after read access disappears during %s", async phase => {
+  let finish!: (value: Blob | ProjectContext) => void;
+  const pending = new Promise<Blob | ProjectContext>(resolve => { finish = resolve; });
+  const view = render(<ContextStorage projectId="p-1" />); await open();
+  if (phase === "backup") vi.mocked(productApi.backupProject).mockImplementationOnce(() => pending as Promise<Blob>);
+  else vi.mocked(projectContextApi.get).mockImplementationOnce(() => pending as Promise<ProjectContext>);
+  await userEvent.click(screen.getByText("Free archive space")); await userEvent.click(screen.getByRole("button", { name: "Download backup before removal" }));
+  if (phase === "context readback") await waitFor(() => expect(projectContextApi.get).toHaveBeenCalledTimes(2));
+  teamAccess.permissions.read = false; view.rerender(<ContextStorage projectId="p-1" />);
+  await act(async () => finish(phase === "backup" ? new Blob(["private source"]) : fixture()));
+  expect(download).not.toHaveBeenCalled(); expect(URL.createObjectURL).not.toHaveBeenCalled(); expect(screen.queryByText(/Backup download started/)).toBeNull();
+  expect(screen.queryByText("Files shared with agents")).toBeNull();
+  expect(projectContextApi.get).toHaveBeenCalledTimes(phase === "backup" ? 1 : 2);
+});
+
+it("does not publish a late repair outcome after edit revocation", async () => {
+  let finish!: (value: ProjectContext) => void;
+  vi.mocked(projectContextApi.repair).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<ContextStorage projectId="p-1" />); await open();
+  await userEvent.click(screen.getByRole("button", { name: "Review export repair" })); await userEvent.click(screen.getByRole("button", { name: "Repair context exports" }));
+  teamAccess.permissions.edit = false; view.rerender(<ContextStorage projectId="p-1" />);
+  await act(async () => finish(fixture({ exports: [{ path: "LUCI.md", status: "current" }] })));
+  expect(screen.queryByText("Shared context files now match the saved project.")).toBeNull();
+  expect(screen.getByText("Changed outside the editor")).not.toBeNull();
+  expect(screen.queryByRole("dialog")).toBeNull();
+});
+
+it.each(["backup", "context readback"])("retains an admitted %s through a refresh that confirms the same editing grants", async phase => {
+  let finish!: (value: Blob | ProjectContext) => void;
+  const pending = new Promise<Blob | ProjectContext>(resolve => { finish = resolve; });
+  const view = render(<ContextStorage projectId="p-1" />); await open();
+  if (phase === "backup") vi.mocked(productApi.backupProject).mockImplementationOnce(() => pending as Promise<Blob>);
+  else vi.mocked(projectContextApi.get).mockImplementationOnce(() => pending as Promise<ProjectContext>);
+  await userEvent.click(screen.getByText("Free archive space")); await userEvent.click(screen.getByRole("button", { name: "Download backup before removal" }));
+  if (phase === "context readback") await waitFor(() => expect(projectContextApi.get).toHaveBeenCalledTimes(2));
+  teamAccess.loading = true; view.rerender(<ContextStorage projectId="p-1" />);
+  expect(screen.getByText("Preparing context backup…")).not.toBeNull();
+  teamAccess.loading = false; view.rerender(<ContextStorage projectId="p-1" />);
+  await act(async () => finish(phase === "backup" ? new Blob(["private source"]) : fixture()));
+  await screen.findByText(/Backup download started/);
+  expect(download).toHaveBeenCalledOnce(); expect(productApi.backupProject).toHaveBeenCalledOnce();
+  await userEvent.click(screen.getByRole("checkbox", { name: /I saved the backup/ }));
+  teamAccess.loading = true; view.rerender(<ContextStorage projectId="p-1" />);
+  expect((screen.getByRole("button", { name: "Remove archived revisions" }) as HTMLButtonElement).disabled).toBe(true);
+  teamAccess.loading = false; view.rerender(<ContextStorage projectId="p-1" />);
+  expect((screen.getByRole("checkbox", { name: /I saved the backup/ }) as HTMLInputElement).checked).toBe(true);
+  expect((screen.getByRole("button", { name: "Remove archived revisions" }) as HTMLButtonElement).disabled).toBe(false);
+});
+
+it.each(["backup", "context readback"])("drops %s completion during permission refresh with an explicit retry and no stuck busy state", async phase => {
+  let finish!: (value: Blob | ProjectContext) => void;
+  const pending = new Promise<Blob | ProjectContext>(resolve => { finish = resolve; });
+  const view = render(<ContextStorage projectId="p-1" />); await open();
+  if (phase === "backup") vi.mocked(productApi.backupProject).mockImplementationOnce(() => pending as Promise<Blob>);
+  else vi.mocked(projectContextApi.get).mockImplementationOnce(() => pending as Promise<ProjectContext>);
+  await userEvent.click(screen.getByText("Free archive space")); await userEvent.click(screen.getByRole("button", { name: "Download backup before removal" }));
+  if (phase === "context readback") await waitFor(() => expect(projectContextApi.get).toHaveBeenCalledTimes(2));
+  teamAccess.loading = true; view.rerender(<ContextStorage projectId="p-1" />);
+  await act(async () => finish(phase === "backup" ? new Blob(["private source"]) : fixture()));
+  expect(screen.getByText(/Editing access could not be confirmed when this action finished/)).not.toBeNull();
+  expect(screen.queryByText("Preparing context backup…")).toBeNull();
+  expect(download).not.toHaveBeenCalled(); expect(URL.createObjectURL).not.toHaveBeenCalled();
+  expect(projectContextApi.get).toHaveBeenCalledTimes(phase === "backup" ? 1 : 2);
+  teamAccess.loading = false; view.rerender(<ContextStorage projectId="p-1" />);
+  expect(download).not.toHaveBeenCalled(); expect((screen.getByRole("checkbox", { name: /I saved the backup/ }) as HTMLInputElement).checked).toBe(false);
+  await userEvent.click(screen.getByRole("button", { name: "Download backup before removal" }));
+  await screen.findByText(/Backup download started/); expect(download).toHaveBeenCalledOnce();
+  expect(productApi.backupProject).toHaveBeenCalledTimes(2);
+});

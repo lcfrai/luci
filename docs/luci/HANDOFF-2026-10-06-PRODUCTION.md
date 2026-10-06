@@ -16,13 +16,30 @@ The owner explicitly rejects a clean launch or test-count milestone as completio
 [PRODUCT-QUALITY.md](PRODUCT-QUALITY.md) now defines the required whole-product
 journeys and interaction, comprehension, recovery, responsiveness and accessibility
 standard. **The goal remains open.** Real-model implementation, a representative
-authenticated/data-backed application and durable day-two
+application with real authentication, roles and durable data, plus day-two
 amendment/redeployment/recovery still need complete acceptance. The installed
 prototype and collaborative amendment journey now has scoped fixture evidence. Existing local
 fixtures establish only their stated mechanisms. Independent product work
 continues while external commissioning and Windows CI access remain blocked.
 
-## Current product behavior
+## Latest source checkpoint
+
+Viewer task input, delayed backup/restore responses and stale Git review are now
+corrected. Git commits are bound to the reviewed source/context/index/branch and
+preserve newer edits, staging on refusal and native recovery history. Existing
+drafts survive permission changes; late downloads and navigation cannot cross
+scope or confirmed grant loss. The full current source batch passes 2,051
+frontend tests / 128 files, 2,120 Go outcomes / 22 skips, 513 product-package race
+outcomes / one skip, and TypeScript. Matching package/browser proof is next;
+logs and original failed attempts are in `artifacts/quality-collaboration-boundaries/`.
+
+Separately, clean `f388ad44` passes eight installed full-sandbox restart/recovery
+groups: the same live child survives gateway/worker restart, explicit continuation
+works, replay does not duplicate execution, and missing-runtime reconciliation
+remains unknown until explicit cancellation. Its local provider is deterministic;
+no real model quality is inferred. All owned runtime resources were removed.
+
+## Earlier product behavior and acceptance
 
 The current continuation is tracked in [QUALITY-WORKLIST.md](QUALITY-WORKLIST.md).
 It addresses collaborative draft loss, meaningful prototype review and fresh
@@ -52,10 +69,27 @@ Go outcomes, eight isolated source-binary checks and eight matching packaged
 checks. Manual-question continuity, verification draft recovery and stale or
 decision-blocked prepared-run guidance now pass the full 2,088-outcome Go suite
 (22 skips), 1,944 frontend tests, type checking and 481 product-package race
-outcomes (one skip). Clean bb720e51 passes four installed continuity groups, six portable groups and seven launcher outcomes. Rendered follow-up found cramped phone check recovery and concrete assistance/design/task-navigation gaps; corrections pass the complete 1,979-test frontend suite with matching installed proof next. Earlier
-integration-package race results retain their own identities. Exact source identities, fixture
-limits and remaining gates are in [FULL-PRODUCT.md](FULL-PRODUCT.md). The results
-below retain their historical identities.
+outcomes (one skip). Clean `bb720e51` passes four installed continuity groups,
+six portable groups and seven launcher outcomes. The subsequent `6e7797f3`
+corrections pass the complete **1,979-test / 126-file** frontend suite and matching
+installed continuity proof for check recovery, local-draft assistance, canonical
+handoff facts and exact task navigation.
+
+The latest clean **`f388ad44` passes all four installed continuity groups on its
+first attempt**. Its narrow panel correction passes **86 affected tests and
+TypeScript**; the full frontend suite was not repeated after `6e7797f3`. On a
+390 × 844 phone, explicit task navigation now collapses the overview and retains
+exact plan focus in one **525 px** workspace, without driver scrolling or focus.
+Exact manual-question navigation also preserves the visible, focused Answer.
+Desktop stays open. Six scoped scans have zero violations; one clipped,
+nonfocused earlier Answer label remains a color-contrast incomplete. The visible
+check heading and recovery controls have no incomplete findings. Receipt and
+visual review:
+`artifacts/package-eval/0.5.0-f388ad44/context-continuity-attempt-1/`.
+The initial context is labelled setup scaffolding; no provider, check, command or
+Docker execution occurs. Service cleanup passes. Earlier package and test results
+retain their identities; exact provenance and remaining gates are in
+[FULL-PRODUCT.md](FULL-PRODUCT.md).
 
 The primary project overview explains the current stage, agreed purpose and
 outcomes, exact tasks and reviewed revisions in an active build, unresolved
@@ -104,6 +138,17 @@ text are drafts requiring the service operator's decisions. Read
 [MANAGED-DATA-LIFECYCLE.md](MANAGED-DATA-LIFECYCLE.md).
 
 ## Latest continuity corrections
+
+Manual questions open their existing Define answer fields, and saved answers
+remain visible with draft/reviewed status. The task-plan next action opens and
+focuses the plan after guarded navigation. On phones, only successful explicit
+plan or exact-answer destinations fold the overview; cancellation leaves drafts
+and overview state intact. No-session Develop uses one planning/check scroll
+area. Its summary reads the actual reviewed design handoff and treats the sketch
+as optional. Local verification setup can be recovered without host mode or
+execution consent and can coexist with unsent assistance; commands are included
+only if the person puts them in the message. The latest installed proof above
+covers this bounded continuity, not inference or full production readiness.
 
 Guided outcomes now retain their IDs, titles and independent acceptance text.
 Successful definition, design and task-plan saves/approvals immediately refresh

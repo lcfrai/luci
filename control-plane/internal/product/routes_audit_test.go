@@ -148,14 +148,27 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 		allowed := map[string]bool{
 			"config\x00--null\x00--name-only\x00--get-regexp\x00^filter\\.": true,
 			"symbolic-ref\x00--quiet\x00--short\x00HEAD":                    true,
-			"status\x00--porcelain=v1\x00-z\x00--untracked-files=normal":    true,
-			"status\x00--porcelain=v1\x00--untracked-files=normal":          true,
-			"log\x00-10\x00--format=%H%x00%s%x00":                           true,
-			"rev-parse\x00--verify\x00HEAD":                                 true,
-			"config\x00--get-all\x00remote.origin.url":                      true,
+			// These exact argument forms only inspect branch/parent identity,
+			// index modes/flags, object format and the existing shared index.
+			"symbolic-ref\x00--quiet\x00HEAD":                              true,
+			"rev-parse\x00--verify\x00--quiet\x00HEAD^{commit}":            true,
+			"rev-parse\x00--show-object-format":                            true,
+			"rev-parse\x00--shared-index-path":                             true,
+			"status\x00--porcelain=v1\x00-z\x00--untracked-files=all":      true,
+			"ls-files\x00--stage\x00-z":                                    true,
+			"ls-files\x00-v\x00-z":                                         true,
+			"ls-files\x00-z\x00--cached\x00--others\x00--exclude-standard": true,
+			"status\x00--porcelain=v1\x00-z\x00--untracked-files=normal":   true,
+			"status\x00--porcelain=v1\x00--untracked-files=normal":         true,
+			"log\x00-10\x00--format=%H%x00%s%x00":                          true,
+			"rev-parse\x00--verify\x00HEAD":                                true,
+			"config\x00--get-all\x00remote.origin.url":                     true,
 		}
 		if !allowed[read] {
 			t.Fatalf("read route requested a new Git operation requiring audit: %v", args)
+		}
+		if read == "rev-parse\x00--show-object-format" {
+			return "sha1\n", nil
 		}
 		return "", nil
 	}
@@ -252,5 +265,45 @@ func TestAtomicStateFilesRemainPrivateAcrossReplacement(t *testing.T) {
 		if err != nil || !strings.Contains(string(data), fixture) {
 			t.Fatal("private state replacement lost its payload", err)
 		}
+	}
+}
+
+// The route catalogue above admits no real processes. This separate witness
+// exercises Git's actual optional-lock/read behavior with inspectable changes;
+// unchanged contents/modes include the existing index and every metadata file.
+func TestGitReviewNativeReadsPreserveFilesAndResources(t *testing.T) {
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "native-read-only-review")
+	base := "/v1/product/projects/" + p.ID
+	journeyRequest(t, mux, "POST", base+"/brief", map[string]any{"revision": 0, "purpose": "Shared context for a reviewed application", "audience": "Teams", "criteria": []string{}}, 200)
+	if err := os.WriteFile(filepath.Join(p.Path, "tracked.txt"), []byte("Staged reviewed source\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.journeyGit(context.Background(), p.Path, "add", "--", "tracked.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p.Path, "new.txt"), []byte("Untracked reviewed source\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	beforeState, beforeProject := auditTree(t, s.stateDir), auditTree(t, p.Path)
+	calls := 0
+	s.runner = func(ctx context.Context, exe string, args []string, dir string) (string, error) {
+		if exe != "git" || dir != p.Path {
+			t.Fatalf("Git review started an unexpected process: %s %v", exe, args)
+		}
+		calls++
+		return RunCommand(ctx, exe, args, dir)
+	}
+	for _, method := range []string{"GET", "HEAD"} {
+		journeyRequest(t, mux, method, base+"/git", nil, 200)
+	}
+	if calls == 0 {
+		t.Fatal("native Git witness did not execute Git inspection")
+	}
+	if !reflect.DeepEqual(beforeState, auditTree(t, s.stateDir)) || !reflect.DeepEqual(beforeProject, auditTree(t, p.Path)) {
+		t.Fatal("native Git review changed project/index/metadata or private state")
+	}
+	if len(s.previews) != 0 || len(s.tunnels) != 0 || len(s.jobs) != 0 || len(s.workspaceInstalls) != 0 || s.runtimeJob.Status != "idle" {
+		t.Fatal("native Git review allocated resources")
 	}
 }

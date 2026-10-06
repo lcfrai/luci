@@ -445,7 +445,7 @@ try {
   await page
     .getByRole("button", { name: "Commit changes", exact: true })
     .click();
-  await phaseWorkspace.getByText("Changes committed.").waitFor();
+  await phaseWorkspace.getByText("Reviewed changes committed.").waitFor();
   assert.match(
     execFileSync("git", ["-C", projectPath, "log", "-1", "--format=%s"], {
       encoding: "utf8",

@@ -94,11 +94,13 @@ func TestFunctionPublicationUsesCleanExactCommitAndApprovedContext(t *testing.T)
 	spec.Requirements = []SpecificationRequirement{{ID: "AC-001", Title: "Saved function", Priority: "must", Acceptance: "A published function returns its committed version"}}
 	journeyRequest(t, mux, "POST", base+"/specification", map[string]any{"expectedRevision": 0, "expectedBriefRevision": 0, "specification": spec}, 200)
 	journeyRequest(t, mux, "POST", base+"/specification/approve", map[string]int{"revision": 1, "briefRevision": 1}, 200)
-	var commit map[string]string
-	if err := json.Unmarshal(journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Commit reviewed function"}, 200).Body.Bytes(), &commit); err != nil {
+	var commit struct {
+		Commit string `json:"commit"`
+	}
+	if err := json.Unmarshal(journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Commit reviewed function"), 200).Body.Bytes(), &commit); err != nil {
 		t.Fatal(err)
 	}
-	sha := commit["commit"]
+	sha := commit.Commit
 	if _, err := callbacks.Committed(ctx, p.ID, "example", sha); err == nil {
 		t.Fatal("function source was published without a reviewed design handoff")
 	}
@@ -106,10 +108,10 @@ func TestFunctionPublicationUsesCleanExactCommitAndApprovedContext(t *testing.T)
 	if _, err := callbacks.Committed(ctx, p.ID, "example", sha); err == nil {
 		t.Fatal("function source was published before committing the reviewed handoff")
 	}
-	if err := json.Unmarshal(journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Commit approved function design"}, 200).Body.Bytes(), &commit); err != nil {
+	if err := json.Unmarshal(journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Commit approved function design"), 200).Body.Bytes(), &commit); err != nil {
 		t.Fatal(err)
 	}
-	sha = commit["commit"]
+	sha = commit.Commit
 	actual, err := callbacks.Committed(ctx, p.ID, "example", sha)
 	if err != nil || actual.Commit != sha || actual.AuthMode != "project-key" || actual.Files[0].Content != source || len(actual.Files) != platform.DataFunctionMaxFiles {
 		t.Fatalf("actual clean commit not admitted: %+v %v", actual, err)

@@ -25,7 +25,7 @@ func TestApprovedDefinitionAndDesignCanBeCommittedForDeployment(t *testing.T) {
 	if err := os.WriteFile(privateFile, []byte(`{"token":"private fixture"}`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	refused := journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Must retain private context"}, 409)
+	refused := journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Must retain private context"), 409)
 	var failure map[string]any
 	if err := json.Unmarshal(refused.Body.Bytes(), &failure); err != nil {
 		t.Fatal(err)
@@ -36,16 +36,18 @@ func TestApprovedDefinitionAndDesignCanBeCommittedForDeployment(t *testing.T) {
 	if err := os.Remove(privateFile); err != nil {
 		t.Fatal(err)
 	}
-	committed := journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Approve solution context"}, 200)
-	var receipt map[string]string
+	committed := journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Approve solution context"), 200)
+	var receipt struct {
+		Commit string `json:"commit"`
+	}
 	if err := json.Unmarshal(committed.Body.Bytes(), &receipt); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.ValidateDeploymentSource(context.Background(), p.ID, receipt["commit"]); err != nil {
+	if err := s.ValidateDeploymentSource(context.Background(), p.ID, receipt.Commit); err != nil {
 		t.Fatalf("Approved source could not proceed to deployment: %v", err)
 	}
 	for _, file := range []string{".luci/specification.json", ".luci/specification.md", ".luci/design-handoff.json", ".luci/design-handoff.md"} {
-		if _, err := s.journeyGit(context.Background(), p.Path, "show", receipt["commit"]+":"+file); err != nil {
+		if _, err := s.journeyGit(context.Background(), p.Path, "show", receipt.Commit+":"+file); err != nil {
 			t.Fatalf("Missing committed context %s: %v", file, err)
 		}
 	}

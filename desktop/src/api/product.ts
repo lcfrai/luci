@@ -192,6 +192,8 @@ export type FileResult =
   | { path: string; entries: FileEntry[] }
   | { path: string; content: string; truncated: boolean };
 export interface GitState {
+  /** Opaque identity of the source, index, branch and HEAD displayed for review. */
+  reviewDigest?: string;
   branch: string;
   clean: boolean;
   changes: { path: string; status: string }[];
@@ -689,8 +691,8 @@ export function createProductClient(
         `${project(id)}/files?path=${encodeURIComponent(path)}`,
       ),
     git: (id: string) => request<GitState>(`${project(id)}/git`),
-    commit: (id: string, message: string) =>
-      request<unknown>(`${project(id)}/git/commit`, { message }),
+    commit: (id: string, message: string, expectedReviewDigest: string) =>
+      request<{ commit: string; message: string; sourceChanged: boolean }>(`${project(id)}/git/commit`, { message, expectedReviewDigest }),
     gitDelivery: (id: string) =>
       request<GitDelivery>(`${project(id)}/git/delivery`),
     gitRemote: (id: string, url: string) =>

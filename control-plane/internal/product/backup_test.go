@@ -45,7 +45,7 @@ func TestBackupRestoresRealGitWorkingFilesAndJourneyWithoutCredentials(t *testin
 	if err := os.WriteFile(filepath.Join(p.Path, "delete.txt"), []byte("delete later"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "saved project"}, 200)
+	journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "saved project"), 200)
 	head, _ := s.journeyGit(context.Background(), p.Path, "rev-parse", "HEAD")
 	for _, args := range [][]string{{"branch", "feature"}, {"tag", "v1"}} {
 		if _, err := s.journeyGit(context.Background(), p.Path, args...); err != nil {

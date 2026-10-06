@@ -3,7 +3,6 @@ package product
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -156,11 +155,12 @@ type GitLogEntry struct {
 	Subject string `json:"subject"`
 }
 type GitSummary struct {
-	Branch  string        `json:"branch"`
-	Clean   bool          `json:"clean"`
-	Changes []GitChange   `json:"changes"`
-	Log     []GitLogEntry `json:"log"`
-	Diff    string        `json:"diff"`
+	ReviewDigest string        `json:"reviewDigest"`
+	Branch       string        `json:"branch"`
+	Clean        bool          `json:"clean"`
+	Changes      []GitChange   `json:"changes"`
+	Log          []GitLogEntry `json:"log"`
+	Diff         string        `json:"diff"`
 }
 
 // These flags keep read-only Git operations from invoking repository hooks,
@@ -184,7 +184,11 @@ func (s *Server) journeyGitRoot(ctx context.Context) string {
 // native execution and runner adapters that delegate back to RunCommand.
 func journeyGitEnvironment(ctx context.Context, env []string) []string {
 	if managed, _ := ctx.Value(managedJourneyGitContextKey{}).(bool); managed {
-		return project.ManagedGitEnvironment(env)
+		env = project.ManagedGitEnvironment(env)
+		if selected, ok := ctx.Value(privateReviewGitKey{}).(privateReviewGit); ok && selected.ObjectsDir != "" {
+			env = append(env, "GIT_OBJECT_DIRECTORY="+selected.ObjectsDir)
+		}
+		return env
 	}
 	return env
 }
@@ -259,6 +263,13 @@ func (s *Server) journeyGit(ctx context.Context, dir string, args ...string) (st
 		if err != nil {
 			return "", err
 		}
+		if selected, ok := ctx.Value(privateReviewGitKey{}).(privateReviewGit); ok {
+			// Only the controller creates this directory. Confinement and
+			// repository configuration are still validated against dir above.
+			bounded[0] = "--git-dir=" + selected.GitDir
+			bounded[1] = "--work-tree=" + selected.Worktree
+			all = append(all, "-c", "core.splitIndex=false")
+		}
 		all = append(all, bounded[:len(bounded)-len(command)]...)
 	}
 	ctx = context.WithValue(ctx, managedJourneyGitContextKey{}, true)
@@ -316,13 +327,18 @@ func parseGitChanges(status string) []GitChange {
 
 func (s *Server) gitSummary(ctx context.Context, dir string) (GitSummary, error) {
 	result := GitSummary{Changes: []GitChange{}, Log: []GitLogEntry{}}
+	review, err := s.captureGitReview(ctx, dir, "")
+	if err != nil {
+		return result, err
+	}
+	result.ReviewDigest = review.Digest
 	branch, err := s.journeyGit(ctx, dir, "symbolic-ref", "--quiet", "--short", "HEAD")
 	if err == nil {
 		result.Branch = strings.TrimSpace(branch)
 	} else {
 		result.Branch = "detached"
 	}
-	status, err := s.journeyGit(ctx, dir, "status", "--porcelain=v1", "-z", "--untracked-files=normal")
+	status, err := s.journeyGit(ctx, dir, "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	if err != nil {
 		return result, err
 	}
@@ -340,7 +356,7 @@ func (s *Server) gitSummary(ctx context.Context, dir string) (GitSummary, error)
 	}
 	paths := []string{}
 	for _, change := range result.Changes {
-		if !blockedProjectFile(change.Path) {
+		if !blockedProjectFile(change.Path) || journeyContextFile(change.Path) {
 			paths = append(paths, ":(literal)"+change.Path)
 		}
 	}
@@ -357,12 +373,19 @@ func (s *Server) gitSummary(ctx context.Context, dir string) (GitSummary, error)
 	if err != nil {
 		return result, err
 	}
-	result.Diff = diff
+	result.Diff = diff + review.Preview
 	if staged != "" {
 		result.Diff += "\nStaged changes:\n" + staged
 	}
 	if len(result.Diff) > maxProjectFile {
 		result.Diff = result.Diff[:maxProjectFile] + "\n[Diff truncated at 1 MiB]"
+	}
+	latest, err := s.captureGitReview(ctx, dir, "")
+	if err != nil {
+		return result, err
+	}
+	if latest.Digest != review.Digest {
+		return result, errors.New("The source changed during review. Refresh to inspect the latest changes.")
 	}
 	return result, nil
 }
@@ -374,6 +397,9 @@ func (s *Server) projectGit(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	ctx = context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir)
 	result, err := s.gitSummary(ctx, p.Path)
 	if err != nil {
 		journeyError(w, 422, "git_failed", err.Error())
@@ -384,13 +410,18 @@ func (s *Server) projectGit(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) commitProject(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Message string `json:"message"`
+		Message              string `json:"message"`
+		ExpectedReviewDigest string `json:"expectedReviewDigest"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
 	}
 	if strings.TrimSpace(req.Message) == "" || len(req.Message) > 4000 || strings.ContainsRune(req.Message, '\x00') {
 		journeyError(w, 400, "invalid_message", "Write a commit message of 1–4,000 characters.")
+		return
+	}
+	if !hexDigest(req.ExpectedReviewDigest) {
+		journeyError(w, 400, "review_required", "Refresh and inspect the Git review before committing. Its source identity is required.")
 		return
 	}
 	p, ok := s.requestProject(w, r)
@@ -424,8 +455,17 @@ func (s *Server) commitProject(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	ctx = context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir)
-	if err := discardJourneyArchiveStaging(p.Path); err != nil {
-		journeyError(w, 409, "context_unavailable", "Interrupted context staging must be recoverable before committing.")
+	original, err := s.captureGitReview(ctx, p.Path, "")
+	if err != nil {
+		journeyError(w, 422, "git_failed", err.Error())
+		return
+	}
+	if original.Digest != req.ExpectedReviewDigest {
+		journeyError(w, 409, "source_changed", "The source, project context, branch or staging changed since this review. Refresh and inspect the latest changes; your commit message is kept.")
+		return
+	}
+	if !strings.HasPrefix(original.Branch, "refs/heads/") {
+		journeyError(w, 409, "branch_required", "Check out or create a named branch in Git, then refresh this review before committing.")
 		return
 	}
 	status, err := s.journeyGit(ctx, p.Path, "status", "--porcelain=v1", "-z", "--untracked-files=all")
@@ -475,20 +515,142 @@ func (s *Server) commitProject(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	if _, err := s.journeyGit(ctx, p.Path, "add", "--all", "--", "."); err != nil {
+	// Standard Git lock files exclude concurrent staging and checkout. Keep
+	// existing staging byte-for-byte until the exact reviewed commit publishes.
+	indexPath := filepath.Join(original.GitDir, "index")
+	indexLock, err := os.OpenFile(indexPath+".lock", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		journeyError(w, 409, "git_busy", "Git is changing this project. Wait for it to finish, then refresh the review.")
+		return
+	}
+	indexLockOwned := true
+	defer func() {
+		indexLock.Close()
+		if indexLockOwned {
+			os.Remove(indexPath + ".lock")
+		}
+	}()
+	headLock, err := os.OpenFile(filepath.Join(original.GitDir, "HEAD.lock"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		journeyError(w, 409, "git_busy", "Git is changing branches. Wait for it to finish, then refresh the review.")
+		return
+	}
+	defer func() { headLock.Close(); os.Remove(filepath.Join(original.GitDir, "HEAD.lock")) }()
+	temp, err := os.MkdirTemp("", "luci-reviewed-commit-*")
+	if err != nil {
+		journeyError(w, 500, "snapshot_failed", "The reviewed source could not be captured.")
+		return
+	}
+	defer os.RemoveAll(temp)
+	worktree := filepath.Join(temp, "worktree")
+	if err := os.Mkdir(worktree, 0700); err != nil {
+		journeyError(w, 500, "snapshot_failed", err.Error())
+		return
+	}
+	captured, err := s.captureGitReview(ctx, p.Path, worktree)
+	if err != nil {
+		journeyError(w, 409, "source_changed", "The source could not be captured consistently. Refresh the Git review.")
+		return
+	}
+	if captured.Digest != req.ExpectedReviewDigest {
+		journeyError(w, 409, "source_changed", "The project changed since this review. Refresh and inspect the latest changes; your commit message is kept.")
+		return
+	}
+	private, publication, err := preparePrivateReviewGit(temp, captured)
+	if err != nil {
+		journeyError(w, 500, "snapshot_failed", err.Error())
+		return
+	}
+	privateCtx := context.WithValue(ctx, privateReviewGitKey{}, private)
+	originalIndex, indexReadErr := readGitReviewFile(indexPath, 16<<20)
+	if indexReadErr == nil {
+		if len(originalIndex) > 16<<20 {
+			journeyError(w, 413, "index_too_large", "The Git index exceeds the reviewed commit limit.")
+			return
+		}
+		if err := os.WriteFile(filepath.Join(private.GitDir, "index"), originalIndex, 0600); err != nil {
+			journeyError(w, 422, "stage_failed", err.Error())
+			return
+		}
+	} else if errors.Is(indexReadErr, os.ErrNotExist) {
+		if _, err := s.journeyGit(privateCtx, p.Path, "read-tree", "--empty"); err != nil {
+			journeyError(w, 422, "stage_failed", err.Error())
+			return
+		}
+	} else {
+		journeyError(w, 422, "stage_failed", indexReadErr.Error())
+		return
+	}
+	if captured.SharedIndexName != "" {
+		if _, err := s.journeyGit(privateCtx, p.Path, "update-index", "--no-split-index"); err != nil {
+			journeyError(w, 422, "stage_failed", "The shared index could not be normalized. Original staging is unchanged.")
+			return
+		}
+	}
+	if err := s.stageReviewedPaths(privateCtx, p.Path, captured.Paths); err != nil {
 		journeyError(w, 422, "stage_failed", err.Error())
 		return
 	}
-	args := []string{"-c", "user.name=" + name, "-c", "user.email=" + email, "-c", "user.useConfigOnly=true", "commit", "--no-gpg-sign", "-m", req.Message}
-	output, err := s.journeyGit(ctx, p.Path, args...)
+	tree, err := s.journeyGit(privateCtx, p.Path, "write-tree")
 	if err != nil {
-		journeyError(w, 422, "commit_failed", fmt.Sprintf("Changes remain staged. Git reported: %v", err))
+		journeyError(w, 422, "stage_failed", err.Error())
 		return
 	}
-	hash, err := s.journeyGit(ctx, p.Path, "rev-parse", "HEAD")
-	if err != nil {
-		journeyError(w, 500, "commit_verification_failed", "Git committed but its resulting revision could not be read: "+err.Error())
+	args := []string{"-c", "user.name=" + name, "-c", "user.email=" + email, "-c", "user.useConfigOnly=true", "commit-tree", strings.TrimSpace(tree), "-m", req.Message}
+	if captured.Head != "" {
+		args = append(args, "-p", captured.Head)
+	}
+	commit, err := s.journeyGit(privateCtx, p.Path, args...)
+	commit = strings.TrimSpace(commit)
+	if err != nil || !deliverySHA.MatchString(commit) {
+		journeyError(w, 422, "commit_failed", "Git could not create the reviewed commit. Your original staging is unchanged.")
 		return
 	}
-	journeyJSON(w, 200, map[string]string{"commit": strings.TrimSpace(hash), "message": strings.TrimSpace(output)})
+	installHeadLog, cleanupHeadLog, err := s.prepareReviewedHeadLog(privateCtx, p.Path, captured, private, commit, name, email, req.Message)
+	if err != nil {
+		journeyError(w, 422, "reflog_unavailable", "Git recovery history could not be prepared. Original staging and branch are unchanged.")
+		return
+	}
+	defer cleanupHeadLog()
+	// Prepare the replacement index before the ref publication. A ref conflict
+	// leaves the original index untouched and only unreachable Git objects.
+	index, err := os.ReadFile(filepath.Join(private.GitDir, "index"))
+	if err != nil {
+		journeyError(w, 422, "stage_failed", err.Error())
+		return
+	}
+	if _, err := indexLock.Write(index); err != nil {
+		journeyError(w, 422, "stage_failed", err.Error())
+		return
+	}
+	if err := indexLock.Sync(); err != nil {
+		journeyError(w, 422, "stage_failed", err.Error())
+		return
+	}
+	if err := indexLock.Close(); err != nil {
+		journeyError(w, 422, "stage_failed", err.Error())
+		return
+	}
+	expectedHead := captured.Head
+	if expectedHead == "" {
+		expectedHead = strings.Repeat("0", captured.hashLength())
+	}
+	if _, err := s.journeyGit(context.WithValue(ctx, privateReviewGitKey{}, publication), p.Path, "-c", "user.name="+name, "-c", "user.email="+email, "-c", "user.useConfigOnly=true", "update-ref", "--create-reflog", "-m", "commit: "+strings.Split(req.Message, "\n")[0], captured.Branch, commit, expectedHead); err != nil {
+		journeyError(w, 409, "source_changed", "The branch changed before the commit could be published. Refresh the review. Original staging is unchanged.")
+		return
+	}
+	if err := installHeadLog(); err != nil {
+		journeyError(w, 500, "commit_reflog_failed", "The reviewed commit was created, but its HEAD recovery log could not be installed. Refresh Git before another commit.")
+		return
+	}
+	if err := os.Rename(indexPath+".lock", indexPath); err != nil {
+		journeyError(w, 500, "commit_index_failed", "The reviewed commit was created, but the Git index could not be updated. Refresh Git and recover its index before committing again.")
+		return
+	}
+	indexLockOwned = false
+	// Subsequent edits stay in the real worktree and are not swept into the
+	// immutable commit. Report them without turning a successful commit into a
+	// retryable error if this final observation is unavailable.
+	status, statusErr := s.journeyGit(ctx, p.Path, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	journeyJSON(w, 200, map[string]any{"commit": commit, "message": "Reviewed changes committed.", "sourceChanged": statusErr != nil || status != ""})
 }

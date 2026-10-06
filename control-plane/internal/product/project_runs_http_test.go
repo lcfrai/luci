@@ -31,7 +31,7 @@ func projectRunHTTPFixture(t *testing.T) (*Server, *http.ServeMux, project.Proje
 	if err := os.WriteFile(filepath.Join(p.Path, "check.js"), []byte(`console.log('actual project check');process.exit(0)`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Save reviewed implementation inputs"}, 200)
+	journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Save reviewed implementation inputs"), 200)
 	selected := &ProjectRunSelection{ProjectID: p.ID, WorktreeID: project.WorktreeID(p.Path), Path: p.Path, Harness: "codex", Model: "fixture-model", PermissionMode: "ask", AgentConnectionID: "connection-fixture", AgentConnectionRevision: 1, AgentConnectionKind: "api", AgentConnectionProtocol: "openai-responses", AuthMode: "api-key", Connection: AgentConnectionReceipt{ID: "connection-fixture", Revision: 1, Kind: "api", Protocol: "openai-responses", AuthMode: "api-key", Model: "fixture-model"}}
 	calls := &atomic.Int32{}
 	s.SetProjectRunSelectionResolver(func(_ context.Context, request ProjectRunSelectionRequest) (ProjectRunSelection, error) {

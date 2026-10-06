@@ -236,7 +236,7 @@ try {
   // authority; writing approved-looking project files cannot substitute for it.
   assert.deepEqual(await api("GET", `${projectRoute}/specification`), definition);
   assert.deepEqual(await api("GET", `${projectRoute}/design-plan`), handoff);
-  await api("POST", `${projectRoute}/git/commit`, { message: "Runtime smoke reviewed definition and design" });
+  await api("POST", `${projectRoute}/git/commit`, { message: "Runtime smoke reviewed definition and design", expectedReviewDigest: (await api("GET", `${projectRoute}/git`)).reviewDigest });
   result.checks.push({ name: "authenticated definition and linked design approval before implementation and deployment", definitionRevision: definition.revision, definitionDigest: definition.digest, designRevision: handoff.revision, designDigest: handoff.digest });
   const machines = (await api("GET", "/v1/machines")).machines;
   const branches = (await api("GET", `/v1/projects/${project.id}/branches`)).branches;
@@ -304,7 +304,7 @@ try {
 
   writeFileSync(join(project.path, "app.mjs"), 'import http from "node:http"; http.createServer((req,res)=>{res.writeHead(200,{"content-type":"application/json"});res.end(JSON.stringify({greeting:process.env.APP_GREETING,fixtureValue:process.env.APP_PRIVATE_FIXTURE,modelKeyPresent:Boolean(process.env.ANTHROPIC_API_KEY||process.env.OPENAI_API_KEY)}));}).listen(3000,"0.0.0.0");\n', { mode: 0o600 });
   writeFileSync(join(project.path, "Dockerfile"), `FROM ${image}\nWORKDIR /app\nCOPY app.mjs /app/app.mjs\nUSER dev\nEXPOSE 3000\nENTRYPOINT ["node","/app/app.mjs"]\n`, { mode: 0o600 });
-  await api("POST", `/v1/product/projects/${project.id}/git/commit`, { message: "Runtime smoke committed preview" });
+  await api("POST", `/v1/product/projects/${project.id}/git/commit`, { message: "Runtime smoke committed preview", expectedReviewDigest: (await api("GET", `/v1/product/projects/${project.id}/git`)).reviewDigest });
   const git = await api("GET", `/v1/product/projects/${project.id}/git`);
   assert.equal(git.clean, true);
   const applicationFixtureValue = "fixture-runtime-only-" + randomUUID();

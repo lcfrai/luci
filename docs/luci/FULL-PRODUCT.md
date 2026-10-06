@@ -12,7 +12,47 @@ new durable-run, portable-context, team and release-integrity work. Earlier
 installed versions, hashes and results are preserved as historical evidence;
 none is relabelled as acceptance of the new candidate.
 
-## Current continuation: collaboration, import and database recovery
+## Latest continuing checkpoint
+
+The full product goal remains open. Clean `f388ad44` has the installed phone
+handoff and connected-recovery evidence recorded below. It also passes eight
+installed full-sandbox restart/recovery groups: the same live Codex child,
+container, source, run inputs and history survive service/worker restart;
+reattachment and replay send no extra provider request; explicit continuation
+uses the same child. Deliberate removal of that owned runtime remains an unknown
+operation, with an explicit blocked/reconcile/cancel path that preserves source.
+Receipt and independent identity checks:
+`artifacts/package-eval/0.5.0-f388ad44/runtime-restart-attempt-2/acceptance-review.json`.
+All 940 installed files match the package. Cleanup verifies zero owned processes,
+containers or volumes and unchanged images/runtime archive. Attempt 1's terminal
+paste-delivery timeout remains recorded; the corrected driver sends text and one
+separate Enter. This is actual execution/recovery with a labelled deterministic
+provider, not real model reasoning or application-quality acceptance.
+
+The current corrective batch prevents unsaveable viewer task input, fences late
+backup/restore results after permission or scope loss, and binds commits to the
+source and context displayed in Git review. Confirmed access loss cannot be undone
+by a later regrant of an old request. Ordinary permission refresh retains admitted
+work; an unconfirmed download completion explains how to retry. Existing editor
+drafts remain intact. Git commits use an immutable captured worktree, preserve
+concurrent edits, original staging on refusal and native recovery history, and
+require explicit refreshed review after drift. Bounded Git compatibility is
+specified in [API.md](API.md).
+
+The full frontend suite passes **2,051 tests across 128 files**, the complete Go
+suite passes **2,120 outcomes with 22 skips**, and the changed product-package
+race suite passes **513 outcomes with one skip**. Type checking passes; all 428
+frontend and 667 Go input hashes remain unchanged during these final checks.
+Logs and original failures are retained in
+`artifacts/quality-collaboration-boundaries/`: old API fixtures and the exact
+read-command audit were corrected; a subsequent temporary-disk exhaustion was
+resolved by clearing only the task-owned build cache and rerunning unchanged
+source. Matching installed proof for this batch follows; it is not inferred from
+`f388ad44`. The representative real-model benchmark is prepared at
+`artifacts/plans/idea-to-live-acceptance.json`; execution needs the selected saved
+model connection. Managed/public/native and full data-platform gates remain open.
+
+## Earlier continuation: collaboration, import and database recovery
 
 The clean `7ff66d3b` Linux package passes all ten installed two-person journey
 groups: concurrent context recovery, old versus amended build scope, renewed
@@ -316,8 +356,9 @@ question history, not model-generated questions. The phone focus target reaches
 the bottom edge of its scroll area; additional scroll padding and visible focus
 containment remain part of the active polish batch.
 
-The subsequent frozen frontend corrections pass **1,979 tests across 126 files**
-and TypeScript checking with all 426 recorded frontend inputs unchanged. All
+The subsequent frontend corrections, packaged as clean `6e7797f3`, pass
+**1,979 tests across 126 files** and TypeScript checking with all 426 recorded
+frontend inputs unchanged. All
 667 Go inputs match the `bb720e51` full-suite/race baseline, so those unchanged
 backend checks were not repeated. Local command drafts now permit explicit
 assistance without implicit command attachment; shared-context and source-change
@@ -325,8 +366,8 @@ guards remain. No-session planning uses one scroll area. Develop reads the
 structured handoff and preserves editor drafts through scoped fact refreshes.
 The overview opens and focuses the implementation-plan destination, including
 authorized read-only review and navigation after a draft dialog. Source receipt:
-`artifacts/quality-planning-flow/source-validation.json`. Matching installed
-rendering and focus proof is the next check, with original observations retained.
+`artifacts/quality-planning-flow/source-validation.json`. The matching installed
+rendering and focus results follow, with original observations retained.
 
 Clean `6e7797f3` passes the four connected continuity groups with six scoped
 accessibility scans (zero violations). The visible recovery heading/actions
@@ -353,17 +394,46 @@ No commands, model or Docker calls occur; fixture cleanup passes. Receipt:
 The document's larger measured scroll height remains a separate observation;
 this does not claim to explain full-page screenshot whitespace.
 
-A final visible interaction gap remains in this batch: explicitly opening the
-plan from an expanded phone overview leaves half the screen occupied by that
-overview. The correction folds it into its stage bar only after an explicit
-task-plan or exact-answer destination succeeds; cancelled navigation and
-background refreshes cannot trigger it. Generic editor destinations retain their
-existing overview behavior until they have an explicit focus handoff. Matching compact handoff proof is next. The final narrow correction passes all
-86 affected panel tests and TypeScript, including cancelled/confirmed navigation,
-viewport changes during the guard and actual Answer focus after dialog cleanup.
-Only the panel and its tests changed after the complete 1,979-test source run;
-that full run was not repeated. Exact final inputs/logs are in
+Rendered review of `6e7797f3` found one further interaction gap: explicitly
+opening the plan from an expanded phone overview left only about 181 px for the
+focused destination. The correction folds the overview into its stage bar after
+successful explicit task-plan or exact-answer navigation; cancelled navigation
+and background refreshes cannot trigger it. Generic editor destinations retain
+their existing overview behavior until they have an explicit focus handoff.
+The narrow correction passes **86 affected panel tests and TypeScript**,
+including cancelled/confirmed navigation, viewport changes during the guard and
+actual Answer focus after dialog cleanup. The complete **1,979-test / 126-file**
+frontend suite belongs to the preceding `6e7797f3` batch; it was not repeated for
+this panel correction. Exact inputs/logs are in
 `artifacts/quality-planning-flow/compact-navigation-checks/results.json`.
+
+Clean **`f388ad44c042326bc55e2383fc27c7e111bb56f5` passes all four installed
+continuity groups on its first attempt**. At 390 × 844, explicit plan navigation
+opens the disclosure, keeps focus on the exact Implementation plan region and
+collapses the overview, leaving one **525 px** planning scroll area. The task
+controls and build-location guidance are visible together. Exact manual-question
+navigation likewise keeps its question and focused Answer visible above the
+compact overview. No driver scroll or focus substitutes for either destination;
+desktop plan navigation keeps the overview open. Canonical handoff facts,
+unsent help with a local check draft, unchanged-context recovery and amended
+criteria/consent reset all pass again. The provider remains unconfigured; the
+separate routing remedy disables Send, and no command or model is dispatched.
+
+The final driver is `7feccccdc47d87544d5f0b76ca45ca24f9dc14031955f9461a0afd80ee51eb03`,
+run from the matching clean checkout. The portable archive SHA-256 is
+`16beb1b80a45130ca1cb15f02aac6faca74748a24646ce12b015a426549ba58c`;
+the binary and all 424 installed web assets match that archive. Receipt,
+screenshots, focus/geometry and visual review:
+`artifacts/package-eval/0.5.0-f388ad44/context-continuity-attempt-1/`.
+Six scoped accessibility scans report **zero violations**. One earlier,
+nonfocused Answer label clipped at the form edge remains a **color-contrast
+incomplete**; it is neither cleared nor called a confirmed violation. Visible
+check-heading and recovery-action follow-ups have no incomplete findings.
+There are no browser errors, unexpected requests, Docker allocations or
+execution/model calls. Normal service shutdown and fixture removal pass.
+Earlier package successes and retained automation failures keep their original
+identities. This bounded acceptance does not close the whole-product, real-model,
+authenticated role-based data application, managed-service or native release gates.
 
 
 GitHub rejected the `7ff66d3b` Actions run before any check step for account

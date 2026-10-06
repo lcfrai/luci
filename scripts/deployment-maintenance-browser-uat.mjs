@@ -257,7 +257,7 @@ async function seedCommit(version) {
   assert(realpathSync(project.path).startsWith(realpathSync(fixture) + sep));
   writeFileSync(join(project.path, 'app.cjs'), appSource(version), { mode: 0o644 });
   writeFileSync(join(project.path, 'Dockerfile'), `FROM ${baseImage}\nLABEL ${labels.fixture}=${JSON.stringify(fixtureID)}\nWORKDIR /app\nCOPY app.cjs /app/app.cjs\nUSER 1000:1000\nEXPOSE 3000\nENTRYPOINT ["node","/app/app.cjs"]\n`, { mode: 0o600 });
-  await api('POST', projectRoute + '/git/commit', { message: 'Fixture version ' + version + ' for explicit deployment maintenance acceptance' });
+  await api('POST', projectRoute + '/git/commit', { message: 'Fixture version ' + version + ' for explicit deployment maintenance acceptance', expectedReviewDigest: (await api('GET', projectRoute + '/git')).reviewDigest });
   const [git, delivery] = await Promise.all([observe(projectRoute + '/git'), observe(projectRoute + '/git/delivery')]);
   assert(git.clean); assert.match(delivery.head, /^[a-f0-9]{40}$/);
   result.commits.push({ version, commit: delivery.head, clean: true, appSHA256: sha(readFileSync(join(project.path, 'app.cjs'))), dockerfileSHA256: sha(readFileSync(join(project.path, 'Dockerfile'))) });

@@ -29,14 +29,14 @@ func TestManagedCommitDoesNotStartDeferredMaintenance(t *testing.T) {
 	traced := func(ctx context.Context, executable string, args []string, dir string) (string, error) {
 		// Inject only this test's private trace after production environment
 		// sanitation; controller commands never inherit a caller's trace target.
-		env := append(project.ManagedGitEnvironment(os.Environ()), "GIT_TRACE2_EVENT="+filepath.ToSlash(tracePath))
+		env := append(journeyGitEnvironment(ctx, os.Environ()), "GIT_TRACE2_EVENT="+filepath.ToSlash(tracePath))
 		return runCommandEnvironment(ctx, executable, args, dir, env)
 	}
 	s.runner, s.branchRunner = traced, traced
 	if err := os.WriteFile(filepath.Join(p.Path, "README.md"), []byte("Committed without a detached metadata writer\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	committed := journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", map[string]string{"message": "Explicit controller commit"}, 200)
+	committed := journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", reviewedCommitRequest(t, mux, branchBase(p)+"git/commit", "Explicit controller commit"), 200)
 	var result struct{ Commit string }
 	if json.Unmarshal(committed.Body.Bytes(), &result) != nil || !deliverySHA.MatchString(result.Commit) {
 		t.Fatal("managed commit did not return its verified revision")
@@ -198,7 +198,7 @@ func TestJourneyGitAndArchiveRejectForeignMetadataBeforeStartingGit(t *testing.T
 			}
 			base := "/v1/product/projects/" + p.ID + "/git"
 			journeyRequest(t, mux, "GET", base, nil, 422)
-			journeyRequest(t, mux, "POST", base+"/commit", map[string]string{"message": "must not mutate another account"}, 422)
+			journeyRequest(t, mux, "POST", base+"/commit", map[string]string{"message": "must not mutate another account", "expectedReviewDigest": strings.Repeat("a", 64)}, 422)
 			if calls != 0 {
 				t.Fatalf("unsafe metadata started %d Git commands", calls)
 			}

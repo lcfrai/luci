@@ -335,6 +335,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
             className="journey-actions"
             onSubmit={(event) => {
               event.preventDefault();
+              if (!canEdit || busy || draft.pending || !title.trim()) return;
               add([title.trim()]);
               setTitle("");
             }}
@@ -344,6 +345,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
               <input
                 value={title}
                 required
+                disabled={!canEdit || busy || !!draft.pending}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Describe a concrete outcome"
               />

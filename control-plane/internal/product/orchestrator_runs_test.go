@@ -37,7 +37,7 @@ func TestOrchestratorKeepsOlderCodingScopeUntilExplicitTerminalReconciliation(t 
 	}
 	var newPlan ProjectPlan
 	decodeEvidenceResponse(t, journeyRequest(t, mux, "POST", base+"/plan", map[string]any{"expectedRevision": request.ImplementationContext.PlanRevision, "expectedSpecificationRevision": request.ImplementationContext.SpecificationRevision, "tasks": []ProjectTask{{ID: "task-newer", Title: "Build the newer view", Status: "todo", RequirementIDs: []string{"AC-save"}}}}, 200).Body.Bytes(), &newPlan)
-	journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Save newer reviewed work scope"}, 200)
+	journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Save newer reviewed work scope"), 200)
 	request.IdempotencyKey = "orchestrator-newer-prepared-b"
 	request.ImplementationContext.PlanRevision = newPlan.Revision
 	request.ImplementationContext.TaskIDs = []string{"task-newer"}

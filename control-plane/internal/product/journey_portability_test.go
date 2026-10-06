@@ -29,7 +29,7 @@ func TestPortableJourneyRealCloneRetainsLegacyContextWithoutReviewAuthority(t *t
 	if err = os.WriteFile(filepath.Join(p.Path, ".luci/state.json"), data, 0600); err != nil {
 		t.Fatal(err)
 	}
-	journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/git/commit", map[string]string{"message": "reviewed legacy project"}, 200)
+	journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/git/commit", reviewedCommitRequest(t, mux, "/v1/product/projects/"+p.ID+"/git/commit", "reviewed legacy project"), 200)
 	cloneDir := filepath.Join(s.projectRoot(), "second-folder")
 	command := exec.Command("git", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "protocol.file.allow=always", "clone", "--", p.Path, cloneDir)
 	if out, err := command.CombinedOutput(); err != nil {
@@ -112,7 +112,7 @@ func TestPortableJourneySubstantialScenesPreserveHistoryAcrossBackupRestore(t *t
 		t.Fatalf("lost revisions: %v", revisions)
 	}
 	// The ordinary one-click Git action accepts only verified reachable chunks.
-	journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "preserve large-scene history"}, 200)
+	journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "preserve large-scene history"), 200)
 	archive := journeyRequest(t, mux, "POST", base+"/backups", map[string]any{}, 200)
 	restoredResponse := backupUpload(t, mux, "large-restored", archive.Body.Bytes(), 201)
 	var restored project.Project

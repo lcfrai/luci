@@ -58,6 +58,12 @@ a changed scope or a newer focus choice cannot leave a delayed task destination
 that interrupts other work. Develop summarizes the structured design handoff and
 its actual review dependencies; an optional sketch is a separate artifact.
 
+On compact viewports, successful explicit plan or exact-question navigation
+folds the overview into its stage bar so the focused editor has room. Cancelled
+navigation and background refresh do not collapse it; desktop and generic editor
+destinations preserve the existing overview choice. The exact destination keeps
+focus through that layout change.
+
 Prepared builds separately project changes to reviewed context and unresolved
 private conversation decisions. The latter opens the existing current question
 through scoped navigation and focuses its answer control after a fresh read;
@@ -215,3 +221,28 @@ active ownership. Separate API/provider, team authorization, UI and compiled
 browser acceptance bind these product contracts to actual entry points. These
 checks do not establish paid model quality, public DNS/TLS operation, cloud
 creation or a publicly shipped application.
+
+The clean `f388ad44` installed continuity driver passes four groups on its first
+attempt: guarded exact-question navigation and saved-answer review, recovery of
+command drafts under matching and amended context, truthful handoff facts,
+unsent local-setup help, and explicit plan destinations. On a 390 × 844 phone the
+plan retains actual focus with the overview compact and one 525 px workspace;
+no driver scroll/focus supplies the destination. Desktop remains expanded.
+Receipt and visual review are retained in
+`artifacts/package-eval/0.5.0-f388ad44/context-continuity-attempt-1/`.
+Six scoped scans report zero violations, with one clipped nonfocused Answer-label
+contrast assessment still incomplete. Initial account/context are labelled API
+scaffolding; no provider, command, check or Docker execution occurs. A missing
+provider/model independently disables Send. The full 1,979-test / 126-file
+frontend suite belongs to `6e7797f3`; this compact panel follow-up has 86 affected
+tests and TypeScript checking. Neither proof closes real-model, representative
+authenticated role-based data application, managed-service or native release
+acceptance in [PRODUCT-QUALITY.md](PRODUCT-QUALITY.md).
+
+Git review carries that same saved project context alongside source changes. A
+commit names the exact displayed review; concurrent source, context, branch or
+staging changes require an explicit refresh while preserving the person's
+message. Edits made after the accepted snapshot remain uncommitted. A successful
+commit proves only that source operation, not requirement coverage or readiness
+to publish. Project access and response ownership also fence delayed Git and
+backup results; ordinary retained-grant permission refresh does not discard work.
