@@ -83,7 +83,7 @@ it("refresh clears a selection and trust when approved design changes while reta
   render(<ProjectChecks projectId="p-1"/>);await selectCriteria();await trust();
   await userEvent.click(screen.getByText(/Requirement evidence ·/));
   await userEvent.click(screen.getByRole("button",{name:"Refresh requirement evidence"}));
-  await screen.findByText("Requirements or design changed. Review and select the criteria again.");
+  await screen.findByText("Requirements, design or source changed. Review and select the criteria again.");
   expect(screen.getByText("Tests")).not.toBeNull();
   expect((screen.getByRole("checkbox",{name:"Check R-OFFLINE · Keep notes offline"}) as HTMLInputElement).checked).toBe(false);
   expect((screen.getByRole("button",{name:"Run project checks"}) as HTMLButtonElement).disabled).toBe(true);

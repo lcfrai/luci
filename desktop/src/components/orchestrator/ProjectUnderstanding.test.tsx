@@ -5,6 +5,52 @@ import { ProjectUnderstanding } from "./ProjectUnderstanding";
 import { context, view } from "./fixtures";
 import type { OrchestratorRunSummary } from "../../api/orchestrator";
 
+it("routes each manual question to its own definition answer while keeping model questions separate", async () => {
+  const snapshot = context(), edit = vi.fn(), ask = vi.fn(), reply = vi.fn();
+  snapshot.specification.questions = [{ id: "join", question: "How do members join?", answer: "" }, { id: "reassign", question: "Who can reassign tasks?", answer: "" }];
+  render(<ProjectUnderstanding view={view({ context: snapshot, blockingQuestions: [{ turnId: "model-question", question: "Which storage region?", rationale: "Data location", options: [] }] })} onAsk={ask} onReply={reply} onNavigate={vi.fn()} onEdit={edit} />);
+  const buttons = screen.getAllByRole("button", { name: "Answer in definition" });
+  await userEvent.click(buttons[1]);
+  expect(edit).toHaveBeenCalledExactlyOnceWith("definition", "reassign");
+  expect(ask).not.toHaveBeenCalled(); expect(reply).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Work through the decisions" }));
+  expect(reply).toHaveBeenCalledExactlyOnceWith("model-question");
+});
+
+it("keeps saved answers behind a deliberate disclosure and labels approval without promoting draft answers", async () => {
+  const snapshot = context(), edit = vi.fn();
+  snapshot.specification.questions = [{ id: "join", question: "How do members join?", answer: "Coordinators invite members." }];
+  snapshot.specification.status = "draft";
+  const props = { onAsk: vi.fn(), onReply: vi.fn(), onNavigate: vi.fn(), onEdit: edit };
+  const mounted = render(<ProjectUnderstanding view={view({ context: snapshot })} {...props} />);
+  const disclosure = screen.getByText("Saved answers").closest("details")!;
+  expect(disclosure.open).toBe(false);
+  expect(screen.queryByRole("region", { name: "Decisions to resolve" })).toBeNull();
+  await userEvent.click(screen.getByText("Saved answers"));
+  expect(within(disclosure).getByText("These saved answers need review with the current definition.")).not.toBeNull();
+  expect(within(disclosure).getByText("Coordinators invite members.")).not.toBeNull();
+  await userEvent.click(within(disclosure).getByRole("button", { name: "Edit answer in definition" }));
+  expect(edit).toHaveBeenCalledExactlyOnceWith("definition", "join");
+  snapshot.specification = { ...snapshot.specification, status: "approved", revision: 8 };
+  mounted.rerender(<ProjectUnderstanding view={view({ context: { ...snapshot } })} {...props} />);
+  expect(within(disclosure).getByText("Part of reviewed definition 8.")).not.toBeNull();
+  expect(screen.getAllByText("Coordinators invite members.")).toHaveLength(1);
+  snapshot.specification = { ...snapshot.specification, status: "outdated" };
+  mounted.rerender(<ProjectUnderstanding view={view({ context: { ...snapshot } })} {...props} canEdit={false} />);
+  expect(within(disclosure).queryByText("Part of reviewed definition 8.")).toBeNull();
+  await userEvent.click(within(disclosure).getByRole("button", { name: "Edit answer in definition" }));
+  expect(edit).toHaveBeenCalledOnce();
+});
+
+it("does not offer a provider detour or editable answer to a viewer of manual questions", async () => {
+  const snapshot = context(), edit = vi.fn(), ask = vi.fn();
+  snapshot.specification.questions = [{ id: "join", question: "How do members join?", answer: "" }];
+  render(<ProjectUnderstanding view={view({ context: snapshot })} onAsk={ask} onReply={vi.fn()} onNavigate={vi.fn()} onEdit={edit} canEdit={false} />);
+  expect(screen.queryByRole("button", { name: "Work through the decisions" })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Answer in definition" }));
+  expect(edit).not.toHaveBeenCalled(); expect(ask).not.toHaveBeenCalled();
+});
+
 it("explains the saved scope and next stage while allowing a different stage to be inspected", async () => {
   const current = view(), navigate = vi.fn(), ask = vi.fn();
   render(<ProjectUnderstanding view={current} onAsk={ask} onReply={vi.fn()} onNavigate={navigate} />);

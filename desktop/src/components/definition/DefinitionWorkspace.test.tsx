@@ -1,14 +1,71 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor, cleanup } from "@testing-library/react";
+import { act, render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { definitionApi, type ProjectSpecification } from "../../api/definition";
 import { DefinitionWorkspace } from "./DefinitionWorkspace";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { productApi } from "../../api/product";
+import { requestProjectContextEdit, takeProjectContextEdit } from "../../api/projectContextEvents";
+
+vi.mock("../auth/AuthProvider", () => ({ useAuth: () => ({ profile: { user: { id: "question-owner" } } }) }));
+vi.mock("../setup/SetupProvider", () => ({ useSetup: () => ({ status: { access: { user: { username: "question-owner" } }, config: { projectsDir: "/question-projects" } } }) }));
+const questionScope = () => JSON.stringify([productApi.baseUrl, "question-owner", "local", "", "", "question-owner", "/question-projects", "p-1"]);
 
 afterEach(() => { cleanup();vi.restoreAllMocks(); });
-beforeEach(() => { resetCockpit(); vi.spyOn(definitionApi,"listAssistance").mockResolvedValue({jobs:[]}); vi.spyOn(productApi,"agentConnections").mockResolvedValue({revision:0,activeConnectionId:"",connections:[]}); vi.spyOn(productApi,"agents").mockResolvedValue({providers:[]}); });
+beforeEach(() => { localStorage.clear(); resetCockpit(); vi.spyOn(definitionApi,"listAssistance").mockResolvedValue({jobs:[]}); vi.spyOn(productApi,"agentConnections").mockResolvedValue({revision:0,activeConnectionId:"",connections:[]}); vi.spyOn(productApi,"agents").mockResolvedValue({providers:[]}); });
 const fixture = (): ProjectSpecification => ({projectId:"p-1",version:1,revision:2,briefRevision:3,startingPoint:"new",purpose:"A complete app",audience:"People",constraints:"Offline",outOfScope:[],requirements:[{id:"AC-001",title:"Save work",priority:"must",acceptance:"Saved work survives reopening"}],journeys:[],roles:[],entities:[],integrations:[],glossary:[],decisions:[],questions:[],status:"draft",digest:"",updatedAt:""});
+const questionFixture = (): ProjectSpecification => ({ ...fixture(), questions: [{ id: "storage", question: "Where do records live?", answer: "" }, { id: "membership", question: "How do members join?", answer: "" }] });
+function retainQuestionDraft(value: ProjectSpecification) {
+  const original = questionFixture();
+  localStorage.setItem("luci.project-draft.v1:" + JSON.stringify([questionScope(), "definition"]), JSON.stringify({ version: 1, base: JSON.stringify({ revision: original.revision, briefRevision: original.briefRevision }), original, value, updatedAt: Date.now() }));
+}
+it("opens the exact question answer after a delayed load and focuses only once without saving or invoking an agent", async () => {
+  let finish!: (value: ProjectSpecification) => void;
+  vi.spyOn(definitionApi, "get").mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  const save = vi.spyOn(definitionApi, "save"), assist = vi.spyOn(definitionApi, "assist");
+  const cancel = requestProjectContextEdit(questionScope(), "p-1", "definition", "membership");
+  render(<DefinitionWorkspace projectId="p-1" />);
+  const spec = questionFixture(); spec.questions.reverse();
+  await act(async () => finish(spec));
+  const answer = within(await screen.findByRole("group", { name: "Open question 1" })).getByRole("textbox", { name: "Answer" });
+  await waitFor(() => expect(document.activeElement).toBe(answer));
+  expect(screen.getByRole("tab", { name: "Specification" }).getAttribute("aria-selected")).toBe("true");
+  await userEvent.type(answer, "Coordinators invite members.");
+  const idea = screen.getByRole("textbox", { name: "The idea" }); await userEvent.click(idea); await userEvent.type(idea, " with retained context");
+  expect(document.activeElement).toBe(idea);
+  expect((answer as HTMLTextAreaElement).value).toBe("Coordinators invite members.");
+  expect(takeProjectContextEdit(questionScope(), "p-1", "definition")).toBe(false);
+  expect(save).not.toHaveBeenCalled(); expect(assist).not.toHaveBeenCalled(); cancel();
+});
+it("waits for explicit recovery before focusing a reordered question and preserves the recovered answers", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(questionFixture());
+  const retained = questionFixture(); retained.purpose = "Keep this unrelated draft"; retained.questions.reverse(); retained.questions[0].answer = "Invite only";
+  retainQuestionDraft(retained);
+  const cancel = requestProjectContextEdit(questionScope(), "p-1", "definition", "membership");
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByRole("region", { name: "Definition draft recovery" });
+  const restore = screen.getByRole("button", { name: "Restore draft" });
+  expect(document.activeElement?.tagName).not.toBe("TEXTAREA");
+  await userEvent.click(restore);
+  const answer = within(await screen.findByRole("group", { name: "Open question 1" })).getByRole("textbox", { name: "Answer" });
+  await waitFor(() => expect(document.activeElement).toBe(answer));
+  expect((answer as HTMLTextAreaElement).value).toBe("Invite only");
+  expect((screen.getByRole("textbox", { name: "The idea" }) as HTMLTextAreaElement).value).toBe("Keep this unrelated draft"); cancel();
+});
+it("reports a question removed by recovery without focusing or overwriting a different answer", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(questionFixture());
+  const retained = questionFixture(); retained.questions = [retained.questions[0]]; retained.questions[0].answer = "Local persistent storage";
+  retainQuestionDraft(retained);
+  const save = vi.spyOn(definitionApi, "save");
+  const cancel = requestProjectContextEdit(questionScope(), "p-1", "definition", "membership");
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Restore draft" }));
+  await screen.findByText(/This question is no longer in the current definition draft/);
+  const other = screen.getByRole("textbox", { name: "Answer" });
+  expect(document.activeElement).not.toBe(other);
+  expect((other as HTMLTextAreaElement).value).toBe("Local persistent storage");
+  expect(save).not.toHaveBeenCalled(); cancel();
+});
 it("keeps requirement identities while changing acceptance words",async()=>{
   vi.spyOn(definitionApi,"get").mockResolvedValue(fixture());
   const save=vi.spyOn(definitionApi,"save").mockImplementation(async(_id,spec)=>({...spec,revision:3,briefRevision:4}));

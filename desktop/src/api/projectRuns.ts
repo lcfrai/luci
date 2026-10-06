@@ -35,6 +35,10 @@ export interface ProjectRun {
   }[];
   observation?: { state: string; reason: string; observedAt: string; valid: boolean; operationId?: string; childId?: string; childStatus?: string };
   acceptance?: { checkId: string; releaseId: string; acceptedAt: string };
+  /** Reviewed inputs only; not a source, model or live-operation observation. */
+  contextFreshness?: { status: 'current' | 'changed' | 'unavailable'; reason: string };
+  /** A known conversation blocker, independent of saved context freshness. */
+  codingBlocker?: { kind: 'question' | 'unavailable'; reason: string; turnId?: string };
   allowedActions: string[];
 }
 export interface CreateProjectRun {

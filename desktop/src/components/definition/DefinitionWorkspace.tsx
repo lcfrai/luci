@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { notifyProjectContextChanged, PROJECT_CONTEXT_EDIT, takeProjectContextEdit } from "../../api/projectContextEvents";
 import { definitionApi, type ProjectSpecification, type Requirement } from "../../api/definition";
 import { errorText } from "../../api/product";
@@ -26,16 +26,32 @@ const questions = [
   { field: "acceptance", label: "How will we know it works?", help: "Describe each outcome and how someone can check it. These outcomes stay linked to your design, tasks and checks as you edit or reorder them.", placeholder: "For example: a returning user can resume their saved work after reopening the app." },
 ] as const;
 
-function RecordGroup<T extends { id: string }>({ title, help, items, fields, create, onChange }: {
+function RecordGroup<T extends { id: string }>({ title, help, items, fields, create, onChange, focusTarget, onFocused }: {
   title: string; help: string; items: T[]; fields: { key: keyof T; label: string }[]; create(): T; onChange(items: T[]): void;
+  focusTarget?: { id: string; field: keyof T }; onFocused?(found: boolean): void;
 }) {
-  return <details className="definition-group">
+  const group = useRef<HTMLDetailsElement>(null);
+  const inputs = useRef(new Map<string, HTMLTextAreaElement>());
+  useEffect(() => {
+    if (!focusTarget || !group.current) return;
+    group.current.open = true;
+    // Finish navigation layout and the draft dialog's focus restoration first.
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => { secondFrame = requestAnimationFrame(() => {
+      const input = inputs.current.get(`${focusTarget.id}:${String(focusTarget.field)}`);
+      if (input) input.focus();
+      else group.current?.querySelector("summary")?.focus();
+      onFocused?.(!!input);
+    }); });
+    return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame); };
+  }, [focusTarget?.id, focusTarget?.field, onFocused]);
+  return <details ref={group} className="definition-group">
     <summary><span>{title}</span><span className="journey-muted">{items.length}</span></summary>
     <div className="definition-group-body"><p className="journey-muted">{help}</p>
       {items.map((item, index) => <fieldset className="definition-record" key={item.id}>
         <legend>{title.replace(/s$/, "")} {index + 1}</legend>
         {fields.map(({ key, label }) => <label className="luci-field" key={String(key)}>{label}
-          <textarea rows={2} value={String(item[key] ?? "")} onChange={(e) => onChange(items.map((old) => old.id === item.id ? { ...old, [key]: e.target.value } : old))} />
+          <textarea ref={element => { const id = `${item.id}:${String(key)}`; if (element) inputs.current.set(id, element); else inputs.current.delete(id); }} rows={2} value={String(item[key] ?? "")} onChange={(e) => onChange(items.map((old) => old.id === item.id ? { ...old, [key]: e.target.value } : old))} />
         </label>)}
         <Button type="button" variant="secondary" onClick={() => onChange(items.filter((old) => old.id !== item.id))}>Remove {title.toLowerCase().replace(/s$/, "")} {index + 1}</Button>
       </fieldset>)}
@@ -56,9 +72,14 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   const [base, setBase] = useState<{ revision: number; briefRevision: number } | null>(null);
   const [tab, setTab] = useState<Tab>("interview");
   const [step, setStep] = useState(0);
+  const [questionTarget, setQuestionTarget] = useState<string | null>(null);
+  const [questionNotice, setQuestionNotice] = useState("");
   useEffect(() => {
     if (!spec || !canRead) return;
-    const edit = () => { if (takeProjectContextEdit(scope, projectId, "definition")) setTab("specification"); };
+    const edit = () => {
+      const target = takeProjectContextEdit(scope, projectId, "definition");
+      if (target) { setTab("specification"); setQuestionTarget(target.questionId ?? null); setQuestionNotice(""); }
+    };
     edit(); window.addEventListener(PROJECT_CONTEXT_EDIT, edit);
     return () => window.removeEventListener(PROJECT_CONTEXT_EDIT, edit);
   }, [scope, projectId, !!spec, canRead]);
@@ -70,6 +91,16 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   const [pending, setPending] = useState<"" | "save" | "approve">("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const questionFocused = useCallback((found: boolean) => {
+    setQuestionTarget(null);
+    setQuestionNotice(found ? "" : "This question is no longer in the current definition draft. Review the remaining questions or restore the intended draft.");
+  }, []);
+  useEffect(() => {
+    if (questionTarget && !canEdit) {
+      setQuestionTarget(null);
+      setQuestionNotice("Editing access is required to answer this question. Your saved definition is unchanged.");
+    }
+  }, [questionTarget, canEdit]);
   const [history, setHistory] = useState<ProjectSpecification[]>([]);
   const alive = useRef(true);
   const submitting = useRef(false);
@@ -113,6 +144,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
     finally { submitting.current = false; if (alive.current) { setBusy(false); setPending(""); } }
   }
   const selectTab = (next: Tab) => {
+    setQuestionTarget(null);
     setTab(next);
     if (next === "history") void definitionApi.history(projectId).then((r) => { if (alive.current) setHistory(r.revisions); }).catch((cause) => { if (alive.current) setError(errorText(cause)); });
   };
@@ -209,7 +241,9 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
               <RecordGroup title="Integrations" help="Record external systems and their cost, credential or data boundaries." items={spec.integrations} fields={[{ key: "name", label: "Integration name" }, { key: "purpose", label: "Purpose" }, { key: "constraint", label: "Boundaries and requirements" }]} create={() => ({ id: recordId("integration"), name: "", purpose: "", constraint: "" })} onChange={(integrations) => patch({ integrations })} />
               <RecordGroup title="Glossary terms" help="Agree on the words people and agents should use." items={spec.glossary} fields={[{ key: "term", label: "Term" }, { key: "meaning", label: "Meaning in this project" }]} create={() => ({ id: recordId("term"), term: "", meaning: "" })} onChange={(glossary) => patch({ glossary })} />
               <RecordGroup title="Decisions" help="Record consequential choices and the alternatives considered." items={spec.decisions} fields={[{ key: "title", label: "Decision title" }, { key: "decision", label: "Decision" }, { key: "reason", label: "Why" }, { key: "alternatives", label: "Alternatives considered" }]} create={() => ({ id: recordId("decision"), title: "", decision: "", reason: "", alternatives: "" })} onChange={(decisions) => patch({ decisions })} />
-              <RecordGroup title="Open questions" help="Capture the gaps. Answer them before approving the definition." items={spec.questions} fields={[{ key: "question", label: "Question" }, { key: "answer", label: "Answer" }]} create={() => ({ id: recordId("question"), question: "", answer: "" })} onChange={(questions) => patch({ questions })} />
+              {questionNotice && <p role="status" className="journey-warning">{questionNotice}</p>}
+              <RecordGroup title="Open questions" help="Capture the gaps. Answer them before approving the definition." items={spec.questions} fields={[{ key: "question", label: "Question" }, { key: "answer", label: "Answer" }]} create={() => ({ id: recordId("question"), question: "", answer: "" })} onChange={(questions) => patch({ questions })}
+                focusTarget={questionTarget && canEdit && !busy && !draft.pending ? { id: questionTarget, field: "answer" } : undefined} onFocused={questionFocused} />
             </div>}
           </fieldset>
           {tab === "repository" && <RepositoryAnalysisPanel projectId={projectId} specification={spec} dirty={dirty || busy || !!draft.pending} onApplied={value => {

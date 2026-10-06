@@ -5,9 +5,10 @@ import { Button } from "../fluid/components/button";
 import { DraftDocumentReview, draftFieldLabel, DraftReviewDisclosure } from "./DraftDocumentReview";
 import "./draft-recovery.css";
 
-export function DraftRecovery<T>({ draft, label, base, saved, merge = false, busy, readOnly, onRestore, onDiscard }: {
+export function DraftRecovery<T>({ draft, label, base, saved, merge = false, localSetup = false, busy, readOnly, onRestore, onDiscard }: {
   draft: ProjectDraftState<T>; label: string; base: string | null; saved: T | null; busy?: boolean; readOnly?: boolean;
   merge?: boolean;
+  localSetup?: boolean;
   onRestore(value: T): void; onDiscard?(): void;
 }) {
   const [reviewed, setReviewed] = useState("");
@@ -21,8 +22,8 @@ export function DraftRecovery<T>({ draft, label, base, saved, merge = false, bus
     {draft.error && <p className="journey-warning" role={draft.error.startsWith("Draft recovery is unavailable") ? "status" : "alert"}>{draft.error}</p>}
     {pending ? <section aria-label={`${label} draft recovery`} className="draft-recovery-panel">
       <strong>Recover your {label.toLowerCase()} draft</strong>
-      <p>Unsaved edits from {new Date(pending.updatedAt).toLocaleString()} are available in this browser. The saved project has not been changed.</p>
-      {changed && <p className="journey-warning">The saved version changed after this draft began. Review both versions before continuing; saving will still check the current revision.</p>}
+      <p>Unsaved edits from {new Date(pending.updatedAt).toLocaleString()} are available in this browser. {localSetup ? "Restoring prepares the controls only; it does not run commands or restore execution consent." : "The saved project has not been changed."}</p>
+      {changed && <p className="journey-warning">{localSetup ? "The source, reviewed context or selected build differs from this draft. Review the setup; outdated requirement selections will be cleared." : "The saved version changed after this draft began. Review both versions before continuing; saving will still check the current revision."}</p>}
       {combined && <>
         <p>{pending.original ? "Edits to different fields are combined with the saved version. Where both versions changed the same content, choose what to keep." : "This older browser draft does not include its original saved version. Choose what to keep for each difference so another person's work is not silently replaced."} You can edit the recovered draft before saving it.</p>
         {combined.conflicts.map(conflict => {
@@ -43,12 +44,12 @@ export function DraftRecovery<T>({ draft, label, base, saved, merge = false, bus
           <DraftReviewDisclosure title="Combined draft technical values" className="draft-technical">{() => <pre className="draft-result">{JSON.stringify(combined.value, null, 2)}</pre>}</DraftReviewDisclosure>
         </>}</DraftReviewDisclosure>
       </>}
-      <DraftReviewDisclosure title="Compare draft with saved version">{() => <>
-        <div className="draft-comparison"><div><h3>Saved version</h3>{merge ? <DraftDocumentReview value={saved} documents={[saved]} /> : <pre>{JSON.stringify(saved, null, 2)}</pre>}</div><div><h3>Your draft</h3>{merge ? <DraftDocumentReview value={pending.value} documents={[pending.value]} /> : <pre>{JSON.stringify(pending.value, null, 2)}</pre>}</div></div>
+      <DraftReviewDisclosure title={localSetup ? "Compare draft with current check setup" : "Compare draft with saved version"}>{() => <>
+        <div className="draft-comparison"><div><h3>{localSetup ? "Current check setup" : "Saved version"}</h3>{merge || localSetup ? <DraftDocumentReview value={saved} documents={[saved]} /> : <pre>{JSON.stringify(saved, null, 2)}</pre>}</div><div><h3>Your draft</h3>{merge || localSetup ? <DraftDocumentReview value={pending.value} documents={[pending.value]} /> : <pre>{JSON.stringify(pending.value, null, 2)}</pre>}</div></div>
         {merge && <DraftReviewDisclosure title="Original technical values" className="draft-technical">{() => <div className="draft-comparison"><div><h3>Saved version values</h3><pre>{JSON.stringify(saved, null, 2)}</pre></div><div><h3>Your draft values</h3><pre>{JSON.stringify(pending.value, null, 2)}</pre></div></div>}</DraftReviewDisclosure>}
       </>}</DraftReviewDisclosure>
-      {changed && <label className="setup-check"><input type="checkbox" disabled={busy || readOnly || !!combined?.unresolved} checked={reviewed === reviewKey} onChange={event => setReviewed(event.target.checked ? reviewKey : "")} />I reviewed the saved version and {combined ? "these recovery choices." : "want to continue with this draft."}</label>}
+      {changed && <label className="setup-check"><input type="checkbox" disabled={busy || readOnly || !!combined?.unresolved} checked={reviewed === reviewKey} onChange={event => setReviewed(event.target.checked ? reviewKey : "")} />I reviewed the {localSetup ? "current check setup" : "saved version"} and {combined ? "these recovery choices." : "want to continue with this draft."}</label>}
       <div className="journey-actions"><Button type="button" disabled={busy || readOnly || !base || !!combined?.unresolved || (changed && reviewed !== reviewKey)} onClick={() => { const restored = draft.take(); if (restored) onRestore(combined ? combined.value : restored.value); }}>Restore draft</Button><Button type="button" variant="secondary" disabled={busy} onClick={() => { draft.clear(); onDiscard?.(); }}>Discard browser draft</Button></div>
-    </section> : draft.retained ? <p className="journey-muted" role="status">{draft.restored ? "Recovered draft" : "Unsaved changes"} · kept in this browser for up to 30 days. Save to share with your project.</p> : null}
+    </section> : draft.retained ? <p className="journey-muted" role="status">{localSetup ? "Check setup" : draft.restored ? "Recovered draft" : "Unsaved changes"} · kept in this browser for up to 30 days. {localSetup ? "Check setup stays in this browser; running checks separately creates shared results." : "Save to share with your project."}</p> : null}
   </div>;
 }

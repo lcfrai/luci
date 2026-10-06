@@ -14,6 +14,7 @@ import { useSetup } from '../setup/SetupProvider';
 import { Button } from '../fluid/components/button';
 import { WorkflowDialog } from '../common/WorkflowDialog';
 import { SessionPicker } from '../topbar/SessionPicker';
+import { ORCHESTRATOR_OPEN, type OrchestratorOpenDetail } from '../orchestrator/OrchestratorPanel';
 import './project-runs.css';
 
 export interface ProjectRunDraft { implementationContext: ImplementationContextRequest; worktreeId: string }
@@ -25,6 +26,13 @@ const labels: Record<string, string> = {
   ready: 'Ready to code', coding: 'Coding', 'awaiting-checks': 'Awaiting verification',
   'awaiting-release': 'Awaiting release evidence', blocked: 'Needs attention', cancelled: 'Cancelled', complete: 'Accepted outcome',
 };
+const contextNeedsReview = (run?: ProjectRun) => !!run?.contextFreshness && run.contextFreshness.status !== 'current';
+const codingBlocked = (run?: ProjectRun) => contextNeedsReview(run) || !!run?.codingBlocker;
+const runLabel = (run: ProjectRun) => run.state === 'ready' && run.codingBlocker
+  ? (run.codingBlocker.kind === 'question' ? 'Decision needed before coding' : 'Project decisions unavailable')
+  : run.state === 'ready' && contextNeedsReview(run)
+  ? (run.contextFreshness?.status === 'unavailable' ? 'Context unavailable' : 'Review current context')
+  : labels[run.state] || run.state;
 const when = (value: string) => new Date(value).toLocaleString();
 const scope = (values: unknown[]) => JSON.stringify(values);
 
@@ -61,7 +69,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
   const region = useRef<HTMLElement>(null);
   const inspecting = useRef<typeof inspection>(null);
   const setLens = useCockpit(state => state.setLens);
-  const allowed = (action: string) => canEdit && (!['start-coding', 'continue-coding'].includes(action) || canExecute) && !!run?.allowedActions?.includes(action) && !(dispatchUncertain && (action === 'start-coding' || action === 'continue-coding'));
+  const allowed = (action: string) => canEdit && (!['start-coding', 'continue-coding'].includes(action) || canExecute) && (!['start-coding', 'continue-coding', 'join-check', 'join-release', 'accept'].includes(action) || !codingBlocked(run)) && !!run?.allowedActions?.includes(action) && !(dispatchUncertain && (action === 'start-coding' || action === 'continue-coding'));
   const remember = (value: ProjectRun) => {
     if (!alive.current) return;
     if (value.projectId !== projectId || value.input.implementation.projectId !== projectId) throw new Error('The run belongs to another project. Refresh this project.');
@@ -144,7 +152,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
       const value = await projectRunsApi.create(projectId, { ...input, idempotencyKey: creation.current.key });
       if (!alive.current) return { ok: false as const, message: 'The workspace changed. Open its run history to inspect the saved result.' };
       request.current++; setLoading(false); remember(value); notifyProjectContextChanged(navigationScope, projectId);
-      setNotice('Reviewed run saved. Start coding when ready; no session or deployment has started.');
+      setNotice(value.codingBlocker ? 'Run saved. Review the project decisions before starting more coding.' : contextNeedsReview(value) ? 'Run saved. Review its current context before starting more coding.' : 'Reviewed run saved. Start coding when ready; no session or deployment has started.');
       return { ok: true as const };
     } catch (cause) { return { ok: false as const, message: errorText(cause) }; }
     finally { working.current = false; }
@@ -160,6 +168,14 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     await dispatch(reserved.run, reserved.operation);
   }
   async function dispatch(saved: ProjectRun, operation: RunOperation) {
+    if (saved.codingBlocker) {
+      setNotice('The coding reservation is retained. Review the project decisions before starting more coding.');
+      return;
+    }
+    if (contextNeedsReview(saved)) {
+      setNotice('The coding reservation is retained. Review the current plan before preparing more coding work.');
+      return;
+    }
     if (!mayDispatch.current) throw new Error('Execution access changed. The reserved operation remains available to an authorized project member.');
     setDispatchUncertain(true);
     const session = await api.createSession(runSessionRequest(saved, operation));
@@ -237,7 +253,10 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     }
     if (alive.current) { remember(value); setDialog(null); }
   }
-  const primary = !run?.acceptance && allowed('accept') && run?.observation?.valid ? 'accept'
+  const reviewInputsFirst = !!run && ['ready', 'awaiting-checks', 'awaiting-release', 'blocked'].includes(run.state);
+  const primary = reviewInputsFirst && run?.codingBlocker ? 'review-decisions'
+    : reviewInputsFirst && contextNeedsReview(run) ? 'review-plan'
+    : !run?.acceptance && allowed('accept') && run?.observation?.valid ? 'accept'
     : allowed('continue-coding') ? 'continue-coding'
       : run?.state === 'ready' && allowed('start-coding') ? 'start-coding'
       : run?.state === 'awaiting-checks' && allowed('join-check') ? 'verify'
@@ -245,6 +264,11 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
           : allowed('reconcile') ? 'reconcile' : '';
   function action(kind: string) {
     if (!run) return;
+    if (kind === 'review-plan') { onReviewPlan(); return; }
+    if (kind === 'review-decisions') {
+      if (navigationScope && run.codingBlocker) window.dispatchEvent(new CustomEvent<OrchestratorOpenDetail>(ORCHESTRATOR_OPEN, { detail: { projectId, scope: navigationScope, destination: 'decisions', turnId: run.codingBlocker.turnId } }));
+      return;
+    }
     if (kind === 'verify') {
       if (navigationScope && allowed('join-check')) useCockpit.setState({ projectRunVerification: { scope: navigationScope, projectId, runId: run.id } });
       return;
@@ -263,7 +287,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     else if (kind === 'join-check' || kind === 'join-release') void operate('Reading available evidence', () => chooseEvidence(kind), false);
     else if (kind === 'accept' || kind === 'cancel') { setAccepted(false); setDialog(kind); }
   }
-  const actionLabel: Record<string, string> = { verify: 'Verify this build', deploy: run?.input.outcome === 'publish' ? 'Prepare deployment' : 'Preview this build', 'start-coding': 'Start coding', 'continue-coding': 'Continue reserved coding', 'join-check': 'Select check evidence', 'join-release': 'Select release evidence', reconcile: 'Reconcile run', accept: 'Review and accept outcome', cancel: 'Cancel run' };
+  const actionLabel: Record<string, string> = { 'review-decisions': run?.codingBlocker?.kind === 'question' ? 'Review blocking question' : 'Check project decisions', 'review-plan': 'Review current plan', verify: 'Verify this build', deploy: run?.input.outcome === 'publish' ? 'Prepare deployment' : 'Preview this build', 'start-coding': 'Start coding', 'continue-coding': 'Continue reserved coding', 'join-check': 'Select check evidence', 'join-release': 'Select release evidence', reconcile: 'Reconcile run', accept: 'Review and accept outcome', cancel: 'Cancel run' };
   if (!canRead) return <section className="project-runs" aria-label="Project runs"><p role="status">{access.message}</p></section>;
   return <section ref={region} tabIndex={-1} className="project-runs" aria-label="Project runs" aria-busy={!!busy || loading}>
     <div className="project-runs-heading"><h2>Project run</h2><Button variant="tertiary" disabled={!!busy || loading} onClick={() => void load()}>{loading ? 'Reading history…' : 'Refresh history'}</Button></div>
@@ -271,22 +295,27 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     {error && <p role="alert" className="journey-error">{error}</p>}
     {notice && <p role="status" className="journey-muted">{notice}</p>}
     {!run ? <><p className="journey-muted">Keep reviewed tasks, coding, checks and a verified release together. Creating a run saves its inputs; each next operation remains your choice.</p><Button variant="secondary" onClick={onReviewPlan}>Review implementation plan</Button></> : <>
-      <div className="project-run-next"><strong>{labels[run.state] || run.state}</strong><span>{run.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span><p>{run.reason}</p>
+      <div className="project-run-next"><strong>{runLabel(run)}</strong><span>{run.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span>{!(run.state === 'ready' && codingBlocked(run)) && <p>{run.reason}</p>}
+        {run.codingBlocker && <p className="journey-warning">{run.codingBlocker.reason}</p>}
+        {run.contextFreshness && <p className={contextNeedsReview(run) ? 'journey-warning' : 'journey-muted'}>{contextNeedsReview(run) && <strong>{run.contextFreshness.status === 'unavailable' ? 'Reviewed context unavailable. ' : 'Reviewed context changed. '}</strong>}{run.contextFreshness.reason}</p>}
         {run.acceptance && <p>Accepted {when(run.acceptance.acceptedAt)}. This historical acceptance is retained separately from current validity.</p>}
         {run.observation ? <p className={run.observation.valid ? 'journey-muted' : 'journey-warning'}>{run.observation.valid ? 'Last observation valid' : 'Current evidence needs attention'} · {when(run.observation.observedAt)}.{(!run.acceptance || !run.observation.valid) && <> {run.observation.reason}</>}</p> : <p className="journey-muted">No observation recorded yet. Refreshing history does not run or reconcile operations.</p>}
         <div className="journey-actions">
-          {primary && <Button disabled={!!busy || loading || (['verify', 'deploy'].includes(primary) && !navigationScope)} onClick={() => action(primary)}>{busy || actionLabel[primary]}</Button>}
+          {primary && <Button disabled={!!busy || loading || (['verify', 'deploy', 'review-decisions'].includes(primary) && !navigationScope)} onClick={() => action(primary)}>{busy || actionLabel[primary]}</Button>}
+          {run.codingBlocker && primary !== 'review-decisions' && <Button variant="secondary" disabled={!!busy || loading || !navigationScope} onClick={() => action('review-decisions')}>{actionLabel['review-decisions']}</Button>}
+          {contextNeedsReview(run) && primary !== 'review-plan' && <Button variant="secondary" disabled={!!busy || loading} onClick={onReviewPlan}>Review current plan</Button>}
           {!!run.operations.length && <Button variant="secondary" disabled={!canRead || !!busy} onClick={() => void operate('Opening coding session', openSession, false)}>Open coding session</Button>}
           {allowed('reconcile') && primary !== 'reconcile' && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('reconcile')}>Reconcile run</Button>}
           {run.state === 'awaiting-checks' && allowed('start-coding') && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('start-coding')}>Start another coding attempt</Button>}
           {allowed('join-release') && primary !== 'join-release' && <Button variant="tertiary" disabled={!!busy || loading} onClick={() => action('join-release')}>Select release evidence</Button>}
           {allowed('join-check') && <Button variant="tertiary" disabled={!!busy || loading} onClick={() => action('join-check')}>Select check evidence</Button>}
         </div>
-        {run.state === 'awaiting-checks' && <p className="journey-muted">Verify this build to review its saved criteria, run checks, and use matching results. If a check fails, inspect its output and start another coding attempt to repair the implementation. A CLI exit or task marked Done does not complete this run.</p>}
+        {run.state === 'awaiting-checks' && <p className="journey-muted">{codingBlocked(run) ? `This run retains its previous coding and evidence. Review ${run.codingBlocker ? 'the project decisions' : 'the current plan'} before continuing this run.` : 'Verify this build to review its saved criteria, run checks, and use matching results. If a check fails, inspect its output and start another coding attempt to repair the implementation.'} A CLI exit or task marked Done does not complete this run.</p>}
         {allowed('continue-coding') && <p className="journey-muted">A coding operation was reserved before dispatch. Continue uses that same child identity; it does not reserve another attempt. Reconcile first if its result is uncertain.</p>}
         {run.state === 'cancelled' && <p className="journey-muted">Future dispatch is cancelled. Running children retain their separate stop controls.</p>}
       </div>
       <details className="project-run-receipts"><summary>Reviewed inputs and evidence</summary>
+        {run.state === 'ready' && codingBlocked(run) && <p>Recorded when prepared: {run.reason}</p>}
         <p>{run.input.implementation.taskTitles.join('; ')}</p><p>Brief {run.input.implementation.briefRevision} · Plan {run.input.implementation.planRevision} · Definition {run.input.implementation.specificationRevision} · Design {run.input.implementation.designPlanRevision}</p>
         <p>{run.input.route.harness} · {run.input.route.model} · {run.input.route.connection.id || 'Direct agent settings'} · connection revision {run.input.route.connection.revision}</p>
         <p>Starting commit {run.input.implementation.sourceCommit || 'not committed'}{run.input.implementation.sourceDirty ? ' · included uncommitted changes' : ''}</p>
@@ -301,7 +330,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
         {allowed('cancel') && <Button variant="tertiary" disabled={!!busy || loading} onClick={() => action('cancel')}>Cancel run</Button>}
       </details>
     </>}
-    {runs.length > 0 && <details className="project-run-history"><summary>Run history · {runs.length}</summary><ul>{runs.map(item => <li key={item.id}><Button variant={item.id === run?.id ? 'secondary' : 'tertiary'} disabled={!!busy} aria-pressed={item.id === run?.id} onClick={() => { setSelected(item.id); setDialog(null); setError(''); setNotice(''); }}>{labels[item.state] || item.state} · {when(item.createdAt)}</Button><span>{item.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span></li>)}</ul></details>}
+    {runs.length > 0 && <details className="project-run-history"><summary>Run history · {runs.length}</summary><ul>{runs.map(item => <li key={item.id}><Button variant={item.id === run?.id ? 'secondary' : 'tertiary'} disabled={!!busy} aria-pressed={item.id === run?.id} onClick={() => { setSelected(item.id); setDialog(null); setError(''); setNotice(''); }}>{runLabel(item)} · {when(item.createdAt)}</Button><span>{item.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span></li>)}</ul></details>}
     <SessionPicker open={!!draft && canEdit} worktreeId={draft?.worktreeId ?? null} implementationContext={draft?.implementationContext} onClose={onDraftClose} onSubmit={create} onCreated={onDraftClose} submitLabel="Create project run">
       <p className="pick-note">Save the reviewed inputs and model route. Coding and deployment start only through their separate controls.</p><label className="pick-field">Intended outcome<select value={outcome} onChange={event => setOutcome(event.target.value as typeof outcome)}><option value="preview">Workspace preview</option><option value="publish">Public deployment</option></select></label>
     </SessionPicker>

@@ -308,6 +308,27 @@ operations; creating or reading a run does not start a model, command or resourc
 | `POST /runs/{runId}/accept` | `{expectedRevision}` | `{run}` after fresh reconciliation and explicit acceptance of the selected checked release. |
 | `POST /runs/{runId}/cancel` | `{expectedRevision}` | `{run}` with future dispatch cancelled. A running child is stopped through its existing session/check/release controls. |
 
+Run projections include `contextFreshness: {status, reason}`, where status is
+`current`, `changed` or `unavailable`. This compares saved reviewed inputs with
+the current owned context; it does not inspect source, provider availability or
+running children. A changed or unreadable context omits coding, evidence-join and
+acceptance actions that require those current inputs, and gives a review remedy.
+Historical state, observations, acceptance
+and existing sessions remain intact. List reads one context snapshot for all
+rows; reading does not reconcile, dispatch or persist. Evidence joins retain
+their existing independent validation, and every execution request rechecks its
+authoritative admission regardless of this display projection.
+
+The optional `codingBlocker` is separate: `{kind:"question"|"unavailable",
+reason,turnId?}` reports an unresolved material question or unreadable private
+decision history. It also suppresses coding invitations without changing the
+saved-context comparison or historical run. A question action opens the existing
+scoped decision and requires an explicit answer; navigation cannot send a
+message, replace a draft or resolve the question automatically. Absence of this
+field establishes no broader execution readiness. Decision blockers also omit
+joins/acceptance because those operations use the same existing execution gate;
+reconciliation, cancellation and inspection remain available.
+
 `implementationContext` has the reviewed selection shape above. Runs require
 nonempty requirement links, the project's main checkout and an identifiable
 saved model connection or an existing private Codex subscription generation.

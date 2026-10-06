@@ -10,8 +10,10 @@ import { useCockpit, resetCockpit } from "../../store/store";
 import { ORCHESTRATOR_OPEN, OrchestratorPanel } from "./OrchestratorPanel";
 import { notifyProjectContextChanged, takeProjectContextEdit } from "../../api/projectContextEvents";
 import { DefinitionWorkspace } from "../definition/DefinitionWorkspace";
+import { DraftNavigationDialog } from "../common/DraftNavigationDialog";
 import { definitionApi } from "../../api/definition";
 import { context, job, proposalTurn, turn, view } from "./fixtures";
+import { retainComposerRequest, saveComposerDraft } from "./composerRecovery";
 
 vi.mock("../journey/ContextStorage", () => ({ ContextStorage: () => null }));
 const identity = vi.hoisted(() => ({ actor: "owner", connection: "", root: "/projects/owner", read: true, edit: true, assist: true }));
@@ -42,6 +44,159 @@ async function ready() {
   if (!(disclosure.parentElement as HTMLDetailsElement).open) await userEvent.click(disclosure);
   await screen.findByText(/Using Team provider/);
 }
+
+const decisionScope = () => JSON.stringify([productApi.baseUrl, identity.actor, identity.connection ? "cloud" : "local", identity.connection, identity.connection, identity.actor, identity.root, "p-1"]);
+const decisions = [
+  { turnId: "decision-other", question: "What is the initial launch region?", rationale: "Release planning", options: [] },
+  { turnId: "decision-access", question: "Are notes private or shared?", rationale: "Implementation needs an access boundary", options: [] },
+];
+function openDecision(turnId = "decision-access", overrides: Record<string, unknown> = {}) {
+  act(() => window.dispatchEvent(new CustomEvent(ORCHESTRATOR_OPEN, { detail: { projectId: "p-1", scope: decisionScope(), destination: "decisions", turnId, ...overrides } })));
+}
+const browserRecords = () => Object.fromEntries(Object.keys(localStorage).sort().map(key => [key, localStorage.getItem(key)]));
+
+it("reveals the exact current blocking question without replacing an unsent message or its reply target", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ blockingQuestions: decisions }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  const other = screen.getByRole("group", { name: decisions[0].question });
+  await userEvent.click(within(other).getByRole("button", { name: "Answer this decision" }));
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Keep my launch-region answer intact");
+  const before = browserRecords(), reads = vi.mocked(orchestratorApi.get).mock.calls.length;
+  openDecision();
+  const target = within(screen.getByRole("group", { name: decisions[1].question })).getByRole("button", { name: "Answer this decision" });
+  await waitFor(() => expect(document.activeElement).toBe(target));
+  expect(orchestratorApi.get).toHaveBeenCalledTimes(reads + 1);
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("Keep my launch-region answer intact");
+  expect(screen.getByText(`Replying to: ${decisions[0].question}`)).not.toBeNull();
+  expect(browserRecords()).toEqual(before);
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.resolveRequest).not.toHaveBeenCalled();
+  // Focus is one-shot; normal typing after arrival keeps its caret.
+  await userEvent.click(screen.getByLabelText("Message Luci"));
+  await userEvent.type(screen.getByLabelText("Message Luci"), ".");
+  expect(document.activeElement).toBe(screen.getByLabelText("Message Luci"));
+});
+
+it.each(["recovered", "pending"])("reveals a decision while preserving the exact %s composer record", async mode => {
+  const scope = decisionScope();
+  saveComposerDraft(scope, null, "Original message must survive", "original-reply");
+  if (mode === "pending") retainComposerRequest(scope, { expectedRevision: 3, expectedContextDigest: context().digest, idempotencyKey: "original-paid-request-123456", message: "Original message must survive", replyToTurnId: "original-reply", harness: "codex", model: "original-model", agentConnectionId: "original-connection" });
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ blockingQuestions: decisions }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  const before = browserRecords();
+  openDecision();
+  const answer = within(screen.getByRole("group", { name: decisions[1].question })).getByRole("button", { name: "Answer this decision" });
+  await waitFor(() => expect(document.activeElement).toBe(answer));
+  expect(browserRecords()).toEqual(before);
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("");
+  expect(screen.getByRole("button", { name: mode === "pending" ? "Check original request" : "Restore unsent message" })).not.toBeNull();
+  await userEvent.click(answer);
+  expect(screen.getByText("Restore or resolve your saved message before starting another one.")).not.toBeNull();
+  expect(browserRecords()).toEqual(before);
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.resolveRequest).not.toHaveBeenCalled();
+});
+
+it("reports an already resolved or missing target instead of selecting another unresolved decision", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValueOnce(view({ blockingQuestions: decisions })).mockResolvedValue(view({ revision: 4, blockingQuestions: [decisions[0]] }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  openDecision();
+  const notice = await screen.findByText(/This decision is no longer listed as unresolved/);
+  await waitFor(() => expect(document.activeElement).toBe(notice));
+  expect(screen.queryByText(/Replying to:/)).toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("keeps an unreadable decision lookup actionable without touching the composer", async () => {
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Keep this unsent text");
+  const before = browserRecords();
+  vi.mocked(orchestratorApi.get).mockRejectedValueOnce(new Error("Conversation storage is unavailable"));
+  openDecision("", { turnId: undefined });
+  const notice = await screen.findByText(/Project decisions could not be refreshed: Conversation storage is unavailable/);
+  await waitFor(() => expect(document.activeElement).toBe(notice));
+  expect(browserRecords()).toEqual(before);
+  expect(screen.getByRole("button", { name: "Refresh conversation" })).not.toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("ignores foreign project and workspace decision destinations", async () => {
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  const reads = vi.mocked(orchestratorApi.get).mock.calls.length;
+  openDecision("decision-access", { scope: "another-account-workspace" });
+  openDecision("decision-access", { projectId: "p-other" });
+  expect(orchestratorApi.get).toHaveBeenCalledTimes(reads);
+  expect(screen.queryByText("Reading current project decisions…")).toBeNull();
+});
+
+it.each(["navigation", "new destination", "read access", "account"])("cancels a slow decision destination after %s changes", async change => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ blockingQuestions: decisions }));
+  const mounted = render(<><button>Outside conversation</button><OrchestratorPanel projectId="p-1" /></>); await ready();
+  let resolve!: (value: OrchestratorView) => void;
+  vi.mocked(orchestratorApi.get).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+  openDecision();
+  if (change === "navigation") act(() => useCockpit.setState({ lens: "deploy" }));
+  if (change === "new destination") {
+    openDecision("decision-other");
+    await waitFor(() => expect(document.activeElement).toBe(within(screen.getByRole("group", { name: decisions[0].question })).getByRole("button", { name: "Answer this decision" })));
+  }
+  if (change === "read access") identity.read = false;
+  if (change === "account") identity.actor = "another-person";
+  if (change === "read access" || change === "account") mounted.rerender(<><button>Outside conversation</button><OrchestratorPanel projectId="p-1" /></>);
+  screen.getByRole("button", { name: "Outside conversation" }).focus();
+  await act(async () => resolve(view({ revision: 6, blockingQuestions: decisions })));
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Outside conversation" }));
+  expect(screen.queryByText(/Replying to:/)).toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("focuses the readable question itself when the member cannot use its answer control", async () => {
+  identity.assist = false;
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ blockingQuestions: decisions }));
+  render(<OrchestratorPanel projectId="p-1" />);
+  await screen.findByRole("button", { name: "Review design" });
+  openDecision();
+  const group = await screen.findByRole("group", { name: decisions[1].question });
+  await waitFor(() => expect(document.activeElement).toBe(group));
+  expect((within(group).getByRole("button", { name: "Answer this decision" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("does not replace a newer saved context at the same conversation revision with a delayed decision lookup", async () => {
+  const original = view({ blockingQuestions: decisions });
+  vi.mocked(orchestratorApi.get).mockResolvedValue(original);
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  let resolve!: (value: OrchestratorView) => void;
+  vi.mocked(orchestratorApi.get).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+  openDecision();
+  const newer = view({ revision: original.revision, blockingQuestions: decisions, context: { ...context(), specification: { ...context().specification, purpose: "The newly saved purpose must remain visible" } } });
+  vi.mocked(orchestratorApi.get).mockResolvedValue(newer);
+  act(() => notifyProjectContextChanged(decisionScope(), "p-1"));
+  await screen.findByText("The newly saved purpose must remain visible");
+  screen.getByLabelText("Message Luci").focus();
+  await act(async () => resolve(original));
+  expect(screen.getByText("The newly saved purpose must remain visible")).not.toBeNull();
+  expect(screen.getByText(/The project changed while its decisions were loading/)).not.toBeNull();
+  expect(document.activeElement).toBe(screen.getByLabelText("Message Luci"));
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("does not let a refresh started before a decision lookup overwrite that lookup's newer same-revision context", async () => {
+  const original = view({ blockingQuestions: decisions });
+  vi.mocked(orchestratorApi.get).mockResolvedValue(original);
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  let oldRefresh!: (value: OrchestratorView) => void, decision!: (value: OrchestratorView) => void;
+  vi.mocked(orchestratorApi.get).mockReturnValueOnce(new Promise(done => { oldRefresh = done; })).mockReturnValueOnce(new Promise(done => { decision = done; }));
+  await userEvent.click(screen.getByRole("button", { name: "Refresh conversation" }));
+  openDecision();
+  const newer = view({ revision: original.revision, blockingQuestions: decisions, context: { ...context(), specification: { ...context().specification, purpose: "New context from the decision lookup" } } });
+  await act(async () => decision(newer));
+  await screen.findByText("New context from the decision lookup");
+  const answer = within(screen.getByRole("group", { name: decisions[1].question })).getByRole("button", { name: "Answer this decision" });
+  await waitFor(() => expect(document.activeElement).toBe(answer));
+  await act(async () => oldRefresh(original));
+  expect(screen.getByText("New context from the decision lookup")).not.toBeNull();
+  expect(document.activeElement).toBe(answer);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
 
 function responsiveOverview(initialCompact: boolean) {
   const original = window.matchMedia;
@@ -489,6 +644,76 @@ it("discards a pending manual edit on account change instead of replaying it whe
   identity.actor = "other"; mounted.rerender(<OrchestratorPanel projectId="p-1" />); await ready();
   expect(takeProjectContextEdit(oldScope, "p-1", "definition")).toBe(false);
   expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+function manualQuestionView() {
+  const snapshot = context();
+  snapshot.specification.questions = [{ id: "membership", question: "How do members join?", answer: "" }];
+  return view({ context: snapshot });
+}
+function QuestionWorkspace() {
+  const lens = useCockpit(state => state.lens);
+  return <><OrchestratorPanel projectId="p-1" />{lens === "discover" && <DefinitionWorkspace projectId="p-1" />}<DraftNavigationDialog /></>;
+}
+function guardDesignDraft(discard = vi.fn()) {
+  useCockpit.setState(state => ({ selection: { ...state.selection, projectId: "p-1" }, lens: "design", unsavedProjectDrafts: { sketch: { projectId: "p-1", label: "Sketch", lens: "design", retained: true, discard } } }));
+  return discard;
+}
+it("cancels question navigation with the existing draft guard and leaves no answer target for a later visit", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(manualQuestionView());
+  const getDefinition = vi.spyOn(definitionApi, "get").mockResolvedValue(manualQuestionView().context.specification);
+  const discard = guardDesignDraft();
+  render(<QuestionWorkspace />);
+  await userEvent.click(await screen.findByRole("button", { name: "Answer in definition" }));
+  await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect(useCockpit.getState().lens).toBe("design");
+  expect(useCockpit.getState().unsavedProjectDrafts.sketch).toBeDefined();
+  expect(takeProjectContextEdit(currentScope(), "p-1", "definition")).toBe(false);
+  expect(discard).not.toHaveBeenCalled(); expect(getDefinition).not.toHaveBeenCalled();
+  expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.apply).not.toHaveBeenCalled();
+});
+it.each(["Keep drafts and continue", "Discard edits and continue"])("focuses the requested answer after %s and after the real draft dialog restores focus", async choice => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(manualQuestionView());
+  vi.spyOn(definitionApi, "get").mockResolvedValue(manualQuestionView().context.specification);
+  const save = vi.spyOn(definitionApi, "save"), discard = guardDesignDraft();
+  render(<QuestionWorkspace />);
+  await userEvent.click(await screen.findByRole("button", { name: "Answer in definition" }));
+  await userEvent.click(screen.getByRole("button", { name: choice }));
+  const answer = await screen.findByRole("textbox", { name: "Answer" });
+  await waitFor(() => expect(document.activeElement).toBe(answer));
+  expect(screen.queryByRole("dialog", { name: "Keep your changes?" })).toBeNull();
+  await userEvent.type(answer, "Coordinators invite members.");
+  expect(document.activeElement).toBe(answer);
+  expect((answer as HTMLTextAreaElement).value).toBe("Coordinators invite members.");
+  expect(discard).toHaveBeenCalledTimes(choice === "Discard edits and continue" ? 1 : 0);
+  expect(save).not.toHaveBeenCalled(); expect(orchestratorApi.send).not.toHaveBeenCalled(); expect(orchestratorApi.apply).not.toHaveBeenCalled();
+});
+it("abandons an unconsumed question target when navigation changes before its lazy editor loads", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(manualQuestionView());
+  let finish!: (value: ReturnType<typeof context>["specification"]) => void;
+  vi.spyOn(definitionApi, "get").mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  useCockpit.setState({ lens: "design" });
+  render(<QuestionWorkspace />);
+  await userEvent.click(await screen.findByRole("button", { name: "Answer in definition" }));
+  act(() => useCockpit.getState().setLens("develop"));
+  expect(takeProjectContextEdit(currentScope(), "p-1", "definition")).toBe(false);
+  await act(async () => finish(manualQuestionView().context.specification));
+  expect(useCockpit.getState().lens).toBe("develop");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+it("cancels a question target when editing access is lost while the definition is loading", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(manualQuestionView());
+  let finish!: (value: ReturnType<typeof context>["specification"]) => void;
+  vi.spyOn(definitionApi, "get").mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  useCockpit.setState({ lens: "design" });
+  const mounted = render(<QuestionWorkspace />);
+  await userEvent.click(await screen.findByRole("button", { name: "Answer in definition" }));
+  identity.edit = false; mounted.rerender(<QuestionWorkspace />);
+  await act(async () => finish(manualQuestionView().context.specification));
+  expect(takeProjectContextEdit(currentScope(), "p-1", "definition")).toBe(false);
+  expect(document.activeElement?.tagName).not.toBe("TEXTAREA");
+  identity.edit = true; mounted.rerender(<QuestionWorkspace />);
+  expect(document.activeElement?.tagName).not.toBe("TEXTAREA");
 });
 
 it("retains an unsent scoped message and reply target after the conversation remounts", async () => {

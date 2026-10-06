@@ -16,7 +16,7 @@ it("retains the exact manual target through a delayed mount and refuses other pr
   expect(takeProjectContextEdit("other", "p", "design")).toBe(false);
   expect(takeProjectContextEdit("scope", "other", "design")).toBe(false);
   expect(takeProjectContextEdit("scope", "p", "definition")).toBe(false);
-  expect(takeProjectContextEdit("scope", "p", "design")).toBe(true);
+  expect(takeProjectContextEdit("scope", "p", "design")).toEqual({ editor: "design" });
   expect(takeProjectContextEdit("scope", "p", "design")).toBe(false);
   cancel();
 });
@@ -24,8 +24,19 @@ it("clears abandoned navigation and lets a newer request survive the previous ow
   const old = requestProjectContextEdit("scope", "p", "definition");
   const current = requestProjectContextEdit("scope", "p", "design");
   old();
-  expect(takeProjectContextEdit("scope", "p", "design")).toBe(true);
+  expect(takeProjectContextEdit("scope", "p", "design")).toEqual({ editor: "design" });
   current();
   const abandoned = requestProjectContextEdit("scope", "p", "definition"); abandoned();
   expect(takeProjectContextEdit("scope", "p", "definition")).toBe(false);
+});
+it("retains only the question identity for its exact scoped definition and never carries it into Design", () => {
+  const cancel = requestProjectContextEdit("owner-workspace", "p", "definition", "membership-question");
+  expect(takeProjectContextEdit(null, "p", "definition")).toBe(false);
+  expect(takeProjectContextEdit("other-owner", "p", "definition")).toBe(false);
+  expect(takeProjectContextEdit("owner-workspace", "another-project", "definition")).toBe(false);
+  expect(takeProjectContextEdit("owner-workspace", "p", "design")).toBe(false);
+  expect(takeProjectContextEdit("owner-workspace", "p", "definition")).toEqual({ editor: "definition", questionId: "membership-question" });
+  cancel();
+  requestProjectContextEdit("owner-workspace", "p", "design", "membership-question");
+  expect(takeProjectContextEdit("owner-workspace", "p", "design")).toEqual({ editor: "design" });
 });

@@ -17,7 +17,34 @@ import (
 // providers, repairs state, starts work, or changes an earlier acceptance.
 type ProjectRunView struct {
 	ProjectRun
-	AllowedActions []string `json:"allowedActions"`
+	AllowedActions   []string                   `json:"allowedActions"`
+	ContextFreshness ProjectRunContextFreshness `json:"contextFreshness"`
+	CodingBlocker    *ProjectRunCodingBlocker   `json:"codingBlocker,omitempty"`
+}
+
+// Context freshness describes only the saved reviewed inputs. It does not
+// observe the source, model route, children or release, or rewrite history.
+type ProjectRunContextFreshness struct {
+	Status string `json:"status"`
+	Reason string `json:"reason"`
+}
+
+// A separate conversation decision can block further coding even when the
+// saved reviewed documents still match. Absence is not full coding admission.
+type ProjectRunCodingBlocker struct {
+	Kind   string `json:"kind"`
+	Reason string `json:"reason"`
+	TurnID string `json:"turnId,omitempty"`
+}
+
+func projectRunCodingBlocker(ledger orchestratorLedger, readErr error) *ProjectRunCodingBlocker {
+	if readErr != nil {
+		return &ProjectRunCodingBlocker{Kind: "unavailable", Reason: "Project decisions could not be read. Open the project conversation and refresh it before starting more coding."}
+	}
+	if questions := orchestratorQuestions(ledger); len(questions) > 0 {
+		return &ProjectRunCodingBlocker{Kind: "question", TurnID: questions[0].TurnID, Reason: "Resolve this decision before starting more coding: " + questions[0].Question}
+	}
+	return nil
 }
 
 func (s *Server) SetProjectRunSelectionResolver(resolve func(context.Context, ProjectRunSelectionRequest) (ProjectRunSelection, error)) {
@@ -50,7 +77,44 @@ func projectRunProblem(w http.ResponseWriter, err error) {
 }
 
 func (s *Server) projectRunView(run ProjectRun) ProjectRunView {
-	return projectRunViewWithOriginals(run, s.projectRunOriginalChecks(run.ProjectID))
+	var state journeyState
+	var ledger orchestratorLedger
+	p, err := s.resolveProject(run.ProjectID)
+	ledgerErr := err
+	if err == nil {
+		s.mu.RLock()
+		state, err = s.readApprovedJourney(p.Path, p.ID)
+		ledger, ledgerErr = s.readOrchestrator(p)
+		s.mu.RUnlock()
+	}
+	return projectRunViewWithOriginals(run, s.projectRunOriginalChecks(run.ProjectID), projectRunContextFreshness(run, state, err), projectRunCodingBlocker(ledger, ledgerErr))
+}
+
+func projectRunContextFreshness(run ProjectRun, state journeyState, readErr error) ProjectRunContextFreshness {
+	if readErr != nil {
+		return ProjectRunContextFreshness{Status: "unavailable", Reason: "The current reviewed context could not be read. Check the project's context storage, then refresh history before starting more coding."}
+	}
+	saved := &run.Input.Implementation
+	if saved.ProjectID != run.ProjectID || saved.WorktreeID != run.WorktreeID {
+		return ProjectRunContextFreshness{Status: "changed", Reason: "This run's reviewed inputs belong to a different project or worktree. Review the current plan and create a new run."}
+	}
+	current, err := implementationSnapshot(state, *ImplementationContextSelection(saved), run.WorktreeID)
+	if err != nil {
+		return ProjectRunContextFreshness{Status: "changed", Reason: err.Error()}
+	}
+	previous := saved.Clone()
+	previous.SourceCommit, previous.SourceDigest, previous.SourceDirty = "", "", false
+	if implementationDigest(current) != implementationDigest(previous) {
+		return ProjectRunContextFreshness{Status: "changed", Reason: "The saved requirements, design or implementation plan changed. Review the current plan and create a new run for more coding."}
+	}
+	approvals, err := projectRunApprovalSelection(state)
+	if err != nil {
+		return ProjectRunContextFreshness{Status: "changed", Reason: err.Error()}
+	}
+	if approvals != run.Input.Approvals {
+		return ProjectRunContextFreshness{Status: "changed", Reason: "The definition or design was reviewed again after this run was prepared. Review the current plan and create a new run for more coding."}
+	}
+	return ProjectRunContextFreshness{Status: "current", Reason: "The saved reviewed context still matches. Source, model availability and running operations are checked separately."}
 }
 
 func (s *Server) projectRunOriginalChecks(projectID string) map[string]bool {
@@ -66,8 +130,9 @@ func (s *Server) projectRunOriginalChecks(projectID string) map[string]bool {
 	return available
 }
 
-func projectRunViewWithOriginals(run ProjectRun, originals map[string]bool) ProjectRunView {
+func projectRunViewWithOriginals(run ProjectRun, originals map[string]bool, freshness ProjectRunContextFreshness, blocker *ProjectRunCodingBlocker) ProjectRunView {
 	actions := []string{"reconcile"}
+	currentInputs := freshness.Status == "current" && blocker == nil
 	if run.State != "complete" && run.State != "cancelled" {
 		actions = append(actions, "cancel")
 		pending := false
@@ -75,24 +140,24 @@ func projectRunViewWithOriginals(run ProjectRun, originals map[string]bool) Proj
 			if op.Status == "reserved" || op.Status == "dispatching" || op.Status == "running" || op.Status == "unknown" {
 				pending = true
 			}
-			if op.Status == "reserved" {
+			if op.Status == "reserved" && currentInputs {
 				actions = append(actions, "continue-coding")
 			}
 		}
-		if !pending {
+		if !pending && currentInputs {
 			actions = append(actions, "start-coding", "join-check")
 		}
-		if !pending && len(run.Checks) > 0 {
+		if !pending && currentInputs && len(run.Checks) > 0 {
 			actions = append(actions, "join-release")
 		}
-		if !pending && len(run.Checks) > 0 && len(run.Releases) > 0 && run.Observation != nil && run.Observation.Valid {
+		if !pending && currentInputs && len(run.Checks) > 0 && len(run.Releases) > 0 && run.Observation != nil && run.Observation.Valid {
 			actions = append(actions, "accept")
 		}
 	}
 	for i := range run.Checks {
 		run.Checks[i].OriginalAvailable = originals[run.Checks[i].CheckID]
 	}
-	return ProjectRunView{ProjectRun: run, AllowedActions: actions}
+	return ProjectRunView{ProjectRun: run, AllowedActions: actions, ContextFreshness: freshness, CodingBlocker: blocker}
 }
 
 func (s *Server) writeProjectRun(w http.ResponseWriter, status int, run ProjectRun) {
@@ -111,8 +176,15 @@ func (s *Server) listProjectRuns(w http.ResponseWriter, r *http.Request) {
 	}
 	views := make([]ProjectRunView, 0, len(runs))
 	originals := s.projectRunOriginalChecks(p.ID)
+	// Read one owned context snapshot for the entire list, not source or model
+	// state per historical run. An unreadable snapshot must not hide history.
+	s.mu.RLock()
+	state, contextErr := s.readApprovedJourney(p.Path, p.ID)
+	ledger, ledgerErr := s.readOrchestrator(p)
+	s.mu.RUnlock()
+	blocker := projectRunCodingBlocker(ledger, ledgerErr)
 	for _, run := range runs {
-		views = append(views, projectRunViewWithOriginals(run, originals))
+		views = append(views, projectRunViewWithOriginals(run, originals, projectRunContextFreshness(run, state, contextErr), blocker))
 	}
 	journeyJSON(w, http.StatusOK, map[string]any{"runs": views})
 }

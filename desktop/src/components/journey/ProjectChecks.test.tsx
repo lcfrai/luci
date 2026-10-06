@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { api } from '../../api';
@@ -8,11 +8,13 @@ import { projectRunsApi, type ProjectRun } from '../../api/projectRuns';
 import { resetCockpit, useCockpit } from '../../store/store';
 import { ProjectChecks } from './ProjectChecks';
 import { ProjectWork } from './ProjectWork';
+import * as authentication from '../auth/AuthProvider';
+import { checkSetupDraftValid } from '../../hooks/projectDraftValidation';
 
 const identity = vi.hoisted(() => ({ scope: 'owner-workspace' }));
 const access = vi.hoisted(() => ({ canRead: true, canEdit: true, canExecute: true, canAssist: true, message: '' }));
 vi.mock('../../hooks/useProjectAccess', () => ({ useProjectAccess: () => access }));
-vi.mock('../../hooks/useProjectDraft', () => ({ useProjectDraftScope: () => identity.scope }));
+vi.mock('../../hooks/useProjectDraft', async original => ({ ...await original<typeof import('../../hooks/useProjectDraft')>(), useProjectDraftScope: () => identity.scope }));
 vi.mock('./ProjectPlan', () => ({ ProjectPlan: () => null }));
 const commands = [{ label: 'Acceptance tests', executable: 'npm', args: ['test'] }];
 const requirement = { id: 'R-KEEP', title: 'Keep notes', acceptance: 'Saved notes survive reload.' };
@@ -31,7 +33,7 @@ const coverage: RequirementCoverage = { projectId: 'p-1', specification: { revis
 const passing: CheckRun = { id: 'check-pass', projectId: 'p-1', commit: coverage.source.commit, sourceDigest: coverage.source.sourceDigest, dirty: false, execution: 'docker', requirementIds: [requirement.id], requirementSnapshots: [requirement], specificationRevision: 4, specificationDigest: 'spec', designPlanRevision: 5, designPlanDigest: 'design', evidenceStatus: 'linked-test-evidence', status: 'passed', commands: [{ ...commands[0], status: 'passed', exitCode: 0, output: 'Acceptance assertion passed.', truncated: false }], createdAt: '2026-10-06', updatedAt: '2026-10-06', message: 'Commands passed' };
 const queue = () => useCockpit.setState({ projectRunVerification: { scope: identity.scope, projectId: 'p-1', runId: build.id } });
 beforeEach(() => {
-  vi.restoreAllMocks(); resetCockpit(); identity.scope = 'owner-workspace'; access.canRead = true;
+  vi.restoreAllMocks(); localStorage.clear(); resetCockpit(); identity.scope = 'owner-workspace'; access.canRead = true; access.canEdit = true; access.canExecute = true;
   vi.spyOn(productApi, 'checks').mockResolvedValue({ runs: [], suggested: commands, coverage });
   vi.spyOn(projectRunsApi, 'get').mockResolvedValue(build);
   vi.spyOn(productApi, 'runChecks').mockResolvedValue(passing);
@@ -208,4 +210,223 @@ it('preserves a newer same-project branch choice when an old session lookup retu
   expect(view.container.querySelector<HTMLDetailsElement>('.project-work')?.open).toBe(true);
   expect(useCockpit.getState().selection.branchId).toBe('b-chosen-later');
   expect(useCockpit.getState().selection.sessionId).toBeNull();
+});
+
+const unfinishedArguments = ' [ "run", "acceptance';
+async function editCheckSetup() {
+  await screen.findByRole('button', { name: 'Remove Acceptance tests' });
+  const advanced = screen.getByText('Advanced check commands').closest('details')!;
+  if (!advanced.open) await userEvent.click(screen.getByText('Advanced check commands'));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Executable' }), { target: { value: 'node' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Arguments · JSON array' }), { target: { value: '["scripts/check-notes.mjs"]' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Add check command' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Executable' }), { target: { value: '  npm  ' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Arguments · JSON array' }), { target: { value: unfinishedArguments } });
+  const requirements = screen.getByText(/Link checks to approved requirements/).closest('details')!;
+  if (!requirements.open) await userEvent.click(screen.getByText(/Link checks to approved requirements/));
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Check R-KEEP · Keep notes' }));
+}
+async function restoreCheckSetup() {
+  const recovery = await screen.findByRole('region', { name: 'Verification setup draft recovery' });
+  await waitFor(() => expect((within(recovery).getByRole('button', { name: 'Restore draft' }) as HTMLButtonElement).disabled).toBe(false));
+  await userEvent.click(within(recovery).getByRole('button', { name: 'Restore draft' }));
+}
+function storedCheckSetup() {
+  const key = Object.keys(localStorage).find(key => key.includes('verification-setup'))!;
+  return JSON.parse(localStorage.getItem(key)!);
+}
+
+it('recovers custom commands, exact unfinished arguments and same-context coverage after remount, without host mode, trust or automatic execution', async () => {
+  vi.spyOn(authentication, 'useAuth').mockReturnValue({ profile: { user: { id: 'owner' }, permissions: { runHostCommands: true }, policy: { allowHostCommands: true } } } as never);
+  const view = render(<ProjectChecks projectId="p-1" />);
+  await editCheckSetup();
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Check execution' }), 'host');
+  await userEvent.click(screen.getByRole('checkbox', { name: /I trust these commands to run directly/ }));
+  const stored = storedCheckSetup();
+  expect(stored.value).toEqual({ commands: [...commands, { label: 'node', executable: 'node', args: ['scripts/check-notes.mjs'] }], executable: '  npm  ', args: unfinishedArguments, requirementIds: ['R-KEEP'], buildId: '' });
+  expect(checkSetupDraftValid({ ...stored.value, trusted: true })).toBe(false);
+  expect(checkSetupDraftValid({ ...stored.value, execution: 'host' })).toBe(false);
+  view.unmount(); render(<ProjectChecks projectId="p-1" />);
+  const recovery = await screen.findByRole('region', { name: 'Verification setup draft recovery' });
+  await userEvent.click(within(recovery).getByText('Compare draft with current check setup'));
+  expect(await within(recovery).findAllByText('Arguments being edited · JSON text')).toHaveLength(2);
+  expect(within(recovery).getByText((_text, element) => element?.className === 'draft-value' && element.textContent === unfinishedArguments).textContent).toBe(unfinishedArguments);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+  await restoreCheckSetup();
+  expect((screen.getByRole('textbox', { name: 'Executable' }) as HTMLInputElement).value).toBe('  npm  ');
+  expect((screen.getByRole('textbox', { name: 'Arguments · JSON array' }) as HTMLInputElement).value).toBe(unfinishedArguments);
+  expect(screen.getByRole('button', { name: 'Remove node' })).not.toBeNull();
+  await userEvent.click(screen.getByText(/Link checks to approved requirements/));
+  expect((screen.getByRole('checkbox', { name: 'Check R-KEEP · Keep notes' }) as HTMLInputElement).checked).toBe(true);
+  expect((screen.getByRole('combobox', { name: 'Check execution' }) as HTMLSelectElement).value).toBe('docker');
+  expect((screen.getByRole('checkbox', { name: /I trust this project's code/ }) as HTMLInputElement).checked).toBe(false);
+  expect((screen.getByRole('button', { name: 'Run selected requirement checks' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('checkbox', { name: /I trust this project's code/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Run selected requirement checks' }));
+  expect(productApi.runChecks).toHaveBeenCalledWith('p-1', stored.value.commands, true, 'docker', { requirementIds: ['R-KEEP'], expectedSpecificationRevision: 4, expectedDesignPlanRevision: 5 });
+  expect((screen.getByRole('textbox', { name: 'Arguments · JSON array' }) as HTMLInputElement).value).toBe(unfinishedArguments);
+});
+
+it.each([
+  ['source', { ...coverage, source: { ...coverage.source, commit: 'b'.repeat(40), sourceDigest: 'changed-source' } }],
+  ['approvals', { ...coverage, specification: { ...coverage.specification, revision: 6, digest: 'reviewed-again' } }],
+])('preserves text but requires review and clears recovered criteria after %s changes', async (_name, current) => {
+  const view = render(<ProjectChecks projectId="p-1" />); await editCheckSetup(); view.unmount();
+  vi.mocked(productApi.checks).mockResolvedValue({ runs: [], suggested: commands, coverage: current });
+  render(<ProjectChecks projectId="p-1" />);
+  const recovery = await screen.findByRole('region', { name: 'Verification setup draft recovery' });
+  const review = await within(recovery).findByRole('checkbox', { name: /I reviewed the current check setup/ });
+  expect((within(recovery).getByRole('button', { name: 'Restore draft' }) as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(review); await restoreCheckSetup();
+  await screen.findByText(/Commands and unfinished arguments recovered/);
+  expect((screen.getByRole('textbox', { name: 'Arguments · JSON array' }) as HTMLInputElement).value).toBe(unfinishedArguments);
+  await userEvent.click(screen.getByText(/Link checks to approved requirements/));
+  expect((screen.getByRole('checkbox', { name: 'Check R-KEEP · Keep notes' }) as HTMLInputElement).checked).toBe(false);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+
+it('re-reads the saved build reference after recovery before enabling its restored criteria, with no allocation', async () => {
+  queue(); const view = render(<ProjectChecks projectId="p-1" />); await screen.findByText('Build journal');
+  await editCheckSetup(); view.unmount();
+  let resolve!: (value: ProjectRun) => void;
+  vi.mocked(projectRunsApi.get).mockReturnValue(new Promise(done => { resolve = done; }));
+  render(<ProjectChecks projectId="p-1" />); await restoreCheckSetup();
+  expect(projectRunsApi.get).toHaveBeenLastCalledWith('p-1', build.id);
+  expect(screen.getByText('Reading the reviewed build…')).not.toBeNull();
+  expect((screen.getByRole('button', { name: 'Run selected requirement checks' }) as HTMLButtonElement).disabled).toBe(true);
+  await act(async () => resolve(build));
+  await screen.findByText('Build journal');
+  expect((screen.getByRole('checkbox', { name: 'Check R-KEEP · Keep notes' }) as HTMLInputElement).checked).toBe(true);
+  expect((screen.getByRole('checkbox', { name: /I trust this project's code/ }) as HTMLInputElement).checked).toBe(false);
+  expect(productApi.runChecks).not.toHaveBeenCalled(); expect(projectRunsApi.joinCheck).not.toHaveBeenCalled();
+});
+
+it('does not transfer old criteria to a newer explicitly selected build when restoring command text', async () => {
+  queue(); const view = render(<ProjectChecks projectId="p-1" />); await screen.findByText('Build journal'); await editCheckSetup(); view.unmount();
+  const next = { ...build, id: 'run-new' };
+  vi.mocked(projectRunsApi.get).mockResolvedValue(next);
+  useCockpit.setState({ projectRunVerification: { scope: identity.scope, projectId: 'p-1', runId: next.id } });
+  render(<ProjectChecks projectId="p-1" />); await screen.findByText('Build journal');
+  await userEvent.click(await screen.findByRole('checkbox', { name: /I reviewed the current check setup/ }));
+  await restoreCheckSetup(); await screen.findByText(/Commands and unfinished arguments recovered/);
+  expect((screen.getByRole('checkbox', { name: 'Check R-KEEP · Keep notes' }) as HTMLInputElement).checked).toBe(false);
+  expect(projectRunsApi.get).toHaveBeenLastCalledWith('p-1', next.id);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+
+it.each(['another-account', 'another-team-workspace', 'another-project'])('isolates retained check setup from %s and recovers it only in the original scope', async scope => {
+  const view = render(<ProjectChecks projectId="p-1" />); await editCheckSetup();
+  identity.scope = scope;
+  const projectId = scope === 'another-project' ? 'p-2' : 'p-1';
+  vi.mocked(productApi.checks).mockResolvedValue({ runs: [], suggested: commands, coverage: { ...coverage, projectId } });
+  view.rerender(<ProjectChecks projectId={projectId} />);
+  await screen.findByRole('button', { name: 'Remove Acceptance tests' });
+  expect(screen.queryByRole('region', { name: 'Verification setup draft recovery' })).toBeNull();
+  expect((screen.getByRole('textbox', { name: 'Arguments · JSON array' }) as HTMLInputElement).value).toBe('[]');
+  identity.scope = 'owner-workspace'; vi.mocked(productApi.checks).mockResolvedValue({ runs: [], suggested: commands, coverage });
+  view.rerender(<ProjectChecks projectId="p-1" />); await restoreCheckSetup();
+  expect((screen.getByRole('textbox', { name: 'Arguments · JSON array' }) as HTMLInputElement).value).toBe(unfinishedArguments);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+
+it('preserves edits made before a delayed suggestions response and an intentionally empty command list on refresh', async () => {
+  let resolve!: (value: Awaited<ReturnType<typeof productApi.checks>>) => void;
+  vi.mocked(productApi.checks).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+  render(<ProjectChecks projectId="p-1" />);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Executable' }), { target: { value: 'node' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Arguments · JSON array' }), { target: { value: '["custom.mjs"]' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Add check command' }));
+  await act(async () => resolve({ runs: [], suggested: commands, coverage }));
+  expect(screen.getByRole('button', { name: 'Remove node' })).not.toBeNull();
+  expect(screen.queryByRole('button', { name: 'Remove Acceptance tests' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Remove node' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh requirement evidence' }));
+  expect(screen.queryByRole('button', { name: 'Remove Acceptance tests' })).toBeNull();
+  expect(storedCheckSetup().value.commands).toEqual([]);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+
+it('discards local setup explicitly without running it and resets to current suggestions without retaining consent', async () => {
+  const view = render(<ProjectChecks projectId="p-1" />); await editCheckSetup(); view.unmount(); render(<ProjectChecks projectId="p-1" />);
+  const recovery = await screen.findByRole('region', { name: 'Verification setup draft recovery' });
+  await waitFor(() => expect((within(recovery).getByRole('button', { name: 'Discard browser draft' }) as HTMLButtonElement).disabled).toBe(false));
+  await userEvent.click(within(recovery).getByRole('button', { name: 'Discard browser draft' }));
+  expect(screen.getByRole('button', { name: 'Remove Acceptance tests' })).not.toBeNull();
+  expect(screen.queryByRole('button', { name: 'Remove node' })).toBeNull();
+  expect((screen.getByRole('textbox', { name: 'Arguments · JSON array' }) as HTMLInputElement).value).toBe('[]');
+  expect(Object.keys(localStorage).filter(key => key.includes('verification-setup'))).toEqual([]);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+
+it('keeps browser recovery read-only after execution access is removed', async () => {
+  const view = render(<ProjectChecks projectId="p-1" />); await editCheckSetup(); view.unmount();
+  access.canEdit = false; access.canExecute = false;
+  render(<ProjectChecks projectId="p-1" />);
+  const recovery = await screen.findByRole('region', { name: 'Verification setup draft recovery' });
+  await within(recovery).findByRole('button', { name: 'Restore draft' });
+  expect((within(recovery).getByRole('button', { name: 'Restore draft' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('checkbox', { name: /I trust this project's code/ }) as HTMLInputElement).disabled).toBe(true);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+
+it('keeps recovered text when a saved build is missing, and ignores a delayed build from the previous workspace', async () => {
+  queue(); const view = render(<ProjectChecks projectId="p-1" />); await screen.findByText('Build journal'); await editCheckSetup(); view.unmount();
+  let resolve!: (value: ProjectRun) => void;
+  vi.mocked(projectRunsApi.get).mockReturnValue(new Promise(done => { resolve = done; }));
+  const nextView = render(<ProjectChecks projectId="p-1" />); await restoreCheckSetup();
+  identity.scope = 'another-workspace'; nextView.rerender(<ProjectChecks projectId="p-1" />);
+  await act(async () => resolve(build));
+  expect(screen.queryByText('Build journal')).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Build verification' })).toBeNull();
+  identity.scope = 'owner-workspace'; vi.mocked(projectRunsApi.get).mockRejectedValue(new Error('The recorded build is no longer available.'));
+  nextView.rerender(<ProjectChecks projectId="p-1" />); await restoreCheckSetup();
+  await screen.findByText('The recorded build is no longer available.');
+  await userEvent.click(screen.getByText('Advanced check commands'));
+  expect((screen.getByRole('textbox', { name: 'Arguments · JSON array' }) as HTMLInputElement).value).toBe(unfinishedArguments);
+  expect((screen.getByRole('button', { name: 'Run selected requirement checks' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+});
+
+it.each([false, true])('retains the recorded command template while protecting edits made during a late run response (new text: %s)', async lateEdit => {
+  let resolve!: (value: CheckRun) => void;
+  vi.mocked(productApi.runChecks).mockReturnValue(new Promise(done => { resolve = done; }));
+  render(<ProjectChecks projectId="p-1" />); await screen.findByRole('button', { name: 'Remove Acceptance tests' });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Executable' }), { target: { value: 'node' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Arguments · JSON array' }), { target: { value: '["custom.mjs"]' } });
+  await userEvent.click(screen.getByRole('button', { name: 'Add check command' }));
+  await userEvent.click(screen.getByRole('checkbox', { name: /I trust this project's code/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Run project checks' }));
+  if (lateEdit) fireEvent.change(screen.getByRole('textbox', { name: 'Arguments · JSON array' }), { target: { value: unfinishedArguments } });
+  await act(async () => resolve(passing));
+  expect(await screen.findAllByText('Commands passed')).toHaveLength(2);
+  expect(Object.values(useCockpit.getState().unsavedProjectDrafts).some(draft => draft.label === 'Verification setup')).toBe(lateEdit);
+  expect(screen.getByText(/Check setup · kept in this browser/)).not.toBeNull();
+  expect(screen.queryByText(/^Unsaved changes/)).toBeNull();
+  expect(storedCheckSetup().value.commands).toEqual([...commands, { label: 'node', executable: 'node', args: ['custom.mjs'] }]);
+  expect(storedCheckSetup().value.args).toBe(lateEdit ? unfinishedArguments : '[]');
+  expect(productApi.runChecks).toHaveBeenCalledTimes(1);
+});
+
+it('keeps the setup protected when the check request has an uncertain outcome', async () => {
+  vi.mocked(productApi.runChecks).mockRejectedValue(new Error('Connection lost before a receipt arrived.'));
+  render(<ProjectChecks projectId="p-1" />); await editCheckSetup();
+  await userEvent.click(screen.getByRole('checkbox', { name: /I trust this project's code/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Run selected requirement checks' }));
+  await screen.findByText('Connection lost before a receipt arrived.');
+  expect(Object.values(useCockpit.getState().unsavedProjectDrafts).some(draft => draft.label === 'Verification setup')).toBe(true);
+  expect(storedCheckSetup().value.args).toBe(unfinishedArguments);
+  expect(productApi.runChecks).toHaveBeenCalledTimes(1);
+});
+
+it('reports oversized unfinished text as unretained without truncating it or promising recovery that validation would reject', async () => {
+  render(<ProjectChecks projectId="p-1" />); await screen.findByRole('button', { name: 'Remove Acceptance tests' });
+  const raw = ' ["' + 'a'.repeat(70000);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Arguments · JSON array' }), { target: { value: raw } });
+  await screen.findByText(/This check setup exceeds the browser recovery limits/);
+  expect((screen.getByRole('textbox', { name: 'Arguments · JSON array' }) as HTMLInputElement).value).toBe(raw);
+  expect(screen.queryByText(/kept in this browser for up to 30 days/)).toBeNull();
+  expect(Object.keys(localStorage).filter(key => key.includes('verification-setup'))).toEqual([]);
+  expect(Object.values(useCockpit.getState().unsavedProjectDrafts).find(draft => draft.label === 'Verification setup')?.retained).toBe(false);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
 });

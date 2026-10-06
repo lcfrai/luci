@@ -243,9 +243,40 @@ approval explains the missing behavior and states. No semantic quality score or
 model response is invented. Existing authored plans retain their content.
 The full frontend suite passes **1,890 tests across 125 files** with unchanged
 inputs during the run. Two subsequent wording-only corrections invite handoff
-review and explain draft saving; matching package build and four-group rendered
-authoring acceptance remain pending. The source and copy scope are recorded in
+review and explain draft saving; the clean `bfcd5cb1` package build and four-group
+rendered authoring acceptance pass. Saved audience/role/outcome guidance is visible
+at 1440 and 390 px; planning help preserves an existing unsent message without
+sending; an untouched starter cannot approve or advance; authored access,
+persistence and recovery survive reload before separate explicit approval.
+Four scoped accessibility scans have no violations or incomplete findings, with
+no document overflow and visible phone input focus. These are fixture-authored
+screens, not model-generated design quality. Six portable groups, seven launcher
+outcomes and eight packaged CLI argument checks also pass with normal cleanup.
+All 940 files match the archive, SHA-256
+`8147f7c26c4f806896e3a6f1a174948b5f138393114cdf0fe0dee2fa58cb917f`,
+and all 346 licence components have evidence. The source and copy scope are recorded in
 `artifacts/quality-design-authoring`.
+
+Independent continuation review identified three further concrete interruptions:
+manual definition questions open chat instead of their Answer field and disappear
+from the overview once answered; custom verification setup disappears on ordinary
+navigation/reload; and a prepared run still invites coding after its reviewed
+context changes even though execution correctly refuses it. The related private
+material-decision blocker is now projected separately and opens its exact saved
+question. Read-only guidance preserves historical inputs and active sessions;
+overlapping reads cannot replace newer understanding with an older response.
+Verification setup recovery retains exact command text but rechecks current
+coverage and never restores execution consent or host mode. Recorded unchanged
+setup remains reusable without repeated unsaved-change prompts.
+
+The frozen continuity source passes **2,088 Go test/subtest outcomes** (22 skips),
+**1,944 frontend tests across 125 files**, TypeScript checking and **481 product
+package race outcomes** (one skip). All 667 Go and 425 frontend source inputs
+remain unchanged during their checks. Logs and inventories are retained in
+`artifacts/quality-context-continuity/source-validation.json`. Matching installed
+manual-question and draft-recovery proof is next; run-blocker acceptance at this
+checkpoint is HTTP/UI source coverage, not an installed execution claim. This
+batch does not close the whole-product goal.
 
 
 GitHub rejected the `7ff66d3b` Actions run before any check step for account

@@ -27,9 +27,9 @@ export interface ProjectDraftState<T> {
   clear(): void;
   offerRecovery(): void;
 }
-/** Only project documents enter this hook. Runtime settings and credentials do not. */
+/** Only project documents and command drafts enter this hook. Runtime consent and credentials do not. */
 export function useProjectDraft<T>({ scope, kind, base, baseValue, value, dirty, valid }: {
-  scope: string | null; kind: "definition" | "design-plan" | "sketch" | "implementation-plan";
+  scope: string | null; kind: "definition" | "design-plan" | "sketch" | "implementation-plan" | "verification-setup";
   base: string | null; baseValue?: T | null; value: T | null; dirty: boolean; valid(value: unknown): value is T;
 }): ProjectDraftState<T> {
   const key = scope ? PREFIX + JSON.stringify([scope, kind]) : null;
@@ -63,12 +63,14 @@ export function useProjectDraft<T>({ scope, kind, base, baseValue, value, dirty,
   }
   useLayoutEffect(() => {
     if (!dirty || !value || !base || pending) return;
-    if (!key) { setError("Draft recovery is unavailable until your account and workspace are known. Keep this page open until you save."); return; }
+    const localSetup = kind === "verification-setup";
+    if (!key) { setError(`Draft recovery is unavailable until your account and workspace are known. ${localSetup ? "Keep this page open or copy your command text before leaving." : "Keep this page open until you save."}`); return; }
     try {
-      if (localStorage.getItem(key) !== expected.current) throw new Error("Another tab changed this browser draft. Your edits are still here; save them to the project before leaving this page.");
+      if (localSetup && !valid(value)) throw new Error("This check setup exceeds the browser recovery limits. Keep this page open or copy your command text before leaving.");
+      if (localStorage.getItem(key) !== expected.current) throw new Error(`Another tab changed this browser draft. Your edits are still here; ${localSetup ? "copy your command text before leaving this page." : "save them to the project before leaving this page."}`);
       const record: ProjectDraft<T> = { version: 1, base, value, ...(baseValue ? { original: baseValue } : {}), updatedAt: Date.now() };
       const raw = JSON.stringify(record);
-      if (raw.length * 2 > MAX_BYTES) throw new Error("This draft is too large for browser recovery. Keep this page open until you save it to the project.");
+      if (raw.length * 2 > MAX_BYTES) throw new Error(`This draft is too large for browser recovery. ${localSetup ? "Keep this page open or copy your command text before leaving." : "Keep this page open until you save it to the project."}`);
       let bytes = raw.length * 2;
       for (let i = localStorage.length - 1; i >= 0; i--) {
         const other = localStorage.key(i);
@@ -85,9 +87,9 @@ export function useProjectDraft<T>({ scope, kind, base, baseValue, value, dirty,
       setRetained(true); setError("");
     } catch (cause) {
       setRetained(false);
-      setError(cause instanceof Error && !["QuotaExceededError", "SecurityError"].includes(cause.name) ? cause.message : "Browser storage is unavailable or full. Keep this page open until you save your changes.");
+      setError(cause instanceof Error && !["QuotaExceededError", "SecurityError"].includes(cause.name) ? cause.message : localSetup ? "Browser storage is unavailable or full. Keep this page open or copy your command text before leaving." : "Browser storage is unavailable or full. Keep this page open until you save your changes.");
     }
-  }, [key, dirty, base, baseValue, value, pending]);
+  }, [key, kind, dirty, base, baseValue, value, pending, valid]);
   return {
     pending, retained, restored, error,
     take: () => { const record = pending; setPending(null); setRestored(!!record); return record; },

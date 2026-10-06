@@ -45,6 +45,115 @@ it('only reads on mount and refresh, and retains ended or unknown coding as unve
   expect(screen.getByText(/A CLI exit or task marked Done does not complete/)).not.toBeNull();
 });
 
+it('refreshes a prepared run to changed context and opens its current plan without dispatch or rewriting history', async () => {
+  const reason = 'The saved brief or implementation plan changed. Reload the plan before starting its task.';
+  const original = makeRun({ contextFreshness: { status: 'current', reason: 'The saved reviewed context still matches. Source and model availability are checked separately.' } });
+  // Keep an obsolete action in this response to exercise the UI's additional
+  // context fence as well as the server's authoritative action projection.
+  vi.mocked(projectRunsApi.list).mockResolvedValueOnce([original]).mockResolvedValue([{ ...original, contextFreshness: { status: 'changed', reason } }]);
+  const initial = props(), reserve = vi.spyOn(projectRunsApi, 'reserve'), reconcile = vi.spyOn(projectRunsApi, 'reconcile'), create = vi.spyOn(api, 'createSession');
+  render(<ProjectRuns {...initial} />);
+  await screen.findByRole('button', { name: 'Start coding' });
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh history' }));
+  const review = await screen.findByRole('button', { name: 'Review current plan' });
+  expect(screen.getByText('Review current context')).not.toBeNull();
+  expect(screen.getByText(reason, { exact: false })).not.toBeNull();
+  expect(screen.queryByText('Ready to code')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull();
+  await userEvent.click(review);
+  expect(initial.onReviewPlan).toHaveBeenCalledTimes(1);
+  expect(reserve).not.toHaveBeenCalled(); expect(reconcile).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByText('Reviewed inputs and evidence'));
+  expect(screen.getByText('Recorded when prepared: Reviewed inputs saved.')).not.toBeNull();
+  expect(screen.getByText('Brief 2 · Plan 5 · Definition 3 · Design 4')).not.toBeNull();
+  await userEvent.click(screen.getByText('Run history · 1'));
+  expect(screen.getByRole('button', { name: /^Review current context ·/ })).not.toBeNull();
+});
+
+it.each(['changed', 'unavailable'] as const)('keeps active session access and reconciliation when reviewed context is %s', async status => {
+  vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'coding', operations: [operation], contextFreshness: { status, reason: 'Review the current saved context before more coding.' }, allowedActions: ['continue-coding', 'start-coding', 'reconcile', 'cancel'] })]);
+  const create = vi.spyOn(api, 'createSession'), reserve = vi.spyOn(projectRunsApi, 'reserve');
+  render(<ProjectRuns {...props()} />);
+  await screen.findByText('Coding');
+  expect(screen.getByRole('button', { name: 'Open coding session' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Reconcile run' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Review current plan' })).not.toBeNull();
+  expect(screen.queryByRole('button', { name: 'Continue reserved coding' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Start another coding attempt' })).toBeNull();
+  await userEvent.click(screen.getByText('Reviewed inputs and evidence'));
+  expect(screen.getByText(/Attempt 1 · reserved · s-bound/)).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Cancel run' })).not.toBeNull();
+  expect(create).not.toHaveBeenCalled(); expect(reserve).not.toHaveBeenCalled();
+});
+
+it('preserves accepted evidence and stopped-session status separately from current context freshness', async () => {
+  const stopped = makeRun({ id: 'run-stopped', state: 'awaiting-checks', operations: [{ ...operation, status: 'cancelled' }], contextFreshness: { status: 'changed', reason: 'The implementation plan changed.' }, allowedActions: ['join-check', 'reconcile', 'start-coding'] });
+  const accepted = makeRun({ state: 'complete', contextFreshness: { status: 'changed', reason: 'The design was reviewed again.' }, acceptance: { acceptedAt: '2026-10-06T01:00:00Z', checkId: 'check-1', releaseId: 'release-1' }, observation: { state: 'awaiting-release', valid: true, observedAt: '2026-10-06T00:59:00Z', reason: 'Matching evidence' }, allowedActions: ['reconcile'] });
+  vi.mocked(projectRunsApi.list).mockResolvedValue([accepted, stopped]);
+  render(<ProjectRuns {...props()} />);
+  await screen.findByText('Accepted outcome');
+  expect(screen.getByText(/historical acceptance is retained/)).not.toBeNull();
+  expect(screen.getByText(/Last observation valid/)).not.toBeNull();
+  expect(screen.queryByRole('button', { name: 'Review and accept outcome' })).toBeNull();
+  await userEvent.click(screen.getByText('Run history · 2'));
+  await userEvent.click(screen.getByRole('button', { name: /^Awaiting verification ·/ }));
+  expect(screen.queryByRole('button', { name: 'Verify this build' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Select check evidence' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Start another coding attempt' })).toBeNull();
+  expect(screen.getByText(/Review the current plan before continuing this run/)).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Open coding session' })).not.toBeNull();
+});
+
+it('retries an unavailable context through read-only history refresh without losing the prepared run', async () => {
+  const run = makeRun({ contextFreshness: { status: 'unavailable', reason: 'The reviewed context could not be read. Check context storage and refresh history.' } });
+  vi.mocked(projectRunsApi.list).mockResolvedValueOnce([run]).mockResolvedValue([{ ...run, contextFreshness: { status: 'current', reason: 'The saved reviewed context still matches. Source, model availability and running operations are checked separately.' } }]);
+  const reconcile = vi.spyOn(projectRunsApi, 'reconcile'), create = vi.spyOn(api, 'createSession');
+  render(<ProjectRuns {...props()} />);
+  await screen.findByText('Context unavailable');
+  expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh history' }));
+  await screen.findByRole('button', { name: 'Start coding' });
+  expect(screen.getByText(/Source, model availability and running operations are checked separately/)).not.toBeNull();
+  expect(reconcile).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+});
+
+it.each(['awaiting-checks', 'awaiting-release'] as const)('routes a %s run with changed inputs to plan review instead of rejected evidence actions', async state => {
+  vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state, contextFreshness: { status: 'changed', reason: 'The saved implementation plan changed.' }, observation: { state, valid: true, observedAt: '2026-10-06T00:59:00Z', reason: 'Previous evidence matched.' }, allowedActions: ['start-coding', 'join-check', 'join-release', 'accept', 'reconcile', 'cancel'] })]);
+  const initial = props();
+  render(<ProjectRuns {...initial} />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Review current plan' }));
+  expect(initial.onReviewPlan).toHaveBeenCalledTimes(1);
+  for (const name of ['Verify this build', 'Preview this build', 'Select check evidence', 'Select release evidence', 'Review and accept outcome', 'Start another coding attempt']) expect(screen.queryByRole('button', { name })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Reconcile run' })).not.toBeNull();
+});
+
+it('reveals the exact blocking question from a run whose reviewed documents still match without preparing a reply', async () => {
+  vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ contextFreshness: { status: 'current', reason: 'Saved reviewed context matches.' }, codingBlocker: { kind: 'question', turnId: 'turn-blocking', reason: 'Resolve the access decision before more coding.' }, allowedActions: ['start-coding', 'join-check', 'accept', 'reconcile', 'cancel'] })]);
+  vi.spyOn(orchestratorApi, 'get').mockResolvedValue(orchestratorView({ blockingQuestions: [{ turnId: 'turn-other', question: 'A different decision?', rationale: '', options: [] }, { turnId: 'turn-blocking', question: 'Are notes shared?', rationale: 'Access rules affect implementation.', options: [] }] }));
+  const create = vi.spyOn(api, 'createSession'), send = vi.spyOn(orchestratorApi, 'send');
+  render(<><ProjectRuns {...props()} /><OrchestratorPanel projectId="p-1" /></>);
+  await userEvent.click(await screen.findByRole('button', { name: 'Review blocking question' }));
+  const group = await screen.findByRole('group', { name: 'Are notes shared?' });
+  await waitFor(() => expect(document.activeElement).toBe(within(group).getByRole('button', { name: 'Answer this decision' })));
+  expect(screen.getByText('Decision needed before coding')).not.toBeNull();
+  expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Select check evidence' })).toBeNull();
+  expect(screen.queryByText(/Replying to:/)).toBeNull();
+  expect(create).not.toHaveBeenCalled(); expect(send).not.toHaveBeenCalled();
+});
+
+it('offers a read-only decisions remedy when its ledger is unavailable and restores actions only after refreshed guidance', async () => {
+  vi.mocked(projectRunsApi.list).mockResolvedValueOnce([makeRun({ codingBlocker: { kind: 'unavailable', reason: 'Project decisions could not be read.' } })]).mockResolvedValue([makeRun()]);
+  const reserve = vi.spyOn(projectRunsApi, 'reserve'), reconcile = vi.spyOn(projectRunsApi, 'reconcile');
+  render(<ProjectRuns {...props()} />);
+  await screen.findByText('Project decisions unavailable');
+  expect(screen.getByRole('button', { name: 'Check project decisions' })).not.toBeNull();
+  expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh history' }));
+  await screen.findByRole('button', { name: 'Start coding' });
+  expect(reserve).not.toHaveBeenCalled(); expect(reconcile).not.toHaveBeenCalled();
+});
+
 it('reserves once before coding and sends the recorded route rather than current defaults', async () => {
   let resolve!: (value: { run: ProjectRun; operation: RunOperation }) => void;
   const reserve = vi.spyOn(projectRunsApi, 'reserve').mockReturnValue(new Promise(done => { resolve = done; }));
@@ -58,6 +167,30 @@ it('reserves once before coding and sends the recorded route rather than current
   await screen.findByText(/Coding session started/);
   expect(create).toHaveBeenCalledTimes(1);
   expect(create.mock.calls[0][0]).toMatchObject({ harness: 'claude-code', model: 'saved-model', agentConnectionId: 'saved-connection', worktreeId: 'w-1', projectRunId: 'run-1', projectRunOperationId: 'op-1', implementationContext: { taskIds: ['task-1'], planRevision: 5 } });
+});
+
+it.each(['changed', 'unavailable'] as const)('retains a reservation without dispatch when its response reports %s context', async status => {
+  vi.spyOn(projectRunsApi, 'reserve').mockResolvedValue({ run: makeRun({ revision: 2, operations: [operation], contextFreshness: { status, reason: 'Review the current context before more coding.' }, allowedActions: ['continue-coding', 'reconcile', 'cancel'] }), operation });
+  const create = vi.spyOn(api, 'createSession');
+  render(<ProjectRuns {...props()} />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Start coding' }));
+  await screen.findByText(/The coding reservation is retained/);
+  expect(create).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Review current plan' })).not.toBeNull();
+  expect(screen.queryByRole('button', { name: 'Continue reserved coding' })).toBeNull();
+  await userEvent.click(screen.getByText('Reviewed inputs and evidence'));
+  expect(screen.getByText(/Attempt 1 · reserved · s-bound/)).not.toBeNull();
+});
+
+it('retains a reserved operation when a newly reported material question blocks dispatch', async () => {
+  vi.spyOn(projectRunsApi, 'reserve').mockResolvedValue({ run: makeRun({ revision: 2, operations: [operation], codingBlocker: { kind: 'question', turnId: 'turn-blocking', reason: 'Resolve access before implementation.' }, allowedActions: ['continue-coding', 'reconcile', 'cancel'] }), operation });
+  const create = vi.spyOn(api, 'createSession');
+  render(<ProjectRuns {...props()} />);
+  await userEvent.click(await screen.findByRole('button', { name: 'Start coding' }));
+  await screen.findByText('The coding reservation is retained. Review the project decisions before starting more coding.');
+  expect(screen.getByRole('button', { name: 'Review blocking question' })).not.toBeNull();
+  expect(screen.queryByRole('button', { name: 'Continue reserved coding' })).toBeNull();
+  expect(create).not.toHaveBeenCalled();
 });
 
 it('does not allocate a replacement or infer success after an ambiguous coding response', async () => {
@@ -97,6 +230,18 @@ it('creates a saved run through the existing model picker without allocating a c
   await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
   expect(create.mock.calls[0][1]).toMatchObject({ outcome: 'publish', implementationContext: { projectId: 'p-1', taskIds: ['task-1'] } });
   expect(create.mock.calls[0][1].idempotencyKey).toHaveLength(36);
+  expect(child).not.toHaveBeenCalled();
+});
+
+it('does not invite coding when an idempotent create response recovers a run with changed context', async () => {
+  vi.spyOn(projectRunsApi, 'create').mockResolvedValue(makeRun({ contextFreshness: { status: 'changed', reason: 'The design handoff changed after this run was prepared.' }, allowedActions: ['reconcile', 'cancel'] }));
+  const child = vi.spyOn(api, 'createSession');
+  render(<ProjectRuns {...props()} draft={{ worktreeId: 'w-1', implementationContext: makeRun().input.implementation }} />);
+  const dialog = await screen.findByRole('dialog', { name: 'Create project run' });
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Create project run' }));
+  await screen.findByText('Run saved. Review its current context before starting more coding.');
+  expect(screen.queryByText(/Start coding when ready/)).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull();
   expect(child).not.toHaveBeenCalled();
 });
 

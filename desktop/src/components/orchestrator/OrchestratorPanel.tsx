@@ -18,6 +18,10 @@ import { finishComposerRequest, isComposerRecoveryKey, readComposerRecovery, ret
 import "./orchestrator.css";
 
 export const ORCHESTRATOR_OPEN = "luci:orchestrator-open";
+export interface OrchestratorOpenDetail {
+  projectId: string; message?: string;
+  scope?: string; destination?: "decisions"; turnId?: string;
+}
 const compactOverviewQuery = "(max-width: 1100px)";
 const stageLabels = { discover: "Define", design: "Design", develop: "Develop", deploy: "Deploy" };
 const pendingStatus = (status: string) => ["reserved", "queued", "running", "unknown"].includes(status);
@@ -51,6 +55,8 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const [reviewedRequest, setReviewedRequest] = useState("");
   const [storageConflict, setStorageConflict] = useState(false);
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const [decisionNotice, setDecisionNotice] = useState("");
+  const [decisionFocus, setDecisionFocus] = useState<{ ticket: number; turnId?: string } | null>(null);
   const [loading, setLoading] = useState(false), [busy, setBusy] = useState("");
   const [contextRefreshQueued, setContextRefreshQueued] = useState(false);
   const [uncertain, setUncertain] = useState(false), [pendingJob, setPendingJob] = useState<OrchestratorJob | null>(null);
@@ -67,13 +73,15 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const lens = useCockpit(state => state.lens), setLens = useCockpit(state => state.setLens);
   const drafts = useCockpit(state => Object.values(state.unsavedProjectDrafts).filter(draft => draft.projectId === projectId).map(draft => draft.label).join(", "));
   const draftWarning = drafts ? `${drafts} has unsaved edits. Save or discard those edits in the editor before sending or applying; Luci uses saved context.` : "";
-  const alive = useRef(true), generation = useRef(0), working = useRef(false), latest = useRef(view);
+  const alive = useRef(true), generation = useRef(0), viewRead = useRef(0), working = useRef(false), latest = useRef(view);
   const permission = useRef(access); permission.current = access;
   const messageRef = useRef(message); messageRef.current = message;
   const composer = useRef<HTMLTextAreaElement>(null), conversationEnd = useRef<HTMLDivElement>(null);
   const overviewBody = useRef<HTMLDivElement>(null);
   const contentId = useId();
   const cancelEditRequest = useRef<(() => void) | null>(null);
+  const decisionRequest = useRef(0), decisionNoticeNode = useRef<HTMLParagraphElement>(null);
+  const decisionNodes = useRef(new Map<string, HTMLDivElement>());
   latest.current = view;
 
   useEffect(() => {
@@ -96,13 +104,14 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const refresh = useCallback(async (explicit = false) => {
     if (!permission.current.canRead || working.current) return;
     const ticket = ++generation.current;
+    const read = ++viewRead.current;
     if (explicit || !latest.current) setLoading(true);
     try {
       const value = await orchestratorApi.get(projectId);
-      if (!alive.current || ticket !== generation.current) return;
+      if (!alive.current || ticket !== generation.current || read !== viewRead.current) return;
       remember(value); setError("");
       if (explicit) setUncertain(false); // A retained request remains blocked independently until its exact receipt is resolved.
-    } catch (cause) { if (alive.current && ticket === generation.current) setError(errorText(cause)); }
+    } catch (cause) { if (alive.current && ticket === generation.current && read === viewRead.current) setError(errorText(cause)); }
     finally { if (alive.current && ticket === generation.current) setLoading(false); }
   }, [projectId, remember]);
 
@@ -110,6 +119,9 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     alive.current = true;
     return () => { alive.current = false; generation.current++; cancelEditRequest.current?.(); };
   }, []);
+  useEffect(() => {
+    if (!canEdit || !canRead) { cancelEditRequest.current?.(); cancelEditRequest.current = null; }
+  }, [canEdit, canRead]);
   useEffect(() => {
     if (!canRead) { generation.current++; working.current = false; latest.current = null; setBusy(""); setLoading(false); setView(null); setEarlier([]); setPendingJob(null); setMissingJobId(""); setReview(null); return; }
     void refresh();
@@ -179,10 +191,46 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
 
   useEffect(() => {
     const receive = (event: Event) => {
-      const detail = (event as CustomEvent<{ projectId?: string; message?: string }>).detail;
+      const detail = (event as CustomEvent<OrchestratorOpenDetail>).detail;
       if (detail?.projectId !== projectId || !permission.current.canRead) return;
+      if (detail.destination === "decisions" && detail.scope !== scope) return;
+      const ticket = ++decisionRequest.current;
+      setDecisionFocus(null); setDecisionNotice("");
       setOpenChoice(true);
       setConversationOpen(true);
+      if (detail.destination === "decisions") {
+        // This destination only reveals an existing decision. It must never
+        // replace an unsent message, reply target or retained paid request.
+        setDecisionNotice("Reading current project decisions…");
+        const contextGeneration = generation.current;
+        // Fence older GETs too, without changing an in-flight mutation's
+        // generation/ownership. Ledger revision alone cannot order context edits.
+        const read = ++viewRead.current;
+        const contextChanged = () => {
+          if (contextGeneration === generation.current && read === viewRead.current) return false;
+          setDecisionNotice("The project changed while its decisions were loading. Refresh run history and open the current decision again; your message has not been changed.");
+          return true;
+        };
+        void orchestratorApi.get(projectId).then(value => {
+          if (!alive.current || !permission.current.canRead || ticket !== decisionRequest.current) return;
+          if (contextChanged()) return;
+          if (value.projectId !== projectId) throw new Error("The project decision response belongs to another project.");
+          remember(value);
+          const current = latest.current;
+          if (detail.turnId && current?.blockingQuestions.some(question => question.turnId === detail.turnId)) {
+            setDecisionNotice(""); setDecisionFocus({ ticket, turnId: detail.turnId });
+          } else {
+            setDecisionNotice(detail.turnId ? "This decision is no longer listed as unresolved. Review the current project understanding and refresh run history; your message has not been changed." : "Project decisions refreshed. Review the unresolved decisions below, if any, then refresh run history. Your message has not been changed.");
+            setDecisionFocus({ ticket });
+          }
+        }).catch(cause => {
+          if (!alive.current || !permission.current.canRead || ticket !== decisionRequest.current) return;
+          if (contextChanged()) return;
+          setDecisionNotice(`Project decisions could not be refreshed: ${errorText(cause)} Your message has not been changed.`);
+          setDecisionFocus({ ticket });
+        });
+        return;
+      }
       if (typeof detail.message === "string" && detail.message.trim()) {
         if (!messageRef.current.trim()) editComposerRef.current(detail.message.slice(0, 16000), "");
         else setNotice("Your unsent message is still here. Send or clear it before starting another question.");
@@ -191,7 +239,32 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     };
     window.addEventListener(ORCHESTRATOR_OPEN, receive);
     return () => window.removeEventListener(ORCHESTRATOR_OPEN, receive);
-  }, [projectId]);
+  }, [projectId, scope, remember]);
+  useEffect(() => () => { decisionRequest.current++; }, [lens]);
+  useEffect(() => {
+    if (busy) { decisionRequest.current++; setDecisionFocus(null); }
+  }, [busy]);
+  useEffect(() => {
+    if (!canRead || !open || !conversationOpen) { decisionRequest.current++; setDecisionFocus(null); }
+  }, [canRead, open, conversationOpen]);
+  useEffect(() => {
+    if (!decisionFocus || !open || !conversationOpen || !canRead) return;
+    const target = decisionFocus;
+    const frame = requestAnimationFrame(() => {
+      if (!alive.current || !permission.current.canRead || target.ticket !== decisionRequest.current) return;
+      if (target.turnId && !latest.current?.blockingQuestions.some(question => question.turnId === target.turnId)) {
+        setDecisionNotice("This decision is no longer listed as unresolved. Refresh run history to review the current guidance.");
+        setDecisionFocus({ ticket: target.ticket });
+        return;
+      }
+      const group = target.turnId ? decisionNodes.current.get(target.turnId) : decisionNoticeNode.current;
+      const answer = group?.querySelector<HTMLButtonElement>("button");
+      const node = answer && !answer.disabled ? answer : group;
+      node?.scrollIntoView?.({ block: "nearest" }); node?.focus();
+      setDecisionFocus(null);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [decisionFocus, open, conversationOpen, canRead]);
 
   const activeTurn = view?.turns.find(turn => pendingStatus(turn.status));
   const activeJobId = pendingJob && pendingStatus(pendingJob.status) ? pendingJob.id : activeTurn?.jobId;
@@ -345,11 +418,33 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     requestAnimationFrame(() => { if (alive.current) composer.current?.focus(); });
   };
   const ask = (text?: string) => { if (!pendingRequest && !recoveredDraft) editComposer(messageRef.current || text?.slice(0, 16000) || "", ""); openComposer(); };
-  const edit = (editor: ContextEditor) => {
+  const edit = (editor: ContextEditor, questionId?: string) => {
     if (!permission.current.canEdit) return;
     cancelEditRequest.current?.();
-    cancelEditRequest.current = requestProjectContextEdit(scope, projectId, editor);
-    setLens(editor === "definition" ? "discover" : "design");
+    const destination = editor === "definition" ? "discover" : "design";
+    const request = () => {
+      if (!alive.current || !permission.current.canEdit) return;
+      const cancel = requestProjectContextEdit(scope, projectId, editor, questionId);
+      const unsubscribe = useCockpit.subscribe(state => {
+        if (state.lens === destination) return;
+        cancel(); unsubscribe();
+      });
+      cancelEditRequest.current = () => { cancel(); unsubscribe(); };
+    };
+    setLens(destination);
+    const current = useCockpit.getState();
+    if (current.lens === destination) request();
+    else if (current.pendingNavigation?.kind === "lens" && current.pendingNavigation.lens === destination) {
+      // Publish only after guarded navigation succeeds. Cancelling must not
+      // leave a question target waiting for an unrelated later visit.
+      const unsubscribe = useCockpit.subscribe(state => {
+        if (state.pendingNavigation?.kind === "lens" && state.pendingNavigation.lens === destination) return;
+        unsubscribe();
+        cancelEditRequest.current = null;
+        if (state.lens === destination && state.selection.projectId === current.selection.projectId) request();
+      });
+      cancelEditRequest.current = unsubscribe;
+    }
   };
   const reply = (turnId: string, text = "") => { editComposer(text || messageRef.current, turnId); openComposer(); };
   const inspect = (runId: string) => {
@@ -370,6 +465,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         {loading && !view && <p role="status">Loading project understanding…</p>}
         {error && <p className="orchestrator-error" role="alert">{error}</p>}
         {notice && <p role="status">{notice}</p>}
+        {decisionNotice && <p ref={decisionNoticeNode} role="status" tabIndex={-1}>{decisionNotice}</p>}
         {(loading || contextRefreshQueued) && view && <p role="status">Updating saved project understanding…</p>}
         {view && <ProjectUnderstanding view={view} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} onEdit={edit} canEdit={canEdit} />}
         <details className="orchestrator-discussion" open={conversationOpen} onToggle={event => setConversationOpen(event.currentTarget.open)}><summary>Discuss or request a change</summary>
@@ -397,7 +493,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
           </li>)}</ol>
           <div ref={conversationEnd} />
           {(completedUnrecorded || missingReservedJob) && <div role="status"><p>{missingReservedJob ? "This request was reserved, but its agent job could not be found. Recover the interrupted request without starting an agent." : "The agent request finished, but its response has not been recorded in this conversation. Recover the recorded response without running the agent again."}</p><Button variant="secondary" disabled={!canEdit || !!busy} onClick={() => void reconcile()}>Recover recorded response</Button></div>}
-          {!!view.blockingQuestions.length && <section className="orchestrator-question" aria-label="Unresolved decisions"><strong>Resolve before implementation</strong>{view.blockingQuestions.map(question => <div key={question.turnId}><p>{question.question}</p><p>{question.rationale}</p><Button variant="secondary" size="compact" disabled={!canAssist || !!busy} onClick={() => reply(question.turnId)}>Answer this decision</Button></div>)}</section>}
+          {!!view.blockingQuestions.length && <section className="orchestrator-question" aria-label="Unresolved decisions"><strong>Resolve before implementation</strong>{view.blockingQuestions.map(question => <div key={question.turnId} role="group" aria-label={question.question} tabIndex={-1} ref={node => { if (node) decisionNodes.current.set(question.turnId, node); else decisionNodes.current.delete(question.turnId); }}><p>{question.question}</p><p>{question.rationale}</p><Button variant="secondary" size="compact" disabled={!canAssist || !!busy} onClick={() => reply(question.turnId)}>Answer this decision</Button></div>)}</section>}
           <ConversationStorage projectId={projectId} view={view} canEdit={canEdit} busy={!!busy} onBusy={value => { working.current = value; generation.current++; setLoading(false); setBusy(value ? "history" : ""); }} onView={(value, rotated) => { remember(value); if (rotated) { setEarlier([]); setPage(null); } }} />
         </>}
         {localRecovery.error && <p role="alert">{localRecovery.error}</p>}

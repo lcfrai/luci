@@ -14,6 +14,7 @@ const fieldNames: Record<string, string> = {
   id: "ID", projectId: "Project", version: "Document format", revision: "Saved revision",
   briefRevision: "Brief revision", specificationRevision: "Definition revision", specificationDigest: "Definition fingerprint",
   sketchRevision: "Sketch revision", digest: "Content fingerprint", updatedAt: "Last updated", "$order": "Order",
+  commands: "Check commands", executable: "Executable", args: "Arguments", buildId: "Selected build",
 };
 const metadata = new Set(["projectId", "version", "revision", "briefRevision", "specificationRevision", "specificationDigest", "sketchRevision", "status", "digest", "updatedAt"]);
 const documentOrder = ["startingPoint", "purpose", "audience", "constraints", "outOfScope", "requirements", "journeys", "roles", "entities", "integrations", "glossary", "decisions", "questions", "screens", "tokens", "assets", "implementationNotes", "prototypeReleaseId", "prototypeCommit", "tasks", "title"];
@@ -22,6 +23,8 @@ type RecordValue = Record<string, unknown>;
 const isRecord = (value: unknown): value is RecordValue => !!value && typeof value === "object" && !Array.isArray(value);
 
 export function draftFieldName(part: string, path: string[] = []): string {
+  if (part === "args" && path.length === 1) return "Arguments being edited · JSON text";
+  if (part === "executable" && path.length === 1) return "Executable being added";
   if (part === "purpose") return path.length === 1 ? "The idea" : "Purpose";
   if (part === "title" && path.length === 1) return "Task being added";
   return fieldNames[part] ?? part.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, character => character.toUpperCase());
@@ -29,7 +32,7 @@ export function draftFieldName(part: string, path: string[] = []): string {
 
 function recordName(value: unknown): { key: string; text: string } | undefined {
   if (!isRecord(value)) return undefined;
-  for (const key of ["title", "name", "term", "question", "path"]) {
+  for (const key of ["title", "name", "term", "question", "path", "label"]) {
     if (typeof value[key] === "string" && value[key]) return { key, text: value[key] };
   }
 }

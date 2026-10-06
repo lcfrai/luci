@@ -45,6 +45,26 @@ context. The panel shows the exact existing run scope and navigates to existing
 review, execution and release controls; a model recommendation does not silently
 invoke those controls.
 
+Manual definition questions have a direct, stable-ID route to their existing
+Answer field. Navigation respects unfinished drafts and cancelled navigation
+leaves no hidden target for a later visit. Saved answers remain available in the
+shared overview, explicitly labelled as needing definition review or belonging
+to the reviewed revision. Reading or navigating never saves or approves an answer.
+
+Prepared builds separately project changes to reviewed context and unresolved
+private conversation decisions. The latter opens the existing current question
+through scoped navigation and focuses its answer control after a fresh read;
+it does not alter the composer, recover a request or send a message. Earlier run
+inputs, acceptance and active coding sessions remain inspectable.
+
+Verification setup retains commands and exact unfinished arguments as a bounded
+browser draft in the account/workspace/project scope. Explicit restoration
+revalidates its build reference and criteria against the current reviewed context
+and source. It never restores command trust or host-execution mode. Commands
+already recorded by an explicit check request can remain a reusable local
+template without repeated navigation warnings; unfinished and later edits stay
+protected. This local setup is not shared context or passing check evidence.
+
 ## Provider-backed assistance
 
 `POST /v1/product/projects/{id}/assist/orchestrator` accepts the expected

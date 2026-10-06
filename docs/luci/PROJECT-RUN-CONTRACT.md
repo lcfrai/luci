@@ -78,7 +78,12 @@ Proposed endpoints under `/v1/product/projects/{id}/runs`:
   the run and key/request digest. No session or model call starts here. Same key
   plus same normalized request returns the same run; different content is `409`.
 - `GET /runs` and `GET /runs/{runId}`: bounded, side-effect-free projections.
-  They may report current observations but never persist, dispatch or repair.
+  They return the last persisted observation and a separate `contextFreshness`
+  comparison (`current`, `changed`, `unavailable`) against owned reviewed inputs.
+  The list reads one context snapshot. Changed/unreadable inputs suppress coding,
+  join and acceptance invitations while keeping historical state, acceptance and
+  active sessions. A separate private-decision blocker gives the question route.
+  No source hashing, provider observation, persistence, dispatch or repair occurs.
 - `POST /runs/{runId}/operations`: reserve a specific explicit operation with
   `expectedRevision`, idempotency key and kind. Persist its immutable request
   digest and child ID before handing the reservation to the existing executor.

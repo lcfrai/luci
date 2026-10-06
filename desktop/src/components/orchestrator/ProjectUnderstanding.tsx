@@ -44,11 +44,11 @@ function BuildScope({ run, title, onInspect }: { run: OrchestratorRunSummary; ti
 }
 
 export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate, onInspect, onEdit, canEdit = true }: {
-  view: OrchestratorView; onAsk(message?: string): void; onReply(turnId: string): void; onNavigate(lens: Stage): void; onInspect?(runId: string): void; onEdit?(editor: ContextEditor): void; canEdit?: boolean;
+  view: OrchestratorView; onAsk(message?: string): void; onReply(turnId: string): void; onNavigate(lens: Stage): void; onInspect?(runId: string): void; onEdit?(editor: ContextEditor, questionId?: string): void; canEdit?: boolean;
 }) {
   const [changing, setChanging] = useState(false);
   const changeId = useId();
-  const edit = (editor: ContextEditor) => { setChanging(false); if (onEdit) onEdit(editor); else onNavigate(editor === "definition" ? "discover" : "design"); };
+  const edit = (editor: ContextEditor, questionId?: string) => { setChanging(false); if (onEdit) onEdit(editor, questionId); else onNavigate(editor === "definition" ? "discover" : "design"); };
   const { context, nextAction, blockingQuestions } = view;
   const spec = context.specification, run = context.currentRun;
   const activeRuns = context.activeRuns ?? [];
@@ -58,6 +58,7 @@ export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate, onInspe
   const requirements = spec.requirements || [];
   const decisions = (spec.decisions || []).filter(item => item.decision.trim());
   const questions = (spec.questions || []).filter(item => !item.answer.trim());
+  const answers = (spec.questions || []).filter(item => item.answer.trim());
   const definitionStatus = spec.status === "approved" ? "Reviewed definition" : spec.status === "outdated" ? "Definition needs review" : "Draft definition";
   const discussDecision = () => {
     const question = blockingQuestions[0];
@@ -111,10 +112,15 @@ export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate, onInspe
     {(blockingQuestions.length > 0 || questions.length > 0) && <section className="understanding-decisions" aria-label="Decisions to resolve">
       <h3>Decisions to resolve</h3>
       {blockingQuestions.map(question => <div key={question.turnId}><p><strong>{question.question}</strong></p><p>{question.rationale}</p></div>)}
-      {questions.length > 0 && <ul>{questions.map(question => <li key={question.id}>{question.question}</li>)}</ul>}
+      {questions.length > 0 && <ul>{questions.map(question => <li key={question.id}><p>{question.question}</p><Button variant="secondary" disabled={!canEdit} onClick={() => edit("definition", question.id)}>Answer in definition</Button></li>)}</ul>}
       {blockingQuestions.length > 0 && <p className="understanding-note">Resolve these material questions before new implementation work starts.</p>}
-      <Button variant="secondary" onClick={discussDecision}>Work through the decisions</Button>
+      {blockingQuestions.length > 0 && <Button variant="secondary" onClick={discussDecision}>Work through the decisions</Button>}
     </section>}
+
+    {answers.length > 0 && <details className="understanding-boundaries"><summary>Saved answers</summary>
+      <p className="understanding-note">{spec.status === "approved" ? `Part of reviewed definition ${spec.revision}.` : "These saved answers need review with the current definition."}</p>
+      {answers.map(question => <div key={question.id}><h4>{question.question}</h4><p>{question.answer}</p><Button variant="secondary" disabled={!canEdit} onClick={() => edit("definition", question.id)}>Edit answer in definition</Button></div>)}
+    </details>}
 
     {(spec.constraints.trim() || spec.outOfScope.length > 0 || decisions.length > 0) && <details className="understanding-boundaries"><summary>Scope and decisions</summary>
       {spec.constraints.trim() && <><h4>Constraints</h4><p>{spec.constraints}</p></>}

@@ -44,10 +44,16 @@ legacy-package refusal/state-preserving upgrade checks. The latest source batch
 replaces generic auto-filled design outlines with explicit screen authoring,
 saved people/outcome guidance, unsent planning help and separate draft/approval
 guidance. Its full frontend run passes 1,890 tests; two final wording-only changes
-and matching installed acceptance remain separately scoped. CLI help, version and
-rejected arguments now exit before service initialization, with 21 focused Go
-outcomes and eight isolated source-binary checks. Earlier service sources retain
-the validated 2,045 Go outcomes and 1,230 race outcomes. Exact source identities, fixture
+also pass the matching build and installed journey. Clean `bfcd5cb1` passes four
+Design-authoring groups, four scoped accessibility scans with no violations or
+incomplete findings, six portable groups and seven launcher outcomes. CLI help,
+version and rejected arguments exit before service initialization, with 21 focused
+Go outcomes, eight isolated source-binary checks and eight matching packaged
+checks. Manual-question continuity, verification draft recovery and stale or
+decision-blocked prepared-run guidance now pass the full 2,088-outcome Go suite
+(22 skips), 1,944 frontend tests, type checking and 481 product-package race
+outcomes (one skip). Matching installed continuity acceptance is next. Earlier
+integration-package race results retain their own identities. Exact source identities, fixture
 limits and remaining gates are in [FULL-PRODUCT.md](FULL-PRODUCT.md). The results
 below retain their historical identities.
 
