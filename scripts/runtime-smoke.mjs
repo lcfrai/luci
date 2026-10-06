@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { chmodSync, createWriteStream, mkdtempSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -321,7 +321,7 @@ try {
   assert.equal(release.briefRevision, definition.briefRevision);
   assert.equal(release.configurationRevision, 1);
   assert.ok(!JSON.stringify(release).includes(applicationFixtureValue));
-  assert.deepEqual(readdirSync(state).filter((name) => name.startsWith("preview-env-")), [], "Private runtime env file survived Docker run");
+  assert.deepEqual(readdirSync(state, { recursive: true }).filter((name) => basename(name).startsWith("preview-env-")), [], "Private runtime env file survived Docker run");
   const address = new URL(release.url);
   assert.equal(address.protocol, "http:");
   assert.equal(address.hostname, "127.0.0.1");

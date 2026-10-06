@@ -65,9 +65,25 @@ separate gates.
   create/read/cancel, process restart persistence, and backup restoration
   without inherited private run history. Accessibility and account-entry
   assertions remained enabled.
+- Final existing-image Docker acceptance passed deterministic Codex/OpenCode
+  completion and fork fixtures, private mounts, process limits, authenticated
+  reviews, actual terminal file creation and checks, committed-source non-root
+  HTTP/iframe preview, private environment cleanup and owned stop. The image
+  installation step was explicitly not exercised by this run. An earlier
+  retained failure exposed a stale hardcoded brief revision in the verifier;
+  the final verifier compares the actual approved definition revision.
+- The clean Linux portable package at source
+  `50ea11cc4568676dc716687ddd9405782fe515c4` passed six portable checks, seven
+  launcher outcomes and seven packaged service outcomes. Its manifest and Go
+  metadata both report clean source. Strict collection retained 344 dependency
+  licence components with none missing. Linux archive SHA-256:
+  `c45b4ba255afae4618b099d6c15ddc4cfc3f21f1cf50c35a7c6d4fb7be7a9391`.
 
 Local evidence is under `artifacts/onboarding`,
-`artifacts/uat/coordinator-current/evidence`, and `artifacts/acceptance`.
+`artifacts/uat/coordinator-final/evidence`,
+`artifacts/acceptance/runtime-final`, and
+`artifacts/package-eval/production-50ea11cc`. The package and immutable manifest
+are in `artifacts/releases/0.4.18`.
 These ignored directories can include private disposable fixture state; publish
 only reviewed evidence files, never entire fixture trees. Failed attempts remain
 retained rather than overwritten with a pass. Runtime and package results must
