@@ -80,7 +80,8 @@ describe("AppShell", () => {
 
   it("starts at Projects home with direct creation and import actions", () => {
     render(<AppShell />);
-    expect(screen.getByRole("tree")).not.toBeNull();
+    expect(screen.getByRole("region", { name: "Projects" })).not.toBeNull();
+    expect(screen.queryByRole("tree")).toBeNull();
     expect(
       screen.getByRole("heading", { name: "Your projects" }),
     ).not.toBeNull();
