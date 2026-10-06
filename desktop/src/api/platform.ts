@@ -154,7 +154,7 @@ export const platformApi = {
       confirmRestore: true,
       acknowledgeResources: true,
     }),
-  async importDatabaseBackup(id: string, file: File, trusted: boolean, signal?: AbortSignal): Promise<PlatformBackup> {
+  async importDatabaseBackup(id: string, file: File, trusted: boolean, signal?: AbortSignal, current: () => boolean = () => true): Promise<PlatformBackup> {
     if (!trusted) throw new Error("Confirm that you trust this dump before importing it.");
     if (file.size < 5 || file.size > 64 * 1024 * 1024) throw new Error("Choose a PostgreSQL custom-format dump up to 64 MiB.");
     signal?.throwIfAborted();
@@ -164,7 +164,7 @@ export const platformApi = {
     const hash = await crypto.subtle.digest("SHA-256", bytes);
     const digest = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
     signal?.throwIfAborted();
-    if (workspace !== productApi.baseUrl || session !== authToken()) throw new Error("The account or workspace changed. Select the backup again in the intended project.");
+    if (!current() || workspace !== productApi.baseUrl || session !== authToken()) throw new Error("The account or workspace changed. Select the backup again in the intended project.");
     const response = await productApi.requestBlob(`${project(id)}/backups/import`, {
       method: "POST", body: file, headers: { "Content-Type": "application/octet-stream", "X-Luci-Backup-SHA256": digest, "X-Luci-Trust-Backup": "true" },
     }, 120_000, signal);
@@ -205,10 +205,11 @@ export const platformApi = {
       `${project(id)}/panacea/deployments/${encodeURIComponent(deploymentId)}/refresh`,
       {},
     ),
-  async downloadBackup(id: string, backup: PlatformBackup) {
+  async downloadBackup(id: string, backup: PlatformBackup, current: () => boolean = () => true) {
     const blob = await productApi.requestBlob(
       `${project(id)}/backups/${encodeURIComponent(backup.id)}`,
     );
+    if (!current()) return;
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

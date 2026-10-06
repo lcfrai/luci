@@ -27,9 +27,19 @@ func (g *Gateway) validBillingMetadata(meta map[string]string, b *TeamBilling) b
 	}
 	return true
 }
+
+// The return URL identifies a navigation destination only. Subscription access
+// still requires the existing server-side Stripe receipt verification.
+func (g *Gateway) billingReturnURL(kind string) string {
+	return g.opts.PublicAppOrigin + "/?" + url.Values{"billing": {kind}, "billingTeam": {g.managedTeamID}}.Encode()
+}
 func (g *Gateway) checkoutParams(b *TeamBilling) *stripe.CheckoutSessionCreateParams {
 	rr := b.Reservation
-	p := &stripe.CheckoutSessionCreateParams{Mode: stripe.String("subscription"), ClientReferenceID: stripe.String(g.managedTeamID), Metadata: g.billingMetadata(rr.ID), SubscriptionData: &stripe.CheckoutSessionCreateSubscriptionDataParams{Metadata: g.billingMetadata(rr.ID)}, LineItems: []*stripe.CheckoutSessionCreateLineItemParams{{Price: stripe.String(rr.Quote.Price.ID), Quantity: stripe.Int64(1)}}, SuccessURL: stripe.String(g.opts.PublicAppOrigin + "/?billing=return"), CancelURL: stripe.String(g.opts.PublicAppOrigin + "/?billing=cancel"), ExpiresAt: stripe.Int64(rr.CreatedAt + 24*60*60), AllowPromotionCodes: stripe.Bool(false)}
+	successURL, cancelURL := g.opts.PublicAppOrigin+"/?billing=return", g.opts.PublicAppOrigin+"/?billing=cancel"
+	if rr.ReturnURLVersion == 1 {
+		successURL, cancelURL = g.billingReturnURL("return"), g.billingReturnURL("cancel")
+	}
+	p := &stripe.CheckoutSessionCreateParams{Mode: stripe.String("subscription"), ClientReferenceID: stripe.String(g.managedTeamID), Metadata: g.billingMetadata(rr.ID), SubscriptionData: &stripe.CheckoutSessionCreateSubscriptionDataParams{Metadata: g.billingMetadata(rr.ID)}, LineItems: []*stripe.CheckoutSessionCreateLineItemParams{{Price: stripe.String(rr.Quote.Price.ID), Quantity: stripe.Int64(1)}}, SuccessURL: stripe.String(successURL), CancelURL: stripe.String(cancelURL), ExpiresAt: stripe.Int64(rr.CreatedAt + 24*60*60), AllowPromotionCodes: stripe.Bool(false)}
 	if b.CustomerID != "" {
 		p.Customer = stripe.String(b.CustomerID)
 	}
@@ -96,7 +106,7 @@ func (g *Gateway) checkoutTeamBilling(w http.ResponseWriter, r *http.Request) {
 			b.Status = "unsubscribed"
 		}
 		actor, _, _ := ActorFromContext(r.Context())
-		b.Reservation = &BillingReservation{ID: randomToken(), CreatedAt: time.Now().Unix(), ActorID: actor.ID, Quote: *q, State: "reserved"}
+		b.Reservation = &BillingReservation{ID: randomToken(), CreatedAt: time.Now().Unix(), ActorID: actor.ID, Quote: *q, State: "reserved", ReturnURLVersion: 1}
 		// This write precedes every potentially chargeable provider request.
 		if err = g.saveBilling(r, b, "checkout-reserved"); err != nil {
 			billingFailure(w)
@@ -300,7 +310,7 @@ func (g *Gateway) portalTeamBilling(w http.ResponseWriter, r *http.Request) {
 		fail(w, 403, "billing_owner_required", err.Error())
 		return
 	}
-	p, err := g.billing.provider.Portal(r.Context(), &stripe.BillingPortalSessionCreateParams{Customer: stripe.String(b.CustomerID), ReturnURL: stripe.String(g.opts.PublicAppOrigin + "/?billing=return")})
+	p, err := g.billing.provider.Portal(r.Context(), &stripe.BillingPortalSessionCreateParams{Customer: stripe.String(b.CustomerID), ReturnURL: stripe.String(g.billingReturnURL("portal"))})
 	if err != nil || p == nil || !billingRedirect(p.URL, "billing.stripe.com") {
 		billingFailure(w)
 		return

@@ -85,16 +85,18 @@ export async function verifyPrototypeReview({ page, projectId, projectRoute, rel
     await root.getByRole('textbox', { name: 'Observation or requested change', exact: true }).fill(note);
     await root.getByText(/Saving creates a draft that needs design review again/).waitFor();
     const tabDiagnostics = await observePrototypeTabTransition(page);
-    let notes;
+    let notes, tabNavigation;
     try {
       await root.getByRole('button', { name: 'Done writing', exact: true }).click();
-      await root.getByRole('tab', { name: 'Implementation handoff', exact: true }).click();
+      const handoff = root.getByRole('tab', { name: 'Implementation handoff', exact: true });
+      tabNavigation = await preparePrototypeTabClick(handoff);
+      await handoff.click();
       notes = await root.getByRole('textbox', { name: 'Implementation notes', exact: true }).inputValue();
       assert.equal(await root.getByRole('tab', { name: 'Implementation handoff', exact: true }).getAttribute('aria-selected'), 'true', 'The handoff tab must actually be selected.');
     } catch (cause) {
       // Preserve the original failure and timeout. The driver retains this
       // bounded control-only trace; no field values, invitations or raw errors.
-      cause.prototypeTabDiagnostics = await tabDiagnostics.finish();
+      cause.prototypeTabDiagnostics = { ...await tabDiagnostics.finish(), navigation: tabNavigation };
       throw cause;
     } finally {
       await tabDiagnostics.finish();
@@ -128,12 +130,47 @@ export async function verifyPrototypeReview({ page, projectId, projectRoute, rel
     await root.getByRole('button', { name: 'Approve design handoff', exact: true }).waitFor();
     await root.getByRole('tab', { name: 'Implementation handoff', exact: true }).click();
     await screenshot('10-prototype-observation-saved-awaiting-review');
-    check('A fresh browser invitation preserves the actual running app after navigation; exact-screen amendment and source-bound human observations save only by explicit action and remain an unapproved design draft', { releaseID: release.id, commit: release.commit, screenID: planned.id, savedDesignRevision: saved.revision, savedStatus: saved.status, freshInvitations: 2, note, requestedState, scope: 'The requested empty-submission behavior is future work, not a newly verified behavior; earlier accepted runs retain their own release and inputs.' });
+    check('A fresh browser invitation preserves the actual running app after navigation; exact-screen amendment and source-bound human observations save only by explicit action and remain an unapproved design draft', { releaseID: release.id, commit: release.commit, screenID: planned.id, savedDesignRevision: saved.revision, savedStatus: saved.status, freshInvitations: 2, note, requestedState, tabNavigation, scope: 'The requested empty-submission behavior is future work, not a newly verified behavior; earlier accepted runs retain their own release and inputs.' });
     return saved;
   } finally {
     page.off('request', observeRequest);
     if (originalViewport) await page.setViewportSize(originalViewport);
   }
+}
+
+async function preparePrototypeTabClick(tab) {
+  // Chromium 151 routed an immediate auto-scroll click into the cross-process
+  // iframe's OLD bounds. The full packaged-app comparison is retained in
+  // artifacts/onboarding/prototype-click-synchronization-comparison.json.
+  // Scroll visibly first, observe both geometries settle, then click ONCE.
+  // This synchronizes browser hit testing; it never activates or retries a tab.
+  await tab.scrollIntoViewIfNeeded();
+  return tab.evaluate(element => new Promise((resolve, reject) => {
+    let last = '', stable = 0, frames = 0, finished = false;
+    const deadline = setTimeout(() => finish(new Error('Prototype tab and iframe geometry did not settle')), 5_000);
+    function finish(error, value) {
+      if (finished) return;
+      finished = true; clearTimeout(deadline);
+      if (error) reject(error); else resolve(value);
+    }
+    const measure = node => { const rect = node.getBoundingClientRect(); return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }; };
+    function frame() {
+      if (finished) return;
+      const iframe = document.querySelector('iframe[title="Design prototype"]');
+      if (!element.isConnected || !iframe) return finish(new Error('The open prototype or handoff tab disappeared before navigation'));
+      const geometry = { tab: measure(element), iframe: measure(iframe) };
+      const { x, y, width, height } = geometry.tab;
+      const hit = document.elementFromPoint(x + width / 2, y + height / 2);
+      const hitIsTab = width > 0 && height > 0 && (hit === element || element.contains(hit));
+      const current = JSON.stringify(geometry);
+      stable = current === last && hitIsTab ? stable + 1 : 0;
+      last = current; frames++;
+      if (stable >= 3) return finish(null, { frames, stableFrames: stable, geometry, hitIsTab });
+      if (frames >= 90) return finish(new Error('Prototype tab and iframe geometry did not settle'));
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }));
 }
 
 

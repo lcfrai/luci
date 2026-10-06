@@ -68,6 +68,12 @@ type Job struct {
 	AgentConnectionProtocol string          `json:"agentConnectionProtocol,omitempty"`
 	Source                  *Source         `json:"source,omitempty"`
 	AppliedRevision         int             `json:"appliedRevision,omitempty"`
+	RequestedBy             string          `json:"requestedBy,omitempty"`
+	IdempotencyKey          string          `json:"idempotencyKey,omitempty"`
+	RequestDigest           string          `json:"requestDigest,omitempty"`
+	ReplyToAnalysisID       string          `json:"replyToAnalysisId,omitempty"`
+	ReplySourceChanged      bool            `json:"replySourceChanged,omitempty"`
+	UserMessage             string          `json:"userMessage,omitempty"`
 	OrchestratorTurnID      string          `json:"orchestratorTurnId,omitempty"`
 	OrchestratorContext     json.RawMessage `json:"orchestratorContext,omitempty"`
 	OrchestratorResult      json.RawMessage `json:"orchestratorResult,omitempty"`

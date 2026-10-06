@@ -68,6 +68,16 @@ Stripe link and complete the provider's checkout. A checkout return URL grants
 no access. **Verify subscription with Stripe** reconciles the current provider
 subscription; signed webhooks perform the same verification automatically.
 
+Browser checkout and subscription management return to the team's **Service and
+data** settings after sign-in. The return view explains checkout completion,
+closing checkout, or returning from subscription management separately and shows
+the last saved status. It does not contact Stripe automatically or infer payment
+from the URL. If another available workspace is selected, the person explicitly
+chooses to open the intended team's settings; the existing unsaved-draft guard
+still applies. An unavailable or malformed team hint cannot change membership,
+workspace or subscription access. Native clients continue opening Stripe in the
+system browser.
+
 Checkout reserves its unique ID, exact quote, owner acknowledgement and timestamp
 in private durable state before contacting Stripe. A network error retains this
 reservation; **Resume reserved checkout** reuses its exact provider idempotency
@@ -78,6 +88,11 @@ merchant dashboard by `luci_team` and `luci_reservation` metadata, then give the
 owner its `cs_…` receipt ID. **Recover a checkout receipt** retrieves and verifies
 that exact session against the existing reservation. A confirmed expired session
 permits a fresh quote; an unknown outcome does not.
+
+Upgrades preserve the original return URLs and all other Stripe request
+parameters of existing reservations. Newly reserved checkouts use the scoped
+team-return format; an older uncertain checkout keeps its original format when
+resumed with the same idempotency key.
 
 **Manage or cancel subscription** opens the customer-bound Stripe portal and
 remains available during operator suspension. Cancellation retains team context

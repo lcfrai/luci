@@ -30,9 +30,10 @@ import (
 // map; they do not touch catalogAuditRoutes. Adding a side-effecting GET means a
 // failing test that names the rule before it can be made to pass.
 var catalogReadOnlyRoutes = map[string]string{
-	"GET /v1/product/projects/{id}/assist":         "Lists at most twenty bounded private job metadata records for an owned project. No inference, sandbox probes, recovery or project writes occur on GET.",
-	"GET /v1/product/projects/{id}/assist/{jobId}": "Reads a bounded private job snapshot. No model calls, sandbox probes, recovery or project writes occur on GET.",
-	"GET /v1/setup/agents/codex/account":           "Reads private connection metadata only; no CLI, credential export, reconciliation or writes.",
+	"GET /v1/product/projects/{id}/assist/repository/requests/{requestId}": "Reads the authenticated actor's exact retained request in an owned project. No repair, source sampling, provider resolution, sandbox probes or allocation occurs; a missing receipt does not prove a delayed POST is absent.",
+	"GET /v1/product/projects/{id}/assist":                                 "Lists at most twenty bounded private job metadata records for an owned project. No inference, sandbox probes, recovery or project writes occur on GET.",
+	"GET /v1/product/projects/{id}/assist/{jobId}":                         "Reads a bounded private job snapshot. No model calls, sandbox probes, recovery or project writes occur on GET.",
+	"GET /v1/setup/agents/codex/account":                                   "Reads private connection metadata only; no CLI, credential export, reconciliation or writes.",
 	"GET /v1/healthz": "Reads Deps.BackendReady, which task 13 keeps as a CACHED bool. " +
 		"This is the one route mounted outside the origin guard, so a hostile page reaches it " +
 		"with no checks whatsoever; a healthz that refreshed a probe on request would be a " +

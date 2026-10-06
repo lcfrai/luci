@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { dataApi, type DataDomainStatus } from "../../api/data";
 import { errorText, productApi, type DeploymentTarget } from "../../api/product";
+import { useDataAccess } from "./useDataAccess";
 import { Button } from "../fluid/components/button";
 
 const labels: Record<string, string> = {
@@ -32,11 +33,15 @@ export function publicDataAddress(value: DataDomainStatus): string | null {
 export function DataPublicDomain(props: {
   projectId: string; disabled: boolean; ready: boolean; onChange(value: DataDomainStatus): void; onEmailSettings?(): void;
 }) {
-  return <ProjectPublicDomain key={props.projectId} {...props} />;
+  const access = useDataAccess(props.projectId);
+  if (!access.showPrivate) return <p role="status">{access.message}</p>;
+  return <ProjectPublicDomain key={access.scope} {...props} />;
 }
 function ProjectPublicDomain({ projectId, disabled, ready, onChange, onEmailSettings }: {
   projectId: string; disabled: boolean; ready: boolean; onChange(value: DataDomainStatus): void; onEmailSettings?(): void;
 }) {
+  const access = useDataAccess(projectId);
+  const accessRef = useRef(access); accessRef.current = access;
   const active = useRef(true), submitting = useRef(false), generation = useRef(0);
   const fieldId = useId();
   const [binding, setBinding] = useState<DataDomainStatus | null>(null);
@@ -51,10 +56,12 @@ function ProjectPublicDomain({ projectId, disabled, ready, onChange, onEmailSett
     setBinding(value); onChange(value);
   }, [projectId, onChange]);
   const load = useCallback(async () => {
+    if (!accessRef.current.canRead) return;
+    const current = accessRef.current.capture();
     const ticket = ++generation.current;
     setError("");
     const [saved, available] = await Promise.allSettled([dataApi.domain(projectId), productApi.targets()]);
-    if (!active.current || generation.current !== ticket) return;
+    if (!active.current || generation.current !== ticket || !current()) return;
     const failures: string[] = [];
     if (available.status === "fulfilled") setTargets(available.value.targets);
     else failures.push(errorText(available.reason));
@@ -79,20 +86,21 @@ function ProjectPublicDomain({ projectId, disabled, ready, onChange, onEmailSett
   }, [load]);
   const operating = binding?.operation?.status === "running" || ["working", "publishing", "stopping", "checking"].includes(binding?.status || "");
   useEffect(() => {
-    if (!operating) return;
+    if (!operating || !access.canRead) return;
+    const current = access.capture();
     let inFlight = false;
     const ticket = generation.current;
     const timer = window.setInterval(() => {
       if (inFlight) return;
       inFlight = true;
       void dataApi.domain(projectId).then(value => {
-        if (active.current && generation.current === ticket) accept(value);
-      }).catch(cause => { if (active.current && generation.current === ticket) setError(errorText(cause)); })
+        if (active.current && generation.current === ticket && current()) accept(value);
+      }).catch(cause => { if (active.current && generation.current === ticket && current()) setError(errorText(cause)); })
         .finally(() => { inFlight = false; });
     }, 2500);
     return () => window.clearInterval(timer);
-  }, [operating, projectId, accept]);
-  const locked = disabled || !!pending || operating;
+  }, [operating, projectId, accept, access.canRead, access.capture]);
+  const locked = disabled || !!pending || operating || !access.canWrite;
   const activeAction = pending || (binding?.operation?.status === "running" ? binding.operation.action :
     binding?.status === "publishing" ? "publish" : binding?.status === "checking" ? "refresh" : binding?.status === "stopping" ? "stop" : "");
   const address = binding && publicDataAddress(binding);
@@ -100,7 +108,8 @@ function ProjectPublicDomain({ projectId, disabled, ready, onChange, onEmailSett
   const configured = binding && binding.status !== "not-configured";
   function changed() { setAcknowledged(false); setStopConfirmed(false); }
   async function submit(action: "publish" | "refresh" | "stop") {
-    if (locked || !binding || submitting.current) return;
+    if (locked || !accessRef.current.canWrite || !binding || submitting.current) return;
+    const current = access.capture();
     if (action === "publish" && (!ready || !acknowledged || uncertain || !targetId || !domain.trim() || !applicationOrigin.trim())) return;
     if (action === "stop" && !stopConfirmed) return;
     submitting.current = true; setPending(action); setError("");
@@ -110,14 +119,15 @@ function ProjectPublicDomain({ projectId, disabled, ready, onChange, onEmailSett
         action, expectedRevision: binding.revision,
         ...(action === "publish" ? { targetId, domain: domain.trim(), applicationOrigin: applicationOrigin.trim(), acknowledgePublic: true } : {}),
       });
-      if (active.current && generation.current === ticket) { accept(value); setAcknowledged(false); setStopConfirmed(false); }
-    } catch (cause) { if (active.current && generation.current === ticket) setError(errorText(cause)); }
+      if (active.current && generation.current === ticket && current()) { accept(value); setAcknowledged(false); setStopConfirmed(false); }
+    } catch (cause) { if (active.current && generation.current === ticket && current()) setError(errorText(cause)); }
     finally { submitting.current = false; if (active.current && generation.current === ticket) setPending(""); }
   }
   return <section className="data-public-domain" aria-label="Public data connection">
     <div className="data-heading"><div><h4>Use data in your published app</h4><p>Give this project a secure API address on your cloud server. Table and file policies continue to control access.</p></div>
       <span className="platform-state" data-state={address ? "ready" : "pending"}>{binding ? binding.status === "verifiedHTTPS" && !address ? "Verification needed" : labels[binding.status] || "Checking connection" : "Loading"}</span></div>
-    {error && <><p className="journey-error" role="alert">{error}</p><Button type="button" variant="secondary" disabled={!!pending || operating} onClick={() => void load()}>Reload saved connection</Button></>}
+    {access.message && <p role="status">{access.message}</p>}
+    {error && <><p className="journey-error" role="alert">{error}</p><Button type="button" variant="secondary" disabled={!!pending || operating || !access.canRead} onClick={() => void load()}>Reload saved connection</Button></>}
     {binding?.message && <p role="status">{binding.message}</p>}
     {binding?.checkedAt && Number.isFinite(Date.parse(binding.checkedAt)) && <p className="journey-muted">Last checked {new Date(binding.checkedAt).toLocaleString()}.</p>}
     {operating && <p role="status">You can leave this page. Luci keeps this attempt and its progress.</p>}

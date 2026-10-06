@@ -43,6 +43,8 @@ func TestStripeBillingHTTPCheckoutRecoveryWebhookPortalAndRestart(t *testing.T) 
 			}
 			forms = append(forms, r.PostForm)
 			keys = append(keys, r.Header.Get("Idempotency-Key"))
+			assertBillingReturnURL(t, r.PostForm.Get("success_url"), teamID, "return")
+			assertBillingReturnURL(t, r.PostForm.Get("cancel_url"), teamID, "cancel")
 			metadata = map[string]string{}
 			for _, key := range []string{"luci_team", "luci_reservation", "luci_config", "luci_account"} {
 				metadata[key] = r.PostForm.Get("metadata[" + key + "]")
@@ -70,9 +72,10 @@ func TestStripeBillingHTTPCheckoutRecoveryWebhookPortalAndRestart(t *testing.T) 
 			json.NewEncoder(w).Encode(map[string]any{"id": "sub_fixture", "object": "subscription", "customer": "cus_fixture", "status": "active", "collection_method": "charge_automatically", "metadata": metadata, "items": map[string]any{"object": "list", "has_more": false, "data": []any{map[string]any{"id": "si_fixture", "quantity": 1, "current_period_end": time.Now().Add(time.Hour).Unix(), "price": map[string]any{"id": "price_fixture"}}}}})
 		case "POST /v1/billing_portal/sessions":
 			r.ParseForm()
-			if r.PostForm.Get("customer") != "cus_fixture" || r.PostForm.Get("return_url") != "https://app.example.com/?billing=return" {
+			if r.PostForm.Get("customer") != "cus_fixture" {
 				t.Error("portal customer or return URL mismatch")
 			}
+			assertBillingReturnURL(t, r.PostForm.Get("return_url"), teamID, "portal")
 			json.NewEncoder(w).Encode(map[string]any{"id": "bps_fixture", "object": "billing_portal.session", "url": "https://billing.stripe.com/p/session/fixture"})
 		default:
 			t.Errorf("unexpected Stripe request %s %s", r.Method, r.URL.Path)
@@ -115,11 +118,11 @@ func TestStripeBillingHTTPCheckoutRecoveryWebhookPortalAndRestart(t *testing.T) 
 	}
 	checkout(502)
 	b = read()
-	if b.Reservation == nil || b.Reservation.State != "reserved" {
+	if b.Reservation == nil || b.Reservation.State != "reserved" || b.Reservation.ReturnURLVersion != 1 {
 		t.Fatal("ambiguous checkout reservation was lost")
 	}
 	persisted, err := os.ReadFile(filepath.Join(bound.dir, "identity.json"))
-	if err != nil || !bytes.Contains(persisted, []byte(b.Reservation.ID)) {
+	if err != nil || !bytes.Contains(persisted, []byte(b.Reservation.ID)) || !bytes.Contains(persisted, []byte(`"returnUrlVersion":1`)) {
 		t.Fatal("reservation not durable")
 	}
 	checkout(200)
@@ -127,7 +130,7 @@ func TestStripeBillingHTTPCheckoutRecoveryWebhookPortalAndRestart(t *testing.T) 
 	if len(forms) != 2 || keys[0] == "" || keys[0] != keys[1] || forms[0].Encode() != forms[1].Encode() {
 		t.Error("ambiguous retry changed Stripe idempotency key or params")
 	}
-	if forms[0].Get("adaptive_pricing[enabled]") != "false" || forms[0].Get("line_items[0][quantity]") != "1" || forms[0].Get("success_url") != "https://app.example.com/?billing=return" {
+	if forms[0].Get("adaptive_pricing[enabled]") != "false" || forms[0].Get("line_items[0][quantity]") != "1" || forms[0].Get("success_url") != bound.billingReturnURL("return") {
 		t.Error("checkout did not use fixed quantity and configured origin")
 	}
 	complete = true

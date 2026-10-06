@@ -95,7 +95,12 @@ it("shows accepted restore as progress, polls its actual result and never calls 
     expect(platformApi.restoreDatabase).toHaveBeenCalledExactlyOnceWith("owned", backup.id);
     await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
     expect(await screen.findByText("Candidate passed real health checks.")).not.toBeNull();
-    expect(screen.getByText("Redeploy your application to connect to the restored database.")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Open application deployments" }));
+    expect(screen.getByRole("button", { name: "Deployments" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Data" }).getAttribute("aria-pressed")).toBe("false");
+    expect(platformApi.restoreDatabase).toHaveBeenCalledExactlyOnceWith("owned", backup.id);
+    expect(platformApi.deploy).not.toHaveBeenCalled();
+    expect(platformApi.action).not.toHaveBeenCalled();
   } finally { vi.useRealTimers(); }
 });
 

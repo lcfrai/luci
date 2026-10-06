@@ -10,14 +10,17 @@ The current cloud session exposes no persistent-goal scheduling API.
 | Finding | User consequence | Required correction and evidence | Status |
 | --- | --- | --- | --- |
 | Restoring a stale structured draft replaces a teammate's independently changed fields. | Recovering one person's constraints can silently undo another person's agreed outcome. | Preserve the actual original baseline; combine independent definition/design/task edits; require explicit choices for overlapping edits or unknown legacy baselines. Verify two people through the actual UI, retaining old run scope while reviewing the new scope. | Verified in the matching `a10d941e` two-person browser journey, including readable combined content before explicit restoration. Overlap, legacy and reference-repair regressions also pass. |
-| Prototype review hides the screen's expected behavior and can reuse a consumed team browser invitation after navigation. | The person cannot compare the working result with the agreed experience or reliably return to it. | Keep routes, states and outcomes alongside the actual prototype; record source-bound human observations as unverified draft context; obtain a fresh explicit browser connection. | Actual source-bound prototype behavior, planned width and phone containment pass at `a10d941e`. The complete observation/amendment path remains pending after a handoff-tab activation failure. |
+| Prototype review hides the screen's expected behavior and can reuse a consumed team browser invitation after navigation. | The person cannot compare the working result with the agreed experience or reliably return to it. | Keep routes, states and outcomes alongside the actual prototype; record source-bound human observations as unverified draft context; obtain a fresh explicit browser connection. | Verified end to end in `7ff66d3b` attempt 5: actual behavior, planned width, fresh invitation, source-bound observation and exact-screen amendment saved as an unapproved draft. |
 | Deployment operations can say completed when a successful HTTP response carries a failed operation status. | The person receives a false success and no useful recovery path. | Display the actual operation outcome and remedy. Keep returning users connected to their retained release, source and health, with explicit supported cleanup/replacement controls. | Operation, permission and ownership checks pass. Matching `a10d941e` browser acceptance verifies retained release discovery, explicit owned stop, reviewed replacement and preview continuity through access refresh. |
-| An unsent discussion disappears on remount; an uncertain send can lose its request identity. | Context is lost or the same intent can become a second paid request after refresh. | Scoped private draft recovery and durable exact-request identity; no automatic resend. Resolve acceptance or authoritative non-dispatch without racing a delayed original request. | Implemented; frontend, admission, archive and race checks pass. Rendered fault-recovery proof pending. |
+| An unsent discussion disappears on remount; an uncertain send can lose its request identity. | Context is lost or the same intent can become a second paid request after refresh. | Scoped private draft recovery and durable exact-request identity; no automatic resend. Resolve acceptance or authoritative non-dispatch without racing a delayed original request. | Verified in the combined `7ff66d3b` attempt 5: unsent draft reload and pre-admission network-fault recovery retain exact text/request with zero model calls. Backend concurrency/receipt checks cover accepted and delayed requests separately. |
 | Collaboration evidence stops before a complete amendment during active work. | Mechanism checks alone do not show people can understand and continue the combined workflow. | Two people preserve concurrent contributions, see old active scope versus new agreed context, renew review, build the amended behavior, retain a meaningful regression check, and inspect/accept the matching preview. | Matching `a10d941e` browser journey verifies active-scope understanding, both contributors’ edits, renewed review, actual CLI/checks, matching preview and acceptance. Provider remains a deterministic fixture, not live model reasoning. |
+| Repository analysis can return a consequential question without a proposal, but the UI hides the question. | An imported application's discovery stops without explaining the decision needed to continue. | Show the question and editable answer, then explicitly continue analysis using its authoritative prior result and the selected connection. Preserve source/review checks and recover the reply draft. | Implemented with durable exact-request recovery, canonical answer ancestry, provider-revision consent and actual workspace-actor ownership. Combined source and matching installed checks are continuing; live model reasoning remains separate. |
+| Stripe returns to the app without reopening subscription status. | A customer cannot see whether payment was verified or how to continue after checkout or cancellation. | Return to the authorized team's Service and data view, with explicit verification guidance and no entitlement inferred from the URL. Require an explicit choice before changing workspace. | Implemented with sign-in continuity, membership checks, explicit workspace choice and draft protection. Persisted return-URL version preserves existing Stripe idempotency parameters. Matching installed checks are continuing. |
+| Data controls invite operations outside the person's project permissions. | People encounter avoidable permission errors without knowing which access is required. | Explain read/edit/deploy/secret requirements, preserve drafts during access refresh, and fence operations after actual revocation. | Implemented across data, database, functions, email and domain controls. Delayed responses and downloads are fenced after permission changes; successful database recovery links directly to application deployments. Source checks and current rendered confirmation are continuing. |
 
 Two further concrete findings have source corrections, with installed acceptance continuing:
 
-- A failed repository import reserves its final project name. Correcting Git access and retrying the same name returns `project_exists`, leaving the entry flow stuck. Recovery must stage owned attempts, preserve diagnostics and unrelated work, reconcile uncertain completion, and publish only a complete repository without replacing an existing path.
+- A failed repository import reserved its final project name. Correcting Git access and retrying the same name returned `project_exists`, leaving the entry flow stuck. Owned staging, private receipts and no-overwrite publication now pass four installed `7ff66d3b` browser groups: actual failed HTTPS clone, corrected same-name import with both original commits/files, lost completion response, and explicit read-only recovery without another clone. No private-host authentication or live repository-analysis quality is inferred.
 - Structured draft comparison previously exposed only JSON. Definition, design and task recovery now show readable content and explicit choices, demonstrated in the `a10d941e` browser journey; exact technical records remain available through deliberate disclosure. Sketch recovery remains a separate opaque-document path.
 
 The `2a60c1c0` source batch passes 1,701 frontend tests across 117 files, type
@@ -28,6 +31,14 @@ These checks do not replace the pending rendered journeys or live model proof.
 Current implementation owners coordinate shared files before editing. Each
 correction needs its scoped regression and rendered behavior where applicable;
 failures stay recorded. Earlier `340f1590` results retain their original identities.
+
+The clarification, billing-return and data-permission source batch passes all
+1,874 frontend tests across 125 files, 2,045 Go outcomes (22 skips), and 1,230
+changed-package race outcomes (five skips). Windows AMD64 and Darwin ARM64 API
+test executables compile. The initial frontend run's obsolete recovery-copy
+assertion and its focused navigation correction remain recorded alongside the
+clean complete rerun in `artifacts/quality-clarification`. Installed acceptance
+of the new batch remains separate from these source results.
 
 ## Gates that still need real external access
 
@@ -63,3 +74,34 @@ The rendered review also exposed an accepted-run summary that still repeated
 its old acceptance instruction. The projection and guidance are corrected, retaining current invalidity and
 health warnings; focused UI and actual HTTP run/health regressions pass. The handoff-tab interaction
 is being reproduced separately before attributing or changing product behavior.
+
+The clean `7ff66d3b` package passes six portable acceptance groups, seven launcher
+outcomes and the four import/recovery groups above. Its archive and every installed
+web file are independently bound to the recorded package provenance. Preserve
+import attempts 1–3: Git identity setup, a wrong entry-button selector and a
+child-exit callback race were driver defects. Attempt 4 passes strict cleanup
+with exactly three import requests, three real clone starts and two recovery
+reads. Four bounded accessibility scans have no violations; their contrast items
+remain automated incomplete results. A separate entry-state manual diagnostic
+supports the sampled header/help text contrast at both viewport sizes, with
+original findings and scope limits retained. The full `7ff66d3b` team attempt 4
+again passes seven groups and stops at prototype-to-handoff activation. Its trace
+records no handoff pointer event. A bounded complete-layout reproduction identified
+Chromium 151 sending the click into the preview iframe using its old pre-scroll
+position. A fresh comparison with explicit scroll and settled tab/iframe geometry
+delivered one ordinary click correctly. The corrected driver then passed all ten
+combined groups in attempt 5; product handlers and behavior assertions were unchanged.
+Both failed attempts and the direct comparison remain retained. This completes
+the scoped fixture journey, not live-model or full production acceptance.
+
+The `7ff66d3b` installed standalone PostgreSQL journey passes five groups,
+including actual backup bytes, trusted reimport, restoration into a candidate,
+rollback preserving both generations, and service restart. SQL fixture witnesses
+verify the records independently of success text; they are labelled setup and
+observation, not an application-authentication test. All fixture-owned runtime
+resources were verified removed. Receipt:
+`artifacts/package-eval/0.5.0-7ff66d3b/database-recovery-attempt-3/result.json`.
+This baseline predates the new data-permission and recovery-navigation UI.
+Full Supabase authentication, row isolation and stored-file recovery need an
+adequate host; their prepared capacity/scenario record is
+`artifacts/plans/data-operation-host-prerequisites.json`.

@@ -63,6 +63,8 @@ func TestTeamRouteCapabilitiesSeparateContextExecutionSecretsAndDeployment(t *te
 		{"editor cannot invoke assistant", "POST", "/v1/product/projects/p-one/assist/repository", editor, false},
 		{"assistant requires provider credential use", "POST", "/v1/product/projects/p-one/assist/repository", executor, false},
 		{"authorized provider use invokes assistant", "POST", "/v1/product/projects/p-one/assist/repository", full, true},
+		{"viewer recovers own repository request without provider authority", "GET", "/v1/product/projects/p-one/assist/repository/requests/analysis-request-001", viewer, true},
+		{"repository request lookup cannot dispatch", "POST", "/v1/product/projects/p-one/assist/repository/requests/analysis-request-001", full, false},
 		{"viewer reads project orchestrator", "GET", "/v1/product/projects/p-one/orchestrator", viewer, true},
 		{"viewer exports project conversation", "GET", "/v1/product/projects/p-one/orchestrator/export", viewer, true},
 		{"viewer cannot rotate project conversation", "POST", "/v1/product/projects/p-one/orchestrator/rotate", viewer, false},

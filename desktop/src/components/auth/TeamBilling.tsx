@@ -71,7 +71,7 @@ export function TeamBilling({ teamId }: { teamId: string }) {
         <button className="luci-button" disabled={busy} onClick={() => void run(() => replace(() => teamBillingApi.refresh(teamId)))}>Verify subscription with Stripe</button>
       </> : <p>A team owner can review pricing, subscribe or cancel.</p>}
     </>}
-    {destination && <p><a className="luci-button" href={destination.url} onClick={e => openNativeLink(e, destination.url)} target="_blank" rel="noopener noreferrer">{destination.label}</a></p>}
+    {destination && <p><a className="luci-button" href={destination.url} onClick={e => openNativeLink(e, destination.url)} rel="noreferrer">{destination.label}</a></p>}
     <button className="luci-button" disabled={busy} onClick={() => void run(() => replace(() => teamBillingApi.read(teamId)))}>Reload subscription status</button>
   </section>;
 }

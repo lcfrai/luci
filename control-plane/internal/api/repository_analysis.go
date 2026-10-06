@@ -81,7 +81,11 @@ func (a *API) handleAssistList(w http.ResponseWriter, r *http.Request) {
 	for i := range jobs {
 		jobs[i].OrchestratorContext = nil
 	}
-	httpx.WriteJSON(w, 200, map[string]any{"jobs": jobs})
+	views := make([]any, len(jobs))
+	for i, job := range jobs {
+		views[i] = assistanceJobProjection(r, job)
+	}
+	httpx.WriteJSON(w, 200, map[string]any{"jobs": views})
 }
 
 // analysisSession has a new empty home and only the selected connection's
@@ -145,20 +149,73 @@ func (a *API) assistantSession(ctx context.Context, projectID, title, contextRef
 }
 
 func (a *API) handleRepositoryAnalysis(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ExpectedRevision      int     `json:"expectedRevision"`
-		ExpectedBriefRevision int     `json:"expectedBriefRevision"`
-		SourceMode            string  `json:"sourceMode"`
-		Harness               string  `json:"harness"`
-		Model                 string  `json:"model"`
-		AuthMode              string  `json:"authMode"`
-		AgentConnectionID     *string `json:"agentConnectionId"`
-		AcknowledgeSourceRead bool    `json:"acknowledgeSourceRead"`
-		Message               string  `json:"message"`
-	}
+	var req repositoryAnalysisRequest
 	if !httpx.DecodeJSON(w, r, &req) {
 		return
 	}
+	actor := repositoryAnalysisActor(r)
+	if req.IdempotencyKey != "" && !validAnalysisRequestKey(req.IdempotencyKey) {
+		httpx.WriteProblem(w, 400, "invalid_analysis_request", "Use a unique bounded request key.", nil)
+		return
+	}
+	if (req.IdempotencyKey != "" || req.ReplyToAnalysisID != "") && actor == "" {
+		httpx.WriteProblem(w, 403, "analysis_actor_required", "Sign in again before sending a recoverable repository analysis request.", nil)
+		return
+	}
+	requestDigest := repositoryRequestDigest(req)
+
+	if a.deps.Product == nil {
+		httpx.WriteProblem(w, 503, "product_unavailable", "Project definitions are unavailable.", nil)
+		return
+	}
+
+	// Every analysis provider is serialized here during admission only. Running
+	// jobs retain their own session; other projects can use different providers.
+	a.codexAccountMu.Lock()
+	defer a.codexAccountMu.Unlock()
+	jobID := ids.New("assist")
+	if req.IdempotencyKey != "" {
+		if _, err := a.deps.Product.ResolveProject(r.PathValue("id")); err != nil {
+			httpx.WriteProblem(w, 404, "project_not_found", "No project in your workspace has that id.", nil)
+			return
+		}
+		jobID = repositoryRequestJobID(actor, r.PathValue("id"), req.IdempotencyKey)
+		previous, readErr := a.assistanceStore().Read(jobID)
+		if readErr == nil {
+			if !validRepositoryRequestJob(previous, actor, r.PathValue("id"), req.IdempotencyKey) || previous.RequestDigest != requestDigest {
+				httpx.WriteProblem(w, 409, "analysis_request_conflict", "This request key already belongs to a different analysis. Recover the exact original request; do not overwrite it.", nil)
+				return
+			}
+			writeAssistanceJob(w, r, 200, previous)
+			return
+		}
+		if !errors.Is(readErr, os.ErrNotExist) {
+			httpx.WriteProblem(w, 503, "analysis_request_unavailable", "The original request record cannot be verified. Keep its identity and recover private state before retrying.", nil)
+			return
+		}
+	}
+	if err := a.repositoryAnalysisCapacity(); err != nil {
+		httpx.WriteProblem(w, 409, "analysis_capacity", "Repository analysis storage is unavailable or has reached its 4096-receipt limit. Existing request identities remain recoverable. Continue editing the definition manually and ask the host operator to inspect private state; do not delete receipts to retry paid work.", nil)
+		return
+	}
+	job := assistance.Job{ID: jobID, ProjectID: r.PathValue("id"), ExpectedRevision: req.ExpectedRevision, ExpectedBriefRevision: req.ExpectedBriefRevision, Kind: "repository", Harness: req.Harness, Model: req.Model, AuthMode: req.AuthMode, Status: "reserved", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: "Your request is retained; dispatch is not yet confirmed. Check this original request before starting another.", RequestedBy: actor, IdempotencyKey: req.IdempotencyKey, RequestDigest: requestDigest, ReplyToAnalysisID: req.ReplyToAnalysisID, UserMessage: req.Message}
+	admitted := false
+	failureMessage := "This request was interrupted before inference began. No analysis was started. Review your retained answer before explicitly starting a new request."
+	// A valid owned key is fenced before definitive validation failures. Once
+	// the failed receipt is exposed, neither this handler nor an exact retry can
+	// dispatch it, even if the source or provider later becomes available.
+	if req.IdempotencyKey != "" {
+		if err := a.assistanceStore().Create(job); err != nil {
+			httpx.WriteProblem(w, 503, "analysis_request_unavailable", "The request receipt could not be confirmed. Keep the original key and check its status before retrying.", nil)
+			return
+		}
+	}
+	defer func() {
+		if !admitted {
+			a.failReservedRepositoryAnalysis(jobID, failureMessage)
+		}
+	}()
+	failureMessage = "No analysis was started. Choose a supported model, source and current definition revisions, then explicitly send a corrected request."
 	validationAuth := req.AuthMode
 	if validationAuth == "" {
 		validationAuth = "api"
@@ -174,29 +231,43 @@ func (a *API) handleRepositoryAnalysis(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteProblem(w, 400, "invalid_analysis_request", "Choose a source, acknowledge sending public source to the selected provider, and use current definition revisions.", nil)
 		return
 	}
-	if a.deps.Product == nil {
-		httpx.WriteProblem(w, 503, "product_unavailable", "Project definitions are unavailable.", nil)
+	if req.ReplyToAnalysisID != "" && (req.IdempotencyKey == "" || strings.TrimSpace(req.Message) == "") {
+		httpx.WriteProblem(w, 400, "invalid_analysis_request", "Use a unique bounded request key and include your answer when continuing a saved question.", nil)
 		return
 	}
+	if req.ExpectedAgentConnectionRevision != nil && (*req.ExpectedAgentConnectionRevision < 1 || req.AgentConnectionID == nil || *req.AgentConnectionID == "") {
+		httpx.WriteProblem(w, 400, "invalid_analysis_request", "A saved connection revision requires its exact named connection.", nil)
+		return
+	}
+	failureMessage = "No analysis was started. Restore the Docker runtime before explicitly sending a new request."
 	if a.deps.Backend.Kind() != backend.KindDocker {
 		httpx.WriteProblem(w, 409, "docker_required", "Repository analysis requires the Docker runtime.", nil)
 		return
 	}
-	// Every analysis provider is serialized here during admission only. Running
-	// jobs retain their own session; other projects can use different providers.
-	a.codexAccountMu.Lock()
-	defer a.codexAccountMu.Unlock()
+	failureMessage = "No analysis was started. Choose your own verified question or begin a fresh source analysis."
+	var previous assistance.Job
+	if req.ReplyToAnalysisID != "" {
+		var err error
+		previous, err = a.repositoryReply(req.ReplyToAnalysisID, actor, r.PathValue("id"))
+		if err != nil {
+			httpx.WriteProblem(w, 409, "analysis_reply_unavailable", err.Error(), nil)
+			return
+		}
+	}
+
+	failureMessage = "No analysis was started. Reload the project history and finish or cancel its existing assistant before sending a new request."
 	jobs, err := a.projectAssistance(r.PathValue("id"))
 	if err != nil {
 		httpx.WriteProblem(w, 404, "project_not_found", "This owned project's assistant history is unavailable.", nil)
 		return
 	}
 	for _, job := range jobs {
-		if !assistance.Terminal(job.Status) {
+		if job.ID != jobID && !assistance.Terminal(job.Status) {
 			httpx.WriteProblem(w, 409, "analysis_busy", "An assistant is already running for this project. Resume or cancel it before starting another.", nil)
 			return
 		}
 	}
+	failureMessage = "No analysis was started. Check the selected provider connection and exact model, then explicitly send a new request."
 	connection, env, account, err := a.resolveAssistanceConnection(r.Context(), req.Harness, req.Model, req.AuthMode, req.AgentConnectionID, true)
 	if err != nil {
 		if errors.Is(err, errCodexDisconnected) || errors.Is(err, errCodexBusy) {
@@ -207,6 +278,12 @@ func (a *API) handleRepositoryAnalysis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Model, req.AuthMode = connection.Model, connection.AuthMode
+	if req.ExpectedAgentConnectionRevision != nil && connection.Revision != *req.ExpectedAgentConnectionRevision {
+		failureMessage = "No analysis was started. The selected provider connection changed. Review its current endpoint and model, renew source consent and explicitly send a new request."
+		httpx.WriteProblem(w, 409, "analysis_connection_changed", "The selected provider connection changed. Review its current endpoint and model and renew source consent before sending a new request.", nil)
+		return
+	}
+	failureMessage = "No analysis was started. The selected public source could not be read; check its visibility or select an available source before sending a new request."
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	snapshot, err := a.deps.Product.RepositoryAnalysisSnapshot(ctx, r.PathValue("id"), req.SourceMode)
 	cancel()
@@ -215,9 +292,20 @@ func (a *API) handleRepositoryAnalysis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if snapshot.Specification.Revision != req.ExpectedRevision || snapshot.Specification.BriefRevision != req.ExpectedBriefRevision {
+		failureMessage = "No analysis was started. The definition changed. Reload the saved definition, review your retained answer and explicitly send a new request."
 		httpx.WriteProblem(w, 409, "revision_conflict", "The definition changed. Reload before analysing source.", nil)
 		return
 	}
+	if previous.ID != "" {
+		snapshot.FollowUp, err = a.repositoryFollowUp(previous, actor, r.PathValue("id"), snapshot.Source)
+		if err != nil {
+			failureMessage = "No analysis was started. " + err.Error()
+			httpx.WriteProblem(w, 409, "analysis_reply_unavailable", err.Error(), nil)
+			return
+		}
+	}
+
+	failureMessage = "No analysis was started. The combined source, definition and clarification history is too large. Review and save agreed decisions in the definition before starting a fresh analysis."
 	prompt, err := product.RepositoryAnalysisPrompt(snapshot, req.Message)
 	if err != nil {
 		httpx.WriteProblem(w, 413, "analysis_input_too_large", err.Error(), nil)
@@ -228,7 +316,31 @@ func (a *API) handleRepositoryAnalysis(w http.ResponseWriter, r *http.Request) {
 		codexAccountProblem(w, err)
 		return
 	}
-	jobID := ids.New("assist")
+	job.Harness, job.Model, job.AuthMode, job.Source = req.Harness, req.Model, req.AuthMode, &snapshot.Source
+	if snapshot.FollowUp != nil {
+		job.ReplySourceChanged = snapshot.FollowUp.SourceChanged
+	}
+	bindAssistantJob(&job, connection)
+	failureMessage = "This request was interrupted before inference began. No analysis was started. Review your retained answer before explicitly starting a new request."
+	if req.IdempotencyKey == "" {
+		err = a.assistanceStore().Create(job)
+	} else {
+		_, err = a.assistanceStore().Update(job.ID, func(saved *assistance.Job) error {
+			if saved.Status != "reserved" {
+				return errRepositoryAdmissionClosed
+			}
+			*saved = job
+			return nil
+		})
+	}
+	if err != nil {
+		if errors.Is(err, errRepositoryAdmissionClosed) {
+			a.returnClosedRepositoryAnalysis(w, r, job.ID)
+			return
+		}
+		httpx.WriteProblem(w, 503, "analysis_request_unavailable", "The request receipt could not be confirmed. Keep the original key and check its status before retrying.", nil)
+		return
+	}
 	inputDir, err := a.assistDirectory(filepath.Join("assistance", "runs", jobID, "input"))
 	if err != nil {
 		codexAccountProblem(w, err)
@@ -252,13 +364,28 @@ func (a *API) handleRepositoryAnalysis(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	spec.Mounts = append(spec.Mounts, backend.Mount{HostPath: inputDir, ContainerPath: "/luci-input", ReadOnly: true}, backend.Mount{HostPath: outputDir, ContainerPath: "/luci-output"})
-	job := assistance.Job{ID: jobID, ProjectID: snapshot.Specification.ProjectID, ExpectedRevision: req.ExpectedRevision, ExpectedBriefRevision: req.ExpectedBriefRevision, SessionID: s.ID, Kind: "repository", Harness: req.Harness, Model: req.Model, AuthMode: req.AuthMode, Source: &snapshot.Source, Status: "queued", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: "Waiting for your selected provider in the private Docker runtime."}
-	bindAssistantJob(&job, connection)
-	if err = a.assistanceStore().Create(job); err != nil {
-		a.markSessionExited(s.ID, "assistant record could not be retained")
-		codexAccountProblem(w, err)
+	if r.Context().Err() != nil {
+		a.markSessionExited(s.ID, "analysis request cancelled before dispatch")
 		return
 	}
+	job, err = a.assistanceStore().Update(jobID, func(saved *assistance.Job) error {
+		if saved.Status != "reserved" {
+			return errRepositoryAdmissionClosed
+		}
+		saved.SessionID, saved.Status = s.ID, "queued"
+		saved.Message = "Waiting for your selected provider in the private Docker runtime."
+		return nil
+	})
+	if err != nil {
+		a.markSessionExited(s.ID, "assistant dispatch record could not be confirmed")
+		if errors.Is(err, errRepositoryAdmissionClosed) {
+			a.returnClosedRepositoryAnalysis(w, r, jobID)
+			return
+		}
+		httpx.WriteProblem(w, 503, "analysis_request_unavailable", "The request dispatch record could not be confirmed. Keep the original key and check its status before retrying.", nil)
+		return
+	}
+
 	jobCtx, jobCancel := context.WithTimeout(context.Background(), assistDeadline)
 	a.assistMu.Lock()
 	if a.assistCancels == nil {
@@ -266,9 +393,10 @@ func (a *API) handleRepositoryAnalysis(w http.ResponseWriter, r *http.Request) {
 	}
 	a.assistCancels[jobID] = jobCancel
 	a.assistMu.Unlock()
+	admitted = true
 	go a.runAssistance(jobCtx, jobCancel, job, &spec)
 	job.UpdatedAt = job.CreatedAt
-	httpx.WriteJSON(w, 202, job)
+	writeAssistanceJob(w, r, 202, job)
 }
 
 func (a *API) handleAnalysisApply(w http.ResponseWriter, r *http.Request) {

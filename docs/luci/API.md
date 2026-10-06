@@ -500,10 +500,24 @@ GET `/v1/product/projects/{id}/assist` returns the newest twenty job metadata
 records as `{jobs:[...]}` without results or provider calls. GET
 `/assist/{jobId}` reads a saved detailed result. POST `/assist/repository`
 accepts `{expectedRevision,expectedBriefRevision,sourceMode,harness,model,
-agentConnectionId?,acknowledgeSourceRead:true,message?}` and returns202 with a durable job.
+agentConnectionId?,expectedAgentConnectionRevision?,acknowledgeSourceRead:true,message?,replyToAnalysisId?,
+idempotencyKey?}` and returns202 with a durable job (200 for an exact retained
+request). The UI retains a 16–128 character letters/digits/`_`/`-` key before
+sending. Keys bind the authenticated account, private workspace and project to
+the complete original request, including the chosen provider/model, message,
+source mode and revision checks. Changing that request under a retained key is
+a409 conflict. Legacy first-analysis clients may omit the key; follow-ups must
+include one.
 Source mode is `worktree` or `commit`; harness is `codex`, `claude-code` or
 `opencode`. An explicit non-default model is required. All three use the shared
 connection resolver; a named connection requires its exact saved model alias.
+The UI also binds source consent to that connection's positive
+`expectedAgentConnectionRevision`. A changed revision closes the exact request
+as failed before source sampling or inference; review the current endpoint and
+model and renew consent for a new request. Exact retries of already admitted
+requests still return their original receipt. Legacy callers may omit the
+revision and retain their existing current-connection selection behavior; the
+UI never silently adds or updates it in an already saved pending request.
 Legacy clients may still specify `authMode`; this cannot override a named
 connection. OpenCode uses its saved qualified provider/model identifier.
 No provider fallback occurs.
@@ -521,6 +535,47 @@ job belongs to the project, both revisions and source fingerprints still match,
 and the proposal has not previously been applied. Approval remains a separate
 operation. POST `/assist/{jobId}/cancel {}` cancels an owned run. Loading saved
 history never starts inference or changes the definition.
+
+A successful result may contain a consequential `question` and `options` with
+`proposal:null`. The question remains visible and answerable: choosing an option
+only fills an editable answer; the person explicitly sends it with renewed source
+consent. A follow-up names `replyToAnalysisId` and sends the answer as `message`.
+The server loads the exact saved result and up to sixteen earlier exchanges from
+the same authenticated actor and project, retaining earlier human decisions.
+Foreign, unattributed, missing or damaged ancestry is refused. The selected
+current source is sampled again; `replySourceChanged` reports drift from the
+previous snapshot. Previous findings are historical claims, not current source
+verification. A follow-up still requires the existing explicit source/definition
+CAS Apply and separate approval. The bounded prompt remains256KiB; if the chain
+or prompt limit is reached, review and save agreed decisions in the definition
+before starting a new analysis.
+
+GET `/assist/repository/requests/{idempotencyKey}` reads the current account's
+retained request, including `requestedBy`, `userMessage`, `replyToAnalysisId`,
+source provenance and exact resolved provider receipt. It never repairs state,
+samples source, resolves a provider, probes a sandbox or allocates work. A404
+does not prove a delayed first request cannot arrive. Only an explicit retry of
+the exact original body/key may join that request; the UI never silently retries
+or generates a replacement key. Corrupt records fail503 and remain untouched.
+The provisional `reserved` status means dispatch is not confirmed. A valid owned
+key is reserved before provider, source and definition validation. A definitive
+rejection closes that same key as failed without inference, with a reason and
+remedy; checking that terminal receipt allows a person to explicitly submit a
+corrected new request. The old exact request can never dispatch later. Startup
+recovery likewise closes an abandoned reservation without inference. Unknown or
+unreadable records remain unresolved; warnings alone never authorize forgetting
+the original key. Cancellation and dispatch use the same reserved-state guard. Completed request keys remain retained independently of the
+twenty-job history display. New repository requests stop at4096 private job
+entries; existing request lookups still work. There is no automatic receipt
+deletion or unsafe key reuse to regain capacity. Manual definition editing
+remains available while the host operator inspects storage.
+
+Repository job HTTP responses also expose `ownRequest`, computed from the current
+authenticated workspace actor and the retained `requestedBy`. This includes
+history, detail, start/retry, exact-request lookup and cancellation responses.
+It is never stored or accepted as client authority. The UI uses this projection
+because a local login and the selected cloud workspace can belong to different
+account IDs; server-side follow-up ownership checks remain authoritative.
 
 ## Recovering an uncertain orchestrator request
 

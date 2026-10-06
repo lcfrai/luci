@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ComponentProps } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ComponentProps } from 'react';
 import { teamsApi, emptyGrants, type TeamDetail, type TeamGrants, type TeamMember, type ProjectGrant, type ProjectAccess } from '../../api/teams';
 import { errorText } from '../../api/product';
 import { useCockpit } from '../../store/store';
@@ -11,6 +11,8 @@ import { TeamServiceStatus } from '../auth/TeamServiceStatus';
 import { TeamDataLifecycle } from './TeamDataLifecycle';
 import { TeamAudit } from './TeamAudit';
 import { TeamInvitations, JoinTeamInvitation } from './TeamInvitations';
+import { BillingReturnNavigation } from './BillingReturnNavigation';
+import type { BillingReturnKind } from '../../api/billingReturn';
 const grantLabels: [keyof TeamGrants,string][] = [['execute','Run agents and checks'],['secrets','Use and manage credentials'],['deploy','Deploy applications'],['admin','Manage team access']];
 function Grants({value,onChange,disabled=false,project=false}: {value:TeamGrants;onChange(value:TeamGrants):void;disabled?:boolean;project?:boolean}) {
   return <div className="team-grants">{grantLabels.filter(([key])=>!project||key!=='admin').map(([key,label])=><label key={key}><input type="checkbox" checked={value[key]} disabled={disabled} onChange={event=>onChange({...value,[key]:event.target.checked})}/>{label}</label>)}</div>;
@@ -36,16 +38,18 @@ function AccessRow(props:ComponentProps<typeof AccessEditor>) {
 export function TeamWorkspaceControl() {
   const workspace=useTeamWorkspace();
   const [open,setOpen]=useState(false);
+  const [billingReturn,setBillingReturn]=useState<BillingReturnKind|null>(null);
+  const openBilling=useCallback((kind:BillingReturnKind)=>{setBillingReturn(kind);setOpen(true);},[]);
   if(!workspace)return null;
-  return <div className="team-workspace-control"><label htmlFor="team-workspace">Workspace</label><select id="team-workspace" value={workspace.selected?.team.id??''} onChange={event=>workspace.select(event.target.value)}>{!workspace.managedTeamId&&<option value="">Personal workspace</option>}{workspace.teams.map(row=><option key={row.team.id} value={row.team.id}>{row.team.name}</option>)}</select><button className="rail-settings" onClick={()=>setOpen(true)}>{workspace.selected?'Team access':'Manage teams'}</button>{open&&<TeamPanel onClose={()=>setOpen(false)}/>}</div>;
+  return <div className="team-workspace-control"><label htmlFor="team-workspace">Workspace</label><select id="team-workspace" value={workspace.selected?.team.id??''} onChange={event=>workspace.select(event.target.value)}>{!workspace.managedTeamId&&<option value="">Personal workspace</option>}{workspace.teams.map(row=><option key={row.team.id} value={row.team.id}>{row.team.name}</option>)}</select><button className="rail-settings" onClick={()=>{setBillingReturn(null);setOpen(true);}}>{workspace.selected?'Team access':'Manage teams'}</button><BillingReturnNavigation onOpenBilling={openBilling}/>{open&&<TeamPanel billingReturn={billingReturn} onClose={()=>setOpen(false)}/>}</div>;
 }
-function TeamPanel({onClose}:{onClose():void}) {
+function TeamPanel({onClose,billingReturn=null}:{onClose():void;billingReturn?:BillingReturnKind|null}) {
   const workspace=useTeamWorkspace()!;
   const teamId=workspace.selected?.team.id??'';
   const projectId=useCockpit(state=>state.selection.projectId)??'';
   const projectName=useCockpit(state=>state.projects.find(project=>project.id===projectId)?.name)??'Selected project';
   const tabsId=useId();
-  const [tab,setTab]=useState(0);
+  const [tab,setTab]=useState(billingReturn?2:0);
   const working=useRef(false);
   const [detail,setDetail]=useState<TeamDetail|null>(null);
   const [projectAccess,setProjectAccess]=useState<ProjectAccess|null>(null);
@@ -105,7 +109,10 @@ function TeamPanel({onClose}:{onClose():void}) {
         </section>}
         {admin&&!projectId&&<p>Select a project to manage its sharing.</p>}
         </TabsSubtlePanel>
-        <TabsSubtlePanel idPrefix={tabsId} selectedIndex={tab} index={2}><TeamServiceStatus teamId={detail.team.id}/><TeamDataLifecycle team={detail.team} membership={detail.membership} onChange={refresh}/></TabsSubtlePanel>
+        <TabsSubtlePanel idPrefix={tabsId} selectedIndex={tab} index={2}>
+          {billingReturn&&<section aria-label="Billing return guidance"><h3>{billingReturn==='cancel'?'Checkout closed':billingReturn==='portal'?'Back from subscription management':'Back from checkout'}</h3><p>{billingReturn==='cancel'?'You can resume an existing reserved checkout below when you are ready. Closing checkout does not cancel an existing subscription.':billingReturn==='portal'?'Review the last saved status below after changing subscription settings in Stripe.':'Review the last saved subscription status below after checkout.'} This return link does not confirm payment or activate access. A team owner can choose Verify subscription with Stripe to check the current outcome.</p></section>}
+          <TeamServiceStatus teamId={detail.team.id}/><TeamDataLifecycle team={detail.team} membership={detail.membership} onChange={refresh}/>
+        </TabsSubtlePanel>
       </>}
       <div className="workflow-actions"><Button variant="secondary" disabled={busy} onClick={onClose}>Close</Button></div>
     </div>

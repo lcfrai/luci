@@ -21,6 +21,7 @@ it('requires current price and terms review, reserves once and exposes a verifie
   expect(checkout).toHaveBeenCalledExactlyOnceWith('team-one', 'quote-one', 2);
   await act(async () => { finish({ url: 'https://checkout.stripe.com/c/pay/cs_fixture' }); });
   expect((await screen.findByRole('link', { name: 'Continue to Stripe checkout' })).getAttribute('href')).toBe('https://checkout.stripe.com/c/pay/cs_fixture');
+  expect(screen.getByRole('link', { name: 'Continue to Stripe checkout' }).getAttribute('target')).toBeNull();
   expect(screen.getByText(/New team execution is unavailable/)).not.toBeNull();
   expect(screen.getByText(/Returning from Stripe does not activate access/)).not.toBeNull();
 });
@@ -41,6 +42,7 @@ it('keeps cancellation available when execution is suspended and exposes no owne
   const view = render(<TeamBilling teamId="team-one" />);
   await userEvent.click(await screen.findByRole('button', { name: 'Manage or cancel subscription' }));
   expect(await screen.findByRole('link', { name: 'Open Stripe subscription management' })).not.toBeNull();
+  expect(screen.getByRole('link', { name: 'Open Stripe subscription management' }).getAttribute('target')).toBeNull();
   expect(portal).toHaveBeenCalledWith('team-one');
   read.mockResolvedValue({ ...initial, owner: false, status: 'active' });
   view.rerender(<TeamBilling teamId="team-two" />);

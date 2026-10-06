@@ -3,6 +3,11 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event";
 import { DataFunctions } from "./DataFunctions";
 import { dataFunctionsApi, type FunctionCatalog, type FunctionSource, type FunctionSummary } from "../../api/dataFunctions";
+const access = vi.hoisted(() => ({ read: true, edit: true, deploy: true, secrets: true, loading: false, error: null as string | null, scope: "owned-account" }));
+vi.mock("../../hooks/useProjectAccess", () => ({ useProjectAccess: () => ({ loading: access.loading, error: access.error, canRead: access.read,
+  canEdit: !access.loading && !access.error && access.read && access.edit, permissions: { ...access } }) }));
+vi.mock("../../hooks/useProjectDraft", () => ({ useProjectDraftScope: (id: string) => `${access.scope}:${id}` }));
+beforeEach(() => { Object.assign(access, { read: true, edit: true, deploy: true, secrets: true, loading: false, error: null, scope: "owned-account" }); });
 vi.mock("../../api/dataFunctions", () => ({ dataFunctionsApi: { catalog: vi.fn(), source: vi.fn(), save: vi.fn(), action: vi.fn(), invoke: vi.fn() } }));
 const source: FunctionSource = { name: "welcome", path: "supabase/functions/welcome", sourceDigest: "draft-digest", authMode: "authenticated", files: [{ path: "index.ts", content: "Deno.serve(() => Response.json({ok:true}));" }], commit: "c".repeat(40), committedDigest: "draft-digest", workingChanged: false };
 const summary: FunctionSummary = { name: "welcome", path: source.path, sourceDigest: source.sourceDigest, authMode: "authenticated", workingChanged: false, builtin: false, history: [] };
@@ -125,4 +130,37 @@ it("offers explicit recovery but refuses to select an unverified candidate relea
   expect(screen.queryByRole("button", { name: "Choose release dddddddd" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Check function state" }));
   await waitFor(() => expect(dataFunctionsApi.action).toHaveBeenCalledExactlyOnceWith("owned", "welcome", { action: "refresh", expectedRevision: 7 }));
+});
+
+it("lets a private reader inspect functions while preventing source writes and invocation", async () => {
+  access.edit = false;
+  vi.mocked(dataFunctionsApi.catalog).mockResolvedValue({ ...catalog, functions: [{ ...summary, builtin: true, authMode: "project-key" }] });
+  render(<DataFunctions projectId="owned" ready />); await screen.findByLabelText("index.ts");
+  expect(screen.queryByRole("button", { name: "New function" })).toBeNull();
+  expect((screen.getByRole("button", { name: "Refresh functions" }) as HTMLButtonElement).disabled).toBe(false);
+  await userEvent.setup().click(screen.getByRole("tab", { name: "Test" }));
+  expect((screen.getByRole("button", { name: "Invoke welcome" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.submit(screen.getByLabelText("Function request").closest("form")!);
+  expect(dataFunctionsApi.invoke).not.toHaveBeenCalled(); expect(dataFunctionsApi.save).not.toHaveBeenCalled();
+});
+it("preserves the same function editor through routine access refresh and fences revoked save receipts", async () => {
+  let finish!: (value: FunctionSource) => void;
+  vi.mocked(dataFunctionsApi.save).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<DataFunctions projectId="owned" ready />); const editor = await screen.findByLabelText("index.ts") as HTMLTextAreaElement;
+  fireEvent.change(editor, { target: { value: "unsaved current source" } });
+  access.loading = true; access.deploy = false; access.secrets = false; view.rerender(<DataFunctions projectId="owned" ready />);
+  expect(screen.getByLabelText("index.ts")).toBe(editor); expect(editor.value).toBe("unsaved current source");
+  access.loading = false; access.deploy = true; access.secrets = true; view.rerender(<DataFunctions projectId="owned" ready />);
+  fireEvent.click(screen.getByRole("button", { name: "Save source" }));
+  access.edit = false; view.rerender(<DataFunctions projectId="owned" ready />);
+  access.edit = true; view.rerender(<DataFunctions projectId="owned" ready />);
+  await act(async () => finish({ ...source, files: [{ path: "index.ts", content: "late response source" }] }));
+  expect(editor.value).toBe("unsaved current source"); expect(dataFunctionsApi.catalog).toHaveBeenCalledTimes(1);
+  expect((screen.getByRole("button", { name: "Save source" }) as HTMLButtonElement).disabled).toBe(false);
+  access.error = "Membership denied"; access.read = false; view.rerender(<DataFunctions projectId="owned" ready />);
+  expect(screen.queryByLabelText("index.ts")).toBeNull();
+});
+it("does not request a private function catalogue without deployment access", () => {
+  access.deploy = false; render(<DataFunctions projectId="owned" ready />);
+  expect(dataFunctionsApi.catalog).not.toHaveBeenCalled();
 });

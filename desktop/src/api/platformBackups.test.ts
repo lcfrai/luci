@@ -50,3 +50,12 @@ it("rejects a mismatched import receipt instead of presenting the wrong stored b
   vi.spyOn(productApi, "requestBlob").mockImplementation(async () => new Response(JSON.stringify({ id: "wrong", bytes: file.size, sha256: "0".repeat(64) })).blob());
   await expect(platformApi.importDatabaseBackup("p", file, true)).rejects.toThrow("receipt does not match");
 });
+
+it("refuses an upload when project grants change while the selected dump is being read", async () => {
+  vi.stubGlobal("crypto", webcrypto);
+  const transfer = vi.spyOn(productApi, "requestBlob"), { file, bytes } = dump();
+  let allowed = true;
+  vi.mocked(file.arrayBuffer).mockImplementation(async () => { allowed = false; return bytes.buffer; });
+  await expect(platformApi.importDatabaseBackup("owned", file, true, undefined, () => allowed)).rejects.toThrow("account or workspace changed");
+  expect(transfer).not.toHaveBeenCalled();
+});

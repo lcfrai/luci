@@ -1,11 +1,18 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { StandaloneDatabase } from "./StandaloneDatabase";
 import { platformApi, type PlatformProject } from "../../api/platform";
 
 vi.mock("../../api/platform", () => ({ platformApi: {
   database: vi.fn(), downloadBackup: vi.fn(), restoreDatabase: vi.fn(), recoverPreviousDatabase: vi.fn(), importDatabaseBackup: vi.fn(),
 } }));
+const access = vi.hoisted(() => ({ read: true, edit: true, deploy: true, secrets: true, loading: false, error: null as string | null, scope: "account-workspace" }));
+vi.mock("../../hooks/useProjectAccess", () => ({ useProjectAccess: () => ({
+  loading: access.loading, error: access.error, canRead: access.read,
+  canEdit: !access.loading && !access.error && access.read && access.edit,
+  permissions: { read: access.read, edit: access.edit, deploy: access.deploy, secrets: access.secrets },
+}) }));
+vi.mock("../../hooks/useProjectDraft", () => ({ useProjectDraftScope: (projectId: string) => `${access.scope}:${projectId}` }));
 
 const backup = { id: "backup-owned", createdAt: "2026-10-06T00:00:00Z", bytes: 2048, sha256: "a".repeat(64), database: "app" };
 const project: PlatformProject = {
@@ -17,11 +24,13 @@ const operation = {
   stage: "checking", status: "running" as const, message: "Checking the restored database.",
   createdAt: "2026-10-06T01:00:00Z", updatedAt: "2026-10-06T01:00:01Z",
 };
-const run = vi.fn(async (_label: string, task: () => Promise<unknown>) => { await task(); });
+// The real platform runner catches task failures and renders their safe message.
+const run = vi.fn(async (_label: string, task: () => Promise<unknown>) => { try { await task(); } catch { /* owned by parent UI */ } });
 const onDeployments = vi.fn();
 const props = { projectId: "owned", project, dockerReady: true, disabled: false, run, onDeployments };
 beforeEach(() => {
   vi.clearAllMocks();
+  Object.assign(access, { read: true, edit: true, deploy: true, secrets: true, loading: false, error: null, scope: "account-workspace" });
   vi.mocked(platformApi.restoreDatabase).mockResolvedValue(operation);
   vi.mocked(platformApi.recoverPreviousDatabase).mockResolvedValue({ ...operation, action: "rollback-restore" });
   vi.mocked(platformApi.importDatabaseBackup).mockResolvedValue({ ...backup, imported: true });
@@ -71,14 +80,36 @@ it("locks all database actions during actual restore and retains a useful failed
   expect((screen.getByRole("button", { name: "Restore PostgreSQL backup" }) as HTMLButtonElement).disabled).toBe(false);
 });
 
-it("requires redeployment after promotion and retains distinct failed and successful history", () => {
+it("connects verified recovery to application deployments and retains distinct failed and successful history", () => {
   const succeeded = { ...operation, status: "succeeded" as const, stage: "complete", message: "Restored database passed its health check." };
   render(<StandaloneDatabase {...props} project={{ ...project, database: { ...project.database, status: "ready" }, databaseOperation: succeeded,
     databaseRestoreHistory: [succeeded, { ...operation, id: "previous-failed", status: "failed", stage: "failed", message: "An earlier candidate failed; its data remains retained." }] }} />);
-  expect(screen.getByText("Redeploy your application to connect to the restored database.")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Open application deployments" }));
+  expect(onDeployments).toHaveBeenCalledOnce();
+  expect(screen.getAllByText(succeeded.message).length).toBeGreaterThan(0);
   expect(screen.getByRole("list", { name: "PostgreSQL restore history" }).textContent).toContain("succeeded");
   expect(screen.getByRole("list", { name: "PostgreSQL restore history" }).textContent).toContain("failed");
   expect((screen.getByRole("button", { name: "Restore PostgreSQL backup" }) as HTMLButtonElement).disabled).toBe(true);
+});
+
+it.each(["restore", "rollback-restore"])("keeps the %s success destination read-only and pauses it while access is uncertain", action => {
+  access.edit = false;
+  const succeeded = { ...operation, action, status: "succeeded" as const, stage: "complete", message: "The selected database is verified. Redeploy applications to use it." };
+  const recovery = { ...project, databaseOperation: succeeded };
+  const view = render(<StandaloneDatabase {...props} project={recovery} />);
+  const destination = screen.getByRole("button", { name: "Open application deployments" }) as HTMLButtonElement;
+  expect(destination.disabled).toBe(false);
+  expect(screen.getByText(succeeded.message)).not.toBeNull();
+  fireEvent.click(destination); expect(onDeployments).toHaveBeenCalledOnce();
+  expect(platformApi.database).not.toHaveBeenCalled(); expect(platformApi.restoreDatabase).not.toHaveBeenCalled();
+  expect(platformApi.recoverPreviousDatabase).not.toHaveBeenCalled();
+  access.loading = true; access.deploy = false;
+  view.rerender(<StandaloneDatabase {...props} project={recovery} />);
+  expect(screen.getByRole("button", { name: "Open application deployments" })).toBe(destination);
+  expect(destination.disabled).toBe(true); fireEvent.click(destination); expect(onDeployments).toHaveBeenCalledOnce();
+  access.loading = false;
+  view.rerender(<StandaloneDatabase {...props} project={recovery} />);
+  expect(screen.queryByRole("button", { name: "Open application deployments" })).toBeNull();
 });
 
 it("clears consent when the selected backup changes and refuses disappeared metadata", () => {
@@ -146,7 +177,7 @@ it("imports only an explicitly trusted file without starting or restoring Postgr
   expect(button.disabled).toBe(true);
   fireEvent.click(screen.getByRole("checkbox", { name: "I trust this dump and the SQL it can execute during restore." }));
   fireEvent.click(button); fireEvent.click(button);
-  await waitFor(() => expect(platformApi.importDatabaseBackup).toHaveBeenCalledExactlyOnceWith("owned", file, true, expect.any(AbortSignal)));
+  await waitFor(() => expect(platformApi.importDatabaseBackup).toHaveBeenCalledExactlyOnceWith("owned", file, true, expect.any(AbortSignal), expect.any(Function)));
   expect(platformApi.database).not.toHaveBeenCalled();
   expect(platformApi.restoreDatabase).not.toHaveBeenCalled();
   expect((screen.getByRole("checkbox", { name: /Switch to this backup/ }) as HTMLInputElement).checked).toBe(false);
@@ -170,4 +201,128 @@ it("clears file trust when the selection or project changes and cancels pending 
   finish(backup);
   await waitFor(() => expect((screen.getByRole("button", { name: "Import PostgreSQL backup" }) as HTMLButtonElement).disabled).toBe(true));
   expect(platformApi.restoreDatabase).not.toHaveBeenCalled();
+});
+
+it.each(["read", "deploy", "secrets"] as const)("requires %s access before revealing private backups or offering recovery", permission => {
+  access[permission] = false;
+  render(<StandaloneDatabase {...props} />);
+  expect(screen.queryByText("Data retained.")).toBeNull();
+  expect(screen.queryByRole("list", { name: "PostgreSQL backups" })).toBeNull();
+  expect(screen.queryByLabelText("PostgreSQL dump file")).toBeNull();
+  expect(screen.getByRole("status").textContent).toMatch(/owner|access/i);
+  expect(platformApi.database).not.toHaveBeenCalled(); expect(platformApi.downloadBackup).not.toHaveBeenCalled();
+});
+
+it("lets authorized readers download a backup while preventing all database mutations", async () => {
+  access.edit = false;
+  render(<StandaloneDatabase {...props} />);
+  expect(screen.getByRole("list", { name: "PostgreSQL backups" })).not.toBeNull();
+  expect(screen.getByRole("status").textContent).toMatch(/edit/i);
+  const download = screen.getByRole("button", { name: /^Download database backup/ });
+  expect((download as HTMLButtonElement).disabled).toBe(false);
+  fireEvent.click(download);
+  expect(platformApi.downloadBackup).toHaveBeenCalledExactlyOnceWith("owned", backup, expect.any(Function));
+  for (const name of ["Start PostgreSQL", "Stop PostgreSQL", "Create database backup", "Import PostgreSQL backup", "Restore PostgreSQL backup"]) {
+    const button = screen.getByRole("button", { name }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true); fireEvent.click(button);
+  }
+  fireEvent.submit(screen.getByRole("form", { name: "Import PostgreSQL backup" }));
+  fireEvent.submit(screen.getByRole("form", { name: "Restore PostgreSQL backup" }));
+  expect(platformApi.database).not.toHaveBeenCalled(); expect(platformApi.importDatabaseBackup).not.toHaveBeenCalled();
+  expect(platformApi.restoreDatabase).not.toHaveBeenCalled(); expect(platformApi.recoverPreviousDatabase).not.toHaveBeenCalled();
+});
+
+it("preserves restore and upload drafts through a routine permission refresh while disabling actions", () => {
+  const view = render(<StandaloneDatabase {...props} />);
+  chooseAndConfirm();
+  const file = new File(["PGDMP-fixture"], "saved.dump");
+  const input = screen.getByLabelText("PostgreSQL dump file") as HTMLInputElement;
+  fireEvent.change(input, { target: { files: [file] } });
+  const trust = screen.getByRole("checkbox", { name: /I trust this dump/ }) as HTMLInputElement;
+  fireEvent.click(trust);
+  const form = screen.getByRole("form", { name: "Restore PostgreSQL backup" });
+  access.loading = true;
+  view.rerender(<StandaloneDatabase {...props} />);
+  expect(screen.getByRole("form", { name: "Restore PostgreSQL backup" })).toBe(form);
+  expect(screen.getByLabelText("PostgreSQL dump file")).toBe(input);
+  expect(input.files?.[0]).toBe(file); expect(trust.checked).toBe(true);
+  expect((screen.getByRole("checkbox", { name: /Switch to this backup/ }) as HTMLInputElement).checked).toBe(true);
+  for (const name of ["Import PostgreSQL backup", "Restore PostgreSQL backup"]) expect((screen.getByRole("button", { name }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: /^Download database backup/ }) as HTMLButtonElement).disabled).toBe(true);
+  access.loading = false; view.rerender(<StandaloneDatabase {...props} />);
+  expect(input.files?.[0]).toBe(file); expect(trust.checked).toBe(true);
+  expect((screen.getByRole("button", { name: "Import PostgreSQL backup" }) as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByRole("button", { name: "Restore PostgreSQL backup" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(platformApi.importDatabaseBackup).not.toHaveBeenCalled(); expect(platformApi.restoreDatabase).not.toHaveBeenCalled();
+});
+
+it("clears private selections on confirmed read revocation and does not restore prior consent on regrant", () => {
+  const view = render(<StandaloneDatabase {...props} />);
+  chooseAndConfirm();
+  fireEvent.change(screen.getByLabelText("PostgreSQL dump file"), { target: { files: [new File(["PGDMP"], "private.dump")] } });
+  fireEvent.click(screen.getByRole("checkbox", { name: /I trust this dump/ }));
+  access.secrets = false; view.rerender(<StandaloneDatabase {...props} />);
+  expect(screen.queryByRole("list", { name: "PostgreSQL backups" })).toBeNull();
+  expect(screen.queryByRole("form", { name: "Restore PostgreSQL backup" })).toBeNull();
+  access.secrets = true; view.rerender(<StandaloneDatabase {...props} />);
+  expect((screen.getByRole("combobox", { name: "PostgreSQL backup to restore" }) as HTMLSelectElement).value).toBe("");
+  expect((screen.getByLabelText("PostgreSQL dump file") as HTMLInputElement).value).toBe("");
+  expect((screen.getByRole("checkbox", { name: /I trust this dump/ }) as HTMLInputElement).checked).toBe(false);
+  expect((screen.getByRole("checkbox", { name: /Switch to this backup/ }) as HTMLInputElement).checked).toBe(false);
+});
+
+it("refuses a deferred mutation after editing access is revoked, even when later granted again", async () => {
+  let task!: () => Promise<unknown>;
+  const deferredRun = vi.fn(async (_label: string, deferred: () => Promise<unknown>) => { task = deferred; });
+  const view = render(<StandaloneDatabase {...props} run={deferredRun} />);
+  fireEvent.click(screen.getByRole("button", { name: "Start PostgreSQL" }));
+  access.edit = false; view.rerender(<StandaloneDatabase {...props} run={deferredRun} />);
+  access.edit = true; view.rerender(<StandaloneDatabase {...props} run={deferredRun} />);
+  await expect(task()).rejects.toThrow("Database access changed");
+  expect(platformApi.database).not.toHaveBeenCalled();
+});
+
+it("aborts an in-flight upload on edit revocation and ignores its late receipt after regrant", async () => {
+  let finish!: (value: typeof backup) => void;
+  vi.mocked(platformApi.importDatabaseBackup).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<StandaloneDatabase {...props} />);
+  fireEvent.change(screen.getByLabelText("PostgreSQL dump file"), { target: { files: [new File(["PGDMP-fixture"], "private.dump")] } });
+  fireEvent.click(screen.getByRole("checkbox", { name: /I trust this dump/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Import PostgreSQL backup" }));
+  const signal = vi.mocked(platformApi.importDatabaseBackup).mock.calls[0][3]!;
+  access.edit = false; view.rerender(<StandaloneDatabase {...props} />);
+  expect(signal.aborted).toBe(true);
+  expect(screen.getByRole("list", { name: "PostgreSQL backups" })).not.toBeNull();
+  access.edit = true; view.rerender(<StandaloneDatabase {...props} />);
+  await act(async () => finish(backup));
+  expect((screen.getByRole("combobox", { name: "PostgreSQL backup to restore" }) as HTMLSelectElement).value).toBe("");
+  expect((screen.getByRole("checkbox", { name: /I trust this dump/ }) as HTMLInputElement).checked).toBe(false);
+  expect(platformApi.restoreDatabase).not.toHaveBeenCalled();
+});
+
+it("passes an artifact guard that survives loading but closes permanently on grant loss", () => {
+  const view = render(<StandaloneDatabase {...props} />);
+  fireEvent.click(screen.getByRole("button", { name: /^Download database backup/ }));
+  const current = vi.mocked(platformApi.downloadBackup).mock.calls[0][2]!;
+  expect(current()).toBe(true);
+  access.loading = true; view.rerender(<StandaloneDatabase {...props} />);
+  expect(current()).toBe(true);
+  access.loading = false; access.secrets = false; view.rerender(<StandaloneDatabase {...props} />);
+  expect(current()).toBe(false);
+  access.secrets = true; view.rerender(<StandaloneDatabase {...props} />);
+  expect(current()).toBe(false);
+});
+
+it("clears selected backups across account/workspace changes and fences downloads after unmount", () => {
+  const view = render(<StandaloneDatabase {...props} />);
+  chooseAndConfirm();
+  fireEvent.click(screen.getByRole("button", { name: /^Download database backup/ }));
+  const previous = vi.mocked(platformApi.downloadBackup).mock.calls[0][2]!;
+  access.scope = "different-account-workspace"; view.rerender(<StandaloneDatabase {...props} />);
+  expect(previous()).toBe(false);
+  expect((screen.getByRole("combobox", { name: "PostgreSQL backup to restore" }) as HTMLSelectElement).value).toBe("");
+  fireEvent.click(screen.getByRole("button", { name: /^Download database backup/ }));
+  const current = vi.mocked(platformApi.downloadBackup).mock.calls[1][2]!;
+  view.unmount();
+  expect(current()).toBe(false);
 });

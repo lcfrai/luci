@@ -297,6 +297,7 @@ function ProjectEntryForm({
                 <section aria-label="Import recovery" aria-live="polite">
                   <h2>Import status</h2>
                   <p>{attempt ? importStatusMessage(attempt.status) : "This import has a saved request. Check its status before starting any further work."}</p>
+                  {attempt?.status !== "complete" && <p className="journey-muted">Closing this window keeps the request saved and does not cancel an import. Return to Import repository to check it.</p>}
                   <details>
                     <summary>Import details</summary>
                     {attempt?.message && <p>{attempt.message}</p>}
@@ -347,7 +348,7 @@ function ProjectEntryForm({
                   disabled={busy}
                   onClick={onClose}
                 >
-                  Cancel
+                  {mode === "import" && pending ? "Close" : "Cancel"}
                 </button>
               </div>
               {busy && (

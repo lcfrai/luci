@@ -12,34 +12,107 @@ new durable-run, portable-context, team and release-integrity work. Earlier
 installed versions, hashes and results are preserved as historical evidence;
 none is relabelled as acceptance of the new candidate.
 
-## Current continuation: collaboration and import recovery
+## Current continuation: collaboration, import and database recovery
 
-The clean `a10d941e` Linux package passes portable/launcher acceptance. Its
-installed two-person journey passes seven groups: concurrent context recovery,
-old versus amended build scope, renewed actual coding/checks, matching preview
-acceptance, preview continuity during permission refresh, owned replacement,
-and actual prototype behavior at the planned phone width. The complete attempt
-remains failed at prototype-to-handoff tab activation. Preserve the receipt and
-screenshots in `artifacts/package-eval/0.5.0-a10d941e/team-amendment-attempt-3`.
-A smaller rendered reproduction and a focused regression pass; no guessed tab
-handler fix has been made. The next installed attempt records bounded pointer,
-focus and selection diagnostics. Isolated composer recovery against this package
-passes both scenarios with zero model calls, but is not a full-journey pass.
+The clean `7ff66d3b` Linux package passes all ten installed two-person journey
+groups: concurrent context recovery, old versus amended build scope, renewed
+actual coding/checks, matching preview acceptance, permission-refresh continuity,
+owned deployment replacement, actual prototype behavior at the planned phone
+width, source-bound observation/amendment and both composer recovery scenarios.
+The original check is retained byte-for-byte while the amended outcome is also
+verified. A saved prototype observation remains an unapproved future change;
+historical accepted inputs remain intact. Composer reload and injected
+pre-admission failure recovery each make zero additional model calls. Receipt,
+screenshots and exact accepted driver/helper bytes are retained in
+`artifacts/package-eval/0.5.0-7ff66d3b/team-amendment-attempt-5`.
 
-Subsequent source adds recoverable repository import: owned staging, native
+Preserve the failed `a10d941e` attempt 3 and `7ff66d3b` attempt 4. A full-layout
+diagnostic reproduced Chromium 151 sending the intended handoff click into the
+cross-process preview iframe at its old pre-scroll position. A fresh comparison
+with explicit scroll and bounded settled tab/iframe geometry delivered one
+ordinary click to the correct tab. Only that driver readiness step changed;
+no product handler, assertion or retry was substituted. The diagnosis is retained
+in `artifacts/onboarding/prototype-click-synchronization-comparison.json`.
+
+This candidate includes recoverable repository import: owned staging, native
 no-overwrite publication, final directory identity checks, durable private
 receipts, safe retry with the same intended name, and explicit read-only recovery
 after a lost response. It also corrects accepted-run guidance in both the
 orchestrator's context projection and the visible overview, preserving later
 invalidity and health warnings without rewriting historical evidence.
 
+The clean `7ff66d3b` Linux package passes six portable acceptance groups and seven
+launcher outcomes. Its installed import journey passes four groups using real
+Git over an owned local HTTPS remote: failed clone, corrected same-name import,
+lost completion response and explicit read-only recovery/open without duplicate
+work. Exactly three import requests produce three clone starts, and two recovery
+reads produce none. Both original commits and all tracked files match. The
+archive, binary and every installed web asset are independently verified against
+the clean package provenance. Receipt and screenshots:
+`artifacts/package-eval/0.5.0-7ff66d3b/import-attempt-4`. Earlier attempts retain
+their driver setup/selector/cleanup failures; no product failure is relabelled.
+Four bounded accessibility scans report no violations and retain incomplete
+contrast items for manual assessment. Private repository authentication and
+live model discovery are not established by this local fixture.
+
+The same clean `7ff66d3b` package also passes five installed standalone PostgreSQL
+recovery groups: UI start/backup/download, explicit trusted import, restore into a
+new database while retaining the original, explicit rollback to that original,
+and service restart with a fresh browser sign-in. The downloaded and imported
+1,664 bytes match exactly. Actual SQL witnesses distinguish pre-backup records
+from later changes and verify both retained database generations. The fixture's
+owned container, volume and network were removed and verified absent. Receipt:
+`artifacts/package-eval/0.5.0-7ff66d3b/database-recovery-attempt-3/result.json`.
+Earlier attempts retain their fixture-routing and browser-response-inspection
+failures. This demonstrates the lighter supported PostgreSQL path; application
+authentication, row isolation and full Supabase storage restoration remain open.
+The full-stack gate requires an adequate Docker host: this environment's entire
+32 GiB root disk is smaller than the product's 40 GiB free-disk requirement.
+
 The service suite passes 2,011 test/subtest outcomes (22 skips), with 1,184 race
 outcomes across the changed integration packages (five skips). The frontend
 suite passes 1,771 of 1,772 tests; its single obsolete mock-argument assertion was
 corrected, and all five tests in that affected suite pass. Type checking and the
-production web build pass. Logs are in `artifacts/quality-imports`. Matching
-installed import acceptance and the complete combined journey remain pending;
-[QUALITY-WORKLIST.md](QUALITY-WORKLIST.md) keeps those outcomes open.
+production web build pass. Logs are in `artifacts/quality-imports`. The complete
+combined team journey passes against this same `7ff66d3b` package;
+[QUALITY-WORKLIST.md](QUALITY-WORKLIST.md) records their scope and the remaining
+whole-product obligations.
+
+The next source batch addresses three gaps in continuing a project:
+
+- Repository analysis now shows consequential questions and editable answers.
+  A reply uses the server's owned canonical question/answer history and a fresh
+  authorized source snapshot. A separately retained exact request survives
+  reload and uncertain responses without automatic resend. Definitive rejection,
+  cancellation and durable publication are fenced before inference. Consent is
+  bound to the selected connection revision; ownership is projected from the
+  actual selected workspace account, which may differ from the local login.
+- Subscription return links resume the authorized team's Service and data view
+  through sign-in, explicit workspace choice and existing unsaved-draft guards.
+  A URL neither verifies payment nor grants access. New checkout reservations
+  retain a return-URL version; pre-existing reservations reproduce their original
+  Stripe parameters under the original idempotency key.
+- Data, database, functions, email and domain controls explain and enforce the
+  current project permissions. Refresh preserves same-project drafts while
+  actions are disabled; confirmed denial hides private state. Delayed results,
+  backup hashing and downloads cannot outlive the permission grant. Successful
+  database restore or rollback offers an immediate route to deployments.
+
+The complete service suite passes 2,045 outcomes (22 skips); the changed-package
+race suite passes 1,230 (five skips). The final repository clarification slice
+passes 51 frontend tests and type checking. Windows AMD64 and Darwin ARM64 API
+test executables compile successfully; native execution is not inferred. The
+first complete frontend run passes 1,873 of 1,874 tests; its sole obsolete copy
+assertion was updated to verify the actual recovery-to-deployments action, and
+all 20 tests in that file pass. The fresh complete run then passes all **1,874
+frontend tests across 125 files**. The original failed log remains retained.
+Matching installed acceptance is continuing. Logs are in `artifacts/quality-clarification`.
+These source results do not establish live model or merchant acceptance.
+
+GitHub rejected the `7ff66d3b` Actions run before any check step for account
+payment/spending admission, recorded in
+`artifacts/onboarding/ci-7ff66d3b-admission-annotations.json`. The installed Windows
+failure therefore remains undiagnosed; local Linux success does not close it.
 
 ## Product-quality completion standard — 6 October 2026
 

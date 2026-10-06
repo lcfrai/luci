@@ -28,6 +28,7 @@ func (a *API) registerAssistance(mux *routes) {
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist", a.handleAssistCreate)
 	mux.HandleFunc("GET /v1/product/projects/{id}/assist", a.handleAssistList)
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist/repository", a.handleRepositoryAnalysis)
+	mux.HandleFunc("GET /v1/product/projects/{id}/assist/repository/requests/{requestId}", a.handleRepositoryAnalysisRequest)
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist/orchestrator", a.handleOrchestratorCreate)
 	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/resolve", a.handleOrchestratorResolve)
 	mux.HandleFunc("GET /v1/product/projects/{id}/assist/{jobId}", a.handleAssistGet)
@@ -130,7 +131,7 @@ func (a *API) assistanceStore() *assistance.Store {
 			if err != nil {
 				return err
 			}
-			return codexAtomicPrivate(filepath.Join(dir, id+".json"), b)
+			return writeAssistanceReceipt(filepath.Join(dir, id+".json"), b)
 		})
 	}
 	return a.assistStore
@@ -362,7 +363,7 @@ func (a *API) assistJob(w http.ResponseWriter, r *http.Request) (assistance.Job,
 }
 func (a *API) handleAssistGet(w http.ResponseWriter, r *http.Request) {
 	if job, ok := a.assistJob(w, r); ok {
-		httpx.WriteJSON(w, 200, job)
+		writeAssistanceJob(w, r, 200, job)
 	}
 }
 func (a *API) handleAssistCancel(w http.ResponseWriter, r *http.Request) {
@@ -391,7 +392,7 @@ func (a *API) handleAssistCancel(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.completeOrchestratorJob(job)
-	httpx.WriteJSON(w, 200, job)
+	writeAssistanceJob(w, r, 200, job)
 }
 
 func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job assistance.Job, spec *backend.Spec) {
@@ -679,6 +680,12 @@ func (a *API) recoverAssistance() {
 		id := strings.TrimSuffix(entry.Name(), ".json")
 		job, err := a.assistanceStore().Read(id)
 		if err != nil {
+			continue
+		}
+		if job.Kind == "repository" && job.Status == "reserved" {
+			// Admission wrote no dispatch/session identity. Only startup (with
+			// the exclusive worker lease), never GET, may close this orphan.
+			a.failReservedRepositoryAnalysis(job.ID)
 			continue
 		}
 		if assistance.Terminal(job.Status) {

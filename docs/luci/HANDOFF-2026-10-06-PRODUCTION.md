@@ -16,8 +16,9 @@ The owner explicitly rejects a clean launch or test-count milestone as completio
 [PRODUCT-QUALITY.md](PRODUCT-QUALITY.md) now defines the required whole-product
 journeys and interaction, comprehension, recovery, responsiveness and accessibility
 standard. **The goal remains open.** Real-model implementation, a representative
-authenticated/data-backed application, meaningful prototype review and day-two
-amendment/redeployment/recovery still need complete UI acceptance. Existing local
+authenticated/data-backed application and durable day-two
+amendment/redeployment/recovery still need complete acceptance. The installed
+prototype and collaborative amendment journey now has scoped fixture evidence. Existing local
 fixtures establish only their stated mechanisms. Independent product work
 continues while external commissioning and Windows CI access remain blocked.
 
@@ -26,12 +27,14 @@ continues while external commissioning and Windows CI access remain blocked.
 The current continuation is tracked in [QUALITY-WORKLIST.md](QUALITY-WORKLIST.md).
 It addresses collaborative draft loss, meaningful prototype review and fresh
 browser invitations, truthful deployment recovery, and durable uncertain-request
-identity. The matching `a10d941e` Linux package passes seven combined browser
-groups, but the overall attempt stops at a prototype handoff tab that did not
-activate. The original failure, successful smaller reproduction and next-run
-diagnostics remain distinct. Subsequent source adds recoverable real Git import
-and corrects accepted-run guidance; its broader source checks and remaining
-installed acceptance are recorded in [FULL-PRODUCT.md](FULL-PRODUCT.md). The
+identity. The clean matching `7ff66d3b` Linux package passes ten combined browser
+groups, four real HTTPS Git import/recovery groups, six portable acceptance groups
+and seven launcher outcomes. Earlier prototype failures are retained: a direct
+comparison identified Chromium 151 delivering a click using stale iframe geometry
+during scrolling. Explicit visible-scroll readiness corrected the driver without
+changing product handlers or weakening assertions. Subsequent implementation
+continues repository-analysis clarification, billing-return continuity and data
+permissions. Exact evidence and remaining gates are in [FULL-PRODUCT.md](FULL-PRODUCT.md). The
 results below retain their historical identities.
 
 The primary project overview explains the current stage, agreed purpose and
@@ -110,6 +113,22 @@ scope limits are in [FULL-PRODUCT.md](FULL-PRODUCT.md). No current native packag
 real-model or public/paid-service acceptance follows from these source results.
 
 ## Verification and evidence
+
+The continuing source batch adds visible repository-analysis questions with
+canonical follow-up and durable exact-request recovery, subscription return
+navigation with preserved Stripe retry parameters, and permission-aware data
+controls. Database recovery now links directly to application deployments.
+The complete service suite passes 2,045 outcomes (22 skips) and the changed
+integration-package race suite passes 1,230 (five skips); native API compilation
+passes for Windows AMD64 and Darwin ARM64. Current frontend and matching package
+acceptance outcomes are recorded in [FULL-PRODUCT.md](FULL-PRODUCT.md).
+
+The clean `7ff66d3b` installed package also passes five standalone PostgreSQL
+backup/import/restore/rollback/restart groups with actual SQL witnesses and
+verified cleanup. This predates the new data-permission UI and does not prove
+application authentication, row isolation or full Supabase storage restoration.
+The full-stack scenario requires an adequately sized Docker host; capacity and
+exact pinned images are in `artifacts/plans/data-operation-host-prerequisites.json`.
 
 The cloud environment has verified Go 1.26.3, Node 24.19.0, Docker 28.4.0 and system
 Chromium 151. Tests use Playwright's supported executable override; they do not

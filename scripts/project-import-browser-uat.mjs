@@ -18,11 +18,12 @@ import axe from '../desktop/node_modules/axe-core/axe.js';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..'), args = process.argv.slice(2);
 const option = (name, fallback) => { const i = args.indexOf(name); if (i < 0) return fallback; assert(args[i + 1] && !args[i + 1].startsWith('--'), 'Missing value for ' + name); return args[i + 1]; };
 if (args.includes('--help')) {
-  console.log('node scripts/project-import-browser-uat.mjs --binary PATH --web PATH --chromium PATH --report PATH [--provenance PATH]\nLinux-only bounded installed browser proof: failed HTTPS import, corrected same-name clone, lost completed response, read-only status recovery and explicit open. Uses fresh local TLS/Git fixture and private account/setup scaffolding. No Docker/model/cloud or external traffic. Report directory must be new or empty. Package provenance must match binary/web hashes; defaults to package-provenance.json beside the report or its parent.');
+  console.log('node scripts/project-import-browser-uat.mjs --binary PATH --web PATH --chromium PATH --report PATH [--provenance PATH] [--contrast-diagnostic-only]\nLinux-only bounded installed browser proof: failed HTTPS import, corrected same-name clone, lost completed response, read-only status recovery and explicit open. Uses fresh local TLS/Git fixture and private account/setup scaffolding. No Docker/model/cloud or external traffic. Report directory must be new or empty. Package provenance must match binary/web hashes; defaults to package-provenance.json beside the report or its parent. Contrast-only mode captures entry dialog paint/geometry at 390/1440 without importing and does not claim the import journey.');
   process.exit(0);
 }
 for (const name of ['--binary', '--web', '--chromium', '--report']) assert(option(name), 'Required: ' + name);
 assert.equal(process.platform, 'linux', 'Process ownership checks require Linux /proc');
+const contrastDiagnosticOnly = args.includes('--contrast-diagnostic-only');
 const binary = realpathSync(resolve(option('--binary'))), web = realpathSync(resolve(option('--web'))), executable = realpathSync(resolve(option('--chromium')));
 const report = resolve(option('--report')), evidence = dirname(report);
 mkdirSync(dirname(evidence), { recursive: true, mode: 0o700 });
@@ -85,7 +86,7 @@ const receipt = {
   package: { path: dirname(binary), archiveSHA256: provenance.archiveSHA256, provenanceSHA256: sha(provenanceBytes), verifiedArchiveWebFiles: webFiles.length, binaryAndAllWebFilesMatchArchive: true },
   binarySHA256: binaryHash, webIndexSHA256: webHash, webInventorySHA256: sha(JSON.stringify(webFiles)), driverSHA256: sha(readFileSync(fileURLToPath(import.meta.url))),
   driverCheckout: { commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(), dirty: !!execFileSync('git', ['status', '--porcelain'], { cwd: repo, encoding: 'utf8' }).trim() },
-  scope: 'Installed UI import and explicit read-only recovery against real Git over a private local HTTPS fixture. One failed import, one corrected import, one completed import whose browser response is deliberately lost.',
+  scope: contrastDiagnosticOnly ? 'Entry-only contrast diagnostic at 390/1440 for header and helper text also present in import recovery. No import or recovery journey is executed; earlier incomplete axe findings are unchanged.' : 'Installed UI import and explicit read-only recovery against real Git over a private local HTTPS fixture. One failed import, one corrected import, one completed import whose browser response is deliberately lost.',
   limitations: ['Local public fixture repositories only; no private repository authentication or external host claim.', 'Axe scans and focus checks are bounded observations, not manual WCAG conformance or novice-usability proof.', 'No drawing, implementation, deployment, provider or paid-service acceptance.'],
   setupScaffolding: ['API bootstrap of one private account and one empty seed project, plus Git author identity', 'Fresh two-commit bare Git remote and CA/server certificate', 'Owned PATH launcher executes real Git with fixture-only CA trust; no TLS verification bypass'],
   checks: [], attempts: [], importRequests: [], statusRequests: [], gitHTTPRequests: [], accessibility: [], keyboard: [], cleanup: [],
@@ -104,6 +105,10 @@ const remoteSockets = new Set();
 async function freePort() { const server = netServer(); await new Promise((done, reject) => server.once('error', reject).listen(0, '127.0.0.1', done)); const port = server.address().port; await new Promise(done => server.close(done)); return port; }
 async function api(method, route, body, expected = 200, auth = token) {
   const response = await fetch(base + route, { method, headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: 'Bearer ' + auth } : {}) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+  if (response.status !== expected) {
+    const error = await response.json().catch(() => ({}));
+    receipt.apiErrors ??= []; receipt.apiErrors.push({ method, route, status: response.status, expected, code: typeof error.error === 'string' ? scrub(error.error) : undefined, message: typeof error.message === 'string' ? scrub(error.message).slice(0, 4000) : undefined });
+  }
   assert.equal(response.status, expected, method + ' ' + route);
   const data = await response.json(); if (data.token) secrets.add(data.token); return data;
 }
@@ -142,7 +147,10 @@ async function stopService() {
     }
   }
   const deadline = Date.now() + 20000;
-  while (Date.now() < deadline && (tracked.some(stillOwned) || ownedProcesses().length)) await delay(100);
+  // /proc can report a zombie before libuv delivers ChildProcess's exit event.
+  // Wait for both the kernel ownership proof and the actual collected exit code.
+  const awaitingExit = () => service.exitCode === null && service.signalCode === null;
+  while (Date.now() < deadline && (awaitingExit() || tracked.some(stillOwned) || ownedProcesses().length)) await delay(100);
   const remaining = [...tracked.filter(stillOwned), ...ownedProcesses()];
   if (remaining.length) {
     receipt.cleanupErrors ??= []; receipt.cleanupErrors.push('Service or Git worker needed a forced stop');
@@ -150,7 +158,7 @@ async function stopService() {
       try { if (stillOwned(row) && readlinkSync(`/proc/${row.pid}/exe`) === row.executable) process.kill(row.group === row.pid ? -row.pid : row.pid, 'SIGKILL'); }
       catch (error) { if (!['ENOENT', 'ESRCH'].includes(error.code)) throw error; }
     }
-    const forcedDeadline = Date.now() + 5000; while (Date.now() < forcedDeadline && (tracked.some(stillOwned) || ownedProcesses().length)) await delay(100);
+    const forcedDeadline = Date.now() + 5000; while (Date.now() < forcedDeadline && (awaitingExit() || tracked.some(stillOwned) || ownedProcesses().length)) await delay(100);
   }
   const stopped = !tracked.some(stillOwned) && ownedProcesses().length === 0;
   receipt.cleanup.push({ serviceAndGitProcesses: tracked.length, allStopped: stopped, exitCode: service.exitCode });
@@ -161,7 +169,7 @@ async function pendingImport() {
   return page.evaluate(() => Object.entries(localStorage).filter(([key]) => key.startsWith('luci.project-import.v1:')).map(([key, value]) => ({ key, value: JSON.parse(value) })));
 }
 async function openImport() {
-  await page.getByRole('button', { name: 'New project', exact: true }).first().click();
+  await page.getByRole('button', { name: 'Create project', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('navigation', { name: 'Project source' }).getByRole('button', { name: 'Import repository', exact: true }).click();
   await page.getByRole('dialog', { name: 'Import a repository', exact: true }).waitFor();
@@ -192,6 +200,23 @@ async function captureState(name, width, attemptId) {
     const select = rows => rows.map(row => ({ id: row.id, impact: row.impact, description: row.description, help: row.help, nodes: row.nodes.map(node => ({ target: node.target, failureSummary: node.failureSummary })) }));
     return { violations: select(result.violations), incomplete: select(result.incomplete), passes: result.passes.map(row => row.id) };
   });
+  // Keep automated incomplete findings intact. These observations support a
+  // separate, explicitly scoped manual review; they do not turn them into passes.
+  const contrast = await dialog.evaluate((node, selectors) => {
+    const rect = value => ({ x: value.x, y: value.y, width: value.width, height: value.height });
+    const describe = element => {
+      const style = getComputedStyle(element);
+      return { tag: element.tagName, id: element.id, className: String(element.className), rect: rect(element.getBoundingClientRect()), color: style.color, backgroundColor: style.backgroundColor, backgroundImage: style.backgroundImage, opacity: style.opacity, font: style.font, fontSize: style.fontSize, fontWeight: style.fontWeight, lineHeight: style.lineHeight, filter: style.filter, backdropFilter: style.backdropFilter, mixBlendMode: style.mixBlendMode, position: style.position, zIndex: style.zIndex };
+    };
+    return [...new Set(selectors)].map(selector => ({ selector, nodes: [...node.querySelectorAll(selector)].map(element => {
+      const ancestors = []; for (let current = element.parentElement; current; current = current.parentElement) ancestors.push(describe(current));
+      const range = document.createRange(); range.selectNodeContents(element);
+      const textRects = [...range.getClientRects()].map(rect);
+      const points = textRects.map(box => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 })).filter(point => point.x >= 0 && point.x < innerWidth && point.y >= 0 && point.y < innerHeight);
+      return { ...describe(element), text: element.textContent, ancestors, textRects, paintStacks: points.map(point => ({ ...point, elements: document.elementsFromPoint(point.x, point.y).map(describe) })) };
+    }) }));
+  }, [...audit.incomplete.filter(row => row.id === 'color-contrast').flatMap(row => row.nodes.flatMap(node => node.target.filter(target => typeof target === 'string'))), ...(contrastDiagnosticOnly ? ['.setup-header > div > p', 'form > .journey-muted'] : [])]);
+  writeFileSync(join(evidence, name + '-contrast.json'), JSON.stringify({ purpose: 'Computed paint and geometry observations only; incomplete contrast findings are not automatically resolved.', viewport: { width, height: width < 600 ? 844 : 1000 }, targets: contrast }, null, 2), { mode: 0o600 });
   writeFileSync(join(evidence, name + '-accessibility.json'), JSON.stringify(audit, null, 2), { mode: 0o600 });
   receipt.accessibility.push({ state: name, viewport: width, violations: audit.violations.map(row => row.id), incomplete: audit.incomplete.map(row => row.id), geometry });
   await page.screenshot({ path: join(evidence, name + '.png'), fullPage: true });
@@ -242,7 +267,7 @@ try {
   const port = await freePort(), previewPort = await freePort(); base = `http://127.0.0.1:${port}`;
   environment = { ...inherited, PATH: join(fixture, 'bin') + ':' + inherited.PATH, HOME: join(fixture, 'home'), USERPROFILE: join(fixture, 'home'),
     LUCI_ADDR: `127.0.0.1:${port}`, LUCI_BROWSER_PREVIEW_ADDR: `127.0.0.1:${previewPort}`, LUCI_BROWSER_PREVIEW_PORT: String(previewPort), LUCI_STATE_DIR: join(fixture, 'state'), LUCI_PROJECTS_DIR: join(fixture, 'projects'), LUCI_WEB_DIR: web, LUCI_RUNTIME_DIR: join(dirname(binary), 'runtime'),
-    LUCI_DOCKER_HOST: 'unix://' + join(fixture, 'absent-docker.sock'), DOCKER_HOST: 'unix://' + join(fixture, 'absent-docker.sock'), LUCI_BACKEND: 'docker', LUCI_MANAGED_SHUTDOWN_TOKEN: lifecycle, AWS_EC2_METADATA_DISABLED: 'true', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' };
+    LUCI_DOCKER_HOST: 'unix://' + join(fixture, 'absent-docker.sock'), DOCKER_HOST: 'unix://' + join(fixture, 'absent-docker.sock'), LUCI_BACKEND: 'docker', LUCI_MANAGED_SHUTDOWN_TOKEN: lifecycle, AWS_EC2_METADATA_DISABLED: 'true', GIT_CONFIG_GLOBAL: join(fixture, 'home/.gitconfig'), GIT_CONFIG_NOSYSTEM: '1' };
   stage = 'service-start'; service = spawn(binary, [], { cwd: fixture, env: environment, detached: true, stdio: ['ignore', 'pipe', 'pipe'] }); service.once('error', error => { spawnError = error; });
   for (const stream of [service.stdout, service.stderr]) stream.on('data', bytes => { serviceLog = (serviceLog + scrub(bytes.toString())).slice(-65536); });
   const readyBy = Date.now() + 30000; let status;
@@ -262,73 +287,81 @@ try {
     if (request.method() === 'POST' && url.pathname === '/v1/product/projects') { const body = request.postDataJSON(); receipt.importRequests.push({ name: body.name, remoteUrl: body.remoteUrl, importAttemptId: body.importAttemptId }); }
     if (request.method() === 'GET' && url.pathname.startsWith('/v1/product/project-imports/')) receipt.statusRequests.push({ path: url.pathname });
   });
-  stage = 'login'; await page.goto(base); await page.getByLabel('Username', { exact: true }).fill('import-owner'); await page.getByLabel('Password', { exact: true }).fill(password); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.getByRole('button', { name: 'New project', exact: true }).first().waitFor();
+  stage = 'login'; await page.goto(base); await page.getByLabel('Username', { exact: true }).fill('import-owner'); await page.getByLabel('Password', { exact: true }).fill(password); await page.getByRole('button', { name: 'Sign in', exact: true }).click(); await page.getByRole('button', { name: 'Create project', exact: true }).waitFor();
   let dialog = await openImport(); await captureState('import-entry-wide', 1440);
-  const retryName = 'garden-import-retry', lostName = 'garden-import-recovered';
-  stage = 'failed-import'; await dialog.getByLabel('Project name', { exact: true }).fill(retryName); await dialog.getByRole('textbox', { name: /^Repository URL/ }).fill(badURL); await dialog.getByRole('checkbox', { name: 'I trust the source of this repository.', exact: true }).check();
-  const failedResponse = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/v1/product/projects');
-  await dialog.locator('form').getByRole('button', { name: 'Import repository', exact: true }).click(); const failed = await failedResponse; assert.equal(failed.status(), 422); const failure = await failed.json();
-  assert.equal(failure.error, 'git_failed'); assert.equal(failure.attempt.status, 'failed'); expectedFailureID = failure.attempt.id;
-  assert.match(expectedFailureID, /^imp-[a-f0-9]{24}$/); assert.equal(receipt.importRequests[0].importAttemptId, expectedFailureID);
-  await dialog.getByRole('button', { name: 'Edit import details', exact: true }).waitFor();
-  const catalogueAfterFailure = await api('GET', '/v1/projects'); assert.deepEqual(catalogueAfterFailure.projects.map(project => project.name), [seed.name]);
-  assert(!existsSync(join(dirname(seed.path), retryName))); assert.equal(await page.getByRole('treeitem', { name: new RegExp(retryName) }).count(), 0);
-  assert.equal(typeof failure.attempt.retainedPath, 'string');
-  const retained = resolve(dirname(seed.path), failure.attempt.retainedPath);
-  assert(retained.startsWith(join(dirname(seed.path), '.li') + sep), 'Failure evidence must identify the private staging tree');
-  assert(lstatSync(retained).isDirectory() && !lstatSync(retained).isSymbolicLink(), 'Failed staging directory was not retained');
-  const failurePending = await pendingImport(); assert.equal(failurePending.length, 1); assert.equal(failurePending[0].value.id, expectedFailureID);
-  receipt.attempts.push({ id: expectedFailureID, name: retryName, status: 'failed', hiddenPartialRetained: true });
-  await captureState('import-failed-mobile', 390, expectedFailureID); check('Failed real HTTPS clone leaves no visible or final-name project and retains scoped recovery identity');
-  stage = 'corrected-import'; await page.setViewportSize({ width: 1440, height: 1000 }); await dialog.getByRole('button', { name: 'Edit import details', exact: true }).click();
-  assert.equal(await dialog.getByLabel('Project name', { exact: true }).inputValue(), retryName); assert.equal(await dialog.getByRole('checkbox').isChecked(), false);
-  await dialog.getByRole('textbox', { name: /^Repository URL/ }).fill(goodURL); assert.equal(await dialog.locator('form').getByRole('button', { name: 'Import repository', exact: true }).isEnabled(), false); await dialog.getByRole('checkbox').check();
-  const correctedResponse = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/v1/product/projects');
-  await dialog.locator('form').getByRole('button', { name: 'Import repository', exact: true }).click(); const corrected = await correctedResponse; assert.equal(corrected.status(), 201); const imported = await corrected.json();
-  await page.getByRole('dialog').waitFor({ state: 'hidden' }); await page.getByRole('treeitem', { name: new RegExp(retryName) }).waitFor();
-  const correctedID = receipt.importRequests[1].importAttemptId; assert.notEqual(correctedID, expectedFailureID); assert.equal((await pendingImport()).length, 0);
-  const importedEvidence = validateImported(imported, retryName, expected);
-  for (const [file, content] of Object.entries(expected.files)) assert.equal((await api('GET', `/v1/product/projects/${imported.id}/files?path=${encodeURIComponent(file)}`)).content, content);
-  receipt.attempts.push({ id: correctedID, status: 'complete', ...importedEvidence });
-  await page.screenshot({ path: join(evidence, 'corrected-import-open.png'), fullPage: true }); check('Corrected URL imports under the same intended name with exact original files and both real commits');
-  stage = 'lost-response'; dialog = await openImport(); await dialog.getByLabel('Project name', { exact: true }).fill(lostName); await dialog.getByRole('textbox', { name: /^Repository URL/ }).fill(goodURL); await dialog.getByRole('checkbox').check();
-  let responseDropped = false;
-  await page.route(base + '/v1/product/projects', async route => {
-    if (route.request().method() !== 'POST' || route.request().postDataJSON().name !== lostName) return route.fallback();
-    try { const response = await route.fetch({ timeout: 30000, maxRetries: 0, maxRedirects: 0 }); assert.equal(response.status(), 201); droppedProject = await response.json(); responseDropped = true; await route.abort('failed'); }
-    catch (error) { interceptError = error; await route.abort('failed').catch(() => {}); }
-  });
-  await dialog.locator('form').getByRole('button', { name: 'Import repository', exact: true }).click();
-  await dialog.getByRole('alert').filter({ hasText: 'The import result could not be confirmed.' }).waitFor(); assert.ifError(interceptError); assert(responseDropped && droppedProject);
-  const pendingBeforeReload = await pendingImport(); assert.equal(pendingBeforeReload.length, 1); const lostID = pendingBeforeReload[0].value.id;
-  assert.equal(lostID, receipt.importRequests[2].importAttemptId); assert.equal(pendingBeforeReload[0].value.name, lostName); assert.equal(await dialog.getByRole('button', { name: 'Retry import', exact: true }).count(), 0);
-  const postsBeforeRecovery = receipt.importRequests.length, clonesBeforeRecovery = starts().length;
-  await captureState('import-unconfirmed-mobile', 390, lostID); await delay(750);
-  assert.equal(receipt.importRequests.length, postsBeforeRecovery); assert.equal(starts().length, clonesBeforeRecovery);
-  receipt.lostResponse = { id: lostID, realServerStatus: 201, realServerProjectId: droppedProject.id, fault: 'Browser route fetched actual completed response once, then aborted delivery; response was not fabricated', pendingScopeKeySHA256: sha(pendingBeforeReload[0].key), noAutoRetryObservationMS: 750 };
-  check('Lost completed response remains an unknown browser result with saved request and no automatic retry');
-  stage = 'status-recovery'; await page.unroute(base + '/v1/product/projects'); await page.setViewportSize({ width: 1440, height: 1000 }); await page.reload(); await page.getByRole('button', { name: 'New project', exact: true }).first().waitFor();
-  const automaticRead = page.waitForResponse(response => response.request().method() === 'GET' && new URL(response.url()).pathname === '/v1/product/project-imports/' + lostID);
-  dialog = await openImport(); const automatic = await automaticRead; assert.equal(automatic.status(), 200); assert.equal((await automatic.json()).status, 'complete');
-  assert.equal((await pendingImport())[0].value.id, lostID); await dialog.getByRole('button', { name: 'Open imported project', exact: true }).waitFor();
-  const explicitRead = page.waitForResponse(response => response.request().method() === 'GET' && new URL(response.url()).pathname === '/v1/product/project-imports/' + lostID);
-  await dialog.getByRole('button', { name: 'Check import status', exact: true }).focus(); await page.keyboard.press('Enter');
-  const checked = await explicitRead; assert.equal(checked.status(), 200); const recovered = await checked.json(); assert.equal(recovered.id, lostID); assert.equal(recovered.status, 'complete'); assert.deepEqual(recovered.project, droppedProject);
-  assert.equal(receipt.importRequests.length, postsBeforeRecovery); assert.equal(starts().length, clonesBeforeRecovery); assert.equal(receipt.statusRequests.length, 2);
-  await captureState('import-complete-wide', 1440, lostID);
-  assert.equal(await dialog.isVisible(), true, 'Status observation should not automatically navigate');
-  await dialog.getByRole('button', { name: 'Open imported project', exact: true }).focus(); await page.keyboard.press('Enter');
-  await page.getByRole('dialog').waitFor({ state: 'hidden' }); await page.getByRole('treeitem', { name: new RegExp(lostName) }).waitFor();
-  assert.equal(await page.getByRole('treeitem', { name: new RegExp(lostName) }).getAttribute('aria-selected'), 'true');
-  assert.equal((await pendingImport()).length, 0); assert.equal(receipt.importRequests.length, 3); assert.equal(starts().length, 3);
-  receipt.attempts.push({ id: lostID, status: 'complete', ...validateImported(droppedProject, lostName, expected) });
-  assert.deepEqual((await api('GET', '/v1/projects')).projects.map(project => project.name).sort(), [seed.name, retryName, lostName].sort());
-  await page.screenshot({ path: join(evidence, 'recovered-import-open.png'), fullPage: true });
-  check('Reload and explicit keyboard status check use exactly two GETs, no second POST or clone, then require explicit open');
-  assert.deepEqual(receipt.browserErrors, []); assert.deepEqual(receipt.externalRequests, []);
-  assert.equal(cloneEvents().filter(row => row.event === 'finish' && row.status === 0).length, 2);
-  assert.equal(cloneEvents().filter(row => row.event === 'finish' && row.status !== 0).length, 1);
-  assert(!cloneEvents().some(row => row.event === 'forbidden-remote'));
+  if (contrastDiagnosticOnly) {
+    stage = 'entry-contrast-diagnostic';
+    await captureState('import-entry-mobile', 390);
+    assert.equal(receipt.importRequests.length, 0); assert.equal(receipt.statusRequests.length, 0); assert.equal(starts().length, 0);
+    assert.deepEqual(receipt.browserErrors, []); assert.deepEqual(receipt.externalRequests, []);
+    check('Entry-only header and helper contrast evidence captured at 390/1440; no import or status request executed');
+  } else {
+    const retryName = 'garden-import-retry', lostName = 'garden-import-recovered';
+    stage = 'failed-import'; await dialog.getByLabel('Project name', { exact: true }).fill(retryName); await dialog.getByRole('textbox', { name: /^Repository URL/ }).fill(badURL); await dialog.getByRole('checkbox', { name: 'I trust the source of this repository.', exact: true }).check();
+    const failedResponse = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/v1/product/projects');
+    await dialog.locator('form').getByRole('button', { name: 'Import repository', exact: true }).click(); const failed = await failedResponse; assert.equal(failed.status(), 422); const failure = await failed.json();
+    assert.equal(failure.error, 'git_failed'); assert.equal(failure.attempt.status, 'failed'); expectedFailureID = failure.attempt.id;
+    assert.match(expectedFailureID, /^imp-[a-f0-9]{24}$/); assert.equal(receipt.importRequests[0].importAttemptId, expectedFailureID);
+    await dialog.getByRole('button', { name: 'Edit import details', exact: true }).waitFor();
+    const catalogueAfterFailure = await api('GET', '/v1/projects'); assert.deepEqual(catalogueAfterFailure.projects.map(project => project.name), [seed.name]);
+    assert(!existsSync(join(dirname(seed.path), retryName))); assert.equal(await page.getByRole('treeitem', { name: new RegExp(retryName) }).count(), 0);
+    assert.equal(typeof failure.attempt.retainedPath, 'string');
+    const retained = resolve(dirname(seed.path), failure.attempt.retainedPath);
+    assert(retained.startsWith(join(dirname(seed.path), '.li') + sep), 'Failure evidence must identify the private staging tree');
+    assert(lstatSync(retained).isDirectory() && !lstatSync(retained).isSymbolicLink(), 'Failed staging directory was not retained');
+    const failurePending = await pendingImport(); assert.equal(failurePending.length, 1); assert.equal(failurePending[0].value.id, expectedFailureID);
+    receipt.attempts.push({ id: expectedFailureID, name: retryName, status: 'failed', hiddenPartialRetained: true });
+    await captureState('import-failed-mobile', 390, expectedFailureID); check('Failed real HTTPS clone leaves no visible or final-name project and retains scoped recovery identity');
+    stage = 'corrected-import'; await page.setViewportSize({ width: 1440, height: 1000 }); await dialog.getByRole('button', { name: 'Edit import details', exact: true }).click();
+    assert.equal(await dialog.getByLabel('Project name', { exact: true }).inputValue(), retryName); assert.equal(await dialog.getByRole('checkbox').isChecked(), false);
+    await dialog.getByRole('textbox', { name: /^Repository URL/ }).fill(goodURL); assert.equal(await dialog.locator('form').getByRole('button', { name: 'Import repository', exact: true }).isEnabled(), false); await dialog.getByRole('checkbox').check();
+    const correctedResponse = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/v1/product/projects');
+    await dialog.locator('form').getByRole('button', { name: 'Import repository', exact: true }).click(); const corrected = await correctedResponse; assert.equal(corrected.status(), 201); const imported = await corrected.json();
+    await page.getByRole('dialog').waitFor({ state: 'hidden' }); await page.getByRole('treeitem', { name: new RegExp(retryName) }).waitFor();
+    const correctedID = receipt.importRequests[1].importAttemptId; assert.notEqual(correctedID, expectedFailureID); assert.equal((await pendingImport()).length, 0);
+    const importedEvidence = validateImported(imported, retryName, expected);
+    for (const [file, content] of Object.entries(expected.files)) assert.equal((await api('GET', `/v1/product/projects/${imported.id}/files?path=${encodeURIComponent(file)}`)).content, content);
+    receipt.attempts.push({ id: correctedID, status: 'complete', ...importedEvidence });
+    await page.screenshot({ path: join(evidence, 'corrected-import-open.png'), fullPage: true }); check('Corrected URL imports under the same intended name with exact original files and both real commits');
+    stage = 'lost-response'; dialog = await openImport(); await dialog.getByLabel('Project name', { exact: true }).fill(lostName); await dialog.getByRole('textbox', { name: /^Repository URL/ }).fill(goodURL); await dialog.getByRole('checkbox').check();
+    let responseDropped = false;
+    await page.route(base + '/v1/product/projects', async route => {
+      if (route.request().method() !== 'POST' || route.request().postDataJSON().name !== lostName) return route.fallback();
+      try { const response = await route.fetch({ timeout: 30000, maxRetries: 0, maxRedirects: 0 }); assert.equal(response.status(), 201); droppedProject = await response.json(); responseDropped = true; await route.abort('failed'); }
+      catch (error) { interceptError = error; await route.abort('failed').catch(() => {}); }
+    });
+    await dialog.locator('form').getByRole('button', { name: 'Import repository', exact: true }).click();
+    await dialog.getByRole('alert').filter({ hasText: 'The import result could not be confirmed.' }).waitFor(); assert.ifError(interceptError); assert(responseDropped && droppedProject);
+    const pendingBeforeReload = await pendingImport(); assert.equal(pendingBeforeReload.length, 1); const lostID = pendingBeforeReload[0].value.id;
+    assert.equal(lostID, receipt.importRequests[2].importAttemptId); assert.equal(pendingBeforeReload[0].value.name, lostName); assert.equal(await dialog.getByRole('button', { name: 'Retry import', exact: true }).count(), 0);
+    const postsBeforeRecovery = receipt.importRequests.length, clonesBeforeRecovery = starts().length;
+    await captureState('import-unconfirmed-mobile', 390, lostID); await delay(750);
+    assert.equal(receipt.importRequests.length, postsBeforeRecovery); assert.equal(starts().length, clonesBeforeRecovery);
+    receipt.lostResponse = { id: lostID, realServerStatus: 201, realServerProjectId: droppedProject.id, fault: 'Browser route fetched actual completed response once, then aborted delivery; response was not fabricated', pendingScopeKeySHA256: sha(pendingBeforeReload[0].key), noAutoRetryObservationMS: 750 };
+    check('Lost completed response remains an unknown browser result with saved request and no automatic retry');
+    stage = 'status-recovery'; await page.unroute(base + '/v1/product/projects'); await page.setViewportSize({ width: 1440, height: 1000 }); await page.reload(); await page.getByRole('button', { name: 'Create project', exact: true }).waitFor();
+    const automaticRead = page.waitForResponse(response => response.request().method() === 'GET' && new URL(response.url()).pathname === '/v1/product/project-imports/' + lostID);
+    dialog = await openImport(); const automatic = await automaticRead; assert.equal(automatic.status(), 200); assert.equal((await automatic.json()).status, 'complete');
+    assert.equal((await pendingImport())[0].value.id, lostID); await dialog.getByRole('button', { name: 'Open imported project', exact: true }).waitFor();
+    const explicitRead = page.waitForResponse(response => response.request().method() === 'GET' && new URL(response.url()).pathname === '/v1/product/project-imports/' + lostID);
+    await dialog.getByRole('button', { name: 'Check import status', exact: true }).focus(); await page.keyboard.press('Enter');
+    const checked = await explicitRead; assert.equal(checked.status(), 200); const recovered = await checked.json(); assert.equal(recovered.id, lostID); assert.equal(recovered.status, 'complete'); assert.deepEqual(recovered.project, droppedProject);
+    assert.equal(receipt.importRequests.length, postsBeforeRecovery); assert.equal(starts().length, clonesBeforeRecovery); assert.equal(receipt.statusRequests.length, 2);
+    await captureState('import-complete-wide', 1440, lostID);
+    assert.equal(await dialog.isVisible(), true, 'Status observation should not automatically navigate');
+    await dialog.getByRole('button', { name: 'Open imported project', exact: true }).focus(); await page.keyboard.press('Enter');
+    await page.getByRole('dialog').waitFor({ state: 'hidden' }); await page.getByRole('treeitem', { name: new RegExp(lostName) }).waitFor();
+    assert.equal(await page.getByRole('treeitem', { name: new RegExp(lostName) }).getAttribute('aria-selected'), 'true');
+    assert.equal((await pendingImport()).length, 0); assert.equal(receipt.importRequests.length, 3); assert.equal(starts().length, 3);
+    receipt.attempts.push({ id: lostID, status: 'complete', ...validateImported(droppedProject, lostName, expected) });
+    assert.deepEqual((await api('GET', '/v1/projects')).projects.map(project => project.name).sort(), [seed.name, retryName, lostName].sort());
+    await page.screenshot({ path: join(evidence, 'recovered-import-open.png'), fullPage: true });
+    check('Reload and explicit keyboard status check use exactly two GETs, no second POST or clone, then require explicit open');
+    assert.deepEqual(receipt.browserErrors, []); assert.deepEqual(receipt.externalRequests, []);
+    assert.equal(cloneEvents().filter(row => row.event === 'finish' && row.status === 0).length, 2);
+    assert.equal(cloneEvents().filter(row => row.event === 'finish' && row.status !== 0).length, 1);
+    assert(!cloneEvents().some(row => row.event === 'forbidden-remote'));
+  }
   receipt.passed = true;
 } catch (error) {
   receipt.error = scrub(error); receipt.failedStage = stage;

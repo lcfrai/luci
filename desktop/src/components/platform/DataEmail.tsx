@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { dataEmailApi, type DataEmailConfiguration, type DataEmailRequest, type DataEmailStatus } from "../../api/dataEmail";
 import { errorText } from "../../api/product";
+import { useDataAccess } from "./useDataAccess";
 import { Button } from "../fluid/components/button";
 
 interface Props {
@@ -11,9 +12,13 @@ const empty: DataEmailConfiguration = { host: "", port: 465, username: "", fromA
 const statusLabels: Record<string, string> = { unconfigured: "Not configured", saved: "Saved draft", configured: "Applied to Auth", attention: "Action needed" };
 
 export function DataEmail(props: Props) {
-  return <ProjectDataEmail key={props.projectId} {...props} />;
+  const access = useDataAccess(props.projectId);
+  if (!access.showPrivate) return <p role="status">{access.message}</p>;
+  return <ProjectDataEmail key={access.scope} {...props} />;
 }
 function ProjectDataEmail({ projectId, ready, locked = false, canManage = true, onChange }: Props) {
+  const access = useDataAccess(projectId);
+  const accessRef = useRef(access); accessRef.current = access;
   const active = useRef(true), submitting = useRef(false), generation = useRef(0), changed = useRef(false);
   const callback = useRef(onChange); callback.current = onChange;
   const id = useId();
@@ -34,31 +39,34 @@ function ProjectDataEmail({ projectId, ready, locked = false, canManage = true, 
     callback.current?.(value);
   }, [projectId]);
   const load = useCallback(async () => {
+    if (!accessRef.current.canRead) return;
+    const current = accessRef.current.capture();
     const ticket = ++generation.current;
-    try { const value = await dataEmailApi.status(projectId); if (active.current && generation.current === ticket) { accept(value, true); setError(""); } }
-    catch (cause) { if (active.current && generation.current === ticket) setError(errorText(cause)); }
+    try { const value = await dataEmailApi.status(projectId); if (active.current && generation.current === ticket && current()) { accept(value, true); setError(""); } }
+    catch (cause) { if (active.current && generation.current === ticket && current()) setError(errorText(cause)); }
   }, [projectId, accept]);
   useEffect(() => { active.current = true; void load(); return () => { active.current = false; generation.current++; }; }, [load]);
   const running = status?.operation?.status === "running";
   useEffect(() => {
-    if (!running) return;
+    if (!running || !access.canRead) return;
     let inFlight = false;
     const timer = window.setInterval(() => {
       if (inFlight) return;
       inFlight = true; void load().finally(() => { inFlight = false; });
     }, 2000);
     return () => window.clearInterval(timer);
-  }, [running, load]);
-  const busy = locked || !!pending || !!running;
+  }, [running, load, access.canRead]);
+  const busy = locked || !!pending || !!running || !access.canRead;
   const activeAction = pending || (running ? status?.operation?.action : "");
-  const readOnly = busy || !canManage;
+  const readOnly = busy || !canManage || !access.canWrite;
   const saved = !!status?.configuration.host;
   const applied = !!status && status.appliedRevision > 0 && status.appliedRevision === status.revision && status.status !== "attention";
   function field<K extends keyof DataEmailConfiguration>(name: K, value: DataEmailConfiguration[K]) {
     changed.current = true; setDirty(true); setDraft(current => ({ ...current, [name]: value })); setSendConfirmed(false);
   }
   async function action(kind: DataEmailRequest["action"]) {
-    if (!status || readOnly || submitting.current) return;
+    if (!status || readOnly || !accessRef.current.canWrite || submitting.current) return;
+    const current = access.capture();
     if (kind === "test" && (!sendConfirmed || !recipient || dirty || !applied || !ready)) return;
     if (kind === "disable" && !removeConfirmed) return;
     submitting.current = true; generation.current++; setPending(kind); setError("");
@@ -71,14 +79,15 @@ function ProjectDataEmail({ projectId, ready, locked = false, canManage = true, 
     if (kind === "test") { input.recipient = recipient; input.acknowledgeSend = true; setSendConfirmed(false); }
     try {
       const result = await dataEmailApi.action(projectId, input);
-      if (!active.current) return;
+      if (!active.current || !current()) return;
       if (kind === "save" || kind === "disable") { changed.current = false; setDirty(false); setRemoveConfirmed(false); }
       accept(result, true);
-    } catch (cause) { if (active.current) setError(errorText(cause)); }
+    } catch (cause) { if (active.current && current()) setError(errorText(cause)); }
     finally { submitting.current = false; if (active.current) setPending(""); }
   }
   return <section className="data-section" aria-label="Application email delivery">
     <div className="data-heading"><div><h4>Email delivery</h4><p>Connect your email provider for application signup confirmation and password recovery.</p></div><Button type="button" variant="secondary" disabled={busy} onClick={() => void load()}>Refresh email status</Button></div>
+    {access.message && <p role="status">{access.message}</p>}
     {error && <p className="journey-error" role="alert">{error}</p>}
     {!status && !error && <p role="status">Loading email settings…</p>}
     {status && <><p role="status"><strong>{statusLabels[status.status] || status.status}.</strong> {pending ? `${pending === "save" ? "Saving" : "Preparing email operation"}…` : status.operation?.status === "running" ? status.operation.message : status.message}</p>

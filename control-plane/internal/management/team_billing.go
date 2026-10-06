@@ -53,6 +53,9 @@ type BillingReservation struct {
 	SessionID   string       `json:"sessionId,omitempty"`
 	CheckoutURL string       `json:"checkoutUrl,omitempty"`
 	State       string       `json:"state"`
+	// Missing means the original unscoped return URLs. A reserved checkout must
+	// retain identical provider parameters when its idempotency key is retried.
+	ReturnURLVersion int `json:"returnUrlVersion,omitempty"`
 }
 type billingEventReceipt struct {
 	ID     string `json:"id"`
@@ -92,6 +95,9 @@ func validateTeamBilling(b *TeamBilling) error {
 	}
 	if b.Reservation != nil && (b.Reservation.ID == "" || b.Reservation.CreatedAt <= 0 || b.Reservation.ActorID == "" || b.Reservation.Quote.ConfigID != b.ConfigID) {
 		return errors.New("invalid checkout reservation")
+	}
+	if b.Reservation != nil && (b.Reservation.ReturnURLVersion < 0 || b.Reservation.ReturnURLVersion > 1) {
+		return errors.New("unsupported checkout return URL version")
 	}
 	return nil
 }

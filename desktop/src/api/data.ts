@@ -41,8 +41,10 @@ const table = (id: string, name: string) => `${base(id)}/tables/${encodeURICompo
 const bucket = (id: string, name: string) => `${base(id)}/buckets/${encodeURIComponent(name)}`;
 const object = (id: string, name: string, key: string) => `${bucket(id, name)}/objects/${key.split("/").map(encodeURIComponent).join("/")}`;
 
-async function download(route: string, name: string) {
-  const url = URL.createObjectURL(await productApi.requestBlob(route));
+async function download(route: string, name: string, current: () => boolean = () => true) {
+  const blob = await productApi.requestBlob(route);
+  if (!current()) return;
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a"); link.href = url; link.download = name; link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
@@ -67,8 +69,8 @@ export const dataApi = {
     if (file.size > 8 * 1024 * 1024) throw new Error("Choose a file no larger than 8 MiB.");
     await productApi.requestBlob(object(id, name, key), { method: "POST", body: file, headers: { "Content-Type": file.type || "application/octet-stream" } });
   },
-  downloadObject: (id: string, name: string, key: string) => download(object(id, name, key), key.split("/").pop() || "download"),
+  downloadObject: (id: string, name: string, key: string, current?: () => boolean) => download(object(id, name, key), key.split("/").pop() || "download", current),
   realtime: (id: string) => productApi.request<{ tables: string[]; publication: string; rlsRequired: boolean }>(`${base(id)}/realtime`),
   updateRealtime: (id: string, name: string, enabled: boolean) => productApi.request<{ tables: string[] }>(`${base(id)}/realtime`, { table: name, enabled }),
-  downloadBackup: (id: string, backup: DataBackup) => download(`${base(id)}/backups/${encodeURIComponent(backup.id)}`, `${backup.id}.zip`),
+  downloadBackup: (id: string, backup: DataBackup, current?: () => boolean) => download(`${base(id)}/backups/${encodeURIComponent(backup.id)}`, `${backup.id}.zip`, current),
 };
