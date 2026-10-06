@@ -8,6 +8,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
 import { evaluatePortableLauncher } from './portable-launcher-eval.mjs';
 
+const expectedVersion = process.env.LUCI_VERSION;
+assert.match(expectedVersion || '', /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/, 'Set LUCI_VERSION to the exact candidate version before package acceptance');
 const packageDir = path.resolve(process.argv[2] || '');
 const evidence = path.resolve(process.argv[3] || `artifacts/package-eval/${Date.now()}`);
 assert.ok(process.argv[2], 'Usage: node scripts/verify-portable.mjs <extracted package> [evidence directory]');
@@ -15,7 +17,7 @@ assert.match(evidence.replaceAll('\\', '/'), /\/artifacts\/package-eval\//, 'Use
 await mkdir(evidence, { recursive: true });
 const projects = path.join(evidence, 'projects'), state = path.join(evidence, 'state');
 await mkdir(projects); // Refuse reusing a previous eval's repositories.
-for (const file of ['web/index.html', 'runtime/images/sandbox/Dockerfile', 'runtime/sandboxd/vendor/modules.txt', 'cloud/luci-cloud-linux-amd64.tar.gz', 'licenses/manifest.json']) {
+for (const file of ['package-identity', 'web/index.html', 'runtime/images/sandbox/Dockerfile', 'runtime/sandboxd/vendor/modules.txt', 'cloud/luci-cloud-linux-amd64.tar.gz', 'licenses/manifest.json', 'docs/luci/MANAGED-UPGRADE.md']) {
   assert.ok((await stat(path.join(packageDir, file))).size > 0, `Missing shipped file ${file}`);
 }
 const licenses = JSON.parse(await readFile(path.join(packageDir, 'licenses/manifest.json'), 'utf8'));
@@ -25,6 +27,10 @@ const listener = createServer();
 await new Promise(resolve => listener.listen(0, '127.0.0.1', resolve));
 const address = `127.0.0.1:${listener.address().port}`;
 await new Promise(resolve => listener.close(resolve));
+const previewListener = createServer();
+await new Promise(resolve => previewListener.listen(0, '127.0.0.1', resolve));
+const previewPort = previewListener.address().port;
+await new Promise(resolve => previewListener.close(resolve));
 const base = `http://${address}`;
 const binary = path.join(packageDir, process.platform === 'win32' ? 'luci.exe' : 'luci');
 const checks = [], logs = [];
@@ -40,7 +46,7 @@ async function request(method, route, body) {
   return value;
 }
 async function start() {
-  child = spawn(binary, [], {cwd:packageDir, windowsHide:true, env:{...process.env, LUCI_ADDR:address, LUCI_STATE_DIR:state, LUCI_PROJECTS_DIR:projects, LUCI_WEB_DIR:path.join(packageDir,'web'), LUCI_RUNTIME_DIR:path.join(packageDir,'runtime')}});
+  child = spawn(binary, [], {cwd:packageDir, windowsHide:true, env:{...process.env, LUCI_ADDR:address, LUCI_STATE_DIR:state, LUCI_PROJECTS_DIR:projects, LUCI_WEB_DIR:path.join(packageDir,'web'), LUCI_RUNTIME_DIR:path.join(packageDir,'runtime'), LUCI_DOCKER_HOST:process.platform === 'win32' ? `npipe:////./pipe/luci-eval-${randomUUID()}` : `unix://${path.join(evidence,'absent-docker.sock')}`, LUCI_BROWSER_PREVIEW_ADDR:`127.0.0.1:${previewPort}`, LUCI_BROWSER_PREVIEW_PORT:String(previewPort)}});
   child.on('error', error => logs.push(String(error)));
   for (const stream of [child.stdout, child.stderr]) stream.on('data', data => { if (logs.join('').length < 65536) logs.push(data.toString()); });
   const until = Date.now() + 60000;
@@ -48,7 +54,7 @@ async function start() {
     assert.equal(child.exitCode, null, 'Packaged service exited before readiness');
     try {
       const control = await request('GET','/v1/control-plane/status');
-      assert.equal(control.product,'Luci');assert.equal(control.version,process.env.LUCI_VERSION || '0.4.3');
+      assert.equal(control.product,'Luci');assert.equal(control.version,expectedVersion);
       if (control.bootstrapRequired) {
         const code = (await readFile(path.join(state,'control-plane/bootstrap-token'),'utf8')).trim();
         token = (await request('POST','/v1/auth/bootstrap',{bootstrapToken:code,username:'package-owner',displayName:'Package Owner',password})).token;

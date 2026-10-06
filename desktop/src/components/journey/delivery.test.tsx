@@ -288,3 +288,20 @@ it("reveals a collapsed cloud option for browser validation without starting a d
   expect(details.open).toBe(true);
   expect(deploy).not.toHaveBeenCalled();
 });
+
+it("keeps private repository credential preparation separate from deployment permission", async () => {
+  vi.spyOn(productApi, "targets").mockResolvedValue({ targets: [{ id: "target-1", name: "Server", serverUuid: "srv-1", baseUrl: "https://control.example" }] });
+  vi.spyOn(productApi, "git").mockResolvedValue(git);
+  vi.spyOn(productApi, "gitDelivery").mockResolvedValue({ origin: "https://github.com/owner/journal.git", branch: "main", head });
+  const key = vi.spyOn(productApi, "prepareDeployKey");
+  const deploy = vi.fn();
+  render(<CloudDeployForm projectId="p-1" busy="" canPrepareAccess={false} onSetup={vi.fn()} onDeploy={deploy} />);
+  await screen.findByRole("option", { name: "Server" });
+  await userEvent.selectOptions(screen.getByRole("combobox", { name: "Deployment server" }), "target-1");
+  const prepare = screen.getByRole("button", { name: "Prepare read-only GitHub access" });
+  expect((prepare as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(prepare);
+  expect(key).not.toHaveBeenCalled();
+  expect(screen.getByText(/Ask a team owner for secrets access/)).not.toBeNull();
+  expect(deploy).not.toHaveBeenCalled();
+});

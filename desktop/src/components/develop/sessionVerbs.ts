@@ -14,6 +14,7 @@ import { api } from "../../api";
 import { getAttachState, retryAttach } from "../../api/attachRegistry";
 import { ApiError } from "../../api/client";
 import { classify } from "../../api/problems";
+import { teamScopeGeneration } from "../../api/teamScope";
 import type { CreateSessionOptions } from "../../hooks/useCreateSession";
 import { replaceById } from "../../lib/immutable";
 import {
@@ -48,6 +49,8 @@ export interface VerbDeps {
   close: () => void;
   /** Arms the inline rename input. SessionMenu owns the input; the rail menu re-routes to it. */
   beginRename: (id: SessionId) => void;
+  /** Current project permissions supplied by every rendered action surface. */
+  access?: { canEdit: boolean; canExecute: boolean; canAssist?: boolean; permissions?: { admin: boolean }; message: string };
 }
 
 /* ── the pending registry ────────────────────────────────────────────────────────────── */
@@ -60,6 +63,10 @@ const timers = new Set<ReturnType<typeof setTimeout>>();
 const readinessRequests = new Map<string, symbol>();
 const readinessListeners = new Set<() => void>();
 let readinessGeneration = 0;
+function currentWorkspaceGuard(): () => boolean {
+  const teamGeneration = teamScopeGeneration(), workspaceGeneration = readinessGeneration;
+  return () => teamGeneration === teamScopeGeneration() && workspaceGeneration === readinessGeneration;
+}
 const readinessKey = (worktree: Worktree) => `${worktree.projectId}/${worktree.id}`;
 const notifyReadiness = () => readinessListeners.forEach(listener => listener());
 const subscribeReadiness = (listener: () => void) => {
@@ -174,6 +181,7 @@ function runDeferred<T>(opts: {
   adopt?: (result: T) => void;
 }): void {
   const { sessionId, message, apply, rollback, commit, adopt } = opts;
+  const currentWorkspace = currentWorkspaceGuard();
   // Set the instant the request leaves. The Undo button is already off the screen by then, but
   // the store does not drop the toast until ToastRow's own timer fires, and a click landing in
   // that gap would roll back a change the server had already accepted — leaving the cockpit
@@ -197,14 +205,17 @@ function runDeferred<T>(opts: {
    *  fails at the moment that decision is being made rather than afterwards. */
   async function settle(): Promise<void> {
     sent = true;
+    if (!currentWorkspace()) { setPending(sessionId, false); return; }
     try {
       const result = await commit();
+      if (!currentWorkspace()) return;
       // Before `setPending(false)` in the finally below, so the poller suppression is still in
       // force while the server's own row lands — otherwise a tick between the two could take
       // the row back to the state this request just changed.
       adopt?.(result);
       clearOwnReport();
     } catch (caught) {
+      if (!currentWorkspace()) return;
       // The window has closed. Put the row back, say why in plain text, and let task 19's
       // 2 s poller reconcile anything the rollback guessed wrong on its next tick.
       //
@@ -239,7 +250,7 @@ function runDeferred<T>(opts: {
     clearTimeout(timer);
     timers.delete(timer);
     setPending(sessionId, false);
-    rollback();
+    if (currentWorkspace()) rollback();
   });
 }
 
@@ -252,6 +263,7 @@ function runImmediate(opts: {
   commit: () => Promise<Session>;
 }): void {
   const { sessionId, apply, rollback, commit } = opts;
+  const currentWorkspace = currentWorkspaceGuard();
   apply();
   setPending(sessionId, true);
   void (async () => {
@@ -259,9 +271,12 @@ function runImmediate(opts: {
       // The server's object replaces the optimistic one outright: it carries updatedAt and
       // an attachPath the cockpit cannot derive, and guessing either is how a pane ends up
       // attached to a socket that no longer exists.
-      useCockpit.getState().upsertSession(await commit());
+      const result = await commit();
+      if (!currentWorkspace()) return;
+      useCockpit.getState().upsertSession(result);
       clearOwnReport();
     } catch (caught) {
+      if (!currentWorkspace()) return;
       rollback();
       report(caught as ApiError);
     } finally {
@@ -345,6 +360,7 @@ function restoreWorktreeSessions(
  *  relabel itself mid-hover, and the alternative — subscribing the always-mounted
  *  ContextMenu to the whole session map — re-renders it on every 2 s poll. */
 export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
+  const currentWorkspace = currentWorkspaceGuard();
   const state = useCockpit.getState();
   const session = selectSession(sessionId)(state);
   if (session === undefined) {
@@ -369,6 +385,7 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
   );
   const alive = session.status !== "exited";
   const act = (fn: () => void) => (): void => {
+    if (!currentWorkspace()) return;
     deps.close();
     fn();
   };
@@ -383,10 +400,12 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
               void (async () => {
                 try {
                   const next = await api.resumeSession(session, harness);
+                  if (!currentWorkspace()) return;
                   useCockpit.getState().upsertSession(next);
                   useCockpit.getState().focusSession(next.id);
                   clearOwnReport();
                 } catch (caught) {
+                  if (!currentWorkspace()) return;
                   report(caught as ApiError);
                 }
               })();
@@ -424,10 +443,12 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
                       worktree.id,
                       harness,
                     );
+                    if (!currentWorkspace()) return;
                     useCockpit.getState().upsertSession(next);
                     useCockpit.getState().focusSession(next.id);
                     clearOwnReport();
                   } catch (caught) {
+                    if (!currentWorkspace()) return;
                     report(caught as ApiError);
                   }
                 })();
@@ -440,7 +461,13 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
     }
   }
 
-  return items.concat(tailVerbs(session, alive, deps, act));
+  return items.concat(tailVerbs(session, alive, deps, act)).map(item => {
+    const needsCredentials = !["shell", "kill", "forget"].includes(item.id) && session.harness !== "shell";
+    const authAllowed = !session.authOnly || (deps.access?.canExecute && deps.access.canAssist !== false && deps.access.permissions?.admin !== false);
+    const execute = deps.access?.canExecute && (!needsCredentials || deps.access.canAssist !== false) && authAllowed;
+    const allowed = item.id === "copy-session-id" || !deps.access || (item.id === "rename" ? deps.access.canEdit && authAllowed : execute);
+    return allowed ? item : { ...item, run: undefined, disabledReason: deps.access?.message || (session.authOnly ? "Team administration is required to control account sign-in sessions." : needsCredentials ? "Credential access is required to use this coding agent." : "Editing and execution access are required for this session action.") };
+  });
 }
 
 /** The remaining verbs, split out so one function does not run past a screen and the two commit

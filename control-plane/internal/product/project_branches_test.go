@@ -28,7 +28,7 @@ func branchFixture(t *testing.T) (*Server, *http.ServeMux, project.Project, Bran
 		t.Fatal(err)
 	}
 	journeyRequest(t, mux, "POST", branchBase(p)+"brief", map[string]any{"revision": 0, "purpose": "Main purpose", "audience": "fixture users", "constraints": "", "criteria": []string{"actual source"}}, 200)
-	journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", map[string]string{"message": "Initial main context"}, 200)
+	journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", reviewedCommitRequest(t, mux, branchBase(p)+"git/commit", "Initial main context"), 200)
 	return s, mux, p, branchCatalogue(t, mux, p)
 }
 
@@ -105,7 +105,7 @@ func TestPrimaryBranchCreateSwitchConnectsFilesGitContextAndDeploymentSource(t *
 	}
 	journeyRequest(t, mux, "POST", branchBase(p)+"brief", map[string]any{"revision": current.Revision, "purpose": "Feature purpose", "audience": "fixture users", "constraints": "", "criteria": []string{"actual source"}}, 200)
 	reviewDeploymentFixture(t, mux, p.ID)
-	journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", map[string]string{"message": "Actual feature implementation"}, 200)
+	journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", reviewedCommitRequest(t, mux, branchBase(p)+"git/commit", "Actual feature implementation"), 200)
 	feature := branchCatalogue(t, mux, p)
 	if feature.Commit == original.Commit {
 		t.Fatal("feature commit was not created")
@@ -334,7 +334,7 @@ func TestPrimaryBranchDisablesControllerHooksFiltersAndInheritedGitRedirection(t
 			t.Fatal(err)
 		}
 	}
-	journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", map[string]string{"message": "Controlled filtered fixture"}, 200)
+	journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", reviewedCommitRequest(t, mux, branchBase(p)+"git/commit", "Controlled filtered fixture"), 200)
 	original = branchCatalogue(t, mux, p)
 	foreign := createJourneyProject(t, mux, "foreign-git")
 	t.Setenv("GIT_DIR", filepath.Join(foreign.Path, ".git"))
@@ -453,7 +453,7 @@ func TestPrimaryBranchForeignBranchOperationAndIgnoredFileStayProtected(t *testi
 	if err := os.WriteFile(filepath.Join(foreign.Path, "README.md"), []byte("other project"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	journeyRequest(t, mux, "POST", branchBase(foreign)+"git/commit", map[string]string{"message": "Other source"}, 200)
+	journeyRequest(t, mux, "POST", branchBase(foreign)+"git/commit", reviewedCommitRequest(t, mux, branchBase(foreign)+"git/commit", "Other source"), 200)
 	foreignSnapshot := branchCatalogue(t, mux, foreign)
 	foreignBefore := auditTree(t, foreign.Path)
 	journeyRequest(t, mux, "POST", branchBase(p)+"git/switch", branchMutation{BranchID: foreignSnapshot.CurrentBranchID, ExpectedBranchID: snapshot.CurrentBranchID, ExpectedCommit: snapshot.Commit, ExpectedTargetCommit: foreignSnapshot.Commit, OperationID: "foreign-branch-refusal"}, 404)
@@ -463,7 +463,7 @@ func TestPrimaryBranchForeignBranchOperationAndIgnoredFileStayProtected(t *testi
 	if err := os.WriteFile(filepath.Join(p.Path, ".gitignore"), []byte("ignored.txt\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", map[string]string{"message": "Ignore private local file"}, 200)
+	journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", reviewedCommitRequest(t, mux, branchBase(p)+"git/commit", "Ignore private local file"), 200)
 	snapshot = branchCatalogue(t, mux, p)
 	decodeBranchResult(t, journeyRequest(t, mux, "POST", branchBase(p)+"git/branches", branchCreateRequest(snapshot, "file-owner", "create-file-owner"), 200))
 	if err := os.WriteFile(filepath.Join(p.Path, "ignored.txt"), []byte("branch version"), 0600); err != nil {
@@ -472,7 +472,7 @@ func TestPrimaryBranchForeignBranchOperationAndIgnoredFileStayProtected(t *testi
 	if _, err := s.journeyGit(context.Background(), p.Path, "add", "--force", "ignored.txt"); err != nil {
 		t.Fatal(err)
 	}
-	journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", map[string]string{"message": "Track branch file"}, 200)
+	journeyRequest(t, mux, "POST", branchBase(p)+"git/commit", reviewedCommitRequest(t, mux, branchBase(p)+"git/commit", "Track branch file"), 200)
 	feature := branchCatalogue(t, mux, p)
 	decodeBranchResult(t, journeyRequest(t, mux, "POST", branchBase(p)+"git/switch", branchSwitchRequest(feature, "main", "back-main-ignored"), 200))
 	if err := os.WriteFile(filepath.Join(p.Path, "ignored.txt"), []byte("private local content"), 0600); err != nil {

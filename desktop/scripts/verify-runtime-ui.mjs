@@ -126,7 +126,7 @@ async function commit(message) {
   const state = await updated.json();
   assert.equal(state.clean, true);
   assert.equal(state.log[0].subject, message);
-  await page.getByText("Changes committed.", { exact: true }).waitFor();
+  await page.getByText("Reviewed changes committed.", { exact: true }).waitFor();
   return state.log[0].hash;
 }
 async function typeCommand(command) {

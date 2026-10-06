@@ -1,0 +1,8 @@
+@import "../../styles/tokens.css";
+
+.reviewed-context-note > p { margin: 0; }
+.reviewed-context-note > button { margin-top: 8px; }
+.reviewed-context-inspector { display: grid; gap: 16px; min-inline-size: 0; overflow-wrap: anywhere; }
+.reviewed-context-inspector h3, .reviewed-context-inspector h4 { margin: 0 0 8px; }
+.reviewed-context-inspector p { margin: 8px 0; }
+.reviewed-context-session { color: var(--ink-3); font-size: 12px; }

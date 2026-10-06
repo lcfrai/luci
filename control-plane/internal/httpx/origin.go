@@ -1,9 +1,11 @@
 package httpx
 
 import (
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -17,9 +19,10 @@ import (
 // unknown origin as a hard 403 with a log line naming what was rejected and what
 // is allowed - a silent 403 on a laptop is a bug report that costs an afternoon.
 type OriginPolicy struct {
-	allowed map[string]struct{}
-	order   []string // the same set, in configured order, for the log line
-	log     *slog.Logger
+	allowed    map[string]struct{}
+	publicHost string
+	order      []string // the same set, in configured order, for the log line
+	log        *slog.Logger
 }
 
 // DefaultOrigins is what a Tauri webview actually sends.
@@ -165,8 +168,8 @@ func LoopbackHost(hostHeader string) bool {
 // token. The browser must be able to preflight both that header and JSON bodies.
 // This grant is only sent after the exact origin and loopback Host checks.
 const (
-	corsMethods = "GET, POST, PATCH, DELETE, OPTIONS"
-	corsHeaders = "Content-Type, Authorization"
+	corsMethods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+	corsHeaders = "Content-Type, Authorization, X-Luci-Backup-SHA256, X-Luci-Trust-Backup"
 	corsMaxAge  = "600"
 )
 
@@ -196,12 +199,12 @@ func (p *OriginPolicy) Middleware(next http.Handler) http.Handler {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 		}
 
-		if !LoopbackHost(r.Host) {
+		if !LoopbackHost(r.Host) && (p.publicHost == "" || r.Host != p.publicHost) {
 			p.log.Warn("rejected a request whose Host is not loopback",
 				"host", r.Host, "method", r.Method, "path", r.URL.Path,
 				"remote", r.RemoteAddr)
 			WriteProblem(w, http.StatusForbidden, CodeForbiddenHost,
-				"This control plane only answers requests addressed to localhost.",
+				"This control plane only answers its configured application host or localhost.",
 				map[string]string{"host": r.Host})
 			return
 		}
@@ -237,4 +240,15 @@ func (p *OriginPolicy) Middleware(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// SetPublicAppOrigin is startup-only. Public Host admission is an exact static
+// setting; X-Forwarded-Host and similar client headers never grant access.
+func (p *OriginPolicy) SetPublicAppOrigin(origin string) error {
+	if err := previewgateway.ValidatePublicAppOrigin(origin); err != nil {
+		return err
+	}
+	u, _ := url.Parse(origin)
+	p.publicHost = u.Host
+	return nil
 }

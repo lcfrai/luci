@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { errorText, productApi, type GitDelivery } from "../../api/product";
+import { prepareBrowserAccess } from "../../api/browserAccess";
+import { selectedTeamId } from "../../api/teamScope";
+import { notifyProjectContextChanged } from "../../api/projectContextEvents";
+import { useProjectDraftScope } from "../../hooks/useProjectDraft";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
 import {
   platformApi,
   isolatedBrowserURL,
@@ -12,14 +17,23 @@ import {
 } from "../../api/platform";
 import { DataWorkspace } from "./DataWorkspace";
 import { StandaloneDatabase } from "./StandaloneDatabase";
+import "./platform.css";
 
-export function PlatformWorkspace({ projectId }: { projectId: string }) {
-  return <ProjectPlatform key={projectId} projectId={projectId} />;
+export function PlatformWorkspace({ projectId, inspectDeploymentId, inspectionRequest }: { projectId: string; inspectDeploymentId?: string; inspectionRequest?: number }) {
+  const scope = useProjectDraftScope(projectId);
+  return <ProjectPlatform key={scope ?? projectId} projectId={projectId} inspectDeploymentId={inspectDeploymentId} inspectionRequest={inspectionRequest} />;
 }
 
-function ProjectPlatform({ projectId }: { projectId: string }) {
+function ProjectPlatform({ projectId, inspectDeploymentId, inspectionRequest }: { projectId: string; inspectDeploymentId?: string; inspectionRequest?: number }) {
+  const projectAccess = useProjectAccess(projectId);
+  const scope = useProjectDraftScope(projectId);
+  const canDeploy = projectAccess.canEdit && projectAccess.permissions.deploy;
+  const canReadLogs = !projectAccess.loading && !projectAccess.error && projectAccess.canRead && projectAccess.permissions.deploy && projectAccess.permissions.secrets;
+  const logPermission = useRef(canReadLogs); logPermission.current = canReadLogs;
+  const browserPermission = useRef(projectAccess.canExecute); browserPermission.current = projectAccess.canExecute;
   const active = useRef(true), connectingBrowser = useRef(false), operating = useRef(false);
   const requestGeneration = useRef(0);
+  const providerGeneration = useRef(0);
   useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [status, setStatus] = useState<PlatformStatus | null>(null);
   const [project, setProject] = useState<PlatformProject | null>(null);
@@ -30,10 +44,25 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
   const [serverBusy, setServerBusy] = useState(false);
   const [error, setError] = useState("");
   const [providerError, setProviderError] = useState("");
+  const [providerLoading, setProviderLoading] = useState<"" | "connection" | "projects" | "updating">("");
   const [view, setView] = useState<
     "Overview" | "Deployments" | "Data" | "Hosting connection"
-  >("Overview");
+  >(inspectDeploymentId ? "Deployments" : "Overview");
+  const deploymentNodes = useRef(new Map<string, HTMLElement>());
+  const inspected = useRef<string | undefined>(undefined);
+  const [inspectionIssue, setInspectionIssue] = useState("");
+  useEffect(() => { if (inspectDeploymentId) setView("Deployments"); }, [inspectDeploymentId, inspectionRequest]);
+  useEffect(() => {
+    if (!inspectDeploymentId || !project || !status || view !== "Deployments" || inspected.current === `${inspectDeploymentId}:${inspectionRequest ?? 0}`) return;
+    inspected.current = `${inspectDeploymentId}:${inspectionRequest ?? 0}`;
+    const node = deploymentNodes.current.get(inspectDeploymentId);
+    if (node) { setInspectionIssue(""); node.scrollIntoView?.({ block: "nearest" }); node.focus(); }
+    else setInspectionIssue("The selected application is no longer in this project's history. Refresh application history before choosing another deployment.");
+  }, [inspectDeploymentId, inspectionRequest, project, status, view]);
   const [message, setMessage] = useState("");
+  const [replacement, setReplacement] = useState<{ previous: PlatformDeployment; commit: string } | null>(null);
+  const [replacementAccepted, setReplacementAccepted] = useState(false);
+  const buildForm = useRef<HTMLFormElement>(null);
   const [port, setPort] = useState("3000");
   const [healthPath, setHealthPath] = useState("/");
   const [baseUrl, setBaseUrl] = useState("");
@@ -44,45 +73,61 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
     text: string;
     notice: string;
   } | null>(null);
+  const reloadProvider = useCallback(async () => {
+    // Local operations can fail without refreshing. Their generation must not
+    // invalidate a provider lookup that can still finish independently.
+    const generation = ++providerGeneration.current;
+    const current = () => active.current && generation === providerGeneration.current;
+    setProviderLoading("connection");
+    setProviderError("");
+    setRemoteProjects([]);
+    try {
+      const nextConnection = await platformApi.connection();
+      if (!current()) return;
+      setConnection(nextConnection);
+      if (nextConnection.configured) {
+        setProviderLoading("projects");
+        const remote = await platformApi.projects();
+        if (current()) setRemoteProjects(remote.projects);
+      }
+    } catch {
+      if (!current()) return;
+      setRemoteProjects([]);
+      setProviderError(
+        "Panacea is unavailable. Your Docker services and database remain available.",
+      );
+    } finally {
+      if (current()) setProviderLoading("");
+    }
+  }, []);
   const reload = useCallback(async () => {
     const generation = ++requestGeneration.current;
     const [nextProject, nextDelivery] = await Promise.all([
       platformApi.project(projectId),
       productApi.gitDelivery(projectId),
     ]);
-    if (!active.current || generation !== requestGeneration.current) return;
+    if (!active.current || generation !== requestGeneration.current) return null;
     if (nextProject.project.projectId !== projectId)
       throw new Error("Luci could not verify this project's application services. Refresh the platform and try again.");
     setProject(nextProject.project);
     setServerBusy(nextProject.busy || nextProject.project.databaseOperation?.status === "running");
     setDelivery(nextDelivery);
     setRemoteProject(nextProject.project.panaceaProject || "");
-    setProviderError("");
-    try {
-      const nextConnection = await platformApi.connection();
-      if (!active.current || generation !== requestGeneration.current) return;
-      setConnection(nextConnection);
-      if (nextConnection.configured) {
-        const remote = await platformApi.projects();
-        if (active.current && generation === requestGeneration.current) setRemoteProjects(remote.projects);
-      }
-      else setRemoteProjects([]);
-    } catch {
-      if (!active.current || generation !== requestGeneration.current) return;
-      setRemoteProjects([]);
-      setProviderError(
-        "Panacea is unavailable. Your Docker services and database remain available.",
-      );
-    }
-  }, [projectId]);
+    // Hosting discovery is optional. Do not hold local capability admission or
+    // a completed Docker operation behind the provider's network timeout.
+    void reloadProvider();
+    return generation;
+  }, [projectId, reloadProvider]);
   useEffect(() => {
     let active = true;
-    Promise.all([platformApi.status(), reload()])
-      .then(([value]) => {
-        if (active) setStatus(value);
+    const local = reload();
+    const generation = requestGeneration.current;
+    Promise.all([platformApi.status(), local])
+      .then(([value, loaded]) => {
+        if (active && loaded === generation && generation === requestGeneration.current) setStatus(value);
       })
       .catch((cause) => {
-        if (active) setError(errorText(cause));
+        if (active && generation === requestGeneration.current) setError(errorText(cause));
       });
     return () => {
       active = false;
@@ -112,37 +157,61 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
     }, 2500);
     return () => { current = false; window.clearInterval(timer); };
   }, [serverBusy, projectId]);
-  async function run(label: string, task: () => Promise<unknown>) {
-    if (busy || serverBusy || operating.current || !active.current) return;
+  async function run<T>(label: string, task: () => Promise<T>, permitted = true, options: { afterReload?: (result: T) => void; providerMutation?: boolean } = {}) {
+    if (!permitted || busy || serverBusy || operating.current || !active.current) return;
     operating.current = true;
     ++requestGeneration.current;
     setBusy(label);
     setError("");
     setMessage("");
+    let providerRefreshed = false;
+    if (options.providerMutation) {
+      ++providerGeneration.current;
+      setProviderLoading("updating");
+      setRemoteProjects([]);
+      setProviderError("");
+    }
     try {
       const result = await task();
       if (!active.current) return;
-      await reload();
-      if (!active.current) return;
+      const generation = await reload();
+      providerRefreshed = generation !== null;
+      if (!active.current || generation !== requestGeneration.current) return;
+      options.afterReload?.(result);
       const state =
         result && typeof result === "object" && "status" in result
           ? String(result.status)
           : "";
-      setMessage(
+      const observedMessage = result && typeof result === "object" && "message" in result ? String(result.message) : "";
+      if (["failed", "unknown", "attention", "interrupted", "unhealthy"].includes(state)) {
+        setError(`${label} needs attention. ${observedMessage || "A healthy outcome has not been verified."} Inspect the saved deployment and its logs before choosing recovery.`);
+      } else setMessage(
         state === "running"
           ? "Database recovery accepted. Its verified progress and result appear below."
-          : state === "building" || state === "deploying"
-            ? "Deployment accepted and running. Readiness has not been verified yet."
+          : state === "building" || state === "deploying" ? "Deployment accepted and running. Readiness has not been verified yet."
+          : ["queued", "preparing", "verifying", "stopping"].includes(state)
+            ? "The operation is still in progress. Its final outcome has not been verified."
+          : state === "ready" ? `The selected service was verified ready. ${observedMessage}`
+          : state === "stopped" ? `The selected service is stopped. ${observedMessage}`
           : `${label} completed.`,
       );
     } catch (cause) {
       if (active.current) setError(errorText(cause));
     } finally {
+      if (active.current && options.providerMutation && !providerRefreshed) void reloadProvider();
       operating.current = false;
       if (active.current) setBusy("");
     }
   }
+  const runHosting = (label: string, task: () => Promise<unknown>, permitted: boolean) => run(label, task, permitted && !providerLoading, { providerMutation: true });
+  const deploy = (label: string, task: () => Promise<unknown>) => run(label, async () => { const result = await task(); notifyProjectContextChanged(scope, projectId); return result; }, canDeploy);
+  useEffect(() => { if (!canReadLogs) setLogs(null); }, [canReadLogs]);
   const disabled = !!busy || serverBusy;
+  const hostingDisabled = disabled || !!providerLoading;
+  const hostingProjectsReady = !providerLoading && !providerError && !!connection?.configured;
+  const providerStatus = providerLoading === "connection" ? "Checking Panacea connection…"
+    : providerLoading === "projects" ? "Loading Panacea projects…"
+    : providerLoading === "updating" ? "Updating Panacea hosting…" : "";
   const sourceReady = !!delivery?.head;
   const safeURL = (raw?: string) => {
     if (!raw) return undefined;
@@ -159,23 +228,31 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
   };
   async function refreshDeployment(deployment: PlatformDeployment) {
     if (deployment.provider === "panacea")
-      await platformApi.refreshPanacea(projectId, deployment.id);
-    else await platformApi.action(projectId, deployment.id, "refresh");
+      return await platformApi.refreshPanacea(projectId, deployment.id);
+    else return await platformApi.action(projectId, deployment.id, "refresh");
   }
   async function openWorkspaceApplication(deployment: PlatformDeployment) {
-    if (disabled || connectingBrowser.current) return;
+    if (disabled || connectingBrowser.current || !projectAccess.canExecute) return;
+    const popup = selectedTeamId() ? window.open('about:blank', '_blank') : null;
+    if (popup) popup.opener = null;
     connectingBrowser.current = true;
     setBusy("Connecting application browser"); setError(""); setMessage("");
     try {
-      const connection = await platformApi.prepareBrowser(projectId, "application", deployment.id);
-      if (!active.current) return;
+      const connection = deployment.browserConnectionRequired
+        ? await platformApi.prepareBrowser(projectId, "application", deployment.id)
+        : {url: deployment.url || '', projectId, kind: 'application', resourceId: deployment.id};
+      if (!active.current || !browserPermission.current) { popup?.close(); return; }
       const address = isolatedBrowserURL(connection.url);
       if (!address || connection.projectId !== projectId || connection.kind !== "application" || connection.resourceId !== deployment.id)
         throw new Error("Luci could not verify this application's browser connection. Reconnect your workspace and try again.");
       setProject(current => current ? { ...current, deployments: current.deployments.map(row => row.id === deployment.id ? { ...row, url: address, browserConnectionRequired: false } : row) } : current);
       setMessage("Browser connection ready. You can open the application below.");
-      window.open(address, "_blank", "noopener,noreferrer");
-    } catch (cause) { if (active.current) setError(errorText(cause)); }
+      const opened = await prepareBrowserAccess(projectId, address);
+      if (active.current && browserPermission.current) {
+        if (popup) popup.location.replace(opened);
+        else window.open(opened, "_blank", "noopener,noreferrer");
+      } else popup?.close();
+    } catch (cause) { popup?.close(); if (active.current) setError(errorText(cause)); }
     finally { connectingBrowser.current = false; if (active.current) setBusy(""); }
   }
   return (
@@ -193,14 +270,20 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
           className="luci-button"
           disabled={disabled}
           onClick={() =>
-            void run("Refresh platform", async () => {
-              setStatus(await platformApi.status());
-            })
+            void run("Refresh platform", platformApi.status, true, { afterReload: setStatus })
           }
         >
           Refresh platform
         </button>
       </div>
+      {projectAccess.loading ? <p role="status">Checking platform permissions…</p>
+        : projectAccess.error ? <p role="status">Platform permissions could not be confirmed. {projectAccess.error} Luci must confirm access before you can operate applications or open private logs and previews.</p>
+          : <>
+            {!canDeploy && <p role="status">Deployment access is required to build, stop, restart or check deployment health. Ask a team owner for editing and deployment access.</p>}
+            {!canReadLogs && <p role="status">Application logs require deployment and secrets access. Ask a team owner for those permissions.</p>}
+            {!projectAccess.canExecute && <p role="status">Opening private application previews requires execution access.</p>}
+          </>}
+      {inspectionIssue && <p role="alert" className="journey-error">{inspectionIssue}</p>}
       {error && (
         <p className="journey-error" role="alert">
           {error}
@@ -215,6 +298,7 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
               : message}
         </p>
       )}
+      {providerStatus && <p role="status">{providerStatus}</p>}
       {!status && !error && (
         <p role="status">Checking platform capabilities…</p>
       )}
@@ -252,9 +336,12 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                 <dd>{project?.database.status || "not-created"}</dd>
                 <dt>Panacea</dt>
                 <dd>
-                  {connection?.configured
+                  {providerLoading === "connection" || providerLoading === "updating"
+                    ? "Checking connection"
+                    : providerError ? "Unavailable"
+                    : connection?.configured
                     ? `Connected to ${connection.baseUrl}`
-                    : "Not connected"}
+                    : connection ? "Not connected" : "Connection not yet checked"}
                 </dd>
               </dl>
               <p>{status.supabase.message}</p>
@@ -271,21 +358,24 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
           </p>
           {view === "Deployments" && (
             <form
-              className="cloud-deploy-form"
+              ref={buildForm} tabIndex={-1}
+              className="platform-form"
               onSubmit={(event) => {
                 event.preventDefault();
-                if (delivery)
-                  void run("Start persistent deployment", () =>
-                    platformApi.deploy(
-                      projectId,
-                      delivery.head,
-                      Number(port),
-                      healthPath,
-                    ),
-                  );
+                if (delivery && canDeploy && (!replacement || replacementAccepted))
+                  void deploy(replacement ? "Start replacement deployment" : "Start persistent deployment", async () => {
+                    const result = await platformApi.deploy(projectId, replacement?.commit ?? delivery.head, Number(port), healthPath);
+                    if (active.current) { setReplacement(null); setReplacementAccepted(false); }
+                    return result;
+                  });
               }}
             >
-              <h3>Persistent Docker deployment</h3>
+              <h3>{replacement ? "Review replacement deployment" : "Persistent Docker deployment"}</h3>
+              {replacement && <><p>Earlier deployment: <code>{replacement.previous.commit}</code>. Replacement commit: <code>{replacement.commit}</code>.</p>
+                <p className="journey-warning">This creates a separate application using the selected commit and current runtime configuration and database bindings. The earlier deployment and its data are retained. Review the replacement's health and behavior before stopping the earlier service.</p>
+                {replacement.previous.commit !== replacement.commit && <p>The source has changed. This replacement needs new checks and review; it is not a rollback to the earlier version.</p>}
+                <label className="setup-check"><input type="checkbox" checked={replacementAccepted} disabled={disabled} onChange={event => setReplacementAccepted(event.target.checked)} />Create this replacement and retain the earlier deployment.</label>
+                <button type="button" className="luci-button" disabled={disabled} onClick={() => { setReplacement(null); setReplacementAccepted(false); }}>Keep existing deployment</button></>}
               <p>
                 Build the committed Dockerfile and run on this workspace’s
                 Docker host. This is a local service, not public internet
@@ -298,7 +388,7 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                   ? `${delivery.branch} · ${delivery.head.slice(0, 12)}`
                   : "Commit your project in Develop first."}
               </p>
-              <label>
+              <label className="platform-field">
                 Application port
                 <input
                   type="number"
@@ -310,7 +400,7 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                   onChange={(event) => setPort(event.target.value)}
                 />
               </label>
-              <label>
+              <label className="platform-field">
                 Health check path
                 <input
                   required
@@ -326,9 +416,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
               )}
               <button
                 className="luci-button luci-primary"
-                disabled={disabled || !status.dockerReady || !sourceReady}
+                disabled={disabled || !canDeploy || !status.dockerReady || !sourceReady || (!!replacement && !replacementAccepted)}
               >
-                Start persistent deployment
+                {replacement ? "Start replacement deployment" : "Start persistent deployment"}
               </button>
             </form>
           )}
@@ -341,7 +431,7 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
             </section>
           )}
           {view === "Hosting connection" && (
-            <section className="cloud-deploy-form" aria-label="Panacea hosting">
+            <section className="platform-block" aria-label="Panacea hosting">
               <h3>Connect Panacea hosting</h3>
               {providerError && <p role="alert">{providerError}</p>}
               <p>
@@ -355,24 +445,26 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                     Connected to <strong>{connection.baseUrl}</strong>
                   </p>
                   <form
+                    className="platform-form"
                     onSubmit={(event) => {
                       event.preventDefault();
-                      void run("Connect Panacea project", () =>
+                      void runHosting("Connect Panacea project", () =>
                         platformApi.mapProject(projectId, remoteProject),
+                        hostingProjectsReady && remoteProjects.some(item => item.name === remoteProject),
                       );
                     }}
                   >
-                    <label>
+                    <label className="platform-field">
                       Panacea project
                       <select
                         value={remoteProject}
-                        disabled={disabled}
+                        disabled={hostingDisabled || !hostingProjectsReady}
                         required
                         onChange={(event) =>
                           setRemoteProject(event.target.value)
                         }
                       >
-                        <option value="">Choose an accessible project</option>
+                        <option value="">{providerLoading === "projects" ? "Loading accessible projects…" : providerError ? "Projects unavailable" : "Choose an accessible project"}</option>
                         {remoteProjects.map((item) => (
                           <option key={item.name} value={item.name}>
                             {item.displayName || item.name}
@@ -382,7 +474,7 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                     </label>
                     <button
                       className="luci-button"
-                      disabled={disabled || !remoteProject}
+                      disabled={hostingDisabled || !hostingProjectsReady || !remoteProjects.some(item => item.name === remoteProject)}
                     >
                       Connect Panacea project
                     </button>
@@ -395,14 +487,14 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                   <button
                     className="luci-button luci-primary"
                     disabled={
-                      disabled ||
+                      hostingDisabled || !hostingProjectsReady ||
                       !project?.panaceaProject ||
                       !sourceReady ||
-                      !status.permissions.deployPanacea
+                      !status.permissions.deployPanacea || !canDeploy
                     }
                     onClick={() => {
-                      if (delivery)
-                        void run("Request Panacea deployment", () =>
+                      if (delivery && hostingProjectsReady && project?.panaceaProject && canDeploy && status.permissions.deployPanacea)
+                        void deploy("Request Panacea deployment", () =>
                           platformApi.deployPanacea(
                             projectId,
                             delivery.head,
@@ -416,9 +508,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                   {connection.canManage && (
                     <button
                       className="luci-button"
-                      disabled={disabled}
+                      disabled={hostingDisabled}
                       onClick={() =>
-                        void run("Disconnect Panacea", platformApi.disconnect)
+                        void runHosting("Disconnect Panacea", platformApi.disconnect, !!connection?.canManage)
                       }
                     >
                       Disconnect Panacea
@@ -427,27 +519,29 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                 </>
               ) : connection?.canManage ? (
                 <form
+                  className="platform-form"
                   onSubmit={(event) => {
                     event.preventDefault();
                     const key = apiKey;
                     setApiKey("");
-                    void run("Verify Panacea connection", () =>
+                    void runHosting("Verify Panacea connection", () =>
                       platformApi.connect(baseUrl, key),
+                      !!connection?.canManage,
                     );
                   }}
                 >
-                  <label>
+                  <label className="platform-field">
                     Panacea HTTPS origin
                     <input
                       type="url"
                       placeholder="https://panacea.example.com"
                       required
                       value={baseUrl}
-                      disabled={disabled}
+                      disabled={hostingDisabled}
                       onChange={(event) => setBaseUrl(event.target.value)}
                     />
                   </label>
-                  <label>
+                  <label className="platform-field">
                     Scoped Panacea API key
                     <input
                       type="password"
@@ -455,13 +549,13 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                       required
                       minLength={16}
                       value={apiKey}
-                      disabled={disabled}
+                      disabled={hostingDisabled}
                       onChange={(event) => setApiKey(event.target.value)}
                     />
                   </label>
                   <button
                     className="luci-button"
-                    disabled={disabled || !apiKey}
+                    disabled={hostingDisabled || !apiKey}
                   >
                     Verify and save connection
                   </button>
@@ -470,9 +564,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                     returned to this form.
                   </p>
                 </form>
-              ) : (
+              ) : connection && !providerLoading ? (
                 <p>An administrator can connect this workspace to Panacea.</p>
-              )}
+              ) : null}
             </section>
           )}
           {view === "Deployments" && (
@@ -482,7 +576,7 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                 <p>No persistent deployments yet.</p>
               )}
               {project?.deployments.map((deployment) => (
-                <article className="cloud-deploy-form" key={deployment.id}>
+                <article className="platform-block" key={deployment.id} tabIndex={-1} ref={node => { if (node) deploymentNodes.current.set(deployment.id, node); else deploymentNodes.current.delete(deployment.id); }} aria-label={`Deployment ${deployment.id}`}>
                   <h4>
                     {deployment.provider === "docker"
                       ? "Docker service"
@@ -492,12 +586,12 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                   <p>
                     <strong>{deployment.status}</strong> · {deployment.message}
                   </p>
-                  {deployment.status === "ready" && deployment.provider === "docker" && deployment.browserConnectionRequired && (
-                    <button type="button" className="luci-button" disabled={disabled} onClick={() => void openWorkspaceApplication(deployment)}>
+                  {deployment.status === "ready" && deployment.provider === "docker" && (deployment.browserConnectionRequired || selectedTeamId()) && (
+                    <button type="button" className="luci-button" disabled={disabled || !projectAccess.canExecute} onClick={() => void openWorkspaceApplication(deployment)}>
                       Open deployed application
                     </button>
                   )}
-                  {deployment.status === "ready" && !deployment.browserConnectionRequired && safeURL(deployment.url) && (
+                  {deployment.status === "ready" && !deployment.browserConnectionRequired && !selectedTeamId() && safeURL(deployment.url) && (
                     <a
                       className="luci-button"
                       href={safeURL(deployment.url)}
@@ -510,9 +604,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                   <div className="journey-actions">
                     <button
                       className="luci-button"
-                      disabled={disabled}
+                      disabled={disabled || !canDeploy}
                       onClick={() =>
-                        void run("Verify deployment health", () =>
+                        void deploy("Verify deployment health", () =>
                           refreshDeployment(deployment),
                         )
                       }
@@ -523,9 +617,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                       <>
                         <button
                           className="luci-button"
-                          disabled={disabled || deployment.status === "stopped"}
+                          disabled={disabled || !canDeploy || deployment.status === "stopped"}
                           onClick={() =>
-                            void run("Stop deployment", () =>
+                            void deploy("Stop deployment", () =>
                               platformApi.action(
                                 projectId,
                                 deployment.id,
@@ -538,9 +632,9 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                         </button>
                         <button
                           className="luci-button"
-                          disabled={disabled}
+                          disabled={disabled || !canDeploy}
                           onClick={() =>
-                            void run("Restart deployment", () =>
+                            void deploy("Restart deployment", () =>
                               platformApi.action(
                                 projectId,
                                 deployment.id,
@@ -551,19 +645,19 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                         >
                           Restart deployment
                         </button>
+                        {["failed", "stopped", "unknown"].includes(deployment.status) && <button type="button" className="luci-button" disabled={disabled || !canDeploy || !sourceReady} onClick={() => {
+                          if (!delivery || disabled || !canDeploy) return;
+                          setReplacement({ previous: deployment, commit: delivery.head }); setReplacementAccepted(false);
+                          buildForm.current?.scrollIntoView?.({ block: "nearest" }); buildForm.current?.focus();
+                        }}>Prepare replacement deployment</button>}
                         <button
                           className="luci-button"
-                          disabled={disabled}
+                          disabled={disabled || !canReadLogs}
                           onClick={() =>
                             void run("Read application logs", async () => {
-                              setLogs({
-                                id: deployment.id,
-                                ...(await platformApi.logs(
-                                  projectId,
-                                  deployment.id,
-                                )),
-                              });
-                            })
+                              const result = await platformApi.logs(projectId, deployment.id);
+                              if (active.current && logPermission.current) setLogs({ id: deployment.id, ...result });
+                            }, canReadLogs)
                           }
                         >
                           Read application logs
@@ -571,6 +665,7 @@ function ProjectPlatform({ projectId }: { projectId: string }) {
                       </>
                     )}
                   </div>
+                  {["failed", "stopped", "unknown"].includes(deployment.status) && <p className="journey-muted">Inspect logs before recovery. Restart uses the retained container and image; if it is missing or its database binding changed, prepare a replacement from reviewed source. Neither action restores database contents.</p>}
                   {logs?.id === deployment.id && (
                     <>
                       <p>{logs.notice}</p>

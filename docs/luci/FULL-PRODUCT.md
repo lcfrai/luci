@@ -7,6 +7,842 @@ current completion standard: finish the full product and verify its supported
 installed workflows. The small Docker/subscription deployment benchmark is one
 required acceptance journey within that scope.
 
+The current source candidate is **0.5.0**. See the final checkpoint below for the
+new durable-run, portable-context, team and release-integrity work. Earlier
+installed versions, hashes and results are preserved as historical evidence;
+none is relabelled as acceptance of the new candidate.
+
+## Latest continuing checkpoint
+
+The full product goal remains open. The clean installed `9c585ec3` package
+passes captured-context inspection, phone coding layout and subscription-recovery
+guidance. Its 941 installed files and 346 licence components are independently
+verified against the source-bound archive. The prior failures remain retained.
+
+Twelve actual captured-document inspections pass, including an existing read-only
+teammate. Original agreed A remains readable while current amended B is visible.
+At 390 px, the terminal body measures 374 × 416 px with the project overview open.
+Opening the already-selected session reveals and focuses the same terminal DOM;
+delayed original responses preserve newer task focus and Define navigation.
+The genuine stopped session, captured inputs, native history and package remain
+unchanged, with no owned fixture processes left. This fixture performs no coding
+or model execution. Evidence:
+`artifacts/quality-reviewed-context-isolation/9c585ec3-final-attempt-2/`.
+
+Native lifecycle acceptance remains failed. The correction for Codex's temporary
+launcher aliases fixes the previous HTTP 500: supported resume now returns 201
+and creates an independent captured bundle and real child. The resumed CLI then
+fails to reach the controlled provider within the unchanged 120-second bound.
+The initial actual CLI read and service restart pass; the complete continuation,
+corruption and amendment recovery gates remain open. Independent cleanup verifies
+zero owned resources and unchanged package/image identities. Evidence:
+`artifacts/quality-reviewed-context-lifecycle/9c585ec3-attempt-1/`.
+Bounded private worker diagnostics retain fixed failure codes, without raw errors
+or request data; see [WORKER-DIAGNOSTICS.md](WORKER-DIAGNOSTICS.md).
+
+All three installed subscription-guidance cases pass: owners can review access in
+Service and data, members are directed to the owner, and an operator suspension
+retains its operator remedy. Actual denied requests start no commands and contact
+no payment provider. Billing observations are labelled fixtures; this does not
+establish merchant operation. Two earlier driver failures and their corrections
+are retained in `artifacts/quality-team-subscription-guidance/`.
+
+The combined source passes 2,256 Go outcomes with 22 skips, 860 affected race
+outcomes with four skips, Windows API-test/service compilation and Darwin service
+compilation. All 687 Go inputs remain unchanged. Affected frontend checks and
+TypeScript pass; no fresh full frontend run or native Windows runtime is claimed.
+GitHub rejects the current Actions jobs before execution because of account
+payment/spending-limit status. Real-model, managed-host and public-release gates
+remain separate; completed corrections do not close the full product objective.
+
+## Earlier context-delivery and inspector checkpoint
+
+The clean `98e329ea` package now has a scoped, independently checked context-
+delivery witness: one actual coding child reads approved A, a teammate saves
+Definition/Design B through the UI, and that same child rereads the original
+seven authoritative files, manifest and brief while canonical B remains visible.
+The separate context mount is read-only, source stays writable, and session/run/
+operation/container identities remain unchanged. Exact UI stop and independent
+cleanup verify zero owned resources and unchanged image pins. Its overall
+installed attempt remains **failed**: the 390 px terminal area did not meet the
+unchanged usable-area requirement. The failed numeric dimensions were not
+retained; a bounded layout diagnosis is required before choosing a correction.
+The first two attempts' Git-mount and obsolete-copy fixture failures remain
+separate. Evidence: `artifacts/quality-reviewed-context-isolation/98e329ea-after-attempt-3-scoped-delivery-witness.json`.
+
+A second comprehension gap is corrected in the working source: a recorded delivery
+notice did not let people inspect the complete captured inputs. A deliberate
+read-only dialog now shows the original brief, definition, design and plan from
+both the session pane and implementation history. Team viewers need no execution
+or secret privilege. Each request verifies the retained bundle; missing or corrupt
+captures never substitute current files. Permission refresh preserves the open
+view; scope loss and revocation fence late results. Independent review also found
+and closed a post-projection revocation window before buffered data is emitted,
+with a genuine before-fix failure retained.
+
+Inspector validation passes 2,176 complete Go outcomes / 22 skips, 781 affected
+API/management race outcomes / four skips, and Windows API test plus Darwin API
+build cross-compilation. Frontend coverage spans 2,093 cases across 129 files:
+2,091 passed initially, and the missing stylesheet token import and obsolete
+workflow-prompt expectation pass in an 86-case affected-file correction. TypeScript
+passes; no application TypeScript changed after it. This is not a single clean
+full frontend run. Matching installed human inspection, phone layout and captured-
+bundle lifecycle acceptance remain open. Source receipts:
+`artifacts/quality-reviewed-context-inspector/`.
+
+The prior `85f830e0` package passes all ten collaborative coding/amendment,
+reviewed Git commit, independent Docker check, preview and replacement groups.
+It also passes all three real local-operation / delayed-HTTPS-provider groups:
+the local app opens and stops while provider discovery remains pending; actual
+provider failure and explicit retry recover without changing identity, source,
+context or permissions. Both runtime windows finish with zero owned resources
+and unchanged protected images. These use controlled providers, not real model
+reasoning. Original fixture failures and their narrow corrections remain in
+`artifacts/quality-connected-amendment/` and
+`artifacts/quality-platform-provider-isolation/85f830e0-attempt-3/`.
+
+A separate core defect is now the active correction: reviewed sessions retained
+immutable revision metadata, but their delivered prompt read mutable checkout
+context. A teammate's amendment could therefore change the files read by an
+already-running agent. The real API regression reproduces six changed exports
+on the same child, with canonical edits, source and Git staging retained.
+The installed `85f830e0` before-fix witness independently confirms the defect:
+a real coding child reads approved A, a second browser saves Definition/Design B,
+and that same child rereads five changed exports and the unapproved requirement.
+It uses exactly one Create/Start and is explicitly stopped through the UI before
+the intended context-drift assertion; independent cleanup finds zero owned
+resources and unchanged image pins. The earlier auxiliary-provider harness
+failure is retained separately.
+The correction captures canonical reviewed bytes into a separate read-only,
+session-owned bundle and keeps ordinary project files editable. Restart/resume
+must verify that bundle; older sessions cannot invent missing delivery evidence.
+The UI distinguishes recorded captured inputs from older unconfirmed delivery
+without replacing the terminal. Its 2,075 frontend cases pass across the complete
+suite and a 43-case contract/copy correction run; TypeScript passes. The full
+Go suite passes 2,165 outcomes with 22 skips; all four affected packages pass
+1,097 race outcomes with four skips. Windows API test and Darwin API build
+cross-compilation pass, with all 675 Go inputs unchanged. These are source
+checks, not native execution. A final review also removed competing live-context
+instructions from the built-in task launcher; its 11 tests and the 30 session-pane
+tests pass with TypeScript, retaining all earlier receipts. Matching installed
+same-child reread and recovery acceptance remain open. See `artifacts/quality-reviewed-context-isolation/` and
+`artifacts/quality-reviewed-context-ui/source-validation.json`.
+
+The bounded `85f830e0` responsiveness diagnostic completes exactly three actions,
+with no repeated attempt and no reproduced tail miss. Both observed status
+round trips are dominated by their actual Docker CLI probe, but this does not
+explain the previous long outliers or establish a fix. Negative profiler sample
+deltas prohibit naive leaf CPU totals. The responsiveness gate remains open;
+`artifacts/quality-responsiveness/85f830e0-bounded-diagnostic.md` records limits.
+
+### Earlier continuing checkpoints
+
+The full product goal remains open. Clean `f388ad44` has the installed phone
+handoff and connected-recovery evidence recorded below. It also passes eight
+installed full-sandbox restart/recovery groups: the same live Codex child,
+container, source, run inputs and history survive service/worker restart;
+reattachment and replay send no extra provider request; explicit continuation
+uses the same child. Deliberate removal of that owned runtime remains an unknown
+operation, with an explicit blocked/reconcile/cancel path that preserves source.
+Receipt and independent identity checks:
+`artifacts/package-eval/0.5.0-f388ad44/runtime-restart-attempt-2/acceptance-review.json`.
+All 940 installed files match the package. Cleanup verifies zero owned processes,
+containers or volumes and unchanged images/runtime archive. Attempt 1's terminal
+paste-delivery timeout remains recorded; the corrected driver sends text and one
+separate Enter. This is actual execution/recovery with a labelled deterministic
+provider, not real model reasoning or application-quality acceptance.
+
+The current corrective batch prevents unsaveable viewer task input, fences late
+backup/restore results after permission or scope loss, and binds commits to the
+source and context displayed in Git review. Confirmed access loss cannot be undone
+by a later regrant of an old request. Ordinary permission refresh retains admitted
+work; an unconfirmed download completion explains how to retry. Existing editor
+drafts remain intact. Git commits use an immutable captured worktree, preserve
+concurrent edits, original staging on refusal and native recovery history, and
+require explicit refreshed review after drift. Bounded Git compatibility is
+specified in [API.md](API.md).
+
+The full frontend suite passes **2,051 tests across 128 files**, the complete Go
+suite passes **2,120 outcomes with 22 skips**, and the changed product-package
+race suite passes **513 outcomes with one skip**. Type checking passes; all 428
+frontend and 667 Go input hashes remain unchanged during these final checks.
+Logs and original failures are retained in
+`artifacts/quality-collaboration-boundaries/`: old API fixtures and the exact
+read-command audit were corrected; a subsequent temporary-disk exhaustion was
+resolved by clearing only the task-owned build cache and rerunning unchanged
+source. Clean `448275fc` independently matches all 940 package files and 346
+licence components, with no missing licences. Six portable groups, seven launcher
+outcomes and four actual two-person Git-review groups pass. A real UI amendment
+makes the earlier review stale without changing HEAD or index; explicit refresh
+retains the message and commits the reviewed bytes. A later amendment remains
+uncommitted. The provider and Docker are unused in this scope.
+
+The installed permission journey exposed a clipped keyboard focus ring around
+New task. Scoped scroll padding now resolves it on clean `c6e28ec8`: six installed
+permission/backup groups pass, with complete keyboard focus outlines at 1440 and
+390 px, retained editor drafts through access changes, and zero downloads from
+three stale-response scenarios. One authorized ZIP contains independently checked
+source, Git history and context archives. Six portable groups and seven launcher
+outcomes pass; all 940 package files and 346 licence components match. The four
+earlier attempts retain one product failure and three distinct harness failures.
+Receipt and rendered evidence:
+`artifacts/package-eval/0.5.0-c6e28ec8/permission-continuity-attempt-3/`.
+Restoration callback lifetime remains component-tested; the current restore dialog
+prevents normal navigation while busy. This CSS-only follow-on passes type
+checking and before/after native-scrolling diagnostics; the complete source suite
+above belongs to `448275fc`. Current navigation timing/reflow and connected
+build/amendment acceptance continue. The initial 80-transition timing record
+meets warm-navigation p95 targets (245.5 ms desktop, 328.4 ms phone), but phone
+input-inclusive acknowledgement p95 is 118.3 ms and three actions exceed 100 ms.
+Those original outliers are retained for profiling. Rendered keyboard/reflow
+checks also expose clipped internal-tab focus indicators and a short-height
+sticky footer overlapping tabs. Scoped CSS corrections are implemented with 63
+existing phase/component tests passing; matching browser verification follows.
+Twelve scoped axe scans have zero violations and two incomplete contrast items.
+The 720 × 500 / DPR 2 observation is equivalent-viewport reflow, not actual 200%
+browser zoom. Clean `84095f9d` now passes the focused CSS follow-up: 48 keyboard/
+Verify observations, 24 internal-tab states and 12 axe scans with zero violations.
+The focus indicators are complete, the footer no longer obscures navigation,
+actual hit targets are unobstructed and saved context is unchanged. The remaining
+wide Deploy contrast incomplete has a saved-image/computed-color assessment of
+12.47:1; the corrected Define status text measures 7.97:1. These are scoped
+accessibility observations, not conformance. Ordinary Chromium Settings provides
+a verified native-zoom mechanism. Installed `84095f9d` passes native 200% zoom:
+four phase scans have zero violations or incomplete items, and all 16 keyboard
+observations retain complete focus outlines. Native 400% exposes a real blocker:
+shell controls consume the short viewport and collapse the Develop workspace to
+zero height. A narrow short-height correction keeps the journey in normal scroll
+flow while giving active terminal/Canvas surfaces definite usable space. Seven
+source geometry cases pass. Clean `4c6b895f` now passes native 200% and restores
+reachable content at 400% through normal Tab navigation and shell scrolling.
+One of 29 stops still clips the full-width plan disclosure's focus ring. A narrow
+inset-outline correction preserves its two-pixel accent and unchanged geometry;
+four before/after geometry cases and type checking pass. Clean `e7e4dc41` now
+passes all 29 native-400% Tab stops with the complete inset focus outline and
+reachable content, preserving the actual 360 × 228 CSS viewport / DPR 4 and
+unchanged outer window. Full physical screenshots and the original failure are
+retained in `artifacts/quality-responsiveness/e7e4dc41-native400-focus-attempt-1/`.
+
+The CPU diagnostic identifies duplicated tab geometry work but does not reproduce
+the original large phone stalls. Fluid now shares one coalesced geometry snapshot
+for its pills and selected/focused tab visibility. Independent review then found
+that a replaced strip could retain listeners on its old DOM element. Two new
+regressions fail before the correction and pass afterward; all 71 affected tests
+and type checking pass. Clean `4c6b895f` passes 48 keyboard/Verify observations,
+24 selected-tab alignments and 12 axe scans with zero violations. Its 80 warm
+actions have input-inclusive acknowledgement p95 of 62.4 ms desktop / 72.2 ms
+phone, and initial-content p95 of 492.5 / 228.3 ms. Two acknowledgement and two
+readiness misses remain. The slow readiness waits on platform status; retained
+traces do not identify a specific slow application function or partition server,
+renderer, observer and host scheduling costs. Instrumentation also changed, so
+this does not prove the original stalls were fixed. The responsiveness gate stays
+open. Full evidence and limits: `artifacts/quality-responsiveness/4c6b895f-acceptance.md`
+and the adjacent trace analysis.
+
+The connected runtime attempt exposed a separate product recovery defect. Docker
+finished an owned Create after the fixture service was interrupted; its retained
+session remained Starting while the child was merely Created with PID 0. The
+original attempt is aborted, not passed: three groups and one reviewed commit
+completed, but checks and preview did not. The initial interruption resulted from
+an incorrect harness disk-floor interpretation. Corrected admission budgets
+reserve capacity before allocation and a separate remaining-space margin while
+running. The exact late resource was identified and removed; repeated cleanup
+observations show zero owned resources, with private evidence retained.
+
+The source correction uses explicit Created-only and in-flight observations,
+the existing grace, fresh exact ownership and a conditional session transition.
+It retains the same session/run/operation/source identity and prevents automatic
+redispatch. The complete Go suite passes 2,144 outcomes with 22 skips; the full
+five-package affected race suite passes 1,283 outcomes with seven skips. A bounded
+independent source review finds no actionable defect. Clean `4c6b895f` passes all
+four installed interrupted-create/restart groups on its first attempt. One real
+Create and zero Start/provider calls preserve the same session/run/operation and
+source. Restart shows unconfirmed startup; the actual grace and ordinary sweep
+produce a failed/blocked attempt, explicit enabled retry and removal of the exact
+owned child. Explicit cancellation preserves the ledger. Minimum remaining disk
+is 1,836,802,048 bytes; confirmed daemon drain and independent cleanup find zero
+owned processes, containers or volumes with pinned images intact. Receipt:
+`artifacts/package-eval/0.5.0-4c6b895f/interrupted-create-attempt-1/result.json`.
+The final complete frontend suite passes 2,059 tests across 128 files, plus
+TypeScript. All 428 frontend and 671 Go input hashes remain unchanged during their
+accepted checks. Windows product-test and Darwin API cross-compilation pass; this
+is not native execution. Receipts and original review-found failures are retained
+in `artifacts/quality-recovery-responsiveness/`. All 940 installed package files
+match, with 346 licence components and none missing. Six portable groups and seven
+launcher outcomes pass. The Definition footer/history also use singular counts.
+The initial `72c33b02` build correctly refused outdated adapted-Fluid provenance.
+The follow-on updates only the two adaptation hashes and their description,
+preserving upstream revision, original source fingerprints and the MIT grant.
+Application source is unchanged; the failed build log remains retained.
+
+The first `e7e4dc41` connected retry completes three groups, actual amended
+coding and two reviewed UI Git commits, then reaches the unchanged check timeout.
+Its Docker transport helper sent response headers only with the response body:
+Docker wait held those headers until exit, while the CLI required the headers
+before issuing Start. A bounded real-container diagnostic reproduces this
+circular wait and verifies the same child can run when started directly.
+Flushing passthrough response headers fixes the helper; original transport smoke
+checks and a fresh real CLI Create/attach/wait/Start control pass. The failed
+journey is retained and is not relabelled as passed. The next matching-package
+journey uses the corrected transport with unchanged product assertions and
+check timeout. Cleanup confirms zero containers/volumes and unchanged image pins.
+
+A separate local-platform defect is corrected: slow optional hosting discovery
+no longer withholds verified Docker/Data controls or keeps a completed local
+operation busy. Local project identity, Git and capability admission still must
+succeed. Provider loading, failure and retry are explicit; its independent
+request generation rejects stale results, and provider actions remain guarded
+until discovery finishes. Both pending-provider regressions fail before the
+change; all 34 component tests and type checking pass afterward. A prepared
+installed test will use an actual local app and stop operation while authenticated
+HTTPS provider requests remain pending, then verify failure/retry and unchanged
+context. Source evidence: `artifacts/quality-platform-provider/`. Full frontend
+validation now passes 2,072 tests across 128 files, plus TypeScript, with all
+428 source inputs unchanged. The 671 Go inputs also match the previously accepted
+full/race suites, so those suites were not repeated. Matching installed acceptance
+continues.
+
+These are independent product obligations. The representative real-model benchmark is prepared at
+`artifacts/plans/idea-to-live-acceptance.json`; execution needs the selected saved
+model connection. Managed/public/native and full data-platform gates remain open.
+
+## Earlier continuation: collaboration, import and database recovery
+
+The clean `7ff66d3b` Linux package passes all ten installed two-person journey
+groups: concurrent context recovery, old versus amended build scope, renewed
+actual coding/checks, matching preview acceptance, permission-refresh continuity,
+owned deployment replacement, actual prototype behavior at the planned phone
+width, source-bound observation/amendment and both composer recovery scenarios.
+The original check is retained byte-for-byte while the amended outcome is also
+verified. A saved prototype observation remains an unapproved future change;
+historical accepted inputs remain intact. Composer reload and injected
+pre-admission failure recovery each make zero additional model calls. Receipt,
+screenshots and exact accepted driver/helper bytes are retained in
+`artifacts/package-eval/0.5.0-7ff66d3b/team-amendment-attempt-5`.
+
+Preserve the failed `a10d941e` attempt 3 and `7ff66d3b` attempt 4. A full-layout
+diagnostic reproduced Chromium 151 sending the intended handoff click into the
+cross-process preview iframe at its old pre-scroll position. A fresh comparison
+with explicit scroll and bounded settled tab/iframe geometry delivered one
+ordinary click to the correct tab. Only that driver readiness step changed;
+no product handler, assertion or retry was substituted. The diagnosis is retained
+in `artifacts/onboarding/prototype-click-synchronization-comparison.json`.
+
+This candidate includes recoverable repository import: owned staging, native
+no-overwrite publication, final directory identity checks, durable private
+receipts, safe retry with the same intended name, and explicit read-only recovery
+after a lost response. It also corrects accepted-run guidance in both the
+orchestrator's context projection and the visible overview, preserving later
+invalidity and health warnings without rewriting historical evidence.
+
+The clean `7ff66d3b` Linux package passes six portable acceptance groups and seven
+launcher outcomes. Its installed import journey passes four groups using real
+Git over an owned local HTTPS remote: failed clone, corrected same-name import,
+lost completion response and explicit read-only recovery/open without duplicate
+work. Exactly three import requests produce three clone starts, and two recovery
+reads produce none. Both original commits and all tracked files match. The
+archive, binary and every installed web asset are independently verified against
+the clean package provenance. Receipt and screenshots:
+`artifacts/package-eval/0.5.0-7ff66d3b/import-attempt-4`. Earlier attempts retain
+their driver setup/selector/cleanup failures; no product failure is relabelled.
+Four bounded accessibility scans report no violations and retain incomplete
+contrast items for manual assessment. Private repository authentication and
+live model discovery are not established by this local fixture.
+
+The same clean `7ff66d3b` package also passes five installed standalone PostgreSQL
+recovery groups: UI start/backup/download, explicit trusted import, restore into a
+new database while retaining the original, explicit rollback to that original,
+and service restart with a fresh browser sign-in. The downloaded and imported
+1,664 bytes match exactly. Actual SQL witnesses distinguish pre-backup records
+from later changes and verify both retained database generations. The fixture's
+owned container, volume and network were removed and verified absent. Receipt:
+`artifacts/package-eval/0.5.0-7ff66d3b/database-recovery-attempt-3/result.json`.
+Earlier attempts retain their fixture-routing and browser-response-inspection
+failures. This demonstrates the lighter supported PostgreSQL path; application
+authentication, row isolation and full Supabase storage restoration remain open.
+The full-stack gate requires an adequate Docker host: this environment's entire
+32 GiB root disk is smaller than the product's 40 GiB free-disk requirement.
+
+The service suite passes 2,011 test/subtest outcomes (22 skips), with 1,184 race
+outcomes across the changed integration packages (five skips). The frontend
+suite passes 1,771 of 1,772 tests; its single obsolete mock-argument assertion was
+corrected, and all five tests in that affected suite pass. Type checking and the
+production web build pass. Logs are in `artifacts/quality-imports`. The complete
+combined team journey passes against this same `7ff66d3b` package;
+[QUALITY-WORKLIST.md](QUALITY-WORKLIST.md) records their scope and the remaining
+whole-product obligations.
+
+The next source batch addresses three gaps in continuing a project:
+
+- Repository analysis now shows consequential questions and editable answers.
+  A reply uses the server's owned canonical question/answer history and a fresh
+  authorized source snapshot. A separately retained exact request survives
+  reload and uncertain responses without automatic resend. Definitive rejection,
+  cancellation and durable publication are fenced before inference. Consent is
+  bound to the selected connection revision; ownership is projected from the
+  actual selected workspace account, which may differ from the local login.
+- Subscription return links resume the authorized team's Service and data view
+  through sign-in, explicit workspace choice and existing unsaved-draft guards.
+  A URL neither verifies payment nor grants access. New checkout reservations
+  retain a return-URL version; pre-existing reservations reproduce their original
+  Stripe parameters under the original idempotency key.
+- Data, database, functions, email and domain controls explain and enforce the
+  current project permissions. Refresh preserves same-project drafts while
+  actions are disabled; confirmed denial hides private state. Delayed results,
+  backup hashing and downloads cannot outlive the permission grant. Successful
+  database restore or rollback offers an immediate route to deployments.
+
+The complete service suite passes 2,045 outcomes (22 skips); the changed-package
+race suite passes 1,230 (five skips). The final repository clarification slice
+passes 51 frontend tests and type checking. Windows AMD64 and Darwin ARM64 API
+test executables compile successfully; native execution is not inferred. The
+first complete frontend run passes 1,873 of 1,874 tests; its sole obsolete copy
+assertion was updated to verify the actual recovery-to-deployments action, and
+all 20 tests in that file pass. The fresh complete run then passes all **1,874
+frontend tests across 125 files**. The original failed log remains retained.
+Matching installed acceptance is continuing. Logs are in `artifacts/quality-clarification`.
+These source results do not establish live model or merchant acceptance.
+
+The clean matching **`e04fa35c`** Linux package passes six portable acceptance
+groups and seven launcher outcomes. All 939 extracted files match the verified
+archive, with complete licence evidence for 346 components. Its installed browser
+journeys now establish:
+
+- **Repository analysis, six groups:** actual HTTPS import, two real read-only
+  Codex jobs using a deterministic provider, question-only clarification, edited
+  answer/reload, recovery of a dropped actual accepted response through the same
+  request key, and explicit application as an unapproved definition draft.
+  Exact selected connection revision, workspace actor, current source and prior
+  question/answer are checked; no duplicate inference or source/history rewrite
+  occurs. Attempt 1 retains a nested-label test selector failure; attempt 2 uses
+  the real accessible combobox role. Visual observations still find questions
+  below the viewport and a cramped phone layout; those are continuing product
+  work, not waived by the passing mechanism checks.
+- **Billing return, eight groups:** actual sign-in, explicit membership/workspace
+  choice, unavailable-team rejection, checkout/cancel/portal navigation, same-tab
+  local checkout shell, and retained draft cancel/restore. Billing status and
+  responses are explicitly local display fixtures; the real unconfigured backend
+  rejects the two deliberately requested billing actions before substitution.
+  There are no URL-driven billing mutations, Stripe calls or external requests.
+  Attempt 1 preserves a wrong post-restore field locator. Four bounded scans
+  find zero accessibility violations; one phone-tab contrast item remains
+  incomplete and is not conformance evidence.
+- **Data permissions, seven groups:** actual team/project grants and backend
+  denials, private viewer versus editor controls, the same draft input through
+  delayed and failed permission delivery, real revocation, and recovery-to-
+  deployments navigation. Database status/recovery content is explicitly a
+  display fixture; no database operation occurs in this journey.
+- **Persistent Docker maintenance, five groups:** real UI deployment A stays
+  healthy through 28 independent observations while candidate B returns actual
+  HTTP 503 and fails its health check. Owned logs and both deployment records
+  remain available after an installed service restart. Explicit stop, reviewed
+  repaired source C, and retained A stop/restart preserve exact source/image/
+  container identities. Exactly three deployment requests create A/B/C. Five
+  bounded desktop/phone accessibility scans have no violations or incomplete
+  items. This is labelled fixture source, not model-authored implementation,
+  database recovery, traffic cutover or cloud acceptance.
+
+Each journey verifies the binary and all 424 shipped web assets against the
+original archive. Receipts, failed attempts, driver bytes and screenshots are
+under `artifacts/package-eval/0.5.0-e04fa35c`; all owned processes and runtime
+resources were verified cleaned up. The archive SHA-256 is
+`69c4e640058e060ae3a9ef0f29be1d921af964ffdd1f0ff10b2af3b5ea236db1`.
+The next rendered corrections address prominent questions, explicit answer
+focus, compact project overview and truthful permission-refresh guidance. The
+whole-product goal remains open.
+
+Those corrections now have source implementations: the saved question and
+editable answer precede technical evidence; only an explicit Answer/Use answer
+action moves focus. Compact screens start with a labelled collapsed project
+overview while explicit choices, focused work and mounted drafts survive resize.
+Platform permission guidance distinguishes uncertainty from confirmed denial.
+The selected billing tab and its focus ring are revealed by scrolling only the
+tab strip, and deployment/hosting fields have local token-based styling. The
+complete frontend suite passes **1,883 tests across 125 files**. Current service
+sources remain identical to the tested `e04fa35c` service inputs. The clean
+**`7f39ea9e`** package now passes six portable groups (including seven launcher
+outcomes), six repository-analysis groups, eight billing-return groups, seven
+data-permission groups and five actual Docker maintenance groups. All 939
+extracted files match the archive; 346 licence components have complete evidence.
+The archive SHA-256 is
+`38169540fb2690a9377e7ab4885a15dafe028cc91f600afa0104e2a6bc0341e6`.
+
+Rendered checks verify explicit answer focus, a 61 px compact phone overview
+leaving 633 px for analysis, retained drafts through overview changes, truthful
+permission messages and a fully visible selected billing tab/focus ring. The
+maintenance journey verifies the actual failed row at 390 px and 44 px-high
+repair fields with separated labels and complete keyboard focus outlines. A
+remains healthy through 30 independent observations of B's actual HTTP 503;
+service restart and explicit C repair retain the expected resource identities.
+Seven scoped maintenance accessibility scans have zero violations/incomplete
+items. Billing retains one automated phone-contrast incomplete result. A bounded
+manual assessment of that original tab label finds unobscured text at 12.47:1,
+matching saved desktop-checkout and phone-portal observations; the original
+incomplete result remains unchanged. Evidence: `artifacts/package-eval/0.5.0-7f39ea9e/billing-return-contrast-assessment`. This does not establish full
+accessibility conformance. Original
+failures remain preserved, including the rejected `796bf63c` build whose adapted
+Fluid source digest had not yet been updated; `7f39ea9e` corrects the reviewed
+adaptation digest without changing upstream provenance.
+
+Receipts and screenshots: `artifacts/package-eval/0.5.0-7f39ea9e`; source and
+integrity logs: `artifacts/quality-rendered-polish`. Fixtures retain their stated
+scope; none establishes live-model, merchant, Supabase or public-cloud acceptance.
+The follow-on clean `4c8012c1` CSS-only data-field package passes seven permission
+groups and four desktop/phone field observations: 44 px controls, complete labels
+and focus rings, retained draft identity, unchanged checkboxes and no horizontal
+overflow. Receipt: `artifacts/package-eval/0.5.0-4c8012c1/data-permissions-attempt-1`.
+Its archive SHA-256 is
+`705895b2ee8d52bd468ae801f3a61c755b8130ee3a5e42b607770bcf05531857`;
+all 939 members and 346 licence components are verified. This scoped styling
+change does not relabel earlier Docker journeys or repeat unaffected service
+checks. Continuing work addresses a reproduced cross-package launcher reuse
+problem and two concrete design-editing blockers.
+
+Those corrections pass all **1,887 frontend tests across 125 files**, including
+47 focused design/prototype tests. The design editor retains unfinished width
+text in the recoverable draft, exposes removed requirement links for explicit
+removal, and keeps numeric API values and approval semantics intact. Portable
+package identity generation, Bash admission, PowerShell-on-Linux admission and
+Docker-context packaging pass 18 Python cases; nine focused top-level Go tests
+and three management race tests pass. No Docker runs in these checks. Independent
+launcher review finds no blocker. The clean `1b0d8043` package passes six portable
+groups (including seven launcher outcomes) and five installed design-amendment
+groups: actual definition removal/review, explicit unlink, per-keystroke width
+entry, exact unfinished-text reload/recovery, numeric save/reload and separate
+approval. Every unrelated screen field and historical design remains unchanged.
+The first design attempt retains a driver failure: Playwright's uncheck waited
+for the removed control; one ordinary click plus the existing absence assertion
+correctly observes explicit unlinking. No product assertion was weakened.
+
+The archive SHA-256 is
+`2a5ec21198e331caf64b9c0a79aabc2155ec367db5d769af3111b460e089ee7c`;
+all 940 members match and 346 licence components have complete evidence. Five
+actual upgrade checks pass: the new launcher refuses a running legacy package
+without changing its process or private files, then preserves its account,
+session and saved definition after explicit shutdown and startup. Same-package
+reuse and normal cleanup pass. The older extracted package was independently
+matched to its retained archive; the original receipt's missing old archive-path
+observation remains recorded separately from that verification.
+PowerShell on Linux does not establish native Windows execution. Logs and input
+identities: `artifacts/quality-design-upgrade` and
+`artifacts/quality-rendered-polish/portable-identity-source`; installed receipts:
+`artifacts/package-eval/0.5.0-1b0d8043`.
+
+An independent fresh-owner walkthrough then found that an untouched generic
+screen outline could become an approved handoff for a role-based application.
+The correction replaces that generated outline with explicit screen authoring,
+saved people/access/outcome guidance, and a route to Luci's existing unsent
+planning conversation. A named incomplete screen can be saved as a draft;
+approval explains the missing behavior and states. No semantic quality score or
+model response is invented. Existing authored plans retain their content.
+The full frontend suite passes **1,890 tests across 125 files** with unchanged
+inputs during the run. Two subsequent wording-only corrections invite handoff
+review and explain draft saving; the clean `bfcd5cb1` package build and four-group
+rendered authoring acceptance pass. Saved audience/role/outcome guidance is visible
+at 1440 and 390 px; planning help preserves an existing unsent message without
+sending; an untouched starter cannot approve or advance; authored access,
+persistence and recovery survive reload before separate explicit approval.
+Four scoped accessibility scans have no violations or incomplete findings, with
+no document overflow and visible phone input focus. These are fixture-authored
+screens, not model-generated design quality. Six portable groups, seven launcher
+outcomes and eight packaged CLI argument checks also pass with normal cleanup.
+All 940 files match the archive, SHA-256
+`8147f7c26c4f806896e3a6f1a174948b5f138393114cdf0fe0dee2fa58cb917f`,
+and all 346 licence components have evidence. The source and copy scope are recorded in
+`artifacts/quality-design-authoring`.
+
+Independent continuation review identified three further concrete interruptions:
+manual definition questions open chat instead of their Answer field and disappear
+from the overview once answered; custom verification setup disappears on ordinary
+navigation/reload; and a prepared run still invites coding after its reviewed
+context changes even though execution correctly refuses it. The related private
+material-decision blocker is now projected separately and opens its exact saved
+question. Read-only guidance preserves historical inputs and active sessions;
+overlapping reads cannot replace newer understanding with an older response.
+Verification setup recovery retains exact command text but rechecks current
+coverage and never restores execution consent or host mode. Recorded unchanged
+setup remains reusable without repeated unsaved-change prompts.
+
+The frozen continuity source passes **2,088 Go test/subtest outcomes** (22 skips),
+**1,944 frontend tests across 125 files**, TypeScript checking and **481 product
+package race outcomes** (one skip). All 667 Go and 425 frontend source inputs
+remain unchanged during their checks. Logs and inventories are retained in
+`artifacts/quality-context-continuity/source-validation.json`. Matching installed
+manual-question and draft-recovery proof is next; run-blocker acceptance at this
+checkpoint is HTTP/UI source coverage, not an installed execution claim. This
+batch does not close the whole-product goal.
+
+The clean `bb720e51` Linux package passes **four installed continuity groups**:
+manual questions navigate to their exact answer through draft cancellation;
+saved answers distinguish pending review from reviewed context; custom commands
+and exact unfinished argument text recover across reload without execution
+consent; a real reviewed amendment clears stale coverage while retaining command
+text. Six portable groups and seven launcher outcomes also pass. All 940 archive
+members match and all 346 licence components have evidence. Receipt:
+`artifacts/package-eval/0.5.0-bb720e51/context-continuity-attempt-3/result.json`.
+The two earlier failures were retained automation errors: a still-collapsed
+coverage disclosure and a lazy comparison mount. Corrected normal disclosure
+clicks and awaited visible text preserve the assertions. No command, Docker or
+model execution was performed.
+
+Four scoped accessibility scans have zero violations; two retain contrast
+incomplete findings on four clipped/overlapped nodes. Rendered review exposed a
+real layout gap: on a 390 px phone, fixed run content and an empty session panel
+leave only about 185 px for check recovery. Functional success does not close
+this usability finding. The next correction gives no-session planning one
+continuous scroll area. Additional concrete continuation findings: local check
+setup incorrectly blocks asking Luci for help; Develop confuses an absent sketch
+with an absent approved design handoff; and the overview's implementation-task
+next action leaves a collapsed editor closed. These corrections and their
+matching installed acceptance remain active.
+
+Four further installed `bb720e51` run-guidance groups pass. A real UI definition
+amendment suppresses stale coding/evidence invitations while preserving original
+run inputs. A separately labelled stored-question fixture proves current-context
+material-decision projection, exact question focus, retained unsent/recovered
+composer text and a different original reply target. No provider, coding, check
+or release operation runs. Both service lifetimes stop normally; four scoped axe
+scans report no violations or incomplete findings. Original setup failure
+(connection protocol base URL) remains retained. Receipt:
+`artifacts/package-eval/0.5.0-bb720e51/run-freshness-attempt-2/result.json`.
+This is installed navigation over real run/context state and seeded private
+question history, not model-generated questions. The phone focus target reaches
+the bottom edge of its scroll area; additional scroll padding and visible focus
+containment remain part of the active polish batch.
+
+The subsequent frontend corrections, packaged as clean `6e7797f3`, pass
+**1,979 tests across 126 files** and TypeScript checking with all 426 recorded
+frontend inputs unchanged. All
+667 Go inputs match the `bb720e51` full-suite/race baseline, so those unchanged
+backend checks were not repeated. Local command drafts now permit explicit
+assistance without implicit command attachment; shared-context and source-change
+guards remain. No-session planning uses one scroll area. Develop reads the
+structured handoff and preserves editor drafts through scoped fact refreshes.
+The overview opens and focuses the implementation-plan destination, including
+authorized read-only review and navigation after a draft dialog. Source receipt:
+`artifacts/quality-planning-flow/source-validation.json`. The matching installed
+rendering and focus results follow, with original observations retained.
+
+Clean `6e7797f3` passes the four connected continuity groups with six scoped
+accessibility scans (zero violations). The visible recovery heading/actions
+follow-ups have no incomplete findings; one clipped Define question label
+remains an automated contrast incomplete. Canonical definition/design revisions,
+planned screens/states, exact plan focus and explicit local-command assistance
+boundaries are observed in the installed UI. With the overview compact, phone
+planning has 525 px of usable workspace rather than the earlier 185 px. Desktop
+planning has 940 px. Six portable groups and seven launcher outcomes pass; all
+940 package members and 346 licence components are verified. Receipt:
+`artifacts/package-eval/0.5.0-6e7797f3/context-continuity-attempt-2/result.json`.
+The first attempt's disabled-control hit-test error is retained: Restore must
+remain disabled before the required changed-context acknowledgement. The corrected
+driver verifies that state, then acknowledges through the UI before hit-testing
+and clicking the enabled action.
+
+Two further installed keyboard-focus groups pass on `6e7797f3`: actual Tab/Enter
+activation preserves exact decision focus and unsent/recovered reply identity.
+The solid two-pixel outline with two-pixel offset stays inside the phone
+scrollport, with 7.7 px clearance; window position stays unchanged during both
+traversal and activation. Both scoped scans have no violations/incomplete items.
+No commands, model or Docker calls occur; fixture cleanup passes. Receipt:
+`artifacts/package-eval/0.5.0-6e7797f3/decision-focus-attempt-1/result.json`.
+The document's larger measured scroll height remains a separate observation;
+this does not claim to explain full-page screenshot whitespace.
+
+Rendered review of `6e7797f3` found one further interaction gap: explicitly
+opening the plan from an expanded phone overview left only about 181 px for the
+focused destination. The correction folds the overview into its stage bar after
+successful explicit task-plan or exact-answer navigation; cancelled navigation
+and background refreshes cannot trigger it. Generic editor destinations retain
+their existing overview behavior until they have an explicit focus handoff.
+The narrow correction passes **86 affected panel tests and TypeScript**,
+including cancelled/confirmed navigation, viewport changes during the guard and
+actual Answer focus after dialog cleanup. The complete **1,979-test / 126-file**
+frontend suite belongs to the preceding `6e7797f3` batch; it was not repeated for
+this panel correction. Exact inputs/logs are in
+`artifacts/quality-planning-flow/compact-navigation-checks/results.json`.
+
+Clean **`f388ad44c042326bc55e2383fc27c7e111bb56f5` passes all four installed
+continuity groups on its first attempt**. At 390 × 844, explicit plan navigation
+opens the disclosure, keeps focus on the exact Implementation plan region and
+collapses the overview, leaving one **525 px** planning scroll area. The task
+controls and build-location guidance are visible together. Exact manual-question
+navigation likewise keeps its question and focused Answer visible above the
+compact overview. No driver scroll or focus substitutes for either destination;
+desktop plan navigation keeps the overview open. Canonical handoff facts,
+unsent help with a local check draft, unchanged-context recovery and amended
+criteria/consent reset all pass again. The provider remains unconfigured; the
+separate routing remedy disables Send, and no command or model is dispatched.
+
+The final driver is `7feccccdc47d87544d5f0b76ca45ca24f9dc14031955f9461a0afd80ee51eb03`,
+run from the matching clean checkout. The portable archive SHA-256 is
+`16beb1b80a45130ca1cb15f02aac6faca74748a24646ce12b015a426549ba58c`;
+the binary and all 424 installed web assets match that archive. Receipt,
+screenshots, focus/geometry and visual review:
+`artifacts/package-eval/0.5.0-f388ad44/context-continuity-attempt-1/`.
+Six scoped accessibility scans report **zero violations**. One earlier,
+nonfocused Answer label clipped at the form edge remains a **color-contrast
+incomplete**; it is neither cleared nor called a confirmed violation. Visible
+check-heading and recovery-action follow-ups have no incomplete findings.
+There are no browser errors, unexpected requests, Docker allocations or
+execution/model calls. Normal service shutdown and fixture removal pass.
+Earlier package successes and retained automation failures keep their original
+identities. This bounded acceptance does not close the whole-product, real-model,
+authenticated role-based data application, managed-service or native release gates.
+
+
+GitHub rejected the `7ff66d3b` Actions run before any check step for account
+payment/spending admission, recorded in
+`artifacts/onboarding/ci-7ff66d3b-admission-annotations.json`. The installed Windows
+failure therefore remains undiagnosed; local Linux success does not close it.
+The `e04fa35c` run was likewise rejected before any step with the same explicit
+payment/spending admission message. The latest `7f39ea9e` run is likewise refused
+before any step; its annotation is retained at
+`artifacts/onboarding/ci-7f39ea9e-admission-annotations.json`.
+
+## Product-quality completion standard — 6 October 2026
+
+The owner's latest direction requires a polished whole product, with Vercel and
+ChatGPT as references for clarity and care. [PRODUCT-QUALITY.md](PRODUCT-QUALITY.md)
+is the current acceptance contract. Luci is **not finished or production ready**.
+Historical package and fixture successes below do not close this contract.
+
+The targeted assessment found concrete continuity defects: saved context could
+contradict the overview until polling; the guided interview could rewrite outcome
+titles and identities; changing the plan could lead to a provider-gated composer;
+verification required selecting detached evidence; deployment lost the selected
+checked build; and viewers could attempt deployment before receiving a denial.
+The positive journey also exposed a fresh-project interruption: run preparation
+required discovering and selecting a branch in the sidebar. The correction adds
+an explicit existing build-location choice at the preparation step.
+A real second coding attempt also exposed a clipped terminal after checks; opening
+its coding session now collapses the planning panel while keeping drafts mounted.
+The regression driver separately binds terminal input and output to the exact
+active session, so an older stopped pane cannot satisfy the repair step.
+The current correction batch addresses those defects and adds a positive UI
+journey through implementation, a meaningful failed check, repair, verification,
+preview and explicit acceptance. Its deterministic provider is an execution
+fixture, not evidence of real-model reasoning or implementation quality.
+
+The following whole-product proof remains required even after local regression
+checks pass:
+
+- Ordinary-language idea clarification and implementation by the real selected
+  model, without the evaluator supplying a complete professional specification
+  or prewritten application.
+- Meaningful design/prototype interaction and principal application tasks, not
+  just saved screen counts, rectangles or matching context digests.
+- A representative application with real authentication, roles and durable data,
+  built and deployed through Luci; a local-storage or in-memory example does not
+  substitute for it.
+- A teammate's amendment, renewed checks and deployment preserving application
+  data, followed by an observed failed rollout and supported recovery.
+- Current supported installed-platform acceptance and live model, billing,
+  cloud/domain, inbox and distribution gates recorded against their actual
+  identities. GitHub Actions payment/spending admission and artifact quota
+  currently prevent new Windows diagnostics; the earlier installed-app failure
+  remains unresolved.
+
+These are open acceptance obligations. Separate mechanism tests do not establish
+that a person can complete the combined workflow with an understandable result.
+
+### Continuing product work after 340f1590
+
+The owner explicitly requires continued implementation beyond a completed batch.
+[QUALITY-WORKLIST.md](QUALITY-WORKLIST.md) records the next concrete findings:
+stale draft recovery could overwrite a teammate; prototype review lost expected
+behavior and reused consumed invitations; deployment operations could report
+success for a failed result; and an uncertain model send could lose its identity
+on reload. The current source corrects those paths. A two-person rendered
+amendment, replacement-deployment and prototype-review journey is prepared;
+matching packaged execution remains pending at this checkpoint.
+
+Source checks passed 1,701 frontend tests across 117 files, type checking and
+production web build; 1,997 Go test/subtest outcomes with 22 skips; and 1,170
+race outcomes across the three changed integration packages with five skips.
+Receipts are under `artifacts/quality-continuation` and the named continuation
+logs in `artifacts/quality-batch`. No real-model or installed-platform success
+follows from these source checks. Historical 90450209 archives were hash-verified
+and retained in `artifacts/releases/0.5.0-90450209-historical` before rebuilding;
+the original package evidence retains its original source identity.
+
+### 340f1590 quality-batch evidence
+
+The source build uses service SHA-256
+`e319b1684fc70e24125377da979eec025d88b6cf1dead90e68263ac18b8237e5`
+and UI-continuity web-index SHA-256
+`a7ec919115507d4b01ad4de8abd0dc2601aff3e2d8cacec953c8b4e6b089e9f2`.
+`artifacts/quality-batch/terminal-focus-build-provenance.json` records the build's
+source inventory. This is a compiled service/production-web acceptance batch;
+the earlier portable/native packages below retain their original source identities.
+
+- The full frontend suite passed **1,625 tests across 113 files**, with
+  type checking and production builds passing. Three exposed test-fixture
+  synchronization errors were corrected by waiting for actual hydration/read
+  completion, without increasing timeouts or weakening the behavior assertions.
+  Original failed logs remain alongside `frontend-tests-accepted.log`.
+- Go service checks passed **1,968 test/subtest outcomes, 22 skips**. The changed
+  product package's race suite passed **434 outcomes, one skip**. Exact-commit
+  refusal is tested before release reservation or Docker side effects.
+- The final actual UI continuity journey passed **5/5 groups**: fresh account,
+  workspace and saved provider; reviewed definition/design/tasks; real Codex
+  implementation followed by a behavioral test failure; a second coding attempt
+  that repairs application behavior with the identical test; matching passing
+  evidence, a working preview and explicit acceptance of the original run.
+  No API/file mutation substitutes for these user steps. Both active terminals
+  measured **520 by 625 px**, with the current session's complete folder-trust
+  prompt visible. The plan overview updated in **148 ms**. Its provider supplied
+  a deterministic small fixture, not real-model reasoning. Receipt and screenshots:
+  `artifacts/uat/project-journey-quality-batch`. The exact accepted driver is
+  retained; subsequent assertion-error fail-fast hardening passed separately.
+- The initial correction build additionally passed immediate context/editing
+  browser checks **4/4**, team collaboration/viewer checks **11/11**, and personal,
+  entry and restart groups **20/9/5**. Their receipts retain the earlier web hash
+  `189a4787…`, before build-location and terminal-space corrections; those later
+  corrections are exercised by the final UI continuity journey above.
+- On the intermediate `c5593112…` web build, 80 warm phase transitions measured
+  p95 **206 ms at 1440 px** and **255 ms at 390 px**. Twelve rendered accessibility
+  scans found zero violations/incomplete items and no document/panel overflow;
+  phase keyboard focus was retained. This uses a small seeded project on headless
+  Chromium 151 and four effective CPU cores, without live terminals, providers,
+  network throttling or screen-reader certification. Two acknowledgements exceeded
+  the 100 ms target; those observations remain recorded. A focused 24-action
+  final-build trace reproduced a 143 ms input-to-acknowledgement Deploy action,
+  with client event processing contributing to a main-thread long task. It does
+  not identify a particular Luci component or explain the original Define
+  outlier. Receipts: `artifacts/quality-batch/responsiveness-c5593112-r4` and
+  `mobile-ack-trace-a7ec9191`. This is not an all-actions responsiveness pass.
+- A bounded CPU profile then identified unused width reads and per-label resize
+  observers in ordinary tabs. The correction measures only labels configured to
+  collapse, preserving their resizing and observer cleanup. Six focused tab
+  tests, type checking and the production build passed. All 12 vendored Fluid
+  file hashes verify; license collection reports 346 components, none missing
+  licenses. Upstream revision and original grants remain unchanged. This measured
+  web index is
+  `1f9af237993d10441ab14942314a2167fa478b13b33cbb60f033a225b97d6389`,
+  recorded in `tab-measurement-build-provenance.json`. The service is unchanged;
+  the earlier complete UI journey retains its exact pre-optimization web identity.
+  Removing unnecessary measurement does not establish the cause or resolution
+  of every earlier latency outlier. A single follow-up trace completed all 24
+  mobile Define/Deploy actions below the 100 ms acknowledgement target, including
+  input delay, with no browser errors or external requests. The owned fixture was
+  removed. Its receipt is `mobile-ack-trace-1f9af237`; the earlier slow samples
+  remain evidence, and this small follow-up does not establish an all-actions pass.
+- Inspection of the accepted-run screenshot found a stale instruction to accept
+  an already accepted outcome. The final rendering correction removes that
+  repeated instruction/action while retaining observation time and current
+  invalidity warnings. All 23 focused run tests, type checking and production
+  build passed. The final web index is
+  `0e27ceb4a781fbe081151f866f615fb842dde648d2f18f6a7fc2bd46ec1516f7`,
+  recorded in `accepted-guidance-build-provenance.json`. The full UI journey and
+  performance receipts retain their earlier identities; this last copy/action
+  correction is covered by the focused tests, not a rerun of those journeys.
+
+The actual journey exposed and corrected the build-location and clipped-terminal
+product defects. Separate driver errors (selectors, mock prompt expectations and
+terminal selection) are recorded as driver errors. Neither they nor the product
+failures were relabelled as successful earlier runs. Owned fixtures, processes,
+sandboxes and preview images were cleaned up after their recorded checks.
+
 ## Work in progress
 
 1. Dedicated, resumable onboarding: account entry, execution location, actual prerequisite checks and automatic runtime preparation, provider connection and workspace ready. A configured directory does not imply a ready runtime. Local, user-owned AWS/Azure and existing workspaces each have their own recovery and permission states.
@@ -14,7 +850,7 @@ required acceptance journey within that scope.
 3. Versioned specification: guided one-question interview; repository analysis; stable acceptance IDs; scope, roles, entities, integrations, terms, decisions and unresolved questions; explicit approved snapshots. Existing briefs and revision history are preserved.
 4. Design workspace: requirement-linked screens/states and responsive targets, sketch and working prototype as distinct surfaces, assets/tokens and a recorded implementation handoff. A saved canvas does not imply an approved design.
 5. Develop: account connection before project execution, durable runs, useful startup recovery, requirements/tasks/check evidence and live previews tied to source. AI assistance uses the person's actual selected provider; deterministic guidance is labelled honestly.
-6. Application platform: inspect the newer private Panacea backend before adapting its services. Implement genuine local Docker application/data operations and an authenticated external Panacea connection without shipping restricted source in Luci's MIT package. Expose only operational capabilities; no simulated successful databases, sign-in, deployment or health.
+6. Application platform: provide genuine local Docker application/data operations and explicitly configured external backing without importing proprietary platform source into Luci's MIT package. Expose only operational capabilities; no simulated successful databases, sign-in, deployment or health.
 7. Packaging and acceptance: rebuild matching source; install and complete realistic account/onboarding/project/restart flows; exercise each project phase with a Codex subscription in Docker; deploy a real site, verify its behavior and preserve evidence.
 
 ## Current completion batch — 5 October 2026
@@ -1295,3 +2131,453 @@ Full-product handback remains open. The actual Codex-subscription implementation
 and public site, supplied live LiteLLM endpoint, owned AWS/Azure/domain journeys,
 external inbox delivery, current native lifecycle and public download/signing
 have distinct outstanding acceptance gates.
+
+
+## 0.5.0 production candidate — current cloud implementation
+
+The continuing goal is MIT self-hosted Luci plus optional lcfr.ai-managed team
+workspaces, with the dedicated execution boundary and measurable release gates
+in [PRODUCTION-ROADMAP.md](PRODUCTION-ROADMAP.md). No native goal-control API was
+available in this cloud session; GOAL.md and the roadmap carry the continuing
+contract rather than a fabricated external goal record.
+
+The candidate has durable private project runs with reservations before child
+allocation, immutable selected context/model/source bindings, idempotent joins,
+independent checks/releases, explicit cancellation and truthful crash-unknown
+recovery. A process exit alone does not complete a run. Historical acceptance
+survives later drift as history while current validity is observed separately.
+
+[Context format 2](CONTEXT-STORAGE.md) preserves public lineage across actual
+Git clones and backup restores while keeping routing, grants and private review
+authority local. It bounds active history and immutable archives, preserves
+interrupted chunks in backups, rejects incomplete/foreign chains and exposes
+explicit CAS export repair and acknowledged cleanup. A chunk created after a
+backup invalidates cleanup permission even if canonical revisions are unchanged.
+Ten dedicated regressions cover clone/read/edit/approval isolation, twelve
+substantial scene saves, complete backup/restore, capacity recovery, corrupted
+archives, partial exports, stale writers, pre-rename crash recovery and bounded scene serialization. The
+combined portable-context, backup, private-approval and context-attribution
+suite passed in 13.398 seconds in this workspace. It did not create a paid-model
+session, a cloud resource or a public deployment.
+
+Source implementations add explicit teams and project grants, shared workspace
+routing, independent execution/secret/deployment capabilities, removal/revocation
+handling, authenticated edit/review attribution, account/workspace/project-scoped
+recovery drafts and operator team-service admission. [Team service operations](TEAM-SERVICE-OPERATIONS.md)
+records that admission is neither payment processing nor independently verified
+host isolation. The connected team and installed acceptance results must remain
+bound to their actual candidate and retained evidence; implementation alone is
+not a paid-service availability claim.
+
+An interim two-browser development run passed ten shared-team checks, including
+team/project creation, membership/share, save conflicts and retained drafts,
+viewer enforcement, authenticated review attribution, dialog accessibility,
+member removal and restart. Its evidence is
+`artifacts/uat/team-fourth/evidence/result.json`. The service was a dirty 0.4.18
+build predating the version bump while its web assets were 0.5.0, so this is
+interim development evidence, not acceptance of a matching clean 0.5.0 package.
+The broad frontend run at that point passed 1,448 of 1,450 tests; two Deploy
+failures were fixed with a passing 63-test focused batch and TypeScript. A fresh
+whole-suite pass is still required and is not inferred from the focused rerun.
+
+A subsequent matching-version 0.5.0 development build passed all ten actual
+two-browser team journey checks in `artifacts/uat/team-polish/evidence/result.json`.
+That receipt identifies service SHA-256
+`f2933a1c3b985cc8b68dbcaad20556c0482790caa9c77fa78d106fe34ee9b3e1`
+and web index SHA-256
+`21e2960dc92faab4066757ea4cf8fde3efc0fb0b43d0f4e23bdcc1296288c943`.
+It made no external model call or cloud resource. The separate main-process/team
+worker acceptance passed 17 lifecycle/context/restart assertions at
+`artifacts/uat/team-main-acceptance/results.json`; that receipt has its own binary
+hash and explicitly excludes inference, container execution and remote hosts.
+These outcomes improve on the earlier mixed-version development run; they are
+not a matching clean release package or current installed native acceptance.
+
+[Public HTTPS ingress](PUBLIC-HTTPS-INGRESS.md) now supports the managed web UI
+and isolated project app/data origins using static configuration, a separate
+preview site and the existing session-bound team authorization. Eleven Chromium
+checks pass through a local TLS reverse proxy with fixture-only DNS mapping and
+certificate pinning (`artifacts/uat/team-browser-https/results.json`). The Nginx
+TLS template passes its actual syntax validator. Real public DNS, certificate
+issuance/renewal and customer host acceptance remain unperformed.
+
+Authoritative manifests now agree on 0.5.0. Five new release-tool regressions
+verify version alignment without changing dependency versions, unsafe/mismatched
+requests, retained artifact layouts, trusted exact-commit build admission,
+licence inventories, byte tampering, duplicate records and links. A current
+strict runtime licence collection retains 346 components with zero missing
+grants, including stripe-go/v87 v87.0.0; its manifest is
+`artifacts/uat/ingress-release-licenses/manifest.json`. Bash/Node
+syntax and workflow YAML checks pass. A manual GitHub/Sigstore integrity
+attestation uses measured retained artifacts and identifies the original build;
+it does not falsely claim its validation job built those packages. Optional
+Windows Authenticode/timestamp support uses an existing certificate and records
+verified signing only after checking the app and installer. Neither production
+certificate-backed signing nor the GitHub attestation workflow has been executed
+in this cloud session. No public release or hosted subscription was activated.
+
+Matching clean-package and installed lifecycle acceptance, real Codex
+subscription/LiteLLM execution, owned AWS/Azure/domain deployment, actual external
+inbox delivery, dedicated paid-team host isolation and final signed public
+downloads remain separate full-product gates. Historical Windows host failures
+are not evidence of the current cloud machine's runtime state. The new source
+work does not turn prior fixture or package results into live service evidence.
+
+## Project understanding and operational acceptance — 6 October 2026
+
+The 0.5.0 project overview now explains the observed stage, current purpose and
+outcomes, exact selected work and reviewed revisions in an existing run, and the
+next useful action across all four phases. Discussion is optional. A real
+selected-provider orchestrator receives bounded saved context and private history;
+material unresolved questions block new coordinated implementation. Reviewed
+amendments show their content and effects, require exact revision checks, clear
+affected approvals and preserve historical run inputs. Private history has an
+explicit export and acknowledged bounded rotation path. See [ORCHESTRATION.md](ORCHESTRATION.md).
+
+The complete frontend run passed 1,538 tests in 108 files. A final focused batch
+passed 29 tests after fixing the primary question-answer button to carry the
+actual unresolved question ID. That correction prevents an apparently successful
+answer leaving implementation blocked. Fresh-install compiled acceptance exposed
+an absent assistant storage root; safe initialization now validates existing
+ancestors before private creation and retains symlink/project confinement.
+
+Final full changed-package race suites passed: API 248 top-level tests (444
+passing test/subtest outcomes, three Windows-specific outcomes skipped) and
+product 234 top-level tests (428 passing outcomes, one optional Envoy Docker test
+skipped). There were no race warnings or failures. Logs are
+`artifacts/onboarding/orchestrator-final-api-race.jsonl` and
+`artifacts/onboarding/orchestrator-final-product-race.jsonl`; full Go vet also
+passed. The broader Go run's sole failure was a new read route absent from the
+explicit read-only audit; the corrected audit and complete product race suite
+passed afterward. No test was disabled to produce these outcomes.
+
+The actual reviewed team run passed all seven checks at
+`artifacts/uat/team-run-acceptance/results.json`, binary SHA-256
+`0b3eab8fcbd14ae47d51d6b6ad044d465ad20bc08a11e2c9815e719d125cb2d3`.
+Two real accounts used one dedicated team worker. The installed Codex CLI read the
+exact five reviewed context files and generated the fixture application through
+its normal tools. Revoking the editor closed its active coding socket and denied
+further access while leaving the owned child for explicit owner control. Independent
+Docker checks and the healthy release used commit
+`c2077a7d9a7067c71df3cf31cfedc23a32272b73`. All owned containers were stopped.
+This used a local deterministic provider and an explicit prebuilt trusted sandbox;
+it does not prove real-model reasoning, live subscriptions or runtime installation.
+
+Actual host backup/restore and owner-requested cancellation/erasure passed seven
+checks at `artifacts/onboarding/managed-host-recovery-erasure/result.json`, binary
+SHA-256 `a53f88ae4554435373d5cf691bed86ef14fd81ab5bc102134b7916ac408a7b8d`.
+Actual PostgreSQL data restoration and managed binding/suspension passed their
+separate receipts under `artifacts/acceptance/database-recovery-current` and
+`artifacts/acceptance/managed-team-service-current`. Stripe SDK fixture tests prove
+reviewed fixed-price Checkout, authoritative subscription reconciliation and
+entitlement boundaries; no real merchant request or customer charge occurred.
+
+GitHub Go and concurrency checks passed at `5d074fbc`; the following diagnostic
+upload failed because Actions artifact storage quota was exhausted. Diagnostic
+uploads now run after application checks. The workflow remains a release gate;
+local passing results do not change the failed remote workflow conclusion.
+
+The actual compiled orchestrator browser journey passed ten outcomes at
+`artifacts/uat/orchestrator-browser-current/result.json`. It exercised the installed
+Codex CLI against a local deterministic provider, exact saved context/history,
+visible stage and build scope while awaiting a response, four-phase navigation
+and restart, primary-action reply binding, a real concurrent-write 409, explicit
+amendment application and provider failure without fallback. The runner measured
+unprivileged UID 1000 processes, read-only input mounts, the process limit and
+exactly the seven deliberate browser mutations. Desktop/mobile scoped axe scans
+each passed 23 checks with no violations or incomplete results. The binary SHA-256
+was `6cccf28f9550cbcafedf0a2846b4466baa268a204fae5a38a8c868ce780bfe05`;
+this is compiled development acceptance, not yet clean-package acceptance.
+
+A real stopped-state 0.4.18-to-0.5.0 rehearsal passed six outcomes at
+`artifacts/uat/managed-upgrade-current/result.json`, retaining existing identities,
+account isolation, context/reviews, private provider settings and Git/history.
+Read-only access preserved format 1; an explicit save migrated to format 2 and
+survived restart. Rollback restored the complete byte-verified pre-upgrade state
+before starting the old writer. Each stop verified the separately grouped gateway
+and worker processes. It does not claim migration of teams absent from 0.4.18,
+external databases or general schema downgrade. [The operator procedure](MANAGED-UPGRADE.md)
+describes the required stopped backup, verification and rollback boundaries.
+
+The release audit found and patched source-map-js 1.2.1 to 1.2.2 and Mermaid's
+KaTeX 0.16.47 to 0.18.2 without changing Mermaid or Excalidraw. Production audit
+reported zero vulnerabilities; 20 focused tests and real Chromium equation,
+flowchart and sequence-to-editable-canvas checks passed without external requests
+or browser errors. The dependency receipt is `artifacts/uat/dependency-advisories`.
+CI now checks production advisories at high severity. The Unix package now includes
+the same operator documentation layout as the PowerShell packager, including the
+upgrade procedure.
+
+## Failed installed 0.5.0 candidate at 8d61059d
+
+Clean source `8d61059de466efc7a86e2d7d278ea1e847066fbf` produced Linux amd64,
+Darwin arm64 and cloud Linux archives, each with 346 retained dependency licences
+and none missing. The Linux archive SHA-256 was
+`13a6298ec83bbc911ca7cb97c8af0acfaff9e8fbb1284f0b6bc2c05dd0bb5672`;
+its binary reported the same clean VCS source.
+
+That exact Linux package passed portable persistence (6), launcher ownership and
+recovery (7), compiled control-plane isolation (7), team-worker lifecycle (17),
+two-browser collaboration (10), orchestrator flow (10), upgrade/rollback (6),
+and actual reviewed Codex/Docker check/release execution (7). The installed entry
+checks passed 9 outcomes. These scoped successes **do not pass the candidate**:
+its full personal journey exposed a real React maximum-update-depth crash when
+creating the first sketch rectangle.
+
+The actual visible canvas was usable; Excalidraw's update callback repeatedly
+published an unchanged dirty document as a fresh draft object, causing a host
+render and another callback. The correction deduplicates document publication
+while retaining unsaved recovery for identical callbacks. Native callback
+lifecycle coverage is required before the rebuilt candidate can pass.
+
+All candidate receipts remain under `artifacts/package-eval/0.5.0-8d61059d`.
+The failing browser capture is
+`artifacts/uat/package-personal-0.5.0-8d61059d-r2/evidence`.
+The original archive bytes and manifest are preserved in
+`artifacts/releases/0.5.0-8d61059d-failed`; `candidate-status.json` records that
+retention location. Later candidates must have their own hashes and outcomes.
+
+The sketch correction passed a regression that fails under the old callback
+behavior, followed by all 1,542 frontend tests in 108 files. Actual browser
+continuation with corrected production web assets passed 20 personal journey
+checks, 9 account-entry checks, 5 lifecycle/restart checks and 9 scoped accessibility
+surfaces with no violations or incomplete results. Its 25 screenshots and 10
+visual measurements are retained at
+`artifacts/uat/source-personal-sketch-fix-r2/evidence`. That continuation used the
+previous packaged service with newly built web assets; it establishes the fix,
+not a new matching package. Test selectors now target the actual phase/file
+surface when the project overview intentionally repeats shared context.
+
+## Installed c4d064e0 acceptance and Git maintenance correction
+
+The clean `c4d064e01dea8d82e0d53332f4d96693d6a36d36` package passed the full
+personal journey (20), independent account entry (9), lifecycle/restart (5),
+portable persistence (6), launcher recovery (7), compiled account isolation (7),
+team worker (17), two-browser collaboration (10), orchestrator flow (10),
+upgrade/rollback (6), and actual Codex/Docker check/release journey (7).
+The real sketch was drawn, saved and reopened. Nine personal UI accessibility
+surfaces plus team and wide/mobile overview scans had no violations or incomplete
+results. Ten viewport/theme measurements and 25 personal screenshots are retained.
+Receipts are under `artifacts/package-eval/0.5.0-c4d064e0`.
+
+Those installed results remain valid at their stated scope, but source CI failed
+an intermittent strict Git metadata check after a successful commit. Its exact
+filename is absent from the retained annotation. A real native Git 2.52
+reproduction under controlled automatic-GC pressure captured a metadata entry
+after the commit returned, then observed background Git remove it before the
+uncached entry inspection. That produces the same strict unsafe-path error;
+it establishes the failure mechanism without claiming the CI filename is known.
+
+Controller-owned Git commands now override `maintenance.auto=false` and
+`gc.auto=0`. They leave repository configuration and explicit native-user
+maintenance unchanged. Strict metadata traversal still rejects unsafe or
+concurrently changing paths. A real Git Trace2 regression fails without the
+policy and passes with it; affected project/product/API Git, branch and worktree
+race suites passed. Evidence is `artifacts/onboarding/git-maintenance-*`.
+
+The `c4d064e0` archives and manifest are preserved under
+`artifacts/releases/0.5.0-c4d064e0-ci-failed`; their installed passes do not turn
+that failed source-CI gate into a pass. GitHub artifact quota remains a separate
+external evidence-retention failure.
+
+## Installed 786b1049 acceptance and remaining source-CI correction
+
+The clean `786b1049d7c5221a3c896e7819f7eea2a0475bc8` Linux package passed all
+11 installed acceptance groups: personal journey (20), account entry (9),
+lifecycle/restart (5), portable persistence (6), launcher recovery (7), account
+isolation (7), team worker (17), two-browser collaboration (10), project
+understanding/amendments (10), upgrade/rollback (6), and reviewed CLI/check/release
+execution (7). The receipt index is
+`artifacts/package-eval/0.5.0-786b1049/candidate-status.json`; it records each
+receipt's SHA-256. The archive SHA-256 is
+`4bcbe7e201a9b903e1de51369fb227c27a27b2c0fa12d453925acd615435dbf6`,
+and the binary SHA-256 is
+`d5390308630bbde068f636b387d2328a6e1910e8db4c02202ce2ce7c239dd170`.
+Package provenance independently checked all 425 binary/web files against the
+archive. Desktop/mobile overview and nine personal accessibility surfaces had no
+violations or incomplete results. Each acceptance fixture stopped its owned
+processes and containers. No external inference, merchant, cloud or public-domain
+operation was performed. The sandbox was the retained trusted runtime; this is
+not evidence of installing that runtime on a fresh customer host.
+
+The same source's full local Go run passed 1,963 test/subtest outcomes with 22
+skips (`artifacts/onboarding/final-managed-git-go`). However,
+[GitHub run 37425230178](https://github.com/lcfrai/luci/actions/runs/37425230178)
+failed three strict-metadata checks in cloud release/approval fixtures. Each
+failed call follows the shared raw native `commitPreviewFixture`, which bypassed
+the controller's automatic-maintenance suppression. The installed controller
+policy remains active. Fixture correction must retain actual native Git, the
+strict metadata guard and tests for hostile paths and changed review exports.
+GitHub's artifact storage quota is a separate failure; these local passes do not
+make the failed workflow or the full production release gate pass.
+
+The native fixture regression failed before the correction by observing
+`git maintenance run --auto --no-quiet --detach`. Raw fixture writers now disable
+automatic maintenance per invocation, while continuing to construct real native
+commits containing intentionally adversarial exports/secrets. They do not acquire
+controller approval or weaken the metadata validator. Affected product/project/API
+race checks passed 152 test/subtest outcomes with six platform skips, zero failures
+and no race warnings (`artifacts/onboarding/git-fixture-maintenance-affected-race.jsonl`).
+The identical three failing-test selections, repeated three times, retained 15
+real native commits before and after the correction while detached maintenance
+launches dropped from 15 to zero. The comparison receipt is
+`artifacts/onboarding/git-fixture-maintenance-comparison.json`.
+
+A final scope review identified a separate product defect outside those ordinary
+installed cases: preparing a newer run could hide an older allocated child's
+immutable work, and cancelling future dispatch could be labelled as stopped
+execution. The original package and receipt index remain retained at
+`artifacts/releases/0.5.0-786b1049-ci-failed` and
+`artifacts/package-eval/0.5.0-786b1049`. This defect requires a corrected projection
+and actual overlapping-work acceptance; earlier passing cases are not relabelled
+as coverage of that scenario.
+
+## Active work clarity correction
+
+The project overview now keeps all unfinished coding runs separate from the
+latest prepared/recorded build. Each uses its own immutable task/requirement
+snapshot. Cancelling further work leaves an already allocated child visible as
+last recorded running or unconfirmed until explicit reconciliation observes its
+terminal outcome. The primary next step and each inspection button open the
+exact run, including after a stage mount or delayed history load; missing runs
+and account changes cannot fall back to a different build. Large histories retain
+every active identity and counts while bounding complete detailed rows to 64 KiB.
+
+The scoped product tests passed under the race detector, including a real run-API
+A-running → B-prepared → A-cancelled → terminal-reconciliation sequence. Repeated
+GETs made no provider/backend calls and no private-state writes. Worst-case
+200-run/100-operation histories remain bounded with explicit omission markers.
+Frontend scope, exact navigation, stale identity and cancelled-navigation checks
+passed 127 focused tests. The complete final frontend run passed 1,562 tests in
+108 files, followed by type checking and the production web build. The complete
+Go run passed 1,967 test/subtest outcomes, zero failures and 22 skips. Logs are
+`artifacts/onboarding/active-build-final-*` and
+`artifacts/onboarding/final-active-build-go`.
+
+The installed orchestrator runner now additionally holds an actual coding agent
+open while preparing another build, checks both exact-run inspection paths,
+verifies parent cancellation did not stop the container, then explicitly stops
+and reconciles the child. Its matching-package execution receipt must establish
+this coverage; source regression results alone do not claim that run passed.
+
+## Installed active-work acceptance at 3aa44a10
+
+Clean source `3aa44a108e1c44383ab980ce535055569ca1b0ff` passed all 11 Linux
+installed groups: personal (20), account entry (9), lifecycle (5), portable (6),
+launcher (7), account isolation (7), team worker (17), two-browser collaboration
+(10), expanded orchestrator (12), upgrade/rollback (6), and actual team CLI/check/
+release (7). The orchestrator held a real Codex agent A open while preparing B,
+verified both inspection routes opened A's exact scope, confirmed parent
+cancellation left its container running, then explicitly stopped/reconciled it.
+The full receipt index is
+`artifacts/package-eval/0.5.0-3aa44a10/candidate-status.json`. The original Linux
+archive SHA-256 is
+`4a510d2a5fb09e42b647e18873c3b8a42047ecdb4cfec6e646afc3508a3c0e67`;
+archives remain under `artifacts/releases/0.5.0-3aa44a10-accepted-local`.
+All 425 binary/web members were checked against that archive. The runtime and
+local deterministic provider limitations from earlier receipts still apply.
+
+There were no automated accessibility violations. Wide/mobile orchestrator
+scans had zero incomplete results; the personal Git surface had one incomplete
+heading-order assessment. The original runner retained only its node count,
+so that result does not support a zero-incomplete claim or a specific heading
+defect. The runner now retains selectors/check messages without DOM HTML or
+field values, preserving its existing pass/fail checks. No speculative heading
+change was made.
+
+The same source's GitHub Go and concurrency steps passed. Final source CI and
+artifact retention remain distinct gates. Visual verification found redundant
+cancellation explanations in the new card. The final presentation correction
+keeps one clear notice, exact immutable scope and concise recorded-status text;
+technical reasons remain under the existing activity disclosure. It preserves
+blocked-run remedies and simplifies the primary next-step wording without
+changing run semantics. Fifty-four focused frontend checks and the two affected
+backend action/scope regressions passed; matching presentation-package browser
+receipts must be recorded separately from the original 3aa44a10 results.
+
+## Final presentation and fresh-workspace accessibility
+
+The clean `87ca7c1801008a1bab85a6859ac0dfab773ededb` presentation package
+passed the expanded orchestrator (12), personal (20), entry (9), lifecycle (5),
+portable (6) and launcher (7) groups. Those receipts are separate from the full
+functional baseline at 3aa44a10. The concise active/cancelled card and exact
+A/B scope/navigation remain proven through actual CLI execution.
+
+Personal accessibility recorded no violations and two incomplete Admin rules
+across four nodes. Focused inspection of the loaded view verified its heading
+hierarchy and populated account/activity tables, including every column/data-cell
+association. Actual full-document axe then passed with zero violations or
+incomplete results. These independent results resolve the Admin assessment; the
+original incomplete receipt remains retained in
+`artifacts/package-eval/0.5.0-87ca7c18/personal/admin-manual-review.json` and its
+linked evidence.
+
+That focused check also exposed a real, separate first-launch defect: an empty
+project rail advertised an ARIA tree without any tree items. The narrow correction
+uses a labelled region while empty and preserves tree semantics when projects
+exist. Its axe regression failed before the fix. All 17 rail, keyboard and
+empty/populated transition tests passed, along with type checking and production
+web build. The actual original empty fixture also passed full-document axe with
+zero violations/incomplete results using the previous packaged binary and newly
+built web assets; this establishes the correction, not a matching new package.
+The original 87ca7c18 archives remain retained under
+`artifacts/releases/0.5.0-87ca7c18-empty-workspace-failed`. Final matching empty and
+populated acceptance must bind the rebuilt package's own hashes. No product
+heading, check assertion or run lifecycle was weakened.
+
+## Cross-platform checks and the unresolved Windows installation gate
+
+The matching `e86001d4` package passed empty and populated Admin accessibility
+(4 outcomes), portable persistence (6) and launcher recovery (7). The loaded
+views had zero axe violations or incomplete results, and all 937 extracted
+members were verified. Its full CI found an outdated AppShell assertion that
+still expected an empty ARIA tree. `90450209a0667b0b6870a99cea4b7276777b9773`
+corrected that assertion; all 1,566 frontend tests in 108 files passed. No
+application implementation changed between those revisions.
+
+The clean 90450209 Linux package passed portable persistence (6) and launcher
+recovery (7), with 346 licence components and no missing grants. Its archive
+SHA-256 is
+`318d40dcc26049559c9b4c97d0c8b88ffb90ccd018c45cf70ae8cbb6460013c7`.
+The receipt index is `artifacts/package-eval/0.5.0-90450209/candidate-status.json`;
+the earlier installed journeys retain their original source/package identities.
+
+[CI run 37432862391](https://github.com/lcfrai/luci/actions/runs/37432862391)
+passed the complete Go, race, dependency, desktop, type, build and connected
+browser checks. The compiled multi-user service, distinct-user Docker execution
+and real SSH browser onboarding passed. Linux and native macOS portable builds
+and packaged-service checks passed. Windows built the unsigned NSIS installer
+and passed native state/upgrade regressions, packaged control-plane acceptance
+and installer existence checks.
+
+**Installed Windows application acceptance failed.** Its available annotation
+reports only exit code 1. The actual cause is not yet established. GitHub artifact
+storage quota prevented retaining its detailed runner receipts; raw-log download
+hosts remain unavailable in this cloud instance. Those access failures do not
+turn native acceptance into a pass. `ci-90450209-summary.json` and adjacent
+step/annotation receipts under `artifacts/onboarding` retain these distinctions.
+The PR merge checkout `4c68b8c9` had exactly the candidate's source tree, while
+keeping its own commit identity for native manifests.
+
+`f14b7e69c5efde0bb755b137b1eb56e91877b094` adds bounded native failure
+annotations and a manual `native_windows_only` diagnostic mode. Reporting
+exposes named stages/actions, failure categories and source lines, without raw
+UI text, field values or private fixture data. Assertions, timeouts, cleanup and
+failing exits remain intact. Seven reporting regressions and 19 existing native
+driver tests passed locally; actionlint and 73 workflow routing cases passed.
+Verified official PowerShell 7.6.6 parsed the wrapper without syntax errors and
+executed its non-Windows admission path: exit 1, safe failure annotation/summary,
+zero fixture allocation and no private marker disclosure. The receipt is
+`artifacts/onboarding/native-windows-powershell-validation.json`. This checks
+reporting and refusal behavior, not installed Windows application acceptance.
+Normal PR runs still require source/runtime checks before native packaging;
+conflicting diagnostic inputs explicitly fail.
+
+The [focused rerun](https://github.com/lcfrai/luci/actions/runs/37439728953)
+and its PR run were refused before any job steps: GitHub reports that recent
+account payments failed or the spending limit needs attention. No billing limit
+was changed. After the account owner restores Actions access, run
+`gh workflow run luci-ci.yml --ref codex/luci-production-runs -f native_windows_only=true`
+to obtain the native diagnosis, fix its actual cause and finish installed
+acceptance. This focused mode alone does not establish full release readiness.
+Artifact storage and saved raw-log egress changes remain separate prerequisites.

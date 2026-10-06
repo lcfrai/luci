@@ -188,7 +188,7 @@ func TestLinkedChecksPersistNativeEvidenceAndInvalidateSourceCommitAndAcceptance
 	if err := os.WriteFile(filepath.Join(p.Path, "check.js"), []byte(`console.log('actual linked result');process.exit(0)`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Save exact source and approvals"}, 200)
+	journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Save exact source and approvals"), 200)
 	useActualEvidenceProcesses(t, s)
 	var run ProjectCheckRun
 	decodeEvidenceResponse(t, journeyRequest(t, mux, "POST", base+"/checks", evidenceRequest(spec, design, "check.js"), 202).Body.Bytes(), &run)

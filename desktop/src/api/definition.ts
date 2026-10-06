@@ -17,11 +17,12 @@ export interface ProjectSpecification {
   status: "draft" | "approved" | "outdated"; digest: string; updatedAt: string;
 }
 export interface DefinitionAssistance {
-  id: string; projectId: string; status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  id: string; projectId: string; status: "reserved" | "queued" | "running" | "succeeded" | "failed" | "cancelled";
   kind?: "interview" | "repository"; harness?: "codex" | "claude-code" | "opencode";
   model?: string; authMode?: "chatgpt" | "api" | "configured"; appliedRevision?: number;
   agentConnectionId?: string; agentConnectionRevision?: number; agentConnectionKind?: string; agentConnectionProtocol?: string;
   source?: RepositoryAnalysisSource;
+  requestedBy?: string; ownRequest?: boolean; replyToAnalysisId?: string; replySourceChanged?: boolean; idempotencyKey?: string; userMessage?: string;
   message: string; result?: { question: string; options: string[]; rationale: string; proposal: ProjectSpecification | null; findings?: { kind: "observed" | "inference" | "gap"; summary: string; paths: string[] }[] };
   createdAt: string; updatedAt: string;
 }
@@ -33,12 +34,21 @@ export interface RepositoryAnalysisSource {
 export interface RepositoryAnalysisRequest {
   expectedRevision: number; expectedBriefRevision: number; sourceMode: "worktree" | "commit";
   harness: "codex" | "claude-code" | "opencode"; model: string;
-  authMode?: "chatgpt" | "api" | "configured"; agentConnectionId?: string; acknowledgeSourceRead: true; message?: string;
+  authMode?: "chatgpt" | "api" | "configured"; agentConnectionId?: string; expectedAgentConnectionRevision?: number; acknowledgeSourceRead: true; message?: string;
+  replyToAnalysisId?: string; idempotencyKey?: string;
 }
 export interface DefinitionAgentOptions {
   harness?: "codex" | "claude-code" | "opencode"; model?: string; agentConnectionId?: string;
 }
 const path = (id: string) => `/v1/product/projects/${encodeURIComponent(id)}`;
+function repositoryReceipt(value: DefinitionAssistance, projectId: string, key?: string): DefinitionAssistance {
+  if (!value || value.projectId !== projectId || value.kind !== "repository" || value.ownRequest !== true || typeof value.id !== "string" || !value.id ||
+      !["reserved", "queued", "running", "succeeded", "failed", "cancelled"].includes(value.status) ||
+      (key !== undefined && value.idempotencyKey !== key)) {
+    throw new Error("The repository analysis receipt could not be verified. Keep its saved request and check its status.");
+  }
+  return value;
+}
 export const definitionApi = {
   get: (id: string) => productApi.request<ProjectSpecification>(`${path(id)}/specification`),
   save: (id: string, specification: ProjectSpecification, expectedRevision: number, expectedBriefRevision: number) =>
@@ -51,6 +61,10 @@ export const definitionApi = {
   assistance: (id: string, jobId: string) => productApi.request<DefinitionAssistance>(`${path(id)}/assist/${encodeURIComponent(jobId)}`),
   cancelAssistance: (id: string, jobId: string) => productApi.request<DefinitionAssistance>(`${path(id)}/assist/${encodeURIComponent(jobId)}/cancel`, {}),
   listAssistance: (id: string) => productApi.request<{ jobs: DefinitionAssistance[] }>(`${path(id)}/assist`),
-  analyseRepository: (id: string, input: RepositoryAnalysisRequest) => productApi.request<DefinitionAssistance>(`${path(id)}/assist/repository`, input),
+  analyseRepository: async (id: string, input: RepositoryAnalysisRequest) => repositoryReceipt(await productApi.request<DefinitionAssistance>(`${path(id)}/assist/repository`, input), id, input.idempotencyKey),
+  repositoryRequest: async (id: string, key: string) => {
+    if (!/^[A-Za-z0-9_-]{16,128}$/.test(key)) throw new Error("The saved analysis request identity is invalid.");
+    return repositoryReceipt(await productApi.request<DefinitionAssistance>(`${path(id)}/assist/repository/requests/${encodeURIComponent(key)}`), id, key);
+  },
   applyAnalysis: (id: string, jobId: string, input: { expectedRevision: number; expectedBriefRevision: number; acknowledgePartial: true }) => productApi.request<ProjectSpecification>(`${path(id)}/assist/${encodeURIComponent(jobId)}/apply`, input),
 };

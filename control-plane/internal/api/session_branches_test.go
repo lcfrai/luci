@@ -65,6 +65,7 @@ func sessionsPrimaryBranchFixture(t *testing.T) (*sessionsEnv, project.Project, 
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{{"add", "."}, {"-c", "user.name=Luci Branch Fixture", "-c", "user.email=branch@example.com", "commit", "-m", "Initialized primary source"}} {
+		args = append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_, err := product.RunCommand(ctx, "git", args, p.Path)
 		cancel()

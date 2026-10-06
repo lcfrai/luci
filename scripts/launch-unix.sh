@@ -18,10 +18,22 @@ if [[ ! "$luci_port" =~ ^[0-9]{1,5}$ ]] || ((10#$luci_port < 1 || 10#$luci_port 
 fi
 if [[ "$luci_state" != /* ]]; then printf '%s\n' 'Choose an absolute state directory.' >&2; exit 2; fi
 if [[ ! -x ./luci ]]; then printf '%s\n' 'Extract the complete Luci archive, then open start-luci.sh again.' >&2; exit 1; fi
+luci_package_path="$luci_root/package-identity"
+if [[ ! -f "$luci_package_path" || -L "$luci_package_path" ]]; then
+ printf '%s\n' 'This package is incomplete. Extract the complete verified Luci archive into a new folder, then open its launcher.' >&2; exit 1
+fi
+if (( $(wc -c < "$luci_package_path") > 66 )); then
+ printf '%s\n' 'This package has invalid identity metadata. Extract the complete verified Luci archive into a new folder.' >&2; exit 1
+fi
+luci_package_id=$(head -c 66 "$luci_package_path" | tr -d '\r\n')
+if [[ ! "$luci_package_id" =~ ^[0-9a-f]{64}$ ]]; then
+ printf '%s\n' 'This package has invalid identity metadata. Extract the complete verified Luci archive into a new folder.' >&2; exit 1
+fi
 umask 077
 mkdir -p "$luci_state"
 export LUCI_STATE_DIR="$luci_state" LUCI_ADDR="127.0.0.1:$luci_port"
 export LUCI_PORTABLE_OWNER_ACCESS=1 LUCI_LOCAL_ACCESS_TOKEN='' LUCI_ALLOW_PUBLIC_BIND='' LUCI_WORKER=''
+export LUCI_PORTABLE_PACKAGE_ID="$luci_package_id"
 export LUCI_WEB_DIR="$luci_root/web" LUCI_RUNTIME_DIR="$luci_root/runtime" LUCI_CLOUD_BUNDLE="$luci_root/cloud/luci-cloud-linux-amd64.tar.gz"
 luci_lifecycle=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \r\n')
 export LUCI_MANAGED_SHUTDOWN_TOKEN="$luci_lifecycle"
@@ -66,6 +78,10 @@ fi
 luci_owner_code=$(head -c 128 "$luci_owner_path" | tr -d '\r\n')
 if [[ ! "$luci_owner_code" =~ ^[A-Za-z0-9_-]{43}$ ]] || ! luci_private_request X-Luci-Local-Access-Token "$luci_owner_code" "$luci_base/v1/auth/local-owner" >/dev/null 2>&1; then
  printf '%s\n' 'The running workspace does not belong to this launcher. Close its launcher or choose a different --port; your saved data has not been reset.' >&2; exit 1
+fi
+luci_running_package=$(luci_private_request X-Luci-Local-Access-Token "$luci_owner_code" "$luci_base/v1/auth/local-package" 2>/dev/null) || luci_running_package=''
+if [[ "$luci_running_package" != "$luci_package_id" ]]; then
+ printf '%s\n' 'A different or older Luci package is already running for this workspace. Close its launcher before opening this package. The existing service and saved data have not been changed.' >&2; exit 1
 fi
 luci_fragment="owner=$luci_owner_code"
 luci_bootstrap_path="$luci_state/control-plane/bootstrap-token"

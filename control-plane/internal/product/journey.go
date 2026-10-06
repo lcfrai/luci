@@ -57,7 +57,10 @@ type Element struct {
 
 type journeyState struct {
 	approvalAuthority      *journeyApprovalStore
+	importedContext        bool
 	Version                int                    `json:"version"`
+	ContextID              string                 `json:"contextId,omitempty"`
+	HistoryHead            string                 `json:"historyHead,omitempty"`
 	Brief                  Brief                  `json:"brief"`
 	Design                 Design                 `json:"design"`
 	BriefRevisions         []Brief                `json:"briefRevisions"`
@@ -70,7 +73,7 @@ type journeyState struct {
 }
 
 func readJourney(dir, projectID string) (journeyState, error) {
-	state := journeyState{Version: 1,
+	state := journeyState{Version: 2, ContextID: journeyContextIdentity(projectID),
 		Brief:          Brief{ProjectID: projectID, Criteria: []string{}},
 		Design:         Design{ProjectID: projectID, Frames: []Frame{}},
 		BriefRevisions: []Brief{}, DesignRevisions: []Design{},
@@ -82,11 +85,22 @@ func readJourney(dir, projectID string) (journeyState, error) {
 	if err != nil {
 		return state, err
 	}
+	before, err := os.Lstat(path)
+	if err != nil {
+		return state, err
+	}
+	if !before.Mode().IsRegular() || before.Size() > journeyStateLimit {
+		return state, errors.New("saved project context must be an ordinary file of at most 8 MiB")
+	}
 	file, err := os.Open(path)
 	if err != nil {
 		return state, err
 	}
 	defer file.Close()
+	after, err := file.Stat()
+	if err != nil || !os.SameFile(before, after) {
+		return state, errors.New("saved project context changed while opening")
+	}
 	data, err := io.ReadAll(io.LimitReader(file, 8<<20+1))
 	if err != nil {
 		return state, err
@@ -94,11 +108,15 @@ func readJourney(dir, projectID string) (journeyState, error) {
 	if len(data) > 8<<20 {
 		return state, errors.New("project history exceeds the 8 MiB local-state limit")
 	}
+	state.ContextID = "" // Legacy identity must derive from the saved source, not this checkout.
 	if err := json.Unmarshal(data, &state); err != nil {
 		return state, fmt.Errorf("cannot read project history: %w", err)
 	}
-	if state.Version != 1 || state.Brief.ProjectID != projectID || state.Design.ProjectID != projectID || state.Brief.Revision < 0 || state.Design.Revision < 0 {
+	if (state.Version != 1 && state.Version != 2) || state.Brief.Revision < 0 || state.Design.Revision < 0 {
 		return state, errors.New("project history has an unsupported version or belongs to another project")
+	}
+	if err := normalizeJourneyIdentity(&state, projectID); err != nil {
+		return state, err
 	}
 	if state.Plan != nil && (state.Plan.ProjectID != projectID || validatePlan(*state.Plan) != nil) {
 		return state, errors.New("project plan is invalid or belongs to another project")
@@ -129,23 +147,48 @@ func writeJourney(dir string, state journeyState) error {
 	if _, err := guardedProjectPath(dir, ".luci", false); err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(state, "", "  ")
+	if err := normalizeJourneyIdentity(&state, state.Brief.ProjectID); err != nil {
+		return err
+	}
+	// Version 2 prevents older writers from discarding the portable identity
+	// and archive head as unknown fields. Legacy version 1 remains readable.
+	state.Version = 2
+	// Reject unsafe export paths before committing either canonical state
+	// or an archive. A later I/O failure remains detectable and repairable.
+	exports, err := journeyContextExports(state)
 	if err != nil {
 		return err
 	}
-	if len(data) > 8<<20 {
-		return errors.New("project history exceeds the 8 MiB local-state limit")
-	}
-	// Reject unsafe export paths before changing the canonical state.
-	for _, path := range []string{".luci/design.json", ".luci/plan.json", ".luci/specification.json", ".luci/specification.md", ".luci/design-handoff.json", ".luci/design-handoff.md"} {
-		if _, err := guardedProjectPath(dir, path, true); err != nil {
-			return err
-		}
-	}
-	if err := writeProjectAtomic(dir, ".luci/state.json", append(data, '\n')); err != nil {
+	if err = validateJourneyExportTargets(dir, exports); err != nil {
 		return err
 	}
-	return writeJourneyContext(dir, state)
+	if err = discardJourneyArchiveStaging(dir); err != nil {
+		return err
+	}
+	if err = compactJourneyHistory(dir, &state); err != nil {
+		return err
+	}
+	// Persist the history directory entry before publishing its new head.
+	if err = syncProjectRunDirectory(meta); err != nil {
+		return err
+	}
+	data, err := json.Marshal(state)
+	if err != nil {
+		return err
+	}
+	if len(data) > journeyStateLimit {
+		return errors.New("current context exceeds the 8 MiB local-state limit")
+	}
+	if err = writeProjectAtomic(dir, ".luci/state.json", append(data, '\n')); err != nil {
+		return err
+	}
+	if err = syncProjectRunDirectory(meta); err != nil {
+		return err
+	}
+	if err = writeJourneyContext(dir, state); err != nil {
+		return fmt.Errorf("context was saved, but generated exports are incomplete; use Context storage to repair exports: %w", err)
+	}
+	return nil
 }
 
 func (s *Server) getBrief(w http.ResponseWriter, r *http.Request) {
@@ -212,7 +255,7 @@ func (s *Server) saveBrief(w http.ResponseWriter, r *http.Request) {
 	}
 	state.Brief = brief
 	state.BriefRevisions = append(state.BriefRevisions, brief)
-	if err := writeJourney(p.Path, state); err != nil {
+	if err := s.writeAttributedJourney(r.Context(), p.Path, state, contextMutation{"brief", "save"}); err != nil {
 		journeyError(w, 500, "save_failed", err.Error())
 		return
 	}
@@ -328,7 +371,7 @@ func (s *Server) saveDesign(w http.ResponseWriter, r *http.Request) {
 	}
 	state.Design = design
 	state.DesignRevisions = append(state.DesignRevisions, design)
-	if err := writeJourney(p.Path, state); err != nil {
+	if err := s.writeAttributedJourney(r.Context(), p.Path, state, contextMutation{"sketch", "save"}); err != nil {
 		journeyError(w, 500, "save_failed", err.Error())
 		return
 	}
@@ -341,6 +384,32 @@ func validateScene(scene json.RawMessage) error {
 	}
 	if len(scene) > 1536<<10 {
 		return errors.New("the drawing scene must be at most 1.5 MiB")
+	}
+	// Indenting deeply nested raw JSON otherwise expands a small request into
+	// quadratic whitespace. Normal drawing documents need only a few levels.
+	depth, inString, escaped := 0, false, false
+	for _, b := range scene {
+		if inString {
+			if escaped {
+				escaped = false
+			} else if b == '\\' {
+				escaped = true
+			} else if b == '"' {
+				inString = false
+			}
+			continue
+		}
+		switch b {
+		case '"':
+			inString = true
+		case '{', '[':
+			depth++
+			if depth > 64 {
+				return errors.New("the drawing scene must use at most 64 nested levels")
+			}
+		case '}', ']':
+			depth--
+		}
 	}
 	var value struct {
 		Elements []json.RawMessage          `json:"elements"`

@@ -254,7 +254,10 @@ it("hands a saved task and project context to an actual session only after revie
     name: "Opening prompt",
   }) as HTMLTextAreaElement;
   expect(prompt.value).toContain("Work on this task: Build editor");
-  expect(prompt.value).toContain(".luci/design.json");
+  expect(prompt.value).toContain("Use the captured reviewed context supplied by Luci for this session");
+  expect(prompt.value).toContain("Read the captured specification for the exact criteria");
+  expect(prompt.value).toContain("Use approved definition revision 6 and design handoff revision 8. Selected stable task IDs: t1.");
+  expect(prompt.value).not.toMatch(/LUCI\.md|\.luci\//);
   expect(createSession).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("button", { name: "Create session" }));
   await waitFor(() => expect(createSession).toHaveBeenCalled());

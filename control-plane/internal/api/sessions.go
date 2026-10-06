@@ -770,6 +770,9 @@ type sessionJSON struct {
 	AgentConnectionKind     string                          `json:"agentConnectionKind,omitempty"`
 	AgentConnectionProtocol string                          `json:"agentConnectionProtocol,omitempty"`
 	ImplementationContext   *registry.ImplementationContext `json:"implementationContext,omitempty"`
+	ReviewedContextDelivery *reviewedContextDelivery        `json:"reviewedContextDelivery,omitempty"`
+	ProjectRunID            string                          `json:"projectRunId,omitempty"`
+	ProjectRunOperationID   string                          `json:"projectRunOperationId,omitempty"`
 
 	Status     string `json:"status"`
 	ExitReason string `json:"exitReason"`
@@ -808,6 +811,9 @@ func toJSON(s registry.Session, base string) sessionJSON {
 		AgentConnectionKind:     s.AgentConnectionKind,
 		AgentConnectionProtocol: s.AgentConnectionProtocol,
 		ImplementationContext:   s.ImplementationContext.Clone(),
+		ReviewedContextDelivery: sessionReviewedContextDelivery(s),
+		ProjectRunID:            s.ProjectRunID,
+		ProjectRunOperationID:   s.ProjectRunOperationID,
 		Status:                  string(s.Status),
 		ExitReason:              s.ExitReason,
 		Backend:                 s.Backend,
@@ -887,6 +893,8 @@ type sessionCreateRequest struct {
 	AuthOnly              bool                                  `json:"authOnly"`
 	AgentConnectionID     *string                               `json:"agentConnectionId"`
 	ImplementationContext *product.ImplementationContextRequest `json:"implementationContext,omitempty"`
+	ProjectRunID          string                                `json:"projectRunId,omitempty"`
+	ProjectRunOperationID string                                `json:"projectRunOperationId,omitempty"`
 }
 
 // registerSessions mounts the six verbs. Go 1.22's ServeMux matches on method
@@ -901,6 +909,7 @@ func (a *API) registerSessions(mux *routes) {
 	mux.HandleFunc("POST "+sessionBasePath+"/sessions", a.handleSessionCreate)
 	mux.HandleFunc("GET "+sessionBasePath+"/sessions", a.handleSessionList)
 	mux.HandleFunc("GET "+sessionBasePath+"/sessions/{id}", a.handleSessionGet)
+	mux.HandleFunc("GET "+sessionBasePath+"/sessions/{id}/reviewed-context", a.handleSessionReviewedContext)
 	mux.HandleFunc("PATCH "+sessionBasePath+"/sessions/{id}", a.handleSessionPatch)
 	mux.HandleFunc("DELETE "+sessionBasePath+"/sessions/{id}", a.handleSessionDelete)
 	mux.HandleFunc("POST "+sessionBasePath+"/sessions/{id}/restart", a.handleSessionRestart)
@@ -1058,12 +1067,18 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	if !a.validateProjectRunSessionRequest(w, &req) {
+		return
+	}
 
 	req.WorktreeID = strings.TrimSpace(req.WorktreeID)
 	if req.WorktreeID == "" {
 		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest, "worktreeId is required.", nil)
 		return
 	}
+	// bindSessionImplementation appends the reviewed prompt below. Keep the
+	// original request for exact duplicate admission after concurrent creates.
+	projectRunRequest := req
 
 	// 1. The worktree, first.
 	path, err := a.deps.Worktrees.Path(ctx, req.WorktreeID)
@@ -1087,6 +1102,10 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	// Re-resolve beneath admission before context or sandbox work begins.
 	if path, err = a.deps.Worktrees.Path(ctx, req.WorktreeID); err != nil {
 		httpx.WriteProblem(w, 409, httpx.CodeConflict, "The worktree changed before the session could start. Refresh the project and try again.", nil)
+		return
+	}
+	projectID, branchID := a.sessionLocate(ctx, req.WorktreeID)
+	if a.reuseProjectRunSession(w, r, req, projectID) {
 		return
 	}
 
@@ -1134,6 +1153,11 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	if harnessID == harness.Codex {
 		a.codexAccountMu.Lock()
 		defer a.codexAccountMu.Unlock()
+		// A concurrent create may have persisted this exact reserved child
+		// while this request waited for the subscription account lock.
+		if a.reuseProjectRunSession(w, r, req, projectID) {
+			return
+		}
 	}
 	if sessionHasConversation(desc) || desc.NativeState() {
 		if resume != "" {
@@ -1157,11 +1181,18 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 			codexAccountProblem(w, err)
 			return
 		}
+		if !validateProjectRunResume(w, req, sourceSession) {
+			return
+		}
 	}
 	selection := req.AgentConnectionID
-	implementationContext, contextOK := a.bindSessionImplementation(w, r, &req, path, sourceSession)
+	reviewedCapture, contextOK := a.bindSessionImplementation(w, r, &req, path, sourceSession)
 	if !contextOK {
 		return
+	}
+	var implementationContext *registry.ImplementationContext
+	if reviewedCapture != nil {
+		implementationContext = reviewedCapture.Binding
 	}
 	if req.AuthOnly {
 		if selection != nil && *selection != "" {
@@ -1192,15 +1223,16 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	command, argv, err := harness.Build(harness.Request{
-		DockerBoundary: a.deps.Backend.Kind() == backend.KindDocker,
-		ProjectBrief:   true,
-		Harness:        harnessID,
-		Model:          model,
-		Effort:         effort,
-		Permission:     mode,
-		OpeningPrompt:  req.OpeningPrompt,
-		Conversation:   conversation,
-		Resume:         resume,
+		DockerBoundary:  a.deps.Backend.Kind() == backend.KindDocker,
+		ProjectBrief:    true,
+		ReviewedContext: implementationContext != nil,
+		Harness:         harnessID,
+		Model:           model,
+		Effort:          effort,
+		Permission:      mode,
+		OpeningPrompt:   req.OpeningPrompt,
+		Conversation:    conversation,
+		Resume:          resume,
 	})
 	if err != nil {
 		a.writeHarnessProblem(w, r, harnessID, desc, err)
@@ -1248,6 +1280,24 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 
 	// 3. Ids and the secret.
 	sessionID := ids.New("s")
+	var runAdmission product.ProjectRunSessionAdmission
+	if req.ProjectRunID != "" {
+		var ok bool
+		runAdmission, ok = a.beginProjectRunSession(w, r, projectRunRequest, registry.Session{
+			ProjectID: projectID, WorktreeID: req.WorktreeID, BranchID: branchID,
+			Harness: string(harnessID), Model: model, Effort: string(effort), PermissionMode: string(mode),
+			AuthMode: authMode, CodexConnectionID: codexConnectionID(account),
+			AgentConnectionID: agentConnection.ID, AgentConnectionRevision: agentConnection.Revision,
+			AgentConnectionKind: agentConnection.Kind, AgentConnectionProtocol: agentConnection.Protocol,
+			ImplementationContext: implementationContext, ProjectRunID: req.ProjectRunID,
+			ProjectRunOperationID: req.ProjectRunOperationID,
+		})
+		if !ok {
+			return
+		}
+		defer runAdmission.Release()
+		sessionID = runAdmission.SessionID
+	}
 	token := ids.Token()
 
 	// 3a. A Fork carries its source's conversation into this worktree. Last
@@ -1296,9 +1346,18 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	if machineID == "" {
 		machineID = LocalMachineID
 	}
-	projectID, branchID := a.sessionLocate(ctx, req.WorktreeID)
 	if !a.validateSessionImplementation(w, projectID, req.WorktreeID, path, implementationContext) {
 		return
+	}
+	var reviewedDescriptor *registry.ReviewedContext
+	if reviewedCapture != nil {
+		var mount backend.Mount
+		reviewedDescriptor, mount, err = a.prepareReviewedContext(sessionID, reviewedCapture)
+		if err != nil {
+			a.internal(w, r, "capture the reviewed session context", err)
+			return
+		}
+		sandboxMounts = append(sandboxMounts, mount)
 	}
 
 	// 4. The record exists before the sandbox does. SandboxID is written here,
@@ -1333,9 +1392,17 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		AttachToken:             token,
 		ContextRef:              req.ContextRef,
 		ImplementationContext:   implementationContext,
+		ReviewedContext:         reviewedDescriptor,
+		ProjectRunID:            req.ProjectRunID,
+		ProjectRunOperationID:   req.ProjectRunOperationID,
 
 		CarriedConversationID: carriedConversation,
 	}); err != nil {
+		if reviewedDescriptor != nil {
+			if rerr := a.removeReviewedContext(sessionID); rerr != nil {
+				a.sessionLog().Error("remove reviewed context for an unrecorded session", "sessionId", sessionID, "err", rerr)
+			}
+		}
 		// No record names the staged copy, so nothing would ever remove it.
 		if staging != "" {
 			if rerr := os.RemoveAll(staging); rerr != nil {
@@ -1365,6 +1432,13 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		a.markSessionExited(sessionID, "the saved ChatGPT connection could not be reserved")
 		codexAccountProblem(w, err)
 		return
+	}
+	if runAdmission.Revalidate != nil {
+		if err := runAdmission.Revalidate(); err != nil {
+			a.markSessionExited(sessionID, "the reserved project run changed before sandbox allocation")
+			httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, err.Error(), nil)
+			return
+		}
 	}
 	// 5. The sandbox, on a context of its own: see sessionCreateContext (F1).
 	createCtx, endCreate := a.sessionCreateContext(ctx)
@@ -1905,6 +1979,10 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if sess.ProjectRunID != "" || sess.ProjectRunOperationID != "" {
+		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, "Reserve a new coding operation in the project run before retrying. The original attempt remains in the run history.", nil)
+		return
+	}
 	ctx := r.Context()
 	if a.deps.Product != nil && sess.BranchID == "" {
 		httpx.WriteProblem(w, 409, httpx.CodeConflict, "This older session has no saved branch. Start a fresh session on the selected branch instead.", nil)
@@ -1958,6 +2036,15 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	if !a.validateSessionImplementation(w, sess.ProjectID, sess.WorktreeID, path, sess.ImplementationContext) {
 		return
 	}
+	var reviewedMount backend.Mount
+	if sess.ImplementationContext != nil {
+		if _, err = a.readReviewedContext(sess.ID, sess.ImplementationContext, sess.ReviewedContext); err != nil {
+			a.reviewedContextProblem(w, sess.ID, err)
+			return
+		}
+		dir, _ := a.reviewedContextPath(sess.ID)
+		reviewedMount = backend.Mount{HostPath: dir, ContainerPath: reviewedContextContainerDir, ReadOnly: true}
+	}
 	// A harness with a conversation is REBUILT, not replayed, and restart is
 	// the one place this file does that. The stored args name the old
 	// conversation with --session-id, and now that the store outlives the
@@ -1976,14 +2063,15 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	if desc, known := harness.Lookup(harness.ID(sess.Harness)); known && (sessionHasConversation(desc) || desc.NativeState()) {
 		conversation = ids.UUID()
 		command, args, err = harness.Build(harness.Request{
-			DockerBoundary: a.deps.Backend.Kind() == backend.KindDocker,
-			ProjectBrief:   true,
-			Harness:        desc.ID,
-			Model:          model,
-			Effort:         harness.Effort(sess.Effort),
-			Permission:     harness.PermissionMode(sess.PermissionMode),
-			OpeningPrompt:  sess.OpeningPrompt,
-			Conversation:   conversation,
+			DockerBoundary:  a.deps.Backend.Kind() == backend.KindDocker,
+			ProjectBrief:    true,
+			ReviewedContext: sess.ImplementationContext != nil,
+			Harness:         desc.ID,
+			Model:           model,
+			Effort:          harness.Effort(sess.Effort),
+			Permission:      harness.PermissionMode(sess.PermissionMode),
+			OpeningPrompt:   sess.OpeningPrompt,
+			Conversation:    conversation,
 		})
 		if err != nil {
 			a.writeHarnessProblem(w, r, desc.ID, desc, err)
@@ -2033,6 +2121,9 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 	// No carried transcript: a restart starts clean, so even a fork's restart
 	// resumes nothing and needs no source to read.
 	sandboxMounts := sessionMounts(path, worktreeAdmin, conversationStore, backend.Mount{}, a.deps.CABundle, gitFiles)
+	if reviewedMount.HostPath != "" {
+		sandboxMounts = append(sandboxMounts, reviewedMount)
+	}
 	if sess.Harness == string(harness.Shell) {
 		home, err := a.prepareShellHome(sess.WorktreeID, sess.ID)
 		if err != nil {
@@ -2242,7 +2333,7 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := sess.ID
-	if nativeHarness(sess.Harness) {
+	if nativeHarness(sess.Harness) || sess.ImplementationContext != nil {
 		if !sessionRestarts.acquire(id) {
 			httpx.WriteProblem(w, 409, httpx.CodeConflict, "The provider session is being restarted or copied; wait before stopping or forgetting it.", nil)
 			return
@@ -2350,6 +2441,12 @@ func (a *API) handleSessionDelete(w http.ResponseWriter, r *http.Request) {
 	if err := a.sessionForgetTranscripts(updated); err != nil {
 		a.internal(w, r, "delete the session's transcript", err)
 		return
+	}
+	if updated.ReviewedContext != nil {
+		if err := a.removeReviewedContext(updated.ID); err != nil {
+			a.internal(w, r, "delete the session's reviewed context", err)
+			return
+		}
 	}
 
 	if err := a.deps.Store.Delete(id); err != nil && !errors.Is(err, registry.ErrNotFound) {

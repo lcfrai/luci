@@ -3,6 +3,7 @@ import { Button } from "../fluid/components/button";
 import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import "./projects.css";
+import { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
 
 export function ProjectsHome() {
   const projects = useCockpit((state) => state.projects);
@@ -10,6 +11,8 @@ export function ProjectsHome() {
   const lastError = useCockpit((state) => state.lastError);
   const [query, setQuery] = useState("");
   const setup = useSetup();
+  const team = useTeamWorkspace();
+  const canCreate = !team?.teamId || !!(team.selected?.permissions.edit && team.selected.permissions.admin);
   const filtered = projects.filter((project) =>
     project.name.toLowerCase().includes(query.toLowerCase()),
   );
@@ -26,6 +29,7 @@ export function ProjectsHome() {
         </div>
         <Button type="button"
           variant="primary"
+          disabled={!canCreate}
           onClick={() => setup?.openProject()}
         >
           New project
@@ -35,13 +39,15 @@ export function ProjectsHome() {
         <div className="setup-actions">
           <Button type="button"
             variant="secondary"
-            onClick={() => setup?.openProject("import")}
+            disabled={!canCreate}
+          onClick={() => setup?.openProject("import")}
           >
             Import repository
           </Button>
           <Button type="button"
             variant="secondary"
-            onClick={() => setup?.openProject("restore")}
+            disabled={!canCreate}
+          onClick={() => setup?.openProject("restore")}
           >
             Restore backup
           </Button>
@@ -50,6 +56,7 @@ export function ProjectsHome() {
           Workspace setup
         </Button>
       </div>
+      {!canCreate && <p className="projects-setup-note">Your team administrator can create or import projects and share them with you.</p>}
       {setup?.statusError && (
         <p className="journey-error" role="alert">
           {setup.statusError}{" "}
@@ -90,10 +97,9 @@ export function ProjectsHome() {
         <p role="status">Loading your projects…</p>
       ) : projects.length === 0 ? (
         <div className="projects-empty">
-          <h2>What would you like to make?</h2>
+          <h2>{canCreate ? "What would you like to make?" : "No projects shared yet"}</h2>
           <p>
-            Start a project, describe the outcome and sketch the experience.
-            Connect a coding agent when you are ready to build.
+            {canCreate ? "Start a project, describe the outcome and sketch the experience. Connect a coding agent when you are ready to build." : "Once your team administrator grants project access, your shared projects will appear here."}
           </p>
           <ol>
             <li>
@@ -115,7 +121,8 @@ export function ProjectsHome() {
           </ol>
           <Button type="button"
             variant="secondary"
-            onClick={() => setup?.openProject()}
+            disabled={!canCreate}
+          onClick={() => setup?.openProject()}
           >
             Create your first project
           </Button>

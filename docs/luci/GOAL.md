@@ -14,6 +14,105 @@ own AWS or Azure resources and domain, or an existing workspace. Minimize ongoin
 cost while preserving the quality of the result. Reuse suitable open-source
 components discovered through lcfr.ai Glasses where this improves delivery.
 
+## Product-quality completion standard — owner's latest direction
+
+Deliver an exceptionally polished, dependable idea-to-production product, with
+the clarity, responsiveness and consistency people expect from Vercel, ChatGPT
+and other leading AI-era applications. The standard covers the complete work,
+including context building, amendments, collaboration, agent execution,
+verification, deployment and operation. A clean launch or passing technical
+suite does not complete this goal.
+
+The person must understand the solution being agreed and built at every stage,
+know what requires their decision, see the consequence of a change, and have a
+clear way forward after an interruption or failure. Luci must carry this
+understanding into an independently verified, live application and subsequent
+changes. Persistent conversation remains optional.
+
+[PRODUCT-QUALITY.md](PRODUCT-QUALITY.md) defines the observable quality contract,
+representative complete journeys and evidence required to close this goal.
+Treat it as a release gate alongside the existing functional, isolation,
+commercial and distribution gates. Keep improving concrete shortcomings until
+the contract is demonstrated; neither blocked Windows CI nor missing external
+credentials excuses independent product and interaction work.
+
+Current status: **not complete and not production ready**. Existing scoped
+test/package results are valuable evidence, not a verdict on whole-product
+polish or live model quality. The target is no known serious product or usability
+defect in the supported journeys, with understandable recovery from expected
+failures. Do not promise that any application can never encounter a future bug.
+
+The owner's renewed continuation instruction is explicit: a completed corrective
+batch, updated PR or saved roadmap is a checkpoint, not the end of this objective.
+Continue through the remaining independently actionable product work. A missing
+credential or platform capability blocks only the gate that requires it; it does
+not close the goal or justify stopping unrelated implementation. Keep concrete
+findings and their resolution in [QUALITY-WORKLIST.md](QUALITY-WORKLIST.md), and
+keep the whole-product acceptance contract open until its outcomes are observed.
+
+## Open-source and managed-team goal — 6 October 2026
+
+The owner has confirmed two delivery options: the self-hosted MIT open-source
+application and optional paid lcfr.ai-managed team workspaces. Both must solve
+the same AI software-development lifecycle: people build and review useful
+shared context, agents receive the exact authorized context, and the team can
+verify, deploy and maintain the resulting application in one coherent product.
+Local use remains supported without a mandatory hosted account or subscription.
+
+The first paid deployment uses a dedicated execution boundary for each team,
+with private state, secrets, containers and resource ownership. Existing
+per-user application workers are useful account separation, but are not proof
+of isolation between paying teams on a shared host. The 0.5.0 candidate adds explicit team membership, project grants, shared
+workspace routing, authenticated context attribution and scoped draft recovery.
+Those source capabilities do not establish dedicated host isolation or a paid
+service. Paid team availability requires verified membership/project permissions,
+trustworthy review, concurrent-change recovery and revocation across files,
+context, agents, previews and deployments. Secret use and execution privileges need separate
+authorization from the right to read or edit project context.
+
+[PRODUCTION-ROADMAP.md](PRODUCTION-ROADMAP.md) defines measurable stages for this
+continuing goal. The **0.5.0 release candidate** includes the durable coordinator in
+[PROJECT-RUN-CONTRACT.md](PROJECT-RUN-CONTRACT.md),
+[portable context and bounded storage](CONTEXT-STORAGE.md), team permissions,
+scoped recovery drafts, operator service admission and
+[dedicated team HTTPS ingress](PUBLIC-HTTPS-INGRESS.md). The public ingress uses
+separate app/preview sites and preserves session-bound app/data browser grants;
+local TLS browser evidence does not prove public DNS or certificate operation. Implementation and source
+tests do not establish shipment or installed acceptance. Continue through the
+matching installed collaborative journey, operational maintenance, and separate
+open-source and paid release gates. Candidate integrity attestations and optional
+Windows publisher-signing support are reviewable tooling; no production signing,
+public publication or hosted subscription activation has been performed. Preserve the required live subscription, gateway, AWS, Azure, domain,
+SMTP and signed/public-download evidence below; a smaller milestone does not
+replace the full completion contract.
+
+## One understandable project journey — 6 October 2026
+
+The owner's latest clarification prioritizes a clear view of the current stage,
+exactly what Luci and its agents are building, and how amendments change the
+solution. Persistent conversation is useful supporting history, not a required
+primary interface or a completion gate. Luci must understand the agreed idea,
+build shared context through each phase and carry it through implementation,
+verification and a live application. Phase editors are focused views of that
+same project; the current purpose, requirements, selected tasks, execution state
+and useful next step must remain understandable across them.
+
+Luci asks about material ambiguity and explains consequential recommendations
+and downstream effects. A reviewed amendment creates a versioned draft,
+invalidates affected approvals and keeps earlier run inputs/evidence immutable.
+Unresolved material questions block new coordinated implementation; an
+explicit answer and any needed renewed context review provide the path forward.
+A saved discussion, recommendation or completed process never proves a working
+outcome. Provider-backed assistance must report the actual chosen connection and
+failures without simulated answers. Existing checks, release observations,
+public publishing consent and cloud cost acknowledgement remain execution gates.
+
+[Project understanding and amendments](ORCHESTRATION.md) specifies the shared
+status, immutable build scope, real provider assistance, reviewed changes and
+bounded private history recovery. Acceptance must show understandable stage and
+selected work during actual agent activity, including a teammate amendment and
+its effect on existing run inputs; retained chat alone is not acceptance.
+
 ## Overnight completion instruction — 6 October 2026
 
 The owner has explicitly authorized continued autonomous work while away and
@@ -32,11 +131,14 @@ missing credentials never turn an untested outcome into a pass. Literal absence
 of every possible future defect cannot be promised, and must not replace concrete
 acceptance evidence.
 
-The active native goal-control API cannot replace an unfinished objective or edit
-its text. An attempted replacement again returned that an unfinished goal exists.
-Do not falsely complete the smaller stored benchmark to clear that restriction.
-This expanded completion contract is authoritative across continued turns; the
-stored four-phase benchmark remains a required gate within it.
+In the owner's earlier installed environment, the native goal-control API
+reported that an unfinished objective could not be replaced or edited. That is
+a historical observation, not evidence of an available API in this cloud
+session. This cloud session exposes no goal-control API and has not created or
+replaced a native goal. This document and the production roadmap preserve the
+continuing objective. Do not falsely complete the earlier smaller benchmark to
+clear its restriction; the four-phase benchmark remains a required gate within
+this expanded completion contract.
 
 ## Required product outcomes
 
@@ -129,6 +231,7 @@ credentials and resources are prerequisites; absence of them is not a pass.
 Do not hand back the application as fully tested or complete until every required
 outcome has adequate current evidence. Keep implementation checkpoints and
 unverified external prerequisites explicit. Update `FULL-PRODUCT.md` with
-concrete outcomes and evidence as the build advances. The available goal-control
-API currently cannot edit an unfinished objective; its stored narrow benchmark
-must not override this owner-approved expanded completion standard.
+concrete outcomes and evidence as the build advances. The earlier native goal
+record remains historical; its narrower benchmark must not override this
+owner-approved expanded completion standard or imply a live goal-control API in
+the current cloud environment.

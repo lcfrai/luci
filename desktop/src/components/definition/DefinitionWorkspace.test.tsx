@@ -1,71 +1,70 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { act, render, screen, waitFor, cleanup } from "@testing-library/react";
+import { act, render, screen, waitFor, cleanup, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { definitionApi, type ProjectSpecification } from "../../api/definition";
 import { DefinitionWorkspace } from "./DefinitionWorkspace";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { productApi } from "../../api/product";
-import { AGENT_CONNECTIONS_CHANGED } from "../../hooks/useAgentConnections";
+import { requestProjectContextEdit, takeProjectContextEdit } from "../../api/projectContextEvents";
+
+vi.mock("../auth/AuthProvider", () => ({ useAuth: () => ({ profile: { user: { id: "question-owner" } } }) }));
+vi.mock("../setup/SetupProvider", () => ({ useSetup: () => ({ status: { access: { user: { username: "question-owner" } }, config: { projectsDir: "/question-projects" } } }) }));
+const questionScope = () => JSON.stringify([productApi.baseUrl, "question-owner", "local", "", "", "question-owner", "/question-projects", "p-1"]);
 
 afterEach(() => { cleanup();vi.restoreAllMocks(); });
-beforeEach(() => { resetCockpit(); vi.spyOn(definitionApi,"listAssistance").mockResolvedValue({jobs:[]}); vi.spyOn(productApi,"agentConnections").mockResolvedValue({revision:0,activeConnectionId:"",connections:[]}); vi.spyOn(productApi,"agents").mockResolvedValue({providers:[]}); });
+beforeEach(() => { localStorage.clear(); resetCockpit(); vi.spyOn(definitionApi,"listAssistance").mockResolvedValue({jobs:[]}); vi.spyOn(productApi,"agentConnections").mockResolvedValue({revision:0,activeConnectionId:"",connections:[]}); vi.spyOn(productApi,"agents").mockResolvedValue({providers:[]}); });
 const fixture = (): ProjectSpecification => ({projectId:"p-1",version:1,revision:2,briefRevision:3,startingPoint:"new",purpose:"A complete app",audience:"People",constraints:"Offline",outOfScope:[],requirements:[{id:"AC-001",title:"Save work",priority:"must",acceptance:"Saved work survives reopening"}],journeys:[],roles:[],entities:[],integrations:[],glossary:[],decisions:[],questions:[],status:"draft",digest:"",updatedAt:""});
-it("uses the selected assistant provider and saved gateway model only after an explicit request", async () => {
-  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
-  vi.mocked(productApi.agentConnections).mockResolvedValue({ revision: 1, activeConnectionId: "", connections: [{ id: "saved-gateway", name: "My models", kind: "litellm", revision: 1, enabled: true, configured: true, keyPresent: true, endpoints: { chatCompletions: "https://gateway.example/v1" }, models: { opencode: "my-code-model" } }] });
-  const assist = vi.spyOn(definitionApi, "assist").mockResolvedValue({ id: "asked", projectId: "p-1", status: "succeeded", message: "Ready", createdAt: "", updatedAt: "" });
+const questionFixture = (): ProjectSpecification => ({ ...fixture(), questions: [{ id: "storage", question: "Where do records live?", answer: "" }, { id: "membership", question: "How do members join?", answer: "" }] });
+function retainQuestionDraft(value: ProjectSpecification) {
+  const original = questionFixture();
+  localStorage.setItem("luci.project-draft.v1:" + JSON.stringify([questionScope(), "definition"]), JSON.stringify({ version: 1, base: JSON.stringify({ revision: original.revision, briefRevision: original.briefRevision }), original, value, updatedAt: Date.now() }));
+}
+it("opens the exact question answer after a delayed load and focuses only once without saving or invoking an agent", async () => {
+  let finish!: (value: ProjectSpecification) => void;
+  vi.spyOn(definitionApi, "get").mockReturnValue(new Promise(resolve => { finish = resolve; }));
+  const save = vi.spyOn(definitionApi, "save"), assist = vi.spyOn(definitionApi, "assist");
+  const cancel = requestProjectContextEdit(questionScope(), "p-1", "definition", "membership");
   render(<DefinitionWorkspace projectId="p-1" />);
-  await screen.findByRole("option", { name: "My models" });
-  await userEvent.selectOptions(screen.getByLabelText("Assistant provider"), "opencode");
-  await userEvent.selectOptions(screen.getByLabelText("Assistant connection"), "saved-gateway");
-  expect((screen.getByLabelText("Assistant model") as HTMLInputElement).value).toBe("my-code-model");
-  expect(assist).not.toHaveBeenCalled();
-  await userEvent.type(screen.getByLabelText("What would you like to explore?"), "Find missing acceptance outcomes");
-  await userEvent.click(screen.getByRole("button", { name: "Ask Luci" }));
-  await waitFor(() => expect(assist).toHaveBeenCalledExactlyOnceWith("p-1", 2, "Find missing acceptance outcomes", { harness: "opencode", model: "my-code-model", agentConnectionId: "saved-gateway" }));
+  const spec = questionFixture(); spec.questions.reverse();
+  await act(async () => finish(spec));
+  const answer = within(await screen.findByRole("group", { name: "Open question 1" })).getByRole("textbox", { name: "Answer" });
+  await waitFor(() => expect(document.activeElement).toBe(answer));
+  expect(screen.getByRole("tab", { name: "Specification" }).getAttribute("aria-selected")).toBe("true");
+  await userEvent.type(answer, "Coordinators invite members.");
+  const idea = screen.getByRole("textbox", { name: "The idea" }); await userEvent.click(idea); await userEvent.type(idea, " with retained context");
+  expect(document.activeElement).toBe(idea);
+  expect((answer as HTMLTextAreaElement).value).toBe("Coordinators invite members.");
+  expect(takeProjectContextEdit(questionScope(), "p-1", "definition")).toBe(false);
+  expect(save).not.toHaveBeenCalled(); expect(assist).not.toHaveBeenCalled(); cancel();
 });
-it("refreshes the assistant connection after settings change without starting inference", async () => {
-  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
-  const assist = vi.spyOn(definitionApi, "assist");
+it("waits for explicit recovery before focusing a reordered question and preserves the recovered answers", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(questionFixture());
+  const retained = questionFixture(); retained.purpose = "Keep this unrelated draft"; retained.questions.reverse(); retained.questions[0].answer = "Invite only";
+  retainQuestionDraft(retained);
+  const cancel = requestProjectContextEdit(questionScope(), "p-1", "definition", "membership");
   render(<DefinitionWorkspace projectId="p-1" />);
-  await screen.findByRole("textbox", { name: "The idea" });
-  vi.mocked(productApi.agentConnections).mockResolvedValue({ revision: 2, activeConnectionId: "updated-route", connections: [{ id: "updated-route", name: "Updated gateway", kind: "litellm", revision: 2, enabled: true, configured: true, keyPresent: true, endpoints: { anthropicMessages: "https://gateway.example" }, models: { claudeCode: "updated-model" } }] });
-  await act(async () => { window.dispatchEvent(new Event(AGENT_CONNECTIONS_CHANGED)); });
-  await waitFor(() => expect((screen.getByLabelText("Assistant model") as HTMLInputElement).value).toBe("updated-model"));
-  expect(assist).not.toHaveBeenCalled();
+  await screen.findByRole("region", { name: "Definition draft recovery" });
+  const restore = screen.getByRole("button", { name: "Restore draft" });
+  expect(document.activeElement?.tagName).not.toBe("TEXTAREA");
+  await userEvent.click(restore);
+  const answer = within(await screen.findByRole("group", { name: "Open question 1" })).getByRole("textbox", { name: "Answer" });
+  await waitFor(() => expect(document.activeElement).toBe(answer));
+  expect((answer as HTMLTextAreaElement).value).toBe("Invite only");
+  expect((screen.getByRole("textbox", { name: "The idea" }) as HTMLTextAreaElement).value).toBe("Keep this unrelated draft"); cancel();
 });
-it("keeps model proposals separate from saved and approved definition", async () => {
-  vi.spyOn(definitionApi,"get").mockResolvedValue(fixture());
-  const proposed={...fixture(),purpose:"A proposed fuller application",requirements:[{id:"AC-002",title:"Export work",priority:"must" as const,acceptance:"Exports can be reopened"}]};
-  vi.spyOn(definitionApi,"assist").mockResolvedValue({id:"assist-1",projectId:"p-1",status:"succeeded",message:"Proposal ready",createdAt:"",updatedAt:"",result:{question:"Who needs exports?",options:["The owner"],rationale:"The sharing boundary matters.",proposal:proposed}});
-  const save=vi.spyOn(definitionApi,"save").mockResolvedValue({...proposed,revision:3,briefRevision:4});
-  const approve=vi.spyOn(definitionApi,"approve");
-  render(<DefinitionWorkspace projectId="p-1"/>);
-  await screen.findByRole("textbox",{name:"The idea"});
-  await userEvent.type(screen.getByRole("textbox",{name:"What would you like to explore?"}),"Help me find gaps");
-  await userEvent.click(screen.getByRole("button",{name:"Ask Luci"}));
-  await screen.findByText("Who needs exports?");
-  expect(save).not.toHaveBeenCalled();expect(approve).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByText("Review proposed definition"));
-  await userEvent.click(screen.getByRole("button",{name:"Use this proposal as my draft"}));
-  expect((screen.getByRole("textbox",{name:"The idea"}) as HTMLTextAreaElement).value).toBe(proposed.purpose);
-  expect(save).not.toHaveBeenCalled();expect(approve).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole("button",{name:"Save definition"}));
-  await waitFor(()=>expect(save).toHaveBeenCalledOnce());
-  expect(save.mock.calls[0][1].requirements[0].id).toBe("AC-002");
-  expect(approve).not.toHaveBeenCalled();
-});
-it("restores the latest interview without starting a provider job and isolates changed projects",async()=>{
-  vi.spyOn(definitionApi,"get").mockImplementation(async id=>({...fixture(),projectId:id}));
-  vi.mocked(definitionApi.listAssistance).mockImplementation(async id=>({jobs:id==="p-1"?[{id:"assist-existing",projectId:id,status:"succeeded",message:"Saved interview",createdAt:"2026-10-05",updatedAt:""}]:[]}));
-  vi.spyOn(definitionApi,"assistance").mockResolvedValue({id:"assist-existing",projectId:"p-1",status:"succeeded",message:"Saved interview",createdAt:"",updatedAt:"",result:{question:"Who may view the delivery?",options:[],rationale:"Clarify permissions.",proposal:null}});
-  const infer=vi.spyOn(definitionApi,"assist"); const analyse=vi.spyOn(definitionApi,"analyseRepository");
-  const {rerender}=render(<DefinitionWorkspace projectId="p-1"/>);
-  await screen.findByText("Who may view the delivery?");
-  expect(infer).not.toHaveBeenCalled();expect(analyse).not.toHaveBeenCalled();
-  rerender(<DefinitionWorkspace projectId="p-2"/>);
-  await waitFor(()=>expect(screen.queryByText("Who may view the delivery?")).toBeNull());
-  expect(infer).not.toHaveBeenCalled();expect(analyse).not.toHaveBeenCalled();
+it("reports a question removed by recovery without focusing or overwriting a different answer", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(questionFixture());
+  const retained = questionFixture(); retained.questions = [retained.questions[0]]; retained.questions[0].answer = "Local persistent storage";
+  retainQuestionDraft(retained);
+  const save = vi.spyOn(definitionApi, "save");
+  const cancel = requestProjectContextEdit(questionScope(), "p-1", "definition", "membership");
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Restore draft" }));
+  await screen.findByText(/This question is no longer in the current definition draft/);
+  const other = screen.getByRole("textbox", { name: "Answer" });
+  expect(document.activeElement).not.toBe(other);
+  expect((other as HTMLTextAreaElement).value).toBe("Local persistent storage");
+  expect(save).not.toHaveBeenCalled(); cancel();
 });
 it("keeps requirement identities while changing acceptance words",async()=>{
   vi.spyOn(definitionApi,"get").mockResolvedValue(fixture());
@@ -78,22 +77,6 @@ it("keeps requirement identities while changing acceptance words",async()=>{
   expect(save.mock.calls[0][1].requirements[0].id).toBe("AC-001");
   expect(save.mock.calls[0][1].requirements[0].acceptance).toContain("offline");
 });
-it("does not let late saved interview history replace a newly requested job", async () => {
-  vi.spyOn(definitionApi,"get").mockResolvedValue(fixture());
-  let resolveHistory!: (value: Awaited<ReturnType<typeof definitionApi.listAssistance>>) => void;
-  vi.mocked(definitionApi.listAssistance).mockReturnValue(new Promise(resolve => { resolveHistory = resolve; }));
-  const readOld = vi.spyOn(definitionApi,"assistance");
-  vi.spyOn(definitionApi,"assist").mockResolvedValue({id:"assist-new",projectId:"p-1",status:"succeeded",message:"New interview",createdAt:"",updatedAt:"",result:{question:"The current question",options:[],rationale:"The selected request.",proposal:null}});
-  render(<DefinitionWorkspace projectId="p-1"/>);
-  await screen.findByRole("textbox",{name:"The idea"});
-  await userEvent.type(screen.getByRole("textbox",{name:"What would you like to explore?"}),"Explore current requirements");
-  await userEvent.click(screen.getByRole("button",{name:"Ask Luci"}));
-  await screen.findByText("The current question");
-  await act(async () => { resolveHistory({jobs:[{id:"assist-old",projectId:"p-1",status:"succeeded",message:"Old interview",createdAt:"2026-10-01",updatedAt:""}]}); });
-  expect(readOld).not.toHaveBeenCalled();
-  expect(screen.getByText("The current question")).not.toBeNull();
-});
-
 it("activates linked definition panels manually without discarding edited answers", async () => {
   vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
   const history = vi.spyOn(definitionApi, "history").mockResolvedValue({ revisions: [] });
@@ -152,4 +135,114 @@ it("retains a rejected approval as a draft and lets the user correct it", async 
   expect((screen.getByRole("textbox", { name: "The idea" }) as HTMLTextAreaElement).value).toBe(fixture().purpose);
   await userEvent.type(screen.getByRole("textbox", { name: "The idea" }), " with a clear acceptance scenario");
   expect(screen.getByRole("button", { name: "Save definition" })).not.toBeNull();
+});
+
+const teamAccess = vi.hoisted(() => ({ loading: false, error: "", permissions: { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true } }));
+vi.mock("../teams/TeamWorkspaceProvider", () => ({ useTeamProjectPermissions: () => teamAccess, useTeamWorkspace: () => null }));
+beforeEach(() => { teamAccess.loading = false; teamAccess.error = ""; Object.assign(teamAccess.permissions, { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true }); });
+it("allows viewers to read shared definition while disabling edits, approval and provider execution", async () => {
+  teamAccess.permissions.edit = false; teamAccess.permissions.execute = false;
+  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
+  const save = vi.spyOn(definitionApi, "save"), approve = vi.spyOn(definitionApi, "approve"), assist = vi.spyOn(definitionApi, "assist");
+  render(<DefinitionWorkspace projectId="p-1" />);
+  const idea = await screen.findByLabelText("The idea");
+  expect((idea.closest("fieldset") as HTMLFieldSetElement).disabled).toBe(true);
+  expect(screen.getByText(/Read-only access/)).not.toBeNull();
+  await userEvent.type(idea, " forbidden");
+  await userEvent.click(screen.getByRole("button", { name: "Approve definition" }));
+  expect((idea as HTMLTextAreaElement).value).toBe(fixture().purpose);
+  expect(screen.queryByRole("button", { name: "Ask Luci" })).toBeNull();
+  expect(save).not.toHaveBeenCalled(); expect(approve).not.toHaveBeenCalled(); expect(assist).not.toHaveBeenCalled();
+});
+it("retains edited answers while project permissions refresh and then become read-only", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
+  const view = render(<DefinitionWorkspace projectId="p-1" />);
+  const idea = await screen.findByLabelText("The idea"); await userEvent.type(idea, " with unsaved edits");
+  teamAccess.loading = true; view.rerender(<DefinitionWorkspace projectId="p-1" />);
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toContain("with unsaved edits");
+  expect((screen.getByRole("button", { name: "Save definition" }) as HTMLButtonElement).disabled).toBe(true);
+  teamAccess.loading = false; teamAccess.permissions.edit = false; view.rerender(<DefinitionWorkspace projectId="p-1" />);
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toContain("with unsaved edits");
+  expect(definitionApi.get).toHaveBeenCalledOnce();
+});
+
+it("continues the same project conversation without starting another provider job", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
+  const assist = vi.spyOn(definitionApi, "assist"), save = vi.spyOn(definitionApi, "save");
+  const events: unknown[] = [];
+  const handle = (event: Event) => events.push((event as CustomEvent).detail);
+  window.addEventListener("luci:orchestrator-open", handle);
+  try {
+    render(<DefinitionWorkspace projectId="p-1" />);
+    await screen.findByLabelText("The idea");
+    await userEvent.click(screen.getByRole("button", { name: "Discuss or request a change" }));
+    expect(events).toEqual([{ projectId: "p-1" }]);
+    expect(assist).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText("Definition assistant")).toBeNull();
+  } finally { window.removeEventListener("luci:orchestrator-open", handle); }
+});
+it("retains an amendment draft before returning to the saved-context conversation", async () => {
+  vi.spyOn(definitionApi, "get").mockResolvedValue(fixture());
+  render(<DefinitionWorkspace projectId="p-1" />);
+  const idea = await screen.findByLabelText("The idea");
+  await userEvent.type(idea, " with changed intent");
+  expect((screen.getByRole("button", { name: "Discuss or request a change" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText(/Save or resolve this draft first/)).not.toBeNull();
+  expect((idea as HTMLTextAreaElement).value).toContain("changed intent");
+});
+
+async function interviewOutcomes() {
+  await screen.findByRole("textbox", { name: "The idea" });
+  await userEvent.click(screen.getByRole("tab", { name: "Guided interview" }));
+  for (let step = 0; step < 4; step++) await userEvent.click(screen.getByRole("button", { name: "Next question" }));
+  await screen.findByRole("textbox", { name: "How to check outcome 1" });
+}
+function twoOutcomes() {
+  const value = fixture();
+  value.requirements.push({ id: "AC-002", title: "Staff block availability", priority: "should", acceptance: "Unavailable slots cannot be booked" });
+  value.journeys = [{ id: "customer", name: "Booking", actor: "Customer", steps: "Choose and confirm", requirementIds: ["AC-001", "AC-002"] }];
+  return value;
+}
+it("changes only the intended acceptance when revisiting the interview, preserving titles, IDs, priorities and other answers", async () => {
+  const original = twoOutcomes();
+  vi.spyOn(definitionApi, "get").mockResolvedValue(original);
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_id, spec) => ({ ...spec, revision: 3 }));
+  render(<DefinitionWorkspace projectId="p-1" />); await interviewOutcomes();
+  const answer = screen.getByRole("textbox", { name: "How to check outcome 1" });
+  await userEvent.clear(answer); await userEvent.type(answer, "When reopened offline, every saved entry returns.");
+  await userEvent.click(screen.getByRole("button", { name: "Review specification" }));
+  expect((screen.getByRole("textbox", { name: "Requirement 1" }) as HTMLInputElement).value).toBe("Save work");
+  expect((screen.getByRole("textbox", { name: "Requirement 2" }) as HTMLInputElement).value).toBe("Staff block availability");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  expect(save.mock.calls[0][1].requirements).toEqual([{ ...original.requirements[0], acceptance: "When reopened offline, every saved entry returns." }, original.requirements[1]]);
+  expect(save.mock.calls[0][1].journeys).toEqual(original.journeys);
+});
+it("reorders and removes the chosen outcome without reassigning identities or retaining its journey link", async () => {
+  const original = twoOutcomes();
+  vi.spyOn(definitionApi, "get").mockResolvedValue(original);
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_id, spec) => ({ ...spec, revision: 3 }));
+  render(<DefinitionWorkspace projectId="p-1" />); await interviewOutcomes();
+  await userEvent.click(screen.getByRole("button", { name: "Move outcome 2 up" }));
+  expect((screen.getByRole("textbox", { name: "Outcome 1" }) as HTMLInputElement).value).toBe(original.requirements[1].title);
+  await userEvent.click(screen.getByRole("button", { name: "Remove outcome 2" }));
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  expect(save.mock.calls[0][1].requirements).toEqual([original.requirements[1]]);
+  expect(save.mock.calls[0][1].journeys[0].requirementIds).toEqual(["AC-002"]);
+});
+it("keeps an empty or multiline answer on its own outcome and adds a distinct outcome without recreating existing records", async () => {
+  const original = twoOutcomes();
+  vi.spyOn(definitionApi, "get").mockResolvedValue(original);
+  const save = vi.spyOn(definitionApi, "save").mockImplementation(async (_id, spec) => ({ ...spec, revision: 3 }));
+  render(<DefinitionWorkspace projectId="p-1" />); await interviewOutcomes();
+  await userEvent.clear(screen.getByRole("textbox", { name: "How to check outcome 1" }));
+  await userEvent.click(screen.getByRole("button", { name: "Add an outcome" }));
+  await userEvent.type(screen.getByRole("textbox", { name: "Outcome 3" }), "Customer cancellation");
+  await userEvent.type(screen.getByRole("textbox", { name: "How to check outcome 3" }), "Cancel a booking.\nThe slot becomes available.");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  const rows = save.mock.calls[0][1].requirements;
+  expect(rows).toHaveLength(3);
+  expect(rows[0]).toEqual({ ...original.requirements[0], acceptance: "" });
+  expect(rows[1]).toEqual(original.requirements[1]);
+  expect(rows[2]).toMatchObject({ title: "Customer cancellation", acceptance: "Cancel a booking.\nThe slot becomes available.", priority: "must" });
+  expect(new Set(rows.map(row => row.id)).size).toBe(3);
 });

@@ -7,11 +7,12 @@ import {
 } from "../../api/product";
 import { Button } from "../fluid/components/button";
 
-type Props = { projectId: string; busy: string; onDeploy(input: PagesReleaseRequest): void };
+type Props = { projectId: string; busy: string; disabled?: boolean; onDeploy(input: PagesReleaseRequest): void };
 export function PagesDeployForm(props: Props) { return <ProjectPagesDeployForm key={props.projectId} {...props} />; }
 function ProjectPagesDeployForm({
   projectId,
   busy,
+  disabled = false,
   onDeploy,
 }: Props) {
   const [delivery, setDelivery] = useState<GitDelivery | null>(null);
@@ -46,7 +47,7 @@ function ProjectPagesDeployForm({
       className="cloud-deploy-form"
       onSubmit={(event) => {
         event.preventDefault();
-        if (delivery && pushed && acknowledgePublic && !busy && !loading)
+        if (!disabled && delivery && pushed && acknowledgePublic && !busy && !loading)
           onDeploy({
             commit: delivery.head,
             branch: delivery.branch,
@@ -91,7 +92,7 @@ function ProjectPagesDeployForm({
         <input
           type="checkbox"
           checked={acknowledgePublic}
-          disabled={!!busy || loading}
+          disabled={disabled || !!busy || loading}
           onChange={(event) => setAcknowledgePublic(event.target.checked)}
         />
         I understand that this site and its repository are public.
@@ -99,7 +100,7 @@ function ProjectPagesDeployForm({
       <div className="journey-actions"><Button type="submit"
         variant="primary"
         loading={!!busy}
-        disabled={!!busy || loading || !pushed || !acknowledgePublic}
+        disabled={disabled || !!busy || loading || !pushed || !acknowledgePublic}
       >
         {busy || "Deploy to GitHub Pages"}
       </Button>

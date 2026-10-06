@@ -1,5 +1,36 @@
 # Building and distributing Luci
 
+For a version change, follow [the stopped-state upgrade and rollback procedure](MANAGED-UPGRADE.md). It preserves the complete pre-upgrade state; an older binary must never write a newer context format.
+
+
+The current source is the **0.5.0 release candidate**, not a published production
+release. It adds durable project runs, portable context format 2 with bounded
+recoverable archives, authenticated team/project permissions and context
+attribution, scoped recovery drafts, operator service admission and
+[dedicated team HTTPS ingress](PUBLIC-HTTPS-INGRESS.md). Self-hosted
+MIT use remains independent of a paid hosted account. Format 1 context and
+existing project backups remain readable; older applications must not write the
+new format. See [CONTEXT-STORAGE.md](CONTEXT-STORAGE.md).
+
+Current source tests and version/integrity tooling checks are distinct from
+matching package acceptance. Windows publisher signing is opt-in using an
+already provisioned certificate; no certificate or production signature was
+created in this cloud session. A manual keyless candidate-integrity attestation
+workflow is prepared but has not been dispatched. A managed-service admission
+record is not payment processing or evidence of a dedicated tenant host.
+
+Current development evidence includes a 0.5.0 service/web two-browser journey
+with ten passing checks, 17 main/team-worker lifecycle checks and eleven
+Chromium HTTPS app/data browser checks. See the exact binary hashes, fixture
+limits and receipts in [FULL-PRODUCT.md](FULL-PRODUCT.md). Nginx validates the
+provided operator-certificate template. Strict runtime licence collection
+retains 346 components with zero missing grants, including Stripe's upstream SDK
+licence; no retained-grant override was necessary. These source checks do not
+replace clean-package/native acceptance or a real public domain and certificate.
+
+The following installed receipts are **historical**, bound to the exact
+versions, commits and machines recorded. They are not evidence for 0.5.0.
+
 The primary installed workspace remains **0.4.16**, from clean source
 `eda1d061d679e4051e720b7ff98f67a760c270dc`. The secondary workspace admitted
 **0.4.17**, from clean source `e0e51f640efc6aed54b1ce84d742b56d83b68215`,
@@ -45,7 +76,7 @@ whole Go, race, frontend, TypeScript, web build and connected browser checks.
 Its runtime tests pass, but runtime evidence upload fails on GitHub artifact
 storage quota; that job remains failed and native/portable jobs are skipped.
 
-The current source correction is **0.4.18**. It adds reviewed implementation
+The preceding source correction was **0.4.18**. It adds reviewed implementation
 context, private account-scoped review authority, actual preview ownership and
 health observation, remote connection forwarding, and independent optional
 prototype loading. Its focused source results do not establish installed
@@ -91,11 +122,19 @@ Portable packages contain the compiled local service, built web assets including
 
 The local service listens on loopback port 8730. Close the portable launch terminal to stop it. Keep the complete extracted folder together. Project files and Luci state remain outside the application package; replacing an extracted application folder is not a project backup. Back up both before testing upgrades.
 
+Extract an update into a new folder and close the previous portable launcher
+before opening the new one. The launcher checks the running package's identity,
+including its service and web assets. It can reopen the same package; if an
+older or different package is still running, it explains how to close that
+instance and leaves its process and saved data intact. Keep the supplied
+`package-identity` file with the extracted archive. This check does not replace
+archive verification or the stopped-state backup/rollback procedure.
+
 ## Downloading a CI candidate
 
 When this workflow has run in the repository that will distribute Luci, open **Actions → Luci build and release candidates**, select the desired successful commit and download its artifact. Artifact access follows the repository's permissions and requires GitHub sign-in; artifacts expire after 14 days. There is no public lcfr.ai download implied by this document.
 
-Unpack GitHub's artifact wrapper first. Verify the inner archive or installer against its accompanying `SHA256SUMS`. For example, use `sha256sum -c SHA256SUMS` on Linux, `shasum -a 256 -c SHA256SUMS` on macOS, or compare `(Get-FileHash -Algorithm SHA256 -LiteralPath <download>).Hash` on Windows. Checksums detect changed bytes; they do not establish publisher identity. Current Windows candidates are unsigned and are intended for review.
+Unpack GitHub's artifact wrapper first. Verify the inner archive or installer against its accompanying `SHA256SUMS`. For example, use `sha256sum -c SHA256SUMS` on Linux, `shasum -a 256 -c SHA256SUMS` on macOS, or compare `(Get-FileHash -Algorithm SHA256 -LiteralPath <download>).Hash` on Windows. Checksums detect changed bytes; they do not establish publisher identity. Default Windows candidate builds are unsigned and intended for review. A source checksum or Sigstore integrity attestation does not grant Windows publisher trust.
 
 The accompanying `release-manifest.json` records the version, artifact hashes and sizes, licence component counts, and source state captured before building. `sourceCommit` is the full Git commit and `sourceDirty` reports tracked or untracked changes. Both are `null` when building an exported source folder without its own Git metadata. A dirty build contains local changes beyond the named commit; use a clean checkout for a candidate intended to identify an exact reviewed revision.
 
@@ -106,9 +145,9 @@ Use Go 1.26.3, Node 24.19.0, Python 3.11 or newer, and the committed lockfiles. 
 On Windows:
 
 ```powershell
-./scripts/build-release.ps1 -Version 0.4.18
+./scripts/build-release.ps1 -Version 0.5.0
 # Also build the native Windows NSIS installer:
-./scripts/build-release.ps1 -Version 0.4.18 -Native
+./scripts/build-release.ps1 -Version 0.5.0 -Native
 ```
 
 Native Windows builds also need stable Rust with the MSVC target and the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/). Tauri receives the Cargo lock flag after its argument separator: `npm run tauri -- build --bundles nsis -- --locked`. The [NSIS distribution documentation](https://v2.tauri.app/distribute/windows-installer/) describes the installer and signing options.
@@ -116,11 +155,11 @@ Native Windows builds also need stable Rust with the MSVC target and the [Tauri 
 On Linux or macOS:
 
 ```bash
-bash scripts/build-release.sh 0.4.18 linux-amd64
-bash scripts/build-release.sh 0.4.18 darwin-arm64
+bash scripts/build-release.sh 0.5.0 linux-amd64
+bash scripts/build-release.sh 0.5.0 darwin-arm64
 ```
 
-Archives and their checksums are written under `artifacts/releases/0.4.18/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
+Archives and their checksums are written under `artifacts/releases/0.5.0/`. The native installer is under `desktop/src-tauri/target/release/bundle/nsis/`. Cross-compiling an archive does not execute it; CI separately starts Linux and macOS packages on their respective runners. Native macOS and Linux installers are not provided by this workflow.
 
 `scripts/collect-licenses.py` inventories installed npm runtime packages, each bundled Excalidraw font family, the Go modules compiled into the service and sandbox, and the Go standard library. Native builds also inventory reachable Windows Cargo packages. It retains original files and source snapshot references with SHA-256 hashes in `licenses/manifest.json`; `MISSING-LICENSES.txt` lists missing grants. The default command fails when a component has no retained licence file. `--allow-missing` is diagnostic only and must not be used to make a distributable package pass. Updating a dependency can require a new version-specific snapshot in `third-party/licenses/manifest.json`.
 
@@ -147,7 +186,77 @@ Before calling a candidate a public production release, retain evidence for thes
 
 Recorded CI evidence: [run 36953123907](https://github.com/lcfrai/luci/actions/runs/36953123907) passed at source commit `4c117f6a088189f640ad946459f36c9072d344c1`. This includes the real Linux Docker journey, Linux and macOS package startup checks, strict licence inventories and the Windows native installer build. The Linux/macOS manifests identify that exact commit with `sourceDirty: false`; their inventories contain 317 and 318 components respectively, with zero missing licence grants. These results describe that source snapshot, not later package builds or a signed public release.
 
-Current verification limits: Docker Desktop is available on the development host, and the Docker candidate has real installation/runtime receipts. Installed data, Functions and native confirmation/recovery outcomes have scoped evidence in the full product checkpoint; they do not prove external email deliverability or a subscription-generated application. The required implementation/public deployment remains pending. Earlier CI evidence belongs to its recorded source revision. The provider CLI fixture can prove protocol, real tool execution and state isolation without paid inference. Actual model quality, subscription login and provider acceptance still require the user's chosen account/model. A built Windows installer has not by itself passed a clean-host install/uninstall evaluation. No live AWS/Azure account, billable resource, real domain/TLS rollout or complete remote installation is implied by local provider/process adapters and HTTP/WebSocket fixtures.
+Historical installed verification limits: Docker Desktop was available on that development host, and the Docker candidate has real installation/runtime receipts. Installed data, Functions and native confirmation/recovery outcomes have scoped evidence in the full product checkpoint; they do not prove external email deliverability or a subscription-generated application. The required implementation/public deployment remains pending. Earlier CI evidence belongs to its recorded source revision. The provider CLI fixture can prove protocol, real tool execution and state isolation without paid inference. Actual model quality, subscription login and provider acceptance still require the user's chosen account/model. A built Windows installer has not by itself passed a clean-host install/uninstall evaluation. No live AWS/Azure account, billable resource, real domain/TLS rollout or complete remote installation is implied by local provider/process adapters and HTTP/WebSocket fixtures.
+
+## Version, integrity and publisher signing
+
+Use `python3 scripts/release-version.py set 0.5.0` to align authoritative Luci
+versions, or `check 0.5.0` to validate without mutation. It updates the npm root
+package/lock entries, Tauri config, Luci's Cargo package/lock entry, API version,
+CI version, builder defaults and Docker image defaults. Dependency versions and
+historical package receipts are not relabelled. Both builders check alignment
+before creating packages; the Unix builder cannot silently put a different
+binary version inside a requested version's directory. A build that began clean
+also rechecks HEAD and working-tree cleanliness before writing its clean
+manifest; a changed source aborts that receipt. Package/launcher
+acceptance requires `LUCI_VERSION=0.5.0` explicitly, including local invocation.
+
+The manually dispatched **Luci candidate integrity attestation** workflow must
+run at the exact candidate commit and consume a completed successful
+`luci-ci.yml` push/dispatch run in the same repository. It refuses pull-request
+or fork builds, failed runs, dirty/mismatched source manifests, missing licences,
+unsafe paths, duplicate inventories and changed artifact bytes. It measures all
+retained Linux, Apple-silicon portable, Windows portable and native installer
+subjects before using GitHub's pinned official `actions/attest` implementation.
+The custom predicate is `https://lcfr.ai/luci/candidate-integrity/v1` and includes
+the original build run and measured hashes. Its small verification JSON,
+checksums and Sigstore bundle are retained as CI evidence. No download release
+or container registry publication occurs in this workflow.
+
+This is a **candidate-integrity attestation**, not a claim that its validation
+job rebuilt the downloaded artifacts, original-builder SLSA provenance, an
+installed acceptance result or a native publisher signature. GitHub supplies
+short-lived OIDC identity; no production signing key is minted. Public
+repositories use public Sigstore infrastructure; private/internal repository
+attestations require the supported GitHub plan and private Sigstore service.
+A failed or unavailable attestation remains a failed gate. To verify a retained
+artifact with GitHub CLI, bind verification to this repository and predicate:
+
+```sh
+gh attestation verify ./luci-linux-amd64.tar.gz --repo lcfrai/luci \
+  --predicate-type https://lcfr.ai/luci/candidate-integrity/v1
+```
+
+Inspect the verified predicate's version, source commit and original successful
+build run against the release notes, and retain the attestation bundle with the
+exact download. A passing hash check alone is insufficient evidence of identity.
+The workflow has not been executed in this local/cloud development turn.
+
+For Windows publisher signing, provision the organization's real code-signing
+certificate with its private key in the build user's Windows certificate store
+through the organization's existing secure process. Do not commit or paste its
+private key into Luci. The optional builder interface is:
+
+```powershell
+./scripts/build-release.ps1 -Version 0.5.0 -Native `
+  -CertificateThumbprint '<public certificate thumbprint>' `
+  -TimestampUrl 'https://timestamp.digicert.com'
+```
+
+Tauri receives the certificate thumbprint, SHA-256 digest and HTTPS RFC3161
+timestamp configuration. The build verifies trusted Authenticode signatures,
+the expected certificate and timestamps on the native application and installer
+before recording `nativeSigning.verified: true` and hashing final bytes. A
+missing/expired/wrong-purpose certificate or failed signature stops the build.
+Without a supplied certificate it explicitly records an unsigned candidate.
+This path is schema-reviewed implementation; Windows SDK/certificate-backed
+execution and SmartScreen/clean-host acceptance remain unverified here.
+
+Native macOS app signing/notarization and automatic updates remain separate
+unimplemented distribution paths; the current macOS artifact is a portable
+service/browser package. Publisher certificate provisioning, hosted signing,
+Apple credentials, final release authorization and signed-out public download
+acceptance remain actual release prerequisites, not completed by CI YAML.
 
 ## Publishing after those gates
 

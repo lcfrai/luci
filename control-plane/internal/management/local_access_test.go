@@ -66,6 +66,7 @@ func TestLocalAccessRequiresNativeCapabilityAndLoopbackForEveryRoute(t *testing.
 		body         any
 	}{
 		{"GET", "/v1/auth/local-owner", nil},
+		{"GET", "/v1/auth/local-package", nil},
 		{"POST", "/v1/auth/local-account", map[string]string{"username": "another", "displayName": "Another", "password": testPassword}},
 		{"POST", "/v1/auth/local-owner/recover", map[string]string{"newPassword": testPassword}},
 	} {
@@ -92,6 +93,64 @@ func TestLocalAccessRequiresNativeCapabilityAndLoopbackForEveryRoute(t *testing.
 	env := isolatedEnvironment([]string{"LUCI_LOCAL_ACCESS_TOKEN=" + localTestCapability}, t.TempDir(), "worker-key", "address", User{ID: "member", Role: "member"})
 	if strings.Contains(strings.Join(env, "\n"), localTestCapability) {
 		t.Fatal("native capability inherited by worker")
+	}
+}
+
+func TestLocalPackageIdentityIsPrivateReadOnlyAndFixedAtStartup(t *testing.T) {
+	id := strings.Repeat("a", 64)
+	dir := t.TempDir()
+	g, err := New(Options{StateDir: dir, InitialHandler: http.NotFoundHandler(), PortableOwnerAccess: true, PortablePackageID: id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer g.Close(context.Background())
+	before, err := os.ReadFile(filepath.Join(g.dir, "bootstrap-token"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := g.Handler()
+	response := localRequest(t, h, "GET", "/v1/auth/local-package", g.opts.LocalAccessToken, "127.0.0.1:1", nil, 200)
+	if response.Body.String() != id+"\n" || response.Header().Get("Content-Type") != "text/plain; charset=utf-8" || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("invalid private package response: %v %q", response.Header(), response.Body.String())
+	}
+	after, _ := os.ReadFile(filepath.Join(g.dir, "bootstrap-token"))
+	if !bytes.Equal(before, after) || len(g.state.Users) != 0 || len(g.state.Sessions) != 0 {
+		t.Fatal("package lookup changed identity or bootstrap state")
+	}
+	localRequest(t, h, "GET", "/v1/auth/local-package", "", "127.0.0.1:1", nil, 403)
+	localRequest(t, h, "GET", "/v1/auth/local-package", g.opts.LocalAccessToken, "203.0.113.1:1", nil, 403)
+	public := request(t, h, "GET", "/v1/control-plane/status", "", nil, 200).Body.String()
+	if strings.Contains(public, id) {
+		t.Fatal("package metadata exposed by public readiness")
+	}
+	worker := isolatedEnvironment([]string{"LUCI_PORTABLE_PACKAGE_ID=" + id}, t.TempDir(), "worker-token", "address", User{ID: "member", Role: "member"})
+	if strings.Contains(strings.Join(worker, "\n"), id) {
+		t.Fatal("portable package identity inherited by worker")
+	}
+	// Native/direct callers remain supported without portable metadata; they
+	// cannot claim a package match merely because the release number matches.
+	native, err := New(Options{StateDir: t.TempDir(), InitialHandler: http.NotFoundHandler(), LocalAccessToken: localTestCapability})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer native.Close(context.Background())
+	localRequest(t, native.Handler(), "GET", "/v1/auth/local-package", localTestCapability, "127.0.0.1:1", nil, 404)
+}
+
+func TestLocalPackageIdentityRefusesInvalidOrNonportableConfiguration(t *testing.T) {
+	for _, item := range []struct {
+		id       string
+		portable bool
+	}{
+		{strings.Repeat("a", 64), false},
+		{"short", true},
+		{strings.Repeat("A", 64), true},
+		{strings.Repeat("a", 63) + "\n", true},
+	} {
+		_, err := New(Options{StateDir: t.TempDir(), InitialHandler: http.NotFoundHandler(), PortableOwnerAccess: item.portable, PortablePackageID: item.id})
+		if err == nil {
+			t.Fatalf("accepted invalid package identity %q portable=%v", item.id, item.portable)
+		}
 	}
 }
 

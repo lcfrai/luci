@@ -21,8 +21,9 @@ COPY --from=build /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 COPY images/sandbox/entrypoint.sh /usr/local/bin/entrypoint.sh
 # Source packages built on Windows may contain CRLF even before Git attributes
-# take effect. Normalize the Linux entrypoint before it becomes executable.
-RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod +x /usr/local/bin/entrypoint.sh
+# take effect. Normalize it and make it readable by dev even when the source
+# checkout uses a restrictive umask.
+RUN sed -i 's/\r$//' /usr/local/bin/entrypoint.sh && chmod 0755 /usr/local/bin/entrypoint.sh
 
 USER dev
 WORKDIR /home/dev

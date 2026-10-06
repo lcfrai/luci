@@ -25,12 +25,16 @@ var projectNamePattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
 
 func (s *Server) registerProjects(mux Registrar) {
 	s.registerProjectBranches(mux)
+	s.registerOrchestrator(mux)
 	mux = s.guardProjectSourceRoutes(mux)
+	s.registerJourneyContext(mux)
 	s.registerSpecification(mux)
 	s.registerDesignPlan(mux)
 	s.registerReleases(mux)
 	mux.HandleFunc("POST /v1/product/projects", s.createProductProject)
+	mux.HandleFunc("GET /v1/product/project-imports/{attemptId}", s.getProjectImport)
 	mux.HandleFunc("GET /v1/product/projects/{id}/brief", s.getBrief)
+	mux.HandleFunc("GET /v1/product/projects/{id}/context-history", s.contextHistory)
 	mux.HandleFunc("POST /v1/product/projects/{id}/brief", s.saveBrief)
 	mux.HandleFunc("GET /v1/product/projects/{id}/design", s.getDesign)
 	mux.HandleFunc("POST /v1/product/projects/{id}/design", s.saveDesign)
@@ -80,8 +84,9 @@ func validProjectName(name string) bool {
 
 func (s *Server) createProductProject(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name      string `json:"name"`
-		RemoteURL string `json:"remoteUrl"`
+		Name            string `json:"name"`
+		RemoteURL       string `json:"remoteUrl"`
+		ImportAttemptID string `json:"importAttemptId"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
@@ -92,7 +97,7 @@ func (s *Server) createProductProject(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.RemoteURL != "" {
 		u, err := url.Parse(req.RemoteURL)
-		if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || strings.ContainsAny(req.RemoteURL, "\r\n\x00") {
+		if len(req.RemoteURL) > 2048 || err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || strings.Contains(req.RemoteURL, "#") || u.Fragment != "" || strings.ContainsAny(req.RemoteURL, "\r\n\x00") {
 			journeyError(w, 400, "invalid_remote", "Use an HTTPS Git URL without embedded credentials, a query or a fragment.")
 			return
 		}
@@ -102,6 +107,19 @@ func (s *Server) createProductProject(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 409, "setup_required", "Choose an absolute projects folder in setup first.")
 		return
 	}
+	if req.RemoteURL != "" {
+		s.importProductProject(w, r, root, req.Name, req.RemoteURL, req.ImportAttemptID)
+		return
+	}
+	if req.ImportAttemptID != "" {
+		journeyError(w, 400, "invalid_request", "An import attempt belongs to an HTTPS repository import.")
+		return
+	}
+	if !s.reserveProjectName(filepath.Join(root, req.Name)) {
+		journeyError(w, 409, "project_exists", "An import is already preparing that project name. Check its import status before retrying.")
+		return
+	}
+	defer s.releaseProjectName(filepath.Join(root, req.Name))
 	// No shared server state changes here. Mkdir reserves this project while
 	// a potentially slow clone runs, so setup/status reads remain available.
 	if err := os.MkdirAll(root, 0o700); err != nil {
@@ -121,19 +139,14 @@ func (s *Server) createProductProject(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
 	args := []string{"init", "--initial-branch=main", "."}
-	if req.RemoteURL != "" {
-		args = []string{"-c", "protocol.allow=never", "-c", "protocol.https.allow=always", "-c", "core.hooksPath=/dev/null", "clone", "--", req.RemoteURL, "."}
-		if runtime.GOOS == "windows" {
-			args = []string{"-c", "protocol.allow=never", "-c", "protocol.https.allow=always", "-c", "core.hooksPath=/dev/null", "clone", "-c", "core.longpaths=true", "--", req.RemoteURL, "."}
-		}
-	}
+
 	if _, err := s.runner(ctx, "git", args, dir); err != nil {
 		// Keep a partial clone for inspection. Never recursively delete a path
 		// that an external process might have replaced while Git was running.
 		journeyError(w, 422, "git_failed", fmt.Sprintf("Git could not create the project. Its folder was retained at %s: %v", dir, err))
 		return
 	}
-	if runtime.GOOS == "windows" && req.RemoteURL == "" {
+	if runtime.GOOS == "windows" {
 		// Git for Windows can cache long-path support before command-line
 		// overrides are applied. Initialize this owned repository's setting
 		// for later Git children as well; never modify global configuration.

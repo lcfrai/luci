@@ -28,7 +28,7 @@ const member = {
 };
 let initial;
 let token;
-let createdProject, restoredProject, approvedDefinition, approvedHandoff;
+let createdProject, restoredProject, approvedDefinition, approvedHandoff, projectRun;
 const authed = async (route, options = {}) => {
   const response = await fetch(`${base}${route}`, {
     ...options,
@@ -43,6 +43,7 @@ const page = await browser.newPage({
   viewport: { width: 1440, height: 1000 },
   deviceScaleFactor: 1,
 });
+const phaseWorkspace = page.locator(".shell-lens");
 if (verifyCsp) {
   const config = JSON.parse(
     await readFile("src-tauri/tauri.conf.json", "utf8"),
@@ -250,14 +251,22 @@ try {
     ["Who will use it?", "Home gardeners who prefer to keep their notes on their own machine."],
     ["What does it need to respect?", "Use labelled keyboard-accessible controls. Keep notes on this machine; no cloud account required."],
     ["What should we leave out?", "Social sharing\nPaid subscriptions"],
-    ["How will we know it works?", "Notes persist after restart\nThe app works without a cloud account"],
   ];
-  for (let index = 0; index < answers.length; index++) {
-    const [label, text] = answers[index];
+  for (const [label, text] of answers) {
     await page.getByRole("textbox", { name: label, exact: true }).fill(text);
-    await page.getByRole("button", { name: index === answers.length - 1 ? "Review specification" : "Next question", exact: true }).click();
+    await page.getByRole("button", { name: "Next question", exact: true }).click();
   }
-  await page.getByText("User journeys", { exact: true }).click();
+  const outcomes = [
+    { title: "Notes persist after restart", acceptance: "Save a garden note and close the app.\nReopen the app and confirm the saved note is unchanged." },
+    { title: "The app works without a cloud account", acceptance: "Create, save and reopen a garden note without signing into a cloud account." },
+  ];
+  for (const [index, outcome] of outcomes.entries()) {
+    await page.getByRole("button", { name: "Add an outcome", exact: true }).click();
+    await page.getByRole("textbox", { name: `Outcome ${index + 1}`, exact: true }).fill(outcome.title);
+    await page.getByRole("textbox", { name: `How to check outcome ${index + 1}`, exact: true }).fill(outcome.acceptance);
+  }
+  await page.getByRole("button", { name: "Review specification", exact: true }).click();
+  await phaseWorkspace.getByText("User journeys", { exact: true }).click();
   await page.getByRole("button", { name: "Add user journey", exact: true }).click();
   await page.getByRole("textbox", { name: "Journey name", exact: true }).fill("Keep a garden note");
   await page.getByRole("textbox", { name: "Person or role", exact: true }).fill("Gardener");
@@ -268,13 +277,15 @@ try {
   assert.equal(savedDefinition.briefRevision, 1);
   assert.equal(savedDefinition.requirements.length, 2);
   assert.equal(new Set(savedDefinition.requirements.map(item => item.id)).size, 2);
+  assert.deepEqual(savedDefinition.requirements.map(({ title, acceptance }) => ({ title, acceptance })), outcomes);
   approvedDefinition = await observedPost(() => page.getByRole("button", { name: "Approve definition", exact: true }).click(), "/specification/approve");
   assert.equal(approvedDefinition.status, "approved");
   assert.equal(approvedDefinition.revision, 2);
   assert.equal(approvedDefinition.briefRevision, 1);
   assert.match(approvedDefinition.digest, /^[a-f0-9]{64}$/);
   assert.deepEqual(approvedDefinition.requirements.map(item => item.id), savedDefinition.requirements.map(item => item.id));
-  await page.getByText("Definition 2 approved for design and implementation.", { exact: true }).waitFor();
+  assert.deepEqual(approvedDefinition.requirements, savedDefinition.requirements);
+  await phaseWorkspace.getByText("Definition 2 approved for design and implementation.", { exact: true }).waitFor();
   await screenshot("02-define");
   await page.reload();
   await page.getByRole("textbox", { name: "The idea", exact: true }).waitFor();
@@ -294,29 +305,34 @@ try {
   assert.deepEqual(savedScreenPlan.screens[0].requirementIds, approvedDefinition.requirements.map(item => item.id));
   assert.equal(savedScreenPlan.specificationRevision, approvedDefinition.revision);
   await page.getByRole("tab", { name: "Sketch", exact: true }).click();
-  await page.locator(".excalidraw canvas").first().waitFor();
-  const canvas = await page.locator(".excalidraw canvas").first().boundingBox();
+  const sketchCanvas = page.locator(".excalidraw canvas").first();
+  await sketchCanvas.waitFor();
+  const initialCanvas = await sketchCanvas.boundingBox();
+  await screenshot("02b-sketch-before-interaction");
+  await sketchCanvas.scrollIntoViewIfNeeded();
+  const canvas = await sketchCanvas.boundingBox();
   assert.ok(canvas && canvas.width > 350 && canvas.height > 250);
+  const viewport = page.viewportSize();
+  const visibleCanvas = { left: Math.max(canvas.x, 0), top: Math.max(canvas.y, 0), right: Math.min(canvas.x + canvas.width, viewport.width), bottom: Math.min(canvas.y + canvas.height, viewport.height) };
+  const visibleWidth = visibleCanvas.right - visibleCanvas.left, visibleHeight = visibleCanvas.bottom - visibleCanvas.top;
+  await writeFile(path.join(evidence, "sketch-interaction-bounds.json"), JSON.stringify({ initialCanvas, canvas, viewport, visibleCanvas }, null, 2));
+  assert.ok(visibleWidth > 350 && visibleHeight > 250, "The real sketch must provide a usable visible drawing area");
   await page.mouse.click(
-    canvas.x + canvas.width / 2,
-    canvas.y + canvas.height / 2,
+    visibleCanvas.left + visibleWidth * 0.7,
+    visibleCanvas.top + visibleHeight * 0.5,
   );
   await page.keyboard.press("2");
-  await page.mouse.move(canvas.x + 240, canvas.y + 160);
+  // Stay within the visible canvas and clear of Excalidraw's tool properties.
+  // A stacked design workspace can legitimately extend below the viewport.
+  await page.mouse.move(visibleCanvas.left + visibleWidth * 0.68, visibleCanvas.top + visibleHeight * 0.42);
   await page.mouse.down();
-  await page.mouse.move(canvas.x + 440, canvas.y + 300, { steps: 8 });
+  await page.mouse.move(visibleCanvas.left + visibleWidth * 0.9, visibleCanvas.top + visibleHeight * 0.62, { steps: 8 });
   await page.mouse.up();
-  const savedDesign = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" &&
-      response.url().endsWith("/design"),
-  );
-  await page.getByRole("button", { name: "Save design", exact: true }).click();
-  const designRecord = await (await savedDesign).json();
+  const designRecord = await observedPost(() => page.getByRole("button", { name: "Save design", exact: true }).click(), "/design");
   assert.ok(
     designRecord.scene.elements.some((element) => element.type === "rectangle"),
   );
-  await page.getByText(/Design 1 · Brief 1/).waitFor();
+  await phaseWorkspace.getByText(/Design 1 · Brief 1/).waitFor();
   if (verifyCsp) {
     const fontLoaded = await page.evaluate(async () => {
       const loaded = await document.fonts.load('16px "Excalifont"', "Luci");
@@ -338,7 +354,7 @@ try {
     page.getByRole("tab", { name: "Implementation handoff", exact: true }).click(),
   ]);
   assert.equal(handoffRefresh.status(), 200);
-  await page.getByText("The definition or sketch has changed. Review the screen plan and save a new handoff before approving.", { exact: true }).waitFor();
+  await phaseWorkspace.getByText("The definition or sketch has changed. Review the screen plan and save a new handoff before approving.", { exact: true }).waitFor();
   await page.getByRole("textbox", { name: "Implementation notes", exact: true }).fill("Use a journal list and labelled editor. Preserve unsaved text on failure. Keep keyboard focus visible and support 390, 768 and 1440 pixel layouts.");
   const savedHandoff = await observedPost(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), "/design-plan");
   assert.equal(savedHandoff.sketchRevision, designRecord.revision);
@@ -353,7 +369,7 @@ try {
   await page.getByRole("button", { name: "Develop", exact: true }).click();
   await page
     .getByRole("button", {
-      name: "Add acceptance criteria as tasks",
+      name: "Add approved requirements as tasks",
       exact: true,
     })
     .click();
@@ -361,7 +377,7 @@ try {
   await page
     .getByRole("button", { name: "Save implementation plan", exact: true })
     .click();
-  await page.getByText("Plan saved as revision 1.", { exact: true }).waitFor();
+  await phaseWorkspace.getByText("Plan saved as revision 1.", { exact: true }).waitFor();
   assert.equal(
     await page.getByLabel(/^Progress for task 2/).inputValue(),
     "todo",
@@ -405,7 +421,7 @@ try {
   );
   await page.getByRole("button", { name: "Files", exact: true }).click();
   await page.getByRole("button", { name: /LUCI.md/ }).click();
-  await page.getByText(/A local garden journal/, { exact: false }).waitFor();
+  await phaseWorkspace.locator(".journey-code").filter({ hasText: "A local garden journal" }).waitFor();
   await screenshot("04-files");
   checks.push("Opened saved LUCI.md through the bounded file browser");
   const projectPath = createdProject.path;
@@ -429,7 +445,7 @@ try {
   await page
     .getByRole("button", { name: "Commit changes", exact: true })
     .click();
-  await page.getByText("Changes committed.").waitFor();
+  await phaseWorkspace.getByText("Reviewed changes committed.").waitFor();
   assert.match(
     execFileSync("git", ["-C", projectPath, "log", "-1", "--format=%s"], {
       encoding: "utf8",
@@ -440,6 +456,75 @@ try {
   checks.push(
     "Committed the brief through the real Git endpoint using fixture-local identity",
   );
+  // A saved run is controller-owned workflow state, not a claim that a coding
+  // agent ran. Exercise preparation and cancellation without starting a model.
+  const projectRow = page.locator(`[role="treeitem"][data-kind="project"][data-id="${createdProject.id}"]`);
+  if (await projectRow.getAttribute("aria-expanded") !== "true") await projectRow.click();
+  await projectRow.locator("..").locator('[role="treeitem"][data-kind="branch"]').first().click();
+  await page.getByRole("button", { name: "Develop", exact: true }).click();
+  // A durable run needs a named, revisioned route. Save an explicit local
+  // no-auth fixture through the supported API; no provider access is asserted
+  // and no coding session will contact this deliberately unavailable endpoint.
+  const routes = await authed("/v1/setup/agent-connections");
+  const savedRoutes = await authed("/v1/setup/agent-connections", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "save", expectedRevision: routes.revision, name: "UAT preparation only · no model calls", kind: "compatible-api", enabled: true, endpoints: { chatCompletions: "http://127.0.0.1:1/v1" }, models: { opencode: "uat-no-inference" } }),
+  });
+  const runConnection = savedRoutes.connections.find(item => !routes.connections.some(previous => previous.id === item.id));
+  assert.ok(runConnection?.configured);
+  assert.equal(runConnection.keyPresent, false);
+  const sessionMutations = [];
+  const watchSessionMutation = request => {
+    if (request.method() === "POST" && new URL(request.url()).pathname === "/v1/sessions") sessionMutations.push(request.url());
+  };
+  page.on("request", watchSessionMutation);
+  await page.getByRole("button", { name: "Prepare project run", exact: true }).click();
+  const runPicker = page.getByRole("dialog", { name: "Create project run", exact: true });
+  await runPicker.getByRole("combobox", { name: "Harness", exact: true }).selectOption("opencode");
+  await runPicker.getByRole("combobox", { name: "Agent connection", exact: true }).selectOption(runConnection.id);
+  await runPicker.getByRole("combobox", { name: "Intended outcome", exact: true }).selectOption("preview");
+  const createdRun = await observedPost(() => runPicker.getByRole("button", { name: "Create project run", exact: true }).click(), `/projects/${createdProject.id}/runs`);
+  projectRun = createdRun.run;
+  assert.equal(projectRun.projectId, createdProject.id);
+  assert.equal(projectRun.state, "ready");
+  assert.equal(projectRun.input.outcome, "preview");
+  assert.equal(projectRun.input.approvals.specificationDigest, approvedDefinition.digest);
+  assert.equal(projectRun.input.approvals.designDigest, approvedHandoff.digest);
+  assert.equal(projectRun.input.route.connection.id, runConnection.id);
+  assert.equal(projectRun.input.route.connection.revision, runConnection.revision);
+  assert.deepEqual(projectRun.input.requirements.map(item => item.id).sort(), approvedDefinition.requirements.map(item => item.id).sort());
+  assert.deepEqual(projectRun.operations, []);
+  assert.deepEqual(projectRun.checks, []);
+  assert.deepEqual(projectRun.releases, []);
+  assert.ok(!projectRun.acceptance);
+  const savedRunInput = projectRun.input;
+  await page.reload();
+  await page.getByRole("button", { name: "Develop", exact: true }).click();
+  const runsPanel = page.getByRole("region", { name: "Project runs", exact: true });
+  await runsPanel.getByText("Ready to code", { exact: true }).waitFor();
+  const [refreshedHistory] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname === `/v1/product/projects/${createdProject.id}/runs`),
+    runsPanel.getByRole("button", { name: "Refresh history", exact: true }).click(),
+  ]);
+  assert.equal(refreshedHistory.status(), 200);
+  assert.equal((await refreshedHistory.json()).runs.find(item => item.id === projectRun.id)?.revision, projectRun.revision);
+  const retainedRun = await authed(`/v1/product/projects/${createdProject.id}/runs/${projectRun.id}`);
+  assert.deepEqual(retainedRun.run.input, savedRunInput);
+  assert.equal(retainedRun.run.revision, projectRun.revision, "Reading history must not mutate a run");
+  await runsPanel.getByText("Reviewed inputs and evidence", { exact: true }).click();
+  await runsPanel.getByRole("button", { name: "Cancel run", exact: true }).click();
+  const cancelDialog = page.getByRole("dialog", { name: "Cancel run", exact: true });
+  const cancelled = await observedPost(() => cancelDialog.getByRole("button", { name: "Cancel future dispatch", exact: true }).click(), `/runs/${projectRun.id}/cancel`);
+  projectRun = cancelled.run;
+  assert.equal(projectRun.state, "cancelled");
+  assert.deepEqual(projectRun.input, savedRunInput);
+  assert.deepEqual(projectRun.operations, []);
+  assert.ok(!projectRun.acceptance);
+  await runsPanel.getByText("Cancelled", { exact: true }).first().waitFor();
+  assert.deepEqual(sessionMutations, [], "Preparing, reading and cancelling a run must not create a coding session");
+  page.off("request", watchSessionMutation);
+  await screenshot("05a-reviewed-project-run");
+  checks.push("Created a durable project run from approved requirement-linked tasks through the UI, preserved exact review/model inputs on reload, and explicitly cancelled future dispatch without allocating a session or claiming acceptance");
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
   const privateValue = `uat-private-${randomUUID()}`;
   await page.locator("summary").filter({ hasText: /^Runtime configuration$/ }).click();
@@ -449,7 +534,7 @@ try {
   await page.getByRole("button", { name: "Save runtime variable", exact: true }).click();
   const metadata = await (await savedConfiguration).json();
   assert.equal(JSON.stringify(metadata).includes(privateValue), false);
-  await page.getByText(/Runtime configuration saved/).waitFor();
+  await phaseWorkspace.getByText(/Runtime configuration saved/).waitFor();
   assert.equal(await page.getByLabel(/^Private value/).inputValue(), "");
   await page.getByRole("button", { name: "Update UAT_PRIVATE_MESSAGE", exact: true }).click();
   assert.equal(await page.getByLabel(/^Private value/).evaluate(e => e === document.activeElement), true);
@@ -457,7 +542,7 @@ try {
   await page.getByRole("button", { name: "Discard variable draft", exact: true }).click();
   await page.getByRole("button", { name: "Develop", exact: true }).click();
   await page.getByRole("button", { name: "Git", exact: true }).click();
-  await page.getByText(/Everything is committed/).waitFor();
+  await phaseWorkspace.getByText(/Everything is committed/).waitFor();
   checks.push("Saved private runtime configuration through the UI; response and fields never expose the value, Update moves keyboard focus to its empty replacement field, and Git remains clean");
   const downloadPromise = page.waitForEvent("download");
   await page
@@ -511,12 +596,13 @@ try {
   assert.equal(restoredHandoff.implementationNotes, approvedHandoff.implementationNotes);
   assert.equal(restoredHandoff.sketchRevision, approvedHandoff.sketchRevision);
   assert.deepEqual(restoredHandoff.screens[0].requirementIds, restoredSpecification.requirements.map(item => item.id));
+  assert.deepEqual((await authed(`/v1/product/projects/${restoredProject.id}/runs`)).runs, [], "A source backup must not grant or copy controller-owned run history");
   checks.push(
     "Downloaded a real private Git backup and restored it from Projects home as a new project, preserving definition/handoff content, linked requirements, sketch, task plan and Git history while invalidating approvals for the new project identity",
   );
   await page.getByRole("button", { name: "Design", exact: true }).click();
   await page.getByRole("tab", { name: "Sketch", exact: true }).click();
-  await page.getByText(/Design 1 · Brief 1/).waitFor();
+  await phaseWorkspace.getByText(/Design 1 · Brief 1/).waitFor();
   checks.push("Reopened the persisted design linked to brief revision 1");
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
   await page.getByRole("heading", { name: "Deploy and operate", exact: true }).waitFor();
@@ -524,7 +610,7 @@ try {
   const persistentDeploy = page.getByRole("button", { name: "Start persistent deployment", exact: true });
   await persistentDeploy.waitFor();
   assert.equal(await persistentDeploy.isDisabled(), true, "Missing Docker must not be represented as deployable");
-  await page.getByText("Start Docker to deploy an application or database.", { exact: true }).waitFor();
+  await phaseWorkspace.getByText("Start Docker to deploy an application or database.", { exact: true }).waitFor();
   checks.push("Deploy opens the real application platform and reports missing Docker honestly, disabling persistent deployment instead of claiming service readiness");
   await page.getByRole("tab", { name: "Previews and publishing", exact: true }).click();
   await page
@@ -612,7 +698,10 @@ try {
     await page.evaluate(axe.source);
     const result = await page.evaluate(async () => {
       const r = await axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa", "best-practice"] } });
-      return { violations: r.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => ({ target: n.target, failureSummary: n.failureSummary })) })), incomplete: r.incomplete.map(v => ({ id: v.id, nodes: v.nodes.length })) };
+      return { violations: r.violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => ({ target: n.target, failureSummary: n.failureSummary })) })), incomplete: r.incomplete.map(v => ({ id: v.id, nodes: v.nodes.length,
+        // Retain actionable diagnostics without exporting DOM HTML or field values.
+        details: v.nodes.map(n => ({ target: n.target, messages: [...n.any, ...n.all, ...n.none].map(check => check.message) })),
+      })) };
     });
     accessibility.push({ surface, ...result });
     if (surface === "Settings" || surface === "Admin") await page.getByRole("button", { name: surface === "Settings" ? "Close settings" : "Close", exact: true }).click();
@@ -697,6 +786,7 @@ try {
         visualMeasurements,
         projectId: createdProject.id,
         restoredProjectId: restoredProject.id,
+        projectRun,
         definition: { revision: approvedDefinition.revision, briefRevision: approvedDefinition.briefRevision, digest: approvedDefinition.digest, requirementIds: approvedDefinition.requirements.map(item => item.id) },
         designHandoff: { revision: approvedHandoff.revision, specificationRevision: approvedHandoff.specificationRevision, sketchRevision: approvedHandoff.sketchRevision, digest: approvedHandoff.digest },
         restoredDefinition: { revision: restoredSpecification.revision, status: restoredSpecification.status, digest: restoredSpecification.digest || "", requirementIds: restoredSpecification.requirements.map(item => item.id) },

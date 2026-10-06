@@ -36,6 +36,7 @@ import { closeTopOverlay, hasOpenOverlay } from "./useDismissable";
 import { idAtVisiblePosition } from "../lib/immutable";
 import { selectPaneSessionIds, selectTargetWorktreeId } from "../store/selectors";
 import { useCockpit } from "../store/store";
+import { useProjectAccess } from "./useProjectAccess";
 
 /** Two of task 22's three VerbDeps are unreachable from a keyboard chord: there is no host
  *  menu to close and no rename input to arm. They are no-ops rather than throws, because the
@@ -104,6 +105,10 @@ export function terminalKeepsKey(event: KeyboardEvent): boolean {
 
 export function useKeyboardMap(): void {
   const createSession = useCreateSession();
+  const projectId = useCockpit(state => state.selection.projectId ?? "");
+  const focusedProjectId = useCockpit(state => state.selection.sessionId ? state.sessions[state.selection.sessionId]?.projectId ?? "" : "");
+  const access = useProjectAccess(projectId);
+  const focusedAccess = useProjectAccess(focusedProjectId);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
@@ -148,12 +153,13 @@ export function useKeyboardMap(): void {
         if (hasOpenOverlay()) return;
         const focused = state.selection.sessionId;
         if (focused === null) return;
+        if (!focusedAccess.canExecute) { state.pushToast(focusedAccess.message || "Execution access is required to stop this session."); return; }
         // Optimistic kill plus the Undo window: task 22's, not reimplemented here. The verb
         // list is a plain function over a store snapshot, so it is built here in the handler
         // rather than at render. `run` is undefined on a session that has already exited —
         // task 22 gates Kill on `alive` — so `?.run?.()` is an honest no-op and NOT a second
         // gate written here, which would be a second answer to the same question.
-        sessionVerbs(focused, { createSession, close: NOOP, beginRename: NOOP })
+        sessionVerbs(focused, { createSession, close: NOOP, beginRename: NOOP, access: focusedAccess })
           .find((verb) => verb.id === "kill")
           ?.run?.();
         return;
@@ -207,6 +213,7 @@ export function useKeyboardMap(): void {
 
       if (key === "Enter") {
         event.preventDefault();
+        if (!access.canExecute) { state.pushToast(access.message || "Execution access is required to start a session."); return; }
         // "Requires a selected branch; falls back to the branch's first worktree" (§6.9) is
         // one selector, shared with the palette's New-session row.
         const worktreeId = selectTargetWorktreeId(state);
@@ -239,5 +246,5 @@ export function useKeyboardMap(): void {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [createSession]);
+  }, [createSession, access.canExecute, access.message, focusedAccess.canExecute, focusedAccess.message]);
 }

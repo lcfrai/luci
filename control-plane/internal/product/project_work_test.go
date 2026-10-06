@@ -32,7 +32,7 @@ func TestProjectPlanExportsContextAndKeepsRevision(t *testing.T) {
 			t.Fatal(file, err)
 		}
 	}
-	journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Save brief and plan"}, 200)
+	journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Save brief and plan"), 200)
 	reloaded, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot()})
 	if err != nil {
 		t.Fatal(err)

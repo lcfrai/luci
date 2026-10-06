@@ -10,6 +10,8 @@ The onboarding portal guides you through **On this computer**, **AWS**, **Azure*
 
 Create or clone a project from Projects home. Define its purpose and acceptance criteria, design the screens, and save a task plan. Develop passes that saved context into an agent working in the project. Inspect its changes and run checks against the recorded source; task completion is separate from passing checks. Commit and publish through the same workspace, start a Docker preview, set private runtime values such as a database URL in Deploy, then deploy a reachable Git commit through your connected cloud target. The app retains release history, supports stopping and rebuilding a historical release, and exports/restores project backups. Optional Supabase data services share Luci's project navigation and appearance rather than requiring a separate administration portal.
 
+The project overview carries the agreed idea, current stage, active build and next decision across these views. Amendments remain drafts until reviewed; existing runs retain their original inputs. Team workspaces let authorized contributors build that context together, with separate read, edit, execution and secret permissions. Git commits are bound to the displayed review: a teammate's later changes require a fresh review, while your commit message stays intact.
+
 For Codex subscription access, complete official device sign-in from Settings, then **Save Codex sign-in**. New implementation sessions use that connection, with separate private histories and no fallback to API billing. API credits remain a separate option. A saved sign-in is not proof of a successful model request.
 
 Static HTML/CSS/JavaScript sites can use **GitHub Pages** in Deploy without buying a server or domain: commit the site under `docs/`, publish the reviewed commit to a public repository and acknowledge public hosting. Luci verifies the deployed commit and actual HTTPS content. Later pushes to that default branch republish `docs/`. Pages does not run server code, databases or private runtime configuration; use the connected cloud target for those applications.
@@ -22,8 +24,11 @@ The [UAT guide](docs/UAT.md) walks through onboarding and the complete project j
 
 ## Structure
 
-The latest engineering handoff, Astra findings and continuation instructions
-are in [the 6 October checkpoint](docs/luci/HANDOFF-2026-10-06.md).
+The latest engineering handoff and continuation instructions are in
+[the production checkpoint](docs/luci/HANDOFF-2026-10-06-PRODUCTION.md).
+[The product-quality goal](docs/luci/GOAL.md) remains open: managed-team billing,
+live model quality, public hosting and supported native distribution need their
+own acceptance evidence before a production release.
 
 - `desktop/` — React/Tauri interface, Excalidraw and terminal cockpit
 - `control-plane/` — local setup, project journey and session API

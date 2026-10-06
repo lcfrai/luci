@@ -6,6 +6,45 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+$script:stage = 'admission'
+$script:runtimeVersion = 'unknown'
+$script:completedChecks = 0
+function Write-InstalledFailure($Failure) {
+  # Only classifications of our own literals are public. Never forward the
+  # exception message, request URI/body, process output or fixture to Node.
+  $reason = switch -Regex ($Failure.Exception.Message) {
+    '^Pinned tauri-driver installation failed$' { 'tauri-driver-install-failed'; break }
+    '^No installed WebView2 runtime was found\.$' { 'webview-runtime-missing'; break }
+    '^Mismatched Edge driver:' { 'edge-driver-mismatch'; break }
+    '^Pinned gsudo archive checksum differs$' { 'gsudo-checksum-mismatch'; break }
+    '^Could not grant the runner user access' { 'directory-access-failed'; break }
+    '^The WebDriver process must use a verified Medium-integrity token' { 'medium-integrity-failed'; break }
+    '^Installer exceeded its two-minute bound:' { 'installer-timeout'; break }
+    '^Installer returned ' { 'installer-exit-failed'; break }
+    '^Installed resource is missing:' { 'installed-resource-missing'; break }
+    '^Installed WebView journey failed:' { 'native-journey-failed'; break }
+    '^Installer removed user data:' { 'preserved-data-missing'; break }
+    '^Installer changed user data:' { 'preserved-data-changed'; break }
+    '^Expected one private runtime configuration' { 'private-configuration-count'; break }
+    '^Expected one installed NSIS uninstaller' { 'uninstaller-count'; break }
+    '^Uninstall retained app resources after 30 seconds:' { 'uninstall-incomplete'; break }
+    '^The isolated NSIS test install path must not contain spaces' { 'invalid-install-path'; break }
+    '^(Installed-app acceptance is restricted|LUCI_API would bypass|PreviousVersion requires|Runner is not fresh)' { 'admission-refused'; break }
+    default { 'unexpected-failure' }
+  }
+  $status = 0
+  if ($Failure.Exception.PSObject.Properties['Response'] -and $Failure.Exception.Response -and $Failure.Exception.Response.PSObject.Properties['StatusCode']) {
+    $status = [int]$Failure.Exception.Response.StatusCode
+  }
+  try {
+    $exceptionType = $Failure.Exception.GetType().Name
+    & node (Join-Path $PSScriptRoot 'native-eval-report.mjs') --installer $script:stage $reason $script:completedChecks $Failure.InvocationInfo.ScriptLineNumber $script:runtimeVersion $status $exceptionType
+    if ($LASTEXITCODE -ne 0) { Write-Output '::error::Installed Windows acceptance failed; safe diagnostic reporter could not run. The original failure remains fatal.' }
+  } catch {
+    Write-Output '::error::Installed Windows acceptance failed; safe diagnostic reporter could not run. The original failure remains fatal.'
+  }
+}
+try {
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows') {
   throw 'Installed-app acceptance is restricted to a disposable Windows GitHub runner.'
 }
@@ -31,6 +70,10 @@ $receipt = [ordered]@{
   )
 }
 $driver = $null
+} catch {
+  Write-InstalledFailure $_
+  throw
+}
 
 function Run-Installer([string]$Path, [string[]]$Arguments) {
   $process = Start-Process -FilePath $Path -ArgumentList $Arguments -PassThru -WindowStyle Hidden
@@ -50,12 +93,15 @@ function Install-Candidate([string]$Path) {
   }
 }
 function Run-UI([string]$Mode, [string]$PassName, [string]$ExpectedVersion = '') {
+  $script:stage = $PassName
   & node (Join-Path $PSScriptRoot 'native-installed-eval.mjs') (Join-Path $installDir 'luci.exe') $evidencePath $Mode $ExpectedVersion
   if ($LASTEXITCODE -ne 0) { throw "Installed WebView journey failed: $PassName" }
   Copy-Item -LiteralPath (Join-Path $evidencePath "$Mode-result.json") -Destination (Join-Path $evidencePath "$PassName-result.json")
   $receipt.checks += $PassName
+  $script:completedChecks = $receipt.checks.Count
 }
 function Preserved-Hashes {
+  $script:stage = 'preserve-user-data'
   $fixture = Get-Content -LiteralPath (Join-Path $evidencePath 'private-fixture.json') -Raw | ConvertFrom-Json
   $selectedStateDir = $fixture.stateDir
   $project = Join-Path $fixture.projectRoot $fixture.projectName
@@ -81,6 +127,7 @@ function Preserved-Hashes {
   return $hashes
 }
 function Assert-Preserved($Before) {
+  $script:stage = 'preserve-user-data'
   foreach ($path in $Before.Keys) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Installer removed user data: $path" }
     if ((Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash -ne $Before[$path]) { throw "Installer changed user data: $path" }
@@ -89,8 +136,10 @@ function Assert-Preserved($Before) {
 
 try {
   # Official external driver. No debug plugin or native app modification.
+  $script:stage = 'install-tauri-driver'
   & cargo install tauri-driver --version 2.1.0 --locked --root $toolsDir
   if ($LASTEXITCODE -ne 0) { throw 'Pinned tauri-driver installation failed' }
+  $script:stage = 'find-webview-runtime'
   $webviewRoots = @(
     (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\EdgeWebView\Application'),
     (Join-Path $env:ProgramFiles 'Microsoft\EdgeWebView\Application')
@@ -101,9 +150,11 @@ try {
   if ($webview.Count -ne 1) { throw 'No installed WebView2 runtime was found.' }
   $runtimeVersion = $webview[0].Name
   $driverZip = Join-Path $toolsDir 'edgedriver.zip'
+  $script:stage = 'download-edge-driver'
   Invoke-WebRequest -Uri "https://msedgedriver.microsoft.com/$runtimeVersion/edgedriver_win64.zip" -OutFile $driverZip
   Expand-Archive -LiteralPath $driverZip -DestinationPath $toolsDir
   $nativeDriver = Join-Path $toolsDir 'msedgedriver.exe'
+  $script:stage = 'verify-edge-driver'
   $driverVersion = (& $nativeDriver --version | Out-String).Trim()
   if ($driverVersion -notmatch [regex]::Escape($runtimeVersion)) { throw "Mismatched Edge driver: $driverVersion / $runtimeVersion" }
   $receipt.tauriDriver = '2.1.0'
@@ -114,10 +165,13 @@ try {
   # elevated host. Exercise the normal user token, not an HKLM policy override or
   # an older browser. See MicrosoftEdge/WebView2Feedback#5645 and tauri-apps/wry#1782.
   $gsudoZip = Join-Path $toolsDir 'gsudo.zip'
+  $script:stage = 'download-gsudo'
   Invoke-WebRequest -Uri 'https://github.com/gerardog/gsudo/releases/download/v2.6.1/gsudo.portable.zip' -OutFile $gsudoZip
+  $script:stage = 'verify-gsudo'
   if ((Get-FileHash -Algorithm SHA256 -LiteralPath $gsudoZip).Hash.ToLowerInvariant() -ne '21130bf178d7b9891207f00bff56f05b6b363ce9cec7b2d084e45fb12ee51f44') { throw 'Pinned gsudo archive checksum differs' }
   Expand-Archive -LiteralPath $gsudoZip -DestinationPath (Join-Path $toolsDir 'gsudo')
   $gsudo = Join-Path $toolsDir 'gsudo\x64\gsudo.exe'
+  $script:stage = 'verify-medium-integrity'
   $runnerSID = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value
   & icacls.exe $taskRoot /grant "*$($runnerSID):(OI)(CI)M" | Out-Null
   if ($LASTEXITCODE -ne 0) { throw 'Could not grant the runner user access to its test directory' }
@@ -125,33 +179,40 @@ try {
   if ($LASTEXITCODE -ne 0 -or $groups -notmatch 'S-1-16-8192') { throw 'The WebDriver process must use a verified Medium-integrity token' }
   $receipt.driverIntegrity = 'Medium (S-1-16-8192)'
   $receipt.gsudo = '2.6.1; MIT; CI-only; archive SHA256 verified'
+  $script:stage = 'start-driver'
   $driver = Start-Process -FilePath $gsudo -ArgumentList @('--integrity','Medium','--direct',(Join-Path $toolsDir 'bin\tauri-driver.exe'),'--native-driver',$nativeDriver) -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $evidencePath 'driver-out.log') -RedirectStandardError (Join-Path $evidencePath 'driver-error.log')
   if ($prior) {
     $receipt.previousInstaller = [IO.Path]::GetFileName($prior)
     $receipt.previousInstallerSHA256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $prior).Hash.ToLowerInvariant()
     $receipt.previousInstallerVersion = $PreviousVersion
+    $script:stage = 'install-previous'
     Install-Candidate $prior
     Run-UI 'seed' 'previous-version-seed' $PreviousVersion
     $before = Preserved-Hashes
+    $script:stage = 'install-candidate'
     Install-Candidate $candidate
     Assert-Preserved $before
     Run-UI 'verify' 'version-upgrade'
   } else {
+    $script:stage = 'install-candidate'
     Install-Candidate $candidate
     Run-UI 'seed' 'fresh-install'
   }
   Run-UI 'verify' 'clean-restart'
   $before = Preserved-Hashes
+  $script:stage = 'reinstall-candidate'
   Install-Candidate $candidate
   Assert-Preserved $before
   Run-UI 'verify' 'same-version-reinstall'
   $before = Preserved-Hashes
+  $script:stage = 'uninstall'
   $uninstallers = @(Get-ChildItem -LiteralPath $installDir -File -Filter '*uninstall*.exe')
   if ($uninstallers.Count -ne 1) { throw 'Expected one installed NSIS uninstaller.' }
   Run-Installer $uninstallers[0].FullName @('/S')
   # The NSIS launcher may return before its copied uninstaller completes. The
   # executable is removed before thousands of bundled resource files; wait for
   # every owned resource root, not just the first deleted executable.
+  $script:stage = 'verify-uninstall'
   $uninstallTargets = @('luci.exe','luci-api.exe','runtime','licenses','cloud','docs')
   $deadline = (Get-Date).AddSeconds(30)
   do {
@@ -160,6 +221,7 @@ try {
     Start-Sleep -Milliseconds 200
   } while ((Get-Date) -lt $deadline)
   Assert-Preserved $before
+  $script:stage = 'verify-uninstall'
   if ($remaining.Count -gt 0) {
     $receipt.remainingInstalledEntries = @(Get-ChildItem -LiteralPath $installDir -Recurse -Force | Select-Object -First 200 | ForEach-Object {
       @{ path=$_.FullName.Substring($installDir.Length + 1); directory=$_.PSIsContainer; bytes=if ($_.PSIsContainer) { 0 } else { $_.Length } }
@@ -170,6 +232,8 @@ try {
   $receipt.passed = $true
 } catch {
   $receipt.error = $_.Exception.Message
+  $receipt.failedStage = $script:stage
+  Write-InstalledFailure $_
   throw
 } finally {
   # The exact per-run tools path owns every process below; no generic process

@@ -363,6 +363,13 @@ func (s *Service) deploy(w http.ResponseWriter, r *http.Request) {
 	}
 	d := Deployment{ID: randomID("deploy-"), ProjectID: p.ID, Provider: "docker", Commit: in.Commit, ConfigurationRevision: rev, Status: "building", Message: "Building the exact committed source on Docker.", Port: in.Port, HealthPath: in.HealthPath, CreatedAt: now(), UpdatedAt: now()}
 	d.Container = s.resource(p.ID, d.ID)
+	if s.opts.RecordDeploymentProvenance != nil {
+		if e = s.opts.RecordDeploymentProvenance(r.Context(), p.ID, d.ID, "native-docker", d.Commit); e != nil {
+			s.release(p.ID)
+			problem(w, 409, "release_provenance_unavailable", "The exact source and private review selections could not be saved. No deployment started.")
+			return
+		}
+	}
 	if e = s.write(d.ID+"-redactions", env); e != nil {
 		s.release(p.ID)
 		problem(w, 500, "state_unavailable", "Private deployment settings could not be saved.")

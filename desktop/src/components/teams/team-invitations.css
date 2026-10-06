@@ -1,0 +1,9 @@
+@import "../../styles/tokens.css";
+
+.team-invitations { padding-block: 16px; border-block-start: 1px solid var(--line-soft); }
+.team-invitations > summary { cursor: pointer; }
+.team-invitations section > * + * { margin-block-start: 12px; }
+.team-invitation-list { display: grid; gap: 12px; padding: 0; list-style: none; }
+.team-invitation-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-block-start: 1px solid var(--line-soft); padding-block-start: 12px; }
+.team-invitation-code { padding: 12px; border: 1px solid var(--line-soft); border-radius: 8px; }
+.team-invitation-code output { display: block; user-select: all; overflow-wrap: anywhere; margin-block: 12px; font-family: monospace; }

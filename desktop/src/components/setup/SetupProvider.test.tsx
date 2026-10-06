@@ -90,7 +90,7 @@ it("creates a project outside Settings and selects it only after the server succ
   );
   await userEvent.click(screen.getByRole("button", { name: "Create project" }));
   await waitFor(() => expect(refresh).toHaveBeenCalledOnce());
-  expect(create).toHaveBeenCalledWith("build-it", undefined);
+  expect(create).toHaveBeenCalledExactlyOnceWith("build-it");
   expect(useCockpit.getState().selection.projectId).toBe("p-new");
   expect(useCockpit.getState().lens).toBe("discover");
 });

@@ -6,6 +6,10 @@ on:
     branches: [main, 'feat/phase-2-cockpit']
   workflow_dispatch:
     inputs:
+      native_windows_only:
+        description: 'Run only Windows build and installed-app diagnostics; does not establish full release acceptance'
+        type: boolean
+        default: false
       ssh_only:
         description: 'Run only the real existing-workspace SSH browser acceptance'
         type: boolean
@@ -36,19 +40,29 @@ permissions:
   actions: read
 
 concurrency:
-  group: luci-ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ inputs.installer_run || inputs.installer_release || (inputs.ssh_only && 'ssh') || 'build' }}
+  group: luci-ci-${{ github.workflow }}-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ inputs.installer_run || inputs.installer_release || (inputs.ssh_only && 'ssh') || (inputs.native_windows_only && 'windows-diagnostic') || 'build' }}
   cancel-in-progress: false
 
 env:
   # Keep this aligned with desktop/package.json and product.Version.
-  LUCI_VERSION: '0.4.18'
+  LUCI_VERSION: '0.5.0'
   GO_VERSION: '1.26.3'
   NODE_VERSION: '24.19.0'
 
 jobs:
+  reject-conflicting-native-diagnostics:
+    name: Validate native diagnostic inputs
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.native_windows_only && (inputs.ssh_only || inputs.installer_run || inputs.installer_release || inputs.upgrade_from_03 || inputs.upgrade_from_release) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Reject conflicting diagnostic modes
+        run: |
+          printf '%s\n' 'native_windows_only runs a fresh Windows build/install. Do not combine it with SSH, existing-installer, or previous-version inputs.' >&2
+          exit 1
+
   verify:
     name: Go and desktop checks
-    if: ${{ !inputs.installer_run && !inputs.installer_release && !inputs.ssh_only }}
+    if: ${{ !inputs.installer_run && !inputs.installer_release && !inputs.ssh_only && !inputs.native_windows_only }}
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     outputs:
@@ -68,16 +82,27 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: desktop/package-lock.json
+      - name: Check release version and integrity tooling
+        run: |
+          python3 scripts/release-version.py check "$LUCI_VERSION"
+          python3 -m unittest discover -s scripts -p 'test_release_*.py'
+      - name: Verify Go failure reporting
+        run: python3 -m unittest discover -s scripts -p 'test_ci_go_tests.py'
+      - name: Verify native acceptance failure reporting
+        run: node --test scripts/test-native-eval-report.mjs
       - name: Test Go services
         id: go_tests
-        run: go test ./control-plane/... ./sandboxd/...
+        run: python3 scripts/ci-go-tests.py --name 'Go services' --output artifacts/go-tests/services -- go test -json ./control-plane/... ./sandboxd/...
       - name: Check concurrent control-plane paths
         id: race_tests
         if: runner.os == 'Linux'
-        run: go test -race ./control-plane/internal/management/... ./control-plane/internal/product/... ./control-plane/internal/project/... ./control-plane/internal/platform/...
+        run: python3 scripts/ci-go-tests.py --name 'Go race checks' --output artifacts/go-tests/race -- go test -json -race ./control-plane/internal/management/... ./control-plane/internal/product/... ./control-plane/internal/project/... ./control-plane/internal/platform/...
       - name: Install locked desktop dependencies
         working-directory: desktop
         run: npm ci
+      - name: Check production dependency advisories
+        working-directory: desktop
+        run: npm audit --omit=dev --audit-level=high
       - name: Test desktop
         id: desktop_tests
         working-directory: desktop
@@ -111,10 +136,19 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+      - name: Retain Go test diagnostics
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: luci-go-tests-${{ github.sha }}
+          path: artifacts/go-tests/
+          if-no-files-found: warn
+          retention-days: 14
+
   runtime-smoke:
     name: Real Docker and SSH browser UAT
     needs: verify
-    if: ${{ always() && !cancelled() && !inputs.installer_run && !inputs.installer_release && (needs.verify.outputs.checks == 'passed' || inputs.ssh_only) }}
+    if: ${{ always() && !cancelled() && !inputs.installer_run && !inputs.installer_release && !inputs.native_windows_only && (needs.verify.outputs.checks == 'passed' || inputs.ssh_only) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     outputs:
@@ -290,7 +324,9 @@ jobs:
   windows-installer:
     name: Windows native installer and portable packages
     needs: [verify, runtime-smoke]
-    if: ${{ always() && !cancelled() && needs.verify.outputs.checks == 'passed' && needs['runtime-smoke'].outputs.checks == 'passed' }}
+    # Explicit manual diagnostics retain the complete Windows build/install
+    # assertions. Normal PR/release runs still require every source/runtime gate.
+    if: ${{ always() && !cancelled() && ((needs.verify.outputs.checks == 'passed' && needs['runtime-smoke'].outputs.checks == 'passed') || (github.event_name == 'workflow_dispatch' && inputs.native_windows_only && !inputs.ssh_only && !inputs.installer_run && !inputs.installer_release && !inputs.upgrade_from_03 && !inputs.upgrade_from_release)) }}
     runs-on: windows-2025
     timeout-minutes: 60
     defaults:
@@ -311,6 +347,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: desktop/package-lock.json
+      - name: Verify native acceptance failure reporting
+        run: |
+          node --test scripts/test-native-eval-report.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Native failure-reporting regression tests failed' }
       - name: Prepare stable Rust MSVC toolchain
         run: |
           rustup toolchain install stable --profile minimal
@@ -384,7 +424,7 @@ jobs:
 
   installed-diagnostic:
     name: Installed Windows release diagnostic
-    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.installer_run != '' || inputs.installer_release != '') }}
+    if: ${{ github.event_name == 'workflow_dispatch' && !inputs.native_windows_only && (inputs.installer_run != '' || inputs.installer_release != '') }}
     # GitHub requires push access to list/download unpublished draft releases.
     # This manual job uses that token only for reads in the download step;
     # pull-request/build jobs retain the workflow's read-only permissions.

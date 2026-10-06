@@ -324,6 +324,16 @@ type Sandbox struct {
 	// Get reports whatever the sandbox carries.
 	Instance string
 
+	// CreatedOnly is an explicit Docker observation: the container was created
+	// but has never started. It is not inferred from a missing endpoint or from
+	// StateStarting, which also covers restarting containers and pending pods.
+	CreatedOnly bool
+	// CreationInFlight reports a create admission in this backend process. A
+	// delayed Docker read must retain true if admission was active before OR
+	// after that read, so completion cannot make an older Created snapshot safe
+	// to reap. This is not a durable claim and is false after worker restart.
+	CreationInFlight bool
+
 	State     State
 	CreatedAt time.Time
 	Labels    map[string]string

@@ -168,8 +168,8 @@ func TestMiddlewareAnswersPreflightBeforeTheMux(t *testing.T) {
 	}
 	for header, want := range map[string]string{
 		"Access-Control-Allow-Origin":  "http://tauri.localhost",
-		"Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-		"Access-Control-Allow-Headers": "Content-Type, Authorization",
+		"Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+		"Access-Control-Allow-Headers": "Content-Type, Authorization, X-Luci-Backup-SHA256, X-Luci-Trust-Backup",
 		"Access-Control-Max-Age":       "600",
 	} {
 		if got := rec.Header().Get(header); got != want {
@@ -230,6 +230,8 @@ func TestNativeAuthenticatedRoutesSurviveBrowserPreflight(t *testing.T) {
 		for _, route := range []struct{ method, path string }{
 			{http.MethodGet, "/v1/auth/me"},
 			{http.MethodPost, "/v1/auth/socket-ticket"},
+			{http.MethodPut, "/v1/admin/team-services/team-fixture"},
+			{http.MethodPost, "/v1/platform/projects/p-fixture/backups/import"},
 		} {
 			t.Run(origin+route.path, func(t *testing.T) {
 				p, _ := policy(t)
@@ -244,13 +246,16 @@ func TestNativeAuthenticatedRoutesSurviveBrowserPreflight(t *testing.T) {
 				preflight := httptest.NewRequest(http.MethodOptions, "http://127.0.0.1:8730"+route.path, nil)
 				preflight.Header.Set("Origin", origin)
 				preflight.Header.Set("Access-Control-Request-Method", route.method)
-				preflight.Header.Set("Access-Control-Request-Headers", "authorization, content-type")
+				preflight.Header.Set("Access-Control-Request-Headers", "authorization, content-type, x-luci-backup-sha256, x-luci-trust-backup")
 				rec := httptest.NewRecorder()
 				h.ServeHTTP(rec, preflight)
 				if reached || rec.Code != http.StatusNoContent || rec.Header().Get("Access-Control-Allow-Origin") != origin {
 					t.Fatalf("preflight did not safely authorize native route: reached=%v response=%v", reached, rec.Result())
 				}
-				for _, requested := range []string{"authorization", "content-type"} {
+				if !strings.Contains(rec.Header().Get("Access-Control-Allow-Methods"), route.method) {
+					t.Fatalf("browser would block required method %s", route.method)
+				}
+				for _, requested := range []string{"authorization", "content-type", "x-luci-backup-sha256", "x-luci-trust-backup"} {
 					if !strings.Contains(strings.ToLower(rec.Header().Get("Access-Control-Allow-Headers")), requested) {
 						t.Fatalf("browser would block required header %s", requested)
 					}

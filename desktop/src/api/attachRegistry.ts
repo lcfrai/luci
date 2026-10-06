@@ -71,6 +71,10 @@ export interface AcquireOptions {
   createTerm: () => TermLike;
   /** session.status === "exited" (§6.6): the scrollback stays, onData is not forwarded. */
   readOnly: boolean;
+  /** Current project execution authority; false keeps cached output without a socket. */
+  permitted?: boolean;
+  /** Pause new handshakes during a background refresh without dropping an open stream. */
+  connectPermitted?: boolean;
 }
 
 export interface AttachHandle {
@@ -94,6 +98,8 @@ interface Entry {
   opened: boolean;
   refs: number;
   readOnly: boolean;
+  permitted: boolean;
+  connectPermitted: boolean;
   ws: WebSocket | null;
   opening: boolean;
   connectVersion: number;
@@ -151,6 +157,8 @@ export function acquireAttach(
       opened: false,
       refs: 0,
       readOnly: opts.readOnly,
+      permitted: opts.permitted ?? true,
+      connectPermitted: opts.connectPermitted ?? opts.permitted ?? true,
       ws: null,
       opening: false,
       connectVersion: 0,
@@ -171,6 +179,7 @@ export function acquireAttach(
     openIfLive(entry);
   } else {
     entry.session = session;
+    setAttachPermission(session.id, opts.permitted ?? true, opts.connectPermitted ?? opts.permitted ?? true);
   }
   // LAST ACQUIRER WINS, and this line runs on the shared path too — so read it as the
   // invariant it depends on: **`readOnly` is a property of the SESSION, never of the pane.**
@@ -237,6 +246,31 @@ export function setAttachReadOnly(
   if (entry) entry.readOnly = readOnly;
 }
 
+/** Changing access detaches the stream but retains the terminal and its scrollback. */
+export function setAttachPermission(sessionId: SessionId, permitted: boolean, connectPermitted = permitted): void {
+  const entry = entries.get(sessionId);
+  if (!entry || entry.destroyed || (entry.permitted === permitted && entry.connectPermitted === connectPermitted)) return;
+  entry.permitted = permitted;
+  entry.connectPermitted = permitted && connectPermitted;
+  if (entry.connectPermitted) {
+    openIfLive(entry);
+    return;
+  }
+  clearRetry(entry);
+  entry.connectVersion += 1;
+  entry.opening = false;
+  entry.attempts = 0;
+  entry.ladderStartedAt = 0;
+  const ws = entry.ws;
+  if (permitted && ws?.readyState === WS_OPEN) return;
+  entry.ws = null;
+  ws?.close(1000, "project execution access paused");
+  if (entry.session.status !== "exited") publish(entry, {
+    phase: "detached", attempts: 0, ladderStartedAt: 0,
+    reason: "Terminal access requires current project execution permission.",
+  });
+}
+
 /** Start a FRESH ladder for a pane whose previous one is spent. Returns false, having done
  *  nothing, when there is nothing to retry.
  *
@@ -259,7 +293,7 @@ export function retryAttach(sessionId: SessionId): boolean {
   // and it is masked in the same way: `destroy()` deletes the entry, so today the first half
   // always catches it first. It stops being masked the moment anything marks an entry destroyed
   // without removing it from `entries` — the same expiry condition already written at destroy().
-  if (!entry || entry.destroyed) return false;
+  if (!entry || entry.destroyed || !entry.permitted || !entry.connectPermitted) return false;
   // An exited session has no sandbox to attach to; 409 is the only answer the attach route can
   // give, which is the rule `openIfLive` states.
   if (entry.session.status === "exited") return false;
@@ -372,7 +406,7 @@ function exitedReason(session: Session): string {
 function wireTerm(entry: Entry): void {
   entry.disposables.push(
     entry.term.onData((data) => {
-      if (entry.readOnly) return; // exited: a keystroke does nothing, by design (§6.6)
+      if (entry.readOnly || !entry.permitted) return; // exited or revoked: no input reaches the agent
       const ws = entry.ws;
       if (!ws || ws.readyState !== WS_OPEN) return;
       ws.send(encode(Kind.Stdin, ENCODER.encode(data)));
@@ -380,6 +414,7 @@ function wireTerm(entry: Entry): void {
   );
   entry.disposables.push(
     entry.term.onResize(({ cols, rows }) => {
+      if (!entry.permitted) return;
       const ws = entry.ws;
       if (!ws || ws.readyState !== WS_OPEN) return;
       ws.send(encodeResize(cols, rows));
@@ -402,7 +437,7 @@ function openIfLive(entry: Entry): void {
 }
 
 function connect(entry: Entry): void {
-  if (entry.destroyed || entry.ws || entry.opening) return;
+  if (entry.destroyed || !entry.permitted || !entry.connectPermitted || entry.ws || entry.opening) return;
   // Stamped on `ladderStartedAt === 0`, not on `attempts === 0`: a successful handshake resets
   // attempts to 0, so keying off it would re-stamp mid-ladder and the 60 s budget would never
   // expire. `onopen` clears the stamp, which is what makes a drop after an hour attached start
@@ -435,6 +470,8 @@ function connect(entry: Entry): void {
     if (version === entry.connectVersion) entry.opening = false;
     if (
       entry.destroyed ||
+      !entry.permitted ||
+      !entry.connectPermitted ||
       version !== entry.connectVersion ||
       entry.session.status === "exited"
     ) {
@@ -541,7 +578,11 @@ function concatChunks(chunks: Uint8Array[], total: number): Uint8Array {
 
 /** §4.6's ladder. Called once per socket that died, whichever way it died. */
 function scheduleRetry(entry: Entry): void {
-  if (entry.destroyed) return;
+  if (entry.destroyed || !entry.permitted) return;
+  if (!entry.connectPermitted) {
+    publish(entry, { phase: "detached", attempts: 0, ladderStartedAt: 0, reason: "Waiting for current project execution permission before reconnecting." });
+    return;
+  }
 
   // Amends §4.6: the ladder runs for starting, running AND idle, and stops only on exited.
   // An idle session is a live sandbox that has been quiet; stranding it detached is a pane
@@ -604,6 +645,7 @@ function scheduleRetry(entry: Entry): void {
 /** The ladder is spent. One read of the record, so the sentence the pane renders is the truth
  *  rather than the likeliest-looking code — see the note above this step. */
 async function giveUp(entry: Entry): Promise<void> {
+  const version = entry.connectVersion;
   entry.ladderStartedAt = 0; // the ladder is spent: there is no elapsed left to render
   publish(entry, {
     phase: "failed",
@@ -616,7 +658,7 @@ async function giveUp(entry: Entry): Promise<void> {
   try {
     fresh = await deps.client.getSession(entry.id);
   } catch (error) {
-    if (entry.destroyed) return;
+    if (entry.destroyed || !entry.permitted || version !== entry.connectVersion) return;
     publish(entry, {
       phase: "failed",
       attempts: entry.attempts,
@@ -625,7 +667,7 @@ async function giveUp(entry: Entry): Promise<void> {
     });
     return;
   }
-  if (entry.destroyed) return;
+  if (entry.destroyed || !entry.permitted || version !== entry.connectVersion) return;
 
   entry.session = fresh;
   if (fresh.status === "exited") {

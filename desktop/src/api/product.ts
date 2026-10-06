@@ -1,3 +1,4 @@
+import { workspacePath, teamScopePrefix, teamScopeGeneration } from './teamScope';
 import { ApiError, DEFAULT_BASE_URL, type ProblemCode } from "./client";
 import { authHeaders, expireAuth } from "./authSession";
 import type { Session } from "../store/types";
@@ -191,6 +192,8 @@ export type FileResult =
   | { path: string; entries: FileEntry[] }
   | { path: string; content: string; truncated: boolean };
 export interface GitState {
+  /** Opaque identity of the source, index, branch and HEAD displayed for review. */
+  reviewDigest?: string;
   branch: string;
   clean: boolean;
   changes: { path: string; status: string }[];
@@ -267,6 +270,7 @@ export interface RequirementCheckBinding {
   expectedDesignPlanRevision: number;
 }
 export interface Release {
+  canStop?: boolean;
   id: string;
   projectId: string;
   briefRevision: number;
@@ -399,6 +403,7 @@ export function createProductClient(
       kind?: "project" | "file";
     } = {},
   ): Promise<T> {
+    const scopeGeneration = teamScopeGeneration();
     const controller = new AbortController();
     const abort = () => controller.abort(options.signal?.reason);
     options.signal?.addEventListener("abort", abort, { once: true });
@@ -407,7 +412,7 @@ export function createProductClient(
     const method = options.method ?? "POST";
     try {
       controller.signal.throwIfAborted();
-      const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
+      const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${workspacePath(path)}`, {
         method,
         signal: controller.signal,
         headers: authHeaders(method === "GET" ? options.headers : {
@@ -416,6 +421,7 @@ export function createProductClient(
         }),
         body: method === "GET" ? undefined : body || "{}",
       });
+      if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed before this response arrived. Open its history to inspect the result.", 409);
       if (response.status === 401) expireAuth();
       if (!response.ok) {
         const problem = (await response.json().catch(() => ({
@@ -428,7 +434,9 @@ export function createProductClient(
           problem,
         );
       }
-      return await read(response);
+      const value = await read(response);
+      if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed while this transfer was loading.", 409);
+      return value;
     } catch (cause) {
       if (options.signal?.aborted) throw options.signal.reason;
       if (cause instanceof ApiError) throw cause;
@@ -453,6 +461,7 @@ export function createProductClient(
     budgetMs = 120_000,
     signal?: AbortSignal,
   ): Promise<T> {
+    const scopeGeneration = teamScopeGeneration();
     const controller = new AbortController();
     const abort = () => controller.abort(signal?.reason);
     signal?.addEventListener("abort", abort, { once: true });
@@ -460,7 +469,7 @@ export function createProductClient(
     const timer = setTimeout(() => controller.abort(), budgetMs);
     try {
       controller.signal.throwIfAborted();
-      const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
+      const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${workspacePath(path)}`, {
         method,
         signal: controller.signal,
         headers: authHeaders(
@@ -470,8 +479,10 @@ export function createProductClient(
         ),
         body: body === undefined ? undefined : JSON.stringify(body),
       });
+      if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed before this response arrived. Open its history to inspect the result.", 409);
       if (response.status === 401) expireAuth();
       const raw = await response.text();
+      if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed while this response was loading.", 409);
       let value: unknown;
       try {
         value = raw === "" ? undefined : JSON.parse(raw);
@@ -511,7 +522,7 @@ export function createProductClient(
   const project = (id: string) =>
     `/v1/product/projects/${encodeURIComponent(id)}`;
   return {
-    get baseUrl() { return baseUrl.replace(/\/$/, ""); },
+    get baseUrl() { return baseUrl.replace(/\/$/, "") + teamScopePrefix(); },
     request,
     requestBlob: (
       path: string,
@@ -654,10 +665,10 @@ export function createProductClient(
         `/v1/setup/ssh/connections/${encodeURIComponent(id)}/stop`,
         {},
       ),
-    createProject: (name: string, remoteUrl?: string) =>
+    createProject: (name: string, remoteUrl?: string, importAttemptId?: string) =>
       request<{ id: string; name: string; path: string }>(
         "/v1/product/projects",
-        { name, ...(remoteUrl ? { remoteUrl } : {}) },
+        { name, ...(remoteUrl ? { remoteUrl } : {}), ...(importAttemptId ? { importAttemptId } : {}) },
       ),
     brief: (id: string) => request<Brief>(`${project(id)}/brief`),
     saveBrief: (
@@ -674,14 +685,14 @@ export function createProductClient(
         Partial<Pick<Design, "frames" | "scene">>,
     ) => request<Design>(`${project(id)}/design`, design),
     designExportUrl: (id: string) =>
-      `${baseUrl.replace(/\/$/, "")}${project(id)}/design/export`,
+      `${baseUrl.replace(/\/$/, "")}${workspacePath(project(id) + "/design/export")}`,
     files: (id: string, path = "") =>
       request<FileResult>(
         `${project(id)}/files?path=${encodeURIComponent(path)}`,
       ),
     git: (id: string) => request<GitState>(`${project(id)}/git`),
-    commit: (id: string, message: string) =>
-      request<unknown>(`${project(id)}/git/commit`, { message }),
+    commit: (id: string, message: string, expectedReviewDigest: string) =>
+      request<{ commit: string; message: string; sourceChanged: boolean }>(`${project(id)}/git/commit`, { message, expectedReviewDigest }),
     gitDelivery: (id: string) =>
       request<GitDelivery>(`${project(id)}/git/delivery`),
     gitRemote: (id: string, url: string) =>
@@ -762,10 +773,10 @@ export function createProductClient(
         expectedRevision,
         updates,
       }),
-    release: (id: string, port: number, dockerfile: string) =>
+    release: (id: string, port: number, dockerfile: string, expectedCommit?: string) =>
       request<Release>(
         `${project(id)}/releases`,
-        { target: "local", port, dockerfile },
+        { target: "local", port, dockerfile, ...(expectedCommit ? { expectedCommit } : {}) },
         "POST",
         180_000,
       ),

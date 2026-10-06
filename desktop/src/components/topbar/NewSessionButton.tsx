@@ -4,6 +4,8 @@ import { NavigationIcon } from "../common/NavigationIcon";
 import type { JSX } from "react";
 import { useCockpit } from "../../store/store";
 import { useCreateSession } from "../../hooks/useCreateSession";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
+import { selectResolvedDefaults, selectWorktreeById } from "../../store/selectors";
 import type { WorktreeId } from "../../store/types";
 import "./topbar.css";
 
@@ -11,7 +13,11 @@ export function NewSessionButton(props: {
   worktreeId: WorktreeId | null;
 }): JSX.Element {
   const { worktreeId } = props;
-  const createSession = useCreateSession();
+  const projectId = useCockpit(state => selectWorktreeById(worktreeId ?? "")(state)?.projectId ?? "");
+  const access = useProjectAccess(projectId);
+  const harness = useCockpit(state => selectResolvedDefaults(state).harness);
+  const canStart = access.canExecute && (harness === "shell" || access.canAssist);
+  const createSession = useCreateSession(projectId);
   const pickerOpen = useCockpit((s) => s.pickerOpen);
   const openPicker = useCockpit((s) => s.openPicker);
   const closePicker = useCockpit((s) => s.closePicker);
@@ -21,14 +27,14 @@ export function NewSessionButton(props: {
       <button
         type="button"
         className="top-split-main"
-        disabled={worktreeId === null}
+        disabled={worktreeId === null || !canStart}
         title={
           worktreeId === null
             ? "Select a worktree in the rail first — a session runs in one."
-            : undefined
+            : access.message || (!canStart ? "Credential access is required for a coding agent. Session options can start a shell." : undefined)
         }
         onClick={() => {
-          if (worktreeId !== null) void createSession(worktreeId);
+          if (worktreeId !== null && canStart) void createSession(worktreeId);
         }}
       >
         <NavigationIcon name="add" /> New session
@@ -40,6 +46,8 @@ export function NewSessionButton(props: {
         aria-haspopup="dialog"
         aria-expanded={pickerOpen}
         data-overlay-trigger=""
+        disabled={!access.canExecute}
+        title={access.message || undefined}
         onClick={() => (pickerOpen ? closePicker() : openPicker())}
       >
         <NavigationIcon name="chevron-down" />

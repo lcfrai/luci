@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 type Release struct {
+	CanStop bool `json:"canStop"`
 	ID                        string `json:"id"`
 	ProjectID                 string `json:"projectId"`
 	BriefRevision             int    `json:"briefRevision"`
@@ -141,11 +143,16 @@ func (s *Server) listProjectReleases(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Target     string `json:"target"`
-		Port       int    `json:"port"`
-		Dockerfile string `json:"dockerfile"`
+		ExpectedCommit string `json:"expectedCommit,omitempty"`
+		Target         string `json:"target"`
+		Port           int    `json:"port"`
+		Dockerfile     string `json:"dockerfile"`
 	}
 	if !journeyDecode(w, r, &req) {
+		return
+	}
+	if req.ExpectedCommit != "" && !deliverySHA.MatchString(req.ExpectedCommit) {
+		journeyError(w, 400, "invalid_commit", "Use the exact full commit saved with the checked build.")
 		return
 	}
 	if req.Target != "local" {
@@ -187,6 +194,10 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 409, "commit_required", "Create a commit before previewing this project.")
 		return
 	}
+	if req.ExpectedCommit != "" && req.ExpectedCommit != commit {
+		journeyError(w, 409, "source_changed", "The project commit changed after this build was checked. Return to the build results and verify the intended source before previewing.")
+		return
+	}
 	s.mu.RLock()
 	state, err := s.readApprovedJourney(p.Path, p.ID)
 	s.mu.RUnlock()
@@ -208,6 +219,10 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row := storedRelease{Release: Release{ID: newID("rel-"), ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: "local", Status: "building", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}}
+	if err := s.RecordProjectRunReleaseProvenance(ctx, p.ID, row.ID, row.Target, row.Commit); err != nil {
+		problem(w, 409, "release_provenance_unavailable", err.Error())
+		return
+	}
 	s.mu.Lock()
 	if s.activeLocalReleases == nil {
 		s.activeLocalReleases = make(map[string]bool)
@@ -435,11 +450,17 @@ func (s *Server) stopLocalRelease(w http.ResponseWriter, r *http.Request) {
 func archiveCommittedProject(ctx context.Context, dir, commit, destination string) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	args := append(append([]string{}, journeyGitFlags...), "archive", "--format=tar", commit)
+	// Releases archive the primary project. Its Git storage must stay inside
+	// that project, just as the source inspected before deployment does.
+	bounded, err := journeyGitBoundary(ctx, dir, dir, []string{"archive", "--format=tar", commit})
+	if err != nil {
+		return err
+	}
+	args := append(append([]string{}, journeyGitFlags...), bounded...)
 	cmd := exec.CommandContext(ctx, "git", gitcommand.PlatformArgs(dir, args)...)
 	cmd.Dir = dir
 	cmd.WaitDelay = 2 * time.Second
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	cmd.Env = project.ManagedGitEnvironment(os.Environ())
 	stderr := &limitedBuffer{limit: 64 << 10}
 	cmd.Stderr = stderr
 	stdout, err := cmd.StdoutPipe()

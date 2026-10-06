@@ -1,10 +1,31 @@
-import { useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { productApi, errorText, type ProductClient } from "../../api/product";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
+import { useProjectDraftScope } from "../../hooks/useProjectDraft";
 
 export function ProjectBackup({ projectId }: { projectId: string }) {
+  const scope = useProjectDraftScope(projectId);
+  return <ScopedProjectBackup key={JSON.stringify([productApi.baseUrl, scope, projectId])} projectId={projectId} />;
+}
+function ScopedProjectBackup({ projectId }: { projectId: string }) {
+  const access = useProjectAccess(projectId);
+  const { canEdit } = access;
+  const grantedEdit = access.canRead && access.permissions.edit;
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  const working = useRef(false);
+    [error, setError] = useState(""), [notice, setNotice] = useState("");
+  const alive = useRef(true), allowed = useRef(canEdit), granted = useRef(grantedEdit), generation = useRef(0), working = useRef<number | null>(null);
+  if (granted.current && !grantedEdit) generation.current++;
+  granted.current = grantedEdit; allowed.current = canEdit;
+  useLayoutEffect(() => {
+    alive.current = true;
+    return () => { alive.current = false; generation.current++; };
+  }, []);
+  useEffect(() => {
+    if (!grantedEdit) {
+      if (working.current !== null) setNotice("Project access changed before this backup finished. No backup was downloaded. Review your access, then download the backup again.");
+      working.current = null; setBusy(false); setError("");
+    }
+  }, [grantedEdit]);
   return (
     <section className="project-plan">
       <h2>Keep a project backup</h2>
@@ -14,6 +35,8 @@ export function ProjectBackup({ projectId }: { projectId: string }) {
         secrets. Application databases and runtime volumes need separate
         backups.
       </p>
+      {access.message && <p role="status" className="journey-muted">{access.message}</p>}
+      {notice && <p role="status" className="journey-muted">{notice}</p>}
       {error && (
         <p className="journey-error" role="alert">
           {error}
@@ -21,15 +44,25 @@ export function ProjectBackup({ projectId }: { projectId: string }) {
       )}
       <button
         className="luci-button"
-        disabled={busy}
+        disabled={!canEdit || busy}
         onClick={() => {
-          if (working.current) return;
-          working.current = true;
+          if (!allowed.current || working.current !== null) return;
+          const request = ++generation.current;
+          working.current = request;
+          const current = () => {
+            if (!alive.current || !granted.current || generation.current !== request || working.current !== request) return false;
+            if (!allowed.current) {
+              setNotice("Editing access could not be confirmed when this backup finished. No backup was downloaded. Review your access, then download the backup again once editing is available.");
+              return false;
+            }
+            return true;
+          };
           setBusy(true);
-          setError("");
+          setError(""); setNotice("");
           void productApi
             .backupProject(projectId)
             .then((blob) => {
+              if (!current()) return;
               const url = URL.createObjectURL(blob),
                 link = document.createElement("a");
               link.href = url;
@@ -39,10 +72,9 @@ export function ProjectBackup({ projectId }: { projectId: string }) {
               link.remove();
               setTimeout(() => URL.revokeObjectURL(url), 30_000);
             })
-            .catch((cause) => setError(errorText(cause)))
+            .catch((cause) => { if (current()) setError(errorText(cause)); })
             .finally(() => {
-              working.current = false;
-              setBusy(false);
+              if (working.current === request) { working.current = null; if (alive.current) setBusy(false); }
             });
         }}
       >
@@ -52,21 +84,39 @@ export function ProjectBackup({ projectId }: { projectId: string }) {
   );
 }
 
-export function ProjectRestore({
-  client,
-  onRestored,
-  onBusy,
-}: {
+type ProjectRestoreProps = {
   client: ProductClient;
   onRestored(project: { id: string; name: string; path: string }): void;
   onBusy?(busy: boolean): void;
-}) {
+};
+export function ProjectRestore(props: ProjectRestoreProps) {
+  const scope = useProjectDraftScope("project-restore");
+  return <ScopedProjectRestore key={JSON.stringify([props.client.baseUrl, scope])} {...props} />;
+}
+function ScopedProjectRestore({
+  client,
+  onRestored,
+  onBusy,
+}: ProjectRestoreProps) {
   const [file, setFile] = useState<File | null>(null),
     [name, setName] = useState(""),
     [trusted, setTrusted] = useState(false);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  const working = useRef(false);
+  const alive = useRef(true), currentClient = useRef(client);
+  currentClient.current = client;
+  const working = useRef<{ finish(): void } | null>(null);
+  useLayoutEffect(() => {
+    alive.current = true; setBusy(false); setTrusted(false); setError("");
+    return () => {
+      alive.current = false;
+      const request = working.current;
+      working.current = null;
+      // The restore may still complete on the server. Release the owning
+      // parent's busy state once, without navigating from a detached form.
+      request?.finish();
+    };
+  }, [client]);
   return (
     <section className="project-plan">
       <h2>Restore a project backup</h2>
@@ -84,18 +134,20 @@ export function ProjectRestore({
         onSubmit={(event) => {
           event.preventDefault();
           if (working.current || !file || !trusted) return;
-          working.current = true;
+          let finished = false;
+          const request = { finish: () => { if (!finished) { finished = true; onBusy?.(false); } } };
+          working.current = request;
+          const current = () => alive.current && currentClient.current === client && working.current === request;
           setBusy(true);
           onBusy?.(true);
           setError("");
           void client
             .restoreProject(name.trim(), file)
-            .then(onRestored)
-            .catch((cause) => setError(errorText(cause)))
+            .then(project => { if (current()) onRestored(project); })
+            .catch((cause) => { if (current()) setError(errorText(cause)); })
             .finally(() => {
-              working.current = false;
-              setBusy(false);
-              onBusy?.(false);
+              if (current()) { working.current = null; setBusy(false); }
+              request.finish();
             });
         }}
       >

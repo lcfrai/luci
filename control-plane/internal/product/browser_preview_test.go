@@ -55,3 +55,29 @@ func TestPreviewBridgePreservesAppAuthorizationWithoutControlBearer(t *testing.T
 		t.Fatal("authenticated application request unavailable")
 	}
 }
+
+func TestPublicPreviewReprojectionUsesCurrentConfiguredOrigin(t *testing.T) {
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "public-preview")
+	registry, err := previewgateway.NewRegistryWithDomain(s.stateDir, 8731, "preview.projects.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.browserRegistry = registry
+	row := storedRelease{Release: Release{ID: "release-public", ProjectID: p.ID, Target: "local", Status: "ready", URL: "http://127.0.0.1:45213"}, ContainerID: "owned-container"}
+	public := s.browserRelease(row)
+	if !strings.HasPrefix(public.URL, "https://p-") || !strings.HasSuffix(public.URL, ".preview.projects.test") || !validPrototypeURL(public, registry) {
+		t.Fatal("owned public preview disappeared from prototype catalogue", public)
+	}
+	if validPrototypeURL(public) {
+		t.Fatal("public local URL accepted without configured gateway")
+	}
+	foreign := public
+	foreign.URL = strings.Replace(public.URL, "preview.projects.test", "attacker.example.test", 1)
+	if validPrototypeURL(foreign, registry) {
+		t.Fatal("arbitrary public origin accepted as local preview")
+	}
+	if row.URL != "http://127.0.0.1:45213" {
+		t.Fatal("private receipt rewritten")
+	}
+}

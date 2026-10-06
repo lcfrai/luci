@@ -140,7 +140,7 @@ func (s *Server) designPlanHistory(w http.ResponseWriter, r *http.Request) {
 		problem(w, 500, "history_unavailable", err.Error())
 		return
 	}
-	writeJSON(w, 200, map[string]any{"revisions": append([]ProjectDesignPlan{}, state.DesignPlanRevisions...)})
+	writeJSON(w, 200, map[string]any{"revisions": append([]ProjectDesignPlan{}, state.DesignPlanRevisions...), "archiveHead": state.HistoryHead})
 }
 func validateDesignLinks(plan ProjectDesignPlan, spec ProjectSpecification) error {
 	ids := map[string]bool{}
@@ -227,7 +227,7 @@ func (s *Server) saveDesignPlan(w http.ResponseWriter, r *http.Request) {
 	}
 	state.DesignPlan = &plan
 	state.DesignPlanRevisions = append(state.DesignPlanRevisions, plan)
-	if err := writeJourney(p.Path, state); err != nil {
+	if err := s.writeAttributedJourney(r.Context(), p.Path, state, contextMutation{"design", "save"}); err != nil {
 		problem(w, 500, "save_failed", err.Error())
 		return
 	}
@@ -306,7 +306,7 @@ func (s *Server) approveDesignPlan(w http.ResponseWriter, r *http.Request) {
 		problem(w, 500, "approval_unavailable", "The private review receipt could not be saved. Approval was not granted; retain your draft and retry explicit review.")
 		return
 	}
-	if err := writeJourney(p.Path, state); err != nil {
+	if err := s.writeAttributedJourney(r.Context(), p.Path, state, contextMutation{"design", "approve"}); err != nil {
 		problem(w, 500, "save_failed", err.Error())
 		return
 	}

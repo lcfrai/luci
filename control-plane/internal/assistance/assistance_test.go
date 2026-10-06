@@ -46,3 +46,44 @@ func TestAssistantSchemaKeepsNestedContractFieldsRequired(t *testing.T) {
 		t.Fatal("nested specification contract is not strict")
 	}
 }
+
+func TestStructuredAssistantSchemaRequiresNullableProposalFields(t *testing.T) {
+	type document struct {
+		ProjectID string `json:"projectId"`
+		Revision  int    `json:"revision"`
+	}
+	type proposal struct {
+		Target        string    `json:"target"`
+		Specification *document `json:"specification"`
+		Design        *document `json:"designPlan"`
+	}
+	type answer struct {
+		Summary  string    `json:"summary"`
+		Blocking bool      `json:"blocking"`
+		Proposal *proposal `json:"proposal"`
+	}
+	data, err := StrictSchema(answer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema map[string]any
+	if json.Unmarshal(data, &schema) != nil {
+		t.Fatal("invalid JSON schema")
+	}
+	props := schema["properties"].(map[string]any)
+	choices := props["proposal"].(map[string]any)["anyOf"].([]any)
+	if len(choices) != 2 || choices[1].(map[string]any)["type"] != "null" {
+		t.Fatal("proposal cannot explicitly decline an amendment")
+	}
+	object := choices[0].(map[string]any)
+	if object["additionalProperties"] != false || len(object["required"].([]any)) != 3 {
+		t.Fatal("proposal permits undeclared document or missing provenance")
+	}
+	field := object["properties"].(map[string]any)["specification"].(map[string]any)["anyOf"].([]any)[0].(map[string]any)
+	if field["additionalProperties"] != false || len(field["required"].([]any)) != 2 {
+		t.Fatal("nullable document lost strict provenance")
+	}
+	if _, err = StrictSchema(nil); err == nil {
+		t.Fatal("untyped schema accepted")
+	}
+}

@@ -19,6 +19,10 @@ import (
 func commitPreviewFixture(t *testing.T, dir string) {
 	t.Helper()
 	for _, args := range [][]string{{"add", "--all"}, {"-c", "user.name=Luci Test Person", "-c", "user.email=person@example.com", "commit", "-m", "Prepare preview"}} {
+		// This native fixture deliberately bypasses the public commit policy to
+		// seed adversarial exports/secrets. It must still finish all its writers
+		// before deployment starts its strict metadata inspection.
+		args = append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
 		if out, err := RunCommand(context.Background(), "git", args, dir); err != nil {
 			t.Fatalf("commit fixture: %v: %s", err, out)
 		}

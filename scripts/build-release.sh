@@ -4,16 +4,17 @@
 set -euo pipefail
 
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-version=${1:-0.4.18}
+version=${1:-0.5.0}
 selected=${2:-all}
 if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
-  printf '%s\n' 'Use a release version such as 0.4.18 or 0.4.18-rc.1.' >&2
+  printf '%s\n' 'Use a release version such as 0.5.0 or 0.5.0-rc.1.' >&2
   exit 2
 fi
 case "$selected" in all|linux-amd64|darwin-arm64) ;; *) printf '%s\n' 'Target must be all, linux-amd64 or darwin-arm64.' >&2; exit 2 ;; esac
 for executable in go npm python3; do
   command -v "$executable" >/dev/null || { printf 'Missing build tool: %s\n' "$executable" >&2; exit 1; }
 done
+python3 "$root/scripts/release-version.py" check "$version"
 [[ -d "$root/desktop/node_modules" ]] || { printf '%s\n' 'Run npm ci in desktop first.' >&2; exit 1; }
 [[ -f "$root/sandboxd/vendor/modules.txt" ]] || { printf '%s\n' 'The vendored sandbox runtime sources are required.' >&2; exit 1; }
 # A source export can lack Git metadata. Do not accidentally attribute it to
@@ -40,15 +41,16 @@ trap cleanup EXIT
 (cd "$root/desktop" && npm run build)
 build_package() {
   local goos=$1 goarch=$2 package=$3
-  mkdir -p "$package/runtime/sandboxd" "$package/runtime/images" "$package/docs"
+  mkdir -p "$package/runtime/sandboxd" "$package/runtime/images" "$package/docs/luci"
   (cd "$root" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 go build -trimpath -ldflags '-s -w' -o "$package/luci" ./control-plane/cmd/api)
   cp -R "$root/desktop/dist" "$package/web"
   for source in cmd internal vendor go.mod go.sum; do
     cp -R "$root/sandboxd/$source" "$package/runtime/sandboxd/$source"
   done
   cp -R "$root/images/sandbox" "$package/runtime/images/sandbox"
-  cp "$root/LICENSE" "$root/NOTICE" "$root/README.md" "$package/"
-  cp "$root/docs/luci/RELEASE.md" "$root/docs/luci/REUSE.md" "$package/docs/"
+  cp "$root/LICENSE" "$root/NOTICE" "$root/README.md" "$root/DESIGN.md" "$package/"
+  cp -R "$root/docs/luci/." "$package/docs/luci/"
+  cp "$root/docs/UAT.md" "$root/docs/RUNBOOK.md" "$package/docs/"
   cp "$root/scripts/launch-unix.sh" "$package/start-luci.sh"
   chmod 755 "$package/luci" "$package/start-luci.sh"
   GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 python3 "$root/scripts/collect-licenses.py" "$root" "$package/licenses"
@@ -77,6 +79,13 @@ for target in linux-amd64 darwin-arm64; do
   mv -f -- "$package.tar.gz" "$output/luci-$target.tar.gz"
   built_targets+=("$target")
 done
+# A clean manifest cannot describe source that changed while packages built.
+if [[ "$source_dirty" == false ]]; then
+  [[ "$(git -C "$root" rev-parse --verify HEAD)" == "$source_commit" && -z "$(git -C "$root" status --porcelain=v1 --untracked-files=all)" ]] || {
+    printf '%s\n' 'Source changed during packaging; no clean release manifest was written.' >&2
+    exit 1
+  }
+fi
 python3 - "$output" "$version" "$source_commit" "$source_dirty" "$stage" "${built_targets[@]}" <<'PY'
 import datetime, hashlib, json, pathlib, sys
 output, version, commit, dirty, stage, *targets = sys.argv[1:]

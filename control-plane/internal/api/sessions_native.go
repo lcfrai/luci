@@ -95,13 +95,32 @@ func (a *API) nativeStore(worktreeID, provider, conversation string) (string, er
 
 // Snapshot only stopped CLI homes. Their SQLite/WAL and provider transcripts
 // remain upstream-owned formats, copied together rather than interpreted.
-func copyNativeState(source, target string, credentialsOnly bool) error {
+func copyNativeState(source, target, provider string, credentialsOnly bool) (err error) {
+	// The operator's private failure record consumes only this fixed code,
+	// never the underlying filesystem error (which can contain private paths).
+	defer func() {
+		if err == nil {
+			return
+		}
+		var classified *nativeStateSnapshotError
+		if errors.As(err, &classified) {
+			return
+		}
+		code := "native_state_io"
+		if errors.Is(err, hostpath.ErrHardLinked) {
+			code = "native_state_hardlink"
+		}
+		err = &nativeStateSnapshotError{code: code, err: err}
+	}()
 	info, err := os.Lstat(source)
 	if err != nil {
 		return err
 	}
-	if !info.IsDir() || info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
-		return errors.New("provider state root is not a regular directory")
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nativeStateFailure("native_state_link", "provider state root is not a regular directory")
+	}
+	if !info.IsDir() || info.Mode()&os.ModeIrregular != 0 {
+		return nativeStateFailure("native_state_special", "provider state root is not a regular directory")
 	}
 	root, err := os.OpenRoot(source)
 	if err != nil {
@@ -111,19 +130,34 @@ func copyNativeState(source, target string, credentialsOnly bool) error {
 	var total int64
 	files, entries := 0, 0
 	return fs.WalkDir(root.FS(), ".", func(name string, entry fs.DirEntry, walkErr error) error {
+		// Codex recreates this transient directory on launch. Its normal arg0
+		// aliases are symlinks to executables in the old sandbox, not saved
+		// conversation or authentication state. Never copy or follow them into
+		// a new home. Check before descent or Lstat so even a link named tmp is
+		// ignored without inspecting its target. Other providers and every
+		// other path retain the strict snapshot checks below.
+		if provider == string(harness.Codex) && name == "tmp" {
+			if entry != nil && entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
 		if walkErr != nil {
 			return walkErr
 		}
 		entries++
 		if entries > 8192 {
-			return errors.New("provider state exceeds the 8192-entry snapshot limit")
+			return nativeStateFailure("native_state_limit", "provider state exceeds the 8192-entry snapshot limit")
 		}
 		info, err := root.Lstat(name)
 		if err != nil {
 			return err
 		}
-		if info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
-			return errors.New("provider state contains a link or special file")
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nativeStateFailure("native_state_link", "provider state contains a link or special file")
+		}
+		if info.Mode()&os.ModeIrregular != 0 {
+			return nativeStateFailure("native_state_special", "provider state contains a link or special file")
 		}
 		if name == "." {
 			return nil
@@ -135,7 +169,10 @@ func copyNativeState(source, target string, credentialsOnly bool) error {
 			return nil
 		}
 		if !info.Mode().IsRegular() {
-			return errors.New("provider state contains a special file")
+			return nativeStateFailure("native_state_special", "provider state contains a special file")
+		}
+		if err := hostpath.OneName(filepath.Join(source, name)); err != nil {
+			return err
 		}
 		if credentialsOnly && name != "auth.json" && filepath.ToSlash(name) != "data/opencode/auth.json" {
 			return nil
@@ -143,10 +180,7 @@ func copyNativeState(source, target string, credentialsOnly bool) error {
 		files++
 		total += info.Size()
 		if files > 4096 || total > 256<<20 {
-			return errors.New("provider state exceeds the 256 MiB/4096-file snapshot limit")
-		}
-		if err := hostpath.OneName(filepath.Join(source, name)); err != nil {
-			return err
+			return nativeStateFailure("native_state_limit", "provider state exceeds the 256 MiB/4096-file snapshot limit")
 		}
 		in, err := root.Open(name)
 		if err != nil {
@@ -171,10 +205,23 @@ func copyNativeState(source, target string, credentialsOnly bool) error {
 			return closeErr
 		}
 		if n != info.Size() {
-			return errors.New("provider state changed during snapshot; stop its session first")
+			return nativeStateFailure("native_state_changed", "provider state changed during snapshot; stop its session first")
 		}
 		return nil
 	})
+}
+
+type nativeStateSnapshotError struct {
+	code string
+	err  error
+}
+
+func (e *nativeStateSnapshotError) Error() string          { return e.err.Error() }
+func (e *nativeStateSnapshotError) Unwrap() error          { return e.err }
+func (e *nativeStateSnapshotError) DiagnosticCode() string { return e.code }
+
+func nativeStateFailure(code, message string) error {
+	return &nativeStateSnapshotError{code: code, err: errors.New(message)}
 }
 
 func (a *API) prepareNativeState(worktreeID, provider, conversation string, source sessionResumeSource, credentialsOnly bool) (string, error) {
@@ -214,7 +261,7 @@ func (a *API) prepareNativeState(worktreeID, provider, conversation string, sour
 		if _, err = hostpath.Confine(a.deps.ConversationsDir, from); err != nil {
 			return "", err
 		}
-		if err = copyNativeState(from, dir, credentialsOnly); err != nil {
+		if err = copyNativeState(from, dir, provider, credentialsOnly); err != nil {
 			return "", err
 		}
 	}

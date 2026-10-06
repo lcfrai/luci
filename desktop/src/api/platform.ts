@@ -1,4 +1,5 @@
 import { productApi } from "./product";
+import { authToken } from "./authSession";
 
 export interface PlatformDeployment {
   id: string;
@@ -30,6 +31,7 @@ export interface PlatformBackup {
   bytes: number;
   sha256: string;
   database?: string;
+  imported?: boolean;
 }
 export interface PlatformDatabaseOperation {
   id: string;
@@ -87,14 +89,18 @@ export function isGatewayHostname(hostname: string): boolean {
   return /^[a-f0-9]{32}\.[a-f0-9]{32}\.localhost$/.test(hostname);
 }
 
+// Only classifies the server-returned presentation. Browser admission still
+// resolves the exact configured domain and private team/project registration.
+export function isPublicGatewayHostname(hostname: string): boolean {
+  return /^p-[a-z2-7]{51}[aq]\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(hostname) && hostname.length <= 253 && !/[.](?:localhost|local|internal)$/.test(hostname);
+}
+
 export function isolatedBrowserURL(raw: string): string | undefined {
   try {
     const url = new URL(raw);
     const controlOrigin = new URL(productApi.baseUrl).origin;
     if (url.username || url.password || url.origin === window.location.origin || url.origin === controlOrigin) return undefined;
-    return url.protocol === "http:" && !!url.port &&
-      (url.hostname === "127.0.0.1" || isGatewayHostname(url.hostname))
-      ? url.href : undefined;
+    return ((url.protocol === "http:" && !!url.port && (url.hostname === "127.0.0.1" || isGatewayHostname(url.hostname))) || (url.protocol === "https:" && !url.port && isPublicGatewayHostname(url.hostname))) ? url.href : undefined;
   } catch { return undefined; }
 }
 
@@ -148,6 +154,24 @@ export const platformApi = {
       confirmRestore: true,
       acknowledgeResources: true,
     }),
+  async importDatabaseBackup(id: string, file: File, trusted: boolean, signal?: AbortSignal, current: () => boolean = () => true): Promise<PlatformBackup> {
+    if (!trusted) throw new Error("Confirm that you trust this dump before importing it.");
+    if (file.size < 5 || file.size > 64 * 1024 * 1024) throw new Error("Choose a PostgreSQL custom-format dump up to 64 MiB.");
+    signal?.throwIfAborted();
+    const workspace = productApi.baseUrl, session = authToken();
+    const bytes = await file.arrayBuffer();
+    if (String.fromCharCode(...new Uint8Array(bytes, 0, 5)) !== "PGDMP") throw new Error("Choose a PostgreSQL custom-format dump, not SQL text or a ZIP archive.");
+    const hash = await crypto.subtle.digest("SHA-256", bytes);
+    const digest = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");
+    signal?.throwIfAborted();
+    if (!current() || workspace !== productApi.baseUrl || session !== authToken()) throw new Error("The account or workspace changed. Select the backup again in the intended project.");
+    const response = await productApi.requestBlob(`${project(id)}/backups/import`, {
+      method: "POST", body: file, headers: { "Content-Type": "application/octet-stream", "X-Luci-Backup-SHA256": digest, "X-Luci-Trust-Backup": "true" },
+    }, 120_000, signal);
+    const backup = JSON.parse(await response.text()) as PlatformBackup;
+    if (!backup.id || backup.sha256 !== digest || backup.bytes !== file.size) throw new Error("The imported backup receipt does not match the selected file. Refresh its history before retrying.");
+    return backup;
+  },
   connection: () => productApi.request<PanaceaConnection>(`${base}/panacea`),
   connect: (baseUrl: string, apiKey: string) =>
     productApi.request<PanaceaConnection>(
@@ -181,10 +205,11 @@ export const platformApi = {
       `${project(id)}/panacea/deployments/${encodeURIComponent(deploymentId)}/refresh`,
       {},
     ),
-  async downloadBackup(id: string, backup: PlatformBackup) {
+  async downloadBackup(id: string, backup: PlatformBackup, current: () => boolean = () => true) {
     const blob = await productApi.requestBlob(
       `${project(id)}/backups/${encodeURIComponent(backup.id)}`,
     );
+    if (!current()) return;
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

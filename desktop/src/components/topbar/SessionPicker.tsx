@@ -1,11 +1,12 @@
 // Contract §6.4. Every control is gated on the HARNESS DESCRIPTOR, never on a harness id.
 // The draft lives here and dies with the popover (§3.3: there is no drafts map in the store).
 import { useEffect, useId, useRef, useState } from "react";
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useCockpit } from "../../store/store";
 import { selectResolvedDefaults, selectWorktrees } from "../../store/selectors";
-import { resolveDefaults } from "../../store/defaults";
+import { resolveDefaults, toCreateRequest } from "../../store/defaults";
+import type { CreateSessionRequest } from "../../api/client";
 import { useCreateSession } from "../../hooks/useCreateSession";
 import { useDismissable } from "../../hooks/useDismissable";
 import { productApi } from "../../api/product";
@@ -44,6 +45,10 @@ export function SessionPicker(props: {
   initialPrompt?: string;
   implementationContext?: ImplementationContextRequest;
   onCreated?: (sessionId?: SessionId) => void;
+  /** Alternative explicit preparation; it must not silently allocate a session. */
+  onSubmit?: (request: CreateSessionRequest) => Promise<{ ok: true; sessionId?: SessionId } | { ok: false; message: string }>;
+  submitLabel?: string;
+  children?: ReactNode;
 }): JSX.Element | null {
   const { open, worktreeId, onClose, initialPrompt = "" } = props;
   const harnesses = useCockpit(useShallow((s) => s.harnesses));
@@ -117,7 +122,7 @@ export function SessionPicker(props: {
     <div
       ref={ref}
       role="dialog"
-      aria-label="New session"
+      aria-label={props.submitLabel || "New session"}
       tabIndex={-1}
       className="pop pick-panel"
     >
@@ -132,11 +137,11 @@ export function SessionPicker(props: {
         )}
         {busy && (
           <p role="status">
-            Starting the isolated session… A cold runtime can take a little
-            longer.
+            {props.onSubmit ? "Saving reviewed run inputs… No coding session starts yet." : "Starting the isolated session… A cold runtime can take a little longer."}
           </p>
         )}
         <fieldset className="pick-inputs" disabled={busy}>
+          {props.children}
           <label className="pick-field">
             Harness
             <select
@@ -232,7 +237,7 @@ export function SessionPicker(props: {
             </select>
           </label>
 
-          {harness.supportsOpeningPrompt ? (
+          {harness.supportsOpeningPrompt && !props.onSubmit ? (
             <label className="pick-field">
               Opening prompt
               <textarea
@@ -257,7 +262,7 @@ export function SessionPicker(props: {
           )}
         </fieldset>
         <div className="pick-actions">
-          <button
+          {!props.onSubmit && <button
             type="button"
             className="top-btn"
             disabled={busy || branchId === null}
@@ -268,7 +273,7 @@ export function SessionPicker(props: {
             }}
           >
             Save as branch default
-          </button>
+          </button>}
           <button
             type="button"
             className="top-split-main"
@@ -287,12 +292,15 @@ export function SessionPicker(props: {
                 working.current = true;
                 setBusy(true);
                 setError("");
-                const result = await createSession(target, {
+                const options = {
                   overrides: { ...draft, model: effective.model },
                   openingPrompt: prompt,
                   agentConnectionId: isShell ? undefined : effective.agentConnectionId,
                   implementationContext: props.implementationContext,
-                });
+                };
+                const result = props.onSubmit
+                  ? await props.onSubmit(toCreateRequest(target, effective, harness, options))
+                  : await createSession(target, options);
                 if (requestGeneration !== generation.current) return;
                 working.current = false;
                 setBusy(false);
@@ -301,7 +309,7 @@ export function SessionPicker(props: {
               }
             }}
           >
-            {busy ? "Starting session…" : "Create session"}
+            {busy ? (props.onSubmit ? "Saving run…" : "Starting session…") : props.submitLabel || "Create session"}
           </button>
         </div>
       </div>

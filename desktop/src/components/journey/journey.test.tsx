@@ -79,7 +79,8 @@ it("reads actual file content and keeps the current folder when the server refus
 
 it("refreshes Git only after a successful commit and never claims a failed commit succeeded", async () => {
   vi.spyOn(productApi, "gitDelivery").mockResolvedValue({ branch: "main", head: "" });
-  vi.spyOn(productApi, "git").mockResolvedValue({
+  const readGit = vi.spyOn(productApi, "git").mockResolvedValue({
+    reviewDigest: "a".repeat(64),
     branch: "main",
     clean: false,
     changes: [{ path: "app.ts", status: "M" }],
@@ -96,10 +97,12 @@ it("refreshes Git only after a successful commit and never claims a failed commi
   );
   await userEvent.click(screen.getByRole("button", { name: "Commit changes" }));
   await waitFor(() => expect(commit).toHaveBeenCalledOnce());
+  expect(commit).toHaveBeenCalledWith("p-1", "Build the app", "a".repeat(64));
+  expect(readGit).toHaveBeenCalledOnce();
   expect((await screen.findByRole("alert")).textContent).toContain(
     "Git identity",
   );
-  expect(screen.queryByText("Changes committed locally.")).toBeNull();
+  expect(screen.queryByText("Reviewed changes committed.")).toBeNull();
   expect(
     (
       screen.getByRole("textbox", {

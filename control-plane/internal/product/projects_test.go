@@ -101,7 +101,10 @@ func TestSlowProjectCloneKeepsSetupResponsiveAndReservesItsDirectory(t *testing.
 	started, release := make(chan struct{}), make(chan struct{})
 	var unblock sync.Once
 	defer unblock.Do(func() { close(release) })
-	s.runner = func(ctx context.Context, _ string, _ []string, _ string) (string, error) {
+	s.runner = func(ctx context.Context, _ string, _ []string, dir string) (string, error) {
+		if _, err := RunCommand(ctx, "git", []string{"init", "--initial-branch=main", "."}, dir); err != nil {
+			return "", err
+		}
 		close(started)
 		select {
 		case <-release:
@@ -135,7 +138,9 @@ func TestSlowProjectCloneKeepsSetupResponsiveAndReservesItsDirectory(t *testing.
 	case <-time.After(2 * time.Second):
 		t.Fatal("setup status waited for the clone's global lock")
 	}
+	assertNoImportedProject(t, s, "slow-clone")
 	journeyRequest(t, mux, "POST", "/v1/product/projects", map[string]string{"name": "slow-clone"}, 409)
+	journeyRequest(t, mux, "POST", "/v1/product/projects", map[string]string{"name": "slow-clone", "remoteUrl": "https://example.com/other.git", "importAttemptId": importTestID}, 409)
 	unblock.Do(func() { close(release) })
 	select {
 	case w := <-done:
@@ -256,7 +261,7 @@ func TestProjectCreationRefusesOverwriteAndNonHTTPSCredentials(t *testing.T) {
 	p := createJourneyProject(t, mux, "existing")
 	_ = os.WriteFile(filepath.Join(p.Path, "keep.txt"), []byte("keep"), 0600)
 	journeyRequest(t, mux, "POST", "/v1/product/projects", map[string]string{"name": "existing"}, 409)
-	for _, remote := range []string{"ssh://git@example.com/app", "https://user:secret@example.com/app", "file:///tmp/app", "https://example.com/app?token=secret"} {
+	for _, remote := range []string{"ssh://git@example.com/app", "https://user:secret@example.com/app", "file:///tmp/app", "https://example.com/app?token=secret", "https://example.com/app?", "https://example.com/app#", "https://example.com/" + strings.Repeat("x", 2048)} {
 		journeyRequest(t, mux, "POST", "/v1/product/projects", map[string]string{"name": "new-app", "remoteUrl": remote}, 400)
 	}
 	for _, name := range []string{"../outside", "CON", "bad/name", "name."} {
@@ -292,7 +297,7 @@ func TestGitJourneyCommitsAsThePersonAndSuppressesRepoPrograms(t *testing.T) {
 	git("config", "filter.danger.required", "true")
 	_ = os.WriteFile(filepath.Join(p.Path, ".gitattributes"), []byte("*.txt filter=danger\n"), 0600)
 	_ = os.WriteFile(filepath.Join(p.Path, "hello.txt"), []byte("first\n"), 0600)
-	journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Create the app"}, 200)
+	journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Create the app"), 200)
 	identity := git("show", "-s", "--format=%an <%ae>", "HEAD")
 	if strings.TrimSpace(identity) != "Luci Test Person <person@example.com>" {
 		t.Fatalf("wrong identity: %s", identity)
@@ -304,14 +309,14 @@ func TestGitJourneyCommitsAsThePersonAndSuppressesRepoPrograms(t *testing.T) {
 	if summary.Clean || len(summary.Changes) != 1 || summary.Changes[0].Path != "hello.txt" || !strings.Contains(summary.Diff, "+second") {
 		t.Fatalf("unexpected change summary: %s", w.Body.String())
 	}
-	journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Improve the app"}, 200)
+	journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Improve the app"), 200)
 	for _, path := range []string{marker, filterMarker} {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Fatalf("repository program executed at %s: %v", path, err)
 		}
 	}
 	_ = os.WriteFile(filepath.Join(p.Path, ".env"), []byte("TOKEN=secret"), 0600)
-	journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Should refuse credentials"}, 409)
+	journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Should refuse credentials"), 409)
 	if _, err := s.resolveProject(p.ID); err != nil {
 		t.Fatal(err)
 	}

@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 type productRouteRecorder struct {
@@ -26,6 +28,14 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/project-imports/{attemptId}":                       "Reads an owned private import receipt and matching directory identities; no clone, promotion, retry or writes.",
+	"GET /v1/product/projects/{id}/orchestrator":                        "Reads the private conversation, saved context and bounded Git status in memory; no inference, reconciliation, approval or mutation.",
+	"GET /v1/product/projects/{id}/orchestrator/export":                 "Exports existing bounded private conversation and archive bytes with a current digest; does not rotate, prune, repair or create files.",
+	"GET /v1/product/projects/{id}/context-history":                     "Reads bounded private authenticated edit/review receipts; creates no files, authority, context changes or resources.",
+	"GET /v1/product/projects/{id}/context":                             "Reads canonical portable context identity and compares generated export bytes without repair or writes.",
+	"GET /v1/product/projects/{id}/context/archive":                     "Reads bounded immutable context history chunks and retention metadata without pruning or writes.",
+	"GET /v1/product/projects/{id}/runs":                                "Reads bounded private run history and original evidence availability; no observation, repair or dispatch.",
+	"GET /v1/product/projects/{id}/runs/{runId}":                        "Reads one private run and retained evidence availability; no observation, repair or dispatch.",
 	"GET /v1/product/projects/{id}/git/branches":                        "Inspects bounded native refs, HEAD and clean state, then reads session state and private receipts; no checkout, sessions or writes.",
 	"GET /v1/product/projects/{id}/git/branch-operations/{operationId}": "Reads the private intent/result and may observe matching native HEAD in memory; never retries checkout or updates the journal.",
 	"GET /v1/product/projects/{id}/design-plan":                         "Reads saved screen/state handoff and compares in-memory revisions; no writes or execution.",
@@ -98,6 +108,13 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 	p := createJourneyProject(t, initial, "read-only-app")
 	recorded := &productRouteRecorder{ServeMux: http.NewServeMux()}
 	s.Register(recorded)
+	importRootIdentity, err := projectImportDirectoryIdentity(s.projectRoot())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.writeImportReceipt(&projectImportReceipt{Version: 1, projectImportView: projectImportView{ID: importTestID, Name: "read-only-import", Status: "failed", Message: "Fixture import failed before publication."}, ActorID: "fixture-reviewer", Root: s.projectRoot(), RootIdentity: importRootIdentity, Phase: "reserved"}); err != nil {
+		t.Fatal(err)
+	}
 	beforeState, beforeProject := auditTree(t, s.stateDir), auditTree(t, p.Path)
 	identityDir, err := s.setupHostDir(false)
 	if err != nil {
@@ -116,24 +133,42 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			t.Fatalf("read route requested unsafe Git invocation: %v", args)
 		}
 		readArgs := args[len(journeyGitFlags):]
-		if len(readArgs) >= 4 && strings.HasPrefix(readArgs[0], "--git-dir=") {
-			expected := []string{"--git-dir=" + filepath.Join(p.Path, ".git"), "--work-tree=" + p.Path, "-c", "core.bare=false"}
-			if !reflect.DeepEqual(readArgs[:4], expected) {
+		if len(readArgs) > 0 && strings.HasPrefix(readArgs[0], "--git-dir=") {
+			bounded, err := project.ManagedGitArguments(s.projectRoot(), p.Path, []string{"status"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected := bounded[:len(bounded)-1]
+			if len(readArgs) < len(expected) || !reflect.DeepEqual(readArgs[:len(expected)], expected) {
 				t.Fatalf("read route requested an unowned Git worktree: %v", args)
 			}
-			readArgs = readArgs[4:]
+			readArgs = readArgs[len(expected):]
 		}
 		read := strings.Join(readArgs, "\x00")
 		allowed := map[string]bool{
 			"config\x00--null\x00--name-only\x00--get-regexp\x00^filter\\.": true,
 			"symbolic-ref\x00--quiet\x00--short\x00HEAD":                    true,
-			"status\x00--porcelain=v1\x00-z\x00--untracked-files=normal":    true,
-			"log\x00-10\x00--format=%H%x00%s%x00":                           true,
-			"rev-parse\x00--verify\x00HEAD":                                 true,
-			"config\x00--get-all\x00remote.origin.url":                      true,
+			// These exact argument forms only inspect branch/parent identity,
+			// index modes/flags, object format and the existing shared index.
+			"symbolic-ref\x00--quiet\x00HEAD":                              true,
+			"rev-parse\x00--verify\x00--quiet\x00HEAD^{commit}":            true,
+			"rev-parse\x00--show-object-format":                            true,
+			"rev-parse\x00--shared-index-path":                             true,
+			"status\x00--porcelain=v1\x00-z\x00--untracked-files=all":      true,
+			"ls-files\x00--stage\x00-z":                                    true,
+			"ls-files\x00-v\x00-z":                                         true,
+			"ls-files\x00-z\x00--cached\x00--others\x00--exclude-standard": true,
+			"status\x00--porcelain=v1\x00-z\x00--untracked-files=normal":   true,
+			"status\x00--porcelain=v1\x00--untracked-files=normal":         true,
+			"log\x00-10\x00--format=%H%x00%s%x00":                          true,
+			"rev-parse\x00--verify\x00HEAD":                                true,
+			"config\x00--get-all\x00remote.origin.url":                     true,
 		}
 		if !allowed[read] {
 			t.Fatalf("read route requested a new Git operation requiring audit: %v", args)
+		}
+		if read == "rev-parse\x00--show-object-format" {
+			return "sha1\n", nil
 		}
 		return "", nil
 	}
@@ -176,7 +211,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 		if pattern != previewPattern && productReadOnlyRoutes[pattern] == "" {
 			t.Fatalf("unaudited read route %q", pattern)
 		}
-		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{path...}", "").Replace(path)
+		path = strings.NewReplacer("{id}", p.ID, "{releaseId}", "missing", "{operationId}", "missing-operation", "{attemptId}", importTestID, "{path...}", "").Replace(path)
 		for _, readMethod := range []string{"GET", "HEAD"} {
 			status := 200
 			if pattern == previewPattern {
@@ -190,13 +225,17 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			if strings.HasPrefix(pattern, "GET /v1/setup/workspace/admin/") {
 				status = 403 // Standalone fixtures have no trusted management actor.
 			}
-			if pattern == "GET /v1/product/projects/{id}/checks/{runId}" {
+			if pattern == "GET /v1/product/projects/{id}/checks/{runId}" || pattern == "GET /v1/product/projects/{id}/runs/{runId}" {
 				status = 404
 			}
 			if pattern == "GET /v1/product/projects/{id}/git/branch-operations/{operationId}" {
 				status = 404
 			}
-			journeyRequest(t, recorded, readMethod, path, nil, status)
+			var handler http.Handler = recorded
+			if pattern == "GET /v1/product/project-imports/{attemptId}" {
+				handler = fixtureReviewHandler(recorded)
+			}
+			journeyRequest(t, handler, readMethod, path, nil, status)
 		}
 	}
 	for pattern := range productReadOnlyRoutes {
@@ -226,5 +265,45 @@ func TestAtomicStateFilesRemainPrivateAcrossReplacement(t *testing.T) {
 		if err != nil || !strings.Contains(string(data), fixture) {
 			t.Fatal("private state replacement lost its payload", err)
 		}
+	}
+}
+
+// The route catalogue above admits no real processes. This separate witness
+// exercises Git's actual optional-lock/read behavior with inspectable changes;
+// unchanged contents/modes include the existing index and every metadata file.
+func TestGitReviewNativeReadsPreserveFilesAndResources(t *testing.T) {
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "native-read-only-review")
+	base := "/v1/product/projects/" + p.ID
+	journeyRequest(t, mux, "POST", base+"/brief", map[string]any{"revision": 0, "purpose": "Shared context for a reviewed application", "audience": "Teams", "criteria": []string{}}, 200)
+	if err := os.WriteFile(filepath.Join(p.Path, "tracked.txt"), []byte("Staged reviewed source\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.journeyGit(context.Background(), p.Path, "add", "--", "tracked.txt"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p.Path, "new.txt"), []byte("Untracked reviewed source\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	beforeState, beforeProject := auditTree(t, s.stateDir), auditTree(t, p.Path)
+	calls := 0
+	s.runner = func(ctx context.Context, exe string, args []string, dir string) (string, error) {
+		if exe != "git" || dir != p.Path {
+			t.Fatalf("Git review started an unexpected process: %s %v", exe, args)
+		}
+		calls++
+		return RunCommand(ctx, exe, args, dir)
+	}
+	for _, method := range []string{"GET", "HEAD"} {
+		journeyRequest(t, mux, method, base+"/git", nil, 200)
+	}
+	if calls == 0 {
+		t.Fatal("native Git witness did not execute Git inspection")
+	}
+	if !reflect.DeepEqual(beforeState, auditTree(t, s.stateDir)) || !reflect.DeepEqual(beforeProject, auditTree(t, p.Path)) {
+		t.Fatal("native Git review changed project/index/metadata or private state")
+	}
+	if len(s.previews) != 0 || len(s.tunnels) != 0 || len(s.jobs) != 0 || len(s.workspaceInstalls) != 0 || s.runtimeJob.Status != "idle" {
+		t.Fatal("native Git review allocated resources")
 	}
 }

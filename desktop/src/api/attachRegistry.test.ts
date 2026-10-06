@@ -10,6 +10,7 @@ import {
   releaseAttach,
   retryAttach,
   setAttachReadOnly,
+  setAttachPermission,
   subscribeAttach,
   updateAttachSession,
 } from "./attachRegistry";
@@ -97,6 +98,75 @@ afterEach(() => {
 });
 
 describe("attachRegistry — lifecycle", () => {
+  it("keeps an open authorized stream through refresh but blocks reconnect until permission is verified", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    const existing = socket(); existing.acceptOpen();
+    setAttachPermission('s-1', true, false);
+    expect(existing.closedWith).toBeNull();
+    term.type('still authorized');
+    expect(existing.sent).toHaveLength(2);
+    existing.emitClose(1006);
+    expect(getAttachState('s-1').phase).toBe('detached');
+    expect(retryAttach('s-1')).toBe(false);
+    vi.advanceTimersByTime(RETRY_BUDGET_MS);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    setAttachPermission('s-1', true, true);
+    expect(FakeWebSocket.instances).toHaveLength(2);
+  });
+  it("never opens or retries without execution permission, then attaches the retained terminal on grant", () => {
+    const held = acquireAttach(live(), { createTerm, readOnly: false, permitted: false });
+    held.term.write("cached output");
+    expect(FakeWebSocket.instances).toHaveLength(0);
+    expect(retryAttach("s-1")).toBe(false);
+    vi.advanceTimersByTime(RETRY_BUDGET_MS);
+    expect(FakeWebSocket.instances).toHaveLength(0);
+    setAttachPermission("s-1", true);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(held.term).toBe(term);
+    expect(term.written).toEqual(["cached output"]);
+    expect(term.disposed).toBe(false);
+  });
+
+  it("revokes open input, resize and retry without losing scrollback or accepting stale socket events", () => {
+    acquireAttach(live(), { createTerm, readOnly: false });
+    const ws = socket(); ws.acceptOpen();
+    ws.emitBinary(encode(Kind.Stdout, new TextEncoder().encode("retained output")));
+    vi.advanceTimersByTime(FLUSH_INTERVAL_MS);
+    const writes = ws.sent.length;
+    setAttachPermission("s-1", false);
+    expect(ws.closedWith).not.toBeNull();
+    term.type("rm dangerous"); term.resize(100, 35);
+    ws.acceptOpen(); ws.emitBinary(encode(Kind.Stdout, new TextEncoder().encode("late output")));
+    ws.emitClose(1006);
+    expect(retryAttach("s-1")).toBe(false);
+    vi.advanceTimersByTime(RETRY_BUDGET_MS);
+    expect(ws.sent).toHaveLength(writes);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(term.written).toEqual(["retained output"]);
+    expect(term.disposed).toBe(false);
+    setAttachPermission("s-1", true);
+    expect(FakeWebSocket.instances).toHaveLength(2);
+    socket().acceptOpen(); term.type("allowed input");
+    expect(socket().sent).toHaveLength(2);
+  });
+
+  it("invalidates a pending ticket when permission is revoked and cannot resurrect it after regrant", async () => {
+    let finish!: (socket: WebSocket) => void;
+    const pending = new Promise<WebSocket>(resolve => { finish = resolve; });
+    const openAttach = vi.fn().mockReturnValueOnce(pending).mockImplementation(() => new FakeWebSocket("ws://current") as unknown as WebSocket);
+    configureAttachRegistry({ client: { ...stubClient(), openAttach } });
+    acquireAttach(live(), { createTerm, readOnly: false });
+    setAttachPermission("s-1", false);
+    setAttachPermission("s-1", true);
+    const current = socket(); current.acceptOpen();
+    const stale = new FakeWebSocket("ws://late-ticket");
+    finish(stale as unknown as WebSocket);
+    await Promise.resolve();
+    expect(stale.closedWith).not.toBeNull();
+    expect(current.closedWith).toBeNull();
+    expect(getAttachState("s-1").phase).toBe("attached");
+    expect(openAttach).toHaveBeenCalledTimes(2);
+  });
   it("closes a late authenticated socket after its pane was released and prevents duplicate pending tickets", async () => {
     let finish!: (socket: WebSocket) => void;
     const pending = new Promise<WebSocket>((resolve) => {

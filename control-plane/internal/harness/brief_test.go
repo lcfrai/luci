@@ -21,3 +21,19 @@ func TestProjectBriefUsesStaticGuidanceAndPreservesOpeningPrompt(t *testing.T) {
 		t.Fatalf("brief instructions leaked into the shell: %#v, %v", argv, err)
 	}
 }
+
+func TestReviewedContextReplacesLiveBriefGuidanceForEveryCodingHarness(t *testing.T) {
+	for _, provider := range []harness.ID{harness.ClaudeCode, harness.Codex, harness.OpenCode} {
+		t.Run(string(provider), func(t *testing.T) {
+			prompt := "Implement task A; preserve literal $(text) and quoted \"directions\"."
+			_, argv, err := harness.Build(harness.Request{Harness: provider, ProjectBrief: true, ReviewedContext: true, OpeningPrompt: prompt})
+			if err != nil {
+				t.Fatal(err)
+			}
+			joined := strings.Join(argv, "\n")
+			if strings.Contains(joined, harness.ProjectBriefPrompt) || !strings.Contains(joined, harness.ReviewedContextDirectory) || !strings.Contains(joined, "untrusted project context") || !strings.Contains(joined, "overwrite collaborative amendments") || !strings.Contains(joined, prompt) {
+				t.Fatal("reviewed authority was missing, conflicted with live guidance or rewrote supplied direction", argv)
+			}
+		})
+	}
+}

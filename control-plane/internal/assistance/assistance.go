@@ -1,4 +1,4 @@
-// Package assistance holds bounded, durable definition-assistant jobs. It has
+// Package assistance holds bounded, durable project-assistant jobs. It has
 // no model credentials and never applies a proposal to a project.
 package assistance
 
@@ -13,7 +13,9 @@ import (
 )
 
 const MaxResultBytes = 256 << 10
-const MaxJobBytes = MaxResultBytes + (64 << 10)
+
+// Cross-phase jobs retain one immutable context snapshot as well as the result.
+const MaxJobBytes = 2*MaxResultBytes + (64 << 10)
 
 type SourceFile struct {
 	Path   string `json:"path"`
@@ -46,26 +48,35 @@ type Result struct {
 }
 
 type Job struct {
-	ID                      string  `json:"id"`
-	ProjectID               string  `json:"projectId"`
-	ExpectedRevision        int     `json:"expectedRevision"`
-	ExpectedBriefRevision   int     `json:"expectedBriefRevision"`
-	SessionID               string  `json:"sessionId"`
-	Status                  string  `json:"status"`
-	Message                 string  `json:"message"`
-	CreatedAt               string  `json:"createdAt"`
-	UpdatedAt               string  `json:"updatedAt"`
-	Result                  *Result `json:"result,omitempty"`
-	Kind                    string  `json:"kind,omitempty"`
-	Harness                 string  `json:"harness,omitempty"`
-	Model                   string  `json:"model,omitempty"`
-	AuthMode                string  `json:"authMode,omitempty"`
-	AgentConnectionID       string  `json:"agentConnectionId,omitempty"`
-	AgentConnectionRevision int     `json:"agentConnectionRevision,omitempty"`
-	AgentConnectionKind     string  `json:"agentConnectionKind,omitempty"`
-	AgentConnectionProtocol string  `json:"agentConnectionProtocol,omitempty"`
-	Source                  *Source `json:"source,omitempty"`
-	AppliedRevision         int     `json:"appliedRevision,omitempty"`
+	ID                      string          `json:"id"`
+	ProjectID               string          `json:"projectId"`
+	ExpectedRevision        int             `json:"expectedRevision"`
+	ExpectedBriefRevision   int             `json:"expectedBriefRevision"`
+	SessionID               string          `json:"sessionId"`
+	Status                  string          `json:"status"`
+	Message                 string          `json:"message"`
+	CreatedAt               string          `json:"createdAt"`
+	UpdatedAt               string          `json:"updatedAt"`
+	Result                  *Result         `json:"result,omitempty"`
+	Kind                    string          `json:"kind,omitempty"`
+	Harness                 string          `json:"harness,omitempty"`
+	Model                   string          `json:"model,omitempty"`
+	AuthMode                string          `json:"authMode,omitempty"`
+	AgentConnectionID       string          `json:"agentConnectionId,omitempty"`
+	AgentConnectionRevision int             `json:"agentConnectionRevision,omitempty"`
+	AgentConnectionKind     string          `json:"agentConnectionKind,omitempty"`
+	AgentConnectionProtocol string          `json:"agentConnectionProtocol,omitempty"`
+	Source                  *Source         `json:"source,omitempty"`
+	AppliedRevision         int             `json:"appliedRevision,omitempty"`
+	RequestedBy             string          `json:"requestedBy,omitempty"`
+	IdempotencyKey          string          `json:"idempotencyKey,omitempty"`
+	RequestDigest           string          `json:"requestDigest,omitempty"`
+	ReplyToAnalysisID       string          `json:"replyToAnalysisId,omitempty"`
+	ReplySourceChanged      bool            `json:"replySourceChanged,omitempty"`
+	UserMessage             string          `json:"userMessage,omitempty"`
+	OrchestratorTurnID      string          `json:"orchestratorTurnId,omitempty"`
+	OrchestratorContext     json.RawMessage `json:"orchestratorContext,omitempty"`
+	OrchestratorResult      json.RawMessage `json:"orchestratorResult,omitempty"`
 }
 
 // Store serializes changes and persists before returning. The caller supplies
@@ -194,8 +205,20 @@ func RepositorySchema(specification any) ([]byte, error) {
 	schema["properties"].(map[string]any)["findings"] = schemaFor(reflect.TypeOf([]Finding{}))
 	return json.Marshal(schema)
 }
+
+// StrictSchema derives a complete structured-output contract, including nullable
+// pointer fields. It describes proposals without granting authority to apply them.
+func StrictSchema(value any) ([]byte, error) {
+	if value == nil {
+		return nil, errors.New("assistant schema requires a concrete type")
+	}
+	return json.Marshal(schemaFor(reflect.TypeOf(value)))
+}
+
 func schemaFor(t reflect.Type) map[string]any {
 	switch t.Kind() {
+	case reflect.Pointer:
+		return map[string]any{"anyOf": []any{schemaFor(t.Elem()), map[string]any{"type": "null"}}}
 	case reflect.Struct:
 		properties := map[string]any{}
 		required := []string{}

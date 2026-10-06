@@ -8,18 +8,20 @@ import (
 )
 
 type Invitation struct {
-	ID         string     `json:"id"`
-	Role       string     `json:"role"`
-	CreatedBy  string     `json:"createdBy"`
-	CreatedAt  time.Time  `json:"createdAt"`
-	ExpiresAt  time.Time  `json:"expiresAt"`
-	Revoked    bool       `json:"revoked"`
-	AcceptedAt *time.Time `json:"acceptedAt,omitempty"`
-	AcceptedBy string     `json:"acceptedBy,omitempty"`
+	ID         string          `json:"id"`
+	Role       string          `json:"role"`
+	CreatedBy  string          `json:"createdBy"`
+	CreatedAt  time.Time       `json:"createdAt"`
+	ExpiresAt  time.Time       `json:"expiresAt"`
+	Revoked    bool            `json:"revoked"`
+	AcceptedAt *time.Time      `json:"acceptedAt,omitempty"`
+	AcceptedBy string          `json:"acceptedBy,omitempty"`
+	Team       *TeamInvitation `json:"team,omitempty"`
 }
 type invitationRecord struct {
 	Invitation
-	CodeHash string `json:"codeHash"`
+	CodeHash                 string `json:"codeHash"`
+	IssuerMembershipRevision int    `json:"issuerMembershipRevision,omitempty"`
 }
 
 func mayInvite(issuer User, role string) bool {
@@ -33,7 +35,9 @@ func (g *Gateway) listInvitations(w http.ResponseWriter, r *http.Request) {
 	defer g.mu.Unlock()
 	rows := make([]Invitation, 0, len(g.state.Invitations))
 	for _, row := range g.state.Invitations {
-		rows = append(rows, row.Invitation)
+		if row.Team == nil {
+			rows = append(rows, row.Invitation)
+		}
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].CreatedAt.After(rows[j].CreatedAt) })
 	jsonReply(w, 200, map[string]any{"invitations": rows})
@@ -95,7 +99,7 @@ func (g *Gateway) revokeInvitation(w http.ResponseWriter, r *http.Request) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	row, ok := g.state.Invitations[r.PathValue("id")]
-	if !ok {
+	if !ok || row.Team != nil {
 		fail(w, 404, "unknown_invitation", "This invitation does not exist.")
 		return
 	}
@@ -126,6 +130,9 @@ func (g *Gateway) validInvitationLocked(code string, now time.Time) (invitationR
 			continue
 		}
 		issuer, ok := g.state.Users[row.CreatedBy]
+		if row.Team != nil {
+			return row, g.teamInvitationIssuerCurrentLocked(row)
+		}
 		return row, ok && mayInvite(issuer.User, row.Role)
 	}
 	return invitationRecord{}, false
@@ -182,15 +189,29 @@ func (g *Gateway) acceptInvitation(w http.ResponseWriter, r *http.Request) {
 	g.state = cloneIdentityState(before)
 	u := User{ID: opaqueID("user-"), Username: strings.ToLower(req.Username), DisplayName: strings.TrimSpace(req.DisplayName), Role: invitation.Role}
 	g.state.Users[u.ID] = userRecord{User: u, PasswordHash: hash}
+	if invitation.Team != nil {
+		if err := g.joinInvitedTeamLocked(invitation, u.ID); err != nil {
+			g.state = before
+			fail(w, 409, "team_invitation_unavailable", err.Error())
+			return
+		}
+	}
 	invitation.AcceptedAt = &now
 	invitation.AcceptedBy = u.ID
 	g.state.Invitations[invitation.ID] = invitation
 	g.auditLocked(u.ID, "invitation.accept", invitation.ID, "succeeded")
+	if invitation.Team != nil {
+		g.auditLocked(u.ID, "team.invitation.accept", invitation.Team.ID, "success")
+	}
 	token, err := g.issueSessionLocked(u)
 	if err != nil {
 		g.state = before
 		fail(w, 500, "save_failed", "The account could not be saved. Your invitation remains available.")
 		return
 	}
-	jsonReply(w, 201, map[string]any{"token": token, "user": u})
+	result := map[string]any{"token": token, "user": u}
+	if invitation.Team != nil {
+		result["teamId"] = invitation.Team.ID
+	}
+	jsonReply(w, 201, result)
 }

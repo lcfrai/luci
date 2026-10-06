@@ -9,6 +9,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 
 export async function evaluatePortableLauncher(packageDirectory, evidenceDirectory) {
+  const expectedVersion = process.env.LUCI_VERSION;
+  assert.match(expectedVersion || '', /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/, 'Set LUCI_VERSION to the exact candidate version before launcher acceptance');
   const packageDir = path.resolve(packageDirectory), evidence = path.resolve(evidenceDirectory);
   assert.match(evidence.replaceAll('\\', '/'), /\/artifacts\/package-eval\//, 'Use a disposable package-eval directory');
   const fixture = path.join(evidence, 'launcher'), state = path.join(fixture, 'state');
@@ -20,6 +22,10 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
   await new Promise((resolve, reject) => listener.once('error', reject).listen(0, '127.0.0.1', resolve));
   const port = listener.address().port;
   await new Promise(resolve => listener.close(resolve));
+  const previewListener = createServer();
+  await new Promise((resolve, reject) => previewListener.once('error', reject).listen(0, '127.0.0.1', resolve));
+  const previewPort = previewListener.address().port;
+  await new Promise(resolve => previewListener.close(resolve));
   const base = `http://127.0.0.1:${port}`;
   const windows = process.platform === 'win32';
   const launcher = path.join(packageDir, windows ? 'Start-Luci.ps1' : 'start-luci.sh');
@@ -40,6 +46,8 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
   const environment = { ...inherited, HOME: home, USERPROFILE: home, LOCALAPPDATA: path.join(home, 'Local'), APPDATA: path.join(home, 'Roaming'),
     XDG_CONFIG_HOME: path.join(home, '.config'), XDG_DATA_HOME: path.join(home, '.local/share'), XDG_STATE_HOME: path.join(home, '.local/state'),
     GIT_CONFIG_GLOBAL: path.join(home, 'gitconfig'), GIT_CONFIG_NOSYSTEM: '1',
+    LUCI_DOCKER_HOST: windows ? `npipe:////./pipe/luci-eval-${randomUUID()}` : `unix://${path.join(fixture, 'absent-docker.sock')}`,
+    LUCI_BROWSER_PREVIEW_ADDR: `127.0.0.1:${previewPort}`, LUCI_BROWSER_PREVIEW_PORT: String(previewPort),
     GH_CONFIG_DIR: path.join(home, 'gh'), AZURE_CONFIG_DIR: path.join(home, 'azure'),
     AWS_CONFIG_FILE: path.join(home, 'aws-config'), AWS_SHARED_CREDENTIALS_FILE: path.join(home, 'aws-credentials'), AWS_EC2_METADATA_DISABLED: 'true' };
   if (windows) {
@@ -129,7 +137,7 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
     }, 'Launcher did not announce a ready, verified workspace', startupBudgetMs);
     const status = await api('GET', '/v1/control-plane/status', undefined, { token: '' });
     assert.equal(status.product, 'Luci');
-    assert.equal(status.version, process.env.LUCI_VERSION || '0.4.3');
+    assert.equal(status.version, expectedVersion);
     if (record.index === 0) result.startupElapsedMs = Date.now() - record.startedAt;
     result.version = status.version;
     return status;

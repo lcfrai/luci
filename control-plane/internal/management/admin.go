@@ -69,10 +69,13 @@ func (g *Gateway) createUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	before := g.state
+	g.state = cloneIdentityState(before)
 	u := User{ID: opaqueID("user-"), Username: strings.ToLower(req.Username), DisplayName: strings.TrimSpace(req.DisplayName), Role: req.Role}
 	g.state.Users[u.ID] = userRecord{User: u, PasswordHash: hash}
 	g.auditLocked(actor.ID, "user.create", u.ID, "succeeded")
 	if g.persistLocked() != nil {
+		g.state = before
 		fail(w, 500, "save_failed", "The user could not be saved.")
 		return
 	}
@@ -151,18 +154,28 @@ func (g *Gateway) updateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	before := g.state
+	g.state = cloneIdentityState(before)
 	g.state.Users[row.User.ID] = updated
-	g.revokeLocked(row.User.ID)
+	if err := validateTeams(g.state); err != nil {
+		g.state = before
+		g.mu.Unlock()
+		fail(w, 409, "team_owner_required", "Assign another enabled team owner before disabling this account.")
+		return
+	}
+	g.revokeSessionsLocked(row.User.ID)
 	g.auditLocked(actor.ID, "user.update", row.User.ID, "succeeded")
-	err := g.persistLocked()
+	if g.persistLocked() != nil {
+		g.state = before
+		g.mu.Unlock()
+		fail(w, 500, "save_failed", "The user update could not be saved.")
+		return
+	}
+	g.revokeConnectionsLocked(row.User.ID)
 	rt := g.runtimes[row.User.ID]
 	g.mu.Unlock()
 	if rt != nil {
 		rt.stop()
-	}
-	if err != nil {
-		fail(w, 500, "save_failed", "The user update could not be saved.")
-		return
 	}
 	jsonReply(w, 200, updated.User)
 }
@@ -226,9 +239,12 @@ func (g *Gateway) patchPolicy(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_policy", (&policyError{}).Error())
 		return
 	}
+	before := g.state
+	g.state = cloneIdentityState(before)
 	g.state.Policy = policy
 	g.auditLocked(actor.ID, "policy.update", "instance", "succeeded")
 	if g.persistLocked() != nil {
+		g.state = before
 		fail(w, 500, "save_failed", "The policy could not be saved.")
 		return
 	}

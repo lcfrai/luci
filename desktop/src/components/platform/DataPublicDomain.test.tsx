@@ -3,6 +3,11 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { DataPublicDomain, publicDataAddress } from "./DataPublicDomain";
 import { dataApi, type DataDomainStatus } from "../../api/data";
 import { productApi } from "../../api/product";
+const access = vi.hoisted(() => ({ read: true, edit: true, deploy: true, secrets: true, loading: false, error: null as string | null, scope: "owned-account" }));
+vi.mock("../../hooks/useProjectAccess", () => ({ useProjectAccess: () => ({ loading: access.loading, error: access.error, canRead: access.read,
+  canEdit: !access.loading && !access.error && access.read && access.edit, permissions: { ...access } }) }));
+vi.mock("../../hooks/useProjectDraft", () => ({ useProjectDraftScope: (id: string) => `${access.scope}:${id}` }));
+beforeEach(() => { Object.assign(access, { read: true, edit: true, deploy: true, secrets: true, loading: false, error: null, scope: "owned-account" }); });
 vi.mock("../../api/data", () => ({ dataApi: { domain: vi.fn(), configureDomain: vi.fn() } }));
 vi.mock("../../api/product", async (original) => ({ ...await original<typeof import("../../api/product")>(), productApi: { targets: vi.fn() } }));
 const initial: DataDomainStatus = { projectId: "owned", status: "not-configured", revision: 0, message: "Data remains private.", emailDelivery: "unconfigured" };
@@ -120,4 +125,29 @@ it("never presents an unverified or mismatched API address as HTTPS verified", (
     { status: "verifiedHTTPS", publicUrl: "https://data.example.com", domain: "other.example.com" },
   ]) expect(publicDataAddress({ ...initial, ...value })).toBeNull();
   expect(publicDataAddress({ ...initial, status: "verifiedHTTPS", publicUrl: "https://data.example.com/", domain: "data.example.com" })).toBe("https://data.example.com");
+});
+
+it("preserves the same public connection draft through permission refresh and blocks read-only publication", async () => {
+  const change = vi.fn(), view = render(<DataPublicDomain projectId="owned" disabled={false} ready onChange={change} />); await fill();
+  const domain = screen.getByLabelText("Data API domain") as HTMLInputElement;
+  access.loading = true; access.secrets = false; view.rerender(<DataPublicDomain projectId="owned" disabled={false} ready onChange={change} />);
+  expect(screen.getByLabelText("Data API domain")).toBe(domain); expect(domain.value).toBe("data.example.com");
+  access.loading = false; access.secrets = true; access.edit = false; view.rerender(<DataPublicDomain projectId="owned" disabled={false} ready onChange={change} />);
+  expect((screen.getByRole("button", { name: "Publish data API" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.submit(domain.closest("form")!); expect(dataApi.configureDomain).not.toHaveBeenCalled();
+});
+it("rejects a delayed public connection result after editing is revoked and restored", async () => {
+  let finish!: (value: DataDomainStatus) => void;
+  vi.mocked(dataApi.configureDomain).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const change = vi.fn(), view = render(<DataPublicDomain projectId="owned" disabled={false} ready onChange={change} />); await fill();
+  fireEvent.click(screen.getByLabelText("Make this project's client API available publicly at this domain.")); fireEvent.click(screen.getByRole("button", { name: "Publish data API" }));
+  access.edit = false; view.rerender(<DataPublicDomain projectId="owned" disabled={false} ready onChange={change} />);
+  access.edit = true; view.rerender(<DataPublicDomain projectId="owned" disabled={false} ready onChange={change} />);
+  await act(async () => finish({ ...initial, revision: 1, status: "pending", message: "Late published receipt" }));
+  expect(change).not.toHaveBeenCalled(); expect(screen.queryByText("Late published receipt")).toBeNull();
+  expect((screen.getByRole("button", { name: "Publish data API" }) as HTMLButtonElement).disabled).toBe(false);
+});
+it("does not request private domain configuration or deployment targets without secrets access", () => {
+  access.secrets = false; render(<DataPublicDomain projectId="owned" disabled={false} ready onChange={vi.fn()} />);
+  expect(dataApi.domain).not.toHaveBeenCalled(); expect(productApi.targets).not.toHaveBeenCalled();
 });

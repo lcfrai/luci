@@ -4,7 +4,7 @@
 //
 // No jest-dom (shared-shape §3C): plain DOM property assertions only.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SessionPane } from "./SessionPane";
 import { ApiError } from "../../api/client";
@@ -43,13 +43,15 @@ vi.mock("../Terminal", () => ({
 // while ./SessionPane's import graph is evaluated — before a top-level `const` has been
 // initialised. A bare const here throws "Cannot access 'createSessionMock' before
 // initialization" and looks like a mocking bug rather than a TDZ one.
-const { createSessionMock, restartSessionMock } = vi.hoisted(() => ({
+const { createSessionMock, restartSessionMock, reviewedContextMock } = vi.hoisted(() => ({
   createSessionMock: vi.fn(),
   restartSessionMock: vi.fn(),
+  reviewedContextMock: vi.fn(),
 }));
 vi.mock("../../api", () => ({
-  api: { createSession: createSessionMock, restartSession: restartSessionMock },
+  api: { createSession: createSessionMock, restartSession: restartSessionMock, getSessionReviewedContext: reviewedContextMock },
 }));
+vi.mock("../../hooks/useProjectDraft", () => ({ useProjectDraftScope: () => "account:workspace" }));
 
 // Only `useAttachState` is replaced; everything else in the registry is the real module. The
 // registry publishes a non-empty `reason` only for a socket that actually failed, which no
@@ -110,6 +112,7 @@ describe("SessionPane", () => {
     resetCockpit();
     createSessionMock.mockReset();
     restartSessionMock.mockReset();
+    reviewedContextMock.mockReset();
     attachState.current = { phase: "detached", attempts: 0, ladderStartedAt: 0, reason: "" };
   });
 
@@ -122,6 +125,48 @@ describe("SessionPane", () => {
       expect(screen.getByTestId("terminal").getAttribute("data-session")).toBe("s-1");
       view.unmount();
     }
+  });
+
+  it("distinguishes captured inputs from older live context without replacing the terminal", () => {
+    const implementationContext = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"], briefDigest: "brief-2", planDigest: "plan-3", specificationDigest: "spec-6", designPlanDigest: "design-8", worktreeId: "w-1", sourceCommit: "a".repeat(40), sourceDigest: "source-a", sourceDirty: false, taskTitles: ["Build editor"], requirementIds: ["R-EDIT"] };
+    const session = seed({ implementationContext });
+    render(<SessionPane sessionId={session.id} variant="column" />);
+    const terminal = screen.getByTestId("terminal");
+    expect(screen.getByRole("note", { name: "Agent context" }).textContent).toContain("A new reviewed run is needed to use captured inputs");
+    act(() => useCockpit.getState().upsertSession({ ...session, reviewedContextDelivery: { status: "captured", version: 1, digest: "a".repeat(64) } }));
+    expect(screen.getByRole("note", { name: "Agent context" }).textContent).toContain("Reviewed inputs were captured at start");
+    expect(screen.getByTestId("terminal")).toBe(terminal);
+    act(() => useCockpit.getState().upsertSession({ ...session, status: "exited", reviewedContextDelivery: { status: "legacy-live" } }));
+    expect(screen.getByRole("note", { name: "Agent context" }).textContent).toContain("A new reviewed run is needed to use captured inputs");
+    expect(screen.getByRole("note", { name: "Agent context" }).textContent).not.toContain("Stop it");
+    expect(screen.getByTestId("terminal")).toBe(terminal);
+    act(() => useCockpit.getState().upsertSession({ ...session, reviewedContextDelivery: { status: "captured", version: 1, digest: "" } }));
+    expect(screen.getByRole("note", { name: "Agent context" }).textContent).toContain("Context delivery is unconfirmed");
+  });
+
+  it("does not label a manual session as a reviewed-context delivery", () => {
+    const session = seed();
+    render(<SessionPane sessionId={session.id} variant="column" />);
+    expect(screen.queryByRole("note", { name: "Agent context" })).toBeNull();
+  });
+
+  it("keeps its terminal mounted and does not redirect dialog pointer or keyboard focus into the terminal", async () => {
+    const implementationContext = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"], briefDigest: "brief-2", planDigest: "plan-3", specificationDigest: "spec-6", designPlanDigest: "design-8", worktreeId: "w-1", sourceCommit: "", sourceDigest: "source-a", sourceDirty: false, taskTitles: ["Build editor"], requirementIds: [] };
+    const session = seed({ implementationContext, reviewedContextDelivery: { status: "captured", version: 1, digest: "a".repeat(64) } });
+    reviewedContextMock.mockResolvedValue({ sessionId: session.id, projectId: session.projectId, worktreeId: session.worktreeId, version: 1, digest: "a".repeat(64), implementationContext, document: { kind: "definition", sha256: "b".repeat(64), bytes: 40, value: { purpose: "Original editor context" } } });
+    render(<SessionPane sessionId={session.id} variant="column" />);
+    const terminal = screen.getByTestId("terminal"), input = screen.getByTestId("xterm");
+    const trigger = screen.getByRole("button", { name: "View reviewed context" }); trigger.focus();
+    await userEvent.keyboard("{Enter}");
+    const dialog = await screen.findByRole("dialog", { name: "Reviewed context" });
+    await userEvent.click(await within(dialog).findByText("Original editor context"));
+    expect(document.activeElement).not.toBe(input);
+    expect(within(dialog).getByLabelText("Captured document")).not.toBeNull();
+    expect(screen.getByTestId("terminal")).toBe(terminal);
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+    expect(screen.getByTestId("terminal")).toBe(terminal);
+    expect(createSessionMock).not.toHaveBeenCalled(); expect(restartSessionMock).not.toHaveBeenCalled();
   });
 
   it("wires stdin for every status except exited", () => {

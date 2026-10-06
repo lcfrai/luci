@@ -1,3 +1,4 @@
+import { workspacePath, teamScopePrefix, teamScopeGeneration } from './teamScope';
 // desktop/src/api/client.ts
 //
 // The typed control-plane client — contract §4. One exported function per Go endpoint;
@@ -12,6 +13,7 @@ import type {
   Effort,
   Harness,
   HarnessId,
+  ImplementationContext,
   ImplementationContextRequest,
   Machine,
   MachineId,
@@ -136,6 +138,8 @@ export interface CreateSessionRequest {
   /** Omitted uses the active connection; empty explicitly uses direct agent settings. */
   agentConnectionId?: string;
   implementationContext?: ImplementationContextRequest;
+  projectRunId?: string;
+  projectRunOperationId?: string;
 }
 
 export interface ListSessionsFilter {
@@ -143,6 +147,18 @@ export interface ListSessionsFilter {
   /** Repeated as ?status=running&status=idle, per Go contract §3.11. Four values and only
    *  four: a fifth is 400 bad_request server-side, which is why this is typed. */
   status?: SessionStatus[];
+}
+
+export type ReviewedContextDocument = "brief" | "definition" | "design" | "plan";
+/** Verified captured context from this session, never the current project documents. */
+export interface SessionReviewedContext {
+  sessionId: SessionId;
+  projectId: ProjectId;
+  worktreeId: WorktreeId;
+  version: 1;
+  digest: string;
+  implementationContext: ImplementationContext;
+  document: { kind: ReviewedContextDocument; sha256: string; bytes: number; value: unknown };
 }
 
 /** ws(s):// + the session's own attachPath. The path is taken from the session object and
@@ -194,6 +210,7 @@ export interface CockpitClient {
    *  zero pixels (§4.7). */
   listSessions(filter?: ListSessionsFilter): Promise<Session[]>;
   getSession(id: SessionId): Promise<Session>;
+  getSessionReviewedContext(id: SessionId, document: ReviewedContextDocument): Promise<SessionReviewedContext>;
   renameSession(id: SessionId, title: string): Promise<Session>;
   restartSession(id: SessionId): Promise<Session>;
   /** Idempotent: killing an exited session is a 200, not an error. */
@@ -320,7 +337,8 @@ export function createClient(opts?: ClientOptions): CockpitClient {
     // So a VITE_LUCI_API behind a path prefix would work for REST and silently break attach.
     // Nothing to fix while the base is loopback with no path, which is DEFAULT_BASE_URL. Whoever
     // first sets a prefixed base must pick one behaviour and change both ends together.
-    const url = baseUrl + route;
+    const scopeGeneration = teamScopeGeneration();
+    const url = baseUrl + workspacePath(route);
     const controller = new AbortController();
     // Our own flag rather than reading the abort reason: it is the only way to tell this
     // client's timeout from any other abort, and §4.2 keeps them two separate codes.
@@ -343,6 +361,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
         ),
         body: body === undefined ? undefined : JSON.stringify(body),
       });
+      if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed before this response arrived. Refresh its history before continuing.", 409);
       if (res.status === 401) expireAuth();
       // The body is read HERE, while the timer is still armed. Returning the Response and
       // letting the caller read it would clear the timer in `finally` first, and a server
@@ -355,6 +374,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
         statusText: res.statusText,
         text: await res.text(),
       };
+      if (scopeGeneration !== teamScopeGeneration()) throw new ApiError("conflict", "The workspace changed while this response was loading.", 409);
       if (!res.ok) throw toProblem(reply);
       return reply;
     } catch (cause) {
@@ -395,7 +415,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
     );
 
   return {
-    baseUrl,
+    get baseUrl() { return baseUrl + teamScopePrefix(); },
     health: () => get<Health>("/v1/healthz"),
     listMachines: async () =>
       (await get<{ machines: Machine[] }>("/v1/machines")).machines,
@@ -440,6 +460,7 @@ export function createClient(opts?: ClientOptions): CockpitClient {
       ).sessions;
     },
     getSession: (id) => get<Session>(sessionPath(id)),
+    getSessionReviewedContext: (id, document) => get<SessionReviewedContext>(`${sessionPath(id)}/reviewed-context?document=${encodeURIComponent(document)}`),
     renameSession: async (id, title) => {
       const trimmed = title.trim();
       if (trimmed === "") {
@@ -534,7 +555,15 @@ export function createClient(opts?: ClientOptions): CockpitClient {
     },
     attachUrl: (session) => attachUrl(baseUrl, session),
     openAttach: (session) => {
+      const scopeGeneration = teamScopeGeneration();
+      const attachedScope = session.attachPath.match(/^\/v1\/teams\/[^/]+\/workspace(?=\/)/)?.[0] ?? "";
+      if (attachedScope !== teamScopePrefix()) {
+        throw new ApiError("conflict", "The terminal belongs to another workspace. Select its workspace before attaching.", 409);
+      }
       const open = (ticket?: string) => {
+        if (scopeGeneration !== teamScopeGeneration()) {
+          throw new ApiError("conflict", "The workspace changed before terminal attachment.", 409);
+        }
         const url = new URL(attachUrl(baseUrl, session));
         if (ticket) url.searchParams.set("ticket", ticket);
         const socket = makeSocket(url.toString());

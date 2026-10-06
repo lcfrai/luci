@@ -21,9 +21,10 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
 	"github.com/lcfrai/luci/control-plane/internal/management"
 	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
+	"github.com/lcfrai/luci/control-plane/internal/registry"
 )
 
-const Version = "0.4.18"
+const Version = "0.5.0"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -44,6 +45,7 @@ type Options struct {
 	BranchSessions          func(context.Context, string, string) (bool, error)
 	CloudDataBindings       func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
 	BrowserPreviewPort      int
+	BrowserPreviewDomain    string
 	ManagedWorkspace        bool
 	CloudBundle             string
 	Shutdown                func()
@@ -58,50 +60,58 @@ type Options struct {
 }
 
 type Server struct {
-	nativePrototypeReleases func(context.Context, string) ([]Release, error)
-	clearBranchReady        func(context.Context, string) error
-	branchSessions          func(context.Context, string, string) (bool, error)
-	branchGuardMu           sync.Mutex
-	branchGuards            map[string]*sync.RWMutex
-	branchRunner            Runner
-	cloudDataBindings       func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
-	browserRegistry         *previewgateway.Registry
-	cloudBundle             string
-	workspace               Workspace
-	workspaceInstalls       map[string]WorkspaceInstall
-	workspaceCancel         context.CancelFunc
-	workspaceContext        context.Context
-	remoteStatus            *Status
-	workspaceAuth           map[string]workspaceCredential
-	previews                map[string]*workspacePreview
-	shutdown                func()
-	agentAPIKey             string
-	agentOpenAIKey          string
-	agentLocal              LocalAgentConfig
-	agentConnections        agentConnectionStore
-	activeLocalReleases     map[string]bool
-	deliveryBusy            map[string]bool
-	projectChecks           map[string]*projectCheckJob
-	runtimeJob              RuntimeJob
-	authJobs                map[string]*ProviderLoginJob
-	runtimeDir              string
-	mu                      sync.RWMutex
-	functionSourceMu        sync.RWMutex
-	config                  Config
-	stateDir                string
-	runner                  Runner
-	configure               func(string) error
-	sandboxImage            string
-	checkMemoryMiB          int
-	checkCPUMillis          int
-	configured              bool
-	managedWorkspace        bool
-	checks                  []Check
-	plans                   map[string]CloudPlan
-	jobs                    map[string]CloudJob
-	targets                 map[string]DeploymentTarget
-	scans                   map[string]SSHScan
-	tunnels                 map[string]*Tunnel
+	projectRuns                     *ProjectRunStore
+	projectRunDispatchMu            sync.Mutex
+	projectRunSelectionResolver     func(context.Context, ProjectRunSelectionRequest) (ProjectRunSelection, error)
+	projectRunSessionObserver       func(context.Context, string, string, string) ([]registry.Session, error)
+	projectRunNativeReleaseObserver func(context.Context, string, string) (ProjectRunNativeReleaseObservation, error)
+	nativePrototypeReleases         func(context.Context, string) ([]Release, error)
+	clearBranchReady                func(context.Context, string) error
+	branchSessions                  func(context.Context, string, string) (bool, error)
+	branchGuardMu                   sync.Mutex
+	branchGuards                    map[string]*sync.RWMutex
+	branchRunner                    Runner
+	cloudDataBindings               func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
+	browserRegistry                 *previewgateway.Registry
+	cloudBundle                     string
+	workspace                       Workspace
+	workspaceInstalls               map[string]WorkspaceInstall
+	workspaceCancel                 context.CancelFunc
+	workspaceContext                context.Context
+	remoteStatus                    *Status
+	workspaceAuth                   map[string]workspaceCredential
+	previews                        map[string]*workspacePreview
+	shutdown                        func()
+	agentAPIKey                     string
+	agentOpenAIKey                  string
+	agentLocal                      LocalAgentConfig
+	agentConnections                agentConnectionStore
+	activeLocalReleases             map[string]bool
+	deliveryBusy                    map[string]bool
+	importMu                        sync.Mutex
+	importNames                     map[string]bool
+	importActive                    map[string]bool
+	projectChecks                   map[string]*projectCheckJob
+	runtimeJob                      RuntimeJob
+	authJobs                        map[string]*ProviderLoginJob
+	runtimeDir                      string
+	mu                              sync.RWMutex
+	functionSourceMu                sync.RWMutex
+	config                          Config
+	stateDir                        string
+	runner                          Runner
+	configure                       func(string) error
+	sandboxImage                    string
+	checkMemoryMiB                  int
+	checkCPUMillis                  int
+	configured                      bool
+	managedWorkspace                bool
+	checks                          []Check
+	plans                           map[string]CloudPlan
+	jobs                            map[string]CloudJob
+	targets                         map[string]DeploymentTarget
+	scans                           map[string]SSHScan
+	tunnels                         map[string]*Tunnel
 }
 
 func New(opts Options) (*Server, error) {
@@ -121,7 +131,7 @@ func New(opts Options) (*Server, error) {
 		config: Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30}}
 	if opts.BrowserPreviewPort != 0 {
 		var err error
-		s.browserRegistry, err = previewgateway.NewRegistry(opts.StateDir, opts.BrowserPreviewPort)
+		s.browserRegistry, err = previewgateway.NewRegistryWithDomain(opts.StateDir, opts.BrowserPreviewPort, opts.BrowserPreviewDomain)
 		if err != nil {
 			return nil, err
 		}
@@ -185,6 +195,11 @@ func New(opts Options) (*Server, error) {
 	if err := s.initWorkspace(); err != nil {
 		return nil, fmt.Errorf("read workspace: %w", err)
 	}
+	var runErr error
+	s.projectRuns, runErr = NewProjectRunStore(s.stateDir)
+	if runErr != nil {
+		return nil, fmt.Errorf("open project run storage: %w", runErr)
+	}
 	return s, nil
 }
 
@@ -214,6 +229,7 @@ func (s *Server) Register(mux Registrar) {
 	s.registerDelivery(mux)
 	s.registerBackups(mux)
 	s.registerProjectWork(mux)
+	s.registerProjectRuns(mux)
 	s.registerApplicationConfiguration(mux)
 }
 
@@ -290,7 +306,11 @@ func newID(prefix string) string {
 
 // RunCommand never invokes a shell. Output and duration are bounded, including child pipe drains.
 func RunCommand(ctx context.Context, executable string, args []string, dir string) (string, error) {
-	return runCommandEnvironment(ctx, executable, args, dir, append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "AWS_PAGER=", "AZURE_CORE_ONLY_SHOW_ERRORS=true"))
+	env := append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "AWS_PAGER=", "AZURE_CORE_ONLY_SHOW_ERRORS=true")
+	if executable == "git" {
+		env = journeyGitEnvironment(ctx, env)
+	}
+	return runCommandEnvironment(ctx, executable, args, dir, env)
 }
 
 func runCommandEnvironment(ctx context.Context, executable string, args []string, dir string, env []string) (string, error) {

@@ -19,6 +19,7 @@ import {
   selectWorktrees,
 } from "../../store/selectors";
 import { useCreateSession } from "../../hooks/useCreateSession";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { Popover } from "../common/Popover";
 import { SessionMenu, anchorRectFor } from "../develop/SessionMenu";
 import { sessionVerbs, useWorktreeReadyPending, worktreeReadyItems } from "../develop/sessionVerbs";
@@ -78,7 +79,10 @@ export function ContextMenu(): JSX.Element {
   const branchWorktree = useCockpit((s) =>
     branch === undefined ? undefined : selectWorktrees(branch.id)(s)[0],
   );
-  const createSession = useCreateSession();
+  const sessionProjectId = useCockpit(state => target?.kind === "session" ? state.sessions[target.id]?.projectId ?? "" : "");
+  const projectId = project?.id ?? branch?.projectId ?? worktree?.projectId ?? sessionProjectId;
+  const access = useProjectAccess(projectId);
+  const createSession = useCreateSession(projectId);
 
   // A context menu anchors to a POINT, so the rect is zero-sized. Popover's clamp then does
   // the right thing at a screen edge without a second positioning implementation.
@@ -187,6 +191,7 @@ export function ContextMenu(): JSX.Element {
 
   const sessionItems = (id: string): MenuItem[] => {
     return sessionVerbs(id, {
+      access,
       createSession,
       close: closeContextMenu,
       // TWO STEPS, AND THAT IS INTENDED. From the rail, Rename… closes this menu and opens the
@@ -211,7 +216,7 @@ export function ContextMenu(): JSX.Element {
     });
   };
 
-  const items =
+  const ungatedItems =
     target === null
       ? []
       : target.kind === "project"
@@ -221,6 +226,14 @@ export function ContextMenu(): JSX.Element {
           : target.kind === "worktree"
             ? worktreeItems()
             : sessionItems(target.id);
+  const items = ungatedItems.map(item => {
+    if (target?.kind === "session") return item;
+    const execute = ["new-session", "new-shell", "branch-defaults"].includes(item.id);
+    const edit = ["new-branch", "switch-branch", "mark-ready"].includes(item.id);
+    return execute && !access.canExecute || edit && !access.canEdit
+      ? { ...item, run: undefined, disabledReason: access.message || "Your project permissions do not allow this action." }
+      : item;
+  });
 
   // A fragment rather than an early return: the ⋯ menu must be able to open while no
   // right-click menu is up, which is the normal case. The return type narrows from

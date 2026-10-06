@@ -55,7 +55,7 @@ func TestWindowsLongProjectPathsAcrossJourneyScannerAndArchive(t *testing.T) {
 		t.Fatal(err)
 	}
 	base := "/v1/product/projects/" + p.ID
-	journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Commit under the managed long path"}, 200)
+	journeyRequest(t, mux, "POST", base+"/git/commit", reviewedCommitRequest(t, mux, base+"/git/commit", "Commit under the managed long path"), 200)
 	status := journeyRequest(t, mux, "GET", base+"/git", nil, 200)
 	var summary GitSummary
 	if err := json.Unmarshal(status.Body.Bytes(), &summary); err != nil {

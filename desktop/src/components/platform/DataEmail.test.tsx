@@ -2,6 +2,11 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { DataEmail } from "./DataEmail";
 import { dataEmailApi, type DataEmailStatus } from "../../api/dataEmail";
+const access = vi.hoisted(() => ({ read: true, edit: true, deploy: true, secrets: true, loading: false, error: null as string | null, scope: "owned-account" }));
+vi.mock("../../hooks/useProjectAccess", () => ({ useProjectAccess: () => ({ loading: access.loading, error: access.error, canRead: access.read,
+  canEdit: !access.loading && !access.error && access.read && access.edit, permissions: { ...access } }) }));
+vi.mock("../../hooks/useProjectDraft", () => ({ useProjectDraftScope: (id: string) => `${access.scope}:${id}` }));
+beforeEach(() => { Object.assign(access, { read: true, edit: true, deploy: true, secrets: true, loading: false, error: null, scope: "owned-account" }); });
 vi.mock("../../api/dataEmail", () => ({ dataEmailApi: { status: vi.fn(), action: vi.fn() } }));
 const empty: DataEmailStatus = {
   projectId: "owned", status: "unconfigured", message: "Email is not configured.", revision: 0, appliedRevision: 0,
@@ -122,4 +127,51 @@ it("ignores a late operation after switching projects and rejects foreign readba
   vi.mocked(dataEmailApi.status).mockResolvedValue({ ...empty, projectId: "foreign" });
   fireEvent.click(screen.getByRole("button", { name: "Refresh email status" }));
   expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("could not verify this project's email"));
+});
+
+it("keeps SMTP drafts through permission refresh and separates private reads from email mutations", async () => {
+  const view = render(<DataEmail projectId="owned" ready />); await fill();
+  const password = screen.getByLabelText("SMTP password") as HTMLInputElement;
+  access.loading = true; access.deploy = false; access.secrets = false;
+  view.rerender(<DataEmail projectId="owned" ready />);
+  expect(screen.getByLabelText("SMTP password")).toBe(password); expect(password.value).toBe("private-mail-password");
+  expect((screen.getByRole("button", { name: "Save email settings" }) as HTMLButtonElement).disabled).toBe(true);
+  access.loading = false; access.deploy = true; access.secrets = true; access.edit = false;
+  view.rerender(<DataEmail projectId="owned" ready />);
+  fireEvent.submit(screen.getByLabelText("SMTP server").closest("form")!);
+  fireEvent.click(screen.getByRole("button", { name: "Refresh email status" }));
+  await waitFor(() => expect(dataEmailApi.status).toHaveBeenCalledTimes(2));
+  expect(dataEmailApi.action).not.toHaveBeenCalled();
+  access.secrets = false; view.rerender(<DataEmail projectId="owned" ready />);
+  expect(screen.queryByLabelText("SMTP password")).toBeNull();
+});
+it("does not accept a delayed SMTP save after editing is revoked and restored", async () => {
+  let finish!: (value: DataEmailStatus) => void;
+  vi.mocked(dataEmailApi.action).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const changed = vi.fn(), view = render(<DataEmail projectId="owned" ready onChange={changed} />); await fill();
+  changed.mockClear(); fireEvent.click(screen.getByRole("button", { name: "Save email settings" }));
+  access.edit = false; view.rerender(<DataEmail projectId="owned" ready onChange={changed} />);
+  access.edit = true; view.rerender(<DataEmail projectId="owned" ready onChange={changed} />);
+  await act(async () => finish(saved));
+  expect(changed).not.toHaveBeenCalled(); expect(screen.queryByText("Settings saved privately.")).toBeNull();
+  expect((screen.getByRole("button", { name: "Save email settings" }) as HTMLButtonElement).disabled).toBe(false);
+});
+it("does not request private SMTP configuration without secrets access", () => {
+  access.secrets = false; render(<DataEmail projectId="owned" ready />);
+  expect(dataEmailApi.status).not.toHaveBeenCalled(); expect(screen.queryByLabelText("SMTP server")).toBeNull();
+});
+it("retains an in-progress SMTP draft through a transient access failure without retaining authority", async () => {
+  const view = render(<DataEmail projectId="owned" ready />); await fill();
+  const host = screen.getByLabelText("SMTP server") as HTMLInputElement, password = screen.getByLabelText("SMTP password") as HTMLInputElement;
+  access.error = "Network unavailable"; access.deploy = false; access.secrets = false;
+  view.rerender(<DataEmail projectId="owned" ready />);
+  expect(screen.getByLabelText("SMTP server")).toBe(host); expect(host.value).toBe("smtp.example.test"); expect(password.value).toBe("private-mail-password");
+  expect(screen.getByText(/Data access unavailable: Network unavailable/)).not.toBeNull();
+  expect((screen.getByRole("button", { name: "Refresh email status" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.submit(host.closest("form")!); expect(dataEmailApi.action).not.toHaveBeenCalled(); expect(dataEmailApi.status).toHaveBeenCalledTimes(1);
+  access.error = null; access.loading = true; view.rerender(<DataEmail projectId="owned" ready />);
+  expect(screen.getByLabelText("SMTP password")).toBe(password);
+  access.loading = false; access.deploy = true; access.secrets = true; view.rerender(<DataEmail projectId="owned" ready />);
+  expect(screen.getByLabelText("SMTP server")).toBe(host); expect((screen.getByRole("button", { name: "Save email settings" }) as HTMLButtonElement).disabled).toBe(false);
+  expect(dataEmailApi.action).not.toHaveBeenCalled();
 });

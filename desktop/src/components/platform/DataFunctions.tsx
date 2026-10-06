@@ -3,6 +3,7 @@ import { dataFunctionsApi, type FunctionAction, type FunctionAuth, type Function
 import { errorText } from "../../api/product";
 import { useCockpit } from "../../store/store";
 import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
+import { useDataAccess } from "./useDataAccess";
 import { Button } from "../fluid/components/button";
 import { TabsSubtle, TabsSubtleItem, TabsSubtlePanel } from "../fluid/components/tabs-subtle";
 import "./data-functions.css";
@@ -16,9 +17,13 @@ const validName = (name: string) => /^[a-z][a-z0-9-]{0,62}$/.test(name) && !["ma
 const authLabel = (mode: FunctionAuth) => mode === "authenticated" ? "Signed-in app users" : "Project key";
 
 export function DataFunctions(props: { projectId: string; ready: boolean; locked?: boolean }) {
-  return <ProjectFunctions key={props.projectId} {...props} />;
+  const access = useDataAccess(props.projectId);
+  if (!access.showPrivate) return <p role="status">{access.message}</p>;
+  return <ProjectFunctions key={access.scope} {...props} />;
 }
 function ProjectFunctions({ projectId, ready, locked = false }: { projectId: string; ready: boolean; locked?: boolean }) {
+  const access = useDataAccess(projectId);
+  const accessRef = useRef(access); accessRef.current = access;
   const alive = useRef(true), flight = useRef(false), generation = useRef(0);
   const [catalog, setCatalog] = useState<FunctionCatalog | null>(null);
   const [selected, setSelected] = useState("");
@@ -32,20 +37,22 @@ function ProjectFunctions({ projectId, ready, locked = false }: { projectId: str
     setSelected(current => current || value.functions.find(item => !item.builtin)?.name || value.functions[0]?.name || "");
   }, [projectId]);
   const load = useCallback(async () => {
+    if (!accessRef.current.canRead) return;
+    const current = accessRef.current.capture();
     const ticket = ++generation.current;
-    try { const value = await dataFunctionsApi.catalog(projectId); if (alive.current && ticket === generation.current) { accept(value); setError(""); } }
-    catch (cause) { if (alive.current && ticket === generation.current) setError(errorText(cause)); }
+    try { const value = await dataFunctionsApi.catalog(projectId); if (alive.current && ticket === generation.current && current()) { accept(value); setError(""); } }
+    catch (cause) { if (alive.current && ticket === generation.current && current()) setError(errorText(cause)); }
   }, [projectId, accept]);
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; generation.current++; }; }, [load]);
   const running = catalog?.operation?.status === "running";
   useEffect(() => {
-    if (!running) return;
+    if (!running || !access.canRead) return;
     let inFlight = false;
     const timer = window.setInterval(() => { if (inFlight) return; inFlight = true; void load().finally(() => { inFlight = false; }); }, 2000);
     return () => window.clearInterval(timer);
-  }, [running, load]);
-  const busy = locked || !!pending || !!running;
-  const canManage = !!catalog?.canManage && !!catalog.customPublishing;
+  }, [running, load, access.canRead]);
+  const busy = locked || !!pending || !!running || !access.canRead;
+  const canManage = !!catalog?.canManage && !!catalog.customPublishing && access.canWrite;
   const summary = catalog?.functions.find(item => item.name === selected);
   function choose(next: string) {
     if (busy || next === selected) return;
@@ -53,23 +60,25 @@ function ProjectFunctions({ projectId, ready, locked = false }: { projectId: str
     setSelected(next); setCreating(false); setError("");
   }
   async function create() {
-    if (!canManage || busy || flight.current || !validName(name)) return;
+    if (!canManage || !accessRef.current.canWrite || busy || flight.current || !validName(name)) return;
+    const current = access.capture();
     flight.current = true; generation.current++; setPending("create"); setError("");
     try {
       const source = await dataFunctionsApi.save(projectId, name, { expectedDigest: "", authMode: "authenticated", files: [{ path: "index.ts", content: starter }] });
-      if (!alive.current) return;
+      if (!alive.current || !current()) return;
       if (source.name !== name || !source.sourceDigest) throw new Error("Luci could not verify the saved function. Refresh its source.");
       setSelected(name); setName(""); setCreating(false); setDirty(false); await load();
-    } catch (cause) { if (alive.current) setError(errorText(cause)); }
+    } catch (cause) { if (alive.current && current()) setError(errorText(cause)); }
     finally { flight.current = false; if (alive.current) setPending(""); }
   }
   async function action(name: string, input: Omit<FunctionAction, "expectedRevision">) {
-    if (!catalog || !canManage || busy || flight.current || (input.action !== "refresh" && !ready)) return;
+    if (!catalog || !canManage || !accessRef.current.canWrite || busy || flight.current || (input.action !== "refresh" && !ready)) return;
+    const current = access.capture();
     flight.current = true; generation.current++; setPending(input.action); setError("");
     try {
       const value = await dataFunctionsApi.action(projectId, name, { ...input, expectedRevision: catalog.revision });
-      if (alive.current) accept(value);
-    } catch (cause) { if (alive.current) setError(errorText(cause)); }
+      if (alive.current && current()) accept(value);
+    } catch (cause) { if (alive.current && current()) setError(errorText(cause)); }
     finally { flight.current = false; if (alive.current) setPending(""); }
   }
   return <section className="data-section functions-workspace" aria-label="Data functions">
@@ -78,9 +87,10 @@ function ProjectFunctions({ projectId, ready, locked = false }: { projectId: str
       {canManage && catalog?.operation?.status === "failed" && <Button variant="secondary" disabled={busy || !ready} onClick={() => { if (catalog.operation) void action(catalog.operation.name, { action: "refresh" }); }}>Check function state</Button>}
       {canManage && <Button disabled={busy || dirty} onClick={() => { setCreating(true); setError(""); }}>New function</Button>}
     </div></header>
+    {access.message && <p role="status">{access.message}</p>}
     {error && <p role="alert" className="journey-error">{error}</p>}
     {!catalog && !error && <p role="status">Loading saved functions…</p>}
-    {catalog && !canManage && <p>An Admin manages function source and releases.</p>}
+    {catalog && (!catalog.canManage || !catalog.customPublishing) && <p>An Admin manages function source and releases.</p>}
     {!ready && <p className="functions-note">You can prepare function source now. Start your data services when you are ready to publish or test.</p>}
     {catalog?.operation && <p role="status" className="functions-note"><strong>{catalog.operation.status === "running" ? "Updating function…" : catalog.operation.status === "failed" ? "Function needs attention." : "Function updated."}</strong> {catalog.operation.message}</p>}
     {creating && <form className="functions-new" onSubmit={event => { event.preventDefault(); void create(); }}>
@@ -103,6 +113,8 @@ interface EditorProps {
   onAction(name: string, input: Omit<FunctionAction, "expectedRevision">): Promise<void>;
 }
 function FunctionEditor({ projectId, summary, ready, busy, canManage, onDirty, onSaved, onAction }: EditorProps) {
+  const access = useDataAccess(projectId);
+  const accessRef = useRef(access); accessRef.current = access;
   const alive = useRef(true), flight = useRef(false), changed = useRef(false), generation = useRef(0);
   const [source, setSource] = useState<FunctionSource | null>(null), [files, setFiles] = useState<FunctionFile[]>([]);
   const [authMode, setAuthMode] = useState<FunctionAuth>("authenticated"), [file, setFile] = useState("index.ts");
@@ -119,26 +131,29 @@ function FunctionEditor({ projectId, summary, ready, busy, canManage, onDirty, o
     changed.current = false; setDirty(false); dirtyCallback.current(false);
   }, [summary.name]);
   const load = useCallback(async () => {
+    if (!accessRef.current.canRead) return;
+    const current = accessRef.current.capture();
     const ticket = ++generation.current;
-    try { const value = await dataFunctionsApi.source(projectId, summary.name); if (alive.current && ticket === generation.current) { if (!changed.current) accept(value); setError(""); } }
-    catch (cause) { if (alive.current && ticket === generation.current) setError(errorText(cause)); }
+    try { const value = await dataFunctionsApi.source(projectId, summary.name); if (alive.current && ticket === generation.current && current()) { if (!changed.current) accept(value); setError(""); } }
+    catch (cause) { if (alive.current && ticket === generation.current && current()) setError(errorText(cause)); }
   }, [projectId, summary.name, accept]);
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; generation.current++; }; }, [load]);
   useEffect(() => { setExecute(false); setRollbackAck(false); setRemove(false); setResponse(null); setToken(""); }, [summary.active?.releaseId]);
-  const locked = busy || !!pending;
-  const editable = canManage && !summary.builtin && !locked;
+  const locked = busy || !!pending || !access.canRead;
+  const editable = canManage && access.canWrite && !summary.builtin && !locked;
   const published = summary.builtin || !!summary.active;
   const committed = !!source?.commit && !!source.committedDigest && source.committedDigest === source.sourceDigest && !source.workingChanged;
   const unchangedRelease = !!summary.active && summary.active.sourceDigest === source?.sourceDigest;
   const testAuth = summary.active?.authMode || (summary.builtin ? "project-key" : source?.authMode || "authenticated");
   function edit() { changed.current = true; setDirty(true); onDirty(true); setExecute(false); }
   async function save() {
-    if (!source || !editable || flight.current || !dirty) return;
+    if (!source || !editable || !accessRef.current.canWrite || flight.current || !dirty) return;
+    const current = access.capture();
     flight.current = true; generation.current++; setPending("save"); setError("");
     try {
       const value = await dataFunctionsApi.save(projectId, summary.name, { expectedDigest: source.sourceDigest, authMode, files: files.filter(item => item.path !== "luci.function.json") });
-      if (!alive.current) return; accept(value); await onSaved();
-    } catch (cause) { if (alive.current) setError(errorText(cause)); }
+      if (!alive.current || !current()) return; accept(value); await onSaved();
+    } catch (cause) { if (alive.current && current()) setError(errorText(cause)); }
     finally { flight.current = false; if (alive.current) setPending(""); }
   }
   async function publish() {
@@ -147,7 +162,8 @@ function FunctionEditor({ projectId, summary, ready, busy, canManage, onDirty, o
     flight.current = false; if (alive.current) setPending("");
   }
   async function invoke() {
-    if (!ready || locked || !published || flight.current || (testAuth === "authenticated" && !token)) return;
+    if (!ready || locked || !accessRef.current.canWrite || !published || flight.current || (testAuth === "authenticated" && !token)) return;
+    const current = access.capture();
     let input: unknown;
     try { input = JSON.parse(request); if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Enter a JSON object for the function request."); }
     catch (cause) { setError(errorText(cause)); return; }
@@ -155,10 +171,10 @@ function FunctionEditor({ projectId, summary, ready, busy, canManage, onDirty, o
     const submittedToken = token; setToken("");
     try {
       const value = await dataFunctionsApi.invoke(projectId, summary.name, input as Record<string, unknown>, submittedToken || undefined);
-      if (!alive.current) return;
+      if (!alive.current || !current()) return;
       if (value.function !== summary.name || !Number.isInteger(value.statusCode)) throw new Error("Luci could not verify the function response. Check its outcome before retrying.");
       setResponse(value);
-    } catch (cause) { if (alive.current) setError(errorText(cause)); }
+    } catch (cause) { if (alive.current && current()) setError(errorText(cause)); }
     finally { flight.current = false; if (alive.current) setPending(""); }
   }
   async function releaseAction(action: "rollback" | "remove") {
@@ -170,6 +186,7 @@ function FunctionEditor({ projectId, summary, ready, busy, canManage, onDirty, o
   return <section aria-label={`Function ${summary.name}`}>
     <header className="functions-title"><h4>{summary.name}</h4><span>{summary.builtin ? "Built-in example" : summary.active ? "Published" : "Draft"}</span></header>
     <TabsSubtle aria-label="Function tools" idPrefix={id} selectedIndex={tab} onSelect={setTab}>{["Code", "Test", "Releases"].map((label, index) => <TabsSubtleItem key={label} label={label} index={index} />)}</TabsSubtle>
+    {access.message && <p role="status">{access.message}</p>}
     {error && <p role="alert" className="journey-error">{error}</p>}
     {!source && !error && <p role="status">Loading function source…</p>}
     <TabsSubtlePanel idPrefix={id} index={0} selectedIndex={tab}>
@@ -195,7 +212,7 @@ function FunctionEditor({ projectId, summary, ready, busy, canManage, onDirty, o
         {dirty && <p>Your editor has unsaved changes. This test uses the published version.</p>}
         <label>Function request<textarea rows={4} maxLength={65536} value={request} disabled={locked} onChange={event => setRequest(event.target.value)} /></label>
         {testAuth === "authenticated" && <label>Application user session token<input type="password" required autoComplete="off" maxLength={4096} value={token} disabled={locked} onChange={event => setToken(event.target.value)} /><small>Use an access token from a signed-in user of this app. It clears after the request. Luci login and server administrator keys are not accepted.</small></label>}
-        <Button type="submit" loading={pending === "invoke"} disabled={!ready || locked || (testAuth === "authenticated" && !token)}>Invoke {summary.name}</Button>
+        <Button type="submit" loading={pending === "invoke"} disabled={!ready || locked || !access.canWrite || (testAuth === "authenticated" && !token)}>Invoke {summary.name}</Button>
       </form>}
       {response && <div className="functions-response" role="status"><p>HTTP {response.statusCode} · {response.durationMs} ms</p>{response.statusCode === 401 && <p>Sign in to your application and use its current session token, then explicitly test again.</p>}<pre className="journey-code" aria-label="Function response">{typeof response.result === "string" ? response.result : JSON.stringify(response.result, null, 2)}</pre></div>}
     </TabsSubtlePanel>

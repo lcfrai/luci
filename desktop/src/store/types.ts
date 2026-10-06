@@ -180,6 +180,14 @@ export interface Session {
   agentConnectionKind?: string;
   agentConnectionProtocol?: string;
   implementationContext?: ImplementationContext;
+  /** Recorded delivery at allocation, not a live filesystem integrity check. */
+  reviewedContextDelivery?: {
+    status: "captured" | "legacy-live";
+    version?: number;
+    digest?: string;
+  };
+  projectRunId?: string;
+  projectRunOperationId?: string;
   /** Free text for the user: "killed", "process exited", "idle timeout",
    *  "sandbox disappeared while the app was not running". Rendered verbatim. */
   exitReason: string;

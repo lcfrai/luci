@@ -59,10 +59,11 @@ async function launch() {
     // Resolve runtime configuration before either API singleton is constructed.
     const { default: App } = await import("./App");
     const { AuthProvider } = await import("./components/auth/AuthProvider");
+    const { TeamWorkspaceProvider } = await import("./components/teams/TeamWorkspaceProvider");
     root.render(
       <React.StrictMode>
         <AuthProvider>
-          <FluidProvider><App /></FluidProvider>
+          <FluidProvider><TeamWorkspaceProvider><App /></TeamWorkspaceProvider></FluidProvider>
         </AuthProvider>
       </React.StrictMode>,
     );

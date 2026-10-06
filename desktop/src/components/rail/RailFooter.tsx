@@ -5,6 +5,7 @@ import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import { useAuth } from "../auth/AuthProvider";
 import "./rail.css";
+import { TeamWorkspaceControl } from "../teams/TeamWorkspaceControl";
 
 export function RailFooter(): JSX.Element {
   const setup = useSetup();
@@ -13,6 +14,7 @@ export function RailFooter(): JSX.Element {
 
   return (
     <div className="rail-footer">
+      <TeamWorkspaceControl />
       <div>
         <button
           className="rail-settings"

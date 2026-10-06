@@ -16,6 +16,9 @@ import {
   releaseAttach,
 } from "./api/attachRegistry";
 import { ApiError } from "./api/client";
+import { productApi, type SetupStatus } from "./api/product";
+import { projectRunsApi } from "./api/projectRuns";
+import { completeOnboardingVisit, onboardingKey } from "./preferences/onboarding";
 import type { CockpitClient } from "./api/client";
 import { POLL_INTERVAL_MS } from "./api/poller";
 import { resetCockpit, useCockpit } from "./store/store";
@@ -168,6 +171,17 @@ beforeEach(() => {
   server.failing.clear();
   server.hanging.clear();
   server.worktreeArgs = [];
+  // Setup and the project-run card have independent read clients. Keep them on
+  // this fixture too: real HTTP cannot settle reliably on the fake poll clock.
+  vi.spyOn(productApi, "status").mockImplementation(async () => {
+    if (server.fail) throw server.fail;
+    const status: SetupStatus = { product: "Luci", version: "0.4.18", platform: "linux", configured: true,
+      config: { projectsDir: "/fixture/projects", mode: "local", cloudProvider: "", region: "", domain: "", monthlyBudgetUsd: 0 },
+      checks: [], cloudProviders: [] };
+    completeOnboardingVisit(onboardingKey(status));
+    return status;
+  });
+  vi.spyOn(projectRunsApi, "list").mockResolvedValue([]);
   for (const key of Object.keys(server.calls) as (keyof typeof server.calls)[]) {
     server.calls[key] = 0;
   }

@@ -28,8 +28,12 @@ func (a *API) registerAssistance(mux *routes) {
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist", a.handleAssistCreate)
 	mux.HandleFunc("GET /v1/product/projects/{id}/assist", a.handleAssistList)
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist/repository", a.handleRepositoryAnalysis)
+	mux.HandleFunc("GET /v1/product/projects/{id}/assist/repository/requests/{requestId}", a.handleRepositoryAnalysisRequest)
+	mux.HandleFunc("POST /v1/product/projects/{id}/assist/orchestrator", a.handleOrchestratorCreate)
+	mux.HandleFunc("POST /v1/product/projects/{id}/orchestrator/resolve", a.handleOrchestratorResolve)
 	mux.HandleFunc("GET /v1/product/projects/{id}/assist/{jobId}", a.handleAssistGet)
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist/{jobId}/cancel", a.handleAssistCancel)
+	mux.HandleFunc("POST /v1/product/projects/{id}/assist/{jobId}/reconcile", a.handleOrchestratorReconcile)
 	mux.HandleFunc("POST /v1/product/projects/{id}/assist/{jobId}/apply", a.handleAnalysisApply)
 	// Startup recovery never repeats an inference. A durable in-flight record
 	// only reconnects to its already-owned sandbox or reports interruption.
@@ -37,10 +41,7 @@ func (a *API) registerAssistance(mux *routes) {
 }
 
 func (a *API) assistDirectory(relative string) (string, error) {
-	if _, err := hostpath.ResolveOutside(a.projectsDir(), a.deps.ConversationsDir); err != nil {
-		return "", err
-	}
-	if err := os.MkdirAll(a.deps.ConversationsDir, 0700); err != nil {
+	if err := a.prepareAssistRoot(); err != nil {
 		return "", err
 	}
 	root, err := os.OpenRoot(a.deps.ConversationsDir)
@@ -61,6 +62,58 @@ func (a *API) assistDirectory(relative string) (string, error) {
 	return dir, nil
 }
 
+// A fresh installation has no conversation root yet. Validate the existing
+// ancestor before creating anything: resolving only after MkdirAll would let a
+// path through a project create private state inside an agent-controlled tree.
+// ResolveOutside checks every link hop, including one which exits the project
+// again. Lstat preserves dangling links as errors rather than missing parents.
+func (a *API) prepareAssistRoot() error {
+	if a.deps.ConversationsDir == "" {
+		return errors.New("private assistant state directory is required")
+	}
+	dir, err := filepath.Abs(a.deps.ConversationsDir)
+	if err != nil {
+		return err
+	}
+	ancestor := dir
+	for {
+		if _, err = os.Lstat(ancestor); err == nil {
+			break
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		parent := filepath.Dir(ancestor)
+		if parent == ancestor {
+			return err
+		}
+		ancestor = parent
+	}
+	if _, err = hostpath.ResolveOutside(a.projectsDir(), ancestor); err != nil {
+		return err
+	}
+	if ancestor != dir {
+		root, err := os.OpenRoot(ancestor)
+		if err != nil {
+			return err
+		}
+		defer root.Close()
+		relative, err := filepath.Rel(ancestor, dir)
+		if err != nil {
+			return err
+		}
+		if err = root.MkdirAll(relative, 0700); err != nil {
+			return err
+		}
+	}
+	if _, err = hostpath.ResolveOutside(a.projectsDir(), dir); err != nil {
+		return err
+	}
+	if err = codexRegularPath(dir, dir); err != nil {
+		return err
+	}
+	return codexPrivateDir(dir)
+}
+
 func (a *API) assistanceStore() *assistance.Store {
 	a.assistMu.Lock()
 	defer a.assistMu.Unlock()
@@ -78,7 +131,7 @@ func (a *API) assistanceStore() *assistance.Store {
 			if err != nil {
 				return err
 			}
-			return codexAtomicPrivate(filepath.Join(dir, id+".json"), b)
+			return writeAssistanceReceipt(filepath.Join(dir, id+".json"), b)
 		})
 	}
 	return a.assistStore
@@ -310,7 +363,7 @@ func (a *API) assistJob(w http.ResponseWriter, r *http.Request) (assistance.Job,
 }
 func (a *API) handleAssistGet(w http.ResponseWriter, r *http.Request) {
 	if job, ok := a.assistJob(w, r); ok {
-		httpx.WriteJSON(w, 200, job)
+		writeAssistanceJob(w, r, 200, job)
 	}
 }
 func (a *API) handleAssistCancel(w http.ResponseWriter, r *http.Request) {
@@ -338,7 +391,8 @@ func (a *API) handleAssistCancel(w http.ResponseWriter, r *http.Request) {
 			cancel()
 		}
 	}
-	httpx.WriteJSON(w, 200, job)
+	a.completeOrchestratorJob(job)
+	writeAssistanceJob(w, r, 200, job)
 }
 
 func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job assistance.Job, spec *backend.Spec) {
@@ -348,13 +402,18 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 	contextRef := "luci:define-assist"
 	if job.Kind == "repository" {
 		contextRef = "luci:repository-analysis"
+	} else if job.Kind == "orchestrator" {
+		contextRef = "luci:orchestrator"
 	}
 	if err != nil || session.ContextRef != contextRef || session.ProjectID != job.ProjectID || session.WorktreeID != assistWorktree || (job.Harness != "" && (session.Harness != job.Harness || session.Model != job.Model || session.AuthMode != job.AuthMode)) || session.AgentConnectionID != job.AgentConnectionID || session.AgentConnectionRevision != job.AgentConnectionRevision || session.AgentConnectionKind != job.AgentConnectionKind || session.AgentConnectionProtocol != job.AgentConnectionProtocol {
-		_, _ = a.assistanceStore().Update(job.ID, func(j *assistance.Job) error {
+		failed, saveErr := a.assistanceStore().Update(job.ID, func(j *assistance.Job) error {
 			j.Status = "failed"
 			j.Message = "The assistant's owned session is no longer available."
 			return nil
 		})
+		if saveErr == nil {
+			a.completeOrchestratorJob(failed)
+		}
 		return
 	}
 	status, message := "failed", "The selected provider did not complete a valid response. Check its connection, model and Docker runtime, then try again."
@@ -362,6 +421,7 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 		message = "The selected provider did not complete a valid repository response. Check that connection, model and Docker runtime, then start a new analysis. No draft was applied."
 	}
 	var result *assistance.Result
+	var orchestratorResult json.RawMessage
 	defer func() {
 		cleanup, c := context.WithTimeout(context.Background(), sessionDestroyTimeout)
 		defer c()
@@ -369,6 +429,7 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 			message = "The assistant ended, but its owned Docker session could not be stopped. Stop it before retrying."
 			status = "failed"
 			result = nil
+			orchestratorResult = nil
 		} else {
 			a.markSessionExited(job.SessionID, "definition assistant finished")
 			if session.Harness == "codex" && session.AuthMode == "chatgpt" {
@@ -386,19 +447,28 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 					status = "failed"
 					message = "The ChatGPT connection could not be retained safely. Reconnect before continuing."
 					result = nil
+					orchestratorResult = nil
 				}
 			}
 		}
-		_, _ = a.assistanceStore().Update(job.ID, func(j *assistance.Job) error {
+		saved, saveErr := a.assistanceStore().Update(job.ID, func(j *assistance.Job) error {
 			if j.Status != "cancelled" {
 				j.Status = status
 				j.Message = message
 				j.Result = result
+				j.OrchestratorResult = orchestratorResult
 			}
 			return nil
 		})
+		if saveErr == nil {
+			a.completeOrchestratorJob(saved)
+		}
 	}()
 	if spec != nil {
+		current, readErr := a.assistanceStore().Read(job.ID)
+		if readErr != nil || assistance.Terminal(current.Status) || ctx.Err() != nil {
+			return
+		}
 		sb, err := a.deps.Backend.Create(ctx, *spec)
 		if err != nil {
 			return
@@ -421,6 +491,8 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 		j.Message = "Your selected provider is considering your definition."
 		if j.Kind == "repository" {
 			j.Message = "Your selected provider is analysing the bounded repository snapshot. Implementation files remain untouched."
+		} else if j.Kind == "orchestrator" {
+			j.Message = "Your selected provider is considering the recorded project context and conversation."
 		}
 		return nil
 	})
@@ -445,6 +517,19 @@ func (a *API) runAssistance(ctx context.Context, cancel context.CancelFunc, job 
 			}
 			data, err := codexRead(a.deps.ConversationsDir, filepath.Join(output, "result.json"), assistance.MaxResultBytes)
 			if err != nil {
+				return
+			}
+			if job.Kind == "orchestrator" {
+				answer, decodeErr := decodeOrchestratorAnswer(job, data)
+				if decodeErr != nil {
+					return
+				}
+				orchestratorResult, err = json.Marshal(answer)
+				if err != nil {
+					return
+				}
+				status = "succeeded"
+				message = "Review the orchestrator's response. Project documents, approvals and execution remain unchanged."
 				return
 			}
 			decoded, err := assistance.DecodeResult(data)
@@ -579,6 +664,7 @@ func (a *API) retainAssistTurn(job assistance.Job, result assistance.Result) err
 }
 
 func (a *API) recoverAssistance() {
+	defer a.recoverOrchestratorTurns()
 	dir := filepath.Join(a.deps.ConversationsDir, "assistance", "jobs")
 	if codexRegularPath(a.deps.ConversationsDir, dir) != nil {
 		return
@@ -593,7 +679,19 @@ func (a *API) recoverAssistance() {
 		}
 		id := strings.TrimSuffix(entry.Name(), ".json")
 		job, err := a.assistanceStore().Read(id)
-		if err != nil || assistance.Terminal(job.Status) {
+		if err != nil {
+			continue
+		}
+		if job.Kind == "repository" && job.Status == "reserved" {
+			// Admission wrote no dispatch/session identity. Only startup (with
+			// the exclusive worker lease), never GET, may close this orphan.
+			a.failReservedRepositoryAnalysis(job.ID)
+			continue
+		}
+		if assistance.Terminal(job.Status) {
+			// The ledger recovery below selects only unfinished turns. Re-reading
+			// every finalized conversation for every historical job is unnecessary
+			// and would revisit turns already moved into private archives.
 			continue
 		}
 		created, err := time.Parse(time.RFC3339Nano, job.CreatedAt)

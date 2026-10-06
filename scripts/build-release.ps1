@@ -1,7 +1,8 @@
 #requires -Version 7.0
-param([string]$Version = '0.4.18', [switch]$Native)
+param([string]$Version = '0.5.0', [switch]$Native, [string]$CertificateThumbprint = '', [string]$TimestampUrl = 'https://timestamp.digicert.com')
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+if ($CertificateThumbprint -and -not $Native) { throw 'CertificateThumbprint requires -Native.' }
 if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$') { throw 'Version must be a semantic version.' }
 $luciRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $luciOutput = Join-Path $luciRoot ('artifacts/releases/' + $Version)
@@ -67,6 +68,8 @@ try {
     # Capture before generated files are staged; source metadata describes the
     # inputs at build start, not a later repository state.
     $luciSource = Get-SourceMetadata $luciRoot
+    & python (Join-Path $PSScriptRoot 'release-version.py') check $Version
+    Confirm-Exit 'Authoritative release version alignment'
     $luciPackageVersion = (Get-Content -Raw -LiteralPath (Join-Path $luciRoot 'desktop/package.json') | ConvertFrom-Json).version
     $luciTauriVersion = (Get-Content -Raw -LiteralPath (Join-Path $luciNativeRoot 'tauri.conf.json') | ConvertFrom-Json).version
     $luciCargoVersion = [regex]::Match((Get-Content -Raw -LiteralPath (Join-Path $luciNativeRoot 'Cargo.toml')), '(?m)^version\s*=\s*"([^"]+)"').Groups[1].Value
@@ -134,6 +137,7 @@ try {
         $luciArtifacts += $luciPackage.path + $(if ($luciPackage.os -eq 'windows') { '.zip' } else { '.tar.gz' })
     }
 
+    $luciNativeSigning = @{requested=$false;verified=$false;status='unsigned'}
     $luciNativeCount = 0
     if ($Native) {
         $env:GOOS = 'windows'; $env:GOARCH = 'amd64'
@@ -149,11 +153,29 @@ try {
         Copy-Item -LiteralPath (Join-Path (($luciPackages | Where-Object { $_.os -eq 'windows' }).path) 'luci.exe') -Destination (Join-Path $luciSidecars 'luci-api-x86_64-pc-windows-msvc.exe') -Force
         $env:CARGO_TARGET_DIR = Join-Path $luciNativeRoot 'target'
         $luciTauriOverride = Join-Path $luciStage 'tauri.release.json'
-        Set-Content -LiteralPath $luciTauriOverride -Value '{"build":{"beforeBuildCommand":""}}' -Encoding utf8NoBOM
+        $luciOverride = @{build=@{beforeBuildCommand=''}}
+        if ($CertificateThumbprint) {
+            if (-not $IsWindows -or $CertificateThumbprint -notmatch '^[0-9a-fA-F]{40}$') { throw 'Native signing requires a Windows certificate-store SHA1 thumbprint.' }
+            $luciTimestamp = [Uri]$TimestampUrl
+            if ($luciTimestamp.Scheme -ne 'https' -or -not $luciTimestamp.Host -or $luciTimestamp.UserInfo -or $luciTimestamp.Fragment) { throw 'Use an HTTPS RFC3161 timestamp endpoint without credentials.' }
+            $luciCertificate = Get-Item -LiteralPath ('Cert:\CurrentUser\My\' + $CertificateThumbprint)
+            $luciCodeSigningUsage = @($luciCertificate.Extensions | Where-Object { $_.Oid.Value -eq '2.5.29.37' } | ForEach-Object { $_.EnhancedKeyUsages } | ForEach-Object { $_.Value })
+            if (-not $luciCertificate.HasPrivateKey -or $luciCertificate.NotAfter -le [DateTime]::Now -or $luciCertificate.NotBefore -gt [DateTime]::Now -or $luciCodeSigningUsage -notcontains '1.3.6.1.5.5.7.3.3') { throw 'The provisioned certificate must be current, contain a private key, and permit code signing.' }
+            $luciOverride.bundle = @{windows=@{certificateThumbprint=$CertificateThumbprint;digestAlgorithm='sha256';timestampUrl=$TimestampUrl;tsp=$true}}
+            $luciNativeSigning = @{requested=$true;verified=$false;status='pending';certificateThumbprint=$CertificateThumbprint.ToUpperInvariant();timestampUrl=$TimestampUrl}
+        }
+        $luciOverride | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $luciTauriOverride -Encoding utf8NoBOM
         Push-Location (Join-Path $luciRoot 'desktop')
         try { & $luciNpm run tauri -- build --config $luciTauriOverride --bundles nsis -- --locked; Confirm-Exit 'Native NSIS build' } finally { Pop-Location }
         $luciInstaller = Join-Path $env:CARGO_TARGET_DIR ('release/bundle/nsis/Luci_' + $Version + '_x64-setup.exe')
         if (-not (Test-Path -LiteralPath $luciInstaller -PathType Leaf)) { throw ('Missing expected installer: ' + $luciInstaller) }
+        if ($CertificateThumbprint) {
+            foreach ($luciSignedPath in @((Join-Path $env:CARGO_TARGET_DIR 'release/luci.exe'), $luciInstaller)) {
+                $luciSignature = Get-AuthenticodeSignature -LiteralPath $luciSignedPath
+                if ($luciSignature.Status -ne 'Valid' -or -not $luciSignature.SignerCertificate -or $luciSignature.SignerCertificate.Thumbprint -ne $CertificateThumbprint -or -not $luciSignature.TimeStamperCertificate) { throw ('Publisher signature/timestamp verification failed: ' + $luciSignedPath) }
+            }
+            $luciNativeSigning.verified = $true; $luciNativeSigning.status = 'verified-authenticode'
+        }
         $luciArtifacts += $luciInstaller
     }
     $luciArtifactRecords = @()
@@ -165,7 +187,11 @@ try {
     foreach ($luciPackage in $luciPackages) { Replace-GeneratedTree $luciPackage.path (Join-Path $luciOutput $luciPackage.name) }
     $luciHashes = $luciArtifactRecords | Sort-Object name | ForEach-Object { $_.sha256 + '  ' + $_.name }
     [IO.File]::WriteAllLines((Join-Path $luciOutput 'SHA256SUMS'), [string[]]$luciHashes, [Text.UTF8Encoding]::new($false))
-    $luciRelease = @{version=$Version;sourceCommit=$luciSource.sourceCommit;sourceDirty=$luciSource.sourceDirty;builtAt=[DateTime]::UtcNow.ToString('o');artifacts=$luciArtifactRecords;portableLicenseComponents=@($luciPackages | ForEach-Object {@{target=$_.name;count=$_.licenses;missing=0}});nativeLicenseComponents=$luciNativeCount;nativeRequested=[bool]$Native;stage=$luciStage}
+    if ($luciSource.sourceDirty -eq $false) {
+        $luciEndingSource = Get-SourceMetadata $luciRoot
+        if ($luciEndingSource.sourceCommit -ne $luciSource.sourceCommit -or $luciEndingSource.sourceDirty -ne $false) { throw 'Source changed during packaging; no clean release manifest was written.' }
+    }
+    $luciRelease = @{version=$Version;sourceCommit=$luciSource.sourceCommit;sourceDirty=$luciSource.sourceDirty;builtAt=[DateTime]::UtcNow.ToString('o');artifacts=$luciArtifactRecords;portableLicenseComponents=@($luciPackages | ForEach-Object {@{target=$_.name;count=$_.licenses;missing=0}});nativeLicenseComponents=$luciNativeCount;nativeRequested=[bool]$Native;nativeSigning=$luciNativeSigning;stage=$luciStage}
     $luciRelease | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $luciOutput 'release-manifest.json') -Encoding utf8NoBOM
     $luciBuildSucceeded = $true
 } finally {

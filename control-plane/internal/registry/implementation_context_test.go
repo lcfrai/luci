@@ -43,3 +43,32 @@ func TestImplementationContextSurvivesReopenWithoutSharingMutableInputs(t *testi
 		t.Fatalf("lifecycle update changed reviewed inputs: %v, %v", got, err)
 	}
 }
+
+func TestReviewedContextReceiptIsPrivateDurableAndIndependentlyCloned(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.json")
+	sess := sampleSession()
+	want := &ReviewedContext{Version: 1, Digest: "captured-manifest-digest"}
+	sess.ReviewedContext = want.Clone()
+	store := newStore(t, path)
+	if err := store.Create(sess); err != nil {
+		t.Fatal(err)
+	}
+	sess.ReviewedContext.Digest = "caller-mutation"
+	got, err := store.Get(sess.ID)
+	if err != nil || !reflect.DeepEqual(got.ReviewedContext, want) {
+		t.Fatal("stored reviewed receipt aliases the caller", err)
+	}
+	got.ReviewedContext.Version = 99
+	reopened := newStore(t, path)
+	got, err = reopened.Get(sess.ID)
+	if err != nil || !reflect.DeepEqual(got.ReviewedContext, want) {
+		t.Fatal("reviewed receipt did not survive reopen independently", err)
+	}
+	if _, err = reopened.Update(sess.ID, func(s *Session) error { s.Status = StatusExited; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	got, err = newStore(t, path).Get(sess.ID)
+	if err != nil || got.Status != StatusExited || !reflect.DeepEqual(got.ReviewedContext, want) {
+		t.Fatal("terminal state discarded original delivery evidence", err)
+	}
+}

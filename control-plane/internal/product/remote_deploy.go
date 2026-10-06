@@ -350,6 +350,12 @@ func (s *Server) createCloudRelease(w http.ResponseWriter, r *http.Request) {
 		journeyJSON(w, http.StatusAccepted, row)
 		return
 	}
+	if err := s.RecordProjectRunReleaseProvenance(ctx, p.ID, row.ID, row.Target, row.Release.Commit); err != nil {
+		row.Status, row.Message = "failed", "Private source and review provenance could not be captured. No deployment started."
+		_ = s.storeCloudRelease(row)
+		problem(w, 409, "release_provenance_unavailable", err.Error())
+		return
+	}
 	fail := func(err error) {
 		row.Status = "attention"
 		row.Message = err.Error() + " No automatic retry was made; inspect the recorded provider resource before retrying."

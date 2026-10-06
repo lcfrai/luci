@@ -1,9 +1,10 @@
 # Durable project runs
 
-Implementation contract for the next batch after the private review-authority
-fix. This is proposed behavior, not a claim that project runs are shipped or
-that installed acceptance has passed. Existing independent sessions, checks and
-releases remain supported.
+Implementation contract for the batch after the private review-authority fix.
+The [production continuation](HANDOFF-2026-10-06-PRODUCTION.md) records the
+implementation and scoped evidence. This contract is not a claim that project
+runs have shipped or that full installed acceptance has passed. Existing
+independent sessions, checks and releases remain supported.
 
 ## Outcome and scope
 
@@ -77,7 +78,12 @@ Proposed endpoints under `/v1/product/projects/{id}/runs`:
   the run and key/request digest. No session or model call starts here. Same key
   plus same normalized request returns the same run; different content is `409`.
 - `GET /runs` and `GET /runs/{runId}`: bounded, side-effect-free projections.
-  They may report current observations but never persist, dispatch or repair.
+  They return the last persisted observation and a separate `contextFreshness`
+  comparison (`current`, `changed`, `unavailable`) against owned reviewed inputs.
+  The list reads one context snapshot. Changed/unreadable inputs suppress coding,
+  join and acceptance invitations while keeping historical state, acceptance and
+  active sessions. A separate private-decision blocker gives the question route.
+  No source hashing, provider observation, persistence, dispatch or repair occurs.
 - `POST /runs/{runId}/operations`: reserve a specific explicit operation with
   `expectedRevision`, idempotency key and kind. Persist its immutable request
   digest and child ID before handing the reservation to the existing executor.
@@ -93,6 +99,17 @@ a server-minted session ID in the run before the existing `Store.Create`; then
 persist both run IDs in `registry.Session` **before** `backend.Create`. The
 session request must match the reserved immutable implementation/connection
 selection. Independent sessions omit both fields. Unknown/partial pairs fail.
+
+Revision metadata alone is not immutable delivery. A reviewed coding child
+receives canonical document bytes captured from the same approved journey
+snapshot through its separate, private read-only context mount. Its descriptor
+is recorded before backend allocation. The shared checkout remains writable and
+can contain newer amendments; neither the agent nor session lifecycle silently
+replaces those amendments with the captured bundle. Resume/restart verifies the
+original bundle before allocation or destructive replacement. Legacy sessions
+without it retain history and explicit stop/reconcile/receipt recovery, but need
+a new reviewed run for further allocation. See the reviewed-session delivery
+contract in [API.md](API.md).
 
 Serialize reservation/admission under the same per-account run lock; persist
 deduplication and reservation together. Revalidate approvals, connection and

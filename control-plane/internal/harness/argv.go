@@ -109,9 +109,9 @@ func codexArgv(r Request) []string {
 		}
 		args = append(args, "--sandbox", sandbox, "--ask-for-approval", "on-request")
 	}
-	if r.ProjectBrief {
+	if r.ProjectBrief || r.ReviewedContext {
 		// TOML string quoting is data, not command-line interpretation.
-		args = append(args, "-c", "developer_instructions="+strconv.Quote(ProjectBriefPrompt))
+		args = append(args, "-c", "developer_instructions="+strconv.Quote(projectContextPrompt(r)))
 	}
 	if r.OpeningPrompt != "" {
 		args = append(args, "--", r.OpeningPrompt)
@@ -120,6 +120,9 @@ func codexArgv(r Request) []string {
 }
 
 func openCodeArgv(r Request) []string {
+	if r.ReviewedContext {
+		r.OpeningPrompt = ReviewedContextPrompt + "\n\n" + r.OpeningPrompt
+	}
 	args := []string{"--pure", "--hostname", "127.0.0.1"}
 	if r.Resume != "" {
 		args = append(args, "--continue", "--fork")
@@ -142,8 +145,8 @@ func openCodeArgv(r Request) []string {
 
 func claudeArgv(r Request) []string {
 	argv := make([]string, 0, 12)
-	if r.ProjectBrief {
-		argv = append(argv, "--append-system-prompt", ProjectBriefPrompt)
+	if r.ProjectBrief || r.ReviewedContext {
+		argv = append(argv, "--append-system-prompt", projectContextPrompt(r))
 	}
 	if r.Model != "" {
 		argv = append(argv, "--model", r.Model)

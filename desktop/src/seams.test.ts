@@ -538,6 +538,10 @@ const SEAMS: Seam[] = [
       { file: "control-plane/internal/api/attach.go", present: /\bproxy\.RelayHooked\(r\.Context\(\), client, upstream, / },
       // And that call is the only one: a wrapper under any name has to call RelayHooked.
       { file: "control-plane/internal/api/attach.go", absent: /\bRelayHooked\b[\s\S]*\bRelayHooked\b/ },
+      // Team routing carries the existing API to one authenticated private worker.
+      // It owns revocation tracking, never a second terminal frame implementation.
+      { file: "control-plane/internal/management/team_runtime.go", present: /^func \(g \*Gateway\) teamExecutionHandler\(ctx context\.Context, teamID string, actor User, policy Policy\) \(http\.Handler, error\) \{$/m },
+      { file: "control-plane/internal/management/team_runtime.go", absent: /\bwebsocket\.|\b(?:ReadMessage|WriteMessage|RelayHooked)\b/ },
     ],
     // And not in another file: `func Relay(` re-added as proxy/relay.go, or a method, passed the
     // proxy.go anchors (mutation A2 of task 26's report). Any exported-style *Relay* function or
@@ -584,7 +588,15 @@ const SEAMS: Seam[] = [
         absent: /(?<!\)\s*\(\*?)\b\w+\.Conn\b/,
         // Management tracks admitted network connections for expiry and revocation,
         // while the worker's existing RelayHooked owns terminal frame transport.
-        except: ["control-plane/internal/proxy/proxy.go", "control-plane/internal/api/attach.go", "control-plane/internal/management/management.go", "control-plane/internal/management/sockets.go"],
+        except: ["control-plane/internal/proxy/proxy.go", "control-plane/internal/api/attach.go", "control-plane/internal/management/management.go", "control-plane/internal/management/sockets.go", "control-plane/internal/management/team_runtime.go"],
+      },
+      {
+        dir: "control-plane",
+        // Only the known connection-removal callback may name a connection in
+        // team runtime code. New connection loops still require an explicit seam.
+        absent: /(?<!\bfunc \(g \*Gateway\) forgetSocketLocked\([^)]*|\)\s*\(\*?)\b\w+\.Conn\b/,
+        except: [],
+        only: ["control-plane/internal/management/team_runtime.go"],
       },
       // And by what a relay moves: messages. One whose connections are typed by a local interface
       // (fix round 2's predicted survivor G-X1, which survived the rule above) names the message
@@ -611,6 +623,7 @@ const SEAMS: Seam[] = [
           "control-plane/internal/platform/browser_bridge.go",
           "control-plane/internal/product/workspace_platform.go",
           "control-plane/internal/management/runtime.go",
+          "control-plane/internal/management/team_runtime.go",
           "control-plane/internal/management/sockets.go",
         ],
       },

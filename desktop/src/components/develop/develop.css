@@ -93,6 +93,16 @@
   font: 400 12px/1.5 var(--sans);
 }
 
+.pane-context-note {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--ink-2);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line-soft);
+  font: 400 12px/1.5 var(--sans);
+  overflow-wrap: anywhere;
+}
+
 .pane-head {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;

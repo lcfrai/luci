@@ -32,7 +32,7 @@ export function DevelopLens(): JSX.Element {
      STARTS A LINE, so collapsing this onto one line leaves that guard reading 0 against wired
      code (shared-shape rule 3). */
   return (
-    <div className="develop-workspace">
+    <div className={`develop-workspace${sessionIds.length === 0 ? " develop-workspace--planning" : ""}`}>
       {projectId && <ProjectWork key={projectId} projectId={projectId} expanded={sessionIds.length === 0} />}
       <div className="develop-sessions">
         {sessionIds.length === 0 ? (

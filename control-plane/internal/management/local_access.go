@@ -67,6 +67,22 @@ func (g *Gateway) localOwner(w http.ResponseWriter, r *http.Request) {
 	jsonReply(w, 200, map[string]any{"owner": owner})
 }
 
+// Package identity is fixed at process startup, so another portable launcher
+// cannot silently attach its new package to an older running service. This is
+// consistency metadata, not a signature, account credential or public API.
+func (g *Gateway) localPackage(w http.ResponseWriter, r *http.Request) {
+	if !g.requireLocalAccess(w, r) {
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	if g.opts.PortablePackageID == "" {
+		fail(w, 404, "package_identity_unavailable", "Close the existing launcher before opening this package.")
+		return
+	}
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, _ = w.Write([]byte(g.opts.PortablePackageID + "\n"))
+}
+
 // Copy persistent mutable collections before a transaction. Failed disk writes
 // must not change live credentials, consume an invitation or strand the owner.
 func cloneIdentityState(source storedState) storedState {
@@ -82,8 +98,13 @@ func cloneIdentityState(source storedState) storedState {
 	out.Events = append([]AuditEvent{}, source.Events...)
 	out.Invitations = make(map[string]invitationRecord, len(source.Invitations))
 	for k, v := range source.Invitations {
+		if v.Team != nil {
+			team := *v.Team
+			v.Team = &team
+		}
 		out.Invitations[k] = v
 	}
+	out.Teams = cloneTeamRecords(source.Teams)
 	return out
 }
 

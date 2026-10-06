@@ -19,6 +19,13 @@ export interface ItemRect {
   width: number;
 }
 
+/** One measurement in the container's untransformed content coordinates. */
+export interface FluidMeasurement {
+  readonly itemRects: readonly (ItemRect | undefined)[];
+  readonly viewportWidth: number;
+  readonly scrollLeft: number;
+}
+
 export interface UseFluidHoverOptions {
   /**
    * Which direction to resolve the nearest item along.
@@ -45,6 +52,8 @@ export interface UseFluidHoverOptions {
    * highlighted item's edge.
    */
   gapClick?: boolean | { maxDistance?: number };
+  /** Reuse the coalesced geometry pass instead of measuring the same rows again. */
+  onMeasure?: (measurement: FluidMeasurement) => void;
 }
 
 export interface UseFluidHoverReturn {
@@ -90,6 +99,10 @@ export interface UseFluidHoverReturn {
    * wants `remeasure`, or nothing.
    */
   measureItems: () => void;
+  /** Null while registration or resize has invalidated the previous geometry. */
+  getMeasurement: () => FluidMeasurement | null;
+  /** Scroll in layout coordinates and retain the browser's clamped position. */
+  scrollToX: (left: number) => void;
 }
 
 export interface PickNearestInput {
@@ -218,6 +231,8 @@ export function useFluidHover<T extends HTMLElement>(
   options: UseFluidHoverOptions = {}
 ): UseFluidHoverReturn {
   const { axis = "y", isItemDisabled, gapClick = true } = options;
+  const onMeasureRef = useRef(options.onMeasure);
+  onMeasureRef.current = options.onMeasure;
   const gapClickMaxDistance =
     typeof gapClick === "object" ? (gapClick.maxDistance ?? Infinity) : Infinity;
   const itemsRef = useRef(new Map<number, HTMLElement>());
@@ -247,9 +262,20 @@ export function useFluidHover<T extends HTMLElement>(
   const [itemRects, setItemRects] = useState<ItemRect[]>([]);
   const [isMeasured, setIsMeasured] = useState(false);
   const itemRectsRef = useRef<ItemRect[]>([]);
+  const measurementRef = useRef<FluidMeasurement | null>(null);
+  const containerBindingRef = useRef<{ node: T; dispose: () => void } | null>(null);
   const sessionRef = useRef(0);
   const rafIdRef = useRef<number | null>(null);
   const remeasureRafIdRef = useRef<number | null>(null);
+  const getMeasurement = useCallback(() => measurementRef.current, []);
+  const scrollToX = useCallback((left: number) => {
+    const container = containerRef.current;
+    const measurement = measurementRef.current;
+    if (!container || !measurement || left === measurement.scrollLeft) return;
+    container.scrollLeft = left;
+    // A setter can be clamped at either end of the native scroll range.
+    measurementRef.current = { ...measurement, scrollLeft: container.scrollLeft };
+  }, [containerRef]);
 
   /**
    * Publishes a rect for every registered item. Returns false when the
@@ -259,7 +285,7 @@ export function useFluidHover<T extends HTMLElement>(
    */
   const runMeasurement = useCallback(() => {
     const container = containerRef.current;
-    if (!container) return false;
+    if (!container) { measurementRef.current = null; return false; }
     const rects: ItemRect[] = [];
     let everyItemHasLayout = true;
     itemsRef.current.forEach((element, index) => {
@@ -300,7 +326,7 @@ export function useFluidHover<T extends HTMLElement>(
         width: element.offsetWidth,
       };
     });
-    if (!everyItemHasLayout) return false;
+    if (!everyItemHasLayout) { measurementRef.current = null; return false; }
     // Skip the state update when nothing moved (a cheap top/left/width/height
     // compare) so redundant remeasures don't churn re-renders.
     const prev = itemRectsRef.current;
@@ -321,6 +347,13 @@ export function useFluidHover<T extends HTMLElement>(
       itemRectsRef.current = rects;
       setItemRects(rects);
     }
+    const measurement: FluidMeasurement = {
+      itemRects: rects,
+      viewportWidth: container.clientWidth,
+      scrollLeft: container.scrollLeft,
+    };
+    measurementRef.current = measurement;
+    onMeasureRef.current?.(measurement);
     return true;
   }, [containerRef]);
 
@@ -336,6 +369,7 @@ export function useFluidHover<T extends HTMLElement>(
    */
   const scheduleMeasurement = useCallback(
     (attemptsLeft: number) => {
+      measurementRef.current = null;
       if (remeasureRafIdRef.current !== null) {
         cancelAnimationFrame(remeasureRafIdRef.current);
       }
@@ -489,22 +523,41 @@ export function useFluidHover<T extends HTMLElement>(
     [isItemDisabled, gapClick, gapClickMaxDistance]
   );
 
-  // Remeasure when the container resizes — a reflow moves items even though
-  // the registered set is unchanged, which would otherwise leave itemRects
-  // stale. Coalesced through the same rAF as register/unregister. Readiness is
-  // deliberately not dropped: the item set is unchanged, so the published rects
-  // stay usable, and hiding overlays on every reflow would flicker them.
+  // A wrapper change can replace the DOM node while this hook and its ref
+  // survive. Reconcile the actual node after each commit; unchanged containers
+  // keep their listeners and observer without scheduling another measurement.
   useEffect(() => {
     const container = containerRef.current;
-    if (!container || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => scheduleMeasurement(measurementAttempts));
-    ro.observe(container);
-    return () => ro.disconnect();
-  }, [containerRef, scheduleMeasurement]);
+    if ((containerBindingRef.current?.node ?? null) === container) return;
+    containerBindingRef.current?.dispose();
+    containerBindingRef.current = null;
+    measurementRef.current = null;
+    if (!container) return;
+    // Native/manual scrolling changes the viewport, not the item geometry.
+    // Cache it here so a later selection need not force another layout read.
+    const onScroll = () => {
+      const measurement = measurementRef.current;
+      if (measurement) measurementRef.current = { ...measurement, scrollLeft: container.scrollLeft };
+    };
+    container.addEventListener("scroll", onScroll, { passive: true });
+    const ro = typeof ResizeObserver === "undefined" ? null
+      : new ResizeObserver(() => scheduleMeasurement(measurementAttempts));
+    ro?.observe(container);
+    containerBindingRef.current = {
+      node: container,
+      dispose: () => { ro?.disconnect(); container.removeEventListener("scroll", onScroll); },
+    };
+    // Registration and resize share this pass. A viewport can also change
+    // without any item size changing, so observe its current node directly.
+    scheduleMeasurement(measurementAttempts);
+  });
 
   // Clean up rAF and the item observer on unmount
   useEffect(() => {
     return () => {
+      measurementRef.current = null;
+      containerBindingRef.current?.dispose();
+      containerBindingRef.current = null;
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current);
       }
@@ -531,6 +584,8 @@ export function useFluidHover<T extends HTMLElement>(
     registerItem,
     remeasure,
     measureItems,
+    getMeasurement,
+    scrollToX,
   };
 }
 

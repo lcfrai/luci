@@ -232,7 +232,7 @@ func TestRunRefusesAMissingCABundleWithExitCode2(t *testing.T) {
 func runHermetic(t *testing.T, vars map[string]string) map[string]string {
 	t.Helper()
 	m := map[string]string{
-		envStateDir: t.TempDir(),
+		envStateDir: privateStateDir(t),
 		envAddr:     "127.0.0.1:0",
 	}
 	for k, v := range vars {
@@ -241,4 +241,15 @@ func runHermetic(t *testing.T, vars map[string]string) map[string]string {
 	m[envBackend] = "kata"
 	m[envKubeconfig] = "kubeClient-refuses-any-kubeconfig"
 	return m
+}
+
+// Testing.TempDir children follow the caller's umask. State fixtures must satisfy
+// the same private-directory contract as an installed service on any host.
+func privateStateDir(t *testing.T) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "private-state")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	return dir
 }

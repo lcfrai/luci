@@ -1,6 +1,8 @@
 // The one create-a-session path. Contract §3.6 (inheritance and clamping), §4.4 (createSession
 // is 201, not 200), §6.4 (one click for the common case, no dialog).
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
+import { useProjectAccess } from "./useProjectAccess";
+import { selectedTeamId } from "../api/teamScope";
 import { api } from "../api";
 import type { ApiError } from "../api/client";
 import { classify } from "../api/problems";
@@ -70,13 +72,25 @@ export function __resetCreateSession(): void {
   raised = null;
 }
 
-export function useCreateSession(): (
+export function useCreateSession(projectId?: string): (
   worktreeId: WorktreeId,
   options?: CreateSessionOptions,
 ) => Promise<{ ok: true; sessionId: SessionId } | { ok: false; message: string }> {
+  const selectedProject = useCockpit(state => state.selection.projectId ?? "");
+  const scope = projectId ?? selectedProject;
+  const access = useProjectAccess(scope);
+  const admission = useRef({ access, scope });
+  admission.current = { access, scope };
   return useCallback(
     async (worktreeId: WorktreeId, options?: CreateSessionOptions) => {
       const state = useCockpit.getState();
+      const current = admission.current;
+      const target = Object.values(state.worktreesByBranch).flat().find(worktree => worktree.id === worktreeId);
+      if (!current.access.canExecute || selectedTeamId() && target?.projectId !== current.scope) {
+        const message = current.access.message || "Editing and execution access to this project are required to start a session.";
+        state.pushToast(message);
+        return { ok: false, message };
+      }
       const wanted: SessionDefaultsOverride = {
         ...options?.overrides,
         ...(options?.harness === undefined ? {} : { harness: options.harness }),
@@ -93,6 +107,11 @@ export function useCreateSession(): (
       if (harness === undefined) {
         const message =
           "No harness is available on this machine, so no session can be started.";
+        state.pushToast(message);
+        return { ok: false, message };
+      }
+      if (harness.id !== "shell" && !current.access.canAssist) {
+        const message = "Credential access is required to run a coding agent. Ask a team administrator or choose a shell session.";
         state.pushToast(message);
         return { ok: false, message };
       }

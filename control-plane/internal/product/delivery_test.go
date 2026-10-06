@@ -20,7 +20,7 @@ func TestDeliveryPushesExactCommitToRealBareRemote(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(p.Path, "README.md"), []byte("real Git delivery\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	commit := journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/git/commit", map[string]string{"message": "initial"}, 200)
+	commit := journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/git/commit", reviewedCommitRequest(t, mux, "/v1/product/projects/"+p.ID+"/git/commit", "initial"), 200)
 	var committed struct {
 		Commit string `json:"commit"`
 	}
@@ -193,7 +193,7 @@ func TestJourneyGitPinsWorktreeAgainstRepositoryConfigEscape(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(p.Path, "account.txt"), []byte("project content\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/git/commit", map[string]string{"message": "initial"}, 200)
+	journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/git/commit", reviewedCommitRequest(t, mux, "/v1/product/projects/"+p.ID+"/git/commit", "initial"), 200)
 	outside := t.TempDir()
 	if err := os.WriteFile(filepath.Join(outside, "account.txt"), []byte("outside private secret\n"), 0600); err != nil {
 		t.Fatal(err)
@@ -215,7 +215,7 @@ func TestJourneyGitPinsWorktreeAgainstRepositoryConfigEscape(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(p.Path, "account.txt"), []byte("updated own content\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/git/commit", map[string]string{"message": "own update"}, 200)
+	journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/git/commit", reviewedCommitRequest(t, mux, "/v1/product/projects/"+p.ID+"/git/commit", "own update"), 200)
 	got, err := s.journeyGit(context.Background(), p.Path, "show", "HEAD:account.txt")
 	if err != nil || got != "updated own content\n" {
 		t.Fatalf("Git staged outside workspace: %q %v", got, err)

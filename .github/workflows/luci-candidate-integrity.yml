@@ -1,0 +1,78 @@
+name: Luci candidate integrity attestation
+
+# Explicit, reviewable opt-in. This has no release publication, registry push,
+# billing, certificate creation or native publisher-signing capability.
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Successful Luci CI build run ID at this exact workflow commit'
+        type: string
+        required: true
+      version:
+        description: 'Exact candidate version declared by this source'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate trusted completed build and exact source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          CANDIDATE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          python3 scripts/release-version.py check "$CANDIDATE_VERSION"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" > build-run.json
+          python3 scripts/release-integrity.py run --run-metadata build-run.json --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --workflow-commit "$GITHUB_SHA"
+      - name: Download the retained packages from that build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        run: |
+          set -euo pipefail
+          gh run download "$BUILD_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "luci-linux-amd64-$GITHUB_SHA" --dir candidate/linux-amd64
+          gh run download "$BUILD_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "luci-darwin-arm64-$GITHUB_SHA" --dir candidate/darwin-arm64
+          gh run download "$BUILD_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "luci-portable-windows-build-$GITHUB_SHA" --dir candidate/windows-portable
+          gh run download "$BUILD_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "luci-windows-native-$GITHUB_SHA" --dir candidate/windows-native
+      - name: Independently verify candidate bytes and source receipts
+        env:
+          CANDIDATE_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          python3 scripts/release-integrity.py artifacts --run-metadata build-run.json --repository "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA" --workflow-commit "$GITHUB_SHA" --version "$CANDIDATE_VERSION" --directory candidate --output candidate-verification.json --checksums candidate-subjects.sha256
+      # Official action pin inspected through its upstream Git object. This
+      # attests integrity validation, not a fictitious rebuild in this job.
+      - name: Attest measured candidate integrity with GitHub Sigstore
+        id: attest
+        uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3.0.0
+        with:
+          subject-checksums: candidate-subjects.sha256
+          predicate-type: https://lcfr.ai/luci/candidate-integrity/v1
+          predicate-path: candidate-verification.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: luci-candidate-integrity-${{ github.sha }}
+          path: |
+            candidate-verification.json
+            candidate-subjects.sha256
+            ${{ steps.attest.outputs.bundle-path }}
+          if-no-files-found: error
+          retention-days: 90

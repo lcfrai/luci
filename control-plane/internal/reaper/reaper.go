@@ -43,9 +43,10 @@ import (
 // The exit reasons this package writes. They reach the user through
 // registry.Session.ExitReason and the session rail, so they are sentences.
 const (
-	reasonDisappeared = "sandbox disappeared"
-	reasonProcessExit = "process exited"
-	reasonIdleTimeout = "idle timeout"
+	reasonDisappeared       = "sandbox disappeared"
+	reasonProcessExit       = "process exited"
+	reasonIdleTimeout       = "idle timeout"
+	reasonInterruptedCreate = "sandbox creation was interrupted before the agent started; start a new attempt when ready"
 
 	// reasonNonLoopback answers "why did my sandbox vanish". A sandbox whose
 	// port was published off 127.0.0.1 is an unauthenticated shell on the LAN
@@ -468,6 +469,19 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 		}
 	}
 
+	// A Docker create can finish in the daemon after its controller process
+	// exits. Its durable session still names it, so it is not an orphan, but no
+	// surviving caller can issue Start. Once the full create budget has elapsed,
+	// end only an exact owned, still-never-started allocation. CreatedAt comes
+	// from Docker: startup/rename writes must not renew this abandoned attempt.
+	for _, s := range sessions {
+		sb, present := bySandbox[s.SandboxID]
+		if !present || gone[s.SandboxID] || s.Status != registry.StatusStarting || !r.interruptedCreateCandidate(sb, s, now) {
+			continue
+		}
+		r.recoverInterruptedCreate(ctx, s, sb, now)
+	}
+
 	// Rule 3a, task 25's amendment to contract §5.3, and the rule F1 and F3
 	// both need: a record that is already `exited` whose sandbox is still on
 	// the daemon. Nothing else in the phase collects one. Rule 2 and rule 3
@@ -612,6 +626,34 @@ func (r *Reaper) Sweep(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (r *Reaper) interruptedCreateCandidate(sb backend.Sandbox, s registry.Session, now time.Time) bool {
+	return r.instance != "" && sb.Instance == r.instance && sb.Kind == backend.KindDocker &&
+		sb.ID == s.SandboxID && sb.Ref != "" && sb.CreatedOnly && !sb.CreationInFlight && sb.State == backend.StateStarting && !sb.NonLoopback &&
+		sb.Labels[backend.LabelManaged] == "true" && sb.Labels[backend.LabelSandboxID] == s.SandboxID &&
+		sb.Labels[backend.LabelSessionID] == s.ID && (s.SandboxRef == "" || s.SandboxRef == sb.Ref) &&
+		!sb.CreatedAt.IsZero() && now.Sub(sb.CreatedAt) >= r.createGrace
+}
+
+func (r *Reaper) recoverInterruptedCreate(ctx context.Context, observed registry.Session, listed backend.Sandbox, now time.Time) {
+	// List is only a candidate snapshot. A start, a restart or a changed runtime
+	// identity before this fresh read must leave the session untouched.
+	current, err := r.be.Get(ctx, listed.ID)
+	if err != nil || current.Ref != listed.Ref || !r.interruptedCreateCandidate(current, observed, now) {
+		return
+	}
+	_, err = r.store.Update(observed.ID, func(s *registry.Session) error {
+		if s.Status != registry.StatusStarting || s.SandboxID != observed.SandboxID || s.SandboxRef != observed.SandboxRef || !s.UpdatedAt.Equal(observed.UpdatedAt) {
+			return errUnchanged
+		}
+		s.Status, s.ExitReason = registry.StatusExited, reasonInterruptedCreate
+		s.Endpoint, s.AttachToken, s.AttachCount = "", "", 0
+		// Keep the exact allocation and run identity. Rule 3a removes this
+		// terminal child's container on the next sweep; it never recreates one.
+		return nil
+	})
+	r.reportUpdate(observed.ID, err)
 }
 
 // publishedAt asks the backend where a sandbox was published, for the one log

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { productApi, errorText, type Workspace } from "../../api/product";
 import { useDismissable } from "../../hooks/useDismissable";
 import { AdminInvitations } from "./AdminInvitations";
+import { AdminTeamServices } from "./AdminTeamServices";
 import {
   useAuth,
   type AuthProfile,
@@ -471,6 +472,12 @@ function AdminPanelContent({
             </button>
           </section>
         )}
+        {admin && contextReady && profile.user.role === "super-admin" && base === "/v1/admin" && (
+          <AdminTeamServices disabled={!!busy} onBusy={(value) => {
+            working.current = value;
+            setBusy(value ? "Updating team service access" : "");
+          }} />
+        )}
         {admin && permissions.manageUsers && (
           <AdminInvitations
             base={base}
@@ -915,7 +922,7 @@ function AdminPanelContent({
                 {events.map((event) => (
                   <tr key={event.id}>
                     <td>{new Date(event.at).toLocaleString()}</td>
-                    <td>{event.actorId}</td>
+                    <td><span title={event.actorId}>{users.find(user => user.id === event.actorId)?.displayName || event.actorId}</span></td>
                     <td>{event.action}</td>
                     <td>{event.target}</td>
                     <td>{event.outcome}</td>

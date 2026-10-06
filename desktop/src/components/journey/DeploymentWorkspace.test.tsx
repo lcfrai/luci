@@ -5,6 +5,7 @@ import { DeploymentWorkspace, ProjectDeploy } from "../lens/DeployLens";
 import { productApi, type ProjectConfiguration } from "../../api/product";
 import { resetCockpit } from "../../store/store";
 
+vi.mock("./DeploymentOverview", () => ({ DeploymentOverview: () => null }));
 vi.mock("../platform/PlatformWorkspace", () => ({ PlatformWorkspace: () => <div>Application controls</div> }));
 const emptyConfiguration: ProjectConfiguration = { revision: 0, variables: [], updatedAt: "" };
 beforeEach(() => {

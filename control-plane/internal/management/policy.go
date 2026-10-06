@@ -20,6 +20,21 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 		fail(w, 401, "sign_in_required", "Sign in to continue.")
 		return
 	}
+	teamAccess, teamScoped := TeamAccessFromContext(r.Context())
+	if g.managedTeamID != "" && (!teamScoped || teamAccess.Team.ID != g.managedTeamID) {
+		fail(w, 403, "managed_team_required", "This installation serves its assigned team. Select that team workspace; personal workspaces are disabled.")
+		return
+	}
+	if teamScoped {
+		// Team authority controls this worker; an instance administrator does
+		// not acquire team capabilities merely through their global role.
+		u.Role = "member"
+		if teamAccess.Permissions.Admin {
+			u.Role = "admin"
+		}
+		p.AllowHostCommands = false
+		r = r.WithContext(withActor(r.Context(), u, p))
+	}
 	path := r.URL.Path
 	if !strings.HasPrefix(path, "/v1/") {
 		fail(w, 404, "not_found", "This control-plane API route does not exist.")
@@ -57,14 +72,20 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 		g.mu.Lock()
 		owner := g.state.OwnerID
 		g.mu.Unlock()
-		if u.ID != owner {
+		if teamScoped {
+			expected := filepath.Join(g.dir, "teams", teamAccess.Team.ID, "runtime", "projects")
+			if projectsDir != "" && filepath.Clean(projectsDir) != expected {
+				fail(w, 403, "workspace_path_fixed", "Team projects stay inside the team's dedicated workspace.")
+				return
+			}
+		} else if u.ID != owner {
 			expected := filepath.Join(g.dir, "users", u.ID, "runtime", "projects")
 			if projectsDir != "" && filepath.Clean(projectsDir) != expected {
 				fail(w, 403, "workspace_path_fixed", "Managed users keep their projects inside their assigned workspace.")
 				return
 			}
 		}
-		if u.ID == owner && u.Role != "super-admin" {
+		if !teamScoped && u.ID == owner && u.Role != "super-admin" {
 			fail(w, 403, "permission_denied", "Only a Super Admin can reconfigure the initial host workspace.")
 			return
 		}
@@ -84,7 +105,9 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 			owner := g.state.OwnerID
 			g.mu.Unlock()
 			root := filepath.Join(g.dir, "users", u.ID, "runtime")
-			if u.ID == owner {
+			if teamScoped {
+				root = filepath.Join(g.dir, "teams", teamAccess.Team.ID, "runtime")
+			} else if u.ID == owner {
 				root = filepath.Join(g.opts.StateDir, "sessions", "ssh")
 			}
 			_, err := hostpath.ConfineToMounts([]string{root}, privateKeyPath)
@@ -111,7 +134,13 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 35*time.Second)
-	handler, err := g.executionHandler(ctx, u, p)
+	var handler http.Handler
+	var err error
+	if teamScoped {
+		handler, err = g.teamExecutionHandler(ctx, teamAccess.Team.ID, u, p)
+	} else {
+		handler, err = g.executionHandler(ctx, u, p)
+	}
 	cancel()
 	if err != nil {
 		fail(w, 503, "runtime_unavailable", "Your private workspace could not start. Ask an administrator to inspect its runtime status.")
@@ -139,11 +168,15 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 			// Official Codex account sign-in cannot select another provider.
 			fields = map[string]json.RawMessage{"harness": json.RawMessage(`"codex"`)}
 		}
+		admissionKey := u.ID
+		if teamScoped {
+			admissionKey = "team:" + teamAccess.Team.ID
+		}
 		g.mu.Lock()
-		lock := g.admissions[u.ID]
+		lock := g.admissions[admissionKey]
 		if lock == nil {
 			lock = &sync.Mutex{}
-			g.admissions[u.ID] = lock
+			g.admissions[admissionKey] = lock
 		}
 		g.mu.Unlock()
 		lock.Lock()
@@ -151,6 +184,10 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 		if !g.sessionAdmission(w, r, handler, u, p, fields) {
 			return
 		}
+	}
+	if teamScoped && r.Context().Err() != nil {
+		fail(w, 403, "team_access_changed", "Team access changed before the operation could start.")
+		return
 	}
 	// The initial inline engine is trusted through context, never headers.
 	r.Header.Del("Authorization")
@@ -168,9 +205,11 @@ func (g *Gateway) sessionAdmission(w http.ResponseWriter, r *http.Request, handl
 	handler.ServeHTTP(capture, check)
 	var data struct {
 		Sessions []struct {
-			ID      string `json:"id"`
-			Status  string `json:"status"`
-			Harness string `json:"harness"`
+			ID                    string `json:"id"`
+			Status                string `json:"status"`
+			Harness               string `json:"harness"`
+			ProjectRunID          string `json:"projectRunId"`
+			ProjectRunOperationID string `json:"projectRunOperationId"`
 		} `json:"sessions"`
 	}
 	if capture.status != 200 || json.Unmarshal(capture.body.Bytes(), &data) != nil {
@@ -179,8 +218,19 @@ func (g *Gateway) sessionAdmission(w http.ResponseWriter, r *http.Request, handl
 	}
 	var harness string
 	_ = json.Unmarshal(fields["harness"], &harness)
+	var runID, operationID string
+	_ = json.Unmarshal(fields["projectRunId"], &runID)
+	_ = json.Unmarshal(fields["projectRunOperationId"], &operationID)
+	runID, operationID = strings.TrimSpace(runID), strings.TrimSpace(operationID)
+	replays := 0
 	active := 0
 	for _, session := range data.Sessions {
+		// This worker-owned row establishes that the request can only reuse
+		// an existing reserved child. The session API still verifies the
+		// private reservation and immutable inputs before returning it.
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/sessions" && runID != "" && operationID != "" && session.ProjectRunID == runID && session.ProjectRunOperationID == operationID {
+			replays++
+		}
 		if session.Status == "starting" || session.Status == "running" || session.Status == "idle" {
 			active++
 		}
@@ -205,7 +255,7 @@ func (g *Gateway) sessionAdmission(w http.ResponseWriter, r *http.Request, handl
 		fail(w, 403, "harness_disabled", "This agent is disabled by instance policy.")
 		return false
 	}
-	if active >= p.MaxSessionsPerUser {
+	if active >= p.MaxSessionsPerUser && replays != 1 {
 		fail(w, 409, "session_limit", "Stop a running session before starting another; your instance session limit has been reached.")
 		return false
 	}

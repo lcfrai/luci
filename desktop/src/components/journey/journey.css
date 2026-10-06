@@ -26,8 +26,31 @@
   flex: 0 1 auto;
   max-block-size: 60%;
   overflow: auto;
+  scroll-padding-block: 12px;
   border-block-end: 1px solid var(--line-soft);
   background: var(--surface);
+}
+/* With no coding panes, planning is the workspace. Keep its history, checks and
+   empty-session guidance in one flow instead of reserving terminal space. */
+.develop-workspace--planning {
+  overflow: auto;
+  /* Native keyboard scrolling must leave room for the field focus outline. */
+  scroll-padding-block: 12px;
+}
+.develop-workspace--planning > .project-runs,
+.develop-workspace--planning > .project-work {
+  flex: 0 0 auto;
+  max-block-size: none;
+  overflow: visible;
+}
+.develop-workspace--planning > .develop-sessions {
+  flex: 0 0 auto;
+  min-block-size: 0;
+  overflow: visible;
+}
+.develop-workspace--planning .cols-empty {
+  block-size: auto;
+  padding: 20px;
 }
 .project-work > summary {
   display: flex;
@@ -35,6 +58,10 @@
   padding: 14px 20px;
   cursor: pointer;
   align-items: center;
+}
+.project-work > summary:focus-visible {
+  /* This disclosure spans the scroll viewport; keep its full outline inside. */
+  outline-offset: -2px;
 }
 .project-work > summary::before {
   content: "+";

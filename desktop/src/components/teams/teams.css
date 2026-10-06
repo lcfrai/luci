@@ -1,0 +1,33 @@
+@import "../../styles/tokens.css";
+.team-entry { max-width: 40rem; margin: 10vh auto; padding: 2rem; display: grid; gap: 1rem; }
+.team-workspace-control { display: grid; gap: .5rem; padding-bottom: .75rem; }
+.team-workspace-control select { min-width: 0; width: 100%; }
+.team-panel { display: grid; gap: 1rem; }
+.team-panel label, .team-entry label { display: grid; gap: .35rem; }
+.team-panel input, .team-panel select, .team-entry select, .team-workspace-control select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line-soft); border-radius: .4rem; padding: .55rem; }
+.team-panel fieldset { border: 1px solid var(--line-soft); border-radius: .5rem; padding: 1rem; }
+.team-grants { display: flex; flex-wrap: wrap; gap: .8rem; }
+.team-grants label { display: flex; align-items: center; gap: .35rem; }
+.team-member { display: grid; gap: .75rem; border-top: 1px solid var(--line-soft); padding-block: 1rem; }
+.team-member-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; }
+.team-panel [role="alert"] { color: var(--fail); }
+.team-panel .team-muted { color: var(--ink-3); font-size: .875rem; }
+
+.team-app-host { display: contents; }
+.team-app-host[hidden] { display: none; }
+.team-connection-status { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); max-width: min(42rem,90vw); z-index: 100; padding: .75rem 1rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line-soft); border-radius: .5rem; }
+
+.team-panel [role="tabpanel"] { display: grid; gap: 1rem; }
+.team-panel [role="tabpanel"][hidden] { display: none; }
+.team-access-row { border: 1px solid var(--line); border-radius: var(--r-ctl); margin-top: .5rem; overflow: hidden; }
+.team-access-row > summary { display: flex; justify-content: space-between; align-items: center; padding: .8rem; cursor: pointer; gap: .8rem; }
+.team-access-row > summary > span:first-child { display: grid; gap: .2rem; }
+.team-access-row > summary > span:last-child { color: var(--ink-2); font-size: .8rem; text-align: right; }
+.team-access-row[open] > summary { background: var(--inset); }
+.team-access-row .team-member { margin: .8rem; border: 0; padding: .4rem; }
+.team-panel summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-ctl); }
+.team-add, .team-help { border-bottom: 1px solid var(--line); padding-bottom: .8rem; }
+.team-add > summary, .team-help > summary { cursor: pointer; color: var(--ink-2); }
+.team-add > form { margin-top: .8rem; }
+.team-panel fieldset label + label, .team-panel fieldset .team-grants { margin-top: .7rem; }
+.team-panel fieldset > button { margin-top: .8rem; }

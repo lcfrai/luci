@@ -1,12 +1,14 @@
 // Real Linux/Docker acceptance smoke. No model account or cloud resource is used.
 // node scripts/runtime-smoke.mjs <compiled-luci-binary> <evidence-directory>
+// LUCI_RUNTIME_SMOKE_IMAGE=<existing-image> reuses a locally inspected image and
+// records that installation was not exercised. The default still builds it.
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { createWriteStream, mkdtempSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, createWriteStream, mkdtempSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -28,6 +30,7 @@ const port = listener.address().port;
 await new Promise((done) => listener.close(done));
 const origin = `http://127.0.0.1:${port}`;
 const image = `luci/sandbox:smoke-${randomUUID().replaceAll("-", "")}`;
+const existingImage = process.env.LUCI_RUNTIME_SMOKE_IMAGE;
 const providerProbeID = randomUUID();
 const output = createWriteStream(join(evidence, "control-plane.log"), { mode: 0o600 });
 const child = spawn(binary, [], {
@@ -149,7 +152,9 @@ function cleanupOwned(label, value) {
 }
 
 try {
-  await until("Control plane readiness", () => api("GET", "/v1/control-plane/status", undefined, 2000));
+  const control = await until("Control plane readiness", () => api("GET", "/v1/control-plane/status", undefined, 2000));
+  assert.equal(control.product, "Luci");
+  result.version = control.version;
   const bootstrapToken = readFileSync(join(state, "control-plane", "bootstrap-token"), "utf8").trim();
   const identity = await api("POST", "/v1/auth/bootstrap", { bootstrapToken, username: "runtime-owner", displayName: "Runtime Owner", password: ownerPassword });
   authToken = identity.token;
@@ -157,23 +162,43 @@ try {
   userProjects = projects; // The first owner uses the configured inline workspace.
   await until("Authenticated private workspace readiness", () => api("GET", "/v1/setup/status", undefined, 35_000), 45_000);
   await api("POST", "/v1/setup/git/identity", { name: "Luci Runtime Test", email: "runtime-test@example.invalid" });
-  const install = await api("POST", "/v1/setup/runtime/install", {});
-  assert.equal(install.image, image);
-  const runtime = await until("Real sandbox image build", async () => {
-    const status = await api("GET", "/v1/setup/runtime/install");
-    if (status.status === "failed" || status.status === "unknown") {
-      throw Object.assign(new Error(status.message), { fatal: true });
-    }
-    return status.status === "ready" && status;
-  }, 11 * 60_000);
-  result.checks.push({ name: "real Docker image install", status: runtime.status });
+  if (existingImage) {
+    const [source] = JSON.parse(execFileSync("docker", ["image", "inspect", existingImage], { encoding: "utf8" }));
+    assert.match(source.Id, /^sha256:[a-f0-9]{64}$/);
+    execFileSync("docker", ["tag", source.Id, image]);
+    const readiness = await api("POST", "/v1/setup/check", {});
+    for (const id of ["docker", "sandbox-image"])
+      assert.equal(readiness.checks.find((check) => check.id === id)?.status, "ready", `${id} did not verify the existing image`);
+    result.image = { mode: "existing", source: existingImage, id: source.Id, installExercised: false };
+    result.checks.push({ name: "existing local sandbox image verified by workspace readiness", imageId: source.Id });
+  } else {
+    const install = await api("POST", "/v1/setup/runtime/install", {});
+    assert.equal(install.image, image);
+    const runtime = await until("Real sandbox image build", async () => {
+      const status = await api("GET", "/v1/setup/runtime/install");
+      if (status.status === "failed" || status.status === "unknown") {
+        throw Object.assign(new Error(status.message), { fatal: true });
+      }
+      return status.status === "ready" && status;
+    }, 11 * 60_000);
+    const [installed] = JSON.parse(execFileSync("docker", ["image", "inspect", image], { encoding: "utf8" }));
+    result.image = { mode: "built", id: installed.Id, installExercised: true };
+    result.checks.push({ name: "real Docker image install", status: runtime.status });
+  }
 
   // Real pinned providers speak only to a fixture API inside this container.
   // Docker network=none makes accidental external model access impossible.
+  // Keep the checkout's permissions unchanged. The container's ordinary user
+  // must be able to read this exact fixture even when the host uses umask 077.
+  const providerScript = join(fixture, "provider-smoke.py");
+  const providerSource = readFileSync(join(repository, "scripts", "provider-smoke.py"));
+  writeFileSync(providerScript, providerSource, { mode: 0o600 });
+  chmodSync(providerScript, 0o644);
+  assert.deepEqual(readFileSync(providerScript), providerSource);
   const providerProof = execFileSync("docker", ["run", "--rm", "--network", "none", "--read-only",
     "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
     "--tmpfs", "/tmp:rw,nosuid,nodev,size=536870912", "--label", `ai.lcfr.luci.provider-smoke=${providerProbeID}`,
-    "--mount", `type=bind,source=${join(repository, "scripts", "provider-smoke.py")},target=/provider-smoke.py,readonly`,
+    "--mount", `type=bind,source=${providerScript},target=/provider-smoke.py,readonly`,
     "--entrypoint", "/usr/bin/python3", image, "/provider-smoke.py"],
     { encoding: "utf8", timeout: 180_000, maxBuffer: 8 * 1024 * 1024 });
   writeFileSync(join(evidence, "provider-smoke.json"), providerProof, { mode: 0o600 });
@@ -186,7 +211,33 @@ try {
   const originalMode = statSync(project.path).mode & 0o777;
   assert.equal(originalMode, 0o700);
   await api("POST", `/v1/product/projects/${project.id}/brief`, { revision: 0, purpose: "Prove the actual Linux runtime", audience: "Release verification", constraints: "No model credentials or cloud resources", criteria: ["A real shell writes as its host user", "A committed preview answers HTTP"] });
-  await api("POST", `/v1/product/projects/${project.id}/git/commit`, { message: "Runtime smoke initial brief" });
+  const projectRoute = `/v1/product/projects/${project.id}`;
+  const draft = await api("GET", `${projectRoute}/specification`);
+  assert.equal(draft.status, "draft");
+  assert.equal(draft.requirements.length, 2);
+  const specification = await api("POST", `${projectRoute}/specification`, {
+    expectedRevision: draft.revision, expectedBriefRevision: draft.briefRevision,
+    specification: { ...draft, requirements: draft.requirements.map((requirement) => ({ ...requirement, acceptance: requirement.title })) },
+  });
+  const definition = await api("POST", `${projectRoute}/specification/approve`, { revision: specification.revision, briefRevision: specification.briefRevision });
+  assert.equal(definition.status, "approved");
+  assert.match(definition.digest, /^[a-f0-9]{64}$/);
+  const design = await api("GET", `${projectRoute}/design-plan`);
+  const savedDesign = await api("POST", `${projectRoute}/design-plan`, {
+    expectedRevision: design.revision, expectedBriefRevision: definition.briefRevision,
+    expectedSpecificationRevision: definition.revision,
+    plan: { ...design, screens: [{ id: "runtime-proof", name: "Runtime proof", route: "/", purpose: "Show the configured preview response", states: ["Ready", "Error"], widths: [390, 1440], requirementIds: definition.requirements.map((item) => item.id) }] },
+  });
+  const handoff = await api("POST", `${projectRoute}/design-plan/approve`, { revision: savedDesign.revision });
+  assert.equal(handoff.status, "approved");
+  assert.equal(handoff.specificationRevision, definition.revision);
+  assert.match(handoff.digest, /^[a-f0-9]{64}$/);
+  // These authenticated endpoints create the controller's private review
+  // authority; writing approved-looking project files cannot substitute for it.
+  assert.deepEqual(await api("GET", `${projectRoute}/specification`), definition);
+  assert.deepEqual(await api("GET", `${projectRoute}/design-plan`), handoff);
+  await api("POST", `${projectRoute}/git/commit`, { message: "Runtime smoke reviewed definition and design", expectedReviewDigest: (await api("GET", `${projectRoute}/git`)).reviewDigest });
+  result.checks.push({ name: "authenticated definition and linked design approval before implementation and deployment", definitionRevision: definition.revision, definitionDigest: definition.digest, designRevision: handoff.revision, designDigest: handoff.digest });
   const machines = (await api("GET", "/v1/machines")).machines;
   const branches = (await api("GET", `/v1/projects/${project.id}/branches`)).branches;
   const branch = branches.find((row) => row.name === "main") ?? branches[0];
@@ -196,6 +247,7 @@ try {
   session = await api("POST", "/v1/sessions", { machineId: machines[0].id, worktreeId: worktree.id, harness: "shell", title: "Runtime proof" }, 90_000);
   const sandbox = containerFor("luci.session-id", session.id);
   assertLoopbackPorts(sandbox);
+  assert.equal(sandbox.HostConfig.PidsLimit, 256, "A shell must not exhaust the host process table");
   // A plain shell deliberately has no agent conversation mount. Do not put
   // other sessions' transcripts in reach of a shell just to satisfy this test.
   assert.ok(!sandbox.Mounts.some((mount) => mount.Destination === "/home/dev/.claude/projects"));
@@ -224,6 +276,7 @@ try {
   session = await api("POST", "/v1/sessions", { machineId: machines[0].id, worktreeId: worktree.id, harness: "claude-code", title: "Transcript mount proof" }, 90_000);
   const agent = containerFor("luci.session-id", session.id);
   assertLoopbackPorts(agent);
+  assert.equal(agent.HostConfig.PidsLimit, 256, "An agent must not exhaust the host process table");
   const transcripts = agent.Mounts.find((mount) => mount.Destination === "/home/dev/.claude/projects")?.Source;
   assert.ok(transcripts, "Conversation-bearing session did not mount its persistent transcript store");
   const transcriptStat = statSync(transcripts);
@@ -250,8 +303,8 @@ try {
   await api("DELETE", `/v1/sessions/${session.id}`);
 
   writeFileSync(join(project.path, "app.mjs"), 'import http from "node:http"; http.createServer((req,res)=>{res.writeHead(200,{"content-type":"application/json"});res.end(JSON.stringify({greeting:process.env.APP_GREETING,fixtureValue:process.env.APP_PRIVATE_FIXTURE,modelKeyPresent:Boolean(process.env.ANTHROPIC_API_KEY||process.env.OPENAI_API_KEY)}));}).listen(3000,"0.0.0.0");\n', { mode: 0o600 });
-  writeFileSync(join(project.path, "Dockerfile"), `FROM ${image}\nWORKDIR /app\nCOPY --chown=dev:dev app.mjs /app/app.mjs\nUSER dev\nEXPOSE 3000\nENTRYPOINT ["node","/app/app.mjs"]\n`, { mode: 0o600 });
-  await api("POST", `/v1/product/projects/${project.id}/git/commit`, { message: "Runtime smoke committed preview" });
+  writeFileSync(join(project.path, "Dockerfile"), `FROM ${image}\nWORKDIR /app\nCOPY app.mjs /app/app.mjs\nUSER dev\nEXPOSE 3000\nENTRYPOINT ["node","/app/app.mjs"]\n`, { mode: 0o600 });
+  await api("POST", `/v1/product/projects/${project.id}/git/commit`, { message: "Runtime smoke committed preview", expectedReviewDigest: (await api("GET", `/v1/product/projects/${project.id}/git`)).reviewDigest });
   const git = await api("GET", `/v1/product/projects/${project.id}/git`);
   assert.equal(git.clean, true);
   const applicationFixtureValue = "fixture-runtime-only-" + randomUUID();
@@ -265,10 +318,10 @@ try {
   release = await api("POST", `/v1/product/projects/${project.id}/releases`, { target: "local", port: 3000, dockerfile: "Dockerfile" }, 4 * 60_000);
   assert.equal(release.status, "ready");
   assert.equal(release.commit, git.log[0].hash);
-  assert.equal(release.briefRevision, 1);
+  assert.equal(release.briefRevision, definition.briefRevision);
   assert.equal(release.configurationRevision, 1);
   assert.ok(!JSON.stringify(release).includes(applicationFixtureValue));
-  assert.deepEqual(readdirSync(state).filter((name) => name.startsWith("preview-env-")), [], "Private runtime env file survived Docker run");
+  assert.deepEqual(readdirSync(state, { recursive: true }).filter((name) => basename(name).startsWith("preview-env-")), [], "Private runtime env file survived Docker run");
   const address = new URL(release.url);
   assert.equal(address.protocol, "http:");
   assert.equal(address.hostname, "127.0.0.1");
@@ -295,7 +348,7 @@ try {
     result.checks.push({ name: 'actual browser Docker journey: terminal app creation, project checks, Git commit, healthy iframe preview and owned stop', evidence: 'browser/results.json' });
   }
   result.passed = true;
-  console.log("PASS: real Docker install, non-root shell WebSocket/write, committed preview health and ownership-checked stop.");
+  console.log(`PASS: ${existingImage ? "verified existing Docker image (installation not exercised)" : "real Docker install"}, authenticated reviews, non-root shell WebSocket/write, committed preview health and ownership-checked stop.`);
 } catch (error) {
   result.error = error.message;
   process.exitCode = 1;
@@ -323,6 +376,10 @@ try {
   await Promise.race([exited, delay(5000)]);
   if (child.exitCode === null && !spawnError) { child.kill("SIGKILL"); await exited; }
   output.end();
+  if (existingImage) {
+    try { execFileSync("docker", ["image", "rm", image], { stdio: "ignore" }); }
+    catch (error) { result.imageCleanupError = error.message; process.exitCode = 1; }
+  }
   result.finishedAt = new Date().toISOString();
   if (process.exitCode) result.passed = false;
   writeFileSync(join(evidence, "result.json"), JSON.stringify(result, null, 2) + "\n", { mode: 0o600 });

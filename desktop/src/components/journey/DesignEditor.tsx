@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { notifyProjectContextChanged } from "../../api/projectContextEvents";
 import { Excalidraw, MainMenu, serializeAsJSON } from "@excalidraw/excalidraw";
 import type {
   ExcalidrawInitialDataState,
@@ -14,6 +15,10 @@ import {
 } from "../../api/product";
 import { JourneyHeader } from "./shared";
 import { useAppearance } from "../../preferences/appearance";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
+import { useProjectDraft, useProjectDraftScope } from "../../hooks/useProjectDraft";
+import { sketchDraftValid } from "../../hooks/projectDraftValidation";
+import { DraftRecovery } from "../common/DraftRecovery";
 import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { Button } from "../fluid/components/button";
 
@@ -52,16 +57,24 @@ function initialPaperColour(): string | undefined {
 }
 
 export default function DesignEditor(props: Props) {
-  return <ProjectDesignEditor key={props.projectId} {...props} />;
+  const scope = useProjectDraftScope(props.projectId);
+  return <ProjectDesignEditor key={`${scope}:${props.projectId}`} {...props} scope={scope} />;
 }
-function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange }: Props) {
+function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange, scope }: Props & { scope: string | null }) {
+  const access = useProjectAccess(projectId);
+  const { canRead, canEdit } = access;
   const appearance = useAppearance();
   const [design, setDesign] = useState<Design | null>(null);
+  const savedDesign = useRef<Design | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
-  useUnsavedProjectDraft(projectId, dirty, "Sketch", "design");
+  const [sceneDraft, setSceneDraft] = useState<DesignScene | null>(null);
+  const [canvasVersion, setCanvasVersion] = useState(0);
+  const draftBase = design ? JSON.stringify({ revision: design.revision, briefRevision: design.briefRevision }) : null;
+  const draft = useProjectDraft({ scope, kind: "sketch", base: draftBase, value: sceneDraft, dirty, valid: sketchDraftValid });
+  useUnsavedProjectDraft(projectId, dirty, "Sketch", "design", scope ? { retained: draft.retained, discard: discardEdits } : undefined);
   const baseline = useRef<string | null>(null), latestDocument = useRef<string | null>(null);
   const current = useRef<Parameters<
     NonNullable<ExcalidrawProps["onChange"]>
@@ -123,14 +136,19 @@ function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange }: Props) 
     observer.observe(root, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, []);
+  function discardEdits() {
+    draft.clear(); baseline.current = null; latestDocument.current = null; current.current = null;
+    setDirty(false); setSaved(false); setDesign(savedDesign.current); setSceneDraft(null); setCanvasVersion(version => version + 1);
+  }
   async function load() {
+    if (!canRead) return;
     setLoading(true);
     setError("");
     try {
       const value = await productApi.design(projectId);
       if (alive.current) {
         baseline.current = null; latestDocument.current = null; current.current = null;
-        setDirty(false); setSaved(false); setDesign(value);
+        setDirty(false); setSaved(false); savedDesign.current = value; setDesign(value); setSceneDraft(null); setCanvasVersion(version => version + 1);
       }
     } catch (cause) {
       if (alive.current) setError(errorText(cause));
@@ -144,9 +162,9 @@ function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange }: Props) 
     return () => {
       alive.current = false;
     };
-  }, [projectId]);
+  }, [projectId, canRead || !!design]);
   async function save() {
-    if (!design || !current.current || saving.current) return;
+    if (!canEdit || !design || !current.current || saving.current || draft.pending) return;
     saving.current = true;
     setBusy(true);
     setError("");
@@ -163,9 +181,11 @@ function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange }: Props) 
       if (alive.current) {
         baseline.current = fingerprint;
         const remaining = latestDocument.current !== fingerprint;
-        setDesign(next);
+        if (!remaining) draft.clear();
+        savedDesign.current = next; setDesign(next);
         setDirty(remaining);
         setSaved(!remaining);
+        notifyProjectContextChanged(scope, projectId);
       }
     } catch (cause) {
       if (alive.current) setError(errorText(cause));
@@ -188,16 +208,18 @@ function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange }: Props) 
               : "Design unavailable"}
         </span>
         <Button type="button" variant="primary" loading={busy}
-          disabled={!design || busy || !dirty}
+          disabled={!canEdit || !design || busy || !!draft.pending || !dirty}
           onClick={() => void save()}
         >
           {busy ? "Saving…" : "Save design"}
         </Button>
       </JourneyHeader>
       <div>
+        {access.message && <p role="status" className="journey-muted">{access.message}</p>}
         {error && (
           <p className="journey-error" role="alert">
             {error}
+            {design && <Button type="button" variant="secondary" disabled={busy || loading} onClick={() => { draft.offerRecovery(); void load(); }}>Reload saved sketch</Button>}
             {!design && (
               <Button type="button" variant="secondary" loading={loading}
                 disabled={loading}
@@ -215,9 +237,15 @@ function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange }: Props) 
         )}
         {dirty && <span role="status" className="journey-muted">Unsaved sketch changes.</span>}
       </div>
+      <DraftRecovery draft={draft} label="Sketch" base={draftBase} saved={savedDesign.current?.scene ?? null} busy={busy || loading} readOnly={!canEdit} onDiscard={discardEdits} onRestore={value => {
+        if (!design) return;
+        baseline.current = "restored draft"; latestDocument.current = null;
+        setDesign({ ...design, scene: value }); setSceneDraft(value); setDirty(true); setCanvasVersion(version => version + 1);
+      }} />
       <div className="design-canvas" ref={canvas} aria-busy={loading}>
-        {design && (
-          <Excalidraw
+        {design && canRead && (
+          <Excalidraw key={canvasVersion}
+            viewModeEnabled={!canEdit || !!draft.pending}
             excalidrawAPI={(api) => { nativeAPI.current = api; }}
             initialData={
               (design.scene ?? {
@@ -235,14 +263,20 @@ function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange }: Props) 
             onChange={(...args) => {
               current.current = args;
               try {
-                const fingerprint = documentFingerprint(persistedScene(args));
+                const document = persistedScene(args);
+                const fingerprint = documentFingerprint(document);
                 // Excalidraw normalizes the initial document before its first
                 // change callback. Hydration itself is not a user edit.
                 if (baseline.current === null) baseline.current = fingerprint;
+                const documentChanged = latestDocument.current !== fingerprint;
                 latestDocument.current = fingerprint;
                 const changed = fingerprint !== baseline.current;
                 setDirty(changed);
-                if (changed) setSaved(false);
+                // The pinned editor emits onChange after host renders too.
+                // Publishing a fresh scene object for that same document would
+                // feed another host render back into the native editor forever.
+                if (changed && documentChanged) { setSceneDraft(document); setSaved(false); }
+                else if (!changed && draft.retained && !draft.pending) draft.clear();
               } catch (cause) {
                 setDirty(true); setSaved(false); setError(errorText(cause));
               }

@@ -4,6 +4,18 @@ import { selectPaneSessionIds, selectCanvasSessionIds, selectBranchAttentionSess
 import { aBranch, aSession, aWorktree } from "../test/fixtures";
 
 beforeEach(() => { resetCockpit(); useCockpit.setState({ selection: { projectId: "owned", branchId: "main", worktreeId: "primary", sessionId: null }, lens: "discover" }); });
+it("retains dirty context and drops a queued build inspection when navigation is cancelled", () => {
+  const state = useCockpit.getState();
+  state.setUnsavedProjectDraft("editor", { projectId: "owned", label: "Definition", lens: "discover" });
+  useCockpit.setState({ projectRunInspection: { scope: "account-workspace-project", projectId: "owned", runId: "older-active" } });
+  state.setLens("develop");
+  expect(useCockpit.getState().lens).toBe("discover");
+  expect(useCockpit.getState().projectRunInspection?.runId).toBe("older-active");
+  expect(partialize(useCockpit.getState())).not.toHaveProperty("projectRunInspection");
+  state.cancelNavigation();
+  expect(useCockpit.getState().projectRunInspection).toBeNull();
+  expect(useCockpit.getState().unsavedProjectDrafts.editor).toBeDefined();
+});
 it("keeps a dirty editor mounted until navigation is explicitly confirmed", () => {
   const state = useCockpit.getState(); state.setUnsavedProjectDraft("editor", { projectId: "owned", label: "Definition", lens: "discover" });
   state.setLens("design"); expect(useCockpit.getState().lens).toBe("discover"); expect(useCockpit.getState().pendingNavigation).toEqual({ kind: "lens", lens: "design" });
@@ -22,4 +34,14 @@ it("moves the same primary checkout while retaining exited transcripts on their 
   expect(useCockpit.getState().sessions.old.branchId).toBe("main"); expect(useCockpit.getState().pinned).toEqual(["old"]);
   state.acceptBranchChange("owned", [main, feature], aWorktree({ id: "primary", projectId: "owned", branchId: "main", isPrimary: true, ready: false }));
   expect(selectPaneSessionIds(useCockpit.getState())).toEqual(["old"]); expect(selectCanvasSessionIds(useCockpit.getState())).toEqual(["old"]); expect(useCockpit.getState().projectSourceRevisions.owned).toBe(2);
+});
+
+it("keeps checked deployment and verification intents transient and clears cancelled navigation", () => {
+  const intent = { scope: "account-workspace-project", projectId: "owned", runId: "checked-run" };
+  useCockpit.setState({ projectRunVerification: intent, projectRunDeployment: { ...intent, checkId: "check", commit: "a".repeat(40), sourceDigest: "b".repeat(64), outcome: "preview" } });
+  expect(partialize(useCockpit.getState())).not.toHaveProperty("projectRunVerification");
+  expect(partialize(useCockpit.getState())).not.toHaveProperty("projectRunDeployment");
+  useCockpit.getState().cancelNavigation();
+  expect(useCockpit.getState().projectRunVerification).toBeNull();
+  expect(useCockpit.getState().projectRunDeployment).toBeNull();
 });

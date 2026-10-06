@@ -1,0 +1,13 @@
+@import "../../styles/tokens.css";
+.project-runs { flex: 0 0 auto; padding: 16px 20px; border-block-end: 1px solid var(--line-soft); background: var(--surface); max-block-size: 45%; overflow: auto; }
+.project-runs h2 { font-size: 16px; margin: 0; }
+.project-runs h3 { font-size: 14px; }
+.project-runs-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.project-run-next > span { color: var(--ink-3); margin-inline-start: 14px; font-size: 12px; }
+.project-runs p { line-height: 1.6; overflow-wrap: anywhere; margin-block: 8px; }
+.project-runs details { margin-block-start: 12px; font-size: 13px; }
+.project-runs summary { cursor: pointer; color: var(--ink-2); }
+.project-run-history ul { padding: 0; list-style: none; }
+.project-run-history li { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-block: 8px; }
+.project-run-history li > span { font-size: 12px; color: var(--ink-3); }
+@media (max-width: 760px) { .project-runs { padding: 12px; } .project-runs-heading { flex-wrap: wrap; } .project-run-next > span { display: block; margin-inline-start: 0; } }

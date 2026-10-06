@@ -28,6 +28,7 @@ type RuntimeStatus struct {
 type userRuntime struct {
 	mu              sync.Mutex
 	user            User
+	teamID          string
 	policy          Policy
 	secret, address string
 	status          RuntimeStatus
@@ -49,6 +50,9 @@ func (rt *userRuntime) stop() {
 			req, _ := http.NewRequestWithContext(ctx, "POST", address+"/v1/setup/shutdown", strings.NewReader("{}"))
 			req.Header.Set("Content-Type", "application/json")
 			setWorkerHeaders(req, u, p, secret)
+			if rt.teamID != "" {
+				req.Header.Set(teamWorkerHeader, rt.teamID)
+			}
 			client := &http.Client{Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 			res, err := client.Do(req)
 			if err == nil {
@@ -72,6 +76,8 @@ func setWorkerHeaders(r *http.Request, u User, p Policy, secret string) {
 	r.Header.Set("Authorization", "Bearer "+secret)
 	r.Header.Set("X-Luci-Actor", base64.RawURLEncoding.EncodeToString(user))
 	r.Header.Set("X-Luci-Policy", base64.RawURLEncoding.EncodeToString(policy))
+	r.Header.Del(teamWorkerHeader)
+	r.Header.Del(teamWorkerAccessHeader)
 	if !isPrivatePreviewRequest(r) {
 		r.Header.Del("Cookie")
 	}
@@ -97,14 +103,37 @@ func WorkerHandler(token string, next http.Handler) http.Handler {
 			data, err := base64.RawURLEncoding.DecodeString(value)
 			return err == nil && json.Unmarshal(data, dst) == nil
 		}
-		if !decodeHeader("X-Luci-Actor", &u) || !decodeHeader("X-Luci-Policy", &p) || !validRole(u.Role) || u.Disabled || validatePolicy(p) != nil || (os.Getenv("LUCI_ACTOR_ID") != "" && u.ID != os.Getenv("LUCI_ACTOR_ID")) || (os.Getenv("LUCI_ACTOR_ROLE") != "" && u.Role != os.Getenv("LUCI_ACTOR_ROLE")) {
+		if !decodeHeader("X-Luci-Actor", &u) || !decodeHeader("X-Luci-Policy", &p) || !validRole(u.Role) || u.Disabled || validatePolicy(p) != nil || !validWorkerIdentity(r, u) {
 			fail(w, 403, "worker_identity_mismatch", "This runtime belongs to a different identity.")
 			return
 		}
 		r.Header.Del("Authorization")
 		r.Header.Del("X-Luci-Actor")
 		r.Header.Del("X-Luci-Policy")
-		next.ServeHTTP(w, r.WithContext(withActor(r.Context(), u, p)))
+		teamID := r.Header.Get(teamWorkerHeader)
+		ctx := withTeamRuntime(withActor(r.Context(), u, p), teamID)
+		if teamID != "" {
+			p.AllowHostCommands = false
+			ctx = withTeamRuntime(withActor(r.Context(), u, p), teamID)
+			var access TeamAccess
+			if r.Header.Get(teamWorkerAccessHeader) != "" {
+				if !decodeHeader(teamWorkerAccessHeader, &access) || access.Team.ID != teamID || access.Member.UserID != u.ID || access.Member.Revision < 1 || !validTeamRole(access.Member.Role) || (access.ProjectID != "" && !teamProjectIDPattern.MatchString(access.ProjectID)) || IntersectTeamPermissions(PermissionsForTeam(access.Member.Role, access.Member.Grants), access.Permissions) != access.Permissions {
+					fail(w, 403, "worker_team_scope_mismatch", "This runtime requires a matching authorized team membership.")
+					return
+				}
+				u.Role = "member"
+				if access.Permissions.Admin {
+					u.Role = "admin"
+				}
+				ctx = WithTeamAccess(withActor(ctx, u, p), access)
+			} else if !(r.Method == http.MethodGet && (r.URL.Path == "/v1/setup/status" || r.URL.Path == "/v1/healthz")) && !(r.Method == http.MethodPost && r.URL.Path == "/v1/setup/shutdown") {
+				fail(w, 403, "worker_team_scope_required", "This runtime requires an authorized team membership scope.")
+				return
+			}
+		}
+		r.Header.Del(teamWorkerHeader)
+		r.Header.Del(teamWorkerAccessHeader)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 func WriteWorkerAddress(path, address string) error {
@@ -147,6 +176,9 @@ func isolatedEnvironment(base []string, root, secret, addressFile string, u User
 	return env
 }
 func (g *Gateway) ensureRuntime(ctx context.Context, u User, p Policy) (*userRuntime, error) {
+	if g.managedTeamID != "" {
+		return nil, errors.New("personal execution is disabled on this managed team installation")
+	}
 	g.mu.Lock()
 	if g.closed {
 		g.mu.Unlock()
@@ -198,6 +230,11 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 		close(rt.done)
 	}
 	root := filepath.Join(g.dir, "users", rt.user.ID, "runtime")
+	conversationOwner := rt.user.ID
+	if rt.teamID != "" {
+		root = filepath.Join(g.dir, "teams", rt.teamID, "runtime")
+		conversationOwner = "team:" + rt.teamID
+	}
 	for _, dir := range []string{root, filepath.Join(root, "state"), filepath.Join(root, "projects"), filepath.Join(root, "home"), filepath.Join(root, "home", "AppData", "Roaming"), filepath.Join(root, "home", "AppData", "Local"), filepath.Join(root, "tmp")} {
 		if err := os.MkdirAll(dir, 0700); err != nil {
 			finish("Private workspace directories could not be prepared.")
@@ -209,7 +246,7 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 		}
 	}
 	addressFile := filepath.Join(root, "worker-address.json")
-	conversations, err := prepareWorkerConversations(g.dir, root, rt.user.ID)
+	conversations, err := prepareWorkerConversations(g.dir, root, conversationOwner)
 	legacyStorage := false
 	if err != nil {
 		if errors.Is(err, errConversationsActive) {
@@ -231,6 +268,9 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 	cmd := exec.Command(g.opts.Executable, g.opts.WorkerArgs...)
 	cmd.Dir = root
 	cmd.Env = isolatedEnvironment(g.opts.BaseEnvironment, root, rt.secret, addressFile, rt.user)
+	if rt.teamID != "" {
+		cmd.Env = isolatedTeamEnvironment(g.opts.BaseEnvironment, root, rt.secret, addressFile, rt.teamID, rt.user)
+	}
 	cmd.Env = append(cmd.Env, "LUCI_CONVERSATIONS_DIR="+conversations)
 	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
 	kill, err := startOwnedProcess(cmd)
@@ -275,6 +315,9 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 			}
 			req, _ := http.NewRequest("GET", endpoint.Address+"/v1/setup/status", nil)
 			setWorkerHeaders(req, rt.user, rt.policy, rt.secret)
+			if rt.teamID != "" {
+				req.Header.Set(teamWorkerHeader, rt.teamID)
+			}
 			client := &http.Client{Timeout: 500 * time.Millisecond, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 			res, err := client.Do(req)
 			if err != nil {
@@ -292,6 +335,9 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 			}
 			rt.address = endpoint.Address
 			message := "Private user workspace is running."
+			if rt.teamID != "" {
+				message = "Shared team workspace is running on this host with Docker execution."
+			}
 			if legacyStorage {
 				message = "Private workspace is running with its existing agent homes. Stop active sessions, then restart this workspace to complete the private storage upgrade."
 			}
@@ -307,6 +353,9 @@ func (g *Gateway) startRuntime(rt *userRuntime) {
 	}
 }
 func (g *Gateway) executionHandler(ctx context.Context, u User, p Policy) (http.Handler, error) {
+	if g.managedTeamID != "" {
+		return nil, errors.New("personal execution is disabled on this managed team installation")
+	}
 	g.mu.Lock()
 	owner := g.state.OwnerID
 	g.mu.Unlock()
@@ -338,6 +387,10 @@ func (g *Gateway) runtimeStatus(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if _, ok := g.state.Users[id]; !ok {
 		fail(w, 404, "unknown_user", "This user does not exist.")
+		return
+	}
+	if g.managedTeamID != "" {
+		jsonReply(w, 200, RuntimeStatus{Status: "disabled", Message: "Personal workspaces are disabled. Use this installation's assigned team workspace."})
 		return
 	}
 	if id == g.state.OwnerID {

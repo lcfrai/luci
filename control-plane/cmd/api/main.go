@@ -32,6 +32,7 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/backend/dockerbe"
 	"github.com/lcfrai/luci/control-plane/internal/backend/katabe"
+	"github.com/lcfrai/luci/control-plane/internal/diagnostics"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/instance"
 	"github.com/lcfrai/luci/control-plane/internal/management"
@@ -45,10 +46,12 @@ import (
 )
 
 func main() {
-	if err := protectChildren(); err != nil {
-		fmt.Fprintf(os.Stderr, "luci: child process cleanup unavailable: %v\n", err)
-	}
-	os.Exit(run(os.Getenv, os.Stderr))
+	os.Exit(runCommand(os.Args[1:], os.Stdout, os.Stderr, func() int {
+		if err := protectChildren(); err != nil {
+			fmt.Fprintf(os.Stderr, "luci: child process cleanup unavailable: %v\n", err)
+		}
+		return run(os.Getenv, os.Stderr)
+	}))
 }
 
 // run is main with its two impure edges as parameters, so that the exit-2 path
@@ -68,6 +71,7 @@ func run(getenv func(string) string, errOut io.Writer) int {
 	cfg.WorkerAddressFile = getenv(envWorkerAddressFile)
 	cfg.Backing = getenv(envBacking)
 	cfg.InstanceName = getenv(envInstanceName)
+	cfg.ManagedTeamID = getenv(envManagedTeamID)
 	cfg.ManagedShutdownToken = getenv(envManagedShutdownToken)
 	if cfg.Worker && (len(cfg.WorkerToken) < 40 || !filepath.IsAbs(cfg.WorkerAddressFile) || !filepath.IsAbs(cfg.StateDir)) {
 		fmt.Fprintln(errOut, "luci: managed workers require a private token, state directory and address file")
@@ -87,6 +91,13 @@ func run(getenv func(string) string, errOut io.Writer) int {
 }
 
 func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
+	lease, err := acquireManagedStateLease(cfg)
+	if err != nil {
+		return fmt.Errorf("acquire managed host state: %w", err)
+	}
+	if lease != nil {
+		defer lease.Close()
+	}
 	// The instance id comes first: the backend stamps it on every sandbox and
 	// lists only sandboxes that carry it, and the reaper destroys only those,
 	// so neither can be built without it. It is this state directory's, minted
@@ -187,7 +198,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			}
 		}
 		return false, nil
-	}, NativePrototypeReleases: product.PlatformPrototypeReleases(resolveDataPlatform), CloudDataBindings: product.PlatformCloudDataBindings(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
+	}, NativePrototypeReleases: product.PlatformPrototypeReleases(resolveDataPlatform), CloudDataBindings: product.PlatformCloudDataBindings(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, BrowserPreviewDomain: cfg.PreviewBaseDomain, ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
 		if shutdownService != nil {
 			shutdownService()
 		}
@@ -198,11 +209,19 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	defer productService.Close()
 	// Public browser origins are optional and independent from private Docker
 	// health URLs. The portable/native launch paths keep their prior defaults.
-	platformService, err = platform.New(platform.Options{FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource})
+	platformService, err = platform.New(platform.Options{FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, BrowserPreviewDomain: cfg.PreviewBaseDomain, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource, RecordDeploymentProvenance: productService.RecordProjectRunReleaseProvenance})
 	if err != nil {
 		return fmt.Errorf("initialise application platform: %w", err)
 	}
 	defer platformService.Close()
+	productService.SetProjectRunNativeReleaseObserver(func(ctx context.Context, projectID, releaseID string) (product.ProjectRunNativeReleaseObservation, error) {
+		observed, err := platformService.ObserveProjectRunDeployment(ctx, projectID, releaseID)
+		if err != nil {
+			return product.ProjectRunNativeReleaseObservation{}, err
+		}
+		d := observed.Deployment
+		return product.ProjectRunNativeReleaseObservation{ReleaseID: d.ID, ProjectID: d.ProjectID, Target: "native-" + d.Provider, Commit: d.Commit, URL: d.URL, Ready: d.Status == "ready", ObservedAt: observed.ObservedAt, Limitations: observed.Limitations}, nil
+	})
 
 	// The host's own git config, and nothing a sandbox can write, answers the
 	// identity, line-ending and global-file questions: hostGit runs each git in
@@ -226,10 +245,23 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	// There is no IdleAfter field to pass — the idle window belongs to the
 	// reaper above, which is the only thing that derives idle.
 	origins := cfg.AllowedOrigins
+	if cfg.PublicAppOrigin != "" {
+		origins = []string{cfg.PublicAppOrigin}
+	}
 	if len(origins) == 0 {
 		origins = append(httpx.DefaultOrigins(), "http://"+cfg.Addr)
 	}
 	originPolicy := httpx.NewOriginPolicy(origins, log)
+	if cfg.PublicAppOrigin != "" {
+		if err := originPolicy.SetPublicAppOrigin(cfg.PublicAppOrigin); err != nil {
+			return err
+		}
+	}
+	var recordFailure func(string, error) error
+	if recorder := openWorkerDiagnostics(cfg, log); recorder != nil {
+		defer recorder.Close()
+		recordFailure = recorder.Record
+	}
 	handler, err := api.New(api.Deps{
 		Store:              store,
 		Backend:            be,
@@ -244,6 +276,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		ReadyTimeout:       cfg.ReadyTimeout,
 		BackendReady:       rp.BackendReady,
 		Log:                log,
+		RecordFailure:      recordFailure,
 		// Created per worktree, at the first session that needs it.
 		ConversationsDir: cfg.ConversationsDir,
 		// Where every project is, so the region a global git file may not be
@@ -291,7 +324,7 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		if root == "" {
 			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
 		}
-		control, err = management.New(management.Options{StateDir: root, InstanceName: cfg.InstanceName, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess})
+		control, err = management.New(management.Options{StripeBilling: management.StripeBillingConfig{APIKey: cfg.StripeAPIKey, WebhookSecret: cfg.StripeWebhookSecret, AccountID: cfg.StripeAccountID, PriceID: cfg.StripePriceID, TermsURL: cfg.BillingTermsURL, PrivacyURL: cfg.BillingPrivacyURL}, StateDir: root, InstanceName: cfg.InstanceName, ManagedTeamID: cfg.ManagedTeamID, PublicAppOrigin: cfg.PublicAppOrigin, Backing: cfg.Backing, Version: product.Version, InitialHandler: engine, BaseEnvironment: os.Environ(), LocalAccessToken: cfg.LocalAccessToken, PortableOwnerAccess: cfg.PortableOwnerAccess, PortablePackageID: cfg.PortablePackageID})
 		if err != nil {
 			_ = ln.Close()
 			return fmt.Errorf("initialise control-plane management: %w", err)
@@ -301,6 +334,10 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			defer cancel()
 			_ = control.Close(cleanup)
 		}()
+		if cfg.PublicAppOrigin != "" && control.ManagedTeamID() == "" {
+			_ = ln.Close()
+			return errors.New("public HTTPS ingress requires this installation to be bound to one managed team")
+		}
 		engine = control.Handler()
 	}
 	if cfg.BrowserPreviewAddr != "" && !cfg.Worker {
@@ -309,10 +346,14 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
 		}
 		gateway, err := previewgateway.New(root, cfg.BrowserPreviewPort, previewgateway.DockerVerifier(cfg.DockerHost))
+		if cfg.PreviewBaseDomain != "" {
+			gateway, err = previewgateway.NewWithPublicIngress(root, cfg.BrowserPreviewPort, previewgateway.DockerVerifier(cfg.DockerHost), cfg.PreviewBaseDomain, control.ManagedTeamID())
+		}
 		if err != nil {
 			_ = ln.Close()
 			return fmt.Errorf("initialise browser gateway: %w", err)
 		}
+		control.SetBrowserGateway(gateway)
 		previewListener, err := net.Listen("tcp", cfg.BrowserPreviewAddr)
 		if err != nil {
 			_ = ln.Close()
@@ -400,6 +441,22 @@ func newScanner(cfg Config, git project.Runner) (*project.Scanner, error) {
 		return nil, fmt.Errorf("the conversation stores' root %q is not absolute, so a worktree location inside a store cannot be refused: every sandbox mounts its store read-write", cfg.ConversationsDir)
 	}
 	return project.NewScanner(cfg.ProjectsDir, git).WithProjectBoundary().WithWritableDirs(cfg.ConversationsDir), nil
+}
+
+// Worker stderr remains discarded by the gateway. Retain only classified API
+// failures in that worker's private state, without adding a readable API surface.
+func openWorkerDiagnostics(cfg Config, log *slog.Logger) *diagnostics.Recorder {
+	if !cfg.Worker {
+		return nil
+	}
+	recorder, err := diagnostics.New(cfg.StateDir)
+	if err != nil {
+		// Do not turn an unavailable diagnostic sink into a workspace outage,
+		// or echo filesystem paths/error strings through a new logging surface.
+		log.Warn("Private worker failure diagnostics are unavailable")
+		return nil
+	}
+	return recorder
 }
 
 // reaperConfigFor is the Config-to-reaper.Config mapping, extracted from serve
@@ -580,8 +637,9 @@ func recoverSessions(ctx context.Context, store registry.Store, be backend.Backe
 				// still starting is neither: the control plane went down
 				// between Create and the first /healthz answer. Reporting
 				// running would fabricate a status, exited is terminal, and
-				// starting is simply true. The reaper re-derives it within one
-				// interval.
+				// starting is simply true. An owned Docker Created-only child
+				// converges through the reaper's bounded interrupted-create rule;
+				// a pending pod or restarting container is not that evidence.
 				rec.Status = registry.StatusStarting
 			}
 		})

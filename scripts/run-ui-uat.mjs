@@ -124,6 +124,18 @@ try {
     await page.getByRole('tab', { name: 'Implementation handoff', exact: true }).click();
     assert.match(await page.getByRole('textbox', { name: 'Implementation notes', exact: true }).inputValue(), /keyboard/);
     const sessionToken = await page.evaluate(() => sessionStorage.getItem('luci.control-plane.session'));
+    const runResponse = await fetch(`${base}/v1/product/projects/${result.projectId}/runs/${result.projectRun.id}`, { headers: { Authorization: `Bearer ${sessionToken}` } });
+    assert.equal(runResponse.status, 200);
+    const retainedRun = (await runResponse.json()).run;
+    assert.equal(retainedRun.state, 'cancelled');
+    assert.equal(retainedRun.revision, result.projectRun.revision);
+    assert.deepEqual(retainedRun.input, result.projectRun.input);
+    assert.deepEqual(retainedRun.operations, []);
+    assert.ok(!retainedRun.acceptance);
+    const restoredRuns = await fetch(`${base}/v1/product/projects/${result.restoredProjectId}/runs`, { headers: { Authorization: `Bearer ${sessionToken}` } });
+    assert.equal(restoredRuns.status, 200);
+    assert.deepEqual((await restoredRuns.json()).runs, []);
+    receipt.checks.push('A real process restart preserved the original private cancelled project run and its exact reviewed inputs; restored source backup has no inherited run authority or history');
     for (const [suffix, expected] of [['specification', result.restoredDefinition], ['design-plan', result.restoredDesignHandoff]]) {
       const response = await fetch(`${base}/v1/product/projects/${result.restoredProjectId}/${suffix}`, { headers: { Authorization: `Bearer ${sessionToken}` } });
       assert.equal(response.status, 200);

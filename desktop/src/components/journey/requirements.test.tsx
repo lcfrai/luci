@@ -83,7 +83,7 @@ it("refresh clears a selection and trust when approved design changes while reta
   render(<ProjectChecks projectId="p-1"/>);await selectCriteria();await trust();
   await userEvent.click(screen.getByText(/Requirement evidence ·/));
   await userEvent.click(screen.getByRole("button",{name:"Refresh requirement evidence"}));
-  await screen.findByText("Requirements or design changed. Review and select the criteria again.");
+  await screen.findByText("Requirements, design or source changed. Review and select the criteria again.");
   expect(screen.getByText("Tests")).not.toBeNull();
   expect((screen.getByRole("checkbox",{name:"Check R-OFFLINE · Keep notes offline"}) as HTMLInputElement).checked).toBe(false);
   expect((screen.getByRole("button",{name:"Run project checks"}) as HTMLButtonElement).disabled).toBe(true);
@@ -172,4 +172,19 @@ it("an old project's check completion cannot appear in the new project or clear 
   expect((screen.getByRole("button",{name:"Starting checks…"}) as HTMLButtonElement).disabled).toBe(true);
   await act(async()=>finishNew({...run,projectId:"p-2",message:"Second project completed"}));
   expect(await screen.findByText("Second project completed")).not.toBeNull();
+});
+
+const teamAccess = vi.hoisted(() => ({ loading: false, error: "", permissions: { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true } }));
+vi.mock("../teams/TeamWorkspaceProvider", () => ({ useTeamProjectPermissions: () => teamAccess, useTeamWorkspace: () => null }));
+beforeEach(() => { teamAccess.loading = false; teamAccess.error = ""; Object.assign(teamAccess.permissions, { read: true, edit: true, execute: true, secrets: true, deploy: true, admin: true }); });
+it("keeps verification evidence readable while disabling check dispatch and cancellation without execution access", async () => {
+  teamAccess.permissions.execute = false;
+  vi.mocked(productApi.checks).mockResolvedValue({ runs: [{ ...run, status: "running" }], suggested: commands, coverage });
+  const start = vi.spyOn(productApi, "runChecks"), cancel = vi.spyOn(productApi, "cancelChecks");
+  render(<ProjectChecks projectId="p-1" />);
+  const stop = await screen.findByRole("button", { name: "Cancel checks" });
+  expect((stop as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Checks running…" }) as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(stop); expect(start).not.toHaveBeenCalled(); expect(cancel).not.toHaveBeenCalled();
+  expect(screen.getByText(/Execution access is required/)).not.toBeNull();
 });

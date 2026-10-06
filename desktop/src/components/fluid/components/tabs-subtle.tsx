@@ -58,6 +58,11 @@ const TabsSubtle = forwardRef<HTMLDivElement, TabsSubtleProps>(
     const isMouseInside = useRef(false);
     const shape = useShape();
     const reduce = useReducedMotion();
+    const selectedIndexRef = useRef(selectedIndex);
+    selectedIndexRef.current = selectedIndex;
+    const revealTargetRef = useRef(selectedIndex);
+    const revealMeasuredRef = useRef<() => void>(() => {});
+    const onMeasure = useCallback(() => revealMeasuredRef.current(), []);
 
     const {
       activeIndex: hoveredIndex,
@@ -65,35 +70,35 @@ const TabsSubtle = forwardRef<HTMLDivElement, TabsSubtleProps>(
       itemRects: tabRects,
       handlers,
       registerItem,
-      measureItems: measureTabs,
-    } = useFluidHover(containerRef, { axis: "x" });
+      getMeasurement,
+      scrollToX,
+    } = useFluidHover(containerRef, { axis: "x", onMeasure });
 
-    // Track tab elements locally so we can observe their individual resizes
-    const tabElementsRef = useRef(new Map<number, HTMLElement>());
-    const registerTab = useCallback(
-      (index: number, element: HTMLElement | null) => {
-        registerItem(index, element);
-        if (element) {
-          tabElementsRef.current.set(index, element);
-        } else {
-          tabElementsRef.current.delete(index);
-        }
-      },
-      [registerItem]
-    );
+    const revealTab = useCallback((index: number) => {
+      revealTargetRef.current = index;
+      const measurement = getMeasurement();
+      const item = measurement?.itemRects[index];
+      if (!measurement?.viewportWidth || !item) return;
+      const left = item.left - measurement.scrollLeft;
+      const right = left + item.width;
+      // Reveal only this horizontal strip, including its outset focus ring.
+      // The same untransformed geometry positions the pills. Native scroll
+      // events keep its viewport current without measuring on every selection.
+      const gutter = 4;
+      if (left < gutter) scrollToX(item.left - gutter);
+      else if (right > measurement.viewportWidth - gutter) {
+        scrollToX(item.left + item.width - measurement.viewportWidth + gutter);
+      }
+    }, [getMeasurement, scrollToX]);
+    revealMeasuredRef.current = () => {
+      const target = getMeasurement()?.itemRects[revealTargetRef.current]
+        ? revealTargetRef.current : selectedIndexRef.current;
+      revealTab(target);
+    };
 
     useEffect(() => {
-      measureTabs();
-    }, [measureTabs, children]);
-
-    // Observe individual tab buttons for resize (label expand/collapse in activeLabel mode)
-    useEffect(() => {
-      const elements = tabElementsRef.current;
-      if (elements.size === 0) return;
-      const ro = new ResizeObserver(() => measureTabs());
-      elements.forEach((el) => ro.observe(el));
-      return () => ro.disconnect();
-    }, [measureTabs, children]);
+      revealTab(selectedIndex);
+    }, [selectedIndex, revealTab]);
 
     // Wrap handlers to track isMouseInside
     const handleMouseMove = useCallback(
@@ -120,7 +125,7 @@ const TabsSubtle = forwardRef<HTMLDivElement, TabsSubtleProps>(
 
     const root = (
       <TabsSubtleContext.Provider
-        value={{ registerTab, hoveredIndex, selectedIndex, idPrefix, activeLabel }}
+        value={{ registerTab: registerItem, hoveredIndex, selectedIndex, idPrefix, activeLabel }}
       >
         {/* Root is merged into List via `asChild` so a single <div> is
             emitted. Radix owns
@@ -149,6 +154,7 @@ const TabsSubtle = forwardRef<HTMLDivElement, TabsSubtleProps>(
                 ?.getAttribute("data-fluid-hover-index");
               if (indexAttr != null) {
                 const idx = Number(indexAttr);
+                revealTab(idx);
                 setHoveredIndex(idx);
                 setFocusedIndex(
                   (e.target as HTMLElement).matches(":focus-visible") ? idx : null
@@ -157,6 +163,7 @@ const TabsSubtle = forwardRef<HTMLDivElement, TabsSubtleProps>(
             }}
             onBlur={(e: React.FocusEvent<HTMLDivElement>) => {
               if (containerRef.current?.contains(e.relatedTarget as Node)) return;
+              revealTargetRef.current = selectedIndexRef.current;
               setFocusedIndex(null);
               if (isMouseInside.current) return;
               setHoveredIndex(null);
@@ -313,7 +320,9 @@ const TabsSubtleItem = forwardRef<HTMLButtonElement, TabsSubtleItemProps>(
       // Both stacked spans carry the text-box trim so the invisible bold
       // sizer and the visible label keep identical boxes.
       <span
-        ref={measureLabel}
+        // Only collapsing icon labels consume labelWidth. Ordinary tabs
+        // should not force layout or allocate a per-label resize observer.
+        ref={collapseLabel ? measureLabel : undefined}
         className={cn("inline-grid whitespace-nowrap", sizeClasses.text)}
       >
         <span

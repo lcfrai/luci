@@ -301,7 +301,39 @@ async function prepare() {
   if (!result.proofs.design) {
     await checkpoint("design.navigation");
     await lens("Design");
-    await page.getByRole("button", { name: "Start a screen plan from my definition", exact: true }).click();
+    const specification = await get(projectPath("/specification"));
+    assert.equal(specification.status, "approved");
+    assert.equal(specification.digest, result.proofs.describe.digest);
+    const outcomes = criteria.map((acceptance, index) => {
+      const matching = specification.requirements.filter(row => row.title === `Launch outcome ${index + 1}` && row.acceptance === acceptance);
+      assert.equal(matching.length, 1, `The design must use the saved identity of Launch outcome ${index + 1}`);
+      return matching[0];
+    });
+    await page.getByRole("button", { name: "Describe the first screen", exact: true }).click();
+    await page.getByRole("textbox", { name: "Screen name", exact: true }).fill("Luci Launch Checklist");
+    await page.getByRole("textbox", { name: "Route", exact: true }).fill("/");
+    await page.getByRole("textbox", { name: "What this screen helps someone do", exact: true }).fill("An individual preparing a website launch adds trimmed checklist items, marks them complete and filters All, Active or Completed while seeing total, completed and remaining counts. Every visitor manages only the checklist saved in their own browser; there are no accounts, shared roles or remote data. Items and completion persist in localStorage across reloads. The same landing screen works at the local root and beneath a GitHub Pages repository prefix.");
+    await page.getByRole("textbox", { name: "States and recovery", exact: true }).fill([
+      "First use or an empty checklist: show Luci Launch Checklist, zero counters and a labelled New checklist item field with Add item.",
+      "Blank or whitespace-only submission: add nothing and leave existing items and counts unchanged.",
+      "Successful addition: trim the text, add one active item, clear the input, update all counters and persist the change locally.",
+      "Completion change: a native checkbox toggles the item, updates all counters and the selected filter, and persists completion.",
+      "Filtered empty result: explain that no active or completed items match and keep All available to return to the full list.",
+      "Returning after reload: restore saved items and completion from this browser without sign-in or a network request.",
+      "Browser storage failure: explain that persistence could not be confirmed and do not claim the current changes will survive reload; allow retry after storage is available.",
+    ].join("\n"));
+    await page.getByRole("textbox", { name: "Accessibility and interaction", exact: true }).fill("Use an h1 named Luci Launch Checklist and a visible New checklist item label. Enter in the field and the Add item button both submit. Give each native checkbox its item's accessible name and support Space to toggle. Keep All, Active and Completed keyboard reachable with visible focus and a clear selected filter. Expose the three counters as readable text and keep labels, controls and content usable at 390 and 1440 pixels without horizontal overflow.");
+    await page.getByRole("textbox", { name: "Responsive widths", exact: true }).fill("390, 1440");
+    // This screen carries visible behavior and local persistence. Packaging and
+    // test/runtime requirements remain explicit implementation work, not fake
+    // screen coverage merely because they belong to the same specification.
+    for (const [index, outcome] of outcomes.entries()) {
+      const link = page.getByRole("checkbox", { name: `${outcome.id} · ${outcome.title}`, exact: true });
+      assert.equal(await link.isChecked(), false, "The unfinished screen must not claim requirement coverage automatically");
+      if (index < 5) await link.check();
+    }
+    await page.getByRole("tab", { name: "Implementation handoff", exact: true }).click();
+    await page.getByRole("textbox", { name: "Implementation notes", exact: true }).fill(`Follow the saved checklist wireframe and screen behavior. ${outcomes[5].id} (${outcomes[5].title}) is delivery work: commit dependency-light static assets under docs/ with relative URLs, .nojekyll and healthz/index.html containing {"status":"ok"}; preserve the repository-path prefix. ${outcomes[6].id} (${outcomes[6].title}) is runtime and verification work: provide the Dockerfile on port 3000 and meaningful node:test checks run by npm test. Neither delivery requirement introduces another user-facing screen. Do not add remote services, sign-in, telemetry or CDN assets.`);
     await observed(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), projectPath("/design-plan"));
     await page.getByRole("tab", { name: "Sketch", exact: true }).click();
     const canvas = page.locator(".excalidraw canvas").first();
@@ -350,6 +382,9 @@ async function prepare() {
     await observed(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), projectPath("/design-plan"));
     const handoff = await observed(() => page.getByRole("button", { name: "Approve design handoff", exact: true }).click(), projectPath("/design-plan/approve"));
     assert.equal(handoff.status,"approved");
+    const checklist = handoff.screens.find(screen => screen.name === "Luci Launch Checklist");
+    assert(checklist && checklist.route === "/");
+    assert.deepEqual([...checklist.requirementIds].sort(), outcomes.slice(0, 5).map(row => row.id).sort(), "Only the checklist's deliberately selected outcomes belong to this screen");
     await proof("design", { revision: design.revision, briefRevision: design.briefRevision, handoffRevision: handoff.revision, digest: handoff.digest, screenCount: handoff.screens.length, elementCount: elements.length, sceneSha256: hash(JSON.stringify(design.scene)) });
     await screenshot("02-design");
   }

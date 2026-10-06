@@ -5,10 +5,12 @@ import type { ApiError } from "../../api/client";
 import { classify } from "../../api/problems";
 import { useAttachState } from "../../api/attachRegistry";
 import { useHeartbeat } from "../../hooks/heartbeat";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { Terminal } from "../Terminal";
 import { LinkedWorktreeNote } from "./LinkedWorktreeNote";
 import { SessionPaneFooter, attachLabel } from "./SessionPaneFooter";
 import { SessionPaneHeader } from "./SessionPaneHeader";
+import { ReviewedContextNote } from "./ReviewedContextNote";
 import { selectSession, selectWorktreeById } from "../../store/selectors";
 import { useCockpit } from "../../store/store";
 import type { SessionId } from "../../store/types";
@@ -123,6 +125,8 @@ export function SessionPane({
   variant: "column" | "tile";
 }): JSX.Element {
   const session = useCockpit(selectSession(sessionId));
+  const access = useProjectAccess(session?.projectId ?? "");
+  const canRestart = access.canExecute && (session?.harness === "shell" || access.canAssist) && (!session?.authOnly || access.permissions.admin);
   // selectWorktreeById is task 18's (§3.7 + shared-shape §4); this task adds no second
   // one. Its parameter is a required WorktreeId, and `WorktreeId` is a string alias, so
   // the absent case passes "" — no worktree carries that id, the selector returns
@@ -166,7 +170,7 @@ export function SessionPane({
     // Cited twice wrongly before this: first naming the ⋯ menu as a trigger, then naming the
     // palette as a restart caller. Both were right about the conclusion and wrong about the
     // premise. Open the other task's file before writing a sentence about its behaviour.
-    if (session === undefined || restarting) return;
+    if (session === undefined || restarting || !canRestart) return;
     setRestarting(true);
     // The server's own in-flight guard returns 409 for a concurrent restart, so this local
     // one is a courtesy rather than the correctness boundary.
@@ -190,14 +194,17 @@ export function SessionPane({
       aria-label={`${worktree?.name ?? session.title} — ${session.status}`}
       onPointerDown={onPointerDown}
     >
-      <SessionPaneHeader session={session} worktree={worktree} variant={variant} />
+      <div className="pane-heading">
+        <SessionPaneHeader session={session} worktree={worktree} variant={variant} />
+        <ReviewedContextNote session={session} canInspect={access.canRead} readPending={access.loading || !!access.error} className="pane-context-note" />
+      </div>
       <div className="pane-body" ref={bodyRef} tabIndex={-1}>
         {/* Unconditional, for every status — known defect 3. readOnly is the ONLY thing
             `exited` changes, and even then the scrollback stays: the transcript is the
             artifact, and a dropped socket destroys nothing. */}
         <Terminal
           sessionId={session.id}
-          readOnly={session.status === "exited"}
+          readOnly={session.status === "exited" || !access.canExecute}
           focused={focused}
         />
         <AttachOverlay sessionId={session.id} />
@@ -215,7 +222,8 @@ export function SessionPane({
             type="button"
             className="pane-exit-restart"
             onClick={onRestart}
-            disabled={restarting}
+            disabled={restarting || !canRestart}
+            title={access.message || (!canRestart ? "This session requires credential access and account sign-in sessions require team administration." : undefined)}
           >
             Restart
           </button>

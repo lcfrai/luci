@@ -1,12 +1,15 @@
 # Luci application contract
 
-Version 0.4, 2 October 2026. JSON is camelCase. Routes below are additions to the retained session API at /v1. Errors are `{error: string, message: string}`. Requests reject unknown JSON fields. A control API read never starts a session/provisioning job or creates a resource. Bounded read-only Git subprocesses are allowed. Application preview requests are forwarded to the selected application's own HTTP surface.
+Version 0.5, 6 October 2026. JSON is camelCase. Routes below are additions to the retained session API at /v1. Errors are `{error: string, message: string}`. Requests reject unknown JSON fields. A control API read never starts a session/provisioning job or creates a resource. Bounded read-only Git subprocesses are allowed. Application preview requests are forwarded to the selected application's own HTTP surface.
+
+
+Current cross-phase contracts are documented separately in [project understanding and reviewed amendments](ORCHESTRATION.md) and [durable project runs](PROJECT-RUN-CONTRACT.md). Team, billing and hosting contracts are in [team service operations](TEAM-SERVICE-OPERATIONS.md), [Stripe billing](STRIPE-BILLING.md) and [public HTTPS ingress](PUBLIC-HTTPS-INGRESS.md).
 
 ## Setup
 
 ### Identity and management
 
-The control-plane gateway authenticates the API before it reaches a user's execution service. `GET /v1/control-plane/status` is public and returns `{product: "Luci", version, configured, instanceName, backing: "docker" | "aws" | "azure", bootstrapRequired, bootstrapTokenPath?}`. First setup reads the owner-only `StateDir/control-plane/bootstrap-token` file. `POST /v1/auth/bootstrap` accepts `{bootstrapToken, username, displayName, password}` and returns `201 {token, user}` for the first Super Admin. The bootstrap file is removed after success. `POST /v1/auth/login` accepts `{username, password}` and returns `{token, user}`. Passwords require 12ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“1,024 characters and use the Go project's Argon2id implementation with random salts; derivation concurrency and login attempts are bounded.
+The control-plane gateway authenticates the API before it reaches a user's execution service. `GET /v1/control-plane/status` is public and returns `{product: "Luci", version, configured, instanceName, backing: "docker" | "aws" | "azure", bootstrapRequired, bootstrapTokenPath?}`. First setup reads the owner-only `StateDir/control-plane/bootstrap-token` file. `POST /v1/auth/bootstrap` accepts `{bootstrapToken, username, displayName, password}` and returns `201 {token, user}` for the first Super Admin. The bootstrap file is removed after success. `POST /v1/auth/login` accepts `{username, password}` and returns `{token, user}`. Passwords require 12–1,024 characters and use the Go project's Argon2id implementation with random salts; derivation concurrency and login attempts are bounded.
 
 API requests use `Authorization: Bearer TOKEN`. Sessions expire after twelve hours; only SHA-256 token hashes are persisted. `GET /v1/auth/me` returns `{user, permissions, policy}`. User fields are `{id, username, displayName, role: "member" | "admin" | "super-admin", disabled}`. Permissions are `{manageUsers, manageBacking, managePolicy, inspectAudit, runHostCommands}`. `POST /v1/auth/logout {}` revokes the current session. `POST /v1/auth/password {currentPassword, newPassword}` revokes existing sessions and returns `{signInRequired: true}`.
 
@@ -81,7 +84,15 @@ POST /v1/setup/cloud/login accepts `{provider: "aws" | "azure"}` and returns an 
 
 Product state uses the existing catalogue's path-derived project IDs. Product routes are /v1/product/projects. Every record contains projectId. Resolve paths server-side from the configured root; callers never provide an arbitrary filesystem path for file operations.
 
-POST /v1/product/projects accepts `{name, remoteUrl?}`. Creates a new repository in configured projectsDir or clones an https remote there. Returns `{id, name, path}` as in the existing catalogue. Never overwrite an existing directory. Git commits use the configured person's identity; creation does not invent it.
+POST /v1/product/projects accepts `{name, remoteUrl?, importAttemptId?}`. Creates a new repository in configured projectsDir or imports an HTTPS remote. Returns `{id, name, path}` as in the existing catalogue (`201`, or `200` for an already completed matching import attempt). Never overwrites an existing file, empty directory, project or symlink. Git commits use the configured person's identity; creation does not invent it.
+
+For an import, the browser saves an `importAttemptId` (`imp-` followed by 24 lowercase hexadecimal characters) before sending the request. It is scoped to the signed-in account, selected API/team/workspace and projects folder. Repository URLs are limited to 2,048 characters and must not contain embedded credentials, queries or fragments. The private server receipt binds the exact actor, projects folder and its native identity, name and remote URL. Repeating an attempt never starts Git again: it returns the retained project or the existing failed/running/interrupted/unconfirmed outcome. A different request under the same identifier returns `409 import_conflict`. Older clients may omit the identifier; Luci generates one, included in any retained failure response.
+
+Cloning remains synchronous with a two-minute request budget. Git works in a nested same-filesystem staging directory, `<projects>/.li/<attempt suffix>/r`, whose immediate container has no Git directory. Partial imports therefore appear in neither project catalogue and do not reserve the final name after failure. Luci checks the configured root and original directory identities, then uses a native no-replace directory move to publish the completed repository. Unsupported safe-move filesystems fail closed. Concurrent imports cannot replace one another or a folder created while Git was running. No failed stage is recursively deleted, including when its path has been replaced. Partial files remain available for deliberate inspection; this API does not automatically prune them.
+
+`GET /v1/product/project-imports/{attemptId}` returns `{id,name,status,message,retainedPath?,project?}` only to the attempt's authenticated actor in the same workspace. `status` is `running`, `failed`, `complete`, `interrupted` or `unconfirmed`; `retainedPath` is relative to the original projects folder and `project` is present only for a verified completed result. A lost response after publication can be resolved from the private publication intent and matching native project/Git directory identities, including after restart. A replaced folder is never adopted by matching its name or remote. GET performs no Git commands, retries, promotion, reconciliation writes or resource allocation. Unknown or foreign attempts return `404`; this is not proof that a delayed original request was never received.
+
+An admitted Git failure returns `422 {error:"git_failed",message,attempt}` with the same public attempt shape. Messages give bounded network/URL/credential or cancellation guidance without exposing Git stderr or credential-helper output. After a confirmed failure or pre-publication interruption, the person can edit the import details and retry with a fresh identifier using the same intended project name. After a timeout/lost response, the UI retains the original identifier and offers **Check import status**; a missing receipt permits only an explicit retry of that exact original request. Recovery of a completed import requires **Open imported project**. Opening, reloading, status checks and changing accounts never start another clone. Team creation/retry continues through the existing project-creation permission and quota boundary; reading an owned receipt grants no creation permission.
 
 GET /v1/product/projects/{id}/brief returns `{projectId, revision, purpose, audience, constraints, criteria, updatedAt}`. Each of purpose, audience and constraints is text; criteria is an array of strings. Missing brief returns an empty revision 0. POST accepts `{revision, purpose, audience, constraints, criteria}` with optimistic concurrency; returns saved brief. Revision conflicts are HTTP409. Persist a canonical LUCI.md in the project to carry the brief into agent work. Treat it as untrusted project context, never as system authority.
 
@@ -89,7 +100,9 @@ GET /v1/product/projects/{id}/design returns `{projectId, revision, briefRevisio
 
 GET /v1/product/projects/{id}/files?path=relative returns `{path, entries: [{name, path, kind, size}]}` for directories, or `{path, content, truncated}` for UTF8 text files. Refuse traversal, symlink escapes, .git and known credential files. Maximum readable file is 1MiB.
 
-GET /v1/product/projects/{id}/git returns `{branch, clean, changes: [{path, status}], log: [{hash, subject}], diff}`. Read-only, bounded git commands; maximum diff 1MiB. POST /v1/product/projects/{id}/git/commit accepts `{message}` and commits current changes using the real person's git identity. No implicit push. Outcome text and error come from real git.
+GET /v1/product/projects/{id}/git returns `{reviewDigest, branch, clean, changes: [{path, status}], log: [{hash, subject}], diff}`. The opaque review identity binds the branch, parent commit, index and bounded Git-visible file contents/modes, including portable project context. The maximum displayed diff is 1 MiB; ordinary untracked text is included and binary/truncated content is labelled. Capture is limited to 10,000 files and 100 MiB. Reviewed commits require a named branch and ordinary files; symbolic links/submodules and skip-worktree or assume-unchanged flags (including sparse checkout) require explicit Git handling. Split indexes are normalized privately without changing the user's Git configuration. SHA-1 and SHA-256 object formats are supported.
+
+POST /v1/product/projects/{id}/git/commit requires `{message, expectedReviewDigest}` from that displayed review. A missing identity returns `400 review_required`; changed source, context, branch or staging returns `409 source_changed` and requires a fresh review, without changing the original index or branch. The service captures the reviewed bytes privately and commits that snapshot using the real person's Git identity. Native Git produces the HEAD recovery-log entry, and publication compares the expected branch parent before replacing the index. Edits made after capture remain in the working tree. Success returns `{commit, message, sourceChanged}`; a true `sourceChanged` means newer work or an unavailable final observation requires another review. There is no implicit push. The UI retains the message on refusal and requires explicit refresh before retry. Historical clients must refresh through the current Git API rather than submitting only a message.
 
 GET /v1/product/projects/{id}/releases returns `{releases: [{id, projectId, briefRevision, commit, target, status, url, message, createdAt}]}`. Execution routes are defined below. A release can only be ready after health verification.
 
@@ -175,7 +188,7 @@ configure that CLI's provider authentication.
 
 ## Local release execution
 
-POST /v1/product/projects/{id}/releases accepts `{target: "local", port: 3000, dockerfile: "Dockerfile"}`. Port and Dockerfile have those defaults. A clean committed project is required; the release records its exact commit and brief revision. A versioned brief must also match the committed `LUCI.md`. Build context comes from that commit's bounded Git archive, preserves `.dockerignore`, excludes known credential paths, and refuses links and path escapes. Containers publish only to a random localhost port and carry Luci ownership labels. The request waits for an HTTP 2xx health response, returning 201 with the release only when ready. Build/start/health failures return 422 with a durable failed release. Precondition errors use `{error,message}` and do not start a build.
+POST /v1/product/projects/{id}/releases accepts `{target: "local", port: 3000, dockerfile: "Dockerfile", expectedCommit?: "FULL_COMMIT_HASH"}`. Port and Dockerfile have those defaults. The optional `expectedCommit` binds a reviewed-build handoff: malformed hashes return `400 invalid_commit`, and a different HEAD returns `409 source_changed` before release reservation or Docker operations. The build always archives the captured exact commit. A clean committed project is required; the release records its exact commit and brief revision. A versioned brief must also match the committed `LUCI.md`. Build context comes from that commit's bounded Git archive, preserves `.dockerignore`, excludes known credential paths, and refuses links and path escapes. Containers publish only to a random localhost port and carry Luci ownership labels. The request waits for an HTTP 2xx health response, returning 201 with the release only when ready. Build/start/health failures return 422 with a durable failed release. Precondition errors use `{error,message}` and do not start a build.
 
 POST /v1/product/projects/{id}/releases/{releaseId}/stop accepts no fields and returns the updated release. It checks the recorded container's project/release ownership labels before stopping it; repeating a completed stop is safe. GET release history combines local and cloud records in descending creation order and starts no operations.
 
@@ -248,12 +261,170 @@ the original task selection and worktree, and captures its new run's starting
 source; it cannot silently retag a conversation to different tasks. Changed
 reviewed inputs require a new run from the current plan.
 
+Reviewed session creation also captures the actual canonical documents from the
+same approved state, rather than asking the agent to reread mutable checkout
+exports. Eight context files and a versioned manifest are stored in a private,
+session-owned bundle, bounded to 32 MiB of document bytes, and mounted read-only
+at `/home/dev/.luci-reviewed-context`. Both opening and harness guidance name
+that directory as the selected scope. The writable checkout remains unchanged;
+teammates can save amendments without replacing the agent's delivered inputs.
+
+The optional response-only `reviewedContextDelivery` is
+`{status:"captured",version:1,digest:<manifest SHA-256>}` for a captured session,
+or `{status:"legacy-live"}` for an older reviewed session without a bundle.
+Manual sessions omit it. This is the recorded delivery receipt, not a fresh
+filesystem integrity check on every poll; no host path or document body is
+returned in the session DTO. Restart verifies the bundle before destroying the
+current sandbox. Resume/fork verifies and copies its original bytes into an
+independent child-owned directory; source-code capture may advance separately.
+Missing, altered, foreign or unsupported legacy bundles refuse new allocation
+with guidance to start a new reviewed run. Existing legacy receipt replay,
+history, stop and reconciliation remain available, but an already-running old
+container does not acquire a frozen mount retroactively. Kill retains the bundle;
+Forget removes only that stopped session's owned copy before deleting its record.
+
+GET `/v1/sessions/{id}/reviewed-context?document=brief|definition|design|plan`
+deliberately inspects one captured canonical JSON document; an omitted selector
+chooses `definition`. The response is
+`{sessionId,projectId,worktreeId,version:1,digest,implementationContext,document:{kind,sha256,bytes,value}}`.
+The outer digest identifies the saved manifest; document digest and byte count
+identify the exact retained file, while `value` presents that JSON object. The
+entire owned bundle is verified on this request. Newer amendments or approvals
+do not replace or block inspection of the original captured version. No host
+paths, sketch scene, private approval history or provider credentials are added
+to the response, and no terminal attachment, execution, repair or write occurs.
+Team project read permission is sufficient; a grant revoked during the buffered
+response prevents its release. Responses are not cached. One compact document
+and its binding stay below the existing 8 MiB team response limit; the defensive
+7 MiB inspection ceiling refuses unsupported oversized data without truncation.
+Unknown or repeated document selectors return `400`; an absent session returns
+`404` (inaccessible team sessions return `403`). Manual, legacy, missing or
+unverifiable captures return `409`, retaining ordinary history and never
+substituting current project files.
+
 An unlinked task is supported without inventing requirement coverage. Explicit
 `expectedSpecificationRevision` binds even an unlinked saved plan to the current
 approved specification. The canonical opening prompt includes the saved
 specification and both `.luci/design-handoff.json` and
 `.luci/design-handoff.md`; a sketch is supplemental. Task status and CLI exit are
 independent of recorded verification and deployment outcomes.
+
+### Context authorship
+
+`GET /v1/product/projects/{id}/context-history` returns
+`{events:[{id,projectId,kind,action,revision,digest,at,actor:{id,displayName},status}],pruned}`.
+Kinds are `brief`, `specification`, `sketch`, `design` and `plan`; actions are
+`save`, `approve` and `apply-analysis`. The display identity is captured at the
+time of the action from the authenticated gateway context. Request headers,
+client JSON and project-authored claims cannot supply an actor receipt.
+
+Receipts live in private workspace state, scoped to the canonical project, and
+bind the exact saved revision bytes. They are separate from exported project
+context and private approval authority. A copied or restored project does not
+inherit authenticated authorship. Legacy changes without a private receipt have
+unknown authorship. Saving a structured definition also records its synchronized
+brief; approval records the actual reviewer rather than rewriting its editor.
+
+The last 2,000 events are retained within a 2 MiB bound; `pruned:true` indicates
+older events were removed. A private intent precedes an authenticated context
+write. Only a confirmed completed write produces `status:"applied"`; a failed or
+interrupted write remains `unconfirmed`. Failure to record a private intent
+blocks the attributed mutation. Reads never finalize pending events or repair
+project files. A receipt describes historical authorship, not proof that current
+agent-editable bytes, requirements or application behavior are valid.
+
+### Durable project runs
+
+All routes below use `/v1/product/projects/{id}/runs` on the selected execution
+workspace and authenticated account. They join existing coding, check and release
+operations; creating or reading a run does not start a model, command or resource.
+
+| Method and path | Request | Response and effect |
+| --- | --- | --- |
+| `POST /runs` | `{idempotencyKey,worktreeId,harness,model,permissionMode,effort?,agentConnectionId?,outcome:"preview"\|"publish",implementationContext}` | `201 {run}` for a new private record; `200 {run}` for the same normalized request/key. No child is allocated. |
+| `GET /runs` | — | `{runs}` with bounded saved history and allowed actions. |
+| `GET /runs/{runId}` | — | `{run}` with retained inputs, operations, evidence and last persisted observation. |
+| `POST /runs/{runId}/operations` | `{expectedRevision,idempotencyKey,kind:"session"}` | `201 {run,operation}` or an identical `200` replay; reserves a server-generated session ID before dispatch. |
+| `POST /runs/{runId}/checks` | `{expectedRevision,checkId}` | `{run}` after joining independently resolved private passing check evidence. Does not execute checks. |
+| `POST /runs/{runId}/releases` | `{expectedRevision,releaseId,target}` | `{run}` after source/review matching and a fresh owned release health observation. Does not deploy. |
+| `POST /runs/{runId}/reconcile` | `{expectedRevision}` | `{run}` after explicitly observing existing children/evidence and saving current validity. Never replays a missing operation. |
+| `POST /runs/{runId}/accept` | `{expectedRevision}` | `{run}` after fresh reconciliation and explicit acceptance of the selected checked release. |
+| `POST /runs/{runId}/cancel` | `{expectedRevision}` | `{run}` with future dispatch cancelled. A running child is stopped through its existing session/check/release controls. |
+
+Run projections include `contextFreshness: {status, reason}`, where status is
+`current`, `changed` or `unavailable`. This compares saved reviewed inputs with
+the current owned context; it does not inspect source, provider availability or
+running children. A changed or unreadable context omits coding, evidence-join and
+acceptance actions that require those current inputs, and gives a review remedy.
+Historical state, observations, acceptance
+and existing sessions remain intact. List reads one context snapshot for all
+rows; reading does not reconcile, dispatch or persist. Evidence joins retain
+their existing independent validation, and every execution request rechecks its
+authoritative admission regardless of this display projection.
+
+The optional `codingBlocker` is separate: `{kind:"question"|"unavailable",
+reason,turnId?}` reports an unresolved material question or unreadable private
+decision history. It also suppresses coding invitations without changing the
+saved-context comparison or historical run. A question action opens the existing
+scoped decision and requires an explicit answer; navigation cannot send a
+message, replace a draft or resolve the question automatically. Absence of this
+field establishes no broader execution readiness. Decision blockers also omit
+joins/acceptance because those operations use the same existing execution gate;
+reconciliation, cancellation and inspection remain available.
+
+`implementationContext` has the reviewed selection shape above. Runs require
+nonempty requirement links, the project's main checkout and an identifiable
+saved model connection or an existing private Codex subscription generation.
+The server resolves source, requirement text, route and private approval
+selections; clients supply no paths, actor IDs, digests, completion claims or receipt
+bodies. A reused key with different content or a stale `expectedRevision` returns
+`409`. Unknown runs return `404`. Keep the original creation key for response-loss
+retries; a new attempt receives a new operation key and retains earlier attempts.
+
+Dispatch the reserved coding operation using the normal `POST /v1/sessions`
+request plus both `projectRunId` and `projectRunOperationId`. The session request
+must match the reserved worktree, reviewed implementation and resolved model
+route. Both run IDs are saved in the private session before backend allocation.
+Repeated dispatch returns the same matching child. A claimed operation whose
+child cannot be established remains unknown; reconciliation does not allocate a
+replacement. Normal session quota, permission and source admission still apply.
+
+The private record retains immutable starting inputs and the exact specification
+and design approval IDs/revisions/digests, brief/sketch digests and requirement
+snapshots. Opaque approval IDs are selection metadata, not bearer credentials;
+private actors, account paths, connection generations, provider keys and command
+output are not part of the public projection or coding context. Reapproval or
+revocation invalidates old selections even when text is unchanged.
+
+A joined check must have all successful recorded command exits, full selected
+requirement coverage, unchanged source during execution and the exact current
+clean candidate commit/digest. The checked candidate is separate from the
+immutable starting source. Bounded command definitions/outcomes and requirement
+snapshots survive pruning of the ordinary twenty-row check history;
+`originalAvailable` reports whether that original still exists. New linked checks
+also retain their private approval selection; older checks without it must rerun.
+
+New local, cloud, Pages and native release admissions save private scoped source
+and review provenance before resource creation. A release join requires that
+provenance to match the checked candidate and current approvals, plus fresh
+ownership/health evidence. Source is checked again after observation. Historical
+releases without provenance remain unverified and are never backfilled from the
+current checkout. Targets `local` and `native-docker` satisfy `preview`; cloud
+target IDs, `github-pages` and `native-panacea` satisfy `publish`. Unsupported or
+unavailable provider observations fail closed. Each accepted release retains its
+observation time and limitations; local health is not public deployment, full
+browser acceptance or inbox delivery.
+
+Run states are `ready`, `coding`, `awaiting-checks`, `awaiting-release`, `blocked`,
+`cancelled` and `complete`, with a reason and optional current observation.
+`complete` requires matching technical evidence and explicit acceptance; CLI
+exit zero and task Done cannot grant it. Historical acceptance remains recorded
+when later drift makes current validity false. GET and service restart perform
+no repair, implicit retry, paid inference, publication or cloud creation. Existing
+command trust, public-publication policy and cost acknowledgements still apply
+at the corresponding explicit operation.
+
+### Plans and check history
 
 GET `/v1/product/projects/{id}/plan` returns `{projectId,revision,briefRevision,tasks:[{id,title,status,requirementIds?}],updatedAt,specificationRevision?,specificationDigest?}`. Task status is `todo`, `doing` or `done`. POST accepts `{expectedRevision,tasks,expectedSpecificationRevision?}` and returns200 with the saved plan. When any task has requirement links, the expected specification revision must match this project's current saved approved specification. Links use its stable requirement IDs; at most100 unique IDs per task and200 tasks are allowed. Unknown/foreign IDs or duplicates return400; stale or missing expected revisions return409; an unapproved/outdated specification returns422. The server records the approval revision/digest. Unlinked legacy plans remain supported, and existing links remain readable after the definition changes so they can be explicitly removed. Saving publishes `.luci/plan.json` alongside canonical state and `.luci/design.json` for agent context. Task Done remains user-reported progress, independent of test evidence.
 
@@ -323,6 +494,22 @@ its own proof on exit. Native authority remains exclusively in Rust, and neither
 mode is available on public bindings or managed workers. Reopening the portable
 launcher restores this computer's account controls after a service restart.
 
+Portable packages also contain a `package-identity` derived from the compiled
+service and every shipped web asset. The launcher passes this 64-character
+lowercase SHA-256 value as `LUCI_PORTABLE_PACKAGE_ID`; configuration accepts it
+only with portable owner access. GET `/v1/auth/local-package` requires the same
+loopback and local-capability checks and returns the identifier as plain text
+with a trailing newline and `Cache-Control: no-store`. Services without a portable
+identity return 404. The value is never inherited by managed workers or included
+in public status. It is package consistency metadata, not a credential, signature
+or publisher proof.
+
+After checking local ownership, portable launchers compare the running package
+identity before opening the browser. A different package, missing identity or
+legacy endpoint requires the person to close the previous launcher first. The
+rejected second launcher preserves the existing service and saved state. Same
+version numbers alone do not establish that the service and web assets match.
+
 Administrators can issue an invitation using POST `/v1/admin/invitations` with
 `{role}`. The result is `{invitation,inviteCode}`; GET returns
 `{invitations: [...]}` without codes, and DELETE `/v1/admin/invitations/{id}`
@@ -337,7 +524,52 @@ from the invitation; callers cannot choose one. Disabled or demoted issuers,
 revoked/expired codes and reused codes are rejected. Creating an account does not
 grant access to another account's projects.
 
-The selected-workspace management bridge supports these invitation routes with
+Team administrators can invite new or existing accounts without instance-wide
+administration. GET `/v1/teams/{teamId}/invitations` returns `{team,invitations}`;
+POST accepts `{expectedRevision,role,grants}` and returns
+`{team,invitation,inviteCode}`. Roles are `owner`, `editor` and `viewer`, with
+explicit `execute`, `secrets`, `deploy` and `admin` capability booleans. Only an
+owner can issue or revoke an owner invitation; owners retain `admin`. DELETE
+`/v1/teams/{teamId}/invitations/{id}` accepts `{expectedRevision}` and returns
+the revised team and revoked invitation. These mutations advance the team
+revision and reject stale writers. Global invitation routes do not list or
+manage team invitations.
+
+Team invitation metadata includes `team:{id,name,role,grants}` and derived
+`status` (`pending`, `accepted`, `revoked`, `expired` or `unavailable`). Codes are
+hashed, single-use, expire after 48 hours and are only returned at creation.
+Acceptance revalidates the issuer's enabled account, current team administration
+and exact membership revision. Changing or removing that membership invalidates
+its outstanding invitations, even if the previous permissions are later restored.
+Each team retains at most 128 active invitations; the installation retains at
+most 1,000 invitation records, with records expired over 30 days eligible for
+removal when another invitation is issued.
+
+New accounts use the existing `/v1/auth/invitations/accept` payload. A team
+invitation creates a standard installation member and the pinned team membership
+in the same persisted transaction as invitation consumption and session issuance;
+the response additionally includes `teamId`. Authenticated existing accounts use
+POST `/v1/teams/invitations/accept` with `{inviteCode}` and receive the joined
+team view. An existing membership is never overwritten. Capacity, used codes,
+revocation and persistence failure leave a recoverable error; failed persistence
+does not consume the code or partially create an account or membership. Inviting
+and joining do not start an execution worker. Non-administrators still require
+explicit project grants after joining. The UI remembers the invited team only
+as an account-scoped navigation preference; current membership is rechecked
+before displaying its workspace.
+
+GET `/v1/teams/{teamId}/audit` requires current team administration and returns
+`{teamId,events,limit:200,installationRetentionLimit:1000}`. It filters the existing
+private management ledger by exact team target and team action before selecting
+the newest 200 rows. Rows retain the recorded actor ID/action/outcome and include
+`actor:{id,displayName}` resolved from the current private account directory.
+Global authentication activity and other teams are excluded. The installation's
+1,000-event retention is shared, so this is a recent operational history, not an
+unbounded compliance archive. Reading it changes no state. Project context edits
+and reviews remain in their separate project-scoped context history.
+
+The selected-workspace management bridge supports the instance-administrator
+invitation routes with
 the selected backing's identity. Existing SSH workspace sign-in accepts an
 optional `inviteCode` and redeems it on that workspace. A remote account error
 remains a recoverable workspace error and does not expire the local login.
@@ -348,10 +580,24 @@ GET `/v1/product/projects/{id}/assist` returns the newest twenty job metadata
 records as `{jobs:[...]}` without results or provider calls. GET
 `/assist/{jobId}` reads a saved detailed result. POST `/assist/repository`
 accepts `{expectedRevision,expectedBriefRevision,sourceMode,harness,model,
-agentConnectionId?,acknowledgeSourceRead:true,message?}` and returns202 with a durable job.
+agentConnectionId?,expectedAgentConnectionRevision?,acknowledgeSourceRead:true,message?,replyToAnalysisId?,
+idempotencyKey?}` and returns202 with a durable job (200 for an exact retained
+request). The UI retains a 16–128 character letters/digits/`_`/`-` key before
+sending. Keys bind the authenticated account, private workspace and project to
+the complete original request, including the chosen provider/model, message,
+source mode and revision checks. Changing that request under a retained key is
+a409 conflict. Legacy first-analysis clients may omit the key; follow-ups must
+include one.
 Source mode is `worktree` or `commit`; harness is `codex`, `claude-code` or
 `opencode`. An explicit non-default model is required. All three use the shared
 connection resolver; a named connection requires its exact saved model alias.
+The UI also binds source consent to that connection's positive
+`expectedAgentConnectionRevision`. A changed revision closes the exact request
+as failed before source sampling or inference; review the current endpoint and
+model and renew consent for a new request. Exact retries of already admitted
+requests still return their original receipt. Legacy callers may omit the
+revision and retain their existing current-connection selection behavior; the
+UI never silently adds or updates it in an already saved pending request.
 Legacy clients may still specify `authMode`; this cannot override a named
 connection. OpenCode uses its saved qualified provider/model identifier.
 No provider fallback occurs.
@@ -369,6 +615,80 @@ job belongs to the project, both revisions and source fingerprints still match,
 and the proposal has not previously been applied. Approval remains a separate
 operation. POST `/assist/{jobId}/cancel {}` cancels an owned run. Loading saved
 history never starts inference or changes the definition.
+
+A successful result may contain a consequential `question` and `options` with
+`proposal:null`. The question remains visible and answerable: choosing an option
+only fills an editable answer; the person explicitly sends it with renewed source
+consent. A follow-up names `replyToAnalysisId` and sends the answer as `message`.
+The server loads the exact saved result and up to sixteen earlier exchanges from
+the same authenticated actor and project, retaining earlier human decisions.
+Foreign, unattributed, missing or damaged ancestry is refused. The selected
+current source is sampled again; `replySourceChanged` reports drift from the
+previous snapshot. Previous findings are historical claims, not current source
+verification. A follow-up still requires the existing explicit source/definition
+CAS Apply and separate approval. The bounded prompt remains256KiB; if the chain
+or prompt limit is reached, review and save agreed decisions in the definition
+before starting a new analysis.
+
+GET `/assist/repository/requests/{idempotencyKey}` reads the current account's
+retained request, including `requestedBy`, `userMessage`, `replyToAnalysisId`,
+source provenance and exact resolved provider receipt. It never repairs state,
+samples source, resolves a provider, probes a sandbox or allocates work. A404
+does not prove a delayed first request cannot arrive. Only an explicit retry of
+the exact original body/key may join that request; the UI never silently retries
+or generates a replacement key. Corrupt records fail503 and remain untouched.
+The provisional `reserved` status means dispatch is not confirmed. A valid owned
+key is reserved before provider, source and definition validation. A definitive
+rejection closes that same key as failed without inference, with a reason and
+remedy; checking that terminal receipt allows a person to explicitly submit a
+corrected new request. The old exact request can never dispatch later. Startup
+recovery likewise closes an abandoned reservation without inference. Unknown or
+unreadable records remain unresolved; warnings alone never authorize forgetting
+the original key. Cancellation and dispatch use the same reserved-state guard. Completed request keys remain retained independently of the
+twenty-job history display. New repository requests stop at4096 private job
+entries; existing request lookups still work. There is no automatic receipt
+deletion or unsafe key reuse to regain capacity. Manual definition editing
+remains available while the host operator inspects storage.
+
+Repository job HTTP responses also expose `ownRequest`, computed from the current
+authenticated workspace actor and the retained `requestedBy`. This includes
+history, detail, start/retry, exact-request lookup and cancellation responses.
+It is never stored or accepted as client authority. The UI uses this projection
+because a local login and the selected cloud workspace can belong to different
+account IDs; server-side follow-up ownership checks remain authoritative.
+
+## Recovering an uncertain orchestrator request
+
+`POST /v1/product/projects/{id}/orchestrator/resolve` accepts the exact original
+`POST .../assist/orchestrator` body: `expectedRevision`,
+`expectedContextDigest`, `idempotencyKey`, `message`, `replyToTurnId`, `harness`,
+`model`, `authMode` and `agentConnectionId`, preserving omitted/default values.
+The response is `{projectId,status,message,job?,turnId?,jobId?}`. This explicit
+POST requires project read access, including a member demoted to viewer; it
+recovers only the authenticated actor's own request. It grants no editing,
+execution, secret-use or job-repair permission.
+
+- `accepted` includes the original matching assistant job. Resolution never
+  invokes the provider, changes that job or applies its result.
+- `not-sent` is returned only after private storage proves absence and durably
+  records a no-dispatch fence for that actor/key/request. A delayed original POST
+  then returns409 `orchestrator_request_closed`. The browser may restore an
+  editable draft; sending again requires a new key and explicit user action.
+- `unknown` retains uncertainty. A matching turn with a missing/corrupt job
+  returns its `turnId`/`jobId` without recreating the job. Conflicting inputs,
+  unavailable/corrupt history or insufficient retained history cannot become
+  confirmed absence. Other actors' matching keys disclose no receipt identities.
+
+Send and resolution share the worker admission lock. Current and verified
+archived receipts are searched before source or provider selections are
+reconsidered. New turns retain their original admission revision; legacy turns
+without that revision still support existing send retries but cannot prove an
+exact resolution. No-dispatch fences remain in the active private ledger through
+history rotation and have no expiry. At the bounded recovery-storage limit,
+resolution returns actionable `unknown`; it never silently drops a fence or
+reopens a paid request key. History gaps after older exports/rotations also leave
+unmatched requests `unknown`, including a fresh request whose absence cannot be
+established from those retained receipts.
 
 ## Standalone PostgreSQL backups and recovery
 
@@ -608,3 +928,85 @@ not report a successful installation or silently reset the original database.
 POST `/v1/product/projects/{id}/releases/pages` accepts `{commit,branch,acknowledgePublic:true}`. The repository comes only from the project's verified GitHub origin, and the published directory is fixed to `/docs`. The project must have a clean current HEAD matching the requested full commit and current/default branch, a matching committed brief, Dockerfile, `docs/index.html` and `docs/.nojekyll`. The GitHub repository must be public and its remote branch must match the requested commit. Public-publication policy and the explicit acknowledgement apply. This route uses the signed-in GitHub CLI; it accepts no provider token or arbitrary command/path.
 
 The durable release has `target:"github-pages"`. Its provider record is outside project Git and contains repository/source configuration, commit, brief revision, index digest, provider build and verification time. `ready` requires the recorded provider commit, a public HTTPS response and matching committed index bytes. Queued/building/verifying outcomes are not readiness. Common history and refresh routes include Pages releases; stop unpublishes only unchanged configuration owned by that release. Pages rollback is not supported. Later default-branch pushes can republish `/docs` automatically; an older ready history entry describes its original verification and is not continuous site monitoring. Pages hosts static public output and receives no private runtime values.
+
+## Team browser access
+
+Team registrations live in the dedicated worker's private
+`control-plane/teams/{teamId}/runtime/state/sessions/browser-previews` directory.
+The browser gateway discovers these alongside personal registrations, but a
+known team preview hostname alone grants no access. Every team target requires
+the management access controller; missing wiring fails closed.
+
+POST `/v1/teams/{teamId}/projects/{projectId}/browser-access` accepts `{url}` for
+an already registered isolated browser URL and returns `{url,expiresAt}`. It
+requires the current Luci login, project membership, editing and execution
+permissions, and an active team service. Data origins additionally require
+deployment and secret permissions. The requested origin must belong to that
+exact team and project; it cannot supply an arbitrary upstream. An intentionally
+public HTTPS deployment retains its own application authentication and does not
+use this private browser endpoint.
+
+The returned URL is a single-use invitation, valid for at most 60 seconds. Its
+`/.well-known/luci-team-access` endpoint sets a host-only Secure, HttpOnly,
+SameSite=None, partitioned browser cookie and removes the invitation from the
+visible application address. Open a fresh invitation for a new top-level tab;
+do not reuse the URL consumed by an embedded preview. Invitation/cookie values
+stay out of project context, release records and application requests. The
+application cannot overwrite Luci's reserved browser cookie or set a cookie
+domain spanning sibling preview origins.
+
+When the caller also has data access, the application handoff first connects
+registered data origins from the same project using bounded hidden handoffs in
+the same browser partition. The generated client example in Data → Connect uses
+`@supabase/supabase-js` with a fetch wrapper setting `credentials:'include'` only
+for its configured data origin. Existing browser clients need this option.
+Credentialed CORS admits only an isolated application origin from the same
+private project; preflight returns CORS metadata without authorizing a data
+request. Application JWT validation and row/storage policies remain in force.
+Realtime WebSockets use the same project-authorized browser cookie.
+
+Each request revalidates its login session, exact team/project grant revisions,
+permissions and service state. Logout, permission removal, project revocation
+and service suspension cancel active requests and close upgraded connections.
+They preserve shared running children and data for an authorized explicit stop
+or cleanup. Browser grants are memory-only; a service restart requires opening
+the preview again. A copied clean URL in a different browser partition does not
+authenticate. Direct team control-origin preview/remote-workspace bridges remain
+outside the team route allowlist.
+
+`node scripts/team-browser-eval.mjs --browser /path/to/chromium` validates actual
+Chromium iframe authentication, isolated cookies, cross-origin data API and
+realtime behavior, copied-URL denial and live revocation through production
+gateway handlers. It uses deterministic app/data upstream fixtures, creates no
+paid resources, and writes a sanitized report under `artifacts/uat`. This is
+browser transport evidence, not proof of a real Supabase installation or a
+remotely hosted team's TLS/network boundary.
+
+## Owner data-deletion requests
+
+GET `/v1/teams/{teamId}/data-lifecycle` requires a current team owner and returns
+`{team,dataLifecycle}`. Initially the lifecycle is `{revision:0,status:"none"}`.
+POST to the same path plus `/request` accepts
+`{expectedRevision,acknowledgeDeletion:true}`; `/cancel` accepts
+`{expectedRevision,requestId}` for the exact pending request. The revision is the
+current **team** revision. Both operations advance it and the independent
+lifecycle revision; stale revisions, duplicate pending requests and wrong request
+IDs return409. Nonowners receive403, including administrators without ownership.
+
+A saved lifecycle is `{revision,status:"requested"|"cancelled",requestId,
+requestedBy,requestedAt,updatedAt,cancelledBy?,cancelledAt?}`. The gateway supplies
+identity and timestamps from authenticated authority; clients cannot supply a
+completed status or private receipt fields. Request/cancel audit entries are
+saved atomically with the receipt. A failed persistence write rolls back both.
+Cancelling preserves the original request identity; a later request gets a new ID.
+Neither operation starts workers, stops workloads, changes billing/access or
+removes any project or state files.
+
+GET `/v1/admin/team-data-requests` requires a current Super Admin and returns
+`{requests:[{team,dataLifecycle}]}` for pending requests, restricted to the bound
+team on a managed host. It is an operator queue read, not automatic processing.
+The separate operator tool requires the exact pending request, a still-enabled
+owner, stopped state writers and a current private backup before unlinking the
+verified bound host's files. Its scoped receipt never claims removal of external
+resources, backup archives or provider records. See
+[managed data lifecycle](MANAGED-DATA-LIFECYCLE.md) for the review/command contract.
