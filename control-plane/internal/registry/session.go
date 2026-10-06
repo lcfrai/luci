@@ -113,6 +113,10 @@ type Session struct {
 	// stores and returns it and never interprets it.
 	ContextRef            string                 `json:"contextRef"`
 	ImplementationContext *ImplementationContext `json:"implementationContext,omitempty"`
+	// ProjectRunID and ProjectRunOperationID bind this durable child to one
+	// privately reserved operation. Both are recorded before sandbox allocation.
+	ProjectRunID          string `json:"projectRunId,omitempty"`
+	ProjectRunOperationID string `json:"projectRunOperationId,omitempty"`
 }
 
 // Clone returns a copy that shares nothing with s.

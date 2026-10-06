@@ -303,6 +303,10 @@ func (s *Server) createPagesRelease(w http.ResponseWriter, r *http.Request) {
 	if code == 404 {
 		row.OwnsConfiguration = false
 	}
+	if err = s.RecordProjectRunReleaseProvenance(ctx, p.ID, row.ID, row.Target, row.Commit); err != nil {
+		problem(w, 409, "release_provenance_unavailable", err.Error())
+		return
+	}
 	if err = s.storePagesRelease(row); err != nil {
 		problem(w, 500, "release_record_failed", "The deployment request could not be saved. Nothing was published.")
 		return

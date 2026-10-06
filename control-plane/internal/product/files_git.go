@@ -7,11 +7,15 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/lcfrai/luci/control-plane/internal/hostpath"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 const maxProjectFile = 1 << 20
@@ -160,37 +164,121 @@ type GitSummary struct {
 // fsmonitor commands, pagers or external diff/textconv programs.
 var journeyGitFlags = []string{"--no-pager", "--no-optional-locks", "-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "color.ui=false", "-c", "commit.gpgsign=false"}
 
-func (s *Server) journeyGit(ctx context.Context, dir string, args ...string) (string, error) {
-	all := append([]string{}, journeyGitFlags...)
-	// Managed projects have their own ordinary .git directory. Pin both Git
-	// paths so repository-local core.worktree/core.bare cannot redirect host
-	// reads or writes into another user's workspace. Identity/config probes
-	// and a not-yet-initialised restore directory deliberately have no .git.
-	gitDir := filepath.Join(dir, ".git")
-	if info, err := os.Lstat(gitDir); err == nil {
-		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			return "", errors.New("project Git directory must be an ordinary directory")
+type managedJourneyGitContextKey struct{}
+type journeyGitRootContextKey struct{}
+
+// Callers already holding the journey mutex capture config.ProjectsDir under
+// that lock. Git must not recursively acquire it, including an RLock when a
+// configuration writer is waiting. Other callers resolve the root normally.
+func (s *Server) journeyGitRoot(ctx context.Context) string {
+	if root, ok := ctx.Value(journeyGitRootContextKey{}).(string); ok && root != "" {
+		return root
+	}
+	return s.projectRoot()
+}
+
+// Keep the injectable command runner while applying the same environment to
+// native execution and runner adapters that delegate back to RunCommand.
+func journeyGitEnvironment(ctx context.Context, env []string) []string {
+	if managed, _ := ctx.Value(managedJourneyGitContextKey{}).(bool); managed {
+		return project.ManagedGitEnvironment(env)
+	}
+	return env
+}
+
+func journeyGitBoundary(ctx context.Context, root, dir string, command []string) ([]string, error) {
+	bounded, err := project.ManagedGitArguments(root, dir, command)
+	if err != nil {
+		return nil, err
+	}
+	if err := validateBranchMetadata(ctx, root, dir); err != nil {
+		return nil, err
+	}
+	// A supported linked worktree has a .git file and keeps its actual metadata
+	// in the primary repository's .git/worktrees directory. Validate that whole
+	// common store too, including nested refs/objects/index files and hard links.
+	if info, err := os.Lstat(filepath.Join(dir, ".git")); err != nil {
+		return nil, err
+	} else if !info.IsDir() {
+		gitDir := strings.TrimPrefix(bounded[0], "--git-dir=")
+		primary := filepath.Dir(filepath.Dir(filepath.Dir(gitDir)))
+		if err := validateBranchMetadata(ctx, root, primary); err != nil {
+			return nil, err
 		}
-		if _, err := guardedProjectPath(dir, ".git", false); err != nil {
+	}
+	return bounded, nil
+}
+
+func (s *Server) journeyGit(ctx context.Context, dir string, args ...string) (string, error) {
+	root := s.journeyGitRoot(ctx)
+	// Only controller-selected -c settings may precede the actual subcommand.
+	// Resolve the boundary from that subcommand, then keep its location pins
+	// after the settings so even a caller cannot redirect the managed worktree.
+	settings, command := []string{}, args
+	for len(command) >= 2 && command[0] == "-c" {
+		settings = append(settings, command[:2]...)
+		command = command[2:]
+	}
+	if len(command) == 0 || strings.HasPrefix(command[0], "-") {
+		return "", errors.New("managed Git requires a direct subcommand")
+	}
+	// Explicit machine-level helper discovery remains outside repository
+	// configuration. These narrow probes must retain the connected account's
+	// trusted configuration, which managed repository commands never inherit.
+	if len(settings) == 0 && len(command) == 5 && command[0] == "config" && (command[1] == "--system" || command[1] == "--global") && command[2] == "--get-urlmatch" && command[3] == "credential.helper" {
+		hostDir, err := s.setupHostDir(false)
+		if err != nil {
 			return "", err
 		}
-		all = append(all, "--git-dir="+gitDir, "--work-tree="+dir, "-c", "core.bare=false")
+		return s.runner(ctx, "git", append(append([]string{}, journeyGitFlags...), command...), hostDir)
 	}
-	if len(args) > 0 && args[0] != "config" {
+	gitDir := filepath.Join(dir, ".git")
+	_, gitErr := os.Lstat(gitDir)
+	if errors.Is(gitErr, os.ErrNotExist) && len(settings) == 0 && len(command) == 3 && command[0] == "config" && command[1] == "--get" && (command[2] == "user.name" || command[2] == "user.email") {
+		if _, err := hostpath.ResolveOutside(root, dir); err != nil {
+			return "", errors.New("Git identity must be read outside the projects folder")
+		}
+		return s.runner(ctx, "git", append(append([]string{}, journeyGitFlags...), command...), dir)
+	}
+	all := append(append([]string{}, journeyGitFlags...), settings...)
+	if errors.Is(gitErr, os.ErrNotExist) && command[0] == "init" {
+		// Restore initializes a controller-created empty directory in the
+		// assigned root. Never let a missing .git fall back to parent discovery.
+		if _, err := hostpath.Confine(root, dir); err != nil {
+			return "", err
+		}
+		if _, err := hostpath.ConfineToMounts([]string{root}, dir); err != nil {
+			return "", err
+		}
+		all = append(all, "--git-dir="+gitDir, "--work-tree="+dir, "-c", "init.templateDir=", "-c", "core.bare=false")
+	} else {
+		bounded, err := journeyGitBoundary(ctx, root, dir, command)
+		if err != nil {
+			return "", err
+		}
+		all = append(all, bounded[:len(bounded)-len(command)]...)
+	}
+	ctx = context.WithValue(ctx, managedJourneyGitContextKey{}, true)
+	if command[0] != "config" && command[0] != "init" {
 		// Even `git status` may run a clean filter when it compares a tracked
 		// file to the index. Neutralize configured drivers before every command
 		// that can inspect the worktree, not only before staging a commit.
 		probe := append(append([]string{}, all...), "config", "--null", "--name-only", "--get-regexp", `^filter\.`)
 		filters, filterErr := s.runner(ctx, "git", probe, dir)
-		if filterErr != nil && strings.TrimSpace(filters) != "" {
-			return "", filterErr
+		if filterErr != nil {
+			var exit *exec.ExitError
+			if ctx.Err() != nil || strings.TrimSpace(filters) != "" || !errors.As(filterErr, &exit) || exit.ExitCode() != 1 {
+				return "", filterErr
+			}
 		}
 		seen := map[string]bool{}
 		for _, key := range strings.Split(filters, "\x00") {
-			key = strings.TrimSpace(key)
-			end := strings.LastIndexByte(key, '.')
-			if !strings.HasPrefix(key, "filter.") || end <= len("filter.") {
+			if key == "" {
 				continue
+			}
+			end := strings.LastIndexByte(key, '.')
+			if !strings.HasPrefix(key, "filter.") || end <= len("filter.") || strings.ContainsAny(key, "\r\n") {
+				return "", errors.New("Git filter configuration cannot be confined safely")
 			}
 			driver := key[:end]
 			if seen[driver] {
@@ -202,7 +290,7 @@ func (s *Server) journeyGit(ctx context.Context, dir string, args ...string) (st
 			}
 		}
 	}
-	all = append(all, args...)
+	all = append(all, command...)
 	return s.runner(ctx, "git", all, dir)
 }
 
@@ -332,6 +420,7 @@ func (s *Server) commitProject(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	ctx = context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir)
 	status, err := s.journeyGit(ctx, p.Path, "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	if err != nil {
 		journeyError(w, 422, "git_failed", err.Error())

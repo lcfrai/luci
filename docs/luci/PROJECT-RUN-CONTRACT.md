@@ -1,9 +1,10 @@
 # Durable project runs
 
-Implementation contract for the next batch after the private review-authority
-fix. This is proposed behavior, not a claim that project runs are shipped or
-that installed acceptance has passed. Existing independent sessions, checks and
-releases remain supported.
+Implementation contract for the batch after the private review-authority fix.
+The [production continuation](HANDOFF-2026-10-06-PRODUCTION.md) records the
+implementation and scoped evidence. This contract is not a claim that project
+runs have shipped or that full installed acceptance has passed. Existing
+independent sessions, checks and releases remain supported.
 
 ## Outcome and scope
 

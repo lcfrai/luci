@@ -88,10 +88,14 @@ func (g *Gateway) allowLogin(r *http.Request, username string) bool {
 	}
 	return true
 }
+
+// The caller stages a cloned identity and restores it if this commit fails.
 func (g *Gateway) issueSessionLocked(u User) (string, error) {
 	now := time.Now()
+	revoked := map[string]string{}
 	for key, s := range g.state.Sessions {
 		if now.After(s.ExpiresAt) {
+			revoked[key] = s.UserID
 			delete(g.state.Sessions, key)
 		}
 	}
@@ -109,6 +113,7 @@ func (g *Gateway) issueSessionLocked(u User) (string, error) {
 		if count < 16 {
 			break
 		}
+		revoked[oldest] = u.ID
 		delete(g.state.Sessions, oldest)
 	}
 	if len(g.state.Sessions) >= 4096 {
@@ -120,15 +125,30 @@ func (g *Gateway) issueSessionLocked(u User) (string, error) {
 		delete(g.state.Sessions, hashToken(token))
 		return "", err
 	}
+	// Eviction is revocation too. Close only connections for the committed
+	// removals; a failed sign-in must leave existing terminal sessions usable.
+	for sessionHash, userID := range revoked {
+		g.closeSocketsLocked(userID, sessionHash)
+	}
+	for key, ticket := range g.tickets {
+		if _, removed := revoked[ticket.SessionHash]; removed {
+			delete(g.tickets, key)
+		}
+	}
 	return token, nil
 }
-func (g *Gateway) revokeLocked(userID string) {
-	g.closeSocketsLocked(userID, "")
+
+// Stage persistent revocation before saving; live connections and workers must
+// remain usable if the identity transaction cannot be committed.
+func (g *Gateway) revokeSessionsLocked(userID string) {
 	for key, s := range g.state.Sessions {
 		if s.UserID == userID {
 			delete(g.state.Sessions, key)
 		}
 	}
+}
+func (g *Gateway) revokeConnectionsLocked(userID string) {
+	g.closeSocketsLocked(userID, "")
 	for key, t := range g.tickets {
 		if t.UserID == userID {
 			delete(g.tickets, key)
@@ -201,12 +221,15 @@ func (g *Gateway) bootstrap(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, "already_configured", "This instance already has an owner.")
 		return
 	}
+	before := g.state
+	g.state = cloneIdentityState(before)
 	u := User{ID: opaqueID("user-"), Username: strings.ToLower(req.Username), DisplayName: strings.TrimSpace(req.DisplayName), Role: "super-admin"}
 	g.state.OwnerID = u.ID
 	g.state.Users[u.ID] = userRecord{User: u, PasswordHash: hash}
 	g.auditLocked(u.ID, "instance.bootstrap", u.ID, "succeeded")
 	token, err := g.issueSessionLocked(u)
 	if err != nil {
+		g.state = before
 		fail(w, 500, "save_failed", "The identity could not be saved.")
 		return
 	}
@@ -247,15 +270,20 @@ func (g *Gateway) login(w http.ResponseWriter, r *http.Request) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	current, exists := g.state.Users[record.User.ID]
+	before := g.state
+	g.state = cloneIdentityState(before)
 	if !valid || !exists || current.User.Disabled || current.PasswordHash != record.PasswordHash {
 		g.auditLocked("", "auth.login", "", "denied")
-		_ = g.persistLocked()
+		if g.persistLocked() != nil {
+			g.state = before
+		}
 		fail(w, 401, "invalid_credentials", "The username or password is incorrect.")
 		return
 	}
 	g.auditLocked(current.User.ID, "auth.login", current.User.ID, "succeeded")
 	token, err := g.issueSessionLocked(current.User)
 	if err != nil {
+		g.state = before
 		fail(w, 500, "save_failed", "Sign-in could not be saved.")
 		return
 	}
@@ -270,17 +298,21 @@ func (g *Gateway) logout(w http.ResponseWriter, r *http.Request) {
 	u, _, _ := ActorFromContext(r.Context())
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	delete(g.state.Sessions, hashToken(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")))
-	g.closeSocketsLocked(u.ID, hashToken(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")))
+	before := g.state
+	g.state = cloneIdentityState(before)
+	sessionHash := hashToken(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	delete(g.state.Sessions, sessionHash)
+	g.auditLocked(u.ID, "auth.logout", u.ID, "succeeded")
+	if g.persistLocked() != nil {
+		g.state = before
+		fail(w, 500, "save_failed", "Sign-out could not be saved.")
+		return
+	}
+	g.closeSocketsLocked(u.ID, sessionHash)
 	for key, t := range g.tickets {
 		if t.UserID == u.ID {
 			delete(g.tickets, key)
 		}
-	}
-	g.auditLocked(u.ID, "auth.logout", u.ID, "succeeded")
-	if g.persistLocked() != nil {
-		fail(w, 500, "save_failed", "Sign-out could not be saved.")
-		return
 	}
 	jsonReply(w, 200, map[string]bool{"signedOut": true})
 }
@@ -320,19 +352,23 @@ func (g *Gateway) changePassword(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, "identity_changed", "Sign in again before changing your password.")
 		return
 	}
+	before := g.state
+	g.state = cloneIdentityState(before)
 	current.PasswordHash = hash
 	g.state.Users[u.ID] = current
-	g.revokeLocked(u.ID)
+	g.revokeSessionsLocked(u.ID)
 	g.auditLocked(u.ID, "auth.password", u.ID, "succeeded")
-	err := g.persistLocked()
+	if g.persistLocked() != nil {
+		g.state = before
+		g.mu.Unlock()
+		fail(w, 500, "save_failed", "Password update could not be saved.")
+		return
+	}
+	g.revokeConnectionsLocked(u.ID)
 	rt := g.runtimes[u.ID]
 	g.mu.Unlock()
 	if rt != nil {
 		rt.stop()
-	}
-	if err != nil {
-		fail(w, 500, "save_failed", "Password update could not be saved.")
-		return
 	}
 	jsonReply(w, 200, map[string]bool{"signInRequired": true})
 }

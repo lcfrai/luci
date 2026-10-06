@@ -191,6 +191,7 @@ func TestCloneCopiesEveryOtherField(t *testing.T) {
 var cloneDeepCopies = map[string]bool{
 	"Args":                   true,
 	"EarlierConversationIDs": true,
+	"ImplementationContext":  true,
 }
 
 // TestCloneCoversEveryReferenceTypedField is a tripwire for the next field, not

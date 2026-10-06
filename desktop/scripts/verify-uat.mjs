@@ -28,7 +28,7 @@ const member = {
 };
 let initial;
 let token;
-let createdProject, restoredProject, approvedDefinition, approvedHandoff;
+let createdProject, restoredProject, approvedDefinition, approvedHandoff, projectRun;
 const authed = async (route, options = {}) => {
   const response = await fetch(`${base}${route}`, {
     ...options,
@@ -353,7 +353,7 @@ try {
   await page.getByRole("button", { name: "Develop", exact: true }).click();
   await page
     .getByRole("button", {
-      name: "Add acceptance criteria as tasks",
+      name: "Add approved requirements as tasks",
       exact: true,
     })
     .click();
@@ -440,6 +440,75 @@ try {
   checks.push(
     "Committed the brief through the real Git endpoint using fixture-local identity",
   );
+  // A saved run is controller-owned workflow state, not a claim that a coding
+  // agent ran. Exercise preparation and cancellation without starting a model.
+  const projectRow = page.locator(`[role="treeitem"][data-kind="project"][data-id="${createdProject.id}"]`);
+  if (await projectRow.getAttribute("aria-expanded") !== "true") await projectRow.click();
+  await projectRow.locator("..").locator('[role="treeitem"][data-kind="branch"]').first().click();
+  await page.getByRole("button", { name: "Develop", exact: true }).click();
+  // A durable run needs a named, revisioned route. Save an explicit local
+  // no-auth fixture through the supported API; no provider access is asserted
+  // and no coding session will contact this deliberately unavailable endpoint.
+  const routes = await authed("/v1/setup/agent-connections");
+  const savedRoutes = await authed("/v1/setup/agent-connections", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "save", expectedRevision: routes.revision, name: "UAT preparation only · no model calls", kind: "compatible-api", enabled: true, endpoints: { chatCompletions: "http://127.0.0.1:1/v1" }, models: { opencode: "uat-no-inference" } }),
+  });
+  const runConnection = savedRoutes.connections.find(item => !routes.connections.some(previous => previous.id === item.id));
+  assert.ok(runConnection?.configured);
+  assert.equal(runConnection.keyPresent, false);
+  const sessionMutations = [];
+  const watchSessionMutation = request => {
+    if (request.method() === "POST" && new URL(request.url()).pathname === "/v1/sessions") sessionMutations.push(request.url());
+  };
+  page.on("request", watchSessionMutation);
+  await page.getByRole("button", { name: "Prepare project run", exact: true }).click();
+  const runPicker = page.getByRole("dialog", { name: "Create project run", exact: true });
+  await runPicker.getByRole("combobox", { name: "Harness", exact: true }).selectOption("opencode");
+  await runPicker.getByRole("combobox", { name: "Agent connection", exact: true }).selectOption(runConnection.id);
+  await runPicker.getByRole("combobox", { name: "Intended outcome", exact: true }).selectOption("preview");
+  const createdRun = await observedPost(() => runPicker.getByRole("button", { name: "Create project run", exact: true }).click(), `/projects/${createdProject.id}/runs`);
+  projectRun = createdRun.run;
+  assert.equal(projectRun.projectId, createdProject.id);
+  assert.equal(projectRun.state, "ready");
+  assert.equal(projectRun.input.outcome, "preview");
+  assert.equal(projectRun.input.approvals.specificationDigest, approvedDefinition.digest);
+  assert.equal(projectRun.input.approvals.designDigest, approvedHandoff.digest);
+  assert.equal(projectRun.input.route.connection.id, runConnection.id);
+  assert.equal(projectRun.input.route.connection.revision, runConnection.revision);
+  assert.deepEqual(projectRun.input.requirements.map(item => item.id).sort(), approvedDefinition.requirements.map(item => item.id).sort());
+  assert.deepEqual(projectRun.operations, []);
+  assert.deepEqual(projectRun.checks, []);
+  assert.deepEqual(projectRun.releases, []);
+  assert.ok(!projectRun.acceptance);
+  const savedRunInput = projectRun.input;
+  await page.reload();
+  await page.getByRole("button", { name: "Develop", exact: true }).click();
+  const runsPanel = page.getByRole("region", { name: "Project runs", exact: true });
+  await runsPanel.getByText("Ready to code", { exact: true }).waitFor();
+  const [refreshedHistory] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname === `/v1/product/projects/${createdProject.id}/runs`),
+    runsPanel.getByRole("button", { name: "Refresh history", exact: true }).click(),
+  ]);
+  assert.equal(refreshedHistory.status(), 200);
+  assert.equal((await refreshedHistory.json()).runs.find(item => item.id === projectRun.id)?.revision, projectRun.revision);
+  const retainedRun = await authed(`/v1/product/projects/${createdProject.id}/runs/${projectRun.id}`);
+  assert.deepEqual(retainedRun.run.input, savedRunInput);
+  assert.equal(retainedRun.run.revision, projectRun.revision, "Reading history must not mutate a run");
+  await runsPanel.getByText("Reviewed inputs and evidence", { exact: true }).click();
+  await runsPanel.getByRole("button", { name: "Cancel run", exact: true }).click();
+  const cancelDialog = page.getByRole("dialog", { name: "Cancel run", exact: true });
+  const cancelled = await observedPost(() => cancelDialog.getByRole("button", { name: "Cancel future dispatch", exact: true }).click(), `/runs/${projectRun.id}/cancel`);
+  projectRun = cancelled.run;
+  assert.equal(projectRun.state, "cancelled");
+  assert.deepEqual(projectRun.input, savedRunInput);
+  assert.deepEqual(projectRun.operations, []);
+  assert.ok(!projectRun.acceptance);
+  await runsPanel.getByText("Cancelled", { exact: true }).first().waitFor();
+  assert.deepEqual(sessionMutations, [], "Preparing, reading and cancelling a run must not create a coding session");
+  page.off("request", watchSessionMutation);
+  await screenshot("05a-reviewed-project-run");
+  checks.push("Created a durable project run from approved requirement-linked tasks through the UI, preserved exact review/model inputs on reload, and explicitly cancelled future dispatch without allocating a session or claiming acceptance");
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
   const privateValue = `uat-private-${randomUUID()}`;
   await page.locator("summary").filter({ hasText: /^Runtime configuration$/ }).click();
@@ -511,6 +580,7 @@ try {
   assert.equal(restoredHandoff.implementationNotes, approvedHandoff.implementationNotes);
   assert.equal(restoredHandoff.sketchRevision, approvedHandoff.sketchRevision);
   assert.deepEqual(restoredHandoff.screens[0].requirementIds, restoredSpecification.requirements.map(item => item.id));
+  assert.deepEqual((await authed(`/v1/product/projects/${restoredProject.id}/runs`)).runs, [], "A source backup must not grant or copy controller-owned run history");
   checks.push(
     "Downloaded a real private Git backup and restored it from Projects home as a new project, preserving definition/handoff content, linked requirements, sketch, task plan and Git history while invalidating approvals for the new project identity",
   );
@@ -697,6 +767,7 @@ try {
         visualMeasurements,
         projectId: createdProject.id,
         restoredProjectId: restoredProject.id,
+        projectRun,
         definition: { revision: approvedDefinition.revision, briefRevision: approvedDefinition.briefRevision, digest: approvedDefinition.digest, requirementIds: approvedDefinition.requirements.map(item => item.id) },
         designHandoff: { revision: approvedHandoff.revision, specificationRevision: approvedHandoff.specificationRevision, sketchRevision: approvedHandoff.sketchRevision, digest: approvedHandoff.digest },
         restoredDefinition: { revision: restoredSpecification.revision, status: restoredSpecification.status, digest: restoredSpecification.digest || "", requirementIds: restoredSpecification.requirements.map(item => item.id) },

@@ -180,6 +180,8 @@ export interface Session {
   agentConnectionKind?: string;
   agentConnectionProtocol?: string;
   implementationContext?: ImplementationContext;
+  projectRunId?: string;
+  projectRunOperationId?: string;
   /** Free text for the user: "killed", "process exited", "idle timeout",
    *  "sandbox disappeared while the app was not running". Rendered verbatim. */
   exitReason: string;

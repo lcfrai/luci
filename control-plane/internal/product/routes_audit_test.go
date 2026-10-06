@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 type productRouteRecorder struct {
@@ -26,6 +28,8 @@ func (r *productRouteRecorder) HandleFunc(pattern string, handler func(http.Resp
 // Adding a GET also requires a concrete reason it cannot provision resources,
 // change credentials, start a session or allocate a preview listener.
 var productReadOnlyRoutes = map[string]string{
+	"GET /v1/product/projects/{id}/runs":                                "Reads bounded private run history and original evidence availability; no observation, repair or dispatch.",
+	"GET /v1/product/projects/{id}/runs/{runId}":                        "Reads one private run and retained evidence availability; no observation, repair or dispatch.",
 	"GET /v1/product/projects/{id}/git/branches":                        "Inspects bounded native refs, HEAD and clean state, then reads session state and private receipts; no checkout, sessions or writes.",
 	"GET /v1/product/projects/{id}/git/branch-operations/{operationId}": "Reads the private intent/result and may observe matching native HEAD in memory; never retries checkout or updates the journal.",
 	"GET /v1/product/projects/{id}/design-plan":                         "Reads saved screen/state handoff and compares in-memory revisions; no writes or execution.",
@@ -116,12 +120,16 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			t.Fatalf("read route requested unsafe Git invocation: %v", args)
 		}
 		readArgs := args[len(journeyGitFlags):]
-		if len(readArgs) >= 4 && strings.HasPrefix(readArgs[0], "--git-dir=") {
-			expected := []string{"--git-dir=" + filepath.Join(p.Path, ".git"), "--work-tree=" + p.Path, "-c", "core.bare=false"}
-			if !reflect.DeepEqual(readArgs[:4], expected) {
+		if len(readArgs) > 0 && strings.HasPrefix(readArgs[0], "--git-dir=") {
+			bounded, err := project.ManagedGitArguments(s.projectRoot(), p.Path, []string{"status"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected := bounded[:len(bounded)-1]
+			if len(readArgs) < len(expected) || !reflect.DeepEqual(readArgs[:len(expected)], expected) {
 				t.Fatalf("read route requested an unowned Git worktree: %v", args)
 			}
-			readArgs = readArgs[4:]
+			readArgs = readArgs[len(expected):]
 		}
 		read := strings.Join(readArgs, "\x00")
 		allowed := map[string]bool{
@@ -190,7 +198,7 @@ func TestProductRegisteredReadsCannotMutateProjectsOrStartResources(t *testing.T
 			if strings.HasPrefix(pattern, "GET /v1/setup/workspace/admin/") {
 				status = 403 // Standalone fixtures have no trusted management actor.
 			}
-			if pattern == "GET /v1/product/projects/{id}/checks/{runId}" {
+			if pattern == "GET /v1/product/projects/{id}/checks/{runId}" || pattern == "GET /v1/product/projects/{id}/runs/{runId}" {
 				status = 404
 			}
 			if pattern == "GET /v1/product/projects/{id}/git/branch-operations/{operationId}" {

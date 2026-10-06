@@ -255,6 +255,78 @@ specification and both `.luci/design-handoff.json` and
 `.luci/design-handoff.md`; a sketch is supplemental. Task status and CLI exit are
 independent of recorded verification and deployment outcomes.
 
+### Durable project runs
+
+All routes below use `/v1/product/projects/{id}/runs` on the selected execution
+workspace and authenticated account. They join existing coding, check and release
+operations; creating or reading a run does not start a model, command or resource.
+
+| Method and path | Request | Response and effect |
+| --- | --- | --- |
+| `POST /runs` | `{idempotencyKey,worktreeId,harness,model,permissionMode,effort?,agentConnectionId?,outcome:"preview"\|"publish",implementationContext}` | `201 {run}` for a new private record; `200 {run}` for the same normalized request/key. No child is allocated. |
+| `GET /runs` | — | `{runs}` with bounded saved history and allowed actions. |
+| `GET /runs/{runId}` | — | `{run}` with retained inputs, operations, evidence and last persisted observation. |
+| `POST /runs/{runId}/operations` | `{expectedRevision,idempotencyKey,kind:"session"}` | `201 {run,operation}` or an identical `200` replay; reserves a server-generated session ID before dispatch. |
+| `POST /runs/{runId}/checks` | `{expectedRevision,checkId}` | `{run}` after joining independently resolved private passing check evidence. Does not execute checks. |
+| `POST /runs/{runId}/releases` | `{expectedRevision,releaseId,target}` | `{run}` after source/review matching and a fresh owned release health observation. Does not deploy. |
+| `POST /runs/{runId}/reconcile` | `{expectedRevision}` | `{run}` after explicitly observing existing children/evidence and saving current validity. Never replays a missing operation. |
+| `POST /runs/{runId}/accept` | `{expectedRevision}` | `{run}` after fresh reconciliation and explicit acceptance of the selected checked release. |
+| `POST /runs/{runId}/cancel` | `{expectedRevision}` | `{run}` with future dispatch cancelled. A running child is stopped through its existing session/check/release controls. |
+
+`implementationContext` has the reviewed selection shape above. Runs require
+nonempty requirement links, the project's main checkout and an identifiable
+saved model connection or an existing private Codex subscription generation.
+The server resolves source, requirement text, route and private approval
+selections; clients supply no paths, actor IDs, digests, completion claims or receipt
+bodies. A reused key with different content or a stale `expectedRevision` returns
+`409`. Unknown runs return `404`. Keep the original creation key for response-loss
+retries; a new attempt receives a new operation key and retains earlier attempts.
+
+Dispatch the reserved coding operation using the normal `POST /v1/sessions`
+request plus both `projectRunId` and `projectRunOperationId`. The session request
+must match the reserved worktree, reviewed implementation and resolved model
+route. Both run IDs are saved in the private session before backend allocation.
+Repeated dispatch returns the same matching child. A claimed operation whose
+child cannot be established remains unknown; reconciliation does not allocate a
+replacement. Normal session quota, permission and source admission still apply.
+
+The private record retains immutable starting inputs and the exact specification
+and design approval IDs/revisions/digests, brief/sketch digests and requirement
+snapshots. Opaque approval IDs are selection metadata, not bearer credentials;
+private actors, account paths, connection generations, provider keys and command
+output are not part of the public projection or coding context. Reapproval or
+revocation invalidates old selections even when text is unchanged.
+
+A joined check must have all successful recorded command exits, full selected
+requirement coverage, unchanged source during execution and the exact current
+clean candidate commit/digest. The checked candidate is separate from the
+immutable starting source. Bounded command definitions/outcomes and requirement
+snapshots survive pruning of the ordinary twenty-row check history;
+`originalAvailable` reports whether that original still exists. New linked checks
+also retain their private approval selection; older checks without it must rerun.
+
+New local, cloud, Pages and native release admissions save private scoped source
+and review provenance before resource creation. A release join requires that
+provenance to match the checked candidate and current approvals, plus fresh
+ownership/health evidence. Source is checked again after observation. Historical
+releases without provenance remain unverified and are never backfilled from the
+current checkout. Targets `local` and `native-docker` satisfy `preview`; cloud
+target IDs, `github-pages` and `native-panacea` satisfy `publish`. Unsupported or
+unavailable provider observations fail closed. Each accepted release retains its
+observation time and limitations; local health is not public deployment, full
+browser acceptance or inbox delivery.
+
+Run states are `ready`, `coding`, `awaiting-checks`, `awaiting-release`, `blocked`,
+`cancelled` and `complete`, with a reason and optional current observation.
+`complete` requires matching technical evidence and explicit acceptance; CLI
+exit zero and task Done cannot grant it. Historical acceptance remains recorded
+when later drift makes current validity false. GET and service restart perform
+no repair, implicit retry, paid inference, publication or cloud creation. Existing
+command trust, public-publication policy and cost acknowledgements still apply
+at the corresponding explicit operation.
+
+### Plans and check history
+
 GET `/v1/product/projects/{id}/plan` returns `{projectId,revision,briefRevision,tasks:[{id,title,status,requirementIds?}],updatedAt,specificationRevision?,specificationDigest?}`. Task status is `todo`, `doing` or `done`. POST accepts `{expectedRevision,tasks,expectedSpecificationRevision?}` and returns200 with the saved plan. When any task has requirement links, the expected specification revision must match this project's current saved approved specification. Links use its stable requirement IDs; at most100 unique IDs per task and200 tasks are allowed. Unknown/foreign IDs or duplicates return400; stale or missing expected revisions return409; an unapproved/outdated specification returns422. The server records the approval revision/digest. Unlinked legacy plans remain supported, and existing links remain readable after the definition changes so they can be explicitly removed. Saving publishes `.luci/plan.json` alongside canonical state and `.luci/design.json` for agent context. Task Done remains user-reported progress, independent of test evidence.
 
 GET `.../checks` returns `{runs,suggested,coverage}`. POST accepts `{commands:[{label,executable,args}],execution:"docker"|"host",acknowledgeHostExecution:true,requirementIds?,expectedSpecificationRevision?,expectedDesignPlanRevision?}` and returns202 with a reserved run. Docker is the default; host mode additionally requires Super Admin and the enabled host-command policy. Nonempty requirement IDs require both current saved approvals and their exact expected revisions. Unknown/foreign/duplicate IDs return400 `invalid_requirement_link`; stale or missing expected revisions return409 `revision_conflict`; current approval prerequisites return422 `specification_approval_required` or `design_approval_required`. A refused binding allocates no check. Empty links retain generic check behavior. Commands are bounded typed argv, not interpolated shell text. Runs have a ten-minute limit, at most eight commands, bounded output and twenty retained rows. GET `.../checks/{runId}` reads an owned run; POST `.../checks/{runId}/cancel {}` requests cancellation.

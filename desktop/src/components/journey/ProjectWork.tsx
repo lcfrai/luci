@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   productApi,
   errorText,
@@ -10,6 +10,7 @@ import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import { ProjectPlan } from "./ProjectPlan";
 import { ProjectChecks } from "./ProjectChecks";
+import { ProjectRuns, type ProjectRunDraft } from "./ProjectRuns";
 import { Button } from "../fluid/components/button";
 import "./journey.css";
 
@@ -32,6 +33,8 @@ export function ProjectWork({
   const [loading, setLoading] = useState(false);
   const setLens = useCockpit((s) => s.setLens);
   const setup = useSetup();
+  const [runDraft, setRunDraft] = useState<ProjectRunDraft>();
+  const details = useRef<HTMLDetailsElement>(null);
   const load = useCallback(
     async (isCurrent: () => boolean = () => true) => {
       setLoading(true);
@@ -59,7 +62,9 @@ export function ProjectWork({
     };
   }, [load]);
   return (
-    <details className="project-work" open={expanded}>
+    <>
+    <ProjectRuns projectId={projectId} draft={runDraft} onDraftClose={() => setRunDraft(undefined)} onReviewPlan={() => { if (details.current) { details.current.open = true; details.current.scrollIntoView({ block: 'nearest' }); } }} />
+    <details className="project-work" open={expanded} ref={details}>
       <summary>
         <strong role="heading" aria-level={1}>Project plan and checks</strong>
         <span>
@@ -176,12 +181,13 @@ export function ProjectWork({
                 </div>
               </section>
             </div>
-            <ProjectPlan projectId={projectId} brief={facts.brief} />
+            <ProjectPlan projectId={projectId} brief={facts.brief} onPrepareRun={setRunDraft} />
             <ProjectChecks projectId={projectId} />
             {children}
           </>
         )}
       </div>
     </details>
+    </>
   );
 }

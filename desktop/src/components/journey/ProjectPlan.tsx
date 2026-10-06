@@ -15,6 +15,7 @@ import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import { SessionPicker } from "../topbar/SessionPicker";
 import { Button } from "../fluid/components/button";
 import { notifyRequirementEvidenceChanged, watchRequirementEvidence } from "./RequirementsEvidence";
+import type { ProjectRunDraft } from "./ProjectRuns";
 
 export function implementationPrompt(
   brief: Brief,
@@ -46,9 +47,11 @@ const sessionStatus: Record<SessionStatus, string> = { starting: "Starting", run
 export function ProjectPlan({
   projectId,
   brief,
+  onPrepareRun,
 }: {
   projectId: string;
   brief: Brief;
+  onPrepareRun?: (draft: ProjectRunDraft) => void;
 }) {
   const [plan, setPlan] = useState<ImplementationPlan | null>(null);
   const [tasks, setTasks] = useState<ImplementationTask[]>([]);
@@ -163,11 +166,12 @@ export function ProjectPlan({
           status: "todo" as const,
         })),
     ]);
-  function handoff(task?: ImplementationTask) {
+  function handoff(task?: ImplementationTask, prepareRun = false) {
     if (!plan || handoffIssue || !coverage) return;
     const selected = task ? plan.tasks.filter(item => item.id === task.id) : plan.tasks.filter(item => item.status !== "done");
     if (!selected.length) return;
     const context: ImplementationContextRequest = { projectId, briefRevision: brief.revision, planRevision: plan.revision, specificationRevision: coverage.specification.revision, designPlanRevision: coverage.design.revision, taskIds: selected.map(item => item.id) };
+    if (prepareRun && worktreeId && onPrepareRun) { onPrepareRun({ implementationContext: context, worktreeId }); return; }
     setImplementationContext(context);
     setPrompt(implementationPrompt(brief, plan, task ? selected[0] : undefined, context));
     setPickerOpen(true);
@@ -321,6 +325,7 @@ export function ProjectPlan({
             <Button type="button" variant="secondary" disabled={busy || !approvedRequirements || !requirements.length} onClick={() => edit([...tasks, ...requirements.filter(row => !tasks.some(task => task.requirementIds?.includes(row.requirementId))).map(row => ({ id:`task-${crypto.randomUUID()}`,title:row.title,status:"todo" as const,requirementIds:[row.requirementId] }))])}>Add approved requirements as tasks</Button>
           </form>
           <div className="journey-actions">
+            {onPrepareRun && <Button type="button" disabled={busy || !!handoffIssue || !worktreeId || !plan.tasks.some(task => task.status !== "done")} onClick={() => handoff(undefined, true)}>Prepare project run</Button>}
             <Button type="button" variant="primary" loading={busy}
               disabled={
                 busy || (!changed && !needsRebind) || tasks.some((task) => !task.title.trim()) || (linked && (!approvedRequirements || unavailableLinks))

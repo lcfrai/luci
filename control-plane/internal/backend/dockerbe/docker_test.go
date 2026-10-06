@@ -402,6 +402,9 @@ func TestCreateBuildsTheContractedContainerAndReturnsALoopbackEndpoint(t *testin
 	if c.hostConfig.Resources.NanoCPUs != 2_000_000_000 || c.hostConfig.Resources.Memory != 4096<<20 {
 		t.Errorf("Resources = %d nanocpus / %d bytes", c.hostConfig.Resources.NanoCPUs, c.hostConfig.Resources.Memory)
 	}
+	if c.hostConfig.Resources.PidsLimit == nil || *c.hostConfig.Resources.PidsLimit != 256 {
+		t.Errorf("PidsLimit = %v, want 256 so a harness cannot exhaust host processes", c.hostConfig.Resources.PidsLimit)
+	}
 	wantBinds := []string{validSpec().Mounts[0].HostPath + ":/work"}
 	if !reflect.DeepEqual(c.hostConfig.Binds, wantBinds) {
 		t.Errorf("Binds = %q, want %q", c.hostConfig.Binds, wantBinds)

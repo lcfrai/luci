@@ -99,6 +99,17 @@ func TestFunctionPublicationUsesCleanExactCommitAndApprovedContext(t *testing.T)
 		t.Fatal(err)
 	}
 	sha := commit["commit"]
+	if _, err := callbacks.Committed(ctx, p.ID, "example", sha); err == nil {
+		t.Fatal("function source was published without a reviewed design handoff")
+	}
+	reviewDeploymentFixture(t, mux, p.ID)
+	if _, err := callbacks.Committed(ctx, p.ID, "example", sha); err == nil {
+		t.Fatal("function source was published before committing the reviewed handoff")
+	}
+	if err := json.Unmarshal(journeyRequest(t, mux, "POST", base+"/git/commit", map[string]string{"message": "Commit approved function design"}, 200).Body.Bytes(), &commit); err != nil {
+		t.Fatal(err)
+	}
+	sha = commit["commit"]
 	actual, err := callbacks.Committed(ctx, p.ID, "example", sha)
 	if err != nil || actual.Commit != sha || actual.AuthMode != "project-key" || actual.Files[0].Content != source || len(actual.Files) != platform.DataFunctionMaxFiles {
 		t.Fatalf("actual clean commit not admitted: %+v %v", actual, err)

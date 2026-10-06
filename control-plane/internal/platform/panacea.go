@@ -281,6 +281,17 @@ func (s *Service) deployPanacea(w http.ResponseWriter, r *http.Request) {
 		problem(w, 409, "project_required", "Connect this project to a Panacea project first.")
 		return
 	}
+	d := Deployment{ID: randomID("deploy-"), ProjectID: p.ID, Provider: "panacea", Commit: in.Commit, Status: "preparing", Message: "Reserving the reviewed source before requesting deployment.", CreatedAt: now(), UpdatedAt: now(), RemoteProject: state.PanaceaProject, ProviderBinding: c.binding()}
+	if s.opts.RecordDeploymentProvenance != nil {
+		if e = s.opts.RecordDeploymentProvenance(r.Context(), p.ID, d.ID, "native-panacea", d.Commit); e != nil {
+			problem(w, 409, "release_provenance_unavailable", "The exact source and private review selections could not be saved. No deployment started.")
+			return
+		}
+	}
+	if e = s.saveDeployment(d); e != nil {
+		problem(w, 500, "state_unavailable", "The release could not be reserved. No deployment started.")
+		return
+	}
 	var result struct {
 		Project     string `json:"project"`
 		Status      string `json:"status"`
@@ -290,7 +301,7 @@ func (s *Service) deployPanacea(w http.ResponseWriter, r *http.Request) {
 		problem(w, 502, "deployment_unconfirmed", "Panacea did not confirm a pipeline. Check its deployment history before retrying.")
 		return
 	}
-	d := Deployment{ID: randomID("deploy-"), ProjectID: p.ID, Provider: "panacea", Commit: in.Commit, Status: "deploying", Message: "Panacea accepted the exact commit. Public readiness has not been verified.", CreatedAt: now(), UpdatedAt: now(), RemoteProject: state.PanaceaProject, PipelineRun: result.PipelineRun, ProviderBinding: c.binding()}
+	d.Status, d.Message, d.PipelineRun = "deploying", "Panacea accepted the exact commit. Public readiness has not been verified.", result.PipelineRun
 	if e = s.saveDeployment(d); e != nil {
 		problem(w, 500, "state_unavailable", "Panacea accepted the build, but its local receipt could not be saved. Check provider history before retrying.")
 		return

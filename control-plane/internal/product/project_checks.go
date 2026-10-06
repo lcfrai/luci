@@ -34,28 +34,29 @@ type CheckCommandResult struct {
 	Truncated bool   `json:"truncated"`
 }
 type ProjectCheckRun struct {
-	ID                    string                `json:"id"`
-	ProjectID             string                `json:"projectId"`
-	Commit                string                `json:"commit"`
-	Dirty                 bool                  `json:"dirty"`
-	Execution             string                `json:"execution"`
-	MemoryMiB             int                   `json:"memoryMiB"`
-	CPUMillis             int                   `json:"cpuMillis"`
-	SourceDigest          string                `json:"sourceDigest"`
-	SourceChanged         bool                  `json:"sourceChanged"`
-	Status                string                `json:"status"`
-	Commands              []CheckCommandResult  `json:"commands"`
-	CreatedAt             string                `json:"createdAt"`
-	UpdatedAt             string                `json:"updatedAt"`
-	Message               string                `json:"message"`
-	RequirementIDs        []string              `json:"requirementIds,omitempty"`
-	RequirementSnapshots  []RequirementSnapshot `json:"requirementSnapshots,omitempty"`
-	SpecificationRevision int                   `json:"specificationRevision,omitempty"`
-	SpecificationDigest   string                `json:"specificationDigest,omitempty"`
-	DesignPlanRevision    int                   `json:"designPlanRevision,omitempty"`
-	DesignPlanDigest      string                `json:"designPlanDigest,omitempty"`
-	EvidenceStatus        string                `json:"evidenceStatus"`
-	StaleReasons          []string              `json:"staleReasons"`
+	ID                    string                       `json:"id"`
+	ProjectID             string                       `json:"projectId"`
+	Commit                string                       `json:"commit"`
+	Dirty                 bool                         `json:"dirty"`
+	Execution             string                       `json:"execution"`
+	MemoryMiB             int                          `json:"memoryMiB"`
+	CPUMillis             int                          `json:"cpuMillis"`
+	SourceDigest          string                       `json:"sourceDigest"`
+	SourceChanged         bool                         `json:"sourceChanged"`
+	Status                string                       `json:"status"`
+	Commands              []CheckCommandResult         `json:"commands"`
+	CreatedAt             string                       `json:"createdAt"`
+	UpdatedAt             string                       `json:"updatedAt"`
+	Message               string                       `json:"message"`
+	RequirementIDs        []string                     `json:"requirementIds,omitempty"`
+	RequirementSnapshots  []RequirementSnapshot        `json:"requirementSnapshots,omitempty"`
+	SpecificationRevision int                          `json:"specificationRevision,omitempty"`
+	SpecificationDigest   string                       `json:"specificationDigest,omitempty"`
+	DesignPlanRevision    int                          `json:"designPlanRevision,omitempty"`
+	DesignPlanDigest      string                       `json:"designPlanDigest,omitempty"`
+	EvidenceStatus        string                       `json:"evidenceStatus"`
+	StaleReasons          []string                     `json:"staleReasons"`
+	ApprovalSelection     *ProjectRunApprovalSelection `json:"approvalSelection,omitempty"`
 }
 type projectCheckJob struct {
 	run    ProjectCheckRun
@@ -287,6 +288,16 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 	row.RequirementIDs, row.RequirementSnapshots = binding.RequirementIDs, binding.RequirementSnapshots
 	row.SpecificationRevision, row.SpecificationDigest = binding.SpecificationRevision, binding.SpecificationDigest
 	row.DesignPlanRevision, row.DesignPlanDigest = binding.DesignPlanRevision, binding.DesignPlanDigest
+	if len(binding.RequirementIDs) > 0 {
+		selection, selectionErr := projectRunApprovalSelection(state)
+		if selectionErr != nil {
+			cancel()
+			s.mu.Unlock()
+			problem(w, 409, "review_approval_required", selectionErr.Error())
+			return
+		}
+		row.ApprovalSelection = &selection
+	}
 	row.EvidenceStatus, row.StaleReasons = evidenceUnverified, []string{"The commands have not finished."}
 	row.MemoryMiB = memory
 	row.CPUMillis = cpu
@@ -436,6 +447,10 @@ func (s *Server) cancelProjectCheck(w http.ResponseWriter, r *http.Request) {
 // Caller holds s.mu. HTTP encoding happens after releasing it, so mutable
 // command results and their nested values must not remain shared with a worker.
 func snapshotProjectCheck(row ProjectCheckRun) ProjectCheckRun {
+	if row.ApprovalSelection != nil {
+		selection := *row.ApprovalSelection
+		row.ApprovalSelection = &selection
+	}
 	row.RequirementIDs = append([]string(nil), row.RequirementIDs...)
 	row.RequirementSnapshots = append([]RequirementSnapshot(nil), row.RequirementSnapshots...)
 	row.StaleReasons = append([]string{}, row.StaleReasons...)

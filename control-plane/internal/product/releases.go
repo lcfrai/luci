@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
+	"github.com/lcfrai/luci/control-plane/internal/project"
 )
 
 type Release struct {
@@ -208,6 +209,10 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row := storedRelease{Release: Release{ID: newID("rel-"), ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: "local", Status: "building", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}}
+	if err := s.RecordProjectRunReleaseProvenance(ctx, p.ID, row.ID, row.Target, row.Commit); err != nil {
+		problem(w, 409, "release_provenance_unavailable", err.Error())
+		return
+	}
 	s.mu.Lock()
 	if s.activeLocalReleases == nil {
 		s.activeLocalReleases = make(map[string]bool)
@@ -435,11 +440,17 @@ func (s *Server) stopLocalRelease(w http.ResponseWriter, r *http.Request) {
 func archiveCommittedProject(ctx context.Context, dir, commit, destination string) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	args := append(append([]string{}, journeyGitFlags...), "archive", "--format=tar", commit)
+	// Releases archive the primary project. Its Git storage must stay inside
+	// that project, just as the source inspected before deployment does.
+	bounded, err := journeyGitBoundary(ctx, dir, dir, []string{"archive", "--format=tar", commit})
+	if err != nil {
+		return err
+	}
+	args := append(append([]string{}, journeyGitFlags...), bounded...)
 	cmd := exec.CommandContext(ctx, "git", gitcommand.PlatformArgs(dir, args)...)
 	cmd.Dir = dir
 	cmd.WaitDelay = 2 * time.Second
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
+	cmd.Env = project.ManagedGitEnvironment(os.Environ())
 	stderr := &limitedBuffer{limit: 64 << 10}
 	cmd.Stderr = stderr
 	stdout, err := cmd.StdoutPipe()

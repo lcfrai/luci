@@ -14,6 +14,36 @@ own AWS or Azure resources and domain, or an existing workspace. Minimize ongoin
 cost while preserving the quality of the result. Reuse suitable open-source
 components discovered through lcfr.ai Glasses where this improves delivery.
 
+## Open-source and managed-team goal — 6 October 2026
+
+The owner has confirmed two delivery options: the self-hosted MIT open-source
+application and optional paid lcfr.ai-managed team workspaces. Both must solve
+the same AI software-development lifecycle: people build and review useful
+shared context, agents receive the exact authorized context, and the team can
+verify, deploy and maintain the resulting application in one coherent product.
+Local use remains supported without a mandatory hosted account or subscription.
+
+The first paid deployment uses a dedicated execution boundary for each team,
+with private state, secrets, containers and resource ownership. Existing
+per-user application workers are useful account separation, but are not proof
+of isolation between paying teams on a shared host. Existing invitations create
+accounts with private workspaces; they do not yet implement team membership,
+project sharing or collaborative editing. Paid team availability requires
+explicit membership and project permissions, trustworthy attribution/review,
+concurrent-change handling and revocation across files, context, agents,
+previews and deployments. Secret use and execution privileges need separate
+authorization from the right to read or edit project context.
+
+[PRODUCTION-ROADMAP.md](PRODUCTION-ROADMAP.md) defines measurable stages for this
+continuing goal. The active implementation wave is the durable project-run and
+evidence coordinator described in [PROJECT-RUN-CONTRACT.md](PROJECT-RUN-CONTRACT.md).
+Implementation in progress does not establish shipment or acceptance. Continue
+through portable context, genuine team collaboration, the polished installed
+journey, operational maintenance, and the separate open-source and paid release
+gates. Preserve the required live subscription, gateway, AWS, Azure, domain,
+SMTP and signed/public-download evidence below; a smaller milestone does not
+replace the full completion contract.
+
 ## Overnight completion instruction — 6 October 2026
 
 The owner has explicitly authorized continued autonomous work while away and
@@ -32,11 +62,14 @@ missing credentials never turn an untested outcome into a pass. Literal absence
 of every possible future defect cannot be promised, and must not replace concrete
 acceptance evidence.
 
-The active native goal-control API cannot replace an unfinished objective or edit
-its text. An attempted replacement again returned that an unfinished goal exists.
-Do not falsely complete the smaller stored benchmark to clear that restriction.
-This expanded completion contract is authoritative across continued turns; the
-stored four-phase benchmark remains a required gate within it.
+In the owner's earlier installed environment, the native goal-control API
+reported that an unfinished objective could not be replaced or edited. That is
+a historical observation, not evidence of an available API in this cloud
+session. This cloud session exposes no goal-control API and has not created or
+replaced a native goal. This document and the production roadmap preserve the
+continuing objective. Do not falsely complete the earlier smaller benchmark to
+clear its restriction; the four-phase benchmark remains a required gate within
+this expanded completion contract.
 
 ## Required product outcomes
 
@@ -129,6 +162,7 @@ credentials and resources are prerequisites; absence of them is not a pass.
 Do not hand back the application as fully tested or complete until every required
 outcome has adequate current evidence. Keep implementation checkpoints and
 unverified external prerequisites explicit. Update `FULL-PRODUCT.md` with
-concrete outcomes and evidence as the build advances. The available goal-control
-API currently cannot edit an unfinished objective; its stored narrow benchmark
-must not override this owner-approved expanded completion standard.
+concrete outcomes and evidence as the build advances. The earlier native goal
+record remains historical; its narrower benchmark must not override this
+owner-approved expanded completion standard or imply a live goal-control API in
+the current cloud environment.

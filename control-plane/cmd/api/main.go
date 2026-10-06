@@ -198,11 +198,19 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 	defer productService.Close()
 	// Public browser origins are optional and independent from private Docker
 	// health URLs. The portable/native launch paths keep their prior defaults.
-	platformService, err = platform.New(platform.Options{FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource})
+	platformService, err = platform.New(platform.Options{FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource, RecordDeploymentProvenance: productService.RecordProjectRunReleaseProvenance})
 	if err != nil {
 		return fmt.Errorf("initialise application platform: %w", err)
 	}
 	defer platformService.Close()
+	productService.SetProjectRunNativeReleaseObserver(func(ctx context.Context, projectID, releaseID string) (product.ProjectRunNativeReleaseObservation, error) {
+		observed, err := platformService.ObserveProjectRunDeployment(ctx, projectID, releaseID)
+		if err != nil {
+			return product.ProjectRunNativeReleaseObservation{}, err
+		}
+		d := observed.Deployment
+		return product.ProjectRunNativeReleaseObservation{ReleaseID: d.ID, ProjectID: d.ProjectID, Target: "native-" + d.Provider, Commit: d.Commit, URL: d.URL, Ready: d.Status == "ready", ObservedAt: observed.ObservedAt, Limitations: observed.Limitations}, nil
+	})
 
 	// The host's own git config, and nothing a sandbox can write, answers the
 	// identity, line-ending and global-file questions: hostGit runs each git in

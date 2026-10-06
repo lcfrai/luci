@@ -46,6 +46,7 @@ func (s *Server) RepositoryAnalysisSnapshot(ctx context.Context, id, mode string
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	ctx = context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir)
 	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		return RepositoryAnalysisSnapshot{}, err
@@ -274,6 +275,7 @@ func (s *Server) ApplyRepositoryAnalysisDraft(ctx context.Context, id string, ex
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	ctx = context.WithValue(ctx, journeyGitRootContextKey{}, s.config.ProjectsDir)
 	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		return ProjectSpecification{}, err

@@ -770,6 +770,8 @@ type sessionJSON struct {
 	AgentConnectionKind     string                          `json:"agentConnectionKind,omitempty"`
 	AgentConnectionProtocol string                          `json:"agentConnectionProtocol,omitempty"`
 	ImplementationContext   *registry.ImplementationContext `json:"implementationContext,omitempty"`
+	ProjectRunID            string                          `json:"projectRunId,omitempty"`
+	ProjectRunOperationID   string                          `json:"projectRunOperationId,omitempty"`
 
 	Status     string `json:"status"`
 	ExitReason string `json:"exitReason"`
@@ -808,6 +810,8 @@ func toJSON(s registry.Session, base string) sessionJSON {
 		AgentConnectionKind:     s.AgentConnectionKind,
 		AgentConnectionProtocol: s.AgentConnectionProtocol,
 		ImplementationContext:   s.ImplementationContext.Clone(),
+		ProjectRunID:            s.ProjectRunID,
+		ProjectRunOperationID:   s.ProjectRunOperationID,
 		Status:                  string(s.Status),
 		ExitReason:              s.ExitReason,
 		Backend:                 s.Backend,
@@ -887,6 +891,8 @@ type sessionCreateRequest struct {
 	AuthOnly              bool                                  `json:"authOnly"`
 	AgentConnectionID     *string                               `json:"agentConnectionId"`
 	ImplementationContext *product.ImplementationContextRequest `json:"implementationContext,omitempty"`
+	ProjectRunID          string                                `json:"projectRunId,omitempty"`
+	ProjectRunOperationID string                                `json:"projectRunOperationId,omitempty"`
 }
 
 // registerSessions mounts the six verbs. Go 1.22's ServeMux matches on method
@@ -1058,12 +1064,18 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
+	if !a.validateProjectRunSessionRequest(w, &req) {
+		return
+	}
 
 	req.WorktreeID = strings.TrimSpace(req.WorktreeID)
 	if req.WorktreeID == "" {
 		httpx.WriteProblem(w, http.StatusBadRequest, httpx.CodeBadRequest, "worktreeId is required.", nil)
 		return
 	}
+	// bindSessionImplementation appends the reviewed prompt below. Keep the
+	// original request for exact duplicate admission after concurrent creates.
+	projectRunRequest := req
 
 	// 1. The worktree, first.
 	path, err := a.deps.Worktrees.Path(ctx, req.WorktreeID)
@@ -1087,6 +1099,10 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	// Re-resolve beneath admission before context or sandbox work begins.
 	if path, err = a.deps.Worktrees.Path(ctx, req.WorktreeID); err != nil {
 		httpx.WriteProblem(w, 409, httpx.CodeConflict, "The worktree changed before the session could start. Refresh the project and try again.", nil)
+		return
+	}
+	projectID, branchID := a.sessionLocate(ctx, req.WorktreeID)
+	if a.reuseProjectRunSession(w, r, req, projectID) {
 		return
 	}
 
@@ -1134,6 +1150,11 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	if harnessID == harness.Codex {
 		a.codexAccountMu.Lock()
 		defer a.codexAccountMu.Unlock()
+		// A concurrent create may have persisted this exact reserved child
+		// while this request waited for the subscription account lock.
+		if a.reuseProjectRunSession(w, r, req, projectID) {
+			return
+		}
 	}
 	if sessionHasConversation(desc) || desc.NativeState() {
 		if resume != "" {
@@ -1155,6 +1176,9 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		sourceSession, err = a.deps.Store.Get(source.id)
 		if err != nil {
 			codexAccountProblem(w, err)
+			return
+		}
+		if !validateProjectRunResume(w, req, sourceSession) {
 			return
 		}
 	}
@@ -1248,6 +1272,24 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 
 	// 3. Ids and the secret.
 	sessionID := ids.New("s")
+	var runAdmission product.ProjectRunSessionAdmission
+	if req.ProjectRunID != "" {
+		var ok bool
+		runAdmission, ok = a.beginProjectRunSession(w, r, projectRunRequest, registry.Session{
+			ProjectID: projectID, WorktreeID: req.WorktreeID, BranchID: branchID,
+			Harness: string(harnessID), Model: model, Effort: string(effort), PermissionMode: string(mode),
+			AuthMode: authMode, CodexConnectionID: codexConnectionID(account),
+			AgentConnectionID: agentConnection.ID, AgentConnectionRevision: agentConnection.Revision,
+			AgentConnectionKind: agentConnection.Kind, AgentConnectionProtocol: agentConnection.Protocol,
+			ImplementationContext: implementationContext, ProjectRunID: req.ProjectRunID,
+			ProjectRunOperationID: req.ProjectRunOperationID,
+		})
+		if !ok {
+			return
+		}
+		defer runAdmission.Release()
+		sessionID = runAdmission.SessionID
+	}
 	token := ids.Token()
 
 	// 3a. A Fork carries its source's conversation into this worktree. Last
@@ -1296,7 +1338,6 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 	if machineID == "" {
 		machineID = LocalMachineID
 	}
-	projectID, branchID := a.sessionLocate(ctx, req.WorktreeID)
 	if !a.validateSessionImplementation(w, projectID, req.WorktreeID, path, implementationContext) {
 		return
 	}
@@ -1333,6 +1374,8 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		AttachToken:             token,
 		ContextRef:              req.ContextRef,
 		ImplementationContext:   implementationContext,
+		ProjectRunID:            req.ProjectRunID,
+		ProjectRunOperationID:   req.ProjectRunOperationID,
 
 		CarriedConversationID: carriedConversation,
 	}); err != nil {
@@ -1365,6 +1408,13 @@ func (a *API) handleSessionCreate(w http.ResponseWriter, r *http.Request) {
 		a.markSessionExited(sessionID, "the saved ChatGPT connection could not be reserved")
 		codexAccountProblem(w, err)
 		return
+	}
+	if runAdmission.Revalidate != nil {
+		if err := runAdmission.Revalidate(); err != nil {
+			a.markSessionExited(sessionID, "the reserved project run changed before sandbox allocation")
+			httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, err.Error(), nil)
+			return
+		}
 	}
 	// 5. The sandbox, on a context of its own: see sessionCreateContext (F1).
 	createCtx, endCreate := a.sessionCreateContext(ctx)
@@ -1903,6 +1953,10 @@ func (a *API) handleSessionRestart(w http.ResponseWriter, r *http.Request) {
 
 	sess, ok := a.sessionByID(w, r)
 	if !ok {
+		return
+	}
+	if sess.ProjectRunID != "" || sess.ProjectRunOperationID != "" {
+		httpx.WriteProblem(w, http.StatusConflict, httpx.CodeConflict, "Reserve a new coding operation in the project run before retrying. The original attempt remains in the run history.", nil)
 		return
 	}
 	ctx := r.Context()

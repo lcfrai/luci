@@ -31,6 +31,7 @@ type Options struct {
 	ResolveProject                   func(string) (project.Project, error)
 	ApplicationConfiguration         func(string) (int, map[string]string, error)
 	ValidateDeploymentSource         func(context.Context, string, string) error
+	RecordDeploymentProvenance       func(context.Context, string, string, string, string) error
 	MemoryMiB, CPUMillis             int
 	Runner                           Runner
 	HTTPClient                       *http.Client

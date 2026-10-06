@@ -219,6 +219,9 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 		Tty:          false, // sandboxd owns the PTY, not Docker
 		OpenStdin:    false,
 	}
+	// CPU and memory limits do not bound process creation. Keep a runaway
+	// harness from exhausting the shared Docker host's process table.
+	pidsLimit := int64(256)
 	hostCfg := &container.HostConfig{
 		CapDrop:     []string{"ALL"},
 		SecurityOpt: []string{"no-new-privileges:true"},
@@ -233,8 +236,9 @@ func (b *Backend) Create(ctx context.Context, spec backend.Spec) (backend.Sandbo
 		Binds:      binds,
 		ExtraHosts: []string{"host.docker.internal:host-gateway"},
 		Resources: container.Resources{
-			NanoCPUs: spec.Resources.NanoCPUs(),
-			Memory:   spec.Resources.MemoryBytes(),
+			NanoCPUs:  spec.Resources.NanoCPUs(),
+			Memory:    spec.Resources.MemoryBytes(),
+			PidsLimit: &pidsLimit,
 		},
 	}
 	configureHostIdentity(cfg, hostCfg)

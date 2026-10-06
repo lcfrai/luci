@@ -136,6 +136,8 @@ export interface CreateSessionRequest {
   /** Omitted uses the active connection; empty explicitly uses direct agent settings. */
   agentConnectionId?: string;
   implementationContext?: ImplementationContextRequest;
+  projectRunId?: string;
+  projectRunOperationId?: string;
 }
 
 export interface ListSessionsFilter {

@@ -396,6 +396,10 @@ func New(d Deps) (*API, error) {
 	}
 
 	a := &API{deps: d}
+	if d.Product != nil {
+		d.Product.SetProjectRunSelectionResolver(a.ResolveProjectRunSelection)
+		d.Product.SetProjectRunSessionObserver(a.ObserveProjectRunSessions)
+	}
 
 	// guarded holds every route the origin middleware protects.
 	guarded := newRoutes()

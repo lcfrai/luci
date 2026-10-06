@@ -168,9 +168,11 @@ func (g *Gateway) sessionAdmission(w http.ResponseWriter, r *http.Request, handl
 	handler.ServeHTTP(capture, check)
 	var data struct {
 		Sessions []struct {
-			ID      string `json:"id"`
-			Status  string `json:"status"`
-			Harness string `json:"harness"`
+			ID                    string `json:"id"`
+			Status                string `json:"status"`
+			Harness               string `json:"harness"`
+			ProjectRunID          string `json:"projectRunId"`
+			ProjectRunOperationID string `json:"projectRunOperationId"`
 		} `json:"sessions"`
 	}
 	if capture.status != 200 || json.Unmarshal(capture.body.Bytes(), &data) != nil {
@@ -179,8 +181,19 @@ func (g *Gateway) sessionAdmission(w http.ResponseWriter, r *http.Request, handl
 	}
 	var harness string
 	_ = json.Unmarshal(fields["harness"], &harness)
+	var runID, operationID string
+	_ = json.Unmarshal(fields["projectRunId"], &runID)
+	_ = json.Unmarshal(fields["projectRunOperationId"], &operationID)
+	runID, operationID = strings.TrimSpace(runID), strings.TrimSpace(operationID)
+	replays := 0
 	active := 0
 	for _, session := range data.Sessions {
+		// This worker-owned row establishes that the request can only reuse
+		// an existing reserved child. The session API still verifies the
+		// private reservation and immutable inputs before returning it.
+		if r.Method == http.MethodPost && r.URL.Path == "/v1/sessions" && runID != "" && operationID != "" && session.ProjectRunID == runID && session.ProjectRunOperationID == operationID {
+			replays++
+		}
 		if session.Status == "starting" || session.Status == "running" || session.Status == "idle" {
 			active++
 		}
@@ -205,7 +218,7 @@ func (g *Gateway) sessionAdmission(w http.ResponseWriter, r *http.Request, handl
 		fail(w, 403, "harness_disabled", "This agent is disabled by instance policy.")
 		return false
 	}
-	if active >= p.MaxSessionsPerUser {
+	if active >= p.MaxSessionsPerUser && replays != 1 {
 		fail(w, 409, "session_limit", "Stop a running session before starting another; your instance session limit has been reached.")
 		return false
 	}
