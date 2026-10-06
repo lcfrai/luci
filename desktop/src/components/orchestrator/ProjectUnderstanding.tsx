@@ -1,4 +1,4 @@
-import type { OrchestratorView } from "../../api/orchestrator";
+import type { OrchestratorRunSummary, OrchestratorView } from "../../api/orchestrator";
 import { Button } from "../fluid/components/button";
 import "./project-understanding.css";
 
@@ -11,14 +11,42 @@ const stages: { lens: Stage; label: string; purpose: string }[] = [
 ];
 const runLabels: Record<string, string> = {
   ready: "Build prepared", coding: "Building", "awaiting-checks": "Ready for independent checks",
-  "awaiting-release": "Ready for release", blocked: "Needs attention", cancelled: "Stopped", complete: "Run accepted",
+  "awaiting-release": "Ready for release", blocked: "Needs attention", cancelled: "Further work cancelled", complete: "Run accepted",
 };
+const activityLabels = { running: "Running", unknown: "Outcome unconfirmed", pending: "Reserved, not started", none: "No pending coding operation" };
+const operationLabels = { running: "Running", unknown: "Outcome unconfirmed", dispatching: "Dispatch began; outcome unconfirmed", reserved: "Reserved, not started" };
 
-export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate }: {
-  view: OrchestratorView; onAsk(message?: string): void; onReply(turnId: string): void; onNavigate(lens: Stage): void;
+function BuildScope({ run, title, onInspect }: { run: OrchestratorRunSummary; title: string; onInspect(): void }) {
+  const pending = !!run.activity && run.activity !== "none";
+  const cancelled = run.dispatchCancelled || run.state === "cancelled";
+  return <section className="understanding-build" aria-label={title}>
+    <h3>{title}</h3>
+    <p><strong>{pending ? `Last recorded: ${activityLabels[run.activity!]}` : runLabels[run.state] || "Build status unavailable"}</strong>{run.outcome ? ` · ${run.outcome === "publish" ? "Publish target" : "Preview target"}` : ""}</p>
+    {cancelled && pending && <p><strong>Further work cancelled.</strong> This does not stop an agent already running. Open the run to stop it explicitly.</p>}
+    {run.scopeOmitted ? <p>{run.taskCount ?? 0} selected tasks / {run.requirementCount ?? 0} outcomes; inspect this build for its full saved scope.</p>
+      : run.tasks?.length ? <ul>{run.tasks.map(task => <li key={task.id}>{task.title}</li>)}</ul> : <p>The selected tasks are available in the build workspace.</p>}
+    {!!run.requirements?.length && <details><summary>Outcomes this build must prove</summary><ul>{run.requirements.map(requirement => <li key={requirement.id}><strong>{requirement.title}</strong><p>{requirement.acceptance}</p></li>)}</ul></details>}
+    {!!run.specificationRevision && <p className="understanding-note">Uses reviewed definition {run.specificationRevision}{run.designRevision ? ` and design ${run.designRevision}` : ""}. Later edits do not silently change work already started.</p>}
+    {run.reason && <p>{run.reason}</p>}
+    {run.activityReason && <p>{run.activityReason}</p>}
+    {pending && <p className="understanding-note">This is recorded activity. Reconcile the run to confirm the coding session’s current state.</p>}
+    {run.operationsOmitted && <p>{run.operationCount} unfinished coding attempts; inspect this build for their full recorded activity.</p>}
+    {!run.valid && <p className="understanding-note">This run needs verification against the current context. Its recorded progress does not prove the current application is ready.</p>}
+    {!!run.operations?.length && <details><summary>Recorded coding activity</summary><ul>{run.operations.map(operation => <li key={operation.id}>
+      <strong>{operationLabels[operation.status]}</strong><p>Session {operation.childId}</p><time dateTime={operation.updatedAt}>{new Date(operation.updatedAt).toLocaleString()}</time>
+    </li>)}</ul></details>}
+    <Button variant="secondary" onClick={onInspect}>Inspect build and checks</Button>
+  </section>;
+}
+
+export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate, onInspect }: {
+  view: OrchestratorView; onAsk(message?: string): void; onReply(turnId: string): void; onNavigate(lens: Stage): void; onInspect?(runId: string): void;
 }) {
   const { context, nextAction, blockingQuestions } = view;
   const spec = context.specification, run = context.currentRun;
+  const activeRuns = context.activeRuns ?? [];
+  const latestSeparate = run && !activeRuns.some(active => active.id === run.id);
+  const inspect = (runId: string) => onInspect ? onInspect(runId) : onNavigate("develop");
   const stage = stages.find(item => item.lens === nextAction.lens)!;
   const requirements = spec.requirements || [];
   const decisions = (spec.decisions || []).filter(item => item.decision.trim());
@@ -48,18 +76,14 @@ export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate }: {
       <p className="understanding-note">Describe a change or edit a stage directly. Review what it affects before saving; changed context needs fresh review before a new build.</p>
     </section>
 
-    <section className="understanding-next" aria-label="Next step"><h3>Next step</h3><p>{nextAction.reason}</p><Button onClick={() => nextAction.id === "answer-question" ? discussDecision() : onNavigate(nextAction.lens)}>{nextAction.label}</Button></section>
+    <section className="understanding-next" aria-label="Next step"><h3>Next step</h3><p>{nextAction.reason}</p><Button onClick={() => nextAction.id === "answer-question" ? discussDecision() : nextAction.runId && nextAction.lens === "develop" ? inspect(nextAction.runId) : onNavigate(nextAction.lens)}>{nextAction.label}</Button></section>
 
-    {run && <section className="understanding-build" aria-labelledby={`understanding-build-${view.projectId}`}>
-      <h3 id={`understanding-build-${view.projectId}`}>In this build</h3>
-      <p><strong>{runLabels[run.state] || "Build status unavailable"}</strong>{run.outcome ? ` · ${run.outcome === "publish" ? "Publish target" : "Preview target"}` : ""}</p>
-      {run.tasks?.length ? <ul>{run.tasks.map(task => <li key={task.id}>{task.title}</li>)}</ul> : <p>The selected tasks are available in the build workspace.</p>}
-      {!!run.requirements?.length && <details><summary>Outcomes this build must prove</summary><ul>{run.requirements.map(requirement => <li key={requirement.id}><strong>{requirement.title}</strong><p>{requirement.acceptance}</p></li>)}</ul></details>}
-      {!!run.specificationRevision && <p className="understanding-note">Uses reviewed definition {run.specificationRevision}{run.designRevision ? ` and design ${run.designRevision}` : ""}. Later edits do not silently change work already started.</p>}
-      {run.reason && <p>{run.reason}</p>}
-      {!run.valid && <p className="understanding-note">This run needs verification against the current context. Its recorded progress does not prove the current application is ready.</p>}
-      <Button variant="secondary" onClick={() => onNavigate("develop")}>Inspect build and checks</Button>
+    {activeRuns.length > 0 && <section aria-label="Active and unconfirmed work">
+      <h3>Active and unconfirmed work</h3>
+      <p className="understanding-note">These builds have unfinished coding activity. Preparing another build does not change what existing agents were asked to build.</p>
+      {activeRuns.map((active, index) => <BuildScope key={active.id} run={active} title={activeRuns.length === 1 ? "In this build" : `Build ${index + 1}`} onInspect={() => inspect(active.id)} />)}
     </section>}
+    {latestSeparate && <BuildScope run={run} title={activeRuns.length ? run.state === "ready" ? "Latest prepared build" : "Latest recorded build" : "In this build"} onInspect={() => inspect(run.id)} />}
 
     <section aria-labelledby={`understanding-outcomes-${view.projectId}`}>
       <h3 id={`understanding-outcomes-${view.projectId}`}>Agreed outcomes</h3>

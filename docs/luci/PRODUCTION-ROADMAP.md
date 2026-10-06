@@ -69,9 +69,10 @@ certificate renewal and public-host acceptance remain separate release gates.
 Team membership and project grants, shared routing, separate execute/secret/
 deploy permissions, context attribution, scoped recovery drafts and operator
 service admission now have source implementations and targeted tests. These
-replace the earlier private-account-only limitation; they do not prove a
-managed team's dedicated host boundary, payment processing or installed
-multi-person acceptance. [Team service operations](TEAM-SERVICE-OPERATIONS.md)
+replace the earlier private-account-only limitation. Matching Linux package
+acceptance now covers the team worker, two-browser collaboration, actual reviewed
+CLI execution and revocation. These results do not prove a managed team's
+dedicated host boundary or real merchant payment processing. [Team service operations](TEAM-SERVICE-OPERATIONS.md)
 keeps those limits explicit.
 
 Ten portable-context regressions cover actual Git clone/backup/restore, large
@@ -85,9 +86,12 @@ production distribution authority in this environment. See [RELEASE.md](RELEASE.
 and the current [full-product checkpoint](FULL-PRODUCT.md).
 
 The historical handoff's host failures and installed receipts remain tied to
-their original machine/source. Matching clean-package, current native lifecycle,
+their original machine/source. Clean Linux 0.5.0 package acceptance now includes
+personal and team journeys, project understanding/amendments, launcher and
+restart recovery, and stopped-state upgrade/rollback. Current evidence and CI
+failures are recorded in [FULL-PRODUCT.md](FULL-PRODUCT.md). Other native platforms,
 live model/provider, real cloud/domain/email and public/paid acceptance gates
-remain open; no whole-stage completion follows from these source outcomes.
+remain open; no whole-stage completion follows from the local results.
 
 ## Required coherent project orchestration
 

@@ -34,6 +34,8 @@ const check = (name, details = {}) => { receipt.checks.push({ name, passed: true
 const key = `fixture-only-${randomUUID()}`, lifecycle = randomUUID() + randomUUID(), password = randomUUID() + randomUUID();
 const sensitive = [key, lifecycle, password], scrub = value => sensitive.reduce((text, secret) => text.replaceAll(secret, '[redacted]'), String(value));
 let mode = 'question', expectedContext, expectedHistory = [], expectedReply = '', providerError, calls = 0, releaseProvider, providerWaiting = false;
+let releaseCoding, codingWaiting = false, codingCalls = 0, expectedCodingPrompt = [], codingSocket;
+const codingSessions = new Map();
 const observedPrompts = [], responses = [], sessions = new Set(), errors = [], browserMutations = [];
 const question = 'Should the shared journal be private to its invited team or publicly readable?';
 const decision = 'Keep the journal private to explicitly invited collaborators.';
@@ -48,13 +50,34 @@ function promptFrom(body) {
   }
   throw Error('Selected provider did not receive the orchestration prompt');
 }
+function sendFixtureText(res, text) {
+  const item = { id: `msg_orchestrator_${calls}`, type: 'message', status: 'completed', role: 'assistant', content: [{ type: 'output_text', text: text, annotations: [] }] };
+  const response = { id: `resp_orchestrator_${calls}`, object: 'response', created_at: 1, status: 'completed', model: 'orchestrator-fixture', output: [item], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2, input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 0 } } };
+  const events = [{ type: 'response.created', response: { ...response, status: 'in_progress', output: [] } }, { type: 'response.output_item.added', output_index: 0, item: { ...item, status: 'in_progress', content: [] } }, { type: 'response.content_part.added', item_id: item.id, output_index: 0, content_index: 0, part: { type: 'output_text', text: '', annotations: [] } }, { type: 'response.output_text.delta', item_id: item.id, output_index: 0, content_index: 0, delta: item.content[0].text }, { type: 'response.output_text.done', item_id: item.id, output_index: 0, content_index: 0, text: item.content[0].text }, { type: 'response.output_item.done', output_index: 0, item }, { type: 'response.completed', response }];
+  res.writeHead(200, { 'content-type': 'text/event-stream' }); res.end(events.map((e, i) => `event: ${e.type}\ndata: ${JSON.stringify({ ...e, sequence_number: i })}\n\n`).join(''));
+}
 const provider = httpServer(async (req, res) => {
   try {
     assert.equal(req.method, 'POST'); assert.equal(req.url, '/v1/responses'); assert.equal(req.headers.authorization, `Bearer ${key}`);
     const parts = []; let size = 0; for await (const p of req) { parts.push(p); size += p.length; assert(size < 4 * 1024 * 1024); }
-    const body = JSON.parse(Buffer.concat(parts).toString()), prompt = promptFrom(body); calls++;
+    const body = JSON.parse(Buffer.concat(parts).toString()); calls++;
     assert.equal(body.model, 'orchestrator-fixture');
     const tools = (body.tools ?? []).map(t => t.name ?? t.function?.name ?? t.type);
+    if (mode === 'coding-scope') {
+      codingCalls++;
+      writeFileSync(join(fixture, `coding-provider-request-${codingCalls}.json`), JSON.stringify(body), { mode: 0o600 });
+      if (tools.length > 0) {
+        assert(tools.includes('exec_command'), 'Coding scope fixture did not reach the real coding CLI');
+        const serialized = JSON.stringify(body);
+        for (const text of expectedCodingPrompt) assert(serialized.includes(text), `Coding CLI omitted its immutable selected context: ${text}`);
+        codingWaiting = true;
+        await new Promise(done => { releaseCoding = done; });
+        codingWaiting = false;
+      }
+      sendFixtureText(res, 'The local scope fixture has received the selected reviewed task. No implementation was performed. Stop this fixture session explicitly.');
+      return;
+    }
+    const prompt = promptFrom(body);
     for (const tool of ['exec_command', 'shell', 'apply_patch', 'web_search', 'web_search_preview']) assert(!tools.includes(tool), `Read-only assistant exposed tool ${tool}`);
     assert.deepEqual(prompt.context, expectedContext, 'Provider context differs from exact saved server snapshot');
     for (const turn of expectedHistory) { const prior = prompt.previousTurns.find(x => x.id === turn.id); assert(prior, `Missing prior turn ${turn.id}`); assert.equal(prior.message, turn.message); assert.deepEqual(prior.answer, turn.answer ? { ...turn.answer, proposal: null } : null); assert.equal(prior.replyToTurnId, turn.replyToTurnId ?? ''); }
@@ -65,10 +88,7 @@ const provider = httpServer(async (req, res) => {
     const answer = { summary: mode === 'question' ? 'One consequential sharing decision is unresolved.' : 'The recorded decision is private collaboration. Review the proposed definition change before saving it.', question: mode === 'question' ? question : '', options: mode === 'question' ? [decision, 'Allow public reading of the journal.'] : [], rationale: mode === 'question' ? 'Visibility changes access controls, privacy and acceptance criteria.' : 'The proposed amendment reflects your explicit answer and preserves the saved requirements.', blocking: mode === 'question', impact: ['Access', 'Privacy', 'Acceptance'], proposal: null, nextAction: mode === 'question' ? 'Answer the sharing question.' : 'Review the definition amendment.' };
     if (mode !== 'question') answer.proposal = { target: 'specification', summary: 'Record private team visibility in the definition.', specification: { ...structuredClone(prompt.context.specification), status: 'draft', digest: '', purpose: amendedPurpose }, designPlan: null, plan: null };
     responses.push(answer);
-    const item = { id: `msg_orchestrator_${calls}`, type: 'message', status: 'completed', role: 'assistant', content: [{ type: 'output_text', text: JSON.stringify(answer), annotations: [] }] };
-    const response = { id: `resp_orchestrator_${calls}`, object: 'response', created_at: 1, status: 'completed', model: 'orchestrator-fixture', output: [item], usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2, input_tokens_details: { cached_tokens: 0 }, output_tokens_details: { reasoning_tokens: 0 } } };
-    const events = [{ type: 'response.created', response: { ...response, status: 'in_progress', output: [] } }, { type: 'response.output_item.added', output_index: 0, item: { ...item, status: 'in_progress', content: [] } }, { type: 'response.content_part.added', item_id: item.id, output_index: 0, content_index: 0, part: { type: 'output_text', text: '', annotations: [] } }, { type: 'response.output_text.delta', item_id: item.id, output_index: 0, content_index: 0, delta: item.content[0].text }, { type: 'response.output_text.done', item_id: item.id, output_index: 0, content_index: 0, text: item.content[0].text }, { type: 'response.output_item.done', output_index: 0, item }, { type: 'response.completed', response }];
-    res.writeHead(200, { 'content-type': 'text/event-stream' }); res.end(events.map((e, i) => `event: ${e.type}\ndata: ${JSON.stringify({ ...e, sequence_number: i })}\n\n`).join(''));
+    sendFixtureText(res, JSON.stringify(answer));
   } catch (error) { providerError = error; res.writeHead(500); res.end('Local fixture contract failed'); }
 });
 await new Promise((done, reject) => provider.once('error', reject).listen(0, bridge, done));
@@ -80,8 +100,8 @@ const env = Object.fromEntries(['PATH', 'LANG', 'LC_ALL', 'TZ', 'DOCKER_HOST'].f
 Object.assign(env, { HOME: join(fixture, 'home'), DOCKER_CONFIG: join(fixture, 'docker'), LUCI_ADDR: `127.0.0.1:${port}`, LUCI_STATE_DIR: join(fixture, 'state'), LUCI_PROJECTS_DIR: join(fixture, 'projects'), LUCI_WEB_DIR: web, LUCI_RUNTIME_DIR: repo, LUCI_SANDBOX_IMAGE: image, LUCI_BACKEND: 'docker', LUCI_MANAGED_SHUTDOWN_TOKEN: lifecycle, LUCI_LOG_LEVEL: 'error', GIT_CONFIG_GLOBAL: join(fixture, 'home/empty-git-config'), GIT_CONFIG_NOSYSTEM: '1' });
 const log = createWriteStream(join(fixture, 'service.log'), { mode: 0o600 });
 let service, browser, page, panel, owner, project, projectRoute, spawnError;
-async function api(method, path, body, status = 200) {
-  const response = await fetch(base + path, { method, redirect: 'error', signal: AbortSignal.timeout(35_000), headers: { Origin: base, ...(owner?.token ? { Authorization: `Bearer ${owner.token}` } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body) });
+async function api(method, path, body, status = 200, timeout = 35_000) {
+  const response = await fetch(base + path, { method, redirect: 'error', signal: AbortSignal.timeout(timeout), headers: { Origin: base, ...(owner?.token ? { Authorization: `Bearer ${owner.token}` } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body) });
   const text = await response.text(); let data; try { data = text ? JSON.parse(text) : {}; } catch { throw Error(`${method} ${path}: invalid response ${response.status}`); }
   assert.equal(response.status, status, `${method} ${path}: ${data.message ?? data.error ?? ''}`); return data;
 }
@@ -99,6 +119,28 @@ async function stop() {
   if (!service || service.exitCode !== null) return;
   const response = await fetch(base + '/v1/control-plane/shutdown', { method: 'POST', headers: { 'X-Luci-Lifecycle-Token': lifecycle }, signal: AbortSignal.timeout(5000) }); assert.equal(response.status, 200);
   const end = Date.now() + 20_000; while (service.exitCode === null && Date.now() < end) await delay(100); assert.equal(service.exitCode, 0, 'Owned service did not stop cleanly');
+}
+async function attachCodingFixture(id) {
+  const path = `/v1/sessions/${id}/attach`, { ticket } = await api('POST', '/v1/auth/socket-ticket', { path });
+  const socket = new WebSocket(base.replace('http:', 'ws:') + path + `?ticket=${encodeURIComponent(ticket)}`);
+  socket.binaryType = 'arraybuffer'; codingSocket = socket;
+  let terminal = '', trusted = false;
+  socket.addEventListener('message', event => {
+    const bytes = Buffer.from(event.data);
+    if (bytes[0] !== 0) return;
+    terminal = (terminal + bytes.subarray(1).toString()).slice(-128 * 1024);
+    writeFileSync(join(fixture, 'coding-terminal.txt'), terminal, { mode: 0o600 });
+    const plain = terminal.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '');
+    if (!trusted && plain.includes('/home/dev/work') && plain.includes('Trust and continue')) {
+      trusted = true;
+      setTimeout(() => { if (socket.readyState === WebSocket.OPEN) socket.send(Buffer.from([1, 13])); }, 300);
+    }
+  });
+  await new Promise((done, reject) => {
+    const timer = setTimeout(() => reject(Error('Coding fixture attach timed out')), 10_000);
+    socket.addEventListener('open', () => { clearTimeout(timer); socket.send(Uint8Array.from([2, 0, 120, 0, 40])); done(); }, { once: true });
+    socket.addEventListener('error', () => { clearTimeout(timer); reject(Error('Coding fixture attach failed')); }, { once: true });
+  });
 }
 const snapshot = () => api('GET', `${projectRoute}/orchestrator`);
 async function noContextChange(before) {
@@ -169,7 +211,7 @@ try {
   let design = await api('GET', `${projectRoute}/design-plan`);
   design = await api('POST', `${projectRoute}/design-plan`, { expectedRevision: design.revision, expectedBriefRevision: spec.briefRevision, expectedSpecificationRevision: spec.revision, plan: { ...design, screens: [{ id: 'observations', name: 'Private observations', route: '/', purpose: 'Create and review authorized observations.', states: ['Empty', 'Saved', 'Access denied'], widths: [390, 1440], requirementIds: ['AC-private-observation'] }], implementationNotes: 'Retain the reviewed privacy boundary and explicit authorization.' } });
   design = await api('POST', `${projectRoute}/design-plan/approve`, { revision: design.revision });
-  const plan = await api('POST', `${projectRoute}/plan`, { expectedRevision: 0, expectedSpecificationRevision: spec.revision, tasks: [{ id: 'private-observations', title: 'Implement reviewed observation access', status: 'todo', requirementIds: ['AC-private-observation'] }] });
+  const plan = await api('POST', `${projectRoute}/plan`, { expectedRevision: 0, expectedSpecificationRevision: spec.revision, tasks: [{ id: 'private-observations', title: 'Implement reviewed observation access', status: 'todo', requirementIds: ['AC-private-observation'] }, { id: 'prepare-newer-review', title: 'Prepare a separate reviewer checklist', status: 'todo', requirementIds: ['AC-private-observation'] }] });
   await api('POST', `${projectRoute}/git/commit`, { message: 'Review complete orchestration context' });
   const initial = await snapshot(); assert.equal(initial.context.specification.status, 'approved'); assert.equal(initial.context.designPlan.status, 'approved'); assert.deepEqual(initial.context.plan, plan);
   // Missing access is a failed durable attempt, never a synthesized answer.
@@ -189,8 +231,81 @@ try {
   const branches = (await api('GET', `/v1/projects/${project.id}/branches`)).branches;
   const branch = branches.find(row => row.name === 'main') ?? branches[0];
   const worktree = (await api('GET', `/v1/projects/${project.id}/worktrees?branchId=${encodeURIComponent(branch.id)}`)).worktrees[0];
-  const build = (await api('POST', `${projectRoute}/runs`, { idempotencyKey: randomUUID(), worktreeId: worktree.id, harness: 'codex', model: 'orchestrator-fixture', permissionMode: 'ask', agentConnectionId: connectionID, outcome: 'preview', implementationContext: { projectId: project.id, briefRevision: spec.briefRevision, specificationRevision: spec.revision, designPlanRevision: design.revision, planRevision: plan.revision, taskIds: ['private-observations'] } }, 201)).run;
+  let build = (await api('POST', `${projectRoute}/runs`, { idempotencyKey: randomUUID(), worktreeId: worktree.id, harness: 'codex', model: 'orchestrator-fixture', permissionMode: 'ask', agentConnectionId: connectionID, outcome: 'preview', implementationContext: { projectId: project.id, briefRevision: spec.briefRevision, specificationRevision: spec.revision, designPlanRevision: design.revision, planRevision: plan.revision, taskIds: ['private-observations'] } }, 201)).run;
   assert.deepEqual(build.operations, [], 'Preparing run unexpectedly started coding'); assert.equal(build.state, 'ready');
+
+  // One real coding child runs before any read-only orchestration jobs. Holding
+  // its local provider response keeps work active without executing fixture tools.
+  const disk = statfsSync('/workspace'); assert(disk.bavail * disk.bsize > 5_000_000_000, 'Coding scope acceptance needs five GB of free workspace');
+  const selectionA = { projectId: project.id, briefRevision: spec.briefRevision, specificationRevision: spec.revision, designPlanRevision: design.revision, planRevision: plan.revision, taskIds: ['private-observations'] };
+  const immutableA = structuredClone(build.input), scopeRunID = build.id;
+  expectedCodingPrompt = ['Implement reviewed observation access', 'AC-private-observation', immutableA.implementation.planDigest, immutableA.implementation.specificationDigest, immutableA.implementation.designPlanDigest];
+  await panel.getByRole('navigation', { name: 'Project stages', exact: true }).getByRole('button', { name: 'Open Define stage', exact: true }).click();
+  mode = 'coding-scope';
+  const reservedA = await api('POST', `${projectRoute}/runs/${scopeRunID}/operations`, { expectedRevision: build.revision, idempotencyKey: randomUUID(), kind: 'session' }, 201);
+  sessions.add(reservedA.operation.childId); codingSessions.set(reservedA.operation.childId, scopeRunID);
+  const coding = await api('POST', '/v1/sessions', { worktreeId: worktree.id, harness: 'codex', model: 'orchestrator-fixture', permissionMode: 'ask', agentConnectionId: connectionID, implementationContext: selectionA, projectRunId: scopeRunID, projectRunOperationId: reservedA.operation.id }, 201, 90_000);
+  assert.equal(coding.id, reservedA.operation.childId); assert.equal(coding.projectRunId, scopeRunID);
+  await attachCodingFixture(coding.id);
+  await until('Actual coding CLI receives the selected A scope', () => codingWaiting, 90_000);
+  let observedA = (await api('GET', `${projectRoute}/runs/${scopeRunID}`)).run;
+  observedA = (await api('POST', `${projectRoute}/runs/${scopeRunID}/reconcile`, { expectedRevision: observedA.revision })).run;
+  assert.equal(observedA.operations.find(op => op.id === reservedA.operation.id).status, 'running');
+  const codingContainers = docker('ps', '--filter', `label=luci.session-id=${coding.id}`, '--format', '{{.ID}}').split(/\s+/).filter(Boolean); assert.equal(codingContainers.length, 1);
+  const ownedCoding = () => { const container = JSON.parse(docker('inspect', codingContainers[0]))[0]; assert.equal(container.Config.Labels['luci.session-id'], coding.id); assert(container.Mounts.some(m => m.Destination === '/home/dev/work' && resolve(m.Source) === resolve(project.path))); return container; };
+  assert(ownedCoding().State.Running);
+  const preparedB = (await api('POST', `${projectRoute}/runs`, { idempotencyKey: randomUUID(), worktreeId: worktree.id, harness: 'codex', model: 'orchestrator-fixture', permissionMode: 'ask', agentConnectionId: connectionID, outcome: 'preview', implementationContext: { ...selectionA, taskIds: ['prepare-newer-review'] } }, 201)).run;
+  assert.deepEqual(preparedB.operations, []);
+  await page.reload(); await openPanel();
+  const activeArea = panel.getByRole('region', { name: 'Active and unconfirmed work', exact: true });
+  const activeCard = activeArea.getByRole('region', { name: 'In this build', exact: true });
+  await activeCard.getByText('Implement reviewed observation access', { exact: true }).waitFor();
+  assert.equal(await activeCard.getByText('Prepare a separate reviewer checklist', { exact: true }).count(), 0);
+  await activeCard.getByText('Last recorded: Running', { exact: true }).waitFor();
+  await panel.getByRole('region', { name: 'Latest prepared build', exact: true }).getByText('Prepare a separate reviewer checklist', { exact: true }).waitFor();
+  let scopeView = await snapshot(); assert.equal(scopeView.context.currentRun.id, preparedB.id); assert.equal(scopeView.context.activeRuns.length, 1); assert.equal(scopeView.context.activeRuns[0].id, scopeRunID); assert.equal(scopeView.context.activeRuns[0].activity, 'running');
+  assert.deepEqual(scopeView.context.activeRuns[0].tasks.map(task => task.id), ['private-observations']);
+  assert.equal(scopeView.nextAction.runId, scopeRunID, 'Primary next step must identify active A, not newer prepared B');
+  for (const entry of ['primary', 'card']) {
+    if (entry === 'primary') await panel.getByRole('region', { name: 'Next step', exact: true }).getByRole('button', { name: scopeView.nextAction.label, exact: true }).click();
+    else await activeCard.getByRole('button', { name: 'Inspect build and checks', exact: true }).click();
+    const runPanel = page.getByRole('region', { name: 'Project runs', exact: true });
+    const reviewed = runPanel.locator('details.project-run-receipts'); await reviewed.waitFor();
+    if (!await reviewed.evaluate(element => element.open)) await reviewed.locator('summary').click();
+    await reviewed.getByText('Implement reviewed observation access', { exact: true }).waitFor();
+    await reviewed.getByText(new RegExp(coding.id)).waitFor();
+    assert.equal(await reviewed.getByText('Prepare a separate reviewer checklist', { exact: true }).count(), 0, `${entry} inspection opened B instead of active A`);
+    await panel.getByRole('navigation', { name: 'Project stages', exact: true }).getByRole('button', { name: 'Open Define stage', exact: true }).click();
+  }
+  observedA = (await api('GET', `${projectRoute}/runs/${scopeRunID}`)).run;
+  const cancelledA = (await api('POST', `${projectRoute}/runs/${scopeRunID}/cancel`, { expectedRevision: observedA.revision })).run;
+  assert.equal(cancelledA.state, 'cancelled'); assert.deepEqual(cancelledA.input, immutableA); assert(ownedCoding().State.Running, 'Parent cancellation silently stopped its actual child');
+  await panel.getByRole('button', { name: 'Refresh project understanding', exact: true }).click();
+  await activeCard.getByText(/^Further work cancelled\.?$/).waitFor();
+  await activeCard.getByText(/This does not stop an agent already running\. Open the run to stop it explicitly\./).waitFor();
+  await activeCard.getByText('Last recorded: Running', { exact: true }).waitFor();
+  assert.equal(await activeCard.getByText('Stopped', { exact: true }).count(), 0);
+  scopeView = await snapshot(); assert.equal(scopeView.context.activeRuns[0].dispatchCancelled, true); assert.equal(scopeView.context.activeRuns[0].activity, 'running'); assert.equal(scopeView.context.activeRuns[0].id, scopeRunID);
+  await activeCard.getByText(/^Further work cancelled\.?$/).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: join(evidence, '00-active-scope-after-parent-cancel.png'), fullPage: true });
+  check('A real active coding child retains exact A scope beside newer prepared B; both inspection actions open A and parent cancellation leaves its child running', { runA: scopeRunID, runB: preparedB.id, sessionId: coding.id });
+  releaseCoding(); releaseCoding = undefined;
+  await until('Held coding fixture response released', () => !codingWaiting, 5000);
+  const stopped = await api('DELETE', `/v1/sessions/${coding.id}`); assert.equal(stopped.status, 'exited');
+  assert.equal(docker('ps', '-a', '--filter', `label=luci.session-id=${coding.id}`, '--format', '{{.ID}}'), '');
+  codingSocket?.close(); codingSocket = undefined;
+  observedA = (await api('GET', `${projectRoute}/runs/${scopeRunID}`)).run;
+  observedA = (await api('POST', `${projectRoute}/runs/${scopeRunID}/reconcile`, { expectedRevision: observedA.revision })).run;
+  assert.equal(observedA.state, 'cancelled'); assert.equal(observedA.operations.find(op => op.id === reservedA.operation.id).status, 'cancelled'); assert.deepEqual(observedA.input, immutableA);
+  await panel.getByRole('button', { name: 'Refresh project understanding', exact: true }).click();
+  await until('Terminal child leaves the active-work overview', async () => await activeArea.count() === 0, 15000);
+  await panel.getByRole('region', { name: 'In this build', exact: true }).getByText('Prepare a separate reviewer checklist', { exact: true }).waitFor();
+  scopeView = await snapshot(); assert.deepEqual(scopeView.context.activeRuns, []); assert.equal(scopeView.context.currentRun.id, preparedB.id); assert.equal(scopeView.context.currentRun.state, 'ready');
+  check('Only an explicit child stop and terminal reconciliation retire A from active work, leaving the newer prepared B scope visible without claiming completion');
+  // Prepare the unchanged A selection for the original read-only assistant
+  // journey. The only coding child above is already stopped and accounted for.
+  build = (await api('POST', `${projectRoute}/runs`, { idempotencyKey: randomUUID(), worktreeId: worktree.id, harness: 'codex', model: 'orchestrator-fixture', permissionMode: 'ask', agentConnectionId: connectionID, outcome: 'preview', implementationContext: selectionA }, 201)).run;
+  assert.deepEqual(build.operations, []); mode = 'question';
 
   await page.reload(); await openPanel(); await panel.getByText('Agent and model', { exact: true }).click();
   await panel.getByRole('combobox', { name: /^Luci agent/ }).selectOption('codex'); await panel.getByRole('combobox', { name: /^Luci connection/ }).selectOption(connectionID); assert.equal(await panel.getByLabel('Luci model', { exact: true }).inputValue(), 'orchestrator-fixture');
@@ -283,15 +398,16 @@ try {
     { method: 'POST', path: `${projectRoute}/assist/orchestrator` },
   ], 'Browser must send exactly the explicit login, four messages and two reviewed applies in their expected order');
   const allSessions = await api('GET', '/v1/sessions'); const rows = Array.isArray(allSessions) ? allSessions : allSessions.sessions;
-  assert(rows.every(row => row.projectId !== project.id || row.contextRef === 'luci:orchestrator'), 'Conversation started implementation work');
-  assert.deepEqual(errors, []); receipt.providerCalls = calls; receipt.promptSHA256 = observedPrompts.map(value => sha(JSON.stringify(value))); receipt.browserMutations = browserMutations;
-  check('Every browser mutation was explicit conversation send or reviewed apply; no approval, coding, check, deployment or cloud request was triggered'); receipt.passed = true;
+  assert(rows.every(row => row.projectId !== project.id || row.contextRef === 'luci:orchestrator' || codingSessions.has(row.id) && codingSessions.get(row.id) === row.projectRunId && row.status === 'exited'), 'Conversation started unaccounted implementation work');
+  assert.deepEqual(errors, []); receipt.providerCalls = calls; receipt.codingFixtureCalls = codingCalls; receipt.promptSHA256 = observedPrompts.map(value => sha(JSON.stringify(value))); receipt.browserMutations = browserMutations;
+  check('Every browser mutation was explicit conversation send or reviewed apply; conversation controls triggered no approval, additional coding, check, deployment or cloud request'); receipt.passed = true;
 } catch (error) {
   receipt.failure = scrub(error.stack ?? error); process.exitCode = 1; console.error(receipt.failure);
   if (page) { await page.screenshot({ path: join(evidence, 'failure.png'), fullPage: true }).catch(() => {}); writeFileSync(join(evidence, 'failure-dom.txt'), scrub(await page.locator('body').innerText().catch(() => 'unavailable')), { mode: 0o600 }); }
  } finally {
   const cleanupFailure = (step, error) => { (receipt.cleanupErrors ??= []).push({ step, error: scrub(error) }); receipt.passed = false; process.exitCode = 1; };
-  try { releaseProvider?.(); releaseProvider = undefined; } catch (error) { cleanupFailure('release local provider', error); }
+  try { releaseProvider?.(); releaseProvider = undefined; releaseCoding?.(); releaseCoding = undefined; } catch (error) { cleanupFailure('release local provider', error); }
+  try { codingSocket?.close(); } catch (error) { cleanupFailure('close coding fixture socket', error); }
   try { await browser?.close(); } catch (error) { cleanupFailure('close browser', error); }
   try { await stop(); } catch (error) {
     cleanupFailure('stop service', error);
@@ -301,7 +417,7 @@ try {
   // interrupted HTTP response, then require exact owned input mounts to remove.
   try { const registry = JSON.parse(readFileSync(join(fixture, 'state/sessions/sessions.json'), 'utf8')); for (const row of registry.sessions ?? []) if (row.projectId === project?.id && row.contextRef === 'luci:orchestrator') sessions.add(row.id); } catch (error) { if (error.code !== 'ENOENT') cleanupFailure('enumerate private fixture sessions', error); }
   for (const id of sessions) {
-    try { assert.match(id, /^s-[a-f0-9]{8}$/); for (const cid of docker('ps', '-a', '--filter', `label=luci.session-id=${id}`, '--format', '{{.ID}}').split(/\s+/).filter(Boolean)) { const c = JSON.parse(docker('inspect', cid))[0]; assert.equal(c.Config.Labels['luci.session-id'], id); assert(c.Mounts.some(m => m.Destination === '/luci-input' && resolve(m.Source).startsWith(fixture + sep))); docker('rm', '-f', cid); } }
+    try { assert.match(id, /^s-[a-f0-9]{8}$/); for (const cid of docker('ps', '-a', '--filter', `label=luci.session-id=${id}`, '--format', '{{.ID}}').split(/\s+/).filter(Boolean)) { const c = JSON.parse(docker('inspect', cid))[0]; assert.equal(c.Config.Labels['luci.session-id'], id); assert(c.Mounts.some(m => m.Destination === '/luci-input' && resolve(m.Source).startsWith(fixture + sep) || codingSessions.has(id) && m.Destination === '/home/dev/work' && resolve(m.Source) === resolve(project.path) && resolve(m.Source).startsWith(fixture + sep))); docker('rm', '-f', cid); } }
     catch (error) { cleanupFailure(`remove owned session ${id}`, error); }
   }
   try { provider.closeAllConnections(); await new Promise((done, reject) => provider.close(error => error ? reject(error) : done())); } catch (error) { cleanupFailure('close local provider', error); }

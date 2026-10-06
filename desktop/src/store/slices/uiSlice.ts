@@ -70,6 +70,8 @@ export interface UiSlice {
   pendingNavigation: PendingNavigation | null;
   branchManager: BranchManagerTarget | null;
   projectSourceRevisions: Record<ProjectId, number>;
+  /** Scoped one-shot inspection request. Survives lens mounting, never persisted. */
+  projectRunInspection: { scope: string; projectId: ProjectId; runId: string } | null;
   setUnsavedProjectDraft(id: string, draft: UnsavedProjectDraft | null): void;
   cancelNavigation(): void;
   discardDraftsAndNavigate(keepDrafts?: boolean): void;
@@ -110,7 +112,7 @@ type UiState = Pick<
   | "selection" | "lens" | "layout" | "railCollapsed"
   | "expandedProjects" | "expandedBranches" | "expandedWorktrees"
   | "paletteOpen" | "pickerOpen" | "contextMenu" | "sessionMenuFor" | "toasts"
-  | "machinesOpen" | "unsavedProjectDrafts" | "pendingNavigation" | "branchManager" | "projectSourceRevisions"
+  | "machinesOpen" | "unsavedProjectDrafts" | "pendingNavigation" | "branchManager" | "projectSourceRevisions" | "projectRunInspection"
 >;
 
 /** FROZEN, containers and all — see the note on `initialDataState`. */
@@ -132,6 +134,7 @@ export const initialUiState: UiState = Object.freeze({
   pendingNavigation: null,
   branchManager: null,
   projectSourceRevisions: Object.freeze({}),
+  projectRunInspection: null,
 });
 
 export const createUiSlice: StateCreator<
@@ -177,7 +180,7 @@ export const createUiSlice: StateCreator<
     if (draft) drafts[id] = draft; else delete drafts[id];
     return { unsavedProjectDrafts: drafts };
   }),
-  cancelNavigation: () => set({ pendingNavigation: null }),
+  cancelNavigation: () => set({ pendingNavigation: null, projectRunInspection: null }),
   discardDraftsAndNavigate: (keepDrafts = false) => {
     const current = get();
     const destination = current.pendingNavigation;

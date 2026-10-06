@@ -1548,3 +1548,83 @@ The `c4d064e0` archives and manifest are preserved under
 `artifacts/releases/0.5.0-c4d064e0-ci-failed`; their installed passes do not turn
 that failed source-CI gate into a pass. GitHub artifact quota remains a separate
 external evidence-retention failure.
+
+## Installed 786b1049 acceptance and remaining source-CI correction
+
+The clean `786b1049d7c5221a3c896e7819f7eea2a0475bc8` Linux package passed all
+11 installed acceptance groups: personal journey (20), account entry (9),
+lifecycle/restart (5), portable persistence (6), launcher recovery (7), account
+isolation (7), team worker (17), two-browser collaboration (10), project
+understanding/amendments (10), upgrade/rollback (6), and reviewed CLI/check/release
+execution (7). The receipt index is
+`artifacts/package-eval/0.5.0-786b1049/candidate-status.json`; it records each
+receipt's SHA-256. The archive SHA-256 is
+`4bcbe7e201a9b903e1de51369fb227c27a27b2c0fa12d453925acd615435dbf6`,
+and the binary SHA-256 is
+`d5390308630bbde068f636b387d2328a6e1910e8db4c02202ce2ce7c239dd170`.
+Package provenance independently checked all 425 binary/web files against the
+archive. Desktop/mobile overview and nine personal accessibility surfaces had no
+violations or incomplete results. Each acceptance fixture stopped its owned
+processes and containers. No external inference, merchant, cloud or public-domain
+operation was performed. The sandbox was the retained trusted runtime; this is
+not evidence of installing that runtime on a fresh customer host.
+
+The same source's full local Go run passed 1,963 test/subtest outcomes with 22
+skips (`artifacts/onboarding/final-managed-git-go`). However,
+[GitHub run 37425230178](https://github.com/lcfrai/luci/actions/runs/37425230178)
+failed three strict-metadata checks in cloud release/approval fixtures. Each
+failed call follows the shared raw native `commitPreviewFixture`, which bypassed
+the controller's automatic-maintenance suppression. The installed controller
+policy remains active. Fixture correction must retain actual native Git, the
+strict metadata guard and tests for hostile paths and changed review exports.
+GitHub's artifact storage quota is a separate failure; these local passes do not
+make the failed workflow or the full production release gate pass.
+
+The native fixture regression failed before the correction by observing
+`git maintenance run --auto --no-quiet --detach`. Raw fixture writers now disable
+automatic maintenance per invocation, while continuing to construct real native
+commits containing intentionally adversarial exports/secrets. They do not acquire
+controller approval or weaken the metadata validator. Affected product/project/API
+race checks passed 152 test/subtest outcomes with six platform skips, zero failures
+and no race warnings (`artifacts/onboarding/git-fixture-maintenance-affected-race.jsonl`).
+The identical three failing-test selections, repeated three times, retained 15
+real native commits before and after the correction while detached maintenance
+launches dropped from 15 to zero. The comparison receipt is
+`artifacts/onboarding/git-fixture-maintenance-comparison.json`.
+
+A final scope review identified a separate product defect outside those ordinary
+installed cases: preparing a newer run could hide an older allocated child's
+immutable work, and cancelling future dispatch could be labelled as stopped
+execution. The original package and receipt index remain retained at
+`artifacts/releases/0.5.0-786b1049-ci-failed` and
+`artifacts/package-eval/0.5.0-786b1049`. This defect requires a corrected projection
+and actual overlapping-work acceptance; earlier passing cases are not relabelled
+as coverage of that scenario.
+
+## Active work clarity correction
+
+The project overview now keeps all unfinished coding runs separate from the
+latest prepared/recorded build. Each uses its own immutable task/requirement
+snapshot. Cancelling further work leaves an already allocated child visible as
+last recorded running or unconfirmed until explicit reconciliation observes its
+terminal outcome. The primary next step and each inspection button open the
+exact run, including after a stage mount or delayed history load; missing runs
+and account changes cannot fall back to a different build. Large histories retain
+every active identity and counts while bounding complete detailed rows to 64 KiB.
+
+The scoped product tests passed under the race detector, including a real run-API
+A-running → B-prepared → A-cancelled → terminal-reconciliation sequence. Repeated
+GETs made no provider/backend calls and no private-state writes. Worst-case
+200-run/100-operation histories remain bounded with explicit omission markers.
+Frontend scope, exact navigation, stale identity and cancelled-navigation checks
+passed 127 focused tests. The complete final frontend run passed 1,562 tests in
+108 files, followed by type checking and the production web build. The complete
+Go run passed 1,967 test/subtest outcomes, zero failures and 22 skips. Logs are
+`artifacts/onboarding/active-build-final-*` and
+`artifacts/onboarding/final-active-build-go`.
+
+The installed orchestrator runner now additionally holds an actual coding agent
+open while preparing another build, checks both exact-run inspection paths,
+verifies parent cancellation did not stop the container, then explicitly stops
+and reconciles the child. Its matching-package execution receipt must establish
+this coverage; source regression results alone do not claim that run passed.

@@ -46,3 +46,39 @@ it("rejects jobs from another project or assistance kind", async () => {
   request.mockResolvedValue({ ...job(), kind: "interview" });
   await expect(orchestratorApi.job("p-1", "job-2")).rejects.toThrow("different conversation");
 });
+
+const pendingBuild = () => ({ id: "older-active", state: "cancelled", valid: false, reason: "Future dispatch cancelled", activity: "running" as const, dispatchCancelled: true,
+  tasks: [{ id: "task-a", title: "Private booking", status: "selected" }], operations: [{ id: "op-a", childId: "session-a", status: "running" as const, updatedAt: "2026-10-06T14:00:00Z" }] });
+it("retains an older pending build separately from the newest prepared run without observing or changing it", async () => {
+  const snapshot = context(); snapshot.currentRun = { id: "new-ready", state: "ready", valid: false, reason: "Prepared", activity: "none", dispatchCancelled: false, operations: [] };
+  snapshot.activeRuns = [pendingBuild()];
+  const request = vi.spyOn(productApi, "request").mockResolvedValue(view({ context: snapshot }));
+  const result = await orchestratorApi.get("p-1");
+  expect(result.context.currentRun?.id).toBe("new-ready");
+  expect(result.context.activeRuns).toEqual([pendingBuild()]);
+  expect(request).toHaveBeenCalledExactlyOnceWith("/v1/product/projects/p-1/orchestrator");
+});
+it("preserves bounded scope and activity omission explicitly while retaining run identity", async () => {
+  const snapshot = context();
+  snapshot.activeRuns = [{ ...pendingBuild(), scopeOmitted: true, taskCount: 80, requirementCount: 42, tasks: [], requirements: [], operationsOmitted: true, operationCount: 3, operations: [] }];
+  vi.spyOn(productApi, "request").mockResolvedValue(view({ context: snapshot }));
+  expect((await orchestratorApi.get("p-1")).context.activeRuns).toEqual(snapshot.activeRuns);
+});
+it("accepts the authoritative active-run next action and rejects a target absent from this project's projection", async () => {
+  const snapshot = context(); snapshot.activeRuns = [pendingBuild()];
+  const nextAction = { id: "inspect-run", label: "Inspect active builds", reason: "Recorded running activity", lens: "develop" as const, runId: pendingBuild().id };
+  const request = vi.spyOn(productApi, "request").mockResolvedValue(view({ context: snapshot, nextAction }));
+  expect((await orchestratorApi.get("p-1")).nextAction.runId).toBe(pendingBuild().id);
+  request.mockResolvedValue(view({ context: snapshot, nextAction: { ...nextAction, runId: "unrelated-run" } }));
+  await expect(orchestratorApi.get("p-1")).rejects.toThrow("could not be verified");
+});
+it.each([
+  null, [pendingBuild(), pendingBuild()], [{ ...pendingBuild(), activity: "none" }],
+  [{ ...pendingBuild(), dispatchCancelled: undefined }], [{ ...pendingBuild(), operations: [] }],
+  [{ ...pendingBuild(), operations: [null] }],
+  [{ ...pendingBuild(), operations: [{ ...pendingBuild().operations[0], status: "succeeded" }] }],
+  [{ ...pendingBuild(), operations: [{ ...pendingBuild().operations[0], updatedAt: "invalid" }] }],
+])("rejects malformed active activity instead of presenting misleading execution state", async activeRuns => {
+  vi.spyOn(productApi, "request").mockResolvedValue(view({ context: { ...context(), activeRuns } as never }));
+  await expect(orchestratorApi.get("p-1")).rejects.toThrow("could not be verified");
+});

@@ -17,6 +17,12 @@ outcomes, exact tasks and reviewed revisions in an active build, unresolved
 material decisions and one next step. It remains available across Define,
 Design, Develop and Deploy. Discussion is optional; the user's priority is
 understanding what is being built and how to change it.
+Unfinished coding work remains visible independently of a newer prepared build.
+Cancelling further work does not imply an existing agent stopped. Stored activity
+is labelled as recorded until explicit reconciliation observes its outcome, and
+each inspection action opens the selected run in the current account/project.
+Large histories retain every unfinished identity and count while explicitly
+omitting oversized details from the compact overview.
 
 Provider-backed orchestration receives the saved context and bounded private
 history through the selected existing provider. It cannot edit source or launch
@@ -60,7 +66,9 @@ least 5 GiB free for one full sandbox; run expensive sandbox fixtures sequential
 The managed foundation passed a complete 1,503-test frontend run and 1,100 passing
 race test/subtest outcomes across seven integration packages (18 skips). The
 new project-understanding batch passed 1,538 frontend tests in 108 files; the
-final sketch correction passed all 1,542 tests in the same 108 files. Its
+sketch correction passed all 1,542 tests in the same 108 files. The final
+active-work and exact-run navigation correction passed 1,562 frontend tests,
+type checking, production build, and 1,967 Go test/subtest outcomes (22 skips). Its
 broad Go run identified one newly registered read route absent from the
 read-only audit; the audit was updated with the actual bounded read behavior and
 passed. Final changed-package race results and installed candidate receipts are
@@ -82,11 +90,16 @@ binary/source/image and scope. Private fixture directories can contain disposabl
 credentials; publish only reviewed summaries and release archives. Failed attempts
 remain retained. Historical 0.4.18 packages must not be relabelled as 0.5.0.
 
-GitHub's clean-source Go and race checks passed at `5d074fbc`. The run then failed
-because the repository's Actions artifact storage quota was exhausted. The
-workflow now uploads diagnostics after application checks so an external storage
-failure cannot prevent those checks from running. A quota failure remains a
-failed workflow, not a waived release gate.
+GitHub's clean-source Go and race checks passed at `5d074fbc`; later candidate
+runs found real sketch and strict Git metadata failures during expanded
+acceptance. Each failed candidate and its own receipts remain retained. The
+sketch fix prevents an unchanged Excalidraw callback from causing a render loop.
+Controller Git commands suppress asynchronous automatic maintenance; raw native
+test-fixture writers now do the same without weakening hostile-path tests.
+[FULL-PRODUCT.md](FULL-PRODUCT.md) records native before/after tracing and the
+latest candidate outcomes. GitHub's Actions artifact storage quota is a separate
+external failure. Diagnostics upload after application checks; a quota failure
+remains a failed workflow, not a waived release gate.
 
 ## Remaining real release gates
 

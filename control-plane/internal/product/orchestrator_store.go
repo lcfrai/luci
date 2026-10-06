@@ -204,22 +204,7 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 		if err != nil {
 			return value, ErrOrchestratorInvalid
 		}
-		if len(runs) > 0 {
-			run := runs[0]
-			summary := OrchestratorRunSummary{ID: run.ID, State: run.State, Reason: run.Reason, Tasks: []OrchestratorRunTask{}, Requirements: append([]RequirementSnapshot{}, run.Input.Requirements...), SpecificationRevision: run.Input.Implementation.SpecificationRevision, DesignRevision: run.Input.Implementation.DesignPlanRevision, Outcome: run.Input.Outcome}
-			for i, id := range run.Input.Implementation.TaskIDs {
-				title := id
-				if i < len(run.Input.Implementation.TaskTitles) {
-					title = run.Input.Implementation.TaskTitles[i]
-				}
-				summary.Tasks = append(summary.Tasks, OrchestratorRunTask{ID: id, Title: title, Status: "selected"})
-			}
-			if run.Observation != nil {
-				summary.Valid = run.Observation.Valid
-				summary.Reason = run.Observation.Reason
-			}
-			value.CurrentRun = &summary
-		}
+		value.CurrentRun, value.ActiveRuns = orchestratorRunProjection(runs)
 	}
 	return value, nil
 }
@@ -292,7 +277,7 @@ func (s *Server) ReserveOrchestratorTurn(ctx context.Context, id string, req Orc
 	}
 	raw, _ := json.MarshalIndent(snapshot, "", "  ")
 	if len(raw) > orchestratorContextLimit {
-		return OrchestratorTurn{}, snapshot, false, errors.New("The saved project context exceeds the assistant input bound; use the phase editors to focus it before asking Luci.")
+		return OrchestratorTurn{}, snapshot, false, errors.New("The saved context and unfinished build summaries exceed the assistant input bound. Inspect or reconcile existing builds, cancel unused reservations, or focus the saved phase context before asking Luci.")
 	}
 	if req.ReplyToTurnID != "" {
 		found := false
@@ -483,6 +468,7 @@ func normalizeOrchestratorCollections(value *OrchestratorContext) {
 	value.DesignPlan.Tokens = nonnilOrchestrator(value.DesignPlan.Tokens)
 	value.DesignPlan.Assets = nonnilOrchestrator(value.DesignPlan.Assets)
 	value.Plan.Tasks = nonnilOrchestrator(value.Plan.Tasks)
+	value.ActiveRuns = nonnilOrchestrator(value.ActiveRuns)
 }
 
 func nextOrchestratorSequence(saved orchestratorLedger) int {

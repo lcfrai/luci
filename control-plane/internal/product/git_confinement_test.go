@@ -46,6 +46,23 @@ func TestManagedCommitDoesNotStartDeferredMaintenance(t *testing.T) {
 		t.Fatal("immediate metadata verification lost the committed revision")
 	}
 	decodeBranchResult(t, journeyRequest(t, mux, "POST", branchBase(p)+"git/branches", branchCreateRequest(catalogue, "managed-feature", "managed-no-background-writer"), 200))
+	assertNoGitMaintenance(t, tracePath)
+	for _, name := range []string{"objects/maintenance.lock", "gc.pid", "gc.log.lock"} {
+		if _, err := os.Lstat(filepath.Join(p.Path, ".git", filepath.FromSlash(name))); !os.IsNotExist(err) {
+			t.Fatal("deferred maintenance metadata survived the controller command", name, err)
+		}
+	}
+	if err := validateBranchMetadata(context.Background(), s.projectRoot(), p.Path); err != nil {
+		t.Fatal("strict metadata guard rejected the completed command", err)
+	}
+	after, err := os.ReadFile(configPath)
+	if err != nil || string(before) != string(after) {
+		t.Fatal("controller policy rewrote the user's native Git configuration", err)
+	}
+}
+
+func assertNoGitMaintenance(t *testing.T, tracePath string) {
+	t.Helper()
 	trace, err := os.ReadFile(tracePath)
 	if err != nil {
 		t.Fatal("real Git trace was not recorded", err)
@@ -63,28 +80,44 @@ func TestManagedCommitDoesNotStartDeferredMaintenance(t *testing.T) {
 			starts++
 		}
 		if event.Event == "child_start" && len(event.Argv) >= 2 && (event.Argv[1] == "maintenance" || event.Argv[1] == "gc") {
-			t.Fatalf("controller command launched deferred Git maintenance: %v", event.Argv)
+			t.Fatalf("native command launched deferred Git maintenance: %v", event.Argv)
 		}
 	}
 	if starts == 0 {
 		t.Fatal("no real Git execution observed")
 	}
-	for _, name := range []string{"objects/maintenance.lock", "gc.pid", "gc.log.lock"} {
-		if _, err := os.Lstat(filepath.Join(p.Path, ".git", filepath.FromSlash(name))); !os.IsNotExist(err) {
-			t.Fatal("deferred maintenance metadata survived the controller command", name, err)
-		}
+}
+
+func TestNativePreviewFixtureCommitsWithoutDeferredMaintenance(t *testing.T) {
+	s, mux := journeyFixture(t)
+	p := createJourneyProject(t, mux, "native-preview-maintenance")
+	for key, value := range map[string]string{"maintenance.auto": "true", "maintenance.autoDetach": "true", "gc.auto": "1", "gc.autoDetach": "true"} {
+		confinedFixtureGit(t, p.Path, "config", key, value)
 	}
-	if err := validateBranchMetadata(context.Background(), s.projectRoot(), p.Path); err != nil {
-		t.Fatal("strict metadata guard rejected the completed command", err)
+	tracePath := filepath.Join(t.TempDir(), "native-fixture-git-trace.jsonl")
+	t.Setenv("GIT_TRACE2_EVENT", filepath.ToSlash(tracePath))
+	// These bytes intentionally bypass public commit/review rules. Keep using
+	// actual native Git so deployment's later secret/review checks stay real.
+	if err := os.WriteFile(filepath.Join(p.Path, ".env"), []byte("FIXTURE_PRIVATE_VALUE=must-not-enter-release\n"), 0600); err != nil {
+		t.Fatal(err)
 	}
-	after, err := os.ReadFile(configPath)
-	if err != nil || string(before) != string(after) {
-		t.Fatal("controller policy rewrote the user's native Git configuration", err)
+	commitPreviewFixture(t, p.Path)
+	assertNoGitMaintenance(t, tracePath)
+	head, err := s.journeyGit(context.Background(), p.Path, "rev-parse", "HEAD")
+	if err != nil || !deliverySHA.MatchString(strings.TrimSpace(head)) {
+		t.Fatal("native fixture did not leave an immediately verifiable commit", err)
+	}
+	contents, err := s.journeyGit(context.Background(), p.Path, "show", "HEAD:.env")
+	if err != nil || !strings.Contains(contents, "FIXTURE_PRIVATE_VALUE") {
+		t.Fatal("fixture lost its intentionally adversarial committed bytes", err)
 	}
 }
 
 func confinedFixtureGit(t *testing.T, dir string, args ...string) string {
 	t.Helper()
+	// Keep adversarial native configuration intact, but never leave fixture
+	// maintenance mutating metadata after this synchronous helper returns.
+	args = append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
 	out, err := runCommandEnvironment(context.Background(), "git", args, dir, project.ManagedGitEnvironment(os.Environ()))
 	if err != nil {
 		t.Fatalf("scratch Git %v failed: %v", args, err)

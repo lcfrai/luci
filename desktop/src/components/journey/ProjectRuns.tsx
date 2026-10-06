@@ -6,6 +6,7 @@ import { projectRunsApi, runSessionRequest, type CreateProjectRun, type ProjectR
 import type { CreateSessionRequest } from '../../api/client';
 import type { ImplementationContextRequest } from '../../store/types';
 import { useProjectAccess } from '../../hooks/useProjectAccess';
+import { useProjectDraftScope } from '../../hooks/useProjectDraft';
 import { useCockpit } from '../../store/store';
 import { useAuth } from '../auth/AuthProvider';
 import { useSetup } from '../setup/SetupProvider';
@@ -27,15 +28,16 @@ const scope = (values: unknown[]) => JSON.stringify(values);
 
 export function ProjectRuns(props: { projectId: string; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void }) {
   const auth = useAuth(), setup = useSetup();
+  const navigationScope = useProjectDraftScope(props.projectId);
   const identity = scope([productApi.baseUrl, auth?.profile.user.id, setup?.workspace, setup?.status?.access?.user, props.projectId]);
   const prepared = useRef({ draft: props.draft, identity });
   if (prepared.current.draft !== props.draft) prepared.current = { draft: props.draft, identity };
   // Discard transient requests, errors, selection and confirmations on account/workspace changes.
-  return <RunWorkspace key={identity} {...props} draft={prepared.current.identity === identity ? props.draft : undefined} />;
+  return <RunWorkspace key={identity} {...props} navigationScope={navigationScope} draft={prepared.current.identity === identity ? props.draft : undefined} />;
 }
 
-function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
-  projectId: string; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void;
+function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, navigationScope }: {
+  projectId: string; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void; navigationScope: string | null;
 }) {
   const access = useProjectAccess(projectId);
   const { canRead, canEdit, canExecute } = access;
@@ -51,7 +53,9 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
   const alive = useRef(true), working = useRef(false), request = useRef(0);
   const creation = useRef<{ signature: string; key: string } | null>(null);
   const operationKeys = useRef(new Map<string, string>());
-  const run = runs.find(item => item.id === selected) ?? runs[0];
+  const run = selected ? runs.find(item => item.id === selected) : runs[0];
+  const inspection = useCockpit(state => state.projectRunInspection);
+  const region = useRef<HTMLElement>(null);
   const setLens = useCockpit(state => state.setLens);
   const allowed = (action: string) => canEdit && (!['start-coding', 'continue-coding'].includes(action) || canExecute) && !!run?.allowedActions?.includes(action) && !(dispatchUncertain && (action === 'start-coding' || action === 'continue-coding'));
   const remember = (value: ProjectRun) => {
@@ -77,6 +81,19 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
     return () => { alive.current = false; request.current++; };
   }, [projectId, canRead || runs.length > 0]);
   useEffect(() => { if (draft) { setOutcome('preview'); creation.current = null; } }, [draft]);
+  useEffect(() => {
+    if (!inspection || loading || busy || !canRead) return;
+    // A queued request can cross a lens mount, but never an identity/workspace change.
+    if (navigationScope && inspection.scope === navigationScope && inspection.projectId === projectId) {
+      setSelected(inspection.runId); setDialog(null); setNotice('');
+      setError(runs.some(item => item.id === inspection.runId) ? '' : 'The requested run is unavailable in this project. Refresh history or choose another recorded run.');
+      requestAnimationFrame(() => {
+        if (!alive.current) return;
+        region.current?.scrollIntoView?.({ block: 'nearest' }); region.current?.focus();
+      });
+    }
+    useCockpit.setState(state => state.projectRunInspection === inspection ? { projectRunInspection: null } : {});
+  }, [inspection, loading, busy, canRead, navigationScope, projectId, runs]);
 
   async function operate(label: string, action: () => Promise<void>) {
     if (working.current) return;
@@ -202,7 +219,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan }: {
   }
   const actionLabel: Record<string, string> = { 'start-coding': 'Start coding', 'continue-coding': 'Continue reserved coding', 'join-check': 'Select check evidence', 'join-release': 'Select release evidence', reconcile: 'Reconcile run', accept: 'Review and accept outcome', cancel: 'Cancel run' };
   if (!canRead) return <section className="project-runs" aria-label="Project runs"><p role="status">{access.message}</p></section>;
-  return <section className="project-runs" aria-label="Project runs" aria-busy={!!busy || loading}>
+  return <section ref={region} tabIndex={-1} className="project-runs" aria-label="Project runs" aria-busy={!!busy || loading}>
     <div className="project-runs-heading"><h2>Project run</h2><Button variant="tertiary" disabled={!!busy || loading} onClick={() => void load()}>{loading ? 'Reading history…' : 'Refresh history'}</Button></div>
     {access.message && <p role="status" className="journey-muted">{access.message}</p>}
     {error && <p role="alert" className="journey-error">{error}</p>}

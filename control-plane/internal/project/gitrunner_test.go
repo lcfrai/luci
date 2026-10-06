@@ -38,6 +38,7 @@ func makeGitRepo(t *testing.T, dir string) {
 	)
 	run := func(args ...string) {
 		t.Helper()
+		args = append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
 		cmd := exec.Command("git", args...)
 		cmd.Dir = dir
 		cmd.Env = env

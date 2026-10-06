@@ -218,6 +218,11 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   };
   const ask = (text?: string) => { setReplyTo(""); openComposer(text); };
   const reply = (turnId: string, text = "") => { setReplyTo(turnId); if (text) setMessage(text); openComposer(); };
+  const inspect = (runId: string) => {
+    if (!permission.current.canRead) return;
+    useCockpit.setState({ projectRunInspection: { scope, projectId, runId } });
+    setLens("develop");
+  };
   const turns = [...new Map([...earlier, ...(view?.turns ?? [])].map(turn => [turn.id, turn])).values()].sort((a, b) => a.sequence - b.sequence);
   const replyQuestion = view?.blockingQuestions.find(question => question.turnId === replyTo)?.question || turns.find(turn => turn.id === replyTo)?.answer?.question;
   const reviewBlock = draftWarning || (!canEdit ? "Editing access is required to apply an amendment." : review && view && review.revision !== view.revision ? "The conversation changed during review. Close this review, refresh and review the amendment again." : "");
@@ -231,7 +236,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         {loading && !view && <p role="status">Loading project understanding…</p>}
         {error && <p className="orchestrator-error" role="alert">{error}</p>}
         {notice && <p role="status">{notice}</p>}
-        {view && <ProjectUnderstanding view={view} onAsk={ask} onReply={reply} onNavigate={setLens} />}
+        {view && <ProjectUnderstanding view={view} onAsk={ask} onReply={reply} onNavigate={setLens} onInspect={inspect} />}
         <details className="orchestrator-discussion" open={conversationOpen} onToggle={event => setConversationOpen(event.currentTarget.open)}><summary>Discuss or request a change</summary>
         <div hidden={!conversationOpen}>
         {view && <>

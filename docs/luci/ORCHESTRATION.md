@@ -16,6 +16,22 @@ agent was authorized to build. A cached accepted run does not establish public
 availability or current health; release inspection and reconciliation remain
 explicit actions.
 
+The latest prepared/recorded run and unfinished coding work are separate views.
+`currentRun` retains the newest run; `activeRuns` retains every run with a stored
+running, dispatching, unknown or reserved coding operation, including a cancelled
+parent. Preparing a newer build cannot replace an older agent's immutable scope.
+Cancelling further work prevents future dispatch; stopping an existing agent is
+an explicit session action. Only explicit reconciliation records a terminal child
+outcome and removes its activity from this view. GET does not contact the runtime
+or turn a stored running status into a claim about current liveness.
+
+Run details share a 64 KiB budget, including arbitrary reasons and operation
+lists. When a row exceeds that budget, the view retains its identity, recorded
+activity, cancellation state and task/requirement/operation counts, with explicit
+omission flags. Opening that exact run retrieves its full saved scope. It never
+substitutes today's task plan or silently drops an older unfinished run. Current
+account/workspace/project scope also binds navigation to a selected run.
+
 `context.digest` binds the current saved context documents and sketch. It is the
 amendment compare-and-swap token, not a continuously refreshed fingerprint of
 processes, Git status, release health or conversation history. Each assistance

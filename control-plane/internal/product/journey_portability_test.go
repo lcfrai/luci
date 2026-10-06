@@ -31,7 +31,7 @@ func TestPortableJourneyRealCloneRetainsLegacyContextWithoutReviewAuthority(t *t
 	}
 	journeyRequest(t, mux, "POST", "/v1/product/projects/"+p.ID+"/git/commit", map[string]string{"message": "reviewed legacy project"}, 200)
 	cloneDir := filepath.Join(s.projectRoot(), "second-folder")
-	command := exec.Command("git", "-c", "protocol.file.allow=always", "clone", "--", p.Path, cloneDir)
+	command := exec.Command("git", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "protocol.file.allow=always", "clone", "--", p.Path, cloneDir)
 	if out, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("real clone: %v %s", err, out)
 	}

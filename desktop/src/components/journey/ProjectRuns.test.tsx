@@ -8,10 +8,13 @@ import { platformApi } from '../../api/platform';
 import { resetCockpit, useCockpit } from '../../store/store';
 import { aBranch, aHarness, aProject, aSession, aWorktree } from '../../test/fixtures';
 import { ProjectRuns } from './ProjectRuns';
+import { OrchestratorPanel } from '../orchestrator/OrchestratorPanel';
+import { orchestratorApi } from '../../api/orchestrator';
+import { context as orchestratorContext, view as orchestratorView } from '../orchestrator/fixtures';
 
 const scope = vi.hoisted(() => ({ actor: 'owner', connection: '' }));
 vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ profile: { user: { id: scope.actor } } }) }));
-vi.mock('../setup/SetupProvider', () => ({ useSetup: () => ({ workspace: { mode: scope.connection ? 'cloud' : 'local', connectionId: scope.connection, host: scope.connection }, status: { access: { user: { username: scope.actor } } } }) }));
+vi.mock('../setup/SetupProvider', () => ({ useSetup: () => ({ workspace: { mode: scope.connection ? 'cloud' : 'local', connectionId: scope.connection, host: scope.connection }, status: { access: { user: { username: scope.actor } }, config: { projectsDir: '/projects' } } }) }));
 const approvals = { specificationApprovalId: 'approval-spec', specificationRevision: 3, specificationDigest: 'spec', designApprovalId: 'approval-design', designRevision: 4, designDigest: 'design', briefDigest: 'brief', sketchDigest: 'sketch' };
 const operation: RunOperation = { id: 'op-1', kind: 'session', childId: 's-bound', attempt: 1, status: 'reserved', requestDigest: 'request', createdAt: '2026-10-06T00:00:00Z', updatedAt: '2026-10-06T00:00:00Z' };
 const makeRun = (patch: Partial<ProjectRun> = {}): ProjectRun => ({
@@ -232,4 +235,68 @@ it('does not dispatch a reserved child when execution permission changes during 
   await act(async () => finish({ run: makeRun({ state: 'coding', operations: [operation], allowedActions: ['continue-coding', 'reconcile', 'cancel'] }), operation }));
   await screen.findByText(/Execution access changed/);
   expect(create).not.toHaveBeenCalled();
+});
+
+function InspectionJourney() {
+  const lens = useCockpit(state => state.lens);
+  return <><OrchestratorPanel projectId="p-1" />{lens === 'develop' && <ProjectRuns {...props()} />}</>;
+}
+function inspectionOverview() {
+  const snapshot = orchestratorContext();
+  snapshot.currentRun = { id: 'run-new', state: 'ready', reason: 'New scope prepared', valid: false, tasks: [{ id: 'new-task', title: 'New calendar export', status: 'selected' }] };
+  snapshot.activeRuns = [{ id: 'run-older', state: 'cancelled', reason: 'Future dispatch cancelled', valid: false, activity: 'running', dispatchCancelled: true,
+    operations: [{ id: 'op-older', childId: 'session-older', status: 'running', updatedAt: '2026-10-06T00:00:00Z' }], tasks: [{ id: 'older-task', title: 'Original private booking', status: 'selected' }] }];
+  vi.spyOn(orchestratorApi, 'get').mockResolvedValue(orchestratorView({ context: snapshot, nextAction: { id: 'inspect-run', label: 'Inspect active builds', reason: 'Inspect the existing activity.', lens: 'develop', runId: 'run-older' } }));
+  useCockpit.setState({ lens: 'design' });
+}
+it.each(['build card', 'primary next step'])('opens the exact older build through the %s after Develop mounts and history arrives, without dispatch or reconciliation', async source => {
+  inspectionOverview();
+  let finish!: (runs: ProjectRun[]) => void;
+  vi.mocked(projectRunsApi.list).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const reconcile = vi.spyOn(projectRunsApi, 'reconcile'), reserve = vi.spyOn(projectRunsApi, 'reserve'), create = vi.spyOn(api, 'createSession');
+  render(<InspectionJourney />);
+  const active = await screen.findByRole('region', { name: 'Active and unconfirmed work' });
+  expect(screen.queryByRole('region', { name: 'Project runs' })).toBeNull();
+  await userEvent.click(source === 'build card' ? within(active).getByRole('button', { name: 'Inspect build and checks' }) : screen.getByRole('button', { name: 'Inspect active builds' }));
+  expect(useCockpit.getState().lens).toBe('develop');
+  expect(useCockpit.getState().projectRunInspection?.runId).toBe('run-older');
+  const older = makeRun({ id: 'run-older', state: 'cancelled', reason: 'Older run remains active', allowedActions: ['reconcile'] });
+  older.input.implementation.taskTitles = ['Original private booking'];
+  await act(async () => finish([makeRun({ id: 'run-new', reason: 'New run is only prepared' }), older]));
+  const runs = screen.getByRole('region', { name: 'Project runs' });
+  expect(await within(runs).findByText('Older run remains active')).not.toBeNull();
+  expect(within(runs).queryByText('New run is only prepared')).toBeNull();
+  await userEvent.click(within(runs).getByText('Reviewed inputs and evidence'));
+  expect(within(runs).getByText('Original private booking')).not.toBeNull();
+  expect(useCockpit.getState().projectRunInspection).toBeNull();
+  expect(reconcile).not.toHaveBeenCalled(); expect(reserve).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
+});
+
+it('keeps an unavailable inspection target explicit instead of selecting or starting the newest run', async () => {
+  inspectionOverview();
+  vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ id: 'run-new' })]);
+  const create = vi.spyOn(api, 'createSession');
+  render(<InspectionJourney />);
+  await userEvent.click(within(await screen.findByRole('region', { name: 'Active and unconfirmed work' })).getByRole('button', { name: 'Inspect build and checks' }));
+  const runs = await screen.findByRole('region', { name: 'Project runs' });
+  expect(await within(runs).findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('The requested run is unavailable'));
+  expect(within(runs).queryByRole('button', { name: 'Start coding' })).toBeNull();
+  expect(within(runs).queryByText('Reviewed inputs saved.')).toBeNull();
+  expect(create).not.toHaveBeenCalled();
+});
+
+it('discards an inspection request when the account changes before its history reply', async () => {
+  inspectionOverview();
+  let finish!: (runs: ProjectRun[]) => void;
+  vi.mocked(projectRunsApi.list).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; })).mockResolvedValue([makeRun({ id: 'other-account', reason: 'Other account history' })]);
+  const mounted = render(<InspectionJourney />);
+  await userEvent.click(within(await screen.findByRole('region', { name: 'Active and unconfirmed work' })).getByRole('button', { name: 'Inspect build and checks' }));
+  scope.actor = 'other-owner';
+  mounted.rerender(<InspectionJourney />);
+  const runs = await screen.findByRole('region', { name: 'Project runs' });
+  await within(runs).findByText('Other account history');
+  await act(async () => finish([makeRun({ id: 'run-older', reason: 'Old account reply' })]));
+  expect(within(runs).queryByText('Old account reply')).toBeNull();
+  expect(within(runs).queryByRole('alert')).toBeNull();
+  expect(useCockpit.getState().projectRunInspection).toBeNull();
 });

@@ -15,31 +15,48 @@ type OrchestratorRunTask struct {
 	Title  string `json:"title"`
 	Status string `json:"status"`
 }
+type OrchestratorRunOperation struct {
+	ID        string `json:"id"`
+	ChildID   string `json:"childId"`
+	Status    string `json:"status"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
 type OrchestratorRunSummary struct {
-	Tasks                 []OrchestratorRunTask `json:"tasks"`
-	Requirements          []RequirementSnapshot `json:"requirements"`
-	SpecificationRevision int                   `json:"specificationRevision"`
-	DesignRevision        int                   `json:"designRevision"`
-	Outcome               string                `json:"outcome"`
-	ID                    string                `json:"id"`
-	State                 string                `json:"state"`
-	Valid                 bool                  `json:"valid"`
-	Reason                string                `json:"reason"`
+	OperationCount        int                        `json:"operationCount"`
+	OperationsOmitted     bool                       `json:"operationsOmitted"`
+	ScopeOmitted          bool                       `json:"scopeOmitted"`
+	TaskCount             int                        `json:"taskCount"`
+	RequirementCount      int                        `json:"requirementCount"`
+	Activity              string                     `json:"activity"`
+	ActivityReason        string                     `json:"activityReason"`
+	DispatchCancelled     bool                       `json:"dispatchCancelled"`
+	Operations            []OrchestratorRunOperation `json:"operations"`
+	Tasks                 []OrchestratorRunTask      `json:"tasks"`
+	Requirements          []RequirementSnapshot      `json:"requirements"`
+	SpecificationRevision int                        `json:"specificationRevision"`
+	DesignRevision        int                        `json:"designRevision"`
+	Outcome               string                     `json:"outcome"`
+	ID                    string                     `json:"id"`
+	State                 string                     `json:"state"`
+	Valid                 bool                       `json:"valid"`
+	Reason                string                     `json:"reason"`
 }
 type OrchestratorContext struct {
-	ProjectID       string                  `json:"projectId"`
-	Digest          string                  `json:"digest"`
-	Brief           Brief                   `json:"brief"`
-	Specification   ProjectSpecification    `json:"specification"`
-	DesignPlan      ProjectDesignPlan       `json:"designPlan"`
-	Plan            ProjectPlan             `json:"plan"`
-	SketchRevision  int                     `json:"sketchRevision"`
-	SourceCommit    string                  `json:"sourceCommit"`
-	SourceDirty     bool                    `json:"sourceDirty"`
-	SourceKnown     bool                    `json:"sourceKnown"`
-	CurrentRun      *OrchestratorRunSummary `json:"currentRun,omitempty"`
-	ChecksSummary   string                  `json:"checksSummary"`
-	ReleasesSummary string                  `json:"releasesSummary"`
+	ProjectID       string                   `json:"projectId"`
+	Digest          string                   `json:"digest"`
+	Brief           Brief                    `json:"brief"`
+	Specification   ProjectSpecification     `json:"specification"`
+	DesignPlan      ProjectDesignPlan        `json:"designPlan"`
+	Plan            ProjectPlan              `json:"plan"`
+	SketchRevision  int                      `json:"sketchRevision"`
+	SourceCommit    string                   `json:"sourceCommit"`
+	SourceDirty     bool                     `json:"sourceDirty"`
+	SourceKnown     bool                     `json:"sourceKnown"`
+	CurrentRun      *OrchestratorRunSummary  `json:"currentRun,omitempty"`
+	ActiveRuns      []OrchestratorRunSummary `json:"activeRuns"`
+	ChecksSummary   string                   `json:"checksSummary"`
+	ReleasesSummary string                   `json:"releasesSummary"`
 }
 type OrchestratorProposal struct {
 	Target        string                `json:"target"`
@@ -90,6 +107,7 @@ type OrchestratorQuestion struct {
 	Options   []string `json:"options"`
 }
 type OrchestratorAction struct {
+	RunID  string `json:"runId,omitempty"`
 	ID     string `json:"id"`
 	Label  string `json:"label"`
 	Reason string `json:"reason"`

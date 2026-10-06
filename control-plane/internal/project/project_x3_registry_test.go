@@ -97,6 +97,7 @@ func TestPathRefusesACommondirSteeredWorktreeOfAProjectWithARealLinkedWorktree(t
 func gitIn(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	cfg := t.TempDir()
+	args = append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(),

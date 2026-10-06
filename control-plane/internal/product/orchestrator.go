@@ -103,10 +103,28 @@ func (s *Server) registerOrchestrator(mux Registrar) {
 }
 func orchestratorNext(context OrchestratorContext, questions []OrchestratorQuestion) OrchestratorAction {
 	action := func(id, label, reason, lens string) OrchestratorAction {
-		return OrchestratorAction{id, label, reason, lens}
+		return OrchestratorAction{ID: id, Label: label, Reason: reason, Lens: lens}
+	}
+	runAction := func(runID, id, label, reason, lens string) OrchestratorAction {
+		value := action(id, label, reason, lens)
+		value.RunID = runID
+		return value
+	}
+	for _, run := range context.ActiveRuns {
+		switch run.Activity {
+		case "running":
+			return runAction(run.ID, "inspect-run", "Inspect active builds", "An existing coding child is recorded as running. Inspect all unfinished builds and reconcile their current outcomes; cancelling future dispatch does not stop their children.", "develop")
+		case "unknown":
+			return runAction(run.ID, "reconcile-run", "Reconcile coding sessions", "An existing coding child has an unconfirmed outcome. Inspect and reconcile that owned operation before preparing another attempt.", "develop")
+		}
 	}
 	if len(questions) > 0 {
 		return action("answer-question", "Answer the open question", questions[0].Rationale, "discover")
+	}
+	for _, run := range context.ActiveRuns {
+		if run.Activity == "pending" {
+			return runAction(run.ID, "inspect-run", "Review reserved work", "A coding operation is already reserved. Review its saved scope and current approvals, then continue that reservation or explicitly cancel it.", "develop")
+		}
 	}
 	if context.Specification.Revision == 0 {
 		return action("define", "Shape your idea", "Clarify the people, outcome and measurable requirements.", "discover")
@@ -126,17 +144,17 @@ func orchestratorNext(context OrchestratorContext, questions []OrchestratorQuest
 	if run := context.CurrentRun; run != nil {
 		switch run.State {
 		case "coding":
-			return action("inspect-run", "Follow implementation", "Observe the existing coordinated session; do not start a duplicate.", "develop")
+			return runAction(run.ID, "inspect-run", "Follow implementation", "Observe the existing coordinated session; do not start a duplicate.", "develop")
 		case "awaiting-checks":
-			return action("check", "Verify the implementation", "Run and join independent checks for the exact reviewed source.", "develop")
+			return runAction(run.ID, "check", "Verify the implementation", "Run and join independent checks for the exact reviewed source.", "develop")
 		case "awaiting-release":
-			return action("deploy", "Preview the verified app", "Observe an owned release and join its evidence before accepting the run.", "deploy")
+			return runAction(run.ID, "deploy", "Preview the verified app", "Observe an owned release and join its evidence before accepting the run.", "deploy")
 		case "complete":
 			if run.Valid {
-				return action("maintain", "Inspect releases and health", "Review current release health and the next amendment; historical acceptance does not guarantee uptime.", "deploy")
+				return runAction(run.ID, "maintain", "Inspect releases and health", "Review current release health and the next amendment; historical acceptance does not guarantee uptime.", "deploy")
 			}
 		case "blocked":
-			return action("inspect-run", "Resolve the run's next step", run.Reason, "develop")
+			return runAction(run.ID, "inspect-run", "Resolve the run's next step", run.Reason, "develop")
 		}
 	}
 	return action("start-coding", "Prepare implementation", "Review the current worktree, tasks, provider and outcome, then start one coordinated run.", "develop")
