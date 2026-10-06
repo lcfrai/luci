@@ -1663,3 +1663,33 @@ blocked-run remedies and simplifies the primary next-step wording without
 changing run semantics. Fifty-four focused frontend checks and the two affected
 backend action/scope regressions passed; matching presentation-package browser
 receipts must be recorded separately from the original 3aa44a10 results.
+
+## Final presentation and fresh-workspace accessibility
+
+The clean `87ca7c1801008a1bab85a6859ac0dfab773ededb` presentation package
+passed the expanded orchestrator (12), personal (20), entry (9), lifecycle (5),
+portable (6) and launcher (7) groups. Those receipts are separate from the full
+functional baseline at 3aa44a10. The concise active/cancelled card and exact
+A/B scope/navigation remain proven through actual CLI execution.
+
+Personal accessibility recorded no violations and two incomplete Admin rules
+across four nodes. Focused inspection of the loaded view verified its heading
+hierarchy and populated account/activity tables, including every column/data-cell
+association. Actual full-document axe then passed with zero violations or
+incomplete results. These independent results resolve the Admin assessment; the
+original incomplete receipt remains retained in
+`artifacts/package-eval/0.5.0-87ca7c18/personal/admin-manual-review.json` and its
+linked evidence.
+
+That focused check also exposed a real, separate first-launch defect: an empty
+project rail advertised an ARIA tree without any tree items. The narrow correction
+uses a labelled region while empty and preserves tree semantics when projects
+exist. Its axe regression failed before the fix. All 17 rail, keyboard and
+empty/populated transition tests passed, along with type checking and production
+web build. The actual original empty fixture also passed full-document axe with
+zero violations/incomplete results using the previous packaged binary and newly
+built web assets; this establishes the correction, not a matching new package.
+The original 87ca7c18 archives remain retained under
+`artifacts/releases/0.5.0-87ca7c18-empty-workspace-failed`. Final matching empty and
+populated acceptance must bind the rebuilt package's own hashes. No product
+heading, check assertion or run lifecycle was weakened.

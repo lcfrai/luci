@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import axe from "axe-core";
 import { Rail } from "./Rail";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { aBranch, aProject, aSession, aWorktree } from "../../test/fixtures";
@@ -61,6 +62,33 @@ function seed(over: Partial<CockpitState> = {}): void {
 
 describe("Rail", () => {
   beforeEach(() => seed());
+
+  it("labels an empty project catalogue without exposing a tree missing its required items", async () => {
+    seed({ projects: [] });
+    render(<Rail />);
+    const result = await axe.run(document, { runOnly: { type: "rule", values: ["aria-required-children"] } });
+    expect(result.violations.map(rule => rule.id)).toEqual([]);
+    expect(screen.queryByRole("tree")).toBeNull();
+    const empty = screen.getByRole("region", { name: "Projects" });
+    expect(within(empty).getByText(/No projects yet/)).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Create project" })).not.toBeNull();
+  });
+
+  it("retains tree navigation when projects arrive and returns to a labelled region after the last project disappears", async () => {
+    seed({ projects: [] });
+    render(<Rail />);
+    expect(screen.getByRole("region", { name: "Projects" })).not.toBeNull();
+    act(() => useCockpit.setState({ projects: [project] }));
+    const tree = screen.getByRole("tree", { name: "Projects" });
+    const rows = within(tree).getAllByRole("treeitem");
+    expect(rows.filter(row => row.tabIndex === 0)).toEqual([rows[0]]);
+    rows[0].focus();
+    await userEvent.keyboard("{ArrowDown}");
+    expect(document.activeElement).toBe(rows[1]);
+    act(() => useCockpit.setState({ projects: [] }));
+    expect(screen.queryByRole("tree")).toBeNull();
+    expect(within(screen.getByRole("region", { name: "Projects" })).getByText(/No projects yet/)).not.toBeNull();
+  });
 
   it("nests project, branch, worktree and session as four levels", () => {
     render(<Rail />);

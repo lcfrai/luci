@@ -22,7 +22,9 @@ Cancelling further work does not imply an existing agent stopped. Stored activit
 is labelled as recorded until explicit reconciliation observes its outcome, and
 each inspection action opens the selected run in the current account/project.
 Large histories retain every unfinished identity and count while explicitly
-omitting oversized details from the compact overview.
+omitting oversized details from the compact overview. Repeated execution details
+stay behind a disclosure. Fresh empty workspaces expose a valid labelled region;
+populated projects retain their accessible tree and keyboard behavior.
 
 Provider-backed orchestration receives the saved context and bounded private
 history through the selected existing provider. It cannot edit source or launch

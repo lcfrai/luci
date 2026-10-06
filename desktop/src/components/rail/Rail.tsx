@@ -199,7 +199,7 @@ export function Rail({
       <div
         ref={treeRef}
         className="rail-scroll"
-        role="tree"
+        role={projects.length > 0 ? "tree" : "region"}
         aria-label="Projects"
         onKeyDown={onKeyDown}
         onFocusCapture={(event) => {
