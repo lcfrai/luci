@@ -18,14 +18,132 @@ import {
 import { setAuthToken } from "../../api/authSession";
 import { resetCockpit, useCockpit } from "../../store/store";
 
+const access = vi.hoisted(() => ({ read: true, edit: true, secrets: true, loading: false, error: "", scope: "account-workspace-a" }));
+vi.mock("../../hooks/useProjectAccess", () => ({ useProjectAccess: () => ({
+  canRead: access.read, canEdit: access.read && access.edit && !access.loading && !access.error,
+  canExecute: access.read && access.edit && !access.loading && !access.error,
+  loading: access.loading, error: access.error,
+  permissions: { read: access.read, edit: access.edit, secrets: access.secrets, deploy: true, execute: true },
+  message: access.loading ? "Checking project permissions…" : access.error ? "Project access unavailable." : !access.read ? "This project is not available with your current team permissions." : "Read-only access.",
+}) }));
+vi.mock("../../hooks/useProjectDraft", () => ({ useProjectDraftScope: (projectId: string) => `${access.scope}:${projectId}` }));
+
 const stored: Configuration = {
   revision: 2,
   variables: [{ name: "DATABASE_URL" }],
   updatedAt: "2026-10-02T00:00:00Z",
 };
 beforeEach(() => {
+  Object.assign(access, { read: true, edit: true, secrets: true, loading: false, error: "", scope: "account-workspace-a" });
   resetCockpit();
   vi.spyOn(productApi, "configuration").mockResolvedValue(stored);
+});
+
+it.each([
+  { edit: false, secrets: false },
+  { edit: true, secrets: false },
+  { edit: false, secrets: true },
+])("explains runtime configuration permission limits without offering rejected mutations: %j", async grants => {
+  Object.assign(access, grants);
+  const save = vi.spyOn(productApi, "saveConfiguration").mockResolvedValue(stored);
+  render(<ProjectConfiguration projectId="p-1" />);
+  const remove = await screen.findByRole("button", { name: "Remove DATABASE_URL" });
+  fireEvent.click(remove);
+  expect(save).not.toHaveBeenCalled();
+  expect((remove as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Update DATABASE_URL" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText("Variable name") as HTMLInputElement).disabled).toBe(true);
+  expect((screen.getByLabelText(/^Private value/) as HTMLInputElement).disabled).toBe(true);
+  expect(screen.getByText(/editing and secrets access/i)).not.toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Refresh stored names" }));
+  await waitFor(() => expect(productApi.configuration).toHaveBeenCalledTimes(2));
+});
+
+it("retains an unsubmitted private draft while permissions are checked or editing is removed", async () => {
+  const save = vi.spyOn(productApi, "saveConfiguration").mockResolvedValue(stored);
+  const view = render(<ProjectConfiguration projectId="p-1" />);
+  await screen.findByRole("button", { name: "Update DATABASE_URL" });
+  await userEvent.type(screen.getByLabelText("Variable name"), "DRAFT_NAME");
+  await userEvent.type(screen.getByLabelText(/^Private value/), "private-draft-only");
+  access.loading = true; view.rerender(<ProjectConfiguration projectId="p-1" />);
+  expect((screen.getByLabelText(/^Private value/) as HTMLInputElement).value).toBe("private-draft-only");
+  expect((screen.getByRole("button", { name: "Save runtime variable" }) as HTMLButtonElement).disabled).toBe(true);
+  access.loading = false; access.secrets = false; view.rerender(<ProjectConfiguration projectId="p-1" />);
+  fireEvent.submit(screen.getByLabelText("Variable name").closest("form")!);
+  expect(save).not.toHaveBeenCalled();
+  expect((screen.getByLabelText(/^Private value/) as HTMLInputElement).value).toBe("private-draft-only");
+  access.secrets = true; view.rerender(<ProjectConfiguration projectId="p-1" />);
+  expect((screen.getByRole("button", { name: "Save runtime variable" }) as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByLabelText("Variable name") as HTMLInputElement).value).toBe("DRAFT_NAME");
+});
+
+it("does not start a metadata read until project read access is granted", async () => {
+  access.read = false; access.loading = true;
+  const view = render(<ProjectConfiguration projectId="p-1" />);
+  expect(productApi.configuration).not.toHaveBeenCalled();
+  expect(screen.queryByLabelText("Variable name")).toBeNull();
+  access.loading = false; view.rerender(<ProjectConfiguration projectId="p-1" />);
+  expect(screen.getByText(/not available with your current team permissions/)).not.toBeNull();
+  access.read = true; view.rerender(<ProjectConfiguration projectId="p-1" />);
+  await screen.findByRole("button", { name: "Update DATABASE_URL" });
+  expect(productApi.configuration).toHaveBeenCalledExactlyOnceWith("p-1");
+});
+
+it("hides read-revoked fields and refuses an older metadata response after access returns", async () => {
+  let finish!: (metadata: Configuration) => void;
+  const pending = new Promise<Configuration>(resolve => { finish = resolve; });
+  vi.mocked(productApi.configuration).mockResolvedValueOnce(stored).mockReturnValueOnce(pending).mockResolvedValue({ revision: 8, variables: [{ name: "CURRENT_NAME" }], updatedAt: "" });
+  const view = render(<ProjectConfiguration projectId="p-1" />);
+  await screen.findByRole("button", { name: "Update DATABASE_URL" });
+  await userEvent.type(screen.getByLabelText("Variable name"), "DRAFT_NAME");
+  await userEvent.type(screen.getByLabelText(/^Private value/), "private-retained-in-memory");
+  await userEvent.click(screen.getByRole("button", { name: "Refresh stored names" }));
+  access.read = false; view.rerender(<ProjectConfiguration projectId="p-1" />);
+  expect(screen.queryByLabelText(/^Private value/)).toBeNull();
+  expect(screen.queryByText("DATABASE_URL")).toBeNull();
+  access.read = true; view.rerender(<ProjectConfiguration projectId="p-1" />);
+  await screen.findByText("CURRENT_NAME");
+  await act(async () => { finish({ ...stored, variables: [{ name: "LATE_OLD_NAME" }] }); await pending; });
+  expect(screen.queryByText("LATE_OLD_NAME")).toBeNull();
+  expect(screen.getByText("CURRENT_NAME")).not.toBeNull();
+  expect((screen.getByLabelText(/^Private value/) as HTMLInputElement).value).toBe("private-retained-in-memory");
+});
+
+it("does not disclose a delayed mutation response after read loss and reloads current names on regrant", async () => {
+  let finish!: (metadata: Configuration) => void;
+  const pending = new Promise<Configuration>(resolve => { finish = resolve; });
+  vi.spyOn(productApi, "saveConfiguration").mockReturnValue(pending);
+  vi.mocked(productApi.configuration).mockResolvedValueOnce(stored).mockResolvedValue({ revision: 9, variables: [{ name: "CURRENT_NAME" }], updatedAt: "" });
+  const view = render(<ProjectConfiguration projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Update DATABASE_URL" }));
+  await userEvent.type(screen.getByLabelText(/^Private value/), "submitted-private-value");
+  await userEvent.click(screen.getByRole("button", { name: "Save runtime variable" }));
+  access.read = false; view.rerender(<ProjectConfiguration projectId="p-1" />);
+  expect(screen.queryByText("DATABASE_URL")).toBeNull();
+  access.read = true; view.rerender(<ProjectConfiguration projectId="p-1" />);
+  await act(async () => { finish({ ...stored, variables: [{ name: "LATE_MUTATION_NAME" }] }); await pending; });
+  await screen.findByText("CURRENT_NAME");
+  expect(screen.queryByText("LATE_MUTATION_NAME")).toBeNull();
+  expect(screen.queryByText(/Runtime configuration saved/)).toBeNull();
+  expect((screen.getByLabelText(/^Private value/) as HTMLInputElement).value).toBe("");
+});
+
+it("discards private fields and delayed results when the account/workspace changes with the same project ID", async () => {
+  let finish!: (metadata: Configuration) => void;
+  const pending = new Promise<Configuration>(resolve => { finish = resolve; });
+  vi.spyOn(productApi, "saveConfiguration").mockReturnValue(pending);
+  vi.mocked(productApi.configuration).mockResolvedValueOnce(stored).mockResolvedValue({ revision: 0, variables: [], updatedAt: "" });
+  const view = render(<ProjectConfiguration projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Update DATABASE_URL" }));
+  await userEvent.type(screen.getByLabelText(/^Private value/), "first-account-private-value");
+  await userEvent.click(screen.getByRole("button", { name: "Save runtime variable" }));
+  access.scope = "account-workspace-b"; view.rerender(<ProjectConfiguration projectId="p-1" />);
+  await screen.findByText("No runtime variables saved.");
+  await act(async () => { finish(stored); await pending; });
+  expect(screen.queryByText("DATABASE_URL")).toBeNull();
+  expect(screen.queryByText(/Runtime configuration saved/)).toBeNull();
+  expect((screen.getByLabelText("Variable name") as HTMLInputElement).value).toBe("");
+  expect((screen.getByLabelText(/^Private value/) as HTMLInputElement).value).toBe("");
 });
 afterEach(() => {
   setAuthToken(null);

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
 import { Button } from "../fluid/components/button";
 import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
+import { useProjectAccess } from "../../hooks/useProjectAccess";
+import { useProjectDraftScope } from "../../hooks/useProjectDraft";
 import {
   productApi,
   type ConfigurationUpdate,
@@ -15,8 +17,9 @@ interface Props {
 }
 
 export function ProjectConfiguration(props: Props) {
-  // A project change discards private drafts and pending results from its predecessor.
-  return <ConfigurationFields key={props.projectId} {...props} />;
+  const scope = useProjectDraftScope(props.projectId);
+  // Private drafts stay in memory and never cross an account/workspace boundary.
+  return <ConfigurationFields key={JSON.stringify([productApi.baseUrl, scope, props.projectId])} {...props} />;
 }
 
 function ConfigurationFields({
@@ -24,6 +27,14 @@ function ConfigurationFields({
   disabled = false,
   onBusyChange,
 }: Props) {
+  const access = useProjectAccess(projectId);
+  const canConfigure = access.canEdit && access.permissions.secrets;
+  const accessEpoch = useRef(0);
+  const permission = useRef({ read: access.canRead, write: canConfigure });
+  if (permission.current.read && !access.canRead) accessEpoch.current++;
+  permission.current = { read: access.canRead, write: canConfigure };
+  const busyChanged = useRef(onBusyChange);
+  busyChanged.current = onBusyChange;
   const [configuration, setConfiguration] = useState<Configuration | null>(
     null,
   );
@@ -38,46 +49,71 @@ function ConfigurationFields({
   const hasDraft = !!name.trim() || !!value || emptyValue;
   useUnsavedProjectDraft(projectId, hasDraft, "Runtime configuration", "deploy");
   const privateValue = useRef<HTMLInputElement>(null);
-  const alive = useRef(true),
-    working = useRef(false);
-  const blocked = disabled || !!busy || loading || !configuration || conflict;
+  const alive = useRef(true);
+  const saving = useRef(false);
+  const readGeneration = useRef(0);
+  const blocked = !canConfigure || disabled || !!busy || loading || !configuration || conflict;
+  const accessMessage = access.loading || access.error || !access.canRead
+    ? access.message
+    : !canConfigure
+      ? "Editing and secrets access are required to change runtime configuration. Ask a team owner to update your project access."
+      : "";
+
+  function ownsResult(epoch: number) {
+    return alive.current && permission.current.read && accessEpoch.current === epoch;
+  }
 
   async function refresh() {
-    if (working.current) return;
-    working.current = true;
+    if (!alive.current || !permission.current.read || saving.current) return;
+    const epoch = accessEpoch.current, generation = ++readGeneration.current;
+    const current = () => ownsResult(epoch) && readGeneration.current === generation;
     setLoading(true);
     setError("");
     setNotice("");
     try {
       const metadata = await productApi.configuration(projectId);
-      if (alive.current) {
+      if (current()) {
         setConfiguration(metadata);
         setConflict(false);
       }
     } catch {
-      if (alive.current)
+      if (current())
         setError(
           "Could not load runtime configuration. Check the workspace connection and refresh stored names.",
         );
     } finally {
-      working.current = false;
-      if (alive.current) setLoading(false);
+      if (current()) setLoading(false);
     }
   }
   useEffect(() => {
     alive.current = true;
-    void refresh();
     return () => {
       alive.current = false;
-      onBusyChange?.(false);
+      accessEpoch.current++;
+      readGeneration.current++;
+      busyChanged.current?.(false);
     };
-  }, [projectId, onBusyChange]);
+  }, []);
+  useEffect(() => {
+    if (access.canRead) {
+      void refresh();
+    } else {
+      readGeneration.current++;
+      setConfiguration(null);
+      setError("");
+      setNotice("");
+      setLoading(false);
+    }
+  }, [access.canRead]);
 
   async function apply(update: ConfigurationUpdate) {
-    if (working.current || blocked || !configuration) return;
-    working.current = true;
+    if (saving.current || !permission.current.write || blocked || !configuration) return;
+    saving.current = true;
+    const epoch = accessEpoch.current;
+    // Any older names read must not replace the confirmed mutation response.
+    readGeneration.current++;
     setBusy(update.remove ? "Removing variable" : "Saving configuration");
-    onBusyChange?.(true);
+    busyChanged.current?.(true);
     setError("");
     setNotice("");
     // Keep the value only in the request, never in a saved field or error message.
@@ -89,7 +125,7 @@ function ConfigurationFields({
         configuration.revision,
         [update],
       );
-      if (alive.current) {
+      if (ownsResult(epoch)) {
         setConfiguration(metadata);
         setName("");
         setNotice(
@@ -99,7 +135,7 @@ function ConfigurationFields({
         );
       }
     } catch (cause) {
-      if (!alive.current) return;
+      if (!ownsResult(epoch)) return;
       if (cause instanceof ApiError && cause.status === 409) {
         setConflict(true);
         setError(
@@ -111,15 +147,19 @@ function ConfigurationFields({
         );
       }
     } finally {
-      working.current = false;
+      saving.current = false;
       if (alive.current) {
         setBusy("");
-        onBusyChange?.(false);
+        busyChanged.current?.(false);
+        // Access may have returned while this request was still in flight. Its
+        // old response is retired; read current names under the new grant.
+        if (accessEpoch.current !== epoch && permission.current.read) void refresh();
       }
     }
   }
   function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (blocked || !permission.current.write) return;
     const variable = name.trim();
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(variable)) {
       setError(
@@ -159,15 +199,17 @@ function ConfigurationFields({
             backups. Rebuilding old code uses current configuration.
           </p>
         </div>
-        <Button type="button"
+        {access.canRead && <Button type="button"
           variant="ghost"
           loading={loading}
           disabled={disabled || !!busy || loading}
           onClick={() => void refresh()}
         >
           Refresh stored names
-        </Button>
+        </Button>}
       </div>
+      {accessMessage && <p className="journey-muted" role="status">{accessMessage}</p>}
+      {access.canRead && <>
       <p className="journey-muted">
         Set variables such as DATABASE_URL for your running app. Changes apply
         to the next preview, deployment or rollback. This does not provision a
@@ -277,6 +319,7 @@ function ConfigurationFields({
           {hasDraft && <Button type="button" variant="ghost" disabled={disabled || !!busy || loading} onClick={() => { setName(""); setValue(""); setEmptyValue(false); setError(""); setNotice("Variable draft discarded. Saved configuration is unchanged."); }}>Discard variable draft</Button>}
         </div>
       </form>
+      </>}
     </section>
   );
 }

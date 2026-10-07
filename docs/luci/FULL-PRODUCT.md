@@ -12,7 +12,57 @@ new durable-run, portable-context, team and release-integrity work. Earlier
 installed versions, hashes and results are preserved as historical evidence;
 none is relabelled as acceptance of the new candidate.
 
+## Configuration and repository-delivery correction
+
+Runtime configuration now follows actual project read/edit/secrets permissions.
+Undispatched private values remain only in memory across ordinary access refresh;
+confirmed read loss hides metadata and fields, and old results cannot restore
+them after regrant. Repository delivery preserves typed fields across late reads,
+head changes and navigation. A confirmed connection or publication remains visible
+when its optional status read fails; retry requires a fresh review. Controls mirror
+project edit/deploy and workspace edit/secrets authority. A physical operation
+lock stays held through permission changes until the original request settles.
+
+The configuration correction passes 58 affected tests plus TypeScript; delivery
+passes 63 affected tests. Independent source reviews pass, retaining both original
+failures and the separate lock defect caught in the uncommitted correction.
+The combined frontend passes all 2,192 cases across 131 files and TypeScript,
+with all 434 frontend/contract inputs unchanged. Matching installed role-based
+acceptance is pending. No GitHub sign-in, remote push, merchant operation or cloud deployment
+is implied by these source outcomes.
+
 ## Latest continuing checkpoint
+
+Installed `603bd900` passes the corrected native lifecycle, three-editor draft
+recovery and managed sidebar journeys. All 941 package files and 346 licence
+components are independently verified. The eight native gates include a real
+Codex conversation fork with inherited tool/assistant history, independent
+captured inputs, service restart, isolated Forget and rejection of corrupt or
+stale context before another child starts. Exactly two sequential Create/Start
+operations and two actual context reads occur; independent cleanup passes.
+Provider output is scripted, so this proves lifecycle mechanisms rather than
+model reasoning or a newly built application.
+
+The installed recovery journey passes four groups covering Define, Design and
+the implementation plan: real stale-save refusals, unchanged delayed reads,
+explicit comparison and restoration, both contributors' edits, an unfinished
+task title, and saving against the new revision. Seven managed-entry/sidebar
+groups pass at desktop and phone widths. A separate geometry diagnostic confirms
+that the long blank tail in full-page Plan screenshots is capture inflation for
+the tested flow: native scroll reaches the controls, the outer page does not
+move and the footer stays in place. No layout change is needed. Receipts:
+`artifacts/quality-context-reload/603bd900-attempt-1/`,
+`quality-team-sidebar/603bd900-attempt-1/` and
+`quality-reviewed-context-lifecycle/603bd900-attempt-1/`.
+
+The full goal remains open. The continuing audit has found project-configuration
+and Git-delivery permission, draft and late-response gaps. Their corrections are
+source-reviewed and pass combined frontend validation; matching installed
+acceptance is next.
+Real-model, managed-host, merchant and public/native release commissioning remain
+separate gates.
+
+## Earlier entry and recovery checkpoints
 
 Installed `2d1f4c8c` passes all six managed-invitation groups, including a clean
 post-join screen with no stale permission errors and usable 390 px entry controls.
@@ -35,8 +85,8 @@ restored while the request is pending. Define and Design corrections and the
 permission-aware team sidebar pass the combined 2,149 frontend cases across
 130 files plus TypeScript, with all 433 inputs unchanged. The same defect in the
 implementation plan is also corrected; that two-file follow-up passes 51 relevant
-planning/recovery tests, TypeScript and independent review. Matching installed
-recovery and sidebar acceptance remains required.
+planning/recovery tests, TypeScript and independent review. The matching installed
+outcomes are now recorded above.
 
 The `adbc7467` source batch closes three more observed interface gaps:
 managed-team invitation acceptance for existing accounts, out-of-order deployment
@@ -60,8 +110,8 @@ instruction setting. The pinned split-versus-unified comparison confirms that
 cause. With the narrow correction, the real CLI reaches the selected local
 provider with matching synthetic authentication in 798 ms, without keystrokes or
 another sign-in gate. It receives no generated model output. Affected API and
-harness race checks pass 601 outcomes with three skips. Full installed lifecycle
-acceptance remains required; this diagnostic does not prove model quality.
+harness race checks pass 601 outcomes with three skips. The later603 installed
+lifecycle outcome is recorded above; the diagnostic does not prove model quality.
 
 The full product goal remains open. The clean installed `9c585ec3` package
 passes captured-context inspection, phone coding layout and subscription-recovery
@@ -78,12 +128,14 @@ unchanged, with no owned fixture processes left. This fixture performs no coding
 or model execution. Evidence:
 `artifacts/quality-reviewed-context-isolation/9c585ec3-final-attempt-2/`.
 
-Native lifecycle acceptance remains failed. The correction for Codex's temporary
+The earlier `9c585ec3` native lifecycle attempt remains recorded as failed.
+The correction for Codex's temporary
 launcher aliases fixes the previous HTTP 500: supported resume now returns 201
 and creates an independent captured bundle and real child. The resumed CLI then
 fails to reach the controlled provider within the unchanged 120-second bound.
-The initial actual CLI read and service restart pass; the complete continuation,
-corruption and amendment recovery gates remain open. Independent cleanup verifies
+The initial actual CLI read and service restart passed, while its continuation,
+corruption and amendment recovery gates were not met. The later603 package closes
+those scoped lifecycle gates without changing the original failed receipt. Independent cleanup verifies
 zero owned resources and unchanged package/image identities. Evidence:
 `artifacts/quality-reviewed-context-lifecycle/9c585ec3-attempt-1/`.
 Bounded private worker diagnostics retain fixed failure codes, without raw errors
