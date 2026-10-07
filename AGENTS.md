@@ -1,5 +1,10 @@
 # Luci development
 
+The owner's 7 October correction names the four concurrent, continuous activities
+**Discover, Design, Develop, Deploy**. It supersedes older Define/Describe wording.
+The approved Fourfold identity source and motion direction are in
+`docs/luci/IDENTITY.md`; retain its equal-part continuous silhouette.
+
 The user's direction of 2 October 2026 supersedes every earlier Panacea/KPMG decision and review gate in this repository.
 
 Luci is an open-source lcfr.ai application: Define, Design, Develop, Git delivery, previews, deployment and maintenance in one coherent desktop app. Its management gateway owns identity, per-user workspaces, Admin/Super Admin policy and audit; Docker is the default execution boundary on the local or selected cloud host. It runs locally by default and guides users through an optional, inexpensive deployment in their own AWS or Azure account and domain. There is no required KPMG system, Panacea service, tenant, Entra realm, AKS cluster or hosted lcfr.ai account.

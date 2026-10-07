@@ -12,6 +12,13 @@ the account, resources, domain and cost approval before creating resources.
 
 ## Visual language
 
+The owner's 7 October identity selection is **Fourfold**, with four equal parts
+forming one continuous loop. Canonical source and motion direction are in
+[docs/luci/IDENTITY.md](docs/luci/IDENTITY.md). The activities are now **Discover,
+Design, Develop, Deploy**, concurrent and iterative. This supersedes earlier
+Define/Describe vocabulary and prior logo directions. The asset handoff does
+not itself change the running app or supply an animation.
+
 Use the warm graphite surface ramp and teal interactive accent in
 `desktop/src/styles/tokens.css`. Status uses text and shape as well as colour.
 Helper text uses the readable ink floor; reserve faint ink for non-text structure.

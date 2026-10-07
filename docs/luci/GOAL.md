@@ -1,5 +1,15 @@
 # Finish the full Luci product
 
+## Owner identity and vocabulary correction — 7 October 2026
+
+The four Ds are **Discover, Design, Develop, Deploy**, replacing earlier
+Define/Describe terminology. They operate continuously, concurrently and
+iteratively through shared project context; review and release evidence checks
+do not turn them into a sequential methodology. Discover uses Glasses as a
+companion to find whole solutions and building blocks before rebuilding,
+without claiming an already embedded integration. The approved **Fourfold**
+mark and future motion direction are recorded in [IDENTITY.md](IDENTITY.md).
+
 The owner's direction on 5 October 2026 expands the earlier four-phase Docker
 benchmark. That benchmark remains mandatory evidence within this full product
 goal; it is not the definition of completion. This goal supersedes earlier

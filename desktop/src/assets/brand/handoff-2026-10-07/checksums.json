@@ -1,0 +1,112 @@
+[
+  {
+    "file": "approval.json",
+    "bytes": 767,
+    "sha256": "ff32f836fb203faff76b36d3b864b36c28c524ede29ef869017e075a10484e79"
+  },
+  {
+    "file": "canonical/luci-four-ds-fourfold.svg",
+    "bytes": 3801,
+    "sha256": "e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155"
+  },
+  {
+    "file": "derivatives/derivative-notes.json",
+    "bytes": 678,
+    "sha256": "79f2a872dab5c3c7fe0fcf5c06af8e4585d336783974e6eda88f6a7c0502896e"
+  },
+  {
+    "file": "derivatives/luci-fourfold-currentcolor.svg",
+    "bytes": 3806,
+    "sha256": "2ad0427c220bcae0f67a4b50d027f913c0cb9061cfc0683778da88342630d91e"
+  },
+  {
+    "file": "derivatives/luci-fourfold-light-ink.svg",
+    "bytes": 3801,
+    "sha256": "b3164cf343889dee26923842d7febe35bb151857c37f976e905e2ab3e342bb26"
+  },
+  {
+    "file": "foundry/installed-profile.json",
+    "bytes": 813,
+    "sha256": "ffefbaf590da395b4d0fd9413668ef3446221ded5cdbc28fa39a95af99c805c1"
+  },
+  {
+    "file": "foundry/luci-four-ds-fourfold.manifest.json",
+    "bytes": 1221,
+    "sha256": "1480ff84b098b8f6c2b085621e0c68065fdc2ca4b50bc2aba738bf302015defa"
+  },
+  {
+    "file": "foundry/luci-four-ds-fourfold.recipe.json",
+    "bytes": 21893,
+    "sha256": "dd71b4f68e7aec62f003380489d000af52528ec7a7f98c82c714f259072c7665"
+  },
+  {
+    "file": "foundry/luci-four-ds-fourfold.regeneration.json",
+    "bytes": 575,
+    "sha256": "66398b76dd0f212e68e2bbf514026b4812057b15e1867eef4803790a8e5db726"
+  },
+  {
+    "file": "foundry/operator-schemas.json",
+    "bytes": 5371,
+    "sha256": "d8ee1df3b01c32c15fd6e88ad5ff4526e9fea244eb2774d9878a2a89ea70ecf0"
+  },
+  {
+    "file": "foundry/source-provenance.json",
+    "bytes": 21094,
+    "sha256": "095612486de2f0003c703dc686b8c3dd11f3ad31972ee4747ec25089674d0778"
+  },
+  {
+    "file": "png/dark-surface/luci-fourfold-128.png",
+    "bytes": 1721,
+    "sha256": "b6e1f03970fce6179e78c19c228d2be15568d021e22ccbb654bbbac4832220cd"
+  },
+  {
+    "file": "png/dark-surface/luci-fourfold-256.png",
+    "bytes": 4598,
+    "sha256": "2fd16d95e8417b770c2ceef573075cd0726dacc1ea72ca63741ea2343dd9eb98"
+  },
+  {
+    "file": "png/dark-surface/luci-fourfold-32.png",
+    "bytes": 391,
+    "sha256": "889df920a4aa6983790b0d7569c8f2ac6278cabee8f885dbbcb16d4c9d7c1479"
+  },
+  {
+    "file": "png/dark-surface/luci-fourfold-512.png",
+    "bytes": 10986,
+    "sha256": "f31fa0c6eb5d16d0a7515b1b4dcc9a2dcffd37fb6854a322ba6da7033e8fade4"
+  },
+  {
+    "file": "png/dark-surface/luci-fourfold-64.png",
+    "bytes": 729,
+    "sha256": "255de209b56405268741c0007c4f90fe3bd83726b7219dba13bdde941c2a4738"
+  },
+  {
+    "file": "png/light-surface/luci-fourfold-128.png",
+    "bytes": 1783,
+    "sha256": "0338296bebfafa76dd9733bbbf4e8487531259750a4ee54d5d3262a0d32bf51f"
+  },
+  {
+    "file": "png/light-surface/luci-fourfold-256.png",
+    "bytes": 4794,
+    "sha256": "1adb787d61e8ad9203e1f540bb842ef2b926e61636672119d31af9c64f9c0980"
+  },
+  {
+    "file": "png/light-surface/luci-fourfold-32.png",
+    "bytes": 392,
+    "sha256": "8426628bb4902b1fafef786866f3fa29855c8d511b5428a40fec6427b562fe75"
+  },
+  {
+    "file": "png/light-surface/luci-fourfold-512.png",
+    "bytes": 11331,
+    "sha256": "3b360b53945f239f47261c1f377fdfc67856a0a007ba6a6f46d4db8ed193007f"
+  },
+  {
+    "file": "png/light-surface/luci-fourfold-64.png",
+    "bytes": 763,
+    "sha256": "5ceaa265d195a4edd44fd0d3d2563be32b1be1be2953796e7c1bf7a1150b3fba"
+  },
+  {
+    "file": "README.md",
+    "bytes": 4448,
+    "sha256": "5ab8c2209fb581ebb9826561f040e7993e3060450a8caf37e2394750f494d68c"
+  }
+]
