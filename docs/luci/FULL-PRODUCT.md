@@ -14,7 +14,17 @@ none is relabelled as acceptance of the new candidate.
 
 ## Latest continuing checkpoint
 
-The current corrective source batch closes three more observed interface gaps:
+Installed `adbc7467` passes the delayed connection-response witness at desktop
+and phone widths. Its six managed-invitation functional groups also pass, but
+visual review catches stale permission errors immediately after joining: the
+hidden application had started private reads before membership existed. The
+narrow follow-up defers that first mount until admission and retains previously
+admitted editors during revocation. Its genuine before failure and 76 passing
+affected checks are retained; the stricter installed no-stale-error check remains
+pending on the next package. This finding keeps managed-entry visual acceptance
+open despite the functional group count.
+
+The `adbc7467` source batch closes three more observed interface gaps:
 managed-team invitation acceptance for existing accounts, out-of-order deployment
 history that closes a healthy preview, and stale connection refreshes that
 misstate the selected provider. Membership remains authoritative, current

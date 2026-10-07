@@ -294,6 +294,9 @@ try {
   assert.equal(await page.getByRole('treeitem', { name: /invitation-private-project/ }).count(), 0);
   const current = await api('GET', '/v1/teams', undefined, 200, existing.token);
   assert.equal(current.managedTeamId, team.id); assert.equal(current.teams.length, 1); assert.equal(current.teams[0].team.id, team.id);
+  await page.getByText('No projects shared yet', { exact: true }).waitFor();
+  const residue = page.getByText('This team or project is unavailable to your account. Refresh your workspaces or ask its owner for access.', { exact: true });
+  assert.equal(await residue.count(), 0, 'Pre-membership access failures remain after confirmed joining');
   assert.equal(await page.evaluate(code => JSON.stringify(localStorage).includes(code) || JSON.stringify(sessionStorage).includes(code), valid.inviteCode), false);
   await api('POST', '/v1/teams/invitations/accept', { inviteCode: valid.inviteCode }, 403, existing.token);
   await api('GET', '/v1/admin/users', undefined, 403, existing.token);

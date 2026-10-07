@@ -33,6 +33,7 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
   const [ready,setReady] = useState(false);
   const [error,setError] = useState('');
   const [blocked,setBlocked] = useState(false);
+  const [admitted,setAdmitted] = useState(false);
   const [retry,setRetry] = useState(0);
   const [epoch,setEpoch] = useState(0);
   const [revision,setRevision] = useState(0);
@@ -89,6 +90,7 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
     const timer=window.setInterval(onFocus,60000);
     return()=>{window.removeEventListener('focus',onFocus);window.clearInterval(timer);};
   },[ready,refresh]);
+  useEffect(()=>{if(ready&&!blocked)setAdmitted(true);},[ready,blocked]);
   const select=(id:string)=>{
     if(managedTeamId && id!==managedTeamId)return;
     if(id===selectedTeamId())return;
@@ -98,7 +100,9 @@ function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:React
   const retained=Object.values(drafts).every(draft=>draft.retained);
   const localSetup=Object.values(drafts).some(draft=>draft.purpose==='verification-setup');
   return <TeamWorkspaceContext.Provider value={value}>
-    {ready&&<div className="team-app-host" hidden={blocked}><Fragment key={`${userId}:${epoch}`}>{children}</Fragment></div>}
+    {/* Initial nonmembers must not start private child reads. After admission,
+        retain mounted editors through access refreshes and hide them on denial. */}
+    {ready&&(!blocked||admitted)&&<div className="team-app-host" hidden={blocked}><Fragment key={`${userId}:${epoch}`}>{children}</Fragment></div>}
     {ready&&!blocked&&error&&<div className="team-connection-status" role="status">Workspace access could not be refreshed: {error} <button onClick={()=>void refresh().catch(()=>{})}>Retry</button></div>}
     {(!ready||blocked)&&<main className="team-entry">
       <h1>{error?'Workspace unavailable':'Opening your workspace…'}</h1>

@@ -87,14 +87,13 @@ it('opens the managed team regardless of a personal preference and refuses works
 
 it('blocks an account outside the managed team without offering personal fallback', async () => {
   vi.mocked(teamsApi.list).mockResolvedValue({ teams: [], managedTeamId: teamA });
-  vi.mocked(teamsApi.projectAccess).mockRejectedValueOnce(new ApiError('forbidden_origin', 'Team membership required', 403));
   renderWorkspace();
   expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('Ask a team owner for access'));
-  await waitFor(() => expect(permissions()).toEqual({ permissions: noPermissions, loading: false, error: 'Team membership required' }));
+  expect(screen.queryByTestId('access')).toBeNull();
   expect(selectedTeamId()).toBe(teamA);
   expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
   expect(screen.queryByRole('combobox', { name: 'Workspace' })).toBeNull();
-  expect(teamsApi.projectAccess).toHaveBeenCalledWith(teamA, 'project-a');
+  expect(teamsApi.projectAccess).not.toHaveBeenCalled();
 });
 
 it('lets an existing nonmember join the bound managed team only after membership is refreshed', async () => {
@@ -116,6 +115,45 @@ it('lets an existing nonmember join the bound managed team only after membership
   expect(await screen.findByRole('region', { name: 'Workspace content' })).toBeTruthy();
   expect(screen.queryByLabelText('Team invitation code')).toBeNull();
   expect(selectedTeamId()).toBe(teamA);
+});
+
+it('defers private child effects until the first confirmed membership and mounts a clean workspace after joining', async () => {
+  const membership = deferred<{ teams: TeamSummary[]; managedTeamId: string }>();
+  vi.mocked(teamsApi.list).mockResolvedValueOnce({ teams: [], managedTeamId: teamA }).mockReturnValueOnce(membership.promise);
+  vi.spyOn(teamInvitationsApi, 'accept').mockResolvedValue({ ...summary(), members: [], executionBoundary: 'dedicated-team' });
+  renderWorkspace();
+  await screen.findByLabelText('Team invitation code');
+  expect(teamsApi.projectAccess).not.toHaveBeenCalled();
+  expect(screen.queryByTestId('access')).toBeNull();
+  await userEvent.type(screen.getByLabelText('Team invitation code'), 'confirmed-first-membership');
+  await userEvent.click(screen.getByRole('button', { name: 'Join team' }));
+  await screen.findByText(/You joined Atlas/);
+  expect(teamsApi.projectAccess).not.toHaveBeenCalled();
+  expect(screen.queryByTestId('access')).toBeNull();
+  await act(async () => membership.resolve({ teams: [summary()], managedTeamId: teamA }));
+  await screen.findByRole('textbox', { name: 'Project draft' });
+  expect(teamsApi.projectAccess).toHaveBeenCalledExactlyOnceWith(teamA, 'project-a');
+  expect(permissions()).toEqual({ permissions: personalPermissions, loading: false, error: '' });
+});
+
+it('keeps a previously admitted managed editor mounted but hidden after team access is revoked', async () => {
+  vi.mocked(teamsApi.list).mockResolvedValue({ teams: [summary()], managedTeamId: teamA });
+  renderWorkspace();
+  const draft = await screen.findByRole('textbox', { name: 'Project draft' });
+  await userEvent.type(draft, ' retained managed edits');
+  vi.mocked(teamsApi.list).mockResolvedValueOnce({ teams: [], managedTeamId: teamA });
+  const pending = deferred<ProjectAccess>();
+  vi.mocked(teamsApi.projectAccess).mockReturnValueOnce(pending.promise);
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh access' }));
+  await screen.findByRole('heading', { name: 'Workspace unavailable' });
+  expect(screen.queryByRole('textbox', { name: 'Project draft' })).toBeNull();
+  expect(draft.isConnected).toBe(true);
+  expect(draft).toHaveProperty('value', 'My saved idea retained managed edits');
+  expect(selectedTeamId()).toBe(teamA);
+  await userEvent.click(screen.getByRole('button', { name: 'Retry connection' }));
+  await screen.findByRole('textbox', { name: 'Project draft' });
+  expect(screen.getByRole('textbox', { name: 'Project draft' })).toBe(draft);
+  await act(async () => pending.resolve(access()));
 });
 
 it('keeps an accepted invitation blocked when fresh membership is absent and retries reads without resubmitting its code', async () => {
