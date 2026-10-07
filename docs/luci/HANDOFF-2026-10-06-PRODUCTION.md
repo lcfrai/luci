@@ -19,8 +19,12 @@ standard. **The goal remains open.** Real-model implementation, a representative
 application with real authentication, roles and durable data, plus day-two
 amendment/redeployment/recovery still need complete acceptance. The installed
 prototype and collaborative amendment journey now has scoped fixture evidence. Existing local
-fixtures establish only their stated mechanisms. Independent product work
-continues while external commissioning and Windows CI access remain blocked.
+fixtures establish only their stated mechanisms. The local correction below is
+complete within its observed scope. The next representative live-model/application
+journey needs a usable configured model connection and a host with the documented
+full-stack capacity. Merchant, public-cloud/domain/email, signing and native
+Windows acceptance remain separate unmet gates. These prerequisites do not turn
+the scoped local evidence into a production-readiness verdict.
 
 ## Run status clarity
 
@@ -67,14 +71,31 @@ cleanup/package proof remain recorded.
 The follow-up gives the ordinary fixed shell a non-scrolling clip boundary.
 Its explicit phone-session and short-height auto-scroll rules remain in place;
 entry views remain outside this boundary. Independent exact-diff review and all
-235 affected interaction/style cases pass. Matching installed verification is
-continuing. The original candidate's independent stacking review, 131 interaction
+235 affected interaction/style cases pass. The matching clean `deeb55ad` package
+passes all six installed groups: the original checked-build, amendment and
+composer flow; four actual desktop/phone plan/run focus guards; native workspace
+scrolling and keyboard return; the labelled exited-session phone layout; and
+genuine Chromium Settings 400% zoom with short-height shell scrolling. The
+document stays at zero, normal handoffs preserve both headers, and intended
+scroll owners move and return. Focus rings are visually reviewed. The session
+row is explicitly a browser-local layout fixture after an authorized empty
+response, not an actual coding process. No model, project check, deployment or
+transport attachment occurred. Independent observation verifies both service
+generations, native-browser cleanup and all 1,477 package entries unchanged.
+
+The first `deeb55ad` attempt passes the original four groups and all handoff guards
+but reaches the new native probe while saved-plan content is still loading. Its
+failure remains recorded; only the helper's content readiness and actual branch
+selection were corrected before the successful second attempt. Native assertions
+and thresholds were retained. The original candidate's independent stacking review, 131 interaction
 cases, 104 style/seam contracts and TypeScript were supporting source evidence,
 not proof of the missing browser behavior. Independent cleanup and unchanged
 package verification pass. Evidence: `artifacts/quality-run-status-wording/`,
 `artifacts/quality-overview-composer/dca39101-native-scroll-attempt-1/` and
 `artifacts/quality-overview-composer/769d5bf8-exact-scroll-attempt-1/` and
 `artifacts/quality-overview-composer/c3fe7d20-handoff-reflow-attempt-1/`.
+Final proof: `artifacts/quality-shell-scroll-clip/` and
+`artifacts/quality-overview-composer/deeb55ad-handoff-reflow-attempt-2/`.
 
 ## Amendment clarity and conversation continuity
 
@@ -110,8 +131,8 @@ the fixture was removed and all 1,477 package entries stayed unchanged. Historic
 check/question setup remains explicitly labelled; no model, check command or
 deployment was executed. The original installed focus failure is now closed for
 this scope. Follow-up screen reading resolves the competing-action and reply-target
-ambiguities; status terminology and native comparison scrolling are the next
-bounded polish work. This is continuing product work within the full goal. Evidence: `artifacts/quality-amendment-clarity/`,
+ambiguities. That reading led to the status wording and handoff scrolling
+corrections above. This is scoped product work within the full goal. Evidence: `artifacts/quality-amendment-clarity/`,
 `quality-run-current-guidance/integration-source-freeze.json` and
 `quality-orchestrator-suggested-answer/adjacent-ask/`.
 
