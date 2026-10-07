@@ -1,0 +1,21 @@
+Supabase self-hosted configuration
+Upstream: https://github.com/supabase/supabase
+Release: self-hosted/v0.8.2
+Revision: 564eab8ad7840b13324f68b1bfac074ef8d51c21
+Original configuration and worker sources remain under Apache-2.0 (LICENSE).
+
+Luci retains the original upstream files with their recorded hashes. At runtime
+Luci derives a private Compose configuration with project-specific resource
+names, immutable image digests, loopback-only ports, generated credentials,
+named data volumes and explicit memory/CPU limits. It replaces the sample hello
+function with a dependency-free Luci example and maps the original main worker's
+floating jose import to a retained, unmodified jose 6.2.2 distribution.
+
+jose 6.2.2 is Copyright (c) 2018 Filip Skokan, under the MIT licence retained in
+volumes/functions/_vendor/jose/LICENSE.md. It has no npm runtime dependencies.
+manifest.json records its original npm archive and integrity, and the hashes of
+every retained file. Luci's MIT licence does not replace either upstream grant.
+
+The Supabase, Envoy, PostgREST and imgproxy container images are pulled separately
+from their publishers using the retained immutable digests; Luci does not bundle
+or relicense their images. Logs and Analytics are disabled in this stack.

@@ -29,21 +29,27 @@ const result = { mode, passed: false, executable, checks: [], limitations: [
   "WebDriver controls the release WebView2; no model inference or cloud deployment is exercised.",
   "The Windows runner has a prepared WebView2 runtime; first-time runtime download is not covered.",
 ] };
-let session, apiURL, appPID, childPID, localAccess;
+let session, apiURL, appPID, childPID, localAccess, structuredUI = false, privateReviewsRequired = false;
 const wdURL = "http://127.0.0.1:4444";
 const elementKey = "element-6066-11e4-a52e-4f735466cecf";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function request(path, method = "GET", body) {
+async function request(path, method = "GET", body, deadline) {
+  const remaining = deadline === undefined ? 90_000 : deadline - Date.now();
+  if (remaining <= 0) throw new Error(`WebDriver ${method} ${path}: click deadline exceeded`);
   const response = await fetch(wdURL + path, {
     method, headers: { "content-type": "application/json" },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(90_000),
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(remaining),
   });
   const answer = await response.json();
-  if (!response.ok || answer.value?.error) throw new Error(`WebDriver ${method} ${path}: ${answer.value?.error || response.status}: ${answer.value?.message || ""}`);
+  if (!response.ok || answer.value?.error) {
+    const error = new Error(`WebDriver ${method} ${path}: ${answer.value?.error || response.status}: ${answer.value?.message || ""}`);
+    error.webdriverError = answer.value?.error;
+    throw error;
+  }
   return answer.value;
 }
-const command = (path, method = "POST", body = {}) => request(`/session/${session}${path}`, method, method === "GET" ? undefined : body);
+const command = (path, method = "POST", body = {}, deadline) => request(`/session/${session}${path}`, method, method === "GET" ? undefined : body, deadline);
 const execute = (script, ...args) => command("/execute/sync", "POST", { script, args });
 async function until(label, probe, ms = 30_000) {
   const deadline = Date.now() + ms;
@@ -54,10 +60,14 @@ async function until(label, probe, ms = 30_000) {
   }
   throw new Error(`${label} timed out${last ? `: ${last.message}` : ""}`);
 }
-async function element(kind, name) {
-  return until(`${kind} ${name}`, () => execute(`
+async function lookupElement(kind, name, deadline) {
+  return command("/execute/sync", "POST", { script: `
     const visible=e=>!!(e&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden'&&getComputedStyle(e).opacity!=='0');
+    const enabled=e=>!e.disabled&&!e.matches(':disabled');
     const norm=s=>(s||'').replace(/\\s+/g,' ').trim();
+    // Fluid retains decorative measurement labels. Match the visible control's
+    // accessible text without counting its aria-hidden copy twice.
+    const namedText=e=>{const copy=e.cloneNode(true);copy.querySelectorAll('[aria-hidden="true"]').forEach(node=>node.remove());return norm(copy.textContent);};
     const labelled=e=>norm((e.getAttribute('aria-labelledby')||'').split(/\\s+/).map(id=>document.getElementById(id)?.textContent||'').join(' '));
     // Luci's Settings/project dialogs own these controls. Excalidraw embeds
     // independent picker dialogs whose lifetime must not hide the page header
@@ -67,25 +77,148 @@ async function element(kind, name) {
       const labels=[...scope.querySelectorAll('label')].filter(visible);
       const label=labels.find(e=>norm(e.textContent).startsWith(arguments[1]));
       const field=label?.querySelector('input,textarea,select');
-      return field&&!field.disabled?field:null;
+      return field&&enabled(field)?field:null;
     }
-    if(arguments[0]==='css') return [...scope.querySelectorAll(arguments[1])].find(visible)||null;
-    if(arguments[0]==='file') return [...scope.querySelectorAll('.journey-directory button')].filter(visible).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
-    return [...scope.querySelectorAll('button,summary,[role=treeitem]')].filter(e=>visible(e)&&!e.disabled).find(e=>
-      e.getAttribute('aria-label')===arguments[1] || labelled(e)===arguments[1] || norm(e.textContent)===arguments[1] ||
+    if(arguments[0]==='css') {
+      // querySelectorAll searches descendants, not the selected dialog itself.
+      // Keep modal scoping while allowing a read-only wait for its root.
+      const candidates=scope instanceof Element&&scope.matches(arguments[1])
+        ?[scope,...scope.querySelectorAll(arguments[1])]:[...scope.querySelectorAll(arguments[1])];
+      return candidates.find(e=>visible(e)&&enabled(e))||null;
+    }
+    if(arguments[0]==='file') return [...scope.querySelectorAll('.journey-directory button')].filter(e=>visible(e)&&enabled(e)).find(e=>[...e.querySelectorAll('span')].some(s=>s.textContent===arguments[1]))||null;
+    return [...scope.querySelectorAll('button,summary,[role=treeitem]')].filter(e=>visible(e)&&enabled(e)).find(e=>
+      e.getAttribute('aria-label')===arguments[1] || labelled(e)===arguments[1] || namedText(e)===arguments[1] ||
       (e.classList.contains('sub-row') && norm(e.textContent).endsWith(arguments[1])))||null;
-  `, kind, name));
+  `, args: [kind, name] }, deadline);
+}
+async function element(kind, name) {
+  return until(`${kind} ${name}`, () => lookupElement(kind, name));
+}
+function beginAction(call, kind, label) {
+  // These are the driver's named controls, never a field value, body text,
+  // terminal transcript or credential read from the installed application.
+  const action = { call, kind, label, phase: "lookup" };
+  (result.actionStages ??= []).push(action);
+  assert(result.actionStages.length <= 500, "Native action diagnostics exceeded their bounded control count");
+  return action;
+}
+async function centerElement(e, deadline) {
+  return command("/execute/sync", "POST", { script: `
+    const e=arguments[0];
+    const visible=e=>!!(e&&e.isConnected&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden'&&getComputedStyle(e).opacity!=='0');
+    const scope=[...document.querySelectorAll('.setup-window[role="dialog"][aria-modal="true"],.pal[role="dialog"][aria-modal="true"]')].filter(visible).at(-1)||document;
+    if(!visible(e)||e.disabled||e.matches(':disabled')||!scope.contains(e)) return false;
+    // WebDriver's default bottom alignment can land beneath a sticky action
+    // dock. Move only the viewport; activation remains a real W3C click.
+    e.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'});
+    return true;
+  `, args: [e] }, deadline);
 }
 async function click(name, kind = "button") {
-  const e = await element(kind, name);
-  await command(`/element/${e[elementKey]}/click`);
+  const deadline = Date.now() + 30_000;
+  const action = beginAction("click", kind, name);
+  let last;
+  while (Date.now() < deadline) {
+    try {
+      action.phase = "lookup";
+      const e = await lookupElement(kind, name, deadline);
+      if (e) {
+        action.phase = "center-scroll";
+        if (await centerElement(e, deadline)) {
+          action.phase = "revalidate";
+          const current = await lookupElement(kind, name, deadline);
+          // Scrolling may synchronously replace a control or open a modal.
+          // Never activate a different element admitted by the later lookup.
+          if (current && current[elementKey] === e[elementKey]) {
+            action.phase = "native-click";
+            await command(`/element/${e[elementKey]}/click`, "POST", {}, deadline);
+            action.phase = "completed";
+            return;
+          }
+        }
+      }
+    } catch (error) {
+      // These W3C errors reject the click before dispatch. Resolve the current
+      // enabled control again; never force it or retry an ambiguous failure.
+      if (!["stale element reference", "element click intercepted", "element not interactable"].includes(error.webdriverError)) throw error;
+      last = error;
+    }
+    const remaining = deadline - Date.now();
+    if (remaining > 0) await sleep(Math.min(200, remaining));
+  }
+  throw new Error(`click ${kind} ${name} timed out${last ? `: ${last.message}` : ""}`);
+}
+async function preparationSettled() {
+  // ProductClient bounds a setup request at 120 seconds. This stage waits for
+  // its current visible generation, separately from a normal 30-second click.
+  const deadline = Date.now() + 120_000;
+  let observedPending = false;
+  while (Date.now() < deadline) {
+    const state = await command("/execute/sync", "POST", { script: `
+      const visible=e=>!!(e&&e.getClientRects().length&&getComputedStyle(e).visibility!=='hidden');
+      const portal=document.querySelector('.onboarding-portal');
+      if(!visible(portal)) return {portal:false};
+      const preparation=portal.querySelector('.runtime-preparation');
+      const button=portal.querySelector('.setup-footer button');
+      const checking=!!preparation&&[...preparation.querySelectorAll('[role=status]')].some(e=>visible(e)&&e.textContent.trim()==='Checking dependencies and preparing your workspace…');
+      const handoff=portal.querySelector('.setup-footer [role=status]')?.textContent.includes('Checking your workspace and starting runtime preparation…')===true;
+      const checks=preparation?[...preparation.querySelectorAll('.preparation-list>li')].map(e=>({label:e.querySelector('strong')?.textContent.trim(),status:e.querySelector('.setup-status')?.textContent.trim()})):[];
+      const hasError=!!preparation&&[...preparation.querySelectorAll('[role=alert]')].some(visible);
+      const outcome=!preparation||hasError||(checks.length===3&&checks.every(e=>['ready','missing'].includes(e.status)));
+      const installing=!!preparation&&[...preparation.querySelectorAll('[role=status]')].some(e=>visible(e)&&e.textContent.trim().startsWith('Installing runtime…'));
+      return {portal:true,preparation:!!preparation,checking,handoff,outcome,checks,hasError,installing,enabled:visible(button)&&!button.disabled};
+    `, args: [] }, deadline);
+    if (Date.now() >= deadline) break;
+    assert(state.portal, "The onboarding portal disappeared before its preparation outcome was checked");
+    const pending = state.checking || state.handoff;
+    if (pending) {
+      observedPending = true;
+      assert.equal(state.enabled, false, "The current preparation generation must keep Continue disabled");
+    }
+    if (!pending && state.outcome && state.enabled) {
+      if (state.preparation) {
+        if (!state.hasError) {
+          assert.deepEqual(state.checks.map(check => check.label), ["Git", "Docker engine", "Agent runtime"], "Preparation must show the actual ordered local readiness outcomes");
+        }
+        const docker = state.checks.find(check => check.label === "Docker engine");
+        if (docker?.status === "missing") {
+          assert.equal(state.installing, false, "Missing Docker must not start automatic runtime installation");
+        }
+        (result.preparationStages ??= []).push({ observedPending, checks: state.checks, error: state.hasError, installing: state.installing });
+      }
+      return;
+    }
+    const remaining = deadline - Date.now();
+    if (remaining > 0) await sleep(Math.min(200, remaining));
+  }
+  throw new Error("Workspace preparation did not reach a settled visible outcome within its 120-second request budget");
+}
+async function continueToProjects() {
+  await preparationSettled();
+  await click("Continue to projects");
+}
+async function openDisclosure(name) {
+  const collapsed = await execute("const summary=[...document.querySelectorAll('details>summary')].find(e=>e.textContent.trim()===arguments[0]);return !!(summary&&!summary.parentElement.open)", name);
+  if (collapsed) await click(name);
 }
 async function fill(name, value) {
+  const action = beginAction("fill", "label", name);
   const e = await element("label", name);
+  action.phase = "native-clear";
   await command(`/element/${e[elementKey]}/clear`);
+  action.phase = "native-value";
   await command(`/element/${e[elementKey]}/value`, "POST", { text: value });
+  action.phase = "completed";
 }
 const bodyHas = (text) => until(text, () => execute("return document.body.innerText.includes(arguments[0])", text));
+const workspaceReady = () => until("authenticated workspace or onboarding portal", () => execute("return !document.querySelector('.auth-screen') && !!document.querySelector('.shell,.onboarding-portal')"));
+async function dismissSetup() {
+  await workspaceReady();
+  if (await execute("return !!document.querySelector('.onboarding-portal')")) await continueToProjects();
+  else if (await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Close settings");
+  await until("project workspace available", () => execute("return !!document.querySelector('.shell') && !document.querySelector('.setup-backdrop,.onboarding-portal')"));
+}
 function powershell(script) {
   return execFileSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true }).trim();
 }
@@ -96,12 +229,112 @@ function processes() {
 }
 const readProjectJSON = (path) => JSON.parse(readFileSync(join(fixture.projectRoot, fixture.projectName, path), "utf8"));
 const productStateDir = () => join(result.stateDir, "sessions");
+const contextFiles = ["LUCI.md", ".luci/specification.json", ".luci/specification.md", ".luci/design-handoff.json", ".luci/design-handoff.md"];
+function assertCommittedContext() {
+  const root = join(fixture.projectRoot, fixture.projectName);
+  for (const path of contextFiles) {
+    const committed = execFileSync("git", ["-C", root, "show", `HEAD:${path}`], { windowsHide: true, timeout: 15_000 });
+    assert.deepEqual(committed, readFileSync(join(root, path)), `Committed ${path} differs from the saved reviewed context`);
+  }
+}
+async function approveNativeHandoff() {
+  await click("Design");
+  await click("Screens and states");
+  await until("saved screen plan loaded", async () => await lookupElement("button", "Start a screen plan from my definition") || await lookupElement("label", "Screen name"));
+  if (await lookupElement("button", "Start a screen plan from my definition")) {
+    await click("Start a screen plan from my definition");
+    await fill("Screen name", "Installed project workspace");
+  }
+  await element("label", "Screen name");
+  if (await lookupElement("button", "Save design plan")) {
+    const revision = readProjectJSON(".luci/state.json").designPlan?.revision || 0;
+    await click("Save design plan");
+    await until("screen plan saved", () => readProjectJSON(".luci/state.json").designPlan?.revision > revision);
+    await element("button", "Approve design handoff");
+  }
+  if (await lookupElement("button", "Approve design handoff")) {
+    const revision = readProjectJSON(".luci/state.json").designPlan.revision;
+    await click("Approve design handoff");
+    await until("design handoff approved", () => {
+      const plan = readProjectJSON(".luci/state.json").designPlan;
+      return plan?.status === "approved" && plan.revision > revision;
+    });
+  }
+  const state = readProjectJSON(".luci/state.json"), plan = state.designPlan;
+  assert.equal(plan.status, "approved");
+  assert.equal(plan.briefRevision, state.brief.revision);
+  assert.equal(plan.specificationRevision, state.specification.revision);
+  assert.equal(plan.sketchRevision, state.design.revision);
+  assert.deepEqual(plan.screens[0].requirementIds, state.specification.requirements.map(item => item.id));
+  assert.match(plan.digest, /^[a-f0-9]{64}$/);
+  // The visible status is the service-derived selection, not a raw JSON flag.
+  await bodyHas(`approved · Revision ${plan.revision}`);
+  assert.deepEqual(readProjectJSON(".luci/design-handoff.json"), plan);
+  fixture.hasDesignHandoff = true;
+  fixture.designPlanRevision = plan.revision;
+  fixture.designPlanDigest = plan.digest;
+  await snapshot("approved-design-handoff");
+}
+async function reviewCurrentNativeContext() {
+  const original = readProjectJSON(".luci/state.json");
+  await click("Define");
+  await click("Specification");
+  await element("label", "The idea");
+  // Retained brief-only installers have no saved full definition. Keep their
+  // original criteria and add an explicit current review requirement in the UI.
+  if (!original.specification) {
+    const index = original.brief.criteria.length + 1;
+    await click("Add requirement");
+    await fill(`Requirement ${index}`, "Saved project work survives an installed application restart");
+    await fill(`Acceptance scenario ${index}`, "Given the saved project, after closing and reopening the installed app, the project, drawing and original Git history remain readable.");
+  }
+  if (await lookupElement("button", "Save definition")) {
+    const revision = original.specification?.revision || 0;
+    await click("Save definition");
+    await until("current full definition saved", () => readProjectJSON(".luci/state.json").specification?.revision > revision);
+    await element("button", "Approve definition");
+  }
+  if (await lookupElement("button", "Approve definition")) {
+    const revision = readProjectJSON(".luci/state.json").specification.revision;
+    await click("Approve definition");
+    await until("current definition approved", () => {
+      const spec = readProjectJSON(".luci/state.json").specification;
+      return spec?.status === "approved" && spec.revision > revision;
+    });
+  }
+  const spec = readProjectJSON(".luci/state.json").specification;
+  await bodyHas(`Approved · Revision ${spec.revision}`);
+  assert.equal(spec.status, "approved");
+  assert.equal(spec.purpose, fixture.purpose);
+  assert.match(spec.digest, /^[a-f0-9]{64}$/);
+  assert.deepEqual(readProjectJSON(".luci/specification.json"), spec);
+  fixture.hasSpecification = true;
+  fixture.requirement = spec.requirements[0].title;
+  fixture.specificationRevision = spec.revision;
+  fixture.specificationDigest = spec.digest;
+  await approveNativeHandoff();
+  const current = readProjectJSON(".luci/state.json");
+  if (current.specification.revision !== original.specification?.revision || current.designPlan.revision !== original.designPlan?.revision) {
+    // Preservation was asserted before this explicit review. Its new revisions
+    // and exports become a separate visible commit, never an invented seed.
+    fixture.reviewCommitMessage = "Review current installed definition and design";
+    await click("Develop");
+    await click("Git");
+    await fill("Commit message", fixture.reviewCommitMessage);
+    await click("Commit changes");
+    await bodyHas("Everything is committed");
+    await bodyHas(fixture.reviewCommitMessage);
+  }
+  assertCommittedContext();
+  writeFileSync(fixtureFile, JSON.stringify(fixture));
+  result.checks.push("After proving retained old work, explicitly reviewed current full Define and Design through the installed UI and checked the committed exact context exports; no application release or verification is claimed");
+}
 async function snapshot(name) {
   const png = await command("/screenshot", "GET", undefined);
   writeFileSync(join(evidence, `${mode}-${name}.png`), Buffer.from(png, "base64"));
 }
 async function authenticate() {
-  await until("native frontend ready", () => execute("return !!document.querySelector('.auth-screen,.shell')"), 60_000);
+  await until("native frontend ready", () => execute("return !!document.querySelector('.auth-screen,.shell,.onboarding-portal')"), 60_000);
   if (await execute("return !!document.querySelector('.auth-screen')")) {
     const bootstrap = localAccess?.available
       ? (await (await fetch(apiURL + "/v1/control-plane/status")).json()).bootstrapRequired
@@ -117,7 +350,7 @@ async function authenticate() {
     await fill("Password", fixture.password);
     if (bootstrap && localAccess?.available) await fill("Confirm password", fixture.password);
     await click(bootstrap ? (localAccess?.available ? "Create account" : "Create Super Admin account") : "Sign in");
-    await until("authenticated shell", () => execute("return !!document.querySelector('.shell')"));
+    await workspaceReady();
     result.checks.push(bootstrap ? "Native bootstrap token and first Super Admin created through installed UI" : "Existing account signed in through installed UI");
   }
 }
@@ -160,9 +393,8 @@ async function signOut(expectFirstRunSetup = false) {
   if (expectFirstRunSetup) assert.equal(setup.configured, false, "The original owner's interrupted first setup must remain unsaved");
   if (!setup.configured) {
     await bodyHas("Choose your workspace");
-    await click("Close settings");
   }
-  await until("setup dialog dismissed before account menu", () => execute("return !document.querySelector('.setup-backdrop')"));
+  await dismissSetup();
   await click(".rail-account button:first-child", "css");
   await click("Sign out");
   await element("label", "Username");
@@ -186,7 +418,7 @@ async function verifyLocalEntryRecovery() {
   await fill("Password", secondPassword);
   await fill("Confirm password", secondPassword);
   await click("Create account");
-  await until("new native local account entered its own workspace", () => execute("return !!document.querySelector('.shell')"));
+  await workspaceReady();
   const second = await visibleProfile();
   assert.notEqual(second.id, owner.id, "Creating another account must not replace the existing owner");
   assert.equal(second.role, "super-admin", "The OS-owned local creation control grants administration only inside this owned installation");
@@ -199,7 +431,7 @@ async function verifyLocalEntryRecovery() {
   await fill("New password", replacement);
   await fill("Confirm password", replacement);
   await click("Recover owner account");
-  await until("recovered owner entered the saved workspace", () => execute("return !!document.querySelector('.shell')"));
+  await workspaceReady();
   assert.equal((await visibleProfile()).id, owner.id, "Recovery must authenticate the original owner identity");
   await verifyProject();
   for (const [name, digest] of before) assert.equal(createHash("sha256").update(readFileSync(join(fixture.projectRoot, fixture.projectName, name))).digest("hex"), digest, "Account recovery must preserve " + name);
@@ -211,7 +443,7 @@ async function verifyLocalEntryRecovery() {
   await bodyHas("The username or password is incorrect.");
   await fill("Password", replacement);
   await click("Sign in");
-  await until("replacement credentials signed in", () => execute("return !!document.querySelector('.shell')"));
+  await workspaceReady();
   assert.equal((await visibleProfile()).id, owner.id);
   fixture.password = replacement;
   fixture.entryVerified = true;
@@ -234,21 +466,47 @@ async function verifyPartialFirstRunEntry() {
   assert.equal(existsSync(join(productStateDir(), "luci.json")), false);
   await fill("Password", fixture.password);
   await click("Sign in");
+  if (structuredUI) {
+    // Continue to projects completed this account's visit without saving setup.
+    // Returning sign-in keeps that choice and offers an explicit way back.
+    await bodyHas("Your projects");
+    await bodyHas("Your workspace setup is unfinished.");
+    assert.equal(existsSync(join(productStateDir(), "luci.json")), false, "Returning sign-in must not silently complete workspace configuration");
+    await click("Workspace setup");
+  }
   await bodyHas("Choose your workspace");
   result.checks.push("Immediately after first account creation, sign-out and rejected credentials preserved create/recovery choices before any workspace setup was saved");
 }
 async function settings() {
-  if (!await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Settings");
+  if (!await execute("return !!document.querySelector('.onboarding-portal,[aria-label=\"Close settings\"]')")) await click("Settings");
   await until("local setup choice or projects folder", () => execute("return document.body.innerText.includes('On this computer') || [...document.querySelectorAll('label')].some(e=>e.textContent.includes('Projects folder'))"));
   if (await execute("return !!document.querySelector('button[aria-labelledby=\"setup-route-local\"]')")) await click("On this computer");
 }
 async function verifyProject() {
-  if (await execute("return !!document.querySelector('[aria-label=\"Close settings\"]')")) await click("Close settings");
+  await dismissSetup();
   await click('[data-kind="project"]', "css");
   await click("Define");
+  if (structuredUI) await click("Specification");
   const idea = await element("label", "The idea");
   assert.equal(await command(`/element/${idea[elementKey]}/property/value`, "GET", undefined), fixture.purpose);
+  if (fixture.hasSpecification) {
+    const requirement = await element("label", "Requirement 1");
+    assert.equal(await command(`/element/${requirement[elementKey]}/property/value`, "GET", undefined), fixture.requirement);
+    const spec = readProjectJSON(".luci/state.json").specification;
+    assert.equal(spec.status, "approved");
+    assert.equal(spec.revision, fixture.specificationRevision);
+    assert.equal(spec.digest, fixture.specificationDigest);
+    result.checks.push("Approved structured definition and stable requirement survived restart without revision or digest changes");
+  }
   await click("Design");
+  if (fixture.hasDesignHandoff) {
+    const handoff = readProjectJSON(".luci/state.json").designPlan;
+    assert.equal(handoff.status, "approved");
+    assert.equal(handoff.revision, fixture.designPlanRevision);
+    assert.equal(handoff.digest, fixture.designPlanDigest);
+    result.checks.push("Saved structured handoff survived restart without revision or digest changes");
+  }
+  if (structuredUI) await click("Sketch");
   await bodyHas("Design 1");
   await element("css", ".excalidraw canvas");
   await snapshot("persisted-design");
@@ -265,6 +523,8 @@ async function verifyProject() {
   await snapshot("persisted-git");
   if (fixture.hasConfiguration) {
     await click("Deploy");
+    if (structuredUI) await element("css", '.deployment-tabs button[aria-current="page"],.deployment-tabs button[role="tab"][aria-selected="true"]');
+    await openDisclosure("Runtime configuration");
     await bodyHas("NATIVE_UAT_MESSAGE");
     const value = await element("label", "Private value");
     assert.equal(await command(`/element/${value[elementKey]}/property/value`, "GET", undefined), "");
@@ -272,6 +532,7 @@ async function verifyProject() {
     result.checks.push("Private runtime configuration survived with names-only UI and no value readback");
     await snapshot("persisted-runtime-configuration");
   }
+  if (privateReviewsRequired) await reviewCurrentNativeContext();
 }
 
 try {
@@ -302,6 +563,11 @@ try {
   if (expectedVersion) assert.equal(result.applicationVersion, expectedVersion, "The actually installed seed must match the independently selected previous version");
   const [major, minor, patch] = result.applicationVersion.split(".").map(Number);
   assert([major, minor, patch].every(Number.isInteger), "Candidate version must be explicit");
+  // Retained 0.3/0.4.x installers seed their original UI; the new product
+  // version must exercise its portal and structured project workspaces.
+  structuredUI = major > 0 || minor > 4 || (minor === 4 && patch >= 4);
+  privateReviewsRequired = major > 0 || minor > 4 || (minor === 4 && patch >= 18);
+  result.projectUI = structuredUI ? "structured definition and design" : "historical brief and canvas";
   const historical = major === 0 && (minor < 4 || (minor === 4 && patch < 2));
   const requireEntry = !historical; // Historical 0.3/0.4.1 upgrade seeds predate these controls.
   if (requireEntry) {
@@ -335,29 +601,62 @@ try {
     await fill("Projects folder", fixture.projectRoot);
     await click("Save settings");
     await until("projects folder persisted", () => JSON.parse(readFileSync(join(productStateDir(), "luci.json"), "utf8")).projectsDir === fixture.projectRoot);
-    await click("Git identity, agent connection and runtime");
-    // The existing candidate loads identity and runtime together. Wait for its
-    // visible loaded state, so initial GET completion cannot replace typing.
-    await element("css", ".local-tools > div > section.setup-plan:first-of-type [role=status]");
+    // Portal identity is already expanded. Never toggle it closed, and wait
+    // for the real enabled fields so initial loading cannot replace typing.
+    if (!await execute("return !!document.querySelector('.local-tools[open]')")) {
+      await click(structuredUI ? "Your Git commit identity" : "Git identity, agent connection and runtime");
+    }
     await fill("Commit author name", "Native Acceptance");
     await fill("Commit author email", "native@example.invalid");
     await click("Save Git identity");
     await until("Git identity persisted", () => ["user.name", "user.email"].map((key) => execFileSync("git", ["config", "--global", "--get", key], { encoding: "utf8", windowsHide: true }).trim()).join("\n") === "Native Acceptance\nnative@example.invalid");
     result.checks.push("Projects folder and Git identity saved through the installed Settings UI");
+    if (structuredUI) {
+      await continueToProjects();
+      await bodyHas("Your projects");
+      assert.equal(await execute("return !!document.querySelector('.onboarding-portal,.setup-backdrop')"), false);
+      result.checks.push("Completed the full-page onboarding portal and reached the independent projects home");
+    }
     await click("New project");
+    if (structuredUI) await element("css", '.project-entry[role="dialog"][aria-modal="true"]');
     await fill("Project name", fixture.projectName);
     await click("Create project");
+    if (structuredUI) await click("Specification");
     await fill("The idea", fixture.purpose);
     await fill("Who it is for", "People using the installed Windows application.");
-    await fill("What good looks like", "Brief and drawing survive a restart.\nGit records the actual saved work.");
-    await click("Save brief");
+    if (structuredUI) {
+      fixture.requirement = "Saved project work survives an installed application restart";
+      await fill("Boundaries and constraints", "Disposable native acceptance only; no model or cloud account.");
+      await click("Add requirement");
+      await fill("Requirement 1", fixture.requirement);
+      await fill("Acceptance scenario 1", "Given saved project work, when Luci closes and reopens, then the brief, sketch and Git history remain unchanged.");
+      await click("Save definition");
+    } else {
+      await fill("What good looks like", "Brief and drawing survive a restart.\nGit records the actual saved work.");
+      await click("Save brief");
+    }
     await until("brief revision persisted", () => {
       const brief = readProjectJSON(".luci/state.json").brief;
       return brief.revision === 1 && brief.purpose === fixture.purpose;
     });
     result.checks.push("Created the project and saved brief revision 1 through the installed UI");
+    if (structuredUI) {
+      await until("structured definition persisted", () => readProjectJSON(".luci/state.json").specification?.revision === 1);
+      await click("Approve definition");
+      const spec = await until("definition approval persisted", () => {
+        const value = readProjectJSON(".luci/state.json").specification;
+        return value?.status === "approved" && value.revision === 2 && value.digest && value;
+      });
+      assert.equal(spec.briefRevision, 1);
+      assert.equal(spec.requirements[0].title, fixture.requirement);
+      fixture.hasSpecification = true;
+      fixture.specificationRevision = spec.revision;
+      fixture.specificationDigest = spec.digest;
+      result.checks.push("Saved and explicitly approved a structured definition with a stable requirement, acceptance scenario and digest");
+    }
     await snapshot("brief");
     await click("Design");
+    if (structuredUI) await click("Sketch");
     const canvas = await element("css", ".excalidraw__canvas.interactive");
     // Excalidraw overlays its radio inputs with icon SVGs. Use the documented
     // real keyboard shortcut after focusing the canvas, as the browser UAT does.
@@ -381,6 +680,10 @@ try {
     assert(design.scene.elements.some((item) => item.type === "rectangle" && !item.isDeleted));
     assert.equal(design.briefRevision, 1);
     if (!result.applicationVersion.startsWith("0.3.")) assert.deepEqual(readProjectJSON(".luci/design.json"), design);
+    if (structuredUI) {
+      await approveNativeHandoff();
+      result.checks.push("Saved and explicitly approved a structured screen/state handoff linked to the actual saved definition and nonempty sketch through native controls");
+    }
     await click("Develop");
     if (!result.applicationVersion.startsWith("0.3.")) {
       await fill("New task", "Verify installed application persistence");
@@ -404,10 +707,21 @@ try {
     await click("Commit changes");
     await bodyHas("Everything is committed");
     await bodyHas(fixture.commitMessage);
+    if (structuredUI) assertCommittedContext();
     result.checks.push("Normal installed UI saved project settings, Git identity, brief, actual canvas rectangle and Git commit");
     await snapshot("git");
     if (!result.applicationVersion.startsWith("0.3.")) {
       await click("Deploy");
+      if (structuredUI) {
+        const selected = await element("css", '.deployment-tabs button[aria-current="page"],.deployment-tabs button[role="tab"][aria-selected="true"]');
+        assert.equal(await command(`/element/${selected[elementKey]}/text`, "GET", undefined), "Application platform");
+        await bodyHas("Deploy and operate");
+        await click("Previews and publishing");
+        await bodyHas("Build local preview");
+        await click("Application platform");
+        result.checks.push("Deploy opens the application platform and exposes previews/publishing through its explicit workspace tab");
+      }
+      await openDisclosure("Runtime configuration");
       fixture.privateValue = "fixture-only-" + randomUUID();
       await fill("Variable name", "NATIVE_UAT_MESSAGE");
       await fill("Private value", fixture.privateValue);

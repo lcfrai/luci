@@ -394,6 +394,14 @@ func (a *API) handlePatchWorktree(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return // readyFromBody has written the 400.
 	}
+	if a.deps.Product != nil {
+		release, err := a.deps.Product.AcquireGitSessionAdmission(r.Context(), projectID)
+		if err != nil {
+			httpx.WriteProblem(w, 409, httpx.CodeConflict, "The project source is changing. Refresh before marking its current branch ready.", nil)
+			return
+		}
+		defer release()
+	}
 
 	current, err := a.decoratedWorktrees(r, projectID)
 	if a.enumerationFailed(w, r, "enumerate worktrees", projectID, err) {

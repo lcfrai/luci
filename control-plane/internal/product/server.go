@@ -18,10 +18,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
-const Version = "0.4.2"
+const Version = "0.4.18"
 
 type Config struct {
 	ProjectsDir      string  `json:"projectsDir"`
@@ -37,53 +39,69 @@ type Registrar interface {
 }
 type Runner func(context.Context, string, []string, string) (string, error)
 type Options struct {
-	ManagedWorkspace bool
-	CloudBundle      string
-	Shutdown         func()
-	RuntimeDir       string
-	StateDir         string
-	ProjectsDir      string
-	SandboxImage     string
-	CheckMemoryMiB   int
-	CheckCPUMillis   int
-	Configure        func(string) error
-	Runner           Runner
+	NativePrototypeReleases func(context.Context, string) ([]Release, error)
+	ClearBranchReady        func(context.Context, string) error
+	BranchSessions          func(context.Context, string, string) (bool, error)
+	CloudDataBindings       func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
+	BrowserPreviewPort      int
+	ManagedWorkspace        bool
+	CloudBundle             string
+	Shutdown                func()
+	RuntimeDir              string
+	StateDir                string
+	ProjectsDir             string
+	SandboxImage            string
+	CheckMemoryMiB          int
+	CheckCPUMillis          int
+	Configure               func(string) error
+	Runner                  Runner
 }
 
 type Server struct {
-	cloudBundle       string
-	workspace         Workspace
-	workspaceInstalls map[string]WorkspaceInstall
-	workspaceCancel   context.CancelFunc
-	workspaceContext  context.Context
-	remoteStatus      *Status
-	workspaceAuth     map[string]workspaceCredential
-	previews          map[string]*workspacePreview
-	shutdown          func()
-	agentAPIKey       string
-	agentOpenAIKey    string
-	agentLocal        LocalAgentConfig
-	deliveryBusy      map[string]bool
-	projectChecks     map[string]*projectCheckJob
-	runtimeJob        RuntimeJob
-	authJobs          map[string]*ProviderLoginJob
-	runtimeDir        string
-	mu                sync.RWMutex
-	config            Config
-	stateDir          string
-	runner            Runner
-	configure         func(string) error
-	sandboxImage      string
-	checkMemoryMiB    int
-	checkCPUMillis    int
-	configured        bool
-	managedWorkspace  bool
-	checks            []Check
-	plans             map[string]CloudPlan
-	jobs              map[string]CloudJob
-	targets           map[string]DeploymentTarget
-	scans             map[string]SSHScan
-	tunnels           map[string]*Tunnel
+	nativePrototypeReleases func(context.Context, string) ([]Release, error)
+	clearBranchReady        func(context.Context, string) error
+	branchSessions          func(context.Context, string, string) (bool, error)
+	branchGuardMu           sync.Mutex
+	branchGuards            map[string]*sync.RWMutex
+	branchRunner            Runner
+	cloudDataBindings       func(context.Context, CloudDataBindingRequest) (CloudDataBindingSnapshot, error)
+	browserRegistry         *previewgateway.Registry
+	cloudBundle             string
+	workspace               Workspace
+	workspaceInstalls       map[string]WorkspaceInstall
+	workspaceCancel         context.CancelFunc
+	workspaceContext        context.Context
+	remoteStatus            *Status
+	workspaceAuth           map[string]workspaceCredential
+	previews                map[string]*workspacePreview
+	shutdown                func()
+	agentAPIKey             string
+	agentOpenAIKey          string
+	agentLocal              LocalAgentConfig
+	agentConnections        agentConnectionStore
+	activeLocalReleases     map[string]bool
+	deliveryBusy            map[string]bool
+	projectChecks           map[string]*projectCheckJob
+	runtimeJob              RuntimeJob
+	authJobs                map[string]*ProviderLoginJob
+	runtimeDir              string
+	mu                      sync.RWMutex
+	functionSourceMu        sync.RWMutex
+	config                  Config
+	stateDir                string
+	runner                  Runner
+	configure               func(string) error
+	sandboxImage            string
+	checkMemoryMiB          int
+	checkCPUMillis          int
+	configured              bool
+	managedWorkspace        bool
+	checks                  []Check
+	plans                   map[string]CloudPlan
+	jobs                    map[string]CloudJob
+	targets                 map[string]DeploymentTarget
+	scans                   map[string]SSHScan
+	tunnels                 map[string]*Tunnel
 }
 
 func New(opts Options) (*Server, error) {
@@ -97,10 +115,17 @@ func New(opts Options) (*Server, error) {
 	if root == "" {
 		root = filepath.Join(opts.StateDir, "projects")
 	}
-	s := &Server{stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
+	s := &Server{nativePrototypeReleases: opts.NativePrototypeReleases, clearBranchReady: opts.ClearBranchReady, branchSessions: opts.BranchSessions, cloudDataBindings: opts.CloudDataBindings, stateDir: opts.StateDir, runtimeDir: opts.RuntimeDir, cloudBundle: opts.CloudBundle, shutdown: opts.Shutdown, runner: opts.Runner, configure: opts.Configure,
 		sandboxImage: opts.SandboxImage, plans: make(map[string]CloudPlan),
 		managedWorkspace: opts.ManagedWorkspace, configured: opts.ManagedWorkspace,
 		config: Config{ProjectsDir: root, Mode: "local", MonthlyBudgetUSD: 30}}
+	if opts.BrowserPreviewPort != 0 {
+		var err error
+		s.browserRegistry, err = previewgateway.NewRegistry(opts.StateDir, opts.BrowserPreviewPort)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if s.runner == nil {
 		s.runner = RunCommand
 	}
@@ -164,6 +189,7 @@ func New(opts Options) (*Server, error) {
 }
 
 func (s *Server) Register(mux Registrar) {
+	mux = s.guardProjectSourceRoutes(mux)
 	mux.HandleFunc("POST /v1/setup/shutdown", func(w http.ResponseWriter, r *http.Request) {
 		if s.shutdown == nil {
 			problem(w, 501, "unsupported", "This service is managed externally.")
@@ -180,6 +206,7 @@ func (s *Server) Register(mux Registrar) {
 	s.registerCloudJobs(mux)
 	s.registerConnections(mux)
 	s.registerCloudReleases(mux)
+	s.registerPagesReleases(mux)
 	s.registerSetupTools(mux)
 	s.registerProviderLogin(mux)
 	s.registerWorkspace(mux)
@@ -263,17 +290,21 @@ func newID(prefix string) string {
 
 // RunCommand never invokes a shell. Output and duration are bounded, including child pipe drains.
 func RunCommand(ctx context.Context, executable string, args []string, dir string) (string, error) {
-	limit := 2 * time.Minute
-	if _, ok := ctx.Deadline(); ok {
-		limit = 10 * time.Minute
-	}
+	return runCommandEnvironment(ctx, executable, args, dir, append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "AWS_PAGER=", "AZURE_CORE_ONLY_SHOW_ERRORS=true"))
+}
+
+func runCommandEnvironment(ctx context.Context, executable string, args []string, dir string, env []string) (string, error) {
+	limit := commandExecutionBudget(ctx, executable, args)
 	ctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
+	if executable == "git" {
+		args = gitcommand.PlatformArgs(dir, args)
+	}
 	cmd := exec.CommandContext(ctx, executable, args...)
 	hideProcess(cmd)
 	cmd.Dir = dir
 	cmd.WaitDelay = 2 * time.Second
-	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "AWS_PAGER=", "AZURE_CORE_ONLY_SHOW_ERRORS=true")
+	cmd.Env = env
 	output := &limitedBuffer{limit: 2 << 20}
 	stderr := &limitedBuffer{limit: 2 << 20}
 	cmd.Stdout = output
@@ -396,32 +427,48 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 		{"aws", []string{"sts", "get-caller-identity", "--query", "Account", "--output", "text"}, "Install AWS CLI and sign in with aws login or your configured SSO profile."},
 		{"az", []string{"account", "show", "--query", "name", "--output", "tsv"}, "Install Azure CLI and use az login to connect your own account."},
 	}
+	var pending sync.WaitGroup
 	for i, p := range probes {
 		if cloud && i < 3 {
 			continue
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
-		output, err := s.runner(ctx, p.exe, p.args, "")
-		cancel()
-		if err != nil {
-			checks[i].Status = "missing"
-			checks[i].Message = "This connection is not ready."
-			checks[i].Action = p.action
-		} else {
-			checks[i].Status = "ready"
-			checks[i].Message = "Ready"
-			if i == 0 || i == 1 {
-				checks[i].Message = strings.TrimSpace(output)
+		pending.Add(1)
+		go func() {
+			defer pending.Done()
+			ctx, cancel := context.WithTimeout(r.Context(), 8*time.Second)
+			defer cancel()
+			output, err := s.runner(ctx, p.exe, p.args, "")
+			// Each independent probe owns one stable result slot. Publish the
+			// complete ordered snapshot only after every probe has settled.
+			// Zero exit, empty output or late proof after cancellation is not
+			// evidence that Docker or a provider account is ready.
+			if err != nil || ctx.Err() != nil || strings.TrimSpace(output) == "" {
+				checks[i].Status = "missing"
+				checks[i].Message = "This connection is not ready."
+				checks[i].Action = p.action
+			} else {
+				checks[i].Status = "ready"
+				checks[i].Message = "Ready"
+				if i == 0 || i == 1 {
+					checks[i].Message = strings.TrimSpace(output)
+				}
+				if i == 3 {
+					checks[i].Message = "Signed in to your AWS account"
+				}
+				if i == 4 {
+					checks[i].Message = "Signed in to " + strings.TrimSpace(output)
+				}
 			}
-			if i == 3 {
-				checks[i].Message = "Signed in to your AWS account"
-			}
-			if i == 4 {
-				checks[i].Message = "Signed in to " + strings.TrimSpace(output)
-			}
-		}
+		}()
 	}
+	pending.Wait()
 	s.mu.Lock()
+	// A superseded or disconnected browser may cancel its generation while
+	// the probes drain. Its result must not replace a newer readiness snapshot.
+	if r.Context().Err() != nil {
+		s.mu.Unlock()
+		return
+	}
 	s.checks = checks
 	s.mu.Unlock()
 	writeJSON(w, 200, s.workspaceStatus(r.Context(), "POST"))

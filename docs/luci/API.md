@@ -55,6 +55,16 @@ POST /v1/setup/cloud/login accepts `{provider: "aws" | "azure"}` and returns an 
 
 ## Project journey
 
+### Full product definition and design handoff
+
+`GET /v1/product/projects/{id}/specification` returns the version-1 structured definition: revision, briefRevision, startingPoint (`new`/`existing`), purpose/audience/constraints, exclusions, stable requirements (`id,title,priority,acceptance`), journeys linked to requirement IDs, roles/access, entities/privacy, integrations, glossary, decisions, questions, status, digest and timestamp. Legacy briefs derive an unsaved definition in memory; reads never create files. `POST` accepts `{expectedRevision,expectedBriefRevision,specification}` with optimistic concurrency, persists an immutable revision, updates the compatible brief and exports full agent context to `.luci/specification.md` and `.json`. Client status/digest cannot grant approval. `POST .../specification/approve {revision,briefRevision}` records a digest-bound approved snapshot only with a purpose, audience, measurable requirements and answered questions. History is `GET .../specification/history`. Later brief changes make approval outdated until reconciled and saved.
+
+`GET /v1/product/projects/{id}/design-plan` returns the revisioned screen/state handoff, linked definition/brief/sketch revisions, responsive widths, requirement links, tokens, asset provenance, implementation notes and an optional verified prototype release/commit. `POST` accepts `{expectedRevision,expectedBriefRevision,expectedSpecificationRevision,plan}`. `POST .../design-plan/approve {revision}` binds the current approved definition and sketch after checking screen purpose, states and responsive targets. History is `GET .../design-plan/history`. Saving the sketch does not approve this handoff. Exports are `.luci/design-handoff.md` and `.json`. Subsequent definition/sketch edits make approval outdated. Restore rebinds the new project identity, removes unavailable prototype references and requires fresh approval.
+
+`GET /v1/product/projects/{id}/prototype-releases` returns `{releases: Release[]}` for Design. It combines the project's verified local previews, cloud and GitHub Pages releases with its owned running native Docker applications. Only ready project-owned records with valid provenance are admitted; foreign, malformed or ambiguous history is refused. Native application rows have `target:"application"`, a blank `url` and `browserConnectionRequired:true`. Opening first reads the existing platform project DTO and requires a nonbusy matching project and exactly one ready Docker deployment with the same release ID, commit and configuration revision. Local applications reuse that deployment's existing isolated gateway URL. Only a deployment marked as requiring a cloud browser connection uses `POST /v1/setup/workspace/platform/browser {projectId,kind:"application",resourceId}`, with the returned resource binding and separate origin checked. Selected SSH workspaces use the same catalogue and their explicit browser bridge. Saving a design resolves its prototype against this catalogue and records the backend release's exact commit; caller-supplied `prototypeCommit` is not trusted. This catalogue does not add native application rows to the separate preview/cloud deployment history or change its stop/rollback routing. Cloud/Pages ready history retains its original verification and does not continuously monitor the public site; native application eligibility includes a current owned-container health check.
+
+`POST /v1/setup/agents/codex/sign-in {}` starts an official auth-only session in a private setup workspace, independent of project/worktree selection. It returns the ordinary Session DTO for terminal attach; saving the completed account connection still uses the existing explicit account endpoint. `POST /v1/product/projects/{id}/assist {expectedRevision,message,harness?,model?,agentConnectionId?}` starts a durable structured-assistance job through the selected connection described below. Omitted harness defaults to Codex. GET of `.../assist/{jobId}` reads cached progress/result; POST of `.../cancel` cancels the owned run. Results contain one question/options/rationale and an optional proposed definition. They never save or approve project content. A named subscription connection never falls back to an API account. No host-profile credential import is used.
+
 ### Git delivery and project backups
 
 `POST /v1/setup/github/check` runs bounded `gh` availability/account checks and returns `{available, signedIn, login?, message, actionUrl?}`. `POST /v1/setup/github/login` accepts `{}` and returns the existing asynchronous login job shape with `provider: "github"`. `GET` on that login route returns `{jobs}` for GitHub only. The owned CLI process uses GitHub's browser/device flow; raw output and tokens are never returned. Credentials remain with GitHub CLI on the current execution workspace. This operation does not copy an account to another machine.
@@ -92,15 +102,76 @@ Discovery builder: Glasses reuse evidence and compatible deployment/design compo
 
 ## Setup tools and runtime
 
+### Managed installation of host tools
+
+`GET /v1/setup/dependencies` is an authenticated, cached read from the management gateway. It never starts a worker, calls an installer, probes a CLI or follows the selected cloud workspace. Its `scope` is always `control-plane-host`; `platform` is the gateway computer's operating system. It returns `{scope,platform,canInstall,installer:{id:"winget",status,message,checkedAt?},dependencies:[{id,name,packageId,supported,reason,check:{status,version?,message,checkedAt?},actionRequired,job:null|{id,dependencyId,status,message,actionRequired,createdAt,updatedAt,exitCode?}}]}`. Members can read it; `canInstall` also depends on the current account's administrator role and verified installer availability.
+
+`POST /v1/setup/dependencies/check {}` requires Admin or Super Admin and explicitly performs bounded, read-only probes. Tool check status is `unchecked`, `missing`, `ready` or `action_required`. Docker CLI availability and its configured engine are distinct: an installed CLI with an unavailable engine requires `start_docker`, and does not offer another Docker installation. The existing workspace readiness endpoint separately checks the selected execution host and Luci runtime image. Optional GitHub/AWS/Azure tools are not installed or signed in by a check. A fresh check supersedes an old installation's displayed action while preserving the private operation history.
+
+`POST /v1/setup/dependencies/{id}/install {acceptAgreements:true}` requires Admin or Super Admin, an explicitly accepted package/source agreement, and a prior check that the tool is missing. It returns `202` with a durable job. The fixed catalogue is `git` → `Git.Git`, `docker` → `Docker.DockerDesktop`, `github` → `GitHub.cli`, `aws` → `Amazon.AWSCLI`, and `azure` → `Microsoft.AzureCLI`. Unknown IDs and additional executable, URL, package or command fields are refused. Automatic installation currently supports Windows only; other operating systems receive a manual-install explanation.
+
+The gateway verifies the official Microsoft WinGet source URL, package identifier, type and trust metadata before enabling installation, and verifies it again immediately before dispatch. It uses an exact package ID, the explicit `winget` source and dependency source, silent/noninteractive package installation, agreement flags and `--no-upgrade`. It never resets sources, launches a shell, imports project configuration, passes model/cloud credentials to installers, invokes an elevation bypass, or requests an automatic reboot. Microsoft's source and command semantics are documented in [WinGet source](https://learn.microsoft.com/en-us/windows/package-manager/winget/source) and [WinGet install](https://learn.microsoft.com/en-us/windows/package-manager/winget/install).
+
+Jobs are `queued`, `installing`, `ready`, `action_required`, `failed` or `interrupted`; actions are `none`, `check`, `install_winget`, `elevation`, `restart_app`, `restart_computer`, `start_docker` or `manual_install`. A completed installer is only `ready` after a real version check. UAC/restart/Windows policy results remain actionable states with a normalized exit code, never a fabricated success. The gateway serializes all accounts' host installations, shares active duplicate requests, and uses a Windows named mutex across Luci instances. It rechecks the requesting identity's current role before dispatching each queued job. Startup marks prior queued/running jobs `interrupted` and runs no automatic retry. Closing Luci cancels its owned process tree. Retry requires checking tools and a fresh explicit installation request. Raw installer output and the private issuer ID are not returned.
+
 GET /v1/setup/git/identity returns `{name, email}` from the person's global Git configuration. It runs bounded read-only Git commands outside project repositories and does not create directories. POST on the same route accepts `{name, email}` and writes those explicitly supplied values to global Git configuration. It never substitutes an invented author or rewrites repository-local configuration. Invalid names/emails return 400; a partial write is reported explicitly so it can be retried.
 
 POST /v1/setup/ssh/key accepts `{}` and returns `{publicKey, privateKeyPath, fingerprint}`. The dedicated Ed25519 key is stored at `stateDir/ssh/id_luci`; only its public key, local private-key path and SHA256 fingerprint are returned. Repeating the request returns the same matching key pair. Existing key material is never overwritten. A missing/mismatched public key or unreadable private key returns 409 for explicit resolution.
 
 POST /v1/setup/runtime/install accepts `{}` and returns HTTP 202 with `{id, status, image, message, createdAt, updatedAt}`. The build uses the runtime source shipped with Luci, configured by the application at startup; callers cannot supply an arbitrary source path or image. Docker builds the bundled sandbox image asynchronously with a ten-minute limit and then verifies that Docker can inspect the resulting image. Repeating POST while installation is running returns the same job. Status is `idle`, `installing`, `ready`, `failed` or `unknown`. Docker failures remain failures with their actual bounded diagnostic. GET on the same route returns only cached job state and never calls Docker. A restart during installation yields `unknown`, requiring a readiness check or explicit retry. A saved `ready` outcome records the prior successful install; `/v1/setup/check` verifies current availability.
 
-After installing the runtime, open a Claude Code session in Develop and follow the harness's own sign-in prompt; inside that session, `/login` opens its account sign-in flow. Model access and charges belong to the person's provider account. Credentials created by that in-session sign-in remain inside the sandbox and are not copied into Luci's project files or transcript storage; creating a replacement sandbox can require signing in again. Shell sessions remain available without a model account. Claude receives a fixed instruction to read the worktree's `LUCI.md` as untrusted project context; Luci does not replace the person's `CLAUDE.md` or interpolate their brief text into a system prompt.
+Configured Claude Code API and gateway connections are injected into the session without an additional login-method choice. A person using Claude's separate subscription may explicitly use its own `/login` flow inside the sandbox; that subscription is not an API gateway credential. Model access and charges belong to the chosen provider account. Credentials created by in-session sign-in remain inside that sandbox and are not copied into project files or transcripts; a replacement sandbox can require sign-in again. Shell sessions need no model account. Claude receives a fixed instruction to read the worktree's `LUCI.md` as untrusted project context; Luci does not replace the person's `CLAUDE.md` or interpolate their brief into a system prompt.
 
 For a persistent personal API connection, GET /v1/setup/agents returns `{providers: [{id: "anthropic", name: "Claude Code", configured: false}]}`. POST /v1/setup/agents/anthropic accepts `{apiKey: "..."}` and returns the same status-only shape. An empty key disconnects. A nonempty key must be 20ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“8,192 printable ASCII characters without whitespace. The explicit save stores the key only in Luci's private host state, with mode 0600 on Unix and a protected owner-only DACL on Windows. It is injected as `ANTHROPIC_API_KEY` only into new or restarted Claude sandboxes, never into shell sessions, project files, session records, GET responses or command arguments. Clearing applies to future sessions; stop existing containers to remove their existing environment. Saving a key does not make a provider call or claim that the provider accepted it. API usage is billed by Anthropic under the person's API account; a Claude subscription is a separate sign-in option. Startup and settings refuse any projects folder that contains the private state folder.
+
+## Shared model connections and general CLI sessions
+
+`GET /v1/setup/agent-connections` returns `{revision,activeConnectionId,connections}`.
+Public rows contain ID, name, kind, enabled/revision, protocol endpoint bases,
+model aliases, configured status, key presence and any blocked reason. Keys are
+never returned. `POST` supports `save`, `select` and `delete` with the current
+`expectedRevision`; save accepts the connection fields and optional `apiKey`.
+Omitting a key preserves it; an explicit empty key clears it. The private store
+is bounded to sixteen connections and 256KiB, written atomically outside
+projects with private file permissions. Endpoint URLs cannot contain credentials,
+queries or fragments. HTTPS and private/loopback HTTP bases are supported.
+
+Kinds are `litellm`, `compatible-api`, `codex-subscription` and `direct-api`.
+LiteLLM's simple editor derives Responses and Chat Completions bases at
+`<server>/v1` and the Messages server base only after Apply gateway address.
+Explicit custom protocol paths remain available under Advanced. The lcfr.ai
+gateway has no invented default address. Saving configuration makes no provider
+call and does not certify access or pricing.
+
+New Develop sessions, guided Define and repository analysis share this
+selection. An omitted `agentConnectionId` uses the active connection; an explicit
+empty ID selects the retained personal connection. Switching the active ID to
+empty turns off the gateway without deleting it. A named disabled, deleted or
+changed connection is refused before replacing an existing sandbox. Sessions
+record its ID, revision, kind and protocol without its key. Named model changes
+cannot silently select a different billed model or account. Existing running
+containers retain their injected environment until stopped. Codex receives a
+Responses route, Claude Code a Messages route and OpenCode a Chat Completions
+route. A gateway must actually support each enabled protocol and model.
+
+The server maps private routing hints into each CLI's supported configuration
+before validating a sandbox; callers cannot inject reserved `LUCI_` variables.
+Only Docker-backed Codex Ask sessions use Codex's supported `danger-full-access`
+inner sandbox with `on-request` approvals, because its namespace sandbox cannot
+start inside the existing restricted Docker boundary. Host execution retains
+its original sandbox policy. The outer Docker container remains non-root with
+dropped capabilities, no new privileges and no host Docker socket. Interactive
+coding containers do not claim a read-only root filesystem. Explicit bypass
+mode remains a separate user choice.
+
+Shell supports ordinary installed CLI tools and file operations in its assigned
+worktree. Each Shell session has a separate private tools/home directory outside
+projects, mounted only into that session; HOME, XDG, npm, pip, Go and Cargo paths
+use it. Tools and configuration survive Restart and Stop. Forget removes the
+owned directory only after the container is gone. New sessions and other users
+do not share it. Unsafe linked home paths are refused before container removal.
+Using an arbitrary CLI in Shell does not imply that Luci can automatically
+configure that CLI's provider authentication.
 
 ## Local release execution
 
@@ -138,6 +209,10 @@ GET `/v1/setup/agents` now returns `anthropic`, `openai`, and `local` provider r
 
 POST `/v1/sessions` accepts optional `authOnly:true` with `harness:"codex"`, a worktree ID, and no resume or opening prompt. Attach to complete the official device sign-in flow; restart that session to start normal Codex with retained auth and clean context. API-key sessions receive a documented environment-backed Codex provider configuration. OpenCode requires an explicit saved endpoint/model before starting; it enables only that provider and uses the same model for smaller tasks. Loopback model endpoints are translated to the Docker host's `host.docker.internal` alias. That host must actually expose the model service to its Docker network.
 
+GET `/v1/setup/agents/codex/account` returns `{configured,authMode:"chatgpt",sourceSessionId?,activeSessionId?,message}`. POST accepts only `{sessionId}` and explicitly retains the native credential from this user's stopped Codex device-sign-in session. It accepts neither credential values nor host paths. DELETE disconnects future account use while existing sessions keep their private credential copies. Saved presence is not a successful account/model test. New Codex sessions prefer the saved subscription, receive distinct private homes, and record `authMode:"chatgpt"` so restart/resume cannot substitute an API key. One subscription session is active at a time; competing use returns 409 `codex_account_busy`. Status and ordinary session metadata expose `authOnly` and `authMode`, never native credential contents.
+
+Disconnected or replaced connections cannot be resurrected through restart or fork of a previously bound session: reconnect explicitly. Account-status GET is read-only; an exited lease remains private for credential reconciliation and is not reported as active. Saving the already-connected sign-in is idempotent and cannot overwrite refreshed credentials with its old native cache.
+
 Codex/OpenCode resume requires a stopped source, returning 409 while it runs or changes. A bounded private state snapshot is mounted in a new sandbox and forked with native CLI flags; the source is unchanged. Restart retains only the native credential file and keeps earlier histories available for resume. Forget removes the recorded state without removing independent forks. See [provider scope and evidence](PROVIDERS.md).
 
 ## Private cloud source and maintenance
@@ -152,11 +227,43 @@ POST `.../releases/{releaseId}/rollback` accepts `{}` and creates a new release 
 
 ## Task plans and check outcomes
 
-GET `/v1/product/projects/{id}/plan` returns `{projectId,revision,briefRevision,tasks:[{id,title,status}],updatedAt}`. Task status is `todo`, `doing` or `done`. POST accepts `{expectedRevision,tasks}` and returns the saved plan; stale revisions return409. Plans contain at most200 tasks. Saving publishes `.luci/plan.json` alongside canonical state and `.luci/design.json` for agent context. Manual task status is not execution evidence.
+### Reviewed implementation runs
 
-GET `.../checks` returns `{runs,suggested}`. POST accepts `{commands:[{label,executable,args}],execution:"docker"|"host",acknowledgeHostExecution?}` and returns202. Docker is the default; host mode requires Super Admin, enabled policy and an explicit acknowledgement. Commands are bounded typed argv, not interpolated shell text. Runs have a ten-minute limit, at most eight commands, bounded output and retained history. GET `.../checks/{runId}` reads a run; POST `.../checks/{runId}/cancel {}` requests cancellation.
+POST `/v1/sessions` may include `implementationContext` with
+`{projectId,briefRevision,planRevision,specificationRevision,designPlanRevision,taskIds}`.
+The selected worktree must be this owned project's main checkout. The server
+resolves saved task titles, requirement links, reviewed definition/design and
+their content digests; clients cannot submit approval digests or substitute
+task text. Stale, foreign, duplicate or missing task selections fail before
+allocating a container. Shell and provider sign-in sessions cannot carry a
+reviewed coding handoff. Ordinary independent CLI sessions remain supported.
 
-Each run records `{id,projectId,commit,dirty,execution,memoryMiB,cpuMillis,sourceDigest,sourceChanged,status,commands,createdAt,updatedAt,message}`. Command rows add `{status,exitCode?,output,truncated}`. Policy resources are clamped to operator ceilings. Only an unchanged source snapshot with successful commands can pass; changed/unverifiable source yields `unknown`. Restarted in-flight runs become `unknown`. Checks do not automatically mark tasks complete or claim acceptance criteria are satisfied.
+The returned optional Session `implementationContext` includes those revisions,
+`worktreeId`, brief/plan/specification/design digests, canonical task IDs/titles,
+requirement IDs and the actual `sourceCommit`, `sourceDigest` and `sourceDirty`
+captured at start. It survives controller restart with the session. Restart
+retains that original source snapshot, allows normal implementation changes and
+revalidates the reviewed inputs before replacing its container. Resume retains
+the original task selection and worktree, and captures its new run's starting
+source; it cannot silently retag a conversation to different tasks. Changed
+reviewed inputs require a new run from the current plan.
+
+An unlinked task is supported without inventing requirement coverage. Explicit
+`expectedSpecificationRevision` binds even an unlinked saved plan to the current
+approved specification. The canonical opening prompt includes the saved
+specification and both `.luci/design-handoff.json` and
+`.luci/design-handoff.md`; a sketch is supplemental. Task status and CLI exit are
+independent of recorded verification and deployment outcomes.
+
+GET `/v1/product/projects/{id}/plan` returns `{projectId,revision,briefRevision,tasks:[{id,title,status,requirementIds?}],updatedAt,specificationRevision?,specificationDigest?}`. Task status is `todo`, `doing` or `done`. POST accepts `{expectedRevision,tasks,expectedSpecificationRevision?}` and returns200 with the saved plan. When any task has requirement links, the expected specification revision must match this project's current saved approved specification. Links use its stable requirement IDs; at most100 unique IDs per task and200 tasks are allowed. Unknown/foreign IDs or duplicates return400; stale or missing expected revisions return409; an unapproved/outdated specification returns422. The server records the approval revision/digest. Unlinked legacy plans remain supported, and existing links remain readable after the definition changes so they can be explicitly removed. Saving publishes `.luci/plan.json` alongside canonical state and `.luci/design.json` for agent context. Task Done remains user-reported progress, independent of test evidence.
+
+GET `.../checks` returns `{runs,suggested,coverage}`. POST accepts `{commands:[{label,executable,args}],execution:"docker"|"host",acknowledgeHostExecution:true,requirementIds?,expectedSpecificationRevision?,expectedDesignPlanRevision?}` and returns202 with a reserved run. Docker is the default; host mode additionally requires Super Admin and the enabled host-command policy. Nonempty requirement IDs require both current saved approvals and their exact expected revisions. Unknown/foreign/duplicate IDs return400 `invalid_requirement_link`; stale or missing expected revisions return409 `revision_conflict`; current approval prerequisites return422 `specification_approval_required` or `design_approval_required`. A refused binding allocates no check. Empty links retain generic check behavior. Commands are bounded typed argv, not interpolated shell text. Runs have a ten-minute limit, at most eight commands, bounded output and twenty retained rows. GET `.../checks/{runId}` reads an owned run; POST `.../checks/{runId}/cancel {}` requests cancellation.
+
+Each run records `{id,projectId,commit,dirty,execution,memoryMiB,cpuMillis,sourceDigest,sourceChanged,status,commands,createdAt,updatedAt,message}`. Linked runs also retain `requirementIds`, server-derived `requirementSnapshots:[{id,title,acceptance}]`, `specificationRevision`, `specificationDigest`, `designPlanRevision` and `designPlanDigest`. Command rows add `{status,exitCode?,output,truncated}`. Policy resources are clamped to operator ceilings. Dirty source is permitted and hashed; an unborn repository has a blank commit. The bounded digest covers Git-visible tracked and non-ignored working files, including visible `.luci` context, while excluding known credentials. Source/commit changes during a successful run yield `unknown`; restarted in-flight runs also become `unknown`.
+
+Read responses derive `evidenceStatus:"linked-test-evidence"|"stale"|"unverified"` and human-readable `staleReasons` without rewriting historical command outcomes. Only a fully bound passing run with recorded zero exit codes and matching current approved specification, design, requirement text, source digest and commit is linked test evidence. Later definition/design/source changes make that evidence stale, including changed acceptance text with the same ID or changed content retaining old revision/digest fields. Failed, canceled, unfinished, incomplete and historical unbound runs remain unverified. An unsafe, unavailable or switching source is not treated as current evidence.
+
+`coverage` is `{projectId,specification:{revision,status,digest},design:{revision,status,digest},source:{commit,sourceDigest,dirty,available},rows:[{requirementId,title,acceptance,taskIds,doneTaskIds,evidenceRunIds,evidenceStatus}]}`. Rows describe the current specification even when unapproved. `evidenceRunIds` includes all linked historical outcomes, newest first, so a newer failure or cancellation remains visible alongside earlier passing evidence. `doneTaskIds` identifies user-reported Done tasks. Reads use bounded confined Git/file inspection and never start checks or allocate a runtime. Passing commands and task Done do not establish that the acceptance scenario was exercised or that a requirement is satisfied.
 
 ## Cloud backing identity
 
@@ -234,3 +341,270 @@ The selected-workspace management bridge supports these invitation routes with
 the selected backing's identity. Existing SSH workspace sign-in accepts an
 optional `inviteCode` and redeems it on that workspace. A remote account error
 remains a recoverable workspace error and does not expire the local login.
+
+## Repository analysis and saved assistance
+
+GET `/v1/product/projects/{id}/assist` returns the newest twenty job metadata
+records as `{jobs:[...]}` without results or provider calls. GET
+`/assist/{jobId}` reads a saved detailed result. POST `/assist/repository`
+accepts `{expectedRevision,expectedBriefRevision,sourceMode,harness,model,
+agentConnectionId?,acknowledgeSourceRead:true,message?}` and returns202 with a durable job.
+Source mode is `worktree` or `commit`; harness is `codex`, `claude-code` or
+`opencode`. An explicit non-default model is required. All three use the shared
+connection resolver; a named connection requires its exact saved model alias.
+Legacy clients may still specify `authMode`; this cannot override a named
+connection. OpenCode uses its saved qualified provider/model identifier.
+No provider fallback occurs.
+Session quota and allowed-harness policy apply before starting a job.
+
+The read-only snapshot includes at most sixty Git-visible text files,16KiB per
+file and96KiB total. Ignored, private, generated, binary and linked files are
+excluded. The response records the partial selection, paths, byte counts and
+fingerprints. Findings distinguish `observed`, `inference` and `gap`; observed
+findings must cite an included file. Selection is not full-repository coverage.
+
+POST `/assist/{jobId}/apply` requires `{expectedRevision,expectedBriefRevision,
+acknowledgePartial:true}` and returns a saved specification draft only when the
+job belongs to the project, both revisions and source fingerprints still match,
+and the proposal has not previously been applied. Approval remains a separate
+operation. POST `/assist/{jobId}/cancel {}` cancels an owned run. Loading saved
+history never starts inference or changes the definition.
+
+## Standalone PostgreSQL backups and recovery
+
+GET `/v1/platform/projects/{id}` returns `{project,busy}`. The project includes the cached `database`, `backups`, optional `databaseOperation` and `databaseRestoreHistory`. A read starts no restore or database; ready status describes the last verified operation. PostgreSQL is the project's existing pinned PostgreSQL16 container and private persistent volume, separate from optional Supabase data resources.
+
+POST `/v1/platform/projects/{id}/database` accepts `{action:"start"|"stop"|"backup"}`. Start/stop return200 with `{status,engine,container?,host?,port?,database?,username?,message}`. Stop retains the volume. Backup requires a running database and returns201 `{id,createdAt,bytes,sha256,database?}` for a private custom-format PostgreSQL dump of the active logical database, bounded to64MiB. GET `/v1/platform/projects/{id}/backups/{backupId}` downloads only a recorded project-owned dump whose size/type/format/checksum still match; a missing backup returns404 and changed bytes return409. This does not back up application source, other databases, Supabase storage or external services.
+
+To restore, POST the same database route with `{action:"restore",backupId,confirmRestore:true,acknowledgeResources:true}`. To return to a retained previous database, use `{action:"rollback-restore",restoreId,confirmRestore:true,acknowledgeResources:true}`. Both require an explicitly stopped existing PostgreSQL container and stopped project Docker applications. Luci verifies the owned pinned container, private volume and credential binding before accepting. Resource acknowledgement covers the workspace service limits and extra disk space; restore is not a capacity or cost estimate. Confirmation/acknowledgement omissions return400; concurrent operations, unverified resources, running applications/database or ineligible restore history return409. Restore accepts only this project's recorded unchanged backup, not an uploaded dump or arbitrary database name. Rollback accepts a successful restore from this project whose candidate is still the active database.
+
+Acceptance returns202 `{id,action,status:"running",stage:"queued",message,createdAt,updatedAt,backupId,restoreId?,previousDatabase,candidateDatabase}` after saving durable operation metadata. Poll the existing project GET for progress/history. The five-minute operation starts only the retained PostgreSQL container, restores into a separate generated logical database in the same volume, and selects it only after a password-authenticated SQL check proves the candidate's identity. Stages are `queued`, `starting`, `restoring`, `checking`, `promoting` and `complete`; rollback verifies/selects the retained previous database without replaying the dump. Success is `status:"succeeded",stage:"complete"` with database status `ready`. Containers, credentials, network alias, original volume and previous/candidate databases are retained; no database is dropped or volume replaced.
+
+Failures report `failed` or `interrupted`, preserve the previous active selection and candidate, and attempt a bounded stop of only the owned PostgreSQL container. An unverified stopped state remains `unknown`; explicit stop/verification is required before retry. Service restart exposes an interrupted in-flight operation and never automatically repeats it. After a successful restore/rollback, applications remain stopped. Redeploy to bind the selected database: restarting an older Docker deployment is refused if its saved or actual automatic `DATABASE_URL` still refers to a different logical database. URLs, passwords and raw restore command output are not returned. SQL health and successful restore do not certify application behavior, reverse external migrations or validate all restored business data.
+
+## Optional Supabase data backend
+
+These routes use the selected project's workspace and authenticated actor. They
+are forwarded through the selected cloud workspace under `/v1/platform`; there
+is no fallback to local data. Compiled cloud and desktop workers retain the same
+reviewed upstream configurations and vendored dependency licences.
+
+GET `/v1/platform/projects/{id}/data` returns cached
+`{projectId,provider:"supabase",version,revision,status,message,endpointScope,
+url?,publishableKey?,services,operation?,backups,capabilities,requirements,
+checkedAt?,priorStackRetained,initializationState,canRecoverInstall}`. Service receipts contain
+`{name,status,health,image}`. The public key is the client-safe anon JWT, never
+the database password, JWT signing secret or service-role key. `endpointScope`
+is `selected-docker-host-loopback` by default: a remote worker's `127.0.0.1` URL
+is local to that worker and is not a public deployment or a link usable from the
+desktop. The Docker distribution enables `browser-gateway`, returning a
+per-project `http://<64-hex>.localhost:<preview-port>` endpoint that is usable by
+the local browser. It accepts this project's publishable key and Supabase
+anon/authenticated user JWTs, and permits CORS only from the same account's
+registered application origins for this project. Server deployments retain
+`SUPABASE_URL=http://supabase-api:8000`; `SUPABASE_PUBLIC_URL` uses the browser
+endpoint. Cloud applications need an explicitly configured HTTPS data endpoint.
+
+GET `/v1/platform/projects/{id}/data/domain` reads the saved public connection;
+it does not contact Docker or create provider resources. POST accepts
+`{action:"publish"|"refresh"|"stop",expectedRevision,targetId?,domain?,
+applicationOrigin?,acknowledgePublic?}`. Publication needs a saved deployment
+target, a public DNS name, the exact HTTPS application origin and explicit public
+acknowledgement. Internal project/tenant/network/provider identifiers and secrets
+are derived by the service; HTTP callers cannot supply them. Each admitted action
+returns202 with a durable operation, and cached reads show its progress. A
+duplicate active attempt is refused; an uncertain provider response is reconciled
+before another creation. Stop remains available for an existing public connection
+when native services are stopped.
+
+The response includes `{projectId,status,message,revision,operation?,domain?,
+publicUrl?,applicationOrigin?,targetId?,serverUuid?,providerServiceUuid?,
+configurationDigest?,checkedAt?,emailDelivery}`. Email delivery reports
+`unconfigured`, `configured`, `test-accepted` or `attention`; an accepted test is
+not proof of inbox delivery. A public URL is
+usable only at `verifiedHTTPS`. Publication requires proven co-location of the
+owned native stack, network and official Coolify controller with the selected
+provider server. An unrelated remote deployment server or Docker engine cannot
+publish a local stack. Luci configures a restricted client API proxy; private
+database, Studio and administrative routes remain inaccessible. DNS/certificate
+issuance and the running configuration digest plus Auth/REST/Storage client
+endpoints must verify through trusted HTTPS before success. Restore retains the
+same domain and stable upstream; changed client keys or domain configuration
+invalidate application bindings until redeployment.
+
+Cloud release requests can explicitly choose `dataClientFramework:"none"|"vite"|
+"nextjs"` (default `none`). A verified public connection supplies only its HTTPS
+URL and anonymous/publishable client key. Vite receives `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_ANON_KEY`; Next.js receives `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_ANON_KEY`. Only the chosen public aliases are build variables;
+the committed Dockerfile must declare both ARGs in its frontend build stage.
+Private configuration remains runtime-only. Generated/manual collisions or
+changes to tenant, server, domain revision, digest or key refuse deployment.
+
+POST the same route with `{action,acknowledgeResources?,backupId?,confirmRestore?}`
+returns202 and an operation receipt
+`{id,action,status,stage,message,createdAt,updatedAt}`. Actions are `install`,
+`start`, `stop`, `refresh`, `backup` and `restore`. Starting requires explicit
+acknowledgement of the stack's separate minimum 4096MiB RAM, 2000 CPU millis and
+40GiB SSD requirement. Docker must be Linux, with Compose v2. Running resource
+reservations, including the existing PostgreSQL 16 service, are accounted for
+before startup. Docker does not report free SSD capacity here; that requirement
+is acknowledged, not falsely described as measured. A restore needs another
+stack's capacity while its original remains available. In-flight receipts after
+a Luci restart become `interrupted` on read and are never automatically rerun.
+
+The stack uses official `self-hosted/v0.8.2` at commit
+`564eab8ad7840b13324f68b1bfac074ef8d51c21`, with11 immutable image digests and
+Logs/Analytics disabled. Its PostgreSQL 17 and storage volumes are separate from
+existing PostgreSQL 16 resources. Only its API gateway binds to literal loopback;
+Studio, metadata and database services do not expose extra host ports. Each
+container, volume and network carries the installation and project ownership
+labels. Starting or stopping cannot adopt a resource with different labels.
+
+New Docker deployments receive private `SUPABASE_URL`, `SUPABASE_PUBLIC_URL`,
+`SUPABASE_ANON_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and
+`SUPABASE_DB_URL` bindings. An existing PostgreSQL 16 `DATABASE_URL` is preserved;
+without one, the Supabase database becomes the default `DATABASE_URL`.
+Client-safe settings are separated from server keys. Existing deployments need
+redeployment to capture changed bindings. Runtime keys stay outside project Git,
+exports and source archives. No OpenAI API credential or fake SMTP defaults are
+inherited from upstream example configuration.
+
+GET `/v1/platform/projects/{id}/data/email` reads cached SMTP configuration and
+operation receipts without making a connection or sending a message. Its
+client-safe response includes `{projectId,status,message,revision,
+appliedRevision,configuration,applicationOrigin,originSource,connection,test,
+operation?}`. Configuration contains `{host,port,username,fromAddress,senderName,
+applicationOrigin,hasPassword}` and never returns a password. `originSource` is
+`public-domain` or `local`; the public data connection controls the redirect
+origin whenever configured.
+
+An Admin can POST the same route with `{action,expectedRevision,configuration?,
+recipient?,acknowledgeSend?}`. Actions are `save`, `check`, `apply`, `test` and
+`disable`. A save returns200; other admitted actions return202 with a durable
+operation. Saving needs all configuration fields plus an SMTP password, or a
+blank password to retain the previously saved credential for the same host and
+username. A changed destination requires a new password. SMTP credentials are
+stored in private controller state and owned Auth configuration, outside Git,
+client environment bindings and portable database/storage backups.
+
+The reviewed native Auth version accepts verified implicit TLS on port465.
+STARTTLS-only providers are refused because that upstream version cannot enforce
+STARTTLS. `check` verifies the TLS certificate and SMTP authentication without
+issuing MAIL, RCPT or DATA. `apply` checks the connection, recreates only the owned
+Auth service, and verifies its exact private environment and health before
+recording an applied revision. A failure attempts to restore and verify the
+previous settings while retaining the saved draft. Settings are preserved across
+stack regeneration and restore, and public connection origins take precedence.
+
+`test` requires the current saved revision to be applied, a valid recipient and
+`acknowledgeSend:true`. It sends one fixed message without account credentials,
+confirmation links or user changes. The receipt distinguishes SMTP acceptance,
+failure and uncertain acceptance; it never claims inbox delivery. Interrupted
+operations are not automatically retried. `disable` clears SMTP credentials only
+after healthy owned Auth readback. Applying, testing and disabling need running
+Auth; saving and connection checks are available before stack startup.
+
+The following controls require the owned data stack to be ready:
+
+- GET `/data/users` returns `{users,page:1,limit:100}` with user ID, email and
+  creation/confirmation timestamps only. POST accepts
+  `{email,password,emailConfirm:true}` and creates a real confirmed Auth user.
+  Passwords require12–256 characters. Direct administrator creation sends no
+  confirmation email. Application signup confirmation and recovery use the
+  separately configured SMTP connection above.
+- GET `/data/tables` returns `{tables}` with names, columns and `rlsEnabled`.
+  POST accepts `{name,columns:[{name,type,nullable}],enableRls:true}`. UUID `id`
+  is generated automatically; supported column types are `text`, `uuid`,
+  `boolean`, `integer`, `bigint`, `numeric`, `timestamptz` and `jsonb`.
+  New REST tables require RLS and deny client access until policies are added.
+- GET `/data/tables/{table}/rows` returns up to100 rows, explicitly with
+  `access:"project-administrator"`. POST accepts a bounded JSON column/value
+  object. Identifiers and SQL types are allowlisted; data values are quoted and
+  sent through private stdin rather than process arguments.
+- GET `/data/tables/{table}/rls` returns `{enabled,policies}`. POST accepts
+  `{enabled,policy?}`. A policy has `{name,operation,role,using,ownerColumn?}`;
+  operations are `select`, `insert`, `update`, `delete` or `all`, with roles
+  `authenticated` or `anon`. Fixed rules are `authenticated` (signed-in users)
+  and `owner` (a UUID owner column must equal `auth.uid()`). Disabling RLS is an
+  explicit operation; adding a policy requires enabled RLS.
+- GET/POST `/data/buckets` list or create real Storage buckets. Creation accepts
+  `{name,public:false}`; public buckets require the caller to explicitly set
+  `public:true`. GET `/data/buckets/{bucket}/objects?prefix=folder/` returns
+  `{objects,limit:100,prefix}` for a validated relative folder prefix. POST
+  `/data/buckets/{bucket}/objects/{path...}` uploads at most8MiB of raw bytes;
+  GET the same path downloads the object. Absolute, parent, empty and backslash
+  path segments are refused. Stored objects use the real Storage API.
+- GET `/data/realtime` returns `{tables,publication,rlsRequired:true}`. POST
+  `{table,enabled}` adds or removes an existing public table in the real
+  `supabase_realtime` publication. Application subscriptions still obey RLS.
+- GET `/data/functions` is a read-only catalogue:
+  `{projectId,revision,canManage,customPublishing,functions,operation?,message}`.
+  Summaries include name/path/sourceDigest/authMode/workingChanged/builtin,
+  active release and retained history. Draft source is available before service
+  installation. The reserved `hello` example remains read-only.
+- GET `/data/functions/{name}` reads the confined project's function source,
+  files, digest and current Git commit/committedDigest. POST `.../{name}/source`
+  saves `{expectedDigest,authMode,files:[{path,content}]}` with an optimistic
+  source guard. A new source uses the empty expected digest. The fixed entry is
+  `supabase/functions/{name}/index.ts`; source is limited to32 local files,
+  64KiB each and1MiB total, without links, private paths or remote imports.
+  The generated `luci.function.json` retains the selected access policy.
+- POST `/data/functions/{name}/action` uses
+  `{action,expectedRevision,commit?,releaseId?,acknowledgeExecute?,acknowledgeRemove?}`
+  for publish/rollback/remove/refresh. Publish requires verified committed source,
+  healthy owned data services and explicit code-execution acknowledgement.
+  Rollback requires an earlier release and the same acknowledgement; it restores
+  code/policy rather than database contents. Remove unroutes the endpoint while
+  retaining source/releases. Accepted work returns202 with durable progress.
+  Immutable artifacts are compiled/probed by the pinned native Edge Runtime
+  before route promotion. A failed candidate must preserve the prior route or
+  report an uncertain/degraded recovery; it cannot claim a healthy activation.
+- POST `/data/functions/{name}/invoke` accepts
+  `{input:JSONobject,applicationAccessToken?}` up to64KiB, returning
+  `{function,releaseId,statusCode,result,durationMs,contentType?}` from the actual
+  service. Authenticated is the default access policy: a real application-user
+  session is required and verified. Explicit project-key functions allow the
+  public project key. Luci/control or service-role credentials are not accepted.
+  Legacy unwrapped `hello` requests remain supported. A timed-out request reports
+  an uncertain outcome and is never retried automatically.
+  Worker code receives client-safe project settings, limited data-network access
+  and no private server credentials or host-command/filesystem authority.
+
+Backups contain a real custom-format PostgreSQL dump of public/Auth/Storage
+schemas and a storage file archive. Their metadata is
+`{id,createdAt,bytes,sha256,includesStorage:true}`. GET
+`/data/backups/{backupId}` downloads the recorded ZIP only after its checksum is
+verified. The combined limit is64MiB. Signing/encryption restore keys remain in
+private companion state and are not included in the downloaded ZIP. API services
+briefly pause during backup; direct database clients must separately pause writes
+for cross-service consistency. The UI must not call this a zero-downtime backup.
+
+Restore requires a recorded project-owned backup, `confirmRestore:true` and the
+resource acknowledgement. It validates ZIP entries, checksums, expanded limits
+and storage paths, restores into fresh owned volumes, and checks the new services
+before switching private application bindings. The previous stack is stopped and
+retained. A failed candidate is stopped by verified ownership and retained for
+diagnosis; it never overwrites the old volume. Redeploy applications to update
+client-facing URLs after the switch. Backup imports, automatic volume deletion,
+arbitrary migrations and public data-domain provisioning are separate operations
+and are not implied by these controls.
+
+The explicit `recover-install` data action requires `confirmFreshInstall:true`
+and the resource acknowledgement. It is limited to a stopped incomplete first
+installation, with no successful initialization, prior restore or backup. Both
+legacy unknown state and a pending state with existing containers require owned
+database logs proving the reviewed initial SQL permission failure; an absent
+success receipt never proves an empty database. The cached `canRecoverInstall`
+flag offers the UI action, while native preflight revalidates eligibility before
+allocation. Recovery creates a fresh candidate with the same credentials and
+storage identity, checks all services and database/Auth/REST/Storage, then
+promotes it with verified network handover. Original volumes remain retained.
+Failure stops the owned candidate or reports a degraded cleanup outcome; it does
+not report a successful installation or silently reset the original database.
+
+## Public static deployment
+
+POST `/v1/product/projects/{id}/releases/pages` accepts `{commit,branch,acknowledgePublic:true}`. The repository comes only from the project's verified GitHub origin, and the published directory is fixed to `/docs`. The project must have a clean current HEAD matching the requested full commit and current/default branch, a matching committed brief, Dockerfile, `docs/index.html` and `docs/.nojekyll`. The GitHub repository must be public and its remote branch must match the requested commit. Public-publication policy and the explicit acknowledgement apply. This route uses the signed-in GitHub CLI; it accepts no provider token or arbitrary command/path.
+
+The durable release has `target:"github-pages"`. Its provider record is outside project Git and contains repository/source configuration, commit, brief revision, index digest, provider build and verification time. `ready` requires the recorded provider commit, a public HTTPS response and matching committed index bytes. Queued/building/verifying outcomes are not readiness. Common history and refresh routes include Pages releases; stop unpublishes only unchanged configuration owned by that release. Pages rollback is not supported. Later default-branch pushes can republish `/docs` automatically; an older ready history entry describes its original verification and is not continuous site monitoring. Pages hosts static public output and receives no private runtime values.

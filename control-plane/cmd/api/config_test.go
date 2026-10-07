@@ -67,8 +67,8 @@ func TestLoadConfigDefaultsAreAWorkingLaptop(t *testing.T) {
 func TestTheInstanceIDLivesInTheSameStateDirectoryAsTheRegistry(t *testing.T) {
 	t.Parallel()
 	for name, m := range map[string]map[string]string{
-		"LUCI_STATE_DIR set": {"LUCI_STATE_DIR": t.TempDir()},
-		"the statepath ladder":      {},
+		"LUCI_STATE_DIR set":   {"LUCI_STATE_DIR": t.TempDir()},
+		"the statepath ladder": {},
 	} {
 		cfg, err := loadConfig(env(m))
 		if err != nil {
@@ -98,6 +98,21 @@ func TestConversationsDirIsAbsoluteEvenForARelativeStateDir(t *testing.T) {
 	}
 	if !strings.HasSuffix(cfg.ConversationsDir, filepath.Join("relative-state", "conversations")) {
 		t.Errorf("ConversationsDir = %q, want it under the state directory", cfg.ConversationsDir)
+	}
+}
+
+func TestWorkerConversationStoreOverrideIsAbsoluteAndIndependentOfRegistry(t *testing.T) {
+	t.Parallel()
+	state, compact := t.TempDir(), t.TempDir()
+	cfg, err := loadConfig(env(map[string]string{"LUCI_STATE_DIR": state, "LUCI_CONVERSATIONS_DIR": compact}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.ConversationsDir != compact || cfg.SessionsPath != filepath.Join(state, "sessions", "sessions.json") {
+		t.Fatal("conversation override changed session ownership")
+	}
+	if _, err = loadConfig(env(map[string]string{"LUCI_CONVERSATIONS_DIR": "relative-private-store"})); err == nil {
+		t.Fatal("relative provider bind root was accepted")
 	}
 }
 
@@ -409,7 +424,7 @@ func TestInapplicableBackendVariablesWarnAndNameTheBackend(t *testing.T) {
 		{"LUCI_NAMESPACE", "luci-sandboxes", "kata", false},
 	} {
 		cfg, err := loadConfig(env(map[string]string{
-			c.name:                c.value,
+			c.name:         c.value,
 			"LUCI_BACKEND": c.backend,
 		}))
 		if err != nil {

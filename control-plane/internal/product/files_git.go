@@ -29,6 +29,18 @@ func blockedProjectFile(relative string) bool {
 	return false
 }
 
+// Only the documented context exports may cross the one-click Git boundary.
+// Other private Luci files remain protected even when stored beside them.
+func journeyContextFile(relative string) bool {
+	switch relative {
+	case ".luci/state.json", ".luci/design.json", ".luci/plan.json",
+		".luci/specification.json", ".luci/specification.md",
+		".luci/design-handoff.json", ".luci/design-handoff.md":
+		return true
+	}
+	return false
+}
+
 func (s *Server) projectFiles(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)
 	if !ok {
@@ -333,7 +345,7 @@ func (s *Server) commitProject(w http.ResponseWriter, r *http.Request) {
 	for _, change := range changes {
 		// .luci is intentional provenance. Other credential names require a
 		// user's explicit handling in Git; the one-click commit never adds them.
-		if blockedProjectFile(change.Path) && change.Path != ".luci/state.json" && change.Path != ".luci/design.json" && change.Path != ".luci/plan.json" {
+		if blockedProjectFile(change.Path) && !journeyContextFile(change.Path) {
 			journeyError(w, 409, "sensitive_file", "Review the credential-like file in Git before committing: "+change.Path)
 			return
 		}

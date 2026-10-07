@@ -23,7 +23,7 @@ export function WorktreeRow(props: {
 }): JSX.Element {
   const { worktree, expanded } = props;
   const sessionIds = useCockpit(
-    useShallow(selectSessionIdsForWorktree(worktree.id)),
+    useShallow(selectSessionIdsForWorktree(worktree.id, worktree.branchId)),
   );
   const toggleWorktree = useCockpit((s) => s.toggleWorktree);
   const selectWorktree = useCockpit((s) => s.selectWorktree);

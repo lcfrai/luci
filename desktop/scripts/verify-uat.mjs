@@ -28,6 +28,7 @@ const member = {
 };
 let initial;
 let token;
+let createdProject, restoredProject, approvedDefinition, approvedHandoff;
 const authed = async (route, options = {}) => {
   const response = await fetch(`${base}${route}`, {
     ...options,
@@ -61,6 +62,7 @@ const errors = [],
   checks = [],
   accessibility = [],
   localFonts = [];
+const screenshots = [];
 page.on("pageerror", (e) => errors.push(e.message));
 if (verifyCsp)
   page.on("console", (message) => {
@@ -78,8 +80,72 @@ const screenshot = async (label) => {
   await page.screenshot({
     path: path.join(evidence, `${label}.png`),
     fullPage: true,
+    mask: [page.locator('input[type="password"]'), page.locator('.xterm')],
   });
+  screenshots.push(`${label}.png`);
 };
+async function observedPost(action, suffix) {
+  // Observe the real response before a successful UI action reloads the page.
+  // The unchanged request reaches the actual service; the identical response
+  // is delivered to the app. No fixture response or application state is made.
+  let resolveBody, rejectBody;
+  const bodyPromise = new Promise((resolve, reject) => { resolveBody = resolve; rejectBody = reject; });
+  const timeout = setTimeout(() => rejectBody(new Error(`No real POST response arrived for ${suffix}`)), 45000);
+  const matcher = url => url.origin === new URL(base).origin && url.pathname.endsWith(suffix);
+  const observer = async route => {
+    if (route.request().method() !== "POST") { await route.continue(); return; }
+    try {
+      const response = await route.fetch({ maxRedirects: 0 });
+      const bytes = await response.body();
+      await route.fulfill({ response, body: bytes });
+      assert.ok(response.ok(), `${suffix} returned ${response.status()}`);
+      resolveBody(JSON.parse(bytes.toString("utf8")));
+    } catch (error) {
+      rejectBody(error);
+      await route.abort().catch(() => {});
+    }
+  };
+  await page.route(matcher, observer);
+  try {
+    const [body] = await Promise.all([bodyPromise, action()]);
+    return body;
+  } finally {
+    clearTimeout(timeout);
+    await page.unroute(matcher, observer);
+  }
+}
+async function unavailableRuntimeThroughUi(action) {
+  // run-ui-uat.mjs selects the real, deliberately unavailable loopback engine.
+  // Observe the UI's real check, then independently read its persisted status.
+  // An empty successful CLI response must never permit an automatic build.
+  const [response] = await Promise.all([
+    page.waitForResponse(value => value.url() === `${base}/v1/setup/check`
+      && value.request().method() === "POST", { timeout: 45000 }),
+    action(),
+  ]);
+  assert.equal(response.status(), 200, "The UI's actual readiness check failed");
+  const posted = await response.json();
+  const preparation = page.locator(".runtime-preparation");
+  await preparation.getByRole("button", { name: "Check again", exact: true }).waitFor();
+  await page.waitForFunction(() => {
+    const control = [...document.querySelectorAll(".runtime-preparation button")]
+      .find(node => node.textContent.trim() === "Check again");
+    return control && !control.disabled;
+  }, undefined, { timeout: 45000 });
+  const saved = await authed("/v1/setup/status");
+  for (const status of [posted, saved]) {
+    for (const id of ["docker", "sandbox-image"])
+      assert.equal(status.checks.find(check => check.id === id)?.status, "missing", `${id} must report the actual unavailable engine`);
+  }
+  const runtime = await authed("/v1/setup/runtime/install");
+  assert.equal(runtime.status, "idle", "An unavailable engine must not start automatic runtime preparation");
+  assert.ok(!runtime.id, "No installation attempt may have been allocated");
+  const docker = posted.checks.find(check => check.id === "docker");
+  assert.ok(docker.action, "The unavailable engine must have actionable guidance");
+  await preparation.getByText(docker.action, { exact: true }).waitFor();
+  for (const label of ["Prepare agent runtime", "Retry runtime preparation"])
+    assert.equal(await preparation.getByRole("button", { name: label, exact: true }).count(), 0);
+}
 try {
   await page.goto(base);
   if (control.bootstrapRequired) {
@@ -106,7 +172,7 @@ try {
       exact: true,
     })
     .click();
-  await page.getByRole("button", { name: "Admin", exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Choose your workspace", exact: true }).waitFor();
   token = await page.evaluate(() =>
     sessionStorage.getItem("luci.control-plane.session"),
   );
@@ -117,12 +183,11 @@ try {
     /\/artifacts\/uat\/[^/]+\/projects\/?$/,
   );
   checks.push(
-    "Authenticated through the real account UI before any project catalogue mounted",
+    "Authenticated through the real account UI before opening its account-scoped workspace",
   );
-  if (initial.configured)
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("dialog").waitFor();
-  for (const choice of ["On this computer", "Set up a cloud workspace", "Connect to an existing workspace"])
+  assert.equal(initial.configured, false, "The fresh owner should enter the onboarding portal");
+  assert.equal(await page.getByRole("dialog").count(), 0, "Onboarding is a dedicated page, not Settings");
+  for (const choice of ["On this computer", "AWS", "Azure", "Connect to an existing workspace"])
     await page.getByRole("button", { name: choice, exact: true }).waitFor();
   assert.equal(await page.getByLabel("SSH public key", { exact: true }).count(), 0);
   await page.getByRole("button", { name: "Connect to an existing workspace", exact: true }).click();
@@ -131,28 +196,26 @@ try {
   assert.equal(await page.getByRole("button", { name: "Install Luci workspace", exact: true }).count(), 0);
   await screenshot("00a-existing-workspace-choice");
   await page.getByRole("button", { name: "Choose another setup option", exact: true }).click();
-  await page.getByRole("button", { name: "Set up a cloud workspace", exact: true }).click();
-  await page.getByLabel(/^Provider/).selectOption("azure");
+  await page.getByRole("button", { name: "AWS", exact: true }).click();
+  await page.getByRole("combobox", { name: "Provider", exact: true }).selectOption("azure");
   await page.getByRole("option", { name: "Azure · Virtual machine", exact: true }).waitFor({ state: "attached" });
   await screenshot("00b-cloud-workspace-choice");
   await page.getByRole("button", { name: "Choose another setup option", exact: true }).click();
   checks.push("First-run local, guided own-account cloud and existing-workspace choices disclose only their relevant controls and allow backtracking without cloud mutations");
-  await page.getByRole("button", { name: /On this computer/ }).click();
-  await page.getByLabel(/Projects folder/).fill(initial.config.projectsDir);
-  await page
-    .getByRole("button", { name: "Save settings", exact: true })
-    .click();
-  await page
-    .getByText("Settings saved. Your projects folder is ready.")
-    .waitFor();
-  await page.getByText("Git identity, agent connection and runtime", { exact: true }).click();
+  let configured;
+  await unavailableRuntimeThroughUi(async () => {
+    configured = await observedPost(() => page.getByRole("button", { name: "On this computer", exact: true }).click(), "/v1/setup/config");
+  });
+  assert.equal(configured.configured, true);
+  assert.equal(configured.config.projectsDir, initial.config.projectsDir);
   await page.getByLabel("Commit author name", { exact: true }).fill("Luci UAT Owner");
   await page.getByLabel("Commit author email", { exact: true }).fill("uat@example.invalid");
   await page.getByRole("button", { name: "Save Git identity", exact: true }).click();
   await page.getByText(/Git identity saved/).waitFor();
   await screenshot("01-setup");
-  checks.push("Saved local setup against the real API");
-  await page.getByRole("button", { name: "Close settings" }).click();
+  checks.push("Onboarding saved the chosen default folder and Git identity through the real API; an unavailable Docker host produced actionable guidance without inventing installation progress");
+  await page.getByRole("button", { name: "Continue to projects", exact: true }).click();
+  await page.getByRole("heading", { name: "Your projects", exact: true }).waitFor();
   await page.getByRole("button", { name: "Admin", exact: true }).click();
   await page
     .getByLabel("Allow permitted users to run trusted host diagnostics")
@@ -177,40 +240,60 @@ try {
   checks.push(
     "Super Admin explicitly enabled trusted diagnostics and created a member account through management UI",
   );
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "New project", exact: true }).click();
-  await page.getByLabel("Project name", { exact: true }).fill(name);
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "Create project", exact: true })
-    .click();
-  await page.getByRole("heading", { name: "What are we making?" }).waitFor();
-  await page
-    .getByLabel(/The idea/)
-    .fill(
-      "A local garden journal with saved notes and clear privacy boundaries.",
-    );
-  await page
-    .getByLabel("Who it is for", { exact: true })
-    .fill(
-      "Home gardeners who prefer to keep their notes on their own machine.",
-    );
-  await page
-    .getByLabel(/What good looks like/)
-    .fill("Notes persist after restart\nThe app works without a cloud account");
-  await page.getByRole("button", { name: "Save brief", exact: true }).click();
-  await page.getByText(/Saved as revision 1/).waitFor();
+  const projectDialog = page.getByRole("dialog", { name: "Create a project", exact: true });
+  await projectDialog.getByRole("textbox", { name: "Project name", exact: true }).fill(name);
+  createdProject = await observedPost(() => projectDialog.getByRole("button", { name: "Create project", exact: true }).click(), "/v1/product/projects");
+  await page.getByRole("heading", { name: "Define your project", exact: true }).waitFor();
+  const answers = [
+    ["What should this solution do?", "A local garden journal with saved notes and clear privacy boundaries."],
+    ["Who will use it?", "Home gardeners who prefer to keep their notes on their own machine."],
+    ["What does it need to respect?", "Use labelled keyboard-accessible controls. Keep notes on this machine; no cloud account required."],
+    ["What should we leave out?", "Social sharing\nPaid subscriptions"],
+    ["How will we know it works?", "Notes persist after restart\nThe app works without a cloud account"],
+  ];
+  for (let index = 0; index < answers.length; index++) {
+    const [label, text] = answers[index];
+    await page.getByRole("textbox", { name: label, exact: true }).fill(text);
+    await page.getByRole("button", { name: index === answers.length - 1 ? "Review specification" : "Next question", exact: true }).click();
+  }
+  await page.getByText("User journeys", { exact: true }).click();
+  await page.getByRole("button", { name: "Add user journey", exact: true }).click();
+  await page.getByRole("textbox", { name: "Journey name", exact: true }).fill("Keep a garden note");
+  await page.getByRole("textbox", { name: "Person or role", exact: true }).fill("Gardener");
+  await page.getByRole("textbox", { name: "Steps and recovery", exact: true }).fill("Open the journal, enter a note, save it, reopen the app and read it. If saving fails, preserve the draft and offer retry.");
+  for (const checkbox of await page.getByRole("group", { name: "Related requirements", exact: true }).getByRole("checkbox").all()) await checkbox.check();
+  const savedDefinition = await observedPost(() => page.getByRole("button", { name: "Save definition", exact: true }).click(), "/specification");
+  assert.equal(savedDefinition.revision, 1);
+  assert.equal(savedDefinition.briefRevision, 1);
+  assert.equal(savedDefinition.requirements.length, 2);
+  assert.equal(new Set(savedDefinition.requirements.map(item => item.id)).size, 2);
+  approvedDefinition = await observedPost(() => page.getByRole("button", { name: "Approve definition", exact: true }).click(), "/specification/approve");
+  assert.equal(approvedDefinition.status, "approved");
+  assert.equal(approvedDefinition.revision, 2);
+  assert.equal(approvedDefinition.briefRevision, 1);
+  assert.match(approvedDefinition.digest, /^[a-f0-9]{64}$/);
+  assert.deepEqual(approvedDefinition.requirements.map(item => item.id), savedDefinition.requirements.map(item => item.id));
+  await page.getByText("Definition 2 approved for design and implementation.", { exact: true }).waitFor();
   await screenshot("02-define");
   await page.reload();
-  await page.getByLabel(/The idea/).waitFor();
+  await page.getByRole("textbox", { name: "The idea", exact: true }).waitFor();
   assert.match(
-    await page.getByLabel(/The idea/).inputValue(),
+    await page.getByRole("textbox", { name: "The idea", exact: true }).inputValue(),
     /garden journal/,
   );
   checks.push(
-    "Created a real project, saved brief revision 1 and confirmed reload persistence",
+    "Created a real project outside Settings, completed the guided interview and requirement-linked journey, approved definition revision 2/brief 1, and confirmed reload persistence",
   );
   await page.getByRole("button", { name: "Design", exact: true }).click();
+  await page.getByRole("heading", { name: "Design the experience", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Start a screen plan from my definition", exact: true }).click();
+  await page.getByRole("textbox", { name: "Screen name", exact: true }).fill("Garden journal");
+  await page.getByRole("textbox", { name: /^Responsive widths/ }).fill("390, 768, 1440");
+  const savedScreenPlan = await observedPost(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), "/design-plan");
+  assert.deepEqual(savedScreenPlan.screens[0].requirementIds, approvedDefinition.requirements.map(item => item.id));
+  assert.equal(savedScreenPlan.specificationRevision, approvedDefinition.revision);
+  await page.getByRole("tab", { name: "Sketch", exact: true }).click();
   await page.locator(".excalidraw canvas").first().waitFor();
   const canvas = await page.locator(".excalidraw canvas").first().boundingBox();
   assert.ok(canvas && canvas.width > 350 && canvas.height > 250);
@@ -250,6 +333,23 @@ try {
     );
   }
   await screenshot("03-design");
+  const [handoffRefresh] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname.endsWith(`/projects/${createdProject.id}/design-plan`)),
+    page.getByRole("tab", { name: "Implementation handoff", exact: true }).click(),
+  ]);
+  assert.equal(handoffRefresh.status(), 200);
+  await page.getByText("The definition or sketch has changed. Review the screen plan and save a new handoff before approving.", { exact: true }).waitFor();
+  await page.getByRole("textbox", { name: "Implementation notes", exact: true }).fill("Use a journal list and labelled editor. Preserve unsaved text on failure. Keep keyboard focus visible and support 390, 768 and 1440 pixel layouts.");
+  const savedHandoff = await observedPost(() => page.getByRole("button", { name: "Save design plan", exact: true }).click(), "/design-plan");
+  assert.equal(savedHandoff.sketchRevision, designRecord.revision);
+  assert.equal(savedHandoff.specificationRevision, approvedDefinition.revision);
+  approvedHandoff = await observedPost(() => page.getByRole("button", { name: "Approve design handoff", exact: true }).click(), "/design-plan/approve");
+  assert.equal(approvedHandoff.status, "approved");
+  assert.equal(approvedHandoff.sketchRevision, 1);
+  assert.deepEqual(approvedHandoff.screens[0].requirementIds, approvedDefinition.requirements.map(item => item.id));
+  assert.match(approvedHandoff.digest, /^[a-f0-9]{64}$/);
+  await screenshot("03a-design-handoff");
+  checks.push("Saved a responsive screen plan linked to stable requirement IDs, drew a real sketch and approved a handoff bound to the exact saved definition/sketch revisions");
   await page.getByRole("button", { name: "Develop", exact: true }).click();
   await page
     .getByRole("button", {
@@ -285,8 +385,18 @@ try {
     .click();
   await checkPanel
     .locator(".check-runs")
-    .getByText("passed", { exact: true })
+    .getByText("Commands passed", { exact: true })
     .waitFor({ timeout: 30000 });
+  assert.equal(
+    await checkPanel
+      .locator(".check-runs")
+      .getByText("Unverified · generic commands without requirement links", {
+        exact: true,
+      })
+      .isVisible(),
+    true,
+    "A generic host diagnostic must remain visibly unverified for requirements",
+  );
   await checkPanel.getByText(/^git .* passed .* exit 0$/).click();
   await checkPanel.getByText(/git version/).waitFor();
   await screenshot("03b-plan-checks");
@@ -298,7 +408,8 @@ try {
   await page.getByText(/A local garden journal/, { exact: false }).waitFor();
   await screenshot("04-files");
   checks.push("Opened saved LUCI.md through the bounded file browser");
-  const projectPath = path.join(initial.config.projectsDir, name);
+  const projectPath = createdProject.path;
+  assert.equal(path.resolve(projectPath), path.resolve(initial.config.projectsDir, name));
   execFileSync("git", [
     "-C",
     projectPath,
@@ -331,6 +442,7 @@ try {
   );
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
   const privateValue = `uat-private-${randomUUID()}`;
+  await page.locator("summary").filter({ hasText: /^Runtime configuration$/ }).click();
   await page.getByLabel("Variable name", { exact: true }).fill("UAT_PRIVATE_MESSAGE");
   await page.getByLabel(/^Private value/).fill(privateValue);
   const savedConfiguration = page.waitForResponse(r => r.request().method() === "POST" && r.url().endsWith("/configuration"));
@@ -342,6 +454,7 @@ try {
   await page.getByRole("button", { name: "Update UAT_PRIVATE_MESSAGE", exact: true }).click();
   assert.equal(await page.getByLabel(/^Private value/).evaluate(e => e === document.activeElement), true);
   assert.equal(await page.getByLabel(/^Private value/).inputValue(), "");
+  await page.getByRole("button", { name: "Discard variable draft", exact: true }).click();
   await page.getByRole("button", { name: "Develop", exact: true }).click();
   await page.getByRole("button", { name: "Git", exact: true }).click();
   await page.getByText(/Everything is committed/).waitFor();
@@ -355,8 +468,8 @@ try {
   await downloaded.saveAs(backupPath);
   assert.ok((await readFile(backupPath)).length > 100);
   execFileSync("python", ["-c", "import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); value=sys.argv[2].encode(); assert all(value not in z.read(i) for i in z.infolist() if not i.is_dir()); print('PASS: private runtime value absent from all decompressed project-backup entries')", backupPath, privateValue], { windowsHide: true });
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await page.getByRole("button", { name: "New project", exact: true }).click();
+  await page.getByRole("button", { name: "All projects", exact: true }).click();
+  await page.getByRole("button", { name: "Restore backup", exact: true }).click();
   await page
     .getByLabel("Luci backup ZIP", { exact: true })
     .setInputFiles(backupPath);
@@ -364,12 +477,10 @@ try {
     .getByLabel("Restored project name", { exact: true })
     .fill(`${name}-restored`);
   await page.getByLabel("I trust the source of this project archive.").check();
-  await page
-    .getByRole("button", { name: "Restore as new project", exact: true })
-    .click();
-  await page.getByRole("heading", { name: "What are we making?" }).waitFor();
+  restoredProject = await observedPost(() => page.getByRole("button", { name: "Restore as new project", exact: true }).click(), "/v1/product/projects/restore");
+  await page.getByRole("heading", { name: "Define your project", exact: true }).waitFor();
   assert.match(
-    await page.getByLabel(/The idea/).inputValue(),
+    await page.getByRole("textbox", { name: "The idea", exact: true }).inputValue(),
     /garden journal/,
   );
   const restoredRoot = path.join(
@@ -386,17 +497,40 @@ try {
     ).tasks.length,
     2,
   );
+  const restoredSpecification = JSON.parse(await readFile(path.join(restoredRoot, ".luci", "specification.json"), "utf8"));
+  const restoredHandoff = JSON.parse(await readFile(path.join(restoredRoot, ".luci", "design-handoff.json"), "utf8"));
+  for (const [record, original] of [[restoredSpecification, approvedDefinition], [restoredHandoff, approvedHandoff]]) {
+    assert.equal(record.projectId, restoredProject.id);
+    assert.equal(record.revision, original.revision);
+    assert.equal(record.status, "draft", "Restoration requires renewed approval for its new project identity");
+    assert.equal(record.digest || "", "");
+  }
+  assert.deepEqual(restoredSpecification.requirements, approvedDefinition.requirements);
+  assert.deepEqual(restoredSpecification.journeys, approvedDefinition.journeys);
+  assert.deepEqual(restoredHandoff.screens, approvedHandoff.screens);
+  assert.equal(restoredHandoff.implementationNotes, approvedHandoff.implementationNotes);
+  assert.equal(restoredHandoff.sketchRevision, approvedHandoff.sketchRevision);
+  assert.deepEqual(restoredHandoff.screens[0].requirementIds, restoredSpecification.requirements.map(item => item.id));
   checks.push(
-    "Downloaded a real private Git backup and restored it through file upload as a new project, preserving brief, design, plan and Git history",
+    "Downloaded a real private Git backup and restored it from Projects home as a new project, preserving definition/handoff content, linked requirements, sketch, task plan and Git history while invalidating approvals for the new project identity",
   );
   await page.getByRole("button", { name: "Design", exact: true }).click();
+  await page.getByRole("tab", { name: "Sketch", exact: true }).click();
   await page.getByText(/Design 1 · Brief 1/).waitFor();
   checks.push("Reopened the persisted design linked to brief revision 1");
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
+  await page.getByRole("heading", { name: "Deploy and operate", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Deployments", exact: true }).click();
+  const persistentDeploy = page.getByRole("button", { name: "Start persistent deployment", exact: true });
+  await persistentDeploy.waitFor();
+  assert.equal(await persistentDeploy.isDisabled(), true, "Missing Docker must not be represented as deployable");
+  await page.getByText("Start Docker to deploy an application or database.", { exact: true }).waitFor();
+  checks.push("Deploy opens the real application platform and reports missing Docker honestly, disabling persistent deployment instead of claiming service readiness");
+  await page.getByRole("tab", { name: "Previews and publishing", exact: true }).click();
   await page
     .getByRole("button", { name: "Build local preview", exact: true })
     .waitFor();
-  await page.getByRole("button", { name: "Your cloud", exact: true }).click();
+  await page.getByRole("tab", { name: "Your cloud", exact: true }).click();
   await page.getByRole("heading", { name: "Ship to your cloud" }).waitFor();
   await screenshot("06-deploy");
   checks.push(
@@ -405,7 +539,7 @@ try {
   await page
     .getByRole("button", { name: "Cloud settings", exact: true })
     .click();
-  await page.getByRole("button", { name: "Set up a cloud workspace", exact: true }).click();
+  await page.getByRole("button", { name: "AWS", exact: true }).click();
   await page
     .getByRole("heading", { name: "Plan your cloud workspace" })
     .waitFor();
@@ -430,6 +564,10 @@ try {
   await memberPage
     .getByRole("button", { name: "Sign in", exact: true })
     .click();
+  await memberPage.getByRole("heading", { name: "Choose your workspace", exact: true }).waitFor();
+  for (const choice of ["AWS", "Azure", "Connect to an existing workspace"])
+    assert.equal(await memberPage.getByRole("button", { name: choice, exact: true }).isDisabled(), true);
+  await memberPage.getByRole("button", { name: "Continue to projects", exact: true }).click();
   await memberPage
     .getByRole("button", { name: "Evaluation Member", exact: true })
     .waitFor();
@@ -460,13 +598,16 @@ try {
     path: path.join(evidence, "08-member.png"),
     fullPage: true,
   });
+  screenshots.push("08-member.png");
   await memberPage.close();
   checks.push(
     "Signed in as a separate member; Admin hidden, management request rejected 403, and owner projects absent from the member catalogue",
   );
-  for (const surface of ["Define", "Design", "Develop", "Files", "Git", "Deploy", "Settings", "Admin"]) {
-    await page.getByRole("button", { name: surface, exact: true }).click();
-    if (surface === "Design") await page.locator(".excalidraw canvas").first().waitFor();
+  for (const surface of ["Define", "Design", "Sketch", "Develop", "Files", "Git", "Deploy", "Settings", "Admin"]) {
+    await page.getByRole(surface === "Sketch" ? "tab" : "button", { name: surface, exact: true }).click();
+    if (surface === "Define") await page.getByRole("textbox", { name: "The idea", exact: true }).waitFor();
+    if (surface === "Design") await page.getByRole("textbox", { name: "Screen name", exact: true }).waitFor();
+    if (surface === "Sketch") await page.locator(".excalidraw canvas").first().waitFor();
     if (surface === "Settings" || surface === "Admin") await page.getByRole("dialog").waitFor();
     await page.evaluate(axe.source);
     const result = await page.evaluate(async () => {
@@ -478,7 +619,69 @@ try {
   }
   await writeFile(path.join(evidence, "accessibility.json"), JSON.stringify(accessibility, null, 2));
   assert.deepEqual(accessibility.filter(r => r.violations.length > 0), [], "Automated accessibility violations must be repaired; incomplete results remain in the evidence for manual UAT");
-  checks.push("All eight project/settings/management surfaces passed axe automated WCAG A/AA and best-practice checks; automated checks are not accessibility certification");
+  checks.push("All nine project/settings/management surfaces, including the screen plan and sketch, passed axe automated WCAG A/AA and best-practice checks; automated checks are not accessibility certification");
+  const visualMeasurements = [];
+  async function visual(label) {
+    await screenshot(label);
+    const measurement = await page.evaluate(() => ({
+      width: window.innerWidth,
+      documentWidth: document.documentElement.scrollWidth,
+      theme: document.documentElement.dataset.theme,
+      accent: document.documentElement.dataset.accent,
+      density: document.documentElement.dataset.density,
+    }));
+    visualMeasurements.push({ label, ...measurement });
+    assert.ok(measurement.documentWidth <= measurement.width + 1, `${label}: horizontal document overflow`);
+  }
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Appearance", exact: true }).click();
+  await page.getByRole("combobox", { name: /^Colour scheme/ }).selectOption("dark");
+  await page.getByRole("combobox", { name: /^Accent colour/ }).selectOption("teal");
+  await page.getByRole("combobox", { name: /^Interface density/ }).selectOption("compact");
+  await visual("09-appearance-desktop-dark-compact");
+  await page.getByRole("button", { name: "Close settings", exact: true }).click();
+  await page.getByRole("button", { name: "Deploy", exact: true }).click();
+  await visual("09a-deploy-desktop-dark-compact");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Define", exact: true }).click();
+  await page.getByRole("textbox", { name: "The idea", exact: true }).waitFor();
+  await visual("10a-define-mobile-dark");
+  await page.getByRole("button", { name: "Design", exact: true }).click();
+  await page.getByRole("textbox", { name: "Screen name", exact: true }).waitFor();
+  await visual("10b-design-mobile-dark");
+  await page.getByRole("button", { name: "Projects", exact: true }).click();
+  await page.getByRole("button", { name: "All projects", exact: true }).click();
+  await page.getByRole("heading", { name: "Your projects", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Workspace setup", exact: true }).click();
+  await page.getByRole("heading", { name: "Choose your workspace", exact: true }).waitFor();
+  await visual("10c-onboarding-mobile-dark");
+  await unavailableRuntimeThroughUi(() => page.getByRole("button", { name: "On this computer", exact: true }).click());
+  await visual("10d-preparation-mobile-dark");
+  await page.getByRole("button", { name: "Continue to projects", exact: true }).click();
+  await page.getByRole("heading", { name: "Your projects", exact: true }).waitFor();
+  await visual("10e-projects-mobile-dark");
+  await page.getByRole("button", { name: "Projects", exact: true }).click();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Appearance", exact: true }).click();
+  await page.getByRole("combobox", { name: /^Colour scheme/ }).selectOption("light");
+  await page.getByRole("combobox", { name: /^Accent colour/ }).selectOption("blue");
+  await page.getByRole("combobox", { name: /^Interface density/ }).selectOption("comfortable");
+  await visual("10f-appearance-mobile-light-blue");
+  await page.getByRole("button", { name: "Close settings", exact: true }).click();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole("treeitem", { name: new RegExp(`${name}-restored$`) }).click();
+  await page.getByRole("button", { name: "Define", exact: true }).click();
+  await page.getByRole("textbox", { name: "The idea", exact: true }).waitFor();
+  await visual("10g-define-desktop-light-blue");
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Appearance", exact: true }).click();
+  await page.getByRole("combobox", { name: /^Accent colour/ }).selectOption("rose");
+  await page.getByRole("button", { name: "Close settings", exact: true }).click();
+  await page.getByRole("button", { name: "Design", exact: true }).click();
+  await page.getByRole("textbox", { name: "Screen name", exact: true }).waitFor();
+  await visual("10h-design-desktop-light-rose");
+  checks.push("Actual desktop/mobile onboarding, projects, definition, design, deployment and appearance controls rendered without horizontal document overflow in dark/compact and light/comfortable themes");
+  await writeFile(path.join(evidence, "visual-measurements.json"), JSON.stringify(visualMeasurements, null, 2));
   assert.deepEqual(errors, []);
   await writeFile(
     path.join(evidence, "results.json"),
@@ -490,7 +693,14 @@ try {
         checks,
         accessibility,
         errors,
-        screenshots: 10,
+        screenshots,
+        visualMeasurements,
+        projectId: createdProject.id,
+        restoredProjectId: restoredProject.id,
+        definition: { revision: approvedDefinition.revision, briefRevision: approvedDefinition.briefRevision, digest: approvedDefinition.digest, requirementIds: approvedDefinition.requirements.map(item => item.id) },
+        designHandoff: { revision: approvedHandoff.revision, specificationRevision: approvedHandoff.specificationRevision, sketchRevision: approvedHandoff.sketchRevision, digest: approvedHandoff.digest },
+        restoredDefinition: { revision: restoredSpecification.revision, status: restoredSpecification.status, digest: restoredSpecification.digest || "", requirementIds: restoredSpecification.requirements.map(item => item.id) },
+        restoredDesignHandoff: { revision: restoredHandoff.revision, status: restoredHandoff.status, digest: restoredHandoff.digest || "", screens: restoredHandoff.screens, implementationNotes: restoredHandoff.implementationNotes },
         cloudActions: 0,
         productionCsp: verifyCsp,
         localFonts: [...new Set(localFonts)],

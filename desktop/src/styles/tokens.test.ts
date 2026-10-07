@@ -68,10 +68,10 @@ const PHASE_2_NAMES = [
 
 /** Relative luminance from opaque OKLCH tokens, through the inverse Oklab transform.
  * This checks readability rather than freezing a historical low-contrast hex value. */
-function luminance(token: string): number {
+function luminance(token: string, source = tokensCss): number {
   const match = new RegExp(
     `${token}:\\s*oklch\\(\\s*([\\d.]+)%\\s+([\\d.]+)\\s+([\\d.]+)\\s*\\)`,
-  ).exec(tokensCss);
+  ).exec(source);
   if (!match) throw new Error(`Missing opaque OKLCH token ${token}`);
   const L = Number(match[1]) / 100,
     C = Number(match[2]),
@@ -88,6 +88,54 @@ function luminance(token: string): number {
 }
 
 describe("the token layer", () => {
+  it("keeps text and action labels readable in every light/dark accent combination", () => {
+    const css = stripCssComments(tokensCss);
+    const block = (selector: string) =>
+      css.slice(css.indexOf(selector)).split("}")[0];
+    const base = block(":root {");
+    for (const theme of ["dark", "light"]) {
+      const themeCss =
+        (theme === "light" ? block(':root[data-theme="light"] {') : "") + base;
+      for (const surface of [
+        "--page",
+        "--canvas",
+        "--surface",
+        "--inset",
+        "--hover",
+        "--hover-2",
+        "--field",
+      ]) {
+        for (const ink of ["--ink", "--ink-2", "--ink-3"]) {
+          const values = [
+            luminance(ink, themeCss),
+            luminance(surface, themeCss),
+          ].sort((a, b) => b - a);
+          expect(
+            (values[0] + 0.05) / (values[1] + 0.05),
+            `${theme} ${ink} on ${surface}`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+      for (const accent of ["teal", "blue", "rose"]) {
+        const accentCss =
+          accent === "teal"
+            ? themeCss
+            : (theme === "light"
+                ? block(`:root[data-theme="light"][data-accent="${accent}"] {`)
+                : block(`:root[data-accent="${accent}"] {`)) + themeCss;
+        for (const fill of ["--accent", "--accent-hi"]) {
+          const values = [
+            luminance("--accent-ink", accentCss),
+            luminance(fill, accentCss),
+          ].sort((a, b) => b - a);
+          expect(
+            (values[0] + 0.05) / (values[1] + 0.05),
+            `${theme} ${accent} action label`,
+          ).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
+  });
   it("reads the stylesheets as raw text", () => {
     // Guards a vacuous pass. Vitest's css-disable plugin matches BOTH `tokens.css?raw` and
     // `app.css?raw` and rewrites them to `export default ""` unless vitest.config.ts opts the

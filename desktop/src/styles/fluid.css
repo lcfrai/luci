@@ -1,0 +1,57 @@
+/* Compile only the retained Fluid controls. Preflight is intentionally absent:
+   the application's existing reset and scoped styles remain authoritative. */
+@import "./tokens.css";
+@layer theme, base, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@import "@fontsource-variable/inter/standard.css";
+@source "../components/fluid";
+
+@theme inline {
+  --color-background: var(--page);
+  --color-foreground: var(--ink);
+  --color-muted-foreground: var(--ink-3);
+  --color-hover: var(--hover);
+  --color-active: var(--inset);
+  --color-border: var(--line-strong);
+}
+
+.fluid-control, .fluid-tabs {
+  --background: var(--page);
+  --foreground: var(--ink);
+  --tint: var(--inset);
+  --tint-hover: var(--hover-2);
+  --border: var(--line-strong);
+  --active: var(--inset);
+  --focus-ring: var(--accent);
+  font-family: var(--sans);
+}
+.fluid-control {
+  border: 0;
+  background: transparent;
+  font-variation-settings: 'wght' 450, 'opsz' 15;
+}
+.fluid-control:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.fluid-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.scrollbar-hide { scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+@keyframes spinner-move { to { stroke-dashoffset: -100; } }
+@keyframes spinner-dash {
+  0%, 100% { stroke-dasharray: 15 85; }
+  50% { stroke-dasharray: 45 55; }
+}
+@media (pointer: coarse) {
+  .fluid-control, .fluid-tabs [role="tab"] { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fluid-control, .fluid-control *, .fluid-tabs * {
+    transition: none;
+    animation: none !important;
+  }
+}

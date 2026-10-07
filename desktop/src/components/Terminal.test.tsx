@@ -16,7 +16,14 @@ import type { AttachHandle } from "../api/attachRegistry";
 import { resetCockpit, useCockpit } from "../store/store";
 import type { Session } from "../store/types";
 import { Terminal } from "./Terminal";
-import { TERMINAL_HOST_ATTRIBUTE, isInsideTerminal } from "../hooks/useKeyboardMap";
+import {
+  TERMINAL_HOST_ATTRIBUTE,
+  isInsideTerminal,
+} from "../hooks/useKeyboardMap";
+import {
+  DEFAULT_APPEARANCE,
+  updateAppearance,
+} from "../preferences/appearance";
 
 // The factory takes a DYNAMIC import and does not close over the top-level `FakeTerm` binding
 // above. vi.mock is hoisted above this file's imports, so a factory that reads that binding can
@@ -24,14 +31,34 @@ import { TERMINAL_HOST_ATTRIBUTE, isInsideTerminal } from "../hooks/useKeyboardM
 // runner pulls first — task 14 documents this form in fakes.ts's header and it is the only one
 // this file may use. The top-level import stays: the tests below still need FakeTerm as a type
 // and for `instanceof`-style narrowing.
-vi.mock("@xterm/xterm", async () => ({ Terminal: (await import("../test/fakes")).FakeTerm }));
+vi.mock("@xterm/xterm", async () => {
+  const { FakeTerm } = await import("../test/fakes");
+  return {
+    Terminal: class extends FakeTerm {
+      options: Record<string, unknown>;
+      constructor(options: Record<string, unknown>) {
+        super();
+        this.options = options;
+      }
+    },
+  };
+});
 vi.mock("@xterm/addon-fit", () => ({
-  FitAddon: class { fit() {} activate() {} dispose() {} },
+  FitAddon: class {
+    fit() {}
+    activate() {}
+    dispose() {}
+  },
 }));
 vi.mock("@xterm/xterm/css/xterm.css", () => ({}));
 
 const session = (over: Partial<Session> = {}): Session =>
-  aSession({ id: "s-1", status: "running", attachPath: "/v1/sessions/s-1/attach", ...over });
+  aSession({
+    id: "s-1",
+    status: "running",
+    attachPath: "/v1/sessions/s-1/attach",
+    ...over,
+  });
 
 function seed(s: Session): void {
   useCockpit.setState({ sessions: { [s.id]: s } });
@@ -43,7 +70,10 @@ beforeEach(() => {
   resetCockpit();
   configureAttachRegistry({
     client: {
-      openAttach: (s: Session) => new FakeWebSocket(`ws://127.0.0.1:8730${s.attachPath}`) as unknown as WebSocket,
+      openAttach: (s: Session) =>
+        new FakeWebSocket(
+          `ws://127.0.0.1:8730${s.attachPath}`,
+        ) as unknown as WebSocket,
       getSession: async () => session(),
     },
   });
@@ -51,23 +81,41 @@ beforeEach(() => {
 
 afterEach(() => {
   __resetAttachRegistry();
+  updateAppearance(DEFAULT_APPEARANCE);
 });
 
 /** Reach the entry the component built without re-creating it. The factory throws if it is
  *  ever called, which is itself the assertion that one already exists. */
 function grab(): AttachHandle {
   const handle = acquireAttach(session(), {
-    createTerm: () => { throw new Error("the component should already have built a terminal"); },
+    createTerm: () => {
+      throw new Error("the component should already have built a terminal");
+    },
     readOnly: false,
   });
-  releaseAttach("s-1");   // put the ref count straight back
+  releaseAttach("s-1"); // put the ref count straight back
   return handle;
 }
 
 describe("Terminal", () => {
+  it("updates text size on the retained terminal without reopening its socket or losing output", () => {
+    seed(session());
+    render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const original = grab().term as unknown as FakeTerm & {
+      options: { fontSize: number };
+    };
+    original.write("retained output");
+    act(() => updateAppearance({ terminalFontSize: 20, theme: "light" }));
+    expect(grab().term).toBe(original);
+    expect(original.options.fontSize).toBe(20);
+    expect(original.written).toEqual(["retained output"]);
+    expect(FakeWebSocket.instances).toHaveLength(1);
+  });
   it("two renders with the same sessionId construct exactly one Terminal", () => {
     seed(session());
-    const { rerender } = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const { rerender } = render(
+      <Terminal sessionId="s-1" readOnly={false} focused={false} />,
+    );
     rerender(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
     expect(FakeWebSocket.instances.length).toBe(1);
   });
@@ -85,10 +133,14 @@ describe("Terminal", () => {
 
   it("puts the registry's element in the pane, opens into it and takes DOM focus when focused", () => {
     seed(session());
-    const { container } = render(<Terminal sessionId="s-1" readOnly={false} focused />);
+    const { container } = render(
+      <Terminal sessionId="s-1" readOnly={false} focused />,
+    );
     const held = grab();
     const term = held.term as unknown as FakeTerm;
-    expect(container.querySelector('[data-session-id="s-1"]')).toBe(held.element);
+    expect(container.querySelector('[data-session-id="s-1"]')).toBe(
+      held.element,
+    );
     expect(term.openedIn).toBe(held.element);
     expect(term.focused).toBeGreaterThan(0);
   });
@@ -98,14 +150,18 @@ describe("Terminal", () => {
     render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
     const term = grab().term as unknown as FakeTerm;
     useCockpit.setState({
-      sessions: { "s-1": session({ status: "idle", updatedAt: "2026-09-18T05:00:00Z" }) },
+      sessions: {
+        "s-1": session({ status: "idle", updatedAt: "2026-09-18T05:00:00Z" }),
+      },
     });
     expect(term.disposed).toBe(false);
     expect(FakeWebSocket.instances.length).toBe(1);
   });
 
   it("opens no socket for an exited session and reports why", () => {
-    seed(session({ status: "exited", exitReason: "process exited with status 0" }));
+    seed(
+      session({ status: "exited", exitReason: "process exited with status 0" }),
+    );
     render(<Terminal sessionId="s-1" readOnly focused={false} />);
     expect(FakeWebSocket.instances.length).toBe(0);
     expect(getAttachState("s-1").phase).toBe("ended");
@@ -114,7 +170,9 @@ describe("Terminal", () => {
 
   it("releases on unmount, and the terminal survives the grace window", () => {
     seed(session());
-    const { unmount } = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const { unmount } = render(
+      <Terminal sessionId="s-1" readOnly={false} focused={false} />,
+    );
     unmount();
     expect((grab().term as unknown as FakeTerm).disposed).toBe(false);
   });
@@ -123,16 +181,18 @@ describe("Terminal", () => {
     vi.useFakeTimers();
     try {
       seed(session());
-      const { unmount } = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+      const { unmount } = render(
+        <Terminal sessionId="s-1" readOnly={false} focused={false} />,
+      );
       const held = grab();
       const term = held.term as unknown as FakeTerm;
 
       unmount();
-      expect(held.element.parentNode).toBeNull();   // the pane gave the element back
-      expect(term.disposed).toBe(false);            // and destroyed nothing doing it
+      expect(held.element.parentNode).toBeNull(); // the pane gave the element back
+      expect(term.disposed).toBe(false); // and destroyed nothing doing it
 
       vi.advanceTimersByTime(GRACE_MS + 1);
-      expect(term.disposed).toBe(true);             // the release did reach the registry
+      expect(term.disposed).toBe(true); // the release did reach the registry
     } finally {
       vi.useRealTimers();
     }
@@ -149,9 +209,13 @@ describe("Terminal", () => {
     const observed: Element[] = [];
     let disconnects = 0;
     w.ResizeObserver = class {
-      observe(el: Element) { observed.push(el); }
+      observe(el: Element) {
+        observed.push(el);
+      }
       unobserve() {}
-      disconnect() { disconnects += 1; }
+      disconnect() {
+        disconnects += 1;
+      }
     };
     try {
       seed(session());
@@ -197,7 +261,9 @@ describe("Terminal", () => {
     // real deps list nor a wrong one would run, and this test would pass for no reason.
     act(() => {
       useCockpit.setState({
-        sessions: { "s-1": session({ status: "idle", updatedAt: "2026-09-18T05:00:00Z" }) },
+        sessions: {
+          "s-1": session({ status: "idle", updatedAt: "2026-09-18T05:00:00Z" }),
+        },
       });
     });
     // A dependency on the session object would re-acquire, re-append and steal focus back
@@ -211,7 +277,9 @@ describe("Terminal", () => {
     FakeWebSocket.last()!.acceptOpen();
     act(() => {
       useCockpit.setState({
-        sessions: { "s-1": session({ status: "exited", exitReason: "killed" }) },
+        sessions: {
+          "s-1": session({ status: "exited", exitReason: "killed" }),
+        },
       });
     });
     FakeWebSocket.last()!.emitClose(1006);
@@ -221,7 +289,9 @@ describe("Terminal", () => {
 
   it("pushes readOnly into the registry, so an exited pane stops forwarding stdin", () => {
     seed(session());
-    const { rerender } = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const { rerender } = render(
+      <Terminal sessionId="s-1" readOnly={false} focused={false} />,
+    );
     const term = grab().term as unknown as FakeTerm;
     const ws = FakeWebSocket.last()!;
     ws.acceptOpen();
@@ -248,7 +318,10 @@ describe("useAttachState", () => {
   it("re-renders its subscriber as the phase moves, and when the entry is torn down", () => {
     vi.useFakeTimers();
     try {
-      acquireAttach(session(), { createTerm: () => new FakeTerm(), readOnly: false });
+      acquireAttach(session(), {
+        createTerm: () => new FakeTerm(),
+        readOnly: false,
+      });
       const { getByTestId } = render(<AttachProbe sessionId="s-1" />);
       expect(getByTestId("phase").textContent).toBe("connecting");
 
@@ -299,7 +372,9 @@ describe("Terminal focus is conditional", () => {
 
   it("takes DOM focus on the false→true transition, so a rail-row click moves the caret", () => {
     seed(session());
-    const { rerender } = render(<Terminal sessionId="s-1" readOnly={false} focused={false} />);
+    const { rerender } = render(
+      <Terminal sessionId="s-1" readOnly={false} focused={false} />,
+    );
     const term = grab().term as unknown as FakeTerm;
     expect(term.focused).toBe(0);
 
@@ -310,14 +385,18 @@ describe("Terminal focus is conditional", () => {
 
   it("does not re-focus while it stays focused, so a poll cannot yank the caret back", () => {
     seed(session());
-    const { rerender } = render(<Terminal sessionId="s-1" readOnly={false} focused />);
+    const { rerender } = render(
+      <Terminal sessionId="s-1" readOnly={false} focused />,
+    );
     const term = grab().term as unknown as FakeTerm;
     expect(term.focused).toBe(1);
 
     rerender(<Terminal sessionId="s-1" readOnly={false} focused />);
     act(() => {
       useCockpit.setState({
-        sessions: { "s-1": session({ status: "idle", updatedAt: "2026-09-18T05:00:00Z" }) },
+        sessions: {
+          "s-1": session({ status: "idle", updatedAt: "2026-09-18T05:00:00Z" }),
+        },
       });
     });
 
@@ -341,10 +420,17 @@ describe("Terminal focus is conditional", () => {
     );
 
     for (const id of ["s-1", "s-2"]) {
-      const handle = acquireAttach(session({ id, attachPath: `/v1/sessions/${id}/attach` }), {
-        createTerm: () => { throw new Error("the component should already have built a terminal"); },
-        readOnly: false,
-      });
+      const handle = acquireAttach(
+        session({ id, attachPath: `/v1/sessions/${id}/attach` }),
+        {
+          createTerm: () => {
+            throw new Error(
+              "the component should already have built a terminal",
+            );
+          },
+          readOnly: false,
+        },
+      );
       releaseAttach(id);
       expect((handle.term as unknown as FakeTerm).focused).toBe(0);
     }
@@ -371,7 +457,10 @@ const SKIPPED_BY_XTERM: KeyCase[] = [
   ["⌘⇧M", { key: "M", ctrlKey: true, shiftKey: true }],
   ["⌘⏎", { key: "Enter", ctrlKey: true }],
   ["⌘\\", { key: "\\", ctrlKey: true }],
-  ...Array.from({ length: 9 }, (_, i): KeyCase => [`⌘${i + 1}`, { key: `${i + 1}`, ctrlKey: true }]),
+  ...Array.from({ length: 9 }, (_, i): KeyCase => [
+    `⌘${i + 1}`,
+    { key: `${i + 1}`, ctrlKey: true },
+  ]),
 ];
 
 /* ADDED BY TASK 23's FIX ROUND 2. §6.9's ⌘ is metaKey || ctrlKey, and every row above presses
@@ -379,17 +468,22 @@ const SKIPPED_BY_XTERM: KeyCase[] = [
  * suite, and through a real xterm Meta+Enter then went to the agent as CR and created no
  * session. The Meta half of the table is therefore pinned too, row for row, with Ctrl released
  * so that Meta is the only modifier that can decide it. */
-const SKIPPED_BY_XTERM_ON_META: KeyCase[] = SKIPPED_BY_XTERM.map(([name, init]): KeyCase => [
-  `${name} on the Meta key`,
-  { ...init, ctrlKey: false, metaKey: true },
-]);
+const SKIPPED_BY_XTERM_ON_META: KeyCase[] = SKIPPED_BY_XTERM.map(
+  ([name, init]): KeyCase => [
+    `${name} on the Meta key`,
+    { ...init, ctrlKey: false, metaKey: true },
+  ],
+);
 
 const HANDLED_BY_XTERM: KeyCase[] = [
   ["Escape, the agent's interrupt", { key: "Escape" }],
   ["shift+Tab, the agent's permission cycle", { key: "Tab", shiftKey: true }],
   ["/, the agent's slash commands", { key: "/" }],
   ["a bare w", { key: "w" }],
-  ["AltGr composing a backslash (Ctrl+Alt+\\)", { key: "\\", ctrlKey: true, altKey: true }],
+  [
+    "AltGr composing a backslash (Ctrl+Alt+\\)",
+    { key: "\\", ctrlKey: true, altKey: true },
+  ],
   ["Ctrl+C", { key: "c", ctrlKey: true }],
 ];
 
@@ -402,30 +496,41 @@ describe("Terminal lets the cockpit's chords past xterm", () => {
     return handler as (event: KeyboardEvent) => boolean;
   }
 
-  it.each([...SKIPPED_BY_XTERM, ...SKIPPED_BY_XTERM_ON_META])("xterm skips %s, so it bubbles to the keyboard map", (_name, init) => {
-    expect(installedHandler()(new KeyboardEvent("keydown", init))).toBe(false);
-  });
+  it.each([...SKIPPED_BY_XTERM, ...SKIPPED_BY_XTERM_ON_META])(
+    "xterm skips %s, so it bubbles to the keyboard map",
+    (_name, init) => {
+      expect(installedHandler()(new KeyboardEvent("keydown", init))).toBe(
+        false,
+      );
+    },
+  );
 
-  it.each(HANDLED_BY_XTERM)("xterm still handles %s, so it reaches the agent", (_name, init) => {
-    expect(installedHandler()(new KeyboardEvent("keydown", init))).toBe(true);
-  });
+  it.each(HANDLED_BY_XTERM)(
+    "xterm still handles %s, so it reaches the agent",
+    (_name, init) => {
+      expect(installedHandler()(new KeyboardEvent("keydown", init))).toBe(true);
+    },
+  );
 
   /* OWNER DECISION OD-9. With "Send shortcut keys to the terminal" on, the same handler keeps
    * every key, the chords included. The setting is turned on AFTER the terminal is built, which
    * is the order a user meets it in: the registry builds a session's terminal once, so a handler
    * that read the setting at construction would ignore every toggle made afterwards. */
-  it.each([...SKIPPED_BY_XTERM, ...SKIPPED_BY_XTERM_ON_META, ...HANDLED_BY_XTERM])(
-    "OD-9 on: xterm keeps %s, so it reaches the agent",
-    (_name, init) => {
-      const handler = installedHandler();
-      useCockpit.getState().setSendChordsToTerminal(true);
-      expect(handler(new KeyboardEvent("keydown", init))).toBe(true);
-      // And back off, to the answer the rows above pin for the default.
-      useCockpit.getState().setSendChordsToTerminal(false);
-      const handledWhenOff = HANDLED_BY_XTERM.some(([, handled]) => handled === init);
-      expect(handler(new KeyboardEvent("keydown", init))).toBe(handledWhenOff);
-    },
-  );
+  it.each([
+    ...SKIPPED_BY_XTERM,
+    ...SKIPPED_BY_XTERM_ON_META,
+    ...HANDLED_BY_XTERM,
+  ])("OD-9 on: xterm keeps %s, so it reaches the agent", (_name, init) => {
+    const handler = installedHandler();
+    useCockpit.getState().setSendChordsToTerminal(true);
+    expect(handler(new KeyboardEvent("keydown", init))).toBe(true);
+    // And back off, to the answer the rows above pin for the default.
+    useCockpit.getState().setSendChordsToTerminal(false);
+    const handledWhenOff = HANDLED_BY_XTERM.some(
+      ([, handled]) => handled === init,
+    );
+    expect(handler(new KeyboardEvent("keydown", init))).toBe(handledWhenOff);
+  });
 
   /* EDITED BY OD-9's FIX ROUND 1. This was one row, `readOnly={false} focused`, so a marker
    * rendered only on a writable terminal, or only on the focused pane, passed it (the review's
@@ -444,11 +549,20 @@ describe("Terminal lets the cockpit's chords past xterm", () => {
   ])(
     "OD-9: the terminal's element sits inside a host the keyboard map recognises as a terminal (readOnly $readOnly, focused $focused)",
     ({ readOnly, focused }) => {
-      seed(readOnly ? session({ status: "exited", exitReason: "killed" }) : session());
-      const { container } = render(<Terminal sessionId="s-1" readOnly={readOnly} focused={focused} />);
+      seed(
+        readOnly
+          ? session({ status: "exited", exitReason: "killed" })
+          : session(),
+      );
+      const { container } = render(
+        <Terminal sessionId="s-1" readOnly={readOnly} focused={focused} />,
+      );
       const host = container.firstElementChild as HTMLElement;
-      expect([host.hasAttribute(TERMINAL_HOST_ATTRIBUTE), host.contains(grab().element), isInsideTerminal(grab().element)])
-        .toEqual([true, true, true]);
+      expect([
+        host.hasAttribute(TERMINAL_HOST_ATTRIBUTE),
+        host.contains(grab().element),
+        isInsideTerminal(grab().element),
+      ]).toEqual([true, true, true]);
     },
   );
 });

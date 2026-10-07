@@ -101,17 +101,23 @@ export const createPrefsSlice: StateCreator<
 > = (set, get) => ({
   ...initialPrefsState,
 
-  // `defaults` stays a COMPLETE SessionDefaults, so an undefined in the patch is ignored
-  // rather than punching a hole in the bottom of the inheritance chain.
+  // Required defaults ignore undefined. The optional connection can be explicitly removed
+  // to use the active route again; an absent patch key preserves the user's current choice.
   setDefaults: (patch) =>
-    set((s) => ({
-      defaults: {
+    set((s) => {
+      const defaults: SessionDefaults = {
         harness: patch.harness ?? s.defaults.harness,
         model: patch.model ?? s.defaults.model,
         effort: patch.effort ?? s.defaults.effort,
         permissionMode: patch.permissionMode ?? s.defaults.permissionMode,
-      },
-    })),
+        ...(s.defaults.agentConnectionId === undefined ? {} : { agentConnectionId: s.defaults.agentConnectionId }),
+      };
+      if (Object.prototype.hasOwnProperty.call(patch, "agentConnectionId")) {
+        if (patch.agentConnectionId === undefined) delete defaults.agentConnectionId;
+        else defaults.agentConnectionId = patch.agentConnectionId;
+      }
+      return { defaults };
+    }),
 
   setProjectDefaults: (id, patch) =>
     set((s) => ({

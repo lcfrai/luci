@@ -39,6 +39,47 @@ type RuntimeJob struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// A first build downloads two base images, operating-system packages and the
+// pinned agent CLIs. It has one bounded budget, with no automatic retries.
+const runtimeBuildTimeout = 30 * time.Minute
+
+// Only trusted runtime preparation code can grant the longer Docker build
+// budget. Request bodies, headers and other commands cannot select it.
+type runtimeBuildBudgetKey struct{}
+type runtimeBuildBudget struct{}
+
+func commandExecutionBudget(ctx context.Context, executable string, args []string) time.Duration {
+	if executable == "docker" && len(args) > 0 && args[0] == "build" {
+		if _, trusted := ctx.Value(runtimeBuildBudgetKey{}).(runtimeBuildBudget); trusted {
+			return runtimeBuildTimeout
+		}
+	}
+	if _, bounded := ctx.Deadline(); bounded {
+		return 10 * time.Minute
+	}
+	return 2 * time.Minute
+}
+
+func runtimeBuildFailure(ctx context.Context, err error) string {
+	prefix := "Runtime installation failed: "
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
+		prefix = "Runtime installation timed out after 30 minutes. Check the connection and Docker build error before trying again: "
+	}
+	// Retain both the initial operation and the final Docker failure. Keeping
+	// only the beginning hides the cause behind ordinary cold-download output.
+	detail := strings.ToValidUTF8(err.Error(), "?")
+	const limit = 8000
+	if len(prefix)+len(detail) <= limit {
+		return prefix + detail
+	}
+	const marker = "\n[earlier build output omitted]\n"
+	const headBytes = 1024
+	tailBytes := limit - len(prefix) - headBytes - len(marker)
+	head := strings.ToValidUTF8(detail[:headBytes], "")
+	tail := strings.ToValidUTF8(detail[len(detail)-tailBytes:], "")
+	return prefix + head + marker + tail
+}
+
 // These short setup operations must not hold the server's state lock while a
 // child process runs. Serialization also prevents two first-run key requests
 // from racing to publish different public/private pairs.
@@ -332,8 +373,9 @@ func (s *Server) installRuntime(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) buildRuntime(dir string, job RuntimeJob) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), runtimeBuildTimeout)
 	defer cancel()
+	ctx = context.WithValue(ctx, runtimeBuildBudgetKey{}, runtimeBuildBudget{})
 	_, err := s.runner(ctx, "docker", []string{"build", "--file", "images/sandbox/Dockerfile", "--tag", job.Image, "."}, dir)
 	if err == nil {
 		var imageID string
@@ -345,10 +387,7 @@ func (s *Server) buildRuntime(dir string, job RuntimeJob) {
 	job.Status, job.Message = "ready", "The agent runtime image is installed. Run the readiness check to verify Docker and the image together."
 	if err != nil {
 		job.Status = "failed"
-		job.Message = "Runtime installation failed: " + err.Error()
-		if len(job.Message) > 8000 {
-			job.Message = job.Message[:8000] + " [output truncated]"
-		}
+		job.Message = runtimeBuildFailure(ctx, err)
 	}
 	job.UpdatedAt = time.Now().UTC()
 	s.mu.Lock()

@@ -19,7 +19,7 @@ func TestProjectPlanExportsContextAndKeepsRevision(t *testing.T) {
 	p := createJourneyProject(t, mux, "plan")
 	base := "/v1/product/projects/" + p.ID
 	journeyRequest(t, mux, "POST", base+"/brief", map[string]any{"revision": 0, "purpose": "Create a working solution", "criteria": []string{"The result runs"}}, 200)
-	req := map[string]any{"expectedRevision": 0, "tasks": []ProjectTask{{"task-1", "Implement the workflow", "doing"}}}
+	req := map[string]any{"expectedRevision": 0, "tasks": []ProjectTask{{ID: "task-1", Title: "Implement the workflow", Status: "doing"}}}
 	journeyRequest(t, mux, "POST", base+"/plan", req, 200)
 	journeyRequest(t, mux, "POST", base+"/plan", req, 409)
 	state, err := readJourney(p.Path, p.ID)

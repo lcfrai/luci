@@ -6,6 +6,10 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import "./components/journey/designAssets";
+import { initializeAppearance } from "./preferences/appearance";
+import { FluidProvider } from "./components/fluid/FluidProvider";
+
+initializeAppearance();
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement,
@@ -58,7 +62,7 @@ async function launch() {
     root.render(
       <React.StrictMode>
         <AuthProvider>
-          <App />
+          <FluidProvider><App /></FluidProvider>
         </AuthProvider>
       </React.StrictMode>,
     );

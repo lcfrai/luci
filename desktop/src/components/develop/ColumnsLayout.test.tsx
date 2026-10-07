@@ -211,13 +211,16 @@ describe("EmptyDevelop", () => {
     expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 
-  it("says a branch with no worktrees can hold no sessions, and offers no button that would 404", () => {
+  it("opens the branch switching flow when this branch has no checkout", async () => {
     seedBranch({ worktrees: [], sessionIdsByWorktree: {} });
     render(<DevelopLens />);
 
-    expect(screen.getByText(/no worktrees/i)).toBeDefined();
+    expect(screen.getByText(/Open evidence-upload in your project/)).toBeDefined();
     expect(screen.queryByRole("button", { name: /Claude Code/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /shell/i })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Switch to evidence-upload" }));
+    expect(useCockpit.getState().branchManager).toEqual({ projectId: "p-1", action: "switch", branchId: "b-1" });
+    expect(createSessionMock).not.toHaveBeenCalled();
   });
 
   it("offers the two named actions on a worktree with no sessions, and creates with resolved defaults", async () => {

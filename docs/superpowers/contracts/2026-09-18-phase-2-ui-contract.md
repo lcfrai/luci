@@ -413,12 +413,7 @@ export type MachineKind = "local" | "cloud";
  *  "running" and "error"; the other four need cloud machines (Phase 8). The cockpit renders
  *  all six so nothing changes here later. */
 export type MachineState =
-  | "provisioning"
-  | "running"
-  | "idle"
-  | "sleeping"
-  | "stopped"
-  | "error";
+  "provisioning" | "running" | "idle" | "sleeping" | "stopped" | "error";
 
 export type Isolation = "microvm" | "container" | "none";
 
@@ -485,7 +480,8 @@ export interface Worktree {
 
 /** The five ids the catalogue ships today. The `(string & {})` arm keeps the union open so a
  *  sixth harness added server-side does not fail to parse, while preserving autocomplete. */
-export type KnownHarnessId = "claude-code" | "codex" | "opencode" | "gemini-cli" | "shell";
+export type KnownHarnessId =
+  "claude-code" | "codex" | "opencode" | "gemini-cli" | "shell";
 export type HarnessId = KnownHarnessId | (string & {});
 
 /** Server-driven. Never a hard-coded list in the cockpit. */
@@ -518,6 +514,8 @@ export interface Harness {
   permissionModes: PermissionMode[];
   supportsOpeningPrompt: boolean;
   supportsResume: boolean;
+  supportsCustomModel?: boolean;
+  dockerAskNotice?: string;
   /** Why it is unavailable, or what it is. Rendered verbatim in the picker. */
   note: string;
 }
@@ -528,6 +526,30 @@ export interface Harness {
  *  agent-runtime signal that document calls a hard runtime dependency, and deriving them
  *  would require reading PTY bytes, which docs/PROGRAM.md forbids absolutely. */
 export type SessionStatus = "starting" | "running" | "idle" | "exited";
+
+/** Exact saved revisions and stable task IDs requested for an implementation session. */
+export interface ImplementationContextRequest {
+  projectId: ProjectId;
+  briefRevision: number;
+  planRevision: number;
+  specificationRevision: number;
+  designPlanRevision: number;
+  taskIds: string[];
+}
+
+/** Immutable server snapshot. Session activity never establishes task completion or verification. */
+export interface ImplementationContext extends ImplementationContextRequest {
+  briefDigest: string;
+  planDigest: string;
+  specificationDigest: string;
+  designPlanDigest: string;
+  worktreeId: WorktreeId;
+  sourceCommit: string;
+  sourceDigest: string;
+  sourceDirty: boolean;
+  taskTitles: string[];
+  requirementIds: string[];
+}
 
 export interface Session {
   id: SessionId;
@@ -542,6 +564,15 @@ export interface Session {
   permissionMode: PermissionMode;
   openingPrompt: string;
   status: SessionStatus;
+  /** Official account sign-in only; contains no implementation prompt. */
+  authOnly?: boolean;
+  /** Recorded subscription use cannot fall back to an API key on restart. */
+  authMode?: "chatgpt";
+  agentConnectionId?: string;
+  agentConnectionRevision?: number;
+  agentConnectionKind?: string;
+  agentConnectionProtocol?: string;
+  implementationContext?: ImplementationContext;
   /** Free text for the user: "killed", "process exited", "idle timeout",
    *  "sandbox disappeared while the app was not running". Rendered verbatim. */
   exitReason: string;
@@ -566,7 +597,8 @@ export type Layout = "columns" | "canvas";
 
 /** The six lens rows of the sub-rail. No order, no numbering, no completion state —
  *  docs/AGENTIC-UX.md §4 rule 12. Only "develop" has a surface in Phase 2. */
-export type Lens = "discover" | "design" | "develop" | "files" | "merge" | "deploy";
+export type Lens =
+  "discover" | "design" | "develop" | "files" | "merge" | "deploy";
 
 /** A hand-placed Canvas tile. Persisted per session — known defect 6. */
 export interface TilePosition {
@@ -583,6 +615,7 @@ export interface SessionDefaults {
   model: ModelId;
   effort: Effort;
   permissionMode: PermissionMode;
+  agentConnectionId?: string;
 }
 
 /** A partial override recorded against a project or a branch. Every field optional: an
@@ -815,8 +848,8 @@ export const APP_DEFAULTS: SessionDefaults = {
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-export const PERSIST_KEY = "panacea-app.cockpit";
-export const PERSIST_VERSION = 1;
+export const PERSIST_KEY = "luci.cockpit";
+export const PERSIST_VERSION = 2;
 
 /** What survives a restart. Everything else is re-fetched, because the control plane is the
  *  only truth about machines, projects, branches, worktrees and sessions. */
@@ -847,10 +880,13 @@ export const partialize = (s: CockpitState): Persisted => ({
 
 /** Version 0 is any snapshot written before this contract existed — a pre-release dev build.
  *  It is dropped rather than translated: nothing shipped, so nothing is owed, and a wrong
- *  translation of a shape nobody documented is worse than a clean start. Future versions
- *  translate; they never drop, because by then a user's tile layout is their work. */
+ *  translation of a shape nobody documented is worse than a clean start. Version 2 adds the
+ *  optional agentConnectionId inside defaults and overrides. Version 1 translates without
+ *  changing values: missing IDs still inherit, empty IDs still select the personal route,
+ *  and exact saved IDs remain exact. All other preferences survive unchanged. */
 export function migrate(persisted: unknown, from: number): Partial<Persisted> {
   if (from < 1 || persisted === null || typeof persisted !== "object") return {};
+  if (from === 1) return { ...persisted } as Partial<Persisted>;
   return persisted as Partial<Persisted>;
 }
 ```
@@ -878,6 +914,15 @@ predates at its initial value, so a snapshot written before the setting existed 
 **off**, the behaviour it was written under. `store.test.ts` pins that case and the round trip.
 The persisted shape is `Persisted` here, in `store.ts`; `types.ts` (§2) declares no persisted shape,
 so §2 does not change.
+
+**Version 2 adds optional `agentConnectionId` to app, project and branch defaults** (2026-10-06).
+The version 1 migration preserves the entire saved snapshot. It does not insert a connection
+ID: an absent override inherits the next level, and an absent resolved request uses the active
+connection. An explicit empty ID selects the personal route; a nonempty ID selects that exact
+saved connection. The persistence key is unchanged, and tiles, pins, navigation and all other
+preferences are retained. App-default patches omit the field to preserve its current choice,
+or explicitly set it to `undefined` to remove only that optional choice and use the active route
+again. Required defaults continue to ignore `undefined` patches.
 
 **Not persisted, on purpose:** every entity map (the server is truth, and a stale worktree list
 rendered before the first fetch is a lie the user has to un-learn), `loading`, `lastError`,

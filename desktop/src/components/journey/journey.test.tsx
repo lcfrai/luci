@@ -6,20 +6,31 @@ import { BriefEditor } from "../lens/DiscoverLens";
 import { ProjectFiles } from "../lens/FilesLens";
 import { ProjectGit } from "../lens/MergeLens";
 import { ApiError } from "../../api/client";
+import { definitionApi, type ProjectSpecification } from "../../api/definition";
 
-beforeEach(() => vi.restoreAllMocks());
-it("keeps the edited brief on a revision conflict instead of claiming it was saved", async () => {
-  vi.spyOn(productApi, "brief").mockResolvedValue({
+beforeEach(() => {
+  vi.restoreAllMocks();
+  vi.spyOn(definitionApi, "listAssistance").mockResolvedValue({ jobs: [] });
+  vi.spyOn(productApi, "agentConnections").mockResolvedValue({ revision: 0, activeConnectionId: "", connections: [] });
+});
+it("keeps the edited definition on a revision conflict instead of claiming it was saved", async () => {
+  const original: ProjectSpecification = {
     projectId: "p-1",
     revision: 2,
+    version: 1,
+    briefRevision: 3,
+    startingPoint: "new",
     purpose: "Original",
     audience: "People",
     constraints: "",
-    criteria: ["Works offline"],
+    requirements: [{id:"AC-001",title:"Works offline",acceptance:"Works offline",priority:"must"}],
+    outOfScope: [], journeys: [], roles: [], entities: [], integrations: [], glossary: [], decisions: [], questions: [],
+    status: "draft", digest: "",
     updatedAt: "",
-  });
+  };
+  vi.spyOn(definitionApi, "get").mockResolvedValue(original);
   const save = vi
-    .spyOn(productApi, "saveBrief")
+    .spyOn(definitionApi, "save")
     .mockRejectedValue(
       new ApiError(
         "conflict",
@@ -31,17 +42,11 @@ it("keeps the edited brief on a revision conflict instead of claiming it was sav
   const idea = await screen.findByRole("textbox", { name: "The idea" });
   await userEvent.clear(idea);
   await userEvent.type(idea, "A better idea");
-  await userEvent.click(screen.getByRole("button", { name: "Save brief" }));
-  await screen.findByRole("alert");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("This brief changed. Reload before saving.");
   expect((idea as HTMLTextAreaElement).value).toBe("A better idea");
   expect(screen.queryByText(/Agent context updated/)).toBeNull();
-  expect(save).toHaveBeenCalledWith("p-1", {
-    revision: 2,
-    purpose: "A better idea",
-    audience: "People",
-    constraints: "",
-    criteria: ["Works offline"],
-  });
+  expect(save).toHaveBeenCalledWith("p-1", { ...original, purpose: "A better idea" }, 2, 3);
 });
 
 it("reads actual file content and keeps the current folder when the server refuses a path", async () => {

@@ -1,0 +1,8 @@
+*
+!Dockerfile
+!entrypoint.sh
+!engine-entrypoint.sh
+!workspace-init.sh
+!healthcheck.sh
+!bundle/
+!bundle/**

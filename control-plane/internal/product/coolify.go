@@ -25,14 +25,25 @@ type CoolifyClient struct {
 }
 
 type CoolifyProject struct {
-	UUID string `json:"uuid"`
-	Name string `json:"name"`
+	UUID        string `json:"uuid"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type CoolifyServer struct {
-	UUID string `json:"uuid"`
-	Name string `json:"name"`
-	IP   string `json:"ip"`
+	UUID     string                 `json:"uuid"`
+	Name     string                 `json:"name"`
+	IP       string                 `json:"ip"`
+	Settings *CoolifyServerSettings `json:"settings,omitempty"`
+}
+
+// Missing metadata is not evidence that a server is suitable for co-location.
+type CoolifyServerSettings struct {
+	BuildOnly    *bool `json:"is_build_server"`
+	SwarmManager *bool `json:"is_swarm_manager"`
+	SwarmWorker  *bool `json:"is_swarm_worker"`
+	Usable       *bool `json:"is_usable"`
+	Reachable    *bool `json:"is_reachable"`
 }
 
 // CoolifyGitApplication requires source accessible to the remote server. It does

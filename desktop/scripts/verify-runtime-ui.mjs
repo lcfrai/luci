@@ -144,6 +144,7 @@ async function typeCommand(command) {
 async function stopPreview() {
   if (!result.release || result.release.status === "stopped") return;
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
+  await page.getByRole("tab", { name: "Previews and publishing", exact: true }).click();
   const stopped = await observed(
     () =>
       page.getByRole("button", { name: "Stop preview", exact: true }).click(),
@@ -164,35 +165,31 @@ try {
   await page.goto(base);
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.getByRole("button", { name: "Settings", exact: true }).waitFor();
-  // runtime-smoke builds the image but deliberately does not complete onboarding.
-  const setupDialog = page.getByRole("dialog");
-  if (!(await setupDialog.isVisible()))
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await setupDialog.waitFor();
+  await observed(
+    () => page.getByRole("button", { name: "Sign in", exact: true }).click(),
+    "/v1/auth/login",
+  );
+  // runtime-smoke has already retained a real runtime proof project. Returning
+  // accounts open Projects home; resume unfinished onboarding through its visible
+  // entry, then keep the real image/readiness checks below.
+  await page.getByRole("heading", { name: "Your projects", exact: true }).waitFor();
+  await page.getByText(/Your workspace setup is unfinished/).waitFor();
+  await page.getByRole("button", { name: "Workspace setup", exact: true }).click();
+  await page.getByRole("heading", { name: "Choose your workspace", exact: true }).waitFor();
+  assert.equal(await page.getByRole("button", { name: "Close settings", exact: true }).count(), 0);
   const localChoice = page.getByRole("button", {
     name: "On this computer",
     exact: true,
   });
-  await until(
-    "Local setup controls",
-    async () =>
-      (await localChoice.isVisible()) ||
-      (await page.getByRole("textbox", { name: /^Projects folder/ }).isVisible()),
-  );
-  if (await localChoice.isVisible()) await localChoice.click();
-  await page
-    .getByRole("button", { name: "Save settings", exact: true })
-    .click();
-  await page
-    .getByText("Settings saved. Your projects folder is ready.", {
-      exact: true,
-    })
-    .waitFor();
-  await page
-    .getByText("Git identity, agent connection and runtime", { exact: true })
-    .click();
+  const [readinessResponse, configured] = await Promise.all([
+    page.waitForResponse(endpoint("/v1/setup/check", "POST")),
+    observed(() => localChoice.click(), "/v1/setup/config"),
+  ]);
+  assert.equal(configured.configured, true);
+  assert.equal(readinessResponse.status(), 200);
+  const readiness = await readinessResponse.json();
+  for (const id of ["git", "docker", "sandbox-image"])
+    assert.equal(readiness.checks.find((check) => check.id === id)?.status, "ready", `${id} was not verified ready by the real workspace check`);
   await page
     .getByLabel("Commit author name", { exact: true })
     .fill("Luci Runtime UI");
@@ -204,49 +201,78 @@ try {
     .click();
   await page.getByText(/Git identity saved for this machine/).waitFor();
   await page
-    .getByRole("button", { name: "Close settings", exact: true })
+    .getByRole("button", { name: "Continue to projects", exact: true })
     .click();
+  await page.getByRole("heading", { name: "Your projects", exact: true }).waitFor();
   checks.push(
     "Signed in and saved local setup/Git identity through the real UI using an isolated account",
   );
 
   await page
-    .getByRole("button", { name: "Create project", exact: true })
+    .getByRole("button", { name: "New project", exact: true })
     .click();
-  await page.getByLabel("Project name", { exact: true }).fill(name);
+  const projectDialog = page.getByRole("dialog", { name: "Create a project", exact: true });
+  await projectDialog.getByLabel("Project name", { exact: true }).fill(name);
   result.project = await observed(
     () =>
-      page
-        .getByRole("dialog")
+      projectDialog
         .getByRole("button", { name: "Create project", exact: true })
         .click(),
     "/v1/product/projects",
   );
   await receipt();
-  await page
-    .getByRole("textbox", { name: "The idea", exact: true })
-    .fill("An actual Node application created through a Docker shell in Luci.");
-  await page
-    .getByRole("textbox", { name: "Who it is for", exact: true })
-    .fill("People verifying the complete development and preview workflow.");
-  await page
-    .getByRole("textbox", { name: "Boundaries and constraints", exact: true })
-    .fill(
-      "Use the existing sandbox image. No model accounts or cloud resources.",
-    );
-  await page
-    .getByRole("textbox", { name: /^What good looks like/ })
-    .fill(
-      "A terminal writes files as the ordinary host UID\nDocker checks pass\nA committed app renders in the preview and stops",
-    );
-  const brief = await observed(
-    () => page.getByRole("button", { name: "Save brief", exact: true }).click(),
-    `/v1/product/projects/${result.project.id}/brief`,
+  await page.getByRole("heading", { name: "Define your project", exact: true }).waitFor();
+  const answers = [
+    ["What should this solution do?", "An actual Node application created through a Docker shell in Luci."],
+    ["Who will use it?", "People verifying the complete development and preview workflow."],
+    ["What does it need to respect?", "Use the existing sandbox image. No model accounts or cloud resources."],
+    ["What should we leave out?", "Paid model calls\nPublic cloud provisioning"],
+    ["How will we know it works?", "A terminal writes files as the ordinary host UID\nDocker checks pass\nA committed app renders in the preview and stops"],
+  ];
+  for (const [index, [question, answer]] of answers.entries()) {
+    await page.getByRole("textbox", { name: question, exact: true }).fill(answer);
+    await page.getByRole("button", { name: index < answers.length - 1 ? "Next question" : "Review specification", exact: true }).click();
+  }
+  const specification = await observed(
+    () => page.getByRole("button", { name: "Save definition", exact: true }).click(),
+    `/v1/product/projects/${result.project.id}/specification`,
   );
-  assert.equal(brief.revision, 1);
-  await commit("Define runtime UI acceptance");
+  assert.equal(specification.revision, 1);
+  assert.equal(specification.briefRevision, 1);
+  assert.equal(specification.requirements.length, 3);
+  assert.equal(new Set(specification.requirements.map((item) => item.id)).size, 3);
+  const approved = await observed(
+    () => page.getByRole("button", { name: "Approve definition", exact: true }).click(),
+    `/v1/product/projects/${result.project.id}/specification/approve`,
+  );
+  assert.equal(approved.status, "approved");
+  assert.equal(approved.revision, 2);
+  assert.equal(approved.briefRevision, 1);
+  assert.deepEqual(approved.requirements.map((item) => item.id), specification.requirements.map((item) => item.id));
+  assert.match(approved.digest, /^[a-f0-9]{64}$/);
+  result.definition = { revision: approved.revision, briefRevision: approved.briefRevision, digest: approved.digest, requirementIds: approved.requirements.map((item) => item.id) };
+  await page.getByRole("button", { name: "Continue to Design", exact: true }).click();
+  await page.getByRole("heading", { name: "Design the experience", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Start a screen plan from my definition", exact: true }).click();
+  await page.getByRole("textbox", { name: "Screen name", exact: true }).fill("Runtime proof");
+  const design = await observed(
+    () => page.getByRole("button", { name: "Save design plan", exact: true }).click(),
+    `/v1/product/projects/${result.project.id}/design-plan`,
+  );
+  assert.equal(design.screens.length, 1);
+  assert.deepEqual(design.screens[0].requirementIds, result.definition.requirementIds);
+  const handoff = await observed(
+    () => page.getByRole("button", { name: "Approve design handoff", exact: true }).click(),
+    `/v1/product/projects/${result.project.id}/design-plan/approve`,
+  );
+  assert.equal(handoff.status, "approved");
+  assert.equal(handoff.specificationRevision, approved.revision);
+  assert.equal(handoff.briefRevision, approved.briefRevision);
+  assert.match(handoff.digest, /^[a-f0-9]{64}$/);
+  result.designPlan = { revision: handoff.revision, digest: handoff.digest, specificationRevision: handoff.specificationRevision };
+  await commit("Define and design runtime UI acceptance");
   checks.push(
-    "Created a project, saved its actual brief and made an initial Git commit through visible controls",
+    "Created a project, completed the structured interview, approved stable requirements and a linked screen-plan handoff, then committed the actual context through visible controls",
   );
 
   const projectRow = page.locator(
@@ -290,7 +316,7 @@ try {
 
   const files = {
     "app.mjs": `import http from 'node:http';\nconst html='<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Luci runtime preview</title></head><body><h1>Luci runtime preview</h1><p>Created through Luci’s Docker terminal.</p><p id="proof">${nonce}</p></body></html>';\nhttp.createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html; charset=utf-8'});res.end(html);}).listen(3000,'0.0.0.0');\n`,
-    "verify.mjs": `import assert from 'node:assert/strict';\nimport {readFileSync} from 'node:fs';\nassert.notEqual(process.getuid(),0);\nassert.match(readFileSync('LUCI.md','utf8'),/actual Node application/);\nassert.match(readFileSync('app.mjs','utf8'),/${nonce}/);\nconsole.log('Luci runtime checks passed as uid '+process.getuid());\n`,
+    "verify.mjs": `import assert from 'node:assert/strict';\nimport {readFileSync} from 'node:fs';\nassert.notEqual(process.getuid(),0);\nassert.match(readFileSync('LUCI.md','utf8'),/actual Node application/);\nconst definition=JSON.parse(readFileSync('.luci/specification.json','utf8'));\nconst design=JSON.parse(readFileSync('.luci/design-handoff.json','utf8'));\nassert.equal(definition.status,'approved');\nassert.equal(definition.digest,'${result.definition.digest}');\nassert.equal(design.status,'approved');\nassert.equal(design.digest,'${result.designPlan.digest}');\nassert.equal(design.specificationRevision,definition.revision);\nassert.deepEqual(design.screens[0].requirementIds,definition.requirements.map(item=>item.id));\nassert.match(readFileSync('app.mjs','utf8'),/${nonce}/);\nconsole.log('Luci runtime checks passed as uid '+process.getuid());\n`,
     Dockerfile: `FROM ${image}\nWORKDIR /app\nCOPY --chown=dev:dev app.mjs /app/app.mjs\nUSER dev\nEXPOSE 3000\nENTRYPOINT ["node","/app/app.mjs"]\n`,
     ".dockerignore": ".git\n",
   };
@@ -365,8 +391,18 @@ try {
   result.checkRunId = run.id;
   await panel
     .locator(".check-runs strong")
-    .filter({ hasText: /^passed$/ })
+    .filter({ hasText: /^Commands passed$/ })
     .waitFor({ timeout: 120000 });
+  assert.equal(
+    await panel
+      .locator(".check-runs")
+      .getByText("Unverified · generic commands without requirement links", {
+        exact: true,
+      })
+      .isVisible(),
+    true,
+    "Generic Docker checks must remain visibly unverified for requirements",
+  );
   await panel.locator(".check-runs summary").first().click();
   await panel
     .getByText(`Luci runtime checks passed as uid ${process.getuid()}`, {
@@ -384,6 +420,8 @@ try {
   );
 
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
+  await page.getByRole("tab", { name: "Previews and publishing", exact: true }).click();
+  await page.locator("summary").filter({ hasText: /^Preview build options$/ }).click();
   await page.getByLabel("Dockerfile", { exact: true }).fill("Dockerfile");
   await page.getByRole("spinbutton", { name: /^App port/ }).fill("3000");
   result.release = await observed(
@@ -399,7 +437,7 @@ try {
   await receipt();
   assert.equal(result.release.status, "ready");
   assert.equal(result.release.commit, result.commit);
-  assert.equal(result.release.briefRevision, 1);
+  assert.equal(result.release.briefRevision, result.definition.briefRevision);
   const previewURL = new URL(result.release.url);
   assert.equal(previewURL.hostname, "127.0.0.1");
   assert.equal(previewURL.protocol, "http:");

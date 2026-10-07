@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,6 +35,8 @@ import (
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/instance"
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/platform"
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 	"github.com/lcfrai/luci/control-plane/internal/product"
 	"github.com/lcfrai/luci/control-plane/internal/project"
 	"github.com/lcfrai/luci/control-plane/internal/reaper"
@@ -162,7 +165,29 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			cloudBundle = filepath.Join(filepath.Dir(exe), "cloud", "luci-cloud-linux-amd64.tar.gz")
 		}
 	}
-	productService, err := product.New(product.Options{ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
+	var platformService *platform.Service
+	resolveDataPlatform := func() *platform.Service { return platformService }
+	productService, err := product.New(product.Options{ClearBranchReady: func(ctx context.Context, worktreeID string) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		_, err := store.SetWorktreeReady(worktreeID, false)
+		return err
+	}, BranchSessions: func(ctx context.Context, projectID, worktreeID string) (bool, error) {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
+		sessions, err := store.List()
+		if err != nil {
+			return false, err
+		}
+		for _, sess := range sessions {
+			if (sess.ProjectID == projectID || sess.WorktreeID == worktreeID) && sess.Status != registry.StatusExited {
+				return true, nil
+			}
+		}
+		return false, nil
+	}, NativePrototypeReleases: product.PlatformPrototypeReleases(resolveDataPlatform), CloudDataBindings: product.PlatformCloudDataBindings(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, ManagedWorkspace: cfg.Worker, CloudBundle: cloudBundle, StateDir: filepath.Dir(cfg.SessionsPath), RuntimeDir: runtimeDir, ProjectsDir: cfg.ProjectsDir, SandboxImage: cfg.SandboxImage, CheckMemoryMiB: cfg.MemoryMiB, CheckCPUMillis: cfg.CPUMillis, Configure: projects.configure, Shutdown: func() {
 		if shutdownService != nil {
 			shutdownService()
 		}
@@ -171,6 +196,13 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		return fmt.Errorf("initialise Luci: %w", err)
 	}
 	defer productService.Close()
+	// Public browser origins are optional and independent from private Docker
+	// health URLs. The portable/native launch paths keep their prior defaults.
+	platformService, err = platform.New(platform.Options{FunctionSources: productService.FunctionSources(), DataDomains: productService.PlatformDataDomains(resolveDataPlatform), BrowserPreviewPort: cfg.BrowserPreviewPort, StateDir: filepath.Dir(cfg.SessionsPath), InstanceID: instanceID, DockerHost: cfg.DockerHost, MemoryMiB: cfg.MemoryMiB, CPUMillis: cfg.CPUMillis, ResolveProject: productService.ResolveProject, ApplicationConfiguration: productService.ApplicationConfiguration, ValidateDeploymentSource: productService.ValidateDeploymentSource})
+	if err != nil {
+		return fmt.Errorf("initialise application platform: %w", err)
+	}
+	defer platformService.Close()
 
 	// The host's own git config, and nothing a sandbox can write, answers the
 	// identity, line-ending and global-file questions: hostGit runs each git in
@@ -238,7 +270,15 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 		}
 	}
 
-	engine := productService.ProxyWorkspace(handler)
+	platformHandler := platformService.Handler()
+	combined := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/v1/platform/") {
+			platformHandler.ServeHTTP(w, r)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	})
+	engine := productService.ProxyWorkspace(combined)
 	var control *management.Gateway
 	if cfg.Worker {
 		engine = management.WorkerHandler(cfg.WorkerToken, engine)
@@ -262,6 +302,30 @@ func serve(ctx context.Context, cfg Config, log *slog.Logger) error {
 			_ = control.Close(cleanup)
 		}()
 		engine = control.Handler()
+	}
+	if cfg.BrowserPreviewAddr != "" && !cfg.Worker {
+		root := cfg.StateDir
+		if root == "" {
+			root = filepath.Dir(filepath.Dir(cfg.SessionsPath))
+		}
+		gateway, err := previewgateway.New(root, cfg.BrowserPreviewPort, previewgateway.DockerVerifier(cfg.DockerHost))
+		if err != nil {
+			_ = ln.Close()
+			return fmt.Errorf("initialise browser gateway: %w", err)
+		}
+		previewListener, err := net.Listen("tcp", cfg.BrowserPreviewAddr)
+		if err != nil {
+			_ = ln.Close()
+			return fmt.Errorf("listen on browser gateway: %w", err)
+		}
+		previewServer := &http.Server{Handler: gateway, ReadHeaderTimeout: 10 * time.Second}
+		defer previewServer.Close()
+		go func() {
+			if err := previewServer.Serve(previewListener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Error("browser gateway stopped", "err", err)
+				_ = ln.Close()
+			}
+		}()
 	}
 	srv := &http.Server{
 		Handler: withWeb(originPolicy.Middleware(withManagedShutdown(engine, cfg.ManagedShutdownToken, func() {

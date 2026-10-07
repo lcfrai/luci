@@ -10,6 +10,11 @@ sandboxd-linux
 *.tfstate
 *.tfstate.backup
 main/
+# Reviewed, manifest-bound upstream runtime assets are source, not build output.
+!/control-plane/internal/platform/supabase_assets/volumes/functions/main/
+!/control-plane/internal/platform/supabase_assets/volumes/functions/main/index.ts
+!/control-plane/internal/platform/supabase_assets/volumes/functions/_vendor/jose/dist/
+!/control-plane/internal/platform/supabase_assets/volumes/functions/_vendor/jose/dist/**
 artifacts/
 desktop/src-tauri/binaries/
 desktop/src-tauri/runtime/

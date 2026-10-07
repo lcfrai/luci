@@ -13,23 +13,27 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
 )
 
 type Release struct {
-	ID                    string `json:"id"`
-	ProjectID             string `json:"projectId"`
-	BriefRevision         int    `json:"briefRevision"`
-	ConfigurationRevision int    `json:"configurationRevision,omitempty"`
-	Commit                string `json:"commit"`
-	Target                string `json:"target"`
-	Status                string `json:"status"`
-	URL                   string `json:"url"`
-	Message               string `json:"message"`
-	CreatedAt             string `json:"createdAt"`
+	ID                        string `json:"id"`
+	ProjectID                 string `json:"projectId"`
+	BriefRevision             int    `json:"briefRevision"`
+	ConfigurationRevision     int    `json:"configurationRevision,omitempty"`
+	Commit                    string `json:"commit"`
+	Target                    string `json:"target"`
+	Status                    string `json:"status"`
+	URL                       string `json:"url"`
+	Message                   string `json:"message"`
+	CreatedAt                 string `json:"createdAt"`
+	BrowserConnectionRequired bool   `json:"browserConnectionRequired,omitempty"`
 }
 
 type storedRelease struct {
@@ -116,8 +120,8 @@ func (s *Server) listProjectReleases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result := []Release{}
-	for _, row := range rows {
-		result = append(result, row.Release)
+	for _, row := range s.observeLocalReleases(r.Context(), rows) {
+		result = append(result, s.browserRelease(row))
 	}
 	cloud, err := s.cloudReleases(p.ID)
 	if err != nil {
@@ -125,6 +129,12 @@ func (s *Server) listProjectReleases(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result = append(result, cloud...)
+	pages, err := s.pagesReleases(p.ID)
+	if err != nil {
+		journeyError(w, 500, "releases_unavailable", "Pages history could not be read.")
+		return
+	}
+	result = append(result, pages...)
 	sort.SliceStable(result, func(i, j int) bool { return result[i].CreatedAt > result[j].CreatedAt })
 	journeyJSON(w, 200, map[string]any{"releases": result})
 }
@@ -178,18 +188,15 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.RLock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	s.mu.RUnlock()
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())
 		return
 	}
-	if state.Brief.Revision > 0 {
-		committedBrief, briefErr := s.journeyGit(ctx, p.Path, "show", commit+":LUCI.md")
-		if briefErr != nil || committedBrief != string(renderBrief(state.Brief)) {
-			journeyError(w, 409, "brief_commit_required", "Commit the current LUCI.md before previewing. The release must bind the brief that is actually in its commit.")
-			return
-		}
+	if err := s.validateReviewedCommit(ctx, p, state, commit); err != nil {
+		problem(w, 409, "review_approval_required", err.Error())
+		return
 	}
 	configuration, err := s.applicationConfigurationSnapshot(p.ID)
 	if err != nil {
@@ -201,6 +208,17 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	row := storedRelease{Release: Release{ID: newID("rel-"), ProjectID: p.ID, BriefRevision: state.Brief.Revision, ConfigurationRevision: configuration.Revision, Commit: commit, Target: "local", Status: "building", CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}}
+	s.mu.Lock()
+	if s.activeLocalReleases == nil {
+		s.activeLocalReleases = make(map[string]bool)
+	}
+	s.activeLocalReleases[row.ID] = true
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		delete(s.activeLocalReleases, row.ID)
+		s.mu.Unlock()
+	}()
 	row.Image = "luci/preview:" + row.ID
 	if err := s.storeRelease(row); err != nil {
 		journeyError(w, 500, "release_reservation_failed", err.Error())
@@ -299,7 +317,7 @@ func (s *Server) createLocalRelease(w http.ResponseWriter, r *http.Request) {
 		failed("Health passed but its release record could not be saved: " + err.Error())
 		return
 	}
-	journeyJSON(w, 201, row.Release)
+	journeyJSON(w, 201, s.browserRelease(row))
 }
 
 func localPreviewURL(mapping string) (string, error) {
@@ -345,6 +363,10 @@ func waitPreviewHealthy(ctx context.Context, url string) error {
 }
 
 func (s *Server) stopLocalRelease(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.PathValue("releaseId"), "pages-") {
+		s.pagesReleaseOperation(w, r, true)
+		return
+	}
 	p, ok := s.requestProject(w, r)
 	if !ok {
 		return
@@ -414,7 +436,7 @@ func archiveCommittedProject(ctx context.Context, dir, commit, destination strin
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 	args := append(append([]string{}, journeyGitFlags...), "archive", "--format=tar", commit)
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := exec.CommandContext(ctx, "git", gitcommand.PlatformArgs(dir, args)...)
 	cmd.Dir = dir
 	cmd.WaitDelay = 2 * time.Second
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
@@ -456,6 +478,13 @@ func archiveCommittedProject(ctx context.Context, dir, commit, destination strin
 }
 
 func extractPreviewArchive(reader io.Reader, destination string) error {
+	root, err := os.Lstat(destination)
+	if err != nil || !root.IsDir() || root.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+		return errors.New("the build context requires an ordinary private staging directory")
+	}
+	if runtime.GOOS != "windows" && root.Mode().Perm() != 0700 {
+		return errors.New("the build context staging directory must remain private")
+	}
 	archive := tar.NewReader(reader)
 	total := int64(0)
 	files := 0
@@ -501,28 +530,34 @@ func extractPreviewArchive(reader io.Reader, destination string) error {
 		if total > 100<<20 {
 			return errors.New("the build context exceeds 100 MiB")
 		}
-		target := filepath.Join(destination, filepath.FromSlash(name))
 		if header.Typeflag == tar.TypeDir {
-			if err := os.MkdirAll(target, 0700); err != nil {
+			if err := previewArchiveDirectory(destination, name); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := os.MkdirAll(filepath.Dir(target), 0700); err != nil {
+		if err := previewArchiveDirectory(destination, filepath.ToSlash(filepath.Dir(filepath.FromSlash(name)))); err != nil {
 			return err
 		}
-		if _, err := guardedProjectPath(destination, name, true); err != nil {
+		target, err := guardedProjectPath(destination, name, true)
+		if err != nil {
 			return err
 		}
-		mode := os.FileMode(0600)
+		mode := os.FileMode(0644)
 		if header.Mode&0111 != 0 {
-			mode = 0700
+			mode = 0755
 		}
-		file, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+		file, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 		if err != nil {
 			return err
 		}
 		_, copyErr := io.CopyN(file, archive, header.Size)
+		// The enclosing MkdirTemp directory stays private. Files inside must
+		// retain canonical Git readability/executability when Docker COPY
+		// gives them to a non-root application, including under umask 077.
+		if copyErr == nil {
+			copyErr = file.Chmod(mode)
+		}
 		closeErr := file.Close()
 		if copyErr != nil {
 			return copyErr
@@ -531,4 +566,58 @@ func extractPreviewArchive(reader io.Reader, destination string) error {
 			return closeErr
 		}
 	}
+}
+
+// Create and check each ancestor before changing its permissions. MkdirAll
+// alone would follow a pre-existing directory symlink, and a later directory
+// header could otherwise chmod a path outside this private build context.
+func previewArchiveDirectory(root, relative string) error {
+	if relative == "." || relative == "" {
+		return nil // Never broaden the private outer staging directory.
+	}
+	var partial string
+	for _, component := range strings.Split(relative, "/") {
+		if partial == "" {
+			partial = component
+		} else {
+			partial += "/" + component
+		}
+		directory, err := guardedProjectPath(root, partial, true)
+		if err != nil {
+			return err
+		}
+		if err := os.Mkdir(directory, 0700); err != nil && !errors.Is(err, os.ErrExist) {
+			return err
+		}
+		info, err := os.Lstat(directory)
+		if err != nil || !info.IsDir() || info.Mode()&(os.ModeSymlink|os.ModeIrregular) != 0 {
+			return errors.New("the build context contains an unsafe directory")
+		}
+		if _, err := guardedProjectPath(root, partial, false); err != nil {
+			return err
+		}
+		opened, err := os.Open(directory)
+		if err != nil {
+			return err
+		}
+		actual, statErr := opened.Stat()
+		if statErr != nil || !os.SameFile(info, actual) {
+			_ = opened.Close()
+			return errors.New("the build context directory changed during extraction")
+		}
+		guardErr := func() error {
+			if _, err := guardedProjectPath(root, partial, false); err != nil {
+				return err
+			}
+			return opened.Chmod(0755)
+		}()
+		closeErr := opened.Close()
+		if guardErr != nil {
+			return guardErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+	}
+	return nil
 }

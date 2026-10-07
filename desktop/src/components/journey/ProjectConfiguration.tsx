@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../../api/client";
+import { Button } from "../fluid/components/button";
+import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
 import {
   productApi,
   type ConfigurationUpdate,
@@ -33,6 +35,8 @@ function ConfigurationFields({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [conflict, setConflict] = useState(false);
+  const hasDraft = !!name.trim() || !!value || emptyValue;
+  useUnsavedProjectDraft(projectId, hasDraft, "Runtime configuration", "deploy");
   const privateValue = useRef<HTMLInputElement>(null);
   const alive = useRef(true),
     working = useRef(false);
@@ -44,8 +48,6 @@ function ConfigurationFields({
     setLoading(true);
     setError("");
     setNotice("");
-    setValue("");
-    setEmptyValue(false);
     try {
       const metadata = await productApi.configuration(projectId);
       if (alive.current) {
@@ -157,14 +159,14 @@ function ConfigurationFields({
             backups. Rebuilding old code uses current configuration.
           </p>
         </div>
-        <button
-          type="button"
-          className="luci-button"
+        <Button type="button"
+          variant="ghost"
+          loading={loading}
           disabled={disabled || !!busy || loading}
           onClick={() => void refresh()}
         >
           Refresh stored names
-        </button>
+        </Button>
       </div>
       <p className="journey-muted">
         Set variables such as DATABASE_URL for your running app. Changes apply
@@ -190,10 +192,9 @@ function ConfigurationFields({
           {configuration.variables.map((variable) => (
             <li className="journey-actions" key={variable.name}>
               <code>{variable.name}</code>
-              <button
-                type="button"
-                className="luci-button"
-                disabled={blocked}
+              <Button type="button"
+                variant="secondary"
+                disabled={blocked || hasDraft}
                 aria-label={`Update ${variable.name}`}
                 onClick={() => {
                   setName(variable.name);
@@ -205,18 +206,17 @@ function ConfigurationFields({
                 }}
               >
                 Update
-              </button>
-              <button
-                type="button"
-                className="luci-button"
-                disabled={blocked}
+              </Button>
+              <Button type="button"
+                variant="secondary"
+                disabled={blocked || hasDraft}
                 aria-label={`Remove ${variable.name}`}
                 onClick={() =>
                   void apply({ name: variable.name, remove: true })
                 }
               >
                 Remove
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -267,12 +267,14 @@ function ConfigurationFields({
           Set an empty value
         </label>
         <div className="journey-actions">
-          <button
-            className="luci-button"
+          <Button type="submit"
+            variant="secondary"
+            loading={!!busy}
             disabled={blocked || !name.trim() || (!emptyValue && !value)}
           >
             {busy || "Save runtime variable"}
-          </button>
+          </Button>
+          {hasDraft && <Button type="button" variant="ghost" disabled={disabled || !!busy || loading} onClick={() => { setName(""); setValue(""); setEmptyValue(false); setError(""); setNotice("Variable draft discarded. Saved configuration is unchanged."); }}>Discard variable draft</Button>}
         </div>
       </form>
     </section>

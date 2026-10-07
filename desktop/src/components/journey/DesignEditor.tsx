@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Excalidraw, MainMenu, serializeAsJSON } from "@excalidraw/excalidraw";
 import type {
   ExcalidrawInitialDataState,
+  ExcalidrawImperativeAPI,
   ExcalidrawProps,
 } from "@excalidraw/excalidraw/types";
 import "@excalidraw/excalidraw/index.css";
@@ -12,19 +13,95 @@ import {
   type DesignScene,
 } from "../../api/product";
 import { JourneyHeader } from "./shared";
+import { useAppearance } from "../../preferences/appearance";
+import { useUnsavedProjectDraft } from "../../hooks/useUnsavedProjectDraft";
+import { Button } from "../fluid/components/button";
 
-export default function DesignEditor({ projectId }: { projectId: string }) {
+type Props = { projectId: string; onDirtyChange?(dirty: boolean): void; onBusyChange?(busy: boolean): void };
+type CanvasSnapshot = Parameters<NonNullable<ExcalidrawProps["onChange"]>>;
+function persistedScene([elements, appState, files]: CanvasSnapshot): DesignScene {
+  const serialized = JSON.parse(serializeAsJSON(elements, appState, files, "local")) as DesignScene;
+  return { elements: serialized.elements, appState: serialized.appState, files: serialized.files };
+}
+/** Compare the document exported by the pinned adapter, excluding viewport,
+ * selection, tools and theme. Cache metadata on image files is not an edit. */
+function documentFingerprint(scene: DesignScene): string {
+  return JSON.stringify({ ...scene, files: Object.fromEntries(Object.entries(scene.files).sort(([a], [b]) => a.localeCompare(b)).map(([key, file]) => {
+    const value = file as Record<string, unknown>;
+    return [key, { id: value.id, mimeType: value.mimeType, dataURL: value.dataURL }];
+  })) });
+}
+
+/** Excalidraw stores a concrete paper colour. Resolve the shared token through
+ * the browser so persisted scene data does not depend on CSS variable support. */
+function initialPaperColour(): string | undefined {
+  const colour = getComputedStyle(document.documentElement)
+    .getPropertyValue("--design-paper")
+    .trim();
+  if (!colour) return undefined;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 1;
+  const context = canvas.getContext("2d");
+  if (!context) return undefined;
+  context.fillStyle = colour;
+  context.fillRect(0, 0, 1, 1);
+  return "#" + Array.from(context.getImageData(0, 0, 1, 1).data)
+    .slice(0, 3)
+    .map((channel) => channel.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export default function DesignEditor(props: Props) {
+  return <ProjectDesignEditor key={props.projectId} {...props} />;
+}
+function ProjectDesignEditor({ projectId, onDirtyChange, onBusyChange }: Props) {
+  const appearance = useAppearance();
   const [design, setDesign] = useState<Design | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  useUnsavedProjectDraft(projectId, dirty, "Sketch", "design");
+  const baseline = useRef<string | null>(null), latestDocument = useRef<string | null>(null);
   const current = useRef<Parameters<
     NonNullable<ExcalidrawProps["onChange"]>
   > | null>(null);
   const saving = useRef(false);
   const alive = useRef(true);
   const [loading, setLoading] = useState(true);
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
+  useEffect(() => () => { onBusyChange?.(false); }, [onBusyChange]);
   const canvas = useRef<HTMLDivElement>(null);
+  const nativeAPI = useRef<ExcalidrawImperativeAPI | null>(null);
+  // The pinned editor's resize observer can update its device breakpoint after
+  // the window resize already wrote the same bounds, without another render.
+  // Refresh its supported layout API after those observers finish; this does
+  // not change tools, elements, the viewport or the saved document.
+  useLayoutEffect(() => {
+    const root = canvas.current;
+    if (!root || typeof ResizeObserver === "undefined") return;
+    let disposed = false, frame: number | null = null;
+    let { width, height } = root.getBoundingClientRect();
+    const observer = new ResizeObserver(() => {
+      if (disposed) return;
+      const next = root.getBoundingClientRect();
+      if (next.width === width && next.height === height) return;
+      width = next.width; height = next.height;
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        if (!disposed && width > 0 && height > 0) nativeAPI.current?.refresh();
+      });
+    });
+    observer.observe(root);
+    return () => {
+      disposed = true;
+      observer.disconnect();
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, []);
   // Excalidraw 0.18.1 omits a name on its menu and gives its nested canvas
   // controls a page-footer landmark. Keep its controls, supplying semantics
   // only within our embedded canvas, including when its mobile layout changes.
@@ -51,7 +128,10 @@ export default function DesignEditor({ projectId }: { projectId: string }) {
     setError("");
     try {
       const value = await productApi.design(projectId);
-      if (alive.current) setDesign(value);
+      if (alive.current) {
+        baseline.current = null; latestDocument.current = null; current.current = null;
+        setDirty(false); setSaved(false); setDesign(value);
+      }
     } catch (cause) {
       if (alive.current) setError(errorText(cause));
     } finally {
@@ -73,23 +153,19 @@ export default function DesignEditor({ projectId }: { projectId: string }) {
     setSaved(false);
     try {
       const snapshot = current.current;
-      const [elements, appState, files] = snapshot;
-      const serialized = JSON.parse(
-        serializeAsJSON(elements, appState, files, "local"),
-      ) as DesignScene;
-      const scene = {
-        elements: serialized.elements,
-        appState: serialized.appState,
-        files: serialized.files,
-      };
+      const scene = persistedScene(snapshot);
+      const fingerprint = documentFingerprint(scene);
       const next = await productApi.saveDesign(projectId, {
         revision: design.revision,
         frames: design.frames,
         scene,
       });
       if (alive.current) {
+        baseline.current = fingerprint;
+        const remaining = latestDocument.current !== fingerprint;
         setDesign(next);
-        setSaved(current.current === snapshot);
+        setDirty(remaining);
+        setSaved(!remaining);
       }
     } catch (cause) {
       if (alive.current) setError(errorText(cause));
@@ -107,21 +183,29 @@ export default function DesignEditor({ projectId }: { projectId: string }) {
         <span className="journey-revision" role="status">
           {design
             ? `Design ${design.revision} · Brief ${design.briefRevision}`
-            : loading ? "Loading design…" : "Design unavailable"}
+            : loading
+              ? "Loading design…"
+              : "Design unavailable"}
         </span>
-        <button
-          className="luci-button luci-primary"
-          disabled={!design || busy}
+        <Button type="button" variant="primary" loading={busy}
+          disabled={!design || busy || !dirty}
           onClick={() => void save()}
         >
           {busy ? "Saving…" : "Save design"}
-        </button>
+        </Button>
       </JourneyHeader>
       <div>
         {error && (
           <p className="journey-error" role="alert">
             {error}
-            {!design && <button className="luci-button" disabled={loading} onClick={() => void load()}>Retry loading design</button>}
+            {!design && (
+              <Button type="button" variant="secondary" loading={loading}
+                disabled={loading}
+                onClick={() => void load()}
+              >
+                Retry loading design
+              </Button>
+            )}
           </p>
         )}
         {saved && (
@@ -129,28 +213,39 @@ export default function DesignEditor({ projectId }: { projectId: string }) {
             Design saved.
           </span>
         )}
+        {dirty && <span role="status" className="journey-muted">Unsaved sketch changes.</span>}
       </div>
       <div className="design-canvas" ref={canvas} aria-busy={loading}>
         {design && (
           <Excalidraw
+            excalidrawAPI={(api) => { nativeAPI.current = api; }}
             initialData={
               (design.scene ?? {
                 elements: [],
                 appState: {
-                  viewBackgroundColor: getComputedStyle(
-                    document.documentElement,
-                  )
-                    .getPropertyValue("--ink")
-                    .trim(),
+                  // Excalidraw applies its own dark-theme canvas transformation.
+                  // A document's paper colour is independent of the editor theme.
+                  viewBackgroundColor: initialPaperColour(),
                 },
                 files: {},
               }) as ExcalidrawInitialDataState
             }
-            theme="dark"
+            theme={appearance.resolvedTheme}
             name="Luci design"
             onChange={(...args) => {
               current.current = args;
-              setSaved(false);
+              try {
+                const fingerprint = documentFingerprint(persistedScene(args));
+                // Excalidraw normalizes the initial document before its first
+                // change callback. Hydration itself is not a user edit.
+                if (baseline.current === null) baseline.current = fingerprint;
+                latestDocument.current = fingerprint;
+                const changed = fingerprint !== baseline.current;
+                setDirty(changed);
+                if (changed) setSaved(false);
+              } catch (cause) {
+                setDirty(true); setSaved(false); setError(errorText(cause));
+              }
             }}
             validateEmbeddable={false}
             onLinkOpen={(_element, event) => event.preventDefault()}

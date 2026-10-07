@@ -1,5 +1,6 @@
 import { ApiError, DEFAULT_BASE_URL, type ProblemCode } from "./client";
 import { authHeaders, expireAuth } from "./authSession";
+import type { Session } from "../store/types";
 
 export interface SetupConfig {
   projectsDir: string;
@@ -27,6 +28,26 @@ export interface AgentProvider {
 }
 export interface AgentConnections {
   providers: AgentProvider[];
+}
+export type AgentConnectionKind = "litellm" | "compatible-api" | "codex-subscription" | "direct-api";
+export interface AgentConnection {
+  id: string; name: string; kind: AgentConnectionKind; revision: number; enabled: boolean;
+  endpoints: { responses?: string; anthropicMessages?: string; chatCompletions?: string };
+  models: { codex?: string; claudeCode?: string; opencode?: string };
+  configured: boolean; keyPresent: boolean; blockedReason?: string;
+}
+export interface AgentConnectionCatalogue {
+  revision: number; activeConnectionId: string; connections: AgentConnection[];
+}
+export type AgentConnectionMutation =
+  | { action: "save"; expectedRevision: number; id?: string; name: string; kind: AgentConnectionKind; enabled: boolean; endpoints: AgentConnection["endpoints"]; models: AgentConnection["models"]; apiKey?: string }
+  | { action: "select" | "delete"; expectedRevision: number; id: string };
+export interface CodexAccountConnection {
+  configured: boolean;
+  authMode: "chatgpt";
+  sourceSessionId?: string;
+  activeSessionId?: string;
+  message: string;
 }
 export interface GitHubAccount {
   available: boolean;
@@ -97,7 +118,7 @@ export interface CloudPlanRequest {
   name: string;
   region: string;
   domain: string;
-  size: "small" | "standard";
+  size: "small" | "standard" | "full";
   monthlyBudgetUsd: number;
   sshPublicKey: string;
 }
@@ -180,11 +201,14 @@ export interface ImplementationTask {
   id: string;
   title: string;
   status: "todo" | "doing" | "done";
+  requirementIds?: string[];
 }
 export interface ImplementationPlan {
   projectId: string;
   revision: number;
   briefRevision: number;
+  specificationRevision?: number;
+  specificationDigest?: string;
   tasks: ImplementationTask[];
   updatedAt: string;
 }
@@ -207,22 +231,58 @@ export interface CheckRun {
   execution?: "docker" | "host";
   sourceDigest?: string;
   sourceChanged?: boolean;
+  requirementIds?: string[];
+  requirementSnapshots?: { id: string; title: string; acceptance: string }[];
+  specificationRevision?: number;
+  specificationDigest?: string;
+  designPlanRevision?: number;
+  designPlanDigest?: string;
+  evidenceStatus?: RequirementEvidenceStatus;
+  staleReasons?: string[];
   status: string;
   commands: CheckResult[];
   createdAt: string;
   updatedAt: string;
   message: string;
 }
+export type RequirementEvidenceStatus = "linked-test-evidence" | "stale" | "unverified";
+export interface RequirementCoverage {
+  projectId: string;
+  specification: { revision: number; status: string; digest: string };
+  design: { revision: number; status: string; digest: string };
+  source: { commit: string; sourceDigest: string; dirty: boolean; available: boolean };
+  rows: {
+    requirementId: string;
+    title: string;
+    acceptance: string;
+    taskIds: string[];
+    doneTaskIds: string[];
+    evidenceRunIds: string[];
+    evidenceStatus: RequirementEvidenceStatus;
+  }[];
+}
+export interface RequirementCheckBinding {
+  requirementIds: string[];
+  expectedSpecificationRevision: number;
+  expectedDesignPlanRevision: number;
+}
 export interface Release {
   id: string;
   projectId: string;
   briefRevision: number;
+  configurationRevision?: number;
   commit: string;
   target: string;
   status: string;
   url: string;
+  browserConnectionRequired?: boolean;
   message: string;
   createdAt: string;
+}
+export interface PagesReleaseRequest {
+  commit: string;
+  branch: string;
+  acknowledgePublic: boolean;
 }
 export interface CloudJob {
   id: string;
@@ -271,6 +331,7 @@ export interface DNSResult {
   message: string;
 }
 export interface CloudReleaseRequest {
+  dataClientFramework?: "none" | "vite" | "nextjs";
   source?: "public" | "private";
   privateKeyUuid?: string;
   targetId: string;
@@ -330,17 +391,30 @@ export function createProductClient(
     path: string,
     body: Blob | undefined,
     read: (response: Response) => Promise<T>,
+    options: {
+      method?: "GET" | "POST";
+      headers?: Record<string, string>;
+      budgetMs?: number;
+      signal?: AbortSignal;
+      kind?: "project" | "file";
+    } = {},
   ): Promise<T> {
-    const controller = new AbortController(),
-      timer = setTimeout(() => controller.abort(), 120_000);
+    const controller = new AbortController();
+    const abort = () => controller.abort(options.signal?.reason);
+    options.signal?.addEventListener("abort", abort, { once: true });
+    if (options.signal?.aborted) abort();
+    const timer = setTimeout(() => controller.abort(), options.budgetMs ?? 120_000);
+    const method = options.method ?? "POST";
     try {
+      controller.signal.throwIfAborted();
       const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
-        method: "POST",
+        method,
         signal: controller.signal,
-        headers: authHeaders({
+        headers: authHeaders(method === "GET" ? options.headers : {
           "Content-Type": body ? "application/zip" : "application/json",
+          ...options.headers,
         }),
-        body: body || "{}",
+        body: method === "GET" ? undefined : body || "{}",
       });
       if (response.status === 401) expireAuth();
       if (!response.ok) {
@@ -349,23 +423,27 @@ export function createProductClient(
         }))) as { error?: string; message?: string };
         throw new ProductApiError(
           (problem.error || "internal") as ProblemCode,
-          problem.message || "Project transfer failed.",
+          problem.message || (options.kind === "file" ? "File transfer failed." : "Project transfer failed."),
           response.status,
           problem,
         );
       }
       return await read(response);
     } catch (cause) {
+      if (options.signal?.aborted) throw options.signal.reason;
       if (cause instanceof ApiError) throw cause;
       throw new ApiError(
         controller.signal.aborted ? "timeout" : "network_unavailable",
         controller.signal.aborted
-          ? "Project transfer timed out. Check the project list before retrying a restore."
+          ? options.kind === "file"
+            ? "The file transfer timed out. Check its result before trying again."
+            : "Project transfer timed out. Check the project list before retrying a restore."
           : "The workspace service is unavailable. Retry when it reconnects.",
         0,
       );
     } finally {
       clearTimeout(timer);
+      options.signal?.removeEventListener("abort", abort);
     }
   }
   async function request<T>(
@@ -373,10 +451,15 @@ export function createProductClient(
     body?: unknown,
     method = body === undefined ? "GET" : "POST",
     budgetMs = 120_000,
+    signal?: AbortSignal,
   ): Promise<T> {
     const controller = new AbortController();
+    const abort = () => controller.abort(signal?.reason);
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
     const timer = setTimeout(() => controller.abort(), budgetMs);
     try {
+      controller.signal.throwIfAborted();
       const response = await fetcher(`${baseUrl.replace(/\/$/, "")}${path}`, {
         method,
         signal: controller.signal,
@@ -411,6 +494,7 @@ export function createProductClient(
       }
       return value as T;
     } catch (error) {
+      if (signal?.aborted) throw signal.reason;
       if (error instanceof ApiError) throw error;
       throw new ApiError(
         controller.signal.aborted ? "timeout" : "network_unavailable",
@@ -421,14 +505,25 @@ export function createProductClient(
       );
     } finally {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
     }
   }
   const project = (id: string) =>
     `/v1/product/projects/${encodeURIComponent(id)}`;
   return {
+    get baseUrl() { return baseUrl.replace(/\/$/, ""); },
     request,
+    requestBlob: (
+      path: string,
+      options: { method?: "GET" | "POST"; body?: Blob; headers?: Record<string, string> } = {},
+      budgetMs = 60_000,
+      signal?: AbortSignal,
+    ) => transfer(path, options.body, response => response.blob(), {
+      method: options.method ?? "GET", headers: options.headers, budgetMs, signal, kind: "file",
+    }),
     status: () => request<SetupStatus>("/v1/setup/status"),
-    check: () => request<SetupStatus>("/v1/setup/check", {}),
+    check: (signal?: AbortSignal) =>
+      request<SetupStatus>("/v1/setup/check", {}, "POST", 120_000, signal),
     configure: (config: SetupConfig) =>
       request<SetupStatus>("/v1/setup/config", config),
     cloudPlan: (input: CloudPlanRequest) =>
@@ -436,6 +531,22 @@ export function createProductClient(
     gitIdentity: () =>
       request<{ name: string; email: string }>("/v1/setup/git/identity"),
     agents: () => request<AgentConnections>("/v1/setup/agents"),
+    agentConnections: () => request<AgentConnectionCatalogue>("/v1/setup/agent-connections"),
+    updateAgentConnection: (input: AgentConnectionMutation) => request<AgentConnectionCatalogue>("/v1/setup/agent-connections", input),
+    codexAccount: () =>
+      request<CodexAccountConnection>("/v1/setup/agents/codex/account"),
+    startCodexSignIn: () =>
+      request<Session>("/v1/setup/agents/codex/sign-in", {}),
+    connectCodexAccount: (sessionId: string) =>
+      request<CodexAccountConnection>("/v1/setup/agents/codex/account", {
+        sessionId,
+      }),
+    disconnectCodexAccount: () =>
+      request<CodexAccountConnection>(
+        "/v1/setup/agents/codex/account",
+        undefined,
+        "DELETE",
+      ),
     saveAnthropicKey: (apiKey: string) =>
       request<AgentConnections>("/v1/setup/agents/anthropic", { apiKey }),
     saveOpenAIKey: (apiKey: string) =>
@@ -457,7 +568,8 @@ export function createProductClient(
         privateKeyPath: string;
         fingerprint: string;
       }>("/v1/setup/ssh/key", {}),
-    runtime: () => request<RuntimeJob>("/v1/setup/runtime/install"),
+    runtime: (signal?: AbortSignal) =>
+      request<RuntimeJob>("/v1/setup/runtime/install", undefined, "GET", 120_000, signal),
     installRuntime: () => request<RuntimeJob>("/v1/setup/runtime/install", {}),
     cloudJobs: () => request<{ jobs: CloudJob[] }>("/v1/setup/cloud/jobs"),
     workspaceInstalls: () =>
@@ -604,13 +716,15 @@ export function createProductClient(
       id: string,
       expectedRevision: number,
       tasks: ImplementationTask[],
+      expectedSpecificationRevision?: number,
     ) =>
       request<ImplementationPlan>(`${project(id)}/plan`, {
         expectedRevision,
         tasks,
+        ...(expectedSpecificationRevision === undefined ? {} : { expectedSpecificationRevision }),
       }),
     checks: (id: string) =>
-      request<{ runs: CheckRun[]; suggested: CheckCommand[] }>(
+      request<{ runs: CheckRun[]; suggested: CheckCommand[]; coverage?: RequirementCoverage }>(
         `${project(id)}/checks`,
       ),
     runChecks: (
@@ -618,11 +732,13 @@ export function createProductClient(
       commands: CheckCommand[],
       acknowledgeHostExecution: boolean,
       execution: "docker" | "host" = "docker",
+      binding?: RequirementCheckBinding,
     ) =>
       request<CheckRun>(`${project(id)}/checks`, {
         commands,
         acknowledgeHostExecution,
         execution,
+        ...binding,
       }),
     checkRun: (id: string, runId: string) =>
       request<CheckRun>(`${project(id)}/checks/${encodeURIComponent(runId)}`),
@@ -633,6 +749,8 @@ export function createProductClient(
       ),
     releases: (id: string) =>
       request<{ releases: Release[] }>(`${project(id)}/releases`),
+    prototypeReleases: (id: string) =>
+      request<{ releases: Release[] }>(`${project(id)}/prototype-releases`),
     configuration: (id: string) =>
       request<ProjectConfiguration>(`${project(id)}/configuration`),
     saveConfiguration: (
@@ -658,6 +776,8 @@ export function createProductClient(
       ),
     cloudRelease: (id: string, input: CloudReleaseRequest) =>
       request<Release>(`${project(id)}/releases/cloud`, input, "POST", 180_000),
+    pagesRelease: (id: string, input: PagesReleaseRequest) =>
+      request<Release>(`${project(id)}/releases/pages`, input, "POST", 180_000),
     refreshRelease: (id: string, releaseId: string) =>
       request<Release>(
         `${project(id)}/releases/${encodeURIComponent(releaseId)}/refresh`,

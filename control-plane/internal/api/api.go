@@ -28,8 +28,10 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
+	"github.com/lcfrai/luci/control-plane/internal/assistance"
 	"github.com/lcfrai/luci/control-plane/internal/backend"
 	"github.com/lcfrai/luci/control-plane/internal/httpx"
 	"github.com/lcfrai/luci/control-plane/internal/product"
@@ -330,8 +332,13 @@ func (rs *routes) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // API is the whole HTTP surface as one handler.
 type API struct {
-	deps    Deps
-	handler http.Handler
+	deps               Deps
+	handler            http.Handler
+	codexAccountMu     sync.Mutex // serializes this user's retained account and private snapshots
+	assistMu           sync.Mutex
+	assistRecoveryOnce sync.Once
+	assistStore        *assistance.Store
+	assistCancels      map[string]context.CancelFunc
 
 	// guarded and root are the two recorders, kept whole rather than
 	// snapshotted into a []string. RegisteredPatterns() reads them LIVE, so a
@@ -398,6 +405,8 @@ func New(d Deps) (*API, error) {
 		d.Product.Register(guarded)
 	}
 	a.registerSessions(guarded)
+	a.registerCodexConnection(guarded)
+	a.registerAssistance(guarded)
 	a.registerAttach(guarded)
 	// Task 12 added a.registerAttach(guarded) on the line above. One line, taking
 	// *routes, and in the SAME step that defines the method it names: a call
@@ -483,13 +492,12 @@ func (a *API) grantHealthzOrigin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// internal answers 500 with contract §3.2's deliberately generic message and
-// puts the real error in the log. Tasks 11 and 12 use it too, so one place
-// decides how much a caller is told — and the answer is nothing that names a
-// path on disk, a container id or a token.
+// internal answers 500 with a generic recovery message and reports the error
+// to the configured logger. A private worker may discard its output, so the
+// response must not promise a persisted log or reveal a path, container or token.
 func (a *API) internal(w http.ResponseWriter, r *http.Request, op string, err error) {
 	a.deps.Log.Error("api: "+op+" failed",
 		"method", r.Method, "path", r.URL.Path, "err", err)
 	httpx.WriteProblem(w, http.StatusInternalServerError, httpx.CodeInternal,
-		"Something went wrong inside the control plane. The detail is in its log.", nil)
+		"Luci couldn't complete this request. Please try again.", nil)
 }

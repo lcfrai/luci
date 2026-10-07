@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/lcfrai/luci/control-plane/internal/gitcommand"
 )
 
 // GitTimeout bounds one git invocation behind the POLLED rail. Enumeration
@@ -310,7 +312,7 @@ func (r *ExecRunner) Run(ctx context.Context, dir string, args ...string) ([]byt
 			return nil, err
 		}
 	}
-	cmd := exec.CommandContext(ctx, "git", commandArgs...)
+	cmd := exec.CommandContext(ctx, "git", gitcommand.PlatformArgs(dir, commandArgs)...)
 	cmd.Dir = dir
 	// The bound has to be real even when the kill is refused; see gitWaitDelay.
 	cmd.WaitDelay = gitWaitDelay

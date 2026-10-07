@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -110,7 +111,9 @@ func (s *x1Spy) Run(ctx context.Context, dir string, args ...string) ([]byte, er
 
 // x1NeverInTheWorktree fails for any git the spy saw run in, or pointed at,
 // the worktree: its directory, -C, --git-dir or --work-tree, and for a config
-// read that is not scoped to --global or --system.
+// read that is not scoped to --global or --system. The sole exception is a
+// precisely shaped --file <OS null file> default parser, which cannot consult
+// repository config, host includes or any other file.
 func x1NeverInTheWorktree(t *testing.T, spy *x1Spy, worktree string) {
 	t.Helper()
 	if len(spy.calls) == 0 {
@@ -142,7 +145,10 @@ func x1NeverInTheWorktree(t *testing.T, spy *x1Spy, worktree string) {
 			}
 		}
 		if len(c.args) > 0 && c.args[0] == "config" && !scoped {
-			t.Errorf("git %q reads config without --global or --system, so a repository's own scope counts", line)
+			nullDefault := len(c.args) == 9 && reflect.DeepEqual(c.args[:7], []string{"config", "-z", "--get", "--file", os.DevNull, "--type=path", "--default"}) && (c.args[8] == "core.excludesFile" || c.args[8] == "core.attributesFile")
+			if !nullDefault {
+				t.Errorf("git %q reads config without --global, --system or an exact empty-null default parser, so a repository's own scope could count", line)
+			}
 		}
 	}
 }

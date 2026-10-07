@@ -64,9 +64,9 @@ function seed(): void {
   ]);
   s.replaceSessions(
     [
-      aSession({ id: "s-1", worktreeId: "w-1" }),
-      aSession({ id: "s-2", worktreeId: "w-1" }),
-      aSession({ id: "s-3", worktreeId: "w-2" }),
+      aSession({ projectId: "p-1", branchId: "b-1", id: "s-1", worktreeId: "w-1" }),
+      aSession({ projectId: "p-1", branchId: "b-1", id: "s-2", worktreeId: "w-1" }),
+      aSession({ projectId: "p-1", branchId: "b-1", id: "s-3", worktreeId: "w-2" }),
     ],
     ["w-1", "w-2"],
   );
@@ -137,9 +137,9 @@ describe("selectors", () => {
     ]);
     s.replaceSessions(
       [
-        aSession({ id: "s-3", worktreeId: "w-2" }),
-        aSession({ id: "s-1", worktreeId: "w-1" }),
-        aSession({ id: "s-2", worktreeId: "w-1" }),
+        aSession({ projectId: "p-1", branchId: "b-1", id: "s-3", worktreeId: "w-2" }),
+        aSession({ projectId: "p-1", branchId: "b-1", id: "s-1", worktreeId: "w-1" }),
+        aSession({ projectId: "p-1", branchId: "b-1", id: "s-2", worktreeId: "w-1" }),
       ],
       ["w-2", "w-1"],
     );
@@ -151,7 +151,7 @@ describe("selectors", () => {
   it("keeps an exited session in the pane order, because the transcript is the artifact", () => {
     seed();
     useCockpit.getState().upsertSession(
-      aSession({ id: "s-2", worktreeId: "w-1", status: "exited", exitReason: "killed" }),
+      aSession({ projectId: "p-1", branchId: "b-1", id: "s-2", worktreeId: "w-1", status: "exited", exitReason: "killed" }),
     );
     expect(selectPaneSessionIds(useCockpit.getState())).toEqual(["s-1", "s-2", "s-3"]);
   });

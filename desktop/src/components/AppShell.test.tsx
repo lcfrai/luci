@@ -61,7 +61,7 @@ function populate(): void {
     worktreesByBranch: {
       "b-1": [aWorktree({ id: "w-1", branchId: "b-1", name: "wt-one" })],
     },
-    sessions: { "s-1": aSession({ id: "s-1", worktreeId: "w-1" }) },
+    sessions: { "s-1": aSession({ id: "s-1", projectId: "p-1", branchId: "b-1", worktreeId: "w-1" }) },
     sessionIdsByWorktree: { "w-1": ["s-1"] },
     selection: {
       projectId: "p-1",
@@ -78,15 +78,20 @@ describe("AppShell", () => {
     resetCockpit();
   });
 
-  it("mounts with an empty store and renders the rail, the bar and a lens", () => {
+  it("starts at Projects home with direct creation and import actions", () => {
     render(<AppShell />);
     expect(screen.getByRole("tree")).not.toBeNull();
-    expect(screen.getByRole("group", { name: "Layout" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: /new session/i })).not.toBeNull();
-    // Develop is the default lens, and task 20 replaced its placeholder with the real
-    // DevelopLens. With an empty store there is no branch, so the zero state names the rail
-    // as the next action — which is the assertion that fails if the arm ever goes blank.
-    expect(screen.getByText(/Select a branch in the rail/i)).not.toBeNull();
+    expect(
+      screen.getByRole("heading", { name: "Your projects" }),
+    ).not.toBeNull();
+    expect(screen.getByRole("button", { name: "New project" })).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Import repository" }),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Restore backup" }),
+    ).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /new session/i })).toBeNull();
   });
 
   // §6.1: the grid always has three columns and the middle one animates from 0. With no branch
@@ -150,12 +155,38 @@ describe("AppShell", () => {
   // §6.4: these two are in FUNCTIONAL-SPEC's top bar, so deleting them would be a silent scope
   // cut and rendering them live would be a lie. Disabled with the phase that makes each real.
   it("offers real Develop tools without dead controls", () => {
+    populate();
     render(<AppShell />);
     expect(
       screen.getByRole("navigation", { name: "Develop tools" }),
     ).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Authority" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Run locally" })).toBeNull();
+  });
+
+  it("keeps a projectless account sign-in terminal reachable without a fabricated project", () => {
+    useCockpit.setState({
+      sessions: {
+        auth: aSession({
+          id: "auth",
+          harness: "codex",
+          authOnly: true,
+          projectId: "",
+          branchId: "",
+          worktreeId: "setup-codex",
+        }),
+      },
+    });
+    useCockpit.getState().focusSession("auth");
+    render(<AppShell />);
+    expect(
+      screen.getByRole("heading", { name: "Connect your Codex account" }),
+    ).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Return to agent connection" }),
+    ).not.toBeNull();
+    expect(screen.getByLabelText("terminal auth")).not.toBeNull();
+    expect(screen.queryByRole("heading", { name: "Your projects" })).toBeNull();
   });
 
   it("mounts exactly one toast stack, and shows an Undo when one is offered", () => {
@@ -274,7 +305,7 @@ describe("AppShell", () => {
       last.focus();
       await userEvent.tab();
       expect(document.activeElement).toBe(
-        screen.getByRole("button", { name: "Create project" }),
+        screen.getByRole("button", { name: "All projects" }),
       );
       await userEvent.keyboard("{Escape}");
       expect(trigger.getAttribute("aria-expanded")).toBe("false");

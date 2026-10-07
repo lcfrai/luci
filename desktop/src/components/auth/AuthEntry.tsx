@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Button } from "../fluid/components/button";
 import type { ControlUser } from "./AuthProvider";
 
 export interface ControlStatus {
@@ -154,13 +155,13 @@ export function AuthEntry({
             <p className="journey-warning">
               Local account access is unavailable. {localError}
             </p>
-            <button
-              className="luci-button"
+            <Button type="button"
+              variant="secondary"
               disabled={busy || loading}
               onClick={onRetry}
             >
               Retry local account access
-            </button>
+            </Button>
           </div>
         )}
         {formAvailable && (
@@ -208,14 +209,14 @@ export function AuthEntry({
                     </p>
                   )}
                   {!bootstrapToken && (
-                    <button
-                      className="luci-button"
+                    <Button
+                      variant="secondary"
                       type="button"
                       disabled={busy}
                       onClick={onRetry}
                     >
                       Check setup again
-                    </button>
+                    </Button>
                   )}
                 </details>
               </>
@@ -329,7 +330,7 @@ export function AuthEntry({
               />
               {newPassword ? "Show passwords" : "Show password"}
             </label>
-            <button className="luci-button luci-primary" disabled={busy}>
+            <Button type="submit" variant="primary" loading={busy} disabled={busy}>
               {busy
                 ? recover
                   ? "Recovering account…"
@@ -343,7 +344,7 @@ export function AuthEntry({
                     : create
                       ? "Create account"
                       : "Sign in"}
-            </button>
+            </Button>
           </form>
         )}
         {busy && (
@@ -356,38 +357,38 @@ export function AuthEntry({
           </p>
         )}
         {!loading && (connectionError || !status) && (
-          <button className="luci-button" disabled={busy} onClick={onRetry}>
+          <Button type="button" variant="secondary" disabled={busy} onClick={onRetry}>
             Retry connection
-          </button>
+          </Button>
         )}
         {!!status && !loading && !fresh && (
           <nav className="auth-options" aria-label="Account options">
             {mode !== "sign-in" && (
-              <button
-                className="luci-button"
+              <Button type="button"
+                variant="ghost"
                 disabled={busy}
                 onClick={() => onMode("sign-in")}
               >
                 Back to sign in
-              </button>
+              </Button>
             )}
             {mode !== "create" && (
-              <button
-                className="luci-button"
+              <Button type="button"
+                variant="secondary"
                 disabled={busy}
                 onClick={() => onMode("create")}
               >
                 Create account
-              </button>
+              </Button>
             )}
             {mode !== "recover" && (
-              <button
-                className="luci-button"
+              <Button type="button"
+                variant="ghost"
                 disabled={busy}
                 onClick={() => onMode("recover")}
               >
                 Forgot sign-in?
-              </button>
+              </Button>
             )}
           </nav>
         )}

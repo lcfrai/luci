@@ -12,7 +12,7 @@
 import { useSyncExternalStore } from "react";
 import { api } from "../../api";
 import { getAttachState, retryAttach } from "../../api/attachRegistry";
-import type { ApiError } from "../../api/client";
+import { ApiError } from "../../api/client";
 import { classify } from "../../api/problems";
 import type { CreateSessionOptions } from "../../hooks/useCreateSession";
 import { replaceById } from "../../lib/immutable";
@@ -23,15 +23,27 @@ import {
   subscribePending,
 } from "../../lib/pendingSessions";
 import type { MenuItem } from "../menu/ContextMenu";
-import { selectHarness, selectSession, selectWorktrees } from "../../store/selectors";
+import {
+  selectHarness,
+  selectSession,
+  selectWorktrees,
+} from "../../store/selectors";
 import { TOAST_TTL_UNDO } from "../../store/slices/uiSlice";
 import { useCockpit } from "../../store/store";
-import type { Session, SessionId, Worktree, WorktreeId } from "../../store/types";
+import type {
+  Session,
+  SessionId,
+  Worktree,
+  WorktreeId,
+} from "../../store/types";
 
 /** What a verb needs from whichever surface is rendering it. */
 export interface VerbDeps {
   /** Task 18's useCreateSession() result. The one create path; this module does not add a second. */
-  createSession: (worktreeId: WorktreeId, options?: CreateSessionOptions) => Promise<void>;
+  createSession: (
+    worktreeId: WorktreeId,
+    options?: CreateSessionOptions,
+  ) => Promise<unknown>;
   /** Closes the host menu before the verb runs, so an Undo toast is not hidden behind it. */
   close: () => void;
   /** Arms the inline rename input. SessionMenu owns the input; the rail menu re-routes to it. */
@@ -45,6 +57,20 @@ export interface VerbDeps {
  *  importing this module — which imports the store — would be a runtime cycle. The timers stay
  *  here: they are this module's machinery and nothing else reads them. */
 const timers = new Set<ReturnType<typeof setTimeout>>();
+const readinessRequests = new Map<string, symbol>();
+const readinessListeners = new Set<() => void>();
+let readinessGeneration = 0;
+const readinessKey = (worktree: Worktree) => `${worktree.projectId}/${worktree.id}`;
+const notifyReadiness = () => readinessListeners.forEach(listener => listener());
+const subscribeReadiness = (listener: () => void) => {
+  readinessListeners.add(listener);
+  return () => { readinessListeners.delete(listener); };
+};
+
+export function useWorktreeReadyPending(worktree: Worktree | undefined): boolean {
+  return useSyncExternalStore(subscribeReadiness,
+    () => worktree !== undefined && readinessRequests.has(readinessKey(worktree)), () => false);
+}
 
 export { isSessionPending } from "../../lib/pendingSessions";
 
@@ -72,6 +98,9 @@ export function cancelDeferredSessionActions(): void {
   for (const timer of timers) clearTimeout(timer);
   timers.clear();
   __resetPendingSessions();
+  readinessGeneration++;
+  readinessRequests.clear();
+  notifyReadiness();
   raised = null;
 }
 
@@ -125,7 +154,8 @@ function report(error: ApiError): void {
  *  sentence otherwise outlived the Resume that worked. A new path that calls `report` joins this
  *  operation, so it calls this on success and gets a row in the test file's `SUCCEEDS` table. */
 function clearOwnReport(): void {
-  if (raised !== null && useCockpit.getState().lastError === raised) useCockpit.getState().setError(null);
+  if (raised !== null && useCockpit.getState().lastError === raised)
+    useCockpit.getState().setError(null);
 }
 
 /* ── commit shape 1: deferred. The request is held for the Undo window. ──────────────── */
@@ -269,7 +299,10 @@ function restoreSession(snapshot: Session): () => void {
  *  poll added during the window is dropped from the index for at most one tick, and 2 s later
  *  `replaceSessions` puts it back from the server, which is authoritative for exactly this list.
  *  A rewrite would be an index-merge for a 2 s window, which is more machinery than the defect. */
-function restoreWorktreeSessions(worktreeId: WorktreeId, sessionId: SessionId): () => void {
+function restoreWorktreeSessions(
+  worktreeId: WorktreeId,
+  sessionId: SessionId,
+): () => void {
   const state = useCockpit.getState();
   const rows = (state.sessionIdsByWorktree[worktreeId] ?? [])
     .map((id) => state.sessions[id])
@@ -292,7 +325,11 @@ function restoreWorktreeSessions(worktreeId: WorktreeId, sessionId: SessionId): 
       pinned:
         pinIndex === -1 || s.pinned.includes(sessionId)
           ? s.pinned
-          : [...s.pinned.slice(0, pinIndex), sessionId, ...s.pinned.slice(pinIndex)],
+          : [
+              ...s.pinned.slice(0, pinIndex),
+              sessionId,
+              ...s.pinned.slice(pinIndex),
+            ],
     }));
     // Only when nothing else took focus in the window: re-focusing would yank the user out of a
     // session they moved to while the toast was still up.
@@ -327,7 +364,9 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
   // component and holds no subscription — it reads one snapshot per right-click, so the filtered
   // array never enters a render path and a `selectForkTargets` would put task 17's file into
   // this commit for a derivation with one caller.
-  const siblings = selectWorktrees(session.branchId)(state).filter((w) => w.id !== session.worktreeId);
+  const siblings = selectWorktrees(session.branchId)(state).filter(
+    (w) => w.id !== session.worktreeId,
+  );
   const alive = session.status !== "exited";
   const act = (fn: () => void) => (): void => {
     deps.close();
@@ -380,7 +419,11 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
             : act(() => {
                 void (async () => {
                   try {
-                    const next = await api.forkSession(session, worktree.id, harness);
+                    const next = await api.forkSession(
+                      session,
+                      worktree.id,
+                      harness,
+                    );
                     useCockpit.getState().upsertSession(next);
                     useCockpit.getState().focusSession(next.id);
                     clearOwnReport();
@@ -390,7 +433,9 @@ export function sessionVerbs(sessionId: SessionId, deps: VerbDeps): MenuItem[] {
                 })();
               }),
         disabledReason:
-          harness === undefined ? "This session's harness is not in the catalogue." : undefined,
+          harness === undefined
+            ? "This session's harness is not in the catalogue."
+            : undefined,
       });
     }
   }
@@ -444,7 +489,9 @@ function tailVerbs(
               // session exited under the open menu. Saying so beats a row that silently no-ops.
               useCockpit
                 .getState()
-                .pushToast("That pane is no longer attached, so there was nothing to retry.");
+                .pushToast(
+                  "That pane is no longer attached, so there was nothing to retry.",
+                );
             }),
           },
         ]
@@ -463,7 +510,13 @@ function tailVerbs(
         runImmediate({
           sessionId: id,
           apply: () =>
-            useCockpit.getState().upsertSession({ ...session, status: "starting", exitReason: "" }),
+            useCockpit
+              .getState()
+              .upsertSession({
+                ...session,
+                status: "starting",
+                exitReason: "",
+              }),
           rollback: restoreSession(session),
           commit: () => api.restartSession(id),
         }),
@@ -487,7 +540,9 @@ function tailVerbs(
       id: "shell",
       label: "Open a shell here",
       separatorBefore: true,
-      run: act(() => void deps.createSession(session.worktreeId, { harness: "shell" })),
+      run: act(
+        () => void deps.createSession(session.worktreeId, { harness: "shell" }),
+      ),
     },
     {
       id: "kill",
@@ -503,7 +558,11 @@ function tailVerbs(
                 apply: () =>
                   useCockpit
                     .getState()
-                    .upsertSession({ ...session, status: "exited", exitReason: "killed" }),
+                    .upsertSession({
+                      ...session,
+                      status: "exited",
+                      exitReason: "killed",
+                    }),
                 rollback: restoreSession(session),
                 commit: () => api.killSession(id),
                 // The server's own object, for the reason `runImmediate` argues at length: it
@@ -574,7 +633,8 @@ export function renameSessionTo(sessionId: SessionId, title: string): void {
   if (snapshot === undefined) return;
   runImmediate({
     sessionId,
-    apply: () => useCockpit.getState().upsertSession({ ...snapshot, title: title.trim() }),
+    apply: () =>
+      useCockpit.getState().upsertSession({ ...snapshot, title: title.trim() }),
     rollback: restoreSession(snapshot),
     commit: () => api.renameSession(sessionId, title),
   });
@@ -582,45 +642,50 @@ export function renameSessionTo(sessionId: SessionId, title: string): void {
 
 /* ── contract §10.2's verb, and known defect 9 ───────────────────────────────────────── */
 
-/** Optimistic and immediate: the flag is a boolean the user set, the server's answer is the
- *  same worktree object, and a refusal puts the tick back where it was. The list write goes
- *  through task 15's `replaceById` — contract §8 defect 7's helper, consumed here because
- *  "replacing one worktree in a list" is the other half of that defect's Phase 2 shape, and a
- *  hand-rolled `.map` is how the two spellings drift apart.
- *
- *  BOTH directions go by id, through the same `write`, and this task's plan had it backwards.
- *  The plan captured the branch's whole array up front and rolled back to it, arguing that
- *  rebuilding from the CURRENT list "would silently drop anything a poll added in between". It
- *  is the other way round: `setWorktrees` replaces the list wholesale, so restoring a snapshot
- *  taken before the request is exactly what discards a worktree the 2 s poll added while it was
- *  in flight. `replaceById` against the live list touches one element and keeps every other,
- *  which is the whole reason the forward path uses it.
- *
- *  It is also right at the other edge: `replaceById` is a no-op copy for an id the list no
- *  longer holds and never appends, so a worktree the server dropped mid-request stays dropped
- *  rather than being resurrected by a rollback. */
-export function markWorktreeReady(worktree: Worktree): void {
+/** Adopt only the server-confirmed flag on the same project checkout. A refusal
+ *  leaves the latest catalogue state intact; a late response cannot recreate a
+ *  removed worktree or mark a newly selected source branch ready. */
+export function markWorktreeReady(worktree: Worktree, ready = true): void {
   const branchId = worktree.branchId;
-  const write = (next: Worktree): void => {
-    const current = selectWorktrees(branchId)(useCockpit.getState());
-    // `replaceById` returns a COPY for an id it cannot find (`lib/immutable.ts:31`), and
-    // `selectWorktrees` returns the shared empty constant for a branch the store does not hold —
-    // so writing unconditionally would create `worktreesByBranch[branchId] = []` where there was
-    // no key at all, inventing an empty branch out of a failed lookup. Nothing to replace is not
-    // an error here; it means the branch was never loaded, or a poll dropped the worktree while
-    // the menu was open.
-    if (!current.some((w) => w.id === next.id)) return;
-    useCockpit.getState().setWorktrees(branchId, replaceById(current, next));
+  const before = useCockpit.getState();
+  const sourceRevision = before.projectSourceRevisions[worktree.projectId] ?? 0;
+  const generation = readinessGeneration;
+  const currentWorktree = (): Worktree | undefined => {
+    const state = useCockpit.getState();
+    if (generation !== readinessGeneration || (state.projectSourceRevisions[worktree.projectId] ?? 0) !== sourceRevision ||
+        (state.projectsLoaded && !state.projects.some(project => project.id === worktree.projectId))) return undefined;
+    return selectWorktrees(branchId)(state).find(item => item.id === worktree.id &&
+      item.projectId === worktree.projectId && item.branchId === branchId && item.path === worktree.path);
   };
-
-  write({ ...worktree, ready: true });
+  if (!currentWorktree()) {
+    report(new ApiError("conflict", "This project's source changed. Refresh before updating readiness.", 409));
+    return;
+  }
+  const key = readinessKey(worktree);
+  if (readinessRequests.has(key)) return;
+  const request = Symbol();
+  readinessRequests.set(key, request);
+  notifyReadiness();
   void (async () => {
     try {
-      write(await api.setWorktreeReady(worktree.projectId, worktree.id, true));
+      const next = await api.setWorktreeReady(worktree.projectId, worktree.id, ready);
+      if (generation !== readinessGeneration) return;
+      if (!currentWorktree() || next.id !== worktree.id || next.projectId !== worktree.projectId ||
+          next.branchId !== branchId || next.path !== worktree.path || next.ready !== ready) {
+        throw new ApiError("conflict", "Luci could not confirm this worktree's readiness. Refresh its current branch before trying again.", 409);
+      }
+      const state = useCockpit.getState();
+      state.setWorktrees(branchId, replaceById(selectWorktrees(branchId)(state), next));
       clearOwnReport();
+      state.pushToast(ready ? "Worktree marked ready." : "Worktree marked not ready.");
     } catch (caught) {
-      write(worktree);
-      report(caught as ApiError);
+      // Keep the latest confirmed catalogue state, including any intervening poll.
+      if (generation === readinessGeneration) report(caught as ApiError);
+    } finally {
+      if (readinessRequests.get(key) === request) {
+        readinessRequests.delete(key);
+        notifyReadiness();
+      }
     }
   })();
 }
@@ -636,24 +701,26 @@ export function markWorktreeReady(worktree: Worktree): void {
  *  not moved, because it asserted a shape the control plane cannot produce. `Worktree.ready`
  *  stays optional in the type only because that safely accepts an always-present boolean.
  *
- *  Already-ready is disabled rather than hidden: the row is a fact about the worktree, and
- *  Phase 2 has no un-mark to offer — the merge queue in Phase 3 owns that. */
-export function worktreeReadyItems(worktree: Worktree, close: () => void): MenuItem[] {
+ *  Both directions use the server's existing ready flag; pending work never invents readiness. */
+export function worktreeReadyItems(
+  worktree: Worktree,
+  close: () => void,
+): MenuItem[] {
   return [
     {
       id: "mark-ready",
-      label: worktree.ready === true ? "Ready to merge" : "Mark ready",
+      label: worktree.ready === true ? "Mark not ready" : "Mark ready",
       separatorBefore: true,
       run:
-        worktree.ready === true
+        readinessRequests.has(readinessKey(worktree))
           ? undefined
           : () => {
               close();
-              markWorktreeReady(worktree);
+              markWorktreeReady(worktree, worktree.ready !== true);
             },
       disabledReason:
-        worktree.ready === true
-          ? "Already marked ready. Phase 2 has no un-mark; the merge queue in Phase 3 owns that."
+        readinessRequests.has(readinessKey(worktree))
+          ? "Readiness is being updated."
           : undefined,
     },
   ];

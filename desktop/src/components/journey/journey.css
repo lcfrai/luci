@@ -1,5 +1,16 @@
 @import "../../styles/tokens.css";
 @import "../setup/setup.css";
+@import "../definition/definition.css";
+.deployment-workspace { block-size: 100%; overflow: auto; }
+.deployment-tabs { margin: 0; padding: 16px 38px; background: var(--canvas); position: sticky; inset-block-start: 0; z-index: 2; }
+.deployment-workspace > .journey-page, .deployment-workspace > [role="tabpanel"] > .journey-page { block-size: auto; overflow: visible; }
+.deployment-destinations { margin-block-end: 24px; }
+.deployment-configuration { border-block-start: 1px solid var(--line-soft); }
+.deployment-details { border-block: 1px solid var(--line-soft); padding-block: 14px; }
+.deployment-details summary { cursor: pointer; color: var(--ink-2); min-block-size: 32px; }
+.deployment-details > .setup-field-grid { margin-block: 18px; }
+.deploy-form > .deployment-details { grid-column: 1 / -1; inline-size: 100%; }
+@media (max-width: 700px) { .deployment-tabs { padding-inline: 18px; } }
 .develop-workspace {
   block-size: 100%;
   display: flex;

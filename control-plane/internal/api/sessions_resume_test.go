@@ -174,8 +174,8 @@ func TestCreateMountsOnlyThisWorktreesConversationStore(t *testing.T) {
 	}
 }
 
-// A shell has no conversation: no id, no flag, no store, and no transcripts in
-// reach of a terminal.
+// A shell keeps only its own private tool home: no provider conversation id,
+// flag, transcript store or credential configuration reaches the terminal.
 func TestCreateGivesAShellNoConversation(t *testing.T) {
 	env := sessionsNewEnv(t)
 	sessionsStubReady(t, nil)
@@ -192,12 +192,46 @@ func TestCreateGivesAShellNoConversation(t *testing.T) {
 	if !slices.Equal(spec.Args, []string{"-l"}) {
 		t.Errorf("Args = %#v, want [-l]", spec.Args)
 	}
-	if len(spec.Mounts) != 1 {
-		t.Errorf("Mounts = %#v, want the worktree alone", spec.Mounts)
+	home := resumeAssertShellHomeIsolation(t, env, stored, spec)
+	if !slices.Equal(spec.Mounts, []backend.Mount{{HostPath: env.dir, ContainerPath: sessionWorkDir}, {HostPath: home, ContainerPath: shellHomeDir}}) {
+		t.Errorf("Mounts = %#v, want exactly the worktree and this session's private home", spec.Mounts)
 	}
-	if _, err := os.Stat(env.conversations); !errors.Is(err, os.ErrNotExist) {
-		t.Errorf("a shell session created the conversation store root (stat err = %v)", err)
+}
+
+// Assert the real HTTP/backend result against the recorded session identity.
+// The control-plane-owned h/ home may exist while provider transcript roots
+// remain absent; mounting their shared parent would expose another session.
+func resumeAssertShellHomeIsolation(t *testing.T, env *sessionsEnv, stored registry.Session, spec backend.Spec) string {
+	t.Helper()
+	if stored.ConversationID != "" || len(stored.EarlierConversationIDs) != 0 || stored.CarriedConversationID != "" {
+		t.Fatal("terminal record acquired provider conversation state")
 	}
+	home, err := env.api.shellHomePath(stored.WorktreeID, stored.ID)
+	if err != nil || filepath.Dir(home) != filepath.Join(env.conversations, "h") {
+		t.Fatal("terminal home is not bound to its own private h/ identity")
+	}
+	if info, err := os.Stat(home); err != nil || !info.IsDir() {
+		t.Fatal("terminal's own home was not prepared before sandbox creation")
+	}
+	for _, providerRoot := range []string{sessionConversationOwner, "t"} {
+		if _, err := os.Stat(filepath.Join(env.conversations, providerRoot)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatal("terminal created a provider transcript root")
+		}
+	}
+	for _, mount := range spec.Mounts {
+		if mount.ContainerPath == sessionConversationDir || mount.ContainerPath == nativeAgentDir || mount.HostPath == env.conversations || mount.HostPath == filepath.Dir(home) {
+			t.Fatal("terminal mounts shared or provider state")
+		}
+	}
+	if spec.Env["HOME"] != shellHomeDir {
+		t.Fatal("terminal does not use its private mounted home")
+	}
+	for _, key := range []string{"ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL", "OPENAI_API_KEY", "OPENAI_BASE_URL", "CODEX_API_KEY", "CODEX_HOME", "OPENCODE_CONFIG_CONTENT", "OPENCODE_LOCAL_API_KEY"} {
+		if spec.Env[key] != "" {
+			t.Fatalf("terminal received provider configuration %s", key)
+		}
+	}
+	return home
 }
 
 // THE DEFECT, pinned where it was: the cockpit id went to `claude --resume`.
@@ -399,11 +433,10 @@ func TestRestartReplaysAShellsStoredArgv(t *testing.T) {
 	if spec.Command != "/bin/bash" || !slices.Equal(spec.Args, []string{"-l", "-i"}) {
 		t.Errorf("restart ran %q %#v, want the stored /bin/bash [-l -i]", spec.Command, spec.Args)
 	}
-	if len(spec.Mounts) != 1 {
-		t.Errorf("Mounts = %#v, want the worktree alone", spec.Mounts)
-	}
-	if after, _ := env.st.Get("s-0000000b"); after.ConversationID != "" {
-		t.Errorf("a shell restart minted conversation %q", after.ConversationID)
+	after, _ := env.st.Get("s-0000000b")
+	home := resumeAssertShellHomeIsolation(t, env, after, spec)
+	if !slices.Equal(spec.Mounts, []backend.Mount{{HostPath: env.dir, ContainerPath: sessionWorkDir}, {HostPath: home, ContainerPath: shellHomeDir}}) {
+		t.Errorf("Mounts = %#v, want exactly the worktree and the retained terminal's private home", spec.Mounts)
 	}
 }
 

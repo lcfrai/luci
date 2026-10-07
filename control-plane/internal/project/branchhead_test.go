@@ -117,10 +117,9 @@ func TestBranchesReportsACancelledConfirmationInsteadOfCallingItAnUnbornHead(t *
 	}
 }
 
-// The one tolerated reason, and it stays tolerated: HEAD names a branch that
-// has no commit yet. `rev-parse --verify --quiet HEAD` is how that is
-// confirmed rather than guessed from git's prose — it exits non-zero and says
-// NOTHING, where every other failure prints.
+// HEAD can name a current branch before its first commit. A silent Git-owned
+// nonzero verification is followed by a successful symbolic-ref and ref-format
+// check; missing object output alone must never invent a branch.
 func TestBranchesStillListsBranchesWhenHeadIsUnborn(t *testing.T) {
 	root := t.TempDir()
 	dir := makeRepo(t, root, "luci")
@@ -147,6 +146,8 @@ func TestBranchesStillListsBranchesWhenHeadIsUnborn(t *testing.T) {
 		Exited:        true,
 		ExitedNonZero: true,
 	}, "rev-parse", "--verify", "--quiet", "HEAD")
+	g.reply(dir, "refs/heads/main\n", "symbolic-ref", "--quiet", "HEAD")
+	g.reply(dir, "", "check-ref-format", "refs/heads/main")
 
 	got, err := branchesOf(t, root, dir, g)
 	if err != nil {
@@ -155,8 +156,8 @@ func TestBranchesStillListsBranchesWhenHeadIsUnborn(t *testing.T) {
 	if len(got) != 1 || got[0].Name != "main" {
 		t.Fatalf("Branches = %#v, want main alone", got)
 	}
-	if got[0].IsHead {
-		t.Errorf("main is marked IsHead, but no commit is checked out")
+	if !got[0].IsHead {
+		t.Error("the verified current initial branch was not marked IsHead")
 	}
 }
 
@@ -180,12 +181,15 @@ func TestBranchesAgainstARealRepositoryWhoseHeadIsUnborn(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Branches on a real unborn HEAD: %v", err)
 	}
-	if len(got) == 0 {
-		t.Fatal("Branches on a real unborn HEAD returned no branches; main has commits")
-	}
+	initial := 0
 	for _, b := range got {
-		if b.IsHead {
-			t.Errorf("%s is marked IsHead, but HEAD is unborn", b.Name)
+		if b.Name == "blank" && b.IsHead {
+			initial++
+		} else if b.IsHead {
+			t.Errorf("%s is marked IsHead; the current initial branch is blank", b.Name)
 		}
+	}
+	if initial != 1 {
+		t.Fatal("the verified initial branch was not exposed alongside existing branches")
 	}
 }

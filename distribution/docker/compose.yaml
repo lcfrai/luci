@@ -1,0 +1,74 @@
+name: ${LUCI_COMPOSE_PROJECT:-luci-docker}
+
+services:
+  engine:
+    image: luci/engine:${LUCI_VERSION:-0.4.17}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: engine
+    platform: linux/amd64
+    privileged: true
+    restart: unless-stopped
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    command: ["dockerd", "--host=unix:///run/luci-engine/docker.sock", "--group=luci", "--storage-driver=overlay2"]
+    ports:
+      - "127.0.0.1:${LUCI_PORT:-8730}:8730"
+      - "127.0.0.1:${LUCI_PREVIEW_PORT:-8731}:8731"
+    volumes:
+      - engine-data:/var/lib/docker
+      - engine-socket:/run/luci-engine
+      - workspace:/luci-workspace
+    healthcheck:
+      test: ["CMD", "docker", "--host=unix:///run/luci-engine/docker.sock", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 15s
+    labels:
+      ai.lcfr.luci.distribution: private-docker-engine
+
+  controller:
+    image: luci/controller:${LUCI_VERSION:-0.4.17}
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: controller
+    user: "1001:1001"
+    network_mode: service:engine
+    depends_on:
+      engine:
+        condition: service_healthy
+        restart: true
+    restart: unless-stopped
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      LUCI_ADDR: 0.0.0.0:8730
+      LUCI_ALLOW_PUBLIC_BIND: "1"
+      LUCI_ALLOWED_ORIGINS: "http://127.0.0.1:${LUCI_PORT:-8730},http://localhost:${LUCI_PORT:-8730}"
+      LUCI_BROWSER_PREVIEW_ADDR: 0.0.0.0:8731
+      LUCI_BROWSER_PREVIEW_PORT: "${LUCI_PREVIEW_PORT:-8731}"
+    volumes:
+      - engine-socket:/run/luci-engine
+      - workspace:/luci-workspace
+    tmpfs:
+      - /tmp:size=134217728,mode=1777
+      - /run:size=16777216,mode=0755
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    stop_grace_period: 30s
+    labels:
+      ai.lcfr.luci.distribution: controller
+
+volumes:
+  engine-data:
+  engine-socket:
+  workspace:

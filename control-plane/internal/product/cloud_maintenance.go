@@ -114,9 +114,36 @@ func (s *Server) rollbackCloudRelease(w http.ResponseWriter, r *http.Request) {
 		journeyError(w, 500, "configuration_unavailable", "Could not read current private application configuration.")
 		return
 	}
+	target, err := s.deploymentTarget(original.TargetID)
+	if err != nil || targetFingerprint(target) != original.TargetFingerprint {
+		journeyError(w, 409, "target_changed", "Reconnect the exact deployment target used by the historical release.")
+		return
+	}
+	original.ServerUUID = target.ServerUUID
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
+	defer cancel()
+	data, err := s.cloudApplicationDataSnapshot(ctx, original)
+	if err != nil {
+		journeyError(w, 409, "data_domain_unverified", err.Error())
+		return
+	}
+	dataFingerprint := cloudDataFingerprint(data, original.DataClientFramework)
+	preflight := original
+	preflight.ConfigurationRevision, preflight.DataDomainRevision, preflight.DataBindingFingerprint = configuration.Revision, data.DomainRevision, dataFingerprint
+	if _, err := cloudApplicationVariables(preflight, configuration, data); err != nil {
+		journeyError(w, 409, "data_configuration_conflict", err.Error())
+		return
+	}
+	if len(dataClientAliases(original.DataClientFramework)) > 0 {
+		dockerfile, err := s.journeyGit(ctx, p.Path, "show", original.Release.Commit+":"+original.Dockerfile)
+		if err != nil || len(dockerfile) > 1<<20 || requireDataClientDockerfileArgs(dockerfile, original.DataClientFramework) != nil {
+			journeyError(w, 409, "data_build_arguments_required", "The historical Dockerfile must declare the selected public Data build arguments before rebuilding.")
+			return
+		}
+	}
 	for _, current := range rows {
 		if current.ApplicationID == original.ApplicationID && current.TargetID == original.TargetID {
-			if current.RollbackOf == original.ID && current.ConfigurationRevision == configuration.Revision && current.Status != "failed" && current.Status != "cancelled" && current.Status != "stopped" {
+			if current.RollbackOf == original.ID && current.ConfigurationRevision == configuration.Revision && current.DataDomainRevision == data.DomainRevision && current.DataBindingFingerprint == dataFingerprint && current.Status != "failed" && current.Status != "cancelled" && current.Status != "stopped" {
 				journeyJSON(w, 202, current)
 				return
 			}
@@ -132,11 +159,6 @@ func (s *Server) rollbackCloudRelease(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	target, err := s.deploymentTarget(original.TargetID)
-	if err != nil || targetFingerprint(target) != original.TargetFingerprint {
-		journeyError(w, 409, "target_changed", "Reconnect the exact deployment target used by the historical release.")
-		return
-	}
 	client, err := NewCoolifyClient(target.BaseURL, target.Token)
 	if err != nil {
 		journeyError(w, 400, "target_invalid", err.Error())
@@ -145,6 +167,11 @@ func (s *Server) rollbackCloudRelease(w http.ResponseWriter, r *http.Request) {
 	row := original
 	row.ID = newID("cloud-rel-")
 	row.ConfigurationRevision = configuration.Revision
+	row.DataDomainRevision, row.DataBindingFingerprint = data.DomainRevision, dataFingerprint
+	row.DataBindingStatus = ""
+	if dataFingerprint != "" {
+		row.DataBindingStatus = "current"
+	}
 	row.RollbackOf = original.ID
 	row.CreatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	row.Status = "preparing"
@@ -169,14 +196,12 @@ func (s *Server) rollbackCloudRelease(w http.ResponseWriter, r *http.Request) {
 		_ = s.storeCloudRelease(row)
 		journeyJSON(w, 502, row)
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
-	defer cancel()
 	app := CoolifyGitApplication{ProjectUUID: row.ProviderProjectID, ServerUUID: target.ServerUUID, Name: "luci-" + p.ID, Repository: row.Repository, Branch: row.Branch, Commit: row.Release.Commit, Dockerfile: "/" + row.Dockerfile, Port: row.Port, Domain: row.Domain, HealthPath: row.HealthPath, Source: row.Source, PrivateKeyUUID: row.PrivateKeyUUID}
 	if err = client.UpdateGitApplication(ctx, row.ApplicationID, app); err != nil {
 		fail()
 		return
 	}
-	if err = s.reconcileCloudApplicationConfiguration(ctx, row, client, configuration); err != nil {
+	if err = s.reconcileCloudApplicationConfiguration(ctx, row, client, configuration, data); err != nil {
 		row.Status = "failed"
 		row.Message = "Current runtime configuration was not confirmed. No historical rebuild started; resolve the configuration and retry."
 		if s.storeCloudRelease(row) != nil {
@@ -184,6 +209,16 @@ func (s *Server) rollbackCloudRelease(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		journeyJSON(w, 502, row)
+		return
+	}
+	if err = s.recheckCloudApplicationData(ctx, row); err != nil {
+		row.Status, row.Message = "failed", err.Error()+" No historical rebuild started."
+		row.DataBindingStatus = "redeploy-required"
+		if s.storeCloudRelease(row) != nil {
+			journeyError(w, 500, "release_record_failed", "Could not save the changed Data binding; no rebuild started.")
+			return
+		}
+		journeyJSON(w, 409, row)
 		return
 	}
 	deployed, err := client.Deploy(ctx, row.ApplicationID)

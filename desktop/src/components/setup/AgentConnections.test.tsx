@@ -5,23 +5,21 @@ import { createProductClient } from "../../api/product";
 import { AgentConnections } from "./AgentConnections";
 
 it("saves an explicitly selected local model without adding a paid fallback or exposing credentials", async () => {
-  const fetcher = vi
-    .fn<typeof fetch>()
-    .mockImplementation(
-      async (_url, init) =>
-        new Response(
-          JSON.stringify({
-            providers: [
-              {
-                id: "local",
-                name: "OpenCode",
-                configured: init?.method === "POST",
-                model: init?.method === "POST" ? "local-coder" : "",
-              },
-            ],
-          }),
-        ),
-    );
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(
+    async (_url, init) =>
+      new Response(
+        JSON.stringify({
+          providers: [
+            {
+              id: "local",
+              name: "OpenCode",
+              configured: init?.method === "POST",
+              model: init?.method === "POST" ? "local-coder" : "",
+            },
+          ],
+        }),
+      ),
+  );
   render(
     <AgentConnections
       client={createProductClient("http://localhost", fetcher)}
@@ -53,35 +51,40 @@ it("saves an explicitly selected local model without adding a paid fallback or e
   expect(screen.getByText(/provider has not been validated/)).not.toBeNull();
 });
 
-it("opens the official Codex sign-in as an auth-only session and returns to its terminal", async () => {
-  const { api } = await import("../../api");
+it("opens official Codex sign-in without a project and returns to its isolated terminal", async () => {
   const { useCockpit, resetCockpit } = await import("../../store/store");
   const { aHarness, aSession } = await import("../../test/fixtures");
   resetCockpit();
   useCockpit.setState({
     harnesses: [aHarness({ id: "codex" })],
     selection: {
-      projectId: "p1",
-      branchId: "b1",
-      worktreeId: "w1",
+      projectId: null,
+      branchId: null,
+      worktreeId: null,
       sessionId: null,
     },
   });
-  const create = vi
-    .spyOn(api, "createSession")
-    .mockResolvedValue(
-      aSession({ id: "auth-session", worktreeId: "w1", harness: "codex" }),
-    );
   const close = vi.fn();
-  const fetcher = vi
-    .fn<typeof fetch>()
-    .mockResolvedValue(
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(
+    async (url) =>
       new Response(
-        JSON.stringify({
-          providers: [{ id: "openai", name: "Codex", configured: false }],
-        }),
+        JSON.stringify(
+          String(url).endsWith("/codex/sign-in")
+            ? aSession({
+                id: "auth-session",
+                worktreeId: "setup-codex",
+                projectId: "",
+                branchId: "",
+                harness: "codex",
+                authOnly: true,
+                authMode: "chatgpt",
+              })
+            : {
+                providers: [{ id: "openai", name: "Codex", configured: false }],
+              },
+        ),
       ),
-    );
+  );
   render(
     <AgentConnections
       client={createProductClient("http://localhost", fetcher)}
@@ -96,13 +99,201 @@ it("opens the official Codex sign-in as an auth-only session and returns to its 
   await userEvent.click(
     screen.getByRole("button", { name: "Open Codex account sign-in" }),
   );
-  expect(create).toHaveBeenCalledWith({
-    worktreeId: "w1",
-    harness: "codex",
-    authOnly: true,
-  });
+  const post = fetcher.mock.calls.find((call) => call[1]?.method === "POST")!;
+  expect(post[0]).toBe("http://localhost/v1/setup/agents/codex/sign-in");
+  expect(JSON.parse(post[1]?.body as string)).toEqual({});
   expect(close).toHaveBeenCalledOnce();
   expect(useCockpit.getState().sessions["auth-session"]).toBeDefined();
-  create.mockRestore();
+  expect(useCockpit.getState().selection).toMatchObject({
+    projectId: null,
+    sessionId: "auth-session",
+  });
   resetCockpit();
+});
+
+it("connects a stopped sign-in for future Codex sessions and keeps API billing unselected", async () => {
+  const { useCockpit, resetCockpit } = await import("../../store/store");
+  const { aSession } = await import("../../test/fixtures");
+  resetCockpit();
+  useCockpit.setState({
+    sessions: {
+      signed: aSession({
+        id: "signed",
+        harness: "codex",
+        authOnly: true,
+        status: "exited",
+      }),
+      working: aSession({
+        id: "working",
+        harness: "codex",
+        authOnly: false,
+        status: "exited",
+      }),
+      pending: aSession({
+        id: "pending",
+        harness: "codex",
+        authOnly: true,
+        status: "running",
+      }),
+    },
+  });
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(
+    async (url, init) =>
+      new Response(
+        JSON.stringify(
+          String(url).endsWith("/codex/account")
+            ? {
+                configured: init?.method === "POST",
+                authMode: "chatgpt",
+                message: "Account credential saved.",
+              }
+            : {
+                providers: [{ id: "openai", name: "Codex", configured: true }],
+              },
+        ),
+      ),
+  );
+  render(
+    <AgentConnections
+      client={createProductClient("http://localhost", fetcher)}
+      cloud={false}
+    />,
+  );
+  await userEvent.selectOptions(
+    screen.getByLabelText("Coding agent"),
+    "openai",
+  );
+  await screen.findByText("No Codex subscription sign-in saved.");
+  const selector = screen.getByLabelText(
+    "Completed sign-in session",
+  ) as HTMLSelectElement;
+  expect(Array.from(selector.options, (option) => option.value)).toEqual([
+    "signed",
+  ]);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save Codex sign-in" }),
+  );
+  await screen.findByText("Codex sign-in saved on this machine.");
+  const post = fetcher.mock.calls.find((call) => call[1]?.method === "POST")!;
+  expect(post[0]).toBe("http://localhost/v1/setup/agents/codex/account");
+  expect(JSON.parse(post[1]?.body as string)).toEqual({ sessionId: "signed" });
+  expect(
+    (screen.getByLabelText("OpenAI API key") as HTMLInputElement).disabled,
+  ).toBe(true);
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "Save agent connection",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  expect(
+    screen.getByText(/completed model request is still needed/),
+  ).not.toBeNull();
+  resetCockpit();
+});
+
+it("keeps a rejected sign-in unconnected and displays the actionable service error", async () => {
+  const { useCockpit, resetCockpit } = await import("../../store/store");
+  const { aSession } = await import("../../test/fixtures");
+  resetCockpit();
+  useCockpit.setState({
+    sessions: {
+      failed: aSession({
+        id: "failed",
+        harness: "codex",
+        authOnly: true,
+        status: "exited",
+      }),
+    },
+  });
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockImplementation(async (url, init) => {
+      if (init?.method === "POST")
+        return new Response(
+          JSON.stringify({
+            error: "invalid_codex_account",
+            message: "Complete Codex sign-in before saving this connection.",
+          }),
+          { status: 422 },
+        );
+      return new Response(
+        JSON.stringify(
+          String(url).endsWith("/codex/account")
+            ? {
+                configured: false,
+                authMode: "chatgpt",
+                message: "No account credential saved.",
+              }
+            : { providers: [] },
+        ),
+      );
+    });
+  render(
+    <AgentConnections
+      client={createProductClient("http://localhost", fetcher)}
+      cloud={false}
+    />,
+  );
+  await userEvent.selectOptions(
+    screen.getByLabelText("Coding agent"),
+    "openai",
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Save Codex sign-in" }),
+  );
+  expect((await screen.findByRole("alert")).textContent).toContain(
+    "Complete Codex sign-in",
+  );
+  expect(screen.queryByText("Codex sign-in saved on this machine.")).toBeNull();
+  resetCockpit();
+});
+
+it("disconnects the subscription without deleting a separate API key or claiming to stop sessions", async () => {
+  let connected = true;
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockImplementation(async (url, init) => {
+      if (init?.method === "DELETE") connected = false;
+      return new Response(
+        JSON.stringify(
+          String(url).endsWith("/codex/account")
+            ? {
+                configured: connected,
+                authMode: "chatgpt",
+                message: "Connection status.",
+              }
+            : {
+                providers: [{ id: "openai", name: "Codex", configured: true }],
+              },
+        ),
+      );
+    });
+  render(
+    <AgentConnections
+      client={createProductClient("http://localhost", fetcher)}
+      cloud={true}
+    />,
+  );
+  await userEvent.selectOptions(
+    screen.getByLabelText("Coding agent"),
+    "openai",
+  );
+  await screen.findByText("Codex sign-in saved in your cloud workspace.");
+  await userEvent.click(
+    screen.getByRole("button", { name: "Disconnect Codex sign-in" }),
+  );
+  await screen.findByText("No Codex subscription sign-in saved.");
+  expect(
+    screen.getByText(/Existing sessions keep their private sign-in/),
+  ).not.toBeNull();
+  expect(
+    screen.getByText("Personal API key saved in the cloud workspace."),
+  ).not.toBeNull();
+  expect(
+    fetcher.mock.calls
+      .filter((call) => call[1]?.method === "DELETE")
+      .map((call) => call[0]),
+  ).toEqual(["http://localhost/v1/setup/agents/codex/account"]);
 });

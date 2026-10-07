@@ -23,6 +23,7 @@ func TestLocalReleaseUsesPrivatePinnedRuntimeConfigurationAndRemovesItsEnvFile(t
 			if err := os.WriteFile(filepath.Join(p.Path, "Dockerfile"), []byte("FROM scratch\n"), 0600); err != nil {
 				t.Fatal(err)
 			}
+			reviewDeploymentFixture(t, mux, p.ID)
 			commitPreviewFixture(t, p.Path)
 			secret := "fixture-private-value=with spaces#literal"
 			journeyRequest(t, mux, "POST", base+"/configuration", map[string]any{"expectedRevision": 0, "updates": []map[string]any{
@@ -68,7 +69,7 @@ func TestLocalReleaseUsesPrivatePinnedRuntimeConfigurationAndRemovesItsEnvFile(t
 							envPath = args[i+1]
 						}
 					}
-					if envPath == "" || filepath.Dir(envPath) != s.stateDir {
+					if envPath == "" || filepath.Clean(filepath.Dir(envPath)) != filepath.Clean(s.stateDir) {
 						t.Fatal("runtime env file is not outside the project in private state")
 					}
 					assertPrivateFile(t, envPath)
@@ -88,6 +89,12 @@ func TestLocalReleaseUsesPrivatePinnedRuntimeConfigurationAndRemovesItsEnvFile(t
 						t.Fatal("runtime env file survived the Docker run invocation")
 					}
 					return strings.TrimPrefix(health.URL, "http://"), nil
+				case "inspect":
+					rows, err := s.readReleases(p.ID)
+					if err != nil || len(rows) != 1 || rows[0].ContainerID != strings.Repeat("d", 64) {
+						t.Fatal("configured preview has no durable owned receipt")
+					}
+					return previewInspection(rows[0]), nil
 				default:
 					t.Fatalf("unexpected Docker operation %v", args)
 					return "", nil

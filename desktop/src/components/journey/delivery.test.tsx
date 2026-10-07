@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { productApi, type GitState } from "../../api/product";
 import { ProjectDelivery } from "./ProjectDelivery";
@@ -222,4 +222,69 @@ it("prepares read-only access before deploying a private repository and carries 
       targetId: "target-1",
     }),
   );
+});
+it.each(["none", "vite", "nextjs"] as const)("carries the explicit %s browser data choice into the reviewed cloud release", async (framework) => {
+  vi.spyOn(productApi, "targets").mockResolvedValue({ targets: [{ id: "target-1", name: "Server", serverUuid: "srv-1", baseUrl: "https://control.example" }] });
+  vi.spyOn(productApi, "git").mockResolvedValue(git);
+  vi.spyOn(productApi, "gitDelivery").mockResolvedValue({ origin: "https://github.com/owner/journal.git", branch: "main", head });
+  const deploy = vi.fn();
+  render(<CloudDeployForm projectId="p-1" busy="" onSetup={vi.fn()} onDeploy={deploy} />);
+  await screen.findByRole("option", { name: "Server" });
+  fireEvent.change(screen.getByLabelText("Deployment server"), { target: { value: "target-1" } });
+  fireEvent.change(screen.getByLabelText("Application domain"), { target: { value: "journal.example.com" } });
+  fireEvent.change(screen.getByLabelText("Repository access"), { target: { value: "public" } });
+  fireEvent.change(screen.getByLabelText("Browser data variables"), { target: { value: framework } });
+  fireEvent.submit(screen.getByRole("button", { name: "Deploy to cloud" }).closest("form")!);
+  expect(deploy).toHaveBeenCalledTimes(1);
+  const input = deploy.mock.calls[0][0];
+  expect(input.commit).toBe(head);
+  expect(input.dataClientFramework).toBe(framework === "none" ? undefined : framework);
+  expect(input.privateKeyUuid).toBeUndefined();
+});
+it("does not submit another deployment while a release is running", async () => {
+  vi.spyOn(productApi, "targets").mockResolvedValue({ targets: [{ id: "target-1", name: "Server", serverUuid: "srv-1", baseUrl: "https://control.example" }] });
+  vi.spyOn(productApi, "git").mockResolvedValue(git);
+  vi.spyOn(productApi, "gitDelivery").mockResolvedValue({ origin: "https://github.com/owner/journal.git", branch: "main", head });
+  const deploy = vi.fn();
+  const props = { projectId: "p-1", onSetup: vi.fn(), onDeploy: deploy };
+  const view = render(<CloudDeployForm {...props} busy="" />);
+  await screen.findByRole("option", { name: "Server" });
+  fireEvent.change(screen.getByLabelText("Deployment server"), { target: { value: "target-1" } });
+  fireEvent.change(screen.getByLabelText("Repository access"), { target: { value: "public" } });
+  view.rerender(<CloudDeployForm {...props} busy="Deploying…" />);
+  expect((screen.getByLabelText("Application domain") as HTMLInputElement).disabled).toBe(true);
+  expect((screen.getByLabelText("Cloud app port") as HTMLInputElement).disabled).toBe(true);
+  expect((screen.getByLabelText("Health check path") as HTMLInputElement).disabled).toBe(true);
+  fireEvent.submit(screen.getByRole("button", { name: "Deploying…" }).closest("form")!);
+  expect(deploy).not.toHaveBeenCalled();
+});
+
+it("shows server loading separately from a verified empty account and preserves member setup permissions", async () => {
+  let finish!: (value: Awaited<ReturnType<typeof productApi.targets>>) => void;
+  vi.spyOn(productApi, "targets").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  vi.spyOn(productApi, "git").mockResolvedValue(git);
+  vi.spyOn(productApi, "gitDelivery").mockResolvedValue({ branch: "main", head });
+  const setup = vi.fn(), deploy = vi.fn();
+  render(<CloudDeployForm projectId="p-1" busy="" canManageBacking={false} onSetup={setup} onDeploy={deploy} />);
+  expect(screen.getByText(/Checking your connected deployment servers/)).not.toBeNull();
+  expect(screen.queryByText(/No deployment server connected yet/)).toBeNull();
+  await act(async () => finish({ targets: [] }));
+  expect(screen.getByText(/Ask your administrator to connect/)).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Set up your cloud" })).toBeNull();
+  expect(setup).not.toHaveBeenCalled();
+  expect(deploy).not.toHaveBeenCalled();
+});
+it("reveals a collapsed cloud option for browser validation without starting a deployment", async () => {
+  vi.spyOn(productApi, "targets").mockResolvedValue({ targets: [] });
+  vi.spyOn(productApi, "git").mockResolvedValue(git);
+  vi.spyOn(productApi, "gitDelivery").mockResolvedValue({ branch: "main", head });
+  const deploy = vi.fn();
+  render(<CloudDeployForm projectId="p-1" busy="" onSetup={vi.fn()} onDeploy={deploy} />);
+  await screen.findByText(/No deployment server connected yet/);
+  const details = screen.getByText("Build and health options", { selector: "summary" }).parentElement as HTMLDetailsElement;
+  const port = screen.getByLabelText("Cloud app port");
+  fireEvent.change(port, { target: { value: 0 } });
+  fireEvent.invalid(port);
+  expect(details.open).toBe(true);
+  expect(deploy).not.toHaveBeenCalled();
 });

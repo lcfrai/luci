@@ -1,0 +1,35 @@
+{
+  "currentVocabulary": [
+    "Discover",
+    "Design",
+    "Develop",
+    "Deploy"
+  ],
+  "source": "Glasses Foundry handoff from LCFR.ai website task",
+  "approvedSvgSHA256": "e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155",
+  "ownerApprovalDate": "2026-10-07",
+  "retainedFiles": [
+    {
+      "bytes": 3801,
+      "sha256": "e69afb839bc6384841c53ebcc1a72953ae1c18b1a1bf672f989d38c42ca9e155",
+      "name": "luci-four-ds-fourfold.svg"
+    },
+    {
+      "bytes": 21893,
+      "sha256": "dd71b4f68e7aec62f003380489d000af52528ec7a7f98c82c714f259072c7665",
+      "name": "luci-four-ds-fourfold.recipe.json"
+    },
+    {
+      "bytes": 1221,
+      "sha256": "1480ff84b098b8f6c2b085621e0c68065fdc2ca4b50bc2aba738bf302015defa",
+      "name": "luci-four-ds-fourfold.manifest.json"
+    },
+    {
+      "bytes": 575,
+      "sha256": "66398b76dd0f212e68e2bbf514026b4812057b15e1867eef4803790a8e5db726",
+      "name": "luci-four-ds-fourfold.regeneration.json"
+    }
+  ],
+  "approvedMark": "Fourfold (option A)",
+  "receiptValidation": "Copies match original bytes; supplied passing regeneration receipt retained. No new render or animation executed."
+}

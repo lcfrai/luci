@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/lcfrai/luci/control-plane/internal/management"
+	"github.com/lcfrai/luci/control-plane/internal/previewgateway"
 )
 
 type Workspace struct {
@@ -43,9 +44,11 @@ type WorkspaceInstall struct {
 	UpdatedAt    time.Time `json:"updatedAt"`
 }
 type workspacePreview struct {
-	server       *http.Server
-	url          string
-	connectionID string
+	projectID, releaseID                                       string
+	remoteUserID, clientKind, clientResourceID, publishableKey string
+	server                                                     *http.Server
+	url                                                        string
+	connectionID                                               string
 }
 
 func (s *Server) initWorkspace() error {
@@ -176,6 +179,7 @@ func (s *Server) registerWorkspace(mux Registrar) {
 	mux.HandleFunc("POST /v1/setup/workspace/activate", s.activateWorkspace)
 	mux.HandleFunc("POST /v1/setup/workspace/local", s.activateLocalWorkspace)
 	mux.HandleFunc("POST /v1/setup/workspace/preview", s.prepareWorkspacePreview)
+	mux.HandleFunc("POST /v1/setup/workspace/platform/browser", s.prepareWorkspacePlatformBrowser)
 }
 func remoteWorkspaceStatus(ctx context.Context, address, method string, tokens ...string) (Status, error) {
 	timeout := 45 * time.Second
@@ -412,7 +416,7 @@ func (s *Server) installWorkspace(job WorkspaceInstall, t Tunnel) {
 	}
 	script := fmt.Sprintf(`set -euo pipefail
 printf '%%s  %%s\n' '%s' '%s' | sha256sum --check --status
-install -d /opt/luci/releases/%s
+install -d -m 755 /opt/luci /opt/luci/releases /opt/luci/releases/%s
 tar --extract --gzip --file '%s' --directory /opt/luci/releases/%s --no-same-owner
 chmod 755 /opt/luci/releases/%s/luci
 ln -sfn /opt/luci/releases/%s /opt/luci/current
@@ -477,7 +481,7 @@ func sshArguments(t Tunnel, copy bool) []string {
 }
 
 func projectRequest(path string) bool {
-	for _, prefix := range []string{"/v1/product/projects", "/v1/projects", "/v1/sessions", "/v1/harnesses", "/v1/machines", "/v1/setup/agents", "/v1/setup/github", "/v1/setup/git/identity", "/v1/setup/runtime/install", "/v1/setup/targets", "/v1/setup/config"} {
+	for _, prefix := range []string{"/v1/platform", "/v1/product/projects", "/v1/projects", "/v1/sessions", "/v1/harnesses", "/v1/machines", "/v1/setup/agents", "/v1/setup/agent-connections", "/v1/setup/github", "/v1/setup/git/identity", "/v1/setup/runtime/install", "/v1/setup/targets", "/v1/setup/config"} {
 		if path == prefix || strings.HasPrefix(path, prefix+"/") {
 			return true
 		}
@@ -489,7 +493,7 @@ func projectRequest(path string) bool {
 func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api")
-		if strings.Contains(path, "/releases/") && strings.Contains(path, "/preview/") {
+		if (strings.Contains(path, "/releases/") && strings.Contains(path, "/preview/")) || (strings.HasPrefix(path, "/v1/platform/projects/") && strings.Contains(path, "/browser/")) {
 			if r.Header.Get("X-Luci-Preview-Bridge") == "1" && r.Header.Get("Sec-Fetch-Site") == "" && r.Header.Get("Sec-Fetch-Mode") == "" && r.Header.Get("Sec-Fetch-Dest") == "" {
 				s.mu.RLock()
 				local := s.workspace.Mode != "cloud"
@@ -552,6 +556,20 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 			problem(w, 503, "workspace_disconnected", "The selected workspace has no valid connection.")
 			return
 		}
+		var clientDataResource, clientDataOrigin string
+		if r.Method == "POST" && strings.HasPrefix(path, "/v1/platform/projects/") && strings.HasSuffix(path, "/deployments") {
+			projectID := strings.TrimSuffix(strings.TrimPrefix(path, "/v1/platform/projects/"), "/deployments")
+			if !coolifyID.MatchString(projectID) {
+				problem(w, 400, "browser_request_invalid", "Choose a valid project deployment.")
+				return
+			}
+			meta, origin, err := s.cloudDeploymentBrowserData(r, ws.ConnectionID, projectID)
+			if err != nil {
+				problem(w, 409, "data_browser_connection_required", "Verify and connect this project's data services before deploying its application.")
+				return
+			}
+			clientDataResource, clientDataOrigin = meta.ResourceID, origin
+		}
 		proxy := httputil.NewSingleHostReverseProxy(target)
 		original := proxy.Director
 		proxy.Director = func(req *http.Request) {
@@ -564,6 +582,21 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 			req.Header.Del("X-Luci-Policy")
 			req.Header.Del("Forwarded")
 			req.Header.Del("X-Forwarded-Host")
+			for name := range req.Header {
+				if strings.HasPrefix(strings.ToLower(name), "x-luci-") {
+					req.Header.Del(name)
+				}
+			}
+			if clientDataOrigin != "" {
+				for name := range req.Header {
+					if strings.HasPrefix(strings.ToLower(name), "sec-fetch-") {
+						req.Header.Del(name)
+					}
+				}
+				req.Header.Set("X-Luci-Preview-Bridge", "1")
+				req.Header.Set("X-Luci-Workspace-Data-Origin", clientDataOrigin)
+				req.Header.Set("X-Luci-Workspace-Data-Resource", clientDataResource)
+			}
 			req.URL.Path = path
 		}
 		if path == "/v1/setup/targets" && r.Method == "POST" {
@@ -603,7 +636,8 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 			if res.StatusCode >= 400 {
 				return nil
 			}
-			if path != "/v1/setup/config" && path != "/v1/setup/targets" && !(strings.Contains(path, "/releases") && res.Header.Get("Content-Type") != "") {
+			platformResponse := strings.HasPrefix(path, "/v1/platform/") && strings.HasPrefix(res.Header.Get("Content-Type"), "application/json")
+			if path != "/v1/setup/config" && path != "/v1/setup/targets" && !((strings.Contains(path, "/releases") || strings.HasSuffix(path, "/prototype-releases")) && res.Header.Get("Content-Type") != "") && !platformResponse {
 				return nil
 			}
 			data, err := io.ReadAll(io.LimitReader(res.Body, 8<<20+1))
@@ -638,6 +672,9 @@ func (s *Server) ProxyWorkspace(next http.Handler) http.Handler {
 				value = remote
 			} else {
 				s.rewriteWorkspaceResponse(value, ws.ConnectionID, management)
+				if platformResponse {
+					s.rewriteWorkspacePlatformResponse(value, ws.ConnectionID)
+				}
 			}
 			data, err = json.Marshal(value)
 			if err != nil {
@@ -740,6 +777,12 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 		problem(w, 409, "preview_not_ready", "Choose a running preview in this project.")
 		return
 	}
+	remoteUserID := ""
+	if t != nil {
+		s.mu.RLock()
+		remoteUserID = s.workspaceAuth[workspaceCredentialKey(*t)].User.ID
+		s.mu.RUnlock()
+	}
 	key := req.ProjectID + "/" + req.ReleaseID
 	s.mu.Lock()
 	if s.workspace.ConnectionID != ws.ConnectionID || s.workspace.Mode != "cloud" {
@@ -763,6 +806,7 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 	prefix := "/v1/product/projects/" + url.PathEscape(req.ProjectID) + "/releases/" + url.PathEscape(req.ReleaseID) + "/preview"
 	proxy := httputil.NewSingleHostReverseProxy(upstream)
 	proxy.Director = func(out *http.Request) {
+		appAuthorization := out.Header.Get("Authorization")
 		out.URL.Scheme = upstream.Scheme
 		out.URL.Host = upstream.Host
 		out.Host = upstream.Host
@@ -777,6 +821,9 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 			}
 		}
 		out.Header.Set("X-Luci-Preview-Bridge", "1")
+		if len(appAuthorization) <= 8192 && appAuthorization != "" {
+			out.Header.Set("X-Luci-Preview-App-Authorization", appAuthorization)
+		}
 		out.Header.Set("Authorization", "Bearer "+token)
 	}
 	proxy.ModifyResponse = func(res *http.Response) error {
@@ -791,6 +838,16 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		problem(w, 503, "preview_unavailable", "The workspace preview is not answering.")
+	}
+	bridgeKey := ""
+	if s.browserRegistry != nil {
+		bridgeKey, err = previewgateway.NewBridgeKey()
+		if err != nil {
+			_ = ln.Close()
+			s.mu.Unlock()
+			problem(w, 500, "preview_unavailable", "The private bridge could not be secured.")
+			return
+		}
 	}
 	server := &http.Server{ReadHeaderTimeout: 10 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if "http://"+r.Host != origin {
@@ -814,12 +871,32 @@ func (s *Server) prepareWorkspacePreview(w http.ResponseWriter, r *http.Request)
 			problem(w, 503, "workspace_disconnected", "Reconnect this workspace in Luci.")
 			return
 		}
+		if r.Method == "GET" && r.URL.Path == previewgateway.BridgeProbePath && bridgeKey != "" {
+			proof := previewgateway.BridgeProof(bridgeKey, r.Header.Get(previewgateway.BridgeNonceHeader))
+			if proof == "" {
+				problem(w, 403, "bridge_probe_rejected", "The bridge probe is invalid.")
+				return
+			}
+			w.Header().Set(previewgateway.BridgeProofHeader, proof)
+			w.WriteHeader(204)
+			return
+		}
 		proxy.ServeHTTP(w, r)
 	})}
-	s.previews[key] = &workspacePreview{server: server, url: origin, connectionID: ws.ConnectionID}
+	browserOrigin := origin
+	if s.browserRegistry != nil {
+		browserOrigin, err = s.browserRegistry.Publish(previewgateway.Target{Kind: "bridge", ProjectID: req.ProjectID, ResourceID: req.ReleaseID, Upstream: origin, BridgeKey: bridgeKey})
+		if err != nil {
+			_ = ln.Close()
+			s.mu.Unlock()
+			problem(w, 500, "preview_unavailable", "The private preview browser address could not be registered.")
+			return
+		}
+	}
+	s.previews[key] = &workspacePreview{server: server, url: browserOrigin, connectionID: ws.ConnectionID, projectID: req.ProjectID, releaseID: req.ReleaseID, remoteUserID: remoteUserID}
 	s.mu.Unlock()
 	go server.Serve(ln)
-	writeJSON(w, 200, map[string]string{"url": origin})
+	writeJSON(w, 200, map[string]string{"url": browserOrigin})
 }
 func (s *Server) closePreviews() {
 	s.mu.Lock()
@@ -828,6 +905,9 @@ func (s *Server) closePreviews() {
 	s.mu.Unlock()
 	for _, preview := range previews {
 		_ = preview.server.Close()
+		if s.browserRegistry != nil {
+			_ = s.browserRegistry.Remove("bridge", preview.projectID, preview.releaseID)
+		}
 	}
 }
 func (s *Server) closeWorkspace() {

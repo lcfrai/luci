@@ -8,6 +8,7 @@ import type {
   Branch,
   BranchId,
   Harness,
+  ImplementationContext,
   Machine,
   Project,
   ProjectId,
@@ -29,6 +30,7 @@ export type LoadKey =
 export interface DataSlice {
   machines: Machine[];
   projects: Project[];
+  projectsLoaded: boolean;
   branchesByProject: Record<ProjectId, Branch[]>;
   worktreesByBranch: Record<BranchId, Worktree[]>;
   sessions: Record<SessionId, Session>;
@@ -54,7 +56,7 @@ export interface DataSlice {
 
 type DataState = Pick<
   DataSlice,
-  | "machines" | "projects" | "branchesByProject" | "worktreesByBranch"
+  | "machines" | "projects" | "projectsLoaded" | "branchesByProject" | "worktreesByBranch"
   | "sessions" | "sessionIdsByWorktree" | "harnesses" | "loading" | "lastError"
 >;
 
@@ -65,6 +67,7 @@ type DataState = Pick<
 export const initialDataState: DataState = Object.freeze({
   machines: Object.freeze([]) as unknown as Machine[],
   projects: Object.freeze([]) as unknown as Project[],
+  projectsLoaded: false,
   branchesByProject: Object.freeze({}) as Record<ProjectId, Branch[]>,
   worktreesByBranch: Object.freeze({}) as Record<BranchId, Worktree[]>,
   sessions: Object.freeze({}) as Record<SessionId, Session>,
@@ -74,14 +77,27 @@ export const initialDataState: DataState = Object.freeze({
   lastError: null,
 });
 
-/** Shallow field comparison, which is exact for `Session`: every field is a primitive, so
- *  there is no nested value a shallow pass could miss. Used to keep a poll from replacing an
- *  object that did not change. */
+/** The immutable implementation snapshot has primitive fields and three ordered string arrays.
+ *  Compare their values so an unchanged poll preserves the session object and its history row. */
+function sameImplementationContext(a: ImplementationContext | undefined, b: ImplementationContext | undefined): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const keys = Object.keys(a) as (keyof ImplementationContext)[];
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every(key => {
+    const left = a[key], right = b[key];
+    return Array.isArray(left) && Array.isArray(right) ? sameIds(left, right) : left === right;
+  });
+}
+
+/** Primitive session fields plus the exact immutable implementation snapshot. */
 export function sameSession(a: Session, b: Session): boolean {
   const keys = Object.keys(a) as (keyof Session)[];
   if (keys.length !== Object.keys(b).length) return false;
   for (const k of keys) {
-    if (a[k] !== b[k]) return false;
+    if (k === "implementationContext") {
+      if (!sameImplementationContext(a.implementationContext, b.implementationContext)) return false;
+    } else if (a[k] !== b[k]) return false;
   }
   return true;
 }
@@ -103,7 +119,17 @@ export const createDataSlice: StateCreator<
   ...initialDataState,
 
   setMachines: (machines) => set({ machines }),
-  setProjects: (projects) => set({ projects }),
+  setProjects: (projects) => set((state) => {
+    // Only a successful catalogue response can invalidate a retained selection.
+    // Failed or pending requests leave the user's current project in place.
+    const missing = state.selection.projectId !== null &&
+      !projects.some(project => project.id === state.selection.projectId);
+    return {
+      projects,
+      projectsLoaded: true,
+      ...(missing ? { selection: { projectId: null, branchId: null, worktreeId: null, sessionId: null } } : {}),
+    };
+  }),
   setBranches: (projectId, branches) =>
     set((s) => ({ branchesByProject: { ...s.branchesByProject, [projectId]: branches } })),
   setWorktrees: (branchId, worktrees) =>

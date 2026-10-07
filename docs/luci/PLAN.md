@@ -1,6 +1,6 @@
 # Luci build plan
 
-2 October 2026. This is the current plan. The owner authorizes autonomous implementation and outcome checks. The former corporate takeover programme is superseded.
+3 October 2026 (Australia/Brisbane). This is the current plan. The owner authorizes autonomous implementation and outcome checks. The former corporate takeover programme is superseded.
 
 Luci takes a person from an idea to a running application in one app. Distribution is through lcfr.ai; source is open, and users keep ownership of their projects, model credentials, infrastructure and domain.
 
@@ -14,9 +14,11 @@ Luci takes a person from an idea to a running application in one app. Distributi
 - Model access belongs to the user: existing harness sign-in, provider API or local model. Explain availability and cost in Luci. There is no mandatory enterprise gateway.
 - One project identity carries a versioned brief, design, agent sessions, Git evidence and verified releases. Adopted parts use Luci navigation, tokens, copy and error states.
 - User-facing setup discovers missing dependencies, explains fixes, previews real resources/cost, guides provider authentication and DNS, checks health and exposes stop/cleanup. It never labels a generated template a successful deployment.
-- Use MIT for Luci's own code, as selected by the owner. Preserve dependencies' licences and original source attribution, including upstream Apache-2.0 grants. Do not import the separate corporate Panacea platform.
+- Use MIT for Luci's own code, as selected by the owner. Preserve dependencies' licences and original source attribution. The owner now explicitly requires the private Panacea backend's capabilities. Inspect the newer source and integrate through real authenticated APIs; its internal-use source notice is separate from Luci's MIT public export. Do not inherit a corporate cloud estate or identity default.
 
 ## Build sequence
+
+The installed-app inspection on 3 October supersedes the former narrow completion bar. [FULL-PRODUCT.md](FULL-PRODUCT.md) defines the active implementation and complete acceptance requirements: proper onboarding, automatic preparation, Projects home, appearance, rich Define, meaningful Design, operational Develop and an application/data deployment platform. The application is not yet a full UAT handback.
 
 1. Rebrand active source, runtime variables, UI, packages, metadata and instructions. Keep historical planning clearly historical.
 2. Implement setup readiness, durable local configuration and a real new-project flow. Make the desktop start its service.
@@ -40,8 +42,10 @@ Luci takes a person from an idea to a running application in one app. Distributi
 
 ## Constraints discovered
 
-The current host has Go, Node, Rust/MSVC and authenticated GitHub. Docker Desktop cannot start because its existing inference socket is inaccessible; automatic approval review refused the repair. AWS/Azure accounts and domain configuration are absent. Docker execution is evaluated on a real Linux CI runner; installed native source/build and packaged service behavior are evaluated separately. Glasses MCP reuse research is active: keep the existing terminal/editor integrations and adopt maintained provider/Git/deployment tools where they reduce bespoke implementation.
+The current Windows host has Go, Node, Rust/MSVC and authenticated GitHub. The user has started Docker Desktop; the Linux Docker engine is now available at version 28.5.1. The earlier unavailable-engine condition and automatic approval review's refusal of a repair are historical; no repair was retried. AWS/Azure accounts and domain configuration remain absent. Keep the existing terminal/editor integrations and adopt maintained provider/Git/deployment tools where they reduce bespoke implementation.
+
+The real packaged Luci 0.4.3 UI installed the agent runtime successfully on this host. Disposable container version checks passed against image `sha256:8949aaa1b80e52bcb325feef29866c0cb54e1f2e3b393f3a9bb5975b5db1afe1`: Codex CLI 0.160.0, Node 24.21.0 and Go 1.26.8. The original official auth-only Codex Docker session exited without a saved account connection. Authorization, subscription-backed inference and public deployment are not yet proven. These checks concern the packaged host application with Docker execution, not a fully containerized control plane. The local version receipt is retained at `artifacts/subscription-e2e/runtime-versions-8949aaa1.json`; it contains no authentication material.
 
 Live AWS/Azure acceptance and publication require the owner's account/domain/release configuration. Until those are available, generated plans and local/synthetic evals are labelled accordingly. Use current selected-region quotes with currency and exclusions; include storage, public addresses, traffic, backups, domain, tax and separately billed model usage. Incomplete prices remain unverified. The configured budget does not enforce a provider billing cap.
 
-The development host's Docker engine remains unavailable. [CI run 36953123907](https://github.com/lcfrai/luci/actions/runs/36953123907) at source commit `4c117f6a088189f640ad946459f36c9072d344c1` passed the real Linux Docker journey: shell WebSocket/brief/Git writes as the mapped host user, private transcript mount access, sandbox privilege checks, committed preview HTTP health and owned cleanup. It used no model inference. Linux/macOS packaged-service checks and the Windows native installer build passed in that run. A model-backed agent journey, clean-host installer evaluation and live cloud acceptance remain separate gates in [RELEASE.md](RELEASE.md). Later source changes need their own relevant verification and package provenance.
+Historical [CI run 36953123907](https://github.com/lcfrai/luci/actions/runs/36953123907), at source commit `4c117f6a088189f640ad946459f36c9072d344c1`, passed the real Linux Docker journey: shell WebSocket/brief/Git writes as the mapped host user, private transcript mount access, sandbox privilege checks, committed preview HTTP health and owned cleanup. It used no model inference. Linux/macOS packaged-service checks and the Windows native installer build also passed in that run. Those results and later installed-application acceptance are separate from the current live subscription and deployment gates; see [RELEASE.md](RELEASE.md). Later source changes need their own relevant verification and package provenance.

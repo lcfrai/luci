@@ -34,20 +34,28 @@ type CheckCommandResult struct {
 	Truncated bool   `json:"truncated"`
 }
 type ProjectCheckRun struct {
-	ID            string               `json:"id"`
-	ProjectID     string               `json:"projectId"`
-	Commit        string               `json:"commit"`
-	Dirty         bool                 `json:"dirty"`
-	Execution     string               `json:"execution"`
-	MemoryMiB     int                  `json:"memoryMiB"`
-	CPUMillis     int                  `json:"cpuMillis"`
-	SourceDigest  string               `json:"sourceDigest"`
-	SourceChanged bool                 `json:"sourceChanged"`
-	Status        string               `json:"status"`
-	Commands      []CheckCommandResult `json:"commands"`
-	CreatedAt     string               `json:"createdAt"`
-	UpdatedAt     string               `json:"updatedAt"`
-	Message       string               `json:"message"`
+	ID                    string                `json:"id"`
+	ProjectID             string                `json:"projectId"`
+	Commit                string                `json:"commit"`
+	Dirty                 bool                  `json:"dirty"`
+	Execution             string                `json:"execution"`
+	MemoryMiB             int                   `json:"memoryMiB"`
+	CPUMillis             int                   `json:"cpuMillis"`
+	SourceDigest          string                `json:"sourceDigest"`
+	SourceChanged         bool                  `json:"sourceChanged"`
+	Status                string                `json:"status"`
+	Commands              []CheckCommandResult  `json:"commands"`
+	CreatedAt             string                `json:"createdAt"`
+	UpdatedAt             string                `json:"updatedAt"`
+	Message               string                `json:"message"`
+	RequirementIDs        []string              `json:"requirementIds,omitempty"`
+	RequirementSnapshots  []RequirementSnapshot `json:"requirementSnapshots,omitempty"`
+	SpecificationRevision int                   `json:"specificationRevision,omitempty"`
+	SpecificationDigest   string                `json:"specificationDigest,omitempty"`
+	DesignPlanRevision    int                   `json:"designPlanRevision,omitempty"`
+	DesignPlanDigest      string                `json:"designPlanDigest,omitempty"`
+	EvidenceStatus        string                `json:"evidenceStatus"`
+	StaleReasons          []string              `json:"staleReasons"`
 }
 type projectCheckJob struct {
 	run    ProjectCheckRun
@@ -143,9 +151,7 @@ func (s *Server) listProjectChecks(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	s.mu.RLock()
-	rows, err := s.readCheckHistory(p.ID)
-	s.mu.RUnlock()
+	coverage, rows, err := s.readProjectEvidence(r.Context(), p.ID, p.Path)
 	if err != nil {
 		problem(w, 500, "checks_unavailable", err.Error())
 		return
@@ -159,16 +165,14 @@ func (s *Server) listProjectChecks(w http.ResponseWriter, r *http.Request) {
 			suggested = append(suggested, x.cmd)
 		}
 	}
-	writeJSON(w, 200, map[string]any{"runs": rows, "suggested": suggested})
+	writeJSON(w, 200, map[string]any{"runs": rows, "suggested": suggested, "coverage": coverage})
 }
 func (s *Server) getProjectCheck(w http.ResponseWriter, r *http.Request) {
 	p, ok := s.requestProject(w, r)
 	if !ok {
 		return
 	}
-	s.mu.RLock()
-	rows, err := s.readCheckHistory(p.ID)
-	s.mu.RUnlock()
+	_, rows, err := s.readProjectEvidence(r.Context(), p.ID, p.Path)
 	if err != nil {
 		problem(w, 500, "checks_unavailable", err.Error())
 		return
@@ -183,9 +187,12 @@ func (s *Server) getProjectCheck(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Commands    []CheckCommand `json:"commands"`
-		Execution   string         `json:"execution"`
-		Acknowledge bool           `json:"acknowledgeHostExecution"`
+		Commands                      []CheckCommand `json:"commands"`
+		Execution                     string         `json:"execution"`
+		Acknowledge                   bool           `json:"acknowledgeHostExecution"`
+		RequirementIDs                []string       `json:"requirementIds"`
+		ExpectedSpecificationRevision *int           `json:"expectedSpecificationRevision"`
+		ExpectedDesignPlanRevision    *int           `json:"expectedDesignPlanRevision"`
 	}
 	if !journeyDecode(w, r, &req) {
 		return
@@ -199,6 +206,10 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := validateCheckCommands(req.Commands); err != nil {
 		problem(w, 400, "invalid_commands", err.Error())
+		return
+	}
+	if err := validateRequirementIDs(req.RequirementIDs); err != nil {
+		writeEvidenceBindingError(w, err)
 		return
 	}
 	if req.Execution != "docker" && req.Execution != "host" {
@@ -239,6 +250,18 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.Lock()
+	state, err := s.readApprovedJourney(p.Path, p.ID)
+	if err != nil {
+		s.mu.Unlock()
+		problem(w, 500, "history_unavailable", "The saved project definition could not be read.")
+		return
+	}
+	binding, err := bindProjectRequirements(state, p.ID, req.RequirementIDs, req.ExpectedSpecificationRevision, req.ExpectedDesignPlanRevision, true)
+	if err != nil {
+		s.mu.Unlock()
+		writeEvidenceBindingError(w, err)
+		return
+	}
 	limit := 1
 	if managed && policy.MaxConcurrentChecksPerUser > 0 {
 		limit = policy.MaxConcurrentChecksPerUser
@@ -261,6 +284,10 @@ func (s *Server) startProjectChecks(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	row := ProjectCheckRun{ID: newID("check-"), ProjectID: p.ID, Commit: commit, Dirty: dirty, Execution: req.Execution, SourceDigest: digest, Status: "queued", Commands: []CheckCommandResult{}, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), Message: "Commands are queued. Task completion remains independent of check evidence."}
+	row.RequirementIDs, row.RequirementSnapshots = binding.RequirementIDs, binding.RequirementSnapshots
+	row.SpecificationRevision, row.SpecificationDigest = binding.SpecificationRevision, binding.SpecificationDigest
+	row.DesignPlanRevision, row.DesignPlanDigest = binding.DesignPlanRevision, binding.DesignPlanDigest
+	row.EvidenceStatus, row.StaleReasons = evidenceUnverified, []string{"The commands have not finished."}
 	row.MemoryMiB = memory
 	row.CPUMillis = cpu
 	row.UpdatedAt = row.CreatedAt
@@ -364,11 +391,11 @@ func (s *Server) runProjectChecks(ctx context.Context, job *projectCheckJob, dir
 		}
 	}
 	sourceCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	after, _, _, sourceErr := s.checkSource(sourceCtx, dir)
+	after, afterCommit, _, sourceErr := s.checkSource(sourceCtx, dir)
 	cancel()
 	s.updateProjectCheck(job, func(row *ProjectCheckRun) {
 		row.Status = final
-		row.SourceChanged = sourceErr != nil || after != row.SourceDigest
+		row.SourceChanged = sourceErr != nil || after != row.SourceDigest || afterCommit != row.Commit
 		for i := range row.Commands {
 			if row.Commands[i].Status == "queued" {
 				row.Commands[i].Status = "skipped"
@@ -409,6 +436,9 @@ func (s *Server) cancelProjectCheck(w http.ResponseWriter, r *http.Request) {
 // Caller holds s.mu. HTTP encoding happens after releasing it, so mutable
 // command results and their nested values must not remain shared with a worker.
 func snapshotProjectCheck(row ProjectCheckRun) ProjectCheckRun {
+	row.RequirementIDs = append([]string(nil), row.RequirementIDs...)
+	row.RequirementSnapshots = append([]RequirementSnapshot(nil), row.RequirementSnapshots...)
+	row.StaleReasons = append([]string{}, row.StaleReasons...)
 	row.Commands = append([]CheckCommandResult(nil), row.Commands...)
 	for i := range row.Commands {
 		row.Commands[i].Args = append([]string(nil), row.Commands[i].Args...)
@@ -435,7 +465,12 @@ func (s *Server) checkSource(ctx context.Context, dir string) (string, string, b
 	if err != nil {
 		return "", "", false, err
 	}
-	head, _ := s.journeyGit(ctx, dir, "rev-parse", "--verify", "HEAD")
+	head, headErr := s.journeyGit(ctx, dir, "rev-parse", "--verify", "HEAD")
+	if headErr != nil {
+		// An unborn repository has no commit. Git's diagnostic is not source
+		// provenance and must never be retained as if it were a commit hash.
+		head = ""
+	}
 	status, err := s.journeyGit(ctx, dir, "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	if err != nil {
 		return "", "", false, err

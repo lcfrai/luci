@@ -3,10 +3,14 @@ package product
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,6 +24,95 @@ func testPreviewBridge(next http.Handler) http.Handler {
 	})
 }
 
+func previewInspection(row storedRelease) string {
+	u, _ := url.Parse(row.URL)
+	b, _ := json.Marshal(map[string]any{"running": true, "labels": map[string]string{"luci.preview": "true", "luci.release-id": row.ID, "luci.project-id": row.ProjectID}, "ports": map[string]any{"3000/tcp": []map[string]string{{"HostIP": "127.0.0.1", "HostPort": u.Port()}}}})
+	return string(b)
+}
+
+func seedVerifiedPreview(t *testing.T, s *Server, release Release) {
+	t.Helper()
+	row := storedRelease{Release: release, ContainerID: strings.Repeat("a", 64)}
+	if err := s.storeRelease(row); err != nil {
+		t.Fatal(err)
+	}
+	s.runner = func(ctx context.Context, exe string, args []string, dir string) (string, error) {
+		want := []string{"inspect", "--format", `{"running":{{json .State.Running}},"labels":{{json .Config.Labels}},"ports":{{json .NetworkSettings.Ports}}}`, row.ContainerID}
+		if exe != "docker" || !reflect.DeepEqual(args, want) || dir != "" {
+			t.Error("preview verification inspected more than owned state, labels and bindings")
+			return "", errors.New("unexpected command")
+		}
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) > 3*time.Second {
+			t.Error("preview verification has no bounded request deadline")
+		}
+		return previewInspection(row), nil
+	}
+}
+
+func TestPreviewProxyRechecksOwnedLiveContainerBeforeAnyUpstreamTraffic(t *testing.T) {
+	s, mux := journeyFixture(t)
+	s.registerPreviewProxy(mux)
+	p := createJourneyProject(t, mux, "proxy-owner")
+	var upstream atomic.Int32
+	app := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { upstream.Add(1); w.WriteHeader(200) }))
+	defer app.Close()
+	bridge := httptest.NewServer(testPreviewBridge(mux))
+	defer bridge.Close()
+	row := storedRelease{Release: Release{ID: "rel-owner", ProjectID: p.ID, Target: "local", Status: "ready", URL: app.URL}, ContainerID: strings.Repeat("a", 64)}
+	u, _ := url.Parse(app.URL)
+	good := previewInspection(row)
+	for _, tc := range []struct {
+		name, id, snapshot string
+		err                error
+	}{
+		{"missing-container", "", good, nil},
+		{"invalid-container", "--help", good, nil},
+		{"container-missing", row.ContainerID, "", errors.New("not found")},
+		{"malformed-inspection", row.ContainerID, "invalid", nil},
+		{"stopped", row.ContainerID, strings.Replace(good, `"running":true`, `"running":false`, 1), nil},
+		{"wrong-project", row.ContainerID, strings.Replace(good, p.ID, "foreign-project", 1), nil},
+		{"wrong-release", row.ContainerID, strings.Replace(good, row.ID, "foreign-release", 1), nil},
+		{"not-preview", row.ContainerID, strings.Replace(good, `"luci.preview":"true"`, `"luci.preview":"false"`, 1), nil},
+		{"port-rebound", row.ContainerID, strings.Replace(good, `"HostPort":"`+u.Port()+`"`, `"HostPort":"1"`, 1), nil},
+		{"public-binding", row.ContainerID, strings.Replace(good, `"HostIP":"127.0.0.1"`, `"HostIP":"0.0.0.0"`, 1), nil},
+		{"multiple-bindings", row.ContainerID, strings.Replace(good, `"3000/tcp":[`, `"3000/tcp":[{"HostIP":"127.0.0.1","HostPort":"1"},`, 1), nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := row
+			fixture.ContainerID = tc.id
+			if err := s.storeRelease(fixture); err != nil {
+				t.Fatal(err)
+			}
+			var inspections int
+			s.runner = func(_ context.Context, exe string, args []string, _ string) (string, error) {
+				inspections++
+				if exe != "docker" || len(args) != 4 || args[0] != "inspect" || args[3] != tc.id {
+					t.Error("unexpected container action")
+				}
+				return tc.snapshot, tc.err
+			}
+			base := "/v1/product/projects/" + p.ID + "/releases/" + row.ID + "/preview/"
+			journeyRequest(t, testPreviewBridge(mux), "POST", base+"write", map[string]string{"payload": "must not arrive"}, 409)
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			conn, response, err := websocket.Dial(ctx, "ws"+strings.TrimPrefix(bridge.URL, "http")+base+"socket", nil)
+			if conn != nil {
+				conn.CloseNow()
+			}
+			if err == nil || response == nil || response.StatusCode != 409 {
+				t.Fatal("unowned WebSocket upgrade was not refused")
+			}
+			if upstream.Load() != 0 {
+				t.Fatal("unowned/rebound app received a request")
+			}
+			if (tc.id == "" || tc.id == "--help") && inspections != 0 {
+				t.Fatal("invalid container identity reached Docker")
+			}
+		})
+	}
+}
+
 func TestPreviewProxyForwardsRecordedAppMethodsPathsAndCookies(t *testing.T) {
 	s, mux := journeyFixture(t)
 	s.registerPreviewProxy(mux)
@@ -30,9 +123,7 @@ func TestPreviewProxyForwardsRecordedAppMethodsPathsAndCookies(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]string{"method": r.Method, "path": r.URL.EscapedPath(), "query": r.URL.RawQuery, "body": string(body), "cookie": r.Header.Get("Cookie"), "authorization": r.Header.Get("Authorization"), "bridge": r.Header.Get("X-Luci-Token"), "forwarded": r.Header.Get("X-Forwarded-For"), "origin": r.Header.Get("Origin"), "host": r.Host})
 	}))
 	defer app.Close()
-	if err := s.storeRelease(storedRelease{Release: Release{ID: "rel-proxy", ProjectID: p.ID, Target: "local", Status: "ready", URL: app.URL}}); err != nil {
-		t.Fatal(err)
-	}
+	seedVerifiedPreview(t, s, Release{ID: "rel-proxy", ProjectID: p.ID, Target: "local", Status: "ready", URL: app.URL})
 	base := "/v1/product/projects/" + p.ID + "/releases/rel-proxy/preview/"
 	journeyRequest(t, mux, "GET", base, nil, 403)
 	browser := httptest.NewRequest("GET", base, nil)
@@ -86,9 +177,7 @@ func TestPreviewProxyKeepsAppRedirectsOnBridgeAndReportsUnavailableApp(t *testin
 		w.WriteHeader(http.StatusFound)
 	}))
 	defer app.Close()
-	if err := s.storeRelease(storedRelease{Release: Release{ID: "rel-redirect", ProjectID: p.ID, Target: "local", Status: "ready", URL: app.URL}}); err != nil {
-		t.Fatal(err)
-	}
+	seedVerifiedPreview(t, s, Release{ID: "rel-redirect", ProjectID: p.ID, Target: "local", Status: "ready", URL: app.URL})
 	base := "/v1/product/projects/" + p.ID + "/releases/rel-redirect/preview/"
 	w := journeyRequest(t, forward, "GET", base, nil, 302)
 	if w.Header().Get("Location") != "/login?next=%2F#form" {
@@ -156,9 +245,7 @@ func TestPreviewProxyCarriesWebSocketFrames(t *testing.T) {
 		}
 	}))
 	defer app.Close()
-	if err := s.storeRelease(storedRelease{Release: Release{ID: "rel-ws", ProjectID: p.ID, Target: "local", Status: "ready", URL: app.URL}}); err != nil {
-		t.Fatal(err)
-	}
+	seedVerifiedPreview(t, s, Release{ID: "rel-ws", ProjectID: p.ID, Target: "local", Status: "ready", URL: app.URL})
 	bridge := httptest.NewServer(testPreviewBridge(mux))
 	defer bridge.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

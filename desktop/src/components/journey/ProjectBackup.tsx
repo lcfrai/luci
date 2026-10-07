@@ -55,9 +55,11 @@ export function ProjectBackup({ projectId }: { projectId: string }) {
 export function ProjectRestore({
   client,
   onRestored,
+  onBusy,
 }: {
   client: ProductClient;
   onRestored(project: { id: string; name: string; path: string }): void;
+  onBusy?(busy: boolean): void;
 }) {
   const [file, setFile] = useState<File | null>(null),
     [name, setName] = useState(""),
@@ -84,6 +86,7 @@ export function ProjectRestore({
           if (working.current || !file || !trusted) return;
           working.current = true;
           setBusy(true);
+          onBusy?.(true);
           setError("");
           void client
             .restoreProject(name.trim(), file)
@@ -92,6 +95,7 @@ export function ProjectRestore({
             .finally(() => {
               working.current = false;
               setBusy(false);
+              onBusy?.(false);
             });
         }}
       >
@@ -100,6 +104,7 @@ export function ProjectRestore({
           <input
             required
             type="file"
+            disabled={busy}
             accept=".zip,application/zip"
             onChange={(event) => {
               setFile(event.target.files?.[0] || null);
@@ -112,12 +117,14 @@ export function ProjectRestore({
           <input
             required
             value={name}
+            disabled={busy}
             onChange={(event) => setName(event.target.value)}
           />
         </label>
         <label className="setup-check">
           <input
             type="checkbox"
+            disabled={busy}
             checked={trusted}
             onChange={(event) => setTrusted(event.target.checked)}
           />

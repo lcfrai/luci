@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import {
   errorText,
   productApi,
@@ -6,21 +6,29 @@ import {
   type DeploymentTarget,
   type GitState,
 } from "../../api/product";
-export function CloudDeployForm({
-  projectId,
-  busy,
-  onDeploy,
-  onSetup,
-  canManageBacking = true,
-}: {
+import { Button } from "../fluid/components/button";
+type CloudDeployFormProps = {
   projectId: string;
   busy: string;
   onDeploy(input: CloudReleaseRequest): void;
   onSetup(): void;
   canManageBacking?: boolean;
-}) {
+};
+export function CloudDeployForm(props: CloudDeployFormProps) {
+  return <ProjectCloudDeployForm key={props.projectId} {...props} />;
+}
+function ProjectCloudDeployForm({
+  projectId,
+  busy,
+  onDeploy,
+  onSetup,
+  canManageBacking = true,
+}: CloudDeployFormProps) {
   const alive = useRef(true),
     preparing = useRef(false);
+  const checking = useRef(false);
+  const [loading, setLoading] = useState(true);
+  const generation = useRef(0), fieldId = useId();
   const [source, setSource] = useState<"public" | "private">("private"),
     [privateKeyUuid, setPrivateKeyUuid] = useState("");
   const [keyBusy, setKeyBusy] = useState(false),
@@ -34,7 +42,12 @@ export function CloudDeployForm({
     [port, setPort] = useState(3000),
     [healthPath, setHealthPath] = useState("/"),
     [dockerfile, setDockerfile] = useState("Dockerfile");
+  const [dataClientFramework, setDataClientFramework] = useState<"none" | "vite" | "nextjs">("none");
   const load = async (initial = false) => {
+    if (checking.current || preparing.current) return;
+    checking.current = true;
+    const ticket = generation.current;
+    setLoading(true);
     setError("");
     try {
       const [t, g, delivery] = await Promise.all([
@@ -42,7 +55,7 @@ export function CloudDeployForm({
         productApi.git(projectId),
         productApi.gitDelivery(projectId),
       ]);
-      if (!alive.current) return;
+      if (!alive.current || generation.current !== ticket) return;
       if (initial) {
         setRepository(delivery.origin || "");
         setSource(
@@ -52,19 +65,25 @@ export function CloudDeployForm({
       setTargets(t.targets);
       setGit(g);
     } catch (e) {
-      if (alive.current) setError(errorText(e));
+      if (alive.current && generation.current === ticket) setError(errorText(e));
+    } finally {
+      checking.current = false;
+      if (alive.current && generation.current === ticket) setLoading(false);
     }
   };
   useEffect(() => {
     alive.current = true;
+    generation.current++;
     void load(true);
     return () => {
       alive.current = false;
+      generation.current++;
     };
   }, [projectId]);
   async function prepareAccess() {
-    if (preparing.current) return;
+    if (preparing.current || loading || busy || !targetId || !repository.trim()) return;
     preparing.current = true;
+    const ticket = generation.current;
     setKeyBusy(true);
     setError("");
     setKeyMessage("");
@@ -74,29 +93,31 @@ export function CloudDeployForm({
         targetId,
         repository.trim(),
       );
-      if (alive.current) {
+      if (alive.current && generation.current === ticket) {
         setPrivateKeyUuid(
           result.status === "ready" ? result.privateKeyUuid || "" : "",
         );
         setKeyMessage(result.message);
       }
     } catch (cause) {
-      if (alive.current) setError(errorText(cause));
+      if (alive.current && generation.current === ticket) setError(errorText(cause));
     } finally {
       preparing.current = false;
-      if (alive.current) setKeyBusy(false);
+      if (alive.current && generation.current === ticket) setKeyBusy(false);
     }
   }
   const head = git?.log[0]?.hash ?? "";
+  const selectedTarget = targets.find(target => target.id === targetId);
   return (
     <form
       className="cloud-deploy-form"
+      onInvalidCapture={event => { const details = (event.target as HTMLElement).closest<HTMLDetailsElement>("details"); if (details) details.open = true; }}
       onSubmit={(e) => {
         e.preventDefault();
         if (
-          git?.clean &&
+          !busy && !keyBusy && !loading && git?.clean &&
           head &&
-          targetId &&
+          selectedTarget &&
           (source === "public" || privateKeyUuid.trim())
         )
           onDeploy({
@@ -112,6 +133,7 @@ export function CloudDeployForm({
             port,
             healthPath,
             dockerfile,
+            ...(dataClientFramework !== "none" ? { dataClientFramework } : {}),
           });
       }}
     >
@@ -125,13 +147,14 @@ export function CloudDeployForm({
           {error}
         </p>
       )}
-      {!targets.length && (
+      {loading && <p role="status">Checking your connected deployment servers and saved source…</p>}
+      {!loading && !targets.length && (
         <p>
           No deployment server connected yet.{" "}
           {canManageBacking ? (
-            <button type="button" className="luci-button" onClick={onSetup}>
+            <Button type="button" variant="secondary" onClick={onSetup}>
               Set up your cloud
-            </button>
+            </Button>
           ) : (
             "Ask your administrator to connect a deployment server."
           )}
@@ -141,6 +164,7 @@ export function CloudDeployForm({
         Deployment server
         <select
           required
+          disabled={!!busy || keyBusy || loading}
           value={targetId}
           onChange={(e) => {
             setTargetId(e.target.value);
@@ -162,6 +186,7 @@ export function CloudDeployForm({
           <input
             required
             type="url"
+            disabled={!!busy || keyBusy || loading}
             value={repository}
             onChange={(e) => {
               setRepository(e.target.value);
@@ -176,15 +201,21 @@ export function CloudDeployForm({
           <input
             required
             value={domain}
+            disabled={!!busy || keyBusy || loading}
             onChange={(e) => setDomain(e.target.value)}
             placeholder="app.example.com"
           />
         </label>
+      </div>
+      <details className="deployment-details">
+        <summary>Build and health options</summary>
+        <div className="setup-field-grid">
         <label className="luci-field">
           Cloud Dockerfile
           <input
             required
             value={dockerfile}
+            disabled={!!busy || keyBusy || loading}
             onChange={(e) => setDockerfile(e.target.value)}
           />
         </label>
@@ -196,6 +227,7 @@ export function CloudDeployForm({
             min="1"
             max="65535"
             value={port}
+            disabled={!!busy || keyBusy || loading}
             onChange={(e) => setPort(Number(e.target.value))}
           />
         </label>
@@ -204,16 +236,27 @@ export function CloudDeployForm({
           <input
             required
             value={healthPath}
+            disabled={!!busy || keyBusy || loading}
             onChange={(e) => setHealthPath(e.target.value)}
             placeholder="/health"
           />
         </label>
-      </div>
+        </div>
+        <label className="luci-field">
+          <span id={`${fieldId}-data-label`}>Browser data variables</span>
+          <select aria-labelledby={`${fieldId}-data-label`} aria-describedby={`${fieldId}-data-help`} value={dataClientFramework} disabled={!!busy || keyBusy || loading} onChange={event => setDataClientFramework(event.target.value as "none" | "vite" | "nextjs")}>
+            <option value="none">Runtime only</option>
+            <option value="vite">Vite · VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY</option>
+            <option value="nextjs">Next.js · NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY</option>
+          </select>
+          <small id={`${fieldId}-data-help`}>A connected public data API supplies its HTTPS address and anonymous key. Vite and Next.js embed these public values in the browser build. Your Dockerfile must declare and use both matching ARG names before building the frontend. Redeploy after changing the data connection. Administrator keys stay private.</small>
+        </label>
+      </details>
       <label className="luci-field">
         Repository access
         <select
           value={source}
-          disabled={!!busy || keyBusy}
+          disabled={!!busy || keyBusy || loading}
           onChange={(event) => setSource(event.target.value as typeof source)}
         >
           <option value="private">
@@ -229,21 +272,22 @@ export function CloudDeployForm({
             key and store its private half on this deployment server. This
             permits source checkout; it does not push code.
           </p>
-          <button
-            type="button"
-            className="luci-button"
-            disabled={!!busy || keyBusy || !targetId || !repository.trim()}
+          <Button type="button"
+            variant="secondary"
+            loading={keyBusy}
+            disabled={!!busy || keyBusy || loading || !targetId || !repository.trim()}
             onClick={() => void prepareAccess()}
           >
             {keyBusy
               ? "Preparing read-only access…"
               : "Prepare read-only GitHub access"}
-          </button>
+          </Button>
           {keyMessage && <p role="status">{keyMessage}</p>}
           <label className="luci-field">
             Deployment server key ID
             <input
               value={privateKeyUuid}
+              disabled={!!busy || keyBusy}
               onChange={(event) => setPrivateKeyUuid(event.target.value)}
             />
             <small>
@@ -261,27 +305,29 @@ export function CloudDeployForm({
         </p>
       )}
       <div className="setup-actions">
-        <button
-          className="luci-button luci-primary"
+        <Button type="submit"
+          variant="primary"
+          loading={!!busy}
           disabled={
             !!busy ||
             keyBusy ||
-            !targetId ||
+            loading ||
+            !selectedTarget ||
             !git?.clean ||
             !head ||
             (source === "private" && !privateKeyUuid.trim())
           }
         >
           {busy || "Deploy to cloud"}
-        </button>
-        <button
-          type="button"
-          className="luci-button"
-          disabled={!!busy}
+        </Button>
+        <Button type="button"
+          variant="ghost"
+          loading={loading}
+          disabled={!!busy || loading || keyBusy}
           onClick={() => void load()}
         >
           Refresh project and servers
-        </button>
+        </Button>
       </div>
     </form>
   );

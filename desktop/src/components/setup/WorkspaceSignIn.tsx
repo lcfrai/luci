@@ -1,3 +1,4 @@
+import { Button } from "../fluid/components/button";
 import { useEffect, useRef, useState } from "react";
 import {
   errorText,
@@ -281,64 +282,64 @@ export function WorkspaceSignIn({
             />
             Show remote password{create ? "s" : ""}
           </label>
-          <button className="luci-button" disabled={busy}>
+          <Button type="submit" variant="secondary" disabled={busy}>
             {busy
               ? "Connecting…"
               : create
                 ? "Create workspace account"
                 : "Sign in to workspace"}
-          </button>
+          </Button>
         </form>
       )}
       <div className="journey-actions">
         {status && !status.authenticated && !status.bootstrapRequired && (
           <>
             {mode !== "sign-in" && (
-              <button
-                className="luci-button"
+              <Button type="button"
+                variant="secondary"
                 disabled={busy}
                 onClick={() => changeMode("sign-in")}
               >
                 Back to workspace sign-in
-              </button>
+              </Button>
             )}
             {mode !== "create" && (
-              <button
-                className="luci-button"
+              <Button type="button"
+                variant="secondary"
                 disabled={busy}
                 onClick={() => changeMode("create")}
               >
                 Join with an invitation
-              </button>
+              </Button>
             )}
             {mode !== "help" && (
-              <button
-                className="luci-button"
+              <Button type="button"
+                variant="secondary"
                 disabled={busy}
                 onClick={() => changeMode("help")}
               >
                 Forgot workspace sign-in?
-              </button>
+              </Button>
             )}
           </>
         )}
-        <button
-          className="luci-button"
+        <Button type="button"
+          variant="secondary"
           disabled={busy || loading}
           onClick={() => void run(() => client.workspaceAuth(connectionId))}
         >
           Check workspace sign-in
-        </button>
+        </Button>
         {status?.authenticated && (
-          <button
-            className="luci-button"
+          <Button type="button"
+            variant="secondary"
             disabled={busy}
             onClick={() =>
               void run(() => client.disconnectWorkspaceAuth(connectionId))
             }
           >
             Disconnect remote sign-in
-          </button>
+          </Button>
         )}
       </div>
     </section>

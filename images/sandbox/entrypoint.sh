@@ -1,6 +1,16 @@
 #!/bin/bash -p
 set -euo pipefail
 
+# Only the control plane's fixed terminal home may survive UID bootstrap.
+# Other harnesses keep their original home; arbitrary HOME values are ignored.
+luci_bootstrap_home() {
+  if [[ "${LUCI_COMMAND:-/bin/bash}" == "/bin/bash" && "${HOME:-}" == "/home/dev/.luci-shell" ]]; then
+    printf '%s' '/home/dev/.luci-shell'
+  else
+    printf '%s' '/home/dev'
+  fi
+}
+
 # Linux bind mounts retain their host owner and 0700/0600 modes. The backend
 # supplies these reserved IDs from its own process, never from project data.
 # bash -p ignores BASH_ENV and imported shell functions during this bootstrap;
@@ -18,7 +28,8 @@ if [[ "$(/usr/bin/id -u)" == "0" ]]; then
   /usr/bin/sed -i -E "s/^(dev:[^:]*:)[0-9]+:[0-9]+:/\1${host_uid}:${host_gid}:/" /etc/passwd
   /usr/bin/sed -i -E "s/^(dev:[^:]*:)[0-9]+:/\1${host_gid}:/" /etc/group
   /usr/bin/chown "$host_uid:$host_gid" /home/dev /home/dev/.claude
-  export HOME=/home/dev USER=dev LOGNAME=dev
+  HOME="$(luci_bootstrap_home)"
+  export HOME USER=dev LOGNAME=dev
   unset LUCI_HOST_UID LUCI_HOST_GID
   exec /usr/bin/setpriv --reuid="$host_uid" --regid="$host_gid" --clear-groups \
     --inh-caps=-all --ambient-caps=-all --bounding-set=-all --no-new-privs \

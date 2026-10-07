@@ -1,0 +1,128 @@
+import { beforeEach, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { DataFunctions } from "./DataFunctions";
+import { dataFunctionsApi, type FunctionCatalog, type FunctionSource, type FunctionSummary } from "../../api/dataFunctions";
+vi.mock("../../api/dataFunctions", () => ({ dataFunctionsApi: { catalog: vi.fn(), source: vi.fn(), save: vi.fn(), action: vi.fn(), invoke: vi.fn() } }));
+const source: FunctionSource = { name: "welcome", path: "supabase/functions/welcome", sourceDigest: "draft-digest", authMode: "authenticated", files: [{ path: "index.ts", content: "Deno.serve(() => Response.json({ok:true}));" }], commit: "c".repeat(40), committedDigest: "draft-digest", workingChanged: false };
+const summary: FunctionSummary = { name: "welcome", path: source.path, sourceDigest: source.sourceDigest, authMode: "authenticated", workingChanged: false, builtin: false, history: [] };
+const catalog: FunctionCatalog = { projectId: "owned", revision: 7, canManage: true, customPublishing: true, functions: [summary], message: "Saved functions" };
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(dataFunctionsApi.catalog).mockResolvedValue(structuredClone(catalog));
+  vi.mocked(dataFunctionsApi.source).mockResolvedValue(structuredClone(source));
+});
+it("prepares source before data installation without publishing or invoking anything", async () => {
+  render(<DataFunctions projectId="owned" ready={false} />);
+  await screen.findByLabelText("index.ts");
+  expect(dataFunctionsApi.action).not.toHaveBeenCalled(); expect(dataFunctionsApi.invoke).not.toHaveBeenCalled();
+  expect((screen.getByRole("button", { name: "Publish function" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: "New function" }));
+  fireEvent.change(screen.getByLabelText(/Function name/), { target: { value: "welcome-two" } });
+  vi.mocked(dataFunctionsApi.save).mockResolvedValue({ ...source, name: "welcome-two", sourceDigest: "new" });
+  fireEvent.click(screen.getByRole("button", { name: "Create function" }));
+  await waitFor(() => expect(dataFunctionsApi.save).toHaveBeenCalledTimes(1));
+  expect(vi.mocked(dataFunctionsApi.save).mock.calls[0][2]).toMatchObject({ expectedDigest: "", authMode: "authenticated", files: [{ path: "index.ts" }] });
+});
+it("requires explicit execution permission and publishes the verified saved commit once", async () => {
+  let finish!: (value: FunctionCatalog) => void;
+  vi.mocked(dataFunctionsApi.action).mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  render(<DataFunctions projectId="owned" ready />); await screen.findByLabelText("index.ts");
+  const button = screen.getByRole("button", { name: "Publish function" });
+  fireEvent.click(button); expect(dataFunctionsApi.action).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByLabelText(/Run this committed code/)); fireEvent.click(button); fireEvent.click(button);
+  expect(dataFunctionsApi.action).toHaveBeenCalledExactlyOnceWith("owned", "welcome", { action: "publish", commit: source.commit, acknowledgeExecute: true, expectedRevision: 7 });
+  await act(async () => finish({ ...catalog, revision: 8, operation: { id: "operation", action: "publish", name: "welcome", status: "running", stage: "verifying", message: "Checking code", updatedAt: "now" } }));
+  expect(screen.getByText(/Checking code/)).not.toBeNull();
+});
+it("blocks uncommitted code and retains edits after stale-save rejection", async () => {
+  vi.mocked(dataFunctionsApi.source).mockResolvedValue({ ...source, committedDigest: "old", workingChanged: true });
+  vi.mocked(dataFunctionsApi.save).mockRejectedValue(new Error("Source changed elsewhere. Reload before saving."));
+  render(<DataFunctions projectId="owned" ready />); const editor = await screen.findByLabelText("index.ts");
+  expect(screen.queryByRole("button", { name: "Publish function" })).toBeNull();
+  fireEvent.change(editor, { target: { value: "my unsaved code" } }); fireEvent.click(screen.getByRole("button", { name: "Save source" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("Source changed elsewhere");
+  expect((editor as HTMLTextAreaElement).value).toBe("my unsaved code");
+  expect(dataFunctionsApi.save).toHaveBeenCalledWith("owned", "welcome", { expectedDigest: "draft-digest", authMode: "authenticated", files: [{ path: "index.ts", content: "my unsaved code" }] });
+  expect((screen.getByRole("button", { name: "Open Develop" }) as HTMLButtonElement).disabled).toBe(true);
+});
+it("protects unsaved code while selecting another function", async () => {
+  vi.mocked(dataFunctionsApi.catalog).mockResolvedValue({ ...catalog, functions: [summary, { ...summary, name: "other" }] });
+  render(<DataFunctions projectId="owned" ready />); const editor = await screen.findByLabelText("index.ts");
+  fireEvent.change(editor, { target: { value: "saved later" } }); fireEvent.click(screen.getByRole("button", { name: /other/ }));
+  expect(screen.getByText(/You have unsaved edits/)).not.toBeNull(); expect(dataFunctionsApi.source).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+  expect((screen.getByLabelText("index.ts") as HTMLTextAreaElement).value).toBe("saved later");
+});
+it("tests published code with an app session and clears the token even when its outcome is uncertain", async () => {
+  const active = { releaseId: "release-1", commit: source.commit!, sourceDigest: source.sourceDigest, authMode: "authenticated" as const, status: "active" as const, publishedAt: "2026-10-05T00:00:00Z", message: "Ready" };
+  vi.mocked(dataFunctionsApi.catalog).mockResolvedValue({ ...catalog, functions: [{ ...summary, active, history: [active] }] });
+  vi.mocked(dataFunctionsApi.invoke).mockRejectedValue(new Error("Its outcome is uncertain; check the application before retrying."));
+  render(<DataFunctions projectId="owned" ready />); await screen.findByLabelText("index.ts");
+  await userEvent.setup().click(screen.getByRole("tab", { name: "Test" }));
+  const token = screen.getByLabelText(/Application user session token/) as HTMLInputElement;
+  fireEvent.change(token, { target: { value: "application-user-token" } }); fireEvent.click(screen.getByRole("button", { name: "Invoke welcome" }));
+  expect(token.value).toBe("");
+  expect((await screen.findByRole("alert")).textContent).toContain("outcome is uncertain");
+  expect(dataFunctionsApi.invoke).toHaveBeenCalledExactlyOnceWith("owned", "welcome", { name: "Luci" }, "application-user-token");
+  expect(document.body.textContent).not.toContain("application-user-token");
+});
+it("rejects invalid input without calling the real function", async () => {
+  vi.mocked(dataFunctionsApi.catalog).mockResolvedValue({ ...catalog, functions: [{ ...summary, name: "hello", builtin: true }] });
+  vi.mocked(dataFunctionsApi.source).mockResolvedValue({ ...source, name: "hello" });
+  render(<DataFunctions projectId="owned" ready />); await screen.findByLabelText("index.ts");
+  await userEvent.setup().click(screen.getByRole("tab", { name: "Test" })); fireEvent.change(screen.getByLabelText("Function request"), { target: { value: "[]" } }); fireEvent.click(screen.getByRole("button", { name: "Invoke hello" }));
+  expect(screen.getByRole("alert").textContent).toContain("JSON object"); expect(dataFunctionsApi.invoke).not.toHaveBeenCalled();
+});
+it("rejects another project's catalogue and ignores results from an unmounted project", async () => {
+  let finish!: (value: FunctionCatalog) => void;
+  vi.mocked(dataFunctionsApi.catalog).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const view = render(<DataFunctions projectId="owned" ready />);
+  vi.mocked(dataFunctionsApi.catalog).mockResolvedValue({ ...catalog, projectId: "other", functions: [{ ...summary, name: "other-function" }] });
+  vi.mocked(dataFunctionsApi.source).mockResolvedValue({ ...source, name: "other-function" });
+  view.rerender(<DataFunctions projectId="other" ready />); await screen.findByLabelText("index.ts");
+  await act(async () => finish(catalog));
+  expect(screen.queryByRole("button", { name: /welcome/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Refresh functions" }));
+  vi.mocked(dataFunctionsApi.catalog).mockResolvedValue(catalog);
+  fireEvent.click(screen.getByRole("button", { name: "Refresh functions" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("verify this project's functions");
+});
+it("requires a deliberate release choice and acknowledgement before rollback or removal", async () => {
+  const current = { releaseId: "current", commit: "a".repeat(40), sourceDigest: "current-source", authMode: "authenticated" as const, status: "active" as const, publishedAt: "2026-10-05T00:00:00Z", message: "Ready" };
+  const earlier = { ...current, releaseId: "earlier", commit: "b".repeat(40), sourceDigest: "old-source", status: "superseded" as const };
+  vi.mocked(dataFunctionsApi.catalog).mockResolvedValue({ ...catalog, functions: [{ ...summary, active: current, history: [current, earlier] }] });
+  vi.mocked(dataFunctionsApi.action).mockResolvedValue({ ...catalog, functions: [{ ...summary, active: current, history: [current, earlier] }] });
+  render(<DataFunctions projectId="owned" ready />); await screen.findByLabelText("index.ts");
+  await userEvent.setup().click(screen.getByRole("tab", { name: "Releases" }));
+  fireEvent.click(screen.getByRole("button", { name: "Choose release bbbbbbbb" }));
+  const restore = screen.getByRole("button", { name: "Restore selected release" });
+  expect((restore as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByLabelText(/Run and activate this earlier release/)); fireEvent.click(restore);
+  await waitFor(() => expect(dataFunctionsApi.action).toHaveBeenCalledExactlyOnceWith("owned", "welcome", { action: "rollback", releaseId: "earlier", acknowledgeExecute: true, expectedRevision: 7 }));
+  await waitFor(() => expect((screen.getByRole("button", { name: "Refresh functions" }) as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(screen.getByText("Remove published endpoint"));
+  expect((screen.getByRole("button", { name: "Remove endpoint" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByLabelText(/Remove this function's active endpoint/)); fireEvent.click(screen.getByRole("button", { name: "Remove endpoint" }));
+  await waitFor(() => expect(dataFunctionsApi.action).toHaveBeenLastCalledWith("owned", "welcome", { action: "remove", acknowledgeRemove: true, expectedRevision: 7 }));
+});
+it("keeps source and release mutations unavailable to a non-admin", async () => {
+  vi.mocked(dataFunctionsApi.catalog).mockResolvedValue({ ...catalog, canManage: false });
+  render(<DataFunctions projectId="owned" ready />);
+  const editor = await screen.findByLabelText("index.ts") as HTMLTextAreaElement;
+  expect(editor.readOnly).toBe(true);
+  expect(screen.queryByRole("button", { name: "New function" })).toBeNull();
+  expect((screen.getByRole("button", { name: "Publish function" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(dataFunctionsApi.save).not.toHaveBeenCalled(); expect(dataFunctionsApi.action).not.toHaveBeenCalled();
+});
+it("offers explicit recovery but refuses to select an unverified candidate release", async () => {
+  const candidate = { releaseId: "candidate", commit: "d".repeat(40), sourceDigest: "candidate-source", authMode: "authenticated" as const, status: "candidate" as const, publishedAt: "2026-10-05T00:00:00Z", message: "Readback failed" };
+  vi.mocked(dataFunctionsApi.catalog).mockResolvedValue({ ...catalog, functions: [{ ...summary, history: [candidate] }], operation: { id: "failed", name: "welcome", action: "publish", status: "failed", stage: "complete", message: "Check the current endpoint", updatedAt: "now" } });
+  vi.mocked(dataFunctionsApi.action).mockResolvedValue(catalog);
+  render(<DataFunctions projectId="owned" ready />); await screen.findByLabelText("index.ts");
+  await userEvent.setup().click(screen.getByRole("tab", { name: "Releases" }));
+  expect(screen.getByText("Unverified candidate")).not.toBeNull();
+  expect(screen.queryByRole("button", { name: "Choose release dddddddd" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Check function state" }));
+  await waitFor(() => expect(dataFunctionsApi.action).toHaveBeenCalledExactlyOnceWith("owned", "welcome", { action: "refresh", expectedRevision: 7 }));
+});

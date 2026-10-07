@@ -4,17 +4,30 @@ Luci is lcfr.ai's open-source workspace for defining, designing, developing and 
 
 ## Use Luci
 
-Install the Windows desktop package or extract a portable package and use its launcher. First setup creates your Super Admin account from the private bootstrap code. In Settings, check Git and Docker, install the bundled runtime, choose your Git identity and connect Claude Code, Codex or an explicit OpenCode model. A local OpenAI-compatible model can avoid inference charges when your hardware and model suit the task.
+Install the Windows desktop package or extract a portable package and use its launcher. The [Docker distribution](distribution/docker/README.md) runs the entire app and its private execution engine in containers; its launchers need Docker, without host Go, Node.js or Python. Create your local account; the first account administers the installation. If an account already exists, choose **Create account** for a separate account or **Forgot sign-in details** to recover the original owner and saved work.
 
-Create or clone a project. Define its purpose and acceptance criteria, design the screens, and save a task plan. Develop passes that saved context into an agent working in the project. Inspect its changes and run checks against the recorded source; task completion is separate from passing checks. Commit and publish through the same workspace, start a Docker preview, set private runtime values such as a database URL in Deploy, then deploy a reachable Git commit through your connected cloud target. The app retains release history, supports stopping and rebuilding a historical release, and exports/restores project backups.
+The onboarding portal guides you through **On this computer**, **AWS**, **Azure** or **Connect to an existing workspace**, checks the actual prerequisites and prepares the agent runtime. It distinguishes installed tools from a running engine and a connected provider account. Choose your Git identity and connect Claude Code, Codex or an explicit OpenCode model. A local OpenAI-compatible model can avoid inference charges when your hardware and model suit the task.
+
+Create or clone a project from Projects home. Define its purpose and acceptance criteria, design the screens, and save a task plan. Develop passes that saved context into an agent working in the project. Inspect its changes and run checks against the recorded source; task completion is separate from passing checks. Commit and publish through the same workspace, start a Docker preview, set private runtime values such as a database URL in Deploy, then deploy a reachable Git commit through your connected cloud target. The app retains release history, supports stopping and rebuilding a historical release, and exports/restores project backups. Optional Supabase data services share Luci's project navigation and appearance rather than requiring a separate administration portal.
+
+For Codex subscription access, complete official device sign-in from Settings, then **Save Codex sign-in**. New implementation sessions use that connection, with separate private histories and no fallback to API billing. API credits remain a separate option. A saved sign-in is not proof of a successful model request.
+
+Static HTML/CSS/JavaScript sites can use **GitHub Pages** in Deploy without buying a server or domain: commit the site under `docs/`, publish the reviewed commit to a public repository and acknowledge public hosting. Luci verifies the deployed commit and actual HTTPS content. Later pushes to that default branch republish `docs/`. Pages does not run server code, databases or private runtime configuration; use the connected cloud target for those applications.
 
 The Admin screen manages users, workspace processes and audit events on this machine or the selected cloud backing, using that control plane's account and permissions. Super Admin controls cloud/host execution policy, concurrent sessions/checks and CPU/memory limits. Each additional user has separate project, state and provider profiles. Host commands are disabled by default; Docker supplies the supported code execution boundary. Your desktop can select a verified AWS/Azure backing without copying local credentials or silently falling back when the server is unavailable.
 
 See the [operator runbook](docs/RUNBOOK.md), [provider setup](docs/luci/PROVIDERS.md) and [release guide](docs/luci/RELEASE.md) for prerequisites and verified limits.
 
-The [UAT guide](docs/UAT.md) walks through the three onboarding choices and the complete project journey. [DESIGN.md](DESIGN.md) describes the implemented visual and interaction system.
+The [UAT guide](docs/UAT.md) walks through onboarding and the complete project journey. [DESIGN.md](DESIGN.md) describes the implemented visual and interaction system. Current incomplete acceptance gates are recorded in the [full product checkpoint](docs/luci/FULL-PRODUCT.md).
 
 ## Structure
+
+The latest engineering handoff, Astra findings and continuation instructions
+are in [the 7 October checkpoint](docs/luci/HANDOFF-2026-10-07.md).
+Source version 0.4.18 remains an unfinished full-product candidate: the last
+completed CI run failed, matching installed acceptance is open, and the repo's
+listed releases are drafts. See that handoff before treating a source build as
+a release-ready download.
 
 - `desktop/` — React/Tauri interface, Excalidraw and terminal cockpit
 - `control-plane/` — local setup, project journey and session API
@@ -23,7 +36,7 @@ The [UAT guide](docs/UAT.md) walks through the three onboarding choices and the 
 
 ## Run from source
 
-Install Git, Go 1.26+, Node 22+ and Docker. Docker is needed for agent sessions and container previews; Define and Design work without it. Run `scripts/dev.ps1` on Windows or `scripts/dev.sh` on Linux/macOS, then follow setup in the application. Native desktop builds also need Rust and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
+Install Git, Go 1.26+, Node 24.19.0 and Docker. Docker is needed for agent sessions and container previews; Define and Design work without it. Run `scripts/dev.ps1` on Windows or `scripts/dev.sh` on Linux/macOS, then follow setup in the application. Native desktop builds also need Rust and the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ## Building and testing
 

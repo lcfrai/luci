@@ -25,6 +25,7 @@ that a particular release passed it.
 | Existing SSH workspace sign-in | Wrong remote credentials preserve local sign-in; correct credentials activate the verified remote workspace and save durable remote work. | `scripts/workspace-browser-eval.mjs` |
 | Selected remote Admin invitation | Invitation is issued on the selected remote control plane, redeemed through the actual SSH connection, and creates a distinct remote member. Returning local preserves both realms. | SSH browser receipt |
 | Invited member's first cloud project | The assigned workspace is immediately ready. Cloud controls show the member's actual permissions; the member creates and saves a project without server setup, and owner/member project reads stay isolated in both directions. | SSH browser receipt and real supervised-worker management test |
+| New project, saved Define and Design, no commits yet | Develop exposes Git's actual initial branch and primary worktree. Selecting them enables the first agent action without committing planning files or fabricating a source revision. | `TestInitialProjectBranchAndWorktreeRemainUsableBeforeFirstCommit`; fresh subscription journey `firstAgentEntry` receipt |
 | Native fresh install, restart, reinstall and upgrade | Known and recovered credentials continue to work after replacement. Uninstall removes owned application resources while preserving user data. | `scripts/test-installed-windows.ps1` |
 
 `scripts/run-ui-uat.mjs` runs the independent browser entry fixture before the

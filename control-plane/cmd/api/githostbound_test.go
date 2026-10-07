@@ -153,9 +153,15 @@ func hostConfigAnswer(args []string) ([]byte, error) {
 	case strings.Contains(joined, "GIT_AUTHOR_IDENT"):
 		return []byte("Someone <someone@example.com> 1790156728 +1000\n"), nil
 	case strings.Contains(joined, "-z --show-origin"):
-		// The one -z record valueWithOrigin accepts (X-3 review 4 I-C), here
-		// --default's answer, so no origin file is named.
-		return []byte("command line:\x00false\x00"), nil
+		// An absent configured key is a quiet Git exit 1. Its separate
+		// empty-file default read still shares this resolver's deadline.
+		return nil, configUnsetAnswer()
+	case strings.Contains(joined, "-z --get --file"):
+		for i, arg := range args {
+			if arg == "--default" && i+1 < len(args) {
+				return []byte(args[i+1] + "\x00"), nil
+			}
+		}
 	}
 	return []byte("false\n"), nil
 }
@@ -179,7 +185,7 @@ func TestEveryHostConfigReadIsBoundedInTotalAndNotPerGit(t *testing.T) {
 			_, err := gitLineEndingsResolverWith(h, "lf")(context.Background())
 			return err
 		}},
-		{"global files", hostConfigReadBudget, 4, func(h hostGit) error {
+		{"global files", hostConfigReadBudget, 6, func(h hostGit) error {
 			_, err := gitGlobalFilesResolver(h)(context.Background())
 			return err
 		}},

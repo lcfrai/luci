@@ -129,7 +129,7 @@ export async function evaluatePortableLauncher(packageDirectory, evidenceDirecto
     }, 'Launcher did not announce a ready, verified workspace', startupBudgetMs);
     const status = await api('GET', '/v1/control-plane/status', undefined, { token: '' });
     assert.equal(status.product, 'Luci');
-    assert.equal(status.version, process.env.LUCI_VERSION || '0.4.2');
+    assert.equal(status.version, process.env.LUCI_VERSION || '0.4.3');
     if (record.index === 0) result.startupElapsedMs = Date.now() - record.startedAt;
     result.version = status.version;
     return status;

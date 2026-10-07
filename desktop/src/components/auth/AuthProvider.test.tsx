@@ -330,8 +330,13 @@ it("explains first-account requirements before submission and protects an in-fli
     screen.getByLabelText("Confirm password"),
     "a long private password",
   );
-  await userEvent.click(screen.getByRole("button", { name: "Create account" }));
+  const createAccount = screen.getByRole("button", { name: "Create account" }) as HTMLButtonElement;
+  expect(createAccount.type).toBe("submit");
+  await userEvent.click(createAccount);
   await screen.findByText("Creating your workspace account…");
+  expect(createAccount.getAttribute("aria-busy")).toBe("true");
+  expect(createAccount.disabled).toBe(true);
+  await userEvent.click(createAccount);
   expect(username.disabled).toBe(true);
   expect(password.disabled).toBe(true);
   expect((displayName as HTMLInputElement).disabled).toBe(true);

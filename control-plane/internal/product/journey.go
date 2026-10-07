@@ -23,6 +23,7 @@ type Brief struct {
 	Constraints string   `json:"constraints"`
 	Criteria    []string `json:"criteria"`
 	UpdatedAt   string   `json:"updatedAt"`
+	Structured  bool     `json:"structured,omitempty"`
 }
 
 type Design struct {
@@ -55,12 +56,17 @@ type Element struct {
 }
 
 type journeyState struct {
-	Version         int          `json:"version"`
-	Brief           Brief        `json:"brief"`
-	Design          Design       `json:"design"`
-	BriefRevisions  []Brief      `json:"briefRevisions"`
-	DesignRevisions []Design     `json:"designRevisions"`
-	Plan            *ProjectPlan `json:"plan,omitempty"`
+	approvalAuthority      *journeyApprovalStore
+	Version                int                    `json:"version"`
+	Brief                  Brief                  `json:"brief"`
+	Design                 Design                 `json:"design"`
+	BriefRevisions         []Brief                `json:"briefRevisions"`
+	DesignRevisions        []Design               `json:"designRevisions"`
+	Plan                   *ProjectPlan           `json:"plan,omitempty"`
+	Specification          *ProjectSpecification  `json:"specification,omitempty"`
+	SpecificationRevisions []ProjectSpecification `json:"specificationRevisions,omitempty"`
+	DesignPlan             *ProjectDesignPlan     `json:"designPlan,omitempty"`
+	DesignPlanRevisions    []ProjectDesignPlan    `json:"designPlanRevisions,omitempty"`
 }
 
 func readJourney(dir, projectID string) (journeyState, error) {
@@ -97,6 +103,12 @@ func readJourney(dir, projectID string) (journeyState, error) {
 	if state.Plan != nil && (state.Plan.ProjectID != projectID || validatePlan(*state.Plan) != nil) {
 		return state, errors.New("project plan is invalid or belongs to another project")
 	}
+	if state.Specification != nil && (state.Specification.ProjectID != projectID || validateSpecification(*state.Specification) != nil) {
+		return state, errors.New("project specification is invalid or belongs to another project")
+	}
+	if state.DesignPlan != nil && (state.DesignPlan.ProjectID != projectID || validateDesignPlan(*state.DesignPlan) != nil) {
+		return state, errors.New("design handoff is invalid or belongs to another project")
+	}
 	if state.Brief.Criteria == nil {
 		state.Brief.Criteria = []string{}
 	}
@@ -125,7 +137,7 @@ func writeJourney(dir string, state journeyState) error {
 		return errors.New("project history exceeds the 8 MiB local-state limit")
 	}
 	// Reject unsafe export paths before changing the canonical state.
-	for _, path := range []string{".luci/design.json", ".luci/plan.json"} {
+	for _, path := range []string{".luci/design.json", ".luci/plan.json", ".luci/specification.json", ".luci/specification.md", ".luci/design-handoff.json", ".luci/design-handoff.md"} {
 		if _, err := guardedProjectPath(dir, path, true); err != nil {
 			return err
 		}
@@ -143,7 +155,7 @@ func (s *Server) getBrief(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())
 		return
@@ -178,7 +190,7 @@ func (s *Server) saveBrief(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())
 		return
@@ -188,9 +200,14 @@ func (s *Server) saveBrief(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	brief := Brief{ProjectID: p.ID, Revision: req.Revision + 1, Purpose: req.Purpose, Audience: req.Audience, Constraints: req.Constraints, Criteria: append([]string{}, req.Criteria...), UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	brief.Structured = state.Specification != nil
 	// Validate the generated artifact target before committing canonical state.
 	if _, err := guardedProjectPath(p.Path, "LUCI.md", true); err != nil {
 		journeyError(w, 403, "unsafe_context_path", err.Error())
+		return
+	}
+	if err := s.revokeJourneyApproval(p.Path, p.ID, true); err != nil {
+		journeyError(w, 500, "approval_unavailable", "The private review selection could not be revoked. The brief was not changed.")
 		return
 	}
 	state.Brief = brief
@@ -212,6 +229,9 @@ func renderBrief(brief Brief) []byte {
 	for _, criterion := range brief.Criteria {
 		fmt.Fprintf(&out, "- %s\n", strings.ReplaceAll(criterion, "\n", "\n  "))
 	}
+	if brief.Structured {
+		fmt.Fprintln(&out, "\n## Full definition\n\nRead `.luci/specification.md` and `.luci/specification.json` for stable requirement IDs, journeys, roles, data, integrations, decisions and the definition's approval status. An approved definition is a planning snapshot, not evidence that implementation or checks passed.")
+	}
 	return []byte(out.String())
 }
 
@@ -222,7 +242,7 @@ func (s *Server) getDesign(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())
 		return
@@ -292,7 +312,7 @@ func (s *Server) saveDesign(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())
 		return
@@ -302,6 +322,10 @@ func (s *Server) saveDesign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	design := Design{ProjectID: p.ID, Revision: req.Revision + 1, BriefRevision: state.Brief.Revision, Frames: append([]Frame{}, req.Frames...), Scene: append(json.RawMessage(nil), req.Scene...), UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	if err := s.revokeJourneyApproval(p.Path, p.ID, false); err != nil {
+		journeyError(w, 500, "approval_unavailable", "The private review selection could not be revoked. The sketch was not changed.")
+		return
+	}
 	state.Design = design
 	state.DesignRevisions = append(state.DesignRevisions, design)
 	if err := writeJourney(p.Path, state); err != nil {
@@ -346,7 +370,7 @@ func (s *Server) exportDesign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.RLock()
-	state, err := readJourney(p.Path, p.ID)
+	state, err := s.readApprovedJourney(p.Path, p.ID)
 	s.mu.RUnlock()
 	if err != nil {
 		journeyError(w, 500, "history_unavailable", err.Error())

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -258,7 +259,7 @@ func TestACABundleIsMountedReadOnlyAndNamedByNodeExtraCACerts(t *testing.T) {
 		wantMounts int
 	}{
 		{sessionsCreateBody, 3},  // worktree, conversation store, CA
-		{sandboxEnvShellBody, 2}, // a shell has no conversation store
+		{sandboxEnvShellBody, 3}, // worktree, read-only CA, private shell home; no provider store
 	} {
 		t.Run(tc.body, func(t *testing.T) {
 			bundle := filepath.Join(t.TempDir(), "corp-root.pem")
@@ -268,7 +269,20 @@ func TestACABundleIsMountedReadOnlyAndNamedByNodeExtraCACerts(t *testing.T) {
 			if len(spec.Mounts) != tc.wantMounts {
 				t.Fatalf("Mounts = %#v, want %d", spec.Mounts, tc.wantMounts)
 			}
-			ca := spec.Mounts[len(spec.Mounts)-1]
+			caIndex := 2 // Claude conversation store precedes its CA mount.
+			if tc.body == sandboxEnvShellBody {
+				caIndex = 1 // Shell's private home is appended after the existing CA.
+				stored, err := env.st.Get(spec.SessionID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				home := resumeAssertShellHomeIsolation(t, env, stored, spec)
+				want := []backend.Mount{{HostPath: env.dir, ContainerPath: sessionWorkDir}, {HostPath: bundle, ContainerPath: sessionCABundlePath, ReadOnly: true}, {HostPath: home, ContainerPath: shellHomeDir}}
+				if !slices.Equal(spec.Mounts, want) {
+					t.Fatal("terminal lost exact worktree/CA/home mount isolation")
+				}
+			}
+			ca := spec.Mounts[caIndex]
 			if ca.HostPath != bundle || ca.ContainerPath != sessionCABundlePath {
 				t.Errorf("CA mount = %#v, want %q at %q", ca, bundle, sessionCABundlePath)
 			}

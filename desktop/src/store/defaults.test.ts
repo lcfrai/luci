@@ -3,6 +3,15 @@ import { aHarness } from "../test/fixtures";
 import { resolveDefaults, toCreateRequest } from "./defaults";
 import type { Harness, SessionDefaults } from "./types";
 
+it("retains an explicit custom model and exact connection through defaults and session creation", () => {
+  const harness = aHarness({ id: "codex", available: true, supportsCustomModel: true, models: [{ id: "default", name: "Default" }], defaultModel: "default" });
+  const defaults = resolveDefaults({ harness: "codex", model: "company-coder", effort: "", permissionMode: "ask", agentConnectionId: "gateway-one" }, undefined, undefined, [harness]);
+  expect(defaults.model).toBe("company-coder");
+  expect(toCreateRequest("w-1", defaults, harness)).toMatchObject({ model: "company-coder", agentConnectionId: "gateway-one" });
+  expect(toCreateRequest("w-1", { ...defaults, agentConnectionId: "" }, harness)).toHaveProperty("agentConnectionId", "");
+  expect(toCreateRequest("w-1", defaults, harness, { agentConnectionId: undefined })).not.toHaveProperty("agentConnectionId");
+});
+
 /* The catalogue this suite reasons about, composed HERE from task 15's `aHarness` rather than
  * added to `fixtures.ts`: shared-shape §3.2 sanctions six builders and no seventh, and a
  * catalogue is a composition of one of them rather than a new one. Every field an assertion
@@ -83,6 +92,22 @@ const full: SessionDefaults = {
 };
 
 describe("resolveDefaults — the merge", () => {
+  it("inherits exact connection choices while preserving explicit personal routing", () => {
+    const active = resolveDefaults(APP, {}, {}, catalogue);
+    expect(active).not.toHaveProperty("agentConnectionId");
+    expect(toCreateRequest("w-1", active, claude)).not.toHaveProperty("agentConnectionId");
+
+    const inherited = resolveDefaults({ ...APP, agentConnectionId: "app-gateway" }, {}, { agentConnectionId: undefined }, catalogue);
+    expect(toCreateRequest("w-1", inherited, claude)).toHaveProperty("agentConnectionId", "app-gateway");
+
+    const personal = resolveDefaults({ ...APP, agentConnectionId: "app-gateway" }, { agentConnectionId: "" }, {}, catalogue);
+    expect(toCreateRequest("w-1", personal, claude)).toHaveProperty("agentConnectionId", "");
+
+    const branch = resolveDefaults({ ...APP, agentConnectionId: "app-gateway" }, { agentConnectionId: "project-gateway" }, { agentConnectionId: "branch-gateway" }, catalogue);
+    expect(toCreateRequest("w-1", branch, claude)).toHaveProperty("agentConnectionId", "branch-gateway");
+    expect(toCreateRequest("w-1", branch, claude, { agentConnectionId: undefined })).not.toHaveProperty("agentConnectionId");
+  });
+
   it("lets a branch override beat a project override beat the app default", () => {
     const r = resolveDefaults(full, { model: "sonnet-4.8" }, { effort: "low" }, catalogue);
     expect(r).toEqual({
@@ -210,6 +235,12 @@ describe("resolveDefaults — the clamp, in §3.6's order", () => {
 });
 
 describe("toCreateRequest — §3.6's inclusion table", () => {
+  it("sends saved handoff choices without allowing a response snapshot to supply server-only binding fields", () => {
+    const context = { projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"], sourceCommit: "client-must-not-bind-this", briefDigest: "client-must-not-bind-this" };
+    const request = toCreateRequest("w-1", resolved, claude, { implementationContext: context });
+    expect(request.implementationContext).toEqual({ projectId: "p-1", briefRevision: 2, planRevision: 3, specificationRevision: 6, designPlanRevision: 8, taskIds: ["task-1"] });
+    expect(request.implementationContext?.taskIds).not.toBe(context.taskIds);
+  });
   const resolved = resolveDefaults(full, undefined, undefined, catalogue);
 
   it("always carries worktreeId and harness, and never machineId", () => {
@@ -225,6 +256,14 @@ describe("toCreateRequest — §3.6's inclusion table", () => {
     expect("model" in req).toBe(false);
     expect("effort" in req).toBe(false);
     expect("permissionMode" in req).toBe(false);
+  });
+
+  it("omits inherited and explicitly supplied provider routes from every Shell request", () => {
+    const codingDefaults = { ...full, agentConnectionId: "saved-gateway" };
+    expect(toCreateRequest("w-1", codingDefaults, shell)).toEqual({ worktreeId: "w-1", harness: "shell" });
+    expect(toCreateRequest("w-1", codingDefaults, shell, { agentConnectionId: "other-gateway", openingPrompt: "Implement the plan" })).toEqual({ worktreeId: "w-1", harness: "shell" });
+    expect(codingDefaults.agentConnectionId).toBe("saved-gateway");
+    expect(codingDefaults.model).toBe("opus-4.8");
   });
 
   it('omits effort when the value is "" even though the harness lists efforts', () => {

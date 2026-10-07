@@ -55,11 +55,11 @@ describe("LinkedWorktreeNote", () => {
     resetCockpit();
   });
 
-  it("is one sentence naming what is unavailable, the fact behind it, and Phase 3", () => {
+  it("names the boundary and the supported checkout for Git", () => {
     // One sentence: a single terminal full stop, at the end.
     expect(LINKED_WORKTREE_GIT_NOTE.match(/\.(\s|$)/g)?.length).toBe(1);
     expect(LINKED_WORKTREE_GIT_NOTE.endsWith(".")).toBe(true);
-    for (const part of [/^Git is unavailable/, /linked worktree/, /\.git/, /sandbox cannot see/, /Phase 3/]) {
+    for (const part of [/^Git is unavailable/, /linked worktree/, /\.git/, /sandbox cannot see/, /main project checkout/]) {
       expect(part.test(LINKED_WORKTREE_GIT_NOTE)).toBe(true);
     }
   });

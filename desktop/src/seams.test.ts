@@ -19,6 +19,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 const LOADERS = import.meta.glob<string>(
   [
     "../../control-plane/**/*.go",
+    // Private runtime probes are generated evidence, outside shipped source.
+    "!../../control-plane/artifacts/**",
     // Every module extension Vite bundles, not just .ts/.tsx: a `new WebSocket(u)` in a .mts
     // under desktop/src passed S5.1 because the glob never loaded it (review 3 m4, TS-U3).
     // None exist today, so widening costs nothing and the row's "anywhere in code" becomes true.
@@ -256,9 +258,9 @@ const SEAMS: Seam[] = [
   },
   {
     id: "SX.3",
-    name: "the persisted store shape, at version 1",
+    name: "the persisted store shape, at version 2",
     anchors: [
-      { file: "desktop/src/store/store.ts", present: /^export const PERSIST_VERSION = 1;$/m },
+      { file: "desktop/src/store/store.ts", present: /^export const PERSIST_VERSION = 2;$/m },
       { file: "desktop/src/store/store.ts", present: /^export const PERSIST_KEY = "luci\.cockpit";$/m },
       { file: "desktop/src/store/store.ts", present: /^export const partialize = \(s: CockpitState\): Persisted => \(\{$/m },
     ],
@@ -387,7 +389,7 @@ const SEAMS: Seam[] = [
     id: "S4.1",
     name: "Session.contextRef: carried everywhere, written and read by no surface yet",
     anchors: [
-      { file: "control-plane/internal/registry/session.go", present: /^\tContextRef string `json:"contextRef"`$/m },
+      { file: "control-plane/internal/registry/session.go", present: /^\tContextRef\s+string\s+`json:"contextRef"`$/m },
       { file: "control-plane/internal/api/sessions.go", present: /^\t\tContextRef:\s+req\.ContextRef,$/m },
       { file: "desktop/src/store/types.ts", present: /^\s+contextRef: string;$/m },
       { file: "desktop/src/store/defaults.ts", present: /^\s+contextRef\?: string;$/m },
@@ -605,6 +607,9 @@ const SEAMS: Seam[] = [
         except: [
           "control-plane/internal/product/workspace.go",
           "control-plane/internal/product/preview_proxy.go",
+          "control-plane/internal/previewgateway/gateway.go",
+          "control-plane/internal/platform/browser_bridge.go",
+          "control-plane/internal/product/workspace_platform.go",
           "control-plane/internal/management/runtime.go",
           "control-plane/internal/management/sockets.go",
         ],

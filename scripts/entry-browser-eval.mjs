@@ -97,6 +97,10 @@ async function profile(service, page) {
   assert(token); secrets.add(token);
   return { token, ...(await api(service, "GET", "/v1/auth/me", undefined, token)) };
 }
+async function workspaceReady(page) {
+  await page.locator(".shell,.onboarding-portal").waitFor({ state: "visible", timeout: 15000 });
+  await page.locator(".auth-screen").waitFor({ state: "hidden" });
+}
 async function closeSettings(page) {
   // Read the current account's real status. The original owner still has
   // unsaved setup; later managed accounts have a ready assigned workspace.
@@ -107,24 +111,30 @@ async function closeSettings(page) {
   }, tokenKey);
   assert.equal(setup.status, 200);
   assert.equal(typeof setup.configured, "boolean");
-  if (!setup.configured) {
-    const close = page.getByRole("button", { name: "Close settings", exact: true });
-    await close.waitFor({ state: "visible", timeout: 15000 });
-    await close.click();
+  await workspaceReady(page);
+  const portal = page.locator(".onboarding-portal");
+  if (await portal.isVisible()) {
+    // First use is a full-page portal. Leaving it does not silently save a
+    // workspace or require Docker, and the account menu exists only afterward.
+    await portal.getByRole("button", { name: "Continue to projects", exact: true }).click();
   }
-  await page.locator(".setup-backdrop").waitFor({ state: "hidden", timeout: 15000 });
+  const close = page.getByRole("button", { name: "Close settings", exact: true });
+  if (await close.isVisible()) await close.click();
+  await page.locator(".setup-backdrop,.onboarding-portal").waitFor({ state: "hidden", timeout: 15000 });
+  await page.locator(".shell").waitFor();
 }
 async function signOut(page) {
   await closeSettings(page);
   await page.locator(".rail-account button").first().click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.getByRole("button", { name: "Sign in", exact: true }).waitFor();
+  await page.getByLabel("Username", { exact: true }).waitFor();
 }
 async function signIn(page, username, password) {
   await page.getByLabel("Username", { exact: true }).fill(username);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.locator(".shell").waitFor();
+  await workspaceReady(page);
 }
 async function register(page, { username, displayName, password }, button = "Create account") {
   await page.getByLabel("Display name", { exact: true }).fill(displayName);
@@ -150,7 +160,7 @@ async function acceptInvite(service, code, username, expected) {
   await register(page, { username, displayName: "Invited Test Member", password: secret() }, "Create account");
   assert.equal((await response).status(), expected, "Invitation result must come from the real service");
   if (expected === 201) {
-    await page.locator(".shell").waitFor();
+    await workspaceReady(page);
     assert.equal((await profile(service, page)).user.role, "member");
   } else {
     await page.getByRole("alert").waitFor();
@@ -185,7 +195,7 @@ try {
   const bootstrap = (await readFile(path.join(service.state, "control-plane/bootstrap-token"), "utf8")).trim(); secrets.add(bootstrap);
   await page.getByLabel(/^Bootstrap token/).fill(bootstrap);
   await register(page, owner);
-  await page.locator(".shell").waitFor();
+  await workspaceReady(page);
   const ownerProfile = await profile(service, page);
   assert.equal(ownerProfile.user.role, "super-admin");
   await signOut(page); await signIn(page, owner.username, owner.password);
@@ -239,7 +249,7 @@ try {
   assert.equal(new URL(launched.url()).hash, "");
   assert.equal(await launched.getByLabel(/^Bootstrap token/).inputValue(), code);
   await register(launched, { username: "fragment-owner", displayName: "Launcher Entry Owner", password: secret() });
-  await launched.locator(".shell").waitFor();
+  await workspaceReady(launched);
   assert.equal((await profile(launchService, launched)).user.role, "super-admin");
   pass("launcher_fragment_first_account", "Real portable launcher fragment preloads the one-time code, immediately removes it from the URL and creates an owner through the visible account form.");
   await launched.context().close(); await stop(launchService);
@@ -253,7 +263,7 @@ try {
   assert.equal(new URL(ownerPage.url()).hash, "", "Owner proof and bootstrap must leave the address bar immediately");
   const portableIdentity = { username: "portable-owner", displayName: "Portable Entry Owner", password: secret() };
   await register(ownerPage, portableIdentity);
-  await ownerPage.locator(".shell").waitFor();
+  await workspaceReady(ownerPage);
   const original = await profile(portable, ownerPage);
   const project = await api(portable, "POST", "/v1/product/projects", { name: "entry-preserved-project" }, original.token, 201);
   const purpose = "The original portable owner keeps this saved project after account recovery.";
@@ -276,7 +286,7 @@ try {
   await ownerPage.getByRole("button", { name: "Create account", exact: true }).click();
   assert.equal(await ownerPage.getByLabel("Invitation code", { exact: true }).count(), 0, "An OS-owned launcher must use its actual local capability");
   await register(ownerPage, { username: "portable-second-owner", displayName: "Separate Portable Account", password: secret() }, "Create account");
-  await ownerPage.locator(".shell").waitFor();
+  await workspaceReady(ownerPage);
   const second = await profile(portable, ownerPage);
   assert.notEqual(second.user.id, original.user.id);
   assert.equal(second.user.role, "super-admin");
@@ -292,7 +302,7 @@ try {
   await ownerPage.getByLabel("New password", { exact: true }).fill(replacement);
   await ownerPage.getByLabel("Confirm password", { exact: true }).fill(replacement);
   await ownerPage.getByRole("button", { name: "Recover owner account", exact: true }).click();
-  await ownerPage.locator(".shell").waitFor();
+  await workspaceReady(ownerPage);
   const recovered = await profile(portable, ownerPage);
   assert.equal(recovered.user.id, original.user.id);
   assert.equal(await readFile(briefPath, "utf8"), before);

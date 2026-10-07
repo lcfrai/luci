@@ -42,10 +42,10 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var fields map[string]json.RawMessage
-	inspectBody := mutating && (path == "/v1/setup/config" || path == "/v1/setup/cloud/plan" || path == "/v1/sessions" || strings.HasSuffix(path, "/git/github") || strings.HasPrefix(path, "/v1/setup/ssh/") || strings.HasSuffix(path, "/checks"))
+	inspectBody := mutating && (path == "/v1/setup/config" || path == "/v1/setup/cloud/plan" || path == "/v1/sessions" || strings.HasSuffix(path, "/git/github") || strings.HasPrefix(path, "/v1/setup/ssh/") || strings.HasSuffix(path, "/checks") || (strings.HasPrefix(path, "/v1/product/projects/") && (strings.HasSuffix(path, "/assist/repository") || strings.HasSuffix(path, "/assist"))))
 	if inspectBody {
 		data, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 2<<20))
-		if err != nil || json.Unmarshal(data, &fields) != nil {
+		if err != nil || json.Unmarshal(data, &fields) != nil || fields == nil {
 			fail(w, 400, "invalid_request", "Send a bounded JSON request.")
 			return
 		}
@@ -117,8 +117,28 @@ func (g *Gateway) route(w http.ResponseWriter, r *http.Request) {
 		fail(w, 503, "runtime_unavailable", "Your private workspace could not start. Ask an administrator to inspect its runtime status.")
 		return
 	}
-	creatingSession := r.Method == "POST" && (path == "/v1/sessions" || strings.HasSuffix(path, "/restart") || strings.HasSuffix(path, "/fork")) && strings.HasPrefix(path, "/v1/sessions")
+	creatingCodexUtility := r.Method == "POST" && path == "/v1/setup/agents/codex/sign-in"
+	creatingInterview := r.Method == "POST" && strings.HasPrefix(path, "/v1/product/projects/") && strings.HasSuffix(path, "/assist")
+	creatingRepositoryAnalysis := r.Method == "POST" && strings.HasPrefix(path, "/v1/product/projects/") && strings.HasSuffix(path, "/assist/repository")
+	creatingSession := creatingCodexUtility || creatingInterview || creatingRepositoryAnalysis || (r.Method == "POST" && (path == "/v1/sessions" || strings.HasSuffix(path, "/restart") || strings.HasSuffix(path, "/fork")) && strings.HasPrefix(path, "/v1/sessions"))
 	if creatingSession {
+		if creatingRepositoryAnalysis || creatingInterview {
+			var chosen string
+			if creatingInterview && len(fields["harness"]) == 0 {
+				chosen = "codex"
+				fields["harness"] = json.RawMessage(`"codex"`)
+			} else if json.Unmarshal(fields["harness"], &chosen) != nil {
+				chosen = ""
+			}
+			if chosen != "codex" && chosen != "claude-code" && chosen != "opencode" {
+				fail(w, 400, "invalid_analysis_provider", "Choose Codex, Claude Code or OpenCode for the assistant.")
+				return
+			}
+		}
+		if creatingCodexUtility {
+			// Official Codex account sign-in cannot select another provider.
+			fields = map[string]json.RawMessage{"harness": json.RawMessage(`"codex"`)}
+		}
 		g.mu.Lock()
 		lock := g.admissions[u.ID]
 		if lock == nil {

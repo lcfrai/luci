@@ -4,8 +4,11 @@ import {
   productApi,
   type CheckCommand,
   type CheckRun,
+  type RequirementCoverage,
 } from "../../api/product";
 import { useAuth } from "../auth/AuthProvider";
+import { Button } from "../fluid/components/button";
+import { RequirementsEvidence, commandStatus, evidenceLabel, watchRequirementEvidence } from "./RequirementsEvidence";
 
 const active = (run: CheckRun) =>
   run.status === "queued" || run.status === "running";
@@ -20,30 +23,59 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
     auth.profile.policy.allowHostCommands;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const working = useRef(false);
+  const working = useRef<number | null>(null);
   const alive = useRef(true);
   const [executable, setExecutable] = useState("");
   const [args, setArgs] = useState("[]");
+  const [coverage, setCoverage] = useState<RequirementCoverage | null>(null);
+  const [requirementIds, setRequirementIds] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [notice, setNotice] = useState("");
+  const generation = useRef(0), readGeneration = useRef(0);
+  const selectedContext = useRef<string | null>(null);
+  const contextKey = (value: RequirementCoverage) => JSON.stringify([value.specification.revision, value.specification.digest, value.specification.status, value.design.revision, value.design.digest, value.design.status]);
+  const canLink = coverage?.specification.status === "approved" && coverage.design.status === "approved" && coverage.source.available;
+  async function load(replaceCommands = false) {
+    const context = generation.current, request = ++readGeneration.current;
+    setRefreshing(true);
+    try {
+      const value = await productApi.checks(projectId);
+      if (!alive.current || context !== generation.current || request !== readGeneration.current) return;
+      if (value.coverage && value.coverage.projectId !== projectId) throw new Error("Requirement evidence belongs to another project. Refresh the current project.");
+      setRuns(current => [
+        ...value.runs.map(row => {
+          const previous = current.find(run => run.id === row.id);
+          return previous && previous.updatedAt > row.updatedAt ? previous : row;
+        }),
+        ...current.filter(run => !value.runs.some(row => row.id === run.id)),
+      ].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      if (replaceCommands) setCommands(value.suggested || []);
+      if (selectedContext.current && (!value.coverage || contextKey(value.coverage) !== selectedContext.current)) {
+        setRequirementIds([]); selectedContext.current = null; setTrusted(false);
+        setNotice("Requirements or design changed. Review and select the criteria again.");
+      }
+      setCoverage(value.coverage ?? null);
+    } catch (cause) {
+      if (alive.current && context === generation.current && request === readGeneration.current) { setCoverage(null); setError(errorText(cause)); }
+    } finally {
+      if (alive.current && context === generation.current && request === readGeneration.current) setRefreshing(false);
+    }
+  }
   const updateRun = (run: CheckRun) =>
     setRuns((current) => [
       run,
       ...current.filter((item) => item.id !== run.id),
     ]);
   useEffect(() => {
+    generation.current++;
     alive.current = true;
-    void productApi
-      .checks(projectId)
-      .then((value) => {
-        if (alive.current) {
-          setRuns(value.runs);
-          setCommands(value.suggested || []);
-        }
-      })
-      .catch((cause) => {
-        if (alive.current) setError(errorText(cause));
-      });
+    setRuns([]); setCommands([]); setCoverage(null); setRequirementIds([]); setTrusted(false); setNotice(""); setError(""); setBusy(false); setExecutable(""); setArgs("[]"); selectedContext.current = null;
+    void load(true);
+    const unwatch = watchRequirementEvidence(projectId, () => void load());
     return () => {
       alive.current = false;
+      generation.current++;
+      unwatch();
     };
   }, [projectId]);
   const activeIds = runs
@@ -53,16 +85,22 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
   useEffect(() => {
     if (!activeIds) return;
     let cancelled = false;
+    let polling = false;
     const timer = setInterval(() => {
+      if (polling) return;
+      polling = true;
       void Promise.all(
         activeIds.split(",").map((id) => productApi.checkRun(projectId, id)),
       )
         .then((values) => {
-          if (!cancelled) values.forEach(updateRun);
+          if (!cancelled) {
+            values.forEach(updateRun);
+            if (values.some(run => !active(run))) void load();
+          }
         })
         .catch((cause) => {
           if (!cancelled) setError(errorText(cause));
-        });
+        }).finally(() => { polling = false; });
     }, 1500);
     return () => {
       cancelled = true;
@@ -70,18 +108,22 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
     };
   }, [projectId, activeIds]);
   async function operate(action: () => Promise<CheckRun>) {
-    if (working.current) return;
-    working.current = true;
+    const context = generation.current;
+    if (working.current === context) return;
+    working.current = context;
     setBusy(true);
     setError("");
     try {
       const run = await action();
-      if (alive.current) updateRun(run);
+      if (alive.current && context === generation.current) {
+        updateRun(run);
+        if (!active(run)) void load();
+      }
     } catch (cause) {
-      if (alive.current) setError(errorText(cause));
+      if (alive.current && context === generation.current) setError(errorText(cause));
     } finally {
-      working.current = false;
-      if (alive.current) setBusy(false);
+      if (working.current === context) working.current = null;
+      if (alive.current && context === generation.current) setBusy(false);
     }
   }
   return (
@@ -112,6 +154,22 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
           {error}
         </p>
       )}
+      {notice && <p className="journey-muted" role="status">{notice}</p>}
+      <RequirementsEvidence coverage={coverage} runs={runs} refreshing={refreshing} onRefresh={() => void load()} />
+      <details className="check-requirements">
+        <summary>Link checks to approved requirements · {requirementIds.length} selected</summary>
+        <p className="journey-muted">Select the criteria these commands actually exercise. Unselected commands are recorded as generic checks.</p>
+        {!canLink && <p className="journey-muted">Approve the current requirements and design, and refresh readable project source, before linking evidence.</p>}
+        {(coverage?.rows ?? []).map(row => <label className="requirement-choice" key={row.requirementId}>
+          <input type="checkbox" aria-label={`Check ${row.requirementId} · ${row.title}`} checked={requirementIds.includes(row.requirementId)} disabled={busy || !!activeIds || !canLink} onChange={event => {
+            setRequirementIds(current => event.target.checked ? [...current, row.requirementId] : current.filter(id => id !== row.requirementId));
+            selectedContext.current = coverage ? contextKey(coverage) : null;
+            setNotice(""); setTrusted(false);
+          }} />
+          <span>{row.requirementId} · {row.title}<small>{row.acceptance}</small></span>
+        </label>)}
+        {!!requirementIds.length && <Button type="button" variant="tertiary" disabled={busy || !!activeIds} onClick={() => { setRequirementIds([]); selectedContext.current = null; setTrusted(false); }}>Clear requirement selection</Button>}
+      </details>
       <ul className="check-commands">
         {commands.map((command, index) => (
           <li key={index}>
@@ -122,8 +180,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
                 {command.args.map((arg) => JSON.stringify(arg)).join(" ")}
               </code>
             </div>
-            <button
-              className="luci-button"
+            <Button type="button" variant="tertiary"
               disabled={busy || !!activeIds}
               aria-label={`Remove ${command.label}`}
               onClick={() => {
@@ -132,7 +189,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
               }}
             >
               Remove
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
@@ -184,12 +241,11 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
             placeholder={'["test"]'}
           />
         </label>
-        <button
-          className="luci-button"
+        <Button type="submit" variant="secondary"
           disabled={busy || !!activeIds || !executable.trim()}
         >
           Add check command
-        </button>
+        </Button>
       </form>
       <label className="setup-check">
         <input
@@ -201,17 +257,17 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
           ? "I trust these commands to run directly with my workspace host account's access."
           : "I trust this project's code and these Docker commands to write project files and use the network."}
       </label>
-      <button
-        className="luci-button luci-primary"
-        disabled={busy || !!activeIds || !trusted || !commands.length}
+      <Button type="button" variant="primary" loading={busy}
+        disabled={busy || !!activeIds || !trusted || !commands.length || (!!requirementIds.length && !canLink)}
         onClick={() =>
           void operate(() =>
-            productApi.runChecks(
+            requirementIds.length && coverage ? productApi.runChecks(
               projectId,
               commands,
               trusted,
               allowHost ? execution : "docker",
-            ),
+              { requirementIds, expectedSpecificationRevision: coverage.specification.revision, expectedDesignPlanRevision: coverage.design.revision },
+            ) : productApi.runChecks(projectId, commands, trusted, allowHost ? execution : "docker"),
           )
         }
       >
@@ -219,8 +275,8 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
           ? "Starting checks…"
           : activeIds
             ? "Checks running…"
-            : "Run project checks"}
-      </button>
+            : requirementIds.length ? "Run selected requirement checks" : "Run project checks"}
+      </Button>
       {!runs.length && (
         <p className="journey-muted">No verification runs recorded yet.</p>
       )}
@@ -229,8 +285,11 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
           <li key={run.id}>
             <div className="journey-header">
               <div>
-                <strong>{run.status}</strong>
+                <strong>{commandStatus(run.status)}</strong>
                 <p>{run.message}</p>
+                <p>{evidenceLabel(run.evidenceStatus)}{run.requirementIds?.length ? ` · ${run.requirementIds.join(", ")}` : " · generic commands without requirement links"}</p>
+                {run.requirementIds?.length ? <small>Requirements revision {run.specificationRevision ?? 0} · design revision {run.designPlanRevision ?? 0}</small> : null}
+                {!!run.staleReasons?.length && <ul>{run.staleReasons.map((reason, index) => <li key={index}>{reason}</li>)}</ul>}
                 {run.sourceChanged && (
                   <p className="journey-warning">
                     Project files changed during this run. Run checks again to
@@ -247,8 +306,7 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
                 </small>
               </div>
               {active(run) && (
-                <button
-                  className="luci-button"
+                <Button type="button" variant="secondary"
                   disabled={busy}
                   onClick={() =>
                     void operate(() =>
@@ -257,9 +315,10 @@ export function ProjectChecks({ projectId }: { projectId: string }) {
                   }
                 >
                   Cancel checks
-                </button>
+                </Button>
               )}
             </div>
+            {!!run.requirementSnapshots?.length && <details><summary>Requirement text recorded with this run</summary><ul>{run.requirementSnapshots.map(requirement => <li key={requirement.id}><strong>{requirement.id} · {requirement.title}</strong><p>{requirement.acceptance}</p></li>)}</ul></details>}
             {run.commands.map((command, index) => (
               <details key={index}>
                 <summary>

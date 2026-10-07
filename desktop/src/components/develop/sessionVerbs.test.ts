@@ -8,10 +8,10 @@
 // No jest-dom (shared-shape §3C). Nothing here renders, so there is no DOM to assert against.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MenuItem } from "../menu/ContextMenu";
-import { IDS, aHarness, aSession, aWorktree } from "../../test/fixtures";
+import { IDS, aBranch, aHarness, aProject, aSession, aWorktree } from "../../test/fixtures";
 import { TOAST_TTL_UNDO } from "../../store/slices/uiSlice";
 import { resetCockpit, useCockpit } from "../../store/store";
-import type { Session, Toast } from "../../store/types";
+import type { Session, Toast, Worktree } from "../../store/types";
 import { ApiError } from "../../api/client";
 
 const { killMock, purgeMock, restartMock, renameMock, resumeMock, forkMock, readyMock } = vi.hoisted(
@@ -724,14 +724,14 @@ describe("sessionVerbs — the failure sentence", () => {
 });
 
 describe("markWorktreeReady and §10.2's verb", () => {
-  it("Mark ready PATCHes the worktree and the flag survives the next list", async () => {
+  it("Mark ready waits for the confirmed worktree and the flag survives the next list", async () => {
     seed();
     const w = aWorktree({ ready: false });
     useCockpit.getState().setWorktrees(IDS.branch, [w]);
     readyMock.mockResolvedValue({ ...w, ready: true });
 
     markWorktreeReady(w);
-    expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]?.ready).toBe(true);
+    expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]?.ready).toBe(false);
 
     await vi.runOnlyPendingTimersAsync();
     expect(readyMock).toHaveBeenCalledWith(IDS.project, IDS.worktree, true);
@@ -740,7 +740,7 @@ describe("markWorktreeReady and §10.2's verb", () => {
     expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]?.ready).toBe(true);
   });
 
-  it("rolls the flag back when the server refuses", async () => {
+  it("keeps the confirmed flag when the server refuses", async () => {
     seed();
     const w = aWorktree({ ready: false });
     useCockpit.getState().setWorktrees(IDS.branch, [w]);
@@ -753,11 +753,7 @@ describe("markWorktreeReady and §10.2's verb", () => {
     expect(lastToast()?.message).toBe("No such worktree.");
   });
 
-  // The rollback goes through `replaceById` against the LIVE list, not a snapshot taken before
-  // the request. A snapshot restore would put the branch back as it was and discard whatever
-  // the 2 s poll added while the PATCH was in flight — this task's plan argued the opposite and
-  // had it backwards.
-  it("a refusal reverts the flag without discarding a worktree the poll added meanwhile", async () => {
+  it("a refusal preserves newer catalogue readiness and other worktrees", async () => {
     seed();
     const mine = aWorktree({ ready: false });
     useCockpit.getState().setWorktrees(IDS.branch, [mine]);
@@ -773,7 +769,7 @@ describe("markWorktreeReady and §10.2's verb", () => {
     useCockpit
       .getState()
       .setWorktrees(IDS.branch, [
-        ...useCockpit.getState().worktreesByBranch[IDS.branch],
+        { ...mine, ready: true, sessionCount: 3 },
         aWorktree({ id: SIBLING, name: "retention-rules", ready: false }),
       ]);
 
@@ -782,7 +778,8 @@ describe("markWorktreeReady and §10.2's verb", () => {
 
     const list = useCockpit.getState().worktreesByBranch[IDS.branch];
     expect(list?.map((w) => w.id)).toEqual([IDS.worktree, SIBLING]);
-    expect(list?.[0]?.ready).toBe(false);
+    expect(list?.[0]?.ready).toBe(true);
+    expect(list?.[0]?.sessionCount).toBe(3);
   });
 
   it("marks one worktree in a list and keeps every other one", async () => {
@@ -806,7 +803,8 @@ describe("markWorktreeReady and §10.2's verb", () => {
   // `omitempty`, so the flag is ALWAYS on the wire. The test this row used to name — "the verb
   // is absent when the server does not report ready" — is DELETED rather than moved, because it
   // asserted a shape the control plane cannot produce. This is what replaces it.
-  it("renders the row unconditionally, and disables it once the worktree is already ready", () => {
+  it("offers both readiness directions through the same actual PATCH", async () => {
+    seed();
     const close = vi.fn();
     const shown = worktreeReadyItems(aWorktree({ ready: false }), close);
     expect(shown).toHaveLength(1);
@@ -816,8 +814,21 @@ describe("markWorktreeReady and §10.2's verb", () => {
 
     const already = worktreeReadyItems(aWorktree({ ready: true }), close);
     expect(already).toHaveLength(1);
-    expect(already[0]?.run).toBeUndefined();
-    expect(already[0]?.disabledReason).toContain("Already marked ready");
+    expect(already[0]?.label).toBe("Mark not ready");
+    expect(already[0]?.run).toBeTypeOf("function");
+    const confirmed = aWorktree({ ready: true });
+    useCockpit.getState().setWorktrees(IDS.branch, [confirmed]);
+    const cleared = { ...confirmed, ready: false };
+    readyMock.mockResolvedValue(cleared);
+    already[0]?.run?.();
+    expect(close).toHaveBeenCalledOnce();
+    expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]?.ready).toBe(true);
+    await vi.runOnlyPendingTimersAsync();
+    expect(readyMock).toHaveBeenCalledWith(IDS.project, IDS.worktree, false);
+    expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]).toEqual(cleared);
+    expect(lastToast()?.message).toBe("Worktree marked not ready.");
+    useCockpit.getState().setWorktrees(IDS.branch, [cleared]);
+    expect(worktreeReadyItems(cleared, close)[0]?.label).toBe("Mark ready");
   });
 
   // Minor 3. `replaceById` returns a copy for an id it cannot find, and `selectWorktrees`
@@ -835,6 +846,89 @@ describe("markWorktreeReady and §10.2's verb", () => {
 
     expect(useCockpit.getState().worktreesByBranch["b-never-loaded"]).toBeUndefined();
     expect(Object.keys(useCockpit.getState().worktreesByBranch)).toEqual([IDS.branch]);
+    expect(readyMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a ready worktree ready when source admission refuses clearing", async () => {
+    seed();
+    const ready = aWorktree({ ready: true });
+    useCockpit.getState().setWorktrees(IDS.branch, [ready]);
+    readyMock.mockRejectedValue(new ApiError("conflict", "The project source is changing. Refresh before marking its current branch ready.", 409));
+    worktreeReadyItems(ready, vi.fn())[0]?.run?.();
+    await vi.runOnlyPendingTimersAsync();
+    expect(readyMock).toHaveBeenCalledWith(IDS.project, IDS.worktree, false);
+    expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]).toEqual(ready);
+    expect(lastToast()?.message).toContain("The project source is changing");
+    expect(worktreeReadyItems(ready, vi.fn())[0]?.run).toBeTypeOf("function");
+  });
+
+  it("does not repeat a pending readiness request or announce unconfirmed completion", async () => {
+    seed();
+    const ready = aWorktree({ ready: true });
+    useCockpit.getState().setWorktrees(IDS.branch, [ready]);
+    let confirm!: (value: Worktree) => void;
+    readyMock.mockReturnValue(new Promise<Worktree>(resolve => { confirm = resolve; }));
+    markWorktreeReady(ready, false);
+    markWorktreeReady(ready, false);
+    expect(readyMock).toHaveBeenCalledOnce();
+    expect(worktreeReadyItems(ready, vi.fn())[0]?.run).toBeUndefined();
+    expect(useCockpit.getState().toasts).toEqual([]);
+    expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]?.ready).toBe(true);
+    confirm({ ...ready, ready: false });
+    await vi.runOnlyPendingTimersAsync();
+    expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]?.ready).toBe(false);
+    expect(lastToast()?.message).toBe("Worktree marked not ready.");
+  });
+
+  it("refuses a removed project's retained stale worktree before sending", () => {
+    seed();
+    useCockpit.getState().setProjects([]);
+    markWorktreeReady(aWorktree({ ready: true }), false);
+    expect(readyMock).not.toHaveBeenCalled();
+    expect(lastToast()?.message).toContain("source changed");
+  });
+
+  it("a late response cannot put readiness back onto a checkout moved to another branch", async () => {
+    seed();
+    useCockpit.getState().setProjects([aProject()]);
+    const source = aWorktree({ ready: false });
+    useCockpit.getState().setWorktrees(IDS.branch, [source]);
+    let confirm!: (value: Worktree) => void;
+    readyMock.mockReturnValue(new Promise<Worktree>(resolve => { confirm = resolve; }));
+    markWorktreeReady(source);
+    const moved = { ...source, branchId: "b-new", ready: false };
+    useCockpit.getState().acceptBranchChange(IDS.project, [aBranch({ id: "b-new", isHead: true })], moved);
+    confirm({ ...source, ready: true });
+    await vi.runOnlyPendingTimersAsync();
+    expect(useCockpit.getState().worktreesByBranch[IDS.branch]).toEqual([]);
+    expect(useCockpit.getState().worktreesByBranch["b-new"]).toEqual([moved]);
+    expect(lastToast()?.message).toContain("could not confirm");
+  });
+
+  it.each(["projectId", "branchId", "id", "path"] as const)("does not adopt a response naming a different %s", async field => {
+    seed();
+    const source = aWorktree({ ready: true });
+    useCockpit.getState().setWorktrees(IDS.branch, [source]);
+    readyMock.mockResolvedValue({ ...source, ready: false, [field]: "other" });
+    markWorktreeReady(source, false);
+    await vi.runOnlyPendingTimersAsync();
+    expect(useCockpit.getState().worktreesByBranch[IDS.branch]).toEqual([source]);
+    expect(lastToast()?.message).toContain("could not confirm");
+  });
+
+  it("does not adopt or report an old workspace's late response", async () => {
+    seed();
+    const source = aWorktree({ ready: false });
+    let confirm!: (value: Worktree) => void;
+    readyMock.mockReturnValue(new Promise<Worktree>(resolve => { confirm = resolve; }));
+    markWorktreeReady(source);
+    __resetSessionVerbs();
+    resetCockpit();
+    seed();
+    confirm({ ...source, ready: true });
+    await vi.runOnlyPendingTimersAsync();
+    expect(useCockpit.getState().worktreesByBranch[IDS.branch]?.[0]?.ready).not.toBe(true);
+    expect(useCockpit.getState().toasts).toEqual([]);
   });
 
   it("closes the host menu before it mutates, so the Undo toast is not hidden behind it", () => {

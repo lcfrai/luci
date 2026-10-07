@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func TestSetupGitIdentityWritesOnlyExplicitGlobalIdentity(t *testing.T) {
@@ -158,8 +159,11 @@ func TestRuntimeInstallIsAsyncCachedDurableAndVerifiesImage(t *testing.T) {
 				return "", errors.New("unexpected runtime build")
 			}
 			deadline, ok := ctx.Deadline()
-			if !ok || time.Until(deadline) < 5*time.Minute {
+			if !ok || time.Until(deadline) < 29*time.Minute || time.Until(deadline) > runtimeBuildTimeout {
 				return "", errors.New("initial install was given a short probe timeout")
+			}
+			if commandExecutionBudget(ctx, exe, args) != runtimeBuildTimeout {
+				return "", errors.New("runtime budget was lost at the command boundary")
 			}
 			buildStarted.Do(func() { close(started) })
 			select {
@@ -217,6 +221,10 @@ func TestRuntimeInstallFailsHonestlyAndRejectsCallerSource(t *testing.T) {
 	journeyRequest(t, mux, "POST", "/v1/setup/runtime/install", map[string]any{}, 409)
 	s.runtimeDir = runtimeSourceFixture(t)
 	journeyRequest(t, mux, "POST", "/v1/setup/runtime/install", map[string]string{"sourceDir": t.TempDir()}, 400)
+	journeyRequest(t, mux, "POST", "/v1/setup/runtime/install", map[string]string{"buildTimeout": "24h"}, 400)
+	if readRuntimeJob(t, mux).Status != "idle" {
+		t.Fatal("caller-controlled installation options started a build")
+	}
 	s.runner = func(context.Context, string, []string, string) (string, error) {
 		return "", errors.New("Docker engine is not running")
 	}
@@ -234,5 +242,79 @@ func TestRuntimeInstallFailsHonestlyAndRejectsCallerSource(t *testing.T) {
 	journeyRequest(t, mux, "POST", "/v1/setup/runtime/install", map[string]any{}, 202)
 	if job := awaitRuntimeJob(t, mux); job.Status != "failed" {
 		t.Fatalf("unverified image accepted: %#v", job)
+	}
+}
+
+func TestCommandExecutionBudgetIsTrustedBuildOnlyAndRespectsEarlierDeadline(t *testing.T) {
+	plain := context.Background()
+	bounded, cancel := context.WithTimeout(plain, time.Minute)
+	defer cancel()
+	trusted := context.WithValue(bounded, runtimeBuildBudgetKey{}, runtimeBuildBudget{})
+	for _, fixture := range []struct {
+		name       string
+		ctx        context.Context
+		executable string
+		args       []string
+		want       time.Duration
+	}{
+		{"ordinary command", plain, "docker", []string{"build", "."}, 2 * time.Minute},
+		{"ordinary caller deadline", bounded, "docker", []string{"build", "."}, 10 * time.Minute},
+		{"trusted runtime build", trusted, "docker", []string{"build", "."}, 30 * time.Minute},
+		{"verification stays ordinary", trusted, "docker", []string{"image", "inspect"}, 10 * time.Minute},
+		{"other executable stays ordinary", trusted, "git", []string{"build"}, 10 * time.Minute},
+		{"no build args stays ordinary", trusted, "docker", nil, 10 * time.Minute},
+		{"string key cannot grant budget", context.WithValue(bounded, "runtimeBuildBudget", runtimeBuildBudget{}), "docker", []string{"build", "."}, 10 * time.Minute},
+		{"request duration cannot grant budget", context.WithValue(bounded, runtimeBuildBudgetKey{}, 24*time.Hour), "docker", []string{"build", "."}, 10 * time.Minute},
+	} {
+		t.Run(fixture.name, func(t *testing.T) {
+			budget := commandExecutionBudget(fixture.ctx, fixture.executable, fixture.args)
+			if budget != fixture.want || budget > 30*time.Minute {
+				t.Fatalf("command budget = %s, want %s", budget, fixture.want)
+			}
+			child, stop := context.WithTimeout(fixture.ctx, budget)
+			defer stop()
+			if parentDeadline, ok := fixture.ctx.Deadline(); ok {
+				childDeadline, childOK := child.Deadline()
+				if !childOK || childDeadline.After(parentDeadline) {
+					t.Fatal("runtime privilege extended a shorter caller deadline")
+				}
+			}
+		})
+	}
+}
+
+func TestRuntimeInstallPersistsBoundedFailureHeadAndFinalTail(t *testing.T) {
+	s, mux := journeyFixture(t)
+	s.registerSetupTools(mux)
+	s.runtimeDir = runtimeSourceFixture(t)
+	head := "docker: initial base-image download\n"
+	tail := "\nERROR: failed to solve: registry connection closed\nexit status 1"
+	s.runner = func(context.Context, string, []string, string) (string, error) {
+		return "", errors.New(head + strings.Repeat("ordinary download progress 雪\n", 2000) + tail)
+	}
+	journeyRequest(t, mux, "POST", "/v1/setup/runtime/install", map[string]any{}, 202)
+	job := awaitRuntimeJob(t, mux)
+	if job.Status != "failed" || len(job.Message) > 8000 || !utf8.ValidString(job.Message) || !strings.Contains(job.Message, head) || !strings.HasSuffix(job.Message, tail) || !strings.Contains(job.Message, "[earlier build output omitted]") {
+		t.Fatalf("runtime failure did not retain its bounded initial/final cause: status=%s bytes=%d", job.Status, len(job.Message))
+	}
+	restarted, err := New(Options{StateDir: s.stateDir, ProjectsDir: s.projectRoot(), RuntimeDir: s.runtimeDir})
+	if err != nil || restarted.runtimeJob.Message != job.Message || restarted.runtimeJob.ID != job.ID || restarted.runtimeJob.Status != "failed" {
+		t.Fatalf("bounded failure was not durable: %v", err)
+	}
+}
+
+func TestRuntimeBuildTimeoutIsExplicitEvenBehindVerboseDockerProgress(t *testing.T) {
+	expired, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	err := errors.New("docker: " + strings.Repeat("initial download progress\n", 2000) + "signal: killed")
+	message := runtimeBuildFailure(expired, err)
+	if len(message) > 8000 || !strings.HasPrefix(message, "Runtime installation timed out after 30 minutes.") || !strings.HasSuffix(message, "signal: killed") {
+		t.Fatalf("deadline cause or final process error was hidden: bytes=%d", len(message))
+	}
+	if message := runtimeBuildFailure(context.Background(), context.DeadlineExceeded); !strings.Contains(message, "timed out after 30 minutes") {
+		t.Fatal("runner-provided deadline cause was hidden")
+	}
+	if message := runtimeBuildFailure(context.Background(), errors.New("Docker engine is not running")); message != "Runtime installation failed: Docker engine is not running" {
+		t.Fatal("short actionable failure was changed")
 	}
 }

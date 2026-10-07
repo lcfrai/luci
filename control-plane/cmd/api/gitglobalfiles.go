@@ -22,12 +22,14 @@ import (
 //
 // Each is one question to git's own parser, in the scope hostGit.scope finds:
 //
-//	git config -z --show-origin --get --global|--system --includes --type=path --default <git's default> core.excludesFile
-//	git config -z --show-origin --get --global|--system --includes --type=path --default <git's default> core.attributesFile
+//	git config -z --show-origin --get --global|--system --includes --type=path core.excludesFile
+//	git config -z --show-origin --get --global|--system --includes --type=path core.attributesFile
 //
-// -z --show-origin pairs each value with the config file that set it, its name
+// -z --show-origin pairs each configured value with the file that set it, its name
 // raw (valueWithOrigin; X-3 review 3 and 4 I-C); an answer that is not one such
-// record is an error, which fails the create.
+// record is an error, which fails the create. A quiet Git exit 1 proves an
+// unset key; Git expands its default in a separate read of the empty OS null
+// file, avoiding --show-origin/--default crashes and unchecked config races.
 //
 // --type=path expands "~/" and "%(prefix)/" as the host's git does, with the
 // HOME that git sees; Git for Windows sets HOME itself when it is unset. The
@@ -44,7 +46,8 @@ func gitGlobalFilesResolver(host hostGit) func(context.Context) (api.GitGlobalFi
 	return func(ctx context.Context) (api.GitGlobalFiles, error) {
 		var out api.GitGlobalFiles
 		// One budget for the whole read — this is the read with the most gits,
-		// four, and the one whose failure is on record (progress.md:6602).
+		// up to six including absent-key defaults, and the one whose failure
+		// is on record (progress.md:6602).
 		err := host.read(ctx, hostConfigReadBudget, func(ctx context.Context) error {
 			excludes, exclOrigin, err := gitGlobalFile(ctx, host, "core.excludesFile", "ignore")
 			if err != nil {
@@ -75,8 +78,8 @@ func gitGlobalFilesResolver(host hostGit) func(context.Context) (api.GitGlobalFi
 // is absolute, so a host file would be mounted — the config file that set it, so
 // the session can check that file's provenance (X-3 review 3 I-C). The origin is
 // "" for a relative value (it names a file in each repository, not a host file)
-// and for an unset value (git reports its --default's origin as the command
-// line, not a file).
+// and for an unset value (the separate empty-null read expands only the
+// default; no config file set it).
 func gitGlobalFile(ctx context.Context, host hostGit, key, name string) (value, origin string, err error) {
 	def := "~/.config/git/" + name
 	if xdg := host.getenv("XDG_CONFIG_HOME"); xdg != "" {
