@@ -33,8 +33,8 @@
 .shell {
   --rail-w: 232px;
   --sub-w: 0px;
-  /* Focus and reveal actions scroll the workspace, never the document behind it.
-     Compact layouts can still scroll this shell through their own overflow rule. */
+  /* Fix the cockpit to the viewport and prevent focus/reveal from scrolling this
+     frame. Compact layouts explicitly enable the shell's own scrolling below. */
   position: fixed;
   inset: 0;
   display: grid;
@@ -42,7 +42,7 @@
   block-size: 100dvh;
   background: var(--page);
   color: var(--ink);
-  overflow: hidden;
+  overflow: clip;
 }
 .shell-deep {
   --sub-w: 168px;

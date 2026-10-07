@@ -57,15 +57,24 @@ desktop and 270 pixels on phone, before screenshot sampling. Inspecting the run
 leaves 60/258-pixel offsets. Hidden shell ancestors remain at zero; the entire
 shell moves with the document. The 202 snapshots and 340 events have no omissions,
 and independent review confirms the first movement without attributing passive
-events to an unobserved JavaScript call. The cockpit shell now uses a fixed
-viewport boundary, retaining its existing internal scrolling and compact-layout
-overflow rules. Entry views are outside this boundary. Independent stacking and
-scroll-ownership review, 131 affected interaction cases, 104 existing style/seam
-contracts and TypeScript pass. Matching installed verification is continuing.
-Independent cleanup and unchanged
+events to an unobserved JavaScript call. The first fixed-boundary candidate,
+`c3fe7d20`, passes two original installed groups but fails the new plan-handoff
+guard: the document stays at zero, while the hidden shell itself scrolls by
+72 pixels and still hides the header. Later phone, conversation and native checks
+were not reached. The failed screenshot, geometry and independent complete
+cleanup/package proof remain recorded.
+
+The follow-up gives the ordinary fixed shell a non-scrolling clip boundary.
+Its explicit phone-session and short-height auto-scroll rules remain in place;
+entry views remain outside this boundary. Independent exact-diff review and all
+235 affected interaction/style cases pass. Matching installed verification is
+continuing. The original candidate's independent stacking review, 131 interaction
+cases, 104 style/seam contracts and TypeScript were supporting source evidence,
+not proof of the missing browser behavior. Independent cleanup and unchanged
 package verification pass. Evidence: `artifacts/quality-run-status-wording/`,
 `artifacts/quality-overview-composer/dca39101-native-scroll-attempt-1/` and
-`artifacts/quality-overview-composer/769d5bf8-exact-scroll-attempt-1/`.
+`artifacts/quality-overview-composer/769d5bf8-exact-scroll-attempt-1/` and
+`artifacts/quality-overview-composer/c3fe7d20-handoff-reflow-attempt-1/`.
 
 ## Amendment clarity and conversation continuity
 
