@@ -22,6 +22,32 @@ prototype and collaborative amendment journey now has scoped fixture evidence. E
 fixtures establish only their stated mechanisms. Independent product work
 continues while external commissioning and Windows CI access remain blocked.
 
+## Run status clarity
+
+“Check run status” now explains the former reconciliation action in ordinary
+language. Refresh history reloads saved records; checking run status inspects
+existing work and records an update. It starts no coding session, project test
+run or deployment. Current backend recovery guidance uses the same action name.
+The status summary distinguishes its own recorded review from saved test and
+release evidence. Action authority, API identifiers and execution paths are
+unchanged.
+
+Independent review verifies the wording-only scope. The affected frontend cases
+pass across the initial 147-of-148 run and the final 60-case changed-file run;
+the obsolete wording assertion is retained separately. TypeScript, both existing
+journey-helper syntax checks and 74 focused Go outcomes (39 top-level tests)
+pass. The full 2,243-case frontend baseline remains `dca39101`. Matching installed
+wording and layout inspection is pending.
+
+A separate immutable `dca39101` scrolling diagnostic records 24 native and
+programmatic samples. Window/root and outer-ancestor offsets stay zero; native
+wheel and Tab move only the Develop workspace, with visible focus and a return
+to the header. It does not reproduce the earlier phone screenshot's missing
+header/blank tail, whose exact cause remains unresolved. No CSS change is
+justified by these observations. Independent cleanup and unchanged package
+verification pass. Evidence: `artifacts/quality-run-status-wording/` and
+`artifacts/quality-overview-composer/dca39101-native-scroll-attempt-1/`.
+
 ## Amendment clarity and conversation continuity
 
 The current correction makes a changed run lead with its current review need,
@@ -45,11 +71,19 @@ current-context verification must retain its existing navigation. Its separate
 copy/test source-overlap failure is recorded as test-input inconsistency.
 The final source is independently reviewed and passes all 2,243 frontend tests
 across 131 files plus TypeScript, with all 434 frontend/contract inputs unchanged
-during the clean run. The first failed run is retained separately. Go and API
-contracts are unchanged from the `7eac68f4` race baseline. Ordinary retained-read
+during the clean run. The first failed run is retained separately. The `dca39101` batch leaves Go and API
+contracts unchanged from the `7eac68f4` race baseline. Ordinary retained-read
 permission refresh now keeps the comparison open; confirmed denial still clears
-it. Matching installed acceptance is pending. This is continuing product work
-within the full goal. Evidence: `artifacts/quality-amendment-clarity/`,
+it. Matching installed `dca39101` passes all four groups at 1440 and 390 pixels:
+exact checked-build handoff, actual plan amendment and lazy title comparison,
+and occupied Discuss/Keep/Replace text, reply, browser-draft and focus continuity.
+Independent live observation verifies both owned service generations stopped,
+the fixture was removed and all 1,477 package entries stayed unchanged. Historical
+check/question setup remains explicitly labelled; no model, check command or
+deployment was executed. The original installed focus failure is now closed for
+this scope. Follow-up screen reading resolves the competing-action and reply-target
+ambiguities; status terminology and native comparison scrolling are the next
+bounded polish work. This is continuing product work within the full goal. Evidence: `artifacts/quality-amendment-clarity/`,
 `quality-run-current-guidance/integration-source-freeze.json` and
 `quality-orchestrator-suggested-answer/adjacent-ask/`.
 

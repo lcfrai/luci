@@ -74,7 +74,7 @@ func projectRunSessionBindingMatches(run ProjectRun, op ProjectRunOperation, can
 
 func (s *Server) findProjectRunSessionLocked(projectPath string, run ProjectRun, op ProjectRunOperation, lookup func(string) (registry.Session, error)) (*registry.Session, error) {
 	if lookup == nil {
-		return nil, errors.New("The private session registry is unavailable. Reconcile this run before continuing.")
+		return nil, errors.New("The private session registry is unavailable. Use Check run status before continuing.")
 	}
 	child, err := lookup(op.ChildID)
 	if err != nil && !errors.Is(err, registry.ErrNotFound) {
@@ -86,7 +86,7 @@ func (s *Server) findProjectRunSessionLocked(projectPath string, run ProjectRun,
 		rows, observationErr := s.projectRunSessionObserver(ctx, run.ProjectID, run.ID, op.ID)
 		cancel()
 		if observationErr != nil {
-			return nil, errors.New("The reserved coding session could not be observed. Reconcile its actual runtime before continuing.")
+			return nil, errors.New("The reserved coding session could not be observed. Use Check run status before continuing.")
 		}
 		if len(rows) > 1 || len(rows) == 1 && (!found || rows[0].ID != op.ChildID || !projectRunSessionBindingMatches(run, op, rows[0])) || found && len(rows) != 1 {
 			return nil, errors.New("Conflicting coding session identities were found. This run cannot dispatch another child.")
@@ -101,7 +101,7 @@ func (s *Server) findProjectRunSessionLocked(projectPath string, run ProjectRun,
 		return &copy, nil
 	}
 	if op.Status != "reserved" {
-		return nil, errors.New("This operation began dispatch but its reserved coding session is missing. Its outcome is unknown; reconcile the run instead of replaying it.")
+		return nil, errors.New("This operation began dispatch but its reserved coding session is missing. Its outcome is unknown; use Check run status instead of replaying it.")
 	}
 	return nil, nil
 }
@@ -204,7 +204,7 @@ func (s *Server) BeginProjectRunSession(projectID, runID, operationID string, ca
 		defer cancel()
 		digest, commit, dirty, err := s.checkSource(ctx, p.Path)
 		if err != nil || candidate.ImplementationContext.SourceDigest != digest || candidate.ImplementationContext.SourceCommit != commit || candidate.ImplementationContext.SourceDirty != dirty {
-			return errors.New("The source changed after this coding attempt was reserved. Reconcile the run before reserving a new attempt.")
+			return errors.New("The source changed after this coding attempt was reserved. Use Check run status before reserving a new attempt.")
 		}
 		return nil
 	}
@@ -216,7 +216,7 @@ func (s *Server) BeginProjectRunSession(projectID, runID, operationID string, ca
 		return fail(err)
 	}
 	if !claimed || claimedOperation.ChildID != op.ChildID {
-		return fail(errors.New("This coding operation has already begun. Reconcile its reserved child before continuing."))
+		return fail(errors.New("This coding operation has already begun. Use Check run status before continuing."))
 	}
 	return ProjectRunSessionAdmission{SessionID: op.ChildID, Revalidate: validate, Release: release}, nil
 }

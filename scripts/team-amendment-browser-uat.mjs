@@ -198,7 +198,7 @@ async function commit(message) {
   await mutation(() => page.getByRole('button', { name: 'Commit changes', exact: true }).click(), projectRoute + '/git/commit');
   const git = await observe(projectRoute + '/git'); assert(git.clean); return git.log[0].hash;
 }
-async function reconcile() { return (await mutation(() => runPanel().getByRole('button', { name: 'Reconcile run', exact: true }).click(), '/runs/' + run.id + '/reconcile')).run; }
+async function reconcile() { return (await mutation(() => runPanel().getByRole('button', { name: 'Check run status', exact: true }).click(), '/runs/' + run.id + '/reconcile')).run; }
 async function codingAttempt(label, round, keepRunning = false) {
   stage = round === 1 ? 'original-coding' : 'amended-coding';
   const session = await mutation(() => runPanel().getByRole('button', { name: label, exact: true }).click(), '/v1/sessions', 'POST', 180_000);

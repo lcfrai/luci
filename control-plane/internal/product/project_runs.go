@@ -526,7 +526,7 @@ func (s *Server) reconcileProjectRun(ctx context.Context, p project.Project, run
 		if s.projectRunSessionObserver != nil {
 			children, observeErr := s.projectRunSessionObserver(ctx, run.ProjectID, run.ID, op.ID)
 			if observeErr != nil {
-				message = "The coding session could not be observed. Retry reconciliation when its workspace is available."
+				message = "The coding session could not be observed. Use Check run status again when its workspace is available."
 			} else if len(children) == 1 {
 				child := children[0]
 				if child.ID == op.ChildID && child.ProjectID == run.ProjectID && child.WorktreeID == run.WorktreeID && child.ProjectRunID == run.ID && child.ProjectRunOperationID == op.ID && ProjectRunSessionRequestDigest(child) == op.RequestDigest {

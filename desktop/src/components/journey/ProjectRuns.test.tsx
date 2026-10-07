@@ -77,7 +77,7 @@ it.each(['changed', 'unavailable'] as const)('keeps active session access and re
   render(<ProjectRuns {...props()} />);
   await screen.findByText('Coding reserved, not started');
   expect(screen.getByRole('button', { name: 'Open coding session' })).not.toBeNull();
-  expect(screen.getByRole('button', { name: 'Reconcile run' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Check run status' })).not.toBeNull();
   expect(screen.getByRole('button', { name: 'Review current plan' })).not.toBeNull();
   expect(screen.queryByRole('button', { name: 'Continue reserved coding' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Start another coding attempt' })).toBeNull();
@@ -111,7 +111,7 @@ it('preserves accepted evidence and stopped-session status separately from curre
   render(<ProjectRuns {...props()} />);
   await screen.findByText('Accepted outcome');
   expect(screen.getByText(/historical acceptance is retained/)).not.toBeNull();
-  expect(screen.getByText(/Last observation valid/)).not.toBeNull();
+  expect(screen.getByText(/Last run status check recorded/)).not.toBeNull();
   expect(screen.queryByRole('button', { name: 'Review and accept outcome' })).toBeNull();
   await userEvent.click(screen.getByText('Run history · 2'));
   await userEvent.click(screen.getByRole('button', { name: /^Review current context ·/ }));
@@ -142,7 +142,7 @@ it.each(['awaiting-checks', 'awaiting-release'] as const)('routes a %s run with 
   await userEvent.click(await screen.findByRole('button', { name: 'Review current plan' }));
   expect(initial.onReviewPlan).toHaveBeenCalledTimes(1);
   for (const name of ['Verify this build', 'Preview this build', 'Select check evidence', 'Select release evidence', 'Review and accept outcome', 'Start another coding attempt']) expect(screen.queryByRole('button', { name })).toBeNull();
-  expect(screen.getByRole('button', { name: 'Reconcile run' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Check run status' })).not.toBeNull();
 });
 
 it('reveals the exact blocking question from a run whose reviewed documents still match without preparing a reply', async () => {
@@ -216,10 +216,10 @@ it('does not allocate a replacement or infer success after an ambiguous coding r
   const create = vi.spyOn(api, 'createSession').mockRejectedValue(new Error('Connection interrupted'));
   render(<ProjectRuns {...props()} />);
   await userEvent.click(await screen.findByRole('button', { name: 'Start coding' }));
-  await screen.findByText(/Connection interrupted.*reconcile/);
+  await screen.findByText(/Connection interrupted.*Check run status/);
   expect(create).toHaveBeenCalledTimes(1);
   expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull();
-  expect(screen.getByRole('button', { name: 'Reconcile run' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Check run status' })).not.toBeNull();
 });
 
 it('continues the same reserved child after reload only through its explicit action', async () => {
@@ -283,10 +283,10 @@ it('shows accepted history and the valid observation time without repeating the 
   const accept = vi.spyOn(projectRunsApi, 'accept');
   render(<ProjectRuns {...props()} />);
   await screen.findByText(/historical acceptance is retained/);
-  expect(screen.getByText(/Last observation valid/).textContent).toContain(new Date('2026-10-06T00:59:00Z').toLocaleString());
+  expect(screen.getByText(/Last run status check recorded/).textContent).toContain(new Date('2026-10-06T00:59:00Z').toLocaleString());
   expect(screen.queryByText(/Review the application and accept the selected outcome/)).toBeNull();
   expect(screen.queryByRole('button', { name: 'Review and accept outcome' })).toBeNull();
-  expect(screen.getByRole('button', { name: 'Reconcile run' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Check run status' })).not.toBeNull();
   expect(accept).not.toHaveBeenCalled();
 });
 
@@ -294,7 +294,7 @@ it('retains historical acceptance while displaying current invalidity without of
   vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'complete', acceptance: { acceptedAt: '2026-10-06T01:00:00Z', checkId: 'check-1', releaseId: 'release-1' }, observation: { state: 'blocked', valid: false, observedAt: '2026-10-06T02:00:00Z', reason: 'Design approval changed.' }, allowedActions: ['reconcile'] })]);
   render(<ProjectRuns {...props()} />);
   await screen.findByText(/historical acceptance is retained/);
-  expect(screen.getByText(/Current evidence needs attention.*Design approval changed/)).not.toBeNull();
+  expect(screen.getByText(/Last run status check needs attention.*Design approval changed/)).not.toBeNull();
   expect(screen.queryByRole('button', { name: 'Review and accept outcome' })).toBeNull();
 });
 
@@ -395,11 +395,13 @@ beforeEach(() => { teamAccess.loading = false; teamAccess.error = ""; Object.ass
 it('exposes run history to viewers and reconciliation to editors without granting execution', async () => {
   teamAccess.permissions.edit = false; teamAccess.permissions.execute = false;
   const reserve = vi.spyOn(projectRunsApi, 'reserve'), reconcile = vi.spyOn(projectRunsApi, 'reconcile').mockResolvedValue(makeRun());
+  const create = vi.spyOn(api, 'createSession'), checks = vi.spyOn(productApi, 'runChecks'), release = vi.spyOn(productApi, 'release');
   const view = render(<ProjectRuns {...props()} />); await screen.findByText('Reviewed inputs saved.');
-  expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Reconcile run' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull(); expect(screen.queryByRole('button', { name: 'Check run status' })).toBeNull();
   teamAccess.permissions.edit = true; view.rerender(<ProjectRuns {...props()} />);
-  await userEvent.click(screen.getByRole('button', { name: 'Reconcile run' }));
-  await waitFor(() => expect(reconcile).toHaveBeenCalledOnce()); expect(reserve).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Check run status' }));
+  await waitFor(() => expect(reconcile).toHaveBeenCalledExactlyOnceWith('p-1', 'run-1', 1));
+  for (const operation of [reserve, create, checks, release]) expect(operation).not.toHaveBeenCalled();
 });
 it('does not dispatch a reserved child when execution permission changes during reservation', async () => {
   let finish!: (value: { run: ProjectRun; operation: RunOperation }) => void;
@@ -590,10 +592,10 @@ it.each(['changed', 'unavailable'] as const)('keeps prior release guidance in it
   await screen.findByText(status === 'changed' ? 'Review current context' : 'Context unavailable');
   const next = screen.getByRole('region', { name: 'Project runs' }).querySelector('.project-run-next')!;
   expect(next.textContent).not.toMatch(/Join a matching|accept its outcome|Awaiting release evidence/);
-  expect(next.textContent).toContain('This recorded evidence does not clear the current review.');
+  expect(next.textContent).toContain('This earlier status check does not clear the current review.');
   await userEvent.click(screen.getByText('Reviewed inputs and evidence'));
   expect(screen.getByText('Last recorded guidance: Join a matching observed release next.')).not.toBeNull();
-  expect(screen.getByText('Last recorded observation: Review the application and accept its outcome.')).not.toBeNull();
+  expect(screen.getByText('Last recorded status check: Review the application and accept its outcome.')).not.toBeNull();
 });
 
 it.each(['running', 'dispatching', 'unknown'] as const)('keeps recorded %s coding visible ahead of stale review guidance without dispatch', async status => {
@@ -605,7 +607,7 @@ it.each(['running', 'dispatching', 'unknown'] as const)('keeps recorded %s codin
   const next = screen.getByRole('region', { name: 'Project runs' }).querySelector('.project-run-next')!;
   expect(next.textContent).not.toContain('Awaiting release evidence');
   expect(next.textContent).not.toContain('Join a matching observed release next');
-  expect(within(next as HTMLElement).getAllByRole('button')[0].textContent).toBe('Reconcile run');
+  expect(within(next as HTMLElement).getAllByRole('button')[0].textContent).toBe('Check run status');
   expect(screen.getByRole('button', { name: 'Open coding session' })).not.toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Review current plan' }));
   expect(initial.onReviewPlan).toHaveBeenCalledTimes(1);
@@ -621,7 +623,7 @@ it('retains cancellation and unconfirmed child activity when the plan has change
   expect(screen.getByText(/Coding outcome unconfirmed. Open the coding session/)).not.toBeNull();
   expect(screen.getByText('Future dispatch is cancelled. Running children retain their separate stop controls.')).not.toBeNull();
   expect(screen.getByRole('button', { name: 'Open coding session' })).not.toBeNull();
-  expect(screen.getByRole('button', { name: 'Reconcile run' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Check run status' })).not.toBeNull();
   expect(screen.getByRole('button', { name: 'Review current plan' })).not.toBeNull();
 });
 

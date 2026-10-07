@@ -196,7 +196,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     working.current = true; request.current++; setLoading(false); setBusy(label); setError(''); setNotice('');
     try { await action(); if (changed && alive.current) notifyProjectContextChanged(navigationScope, projectId); }
     catch (cause) {
-      if (alive.current) setError(`${errorText(cause)} Refresh history and reconcile the recorded run before retrying an uncertain operation.`);
+      if (alive.current) setError(`${errorText(cause)} Refresh history, then use Check run status before retrying an uncertain operation.`);
     } finally { working.current = false; if (alive.current) setBusy(''); }
   }
   async function create(selection: CreateSessionRequest) {
@@ -252,7 +252,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
   async function continueCoding() {
     if (!run || !allowed('continue-coding')) return;
     const reserved = run.operations.filter(item => item.kind === 'session' && item.status === 'reserved');
-    if (reserved.length !== 1) throw new Error('The reserved operation is ambiguous. Reconcile this run before continuing.');
+    if (reserved.length !== 1) throw new Error('The reserved operation is ambiguous. Use Check run status before continuing.');
     await dispatch(run, reserved[0]);
   }
   async function openSession() {
@@ -350,11 +350,11 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     if (!allowed(kind)) return;
     if (kind === 'start-coding') void operate('Starting coding', startCoding);
     else if (kind === 'continue-coding') void operate('Continuing reserved coding', continueCoding);
-    else if (kind === 'reconcile') void operate('Reconciling run', async () => { remember(await projectRunsApi.reconcile(projectId, run.id, run.revision)); if (alive.current) setDispatchUncertain(false); });
+    else if (kind === 'reconcile') void operate('Checking run status', async () => { remember(await projectRunsApi.reconcile(projectId, run.id, run.revision)); if (alive.current) setDispatchUncertain(false); });
     else if (kind === 'join-check' || kind === 'join-release') void operate('Reading available evidence', () => chooseEvidence(kind), false);
     else if (kind === 'accept' || kind === 'cancel') { setAccepted(false); setDialog(kind); }
   }
-  const actionLabel: Record<string, string> = { 'review-decisions': run?.codingBlocker?.kind === 'question' ? 'Review blocking question' : 'Check project decisions', 'review-plan': 'Review current plan', verify: 'Verify this build', deploy: run?.input.outcome === 'publish' ? 'Prepare deployment' : 'Preview this build', 'start-coding': 'Start coding', 'continue-coding': 'Continue reserved coding', 'join-check': 'Select check evidence', 'join-release': 'Select release evidence', reconcile: 'Reconcile run', accept: 'Review and accept outcome', cancel: 'Cancel run' };
+  const actionLabel: Record<string, string> = { 'review-decisions': run?.codingBlocker?.kind === 'question' ? 'Review blocking question' : 'Check project decisions', 'review-plan': 'Review current plan', verify: 'Verify this build', deploy: run?.input.outcome === 'publish' ? 'Prepare deployment' : 'Preview this build', 'start-coding': 'Start coding', 'continue-coding': 'Continue reserved coding', 'join-check': 'Select check evidence', 'join-release': 'Select release evidence', reconcile: 'Check run status', accept: 'Review and accept outcome', cancel: 'Cancel run' };
   if (!canRead) return <section className="project-runs" aria-label="Project runs"><p role="status">{access.message}</p></section>;
   return <section ref={region} tabIndex={-1} className="project-runs" aria-label="Project runs" aria-busy={!!busy || loading}>
     <div className="project-runs-heading"><h2>Project run</h2><Button variant="tertiary" disabled={!!busy || loading} onClick={() => void load()}>{loading ? 'Reading history…' : 'Refresh history'}</Button></div>
@@ -363,23 +363,24 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     {notice && <p role="status" className="journey-muted">{notice}</p>}
     {!run ? <><p className="journey-muted">Keep reviewed tasks, coding, checks and a verified release together. Creating a run saves its inputs; each next operation remains your choice.</p><Button variant="secondary" onClick={onReviewPlan}>Review implementation plan</Button></> : <>
       <div className="project-run-next"><strong>{runLabel(run)}</strong><span>{run.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span>{!codingBlocked(run) && <p>{run.reason}</p>}
-        {!!recordedCodingActivity(run) && <p className="journey-muted">{recordedCodingActivity(run)}. Open the coding session or reconcile the run to inspect its current outcome.</p>}
+        {!!recordedCodingActivity(run) && <p className="journey-muted">{recordedCodingActivity(run)}. Open the coding session or use Check run status for a fresh status update.</p>}
         {run.codingBlocker && <p className="journey-warning">{run.codingBlocker.reason}</p>}
         {run.contextFreshness && <p className={contextNeedsReview(run) ? 'journey-warning' : 'journey-muted'}>{contextNeedsReview(run) && <strong>{run.contextFreshness.status === 'unavailable' ? 'Reviewed context unavailable. ' : 'Reviewed context changed. '}</strong>}{run.contextFreshness.reason}</p>}
         {run.acceptance && <p>Accepted {when(run.acceptance.acceptedAt)}. This historical acceptance is retained separately from current validity.</p>}
-        {run.observation ? <p className={run.observation.valid ? 'journey-muted' : 'journey-warning'}>{run.observation.valid ? 'Last observation valid' : 'Current evidence needs attention'} · {when(run.observation.observedAt)}.{codingBlocked(run) && <> This recorded evidence does not clear the current review.</>}{!codingBlocked(run) && (!run.acceptance || !run.observation.valid) && run.observation.reason !== run.reason && <> {run.observation.reason}</>}</p> : <p className="journey-muted">No observation recorded yet. Refreshing history does not run or reconcile operations.</p>}
+        {run.observation ? <p className={run.observation.valid ? 'journey-muted' : 'journey-warning'}>{run.observation.valid ? 'Last run status check recorded' : 'Last run status check needs attention'} · {when(run.observation.observedAt)}.{codingBlocked(run) && <> This earlier status check does not clear the current review.</>}{!codingBlocked(run) && (!run.acceptance || !run.observation.valid) && run.observation.reason !== run.reason && <> {run.observation.reason}</>}</p> : <p className="journey-muted">No run status check recorded yet. Saved test and release evidence is shown separately below.</p>}
         <div className="journey-actions">
           {primary && <Button disabled={!!busy || loading || (['verify', 'deploy', 'review-decisions'].includes(primary) && !navigationScope)} onClick={() => action(primary)}>{busy || actionLabel[primary]}</Button>}
           {run.codingBlocker && primary !== 'review-decisions' && <Button variant="secondary" disabled={!!busy || loading || !navigationScope} onClick={() => action('review-decisions')}>{actionLabel['review-decisions']}</Button>}
           {contextNeedsReview(run) && primary !== 'review-plan' && <Button variant="secondary" disabled={!!busy || loading} onClick={onReviewPlan}>Review current plan</Button>}
           {!!run.operations.length && <Button variant="secondary" disabled={!canRead || !!busy} onClick={() => void operate('Opening coding session', openSession, false)}>Open coding session</Button>}
-          {allowed('reconcile') && primary !== 'reconcile' && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('reconcile')}>Reconcile run</Button>}
+          {allowed('reconcile') && primary !== 'reconcile' && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('reconcile')}>Check run status</Button>}
           {run.state === 'awaiting-checks' && allowed('start-coding') && <Button variant="secondary" disabled={!!busy || loading} onClick={() => action('start-coding')}>Start another coding attempt</Button>}
           {allowed('join-release') && primary !== 'join-release' && <Button variant="tertiary" disabled={!!busy || loading} onClick={() => action('join-release')}>Select release evidence</Button>}
           {allowed('join-check') && <Button variant="tertiary" disabled={!!busy || loading} onClick={() => action('join-check')}>Select check evidence</Button>}
         </div>
+        <p className="journey-muted">Refresh history reloads saved records. Check run status inspects existing work and records an updated status. It starts no coding session, project test run or deployment.</p>
         {run.state === 'awaiting-checks' && <p className="journey-muted">{codingBlocked(run) ? `This run retains its previous coding and evidence. Review ${run.codingBlocker ? 'the project decisions' : 'the current plan'} before continuing this run.` : 'Verify this build to review its saved criteria, run checks, and use matching results. If a check fails, inspect its output and start another coding attempt to repair the implementation.'} A CLI exit or task marked Done does not complete this run.</p>}
-        {allowed('continue-coding') && <p className="journey-muted">A coding operation was reserved before dispatch. Continue uses that same child identity; it does not reserve another attempt. Reconcile first if its result is uncertain.</p>}
+        {allowed('continue-coding') && <p className="journey-muted">A coding operation was reserved before dispatch. Continue uses that same child identity; it does not reserve another attempt. Use Check run status first if its result is uncertain.</p>}
         {run.state === 'cancelled' && <p className="journey-muted">Future dispatch is cancelled. Running children retain their separate stop controls.</p>}
       </div>
       <PlanComparison key={`${run.id}:${run.revision}`} projectId={projectId} run={run} />
@@ -387,7 +388,7 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
         {codingBlocked(run) && <>
           <p>Last recorded stage: {labels[run.state] || run.state}</p>
           <p>{run.state === 'ready' ? 'Recorded when prepared: ' : 'Last recorded guidance: '}{run.reason}</p>
-          {run.observation && (!run.acceptance || !run.observation.valid) && run.observation.reason !== run.reason && <p>Last recorded observation: {run.observation.reason}</p>}
+          {run.observation && (!run.acceptance || !run.observation.valid) && run.observation.reason !== run.reason && <p>Last recorded status check: {run.observation.reason}</p>}
         </>}
         <p>{run.input.implementation.taskTitles.join('; ')}</p><p>Brief {run.input.implementation.briefRevision} · Plan {run.input.implementation.planRevision} · Definition {run.input.implementation.specificationRevision} · Design {run.input.implementation.designPlanRevision}</p>
         <p>{run.input.route.harness} · {run.input.route.model} · {run.input.route.connection.id || 'Direct agent settings'} · connection revision {run.input.route.connection.revision}</p>
