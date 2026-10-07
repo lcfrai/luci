@@ -4,7 +4,8 @@
 .team-workspace-control select { min-width: 0; width: 100%; }
 .team-panel { display: grid; gap: 1rem; }
 .team-panel label, .team-entry label { display: grid; gap: .35rem; }
-.team-panel input, .team-panel select, .team-entry select, .team-workspace-control select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line-soft); border-radius: .4rem; padding: .55rem; }
+.team-panel input, .team-panel select, .team-entry input, .team-entry select, .team-workspace-control select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line-soft); border-radius: .4rem; padding: .55rem; }
+.team-entry input { box-sizing: border-box; min-width: 0; width: 100%; }
 .team-panel fieldset { border: 1px solid var(--line-soft); border-radius: .5rem; padding: 1rem; }
 .team-grants { display: flex; flex-wrap: wrap; gap: .8rem; }
 .team-grants label { display: flex; align-items: center; gap: .35rem; }

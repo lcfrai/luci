@@ -162,6 +162,152 @@ it("never performs background health mutations for a viewer", async () => {
 });
 
 const browserGrant = `http://${"a".repeat(32)}.${"a".repeat(32)}.localhost:8731/.well-known/luci-team-access?ticket=${"b".repeat(64)}`;
+it("keeps newer ready history and the exact open preview when an older history response arrives", async () => {
+  let finishOlder!: (value: { releases: Release[] }) => void;
+  vi.mocked(productApi.releases).mockResolvedValueOnce({ releases: [] })
+    .mockImplementationOnce(() => new Promise(resolve => { finishOlder = resolve; }))
+    .mockResolvedValue({ releases: [release] });
+  const grant = vi.spyOn(browserAccess, "prepareBrowserAccess").mockResolvedValue(browserGrant);
+  render(<ProjectDeploy projectId="p-1" />);
+  await screen.findByText("No releases yet. Your first preview will appear here.");
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Open preview" }));
+  const frame = await screen.findByTitle("Project preview");
+  await act(async () => finishOlder({ releases: [{ ...release, status: "unknown", message: "Older observation" }] }));
+  expect(screen.queryByText("Older observation")).toBeNull();
+  expect(screen.getByText("Preview health passed")).not.toBeNull();
+  expect(screen.getByTitle("Project preview")).toBe(frame);
+  expect(frame.getAttribute("src")).toBe(browserGrant);
+  expect(grant).toHaveBeenCalledTimes(1);
+});
+
+it.each(["success", "error"])("keeps the newest history read loading when an older read finishes with %s", async outcome => {
+  let finishOlder!: (value: { releases: Release[] }) => void;
+  let failOlder!: (cause: Error) => void;
+  let finishNewer!: (value: { releases: Release[] }) => void;
+  vi.mocked(productApi.releases)
+    .mockImplementationOnce(() => new Promise((resolve, reject) => { finishOlder = resolve; failOlder = reject; }))
+    .mockImplementationOnce(() => new Promise(resolve => { finishNewer = resolve; }));
+  render(<ProjectDeploy projectId="p-1" />);
+  expect(screen.getByText("Loading release history…")).not.toBeNull();
+  expect(screen.queryByText("No releases yet. Your first preview will appear here.")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await act(async () => {
+    if (outcome === "success") finishOlder({ releases: [] });
+    else failOlder(new Error("Older history unavailable"));
+  });
+  expect(screen.getByText("Loading release history…")).not.toBeNull();
+  expect(screen.queryByText("No releases yet. Your first preview will appear here.")).toBeNull();
+  expect(screen.queryByText("Older history unavailable")).toBeNull();
+  await act(async () => finishNewer({ releases: [release] }));
+  expect(screen.queryByText("Loading release history…")).toBeNull();
+  expect(screen.getByText("Preview health passed")).not.toBeNull();
+});
+
+it("ignores stale history errors but shows the latest error and permits an explicit retry without reloading the preview", async () => {
+  let failOlder!: (cause: Error) => void;
+  vi.mocked(productApi.releases).mockResolvedValueOnce({ releases: [release] })
+    .mockImplementationOnce(() => new Promise((_resolve, reject) => { failOlder = reject; }))
+    .mockResolvedValueOnce({ releases: [release] })
+    .mockRejectedValueOnce(new Error("Current history unavailable"))
+    .mockResolvedValue({ releases: [release] });
+  const grant = vi.spyOn(browserAccess, "prepareBrowserAccess").mockResolvedValue(browserGrant);
+  render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Open preview" }));
+  const frame = await screen.findByTitle("Project preview");
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(screen.getByText("Refreshing release history…")).not.toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await act(async () => failOlder(new Error("Older history unavailable")));
+  expect(screen.queryByText("Older history unavailable")).toBeNull();
+  expect(screen.queryByText("Refreshing release history…")).toBeNull();
+  expect(screen.getByTitle("Project preview")).toBe(frame);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect((await screen.findByRole("alert")).textContent).toBe("Current history unavailable");
+  expect(screen.getByTitle("Project preview")).toBe(frame);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByTitle("Project preview")).toBe(frame);
+  expect(grant).toHaveBeenCalledTimes(1);
+});
+
+it.each(["removed", "unavailable"])("closes the preview for the latest confirmed %s history and ignores an older ready response", async outcome => {
+  let finishOlder!: (value: { releases: Release[] }) => void;
+  vi.mocked(productApi.releases).mockResolvedValueOnce({ releases: [release] })
+    .mockImplementationOnce(() => new Promise(resolve => { finishOlder = resolve; }))
+    .mockResolvedValue({ releases: outcome === "removed" ? [] : [{ ...release, status: "unknown", message: "Current preview unavailable" }] });
+  vi.spyOn(browserAccess, "prepareBrowserAccess").mockResolvedValue(browserGrant);
+  render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Open preview" }));
+  const frame = await screen.findByTitle("Project preview");
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await waitFor(() => expect(screen.queryByTitle("Project preview")).toBeNull());
+  expect(frame.isConnected).toBe(false);
+  await act(async () => finishOlder({ releases: [release] }));
+  expect(screen.queryByTitle("Project preview")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Open preview" })).toBeNull();
+  expect(screen.getByText(outcome === "removed" ? "No releases yet. Your first preview will appear here." : "Current preview unavailable")).not.toBeNull();
+});
+
+it("lets slow busy polling finish and lets the final operation read supersede its older poll", async () => {
+  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+  let finishBuild!: (value: Release) => void;
+  let finishPoll!: (value: { releases: Release[] }) => void;
+  let finishOlderPoll!: (value: { releases: Release[] }) => void;
+  vi.mocked(productApi.release).mockImplementationOnce(() => new Promise(resolve => { finishBuild = resolve; }));
+  vi.mocked(productApi.releases).mockResolvedValueOnce({ releases: [] })
+    .mockImplementationOnce(() => new Promise(resolve => { finishPoll = resolve; }))
+    .mockImplementationOnce(() => new Promise(resolve => { finishOlderPoll = resolve; }))
+    .mockResolvedValue({ releases: [release] });
+  render(<ProjectDeploy projectId="p-1" />);
+  await screen.findByText("No releases yet. Your first preview will appear here.");
+  await userEvent.click(screen.getByRole("button", { name: "Build local preview" }));
+  await act(async () => { await vi.advanceTimersByTimeAsync(12000); });
+  expect(productApi.releases).toHaveBeenCalledTimes(2);
+  await act(async () => finishPoll({ releases: [{ ...release, status: "building", message: "Build still running" }] }));
+  expect(screen.getByText("Build still running")).not.toBeNull();
+  await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
+  expect(productApi.releases).toHaveBeenCalledTimes(3);
+  await act(async () => finishBuild(release));
+  expect(productApi.releases).toHaveBeenCalledTimes(4);
+  expect(screen.getByText("Preview health passed")).not.toBeNull();
+  expect((screen.getByRole("button", { name: "Build local preview" }) as HTMLButtonElement).disabled).toBe(false);
+  await act(async () => finishOlderPoll({ releases: [] }));
+  expect(screen.getByText("Preview health passed")).not.toBeNull();
+  expect(screen.queryByText("Refreshing release history…")).toBeNull();
+});
+
+it("does not replace an operation failure with the result of its history refresh", async () => {
+  vi.mocked(productApi.release).mockRejectedValueOnce(new Error("Build could not start"));
+  render(<ProjectDeploy projectId="p-1" />);
+  await screen.findByText("No releases yet. Your first preview will appear here.");
+  await userEvent.click(screen.getByRole("button", { name: "Build local preview" }));
+  expect((await screen.findByRole("alert")).textContent).toBe("Build could not start");
+  expect(productApi.releases).toHaveBeenCalledTimes(2);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(screen.getByRole("alert").textContent).toBe("Build could not start");
+});
+
+it("fences delayed history success and error after changing workspace", async () => {
+  let finishOlder!: (value: { releases: Release[] }) => void;
+  let failOlder!: (cause: Error) => void;
+  vi.mocked(productApi.releases)
+    .mockImplementationOnce(() => new Promise(resolve => { finishOlder = resolve; }))
+    .mockImplementationOnce(() => new Promise((_resolve, reject) => { failOlder = reject; }))
+    .mockResolvedValue({ releases: [] });
+  const view = render(<ProjectDeploy projectId="p-1" />);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  identity.scope = "different-workspace";
+  view.rerender(<ProjectDeploy projectId="p-1" />);
+  await screen.findByText("No releases yet. Your first preview will appear here.");
+  await act(async () => { finishOlder({ releases: [release] }); failOlder(new Error("Other workspace history unavailable")); });
+  expect(screen.queryByText("Preview health passed")).toBeNull();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(screen.getByText("No releases yet. Your first preview will appear here.")).not.toBeNull();
+});
+
 it("retains the exact open preview and its browser grant through a pending same-project permission refresh", async () => {
   vi.mocked(productApi.releases).mockResolvedValue({ releases: [release] });
   const grant = vi.spyOn(browserAccess, "prepareBrowserAccess").mockResolvedValue(browserGrant);

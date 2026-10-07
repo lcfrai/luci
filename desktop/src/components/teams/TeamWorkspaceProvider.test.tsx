@@ -2,14 +2,16 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TeamWorkspaceProvider, useTeamProjectPermissions, useTeamWorkspace } from './TeamWorkspaceProvider';
-import { teamsApi, noPermissions, personalPermissions, type ProjectAccess, type TeamSummary } from '../../api/teams';
+import { teamsApi, noPermissions, personalPermissions, type ProjectAccess, type TeamDetail, type TeamSummary } from '../../api/teams';
+import { teamInvitationsApi } from '../../api/teamInvitations';
 import { productApi } from '../../api/product';
 import { ApiError } from '../../api/client';
 import { selectedTeamId, selectTeamScope } from '../../api/teamScope';
 import { detachAllTerminals } from '../../api/attachRegistry';
 import { resetCockpit, useCockpit } from '../../store/store';
 
-vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ profile: { user: { id: 'alice' } } }) }));
+const auth = vi.hoisted(() => ({ userId: 'alice', logout: vi.fn() }));
+vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ profile: { user: { id: auth.userId } }, logout: auth.logout }) }));
 vi.mock('../../api/attachRegistry', () => ({ detachAllTerminals: vi.fn() }));
 const teamA = 'team-abcdefghijklmnopqrstuv';
 const teamB = 'team-bcdefghijklmnopqrstuvw';
@@ -49,6 +51,7 @@ const permissions = () => JSON.parse(screen.getByTestId('access').textContent!);
 const renderWorkspace = (projectId = 'project-a') => render(<TeamWorkspaceProvider><Probe projectId={projectId} /></TeamWorkspaceProvider>);
 
 beforeEach(() => {
+  auth.userId = 'alice'; auth.logout.mockReset().mockResolvedValue(undefined);
   selectTeamScope(''); localStorage.clear(); resetCockpit();
   vi.mocked(detachAllTerminals).mockClear();
   vi.spyOn(teamsApi, 'list').mockResolvedValue({ teams: [summary(), summary(teamB)] });
@@ -92,6 +95,137 @@ it('blocks an account outside the managed team without offering personal fallbac
   expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
   expect(screen.queryByRole('combobox', { name: 'Workspace' })).toBeNull();
   expect(teamsApi.projectAccess).toHaveBeenCalledWith(teamA, 'project-a');
+});
+
+it('lets an existing nonmember join the bound managed team only after membership is refreshed', async () => {
+  const accepted = deferred<TeamDetail>();
+  const membership = deferred<{ teams: TeamSummary[]; managedTeamId: string }>();
+  vi.mocked(teamsApi.list).mockResolvedValueOnce({ teams: [], managedTeamId: teamA }).mockReturnValueOnce(membership.promise);
+  const accept = vi.spyOn(teamInvitationsApi, 'accept').mockReturnValue(accepted.promise);
+  renderWorkspace();
+  const code = await screen.findByLabelText('Team invitation code');
+  expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
+  await userEvent.type(code, 'private-managed-invitation');
+  await userEvent.dblClick(screen.getByRole('button', { name: 'Join team' }));
+  expect(accept).toHaveBeenCalledExactlyOnceWith('private-managed-invitation');
+  expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
+  await act(async () => accepted.resolve({ ...summary(), members: [], executionBoundary: 'dedicated-team' }));
+  expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
+  expect(selectedTeamId()).toBe(teamA);
+  await act(async () => membership.resolve({ teams: [summary()], managedTeamId: teamA }));
+  expect(await screen.findByRole('region', { name: 'Workspace content' })).toBeTruthy();
+  expect(screen.queryByLabelText('Team invitation code')).toBeNull();
+  expect(selectedTeamId()).toBe(teamA);
+});
+
+it('keeps an accepted invitation blocked when fresh membership is absent and retries reads without resubmitting its code', async () => {
+  vi.mocked(teamsApi.list).mockResolvedValue({ teams: [], managedTeamId: teamA });
+  const accept = vi.spyOn(teamInvitationsApi, 'accept').mockResolvedValue({ ...summary(), members: [], executionBoundary: 'dedicated-team' });
+  renderWorkspace();
+  await userEvent.type(await screen.findByLabelText('Team invitation code'), 'accepted-before-revocation');
+  await userEvent.click(screen.getByRole('button', { name: 'Join team' }));
+  await screen.findByText(/You joined Atlas/);
+  expect(screen.getByRole('alert').textContent).toContain('You no longer have access');
+  expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
+  expect(selectedTeamId()).toBe(teamA);
+  vi.mocked(teamsApi.list).mockResolvedValueOnce({ teams: [summary()], managedTeamId: teamA });
+  await userEvent.click(screen.getByRole('button', { name: 'Retry connection' }));
+  expect(await screen.findByRole('region', { name: 'Workspace content' })).toBeTruthy();
+  expect(accept).toHaveBeenCalledTimes(1);
+});
+
+it('rejects a wrong-team invitation response without switching, refreshing membership or consuming the entry form', async () => {
+  vi.mocked(teamsApi.list).mockResolvedValue({ teams: [], managedTeamId: teamA });
+  const accept = vi.spyOn(teamInvitationsApi, 'accept').mockResolvedValue({ ...summary(teamB), members: [], executionBoundary: 'dedicated-team' });
+  renderWorkspace();
+  await userEvent.type(await screen.findByLabelText('Team invitation code'), 'wrong-team-code');
+  await userEvent.click(screen.getByRole('button', { name: 'Join team' }));
+  await screen.findByText('This invitation belongs to another team. Ask an owner of this managed workspace for its invitation.');
+  expect(teamsApi.list).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText(/You joined/)).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
+  expect(screen.getByLabelText('Team invitation code')).toHaveProperty('value', 'wrong-team-code');
+  expect(screen.getByRole('button', { name: 'Join team' })).toHaveProperty('disabled', false);
+  expect(selectedTeamId()).toBe(teamA);
+  expect(accept).toHaveBeenCalledTimes(1);
+});
+
+it('does not expose an invitation for an unconfirmed managed binding after the initial lookup fails', async () => {
+  remembered(teamA);
+  vi.mocked(teamsApi.list).mockRejectedValueOnce(new Error('Workspace connection interrupted'));
+  renderWorkspace();
+  await screen.findByRole('alert');
+  expect(screen.queryByLabelText('Team invitation code')).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Sign out to use another account' }));
+  expect(auth.logout).toHaveBeenCalledTimes(1);
+});
+
+it.each(['account', 'installation'])('clears an entered invitation and fences late acceptance when the %s changes', async change => {
+  const accepted = deferred<TeamDetail>();
+  vi.mocked(teamsApi.list).mockResolvedValue({ teams: [], managedTeamId: teamA });
+  vi.spyOn(teamInvitationsApi, 'accept').mockReturnValue(accepted.promise);
+  const view = renderWorkspace();
+  await userEvent.type(await screen.findByLabelText('Team invitation code'), 'private-alice-code');
+  await userEvent.click(screen.getByRole('button', { name: 'Join team' }));
+  if (change === 'account') auth.userId = 'bob';
+  else vi.spyOn(productApi, 'baseUrl', 'get').mockReturnValue('https://another.example');
+  view.rerender(<TeamWorkspaceProvider><Probe /></TeamWorkspaceProvider>);
+  expect(await screen.findByLabelText('Team invitation code')).toHaveProperty('value', '');
+  const reads = vi.mocked(teamsApi.list).mock.calls.length;
+  await act(async () => accepted.resolve({ ...summary(), members: [], executionBoundary: 'dedicated-team' }));
+  expect(teamsApi.list).toHaveBeenCalledTimes(reads);
+  expect(screen.queryByText(/You joined/)).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
+});
+
+it('ignores the old account membership refresh after an accepted invitation when the account changes', async () => {
+  const membership = deferred<{ teams: TeamSummary[]; managedTeamId: string }>();
+  vi.mocked(teamsApi.list).mockResolvedValue({ teams: [], managedTeamId: teamA }).mockResolvedValueOnce({ teams: [], managedTeamId: teamA }).mockReturnValueOnce(membership.promise);
+  vi.spyOn(teamInvitationsApi, 'accept').mockResolvedValue({ ...summary(), members: [], executionBoundary: 'dedicated-team' });
+  const view = renderWorkspace();
+  await userEvent.type(await screen.findByLabelText('Team invitation code'), 'accepted-alice-code');
+  await userEvent.click(screen.getByRole('button', { name: 'Join team' }));
+  await screen.findByText(/You joined Atlas/);
+  auth.userId = 'bob';
+  view.rerender(<TeamWorkspaceProvider><Probe /></TeamWorkspaceProvider>);
+  await screen.findByLabelText('Team invitation code');
+  await act(async () => membership.resolve({ teams: [summary()], managedTeamId: teamA }));
+  expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
+  expect(screen.getByLabelText('Team invitation code')).toHaveProperty('value', '');
+});
+
+it('fences an accepted invitation refresh after a newer read confirms membership removal', async () => {
+  const membership = deferred<{ teams: TeamSummary[]; managedTeamId: string }>();
+  vi.mocked(teamsApi.list).mockResolvedValue({ teams: [], managedTeamId: teamA }).mockResolvedValueOnce({ teams: [], managedTeamId: teamA }).mockReturnValueOnce(membership.promise);
+  vi.spyOn(teamInvitationsApi, 'accept').mockResolvedValue({ ...summary(), members: [], executionBoundary: 'dedicated-team' });
+  renderWorkspace();
+  await userEvent.type(await screen.findByLabelText('Team invitation code'), 'accepted-before-newer-read');
+  await userEvent.click(screen.getByRole('button', { name: 'Join team' }));
+  await screen.findByText(/You joined Atlas/);
+  await userEvent.click(screen.getByRole('button', { name: 'Retry connection' }));
+  await screen.findByText(/You no longer have access to this team/);
+  await act(async () => membership.resolve({ teams: [summary()], managedTeamId: teamA }));
+  expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
+  expect(selectedTeamId()).toBe(teamA);
+});
+
+it('clears invitation input and fences a late acceptance while signing out from blocked entry', async () => {
+  const accepted = deferred<TeamDetail>();
+  const logout = deferred<void>();
+  auth.logout.mockReturnValue(logout.promise);
+  vi.mocked(teamsApi.list).mockResolvedValue({ teams: [], managedTeamId: teamA });
+  vi.spyOn(teamInvitationsApi, 'accept').mockReturnValue(accepted.promise);
+  renderWorkspace();
+  await userEvent.type(await screen.findByLabelText('Team invitation code'), 'private-code-before-sign-out');
+  await userEvent.click(screen.getByRole('button', { name: 'Join team' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Sign out to use another account' }));
+  expect(screen.queryByLabelText('Team invitation code')).toBeNull();
+  expect(auth.logout).toHaveBeenCalledTimes(1);
+  await act(async () => accepted.resolve({ ...summary(), members: [], executionBoundary: 'dedicated-team' }));
+  expect(teamsApi.list).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole('region', { name: 'Workspace content' })).toBeNull();
+  await act(async () => logout.resolve());
 });
 
 it('retries the complete initial load and restores the remembered team after a connection failure', async () => {

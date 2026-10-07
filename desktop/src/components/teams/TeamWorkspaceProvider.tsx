@@ -7,6 +7,7 @@ import { teamWorkspaceStorageKey } from '../../api/teamWorkspacePreference';
 import { detachAllTerminals } from '../../api/attachRegistry';
 import { resetCockpit, useCockpit } from '../../store/store';
 import { useAuth } from '../auth/AuthProvider';
+import { JoinTeamInvitation } from './TeamInvitations';
 import { WorkflowDialog } from '../common/WorkflowDialog';
 import { Button } from '../fluid/components/button';
 import './teams.css';
@@ -20,6 +21,12 @@ export function TeamWorkspaceProvider({children}: {children:ReactNode}) {
   const auth = useAuth();
   const userId = auth?.profile.user.id ?? '';
   const storageKey = teamWorkspaceStorageKey(productApi.baseUrl,userId);
+  // Account and installation changes discard private invitation input as well as
+  // old membership requests before either can affect the next workspace.
+  return <ScopedTeamWorkspaceProvider key={storageKey} auth={auth} storageKey={storageKey}>{children}</ScopedTeamWorkspaceProvider>;
+}
+function ScopedTeamWorkspaceProvider({children,auth,storageKey}: {children:ReactNode;auth:ReturnType<typeof useAuth>;storageKey:string}) {
+  const userId = auth?.profile.user.id ?? '';
   const [teams,setTeams] = useState<TeamSummary[]>([]);
   const [selected,setSelected] = useState('');
   const [managedTeamId,setManagedTeamId] = useState('');
@@ -30,6 +37,8 @@ export function TeamWorkspaceProvider({children}: {children:ReactNode}) {
   const [epoch,setEpoch] = useState(0);
   const [revision,setRevision] = useState(0);
   const [pending,setPending] = useState<string|null>(null);
+  const [signingOut,setSigningOut] = useState(false);
+  const [signOutError,setSignOutError] = useState('');
   const request = useRef(0);
   const active = useRef('');
   const drafts = useCockpit(s=>s.unsavedProjectDrafts);
@@ -94,6 +103,11 @@ export function TeamWorkspaceProvider({children}: {children:ReactNode}) {
     {(!ready||blocked)&&<main className="team-entry">
       <h1>{error?'Workspace unavailable':'Opening your workspace…'}</h1>
       {error&&<><p role="alert">{error}</p><Button onClick={()=>{if(!ready)setRetry(v=>v+1);else void refresh().catch(()=>{});}}>Retry connection</Button>{ready&&!managedTeamId&&<label>Workspace<select value={selected} onChange={event=>select(event.target.value)}><option value="">Personal workspace</option>{!teams.some(row=>row.team.id===selected)&&selected&&<option value={selected} disabled>Unavailable team</option>}{teams.map(row=><option key={row.team.id} value={row.team.id}>{row.team.name}</option>)}</select></label>}</>}
+      {ready&&blocked&&managedTeamId===selected&&managedTeamId&&!signingOut&&<JoinTeamInvitation key={JSON.stringify([storageKey,managedTeamId])} expectedTeamId={managedTeamId} onJoined={async()=>{await refresh();}} />}
+      {auth&&<><p>Signed in as {auth.profile.user.displayName||auth.profile.user.username||userId}.</p><Button variant="secondary" disabled={signingOut} onClick={()=>{
+        setSigningOut(true);setSignOutError('');request.current++;
+        void auth.logout().catch(cause=>setSignOutError(errorText(cause))).finally(()=>setSigningOut(false));
+      }}>Sign out to use another account</Button>{signOutError&&<p role="alert">{signOutError}</p>}</>}
     </main>}
     {pending!==null&&<WorkflowDialog title="Switch workspace?" description={localSetup?'Your project has unsaved edits. Continue editing here, keep any retained browser drafts, or discard the edits before switching.':'Your project has unsaved edits. Save them before leaving, keep the retained browser drafts, or discard them.'} onClose={()=>setPending(null)}>
       <div className="workflow-actions"><Button variant="secondary" onClick={()=>{Object.values(drafts).forEach(draft=>draft.discard?.());apply(pending);}}>Discard edits and switch</Button>{retained&&<Button variant="secondary" onClick={()=>apply(pending)}>Keep drafts and switch</Button>}<Button onClick={()=>setPending(null)}>Stay here</Button></div>

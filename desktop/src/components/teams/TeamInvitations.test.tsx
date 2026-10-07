@@ -27,6 +27,7 @@ it("creates explicit team capabilities and exposes a one-time code only until hi
   await userEvent.click(screen.getByLabelText("Run agents and checks"));
   await userEvent.click(screen.getByRole("button", { name: "Create team invitation" }));
   expect((await screen.findByLabelText("New team invitation code")).textContent).toBe(created.inviteCode);
+  expect(screen.getByText(/existing accounts use Join with invitation/).textContent).toContain('managed workspace access screen');
   expect(teamInvitationsApi.create).toHaveBeenCalledExactlyOnceWith(team.id, 2, "editor", { ...emptyGrants, execute: true });
   expect(input.onChange).toHaveBeenCalledTimes(1);
   expect(JSON.stringify(localStorage)).not.toContain(created.inviteCode);
@@ -109,4 +110,18 @@ it("retains an unsuccessful join code for correction without claiming membership
   await screen.findByRole("alert");
   expect((screen.getByLabelText("Team invitation code") as HTMLInputElement).value).toBe("old-code");
   expect(onJoined).not.toHaveBeenCalled();
+});
+
+it("clears the code and ignores acceptance when the required managed team changes", async () => {
+  let complete!: (value: TeamDetail) => void;
+  vi.spyOn(teamInvitationsApi, 'accept').mockReturnValue(new Promise(resolve => { complete = resolve; }));
+  const onJoined = vi.fn();
+  const view = render(<JoinTeamInvitation expectedTeamId={team.id} onJoined={onJoined} />);
+  await userEvent.type(screen.getByLabelText('Team invitation code'), 'old-binding-code');
+  await userEvent.click(screen.getByRole('button', { name: 'Join team' }));
+  view.rerender(<JoinTeamInvitation expectedTeamId="team-bbbbbbbbbbbbbbbbbbbbbb" onJoined={onJoined} />);
+  expect(screen.getByLabelText('Team invitation code')).toHaveProperty('value', '');
+  await act(async () => complete({ team, membership, permissions: personalPermissions, members: [], executionBoundary: 'dedicated-team' }));
+  expect(onJoined).not.toHaveBeenCalled();
+  expect(screen.queryByText(/You joined/)).toBeNull();
 });

@@ -14,6 +14,24 @@ none is relabelled as acceptance of the new candidate.
 
 ## Latest continuing checkpoint
 
+The current corrective source batch closes three more observed interface gaps:
+managed-team invitation acceptance for existing accounts, out-of-order deployment
+history that closes a healthy preview, and stale connection refreshes that
+misstate the selected provider. Membership remains authoritative, current
+unavailability still closes previews, and actual current connection errors stay
+visible. The complete frontend suite passes **2,122 cases across 129 files**, with
+TypeScript passing and all 1,466 tracked inputs unchanged during validation.
+All 687 Go inputs still match the earlier passing `9c585ec3` validation. Matching
+installed acceptance for these new controls remains required. Evidence:
+`artifacts/quality-entry-and-refresh/`, `quality-managed-team-invitation/`,
+`quality-deploy-history-ordering/` and `quality-connection-refresh/`.
+
+A second bounded installed9c native diagnostic retains the actual resumed CLI
+sign-in screen before any phase-two provider request. It does not establish why
+the selected connection is lost; controller and CLI propagation are being traced.
+No additional dialog was answered, and independent cleanup confirms zero owned
+resources. The native continuation gate remains failed.
+
 The full product goal remains open. The clean installed `9c585ec3` package
 passes captured-context inspection, phone coding layout and subscription-recovery
 guidance. Its 941 installed files and 346 licence components are independently

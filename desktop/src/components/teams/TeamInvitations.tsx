@@ -78,7 +78,7 @@ function InvitationEditor({ team, membership, onChange }: Props) {
     {created && <div className="team-invitation-code">
       <p>This code is shown only now. Anyone with it can claim the selected team access.</p>
       <output aria-label="New team invitation code">{created.inviteCode}</output>
-      <p>Expires {new Date(created.invitation.expiresAt).toLocaleString()}. New accounts use Create account at sign-in; existing accounts use Join with invitation in Manage teams.</p>
+      <p>Expires {new Date(created.invitation.expiresAt).toLocaleString()}. New accounts use Create account at sign-in; existing accounts use Join with invitation in Manage teams or on the managed workspace access screen.</p>
       <Button variant="secondary" disabled={disabled} onClick={() => { setCreated(null); setNotice("Code hidden. Revoke and replace the invitation if you did not save it."); }}>Hide team invitation code</Button>
     </div>}
     <Button variant="secondary" disabled={disabled} onClick={() => void run(refresh)}>Refresh team invitations</Button>
@@ -97,16 +97,22 @@ function InvitationEditor({ team, membership, onChange }: Props) {
   </section>;
 }
 
-export function JoinTeamInvitation({ onJoined }: { onJoined(team: Team): Promise<void> }) {
-  return <ScopedJoinTeamInvitation key={productApi.baseUrl} onJoined={onJoined} />;
+interface JoinTeamInvitationProps { onJoined(team: Team): Promise<void>; expectedTeamId?: string }
+export function JoinTeamInvitation({ onJoined, expectedTeamId }: JoinTeamInvitationProps) {
+  return <ScopedJoinTeamInvitation key={JSON.stringify([productApi.baseUrl,expectedTeamId])} onJoined={onJoined} expectedTeamId={expectedTeamId} />;
 }
-function ScopedJoinTeamInvitation({ onJoined }: { onJoined(team: Team): Promise<void> }) {
+function ScopedJoinTeamInvitation({ onJoined, expectedTeamId }: JoinTeamInvitationProps) {
   const [code, setCode] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [joined, setJoined] = useState<Team | null>(null);
   const working = useRef(false), alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   return <form className="team-invitations journey-form" onSubmit={event => { event.preventDefault(); if (working.current || joined) return; working.current = true; setBusy(true); setError(""); void (async () => {
-    try { const value = await teamInvitationsApi.accept(code.trim()); if (!alive.current) return; setCode(""); setJoined(value.team); await onJoined(value.team); }
+    try {
+      const value = await teamInvitationsApi.accept(code.trim());
+      if (!alive.current) return;
+      if (expectedTeamId && value.team.id !== expectedTeamId) throw new Error("This invitation belongs to another team. Ask an owner of this managed workspace for its invitation.");
+      setCode(""); setJoined(value.team); await onJoined(value.team);
+    }
     catch (cause) { if (alive.current) setError(errorText(cause)); }
     finally { working.current = false; if (alive.current) setBusy(false); }
   })(); }}>

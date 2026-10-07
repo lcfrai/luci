@@ -1,25 +1,43 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { errorText, productApi, type AgentConnection, type AgentConnectionCatalogue, type ProductClient } from "../api/product";
 
 export const AGENT_CONNECTIONS_CHANGED = "luci:agent-connections-changed";
 
 export function useAgentConnections(client: ProductClient = productApi, enabled = true) {
-  const [catalogue, setCatalogue] = useState<AgentConnectionCatalogue | null>(null);
+  const [catalogue, storeCatalogue] = useState<AgentConnectionCatalogue | null>(null);
   const [error, setError] = useState("");
-  const reload = useCallback(async () => await client.agentConnections(), [client]);
+  const [loading, setLoading] = useState(enabled);
+  const active = useRef(false), request = useRef(0);
+  // A confirmed mutation supersedes every earlier read, including explicit
+  // refreshes. Otherwise a delayed catalogue can misstate the billing account
+  // selected for the next session.
+  const setCatalogue = useCallback((value: AgentConnectionCatalogue) => {
+    ++request.current;
+    if (active.current) { storeCatalogue(value); setLoading(false); }
+  }, []);
+  const reload = useCallback(async () => {
+    const ticket = ++request.current;
+    if (active.current) setLoading(true);
+    try {
+      const value = await client.agentConnections();
+      if (active.current && ticket === request.current) { storeCatalogue(value); setError(""); }
+      return value;
+    } catch (cause) {
+      if (active.current && ticket === request.current) setError(errorText(cause));
+      throw cause;
+    } finally {
+      if (active.current && ticket === request.current) setLoading(false);
+    }
+  }, [client]);
   useEffect(() => {
-    if (!enabled) return;
-    let stopped = false, generation = 0;
-    const update = () => {
-      const ticket = ++generation;
-      void reload().then(value => { if (!stopped && ticket === generation) { setCatalogue(value); setError(""); } })
-        .catch(cause => { if (!stopped && ticket === generation) setError(errorText(cause)); });
-    };
+    active.current = enabled;
+    if (!enabled) { setLoading(false); return; }
+    const update = () => { void reload().catch(() => {}); };
     update();
     window.addEventListener(AGENT_CONNECTIONS_CHANGED, update);
-    return () => { stopped = true; generation++; window.removeEventListener(AGENT_CONNECTIONS_CHANGED, update); };
+    return () => { active.current = false; ++request.current; window.removeEventListener(AGENT_CONNECTIONS_CHANGED, update); };
   }, [reload, enabled]);
-  return { catalogue, setCatalogue, error, setError, reload };
+  return { catalogue, setCatalogue, error, setError, reload, loading };
 }
 
 export function selectedAgentConnection(catalogue: AgentConnectionCatalogue | null, id?: string) {

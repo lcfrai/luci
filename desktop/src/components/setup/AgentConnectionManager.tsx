@@ -6,7 +6,7 @@ import { emptyGatewaySupport, gatewayAgents, gatewayBaseAddress, savedGatewayAdd
 
 const emptyDraft = () => ({ id: "", name: "", kind: "litellm" as AgentConnectionKind, enabled: true, endpoints: {} as AgentConnection["endpoints"], models: {} as AgentConnection["models"] });
 export function AgentConnectionManager({ client }: { client: ProductClient }) {
-  const { catalogue, setCatalogue, error, setError, reload } = useAgentConnections(client);
+  const { catalogue, setCatalogue, error, setError, reload, loading } = useAgentConnections(client);
   const [draft, setDraft] = useState(emptyDraft), [apiKey, setApiKey] = useState(""), [clearKey, setClearKey] = useState(false);
   const [busy, setBusy] = useState(false), [notice, setNotice] = useState("");
   const [gatewayAddress, setGatewayAddress] = useState("");
@@ -45,9 +45,10 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
     working.current = true; setBusy(true); setError(""); setNotice(""); setApiKey("");
     try {
       const value = await client.updateAgentConnection(input);
+      if (alive.current) setCatalogue(value);
       window.dispatchEvent(new Event(AGENT_CONNECTIONS_CHANGED));
       if (!alive.current) return;
-      setCatalogue(value); setClearKey(false); setNotice(success);
+      setClearKey(false); setNotice(success);
       if (input.action === "save" && !draft.id) {
         const added = value.connections.find(item => !entries.some(previous => previous.id === item.id));
         if (added) setDraft({ id: added.id, name: added.name, kind: added.kind, enabled: added.enabled, endpoints: { ...added.endpoints }, models: { ...added.models } });
@@ -75,7 +76,7 @@ export function AgentConnectionManager({ client }: { client: ProductClient }) {
     </fieldset>
     {error && <p className="journey-error" role="alert">{error}</p>}
     {notice && <p className="journey-success" role="status">{notice}</p>}
-    <Button type="button" variant="ghost" disabled={busy} onClick={() => void reload().then(value => { setCatalogue(value); setError(""); }).catch(cause => setError(errorText(cause)))}>Refresh saved connections</Button>
+    <Button type="button" variant="ghost" disabled={busy} loading={loading} onClick={() => void reload().catch(() => {})}>Refresh saved connections</Button>
     <details><summary>Add or edit a connection</summary><form onSubmit={event => {
       event.preventDefault(); if (!catalogue) return;
       const endpoints = subscription ? {} : Object.fromEntries(Object.entries(draft.endpoints).filter(([, value]) => value?.trim()).map(([key, value]) => [key, value!.trim()]));

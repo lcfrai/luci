@@ -131,14 +131,15 @@ missing credentials never turn an untested outcome into a pass. Literal absence
 of every possible future defect cannot be promised, and must not replace concrete
 acceptance evidence.
 
-In the owner's earlier installed environment, the native goal-control API
-reported that an unfinished objective could not be replaced or edited. That is
-a historical observation, not evidence of an available API in this cloud
-session. This cloud session exposes no goal-control API and has not created or
-replaced a native goal. This document and the production roadmap preserve the
-continuing objective. Do not falsely complete the earlier smaller benchmark to
-clear its restriction; the four-phase benchmark remains a required gate within
-this expanded completion contract.
+The platform's 7 October continuation now supplies this full objective as the
+active goal: finish Luci as a fully fledged, polished application with provable
+quality across its supported controls and journeys. The goal remains active
+until the outcomes are demonstrated, or all useful independent work is exhausted
+and a concrete external prerequisite blocks further progress. The available goal
+control can mark the objective complete or blocked; it is not evidence that the
+application has passed any release gate. Earlier observations that this cloud
+session exposed no goal control are historical. Do not close the full objective
+for a smaller benchmark, corrective batch or saved roadmap.
 
 ## Required product outcomes
 
@@ -231,7 +232,5 @@ credentials and resources are prerequisites; absence of them is not a pass.
 Do not hand back the application as fully tested or complete until every required
 outcome has adequate current evidence. Keep implementation checkpoints and
 unverified external prerequisites explicit. Update `FULL-PRODUCT.md` with
-concrete outcomes and evidence as the build advances. The earlier native goal
-record remains historical; its narrower benchmark must not override this
-owner-approved expanded completion standard or imply a live goal-control API in
-the current cloud environment.
+concrete outcomes and evidence as the build advances. The earlier narrower benchmark remains historical; it must not override the
+owner-approved full objective supplied by the current platform goal.

@@ -83,6 +83,9 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
       : !projectAccess.canExecute ? "You can deploy this project. Ask a team owner for execution access to open its private application preview." : "";
   const [releases, setReleases] = useState<Release[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState("");
+  const historyRead = useRef({ generation: 0, pending: false });
   const releaseNodes = useRef(new Map<string, HTMLLIElement>());
   const focusedRelease = useRef<string | undefined>(undefined);
   const [inspectionIssue, setInspectionIssue] = useState("");
@@ -109,18 +112,32 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
     setup?.workspace?.mode === "cloud" &&
     release.target === "local" &&
     release.status === "ready";
-  const refresh = async () => {
-    const value = await productApi.releases(projectId);
-    if (value.releases.some(row => row.projectId !== projectId)) throw new Error("The release history belongs to another project. Refresh this workspace.");
-    if (alive.current) { setReleases(value.releases); setHistoryLoaded(true); }
+  const refresh = async (background = false) => {
+    // Explicit refreshes and completed operations can supersede an older read.
+    // Passive polls must let a slow admitted read finish instead of continually
+    // superseding it. Only the newest admitted read owns history and feedback.
+    if (!alive.current || (background && historyRead.current.pending)) return;
+    const generation = ++historyRead.current.generation;
+    historyRead.current.pending = true;
+    setHistoryLoading(true); setHistoryError("");
+    const current = () => alive.current && historyRead.current.generation === generation;
+    try {
+      const value = await productApi.releases(projectId);
+      if (!current()) return;
+      if (value.releases.some(row => row.projectId !== projectId)) throw new Error("The release history belongs to another project. Refresh this workspace.");
+      setReleases(value.releases); setHistoryLoaded(true);
+    } catch (cause) {
+      if (current()) setHistoryError(errorText(cause));
+    } finally {
+      if (current()) { historyRead.current.pending = false; setHistoryLoading(false); }
+    }
   };
   useEffect(() => {
     alive.current = true;
-    void refresh().catch((cause) => {
-      if (alive.current) setError(errorText(cause));
-    });
+    void refresh();
     return () => {
       alive.current = false;
+      ++historyRead.current.generation;
     };
   }, [projectId]);
   useEffect(() => {
@@ -145,7 +162,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
   useEffect(() => {
     if (!busy) return;
     const timer = setInterval(() => {
-      void refresh().catch(() => {});
+      void refresh(true);
     }, 3000);
     return () => clearInterval(timer);
   }, [busy, projectId]);
@@ -203,11 +220,7 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
     } catch (cause) {
       if (alive.current) setError(errorText(cause));
     } finally {
-      try {
-        if (refreshAfter) await refresh();
-      } catch (cause) {
-        if (alive.current) setError(errorText(cause));
-      }
+      if (refreshAfter) await refresh();
       working.current = false;
       if (alive.current) setBusy("");
     }
@@ -369,16 +382,16 @@ function ScopedProjectDeploy({ projectId, configurationManaged = false, configur
         <Button type="button"
           variant="secondary"
           disabled={locked}
-          onClick={() =>
-            void refresh().catch((cause) => setError(errorText(cause)))
-          }
+          onClick={() => void refresh()}
         >
           Refresh
         </Button>
       </div>
       {inspectionIssue && <p role="alert">{inspectionIssue}</p>}
       <p className="journey-muted">Refreshing history checks retained local previews without restarting them. For a cloud release, use Check deployment health to record a fresh provider observation.</p>
-      {!releases.length && (
+      {historyLoading && <p role="status" className="journey-muted">{historyLoaded ? "Refreshing release history…" : "Loading release history…"}</p>}
+      {historyError && <p role="alert" className="journey-error">{historyError}</p>}
+      {historyLoaded && !historyLoading && !historyError && !releases.length && (
         <p className="journey-muted">
           No releases yet. Your first preview will appear here.
         </p>

@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AgentConnectionManager } from "./AgentConnectionManager";
 import { createProductClient, type AgentConnectionCatalogue, type AgentConnectionMutation } from "../../api/product";
@@ -149,4 +149,55 @@ it("refuses an invalid gateway address without replacing the saved endpoints or 
   await waitFor(() => expect(fetcher.mock.calls.some(call => call[1]?.method === "POST")).toBe(true));
   const input = JSON.parse(fetcher.mock.calls.find(call => call[1]?.method === "POST")![1]?.body as string);
   expect(input.endpoints).toEqual(initial().connections[0].endpoints);
+});
+
+
+it("does not replace a confirmed connection choice with an older manual refresh", async () => {
+  const before = initial();
+  const after = { ...initial(), revision: 5, activeConnectionId: "" };
+  const latest = { ...after, revision: 6, connections: after.connections.map(item => ({ ...item, name: "Updated gateway" })) };
+  let finishRefresh!: (response: Response) => void;
+  const delayed = new Promise<Response>(resolve => { finishRefresh = resolve; });
+  let reads = 0;
+  const fetcher = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    if (init?.method === "POST") return new Response(JSON.stringify(after));
+    reads++;
+    return reads === 2 ? delayed : new Response(JSON.stringify(reads === 1 ? before : latest));
+  });
+  render(<AgentConnectionManager client={createProductClient("http://localhost", fetcher)} />);
+  await screen.findByText(/New sessions use My gateway\./);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh saved connections" }));
+  await waitFor(() => expect(reads).toBe(2));
+  await userEvent.selectOptions(screen.getByLabelText("Active connection"), "");
+  await screen.findByText("Gateway is off. New sessions use your own agent settings.");
+  await within(screen.getByLabelText("Active connection")).findByRole("option", { name: "Updated gateway" });
+  await act(async () => { finishRefresh(new Response(JSON.stringify(before))); await delayed; });
+  expect((screen.getByLabelText("Active connection") as HTMLSelectElement).value).toBe("");
+  expect(screen.getByText(/New sessions use the direct accounts configured below\./)).not.toBeNull();
+});
+
+
+it("ignores a superseded refresh failure but reports a current failure without losing the selected connection", async () => {
+  let rejectRefresh!: (error: Error) => void;
+  const delayed = new Promise<Response>((_resolve, reject) => { rejectRefresh = reject; });
+  const after = { ...initial(), revision: 5, activeConnectionId: "" };
+  let reads = 0;
+  const fetcher = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    if (init?.method === "POST") return new Response(JSON.stringify(after));
+    reads++;
+    if (reads === 2) return delayed;
+    if (reads === 4) throw new Error("Current connection read failed");
+    return new Response(JSON.stringify(reads === 1 ? initial() : after));
+  });
+  render(<AgentConnectionManager client={createProductClient("http://localhost", fetcher)} />);
+  await screen.findByText(/New sessions use My gateway\./);
+  await userEvent.click(screen.getByRole("button", { name: "Refresh saved connections" }));
+  await userEvent.selectOptions(screen.getByLabelText("Active connection"), "");
+  await screen.findByText("Gateway is off. New sessions use your own agent settings.");
+  await waitFor(() => expect(reads).toBe(3));
+  await act(async () => { rejectRefresh(new Error("Superseded read failed")); await delayed.catch(() => {}); });
+  expect(screen.queryByRole("alert")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Refresh saved connections" }));
+  expect((await screen.findByRole("alert")).textContent).toContain("Luci’s local service is not available. Start the service and retry.");
+  expect((screen.getByLabelText("Active connection") as HTMLSelectElement).value).toBe("");
 });
