@@ -1,9 +1,12 @@
 import { productApi, type Brief, type ImplementationPlan } from "./product";
 import type { ProjectSpecification } from "./definition";
 import type { DesignPlan } from "./designPlan";
+import type { ProjectRun } from "./projectRuns";
 
 export interface OrchestratorRunSummary {
   id: string; state: string; valid: boolean; reason: string;
+  // Current saved inputs, separate from recorded progress or acceptance.
+  contextFreshness?: ProjectRun["contextFreshness"];
   tasks?: { id: string; title: string; status: string }[];
   requirements?: { id: string; title: string; acceptance: string }[];
   specificationRevision?: number; designRevision?: number; outcome?: "preview" | "publish";

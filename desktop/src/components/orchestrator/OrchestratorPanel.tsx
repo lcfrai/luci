@@ -10,6 +10,7 @@ import { useCockpit } from "../../store/store";
 import { useSetup } from "../setup/SetupProvider";
 import { AgentConnectionSelect } from "../setup/AgentConnectionSelect";
 import { Button } from "../fluid/components/button";
+import { WorkflowDialog } from "../common/WorkflowDialog";
 import { AmendmentReview } from "./AmendmentReview";
 import { ProjectUnderstanding } from "./ProjectUnderstanding";
 import { ConversationStorage } from "./ConversationStorage";
@@ -48,6 +49,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const [conversationOpen, setConversationOpen] = useState(false);
   const [earlier, setEarlier] = useState<OrchestratorTurn[]>([]), [page, setPage] = useState<{ before: number; hasEarlier: boolean } | null>(null);
   const [message, setMessage] = useState(""), [replyTo, setReplyTo] = useState("");
+  const [suggestedReply, setSuggestedReply] = useState<{ turnId: string; question: string; answer: string; message: string; replyTo: string; origin: Element | null } | null>(null);
   const [localRecovery, setLocalRecovery] = useState(() => readComposerRecovery(scope));
   const [recoveredDraft, setRecoveredDraft] = useState(localRecovery.draft);
   const savedDraft = useRef(localRecovery.draft);
@@ -129,6 +131,9 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   useEffect(() => {
     if (!canRead || (!canEdit && editRequestNeedsWrite.current)) { cancelEditRequest.current?.(); cancelEditRequest.current = null; }
   }, [canEdit, canRead]);
+  useEffect(() => {
+    if (!canRead || !canAssist || pendingRequest || recoveredDraft || storageConflict) setSuggestedReply(null);
+  }, [canRead, canAssist, pendingRequest, recoveredDraft, storageConflict]);
   useEffect(() => {
     if (!canRead) { generation.current++; working.current = false; latest.current = null; setBusy(""); setLoading(false); setView(null); setEarlier([]); setPendingJob(null); setMissingJobId(""); setReview(null); return; }
     void refresh();
@@ -460,9 +465,49 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     }
   };
   const reply = (turnId: string, text = "") => { editComposer(text || messageRef.current, turnId); openComposer(); };
+  const suggestReply = (turn: OrchestratorTurn, answer: string) => {
+    if (!permission.current.canAssist || pendingRequest || recoveredDraft || storageConflict) {
+      setNotice("Restore or resolve your saved message before starting another one."); return;
+    }
+    if (messageRef.current.trim() && (messageRef.current !== answer || replyTo !== turn.id)) {
+      setSuggestedReply({ turnId: turn.id, question: turn.answer?.question || "", answer, message: messageRef.current, replyTo, origin: document.activeElement });
+      return;
+    }
+    reply(turn.id, answer);
+  };
+  const focusComposerAfterChoice = (origin: Element | null, expectedMessage: string) => {
+    // Let the modal restore its opener first. When that question disappeared,
+    // the unchanged composer is the useful fallback for Keep, Escape or refusal.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (alive.current && permission.current.canRead && permission.current.canAssist && messageRef.current === expectedMessage &&
+          (document.activeElement === origin || document.activeElement === document.body)) composer.current?.focus();
+    }));
+  };
+  const closeSuggestedReply = () => {
+    const selected = suggestedReply;
+    setSuggestedReply(null);
+    if (selected && !selected.origin?.isConnected) focusComposerAfterChoice(selected.origin, messageRef.current);
+  };
+  const replaceWithSuggestion = () => {
+    if (!suggestedReply || !permission.current.canRead || !permission.current.canAssist || pendingRequest || recoveredDraft || storageConflict || busy) return;
+    const selected = suggestedReply;
+    setSuggestedReply(null);
+    if (messageRef.current !== selected.message || replyTo !== selected.replyTo) {
+      setNotice("Your unsent message changed while this choice was open. It has been kept; choose the suggested answer again if you want to replace it.");
+      focusComposerAfterChoice(selected.origin, messageRef.current); return;
+    }
+    const question = turns.find(turn => turn.id === selected.turnId);
+    if (!question || question.questionResolvedBy || !question.answer || question.answer.question !== selected.question || !question.answer.options.includes(selected.answer)) {
+      setNotice("This question changed while this choice was open. Your unsent message has been kept. Review the current question before answering.");
+      focusComposerAfterChoice(selected.origin, messageRef.current); return;
+    }
+    editComposer(selected.answer, selected.turnId);
+    setOpenChoice(true); setConversationOpen(true);
+    focusComposerAfterChoice(selected.origin, selected.answer);
+  };
   const inspect = (runId: string) => {
     if (!permission.current.canRead) return;
-    useCockpit.setState({ projectRunInspection: { scope, projectId, runId } });
+    useCockpit.setState({ projectRunInspection: { scope, projectId, runId, refresh: true } });
     setLens("develop");
   };
   const turns = [...new Map([...earlier, ...(view?.turns ?? [])].map(turn => [turn.id, turn])).values()].sort((a, b) => a.sequence - b.sequence);
@@ -495,7 +540,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
             {turn.answer && <div className="orchestrator-answer"><strong>Luci</strong><p>{turn.answer.summary}</p>
               {turn.answer.question && <section className="orchestrator-question" aria-label="Luci question"><p><strong>{turn.answer.blocking && !turn.questionResolvedBy ? "Decision needed: " : "Question: "}</strong>{turn.answer.question}</p><p>{turn.answer.rationale}</p>
                 {!!turn.answer.impact?.length && <div><strong>Why it matters</strong><ul>{turn.answer.impact.map((impact, index) => <li key={index}>{impact}</li>)}</ul></div>}
-                {turn.questionResolvedBy ? <p>Answered in a later turn.</p> : <div className="orchestrator-actions">{turn.answer.options.map((option, index) => <Button key={index} variant="secondary" size="compact" disabled={!canAssist || !!busy} onClick={() => reply(turn.id, option)}>{option}</Button>)}<Button variant="ghost" size="compact" disabled={!canAssist || !!busy} onClick={() => reply(turn.id)}>Reply to this question</Button></div>}
+                {turn.questionResolvedBy ? <p>Answered in a later turn.</p> : <div className="orchestrator-actions">{turn.answer.options.map((option, index) => <Button key={index} variant="secondary" size="compact" disabled={!canAssist || !!busy} onClick={() => suggestReply(turn, option)}>{option}</Button>)}<Button variant="ghost" size="compact" disabled={!canAssist || !!busy} onClick={() => reply(turn.id)}>Reply to this question</Button></div>}
               </section>}
               {!turn.answer.question && turn.answer.rationale && <p>{turn.answer.rationale}</p>}
               {turn.answer.proposal && <div className="orchestrator-proposal"><p>{turn.answer.proposal.summary}</p><Button variant="secondary" disabled={!!busy || !!turn.appliedRevision} onClick={() => { setReview({ turn, revision: view.revision, digest: view.context.digest }); setError(""); }}>Review amendment</Button></div>}
@@ -540,6 +585,11 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         </details>
       </>}
     </div>
+    {suggestedReply && canRead && canAssist && <WorkflowDialog title="Replace your unsent message?" description="Using this suggested answer replaces your current message and its saved draft in this browser. Nothing is sent until you choose Send to Luci." onClose={closeSuggestedReply}>
+      <details><summary>Current unsent message</summary><p className="orchestrator-message">{suggestedReply.message}</p></details>
+      <p><strong>{suggestedReply.question}</strong></p><p className="orchestrator-message">{suggestedReply.answer}</p>
+      <div className="workflow-actions"><Button variant="secondary" onClick={closeSuggestedReply}>Keep current message</Button><Button disabled={!!busy || !!pendingRequest || !!recoveredDraft || storageConflict} onClick={replaceWithSuggestion}>Replace with suggested answer</Button></div>
+    </WorkflowDialog>}
     {review && view && <AmendmentReview turn={review.turn} view={view} busy={busy === "apply"} blocked={reviewBlock} error={error} onClose={() => setReview(null)} onApply={() => void apply()} />}
   </aside>;
 }

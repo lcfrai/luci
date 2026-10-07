@@ -339,7 +339,9 @@ try {
   const attached = await action(projectRoute + '/git/remote', button('Connect existing repository'));
   assert.equal(attached.repository, origin); assert.equal(attached.status, 'attached'); assert.equal(attached.verified, false);
   await failedRead.seen;
-  await delivery().getByRole('alert').waitFor();
+  const readbackError = delivery().getByRole('alert');
+  await readbackError.getByText('The latest repository status could not be read. Refresh the repository connection to try again.', { exact: true }).waitFor();
+  assert(!(await readbackError.innerText()).includes('Start the service and retry.'), 'A failed status read incorrectly claims the service must be started');
   await delivery().getByText('attached: repository connected. Push your reviewed commit next.', { exact: true }).waitFor();
   assert.equal(await button('Create repository').count(), 0); assert(await button('Push reviewed commit').isDisabled());
   assert(await delivery().getByText('Refresh the repository connection before publishing again. Your draft is kept.', { exact: true }).isVisible());

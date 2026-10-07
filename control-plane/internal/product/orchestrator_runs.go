@@ -78,7 +78,7 @@ func orchestratorActivityPriority(activity string) int {
 
 // ProjectRunStore.List is newest-created first. Preserve that useful latest
 // plan separately from every still-unfinished immutable execution scope.
-func orchestratorRunProjection(runs []ProjectRun) (*OrchestratorRunSummary, []OrchestratorRunSummary) {
+func orchestratorRunProjection(runs []ProjectRun, state journeyState) (*OrchestratorRunSummary, []OrchestratorRunSummary) {
 	var latest *OrchestratorRunSummary
 	active := []OrchestratorRunSummary{}
 	remaining := orchestratorRunScopeLimit
@@ -88,6 +88,10 @@ func orchestratorRunProjection(runs []ProjectRun) (*OrchestratorRunSummary, []Or
 	summaries := make([]OrchestratorRunSummary, len(runs))
 	for i, run := range runs {
 		summaries[i] = orchestratorRunSummary(run)
+		// Compare captured inputs with the same canonical snapshot used by the
+		// overview. This is separate from the last recorded observation.
+		freshness := projectRunContextFreshness(run, state, nil)
+		summaries[i].ContextFreshness = &freshness
 	}
 	order := make([]int, len(summaries))
 	for i := range order {
@@ -115,6 +119,9 @@ func orchestratorRunProjection(runs []ProjectRun) (*OrchestratorRunSummary, []Or
 			summary.OperationsOmitted = summary.OperationCount > 0
 			summary.Operations = []OrchestratorRunOperation{}
 			summary.Reason = ""
+			// Keep the comparison outcome without repeating full diagnostic
+			// prose for every omitted scope in a large run history.
+			summary.ContextFreshness.Reason = "Saved context " + summary.ContextFreshness.Status + "; inspect this run for details."
 			summary.ActivityReason = "Last recorded activity. Inspect this run for its full saved scope and reconcile its child outcome."
 		} else {
 			remaining -= bytes

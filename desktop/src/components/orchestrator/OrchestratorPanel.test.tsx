@@ -14,7 +14,7 @@ import { ProjectChecks } from "../journey/ProjectChecks";
 import { DraftNavigationDialog } from "../common/DraftNavigationDialog";
 import { definitionApi } from "../../api/definition";
 import { context, job, proposalTurn, turn, view } from "./fixtures";
-import { retainComposerRequest, saveComposerDraft } from "./composerRecovery";
+import { readComposerRecovery, retainComposerRequest, saveComposerDraft } from "./composerRecovery";
 
 vi.mock("../journey/ContextStorage", () => ({ ContextStorage: () => null }));
 const identity = vi.hoisted(() => ({ actor: "owner", connection: "", root: "/projects/owner", read: true, edit: true, assist: true }));
@@ -349,6 +349,111 @@ it("explains material ambiguity and pre-fills an attributed reply only until Sen
   expect(orchestratorApi.send).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
   expect(orchestratorApi.send).toHaveBeenCalledWith("p-1", expect.objectContaining({ replyToTurnId: "turn-1", message: "Allow guest booking" }));
+});
+
+it("keeps an occupied composer and its recovery copy until a suggested answer is explicitly chosen", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  const amendment = "Please preserve existing bookings when we add calendar exports.";
+  await userEvent.type(screen.getByLabelText("Message Luci"), amendment);
+  const before = browserRecords();
+  const option = screen.getByRole("button", { name: "Allow guest booking" });
+  await userEvent.click(option);
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe(amendment);
+  expect(browserRecords()).toEqual(before);
+  const dialog = screen.getByRole("dialog", { name: "Replace your unsent message?" });
+  expect(within(dialog).getByText("Can guests book without an account?")).not.toBeNull();
+  expect(within(dialog).getByText("Allow guest booking")).not.toBeNull();
+  await userEvent.click(within(dialog).getByRole("button", { name: "Keep current message" }));
+  await waitFor(() => expect(document.activeElement).toBe(option));
+  expect(browserRecords()).toEqual(before);
+  mounted.unmount(); render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByRole("button", { name: "Restore unsent message" }));
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe(amendment);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("replaces an occupied message only explicitly and retains the selected question until deliberate Send", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Add a calendar export after the first release.");
+  await userEvent.click(screen.getByRole("button", { name: "Allow guest booking" }));
+  await userEvent.click(screen.getByRole("button", { name: "Replace with suggested answer" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  const composer = screen.getByLabelText("Message Luci");
+  await waitFor(() => expect(document.activeElement).toBe(composer));
+  expect((composer as HTMLTextAreaElement).value).toBe("Allow guest booking");
+  expect(screen.getByText("Replying to: Can guests book without an account?")).not.toBeNull();
+  expect(readComposerRecovery(decisionScope()).draft).toMatchObject({ message: "Allow guest booking", replyTo: "turn-1" });
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole("button", { name: "Allow guest booking" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
+  expect(orchestratorApi.send).toHaveBeenCalledExactlyOnceWith("p-1", expect.objectContaining({ message: "Allow guest booking", replyToTurnId: "turn-1" }));
+});
+
+it.each(["assist", "read"] as const)("retires a pending suggested replacement across %s loss and regrant without changing the original draft", async grant => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Keep the original amendment.");
+  const before = browserRecords();
+  await userEvent.click(screen.getByRole("button", { name: "Allow guest booking" }));
+  expect(screen.getByRole("dialog")).not.toBeNull();
+  identity[grant] = false; mounted.rerender(<OrchestratorPanel projectId="p-1" />);
+  expect(screen.queryByRole("dialog")).toBeNull();
+  identity[grant] = true; mounted.rerender(<OrchestratorPanel projectId="p-1" />); await ready();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("Keep the original amendment.");
+  expect(browserRecords()).toEqual(before);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("does not carry a suggested replacement into another account or replace its retained draft", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "First account amendment.");
+  const originalScope = decisionScope(), before = readComposerRecovery(originalScope);
+  await userEvent.click(screen.getByRole("button", { name: "Allow guest booking" }));
+  identity.actor = "second-user";
+  mounted.rerender(<OrchestratorPanel projectId="p-1" />); await ready();
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("");
+  expect(readComposerRecovery(originalScope)).toEqual(before);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it("preserves another tab's newer message if storage changes during the replacement choice", async () => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Original browser draft.");
+  await userEvent.click(screen.getByRole("button", { name: "Allow guest booking" }));
+  const previous = readComposerRecovery(decisionScope()).draft;
+  saveComposerDraft(decisionScope(), previous, "Newer amendment from another tab.", "");
+  act(() => window.dispatchEvent(new StorageEvent("storage", { key: previous!.slot })));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(readComposerRecovery(decisionScope()).draft?.message).toBe("Newer amendment from another tab.");
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved message" }));
+  await userEvent.click(screen.getByRole("button", { name: "Restore unsent message" }));
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("Newer amendment from another tab.");
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+});
+
+it.each(["Replace with suggested answer", "Keep current message", "Escape"])("keeps an amendment and returns to its editor after %s when the question was resolved during the choice", async action => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+  render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Keep this amendment after a teammate answers.");
+  const before = browserRecords(), reads = vi.mocked(orchestratorApi.get).mock.calls.length;
+  await userEvent.click(screen.getByRole("button", { name: "Allow guest booking" }));
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ revision: 4, turns: [turn({ questionResolvedBy: "teammate-reply" })] }));
+  act(() => notifyProjectContextChanged(decisionScope(), "p-1"));
+  await waitFor(() => expect(orchestratorApi.get).toHaveBeenCalledTimes(reads + 1));
+  if (action === "Escape") await userEvent.keyboard("{Escape}");
+  else await userEvent.click(screen.getByRole("button", { name: action }));
+  expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe("Keep this amendment after a teammate answers.");
+  if (action === "Replace with suggested answer") expect(screen.getByText(/This question changed while this choice was open/)).not.toBeNull();
+  await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText("Message Luci")));
+  expect(browserRecords()).toEqual(before);
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
 it.each(["Answer the open question", "Work through the decisions"])("binds the actual unresolved question when a person types an answer from %s", async label => {

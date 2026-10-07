@@ -142,13 +142,16 @@ func orchestratorNext(context OrchestratorContext, questions []OrchestratorQuest
 		return action("plan", "Review implementation tasks", "Bind a current task plan to the reviewed project definition.", "develop")
 	}
 	if run := context.CurrentRun; run != nil {
+		if freshness := run.ContextFreshness; freshness != nil && freshness.Status != "current" {
+			return action("plan", "Review current plan", freshness.Reason, "develop")
+		}
 		switch run.State {
 		case "coding":
 			return runAction(run.ID, "inspect-run", "Follow implementation", "Observe the existing coordinated session; do not start a duplicate.", "develop")
 		case "awaiting-checks":
 			return runAction(run.ID, "check", "Verify the implementation", "Run and join independent checks for the exact reviewed source.", "develop")
 		case "awaiting-release":
-			return runAction(run.ID, "deploy", "Preview the verified app", "Observe an owned release and join its evidence before accepting the run.", "deploy")
+			return runAction(run.ID, "deploy", "Review verified build", "Review this build and its exact checks, then prepare its preview or deployment and join the release evidence.", "deploy")
 		case "complete":
 			if run.Valid {
 				return runAction(run.ID, "maintain", "Inspect releases and health", "Review current release health and the next amendment; historical acceptance does not guarantee uptime.", "deploy")

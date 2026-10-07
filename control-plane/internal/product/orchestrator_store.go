@@ -218,7 +218,7 @@ func (s *Server) orchestratorSnapshotLocked(ctx context.Context, p project.Proje
 		if err != nil {
 			return value, ErrOrchestratorInvalid
 		}
-		value.CurrentRun, value.ActiveRuns = orchestratorRunProjection(runs)
+		value.CurrentRun, value.ActiveRuns = orchestratorRunProjection(runs, state)
 	}
 	return value, nil
 }

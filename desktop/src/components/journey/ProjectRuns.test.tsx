@@ -437,6 +437,7 @@ it.each(['build card', 'primary next step'])('opens the exact older build throug
   expect(useCockpit.getState().projectRunInspection?.runId).toBe('run-older');
   const older = makeRun({ id: 'run-older', state: 'cancelled', reason: 'Older run remains active', allowedActions: ['reconcile'] });
   older.input.implementation.taskTitles = ['Original private booking'];
+  const read = vi.spyOn(projectRunsApi, 'get').mockResolvedValue(older);
   await act(async () => finish([makeRun({ id: 'run-new', reason: 'New run is only prepared' }), older]));
   const runs = screen.getByRole('region', { name: 'Project runs' });
   expect(await within(runs).findByText('Older run remains active')).not.toBeNull();
@@ -444,12 +445,14 @@ it.each(['build card', 'primary next step'])('opens the exact older build throug
   await userEvent.click(within(runs).getByText('Reviewed inputs and evidence'));
   expect(within(runs).getByText('Original private booking')).not.toBeNull();
   expect(useCockpit.getState().projectRunInspection).toBeNull();
+  expect(read).toHaveBeenCalledExactlyOnceWith('p-1', 'run-older');
   expect(reconcile).not.toHaveBeenCalled(); expect(reserve).not.toHaveBeenCalled(); expect(create).not.toHaveBeenCalled();
 });
 
 it('keeps an unavailable inspection target explicit instead of selecting or starting the newest run', async () => {
   inspectionOverview();
   vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ id: 'run-new' })]);
+  vi.spyOn(projectRunsApi, 'get').mockRejectedValue(new Error('The requested run is unavailable in this project. Refresh history or choose another recorded run.'));
   const create = vi.spyOn(api, 'createSession');
   render(<InspectionJourney />);
   await userEvent.click(within(await screen.findByRole('region', { name: 'Active and unconfirmed work' })).getByRole('button', { name: 'Inspect build and checks' }));
@@ -464,6 +467,7 @@ it('discards an inspection request when the account changes before its history r
   inspectionOverview();
   let finish!: (runs: ProjectRun[]) => void;
   vi.mocked(projectRunsApi.list).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; })).mockResolvedValue([makeRun({ id: 'other-account', reason: 'Other account history' })]);
+  const read = vi.spyOn(projectRunsApi, 'get');
   const mounted = render(<InspectionJourney />);
   await userEvent.click(within(await screen.findByRole('region', { name: 'Active and unconfirmed work' })).getByRole('button', { name: 'Inspect build and checks' }));
   scope.actor = 'other-owner';
@@ -474,6 +478,7 @@ it('discards an inspection request when the account changes before its history r
   expect(within(runs).queryByText('Old account reply')).toBeNull();
   expect(within(runs).queryByRole('alert')).toBeNull();
   expect(useCockpit.getState().projectRunInspection).toBeNull();
+  expect(read).not.toHaveBeenCalled();
 });
 
 it('hands verification the selected reviewed run without executing or asking for an evidence ID', async () => {
@@ -514,4 +519,34 @@ it('refreshes the exact inspection target after evidence is joined instead of co
   expect(get).toHaveBeenCalledWith('p-1', 'run-1');
   expect(useCockpit.getState().projectRunInspection).toBeNull();
   expect(screen.queryByRole('button', { name: 'Start coding' })).toBeNull();
+});
+
+it('refreshes a cached run from the overview before carrying its newly joined check into deployment', async () => {
+  const cached = makeRun({ state: 'awaiting-checks', reason: 'Checks have not been joined yet.', allowedActions: ['join-check', 'reconcile'] });
+  vi.mocked(projectRunsApi.list).mockResolvedValue([cached]);
+  const snapshot = orchestratorContext();
+  snapshot.currentRun = { id: cached.id, state: cached.state, valid: false, reason: cached.reason, outcome: 'preview' };
+  const overview = vi.spyOn(orchestratorApi, 'get').mockResolvedValue(orchestratorView({ context: snapshot, nextAction: { id: 'check', label: 'Verify the implementation', reason: 'Verify this run.', lens: 'develop', runId: cached.id } }));
+  let finish!: (value: ProjectRun) => void;
+  const read = vi.spyOn(projectRunsApi, 'get').mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const create = vi.spyOn(api, 'createSession'), reserve = vi.spyOn(projectRunsApi, 'reserve'), reconcile = vi.spyOn(projectRunsApi, 'reconcile');
+  useCockpit.setState({ lens: 'develop' });
+  render(<InspectionJourney />);
+  await screen.findByRole('button', { name: 'Verify this build' });
+  // A teammate joins the check while this workspace retains its older history.
+  overview.mockResolvedValue(orchestratorView({ context: { ...snapshot, currentRun: { ...snapshot.currentRun, state: 'awaiting-release', valid: true } }, nextAction: { id: 'deploy', label: 'Review verified build', reason: 'Inspect the exact checked build before previewing it.', lens: 'deploy', runId: cached.id } }));
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh project understanding' }));
+  await userEvent.click(await screen.findByRole('button', { name: 'Review verified build' }));
+  await waitFor(() => expect(read).toHaveBeenCalledExactlyOnceWith('p-1', cached.id));
+  expect(useCockpit.getState().lens).toBe('develop');
+  expect(useCockpit.getState().projectRunDeployment).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Preview this build' })).toBeNull();
+  const check: ProjectRun['checks'][number] = { checkId: 'newly-joined-check', projectId: 'p-1', commit: 'b'.repeat(40), sourceDigest: 'newly-checked-source', approvals, requirements: cached.input.requirements, commands: [], execution: 'docker', createdAt: '', joinedAt: '', originalAvailable: true };
+  await act(async () => finish({ ...cached, revision: 9, state: 'awaiting-release', reason: 'Matching independent checks joined.', checks: [check], allowedActions: ['join-release', 'reconcile'] }));
+  expect(screen.queryByRole('button', { name: 'Verify this build' })).toBeNull();
+  await userEvent.click(await screen.findByRole('button', { name: 'Preview this build' }));
+  expect(useCockpit.getState().projectRunDeployment).toMatchObject({ projectId: 'p-1', runId: cached.id, checkId: check.checkId, commit: check.commit, sourceDigest: check.sourceDigest, outcome: 'preview' });
+  expect(useCockpit.getState().lens).toBe('deploy');
+  expect(projectRunsApi.list).toHaveBeenCalledTimes(1);
+  expect(create).not.toHaveBeenCalled(); expect(reserve).not.toHaveBeenCalled(); expect(reconcile).not.toHaveBeenCalled();
 });

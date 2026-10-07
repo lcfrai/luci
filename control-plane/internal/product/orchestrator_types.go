@@ -23,24 +23,26 @@ type OrchestratorRunOperation struct {
 }
 
 type OrchestratorRunSummary struct {
-	OperationCount        int                        `json:"operationCount"`
-	OperationsOmitted     bool                       `json:"operationsOmitted"`
-	ScopeOmitted          bool                       `json:"scopeOmitted"`
-	TaskCount             int                        `json:"taskCount"`
-	RequirementCount      int                        `json:"requirementCount"`
-	Activity              string                     `json:"activity"`
-	ActivityReason        string                     `json:"activityReason"`
-	DispatchCancelled     bool                       `json:"dispatchCancelled"`
-	Operations            []OrchestratorRunOperation `json:"operations"`
-	Tasks                 []OrchestratorRunTask      `json:"tasks"`
-	Requirements          []RequirementSnapshot      `json:"requirements"`
-	SpecificationRevision int                        `json:"specificationRevision"`
-	DesignRevision        int                        `json:"designRevision"`
-	Outcome               string                     `json:"outcome"`
-	ID                    string                     `json:"id"`
-	State                 string                     `json:"state"`
-	Valid                 bool                       `json:"valid"`
-	Reason                string                     `json:"reason"`
+	// Older immutable conversation snapshots may predate this projection.
+	ContextFreshness      *ProjectRunContextFreshness `json:"contextFreshness,omitempty"`
+	OperationCount        int                         `json:"operationCount"`
+	OperationsOmitted     bool                        `json:"operationsOmitted"`
+	ScopeOmitted          bool                        `json:"scopeOmitted"`
+	TaskCount             int                         `json:"taskCount"`
+	RequirementCount      int                         `json:"requirementCount"`
+	Activity              string                      `json:"activity"`
+	ActivityReason        string                      `json:"activityReason"`
+	DispatchCancelled     bool                        `json:"dispatchCancelled"`
+	Operations            []OrchestratorRunOperation  `json:"operations"`
+	Tasks                 []OrchestratorRunTask       `json:"tasks"`
+	Requirements          []RequirementSnapshot       `json:"requirements"`
+	SpecificationRevision int                         `json:"specificationRevision"`
+	DesignRevision        int                         `json:"designRevision"`
+	Outcome               string                      `json:"outcome"`
+	ID                    string                      `json:"id"`
+	State                 string                      `json:"state"`
+	Valid                 bool                        `json:"valid"`
+	Reason                string                      `json:"reason"`
 }
 type OrchestratorContext struct {
 	ProjectID       string                   `json:"projectId"`

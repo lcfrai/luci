@@ -9,6 +9,7 @@ import {
   type GitPublication,
 } from "../../api/product";
 import { useCockpit } from "../../store/store";
+import { ApiError } from "../../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import { useProjectAccess } from "../../hooks/useProjectAccess";
 import { useProjectDraftScope } from "../../hooks/useProjectDraft";
@@ -91,7 +92,9 @@ function DeliveryFields({ projectId, git }: Props) {
       if (clearReviewRequired && generation === permission.current.publicationGeneration) setReviewRequired(false);
     } catch (cause) {
       if (current()) {
-        setError(errorText(cause));
+        setError(cause instanceof ApiError && ["network_unavailable", "timeout"].includes(cause.code)
+          ? "The latest repository status could not be read. Refresh the repository connection to try again."
+          : errorText(cause));
         setReviewRequired(true);
       }
     } finally {

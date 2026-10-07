@@ -281,3 +281,73 @@ it.each([
   await userEvent.click(screen.getByRole("button", { name: "Review current run evidence" }));
   expect(inspect).toHaveBeenCalledExactlyOnceWith("accepted-invalid");
 });
+
+
+it.each(["awaiting-checks", "awaiting-release"])("labels changed context separately from the recorded %s state", state => {
+  const snapshot = context();
+  // Wire data is deliberately assigned via a variable so the regression also
+  // runs against the earlier client interface which lacked this extension.
+  const recorded = { id: "original-build", state, valid: true, reason: "Recorded progress for plan A", activity: "none" as const,
+    contextFreshness: { status: "changed" as const, reason: "The saved implementation plan changed. Review the current plan." },
+    tasks: [{ id: "original", title: "Implement saving", status: "selected" }] };
+  snapshot.currentRun = recorded;
+  snapshot.plan.tasks = [{ id: "original", title: "Save with a visible audit trail", status: "todo" }];
+  render(<ProjectUnderstanding view={view({ context: snapshot, nextAction: { id: "plan", label: "Review current plan", reason: recorded.contextFreshness.reason, lens: "develop" } })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={vi.fn()} />);
+  const build = screen.getByRole("region", { name: "In this build" });
+  expect(within(build).getByText("Context changed since this build")).not.toBeNull();
+  expect(within(build).queryByText(/^Ready for (release|independent checks)$/)).toBeNull();
+  expect(within(build).getByText("Implement saving")).not.toBeNull();
+  expect(within(build).queryByText("Save with a visible audit trail")).toBeNull();
+  expect(within(build).getByText(recorded.contextFreshness.reason)).not.toBeNull();
+  expect(within(build).getByText("Last recorded: Recorded progress for plan A")).not.toBeNull();
+});
+
+it.each(["preview", "publish"] as const)("opens the exact verified %s build from its deployment review step", async outcome => {
+  const snapshot = context(), inspect = vi.fn(), navigate = vi.fn();
+  snapshot.currentRun = { id: "checked-build", state: "awaiting-release", valid: true, reason: "Recorded checks passed", outcome };
+  render(<ProjectUnderstanding view={view({ context: snapshot, nextAction: { id: "deploy", runId: "checked-build", label: "Review verified build", reason: "Review this build and its checks before preparing a release.", lens: "deploy" } })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={navigate} onInspect={inspect} canEdit={false} />);
+  await userEvent.click(screen.getByRole("button", { name: "Review verified build" }));
+  expect(inspect).toHaveBeenCalledExactlyOnceWith("checked-build");
+  expect(navigate).not.toHaveBeenCalled();
+});
+
+
+it.each(["complete", "cancelled", "coding"])("preserves recorded %s history alongside changed current inputs", state => {
+  const snapshot = context();
+  const run: OrchestratorRunSummary = { id: "historical-build", state, valid: true, reason: "Saved observation", activity: state === "coding" ? "running" : "none", contextFreshness: { status: "changed", reason: "Review the amended task plan before new work." }, tasks: [{ id: "task-a", title: "Original task A", status: "selected" }] };
+  snapshot.currentRun = run;
+  snapshot.activeRuns = state === "coding" ? [run] : [];
+  render(<ProjectUnderstanding view={view({ context: snapshot })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={vi.fn()} />);
+  const build = screen.getByRole("region", { name: "In this build" });
+  expect(within(build).getByText(state === "complete" ? "Run accepted" : state === "cancelled" ? "Further work cancelled" : "Last recorded: Running")).not.toBeNull();
+  expect(within(build).getByText("Context changed since this build.")).not.toBeNull();
+  expect(build.textContent).toContain("Review the amended task plan before new work.");
+  expect(within(build).getByText("Original task A")).not.toBeNull();
+  if (state === "complete") expect(within(build).getByText(/Historical acceptance does not guarantee current release health/)).not.toBeNull();
+  if (state === "coding") expect(within(build).getByText(/Open the run to reconcile its current outcome/)).not.toBeNull();
+});
+
+it("does not claim readiness when the current input comparison is unavailable", () => {
+  const snapshot = context();
+  snapshot.currentRun = { id: "unavailable-build", state: "awaiting-release", valid: true, reason: "Checks were recorded", contextFreshness: { status: "unavailable", reason: "Check the project's context storage, then refresh history." } };
+  render(<ProjectUnderstanding view={view({ context: snapshot })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={vi.fn()} />);
+  const build = screen.getByRole("region", { name: "In this build" });
+  expect(within(build).getByText("Current context unavailable")).not.toBeNull();
+  expect(within(build).queryByText("Ready for release")).toBeNull();
+  expect(within(build).getByText("Check the project's context storage, then refresh history.")).not.toBeNull();
+});
+
+it("keeps accepted-release health navigation distinct from an exact build review", async () => {
+  const navigate = vi.fn(), inspect = vi.fn();
+  render(<ProjectUnderstanding view={view({ nextAction: { id: "maintain", runId: "accepted", label: "Inspect releases and health", reason: "Inspect current health.", lens: "deploy" } })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={navigate} onInspect={inspect} />);
+  await userEvent.click(screen.getByRole("button", { name: "Inspect releases and health" }));
+  expect(navigate).toHaveBeenCalledExactlyOnceWith("deploy");
+  expect(inspect).not.toHaveBeenCalled();
+});
+
+it("falls back to build review rather than generic deployment when no exact-run handler is supplied", async () => {
+  const navigate = vi.fn();
+  render(<ProjectUnderstanding view={view({ nextAction: { id: "deploy", runId: "checked-build", label: "Review verified build", reason: "Inspect the recorded checks first.", lens: "deploy" } })} onAsk={vi.fn()} onReply={vi.fn()} onNavigate={navigate} />);
+  await userEvent.click(screen.getByRole("button", { name: "Review verified build" }));
+  expect(navigate).toHaveBeenCalledExactlyOnceWith("develop");
+});

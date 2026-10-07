@@ -21,16 +21,21 @@ const operationLabels = { running: "Running", unknown: "Outcome unconfirmed", di
 function BuildScope({ run, title, onInspect }: { run: OrchestratorRunSummary; title: string; onInspect(): void }) {
   const pending = !!run.activity && run.activity !== "none";
   const cancelled = run.dispatchCancelled || run.state === "cancelled";
+  const contextChanged = run.contextFreshness?.status === "changed";
+  const contextUnavailable = run.contextFreshness?.status === "unavailable";
+  const contextNotice = contextChanged ? "Context changed since this build" : contextUnavailable ? "Current context unavailable" : "";
+  const historical = run.state === "complete" || cancelled;
   return <section className="understanding-build" aria-label={title}>
     <h3>{title}</h3>
-    <p><strong>{pending ? `Last recorded: ${activityLabels[run.activity!]}` : runLabels[run.state] || "Build status unavailable"}</strong>{run.outcome ? ` · ${run.outcome === "publish" ? "Publish target" : "Preview target"}` : ""}</p>
+    <p><strong>{pending ? `Last recorded: ${activityLabels[run.activity!]}` : (!historical && contextNotice) || runLabels[run.state] || "Build status unavailable"}</strong>{run.outcome ? ` · ${run.outcome === "publish" ? "Publish target" : "Preview target"}` : ""}</p>
     {cancelled && pending && <p><strong>Further work cancelled.</strong> This does not stop an agent already running. Open the run to stop it explicitly.</p>}
     {run.scopeOmitted ? <p>{run.taskCount ?? 0} selected tasks / {run.requirementCount ?? 0} outcomes; inspect this build for its full saved scope.</p>
       : run.tasks?.length ? <ul>{run.tasks.map(task => <li key={task.id}>{task.title}</li>)}</ul> : <p>The selected tasks are available in the build workspace.</p>}
     {!!run.requirements?.length && <details><summary>Outcomes this build must prove</summary><ul>{run.requirements.map(requirement => <li key={requirement.id}><strong>{requirement.title}</strong><p>{requirement.acceptance}</p></li>)}</ul></details>}
     {!!run.specificationRevision && <p className="understanding-note">Saved scope: reviewed definition {run.specificationRevision}{run.designRevision ? ` and design ${run.designRevision}` : ""}. Review amendments before starting another build. Open the coding session to inspect its delivered inputs.</p>}
     {!pending && run.state === "complete" && <p>This outcome was accepted. Historical acceptance does not guarantee current release health.</p>}
-    {!pending && run.reason && (run.state !== "complete" || !run.valid) && <p>{run.reason}</p>}
+    {contextNotice && <p className="understanding-note">{(pending || historical) && <strong>{contextNotice}. </strong>}{run.contextFreshness?.reason}</p>}
+    {!pending && run.reason && (run.state !== "complete" || !run.valid) && <p>{contextNotice && "Last recorded: "}{run.reason}</p>}
     {pending && <p className="understanding-note">Recorded status. Open the run to reconcile its current outcome.</p>}
     {run.operationsOmitted && <p>{run.operationCount} unfinished coding attempts; inspect this build for their full recorded activity.</p>}
     {!pending && !run.valid && <p className="understanding-note">This run needs verification against the current context. Its recorded progress does not prove the current application is ready.</p>}
@@ -93,7 +98,7 @@ export function ProjectUnderstanding({ view, onAsk, onReply, onNavigate, onInspe
       <p className="understanding-note">Describe a change or edit a stage directly. Review what it affects before saving; changed context needs fresh review before a new build.</p>
     </section>
 
-    <section className="understanding-next" aria-label="Next step"><h3>Next step</h3><p>{nextAction.reason}</p><Button onClick={() => nextAction.id === "answer-question" ? discussDecision() : nextAction.id === "plan" ? edit("plan") : nextAction.runId && nextAction.lens === "develop" ? inspect(nextAction.runId) : onNavigate(nextAction.lens)}>{nextAction.label}</Button></section>
+    <section className="understanding-next" aria-label="Next step"><h3>Next step</h3><p>{nextAction.reason}</p><Button onClick={() => nextAction.id === "answer-question" ? discussDecision() : nextAction.id === "plan" ? edit("plan") : nextAction.runId && (nextAction.lens === "develop" || nextAction.id === "deploy") ? inspect(nextAction.runId) : onNavigate(nextAction.lens)}>{nextAction.label}</Button></section>
 
     {activeRuns.length > 0 && <section aria-label="Active and unconfirmed work">
       <h3>Active and unconfirmed work</h3>

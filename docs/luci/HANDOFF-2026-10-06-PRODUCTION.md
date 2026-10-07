@@ -22,6 +22,32 @@ prototype and collaborative amendment journey now has scoped fixture evidence. E
 fixtures establish only their stated mechanisms. Independent product work
 continues while external commissioning and Windows CI access remain blocked.
 
+## Conversation and build-guidance correction
+
+Choosing a suggested answer now requires an explicit choice before replacing an
+unsent message. Keeping it, cancelling or discovering that the question was
+answered elsewhere preserves the draft, its reply binding and usable focus.
+The project overview compares captured inputs with current context without
+rewriting historical progress or acceptance. Changed plans require review again;
+active and unconfirmed agents keep their existing priority. Large history
+summaries retain bounded freshness information.
+
+“Review verified build” now opens and refreshes the exact run. The existing
+checked-build action then carries its check, commit and source identity into
+preview or deployment preparation. A component integration reproduces the prior
+cached-run defect after checks were joined elsewhere, then verifies the current
+handoff without starting deployment. Repository status-read failures also give
+a factual Refresh remedy instead of claiming the local service is down.
+
+Independent review passes. Combined affected validation passes 310 frontend
+cases across 12 files and TypeScript, plus 1,080 API/product race-test outcomes
+with four skips. All 434 frontend/contract and 567 Go inputs remain unchanged
+during their checks. The earlier full frontend baseline belongs to `54d4da87`;
+these are scoped follow-up results. Matching installed amendment, conversation
+and exact-run handoff acceptance is pending. Evidence:
+`artifacts/quality-orchestration-followthrough/`,
+`quality-orchestrator-suggested-answer/` and `quality-orchestrator-run-guidance/`.
+
 ## Configuration and repository-delivery correction
 
 Runtime configuration now follows actual project read/edit/secrets permissions.
@@ -37,9 +63,20 @@ The configuration correction passes 58 affected tests plus TypeScript; delivery
 passes 63 affected tests. Independent source reviews pass, retaining both original
 failures and the separate lock defect caught in the uncommitted correction.
 The combined frontend passes all 2,192 cases across 131 files and TypeScript,
-with all 434 frontend/contract inputs unchanged. Matching installed role-based
-acceptance is pending. No GitHub sign-in, remote push, merchant operation or cloud deployment
-is implied by these source outcomes.
+with all 434 frontend/contract inputs unchanged. The matching clean `54d4da87`
+package verifies 941 files and 346 licence components. Installed configuration
+acceptance passes all six real-role and delayed-original-response groups, with
+selected desktop/phone visuals and independent owned cleanup. A synthetic focus
+event is labelled timing scaffolding; no permission or response is fabricated.
+Git delivery passes all seven functional groups, including a real local origin
+attachment, failed readback delivery, unsaved navigation and read revocation.
+Independent live observation and complete package/cleanup checks pass. Its
+generic network error misleadingly claims the service is down; the narrow
+wording correction passes 26 relevant cases and awaits a matching package.
+No GitHub sign-in, remote push, merchant operation or cloud deployment is implied.
+
+The later corrections and their source evidence are described above. Matching
+installed comprehension evidence remains required.
 
 ## Latest source checkpoint
 

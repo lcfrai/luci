@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { StrictMode } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { productApi, type GitDelivery, type GitPublication, type GitState } from "../../api/product";
+import { ApiError } from "../../api/client";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { aProject } from "../../test/fixtures";
 import { ProjectDelivery } from "./ProjectDelivery";
@@ -182,9 +183,10 @@ it("requires an explicit successful read after an uncertain mutation, preserving
 
 it("keeps a confirmed push visible when readback fails and prevents immediate replay", async () => {
   vi.mocked(productApi.gitPush).mockResolvedValue({ ...connected, repository: origin, status: "pushed", commit: head, verified: true });
-  vi.mocked(productApi.gitDelivery).mockResolvedValueOnce(stored).mockRejectedValueOnce(new Error("Readback unavailable"));
+  vi.mocked(productApi.gitDelivery).mockResolvedValueOnce(stored).mockRejectedValueOnce(new ApiError("network_unavailable", "Luci’s local service is not available. Start the service and retry.", 0));
   render(<ProjectDelivery projectId="p-1" git={git} />); await ready();
-  fireEvent.click(button("Push reviewed commit")); await screen.findByText("Readback unavailable");
+  fireEvent.click(button("Push reviewed commit")); await screen.findByText("The latest repository status could not be read. Refresh the repository connection to try again.");
+  expect(screen.queryByText(/Start the service and retry/)).toBeNull();
   expect(screen.getByText("Remote commit verified: aaaaaaaa.")).not.toBeNull();
   expect(button("Push reviewed commit").disabled).toBe(true);
   fireEvent.click(button("Push reviewed commit")); expect(productApi.gitPush).toHaveBeenCalledTimes(1);
