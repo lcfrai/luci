@@ -1,7 +1,8 @@
 # Building and distributing Luci
 
 For current source/CI status use [the 7 October handoff](HANDOFF-2026-10-07.md).
-The latest completed 0.4.18 CI run failed Go tests before downstream acceptance;
+The preceding executed 0.4.18 CI run failed Go tests before downstream acceptance;
+the 7 October push's run was blocked before checks by GitHub account billing.
 the new driver changes have syntax checks, not completed installed/runtime runs.
 Installed and package observations below retain their dated source identities.
 This push does not publish a release or replace an installation.

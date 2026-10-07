@@ -9,7 +9,12 @@ and `git diff --check` pass; their actual installed/runtime journeys have not
 run in this checkpoint. Source remains 0.4.18; no matching package is installed
 by this push.
 
-[CI 37405731442](https://github.com/lcfrai/luci/actions/runs/37405731442) for
+[CI 37566969515](https://github.com/lcfrai/luci/actions/runs/37566969515) at
+`f865f2a6` failed before any check step started: GitHub's annotation reports
+failed account payments or the Actions spending limit. Downstream jobs were
+skipped. This account billing block does not establish a fresh code/test result.
+
+The preceding executed [CI 37405731442](https://github.com/lcfrai/luci/actions/runs/37405731442) for
 `690adbb1` completed **failed** in Go tests: the function-publication fixture
 lacks current private Design review, and the registry clone reference-field
 coverage list omits `ImplementationContext`. Downstream runtime/native/portable
