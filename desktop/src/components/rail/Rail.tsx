@@ -16,6 +16,7 @@ import { MachineChip } from "./MachineChip";
 import { ProjectRow } from "./ProjectRow";
 import { RailFooter } from "./RailFooter";
 import { useSetup } from "../setup/SetupProvider";
+import { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
 import { NavigationIcon } from "../common/NavigationIcon";
 import "./rail.css";
 
@@ -31,6 +32,8 @@ export function Rail({
   onClose?: () => void;
 } = {}): JSX.Element {
   const setup = useSetup();
+  const team = useTeamWorkspace();
+  const canCreate = !team?.teamId || !!(team.selected?.permissions.edit && team.selected.permissions.admin);
   const projects = useCockpit(useShallow((s) => s.projects));
   const machine = useCockpit(selectDefaultMachine);
   const expandedProjects = useCockpit((s) => s.expandedProjects);
@@ -169,6 +172,8 @@ export function Rail({
             <button
               type="button"
               aria-label="Create project"
+              disabled={!canCreate}
+              title={!canCreate ? "Ask your team administrator to create or share a project." : undefined}
               onClick={() => setup?.openProject()}
             >
               <NavigationIcon name="add" />
@@ -213,8 +218,9 @@ export function Rail({
       >
         {projects.length === 0 ? (
           <p className="rail-empty">
-            No projects yet. Create a project or import a repository from your
-            projects home.
+            {canCreate
+              ? "No projects yet. Create a project or import a repository from your projects home."
+              : "No projects shared yet. Ask your team administrator to share a project."}
           </p>
         ) : (
           projects.map((project) => (

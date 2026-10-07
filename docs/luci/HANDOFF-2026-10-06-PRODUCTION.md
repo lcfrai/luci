@@ -24,15 +24,29 @@ continues while external commissioning and Windows CI access remain blocked.
 
 ## Latest source checkpoint
 
-Installed `adbc7467` passes the delayed connection-response witness at desktop
-and phone widths. Its six managed-invitation functional groups also pass, but
-visual review catches stale permission errors immediately after joining: the
-hidden application had started private reads before membership existed. The
-narrow follow-up defers that first mount until admission and retains previously
-admitted editors during revocation. Its genuine before failure and 76 passing
-affected checks are retained; the stricter installed no-stale-error check remains
-pending on the next package. This finding keeps managed-entry visual acceptance
-open despite the functional group count.
+Installed `2d1f4c8c` passes all six managed-invitation groups, including a clean
+post-join screen with no stale permission errors and usable 390 px entry controls.
+The application first mounts only after confirmed membership; subsequently
+revoked access hides and retains existing editors and their drafts. The original
+`adbc7467` visual failure, genuine source regression and 76 passing affected
+checks remain recorded. Independent cleanup verifies the fixture is gone and no
+matching owned processes remain. The clean package verifies all 941 installed
+files and 346 licence components.
+
+Installed `adbc7467` also passes four delayed connection-response groups at
+desktop and phone widths and the deployment-history ordering witness. Actual
+older responses are released unchanged after newer confirmed state. Gateway off
+stays selected; a healthy preview keeps its exact iframe and unsaved input;
+current unavailability or a current error remains visible. Deployment history is
+an explicitly labelled display fixture, not a newly deployed application.
+
+Further source work addresses a saved-document reload that can overwrite a draft
+restored while the request is pending. Define and Design corrections and the
+permission-aware team sidebar pass the combined 2,149 frontend cases across
+130 files plus TypeScript, with all 433 inputs unchanged. The same defect in the
+implementation plan is also corrected; that two-file follow-up passes 51 relevant
+planning/recovery tests, TypeScript and independent review. Matching installed
+recovery and sidebar acceptance remains required.
 
 The `adbc7467` source batch closes three more observed interface gaps:
 managed-team invitation acceptance for existing accounts, out-of-order deployment
@@ -41,16 +55,23 @@ misstate the selected provider. Membership remains authoritative, current
 unavailability still closes previews, and actual current connection errors stay
 visible. The complete frontend suite passes **2,122 cases across 129 files**, with
 TypeScript passing and all 1,466 tracked inputs unchanged during validation.
-All 687 Go inputs still match the earlier passing `9c585ec3` validation. Matching
-installed acceptance for these new controls remains required. Evidence:
+At that checkpoint all 687 Go inputs match the earlier passing `9c585ec3`
+validation. The installed outcomes above retain their exact source identities;
+the current native CLI correction requires new affected checks. Evidence:
 `artifacts/quality-entry-and-refresh/`, `quality-managed-team-invitation/`,
 `quality-deploy-history-ordering/` and `quality-connection-refresh/`.
 
-A second bounded installed9c native diagnostic retains the actual resumed CLI
-sign-in screen before any phase-two provider request. It does not establish why
-the selected connection is lost; controller and CLI propagation are being traced.
-No additional dialog was answered, and independent cleanup confirms zero owned
-resources. The native continuation gate remains failed.
+The bounded installed9c diagnostic retains the resumed CLI sign-in screen before
+any second provider request. A pinned Codex 0.160 diagnostic then distinguishes
+successful direct configuration reads from failed interactive fork startup.
+Source tracing identifies global configuration arguments split across the fork
+subcommand: its parser replaces the root provider settings with the later
+instruction setting. The pinned split-versus-unified comparison confirms that
+cause. With the narrow correction, the real CLI reaches the selected local
+provider with matching synthetic authentication in 798 ms, without keystrokes or
+another sign-in gate. It receives no generated model output. Affected API and
+harness race checks pass 601 outcomes with three skips. Full installed lifecycle
+acceptance remains required; this diagnostic does not prove model quality.
 
 The full product goal remains open. The clean installed `9c585ec3` package
 passes captured-context inspection, phone coding layout and subscription-recovery
@@ -85,7 +106,7 @@ no payment provider. Billing observations are labelled fixtures; this does not
 establish merchant operation. Two earlier driver failures and their corrections
 are retained in `artifacts/quality-team-subscription-guidance/`.
 
-The combined source passes 2,256 Go outcomes with 22 skips, 860 affected race
+The earlier `9c585ec3` source passes 2,256 Go outcomes with 22 skips, 860 affected race
 outcomes with four skips, Windows API-test/service compilation and Darwin service
 compilation. All 687 Go inputs remain unchanged. Affected frontend checks and
 TypeScript pass; no fresh full frontend run or native Windows runtime is claimed.

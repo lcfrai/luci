@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { DefinitionWorkspace } from "../definition/DefinitionWorkspace";
 import DesignWorkspace from "../design/DesignWorkspace";
@@ -89,6 +90,103 @@ it("retains conflict edits while comparing the newer saved definition, and requi
   await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
   await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
   expect(save.mock.calls[1][1].purpose).toBe("My conflicting draft"); expect(save.mock.calls[1].slice(2)).toEqual([3, 4]);
+});
+
+it("blocks definition saved-read recovery until the fresh revision is available, then merges and saves explicitly", async () => {
+  const save = vi.spyOn(definitionApi, "save").mockRejectedValueOnce(new Error("Revision conflict"));
+  const approve = vi.spyOn(definitionApi, "approve");
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByLabelText("Boundaries and constraints"); edit("Boundaries and constraints", "Alice requires keyboard access");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  await screen.findByText(/Revision conflict/);
+  let finish!: (value: ProjectSpecification) => void;
+  vi.mocked(definitionApi.get).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const key = storedDrafts()[0], retained = localStorage.getItem(key);
+  const reload = screen.getByRole("button", { name: "Reload saved definition" });
+  await userEvent.click(reload);
+  const restore = screen.getByRole("button", { name: "Restore draft" });
+  expect((restore as HTMLButtonElement).disabled).toBe(true);
+  expect((reload as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Discard browser draft" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText("Boundaries and constraints").closest("fieldset") as HTMLFieldSetElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Save definition" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText("Loading saved definition… Your draft is kept while the current revision is checked.")).not.toBeNull();
+  await userEvent.click(reload); await userEvent.click(restore);
+  expect(definitionApi.get).toHaveBeenCalledTimes(2);
+  expect(save).toHaveBeenCalledOnce(); expect(approve).not.toHaveBeenCalled();
+  expect(localStorage.getItem(key)).toBe(retained);
+  const bob = { ...specification(), revision: 3, briefRevision: 4, requirements: [{ ...specification().requirements[0], title: "Bob's agreed outcome" }] };
+  await act(async () => finish(bob));
+  expect((restore as HTMLButtonElement).disabled).toBe(true);
+  await userEvent.click(screen.getByRole("checkbox", { name: /I reviewed the saved version/ }));
+  await userEvent.click(restore);
+  expect((screen.getByLabelText("Boundaries and constraints") as HTMLTextAreaElement).value).toBe("Alice requires keyboard access");
+  expect((screen.getByLabelText("Requirement 1") as HTMLInputElement).value).toBe("Bob's agreed outcome");
+  save.mockImplementation(async (_id, value) => ({ ...value, revision: 4, briefRevision: 5 }));
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+  expect(save.mock.calls[1][1]).toMatchObject({ constraints: "Alice requires keyboard access", requirements: bob.requirements });
+  expect(save.mock.calls[1].slice(2)).toEqual([3, 4]);
+  expect(storedDrafts()).toHaveLength(0);
+});
+
+it("keeps definition saved-read recovery blocked after failure and retains the draft for an explicit retry", async () => {
+  vi.spyOn(definitionApi, "save").mockRejectedValueOnce(new Error("Revision conflict"));
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await screen.findByLabelText("The idea"); edit("The idea", "My conflict draft");
+  await userEvent.click(screen.getByRole("button", { name: "Save definition" }));
+  await screen.findByText(/Revision conflict/);
+  const key = storedDrafts()[0], retained = localStorage.getItem(key);
+  vi.mocked(definitionApi.get).mockRejectedValueOnce(new Error("Saved definition is temporarily unavailable"));
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved definition" }));
+  await screen.findByText(/Saved definition is temporarily unavailable/);
+  expect((screen.getByRole("button", { name: "Restore draft" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Save definition" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole("button", { name: "Reload saved definition" }) as HTMLButtonElement).disabled).toBe(false);
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("My conflict draft");
+  expect(localStorage.getItem(key)).toBe(retained);
+  vi.mocked(definitionApi.get).mockResolvedValueOnce({ ...specification(), revision: 3, briefRevision: 4, audience: "Bob's audience" });
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved definition" }));
+  await screen.findByRole("checkbox", { name: /I reviewed the saved version/ });
+  await userEvent.click(screen.getByRole("checkbox", { name: /I reviewed the saved version/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("My conflict draft");
+  expect((screen.getByLabelText("Who it is for") as HTMLTextAreaElement).value).toBe("Bob's audience");
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("blocks definition approval during a saved-read retry even without an edited browser draft", async () => {
+  const approve = vi.spyOn(definitionApi, "approve").mockRejectedValueOnce(new Error("Definition changed before approval"));
+  render(<DefinitionWorkspace projectId="p-1" />);
+  await userEvent.click(await screen.findByRole("button", { name: "Approve definition" }));
+  await screen.findByText(/Definition changed before approval/);
+  let finish!: (value: ProjectSpecification) => void;
+  vi.mocked(definitionApi.get).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved definition" }));
+  const action = screen.getByRole("button", { name: "Approve definition" });
+  expect((action as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText("The idea").closest("fieldset") as HTMLFieldSetElement).disabled).toBe(true);
+  await userEvent.click(action); expect(approve).toHaveBeenCalledOnce();
+  expect(storedDrafts()).toHaveLength(0);
+  await act(async () => finish({ ...specification(), revision: 3, briefRevision: 4 }));
+  expect((action as HTMLButtonElement).disabled).toBe(false);
+  approve.mockResolvedValueOnce({ ...specification(), revision: 3, briefRevision: 4, status: "approved" });
+  await userEvent.click(action);
+  expect(approve).toHaveBeenLastCalledWith("p-1", 3, 4);
+});
+
+it.each(["success", "error"] as const)("ignores superseded definition saved-read %s after effect restart and a newer edit", async outcome => {
+  let finish!: (value: ProjectSpecification) => void, reject!: (error: Error) => void;
+  vi.mocked(definitionApi.get).mockImplementationOnce(() => new Promise((resolve, fail) => { finish = resolve; reject = fail; }))
+    .mockResolvedValueOnce({ ...specification(), revision: 3, briefRevision: 4 });
+  render(<StrictMode><DefinitionWorkspace projectId="p-1" /></StrictMode>);
+  await screen.findByLabelText("The idea"); edit("The idea", "Newer local edit");
+  const retained = localStorage.getItem(storedDrafts()[0]);
+  await act(async () => { if (outcome === "success") finish(specification()); else reject(new Error("Obsolete saved-read failure")); });
+  expect((screen.getByLabelText("The idea") as HTMLTextAreaElement).value).toBe("Newer local edit");
+  expect(screen.getByText("Unsaved changes")).not.toBeNull();
+  expect(screen.queryByRole("alert")).toBeNull();
+  expect(localStorage.getItem(storedDrafts()[0])).toBe(retained);
 });
 
 it("recovers Alice's constraint without overwriting Bob's newer outcome and saves against the current revision", async () => {

@@ -38,6 +38,126 @@ function ready(plan = fixture()) {
   vi.spyOn(productApi, "prototypeReleases").mockResolvedValue({ releases: [] });
 }
 
+it("keeps recovery and edits blocked until the saved design reload completes, then merges against its fresh revision", async () => {
+  ready();
+  const scope = "design-reload-recovery";
+  vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue(scope);
+  const key = `luci.project-draft.v1:${JSON.stringify([scope, "design-plan"])}`;
+  const save = vi.spyOn(designPlanApi, "save").mockRejectedValueOnce(new Error("The saved design changed. Reload before saving."))
+    .mockImplementation(async (_id, plan) => ({ ...plan, revision: 4 }));
+  let finish!: (value: DesignPlan) => void;
+  const user = userEvent.setup();
+  try {
+    render(<DesignWorkspace projectId="p-1" />);
+    await user.click(await screen.findByRole("tab", { name: "Implementation handoff" }));
+    const notes = screen.getByRole("textbox", { name: "Implementation notes" }) as HTMLTextAreaElement;
+    await user.clear(notes); await user.type(notes, "Keep my keyboard recovery steps");
+    await user.click(screen.getByRole("button", { name: "Save design plan" }));
+    const reload = await screen.findByRole("button", { name: "Reload saved design" });
+    vi.mocked(designPlanApi.get).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    await user.click(reload);
+    const restore = screen.getByRole("button", { name: "Restore draft" }) as HTMLButtonElement;
+    const restoreWasBlocked = restore.disabled;
+    expect(screen.getByText("Loading saved design… Your draft stays here while the saved version is checked.")).not.toBeNull();
+    expect(notes.matches(":disabled")).toBe(true);
+    expect((screen.getByRole("button", { name: "Save design plan" }) as HTMLButtonElement).disabled).toBe(true);
+    const retainedDuringRead = localStorage.getItem(key);
+    await user.click(reload);
+    expect(designPlanApi.get).toHaveBeenCalledTimes(2);
+    await user.click(restore);
+    await user.type(notes, " should not be admitted during reload");
+    expect(localStorage.getItem(key)).toBe(retainedDuringRead);
+    const peer = { ...fixture(), revision: 3, implementationNotes: "Teammate navigation rules", screens: [{ ...fixture().screens[0], name: "Teammate home" }] };
+    await act(async () => finish(peer));
+    expect(screen.queryByRole("region", { name: "Design plan draft recovery" }), `Recovery must remain offered after the read; visible notes: ${notes.value}`).not.toBeNull();
+    expect(restoreWasBlocked).toBe(true);
+    expect((screen.getByRole("button", { name: "Restore draft" }) as HTMLButtonElement).disabled).toBe(true);
+    await user.click(screen.getByRole("radio", { name: "Use my draft for Implementation notes" }));
+    await user.click(screen.getByRole("checkbox", { name: "I reviewed the saved version and these recovery choices." }));
+    await user.click(screen.getByRole("button", { name: "Restore draft" }));
+    expect(notes.value).toBe("Keep my keyboard recovery steps");
+    await user.click(screen.getByRole("tab", { name: "Screens and states" }));
+    expect((screen.getByRole("textbox", { name: "Screen name" }) as HTMLInputElement).value).toBe("Teammate home");
+    await user.click(screen.getByRole("button", { name: "Save design plan" }));
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save.mock.calls[1]).toEqual(["p-1", { ...peer, implementationNotes: "Keep my keyboard recovery steps", status: "draft", digest: "" }, 3, 1, 2]);
+    expect(localStorage.getItem(key)).toBeNull();
+  } finally { localStorage.removeItem(key); }
+});
+
+it("retains a design draft through a failed saved read and requires successful retry before recovery", async () => {
+  ready();
+  const scope = "design-reload-failed";
+  vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue(scope);
+  const key = `luci.project-draft.v1:${JSON.stringify([scope, "design-plan"])}`;
+  vi.spyOn(designPlanApi, "save").mockRejectedValueOnce(new Error("The saved design changed."));
+  const user = userEvent.setup();
+  try {
+    render(<DesignWorkspace projectId="p-1" />);
+    await user.click(await screen.findByRole("tab", { name: "Implementation handoff" }));
+    const notes = screen.getByRole("textbox", { name: "Implementation notes" }) as HTMLTextAreaElement;
+    await user.type(notes, " with local recovery instructions");
+    const retained = localStorage.getItem(key);
+    await user.click(screen.getByRole("button", { name: "Save design plan" }));
+    vi.mocked(designPlanApi.get).mockRejectedValueOnce(new Error("Saved design is temporarily unavailable"));
+    await user.click(await screen.findByRole("button", { name: "Reload saved design" }));
+    await screen.findByText("Reload the saved design before editing or recovering your draft. Your existing edits are kept.");
+    expect(screen.getByRole("alert").textContent).toContain("Saved design is temporarily unavailable");
+    expect(localStorage.getItem(key)).toBe(retained);
+    expect(notes.value).toBe("Saved notes with local recovery instructions");
+    expect(notes.matches(":disabled")).toBe(true);
+    for (const name of ["Restore draft", "Discard browser draft", "Save design plan"]) expect((screen.getByRole("button", { name }) as HTMLButtonElement).disabled).toBe(true);
+    const retry = screen.getByRole("button", { name: "Reload saved design" }) as HTMLButtonElement;
+    expect(retry.disabled).toBe(false);
+    await user.click(retry);
+    const restore = screen.getByRole("button", { name: "Restore draft" }) as HTMLButtonElement;
+    await waitFor(() => expect(restore.disabled).toBe(false));
+    await user.click(restore);
+    expect(notes.value).toBe("Saved notes with local recovery instructions");
+    expect(notes.matches(":disabled")).toBe(false);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(designPlanApi.save).toHaveBeenCalledTimes(1);
+  } finally { localStorage.removeItem(key); }
+});
+
+it("blocks edits and approval while a clean design reload is pending", async () => {
+  ready();
+  const approve = vi.spyOn(designPlanApi, "approve").mockRejectedValueOnce(new Error("The handoff changed. Reload before approval."));
+  let finish!: (value: DesignPlan) => void;
+  const user = userEvent.setup();
+  render(<DesignWorkspace projectId="p-1" />);
+  await user.click(await screen.findByRole("button", { name: "Approve design handoff" }));
+  vi.mocked(designPlanApi.get).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  await user.click(await screen.findByRole("button", { name: "Reload saved design" }));
+  const approval = screen.getByRole("button", { name: "Approve design handoff" }) as HTMLButtonElement;
+  const name = screen.getByRole("textbox", { name: "Screen name" }) as HTMLInputElement;
+  expect(approval.disabled).toBe(true); expect(name.matches(":disabled")).toBe(true);
+  await user.click(approval); await user.type(name, "Unadmitted name");
+  expect(approve).toHaveBeenCalledTimes(1);
+  expect(name.value).toBe("Home");
+  await act(async () => finish({ ...fixture(), revision: 3, screens: [{ ...fixture().screens[0], name: "Freshly reviewed home" }] }));
+  expect(name.value).toBe("Freshly reviewed home");
+  expect(name.matches(":disabled")).toBe(false); expect(approval.disabled).toBe(false);
+  expect(approve).toHaveBeenCalledTimes(1);
+});
+
+it.each(["success", "error"])("ignores an old saved design read's %s after workspace scope changes", async outcome => {
+  ready();
+  const scope = vi.spyOn(projectDraft, "useProjectDraftScope").mockReturnValue("design-read-old-workspace");
+  let finish!: (value: DesignPlan) => void, fail!: (cause: Error) => void;
+  vi.mocked(designPlanApi.get).mockImplementationOnce(() => new Promise((resolve, reject) => { finish = resolve; fail = reject; }))
+    .mockResolvedValue({ ...fixture(), screens: [{ ...fixture().screens[0], name: "Current workspace screen" }] });
+  const view = render(<DesignWorkspace projectId="p-1" />);
+  scope.mockReturnValue("design-read-current-workspace");
+  view.rerender(<DesignWorkspace projectId="p-1" />);
+  const name = await screen.findByRole("textbox", { name: "Screen name" }) as HTMLInputElement;
+  expect(name.value).toBe("Current workspace screen");
+  await act(async () => { if (outcome === "success") finish(fixture()); else fail(new Error("Old workspace read failed")); });
+  expect(name.value).toBe("Current workspace screen");
+  expect(name.matches(":disabled")).toBe(false);
+  expect(screen.queryByRole("alert")).toBeNull();
+});
+
 it("starts an unfinished screen without invented behavior or coverage, allows a named draft and blocks approval until described", async () => {
   ready({ ...fixture(), revision: 0, screens: [] });
   const save = vi.spyOn(designPlanApi, "save").mockImplementation(async (_id, plan) => ({ ...plan, revision: 1, status: "draft" }));

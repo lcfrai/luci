@@ -6,12 +6,14 @@ import { useCockpit } from "../../store/store";
 import { StatusDot } from "../common/StatusDot";
 import { Popover } from "../common/Popover";
 import type { Machine } from "../../store/types";
+import { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
 import "./rail.css";
 
 export function MachineChip(props: {
   machine: Machine | undefined;
 }): JSX.Element {
   const { machine } = props;
+  const team = useTeamWorkspace();
   const machinesOpen = useCockpit((s) => s.machinesOpen);
   const openMachines = useCockpit((s) => s.openMachines);
   const closeMachines = useCockpit((s) => s.closeMachines);
@@ -34,6 +36,12 @@ export function MachineChip(props: {
     );
   }
 
+  // The worker's fixed local-machine name describes its host, not the viewer's
+  // computer. Qualify only that default in team scope; retain server identity.
+  const name = team?.teamId && machine.id === "local" && machine.kind === "local" && machine.default && machine.name === "This PC"
+    ? "Team execution host"
+    : machine.name;
+
   return (
     <>
       <button
@@ -48,9 +56,9 @@ export function MachineChip(props: {
         <StatusDot
           status={machine.state}
           live={machine.state === "running"}
-          label={`${machine.state} · ${machine.name}`}
+          label={`${machine.state} · ${name}`}
         />
-        <span className="rail-name">{machine.name}</span>
+        <span className="rail-name">{name}</span>
         {machine.isolation === "microvm" ? null : (
           <span className="rail-badge">
             {machine.isolation === "container" ? "Docker" : "Host"}
@@ -60,7 +68,7 @@ export function MachineChip(props: {
       <Popover anchor={anchor} onClose={closeMachines}>
         <div className="rail-machine-pop">
           <p>
-            {machine.name} · {machine.state} · {machine.backend}
+            {name} · {machine.state} · {machine.backend}
           </p>
           {machine.message === undefined ? null : <p>{machine.message}</p>}
           {machine.sessionMemoryMiB !== undefined &&

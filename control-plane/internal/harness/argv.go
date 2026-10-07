@@ -88,6 +88,13 @@ func Build(r Request) (command string, argv []string, err error) {
 // history, so --last/--continue cannot select another user's conversation.
 func codexArgv(r Request) []string {
 	args := []string{"--no-alt-screen", "--no-daemon", "-c", `cli_auth_credentials_store="file"`}
+	if r.ProjectBrief || r.ReviewedContext {
+		// Codex's pinned Clap parser replaces root global -c values when
+		// another -c appears after fork. Keep context in the same root scope
+		// as credential storage and the API/subscription provider overrides.
+		// TOML string quoting is data, not command-line interpretation.
+		args = append(args, "-c", "developer_instructions="+strconv.Quote(projectContextPrompt(r)))
+	}
 	if r.Resume != "" {
 		args = append(args, "fork", "--last")
 	}
@@ -108,10 +115,6 @@ func codexArgv(r Request) []string {
 			sandbox = "danger-full-access"
 		}
 		args = append(args, "--sandbox", sandbox, "--ask-for-approval", "on-request")
-	}
-	if r.ProjectBrief || r.ReviewedContext {
-		// TOML string quoting is data, not command-line interpretation.
-		args = append(args, "-c", "developer_instructions="+strconv.Quote(projectContextPrompt(r)))
 	}
 	if r.OpeningPrompt != "" {
 		args = append(args, "--", r.OpeningPrompt)

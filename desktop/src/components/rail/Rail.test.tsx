@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
@@ -6,6 +6,24 @@ import { Rail } from "./Rail";
 import { resetCockpit, useCockpit } from "../../store/store";
 import { aBranch, aProject, aSession, aWorktree } from "../../test/fixtures";
 import type { CockpitState } from "../../store/store";
+import { personalPermissions } from "../../api/teams";
+import type { useTeamWorkspace } from "../teams/TeamWorkspaceProvider";
+
+const teamWorkspace = vi.hoisted(() => ({ value: null as ReturnType<typeof useTeamWorkspace> }));
+const setup = vi.hoisted(() => ({ openProject: vi.fn(), openSettings: vi.fn() }));
+vi.mock('../teams/TeamWorkspaceProvider', async importOriginal => ({
+  ...await importOriginal<typeof import('../teams/TeamWorkspaceProvider')>(),
+  useTeamWorkspace: () => teamWorkspace.value,
+}));
+vi.mock('../setup/SetupProvider', () => ({ useSetup: () => setup }));
+function teamScope(edit: boolean, admin: boolean): NonNullable<ReturnType<typeof useTeamWorkspace>> {
+  const selected = {
+    team: { id: 'team-aaaaaaaaaaaaaaaaaaaaaa', name: 'Shared team', revision: 1, createdAt: '', updatedAt: '' },
+    membership: { userId: 'alice', role: 'editor' as const, grants: { execute: false, secrets: false, deploy: false, admin }, revision: 1 },
+    permissions: { ...personalPermissions, edit, admin },
+  };
+  return { teamId: selected.team.id, managedTeamId: selected.team.id, selected, teams: [selected], revision: 1, refresh: vi.fn().mockResolvedValue(undefined), select: vi.fn() };
+}
 
 const project = aProject({
   id: "p-1",
@@ -61,7 +79,67 @@ function seed(over: Partial<CockpitState> = {}): void {
 }
 
 describe("Rail", () => {
-  beforeEach(() => seed());
+  beforeEach(() => { seed(); teamWorkspace.value = null; setup.openProject.mockClear(); setup.openSettings.mockClear(); });
+
+  it('does not invite a nonadmin team member to create a project from the sidebar', async () => {
+    seed({ projects: [] }); teamWorkspace.value = teamScope(true, false);
+    render(<Rail />);
+    const create = screen.getByRole('button', { name: 'Create project' });
+    expect(create).toHaveProperty('disabled', true);
+    await userEvent.click(create);
+    expect(setup.openProject).not.toHaveBeenCalled();
+    expect(within(screen.getByRole('region', { name: 'Projects' })).getByText('No projects shared yet. Ask your team administrator to share a project.')).toBeTruthy();
+    expect(screen.queryByText(/Create a project or import a repository from your/)).toBeNull();
+    expect(create).toHaveProperty('title', 'Ask your team administrator to create or share a project.');
+    const result = await axe.run(document, { runOnly: { type: 'rule', values: ['aria-required-children', 'button-name'] } });
+    expect(result.violations.map(rule => rule.id)).toEqual([]);
+  });
+
+  it.each([[true, true, true], [true, false, false], [false, true, false], [false, false, false]])('requires current edit=%s and admin=%s for sidebar creation (allowed=%s)', async (edit, admin, allowed) => {
+    teamWorkspace.value = teamScope(edit, admin);
+    render(<Rail />);
+    const create = screen.getByRole('button', { name: 'Create project' });
+    expect(create).toHaveProperty('disabled', !allowed);
+    await userEvent.click(create);
+    expect(setup.openProject).toHaveBeenCalledTimes(allowed ? 1 : 0);
+  });
+
+  it('updates permission and empty-state guidance when switching from personal to a team and after access changes', async () => {
+    seed({ projects: [] });
+    const view = render(<Rail />);
+    const create = screen.getByRole('button', { name: 'Create project' });
+    expect(create).toHaveProperty('disabled', false);
+    await userEvent.click(create);
+    expect(setup.openProject).toHaveBeenCalledTimes(1);
+    teamWorkspace.value = teamScope(true, false);
+    view.rerender(<Rail />);
+    expect(create).toHaveProperty('disabled', true);
+    expect(within(screen.getByRole('region', { name: 'Projects' })).getByText(/No projects shared yet/)).toBeTruthy();
+    await userEvent.click(create);
+    expect(setup.openProject).toHaveBeenCalledTimes(1);
+    teamWorkspace.value = teamScope(true, true);
+    view.rerender(<Rail />);
+    expect(create).toHaveProperty('disabled', false);
+    expect(within(screen.getByRole('region', { name: 'Projects' })).getByText(/Create a project or import/)).toBeTruthy();
+    teamWorkspace.value = { ...teamScope(true, true), selected: null };
+    view.rerender(<Rail />);
+    expect(create).toHaveProperty('disabled', true);
+    teamWorkspace.value = null;
+    view.rerender(<Rail />);
+    expect(create).toHaveProperty('disabled', false);
+  });
+
+  it('keeps keyboard tree navigation available when the creation action is disabled', async () => {
+    teamWorkspace.value = teamScope(false, false);
+    render(<Rail />);
+    screen.getByRole('button', { name: 'All projects' }).focus();
+    await userEvent.tab();
+    const rows = screen.getAllByRole('treeitem');
+    expect(document.activeElement).toBe(rows[0]);
+    await userEvent.keyboard('{ArrowDown}');
+    expect(document.activeElement).toBe(rows[1]);
+    expect(setup.openProject).not.toHaveBeenCalled();
+  });
 
   it("labels an empty project catalogue without exposing a tree missing its required items", async () => {
     seed({ projects: [] });

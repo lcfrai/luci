@@ -303,6 +303,46 @@ try {
   await screenshot('03-exact-managed-team-joined');
   check('Same existing account joins only the bound team with exact editor grants; current membership unlocks workspace, not implicit private project access or administration');
 
+  stage = 'managed-sidebar-context';
+  const machine = (await api('GET', workspace + '/v1/machines', undefined, 200, existing.token)).machines.find(row => row.default);
+  assert(machine && machine.id === 'local' && machine.kind === 'local' && machine.name === 'This PC', 'Fixture needs the actual default worker machine');
+  const sidebarObservations = [];
+  for (const width of [1440, 390]) {
+    if (width === 390) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.getByRole('button', { name: 'Projects', exact: true }).click();
+    }
+    const sidebar = page.getByRole('navigation', { name: 'Projects', exact: true });
+    await sidebar.waitFor();
+    await screenshot(`03-sidebar-${width}-before-assertions`);
+    assert(await sidebar.getByRole('button', { name: 'Create project', exact: true }).isDisabled(), 'Nonadmin sidebar offers project creation');
+    assert(await sidebar.getByRole('region', { name: 'Projects', exact: true }).getByText('No projects shared yet. Ask your team administrator to share a project.', { exact: true }).isVisible());
+    assert.equal(await sidebar.getByText(/Create a project or import a repository from your/).count(), 0);
+    const chip = sidebar.getByRole('button', { name: /Team execution host/ });
+    await chip.waitFor();
+    assert(await chip.getByRole('img', { name: `${machine.state} · Team execution host`, exact: true }).isVisible());
+    const geometry = await chip.evaluate(element => {
+      const box = element.getBoundingClientRect(), label = element.querySelector('.rail-name'), hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+      return { viewportWidth: innerWidth, viewportHeight: innerHeight, scrollWidth: document.documentElement.scrollWidth, x: box.x, y: box.y, width: box.width, height: box.height, unobscured: hit === element || element.contains(hit), labelFits: !!label && label.scrollWidth <= label.clientWidth && label.scrollHeight <= label.clientHeight };
+    });
+    sidebarObservations.push(geometry);
+    writeFileSync(join(evidence, 'sidebar-geometry.json'), JSON.stringify(sidebarObservations, null, 2), { mode: 0o600 });
+    assert(geometry.scrollWidth <= width && geometry.x >= 0 && geometry.x + geometry.width <= width && geometry.y >= 0 && geometry.y + geometry.height <= geometry.viewportHeight, 'Team host chip exceeds the viewport');
+    assert(geometry.height >= 32 && geometry.unobscured && geometry.labelFits, 'Team host chip or its label is obscured');
+    await chip.click();
+    const popover = page.getByRole('dialog'); await popover.waitFor();
+    assert(await popover.getByText(`Team execution host · ${machine.state} · ${machine.backend}`, { exact: true }).isVisible());
+    if (machine.message) assert(await popover.getByText(machine.message, { exact: true }).isVisible());
+    for (const limitation of machine.limitations) assert(await popover.getByText(limitation, { exact: true }).isVisible());
+    await screenshot(`03-sidebar-${width}-host-details`);
+    await page.keyboard.press('Escape'); await popover.waitFor({ state: 'hidden' });
+    assert(await chip.evaluate(element => element === document.activeElement), 'Host details did not return keyboard focus');
+    if (width === 390) await sidebar.getByRole('button', { name: 'Close projects', exact: true }).click();
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.evaluate(() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done))));
+  check('Managed sidebar at 1440 and 390 disables nonadmin creation, explains project sharing, and labels the exact team execution host while preserving reported state/backend/limitations', { machineId: machine.id, reportedName: machine.name, state: machine.state, backend: machine.backend });
+
   stage = 'explicit-project-grant-and-restart';
   const detail = await api('GET', `/v1/teams/${team.id}`);
   await api('PUT', `/v1/teams/${team.id}/projects/${project.id}/members/${existing.user.id}`, { expectedRevision: detail.team.revision, role: 'editor', grants });

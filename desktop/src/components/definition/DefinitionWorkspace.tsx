@@ -88,6 +88,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   const draft = useProjectDraft({ scope, kind: "definition", base: draftBase, baseValue: savedSpec.current, value: spec, dirty, valid: definitionDraftValid });
   useUnsavedProjectDraft(projectId, dirty, "Definition", "discover", scope ? { retained: draft.retained, discard: () => { draft.clear(); setSpec(savedSpec.current); setDirty(false); } } : undefined);
   const [busy, setBusy] = useState(false);
+  const [savedRead, setSavedRead] = useState<"loading" | "ready" | "failed">("loading");
   const [pending, setPending] = useState<"" | "save" | "approve">("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -104,29 +105,44 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
   const [history, setHistory] = useState<ProjectSpecification[]>([]);
   const alive = useRef(true);
   const submitting = useRef(false);
+  const reading = useRef({ generation: 0, pending: false, ready: false });
+  const locked = busy || savedRead !== "ready";
   const tabsId = useId(), selectedIndex = views.findIndex(([key]) => key === tab);
   const setLens = useCockpit((s) => s.setLens);
   const missingJourneyLinks = spec?.journeys.some(journey => journey.requirementIds.some(id => !spec.requirements.some(requirement => requirement.id === id))) ?? false;
   const load = async () => {
-    if (!canRead) return;
-    const value = await definitionApi.get(projectId);
-    if (!alive.current) return;
-    savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision });
-    setDirty(false); setError("");
-    if (value.purpose || value.revision) setTab("specification");
+    if (!canRead || reading.current.pending || submitting.current) return;
+    const generation = ++reading.current.generation;
+    reading.current.pending = true; reading.current.ready = false; setSavedRead("loading");
+    try {
+      const value = await definitionApi.get(projectId);
+      if (!alive.current || reading.current.generation !== generation) return;
+      savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision });
+      reading.current.ready = true; setSavedRead("ready"); setDirty(false); setError("");
+      if (value.purpose || value.revision) setTab("specification");
+    } catch (cause) {
+      if (alive.current && reading.current.generation === generation) { setSavedRead("failed"); setError(errorText(cause)); }
+    } finally {
+      if (reading.current.generation === generation) reading.current.pending = false;
+    }
   };
   useEffect(() => {
     alive.current = true;
     if (!canRead) return;
-    void load().catch((cause) => { if (alive.current) setError(errorText(cause)); });
-    return () => { alive.current = false; };
+    void load();
+    return () => { alive.current = false; reading.current.generation++; reading.current.pending = false; reading.current.ready = false; };
   }, [projectId, canRead || !!spec]);
+  const reload = () => {
+    if (!canRead || reading.current.pending || submitting.current) return;
+    draft.offerRecovery(); void load();
+  };
   const patch = (value: Partial<ProjectSpecification>) => {
+    if (!canEdit || !reading.current.ready || submitting.current || draft.pending) return;
     if (spec) setSpec({ ...spec, ...value, status: "draft", digest: "" });
     setDirty(true); setNotice("");
   };
   async function save() {
-    if (!canEdit || !spec || !base || submitting.current || draft.pending || missingJourneyLinks) return;
+    if (!canEdit || !spec || !base || !reading.current.ready || submitting.current || draft.pending || missingJourneyLinks) return;
     submitting.current = true; setBusy(true); setPending("save"); setError(""); setNotice("");
     try {
       const saved = await definitionApi.save(projectId, spec, base.revision, base.briefRevision);
@@ -135,7 +151,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
     finally { submitting.current = false; if (alive.current) { setBusy(false); setPending(""); } }
   }
   async function approve() {
-    if (!canEdit || !spec || dirty || draft.pending || submitting.current) return;
+    if (!canEdit || !spec || !reading.current.ready || dirty || draft.pending || submitting.current) return;
     submitting.current = true; setBusy(true); setPending("approve"); setError("");
     try {
       const value = await definitionApi.approve(projectId, spec.revision, spec.briefRevision);
@@ -170,12 +186,14 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
     </JourneyHeader>
     <div className="definition-conversation-link">
       <p>Use this definition to agree what will be built. Luci uses it to explain the next step and the effect of a change.</p>
-      <Button type="button" variant="secondary" disabled={!canRead || dirty || !!draft.pending} onClick={() => window.dispatchEvent(new CustomEvent("luci:orchestrator-open", { detail: { projectId } }))}>Discuss or request a change</Button>
+      <Button type="button" variant="secondary" disabled={!canRead || locked || dirty || !!draft.pending} onClick={() => window.dispatchEvent(new CustomEvent("luci:orchestrator-open", { detail: { projectId } }))}>Discuss or request a change</Button>
       {(dirty || !!draft.pending) && <p className="journey-muted">Save or resolve this draft first so Luci sees the context you intend to use.</p>}
     </div>
     {access.message && <p role="status" className="journey-muted">{access.message}</p>}
-    {error && <div className="journey-error" role="alert">{error} <Button type="button" variant="secondary" disabled={busy} onClick={() => { draft.offerRecovery(); void load().catch((e) => setError(errorText(e))); }}>Reload saved definition</Button>{dirty && <p>Your edited draft is still here. Reload to compare it with the saved definition and choose what to recover.</p>}</div>}
-    <DraftRecovery merge draft={draft} label="Definition" base={draftBase} saved={savedSpec.current} busy={busy} readOnly={!canEdit} onDiscard={() => { setSpec(savedSpec.current); setDirty(false); }} onRestore={value => { if (spec) { setSpec({ ...value, projectId, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); } }} />
+    {error && <div className="journey-error" role="alert">{error} <Button type="button" variant="secondary" loading={savedRead === "loading"} disabled={busy || savedRead === "loading" || !canRead} onClick={reload}>Reload saved definition</Button>{dirty && <p>Your edited draft is still here. Reload to compare it with the saved definition and choose what to recover.</p>}</div>}
+    {spec && savedRead === "loading" && <p role="status">Loading saved definition… Your draft is kept while the current revision is checked.</p>}
+    {spec && savedRead === "failed" && <p role="status">Reload the saved definition before editing or recovering your draft. Your browser draft is unchanged.</p>}
+    <DraftRecovery merge draft={draft} label="Definition" base={draftBase} saved={savedSpec.current} busy={locked} readOnly={!canEdit} onDiscard={() => { setSpec(savedSpec.current); setDirty(false); }} onRestore={value => { if (spec) { setSpec({ ...value, projectId, revision: spec.revision, briefRevision: spec.briefRevision, status: "draft", digest: "" }); setDirty(true); setTab("specification"); } }} />
     {missingJourneyLinks && <p role="alert" className="journey-warning">A user journey still refers to an outcome that was removed. Review its related requirements below: choose any replacement outcome and explicitly remove the unavailable link before saving.</p>}
     {!spec && !error && <p role="status">Loading your project definition…</p>}
     {spec && canRead && <>
@@ -186,7 +204,7 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
       {views.map(([key], index) => <TabsSubtlePanel key={key} idPrefix={tabsId} index={index} selectedIndex={selectedIndex}>
       <div className="definition-layout" style={tab === "repository" ? { gridTemplateColumns: "minmax(0, 1fr)" } : undefined}>
         <div className="definition-content">
-          <fieldset disabled={!canEdit || busy || !!draft.pending} className="definition-fields">
+          <fieldset disabled={!canEdit || locked || !!draft.pending} className="definition-fields">
             {tab === "interview" && <div className="definition-interview">
               <label className="luci-field">Starting point<select value={spec.startingPoint} onChange={(e) => patch({ startingPoint: e.target.value as "new" | "existing" })}><option value="new">A new idea</option><option value="existing">An existing application</option></select></label>
               {spec.startingPoint === "existing" && <div><p className="journey-muted">Analyse actual source with your chosen provider, review the observed behaviour and gaps, then apply a draft. Save any edited answers before starting.</p><Button type="button" variant="secondary" onClick={() => setTab("repository")}>Analyse this repository</Button></div>}
@@ -244,10 +262,10 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
               <RecordGroup title="Decisions" help="Record consequential choices and the alternatives considered." items={spec.decisions} fields={[{ key: "title", label: "Decision title" }, { key: "decision", label: "Decision" }, { key: "reason", label: "Why" }, { key: "alternatives", label: "Alternatives considered" }]} create={() => ({ id: recordId("decision"), title: "", decision: "", reason: "", alternatives: "" })} onChange={(decisions) => patch({ decisions })} />
               {questionNotice && <p role="status" className="journey-warning">{questionNotice}</p>}
               <RecordGroup title="Open questions" help="Capture the gaps. Answer them before approving the definition." items={spec.questions} fields={[{ key: "question", label: "Question" }, { key: "answer", label: "Answer" }]} create={() => ({ id: recordId("question"), question: "", answer: "" })} onChange={(questions) => patch({ questions })}
-                focusTarget={questionTarget && canEdit && !busy && !draft.pending ? { id: questionTarget, field: "answer" } : undefined} onFocused={questionFocused} />
+                focusTarget={questionTarget && canEdit && !locked && !draft.pending ? { id: questionTarget, field: "answer" } : undefined} onFocused={questionFocused} />
             </div>}
           </fieldset>
-          {tab === "repository" && <RepositoryAnalysisPanel projectId={projectId} specification={spec} dirty={dirty || busy || !!draft.pending} onApplied={value => {
+          {tab === "repository" && <RepositoryAnalysisPanel projectId={projectId} specification={spec} dirty={dirty || locked || !!draft.pending} onApplied={value => {
             savedSpec.current = value; setSpec(value); setBase({ revision: value.revision, briefRevision: value.briefRevision }); setDirty(false); setError(""); setTab("specification");
             setNotice(`Repository analysis saved as definition ${value.revision}. Review the draft and resolve definition questions before approving.`); notifyProjectContextChanged(scope, projectId);
           }} />}
@@ -258,10 +276,10 @@ function ProjectDefinition({ projectId, scope }: { projectId: string; scope: str
       </TabsSubtlePanel>)}
       <footer className="definition-footer"><div className="journey-actions">
         {dirty || spec.status === "outdated" || !spec.revision
-          ? <Button type="button" loading={pending === "save"} disabled={!canEdit || busy || !!draft.pending || missingJourneyLinks || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
+          ? <Button type="button" loading={pending === "save"} disabled={!canEdit || locked || !!draft.pending || missingJourneyLinks || (!dirty && spec.status !== "outdated")} onClick={() => void save()}>Save definition</Button>
           : spec.status === "approved"
-            ? <Button type="button" disabled={busy} onClick={() => setLens("design")}>Continue to Design</Button>
-            : <Button type="button" loading={pending === "approve"} disabled={!canEdit || busy || !!draft.pending} onClick={() => void approve()}>Approve definition</Button>}
+            ? <Button type="button" disabled={locked} onClick={() => setLens("design")}>Continue to Design</Button>
+            : <Button type="button" loading={pending === "approve"} disabled={!canEdit || locked || !!draft.pending} onClick={() => void approve()}>Approve definition</Button>}
       </div><p role="status" className="journey-muted">{notice || `${spec.requirements.length} ${spec.requirements.length === 1 ? "requirement" : "requirements"} · ${openQuestionCount} definition ${openQuestionCount === 1 ? "question" : "questions"}`}</p></footer>
     </>}
     <ContextStorage projectId={projectId} />

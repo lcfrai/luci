@@ -8,9 +8,9 @@ import { aBranch, aHarness, aProject, aSession, aWorktree } from "../../test/fix
 import { implementationPrompt, ProjectPlan } from "./ProjectPlan";
 import { DraftNavigationDialog } from "../common/DraftNavigationDialog";
 
-const { createSession, reviewedContext } = vi.hoisted(() => ({ createSession: vi.fn(), reviewedContext: vi.fn() }));
+const { createSession, reviewedContext, draftIdentity } = vi.hoisted(() => ({ createSession: vi.fn(), reviewedContext: vi.fn(), draftIdentity: { value: "plan-permission-test" } }));
 vi.mock("../../api", () => ({ api: { createSession, getSessionReviewedContext: reviewedContext } }));
-vi.mock("../../hooks/useProjectDraft", async original => ({ ...await original<typeof import("../../hooks/useProjectDraft")>(), useProjectDraftScope: (projectId: string) => `plan-permission-test:${projectId}` }));
+vi.mock("../../hooks/useProjectDraft", async original => ({ ...await original<typeof import("../../hooks/useProjectDraft")>(), useProjectDraftScope: (projectId: string) => `${draftIdentity.value}:${projectId}` }));
 const brief: Brief = { projectId: "p-1", revision: 2, purpose: "Journal", audience: "Writers", constraints: "Offline", criteria: [], updatedAt: "" };
 const plan: ImplementationPlan = { projectId: "p-1", revision: 3, briefRevision: 2, specificationRevision: 6, tasks: [{ id: "t-1", title: "Build editor", status: "todo" }, { id: "t-2", title: "Save entries", status: "doing" }, { id: "t-3", title: "Set up project", status: "done" }], updatedAt: "" };
 const coverage: RequirementCoverage = { projectId: "p-1", specification: { revision: 6, status: "approved", digest: "spec-6" }, design: { revision: 8, status: "approved", digest: "design-8" }, source: { commit: "a".repeat(40), sourceDigest: "source-a", dirty: false, available: true }, rows: [] };
@@ -18,6 +18,7 @@ const snapshot = (over: Partial<ImplementationContext> = {}): ImplementationCont
 
 beforeEach(() => {
   vi.restoreAllMocks(); localStorage.clear(); resetCockpit(); createSession.mockReset(); reviewedContext.mockReset();
+  draftIdentity.value = "plan-permission-test";
   useCockpit.setState({ projects: [aProject({ id: "p-1" })], branchesByProject: { "p-1": [aBranch({ id: "b-1", projectId: "p-1" })] }, worktreesByBranch: { "b-1": [aWorktree({ id: "w-1", projectId: "p-1", branchId: "b-1", isPrimary: true })] }, selection: { projectId: "p-1", branchId: "b-1", worktreeId: "w-1", sessionId: null }, harnesses: [aHarness({ id: "claude-code", name: "Claude Code", command: "claude", available: true, supportsOpeningPrompt: true })] });
   vi.spyOn(productApi, "plan").mockResolvedValue(plan);
   vi.spyOn(productApi, "checks").mockResolvedValue({ runs: [], suggested: [], coverage });
@@ -243,4 +244,170 @@ it("keeps an unadded task title unchanged while another task edit is being saved
   expect(Object.values(useCockpit.getState().unsavedProjectDrafts)).toHaveLength(1);
   expect(JSON.parse(Object.values(browserDrafts())[0]!).value.title).toBe("A separate next task");
   expect(save).toHaveBeenCalledOnce(); expect(createSession).not.toHaveBeenCalled();
+});
+
+it("does not lose an early recovery attempt when a manual saved-plan read finishes later", async () => {
+  let finish!: (value: ImplementationPlan) => void;
+  const save = vi.spyOn(productApi, "savePlan").mockRejectedValue(new Error("The saved plan changed. Reload it before saving."));
+  render(<ProjectPlan projectId="p-1" brief={brief} />);
+  fireEvent.change(await screen.findByLabelText("Task 1"), { target: { value: "Keep my edited task" } });
+  fireEvent.change(screen.getByLabelText("New task"), { target: { value: "Keep my unfinished title" } });
+  await userEvent.click(screen.getByRole("button", { name: "Save implementation plan" }));
+  await screen.findByText("The saved plan changed. Reload it before saving.");
+  vi.mocked(productApi.plan).mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved plan" }));
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  await act(async () => finish(plan));
+  // A pending read must keep recovery available, rather than consuming the
+  // draft and then overwriting its restored values with the delayed response.
+  const restore = screen.queryByRole("button", { name: "Restore draft" });
+  if (restore) await userEvent.click(restore);
+  expect((screen.getByLabelText("Task 1") as HTMLInputElement).value).toBe("Keep my edited task");
+  expect((screen.getByLabelText("New task") as HTMLInputElement).value).toBe("Keep my unfinished title");
+  fireEvent.change(screen.getByLabelText("New task"), { target: { value: "Keep my unfinished title and this next edit" } });
+  const stored = JSON.parse(Object.values(browserDrafts())[0]!);
+  expect(stored.value.tasks[0].title).toBe("Keep my edited task");
+  expect(stored.value.title).toBe("Keep my unfinished title and this next edit");
+  expect(save).toHaveBeenCalledOnce(); expect(createSession).not.toHaveBeenCalled();
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void, reject!: (cause: Error) => void;
+  const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; });
+  return { promise, resolve, reject };
+}
+
+it("keeps the exact draft locked after a failed reload, then merges and saves against the retried current revision", async () => {
+  const reload = deferred<ImplementationPlan>(), saved = deferred<ImplementationPlan>(), prepare = vi.fn();
+  const save = vi.spyOn(productApi, "savePlan").mockRejectedValueOnce(new Error("Plan revision conflict")).mockReturnValueOnce(saved.promise);
+  render(<ProjectPlan projectId="p-1" brief={brief} onPrepareRun={prepare} />);
+  fireEvent.change(await screen.findByLabelText("Task 1"), { target: { value: "My offline editor" } });
+  fireEvent.change(screen.getByLabelText("New task"), { target: { value: "My unfinished next task" } });
+  await userEvent.click(screen.getByRole("button", { name: "Save implementation plan" }));
+  await screen.findByText("Plan revision conflict");
+  const retained = browserDrafts();
+  vi.mocked(productApi.plan).mockReturnValueOnce(reload.promise);
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved plan" }));
+  expect(screen.getByText("Loading saved plan… Your draft is kept while the current revision is checked.")).not.toBeNull();
+  for (const name of ["Reload saved plan", "Restore draft", "Discard browser draft", "Save implementation plan", "Start implementation session", "Prepare project run", "Add task"]) {
+    const button = screen.getByRole("button", { name }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true); fireEvent.click(button);
+  }
+  fireEvent.change(screen.getByLabelText("Task 1"), { target: { value: "Must not replace the task" } });
+  fireEvent.change(screen.getByLabelText("New task"), { target: { value: "Must not replace the title" } });
+  fireEvent.submit(screen.getByLabelText("New task").closest("form")!);
+  expect((screen.getByLabelText("Task 1") as HTMLInputElement).value).toBe("My offline editor");
+  expect((screen.getByLabelText("New task") as HTMLInputElement).value).toBe("My unfinished next task");
+  expect(productApi.plan).toHaveBeenCalledTimes(2);
+  await act(async () => reload.reject(new Error("Saved plan temporarily unavailable")));
+  expect(screen.getByText("Reload the saved plan before editing or recovering your draft. Your browser draft is unchanged.")).not.toBeNull();
+  for (const name of ["Restore draft", "Discard browser draft", "Save implementation plan", "Start implementation session", "Prepare project run"]) expect((screen.getByRole("button", { name }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText("Task 1") as HTMLInputElement).disabled).toBe(true);
+  expect((screen.getByLabelText("New task") as HTMLInputElement).disabled).toBe(true);
+  expect(browserDrafts()).toEqual(retained);
+  expect(save).toHaveBeenCalledOnce(); expect(prepare).not.toHaveBeenCalled(); expect(createSession).not.toHaveBeenCalled();
+
+  const current = { ...plan, revision: 9, tasks: plan.tasks.map((task, index) => ({ ...task, title: index === 0 ? "Peer editor change" : index === 1 ? "Peer durable entry recovery" : task.title })) };
+  vi.mocked(productApi.plan).mockResolvedValueOnce(current);
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved plan" }));
+  await userEvent.click(await screen.findByRole("radio", { name: /Use my draft for Tasks.*Title/ }));
+  await userEvent.click(screen.getByRole("checkbox", { name: /I reviewed the saved version and these recovery choices/ }));
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("Task 1") as HTMLInputElement).value).toBe("My offline editor");
+  expect((screen.getByLabelText("Task 2") as HTMLInputElement).value).toBe("Peer durable entry recovery");
+  expect((screen.getByLabelText("New task") as HTMLInputElement).value).toBe("My unfinished next task");
+  await userEvent.click(screen.getByRole("button", { name: "Add task" }));
+  const saveButton = screen.getByRole("button", { name: "Save implementation plan" });
+  await userEvent.click(saveButton);
+  fireEvent.click(saveButton);
+  expect(save).toHaveBeenCalledTimes(2);
+  expect(save.mock.calls[1]).toEqual(["p-1", 9, expect.any(Array), 6]);
+  expect(save.mock.calls[1][2].map(task => task.title)).toEqual(["My offline editor", "Peer durable entry recovery", "Set up project", "My unfinished next task"]);
+  expect((screen.getByRole("button", { name: "Prepare project run" }) as HTMLButtonElement).disabled).toBe(true);
+  await act(async () => saved.resolve({ ...current, revision: 10, tasks: save.mock.calls[1][2] }));
+  await screen.findByText("Plan saved as revision 10.");
+  expect(browserDrafts()).toEqual({});
+  await waitFor(() => expect((screen.getByRole("button", { name: "Prepare project run" }) as HTMLButtonElement).disabled).toBe(false));
+  await userEvent.click(screen.getByRole("button", { name: "Prepare project run" }));
+  expect(prepare).toHaveBeenCalledExactlyOnceWith({ worktreeId: "w-1", implementationContext: { projectId: "p-1", briefRevision: 2, planRevision: 10, specificationRevision: 6, designPlanRevision: 8, taskIds: ["t-1", "t-2", save.mock.calls[1][2][3].id] } });
+  expect(createSession).not.toHaveBeenCalled();
+});
+
+it("does not admit a second reload in the same event turn", async () => {
+  const pending = deferred<ImplementationPlan>();
+  vi.mocked(productApi.plan).mockRejectedValueOnce(new Error("Initial read unavailable")).mockReturnValueOnce(pending.promise);
+  render(<ProjectPlan projectId="p-1" brief={brief} />);
+  const reload = await screen.findByRole("button", { name: "Reload saved plan" });
+  act(() => { reload.click(); reload.click(); });
+  expect(productApi.plan).toHaveBeenCalledTimes(2);
+  await act(async () => pending.resolve(plan));
+  expect((screen.getByLabelText("Task 1") as HTMLInputElement).value).toBe("Build editor");
+});
+
+it.each([
+  ["account/workspace", "success"], ["account/workspace", "error"],
+  ["project", "success"], ["project", "error"],
+])("ignores a delayed manual-read %s scope response ending in %s", async (change, outcome) => {
+  const pending = deferred<ImplementationPlan>();
+  vi.spyOn(productApi, "savePlan").mockRejectedValue(new Error("Old plan conflict"));
+  const view = render(<ProjectPlan projectId="p-1" brief={brief} />);
+  fireEvent.change(await screen.findByLabelText("Task 1"), { target: { value: "Old private task draft" } });
+  await userEvent.click(screen.getByRole("button", { name: "Save implementation plan" }));
+  await screen.findByText("Old plan conflict");
+  vi.mocked(productApi.plan).mockReturnValueOnce(pending.promise);
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved plan" }));
+  const projectId = change === "project" ? "p-2" : "p-1";
+  if (change === "account/workspace") draftIdentity.value = "different-account-and-workspace";
+  vi.mocked(productApi.plan).mockResolvedValueOnce({ ...plan, projectId, tasks: [{ ...plan.tasks[0], title: "Current scope task" }] });
+  view.rerender(<ProjectPlan projectId={projectId} brief={{ ...brief, projectId }} />);
+  await screen.findByDisplayValue("Current scope task");
+  await act(async () => outcome === "error"
+    ? pending.reject(new Error("Private error from old workspace"))
+    : pending.resolve({ ...plan, tasks: [{ ...plan.tasks[0], title: "Late saved task from old workspace" }] }));
+  expect(screen.queryByText(/Private error|Old plan conflict/)).toBeNull();
+  expect(screen.queryByDisplayValue("Late saved task from old workspace")).toBeNull();
+  expect(screen.queryByRole("region", { name: "Implementation plan draft recovery" })).toBeNull();
+  fireEvent.change(screen.getByLabelText("Task 1"), { target: { value: "Current scope edit" } });
+  expect((screen.getByLabelText("Task 1") as HTMLInputElement).value).toBe("Current scope edit");
+  const stored = Object.values(browserDrafts()).map(raw => JSON.parse(raw!));
+  expect(stored.map(row => row.value.tasks[0].title).sort()).toEqual(["Current scope edit", "Old private task draft"]);
+  expect(createSession).not.toHaveBeenCalled();
+});
+
+it("rejects a wrong-project saved plan without enabling recovery against it", async () => {
+  vi.mocked(productApi.plan).mockResolvedValueOnce({ ...plan, projectId: "p-foreign", tasks: [{ ...plan.tasks[0], title: "Foreign private task" }] });
+  render(<ProjectPlan projectId="p-1" brief={brief} />);
+  await screen.findByText("The saved plan belongs to another project. Reload the current project's plan.");
+  expect(screen.queryByDisplayValue("Foreign private task")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Start implementation session" })).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved plan" }));
+  await screen.findByDisplayValue("Build editor");
+});
+
+it("does not accept a pending saved read after confirmed read revocation and requires a fresh read after access returns", async () => {
+  const pending = deferred<ImplementationPlan>();
+  vi.spyOn(productApi, "savePlan").mockRejectedValue(new Error("Plan conflict"));
+  const view = render(<ProjectPlan projectId="p-1" brief={brief} />);
+  fireEvent.change(await screen.findByLabelText("Task 1"), { target: { value: "Retain this task" } });
+  await userEvent.click(screen.getByRole("button", { name: "Save implementation plan" }));
+  await screen.findByText("Plan conflict");
+  vi.mocked(productApi.plan).mockReturnValueOnce(pending.promise);
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved plan" }));
+  const retained = browserDrafts();
+  teamAccess.permissions.read = false;
+  view.rerender(<ProjectPlan projectId="p-1" brief={brief} />);
+  await act(async () => pending.resolve({ ...plan, revision: 8, tasks: [{ ...plan.tasks[0], title: "Response after access was removed" }] }));
+  expect(screen.queryByDisplayValue("Response after access was removed")).toBeNull();
+  expect((screen.getByRole("button", { name: "Reload saved plan" }) as HTMLButtonElement).disabled).toBe(true);
+  expect(browserDrafts()).toEqual(retained);
+  teamAccess.permissions.read = true;
+  view.rerender(<ProjectPlan projectId="p-1" brief={brief} />);
+  expect((screen.getByRole("button", { name: "Restore draft" }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByLabelText("Task 1") as HTMLInputElement).disabled).toBe(true);
+  expect(productApi.plan).toHaveBeenCalledTimes(2);
+  await userEvent.click(screen.getByRole("button", { name: "Reload saved plan" }));
+  await waitFor(() => expect((screen.getByRole("button", { name: "Restore draft" }) as HTMLButtonElement).disabled).toBe(false));
+  await userEvent.click(screen.getByRole("button", { name: "Restore draft" }));
+  expect((screen.getByLabelText("Task 1") as HTMLInputElement).value).toBe("Retain this task");
+  expect(productApi.plan).toHaveBeenCalledTimes(3); expect(createSession).not.toHaveBeenCalled();
 });
