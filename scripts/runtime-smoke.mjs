@@ -185,7 +185,34 @@ try {
   assert.ok(resolve(project.path).startsWith(userProjects + sep), "Project escaped the authenticated user's test root");
   const originalMode = statSync(project.path).mode & 0o777;
   assert.equal(originalMode, 0o700);
-  await api("POST", `/v1/product/projects/${project.id}/brief`, { revision: 0, purpose: "Prove the actual Linux runtime", audience: "Release verification", constraints: "No model credentials or cloud resources", criteria: ["A real shell writes as its host user", "A committed preview answers HTTP"] });
+  // This backend-only fixture uses the same authenticated save/review routes as
+  // the UI. A brief or approval-looking project JSON cannot admit a release.
+  const projectBase = `/v1/product/projects/${project.id}`;
+  const definition = await api("GET", projectBase + "/specification");
+  definition.purpose = "Prove the actual Linux runtime";
+  definition.audience = "Release verification";
+  definition.constraints = "No model credentials or cloud resources";
+  definition.requirements = [
+    { id: "host-user-shell", title: "A real shell writes as its host user", priority: "must", acceptance: "An attached Docker shell writes a file with the ordinary host UID and GID, no effective capabilities and no-new-privileges enabled." },
+    { id: "committed-preview", title: "A committed preview answers HTTP", priority: "must", acceptance: "The committed Docker application responds on loopback with its private runtime configuration, without model keys, and its owned container is removed after Stop." },
+  ];
+  const savedDefinition = await api("POST", projectBase + "/specification", { expectedRevision: definition.revision, expectedBriefRevision: definition.briefRevision, specification: definition });
+  const approvedDefinition = await api("POST", projectBase + "/specification/approve", { revision: savedDefinition.revision, briefRevision: savedDefinition.briefRevision });
+  assert.equal(approvedDefinition.status, "approved");
+  assert.equal(approvedDefinition.briefRevision, 1);
+  assert.deepEqual(approvedDefinition.requirements.map(row => row.id), definition.requirements.map(row => row.id));
+  assert.match(approvedDefinition.digest, /^[a-f0-9]{64}$/);
+  const handoff = await api("GET", projectBase + "/design-plan");
+  handoff.screens = [{ id: "runtime-proof", name: "Runtime proof", route: "/", purpose: "Inspect the committed application's HTTP response and stop the owned preview", states: ["Starting", "Healthy response", "Failed health check", "Stopped"], widths: [390, 1440], requirementIds: approvedDefinition.requirements.map(row => row.id), accessibility: "The browser journey uses labelled controls and keyboard access; this backend fixture verifies HTTP outcomes only." }];
+  const savedHandoff = await api("POST", projectBase + "/design-plan", { expectedRevision: handoff.revision, expectedBriefRevision: approvedDefinition.briefRevision, expectedSpecificationRevision: approvedDefinition.revision, plan: handoff });
+  const approvedHandoff = await api("POST", projectBase + "/design-plan/approve", { revision: savedHandoff.revision });
+  assert.equal(approvedHandoff.status, "approved");
+  assert.equal(approvedHandoff.specificationRevision, approvedDefinition.revision);
+  assert.equal(approvedHandoff.briefRevision, approvedDefinition.briefRevision);
+  assert.match(approvedHandoff.digest, /^[a-f0-9]{64}$/);
+  assert.deepEqual(JSON.parse(readFileSync(join(project.path, ".luci/specification.json"), "utf8")), approvedDefinition);
+  assert.deepEqual(JSON.parse(readFileSync(join(project.path, ".luci/design-handoff.json"), "utf8")), approvedHandoff);
+  result.checks.push({ name: "authenticated current full Define and Design reviews", specificationRevision: approvedDefinition.revision, specificationDigest: approvedDefinition.digest, designPlanRevision: approvedHandoff.revision, designPlanDigest: approvedHandoff.digest, briefRevision: approvedDefinition.briefRevision });
   await api("POST", `/v1/product/projects/${project.id}/git/commit`, { message: "Runtime smoke initial brief" });
   const machines = (await api("GET", "/v1/machines")).machines;
   const branches = (await api("GET", `/v1/projects/${project.id}/branches`)).branches;
@@ -254,6 +281,10 @@ try {
   await api("POST", `/v1/product/projects/${project.id}/git/commit`, { message: "Runtime smoke committed preview" });
   const git = await api("GET", `/v1/product/projects/${project.id}/git`);
   assert.equal(git.clean, true);
+  for (const contextPath of ["LUCI.md", ".luci/specification.json", ".luci/specification.md", ".luci/design-handoff.json", ".luci/design-handoff.md"]) {
+    const committed = execFileSync("git", ["-C", project.path, "show", `${git.log[0].hash}:${contextPath}`], { timeout: 15_000 });
+    assert.deepEqual(committed, readFileSync(join(project.path, contextPath)), `Committed ${contextPath} differs from the authenticated reviewed context`);
+  }
   const applicationFixtureValue = "fixture-runtime-only-" + randomUUID();
   const configuration = await api("POST", `/v1/product/projects/${project.id}/configuration`, { expectedRevision: 0, updates: [
     { name: "APP_GREETING", value: "Luci configured preview OK" },

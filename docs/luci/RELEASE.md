@@ -1,5 +1,11 @@
 # Building and distributing Luci
 
+For current source/CI status use [the 7 October handoff](HANDOFF-2026-10-07.md).
+The latest completed 0.4.18 CI run failed Go tests before downstream acceptance;
+the new driver changes have syntax checks, not completed installed/runtime runs.
+Installed and package observations below retain their dated source identities.
+This push does not publish a release or replace an installation.
+
 The primary installed workspace remains **0.4.16**, from clean source
 `eda1d061d679e4051e720b7ff98f67a760c270dc`. The secondary workspace admitted
 **0.4.17**, from clean source `e0e51f640efc6aed54b1ce84d742b56d83b68215`,

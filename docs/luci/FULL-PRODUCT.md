@@ -1,5 +1,23 @@
 # Full product implementation and acceptance
 
+## Latest source checkpoint — 7 October 2026
+
+[The engineering handoff](HANDOFF-2026-10-07.md) records the retained Fourfold
+identity, authentic review/context additions to native and Docker acceptance
+drivers, Astra remediation state and continuation order. Driver syntax checks
+and `git diff --check` pass; their actual installed/runtime journeys have not
+run in this checkpoint. Source remains 0.4.18; no matching package is installed
+by this push.
+
+[CI 37405731442](https://github.com/lcfrai/luci/actions/runs/37405731442) for
+`690adbb1` completed **failed** in Go tests: the function-publication fixture
+lacks current private Design review, and the registry clone reference-field
+coverage list omits `ImplementationContext`. Downstream runtime/native/portable
+acceptance was skipped. This supersedes the earlier pending-CI observation;
+focused passing source checks do not override the failed whole-run result.
+The dated installed/Docker/account observations below have not been re-probed
+here. Full-product handback remains open.
+
 3 October 2026. The user's installed-app inspection supersedes the earlier narrow delivery checklist. The current application is not a complete UAT handback.
 
 The owner's 5 October instruction is recorded in [GOAL.md](GOAL.md). It is the

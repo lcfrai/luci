@@ -23,7 +23,11 @@ The [UAT guide](docs/UAT.md) walks through onboarding and the complete project j
 ## Structure
 
 The latest engineering handoff, Astra findings and continuation instructions
-are in [the 6 October checkpoint](docs/luci/HANDOFF-2026-10-06.md).
+are in [the 7 October checkpoint](docs/luci/HANDOFF-2026-10-07.md).
+Source version 0.4.18 remains an unfinished full-product candidate: the last
+completed CI run failed, matching installed acceptance is open, and the repo's
+listed releases are drafts. See that handoff before treating a source build as
+a release-ready download.
 
 - `desktop/` — React/Tauri interface, Excalidraw and terminal cockpit
 - `control-plane/` — local setup, project journey and session API

@@ -1,5 +1,9 @@
 # Astra readiness review — 6 October 2026
 
+The audit baseline and executed evidence below retain their original scope.
+[The 7 October handoff](HANDOFF-2026-10-07.md) distinguishes implemented
+remediations, remaining implementation and current CI/installed acceptance.
+
 Luci has substantial working product infrastructure, but the full product is not
 ready for an unrestricted completion claim. This review found a reproducible
 default Codex execution failure and several disconnected model-access paths.

@@ -29,7 +29,7 @@ const result = { mode, passed: false, executable, checks: [], limitations: [
   "WebDriver controls the release WebView2; no model inference or cloud deployment is exercised.",
   "The Windows runner has a prepared WebView2 runtime; first-time runtime download is not covered.",
 ] };
-let session, apiURL, appPID, childPID, localAccess, structuredUI = false;
+let session, apiURL, appPID, childPID, localAccess, structuredUI = false, privateReviewsRequired = false;
 const wdURL = "http://127.0.0.1:4444";
 const elementKey = "element-6066-11e4-a52e-4f735466cecf";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -229,6 +229,106 @@ function processes() {
 }
 const readProjectJSON = (path) => JSON.parse(readFileSync(join(fixture.projectRoot, fixture.projectName, path), "utf8"));
 const productStateDir = () => join(result.stateDir, "sessions");
+const contextFiles = ["LUCI.md", ".luci/specification.json", ".luci/specification.md", ".luci/design-handoff.json", ".luci/design-handoff.md"];
+function assertCommittedContext() {
+  const root = join(fixture.projectRoot, fixture.projectName);
+  for (const path of contextFiles) {
+    const committed = execFileSync("git", ["-C", root, "show", `HEAD:${path}`], { windowsHide: true, timeout: 15_000 });
+    assert.deepEqual(committed, readFileSync(join(root, path)), `Committed ${path} differs from the saved reviewed context`);
+  }
+}
+async function approveNativeHandoff() {
+  await click("Design");
+  await click("Screens and states");
+  await until("saved screen plan loaded", async () => await lookupElement("button", "Start a screen plan from my definition") || await lookupElement("label", "Screen name"));
+  if (await lookupElement("button", "Start a screen plan from my definition")) {
+    await click("Start a screen plan from my definition");
+    await fill("Screen name", "Installed project workspace");
+  }
+  await element("label", "Screen name");
+  if (await lookupElement("button", "Save design plan")) {
+    const revision = readProjectJSON(".luci/state.json").designPlan?.revision || 0;
+    await click("Save design plan");
+    await until("screen plan saved", () => readProjectJSON(".luci/state.json").designPlan?.revision > revision);
+    await element("button", "Approve design handoff");
+  }
+  if (await lookupElement("button", "Approve design handoff")) {
+    const revision = readProjectJSON(".luci/state.json").designPlan.revision;
+    await click("Approve design handoff");
+    await until("design handoff approved", () => {
+      const plan = readProjectJSON(".luci/state.json").designPlan;
+      return plan?.status === "approved" && plan.revision > revision;
+    });
+  }
+  const state = readProjectJSON(".luci/state.json"), plan = state.designPlan;
+  assert.equal(plan.status, "approved");
+  assert.equal(plan.briefRevision, state.brief.revision);
+  assert.equal(plan.specificationRevision, state.specification.revision);
+  assert.equal(plan.sketchRevision, state.design.revision);
+  assert.deepEqual(plan.screens[0].requirementIds, state.specification.requirements.map(item => item.id));
+  assert.match(plan.digest, /^[a-f0-9]{64}$/);
+  // The visible status is the service-derived selection, not a raw JSON flag.
+  await bodyHas(`approved · Revision ${plan.revision}`);
+  assert.deepEqual(readProjectJSON(".luci/design-handoff.json"), plan);
+  fixture.hasDesignHandoff = true;
+  fixture.designPlanRevision = plan.revision;
+  fixture.designPlanDigest = plan.digest;
+  await snapshot("approved-design-handoff");
+}
+async function reviewCurrentNativeContext() {
+  const original = readProjectJSON(".luci/state.json");
+  await click("Define");
+  await click("Specification");
+  await element("label", "The idea");
+  // Retained brief-only installers have no saved full definition. Keep their
+  // original criteria and add an explicit current review requirement in the UI.
+  if (!original.specification) {
+    const index = original.brief.criteria.length + 1;
+    await click("Add requirement");
+    await fill(`Requirement ${index}`, "Saved project work survives an installed application restart");
+    await fill(`Acceptance scenario ${index}`, "Given the saved project, after closing and reopening the installed app, the project, drawing and original Git history remain readable.");
+  }
+  if (await lookupElement("button", "Save definition")) {
+    const revision = original.specification?.revision || 0;
+    await click("Save definition");
+    await until("current full definition saved", () => readProjectJSON(".luci/state.json").specification?.revision > revision);
+    await element("button", "Approve definition");
+  }
+  if (await lookupElement("button", "Approve definition")) {
+    const revision = readProjectJSON(".luci/state.json").specification.revision;
+    await click("Approve definition");
+    await until("current definition approved", () => {
+      const spec = readProjectJSON(".luci/state.json").specification;
+      return spec?.status === "approved" && spec.revision > revision;
+    });
+  }
+  const spec = readProjectJSON(".luci/state.json").specification;
+  await bodyHas(`Approved · Revision ${spec.revision}`);
+  assert.equal(spec.status, "approved");
+  assert.equal(spec.purpose, fixture.purpose);
+  assert.match(spec.digest, /^[a-f0-9]{64}$/);
+  assert.deepEqual(readProjectJSON(".luci/specification.json"), spec);
+  fixture.hasSpecification = true;
+  fixture.requirement = spec.requirements[0].title;
+  fixture.specificationRevision = spec.revision;
+  fixture.specificationDigest = spec.digest;
+  await approveNativeHandoff();
+  const current = readProjectJSON(".luci/state.json");
+  if (current.specification.revision !== original.specification?.revision || current.designPlan.revision !== original.designPlan?.revision) {
+    // Preservation was asserted before this explicit review. Its new revisions
+    // and exports become a separate visible commit, never an invented seed.
+    fixture.reviewCommitMessage = "Review current installed definition and design";
+    await click("Develop");
+    await click("Git");
+    await fill("Commit message", fixture.reviewCommitMessage);
+    await click("Commit changes");
+    await bodyHas("Everything is committed");
+    await bodyHas(fixture.reviewCommitMessage);
+  }
+  assertCommittedContext();
+  writeFileSync(fixtureFile, JSON.stringify(fixture));
+  result.checks.push("After proving retained old work, explicitly reviewed current full Define and Design through the installed UI and checked the committed exact context exports; no application release or verification is claimed");
+}
 async function snapshot(name) {
   const png = await command("/screenshot", "GET", undefined);
   writeFileSync(join(evidence, `${mode}-${name}.png`), Buffer.from(png, "base64"));
@@ -399,6 +499,13 @@ async function verifyProject() {
     result.checks.push("Approved structured definition and stable requirement survived restart without revision or digest changes");
   }
   await click("Design");
+  if (fixture.hasDesignHandoff) {
+    const handoff = readProjectJSON(".luci/state.json").designPlan;
+    assert.equal(handoff.status, "approved");
+    assert.equal(handoff.revision, fixture.designPlanRevision);
+    assert.equal(handoff.digest, fixture.designPlanDigest);
+    result.checks.push("Saved structured handoff survived restart without revision or digest changes");
+  }
   if (structuredUI) await click("Sketch");
   await bodyHas("Design 1");
   await element("css", ".excalidraw canvas");
@@ -425,6 +532,7 @@ async function verifyProject() {
     result.checks.push("Private runtime configuration survived with names-only UI and no value readback");
     await snapshot("persisted-runtime-configuration");
   }
+  if (privateReviewsRequired) await reviewCurrentNativeContext();
 }
 
 try {
@@ -458,6 +566,7 @@ try {
   // Retained 0.3/0.4.x installers seed their original UI; the new product
   // version must exercise its portal and structured project workspaces.
   structuredUI = major > 0 || minor > 4 || (minor === 4 && patch >= 4);
+  privateReviewsRequired = major > 0 || minor > 4 || (minor === 4 && patch >= 18);
   result.projectUI = structuredUI ? "structured definition and design" : "historical brief and canvas";
   const historical = major === 0 && (minor < 4 || (minor === 4 && patch < 2));
   const requireEntry = !historical; // Historical 0.3/0.4.1 upgrade seeds predate these controls.
@@ -571,6 +680,10 @@ try {
     assert(design.scene.elements.some((item) => item.type === "rectangle" && !item.isDeleted));
     assert.equal(design.briefRevision, 1);
     if (!result.applicationVersion.startsWith("0.3.")) assert.deepEqual(readProjectJSON(".luci/design.json"), design);
+    if (structuredUI) {
+      await approveNativeHandoff();
+      result.checks.push("Saved and explicitly approved a structured screen/state handoff linked to the actual saved definition and nonempty sketch through native controls");
+    }
     await click("Develop");
     if (!result.applicationVersion.startsWith("0.3.")) {
       await fill("New task", "Verify installed application persistence");
@@ -594,6 +707,7 @@ try {
     await click("Commit changes");
     await bodyHas("Everything is committed");
     await bodyHas(fixture.commitMessage);
+    if (structuredUI) assertCommittedContext();
     result.checks.push("Normal installed UI saved project settings, Git identity, brief, actual canvas rectangle and Git commit");
     await snapshot("git");
     if (!result.applicationVersion.startsWith("0.3.")) {
