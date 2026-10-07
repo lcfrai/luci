@@ -33,6 +33,10 @@
 .shell {
   --rail-w: 232px;
   --sub-w: 0px;
+  /* Focus and reveal actions scroll the workspace, never the document behind it.
+     Compact layouts can still scroll this shell through their own overflow rule. */
+  position: fixed;
+  inset: 0;
   display: grid;
   grid-template-columns: var(--rail-w) var(--sub-w) minmax(0, 1fr);
   block-size: 100dvh;

@@ -36,17 +36,36 @@ Independent review verifies the wording-only scope. The affected frontend cases
 pass across the initial 147-of-148 run and the final 60-case changed-file run;
 the obsolete wording assertion is retained separately. TypeScript, both existing
 journey-helper syntax checks and 74 focused Go outcomes (39 top-level tests)
-pass. The full 2,243-case frontend baseline remains `dca39101`. Matching installed
-wording and layout inspection is pending.
+pass. The full 2,243-case frontend baseline remains `dca39101`. The matching clean
+`769d5bf8` package passes all four installed overview/amendment/composer groups
+with the unchanged driver, at desktop and phone sizes. Visual review confirms
+the new status/history/evidence distinction. Independent runtime observation
+verifies stopped-service seeding, the real check join, complete cleanup and all
+1,477 package entries unchanged. Historical checks and questions are labelled
+fixture setup; checking run status, model execution and deployment were not
+invoked. The current development backend also matches `769d5bf8`, with private
+state preserved. Environment draft revision 31 pins that source; it is saved
+only, not published or tested through a new environment restore.
 
 A separate immutable `dca39101` scrolling diagnostic records 24 native and
 programmatic samples. Window/root and outer-ancestor offsets stay zero; native
 wheel and Tab move only the Develop workspace, with visible focus and a return
 to the header. It does not reproduce the earlier phone screenshot's missing
-header/blank tail, whose exact cause remains unresolved. No CSS change is
-justified by these observations. Independent cleanup and unchanged package
-verification pass. Evidence: `artifacts/quality-run-status-wording/` and
-`artifacts/quality-overview-composer/dca39101-native-scroll-attempt-1/`.
+header/blank tail. The subsequent exact `769d5bf8` full-flow trace identifies a
+real product defect: the app's plan handoff moves the document by 72 pixels on
+desktop and 270 pixels on phone, before screenshot sampling. Inspecting the run
+leaves 60/258-pixel offsets. Hidden shell ancestors remain at zero; the entire
+shell moves with the document. The 202 snapshots and 340 events have no omissions,
+and independent review confirms the first movement without attributing passive
+events to an unobserved JavaScript call. The cockpit shell now uses a fixed
+viewport boundary, retaining its existing internal scrolling and compact-layout
+overflow rules. Entry views are outside this boundary. Independent stacking and
+scroll-ownership review, 131 affected interaction cases, 104 existing style/seam
+contracts and TypeScript pass. Matching installed verification is continuing.
+Independent cleanup and unchanged
+package verification pass. Evidence: `artifacts/quality-run-status-wording/`,
+`artifacts/quality-overview-composer/dca39101-native-scroll-attempt-1/` and
+`artifacts/quality-overview-composer/769d5bf8-exact-scroll-attempt-1/`.
 
 ## Amendment clarity and conversation continuity
 

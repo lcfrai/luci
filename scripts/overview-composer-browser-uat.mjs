@@ -220,6 +220,26 @@ async function sample(name, target) {
   assert(shape.y >= -1 && shape.y + shape.height <= shape.viewport[1] + 1 && shape.hit, 'Target is not reachable: ' + name);
   assert(shape.scrollWidth <= shape.viewport[0] + 1, 'Horizontal page overflow: ' + name);
 }
+async function assertViewportBoundary(name, focusedRegion) {
+  // App-directed reveals must scroll the workspace without displacing the
+  // viewport shell. Read before sample() can perform automation scrolling.
+  const geometry = await focusedRegion.evaluate(element => {
+    const rect = node => { const r = node.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height, bottom: r.bottom, right: r.right }; };
+    const selectors = ['html', 'body', '#root', '.shell', '.sub', '.top', '.shell-main', '.shell-workspace', '.shell-lens', '.develop-workspace'];
+    return { viewport: [innerWidth, innerHeight], window: { x: scrollX, y: scrollY }, documentScrollTop: document.scrollingElement?.scrollTop ?? null, focused: document.activeElement === element, region: rect(element), nodes: Object.fromEntries(selectors.map(selector => { const node = document.querySelector(selector); return [selector, node ? { rect: rect(node), scrollTop: node.scrollTop, scrollHeight: node.scrollHeight, clientHeight: node.clientHeight, overflowY: getComputedStyle(node).overflowY } : null]; })) };
+  });
+  receipt.handoffGeometry ??= []; receipt.handoffGeometry.push({ name, ...geometry });
+  assert(geometry.focused, 'The requested handoff region lost focus: ' + name);
+  assert(Math.abs(geometry.window.x) <= 1 && Math.abs(geometry.window.y) <= 1 && geometry.documentScrollTop !== null && Math.abs(geometry.documentScrollTop) <= 1, 'App handoff scrolled the outer document: ' + name);
+  const shell = geometry.nodes['.shell']?.rect;
+  assert(shell && Math.abs(shell.x) <= 1 && Math.abs(shell.y) <= 1 && Math.abs(shell.width - geometry.viewport[0]) <= 1 && Math.abs(shell.height - geometry.viewport[1]) <= 1, 'App handoff displaced the viewport shell: ' + name);
+  // These are the ordinary planning viewports. Inner shell scrolling remains
+  // legitimate in the separate short-height and session-layout regimes.
+  for (const selector of ['.sub', '.top']) {
+    const header = geometry.nodes[selector]?.rect;
+    assert(header && header.y >= -1 && header.bottom <= geometry.viewport[1] + 1 && header.height > 0, 'App handoff hid the phase or toolbar header: ' + name);
+  }
+}
 function ownedRunFile(runID) {
   const matches = []; let entries = 0;
   function visit(directory) { for (const name of readdirSync(directory)) {
@@ -351,11 +371,14 @@ try {
     if (await details.evaluate(element => element.open)) await details.locator(':scope > summary').click();
     await nextStep().getByRole('button', { name: 'Review current plan', exact: true }).click();
     await until('plan focus after overview handoff', () => planRegion.evaluate(element => document.activeElement === element));
+    await assertViewportBoundary(`plan-handoff-${width}`, planRegion);
     assert(await details.evaluate(element => element.open)); assert.equal(await planRegion.getByLabel('Task 1', { exact: true }).inputValue(), taskB);
     await planRegion.getByText('Choose a build location before preparing the run.', { exact: true }).waitFor();
     assert.equal(await planRegion.getByText('Choose a build location below before preparing the run.', { exact: true }).count(), 0);
     await openOverview(); // Compact plan handoff deliberately collapses the overview.
     await scope.getByRole('button', { name: 'Inspect build and checks', exact: true }).click();
+    await until('exact-run focus after overview handoff', () => runs().evaluate(element => document.activeElement === element));
+    await assertViewportBoundary(`run-handoff-${width}`, runs());
     const recorded = await inspectRun(), currentNext = runs().locator('.project-run-next');
     await currentNext.locator(':scope > strong').filter({ hasText: /^Review current context$/ }).waitFor();
     assert.equal(await currentNext.getByText(joined.reason, { exact: true }).count(), 0, 'Historical release guidance appears as the current next step');
