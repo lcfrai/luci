@@ -20,7 +20,7 @@ beforeEach(() => {
   vi.spyOn(productApi, 'plan').mockResolvedValue(plan);
   vi.spyOn(productApi, 'checks').mockResolvedValue({ runs: [], suggested: [], coverage });
 });
-const ready = () => screen.findByText('Choose a build location below before preparing the run.');
+const ready = () => screen.findByText('Choose a build location before preparing the run.');
 
 it('lets a fresh project explicitly choose its actual checkout at preparation without requiring the rail or starting coding', async () => {
   const prepare = vi.fn(); render(<ProjectPlan projectId="p-1" brief={brief} onPrepareRun={prepare} />); await ready();

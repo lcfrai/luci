@@ -49,7 +49,8 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const [conversationOpen, setConversationOpen] = useState(false);
   const [earlier, setEarlier] = useState<OrchestratorTurn[]>([]), [page, setPage] = useState<{ before: number; hasEarlier: boolean } | null>(null);
   const [message, setMessage] = useState(""), [replyTo, setReplyTo] = useState("");
-  const [suggestedReply, setSuggestedReply] = useState<{ turnId: string; question: string; answer: string; message: string; replyTo: string; origin: Element | null } | null>(null);
+  const [suggestedReply, setSuggestedReply] = useState<{ turnId: string; question: string; answer: string; message: string; replyTo: string; previousQuestion: string } | null>(null);
+  const choiceFocus = useRef<{ choice: NonNullable<typeof suggestedReply>; message: string; replyTo: string; composer: boolean } | null>(null);
   const [localRecovery, setLocalRecovery] = useState(() => readComposerRecovery(scope));
   const [recoveredDraft, setRecoveredDraft] = useState(localRecovery.draft);
   const savedDraft = useRef(localRecovery.draft);
@@ -84,6 +85,7 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
   const alive = useRef(true), generation = useRef(0), viewRead = useRef(0), working = useRef(false), latest = useRef(view);
   const permission = useRef(access); permission.current = access;
   const messageRef = useRef(message); messageRef.current = message;
+  const replyToRef = useRef(replyTo); replyToRef.current = replyTo;
   const composer = useRef<HTMLTextAreaElement>(null), conversationEnd = useRef<HTMLDivElement>(null);
   const overviewBody = useRef<HTMLDivElement>(null);
   const contentId = useId();
@@ -429,7 +431,12 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
     if (text && !messageRef.current.trim()) editComposer(text.slice(0, 16000), replyTo);
     requestAnimationFrame(() => { if (alive.current) composer.current?.focus(); });
   };
-  const ask = (text?: string) => { if (!pendingRequest && !recoveredDraft) editComposer(messageRef.current || text?.slice(0, 16000) || "", ""); openComposer(); };
+  const ask = (text?: string) => {
+    // Opening a generic discussion must not detach an answer already in progress.
+    // Clear reply is the explicit way to use that message for a separate topic.
+    if (!messageRef.current.trim() && !pendingRequest && !recoveredDraft) editComposer(messageRef.current || text?.slice(0, 16000) || "", "");
+    openComposer();
+  };
   const edit = (editor: ContextEditor, questionId?: string) => {
     const permitted = () => permission.current.canRead && (editor === "plan" || permission.current.canEdit);
     if (!permitted()) return;
@@ -470,40 +477,45 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
       setNotice("Restore or resolve your saved message before starting another one."); return;
     }
     if (messageRef.current.trim() && (messageRef.current !== answer || replyTo !== turn.id)) {
-      setSuggestedReply({ turnId: turn.id, question: turn.answer?.question || "", answer, message: messageRef.current, replyTo, origin: document.activeElement });
+      setSuggestedReply({ turnId: turn.id, question: turn.answer?.question || "", answer, message: messageRef.current, replyTo, previousQuestion: replyQuestion || "An earlier project decision" });
       return;
     }
     reply(turn.id, answer);
   };
-  const focusComposerAfterChoice = (origin: Element | null, expectedMessage: string) => {
-    // Let the modal restore its opener first. When that question disappeared,
-    // the unchanged composer is the useful fallback for Keep, Escape or refusal.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (alive.current && permission.current.canRead && permission.current.canAssist && messageRef.current === expectedMessage &&
-          (document.activeElement === origin || document.activeElement === document.body)) composer.current?.focus();
-    }));
+  const suggestedReplyCloseTarget = (selected: NonNullable<typeof suggestedReply>, openingControl: HTMLElement | null) => {
+    // Resolve this explicit choice at the modal's actual close lifecycle. Frame
+    // callbacks can run before Radix restores its opener and lose the handoff.
+    const intent = choiceFocus.current;
+    if (!intent || intent.choice !== selected) return null;
+    choiceFocus.current = null;
+    if (!alive.current || !permission.current.canRead || !permission.current.canAssist ||
+        messageRef.current !== intent.message || replyToRef.current !== intent.replyTo) return null;
+    const active = document.activeElement;
+    if (active !== document.body && active !== openingControl && active !== composer.current) return null;
+    return intent.composer || !openingControl?.isConnected ? composer.current : openingControl;
   };
   const closeSuggestedReply = () => {
     const selected = suggestedReply;
+    if (selected) choiceFocus.current = { choice: selected, message: messageRef.current, replyTo, composer: false };
     setSuggestedReply(null);
-    if (selected && !selected.origin?.isConnected) focusComposerAfterChoice(selected.origin, messageRef.current);
   };
   const replaceWithSuggestion = () => {
     if (!suggestedReply || !permission.current.canRead || !permission.current.canAssist || pendingRequest || recoveredDraft || storageConflict || busy) return;
     const selected = suggestedReply;
+    choiceFocus.current = { choice: selected, message: messageRef.current, replyTo, composer: true };
     setSuggestedReply(null);
     if (messageRef.current !== selected.message || replyTo !== selected.replyTo) {
       setNotice("Your unsent message changed while this choice was open. It has been kept; choose the suggested answer again if you want to replace it.");
-      focusComposerAfterChoice(selected.origin, messageRef.current); return;
+      return;
     }
     const question = turns.find(turn => turn.id === selected.turnId);
     if (!question || question.questionResolvedBy || !question.answer || question.answer.question !== selected.question || !question.answer.options.includes(selected.answer)) {
       setNotice("This question changed while this choice was open. Your unsent message has been kept. Review the current question before answering.");
-      focusComposerAfterChoice(selected.origin, messageRef.current); return;
+      return;
     }
     editComposer(selected.answer, selected.turnId);
     setOpenChoice(true); setConversationOpen(true);
-    focusComposerAfterChoice(selected.origin, selected.answer);
+    choiceFocus.current = { choice: selected, message: selected.answer, replyTo: selected.turnId, composer: true };
   };
   const inspect = (runId: string) => {
     if (!permission.current.canRead) return;
@@ -585,9 +597,13 @@ function ProjectConversation({ projectId, scope }: { projectId: string; scope: s
         </details>
       </>}
     </div>
-    {suggestedReply && canRead && canAssist && <WorkflowDialog title="Replace your unsent message?" description="Using this suggested answer replaces your current message and its saved draft in this browser. Nothing is sent until you choose Send to Luci." onClose={closeSuggestedReply}>
+    {suggestedReply && canRead && canAssist && <WorkflowDialog title="Replace your unsent message?" description="Using this suggested answer replaces your current message and its saved draft in this browser. Nothing is sent until you choose Send to Luci." onClose={closeSuggestedReply} getCloseFocusTarget={openingControl => suggestedReplyCloseTarget(suggestedReply, openingControl)}>
       <details><summary>Current unsent message</summary><p className="orchestrator-message">{suggestedReply.message}</p></details>
-      <p><strong>{suggestedReply.question}</strong></p><p className="orchestrator-message">{suggestedReply.answer}</p>
+      {suggestedReply.replyTo && suggestedReply.replyTo !== suggestedReply.turnId && <>
+        <p>Replacing this message also switches your reply to the new question.</p>
+        <p><strong>Current question: </strong>{suggestedReply.previousQuestion}</p>
+      </>}
+      <p><strong>{suggestedReply.replyTo && suggestedReply.replyTo !== suggestedReply.turnId ? "New question: " : "Reply will answer: "}</strong>{suggestedReply.question}</p><p className="orchestrator-message">{suggestedReply.answer}</p>
       <div className="workflow-actions"><Button variant="secondary" onClick={closeSuggestedReply}>Keep current message</Button><Button disabled={!!busy || !!pendingRequest || !!recoveredDraft || storageConflict} onClick={replaceWithSuggestion}>Replace with suggested answer</Button></div>
     </WorkflowDialog>}
     {review && view && <AmendmentReview turn={review.turn} view={view} busy={busy === "apply"} blocked={reviewBlock} error={error} onClose={() => setReview(null)} onApply={() => void apply()} />}

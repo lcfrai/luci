@@ -167,7 +167,7 @@ async function start(environment) {
   assert.fail('Owned service did not become ready');
 }
 async function screenshot(name) {
-  await page.screenshot({ path: join(evidence, name + '.png'), fullPage: true });
+  await page.screenshot({ path: join(evidence, name + '.png'), fullPage: false });
   writeFileSync(join(evidence, name + '-dom.txt'), scrub(await page.locator('body').innerText()), { mode: 0o600 });
 }
 async function action(path, button, expected = 200) {
@@ -193,7 +193,7 @@ const panel = () => page.getByRole('complementary', { name: 'Project understandi
 const overview = () => panel().getByRole('region', { name: 'Current project understanding', exact: true });
 const nextStep = () => overview().getByRole('region', { name: 'Next step', exact: true });
 const runs = () => page.getByRole('region', { name: 'Project runs', exact: true });
-const composer = () => panel().getByLabel('Message Luci', { exact: true });
+const composer = () => panel().getByRole('textbox', { name: 'Message Luci', exact: true });
 async function openOverview() {
   const show = panel().getByRole('button', { name: 'Show project overview', exact: true });
   if (await show.isVisible()) await show.click();
@@ -230,6 +230,12 @@ function ownedRunFile(runID) {
     else if (path.endsWith(`/project-runs/${project.id}/${runID}.json`)) { assert(info.isFile() && info.nlink === 1); matches.push(path); }
   } }
   visit(join(fixture, 'state')); assert.equal(matches.length, 1, 'Expected one owned API-created run'); return matches[0];
+}
+async function assertReplyChoice(dialog) {
+  await dialog.waitFor();
+  await dialog.getByText('Replacing this message also switches your reply to the new question.', { exact: true }).waitFor();
+  await dialog.getByText('Current question: ' + firstQuestion, { exact: true }).waitFor();
+  await dialog.getByText('New question: ' + secondQuestion, { exact: true }).waitFor();
 }
 async function browserDraft(message, replyTo) {
   const rows = await page.evaluate(() => Object.keys(localStorage).filter(key => key.startsWith('luci.orchestrator-composer.v1:')).map(key => ({ key, value: JSON.parse(localStorage.getItem(key)) })));
@@ -346,11 +352,44 @@ try {
     await nextStep().getByRole('button', { name: 'Review current plan', exact: true }).click();
     await until('plan focus after overview handoff', () => planRegion.evaluate(element => document.activeElement === element));
     assert(await details.evaluate(element => element.open)); assert.equal(await planRegion.getByLabel('Task 1', { exact: true }).inputValue(), taskB);
+    await planRegion.getByText('Choose a build location before preparing the run.', { exact: true }).waitFor();
+    assert.equal(await planRegion.getByText('Choose a build location below before preparing the run.', { exact: true }).count(), 0);
     await openOverview(); // Compact plan handoff deliberately collapses the overview.
-    await scope.getByRole('button', { name: 'Inspect build and checks', exact: true }).click(); await inspectRun();
+    await scope.getByRole('button', { name: 'Inspect build and checks', exact: true }).click();
+    const recorded = await inspectRun(), currentNext = runs().locator('.project-run-next');
+    await currentNext.locator(':scope > strong').filter({ hasText: /^Review current context$/ }).waitFor();
+    assert.equal(await currentNext.getByText(joined.reason, { exact: true }).count(), 0, 'Historical release guidance appears as the current next step');
+    assert.equal(await currentNext.getByText('Awaiting release evidence', { exact: true }).count(), 0);
+    await recorded.getByText('Last recorded stage: Awaiting release evidence', { exact: true }).waitFor();
+    await recorded.getByText('Last recorded guidance: ' + joined.reason, { exact: true }).waitFor();
+    await recorded.locator(':scope > summary').click();
+    await sample(`03b-current-build-review-${width}`, currentNext.getByRole('button', { name: 'Review current plan', exact: true }));
+    if (width === 390) await panel().getByRole('button', { name: 'Hide project overview', exact: true }).click();
+    const compareSummary = runs().locator('summary').filter({ hasText: /^Compare with current plan$/ });
+    const comparison = runs().getByRole('region', { name: 'Selected task title comparison', exact: true });
+    const comparisonDOM = runs().locator('section[aria-label="Selected task title comparison"]');
+    assert.equal(await comparisonDOM.count(), 0, 'Closed comparison should not retain a hidden current-plan reader');
+    const planReadsBefore = receipt.requests.filter(row => row.method === 'GET' && row.path === projectRoute + '/plan').length;
+    const [comparisonRead] = await Promise.all([
+      page.waitForResponse(response => new URL(response.url()).pathname === projectRoute + '/plan' && response.request().method() === 'GET'),
+      compareSummary.click(),
+    ]);
+    assert.equal(comparisonRead.status(), 200); const compared = await comparisonRead.json();
+    assert.equal(compared.projectId, project.id); assert.equal(compared.revision, amended.revision); assert.deepEqual(compared.tasks, amended.tasks);
+    assert(receipt.requests.filter(row => row.method === 'GET' && row.path === projectRoute + '/plan').length > planReadsBefore);
+    await comparison.getByText(`This build: plan ${plan.revision}. Current saved plan: ${amended.revision}.`, { exact: true }).waitFor();
+    await comparison.getByText(/^This compares titles for the 1 tasks? selected for this build\. It does not compare task status, unselected tasks, other context, or unsaved edits\.$/).waitFor();
+    const capturedTitle = comparison.getByText('Captured task: ' + taskA, { exact: true });
+    const currentTitle = comparison.getByText('Current saved task: ' + taskB, { exact: true });
+    await capturedTitle.waitFor(); await currentTitle.waitFor(); await comparison.getByText('Title changed.', { exact: true }).waitFor();
+    await sample(`03c-captured-task-comparison-${width}`, capturedTitle);
+    await sample(`03d-current-task-comparison-${width}`, currentTitle);
+    receipt.comparisons ??= []; receipt.comparisons.push({ width, runId: prepared.id, capturedPlanRevision: plan.revision, currentPlanRevision: compared.revision, capturedTitle: taskA, currentTitle: taskB, actualPlanReadStatus: comparisonRead.status(), selectedTasksOnly: true });
+    await compareSummary.click(); await until('closed comparison releases its reader', async () => await comparisonDOM.count() === 0);
+
   }
   receipt.amendment = { oldPlanRevision: plan.revision, newPlanRevision: amended.revision, taskA, taskB, definitionRevision: spec.revision, designRevision: design.revision, runId: prepared.id, currentFreshness: after.context.currentRun.contextFreshness };
-  check('Actual UI plan-only save makes current-plan review explicit while original build scope/evidence stay immutable; exact plan and run handoffs work at desktop and phone');
+  check('Actual UI plan-only save makes current-plan review explicit while original build scope/evidence stay immutable; exact handoffs and lazy selected-title comparison use the current saved plan at desktop and phone');
 
   stage = 'occupied-composer';
   await openOverview(); const discussion = panel().locator('details.orchestrator-discussion'); await openDetails(discussion);
@@ -360,21 +399,29 @@ try {
     await q1.getByRole('button', { name: 'Reply to this question', exact: true }).click();
     const unsent = `For the first screen, keep my unfinished ${width}px note exactly:\nPlant name, observation date, and a note — ask before adding extra fields.`;
     await composer().fill(unsent); const saved = await browserDraft(unsent, questions[0].id);
+    await overview().getByRole('button', { name: 'Change the plan', exact: true }).click();
+    await overview().getByRole('region', { name: 'Change the plan options', exact: true }).getByRole('button', { name: 'Discuss a change with Luci', exact: true }).click();
+    await until('Discuss change returns focus to the occupied composer', () => composer().evaluate(element => document.activeElement === element));
+    assert.equal(await composer().inputValue(), unsent); assert.deepEqual(await browserDraft(unsent, questions[0].id), saved);
+    await panel().getByText('Replying to: ' + firstQuestion, { exact: true }).waitFor();
+    const originalComposer = await composer().elementHandle(); assert(originalComposer, 'Composer must exist before opening the modal');
     await panel().getByText('Replying to: ' + firstQuestion, { exact: true }).waitFor();
     const option = q2.getByRole('button', { name: suggestion, exact: true }); await option.click();
-    let dialog = page.getByRole('dialog', { name: 'Replace your unsent message?', exact: true }); await dialog.waitFor(); await dialog.getByText(secondQuestion, { exact: true }).waitFor();
+    let dialog = page.getByRole('dialog', { name: 'Replace your unsent message?', exact: true }); await assertReplyChoice(dialog);
     await dialog.getByText('Current unsent message', { exact: true }).click(); await dialog.getByText(unsent, { exact: true }).waitFor();
-    assert.equal(await composer().inputValue(), unsent); assert.deepEqual(await browserDraft(unsent, questions[0].id), saved);
+    // Radix intentionally removes the background from accessibility queries.
+    // Read the already-captured DOM node without interacting outside the modal.
+    assert.equal(await originalComposer.evaluate(element => element.isConnected ? element.value : null), unsent); assert.deepEqual(await browserDraft(unsent, questions[0].id), saved);
     await sample(`04-choice-keeps-original-draft-${width}`, dialog.getByRole('button', { name: 'Keep current message', exact: true }));
     await dialog.getByRole('button', { name: 'Keep current message', exact: true }).click();
     await until('Keep returns option focus', () => option.evaluate(element => document.activeElement === element));
     assert.equal(await composer().inputValue(), unsent); assert.deepEqual(await browserDraft(unsent, questions[0].id), saved); await panel().getByText('Replying to: ' + firstQuestion, { exact: true }).waitFor();
-    await option.click(); dialog = page.getByRole('dialog', { name: 'Replace your unsent message?', exact: true }); await dialog.getByRole('button', { name: 'Replace with suggested answer', exact: true }).click();
+    await option.click(); dialog = page.getByRole('dialog', { name: 'Replace your unsent message?', exact: true }); await assertReplyChoice(dialog); await dialog.getByRole('button', { name: 'Replace with suggested answer', exact: true }).click();
     await until('Replace focuses composer', () => composer().evaluate(element => document.activeElement === element));
     assert.equal(await composer().inputValue(), suggestion); await browserDraft(suggestion, questions[1].id); await panel().getByText('Replying to: ' + secondQuestion, { exact: true }).waitFor();
     await sample(`05-explicit-replacement-unsent-${width}`, composer());
   }
-  check('Occupied cross-question suggestions preserve exact text, reply identity and durable draft on Keep; explicit Replace changes only the draft and focuses its composer at both widths');
+  check('Discuss change preserves the occupied question-bound draft; cross-question Keep preserves it and explicit Replace changes only the draft with correct composer focus at both widths');
   assert.equal(routeError, undefined); assert.deepEqual(receipt.browserErrors, []); assert.deepEqual(receipt.blockedRequests, []); assert.deepEqual(receipt.providerAttempts, []);
   assert.deepEqual(receipt.browserMutations.map(row => row.path), ['/v1/auth/login', projectRoute + '/plan']);
   assert.equal(receipt.requests.filter(row => row.method !== 'GET' && /\/assist(?:\/|$)/.test(row.path)).length, 0);
@@ -384,7 +431,10 @@ try {
   assert.equal(sha(readFileSync(binary)), binarySHA256); assert.deepEqual(inventory(), webFiles); running.signal.throwIfAborted(); receipt.passed = true;
 } catch (error) {
   receipt.error = scrub(error); receipt.failedStage = stage; if (routeError) receipt.fixtureError = scrub(routeError);
-  if (page) await screenshot('failure').catch(() => {}); process.exitCode = 1;
+  if (page) {
+    receipt.failureFocus = await page.evaluate(() => { const active = document.activeElement; return { tag: active?.tagName, role: active?.getAttribute('role'), ariaLabel: active?.getAttribute('aria-label'), text: active && !['INPUT', 'TEXTAREA'].includes(active.tagName) ? active.textContent?.slice(0, 200) : '[input value omitted]', modalCount: document.querySelectorAll('[role=dialog]').length, composerFocused: document.querySelector('.orchestrator-composer textarea') === active }; }).catch(() => null);
+    await screenshot('failure').catch(() => {});
+  } process.exitCode = 1;
 } finally {
   clearTimeout(budget);
   await closeBrowser().catch(error => { receipt.cleanupErrors ??= []; receipt.cleanupErrors.push(scrub(error)); });

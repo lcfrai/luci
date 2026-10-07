@@ -1,9 +1,10 @@
+import { StrictMode } from 'react';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { api } from '../../api';
 import { projectRunsApi, type ProjectRun, type RunOperation } from '../../api/projectRuns';
-import { productApi } from '../../api/product';
+import { productApi, type ImplementationPlan } from '../../api/product';
 import { platformApi } from '../../api/platform';
 import { resetCockpit, useCockpit } from '../../store/store';
 import { aBranch, aHarness, aProject, aSession, aWorktree } from '../../test/fixtures';
@@ -74,7 +75,7 @@ it.each(['changed', 'unavailable'] as const)('keeps active session access and re
   vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'coding', operations: [operation], contextFreshness: { status, reason: 'Review the current saved context before more coding.' }, allowedActions: ['continue-coding', 'start-coding', 'reconcile', 'cancel'] })]);
   const create = vi.spyOn(api, 'createSession'), reserve = vi.spyOn(projectRunsApi, 'reserve');
   render(<ProjectRuns {...props()} />);
-  await screen.findByText('Coding');
+  await screen.findByText('Coding reserved, not started');
   expect(screen.getByRole('button', { name: 'Open coding session' })).not.toBeNull();
   expect(screen.getByRole('button', { name: 'Reconcile run' })).not.toBeNull();
   expect(screen.getByRole('button', { name: 'Review current plan' })).not.toBeNull();
@@ -113,7 +114,7 @@ it('preserves accepted evidence and stopped-session status separately from curre
   expect(screen.getByText(/Last observation valid/)).not.toBeNull();
   expect(screen.queryByRole('button', { name: 'Review and accept outcome' })).toBeNull();
   await userEvent.click(screen.getByText('Run history · 2'));
-  await userEvent.click(screen.getByRole('button', { name: /^Awaiting verification ·/ }));
+  await userEvent.click(screen.getByRole('button', { name: /^Review current context ·/ }));
   expect(screen.queryByRole('button', { name: 'Verify this build' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Select check evidence' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Start another coding attempt' })).toBeNull();
@@ -549,4 +550,297 @@ it('refreshes a cached run from the overview before carrying its newly joined ch
   expect(useCockpit.getState().lens).toBe('deploy');
   expect(projectRunsApi.list).toHaveBeenCalledTimes(1);
   expect(create).not.toHaveBeenCalled(); expect(reserve).not.toHaveBeenCalled(); expect(reconcile).not.toHaveBeenCalled();
+});
+
+
+it.each(['awaiting-checks', 'awaiting-release'] as const)('reframes recorded %s guidance after a saved plan amendment instead of advertising it as the next step', async state => {
+  const reason = state === 'awaiting-release' ? 'Checks are linked to the reviewed requirements and source. Join a matching observed release next.' : 'Coding finished. Join independent check evidence next.';
+  const saved = makeRun({ state, reason, contextFreshness: { status: 'current', reason: 'The saved reviewed context matches.' }, observation: { state, reason, valid: true, observedAt: '2026-10-06T00:59:00Z' }, allowedActions: ['join-check', 'join-release', 'reconcile', 'accept', 'cancel'] });
+  const amended = { ...saved, contextFreshness: { status: 'changed' as const, reason: 'The saved implementation plan changed. Review the current plan.' } };
+  const original = structuredClone(saved);
+  vi.mocked(projectRunsApi.list).mockResolvedValueOnce([saved]).mockResolvedValue([amended]);
+  const initial = props(), reconcile = vi.spyOn(projectRunsApi, 'reconcile'), joinCheck = vi.spyOn(projectRunsApi, 'joinCheck'), joinRelease = vi.spyOn(projectRunsApi, 'joinRelease'), accept = vi.spyOn(projectRunsApi, 'accept'), create = vi.spyOn(api, 'createSession');
+  render(<ProjectRuns {...initial} />);
+  await screen.findByText(reason);
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh history' }));
+  const review = await screen.findByRole('button', { name: 'Review current plan' });
+  const workspace = screen.getByRole('region', { name: 'Project runs' });
+  const next = workspace.querySelector('.project-run-next')!;
+  expect(within(next as HTMLElement).getByText('Review current context')).not.toBeNull();
+  expect(next.textContent).not.toContain('Join a matching observed release next');
+  expect(next.textContent).not.toContain('Join independent check evidence next');
+  expect(next.textContent).not.toContain(state === 'awaiting-release' ? 'Awaiting release evidence' : 'Awaiting verification');
+  await userEvent.click(review);
+  expect(initial.onReviewPlan).toHaveBeenCalledTimes(1);
+  await userEvent.click(screen.getByText('Reviewed inputs and evidence'));
+  const receipts = screen.getByText('Reviewed inputs and evidence').closest('details')!;
+  expect(within(receipts).getByText(`Last recorded stage: ${state === 'awaiting-release' ? 'Awaiting release evidence' : 'Awaiting verification'}`)).not.toBeNull();
+  expect(within(receipts).getByText(`Last recorded guidance: ${reason}`)).not.toBeNull();
+  expect(within(receipts).getByText('Build journal')).not.toBeNull();
+  expect(within(receipts).getByText('Brief 2 · Plan 5 · Definition 3 · Design 4')).not.toBeNull();
+  expect(saved).toEqual(original);
+  for (const mutation of [reconcile, joinCheck, joinRelease, accept, create]) expect(mutation).not.toHaveBeenCalled();
+});
+
+
+it.each(['changed', 'unavailable'] as const)('keeps prior release guidance in its receipts when context is %s', async status => {
+  const run = makeRun({ state: 'awaiting-release', reason: 'Join a matching observed release next.', contextFreshness: { status, reason: 'Review the current inputs before more work.' }, observation: { state: 'awaiting-release', reason: 'Review the application and accept its outcome.', valid: true, observedAt: '2026-10-06T00:59:00Z' }, allowedActions: ['join-release', 'accept', 'reconcile'] });
+  vi.mocked(projectRunsApi.list).mockResolvedValue([run]);
+  render(<ProjectRuns {...props()} />);
+  await screen.findByText(status === 'changed' ? 'Review current context' : 'Context unavailable');
+  const next = screen.getByRole('region', { name: 'Project runs' }).querySelector('.project-run-next')!;
+  expect(next.textContent).not.toMatch(/Join a matching|accept its outcome|Awaiting release evidence/);
+  expect(next.textContent).toContain('This recorded evidence does not clear the current review.');
+  await userEvent.click(screen.getByText('Reviewed inputs and evidence'));
+  expect(screen.getByText('Last recorded guidance: Join a matching observed release next.')).not.toBeNull();
+  expect(screen.getByText('Last recorded observation: Review the application and accept its outcome.')).not.toBeNull();
+});
+
+it.each(['running', 'dispatching', 'unknown'] as const)('keeps recorded %s coding visible ahead of stale review guidance without dispatch', async status => {
+  const run = makeRun({ state: 'awaiting-release', reason: 'Join a matching observed release next.', operations: [{ ...operation, status }], contextFreshness: { status: 'changed', reason: 'The implementation plan changed.' }, allowedActions: ['join-release', 'continue-coding', 'start-coding', 'reconcile', 'cancel'] });
+  vi.mocked(projectRunsApi.list).mockResolvedValue([run]);
+  const create = vi.spyOn(api, 'createSession'), reconcile = vi.spyOn(projectRunsApi, 'reconcile'), initial = props();
+  render(<ProjectRuns {...initial} />);
+  await screen.findByText(status === 'running' ? 'Coding recorded as running' : 'Coding outcome unconfirmed');
+  const next = screen.getByRole('region', { name: 'Project runs' }).querySelector('.project-run-next')!;
+  expect(next.textContent).not.toContain('Awaiting release evidence');
+  expect(next.textContent).not.toContain('Join a matching observed release next');
+  expect(within(next as HTMLElement).getAllByRole('button')[0].textContent).toBe('Reconcile run');
+  expect(screen.getByRole('button', { name: 'Open coding session' })).not.toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Review current plan' }));
+  expect(initial.onReviewPlan).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole('button', { name: 'Continue reserved coding' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Select release evidence' })).toBeNull();
+  expect(create).not.toHaveBeenCalled(); expect(reconcile).not.toHaveBeenCalled();
+});
+
+it('retains cancellation and unconfirmed child activity when the plan has changed', async () => {
+  vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'cancelled', reason: 'Future dispatch was cancelled.', operations: [{ ...operation, status: 'unknown' }], contextFreshness: { status: 'changed', reason: 'The current plan differs.' }, allowedActions: ['reconcile'] })]);
+  render(<ProjectRuns {...props()} />);
+  await screen.findByText('Cancelled');
+  expect(screen.getByText(/Coding outcome unconfirmed. Open the coding session/)).not.toBeNull();
+  expect(screen.getByText('Future dispatch is cancelled. Running children retain their separate stop controls.')).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Open coding session' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Reconcile run' })).not.toBeNull();
+  expect(screen.getByRole('button', { name: 'Review current plan' })).not.toBeNull();
+});
+
+it('labels a release-stage decision as current while keeping its former release instruction historical', async () => {
+  vi.mocked(projectRunsApi.list).mockResolvedValue([makeRun({ state: 'awaiting-release', reason: 'Join a matching observed release next.', contextFreshness: { status: 'current', reason: 'The reviewed documents still match.' }, codingBlocker: { kind: 'question', reason: 'Resolve who may access this release.', turnId: 'access-question' }, allowedActions: ['join-release', 'accept', 'reconcile'] })]);
+  render(<ProjectRuns {...props()} />);
+  await screen.findByText('Decision needed before continuing');
+  const next = screen.getByRole('region', { name: 'Project runs' }).querySelector('.project-run-next')!;
+  expect(next.textContent).not.toContain('Join a matching observed release next');
+  expect(screen.getByRole('button', { name: 'Review blocking question' })).not.toBeNull();
+  expect(screen.queryByRole('button', { name: 'Select release evidence' })).toBeNull();
+});
+
+
+function savedComparisonPlan(patch: Partial<ImplementationPlan> = {}): ImplementationPlan {
+  return { projectId: 'p-1', revision: 6, briefRevision: 2, updatedAt: '2026-10-07T10:00:00Z', tasks: [{ id: 'task-1', title: 'Build a journal with a visible revision trail', status: 'todo' }], ...patch };
+}
+function pendingComparisonPlan() {
+  let resolve!: (plan: ImplementationPlan) => void;
+  const promise = new Promise<ImplementationPlan>(done => { resolve = done; });
+  return { promise, resolve };
+}
+
+it('lazily compares the captured selected task titles with saved changed, removed and unchanged titles for a viewer', async () => {
+  teamAccess.permissions.edit = false; teamAccess.permissions.execute = false;
+  const saved = makeRun();
+  saved.input.implementation.taskIds = ['task-1', 'removed', 'unchanged'];
+  saved.input.implementation.taskTitles = ['Build journal', 'Export journal entries', 'Private notes'];
+  const original = structuredClone(saved);
+  const longTitle = 'Build a journal with a visible revision trail that shows the author, saved time and earlier version before restoring an entry';
+  const plan = vi.spyOn(productApi, 'plan').mockResolvedValue(savedComparisonPlan({ tasks: [{ id: 'task-1', title: longTitle, status: 'doing' }, { id: 'unchanged', title: 'Private notes', status: 'done' }, { id: 'unselected', title: 'Unselected billing work', status: 'todo' }] }));
+  vi.mocked(projectRunsApi.list).mockResolvedValue([saved]);
+  const save = vi.spyOn(productApi, 'savePlan'), reserve = vi.spyOn(projectRunsApi, 'reserve'), create = vi.spyOn(api, 'createSession');
+  render(<ProjectRuns {...props()} />);
+  const trigger = await screen.findByText('Compare with current plan');
+  expect(plan).not.toHaveBeenCalled();
+  expect(screen.queryByRole('region', { name: 'Selected task title comparison' })).toBeNull();
+  await userEvent.click(trigger);
+  const comparison = await screen.findByRole('region', { name: 'Selected task title comparison' });
+  await within(comparison).findByText('This build: plan 5. Current saved plan: 6.');
+  expect(plan).toHaveBeenCalledExactlyOnceWith('p-1');
+  expect(within(comparison).getByText(longTitle).tagName).toBe('P');
+  expect(within(comparison).getByText('Build journal')).not.toBeNull();
+  expect(within(comparison).getByText('Export journal entries')).not.toBeNull();
+  expect(within(comparison).getByText('Removed from the current saved plan.')).not.toBeNull();
+  expect(within(comparison).getByText('Title changed.')).not.toBeNull();
+  expect(within(comparison).getByText('Removed from saved plan.')).not.toBeNull();
+  expect(within(comparison).getByText('Title unchanged.')).not.toBeNull();
+  expect(within(comparison).queryByText('Unselected billing work')).toBeNull();
+  expect(comparison.textContent).toContain('This build’s captured inputs and recorded checks are retained.');
+  expect(comparison.textContent).toContain('It does not compare task status, unselected tasks, other context, or unsaved edits.');
+  expect(comparison.textContent).toContain('Matching titles do not mean the full reviewed context still matches.');
+  expect(saved).toEqual(original);
+  for (const mutation of [save, reserve, create]) expect(mutation).not.toHaveBeenCalled();
+});
+
+it('clears an old comparison immediately during refresh, failure and explicit recovery', async () => {
+  const pending = pendingComparisonPlan();
+  const plan = vi.spyOn(productApi, 'plan').mockResolvedValueOnce(savedComparisonPlan()).mockRejectedValueOnce(new Error('Saved plan is temporarily unavailable')).mockReturnValueOnce(pending.promise);
+  render(<ProjectRuns {...props()} />);
+  await userEvent.click(await screen.findByText('Compare with current plan'));
+  await screen.findByText('This build: plan 5. Current saved plan: 6.');
+  expect(screen.getByText(/This compares titles for the 1 task selected for this build/)).not.toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh comparison' }));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('Saved plan is temporarily unavailable'));
+  expect(screen.queryByText('This build: plan 5. Current saved plan: 6.')).toBeNull();
+  expect(screen.queryByText('Build a journal with a visible revision trail')).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Refresh comparison' }));
+  await screen.findByText('Reading current saved plan…');
+  expect(screen.queryByRole('alert')).toBeNull();
+  await act(async () => pending.resolve(savedComparisonPlan({ revision: 7 })));
+  await screen.findByText('This build: plan 5. Current saved plan: 7.');
+  expect(plan).toHaveBeenCalledTimes(3);
+});
+
+it('discards a closed comparison request before reopening with a new saved snapshot', async () => {
+  const pending = pendingComparisonPlan();
+  const plan = vi.spyOn(productApi, 'plan').mockReturnValueOnce(pending.promise).mockResolvedValueOnce(savedComparisonPlan({ revision: 8 }));
+  render(<ProjectRuns {...props()} />);
+  const trigger = await screen.findByText('Compare with current plan');
+  await userEvent.click(trigger);
+  await waitFor(() => expect(plan).toHaveBeenCalledTimes(1));
+  await userEvent.click(trigger);
+  await waitFor(() => expect(screen.queryByRole('region', { name: 'Selected task title comparison' })).toBeNull());
+  await userEvent.click(trigger);
+  await screen.findByText('This build: plan 5. Current saved plan: 8.');
+  await act(async () => pending.resolve(savedComparisonPlan({ revision: 99, tasks: [{ id: 'task-1', title: 'Late closed comparison', status: 'todo' }] })));
+  expect(screen.queryByText('Late closed comparison')).toBeNull();
+  expect(screen.getByText('This build: plan 5. Current saved plan: 8.')).not.toBeNull();
+});
+
+it('retires the previous selected run comparison and requires a new explicit read for its replacement', async () => {
+  const pending = pendingComparisonPlan();
+  const first = makeRun(), second = makeRun({ id: 'run-second', state: 'awaiting-checks', reason: 'Second captured run', allowedActions: ['reconcile'] });
+  second.input.implementation.planRevision = 9; second.input.implementation.taskTitles = ['Capture a second plan'];
+  vi.mocked(projectRunsApi.list).mockResolvedValue([first, second]);
+  const plan = vi.spyOn(productApi, 'plan').mockReturnValueOnce(pending.promise).mockResolvedValueOnce(savedComparisonPlan({ revision: 10 }));
+  render(<ProjectRuns {...props()} />);
+  await userEvent.click(await screen.findByText('Compare with current plan'));
+  await waitFor(() => expect(plan).toHaveBeenCalledTimes(1));
+  await userEvent.click(screen.getByText('Run history · 2'));
+  await userEvent.click(screen.getByRole('button', { name: /^Awaiting verification ·/ }));
+  await screen.findByText('Second captured run');
+  expect(screen.queryByRole('region', { name: 'Selected task title comparison' })).toBeNull();
+  await act(async () => pending.resolve(savedComparisonPlan({ revision: 99 })));
+  expect(screen.queryByText(/Current saved plan: 99/)).toBeNull();
+  await userEvent.click(screen.getByText('Compare with current plan'));
+  await screen.findByText('This build: plan 9. Current saved plan: 10.');
+  const comparison = screen.getByRole('region', { name: 'Selected task title comparison' });
+  expect(within(comparison).getByText('Capture a second plan')).not.toBeNull();
+  expect(within(comparison).queryByText('Build journal')).toBeNull();
+});
+
+it.each(['account', 'workspace', 'project'] as const)('does not carry a saved-plan comparison across a %s switch', async change => {
+  const pending = pendingComparisonPlan();
+  vi.mocked(projectRunsApi.list).mockImplementation(async projectId => {
+    const run = makeRun({ projectId }); run.input.implementation.projectId = projectId; return [run];
+  });
+  const plan = vi.spyOn(productApi, 'plan').mockReturnValueOnce(pending.promise).mockImplementation(async projectId => savedComparisonPlan({ projectId, revision: 8 }));
+  const initial = props();
+  const mounted = render(<ProjectRuns {...initial} />);
+  await userEvent.click(await screen.findByText('Compare with current plan'));
+  await waitFor(() => expect(plan).toHaveBeenCalledTimes(1));
+  if (change === 'account') scope.actor = 'another-owner';
+  if (change === 'workspace') scope.connection = 'another-workspace';
+  const projectId = change === 'project' ? 'p-2' : 'p-1';
+  mounted.rerender(<ProjectRuns {...initial} projectId={projectId} />);
+  await screen.findByText('Compare with current plan');
+  expect(screen.queryByRole('region', { name: 'Selected task title comparison' })).toBeNull();
+  await act(async () => pending.resolve(savedComparisonPlan({ revision: 99 })));
+  await userEvent.click(screen.getByText('Compare with current plan'));
+  await screen.findByText('This build: plan 5. Current saved plan: 8.');
+  expect(screen.queryByText(/Current saved plan: 99/)).toBeNull();
+  expect(plan).toHaveBeenLastCalledWith(projectId);
+});
+
+it('clears and retires comparisons after confirmed loss of project reading access', async () => {
+  const pending = pendingComparisonPlan();
+  const plan = vi.spyOn(productApi, 'plan').mockReturnValueOnce(pending.promise).mockResolvedValueOnce(savedComparisonPlan({ revision: 8 }));
+  const initial = props(), mounted = render(<ProjectRuns {...initial} />);
+  await userEvent.click(await screen.findByText('Compare with current plan'));
+  await waitFor(() => expect(plan).toHaveBeenCalledTimes(1));
+  teamAccess.permissions.read = false;
+  mounted.rerender(<ProjectRuns {...initial} />);
+  expect(screen.queryByRole('region', { name: 'Selected task title comparison' })).toBeNull();
+  expect(screen.queryByText('Compare with current plan')).toBeNull();
+  teamAccess.permissions.read = true; teamAccess.loading = false; teamAccess.error = '';
+  mounted.rerender(<ProjectRuns {...initial} />);
+  await screen.findByText('Compare with current plan');
+  await act(async () => pending.resolve(savedComparisonPlan({ revision: 99 })));
+  expect(screen.queryByRole('region', { name: 'Selected task title comparison' })).toBeNull();
+  await userEvent.click(screen.getByText('Compare with current plan'));
+  await screen.findByText('This build: plan 5. Current saved plan: 8.');
+  expect(screen.queryByText(/Current saved plan: 99/)).toBeNull();
+});
+
+it.each(['foreign', 'duplicate-task'] as const)('refuses an unverifiable %s saved plan without displaying its contents', async kind => {
+  const plan = savedComparisonPlan({ projectId: kind === 'foreign' ? 'foreign-project' : 'p-1', tasks: [{ id: 'task-1', title: 'Unverified plan contents', status: 'todo' }] });
+  if (kind === 'duplicate-task') plan.tasks.push({ id: 'task-1', title: 'Ambiguous second title', status: 'todo' });
+  vi.spyOn(productApi, 'plan').mockResolvedValue(plan);
+  render(<ProjectRuns {...props()} />);
+  await userEvent.click(await screen.findByText('Compare with current plan'));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', expect.stringContaining('The saved plan could not be verified for this project'));
+  expect(screen.queryByText('Unverified plan contents')).toBeNull();
+  expect(screen.queryByText(/Current saved plan:/)).toBeNull();
+});
+
+it('keeps the latest saved-plan read when StrictMode retires an earlier effect', async () => {
+  const pending = pendingComparisonPlan();
+  const plan = vi.spyOn(productApi, 'plan').mockReturnValueOnce(pending.promise).mockResolvedValueOnce(savedComparisonPlan({ revision: 8 }));
+  render(<StrictMode><ProjectRuns {...props()} /></StrictMode>);
+  await userEvent.click(await screen.findByText('Compare with current plan'));
+  await screen.findByText('This build: plan 5. Current saved plan: 8.');
+  expect(plan).toHaveBeenCalledTimes(2);
+  await act(async () => pending.resolve(savedComparisonPlan({ revision: 99 })));
+  expect(screen.queryByText(/Current saved plan: 99/)).toBeNull();
+  expect(screen.getByText('This build: plan 5. Current saved plan: 8.')).not.toBeNull();
+});
+
+
+it.each(['loading', 'error'] as const)('retains an open saved-plan comparison through a %s permission refresh with reading access', async refreshState => {
+  const pending = pendingComparisonPlan();
+  const plan = vi.spyOn(productApi, 'plan').mockResolvedValueOnce(savedComparisonPlan()).mockReturnValueOnce(pending.promise);
+  const initial = props(), mounted = render(<ProjectRuns {...initial} />);
+  await userEvent.click(await screen.findByText('Compare with current plan'));
+  await screen.findByText('This build: plan 5. Current saved plan: 6.');
+  const comparison = screen.getByRole('region', { name: 'Selected task title comparison' });
+  const disclosure = comparison.closest('details')!;
+  const refresh = within(comparison).getByRole('button', { name: 'Refresh comparison' });
+  refresh.focus();
+  teamAccess.loading = refreshState === 'loading';
+  teamAccess.error = refreshState === 'error' ? 'Permission service temporarily unavailable' : '';
+  mounted.rerender(<ProjectRuns {...initial} />);
+  expect(screen.getByRole('region', { name: 'Selected task title comparison' })).toBe(comparison);
+  expect(disclosure.open).toBe(true);
+  expect(document.activeElement).toBe(refresh);
+  expect(within(comparison).getByText('This build: plan 5. Current saved plan: 6.')).not.toBeNull();
+  expect(plan).toHaveBeenCalledTimes(1);
+  // Retained reading access permits an explicit read. The server still owns
+  // authorization; the permission refresh neither closes nor replays it.
+  await userEvent.click(refresh);
+  await within(comparison).findByText('Reading current saved plan…');
+  await act(async () => pending.resolve(savedComparisonPlan({ revision: 8 })));
+  await within(comparison).findByText('This build: plan 5. Current saved plan: 8.');
+  teamAccess.loading = false; teamAccess.error = '';
+  mounted.rerender(<ProjectRuns {...initial} />);
+  expect(screen.getByRole('region', { name: 'Selected task title comparison' })).toBe(comparison);
+  expect(disclosure.open).toBe(true);
+  expect(plan).toHaveBeenCalledTimes(2);
+  // A later confirmed denial is different from a transient refresh. Clear
+  // the visible snapshot and require a new deliberate read after regrant.
+  teamAccess.permissions.read = false;
+  mounted.rerender(<ProjectRuns {...initial} />);
+  expect(screen.queryByRole('region', { name: 'Selected task title comparison' })).toBeNull();
+  expect(comparison.isConnected).toBe(false);
+  teamAccess.permissions.read = true;
+  mounted.rerender(<ProjectRuns {...initial} />);
+  await screen.findByText('Compare with current plan');
+  expect(screen.queryByRole('region', { name: 'Selected task title comparison' })).toBeNull();
+  expect(screen.queryByText('This build: plan 5. Current saved plan: 8.')).toBeNull();
+  expect(plan).toHaveBeenCalledTimes(2);
 });

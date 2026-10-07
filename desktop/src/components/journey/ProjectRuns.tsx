@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../api';
-import { errorText, productApi, type CheckRun, type Release } from '../../api/product';
+import { errorText, productApi, type CheckRun, type Release, type ImplementationPlan } from '../../api/product';
 import { platformApi } from '../../api/platform';
 import { notifyProjectContextChanged } from '../../api/projectContextEvents';
 import { projectRunsApi, runSessionRequest, type CreateProjectRun, type ProjectRun, type RunOperation } from '../../api/projectRuns';
@@ -28,13 +28,77 @@ const labels: Record<string, string> = {
 };
 const contextNeedsReview = (run?: ProjectRun) => !!run?.contextFreshness && run.contextFreshness.status !== 'current';
 const codingBlocked = (run?: ProjectRun) => contextNeedsReview(run) || !!run?.codingBlocker;
-const runLabel = (run: ProjectRun) => run.state === 'ready' && run.codingBlocker
-  ? (run.codingBlocker.kind === 'question' ? 'Decision needed before coding' : 'Project decisions unavailable')
-  : run.state === 'ready' && contextNeedsReview(run)
-  ? (run.contextFreshness?.status === 'unavailable' ? 'Context unavailable' : 'Review current context')
-  : labels[run.state] || run.state;
+const recordedCodingActivity = (run: ProjectRun) => run.operations.some(item => item.status === 'running') ? 'Coding recorded as running'
+  : run.operations.some(item => ['dispatching', 'unknown'].includes(item.status)) ? 'Coding outcome unconfirmed'
+    : run.operations.some(item => item.status === 'reserved') ? 'Coding reserved, not started' : '';
+const runLabel = (run: ProjectRun) => {
+  // Acceptance/cancellation are historical outcomes; current review does not
+  // undo them or imply that an allocated coding child has stopped.
+  if (run.state === 'complete' || run.state === 'cancelled' || !codingBlocked(run)) return labels[run.state] || run.state;
+  const activity = recordedCodingActivity(run);
+  if (activity) return activity;
+  if (run.codingBlocker) return run.codingBlocker.kind === 'question'
+    ? (run.state === 'ready' ? 'Decision needed before coding' : 'Decision needed before continuing') : 'Project decisions unavailable';
+  return run.contextFreshness?.status === 'unavailable' ? 'Context unavailable' : 'Review current context';
+};
 const when = (value: string) => new Date(value).toLocaleString();
 const scope = (values: unknown[]) => JSON.stringify(values);
+
+
+type PlanComparisonRead = { status: 'reading' } | { status: 'error'; message: string } | { status: 'ready'; plan: ImplementationPlan };
+
+function CurrentPlanComparison({ projectId, run }: { projectId: string; run: ProjectRun }) {
+  const [read, setRead] = useState<PlanComparisonRead>({ status: 'reading' });
+  const alive = useRef(true), generation = useRef(0);
+  async function load() {
+    const mine = ++generation.current;
+    setRead({ status: 'reading' });
+    try {
+      const plan = await productApi.plan(projectId);
+      if (!alive.current || mine !== generation.current) return;
+      if (plan.projectId !== projectId || !Number.isSafeInteger(plan.revision) || plan.revision < 0 || !Array.isArray(plan.tasks) || plan.tasks.length > 200 ||
+          plan.tasks.some(task => !task || typeof task.id !== 'string' || !task.id || typeof task.title !== 'string' || !task.title.trim() || task.title.length > 2000) || new Set(plan.tasks.map(task => task.id)).size !== plan.tasks.length) {
+        throw new Error('The saved plan could not be verified for this project. Refresh the comparison.');
+      }
+      setRead({ status: 'ready', plan });
+    } catch (cause) {
+      if (alive.current && mine === generation.current) setRead({ status: 'error', message: errorText(cause) });
+    }
+  }
+  useEffect(() => {
+    alive.current = true; void load();
+    return () => { alive.current = false; generation.current++; };
+  }, [projectId, run.id, run.revision]);
+  return <section aria-label="Selected task title comparison">
+    <p>This build’s captured inputs and recorded checks are retained.</p>
+    <p>This compares titles for the {run.input.implementation.taskIds.length} {run.input.implementation.taskIds.length === 1 ? 'task' : 'tasks'} selected for this build. It does not compare task status, unselected tasks, other context, or unsaved edits.</p>
+    {read.status === 'reading' ? <p role="status">Reading current saved plan…</p>
+      : read.status === 'error' ? <p role="alert">Current saved plan could not be compared. {read.message}</p>
+        : <>
+          <p>This build: plan {run.input.implementation.planRevision}. Current saved plan: {read.plan.revision}.</p>
+          <ul>{run.input.implementation.taskIds.map((id, index) => {
+            const captured = run.input.implementation.taskTitles[index];
+            const current = read.plan.tasks.find(task => task.id === id);
+            return <li key={id}>
+              <p><strong>Captured task:</strong> {captured}</p>
+              <p><strong>Current saved task:</strong> {current?.title ?? 'Removed from the current saved plan.'}</p>
+              <p className="journey-muted">{!current ? 'Removed from saved plan.' : current.title === captured ? 'Title unchanged.' : 'Title changed.'}</p>
+            </li>;
+          })}</ul>
+          <p className="journey-muted">These saved values are read when you open or refresh this comparison. Matching titles do not mean the full reviewed context still matches.</p>
+        </>}
+    <Button variant="secondary" disabled={read.status === 'reading'} onClick={() => void load()}>Refresh comparison</Button>
+  </section>;
+}
+
+function PlanComparison({ projectId, run }: { projectId: string; run: ProjectRun }) {
+  const [open, setOpen] = useState(false);
+  // Closing, changing the selected run or losing read authority unmounts the
+  // reader. Its completed values and pending replies never cross that boundary.
+  return <details onToggle={event => setOpen(event.currentTarget.open)}><summary>Compare with current plan</summary>
+    {open && <CurrentPlanComparison projectId={projectId} run={run} />}
+  </details>;
+}
 
 export function ProjectRuns(props: { projectId: string; draft?: ProjectRunDraft; onDraftClose(): void; onReviewPlan(): void; onOpenCodingSession?(target: OpenCodingSessionTarget): void }) {
   const auth = useAuth(), setup = useSetup();
@@ -254,8 +318,10 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     }
     if (alive.current) { remember(value); setDialog(null); }
   }
-  const reviewInputsFirst = !!run && ['ready', 'awaiting-checks', 'awaiting-release', 'blocked'].includes(run.state);
-  const primary = reviewInputsFirst && run?.codingBlocker ? 'review-decisions'
+  const activeCoding = !!run?.operations.some(item => ['running', 'dispatching', 'unknown'].includes(item.status));
+  const reviewInputsFirst = !!run && !activeCoding && !['complete', 'cancelled'].includes(run.state);
+  const primary = activeCoding && codingBlocked(run) && allowed('reconcile') ? 'reconcile'
+    : reviewInputsFirst && run?.codingBlocker ? 'review-decisions'
     : reviewInputsFirst && contextNeedsReview(run) ? 'review-plan'
     : !run?.acceptance && allowed('accept') && run?.observation?.valid ? 'accept'
     : allowed('continue-coding') ? 'continue-coding'
@@ -296,11 +362,12 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
     {error && <p role="alert" className="journey-error">{error}</p>}
     {notice && <p role="status" className="journey-muted">{notice}</p>}
     {!run ? <><p className="journey-muted">Keep reviewed tasks, coding, checks and a verified release together. Creating a run saves its inputs; each next operation remains your choice.</p><Button variant="secondary" onClick={onReviewPlan}>Review implementation plan</Button></> : <>
-      <div className="project-run-next"><strong>{runLabel(run)}</strong><span>{run.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span>{!(run.state === 'ready' && codingBlocked(run)) && <p>{run.reason}</p>}
+      <div className="project-run-next"><strong>{runLabel(run)}</strong><span>{run.input.outcome === 'preview' ? 'Workspace preview' : 'Public deployment'}</span>{!codingBlocked(run) && <p>{run.reason}</p>}
+        {!!recordedCodingActivity(run) && <p className="journey-muted">{recordedCodingActivity(run)}. Open the coding session or reconcile the run to inspect its current outcome.</p>}
         {run.codingBlocker && <p className="journey-warning">{run.codingBlocker.reason}</p>}
         {run.contextFreshness && <p className={contextNeedsReview(run) ? 'journey-warning' : 'journey-muted'}>{contextNeedsReview(run) && <strong>{run.contextFreshness.status === 'unavailable' ? 'Reviewed context unavailable. ' : 'Reviewed context changed. '}</strong>}{run.contextFreshness.reason}</p>}
         {run.acceptance && <p>Accepted {when(run.acceptance.acceptedAt)}. This historical acceptance is retained separately from current validity.</p>}
-        {run.observation ? <p className={run.observation.valid ? 'journey-muted' : 'journey-warning'}>{run.observation.valid ? 'Last observation valid' : 'Current evidence needs attention'} · {when(run.observation.observedAt)}.{(!run.acceptance || !run.observation.valid) && (run.observation.reason !== run.reason || (run.state === 'ready' && codingBlocked(run))) && <> {run.observation.reason}</>}</p> : <p className="journey-muted">No observation recorded yet. Refreshing history does not run or reconcile operations.</p>}
+        {run.observation ? <p className={run.observation.valid ? 'journey-muted' : 'journey-warning'}>{run.observation.valid ? 'Last observation valid' : 'Current evidence needs attention'} · {when(run.observation.observedAt)}.{codingBlocked(run) && <> This recorded evidence does not clear the current review.</>}{!codingBlocked(run) && (!run.acceptance || !run.observation.valid) && run.observation.reason !== run.reason && <> {run.observation.reason}</>}</p> : <p className="journey-muted">No observation recorded yet. Refreshing history does not run or reconcile operations.</p>}
         <div className="journey-actions">
           {primary && <Button disabled={!!busy || loading || (['verify', 'deploy', 'review-decisions'].includes(primary) && !navigationScope)} onClick={() => action(primary)}>{busy || actionLabel[primary]}</Button>}
           {run.codingBlocker && primary !== 'review-decisions' && <Button variant="secondary" disabled={!!busy || loading || !navigationScope} onClick={() => action('review-decisions')}>{actionLabel['review-decisions']}</Button>}
@@ -315,8 +382,13 @@ function RunWorkspace({ projectId, draft, onDraftClose, onReviewPlan, onOpenCodi
         {allowed('continue-coding') && <p className="journey-muted">A coding operation was reserved before dispatch. Continue uses that same child identity; it does not reserve another attempt. Reconcile first if its result is uncertain.</p>}
         {run.state === 'cancelled' && <p className="journey-muted">Future dispatch is cancelled. Running children retain their separate stop controls.</p>}
       </div>
+      <PlanComparison key={`${run.id}:${run.revision}`} projectId={projectId} run={run} />
       <details className="project-run-receipts"><summary>Reviewed inputs and evidence</summary>
-        {run.state === 'ready' && codingBlocked(run) && <p>Recorded when prepared: {run.reason}</p>}
+        {codingBlocked(run) && <>
+          <p>Last recorded stage: {labels[run.state] || run.state}</p>
+          <p>{run.state === 'ready' ? 'Recorded when prepared: ' : 'Last recorded guidance: '}{run.reason}</p>
+          {run.observation && (!run.acceptance || !run.observation.valid) && run.observation.reason !== run.reason && <p>Last recorded observation: {run.observation.reason}</p>}
+        </>}
         <p>{run.input.implementation.taskTitles.join('; ')}</p><p>Brief {run.input.implementation.briefRevision} · Plan {run.input.implementation.planRevision} · Definition {run.input.implementation.specificationRevision} · Design {run.input.implementation.designPlanRevision}</p>
         <p>{run.input.route.harness} · {run.input.route.model} · {run.input.route.connection.id || 'Direct agent settings'} · connection revision {run.input.route.connection.revision}</p>
         <p>Starting commit {run.input.implementation.sourceCommit || 'not committed'}{run.input.implementation.sourceDirty ? ' · included uncommitted changes' : ''}</p>

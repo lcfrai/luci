@@ -201,7 +201,7 @@ function ProjectPlanEditor({ projectId, brief, onPrepareRun, scope }: Props & { 
               : needsRebind ? "The brief or definition changed. Review the tasks and save the plan against the current revisions."
                 : unavailableLinks ? "Review and remove unavailable requirement links before starting."
                   : !coverage.source.available ? "The current source could not be read. Refresh the project before starting."
-                    : !selectedLocation ? "Choose a build location below before preparing the run."
+                    : !selectedLocation ? "Choose a build location before preparing the run."
                       : !worktree?.isPrimary ? "Implementation handoffs currently need the main checkout. Choose its branch and worktree."
                         : "";
   useEffect(() => {

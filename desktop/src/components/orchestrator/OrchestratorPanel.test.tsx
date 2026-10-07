@@ -352,8 +352,9 @@ it("explains material ambiguity and pre-fills an attributed reply only until Sen
 });
 
 it("keeps an occupied composer and its recovery copy until a suggested answer is explicitly chosen", async () => {
-  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()], blockingQuestions: [decisions[0]] }));
   const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByRole("button", { name: "Answer this decision" }));
   const amendment = "Please preserve existing bookings when we add calendar exports.";
   await userEvent.type(screen.getByLabelText("Message Luci"), amendment);
   const before = browserRecords();
@@ -362,6 +363,8 @@ it("keeps an occupied composer and its recovery copy until a suggested answer is
   expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe(amendment);
   expect(browserRecords()).toEqual(before);
   const dialog = screen.getByRole("dialog", { name: "Replace your unsent message?" });
+  expect(within(dialog).getByText(decisions[0].question)).not.toBeNull();
+  expect(within(dialog).getByText(/also switches your reply to the new question/)).not.toBeNull();
   expect(within(dialog).getByText("Can guests book without an account?")).not.toBeNull();
   expect(within(dialog).getByText("Allow guest booking")).not.toBeNull();
   await userEvent.click(within(dialog).getByRole("button", { name: "Keep current message" }));
@@ -370,14 +373,17 @@ it("keeps an occupied composer and its recovery copy until a suggested answer is
   mounted.unmount(); render(<OrchestratorPanel projectId="p-1" />); await ready();
   await userEvent.click(screen.getByRole("button", { name: "Restore unsent message" }));
   expect((screen.getByLabelText("Message Luci") as HTMLTextAreaElement).value).toBe(amendment);
+  expect(screen.getByText(`Replying to: ${decisions[0].question}`)).not.toBeNull();
   expect(orchestratorApi.send).not.toHaveBeenCalled();
 });
 
 it("replaces an occupied message only explicitly and retains the selected question until deliberate Send", async () => {
-  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()], blockingQuestions: [decisions[0]] }));
   render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByRole("button", { name: "Answer this decision" }));
   await userEvent.type(screen.getByLabelText("Message Luci"), "Add a calendar export after the first release.");
   await userEvent.click(screen.getByRole("button", { name: "Allow guest booking" }));
+  expect(readComposerRecovery(decisionScope()).draft?.replyTo).toBe(decisions[0].turnId);
   await userEvent.click(screen.getByRole("button", { name: "Replace with suggested answer" }));
   expect(screen.queryByRole("dialog")).toBeNull();
   const composer = screen.getByLabelText("Message Luci");
@@ -390,6 +396,35 @@ it("replaces an occupied message only explicitly and retains the selected questi
   expect(screen.queryByRole("dialog")).toBeNull();
   await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
   expect(orchestratorApi.send).toHaveBeenCalledExactlyOnceWith("p-1", expect.objectContaining({ message: "Allow guest booking", replyToTurnId: "turn-1" }));
+});
+
+it.each(["newer focus", "message", "read", "assist", "scope"] as const)("does not complete a pending replacement focus handoff after a change to %s", async change => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ turns: [turn()] }));
+  const ui = () => <><button>Other project work</button><OrchestratorPanel projectId="p-1" /></>;
+  const mounted = render(ui()); await ready();
+  await userEvent.type(screen.getByLabelText("Message Luci"), "Retain the amendment until I choose.");
+  await userEvent.click(screen.getByRole("button", { name: "Allow guest booking" }));
+  const composer = screen.getByLabelText("Message Luci");
+  const focus = vi.spyOn(composer, "focus");
+  // Radix defers close autofocus until trap teardown. Intervene in that actual
+  // interval without replacing the dialog or calling its callback ourselves.
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    fireEvent.click(screen.getByRole("button", { name: "Replace with suggested answer" }));
+    expect(focus).not.toHaveBeenCalled();
+    if (change === "newer focus") screen.getByRole("button", { name: "Other project work" }).focus();
+    else if (change === "message") fireEvent.change(composer, { target: { value: "A newer amendment after closing." } });
+    else {
+      if (change === "scope") identity.actor = "another-member";
+      else identity[change] = false;
+      mounted.rerender(ui());
+    }
+    await act(async () => { await vi.runOnlyPendingTimersAsync(); });
+    expect(focus).not.toHaveBeenCalled();
+    if (change === "newer focus") expect(document.activeElement).toBe(screen.getByRole("button", { name: "Other project work" }));
+    if (change === "message") expect((composer as HTMLTextAreaElement).value).toBe("A newer amendment after closing.");
+    expect(orchestratorApi.send).not.toHaveBeenCalled();
+  } finally { vi.useRealTimers(); }
 });
 
 it.each(["assist", "read"] as const)("retires a pending suggested replacement across %s loss and regrant without changing the original draft", async grant => {
@@ -487,6 +522,38 @@ it("keeps Change the plan generic after a decision reply was selected", async ()
   await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
   expect(orchestratorApi.send).toHaveBeenCalledTimes(1);
   expect(vi.mocked(orchestratorApi.send).mock.calls[0][1].replyToTurnId).toBeUndefined();
+});
+
+it.each([false, true])("keeps an occupied answer and its question through generic discussion until intentional Send, with explicit detachment %s", async clearReply => {
+  vi.mocked(orchestratorApi.get).mockResolvedValue(view({ blockingQuestions: [{ turnId: "privacy-decision", question: "Private bookings?", rationale: "Privacy", options: [] }] }));
+  const mounted = render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByRole("button", { name: "Work through the decisions" }));
+  const answer = "No. Each guest may see only their own bookings.";
+  await userEvent.type(screen.getByRole("textbox", { name: "Message Luci" }), answer);
+  const before = browserRecords();
+  expect(readComposerRecovery(decisionScope()).draft).toMatchObject({ message: answer, replyTo: "privacy-decision" });
+  await userEvent.click(screen.getByRole("button", { name: "Change the plan" }));
+  await userEvent.click(screen.getByRole("button", { name: "Discuss a change with Luci" }));
+  const composer = screen.getByRole("textbox", { name: "Message Luci" });
+  await waitFor(() => expect(document.activeElement).toBe(composer));
+  expect((composer as HTMLTextAreaElement).value).toBe(answer);
+  expect(browserRecords()).toEqual(before);
+  expect(screen.getByText("Replying to: Private bookings?")).not.toBeNull();
+  expect(orchestratorApi.send).not.toHaveBeenCalled();
+
+  mounted.unmount(); render(<OrchestratorPanel projectId="p-1" />); await ready();
+  await userEvent.click(screen.getByRole("button", { name: "Restore unsent message" }));
+  expect((screen.getByRole("textbox", { name: "Message Luci" }) as HTMLTextAreaElement).value).toBe(answer);
+  expect(screen.getByText("Replying to: Private bookings?")).not.toBeNull();
+  if (clearReply) {
+    await userEvent.click(screen.getByRole("button", { name: "Clear reply" }));
+    expect(readComposerRecovery(decisionScope()).draft).toMatchObject({ message: answer, replyTo: "" });
+    expect(screen.queryByText("Replying to: Private bookings?")).toBeNull();
+  }
+  await userEvent.click(screen.getByRole("button", { name: "Send to Luci" }));
+  expect(orchestratorApi.send).toHaveBeenCalledOnce();
+  expect(vi.mocked(orchestratorApi.send).mock.calls[0][1].message).toBe(answer);
+  expect(vi.mocked(orchestratorApi.send).mock.calls[0][1].replyToTurnId).toBe(clearReply ? undefined : "privacy-decision");
 });
 
 it("reviews actual changes and saves only after explicit acknowledgement and exact CAS Apply", async () => {

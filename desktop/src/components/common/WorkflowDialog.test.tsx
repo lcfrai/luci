@@ -1,5 +1,5 @@
-import { expect, it } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { WorkflowDialog } from "./WorkflowDialog";
@@ -30,4 +30,34 @@ it.each(["Escape", "Keep editing"])("returns focus to the retained navigation co
   // also detects a premature hook cleanup that leaves focus on document.body.
   await waitFor(() => expect(document.activeElement).toBe(trigger));
   expect((screen.getByRole("textbox", { name: "Draft" }) as HTMLTextAreaElement).value).toBe("Keep this unsaved idea");
+});
+
+it.each([true, false])("resolves an explicit close target after the focus trap is removed, with current admission %s", async permitted => {
+  const admission = { allowed: true };
+  const target = vi.fn(() => {
+    expect(screen.queryByRole("dialog")).toBeNull();
+    return admission.allowed ? screen.getByRole("textbox", { name: "Draft" }) : null;
+  });
+  function Example() {
+    const [open, setOpen] = useState(false);
+    return <>
+      <label>Draft<textarea defaultValue="Protected message" /></label>
+      <button onClick={() => setOpen(true)}>Suggested answer</button>
+      {open && <WorkflowDialog title="Choose answer" description="Review the draft first." onClose={() => setOpen(false)} getCloseFocusTarget={target}>
+        <button onClick={() => setOpen(false)}>Use answer</button>
+      </WorkflowDialog>}
+    </>;
+  }
+  render(<Example />);
+  await userEvent.click(screen.getByRole("button", { name: "Suggested answer" }));
+  await screen.findByRole("dialog");
+  fireEvent.click(screen.getByRole("button", { name: "Use answer" }));
+  // The decision is evaluated by Radix's actual close event, not by the click
+  // handler or a guessed number of animation frames before trap removal.
+  expect(target).not.toHaveBeenCalled();
+  admission.allowed = permitted;
+  await waitFor(() => expect(target).toHaveBeenCalledOnce());
+  const draft = screen.getByRole("textbox", { name: "Draft" });
+  if (permitted) expect(document.activeElement).toBe(draft);
+  else expect(document.activeElement).not.toBe(draft);
 });

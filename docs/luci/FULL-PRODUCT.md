@@ -12,6 +12,37 @@ new durable-run, portable-context, team and release-integrity work. Earlier
 installed versions, hashes and results are preserved as historical evidence;
 none is relabelled as acceptance of the new candidate.
 
+## Amendment clarity and conversation continuity
+
+The current correction makes a changed run lead with its current review need,
+while retaining the earlier stage, guidance and checks as recorded history.
+“Compare with current plan” reads the saved plan on demand and shows the
+captured and current titles of tasks selected for this build. It identifies
+changed or removed titles without claiming a complete context comparison or
+including unsaved edits. Captured inputs and recorded checks remain unchanged.
+
+Suggested-answer replacement now uses the actual dialog close lifecycle to
+return focus to the composer, with guards for current access, scope, message,
+reply target and newer focus. The confirmation explicitly identifies the
+current and new questions. Opening the generic change discussion preserves an
+occupied answer and its complete browser recovery record; Clear reply remains
+the deliberate way to detach it. Empty discussion still starts generically.
+
+The original installed `7eac68f4` focus failure and the two newly reproduced
+generic-discussion failures remain retained. The first combined frontend run
+also exposed an overly broad action-priority change in the new correction;
+current-context verification must retain its existing navigation. Its separate
+copy/test source-overlap failure is recorded as test-input inconsistency.
+The final source is independently reviewed and passes all 2,243 frontend tests
+across 131 files plus TypeScript, with all 434 frontend/contract inputs unchanged
+during the clean run. The first failed run is retained separately. Go and API
+contracts are unchanged from the `7eac68f4` race baseline. Ordinary retained-read
+permission refresh now keeps the comparison open; confirmed denial still clears
+it. Matching installed acceptance is pending. This is continuing product work
+within the full goal. Evidence: `artifacts/quality-amendment-clarity/`,
+`quality-run-current-guidance/integration-source-freeze.json` and
+`quality-orchestrator-suggested-answer/adjacent-ask/`.
+
 ## Conversation and build-guidance correction
 
 Choosing a suggested answer now requires an explicit choice before replacing an
@@ -33,8 +64,21 @@ Independent review passes. Combined affected validation passes 310 frontend
 cases across 12 files and TypeScript, plus 1,080 API/product race-test outcomes
 with four skips. All 434 frontend/contract and 567 Go inputs remain unchanged
 during their checks. The earlier full frontend baseline belongs to `54d4da87`;
-these are scoped follow-up results. Matching installed amendment, conversation
-and exact-run handoff acceptance is pending. Evidence:
+these are scoped follow-up results. Installed `7eac68f4` passes three overview
+groups: an actual supported check join refreshes the cached exact run, preview
+receives its exact check/source, and a real plan-only amendment restores current
+review guidance while retaining original inputs. Historical check/question setup
+is labelled; no model, check command or deployment was executed.
+
+Desktop Keep preserves text, reply binding, browser recovery and focus. Explicit
+Replace updates the text and question but fails to return focus to the editor.
+The installed attempt therefore fails; subsequent replacement-persistence and
+phone composer assertions remain unexecuted. Earlier driver-locator failures
+remain separate. The next correction uses the actual dialog close lifecycle.
+A bounded independent screenshot reading also found contradictory stale-run
+header guidance and insufficient visibility of the concrete plan change. Current
+run guidance and a selected-task comparison are being corrected, together with
+explicit reply-target wording. The full product goal remains active. Evidence:
 `artifacts/quality-orchestration-followthrough/`,
 `quality-orchestrator-suggested-answer/` and `quality-orchestrator-run-guidance/`.
 
@@ -61,8 +105,9 @@ event is labelled timing scaffolding; no permission or response is fabricated.
 Git delivery passes all seven functional groups, including a real local origin
 attachment, failed readback delivery, unsaved navigation and read revocation.
 Independent live observation and complete package/cleanup checks pass. Its
-generic network error misleadingly claims the service is down; the narrow
-wording correction passes 26 relevant cases and awaits a matching package.
+generic network error misleadingly claimed the service was down. The corrected
+wording passes 26 relevant cases and all seven matching installed `7eac68f4`
+groups, with independent runtime and cleanup verification.
 No GitHub sign-in, remote push, merchant operation or cloud deployment is implied.
 
 The later corrections and their source evidence are described above. Matching
