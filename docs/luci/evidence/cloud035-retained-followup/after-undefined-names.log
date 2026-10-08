@@ -1,0 +1,10 @@
+{
+  "typescript": "6.0.3",
+  "file": "scripts/acceptance/worker-recovery/installed-worker-recovery.mjs",
+  "historicalSourceOverride": false,
+  "noEmit": true,
+  "optionsDiagnostics": [],
+  "semanticDiagnostics": 301,
+  "undefinedNameDiagnostics": [],
+  "limitation": "Only unresolved-name diagnostics are checked; other JavaScript type diagnostics are outside this check."
+}

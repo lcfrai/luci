@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "at": "2026-10-08T23:48:41.563134+00:00",
+  "scope": "Read-only post-failure closure; no product recovery or ledger mutation",
+  "originalReceipt": {
+    "originalPath": "artifacts/quality-swarm/worker-recovery-d348f012-attempt2/independent-closure-private.json",
+    "originalBytes": 1326,
+    "originalSHA256": "70553a6ca0ea281a5cb9caa5e79b2ade881cdf25530f2afb38c8fbb6baeb1b21"
+  },
+  "ownedProcesses": [],
+  "containers": [],
+  "volumes": [],
+  "ledgerSHA256": "23cc36d21e99b4e5e22ca566727134a1919392a582c8002035b9522621eabc3b",
+  "retainedCharge": {
+    "id": "queue-03db3c77af0f4c8767d41489",
+    "state": "backend-settled",
+    "resources": {
+      "CPUMillis": 1000,
+      "MemoryMiB": 1024
+    }
+  },
+  "originalClosureSourceCommit": "c322398ce5645236866cfc7b1bad13cd94bdcc99",
+  "productRecoveryPassed": false,
+  "productLeaseReleaseVerified": false,
+  "automaticProductCleanupCertified": false,
+  "ledgerManuallyChanged": false,
+  "limitations": [
+    "Independent read-only post-failure inventory; no recovery or ledger mutation.",
+    "Driver exact failed-fixture cleanup had removed the unexpectedly remaining worker before this observation.",
+    "Empty Docker/process inventory does not establish natural session completion or product capacity release.",
+    "Raw ledger contents, private paths and individual fixture files are not published."
+  ]
+}

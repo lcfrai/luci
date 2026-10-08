@@ -1,0 +1,43 @@
+{
+  "source": "artifacts/quality-swarm/worker-recovery-d348f012-attempt2/result/result.json",
+  "reportSHA256": "7636d2aa38649ea368f2bc8035dcdcfbc71bbf29a0205bd9a6a566ca01892a3c",
+  "sourceCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "helperCheckout": {
+    "commit": "c322398ce5645236866cfc7b1bad13cd94bdcc99",
+    "dirty": false,
+    "expectedSource": "c322398ce5645236866cfc7b1bad13cd94bdcc99",
+    "productSource": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+    "separateHelperRevision": true
+  },
+  "failedStage": "startup",
+  "failure": {
+    "name": "ReferenceError",
+    "code": null,
+    "message": "canonicalNames is not defined",
+    "locations": [
+      "    at retained (file:///workspace/luci/scripts/acceptance/worker-recovery/installed-worker-recovery.mjs:314:399)",
+      "    at Object.waitRecordedOutput (file:///workspace/luci/scripts/acceptance/worker-recovery/installed-worker-recovery.mjs:334:173)",
+      "    at async runWorkerRecoveryScenario (file:///workspace/luci/scripts/acceptance/worker-recovery/worker-recovery-scenario.mjs:60:2)",
+      "    at async Object.run (file:///workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs:29:19)",
+      "    at async main (file:///workspace/luci/scripts/acceptance/worker-recovery/installed-worker-recovery.mjs:341:433)",
+      "    at async file:///workspace/luci/scripts/acceptance/worker-recovery/installed-worker-recovery.mjs:357:79"
+    ]
+  },
+  "runtimeCleanup": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedControllers": 0
+  },
+  "cleanup": [
+    {
+      "message": "Unexpected retained worker requires exact failed-fixture cleanup"
+    }
+  ],
+  "dockerCounts": {
+    "total": 199,
+    "create": 1,
+    "worker": 1,
+    "fence": 0,
+    "start": 1
+  }
+}

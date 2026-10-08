@@ -1,0 +1,17 @@
+{
+  "typescript": "6.0.3",
+  "file": "scripts/acceptance/worker-recovery/installed-worker-recovery.mjs",
+  "historicalSourceOverride": true,
+  "noEmit": true,
+  "optionsDiagnostics": [],
+  "semanticDiagnostics": 303,
+  "undefinedNameDiagnostics": [
+    {
+      "code": 2304,
+      "line": 314,
+      "column": 399,
+      "message": "Cannot find name 'canonicalNames'."
+    }
+  ],
+  "limitation": "Only unresolved-name diagnostics are checked; other JavaScript type diagnostics are outside this check."
+}

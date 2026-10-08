@@ -1,0 +1,9 @@
+{
+  "mode": "Read-only retained-byte/Git-blob comparison; no helper execution",
+  "productCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "helperCommit": "c322398ce5645236866cfc7b1bad13cd94bdcc99",
+  "acceptedFilesVerified": 13,
+  "allAcceptedFilesMatchPinnedGitAndBinding": true,
+  "beforeAfterBindingsByteIdentical": true,
+  "actualInvocationCaptured": true
+}

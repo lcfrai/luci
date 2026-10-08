@@ -1,0 +1,15 @@
+{
+  "head": "c322398ce5645236866cfc7b1bad13cd94bdcc99",
+  "files": [
+    {
+      "path": "scripts/acceptance/worker-recovery/installed-worker-recovery.mjs",
+      "sha256": "393e7e6716f464ee07fedf87638ea85dd88faf70ba5a2f18bde2b559468bb702",
+      "bytes": 59605
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/retained-context.test.mjs",
+      "sha256": "ed920985b1ac2f6de1871191ca9aa42621f983cb07ddff584c16a7e086ef2d2e",
+      "bytes": 7592
+    }
+  ]
+}

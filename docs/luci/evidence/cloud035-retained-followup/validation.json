@@ -1,0 +1,106 @@
+{
+  "issue": "CLOUD-035 followup",
+  "baseHelperCommit": "c322398ce5645236866cfc7b1bad13cd94bdcc99",
+  "productCommit": "d348f0127a920aab05b54a4192baa8ed3800fe54",
+  "runtimeInvoked": false,
+  "browserRuns": 0,
+  "modelCalls": 0,
+  "builds": 0,
+  "cwd": "/workspace/luci",
+  "setup": "source /workspace/.luci-tools/activate.sh",
+  "sameRegressionBytes": true,
+  "checks": [
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 --test-name-pattern='Actual retained path' scripts/acceptance/worker-recovery/retained-context.test.mjs",
+      "log": "before-regression.log",
+      "exitCode": 1,
+      "tests": 1,
+      "failed": 1,
+      "failure": "ReferenceError canonicalNames is not defined from actual retained() body."
+    },
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 --test-name-pattern='Actual retained path' scripts/acceptance/worker-recovery/retained-context.test.mjs",
+      "log": "after-regression.log",
+      "exitCode": 0,
+      "tests": 1,
+      "passed": 1
+    },
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 scripts/acceptance/worker-recovery/retained-context.test.mjs scripts/acceptance/worker-recovery/project-context.test.mjs scripts/acceptance/worker-recovery/adapter-static.test.mjs scripts/acceptance/worker-recovery/source-binding.test.mjs",
+      "log": "targeted-tests.log",
+      "exitCode": 0,
+      "tests": 14,
+      "passed": 14
+    },
+    {
+      "command": "timeout 30s node scripts/acceptance/worker-recovery/check-undefined-names.mjs --source-text-file /workspace/.luci-tools/cloud035-retained-followup/before/installed-worker-recovery.mjs",
+      "log": "before-undefined-names.log",
+      "exitCode": 1,
+      "undefinedNames": [
+        "canonicalNames"
+      ]
+    },
+    {
+      "command": "timeout 30s node scripts/acceptance/worker-recovery/check-undefined-names.mjs",
+      "log": "after-undefined-names.log",
+      "exitCode": 0,
+      "undefinedNames": []
+    }
+  ],
+  "testedSources": [
+    {
+      "path": "scripts/acceptance/worker-recovery/installed-worker-recovery.mjs",
+      "sha256": "b1f9be3c5cc1bc6a865dcca8511b7bebd8752d23a27adb1bb35ebc93e700840b",
+      "bytes": 59628
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/retained-context.test.mjs",
+      "sha256": "ed920985b1ac2f6de1871191ca9aa42621f983cb07ddff584c16a7e086ef2d2e",
+      "bytes": 7592
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/check-undefined-names.mjs",
+      "sha256": "e1f3bd6d79fc20bc877bc4bd5dadf3593f7e44702debe018a42019bc6af473ce",
+      "bytes": 2469
+    }
+  ],
+  "preparationFailure": "Initial regression reached a host/VM array prototype mismatch before retained(). initial-realm-test.mjs and preparation-realm-failure.log preserve this unchanged failure. The test now compares plain array values across the realm while retaining deep equality. The corrected same regression was used before and after the adapter fix.",
+  "limitations": [
+    "Real temporary Git repositories and controlled canonical/capture/transcript/output files; no installed service or worker launched.",
+    "TypeScript noEmit semantic check inspects unresolved-name diagnostics only; other JS type diagnostics remain outside this check.",
+    "Original private fixtures were not read or changed; published failed result only was read.",
+    "LOCAL-016 installed worker recovery remains pending."
+  ],
+  "unchangedRelatedSources": [
+    {
+      "path": "scripts/acceptance/worker-recovery/project-context.mjs",
+      "sha256": "4114fccfdab7c00b8866e484b108c66fe64bbfea8fec9edf0786f6296b4cebee",
+      "retrievableAtCommit": "c322398ce5645236866cfc7b1bad13cd94bdcc99"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/project-context.test.mjs",
+      "sha256": "5fcd7480d8e902268ded893ef7e8e97c5d58e3dec0601f199b8d48e6febf34d3",
+      "retrievableAtCommit": "c322398ce5645236866cfc7b1bad13cd94bdcc99"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/adapter-static.test.mjs",
+      "sha256": "b6f153aadd64e9e5cf0f32a709d6a32b38b4323ad4f4d9ca14542d0902ecca32",
+      "retrievableAtCommit": "c322398ce5645236866cfc7b1bad13cd94bdcc99"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/source-binding.mjs",
+      "sha256": "a96d6ae917b1661d313f2cb18a5a549e3dfa4851922e8d766d57f1378c9996de",
+      "retrievableAtCommit": "c322398ce5645236866cfc7b1bad13cd94bdcc99"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/source-binding.test.mjs",
+      "sha256": "160aec9e6cabda2f0f0b852256183cc6e975ac55b8e6dc5732b9cd5ca0f6261d",
+      "retrievableAtCommit": "c322398ce5645236866cfc7b1bad13cd94bdcc99"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/worker-recovery-scenario.mjs",
+      "sha256": "27910aeec967b98e01f4259d7800c5e9319594083f53acee6177137a074537a7",
+      "retrievableAtCommit": "c322398ce5645236866cfc7b1bad13cd94bdcc99"
+    }
+  ]
+}

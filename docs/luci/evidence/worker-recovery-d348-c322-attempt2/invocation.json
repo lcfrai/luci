@@ -1,0 +1,32 @@
+{
+  "command": [
+    "python3",
+    "-B",
+    "/workspace/.luci-tools/local016-worker-recovery-launch/run-installed.py",
+    "--window-granted",
+    "--repo",
+    "/workspace/luci",
+    "--expected-source",
+    "d348f0127a920aab05b54a4192baa8ed3800fe54",
+    "--expected-helper-source",
+    "c322398ce5645236866cfc7b1bad13cd94bdcc99",
+    "--expected-image-id",
+    "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "--binary",
+    "/tmp/luci-retained-tools/package-0.5.0-d348f012/luci",
+    "--web",
+    "/tmp/luci-retained-tools/package-0.5.0-d348f012/web",
+    "--provenance",
+    "/workspace/luci/artifacts/quality-swarm/candidate-d348f012/package/package-provenance.json",
+    "--image-provenance",
+    "/workspace/.luci-tools/sandbox-candidate-20261008T140025Z-a4a2e82b/receipt.json",
+    "--fixture-base",
+    "/workspace",
+    "--output",
+    "/workspace/luci/artifacts/quality-swarm/worker-recovery-d348f012-attempt2"
+  ],
+  "cwd": "/workspace/luci",
+  "startedAt": "2026-10-08T23:46:55.295742+00:00",
+  "helper": "c322398ce5645236866cfc7b1bad13cd94bdcc99",
+  "product": "d348f0127a920aab05b54a4192baa8ed3800fe54"
+}

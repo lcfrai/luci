@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-08T23:51:27.777787+00:00",
+  "mode": "External staging only, read-only original artifact/credential validation; no runtime, browser, Docker, build or tests",
+  "exactPrivateRootsInspectedInMemory": 2,
+  "recursiveDocumentsChecked": 93,
+  "recursiveStringFieldsChecked": 14389,
+  "exactPrivateRootMatchesAfterRedaction": 0,
+  "knownRetainedCredentialFilesInspectedInMemory": 7,
+  "knownRetainedCredentialScalarsChecked": 3,
+  "knownRetainedCredentialMatchesAfterRedaction": 0,
+  "redactions": {
+    "result/result.sanitized.json": {
+      "privatePathOccurrences": 1,
+      "credentialOccurrences": 0
+    },
+    "wrapper-result.sanitized.json": {
+      "privatePathOccurrences": 1,
+      "credentialOccurrences": 0
+    }
+  },
+  "originalInputsUnchanged": true,
+  "limitations": [
+    "Only retained known credential material could be re-read; ephemeral credentials no longer present cannot be checked this way.",
+    "No universal secret-detection claim."
+  ]
+}

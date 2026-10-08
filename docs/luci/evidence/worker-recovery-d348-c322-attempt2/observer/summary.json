@@ -1,0 +1,78 @@
+{
+  "finishedAt": "2026-10-08T23:47:48.963693+00:00",
+  "samples": 53,
+  "durationSeconds": 52.779148311994504,
+  "driverExitObserved": true,
+  "peakObserved": {
+    "summedRSS_test-driver": 82681856,
+    "summedRSS_allOwnedProcesses": 299659264,
+    "summedRSS_other-owned-descendant": 16158720,
+    "summedRSS_control-plane": 231002112,
+    "singleContainerCgroupUsageBytes": 44236800,
+    "singleContainerCgroupUsageBytes_worker": 44236800
+  },
+  "observedCounterDeltas": {
+    "observedProcessCPUSeconds": 6.809999999999988,
+    "observedProcessIO_read_bytes": 53866496.0,
+    "observedProcessIO_write_bytes": 4034560.0,
+    "observedProcessIO_rchar": 759371091.0,
+    "observedProcessIO_wchar": 4152972.0
+  },
+  "processIdentities": [
+    {
+      "pid": 2074947,
+      "startTicks": 24928533,
+      "role": "test-driver"
+    },
+    {
+      "pid": 2075060,
+      "startTicks": 24928625,
+      "role": "other-owned-descendant"
+    },
+    {
+      "pid": 2075152,
+      "startTicks": 24928879,
+      "role": "control-plane"
+    },
+    {
+      "pid": 2075171,
+      "startTicks": 24928927,
+      "role": "control-plane"
+    },
+    {
+      "pid": 2076227,
+      "startTicks": 24931844,
+      "role": "other-owned-descendant"
+    },
+    {
+      "pid": 2076285,
+      "startTicks": 24931880,
+      "role": "other-owned-descendant"
+    }
+  ],
+  "containerIds": [
+    "b8c1776ad91d5321b7b69956284a7d05367fdc9a053a8fffc84de1e45583dd08"
+  ],
+  "containerKinds": {
+    "b8c1776ad91d5321b7b69956284a7d05367fdc9a053a8fffc84de1e45583dd08": "worker"
+  },
+  "containerIssueCounts": {
+    "exact-owned-instance-not-yet-provided": 6
+  },
+  "checkCoverage": {
+    "enabled": true,
+    "identitySamples": 0,
+    "cgroupUsageSamples": 0,
+    "status": "not-observed"
+  },
+  "limitations": [
+    "Sum of process RSS double-counts shared pages; it is not unique physical memory.",
+    "Container cgroup memory is separate and must not be added to container process RSS.",
+    "Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.",
+    "Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.",
+    "Post-driver-exit settlement is not an application idle baseline.",
+    "No UI input latency, other-app responsiveness or model reasoning quality is measured."
+  ],
+  "baseline": "post-start; no pre-run idle baseline observed",
+  "instanceIdentitySHA256": "08aa4e651ab0e3823702c7587b0fe50642409c72bd3fcc06fa76ca7f483f8739"
+}
