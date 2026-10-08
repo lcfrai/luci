@@ -16,6 +16,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import {verifyTaskContextDelivery} from '../task-context-delivery.mjs';
 import {recordDependencyProbe,assertDependencyRefusal} from './dependency-probe.mjs';
 import {probeStaleReview} from './stale-review-probe.mjs';
+import {observeSourceReadCohort,sourceReadUI} from './source-read-cohort.mjs';
 import {selectAuthorizedTask,taskFailureDiagnostic,assertExactTaskFailure} from './queued-failure.mjs';
 import {checkCommand,validateCheckCreate,assertRecordedCheck,assertCheckCapacity,assertJoinedCheck,assertOwnedCheckContainer} from './project-check-guard.mjs';
 import {taskContracts,variants,seedFiles as initialFiles,variantFor,changedPaths,taskCommand,taskHandoff,expectedResult} from './dag-fixture.mjs';
@@ -94,7 +95,7 @@ process.on('uncaughtExceptionMonitor',(error,origin)=>{try{journal.record('drive
 process.on('exit',exitCode=>{try{journal.record('driver-exit',{exitCode});journal.close();}catch{}});
 writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
 writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
-const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','stale-review-probe.mjs','queued-failure.mjs','project-check-guard.mjs','run-with-observer.py'];
+const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','stale-review-probe.mjs','source-read-cohort.mjs','queued-failure.mjs','project-check-guard.mjs','run-with-observer.py'];
 const reusedHelpers=['task-context-delivery.mjs','four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
 mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
 for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
@@ -136,7 +137,8 @@ const started = Date.now(), deadline = started + 15 * 60_000;
 const remaining = () => { if (Date.now() >= deadline) throw Error('Fifteen minute acceptance deadline expired'); return deadline - Date.now(); };
 const remainingBudget = (ms = 120_000) => Math.max(1, Math.min(ms, remaining()));
 const redactError = error => scrub(error?.stack ?? error).replaceAll(fixture, '[private-fixture]').slice(0, 8000);
-function stopOnFailure(error) { if (!fixtureError) {fixtureError = error;try{journal.record('driver-background-failure',{stage,...diagnosticError(error)});}catch{}} workflowControl?.fail(error); for (const socket of sockets) socket.close(); if (service?.exitCode === null) service.kill('SIGTERM'); }
+let sourceReadCohort;
+function stopOnFailure(error) { sourceReadCohort?.cancel(error); if (!fixtureError) {fixtureError = error;try{journal.record('driver-background-failure',{stage,...diagnosticError(error)});}catch{}} workflowControl?.fail(error); for (const socket of sockets) socket.close(); if (service?.exitCode === null) service.kill('SIGTERM'); }
 function processIdentity(pid) {
   try { const data = readFileSync(`/proc/${pid}/stat`, 'utf8'); const fields = data.slice(data.lastIndexOf(')') + 2).trim().split(/\s+/); return {pid:Number(pid),start:fields[19],group:Number(fields[2]),status:fields[0]}; }
   catch (error) { if (['ENOENT','ESRCH'].includes(error.code)) return null; throw error; }
@@ -367,7 +369,25 @@ async function readReview(key){
  const worker=taskData.get(key);assert(worker);setStage('browser-review-'+key);await openProject(owner);const pending=page.waitForResponse(r=>new URL(r.url()).pathname===owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+worker.taskId+'/review'&&r.request().method()==='GET');void pending.catch(()=>{});await taskRow(worker.taskId).getByRole('button',{name:'Review task changes',exact:true}).click();const response=await pending;assert.equal(response.status(),200);const {review}=await response.json();assert.equal(review.canIntegrate,true);assert.equal(review.sourceCommit,observations.get(key).commit);assert.deepEqual([...review.paths].sort(),changedPaths(key));const dialog=page.getByRole('dialog',{name:'Review task changes',exact:true});await dialog.getByLabel('Reviewed task diff').waitFor();assert((await dialog.getByLabel('Reviewed task diff').innerText()).includes(variants[key].receipt));return {review,dialog};
 }
 async function integrate(key,expected='integrated'){
- const {review,dialog}=await readReview(key);await dialog.getByRole('checkbox').check();const result=await action(owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+variants[key].taskId+'/integrate',()=>dialog.getByRole('button',{name:'Integrate reviewed changes',exact:true}).click());owner.run=result.run;run=owner.run;const integration=run.swarm.tasks.find(t=>t.id===variants[key].taskId).integration;assert.equal(integration.state,expected);(receipt.integrations??=[]).push({variant:key,review,integration});return integration;
+ const {review,dialog}=await readReview(key);await dialog.getByRole('checkbox').check();health();
+ const path=owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+variants[key].taskId+'/integrate';
+ // Develop mounts ProjectWork's five context readers and the always-mounted
+ // OrchestratorPanel reader. DeploymentOverview is confined to Deploy.
+ if(key==='a')sourceReadCohort=observeSourceReadCohort({page,origin:base,projectPath:owner.route,mutationPath:path,assertActive:health,timeoutMs:remainingBudget(150000),
+  persist:value=>{receipt.alphaSourceReadCohort=value;writeFileSync(join(evidence,'alpha-source-read-cohort.json'),JSON.stringify(value,null,2)+'\n',{mode:0o600});}});
+ try{
+  const result=await action(path,()=>{health();return dialog.getByRole('button',{name:'Integrate reviewed changes',exact:true}).click();});health();owner.run=result.run;run=owner.run;
+  const integration=run.swarm.tasks.find(t=>t.id===variants[key].taskId).integration;assert.equal(integration.state,expected);(receipt.integrations??=[]).push({variant:key,review,integration});
+  if(sourceReadCohort)await sourceReadCohort.finish({commit:integration.commit,readUI:async assertCurrent=>{
+   assertCurrent();const facts=page.locator('details.project-work');
+   if(await facts.getAttribute('open')===null){assertCurrent();await facts.locator(':scope > summary').click();assertCurrent();}
+   const show=page.getByRole('button',{name:'Show project overview',exact:true});
+   if(await show.isVisible()){assertCurrent();await show.click();assertCurrent();}
+   const ready=await page.waitForFunction(sourceReadUI,{commit:integration.commit},{timeout:remainingBudget(30000)});
+   try{assertCurrent();return await ready.jsonValue();}finally{await ready.dispose();}
+  }});
+  health();return integration;
+ }catch(error){sourceReadCohort?.cancel(error);throw error;}finally{sourceReadCohort=null;}
 }
 async function boundedResponse(response, limit) {
  const parts=[];let size=0;
@@ -522,6 +542,7 @@ try {
  setStage('prepare-and-authorize-DAG');await prepare(owner);await queueOwner(['task-a','task-b','task-join']);const initialQueue=await api('GET',owner.route+'/swarm-queue');const aEntry=initialQueue.items.find(value=>value.taskId==='task-a');assert(aEntry);await api('POST',owner.route+'/swarm-queue/'+aEntry.id+'/priority',{expectedRevision:aEntry.revision,priority:'high'});await assertJoinBlocked('before-starts');assert.equal(effects().create,0);
  await setPaused(false);const a=await complete('a');const b1=await complete('b1');assert.equal(a.operation.baseCommit,owner.initialHead);assert.equal(b1.operation.baseCommit,owner.initialHead);assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),owner.initialHead);await reconcile();await assertJoinBlocked('both-processes-exited');
  const oldB=await readReview('b1');receipt.staleReview={captured:oldB.review};await oldB.dialog.getByRole('button',{name:'Keep reviewing',exact:true}).click();const integratedA=await integrate('a');assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),integratedA.commit);await assertJoinBlocked('only-alpha-integrated');
+ assert.equal(receipt.alphaSourceReadCohort?.phase,'ready');assert.equal(receipt.alphaSourceReadCohort.stableUIBoundary.commit,integratedA.commit);
  setStage('stale-review-refusal');await refreshRun();
  const staleRevision=owner.run.revision,stalePath=owner.route+'/runs/'+owner.run.id+'/swarm/tasks/task-b/integrate',staleActionOffset=receipt.apiActions?.length??0;
  const staleProbe=await probeStaleReview({receipt,requestedRevision:staleRevision,scrub,

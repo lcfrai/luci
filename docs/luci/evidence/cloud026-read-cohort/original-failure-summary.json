@@ -1,0 +1,88 @@
+{
+  "scope": "Targeted retained facts from failed installed attempt6; source holder was not identified. No claim about attempt5 unknown reason.",
+  "originalReportPath": "artifacts/quality-swarm/dependency-d6eaa540-attempt6/result/result.json",
+  "originalReportSHA256": "85abf49a7c5195979a1f355c9b00248281de33fad2d63915a0cffa519cc4aade",
+  "originalProbeSHA256": "26ebef7da92278923d9cd15e7771e4f773c65f4e7207d90e0449f4df097b52c9",
+  "failedStage": "stale-review-refusal",
+  "status": 409,
+  "response": {
+    "message": "Project source is busy. Wait for the current source operation before integrating.",
+    "error": "project_run_conflict"
+  },
+  "alphaIntegratedAt": "2026-10-08T20:30:52.187989365Z",
+  "helperResponseHeaderObservations": [
+    {
+      "stage": "browser-review-a",
+      "method": "GET",
+      "path": "/v1/product/projects/p-7f2250f2/runs/run-bd50ddcf8671f048abe274e9",
+      "status": 200,
+      "at": "2026-10-08T20:30:52.262Z"
+    },
+    {
+      "stage": "browser-review-a",
+      "method": "GET",
+      "path": "/v1/product/projects/p-7f2250f2/swarm-queue",
+      "status": 200,
+      "at": "2026-10-08T20:30:52.266Z"
+    },
+    {
+      "stage": "browser-review-a",
+      "method": "POST",
+      "path": "/v1/product/projects/p-7f2250f2/runs/run-bd50ddcf8671f048abe274e9/swarm/tasks/task-join/reserve",
+      "status": 409,
+      "at": "2026-10-08T20:30:52.288Z"
+    },
+    {
+      "stage": "stale-review-refusal",
+      "method": "GET",
+      "path": "/v1/product/projects/p-7f2250f2/runs/run-bd50ddcf8671f048abe274e9",
+      "status": 200,
+      "at": "2026-10-08T20:30:52.306Z"
+    },
+    {
+      "stage": "stale-review-refusal",
+      "method": "POST",
+      "path": "/v1/product/projects/p-7f2250f2/runs/run-bd50ddcf8671f048abe274e9/swarm/tasks/task-b/integrate",
+      "status": 409,
+      "at": "2026-10-08T20:30:52.323Z"
+    },
+    {
+      "stage": "stale-review-refusal",
+      "method": "GET",
+      "path": "/v1/product/projects/p-7f2250f2/runs/run-bd50ddcf8671f048abe274e9",
+      "status": 200,
+      "at": "2026-10-08T20:30:52.344Z"
+    }
+  ],
+  "browserReadTimingRetained": false,
+  "before": {
+    "startedAt": "2026-10-08T20:30:52.307Z",
+    "errors": {},
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "f386ae5d583a1d8ed782a6428a345ea3d97ece8f",
+    "primaryStatusSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "privateRevision": 17,
+    "integrationCheckoutExists": false,
+    "publicRevision": 17,
+    "finishedAt": "2026-10-08T20:30:52.320Z"
+  },
+  "after": {
+    "startedAt": "2026-10-08T20:30:52.324Z",
+    "errors": {},
+    "effects": {
+      "create": 2,
+      "start": 2,
+      "destroy": 2
+    },
+    "primaryCommit": "f386ae5d583a1d8ed782a6428a345ea3d97ece8f",
+    "primaryStatusSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "privateRevision": 17,
+    "integrationCheckoutExists": false,
+    "publicRevision": 17,
+    "finishedAt": "2026-10-08T20:30:52.344Z"
+  }
+}

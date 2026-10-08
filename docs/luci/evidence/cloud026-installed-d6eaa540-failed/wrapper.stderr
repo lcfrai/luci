@@ -1,0 +1,6 @@
+AssertionError [ERR_ASSERTION]: Expected a review refusal; see the retained stale-review diagnostic
+    at probeStaleReview (file:///workspace/luci/scripts/acceptance/task-dependencies/stale-review-probe.mjs:83:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:527:19
+    at async Object.run (file:///workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs:29:19)
+    at async file:///workspace/luci/scripts/acceptance/task-dependencies/dag.mjs:491:2

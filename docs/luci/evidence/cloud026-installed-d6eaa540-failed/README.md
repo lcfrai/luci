@@ -1,0 +1,29 @@
+# Installed dependency attempt 6 at d6eaa540 — failed
+
+Exact clean product and helper source: `d6eaa540960fb11c6d425104f3da136bf9217712`. The Linux release build passed; all **1,742 extracted package members** matched the archive, with 347 licensed components and zero missing. The Linux archive SHA-256 is `62a11f05d90ab7f043b44e8df8f6ee15ac87d942c72a2e0acf9356b98f3f62f7`; the executed API binary is `aa71b40e6422ebd2e0eca75e1ecfb00ffbd5c40e58ed1afddbaad350672b4c2e`. The recorded sandbox image is `sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98`. The package/image provenance describes checks on this Linux host; it does not claim a remote tester retrieved those binary artifacts.
+
+The actual installed Docker/native Codex workflow used a **scripted provider**, with **zero external model calls**. It reached two worker launches and natural task exits, observed both exact worker leases disappear, preserved task context/output, and performed one reviewed Alpha integration. Three dependency-refusal probes kept the join task unallocated before starts, after both workers exited, and after Alpha alone was integrated. Four local scripted-provider calls are recorded; they are not live-model requests.
+
+The attempt then failed at `stale-review-refusal`. This time [the exact response was captured before the assertion](result/stale-review-probe.json): HTTP **409**, `project_run_conflict`, with message **“Project source is busy. Wait for the current source operation before integrating.”** Requested/public/private revision remained 17; primary commit `f386ae5d583a1d8ed782a6428a345ea3d97ece8f`, clean primary-status hash, and Create/Start/Destroy counts (2/2/2) were unchanged. No integration checkout was created by that refused request. The probe expected a review-specific refusal and stopped rather than retrying or accepting this as stale-review validation.
+
+**CLOUD-026 remains an investigation.** The actual lock holder is unknown, and this witness does not yet establish a product defect. The captured source-busy refusal precedes the requested stale-review validation; it does not prove that validation passed. The original 6002 attempt did not retain its response body, so its reason remains unclassified. This new response must not be retroactively assigned to that older failure.
+
+No actual Git conflict, replacement Beta, dependent join, or whole-build Docker check was reached in this attempt. The raw result describes the intended four-worker/one-check scenario and has a generic private-fixture retention reason mentioning later artifacts. Only the reached two-worker/one-integration stages above are evidenced. The private fixture and its generated credentials/configuration are intentionally excluded from this capsule.
+
+## Failure and cleanup evidence
+
+The [final failed driver receipt](result/result.json), [incomplete failure checkpoint](result/result.json.incomplete.json), [durable lifecycle journal](result/diagnostic-journal.jsonl.gz), [wrapper receipt](wrapper-result.json), and [failure screenshot](result/failed-stage.png) are retained unchanged. All 16 accepted helper files, including the new exact stale-review probe and startup-acquisition helper, match their recorded hashes. These are captured source bytes, not re-executed tests.
+
+Controller, proxy, browser, and provider cleanup phases completed. The service exited normally without a forced stop. All five recorded startup acquisitions are closed; none was marked late or timed out in this run. Docker requests drained, and the final runtime inventory records zero owned service/browser processes, containers, and volumes with protected package/image/helper identities unchanged. [Independent post-wrapper inventory](independent-closure.json) likewise found zero containers and volumes. This passing shutdown path does not by itself prove the separately controlled cancellation/late-acquisition race cases or native Windows recovery.
+
+## Observation limits
+
+The observer captured **154 samples over 154.065 seconds**, including post-driver settlement. Peak sampled summed process RSS was **1,174,065,152 bytes**; this double-counts shared pages and is not unique physical memory. Separately, the maximum observed single-worker cgroup memory was **48,533,504 bytes**. It must not be added indiscriminately to process RSS. Five startup samples had no exact instance identity yet. Check observation was enabled but no check was created: coverage is **not observed**, not a measurement of zero check resource use.
+
+Raw samples, accepted sampler, metadata, summary, lifecycle and observer self-cost are retained. There is no matched idle baseline, sustained four-project workload, UI input latency, whole-computer responsiveness, real-provider quality, or Windows execution claim. The full local milestone remains open.
+
+## Publication and reproduction
+
+`publication.json` binds each member to its exact captured original hash and byte count. JSONL journals/samples use deterministic gzip with original hashes for decoding verification. Directory-local Git attributes preserve verbatim captured bytes, and its ignore exception allows the original build log to travel with the clone. `capture-validation.json` records accepted-helper binding and bounded secret review; generated private fixture files are never included.
+
+`invocation.json` preserves the exact original command and pinned identities. Reproducing requires the matching Linux package, image, source checkout, a **fresh** isolated fixture/output directory, and the safety/resource checks in `scripts/acceptance/task-dependencies/README.md` at the pinned revision. The original paths identify retained local evidence, not portable downloaded artifacts. Do not run this exclusive-Docker harness against a shared Windows daemon or relax its empty-daemon/headroom/ownership guards. No acceptance workload was rerun to publish this capsule.

@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-08T20:32:21.838258+00:00",
+  "scope": "Independent post-wrapper Docker inventory; driver separately records exact owned process closure.",
+  "containers": [],
+  "volumes": [],
+  "controllersStopped": true,
+  "dockerRequestsDrained": true,
+  "receiptRuntimeCleanup": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagePackageAndHelpersUnchanged": true,
+    "rootFreeBytes": 6517022720
+  }
+}

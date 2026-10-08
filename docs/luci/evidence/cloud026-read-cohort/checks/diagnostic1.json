@@ -1,0 +1,47 @@
+{
+  "at": "2026-10-08T20:41:15.769588+00:00",
+  "scope": "Controlled request event/body and readiness-predicate fixtures; exact source checks, no browser/Docker/application/provider/network.",
+  "inputs": {
+    "scripts/acceptance/task-dependencies/dag.mjs": "d22b36623e2c8e478ee80b09954c116f1d0a106bd0f05c54ed318e86e2bd925e",
+    "scripts/acceptance/task-dependencies/source-read-cohort.mjs": "bc4a630ffe43ad711e423f19afb6e614679151d3d2bce5f92774e005c42b9356",
+    "scripts/acceptance/task-dependencies/source-read-cohort.test.mjs": "ea49f839acc1fc64658525dc57b63c843a77b17f344a05ad9c4f57cfde517bc0",
+    "scripts/acceptance/task-dependencies/stale-review-probe.mjs": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+    "scripts/acceptance/task-dependencies/stale-review-probe.test.mjs": "4824669aa540caa9fb64428f4581651a05ce70682ba0f8b00a322c951456b206"
+  },
+  "inputsAfter": {
+    "scripts/acceptance/task-dependencies/dag.mjs": "d22b36623e2c8e478ee80b09954c116f1d0a106bd0f05c54ed318e86e2bd925e",
+    "scripts/acceptance/task-dependencies/source-read-cohort.mjs": "bc4a630ffe43ad711e423f19afb6e614679151d3d2bce5f92774e005c42b9356",
+    "scripts/acceptance/task-dependencies/source-read-cohort.test.mjs": "ea49f839acc1fc64658525dc57b63c843a77b17f344a05ad9c4f57cfde517bc0",
+    "scripts/acceptance/task-dependencies/stale-review-probe.mjs": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+    "scripts/acceptance/task-dependencies/stale-review-probe.test.mjs": "4824669aa540caa9fb64428f4581651a05ce70682ba0f8b00a322c951456b206"
+  },
+  "unchanged": true,
+  "results": [
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/dag.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/source-read-cohort.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "scripts/acceptance/task-dependencies/source-read-cohort.test.mjs",
+        "scripts/acceptance/task-dependencies/stale-review-probe.test.mjs"
+      ],
+      "exitCode": 0
+    }
+  ]
+}

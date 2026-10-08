@@ -1,0 +1,42 @@
+{
+  "scope": "Helper-only CLOUD026 correction; installed product source remains d6eaa540960fb11c6d425104f3da136bf9217712. No browser/Docker/product execution for these checks.",
+  "baselineDAG_SHA256": "8a21d4eba86b74c26e381ba6ba87bd1a44fcb9acdbb42c1cd948133c48d007ed",
+  "checkedFiles": {
+    "scripts/acceptance/task-dependencies/dag.mjs": {
+      "sha256": "d22b36623e2c8e478ee80b09954c116f1d0a106bd0f05c54ed318e86e2bd925e",
+      "bytes": 92928
+    },
+    "scripts/acceptance/task-dependencies/source-read-cohort.mjs": {
+      "sha256": "bc4a630ffe43ad711e423f19afb6e614679151d3d2bce5f92774e005c42b9356",
+      "bytes": 8583
+    },
+    "scripts/acceptance/task-dependencies/source-read-cohort.test.mjs": {
+      "sha256": "ea49f839acc1fc64658525dc57b63c843a77b17f344a05ad9c4f57cfde517bc0",
+      "bytes": 12265
+    },
+    "scripts/acceptance/task-dependencies/stale-review-probe.mjs": {
+      "sha256": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+      "bytes": 4634
+    },
+    "scripts/acceptance/task-dependencies/stale-review-probe.test.mjs": {
+      "sha256": "4824669aa540caa9fb64428f4581651a05ce70682ba0f8b00a322c951456b206",
+      "bytes": 10167
+    }
+  },
+  "unchangedMountedListenerSourceBindings": {
+    "desktop/src/components/journey/ProjectWork.tsx": "47eab2b040c6a1bb200b9c74cd8433ecc849b434f860437f607c66d57d953182",
+    "desktop/src/components/journey/ProjectRuns.tsx": "083f6cc2de3d264adf7d7e1062ef5a0e4339b101e57a30232f885d0cb8113ad7",
+    "desktop/src/components/orchestrator/OrchestratorPanel.tsx": "5836f6eb729a6f639cb3c06a8b0e7a63305a6cb006e76784773e82ea4bcd2fa7",
+    "desktop/src/components/orchestrator/ProjectUnderstanding.tsx": "5b864a2c5d3d30ad109d72af92378cf2b550dfa0de39051e41e0c9a8e2b2ac79",
+    "desktop/src/components/journey/DeploymentOverview.tsx": "501cce28c3a9bc425686229d2ab554ca77a0744329f98a0c40a4c518ed12c0ff",
+    "desktop/src/components/develop/DevelopLens.tsx": "d0e008f7d190e0fe3f6806cd7498f52fe0cb128b16d2020d63ba4e42fdf5d2bf",
+    "desktop/src/components/lens/DeployLens.tsx": "8d24e94094b3c2951a606bcb64c36dfe950c74fdfcb3ba44d8ae725292be2913",
+    "desktop/src/components/AppShell.tsx": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+    "desktop/src/api/product.ts": "d6d8bda455d20cdf660976f7ca58d38967048780d6fc385ecdd07c7493329240",
+    "desktop/src/api/definition.ts": "209773e56dba446e764bff33cb8e7c6d5874bd9a0e8444eb7e693daf3dcd2c8f",
+    "desktop/src/api/designPlan.ts": "f27b58c0ee0bdc44344209ccf58de326d1db86e389a0960c8504dd56e10cdd39",
+    "desktop/src/api/projectContextEvents.ts": "373fd93bf50e824a4c75d13decc556b27642ca6b7fcdbb613e3a337c5904db58",
+    "control-plane/internal/product/orchestrator_types.go": "516a067413fae3015ae338cb3d8b2b486206ed42ace51aa2c9032a7b55a86176"
+  },
+  "patchSHA256": "8077ebc4612cf868a76b0ebe31ee17992ef493a86f1cd2887e4dda8366f735e8"
+}

@@ -1,0 +1,336 @@
+diff --git a/scripts/acceptance/task-dependencies/dag.mjs b/scripts/acceptance/task-dependencies/dag.mjs
+--- a/scripts/acceptance/task-dependencies/dag.mjs
++++ b/scripts/acceptance/task-dependencies/dag.mjs
+@@ -16,6 +16,7 @@
+ import {verifyTaskContextDelivery} from '../task-context-delivery.mjs';
+ import {recordDependencyProbe,assertDependencyRefusal} from './dependency-probe.mjs';
+ import {probeStaleReview} from './stale-review-probe.mjs';
++import {observeSourceReadCohort,sourceReadUI} from './source-read-cohort.mjs';
+ import {selectAuthorizedTask,taskFailureDiagnostic,assertExactTaskFailure} from './queued-failure.mjs';
+ import {checkCommand,validateCheckCreate,assertRecordedCheck,assertCheckCapacity,assertJoinedCheck,assertOwnedCheckContainer} from './project-check-guard.mjs';
+ import {taskContracts,variants,seedFiles as initialFiles,variantFor,changedPaths,taskCommand,taskHandoff,expectedResult} from './dag-fixture.mjs';
+@@ -94,7 +95,7 @@
+ process.on('exit',exitCode=>{try{journal.record('driver-exit',{exitCode});journal.close();}catch{}});
+ writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
+ writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
+-const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','stale-review-probe.mjs','queued-failure.mjs','project-check-guard.mjs','run-with-observer.py'];
++const driverNames=['dag.mjs','dag-fixture.mjs','context-contract.mjs','dependency-probe.mjs','stale-review-probe.mjs','source-read-cohort.mjs','queued-failure.mjs','project-check-guard.mjs','run-with-observer.py'];
+ const reusedHelpers=['task-context-delivery.mjs','four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs','launch-recovery/durable-acceptance-journal.mjs','launch-recovery/acceptance-lifecycle.mjs','launch-recovery/acceptance-startup.mjs'];
+ mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
+ for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
+@@ -136,7 +137,8 @@
+ const remaining = () => { if (Date.now() >= deadline) throw Error('Fifteen minute acceptance deadline expired'); return deadline - Date.now(); };
+ const remainingBudget = (ms = 120_000) => Math.max(1, Math.min(ms, remaining()));
+ const redactError = error => scrub(error?.stack ?? error).replaceAll(fixture, '[private-fixture]').slice(0, 8000);
+-function stopOnFailure(error) { if (!fixtureError) {fixtureError = error;try{journal.record('driver-background-failure',{stage,...diagnosticError(error)});}catch{}} workflowControl?.fail(error); for (const socket of sockets) socket.close(); if (service?.exitCode === null) service.kill('SIGTERM'); }
++let sourceReadCohort;
++function stopOnFailure(error) { sourceReadCohort?.cancel(error); if (!fixtureError) {fixtureError = error;try{journal.record('driver-background-failure',{stage,...diagnosticError(error)});}catch{}} workflowControl?.fail(error); for (const socket of sockets) socket.close(); if (service?.exitCode === null) service.kill('SIGTERM'); }
+ function processIdentity(pid) {
+   try { const data = readFileSync(`/proc/${pid}/stat`, 'utf8'); const fields = data.slice(data.lastIndexOf(')') + 2).trim().split(/\s+/); return {pid:Number(pid),start:fields[19],group:Number(fields[2]),status:fields[0]}; }
+   catch (error) { if (['ENOENT','ESRCH'].includes(error.code)) return null; throw error; }
+@@ -367,7 +369,25 @@
+  const worker=taskData.get(key);assert(worker);setStage('browser-review-'+key);await openProject(owner);const pending=page.waitForResponse(r=>new URL(r.url()).pathname===owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+worker.taskId+'/review'&&r.request().method()==='GET');void pending.catch(()=>{});await taskRow(worker.taskId).getByRole('button',{name:'Review task changes',exact:true}).click();const response=await pending;assert.equal(response.status(),200);const {review}=await response.json();assert.equal(review.canIntegrate,true);assert.equal(review.sourceCommit,observations.get(key).commit);assert.deepEqual([...review.paths].sort(),changedPaths(key));const dialog=page.getByRole('dialog',{name:'Review task changes',exact:true});await dialog.getByLabel('Reviewed task diff').waitFor();assert((await dialog.getByLabel('Reviewed task diff').innerText()).includes(variants[key].receipt));return {review,dialog};
+ }
+ async function integrate(key,expected='integrated'){
+- const {review,dialog}=await readReview(key);await dialog.getByRole('checkbox').check();const result=await action(owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+variants[key].taskId+'/integrate',()=>dialog.getByRole('button',{name:'Integrate reviewed changes',exact:true}).click());owner.run=result.run;run=owner.run;const integration=run.swarm.tasks.find(t=>t.id===variants[key].taskId).integration;assert.equal(integration.state,expected);(receipt.integrations??=[]).push({variant:key,review,integration});return integration;
++ const {review,dialog}=await readReview(key);await dialog.getByRole('checkbox').check();health();
++ const path=owner.route+'/runs/'+owner.run.id+'/swarm/tasks/'+variants[key].taskId+'/integrate';
++ // Develop mounts ProjectWork's five context readers and the always-mounted
++ // OrchestratorPanel reader. DeploymentOverview is confined to Deploy.
++ if(key==='a')sourceReadCohort=observeSourceReadCohort({page,origin:base,projectPath:owner.route,mutationPath:path,assertActive:health,timeoutMs:remainingBudget(150000),
++  persist:value=>{receipt.alphaSourceReadCohort=value;writeFileSync(join(evidence,'alpha-source-read-cohort.json'),JSON.stringify(value,null,2)+'\n',{mode:0o600});}});
++ try{
++  const result=await action(path,()=>{health();return dialog.getByRole('button',{name:'Integrate reviewed changes',exact:true}).click();});health();owner.run=result.run;run=owner.run;
++  const integration=run.swarm.tasks.find(t=>t.id===variants[key].taskId).integration;assert.equal(integration.state,expected);(receipt.integrations??=[]).push({variant:key,review,integration});
++  if(sourceReadCohort)await sourceReadCohort.finish({commit:integration.commit,readUI:async assertCurrent=>{
++   assertCurrent();const facts=page.locator('details.project-work');
++   if(await facts.getAttribute('open')===null){assertCurrent();await facts.locator(':scope > summary').click();assertCurrent();}
++   const show=page.getByRole('button',{name:'Show project overview',exact:true});
++   if(await show.isVisible()){assertCurrent();await show.click();assertCurrent();}
++   const ready=await page.waitForFunction(sourceReadUI,{commit:integration.commit},{timeout:remainingBudget(30000)});
++   try{assertCurrent();return await ready.jsonValue();}finally{await ready.dispose();}
++  }});
++  health();return integration;
++ }catch(error){sourceReadCohort?.cancel(error);throw error;}finally{sourceReadCohort=null;}
+ }
+ async function boundedResponse(response, limit) {
+  const parts=[];let size=0;
+@@ -522,6 +542,7 @@
+  setStage('prepare-and-authorize-DAG');await prepare(owner);await queueOwner(['task-a','task-b','task-join']);const initialQueue=await api('GET',owner.route+'/swarm-queue');const aEntry=initialQueue.items.find(value=>value.taskId==='task-a');assert(aEntry);await api('POST',owner.route+'/swarm-queue/'+aEntry.id+'/priority',{expectedRevision:aEntry.revision,priority:'high'});await assertJoinBlocked('before-starts');assert.equal(effects().create,0);
+  await setPaused(false);const a=await complete('a');const b1=await complete('b1');assert.equal(a.operation.baseCommit,owner.initialHead);assert.equal(b1.operation.baseCommit,owner.initialHead);assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),owner.initialHead);await reconcile();await assertJoinBlocked('both-processes-exited');
+  const oldB=await readReview('b1');receipt.staleReview={captured:oldB.review};await oldB.dialog.getByRole('button',{name:'Keep reviewing',exact:true}).click();const integratedA=await integrate('a');assert.equal(gitAt(owner.owner.path,'rev-parse','HEAD'),integratedA.commit);await assertJoinBlocked('only-alpha-integrated');
++ assert.equal(receipt.alphaSourceReadCohort?.phase,'ready');assert.equal(receipt.alphaSourceReadCohort.stableUIBoundary.commit,integratedA.commit);
+  setStage('stale-review-refusal');await refreshRun();
+  const staleRevision=owner.run.revision,stalePath=owner.route+'/runs/'+owner.run.id+'/swarm/tasks/task-b/integrate',staleActionOffset=receipt.apiActions?.length??0;
+  const staleProbe=await probeStaleReview({receipt,requestedRevision:staleRevision,scrub,
+diff --git a/scripts/acceptance/task-dependencies/source-read-cohort.mjs b/scripts/acceptance/task-dependencies/source-read-cohort.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/acceptance/task-dependencies/source-read-cohort.mjs
+@@ -0,0 +1,133 @@
++// Passive observation of alpha integration's ordinary context-refresh reads.
++// This is a completion boundary for one cohort, never a source lock or retry.
++import assert from 'node:assert/strict';
++import {createHash} from 'node:crypto';
++
++export const sourceReadSuffixes = ['/brief','/design','/specification','/design-plan','/git','/orchestrator'];
++const problem = code => Object.assign(Error(code), {code});
++
++export function assertSourceReadUI(value) {
++  for (const key of ['factsVisible','factsReady','factsCurrentCommit','understandingVisible','understandingReady']) {
++    assert.equal(value?.[key], true, 'Source read UI is not ready: '+key);
++  }
++  assert.equal(value.factsAlert, false);
++  assert.equal(value.understandingAlert, false);
++}
++
++// Runs in the page through waitForFunction. Hidden or still-pending controls
++// cannot pass, and a failed read is not made successful by loading becoming false.
++export function sourceReadUI({commit}) {
++  const visible = element => !!element && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden';
++  const facts = document.querySelector('details.project-work');
++  const understanding = document.querySelector('aside.orchestrator');
++  const button = (root, text) => [...(root?.querySelectorAll('button') ?? [])].find(value => value.textContent.trim() === text);
++  const factsButton = button(facts, 'Refresh project facts');
++  const understandingButton = button(understanding, 'Refresh project understanding');
++  const result = {
++    factsVisible:visible(factsButton),
++    factsReady:!!factsButton && !factsButton.disabled && ![...(facts?.querySelectorAll('[role=status]') ?? [])].some(value => value.textContent.startsWith('Refreshing saved project facts')),
++    factsCurrentCommit:[...(facts?.querySelectorAll('.project-work-facts code') ?? [])].some(value => value.textContent.trim() === commit.slice(0, 8)),
++    factsAlert:!!facts?.querySelector('.project-work-body > [role=alert]'),
++    understandingVisible:visible(understandingButton),
++    understandingReady:!!understandingButton && !understandingButton.disabled && !!understanding?.querySelector('.understanding-next button:not(:disabled)') && ![...(understanding?.querySelectorAll('[role=status]') ?? [])].some(value => /^(Updating saved|Loading) project understanding|^Showing last recorded context/.test(value.textContent)),
++    understandingAlert:!!understanding?.querySelector('.orchestrator-error[role=alert]'),
++  };
++  if (result.factsAlert || result.understandingAlert) throw Error('source-read-cohort-ui-read-failed');
++  return Object.entries(result).every(([key,value]) => key.endsWith('Alert') ? !value : value) ? result : false;
++}
++
++export function observeSourceReadCohort({page, origin, projectPath, mutationPath, assertActive, timeoutMs, persist}) {
++  assert(Number.isFinite(timeoutMs) && timeoutMs > 0);
++  assert.match(projectPath, /^\/v1\/product\/projects\/p-[a-f0-9]+$/);
++  assert(mutationPath.startsWith(projectPath+'/runs/') && mutationPath.endsWith('/swarm/tasks/task-a/integrate'));
++  const expectedPaths = sourceReadSuffixes.map(suffix => projectPath+suffix);
++  const projectID = projectPath.split('/').at(-1);
++  const receipt = {phase:'armed', armedAt:new Date().toISOString(), expectedPaths, mutation:null, requests:[], stableUIBoundary:null};
++  const requests = new Map(), bodies = new Map();
++  let active = true, failure, timer, finishStarted = false, resolveReads, rejectFailure;
++  const readsDone = new Promise(resolve => { resolveReads = resolve; });
++  const failed = new Promise((_, reject) => { rejectFailure = reject; });
++  void failed.catch(() => {});
++  const save = () => persist(structuredClone(receipt));
++  const detach = () => { clearTimeout(timer); page.off('request', onRequest); page.off('requestfinished', onFinished); page.off('requestfailed', onFailed); page.off('close', onClose); };
++  function cancel(error = problem('source-read-cohort-cancelled')) {
++    if (!active) return;
++    failure = error; active = false; detach();
++    receipt.phase = 'failed'; receipt.failureCode = typeof error.code === 'string' ? error.code.slice(0,128) : 'source-read-cohort-failed';
++    receipt.finishedAt = new Date().toISOString();
++    try { save(); } catch (writeError) { failure = writeError; }
++    rejectFailure(failure);
++  }
++  function usable() { if (!active) throw failure ?? problem('source-read-cohort-closed'); assertActive(); }
++  function observed(request) {
++    const url = new URL(request.url());
++    return url.origin === origin && url.search === '' ? {method:request.method(), path:url.pathname} : null;
++  }
++  function onRequest(request) {
++    if (!active) return;
++    try {
++      usable(); const value = observed(request); if (!value) return;
++      const mutation = value.method === 'POST' && value.path === mutationPath;
++      if (!mutation && !(receipt.mutation && value.method === 'GET' && expectedPaths.includes(value.path))) return;
++      if (mutation ? receipt.mutation : receipt.requests.some(row => row.path === value.path)) throw problem('source-read-cohort-duplicate-request');
++      const row = {...value, startedAt:new Date().toISOString(), finishedAt:null, status:null, state:'pending'};
++      requests.set(request, row);
++      if (mutation) { receipt.mutation = row; receipt.phase = 'mutation-requested'; }
++      else receipt.requests.push(row);
++      save();
++    } catch (error) { cancel(error); }
++  }
++  async function finishRequest(request) {
++    const row = requests.get(request); if (!row || !active) return;
++    usable();
++    const response = await request.response(); usable();
++    if (!response) throw problem('source-read-cohort-response-missing');
++    row.status = response.status(); save();
++    const ended = await response.finished(); usable();
++    if (ended) throw problem('source-read-cohort-response-unfinished');
++    const bytes = await response.body(); usable();
++    row.bytes = bytes.length; row.finishedAt = new Date().toISOString();
++    if (bytes.length > 2*1024**2) throw problem('source-read-cohort-response-bound');
++    row.bodySHA256 = createHash('sha256').update(bytes).digest('hex');
++    row.state = 'finished'; save();
++    if (row.status !== 200) throw problem('source-read-cohort-status-'+row.status);
++    const body = JSON.parse(bytes.toString('utf8'));
++    if (row !== receipt.mutation) {
++      if (row.path !== projectPath+'/git' && body.projectId !== projectID) throw problem('source-read-cohort-project-mismatch');
++      bodies.set(row.path, body);
++    }
++    if (receipt.mutation?.state === 'finished' && expectedPaths.every(path => bodies.has(path))) resolveReads();
++  }
++  function onFinished(request) { void finishRequest(request).catch(error => { if (active) cancel(error); }); }
++  function onFailed(request) {
++    const row = requests.get(request); if (!row || !active) return;
++    row.state = 'failed'; row.finishedAt = new Date().toISOString(); cancel(problem('source-read-cohort-request-failed'));
++  }
++  function onClose() { cancel(problem('source-read-cohort-page-closed')); }
++  page.on('request', onRequest); page.on('requestfinished', onFinished); page.on('requestfailed', onFailed); page.on('close', onClose);
++  timer = setTimeout(() => cancel(problem('source-read-cohort-deadline-exceeded')), timeoutMs);
++  try { usable(); save(); } catch (error) { cancel(error); throw error; }
++  return {
++    cancel,
++    async finish({commit, readUI}) {
++      assert.equal(finishStarted, false); finishStarted = true;
++      try {
++        usable(); assert.match(commit, /^[a-f0-9]{40,64}$/);
++        await Promise.race([readsDone, failed]); usable();
++        const git = bodies.get(projectPath+'/git');
++        assert.equal(git.clean, true); assert.equal(git.log?.[0]?.hash, commit);
++        const context = bodies.get(projectPath+'/orchestrator')?.context;
++        assert.equal(context?.projectId, projectID); assert.equal(context?.sourceCommit, commit);
++        assert.equal(context?.sourceKnown, true); assert.equal(context?.sourceDirty, false);
++        receipt.phase = 'waiting-for-ready-ui'; save();
++        const pendingUI = Promise.resolve().then(() => { usable(); return readUI(usable); });
++        void pendingUI.catch(() => {});
++        const ui = await Promise.race([pendingUI, failed]); usable();
++        assertSourceReadUI(ui);
++        receipt.stableUIBoundary = {...ui, commit, at:new Date().toISOString()};
++        receipt.phase = 'ready'; receipt.finishedAt = new Date().toISOString(); save();
++        active = false; detach(); bodies.clear(); return structuredClone(receipt);
++      } catch (error) { cancel(error); throw error; }
++    },
++  };
++}
+diff --git a/scripts/acceptance/task-dependencies/source-read-cohort.test.mjs b/scripts/acceptance/task-dependencies/source-read-cohort.test.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/acceptance/task-dependencies/source-read-cohort.test.mjs
+@@ -0,0 +1,128 @@
++// Controlled event/body/UI seams only. No browser, Docker, network or product.
++import assert from 'node:assert/strict';
++import {test} from 'node:test';
++import {EventEmitter} from 'node:events';
++import {readFileSync,writeFileSync,mkdtempSync,rmSync} from 'node:fs';
++import {tmpdir} from 'node:os';
++import {join} from 'node:path';
++import {observeSourceReadCohort,sourceReadSuffixes,sourceReadUI} from './source-read-cohort.mjs';
++
++const origin='http://fixture.invalid', projectPath='/v1/product/projects/p-a123', mutationPath=projectPath+'/runs/run-alpha/swarm/tasks/task-a/integrate', commit='a'.repeat(40);
++const readyUI={factsVisible:true,factsReady:true,factsCurrentCommit:true,factsAlert:false,understandingVisible:true,understandingReady:true,understandingAlert:false};
++const understandingBody={projectId:'p-a123',context:{projectId:'p-a123',sourceCommit:commit,sourceKnown:true,sourceDirty:false}};
++const tick=()=>new Promise(resolve=>setImmediate(resolve));
++function deferred(){let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};}
++function fixture(t,{timeoutMs=1000}={}){
++ const page=new EventEmitter(), dir=mkdtempSync(join(tmpdir(),'luci-read-cohort-unit-')), path=join(dir,'cohort.json'), saves=[];
++ let stopped=false;
++ const cohort=observeSourceReadCohort({page,origin,projectPath,mutationPath,timeoutMs,assertActive:()=>{if(stopped)throw Error('workflow stopped');},persist:value=>{writeFileSync(path,JSON.stringify(value));saves.push(value);}});
++ t.after(()=>{cohort.cancel();rmSync(dir,{recursive:true,force:true});});
++ const request=(suffix,{method='GET',status=200,body,bytes,bodyGate,finishGate,otherProject=false}={})=>{
++  const route=suffix===mutationPath?suffix:projectPath+suffix;
++  const value=body??(suffix==='/git'?{clean:true,log:[{hash:commit}]}:suffix==='/orchestrator'?understandingBody:{projectId:'p-a123'});
++  const response={status:()=>status,finished:async()=>finishGate?await finishGate.promise:null,body:async()=>bodyGate?await bodyGate.promise:bytes??Buffer.from(JSON.stringify(value))};
++  return {method:()=>method,url:()=>origin+(otherProject?route.replace('p-a123','p-b456'):route),response:async()=>response};
++ };
++ const emit=request=>{page.emit('request',request);page.emit('requestfinished',request);return request;};
++ const mutation=(options={})=>emit(request(mutationPath,{method:'POST',...options}));
++ const reads=(options={})=>sourceReadSuffixes.filter(path=>path!==options.omit).map(path=>emit(request(path,options.byPath?.[path]??{})));
++ return {page,cohort,saves,path,request,emit,mutation,reads,stop:()=>{stopped=true;cohort.cancel(Error('workflow stopped'));},read:()=>JSON.parse(readFileSync(path)),finish:readUI=>cohort.finish({commit,readUI:readUI??(async()=>readyUI)})};
++}
++function detached(f){for(const event of ['request','requestfinished','requestfailed','close'])assert.equal(f.page.listenerCount(event),0,event);}
++
++test('one alpha mutation and all six full responses precede ready UI; preserves bounded request facts',async t=>{
++ const f=fixture(t);f.mutation();f.reads();const result=await f.finish();
++ assert.equal(result.phase,'ready');assert.equal(result.requests.length,6);assert.equal(result.mutation.method,'POST');
++ for(const row of result.requests){assert.equal(row.method,'GET');assert.equal(row.status,200);assert.equal(row.state,'finished');assert(row.startedAt&&row.finishedAt);assert.match(row.bodySHA256,/^[a-f0-9]{64}$/);assert.equal(row.body,undefined);}
++ assert.equal(result.stableUIBoundary.commit,commit);assert.deepEqual(result,f.read());detached(f);
++});
++test('response headers do not complete the cohort; delayed sixth body keeps UI unopened',async t=>{
++ const f=fixture(t),gate=deferred();f.mutation();f.reads({byPath:{'/orchestrator':{bodyGate:gate}}});let inspected=0;
++ const pending=f.finish(async()=>{inspected++;return readyUI;});await tick();assert.equal(inspected,0);assert.notEqual(f.read().phase,'ready');
++ gate.resolve(Buffer.from(JSON.stringify(understandingBody)));await pending;assert.equal(inspected,1);detached(f);
++});
++test('requestfinished still requires successful response.finished before reading body',async t=>{
++ const f=fixture(t),gate=deferred();f.mutation();f.reads({byPath:{'/orchestrator':{finishGate:gate}}});const pending=f.finish();await tick();
++ assert.notEqual(f.read().phase,'ready');gate.resolve(Error('connection closed'));await assert.rejects(pending,/response-unfinished/);detached(f);
++});
++for(const [name,options] of [['busy409',{status:409}],['denied403',{status:403}],['wrong project body',{body:{projectId:'p-b456'}}],['invalid JSON',{bytes:Buffer.from('{')}],['oversized body',{bytes:Buffer.alloc(2*1024**2+1)}]]){
++ test('failed cohort read remains failed: '+name,async t=>{
++  const f=fixture(t);f.mutation();f.reads({byPath:{'/orchestrator':options}});await assert.rejects(f.finish());
++  assert.equal(f.read().phase,'failed');assert.equal(f.read().stableUIBoundary,null);assert.equal(f.read().mutation.method,'POST');detached(f);
++ });
++}
++test('a failed request is durable and cannot be supplied by another response',async t=>{
++ const f=fixture(t);f.mutation();f.reads({omit:'/git'});const request=f.request('/git');f.page.emit('request',request);f.page.emit('requestfailed',request);
++ await assert.rejects(f.finish(),/request-failed/);assert.equal(f.read().requests.find(row=>row.path.endsWith('/git')).state,'failed');detached(f);
++});
++for(const wrong of [false,true])test(wrong?'wrong-project request cannot fill missing sixth read':'missing sixth read fails within deadline',async t=>{
++ const f=fixture(t,{timeoutMs:25});f.mutation();f.reads({omit:'/orchestrator'});if(wrong)f.emit(f.request('/orchestrator',{otherProject:true}));
++ await assert.rejects(f.finish(),/deadline-exceeded/);assert.equal(f.read().requests.length,5);detached(f);
++});
++test('preexisting request completion and pre-mutation reads cannot satisfy current cohort',async t=>{
++ const f=fixture(t,{timeoutMs:25}),old=f.request('/orchestrator');f.page.emit('request',old);f.emit(f.request('/brief'));f.mutation();f.reads({omit:'/orchestrator'});f.page.emit('requestfinished',old);
++ await assert.rejects(f.finish(),/deadline-exceeded/);assert.equal(f.read().requests.length,5);detached(f);
++});
++test('duplicate same-project request fails rather than hiding an overlapping reader',async t=>{
++ const f=fixture(t);f.mutation();f.reads();f.emit(f.request('/git'));await assert.rejects(f.finish(),/duplicate-request/);assert.equal(f.read().phase,'failed');detached(f);
++});
++test('mutation status failure cannot pass merely because all reads succeed',async t=>{
++ const f=fixture(t);f.mutation({status:409});f.reads();await assert.rejects(f.finish(),/status-409/);assert.equal(f.read().mutation.status,409);detached(f);
++});
++test('changed Git commit cannot establish alpha completion',async t=>{
++ const f=fixture(t);f.mutation();f.reads({byPath:{'/git':{body:{clean:true,log:[{hash:'b'.repeat(40)}]}}}});await assert.rejects(f.finish());assert.equal(f.read().phase,'failed');detached(f);
++});
++test('stale orchestrator source cannot establish current project understanding',async t=>{
++ const f=fixture(t);f.mutation();f.reads({byPath:{'/orchestrator':{body:{...understandingBody,context:{...understandingBody.context,sourceCommit:'b'.repeat(40)}}}}});
++ await assert.rejects(f.finish());assert.equal(f.read().stableUIBoundary,null);detached(f);
++});
++for(const ui of [{factsReady:false},{factsAlert:true},{factsVisible:false},{factsCurrentCommit:false},{understandingReady:false},{understandingAlert:true},{understandingVisible:false}]){
++ test('source read-state remains required: '+JSON.stringify(ui),async t=>{
++  const f=fixture(t);f.mutation();f.reads();await assert.rejects(f.finish(async()=>({...readyUI,...ui})));assert.equal(f.read().stableUIBoundary,null);detached(f);
++ });
++}
++test('pending UI does not authorize stale probe before readiness',async t=>{
++ const f=fixture(t),gate=deferred();f.mutation();f.reads();let downstream=0;
++ const pending=f.finish(()=>gate.promise).then(()=>downstream++);await tick();assert.equal(f.read().phase,'waiting-for-ready-ui');assert.equal(downstream,0);
++ gate.resolve(readyUI);await pending;assert.equal(downstream,1);detached(f);
++});
++test('cancelled late body rejection is consumed and cannot rewrite durable failure or reach UI',async t=>{
++ const f=fixture(t),gate=deferred();f.mutation();f.reads({byPath:{'/orchestrator':{bodyGate:gate}}});let inspected=0;
++ const pending=f.finish(async()=>{inspected++;return readyUI;});await tick();f.stop();await assert.rejects(pending,/workflow stopped/);const before=readFileSync(f.path,'utf8');
++ gate.reject(Error('late body rejection'));await tick();assert.equal(inspected,0);assert.equal(readFileSync(f.path,'utf8'),before);detached(f);
++});
++test('cancelled late UI completion cannot start downstream mutation',async t=>{
++ const f=fixture(t),gate=deferred();f.mutation();f.reads();let downstream=0;
++ const pending=f.finish(()=>gate.promise).then(()=>downstream++);await tick();f.stop();await assert.rejects(pending,/workflow stopped/);const before=readFileSync(f.path,'utf8');
++ gate.resolve(readyUI);await tick();assert.equal(downstream,0);assert.equal(readFileSync(f.path,'utf8'),before);detached(f);
++});
++test('page close cancels pending observer and removes every listener',async t=>{
++ const f=fixture(t);f.mutation();const pending=f.finish();f.page.emit('close');await assert.rejects(pending,/page-closed/);detached(f);
++});
++
++// Exercise the exact browser predicate with minimal DOM interfaces. Its real
++// source is passed unchanged to Playwright; these are not rendered UI fixtures.
++test('actual readiness predicate rejects hidden, busy, stale and failed views',()=>{
++ const oldDocument=globalThis.document, oldStyle=globalThis.getComputedStyle;
++ const state={hidden:false,busy:false,stale:false,alert:false};
++ const refresh=text=>({textContent:text,get disabled(){return state.busy;},getClientRects:()=>state.hidden?[]:[{}]});
++ const factsButton=refresh('Refresh project facts'),understandingButton=refresh('Refresh project understanding');
++ const facts={querySelectorAll:selector=>selector==='button'?[factsButton]:selector==='.project-work-facts code'?[{textContent:commit.slice(0,8)}]:[],querySelector:()=>state.alert?{}:null};
++ const understanding={querySelectorAll:selector=>selector==='button'?[understandingButton]:state.stale?[{textContent:'Showing last recorded context. Refresh project understanding.'}]:[],querySelector:selector=>selector.startsWith('.understanding-next')?{}:null};
++ globalThis.document={querySelector:selector=>selector.startsWith('details')?facts:understanding};globalThis.getComputedStyle=()=>({visibility:'visible'});
++ try{assert.deepEqual(sourceReadUI({commit}),readyUI);for(const key of ['hidden','busy','stale']){state[key]=true;assert.equal(sourceReadUI({commit}),false);state[key]=false;}state.alert=true;assert.throws(()=>sourceReadUI({commit}),/ui-read-failed/);}
++ finally{globalThis.document=oldDocument;globalThis.getComputedStyle=oldStyle;}
++});
++
++test('exact DAG arms after alpha review, fences mutation, waits cohort, and retains strict stale probe',()=>{
++ const dag=readFileSync(new URL('./dag.mjs',import.meta.url),'utf8');
++ const integrate=dag.slice(dag.indexOf('async function integrate('),dag.indexOf('\nasync function boundedResponse('));
++ assert(integrate.indexOf('await readReview(key)')<integrate.indexOf('observeSourceReadCohort'));
++ assert(integrate.indexOf('observeSourceReadCohort')<integrate.indexOf('await action(path'));
++ assert(integrate.includes("if(key==='a')"));assert(integrate.includes('sourceReadCohort.finish'));assert(integrate.includes('page.waitForFunction(sourceReadUI'));
++ assert(integrate.includes('assertCurrent();await facts.locator'));assert(integrate.includes('finally{sourceReadCohort=null;}'));
++ const preProbe=dag.slice(dag.indexOf("const oldB=await readReview('b1')"),dag.indexOf("setStage('renewed-review-real-conflict')"));
++ assert(preProbe.indexOf("alphaSourceReadCohort?.phase,'ready'")<preProbe.indexOf('await probeStaleReview'));
++ assert.equal(preProbe.split("request:observe=>api('POST',stalePath").length,2);
++ assert(preProbe.includes('409,30_000,observe'));assert(dag.includes('function stopOnFailure(error) { sourceReadCohort?.cancel(error);'));
++});

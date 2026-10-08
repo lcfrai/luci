@@ -1,0 +1,3 @@
+{"driverPID": 1956736, "startTicks": "23738617", "samplerPID": 1956737, "observationDirectory": "/workspace/luci/artifacts/quality-swarm/dependency-d6eaa540-attempt6/observer", "observerSelfCost": "/workspace/luci/artifacts/quality-swarm/dependency-d6eaa540-attempt6/observer-observer-self-cost.json"}
+FAIL /workspace/luci/artifacts/quality-swarm/dependency-d6eaa540-attempt6/result/result.json
+{"samples": 154, "durationSeconds": 154.0653964850062, "containerCount": 2, "driverExitObserved": true}

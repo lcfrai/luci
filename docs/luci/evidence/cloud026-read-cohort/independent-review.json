@@ -1,0 +1,23 @@
+{
+  "reviewer": "/root/check_frontend/cohort_review",
+  "scope": "Independent read-only source review; no edits, tests, browser or Docker.",
+  "enumeration": "Exactly three PROJECT_CONTEXT_CHANGED listener sites. Develop mounts ProjectWork (five GETs) and always-mounted OrchestratorPanel (one queued GET); DeploymentOverview is confined to Deploy.",
+  "reviewedMechanisms": [
+    "Playwright request.response(), response.finished(), response.body() API shape",
+    "request identity and arming after alpha review",
+    "body projectId and Git/orchestrator source binding",
+    "hidden details and collapsed understanding remain mounted",
+    "pending/error/stale UI distinctions",
+    "cancellation, late promises and listener removal"
+  ],
+  "findingsAddressed": [
+    "Added current known clean orchestrator context binding to alpha commit.",
+    "Reveals existing facts and understanding panels before visible readiness.",
+    "Requires no stale-context status and enabled Next step."
+  ],
+  "limits": [
+    "No actual browser timing or source-lock holder observed by this review.",
+    "A duplicate matching GET conservatively fails instead of claiming cohort completion.",
+    "Already-issued body reads/UI disclosure clicks can settle after cancellation; guards prevent late receipt writes or subsequent mutation."
+  ]
+}

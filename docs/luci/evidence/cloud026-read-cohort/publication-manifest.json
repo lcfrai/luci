@@ -1,0 +1,77 @@
+{
+  "scope": "CLOUD026 helper-only correction evidence, no installed acceptance rerun.",
+  "files": {
+    "README.md": {
+      "sha256": "e88611300762fe16cb7cbe6ff106b1b051739e9dda831cf9caabd04d62f38f15",
+      "bytes": 4627
+    },
+    "checks/diagnostic1-0.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "checks/diagnostic1-0.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "checks/diagnostic1-1.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "checks/diagnostic1-1.stdout": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "checks/diagnostic1-2.stderr": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "checks/diagnostic1-2.stdout": {
+      "sha256": "fe3206b64528ffd0503cc6ee99e0bdbb7bad051a18e0a905cafe555bf56161d3",
+      "bytes": 4101
+    },
+    "checks/diagnostic1.json": {
+      "sha256": "d24ab34b9380573297a1a07853e54c79b24ec13d5925bfb922c3c3c4f7714312",
+      "bytes": 2210
+    },
+    "independent-review.json": {
+      "sha256": "3dbcb83a0d694a5c5b35d0e787cb2099c3ee2153a6d3d139d8c9c3e58a0d56d1",
+      "bytes": 1328
+    },
+    "original-failure-summary.json": {
+      "sha256": "aec84a9d7d31bce35c65f620692fe713b360183b300cff22bdd74d440987e24a",
+      "bytes": 3041
+    },
+    "source/dag.before.mjs": {
+      "sha256": "8a21d4eba86b74c26e381ba6ba87bd1a44fcb9acdbb42c1cd948133c48d007ed",
+      "bytes": 91279
+    },
+    "source/dag.mjs": {
+      "sha256": "d22b36623e2c8e478ee80b09954c116f1d0a106bd0f05c54ed318e86e2bd925e",
+      "bytes": 92928
+    },
+    "source/source-read-cohort.mjs": {
+      "sha256": "bc4a630ffe43ad711e423f19afb6e614679151d3d2bce5f92774e005c42b9356",
+      "bytes": 8583
+    },
+    "source/source-read-cohort.test.mjs": {
+      "sha256": "ea49f839acc1fc64658525dc57b63c843a77b17f344a05ad9c4f57cfde517bc0",
+      "bytes": 12265
+    },
+    "source/stale-review-probe.mjs": {
+      "sha256": "79aa3ec4acd6c597fbd79c2bba2594355252bd8d49f16777f212e427563d263a",
+      "bytes": 4634
+    },
+    "source/stale-review-probe.test.mjs": {
+      "sha256": "4824669aa540caa9fb64428f4581651a05ce70682ba0f8b00a322c951456b206",
+      "bytes": 10167
+    },
+    "source-change.patch": {
+      "sha256": "8077ebc4612cf868a76b0ebe31ee17992ef493a86f1cd2887e4dda8366f735e8",
+      "bytes": 30395
+    },
+    "source-manifest.json": {
+      "sha256": "37228f3f6779f32fc0e42cc0d54dd7b321fd57e4f5551aee45393429e1438a80",
+      "bytes": 2876
+    }
+  }
+}
