@@ -1,0 +1,6 @@
+{
+  "desktop/src/store/slices/uiSlice.ts": "4da15890388c23ac657ffe99311b5a1155001b78400f1b40846061372f1a5b0b",
+  "desktop/src/store/draftRegistration.test.ts": "d1ba63c56d68e357246ab3b10b8d11508eef95c622646f648c19f37829a2a7d9",
+  "desktop/src/components/projects/ProjectOverviewBoard.tsx": "d3505e9b899804d210d9dfc1f3ff4c91424045b41dd723e4564e7241b63afab9",
+  "desktop/src/components/projects/ProjectOverviewBoard.test.tsx": "20c58a3c57b5b805f31cee088b33050fdf0742ecdb2738dab898b0d6a7052684"
+}

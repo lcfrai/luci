@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { HostCapacity } from './HostCapacity';
@@ -8,7 +8,7 @@ vi.mock('../auth/AuthProvider', () => ({ useAuth: () => ({ profile: { user: { ro
 vi.mock('../teams/TeamWorkspaceProvider', () => ({ useTeamWorkspace: () => ({ teamId: access.team }) }));
 const snapshot = (): SwarmScheduler => ({ revision: 7, observedAt: '', dispatchPaused: false, policy: { maxActive: 4, maxPerProject: 2, headroomPercent: 25, minHeadroomMiB: 2048, diskReserveMiB: 2048 }, resources: null });
 beforeEach(() => { vi.restoreAllMocks(); access.role = 'admin'; access.team = ''; vi.spyOn(swarmSchedulerApi, 'get').mockResolvedValue(snapshot()); vi.spyOn(swarmSchedulerApi, 'configure').mockResolvedValue({ ...snapshot(), revision: 8, dispatchPaused: true }); });
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 async function expandCapacity() {
   await userEvent.click(await screen.findByRole('button', { name: 'Expand capacity and settings' }));
 }
@@ -91,4 +91,43 @@ it('keeps scheduling controls out of the compact summary and expands without cha
   expect(swarmSchedulerApi.configure).not.toHaveBeenCalled();
   await user.click(screen.getByRole('button', { name: 'Hide capacity and settings' }));
   expect(screen.queryByRole('button', { name: 'Scheduling settings' })).toBeNull();
+});
+
+const reservationTime = Date.parse('2026-10-08T22:00:00Z');
+const reservations = (age = 0) => ({ status: 'ready' as const, observedAt: new Date(reservationTime - age).toISOString(), count: 2, memoryMiB: 3072, cpuMillis: 1500 });
+it('shows fresh machine allocations as workers and checks, including a verified zero', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(reservationTime);
+  vi.mocked(swarmSchedulerApi.get).mockResolvedValue({ ...snapshot(), resources: { reservations: reservations(29_999) } });
+  const view = render(<HostCapacity />); await expandCapacity();
+  expect(screen.getByText(/Reserved execution demand: 2 allocations · 3.0 GiB · 1.5 CPU cores/)).toBeTruthy();
+  expect(screen.getByText(/includes workers and checks across this machine/)).toBeTruthy();
+  view.unmount();
+  vi.mocked(swarmSchedulerApi.get).mockResolvedValue({ ...snapshot(), resources: { reservations: { ...reservations(), count: 0, memoryMiB: 0, cpuMillis: 0 } } });
+  render(<HostCapacity />); await expandCapacity();
+  expect(screen.getByText(/Reserved execution demand: 0 allocations · 0.0 GiB · 0.0 CPU cores/)).toBeTruthy();
+});
+
+it.each([
+  ['absent', undefined], ['null', null], ['unavailable', { status: 'unavailable' }],
+  ['legacy zero', { observedAt: '2026-10-08T22:00:00Z', count: 0, memoryMiB: 0, cpuMillis: 0 }],
+  ['stale', reservations(30_000)], ['future', reservations(-1)],
+  ['invalid time', { ...reservations(), observedAt: 'invalid' }],
+])('shows reservations as unavailable for %s observations', async (_label, reservation) => {
+  vi.spyOn(Date, 'now').mockReturnValue(reservationTime);
+  vi.mocked(swarmSchedulerApi.get).mockResolvedValue({ ...snapshot(), resources: { reservations: reservation } } as SwarmScheduler);
+  render(<HostCapacity />); await expandCapacity();
+  expect(screen.getByText(/Reserved execution demand: Unavailable/)).toBeTruthy();
+  expect(screen.queryByText(/\d+ allocations ·/)).toBeNull();
+});
+
+it('expires a visible reservation while its next read remains pending', async () => {
+  vi.useFakeTimers(); vi.setSystemTime(reservationTime);
+  vi.mocked(swarmSchedulerApi.get).mockResolvedValueOnce({ ...snapshot(), resources: { reservations: reservations() } }).mockImplementation(() => new Promise(() => {}));
+  render(<HostCapacity />);
+  await act(async () => {});
+  fireEvent.click(screen.getByRole('button', { name: 'Expand capacity and settings' }));
+  expect(screen.getByText(/Reserved execution demand: 2 allocations/)).toBeTruthy();
+  await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+  expect(screen.getByText(/Reserved execution demand: Unavailable/)).toBeTruthy();
+  expect(screen.queryByText(/\d+ allocations ·/)).toBeNull();
 });

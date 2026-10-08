@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "actualRawTracePublished": false,
+  "actualRawTraceSHA256": "4b9e9e6922bea8360e6690ecd22efaa35e0c4f7b42e175af47fb83ac3d0ccd5d",
+  "actualRawTraceStorage": "Retained privately under the fresh external diagnostic run directory, mode0600 inside mode0700 parents.",
+  "actualRawTraceIndicatorScan": {
+    "authorization-field": 0,
+    "bearer-scheme": 0,
+    "password-field": 0,
+    "bootstrap-token-field": 0,
+    "api-key-field": 0,
+    "access-refresh-token-field": 0
+  },
+  "indicatorScanLimitation": "Absence of common credential indicators is not proof of no secrets; actual trace excluded regardless.",
+  "publishedTraceDerivation": "Only operation categories, numeric timing/geometry, counts and hashes. No raw trace log text, headers, params, response bodies, console messages or stack data.",
+  "actualResultCredentialLikeKeys": [],
+  "actualResultReview": "Original receipt stores route classes, timestamps, hash bindings, generated fixture IDs and setup/action status, not API bodies/headers. Browser collector retains no keys or values.",
+  "staticTraceScope": "Minimal authored DOM only, known public fixture purposes, no account/auth/provider or APIs. All credential indicator scan counts zero.",
+  "privateFixtureReuse": false,
+  "actualFixtureRemoved": true
+}

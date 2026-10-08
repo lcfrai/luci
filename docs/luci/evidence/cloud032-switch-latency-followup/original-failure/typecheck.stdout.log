@@ -1,0 +1,5 @@
+
+> @lcfr/luci-desktop@0.5.0 typecheck
+> tsc --noEmit
+
+src/store/slices/uiSlice.ts(243,35): error TS2550: Property 'hasOwn' does not exist on type 'ObjectConstructor'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2022' or later.

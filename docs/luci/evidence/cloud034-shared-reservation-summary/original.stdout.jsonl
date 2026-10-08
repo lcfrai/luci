@@ -1,0 +1,9 @@
+{"Time":"2026-10-08T22:48:20.576966008Z","Action":"start","Package":"github.com/lcfrai/luci/control-plane/internal/api"}
+{"Time":"2026-10-08T22:48:20.706104849Z","Action":"run","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestExecutionReservationViewPausedOwnerObservesTeamCheck"}
+{"Time":"2026-10-08T22:48:20.706619255Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestExecutionReservationViewPausedOwnerObservesTeamCheck","Output":"=== RUN   TestExecutionReservationViewPausedOwnerObservesTeamCheck\n"}
+{"Time":"2026-10-08T22:48:21.457626007Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestExecutionReservationViewPausedOwnerObservesTeamCheck","Output":"    execution_reservation_view_test.go:115: shared reservation totals = {Status: ObservedAt:2026-10-08 22:48:21.416615587 +0000 UTC Count:0xc0003819c8 MemoryMiB:0xc0003819d8 CPUMillis:0xc0003819f8}; want 2 allocations / 2048 MiB / 2000 mCPU\n"}
+{"Time":"2026-10-08T22:48:21.549878697Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestExecutionReservationViewPausedOwnerObservesTeamCheck","Output":"--- FAIL: TestExecutionReservationViewPausedOwnerObservesTeamCheck (0.84s)\n"}
+{"Time":"2026-10-08T22:48:21.550064718Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/api","Test":"TestExecutionReservationViewPausedOwnerObservesTeamCheck","Elapsed":0.84}
+{"Time":"2026-10-08T22:48:21.553245424Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"FAIL\n"}
+{"Time":"2026-10-08T22:48:21.559312833Z","Action":"output","Package":"github.com/lcfrai/luci/control-plane/internal/api","Output":"FAIL\tgithub.com/lcfrai/luci/control-plane/internal/api\t0.979s\n"}
+{"Time":"2026-10-08T22:48:21.559535749Z","Action":"fail","Package":"github.com/lcfrai/luci/control-plane/internal/api","Elapsed":0.983}

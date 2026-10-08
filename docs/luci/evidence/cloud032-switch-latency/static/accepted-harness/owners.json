@@ -1,0 +1,30 @@
+[
+  {
+    "owner": {
+      "id": "static-project-a",
+      "name": "mixed-project-a"
+    },
+    "goal": "Build Escaped UI renderer with explicit verified behavior."
+  },
+  {
+    "owner": {
+      "id": "static-project-b",
+      "name": "mixed-project-b"
+    },
+    "goal": "Build Role-scoped note HTTP API with explicit verified behavior."
+  },
+  {
+    "owner": {
+      "id": "static-project-c",
+      "name": "mixed-project-c"
+    },
+    "goal": "Build Deduplicated CSV event aggregation with explicit verified behavior."
+  },
+  {
+    "owner": {
+      "id": "static-project-d",
+      "name": "mixed-project-d"
+    },
+    "goal": "Build Dependency graph ready frontier with explicit verified behavior."
+  }
+]

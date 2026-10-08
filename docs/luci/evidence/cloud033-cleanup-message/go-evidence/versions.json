@@ -1,0 +1,11 @@
+{
+  "go": "go version go1.26.3 linux/amd64",
+  "env": {
+    "GOARCH": "amd64",
+    "GOCACHE": "/tmp/luci-cloud033-go-cache",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOOS": "linux",
+    "GOROOT": "/workspace/.luci-tools/go1.26.3",
+    "GOWORK": "/workspace/.luci-tools/go.work"
+  }
+}

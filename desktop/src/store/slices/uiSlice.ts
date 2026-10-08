@@ -237,11 +237,16 @@ export const createUiSlice: StateCreator<
     if (Object.values(state.unsavedProjectDrafts).some(draft => draft.projectId === state.selection.projectId)) set({ pendingNavigation: { kind: "lens", lens } });
     else set(navigationState({ kind: "lens", lens }, state));
   },
-  setUnsavedProjectDraft: (id, draft) => set(state => {
-    const drafts = { ...state.unsavedProjectDrafts };
-    if (draft) drafts[id] = draft; else delete drafts[id];
-    return { unsavedProjectDrafts: drafts };
-  }),
+  setUnsavedProjectDraft: (id, draft) => {
+    // Clean editors register/clear on mount and cleanup. Skip an absent clear
+    // before calling set, whose persistence middleware also writes preferences.
+    if (draft === null && !Object.prototype.hasOwnProperty.call(get().unsavedProjectDrafts, id)) return;
+    set(state => {
+      const drafts = { ...state.unsavedProjectDrafts };
+      if (draft) drafts[id] = draft; else delete drafts[id];
+      return { unsavedProjectDrafts: drafts };
+    });
+  },
   cancelNavigation: () => set({ pendingNavigation: null, projectRunInspection: null, projectRunVerification: null, projectRunDeployment: null }),
   discardDraftsAndNavigate: (keepDrafts = false) => {
     const current = get();

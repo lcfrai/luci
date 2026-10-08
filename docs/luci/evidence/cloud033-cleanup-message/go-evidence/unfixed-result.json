@@ -1,0 +1,40 @@
+{
+  "startedAt": "2026-10-08T22:30:18.850467+00:00",
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p=1",
+    "-count=1",
+    "-timeout=8m",
+    "-json",
+    "-overlay=/workspace/.luci-tools/cloud033-cleanup-message/overlay-before.json",
+    "./internal/api",
+    "-run",
+    "^TestProjectCheckHTTP(CleanupConfirmationReplacesPendingMessage|FinishedLegacyCleanupMessagePreservesDigest|CleanupConfirmationPreservesOtherDiagnoses)$"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "GOMAXPROCS": "2",
+  "GOCACHE": "/tmp/luci-cloud033-go-cache",
+  "exitCode": 1,
+  "finishedAt": "2026-10-08T22:32:13.672619+00:00",
+  "elapsedSeconds": 114.82208589199581,
+  "inputsUnchanged": true,
+  "testOutcomes": {
+    "pass": [
+      "TestProjectCheckHTTPCleanupConfirmationPreservesOtherDiagnoses/cancelled",
+      "TestProjectCheckHTTPCleanupConfirmationPreservesOtherDiagnoses/post-create-admission",
+      "TestProjectCheckHTTPCleanupConfirmationPreservesOtherDiagnoses/missing-output",
+      "TestProjectCheckHTTPCleanupConfirmationPreservesOtherDiagnoses"
+    ],
+    "fail": [
+      "TestProjectCheckHTTPCleanupConfirmationReplacesPendingMessage/live-passed",
+      "TestProjectCheckHTTPCleanupConfirmationReplacesPendingMessage/live-failed",
+      "TestProjectCheckHTTPCleanupConfirmationReplacesPendingMessage/reopened-exited",
+      "TestProjectCheckHTTPCleanupConfirmationReplacesPendingMessage/reopened-absent",
+      "TestProjectCheckHTTPCleanupConfirmationReplacesPendingMessage",
+      "TestProjectCheckHTTPFinishedLegacyCleanupMessagePreservesDigest"
+    ],
+    "skip": []
+  }
+}

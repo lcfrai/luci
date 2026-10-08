@@ -1,0 +1,39 @@
+{
+  "status": "prepared-controlled-tests-passed-runtime-unrun",
+  "scope": "Helper-only tests; no installed product, Docker, browser, compiler or original fixture activity.",
+  "batches": [
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 /workspace/.luci-tools/local016-worker-recovery/worker-recovery-scenario.test.mjs",
+      "exitCode": 0,
+      "passed": 22,
+      "failed": 0,
+      "log": "worker-recovery-scenario-test.log"
+    },
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 /workspace/.luci-tools/local016-worker-recovery/inspect-window.test.mjs",
+      "exitCode": 0,
+      "passed": 2,
+      "failed": 0,
+      "log": "inspect-window-test.log",
+      "precedingTestFixtureFailure": "inspect-window-test-before-vm-realm.log; VM RegExp realm mismatch, no product or adapter mutation"
+    },
+    {
+      "command": "timeout 30s node --test --test-concurrency=1 /workspace/.luci-tools/local016-worker-recovery/adapter-static.test.mjs",
+      "exitCode": 0,
+      "passed": 3,
+      "failed": 0,
+      "log": "adapter-static-test.log"
+    }
+  ],
+  "syntaxCheck": {
+    "command": "timeout 30s node --check /workspace/.luci-tools/local016-worker-recovery/installed-worker-recovery.mjs",
+    "exitCode": 0
+  },
+  "newRuntimeOperations": {
+    "docker": 0,
+    "browser": 0,
+    "compilers": 0,
+    "models": 0
+  },
+  "originalFixtureAccessed": false
+}

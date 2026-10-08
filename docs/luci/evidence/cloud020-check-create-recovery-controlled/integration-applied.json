@@ -1,0 +1,93 @@
+{
+  "scope": "17 new acceptance helper files and one existing opt-in proxy; no product edits or commit",
+  "headBefore": "9121b5bab09df5827efa291026ed842253256842",
+  "proxyBeforeSHA256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+  "proxyAfterSHA256": "7315bcd8ecd230bf33de8eb4d06d900e4fdc380b52ed901875b12bf536672dae",
+  "newFiles": [
+    {
+      "path": "scripts/acceptance/check-create-recovery/README.md",
+      "bytes": 9500,
+      "sha256": "1d24a89f7078e8641133f96cbddf2669127ce7bec8971bb9b8d627f0f43999b6"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/adapter-contract.md",
+      "bytes": 7408,
+      "sha256": "0c3861c2aa3bdb4a27118a1893fd7c3cd6de4c7c35294580686f084c84cb8cc7"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/check-create-guard.mjs",
+      "bytes": 9521,
+      "sha256": "4c36f0f9253da83bd5d75fd4f5af40363ecd0fd1598db9e00f9c0e10d98507a0"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/check-guard.test.mjs",
+      "bytes": 13879,
+      "sha256": "5ffd1772eb698529dff61c3777d088e276d27aa246da0958ff296d8708d65b76"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/cleanup.test.mjs",
+      "bytes": 5121,
+      "sha256": "b1b63c7fd26b28c0e78b0a080904384fdb7919038d71f885858a66d4a4df0ab0"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/fixture-guards.mjs",
+      "bytes": 8374,
+      "sha256": "41dcadf5f5040fa633e75e268b8e3335fcc530555cc75b7977d809a44f21f12b"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/freeze-source-binding.py",
+      "bytes": 4110,
+      "sha256": "a16901987163f4cef25c3759c0128df6eb59ed1762008527149da0e73f4569d0"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/inspect-guards.test.mjs",
+      "bytes": 8586,
+      "sha256": "d5c9d41bf7abebeaefb6973857e8a81510ca37272e937eae9e54a8221e285d4b"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+      "bytes": 41215,
+      "sha256": "caa7e4bf937fc8149cb9e0844f3b8f56d689cbb6e9945abf65df17eff1e16d94"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/provenance-binding.test.mjs",
+      "bytes": 15105,
+      "sha256": "11b4115f3b3d8406b06fc3f1fb6fe3f717e622359b36559befdae31e0d39ee57"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/provenance.mjs",
+      "bytes": 4889,
+      "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs",
+      "bytes": 16768,
+      "sha256": "314334036802aa135fe78849ce0085fe7fe44893964451d9cd7d99877645ba40"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/recovery-proofs.test.mjs",
+      "bytes": 21395,
+      "sha256": "90a31cdcd35bb74ce71604964567ad563dcb0c0f7a914e5c36e4cb26499458f3"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/recovery-scenario.mjs",
+      "bytes": 17022,
+      "sha256": "a810c9443562e4325e5a1b902c83446ad6fba3231a5f8a1fba226d58af4d1e1c"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/run-with-observer.py",
+      "bytes": 16640,
+      "sha256": "4ae1172679672ca785a1ed5a310942f764545900f4f376183b74407b0bff1edc"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/scenario-flow.test.mjs",
+      "bytes": 17978,
+      "sha256": "b5e9edecc5d70eccc74f71fd0ad869cbb5326a598237dd6ca56dfa1a317f48a3"
+    },
+    {
+      "path": "scripts/acceptance/check-create-recovery/wrapper.test.py",
+      "bytes": 16178,
+      "sha256": "2dcfd5c1bb5489dc937c6640318b2797f2a91d76284209187065699a741b739d"
+    }
+  ]
+}

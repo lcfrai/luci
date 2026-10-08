@@ -1,0 +1,892 @@
+{
+  "version": 1,
+  "source": {
+    "path": "artifacts/quality-swarm/sustained-4df94ab9-helper-5d306b6d-attempt3/result/result.json",
+    "sha256": "582b60536d93aac1d31b73c675fe46683c5c71042c92e8e38ac28a301b2c40ab",
+    "product": "4df94ab9dad0e9fedd28a873bbadc56720e1402e",
+    "helper": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f"
+  },
+  "scope": "Failed original sustained attempt. Loaded phase has only74 switches/148 inputs and is incomplete. All times are end-to-end automation, not physical input/display latency. No threshold change or observer-cost subtraction.",
+  "methods": [
+    "Nearest-rank quantiles match original helper. Separate span quantiles are not additive. Nested click spans are contained in action.",
+    "Only subtract values within the same Node or browser clock. Last event references are temporally associated, not explicit causal IDs.",
+    "Resource rows are known-route completed browser observations only; not full in-flight/aborted inventory or backend spans.",
+    "Callbacks use final cumulative snapshot per document; never sum cumulative per-window counters."
+  ],
+  "groups": {
+    "idle-interactive-calibration:project-switch": {
+      "original": {
+        "count": 100,
+        "successful": 100,
+        "failed": 0,
+        "p50Ms": 256.52246999999625,
+        "p95Ms": 523.940591999999,
+        "p99Ms": 713.2545709999977,
+        "maxMs": 747.852579999977,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      },
+      "aboveP95TargetCount": 24,
+      "spanDistributions": {
+        "action": {
+          "count": 100,
+          "p50Ms": 170.81739599999855,
+          "p95Ms": 415.8684639999992,
+          "p99Ms": 586.6192730000184,
+          "maxMs": 609.9025649999967,
+          "meanMs": 200.11684469000087
+        },
+        "verify": {
+          "count": 100,
+          "p50Ms": 52.51434799999697,
+          "p95Ms": 126.74928300001193,
+          "p99Ms": 285.0425269999978,
+          "maxMs": 334.70874699999695,
+          "meanMs": 64.38294561999996
+        },
+        "framesRPC": {
+          "count": 100,
+          "p50Ms": 29.561952000003657,
+          "p95Ms": 37.98991499998374,
+          "p99Ms": 41.35724100000516,
+          "maxMs": 41.78534600000421,
+          "meanMs": 29.704396500000293
+        },
+        "allProjectsClick": {
+          "count": 100,
+          "p50Ms": 80.79838399999426,
+          "p95Ms": 206.19818599999417,
+          "p99Ms": 458.2698369999998,
+          "maxMs": 508.63485099999525,
+          "meanMs": 98.42194199999955
+        },
+        "overviewHeading": {
+          "count": 100,
+          "p50Ms": 11.35775100000319,
+          "p95Ms": 22.594553000002634,
+          "p99Ms": 42.10619000000588,
+          "maxMs": 93.39741800000775,
+          "meanMs": 13.33088818000193
+        },
+        "openProjectClick": {
+          "count": 100,
+          "p50Ms": 79.05398900000728,
+          "p95Ms": 122.1939710000006,
+          "p99Ms": 292.5968520000024,
+          "maxMs": 473.7405720000097,
+          "meanMs": 88.35846939000054
+        },
+        "browserFinalFrameInterval": {
+          "count": 100,
+          "p50Ms": 25.69999998807907,
+          "p95Ms": 33.0,
+          "p99Ms": 34.400000005960464,
+          "maxMs": 37.29999998211861,
+          "meanMs": 25.727000000178815
+        },
+        "browserLatestDispatchToExpectedDOM": {
+          "count": 100,
+          "p50Ms": 75.0,
+          "p95Ms": 191.60000002384186,
+          "p99Ms": 305.09999999403954,
+          "maxMs": 360.10000002384186,
+          "meanMs": 89.28900000065565
+        }
+      },
+      "fiveLargest": [
+        {
+          "index": 78,
+          "at": "2026-10-08T21:45:22.619Z",
+          "elapsedMs": 747.852579999977,
+          "nodeSpansMs": {
+            "action": 586.6192730000184,
+            "verify": 126.74928300001193,
+            "framesRPC": 34.46698900000774,
+            "allProjectsClick": 90.45902000000933,
+            "overviewHeading": 22.415563999995356,
+            "openProjectClick": 473.7405720000097
+          }
+        },
+        {
+          "index": 22,
+          "at": "2026-10-08T21:44:37.072Z",
+          "elapsedMs": 713.2545709999977,
+          "nodeSpansMs": {
+            "action": 609.9025649999967,
+            "verify": 69.40412399999332,
+            "framesRPC": 33.92506799999683,
+            "allProjectsClick": 508.63485099999525,
+            "overviewHeading": 12.017351000002236,
+            "openProjectClick": 89.20320200000424
+          }
+        },
+        {
+          "index": 42,
+          "at": "2026-10-08T21:44:53.209Z",
+          "elapsedMs": 676.6358650000038,
+          "nodeSpansMs": {
+            "action": 541.6819350000005,
+            "verify": 105.26556699999492,
+            "framesRPC": 29.561952000003657,
+            "allProjectsClick": 236.40105600000243,
+            "overviewHeading": 12.6802619999944,
+            "openProjectClick": 292.5968520000024
+          }
+        },
+        {
+          "index": 64,
+          "at": "2026-10-08T21:45:10.388Z",
+          "elapsedMs": 663.5193440000003,
+          "nodeSpansMs": {
+            "action": 565.7021959999984,
+            "verify": 61.6204859999998,
+            "framesRPC": 36.10648499999661,
+            "allProjectsClick": 458.2698369999998,
+            "overviewHeading": 20.794785999984015,
+            "openProjectClick": 86.63367700000526
+          }
+        },
+        {
+          "index": 67,
+          "at": "2026-10-08T21:45:13.034Z",
+          "elapsedMs": 532.1697510000085,
+          "nodeSpansMs": {
+            "action": 429.7080260000075,
+            "verify": 80.79902500001481,
+            "framesRPC": 21.64739699999336,
+            "allProjectsClick": 321.14363899998716,
+            "overviewHeading": 20.50089800002752,
+            "openProjectClick": 88.05995399999665
+          }
+        }
+      ]
+    },
+    "idle-interactive-calibration:input": {
+      "original": {
+        "count": 200,
+        "successful": 200,
+        "failed": 0,
+        "p50Ms": 52.56735800000024,
+        "p95Ms": 120.04548500000965,
+        "p99Ms": 250.749582000004,
+        "maxMs": 341.94982199999504,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      },
+      "aboveP95TargetCount": 16,
+      "spanDistributions": {
+        "action": {
+          "count": 200,
+          "p50Ms": 22.044816000008723,
+          "p95Ms": 73.56086199999845,
+          "p99Ms": 181.86548400000902,
+          "maxMs": 222.65769699998782,
+          "meanMs": 30.32825821499944
+        },
+        "verify": {
+          "count": 200,
+          "p50Ms": 3.9168550000176765,
+          "p95Ms": 12.319201999998768,
+          "p99Ms": 24.20283899999049,
+          "maxMs": 26.28485900000669,
+          "meanMs": 5.263381920000102
+        },
+        "framesRPC": {
+          "count": 200,
+          "p50Ms": 27.965471999981673,
+          "p95Ms": 37.94538000000466,
+          "p99Ms": 121.58613299998979,
+          "maxMs": 156.99785200000042,
+          "meanMs": 30.208988075000526
+        },
+        "browserFinalFrameInterval": {
+          "count": 200,
+          "p50Ms": 24.80000001192093,
+          "p95Ms": 31.5,
+          "p99Ms": 35.0,
+          "maxMs": 149.19999998807907,
+          "meanMs": 25.36050000011921
+        },
+        "browserLatestDispatchToExpectedDOM": {
+          "count": 200,
+          "p50Ms": 14.599999994039536,
+          "p95Ms": 43.20000001788139,
+          "p99Ms": 129.7999999821186,
+          "maxMs": 200.19999998807907,
+          "meanMs": 18.769499999582766
+        }
+      },
+      "fiveLargest": [
+        {
+          "index": 9,
+          "at": "2026-10-08T21:44:22.780Z",
+          "elapsedMs": 341.94982199999504,
+          "nodeSpansMs": {
+            "action": 176.96018199999526,
+            "verify": 7.977477000007639,
+            "framesRPC": 156.99785200000042
+          }
+        },
+        {
+          "index": 150,
+          "at": "2026-10-08T21:45:19.913Z",
+          "elapsedMs": 254.81536700000288,
+          "nodeSpansMs": {
+            "action": 133.24025900001288,
+            "verify": 15.618887999997241,
+            "framesRPC": 105.83942400000524
+          }
+        },
+        {
+          "index": 82,
+          "at": "2026-10-08T21:44:51.855Z",
+          "elapsedMs": 250.749582000004,
+          "nodeSpansMs": {
+            "action": 196.7274219999963,
+            "verify": 24.31332700001076,
+            "framesRPC": 29.222261000002618
+          }
+        },
+        {
+          "index": 172,
+          "at": "2026-10-08T21:45:29.701Z",
+          "elapsedMs": 247.90315299999202,
+          "nodeSpansMs": {
+            "action": 222.65769699998782,
+            "verify": 4.811543999996502,
+            "framesRPC": 20.293700000009267
+          }
+        },
+        {
+          "index": 151,
+          "at": "2026-10-08T21:45:20.168Z",
+          "elapsedMs": 236.70060999999987,
+          "nodeSpansMs": {
+            "action": 181.86548400000902,
+            "verify": 26.28485900000669,
+            "framesRPC": 28.38138400000753
+          }
+        }
+      ]
+    },
+    "idle-interactive-calibration:draft-reset": {
+      "original": {
+        "count": 100,
+        "successful": 100,
+        "failed": 0,
+        "p50Ms": 291.6233540000103,
+        "p95Ms": 507.70194400000037,
+        "p99Ms": 827.4913700000034,
+        "maxMs": 925.2330329999968,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      },
+      "aboveP95TargetCount": null,
+      "spanDistributions": {
+        "action": {
+          "count": 100,
+          "p50Ms": 228.24342800001614,
+          "p95Ms": 444.45647199999075,
+          "p99Ms": 759.1798580000032,
+          "maxMs": 792.6298810000008,
+          "meanMs": 264.78725446000055
+        },
+        "verify": {
+          "count": 100,
+          "p50Ms": 31.86199900000065,
+          "p95Ms": 65.99531200001366,
+          "p99Ms": 144.78845700000238,
+          "maxMs": 166.46253600000637,
+          "meanMs": 36.46061322999958
+        },
+        "framesRPC": {
+          "count": 100,
+          "p50Ms": 28.940275000000838,
+          "p95Ms": 38.290222000010544,
+          "p99Ms": 73.73861100000795,
+          "maxMs": 105.29686899999797,
+          "meanMs": 30.87082529999883
+        },
+        "browserFinalFrameInterval": {
+          "count": 100,
+          "p50Ms": 23.700000017881393,
+          "p95Ms": 30.599999994039536,
+          "p99Ms": 32.0,
+          "maxMs": 35.5,
+          "meanMs": 23.795000000298025
+        }
+      },
+      "fiveLargest": [
+        {
+          "index": 41,
+          "at": "2026-10-08T21:44:52.213Z",
+          "elapsedMs": 925.2330329999968,
+          "nodeSpansMs": {
+            "action": 792.6298810000008,
+            "verify": 65.99531200001366,
+            "framesRPC": 66.58701899999869
+          }
+        },
+        {
+          "index": 44,
+          "at": "2026-10-08T21:44:55.890Z",
+          "elapsedMs": 827.4913700000034,
+          "nodeSpansMs": {
+            "action": 759.1798580000032,
+            "verify": 34.27094199998828,
+            "framesRPC": 34.023234000007506
+          }
+        },
+        {
+          "index": 72,
+          "at": "2026-10-08T21:45:17.374Z",
+          "elapsedMs": 645.8004899999942,
+          "nodeSpansMs": {
+            "action": 572.7515180000046,
+            "verify": 39.70519099998637,
+            "framesRPC": 33.28505100001348
+          }
+        },
+        {
+          "index": 12,
+          "at": "2026-10-08T21:44:29.535Z",
+          "elapsedMs": 587.1093580000015,
+          "nodeSpansMs": {
+            "action": 337.0104710000014,
+            "verify": 144.78845700000238,
+            "framesRPC": 105.29686899999797
+          }
+        },
+        {
+          "index": 98,
+          "at": "2026-10-08T21:45:39.232Z",
+          "elapsedMs": 549.2873510000063,
+          "nodeSpansMs": {
+            "action": 494.58583599998383,
+            "verify": 32.90470899999491,
+            "framesRPC": 21.781984000001103
+          }
+        }
+      ]
+    },
+    "loaded:project-switch": {
+      "original": {
+        "count": 74,
+        "successful": 74,
+        "failed": 0,
+        "p50Ms": 294.36450199998217,
+        "p95Ms": 492.3272789999901,
+        "p99Ms": 621.1453290000209,
+        "maxMs": 621.1453290000209,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      },
+      "aboveP95TargetCount": 32,
+      "spanDistributions": {
+        "action": {
+          "count": 74,
+          "p50Ms": 203.12827399995876,
+          "p95Ms": 362.4049510000041,
+          "p99Ms": 498.52465599996503,
+          "maxMs": 498.52465599996503,
+          "meanMs": 229.19309600000113
+        },
+        "verify": {
+          "count": 74,
+          "p50Ms": 54.85796900000423,
+          "p95Ms": 118.30191399998148,
+          "p99Ms": 246.61919800000032,
+          "maxMs": 246.61919800000032,
+          "meanMs": 62.24782963513319
+        },
+        "framesRPC": {
+          "count": 74,
+          "p50Ms": 31.270279999997,
+          "p95Ms": 38.00259200000437,
+          "p99Ms": 50.786506000033114,
+          "maxMs": 50.786506000033114,
+          "meanMs": 30.71113455405528
+        },
+        "allProjectsClick": {
+          "count": 74,
+          "p50Ms": 100.3952720000525,
+          "p95Ms": 231.65321299998323,
+          "p99Ms": 398.7173559999792,
+          "maxMs": 398.7173559999792,
+          "meanMs": 120.14726518919475
+        },
+        "overviewHeading": {
+          "count": 74,
+          "p50Ms": 15.107780000020284,
+          "p95Ms": 29.67337899998529,
+          "p99Ms": 76.82172399997944,
+          "maxMs": 76.82172399997944,
+          "meanMs": 16.955148202698282
+        },
+        "openProjectClick": {
+          "count": 74,
+          "p50Ms": 88.22518700000364,
+          "p95Ms": 134.6930730000022,
+          "p99Ms": 218.07846200000495,
+          "maxMs": 218.07846200000495,
+          "meanMs": 92.08282759459217
+        },
+        "browserFinalFrameInterval": {
+          "count": 74,
+          "p50Ms": 25.400000005960464,
+          "p95Ms": 33.20000001788139,
+          "p99Ms": 35.69999998807907,
+          "maxMs": 35.69999998807907,
+          "meanMs": 25.73783783775729
+        },
+        "browserLatestDispatchToExpectedDOM": {
+          "count": 74,
+          "p50Ms": 81.10000002384186,
+          "p95Ms": 125.2000000178814,
+          "p99Ms": 389.5,
+          "maxMs": 389.5,
+          "meanMs": 89.55540540774126
+        }
+      },
+      "fiveLargest": [
+        {
+          "index": 33,
+          "at": "2026-10-08T21:47:55.023Z",
+          "elapsedMs": 621.1453290000209,
+          "nodeSpansMs": {
+            "action": 346.98440700001083,
+            "verify": 246.61919800000032,
+            "framesRPC": 27.427873999986332,
+            "allProjectsClick": 114.05488399998285,
+            "overviewHeading": 14.643431000004057,
+            "openProjectClick": 218.07846200000495
+          }
+        },
+        {
+          "index": 60,
+          "at": "2026-10-08T21:49:11.162Z",
+          "elapsedMs": 578.0612540000002,
+          "nodeSpansMs": {
+            "action": 498.52465599996503,
+            "verify": 47.37378299998818,
+            "framesRPC": 31.060661000024993,
+            "allProjectsClick": 398.7173559999792,
+            "overviewHeading": 27.253914000000805,
+            "openProjectClick": 72.54888899996877
+          }
+        },
+        {
+          "index": 6,
+          "at": "2026-10-08T21:46:35.041Z",
+          "elapsedMs": 522.5439509999997,
+          "nodeSpansMs": {
+            "action": 422.10527100000763,
+            "verify": 61.52840099998866,
+            "framesRPC": 37.75079099999857,
+            "allProjectsClick": 327.27514499999234,
+            "overviewHeading": 22.016062000009697,
+            "openProjectClick": 72.8107289999898
+          }
+        },
+        {
+          "index": 11,
+          "at": "2026-10-08T21:46:49.740Z",
+          "elapsedMs": 492.3272789999901,
+          "nodeSpansMs": {
+            "action": 405.76695500002825,
+            "verify": 50.22892300001695,
+            "framesRPC": 35.65684399998281,
+            "allProjectsClick": 281.94250000000466,
+            "overviewHeading": 19.475101999996696,
+            "openProjectClick": 104.3123370000103
+          }
+        },
+        {
+          "index": 2,
+          "at": "2026-10-08T21:46:22.639Z",
+          "elapsedMs": 475.490289999987,
+          "nodeSpansMs": {
+            "action": 312.79655400000047,
+            "verify": 118.60877600000822,
+            "framesRPC": 44.061954000004334,
+            "allProjectsClick": 158.38295200001448,
+            "overviewHeading": 35.76855499998783,
+            "openProjectClick": 118.64029000001028
+          }
+        }
+      ]
+    },
+    "loaded:input": {
+      "original": {
+        "count": 148,
+        "successful": 148,
+        "failed": 0,
+        "p50Ms": 55.03796699998202,
+        "p95Ms": 82.60197300004074,
+        "p99Ms": 167.04792899999302,
+        "maxMs": 219.34528700000374,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      },
+      "aboveP95TargetCount": 6,
+      "spanDistributions": {
+        "action": {
+          "count": 148,
+          "p50Ms": 23.079736999992747,
+          "p95Ms": 47.92779899999732,
+          "p99Ms": 93.71257299999706,
+          "maxMs": 181.65359300002456,
+          "meanMs": 26.893412560812116
+        },
+        "verify": {
+          "count": 148,
+          "p50Ms": 3.666709000011906,
+          "p95Ms": 11.449798999994528,
+          "p99Ms": 16.70256799994968,
+          "maxMs": 34.79266199999256,
+          "meanMs": 4.8743269797270985
+        },
+        "framesRPC": {
+          "count": 148,
+          "p50Ms": 27.958839000028092,
+          "p95Ms": 36.2115529999719,
+          "p99Ms": 59.64800500002457,
+          "maxMs": 105.71154400001979,
+          "meanMs": 28.820575662160007
+        },
+        "browserFinalFrameInterval": {
+          "count": 148,
+          "p50Ms": 24.599999994039536,
+          "p95Ms": 30.799999982118607,
+          "p99Ms": 32.5,
+          "maxMs": 101.5,
+          "meanMs": 24.798648647964
+        },
+        "browserLatestDispatchToExpectedDOM": {
+          "count": 148,
+          "p50Ms": 15.200000017881393,
+          "p95Ms": 31.900000005960464,
+          "p99Ms": 43.69999998807907,
+          "maxMs": 70.09999999403954,
+          "meanMs": 16.420945944415557
+        }
+      },
+      "fiveLargest": [
+        {
+          "index": 28,
+          "at": "2026-10-08T21:47:01.860Z",
+          "elapsedMs": 219.34528700000374,
+          "nodeSpansMs": {
+            "action": 181.65359300002456,
+            "verify": 5.316626000014367,
+            "framesRPC": 32.237762000004295
+          }
+        },
+        {
+          "index": 78,
+          "at": "2026-10-08T21:48:12.865Z",
+          "elapsedMs": 167.04792899999302,
+          "nodeSpansMs": {
+            "action": 56.28348299994832,
+            "verify": 5.030918999982532,
+            "framesRPC": 105.71154400001979
+          }
+        },
+        {
+          "index": 117,
+          "at": "2026-10-08T21:49:05.778Z",
+          "elapsedMs": 144.8813369999989,
+          "nodeSpansMs": {
+            "action": 73.64338199998019,
+            "verify": 11.449798999994528,
+            "framesRPC": 59.64800500002457
+          }
+        },
+        {
+          "index": 127,
+          "at": "2026-10-08T21:49:20.000Z",
+          "elapsedMs": 140.00573099998292,
+          "nodeSpansMs": {
+            "action": 72.04339800000889,
+            "verify": 34.79266199999256,
+            "framesRPC": 33.151343999954406
+          }
+        },
+        {
+          "index": 4,
+          "at": "2026-10-08T21:46:23.159Z",
+          "elapsedMs": 124.80845399998361,
+          "nodeSpansMs": {
+            "action": 84.53313900000649,
+            "verify": 3.868642000015825,
+            "framesRPC": 36.38517900000443
+          }
+        }
+      ]
+    },
+    "loaded:draft-reset": {
+      "original": {
+        "count": 74,
+        "successful": 74,
+        "failed": 0,
+        "p50Ms": 302.71842900000047,
+        "p95Ms": 584.0899349999963,
+        "p99Ms": 912.8848639999924,
+        "maxMs": 912.8848639999924,
+        "basis": "Automation command through expected DOM content at two animation frames; includes transport and any failed/timed-out action duration, not physical display latency.",
+        "timeouts": []
+      },
+      "aboveP95TargetCount": null,
+      "spanDistributions": {
+        "action": {
+          "count": 74,
+          "p50Ms": 247.1069370000041,
+          "p95Ms": 521.5992640000186,
+          "p99Ms": 829.0760169999849,
+          "maxMs": 829.0760169999849,
+          "meanMs": 281.5962980810838
+        },
+        "verify": {
+          "count": 74,
+          "p50Ms": 31.706016000011005,
+          "p95Ms": 51.797649999993155,
+          "p99Ms": 84.00115699999151,
+          "maxMs": 84.00115699999151,
+          "meanMs": 31.991396162160626
+        },
+        "framesRPC": {
+          "count": 74,
+          "p50Ms": 27.94273800001247,
+          "p95Ms": 37.881451000022935,
+          "p99Ms": 40.167459999996936,
+          "maxMs": 40.167459999996936,
+          "meanMs": 29.153258905406236
+        },
+        "browserFinalFrameInterval": {
+          "count": 74,
+          "p50Ms": 23.80000001192093,
+          "p95Ms": 30.5,
+          "p99Ms": 32.29999998211861,
+          "maxMs": 32.29999998211861,
+          "meanMs": 23.6337837846698
+        }
+      },
+      "fiveLargest": [
+        {
+          "index": 5,
+          "at": "2026-10-08T21:46:32.040Z",
+          "elapsedMs": 912.8848639999924,
+          "nodeSpansMs": {
+            "action": 829.0760169999849,
+            "verify": 43.520934999978635,
+            "framesRPC": 40.167459999996936
+          }
+        },
+        {
+          "index": 10,
+          "at": "2026-10-08T21:46:46.897Z",
+          "elapsedMs": 780.1989549999998,
+          "nodeSpansMs": {
+            "action": 660.9435600000143,
+            "verify": 84.00115699999151,
+            "framesRPC": 35.13605000000098
+          }
+        },
+        {
+          "index": 63,
+          "at": "2026-10-08T21:49:20.140Z",
+          "elapsedMs": 666.4149740000139,
+          "nodeSpansMs": {
+            "action": 606.6207230000291,
+            "verify": 33.56198200001381,
+            "framesRPC": 26.217587999999523
+          }
+        },
+        {
+          "index": 19,
+          "at": "2026-10-08T21:47:16.335Z",
+          "elapsedMs": 584.0899349999963,
+          "nodeSpansMs": {
+            "action": 521.5992640000186,
+            "verify": 32.727327000000514,
+            "framesRPC": 29.730463000014424
+          }
+        },
+        {
+          "index": 54,
+          "at": "2026-10-08T21:48:54.791Z",
+          "elapsedMs": 522.3565599999856,
+          "nodeSpansMs": {
+            "action": 456.46613700001035,
+            "verify": 35.1704519999912,
+            "framesRPC": 30.704958999995142
+          }
+        }
+      ]
+    }
+  },
+  "resourceClasses": {
+    "swarm-scheduler": {
+      "count": 204,
+      "p50Ms": 26.19999998807907,
+      "p95Ms": 59,
+      "p99Ms": 92.7000000178814,
+      "maxMs": 208.59999999403954,
+      "meanMs": 30.756862746880334
+    },
+    "project-overview": {
+      "count": 820,
+      "p50Ms": 33,
+      "p95Ms": 76.2000000178814,
+      "p99Ms": 138.40000000596046,
+      "maxMs": 215.7999999821186,
+      "meanMs": 38.446707316905986
+    },
+    "project-specification": {
+      "count": 577,
+      "p50Ms": 21.900000005960464,
+      "p95Ms": 45.39999997615814,
+      "p99Ms": 110.09999999403954,
+      "maxMs": 258,
+      "meanMs": 25.355285962181654
+    },
+    "project-orchestrator": {
+      "count": 589,
+      "p50Ms": 41.400000005960464,
+      "p95Ms": 82.19999998807907,
+      "p99Ms": 211.2000000178814,
+      "maxMs": 318,
+      "meanMs": 48.02020373490144
+    },
+    "project-runs": {
+      "count": 28,
+      "p50Ms": 26.69999998807907,
+      "p95Ms": 64.89999997615814,
+      "p99Ms": 101.90000000596046,
+      "maxMs": 101.90000000596046,
+      "meanMs": 31.057142854801246
+    },
+    "project-swarm-queue": {
+      "count": 23,
+      "p50Ms": 16,
+      "p95Ms": 40.19999998807907,
+      "p99Ms": 42.29999998211861,
+      "maxMs": 42.29999998211861,
+      "meanMs": 18.986956519925076
+    }
+  },
+  "browserCollector": {
+    "documents": 13,
+    "callbacks": 5112,
+    "callbackMs": 409.3999999165535,
+    "costScope": "Partial callback body self-time only. Excludes other EventTiming collector, IPC/serialization, browser/Node clocks and observer process cost."
+  },
+  "observer": {
+    "scope": "Observer interpreter RUSAGE_SELF, including interpreter imports and launcher; excludes spawned Docker CLI/helpers and all Docker daemon work.",
+    "wallSeconds": 440.74911330401665,
+    "userCPUSeconds": 50.422876,
+    "systemCPUSeconds": 29.775957,
+    "cpuSecondsPerWallSecond": 0.18196028211787021,
+    "maxRSSBytes": 19267584,
+    "sha256": "07d022762336cc62c73757b8b484e6234d1bfd89239ee08c161fb047dbeb75c4",
+    "causality": "No matched no-observer replay. Full interpreter cost is not attributable solely to the additive cgroup reader."
+  },
+  "originalActionabilityTrace": {
+    "available": false,
+    "basis": "Retained artifact file inventory has no trace/HAR/Playwright API action logs; successful interactions only retain aggregate await-boundary spans and passive browser rows.",
+    "unresolved": [
+      "Element stability/actionability retries",
+      "Target bounding-box movement",
+      "Event-loop scheduling/transport gaps",
+      "React render/commit and storage spans",
+      "Backend function/request admission spans"
+    ]
+  },
+  "sourceBindings": {
+    "desktop/src/components/AppShell.tsx": {
+      "productSHA256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "currentSHA256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "matchesProduct": true
+    },
+    "desktop/src/components/projects/ProjectsHome.tsx": {
+      "productSHA256": "ac22f3cf538ae28e231263aad85c4154c5acc4d4b3d2381d69c4603260669986",
+      "currentSHA256": "ac22f3cf538ae28e231263aad85c4154c5acc4d4b3d2381d69c4603260669986",
+      "matchesProduct": true
+    },
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": {
+      "productSHA256": "a361d250eca5672301d3bd324d9fe91ed392210624d633d0b3787e3907194496",
+      "currentSHA256": "a361d250eca5672301d3bd324d9fe91ed392210624d633d0b3787e3907194496",
+      "matchesProduct": true
+    },
+    "desktop/src/components/projects/HostCapacity.tsx": {
+      "productSHA256": "5fe765c9185637ce477c83cae0e3f7a55c5902256000d212123439484be55254",
+      "currentSHA256": "5fe765c9185637ce477c83cae0e3f7a55c5902256000d212123439484be55254",
+      "matchesProduct": true
+    },
+    "desktop/src/components/projects/project-overview.css": {
+      "productSHA256": "7f2dd42461b61ade25c548e5c50ac98e3ceeab5a9e3c23575cf1117a0b1923a8",
+      "currentSHA256": "7f2dd42461b61ade25c548e5c50ac98e3ceeab5a9e3c23575cf1117a0b1923a8",
+      "matchesProduct": true
+    },
+    "desktop/src/components/definition/DefinitionWorkspace.tsx": {
+      "productSHA256": "f02b65e2a8909cb68b6252a90d19e53ee8201262115b0ee4d5401acca43e072a",
+      "currentSHA256": "f02b65e2a8909cb68b6252a90d19e53ee8201262115b0ee4d5401acca43e072a",
+      "matchesProduct": true
+    },
+    "desktop/src/hooks/useProjectDraft.ts": {
+      "productSHA256": "d9991f749c285641bddb7eb8f565b3c853e61136148a7a32aa98a49f4fb831b2",
+      "currentSHA256": "d9991f749c285641bddb7eb8f565b3c853e61136148a7a32aa98a49f4fb831b2",
+      "matchesProduct": true
+    },
+    "desktop/src/hooks/useUnsavedProjectDraft.ts": {
+      "productSHA256": "3692176f62e31cca1e862ae24c34d143c0dcb94e3479ef4c389709c7bb57d9a1",
+      "currentSHA256": "3692176f62e31cca1e862ae24c34d143c0dcb94e3479ef4c389709c7bb57d9a1",
+      "matchesProduct": true
+    },
+    "desktop/src/store/slices/uiSlice.ts": {
+      "productSHA256": "bd4d3ff8a3ff26eb1b4346b8cff2153e4b301ad0a4eeed3dbbcbc6d020e54e9e",
+      "currentSHA256": "bd4d3ff8a3ff26eb1b4346b8cff2153e4b301ad0a4eeed3dbbcbc6d020e54e9e",
+      "matchesProduct": true
+    },
+    "desktop/src/store/store.ts": {
+      "productSHA256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6",
+      "currentSHA256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6",
+      "matchesProduct": true
+    },
+    "desktop/src/components/rail/ProjectRow.tsx": {
+      "productSHA256": "71dcaf85dfddb4feff179cd1c3f53cd80d647a472fdbc00952395358674257f9",
+      "currentSHA256": "71dcaf85dfddb4feff179cd1c3f53cd80d647a472fdbc00952395358674257f9",
+      "matchesProduct": true
+    },
+    "desktop/src/components/rail/Rail.tsx": {
+      "productSHA256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+      "currentSHA256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+      "matchesProduct": true
+    },
+    "desktop/src/components/orchestrator/OrchestratorPanel.tsx": {
+      "productSHA256": "5836f6eb729a6f639cb3c06a8b0e7a63305a6cb006e76784773e82ea4bcd2fa7",
+      "currentSHA256": "5836f6eb729a6f639cb3c06a8b0e7a63305a6cb006e76784773e82ea4bcd2fa7",
+      "matchesProduct": true
+    },
+    "desktop/src/components/common/DraftNavigationDialog.tsx": {
+      "productSHA256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+      "currentSHA256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+      "matchesProduct": true
+    },
+    "desktop/src/components/common/WorkflowDialog.tsx": {
+      "productSHA256": "be1d8ebb8f56d92d5a8848bc2c1d870c7fdb55c4f8a0a691aa7f252021469978",
+      "currentSHA256": "be1d8ebb8f56d92d5a8848bc2c1d870c7fdb55c4f8a0a691aa7f252021469978",
+      "matchesProduct": true
+    },
+    "desktop/src/styles/shadcn.css": {
+      "productSHA256": "e7f7f84a4f9837bed1b5474951afb3a8436d62c803f38f65e099447f9a388a69",
+      "currentSHA256": "e7f7f84a4f9837bed1b5474951afb3a8436d62c803f38f65e099447f9a388a69",
+      "matchesProduct": true
+    },
+    "desktop/src/styles/tokens.css": {
+      "productSHA256": "c1ec546c246e1f881ab4c23e1825c1cdfda31998b24702c62320d154ac9c2bc9",
+      "currentSHA256": "c1ec546c246e1f881ab4c23e1825c1cdfda31998b24702c62320d154ac9c2bc9",
+      "matchesProduct": true
+    }
+  }
+}

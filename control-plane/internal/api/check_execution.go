@@ -246,6 +246,7 @@ func (a *API) finishAcknowledgedCheck(ctx context.Context, identity backend.Chec
 		}
 	}
 	out.CleanupConfirmed = true
+	setConfirmedCheckCleanupMessage(&out)
 	if err := a.execution.completeCheck(cleanup, identity, ref, out); err != nil {
 		return out, err
 	}
@@ -283,4 +284,18 @@ func (a *API) finishUnstartedCheck(ctx context.Context, identity backend.CheckId
 		return out, err
 	}
 	return out, nil
+}
+
+// Call only after the exact acknowledged container is confirmed absent, and
+// before completeCheck binds the final outcome digest. Preserve every other
+// admission, cancellation, recovery and missing-output diagnosis. Already
+// finished receipts keep their original digest-bound copy during observation.
+func setConfirmedCheckCleanupMessage(out *product.ProjectCheckCommandOutcome) {
+	if !out.CleanupConfirmed || out.Stage != "cleanup" || out.ExitCode == nil ||
+		(out.Status != "passed" && out.Status != "failed") ||
+		(out.ReasonCode != "" && out.ReasonCode != "check_cleanup_unconfirmed") {
+		return
+	}
+	out.ReasonCode = ""
+	out.Message = "The command exit and output were recorded; exact container cleanup is confirmed."
 }

@@ -1,0 +1,72 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p=1",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "./internal/api",
+    "-run",
+    "^TestExecutionReservationView"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOCACHE": "/tmp/luci-cloud033-go-cache",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "TMPDIR": "/tmp/luci-cloud034-test-temp"
+  },
+  "startedAt": "2026-10-08T22:50:44.258237+00:00",
+  "sourceBefore": {
+    "control-plane/internal/api/execution_reservation_view_test.go": "799c57380247edcb6a3bbbf1d88fd66d040363ffab387bfc4276c251188b3b2f",
+    "control-plane/internal/api/execution_reservation_view.go": "9ac624db2a2fe03efe557ba207867a06ef0b7ef0c54466b9e24ff56650e60f53",
+    "control-plane/internal/api/swarm_dispatch.go": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da",
+    "control-plane/internal/api/execution_leases.go": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd"
+  },
+  "exitCode": 0,
+  "finishedAt": "2026-10-08T22:50:59.465703+00:00",
+  "seconds": 15.207084961992223,
+  "sourceAfter": {
+    "control-plane/internal/api/execution_reservation_view_test.go": "799c57380247edcb6a3bbbf1d88fd66d040363ffab387bfc4276c251188b3b2f",
+    "control-plane/internal/api/execution_reservation_view.go": "9ac624db2a2fe03efe557ba207867a06ef0b7ef0c54466b9e24ff56650e60f53",
+    "control-plane/internal/api/swarm_dispatch.go": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da",
+    "control-plane/internal/api/execution_leases.go": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd"
+  },
+  "sourceStable": true,
+  "outcomes": {
+    "pass": [
+      "TestExecutionReservationViewPausedOwnerObservesTeamCheck",
+      "TestExecutionReservationViewUnavailableAndReadOnly/missing-root",
+      "TestExecutionReservationViewUnavailableAndReadOnly/missing-ledger",
+      "TestExecutionReservationViewUnavailableAndReadOnly/missing-lock",
+      "TestExecutionReservationViewUnavailableAndReadOnly/invalid-json",
+      "TestExecutionReservationViewUnavailableAndReadOnly/invalid-foreign-owner",
+      "TestExecutionReservationViewUnavailableAndReadOnly/oversized",
+      "TestExecutionReservationViewUnavailableAndReadOnly/lock-directory",
+      "TestExecutionReservationViewUnavailableAndReadOnly/linked-lock",
+      "TestExecutionReservationViewUnavailableAndReadOnly/linked-ledger",
+      "TestExecutionReservationViewUnavailableAndReadOnly/hardlinked-lock",
+      "TestExecutionReservationViewUnavailableAndReadOnly/hardlinked-ledger",
+      "TestExecutionReservationViewUnavailableAndReadOnly/project-owned-ledger",
+      "TestExecutionReservationViewUnavailableAndReadOnly/relative-path",
+      "TestExecutionReservationViewUnavailableAndReadOnly/ordinary-read-preserves-modes-and-bytes",
+      "TestExecutionReservationViewUnavailableAndReadOnly",
+      "TestExecutionReservationViewBoundedLockAndCancellation",
+      "TestExecutionReservationViewConcurrentPeerMutation",
+      "TestExecutionReservationViewDoesNotWidenSchedulerAuthority"
+    ],
+    "fail": [],
+    "skip": []
+  },
+  "stdout.jsonl": {
+    "bytes": 19053,
+    "sha256": "755e82befb9f38b96b25f8665b936548ab7001732c16a0f4fa73205d216f4666"
+  },
+  "stderr.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

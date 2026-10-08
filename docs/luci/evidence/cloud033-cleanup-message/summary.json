@@ -1,0 +1,67 @@
+{
+  "createdAt": "2026-10-08T22:36:28.383738+00:00",
+  "issue": "CLOUD-033",
+  "status": "ready for integration; controlled source checks passed, installed updated package and Windows unverified",
+  "change": "Normalize known terminal cleanup copy after exact absence before a new completion digest. Display exact legacy pending/unconfirmed strings truthfully only when recorded terminal cleanup proves them, leaving raw receipts and old digests unchanged.",
+  "goCounts": {
+    "fixed": {
+      "pass": {
+        "topLevel": 3,
+        "subtests": 7
+      },
+      "fail": {
+        "topLevel": 0,
+        "subtests": 0
+      },
+      "skip": {
+        "topLevel": 0,
+        "subtests": 0
+      }
+    },
+    "affected": {
+      "pass": {
+        "topLevel": 6,
+        "subtests": 10
+      },
+      "fail": {
+        "topLevel": 0,
+        "subtests": 0
+      },
+      "skip": {
+        "topLevel": 0,
+        "subtests": 0
+      }
+    }
+  },
+  "frontendFinal": {
+    "numTotalTests": 61,
+    "numPassedTests": 61,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "sourceInputs": {
+    "goFinal": 917,
+    "externalWorkspace": 2,
+    "frontendComponent": 425,
+    "frontendTypecheck": 429
+  },
+  "initialFailuresRetained": [
+    "Four original Go cleanup-copy scenarios fail before the product correction. Parent failure is not an extra scenario.",
+    "Initial legacy comparison mistakenly compared a store row with an enriched HTTP row; failed in both configurations. Corrected fixture compares the same HTTP projection and passed both.",
+    "Four legacy UI scenarios fail before the display correction; six uncertainty controls pass. Fifty-one unselected cases are not credited in the filtered run.",
+    "Initial external-tree typecheck omitted unchanged desktop/e2e/defect6.mjs support; its missing-module/derived implicit-any failure is retained. Exact original E2E support copied; final typecheck passed."
+  ],
+  "limits": [
+    "Controlled Go HTTP/backend and jsdom component fixtures; no new real Docker, installed UI, Windows or model call.",
+    "New and affected corrected Go batches are disjoint; original/attempt1 counts overlap and are not cumulative.",
+    "Full relevant repository Go/module/testdata and sole embedded-asset tree plus external workspace files bound in final rounds; external dependency cache bytes are not independently attested.",
+    "Frontend copied-tree component scope is bound before/after; later unrelated store edits in the main checkout were not part of these component receipts.",
+    "Historical finished stored/API messages intentionally remain byte-bound; only visible compatible copy is corrected."
+  ],
+  "cache": {
+    "path": "/tmp/luci-cloud033-go-cache",
+    "bytes": 341572775,
+    "recordedAt": "2026-10-08T22:34:27.511009+00:00",
+    "scope": "Dedicated task-owned recomputable Go build cache; not removed."
+  }
+}

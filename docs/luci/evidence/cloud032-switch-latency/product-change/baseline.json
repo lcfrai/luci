@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-08T22:34:24.733248+00:00",
+  "head": "9121b5bab09df5827efa291026ed842253256842",
+  "ownedPaths": [
+    "desktop/src/store/slices/uiSlice.ts",
+    "desktop/src/store/draftRegistration.test.ts"
+  ],
+  "ownedPathsOriginallyClean": true,
+  "unrelatedStatus": " M scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs\n?? scripts/acceptance/check-create-recovery/\n",
+  "uiSliceSHA256": "bd4d3ff8a3ff26eb1b4346b8cff2153e4b301ad0a4eeed3dbbcbc6d020e54e9e"
+}

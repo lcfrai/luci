@@ -1,0 +1,8 @@
+*.json -text
+*.ts -text
+*.tsx -text
+*.patch -text
+*.log -text
+*.stdout -text
+*.stderr -text
+SHA256SUMS -text

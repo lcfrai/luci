@@ -1,0 +1,30 @@
+✔ routes bind all operations to the selected team, project, run and child (2.625129ms)
+✔ routes reject missing, traversing, encoded and oversized identity selectors (5.352841ms)
+✔ exactLease locates the settled target among unrelated scoped claims (2.007848ms)
+✔ exactLease refuses wrong queue, scope, project, sandbox, protocol or engine identity (1.714916ms)
+✔ exactLease refuses missing, duplicate and cross-scope identity collisions (0.527405ms)
+✔ exactLease refuses a changed actor despite otherwise matching allocation identities (1.269884ms)
+✔ exactLease requires settled launchGuard1 and the approved hard resource limits (1.403817ms)
+✔ reviewedIdentity derives fresh CAS selection and rejects invalid revisions (6.920835ms)
+✔ operation review rejects foreign run/session, ambiguous operations and wrong queue child (3.173715ms)
+✔ held refusal accepts refreshed run metadata while preserving the exact charge and artifacts (1.405029ms)
+✔ held refusal rejects charge changes, unrelated ledger changes, Docker mutation and replay (10.65778ms)
+✔ released contract removes exactly the target and preserves unrelated private histories (1.521013ms)
+✔ release accepts product JSON omitting zero queue counters only after exact lease removal (0.593645ms)
+✔ release refuses stopped-but-present, unknown and wrong-identity absence claims (0.967118ms)
+✔ release refuses a retained target, changed foreign lease, retired history or check claim (2.239717ms)
+✔ release refuses queue capacity, active target and premature unrelated dispatch (4.139552ms)
+✔ release refuses output loss, context/history mutation, replay and unnecessary fence creation (6.334542ms)
+✔ controlled ports exercise restart, authority denials, reviewed conflicts and release before successor consent (8.239754ms)
+✔ controlled scenario rejects missing Edit/Execute authority accepted by the adapter (1.101251ms)
+✔ controlled scenario rejects wrong authority error codes and foreign-project acceptance (1.400812ms)
+✔ controlled scenario rejects silently replayed restart, unsupported fence claims and unknown backend success (2.33424ms)
+✔ controlled scenario rejects output loss after independent project completion (2.403804ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 175.125643

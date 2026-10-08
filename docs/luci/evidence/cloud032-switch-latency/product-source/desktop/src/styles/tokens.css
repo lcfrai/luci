@@ -1,0 +1,260 @@
+/* desktop/src/styles/tokens.css
+ *
+ * The Luci token layer. docs/DESIGN-SYSTEM.md governs every value here.
+ *
+ * Colour space is OKLCH so light and dark are DERIVED rather than inverted, and so equal
+ * numeric steps read as equal perceptual steps in the bottom quarter of the range, which is
+ * where this interface lives. Requires Chromium 111+ / Safari 15.4+; the Tauri 2 webview is
+ * WebView2 and WKWebView, both well past that, so there is no fallback ladder.
+ *
+ * Rules a reviewer can check:
+ *   1. No component CSS contains a literal hex. Every colour is a var() from this file.
+ *   2. The accent appears ONLY on interactive and current state. Never on a card, an icon,
+ *      a border or a fill that is not carrying "you can act here" or "this is selected".
+ *   3. Elevation is a 1px ring PLUS a layered shadow. Never a flat border.
+ *   4. Radius is tied to element size: chip 6 / control 8 / card 10 / window 14.
+ *   5. Status colour is a separate vocabulary from the accent and always ships with a shape.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ── Surfaces, back to front ──────────────────────────────────────────────────────
+   * page → canvas → surface → inset → hover → hover-2 → field.
+   * One warm hue (67°, a warm graphite) with chroma rising alongside lightness, so the
+   * ramp stays warm instead of desaturating to neutral grey as it lightens. Nearly every
+   * generated dark UI is cold-tinted; warmth reads as considered on sight.
+   * Lightness rises 14.0 → 16.0 → 18.5 → 21.0 → 23.5 → 26.0 across the six that rise. --field
+   * is the seventh name and does NOT rise: it sits below --page at 12.5, and the comment
+   * beside it says why. */
+  --page: oklch(14% 0.004 67); /* #0a0908 — the window ground */
+  --canvas: oklch(
+    16% 0.0045 67
+  ); /* #0f0d0b — rail, sub-rail, the Canvas backdrop */
+  --surface: oklch(
+    18.5% 0.005 67
+  ); /* #141210 — cards, popovers, menus, the top bar's controls */
+  --inset: oklch(
+    21% 0.006 67
+  ); /* #1a1815 — a selected row, a chip, a segmented control's thumb */
+  --hover: oklch(23.5% 0.0065 67); /* #201e1b — hover on a row */
+  --hover-2: oklch(
+    26% 0.007 67
+  ); /* #262320 — hover on something already at --inset */
+  /* A form field is a WELL, not a raised plane: it reads as something you put text into.
+   * This deliberately breaks the monotone ramp; DESIGN-SYSTEM lists the seven surfaces as a
+   * naming order, not a lightness order. If a reviewer disagrees, this is the one line to
+   * change. */
+  --field: oklch(12.5% 0.0035 67); /* #070605 */
+  --design-paper: oklch(98% 0.0045 67);
+
+  /* ── Ink ramp ─────────────────────────────────────────────────────────────────────
+   * ink-3 is the readable secondary floor across the warm surface ramp.
+   * ink-4 is 1.92:1 and is never text: thread lines, hairline glyphs, disabled marks. */
+  --ink: oklch(94.8% 0.0097 73); /* #f2ede7 — 17.09:1 */
+  --ink-2: oklch(70.7% 0.0148 68); /* #a79f97 —  7.63:1 */
+  --ink-3: oklch(
+    66% 0.0149 64
+  ); /* Muted text: minimum 5:1 across the surface ramp. */
+  --ink-4: oklch(37.2% 0.013 67); /* #453f39 —  1.92:1, non-text only */
+
+  /* ── Hairlines ────────────────────────────────────────────────────────────────────
+   * Hairlines carry STRUCTURE; shadows carry ELEVATION. Kept as alpha over the warm ink
+   * so they read correctly on every surface in the ramp without a per-surface variant. */
+  --line-soft: oklch(94.8% 0.0097 73 / 0.04);
+  --line: oklch(94.8% 0.0097 73 / 0.075);
+  --line-strong: oklch(94.8% 0.0097 73 / 0.15);
+  /* The rail's parent→child connector. Structurally a hairline, semantically a thread. */
+  --thread: oklch(94.8% 0.0097 73 / 0.16);
+
+  /* ── Accent — interactive and current state ONLY ──────────────────────────────────
+   * Deep teal. Maximally distant from the indigo/violet tell (74-90 degrees of hue away)
+   * and 54.7 degrees off running-green so the two never read as the same signal.
+   * If the accent starts appearing decoratively, the hierarchy is broken. */
+  --accent: oklch(70.3% 0.1092 202.7); /* #2fb3bd — 7.87:1 on --page */
+  --accent-hi: oklch(
+    82.7% 0.095 202.7
+  ); /* #74d9e1 — hover on an accent fill, and accent text */
+  --accent-lo: oklch(56% 0.09 202.7); /* #18848c — pressed */
+  --accent-ink: oklch(
+    18% 0.03 202.7
+  ); /* #001517 — text ON an accent fill, 7.42:1 */
+  --accent-tint: oklch(70.3% 0.1092 202.7 / 0.11); /* selected-row wash */
+  --accent-ring: oklch(
+    70.3% 0.1092 202.7 / 0.28
+  ); /* the ring on a selected row */
+
+  /* ── Status — a SEPARATE vocabulary that never collides with the accent ───────────
+   * Each also carries a SHAPE in the component layer: colour alone fails for colourblind
+   * users. Phase 2 emits running / idle / exited only; needs-you and drift are defined so
+   * Phase 3 does not invent a second amber and a second purple. */
+  --run: oklch(69.8% 0.1671 148); /* #43b95e — running, 7.90:1 */
+  --need: oklch(75.8% 0.137 75.8); /* #e2a33c — needs you (Phase 3+), 9.04:1 */
+  --fail: oklch(66.7% 0.183 32.3); /* #ef5f45 — failed, 6.06:1 */
+  --drift: oklch(72.7% 0.1378 316.7); /* #c98ae0 — drifting (Phase 3+) */
+  --run-tint: oklch(69.8% 0.1671 148 / 0.12);
+  --need-tint: oklch(75.8% 0.137 75.8 / 0.12);
+  --fail-tint: oklch(66.7% 0.183 32.3 / 0.12);
+  /* Neutral statuses retain distinct disc/square shapes as well as readable contrast. */
+  --idle: var(--ink-3);
+  --exited: var(--ink-3);
+
+  /* ── Radius: tied to element size, not one value everywhere ───────────────────────*/
+  --r-chip: 6px; /* status pills, kbd hints, the tiny mono badges */
+  --r-ctl: 8px; /* buttons, inputs, segmented controls, rail rows */
+  --r-card: 12px; /* cards, panes, tiles, popovers */
+  --r-window: 14px; /* the palette, modals — anything that reads as its own window */
+
+  /* ── Elevation: a 1px ring PLUS a layered shadow. Never a flat border. ─────────────
+   * Five steps. The ring is what makes the edge legible on a dark ground; the shadow is
+   * what places it in depth. Either alone looks wrong, which is the whole point. */
+  --e-hair: 0 0 0 1px var(--line);
+  --e-btn: 0 0 0 1px var(--line), 0 1px 1px oklch(0% 0 0 / 0.35);
+  --e-card:
+    0 0 0 1px var(--line), 0 1px 2px oklch(0% 0 0 / 0.4),
+    0 4px 12px oklch(0% 0 0 / 0.22);
+  --e-raised:
+    0 0 0 1px var(--line-strong), 0 2px 4px oklch(0% 0 0 / 0.45),
+    0 14px 36px oklch(0% 0 0 / 0.4);
+  --e-overlay:
+    0 0 0 1px var(--line-strong), 0 4px 8px oklch(0% 0 0 / 0.5),
+    0 30px 70px oklch(0% 0 0 / 0.6);
+  /* The backdrop behind a window-class overlay — the command palette, and any modal that
+   * follows it. Not in contract §5.3: it is here because Group D's shared shape §3B says a
+   * colour a component needs becomes a token rather than a raw colour function in that
+   * component's stylesheet, and task 23's `.pal-scrim` is the one that needs it. Pure black at
+   * 0.42 alpha, so it darkens the warm ramp without tinting it. Hue 0, chroma 0, so task 24's
+   * banned-arc audit over this file is unaffected. */
+  --scrim: oklch(0% 0 0 / 0.42);
+
+  /* ── Motion ───────────────────────────────────────────────────────────────────────
+   * One house curve on nearly every transition. Durations under 300ms.
+   * transform/opacity ONLY. Animating every property at once is banned — it animates
+   * layout properties by accident and forces a paint on every unrelated style change. */
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 260ms;
+  /* One global heartbeat (contract §7.1). Every live indicator shares this period AND its
+   * phase: the phase is aligned by a negative animation-delay from a shared epoch, not by
+   * hoping ten elements mounted on the same frame. */
+  --beat: 2400ms;
+
+  /* Inter's optical/weight axes support Fluid's stable-width selection feedback.
+   * The OFL-licensed font is bundled locally; terminal text stays monospace. */
+  --sans:
+    "Inter Variable", "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+  --mono:
+    "Cascadia Mono", ui-monospace, "SF Mono", Menlo, Consolas,
+    "DejaVu Sans Mono", monospace;
+
+  /* Live numbers — tokens, cost, elapsed, attach count — get tabular figures or the digits
+   * jitter and the interface reads cheap. Applied on <body> and inherited. */
+  --numeric: tabular-nums;
+  --control-pad-block: 10px;
+  --rail-row-pad-block: 7px;
+  --rail-row-min-size: 40px;
+  --field-min-size: 44px;
+  --project-row-padding: 22px;
+}
+
+/* Appearance is applied before app/auth mount. Each light token is chosen for
+ * readable contrast; status meanings never depend on the selected accent. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page: oklch(97.98% 0.00452 67);
+  --canvas: oklch(95.31% 0.00741 67);
+  --surface: oklch(100% 0 67);
+  --inset: oklch(92.61% 0.01035 67);
+  --hover: oklch(91.4% 0.01038 67);
+  --hover-2: oklch(88.17% 0.01272 67);
+  --field: oklch(100% 0 67);
+  --ink: oklch(25.99% 0.00745 67);
+  --ink-2: oklch(43.49% 0.01 67);
+  --ink-3: oklch(48.34% 0.01211 67);
+  --ink-4: oklch(74.97% 0.01568 67);
+  --line-soft: oklch(25.99% 0.00745 67 / 0.071);
+  --line: oklch(25.99% 0.00745 67 / 0.125);
+  --line-strong: oklch(25.99% 0.00745 67 / 0.271);
+  --thread: oklch(25.99% 0.00745 67 / 0.208);
+  --accent: oklch(47.52% 0.08117 205.12);
+  --accent-hi: oklch(42.07% 0.0721 206.81);
+  --accent-lo: oklch(36.97% 0.06305 204.22);
+  --accent-ink: oklch(100% 0 0);
+  --accent-tint: oklch(47.52% 0.08117 205.12 / 0.071);
+  --accent-ring: oklch(47.52% 0.08117 205.12 / 0.314);
+  --run: oklch(46.36% 0.10536 150.29);
+  --need: oklch(47.88% 0.10021 71.12);
+  --fail: oklch(50.4% 0.15984 28.39);
+  --run-tint: oklch(46.36% 0.10536 150.29 / 0.071);
+  --need-tint: oklch(47.88% 0.10021 71.12 / 0.071);
+  --fail-tint: oklch(50.4% 0.15984 28.39 / 0.071);
+  --e-btn: 0 0 0 1px var(--line), 0 1px 1px oklch(25.99% 0.00745 67 / 0.047);
+  --e-card:
+    0 0 0 1px var(--line), 0 4px 12px oklch(25.99% 0.00745 67 / 0.047);
+  --e-raised:
+    0 0 0 1px var(--line-strong),
+    0 12px 36px oklch(25.99% 0.00745 67 / 0.125);
+  --e-overlay:
+    0 0 0 1px var(--line-strong),
+    0 24px 70px oklch(25.99% 0.00745 67 / 0.188);
+}
+:root[data-accent="blue"] {
+  --accent: oklch(78.82% 0.10801 240);
+  --accent-hi: oklch(86.99% 0.06411 240);
+  --accent-lo: oklch(72.62% 0.12482 240);
+  --accent-ink: oklch(25.98% 0.05686 240);
+  --accent-tint: oklch(78.82% 0.10801 240 / 0.094);
+  --accent-ring: oklch(78.82% 0.10801 240 / 0.314);
+}
+:root[data-accent="rose"] {
+  --accent: oklch(79.54% 0.09068 20);
+  --accent-hi: oklch(87.06% 0.06253 20);
+  --accent-lo: oklch(72.09% 0.09692 20);
+  --accent-ink: oklch(25.34% 0.05771 20);
+  --accent-tint: oklch(79.54% 0.09068 20 / 0.094);
+  --accent-ring: oklch(79.54% 0.09068 20 / 0.314);
+}
+:root[data-theme="light"][data-accent="blue"] {
+  --accent: oklch(48.2% 0.13024 240);
+  --accent-hi: oklch(42.38% 0.11393 240);
+  --accent-lo: oklch(37.09% 0.10287 240);
+  --accent-ink: oklch(100% 0 240);
+  --accent-tint: oklch(48.2% 0.13024 240 / 0.071);
+  --accent-ring: oklch(48.2% 0.13024 240 / 0.314);
+}
+:root[data-theme="light"][data-accent="rose"] {
+  --accent: oklch(49.41% 0.14054 20);
+  --accent-hi: oklch(43.49% 0.12753 20);
+  --accent-lo: oklch(38.56% 0.11716 20);
+  --accent-ink: oklch(100% 0 20);
+  --accent-tint: oklch(49.41% 0.14054 20 / 0.071);
+  --accent-ring: oklch(49.41% 0.14054 20 / 0.314);
+}
+:root[data-density="compact"] {
+  --control-pad-block: 7px;
+  --rail-row-pad-block: 4px;
+  --rail-row-min-size: 32px;
+  --field-min-size: 36px;
+  --project-row-padding: 14px;
+}
+
+/* The floor. prefers-reduced-motion variants on everything, per docs/DESIGN-SYSTEM.md. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus rings are a designed element, not an accessibility afterthought: keyboard is a
+ * primary input here. :focus-visible only, so a mouse click never draws one. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--r-chip);
+}

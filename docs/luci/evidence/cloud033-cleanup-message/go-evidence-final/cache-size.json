@@ -1,0 +1,6 @@
+{
+  "path": "/tmp/luci-cloud033-go-cache",
+  "bytes": 341572775,
+  "recordedAt": "2026-10-08T22:34:27.511009+00:00",
+  "scope": "Dedicated task-owned recomputable Go build cache; not removed."
+}

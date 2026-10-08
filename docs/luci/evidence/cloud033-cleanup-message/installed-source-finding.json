@@ -1,0 +1,72 @@
+{
+  "sourcePath": "artifacts/quality-swarm/dependency-4df94ab9-helper-d6949ac1-attempt11/result/result.json",
+  "sourceReceipt": {
+    "sha256": "f9cb223610daba7d24e7795e0bc4598047515e86c7b70feb58481dbb3475e1f3",
+    "bytes": 912030
+  },
+  "exactProductCommit": "4df94ab9dad0e9fedd28a873bbadc56720e1402e",
+  "exactHelperCommit": "d6949ac18e4f72fc2dc286627dc5bddc4067e36d",
+  "findingScope": "Retained actual installed check outcome plus source-confirmed rendering. No new browser/Windows observation in this capsule.",
+  "check": {
+    "revision": 7,
+    "resourcesHeld": false,
+    "stage": "cleanup",
+    "id": "check-4d62db8779e121849ce2683d",
+    "projectId": "p-3ec3dfd4",
+    "commit": "7cd47dd709296df5a90411326b8de875935e81cd",
+    "dirty": false,
+    "execution": "docker",
+    "memoryMiB": 1024,
+    "cpuMillis": 1000,
+    "sourceDigest": "3d3afe7ad36efea304cf6ae1110189e5eeea02a6092e6521bc8725067a7c4080",
+    "sourceChanged": false,
+    "status": "passed",
+    "commands": [
+      {
+        "label": "node",
+        "executable": "node",
+        "args": [
+          "verify.mjs",
+          "final"
+        ],
+        "allocationId": "checkexec-0aeda4ff1ba6f1fea8c25448",
+        "stage": "cleanup",
+        "message": "The command exit and output were recorded; exact container cleanup is pending.",
+        "cleanupConfirmed": true,
+        "status": "passed",
+        "exitCode": 0,
+        "output": "DAG_CHECK_OK final\n",
+        "truncated": false
+      }
+    ],
+    "createdAt": "2026-10-08T22:13:58.343249448Z",
+    "updatedAt": "2026-10-08T22:14:27.842151105Z",
+    "message": "Commands finished with recorded exit codes and confirmed cleanup. This does not automatically verify completion criteria.",
+    "requirementIds": [
+      "AC-dag"
+    ],
+    "requirementSnapshots": [
+      {
+        "id": "AC-dag",
+        "title": "Reviewed dependency join",
+        "acceptance": "Only integrated current alpha and beta results release the join; preserve the conflicting prior beta workspace and require fresh integration review after target movement."
+      }
+    ],
+    "specificationRevision": 2,
+    "specificationDigest": "d93d07796dade7539ec4762c493ecd7e117836786813cabafcd2901a57656c81",
+    "designPlanRevision": 2,
+    "designPlanDigest": "2fc64be95a33b8b8fe849d710e232518ce7fdfe8d390942fbc56eb57656bbe63",
+    "evidenceStatus": "linked-test-evidence",
+    "staleReasons": [],
+    "approvalSelection": {
+      "specificationApprovalId": "approval-cb6e992cc4cc4bdd42083189",
+      "specificationRevision": 2,
+      "specificationDigest": "d93d07796dade7539ec4762c493ecd7e117836786813cabafcd2901a57656c81",
+      "designApprovalId": "approval-d5a695b796ab7bcd8fb977e3",
+      "designRevision": 2,
+      "designDigest": "2fc64be95a33b8b8fe849d710e232518ce7fdfe8d390942fbc56eb57656bbe63",
+      "briefDigest": "863cc398505b74e8c0b9108697e73103e09ad38b3fa29a1a87a63344152a8ea8",
+      "sketchDigest": "95b37b248651940c8288fe1f532db9f8a9230c5703e05e248a2b91da8e2dfe78"
+    }
+  }
+}

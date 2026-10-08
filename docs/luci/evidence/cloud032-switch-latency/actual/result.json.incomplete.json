@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "passed": false,
+  "status": "cleanup-incomplete",
+  "stage": "idle-baseline",
+  "at": "2026-10-08T22:27:17.985Z",
+  "preparationDeadlineMs": 60000,
+  "scenarioDeadlineMs": 210000,
+  "cleanupDeadlineMs": 120000,
+  "totalDeadlineMs": 390000,
+  "driver": {
+    "pid": 2031573,
+    "parentPid": 2031570,
+    "group": 2031570,
+    "session": 2031570,
+    "startTicks": 24434859
+  },
+  "controllers": [
+    {
+      "pid": 2031779,
+      "start": "24435303",
+      "group": 2031779,
+      "status": "R"
+    }
+  ],
+  "signal": null,
+  "failure": {
+    "locations": []
+  },
+  "controllersStopped": false,
+  "dockerRequestsDrained": false,
+  "dockerMutationStateCertain": false,
+  "workflowOperationUnsettled": false,
+  "startupResources": [
+    {
+      "name": "provider",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "proxy",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser-context",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser",
+      "closedByParent": false
+    },
+    {
+      "name": "browser-page",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser-context",
+      "closedByParent": false
+    }
+  ],
+  "originalReceiptComplete": false
+}

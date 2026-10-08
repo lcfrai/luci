@@ -1,0 +1,977 @@
+TAP version 13
+# Subtest: command digest retains the pinned Go contract and HTML escaping golden
+ok 1 - command digest retains the pinned Go contract and HTML escaping golden
+  ---
+  duration_ms: 3.961112
+  type: 'test'
+  ...
+# Subtest: admits the exact check and leaves its input and full ledger unchanged
+ok 2 - admits the exact check and leaves its input and full ledger unchanged
+  ---
+  duration_ms: 8.594448
+  type: 'test'
+  ...
+# Subtest: both separately consented projects remain in the full ledger and consume capacity once each
+ok 3 - both separately consented projects remain in the full ledger and consume capacity once each
+  ---
+  duration_ms: 5.262354
+  type: 'test'
+  ...
+# Subtest: refuses wrong Docker memory
+ok 4 - refuses wrong Docker memory
+  ---
+  duration_ms: 2.350784
+  type: 'test'
+  ...
+# Subtest: refuses wrong Docker CPU
+ok 5 - refuses wrong Docker CPU
+  ---
+  duration_ms: 2.24816
+  type: 'test'
+  ...
+# Subtest: refuses unlimited swap
+ok 6 - refuses unlimited swap
+  ---
+  duration_ms: 1.66486
+  type: 'test'
+  ...
+# Subtest: refuses wrong receipt memory
+ok 7 - refuses wrong receipt memory
+  ---
+  duration_ms: 1.199829
+  type: 'test'
+  ...
+# Subtest: refuses wrong ledger resources
+ok 8 - refuses wrong ledger resources
+  ---
+  duration_ms: 2.231675
+  type: 'test'
+  ...
+# Subtest: refuses wrong allocation owner
+ok 9 - refuses wrong allocation owner
+  ---
+  duration_ms: 4.787157
+  type: 'test'
+  ...
+# Subtest: refuses wrong owner project
+ok 10 - refuses wrong owner project
+  ---
+  duration_ms: 1.585581
+  type: 'test'
+  ...
+# Subtest: refuses wrong outer scope
+ok 11 - refuses wrong outer scope
+  ---
+  duration_ms: 1.186369
+  type: 'test'
+  ...
+# Subtest: refuses wrong identity scope
+ok 12 - refuses wrong identity scope
+  ---
+  duration_ms: 1.249284
+  type: 'test'
+  ...
+# Subtest: refuses wrong engine
+ok 13 - refuses wrong engine
+  ---
+  duration_ms: 0.942922
+  type: 'test'
+  ...
+# Subtest: refuses wrong instance
+ok 14 - refuses wrong instance
+  ---
+  duration_ms: 0.956432
+  type: 'test'
+  ...
+# Subtest: refuses wrong check identity
+ok 15 - refuses wrong check identity
+  ---
+  duration_ms: 1.063002
+  type: 'test'
+  ...
+# Subtest: refuses wrong allocation identity
+ok 16 - refuses wrong allocation identity
+  ---
+  duration_ms: 3.298113
+  type: 'test'
+  ...
+# Subtest: refuses wrong command index
+ok 17 - refuses wrong command index
+  ---
+  duration_ms: 0.545753
+  type: 'test'
+  ...
+# Subtest: refuses wrong command digest
+ok 18 - refuses wrong command digest
+  ---
+  duration_ms: 0.805936
+  type: 'test'
+  ...
+# Subtest: refuses wrong label identity
+ok 19 - refuses wrong label identity
+  ---
+  duration_ms: 0.880417
+  type: 'test'
+  ...
+# Subtest: refuses missing product consent
+ok 20 - refuses missing product consent
+  ---
+  duration_ms: 0.833767
+  type: 'test'
+  ...
+# Subtest: refuses receipt without held resources
+ok 21 - refuses receipt without held resources
+  ---
+  duration_ms: 0.91551
+  type: 'test'
+  ...
+# Subtest: refuses duplicate selected allocation
+ok 22 - refuses duplicate selected allocation
+  ---
+  duration_ms: 0.61635
+  type: 'test'
+  ...
+# Subtest: refuses extra worker claim
+ok 23 - refuses extra worker claim
+  ---
+  duration_ms: 0.433353
+  type: 'test'
+  ...
+# Subtest: refuses third active check
+ok 24 - refuses third active check
+  ---
+  duration_ms: 9.456928
+  type: 'test'
+  ...
+# Subtest: refuses unacknowledged disk demand removed
+ok 25 - refuses unacknowledged disk demand removed
+  ---
+  duration_ms: 1.224947
+  type: 'test'
+  ...
+# Subtest: refuses unverified storage driver
+ok 26 - refuses unverified storage driver
+  ---
+  duration_ms: 0.921489
+  type: 'test'
+  ...
+# Subtest: refuses created lease reused for Create
+ok 27 - refuses created lease reused for Create
+  ---
+  duration_ms: 0.774949
+  type: 'test'
+  ...
+# Subtest: refuses future ledger timestamp
+ok 28 - refuses future ledger timestamp
+  ---
+  duration_ms: 1.491418
+  type: 'test'
+  ...
+# Subtest: refuses extra command
+ok 29 - refuses extra command
+  ---
+  duration_ms: 0.977775
+  type: 'test'
+  ...
+# Subtest: refuses extra environment
+ok 30 - refuses extra environment
+  ---
+  duration_ms: 1.078927
+  type: 'test'
+  ...
+# Subtest: refuses extra writable mount
+ok 31 - refuses extra writable mount
+  ---
+  duration_ms: 1.367422
+  type: 'test'
+  ...
+# Subtest: refuses host network
+ok 32 - refuses host network
+  ---
+  duration_ms: 1.05483
+  type: 'test'
+  ...
+# Subtest: refuses privileged container
+ok 33 - refuses privileged container
+  ---
+  duration_ms: 0.958595
+  type: 'test'
+  ...
+# Subtest: refuses wrong source commit
+ok 34 - refuses wrong source commit
+  ---
+  duration_ms: 2.811098
+  type: 'test'
+  ...
+# Subtest: same-target symlink source is refused after its digest is rebound
+ok 35 - same-target symlink source is refused after its digest is rebound
+  ---
+  duration_ms: 1.231697
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with foreign actor
+ok 36 - full ledger refuses a witness with foreign actor
+  ---
+  duration_ms: 1.037344
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with actor project mismatch
+ok 37 - full ledger refuses a witness with actor project mismatch
+  ---
+  duration_ms: 0.674096
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with identity scope mismatch
+ok 38 - full ledger refuses a witness with identity scope mismatch
+  ---
+  duration_ms: 0.699043
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with allocation ID mismatch
+ok 39 - full ledger refuses a witness with allocation ID mismatch
+  ---
+  duration_ms: 1.016202
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with unsupported protocol
+ok 40 - full ledger refuses a witness with unsupported protocol
+  ---
+  duration_ms: 1.711811
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with unexpected command index
+ok 41 - full ledger refuses a witness with unexpected command index
+  ---
+  duration_ms: 1.35297
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with wrong resources
+ok 42 - full ledger refuses a witness with wrong resources
+  ---
+  duration_ms: 3.975314
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with missing pending image-copy demand
+ok 43 - full ledger refuses a witness with missing pending image-copy demand
+  ---
+  duration_ms: 1.424288
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with zero pending image-copy demand
+ok 44 - full ledger refuses a witness with zero pending image-copy demand
+  ---
+  duration_ms: 1.41905
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with negative pending image-copy demand
+ok 45 - full ledger refuses a witness with negative pending image-copy demand
+  ---
+  duration_ms: 1.092928
+  type: 'test'
+  ...
+# Subtest: full ledger refuses a witness with unconsented identity
+ok 46 - full ledger refuses a witness with unconsented identity
+  ---
+  duration_ms: 1.291117
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses stale host sample
+ok 47 - capacity guard refuses stale host sample
+  ---
+  duration_ms: 2.578688
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses stale execution sample
+ok 48 - capacity guard refuses stale execution sample
+  ---
+  duration_ms: 1.407091
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses future reservation sample
+ok 49 - capacity guard refuses future reservation sample
+  ---
+  duration_ms: 1.489346
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses missing witness count
+ok 50 - capacity guard refuses missing witness count
+  ---
+  duration_ms: 1.35988
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses missing witness memory
+ok 51 - capacity guard refuses missing witness memory
+  ---
+  duration_ms: 1.1872
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses missing witness CPU
+ok 52 - capacity guard refuses missing witness CPU
+  ---
+  duration_ms: 1.32641
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses one byte below shared host headroom
+ok 53 - capacity guard refuses one byte below shared host headroom
+  ---
+  duration_ms: 1.914156
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses insufficient shared CPU
+ok 54 - capacity guard refuses insufficient shared CPU
+  ---
+  duration_ms: 0.957113
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses one byte below both pending image copies plus disk reserve
+ok 55 - capacity guard refuses one byte below both pending image copies plus disk reserve
+  ---
+  duration_ms: 0.700566
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses unenforced memory limits
+ok 56 - capacity guard refuses unenforced memory limits
+  ---
+  duration_ms: 1.623278
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses unenforced swap limits
+ok 57 - capacity guard refuses unenforced swap limits
+  ---
+  duration_ms: 3.095286
+  type: 'test'
+  ...
+# Subtest: capacity guard refuses unexpected worker charge
+ok 58 - capacity guard refuses unexpected worker charge
+  ---
+  duration_ms: 1.435084
+  type: 'test'
+  ...
+# Subtest: unchanged reservation snapshot retains its old last-mutation timestamp with fresh host observations
+ok 59 - unchanged reservation snapshot retains its old last-mutation timestamp with fresh host observations
+  ---
+  duration_ms: 0.803581
+  type: 'test'
+  ...
+# Subtest: current-public visibility accepts exact fresh charged and released totals without mutation
+ok 60 - current-public visibility accepts exact fresh charged and released totals without mutation
+  ---
+  duration_ms: 0.673455
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses absent
+ok 61 - current-public visibility refuses absent
+  ---
+  duration_ms: 0.413033
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses unavailable
+ok 62 - current-public visibility refuses unavailable
+  ---
+  duration_ms: 0.313923
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses legacy
+ok 63 - current-public visibility refuses legacy
+  ---
+  duration_ms: 0.253091
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses false-zero
+ok 64 - current-public visibility refuses false-zero
+  ---
+  duration_ms: 0.211368
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses stale
+ok 65 - current-public visibility refuses stale
+  ---
+  duration_ms: 0.262496
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses future
+ok 66 - current-public visibility refuses future
+  ---
+  duration_ms: 0.474255
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses invalid-time
+ok 67 - current-public visibility refuses invalid-time
+  ---
+  duration_ms: 0.383298
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses missing-cpu
+ok 68 - current-public visibility refuses missing-cpu
+  ---
+  duration_ms: 0.257949
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses negative-memory
+ok 69 - current-public visibility refuses negative-memory
+  ---
+  duration_ms: 0.147052
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses fractional-count
+ok 70 - current-public visibility refuses fractional-count
+  ---
+  duration_ms: 0.344099
+  type: 'test'
+  ...
+# Subtest: current-public visibility refuses string-count
+ok 71 - current-public visibility refuses string-count
+  ---
+  duration_ms: 0.435727
+  type: 'test'
+  ...
+# Subtest: installed CLI accepts explicit public visibility flag and preserves baseline help without runtime
+ok 72 - installed CLI accepts explicit public visibility flag and preserves baseline help without runtime
+  ---
+  duration_ms: 47.91289
+  type: 'test'
+  ...
+# fatal: path 'scripts/acceptance/check-create-recovery/installed-recovery.mjs' exists on disk, but not in '0000000000000000000000000000000000000000'
+# Subtest: binding contract names exactly eleven frozen executed helper sources
+ok 73 - binding contract names exactly eleven frozen executed helper sources
+  ---
+  duration_ms: 1.962659
+  type: 'test'
+  ...
+# Subtest: binding accepts exact ordinary local bytes from the explicit committed helper and returns the manifest
+ok 74 - binding accepts exact ordinary local bytes from the explicit committed helper and returns the manifest
+  ---
+  duration_ms: 51.28285
+  type: 'test'
+  ...
+# Subtest: binding permits a complete manifest in a different row order
+ok 75 - binding permits a complete manifest in a different row order
+  ---
+  duration_ms: 48.440875
+  type: 'test'
+  ...
+# Subtest: binding verifies the selected commit rather than silently substituting current HEAD
+ok 76 - binding verifies the selected commit rather than silently substituting current HEAD
+  ---
+  duration_ms: 61.940905
+  type: 'test'
+  ...
+# Subtest: binding rejects missing source row
+ok 77 - binding rejects missing source row
+  ---
+  duration_ms: 5.019928
+  type: 'test'
+  ...
+# Subtest: binding rejects duplicate source replacing a required row
+ok 78 - binding rejects duplicate source replacing a required row
+  ---
+  duration_ms: 2.758178
+  type: 'test'
+  ...
+# Subtest: binding rejects extra duplicate source row
+ok 79 - binding rejects extra duplicate source row
+  ---
+  duration_ms: 4.274645
+  type: 'test'
+  ...
+# Subtest: binding rejects foreign source replacing a required row
+ok 80 - binding rejects foreign source replacing a required row
+  ---
+  duration_ms: 3.144341
+  type: 'test'
+  ...
+# Subtest: binding rejects extra foreign source row
+ok 81 - binding rejects extra foreign source row
+  ---
+  duration_ms: 4.237559
+  type: 'test'
+  ...
+# Subtest: binding rejects relative traversal source path
+ok 82 - binding rejects relative traversal source path
+  ---
+  duration_ms: 2.406198
+  type: 'test'
+  ...
+# Subtest: binding rejects absolute source path
+ok 83 - binding rejects absolute source path
+  ---
+  duration_ms: 3.962805
+  type: 'test'
+  ...
+# Subtest: binding rejects noncanonical equivalent source path
+ok 84 - binding rejects noncanonical equivalent source path
+  ---
+  duration_ms: 3.677626
+  type: 'test'
+  ...
+# Subtest: binding rejects null source row
+ok 85 - binding rejects null source row
+  ---
+  duration_ms: 2.856717
+  type: 'test'
+  ...
+# Subtest: binding rejects string source row
+ok 86 - binding rejects string source row
+  ---
+  duration_ms: 2.081658
+  type: 'test'
+  ...
+# Subtest: binding rejects missing executedFiles
+ok 87 - binding rejects missing executedFiles
+  ---
+  duration_ms: 3.985128
+  type: 'test'
+  ...
+# Subtest: binding rejects object instead of executedFiles array
+ok 88 - binding rejects object instead of executedFiles array
+  ---
+  duration_ms: 4.109887
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong repository path
+ok 89 - binding rejects wrong repository path
+  ---
+  duration_ms: 1.829468
+  type: 'test'
+  ...
+# Subtest: binding rejects missing repository path
+ok 90 - binding rejects missing repository path
+  ---
+  duration_ms: 2.490735
+  type: 'test'
+  ...
+# Subtest: binding rejects incorrect byte count
+ok 91 - binding rejects incorrect byte count
+  ---
+  duration_ms: 3.453327
+  type: 'test'
+  ...
+# Subtest: binding rejects string byte count
+ok 92 - binding rejects string byte count
+  ---
+  duration_ms: 2.517365
+  type: 'test'
+  ...
+# Subtest: binding rejects negative byte count
+ok 93 - binding rejects negative byte count
+  ---
+  duration_ms: 1.94999
+  type: 'test'
+  ...
+# Subtest: binding rejects missing digest
+ok 94 - binding rejects missing digest
+  ---
+  duration_ms: 2.76598
+  type: 'test'
+  ...
+# Subtest: binding rejects malformed digest
+ok 95 - binding rejects malformed digest
+  ---
+  duration_ms: 2.143582
+  type: 'test'
+  ...
+# Subtest: binding rejects uppercase digest
+ok 96 - binding rejects uppercase digest
+  ---
+  duration_ms: 1.653764
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong ordinary digest
+ok 97 - binding rejects wrong ordinary digest
+  ---
+  duration_ms: 2.605569
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong source root
+ok 98 - binding rejects wrong source root
+  ---
+  duration_ms: 1.756268
+  type: 'test'
+  ...
+# Subtest: binding rejects unsupported version
+ok 99 - binding rejects unsupported version
+  ---
+  duration_ms: 1.757991
+  type: 'test'
+  ...
+# Subtest: binding rejects string version
+ok 100 - binding rejects string version
+  ---
+  duration_ms: 1.820695
+  type: 'test'
+  ...
+# Subtest: binding rejects manifest helper different from CLI helper
+ok 101 - binding rejects manifest helper different from CLI helper
+  ---
+  duration_ms: 2.058113
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong product pin
+ok 102 - binding rejects wrong product pin
+  ---
+  duration_ms: 2.79936
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong historical helper pin
+ok 103 - binding rejects wrong historical helper pin
+  ---
+  duration_ms: 1.725021
+  type: 'test'
+  ...
+# Subtest: binding rejects wrong image pin
+ok 104 - binding rejects wrong image pin
+  ---
+  duration_ms: 1.906765
+  type: 'test'
+  ...
+# Subtest: binding rejects extra pin
+ok 105 - binding rejects extra pin
+  ---
+  duration_ms: 2.305817
+  type: 'test'
+  ...
+# Subtest: binding rejects missing pins
+ok 106 - binding rejects missing pins
+  ---
+  duration_ms: 1.813364
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit HEAD
+ok 107 - binding refuses a nonexact CLI helper commit HEAD
+  ---
+  duration_ms: 2.092074
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ok 108 - binding refuses a nonexact CLI helper commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  ---
+  duration_ms: 1.189834
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+ok 109 - binding refuses a nonexact CLI helper commit AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+  ---
+  duration_ms: 1.384968
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ok 110 - binding refuses a nonexact CLI helper commit aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  ---
+  duration_ms: 1.520392
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit 
+ok 111 - binding refuses a nonexact CLI helper commit 
+  ---
+  duration_ms: 1.589437
+  type: 'test'
+  ...
+# Subtest: binding refuses a nonexact CLI helper commit undefined
+ok 112 - binding refuses a nonexact CLI helper commit undefined
+  ---
+  duration_ms: 1.593923
+  type: 'test'
+  ...
+# Subtest: binding refuses an unavailable exact helper commit even when the manifest agrees with the CLI
+ok 113 - binding refuses an unavailable exact helper commit even when the manifest agrees with the CLI
+  ---
+  duration_ms: 7.796765
+  type: 'test'
+  ...
+# Subtest: binding rejects tampered local helper bytes at unchanged byte length
+ok 114 - binding rejects tampered local helper bytes at unchanged byte length
+  ---
+  duration_ms: 2.263933
+  type: 'test'
+  ...
+# Subtest: binding rejects local bytes and manifest hashes rewritten together because selected committed bytes differ
+ok 115 - binding rejects local bytes and manifest hashes rewritten together because selected committed bytes differ
+  ---
+  duration_ms: 6.157253
+  type: 'test'
+  ...
+# Subtest: binding rejects a selected newer commit with changed source even when local bytes and manifest retain the old source
+ok 116 - binding rejects a selected newer commit with changed source even when local bytes and manifest retain the old source
+  ---
+  duration_ms: 19.954571
+  type: 'test'
+  ...
+# Subtest: binding rejects a missing executed source file
+ok 117 - binding rejects a missing executed source file
+  ---
+  duration_ms: 2.18245
+  type: 'test'
+  ...
+# Subtest: binding rejects a directory in place of an executed source file
+ok 118 - binding rejects a directory in place of an executed source file
+  ---
+  duration_ms: 9.780026
+  type: 'test'
+  ...
+# Subtest: binding rejects a source symlink even when it resolves to the exact committed bytes
+ok 119 - binding rejects a source symlink even when it resolves to the exact committed bytes
+  ---
+  duration_ms: 2.2878
+  type: 'test'
+  ...
+# Subtest: binding rejects a multiply linked ordinary source file
+ok 120 - binding rejects a multiply linked ordinary source file
+  ---
+  duration_ms: 2.232356
+  type: 'test'
+  ...
+# Subtest: binding rejects a linked parent directory of an executed source
+ok 121 - binding rejects a linked parent directory of an executed source
+  ---
+  duration_ms: 1.629377
+  type: 'test'
+  ...
+# Subtest: binding rejects a foreign acceptance root containing all the same ordinary bytes
+ok 122 - binding rejects a foreign acceptance root containing all the same ordinary bytes
+  ---
+  duration_ms: 2.585118
+  type: 'test'
+  ...
+# Subtest: binding rejects a symlinked acceptance root even if the caller supplies its canonical outside target
+ok 123 - binding rejects a symlinked acceptance root even if the caller supplies its canonical outside target
+  ---
+  duration_ms: 1.450938
+  type: 'test'
+  ...
+# Subtest: binding rejects a symlinked acceptance root when passed by its linked path
+ok 124 - binding rejects a symlinked acceptance root when passed by its linked path
+  ---
+  duration_ms: 1.660284
+  type: 'test'
+  ...
+# Subtest: binding rejects a direct manifest symlink
+ok 125 - binding rejects a direct manifest symlink
+  ---
+  duration_ms: 1.775747
+  type: 'test'
+  ...
+# Subtest: binding rejects an ordinary manifest reached through a symlinked parent directory
+ok 126 - binding rejects an ordinary manifest reached through a symlinked parent directory
+  ---
+  duration_ms: 1.802408
+  type: 'test'
+  ...
+# Subtest: binding rejects a multiply linked ordinary manifest
+ok 127 - binding rejects a multiply linked ordinary manifest
+  ---
+  duration_ms: 2.20834
+  type: 'test'
+  ...
+# Subtest: binding rejects a directory in place of the manifest
+ok 128 - binding rejects a directory in place of the manifest
+  ---
+  duration_ms: 2.046506
+  type: 'test'
+  ...
+# Subtest: binding rejects a missing manifest
+ok 129 - binding rejects a missing manifest
+  ---
+  duration_ms: 1.736348
+  type: 'test'
+  ...
+# Subtest: binding rejects a malformed JSON manifest
+ok 130 - binding rejects a malformed JSON manifest
+  ---
+  duration_ms: 2.289772
+  type: 'test'
+  ...
+# Subtest: binding rejects a null JSON manifest
+ok 131 - binding rejects a null JSON manifest
+  ---
+  duration_ms: 1.652661
+  type: 'test'
+  ...
+# Subtest: binding rejects an oversized ordinary manifest before reading its otherwise valid content
+ok 132 - binding rejects an oversized ordinary manifest before reading its otherwise valid content
+  ---
+  duration_ms: 41.062281
+  type: 'test'
+  ...
+# Subtest: synthetic default flow proves preserved completed history and one-to-zero charge release, then awaits adapter closure
+ok 133 - synthetic default flow proves preserved completed history and one-to-zero charge release, then awaits adapter closure
+  ---
+  duration_ms: 9.182114
+  type: 'test'
+  ...
+# Subtest: synthetic charged-witness flow holds the unrelated request through exact target retirement and releases it once
+ok 134 - synthetic charged-witness flow holds the unrelated request through exact target retirement and releases it once
+  ---
+  duration_ms: 6.166367
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects missing history after Read and dismiss
+ok 135 - synthetic flow rejects missing history after Read and dismiss
+  ---
+  duration_ms: 3.4757
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed history output after Read and dismiss
+ok 136 - synthetic flow rejects changed history output after Read and dismiss
+  ---
+  duration_ms: 1.308893
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed source after Read and dismiss
+ok 137 - synthetic flow rejects changed source after Read and dismiss
+  ---
+  duration_ms: 1.125707
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects unexpected Docker mutation after Read and dismiss
+ok 138 - synthetic flow rejects unexpected Docker mutation after Read and dismiss
+  ---
+  duration_ms: 1.147911
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects missing history after No current Edit authority
+ok 139 - synthetic flow rejects missing history after No current Edit authority
+  ---
+  duration_ms: 1.59814
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed history output after No current Edit authority
+ok 140 - synthetic flow rejects changed history output after No current Edit authority
+  ---
+  duration_ms: 1.096453
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed source after No current Edit authority
+ok 141 - synthetic flow rejects changed source after No current Edit authority
+  ---
+  duration_ms: 1.178998
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects unexpected Docker mutation after No current Edit authority
+ok 142 - synthetic flow rejects unexpected Docker mutation after No current Edit authority
+  ---
+  duration_ms: 2.82508
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects missing history after Stale reviewed revision
+ok 143 - synthetic flow rejects missing history after Stale reviewed revision
+  ---
+  duration_ms: 1.214712
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed history output after Stale reviewed revision
+ok 144 - synthetic flow rejects changed history output after Stale reviewed revision
+  ---
+  duration_ms: 1.095482
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects changed source after Stale reviewed revision
+ok 145 - synthetic flow rejects changed source after Stale reviewed revision
+  ---
+  duration_ms: 0.587345
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects unexpected Docker mutation after Stale reviewed revision
+ok 146 - synthetic flow rejects unexpected Docker mutation after Stale reviewed revision
+  ---
+  duration_ms: 0.643741
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects a second target Create
+ok 147 - synthetic flow rejects a second target Create
+  ---
+  duration_ms: 1.138016
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects a target Start
+ok 148 - synthetic flow rejects a target Start
+  ---
+  duration_ms: 0.823591
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects history deletion during successful recovery
+ok 149 - synthetic flow rejects history deletion during successful recovery
+  ---
+  duration_ms: 0.690421
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects source modification during successful recovery
+ok 150 - synthetic flow rejects source modification during successful recovery
+  ---
+  duration_ms: 1.004985
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects multiple browser recovery posts
+ok 151 - synthetic flow rejects multiple browser recovery posts
+  ---
+  duration_ms: 1.686532
+  type: 'test'
+  ...
+# Subtest: synthetic flow rejects a mismatched reviewed digest
+ok 152 - synthetic flow rejects a mismatched reviewed digest
+  ---
+  duration_ms: 0.569679
+  type: 'test'
+  ...
+# Subtest: synthetic charged-witness flow rejects changing the other active charge during target recovery
+ok 153 - synthetic charged-witness flow rejects changing the other active charge during target recovery
+  ---
+  duration_ms: 0.944394
+  type: 'test'
+  ...
+# Subtest: synthetic charged-witness flow rechecks history after the unrelated request finishes
+ok 154 - synthetic charged-witness flow rechecks history after the unrelated request finishes
+  ---
+  duration_ms: 3.735242
+  type: 'test'
+  ...
+# Subtest: synthetic flow refuses completion if the permanent marker disappears after retirement proof
+ok 155 - synthetic flow refuses completion if the permanent marker disappears after retirement proof
+  ---
+  duration_ms: 6.819371
+  type: 'test'
+  ...
+# Subtest: synthetic flow requires the explicit runtime-window gate before any adapter action
+ok 156 - synthetic flow requires the explicit runtime-window gate before any adapter action
+  ---
+  duration_ms: 0.340583
+  type: 'test'
+  ...
+# Subtest: synthetic flow accepts an explicitly selected exact product source while retaining helper and image pins
+ok 157 - synthetic flow accepts an explicitly selected exact product source while retaining helper and image pins
+  ---
+  duration_ms: 0.998315
+  type: 'test'
+  ...
+# Subtest: synthetic flow refuses unselected product before adapter actions
+ok 158 - synthetic flow refuses unselected product before adapter actions
+  ---
+  duration_ms: 1.574634
+  type: 'test'
+  ...
+# Subtest: synthetic flow refuses mismatched selected product before adapter actions
+ok 159 - synthetic flow refuses mismatched selected product before adapter actions
+  ---
+  duration_ms: 0.215545
+  type: 'test'
+  ...
+# Subtest: synthetic flow refuses changed runtime image before adapter actions
+ok 160 - synthetic flow refuses changed runtime image before adapter actions
+  ---
+  duration_ms: 0.39181
+  type: 'test'
+  ...
+# Subtest: synthetic flow refuses changed helper baseline before adapter actions
+ok 161 - synthetic flow refuses changed helper baseline before adapter actions
+  ---
+  duration_ms: 0.354184
+  type: 'test'
+  ...
+1..161
+# tests 161
+# suites 0
+# pass 161
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1014.375017

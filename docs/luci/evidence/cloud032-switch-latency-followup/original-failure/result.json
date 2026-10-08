@@ -1,0 +1,44 @@
+{
+  "baseCommit": "9121b5bab09df5827efa291026ed842253256842",
+  "inputs": 434,
+  "unchanged": true,
+  "commands": [
+    {
+      "name": "full-frontend",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--maxWorkers=1",
+        "--no-file-parallelism",
+        "--reporter=json",
+        "--outputFile=/workspace/luci/artifacts/quality-swarm/integrated-cleanup-ui-20261008T2242Z/vitest.json"
+      ],
+      "startedAt": "2026-10-08T22:40:51.149238+00:00",
+      "elapsedSeconds": 447.1829807909962,
+      "exitCode": 0,
+      "error": null
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "startedAt": "2026-10-08T22:48:18.332998+00:00",
+      "elapsedSeconds": 21.334701609011972,
+      "exitCode": 2,
+      "error": null
+    }
+  ],
+  "vitest": {
+    "numTotalTests": 2713,
+    "numPassedTests": 2713,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTotalTestSuites": 264,
+    "success": true
+  },
+  "failedTests": []
+}

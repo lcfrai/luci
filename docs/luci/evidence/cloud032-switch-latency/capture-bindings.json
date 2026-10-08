@@ -1,0 +1,835 @@
+{
+  "version": 1,
+  "capturedAt": "2026-10-08T22:38:21.371018+00:00",
+  "originalFailedCapsule": "docs/luci/evidence/cloud031-sustained-4df94ab9-attempt3",
+  "files": [
+    {
+      "path": "analysis/analysis.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/analysis.json",
+      "sourceSHA256": "0a2c5c6e90abefa4ea7e96b5c455c0e4ca562a7366b3c8ee62fe564ca3754996",
+      "sourceBytes": 30936,
+      "sha256": "0a2c5c6e90abefa4ea7e96b5c455c0e4ca562a7366b3c8ee62fe564ca3754996",
+      "bytes": 30936,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "analysis/analyze.py",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/analyze.py",
+      "sourceSHA256": "708e9638ec27b0452cabdfa3626f58b7374273805e4a2c8f85d991fb51c91b08",
+      "sourceBytes": 6740,
+      "sha256": "708e9638ec27b0452cabdfa3626f58b7374273805e4a2c8f85d991fb51c91b08",
+      "bytes": 6740,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "analysis/analyze-pair.py",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/analyze-pair.py",
+      "sourceSHA256": "55b6c93967386a0d97961ca0630344d834e1a9e52034811c0a8f5f6a607bfdc3",
+      "sourceBytes": 10465,
+      "sha256": "55b6c93967386a0d97961ca0630344d834e1a9e52034811c0a8f5f6a607bfdc3",
+      "bytes": 10465,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "analysis/read-only-review.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/read-only-review.json",
+      "sourceSHA256": "55a7914f39f58fc0b59ed98030601e85000bdb29bd749f7512654845cdd38f60",
+      "sourceBytes": 1410,
+      "sha256": "55a7914f39f58fc0b59ed98030601e85000bdb29bd749f7512654845cdd38f60",
+      "bytes": 1410,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "analysis/comparison.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/pair-analysis/comparison.json",
+      "sourceSHA256": "0e7fc4e43425aafa204077d58376729ce85ff540bec5db913871530e516eb9a6",
+      "sourceBytes": 148851,
+      "sha256": "0e7fc4e43425aafa204077d58376729ce85ff540bec5db913871530e516eb9a6",
+      "bytes": 148851,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "analysis/independent-closure.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/pair-analysis/independent-closure.json",
+      "sourceSHA256": "06d7c21262152157da3725b43ffad32248309e94cacb7773ebd189edd4e2cb13",
+      "sourceBytes": 427,
+      "sha256": "06d7c21262152157da3725b43ffad32248309e94cacb7773ebd189edd4e2cb13",
+      "bytes": 427,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/result.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1/result.json",
+      "sourceSHA256": "ed5cd4d8c2dc75a13f085642537e43aa8d326909ca56bac6c798a56fb9e8127b",
+      "sourceBytes": 3186511,
+      "sha256": "05099d76c0cf53b1921d7f33f2b49879d6adadd71ad709932633e294ff55f440",
+      "bytes": 168895,
+      "encoding": "gzip-verbatim"
+    },
+    {
+      "path": "static/invocation.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1-invocation.json",
+      "sourceSHA256": "547709be1ae6a814bd075884f9fbe022a45d4dbd5fe934667a7493c9d7548d57",
+      "sourceBytes": 579,
+      "sha256": "547709be1ae6a814bd075884f9fbe022a45d4dbd5fe934667a7493c9d7548d57",
+      "bytes": 579,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/stdout.txt",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1.stdout",
+      "sourceSHA256": "0fd9e63a7208d8f57b3c1b059d7c3f81af1ff9d54d9cc0f04480b77f30787a99",
+      "sourceBytes": 1290,
+      "sha256": "0fd9e63a7208d8f57b3c1b059d7c3f81af1ff9d54d9cc0f04480b77f30787a99",
+      "bytes": 1290,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/stderr.txt",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/accepted-harness/control.html",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1/accepted-harness/control.html",
+      "sourceSHA256": "c5fa7ffb694ed0a76cc6446745c7848249d242994a21da9727857568b138e1af",
+      "sourceBytes": 2286,
+      "sha256": "c5fa7ffb694ed0a76cc6446745c7848249d242994a21da9727857568b138e1af",
+      "bytes": 2286,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/accepted-harness/acceptance-lifecycle.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1/accepted-harness/acceptance-lifecycle.mjs",
+      "sourceSHA256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "sourceBytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/accepted-harness/interaction-metrics.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1/accepted-harness/interaction-metrics.mjs",
+      "sourceSHA256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "sourceBytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "bytes": 9846,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/accepted-harness/acceptance-startup.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1/accepted-harness/acceptance-startup.mjs",
+      "sourceSHA256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "sourceBytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/accepted-harness/owners.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1/accepted-harness/owners.json",
+      "sourceSHA256": "e76e744da68f0a904c35ef9f32b844bc026551844ee7ba01d25c8cad7f09c35a",
+      "sourceBytes": 708,
+      "sha256": "e76e744da68f0a904c35ef9f32b844bc026551844ee7ba01d25c8cad7f09c35a",
+      "bytes": 708,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/accepted-harness/control.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1/accepted-harness/control.mjs",
+      "sourceSHA256": "b9581cc3460ca4034025906f9b0afa7fe4f2852ed5346263395846f3d04a1f98",
+      "sourceBytes": 12200,
+      "sha256": "b9581cc3460ca4034025906f9b0afa7fe4f2852ed5346263395846f3d04a1f98",
+      "bytes": 12200,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/accepted-harness/latency-diagnostics.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1/accepted-harness/latency-diagnostics.mjs",
+      "sourceSHA256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "sourceBytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "bytes": 7545,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/measurements-before-cleanup.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1/measurements-before-cleanup.json",
+      "sourceSHA256": "89ded63005c6c8406d828d798f3f60c391858c7b94b4e88d1c40de8495163849",
+      "sourceBytes": 3181599,
+      "sha256": "9f48ee5a1ed49ec2711585f125135e88d977d1b8ad9431131adc13723189012b",
+      "bytes": 168278,
+      "encoding": "gzip-verbatim"
+    },
+    {
+      "path": "static/cleanup-checkpoint.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1/cleanup-checkpoint.json",
+      "sourceSHA256": "71cab4733c154711de22dc5a04aa5d8961c6e6267dd7d2bb07b329112311993f",
+      "sourceBytes": 747,
+      "sha256": "71cab4733c154711de22dc5a04aa5d8961c6e6267dd7d2bb07b329112311993f",
+      "bytes": 747,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "static/action-only-trace.zip",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/runs/static-1/action-only-trace.zip",
+      "sourceSHA256": "9df386ffa1defd71231860974f3699a1ca24e4e1dc2571bb022e73338ccdba5c",
+      "sourceBytes": 31274,
+      "sha256": "9df386ffa1defd71231860974f3699a1ca24e4e1dc2571bb022e73338ccdba5c",
+      "bytes": 31274,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/result.json.gz",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/result.json",
+      "sourceSHA256": "ec36b16cd17b6e8096f639a59861753c18ea42e501a380657d07678a1e80cb92",
+      "sourceBytes": 7409642,
+      "sha256": "60ea65685178585f056697339b83c0682bb93cd6b791a38c965eef8fc1ca4054",
+      "bytes": 427797,
+      "encoding": "gzip-verbatim"
+    },
+    {
+      "path": "actual/invocation.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1-invocation.json",
+      "sourceSHA256": "157984c4d4b480d40861f8ab30273d6846c7a2ba3423509292aad90c9c12ccdf",
+      "sourceBytes": 1767,
+      "sha256": "157984c4d4b480d40861f8ab30273d6846c7a2ba3423509292aad90c9c12ccdf",
+      "bytes": 1767,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/stdout.txt",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1.stdout",
+      "sourceSHA256": "a2758426309691f40f23a24aa7e2277cfef5c326027f742234f76d9dace203e1",
+      "sourceBytes": 290,
+      "sha256": "a2758426309691f40f23a24aa7e2277cfef5c326027f742234f76d9dace203e1",
+      "bytes": 290,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/stderr.txt",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1.stderr",
+      "sourceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sourceBytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/launch-recovery_acceptance-startup.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/launch-recovery_acceptance-startup.mjs",
+      "sourceSHA256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "sourceBytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/four-project-queue_sample-linux-owned.py",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/four-project-queue_sample-linux-owned.py",
+      "sourceSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "sourceBytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "bytes": 35379,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/interaction-metrics.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/interaction-metrics.mjs",
+      "sourceSHA256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "sourceBytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "bytes": 9846,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/launch-recovery_fenced-docker-proxy.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/launch-recovery_fenced-docker-proxy.mjs",
+      "sourceSHA256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+      "sourceBytes": 35707,
+      "sha256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+      "bytes": 35707,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/task-command.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/task-command.mjs",
+      "sourceSHA256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "sourceBytes": 10172,
+      "sha256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "bytes": 10172,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/four-project-queue_native-terminal-diagnostics.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/four-project-queue_native-terminal-diagnostics.mjs",
+      "sourceSHA256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "sourceBytes": 6811,
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "bytes": 6811,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/task-context.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/task-context.mjs",
+      "sourceSHA256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "sourceBytes": 2439,
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "bytes": 2439,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/workloads.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/workloads.mjs",
+      "sourceSHA256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "sourceBytes": 18691,
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "bytes": 18691,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/queue-controls.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/queue-controls.mjs",
+      "sourceSHA256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "sourceBytes": 711,
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "bytes": 711,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/launch-recovery_acceptance-lifecycle.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/launch-recovery_acceptance-lifecycle.mjs",
+      "sourceSHA256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "sourceBytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/source-binding.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/source-binding.mjs",
+      "sourceSHA256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "sourceBytes": 2768,
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "bytes": 2768,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/run-with-observer.py",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/run-with-observer.py",
+      "sourceSHA256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "sourceBytes": 17220,
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "bytes": 17220,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/launch-recovery_worker-create-guard.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/launch-recovery_worker-create-guard.mjs",
+      "sourceSHA256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "sourceBytes": 5545,
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "bytes": 5545,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/external-source-binding.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/external-source-binding.json",
+      "sourceSHA256": "450ffd79c7806620c3c78ea38b5c9906e60d89bb97429722f8279657e9bd01b2",
+      "sourceBytes": 6088,
+      "sha256": "450ffd79c7806620c3c78ea38b5c9906e60d89bb97429722f8279657e9bd01b2",
+      "bytes": 6088,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/launch-recovery_durable-acceptance-journal.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/launch-recovery_durable-acceptance-journal.mjs",
+      "sourceSHA256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "sourceBytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "bytes": 6670,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/latency-diagnostics.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/latency-diagnostics.mjs",
+      "sourceSHA256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "sourceBytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "bytes": 7545,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/accepted-harness/sustained.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/accepted-harness/sustained.mjs",
+      "sourceSHA256": "d7fb7586e5b4a2639da9abb6c2e1c6a1296d2161ea7cf2ec393a8f1d3ab1b016",
+      "sourceBytes": 83594,
+      "sha256": "d7fb7586e5b4a2639da9abb6c2e1c6a1296d2161ea7cf2ec393a8f1d3ab1b016",
+      "bytes": 83594,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/package-provenance.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/package-provenance.json",
+      "sourceSHA256": "d0069f566ffc5487f69ee67666f8a54386a4d01031c97c95886418ca8debacfb",
+      "sourceBytes": 1040,
+      "sha256": "d0069f566ffc5487f69ee67666f8a54386a4d01031c97c95886418ca8debacfb",
+      "bytes": 1040,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/image-provenance.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/image-provenance.json",
+      "sourceSHA256": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+      "sourceBytes": 33716,
+      "sha256": "5af726e6670fd6f04c0f67cf3b26b3f6072ed89c1e1e3481c652a631ae6d0a3b",
+      "bytes": 33716,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/result.json.incomplete.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/result.json.incomplete.json",
+      "sourceSHA256": "19b21de58b31752ab1367cd137cb71a86da9beec9df4de635ab3ba89fabd4e46",
+      "sourceBytes": 1505,
+      "sha256": "19b21de58b31752ab1367cd137cb71a86da9beec9df4de635ab3ba89fabd4e46",
+      "bytes": 1505,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "actual/diagnostic-journal.jsonl",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/runs/actual-idle-1/diagnostic-journal.jsonl",
+      "sourceSHA256": "2f45f8e050a4a2b45b63f8f4e610bbae6393a10123a5ebc6e555c5bbfbce9c7e",
+      "sourceBytes": 6164,
+      "sha256": "2f45f8e050a4a2b45b63f8f4e610bbae6393a10123a5ebc6e555c5bbfbce9c7e",
+      "bytes": 6164,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/launch-recovery_acceptance-startup.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/launch-recovery_acceptance-startup.mjs",
+      "sourceSHA256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "sourceBytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "bytes": 4637,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/four-project-queue_sample-linux-owned.py",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/four-project-queue_sample-linux-owned.py",
+      "sourceSHA256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "sourceBytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "bytes": 35379,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/interaction-metrics.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/interaction-metrics.mjs",
+      "sourceSHA256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "sourceBytes": 9846,
+      "sha256": "ec0bc9d06fda6636cbba6975e05b9c66979ca189b59aa38c373b37a318b79502",
+      "bytes": 9846,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/launch-recovery_fenced-docker-proxy.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/launch-recovery_fenced-docker-proxy.mjs",
+      "sourceSHA256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+      "sourceBytes": 35707,
+      "sha256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d",
+      "bytes": 35707,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/task-command.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/task-command.mjs",
+      "sourceSHA256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "sourceBytes": 10172,
+      "sha256": "414015af6ea915ccd3c838c3a316b7f08e079b70cc5de299a7991bb0b5f9f6fe",
+      "bytes": 10172,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/four-project-queue_native-terminal-diagnostics.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/four-project-queue_native-terminal-diagnostics.mjs",
+      "sourceSHA256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "sourceBytes": 6811,
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+      "bytes": 6811,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/task-context.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/task-context.mjs",
+      "sourceSHA256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "sourceBytes": 2439,
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2",
+      "bytes": 2439,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/workloads.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/workloads.mjs",
+      "sourceSHA256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "sourceBytes": 18691,
+      "sha256": "0d5671cb422ddfcb4272c8633d6567a94c6bad43a446a1c372678277067e8306",
+      "bytes": 18691,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/queue-controls.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/queue-controls.mjs",
+      "sourceSHA256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "sourceBytes": 711,
+      "sha256": "dee06590692c471614e88659b6c20728469e01acebd601d3274205f0384c02b0",
+      "bytes": 711,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/launch-recovery_acceptance-lifecycle.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/launch-recovery_acceptance-lifecycle.mjs",
+      "sourceSHA256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "sourceBytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "bytes": 4176,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/source-binding.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/source-binding.mjs",
+      "sourceSHA256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "sourceBytes": 2768,
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796",
+      "bytes": 2768,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/run-with-observer.py",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/run-with-observer.py",
+      "sourceSHA256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "sourceBytes": 17220,
+      "sha256": "3c870b6d4aeff36d7d258255b0bb88a8217c4ad97db83be1f608b4842dc3f00a",
+      "bytes": 17220,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/launch-recovery_worker-create-guard.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/launch-recovery_worker-create-guard.mjs",
+      "sourceSHA256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "sourceBytes": 5545,
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5",
+      "bytes": 5545,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/launch-recovery_durable-acceptance-journal.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/launch-recovery_durable-acceptance-journal.mjs",
+      "sourceSHA256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "sourceBytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "bytes": 6670,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/latency-diagnostics.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/latency-diagnostics.mjs",
+      "sourceSHA256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "sourceBytes": 7545,
+      "sha256": "a2d787493f0eeaeb95570c7f211ee69c649ff1b7247feec171f2118ac3a42c96",
+      "bytes": 7545,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original/sustained.mjs",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/original/sustained.mjs",
+      "sourceSHA256": "6d9e4e1a45c778c5d2066738f3b34930a477d6cf8bcadeec10dab5c975792d32",
+      "sourceBytes": 86152,
+      "sha256": "6d9e4e1a45c778c5d2066738f3b34930a477d6cf8bcadeec10dab5c975792d32",
+      "bytes": 86152,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/prepare-idle.py",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/prepare-idle.py",
+      "sourceSHA256": "f3562a2440076553693ddd4b285884b052026d2dabcc26ef7436fa42cbf3c519",
+      "sourceBytes": 12326,
+      "sha256": "f3562a2440076553693ddd4b285884b052026d2dabcc26ef7436fa42cbf3c519",
+      "bytes": 12326,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/idle-extraction.patch",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/idle-extraction.patch",
+      "sourceSHA256": "dbdb75f33e94de9b7f20b85dc832669498ea4b7cdc7a60ee0dd554d7a0bf71fa",
+      "sourceBytes": 24832,
+      "sha256": "dbdb75f33e94de9b7f20b85dc832669498ea4b7cdc7a60ee0dd554d7a0bf71fa",
+      "bytes": 24832,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/idle-extraction.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-idle-9121b5ba/idle-extraction.json",
+      "sourceSHA256": "450ffd79c7806620c3c78ea38b5c9906e60d89bb97429722f8279657e9bd01b2",
+      "sourceBytes": 6088,
+      "sha256": "450ffd79c7806620c3c78ea38b5c9906e60d89bb97429722f8279657e9bd01b2",
+      "bytes": 6088,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original-preparation-README.md",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/README.md",
+      "sourceSHA256": "2322aa3646c054657e67e5301c7c3e46ddf5bd1dd5a03a6e544be5161c9677f4",
+      "sourceBytes": 10523,
+      "sha256": "2322aa3646c054657e67e5301c7c3e46ddf5bd1dd5a03a6e544be5161c9677f4",
+      "bytes": 10523,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "preparation/original-preparation-manifest.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/preparation-manifest.json",
+      "sourceSHA256": "9e677258f88739e65fc6343e7ceef79bbce1850763eb921f0b064af8b6f3559b",
+      "sourceBytes": 7565,
+      "sha256": "9e677258f88739e65fc6343e7ceef79bbce1850763eb921f0b064af8b6f3559b",
+      "bytes": 7565,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/components/AppShell.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/components/AppShell.tsx",
+      "sourceSHA256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "sourceBytes": 6381,
+      "sha256": "b3aaf4ce4302109c2c10b023ecbff249b96655955f4d29bf0bb4834b4fc8fcd4",
+      "bytes": 6381,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/styles/tokens.css",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/styles/tokens.css",
+      "sourceSHA256": "c1ec546c246e1f881ab4c23e1825c1cdfda31998b24702c62320d154ac9c2bc9",
+      "sourceBytes": 12943,
+      "sha256": "c1ec546c246e1f881ab4c23e1825c1cdfda31998b24702c62320d154ac9c2bc9",
+      "bytes": 12943,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/styles/shadcn.css",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/styles/shadcn.css",
+      "sourceSHA256": "e7f7f84a4f9837bed1b5474951afb3a8436d62c803f38f65e099447f9a388a69",
+      "sourceBytes": 4805,
+      "sha256": "e7f7f84a4f9837bed1b5474951afb3a8436d62c803f38f65e099447f9a388a69",
+      "bytes": 4805,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/store/store.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/store/store.ts",
+      "sourceSHA256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6",
+      "sourceBytes": 4709,
+      "sha256": "e65151cbfc1686b8e4050179f726bf9cd7e3abcc3f6e661cebdb444fec1302c6",
+      "bytes": 4709,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/hooks/useProjectDraft.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/hooks/useProjectDraft.ts",
+      "sourceSHA256": "d9991f749c285641bddb7eb8f565b3c853e61136148a7a32aa98a49f4fb831b2",
+      "sourceBytes": 7167,
+      "sha256": "d9991f749c285641bddb7eb8f565b3c853e61136148a7a32aa98a49f4fb831b2",
+      "bytes": 7167,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/hooks/useUnsavedProjectDraft.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/hooks/useUnsavedProjectDraft.ts",
+      "sourceSHA256": "3692176f62e31cca1e862ae24c34d143c0dcb94e3479ef4c389709c7bb57d9a1",
+      "sourceBytes": 1367,
+      "sha256": "3692176f62e31cca1e862ae24c34d143c0dcb94e3479ef4c389709c7bb57d9a1",
+      "bytes": 1367,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/components/rail/Rail.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/components/rail/Rail.tsx",
+      "sourceSHA256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+      "sourceBytes": 8508,
+      "sha256": "8fb76ca0162eebfe29c3b589b07f5c6e19db8fe55f508a96354f37a79ea6b6e8",
+      "bytes": 8508,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/components/rail/ProjectRow.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/components/rail/ProjectRow.tsx",
+      "sourceSHA256": "71dcaf85dfddb4feff179cd1c3f53cd80d647a472fdbc00952395358674257f9",
+      "sourceBytes": 3009,
+      "sha256": "71dcaf85dfddb4feff179cd1c3f53cd80d647a472fdbc00952395358674257f9",
+      "bytes": 3009,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/components/definition/DefinitionWorkspace.tsx",
+      "sourceSHA256": "f02b65e2a8909cb68b6252a90d19e53ee8201262115b0ee4d5401acca43e072a",
+      "sourceBytes": 29890,
+      "sha256": "f02b65e2a8909cb68b6252a90d19e53ee8201262115b0ee4d5401acca43e072a",
+      "bytes": 29890,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/components/common/WorkflowDialog.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/components/common/WorkflowDialog.tsx",
+      "sourceSHA256": "be1d8ebb8f56d92d5a8848bc2c1d870c7fdb55c4f8a0a691aa7f252021469978",
+      "sourceBytes": 1884,
+      "sha256": "be1d8ebb8f56d92d5a8848bc2c1d870c7fdb55c4f8a0a691aa7f252021469978",
+      "bytes": 1884,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/components/common/DraftNavigationDialog.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/components/common/DraftNavigationDialog.tsx",
+      "sourceSHA256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+      "sourceBytes": 1806,
+      "sha256": "4867980dd1e698dce68b109e6789eaa3943105230175a03c28cc6cba5c8897b9",
+      "bytes": 1806,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/components/projects/ProjectOverviewBoard.tsx",
+      "sourceSHA256": "a361d250eca5672301d3bd324d9fe91ed392210624d633d0b3787e3907194496",
+      "sourceBytes": 22357,
+      "sha256": "a361d250eca5672301d3bd324d9fe91ed392210624d633d0b3787e3907194496",
+      "bytes": 22357,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/components/projects/HostCapacity.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/components/projects/HostCapacity.tsx",
+      "sourceSHA256": "5fe765c9185637ce477c83cae0e3f7a55c5902256000d212123439484be55254",
+      "sourceBytes": 13436,
+      "sha256": "5fe765c9185637ce477c83cae0e3f7a55c5902256000d212123439484be55254",
+      "bytes": 13436,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/components/projects/project-overview.css",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/components/projects/project-overview.css",
+      "sourceSHA256": "7f2dd42461b61ade25c548e5c50ac98e3ceeab5a9e3c23575cf1117a0b1923a8",
+      "sourceBytes": 6584,
+      "sha256": "7f2dd42461b61ade25c548e5c50ac98e3ceeab5a9e3c23575cf1117a0b1923a8",
+      "bytes": 6584,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/components/projects/ProjectsHome.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/components/projects/ProjectsHome.tsx",
+      "sourceSHA256": "ac22f3cf538ae28e231263aad85c4154c5acc4d4b3d2381d69c4603260669986",
+      "sourceBytes": 5213,
+      "sha256": "ac22f3cf538ae28e231263aad85c4154c5acc4d4b3d2381d69c4603260669986",
+      "bytes": 5213,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/components/orchestrator/OrchestratorPanel.tsx",
+      "sourceSHA256": "5836f6eb729a6f639cb3c06a8b0e7a63305a6cb006e76784773e82ea4bcd2fa7",
+      "sourceBytes": 51797,
+      "sha256": "5836f6eb729a6f639cb3c06a8b0e7a63305a6cb006e76784773e82ea4bcd2fa7",
+      "bytes": 51797,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-source/desktop/src/store/slices/uiSlice.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud032-latency-diagnostic/product-source/desktop/src/store/slices/uiSlice.ts",
+      "sourceSHA256": "bd4d3ff8a3ff26eb1b4346b8cff2153e4b301ad0a4eeed3dbbcbc6d020e54e9e",
+      "sourceBytes": 16748,
+      "sha256": "bd4d3ff8a3ff26eb1b4346b8cff2153e4b301ad0a4eeed3dbbcbc6d020e54e9e",
+      "bytes": 16748,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-change/tests.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-product-noop-draft/tests.json",
+      "sourceSHA256": "43effa438e4447218a5357a2cacbc2bea1167d846304f502b214234e5fef11f3",
+      "sourceBytes": 6831,
+      "sha256": "43effa438e4447218a5357a2cacbc2bea1167d846304f502b214234e5fef11f3",
+      "bytes": 6831,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-change/validation.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-product-noop-draft/validation.json",
+      "sourceSHA256": "a5810f9c0b57b9f8b805994b41b06be0cef45d40ef4842a9f9647e5f57773fa4",
+      "sourceBytes": 927,
+      "sha256": "a5810f9c0b57b9f8b805994b41b06be0cef45d40ef4842a9f9647e5f57773fa4",
+      "bytes": 927,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-change/source.patch",
+      "sourcePath": "/workspace/.luci-tools/cloud032-product-noop-draft/source.patch",
+      "sourceSHA256": "e33fb45aa8d31361f810411a82af9bd4f75c19c9db80cf7939a11626a077186a",
+      "sourceBytes": 1447,
+      "sha256": "e33fb45aa8d31361f810411a82af9bd4f75c19c9db80cf7939a11626a077186a",
+      "bytes": 1447,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-change/tests.stderr",
+      "sourcePath": "/workspace/.luci-tools/cloud032-product-noop-draft/tests.stderr",
+      "sourceSHA256": "bea4d402b62e1c6a0478c814fdabeceb6672c11b69a8df11ef49183b5aca9e58",
+      "sourceBytes": 100,
+      "sha256": "bea4d402b62e1c6a0478c814fdabeceb6672c11b69a8df11ef49183b5aca9e58",
+      "bytes": 100,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-change/baseline.json",
+      "sourcePath": "/workspace/.luci-tools/cloud032-product-noop-draft/baseline.json",
+      "sourceSHA256": "d7528c2a321929ef761a7989a5f856e74cae335a5d9ebd6e3f955859b08de72f",
+      "sourceBytes": 475,
+      "sha256": "d7528c2a321929ef761a7989a5f856e74cae335a5d9ebd6e3f955859b08de72f",
+      "bytes": 475,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-change/tests.stdout",
+      "sourcePath": "/workspace/.luci-tools/cloud032-product-noop-draft/tests.stdout",
+      "sourceSHA256": "bdbf5e63eae14e9984a55d275d03fe03c78752db9396b203ca50729673770f38",
+      "sourceBytes": 85,
+      "sha256": "bdbf5e63eae14e9984a55d275d03fe03c78752db9396b203ca50729673770f38",
+      "bytes": 85,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-change/source/desktop/src/store/draftRegistration.test.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud032-product-noop-draft/source/desktop/src/store/draftRegistration.test.ts",
+      "sourceSHA256": "d1ba63c56d68e357246ab3b10b8d11508eef95c622646f648c19f37829a2a7d9",
+      "sourceBytes": 3787,
+      "sha256": "d1ba63c56d68e357246ab3b10b8d11508eef95c622646f648c19f37829a2a7d9",
+      "bytes": 3787,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-change/source/desktop/src/store/slices/uiSlice.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud032-product-noop-draft/source/desktop/src/store/slices/uiSlice.ts",
+      "sourceSHA256": "f8856c549763a9a9a4b75e394411ec679a8f6ea4a1894d914132f0c14ca032e2",
+      "sourceBytes": 17009,
+      "sha256": "f8856c549763a9a9a4b75e394411ec679a8f6ea4a1894d914132f0c14ca032e2",
+      "bytes": 17009,
+      "encoding": "verbatim"
+    },
+    {
+      "path": "product-change/original/desktop/src/store/slices/uiSlice.ts",
+      "sourcePath": "/workspace/.luci-tools/cloud032-product-noop-draft/original/desktop/src/store/slices/uiSlice.ts",
+      "sourceSHA256": "bd4d3ff8a3ff26eb1b4346b8cff2153e4b301ad0a4eeed3dbbcbc6d020e54e9e",
+      "sourceBytes": 16748,
+      "sha256": "bd4d3ff8a3ff26eb1b4346b8cff2153e4b301ad0a4eeed3dbbcbc6d020e54e9e",
+      "bytes": 16748,
+      "encoding": "verbatim"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "files": [
+    {
+      "path": "control-plane/internal/api/execution_leases.go",
+      "sha256": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd",
+      "bytes": 28033
+    },
+    {
+      "path": "control-plane/internal/api/swarm_dispatch.go",
+      "sha256": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da",
+      "bytes": 17372
+    },
+    {
+      "path": "control-plane/internal/api/execution_fence_store.go",
+      "sha256": "a36c61a87bad1369f94b70427f158ebcfd92e2e9432e29063caf7997cadb1195",
+      "bytes": 8531
+    },
+    {
+      "path": "control-plane/internal/api/codex_connection.go",
+      "sha256": "f6e887a24de3f048021e83f9132c8b1223582a85e07ae41d81d7ef2c36f18da2",
+      "bytes": 13302
+    },
+    {
+      "path": "control-plane/internal/api/execution_lease_lock_unix.go",
+      "sha256": "da94406dfc3ce76751a499079c140204ed535baf0483b45f370c027e80ce2370",
+      "bytes": 554
+    },
+    {
+      "path": "control-plane/internal/api/execution_lease_lock_windows.go",
+      "sha256": "8408925c60e0a51a3952849ce90ed7552b31cd85f142dddad72e76e7f3d5901d",
+      "bytes": 681
+    },
+    {
+      "path": "control-plane/internal/product/project_swarm_scheduler_types.go",
+      "sha256": "a0e4f325a511545da9e40b2d5661414c7808878aebd02c079fbf526a37e46d15",
+      "bytes": 4709
+    },
+    {
+      "path": "control-plane/internal/product/project_swarm_scheduler_http.go",
+      "sha256": "39127d21d6c76d588da2fa3ed4f42ea394411e7a3482d62e27cdf474e47c0878",
+      "bytes": 12194
+    },
+    {
+      "path": "control-plane/internal/management/runtime.go",
+      "sha256": "cbc15063b7dedffbe408662028c66bd9ac25eefad9fca1943d9cdc0e698b605e",
+      "bytes": 17394
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "reference": "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-lockfileex",
+  "contract": "The handle must have been created with either the GENERIC_READ or GENERIC_WRITE access right.",
+  "reviewBasis": "Parent source review identified the documented read-handle contract; independent live documentation fetch returned URLError in this environment.",
+  "liveFetchSucceeded": false,
+  "windowsRuntimeExecuted": false,
+  "scope": "Documented API compatibility only; no Windows execution evidence."
+}

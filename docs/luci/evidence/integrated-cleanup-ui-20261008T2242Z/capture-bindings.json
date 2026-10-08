@@ -1,0 +1,81 @@
+[
+  {
+    "path": "commands.json",
+    "sha256": "a8c213668e55c63fed78768dd2dacf0847f8cce08f982336e8e28544be12e4da",
+    "bytes": 659,
+    "originalBytes": 659,
+    "originalSHA256": "a8c213668e55c63fed78768dd2dacf0847f8cce08f982336e8e28544be12e4da",
+    "encoding": "original"
+  },
+  {
+    "path": "full-frontend.stderr.log",
+    "sha256": "ad9ef12f2f19d2532fbd05b9772e28e31d4b97c1b0de43e902d3b8edc87fcee5",
+    "bytes": 200,
+    "originalBytes": 200,
+    "originalSHA256": "ad9ef12f2f19d2532fbd05b9772e28e31d4b97c1b0de43e902d3b8edc87fcee5",
+    "encoding": "original"
+  },
+  {
+    "path": "full-frontend.stdout.log",
+    "sha256": "f0656e9efec4e876eb08316fe15c56e88913120d51ce85c84a61d9c61751ae0d",
+    "bytes": 314,
+    "originalBytes": 314,
+    "originalSHA256": "f0656e9efec4e876eb08316fe15c56e88913120d51ce85c84a61d9c61751ae0d",
+    "encoding": "original"
+  },
+  {
+    "path": "result.json",
+    "sha256": "92a64ca60bc045deb4e1898912d6310a672be1070d095e3f3a716be592157a88",
+    "bytes": 1030,
+    "originalBytes": 1030,
+    "originalSHA256": "92a64ca60bc045deb4e1898912d6310a672be1070d095e3f3a716be592157a88",
+    "encoding": "original"
+  },
+  {
+    "path": "source-after.json",
+    "sha256": "bbfb3a5cfa80320286bfc94c377667d6e411d77bbc8f1b519b4a8ee5b8ed10ee",
+    "bytes": 51110,
+    "originalBytes": 51110,
+    "originalSHA256": "bbfb3a5cfa80320286bfc94c377667d6e411d77bbc8f1b519b4a8ee5b8ed10ee",
+    "encoding": "original"
+  },
+  {
+    "path": "source-before.json",
+    "sha256": "bbfb3a5cfa80320286bfc94c377667d6e411d77bbc8f1b519b4a8ee5b8ed10ee",
+    "bytes": 51110,
+    "originalBytes": 51110,
+    "originalSHA256": "bbfb3a5cfa80320286bfc94c377667d6e411d77bbc8f1b519b4a8ee5b8ed10ee",
+    "encoding": "original"
+  },
+  {
+    "path": "typecheck.stderr.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0,
+    "originalBytes": 0,
+    "originalSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "encoding": "original"
+  },
+  {
+    "path": "typecheck.stdout.log",
+    "sha256": "552318ff3ebbaabdb934b4dad4e29aab1195679bcf05c15cad940561700d6788",
+    "bytes": 271,
+    "originalBytes": 271,
+    "originalSHA256": "552318ff3ebbaabdb934b4dad4e29aab1195679bcf05c15cad940561700d6788",
+    "encoding": "original"
+  },
+  {
+    "path": "vitest.json.gz",
+    "sha256": "8903cfed8020d956ae88236cc27fc1c548a08347dc0c6215be09bdfb905f591f",
+    "bytes": 118836,
+    "originalBytes": 1186795,
+    "originalSHA256": "6403e72fd5815c4fb578cce610c794ec3100a4362d3971658eb2fc1d732fa54b",
+    "encoding": "gzip-original"
+  },
+  {
+    "path": "run-integrated-frontend-next.py",
+    "bytes": 2280,
+    "sha256": "6bad84b44912f8745e0f992aa00c8dfd28539e00f58d747887fb830ad4aa7b65",
+    "source": "/workspace/.luci-tools/run-integrated-frontend-next.py",
+    "role": "Exact sequential source/test-capture wrapper; subprocess outcomes are in commands.json"
+  }
+]

@@ -1,0 +1,52 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p=1",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "./internal/api",
+    "-run",
+    "^TestExecutionReservationViewPausedOwnerObservesTeamCheck$"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOCACHE": "/tmp/luci-cloud033-go-cache",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "TMPDIR": "/tmp/luci-cloud034-test-temp"
+  },
+  "startedAt": "2026-10-08T22:48:06.906439+00:00",
+  "sourceBefore": {
+    "control-plane/internal/api/execution_reservation_view_test.go": "8d86de650871aad1efbb82c4c550631075299e3a7b4d21acf7c66db280d6e10b",
+    "control-plane/internal/api/swarm_dispatch.go": "60a286981dd8694e4e00f7ec90f0a9beac124764d8840fda728665b20d9fb46e",
+    "control-plane/internal/api/execution_leases.go": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd"
+  },
+  "exitCode": 1,
+  "finishedAt": "2026-10-08T22:48:21.617582+00:00",
+  "seconds": 14.710420618997887,
+  "sourceAfter": {
+    "control-plane/internal/api/execution_reservation_view_test.go": "8d86de650871aad1efbb82c4c550631075299e3a7b4d21acf7c66db280d6e10b",
+    "control-plane/internal/api/swarm_dispatch.go": "60a286981dd8694e4e00f7ec90f0a9beac124764d8840fda728665b20d9fb46e",
+    "control-plane/internal/api/execution_leases.go": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd"
+  },
+  "sourceStable": true,
+  "outcomes": {
+    "pass": [],
+    "fail": [
+      "TestExecutionReservationViewPausedOwnerObservesTeamCheck"
+    ],
+    "skip": []
+  },
+  "stdout.jsonl": {
+    "bytes": 1968,
+    "sha256": "29ccfda1e0910aae5c3f6d1f7f3e7fda227b179defabd171dc4a216e387985b3"
+  },
+  "stderr.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

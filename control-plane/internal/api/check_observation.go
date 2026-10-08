@@ -202,6 +202,7 @@ func (a *API) observeCheckCandidate(ctx context.Context, lease checkExecutionLea
 			return err
 		}
 		out.CleanupConfirmed = true
+		setConfirmedCheckCleanupMessage(&out)
 		if err = a.execution.completeCheck(ctx, lease.Identity, lease.Ref, out); err != nil {
 			return err
 		}

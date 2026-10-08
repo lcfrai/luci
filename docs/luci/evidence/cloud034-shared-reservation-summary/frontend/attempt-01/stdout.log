@@ -1,0 +1,54 @@
+
+ RUN  v5.0.1 /workspace/luci/desktop
+
+ ✓ src/components/projects/HostCapacity.test.tsx > does not read global resources for a member or team-scoped administrator 23ms
+ ✓ src/components/projects/HostCapacity.test.tsx > shows scheduling ceilings and unknown execution capacity without promising four running agents 232ms
+ ✓ src/components/projects/HostCapacity.test.tsx > reviews workspace-wide impact before pausing future starts with the policy revision 214ms
+ ✓ src/components/projects/HostCapacity.test.tsx > retains failed setting edits, blocks replay, and explicitly refreshes the compare-and-swap basis 293ms
+ ✓ src/components/projects/HostCapacity.test.tsx > removes private capacity and closes pending settings when permission is revoked 138ms
+ ✓ src/components/projects/HostCapacity.test.tsx > does not revive a late write after administrator access is revoked and granted again 200ms
+ ✓ src/components/projects/HostCapacity.test.tsx > keeps scheduling controls out of the compact summary and expands without changing policy 39ms
+ ✓ src/components/projects/HostCapacity.test.tsx > shows fresh machine allocations as workers and checks, including a verified zero 67ms
+ ✓ src/components/projects/HostCapacity.test.tsx > shows reservations as unavailable for absent observations 23ms
+ ✓ src/components/projects/HostCapacity.test.tsx > shows reservations as unavailable for null observations 33ms
+ ✓ src/components/projects/HostCapacity.test.tsx > shows reservations as unavailable for unavailable observations 36ms
+ ✓ src/components/projects/HostCapacity.test.tsx > shows reservations as unavailable for legacy zero observations 35ms
+ ✓ src/components/projects/HostCapacity.test.tsx > shows reservations as unavailable for stale observations 35ms
+ ✓ src/components/projects/HostCapacity.test.tsx > shows reservations as unavailable for future observations 35ms
+ ✓ src/components/projects/HostCapacity.test.tsx > shows reservations as unavailable for invalid time observations 31ms
+ ✓ src/components/projects/HostCapacity.test.tsx > expires a visible reservation while its next read remains pending 31ms
+ ✓ src/api/swarmScheduler.test.ts > reads explicit ready allocations with cancellation and preserves the reviewed configure request 4ms
+ ✓ src/api/swarmScheduler.test.ts > keeps missing, legacy or explicitly unavailable observations untrusted: undefined 1ms
+ ✓ src/api/swarmScheduler.test.ts > keeps missing, legacy or explicitly unavailable observations untrusted: null 0ms
+ ✓ src/api/swarmScheduler.test.ts > keeps missing, legacy or explicitly unavailable observations untrusted: {} 0ms
+ ✓ src/api/swarmScheduler.test.ts > keeps missing, legacy or explicitly unavailable observations untrusted: {"observedAt":"2026-10-08T22:00:00.123456789Z","count":0,"memoryMiB":0,"cpuMillis":0} 0ms
+ ✓ src/api/swarmScheduler.test.ts > keeps missing, legacy or explicitly unavailable observations untrusted: {"status":"unavailable"} 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: unknown status 2ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: explicit missing status 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: unavailable with counters 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: unavailable with timestamp 1ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: missing count 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: negative count 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: fractional count 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: string count 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: unsafe count 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: missing memory 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: negative memory 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: nonfinite CPU 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: fractional CPU 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: missing timestamp 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: invalid timestamp 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: date without time 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: array 0ms
+ ✓ src/api/swarmScheduler.test.ts > rejects malformed reservation responses: scalar 0ms
+ ✓ src/api/swarmScheduler.test.ts > also refuses malformed mutation receipts without replaying the write 0ms
+
+ Test Files  2 passed (2)
+      Tests  41 passed (41)
+   Start at  22:58:21
+   Duration  5.39s (environment 51%, tests 30%, transform 9%, setup 6%, import 4%)
+
+Environment  jsdom was created 2 times · 2.51s total, 51% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
+

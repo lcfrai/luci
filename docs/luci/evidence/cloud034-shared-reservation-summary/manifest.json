@@ -1,0 +1,503 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": ".gitattributes",
+      "bytes": 81,
+      "sha256": "ee3a46ab8cf45729f9e22600eb176ec80ba4767cfcfa901ff759ef6ab51b722c",
+      "original": "publication-control"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 10,
+      "sha256": "1b7c01abb4d9e16cc4187667732237bf0ee6cee7bbad14c3b860b7216bc9c4b8",
+      "original": "publication-control"
+    },
+    {
+      "path": "README.md",
+      "bytes": 7641,
+      "sha256": "ce1ffcb2a2af2ee342d562bddf9c8b28c21a1e408977ef8a6f4633a24bb6c1cb",
+      "original": "publication-receipt"
+    },
+    {
+      "path": "before/execution_leases.go",
+      "bytes": 28033,
+      "sha256": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/before/execution_leases.go"
+    },
+    {
+      "path": "before/execution_reservation_view_test.go",
+      "bytes": 5962,
+      "sha256": "8d86de650871aad1efbb82c4c550631075299e3a7b4d21acf7c66db280d6e10b",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/before/execution_reservation_view_test.go"
+    },
+    {
+      "path": "before/swarm_dispatch.go",
+      "bytes": 17251,
+      "sha256": "60a286981dd8694e4e00f7ec90f0a9beac124764d8840fda728665b20d9fb46e",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/before/swarm_dispatch.go"
+    },
+    {
+      "path": "capture-validation.json",
+      "bytes": 688,
+      "sha256": "465d35f2783ebbfd114e53d22a555a997500a6ec55110e35c92a17228da5595c",
+      "original": "publication-validation"
+    },
+    {
+      "path": "corrected.result.json",
+      "bytes": 3428,
+      "sha256": "a82ea0a54304650138ebcbcbdd8036e8eee394d3bfcd0722051f0884529ca8bd",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/corrected.result.json"
+    },
+    {
+      "path": "corrected.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/corrected.stderr.log"
+    },
+    {
+      "path": "corrected.stdout.jsonl",
+      "bytes": 19053,
+      "sha256": "755e82befb9f38b96b25f8665b936548ab7001732c16a0f4fa73205d216f4666",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/corrected.stdout.jsonl"
+    },
+    {
+      "path": "execution_reservation_view.go",
+      "bytes": 3346,
+      "sha256": "9ac624db2a2fe03efe557ba207867a06ef0b7ef0c54466b9e24ff56650e60f53",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/execution_reservation_view.go"
+    },
+    {
+      "path": "final-corrected.result.json",
+      "bytes": 3903,
+      "sha256": "eeee6f3afe20425de6882e38c3a63a0700bfcbde1f56f2f606798737521e576c",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/final-corrected.result.json"
+    },
+    {
+      "path": "final-corrected.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/final-corrected.stderr.log"
+    },
+    {
+      "path": "final-corrected.stdout.jsonl",
+      "bytes": 22932,
+      "sha256": "ac8b7d780c212e174183a533245ee29c9841fae1858783a61a71347bb5e8cc1f",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/final-corrected.stdout.jsonl"
+    },
+    {
+      "path": "final.result.json",
+      "bytes": 3902,
+      "sha256": "3c454906e6d1229e4903df7fc3d2e2ffe25009926360612b94bd0d2141def156",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/final.result.json"
+    },
+    {
+      "path": "final.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/final.stderr.log"
+    },
+    {
+      "path": "final.stdout.jsonl",
+      "bytes": 22943,
+      "sha256": "13d27ca190c4f9790a8929c9ec0c94ed81ef041c00fab9b430860d5a5c64aeac",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/final.stdout.jsonl"
+    },
+    {
+      "path": "fixture-path-correction.json",
+      "bytes": 710,
+      "sha256": "1a0487f578abfc01104cc7c7b2fdd9a0764e2b9f01a242e248f13eb511aa85f8",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/fixture-path-correction.json"
+    },
+    {
+      "path": "frontend/attempt-01/source/desktop/package-lock.json",
+      "bytes": 247150,
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/frontend/attempt-01/source/desktop/package-lock.json"
+    },
+    {
+      "path": "frontend/attempt-01/source/desktop/package.json",
+      "bytes": 1965,
+      "sha256": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/frontend/attempt-01/source/desktop/package.json"
+    },
+    {
+      "path": "frontend/attempt-01/source/desktop/src/api/swarmScheduler.test.ts",
+      "bytes": 3689,
+      "sha256": "98f4ad3cf97255cb93099b523f414539ff5845cdb5f725a2cfae688091e7be92",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/frontend/attempt-01/source/desktop/src/api/swarmScheduler.test.ts"
+    },
+    {
+      "path": "frontend/attempt-01/source/desktop/src/api/swarmScheduler.ts",
+      "bytes": 3654,
+      "sha256": "3a86168313b1df8b316231a12d9fb71324eca9e290695264a9d5667a85302e76",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/frontend/attempt-01/source/desktop/src/api/swarmScheduler.ts"
+    },
+    {
+      "path": "frontend/attempt-01/source/desktop/src/components/projects/HostCapacity.test.tsx",
+      "bytes": 10084,
+      "sha256": "7b91eba5472dfcc31476ee7f7be60bd2884e1f0eb9ace26341ec0cb2332a4494",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/frontend/attempt-01/source/desktop/src/components/projects/HostCapacity.test.tsx"
+    },
+    {
+      "path": "frontend/attempt-01/source/desktop/src/components/projects/HostCapacity.tsx",
+      "bytes": 14116,
+      "sha256": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/frontend/attempt-01/source/desktop/src/components/projects/HostCapacity.tsx"
+    },
+    {
+      "path": "frontend/attempt-01/source/desktop/src/test/setup.ts",
+      "bytes": 1173,
+      "sha256": "6873458c092edb343b856df7c92cae4eeaa55caa397d5a908121184301812a57",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/frontend/attempt-01/source/desktop/src/test/setup.ts"
+    },
+    {
+      "path": "frontend/attempt-01/source/desktop/vitest.config.ts",
+      "bytes": 2265,
+      "sha256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/frontend/attempt-01/source/desktop/vitest.config.ts"
+    },
+    {
+      "path": "frontend/attempt-01/stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/frontend/attempt-01/stderr.log"
+    },
+    {
+      "path": "frontend/attempt-01/stdout.log",
+      "bytes": 5333,
+      "sha256": "19d99ccbc23590c52d4251b390c57b72f65b34ee94080b8b391f16e7856e1883",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/frontend/attempt-01/stdout.log"
+    },
+    {
+      "path": "frontend/attempt-01/validation.json",
+      "bytes": 3630,
+      "sha256": "e76885577a46bfa7630e28934cf627152c254cd8369f04c7ff47884668bf6ad9",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/frontend/attempt-01/validation.json"
+    },
+    {
+      "path": "helper/node.json",
+      "bytes": 7564,
+      "sha256": "e694dd44ed9d3ad38d9846e7383da6ccf051d342769413f747d18600b32ca115",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/helper/node.json"
+    },
+    {
+      "path": "helper/node.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/helper/node.stderr.log"
+    },
+    {
+      "path": "helper/node.stdout.log",
+      "bytes": 28960,
+      "sha256": "1b6a1054b859c1373f1bd6fa5e5909d48715b550c29f48169446b3978138ef02",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/helper/node.stdout.log"
+    },
+    {
+      "path": "helper/runner-source.py",
+      "bytes": 6431,
+      "sha256": "5a3d0195afec47b61388320a6bd61ae9b28d5e6f089f9f5137f769a3a7b5c88b",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/helper/runner-source.py"
+    },
+    {
+      "path": "helper-final/node.json",
+      "bytes": 7575,
+      "sha256": "d116bf5923f9c77071ab4dc18dce648cf6c801601843a905ab2f09de734a10ff",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/helper-final/node.json"
+    },
+    {
+      "path": "helper-final/node.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/helper-final/node.stderr.log"
+    },
+    {
+      "path": "helper-final/node.stdout.log",
+      "bytes": 28954,
+      "sha256": "fa65407e7b2e54541e7452af824a762b5935fed3c92d9a42f7a8a21eaa584999",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/helper-final/node.stdout.log"
+    },
+    {
+      "path": "helper-final/runner-source.py",
+      "bytes": 6431,
+      "sha256": "5a3d0195afec47b61388320a6bd61ae9b28d5e6f089f9f5137f769a3a7b5c88b",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/helper-final/runner-source.py"
+    },
+    {
+      "path": "intermediate/corrected-test.go",
+      "bytes": 15375,
+      "sha256": "799c57380247edcb6a3bbbf1d88fd66d040363ffab387bfc4276c251188b3b2f",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/intermediate/corrected-test.go"
+    },
+    {
+      "path": "intermediate/final-test.go",
+      "bytes": 18195,
+      "sha256": "18c13343a61c4c26be7935fcf0714e5671af66d11a512824f8cdb41fa39cd400",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/intermediate/final-test.go"
+    },
+    {
+      "path": "intermediate/installed-recovery-before-checkpoint-timeout.mjs",
+      "bytes": 42727,
+      "sha256": "59de70302ae3059908059c7ac7be28ba4ad81dadc7f96cf5a11358e6b28edc69",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/intermediate/installed-recovery-before-checkpoint-timeout.mjs"
+    },
+    {
+      "path": "original.result.json",
+      "bytes": 1864,
+      "sha256": "8438be603e48da644488c975f205d55d618abb97831ae2ce3b4a30bb80c4f31b",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/original.result.json"
+    },
+    {
+      "path": "original.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/original.stderr.log"
+    },
+    {
+      "path": "original.stdout.jsonl",
+      "bytes": 1968,
+      "sha256": "29ccfda1e0910aae5c3f6d1f7f3e7fda227b179defabd171dc4a216e387985b3",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/original.stdout.jsonl"
+    },
+    {
+      "path": "run-go.py",
+      "bytes": 2328,
+      "sha256": "8f86e35c566720e07f9f85677292b607ac9e7010d3e3883aa25ec823100d5b3d",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/run-go.py"
+    },
+    {
+      "path": "run-helper-final.py",
+      "bytes": 731,
+      "sha256": "0dd98126fa78384657d2c422fb47e44072bdf276505c22b225d218a26dafbaa6",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/run-helper-final.py"
+    },
+    {
+      "path": "run-helper.py",
+      "bytes": 725,
+      "sha256": "b6bc9dc6d71d2ca9765fb0ebf94747981efe56ce2ab5fc39242a1ede2901d31a",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/run-helper.py"
+    },
+    {
+      "path": "source/control-plane/internal/api/codex_connection.go",
+      "bytes": 13302,
+      "sha256": "f6e887a24de3f048021e83f9132c8b1223582a85e07ae41d81d7ef2c36f18da2",
+      "original": "/workspace/luci/control-plane/internal/api/codex_connection.go"
+    },
+    {
+      "path": "source/control-plane/internal/api/execution_fence_store.go",
+      "bytes": 8531,
+      "sha256": "a36c61a87bad1369f94b70427f158ebcfd92e2e9432e29063caf7997cadb1195",
+      "original": "/workspace/luci/control-plane/internal/api/execution_fence_store.go"
+    },
+    {
+      "path": "source/control-plane/internal/api/execution_lease_lock_unix.go",
+      "bytes": 554,
+      "sha256": "da94406dfc3ce76751a499079c140204ed535baf0483b45f370c027e80ce2370",
+      "original": "/workspace/luci/control-plane/internal/api/execution_lease_lock_unix.go"
+    },
+    {
+      "path": "source/control-plane/internal/api/execution_lease_lock_windows.go",
+      "bytes": 681,
+      "sha256": "8408925c60e0a51a3952849ce90ed7552b31cd85f142dddad72e76e7f3d5901d",
+      "original": "/workspace/luci/control-plane/internal/api/execution_lease_lock_windows.go"
+    },
+    {
+      "path": "source/control-plane/internal/api/execution_leases.go",
+      "bytes": 28033,
+      "sha256": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd",
+      "original": "/workspace/luci/control-plane/internal/api/execution_leases.go"
+    },
+    {
+      "path": "source/control-plane/internal/api/execution_reservation_view.go",
+      "bytes": 3483,
+      "sha256": "50a2ea9692ed692137edd290d813039cceb0b9164cd6e680a587bdb2f4bfbbb4",
+      "original": "/workspace/luci/control-plane/internal/api/execution_reservation_view.go"
+    },
+    {
+      "path": "source/control-plane/internal/api/execution_reservation_view_test.go",
+      "bytes": 18263,
+      "sha256": "3897572c82a2678b3e48280df9876260138a760013e2b3ec9587c9e80152cd00",
+      "original": "/workspace/luci/control-plane/internal/api/execution_reservation_view_test.go"
+    },
+    {
+      "path": "source/control-plane/internal/api/swarm_dispatch.go",
+      "bytes": 17372,
+      "sha256": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da",
+      "original": "/workspace/luci/control-plane/internal/api/swarm_dispatch.go"
+    },
+    {
+      "path": "source/control-plane/internal/management/runtime.go",
+      "bytes": 17394,
+      "sha256": "cbc15063b7dedffbe408662028c66bd9ac25eefad9fca1943d9cdc0e698b605e",
+      "original": "/workspace/luci/control-plane/internal/management/runtime.go"
+    },
+    {
+      "path": "source/control-plane/internal/product/project_swarm_scheduler_http.go",
+      "bytes": 12194,
+      "sha256": "39127d21d6c76d588da2fa3ed4f42ea394411e7a3482d62e27cdf474e47c0878",
+      "original": "/workspace/luci/control-plane/internal/product/project_swarm_scheduler_http.go"
+    },
+    {
+      "path": "source/control-plane/internal/product/project_swarm_scheduler_types.go",
+      "bytes": 4709,
+      "sha256": "a0e4f325a511545da9e40b2d5661414c7808878aebd02c079fbf526a37e46d15",
+      "original": "/workspace/luci/control-plane/internal/product/project_swarm_scheduler_types.go"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/README.md",
+      "bytes": 10949,
+      "sha256": "5a667ad05a4a72cab52704db27c921a0a3a388d42cbe9c558daba02260872ca4",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/README.md"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/adapter-contract.md",
+      "bytes": 7710,
+      "sha256": "d1cc9e3b4472e69ea8dacbecc795c8416b2ece21aaf8fb53d18756a16567265d",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/adapter-contract.md"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/check-create-guard.mjs",
+      "bytes": 9521,
+      "sha256": "4c36f0f9253da83bd5d75fd4f5af40363ecd0fd1598db9e00f9c0e10d98507a0",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/check-create-guard.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/check-guard.test.mjs",
+      "bytes": 15920,
+      "sha256": "5ed70679db7bffdcd8718eaff530a37aa0aac703107a7f38c0ebf4a41d01e5c6",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/check-guard.test.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/cleanup.test.mjs",
+      "bytes": 5121,
+      "sha256": "b1b63c7fd26b28c0e78b0a080904384fdb7919038d71f885858a66d4a4df0ab0",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/cleanup.test.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/fixture-guards.mjs",
+      "bytes": 9584,
+      "sha256": "63236101987b8d193677a0ebd5ab7bf4690bd478c50e0ce849886018fab19b6c",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/fixture-guards.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/freeze-source-binding.py",
+      "bytes": 4110,
+      "sha256": "a16901987163f4cef25c3759c0128df6eb59ed1762008527149da0e73f4569d0",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/freeze-source-binding.py"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/inspect-guards.test.mjs",
+      "bytes": 8586,
+      "sha256": "d5c9d41bf7abebeaefb6973857e8a81510ca37272e937eae9e54a8221e285d4b",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/inspect-guards.test.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/installed-recovery.mjs",
+      "bytes": 42934,
+      "sha256": "9f3c933d2dfeb48de0e3598d47d77af7fa8c565a533cef41444722fa1da3af10",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/installed-recovery.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/provenance-binding.test.mjs",
+      "bytes": 15105,
+      "sha256": "11b4115f3b3d8406b06fc3f1fb6fe3f717e622359b36559befdae31e0d39ee57",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/provenance-binding.test.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/provenance.mjs",
+      "bytes": 4889,
+      "sha256": "6b41954f56052d167954018018c79f561722a80497856d135d403904bfd9c08e",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/provenance.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs",
+      "bytes": 16768,
+      "sha256": "314334036802aa135fe78849ce0085fe7fe44893964451d9cd7d99877645ba40",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/proxy-recovery.test.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/recovery-proofs.test.mjs",
+      "bytes": 22357,
+      "sha256": "3b418bbe97a15ffab40e67ec30f388a9108d7d428b04e30789b59783f337c1e8",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/recovery-proofs.test.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/recovery-scenario.mjs",
+      "bytes": 17022,
+      "sha256": "a810c9443562e4325e5a1b902c83446ad6fba3231a5f8a1fba226d58af4d1e1c",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/recovery-scenario.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/run-with-observer.py",
+      "bytes": 16640,
+      "sha256": "4ae1172679672ca785a1ed5a310942f764545900f4f376183b74407b0bff1edc",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/run-with-observer.py"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/scenario-flow.test.mjs",
+      "bytes": 17978,
+      "sha256": "b5e9edecc5d70eccc74f71fd0ad869cbb5326a598237dd6ca56dfa1a317f48a3",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/scenario-flow.test.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/check-create-recovery/wrapper.test.py",
+      "bytes": 16177,
+      "sha256": "d3e54c2cb0fad3a4d20c38be0a42deb0505368ed1c2706f76c01eae36ab55373",
+      "original": "/workspace/luci/scripts/acceptance/check-create-recovery/wrapper.test.py"
+    },
+    {
+      "path": "source/scripts/acceptance/four-project-queue/sample-linux-owned.py",
+      "bytes": 35379,
+      "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d",
+      "original": "/workspace/luci/scripts/acceptance/four-project-queue/sample-linux-owned.py"
+    },
+    {
+      "path": "source/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e",
+      "original": "/workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs",
+      "bytes": 6324,
+      "sha256": "e5f43c0edfa919341f449f7da3d86c76fda69229c6b61d73eb4f6e9feb80f840",
+      "original": "/workspace/luci/scripts/acceptance/launch-recovery/acceptance-lifecycle.test.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680",
+      "original": "/workspace/luci/scripts/acceptance/launch-recovery/acceptance-startup.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/launch-recovery/acceptance-startup.test.mjs",
+      "bytes": 11674,
+      "sha256": "28f675f2b994bf663784a702ce1e9930fb2cf4aa0d8aac0fa82d82acb20e128f",
+      "original": "/workspace/luci/scripts/acceptance/launch-recovery/acceptance-startup.test.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1",
+      "original": "/workspace/luci/scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs"
+    },
+    {
+      "path": "source/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "bytes": 38547,
+      "sha256": "7315bcd8ecd230bf33de8eb4d06d900e4fdc380b52ed901875b12bf536672dae",
+      "original": "/workspace/luci/scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs"
+    },
+    {
+      "path": "source-contract-binding.json",
+      "bytes": 1707,
+      "sha256": "c5a3889b8caa093133b22c9059237319b3aa35eb42c5f04b0bf49878adc99d3b",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/source-contract-binding.json"
+    },
+    {
+      "path": "windows-lockfileex-contract.json",
+      "bytes": 525,
+      "sha256": "b4d7a8f2d7eabde6e06f4bae166901eafb00739084f3a3a5f5f8a0a83142262c",
+      "original": "/workspace/.luci-tools/cloud034-reservation-summary-review/windows-lockfileex-contract.json"
+    }
+  ]
+}

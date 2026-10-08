@@ -1,0 +1,18 @@
+{
+  "originalFailureRetained": true,
+  "fixturePathCorrectionAndFinalRerunRetained": true,
+  "goFinalTopLevelPassed": 9,
+  "goFinalSubtestsPassed": 14,
+  "goFinalPassEvents": 23,
+  "frontendTestsPassed": 41,
+  "helperFinalTestsPassed": 161,
+  "admissionSourceUnchanged": true,
+  "finalSelectedSourcesMatchRepository": true,
+  "rawLogHashesVerified": true,
+  "boundedSecretPatterns": 5,
+  "boundedSecretMatchingFiles": [],
+  "privateInstalledFixtureReadOrExported": false,
+  "installedRuntimeExecuted": false,
+  "windowsRuntimeExecuted": false,
+  "limits": "Focused controlled coverage and named input bindings only; no exhaustive transitive input/secret audit or installed acceptance."
+}

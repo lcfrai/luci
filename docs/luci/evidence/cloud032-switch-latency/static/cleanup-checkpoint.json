@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "completed": true,
+  "failure": null,
+  "cleanupComplete": false,
+  "at": "2026-10-08T22:22:45.751Z",
+  "resources": [
+    {
+      "name": "static-server",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false
+    },
+    {
+      "name": "browser-context",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser",
+      "closedByParent": false
+    },
+    {
+      "name": "browser-page",
+      "state": "acquired",
+      "late": false,
+      "closeTimedOut": false,
+      "parent": "browser-context",
+      "closedByParent": false
+    }
+  ]
+}

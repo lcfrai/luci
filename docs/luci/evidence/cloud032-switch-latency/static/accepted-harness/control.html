@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CLOUD-032 static DOM automation control</title>
+<style>
+body { font: 16px system-ui; margin: 0; }
+aside { position: fixed; inset: 0 auto 0 0; width: 180px; padding: 20px; }
+main { margin: 40px 260px; max-width: 780px; }
+button { font: inherit; min-height: 36px; margin: 6px; }
+textarea { display: block; width: 650px; height: 120px; font: inherit; }
+li { margin-block: 20px; }
+dialog { padding: 24px; }
+</style>
+<aside><button id="home">All projects</button></aside>
+<main></main>
+<dialog aria-label="Keep your changes?"><h2>Keep your changes?</h2><button id="discard">Discard edits and continue</button></dialog>
+<script>
+// Deliberately minimal DOM control: no React, persistence, product APIs or claims
+// about product behavior. The exact original interaction driver supplies actions.
+const owners=__CLOUD032_OWNERS__;
+let selected=null,lens='Define',dirty=false;
+const main=document.querySelector('main'),dialog=document.querySelector('dialog');
+function button(name,action){const node=document.createElement('button');node.textContent=name;node.onclick=action;return node;}
+function render(){
+ main.replaceChildren();
+ if(!selected){
+  const title=document.createElement('h2');title.textContent='Across your projects';main.append(title);
+  const list=document.createElement('ul');main.append(list);
+  for(const owner of owners){const row=document.createElement('li');row.append(button('Open project '+owner.owner.name,()=>{selected=owner;lens='Define';render();}));list.append(row);}
+  return;
+ }
+ main.append(button('Define',()=>{lens='Define';render();}),button('Design',()=>{if(dirty)dialog.showModal();else{lens='Design';render();}}));
+ const title=document.createElement('h1');title.textContent=lens;main.append(title);
+ if(lens==='Define'){
+  const label=document.createElement('label');label.append('The idea');const field=document.createElement('textarea');field.value=selected.goal;field.oninput=()=>{dirty=true;};label.append(field);main.append(label);
+ }
+}
+document.querySelector('#home').onclick=()=>{if(dirty)throw Error('Control requires the exact preceding discard flow');selected=null;render();};
+document.querySelector('#discard').onclick=()=>{dirty=false;dialog.close();lens='Design';render();};
+render();
+</script>

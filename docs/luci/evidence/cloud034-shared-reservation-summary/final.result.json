@@ -1,0 +1,76 @@
+{
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p=1",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "./internal/api",
+    "-run",
+    "^Test(ExecutionReservationView|ExecutionAdmissionSerializesIndependentControllersBeforeAnyAllocation|ExecutionStorageSchedulerHTTPPublishesPathFreeHostBound|ProjectCheckHTTPAccountsSharePendingCapacityBeforeCreate)"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "environment": {
+    "GOMAXPROCS": "2",
+    "GOCACHE": "/tmp/luci-cloud033-go-cache",
+    "GOMODCACHE": "/tmp/luci-retained-tools/go-mod",
+    "GOWORK": "/workspace/.luci-tools/go.work",
+    "TMPDIR": "/tmp/luci-cloud034-test-temp"
+  },
+  "startedAt": "2026-10-08T22:52:18.802237+00:00",
+  "sourceBefore": {
+    "control-plane/internal/api/execution_reservation_view_test.go": "18c13343a61c4c26be7935fcf0714e5671af66d11a512824f8cdb41fa39cd400",
+    "control-plane/internal/api/execution_reservation_view.go": "50a2ea9692ed692137edd290d813039cceb0b9164cd6e680a587bdb2f4bfbbb4",
+    "control-plane/internal/api/swarm_dispatch.go": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da",
+    "control-plane/internal/api/execution_leases.go": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd"
+  },
+  "exitCode": 0,
+  "finishedAt": "2026-10-08T22:52:33.537504+00:00",
+  "seconds": 14.73449251402053,
+  "sourceAfter": {
+    "control-plane/internal/api/execution_reservation_view_test.go": "18c13343a61c4c26be7935fcf0714e5671af66d11a512824f8cdb41fa39cd400",
+    "control-plane/internal/api/execution_reservation_view.go": "50a2ea9692ed692137edd290d813039cceb0b9164cd6e680a587bdb2f4bfbbb4",
+    "control-plane/internal/api/swarm_dispatch.go": "ddf39c0404225c8daa8f492b7172f6b766ccd2f7d87808d34edc059e055459da",
+    "control-plane/internal/api/execution_leases.go": "b01237f04c9584c78d39a02f0f26c2424f2786d89587af230d7a7d6f33c40ddd"
+  },
+  "sourceStable": true,
+  "outcomes": {
+    "pass": [
+      "TestExecutionAdmissionSerializesIndependentControllersBeforeAnyAllocation",
+      "TestExecutionReservationViewPausedOwnerObservesTeamCheck",
+      "TestExecutionReservationViewUnavailableAndReadOnly/missing-root",
+      "TestExecutionReservationViewUnavailableAndReadOnly/missing-ledger",
+      "TestExecutionReservationViewUnavailableAndReadOnly/missing-lock",
+      "TestExecutionReservationViewUnavailableAndReadOnly/invalid-json",
+      "TestExecutionReservationViewUnavailableAndReadOnly/invalid-foreign-owner",
+      "TestExecutionReservationViewUnavailableAndReadOnly/oversized",
+      "TestExecutionReservationViewUnavailableAndReadOnly/lock-directory",
+      "TestExecutionReservationViewUnavailableAndReadOnly/linked-lock",
+      "TestExecutionReservationViewUnavailableAndReadOnly/linked-ledger",
+      "TestExecutionReservationViewUnavailableAndReadOnly/hardlinked-lock",
+      "TestExecutionReservationViewUnavailableAndReadOnly/hardlinked-ledger",
+      "TestExecutionReservationViewUnavailableAndReadOnly/project-owned-ledger",
+      "TestExecutionReservationViewUnavailableAndReadOnly/relative-path",
+      "TestExecutionReservationViewUnavailableAndReadOnly/ordinary-read-preserves-modes-and-bytes",
+      "TestExecutionReservationViewUnavailableAndReadOnly",
+      "TestExecutionReservationViewBoundedLockAndCancellation",
+      "TestExecutionReservationViewConcurrentPeerMutation",
+      "TestExecutionReservationViewDoesNotWidenSchedulerAuthority",
+      "TestExecutionReservationViewFinishedChecksAndNoHostSampler",
+      "TestExecutionStorageSchedulerHTTPPublishesPathFreeHostBound",
+      "TestProjectCheckHTTPAccountsSharePendingCapacityBeforeCreate"
+    ],
+    "fail": [],
+    "skip": []
+  },
+  "stdout.jsonl": {
+    "bytes": 22943,
+    "sha256": "13d27ca190c4f9790a8929c9ec0c94ed81ef041c00fab9b430860d5a5c64aeac"
+  },
+  "stderr.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

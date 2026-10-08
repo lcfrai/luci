@@ -19,6 +19,15 @@ export function HostCapacity() {
   const auth = useAuth(), team = useTeamWorkspace();
   const permitted = !team?.teamId && !!auth && ['admin', 'super-admin'].includes(auth.profile.user.role);
   const [snapshot, setSnapshot] = useState<SwarmScheduler | null>(null);
+  const reservations = snapshot?.resources?.reservations;
+  const [, refreshReservationAge] = useState(0);
+  useEffect(() => {
+    if (reservations?.status !== 'ready') return;
+    const remaining = Date.parse(reservations.observedAt) + 30_000 - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0 || remaining > 30_000) return;
+    const timer = setTimeout(() => refreshReservationAge(value => value + 1), remaining);
+    return () => clearTimeout(timer);
+  }, [reservations]);
   const [expanded, setExpanded] = useState(false);
   const detailsId = useId();
   const [error, setError] = useState(false), [retry, setRetry] = useState(0);
@@ -93,7 +102,6 @@ export function HostCapacity() {
   }
   if (!permitted) return null;
   const host = snapshot?.resources?.host, execution = snapshot?.resources?.execution;
-  const reservations = snapshot?.resources?.reservations;
   const hostFresh = fresh(host?.observedAt), executionFresh = fresh(execution?.observedAt);
   const draftValid = !!draft && draft.maxPerProject <= draft.maxActive && fields.every(field => Number.isInteger(draft[field.key]) && draft[field.key] >= field.min && draft[field.key] <= field.max);
   return <section className="overview-capacity" aria-label="Workspace capacity">
@@ -105,7 +113,9 @@ export function HostCapacity() {
         <p><strong>Workspace ceiling: {snapshot.policy.maxActive} agents · up to {snapshot.policy.maxPerProject} per project</strong></p>
         <p>Actual concurrency also depends on account and provider limits, available execution resources, and task dependencies.</p>
         <p>Execution memory capacity: {executionFresh && execution?.status !== 'unavailable' ? memory(execution?.totalMemoryBytes) : 'Unavailable'}. Host free memory alone does not authorize a start.</p>
-        {reservations && <p>Reserved worker demand: {reservations.count} workers · {memory(reservations.memoryMiB * 1024 ** 2)} · {(reservations.cpuMillis / 1000).toFixed(1)} CPU cores. Recorded {new Date(reservations.observedAt).toLocaleTimeString()}; includes already allocated workers and is not additional usage.</p>}
+        {reservations?.status === 'ready' && fresh(reservations.observedAt)
+          ? <p>Reserved execution demand: {reservations.count} allocations · {memory(reservations.memoryMiB * 1024 ** 2)} · {(reservations.cpuMillis / 1000).toFixed(1)} CPU cores. Observed {new Date(reservations.observedAt).toLocaleTimeString()}; includes workers and checks across this machine, including allocations already running. This is not additional usage.</p>
+          : <p>Reserved execution demand: Unavailable. Current worker and check reservations could not be confirmed.</p>}
         <p>The queue leaves {snapshot.policy.headroomPercent}% RAM and CPU headroom, with at least {snapshot.policy.minHeadroomMiB} MiB memory and {snapshot.policy.diskReserveMiB} MiB disk reserved. These are scheduling ceilings; existing agents keep their allocations.</p>
         <p>{host ? `${host.scope} · ${host.platform}. ${hostFresh ? 'Observed' : 'Stale observation from'} ${new Date(host.observedAt).toLocaleTimeString()}.` : 'Host observations have not arrived; capacity is unknown.'}</p>
         {host?.disks?.map(disk => <p key={disk.role}>{disk.role}: {hostFresh ? memory(disk.availableBytes) : 'Unavailable'} available</p>)}

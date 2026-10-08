@@ -19,6 +19,34 @@ import { CheckRecoveryDialog } from "./CheckRecoveryDialog";
 import { Button } from "../fluid/components/button";
 import { RequirementsEvidence, commandStatus, evidenceLabel, watchRequirementEvidence } from "./RequirementsEvidence";
 
+// Older settled receipts bind these interim messages into their result digest.
+// Correct only their display after exact terminal cleanup is confirmed; preserve
+// the raw receipt and every other diagnosis for inspection and recovery.
+const legacyPendingCleanupMessages = new Set([
+  "The command exit and output were recorded; exact container cleanup is pending.",
+  "The exact command exit and output are retained; cleanup is pending.",
+  "The command result is retained, but exact Docker cleanup is unconfirmed. Its capacity remains held.",
+  "The exact Docker object has not been confirmed absent. Its capacity remains held.",
+]);
+function checkCommandMessage(command: CheckRun["commands"][number]) {
+  const terminalExit = typeof command.exitCode === "number" && Number.isInteger(command.exitCode) &&
+    (command.status === "passed" && command.exitCode === 0 || command.status === "failed" && command.exitCode !== 0);
+  if (command.cleanupConfirmed === true && command.stage === "cleanup" && terminalExit &&
+      (!command.reasonCode || command.reasonCode === "check_cleanup_unconfirmed") &&
+      legacyPendingCleanupMessages.has(command.message ?? ""))
+    return "The command exit and output were recorded; exact container cleanup is confirmed.";
+  return command.message;
+}
+
+function checkRunMessage(run: CheckRun) {
+  if (run.resourcesHeld === false && (run.status === "passed" || run.status === "failed") &&
+      run.stage === "cleanup" && (!run.reasonCode || run.reasonCode === "check_cleanup_unconfirmed")) {
+    const confirmed = run.commands.find(command => command.message === run.message && checkCommandMessage(command) !== command.message);
+    if (confirmed) return checkCommandMessage(confirmed);
+  }
+  return run.message;
+}
+
 const active = (run: CheckRun) =>
   run.status === "queued" || run.status === "running";
 const observes = (run: CheckRun) => active(run) || run.status === "unknown" && run.resourcesHeld === true && ["cleanup", "output", "observe"].includes(run.stage ?? "");
@@ -485,7 +513,7 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
             <div className="journey-header">
               <div>
                 <strong tabIndex={-1} data-check-heading>{commandStatus(run.status)}</strong>
-                <p>{run.message}</p>
+                <p>{checkRunMessage(run)}</p>
                 {run.resourcesHeld === true && <p className="journey-warning">Capacity remains held until the original check allocation is confirmed stopped and cleaned up.</p>}
                 {(run.revision ?? 0) > 0 && run.resourcesHeld === null && <p className="journey-warning">Capacity ownership is unavailable; no release is assumed.</p>}
                 {run.status === "blocked" && <p className="journey-muted">No blocked command will retry automatically. Earlier command output is retained below. Resolve the reported cause, then separately authorize a new run when capacity is released.</p>}
@@ -535,7 +563,7 @@ function ChecksWorkspace({ projectId, navigationScope }: { projectId: string; na
                     ? ` · exit ${command.exitCode}`
                     : ""}
                 </summary>
-                {command.message && <p>{command.message}</p>}
+                {command.message && <p>{checkCommandMessage(command)}</p>}
                 {command.cleanupConfirmed === false && ["passed", "failed", "unknown", "cancelled"].includes(command.status) && <p className="journey-warning">Cleanup has not been confirmed for this command.</p>}
                 <pre className="journey-code">
                   {command.output || "No output recorded."}

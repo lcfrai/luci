@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "observedAt": "2026-10-08T22:32:35.749408+00:00",
+  "scope": "Read-only Linux process scan after both driver receipts and exit0. Environment data used only for exact diagnostic markers/path prefix; never retained. No signals or Docker calls.",
+  "staticMarkerProcesses": [],
+  "actualFixtureProcesses": [],
+  "diagnosticDriverProcesses": [],
+  "visibleChromiumProcesses": [],
+  "actualFixtureChildren": 0
+}

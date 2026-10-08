@@ -1,0 +1,18 @@
+{
+  "scope": "controlled helper tests only; no installed acceptance",
+  "originalsExact": true,
+  "finalSourceHashesVerified": true,
+  "failedWrapperSourceHashVerified": true,
+  "rawCredentialsOrPrivateFixturesCopied": false,
+  "boundedPatternScan": {
+    "patterns": 5,
+    "matchingFiles": []
+  },
+  "secretReviewLimit": "Pattern scan plus allowlisted source/log review; not an exhaustive audit",
+  "nodePassed": 388,
+  "wrapperPassed": 37,
+  "syntaxPassed": 13,
+  "initialWrapperExitCode": 1,
+  "initialWrapperTestCount": null,
+  "finalTestProcessGroupsAbsent": true
+}

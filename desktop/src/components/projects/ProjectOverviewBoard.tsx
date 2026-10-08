@@ -81,8 +81,9 @@ function ScopedOverview({ projects }: { projects: Project[] }) {
   }, [ids, refresh, team?.revision]);
   useEffect(() => {
     const shown = new Set(JSON.parse(ids) as string[]);
-    setSummaries(previous => Object.fromEntries(Object.entries(previous).filter(([id]) => shown.has(id))));
-    setPicked(previous => Object.fromEntries(Object.entries(previous).filter(([, row]) => shown.has(row.project.id))));
+    // Mounts and unchanged membership do not need another board update.
+    setSummaries(previous => Object.keys(previous).every(id => shown.has(id)) ? previous : Object.fromEntries(Object.entries(previous).filter(([id]) => shown.has(id))));
+    setPicked(previous => Object.values(previous).every(row => shown.has(row.project.id)) ? previous : Object.fromEntries(Object.entries(previous).filter(([, row]) => shown.has(row.project.id))));
   }, [ids]);
 
   function select(project: Project, item: SwarmQueueItem, selected: boolean, canExecute: boolean) {

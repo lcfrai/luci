@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "npm",
+    "run",
+    "typecheck"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-08T22:58:55.543653+00:00",
+  "finishedAt": "2026-10-08T22:59:15.866720+00:00",
+  "exitCode": 0,
+  "timedOut": false,
+  "sourceInputCount": 435,
+  "sourceInputsUnchanged": true
+}

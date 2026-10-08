@@ -1,0 +1,45 @@
+{
+  "startedAt": "2026-10-08T22:34:17.088568+00:00",
+  "command": [
+    "go",
+    "test",
+    "-race",
+    "-p=1",
+    "-count=1",
+    "-timeout=8m",
+    "-json",
+    "-overlay=/workspace/.luci-tools/cloud033-cleanup-message/overlay-after.json",
+    "./internal/api",
+    "-run",
+    "^TestProjectCheckHTTP(AccountsSharePendingCapacityBeforeCreate|CleanupFailureKeepsOutputAcrossReopenWithoutReplay|FinishedReceiptSurvivesFinalPublicationBoundary|FinishedObservationPreservesLaterCommandOutcome|UnacknowledgedCreateRequiresReviewedFenceAndFreshEditor|RechecksRevokedAuthorityBeforeCreate)$"
+  ],
+  "cwd": "/workspace/luci/control-plane",
+  "GOMAXPROCS": "2",
+  "GOCACHE": "/tmp/luci-cloud033-go-cache",
+  "exitCode": 0,
+  "finishedAt": "2026-10-08T22:34:27.395971+00:00",
+  "elapsedSeconds": 10.30735924799228,
+  "inputsUnchanged": true,
+  "testOutcomes": {
+    "pass": [
+      "TestProjectCheckHTTPAccountsSharePendingCapacityBeforeCreate",
+      "TestProjectCheckHTTPRechecksRevokedAuthorityBeforeCreate",
+      "TestProjectCheckHTTPCleanupFailureKeepsOutputAcrossReopenWithoutReplay",
+      "TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/passed",
+      "TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/failed",
+      "TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/prepare-blocked",
+      "TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/cleanup-pending",
+      "TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome/unstarted-after-progress",
+      "TestProjectCheckHTTPFinishedObservationPreservesLaterCommandOutcome",
+      "TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor/complete",
+      "TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor/proof-retry",
+      "TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor/revoke-after-proof",
+      "TestProjectCheckHTTPUnacknowledgedCreateRequiresReviewedFenceAndFreshEditor",
+      "TestProjectCheckHTTPFinishedReceiptSurvivesFinalPublicationBoundary/controller-after-command",
+      "TestProjectCheckHTTPFinishedReceiptSurvivesFinalPublicationBoundary/completion-ack",
+      "TestProjectCheckHTTPFinishedReceiptSurvivesFinalPublicationBoundary"
+    ],
+    "fail": [],
+    "skip": []
+  }
+}

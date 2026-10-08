@@ -1,0 +1,10 @@
+✔ Actual adapter inspection window covers background reads before Stop and ends afterward (72.24543ms)
+✔ Actual adapter refuses an exhausted inspection window even if caller returns503 (35.468633ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 276.839941

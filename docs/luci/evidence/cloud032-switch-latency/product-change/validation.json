@@ -1,0 +1,28 @@
+{
+  "at": "2026-10-08T22:35:21.497552+00:00",
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "src/store/draftRegistration.test.ts",
+    "src/store/sourceNavigation.test.ts",
+    "src/store/projectNavigation.test.ts",
+    "--maxWorkers=1",
+    "--no-file-parallelism",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud032-product-noop-draft/tests.json"
+  ],
+  "exitCode": 0,
+  "tests": {
+    "numTotalTests": 19,
+    "numPassedTests": 19,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "success": true
+  },
+  "sources": {
+    "desktop/src/store/slices/uiSlice.ts": "f8856c549763a9a9a4b75e394411ec679a8f6ea4a1894d914132f0c14ca032e2",
+    "desktop/src/store/draftRegistration.test.ts": "d1ba63c56d68e357246ab3b10b8d11508eef95c622646f648c19f37829a2a7d9"
+  },
+  "scope": "Focused actual store tests only. No package rebuild or post-change browser latency measurement."
+}

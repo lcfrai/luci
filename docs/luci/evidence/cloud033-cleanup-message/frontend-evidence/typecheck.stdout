@@ -1,0 +1,2 @@
+src/e2eDefect6.test.ts(7,68): error TS2307: Cannot find module '../e2e/defect6.mjs' or its corresponding type declarations.
+src/e2eDefect6.test.ts(36,37): error TS7006: Parameter 'id' implicitly has an 'any' type.

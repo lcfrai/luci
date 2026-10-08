@@ -1,0 +1,9 @@
+{
+  "problem": "The project-owned-path boundary case inherited an empty ProjectsDir and wrote two controlled synthetic files relative to package cwd; it exercised relative-path refusal rather than the intended project boundary.",
+  "correction": "Set an explicit absolute ProjectsDir under t.TempDir for this case, retain intermediate test source and rerun the focused batch.",
+  "removedExactOwnedPaths": [
+    "/workspace/luci/control-plane/internal/api/untrusted-ledger/leases.json",
+    "/workspace/luci/control-plane/internal/api/untrusted-ledger/leases.lock"
+  ],
+  "ownershipChecks": "Only two ordinary files; sole lease summary-one/summary-worker; empty lock; no private installed fixture accessed."
+}

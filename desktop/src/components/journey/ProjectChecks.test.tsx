@@ -674,3 +674,46 @@ it.each(['project', 'account'] as const)('LOCAL-015 does not leak an old start r
   expect(screen.getByRole('button', { name: 'Run project checks' })).toHaveProperty('disabled', false);
   expect(productApi.runChecks).toHaveBeenCalledOnce();
 });
+
+
+it.each([
+  ['live exit', 'passed', 0, '', 'The command exit and output were recorded; exact container cleanup is pending.'],
+  ['observed exit', 'failed', 17, '', 'The exact command exit and output are retained; cleanup is pending.'],
+  ['retried removal', 'passed', 0, 'check_cleanup_unconfirmed', 'The command result is retained, but exact Docker cleanup is unconfirmed. Its capacity remains held.'],
+  ['later absence', 'failed', 17, 'check_cleanup_unconfirmed', 'The exact Docker object has not been confirmed absent. Its capacity remains held.'],
+] as const)('shows proven cleanup for a legacy %s without rewriting its receipt', async (_name, status, exitCode, reasonCode, message) => {
+  const run = checkRunFixture({ status, stage: 'cleanup', reasonCode, resourcesHeld: false, message: _name === 'live exit' ? 'Recorded terminal command and confirmed cleanup.' : message });
+  run.commands = [{ ...run.commands[0], label: 'Retained check', status, exitCode, stage: 'cleanup', reasonCode, cleanupConfirmed: true, message }];
+  const original = JSON.stringify(run);
+  vi.mocked(productApi.checks).mockResolvedValue({ runs: [run], suggested: commands, coverage });
+  render(<ProjectChecks projectId="p-1" />);
+  await userEvent.click(await screen.findByText(`Retained check · ${status} · exit ${exitCode}`));
+  expect(screen.getAllByText('The command exit and output were recorded; exact container cleanup is confirmed.')).toHaveLength(_name === 'live exit' ? 1 : 2);
+  expect(screen.queryByText(message)).toBeNull();
+  expect(screen.getByText('Retained test output')).toBeTruthy();
+  expect(JSON.stringify(run)).toBe(original);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+  expect(projectRunsApi.joinCheck).not.toHaveBeenCalled();
+});
+
+it.each([
+  ['unconfirmed cleanup', { cleanupConfirmed: false }],
+  ['unknown outcome', { status: 'unknown', exitCode: undefined }],
+  ['missing exit', { exitCode: undefined }],
+  ['cancelled command', { status: 'cancelled', exitCode: undefined, reasonCode: 'check_cancelled' }],
+  ['admission diagnosis', { stage: 'admission', reasonCode: 'memory_pressure' }],
+  ['other message', { message: 'A separate retained diagnosis.' }],
+] satisfies [string, Partial<CheckRun['commands'][number]>][])('retains %s instead of manufacturing a cleanup display conclusion', async (_name, patch) => {
+  const message = 'The command exit and output were recorded; exact container cleanup is pending.';
+  const run = checkRunFixture({ status: 'unknown', stage: 'cleanup', resourcesHeld: false, message: 'Retained run under review.' });
+  run.commands = [{ ...run.commands[0], label: 'Retained check', status: 'passed', exitCode: 0, stage: 'cleanup', reasonCode: '', cleanupConfirmed: true, message, ...patch }];
+  const original = JSON.stringify(run);
+  vi.mocked(productApi.checks).mockResolvedValue({ runs: [run], suggested: commands, coverage });
+  render(<ProjectChecks projectId="p-1" />);
+  await userEvent.click(await screen.findByText(/Retained check ·/));
+  expect(screen.getByText(run.commands[0].message!)).toBeTruthy();
+  expect(screen.queryByText('The command exit and output were recorded; exact container cleanup is confirmed.')).toBeNull();
+  expect(JSON.stringify(run)).toBe(original);
+  expect(productApi.runChecks).not.toHaveBeenCalled();
+  expect(projectRunsApi.joinCheck).not.toHaveBeenCalled();
+});

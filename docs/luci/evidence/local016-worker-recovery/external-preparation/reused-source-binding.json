@@ -1,0 +1,37 @@
+[
+  {
+    "source": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+    "destination": "runtime/launch-recovery/fenced-docker-proxy.mjs",
+    "sha256": "48e97d6d5c915cf80c99f0c79a8fb16261eb219616f878fa1ce103ee2c59303d"
+  },
+  {
+    "source": "scripts/acceptance/launch-recovery/worker-create-guard.mjs",
+    "destination": "runtime/launch-recovery/worker-create-guard.mjs",
+    "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5"
+  },
+  {
+    "source": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+    "destination": "runtime/launch-recovery/acceptance-lifecycle.mjs",
+    "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+  },
+  {
+    "source": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+    "destination": "runtime/launch-recovery/acceptance-startup.mjs",
+    "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+  },
+  {
+    "source": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+    "destination": "runtime/launch-recovery/durable-acceptance-journal.mjs",
+    "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1"
+  },
+  {
+    "source": "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs",
+    "destination": "runtime/four-project-queue/native-terminal-diagnostics.mjs",
+    "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6"
+  },
+  {
+    "source": "scripts/acceptance/sustained-four-project/task-context.mjs",
+    "destination": "runtime/sustained-four-project/task-context.mjs",
+    "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2"
+  }
+]

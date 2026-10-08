@@ -1,0 +1,6 @@
+{
+  "scope": "changed wrapper test file only; other13 syntax checks retained in validation-repo-01",
+  "passed": true,
+  "path": "/workspace/luci/scripts/acceptance/check-create-recovery/wrapper.test.py",
+  "sha256": "d3e54c2cb0fad3a4d20c38be0a42deb0505368ed1c2706f76c01eae36ab55373"
+}

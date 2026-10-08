@@ -1,0 +1,43 @@
+{"errors": 0, "failures": 0, "files": {"check-create-recovery/run-with-observer.py": "4ae1172679672ca785a1ed5a310942f764545900f4f376183b74407b0bff1edc", "check-create-recovery/wrapper.test.py": "d3e54c2cb0fad3a4d20c38be0a42deb0505368ed1c2706f76c01eae36ab55373", "four-project-queue/sample-linux-owned.py": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d"}, "origin": {"sampler": {"commit": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f", "path": "scripts/acceptance/four-project-queue/sample-linux-owned.py", "sha256": "1eb5f48c3b9b1e248e15ed2d058181b96e36485d914304397f35427c9cac725d"}, "wrapper": {"commit": "81f2ba5b194a81a4f2ad167e466793f59162b387", "path": "scripts/acceptance/task-dependencies/run-with-observer.py", "sha256": "5a4d13eefb245a5040e727d689a61aad5e18c2a945f2c6cee10658d6810eebdd"}}, "samplerHelperCommit": "5d306b6dae3cc9d0a4d9cbf95f8142c37958964f", "scope": "Controlled Python tests only; subprocess.Popen and signal registration mocked. Sampler hashed, never imported/executed. No installed controller, Docker, browser, compiler, external model, or real child process workload.", "skipped": 0, "status": "passed", "tests": 37, "testsRun": true, "wrapperHelperCommit": "81f2ba5b194a81a4f2ad167e466793f59162b387"}
+test_absent_binding_refused_before_children (__main__.WrapperTest.test_absent_binding_refused_before_children) ... ok
+test_caller_fixture_root_override_refused (__main__.WrapperTest.test_caller_fixture_root_override_refused) ... ok
+test_caller_pointer_override_refused (__main__.WrapperTest.test_caller_pointer_override_refused) ... ok
+test_dangling_driver_pointer_refused_without_following (__main__.WrapperTest.test_dangling_driver_pointer_refused_without_following) ... ok
+test_dedicated_driver_frozen_sampler_and_exact_team_pointer (__main__.WrapperTest.test_dedicated_driver_frozen_sampler_and_exact_team_pointer) ... ok
+test_driver_failure_status_is_preserved (__main__.WrapperTest.test_driver_failure_status_is_preserved) ... ok
+test_driver_launch_failure_starts_no_observer (__main__.WrapperTest.test_driver_launch_failure_starts_no_observer) ... ok
+test_duplicate_binding_refused_before_children (__main__.WrapperTest.test_duplicate_binding_refused_before_children) ... ok
+test_duplicate_helper_refused_before_children (__main__.WrapperTest.test_duplicate_helper_refused_before_children) ... ok
+test_duplicate_image_refused (__main__.WrapperTest.test_duplicate_image_refused) ... ok
+test_duplicate_product_source_refused_before_children (__main__.WrapperTest.test_duplicate_product_source_refused_before_children) ... ok
+test_duplicate_repo_refused (__main__.WrapperTest.test_duplicate_repo_refused) ... ok
+test_equals_fixture_root_override_refused (__main__.WrapperTest.test_equals_fixture_root_override_refused) ... ok
+test_equals_image_refused (__main__.WrapperTest.test_equals_image_refused) ... ok
+test_equals_pointer_override_refused (__main__.WrapperTest.test_equals_pointer_override_refused) ... ok
+test_equals_product_source_refused_before_children (__main__.WrapperTest.test_equals_product_source_refused_before_children) ... ok
+test_existing_driver_pointer_never_overwritten (__main__.WrapperTest.test_existing_driver_pointer_never_overwritten) ... ok
+test_existing_lifecycle_is_preserved (__main__.WrapperTest.test_existing_lifecycle_is_preserved) ... ok
+test_existing_self_cost_is_preserved (__main__.WrapperTest.test_existing_self_cost_is_preserved) ... ok
+test_explicit_product_source_is_forwarded_unchanged (__main__.WrapperTest.test_explicit_product_source_is_forwarded_unchanged) ... ok
+test_fresh_observation_directory_required (__main__.WrapperTest.test_fresh_observation_directory_required) ... ok
+test_import_has_no_launch_and_exact_frozen_sampler (__main__.WrapperTest.test_import_has_no_launch_and_exact_frozen_sampler) ... ok
+test_linked_binding_refused_before_children (__main__.WrapperTest.test_linked_binding_refused_before_children) ... ok
+test_malformed_helper_refused_before_children (__main__.WrapperTest.test_malformed_helper_refused_before_children) ... ok
+test_malformed_product_source_refused_before_children (__main__.WrapperTest.test_malformed_product_source_refused_before_children) ... ok
+test_missing_binding_refused_before_children (__main__.WrapperTest.test_missing_binding_refused_before_children) ... ok
+test_missing_observer_self_cost_fails (__main__.WrapperTest.test_missing_observer_self_cost_fails) ... ok
+test_missing_pointer_fails_without_discovering_gateway (__main__.WrapperTest.test_missing_pointer_fails_without_discovering_gateway) ... ok
+test_missing_product_source_value_refused_before_children (__main__.WrapperTest.test_missing_product_source_value_refused_before_children) ... ok
+test_observer_cleanup_runs_when_driver_signal_fails (__main__.WrapperTest.test_observer_cleanup_runs_when_driver_signal_fails) ... ok
+test_observer_failure_cannot_pass (__main__.WrapperTest.test_observer_failure_cannot_pass) ... ok
+test_observer_launch_failure_cleans_owned_driver (__main__.WrapperTest.test_observer_launch_failure_cleans_owned_driver) ... ok
+test_observer_settlement_timeout_is_bounded_and_fails (__main__.WrapperTest.test_observer_settlement_timeout_is_bounded_and_fails) ... ok
+test_root_window_required_before_either_child (__main__.WrapperTest.test_root_window_required_before_either_child) ... ok
+test_total_timeout_has_only_five_second_interrupt_grace (__main__.WrapperTest.test_total_timeout_has_only_five_second_interrupt_grace) ... ok
+test_workflow_and_total_budgets_are_explicit (__main__.WrapperTest.test_workflow_and_total_budgets_are_explicit) ... ok
+test_wrong_image_refused (__main__.WrapperTest.test_wrong_image_refused) ... ok
+
+----------------------------------------------------------------------
+Ran 37 tests in 0.045s
+
+OK

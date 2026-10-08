@@ -1,0 +1,99 @@
+{
+  "scope": "Relayed Windows tester read-only audit of published Linux evidence; not a new Windows execution or cloud-independent reading of local audit files.",
+  "publicationCommit": "9121b5bab09df5827efa291026ed842253256842",
+  "productCommit": "4df94ab9dad0e9fedd28a873bbadc56720e1402e",
+  "helperCommit": "d6949ac18e4f72fc2dc286627dc5bddc4067e36d",
+  "reportedByThread": "01a1199f-7500-7843-b02b-081081e536fa",
+  "windowsRuntimeLaunched": false,
+  "runtimeHold": "Available host RAM remains below the local acceptance launch gate; ordinary user applications and original checkouts remain preserved. No new numeric headroom value was supplied with this audit.",
+  "attempt11": {
+    "result": "Scoped Linux installed workflow passed; native Windows remains unverified.",
+    "receipt": "cloud029-installed-4df94ab9-attempt11/README.md",
+    "publicMembersMatched": 61,
+    "decodedOriginalsMatched": 3,
+    "exactHelperSourceBindingsMatched": 18,
+    "naturalWorkers": 4,
+    "dependencyRefusals": 6,
+    "reviewedIntegrations": 3,
+    "originalBetaConflictRetained": true,
+    "createsAcknowledged201": 5,
+    "startsAcknowledged204": 5,
+    "checkCreates": 1,
+    "checkStarts": 1,
+    "checkId": "check-4d62db8779e121849ce2683d",
+    "allocationId": "checkexec-0aeda4ff1ba6f1fea8c25448",
+    "checkStatus": "passed",
+    "exitCode": 0,
+    "output": "DAG_CHECK_OK final\n",
+    "immutableDeleteStatus": 204,
+    "cleanupConfirmed": true,
+    "resourcesHeld": false,
+    "independentReportedLedgerEmpty": true,
+    "explicitJoin": {
+      "sourceCommit": "7cd47dd709296df5a90411326b8de875935e81cd",
+      "sourceDigest": "3d3afe7ad36efea304cf6ae1110189e5eeea02a6092e6521bc8725067a7c4080",
+      "approvalsBound": true,
+      "requirementIds": [
+        "AC-dag"
+      ],
+      "originalCheckRetained": true,
+      "runState": "awaiting-release"
+    },
+    "resourceAudit": {
+      "rawInputBindingsMatched": 4,
+      "samples": 305,
+      "validControlPlaneCgroupSamples": 282,
+      "formulaMismatches": 0,
+      "minimumEffectiveAvailableBytes": 10192949248,
+      "minimumPhysicalAvailableBytes": 21433262080,
+      "checkIdentitySamples": 2,
+      "checkCgroupUsageSamples": 0,
+      "scope": "Sequential samples/event brackets, not atomic production admission measurements or check peak-memory proof."
+    },
+    "sampledChromiumZombiesAdoptedByPid1": 2,
+    "localAuditSHA256": "014af0fa180aafc0520e2c99eacdb08ac785dd72f8e40d0860e42e9b131657e0"
+  },
+  "attempt10": {
+    "result": "Failed helper preflight before actual product-check submission; remains separate from attempt 11.",
+    "receipt": "cloud030-installed-4df94ab9-attempt10/README.md",
+    "publicMembersMatched": 59,
+    "decodedOriginalsMatched": 3,
+    "exactHelperSourceBindingsMatched": 18,
+    "resourceInputBindingsMatched": 4,
+    "samples": 271,
+    "validControlPlaneCgroupSamples": 248,
+    "failedCondition": "rootFreeBytes >= 6 GiB; threshold unchanged",
+    "exactFailingArgumentRetained": false,
+    "schedulerResponseBodyRetained": false,
+    "nearbyDiskSamples": {
+      "beforeOffsetMs": -948,
+      "afterOffsetMs": 52,
+      "scope": "Contextual observations only; not the exact failed preflight argument."
+    },
+    "checkStartPosts": 0,
+    "checkCreates": 0,
+    "checkStarts": 0,
+    "naturalWorkers": 4,
+    "reviewedIntegrations": 3,
+    "originalBetaState": "unknown/conflict retained",
+    "cleanupPhasesCompleted": true,
+    "startupHandlesClosed": 5,
+    "independentReportedDockerEmpty": true,
+    "independentParsedLedgerEmpty": true,
+    "ledgerProvenanceLimit": "The private ledger original bytes are not publication members. Its original-byte SHA-256 remains publisher reported; matching the public closure and parsing its embedded ledger does not independently hash that private file.",
+    "localAuditSHA256": "3abeb683694585ec6f3a9d268560f9fac858b6aa01b9f719fdc90f98c529a364"
+  },
+  "issueScopes": {
+    "CLOUD-029": "Positive matching installed check path; Windows and additional recovery/concurrency acceptance remain open.",
+    "CLOUD-030": "Scoped bounded owned Linux sampling and independent public-receipt formula review; not Windows resource acceptance or atomic admission proof.",
+    "CLOUD-033": "Fixing; original passed check receipt retains contradictory command-level cleanup copy.",
+    "LOCAL-016": "Fresh supported ordinary worker stop/reconciliation remains open. Original sustained failed-fixture charged lease remains unchanged.",
+    "unknownCreateRecovery": "Fresh reviewed recovery remains open. Attempt 7 original charged check lease remains unchanged."
+  },
+  "limits": [
+    "Audit hashes identify tester-reported local audit files; this cloud publication does not contain or claim independent reading of those Windows files.",
+    "Package and Docker image identities remain retained publisher assertions; public evidence audit is not Windows retrieval/execution of those runtime artifacts.",
+    "No older failed attempt is upgraded, no original private ledger is repaired, and no full local acceptance is claimed.",
+    "Do not rerun the unchanged positive Linux dependency workflow solely because this read-only audit was reported."
+  ]
+}

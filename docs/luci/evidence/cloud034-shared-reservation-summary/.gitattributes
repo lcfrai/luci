@@ -1,0 +1,3 @@
+# Preserve captured source and raw evidence bytes.
+** -text
+**/*.log -whitespace

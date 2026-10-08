@@ -1,0 +1,48 @@
+{
+  "baseCommit": "d6949ac18e4f72fc2dc286627dc5bddc4067e36d",
+  "mode": "External staged candidate with executed focused controlled regressions; not integrated or installed.",
+  "inputs": [
+    {
+      "path": "control-plane/internal/api/check_execution.go",
+      "sha256": "927fd3cbaea388ad4455a40c547e2e954617eef515e3ea67ca41227ceb4f7481"
+    },
+    {
+      "path": "control-plane/internal/api/check_observation.go",
+      "sha256": "8bd2b49310c4906127c24f85a602330fbcf53629d65d3034797faeb0aea21127"
+    }
+  ],
+  "staged": [
+    {
+      "path": "control-plane/internal/api/check_execution.go",
+      "sha256": "8e63303295c66179943c88d29c4c66f10596fbc3de3c8cac601a38b20cb2cf3f",
+      "bytes": 14707
+    },
+    {
+      "path": "control-plane/internal/api/check_observation.go",
+      "sha256": "04bc6a02192d0fc244a668a11fd14417fbd69cf1d580deefce5e7c406d9b3870",
+      "bytes": 10132
+    },
+    {
+      "path": "control-plane/internal/api/project_check_cleanup_message_test.go",
+      "sha256": "a7dede32a4892df9123d9b0394ddf95e3fd1a35792a5bcafc9e0a5e3c0e233cc",
+      "bytes": 11939
+    },
+    {
+      "path": "desktop/src/components/journey/ProjectChecks.tsx",
+      "sha256": "efd6677ccf54a4bd1e4d802d4845e6575a964bd335907b0513baa79d7ae7bcb5",
+      "bytes": 41249
+    },
+    {
+      "path": "desktop/src/components/journey/ProjectChecks.test.tsx",
+      "sha256": "b9405b3738238da9c8b251708f4df6b98c95f9c7cc88448d8a3673a4e29a78b0",
+      "bytes": 59300
+    }
+  ],
+  "testNames": [
+    "TestProjectCheckHTTPCleanupConfirmationReplacesPendingMessage",
+    "TestProjectCheckHTTPFinishedLegacyCleanupMessagePreservesDigest",
+    "TestProjectCheckHTTPCleanupConfirmationPreservesOtherDiagnoses"
+  ],
+  "compiledOrExecuted": true,
+  "regressionFilesIdenticalBeforeAfter": true
+}

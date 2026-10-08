@@ -1,0 +1,47 @@
+/* shadcn/ui adaptations use Luci's shared semantic tokens, without preflight. */
+@import "./tokens.css";
+.luci-ui-button { border: 1px solid transparent; border-radius: var(--r-ctl); font-family: var(--sans); font-size: 13px; font-weight: 550; cursor: pointer; transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+.luci-ui-button-primary { background: var(--accent); color: var(--accent-ink); }
+.luci-ui-button-primary:hover { background: var(--accent-hi); }
+.luci-ui-button-primary:active, .luci-ui-button-primary[data-active] { background: var(--accent-lo); }
+.luci-ui-button-secondary { background: var(--inset); color: var(--ink); }
+.luci-ui-button-secondary:hover, .luci-ui-button-secondary[data-active] { background: var(--hover-2); }
+.luci-ui-button-outline { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+.luci-ui-button-ghost { background: transparent; color: var(--ink-2); }
+.luci-ui-button-outline:hover, .luci-ui-button-ghost:hover, .luci-ui-button-ghost[data-active] { background: var(--hover); color: var(--ink); }
+.luci-ui-button-destructive { background: var(--fail-tint); color: var(--fail); border-color: var(--fail); }
+.luci-ui-button-link { background: transparent; color: var(--accent); text-underline-offset: 4px; }
+.luci-ui-button-link:hover { text-decoration: underline; }
+.luci-ui-button:focus-visible, .luci-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.luci-ui-button[aria-disabled="true"] { pointer-events: none; opacity: 0.5; }
+.luci-ui-button-spinner { width: 16px; height: 16px; animation: luci-control-spin 900ms linear infinite; }
+@keyframes luci-control-spin { to { transform: rotate(360deg); } }
+.luci-input { min-height: var(--field-min-size); border-color: var(--line-strong); border-radius: var(--r-ctl); background: var(--field); color: var(--ink); font-family: var(--sans); font-size: 13px; }
+.luci-input::placeholder { color: var(--ink-3); }
+.luci-input[aria-invalid="true"] { border-color: var(--fail); }
+.luci-badge { border-radius: var(--r-chip); font-family: var(--sans); line-height: 1.5; }
+.luci-badge-default, .luci-badge-secondary { background: var(--inset); color: var(--ink-2); border-color: transparent; }
+.luci-badge-outline { color: var(--ink-2); border-color: var(--line-strong); }
+.luci-badge-destructive { background: var(--fail-tint); color: var(--fail); border-color: transparent; }
+.luci-dialog-overlay { position: fixed; inset: 0; z-index: 50; background: var(--scrim); }
+.luci-dialog { position: fixed; top: 50%; left: 50%; z-index: 50; width: calc(100% - 2rem); max-width: 400px; max-height: calc(100dvh - 2rem); overflow: auto; transform: translate(-50%, -50%); padding: 24px; border-radius: var(--r-window); background: var(--surface); color: var(--ink); box-shadow: var(--e-overlay); }
+.luci-dialog[data-size="lg"] { max-width: 540px; }
+.luci-dialog[data-size="xl"] { max-width: 880px; }
+.luci-dialog[data-size="sm"][data-density="compact"] { max-width: 360px; }
+.luci-dialog[data-size="lg"][data-density="compact"] { max-width: 480px; }
+.luci-dialog[data-size="xl"][data-density="compact"] { max-width: 800px; }
+.luci-dialog[data-position="top"] { top: 12dvh; transform: translateX(-50%); max-height: 84dvh; }
+.luci-dialog[data-contained="true"], .luci-dialog-overlay[data-contained="true"] { position: absolute; }
+.luci-dialog[data-state="open"], .luci-dialog-overlay[data-state="open"] { animation: luci-dialog-enter var(--dur-fast) var(--ease); }
+.luci-dialog[data-state="closed"], .luci-dialog-overlay[data-state="closed"] { animation: luci-dialog-exit var(--dur-fast) var(--ease); }
+@keyframes luci-dialog-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes luci-dialog-exit { from { opacity: 1; } to { opacity: 0; } }
+.luci-dialog-close { position: absolute; top: 12px; right: 12px; }
+.luci-dialog-header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.luci-dialog-footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.luci-dialog-title { color: var(--ink); font-size: 16px; font-weight: 650; line-height: 1.35; }
+.luci-dialog-description { color: var(--ink-3); font-size: 13px; line-height: 1.55; }
+@media (pointer: coarse) { .luci-ui-button { min-height: 44px; } .luci-ui-button[data-size^="icon"] { min-width: 44px; } }
+@media (max-width: 760px) { .luci-ui-button { min-height: 44px; } .luci-ui-button[data-size^="icon"] { min-width: 44px; } }
+@media (prefers-reduced-motion: reduce) { .luci-ui-button, .luci-ui-button *, .luci-ui-button-spinner, .luci-dialog, .luci-dialog-overlay { transition: none; animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .luci-ui-button-spinner { animation: none; opacity: 0.7; } }

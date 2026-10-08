@@ -1,0 +1,7 @@
+!*.jsonl
+!*.txt
+!*.gz
+!*.zip
+!*.stdout
+!*.stderr
+!*.log

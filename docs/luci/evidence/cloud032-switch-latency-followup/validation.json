@@ -1,0 +1,39 @@
+{
+  "recordedAt": "2026-10-08T22:59:41.128149+00:00",
+  "originalIntegrated": {
+    "testsPassed": 2713,
+    "testsFailed": 0,
+    "typecheckExitCode": 2,
+    "typecheckError": "TS2550: Object.hasOwn is outside the current configured library target",
+    "sourceInputs": 434,
+    "unchanged": true
+  },
+  "corrected": {
+    "storeTestsPassed": 19,
+    "overviewTestsPassed": 33,
+    "testsFailed": 0,
+    "typecheck": {
+      "argv": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/workspace/luci/desktop",
+      "startedAt": "2026-10-08T22:58:55.543653+00:00",
+      "finishedAt": "2026-10-08T22:59:15.866720+00:00",
+      "exitCode": 0,
+      "timedOut": false,
+      "sourceInputCount": 435,
+      "sourceInputsUnchanged": true
+    }
+  },
+  "failedUiSliceSHA256": "f8856c549763a9a9a4b75e394411ec679a8f6ea4a1894d914132f0c14ca032e2",
+  "correctedOwnedSources": {
+    "desktop/src/store/slices/uiSlice.ts": "4da15890388c23ac657ffe99311b5a1155001b78400f1b40846061372f1a5b0b",
+    "desktop/src/store/draftRegistration.test.ts": "d1ba63c56d68e357246ab3b10b8d11508eef95c622646f648c19f37829a2a7d9",
+    "desktop/src/components/projects/ProjectOverviewBoard.tsx": "d3505e9b899804d210d9dfc1f3ff4c91424045b41dd723e4564e7241b63afab9",
+    "desktop/src/components/projects/ProjectOverviewBoard.test.tsx": "20c58a3c57b5b805f31cee088b33050fdf0742ecdb2738dab898b0d6a7052684"
+  },
+  "scope": "Focused tests plus shared typecheck only; no new browser/package latency measurement. Original actual idle switch p95 remains 367.203417ms and exceeds300ms.",
+  "originalCapsuleUnmodified": true
+}

@@ -292,6 +292,21 @@ it('forgets removed project summaries before that project can be shown again', a
   expect(screen.queryByText('Build p1')).toBeNull();
   expect(screen.getByText('Loading project context…')).toBeTruthy();
 });
+it('keeps shown queue selections across reordering but forgets a removed project before a bulk action', async () => {
+  const user = userEvent.setup(), view = render(<ProjectOverviewBoard projects={projects} />);
+  for (const button of screen.getAllByRole('button', { name: 'Manage queue' })) await user.click(button);
+  await user.click(await screen.findByRole('checkbox', { name: 'Select Build comments in Notes' }));
+  await user.click(await screen.findByRole('checkbox', { name: 'Select Build comments in Shop' }));
+  view.rerender(<ProjectOverviewBoard projects={[projects[1], projects[0]]} />);
+  expect((screen.getByRole('checkbox', { name: 'Select Build comments in Notes' }) as HTMLInputElement).checked).toBe(true);
+  expect((screen.getByRole('checkbox', { name: 'Select Build comments in Shop' }) as HTMLInputElement).checked).toBe(true);
+  view.rerender(<ProjectOverviewBoard projects={[projects[1]]} />);
+  expect(screen.queryByRole('checkbox', { name: 'Select Build comments in Notes' })).toBeNull();
+  expect(screen.getByText('1 waiting task selected')).toBeTruthy();
+  await user.click(screen.getByRole('button', { name: 'Pause waiting' }));
+  await screen.findByText('1 changed · 0 failed · 0 unconfirmed · 0 skipped');
+  expect(swarmQueueApi.control).toHaveBeenCalledExactlyOnceWith('p2', expect.objectContaining({ id: 'q-p2', revision: 2 }), 'pause', 'normal');
+});
 it('reports a cross-project partial failure using individual item revisions', async () => {
   vi.mocked(swarmQueueApi.control).mockResolvedValueOnce(queue('p1')).mockRejectedValueOnce(new ApiError('conflict', 'This task changed; refresh its queue.', 409));
   const user = userEvent.setup(); render(<ProjectOverviewBoard projects={projects} />);

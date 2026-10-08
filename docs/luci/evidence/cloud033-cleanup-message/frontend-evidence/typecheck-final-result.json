@@ -1,0 +1,13 @@
+{
+  "command": [
+    "node",
+    "/workspace/.luci-tools/cloud033-cleanup-message/frontend-tree/node_modules/typescript/bin/tsc",
+    "--noEmit"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud033-cleanup-message/frontend-tree",
+  "exitCode": 0,
+  "elapsedSeconds": 20.79375355600496,
+  "finishedAt": "2026-10-08T22:34:10.697286+00:00",
+  "inputsUnchanged": true,
+  "boundInputs": 429
+}

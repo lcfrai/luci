@@ -1,0 +1,10 @@
+*.json -text
+*.jsonl -text
+*.mjs -text
+*.py -text
+*.ts -text
+*.tsx -text
+*.css -text
+*.txt -text
+*.patch -text
+SHA256SUMS -text

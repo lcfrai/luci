@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "src/store/draftRegistration.test.ts",
+    "src/store/sourceNavigation.test.ts",
+    "src/store/projectNavigation.test.ts",
+    "--maxWorkers=1",
+    "--no-file-parallelism",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud032-product-target-followup/tests.json"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-08T22:49:37.357454+00:00",
+  "finishedAt": "2026-10-08T22:49:45.012182+00:00",
+  "exitCode": 0
+}

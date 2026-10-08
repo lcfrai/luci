@@ -1,0 +1,115 @@
+{
+  "scope": "CLOUD034 focused frontend controlled validation; no installed runtime/browser/Docker",
+  "command": [
+    "timeout",
+    "60s",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "src/api/swarmScheduler.test.ts",
+    "src/components/projects/HostCapacity.test.tsx",
+    "--maxWorkers=1",
+    "--no-file-parallelism",
+    "--reporter=verbose"
+  ],
+  "cwd": "/workspace/luci/desktop",
+  "startedAt": "2026-10-08T22:58:20.711791+00:00",
+  "sourceBefore": [
+    {
+      "path": "desktop/src/api/swarmScheduler.ts",
+      "bytes": 3654,
+      "sha256": "3a86168313b1df8b316231a12d9fb71324eca9e290695264a9d5667a85302e76"
+    },
+    {
+      "path": "desktop/src/api/swarmScheduler.test.ts",
+      "bytes": 3689,
+      "sha256": "98f4ad3cf97255cb93099b523f414539ff5845cdb5f725a2cfae688091e7be92"
+    },
+    {
+      "path": "desktop/src/components/projects/HostCapacity.tsx",
+      "bytes": 14116,
+      "sha256": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999"
+    },
+    {
+      "path": "desktop/src/components/projects/HostCapacity.test.tsx",
+      "bytes": 10084,
+      "sha256": "7b91eba5472dfcc31476ee7f7be60bd2884e1f0eb9ace26341ec0cb2332a4494"
+    },
+    {
+      "path": "desktop/vitest.config.ts",
+      "bytes": 2265,
+      "sha256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f"
+    },
+    {
+      "path": "desktop/src/test/setup.ts",
+      "bytes": 1173,
+      "sha256": "6873458c092edb343b856df7c92cae4eeaa55caa397d5a908121184301812a57"
+    },
+    {
+      "path": "desktop/package.json",
+      "bytes": 1965,
+      "sha256": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5"
+    },
+    {
+      "path": "desktop/package-lock.json",
+      "bytes": 247150,
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a"
+    }
+  ],
+  "exitCode": 0,
+  "wallSeconds": 6.282171897008084,
+  "finishedAt": "2026-10-08T22:58:26.993990+00:00",
+  "sourceAfter": [
+    {
+      "path": "desktop/src/api/swarmScheduler.ts",
+      "bytes": 3654,
+      "sha256": "3a86168313b1df8b316231a12d9fb71324eca9e290695264a9d5667a85302e76"
+    },
+    {
+      "path": "desktop/src/api/swarmScheduler.test.ts",
+      "bytes": 3689,
+      "sha256": "98f4ad3cf97255cb93099b523f414539ff5845cdb5f725a2cfae688091e7be92"
+    },
+    {
+      "path": "desktop/src/components/projects/HostCapacity.tsx",
+      "bytes": 14116,
+      "sha256": "a67deeea0453eeee37cd63ddfa7febf7dcd640e2615b7feff7f631f61d994999"
+    },
+    {
+      "path": "desktop/src/components/projects/HostCapacity.test.tsx",
+      "bytes": 10084,
+      "sha256": "7b91eba5472dfcc31476ee7f7be60bd2884e1f0eb9ace26341ec0cb2332a4494"
+    },
+    {
+      "path": "desktop/vitest.config.ts",
+      "bytes": 2265,
+      "sha256": "61fe9ff43762dadeb5666eca997ea6c73ef40d4306996ae30294552e1ca7024f"
+    },
+    {
+      "path": "desktop/src/test/setup.ts",
+      "bytes": 1173,
+      "sha256": "6873458c092edb343b856df7c92cae4eeaa55caa397d5a908121184301812a57"
+    },
+    {
+      "path": "desktop/package.json",
+      "bytes": 1965,
+      "sha256": "2298a2e941314ff0f5dc82813a0b0edca0c66bccb7c766a80e46631fc8aa07b5"
+    },
+    {
+      "path": "desktop/package-lock.json",
+      "bytes": 247150,
+      "sha256": "cfaf2e9becb2e0c027ce3c9f368f6534b6e8d8f7e75d6e645d75cead12f4069a"
+    }
+  ],
+  "sourcesUnchanged": true,
+  "stdout": {
+    "path": "stdout.log",
+    "bytes": 5333,
+    "sha256": "19d99ccbc23590c52d4251b390c57b72f65b34ee94080b8b391f16e7856e1883"
+  },
+  "stderr": {
+    "path": "stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

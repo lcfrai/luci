@@ -1,0 +1,49 @@
+--- before/desktop/src/store/slices/uiSlice.ts
++++ after/desktop/src/store/slices/uiSlice.ts
+@@ -240,7 +240,7 @@
+   setUnsavedProjectDraft: (id, draft) => {
+     // Clean editors register/clear on mount and cleanup. Skip an absent clear
+     // before calling set, whose persistence middleware also writes preferences.
+-    if (draft === null && !Object.hasOwn(get().unsavedProjectDrafts, id)) return;
++    if (draft === null && !Object.prototype.hasOwnProperty.call(get().unsavedProjectDrafts, id)) return;
+     set(state => {
+       const drafts = { ...state.unsavedProjectDrafts };
+       if (draft) drafts[id] = draft; else delete drafts[id];
+--- before/desktop/src/components/projects/ProjectOverviewBoard.tsx
++++ after/desktop/src/components/projects/ProjectOverviewBoard.tsx
+@@ -81,8 +81,9 @@
+   }, [ids, refresh, team?.revision]);
+   useEffect(() => {
+     const shown = new Set(JSON.parse(ids) as string[]);
+-    setSummaries(previous => Object.fromEntries(Object.entries(previous).filter(([id]) => shown.has(id))));
+-    setPicked(previous => Object.fromEntries(Object.entries(previous).filter(([, row]) => shown.has(row.project.id))));
++    // Mounts and unchanged membership do not need another board update.
++    setSummaries(previous => Object.keys(previous).every(id => shown.has(id)) ? previous : Object.fromEntries(Object.entries(previous).filter(([id]) => shown.has(id))));
++    setPicked(previous => Object.values(previous).every(row => shown.has(row.project.id)) ? previous : Object.fromEntries(Object.entries(previous).filter(([, row]) => shown.has(row.project.id))));
+   }, [ids]);
+ 
+   function select(project: Project, item: SwarmQueueItem, selected: boolean, canExecute: boolean) {
+--- before/desktop/src/components/projects/ProjectOverviewBoard.test.tsx
++++ after/desktop/src/components/projects/ProjectOverviewBoard.test.tsx
+@@ -292,6 +292,21 @@
+   expect(screen.queryByText('Build p1')).toBeNull();
+   expect(screen.getByText('Loading project context…')).toBeTruthy();
+ });
++it('keeps shown queue selections across reordering but forgets a removed project before a bulk action', async () => {
++  const user = userEvent.setup(), view = render(<ProjectOverviewBoard projects={projects} />);
++  for (const button of screen.getAllByRole('button', { name: 'Manage queue' })) await user.click(button);
++  await user.click(await screen.findByRole('checkbox', { name: 'Select Build comments in Notes' }));
++  await user.click(await screen.findByRole('checkbox', { name: 'Select Build comments in Shop' }));
++  view.rerender(<ProjectOverviewBoard projects={[projects[1], projects[0]]} />);
++  expect((screen.getByRole('checkbox', { name: 'Select Build comments in Notes' }) as HTMLInputElement).checked).toBe(true);
++  expect((screen.getByRole('checkbox', { name: 'Select Build comments in Shop' }) as HTMLInputElement).checked).toBe(true);
++  view.rerender(<ProjectOverviewBoard projects={[projects[1]]} />);
++  expect(screen.queryByRole('checkbox', { name: 'Select Build comments in Notes' })).toBeNull();
++  expect(screen.getByText('1 waiting task selected')).toBeTruthy();
++  await user.click(screen.getByRole('button', { name: 'Pause waiting' }));
++  await screen.findByText('1 changed · 0 failed · 0 unconfirmed · 0 skipped');
++  expect(swarmQueueApi.control).toHaveBeenCalledExactlyOnceWith('p2', expect.objectContaining({ id: 'q-p2', revision: 2 }), 'pause', 'normal');
++});
+ it('reports a cross-project partial failure using individual item revisions', async () => {
+   vi.mocked(swarmQueueApi.control).mockResolvedValueOnce(queue('p1')).mockRejectedValueOnce(new ApiError('conflict', 'This task changed; refresh its queue.', 409));
+   const user = userEvent.setup(); render(<ProjectOverviewBoard projects={projects} />);

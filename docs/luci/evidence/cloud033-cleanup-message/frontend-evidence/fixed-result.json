@@ -1,0 +1,24 @@
+{
+  "startedAt": "2026-10-08T22:31:28.842965+00:00",
+  "command": [
+    "node",
+    "/workspace/.luci-tools/cloud033-cleanup-message/frontend-tree/node_modules/vitest/vitest.mjs",
+    "run",
+    "src/components/journey/ProjectChecks.test.tsx",
+    "--maxWorkers=1",
+    "--reporter=json",
+    "--outputFile=/workspace/.luci-tools/cloud033-cleanup-message/frontend-evidence/fixed-vitest.json"
+  ],
+  "cwd": "/workspace/.luci-tools/cloud033-cleanup-message/frontend-tree",
+  "sourceMode": "fixed",
+  "exitCode": 0,
+  "elapsedSeconds": 10.712732535990654,
+  "finishedAt": "2026-10-08T22:31:39.555715+00:00",
+  "inputsUnchanged": true,
+  "counts": {
+    "numTotalTests": 61,
+    "numPassedTests": 61,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  }
+}

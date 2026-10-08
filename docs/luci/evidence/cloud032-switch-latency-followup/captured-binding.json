@@ -1,0 +1,7 @@
+{
+  "originalIntegratedPath": "artifacts/quality-swarm/integrated-cleanup-ui-20261008T2242Z",
+  "originalIntegratedVitestSHA256": "6403e72fd5815c4fb578cce610c794ec3100a4362d3971658eb2fc1d732fa54b",
+  "frozenPriorCapsule": "docs/luci/evidence/cloud032-switch-latency",
+  "frozenPriorManifestSHA256": "6e94562a1ad21f3857d169de0da3f4742f6b34a775a9543481e61a3d3f8619c9",
+  "frozenPriorSHA256SUMSSHA256": "f00146becf73bfdd4273f44da08a595fbdb1dcaa4dc14ebbe3747d82f0f03ab8"
+}

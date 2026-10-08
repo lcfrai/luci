@@ -1,0 +1,95 @@
+{
+  "scope": "Repository destination tests, not installed execution",
+  "files": [
+    {
+      "path": "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs",
+      "bytes": 6811,
+      "sha256": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-lifecycle.mjs",
+      "bytes": 4176,
+      "sha256": "87cc128366cdc5d8cdde3338e0e795ebcdd76533a34703ce9708be22a531c54e"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/acceptance-startup.mjs",
+      "bytes": 4637,
+      "sha256": "dd1c60474019edaae223a6298397f5386d4e7504a82b4928a1a906e906e06680"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/durable-acceptance-journal.mjs",
+      "bytes": 6670,
+      "sha256": "b62b3335168e13715ed0839704831f93d224b4f0714d1fbacb7b5bdb596525a1"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs",
+      "bytes": 38547,
+      "sha256": "7315bcd8ecd230bf33de8eb4d06d900e4fdc380b52ed901875b12bf536672dae"
+    },
+    {
+      "path": "scripts/acceptance/launch-recovery/worker-create-guard.mjs",
+      "bytes": 5545,
+      "sha256": "f2202a14a7bc0270c1f85dedaf3693d3376f5ef49cfb0643891348323dccead5"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/source-binding.mjs",
+      "bytes": 2768,
+      "sha256": "7e8356d2dd7b2985ea1c6406a404c37be63620c9f9cddfddf279b8655b81f796"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/source-binding.test.mjs",
+      "bytes": 6801,
+      "sha256": "8826d4a380ca1de945e714f4906c0675475e9090bd166a9d7677dcc8bc4d998c"
+    },
+    {
+      "path": "scripts/acceptance/sustained-four-project/task-context.mjs",
+      "bytes": 2439,
+      "sha256": "76ca96a6f343c270289165011ba2860fc287540913f5895068c76f8a713fc7e2"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/README.md",
+      "bytes": 8025,
+      "sha256": "ff06d02ca60afe9e7fa87c385aa018f3b40f9a37cc9de2e6bb481f27d521332e"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/adapter-static.test.mjs",
+      "bytes": 1913,
+      "sha256": "b6f153aadd64e9e5cf0f32a709d6a32b38b4323ad4f4d9ca14542d0902ecca32"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/inspect-window.test.mjs",
+      "bytes": 4158,
+      "sha256": "d44ec4f7f2d01dd76cbf236ae3b244ffb31094a3988ff336febddbcd4a15d918"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/installed-worker-recovery.mjs",
+      "bytes": 59746,
+      "sha256": "eeaf8aee30b84d09f2a4df358099eee98ea6dd33ba029826e2e469926f92f89c"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/provenance.mjs",
+      "bytes": 2704,
+      "sha256": "9dcdcc45360147fc4e5133a17ff0f3d6d98dfc0da1f10a6c87316dd2c77da924"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/source-binding.mjs",
+      "bytes": 2324,
+      "sha256": "1428633dd61d290d5df242d95d0e9162f2e6e2710a824e77946c7cf4bd8dd641"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/source-binding.test.mjs",
+      "bytes": 3041,
+      "sha256": "160aec9e6cabda2f0f0b852256183cc6e975ac55b8e6dc5732b9cd5ca0f6261d"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/worker-recovery-scenario.mjs",
+      "bytes": 10541,
+      "sha256": "27910aeec967b98e01f4259d7800c5e9319594083f53acee6177137a074537a7"
+    },
+    {
+      "path": "scripts/acceptance/worker-recovery/worker-recovery-scenario.test.mjs",
+      "bytes": 16414,
+      "sha256": "ddf6221e372aebb6b3e4a0a2afd428fd84cda0b6c4050389497041420f7010b1"
+    }
+  ]
+}

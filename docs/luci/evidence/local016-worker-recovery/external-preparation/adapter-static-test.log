@@ -1,0 +1,11 @@
+✔ Import is inert and runtime requires an explicit window before any setup (16.650836ms)
+✔ Installed adapter help exposes explicit product and image pins without runtime (0.53036ms)
+✔ Both actual generated native task commands parse without executing their processes (8.063718ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 290.776152

@@ -1,0 +1,24 @@
+{
+  "scope": "Repository destination helper wiring and source-binding checks; installed scenario remains unrun.",
+  "testCommand": "timeout 30s node --test --test-concurrency=1 scripts/acceptance/worker-recovery/worker-recovery-scenario.test.mjs scripts/acceptance/worker-recovery/inspect-window.test.mjs scripts/acceptance/worker-recovery/adapter-static.test.mjs scripts/acceptance/worker-recovery/source-binding.test.mjs scripts/acceptance/sustained-four-project/source-binding.test.mjs",
+  "workingDirectory": "/workspace/luci",
+  "exitCode": 0,
+  "tests": 47,
+  "passed": 47,
+  "failed": 0,
+  "skipped": 0,
+  "durationMs": 660.773635,
+  "log": "wiring-tests-attempt1.log",
+  "syntaxCommand": "timeout 30s node --check scripts/acceptance/worker-recovery/installed-worker-recovery.mjs",
+  "syntaxExitCode": 0,
+  "sourcesUnchangedAcrossBatch": true,
+  "failedIntegrationBatches": 0,
+  "nodeVersion": "v24.19.0",
+  "newRuntimeOperations": {
+    "docker": 0,
+    "browser": 0,
+    "Go": 0,
+    "model": 0
+  },
+  "originalFixtureAccessed": false
+}
