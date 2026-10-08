@@ -1,0 +1,44 @@
+{
+  "kind": "Relayed native Windows source-app acceptance report; cloud has not inspected private raw artifacts",
+  "sourceCommit": "8f78804ff318ab744226f139df5998cbd6e0d0ff",
+  "date": "2026-10-08",
+  "sourceThread": "01a1199f-7500-7843-b02b-081081e536fa",
+  "reportedChecks": {
+    "actualOperatorReviewAndConfirmation": "passed",
+    "confirmationRevision": 1,
+    "guestAvailableGiB": 886,
+    "initialPhysicalMinimumGiB": 74.2,
+    "mountedVolumes": 4,
+    "memberGetPostDenied": 403,
+    "privatePathLeakage": "none observed in member responses",
+    "confirmationHashAndRevisionAfterAPIRestartAndFreshSignIn": "unchanged",
+    "observationsAfterRestart": "recovered without reconfirmation",
+    "trackedHashesUnchanged": 1795,
+    "headUnchanged": true,
+    "originalCheckoutClean": true,
+    "ownedCleanup": "browser, launcher, API and frontend stopped; test ports free; no owned containers"
+  },
+  "reportedOpenFindings": [
+    "LOCAL-004: ignored explicit native state override at this revision; source correction published separately at656a1ae1052814a5a6789910bb99b406cbc652ae, native retest pending",
+    "LOCAL-005: cached storage refresh triggers full readiness probes and locks navigation; correction in progress"
+  ],
+  "environment": {
+    "supportedDockerRelocation": "verified, same engine and complete original inventory",
+    "postExternalToolInterruptionInventoryVerifiedAt": "2026-10-08T10:43:00Z",
+    "containers": 107,
+    "imageRows": 196,
+    "distinctImageIDs": 178,
+    "volumes": 155,
+    "originalRunningContainers": 4,
+    "latestApproximateAvailableHostRAMGiB": 2.91,
+    "dataAndVerifiedBackup": "preserved"
+  },
+  "localRelativeReceipt": "storage-ui-20261008T1030Z/batch-report.json",
+  "limits": [
+    "Native process-start tracing was cancelled; exact WSL/probe invocation counts remain unverified",
+    "No installed Tauri or native own-sidecar lifecycle verification",
+    "No runtime image build, live model execution or sustained four-project workload",
+    "Approximate memory and disk observations are not capacity budgets or later-time guarantees",
+    "Original private logs and per-file snapshots remain with local tester, not independently rechecked by cloud"
+  ]
+}

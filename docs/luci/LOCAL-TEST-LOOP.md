@@ -308,3 +308,59 @@ also isolates the process-local WebView profile, preserves environment values
 and existing state roots, and checks actual own-sidecar startup and shutdown.
 Use the exact published LOCAL FIX READY TO RETEST revision between batches.
 CLOUD-009 implementation is not part of this narrowly published correction.
+
+### LOCAL-005 acknowledged; actual storage confirmation passed separately
+
+At pinned `8f78804f`, the native tester reports Refresh Docker storage status
+shows Checking storage readiness and disables Close settings, Back to project,
+Choose another setup option and form controls. Source confirms cached GET calls
+the changed callback, whose SetupPanel handler calls full `client.check`,
+including Git, Docker, AWS and Azure checks. The process-start subscription
+failed during an external tool reset, so no process/packet trace is claimed.
+Local evidence: `storage-ui-20261008T1030Z/storage-refresh-ui.txt`. LOCAL-005 is
+P2, owner cloud UI, fixing; cached refresh and explicit readiness must be separate.
+
+The independent native confirmation checks passed: actual host Super Admin
+review/confirmation, guest886 GiB and physical74.2 GiB across four volumes,
+member GET/POST403 without private path leakage, and confirmation revision1/hash
+persistence after API restart and fresh browser sign-in. Docker recovered after
+an external tool interruption; post-recovery inventory verification is still
+pending. This is actual native source-application evidence, not live-provider
+execution, full native own-sidecar or sustained resource acceptance.
+
+### Completed native storage confirmation batch
+
+The tester completed the `8f78804f` source-app storage batch with all 1,795
+tracked-file hashes and HEAD unchanged; the original C: checkout remained clean.
+Browser, owned launcher/API/frontend were stopped, ports18731/14201 freed and
+no owned containers remained. After an external tool interruption and repair of
+the known stale socket issue, the relocated E: engine and all107 containers,
+196 image rows/178 IDs,155 volumes and four original running IDs were reverified
+at10:43 UTC. Data and backup are preserved. Available host RAM is approximately
+2.91 GiB, so no sustained swarm capacity claim follows. The relayed
+[public receipt](evidence/2026-10-08-native-storage-confirmation-reported.json)
+records the completed scope and unavailable process-start trace.
+
+LOCAL-004 correction is published at
+`656a1ae1052814a5a6789910bb99b406cbc652ae`; native own-sidecar retest remains
+open. LOCAL-005 is actively fixing. Keep exact revisions distinct between test
+batches; CLOUD-009 is not present in either published checkpoint yet.
+
+### LOCAL-004 reopened and parent-directory correction
+
+The local tester ran the unmodified state-selection module from exact
+`656a1ae1052814a5a6789910bb99b406cbc652ae` using native Rust1.99, pinned
+serde_json1.0.151/uuid1.26.1, E:-only temp/cache/target and single-thread tests.
+Eight tests passed; `invalid_explicit_state_fails_without_default_fallback`
+failed because an ordinary file was accepted as an explicit directory. Windows
+reported missing descendants without the Linux NotADirectory behavior. No native
+app ran and no user state changed. Original failure is retained locally under
+`656a1ae1/local004-module/` with the Cargo manifest/lock and logs.
+
+The corrected selector explicitly rejects every existing non-directory parent,
+including a file above a missing nested state folder. The nine Linux module
+cases pass against captured unchanged source; this does not replace the required
+native retest. [New receipt](evidence/2026-10-08-local004-windows-parent-correction.json)
+retains the failed native scope and corrected source hashes. The new correction
+commit also publishes the formerly missing8f788 resource companion; its link
+must be checked in the source artifact before claiming the handoff complete.

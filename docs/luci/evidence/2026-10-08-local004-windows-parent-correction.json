@@ -1,0 +1,36 @@
+{
+  "scope": "Linux Rust module rerun after native Windows existing-file failure; native retest still required",
+  "startedAt": "2026-10-08T10:53:09.339210+00:00",
+  "completedAt": "2026-10-08T10:53:10.686144+00:00",
+  "exitCode": 0,
+  "source": {
+    "desktop/src-tauri/src/state_dir.rs": "6a1b933632fd09a8022952899fd708ac64b2ba8f785d641eecb41456904e9911",
+    "desktop/src-tauri/src/lib.rs": "ec8e2df01bf45deabdea0e199303e0e828da75b3ff25fe7307e826fa10405f5c",
+    "desktop/src-tauri/Cargo.lock": "ae48aee4aaa8a8e8b3e08d859fcced01e839c44c04e81a75541bf60e6a063859"
+  },
+  "sourceUnchanged": true,
+  "command": [
+    "/workspace/.luci-tools/rust-1.99.0/bin/cargo",
+    "test",
+    "--locked",
+    "--manifest-path",
+    "/workspace/.luci-tools/rust-state-check/Cargo.toml",
+    "--",
+    "--nocapture"
+  ],
+  "tests": {
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  "rust": "1.99.0",
+  "fullTauriCallerCompiled": false,
+  "nativeFailure": {
+    "revision": "656a1ae1052814a5a6789910bb99b406cbc652ae",
+    "reportedPassed": 8,
+    "reportedFailed": 1,
+    "failedCase": "invalid_explicit_state_fails_without_default_fallback",
+    "cause": "Existing file accepted because missing descendants do not necessarily return NotADirectory on Windows"
+  },
+  "logSHA256": "0ee0b7272ae891dbd33694d72ebd0323b9a1bd2e2e148b32ef394b7ee8f09827"
+}

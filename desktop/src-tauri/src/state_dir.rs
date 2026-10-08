@@ -49,6 +49,12 @@ fn regular_marker(path: &Path) -> io::Result<Option<fs::Metadata>> {
             Ok(metadata) if linked(&metadata) => {
                 return Err(invalid("Luci state cannot use a linked file or folder"))
             }
+            // Windows can report NotFound below an ordinary file rather than
+            // NotADirectory. Check each existing parent independently so a
+            // missing marker cannot make that file a valid state directory.
+            Ok(metadata) if ancestor != path && !metadata.is_dir() => {
+                return Err(invalid("Luci state files require directory parents"))
+            }
             Ok(_) => {}
             Err(error) if error.kind() == io::ErrorKind::NotFound => {}
             Err(error) => return Err(error),
@@ -233,6 +239,7 @@ mod tests {
         let file = f.0.join("not-a-directory");
         fs::write(&file, b"preserve").unwrap();
         assert!(select_configured(Some(&file), || panic!("invalid override must not fall back")).is_err());
+        assert!(select_configured(Some(&file.join("nested-state")), || panic!("invalid parent must not fall back")).is_err());
         assert_eq!(fs::read(file).unwrap(), b"preserve");
     }
 

@@ -80,3 +80,12 @@ live-provider gates. Do not treat this index as a handoff-ready notification.
 - [8f78804f installed four-project comparison](2026-10-08-8f78804f-installed-swarm.md):
   four natural completions and reviewed integrations, matching output hashes,
   measured cleanup intervals and retained baseline limits. Scripted provider.
+
+- [LOCAL-004 Windows parent-path correction](2026-10-08-local004-windows-parent-correction.json):
+  preserves the native8/1 failure at656a1ae1 and corrected Linux9/0 module
+  receipt; native retest remains open.
+- [8f78804f installed resource companion](2026-10-08-8f78804f-installed-swarm-resources.md):
+  294 observations with exact scope, gaps and remaining idle/latency/soak gates.
+- [Reported native storage confirmation](2026-10-08-native-storage-confirmation-reported.json):
+  actual Windows host confirmation, member denial, restart persistence and
+  unchanged source; LOCAL-005 and workload acceptance remain open.
