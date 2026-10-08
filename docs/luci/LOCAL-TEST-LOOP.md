@@ -956,3 +956,51 @@ whole-build check helper now has 73 controlled Node checks and four Python check
 plus syntax checks, with [exact input binding](../../scripts/acceptance/task-dependencies/evidence/product-check-preparation.json).
 Its strict serialized check admission is acceptance-only; CLOUD-020 production
 shared admission remains unfinished. No runtime pass follows from helper preparation.
+
+
+### CLOUD-021 installed source-admission ordering
+
+The third dependency attempt used clean `9de6c800ae4afdcd7f1821e3c74ff6955c1173ee`
+and its matching 1,273-member package. Both native workers exited successfully;
+their exact containers and leases were already absent. The dependency probe
+retained HTTP 409 `Project source is busy. Wait before reserving this task.`
+instead of the expected unmet-dependency refusal. Public/private/request revision
+14, primary source, join operations and two Create/Start counts were unchanged.
+The actual lock holder is unknown: no source-admission trace was recorded.
+Do not assign this reason to the older c440 failure whose body was not retained.
+
+The strict check stopped; no integration, actual conflict, B2 retry, join or
+whole-build check ran. Independent closure found zero owned containers, volumes,
+service/browser processes and unchanged package/image/helper identities. CLOUD-021
+tracks a narrow private-state readiness preflight before source admission, with
+idempotent receipt recovery, ready-task guards and final atomic validation retained.
+The helper will not suppress normal application polling or retry a POST to mask
+the failure. Source correction and matching installed verification are pending.
+
+
+### Local audit of 9de6 and restart coverage refinement
+
+The local tester independently matched all 774 LOCAL-012 fixed inputs and all
+four report hashes at exact `9de6c800ae4afdcd7f1821e3c74ff6955c1173ee`; no new
+concrete source defect was found. LOCAL-012 stays ready to retest, not native
+verified. The existing regression reopens after B/C/D are already started and
+scheduling paused: it proves retained accounting and no replay, not fresh
+admission of still-waiting projects after restart. The next controlled batch
+will persist A stopped/present/charged and B/C/D waiting, restart first, then
+resume normal admission, refuse a fifth slot and release only A after exact
+removal. Global-error refusal stays required.
+
+No new local runtime ran: reported available RAM fell from 1.731 to 1.078 GiB.
+Original C: and pinned 29be source remain clean; the same Docker engine, 107
+original containers and four running workloads are preserved. These are relayed
+local facts, not measurements executed in this cloud session.
+
+
+CLOUD-021 source correction now passes the same held-reader regression plus
+ready-task source admission, current authority/route identity, reviewed dependency
+integration, idempotent reservation readback and a change during route resolution.
+The production delta is a private refusal preflight; final atomic validation
+remains authoritative. Race checks pass 20 product and 24 complementary scheduler/API
+outcomes, zero failures/skips, with 637 compiled-scope inputs unchanged.
+[Retrievable before/after proof and failed installed receipt](evidence/cloud021-source-admission/README.md).
+This source result does not turn the failed installed attempt into a pass.

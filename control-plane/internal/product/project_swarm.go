@@ -254,6 +254,20 @@ func (s *Server) reserveSwarmTask(ctx context.Context, p project.Project, runID,
 	if err != nil {
 		return ProjectRun{}, ProjectRunOperation{}, err
 	}
+	// Reject stale or dependency-blocked requests from private state before
+	// resolving a provider or contending with ordinary source readers. This is
+	// only a refusal preflight: the final store mutation repeats revision and
+	// task readiness checks after route/source admission and before allocation.
+	if run.Revision != revision {
+		return ProjectRun{}, ProjectRunOperation{}, ErrProjectRunConflict
+	}
+	task := swarmTask(&run, taskID)
+	if task == nil {
+		return ProjectRun{}, ProjectRunOperation{}, ErrProjectRunNotFound
+	}
+	if err = swarmTaskReady(run, *task); err != nil {
+		return ProjectRun{}, ProjectRunOperation{}, err
+	}
 	if err = validateSwarmTaskRoute(run); err != nil {
 		return ProjectRun{}, ProjectRunOperation{}, err
 	}

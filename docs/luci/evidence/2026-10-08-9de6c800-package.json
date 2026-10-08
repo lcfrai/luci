@@ -1,0 +1,36 @@
+{
+  "recordedAt": "2026-10-08T17:51:21.843569+00:00",
+  "status": "clean-package-integrity-verified",
+  "sourceCommit": "9de6c800ae4afdcd7f1821e3c74ff6955c1173ee",
+  "sourceDirty": false,
+  "verifiedExtractedFiles": 1273,
+  "licenseComponents": 347,
+  "missingLicenses": 0,
+  "allMembersMatched": true,
+  "archiveSHA256": "15739fdd7a01a6196e59da6260c8701fb4292606172b53b37e212ea51aeafcd9",
+  "binarySHA256": "0216374666b15173e5bbe81cfec67bdabbcc262a89754bd4aad14733334ed988",
+  "webIndexSHA256": "1fac9851347041c3d8dfffd2591d5825bd119a6f4da94abaca6d4f3d76f2fb6f",
+  "subjects": [
+    {
+      "name": "linux-amd64/luci-cloud-linux-amd64.tar.gz",
+      "sha256": "c0ca9294c236acafed9b964cf9fb6baf8319766617dd621341b29cfa8c83fa1f",
+      "bytes": 42204849
+    },
+    {
+      "name": "linux-amd64/luci-linux-amd64.tar.gz",
+      "sha256": "15739fdd7a01a6196e59da6260c8701fb4292606172b53b37e212ea51aeafcd9",
+      "bytes": 84212514
+    },
+    {
+      "name": "linux-amd64/release-manifest.json",
+      "sha256": "9dd4cbed64c9247225d497c3ec7f1f6c831e4fa825b90d9d0fe4ad22adcb3808",
+      "bytes": 696
+    }
+  ],
+  "scope": [
+    "Clean Linux package build and extracted-member/license verification only.",
+    "Matching source is retrievable from codex/luci-production-runs; this receipt does not upload the private binary archive.",
+    "Runtime dependency/whole-build check acceptance is a separate attempt, not inferred from this package check.",
+    "CLOUD-020 shared check admission is absent from this revision and remains open."
+  ]
+}

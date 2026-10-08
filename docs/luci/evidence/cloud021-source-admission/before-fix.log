@@ -1,0 +1,8 @@
+--- FAIL: TestSwarmReservationPrivateReadinessPrecedesSourceAdmission (3.39s)
+    --- FAIL: TestSwarmReservationPrivateReadinessPrecedesSourceAdmission/unintegrated_dependency_despite_held_reader (0.01s)
+        project_swarm_admission_preflight_test.go:53: refusal={Error:project_run_conflict Message:Project source is busy. Wait before reserving this task.}; want "Integrate this task's dependencies before starting it."
+    --- FAIL: TestSwarmReservationPrivateReadinessPrecedesSourceAdmission/stale_revision_stays_stale (0.01s)
+        project_swarm_admission_preflight_test.go:56: refusal={Error:project_run_conflict Message:Project source is busy. Wait before reserving this task.}; want "project run changed; reload before continuing"
+FAIL
+FAIL	github.com/lcfrai/luci/control-plane/internal/product	3.494s
+FAIL

@@ -16,13 +16,23 @@ public DNS and hosted infrastructure do not block this local milestone.
 
 ## Pending correction retest scopes
 
+- **CLOUD-021 (ready for native retest):** dependency-blocked work should explain its prerequisites
+  from private current state even while a reader holds source admission. A ready
+  task must still obtain source admission and final authoritative validation.
+  Preserve stale-revision rejection, idempotent recovery and zero blocked-task
+  allocations; the installed 9de6 source-busy failure remains retained.
+  [Linux correction proof](evidence/cloud021-source-admission/README.md) passes
+  20 product and 24 scheduler/API race outcomes; matching installed proof is pending.
+
 - **LOCAL-012 (ready for native retest):** maintain an item-local stopped-container cleanup hold
   across repeated ticks/restart while three other projects fit remaining normal
   capacity. A's lease must stay charged until exact cleanup; global errors must
   remain visible. The [Linux controlled source correction](evidence/local012-scheduler-cleanup/README.md)
   passes focused 35/affected 128 race outcomes (overlap); native and actual Docker
   behavior remain unverified. Use the immutable correction revision in the notice,
-  not the older b1 source finding.
+  not the older b1 source finding. The existing Linux reopen occurs after B/C/D
+  have started; also verify restart before their fresh admission while A stays
+  charged. That additional controlled scenario is being prepared.
 
 - **CLOUD-020 (correction pending):** whole-build checks must share admission and
   pending capacity with agents across accounts/projects, not only apply container

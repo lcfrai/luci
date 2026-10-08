@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "issue": "CLOUD-021",
+  "status": "failed-installed-attempt",
+  "productAndHelperRevision": "9de6c800ae4afdcd7f1821e3c74ff6955c1173ee",
+  "driverSHA256": "d2d0e2a73be0f3522d9ea96d5454c5d7253bc1c14050241a2f11b7b5d27f83d0",
+  "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+  "binarySHA256": "0216374666b15173e5bbe81cfec67bdabbcc262a89754bd4aad14733334ed988",
+  "webIndexSHA256": "1fac9851347041c3d8dfffd2591d5825bd119a6f4da94abaca6d4f3d76f2fb6f",
+  "startedAt": "2026-10-08T17:50:06.587Z",
+  "finishedAt": "2026-10-08T17:52:13.590Z",
+  "elapsedMs": 126897,
+  "observedTaskCount": 2,
+  "nativeCompletions": [
+    {
+      "task": "a",
+      "sessionID": "s-979b5dfe",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-08T17:50:50.821Z",
+      "stoppedAndAbsentObservedAt": "2026-10-08T17:51:09.484Z",
+      "queueCompletedObservedAt": "2026-10-08T17:51:12.786Z",
+      "leaseObservation": {
+        "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+        "firstPresentAt": "2026-10-08T17:50:45.828Z",
+        "lastPresentAt": "2026-10-08T17:51:12.536Z",
+        "firstAbsentAt": "2026-10-08T17:51:12.786Z",
+        "samples": 164,
+        "unavailableSamples": 0
+      },
+      "queueState": "completed",
+      "codingDispatches": 1,
+      "finalResponseRequests": 1,
+      "finalResponseAborts": 0,
+      "finalResponseRetries": 0,
+      "integratedBeforeExit": false
+    },
+    {
+      "task": "b1",
+      "sessionID": "s-faf632c7",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-08T17:51:56.163Z",
+      "stoppedAndAbsentObservedAt": "2026-10-08T17:52:09.185Z",
+      "queueCompletedObservedAt": "2026-10-08T17:52:09.191Z",
+      "leaseObservation": {
+        "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+        "firstPresentAt": "2026-10-08T17:51:51.107Z",
+        "lastPresentAt": "2026-10-08T17:52:08.907Z",
+        "firstAbsentAt": "2026-10-08T17:52:09.123Z",
+        "samples": 123,
+        "unavailableSamples": 0
+      },
+      "queueState": "completed",
+      "codingDispatches": 1,
+      "finalResponseRequests": 1,
+      "finalResponseAborts": 0,
+      "finalResponseRetries": 0,
+      "integratedBeforeExit": false
+    }
+  ],
+  "refusalProbe": {
+    "label": "both-processes-exited",
+    "status": 409,
+    "requestedRevision": 14,
+    "publicRevisionBefore": 14,
+    "privateRevisionBefore": 14,
+    "privateRevisionAfter": 14,
+    "before": {
+      "effects": {
+        "create": 2,
+        "start": 2,
+        "destroy": 2
+      },
+      "primaryCommit": "3a9f1a47f533e7b9f4f4e67b069c4453fb69ccc0",
+      "joinOperationIds": []
+    },
+    "after": {
+      "effects": {
+        "create": 2,
+        "start": 2,
+        "destroy": 2
+      },
+      "primaryCommit": "3a9f1a47f533e7b9f4f4e67b069c4453fb69ccc0",
+      "joinOperationIds": []
+    },
+    "response": {
+      "message": "Project source is busy. Wait before reserving this task.",
+      "error": "project_run_conflict"
+    },
+    "truncatedFields": [],
+    "at": "2026-10-08T17:52:12.150Z",
+    "classification": "unclassified-response"
+  },
+  "classification": {
+    "confirmed": "The reservation handler refused source admission before reaching dependency validation. Revisions matched and neither source nor allocation state changed.",
+    "notEstablished": "The exact lock holder is not recorded. Browser GET timing and source-lock ownership were not captured; service stdout/stderr were discarded. No inference is made about the response omitted from earlier c440 attempt1.",
+    "sequence": "Both actual worker containers were confirmed absent and both exact execution leases had disappeared before this probe. These facts do not establish an idle source-admission lock."
+  },
+  "limits": {
+    "scenarioDeadlineMs": 900000,
+    "upstreamRequestMs": 120000,
+    "maxCreates": 5,
+    "maxStarts": 5,
+    "maxWorkerCreates": 4,
+    "maxCheckCreates": 1,
+    "checkCompletionMs": 120000,
+    "preCreateFreeBytes": 6442450944,
+    "runningReserveBytes": 1073741824,
+    "workerMemoryBytes": 1073741824,
+    "workerNanoCPUs": 1000000000,
+    "pidsLimit": 256
+  },
+  "unreached": [
+    "Reviewed A integration",
+    "Stale B review refusal",
+    "Actual B merge conflict and retained retry",
+    "Current B2 integration",
+    "Dependency join worker",
+    "Whole-build Docker check and joined receipt"
+  ],
+  "scope": "Scripted provider through actual installed Docker/native CLI, controlled fixture. No live-model, parallel throughput, Windows, performance or full-product acceptance claim.",
+  "closure": {
+    "observedAt": "2026-10-08T17:53:19.030312+00:00",
+    "containers": 0,
+    "volumes": 0,
+    "ownedFixtureProcesses": 0,
+    "sourceCommit": "9de6c800ae4afdcd7f1821e3c74ff6955c1173ee",
+    "sourceClean": true,
+    "helpersUnchanged": true,
+    "helperInputs": 19,
+    "archiveSHA256": "15739fdd7a01a6196e59da6260c8701fb4292606172b53b37e212ea51aeafcd9",
+    "verifiedPackageMembers": 1273,
+    "allPackageMembersMatch": true,
+    "imageID": "sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98",
+    "imageAndEngineUnchanged": true,
+    "fixtureRetained": true,
+    "driverCleanupErrors": [],
+    "rootFreeBytes": 6555475968
+  },
+  "retainedEvidence": {
+    "driverResultSHA256": "d13cb3aa4346025dd4ec3c48f850973dca236689a81150a640be01787c460cf2",
+    "exactProbeSHA256": "32da53173930b78bd11e9317ab9730d6c9a4f5db5a5b9bda25b8ad91c5d6d39c",
+    "driverLogSHA256": "26eae435f2a277c9afb2325b800227d143ef03f61dc9b89bf300eded921628d1",
+    "observerSummarySHA256": "d6c3389f811230233795ffcae5cf944477caec1d0c4353b4dec329e1c3cb8ef1"
+  },
+  "observer": {
+    "samples": 146,
+    "durationSeconds": 148.5778677930066,
+    "peakObserved": {
+      "summedRSS_test-driver": 224276480,
+      "summedRSS_allOwnedProcesses": 1204187136,
+      "summedRSS_other-owned-descendant": 15523840,
+      "summedRSS_control-plane": 200531968,
+      "summedRSS_browser": 832565248,
+      "singleContainerCgroupUsageBytes": 49520640
+    },
+    "limitations": [
+      "Sum of process RSS double-counts shared pages; it is not unique physical memory.",
+      "Container cgroup memory is separate and must not be added to container process RSS.",
+      "Docker daemon/shared kernel/VM overhead is unassigned; host memory includes unrelated work.",
+      "Processes starting and exiting between 1 Hz samples may be missed; delta counters cover observed intervals only.",
+      "Post-driver-exit settlement is not an application idle baseline.",
+      "No UI input latency, other-app responsiveness or model reasoning quality is measured."
+    ],
+    "baseline": "post-start; no pre-run idle baseline observed"
+  },
+  "retryPerformed": false
+}
