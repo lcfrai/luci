@@ -6,11 +6,14 @@ import { useSetup } from "../setup/SetupProvider";
 import { useAuth } from "../auth/AuthProvider";
 import "./rail.css";
 import { TeamWorkspaceControl } from "../teams/TeamWorkspaceControl";
+import { clientKeyboardPlatform, shortcutLabel } from "../../lib/keyboardPlatform";
 
 export function RailFooter(): JSX.Element {
   const setup = useSetup();
   const auth = useAuth();
   const lastError = useCockpit((s) => s.lastError);
+  const openPalette = useCockpit((s) => s.openPalette);
+  const platform = clientKeyboardPlatform();
 
   return (
     <div className="rail-footer">
@@ -22,8 +25,15 @@ export function RailFooter(): JSX.Element {
           onClick={() => setup?.openSettings()}
         >
           Settings
-        </button>{" "}
-        <span className="rail-kbd">⌘K</span>
+        </button>
+        <button
+          className="rail-settings rail-command"
+          type="button"
+          onClick={openPalette}
+          aria-keyshortcuts={platform === "mac" ? "Meta+K" : "Control+K"}
+        >
+          Commands <kbd className="rail-kbd">{shortcutLabel("K", platform)}</kbd>
+        </button>
       </div>
       {auth && (
         <div className="rail-account">

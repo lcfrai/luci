@@ -301,13 +301,15 @@ describe("AppShell", () => {
         screen.getByRole("button", { name: "Close projects" }),
       );
       const last = screen.getByRole("button", {
-        name: "Settings",
+        name: /^Commands /,
       });
       last.focus();
       await userEvent.tab();
       expect(document.activeElement).toBe(
         screen.getByRole("button", { name: "All projects" }),
       );
+      await userEvent.tab({ shift: true });
+      expect(document.activeElement).toBe(last);
       await userEvent.keyboard("{Escape}");
       expect(trigger.getAttribute("aria-expanded")).toBe("false");
       expect(document.activeElement).toBe(trigger);

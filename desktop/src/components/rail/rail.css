@@ -275,6 +275,29 @@
 .rail-chev svg {
   inline-size: 14px;
 }
+.rail-project-toggle {
+  flex-basis: 28px;
+  inline-size: 28px;
+  min-block-size: 24px;
+  align-self: stretch;
+  justify-content: center;
+  align-items: center;
+  margin-block: calc(-1 * var(--rail-row-pad-block, 7px));
+  border: 0;
+  border-radius: var(--r-ctl);
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.rail-project-toggle:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.rail-command {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 .rail-add {
   display: grid;
   place-items: center;

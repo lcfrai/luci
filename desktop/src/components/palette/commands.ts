@@ -6,6 +6,7 @@
 import { selectPaneSessionIds, selectTargetWorktreeId } from "../../store/selectors";
 import type { CockpitState } from "../../store/store";
 import type { SessionId } from "../../store/types";
+import { clientKeyboardPlatform, shortcutLabel, type KeyboardPlatform } from "../../lib/keyboardPlatform";
 
 export interface Command {
   id: string;
@@ -31,13 +32,13 @@ export const SEND_CHORDS_LABEL = "Send shortcut keys to the terminal";
  *  (§7.5); a palette row that drew a status glyph would be a second vocabulary for the same
  *  fact. Three of the five — ▸ U+25B8, ▥ U+25A5, ▣ U+25A3 — are Geometric Shapes, the block
  *  SubRail's LENSES glyphs are drawn from. The other two are not, and are here anyway for
- *  named reasons: ⌘ U+2318 (Miscellaneous Technical) is the one glyph the user already reads
- *  as "a command", and ⑂ U+2442 (Optical Character Recognition) is the fork mark SubRail
+ *  named reasons: › marks an action without implying a platform-specific key, and
+ *  ⑂ U+2442 (Optical Character Recognition) is the fork mark SubRail
  *  already uses for Merge, so a second branch glyph would be a second vocabulary. None is a
  *  webfont glyph — all five resolve from the system stack — and the two outside Geometric
  *  Shapes are both already on screen elsewhere in the shell, so neither is a new font risk. */
 const GLYPH = {
-  verb: "⌘",
+  verb: "›",
   session: "▸",
   worktree: "▥",
   branch: "⑂", // the glyph SubRail already uses for Merge
@@ -69,12 +70,12 @@ function allSessionIdsInStableOrder(state: CockpitState): SessionId[] {
  *  their identity for the life of the store, so a `run` closure taken here is still correct
  *  after any number of later writes. That is what lets CommandPalette build this list once,
  *  when it opens, instead of rebuilding it on every 2 s poll. */
-export function buildCommands(state: CockpitState): Command[] {
+export function buildCommands(state: CockpitState, platform: KeyboardPlatform = clientKeyboardPlatform()): Command[] {
   const commands: Command[] = [];
   const paneIds = selectPaneSessionIds(state);
   const hintFor = (id: SessionId): string | undefined => {
     const position = paneIds.indexOf(id) + 1;
-    return position >= 1 && position <= 9 ? `⌘${position}` : undefined;
+    return position >= 1 && position <= 9 ? shortcutLabel(String(position), platform) : undefined;
   };
   const projectName = (id: string): string => state.projects.find((p) => p.id === id)?.name ?? id;
 
@@ -92,14 +93,14 @@ export function buildCommands(state: CockpitState): Command[] {
     id: "verb:rail",
     label: state.railCollapsed ? "Show the rail" : "Hide the rail",
     glyph: GLYPH.verb,
-    hint: "⌘B",
+    hint: shortcutLabel("B", platform),
     run: () => state.toggleRail(),
   });
   commands.push({
     id: "verb:machines",
     label: "Machines",
     glyph: GLYPH.verb,
-    hint: "⌘⇧M",
+    hint: shortcutLabel("M", platform, true),
     run: () => state.openMachines(),
   });
   if (selectTargetWorktreeId(state) !== null) {
@@ -137,7 +138,7 @@ export function buildCommands(state: CockpitState): Command[] {
       state.pushToast(
         sendChords
           ? "Shortcut keys go to the cockpit again, from a terminal too."
-          : "Shortcut keys now go to the terminal, ⌘K too. To open this palette again, click an empty part of the top bar, then press ⌘K.",
+          : `Shortcut keys now go to the terminal, ${shortcutLabel("K", platform)} too. To open this palette again, click an empty part of the top bar, then press ${shortcutLabel("K", platform)}.`,
         () => state.setSendChordsToTerminal(sendChords),
       );
     },

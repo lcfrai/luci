@@ -187,6 +187,86 @@ describe("Rail", () => {
     expect(useCockpit.getState().lens).toBe("develop");
   });
 
+  it("keeps project switching independent of expansion when cold branch lists arrive", () => {
+    const projects = ["alpha", "beta", "gamma", "delta"].map(id => aProject({ id, name: id }));
+    seed({ projects, expandedProjects: {}, branchesByProject: {}, selection: { projectId: null, branchId: null, worktreeId: null, sessionId: null } });
+    render(<Rail />);
+    const rows = screen.getAllByRole("treeitem");
+    for (const id of ["alpha", "beta", "gamma"]) {
+      fireEvent.click(screen.getByRole("treeitem", { name: id }));
+      act(() => useCockpit.setState(state => ({ branchesByProject: {
+        ...state.branchesByProject,
+        [id]: [aBranch({ id: id + "-main", projectId: id, name: id + " main" })],
+      } })));
+      // A late catalogue response must not insert child rows under a project opened only
+      // for navigation. The browser witness also measures the actual hit rectangles.
+      expect(screen.getAllByRole("treeitem")).toEqual(rows);
+      expect(useCockpit.getState().selection.projectId).toBe(id);
+      expect(useCockpit.getState().expandedProjects).toEqual({});
+    }
+    expect(screen.getByRole("treeitem", { name: "gamma" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("expands projects explicitly without selecting them or closing the mobile drawer", async () => {
+    seed({ expandedProjects: {}, selection: { projectId: null, branchId: null, worktreeId: null, sessionId: null } });
+    const onClose = vi.fn();
+    render(<Rail drawerOpen onClose={onClose} />);
+    const row = screen.getByRole("treeitem", { name: project.name });
+    await userEvent.click(screen.getByRole("button", { name: "Expand " + project.name }));
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+    expect(useCockpit.getState().selection.projectId).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(row);
+    expect(screen.getAllByRole("treeitem").filter(item => item.tabIndex === 0)).toEqual([row]);
+    await userEvent.keyboard("{Enter}");
+    expect(useCockpit.getState().selection.projectId).toBe(project.id);
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await userEvent.keyboard("{ArrowLeft}");
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.keyboard("{ArrowRight}");
+    expect(row.getAttribute("aria-expanded")).toBe("true");
+    await userEvent.click(screen.getByRole("button", { name: "Collapse " + project.name }));
+    expect(row.getAttribute("aria-expanded")).toBe("false");
+    expect(useCockpit.getState().selection.projectId).toBe(project.id);
+  });
+
+  it("preserves the unsaved-draft navigation guard without changing tree expansion", () => {
+    const other = aProject({ id: "p-2", name: "second project" });
+    seed({ projects: [project, other], selection: { projectId: project.id, branchId: null, worktreeId: null, sessionId: null }, expandedProjects: {} });
+    useCockpit.getState().setUnsavedProjectDraft("draft", { projectId: project.id, label: "Idea", lens: "discover" });
+    render(<Rail />);
+    fireEvent.click(screen.getByRole("treeitem", { name: other.name }));
+    expect(useCockpit.getState().selection.projectId).toBe(project.id);
+    expect(useCockpit.getState().pendingNavigation).toEqual({ kind: "project", projectId: other.id });
+    expect(useCockpit.getState().expandedProjects).toEqual({});
+  });
+
+  it("does not jump to another project while the expanded project's branches are still loading", async () => {
+    seed({ projects: [project, aProject({ id: "p-2", name: "another project" })], branchesByProject: {} });
+    render(<Rail />);
+    const row = screen.getByRole("treeitem", { name: project.name });
+    row.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(row);
+    act(() => useCockpit.setState({ branchesByProject: { [project.id]: [branch] } }));
+    await userEvent.keyboard("{ArrowRight}");
+    expect(document.activeElement).toBe(screen.getByRole("treeitem", { name: /evidence-upload$/ }));
+  });
+
+  it.each([["Win32", "Ctrl+K", "Control+K"], ["Linux x86_64", "Ctrl+K", "Control+K"], ["MacIntel", "⌘K", "Meta+K"]])("labels and opens Commands for client platform %s separately from Settings", async (platform, hint, ariaShortcut) => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+    render(<Rail />);
+    const commands = screen.getByRole("button", { name: "Commands " + hint });
+    expect(commands.getAttribute("aria-keyshortcuts")).toBe(ariaShortcut);
+    expect(screen.getByRole("button", { name: "Settings" }).getAttribute("aria-keyshortcuts")).toBeNull();
+    await userEvent.click(commands);
+    expect(useCockpit.getState().paletteOpen).toBe(true);
+    expect(setup.openSettings).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Settings" }));
+    expect(setup.openSettings).toHaveBeenCalledTimes(1);
+  });
+
   it("gives the branch the highest-attention status among its sessions", () => {
     render(<Rail />);
     expect(

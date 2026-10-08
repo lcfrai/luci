@@ -552,3 +552,24 @@ validation before forwarding and establishes no product recovery result.
 Installed fault recovery, native delayed-request/lost-ack scenarios, sustained
 four-project responsiveness and live-provider quality remain open. The broader
 local-first goal is unchanged and unfinished.
+
+### Native LOCAL-005 retest accepted — 8 October 2026
+
+The local tester acknowledged exact `919cffe014d1104d9e65fa19351683d182355f36`,
+prepared a clean fresh detached checkout on E:, and started the documented full
+Windows native build with one Rust job and GOMAXPROCS=2. The local thread owns
+storage refresh/navigation/request verification and affected state-isolation
+checks. The prior `2dcf245d` batch is closed, with owned processes stopped and
+source/user work preserved. LOCAL-004's metadata anomaly and LOCAL-007's
+cause-unconfirmed click observation remain open; no native retest pass is
+implied by build startup. Cloud installed recovery continues independently.
+
+The local retest reports that exact process-start tracing is unavailable at the
+current Windows integrity level: PowerShell 7 `Win32_ProcessStartTrace` returns
+HRESULT `0x80041032` / Call cancelled, and Windows PowerShell WMI returns Access
+denied. No elevation or security changes are requested. Actual native UI and
+HTTP checks continue, measuring refresh-attributable readiness POST increments
+after the real DependencySetup initial checks settle. Polling cannot prove the
+absence of short-lived processes. For LOCAL-004, refreshed .NET and native
+handle observations now agree on all seven baseline entries; the original
+anomaly remains retained pending a controlled application-cycle comparison.

@@ -98,7 +98,7 @@ export function Rail({
         // the `=== "true"` guard it reached the else and moved focus down, which is ArrowDown
         // wearing another key's clothes.
         if (expanded === "false") toggle(kind, id);
-        else if (expanded === "true") rows[index + 1]?.focus();
+        else if (expanded === "true" && Number(rows[index + 1]?.getAttribute("aria-level")) > level) rows[index + 1].focus();
         break;
       case "ArrowLeft":
         event.preventDefault();

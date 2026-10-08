@@ -30,16 +30,14 @@ export function ProjectRow(props: {
       <div
         role="treeitem"
         tabIndex={-1}
+        aria-label={project.name}
         aria-level={1}
         aria-expanded={expanded}
         aria-selected={selected}
         data-kind="project"
         data-id={project.id}
         className="rail-row"
-        onClick={() => {
-          selectProject(project.id);
-          toggleProject(project.id);
-        }}
+        onClick={() => selectProject(project.id)}
         onContextMenu={(event) => {
           event.preventDefault();
           openContextMenu({
@@ -50,9 +48,22 @@ export function ProjectRow(props: {
           });
         }}
       >
-        <span className="rail-chev" aria-hidden="true">
+        <button
+          type="button"
+          className="rail-chev rail-project-toggle"
+          tabIndex={-1}
+          aria-label={`${expanded ? "Collapse" : "Expand"} ${project.name}`}
+          aria-expanded={expanded}
+          onClick={(event) => {
+            // Disclosure is independent of navigation. In particular, selecting a cold
+            // project must not move the next project when its branch list arrives.
+            event.stopPropagation();
+            event.currentTarget.closest<HTMLElement>('[role="treeitem"]')?.focus();
+            toggleProject(project.id);
+          }}
+        >
           <NavigationIcon name={expanded ? "chevron-down" : "chevron-right"} />
-        </span>
+        </button>
         <span className="rail-name">{project.name}</span>
       </div>
       {expanded ? (

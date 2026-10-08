@@ -74,7 +74,7 @@ describe("buildCommands", () => {
   });
 
   it("OD-9: running the row sets the setting, says so in a toast, and the toast's Undo restores it", () => {
-    const run = () => buildCommands(useCockpit.getState()).find((c) => c.label === SEND_CHORDS_LABEL)?.run();
+    const run = () => buildCommands(useCockpit.getState(), "mac").find((c) => c.label === SEND_CHORDS_LABEL)?.run();
     const lastToast = () => {
       const { toasts } = useCockpit.getState();
       return toasts[toasts.length - 1];
@@ -115,7 +115,7 @@ describe("buildCommands", () => {
 
   it("hints ⌘1–⌘9 for the first nine pane sessions and nothing for the tenth", () => {
     seed(Array.from({ length: 10 }, (_, i) => `s-${i + 1}`));
-    const rows = buildCommands(useCockpit.getState());
+    const rows = buildCommands(useCockpit.getState(), "mac");
     expect(rows.find((c) => c.id === "session:s-1")?.hint).toBe("⌘1");
     expect(rows.find((c) => c.id === "session:s-9")?.hint).toBe("⌘9");
     // The row must EXIST before its missing hint means anything: `undefined?.hint` is also
@@ -123,6 +123,16 @@ describe("buildCommands", () => {
     // pass the assertion below and the ⌘1–9 rule would be untested at its only boundary.
     expect(rows.find((c) => c.id === "session:s-10")).toBeDefined();
     expect(rows.find((c) => c.id === "session:s-10")?.hint).toBeUndefined();
+  });
+
+  it.each([["mac", "⌘B", "⌘⇧M", "⌘1", "⌘K"], ["other", "Ctrl+B", "Ctrl+Shift+M", "Ctrl+1", "Ctrl+K"]] as const)("uses client %s shortcuts in the palette and terminal handoff notice", (platform, rail, machines, session, palette) => {
+    const rows = buildCommands(useCockpit.getState(), platform);
+    expect(rows.find(row => row.id === "verb:rail")?.hint).toBe(rail);
+    expect(rows.find(row => row.id === "verb:machines")?.hint).toBe(machines);
+    expect(rows.find(row => row.id === "session:s-1")?.hint).toBe(session);
+    rows.find(row => row.id === "verb:send-chords-to-terminal")?.run();
+    const toasts = useCockpit.getState().toasts;
+    expect(toasts[toasts.length - 1]?.message).toBe(`Shortcut keys now go to the terminal, ${palette} too. To open this palette again, click an empty part of the top bar, then press ${palette}.`);
   });
 
   it("running a session command selects its branch, then its worktree, then focuses it", () => {
