@@ -233,3 +233,78 @@ CLOUD-009 is a separate required recovery correction discovered by source
 review: interrupted backend Create/Start without durable settlement can retain
 capacity indefinitely. It remains fixing and prevents full local completion.
 Focused correction handoff is distinct from LOCAL TEST HANDOFF READY.
+
+### Focused native correction results at 8f78804f
+
+The local tester reports the CLOUD-005/CLOUD-008 focused batch passed at exact
+`8f78804ff318ab744226f139df5998cbd6e0d0ff`: 76 top-level Go tests and 97
+subtests, zero failures/skips, with Windows Go 1.26.3, GOMAXPROCS 4 and `-p2`
+without the race detector. Four additional Git-fixture top-level tests and three
+subtests passed, including native symlink and inherited Git redirection cases.
+The five changed storage frontend files passed 53 tests with two workers and
+no failures, skips or pending cases. Source/provenance completion is recorded
+locally; raw files have not been independently retrieved by this cloud thread.
+
+Separately, `TestWindowsLocalStorageReadOnlyProbe` passed at 10:07:24 UTC on
+actual Windows: four mounted local volumes, C: limiting, 3,722,629,120 available
+bytes. It made no Docker call, confirmed no storage mapping and started no
+workload. Local receipts are under
+`E:/Luci-local-acceptance/evidence/8f78804f`: `controlled-native-summary.json`,
+`native-storage-probe.json`, `native-gitfixture-guards-summary.json` and
+`frontend/summary.json`, with commands/logs alongside. These outcomes do not
+establish installed turnover, real WSL process-start deduplication, the full
+confirmation UI, provider quality or the complete local milestone.
+
+CLOUD-009 remains the next required implementation handoff. Its source changes
+will receive a new immutable revision; neither side changes the running local
+batch. Docker relocation remains a local environment task awaiting desktop
+unlock. Cloud implementation and the matching installed Linux comparison
+continue independently.
+
+### Supported Docker relocation started
+
+The local tester reports Windows is now unlocked and Docker Desktop's supported
+Resources > Advanced disk-image move has been confirmed, from the existing
+C: WSL directory to `E:/DockerDesktop/DockerDesktopWSL`. The engine is stopping
+and the move is in progress, not yet verified. Fresh pre-move inventory matches
+107 containers, 196 image entries (178 distinct IDs), 155 volumes and the same
+four running IDs. The cold verified backup remains on E:. The tester will
+verify the live path, engine, unchanged inventory and both guest/physical host
+space before allocation. Focused Windows testing stays pinned to `8f78804f`;
+no cloud operation modifies that machine. CLOUD-009 development continues.
+
+### LOCAL-ENV-001 verified; LOCAL-004 remains a separate native gate
+
+The local tester verified the supported disk-image move. Active E: VHD, Docker
+UI and CustomWslDistroDir agree; the old C: VHD is absent. Engine ID/version/
+context and every container/image/volume ID and container state are unchanged:
+107 containers, 196 image rows (178 distinct IDs), 155 volumes and four running
+IDs. Reported free space: C: 74.20 GiB, E: 903.27 GiB, guest 886 GiB. A new
+read-only probe at `8f78804f` reports four mounted volumes and approximately
+74.2 GiB minimum (C:). The verified cold recovery backup is retained. Available
+host RAM is only 4.38 GiB, so the next fresh source-app batch tests actual host
+operator confirmation without runtime/model allocation; it uses a unique
+nonexistent sandbox tag and preserves the user's existing image. No four-worker
+performance claim follows from relocation.
+
+LOCAL-004 is acknowledged separately: `8f78804f` native own-sidecar startup
+ignores inherited explicit state and selects normal app/legacy state. The
+tester did not launch against user data. Cloud correction must honor a validated
+explicit state path before default discovery, preserve bootstrap/shutdown/default
+migration and supply a new exact revision. Isolate the native WebView profile
+as well. External `LUCI_API` validates a different lifecycle and does not close
+this gate.
+
+### LOCAL-004 source correction ready for native retest
+
+This correction honors explicit `LUCI_STATE_DIR` before resolving normal or
+legacy locations, and rejects invalid overrides without fallback. Nine Linux
+Rust state-selection tests pass, including preserved existing/default/legacy
+state and root/intermediate-link refusal. The isolated module uses the product's
+exact serde_json/uuid versions; it does not compile the full Tauri caller.
+[Source receipt](evidence/2026-10-08-local004-state-selection.json) records this
+limit and hashes. The [native procedure](LOCAL-WINDOWS-ACCEPTANCE.md#isolated-native-webview-acceptance--local-004-correction)
+also isolates the process-local WebView profile, preserves environment values
+and existing state roots, and checks actual own-sidecar startup and shutdown.
+Use the exact published LOCAL FIX READY TO RETEST revision between batches.
+CLOUD-009 implementation is not part of this narrowly published correction.

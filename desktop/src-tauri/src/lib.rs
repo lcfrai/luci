@@ -27,10 +27,10 @@ struct RuntimeInfo {
 impl RuntimeInfo {
     fn select_state(
         &mut self,
-        current: &std::path::Path,
-        legacy: Option<&std::path::Path>,
+        explicit: Option<&std::path::Path>,
+        defaults: impl FnOnce() -> std::io::Result<(PathBuf, Option<PathBuf>)>,
     ) -> Option<PathBuf> {
-        match state_dir::select(current, legacy) {
+        match state_dir::select_configured(explicit, defaults) {
             Ok(selected) => {
                 self.state_dir = Some(selected.clone());
                 Some(selected)
@@ -207,16 +207,18 @@ pub fn run() {
                 let address = listener.local_addr()?.to_string();
                 drop(listener);
                 info.api_url = format!("http://{address}");
-                let current_state = app.path().app_data_dir()?;
-                let legacy_state = if cfg!(windows) {
-                    std::env::var_os("LOCALAPPDATA")
-                        .map(|root| PathBuf::from(root).join("Luci").join("state"))
-                } else {
-                    None
-                };
-                if let Some(managed_state) =
-                    info.select_state(&current_state, legacy_state.as_deref())
-                {
+                let explicit_state = std::env::var_os("LUCI_STATE_DIR").map(PathBuf::from);
+                if let Some(managed_state) = info.select_state(explicit_state.as_deref(), || {
+                    let current = app.path().app_data_dir()
+                        .map_err(|error| std::io::Error::other(error.to_string()))?;
+                    let legacy = if cfg!(windows) {
+                        std::env::var_os("LOCALAPPDATA")
+                            .map(|root| PathBuf::from(root).join("Luci").join("state"))
+                    } else {
+                        None
+                    };
+                    Ok((current, legacy))
+                }) {
                     state_dir = Some(managed_state.clone());
                     let shutdown_token = uuid::Uuid::new_v4().to_string();
                     lifecycle_token = Some(shutdown_token.clone());
@@ -315,7 +317,7 @@ mod tests {
             state_dir: None,
         };
         assert!(info
-            .select_state(std::path::Path::new("relative"), None)
+            .select_state(Some(std::path::Path::new("relative")), || panic!("invalid explicit state must not consult defaults"))
             .is_none());
         assert!(info.state_dir.is_none());
         assert!(info

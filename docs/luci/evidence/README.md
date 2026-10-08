@@ -60,6 +60,10 @@ passing one scope does not establish another or complete the local product.
 - [Combined storage/cleanup source verification](storage-cleanup/README.md):
   2,835 Go race outcomes, complete Windows API compilation, unchanged source
   and exact skip/limitation records. CLOUD-009 remains open.
+- [Reported 8f78804f native correction checks](2026-10-08-native-8f78804f.md):
+  173 focused Go outcomes, seven Git-fixture outcomes, 53 storage frontend tests
+  and an actual read-only Windows storage probe. This does not establish
+  installed confirmation, real WSL probe counts or whole-computer capacity.
 
 The private raw logs, credentials, profiles and fixture workspaces stay outside
 Git. Original-artifact hashes record lineage; they are not signed attestations.
@@ -69,3 +73,10 @@ The [Windows acceptance procedure](../LOCAL-WINDOWS-ACCEPTANCE.md),
 [capacity procedure](../SWARM-CAPACITY-ACCEPTANCE.md) and
 [rolling correction loop](../LOCAL-TEST-LOOP.md) define the remaining native and
 live-provider gates. Do not treat this index as a handoff-ready notification.
+
+- [LOCAL-004 state-selection source checks](2026-10-08-local004-state-selection.json):
+  nine Linux Rust module tests; full Tauri compilation and native own-sidecar
+  startup, bootstrap and shutdown still require Windows acceptance.
+- [8f78804f installed four-project comparison](2026-10-08-8f78804f-installed-swarm.md):
+  four natural completions and reviewed integrations, matching output hashes,
+  measured cleanup intervals and retained baseline limits. Scripted provider.

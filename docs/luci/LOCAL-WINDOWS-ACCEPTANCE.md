@@ -354,14 +354,91 @@ Check its hash against `SHA256SUMS` and record `release-manifest.json`, which
 must identify the tested commit and whether source changes were present.
 Portable runtime use does not need host Go, Node or Python.
 
+### Isolated native WebView acceptance — LOCAL-004 correction
+
 With the native prerequisites installed, use
-`./scripts/build-release.ps1 -Version 0.5.0 -Native`. The unsigned NSIS installer
-is under `desktop/src-tauri/target/release/bundle/nsis/`; install and launch it
-normally as your user. Check startup, close/reopen, account and project
-persistence, WebView keyboard/zoom and the same real workflow below. Native and
-portable launchers can select different state locations; confirm the displayed
-workspace before interpreting an empty installation as data loss. Follow
-[RELEASE.md](RELEASE.md) for state migration and package provenance.
+`./scripts/build-release.ps1 -Version 0.5.0 -Native` at the exact fixed revision
+supplied by the LOCAL FIX READY TO RETEST handoff. **Earlier packages, including `8f78804f`, do not
+contain the LOCAL-004 explicit-state fix.** Do not launch those native packages
+against an assumed isolated state override. Preserve the full native executable,
+matching sidecar and bundled resources together; record the package/source hashes
+before running. The unsigned NSIS installer is under
+`desktop/src-tauri/target/release/bundle/nsis/`, but installing, upgrading or
+uninstalling it remains a separate disposable-VM test below. Use the matching
+built/extracted native application for the personal-machine smoke test.
+
+Choose a fresh, non-linked directory on the acceptance volume for each native
+run. Before launch, privately record the existence, file hashes, relative paths,
+lengths, attributes and last-write metadata of both normal state roots:
+`%APPDATA%\ai.lcfr.luci` and `%LOCALAPPDATA%\Luci\state`. Record absent roots as
+absent; do not create or copy their state into the fixture. Preserve this baseline
+and compare it after shutdown. Keep any private account/configuration contents
+out of the shared report.
+
+Use a dedicated PowerShell process and process-local environment values only.
+Set the executable below to the verified native application with its matching
+resources; this is not the portable server executable of the same filename:
+
+```powershell
+$nativeExe = 'E:\Luci-local-acceptance\native-candidate\luci.exe'
+if (-not (Test-Path -LiteralPath $nativeExe -PathType Leaf)) { throw 'Select the verified native executable.' }
+$nativeRun = Join-Path 'E:\Luci-local-acceptance\native-runs' ([guid]::NewGuid().ToString('N'))
+if (Test-Path -LiteralPath $nativeRun) { throw 'Use a fresh owned native run folder.' }
+New-Item -ItemType Directory -Path $nativeRun -ErrorAction Stop | Out-Null
+$savedNativeEnv = @{}
+Get-ChildItem Env: | Where-Object { $_.Name -like 'LUCI_*' -or $_.Name -eq 'WEBVIEW2_USER_DATA_FOLDER' } |
+    ForEach-Object { $savedNativeEnv[$_.Name] = $_.Value }
+try {
+    Get-ChildItem Env:LUCI_* | ForEach-Object { Remove-Item -LiteralPath ('Env:' + $_.Name) }
+    $env:LUCI_STATE_DIR = Join-Path $nativeRun 'state'
+    $env:LUCI_PROJECTS_DIR = Join-Path $nativeRun 'projects'
+    $env:WEBVIEW2_USER_DATA_FOLDER = Join-Path $nativeRun 'webview-profile'
+    # LUCI_API stays absent: this tests the native launcher's own sidecar.
+    $nativeProcess = Start-Process -FilePath $nativeExe -PassThru
+    Write-Host "Native process $($nativeProcess.Id); private acceptance folder: $nativeRun"
+    $nativeProcess.WaitForExit()
+} finally {
+    Get-ChildItem Env:LUCI_* | ForEach-Object { Remove-Item -LiteralPath ('Env:' + $_.Name) }
+    Remove-Item Env:WEBVIEW2_USER_DATA_FOLDER -ErrorAction SilentlyContinue
+    foreach ($name in $savedNativeEnv.Keys) {
+        [Environment]::SetEnvironmentVariable($name, $savedNativeEnv[$name], 'Process')
+    }
+}
+```
+
+With the fix, an explicit `LUCI_STATE_DIR` selects that absolute directory
+without consulting either normal state root. Invalid, linked or relative paths
+must fail visibly without a fallback. `LUCI_PROJECTS_DIR` is inherited by the
+owned sidecar. The native launcher supplies its bundled runtime and cloud bundle;
+an inherited `LUCI_RUNTIME_DIR` does not replace those resources. The fresh
+`WEBVIEW2_USER_DATA_FOLDER` isolates browser cookies/cache from the usual WebView
+profile without changing Windows-wide settings. Keep it when reopening the same
+fixture, and use a new folder for a new acceptance run.
+
+Before first-owner setup, inspect the native `runtime_info` command through the
+local test bridge and record its `apiUrl`, `stateDir` and `startupError` result.
+`stateDir` must exactly identify this run's absolute `state` directory and
+`startupError` must be empty. Stop and retain diagnostics on any mismatch; do not
+continue setup in an existing workspace. Native own-sidecar startup chooses a
+free IPv4 loopback port even if `LUCI_ADDR` was inherited: use the actual `apiUrl`
+from `runtime_info`, not the source launcher's port or a guessed address. Record
+the owned sidecar's process identity and actual bundled runtime location too.
+
+Verify a fresh first-owner/bootstrap flow, saved project persistence and normal
+close. Reopen the **same** native executable with the same three isolated paths
+and repeat sign-in and the WebView workflow, keyboard/zoom and recovery checks.
+Closing the app must stop its own sidecar without stopping unrelated processes;
+retain proof of the exact process identity and exit, not just a closed window.
+Compare both normal-root baselines after each run: file content and the recorded
+metadata must remain unchanged, and absent roots must remain absent. Retain the
+new fixture state/profile and evidence rather than deleting them on failure.
+
+An external-service check is separate: deliberately set `LUCI_API` to an already
+owned test service while retaining a fresh WebView profile. That mode must not
+start or claim ownership of a sidecar, read local bootstrap tokens, select native
+state or stop the external service when the window closes. Record this as
+external mode, not as own-sidecar lifecycle evidence. Follow
+[RELEASE.md](RELEASE.md) for supported state migration and package provenance.
 
 Do **not** run `scripts/test-installed-windows.ps1` on your personal machine or
 set fake GitHub runner variables to bypass its guard. It performs install and
@@ -389,7 +466,7 @@ not permission to substitute terminal work and call the application complete.
 | P1: Context and handoffs | Inspect each task's assigned context, captured requirements/design/plan and prior accepted outcomes. Compare an active run against a later reviewed amendment. Resume a stopped session and verify its captured context remains correct. A replacement agent must understand completed work, unresolved questions, verification evidence and the next task without relying on an unbounded chat transcript. |
 | P1: Efficiency and quality | Run the same approved workload from the same starting commit with concurrency one, then with a bounded parallel configuration. Record preparation, active, waiting, verification and total wall time; peak active agents; available memory/CPU data; actual reported tokens/cost or explicitly unavailable usage; retries, conflicts and failed checks. Report speedup only for equally accepted outcomes. Parallel activity is not itself evidence of a faster or better result. |
 | P1: Operator polish | During real activity, identify the current phase, task owner, dependency/blocker, running work, next decision and exact built scope without reading logs. Exercise keyboard navigation, phone-width view, 400% zoom, unsent-text preservation and long failure messages. Pause/cancel/retry/review must have clear consequences and trustworthy feedback. |
-| P1: Native Windows lifecycle | Install the matching candidate, launch its own sidecar, reopen and recover state, complete the workflow in WebView, and verify clean close. In a disposable VM, perform upgrade/uninstall with retained project/private-state hashes; do not infer this from a Linux build or successful cross-compilation. |
+| P1: Native Windows lifecycle | Use the exact LOCAL-004 fixed native candidate with fresh explicit state/projects and a process-local WebView profile. Verify `runtime_info`, first-owner setup, reopen, unchanged normal-state roots and owned-sidecar shutdown; verify external mode has no service ownership. Perform installer/upgrade/uninstall acceptance only in a disposable VM with retained project/private-state hashes. A Linux build or cross-compilation does not pass this gate. |
 
 Retain a small sanitized report with failed attempts, source/package hashes,
 actual provider/model, hardware and limits, task timings, resulting commit,

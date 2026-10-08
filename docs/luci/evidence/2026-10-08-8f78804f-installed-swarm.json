@@ -1,0 +1,640 @@
+{
+  "schemaVersion": 1,
+  "status": "passed-scoped-installed-workflow",
+  "fullProductGoalComplete": false,
+  "sourceCommit": "8f78804ff318ab744226f139df5998cbd6e0d0ff",
+  "sourceDirty": false,
+  "executedCheckout": {
+    "commit": "8f78804ff318ab744226f139df5998cbd6e0d0ff",
+    "dirty": false
+  },
+  "originalResultSHA256": "f5395edf99e56addc238d05052bc846b318164ced6bf6639830b70c857ee7a10",
+  "startedAt": "2026-10-08T10:15:27.470Z",
+  "finishedAt": "2026-10-08T10:20:04.436Z",
+  "elapsedMs": 276837,
+  "platform": "Linux amd64; existing VFS Docker daemon",
+  "browserVersion": "151.0.7922.173",
+  "packageIntegrity": {
+    "archiveSHA256": "56c19e9c592a5876e5436b04a5b15727ee7b14085919d82d05b925e0aad289b0",
+    "verifiedMembers": 1048,
+    "allMembersMatch": true
+  },
+  "binarySHA256": "0d3977ffd33b7dad94d8dd729f643a10281fd1708f408e6c171296b144050730",
+  "webIndexSHA256": "617f78f3d654d3c7436c11d55266d9853d840b042854e302acd85ebe9fc6e132",
+  "imageID": "sha256:42597a985b20f2aee31a629a320980f02180bde307b6ffdd3ec60b257a82af5b",
+  "helperSHA256": {
+    "four-project-queue.mjs": "b9619765aa841fa606a18a64bad04e3939833add71f2588ba804d4a077759cf2",
+    "docker-create-proxy.mjs": "9bd598e237bba2a3576d68b3f68af3d28ea969afc2d834891aec05c559c721a4",
+    "worker-diagnostics.mjs": "7fe1aa0db81d200008de0af891d0786646f2b7f39fb8b9301afc20f729b9446e",
+    "native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "run-with-observer.py": "945a955544b2312038fddb509b29927890a442544869eb3e0da874dcb9188801",
+    "sample-linux-owned.py": "f9bdd159bb27d19b38df602146319ff9a9b2c828c89038057ed5b58524f4c0ad"
+  },
+  "sourceLineage": {
+    "allHelpersMatchCommittedAndExecutedBytes": true,
+    "runtimeSource": "Immutable clean installed package; later source edits were not executed.",
+    "compilerOverlap": false
+  },
+  "scope": "Installed browser queue consent and overview across four projects, single-slot real Docker/Codex controlled command execution, isolated frozen context/output, cancellation before allocation and service restart without replay. No parallel speed claim.",
+  "setupScaffolding": [
+    "API-seeded account/team, four approved contexts and unstarted reviewed runs",
+    "API-configured global one-worker policy and paused/resumed dispatch; these settings controls are fixture actions",
+    "Named local deterministic provider route",
+    "API-seeded explicit Bypass tasks; held scripted final replies exercise live recovery, followed by natural CLI exit; only failure cleanup may stop sessions"
+  ],
+  "permissionRefusal": {
+    "savedMode": "ask",
+    "prepareError": "task_permission_requires_interactive",
+    "unpreparedQueueError": "project_run_conflict",
+    "noOperations": true,
+    "noBackendCreate": true,
+    "routeUnchanged": true
+  },
+  "configuredMaximumConcurrentWorkers": 1,
+  "taskOrder": [
+    "build-a",
+    "build-b",
+    "build-d",
+    "build-c"
+  ],
+  "checks": [
+    {
+      "name": "Ask permission is refused without preparation, allocation, or silent conversion to Bypass",
+      "passed": true
+    },
+    {
+      "name": "Browser explicitly authorizes five named tasks across four reviewed projects while workspace dispatch is paused",
+      "passed": true
+    },
+    {
+      "name": "Real controlled Codex task uses only its own frozen project context and isolated checkout",
+      "passed": true,
+      "task": "build-a",
+      "ordinal": 1
+    },
+    {
+      "name": "Actual service restart retains exact live child and context without another allocation or tool execution",
+      "passed": true
+    },
+    {
+      "name": "Natural task exit releases the shared slot before human integration",
+      "passed": true,
+      "completedTask": "build-a",
+      "nextTask": "build-b"
+    },
+    {
+      "name": "Real controlled Codex task uses only its own frozen project context and isolated checkout",
+      "passed": true,
+      "task": "build-b",
+      "ordinal": 2
+    },
+    {
+      "name": "Browser cancels extra waiting work before any recorded reservation or backend allocation",
+      "passed": true
+    },
+    {
+      "name": "Natural task exit releases the shared slot before human integration",
+      "passed": true,
+      "completedTask": "build-b",
+      "nextTask": "build-d"
+    },
+    {
+      "name": "Real controlled Codex task uses only its own frozen project context and isolated checkout",
+      "passed": true,
+      "task": "build-d",
+      "ordinal": 3
+    },
+    {
+      "name": "Natural task exit releases the shared slot before human integration",
+      "passed": true,
+      "completedTask": "build-d",
+      "nextTask": "build-c"
+    },
+    {
+      "name": "Real controlled Codex task uses only its own frozen project context and isolated checkout",
+      "passed": true,
+      "task": "build-c",
+      "ordinal": 4
+    },
+    {
+      "name": "Four native one-shot tasks exit naturally and free shared capacity; each exact result is reviewed through browser confirmation controls and integrated",
+      "passed": true
+    }
+  ],
+  "naturalCompletions": [
+    {
+      "task": "build-a",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-08T10:16:27.513Z",
+      "stoppedAndAbsentObservedAt": "2026-10-08T10:16:54.278Z",
+      "queueCompletedObservedAt": "2026-10-08T10:16:54.289Z",
+      "leaseObservation": {
+        "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+        "firstPresentAt": "2026-10-08T10:16:22.401Z",
+        "lastPresentAt": "2026-10-08T10:16:54.073Z",
+        "firstAbsentAt": "2026-10-08T10:16:54.216Z",
+        "samples": 219,
+        "unavailableSamples": 0
+      },
+      "queueState": "completed",
+      "codingDispatches": 1,
+      "finalResponseRequests": 1,
+      "finalResponseAborts": 0,
+      "finalResponseRetries": 0,
+      "integratedBeforeExit": false
+    },
+    {
+      "task": "build-b",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-08T10:17:44.144Z",
+      "stoppedAndAbsentObservedAt": "2026-10-08T10:17:53.582Z",
+      "queueCompletedObservedAt": "2026-10-08T10:17:55.207Z",
+      "leaseObservation": {
+        "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+        "firstPresentAt": "2026-10-08T10:17:39.005Z",
+        "lastPresentAt": "2026-10-08T10:17:54.143Z",
+        "firstAbsentAt": "2026-10-08T10:17:55.141Z",
+        "samples": 102,
+        "unavailableSamples": 0
+      },
+      "queueState": "completed",
+      "codingDispatches": 1,
+      "finalResponseRequests": 1,
+      "finalResponseAborts": 0,
+      "finalResponseRetries": 0,
+      "integratedBeforeExit": false
+    },
+    {
+      "task": "build-d",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-08T10:18:36.390Z",
+      "stoppedAndAbsentObservedAt": "2026-10-08T10:18:53.576Z",
+      "queueCompletedObservedAt": "2026-10-08T10:18:55.200Z",
+      "leaseObservation": {
+        "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+        "firstPresentAt": "2026-10-08T10:18:31.062Z",
+        "lastPresentAt": "2026-10-08T10:18:54.184Z",
+        "firstAbsentAt": "2026-10-08T10:18:55.180Z",
+        "samples": 153,
+        "unavailableSamples": 0
+      },
+      "queueState": "completed",
+      "codingDispatches": 1,
+      "finalResponseRequests": 1,
+      "finalResponseAborts": 0,
+      "finalResponseRetries": 0,
+      "integratedBeforeExit": false
+    },
+    {
+      "task": "build-c",
+      "sessionStatus": "exited",
+      "recordedExitReason": "process exited",
+      "cleanNativeExitFrame": true,
+      "exitFrameObservedAt": "2026-10-08T10:19:37.130Z",
+      "stoppedAndAbsentObservedAt": "2026-10-08T10:19:54.509Z",
+      "queueCompletedObservedAt": "2026-10-08T10:19:57.148Z",
+      "leaseObservation": {
+        "scope": "Exact task session and sandbox in the fixture-owned private execution ledger",
+        "firstPresentAt": "2026-10-08T10:19:32.005Z",
+        "lastPresentAt": "2026-10-08T10:19:56.151Z",
+        "firstAbsentAt": "2026-10-08T10:19:57.148Z",
+        "samples": 150,
+        "unavailableSamples": 0
+      },
+      "queueState": "completed",
+      "codingDispatches": 1,
+      "finalResponseRequests": 1,
+      "finalResponseAborts": 0,
+      "finalResponseRetries": 0,
+      "integratedBeforeExit": false
+    }
+  ],
+  "automaticSlotRelease": [
+    {
+      "completedTask": "build-a",
+      "nextTask": "build-b",
+      "priorTaskUnintegrated": true,
+      "noStopRequest": true
+    },
+    {
+      "completedTask": "build-b",
+      "nextTask": "build-d",
+      "priorTaskUnintegrated": true,
+      "noStopRequest": true
+    },
+    {
+      "completedTask": "build-d",
+      "nextTask": "build-c",
+      "priorTaskUnintegrated": true,
+      "noStopRequest": true
+    }
+  ],
+  "serviceRestart": {
+    "sameChild": true,
+    "sameContainer": true,
+    "sameCapturedBytes": true,
+    "noNewAllocation": true,
+    "noDuplicateToolExecution": true,
+    "finalProviderTransportRetries": "Recorded per task after release; exact duplicate final-output payload only"
+  },
+  "results": [
+    {
+      "task": "build-a",
+      "executedUID": 1000,
+      "capturedContextReadOnly": true,
+      "changedPaths": [
+        "build-a-result.txt"
+      ],
+      "outputSHA256": "d010792f3cb603f1bfe74359ea707d8ac4e858a02bdf42cc85c22bb929a0c822",
+      "outputMatchesBaselineBytes": true,
+      "workerCommit": "6e7fa0e8097c1190b6d080236cdea2931a916901",
+      "capturedFileDigests": {
+        ".luci/brief.json": {
+          "sha256": "dbb0aa4a35be0a283b8fd7cd314ad9db6d7eb8f469e0c247cb6fde14c5aa74d3",
+          "bytes": 540
+        },
+        ".luci/design-handoff.json": {
+          "sha256": "e1f25ac980ca87f3eec727d110a55ee58efd4b81e89ef17eb89116a1062e3eb7",
+          "bytes": 757
+        },
+        ".luci/design-handoff.md": {
+          "sha256": "20c27583093ad36d470983c86572322aff879dbdda60ad35024b556469953806",
+          "bytes": 553
+        },
+        ".luci/design.json": {
+          "sha256": "93e56b75a133fd5e7a058899272a4a9bd145bab5a235f98f05393c337629b81b",
+          "bytes": 85
+        },
+        ".luci/plan.json": {
+          "sha256": "b2e5a770c1146ef2c14ca58f7aa51f006991acfdc6c3c339fb58cdc5f3404029",
+          "bytes": 937
+        },
+        ".luci/specification.json": {
+          "sha256": "ee851c0f292a77f20fb5ebb0f862c8b4a6a47d239fcf2cc05bdc48293fa89596",
+          "bytes": 932
+        },
+        ".luci/specification.md": {
+          "sha256": "93b288a7b573fb92f61ddb3ff33c05febb3d35ca4afa88cb0614d977fa27428b",
+          "bytes": 791
+        },
+        "LUCI.md": {
+          "sha256": "551523575927fa52b24e05851c17cd39ea13ac6421d5f1afd98df71c24d61364",
+          "bytes": 3229
+        },
+        "manifest.json": {
+          "sha256": "4dc9c3f718d8ba31608b03e12ff3eb0dc3a04478e1dd1cdd3f0bb24c5de4ba7e",
+          "bytes": 1604
+        }
+      },
+      "browserReview": {
+        "sourceCommit": "6e7fa0e8097c1190b6d080236cdea2931a916901",
+        "targetCommit": "238c393e402b851cd777411a08e67b46b2093a05",
+        "reviewDigest": "d0a65a964619836f483c6f9316935970e2497b5d9b4f4650eeb6b808258985c3",
+        "paths": [
+          "build-a-result.txt"
+        ],
+        "canIntegrate": true,
+        "integratedCommit": "ffd60aa0744992683a7f6eaa1f26a8a645b9b8c3"
+      }
+    },
+    {
+      "task": "build-b",
+      "executedUID": 1000,
+      "capturedContextReadOnly": true,
+      "changedPaths": [
+        "build-b-result.txt"
+      ],
+      "outputSHA256": "f009d9ebd4e4c22374f16f092ef4a8df764866db69c6be9cb977657389390624",
+      "outputMatchesBaselineBytes": true,
+      "workerCommit": "10de5e3006c7bb006cedfb6bbac1715e0fd754c9",
+      "capturedFileDigests": {
+        ".luci/brief.json": {
+          "sha256": "83eec3f3b11ca4f291a3a55259f06f572216bebce92c3fee58b944431aa27d30",
+          "bytes": 541
+        },
+        ".luci/design-handoff.json": {
+          "sha256": "e564231ecdeea1871af3ceea464d9f4fbb455013d656c953e7f65471caeaaee9",
+          "bytes": 757
+        },
+        ".luci/design-handoff.md": {
+          "sha256": "1e70e9b8db1f2f21b2eeebd7eb5d33f8894fa91cec7df952fd1ae91721649ac8",
+          "bytes": 553
+        },
+        ".luci/design.json": {
+          "sha256": "dd1ad65859bc75376916c0cc516bc487651f6a3ce4fe5fd33f6be4e8ca3938c5",
+          "bytes": 85
+        },
+        ".luci/plan.json": {
+          "sha256": "2b0f6584562b371dbed93b81863dc13692c643ead79590771717a631e5278b50",
+          "bytes": 626
+        },
+        ".luci/specification.json": {
+          "sha256": "be25c592d34ef170f0036a9d2b97b3601b2dcc7e1fbf7bd7c66ef69e60a68d9a",
+          "bytes": 932
+        },
+        ".luci/specification.md": {
+          "sha256": "3a19dd7d616e8e4182f2a19c2174450c94f4af63c56204eb9f689af59fd04590",
+          "bytes": 791
+        },
+        "LUCI.md": {
+          "sha256": "786ee209ff4fa098f8816fd5e17d4968b60c31531fb68e9f4fbbde2df333e649",
+          "bytes": 3229
+        },
+        "manifest.json": {
+          "sha256": "df5c97e49739a03810372761c680e1aaf320affa1a65dea5c67540ed0575bd50",
+          "bytes": 1604
+        }
+      },
+      "browserReview": {
+        "sourceCommit": "10de5e3006c7bb006cedfb6bbac1715e0fd754c9",
+        "targetCommit": "2040f525f9f57471dccaed0bf33cf909cc87ccf0",
+        "reviewDigest": "d71fc6938365c418d86fe29d315ff361a4ac5d98a513bf779d5f832bb7d66a8a",
+        "paths": [
+          "build-b-result.txt"
+        ],
+        "canIntegrate": true,
+        "integratedCommit": "6b56ace7b84e876c3ffb48761f3cb4b4c961942d"
+      }
+    },
+    {
+      "task": "build-d",
+      "executedUID": 1000,
+      "capturedContextReadOnly": true,
+      "changedPaths": [
+        "build-d-result.txt"
+      ],
+      "outputSHA256": "754575fb5560bc78e2573b193e393af5eb11657e3084d0bdac0fed4738e253fd",
+      "outputMatchesBaselineBytes": true,
+      "workerCommit": "38510951f3183aa5d8ac54398ec0d5299c446f3a",
+      "capturedFileDigests": {
+        ".luci/brief.json": {
+          "sha256": "7007a844384b2ba6954186936be6fe57b44ecc100f724ac7d00f1e793c17808f",
+          "bytes": 541
+        },
+        ".luci/design-handoff.json": {
+          "sha256": "b2beef4e11888a68d18404bfbae31110bc8e394210922783f0bdcdd57e686ca4",
+          "bytes": 757
+        },
+        ".luci/design-handoff.md": {
+          "sha256": "aeca033fb1295a86a3b931e12d18ec3a1a2e33f47ea6619ac26e20719578347e",
+          "bytes": 553
+        },
+        ".luci/design.json": {
+          "sha256": "71fa3d7c54116ecc422785fdcbdd679ba838aef2e4dadae64299e48217cb27a5",
+          "bytes": 85
+        },
+        ".luci/plan.json": {
+          "sha256": "2735ad8ef5b7d511f112196bb1fdc8b7b8159c758c3e4b03a6f739e9c3b0b4c5",
+          "bytes": 626
+        },
+        ".luci/specification.json": {
+          "sha256": "d794e39394252a16decfa415e622eaee38820a7d7bd3c2a88407d68c3f8684e4",
+          "bytes": 932
+        },
+        ".luci/specification.md": {
+          "sha256": "7237984d21b1eaf5de9c5456738ccdde1d3b20969b9e40c7302da543e2a34159",
+          "bytes": 791
+        },
+        "LUCI.md": {
+          "sha256": "ecb77425aa1df47d6d03c125d6dbb5e9ec877dbb193962650eeb87daa8983ff1",
+          "bytes": 3229
+        },
+        "manifest.json": {
+          "sha256": "b9302e65b46faad9433eab19bc5a0b5c1ebb04a8ca1125a20d4b940bdba9ae56",
+          "bytes": 1604
+        }
+      },
+      "browserReview": {
+        "sourceCommit": "38510951f3183aa5d8ac54398ec0d5299c446f3a",
+        "targetCommit": "cf805497f1a67a2c2773188b838667041cf86093",
+        "reviewDigest": "cf721f42669575a04cd39f87bd990a4f5152bd908d86de4b7524664d02807b20",
+        "paths": [
+          "build-d-result.txt"
+        ],
+        "canIntegrate": true,
+        "integratedCommit": "bac6341593012e376bac0347ff7065d9353181cb"
+      }
+    },
+    {
+      "task": "build-c",
+      "executedUID": 1000,
+      "capturedContextReadOnly": true,
+      "changedPaths": [
+        "build-c-result.txt"
+      ],
+      "outputSHA256": "5509a676ad654aba85218ab1ad00c9d83639f8d3c8acfafc1854dc1e16bc85d2",
+      "outputMatchesBaselineBytes": true,
+      "workerCommit": "a59241f396e4c4fc0f7d842411faca07bef1c7a0",
+      "capturedFileDigests": {
+        ".luci/brief.json": {
+          "sha256": "21379a5ecbc41cf318177be108e2cba75cac6be128d2598b7eb0dd10b4f46bfe",
+          "bytes": 541
+        },
+        ".luci/design-handoff.json": {
+          "sha256": "bcb4dd0aabebfa414ff67be847408d2d572b098658bc76eb5f5ea78656e7c602",
+          "bytes": 757
+        },
+        ".luci/design-handoff.md": {
+          "sha256": "bca095bbf6084d50bdc546e963c4d6a6138c5776380bba65e613b5c0cf150d69",
+          "bytes": 553
+        },
+        ".luci/design.json": {
+          "sha256": "6f0efb6f35b1bd6e90bbcf07012bdc1e36c63653814ff7ffbe0516c8f8590197",
+          "bytes": 85
+        },
+        ".luci/plan.json": {
+          "sha256": "0d8accc0a01927d1df7d8db68164f17a5b66f33483821d940e4ad05902f02cb9",
+          "bytes": 626
+        },
+        ".luci/specification.json": {
+          "sha256": "844032c3ddbcaab0503cddb5e8c18bdb2b439c9b590e5e0ce02b77c5eb6d8d3a",
+          "bytes": 932
+        },
+        ".luci/specification.md": {
+          "sha256": "8f69375ffb3a0ba8173bead2b97c8704b5389f449103c60aac57c3de9d8dcf85",
+          "bytes": 791
+        },
+        "LUCI.md": {
+          "sha256": "98e99d09fe0e10cbc5612fc7370a6acc0c5e31f624cb5f6734f353fc5253ba8f",
+          "bytes": 3229
+        },
+        "manifest.json": {
+          "sha256": "63c2e1d2309125327ee7c3a3d4a25d964988bb3e4893ddd65c5f6a505a60f718",
+          "bytes": 1604
+        }
+      },
+      "browserReview": {
+        "sourceCommit": "a59241f396e4c4fc0f7d842411faca07bef1c7a0",
+        "targetCommit": "da8635d0c7f63e345a8b4276c825d11edfcd09cd",
+        "reviewDigest": "efcded40e49badf8542f996f4b516a7369e8f789a4b052e9b5ea7ec03001ac05",
+        "paths": [
+          "build-c-result.txt"
+        ],
+        "canIntegrate": true,
+        "integratedCommit": "a0b4ccac16246ecb84a263cf505dee334c9e6c9a"
+      }
+    }
+  ],
+  "cancelledTask": {
+    "task": "cancel-a",
+    "state": "cancelled",
+    "reasonCode": "operator_cancelled",
+    "recordedReservation": false,
+    "backendAllocation": false
+  },
+  "executionCounts": {
+    "dockerCreate": 4,
+    "dockerStart": 4,
+    "observedTransportRequests": 1961,
+    "droppedTransportObservations": 0,
+    "controlledProviderRequests": 8,
+    "auxiliaryProviderRequests": 0,
+    "externalModelCalls": 0,
+    "sessionDELETERequests": 0,
+    "browserErrors": 0
+  },
+  "admissionAndLimits": {
+    "beforeEachCreateRequiredRootBytes": 6442450944,
+    "runningRootFloorBytes": 1073741824,
+    "minimumObservedDriverRootBytes": 2132017152,
+    "beforeCreate": [
+      {
+        "stage": "resume-single-slot-1",
+        "ordinal": 1,
+        "rootFreeBytes": 6890749952,
+        "requiredBytes": 6442450944,
+        "at": "2026-10-08T10:15:44.620Z"
+      },
+      {
+        "stage": "natural-completion-build-a",
+        "ordinal": 2,
+        "rootFreeBytes": 6881624064,
+        "requiredBytes": 6442450944,
+        "at": "2026-10-08T10:17:03.278Z"
+      },
+      {
+        "stage": "natural-completion-build-b",
+        "ordinal": 3,
+        "rootFreeBytes": 6876737536,
+        "requiredBytes": 6442450944,
+        "at": "2026-10-08T10:17:56.806Z"
+      },
+      {
+        "stage": "natural-completion-build-d",
+        "ordinal": 4,
+        "rootFreeBytes": 6871818240,
+        "requiredBytes": 6442450944,
+        "at": "2026-10-08T10:18:56.870Z"
+      }
+    ],
+    "actualDockerLimitsByTask": {
+      "build-a": {
+        "memoryBytes": 1073741824,
+        "nanoCPUs": 1000000000,
+        "pidsLimit": 256,
+        "privileged": false,
+        "securityOpt": [
+          "no-new-privileges:true"
+        ]
+      },
+      "build-b": {
+        "memoryBytes": 1073741824,
+        "nanoCPUs": 1000000000,
+        "pidsLimit": 256,
+        "privileged": false,
+        "securityOpt": [
+          "no-new-privileges:true"
+        ]
+      },
+      "build-d": {
+        "memoryBytes": 1073741824,
+        "nanoCPUs": 1000000000,
+        "pidsLimit": 256,
+        "privileged": false,
+        "securityOpt": [
+          "no-new-privileges:true"
+        ]
+      },
+      "build-c": {
+        "memoryBytes": 1073741824,
+        "nanoCPUs": 1000000000,
+        "pidsLimit": 256,
+        "privileged": false,
+        "securityOpt": [
+          "no-new-privileges:true"
+        ]
+      }
+    }
+  },
+  "cleanup": {
+    "containers": 0,
+    "volumes": 0,
+    "ownedServiceProcesses": 0,
+    "ownedBrowserProcesses": 0,
+    "protectedImagesAndPackageUnchanged": true,
+    "rootFreeBytes": 6872432640,
+    "fixtureRemoved": true
+  },
+  "screenshots": [
+    {
+      "file": "8f78804f/installed-swarm-desktop.png",
+      "sha256": "9da8712498963d537e03012f9bd7aea700cfcd47a110bb891e006be09fd92dfa"
+    },
+    {
+      "file": "8f78804f/installed-swarm-phone.png",
+      "sha256": "71dacf46d0b68d55a766e5e08e3c62fd08fce17a4dfeea1418b51ba6862c170f"
+    },
+    {
+      "file": "8f78804f/installed-swarm-running.png",
+      "sha256": "3a0cbeda1570e2c72becf0c5438de9782d0e6a81aed50560b4e21831721c76f2"
+    }
+  ],
+  "rawArtifactBindings": {
+    "artifacts/quality-swarm/installed-four-project-8f78804f/result.json": {
+      "sha256": "f5395edf99e56addc238d05052bc846b318164ced6bf6639830b70c857ee7a10",
+      "bytes": 1516582
+    },
+    "artifacts/quality-swarm/installed-four-project-8f78804f/package-provenance.json": {
+      "sha256": "2c25ab70004e94baa45fc04f58b290afe11422a1fc6d013991749e86d488bc22",
+      "bytes": 1039
+    },
+    "artifacts/quality-swarm/installed-four-project-8f78804f/image-provenance.json": {
+      "sha256": "cb78db912e1afc2c6af08911799b4f082a4eafc3d441f72f0f030f5ca2efe102",
+      "bytes": 33071
+    },
+    "artifacts/quality-swarm/installed-four-project-8f78804f/source-helper-binding.json": {
+      "sha256": "ce8a1a6719196350c19bca62bd10490e5e6e24ff61c0d246c98ad66876be2711",
+      "bytes": 736
+    },
+    "artifacts/quality-swarm/owned-resources/installed-8f78804f/metadata.json": {
+      "sha256": "13af52a13f7c6e94e9647879c301ee472144fa9577c18e2d73f91af9e7ab9a98",
+      "bytes": 1195
+    },
+    "artifacts/quality-swarm/owned-resources/installed-8f78804f/summary.json": {
+      "sha256": "4b18060666478055f495146316f2f18fb80b41c4a68d0a1128e6ef61609039fc",
+      "bytes": 3166
+    },
+    "artifacts/quality-swarm/owned-resources/installed-8f78804f/samples.jsonl": {
+      "sha256": "6dbca2ecdfdb9b07c7623a5fea3258a8919ddc8d0f27ffd669e237ad25661d69",
+      "bytes": 1371205
+    }
+  },
+  "preservedBaseline": "2026-10-08-2819ce9e-installed-swarm.json",
+  "timingComparison": "2026-10-08-8f78804f-swarm-turnover.json",
+  "limitations": [
+    "One controlled serial run per package; no statistical speedup estimate or model-throughput claim.",
+    "The baseline included a 35.878-second bounded compiler overlap; this run used an exclusive performance window without compiler overlap. Reaper phase, VFS, caching, browser and host conditions can also affect totals.",
+    "The driver added read-only timing observations; task commands, provider behavior, capacity guards and functional assertions remained unchanged.",
+    "The baseline did not timestamp native exit frames or sample private lease release. Those fields are unavailable, not reconstructed from stdout.",
+    "Private lease disappearance is bounded between observations, not an exact atomic-publication time. Next Docker create follows admission and checkout preparation, so its timestamp is not the admission instant.",
+    "This is scripted-provider Linux/Docker execution, not live-model reasoning quality, native Windows, parallel full-container throughput, installation, app verification or deployment.",
+    "Browser automation exercised review/confirmation/integration controls; it is not independent human review of generated production code.",
+    "Approximately five minutes of observation does not establish a ten-minute four-project soak, an idle baseline, whole-computer responsiveness or user input latency."
+  ]
+}

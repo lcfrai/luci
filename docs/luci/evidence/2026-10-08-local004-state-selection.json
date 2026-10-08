@@ -1,0 +1,23 @@
+{
+  "scope": "Linux Rust state-selection module tests; not full Tauri compilation or native own-sidecar acceptance",
+  "rust": "1.99.0 (b940084d7 2026-09-28)",
+  "tests": {
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  "source": {
+    "desktop/src-tauri/src/state_dir.rs": "617a6f855ad5771cf8fcdc9e20cbcedd9c0ddae498a2a09f0d924f099b668699",
+    "desktop/src-tauri/src/lib.rs": "ec8e2df01bf45deabdea0e199303e0e828da75b3ff25fe7307e826fa10405f5c",
+    "desktop/src-tauri/Cargo.lock": "ae48aee4aaa8a8e8b3e08d859fcced01e839c44c04e81a75541bf60e6a063859"
+  },
+  "moduleCompiled": "desktop/src-tauri/src/state_dir.rs",
+  "callerTypeChecked": false,
+  "dependencyScope": "Isolated Cargo test crate, exact serde_json1.0.151 and uuid1.26.1 versions from product lock; transitive test resolution is independent of complete Tauri graph",
+  "logSHA256": "5a99a320b8884ced1d619a7504147b8c92071756a8fd1d74afcef660b71c58c0",
+  "limitations": [
+    "Windows junction semantics remain for native Rust tests",
+    "Full native application compile/start/bootstrap/close/reopen remain unverified",
+    "Existing Linux selection tests cover root and nested ancestor symlinks, explicit invalid override with no defaults and normal legacy/default behavior"
+  ]
+}
