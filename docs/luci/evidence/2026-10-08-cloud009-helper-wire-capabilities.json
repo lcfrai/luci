@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "status": "source-verified-installed-retry-pending",
+  "scope": "Acceptance harness only; application package remains919cffe014d1104d9e65fa19351683d182355f36. No actual recovery/crash pass claimed.",
+  "priorAttempt": {
+    "productCommit": "919cffe014d1104d9e65fa19351683d182355f36",
+    "helperCommit": "d326ad3b85beed2d22e9ec736731cfde0232c3ea",
+    "originalReceiptSHA256": "59e99deada7a224124c3d06f9876f2aa0d63aee44829bf1a230ebba7c61374d1",
+    "failedStage": "original-launch",
+    "failureKind": "pre-forward fixture guard rejection; original gate then timed out",
+    "guardDiagnostic": [
+      {
+        "at": "2026-10-08T12:03:04.662Z",
+        "name": "AssertionError",
+        "frames": [
+          "launch-recovery/worker-create-guard.mjs:20:48)",
+          "launch-recovery/recovery.mjs:381:95)",
+          "launch-recovery/recovery.mjs:386:13)",
+          "launch-recovery/fenced-docker-proxy.mjs:230:63",
+          "launch-recovery/fenced-docker-proxy.mjs:230:20)"
+        ]
+      }
+    ],
+    "forwardedCreates": 0,
+    "starts": 0,
+    "intendedControllerCrashes": 0,
+    "controllersStopped": true,
+    "dockerRequestsDrained": true,
+    "cleanup": {
+      "containers": 0,
+      "volumes": 0,
+      "ownedServiceProcesses": 0,
+      "ownedBrowserProcesses": 0,
+      "protectedImageAndPackageUnchanged": true
+    }
+  },
+  "diagnosis": {
+    "field": "HostConfig.CapAdd",
+    "oldExpected": [
+      "CHOWN",
+      "DAC_OVERRIDE",
+      "SETUID",
+      "SETGID",
+      "SETPCAP"
+    ],
+    "exactWireExpected": [
+      "CAP_CHOWN",
+      "CAP_DAC_OVERRIDE",
+      "CAP_SETGID",
+      "CAP_SETPCAP",
+      "CAP_SETUID"
+    ],
+    "source": "github.com/docker/docker@v28.3.3+incompatible/client/container_create.go: ContainerCreate normalizes both capability lists; normalizeCapabilities adds CAP_, removes duplicates and sorts. ALL remains literal.",
+    "sourceSHA256": "a89a5c1e60444a615322c7599d04ec2c83195cd5ffb444890b6033bcb65e8d13",
+    "qualification": "Original raw create body/credentials were not retained. Actual safe failing frame identifies the CapAdd assertion; exact expected wire bytes derive from the pinned SDK and current production configuration.",
+    "independentReview": "Runtime reviewer checked production construction, full SDK normalization, Linux identity, native-state and context/worktree paths; no other wire-shape mismatch found. GSD reviewer checked exact correction and unchanged failure-drain path; no remaining scoped blocker."
+  },
+  "changes": [
+    "Match exact sorted CAP_* wire names; preserve the same five capabilities and all prior mount/resource/namespace/ownership limits.",
+    "Race fatal fixture failure against gate waits so refused requests stop promptly; unchanged finally still stops owned controllers, closes/drains the proxy and performs exact cleanup.",
+    "Add complete serialized worker shape and capability widening/missing/unnormalized/duplicate refusal cases."
+  ],
+  "checks": [
+    {
+      "command": "node --test worker-create-guard.test.mjs",
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Controlled source/SDK-shaped filesystem fixtures; no Docker."
+    },
+    {
+      "command": "node --test recovery-control.test.mjs",
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Actual fake-upstream HTTP proxy failure-to-gate signal/drain, unchanged success/timeout, and fence shape comparison; no Docker."
+    },
+    {
+      "command": "node --check recovery.mjs",
+      "exitCode": 0
+    }
+  ],
+  "retainedFenceShape": {
+    "sourceArtifactSHA256": "93ed3bbffa1de60a9739c14973efdb94acb46acba9f84945c3cdce1b0936fcac",
+    "sourceObservation": "Docker28.4/API1.51 scratch probe created Inspect response; its original actual call is separate prior evidence.",
+    "retainedFields": [
+      "Path",
+      "Args",
+      "Image",
+      "State",
+      "HostConfig",
+      "Mounts",
+      "Config excluding identity labels/Hostname"
+    ],
+    "syntheticSubstitutions": [
+      "Id",
+      "Name",
+      "Config.Hostname",
+      "Config.Labels"
+    ],
+    "testQualification": "The current validator is invoked against retained daemon defaults with substituted synthetic ownership identities, then source-shaped Create input. This does not claim a new daemon call or product recovery proof."
+  },
+  "files": {
+    "worker-create-guard.mjs": {
+      "afterSHA256": "ea1334921e08c21e927a88eccdf83443e1919cb6e3b49c8c0bc791a6b318718e",
+      "beforeSHA256": "56ffc66efbfe109641b2faef8a57a1bd7627385407d091e1b61ae96ab1a1dea0"
+    },
+    "worker-create-guard.test.mjs": {
+      "afterSHA256": "dfb74ae19c218eab5ecdc3e2f37af0db759b75ce7342d3ebcc3a22bc15874e2b",
+      "beforeSHA256": "8fea991d1e289fbad1b907e05f6e6951eaf1a21cb235eb9cece3c7a4c751849f"
+    },
+    "recovery.mjs": {
+      "afterSHA256": "2a841737588295e89e06157ebaae75a47e949259daab396ad18f3172c47f58d2",
+      "beforeSHA256": "61e209d0c1d319f2737b7823b8f5dc32fec41686051108df4c4aa8d6d4feda22"
+    },
+    "recovery-control.test.mjs": {
+      "afterSHA256": "c0219f3301fcb9e3241d0a5ed094bd3f03817ba2d80ded12a06cea296a375749",
+      "beforeSHA256": null
+    },
+    "fence-inspect-shape.json": {
+      "afterSHA256": "f9696db7e8726c7e4e77183077001a9925092b1a31774700ce432446263a34f2",
+      "beforeSHA256": null
+    }
+  }
+}

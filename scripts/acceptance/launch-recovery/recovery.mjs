@@ -113,13 +113,14 @@ const terminalProbes = [];
 let service, proxy, provider, base, env, token, project, projectRoute;const workspace='';
 let original, originalCreate, engineID; const controllerIdentities=[];
 let stage = 'startup', fixtureError, reserveTimer, deadlineTimer, closing = false, signalFailure;
+let publishFixtureFailure;const fixtureFailureSignal=new Promise(resolveFailure=>{publishFixtureFailure=resolveFailure;});
 let providerCalls = 0, auxiliaryCalls = 0; const observations=new Map(), taskData=new Map(), calls=new Map(); let browser, page, run;
 let providerBase; const initialBundles=new Map(), projectStates=[], titles=new Map();
 const started = Date.now(), deadline = started + 15 * 60_000;
 const remaining = () => { if (Date.now() >= deadline) throw Error('Fifteen minute acceptance deadline expired'); return deadline - Date.now(); };
 const remainingBudget = (ms = 120_000) => Math.max(1, Math.min(ms, remaining()));
 const redactError = error => scrub(error?.stack ?? error).replaceAll(fixture, '[private-fixture]').slice(0, 8000);
-function stopOnFailure(error) { if (!fixtureError) fixtureError = error; for (const socket of sockets) socket.close(); if (service?.exitCode === null) service.kill('SIGTERM'); }
+function stopOnFailure(error) { if (!fixtureError) {fixtureError=error;publishFixtureFailure(error);} for (const socket of sockets) socket.close(); if (service?.exitCode === null) service.kill('SIGTERM'); }
 function processIdentity(pid) {
   try { const data = readFileSync(`/proc/${pid}/stat`, 'utf8'); const fields = data.slice(data.lastIndexOf(')') + 2).trim().split(/\s+/); return {pid:Number(pid),start:fields[19],group:Number(fields[2]),status:fields[0]}; }
   catch (error) { if (['ENOENT','ESRCH'].includes(error.code)) return null; throw error; }
@@ -382,6 +383,12 @@ function identifyCreate(bytes,meta){
  if(owners[0].task==='build-a'){assert(!originalCreate,'The original launch may not be replayed');originalCreate=input;}
  return 'worker';
 }
+async function waitForFixtureGate(id,options){
+ // A fatal guard refusal cannot reach its gate. Fail promptly, then retain the
+ // existing finally path: stop controllers, close/drain proxy, exact cleanup.
+ const outcome=await Promise.race([proxy.waitForGate(id,options).then(value=>({value})),fixtureFailureSignal.then(error=>({error}))]);
+ if(outcome.error)throw outcome.error;return outcome.value;
+}
 function guardedIdentifyCreate(bytes,meta){
  try{return identifyCreate(bytes,meta);}catch(error){
   // Keep only error type and local source locations: assertions can contain
@@ -506,7 +513,7 @@ try {
  const first=projectStates[0],successor=projectStates[1];assert.equal(effects().create,0);
  stage='original-launch';
  if(scenario==='delayed-create'){await queueOwner(first);await setPaused(false);}else{await openProject(first);await taskRow(first.task).getByRole('button',{name:'Start task',exact:true}).click();}
- const gate=await proxy.waitForGate('original',{timeoutMs:120000});captureOriginal();assert.equal(gate.request.labels['luci.session-id'],original.session.id);
+ const gate=await waitForFixtureGate('original',{timeoutMs:120000});captureOriginal();assert.equal(gate.request.labels['luci.session-id'],original.session.id);
  if(scenario==='delayed-start')assert.equal(gate.request.ref,original.container.id);
  stage='active-allocation-refusal';const before=effects(),snapshot=originalOperation();const busyStart=Date.now();const busy=await api('POST',first.route+'/runs/'+first.run.id+'/swarm/tasks/build-a/abandon',{expectedRevision:snapshot.run.revision,operationId:original.operation.id,childId:original.session.id,stopUncertainLaunch:true},409,5000);assert(Date.now()-busyStart<5000);assert(busy.error);assert(!originalOperation().op.launchRecovery);assert.equal((ledger().fences??[]).length,0);assert.deepEqual(effects(),before);check('Live allocation refuses recovery promptly without intent or effects',{error:busy.error,elapsedMs:Date.now()-busyStart});
  stage='kill-original-controller';await crashController('original-request-held');assert.equal(proxy.observations.gates.find(row=>row.id==='original').state,'holding');
@@ -516,11 +523,11 @@ try {
   stage='review-delayed-create-recovery';const pending=await beginRecovery(first);const result=await pending.response;assert.equal(result.status,200,JSON.stringify(result));await verifyFinalized();
  }else{
   proxy.armGate({id:'lost-fence-ack',phase:'after-response',method:'POST',pathPattern:/\/containers\/create$/,match:meta=>meta.kind==='fence'&&meta.status===201,decision:'lose-response'});
-  stage='review-lost-ack-recovery';const pending=await beginRecovery(first);const lost=await proxy.waitForGate('lost-fence-ack',{timeoutMs:120000});assert.match(lost.request.id,/^[a-f0-9]{64}$/);const result=await pending.response;assert(result.status>=400&&result.status<600,'Lost fence acknowledgement must remain an explicit failed/pending action');
+  stage='review-lost-ack-recovery';const pending=await beginRecovery(first);const lost=await waitForFixtureGate('lost-fence-ack',{timeoutMs:120000});assert.match(lost.request.id,/^[a-f0-9]{64}$/);const result=await pending.response;assert(result.status>=400&&result.status<600,'Lost fence acknowledgement must remain an explicit failed/pending action');
   const state=durableRecovery('lost-ack');assert(state.result.leaseRetained);assert.equal(state.result.hasProof,false);assert.equal(state.result.hasRetirement,false);assert.equal(state.result.fenceState,'intent');validateFence(JSON.parse(docker('inspect',lost.request.id))[0],true);
   receipt.lostAcknowledgement={containerID:lost.request.id,httpStatus:result.status,intentID:state.result.intentID};check('A real created fence without acknowledgement retains capacity and requires reviewed retry');
   proxy.armGate({id:'durable-proof',phase:'after-response',method:'GET',pathPattern:/\/containers\/[a-f0-9]{64}\/json$/,match:meta=>{const {op}=originalOperation();return meta.status===200&&op.launchRecoveryProof&&op.absenceRetirement&&!op.absenceRetirement.finalizedAt&&meta.ref===op.launchRecoveryProof.fenceProof.fenceRef;}});
-  stage='review-retry-before-second-crash';const second=await beginRecovery(first,'retry');const boundary=await proxy.waitForGate('durable-proof',{timeoutMs:120000});const durable=durableRecovery('proof-persisted-before-finalize');assert(durable.result.leaseRetained&&durable.result.hasProof&&durable.result.hasRetirement);assert.equal(durable.result.finalizedAt,null);assert.notEqual(durable.result.proofRef,lost.request.id);assert.equal(durable.result.proofRef,boundary.request.ref);assert.equal(durable.result.intentID,receipt.lostAcknowledgement.intentID);
+  stage='review-retry-before-second-crash';const second=await beginRecovery(first,'retry');const boundary=await waitForFixtureGate('durable-proof',{timeoutMs:120000});const durable=durableRecovery('proof-persisted-before-finalize');assert(durable.result.leaseRetained&&durable.result.hasProof&&durable.result.hasRetirement);assert.equal(durable.result.finalizedAt,null);assert.notEqual(durable.result.proofRef,lost.request.id);assert.equal(durable.result.proofRef,boundary.request.ref);assert.equal(durable.result.intentID,receipt.lostAcknowledgement.intentID);
   assert(!docker('ps','-aq','--no-trunc').split(/\s+/).includes(lost.request.id));receipt.acknowledgedReplacement={id:durable.result.proofRef,originalLostID:lost.request.id,sameIntent:true};
   stage='kill-after-durable-proof';await crashController('proof-and-retirement-persisted-before-capacity-release');await proxy.releaseGate('durable-proof');await second.response;
   stage='restart-after-durable-proof';await restartController();assert(originalLease());const same=durableRecovery('restarted-with-proof');assert.equal(same.result.proofRef,durable.result.proofRef);assert.equal(same.result.intentID,durable.result.intentID);const beforeRetry=effects();

@@ -17,7 +17,9 @@ export function validateWorkerCreate(input,{fixture,projectID,runID,operationID,
  assert.equal(input.User,'0:0');assert.equal(input.WorkingDir,'/home/dev/work');assert.equal(input.Tty??false,false);assert.equal(input.OpenStdin??false,false);assert.equal(input.Entrypoint?.length??0,0);assert.equal(input.Cmd?.length??0,0);assert.equal(Object.keys(input.Volumes??{}).length,0);
  assert(Array.isArray(input.Env));assert.equal(new Set(input.Env.map(value=>value.split('=',1)[0])).size,input.Env.length);assert.equal(input.Env.filter(value=>value==='LUCI_HOST_UID='+uid).length,1);assert.equal(input.Env.filter(value=>value==='LUCI_HOST_GID='+gid).length,1);assert(!input.Env.some(value=>/^(LD_|GCONV_PATH=|GLIBC_TUNABLES=)/.test(value)));
  assert.equal(host.Privileged??false,false);assert.equal(host.AutoRemove??false,false);assert.equal(host.ReadonlyRootfs??false,false);assert.equal(host.RestartPolicy?.Name,'no');assert.equal(host.RestartPolicy?.MaximumRetryCount??0,0);assert.equal(host.PidsLimit,256);assert.equal(host.Memory,1024**3);assert.equal(host.NanoCpus,1000000000);
- assert.deepEqual(host.CapDrop,['ALL']);assert.deepEqual(host.CapAdd,['CHOWN','DAC_OVERRIDE','SETUID','SETGID','SETPCAP']);assert.deepEqual(host.SecurityOpt,['no-new-privileges:true']);assert.deepEqual(host.ExtraHosts,['host.docker.internal:host-gateway']);
+ // Docker SDK v28.3.3 normalizes and sorts capabilities before HTTP Create.
+ // Match only that exact wire form, preserving the same five bootstrap rights.
+ assert.deepEqual(host.CapDrop,['ALL']);assert.deepEqual(host.CapAdd,['CAP_CHOWN','CAP_DAC_OVERRIDE','CAP_SETGID','CAP_SETPCAP','CAP_SETUID']);assert.deepEqual(host.SecurityOpt,['no-new-privileges:true']);assert.deepEqual(host.ExtraHosts,['host.docker.internal:host-gateway']);
  for(const key of ['Mounts','VolumesFrom','Devices','DeviceRequests','DeviceCgroupRules','Links','GroupAdd'])assert.equal(host[key]?.length??0,0);
  for(const key of ['NetworkMode','IpcMode','PidMode','UTSMode','UsernsMode','CgroupnsMode','CgroupParent','Runtime'])assert.equal(host[key]??'','');
  for(const key of ['Tmpfs','StorageOpt','Sysctls'])assert.equal(Object.keys(host[key]??{}).length,0);
