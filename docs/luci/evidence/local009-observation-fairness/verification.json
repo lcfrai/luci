@@ -1,0 +1,163 @@
+{
+  "issue": "LOCAL-009",
+  "status": "source-regression-fixed-native-and-installed-retest-pending",
+  "origin": "Source-confirmed by the Windows tester at f829a5e5a9c25e6e97e90e0d95884c0b738f88c2; no native Windows reproduction is claimed.",
+  "sourceProvenance": "Dirty source on base f829a5e5a9c25e6e97e90e0d95884c0b738f88c2. The identical new regression was run before and after the production correction. Each batch independently hashes all675 control-plane Go/workspace/module inputs before and after. No later commit is inferred.",
+  "changedInputsBetweenBatches": [
+    "control-plane/internal/api/task_completion_observer.go"
+  ],
+  "environment": {
+    "os": "Linux",
+    "architecture": "amd64",
+    "go": "go1.26.3",
+    "raceDetector": true,
+    "GOMAXPROCS": 2
+  },
+  "batches": [
+    {
+      "id": "before-fix",
+      "verification": {
+        "startedAt": "2026-10-08T15:19:03.448887+00:00",
+        "finishedAt": "2026-10-08T15:19:41.804178+00:00",
+        "durationSeconds": 38.35533194799791,
+        "GOMAXPROCS": 2,
+        "results": [
+          {
+            "command": [
+              "go",
+              "test",
+              "-race",
+              "-p",
+              "1",
+              "-count=1",
+              "-timeout=5m",
+              "-json",
+              "./control-plane/internal/api",
+              "-run",
+              "^TestTaskCompletionObserverSlowProjectDoesNotStarveOtherProjectsAfterRestart$"
+            ],
+            "exitCode": 1,
+            "testOutcomes": {
+              "fail": 1
+            },
+            "packageOutcomes": {
+              "fail": 1
+            },
+            "failures": [
+              {
+                "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+                "Test": "TestTaskCompletionObserverSlowProjectDoesNotStarveOtherProjectsAfterRestart",
+                "Elapsed": 20.53
+              },
+              {
+                "Package": "github.com/lcfrai/luci/control-plane/internal/api",
+                "Elapsed": 20.685
+              }
+            ]
+          }
+        ],
+        "sourceInputs": 675,
+        "changedInputs": [],
+        "headAtStart": "f829a5e5a9c25e6e97e90e0d95884c0b738f88c2",
+        "passed": false
+      },
+      "artifacts": {
+        "report.json": "1336664b209a0d28665f0f3297f8fcc7088f7b4265afa58d18324c7ef0d08110",
+        "source-after.json": "4214815888c3915e3c1ee6271ecc0b30eb7c5df7780fe6f36b650f0c6bf055cc",
+        "source-before.json": "4214815888c3915e3c1ee6271ecc0b30eb7c5df7780fe6f36b650f0c6bf055cc",
+        "test-events-0.jsonl": "fc7b7a95266c3c67c22a0ccc5304dab2ca72e742ee08c277783ee3455586cd97"
+      },
+      "publicSourceManifest": "before-fix/tested-source.json",
+      "publicOutcomes": "before-fix/outcomes.json"
+    },
+    {
+      "id": "after-fix",
+      "verification": {
+        "startedAt": "2026-10-08T15:20:37.521552+00:00",
+        "finishedAt": "2026-10-08T15:21:53.904433+00:00",
+        "durationSeconds": 76.38288339102292,
+        "GOMAXPROCS": 2,
+        "results": [
+          {
+            "command": [
+              "go",
+              "test",
+              "-race",
+              "-p",
+              "1",
+              "-count=1",
+              "-timeout=5m",
+              "-json",
+              "./control-plane/internal/registry"
+            ],
+            "exitCode": 0,
+            "testOutcomes": {
+              "pass": 79
+            },
+            "packageOutcomes": {
+              "pass": 1
+            },
+            "failures": []
+          },
+          {
+            "command": [
+              "go",
+              "test",
+              "-race",
+              "-p",
+              "1",
+              "-count=1",
+              "-timeout=5m",
+              "-json",
+              "./control-plane/internal/api",
+              "./control-plane/internal/product",
+              "-run",
+              "Test(TaskCompletionObserver|TaskHandoff|StoppedTaskCleanup|ConfirmStoppedTaskCleanup|SwarmSchedulerCorruptOrCopiedLedgerNeverRepairsOrDispatches)"
+            ],
+            "exitCode": 0,
+            "testOutcomes": {
+              "pass": 60
+            },
+            "packageOutcomes": {
+              "pass": 2
+            },
+            "failures": []
+          }
+        ],
+        "sourceInputs": 675,
+        "changedInputs": [],
+        "headAtStart": "f829a5e5a9c25e6e97e90e0d95884c0b738f88c2",
+        "passed": true
+      },
+      "artifacts": {
+        "report.json": "53b373d5740c5977dbb514b7f6e4df927d7068dc893693a80549f160190d8738",
+        "source-after.json": "00b973c7963469f1b43db573ee79208bfbe0ab98a808c6d577d2c323b90d37fb",
+        "source-before.json": "00b973c7963469f1b43db573ee79208bfbe0ab98a808c6d577d2c323b90d37fb",
+        "test-events-0.jsonl": "390179a9281ec86c167aca4e1ed5e2c4ba80172283e67b749df8fd24ccddc3f2",
+        "test-events-1.jsonl": "50434181257899a05c75053bff5ed322d4f589d5d49806020f79ddca9b31c47e"
+      },
+      "publicSourceManifest": "after-fix/tested-source.json",
+      "publicOutcomes": "after-fix/outcomes.json"
+    }
+  ],
+  "expectedFailure": {
+    "test": "TestTaskCompletionObserverSlowProjectDoesNotStarveOtherProjectsAfterRestart",
+    "message": "fast project completion-b starved behind the slow first collector after restart",
+    "outcome": "Before-fix exit1; one failing test, no source changes during the command."
+  },
+  "fix": "Retain at most one page of eight unattempted metadata candidates in the observer. Consume a candidate only as its attempt begins. Continue that bounded remainder on the next turn before fetching another page; preserve existing128-position scan bound, three-second shared budget and exact-generation checks.",
+  "verified": [
+    "Four actual HTTP manual task creations share one persistent registry, private state, queue and execution ledger. Controlled backend states are processed by the real reaper and exact stopped cleanup.",
+    "Queue stays empty and dispatch paused. The first report collector waits for the actual three-second turn deadline; after a controller/store reopen, later turns capture B/C/D while A remains unmarked with no fabricated report.",
+    "The exact same regression fails before the production change and passes afterward.",
+    "No additional worker allocation, integration, acceptance, recorded check, forced cleanup, queue mutation or capacity-ledger release occurs during observation.",
+    "Full registry and affected completion/handoff/stopped-cleanup/queue-corruption race cases pass:139 test outcomes, zero failures or skips."
+  ],
+  "limits": [
+    "This is controlled backend and deadline-injection evidence, not live-model reasoning, actual Docker runtime, native Windows execution or a measured performance claim.",
+    "The metadata backlog is in memory. Restart can repeat the slow first candidate once; retained registry rows and subsequent turns still preserve progress.",
+    "Repeated restarts before any subsequent turn, perpetually changing bindings or a collector that ignores context are not turned into successful completion.",
+    "No full-Go/full-frontend rerun is implied; the matching installed product candidate and native checks remain separate gates.",
+    "Existing f829 and CLOUD018 evidence was retained unchanged."
+  ]
+}

@@ -66,12 +66,16 @@ the current checkout and copied/hashed into each evidence directory. Use the
 corrected CAP-prefixed/sorted guard; do not substitute a stale helper. Package
 members and image/source lineage are checked against supplied immutable receipts.
 
+The product binary/web remain bound to the clean package supplied by `--expected-source`. `--expected-helper-source` separately pins the clean acceptance-helper checkout and defaults to the product revision. A helper-only correction may use a distinct explicitly supplied helper revision; both revisions and all executed helper hashes are recorded. The sandbox source comparison still uses the product revision. Dirty or unexpected helper source is refused.
+
+The context check requires the actual public `reviewedContextDelivery` receipt, the private `reviewedContext` reference, and the frozen manifest bytes to agree on version/digest. It also binds both session identities and their approved source/context fields to the exact task operation; a missing or legacy delivery does not pass.
+
 ## Preparation checks
 
 From this directory:
 
 ```sh
-node --test --test-concurrency=1 helper.test.mjs context-contract.test.mjs
+node --test --test-concurrency=1 ../task-context-delivery.test.mjs helper.test.mjs context-contract.test.mjs
 python3 -m unittest run_with_observer_test.py
 node --check dag.mjs
 node --test --test-concurrency=1 ../launch-recovery/worker-create-guard.test.mjs

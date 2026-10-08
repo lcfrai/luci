@@ -10,6 +10,7 @@ import { existsSync, statfsSync, mkdirSync, mkdtempSync, readFileSync, readdirSy
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
+import {verifyTaskContextDelivery} from '../task-context-delivery.mjs';
 import {taskContracts,variants,seedFiles as initialFiles,variantFor,changedPaths,taskCommand,taskHandoff,answer,question,partialFiles,finalFiles} from './continuation-fixture.mjs';
 import {contextFilesV1,contextFileNames,dependencyFile,validateContinuationContext} from './continuation-context.mjs';
 import {validateCheckpointReview,validatePreviousAttempt,validateSeedOperation} from './checkpoint-contract.mjs';
@@ -35,6 +36,8 @@ const provenancePath = option('--provenance'); assert(provenancePath, 'Matching 
 const provenanceBytes = readFileSync(resolve(provenancePath)), provenance = JSON.parse(provenanceBytes);
 assert.equal(provenance.sourceDirty, false); assert.equal(provenance.sourceCommit, option('--expected-source'));
 assert.match(provenance.sourceCommit, /^[a-f0-9]{40}$/);
+const expectedHelperSource=option('--expected-helper-source',provenance.sourceCommit);assert.match(expectedHelperSource,/^[a-f0-9]{40}$/);
+const helperCommit=execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8'}).trim();const helperDirty=!!execFileSync('git',['status','--porcelain'],{cwd:repo,encoding:'utf8'}).trim();assert.equal(helperCommit,expectedHelperSource,'Acceptance helper checkout must match its separately declared source');assert.equal(helperDirty,false,'Acceptance helper source must be clean');
 for(const [path,expected] of Object.entries(imageEvidence.sourcesBefore??{})){
  assert(/^(sandboxd\/|images\/sandbox\/)/.test(path)&&!path.split('/').includes('..'));
  assert.equal(sha(execFileSync('git',['show',provenance.sourceCommit+':'+path],{cwd:repo,maxBuffer:32*1024**2})),expected,'Sandbox source differs from packaged source commit: '+path);
@@ -81,7 +84,7 @@ mkdirSync(evidence, { recursive: true, mode: 0o700 });
 writeFileSync(join(evidence, 'package-provenance.json'), provenanceBytes, { mode: 0o600, flag: 'wx' });
 writeFileSync(join(evidence,'image-provenance.json'),readFileSync(resolve(imageEvidencePath)),{mode:0o600,flag:'wx'});
 const driverNames=['continuation.mjs','continuation-fixture.mjs','continuation-context.mjs','checkpoint-contract.mjs','manual-start.mjs','automatic-completion.mjs','run-with-observer.py'];
-const reusedHelpers=['four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs'];
+const reusedHelpers=['task-context-delivery.mjs','four-project-queue/native-terminal-diagnostics.mjs','four-project-queue/sample-linux-owned.py','launch-recovery/fenced-docker-proxy.mjs','launch-recovery/worker-create-guard.mjs'];
 mkdirSync(join(evidence, 'accepted-harness'), { mode: 0o700 });
 for (const name of driverNames) writeFileSync(join(evidence, 'accepted-harness', name), readFileSync(new URL(name, import.meta.url)), { mode: 0o600, flag: 'wx' });
 for (const name of reusedHelpers) writeFileSync(join(evidence,'accepted-harness',name.replaceAll('/','_')),readFileSync(join(repo,'scripts/acceptance',name)),{mode:0o600,flag:'wx'});
@@ -92,7 +95,7 @@ const key = 'fixture-only-' + randomUUID(), lifecycle = randomUUID() + randomUUI
 const sensitive = [key, lifecycle, password], scrub = value => sensitive.reduce((text, secret) => text.replaceAll(secret, '[redacted]'), String(value));
 const receipt = {
   passed: false, mode:'continuation-installed-scripted', startedAt: new Date().toISOString(), sourceCommit: provenance.sourceCommit, sourceDirty: provenance.sourceDirty,
-  harnessCheckout: { commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(), dirty: !!execFileSync('git', ['status', '--porcelain'], { cwd: repo, encoding: 'utf8' }).trim() },
+  harnessCheckout: {commit:helperCommit,dirty:helperDirty,expectedSource:expectedHelperSource,productSource:provenance.sourceCommit,separateHelperRevision:helperCommit!==provenance.sourceCommit},
   packageIntegrity, initialRootFreeBytes: initialRootFree,
   resourceScope: 'Exactly two real workers for one continuation (partial,finish), one at a time; a dependent task is never authorized to run. Zero existing containers and six GiB root admission before every Create, no recovery fences allowed; hard one GiB running reserve. No image pulls, release or cloud allocation.',
   binarySHA256: sha(readFileSync(binary)), webIndexSHA256: sha(readFileSync(join(web, 'index.html'))), driverSHA256: sha(readFileSync(fileURLToPath(import.meta.url))),
@@ -308,11 +311,11 @@ async function queuedChild(key){
  const contract=variants[key];assert(contract);const operation=await until('Exact explicitly started child '+key,async()=>{const candidate=(await api('GET',owner.route+'/runs/'+owner.run.id)).run;owner.run=candidate;run=candidate;return candidate.operations.find(op=>op.taskId===contract.taskId&&op.attempt===contract.attempt&&op.status==='running');},150000);
  const session=await api('GET','/v1/sessions/'+operation.childId);ownedSessions.add(session.id);const worktrees=(await api('GET','/v1/projects/'+owner.owner.id+'/worktrees')).worktrees,checkout=worktrees.find(w=>w.id===operation.worktreeId);assert(checkout);
  const state={task:key,taskId:contract.taskId,owner:owner.owner,operation,session,checkout:checkout.path,count:0,requestedLimits:{memoryMiB:1024,cpuMillis:1000}};taskData.set(key,state);
- const actual=live(session.id),bundle=bundleSnapshot(session.id);assert.equal(session.reviewedContext?.status,'captured');assert.equal(session.reviewedContext.version,2);assert.equal(session.reviewedContext.digest,bundle['manifest.json'].sha256);initialBundles.set(session.id,bundle);state.container=actual;
+ const actual=live(session.id),bundle=bundleSnapshot(session.id);const contextDelivery=verifyTaskContextDelivery({session,stored:row(session.id),run:owner.run,operation,manifestBytes:readFileSync(join(bundles.get(session.id),'manifest.json')),version:2});assert.equal(contextDelivery.manifestDigest,bundle['manifest.json'].sha256);initialBundles.set(session.id,bundle);state.container=actual;
  const manifest=privateJSON(join(bundles.get(session.id),'manifest.json')),packet=privateJSON(join(bundles.get(session.id),dependencyFile),8*1024**2);validateContinuationContext(manifest,bundle,{projectId:owner.owner.id,runId:run.id,taskId:contract.taskId,operationId:operation.id,dependencyDigest:operation.dependencyContext?.digest,previousAttempt:key==='finish'?previousAttempt:undefined},packet);
  (receipt.dependencyPackets??=[]).push({variant:key,version:manifest.version,packet,manifestDigest:bundle['manifest.json'].sha256,dependencyContextDigest:manifest.binding.dependencyContextDigest});
  for(const name of canonicalNames.filter(name=>name!=='LUCI.md'))assert.equal(bundle[name].sha256,owner.canonicalBefore[name]);const luci=readFileSync(join(bundles.get(session.id),'LUCI.md'));assert(luci.subarray(0,owner.canonicalLuci.length).equals(owner.canonicalLuci));assert.deepEqual(row(session.id).implementationContext.taskIds,[contract.taskId]);assert.equal(workerContainers().length,1);
- (receipt.contextCaptures??=[]).push({variant:key,taskId:contract.taskId,operationID:operation.id,childID:session.id,baseCommit:operation.baseCommit,seedCommit:operation.checkpoint?.seedCommit,reviewedContext:session.reviewedContext,hashes:hashes(bundle)});await attach(session.id);state.attached=true;return state;
+ (receipt.contextCaptures??=[]).push({variant:key,taskId:contract.taskId,operationID:operation.id,childID:session.id,baseCommit:operation.baseCommit,seedCommit:operation.checkpoint?.seedCommit,reviewedContextDelivery:contextDelivery.delivery,reviewedContextReference:contextDelivery.reference,hashes:hashes(bundle)});await attach(session.id);state.attached=true;return state;
 }
 async function setPaused(paused){
  const settings=await api('GET','/v1/product/swarm-scheduler');
@@ -358,7 +361,7 @@ async function saveContext(projectOwner,connectionID){
  const tasks=taskContracts.map(value=>({...value,status:'todo',requirementIds:['AC-continuation']}));const plan=await api('POST',projectRoute+'/plan',{expectedRevision:0,expectedSpecificationRevision:spec.revision,tasks});const gitReview=await api('GET',projectRoute+'/git');await api('POST',projectRoute+'/git/commit',{message:'Fixture setup: reviewed continuation contract and independent checks',expectedReviewDigest:gitReview.reviewDigest});
  const branches=(await api('GET','/v1/projects/'+project.id+'/branches')).branches,branch=branches.find(row=>row.name==='main')??branches[0];assert(branch);const worktrees=(await api('GET','/v1/projects/'+project.id+'/worktrees?branchId='+encodeURIComponent(branch.id))).worktrees,worktree=worktrees.find(row=>row.isPrimary)??worktrees[0];assert(worktree);
  const selection={projectId:project.id,briefRevision:spec.briefRevision,specificationRevision:spec.revision,designPlanRevision:design.revision,planRevision:plan.revision,taskIds:tasks.map(t=>t.id)};const saved=(await api('POST',projectRoute+'/runs',{worktreeId:worktree.id,harness:'codex',model:'swarm-mechanics-fixture',permissionMode:'bypass',agentConnectionId:connectionID,outcome:'preview',implementationContext:selection,idempotencyKey:'continuation-reviewed-build'},201)).run;
- receipt.acceptedIntent={tasks,selection,inputDigest:saved.inputDigest,approvals:saved.input.approvals};return {owner:project,route:projectRoute,run:saved,goal,initialHead:execFileSync('git',['rev-parse','HEAD'],{cwd:project.path,encoding:'utf8'}).trim(),canonicalBefore:canonical(),canonicalLuci:readFileSync(join(project.path,'LUCI.md'))};
+ receipt.acceptedIntent={tasks,selection,publicRunInputSHA256:sha(JSON.stringify(saved.input)),inputHashBasis:'Helper-derived SHA256 of JSON.stringify(public ProjectRun.input), not the private controller inputDigest',approvals:saved.input.approvals};return {owner:project,route:projectRoute,run:saved,goal,initialHead:execFileSync('git',['rev-parse','HEAD'],{cwd:project.path,encoding:'utf8'}).trim(),canonicalBefore:canonical(),canonicalLuci:readFileSync(join(project.path,'LUCI.md'))};
 }
 function gitAt(directory,...args){assert(isFixturePath(directory));return execFileSync('git',['-c','core.hooksPath=/dev/null',...args],{cwd:directory,env:{PATH:process.env.PATH,HOME:join(fixture,'home'),GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:join(fixture,'home/.gitconfig'),GIT_OPTIONAL_LOCKS:'0'},encoding:'utf8',timeout:15000,maxBuffer:1024*1024}).trim();}
 function isFixturePath(directory){return typeof directory==='string'&&directory.startsWith(fixture+sep)&&realpathSync(directory)===directory&&lstatSync(directory).isDirectory();}
@@ -475,7 +478,7 @@ try {
  assert((await resultDialog.locator('[aria-label="Recorded verification evidence"]').innerText()).includes('No matching verification evidence is recorded here.'));
  await resultDialog.getByRole('button',{name:'Answer question',exact:true}).click();await resultDialog.getByLabel('Your answer',{exact:true}).fill(answer);
  const answered=await action(handoffPath+'/questions/'+reported.questionIds[0]+'/answer',()=>resultDialog.getByRole('button',{name:'Save answer',exact:true}).click());owner.run=answered.run;run=owner.run;
- previousAttempt=validatePreviousAttempt(answered.handoff,{projectId:owner.owner.id,runId:run.id,operation:original,contextDigest:partial.session.reviewedContext.digest,sourceCommit:originalSnapshot.head});
+ previousAttempt=validatePreviousAttempt(answered.handoff,{projectId:owner.owner.id,runId:run.id,operation:original,contextDigest:partial.session.reviewedContextDelivery.digest,sourceCommit:originalSnapshot.head});
  await resultDialog.getByText(answer,{exact:true}).waitFor();await page.screenshot({path:join(evidence,'attributed-answer.png'),fullPage:true});await resultDialog.getByRole('button',{name:'Close task result',exact:true}).click();
  const preservedOperation=structuredClone(owner.run.operations.find(op=>op.id===original.id));
  assert.equal(preservedOperation.handoff.unanswered,0);assert.deepEqual(sourceSnapshot(partial.checkout,partialFiles),originalSnapshot);assertPrimary(pristinePrimary);assert.deepEqual(bundleSnapshot(partial.session.id),initialBundles.get(partial.session.id));

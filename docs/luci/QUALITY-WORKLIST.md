@@ -16,14 +16,25 @@ fixes and sends exact revisions for retest while other testing continues.
 
 ## Current acceptance checkpoint — 8 October 2026
 
-Published source correction: **`29be4018f951ba2b3f33ae63067e4b7257da0c7a`**
-(`codex/luci-production-runs`), acknowledged by the local tester for a focused
-Windows source-only batch. The clean matching Linux package and rebuilt sandbox
+Published application correction: **`f829a5e5a9c25e6e97e90e0d95884c0b738f88c2`**
+(`codex/luci-production-runs`), including CLOUD-017/018. Its clean Linux package
+passes all 1,197 extracted-file checks and has 347 licence components with none
+missing. The prior `29be4018` Windows source batch retains its reported scope. The clean matching Linux package and rebuilt sandbox
 image passed identity/export checks. Installed continuation attempt 1 is a
 preserved driver failure: one manual worker started, no task command completed;
 the helper waited for running status without explicitly reconciling it before
 releasing its scripted provider. Cleanup drained all owned resources. Corrected
 driver execution and the remaining installed/native/model gates are still open.
+
+Installed continuation attempt 2 at `f829a5e5` passed automatic manual-start
+observation, then failed before a fixture command on a driver DTO mismatch:
+capture status belongs to public `reviewedContextDelivery`, not the private
+`reviewedContext` reference. Exactly one worker started; controller/proxy drain
+and independent inspection confirm zero owned containers, volumes and processes.
+The 67 observer samples over 68.69 seconds are failed-workflow evidence. The
+helper correction also applies to the prepared dependency driver; the sustained
+driver already uses the private reference correctly. Application sources are
+unchanged. Completion/report/in-place UI acceptance was not reached.
 
 The Windows source batch has now closed with all 2,052 tracked hashes and HEAD
 unchanged, a clean checkout, 414 frontend tests and TypeScript passing, plus the
@@ -134,6 +145,7 @@ that immutable package and the local tester's pinned checkout.
 | LOCAL-006 | P1 / cloud implementation | An early identity marker returned before validating later sessions/instance paths. Native Windows diagnostics at `656a1ae1` accepted two junction-backed roots after adding identity, while rejecting both without it. No app or downstream write occurred. | **Focused native correction verified** at `2dcf245daca98d93e9cf7a40399b8fc78f4608a2`: the original four external junction cases all reject with InvalidData and preserve target bytes; all ten unedited selector-module tests pass, including LOCAL-004. The tester reports clean source, HEAD and all 1,808 tracked-file hashes unchanged, offline Rust1.99 with `-j1` and E:-only temporary state. No app, sidecar or Docker ran. Full native Tauri packaging later passed at `2dcf245d`; actual own-sidecar startup/reopen/shutdown subsequently passed their reported scope, while the later `919cffe0` LOCAL-004 ordinary-state preservation pass is scoped separately and the original historical timestamp discrepancy stays unexplained. The preceding Linux ten-test source receipt remains [marker validation](evidence/2026-10-08-local006-marker-validation.json); native evidence is relayed from the local thread. |
 | LOCAL-007 | P2 / cloud UI, native retest local | One rapid native project click during tree expansion selected a different row; later stable-tree repeats passed. No context write or leakage was observed, and the original cause remains unconfirmed. | Selection-only layout and keyboard-label correction published at `675ed402385b4082afda539b63fb0ff03565f58e`. 185 affected tests/typecheck and controlled source Chromium pass. The old selection/late-branch flow displaced following rows by 120/132 px; corrected selection keeps targets stable. Explicit expansion is intentional. Native tester reports warm and cold-reopen rapid fixed-coordinate selection, keyboard/disclosure/shortcut and draft-protection passes, plus four normal owned shutdowns and clean final state. Corrected behavior is verified at this scope. Original misselection cause remains unconfirmed. [Evidence](evidence/2026-10-08-local007-navigation.md). |
 | LOCAL-008 | P2 / local diagnosis, cloud UI review | Immediate focus assertion after Escape closes Reviewed context failed at 390 px in a controlled Windows Edge source fixture; desktop close passed. | Provisional at `29be4018` after 17 passing rendered checks. Focus had not yet been serialized; local timing/next-key diagnosis is pending to distinguish deferred Radix restoration from a product defect. No native reproduction or performance failure is claimed. Original receipt and separate helper cleanup failure are retained. |
+| LOCAL-009 | P2 / cloud runtime, reported by local source review | A slow completion capture can consume the shared observation deadline while the cursor has already advanced over the whole page. With four ended project tasks and a wrapping page, the same slow first task prevents the other three from ever being attempted. | Source-confirmed at `f829a5e5`; the new Linux controlled regression reproduces the starvation on the old code (one preserved expected failure, 675 unchanged inputs). No executed Windows reproduction is claimed. Fixed with a bounded backlog of unattempted metadata candidates, retaining exact-generation checks and 128-scan/eight-result limits. The identical four-project/restart regression passes after the fix; 139 affected race outcomes pass with zero failures/skips. It proves independent report/attention progress without allocation, integration or capacity release. [Before/after receipt](evidence/local009-observation-fairness/README.md). The next installed attempt waits for a new application revision/package. |
 | LOCAL-ENV-001 | P1 / local environment | Docker's live VHD was on nearly full C:, despite spacious source/cache drives; guest free space alone did not prove backing-volume headroom. | **Verified by local tester:** supported UI move completed to E:, active VHD/UI/CustomWslDistroDir agree, old C: VHD absent, same engine ID/version/context healthy. All 107 container IDs/states, 196 image rows (178 distinct IDs), 155 volume IDs and four running IDs are unchanged. C: 74.20 GiB, E: 903.27 GiB, guest 886 GiB free; cold verified backup retained. A fresh native read-only probe at `8f78804f` reports four volumes, C: limiting at about 74.2 GiB. Only 4.38 GiB host RAM is currently available, so actual confirmation proceeds without runtime/model allocation. Product confirmation and full workload gates remain separate. |
 
 The local tester also reports nine scoped Windows source-browser checks passed

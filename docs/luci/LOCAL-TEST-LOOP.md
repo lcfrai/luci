@@ -746,3 +746,69 @@ under `artifacts/releases/0.5.0-29be4018-continuation-failed`; its original arch
 hashes remain the identities in the failed receipt. Matching package/runtime,
 installed continuation/conflict/sustained results and native/live-provider
 acceptance remain separate gates.
+
+
+### Published `f829a5e5` application and failed continuation attempt 2
+
+**LOCAL FIX READY TO RETEST** was posted for
+`f829a5e5a9c25e6e97e90e0d95884c0b738f88c2`, remotely verified on
+`codex/luci-production-runs`. No dependency or configuration requirement changed.
+The sandbox sources remain those in `29be4018`; the cloud image identity is
+`sha256:333effcf40151e2411fa036b4581113be2af7f8d441bf9566f1cce6e7f208e98`.
+The clean matching Linux package passes 1,197 extracted-member checks and
+347-component licence evidence with none missing.
+
+Installed continuation attempt 2 passed CLOUD-017 automatic start observation,
+then failed before provider release because the helper read capture status from
+the wrong public session field. The public delivery descriptor and private
+context reference are different contracts. One worker was created and started,
+zero fixture commands completed, and the failure is preserved with 67 observer
+samples over 68.69 seconds. Cleanup drained the controller/proxy; independent
+inspection confirmed zero owned containers, volumes or service processes. Image,
+package and helper inputs remained unchanged during the attempt.
+
+Correct the confirmed DTO mismatch in continuation and dependency helpers, verify
+public delivery/private reference/frozen manifest identities, then use a fresh
+attempt. The application package can remain pinned to `f829a5e5` if its sources
+are unchanged; record the helper revision independently and require its exact
+clean source. No completed continuation, final report, integration or model
+quality is inferred from the successful start stage.
+
+
+### LOCAL-009 completion-observer fairness
+
+The local tester source-confirmed LOCAL-009 (P2) at `f829a5e5`: the observer
+advances its cursor for the entire candidate page before attempting it. With
+four ended tasks, one per project, a first collector consuming the shared
+three-second deadline prevents B/C/D from being attempted; the wrapping page
+returns A first on every following turn. This is a source finding, not an
+executed native or live-provider reproduction.
+
+Cloud runtime owns the correction and a controlled repeated-turn/restart
+regression. Preserve the bounded scan/result limits and exact-generation
+checks; the slow task must remain pending while the other three publish their
+reports and attention. Observation must not allocate, integrate or release
+capacity. The helper DTO correction remains useful, but the next installed
+retry now requires a new application revision and package as well.
+
+The local tester separately retrieved `f829a5e5` without switching the pinned
+`29be4018` batch and independently matched all 674 final backend inputs and
+433 final frontend inputs. No new local test process was launched: reported
+available RAM remained 1.47–1.87 GiB. Existing Docker workloads and prior
+unfinished cases are preserved.
+
+
+LOCAL-009 now has controlled before/after evidence: the identical four-project
+regression failed on the old observer and passed with its bounded metadata
+backlog. Only the observer source differs between those test inputs. Final
+affected verification passes 139 race outcomes with no failures or skips; see
+[the receipt](evidence/local009-observation-fairness/README.md). This closes the
+source correction scope, not native or installed acceptance.
+
+The accompanying C012/C013 helper correction passes 44 Node tests, eight mocked
+Python checks and 18 syntax checks. It compares public delivery, private context
+reference, frozen manifest and exact task identity. A public-input hash is now
+labelled helper-derived rather than reading a nonexistent private digest field.
+The optional `--expected-helper-source` defaults to product source but can pin a
+distinct exact clean helper checkout; product package/source and image fences
+remain independent. See the [helper receipt](../../scripts/acceptance/task-continuation/evidence/context-delivery-correction.json).

@@ -10,6 +10,10 @@ The shared [`worker-create-guard.mjs`](../launch-recovery/worker-create-guard.mj
 
 The driver verifies the package archive, every installed member, binary/web entry hashes, clean source commit, sandbox image and image-source provenance. It records the exact reused proxy/guard/terminal/observer bytes. Supply an image lineage receipt with the same contract used by the existing DAG/four-project helpers; no new image is built here.
 
+The product binary/web remain bound to the clean package supplied by `--expected-source`. `--expected-helper-source` separately pins the clean acceptance-helper checkout and defaults to the product revision. A helper-only correction may use a distinct explicitly supplied helper revision; both revisions and all executed helper hashes are recorded. The sandbox source comparison still uses the product revision. Dirty or unexpected helper source is refused.
+
+The context check requires the actual public `reviewedContextDelivery` receipt, the private `reviewedContext` reference, and the frozen manifest bytes to agree on version/digest. It also binds both session identities and their approved source/context fields to the exact task operation; a missing or legacy delivery does not pass.
+
 ## Workflow and assertions
 
 1. API fixture setup creates one owner, one local scripted provider connection and approved context. The browser prepares a one-worker team and explicitly starts the first task. After each acknowledged manual start, the helper requires the app’s automatic production reconciliation and visible **Recorded as running** state for the exact reserved child before native context inspection and scripted provider release. It captures exactly one real post-start observation response. There is no manual **Check team status** fallback to hide a CLOUD-017 regression; a `dispatching` flag alone is never treated as running. These setup actions are labelled separately from the app interactions under test.
@@ -28,7 +32,7 @@ The original checkout, successor seed, reports/answer and frozen contexts remain
 From this directory:
 
 ```sh
-node --test --test-concurrency=1 helper.test.mjs context-contract.test.mjs checkpoint-contract.test.mjs manual-start.test.mjs automatic-completion.test.mjs
+node --test --test-concurrency=1 ../task-context-delivery.test.mjs helper.test.mjs context-contract.test.mjs checkpoint-contract.test.mjs manual-start.test.mjs automatic-completion.test.mjs
 python3 -m unittest run_with_observer_test.py
 node --check continuation.mjs
 ```
@@ -49,6 +53,7 @@ python3 run-with-observer.py \
   --web /ABS/INSTALLED/web \
   --provenance /ABS/CLEAN-PACKAGE-PROVENANCE.json \
   --expected-source FULL_MATCHING_COMMIT \
+  --expected-helper-source FULL_MATCHING_HELPER_COMMIT \
   --image TRUSTED_EXISTING_IMAGE \
   --expected-image-id sha256:EXACT_IMAGE_HASH \
   --image-provenance /ABS/VERIFIED-IMAGE-PROVENANCE.json \

@@ -1,0 +1,338 @@
+{
+  "version": 1,
+  "issues": [
+    "CLOUD-012",
+    "CLOUD-013",
+    "CLOUD-017",
+    "CLOUD-018"
+  ],
+  "status": "passed-preparation-only",
+  "verifiedAt": "2026-10-08T15:18:46.945407+00:00",
+  "checkoutBase": "f829a5e5a9c25e6e97e90e0d95884c0b738f88c2",
+  "sourceState": "Working-tree helper corrections are identified by the SHA256 manifest, not asserted to be the base commit or installed product.",
+  "scope": "Controlled public/private context-delivery contract, C012/C013 helper oracles, mocked Python wrapper cleanup and syntax. No Docker, browser, Luci, compiler or external model executed; installed continuation and DAG remain unverified.",
+  "nodeTests": 44,
+  "nodePass": 44,
+  "pythonTests": [
+    4,
+    4
+  ],
+  "syntaxChecks": 18,
+  "sourceFiles": 31,
+  "sourcesUnchanged": true,
+  "sources": {
+    "scripts/acceptance/task-continuation/README.md": "cf37d834c860c8e9a843f11d2113fe957379b4e58d8a772d84c6717974a121ff",
+    "scripts/acceptance/task-continuation/automatic-completion.mjs": "d440222b8c3ac36198e505e1f5e0018a852a14478ddd7d50bb700f15a3361488",
+    "scripts/acceptance/task-continuation/automatic-completion.test.mjs": "02809fcf508e8f321ff31176b29b6f5dc3465a6272fe0a13ea9267aea07155d4",
+    "scripts/acceptance/task-continuation/checkpoint-contract.mjs": "96193cd773d9c0381072c1bd02a7fcf343b948d79682b736ebb0cb85be8c0f83",
+    "scripts/acceptance/task-continuation/checkpoint-contract.test.mjs": "ae50750cdcab182522a17bcc91ce761252f3551315f04273a9700fadfab05fe9",
+    "scripts/acceptance/task-continuation/context-contract.test.mjs": "1a015521f526123ea30c2085f2add55e40e81334f398a8d6a1efcb60eff280a1",
+    "scripts/acceptance/task-continuation/continuation-context.mjs": "0b0a91981bde41ec2ce5650e7d82d44e8054d5b501eb600333d2acb259f227fb",
+    "scripts/acceptance/task-continuation/continuation-fixture.mjs": "384e633cbe6a9033be54698b64dad73ef559cf454d0db4c9af03c9953dcdb97c",
+    "scripts/acceptance/task-continuation/continuation.mjs": "f7b8183877e8ceee9ada5b46c2a53ff485cca53abeba9a096a0c60e6e1525015",
+    "scripts/acceptance/task-continuation/evidence/29be4018-attempt1.json": "0701f27770d3f99504e98ebf6ebd31b7a579a4a5f591e0bb18f1ab283abe720e",
+    "scripts/acceptance/task-continuation/evidence/automatic-observation-preparation.json": "94b8075e763197850ab7a0097e4e500f9939d7810aafd80069f91f895d7c7ec9",
+    "scripts/acceptance/task-continuation/evidence/f829a5e5-attempt2.json": "bc469b77ad98664493c6abeb42bd2531889263acae5ae3a2d7954aeec3ca6a8d",
+    "scripts/acceptance/task-continuation/helper.test.mjs": "5efc22bfa8df73a66efcb50ac65f750fbfcb4fcee6fdc8e7c955b784f887a1dd",
+    "scripts/acceptance/task-continuation/manual-start.mjs": "47cd7b0bea24cf2fbf8fd33b95762e181618e602283ca302c32b87b5ae3b2d40",
+    "scripts/acceptance/task-continuation/manual-start.test.mjs": "fd32c101fcbeb61af4770bab3014e9f0aae890767e49c20ef43fde279f0b8674",
+    "scripts/acceptance/task-continuation/run-with-observer.py": "cc27edcd9c624f874a096596e6a393483a054efb9e783da8ee8eb40467c3639a",
+    "scripts/acceptance/task-continuation/run_with_observer_test.py": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e",
+    "scripts/acceptance/task-dependencies/README.md": "97a8511ddeae9a2d73fe22d96527a0de34d351918b4e258ee88b3192a321fa0a",
+    "scripts/acceptance/task-dependencies/context-contract.mjs": "07cf795341efc55f6e6e08929e18c02cfec85cb32663f49be69260e6df8faee2",
+    "scripts/acceptance/task-dependencies/context-contract.test.mjs": "762dcea2b5c9d6e86fb55fbb4bcdc4b2d625f166b325c2d76585e4c5e57bbd18",
+    "scripts/acceptance/task-dependencies/dag-fixture.mjs": "5290f1cf6bc5e3dd0d31120606984e65979851a03e68e701c51a998e7138a0a2",
+    "scripts/acceptance/task-dependencies/dag.mjs": "a0ef1aeeaa9e38090f6757d84d972518b6e2f7ac57950d60abe628e35fd6b18d",
+    "scripts/acceptance/task-dependencies/helper.test.mjs": "520739aa2a67ca683517a14a439493ff58b77a6e8a216300544e6c2e00621561",
+    "scripts/acceptance/task-dependencies/run-with-observer.py": "80da81c9d46841df6ffa505c7e9d6641849408748ba1b1bc2661cd73f043068f",
+    "scripts/acceptance/task-dependencies/run_with_observer_test.py": "16d056f5c3b5cb4febdb0765c4a458b3afc9276b0c22f46902391145f6a71d1e",
+    "scripts/acceptance/task-context-delivery.mjs": "9c16efd099c2cbf475a206d487c7abe76ee2699ee19c2061f6d2be8dd063ad68",
+    "scripts/acceptance/task-context-delivery.test.mjs": "1a1620ebe1a60ad628008f02c0b6ccbb6f8eeba10052eb52672377d01de673cd",
+    "scripts/acceptance/launch-recovery/worker-create-guard.mjs": "0036995ceaeb9d16073f21ddcb126a6e328df23a838e1458362b59416a236312",
+    "scripts/acceptance/launch-recovery/fenced-docker-proxy.mjs": "a1a88540e28775530808a34c0e0011192eb0692bd3fc71d36428ab46059eaefa",
+    "scripts/acceptance/four-project-queue/native-terminal-diagnostics.mjs": "b7f8ee14a318f79edd29197756a9a31632621d826629070a6ddb7f6380a88ee6",
+    "scripts/acceptance/four-project-queue/sample-linux-owned.py": "f9bdd159bb27d19b38df602146319ff9a9b2c828c89038057ed5b58524f4c0ad"
+  },
+  "commands": [
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--test",
+        "--test-concurrency=1",
+        "scripts/acceptance/task-context-delivery.test.mjs",
+        "scripts/acceptance/task-continuation/automatic-completion.test.mjs",
+        "scripts/acceptance/task-continuation/checkpoint-contract.test.mjs",
+        "scripts/acceptance/task-continuation/context-contract.test.mjs",
+        "scripts/acceptance/task-continuation/helper.test.mjs",
+        "scripts/acceptance/task-continuation/manual-start.test.mjs",
+        "scripts/acceptance/task-dependencies/context-contract.test.mjs",
+        "scripts/acceptance/task-dependencies/helper.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 4.372960388980573,
+      "log": "artifacts/quality-swarm/context-delivery-correction/00-command.log",
+      "logSHA256": "0d38e017e48f77eb379f68775492eaeb3430aec9b4b6c2015c77f811a05d2b35"
+    },
+    {
+      "workingDirectory": "scripts/acceptance/task-continuation",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "run_with_observer_test.py"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.33340879701427184,
+      "log": "artifacts/quality-swarm/context-delivery-correction/01-command.log",
+      "logSHA256": "7926728658ddf2bf527023750a1a9bdaf2c602b4e4a723c944deea18276d56bb"
+    },
+    {
+      "workingDirectory": "scripts/acceptance/task-dependencies",
+      "command": [
+        "python3",
+        "-m",
+        "unittest",
+        "run_with_observer_test.py"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.436333771009231,
+      "log": "artifacts/quality-swarm/context-delivery-correction/02-command.log",
+      "logSHA256": "6760e6b1942e405ab976192cafe0422dd67f5431a68d77dc119253523fc9518b"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-context-delivery.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.08773631099029444,
+      "log": "artifacts/quality-swarm/context-delivery-correction/03-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-context-delivery.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.059389235015260056,
+      "log": "artifacts/quality-swarm/context-delivery-correction/04-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-continuation/automatic-completion.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.06909479899331927,
+      "log": "artifacts/quality-swarm/context-delivery-correction/05-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-continuation/automatic-completion.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.05759848398156464,
+      "log": "artifacts/quality-swarm/context-delivery-correction/06-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-continuation/checkpoint-contract.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.061009274009848014,
+      "log": "artifacts/quality-swarm/context-delivery-correction/07-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-continuation/checkpoint-contract.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.05211645597591996,
+      "log": "artifacts/quality-swarm/context-delivery-correction/08-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-continuation/context-contract.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.058104828000068665,
+      "log": "artifacts/quality-swarm/context-delivery-correction/09-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-continuation/continuation-context.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.06852797899045981,
+      "log": "artifacts/quality-swarm/context-delivery-correction/10-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-continuation/continuation-fixture.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.06172381600481458,
+      "log": "artifacts/quality-swarm/context-delivery-correction/11-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-continuation/continuation.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.07441839299281128,
+      "log": "artifacts/quality-swarm/context-delivery-correction/12-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-continuation/helper.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.05130717498832382,
+      "log": "artifacts/quality-swarm/context-delivery-correction/13-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-continuation/manual-start.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.052471360977506265,
+      "log": "artifacts/quality-swarm/context-delivery-correction/14-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-continuation/manual-start.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.06344401100068353,
+      "log": "artifacts/quality-swarm/context-delivery-correction/15-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/context-contract.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.04135812900494784,
+      "log": "artifacts/quality-swarm/context-delivery-correction/16-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/context-contract.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.04815332798170857,
+      "log": "artifacts/quality-swarm/context-delivery-correction/17-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/dag-fixture.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.05720983899664134,
+      "log": "artifacts/quality-swarm/context-delivery-correction/18-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/dag.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.0505992469843477,
+      "log": "artifacts/quality-swarm/context-delivery-correction/19-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "workingDirectory": ".",
+      "command": [
+        "node",
+        "--check",
+        "scripts/acceptance/task-dependencies/helper.test.mjs"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 0.20239866798510775,
+      "log": "artifacts/quality-swarm/context-delivery-correction/20-command.log",
+      "logSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "diffCheckExitCode": 0,
+  "review": "One bounded independent wire-compatibility read found no further definite missing/misnamed fields after these two corrections. This is not a broad-flow or installed-runtime proof.",
+  "corrections": [
+    "Validate public reviewedContextDelivery, private reviewedContext and actual frozen manifest version/digest together; retain exact task/session/source binding.",
+    "Use actual public delivery digest for prior-attempt context and record delivery/reference separately.",
+    "Replace undefined public inputDigest evidence with explicitly labelled helper-derived SHA256 of public ProjectRun.input.",
+    "Independently pin clean helper checkout with --expected-helper-source (defaults to immutable product source); record both lineages."
+  ],
+  "preservedFailedAttempt": "scripts/acceptance/task-continuation/evidence/f829a5e5-attempt2.json",
+  "runtimeHold": "Wait for matching LOCAL-009-corrected product package and separate exclusive runtime authorization; no automatic retry.",
+  "publication": {
+    "receipt": "scripts/acceptance/task-continuation/evidence/context-delivery-correction.json",
+    "receiptAddedAfterVerification": true,
+    "receiptWasNotATestInput": true,
+    "originalReceipt": "artifacts/quality-swarm/context-delivery-correction/verification.json",
+    "originalReceiptSHA256": "4638a1e6555426998e81b8fbb46ecca10b90e4f1b9fc78cb483da15796c72a7a",
+    "note": "Prior preparation/failed receipts are retained historical evidence; only the current explicit source manifest identifies this controlled batch. No raw private fixture paths, credentials or context are published."
+  }
+}

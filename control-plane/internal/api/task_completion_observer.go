@@ -12,6 +12,7 @@ import (
 type taskCompletionObservations struct {
 	mu        sync.Mutex
 	cursor    int
+	pending   []registry.TaskObservationCandidate
 	lastError string
 }
 
@@ -51,22 +52,32 @@ func (a *API) ObserveTaskSessionsOnce(ctx context.Context) (result error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	candidates, next, err := reader.TaskObservationPage(a.taskObservations.cursor, 128, 8)
-	if err != nil {
-		return err
+	if len(a.taskObservations.pending) == 0 {
+		candidates, next, err := reader.TaskObservationPage(a.taskObservations.cursor, 128, 8)
+		if err != nil {
+			return err
+		}
+		a.taskObservations.pending = candidates
+		a.taskObservations.cursor = next
 	}
-	// Advance on failures as well as success. Busy/uncertain children remain
-	// durable and return on the next cycle without starving another project.
-	a.taskObservations.cursor = next
+	// Keep at most one bounded page of metadata, not full session/context rows.
+	// Consume each candidate only when its attempt starts. A slow first child
+	// may exhaust this turn, but the next turn starts with its unattempted peers
+	// instead of wrapping the scan cursor and selecting that same child again.
+	// Restart discards this optimization; durable unmarked rows remain eligible.
 	var failures []error
-	for _, candidate := range candidates {
+	for len(a.taskObservations.pending) != 0 {
 		if err := ctx.Err(); err != nil {
 			return errors.Join(append(failures, err)...)
 		}
+		candidate := a.taskObservations.pending[0]
+		a.taskObservations.pending[0] = registry.TaskObservationCandidate{}
+		a.taskObservations.pending = a.taskObservations.pending[1:]
 		if err := a.observeTaskCompletionCandidate(ctx, candidate); err != nil {
 			failures = append(failures, err)
 		}
 	}
+	a.taskObservations.pending = nil
 	return errors.Join(failures...)
 }
 
